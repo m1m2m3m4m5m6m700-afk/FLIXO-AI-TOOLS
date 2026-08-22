@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const zh: LocalizedToolSeo = { title:'在线给图片添加水印', description:'直接在浏览器中为图片添加文字水印。', intro:'输入水印文字并在本地处理图片，无需上传原始文件。', keywords:['图片添加水印','图片水印','文字水印'], howTo:['上传图片。','输入水印文字。','应用水印并下载结果。'], features:['本地处理','文字水印','快速下载'], altText:['水印编辑器','文字预览','加水印后的图片'] };
