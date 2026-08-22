@@ -1,4 +1,4 @@
-import type { ToolManifest, LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+import type { ToolManifest } from '@/lib/seo/tool-manifest';
 
 export type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
 
