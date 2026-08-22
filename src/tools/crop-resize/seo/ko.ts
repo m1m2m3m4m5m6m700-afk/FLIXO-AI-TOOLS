@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const ko: LocalizedToolSeo = { title:'이미지 자르기 및 크기 변경', description:'브라우저에서 이미지를 자르고 정확한 출력 크기를 설정합니다.', intro:'자르기 영역과 출력 크기를 지정한 뒤 이미지를 로컬에서 처리합니다.', keywords:['이미지 자르기','이미지 크기 변경','사진 리사이즈'], howTo:['이미지를 업로드합니다.','자르기 영역을 선택합니다.','크기를 설정하고 결과를 다운로드합니다.'], features:['로컬 처리','정확한 크기','빠른 다운로드'], altText:['이미지 자르기 및 크기 변경 도구','선택된 자르기 영역','리사이즈 미리보기'] };
