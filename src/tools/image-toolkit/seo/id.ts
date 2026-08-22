@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const id: LocalizedToolSeo = { title:'Konversi Gambar ke Teks OCR Online', description:'Ekstrak teks dari gambar langsung di browser dengan OCR.', intro:'Unggah gambar, jalankan praproses OCR lokal, lalu unduh teks sebagai TXT.', keywords:['gambar ke teks','OCR online','ekstrak teks gambar'], howTo:['Unggah gambar.','Jalankan OCR.','Periksa dan unduh teks.'], features:['OCR di browser','Web Worker khusus','Unduhan TXT'], altText:['Alat OCR gambar ke teks','Pratinjau hasil OCR','Unduh teks'] };
