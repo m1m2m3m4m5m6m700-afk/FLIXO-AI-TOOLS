@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { recordToolPerformance } from '../../lib/diagnostics/performance';
 
 type Mode = 'photo-colorizer' | 'background-blur' | 'passport-photo-maker' | 'watermark-adder' | 'meme-generator' | 'collage-maker' | 'image-effects' | 'exif-cleaner' | 'svg-optimizer' | 'mockup-generator' | 'image-to-svg';
 
@@ -36,13 +37,22 @@ async function canvasResult(canvas: HTMLCanvasElement, name: string, mime = 'ima
 
 async function runImageEffectsWorker(blob: Blob, effect: { brightness: number; contrast: number; saturate: number; grayscale: number }, width: number, height: number): Promise<Result> {
   if (typeof Worker === 'undefined') throw new Error('Image Effects Worker is unavailable.');
+  const startedAt = typeof performance === 'undefined' ? Date.now() : performance.now();
   return await new Promise<Result>((resolve, reject) => {
     const worker = new Worker(new URL('./image-effects-worker.ts', import.meta.url), { type: 'classic' });
     const cleanup = () => worker.terminate();
     worker.onmessage = (event: MessageEvent<EffectsWorkerResponse>) => {
+      const workerDurationMs = Math.max(0, (typeof performance === 'undefined' ? Date.now() : performance.now()) - startedAt);
       cleanup();
       if (event.data.ok && event.data.blob instanceof Blob) {
         const output = event.data.blob;
+        recordToolPerformance({
+          toolId: 'image-effects',
+          operation: 'worker-transform',
+          durationMs: workerDurationMs,
+          workerDurationMs,
+          encodeDurationMs: workerDurationMs,
+        });
         resolve({ blob: output, url: URL.createObjectURL(output), name: 'flixo-image-effects.png', width, height });
       } else {
         reject(new Error(event.data.error || 'Image Effects Worker failed.'));
@@ -74,7 +84,7 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
     try {
       if (mode === 'svg-optimizer') {
         const svg = await files[0].text();
-        const optimized = svg.replace(/<!--[^]*?-->/g, '').replace(/>\s+</g, '><').replace(/\s{2,}/g, ' ').trim();
+        const optimized = svg.replace(/<!--[\s\S]*?-->/g, '').replace(/>\s+</g, '><').replace(/\s{2,}/g, ' ').trim();
         const blob = new Blob([optimized], { type: 'image/svg+xml' });
         setResult({ blob, url: URL.createObjectURL(blob), name: 'flixo-optimized.svg', text: optimized });
         return;
