@@ -1,0 +1,6 @@
+{
+  "javascriptBytes": 3145728,
+  "cssBytes": 1048576,
+  "totalAssetBytes": 5242880,
+  "notes": "Initial safety ceilings. Tighten only after measured production baseline. Core Web Vitals remain field-data metrics, not static build assertions."
+}
