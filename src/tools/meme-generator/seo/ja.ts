@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const ja: LocalizedToolSeo = { title:'オンラインミームジェネレーター', description:'ブラウザで画像をローカル処理してミームを作成します。', intro:'画像をアップロードし、ミーム文字を追加して完成品をダウンロードします。', keywords:['ミームジェネレーター','ミーム作成','オンラインミーム'], howTo:['画像をアップロード。','文字を追加。','ミームを作成してダウンロード。'], features:['ローカル画像処理','カスタム文字','結果をダウンロード'], altText:['ミーム編集画面','文字プレビュー','完成したミーム'] };
