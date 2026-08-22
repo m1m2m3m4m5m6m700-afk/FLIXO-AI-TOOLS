@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const ar: LocalizedToolSeo = { title:'تحويل الصورة إلى نص OCR', description:'استخرج النص من الصور مباشرة داخل متصفحك باستخدام OCR.', intro:'ارفع صورة، شغّل المعالجة المحلية للتعرّف على النص، ثم نزّل النص كملف TXT.', keywords:['تحويل الصورة إلى نص','OCR عربي','استخراج النص من الصورة'], howTo:['ارفع الصورة.','شغّل OCR.','راجع النص ونزّله.'], features:['OCR داخل المتصفح','Web Worker مخصص','تنزيل TXT'], altText:['أداة تحويل الصورة إلى نص','معاينة نتيجة OCR','تنزيل النص المستخرج'] };
