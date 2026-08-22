@@ -17,6 +17,7 @@
     "validate:baseline": "node scripts/validate-engineering-baseline.mjs",
     "report:localization": "node scripts/report-localization-coverage.mjs",
     "validate:performance-budget": "node scripts/validate-performance-budget.mjs",
+    "report:performance-baseline": "node scripts/report-performance-baseline.mjs",
     "generate:sitemap": "node scripts/generate-sitemap.mjs",
     "check": "npm run typecheck && npm run lint && npm run validate:i18n && npm run validate:seo && npm run validate:seo-manifest && npm run build && npm run validate:performance-budget",
     "verify": "npm run validate:baseline && npm run check && npm run audit:production",
