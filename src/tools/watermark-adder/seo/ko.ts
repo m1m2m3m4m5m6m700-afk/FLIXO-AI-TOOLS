@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const ko: LocalizedToolSeo = { title:'이미지에 워터마크 추가', description:'브라우저에서 이미지에 텍스트 워터마크를 추가합니다.', intro:'워터마크 텍스트를 입력하고 원본 파일을 업로드하지 않고 로컬에서 처리합니다.', keywords:['이미지 워터마크 추가','워터마크 넣기','사진 워터마크'], howTo:['이미지를 업로드합니다.','워터마크 텍스트를 입력합니다.','적용 후 결과를 다운로드합니다.'], features:['로컬 처리','텍스트 워터마크','빠른 다운로드'], altText:['워터마크 편집기','텍스트 미리보기','워터마크 이미지'] };
