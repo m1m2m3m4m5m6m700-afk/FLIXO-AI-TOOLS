@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const hi: LocalizedToolSeo = { title:'इमेज से टेक्स्ट OCR ऑनलाइन', description:'ब्राउज़र में OCR से इमेज से टेक्स्ट निकालें।', intro:'इमेज अपलोड करें, स्थानीय OCR चलाएँ और पहचाने गए टेक्स्ट को TXT में डाउनलोड करें।', keywords:['image to text','OCR online','image text extraction'], howTo:['इमेज अपलोड करें।','OCR चलाएँ।','टेक्स्ट जाँचें और डाउनलोड करें।'], features:['ब्राउज़र OCR','समर्पित Web Worker','TXT डाउनलोड'], altText:['इमेज से टेक्स्ट OCR टूल','OCR परिणाम','निकाला गया टेक्स्ट'] };
