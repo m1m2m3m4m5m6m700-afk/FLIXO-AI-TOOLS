@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const sv: LocalizedToolSeo = { title:'Konvertera bild till SVG', description:'Konvertera bilder till SVG direkt i webbläsaren.', intro:'Konvertera en bild lokalt till SVG utan att ladda upp originalfilen.', keywords:['bild till svg','svg konverterare','konvertera bild svg'], howTo:['Ladda upp en bild.','Konvertera till SVG.','Ladda ner resultatet.'], features:['Lokal behandling','SVG-export','Snabb nedladdning'], altText:['Bild till SVG-verktyg','Förhandsvisning','SVG-resultat'] };
