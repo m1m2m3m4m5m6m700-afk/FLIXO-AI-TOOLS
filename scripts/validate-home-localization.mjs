@@ -21,8 +21,13 @@ if (!source.includes("dir:'rtl'")) {
   console.error('RTL locale direction is missing.');
   process.exit(1);
 }
-if (homePage.includes("../data/home-locales") || homePage.includes("@/data/home-locales")) {
+const homeLocaleRuntimeImport = /import\s+(?!type\b)(?:[^'";]+?\s+from\s+)?['"](?:\.\.\/data\/home-locales|@\/data\/home-locales)['"]/;
+if (homeLocaleRuntimeImport.test(homePage)) {
   console.error('HomePage must not statically import home-locales.ts; use the lazy home loader.');
+  process.exit(1);
+}
+if (!homePage.includes('loadHomeCopy(')) {
+  console.error('HomePage must use loadHomeCopy() for localized copy.');
   process.exit(1);
 }
 if (!source.includes('HOME_I18N')) {
