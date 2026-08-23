@@ -4,6 +4,8 @@ import { arImageCompressorRoute } from './routes/ar-image-compressor';
 import { arQuickFlowRoute } from './routes/ar-quickflow';
 import { enImageCompressorRoute } from './routes/en-image-compressor';
 import { enQuickFlowRoute } from './routes/en-quickflow';
+import { localizedHomeRoute } from './routes/localized-home';
+import { localizedQuickFlowRoute } from './routes/localized-quickflow';
 import {
   enAiImageGeneratorRoute,
   enBackgroundBlurRoute,
@@ -36,10 +38,12 @@ import { rootRoute } from './routes/__root';
 const routeTree = rootRoute.addChildren([
   indexRoute,
   arIndexRoute,
+  localizedHomeRoute,
   enImageCompressorRoute,
   arImageCompressorRoute,
   enQuickFlowRoute,
   arQuickFlowRoute,
+  localizedQuickFlowRoute,
   enBackgroundRemoverRoute,
   enAiImageGeneratorRoute,
   enImageUpscalerRoute,

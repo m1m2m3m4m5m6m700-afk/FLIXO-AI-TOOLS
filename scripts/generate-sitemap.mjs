@@ -7,6 +7,7 @@ const readyToolIds = [...toolsSource.matchAll(/\{ id: '([^']+)',[^\n]*?isReady: 
 
 const urls = [`${siteOrigin}/`];
 for (const locale of locales) {
+  urls.push(`${siteOrigin}/${locale}`);
   for (const toolId of readyToolIds) urls.push(`${siteOrigin}/${locale}/${toolId}`);
 }
 
@@ -14,4 +15,4 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.s
 
 mkdirSync('public', { recursive: true });
 writeFileSync('public/sitemap.xml', xml, 'utf8');
-console.log(`Generated sitemap with ${urls.length} URLs (${readyToolIds.length} ready tools × ${locales.length} locales + home).`);
+console.log(`Generated sitemap with ${urls.length} URLs (${readyToolIds.length} ready tools × ${locales.length} locales + ${locales.length + 1} home URLs).`);
