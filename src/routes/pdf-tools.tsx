@@ -39,3 +39,22 @@ export const enPdfCompressorRoute = createRoute({
   ] }),
   component: () => <CompressorComponent />,
 });
+
+const unlockProtectTool = getToolConfigByPath('/en/pdf-unlock-protect');
+if (!unlockProtectTool) throw new Error('Missing ToolConfig for /en/pdf-unlock-protect');
+if (!unlockProtectTool.isReady) throw new Error('PDF Unlock & Protect route is not ready');
+const UnlockProtectComponent = unlockProtectTool.component;
+
+export const enPdfUnlockProtectRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/en/pdf-unlock-protect',
+  head: () => ({ meta: [
+    { title: 'PDF Unlock & Protect | FLIXO' },
+    { name: 'description', content: 'Password-protect or unlock PDF files locally in your browser.' },
+    { name: 'robots', content: 'index,follow,max-image-preview:large' },
+    { property: 'og:title', content: 'PDF Unlock & Protect | FLIXO' },
+    { property: 'og:description', content: 'Password-protect or unlock PDF files locally in your browser.' },
+    { property: 'og:type', content: 'website' },
+  ] }),
+  component: () => <UnlockProtectComponent />,
+});
