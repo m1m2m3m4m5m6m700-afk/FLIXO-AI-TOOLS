@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { recordToolPerformance } from '../../lib/diagnostics/performance';
+import { assertExifCleanerOutputIntegrity } from '../exif-cleaner/output-integrity';
 
 type Mode = 'photo-colorizer' | 'background-blur' | 'passport-photo-maker' | 'watermark-adder' | 'meme-generator' | 'collage-maker' | 'image-effects' | 'exif-cleaner' | 'svg-optimizer' | 'mockup-generator' | 'image-to-svg';
 
@@ -144,7 +145,11 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
       } else {
         ctx.drawImage(image, 0, 0, width, height);
       }
-      setResult(await canvasResult(canvas, `flixo-${mode}.png`));
+      const output = await canvasResult(canvas, `flixo-${mode}.png`);
+      if (mode === 'exif-cleaner') {
+        assertExifCleanerOutputIntegrity(output.blob, { width: output.width ?? width, height: output.height ?? height });
+      }
+      setResult(output);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Operation failed.'); }
     finally { setBusy(false); }
   }
