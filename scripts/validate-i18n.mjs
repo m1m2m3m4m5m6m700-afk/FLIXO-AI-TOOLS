@@ -31,13 +31,11 @@ if (missingHomeLocales.length) {
   process.exit(1);
 }
 
-const englishHero = /heroLead:'([^']+)/.exec(getHomeEntry('en'))?.[1] ?? '';
-const suspiciousFallbacks = expected.filter((locale) => {
-  if (locale === 'en') return false;
-  return getHomeEntry(locale).includes(`heroLead:'${englishHero}'`);
-});
-if (suspiciousFallbacks.length) {
-  console.error(`Possible English fallback detected in Home locale(s): ${suspiciousFallbacks.join(', ')}`);
+const getQuoted = (entry, key) => entry.match(new RegExp(`${key}'([^']*)'`))?.[1] ?? '';
+const englishHero = getQuoted(getHomeEntry('en'), 'heroLead:');
+const suspiciousHomeFallbacks = expected.filter((locale) => locale !== 'en' && getQuoted(getHomeEntry(locale), 'heroLead:') === englishHero);
+if (suspiciousHomeFallbacks.length) {
+  console.error(`Possible English fallback detected in Home locale(s): ${suspiciousHomeFallbacks.join(', ')}`);
   process.exit(1);
 }
 
@@ -52,6 +50,19 @@ if (missingQuickFlowLocales.length) {
   process.exit(1);
 }
 
+const getQuickFlowValue = (entry, field) => entry.match(new RegExp(`${field}:'([^']*)'`))?.[1] ?? '';
+const englishQuickFlow = getQuickFlowEntry('en');
+const quickFlowFields = ['missing','back','runLabel','choose','processing','result','download','chooseError','failure','running','run','resultAlt','progress'];
+const untranslatedQuickFlow = expected.filter((locale) => locale !== 'en' && quickFlowFields.some((field) => {
+  const english = getQuickFlowValue(englishQuickFlow, field);
+  const localized = getQuickFlowValue(getQuickFlowEntry(locale), field);
+  return Boolean(english) && localized === english;
+}));
+if (untranslatedQuickFlow.length) {
+  console.error(`Untranslated QuickFlow copy detected in locale(s): ${untranslatedQuickFlow.join(', ')}`);
+  process.exit(1);
+}
+
 const uiCoverage = ['src/routes/home-page.tsx', 'src/routes/localized-home.tsx', 'src/routes/ar-home-page.tsx', 'src/routes/en-quickflow.tsx', 'src/routes/ar-quickflow.tsx', 'src/routes/localized-quickflow.tsx'];
 const missingUiFiles = uiCoverage.filter((file) => !existsSync(file));
 if (missingUiFiles.length > 0) {
@@ -59,4 +70,4 @@ if (missingUiFiles.length > 0) {
   process.exit(1);
 }
 
-console.log(`i18n validation passed: ${expected.length} locale files, complete Home and QuickFlow UI copy, and localized routes are present.`);
+console.log(`i18n validation passed: ${expected.length} locale files, complete Home and QuickFlow UI copy, localized routes, and no exact English QuickFlow fallbacks.`);
