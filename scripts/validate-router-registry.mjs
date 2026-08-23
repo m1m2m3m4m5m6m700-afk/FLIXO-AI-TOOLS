@@ -8,7 +8,14 @@ const routesDir = path.join(root, 'src/routes');
 
 const { TOOLS_REGISTRY } = await import('../src/config/tools.ts');
 
-assert.ok(Array.isArray(TOOLS_REGISTRY) && TOOLS_REGISTRY.length > 0, 'TOOLS_REGISTRY is empty or invalid.');
+function fail(stage, message, details = {}) {
+  console.error(`ROUTER_REGISTRY_FAILURE stage=${stage}`);
+  console.error(message);
+  for (const [key, value] of Object.entries(details)) {
+    console.error(`${key}: ${JSON.stringify(value, null, 2)}`);
+  }
+  process.exitCode = 1;
+}
 
 function propertyName(node) {
   if (!node.name) return null;
@@ -16,38 +23,34 @@ function propertyName(node) {
   return null;
 }
 
-function stringArgument(node, index = 0) {
-  const argument = node.arguments[index];
-  return argument && ts.isStringLiteral(argument) ? argument.text : null;
+function literalString(node) {
+  return ts.isStringLiteral(node) ? node.text : null;
 }
 
 function extractRoutePaths(filePath) {
   const source = fs.readFileSync(filePath, 'utf8');
   const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const routes = new Set();
+  const routes = [];
 
   function visit(node) {
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
       const callee = node.expression.text;
-
-      if (callee === 'createRoute') {
+      if (callee === 'createRoute' || callee === 'imageToolRoute') {
         const [argument] = node.arguments;
-        if (argument && ts.isObjectLiteralExpression(argument)) {
+        if (callee === 'createRoute' && argument && ts.isObjectLiteralExpression(argument)) {
           const pathProperty = argument.properties.find(
             (property) => ts.isPropertyAssignment(property) && propertyName(property) === 'path',
           );
-          if (pathProperty && ts.isPropertyAssignment(pathProperty) && ts.isStringLiteral(pathProperty.initializer)) {
-            routes.add(pathProperty.initializer.text);
-          }
+          const route = pathProperty && ts.isPropertyAssignment(pathProperty)
+            ? literalString(pathProperty.initializer)
+            : null;
+          if (route) routes.push({ route, file: filePath, kind: callee });
+        } else if (callee === 'imageToolRoute') {
+          const route = literalString(node.arguments[0]);
+          if (route) routes.push({ route, file: filePath, kind: callee });
         }
       }
-
-      if (callee === 'imageToolRoute') {
-        const routePath = stringArgument(node);
-        if (routePath) routes.add(routePath);
-      }
     }
-
     ts.forEachChild(node, visit);
   }
 
@@ -65,53 +68,114 @@ function listRouteFiles(dir) {
   return files;
 }
 
-const canonicalPaths = new Map();
-const aliases = new Map();
-
-for (const tool of TOOLS_REGISTRY) {
-  assert.ok(tool.id, 'every tool must have an id');
-  assert.ok(tool.path.startsWith('/'), `invalid canonical path for ${tool.id}: ${tool.path}`);
-  assert.equal(canonicalPaths.has(tool.path), false, `duplicate registry path: ${tool.path}`);
-  assert.equal(aliases.has(tool.path), false, `canonical path is already an alias: ${tool.id} -> ${tool.path}`);
-  canonicalPaths.set(tool.path, tool);
-
-  for (const alias of tool.aliases ?? []) {
-    assert.ok(alias.startsWith('/'), `invalid alias for ${tool.id}: ${alias}`);
-    assert.equal(aliases.has(alias), false, `duplicate registry alias: ${alias}`);
-    assert.equal(canonicalPaths.has(alias), false, `alias duplicates canonical path: ${tool.id} -> ${alias}`);
-    assert.equal(tool.isReady, true, `non-ready tool cannot expose a route alias: ${tool.id} -> ${alias}`);
-    aliases.set(alias, tool);
+try {
+  if (!Array.isArray(TOOLS_REGISTRY) || TOOLS_REGISTRY.length === 0) {
+    fail('registry-load', 'TOOLS_REGISTRY is empty or invalid.');
+    process.exit(1);
   }
+
+  const canonicalPaths = new Map();
+  const aliases = new Map();
+
+  for (const tool of TOOLS_REGISTRY) {
+    if (!tool.id) {
+      fail('registry-schema', 'Tool is missing id.', { tool });
+      process.exit(1);
+    }
+    if (typeof tool.path !== 'string' || !tool.path.startsWith('/')) {
+      fail('registry-schema', `Invalid canonical path for ${tool.id}.`, { path: tool.path });
+      process.exit(1);
+    }
+    if (canonicalPaths.has(tool.path) || aliases.has(tool.path)) {
+      fail('registry-duplicates', `Duplicate canonical path: ${tool.path}.`, { toolId: tool.id });
+      process.exit(1);
+    }
+    canonicalPaths.set(tool.path, tool);
+
+    for (const alias of tool.aliases ?? []) {
+      if (typeof alias !== 'string' || !alias.startsWith('/')) {
+        fail('registry-schema', `Invalid alias for ${tool.id}.`, { alias });
+        process.exit(1);
+      }
+      if (aliases.has(alias) || canonicalPaths.has(alias)) {
+        fail('registry-duplicates', `Duplicate route alias: ${alias}.`, { toolId: tool.id });
+        process.exit(1);
+      }
+      if (!tool.isReady) {
+        fail('readiness', `Non-ready tool exposes a route alias: ${tool.id}.`, { alias });
+        process.exit(1);
+      }
+      aliases.set(alias, tool);
+    }
+  }
+
+  const routeRecords = listRouteFiles(routesDir).flatMap(extractRoutePaths);
+  const declaredRoutes = new Set(routeRecords.map(({ route }) => route));
+
+  const toolDeclaredRoutes = new Set(
+    [...declaredRoutes].filter((route) => {
+      const parts = route.split('/').filter(Boolean);
+      return parts.length === 2 && parts[0].length === 2 && !parts[1].startsWith('$');
+    }),
+  );
+  const expectedToolRoutes = new Set(
+    [...canonicalPaths.keys(), ...aliases.keys()].filter((route) => {
+      const parts = route.split('/').filter(Boolean);
+      return parts.length === 2 && parts[0].length === 2 && !parts[1].startsWith('$');
+    }),
+  );
+
+  const duplicateDeclared = routeRecords
+    .map(({ route }) => route)
+    .filter((route, index, all) => all.indexOf(route) !== index)
+    .filter((route, index, all) => all.indexOf(route) === index)
+    .sort();
+
+  const missing = [...expectedToolRoutes].filter((route) => !toolDeclaredRoutes.has(route)).sort();
+  const orphan = [...toolDeclaredRoutes].filter((route) => !expectedToolRoutes.has(route)).sort();
+
+  if (duplicateDeclared.length) {
+    fail('router-duplicates', 'Duplicate route declarations detected.', { duplicates: duplicateDeclared });
+    process.exit(1);
+  }
+
+  if (missing.length) {
+    fail('missing-routes', 'Registry routes are not represented by the router.', {
+      missing,
+      expectedCount: expectedToolRoutes.size,
+      declaredCount: toolDeclaredRoutes.size,
+    });
+    process.exit(1);
+  }
+
+  if (orphan.length) {
+    fail('orphan-routes', 'Router routes are not owned by TOOLS_REGISTRY.', {
+      orphan,
+      expectedCount: expectedToolRoutes.size,
+      declaredCount: toolDeclaredRoutes.size,
+    });
+    process.exit(1);
+  }
+
+  const photoColorizer = TOOLS_REGISTRY.find((tool) => tool.id === 'photo-colorizer');
+  if (!photoColorizer) {
+    fail('readiness', 'photo-colorizer registry entry is missing.');
+    process.exit(1);
+  }
+  assert.equal(photoColorizer.isReady, false, 'photo-colorizer must remain non-ready.');
+  if (toolDeclaredRoutes.has(photoColorizer.path)) {
+    fail('readiness', 'Non-ready photo-colorizer route is declared.', { path: photoColorizer.path });
+    process.exit(1);
+  }
+
+  console.log('router/registry contract passed');
+  console.log(`registry tools: ${TOOLS_REGISTRY.length}`);
+  console.log(`ready tools: ${TOOLS_REGISTRY.filter((tool) => tool.isReady).length}`);
+  console.log(`non-ready tools: ${TOOLS_REGISTRY.filter((tool) => !tool.isReady).length}`);
+  console.log(`declared tool routes: ${toolDeclaredRoutes.size}`);
+  console.log(`expected tool routes: ${expectedToolRoutes.size}`);
+  console.log(`aliases: ${aliases.size}`);
+} catch (error) {
+  fail('unexpected', error instanceof Error ? error.stack ?? error.message : String(error));
+  process.exit(1);
 }
-
-const declaredRoutes = new Set();
-for (const file of listRouteFiles(routesDir)) {
-  for (const route of extractRoutePaths(file)) declaredRoutes.add(route);
-}
-
-function isToolRoute(route) {
-  const parts = route.split('/').filter(Boolean);
-  return parts.length === 2 && parts[0].length === 2 && !parts[1].startsWith('$');
-}
-
-const toolDeclaredRoutes = new Set([...declaredRoutes].filter(isToolRoute));
-const expectedToolRoutes = new Set([...canonicalPaths.keys(), ...aliases.keys()].filter(isToolRoute));
-
-const missing = [...expectedToolRoutes].filter((route) => !toolDeclaredRoutes.has(route)).sort();
-const orphan = [...toolDeclaredRoutes].filter((route) => !expectedToolRoutes.has(route)).sort();
-
-assert.deepEqual(missing, [], `Routes missing from router: ${missing.join(', ')}`);
-assert.deepEqual(orphan, [], `Routes missing registry ownership: ${orphan.join(', ')}`);
-
-const photoColorizer = TOOLS_REGISTRY.find((tool) => tool.id === 'photo-colorizer');
-assert.ok(photoColorizer, 'photo-colorizer registry entry is missing.');
-assert.equal(photoColorizer.isReady, false, 'photo-colorizer must remain non-ready.');
-assert.equal(toolDeclaredRoutes.has(photoColorizer.path), false, 'non-ready photo-colorizer route must not be declared.');
-
-console.log('router/registry contract passed');
-console.log(`registry tools: ${TOOLS_REGISTRY.length}`);
-console.log(`ready tools: ${TOOLS_REGISTRY.filter((tool) => tool.isReady).length}`);
-console.log(`non-ready tools: ${TOOLS_REGISTRY.filter((tool) => !tool.isReady).length}`);
-console.log(`declared tool routes: ${toolDeclaredRoutes.size}`);
-console.log(`expected tool routes: ${expectedToolRoutes.size}`);
-console.log(`aliases: ${aliases.size}`);
