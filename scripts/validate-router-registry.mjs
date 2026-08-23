@@ -26,6 +26,16 @@ function literalString(node) {
   return ts.isStringLiteral(node) ? node.text : null;
 }
 
+function extractPathFromObject(argument) {
+  if (!argument || !ts.isObjectLiteralExpression(argument)) return null;
+  const pathProperty = argument.properties.find(
+    (property) => ts.isPropertyAssignment(property) && propertyName(property) === 'path',
+  );
+  return pathProperty && ts.isPropertyAssignment(pathProperty)
+    ? literalString(pathProperty.initializer)
+    : null;
+}
+
 function extractRoutePaths(filePath) {
   const source = fs.readFileSync(filePath, 'utf8');
   const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -35,21 +45,12 @@ function extractRoutePaths(filePath) {
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
       const callee = node.expression.text;
       if (callee === 'createRoute' || callee === 'imageToolRoute') {
-        if (callee === 'createRoute') {
-          const [argument] = node.arguments;
-          if (argument && ts.isObjectLiteralExpression(argument)) {
-            const pathProperty = argument.properties.find(
-              (property) => ts.isPropertyAssignment(property) && propertyName(property) === 'path',
-            );
-            const route = pathProperty && ts.isPropertyAssignment(pathProperty)
-              ? literalString(pathProperty.initializer)
-              : null;
-            if (route) routes.push({ route, file: filePath, kind: callee });
-          }
-        } else {
-          const route = literalString(node.arguments[0]);
-          if (route) routes.push({ route, file: filePath, kind: callee });
-        }
+        const [argument] = node.arguments;
+        const route = callee === 'createRoute'
+          ? extractPathFromObject(argument)
+          : literalString(argument) ?? extractPathFromObject(argument);
+
+        if (route) routes.push({ route, file: filePath, kind: callee });
       }
     }
     ts.forEachChild(node, visit);
