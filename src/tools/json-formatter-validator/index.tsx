@@ -1,11 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { jsonToCsv, jsonToYaml, minifyJson, parseJson, prettifyJson } from './engine';
+import { buildJsonTree, formatJson, minifyJson, toCsv, toYaml, validateJson } from './engine';
 
 const DEFAULT_JSON = '{\n  "name": "FLIXO",\n  "tools": 20,\n  "ready": true\n}';
 
 const TreeNode = ({ value, depth = 0, label }: { value: unknown; depth?: number; label?: string }) => {
   if (value && typeof value === 'object') {
-    const entries = Array.isArray(value) ? value.map((item, index) => [String(index), item] as const) : Object.entries(value as Record<string, unknown>);
+    const entries = Array.isArray(value)
+      ? value.map((item, index) => [String(index), item] as const)
+      : Object.entries(value as Record<string, unknown>);
     return (
       <div className="space-y-1" style={{ marginLeft: depth * 12 }}>
         {entries.map(([key, child]) => (
@@ -27,24 +29,34 @@ export function JsonFormatterValidatorTool() {
   const [mode, setMode] = useState<'editor' | 'tree'>('editor');
   const [format, setFormat] = useState<'json' | 'yaml' | 'csv'>('json');
 
-  const parsed = useMemo(() => parseJson(input), [input]);
+  const validation = useMemo(() => validateJson(input), [input]);
+  const parsedValue = useMemo(() => {
+    if (!validation.valid) return null;
+    return JSON.parse(input) as unknown;
+  }, [input, validation.valid]);
 
   const run = (action: 'pretty' | 'minify' | 'yaml' | 'csv') => {
-    if (action === 'pretty') {
-      const result = prettifyJson(input, spaces);
-      setOutput(result.ok ? result.formatted ?? '' : result.message);
-      setFormat('json');
-    } else if (action === 'minify') {
-      const result = minifyJson(input);
-      setOutput(result.ok ? result.formatted ?? '' : result.message);
-      setFormat('json');
-    } else {
-      if (!parsed.ok) {
-        setOutput(parsed.message);
-        return;
+    if (!validation.valid) {
+      setOutput(validation.error ?? 'Invalid JSON');
+      return;
+    }
+
+    try {
+      if (action === 'pretty') {
+        setOutput(formatJson(input, spaces));
+        setFormat('json');
+      } else if (action === 'minify') {
+        setOutput(minifyJson(input));
+        setFormat('json');
+      } else if (action === 'yaml') {
+        setOutput(toYaml(input));
+        setFormat('yaml');
+      } else {
+        setOutput(toCsv(input));
+        setFormat('csv');
       }
-      setOutput(action === 'yaml' ? jsonToYaml(parsed.value) : jsonToCsv(parsed.value));
-      setFormat(action);
+    } catch (error) {
+      setOutput(error instanceof Error ? error.message : 'Conversion failed');
     }
   };
 
@@ -82,11 +94,21 @@ export function JsonFormatterValidatorTool() {
         <div>
           <label htmlFor="json-input" className="mb-2 block font-semibold">JSON Input</label>
           <textarea id="json-input" aria-label="JSON input" className="min-h-[420px] w-full rounded border p-4 font-mono" value={input} onChange={(event) => setInput(event.target.value)} />
-          {parsed.ok ? <p className="mt-2 text-sm">Valid JSON</p> : <p className="mt-2 text-sm">Invalid JSON — line {parsed.line}, column {parsed.column}: {parsed.message}</p>}
+          {validation.valid ? (
+            <p className="mt-2 text-sm">Valid JSON</p>
+          ) : (
+            <p className="mt-2 text-sm">Invalid JSON{validation.line ? ` — line ${validation.line}, column ${validation.column ?? 1}` : ''}: {validation.error}</p>
+          )}
         </div>
         <div>
           <label htmlFor="json-output" className="mb-2 block font-semibold">Output</label>
-          {mode === 'editor' ? <textarea id="json-output" aria-label="JSON output" className="min-h-[420px] w-full rounded border p-4 font-mono" readOnly value={output} /> : <div aria-label="JSON tree" className="min-h-[420px] rounded border p-4">{parsed.ok ? <TreeNode value={parsed.value} /> : <p>{parsed.message}</p>}</div>}
+          {mode === 'editor' ? (
+            <textarea id="json-output" aria-label="JSON output" className="min-h-[420px] w-full rounded border p-4 font-mono" readOnly value={output} />
+          ) : (
+            <div aria-label="JSON tree" className="min-h-[420px] rounded border p-4">
+              {parsedValue !== null ? <TreeNode value={buildJsonTree(parsedValue).value} /> : <p>{validation.error}</p>}
+            </div>
+          )}
         </div>
       </section>
     </main>
