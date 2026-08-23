@@ -6,7 +6,7 @@
   "devCommand": "npm run dev",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/ar/(.*)", "destination": "/" }
+    { "source": "/ar/:path*", "destination": "/" }
   ],
   "headers": [
     {
