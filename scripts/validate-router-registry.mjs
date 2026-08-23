@@ -19,18 +19,36 @@ function parseRegistry(source) {
   return entries;
 }
 
+function listTsxFiles(dir) {
+  const files = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listTsxFiles(fullPath));
+    } else if (entry.isFile() && entry.name.endsWith('.tsx')) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
 function collectRoutePaths(dir) {
-  const files = fs.readdirSync(dir, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.tsx'))
-    .map((entry) => path.join(dir, entry.name));
-
   const routes = new Set();
-  const routeLiteral = /['"](\/(?:[a-z]{2}\/)?[a-z0-9][a-z0-9/_-]*)['"]/gi;
+  const routePatterns = [
+    /\bpath:\s*['\"](\/[^'\"]+)['\"]/g,
+    /\bimageToolRoute\(\s*['\"](\/[^'\"]+)['\"]/g,
+    /\bcreateRoute\(\{[\s\S]*?\bpath:\s*['\"](\/[^'\"]+)['\"]/g,
+  ];
 
-  for (const file of files) {
+  for (const file of listTsxFiles(dir)) {
     const source = fs.readFileSync(file, 'utf8');
-    for (const match of source.matchAll(routeLiteral)) {
-      routes.add(match[1]);
+    for (const pattern of routePatterns) {
+      for (const match of source.matchAll(pattern)) {
+        const route = match[1];
+        if (/^\/(?:[a-z]{2}\/)?[a-z0-9][a-z0-9/_-]*$/i.test(route)) {
+          routes.add(route);
+        }
+      }
     }
   }
   return routes;
