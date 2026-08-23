@@ -1,5 +1,5 @@
 import type { ToolConfig } from '../config/tools';
-import { getBestToolIntent } from './intent-router';
+import { getBestToolIntent } from './intent-router.ts';
 
 export type QuickFlowStep = Readonly<{
   toolId: string;
