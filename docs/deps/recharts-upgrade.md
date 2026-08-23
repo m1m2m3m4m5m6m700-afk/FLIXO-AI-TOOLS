@@ -1,0 +1,1 @@
+Recharts 3.10.1 upgrade is being validated through CI-generated lockfile and full repository gates.
