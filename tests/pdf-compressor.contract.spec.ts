@@ -1,13 +1,16 @@
+import fs from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
 
-async function makeRasterPdf(pageCount: number) {
+async function makePdf(pageCount: number) {
   const sourcePdf = await PDFDocument.create();
-  const jpegData = Buffer.alloc(180_000, 120);
-  const image = await sourcePdf.embedJpg(jpegData);
+  const font = await sourcePdf.embedFont(StandardFonts.Helvetica);
   for (let index = 0; index < pageCount; index += 1) {
     const page = sourcePdf.addPage([420, 560]);
-    page.drawImage(image, { x: 0, y: 0, width: 420, height: 560 });
+    page.drawText(`FLIXO PDF compressor output contract page ${index + 1}`, { x: 30, y: 520, size: 16, font });
+    for (let line = 0; line < 80; line += 1) {
+      page.drawText(`Deterministic contract sample ${line + 1} / page ${index + 1}`, { x: 30, y: 495 - line * 5, size: 7, font });
+    }
   }
   return Buffer.from(await sourcePdf.save());
 }
@@ -34,7 +37,7 @@ test('pdf-compressor: rejects empty input', async ({ page }) => {
 });
 
 test('pdf-compressor: produces a valid PDF and never returns a larger output', async ({ page }) => {
-  const input = await makeRasterPdf(2);
+  const input = await makePdf(2);
   await page.goto('/en/pdf-compressor');
   await page.locator('#pdf-compressor-input').setInputFiles({
     name: 'source.pdf',
@@ -51,7 +54,7 @@ test('pdf-compressor: produces a valid PDF and never returns a larger output', a
   const outputPath = await download.path();
   expect(outputPath).toBeTruthy();
 
-  const outputBytes = require('node:fs').readFileSync(outputPath!);
+  const outputBytes = fs.readFileSync(outputPath!);
   expect(outputBytes.subarray(0, 5).toString()).toBe('%PDF-');
   expect(outputBytes.length).toBeLessThanOrEqual(input.length);
 
