@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { recordToolPerformance } from '../../lib/diagnostics/performance';
 import { assertExifCleanerOutputIntegrity } from '../exif-cleaner/output-integrity';
+import { validateSvgOutput } from '../image-to-svg/output-integrity';
 
 type Mode = 'photo-colorizer' | 'background-blur' | 'passport-photo-maker' | 'watermark-adder' | 'meme-generator' | 'collage-maker' | 'image-effects' | 'exif-cleaner' | 'svg-optimizer' | 'mockup-generator' | 'image-to-svg';
 
@@ -122,7 +123,10 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
         const png = document.createElement('canvas'); png.width = image.width; png.height = image.height; const pctx = png.getContext('2d'); if (!pctx) throw new Error('Canvas unavailable.'); pctx.drawImage(image, 0, 0);
         const data = png.toDataURL('image/png');
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${image.width}" height="${image.height}" viewBox="0 0 ${image.width} ${image.height}"><image href="${data}" width="${image.width}" height="${image.height}"/></svg>`;
-        const blob = new Blob([svg], { type: 'image/svg+xml' }); setResult({ blob, url: URL.createObjectURL(blob), name: 'flixo-image.svg', width: image.width, height: image.height, text: svg }); return;
+        const blob = new Blob([svg], { type: 'image/svg+xml' });
+        const integrity = validateSvgOutput(blob, svg);
+        if (!integrity.valid) throw new Error(`Image to SVG produced invalid output: ${integrity.failures.join('; ')}`);
+        setResult({ blob, url: URL.createObjectURL(blob), name: 'flixo-image.svg', width: image.width, height: image.height, text: svg }); return;
       }
 
       if (mode === 'mockup-generator') {
