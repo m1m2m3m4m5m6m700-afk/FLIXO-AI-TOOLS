@@ -18,6 +18,7 @@
     "validate:baseline": "node scripts/validate-engineering-baseline.mjs",
     "validate:router-registry": "node --experimental-strip-types scripts/validate-router-registry.mjs",
     "report:localization": "node scripts/report-localization-coverage.mjs",
+    "report:dependency-health": "node scripts/report-dependency-health.mjs",
     "validate:performance-budget": "node scripts/validate-performance-budget.mjs",
     "report:performance-baseline": "node scripts/report-performance-baseline.mjs",
     "generate:sitemap": "node scripts/generate-sitemap.mjs",
