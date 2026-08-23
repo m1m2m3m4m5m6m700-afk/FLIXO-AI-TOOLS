@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const ko: LocalizedToolSeo={title:'래스터 SVG 변환기',description:'FLIXO로 래스터 이미지를 SVG로 변환하세요.',intro:'래스터 이미지를 SVG 결과로 변환합니다.',keywords:['래스터 SVG','이미지 SVG 변환','SVG 변환기'],howTo:['이미지를 선택합니다.','SVG로 변환합니다.','결과를 다운로드합니다.'],features:['로컬 변환','간단한 흐름','SVG 다운로드'],altText:['래스터 SVG 작업 공간','SVG 변환 미리보기','변환된 SVG 결과']};
