@@ -4,6 +4,7 @@ import { RouterProvider } from '@tanstack/react-router';
 import { router } from './router';
 import { installRuntimeDiagnostics } from './lib/diagnostics/runtime';
 import './styles.css';
+import './home-motion.css';
 
 installRuntimeDiagnostics();
 
