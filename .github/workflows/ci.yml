@@ -94,6 +94,19 @@ jobs:
           build-mode: none
       - uses: github/codeql-action/analyze@v4
 
+  fast-contract:
+    name: Fast Contract Diagnostics
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Run fast contract verifier
+        run: npm run verify:fast
+
   e2e:
     name: E2E — ${{ matrix.tool }} — ${{ matrix.browser }}
     runs-on: ubuntu-latest
@@ -204,7 +217,7 @@ jobs:
     name: Diagnostic Summary
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    needs: [typecheck, lint, build, audit, socket, security, e2e, canonical-verify]
+    needs: [typecheck, lint, build, audit, socket, security, fast-contract, e2e, canonical-verify]
     steps:
       - name: Write CI summary
         run: |
@@ -219,9 +232,11 @@ jobs:
             echo '| Audit | ${{ needs.audit.result }} |'
             echo '| Socket | ${{ needs.socket.result }} |'
             echo '| CodeQL | ${{ needs.security.result }} |'
+            echo '| Fast Contract Diagnostics | ${{ needs.fast-contract.result }} |'
             echo '| Per-tool E2E (66 browser jobs) | ${{ needs.e2e.result }} |'
             echo '| Canonical Verification | ${{ needs.canonical-verify.result }} |'
             echo
+            echo 'Fast Contract Diagnostics fail early on source-level contract drift without waiting for the browser matrix.'
             echo 'E2E matrix isolates every tool/browser pair; failed jobs upload their own Playwright diagnostics artifact.'
             echo 'Diagnostics explain failures; Canonical Verification is the single promotion signal.'
             echo 'Socket is fail-closed when SOCKET_SECURITY_API_KEY is configured and intentionally skipped otherwise.'
