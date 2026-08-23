@@ -177,6 +177,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Validate release evidence contract
+        run: node scripts/test-release-evidence.mjs
       - name: Run canonical verification
         run: npm run verify
       - name: Write promotion evidence
