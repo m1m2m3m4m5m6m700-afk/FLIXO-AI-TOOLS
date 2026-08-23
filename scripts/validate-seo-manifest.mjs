@@ -17,7 +17,7 @@ function fail(message) {
 if (readyToolIds.length === 0) fail('No ready tools discovered in src/config/tools.ts');
 if (new Set(readyToolIds).size !== readyToolIds.length) fail('Duplicate ready tool ids detected.');
 if (!manifestSource.includes('buildAllToolSeoManifests(getReadyToolConfigs())')) fail('all ready tools are not connected to the SEO manifest generator.');
-if (!manifestSource.includes("seoStatus: 'complete'")) fail('complete SEO status is not present in the manifest generator.');
+if (!catalogSource.includes("seoStatus: 'complete'")) fail('complete SEO status is not present in the manifest generator.');
 if (!typeSource.includes('seoLocales: Readonly<Record<Locale, LocalizedToolSeo>>')) fail('SEO locale contract is still optional; every locale must be required.');
 if (!catalogSource.includes('Object.fromEntries(LOCALES.map((locale) => [locale, buildLocalizedToolSeo(tool, locale)]))')) fail('catalog does not generate a payload for every locale.');
 
