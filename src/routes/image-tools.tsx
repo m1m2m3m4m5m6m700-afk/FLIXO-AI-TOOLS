@@ -1,11 +1,22 @@
-import type { ComponentType } from 'react';
-import { createRoute, lazyRouteComponent } from '@tanstack/react-router';
+import { createRoute } from '@tanstack/react-router';
+import { getToolConfigByPath } from '../config/tools';
 import { rootRoute } from './__root';
 
-type LazyComponentModule = Record<string, ComponentType<unknown>>;
-type LazyComponent = () => Promise<LazyComponentModule>;
+type ToolRouteConfig = {
+  path: string;
+  title?: string;
+  description?: string;
+};
 
-function imageToolRoute(path: string, title: string, description: string, importer: LazyComponent, exportName?: string) {
+function imageToolRoute({ path, title: titleOverride, description: descriptionOverride }: ToolRouteConfig) {
+  const tool = getToolConfigByPath(path);
+  if (!tool) throw new Error(`Missing ToolConfig for route: ${path}`);
+  if (!tool.isReady) throw new Error(`Route points to a non-ready tool: ${path}`);
+
+  const title = titleOverride ?? tool.title;
+  const description = descriptionOverride ?? tool.description;
+  const ToolComponent = tool.component;
+
   return createRoute({
     getParentRoute: () => rootRoute,
     path,
@@ -17,30 +28,30 @@ function imageToolRoute(path: string, title: string, description: string, import
       { property: 'og:description', content: description },
       { property: 'og:type', content: 'website' },
     ] }),
-    component: lazyRouteComponent(importer, exportName),
+    component: () => <ToolComponent />,
   });
 }
 
-export const enBackgroundRemoverRoute = imageToolRoute('/en/background-remover', 'Background Remover', 'Remove simple image backgrounds locally in your browser.', () => import('../tools/background-remover'), 'BackgroundRemoverTool');
-export const enAiImageGeneratorRoute = imageToolRoute('/en/ai-image-generator', 'AI Image Generator', 'Generate images through a configured FLIXO image-generation endpoint.', () => import('../tools/ai-image-generator'), 'AiImageGeneratorTool');
-export const enImageUpscalerRoute = imageToolRoute('/en/image-upscaler', 'Image Upscaler', 'Increase image dimensions with high-quality browser resampling.', () => import('../tools/image-upscaler'), 'ImageUpscalerTool');
-export const enImageConverterRoute = imageToolRoute('/en/image-converter', 'Image Converter', 'Convert PNG, JPG, and WebP images in your browser.', () => import('../tools/image-converter'), 'ImageConverterTool');
-export const enImageToTextRoute = imageToolRoute('/en/image-to-text', 'Image to Text OCR', 'Extract text from images in your browser with OCR.', () => import('../tools/image-ocr'), 'default');
-export const enObjectRemoverRoute = imageToolRoute('/en/object-remover', 'Object Remover', 'Remove a rectangular object region with local reconstruction.', () => import('../tools/object-remover'), 'ObjectRemoverTool');
-export const enCropResizeRoute = imageToolRoute('/en/crop-resize', 'Crop & Resize', 'Legacy route for crop/resize.', () => import('../tools/image-cropper'), 'default');
-export const enWatermarkRemoverRoute = imageToolRoute('/en/watermark-remover', 'Watermark Remover', 'Cover a selected watermark region locally.', () => import('../tools/watermark-remover'), 'default');
-export const enRasterToSvgRoute = imageToolRoute('/en/raster-to-svg', 'Raster to SVG', 'Legacy raster-to-SVG route.', () => import('../tools/image-to-svg'), 'default');
-export const enImageCropperRoute = imageToolRoute('/en/image-cropper', 'Image Cropper', 'Crop and resize images for exact dimensions.', () => import('../tools/image-cropper'), 'default');
-export const enImageOcrRoute = imageToolRoute('/en/image-ocr', 'Image OCR', 'Extract text from images in your browser with OCR.', () => import('../tools/image-ocr'), 'default');
-export const enBackgroundBlurRoute = imageToolRoute('/en/background-blur', 'Background Blur', 'Blur background regions locally.', () => import('../tools/background-blur'), 'default');
-export const enPassportPhotoMakerRoute = imageToolRoute('/en/passport-photo-maker', 'Passport Photo Maker', 'Create a standard portrait crop.', () => import('../tools/passport-photo-maker'), 'default');
-export const enWatermarkAdderRoute = imageToolRoute('/en/watermark-adder', 'Watermark Adder', 'Add text watermarks locally.', () => import('../tools/watermark-adder'), 'default');
-export const enMemeGeneratorRoute = imageToolRoute('/en/meme-generator', 'Meme Generator', 'Create top-and-bottom captioned memes.', () => import('../tools/meme-generator'), 'default');
-export const enCollageMakerRoute = imageToolRoute('/en/collage-maker', 'Collage Maker', 'Combine multiple images into a collage.', () => import('../tools/collage-maker'), 'default');
-export const enImageEffectsRoute = imageToolRoute('/en/image-effects', 'Image Effects', 'Apply image adjustments locally.', () => import('../tools/image-effects'), 'default');
-export const enExifCleanerRoute = imageToolRoute('/en/exif-cleaner', 'EXIF Cleaner', 'Strip image metadata by browser re-encoding.', () => import('../tools/exif-cleaner'), 'default');
-export const enSvgOptimizerRoute = imageToolRoute('/en/svg-optimizer', 'SVG Optimizer', 'Minify SVG whitespace and comments locally.', () => import('../tools/svg-optimizer'), 'default');
-export const enMockupGeneratorRoute = imageToolRoute('/en/mockup-generator', 'Mockup Generator', 'Create a simple device mockup image.', () => import('../tools/mockup-generator'), 'default');
-export const enImageToSvgRoute = imageToolRoute('/en/image-to-svg', 'Image to SVG', 'Wrap a raster image in a downloadable SVG.', () => import('../tools/image-to-svg'), 'default');
-export const enSeedRoute = imageToolRoute('/en/seed', 'Seed', 'Non-destructive GPU image adjustments with WebGL.', () => import('../tools/seed'), 'default');
-export const enPixRoute = imageToolRoute('/en/pix', 'Pix Studio', 'Professional browser-based image editing with tune filters, liquify, dispersion, text layers, history, and PNG export.', () => import('../tools/pix'), 'default');
+export const enBackgroundRemoverRoute = imageToolRoute({ path: '/en/background-remover' });
+export const enAiImageGeneratorRoute = imageToolRoute({ path: '/en/ai-image-generator' });
+export const enImageUpscalerRoute = imageToolRoute({ path: '/en/image-upscaler' });
+export const enImageConverterRoute = imageToolRoute({ path: '/en/image-converter' });
+export const enImageToTextRoute = imageToolRoute({ path: '/en/image-to-text' });
+export const enObjectRemoverRoute = imageToolRoute({ path: '/en/object-remover' });
+export const enCropResizeRoute = imageToolRoute({ path: '/en/crop-resize', title: 'Crop & Resize', description: 'Legacy route for crop/resize.' });
+export const enWatermarkRemoverRoute = imageToolRoute({ path: '/en/watermark-remover' });
+export const enRasterToSvgRoute = imageToolRoute({ path: '/en/raster-to-svg', title: 'Raster to SVG', description: 'Legacy raster-to-SVG route.' });
+export const enImageCropperRoute = imageToolRoute({ path: '/en/image-cropper' });
+export const enImageOcrRoute = imageToolRoute({ path: '/en/image-ocr' });
+export const enBackgroundBlurRoute = imageToolRoute({ path: '/en/background-blur' });
+export const enPassportPhotoMakerRoute = imageToolRoute({ path: '/en/passport-photo-maker' });
+export const enWatermarkAdderRoute = imageToolRoute({ path: '/en/watermark-adder' });
+export const enMemeGeneratorRoute = imageToolRoute({ path: '/en/meme-generator' });
+export const enCollageMakerRoute = imageToolRoute({ path: '/en/collage-maker' });
+export const enImageEffectsRoute = imageToolRoute({ path: '/en/image-effects' });
+export const enExifCleanerRoute = imageToolRoute({ path: '/en/exif-cleaner' });
+export const enSvgOptimizerRoute = imageToolRoute({ path: '/en/svg-optimizer' });
+export const enMockupGeneratorRoute = imageToolRoute({ path: '/en/mockup-generator' });
+export const enImageToSvgRoute = imageToolRoute({ path: '/en/image-to-svg' });
+export const enSeedRoute = imageToolRoute({ path: '/en/seed' });
+export const enPixRoute = imageToolRoute({ path: '/en/pix' });
