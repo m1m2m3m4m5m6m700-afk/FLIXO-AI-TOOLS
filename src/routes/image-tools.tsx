@@ -25,14 +25,13 @@ export const enBackgroundRemoverRoute = imageToolRoute('/en/background-remover',
 export const enAiImageGeneratorRoute = imageToolRoute('/en/ai-image-generator', 'AI Image Generator', 'Generate images through a configured FLIXO image-generation endpoint.', () => import('../tools/ai-image-generator'), 'AiImageGeneratorTool');
 export const enImageUpscalerRoute = imageToolRoute('/en/image-upscaler', 'Image Upscaler', 'Increase image dimensions with high-quality browser resampling.', () => import('../tools/image-upscaler'), 'ImageUpscalerTool');
 export const enImageConverterRoute = imageToolRoute('/en/image-converter', 'Image Converter', 'Convert PNG, JPG, and WebP images in your browser.', () => import('../tools/image-converter'), 'ImageConverterTool');
-export const enImageToTextRoute = imageToolRoute('/en/image-to-text', 'Image to Text OCR', 'Extract text from images in your browser with OCR.', () => import('../tools/image-to-text'), 'ImageToTextTool');
+export const enImageToTextRoute = imageToolRoute('/en/image-to-text', 'Image to Text OCR', 'Extract text from images in your browser with OCR.', () => import('../tools/image-ocr'), 'default');
 export const enObjectRemoverRoute = imageToolRoute('/en/object-remover', 'Object Remover', 'Remove a rectangular object region with local reconstruction.', () => import('../tools/object-remover'), 'ObjectRemoverTool');
-export const enCropResizeRoute = imageToolRoute('/en/crop-resize', 'Crop & Resize', 'Legacy route for crop/resize.', () => import('../tools/crop-resize'), 'CropResizeTool');
-export const enWatermarkRemoverRoute = imageToolRoute('/en/watermark-remover', 'Watermark Remover', 'Cover a selected watermark region locally.', () => import('../tools/watermark-remover'), 'WatermarkRemoverTool');
-export const enRasterToSvgRoute = imageToolRoute('/en/raster-to-svg', 'Raster to SVG', 'Legacy raster-to-SVG route.', () => import('../tools/raster-to-svg'), 'RasterToSvgTool');
+export const enCropResizeRoute = imageToolRoute('/en/crop-resize', 'Crop & Resize', 'Legacy route for crop/resize.', () => import('../tools/image-cropper'), 'default');
+export const enWatermarkRemoverRoute = imageToolRoute('/en/watermark-remover', 'Watermark Remover', 'Cover a selected watermark region locally.', () => import('../tools/watermark-remover'), 'default');
+export const enRasterToSvgRoute = imageToolRoute('/en/raster-to-svg', 'Raster to SVG', 'Legacy raster-to-SVG route.', () => import('../tools/image-to-svg'), 'default');
 export const enImageCropperRoute = imageToolRoute('/en/image-cropper', 'Image Cropper', 'Crop and resize images for exact dimensions.', () => import('../tools/image-cropper'), 'default');
 export const enImageOcrRoute = imageToolRoute('/en/image-ocr', 'Image OCR', 'Extract text from images with OCR.', () => import('../tools/image-ocr'), 'default');
-export const enPhotoColorizerRoute = imageToolRoute('/en/photo-colorizer', 'Photo Colorizer', 'Colorize photos through a configured AI endpoint.', () => import('../tools/photo-colorizer'), 'default');
 export const enBackgroundBlurRoute = imageToolRoute('/en/background-blur', 'Background Blur', 'Blur background regions locally.', () => import('../tools/background-blur'), 'default');
 export const enPassportPhotoMakerRoute = imageToolRoute('/en/passport-photo-maker', 'Passport Photo Maker', 'Create a standard portrait crop.', () => import('../tools/passport-photo-maker'), 'default');
 export const enWatermarkAdderRoute = imageToolRoute('/en/watermark-adder', 'Watermark Adder', 'Add text watermarks locally.', () => import('../tools/watermark-adder'), 'default');
