@@ -8,10 +8,10 @@ const scope = globalThis as typeof globalThis & {
   postMessage: (message: Response, transfer?: Transferable[]) => void;
 };
 
-scope.onmessage = ({ data }) => {
+scope.onmessage = ({ data }: MessageEvent<Request>) => {
   try {
-    const channels = data.channels.map((channel) => applyNoiseReduction(channel, data.options));
-    const transfer = channels.map((channel) => channel.buffer as ArrayBuffer);
+    const channels: Float32Array[] = data.channels.map((channel: Float32Array) => applyNoiseReduction(channel, data.options));
+    const transfer: ArrayBuffer[] = channels.map((channel: Float32Array) => channel.buffer as ArrayBuffer);
     scope.postMessage({ channels }, transfer);
   } catch (error) {
     scope.postMessage({ error: error instanceof Error ? error.message : 'Noise reduction failed.' });
