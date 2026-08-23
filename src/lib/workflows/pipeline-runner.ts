@@ -1,10 +1,11 @@
 import { compressImage } from '@/tools/image-compressor/engine';
-import { MAX_OUTPUT_PIXELS, convertImage, cropResizeImage, imageInfo, removeBackground, resizeImage } from '@/tools/image-toolkit/engine';
+import { convertImage, cropResizeImage, imageInfo, removeBackground, resizeImage } from '@/tools/image-toolkit/engine';
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import { EXECUTABLE_PIPELINE_TOOL_ID_SET, type ExecutablePipelineToolId } from '@/lib/workflows/executable-tools';
 
 export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; outputBlob?: Blob; }
 type PipelineParams = Record<string, string | number | boolean | undefined>;
+const MAX_OUTPUT_PIXELS = 16_000_000;
 const asFile = (blob: Blob) => new File([blob], 'flixo-pipeline-input.png', { type: blob.type || 'image/png' });
 async function imageBitmap(blob: Blob) {
   if (typeof createImageBitmap === 'function') return createImageBitmap(blob);
