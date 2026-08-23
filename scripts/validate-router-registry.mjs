@@ -35,9 +35,9 @@ function listTsxFiles(dir) {
 function collectRoutePaths(dir) {
   const routes = new Set();
   const routePatterns = [
-    /\bpath:\s*['\"](\/[^'\"]+)['\"]/g,
-    /\bimageToolRoute\(\s*['\"](\/[^'\"]+)['\"]/g,
-    /\bcreateRoute\(\{[\s\S]*?\bpath:\s*['\"](\/[^'\"]+)['\"]/g,
+    /\bpath:\s*['"](\/[^'"]+)['"]/g,
+    /\bimageToolRoute\(\s*['"](\/[^'"]+)['"]/g,
+    /\bcreateRoute\(\{[\s\S]*?\bpath:\s*['"](\/[^'"]+)['"]/g,
   ];
 
   for (const file of listTsxFiles(dir)) {
