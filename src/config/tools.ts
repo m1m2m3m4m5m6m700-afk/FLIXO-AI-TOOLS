@@ -36,4 +36,5 @@ export const TOOLS_REGISTRY: readonly ToolConfig[] = Object.freeze([
 ]);
 
 export const getToolConfig = (id: string) => TOOLS_REGISTRY.find((tool) => tool.id === id);
+export const getToolConfigByPath = (path: string) => TOOLS_REGISTRY.find((tool) => tool.path === path || tool.aliases?.includes(path));
 export const getReadyToolConfigs = () => TOOLS_REGISTRY.filter((tool) => tool.isReady);
