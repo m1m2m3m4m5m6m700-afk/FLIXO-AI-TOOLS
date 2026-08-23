@@ -2,16 +2,26 @@
 
 ## Base Baseline
 
-- **Base SHA:** `72be5e7398821c9c62384e96d71225dcee14dac6`
+- **Original baseline SHA:** `72be5e7398821c9c62384e96d71225dcee14dac6`
+- **Phase 1 current main SHA:** `aa945a4960a40a82c0588aa439d3be62a09ef3b8`
 - **Date:** 2026-08-23
 - **Source:** `main`
-- **Previous parent:** `c5c55951e6317dd467c290940c58e9a94beff3d3`
-- **Baseline CI state:** **UNVERIFIED** for this exact SHA through the available workflow-run evidence interface. No current green certification is claimed.
-- **Rollback point:** the Base SHA above.
+- **Baseline CI state:** Code gates were exercised for PR-1; the only combined status reported on the PR-1 head was the external Vercel quota failure. No Vercel failure is treated as application-code GREEN or application-code failure.
+- **Current rollback point:** `aa945a4960a40a82c0588aa439d3be62a09ef3b8` before Phase 1.1 work.
 
-> The baseline SHA in this log is authoritative. Older proposed SHAs are historical references and must not be reused as the current rollback point.
+> The current `main` SHA is authoritative for all new work. Older proposed SHAs are historical references only.
 
-## Repository State at Baseline
+## Phase 1.1 Triage State
+
+The explicitly requested cleanup list `#91, #102, #103, #104, #106, #110, #111, #112, #113, #115` is not present in the current open-PR inventory, so no additional close action was performed.
+
+Rebuild/isolation branches created from current `main`:
+
+- `rebuild/seo-126-on-main` — rebuild candidate from #126.
+- `rebuild/governance-134-on-main` — rebuild candidate from #134.
+- `recharts-v3-test` — isolated Recharts v3 experiment from current `main`.
+
+## Repository State
 
 ### Sensitive files recorded
 
@@ -26,31 +36,17 @@
 
 - 20 configured locales are declared in `src/lib/i18n/config.ts`.
 - Locale dictionaries are loaded through `src/lib/i18n/loader.ts` with dynamic imports and Promise caching.
-- QuickFlow is deterministic-first and returns a ready-tool plan only when the intent score clears the configured threshold.
-- AI Planner is an optional refinement layer and falls back to the deterministic plan when disabled, unavailable, or unsuccessful.
+- QuickFlow is deterministic-first and returns a ready-tool plan only when the configured threshold is met.
+- AI Planner is optional and falls back to the deterministic plan when disabled, unavailable, or unsuccessful.
 - `npm run check` is the repository/build gate; `npm run verify` is the release-oriented gate; `npm run test:e2e` is browser smoke.
 - Full browser promotion is defined separately in `.github/workflows/full-matrix-promotion.yml`.
-
-## Open PR Inventory at Baseline
-
-The current open-PR search returned the following seven open PRs. They are **not** automatically merged or closed by Phase 0.
-
-| PR | Head | Base | Baseline action |
-| --- | --- | --- | --- |
-| #219 | `chore/recharts-v3-readiness` | `main` | Isolate and reassess after current-main validation |
-| #134 | `chore/main-governance-unification` | `main` | Rebuild useful work on current `main` if still needed |
-| #126 | `feat/seo-cwv-hardening` | `main` | Rebuild useful work on current `main` if still needed |
-| #108 | `fix/pdf-merge-arraybuffer` | `main` | Triage for superseded/obsolete state |
-| #105 | `feat/ai-preflight-p0` | `experimental` | Keep isolated; do not promote directly to `main` |
-| #98 | `fix/ci-main-pr-trigger` | `main` | Triage against current CI contract |
-| #89 | `governance/vercel-nonblocking` | `main` | Triage against current release policy |
 
 ## Execution Register
 
 | Work item | Phase | Status | Before SHA | Expected effect | Validation | Rollback |
 | --- | --- | --- | --- | --- | --- | --- |
-| PR-1 | Phase 0 + 1.2 | Pending | `72be5e7` | Establish evidence-first baseline and governance docs | Docs diff + exact-SHA CI | Revert merge commit |
-| PR-2 | Phase 1.1 | Pending | `72be5e7` | Triage legacy PRs and isolate viable work | Current-main rebuild + CI | Revert merge commit / close PR |
+| PR-1 | Phase 0 + 1.2 | **MERGED** | `72be5e7` | Establish evidence-first baseline and governance docs | Docs diff + exact-SHA CI | Revert merge commit `aa945a4` |
+| PR-2 | Phase 1.1 | **IN PROGRESS** | `aa945a4` | Triage legacy PRs and isolate viable work | Current-main rebuild + CI | Revert merge commit / close PR |
 | PR-3 | Phase 2.1 | Pending | Exact PR-2 output | Move i18n types without runtime behavior change | Typecheck + lint | Revert merge commit |
 | PR-4 | Phase 2.2 | Pending | Exact PR-3 output | Enforce lazy locale runtime | Typecheck + lint + i18n + build | Revert merge commit |
 | PR-5 | Phase 2.3/2.4 | Pending | Exact PR-4 output | Localized route + home locale migration | Targeted localization E2E + full verify | Revert merge commit |
@@ -66,12 +62,12 @@ The current open-PR search returned the following seven open PRs. They are **not
 3. No dependency upgrades inside unrelated refactors.
 4. No deletion of historical code solely for cleanliness.
 5. A local pass is not release evidence.
-6. A Vercel quota/deployment-provider failure is recorded as an external deployment condition; it does not become a fabricated code GREEN.
-7. Merge is allowed only after fresh evidence exists for the exact PR head SHA.
+6. Vercel quota/deployment-provider failures are external deployment conditions; they do not fabricate application GREEN or application failure.
+7. Merge is allowed only after fresh evidence exists for the exact PR head SHA, unless an explicit operator decision overrides the gate.
 
 ## Rollback Contract
 
-Every consolidation PR must record:
+Every consolidation PR records:
 
 - Before SHA
 - After SHA
