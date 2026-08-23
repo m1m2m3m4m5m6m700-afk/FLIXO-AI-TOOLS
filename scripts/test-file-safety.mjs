@@ -16,6 +16,7 @@ assert.ok(source.includes('signatures'));
 assert.ok(source.includes('file size must be a positive integer'));
 assert.ok(source.includes('unsupported input MIME type'));
 assert.ok(source.includes('input exceeds the maximum pixel count'));
+assert.ok(source.includes('input signature is required when signature validation is enabled'));
 assert.ok(source.includes('input signature does not match the allowed file signatures'));
 
 console.log('file safety contract source checks passed');
