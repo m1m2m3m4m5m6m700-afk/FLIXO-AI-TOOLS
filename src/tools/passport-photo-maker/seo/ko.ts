@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const ko: LocalizedToolSeo={title:'여권 사진 만들기',description:'FLIXO에서 여권 및 신분증 사진을 만들어 보세요.',intro:'공식 사진에 맞도록 인물 사진의 자르기와 크기를 준비합니다.',keywords:['여권 사진','증명사진','신분증 사진'],howTo:['사진을 업로드하세요.','자르기와 크기를 조정하세요.','결과를 다운로드하세요.'],features:['공식 크기','간단한 자르기','다운로드'],altText:['여권 사진 작업 공간','사진 미리보기','완성된 여권 사진']};
