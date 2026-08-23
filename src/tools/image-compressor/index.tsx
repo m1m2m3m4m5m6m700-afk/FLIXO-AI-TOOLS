@@ -35,23 +35,20 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ blob: Blob; width: number; height: number; qualityUsed: number } | null>(null);
   const [downloadUrl, setDownloadUrl] = useState('');
-  const [sourcePreviewUrl, setSourcePreviewUrl] = useState('');
   const [outputPreviewUrl, setOutputPreviewUrl] = useState('');
   const [batchZipUrl, setBatchZipUrl] = useState('');
   const [batchCount, setBatchCount] = useState(0);
 
   const file = files[0] ?? null;
+  const sourcePreviewUrl = useMemo(() => (file ? URL.createObjectURL(file) : ''), [file]);
   const savings = useMemo(() => {
     if (!file || !result) return 0;
     return Math.max(0, Math.round((1 - result.blob.size / file.size) * 100));
   }, [file, result]);
 
-  useEffect(() => {
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    setSourcePreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+  useEffect(() => () => {
+    if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
+  }, [sourcePreviewUrl]);
 
   useEffect(() => {
     return () => {
@@ -70,7 +67,6 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     if (rejectedCount > 0) {
       setError(label(locale, `Some files were skipped. Maximum ${MAX_FILES} files and ${formatBytes(MAX_INPUT_SIZE)} per file.`, `تم تجاهل بعض الملفات. الحد الأقصى ${MAX_FILES} ملفًا و${formatBytes(MAX_INPUT_SIZE)} لكل ملف.`));
     }
-    if (selected.length === 0) setSourcePreviewUrl('');
     setFiles(selected);
   };
 
