@@ -27,7 +27,3 @@ export const toolRoutes = getReadyToolConfigs().flatMap((tool) => {
   const aliases = (tool.aliases ?? []).filter((alias) => !SPECIAL_ALIAS_PATHS.has(alias));
   return [createToolRoute(tool, tool.path), ...aliases.map((alias) => createToolRoute(tool, alias))];
 });
-
-export const expectedToolRoutePaths = Object.freeze(
-  toolRoutes.map((route) => route.fullPath),
-);
