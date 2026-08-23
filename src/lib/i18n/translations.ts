@@ -1,4 +1,4 @@
-import { LOCALES, type Locale } from './config';
+import { LOCALES } from './config';
 import { getTranslationBundle } from './loader';
 export type { TranslationBundle } from './types';
 
