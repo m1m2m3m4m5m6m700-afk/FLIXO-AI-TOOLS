@@ -21,6 +21,7 @@ Purpose: preserve verified failures, their root causes, evidence, fixes, and pre
 | F-004 | E2E contract | Medium | Fixed | Assertion expected wording different from the real SEO contract |
 | F-005 | E2E timing | Medium | Superseded | Test waited for presentation text before verifying output |
 | F-006 | Image engine / SVG | High | Fixed in code; CI revalidation pending | `createImageBitmap()` failed to decode SVG in Chromium CI |
+| F-007 | Routing / Registry | High | Fixed; CI verified | Validator used source-text route discovery and initially treated non-ready routes as expected public routes |
 
 ---
 
@@ -78,22 +79,12 @@ Purpose: preserve verified failures, their root causes, evidence, fixes, and pre
 **Status:** Code fix committed as `753dbe71a235d158574f04107ea527cbe3b62280`; CI revalidation is required before declaring fully fixed.  
 **Prevention:** Every advertised input format must have a dedicated decode path covered by a real E2E input fixture.
 
----
+## F-007 — Router / Registry Contract False Positive
 
-## Reusable Diagnostic Checklist
-
-When an E2E shard fails:
-
-1. Read the failed step and exact assertion/error.
-2. Decide whether failure is application, test contract, CI infrastructure, or environment.
-3. Inspect screenshot/trace before changing code.
-4. Reproduce with the smallest real input.
-5. Fix the root cause.
-6. Add or strengthen a regression test if the failure exposed a missing contract.
-7. Re-run the smallest failed shard first.
-8. Re-run the full parallel CI before closing the incident.
-9. Append the verified incident and evidence to this file.
-
-## Current Gate
-
-The SVG decode fix is the active item. Do not start another image-tool implementation until the CI run for commit `753dbe71a235d158574f04107ea527cbe3b62280` is green or its next failure is diagnosed and recorded here.
+**Area:** Routing governance / CI verification  
+**Symptom:** `Canonical Verification Gate` failed with routes reported as missing from `TOOLS_REGISTRY`, even though the registry contained the corresponding public tool paths. A later diagnostic run also reported the non-ready `photo-colorizer` route as expected, which was itself incorrect.  
+**Root causes:** The initial validator searched route source text and could not understand the project's `imageToolRoute(...)` helper. It also built the expected public route set from every registry path instead of only `isReady: true` tools and then separately enforcing non-ready exclusion.  
+**Evidence:** CI Run #2028 failed on the unused `registryPath`; the subsequent Canonical Gate run failed on the source-discovery model and then exposed the `photo-colorizer` expected-set bug. The repository's actual `src/routes/image-tools.tsx` defines public routes through `imageToolRoute(...)`.  
+**Fix:** Replaced regex-only route scraping with TypeScript AST analysis that recognizes both `createRoute(...)` and `imageToolRoute(...)`; split ready public routes from non-ready exclusion checks. The resulting PR #203 passed CI Run #2035 and was merged as `130f77f6905ddfa88322e1f2ad48cae47c2d4e93`.  
+**Invariant:** `TOOLS_REGISTRY` is the source of truth; only ready tools may contribute expected public routes; non-ready tools must be absent from public routing.  
+**Prevention:** Validators must model the real router construction and readiness contract, not infer behavior from incidental source strings.
