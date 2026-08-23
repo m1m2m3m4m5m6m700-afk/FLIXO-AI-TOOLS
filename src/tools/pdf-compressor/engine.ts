@@ -110,7 +110,9 @@ export async function compressPdf(file: File, incomingOptions?: Partial<PdfCompr
   };
 
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const pdf = await getDocument({ data: bytes, disableWorker: true }).promise;
+  const safeBuffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(safeBuffer).set(bytes);
+  const pdf = await getDocument({ data: safeBuffer, disableWorker: true }).promise;
   try {
     const outputBytes = new Uint8Array(await buildCompressedPdf(pdf, options));
     const usedCompression = outputBytes.byteLength < file.size;
