@@ -18,5 +18,5 @@ export type ToolManifest = Readonly<{
   status: 'ready';
   seoStatus: ToolSeoStatus;
   capabilities: readonly string[];
-  seoLocales: Readonly<Partial<Record<Locale, LocalizedToolSeo>>>;
+  seoLocales: Readonly<Record<Locale, LocalizedToolSeo>>;
 }>;
