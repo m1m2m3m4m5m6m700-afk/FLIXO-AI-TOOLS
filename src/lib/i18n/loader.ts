@@ -1,5 +1,5 @@
 import type { Locale } from './config';
-import type { TranslationBundle } from './translations';
+import type { TranslationBundle } from './types';
 
 /** Lazy locale dictionary loaders. Each locale remains in its own file. */
 const LOCALE_LOADERS: Record<Locale, () => Promise<TranslationBundle>> = {
@@ -33,6 +33,10 @@ export function loadTranslationDictionary(locale: Locale): Promise<TranslationBu
   const pending = LOCALE_LOADERS[locale]();
   cache.set(locale, pending);
   return pending;
+}
+
+export async function getTranslationBundle(locale: Locale): Promise<TranslationBundle> {
+  return loadTranslationDictionary(locale);
 }
 
 export async function preloadTranslationDictionaries(locales: readonly Locale[]): Promise<void> {

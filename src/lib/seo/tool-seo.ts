@@ -1,5 +1,5 @@
 import { getReadyToolConfigs, getToolConfig, type ToolConfig } from '../../config/tools';
-import { LOCALES, SITE_ORIGIN, TRANSLATION_BUNDLES, type Locale, normalizeLocale } from '../i18n';
+import { LOCALES, LOCALE_METADATA, SITE_ORIGIN, type Locale, normalizeLocale } from '../i18n';
 import { getToolSeoManifest } from './tool-manifests';
 
 const LOCALE_LABELS: Record<Locale, string> = {
@@ -22,7 +22,6 @@ export function getToolSeo(localeInput: string, toolId: string) {
 
   if (!tool || !tool.isReady) return null;
 
-  const bundle = TRANSLATION_BUNDLES[locale];
   const label = LOCALE_LABELS[locale];
   const url = getLocalizedToolUrl(locale, tool.id);
   const xDefaultUrl = getLocalizedToolUrl('en', tool.id);
@@ -37,11 +36,11 @@ export function getToolSeo(localeInput: string, toolId: string) {
     xDefaultUrl,
     title,
     description,
-    languageTag: bundle.languageTag,
-    direction: bundle.direction,
+    languageTag: LOCALE_METADATA[locale].languageTag,
+    direction: LOCALE_METADATA[locale].direction,
     alternates: LOCALES.map((alternateLocale) => ({
       locale: alternateLocale,
-      languageTag: TRANSLATION_BUNDLES[alternateLocale].languageTag,
+      languageTag: LOCALE_METADATA[alternateLocale].languageTag,
       url: getLocalizedToolUrl(alternateLocale, tool.id),
     })),
     structuredData: {
@@ -50,7 +49,7 @@ export function getToolSeo(localeInput: string, toolId: string) {
       name: title,
       description,
       url,
-      inLanguage: bundle.languageTag,
+      inLanguage: LOCALE_METADATA[locale].languageTag,
       applicationCategory: 'MultimediaApplication',
       operatingSystem: 'Any',
     },

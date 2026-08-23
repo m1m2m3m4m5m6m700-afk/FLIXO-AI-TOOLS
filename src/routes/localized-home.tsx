@@ -7,9 +7,9 @@ import { rootRoute } from './__root';
 export const localizedHomeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/$locale',
-  head: ({ params }) => {
+  head: async ({ params }) => {
     const locale = isLocale(params.locale) ? params.locale : 'en';
-    const bundle = getTranslationBundle(locale);
+    const bundle = await getTranslationBundle(locale);
     return {
       meta: [
         { title: `${bundle.siteName} | ${bundle.homeTitle}` },
