@@ -1,5 +1,7 @@
 name: CI
 
+# Verification trigger marker: keeps the canonical CI contract visible in audit history.
+
 on:
   push:
     branches: [main]
