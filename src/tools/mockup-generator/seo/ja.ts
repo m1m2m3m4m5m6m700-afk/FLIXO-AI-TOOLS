@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const ja: LocalizedToolSeo={title:'オンラインモックアップ作成',description:'ブラウザで商品モックアップを作成します。',intro:'画像をモックアップに入れて完成結果をダウンロードします。',keywords:['モックアップ作成','商品モックアップ','オンラインモックアップ'],howTo:['画像を追加。','モックアップを選択して配置。','結果をダウンロード。'],features:['ブラウザ処理','簡単な操作','ダウンロード'],altText:['モックアップ作業画面','モックアッププレビュー','完成したモックアップ']};
