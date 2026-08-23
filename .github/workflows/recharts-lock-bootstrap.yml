@@ -1,0 +1,30 @@
+name: Recharts Lock Bootstrap
+
+on:
+  pull_request:
+    paths:
+      - package.json
+      - package-lock.json
+      - .github/workflows/recharts-lock-bootstrap.yml
+
+jobs:
+  generate-lock:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+      - name: Generate and validate lockfile
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          npm ci --ignore-scripts
+      - name: Upload generated lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: recharts-lockfile
+          path: package-lock.json
+          if-no-files-found: error
