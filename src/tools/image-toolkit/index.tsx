@@ -28,25 +28,28 @@ function hexSignature(bytes: Uint8Array) {
 async function validateSharedImageInput(file: File, toolId: Props['toolId']) {
   const allowedMime = DEFINITIONS[toolId].accept.split(',');
   const rasterMimes = ['image/png', 'image/jpeg', 'image/webp'];
-  const policy = {
+  const signatures = rasterMimes.includes(file.type)
+    ? ['89504e470d0a1a0a', 'ffd8ff', '52494646'] as const
+    : undefined;
+  const basePolicy = {
     allowedMime,
     maxBytes: 25 * 1024 * 1024,
     maxPixels: 40_000_000,
-    ...(rasterMimes.includes(file.type) ? { signatures: ['89504e470d0a1a0a', 'ffd8ff', '52494646'] } : {}),
   } as const;
 
-  const basic = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size }, policy);
+  const basic = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size }, basePolicy);
   if (!basic.safe) throw new Error(`Input rejected by File Safety: ${basic.failures.join('; ')}`);
 
-  if (policy.signatures) {
+  if (signatures) {
     const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
     const signature = hexSignature(bytes);
-    const signatureCheck = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size, signature }, policy);
+    const signaturePolicy = { ...basePolicy, signatures } as const;
+    const signatureCheck = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size, signature }, signaturePolicy);
     if (!signatureCheck.safe) throw new Error(`Input rejected by File Safety: ${signatureCheck.failures.join('; ')}`);
   }
 
   const sourceInfo = await imageInfo(file);
-  const dimensionCheck = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size, width: sourceInfo.width, height: sourceInfo.height }, policy);
+  const dimensionCheck = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size, width: sourceInfo.width, height: sourceInfo.height }, basePolicy);
   if (!dimensionCheck.safe) throw new Error(`Input rejected by File Safety: ${dimensionCheck.failures.join('; ')}`);
 }
 
