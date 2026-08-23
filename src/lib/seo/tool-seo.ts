@@ -25,9 +25,19 @@ export function getToolSeo(localeInput: string, toolId: string) {
   const label = LOCALE_LABELS[locale];
   const url = getLocalizedToolUrl(locale, tool.id);
   const xDefaultUrl = getLocalizedToolUrl('en', tool.id);
-  const manifestSeo = getToolSeoManifest(tool.id)?.seoLocales[locale];
+  const manifest = getToolSeoManifest(tool.id);
+  const manifestSeo = manifest?.seoLocales[locale];
   const title = manifestSeo?.title ?? `${tool.title} | FLIXO`;
   const description = manifestSeo?.description ?? `${label} FLIXO: ${tool.description}`;
+  const localizedPayload = manifestSeo ?? {
+    title,
+    description,
+    intro: description,
+    keywords: [title, 'FLIXO', label],
+    howTo: ['Open the tool.', 'Configure the available options.', 'Run the tool.', 'Download the result.'],
+    features: ['Browser-first processing'],
+    altText: [`${title} interface`],
+  };
 
   return {
     locale,
@@ -36,6 +46,11 @@ export function getToolSeo(localeInput: string, toolId: string) {
     xDefaultUrl,
     title,
     description,
+    intro: localizedPayload.intro,
+    keywords: localizedPayload.keywords,
+    howTo: localizedPayload.howTo,
+    features: localizedPayload.features,
+    altText: localizedPayload.altText,
     languageTag: LOCALE_METADATA[locale].languageTag,
     direction: LOCALE_METADATA[locale].direction,
     alternates: LOCALES.map((alternateLocale) => ({
@@ -52,6 +67,7 @@ export function getToolSeo(localeInput: string, toolId: string) {
       inLanguage: LOCALE_METADATA[locale].languageTag,
       applicationCategory: 'MultimediaApplication',
       operatingSystem: 'Any',
+      keywords: localizedPayload.keywords.join(', '),
     },
   } as const;
 }
