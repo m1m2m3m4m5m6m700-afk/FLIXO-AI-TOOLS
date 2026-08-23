@@ -16,23 +16,38 @@ function propertyName(node) {
   return null;
 }
 
+function stringArgument(node, index = 0) {
+  const argument = node.arguments[index];
+  return argument && ts.isStringLiteral(argument) ? argument.text : null;
+}
+
 function extractRoutePaths(filePath) {
   const source = fs.readFileSync(filePath, 'utf8');
   const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const routes = new Set();
 
   function visit(node) {
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'createRoute') {
-      const [argument] = node.arguments;
-      if (argument && ts.isObjectLiteralExpression(argument)) {
-        const pathProperty = argument.properties.find(
-          (property) => ts.isPropertyAssignment(property) && propertyName(property) === 'path',
-        );
-        if (pathProperty && ts.isPropertyAssignment(pathProperty) && ts.isStringLiteral(pathProperty.initializer)) {
-          routes.add(pathProperty.initializer.text);
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+      const callee = node.expression.text;
+
+      if (callee === 'createRoute') {
+        const [argument] = node.arguments;
+        if (argument && ts.isObjectLiteralExpression(argument)) {
+          const pathProperty = argument.properties.find(
+            (property) => ts.isPropertyAssignment(property) && propertyName(property) === 'path',
+          );
+          if (pathProperty && ts.isPropertyAssignment(pathProperty) && ts.isStringLiteral(pathProperty.initializer)) {
+            routes.add(pathProperty.initializer.text);
+          }
         }
       }
+
+      if (callee === 'imageToolRoute') {
+        const routePath = stringArgument(node);
+        if (routePath) routes.add(routePath);
+      }
     }
+
     ts.forEachChild(node, visit);
   }
 
@@ -80,12 +95,12 @@ function isToolRoute(route) {
 }
 
 const toolDeclaredRoutes = new Set([...declaredRoutes].filter(isToolRoute));
-const expectedToolRoutes = new Set([...canonicalPaths.keys(), ...aliases.keys()].filter((route) => isToolRoute(route)));
+const expectedToolRoutes = new Set([...canonicalPaths.keys(), ...aliases.keys()].filter(isToolRoute));
 
 const missing = [...expectedToolRoutes].filter((route) => !toolDeclaredRoutes.has(route)).sort();
 const orphan = [...toolDeclaredRoutes].filter((route) => !expectedToolRoutes.has(route)).sort();
 
-assert.deepEqual(missing, [], `Routes missing from TOOLS_REGISTRY: ${missing.join(', ')}`);
+assert.deepEqual(missing, [], `Routes missing from router: ${missing.join(', ')}`);
 assert.deepEqual(orphan, [], `Routes missing registry ownership: ${orphan.join(', ')}`);
 
 const photoColorizer = TOOLS_REGISTRY.find((tool) => tool.id === 'photo-colorizer');
