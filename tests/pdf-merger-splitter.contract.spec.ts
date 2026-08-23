@@ -12,16 +12,15 @@ async function makePdf(pageCount: number, marker: string) {
 
 test('pdf-merger-splitter: merges two PDFs and preserves page order', async ({ page }) => {
   await page.goto('/en/pdf-merger-splitter');
-
   await page.locator('#pdf-input').setInputFiles([
     { name: 'a.pdf', mimeType: 'application/pdf', buffer: await makePdf(2, 'A') },
     { name: 'b.pdf', mimeType: 'application/pdf', buffer: await makePdf(1, 'B') },
   ]);
 
   await expect(page.getByText('3 pages')).toBeVisible();
+  const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Merge 3 pages' }).click();
-
-  const download = await page.waitForEvent('download');
+  const download = await downloadPromise;
   const outputPath = await download.path();
   expect(outputPath).toBeTruthy();
   const merged = await PDFDocument.load(outputPath!);
@@ -65,9 +64,9 @@ test('pdf-merger-splitter: splits a valid page range', async ({ page }) => {
     buffer: await makePdf(4, 'S'),
   });
   await page.getByLabel('Page range').fill('2-3');
+  const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Split range' }).click();
-
-  const download = await page.waitForEvent('download');
+  const download = await downloadPromise;
   const outputPath = await download.path();
   expect(outputPath).toBeTruthy();
   const split = await PDFDocument.load(outputPath!);
