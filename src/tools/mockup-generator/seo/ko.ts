@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const ko: LocalizedToolSeo={title:'온라인 목업 생성기',description:'브라우저에서 바로 제품 목업을 만드세요.',intro:'이미지를 목업에 추가하고 완성된 결과를 다운로드하세요.',keywords:['목업 생성기','제품 목업','온라인 목업'],howTo:['이미지를 추가합니다.','목업을 선택하고 배치합니다.','결과를 다운로드합니다.'],features:['브라우저 처리','간단한 흐름','결과 다운로드'],altText:['목업 작업 공간','목업 미리보기','완성된 목업']};
