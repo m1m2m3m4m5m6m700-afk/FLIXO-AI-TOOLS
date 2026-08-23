@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { TOOLS_REGISTRY } from '../config/tools';
 import { SmartCommandPalette } from '../components/SmartCommandPalette';
 import { getBestToolIntent } from '@/lib/intent-router';
-import { getHomeCopy } from '../data/home-locales';
+import { loadHomeCopy } from '@/lib/i18n/home-loader';
+import type { HomeCopy } from '../data/home-locales';
 import type { Locale } from '@/lib/i18n';
 
 type ToolCardProps = { readonly title: string; readonly description: string; readonly category: 'Images' | 'AI' | 'Other'; readonly path: string };
@@ -18,12 +19,23 @@ function recommendTool(file: File): ToolCardProps | null {
 }
 
 export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
-  const copy = getHomeCopy(locale);
+  const [copy, setCopy] = useState<HomeCopy | null>(null);
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [dropRecommendation, setDropRecommendation] = useState<ToolCardProps | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    void loadHomeCopy(locale).then((nextCopy) => {
+      if (active) setCopy(nextCopy);
+    });
+    return () => {
+      active = false;
+    };
+  }, [locale]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setPaletteOpen(true); }
@@ -31,6 +43,7 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
   const intent = useMemo(() => getBestToolIntent(query, READY_TOOLS), [query]);
   const categories = useMemo(() => ['All', ...Array.from(new Set(READY_TOOLS.map((tool) => tool.category)))], []);
   const filteredTools = useMemo(() => {
@@ -41,6 +54,10 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
       return matchesCategory && (!normalized || haystack.includes(normalized));
     });
   }, [query, selectedCategory]);
+
+  if (!copy) {
+    return <main className="home-shell" lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} aria-busy="true" />;
+  }
 
   return (
     <main className="home-shell" lang={copy.language} dir={copy.dir}>
