@@ -10,12 +10,6 @@ export type ImageToPdfOptions = {
 
 const MARGINS: Record<ImageToPdfMargin, number> = { none: 0, small: 18, large: 36 };
 
-function normalizeOrientation(imageWidth: number, imageHeight: number, orientation: ImageToPdfOrientation) {
-  const imageLandscape = imageWidth > imageHeight;
-  const wantsLandscape = orientation === 'landscape';
-  return imageLandscape === wantsLandscape ? 'landscape' : 'portrait';
-}
-
 function arrayBufferFromBytes(bytes: Uint8Array): ArrayBuffer {
   const buffer = new ArrayBuffer(bytes.byteLength);
   new Uint8Array(buffer).set(bytes);
@@ -86,19 +80,19 @@ export async function imagesToPdf(files: File[], options: ImageToPdfOptions): Pr
 
   const pdf = await PDFDocument.create();
   const margin = MARGINS[options.margin];
-  const standardPage = { portrait: { width: 612, height: 792 }, landscape: { width: 792, height: 612 } };
+  const pageSize = options.orientation === 'landscape'
+    ? { width: 792, height: 612 }
+    : { width: 612, height: 792 };
 
   for (const file of supported) {
     const dimensions = await loadImageDimensions(file);
-    const orientation = normalizeOrientation(dimensions.width, dimensions.height, options.orientation);
-    const pageSize = standardPage[orientation];
     const page = pdf.addPage([pageSize.width, pageSize.height]);
     const image = await embedImage(pdf, file);
     const availableWidth = Math.max(1, pageSize.width - margin * 2);
     const availableHeight = Math.max(1, pageSize.height - margin * 2);
-    const scale = Math.min(availableWidth / image.width, availableHeight / image.height);
-    const width = image.width * scale;
-    const height = image.height * scale;
+    const scale = Math.min(availableWidth / Math.max(1, dimensions.width), availableHeight / Math.max(1, dimensions.height));
+    const width = dimensions.width * scale;
+    const height = dimensions.height * scale;
     page.drawImage(image, {
       x: (pageSize.width - width) / 2,
       y: (pageSize.height - height) / 2,
