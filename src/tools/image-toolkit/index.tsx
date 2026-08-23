@@ -98,10 +98,13 @@ export function ImageToolPage({ toolId }: Props) {
       let info: Result['info'];
 
       if (toolId === 'image-converter') {
+        const policy = { allowedMime: ['image/png', 'image/jpeg', 'image/webp'], maxBytes: 25 * 1024 * 1024, maxPixels: 40_000_000 } as const;
+        const basicSafety = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size }, policy);
+        if (!basicSafety.safe) throw new Error(`Input rejected by File Safety: ${basicSafety.failures.join('; ')}`);
         const sourceInfo = await imageInfo(file);
         const safety = validateFileSafety(
           { name: file.name, mime: file.type, bytes: file.size, width: sourceInfo.width, height: sourceInfo.height },
-          { allowedMime: ['image/png', 'image/jpeg', 'image/webp'], maxBytes: 25 * 1024 * 1024, maxPixels: 40_000_000 },
+          policy,
         );
         if (!safety.safe) throw new Error(`Input rejected by File Safety: ${safety.failures.join('; ')}`);
       }
