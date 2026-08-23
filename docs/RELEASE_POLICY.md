@@ -2,61 +2,92 @@
 
 ## 1. Production source
 
-`main` is the only production branch. Work from older branches must be rebuilt or safely rebased onto current `main` before it can be considered for promotion.
+`main` is the only production branch. Older branches must be rebuilt or safely rebased onto current `main` before their changes can be considered for promotion.
 
 ## 2. Verification levels
 
-### Development
+### Developer gate: `npm run check`
 
-Use targeted checks while editing:
+`check` is the deterministic repository/build gate. It covers the engineering baseline, router registry, localization, SEO, full localization validation, production build, and performance-budget validation defined by the repository scripts.
+
+Use targeted checks while editing as needed:
 
 ```bash
 npm run typecheck
 npm run lint
 ```
 
-### Repository check
+### Release gate: `npm run verify`
 
-`npm run check` is the deterministic repository/build gate. It covers the project's baseline, router registry, localization, SEO, build, and performance-budget checks defined in `package.json`.
+`verify` is the canonical release-oriented code gate. It includes the repository check and the production dependency audit.
 
-### Full verification
+### Browser evidence
 
-`npm run verify` is the release-oriented gate. It includes the repository check and production dependency audit.
+```bash
+npm run test:e2e
+```
 
-### Browser smoke
+The independent full-browser matrix in `.github/workflows/full-matrix-promotion.yml` supplies promotion evidence across the supported critical browser suites.
 
-`npm run test:e2e` verifies the browser-facing contracts with Playwright.
+## 3. Evidence-first promotion
 
-## 3. Release evidence
+A release candidate requires fresh evidence for the **exact commit SHA** being promoted.
 
-A release candidate needs fresh evidence for the exact commit being promoted. The minimum evidence set is:
+Minimum code evidence:
 
 1. `npm run verify` passes.
-2. Browser E2E smoke passes.
-3. SEO/localization validation passes when those surfaces changed.
+2. Relevant browser E2E passes.
+3. Localization/SEO checks pass when those surfaces changed.
 4. Production dependency audit passes.
-5. Deployment smoke is green when a deployment is required by the release process.
+5. Full browser promotion evidence passes when required by the release workflow.
 
-Provider-side deployment limits, rate limits, or quota errors are operational conditions; they must not be misreported as code success or code failure without corresponding application evidence.
+A successful local run is useful development evidence, not release certification. A stale CI run is not evidence for a new SHA.
 
-## 4. Pull request hygiene
+## 4. External deployment classification
 
-- Close PRs that are explicitly temporary, marked "do not merge", or based on obsolete experimental branches.
-- Rebuild valuable historical work on current `main` instead of merging stale histories wholesale.
-- Keep dependency experiments isolated until their package, lockfile, type, build, and browser effects are proven.
-- Keep one coherent PR per consolidation theme where possible; avoid mixing large refactors with unrelated feature work.
+Provider-side deployment limits are not rewritten as code results.
 
-## 5. i18n contract
+Use these classifications:
 
-The runtime path is lazy-first. `src/lib/i18n/loader.ts` owns dictionary loading and Promise caching. New code must not add a static import of every locale to a production entry point.
+- `CODE_FAILURE` — a reproducible application/repository gate fails.
+- `EXTERNAL_DEPLOYMENT_FAILURE` — the code gates are valid but a provider fails to deploy or report status because of quota, rate limit, outage, or provider configuration.
+- `CODE_VALID_DEPLOYMENT_UNVERIFIED` — required code evidence is green while deployment evidence is unavailable or externally blocked.
 
-When the i18n refactor is active, the required acceptance checks are:
+An external deployment failure must remain visible and must never be converted into a fabricated application GREEN.
 
-- only the requested locale is loaded at runtime;
+## 5. Pull request hygiene
+
+- `main` is never the working branch.
+- One coherent engineering problem per PR.
+- Do not mix dependency upgrades with unrelated refactors.
+- Close only PRs that are obsolete, experimental, explicitly "do not merge", superseded, or duplicates after evidence-based triage.
+- Rebuild valuable historical work on current `main` instead of merging stale history wholesale.
+- Keep dependency experiments isolated until package, lockfile, type, build, audit, and browser effects are proven.
+
+## 6. i18n contract
+
+The runtime path is lazy-first. `src/lib/i18n/loader.ts` owns dictionary loading and Promise caching. Production entry points must not statically import every locale dictionary.
+
+When i18n changes are active, acceptance requires:
+
+- only the requested locale is loaded for route-level runtime access;
 - the initial bundle does not contain every locale dictionary;
-- locale fallback remains deterministic;
-- localized routing and SEO continue to work for all configured locales.
+- fallback behavior remains deterministic;
+- localized routing and SEO remain valid for the configured locales.
 
-## 6. Promotion rule
+## 7. Rollback
 
-No release is called "green", "certified", or "production-ready" without current CI evidence for the exact commit. Local success is useful development evidence, not release certification.
+Every consolidation PR records:
+
+- Before SHA
+- After SHA
+- Changed files
+- Expected behavior
+- Validation evidence
+- Rollback method
+
+The default rollback is a `git revert` of the merge commit. Manual repair should not replace a clean, auditable rollback unless there is a documented emergency reason.
+
+## 8. Promotion rule
+
+No release is called **GREEN**, **CERTIFIED**, or **production-ready** without current CI evidence for the exact commit. Diagnostics explain failures and preserve evidence; they do not create a second release truth.
