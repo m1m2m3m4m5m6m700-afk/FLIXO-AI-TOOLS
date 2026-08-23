@@ -63,7 +63,7 @@ for (const tool of registry) {
   }
 }
 
-const publicRouteLiteral = /['"](\/[^'\"]+)['"]/g;
+const publicRouteLiteral = /['"](\/[^'"]+)['"]/g;
 const declaredRoutes = new Set();
 for (const { source } of routeSources) {
   for (const match of source.matchAll(publicRouteLiteral)) {
