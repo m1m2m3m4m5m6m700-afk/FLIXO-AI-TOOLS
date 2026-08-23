@@ -39,3 +39,22 @@ export const enPdfCompressorRoute = createRoute({
   ] }),
   component: () => <CompressorComponent />,
 });
+
+const imageToPdfTool = getToolConfigByPath('/en/image-to-pdf');
+if (!imageToPdfTool) throw new Error('Missing ToolConfig for /en/image-to-pdf');
+if (!imageToPdfTool.isReady) throw new Error('Image to PDF route is not ready');
+const ImageToPdfComponent = imageToPdfTool.component;
+
+export const enImageToPdfRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/en/image-to-pdf',
+  head: () => ({ meta: [
+    { title: 'Image to PDF | FLIXO' },
+    { name: 'description', content: 'Convert JPG, PNG, and WEBP images into a PDF locally in your browser.' },
+    { name: 'robots', content: 'index,follow,max-image-preview:large' },
+    { property: 'og:title', content: 'Image to PDF | FLIXO' },
+    { property: 'og:description', content: 'Convert JPG, PNG, and WEBP images into a PDF locally in your browser.' },
+    { property: 'og:type', content: 'website' },
+  ] }),
+  component: () => <ImageToPdfComponent />,
+});
