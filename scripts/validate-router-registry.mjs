@@ -4,7 +4,6 @@ import path from 'node:path';
 import ts from 'typescript';
 
 const root = process.cwd();
-const registryPath = path.join(root, 'src/config/tools.ts');
 const routesDir = path.join(root, 'src/routes');
 
 const { TOOLS_REGISTRY } = await import('../src/config/tools.ts');
