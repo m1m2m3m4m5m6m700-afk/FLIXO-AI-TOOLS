@@ -20,21 +20,25 @@ if (missingMetadata.length || missingFiles.length) {
   process.exit(1);
 }
 
+const getHomeEntry = (locale) => new RegExp(`\\b${locale}:\\s*copy\\(\\{([\\s\\S]*?)\\}\\)`).exec(homeSource)?.[1] ?? '';
 const requiredHomeKeys = ['nav:', 'badge:', 'heroTitle:', 'heroLead:', 'searchPlaceholder:', 'smartPalette:', 'trust:', 'quickDropTitle:', 'dropChoose:', 'toolboxTitle:', 'finalTitle:', 'quickTags:'];
 const missingHomeLocales = expected.filter((locale) => {
-  const entry = new RegExp(`\\b${locale}:\\s*copy\\(\\{([\\s\\S]*?)\\}\\)`).exec(homeSource)?.[1] ?? '';
-  return requiredHomeKeys.some((key) => !entry.includes(key));
+  const entry = getHomeEntry(locale);
+  return !entry || requiredHomeKeys.some((key) => !entry.includes(key));
 });
 if (missingHomeLocales.length) {
   console.error(`Home UI is incomplete for locale(s): ${missingHomeLocales.join(', ')}`);
   process.exit(1);
 }
 
-const englishEntry = /\\ben:\s*copy\\(\\{([\\s\\S]*?)\\}\\)\\s*,/.exec(homeSource)?.[1] ?? '';
-const englishHero = /heroLead:'([^']+)/.exec(englishEntry)?.[1] ?? '';
-const suspiciousEnglishFallbacks = expected.filter((locale) => locale !== 'en' && new RegExp(`\\b${locale}:\\s*copy\\(\\{([\\s\\S]*?)\\}\\)`).test(homeSource) && homeSource.includes(`heroLead:'${englishHero}'`));
-if (suspiciousEnglishFallbacks.length) {
-  console.error(`Possible English fallback detected in locale(s): ${suspiciousEnglishFallbacks.join(', ')}`);
+const englishHero = /heroLead:'([^']+)/.exec(getHomeEntry('en'))?.[1] ?? '';
+const suspiciousFallbacks = expected.filter((locale) => {
+  if (locale === 'en') return false;
+  const entry = getHomeEntry(locale);
+  return !entry || new RegExp(`heroLead:'${englishHero.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`).test(entry);
+});
+if (suspiciousFallbacks.length) {
+  console.error(`Possible English fallback detected in Home locale(s): ${suspiciousFallbacks.join(', ')}`);
   process.exit(1);
 }
 
