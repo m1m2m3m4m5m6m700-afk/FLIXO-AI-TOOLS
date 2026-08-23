@@ -5,7 +5,6 @@ import { SmartCommandPalette } from '../components/SmartCommandPalette';
 import { getBestToolIntent } from '@/lib/intent-router';
 
 type ToolCardProps = {
-  readonly id: string;
   readonly title: string;
   readonly description: string;
   readonly category: 'Images' | 'AI' | 'Other';
@@ -24,7 +23,7 @@ function recommendTool(file: File): ToolCardProps | null {
   return null;
 }
 
-function ToolCard({ id, title, description, category, path }: ToolCardProps) {
+function ToolCard({ title, description, category, path }: ToolCardProps) {
   return (
     <Link to={path} className="home-tool-card" aria-label={`Open ${title}`}>
       <div className="tool-card-topline">
@@ -164,7 +163,7 @@ export function HomePage() {
           </div>
 
           <div className="home-tools-grid">
-            {filteredTools.map((tool) => <ToolCard key={tool.id} id={tool.id} title={tool.title} description={tool.description} category={tool.category} path={tool.path} />)}
+            {filteredTools.map((tool) => <ToolCard key={tool.id} title={tool.title} description={tool.description} category={tool.category} path={tool.path} />)}
           </div>
           {filteredTools.length === 0 && <div className="home-empty">No matching tool yet. Try a simpler phrase or open Smart Intent with Ctrl K.</div>}
         </section>
