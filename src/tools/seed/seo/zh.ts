@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const zh: LocalizedToolSeo = Object.freeze({title:'Seed GPU 在线照片编辑器 | FLIXO',description:'在浏览器中使用 WebGL、色彩调整、模糊、曲线和本地导出编辑照片。',intro:'FLIXO Seed 是基于 GPU 的照片编辑器，提供快速 WebGL 预览和高级调整。',keywords:['GPU 图片编辑器','WebGL 照片编辑器','在线编辑照片','本地图片编辑'],howTo:['选择图片。','调整颜色和高级设置。','使用 GPU 预览结果。','下载 PNG。'],features:['本地处理','WebGL 预览','非破坏历史','PNG 导出'],altText:['Seed 编辑器预览','GPU 调整控件','已编辑图片']});
