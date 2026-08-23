@@ -53,7 +53,7 @@ export const arQuickFlowRoute = createRoute({
     useEffect(() => () => { if (resultUrl) URL.revokeObjectURL(resultUrl); }, [resultUrl]);
 
     if (!workflow || !plan) {
-      return <main dir="rtl" lang="ar" className="image-tool-shell"><div className="image-tool-container"><h1>QuickFlow غير موجود</h1><Link className="primary-button" to="/ar/">العودة إلى فليكسو</Link></div></main>;
+      return <main dir="rtl" lang="ar" className="image-tool-shell"><div className="image-tool-container"><h1>QuickFlow غير موجود</h1><Link className="primary-button" to="/ar">العودة إلى فليكسو</Link></div></main>;
     }
 
     const run = async () => {
@@ -70,7 +70,7 @@ export const arQuickFlowRoute = createRoute({
     return (
       <main dir="rtl" lang="ar" className="image-tool-shell">
         <div className="image-tool-container">
-          <Link to="/ar/" className="language-link">فليكسو ←</Link>
+          <Link to="/ar" className="language-link">فليكسو ←</Link>
           <p className="image-tool-eyebrow" style={{ marginTop: 28 }}>QUICKFLOW · تنفيذ محلي</p>
           <h1>{workflowNames[workflow.id] ?? workflow.title}</h1>
           <p className="image-tool-lead">{workflow.description}</p>
