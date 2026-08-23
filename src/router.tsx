@@ -6,6 +6,7 @@ import { enImageCompressorRoute } from './routes/en-image-compressor';
 import { enQuickFlowRoute } from './routes/en-quickflow';
 import { enPdfCompressorRoute, enPdfMergerSplitterRoute, enImageToPdfRoute, enPdfUnlockProtectRoute, enPdfToTextRoute } from './routes/pdf-tools';
 import { enWordCharacterCounterRoute } from './routes/word-tools';
+import { enTextDiffCheckerRoute } from './routes/text-tools';
 import { localizedHomeRoute } from './routes/localized-home';
 import { localizedQuickFlowRoute } from './routes/localized-quickflow';
 import {
@@ -52,6 +53,7 @@ const routeTree = rootRoute.addChildren([
   enPdfUnlockProtectRoute,
   enPdfToTextRoute,
   enWordCharacterCounterRoute,
+  enTextDiffCheckerRoute,
   enBackgroundRemoverRoute,
   enAiImageGeneratorRoute,
   enImageUpscalerRoute,
