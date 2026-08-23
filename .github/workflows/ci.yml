@@ -183,6 +183,8 @@ jobs:
         run: node scripts/test-release-evidence.mjs
       - name: Validate output integrity contract
         run: node --experimental-strip-types scripts/test-output-integrity.mjs
+      - name: Validate SVG integrity contract
+        run: node --experimental-strip-types scripts/test-svg-integrity.mjs
       - name: Run canonical verification
         run: npm run verify
       - name: Write promotion evidence
