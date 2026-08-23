@@ -51,12 +51,18 @@ async function loadProcessor(backend: SeparationBackend): Promise<DemucsProcesso
   return processorPromise;
 }
 
+function toTransferableBuffer(view: Float32Array): ArrayBuffer {
+  const copy = new Float32Array(view.length);
+  copy.set(view);
+  return copy.buffer;
+}
+
 function getTransferBuffers(result: SeparationResult): Transferable[] {
   const stems: StemName[] = ['vocals', 'drums', 'bass', 'other'];
   const buffers: ArrayBuffer[] = [];
   for (const stemName of stems) {
     const stem: StemAudio = result[stemName];
-    buffers.push(stem.left.buffer, stem.right.buffer);
+    buffers.push(toTransferableBuffer(stem.left), toTransferableBuffer(stem.right));
   }
   return buffers;
 }
