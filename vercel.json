@@ -5,6 +5,15 @@
   "installCommand": "npm ci",
   "devCommand": "npm run dev",
   "cleanUrls": true,
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  },
+  "github": {
+    "enabled": true,
+    "silent": true
+  },
   "rewrites": [
     { "source": "/ar/:path*", "destination": "/" }
   ],
