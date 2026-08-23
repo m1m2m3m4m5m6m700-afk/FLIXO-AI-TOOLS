@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const vi: LocalizedToolSeo = Object.freeze({title:'Trình tối ưu SVG trực tuyến | FLIXO',description:'Tối ưu và thu nhỏ tệp SVG ngay trong trình duyệt.',intro:'FLIXO giảm kích thước SVG cục bộ trong trình duyệt mà không tải tệp lên máy chủ.',keywords:['tối ưu SVG','thu nhỏ SVG','nén SVG'],howTo:['Chọn SVG.','Tối ưu tệp.','Tải SVG đã tối ưu.'],features:['Xử lý cục bộ','Tệp nhỏ hơn','Không tải lên','Tải xuống trực tiếp'],altText:['Khu vực tối ưu SVG','Xem trước SVG đã tối ưu','Tải SVG đã tối ưu']});
