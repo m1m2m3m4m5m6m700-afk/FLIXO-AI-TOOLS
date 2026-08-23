@@ -1,67 +1,102 @@
-export type JsonObject = Record<string, unknown>;
-
-export type JsonParseResult =
-  | { ok: true; value: unknown }
-  | { ok: false; message: string; line: number; column: number };
-
-const getLineColumn = (text: string, index: number) => {
-  const before = text.slice(0, Math.max(0, index));
-  const lines = before.split('\n');
-  return { line: lines.length, column: lines.at(-1)?.length ? (lines.at(-1)?.length ?? 0) + 1 : 1 };
+export type JsonValidation = {
+  readonly valid: boolean;
+  readonly error?: string;
+  readonly line?: number;
+  readonly column?: number;
 };
 
-export function parseJson(text: string): JsonParseResult {
+export type JsonTreeNode = {
+  readonly key: string;
+  readonly value: unknown;
+  readonly type: string;
+  readonly children?: readonly JsonTreeNode[];
+};
+
+export type JsonDocument = string | number | boolean | null | JsonDocument[] | { [key: string]: JsonDocument };
+
+const YAML_UNSAFE_CHARS = new Set([':', '#', '\n', '[', ']', '{', '}', ',', '&', '*', '!', '|', '>', '\'', '"', '%', '@', '`']);
+
+export function validateJson(input: string): JsonValidation {
   try {
-    return { ok: true, value: JSON.parse(text) as unknown };
+    JSON.parse(input);
+    return { valid: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid JSON';
-    const match = message.match(/position (\d+)/i);
-    const index = match ? Number(match[1]) : 0;
-    const { line, column } = getLineColumn(text, index);
-    return { ok: false, message, line, column };
+    const positionMatch = message.match(/position\s+(\d+)/i);
+    if (!positionMatch) return { valid: false, error: message };
+    const position = Number(positionMatch[1]);
+    const before = input.slice(0, position);
+    return {
+      valid: false,
+      error: message,
+      line: before.split('\n').length,
+      column: position - before.lastIndexOf('\n'),
+    };
   }
 }
 
-export function prettifyJson(text: string, spaces: 2 | 4): JsonParseResult & { formatted?: string } {
-  const result = parseJson(text);
-  return result.ok ? { ...result, formatted: JSON.stringify(result.value, null, spaces) } : result;
+export function formatJson(input: string, spaces: 2 | 4): string {
+  return JSON.stringify(JSON.parse(input), null, spaces);
 }
 
-export function minifyJson(text: string): JsonParseResult & { formatted?: string } {
-  const result = parseJson(text);
-  return result.ok ? { ...result, formatted: JSON.stringify(result.value) } : result;
+export function minifyJson(input: string): string {
+  return JSON.stringify(JSON.parse(input));
 }
 
-export function flattenObject(value: unknown, prefix = ''): JsonObject {
-  if (Array.isArray(value)) return Object.fromEntries(value.map((item, index) => [prefix ? `${prefix}.${index}` : String(index), item]));
+function typeOfValue(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  return typeof value;
+}
+
+export function buildJsonTree(value: unknown, key = 'root'): JsonTreeNode {
+  if (Array.isArray(value)) {
+    return {
+      key,
+      value,
+      type: 'array',
+      children: value.map((child, index) => buildJsonTree(child, String(index))),
+    };
+  }
   if (value && typeof value === 'object') {
-    const entries: JsonObject = {};
-    for (const [key, child] of Object.entries(value as JsonObject)) {
-      const next = prefix ? `${prefix}.${key}` : key;
-      if (child && typeof child === 'object' && !Array.isArray(child)) Object.assign(entries, flattenObject(child, next));
-      else entries[next] = child;
-    }
-    return entries;
+    return {
+      key,
+      value,
+      type: 'object',
+      children: Object.entries(value).map(([childKey, childValue]) => buildJsonTree(childValue, childKey)),
+    };
   }
-  return prefix ? { [prefix]: value } : { value };
+  return { key, value, type: typeOfValue(value) };
 }
 
-export function jsonToCsv(value: unknown): string {
-  const rows = Array.isArray(value) ? value : [value];
-  if (!rows.length) return '';
-  const flatRows = rows.map((row) => flattenObject(row));
-  const headers = [...new Set(flatRows.flatMap((row) => Object.keys(row)))];
-  const quote = (cell: unknown) => `"${String(cell ?? '').replaceAll('"', '""')}"`;
-  return [headers.map(quote).join(','), ...flatRows.map((row) => headers.map((header) => quote(row[header])).join(','))].join('\n');
+function yamlScalar(value: unknown): string {
+  if (value === null) return 'null';
+  if (typeof value === 'string') {
+    const unsafe = Array.from(value).some((character) => YAML_UNSAFE_CHARS.has(character));
+    return unsafe ? JSON.stringify(value) : value;
+  }
+  return String(value);
 }
 
-export function jsonToYaml(value: unknown, indent = 0): string {
+function toYamlValue(value: unknown, indent = 0): string {
   const pad = ' '.repeat(indent);
-  if (Array.isArray(value)) return value.map((item) => `${pad}- ${jsonToYaml(item, indent + 2).trimStart()}`).join('\n');
+  if (Array.isArray(value)) {
+    return value
+      .map((child) => {
+        if (child && typeof child === 'object') {
+          const nested = toYamlValue(child, indent + 2).split('\n');
+          return `${pad}- ${nested[0].trim()}${nested.length > 1 ? `\n${nested.slice(1).join('\n')}` : ''}`;
+        }
+        return `${pad}- ${yamlScalar(child)}`;
+      })
+      .join('\n');
+  }
   if (value && typeof value === 'object') {
-    return Object.entries(value as JsonObject)
+    return Object.entries(value)
       .map(([key, child]) => {
-        if (child && typeof child === 'object') return `${pad}${key}:\n${jsonToYaml(child, indent + 2)}`;
+        if (child && typeof child === 'object') {
+          return `${pad}${key}:\n${toYamlValue(child, indent + 2)}`;
+        }
         return `${pad}${key}: ${yamlScalar(child)}`;
       })
       .join('\n');
@@ -69,8 +104,20 @@ export function jsonToYaml(value: unknown, indent = 0): string {
   return `${pad}${yamlScalar(value)}`;
 }
 
-function yamlScalar(value: unknown): string {
-  if (value === null) return 'null';
-  if (typeof value === 'string') return /[:#\n\[\]{},&*!|>'"%@`]/.test(value) ? JSON.stringify(value) : value;
-  return String(value);
+export function toYaml(input: string): string {
+  return toYamlValue(JSON.parse(input));
+}
+
+function csvEscape(value: unknown): string {
+  const text = value === null ? '' : String(value);
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+export function toCsv(input: string): string {
+  const value = JSON.parse(input);
+  if (!Array.isArray(value)) throw new Error('CSV conversion requires a JSON array of objects');
+  const rows = value.filter((item): item is Record<string, unknown> => item && typeof item === 'object' && !Array.isArray(item));
+  const keys = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
+  if (keys.length === 0) return '';
+  return [keys.join(','), ...rows.map((row) => keys.map((key) => csvEscape(row[key])).join(','))].join('\n');
 }
