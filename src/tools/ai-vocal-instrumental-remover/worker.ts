@@ -1,21 +1,18 @@
-import type { SeparationBackend, SeparationProgress, SeparationResult } from './engine';
+import type { SeparationBackend, SeparationProgress, SeparationResult, StemAudio, StemName } from './engine';
+
+type DemucsProcessor = {
+  loadModel: (modelUrl: string) => Promise<void>;
+  separate: (left: Float32Array, right: Float32Array) => Promise<SeparationResult>;
+};
 
 type DemucsModule = {
-  DemucsProcessor: new (options: { ort: unknown; onProgress?: (progress: number) => void; onLog?: (phase: string, message: string) => void }) => {
-    loadModel: (modelUrl: string) => Promise<void>;
-    separate: (left: Float32Array, right: Float32Array) => Promise<SeparationResult>;
-  };
+  DemucsProcessor: new (options: { ort: unknown; onProgress?: (progress: number) => void; onLog?: (phase: string, message: string) => void }) => DemucsProcessor;
   CONSTANTS: { DEFAULT_MODEL_URL: string };
 };
 
 type OrtModule = { env: { wasm?: { wasmPaths?: string } } };
 
-type WorkerRequest = {
-  jobId: string;
-  left: Float32Array;
-  right: Float32Array;
-  backend: SeparationBackend;
-};
+type WorkerRequest = { jobId: string; left: Float32Array; right: Float32Array; backend: SeparationBackend };
 
 type WorkerEvent =
   | { type: 'progress'; jobId: string; data: SeparationProgress }
@@ -29,9 +26,10 @@ const selfScope = globalThis as typeof globalThis & {
 
 const DEMUCS_URL = 'https://esm.sh/demucs-web@1.0.2?bundle';
 const ORT_URL = 'https://esm.sh/onnxruntime-web@1.27.0?bundle';
-let processorPromise: Promise<DemucsModule['DemucsProcessor']> | null = null;
+let processorPromise: Promise<DemucsProcessor> | null = null;
+let currentJobId = '';
 
-async function loadProcessor(backend: SeparationBackend) {
+async function loadProcessor(backend: SeparationBackend): Promise<DemucsProcessor> {
   if (!processorPromise) {
     processorPromise = Promise.all([
       import(/* @vite-ignore */ DEMUCS_URL) as Promise<DemucsModule>,
@@ -40,7 +38,7 @@ async function loadProcessor(backend: SeparationBackend) {
       if (backend === 'wasm' && ort.env.wasm) {
         ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/';
       }
-      const processor = new demucs.DemucsProcessor({
+      const processor: DemucsProcessor = new demucs.DemucsProcessor({
         ort,
         onProgress: (progress) => {
           selfScope.postMessage({ type: 'progress', jobId: currentJobId, data: { phase: 'AI inference', progress: Math.max(0, Math.min(1, progress)) } });
@@ -53,7 +51,15 @@ async function loadProcessor(backend: SeparationBackend) {
   return processorPromise;
 }
 
-let currentJobId = '';
+function getTransferBuffers(result: SeparationResult): Transferable[] {
+  const stems: StemName[] = ['vocals', 'drums', 'bass', 'other'];
+  const buffers: ArrayBuffer[] = [];
+  for (const stemName of stems) {
+    const stem: StemAudio = result[stemName];
+    buffers.push(stem.left.buffer, stem.right.buffer);
+  }
+  return buffers;
+}
 
 selfScope.onmessage = async ({ data }) => {
   currentJobId = data.jobId;
@@ -62,7 +68,7 @@ selfScope.onmessage = async ({ data }) => {
     const processor = await loadProcessor(data.backend);
     selfScope.postMessage({ type: 'progress', jobId: data.jobId, data: { phase: 'Separating stems', progress: 0.15 } });
     const result = await processor.separate(data.left, data.right);
-    selfScope.postMessage({ type: 'done', jobId: data.jobId, result }, Object.values(result).flatMap((stem) => [stem.left.buffer, stem.right.buffer]));
+    selfScope.postMessage({ type: 'done', jobId: data.jobId, result }, getTransferBuffers(result));
   } catch (error) {
     selfScope.postMessage({ type: 'error', jobId: data.jobId, message: error instanceof Error ? error.message : 'Local AI separation failed.' });
   } finally {
