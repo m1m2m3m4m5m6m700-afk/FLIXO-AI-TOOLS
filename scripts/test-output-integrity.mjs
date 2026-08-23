@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-const validate = (await import('../src/lib/contracts/output-integrity.ts')).validateOutputIntegrity;
+const { validateOutputIntegrity } = await import('../src/lib/contracts/output-integrity.ts');
 
 const spec = {
   toolId: 'test',
