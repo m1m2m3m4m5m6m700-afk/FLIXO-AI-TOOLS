@@ -30,12 +30,14 @@ import {
   enWatermarkRemoverRoute,
 } from './routes/image-tools';
 import { indexRoute } from './routes/index';
+import { localizedHomeRoute } from './routes/localized-home';
 import { localizedToolRoute } from './routes/localized-tool';
 import { rootRoute } from './routes/__root';
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
   arIndexRoute,
+  localizedHomeRoute,
   enImageCompressorRoute,
   arImageCompressorRoute,
   enQuickFlowRoute,
