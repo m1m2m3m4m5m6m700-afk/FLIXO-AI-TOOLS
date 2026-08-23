@@ -51,6 +51,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Validate performance budget
+        run: npm run validate:performance-budget
+      - name: Write performance baseline
+        run: npm run report:performance-baseline
+      - name: Upload performance baseline
+        uses: actions/upload-artifact@v6
+        with:
+          name: performance-baseline
+          path: diagnostics/performance-baseline.json
+          if-no-files-found: error
+          retention-days: 14
 
   audit:
     name: Production Audit
@@ -175,6 +186,7 @@ jobs:
             echo
             echo 'All Gate A and Gate B diagnostic jobs were green before this gate ran.'
             echo 'The full 22×3 browser matrix is promoted to the independent Full Matrix Promotion workflow.'
+            echo 'Build performance budget validation and baseline reporting passed before promotion.'
           } >> "$GITHUB_STEP_SUMMARY"
 
   diagnostic-summary:
@@ -192,7 +204,7 @@ jobs:
             echo '| --- | --- |'
             echo '| TypeScript | ${{ needs.typecheck.result }} |'
             echo '| ESLint | ${{ needs.lint.result }} |'
-            echo '| Build | ${{ needs.build.result }} |'
+            echo '| Build + Performance | ${{ needs.build.result }} |'
             echo '| Audit | ${{ needs.audit.result }} |'
             echo '| Socket | ${{ needs.socket.result }} |'
             echo '| CodeQL | ${{ needs.security.result }} |'
@@ -202,6 +214,7 @@ jobs:
             echo
             echo 'Fast Contract Diagnostics fail early on source-level contract drift.'
             echo 'Browser Smoke validates critical file workflows before canonical verification.'
+            echo 'Build performance budget and a reproducible asset baseline are validated before promotion.'
             echo 'The full 22×3 browser matrix runs independently as promotion/release evidence.'
             echo 'Diagnostics explain failures; Canonical Verification is the single PR/application gate.'
             echo 'Socket is fail-closed when SOCKET_SECURITY_API_KEY is configured and intentionally skipped otherwise.'
