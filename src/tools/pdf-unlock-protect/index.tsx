@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { bytesToPdfBlob, protectPdf, unlockPdf, type PdfPermission, type PdfSecurityMode } from './engine';
 
 const PERMISSIONS: Array<{ id: PdfPermission; label: string }> = [
@@ -11,6 +11,10 @@ const PERMISSIONS: Array<{ id: PdfPermission; label: string }> = [
   { id: 'assembly', label: 'Page assembly' },
   { id: 'highQualityPrint', label: 'High-quality printing' },
 ];
+
+function createDefaultPermissions(): Record<PdfPermission, boolean> {
+  return Object.fromEntries(PERMISSIONS.map(({ id }) => [id, true])) as Record<PdfPermission, boolean>;
+}
 
 function downloadBytes(bytes: Uint8Array, filename: string) {
   const url = URL.createObjectURL(bytesToPdfBlob(bytes));
@@ -26,19 +30,19 @@ export function PdfUnlockProtectTool() {
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState('');
   const [ownerPassword, setOwnerPassword] = useState('');
-  const [permissions, setPermissions] = useState<Record<PdfPermission, boolean>>(() =>
-    Object.fromEntries(PERMISSIONS.map(({ id }) => [id, true])) as Record<PdfPermission, boolean>,
-  );
+  const [permissions, setPermissions] = useState<Record<PdfPermission, boolean>>(createDefaultPermissions);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
+  const changeMode = (nextMode: PdfSecurityMode) => {
+    setMode(nextMode);
     setPassword('');
     setOwnerPassword('');
     setError('');
     setSuccess('');
-  }, [mode]);
+    setFile(null);
+  };
 
   const run = async () => {
     if (!file) return;
@@ -81,7 +85,7 @@ export function PdfUnlockProtectTool() {
             role="tab"
             aria-selected={mode === value}
             className={`rounded-xl border px-4 py-3 text-sm font-semibold ${mode === value ? 'border-current' : 'opacity-60'}`}
-            onClick={() => setMode(value)}
+            onClick={() => changeMode(value)}
           >
             {value === 'protect' ? 'Protect PDF' : 'Unlock PDF'}
           </button>
