@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { TOOLS_REGISTRY } from '../config/tools';
 import { SmartCommandPalette } from '../components/SmartCommandPalette';
 import { getBestToolIntent } from '@/lib/intent-router';
+import { HOME_EN } from '../data/home-i18n';
 
 type ToolCardProps = {
   readonly title: string;
@@ -12,7 +13,6 @@ type ToolCardProps = {
 };
 
 const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
-const QUICK_TAGS = ['Image compressor', 'Background remover', 'OCR', 'PDF', 'AI image'];
 
 function recommendTool(file: File): ToolCardProps | null {
   const lower = file.name.toLowerCase();
@@ -25,14 +25,9 @@ function recommendTool(file: File): ToolCardProps | null {
 
 function ToolCard({ title, description, category, path }: ToolCardProps) {
   return (
-    <Link to={path} className="home-tool-card" aria-label={`Open ${title}`}>
-      <div className="tool-card-topline">
-        <span className="tool-card-category">{category}</span>
-        <span className="tool-card-arrow" aria-hidden="true">↗</span>
-      </div>
-      <h3>{title}</h3>
-      <p>{description}</p>
-      <span className="tool-card-meta">Browser-first · Instant start</span>
+    <Link to={path} className="home-tool-card" aria-label={`${HOME_EN.openTool}: ${title}`}>
+      <div className="tool-card-topline"><span className="tool-card-category">{category}</span><span className="tool-card-arrow" aria-hidden="true">↗</span></div>
+      <h3>{title}</h3><p>{description}</p><span className="tool-card-meta">{HOME_EN.browserMeta}</span>
     </Link>
   );
 }
@@ -47,8 +42,7 @@ export function HomePage() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setPaletteOpen(true);
+        event.preventDefault(); setPaletteOpen(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -67,115 +61,28 @@ export function HomePage() {
   }, [query, selectedCategory]);
 
   return (
-    <main className="home-shell">
+    <main className="home-shell" lang={HOME_EN.language} dir={HOME_EN.dir}>
       {paletteOpen && <SmartCommandPalette onClose={() => setPaletteOpen(false)} />}
-      <nav className="home-nav" aria-label="Primary navigation">
+      <nav className="home-nav" aria-label={HOME_EN.ariaPrimary}>
         <div className="home-container home-nav-inner">
-          <Link className="home-brand" to="/" aria-label="FLIXO home">FLIXO</Link>
-          <div className="home-nav-links">
-            <a href="#tools">Tools</a>
-            <a href="#categories">Categories</a>
-            <a href="#privacy">Privacy</a>
-          </div>
-          <a className="home-nav-language" href="/ar/" lang="ar">العربية</a>
+          <Link className="home-brand" to="/" aria-label={HOME_EN.ariaHome}>FLIXO</Link>
+          <div className="home-nav-links"><a href="#tools">{HOME_EN.nav.tools}</a><a href="#categories">{HOME_EN.nav.categories}</a><a href="#privacy">{HOME_EN.nav.privacy}</a></div>
+          <Link className="home-nav-language" to="/ar" lang="ar">{HOME_EN.nav.switch}</Link>
         </div>
       </nav>
 
       <div className="home-container home-content">
-        <section className="home-hero" aria-labelledby="home-title">
-          <div>
-            <span className="home-badge">Privacy-first · Browser-first</span>
-            <p className="image-tool-eyebrow">FLIXO · SMART TOOLBOX</p>
-            <h1 id="home-title">The right tool, <span>without the detour.</span></h1>
-            <p className="home-lead">Find the job, open the tool, finish fast. FLIXO keeps the experience focused and uses local browser processing where the tool supports it.</p>
-          </div>
-          <button type="button" className="home-hero-command" onClick={() => setPaletteOpen(true)}>
-            <span>Describe a task</span><kbd>Ctrl K</kbd>
-          </button>
-        </section>
+        <section className="home-hero" aria-labelledby="home-title"><div><span className="home-badge">{HOME_EN.badge}</span><p className="image-tool-eyebrow">{HOME_EN.eyebrow}</p><h1 id="home-title" dangerouslySetInnerHTML={{ __html: HOME_EN.heroTitle }} /><p className="home-lead">{HOME_EN.heroLead}</p></div><button type="button" className="home-hero-command" onClick={() => setPaletteOpen(true)}><span>{HOME_EN.describe}</span><kbd>Ctrl K</kbd></button></section>
 
-        <section className="home-search-panel" aria-label="Find a tool">
-          <label className="sr-only" htmlFor="tool-search">Search tools</label>
-          <div className="home-search-wrap">
-            <span className="home-search-icon" aria-hidden="true">⌕</span>
-            <input
-              id="tool-search"
-              ref={searchRef}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="What do you need to do? Try “compress image”"
-              autoComplete="off"
-            />
-            <button type="button" className="search-command-button" onClick={() => setPaletteOpen(true)} aria-label="Open smart command palette">AI</button>
-          </div>
-          {intent && (
-            <Link className="intent-suggestion" to={intent.tool.path}>
-              <span><strong>Suggested:</strong> {intent.tool.title}</span>
-              <small>{intent.score}% match · open directly</small>
-            </Link>
-          )}
-          <div className="quick-tags" aria-label="Popular searches">
-            {QUICK_TAGS.map((tag) => <button key={tag} type="button" onClick={() => setQuery(tag)}>{tag}</button>)}
-          </div>
-        </section>
+        <section className="home-search-panel" aria-label={HOME_EN.ariaFindTool}><label className="sr-only" htmlFor="tool-search">{HOME_EN.searchLabel}</label><div className="home-search-wrap"><span className="home-search-icon" aria-hidden="true">⌕</span><input id="tool-search" ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={HOME_EN.searchPlaceholder} autoComplete="off" /><button type="button" className="search-command-button" onClick={() => setPaletteOpen(true)} aria-label={HOME_EN.smartPalette}>AI</button></div>{intent && <Link className="intent-suggestion" to={intent.tool.path}><span><strong>{HOME_EN.suggested}</strong> {intent.tool.title}</span><small>{intent.score}% match · {HOME_EN.openDirectly}</small></Link>}<div className="quick-tags" aria-label={HOME_EN.popular}>{HOME_EN.quickTags.map((tag) => <button key={tag} type="button" onClick={() => setQuery(tag)}>{tag}</button>)}</div></section>
 
-        <section className="home-trust-grid" id="privacy" aria-label="Trust signals">
-          <div><strong>Browser-first</strong><span>Local processing where supported by the tool.</span></div>
-          <div><strong>Fast to start</strong><span>Direct routes with no unnecessary onboarding wall.</span></div>
-          <div><strong>Smart routing</strong><span>Common tasks can jump straight to the best ready tool.</span></div>
-        </section>
+        <section className="home-trust-grid" id="privacy" aria-label={HOME_EN.ariaTrust}>{HOME_EN.trust.map(([title, text]) => <div key={title}><strong>{title}</strong><span>{text}</span></div>)}</section>
 
-        <section className="home-quick-drop" aria-labelledby="quick-drop-title">
-          <div>
-            <span className="image-tool-eyebrow">QUICK-DROP</span>
-            <h2 id="quick-drop-title">Drop a file. We’ll point you to the right tool.</h2>
-            <p>FLIXO does not upload your file from the homepage. It only inspects the file type locally to recommend an existing tool.</p>
-          </div>
-          <label className="home-drop-zone">
-            <input
-              type="file"
-              onChange={(event) => setDropRecommendation(event.target.files?.[0] ? recommendTool(event.target.files[0]) : null)}
-            />
-            <strong>Drop or choose a file</strong>
-            <span>Images are currently supported for smart recommendations.</span>
-          </label>
-          {dropRecommendation && (
-            <div className="drop-result">
-              <div><span>Suggested tool</span><strong>{dropRecommendation.title}</strong></div>
-              <Link className="primary-button" to={dropRecommendation.path}>Open tool</Link>
-            </div>
-          )}
-        </section>
+        <section className="home-quick-drop" aria-labelledby="quick-drop-title"><div><span className="image-tool-eyebrow">{HOME_EN.quickDrop}</span><h2 id="quick-drop-title">{HOME_EN.quickDropTitle}</h2><p>{HOME_EN.quickDropLead}</p></div><label className="home-drop-zone"><input type="file" onChange={(event) => setDropRecommendation(event.target.files?.[0] ? recommendTool(event.target.files[0]) : null)} /><strong>{HOME_EN.dropChoose}</strong><span>{HOME_EN.dropSupport}</span></label>{dropRecommendation && <div className="drop-result"><div><span>{HOME_EN.suggestedTool}</span><strong>{dropRecommendation.title}</strong></div><Link className="primary-button" to={dropRecommendation.path}>{HOME_EN.openTool}</Link></div>}</section>
 
-        <section id="tools" className="home-tools-section" aria-labelledby="tools-title">
-          <div className="section-heading">
-            <div>
-              <span className="image-tool-eyebrow">TOOLBOX</span>
-              <h2 id="tools-title">Start with the tools people actually need.</h2>
-            </div>
-            <span className="tool-count">{filteredTools.length} ready</span>
-          </div>
+        <section id="tools" className="home-tools-section" aria-labelledby="tools-title"><div className="section-heading"><div><span className="image-tool-eyebrow">{HOME_EN.toolbox}</span><h2 id="tools-title">{HOME_EN.toolboxTitle}</h2></div><span className="tool-count">{filteredTools.length} {HOME_EN.ready}</span></div><div id="categories" className="category-pills" aria-label={HOME_EN.ariaCategories}>{categories.map((category) => <button key={category} type="button" className={selectedCategory === category ? 'is-active' : ''} onClick={() => setSelectedCategory(category)}>{category === 'All' ? HOME_EN.all : category}</button>)}</div><div className="home-tools-grid">{filteredTools.map((tool) => <ToolCard key={tool.id} title={tool.title} description={tool.description} category={tool.category} path={tool.path} />)}</div>{filteredTools.length === 0 && <div className="home-empty">{HOME_EN.empty}</div>}</section>
 
-          <div id="categories" className="category-pills" aria-label="Tool categories">
-            {categories.map((category) => (
-              <button key={category} type="button" className={selectedCategory === category ? 'is-active' : ''} onClick={() => setSelectedCategory(category)}>{category}</button>
-            ))}
-          </div>
-
-          <div className="home-tools-grid">
-            {filteredTools.map((tool) => <ToolCard key={tool.id} title={tool.title} description={tool.description} category={tool.category} path={tool.path} />)}
-          </div>
-          {filteredTools.length === 0 && <div className="home-empty">No matching tool yet. Try a simpler phrase or open Smart Intent with Ctrl K.</div>}
-        </section>
-
-        <section className="home-final-cta">
-          <div>
-            <span className="image-tool-eyebrow">BUILT FOR FOCUS</span>
-            <h2>One search. One useful result.</h2>
-            <p>FLIXO is designed to get you from intent to action without turning a simple task into a workflow.</p>
-          </div>
-          <button type="button" className="primary-button" onClick={() => setPaletteOpen(true)}>Try Smart Intent</button>
-        </section>
+        <section className="home-final-cta"><div><span className="image-tool-eyebrow">{HOME_EN.builtForFocus}</span><h2>{HOME_EN.finalTitle}</h2><p>{HOME_EN.finalLead}</p></div><button type="button" className="primary-button" onClick={() => setPaletteOpen(true)}>{HOME_EN.trySmart}</button></section>
       </div>
     </main>
   );
