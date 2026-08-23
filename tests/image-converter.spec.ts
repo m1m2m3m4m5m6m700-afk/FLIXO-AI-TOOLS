@@ -33,3 +33,38 @@ test('image-converter: converts to WebP with a contract-valid output', async ({ 
 
   await assertDownload(page, /\.webp$/);
 });
+
+test('image-converter: rejects unsupported MIME before decoding', async ({ page }) => {
+  await page.goto('/en/image-converter');
+  await page.locator('#image-tool-file').setInputFiles({
+    name: 'payload.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('not an image'),
+  });
+  await page.getByRole('button', { name: 'Run tool' }).click();
+  await expect(page.getByRole('alert')).toContainText('unsupported input MIME type');
+  await expect(page.getByText('No result yet.')).toBeVisible();
+});
+
+test('image-converter: rejects empty files before decoding', async ({ page }) => {
+  await page.goto('/en/image-converter');
+  await page.locator('#image-tool-file').setInputFiles({
+    name: 'empty.png',
+    mimeType: 'image/png',
+    buffer: Buffer.alloc(0),
+  });
+  await page.getByRole('button', { name: 'Run tool' }).click();
+  await expect(page.getByRole('alert')).toContainText('file size must be a positive integer');
+});
+
+test('image-converter: rejects oversized files before decoding', async ({ page }) => {
+  await page.goto('/en/image-converter');
+  const oversized = Buffer.alloc(25 * 1024 * 1024 + 1);
+  await page.locator('#image-tool-file').setInputFiles({
+    name: 'oversized.png',
+    mimeType: 'image/png',
+    buffer: oversized,
+  });
+  await page.getByRole('button', { name: 'Run tool' }).click();
+  await expect(page.getByRole('alert')).toContainText('file exceeds the maximum size');
+});
