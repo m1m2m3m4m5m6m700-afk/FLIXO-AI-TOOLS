@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const zh: LocalizedToolSeo={title:'在线样机生成器',description:'直接在浏览器中创建产品样机。',intro:'将图片放入样机并下载最终结果。',keywords:['样机生成器','产品样机','在线样机'],howTo:['添加图片。','选择并排列样机。','下载结果。'],features:['浏览器处理','简单流程','可下载结果'],altText:['样机工作区','样机预览','完成的样机']};
