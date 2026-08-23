@@ -9,9 +9,9 @@ function formatBytes(bytes: number) {
 }
 
 function pdfBlob(bytes: Uint8Array): Blob {
-  const safeBytes = new Uint8Array(bytes.byteLength);
-  safeBytes.set(bytes);
-  return new Blob([safeBytes], { type: 'application/pdf' });
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return new Blob([buffer], { type: 'application/pdf' });
 }
 
 export function PdfMergerSplitterTool() {
