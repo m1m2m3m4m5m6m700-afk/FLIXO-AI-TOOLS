@@ -25,11 +25,18 @@ function collectRoutePaths(dir) {
     .map((entry) => path.join(dir, entry.name));
 
   const routes = new Set();
+  const routePatterns = [
+    /path:\s*'([^']+)'/g,
+    /imageToolRoute\(\s*'([^']+)'/g,
+  ];
+
   for (const file of files) {
     const source = fs.readFileSync(file, 'utf8');
-    for (const match of source.matchAll(/path:\s*'([^']+)'/g)) {
-      const route = match[1];
-      if (/^\/(?:[a-z]{2}\/)?[^$].+/.test(route)) routes.add(route);
+    for (const pattern of routePatterns) {
+      for (const match of source.matchAll(pattern)) {
+        const route = match[1];
+        if (/^\/(?:[a-z]{2}\/)?[^$].+/.test(route)) routes.add(route);
+      }
     }
   }
   return routes;
