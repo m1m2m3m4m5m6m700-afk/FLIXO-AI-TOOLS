@@ -1,3 +1,5 @@
+import { getDocument, type PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
+
 export type PdfTextPage = {
   pageNumber: number;
   text: string;
@@ -10,8 +12,6 @@ export type PdfTextExtraction = {
   wordCount: number;
 };
 
-type PdfJsModule = typeof import('pdfjs-dist');
-
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const buffer = new ArrayBuffer(bytes.byteLength);
   new Uint8Array(buffer).set(bytes);
@@ -23,8 +23,20 @@ function countWords(text: string): number {
   return normalized ? normalized.split(/\s+/u).length : 0;
 }
 
-async function loadPdfJs(): Promise<PdfJsModule> {
-  return import('pdfjs-dist');
+function normalizePdfText(value: string): string {
+  return value.replace(/[ \t]+/gu, ' ').trim();
+}
+
+async function extractPages(pdf: PDFDocumentProxy): Promise<PdfTextPage[]> {
+  const pages: PdfTextPage[] = [];
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const content = await page.getTextContent();
+    const text = normalizePdfText(content.items.map((item) => ('str' in item ? item.str : '')).join(' '));
+    pages.push({ pageNumber, text, wordCount: countWords(text) });
+    page.cleanup();
+  }
+  return pages;
 }
 
 export async function extractPdfText(file: File): Promise<PdfTextExtraction> {
@@ -34,33 +46,17 @@ export async function extractPdfText(file: File): Promise<PdfTextExtraction> {
   if (file.size === 0) throw new Error('The PDF file is empty.');
   if (file.size > 75 * 1024 * 1024) throw new Error('PDFs larger than 75 MB are not supported in the browser.');
 
-  const pdfjs = await loadPdfJs();
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const loadingTask = pdfjs.getDocument({ data: toArrayBuffer(bytes) });
+  const loadingTask = getDocument({ data: toArrayBuffer(bytes) });
   const pdf = await loadingTask.promise;
-  const pages: PdfTextPage[] = [];
 
   try {
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-      const page = await pdf.getPage(pageNumber);
-      const content = await page.getTextContent();
-      const text = content.items
-        .map((item) => ('str' in item ? item.str : ''))
-        .join(' ')
-        .replace(/[ \t]+/gu, ' ')
-        .trim();
-      pages.push({ pageNumber, text, wordCount: countWords(text) });
-    }
+    const pages = await extractPages(pdf);
+    const text = pages.map((page) => page.text).filter(Boolean).join('\n\n');
+    return { pages, text, wordCount: countWords(text) };
   } finally {
     await loadingTask.destroy();
   }
-
-  const text = pages.map((page) => page.text).filter(Boolean).join('\n\n');
-  return {
-    pages,
-    text,
-    wordCount: countWords(text),
-  };
 }
 
 export function exportText(extraction: PdfTextExtraction): string {
