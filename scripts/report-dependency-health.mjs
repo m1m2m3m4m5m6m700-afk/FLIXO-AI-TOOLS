@@ -7,7 +7,9 @@ function runNpmOutdated() {
   });
 
   if (result.error) {
-    throw new Error(`Failed to run npm outdated: ${result.error.message}`);
+    throw new Error(`Failed to run npm outdated: ${result.error.message}`, {
+      cause: result.error,
+    });
   }
 
   const stdout = (result.stdout ?? '').trim();
@@ -27,6 +29,7 @@ function runNpmOutdated() {
   } catch (error) {
     throw new Error(
       `Failed to parse npm outdated output (exit ${result.status}): ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
     );
   }
 }
