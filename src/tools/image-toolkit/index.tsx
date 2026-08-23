@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { convertImage, cropResizeImage, downloadBlob, imageInfo, removeBackground, rasterToSvg, resizeImage, watermarkRemove, fillRemoveRegion } from './engine';
 import { recognizeWithOcrWorker } from './ocr-worker-client';
-import { assertImageConverterOutputIntegrity } from '../image-converter/output-integrity';
+import { assertImageCropperOutputIntegrity } from '../image-cropper/output-integrity';
 import type { LocalToolId } from './engine';
 
 const DEFINITIONS: Record<Exclude<LocalToolId, 'ai-image-generator' | 'image-compressor'>, { title: string; description: string; accept: string }> = {
@@ -37,7 +37,7 @@ async function preprocessForOcr(file: File): Promise<Blob> {
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
   const data = context.getImageData(0, 0, canvas.width, canvas.height);
   for (let index = 0; index < data.data.length; index += 4) {
-    const luminance = 0.2126 * data.data[index] + 0.0722 * data.data[index + 2] + 0.7152 * data.data[index + 1];
+    const luminance = 0.2126 * data.data[index] + 0.7152 * data.data[index + 1] + 0.0722 * data.data[index + 2];
     const boosted = Math.max(0, Math.min(255, (luminance - 128) * 1.45 + 128));
     data.data[index] = boosted;
     data.data[index + 1] = boosted;
@@ -121,14 +121,15 @@ export function ImageToolPage({ toolId }: Props) {
         fileName += '-watermark-removed.png';
       } else if (toolId === 'crop-resize') {
         blob = await cropResizeImage(file, { x: Number(cropX), y: Number(cropY), width: Number(cropW), height: Number(cropH) }, { width: Number(outW), height: Number(outH) });
+        info = await imageInfo(blob);
+        assertImageCropperOutputIntegrity(blob, info);
         fileName += '-cropped.png';
       } else {
         blob = await rasterToSvg(file, Number(columns) || 48);
         fileName += '.svg';
       }
 
-      if (blob.type.startsWith('image/')) info = await imageInfo(blob);
-      if (toolId === 'image-converter' && info) assertImageConverterOutputIntegrity(blob, info);
+      if (blob.type.startsWith('image/') && !info) info = await imageInfo(blob);
       setResult({ blob, info, fileName });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Tool failed.');
