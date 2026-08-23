@@ -1,5 +1,29 @@
+type TranscriptionResult = {
+  text?: string;
+  chunks?: ReadonlyArray<{
+    text?: string;
+    timestamp?: readonly [number | null, number | null];
+  }>;
+};
+
+type WhisperTranscriber = (
+  input: Float32Array,
+  options: {
+    sampling_rate: number;
+    return_timestamps: boolean;
+    chunk_length_s: number;
+    stride_length_s: number;
+  },
+) => Promise<TranscriptionResult>;
+
+type WhisperPipelineFactory = (
+  task: 'automatic-speech-recognition',
+  model: string,
+  options?: Record<string, unknown>,
+) => Promise<WhisperTranscriber>;
+
 type WhisperModule = {
-  pipeline: (task: string, model: string, options?: Record<string, unknown>) => Promise<unknown>;
+  pipeline: WhisperPipelineFactory;
 };
 
 export type CaptionWorkerRequest = { jobId: string; file: ArrayBuffer; device: 'webgpu' | 'wasm' };
@@ -11,11 +35,17 @@ const scope = globalThis as typeof globalThis & {
 
 const MODULE_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.1';
 const MODEL = 'onnx-community/whisper-tiny';
-let transcriberPromise: Promise<any> | null = null;
+let transcriberPromise: Promise<WhisperTranscriber> | null = null;
 
 async function loadTranscriber(device: 'webgpu' | 'wasm') {
   if (!transcriberPromise) {
-    transcriberPromise = import(/* @vite-ignore */ MODULE_URL).then(async (module: WhisperModule) => module.pipeline('automatic-speech-recognition', MODEL, { device, dtype: device === 'webgpu' ? 'q4' : 'q8' }));
+    transcriberPromise = import(/* @vite-ignore */ MODULE_URL).then((module: unknown) => {
+      const runtimeModule = module as WhisperModule;
+      return runtimeModule.pipeline('automatic-speech-recognition', MODEL, {
+        device,
+        dtype: device === 'webgpu' ? 'q4' : 'q8',
+      });
+    });
   }
   return transcriberPromise;
 }
