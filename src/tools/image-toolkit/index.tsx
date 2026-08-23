@@ -17,9 +17,42 @@ const DEFINITIONS: Record<Exclude<LocalToolId, 'ai-image-generator' | 'image-com
 };
 
 type Props = { toolId: Exclude<LocalToolId, 'image-compressor'> };
+type SharedImageToolId = Exclude<LocalToolId, 'ai-image-generator' | 'image-compressor'>;
 type Result = { blob: Blob; text?: string; fileName: string; info?: { width: number; height: number } };
 
 function baseName(name: string) { return name.replace(/\.[^.]+$/, '') || 'flixo-image'; }
+
+function hexSignature(bytes: Uint8Array) {
+  return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function validateSharedImageInput(file: File, toolId: SharedImageToolId) {
+  const allowedMime = DEFINITIONS[toolId].accept.split(',');
+  const rasterMimes = ['image/png', 'image/jpeg', 'image/webp'];
+  const signatures = rasterMimes.includes(file.type)
+    ? ['89504e470d0a1a0a', 'ffd8ff', '52494646'] as const
+    : undefined;
+  const basePolicy = {
+    allowedMime,
+    maxBytes: 25 * 1024 * 1024,
+    maxPixels: 40_000_000,
+  } as const;
+
+  const basic = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size }, basePolicy);
+  if (!basic.safe) throw new Error(`Input rejected by File Safety: ${basic.failures.join('; ')}`);
+
+  if (signatures) {
+    const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    const signature = hexSignature(bytes);
+    const signaturePolicy = { ...basePolicy, signatures } as const;
+    const signatureCheck = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size, signature }, signaturePolicy);
+    if (!signatureCheck.safe) throw new Error(`Input rejected by File Safety: ${signatureCheck.failures.join('; ')}`);
+  }
+
+  const sourceInfo = await imageInfo(file);
+  const dimensionCheck = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size, width: sourceInfo.width, height: sourceInfo.height }, basePolicy);
+  if (!dimensionCheck.safe) throw new Error(`Input rejected by File Safety: ${dimensionCheck.failures.join('; ')}`);
+}
 
 function useObjectUrl(blob: Blob | null) {
   const url = useMemo(() => (blob ? URL.createObjectURL(blob) : ''), [blob]);
@@ -93,18 +126,10 @@ export function ImageToolPage({ toolId }: Props) {
       }
 
       if (!file) throw new Error('Choose an image first.');
+      await validateSharedImageInput(file, toolId);
       let blob: Blob;
       let fileName = baseName(file.name);
       let info: Result['info'];
-
-      if (toolId === 'image-converter') {
-        const policy = { allowedMime: ['image/png', 'image/jpeg', 'image/webp'], maxBytes: 25 * 1024 * 1024, maxPixels: 40_000_000 } as const;
-        const basicSafety = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size }, policy);
-        if (!basicSafety.safe) throw new Error(`Input rejected by File Safety: ${basicSafety.failures.join('; ')}`);
-        const sourceInfo = await imageInfo(file);
-        const safety = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size, width: sourceInfo.width, height: sourceInfo.height }, policy);
-        if (!safety.safe) throw new Error(`Input rejected by File Safety: ${safety.failures.join('; ')}`);
-      }
 
       if (toolId === 'background-remover') {
         blob = await removeBackground(file, Number(tolerance) || 42);
