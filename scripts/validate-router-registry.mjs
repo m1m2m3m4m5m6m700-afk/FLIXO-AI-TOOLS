@@ -8,9 +8,12 @@ const routesDir = path.join(root, 'src/routes');
 
 function parseRegistry(source) {
   const entries = [];
-  const entryPattern = /\{\s*id:\s*'([^']+)'[\s\S]*?path:\s*'([^']+)'[\s\S]*?description:\s*'[^']*',[\s\S]*?isReady:\s*(true|false)[\s\S]*?\},/g;
+  const entryPattern = /\{\s*id:\s*'([^']+)'[\s\S]*?path:\s*'([^']+)'[\s\S]*?description:\s*'[^']*',[\s\S]*?isReady:\s*(true|false)(?:,[\s\S]*?aliases:\s*\[([^\]]*)\])?[\s\S]*?\},/g;
   for (const match of source.matchAll(entryPattern)) {
-    entries.push({ id: match[1], path: match[2], isReady: match[3] === 'true' });
+    const aliases = (match[4] ?? '')
+      .match(/'([^']+)'/g)
+      ?.map((value) => value.slice(1, -1)) ?? [];
+    entries.push({ id: match[1], path: match[2], isReady: match[3] === 'true', aliases });
   }
   assert.ok(entries.length > 0, 'No tool entries found in TOOLS_REGISTRY.');
   return entries;
@@ -33,11 +36,21 @@ function collectRoutePaths(dir) {
 }
 
 const registry = parseRegistry(fs.readFileSync(registryPath, 'utf8'));
-const registryPaths = new Map(registry.map((tool) => [tool.path, tool]));
-const routePaths = collectRoutePaths(routesDir);
+const registryPaths = new Map();
+const registryAliases = new Map();
+for (const tool of registry) {
+  assert.equal(registryPaths.has(tool.path), false, `duplicate registry path: ${tool.path}`);
+  registryPaths.set(tool.path, tool);
+  for (const alias of tool.aliases) {
+    assert.equal(registryAliases.has(alias), false, `duplicate registry alias: ${alias}`);
+    assert.notEqual(alias, tool.path, `alias duplicates canonical path: ${alias}`);
+    registryAliases.set(alias, tool);
+  }
+}
 
+const routePaths = collectRoutePaths(routesDir);
 const orphanRoutes = [...routePaths]
-  .filter((route) => !registryPaths.has(route) && !route.startsWith('/$'))
+  .filter((route) => !registryPaths.has(route) && !registryAliases.has(route) && !route.startsWith('/$'))
   .sort();
 assert.deepEqual(orphanRoutes, [], `Routes missing from TOOLS_REGISTRY: ${orphanRoutes.join(', ')}`);
 
@@ -47,6 +60,10 @@ for (const tool of registry) {
   } else {
     assert.equal(routePaths.has(tool.path), false, `non-ready tool has a public route: ${tool.id} -> ${tool.path}`);
   }
+  for (const alias of tool.aliases) {
+    assert.ok(tool.isReady, `non-ready tool cannot expose an alias: ${tool.id} -> ${alias}`);
+    assert.ok(routePaths.has(alias), `registered alias has no route: ${tool.id} -> ${alias}`);
+  }
 }
 
-console.log(`router/registry contract passed: ${registry.length} tools, ${routePaths.size} concrete routes`);
+console.log(`router/registry contract passed: ${registry.length} tools, ${routePaths.size} concrete routes, ${registryAliases.size} aliases`);
