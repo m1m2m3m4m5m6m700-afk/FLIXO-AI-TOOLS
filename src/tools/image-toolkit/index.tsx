@@ -17,6 +17,7 @@ const DEFINITIONS: Record<Exclude<LocalToolId, 'ai-image-generator' | 'image-com
 };
 
 type Props = { toolId: Exclude<LocalToolId, 'image-compressor'> };
+type SharedImageToolId = Exclude<LocalToolId, 'ai-image-generator' | 'image-compressor'>;
 type Result = { blob: Blob; text?: string; fileName: string; info?: { width: number; height: number } };
 
 function baseName(name: string) { return name.replace(/\.[^.]+$/, '') || 'flixo-image'; }
@@ -25,7 +26,7 @@ function hexSignature(bytes: Uint8Array) {
   return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-async function validateSharedImageInput(file: File, toolId: Props['toolId']) {
+async function validateSharedImageInput(file: File, toolId: SharedImageToolId) {
   const allowedMime = DEFINITIONS[toolId].accept.split(',');
   const rasterMimes = ['image/png', 'image/jpeg', 'image/webp'];
   const signatures = rasterMimes.includes(file.type)
