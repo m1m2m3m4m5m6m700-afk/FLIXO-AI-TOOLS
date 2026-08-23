@@ -1,5 +1,5 @@
 import { createRouter } from '@tanstack/react-router';
-import { arHomeRoute } from './routes/ar-index';
+import { arIndexRoute } from './routes/ar-index';
 import { arImageCompressorRoute } from './routes/ar-image-compressor';
 import { enImageCompressorRoute } from './routes/en-image-compressor';
 import {
@@ -33,7 +33,7 @@ import { rootRoute } from './routes/__root';
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
-  arHomeRoute,
+  arIndexRoute,
   enImageCompressorRoute,
   arImageCompressorRoute,
   enBackgroundRemoverRoute,
