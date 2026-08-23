@@ -107,6 +107,42 @@ jobs:
       - name: Run fast contract verifier
         run: npm run verify:fast
 
+  browser-smoke:
+    name: Browser Smoke — ${{ matrix.tool }} — Chromium
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tool: image-converter
+            spec: tests/image-converter.spec.ts
+          - tool: image-cropper
+            spec: tests/image-cropper.spec.ts
+          - tool: exif-cleaner
+            spec: tests/exif-cleaner.spec.ts
+          - tool: image-to-svg
+            spec: tests/image-to-svg.spec.ts
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run smoke test
+        run: npx playwright test ${{ matrix.spec }} --project=chromium
+      - name: Upload smoke diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: browser-smoke-${{ matrix.tool }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 7
+
   e2e:
     name: E2E — ${{ matrix.tool }} — ${{ matrix.browser }}
     runs-on: ubuntu-latest
@@ -182,9 +218,9 @@ jobs:
 
   canonical-verify:
     name: Canonical Verification Gate
-    if: ${{ needs.typecheck.result == 'success' && needs.lint.result == 'success' && needs.build.result == 'success' && needs.audit.result == 'success' && needs.socket.result == 'success' && needs.security.result == 'success' && needs.e2e.result == 'success' }}
+    if: ${{ needs.typecheck.result == 'success' && needs.lint.result == 'success' && needs.build.result == 'success' && needs.audit.result == 'success' && needs.socket.result == 'success' && needs.security.result == 'success' && needs.fast-contract.result == 'success' && needs.browser-smoke.result == 'success' && needs.e2e.result == 'success' }}
     runs-on: ubuntu-latest
-    needs: [typecheck, lint, build, audit, socket, security, e2e]
+    needs: [typecheck, lint, build, audit, socket, security, fast-contract, browser-smoke, e2e]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -217,7 +253,7 @@ jobs:
     name: Diagnostic Summary
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    needs: [typecheck, lint, build, audit, socket, security, fast-contract, e2e, canonical-verify]
+    needs: [typecheck, lint, build, audit, socket, security, fast-contract, browser-smoke, e2e, canonical-verify]
     steps:
       - name: Write CI summary
         run: |
@@ -233,10 +269,12 @@ jobs:
             echo '| Socket | ${{ needs.socket.result }} |'
             echo '| CodeQL | ${{ needs.security.result }} |'
             echo '| Fast Contract Diagnostics | ${{ needs.fast-contract.result }} |'
+            echo '| Browser Smoke (4 Chromium tools) | ${{ needs.browser-smoke.result }} |'
             echo '| Per-tool E2E (66 browser jobs) | ${{ needs.e2e.result }} |'
             echo '| Canonical Verification | ${{ needs.canonical-verify.result }} |'
             echo
-            echo 'Fast Contract Diagnostics fail early on source-level contract drift without waiting for the browser matrix.'
+            echo 'Fast Contract Diagnostics fail early on source-level contract drift.'
+            echo 'Browser Smoke validates critical file workflows before the full browser matrix.'
             echo 'E2E matrix isolates every tool/browser pair; failed jobs upload their own Playwright diagnostics artifact.'
             echo 'Diagnostics explain failures; Canonical Verification is the single promotion signal.'
             echo 'Socket is fail-closed when SOCKET_SECURITY_API_KEY is configured and intentionally skipped otherwise.'
