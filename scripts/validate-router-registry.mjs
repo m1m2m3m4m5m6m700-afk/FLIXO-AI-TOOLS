@@ -19,39 +19,14 @@ function parseRegistry(source) {
   return entries;
 }
 
-function listTsxFiles(dir) {
+function listRouteFiles(dir) {
   const files = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...listTsxFiles(fullPath));
-    } else if (entry.isFile() && entry.name.endsWith('.tsx')) {
-      files.push(fullPath);
-    }
+    if (entry.isDirectory()) files.push(...listRouteFiles(fullPath));
+    else if (entry.isFile() && entry.name.endsWith('.tsx')) files.push(fullPath);
   }
   return files;
-}
-
-function collectRoutePaths(dir) {
-  const routes = new Set();
-  const routePatterns = [
-    /\bpath:\s*['"](\/[^'"]+)['"]/g,
-    /\bimageToolRoute\(\s*['"](\/[^'"]+)['"]/g,
-    /\bcreateRoute\(\{[\s\S]*?\bpath:\s*['"](\/[^'"]+)['"]/g,
-  ];
-
-  for (const file of listTsxFiles(dir)) {
-    const source = fs.readFileSync(file, 'utf8');
-    for (const pattern of routePatterns) {
-      for (const match of source.matchAll(pattern)) {
-        const route = match[1];
-        if (/^\/(?:[a-z]{2}\/)?[a-z0-9][a-z0-9/_-]*$/i.test(route)) {
-          routes.add(route);
-        }
-      }
-    }
-  }
-  return routes;
 }
 
 const registry = parseRegistry(fs.readFileSync(registryPath, 'utf8'));
@@ -67,22 +42,39 @@ for (const tool of registry) {
   }
 }
 
-const routePaths = collectRoutePaths(routesDir);
-const orphanRoutes = [...routePaths]
+const routeSources = listRouteFiles(routesDir).map((file) => ({
+  file,
+  source: fs.readFileSync(file, 'utf8'),
+}));
+
+function routeIsDeclared(route) {
+  return routeSources.some(({ source }) => source.includes(route));
+}
+
+for (const tool of registry) {
+  if (tool.isReady) {
+    assert.ok(routeIsDeclared(tool.path), `ready tool has no route declaration: ${tool.id} -> ${tool.path}`);
+  } else {
+    assert.equal(routeIsDeclared(tool.path), false, `non-ready tool has a public route declaration: ${tool.id} -> ${tool.path}`);
+  }
+  for (const alias of tool.aliases) {
+    assert.ok(tool.isReady, `non-ready tool cannot expose an alias: ${tool.id} -> ${alias}`);
+    assert.ok(routeIsDeclared(alias), `registered alias has no route declaration: ${tool.id} -> ${alias}`);
+  }
+}
+
+const publicRouteLiteral = /['"](\/[^'\"]+)['"]/g;
+const declaredRoutes = new Set();
+for (const { source } of routeSources) {
+  for (const match of source.matchAll(publicRouteLiteral)) {
+    const route = match[1];
+    if (/^\/(?:[a-z]{2}\/)?[a-z0-9][a-z0-9/_-]*$/i.test(route)) declaredRoutes.add(route);
+  }
+}
+
+const orphanRoutes = [...declaredRoutes]
   .filter((route) => !registryPaths.has(route) && !registryAliases.has(route) && !route.startsWith('/$'))
   .sort();
 assert.deepEqual(orphanRoutes, [], `Routes missing from TOOLS_REGISTRY: ${orphanRoutes.join(', ')}`);
 
-for (const tool of registry) {
-  if (tool.isReady) {
-    assert.ok(routePaths.has(tool.path), `ready tool has no concrete route: ${tool.id} -> ${tool.path}`);
-  } else {
-    assert.equal(routePaths.has(tool.path), false, `non-ready tool has a public route: ${tool.id} -> ${tool.path}`);
-  }
-  for (const alias of tool.aliases) {
-    assert.ok(tool.isReady, `non-ready tool cannot expose an alias: ${tool.id} -> ${alias}`);
-    assert.ok(routePaths.has(alias), `registered alias has no route: ${tool.id} -> ${alias}`);
-  }
-}
-
-console.log(`router/registry contract passed: ${registry.length} tools, ${routePaths.size} concrete routes, ${registryAliases.size} aliases`);
+console.log(`router/registry contract passed: ${registry.length} tools, ${declaredRoutes.size} declared routes, ${registryAliases.size} aliases`);
