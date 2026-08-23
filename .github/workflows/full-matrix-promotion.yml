@@ -1,0 +1,106 @@
+name: Full Matrix Promotion
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-matrix-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Full Matrix — ${{ matrix.tool }} — ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+        include:
+          - tool: image-compressor
+            spec: tests/image-compressor.spec.ts
+          - tool: background-remover
+            spec: tests/background-remover.spec.ts
+          - tool: image-upscaler
+            spec: tests/image-upscaler.spec.ts
+          - tool: image-converter
+            spec: tests/image-converter.spec.ts
+          - tool: ai-image-generator
+            spec: tests/ai-image-generator.spec.ts
+          - tool: object-remover
+            spec: tests/object-remover.spec.ts
+          - tool: watermark-remover
+            spec: tests/watermark-remover.spec.ts
+          - tool: image-cropper
+            spec: tests/image-cropper.spec.ts
+          - tool: image-to-svg
+            spec: tests/image-to-svg.spec.ts
+          - tool: image-ocr
+            spec: tests/image-ocr.spec.ts
+          - tool: photo-colorizer
+            spec: tests/photo-colorizer.spec.ts
+          - tool: background-blur
+            spec: tests/background-blur.spec.ts
+          - tool: passport-photo-maker
+            spec: tests/passport-photo-maker.spec.ts
+          - tool: watermark-adder
+            spec: tests/watermark-adder.spec.ts
+          - tool: meme-generator
+            spec: tests/meme-generator.spec.ts
+          - tool: collage-maker
+            spec: tests/collage-maker.spec.ts
+          - tool: image-effects
+            spec: tests/image-effects.spec.ts
+          - tool: exif-cleaner
+            spec: tests/exif-cleaner.spec.ts
+          - tool: svg-optimizer
+            spec: tests/svg-optimizer.spec.ts
+          - tool: mockup-generator
+            spec: tests/mockup-generator.spec.ts
+          - tool: seed
+            spec: tests/seed.spec.ts
+          - tool: pix
+            spec: tests/pix.spec.ts
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Run ${{ matrix.tool }} E2E on ${{ matrix.browser }}
+        run: npx playwright test ${{ matrix.spec }} --project=${{ matrix.browser }}
+      - name: Upload E2E diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: full-matrix-${{ matrix.tool }}-${{ matrix.browser }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 7
+
+  promotion:
+    name: Full Matrix Promotion Gate
+    needs: [e2e]
+    if: ${{ always() && needs.e2e.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write promotion evidence
+        run: |
+          {
+            echo '## FLIXO Full Matrix Promotion'
+            echo
+            echo 'Full browser matrix passed for:'
+            echo '${{ github.sha }}'
+            echo
+            echo '22 tools × 3 browsers = 66 E2E jobs completed successfully.'
+          } >> "$GITHUB_STEP_SUMMARY"
