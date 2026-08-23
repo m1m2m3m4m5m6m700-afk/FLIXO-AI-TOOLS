@@ -77,3 +77,22 @@ export const enPdfUnlockProtectRoute = createRoute({
   ] }),
   component: () => <UnlockProtectComponent />,
 });
+
+const pdfToTextTool = getToolConfigByPath('/en/pdf-to-text');
+if (!pdfToTextTool) throw new Error('Missing ToolConfig for /en/pdf-to-text');
+if (!pdfToTextTool.isReady) throw new Error('PDF to Text route is not ready');
+const PdfToTextComponent = pdfToTextTool.component;
+
+export const enPdfToTextRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/en/pdf-to-text',
+  head: () => ({ meta: [
+    { title: 'PDF to Text | FLIXO' },
+    { name: 'description', content: 'Extract selectable PDF text locally with page-level search and TXT/JSON export.' },
+    { name: 'robots', content: 'index,follow,max-image-preview:large' },
+    { property: 'og:title', content: 'PDF to Text | FLIXO' },
+    { property: 'og:description', content: 'Extract selectable PDF text locally with page-level search and TXT/JSON export.' },
+    { property: 'og:type', content: 'website' },
+  ] }),
+  component: () => <PdfToTextComponent />,
+});
