@@ -10,6 +10,7 @@ import { enTextDiffCheckerRoute } from './routes/text-tools';
 import { enCaseConverterRoute } from './routes/case-tools';
 import { enQrGeneratorReaderRoute } from './routes/qr-tools';
 import { enPasswordGeneratorRoute } from './routes/password-tools';
+import { enAspectRatioCalculatorRoute } from './routes/aspect-ratio-tools';
 import { localizedHomeRoute } from './routes/localized-home';
 import { localizedQuickFlowRoute } from './routes/localized-quickflow';
 import { enAiImageGeneratorRoute, enBackgroundBlurRoute, enBackgroundRemoverRoute, enCollageMakerRoute, enCropResizeRoute, enExifCleanerRoute, enImageConverterRoute, enImageCropperRoute, enImageEffectsRoute, enImageOcrRoute, enImageToSvgRoute, enImageToTextRoute, enImageUpscalerRoute, enMemeGeneratorRoute, enMockupGeneratorRoute, enObjectRemoverRoute, enPassportPhotoMakerRoute, enPixRoute, enRasterToSvgRoute, enSeedRoute, enSvgOptimizerRoute, enWatermarkAdderRoute, enWatermarkRemoverRoute } from './routes/image-tools';
@@ -17,7 +18,7 @@ import { indexRoute } from './routes/index';
 import { localizedToolRoute } from './routes/localized-tool';
 import { rootRoute } from './routes/__root';
 
-const routeTree = rootRoute.addChildren([indexRoute, arIndexRoute, localizedHomeRoute, enImageCompressorRoute, arImageCompressorRoute, enQuickFlowRoute, arQuickFlowRoute, localizedQuickFlowRoute, enPdfMergerSplitterRoute, enPdfCompressorRoute, enImageToPdfRoute, enPdfUnlockProtectRoute, enPdfToTextRoute, enWordCharacterCounterRoute, enTextDiffCheckerRoute, enCaseConverterRoute, enQrGeneratorReaderRoute, enPasswordGeneratorRoute, enBackgroundRemoverRoute, enAiImageGeneratorRoute, enImageUpscalerRoute, enImageConverterRoute, enImageToTextRoute, enObjectRemoverRoute, enCropResizeRoute, enWatermarkRemoverRoute, enRasterToSvgRoute, enImageCropperRoute, enImageOcrRoute, enBackgroundBlurRoute, enPassportPhotoMakerRoute, enWatermarkAdderRoute, enMemeGeneratorRoute, enCollageMakerRoute, enImageEffectsRoute, enExifCleanerRoute, enSvgOptimizerRoute, enMockupGeneratorRoute, enImageToSvgRoute, enSeedRoute, enPixRoute, localizedToolRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, arIndexRoute, localizedHomeRoute, enImageCompressorRoute, arImageCompressorRoute, enQuickFlowRoute, arQuickFlowRoute, localizedQuickFlowRoute, enPdfMergerSplitterRoute, enPdfCompressorRoute, enImageToPdfRoute, enPdfUnlockProtectRoute, enPdfToTextRoute, enWordCharacterCounterRoute, enTextDiffCheckerRoute, enCaseConverterRoute, enQrGeneratorReaderRoute, enPasswordGeneratorRoute, enAspectRatioCalculatorRoute, enBackgroundRemoverRoute, enAiImageGeneratorRoute, enImageUpscalerRoute, enImageConverterRoute, enImageToTextRoute, enObjectRemoverRoute, enCropResizeRoute, enWatermarkRemoverRoute, enRasterToSvgRoute, enImageCropperRoute, enImageOcrRoute, enBackgroundBlurRoute, enPassportPhotoMakerRoute, enWatermarkAdderRoute, enMemeGeneratorRoute, enCollageMakerRoute, enImageEffectsRoute, enExifCleanerRoute, enSvgOptimizerRoute, enMockupGeneratorRoute, enImageToSvgRoute, enSeedRoute, enPixRoute, localizedToolRoute]);
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent' });
 
