@@ -112,28 +112,24 @@ export async function compressPdf(file: File, incomingOptions?: Partial<PdfCompr
   const bytes = new Uint8Array(await file.arrayBuffer());
   const safeBuffer = new ArrayBuffer(bytes.byteLength);
   new Uint8Array(safeBuffer).set(bytes);
-  const pdf = await getDocument({ data: safeBuffer, disableWorker: true }).promise;
-  try {
-    const outputBytes = new Uint8Array(await buildCompressedPdf(pdf, options));
-    const usedCompression = outputBytes.byteLength < file.size;
-    const finalBytes = usedCompression ? outputBytes : bytes;
-    const outputBytesCount = finalBytes.byteLength;
-    const savingsPercent = usedCompression
-      ? Math.max(0, Math.round((1 - outputBytesCount / file.size) * 100))
-      : 0;
+  const pdf = await getDocument({ data: safeBuffer }).promise;
+  const outputBytes = new Uint8Array(await buildCompressedPdf(pdf, options));
+  const usedCompression = outputBytes.byteLength < file.size;
+  const finalBytes = usedCompression ? outputBytes : bytes;
+  const outputBytesCount = finalBytes.byteLength;
+  const savingsPercent = usedCompression
+    ? Math.max(0, Math.round((1 - outputBytesCount / file.size) * 100))
+    : 0;
 
-    const buffer = new ArrayBuffer(finalBytes.byteLength);
-    new Uint8Array(buffer).set(finalBytes);
+  const buffer = new ArrayBuffer(finalBytes.byteLength);
+  new Uint8Array(buffer).set(finalBytes);
 
-    return {
-      blob: new Blob([buffer], { type: 'application/pdf' }),
-      inputBytes: file.size,
-      outputBytes: outputBytesCount,
-      savingsPercent,
-      pageCount: pdf.numPages,
-      usedCompression,
-    };
-  } finally {
-    await pdf.destroy();
-  }
+  return {
+    blob: new Blob([buffer], { type: 'application/pdf' }),
+    inputBytes: file.size,
+    outputBytes: outputBytesCount,
+    savingsPercent,
+    pageCount: pdf.numPages,
+    usedCompression,
+  };
 }
