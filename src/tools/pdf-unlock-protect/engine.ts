@@ -1,6 +1,3 @@
-import { encryptPDF } from '@pdfsmaller/pdf-encrypt';
-import { decryptPDF, isEncrypted } from '@pdfsmaller/pdf-decrypt';
-
 export type PdfSecurityMode = 'protect' | 'unlock';
 export type PdfPermission = 'printing' | 'copying' | 'modifying' | 'annotating' | 'fillingForms' | 'extracting' | 'assembly' | 'highQualityPrint';
 
@@ -14,6 +11,26 @@ export type PdfSecurityResult = {
   bytes: Uint8Array;
   filenameSuffix: string;
 };
+
+type EncryptModule = {
+  encryptPDF: (bytes: Uint8Array, password: string, options?: Record<string, unknown>) => Promise<Uint8Array>;
+};
+
+type DecryptModule = {
+  decryptPDF: (bytes: Uint8Array, password: string) => Promise<Uint8Array>;
+  isEncrypted: (bytes: Uint8Array) => Promise<{ encrypted: boolean; algorithm?: string; version?: number; revision?: number; keyLength?: number }>;
+};
+
+const ENCRYPT_ENGINE_URL = 'https://cdn.jsdelivr.net/npm/@pdfsmaller/pdf-encrypt@1.2.0/+esm';
+const DECRYPT_ENGINE_URL = 'https://cdn.jsdelivr.net/npm/@pdfsmaller/pdf-decrypt@1.0.1/+esm';
+
+async function loadSecurityEngines(): Promise<{ encrypt: EncryptModule; decrypt: DecryptModule }> {
+  const [encrypt, decrypt] = await Promise.all([
+    import(/* @vite-ignore */ ENCRYPT_ENGINE_URL) as Promise<EncryptModule>,
+    import(/* @vite-ignore */ DECRYPT_ENGINE_URL) as Promise<DecryptModule>,
+  ]);
+  return { encrypt, decrypt };
+}
 
 function asArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const buffer = new ArrayBuffer(bytes.byteLength);
@@ -34,52 +51,46 @@ function normalizePermissions(permissions: PdfProtectionOptions['permissions']) 
   };
 }
 
-export async function protectPdf(file: File, options: PdfProtectionOptions): Promise<PdfSecurityResult> {
+function validatePdfFile(file: File) {
   if (file.type && file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
     throw new Error('Please select a PDF file.');
   }
-  if (!options.userPassword) throw new Error('Enter a password.');
   if (file.size <= 0) throw new Error('The PDF file is empty.');
   if (file.size > 75 * 1024 * 1024) throw new Error('PDFs larger than 75 MB are not supported in the browser.');
+}
+
+export async function protectPdf(file: File, options: PdfProtectionOptions): Promise<PdfSecurityResult> {
+  validatePdfFile(file);
+  if (!options.userPassword) throw new Error('Enter a password.');
 
   const input = new Uint8Array(await file.arrayBuffer());
-  const encryptedInfo = await isEncrypted(input);
+  const { encrypt, decrypt } = await loadSecurityEngines();
+  const encryptedInfo = await decrypt.isEncrypted(input);
   if (encryptedInfo.encrypted) throw new Error('This PDF is already password-protected. Unlock it before protecting it again.');
 
-  const encrypted = await encryptPDF(input, options.userPassword, {
+  const encrypted = await encrypt.encryptPDF(input, options.userPassword, {
     ownerPassword: options.ownerPassword || options.userPassword,
     ...normalizePermissions(options.permissions),
   });
 
-  return {
-    bytes: new Uint8Array(encrypted),
-    filenameSuffix: '-protected',
-  };
+  return { bytes: new Uint8Array(encrypted), filenameSuffix: '-protected' };
 }
 
 export async function unlockPdf(file: File, password: string): Promise<PdfSecurityResult> {
-  if (file.type && file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-    throw new Error('Please select a PDF file.');
-  }
-  if (file.size <= 0) throw new Error('The PDF file is empty.');
-  if (file.size > 75 * 1024 * 1024) throw new Error('PDFs larger than 75 MB are not supported in the browser.');
-  if (password.length === 0) throw new Error('Enter the PDF password.');
+  validatePdfFile(file);
+  if (!password) throw new Error('Enter the PDF password.');
 
   const input = new Uint8Array(await file.arrayBuffer());
-  const encryptedInfo = await isEncrypted(input);
+  const { decrypt } = await loadSecurityEngines();
+  const encryptedInfo = await decrypt.isEncrypted(input);
   if (!encryptedInfo.encrypted) throw new Error('This PDF is not password-protected.');
 
-  let decrypted: Uint8Array;
   try {
-    decrypted = new Uint8Array(await decryptPDF(input, password));
+    const decrypted = await decrypt.decryptPDF(input, password);
+    return { bytes: new Uint8Array(decrypted), filenameSuffix: '-unlocked' };
   } catch {
     throw new Error('Incorrect password or unsupported PDF encryption.');
   }
-
-  return {
-    bytes: decrypted,
-    filenameSuffix: '-unlocked',
-  };
 }
 
 export function bytesToPdfBlob(bytes: Uint8Array): Blob {
