@@ -1,10 +1,10 @@
 # FLIXO Architecture
 
-## Source of truth
+## 1. Production source of truth
 
-`main` is the production source of truth. Experimental branches, historical PRs, diagnostic branches, and repair snapshots are evidence or development inputs only; they are not production unless their changes are deliberately rebuilt on current `main` and pass the current gates.
+`main` is the only production source of truth. Feature, chore, experimental, diagnostic, repair, and historical branches are development/evidence inputs only. Valuable historical work must be rebuilt against current `main` before promotion.
 
-## Runtime layers
+## 2. System layers
 
 ```text
 Browser
@@ -21,7 +21,7 @@ TanStack Router
         |
         +--> localized pages
         +--> tool pages
-        +--> other isolated features
+        +--> isolated features
 
 Shared infrastructure
   +--> src/lib/i18n
@@ -29,35 +29,62 @@ Shared infrastructure
   +--> src/config
   +--> src/services
   +--> src/data
+
+Verification
+  +--> deterministic checks
+  +--> release verification
+  +--> browser evidence
+  +--> promotion decision
 ```
 
-## Client-loading rule
+Each layer has a single responsibility:
 
-The initial client should contain only what is needed to render the current route. Locale dictionaries and optional feature modules are **lazy-first** resources. A static import of every locale or optional feature is considered an architecture regression because it converts route-specific code into initial-load cost.
+| Layer | Purpose | Classification |
+| --- | --- | --- |
+| Production | user-facing runtime and release source | Production |
+| Verification | proves contracts and build correctness | Verification |
+| Diagnostics | explains failures and preserves evidence | Diagnostic |
+| Experiments | isolated trials and dependency tests | Experimental |
+
+Diagnostics and experiments must not silently become release truth.
+
+## 3. Client-loading rule
+
+The initial client should contain only what is needed to render the current route. Locale dictionaries and optional feature modules are **lazy-first** resources.
+
+A static import of every locale or an expensive optional feature from a production entry point is an architecture regression because it converts route-specific functionality into initial-load cost.
 
 The supported i18n shape is:
 
-- `src/lib/i18n/config.ts` — locale identifiers, language metadata, normalization, and site origin.
+- `src/lib/i18n/config.ts` — locale identifiers, metadata, normalization, and site origin.
+- `src/lib/i18n/types.ts` — shared translation contracts/types.
 - `src/lib/i18n/locales/<locale>.ts` — the actual locale dictionary.
-- `src/lib/i18n/loader.ts` — the only runtime loader for dictionaries, with Promise caching and explicit preload support.
+- `src/lib/i18n/loader.ts` — the runtime dictionary loader with dynamic imports and Promise caching.
 
-## Feature boundary
+## 4. Feature boundaries
 
-Feature code must remain isolated from the shared layer. Shared infrastructure may expose stable contracts; it should not import feature implementations merely to make them available.
+Feature implementations stay isolated. Shared infrastructure may expose stable contracts, but it should not import feature implementations merely to make them available.
 
-Optional or expensive features should be code-split at the route/feature boundary. Quick actions, AI flows, charts, and other non-critical capabilities must not become unconditional dependencies of the landing shell.
+QuickFlow is deterministic-first. AI Planner is an optional refinement layer and must preserve deterministic fallback behavior.
 
-## SEO and metadata
+Optional or expensive features should be code-split at the route/feature boundary. AI flows, charts, and other non-critical capabilities must not become unconditional dependencies of the landing shell.
+
+## 5. SEO and metadata
 
 SEO metadata is route-aware. Canonical, localized, and sitemap behavior must use the configured production origin and must not silently invent a production URL. `VITE_SITE_URL` is the deployment-time source for the final origin when SEO generation requires it.
 
-## Diagnostics versus release truth
+## 6. Verification and evidence
 
-Diagnostics explain failures and preserve evidence. They do not create a second definition of "green". The release decision is based on the canonical verification contract and fresh CI results for the exact commit.
+`npm run check` is the deterministic repository/build gate. `npm run verify` is the release-oriented code gate. Browser tests and the full browser matrix provide UI/runtime evidence.
 
-## What is not allowed
+The promotion decision is based on fresh evidence for the exact commit being promoted. Local success and stale CI are not release certification.
 
-- Reintroducing deleted legacy product catalogs or tools through convenience imports.
+## 7. What is not allowed
+
+- Direct development changes to `main`.
 - Loading all locale dictionaries in the initial application bundle.
-- Treating a successful local run or a stale CI run as release evidence.
-- Mixing experimental branch assumptions into `main` without rebuilding against current production state.
+- Importing optional AI/expensive feature code into the initial landing shell without evidence that it is required.
+- Reintroducing legacy product catalogs or tools through convenience imports.
+- Treating diagnostics as a second definition of GREEN.
+- Mixing experimental branch assumptions into `main` without rebuilding and verifying against current production state.
+- Deleting historical material solely for cleanliness.

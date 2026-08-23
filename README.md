@@ -1,25 +1,85 @@
 # FLIXO AI Tools
 
-FLIXO is a browser-first toolbox built on React, Vite, and TanStack Router. The current repository is intentionally small at the application core and keeps production changes isolated, testable, and evidence-driven.
+FLIXO is a browser-first toolbox built with React, Vite, TypeScript, and TanStack Router. The production source of truth is `main`; every change reaches `main` through a small, reviewable PR with fresh CI evidence for the exact commit.
 
-## Current production foundation
+## Production foundation
 
 - React 19 + Vite + TypeScript.
-- TanStack Router with a shared root layout.
-- 20 configured locales with explicit LTR/RTL metadata.
-- Route-level localized homepage and image-compressor surfaces.
+- TanStack Router with route-isolated features.
+- **20 configured locales** with explicit LTR/RTL metadata.
+- Lazy-first locale dictionaries: the runtime loader uses dynamic imports and Promise caching.
 - Browser-first processing for supported client-side tools.
-- Deterministic type, lint, routing, localization, SEO, build, audit, and performance checks.
-- Playwright E2E smoke coverage.
-- Repository guardrails that require fresh CI evidence before a release is considered green.
+- **QuickFlow** as the deterministic-first task planner.
+- **AI Planner** as an optional refinement layer with deterministic fallback.
+- Repository checks for type safety, lint, routing, localization, SEO, build, audit, and performance budgets.
+- Playwright browser smoke plus an independent full-browser promotion matrix.
 
-## Architecture principles
+## Engineering model
 
-1. **Main is the production source of truth.** Historical or experimental branches are not release inputs.
-2. **Lazy-first client loading.** Locale dictionaries and optional features should load on demand rather than becoming part of the initial bundle.
-3. **Small shared surface.** Cross-cutting code belongs in shared infrastructure; feature code stays isolated.
-4. **Evidence-first promotion.** A code change is not considered released because it looks correct locally; the required CI evidence must pass for the exact commit.
-5. **No resurrection of legacy product code.** Old tools and historical experiments remain archived unless explicitly reintroduced as isolated features.
+```text
+main
+  |
+  +-- feature/* or chore/*
+        |
+        +-- small change
+        +-- targeted validation
+        +-- PR
+        +-- exact-SHA CI
+        +-- diff review
+        +-- merge only when GREEN
+```
+
+`main` is never the scratchpad. Experimental, diagnostic, repair, and historical branches are not production inputs until deliberately rebuilt against current `main` and verified again.
+
+## Verification contract
+
+### Fast development gate
+
+```bash
+npm run verify:fast
+```
+
+### Repository/build gate
+
+```bash
+npm run check
+```
+
+`check` is deterministic and covers the baseline, router registry, localization, SEO, full localization validation, build, and performance-budget checks defined in `package.json`.
+
+### Release gate
+
+```bash
+npm run verify
+```
+
+`verify` is the release-oriented code gate and adds the production dependency audit to the repository check.
+
+### Browser verification
+
+```bash
+npm run test:e2e
+```
+
+The full 23-suite × 3-browser promotion matrix runs independently through `.github/workflows/full-matrix-promotion.yml`.
+
+## Internationalization
+
+Locale identifiers and metadata live in `src/lib/i18n/config.ts`. Locale dictionaries live in `src/lib/i18n/locales/`, and runtime access is owned by `src/lib/i18n/loader.ts`.
+
+The lazy-first rule is strict: production entry points must not statically import every locale dictionary. Bundle separation is a release concern and will be proved with dedicated build inspection before the i18n consolidation is considered complete.
+
+## QuickFlow and AI
+
+QuickFlow first chooses a ready tool deterministically from the user intent. AI is optional and may refine an already valid deterministic plan; disabling AI, losing the network, or returning an invalid result must not break the deterministic path.
+
+Future performance work will preserve **zero AI cost on the initial page** and load expensive AI/QuickFlow modules only when the relevant feature is requested.
+
+## Evidence-first release rule
+
+A local success is development evidence, not release certification. A change is considered green only when the canonical checks and relevant browser evidence pass for the **exact commit SHA** being promoted.
+
+Provider-side deployment limits, such as a Vercel quota error, are tracked as external deployment conditions. They are never converted into a fake application GREEN or a fake application failure without matching code evidence.
 
 ## Development
 
@@ -28,34 +88,4 @@ npm ci
 npm run dev
 ```
 
-## Verification
-
-Fast development checks:
-
-```bash
-npm run verify:fast
-```
-
-Repository check/build gate:
-
-```bash
-npm run check
-```
-
-Full verification and production audit:
-
-```bash
-npm run verify
-```
-
-Browser smoke:
-
-```bash
-npm run test:e2e
-```
-
-## Internationalization
-
-Locale metadata lives in `src/lib/i18n/config.ts`; dictionaries live in `src/lib/i18n/locales/`; runtime loading is provided by `src/lib/i18n/loader.ts`.
-
-The target architecture is **lazy-first**: the initial client should not import every locale dictionary. See `docs/ARCHITECTURE.md` and `docs/RELEASE_POLICY.md` for the repository contract and promotion rules.
+See `docs/ARCHITECTURE.md`, `docs/RELEASE_POLICY.md`, and `docs/CONSOLIDATION-LOG.md` for the repository contracts and consolidation history.
