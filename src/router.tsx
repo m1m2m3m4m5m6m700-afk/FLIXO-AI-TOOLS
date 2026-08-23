@@ -1,6 +1,7 @@
 import { createRouter } from '@tanstack/react-router';
 import { arIndexRoute } from './routes/ar-index';
 import { arImageCompressorRoute } from './routes/ar-image-compressor';
+import { arQuickFlowRoute } from './routes/ar-quickflow';
 import { enImageCompressorRoute } from './routes/en-image-compressor';
 import { enQuickFlowRoute } from './routes/en-quickflow';
 import {
@@ -38,6 +39,7 @@ const routeTree = rootRoute.addChildren([
   enImageCompressorRoute,
   arImageCompressorRoute,
   enQuickFlowRoute,
+  arQuickFlowRoute,
   enBackgroundRemoverRoute,
   enAiImageGeneratorRoute,
   enImageUpscalerRoute,
