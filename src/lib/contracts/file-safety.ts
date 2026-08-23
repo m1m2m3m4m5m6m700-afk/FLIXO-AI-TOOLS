@@ -34,8 +34,12 @@ export function validateFileSafety(input: FileSafetyInput, policy: FileSafetyPol
     }
   }
 
-  if (policy.signatures && input.signature && !policy.signatures.some((signature) => input.signature!.startsWith(signature))) {
-    failures.push('input signature does not match the allowed file signatures');
+  if (policy.signatures) {
+    if (!input.signature) {
+      failures.push('input signature is required when signature validation is enabled');
+    } else if (!policy.signatures.some((signature) => input.signature!.startsWith(signature))) {
+      failures.push('input signature does not match the allowed file signatures');
+    }
   }
 
   return { safe: failures.length === 0, failures };
