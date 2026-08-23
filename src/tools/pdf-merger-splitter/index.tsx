@@ -8,10 +8,14 @@ function formatBytes(bytes: number) {
   return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
-function pdfBlob(bytes: Uint8Array): Blob {
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const buffer = new ArrayBuffer(bytes.byteLength);
   new Uint8Array(buffer).set(bytes);
-  return new Blob([buffer], { type: 'application/pdf' });
+  return buffer;
+}
+
+function pdfBlob(bytes: Uint8Array): Blob {
+  return new Blob([toArrayBuffer(bytes)], { type: 'application/pdf' });
 }
 
 export function PdfMergerSplitterTool() {
@@ -104,7 +108,7 @@ export function PdfMergerSplitterTool() {
     setError('');
     try {
       const parsed = parsePageRange(range, sources[0].pageCount);
-      const file = new File([sources[0].bytes], sources[0].name, { type: 'application/pdf' });
+      const file = new File([toArrayBuffer(sources[0].bytes)], sources[0].name, { type: 'application/pdf' });
       const bytes = await splitPdf(file, parsed);
       createDownload(bytes, `flixo-${sources[0].name.replace(/\.pdf$/i, '')}-${parsed.start}-${parsed.end}.pdf`);
     } catch (caught) {
