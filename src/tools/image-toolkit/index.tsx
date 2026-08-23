@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { convertImage, cropResizeImage, downloadBlob, imageInfo, removeBackground, rasterToSvg, resizeImage, watermarkRemove, fillRemoveRegion } from './engine';
 import { recognizeWithOcrWorker } from './ocr-worker-client';
 import { assertImageCropperOutputIntegrity } from '../image-cropper/output-integrity';
+import { validateFileSafety } from '../../lib/contracts/file-safety';
 import type { LocalToolId } from './engine';
 
 const DEFINITIONS: Record<Exclude<LocalToolId, 'ai-image-generator' | 'image-compressor'>, { title: string; description: string; accept: string }> = {
@@ -95,6 +96,15 @@ export function ImageToolPage({ toolId }: Props) {
       let blob: Blob;
       let fileName = baseName(file.name);
       let info: Result['info'];
+
+      if (toolId === 'image-converter') {
+        const sourceInfo = await imageInfo(file);
+        const safety = validateFileSafety(
+          { name: file.name, mime: file.type, bytes: file.size, width: sourceInfo.width, height: sourceInfo.height },
+          { allowedMime: ['image/png', 'image/jpeg', 'image/webp'], maxBytes: 25 * 1024 * 1024, maxPixels: 40_000_000 },
+        );
+        if (!safety.safe) throw new Error(`Input rejected by File Safety: ${safety.failures.join('; ')}`);
+      }
 
       if (toolId === 'background-remover') {
         blob = await removeBackground(file, Number(tolerance) || 42);
