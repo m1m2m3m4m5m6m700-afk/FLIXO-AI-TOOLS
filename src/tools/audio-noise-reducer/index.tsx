@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
-import { applyNoiseReduction } from './engine';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+type WorkerResponse = { channels: Float32Array[] } | { error: string };
 
 function encodeWav(channels: Float32Array[], sampleRate: number): Blob {
   const frameCount = channels[0]?.length ?? 0;
@@ -20,12 +21,14 @@ function encodeWav(channels: Float32Array[], sampleRate: number): Blob {
 
 export function AudioNoiseReducerTool() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const workerRef = useRef<Worker | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [reduction, setReduction] = useState(0.65);
   const [status, setStatus] = useState('Ready');
   const [output, setOutput] = useState<Blob | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => () => workerRef.current?.terminate(), []);
   const outputUrl = useMemo(() => output ? URL.createObjectURL(output) : '', [output]);
 
   async function process() {
@@ -34,10 +37,21 @@ export function AudioNoiseReducerTool() {
     try {
       const context = new AudioContext();
       const decoded = await context.decodeAudioData(await file.arrayBuffer());
+      const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+      workerRef.current?.terminate(); workerRef.current = worker;
+      const done = new Promise<WorkerResponse>((resolve) => {
+        worker.onmessage = (event: MessageEvent<WorkerResponse>) => resolve(event.data);
+        worker.onerror = () => resolve({ error: 'Noise reduction worker failed.' });
+      });
+      const channels = Array.from({ length: decoded.numberOfChannels }, (_, c) => new Float32Array(decoded.getChannelData(c)));
+      const transfer = channels.map((channel) => channel.buffer);
       setStatus('Reducing noise…');
-      const channels = Array.from({ length: decoded.numberOfChannels }, (_, c) => applyNoiseReduction(decoded.getChannelData(c), { reduction, highPassHz: 70 }));
-      const blob = encodeWav(channels, decoded.sampleRate);
-      setOutput(blob); setStatus(`Done • ${Math.max(0, Math.round((1 - blob.size / file.size) * 100))}% size change`);
+      worker.postMessage({ channels, options: { reduction, highPassHz: 70 } }, transfer);
+      const result = await done;
+      worker.terminate(); workerRef.current = null;
+      if ('error' in result) throw new Error(result.error);
+      const blob = encodeWav(result.channels, decoded.sampleRate);
+      setOutput(blob); setStatus(`Done • output ${Math.round(blob.size / 1024)} KB`);
       await context.close();
     } catch (error) { setStatus(error instanceof Error ? error.message : 'Noise reduction failed.'); }
     finally { setBusy(false); }
