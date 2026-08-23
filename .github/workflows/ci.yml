@@ -95,11 +95,12 @@ jobs:
       - uses: github/codeql-action/analyze@v4
 
   e2e:
-    name: E2E — ${{ matrix.tool }}
+    name: E2E — ${{ matrix.tool }} — ${{ matrix.browser }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        browser: [chromium, firefox, webkit]
         include:
           - tool: image-compressor
             spec: tests/image-compressor.spec.ts
@@ -152,14 +153,14 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Run ${{ matrix.tool }} E2E
-        run: npx playwright test ${{ matrix.spec }}
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Run ${{ matrix.tool }} E2E on ${{ matrix.browser }}
+        run: npx playwright test ${{ matrix.spec }} --project=${{ matrix.browser }}
       - name: Upload E2E diagnostics
         if: ${{ failure() }}
         uses: actions/upload-artifact@v6
         with:
-          name: e2e-diagnostics-${{ matrix.tool }}
+          name: e2e-diagnostics-${{ matrix.tool }}-${{ matrix.browser }}
           path: |
             playwright-report/
             test-results/
@@ -214,10 +215,10 @@ jobs:
             echo '| Audit | ${{ needs.audit.result }} |'
             echo '| Socket | ${{ needs.socket.result }} |'
             echo '| CodeQL | ${{ needs.security.result }} |'
-            echo '| Per-tool E2E | ${{ needs.e2e.result }} |'
+            echo '| Per-tool E2E (66 browser jobs) | ${{ needs.e2e.result }} |'
             echo '| Canonical Verification | ${{ needs.canonical-verify.result }} |'
             echo
-            echo 'E2E runs are isolated per tool; failed tools upload their own Playwright diagnostics artifact.'
+            echo 'E2E matrix isolates every tool/browser pair; failed jobs upload their own Playwright diagnostics artifact.'
             echo 'Diagnostics explain failures; Canonical Verification is the single promotion signal.'
             echo 'Socket is fail-closed when SOCKET_SECURITY_API_KEY is configured and intentionally skipped otherwise.'
           } >> "$GITHUB_STEP_SUMMARY"
