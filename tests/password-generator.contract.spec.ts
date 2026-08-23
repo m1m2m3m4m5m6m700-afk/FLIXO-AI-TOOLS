@@ -19,8 +19,9 @@ test('password-generator: length and selected character sets are enforced', asyn
   await page.getByLabel('symbols', { exact: true }).check();
   await page.getByRole('button', { name: 'Generate' }).click();
   const value = await page.getByLabel('Generated password').textContent();
+  const symbols = '!@#$%^&*()-_=+[]{};:,.?/|~';
   expect(value).toHaveLength(32);
-  expect(value).toMatch(/^[!@#$%^&*()-_=+\[\]{};:,.?/|~]+$/);
+  expect([...String(value)].every((character) => symbols.includes(character))).toBe(true);
 });
 
 test('password-generator: ambiguous characters can be excluded', async ({ page }) => {
