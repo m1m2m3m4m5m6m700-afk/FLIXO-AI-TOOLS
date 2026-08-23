@@ -16,11 +16,12 @@
     "validate:seo-manifest": "node scripts/validate-seo-manifest.mjs",
     "validate:localization-full": "node scripts/validate-localization-full.mjs",
     "validate:baseline": "node scripts/validate-engineering-baseline.mjs",
+    "validate:router-registry": "node --experimental-strip-types scripts/validate-router-registry.mjs",
     "report:localization": "node scripts/report-localization-coverage.mjs",
     "validate:performance-budget": "node scripts/validate-performance-budget.mjs",
     "report:performance-baseline": "node scripts/report-performance-baseline.mjs",
     "generate:sitemap": "node scripts/generate-sitemap.mjs",
-    "check": "npm run typecheck && npm run lint && npm run validate:i18n && npm run validate:seo && npm run validate:seo-manifest && npm run validate:localization-full && npm run build && npm run validate:performance-budget",
+    "check": "npm run typecheck && npm run lint && npm run validate:baseline && npm run validate:router-registry && npm run validate:i18n && npm run validate:seo && npm run validate:seo-manifest && npm run validate:localization-full && npm run build && npm run validate:performance-budget",
     "verify": "npm run validate:baseline && npm run check && npm run audit:production",
     "test:e2e": "playwright test",
     "test": "npm run verify && npm run test:e2e"

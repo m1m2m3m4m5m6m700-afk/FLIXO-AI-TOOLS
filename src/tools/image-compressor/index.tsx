@@ -47,10 +47,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
   }, [file, result]);
 
   useEffect(() => {
-    if (!file) {
-      setSourcePreviewUrl('');
-      return;
-    }
+    if (!file) return;
     const url = URL.createObjectURL(file);
     setSourcePreviewUrl(url);
     return () => URL.revokeObjectURL(url);
@@ -73,6 +70,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     if (rejectedCount > 0) {
       setError(label(locale, `Some files were skipped. Maximum ${MAX_FILES} files and ${formatBytes(MAX_INPUT_SIZE)} per file.`, `تم تجاهل بعض الملفات. الحد الأقصى ${MAX_FILES} ملفًا و${formatBytes(MAX_INPUT_SIZE)} لكل ملف.`));
     }
+    if (selected.length === 0) setSourcePreviewUrl('');
     setFiles(selected);
   };
 
