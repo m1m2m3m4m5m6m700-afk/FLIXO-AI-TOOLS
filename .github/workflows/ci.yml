@@ -182,9 +182,9 @@ jobs:
 
   canonical-verify:
     name: Canonical Verification Gate
-    if: ${{ needs.typecheck.result == 'success' && needs.lint.result == 'success' && needs.build.result == 'success' && needs.audit.result == 'success' && needs.socket.result == 'success' && needs.security.result == 'success' && needs.e2e.result == 'success' }}
+    if: ${{ needs.typecheck.result == 'success' && needs.lint.result == 'success' && needs.build.result == 'success' && needs.audit.result == 'success' && needs.socket.result == 'success' && needs.security.result == 'success' && needs.fast-contract.result == 'success' && needs.e2e.result == 'success' }}
     runs-on: ubuntu-latest
-    needs: [typecheck, lint, build, audit, socket, security, e2e]
+    needs: [typecheck, lint, build, audit, socket, security, fast-contract, e2e]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -211,6 +211,7 @@ jobs:
             echo '${{ github.sha }}'
             echo
             echo 'All diagnostic component jobs were green before this gate ran.'
+            echo 'Fast Contract Diagnostics is a required prerequisite for promotion.'
           } >> "$GITHUB_STEP_SUMMARY"
 
   diagnostic-summary:
@@ -237,6 +238,7 @@ jobs:
             echo '| Canonical Verification | ${{ needs.canonical-verify.result }} |'
             echo
             echo 'Fast Contract Diagnostics fail early on source-level contract drift without waiting for the browser matrix.'
+            echo 'Fast Contract Diagnostics is required before Canonical Verification promotion.'
             echo 'E2E matrix isolates every tool/browser pair; failed jobs upload their own Playwright diagnostics artifact.'
             echo 'Diagnostics explain failures; Canonical Verification is the single promotion signal.'
             echo 'Socket is fail-closed when SOCKET_SECURITY_API_KEY is configured and intentionally skipped otherwise.'
