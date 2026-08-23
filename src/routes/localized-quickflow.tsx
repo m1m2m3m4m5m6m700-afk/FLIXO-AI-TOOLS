@@ -1,4 +1,4 @@
-import { createRoute, Link, useParams } from '@tanstack/react-router';
+import { createRoute, useParams } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { isLocale } from '@/lib/i18n';
 import { getWorkflow } from '@/lib/workflows/registry';
@@ -28,7 +28,10 @@ export const localizedQuickFlowRoute = createRoute({
     const resultUrl = useMemo(() => result ? URL.createObjectURL(result) : '', [result]);
     useEffect(() => () => { if (resultUrl) URL.revokeObjectURL(resultUrl); }, [resultUrl]);
 
-    if (!workflow || !plan) return <main lang={copy.missing} dir={locale === 'ar' || locale === 'ur' ? 'rtl' : 'ltr'}><div className="image-tool-container"><h1>{copy.missing}</h1><Link className="primary-button" to={`/${locale}` as never}>{copy.back}</Link></div></main>;
+    const homeHref = `/${locale}`;
+    const direction = locale === 'ar' || locale === 'ur' ? 'rtl' : 'ltr';
+
+    if (!workflow || !plan) return <main lang={locale} dir={direction}><div className="image-tool-container"><h1>{copy.missing}</h1><a className="primary-button" href={homeHref}>{copy.back}</a></div></main>;
 
     const run = async () => {
       if (!file) { setError(copy.chooseError); return; }
@@ -40,9 +43,9 @@ export const localizedQuickFlowRoute = createRoute({
 
     const percent = progress ? Math.round((progress.currentStepIndex / progress.totalSteps) * 100) : result ? 100 : 0;
     return (
-      <main className="image-tool-shell" lang={copy.missing === 'QuickFlow غير موجود' ? 'ar' : locale} dir={locale === 'ar' || locale === 'ur' ? 'rtl' : 'ltr'}>
+      <main className="image-tool-shell" lang={locale} dir={direction}>
         <div className="image-tool-container">
-          <Link to={`/${locale}` as never} className="language-link">← FLIXO</Link>
+          <a href={homeHref} className="language-link">← FLIXO</a>
           <p className="image-tool-eyebrow" style={{ marginTop: 28 }}>{copy.eyebrow}</p>
           <h1>{workflow.title}</h1>
           <p className="image-tool-lead">{workflow.description}</p>
