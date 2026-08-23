@@ -8,6 +8,12 @@ function formatBytes(bytes: number) {
   return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
+function pdfBlob(bytes: Uint8Array): Blob {
+  const safeBytes = new Uint8Array(bytes.byteLength);
+  safeBytes.set(bytes);
+  return new Blob([safeBytes], { type: 'application/pdf' });
+}
+
 export function PdfMergerSplitterTool() {
   const [sources, setSources] = useState<PdfSource[]>([]);
   const [pages, setPages] = useState<PdfPageRef[]>([]);
@@ -68,9 +74,10 @@ export function PdfMergerSplitterTool() {
   };
 
   const createDownload = (bytes: Uint8Array, name: string) => {
+    const blob = pdfBlob(bytes);
     setDownloadUrl((current) => {
       if (current) URL.revokeObjectURL(current);
-      return URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      return URL.createObjectURL(blob);
     });
     setDownloadName(name);
   };
