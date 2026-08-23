@@ -9,6 +9,10 @@ export type ClipRange = {
   end: number;
 };
 
+type CaptureVideoElement = HTMLVideoElement & {
+  captureStream?: () => MediaStream;
+};
+
 export function clampRange(range: ClipRange, duration: number): ClipRange {
   const safeDuration = Math.max(0, duration);
   const start = Math.min(Math.max(0, range.start), safeDuration);
@@ -68,7 +72,7 @@ export async function exportClip(file: File, requestedRange: ClipRange): Promise
   const range = clampRange(requestedRange, metadata.duration);
   if (range.end <= range.start) throw new Error('End time must be greater than start time');
 
-  const video = document.createElement('video');
+  const video = document.createElement('video') as CaptureVideoElement;
   const sourceUrl = URL.createObjectURL(file);
   video.src = sourceUrl;
   video.preload = 'auto';
@@ -76,7 +80,8 @@ export async function exportClip(file: File, requestedRange: ClipRange): Promise
   video.playsInline = true;
   video.controls = false;
 
-  if (typeof video.captureStream !== 'function') {
+  const captureStream = video.captureStream;
+  if (!captureStream) {
     URL.revokeObjectURL(sourceUrl);
     throw new Error('Video capture is not supported by this browser');
   }
@@ -95,7 +100,7 @@ export async function exportClip(file: File, requestedRange: ClipRange): Promise
     video.addEventListener('seeked', ready, { once: true });
   });
 
-  const stream = video.captureStream();
+  const stream = captureStream.call(video);
   const recorder = new MediaRecorder(stream, { mimeType });
   const chunks: BlobPart[] = [];
   const output = new Promise<Blob>((resolve, reject) => {
@@ -130,7 +135,7 @@ export async function exportClip(file: File, requestedRange: ClipRange): Promise
     return result;
   } finally {
     video.pause();
-    stream.getTracks().forEach((track) => track.stop());
+    stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
     URL.revokeObjectURL(sourceUrl);
   }
 }
