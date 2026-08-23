@@ -74,7 +74,9 @@ export function VideoCompressorConverterTool() {
         worker.terminate();
         return;
       }
-      const blob = new Blob([data.bytes], { type: getOutputMimeType(format) });
+      const outputBuffer = new ArrayBuffer(data.bytes.byteLength);
+      new Uint8Array(outputBuffer).set(data.bytes);
+      const blob = new Blob([outputBuffer], { type: getOutputMimeType(format) });
       const url = URL.createObjectURL(blob);
       if (outputUrlRef.current) URL.revokeObjectURL(outputUrlRef.current);
       outputUrlRef.current = url;
@@ -94,7 +96,8 @@ export function VideoCompressorConverterTool() {
     };
 
     void file.arrayBuffer().then((buffer) => {
-      worker.postMessage({ jobId, file: new Uint8Array(buffer), inputName, outputName, args }, [buffer]);
+      const transferable = new Uint8Array(buffer);
+      worker.postMessage({ jobId, file: transferable, inputName, outputName, args }, [buffer]);
     }).catch(() => {
       setBusy(false);
       setError('Unable to read the selected file.');
