@@ -1,4 +1,4 @@
-import type { ToolConfig } from '@/config/tools';
+import type { ToolConfig } from '../config/tools';
 
 export type IntentMatch = {
   readonly tool: ToolConfig;
