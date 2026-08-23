@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { recordToolPerformance } from '../../lib/diagnostics/performance';
+import { validateFileSafety } from '../../lib/contracts/file-safety';
 import { assertExifCleanerOutputIntegrity } from '../exif-cleaner/output-integrity';
 import { validateSvgOutput } from '../image-to-svg/output-integrity';
 
@@ -10,6 +11,31 @@ type Props = { mode: Mode; title: string; accept?: string; multi?: boolean };
 type Result = { blob: Blob; url: string; name: string; width?: number; height?: number; text?: string };
 
 type EffectsWorkerResponse = { ok: boolean; blob?: Blob; error?: string };
+
+const RASTER_IMAGE_POLICY = {
+  allowedMime: ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/bmp', 'image/avif'],
+  maxBytes: 25 * 1024 * 1024,
+  maxPixels: 40_000_000,
+} as const;
+
+const SVG_FILE_POLICY = {
+  allowedMime: ['image/svg+xml'],
+  maxBytes: 25 * 1024 * 1024,
+} as const;
+
+function assertFileSafe(file: File, mode: Mode) {
+  const policy = mode === 'svg-optimizer' ? SVG_FILE_POLICY : RASTER_IMAGE_POLICY;
+  const result = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size }, policy);
+  if (!result.safe) throw new Error(`Input rejected by File Safety: ${result.failures.join('; ')}`);
+}
+
+function assertDecodedImageSafe(file: File, width: number, height: number) {
+  const result = validateFileSafety(
+    { name: file.name, mime: file.type, bytes: file.size, width, height },
+    RASTER_IMAGE_POLICY,
+  );
+  if (!result.safe) throw new Error(`Input rejected by File Safety: ${result.failures.join('; ')}`);
+}
 
 function download(result: Result) {
   const link = document.createElement('a');
@@ -84,6 +110,8 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
     if (!files.length) { setError('Choose an image first.'); return; }
     setError(''); setBusy(true); setResult(null);
     try {
+      for (const file of files) assertFileSafe(file, mode);
+
       if (mode === 'svg-optimizer') {
         const svg = await files[0].text();
         const optimized = svg.replace(/<!--[\s\S]*?-->/g, '').replace(/>\s+</g, '><').replace(/\s{2,}/g, ' ').trim();
@@ -105,6 +133,7 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
 
       if (mode === 'collage-maker') {
         const images = await Promise.all(files.map(loadImage));
+        images.forEach((image, index) => assertDecodedImageSafe(files[index], image.width, image.height));
         const cell = 512; const columns = Math.min(3, Math.ceil(Math.sqrt(images.length))); const rows = Math.ceil(images.length / columns);
         const canvas = document.createElement('canvas'); canvas.width = columns * cell; canvas.height = rows * cell;
         const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('Canvas unavailable.');
@@ -114,6 +143,7 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
       }
 
       const image = await loadImage(files[0]);
+      assertDecodedImageSafe(files[0], image.width, image.height);
       const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('Canvas unavailable.');
       let width = image.width; let height = image.height;
       if (mode === 'passport-photo-maker') { width = 413; height = 531; }
