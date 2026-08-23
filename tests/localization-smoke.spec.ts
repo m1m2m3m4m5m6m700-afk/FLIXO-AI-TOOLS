@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('AR/EN localization smoke', () => {
-  test('English home exposes English UI and LTR direction', async ({ page }) => {
+  test('English home exposes English UI and document LTR direction', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('main')).toHaveAttribute('dir', 'ltr');
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
     await expect(page.locator('nav')).toContainText('Tools');
     await expect(page.locator('h1')).toContainText('The right tool');
   });
@@ -15,9 +15,9 @@ test.describe('AR/EN localization smoke', () => {
     await expect(page.locator('h1')).toContainText('الأداة المناسبة');
   });
 
-  test('Arabic localized tool shell keeps RTL and translated fallback states', async ({ page }) => {
+  test('Arabic localized tool shell keeps RTL and translated upload state', async ({ page }) => {
     await page.goto('/ar/image-compressor');
     await expect(page.locator('main').first()).toHaveAttribute('dir', 'rtl');
-    await expect(page.locator('body')).toContainText('اختر صورة');
+    await expect(page.locator('body')).toContainText('اختر الصور للبدء');
   });
 });
