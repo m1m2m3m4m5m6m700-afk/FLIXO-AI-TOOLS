@@ -5,20 +5,14 @@ import { SmartCommandPalette } from '../components/SmartCommandPalette';
 import { getBestToolIntent } from '@/lib/intent-router';
 
 type ToolCardProps = {
-  readonly id: string;
   readonly title: string;
   readonly description: string;
+  readonly category: 'Images' | 'AI' | 'Other';
   readonly path: string;
 };
 
 const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
 const QUICK_TAGS = ['Image compressor', 'Background remover', 'OCR', 'PDF', 'AI image'];
-
-function getCategory(toolId: string): string {
-  if (/(compress|crop|convert|background|watermark|upscaler|ocr|svg|photo|meme|collage|effects|exif|mockup|pix|seed|object)/.test(toolId)) return 'Images';
-  if (/ai-/.test(toolId)) return 'AI';
-  return 'Other';
-}
 
 function recommendTool(file: File): ToolCardProps | null {
   const lower = file.name.toLowerCase();
@@ -29,11 +23,11 @@ function recommendTool(file: File): ToolCardProps | null {
   return null;
 }
 
-function ToolCard({ id, title, description, path }: ToolCardProps) {
+function ToolCard({ title, description, category, path }: ToolCardProps) {
   return (
     <Link to={path} className="home-tool-card" aria-label={`Open ${title}`}>
       <div className="tool-card-topline">
-        <span className="tool-card-category">{getCategory(id)}</span>
+        <span className="tool-card-category">{category}</span>
         <span className="tool-card-arrow" aria-hidden="true">↗</span>
       </div>
       <h3>{title}</h3>
@@ -62,11 +56,11 @@ export function HomePage() {
   }, []);
 
   const intent = useMemo(() => getBestToolIntent(query, READY_TOOLS), [query]);
-  const categories = useMemo(() => ['All', ...Array.from(new Set(READY_TOOLS.map((tool) => getCategory(tool.id))))], []);
+  const categories = useMemo(() => ['All', ...Array.from(new Set(READY_TOOLS.map((tool) => tool.category)))], []);
   const filteredTools = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return READY_TOOLS.filter((tool) => {
-      const matchesCategory = selectedCategory === 'All' || getCategory(tool.id) === selectedCategory;
+      const matchesCategory = selectedCategory === 'All' || tool.category === selectedCategory;
       const haystack = `${tool.id} ${tool.title} ${tool.description}`.toLowerCase();
       return matchesCategory && (!normalized || haystack.includes(normalized));
     });
@@ -169,7 +163,7 @@ export function HomePage() {
           </div>
 
           <div className="home-tools-grid">
-            {filteredTools.map((tool) => <ToolCard key={tool.id} id={tool.id} title={tool.title} description={tool.description} path={tool.path} />)}
+            {filteredTools.map((tool) => <ToolCard key={tool.id} title={tool.title} description={tool.description} category={tool.category} path={tool.path} />)}
           </div>
           {filteredTools.length === 0 && <div className="home-empty">No matching tool yet. Try a simpler phrase or open Smart Intent with Ctrl K.</div>}
         </section>
