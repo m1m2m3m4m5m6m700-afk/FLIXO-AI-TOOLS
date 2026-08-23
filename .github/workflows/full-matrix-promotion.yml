@@ -67,6 +67,8 @@ jobs:
             spec: tests/seed.spec.ts
           - tool: pix
             spec: tests/pix.spec.ts
+          - tool: localization
+            spec: tests/localization-smoke.spec.ts
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -102,5 +104,5 @@ jobs:
             echo 'Full browser matrix passed for:'
             echo '${{ github.sha }}'
             echo
-            echo '22 tools × 3 browsers = 66 E2E jobs completed successfully.'
+            echo '23 suites × 3 browsers = 69 E2E jobs completed successfully.'
           } >> "$GITHUB_STEP_SUMMARY"
