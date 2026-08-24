@@ -1,3 +1,4 @@
+/* global self, caches, URL, fetch */
 const CACHE_NAME = 'flixo-shell-v1';
 const SHELL_ASSETS = ['/', '/en', '/manifest.webmanifest', '/flixo-logo.svg', '/favicon.svg'];
 
