@@ -7,13 +7,9 @@ name: Parallel Diagnostics
 
 on:
   workflow_dispatch:
-    inputs:
-      shard_total:
-        description: 'Number of Playwright shards per suite/browser (max 3 for this matrix)'
-        required: true
-        default: '3'
-        type: choice
-        options: ['1', '2', '3']
+  pull_request:
+    paths:
+      - '.github/workflows/parallel-diagnostics.yml'
 
 permissions:
   contents: read
@@ -24,7 +20,7 @@ concurrency:
 
 jobs:
   e2e:
-    name: Diagnostic — ${{ matrix.tool }} — ${{ matrix.browser }} — shard ${{ matrix.shard }}/${{ inputs.shard_total }}
+    name: Diagnostic — ${{ matrix.tool }} — ${{ matrix.browser }} — shard ${{ matrix.shard }}/3
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -101,7 +97,7 @@ jobs:
           tool=${{ matrix.tool }}
           spec=${{ matrix.spec }}
           browser=${{ matrix.browser }}
-          shard=${{ matrix.shard }}/${{ inputs.shard_total }}
+          shard=${{ matrix.shard }}/3
           node=$(node --version)
           npm=$(npm --version)
           playwright=$(npx playwright --version)
@@ -113,7 +109,7 @@ jobs:
         run: >-
           npx playwright test ${{ matrix.spec }}
           --project=${{ matrix.browser }}
-          --shard=${{ matrix.shard }}/${{ inputs.shard_total }}
+          --shard=${{ matrix.shard }}/3
       - name: Upload shard diagnostics
         if: ${{ always() }}
         uses: actions/upload-artifact@v6
