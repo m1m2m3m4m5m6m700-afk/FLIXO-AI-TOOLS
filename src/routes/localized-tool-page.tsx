@@ -1,9 +1,10 @@
-import { Suspense, type ComponentType } from 'react';
+import { Suspense, useEffect, useState, type ComponentType } from 'react';
 import { useParams } from '@tanstack/react-router';
 import { LOCALES, isLocale, type Locale } from '../lib/i18n';
 import { getToolSeo } from '../lib/seo/tool-seo';
 import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
 import { getToolPrivacyCopy } from '../lib/privacy';
+import { getFavorites, recordRecentTool, toggleFavorite } from '../lib/local-workspace';
 import '../tool-page-modern.css';
 
 export function LocalizedToolPage() {
@@ -11,6 +12,12 @@ export function LocalizedToolPage() {
   const locale = typeof params.locale === 'string' && isLocale(params.locale) ? params.locale : 'en';
   const copy = TOOL_UI_I18N[locale];
   const isRtl = locale === 'ar' || locale === 'ur';
+  const toolId = typeof params.tool === 'string' && isLocale(locale) && LOCALES.includes(locale) ? params.tool : null;
+  const [favorite, setFavorite] = useState(() => (toolId ? getFavorites().includes(toolId) : false));
+
+  useEffect(() => {
+    if (toolId) recordRecentTool(toolId);
+  }, [toolId]);
 
   if (typeof params.locale !== 'string' || typeof params.tool !== 'string' || !isLocale(params.locale) || !LOCALES.includes(params.locale)) {
     return (
@@ -49,6 +56,12 @@ export function LocalizedToolPage() {
   const homeLabel = locale === 'ar' || locale === 'ur' ? 'الرئيسية' : 'Home';
   const readyLabel = locale === 'ar' ? 'جاهزة' : 'Ready';
   const workspaceLabel = locale === 'ar' ? 'مساحة عمل الأداة' : 'Tool workspace';
+  const favoriteLabel = locale === 'ar' ? 'المفضلة' : 'Favorite';
+
+  const onToggleFavorite = () => {
+    const next = toggleFavorite(seo.tool.id);
+    setFavorite(next.includes(seo.tool.id));
+  };
 
   return (
     <main lang={seo.languageTag} dir={seo.direction} className="tool-page-modern">
@@ -63,6 +76,9 @@ export function LocalizedToolPage() {
             <img className="tool-page-modern__brand-logo" src="/flixo-logo.svg" width="44" height="44" alt="FLIXO" decoding="async" />
           </a>
           <div className="tool-page-modern__nav-actions">
+            <button className={`tool-page-modern__favorite ${favorite ? 'is-active' : ''}`} type="button" onClick={onToggleFavorite} aria-pressed={favorite} title={favoriteLabel}>
+              <span aria-hidden="true">{favorite ? '★' : '☆'}</span> {favoriteLabel}
+            </button>
             <a className="tool-page-modern__nav-link" href={homeUrl}>← {homeLabel}</a>
             <a className="tool-page-modern__lang" href={alternateUrl} lang={locale === 'ar' ? 'en' : 'ar'}>{alternateLabel}</a>
           </div>

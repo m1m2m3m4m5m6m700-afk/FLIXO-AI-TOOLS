@@ -3,8 +3,10 @@ import ReactDOM from 'react-dom/client';
 import { RouterProvider } from '@tanstack/react-router';
 import { router } from './router';
 import { installRuntimeDiagnostics } from './lib/diagnostics/runtime';
+import { FlixoUxShell } from './components/flixo-ux-shell';
 import './styles.css';
 import './home-motion.css';
+import './command-palette.css';
 
 installRuntimeDiagnostics();
 
@@ -18,6 +20,8 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <RouterProvider router={router} />
+    <FlixoUxShell>
+      <RouterProvider router={router} />
+    </FlixoUxShell>
   </React.StrictMode>,
 );
