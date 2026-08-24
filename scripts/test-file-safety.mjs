@@ -1,22 +1,73 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
+import { validateFileSafety } from '../src/lib/contracts/file-safety.ts';
 
-const file = path.resolve('src/lib/contracts/file-safety.ts');
-const source = fs.readFileSync(file, 'utf8');
+const rasterPolicy = {
+  allowedMime: ['image/png', 'image/jpeg', 'image/webp'],
+  maxBytes: 25 * 1024 * 1024,
+  maxPixels: 40_000_000,
+  signatures: ['89504e470d0a1a0a', 'ffd8ff', '52494646'],
+};
 
-for (const token of ['FileSafetyInput', 'FileSafetyPolicy', 'FileSafetyResult', 'validateFileSafety']) {
-  assert.ok(source.includes(token), `missing safety contract token: ${token}`);
-}
+const safe = validateFileSafety(
+  {
+    name: 'sample.png',
+    mime: 'image/png',
+    bytes: 1024,
+    width: 4000,
+    height: 4000,
+    signature: '89504e470d0a1a0a0000000d',
+  },
+  rasterPolicy,
+);
+assert.deepEqual(safe, { safe: true, failures: [] });
 
-assert.ok(source.includes('maxBytes'));
-assert.ok(source.includes('allowedMime'));
-assert.ok(source.includes('maxPixels'));
-assert.ok(source.includes('signatures'));
-assert.ok(source.includes('file size must be a positive integer'));
-assert.ok(source.includes('unsupported input MIME type'));
-assert.ok(source.includes('input exceeds the maximum pixel count'));
-assert.ok(source.includes('input signature is required when signature validation is enabled'));
-assert.ok(source.includes('input signature does not match the allowed file signatures'));
+const rejectMime = validateFileSafety(
+  { name: 'payload.txt', mime: 'text/plain', bytes: 10 },
+  rasterPolicy,
+);
+assert.equal(rejectMime.safe, false);
+assert.ok(rejectMime.failures.includes('unsupported input MIME type: text/plain'));
 
-console.log('file safety contract source checks passed');
+const rejectEmpty = validateFileSafety(
+  { name: 'empty.png', mime: 'image/png', bytes: 0 },
+  rasterPolicy,
+);
+assert.equal(rejectEmpty.safe, false);
+assert.ok(rejectEmpty.failures.includes('file size must be a positive integer'));
+
+const rejectOversized = validateFileSafety(
+  { name: 'large.png', mime: 'image/png', bytes: rasterPolicy.maxBytes + 1 },
+  rasterPolicy,
+);
+assert.equal(rejectOversized.safe, false);
+assert.ok(rejectOversized.failures.includes('file exceeds the maximum size'));
+
+const rejectPixels = validateFileSafety(
+  { name: 'huge.png', mime: 'image/png', bytes: 1024, width: 10_001, height: 4_000 },
+  rasterPolicy,
+);
+assert.equal(rejectPixels.safe, false);
+assert.ok(rejectPixels.failures.includes('input exceeds the maximum pixel count'));
+
+const rejectSignature = validateFileSafety(
+  { name: 'spoofed.png', mime: 'image/png', bytes: 1024, signature: '25504446' },
+  rasterPolicy,
+);
+assert.equal(rejectSignature.safe, false);
+assert.ok(rejectSignature.failures.includes('input signature does not match the allowed file signatures'));
+
+const requireSignature = validateFileSafety(
+  { name: 'missing-signature.png', mime: 'image/png', bytes: 1024 },
+  rasterPolicy,
+);
+assert.equal(requireSignature.safe, false);
+assert.ok(requireSignature.failures.includes('input signature is required when signature validation is enabled'));
+
+const rejectInvalidDimensions = validateFileSafety(
+  { name: 'invalid-dimensions.png', mime: 'image/png', bytes: 1024, width: 0, height: 100 },
+  rasterPolicy,
+);
+assert.equal(rejectInvalidDimensions.safe, false);
+assert.ok(rejectInvalidDimensions.failures.includes('width must be a positive integer'));
+
+console.log('file safety runtime contract checks passed');
