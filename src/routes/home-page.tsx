@@ -4,11 +4,13 @@ import { TOOLS_REGISTRY } from '../config/tools';
 import { SmartCommandPalette } from '../components/SmartCommandPalette';
 import { getBestToolIntent } from '@/lib/intent-router';
 import { loadHomeCopy } from '@/lib/i18n/home-loader';
+import { LOCALES } from '@/lib/i18n';
 import type { HomeCopy } from '../data/home-locales';
 import type { Locale } from '@/lib/i18n';
 
 type ToolCardProps = { readonly title: string; readonly description: string; readonly category: 'Images' | 'AI' | 'Other'; readonly path: string };
 const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
+const LANGUAGE_LABELS: Record<Locale, string> = { en: 'English', ar: 'العربية', es: 'Español', fr: 'Français', de: 'Deutsch', ru: 'Русский', zh: '中文', hi: 'हिन्दी', id: 'Bahasa Indonesia', ur: 'اردو', ja: '日本語', pt: 'Português', it: 'Italiano', ko: '한국어', nl: 'Nederlands', pl: 'Polski', tr: 'Türkçe', vi: 'Tiếng Việt', th: 'ไทย', sv: 'Svenska' };
 function recommendTool(file: File): ToolCardProps | null {
   const lower = file.name.toLowerCase();
   const imageTool = READY_TOOLS.find((tool) => tool.id === 'image-compressor');
@@ -66,7 +68,7 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
         <div className="home-container home-nav-inner">
           <Link className="home-brand" to="/" aria-label={copy.ariaHome}>FLIXO</Link>
           <div className="home-nav-links"><a href="#tools">{copy.nav.tools}</a><a href="#categories">{copy.nav.categories}</a><a href="#privacy">{copy.nav.privacy}</a></div>
-          <Link className="home-nav-language" to={locale === 'en' ? '/ar' : '/'} lang={locale === 'ar' ? 'en' : 'en'}>{copy.nav.switch}</Link>
+          <label className="sr-only" htmlFor="home-language">{copy.nav.switch}</label><select id="home-language" className="home-nav-language" value={locale} aria-label={copy.nav.switch} onChange={(event) => { window.location.assign(`/${event.target.value}`); }}>{LOCALES.map((code) => <option key={code} value={code}>{LANGUAGE_LABELS[code]}</option>)}</select>
         </div>
       </nav>
       <div className="home-container home-content">
