@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { encodeWav, mixInstrumental, supportsWebGpu, validateDuration, type SeparationBackend, type SeparationResult } from './engine';
+import { encodeWav, mixInstrumental, validateDuration, type SeparationBackend, type SeparationResult } from './engine';
 
 type Stem = 'vocals' | 'instrumental';
 
 export function AiVocalInstrumentalRemoverTool() {
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState(0);
-  const [backend, setBackend] = useState<SeparationBackend>(() => (supportsWebGpu() ? 'webgpu' : 'wasm'));
+  const [backend, setBackend] = useState<SeparationBackend>('webgpu');
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('Choose an audio file.');
@@ -77,7 +77,9 @@ export function AiVocalInstrumentalRemoverTool() {
       const audio = await context.decodeAudioData(await file.arrayBuffer());
       const left = audio.getChannelData(0).slice();
       const right = audio.numberOfChannels > 1 ? audio.getChannelData(1).slice() : left.slice();
-      worker.postMessage({ jobId, left, right, backend }, [left.buffer, right.buffer]);
+      const effectiveBackend: SeparationBackend = backend === 'webgpu' && !('gpu' in navigator) ? 'wasm' : backend;
+      if (effectiveBackend !== backend) setStatus('WebGPU is unavailable; using WASM CPU fallback.');
+      worker.postMessage({ jobId, left, right, backend: effectiveBackend }, [left.buffer, right.buffer]);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Unable to prepare audio.');
       setBusy(false);
