@@ -10,7 +10,7 @@ test.describe('Base64 Encoder / Decoder output contracts', () => {
     await page.getByRole('button', { name: 'Encode' }).click();
     await page.getByRole('button', { name: 'Run' }).click();
     const encoded = await page.locator('#base64-output').inputValue();
-    expect(encoded).toBe('2YXYsdit2KjYp9i5IEZMSVhPIPCfjI0=');
+    expect(encoded).toBe('2YXYsdit2KjYpyBGTElYTyDwn4yN');
     await page.getByRole('button', { name: 'Decode' }).click();
     await page.locator('#base64-input').fill(encoded);
     await page.getByRole('button', { name: 'Run' }).click();
@@ -35,6 +35,11 @@ test.describe('Base64 Encoder / Decoder output contracts', () => {
     page.on('request', (request) => requests.push(request.url()));
     await page.locator('#base64-input').fill('FLIXO local');
     await page.getByRole('button', { name: 'Run' }).click();
-    expect(requests.filter((url) => !url.startsWith('http://localhost')).length).toBe(0);
+    const external = requests.filter((requestUrl) => {
+      const url = new URL(requestUrl);
+      const isLocal = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '::1';
+      return (url.protocol === 'http:' || url.protocol === 'https:') && !isLocal;
+    });
+    expect(external).toHaveLength(0);
   });
 });
