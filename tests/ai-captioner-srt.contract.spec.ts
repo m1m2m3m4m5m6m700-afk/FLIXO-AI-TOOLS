@@ -17,7 +17,11 @@ test.describe('AI Auto-Captioner & SRT Generator contract', () => {
   test('does not contact application APIs on initial load', async ({ page }) => {
     const external: string[] = [];
     page.on('request', (request) => {
-      if (request.url().startsWith('http') && !request.url().includes('localhost')) external.push(request.url());
+      const url = new URL(request.url());
+      const isLocal = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '::1';
+      if (url.protocol === 'http:' || url.protocol === 'https:') {
+        if (!isLocal) external.push(request.url());
+      }
     });
     await page.goto('/en/ai-captioner-srt');
     expect(external).toHaveLength(0);
