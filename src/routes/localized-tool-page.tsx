@@ -15,6 +15,10 @@ export function LocalizedToolPage() {
   const toolId = typeof params.tool === 'string' && isLocale(locale) && LOCALES.includes(locale) ? params.tool : null;
   const [favorite, setFavorite] = useState(() => (toolId ? getFavorites().includes(toolId) : false));
 
+  useEffect(() => {
+    if (toolId) recordRecentTool(toolId);
+  }, [toolId]);
+
   if (typeof params.locale !== 'string' || typeof params.tool !== 'string' || !isLocale(params.locale) || !LOCALES.includes(params.locale)) {
     return (
       <main lang={locale} dir={isRtl ? 'rtl' : 'ltr'} className="tool-page-modern">
@@ -53,10 +57,6 @@ export function LocalizedToolPage() {
   const readyLabel = locale === 'ar' ? 'جاهزة' : 'Ready';
   const workspaceLabel = locale === 'ar' ? 'مساحة عمل الأداة' : 'Tool workspace';
   const favoriteLabel = locale === 'ar' ? 'المفضلة' : 'Favorite';
-
-  useEffect(() => {
-    if (toolId) recordRecentTool(toolId);
-  }, [toolId]);
 
   const onToggleFavorite = () => {
     const next = toggleFavorite(seo.tool.id);
