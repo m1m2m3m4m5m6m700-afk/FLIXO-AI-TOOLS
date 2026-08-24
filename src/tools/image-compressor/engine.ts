@@ -22,15 +22,6 @@ export const MAX_FILES = 20;
 export const MAX_INPUT_SIZE = IMAGE_COMPRESSOR_MAX_INPUT_SIZE;
 export const MAX_OUTPUT_PIXELS = IMAGE_COMPRESSOR_MAX_PIXELS;
 
-const SUPPORTED_INPUTS = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'image/bmp',
-  'image/svg+xml',
-]);
-
 function getTargetSize(width: number, height: number, maxWidth?: number, maxHeight?: number) {
   const widthLimit = Number.isFinite(maxWidth) && (maxWidth ?? 0) > 0 ? maxWidth! : width;
   const heightLimit = Number.isFinite(maxHeight) && (maxHeight ?? 0) > 0 ? maxHeight! : height;
