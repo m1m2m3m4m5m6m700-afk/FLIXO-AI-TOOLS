@@ -1,0 +1,34 @@
+name: Phase 3 Chain Compatibility
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/tool-chain-adapters.ts'
+      - 'src/lib/tool-chain-compatibility.ts'
+      - 'src/lib/tool-chain-runner.ts'
+      - 'tests/phase3-chain-compatibility.mjs'
+      - '.github/workflows/phase3-chain-compatibility.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Compatibility contract
+        run: node tests/phase3-chain-compatibility.mjs
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
