@@ -4,6 +4,7 @@ const toolsSource = readFileSync('src/config/tools.ts', 'utf8');
 const seoSource = readFileSync('src/lib/seo/tool-seo.ts', 'utf8');
 const routerSource = readFileSync('src/routes/localized-tool.tsx', 'utf8');
 const localizedPageSource = readFileSync('src/routes/localized-tool-page.tsx', 'utf8');
+const rootSource = readFileSync('src/routes/__root.tsx', 'utf8');
 
 const expectedLocales = ['en','ar','es','fr','de','ru','zh','hi','id','ur','ja','pt','it','ko','nl','pl','tr','vi','th','sv'];
 const readyToolIds = [...toolsSource.matchAll(/\{ id: '([^']+)',[^\n]*?isReady: true,/g)].map((match) => match[1]);
@@ -66,4 +67,9 @@ if (!localizedPageSource.includes('seo.structuredData')) {
   process.exit(1);
 }
 
-console.log(`SEO validation passed: ${expectedLocales.length} locales, ${readyToolIds.length} ready tools, dynamic localized routing, canonical, hreflang, and JSON-LD present.`);
+if (!jsonLdScriptPattern.test(rootSource) || !rootSource.includes("'@type': 'Organization'") || !rootSource.includes("'@type': 'WebSite'")) {
+  console.error('Global Organization/WebSite structured data is missing from the root route.');
+  process.exit(1);
+}
+
+console.log(`SEO validation passed: ${expectedLocales.length} locales, ${readyToolIds.length} ready tools, dynamic localized routing, canonical, hreflang, tool JSON-LD, and global WebSite/Organization JSON-LD present.`);
