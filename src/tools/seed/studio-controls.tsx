@@ -1,3 +1,5 @@
+'use client';
+
 import type { ComponentType, ReactNode } from 'react';
 import * as Accordion from '@radix-ui/react-accordion';
 import * as Slider from '@radix-ui/react-slider';
@@ -25,7 +27,7 @@ function installSeedFileInputAccessibilityBridge(): void {
 
   const apply = () => {
     document.querySelectorAll<HTMLInputElement>('input[type="file"]').forEach((input) => {
-      if (input.hasAttribute('aria-label')) return;
+      if (input.id === 'seed-main-image-input' || input.hasAttribute('aria-label')) return;
       let current: HTMLElement | null = input.parentElement;
       for (let depth = 0; current && depth < 8; depth += 1) {
         const text = current.textContent?.replace(/\s+/g, ' ').trim() ?? '';
