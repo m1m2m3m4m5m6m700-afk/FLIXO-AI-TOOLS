@@ -28,5 +28,13 @@ export default tseslint.config(
       'react-hooks/set-state-in-effect': 'warn',
     },
   },
+  {
+    // Seed intentionally keeps its GPU engine in a ref because WebGL engine instances are imperative resources.
+    // Do not weaken react-hooks/refs globally; this exception is scoped to the editor entry point only.
+    files: ['src/tools/seed/index.tsx'],
+    rules: {
+      'react-hooks/refs': 'off',
+    },
+  },
   prettier,
 );
