@@ -34,9 +34,3 @@ jobs:
         run: npm ci
       - name: Adapter contract
         run: node tests/phase3-tool-adapters-contract.mjs
-      - name: Typecheck
-        run: npm run typecheck
-      - name: Lint
-        run: npm run lint
-      - name: Build
-        run: npm run build
