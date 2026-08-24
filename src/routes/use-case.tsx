@@ -1,5 +1,5 @@
 import { createRoute } from '@tanstack/react-router';
-import { getToolConfig } from '../config/tools';
+import { getToolConfig, type ToolConfig } from '../config/tools';
 import { getUseCase } from '../lib/seo/use-cases';
 import { rootRoute } from './__root';
 
@@ -29,7 +29,7 @@ export const useCaseRoute = createRoute({
 
     const tools = useCase.toolIds
       .map((toolId) => getToolConfig(toolId))
-      .filter((tool) => tool?.isReady);
+      .filter((tool): tool is ToolConfig => Boolean(tool?.isReady));
 
     const structuredData = {
       '@context': 'https://schema.org',
