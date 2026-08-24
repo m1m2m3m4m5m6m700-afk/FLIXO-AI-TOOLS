@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
-const source = await (await fetch('https://raw.githubusercontent.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/main/src/lib/tool-chain-compatibility.ts')).text();
+const source = await readFile(new URL('../src/lib/tool-chain-compatibility.ts', import.meta.url), 'utf8');
 
 assert.match(source, /TOOL_CHAIN_CONTRACTS/);
 assert.match(source, /image-converter/);
