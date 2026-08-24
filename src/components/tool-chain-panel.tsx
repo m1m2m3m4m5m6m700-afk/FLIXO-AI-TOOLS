@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { getReadyToolConfigs } from '../config/tools';
 import { addToolToChain, clearToolChain, getToolChain, moveToolInChain, removeToolFromChain } from '../lib/tool-chain';
+import './tool-chain-panel.css';
 
 export function ToolChainPanel({ currentToolId }: { currentToolId?: string | null }) {
   const [open, setOpen] = useState(false);
@@ -38,7 +39,7 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
             <p className="flixo-chain-panel__empty">Add tools in the order you want to process them. The chain is stored only in this browser.</p>
           ) : (
             <ol className="flixo-chain-panel__list">
-              {selected.map(({ step, tool }, index) => (
+              {selected.map(({ tool }, index) => (
                 <li key={tool.id}>
                   <span className="flixo-chain-panel__index">{index + 1}</span>
                   <div className="flixo-chain-panel__tool"><strong>{tool.title}</strong><span>{tool.category}</span></div>
