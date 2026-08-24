@@ -1,0 +1,84 @@
+name: Release Candidate Audit
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-candidate-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Release Candidate Contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/validate-release-candidate.mjs
+
+  verify:
+    name: Canonical Verify
+    needs: contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+
+  e2e:
+    name: Full Playwright E2E
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - run: npm run test:e2e
+      - name: Upload Playwright report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-candidate-playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  final:
+    name: Release Candidate Promotion Evidence
+    if: ${{ needs.contract.result == 'success' && needs.verify.result == 'success' && needs.e2e.result == 'success' }}
+    needs: [contract, verify, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record promotion evidence
+        run: |
+          {
+            echo '## FLIXO Release Candidate Audit'
+            echo
+            echo 'Contract: PASS'
+            echo 'Canonical verify: PASS'
+            echo 'Full Playwright E2E: PASS'
+            echo 'Exact commit:'
+            echo '${{ github.sha }}'
+            echo
+            echo 'Production dependency audit and performance budget are covered by npm run verify.'
+            echo 'CodeQL remains an independent security workflow and canonical CI gate.'
+          } >> "$GITHUB_STEP_SUMMARY"
