@@ -55,7 +55,8 @@ if (!routerSource.includes("hrefLang: 'x-default'")) {
   process.exit(1);
 }
 
-if (!localizedPageSource.includes('<script type="application/ld+json"')) {
+const jsonLdScriptPattern = /<script\s+type=["']application\/ld\+json["']/;
+if (!jsonLdScriptPattern.test(localizedPageSource)) {
   console.error('Structured data JSON-LD is missing from the rendered localized tool page.');
   process.exit(1);
 }
