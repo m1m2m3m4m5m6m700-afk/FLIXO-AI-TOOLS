@@ -1,7 +1,5 @@
 import { PDFDocument } from 'pdf-lib';
-import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy, type PDFPageProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
-
-GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString();
+import { getDocument, type PDFDocumentProxy, type PDFPageProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 export type PdfCompressionLevel = 'low' | 'medium' | 'high';
 
@@ -114,7 +112,7 @@ export async function compressPdf(file: File, incomingOptions?: Partial<PdfCompr
   const bytes = new Uint8Array(await file.arrayBuffer());
   const safeBuffer = new ArrayBuffer(bytes.byteLength);
   new Uint8Array(safeBuffer).set(bytes);
-  const pdf = await getDocument({ data: safeBuffer }).promise;
+  const pdf = await getDocument({ data: safeBuffer, disableWorker: true }).promise;
   const outputBytes = new Uint8Array(await buildCompressedPdf(pdf, options));
   const usedCompression = outputBytes.byteLength < file.size;
   const finalBytes = usedCompression ? outputBytes : bytes;
