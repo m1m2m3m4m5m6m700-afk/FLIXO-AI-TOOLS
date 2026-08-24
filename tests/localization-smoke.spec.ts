@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('AR/EN localization smoke', () => {
+  test.describe.configure({ timeout: 30_000 });
+
   test('English home exposes English UI and document LTR direction', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     const html = page.locator('html');
