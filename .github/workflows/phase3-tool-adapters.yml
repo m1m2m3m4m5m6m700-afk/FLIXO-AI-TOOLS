@@ -1,0 +1,42 @@
+name: Phase 3 Tool Adapters
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/tool-chain.ts'
+      - 'src/lib/tool-chain-adapters.ts'
+      - 'src/tools/image-toolkit/**'
+      - 'tests/phase3-tool-adapters-contract.mjs'
+      - '.github/workflows/phase3-tool-adapters.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/lib/tool-chain.ts'
+      - 'src/lib/tool-chain-adapters.ts'
+      - 'src/tools/image-toolkit/**'
+      - 'tests/phase3-tool-adapters-contract.mjs'
+      - '.github/workflows/phase3-tool-adapters.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  adapters-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Adapter contract
+        run: node tests/phase3-tool-adapters-contract.mjs
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
