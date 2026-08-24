@@ -9,7 +9,8 @@ test('shared image tools reject unsupported MIME before decoding', async ({ page
   });
   await page.getByRole('button', { name: 'Run tool' }).click();
   await expect(page.getByRole('alert')).toContainText('unsupported input MIME type');
-  await expect(page.getByText('No result yet.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Download now' })).toHaveCount(0);
+  await expect(page.locator('img[alt="Tool result"]')).toHaveCount(0);
 });
 
 test('shared image tools reject oversized input before decoding', async ({ page }) => {

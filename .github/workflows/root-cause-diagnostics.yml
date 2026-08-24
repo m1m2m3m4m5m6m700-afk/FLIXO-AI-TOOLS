@@ -1,0 +1,137 @@
+name: Root Cause Diagnostics
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: root-cause-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Root Cause — ${{ matrix.area }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - area: typecheck
+            command: npm run typecheck
+          - area: lint
+            command: npm run lint
+          - area: engineering-baseline
+            command: npm run validate:baseline
+          - area: tool-registry
+            command: npm run validate:tool-registry && npm run validate:router-registry
+          - area: localization
+            command: npm run validate:i18n && npm run validate:home-i18n && npm run validate:localization-full
+          - area: seo-indexing
+            command: npm run validate:seo && npm run validate:seo-manifest && npm run validate:use-case-seo && npm run validate:indexing
+          - area: ci-contract
+            command: npm run validate:ci-contract
+          - area: security-integrity
+            command: npm run audit:production && node --experimental-strip-types scripts/test-file-safety.mjs && node --experimental-strip-types scripts/test-output-integrity.mjs && node --experimental-strip-types scripts/test-svg-integrity.mjs
+          - area: release-contracts
+            command: npm run test:quickflow && npm run test:ai-planner && node scripts/test-release-evidence.mjs
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Run ${{ matrix.area }} diagnostics
+        env:
+          CI: 'true'
+        run: ${{ matrix.command }}
+      - name: Upload diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: root-cause-${{ matrix.area }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  build-performance:
+    name: Root Cause — build-performance
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run validate:performance-budget
+      - run: npm run report:performance-baseline
+      - name: Upload build diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: root-cause-build-performance
+          path: |
+            dist/
+            .flixo-performance-report.*
+          if-no-files-found: ignore
+          retention-days: 14
+
+  e2e:
+    name: Root Cause — E2E — ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Run E2E on ${{ matrix.browser }}
+        env:
+          CI: 'true'
+        run: npx playwright test --project=${{ matrix.browser }}
+      - name: Upload E2E diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: root-cause-e2e-${{ matrix.browser }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  summary:
+    name: Root Cause Diagnostic Summary
+    if: ${{ always() }}
+    needs: [static, build-performance, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          {
+            echo '## Root Cause Diagnostics'
+            echo
+            echo 'Parallel gates: 9 contract/security areas + build/performance + 3 browser E2E jobs.'
+            echo 'fail-fast=false preserves independent failures for diagnosis.'
+            echo "static=${{ needs.static.result }}"
+            echo "build-performance=${{ needs.build-performance.result }}"
+            echo "e2e=${{ needs.e2e.result }}"
+          } >> "$GITHUB_STEP_SUMMARY"
