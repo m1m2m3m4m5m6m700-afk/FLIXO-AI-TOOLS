@@ -3,6 +3,7 @@ import { useParams } from '@tanstack/react-router';
 import { LOCALES, isLocale, type Locale } from '../lib/i18n';
 import { getToolSeo } from '../lib/seo/tool-seo';
 import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
+import { getToolPrivacyCopy } from '../lib/privacy';
 import '../tool-page-modern.css';
 
 export function LocalizedToolPage() {
@@ -39,6 +40,7 @@ export function LocalizedToolPage() {
   }
 
   const ToolComponent = seo.tool.component as unknown as ComponentType<{ locale?: Locale }>;
+  const privacy = getToolPrivacyCopy(seo.tool.id, locale);
   const homeUrl = `/${locale}`;
   const englishToolUrl = `/en/${seo.tool.id}`;
   const arabicToolUrl = `/ar/${seo.tool.id}`;
@@ -87,6 +89,11 @@ export function LocalizedToolPage() {
                   <span className="tool-page-modern__badge"><span className="tool-page-modern__badge-dot" /> {readyLabel}</span>
                   <span className="tool-page-modern__chip">{copy.language}: {seo.languageTag}</span>
                   <span className="tool-page-modern__chip">{seo.tool.category}</span>
+                </div>
+                <div className={`tool-page-modern__privacy ${privacy.mode === 'local' ? 'tool-page-modern__privacy--local' : 'tool-page-modern__privacy--remote'}`} role="status" aria-label={privacy.label}>
+                  <span aria-hidden="true">{privacy.mode === 'local' ? '●' : '↗'}</span>
+                  <strong>{privacy.label}</strong>
+                  <span>{privacy.detail}</span>
                 </div>
               </div>
             </div>
