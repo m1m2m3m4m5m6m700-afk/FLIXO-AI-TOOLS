@@ -19,6 +19,7 @@
     "validate:indexing": "node scripts/validate-indexing.mjs",
     "validate:ci-contract": "node scripts/validate-ci-contract.mjs",
     "validate:localization-full": "node scripts/validate-localization-full.mjs",
+    "validate:tool-registry": "node scripts/validate-tool-registry-contract.mjs",
     "validate:baseline": "node scripts/validate-engineering-baseline.mjs",
     "validate:router-registry": "node --experimental-strip-types scripts/validate-router-registry.mjs",
     "report:localization": "node scripts/report-localization-coverage.mjs",
@@ -30,8 +31,8 @@
     "generate:sitemap": "node scripts/generate-sitemap.mjs",
     "test:quickflow": "node --experimental-strip-types scripts/test-quickflow-contract.mjs",
     "test:ai-planner": "node --experimental-strip-types scripts/test-ai-planner-contract.mjs",
-    "verify:fast": "npm run typecheck && npm run lint && npm run test:quickflow && npm run test:ai-planner && node scripts/test-release-evidence.mjs && node --experimental-strip-types scripts/test-file-safety.mjs && node --experimental-strip-types scripts/test-output-integrity.mjs && node --experimental-strip-types scripts/test-svg-integrity.mjs && npm run validate:baseline && npm run validate:router-registry && npm run validate:i18n && npm run validate:home-i18n && npm run validate:seo && npm run validate:seo-manifest && npm run validate:use-case-seo && npm run validate:indexing && npm run validate:ci-contract",
-    "check": "npm run typecheck && npm run lint && npm run validate:baseline && npm run validate:router-registry && npm run validate:i18n && npm run validate:home-i18n && npm run validate:seo && npm run validate:seo-manifest && npm run validate:use-case-seo && npm run validate:indexing && npm run validate:ci-contract && npm run validate:localization-full && npm run build && npm run validate:performance-budget",
+    "verify:fast": "npm run typecheck && npm run lint && npm run test:quickflow && npm run test:ai-planner && node scripts/test-release-evidence.mjs && node --experimental-strip-types scripts/test-file-safety.mjs && node --experimental-strip-types scripts/test-output-integrity.mjs && node --experimental-strip-types scripts/test-svg-integrity.mjs && npm run validate:baseline && npm run validate:tool-registry && npm run validate:router-registry && npm run validate:i18n && npm run validate:home-i18n && npm run validate:seo && npm run validate:seo-manifest && npm run validate:use-case-seo && npm run validate:indexing && npm run validate:ci-contract",
+    "check": "npm run typecheck && npm run lint && npm run validate:baseline && npm run validate:tool-registry && npm run validate:router-registry && npm run validate:i18n && npm run validate:home-i18n && npm run validate:seo && npm run validate:seo-manifest && npm run validate:use-case-seo && npm run validate:indexing && npm run validate:ci-contract && npm run validate:localization-full && npm run build && npm run validate:performance-budget",
     "verify": "npm run check && npm run audit:production",
     "test:e2e": "playwright test",
     "test": "npm run verify && npm run test:e2e"
