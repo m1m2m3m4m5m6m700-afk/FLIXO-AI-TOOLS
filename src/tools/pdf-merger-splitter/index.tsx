@@ -18,7 +18,7 @@ function downloadPdf(bytes: Uint8Array, name: string) {
   if (bytes.byteLength < 5 || new TextDecoder().decode(bytes.subarray(0, 5)) !== '%PDF-') {
     throw new Error('Generated PDF is invalid.');
   }
-  const blob = new File([toArrayBuffer(bytes)], name, { type: 'application/pdf' });
+  const blob = new Blob([toArrayBuffer(bytes)], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
