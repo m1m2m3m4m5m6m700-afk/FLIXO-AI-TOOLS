@@ -232,7 +232,7 @@ export default function SeedTool() {
           <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/[0.035] to-transparent" />
           <div className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-black/40 px-2.5 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-500 backdrop-blur-md"><Scan className="size-3 text-zinc-600" />Canvas / Linear Preview</div>
           {image ? (
-            <canvas ref={canvasRef} onPointerDown={addBrushPoint} className={`relative z-10 max-h-[78vh] max-w-full touch-none object-contain rounded-md shadow-[0_25px_80px_rgba(0,0,0,0.55)] ${advanced.brushStrength !== 0 ? 'cursor-crosshair' : 'cursor-default'}`} aria-label="Seed image preview" />
+            <canvas ref={canvasRef} onPointerDown={addBrushPoint} className={`relative z-10 max-h-[78vh] max-w-full touch-none object-contain rounded-md shadow-[0_25px_80px_rgba(0,0,0,0.55)] ${advanced.brushStrength !== 0 ? 'cursor-crosshair' : 'cursor-default'}`} aria-label="Seed preview" />
           ) : (
             <div onClick={() => imageInputRef.current?.click()} className={`relative z-10 flex w-full max-w-lg cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed p-10 text-center transition ${isDragging ? 'border-indigo-400/70 bg-indigo-500/10' : 'border-white/[0.1] bg-black/20 hover:border-white/[0.16] hover:bg-white/[0.025]'}`}>
               <span className="mb-4 flex size-16 items-center justify-center rounded-2xl border border-indigo-300/10 bg-gradient-to-br from-indigo-500/15 to-cyan-400/5 text-indigo-200"><ImagePlus className="size-7" /></span>
