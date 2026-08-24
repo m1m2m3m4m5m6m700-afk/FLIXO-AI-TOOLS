@@ -11,7 +11,7 @@ for (const tool of tools) {
 
       const main = page.locator('main').first();
       await expect(main).toBeVisible();
-      await expect(main).toHaveAttribute('lang', new RegExp(`^${locale}(?:-|$)`));
+      await expect(page.locator('html')).toHaveAttribute('lang', new RegExp(`^${locale}(?:-|$)`));
       await expect(main).toHaveAttribute('dir', rtlLocales.has(locale) ? 'rtl' : 'ltr');
 
       const visibleText = (await main.innerText()).replace(/\s+/g, ' ').trim();
