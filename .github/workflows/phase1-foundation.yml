@@ -1,0 +1,50 @@
+name: Phase 1 Foundation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'public/manifest.webmanifest'
+      - 'public/sw.js'
+      - 'src/lib/privacy.ts'
+      - 'src/main.tsx'
+      - 'src/routes/localized-tool-page.tsx'
+      - 'src/tool-page-modern.css'
+      - 'tests/phase1-foundation-contract.mjs'
+      - '.github/workflows/phase1-foundation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'public/manifest.webmanifest'
+      - 'public/sw.js'
+      - 'src/lib/privacy.ts'
+      - 'src/main.tsx'
+      - 'src/routes/localized-tool-page.tsx'
+      - 'src/tool-page-modern.css'
+      - 'tests/phase1-foundation-contract.mjs'
+      - '.github/workflows/phase1-foundation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  foundation-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Phase 1 foundation contract
+        run: node tests/phase1-foundation-contract.mjs
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
