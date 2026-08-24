@@ -1,5 +1,5 @@
 import { createRoute } from '@tanstack/react-router';
-import { getToolConfig, type ToolConfig } from '../config/tools';
+import { getToolConfig } from '../config/tools';
 import { getUseCase } from '../lib/seo/use-cases';
 import { rootRoute } from './__root';
 
@@ -23,13 +23,11 @@ export const useCaseRoute = createRoute({
     const { slug } = useCaseRoute.useParams();
     const useCase = getUseCase(slug);
 
-    if (!useCase) {
-      return <main><h1>Use case not found</h1></main>;
-    }
+    if (!useCase) return <main><h1>Use case not found</h1></main>;
 
     const tools = useCase.toolIds
       .map((toolId) => getToolConfig(toolId))
-      .filter((tool): tool is ToolConfig => Boolean(tool?.isReady));
+      .filter((tool): tool is NonNullable<typeof tool> => Boolean(tool?.isReady));
 
     const structuredData = {
       '@context': 'https://schema.org',
@@ -38,6 +36,14 @@ export const useCaseRoute = createRoute({
       description: useCase.description,
       url: `/use-cases/${useCase.slug}`,
       isPartOf: { '@type': 'WebSite', name: 'FLIXO', url: '/' },
+      mainEntity: {
+        '@type': 'FAQPage',
+        mainEntity: useCase.faq.map((item) => ({
+          '@type': 'Question',
+          name: item.question,
+          acceptedAnswer: { '@type': 'Answer', text: item.answer },
+        })),
+      },
     };
 
     return (
@@ -62,6 +68,17 @@ export const useCaseRoute = createRoute({
                 <a href={`/en/${tool.id}`}>Open tool →</a>
               </article>
             ))}
+          </section>
+          <section className="tool-page-modern__seo" aria-label="Frequently asked questions">
+            <article className="tool-page-modern__seo-card">
+              <h2>Frequently asked questions</h2>
+              {useCase.faq.map((item) => (
+                <div key={item.question}>
+                  <h3>{item.question}</h3>
+                  <p>{item.answer}</p>
+                </div>
+              ))}
+            </article>
           </section>
         </div>
       </main>
