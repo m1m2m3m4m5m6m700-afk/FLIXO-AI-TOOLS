@@ -1,3 +1,5 @@
+import { assertSafeImageInput, IMAGE_COMPRESSOR_MAX_INPUT_SIZE, IMAGE_COMPRESSOR_MAX_PIXELS } from './file-safety';
+
 export type CompressionFormat = 'image/jpeg' | 'image/webp' | 'image/png';
 
 export type CompressionOptions = {
@@ -17,17 +19,8 @@ export type CompressionResult = {
 };
 
 export const MAX_FILES = 20;
-export const MAX_INPUT_SIZE = 10 * 1024 * 1024;
-export const MAX_OUTPUT_PIXELS = 40_000_000;
-
-const SUPPORTED_INPUTS = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'image/bmp',
-  'image/svg+xml',
-]);
+export const MAX_INPUT_SIZE = IMAGE_COMPRESSOR_MAX_INPUT_SIZE;
+export const MAX_OUTPUT_PIXELS = IMAGE_COMPRESSOR_MAX_PIXELS;
 
 function getTargetSize(width: number, height: number, maxWidth?: number, maxHeight?: number) {
   const widthLimit = Number.isFinite(maxWidth) && (maxWidth ?? 0) > 0 ? maxWidth! : width;
@@ -126,14 +119,11 @@ async function loadSourceImage(file: File): Promise<SourceImage> {
 }
 
 async function compressImageOnMainThread(file: File, options: CompressionOptions): Promise<CompressionResult> {
-  if (!SUPPORTED_INPUTS.has(file.type)) throw new Error('Unsupported image format');
-  if (file.size > MAX_INPUT_SIZE) throw new Error('File is larger than the 10 MB browser limit');
+  assertSafeImageInput(file);
 
   const image = await loadSourceImage(file);
   try {
-    if (!Number.isFinite(image.width) || !Number.isFinite(image.height) || image.width < 1 || image.height < 1) {
-      throw new Error('The source image has invalid dimensions');
-    }
+    assertSafeImageInput(file, { width: image.width, height: image.height });
 
     const size = getTargetSize(image.width, image.height, options.maxWidth, options.maxHeight);
     if (size.width * size.height > MAX_OUTPUT_PIXELS) {
@@ -204,8 +194,7 @@ function compressImageInWorker(file: File, options: CompressionOptions): Promise
 }
 
 export async function compressImage(file: File, options: CompressionOptions): Promise<CompressionResult> {
-  if (!SUPPORTED_INPUTS.has(file.type)) throw new Error('Unsupported image format');
-  if (file.size > MAX_INPUT_SIZE) throw new Error('File is larger than the 10 MB browser limit');
+  assertSafeImageInput(file);
 
   if (canUseCompressionWorker(file)) {
     try {

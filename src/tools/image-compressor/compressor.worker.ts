@@ -1,3 +1,5 @@
+import { assertSafeImageInput, IMAGE_COMPRESSOR_MAX_PIXELS } from './file-safety';
+
 type WorkerCompressionFormat = 'image/jpeg' | 'image/webp' | 'image/png';
 
 type WorkerCompressionOptions = {
@@ -8,8 +10,7 @@ type WorkerCompressionOptions = {
   targetSizeKB?: number;
 };
 
-const MAX_INPUT_SIZE = 10 * 1024 * 1024;
-const MAX_OUTPUT_PIXELS = 40_000_000;
+const MAX_OUTPUT_PIXELS = IMAGE_COMPRESSOR_MAX_PIXELS;
 
 function getTargetSize(width: number, height: number, maxWidth?: number, maxHeight?: number) {
   const widthLimit = Number.isFinite(maxWidth) && (maxWidth ?? 0) > 0 ? maxWidth! : width;
@@ -52,12 +53,12 @@ async function encodeToTarget(canvas: OffscreenCanvas, format: WorkerCompression
 self.onmessage = async (event: MessageEvent<{ file: File; options: WorkerCompressionOptions }>) => {
   try {
     const { file, options } = event.data;
-    if (file.size > MAX_INPUT_SIZE) throw new Error('File is larger than the 10 MB browser limit');
+    assertSafeImageInput(file);
     if (file.type === 'image/svg+xml') throw new Error('SVG worker path unavailable');
 
     const bitmap = await createImageBitmap(file);
     try {
-      if (!bitmap.width || !bitmap.height) throw new Error('The source image has invalid dimensions');
+      assertSafeImageInput(file, { width: bitmap.width, height: bitmap.height });
       const size = getTargetSize(bitmap.width, bitmap.height, options.maxWidth, options.maxHeight);
       if (size.width * size.height > MAX_OUTPUT_PIXELS) throw new Error('The requested output is too large for safe browser processing. Reduce the dimensions and try again.');
 
