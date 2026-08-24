@@ -1,11 +1,14 @@
 import { executeToolChain, type ChainInput, type ChainOutput } from './tool-chain-adapters';
+import { validateToolChain } from './tool-chain-compatibility';
 
 export async function runStoredToolChain(
   steps: readonly string[],
   input: ChainInput,
   onStep?: (completed: number, total: number, toolId: string) => void,
 ): Promise<ChainOutput> {
-  if (steps.length === 0) throw new Error('Tool chain is empty.');
+  const validation = validateToolChain(steps, input);
+  if (!validation.valid) throw new Error(validation.reason ?? 'Tool chain is not compatible.');
+
   let current = input;
   for (let index = 0; index < steps.length; index += 1) {
     const toolId = steps[index];
