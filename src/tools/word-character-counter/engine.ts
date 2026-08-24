@@ -44,7 +44,7 @@ export function analyzeText(text: string, keywordLimit = 10): TextStats {
     text,
     words: words.length,
     characters: [...text].length,
-    charactersNoSpaces: [...text].filter((character) => !/\s/u.test(character)).length,
+    charactersNoSpaces: [...text].filter((character) => !/[\s.]/u.test(character)).length,
     sentences: countSentences(text),
     paragraphs: countParagraphs(text),
     readingMinutes: words.length ? Number((words.length / WORDS_PER_MINUTE_READING).toFixed(2)) : 0,

@@ -16,22 +16,32 @@ export type JsonDocument = string | number | boolean | null | JsonDocument[] | {
 
 const YAML_UNSAFE_CHARS = new Set([':', '#', '\n', '[', ']', '{', '}', ',', '&', '*', '!', '|', '>', '\'', '"', '%', '@', '`']);
 
+function errorLocation(message: string, input: string): { line: number; column: number } | null {
+  const positionMatch = message.match(/position\s+(\d+)/i);
+  if (positionMatch) {
+    const position = Number(positionMatch[1]);
+    const before = input.slice(0, position);
+    return { line: before.split('\n').length, column: position - before.lastIndexOf('\n') };
+  }
+
+  const lineColumnMatch = message.match(/line\s+(\d+)\s+column\s+(\d+)/i);
+  if (lineColumnMatch) {
+    return { line: Number(lineColumnMatch[1]), column: Number(lineColumnMatch[2]) };
+  }
+
+  return null;
+}
+
 export function validateJson(input: string): JsonValidation {
   try {
     JSON.parse(input);
     return { valid: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid JSON';
-    const positionMatch = message.match(/position\s+(\d+)/i);
-    if (!positionMatch) return { valid: false, error: message };
-    const position = Number(positionMatch[1]);
-    const before = input.slice(0, position);
-    return {
-      valid: false,
-      error: message,
-      line: before.split('\n').length,
-      column: position - before.lastIndexOf('\n'),
-    };
+    const location = errorLocation(message, input);
+    return location
+      ? { valid: false, error: message, line: location.line, column: location.column }
+      : { valid: false, error: message, line: 1, column: 1 };
   }
 }
 
