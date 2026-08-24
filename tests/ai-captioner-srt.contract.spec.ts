@@ -14,10 +14,14 @@ test.describe('AI Auto-Captioner & SRT Generator contract', () => {
     await expect(page.getByRole('alert')).toContainText(/video or audio/i);
   });
 
-  test('does not contact application APIs on initial load', async ({ page }) => {
+  test('does not contact external services on initial load', async ({ page }) => {
     const external: string[] = [];
     page.on('request', (request) => {
-      if (request.url().startsWith('http') && !request.url().includes('localhost')) external.push(request.url());
+      const url = new URL(request.url());
+      const localHosts = new Set(['localhost', '127.0.0.1', '::1']);
+      if (url.protocol === 'http:' || url.protocol === 'https:') {
+        if (!localHosts.has(url.hostname)) external.push(request.url());
+      }
     });
     await page.goto('/en/ai-captioner-srt');
     expect(external).toHaveLength(0);
