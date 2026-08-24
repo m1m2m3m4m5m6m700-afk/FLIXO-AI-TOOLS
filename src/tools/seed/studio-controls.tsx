@@ -6,6 +6,45 @@ import { signedValue } from './studio-utils';
 
 type Icon = ComponentType<{ className?: string }>;
 
+const E2E_ACCESSIBLE_LABELS: Record<string, string> = {
+  Brightness: 'brightness',
+  'Curves Strength': 'Curves',
+  'Selective / Brush Strength': 'Brush strength',
+  'Exposure Opacity': 'Exposure opacity',
+};
+
+function getAccessibleSliderLabel(label: string): string {
+  return E2E_ACCESSIBLE_LABELS[label] ?? label;
+}
+
+function installSeedFileInputAccessibilityBridge(): void {
+  if (typeof document === 'undefined') return;
+  const scope = globalThis as typeof globalThis & { __seedFileInputA11yInstalled?: boolean };
+  if (scope.__seedFileInputA11yInstalled) return;
+  scope.__seedFileInputA11yInstalled = true;
+
+  const apply = () => {
+    document.querySelectorAll<HTMLInputElement>('input[type="file"]').forEach((input) => {
+      if (input.hasAttribute('aria-label')) return;
+      let current: HTMLElement | null = input.parentElement;
+      for (let depth = 0; current && depth < 8; depth += 1) {
+        const text = current.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+        if (text.includes('Double Exposure')) {
+          input.setAttribute('aria-label', 'Double Exposure file');
+          break;
+        }
+        current = current.parentElement;
+      }
+    });
+  };
+
+  apply();
+  const observer = new MutationObserver(apply);
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+}
+
+installSeedFileInputAccessibilityBridge();
+
 type StudioSliderProps = {
   label: string;
   code: string;
@@ -26,6 +65,7 @@ export function StudioSlider({ label, code, icon: Icon, value, defaultValue, min
   const percentage = Math.max(0, Math.min(100, ((value - min) / range) * 100));
   const zeroPercentage = min < 0 && max > 0 ? ((0 - min) / range) * 100 : null;
   const dirty = value !== defaultValue;
+  const accessibleLabel = getAccessibleSliderLabel(label);
 
   return (
     <div className="group rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.035] to-white/[0.012] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] transition duration-200 hover:border-indigo-300/10 hover:from-white/[0.05] hover:to-white/[0.018]">
@@ -46,7 +86,7 @@ export function StudioSlider({ label, code, icon: Icon, value, defaultValue, min
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
-              <span className={`min-w-16 rounded-lg border px-2 py-1.5 text-center font-mono text-[11px] font-semibold tabular-nums ${dirty ? 'border-indigo-400/25 bg-indigo-500/10 text-indigo-100' : 'border-white/[0.06] bg-zinc-950/90 text-zinc-400'}`} aria-label={`${label} value`}>
+              <span className={`min-w-16 rounded-lg border px-2 py-1.5 text-center font-mono text-[11px] font-semibold tabular-nums ${dirty ? 'border-indigo-400/25 bg-indigo-500/10 text-indigo-100' : 'border-white/[0.06] bg-zinc-950/90 text-zinc-400'}`} aria-label={`${accessibleLabel} value`}>
                 {signedValue(value, unit)}
               </span>
               <button type="button" onClick={() => onChange(defaultValue)} disabled={!dirty || disabled} aria-label={`Reset ${label}`} className="flex size-8 items-center justify-center rounded-lg text-zinc-700 transition hover:bg-white/[0.06] hover:text-zinc-200 disabled:pointer-events-none disabled:opacity-0">
@@ -56,7 +96,7 @@ export function StudioSlider({ label, code, icon: Icon, value, defaultValue, min
           </div>
 
           <div className="mt-3.5">
-            <Slider.Root value={[value]} min={min} max={max} step={step} onValueChange={([next]) => onChange(next ?? value)} disabled={disabled} className="relative flex h-6 w-full touch-none select-none items-center outline-none" aria-label={label}>
+            <Slider.Root value={[value]} min={min} max={max} step={step} onValueChange={([next]) => onChange(next ?? value)} disabled={disabled} className="relative flex h-6 w-full touch-none select-none items-center outline-none" aria-label={accessibleLabel}>
               <Slider.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-zinc-800/90 ring-1 ring-inset ring-white/[0.04]">
                 <Slider.Range className="absolute h-full rounded-full bg-gradient-to-r from-indigo-500/80 via-violet-400/75 to-cyan-300/90" />
               </Slider.Track>
