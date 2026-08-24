@@ -14,17 +14,12 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return buffer;
 }
 
-function bytesToBase64(bytes: Uint8Array) {
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(index, Math.min(index + chunkSize, bytes.length)));
-  }
-  return btoa(binary);
-}
-
 function downloadPdf(bytes: Uint8Array, name: string) {
-  const url = `data:application/pdf;base64,${bytesToBase64(bytes)}`;
+  if (bytes.byteLength < 5 || new TextDecoder().decode(bytes.subarray(0, 5)) !== '%PDF-') {
+    throw new Error('Generated PDF is invalid.');
+  }
+  const blob = new File([toArrayBuffer(bytes)], name, { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = name;
@@ -32,7 +27,10 @@ function downloadPdf(bytes: Uint8Array, name: string) {
   anchor.style.display = 'none';
   document.body.appendChild(anchor);
   anchor.click();
-  window.setTimeout(() => anchor.remove(), 0);
+  window.setTimeout(() => {
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }, 60_000);
 }
 
 export function PdfMergerSplitterTool() {
