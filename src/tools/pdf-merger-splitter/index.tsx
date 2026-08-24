@@ -42,10 +42,6 @@ export function PdfMergerSplitterTool() {
     setDownloadUrl((current) => { if (current) URL.revokeObjectURL(current); return URL.createObjectURL(blob); });
     setDownloadName(name);
   };
-  const triggerDownload = () => {
-    if (!downloadUrl) return;
-    const anchor = document.createElement('a'); anchor.href = downloadUrl; anchor.download = downloadName; anchor.click();
-  };
   const merge = async () => {
     setBusy(true); setError('');
     try { createDownload(await mergePdfPages(sources, pages), 'flixo-merged.pdf'); }
@@ -76,7 +72,7 @@ export function PdfMergerSplitterTool() {
           {!pages.length && <div className="rounded-xl bg-slate-950 p-8 text-center text-slate-400">No pages loaded yet.</div>}
           {error && <p role="alert" className="rounded-lg border border-red-800 bg-red-950/40 p-3 text-red-200">{error}</p>}
         </div>
-        <aside className="space-y-4 rounded-2xl border border-slate-700 bg-slate-900/70 p-4"><div><h2 className="text-lg font-semibold">Split first PDF</h2><p className="mt-1 text-sm text-slate-400">Examples: <code>1-3</code>, <code>4</code>, <code>2-5</code>.</p></div><input value={range} onChange={(event) => setRange(event.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" aria-label="Page range" /><button type="button" disabled={!sources.length || busy} onClick={() => void split()} className="w-full rounded-lg border border-indigo-400 px-4 py-2 font-semibold text-indigo-200 disabled:opacity-50">Split range</button>{selectedPage && <div className="rounded-xl bg-slate-950 p-4 text-sm text-slate-300"><div className="font-semibold">Selected page</div><div className="mt-1 break-words">{selectedPage.label}</div><div className="mt-1">Rotation: {normalizeRotation(selectedPage.rotation)}°</div></div>}{downloadUrl && <a className="block rounded-lg bg-emerald-600 px-4 py-3 text-center font-semibold text-white" href={downloadUrl} download={downloadName} onClick={(event) => { event.preventDefault(); triggerDownload(); }}>Download {downloadName}</a>}</aside>
+        <aside className="space-y-4 rounded-2xl border border-slate-700 bg-slate-900/70 p-4"><div><h2 className="text-lg font-semibold">Split first PDF</h2><p className="mt-1 text-sm text-slate-400">Examples: <code>1-3</code>, <code>4</code>, <code>2-5</code>.</p></div><input value={range} onChange={(event) => setRange(event.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" aria-label="Page range" /><button type="button" disabled={!sources.length || busy} onClick={() => void split()} className="w-full rounded-lg border border-indigo-400 px-4 py-2 font-semibold text-indigo-200 disabled:opacity-50">Split range</button>{selectedPage && <div className="rounded-xl bg-slate-950 p-4 text-sm text-slate-300"><div className="font-semibold">Selected page</div><div className="mt-1 break-words">{selectedPage.label}</div><div className="mt-1">Rotation: {normalizeRotation(selectedPage.rotation)}°</div></div>}{downloadUrl && <a className="block rounded-lg bg-emerald-600 px-4 py-3 text-center font-semibold text-white" href={downloadUrl} download={downloadName}>Download {downloadName}</a>}</aside>
       </section>
     </main>
   );
