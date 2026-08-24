@@ -1,1 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="t"><title id="t">FLIXO</title><image href="/flixo-logo.svg" width="1024" height="1024" preserveAspectRatio="xMidYMid meet"/></svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1254" height="1254" viewBox="0 0 1254 1254" role="img" aria-labelledby="title desc">
+  <title id="title">FLIXO AI Tools</title>
+  <desc id="desc">Canonical FLIXO AI Tools brand logo.</desc>
+  <image href="/flixo-logo.jpg" x="0" y="0" width="1254" height="1254" preserveAspectRatio="xMidYMid meet"/>
+</svg>
