@@ -15,6 +15,7 @@ if (!fs.existsSync(distPath)) {
 let javascriptBytes = 0;
 let cssBytes = 0;
 let totalAssetBytes = 0;
+const assets = [];
 
 function walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -24,7 +25,9 @@ function walk(dir) {
       continue;
     }
     const bytes = fs.statSync(fullPath).size;
+    const relativePath = path.relative(distPath, fullPath).replaceAll(path.sep, '/');
     totalAssetBytes += bytes;
+    assets.push({ path: relativePath, bytes });
     if (/\.m?js$/.test(entry.name)) javascriptBytes += bytes;
     if (/\.css$/.test(entry.name)) cssBytes += bytes;
   }
@@ -50,4 +53,13 @@ for (const [label, actual, limit] of checks) {
   }
 }
 
-if (failed) process.exit(1);
+if (failed) {
+  const largestAssets = assets
+    .sort((a, b) => b.bytes - a.bytes)
+    .slice(0, 10);
+  console.error('Largest dist assets:');
+  for (const asset of largestAssets) {
+    console.error(`  ${(asset.bytes / 1024 / 1024).toFixed(2)} MiB  ${asset.path}`);
+  }
+  process.exit(1);
+}
