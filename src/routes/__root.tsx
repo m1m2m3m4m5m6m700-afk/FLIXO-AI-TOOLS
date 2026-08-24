@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { HeadContent, Outlet, createRootRoute } from '@tanstack/react-router';
+import { HeadContent, Outlet, createRootRoute, useRouterState } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
-import { SITE_ORIGIN } from '../lib/i18n';
+import { LOCALE_METADATA, normalizeLocale, SITE_ORIGIN } from '../lib/i18n';
 
 const GLOBAL_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
@@ -26,7 +26,16 @@ const GLOBAL_STRUCTURED_DATA = {
 
 export const rootRoute = createRootRoute({
   component: function RootLayout() {
+    const pathname = useRouterState({ select: (state) => state.location.pathname });
+
     useEffect(() => installCoreWebVitalsDiagnostics(), []);
+
+    useEffect(() => {
+      const locale = normalizeLocale(pathname.split('/').filter(Boolean)[0]);
+      const metadata = LOCALE_METADATA[locale];
+      document.documentElement.lang = metadata.languageTag;
+      document.documentElement.dir = metadata.direction;
+    }, [pathname]);
 
     return (
       <>
