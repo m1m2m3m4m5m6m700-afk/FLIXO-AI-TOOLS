@@ -17,6 +17,17 @@ export function LocalizedToolPage() {
   const [favorite, setFavorite] = useState(() => (toolId ? getFavorites().includes(toolId) : false));
 
   useEffect(() => {
+    const root = document.documentElement;
+    root.lang = locale;
+    root.dir = isRtl ? 'rtl' : 'ltr';
+
+    return () => {
+      root.lang = 'en';
+      root.dir = 'ltr';
+    };
+  }, [locale, isRtl]);
+
+  useEffect(() => {
     if (toolId) recordRecentTool(toolId);
   }, [toolId]);
 
