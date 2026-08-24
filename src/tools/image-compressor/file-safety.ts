@@ -13,7 +13,9 @@ const IMAGE_COMPRESSOR_ALLOWED_MIME = [
 ] as const;
 
 function safetyError(failures: string[]) {
-  if (failures.includes('unsupported input MIME type')) return new Error('Unsupported image format');
+  if (failures.some((failure) => failure.startsWith('unsupported input MIME type:'))) {
+    return new Error('Unsupported image format');
+  }
   if (failures.includes('file exceeds the maximum size')) return new Error('File is larger than the 10 MB browser limit');
   if (failures.includes('input exceeds the maximum pixel count')) {
     return new Error('The source image is too large for safe browser processing. Reduce the dimensions and try again.');
