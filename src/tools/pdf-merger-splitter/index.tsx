@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { createPageRefs, mergePdfPages, normalizeRotation, parsePageRange, readPdfSource, reorderPages, rotatePage, splitPdf, type PdfPageRef, type PdfSource } from './engine';
 
 function formatBytes(bytes: number) {
@@ -14,13 +14,17 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return buffer;
 }
 
-function pdfBlob(bytes: Uint8Array): Blob {
-  return new Blob([toArrayBuffer(bytes)], { type: 'application/pdf' });
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, Math.min(index + chunkSize, bytes.length)));
+  }
+  return btoa(binary);
 }
 
 function downloadPdf(bytes: Uint8Array, name: string) {
-  const blob = pdfBlob(bytes);
-  const url = URL.createObjectURL(blob);
+  const url = `data:application/pdf;base64,${bytesToBase64(bytes)}`;
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = name;
@@ -28,8 +32,7 @@ function downloadPdf(bytes: Uint8Array, name: string) {
   anchor.style.display = 'none';
   document.body.appendChild(anchor);
   anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  window.setTimeout(() => anchor.remove(), 0);
 }
 
 export function PdfMergerSplitterTool() {
@@ -42,10 +45,6 @@ export function PdfMergerSplitterTool() {
 
   const totalPages = pages.length;
   const selectedPage = useMemo(() => pages.find((page) => page.id === selected) ?? null, [pages, selected]);
-
-  useEffect(() => {
-    return () => undefined;
-  }, []);
 
   const loadFiles = async (files: File[]) => {
     setError('');
