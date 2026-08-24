@@ -10,6 +10,20 @@ async function makePdf(pageCount: number, marker: string) {
   return Buffer.from(await pdf.save());
 }
 
+async function readDownloadedPdf(page: import('@playwright/test').Page, filename: string) {
+  const bytes = await page.evaluate(async (expectedFilename) => {
+    const anchor = document.querySelector(`a[download="${expectedFilename}"]`);
+    if (!(anchor instanceof HTMLAnchorElement) || !anchor.href.startsWith('blob:')) {
+      throw new Error(`PDF download blob was not created for ${expectedFilename}.`);
+    }
+    const response = await fetch(anchor.href);
+    if (!response.ok) throw new Error(`Unable to read generated PDF blob: ${response.status}`);
+    const buffer = await response.arrayBuffer();
+    return Array.from(new Uint8Array(buffer));
+  }, filename);
+  return Uint8Array.from(bytes);
+}
+
 test('pdf-merger-splitter: merges two PDFs and preserves page order', async ({ page }) => {
   await page.goto('/en/pdf-merger-splitter');
   await page.locator('#pdf-input').setInputFiles([
@@ -21,9 +35,8 @@ test('pdf-merger-splitter: merges two PDFs and preserves page order', async ({ p
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Merge 3 pages' }).click();
   const download = await downloadPromise;
-  const outputPath = await download.path();
-  expect(outputPath).toBeTruthy();
-  const merged = await PDFDocument.load(outputPath!);
+  expect(download.suggestedFilename()).toBe('flixo-merged.pdf');
+  const merged = await PDFDocument.load(await readDownloadedPdf(page, 'flixo-merged.pdf'));
   expect(merged.getPageCount()).toBe(3);
 });
 
@@ -67,9 +80,8 @@ test('pdf-merger-splitter: splits a valid page range', async ({ page }) => {
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Split range' }).click();
   const download = await downloadPromise;
-  const outputPath = await download.path();
-  expect(outputPath).toBeTruthy();
-  const split = await PDFDocument.load(outputPath!);
+  expect(download.suggestedFilename()).toBe('flixo-source-2-3.pdf');
+  const split = await PDFDocument.load(await readDownloadedPdf(page, 'flixo-source-2-3.pdf'));
   expect(split.getPageCount()).toBe(2);
 });
 
