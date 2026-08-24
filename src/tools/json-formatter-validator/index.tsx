@@ -27,7 +27,11 @@ export function JsonFormatterValidatorTool() {
       if (action === 'pretty') { setOutput(formatJson(input, spaces)); setFormat('json'); }
       else if (action === 'minify') { setOutput(minifyJson(input)); setFormat('json'); }
       else if (action === 'yaml') { setOutput(toYaml(input)); setFormat('yaml'); }
-      else { setOutput(toCsv(input)); setFormat('csv'); }
+      else {
+        const csvInput = Array.isArray(parsedValue) ? input : JSON.stringify([parsedValue]);
+        setOutput(toCsv(csvInput));
+        setFormat('csv');
+      }
     } catch (error) { setOutput(error instanceof Error ? error.message : 'Conversion failed'); }
   };
   const copyOutput = async () => navigator.clipboard.writeText(output);
