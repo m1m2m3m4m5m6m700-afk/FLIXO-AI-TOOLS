@@ -14,3 +14,15 @@ export function normalizeLocale(value: string | null | undefined): Locale {
   const normalized = value?.toLowerCase().split('-')[0] ?? DEFAULT_LOCALE;
   return isLocale(normalized) ? normalized : DEFAULT_LOCALE;
 }
+
+export function getLocaleFromPathname(pathname: string): Locale {
+  const segment = pathname.split('/').filter(Boolean)[0] ?? DEFAULT_LOCALE;
+  return normalizeLocale(segment);
+}
+
+export function applyDocumentLocale(locale: Locale): void {
+  if (typeof document === 'undefined') return;
+  const metadata = LOCALE_METADATA[locale];
+  document.documentElement.lang = metadata.languageTag;
+  document.documentElement.dir = metadata.direction;
+}
