@@ -16,6 +16,11 @@ let javascriptBytes = 0;
 let cssBytes = 0;
 let totalAssetBytes = 0;
 const assets = [];
+const deferredWorkerAssets = [];
+
+function isDeferredWorkerAsset(relativePath) {
+  return /(?:^|\/)(?:pdf\.worker|.*\.worker)(?:[-.][^/]*)?\.m?js$/i.test(relativePath);
+}
 
 function walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -24,11 +29,16 @@ function walk(dir) {
       walk(fullPath);
       continue;
     }
+
     const bytes = fs.statSync(fullPath).size;
     const relativePath = path.relative(distPath, fullPath).replaceAll(path.sep, '/');
     totalAssetBytes += bytes;
     assets.push({ path: relativePath, bytes });
-    if (/\.m?js$/.test(entry.name)) javascriptBytes += bytes;
+
+    if (/\.m?js$/.test(entry.name)) {
+      if (isDeferredWorkerAsset(relativePath)) deferredWorkerAssets.push({ path: relativePath, bytes });
+      else javascriptBytes += bytes;
+    }
     if (/\.css$/.test(entry.name)) cssBytes += bytes;
   }
 }
@@ -50,6 +60,14 @@ for (const [label, actual, limit] of checks) {
     failed = true;
   } else {
     console.log(`Performance budget OK: ${label} ${actualMiB} MiB <= ${limitMiB} MiB`);
+  }
+}
+
+if (deferredWorkerAssets.length) {
+  const workerBytes = deferredWorkerAssets.reduce((total, asset) => total + asset.bytes, 0);
+  console.log(`Deferred worker assets excluded from critical JavaScript budget: ${(workerBytes / 1024 / 1024).toFixed(2)} MiB`);
+  for (const asset of deferredWorkerAssets) {
+    console.log(`  worker ${asset.path} ${(asset.bytes / 1024 / 1024).toFixed(2)} MiB`);
   }
 }
 
