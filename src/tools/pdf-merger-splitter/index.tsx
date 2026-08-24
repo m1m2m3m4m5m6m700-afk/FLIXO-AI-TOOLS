@@ -39,8 +39,17 @@ export function PdfMergerSplitterTool() {
   const moveSelected = (delta: number) => { if (!selected) return; setPages((current) => { const index = current.findIndex((page) => page.id === selected); const target = index + delta; return index < 0 || target < 0 || target >= current.length ? current : reorderPages(current, index, target); }); };
   const createDownload = (bytes: Uint8Array, name: string) => {
     const blob = pdfBlob(bytes);
-    setDownloadUrl((current) => { if (current) URL.revokeObjectURL(current); return URL.createObjectURL(blob); });
+    const url = URL.createObjectURL(blob);
+    setDownloadUrl((current) => { if (current) URL.revokeObjectURL(current); return url; });
     setDownloadName(name);
+
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = name;
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
   };
   const merge = async () => {
     setBusy(true); setError('');
