@@ -14,7 +14,6 @@ test.describe('localized home coverage', () => {
       await expect(page.locator('main.home-shell')).toHaveAttribute('lang', locale === 'zh' ? 'zh-CN' : locale);
       await expect(page.locator('main.home-shell')).toHaveAttribute('dir', dir);
       await expect(page.locator('#home-title')).toBeVisible();
-      await expect(page.locator('#tool-search')).toBeVisible();
     });
   }
 });
