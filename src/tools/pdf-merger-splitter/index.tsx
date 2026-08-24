@@ -17,12 +17,61 @@ export function PdfMergerSplitterTool() {
   const [range, setRange] = useState('1');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [downloadUrl, setDownloadUrl] = useState('');
-  const [downloadName, setDownloadName] = useState('flixo-merged.pdf');
+  const [mergeUrl, setMergeUrl] = useState('');
+  const [mergeName, setMergeName] = useState('flixo-merged.pdf');
+  const [splitUrl, setSplitUrl] = useState('');
+  const [splitName, setSplitName] = useState('flixo-split.pdf');
 
-  useEffect(() => () => { if (downloadUrl) URL.revokeObjectURL(downloadUrl); }, [downloadUrl]);
+  useEffect(() => {
+    let cancelled = false;
+    if (!pages.length || !sources.length) {
+      setMergeUrl('');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    void mergePdfPages(sources, pages)
+      .then((bytes) => {
+        if (cancelled) return;
+        setMergeUrl((current) => { if (current) URL.revokeObjectURL(current); return URL.createObjectURL(pdfBlob(bytes)); });
+        setMergeName('flixo-merged.pdf');
+      })
+      .catch((caught) => { if (!cancelled) setError(caught instanceof Error ? caught.message : 'PDF merge failed.'); })
+      .finally(() => { if (!cancelled) setBusy(false); });
+    return () => { cancelled = true; };
+  }, [sources, pages]);
+
+  useEffect(() => () => {
+    if (mergeUrl) URL.revokeObjectURL(mergeUrl);
+    if (splitUrl) URL.revokeObjectURL(splitUrl);
+  }, [mergeUrl, splitUrl]);
+
   const totalPages = pages.length;
   const selectedPage = useMemo(() => pages.find((page) => page.id === selected) ?? null, [pages, selected]);
+  const parsedRange = useMemo(() => {
+    if (!sources[0]) return null;
+    try { return parsePageRange(range, sources[0].pageCount); }
+    catch { return null; }
+  }, [range, sources]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!sources[0] || !parsedRange) {
+      setSplitUrl((current) => { if (current) URL.revokeObjectURL(current); return ''; });
+      return;
+    }
+    setError('');
+    const source = sources[0];
+    const file = new File([toArrayBuffer(source.bytes)], source.name, { type: 'application/pdf' });
+    void splitPdf(file, parsedRange)
+      .then((bytes) => {
+        if (cancelled) return;
+        setSplitUrl((current) => { if (current) URL.revokeObjectURL(current); return URL.createObjectURL(pdfBlob(bytes)); });
+        setSplitName(`flixo-${source.name.replace(/\.pdf$/i, '')}-${parsedRange.start}-${parsedRange.end}.pdf`);
+      })
+      .catch((caught) => { if (!cancelled) setError(caught instanceof Error ? caught.message : 'PDF split failed.'); });
+    return () => { cancelled = true; };
+  }, [parsedRange, sources]);
 
   const loadFiles = async (files: File[]) => {
     setError(''); setSelected(null);
@@ -37,45 +86,6 @@ export function PdfMergerSplitterTool() {
   const removePage = (id: string) => { setPages((current) => current.filter((page) => page.id !== id)); setSelected((current) => current === id ? null : current); };
   const rotateSelected = () => { if (!selected) return; setPages((current) => current.map((page) => page.id === selected ? rotatePage(page) : page)); };
   const moveSelected = (delta: number) => { if (!selected) return; setPages((current) => { const index = current.findIndex((page) => page.id === selected); const target = index + delta; return index < 0 || target < 0 || target >= current.length ? current : reorderPages(current, index, target); }); };
-  const createDownload = (bytes: Uint8Array, name: string) => {
-    if (bytes.length < 5 || String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') {
-      throw new Error('Generated PDF data is invalid.');
-    }
-    const blob = pdfBlob(bytes);
-    const objectUrl = URL.createObjectURL(blob);
-    const previousUrl = downloadUrl;
-    setDownloadUrl(objectUrl);
-    setDownloadName(name);
-
-    const anchor = document.createElement('a');
-    anchor.href = objectUrl;
-    anchor.download = name;
-    anchor.rel = 'noopener';
-    anchor.style.display = 'none';
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-
-    window.setTimeout(() => {
-      if (previousUrl) URL.revokeObjectURL(previousUrl);
-    }, 0);
-  };
-  const merge = async () => {
-    setBusy(true); setError('');
-    try { createDownload(await mergePdfPages(sources, pages), 'flixo-merged.pdf'); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : 'PDF merge failed.'); }
-    finally { setBusy(false); }
-  };
-  const split = async () => {
-    if (!sources[0]) { setError('Add a PDF first.'); return; }
-    setBusy(true); setError('');
-    try {
-      const parsed = parsePageRange(range, sources[0].pageCount);
-      const file = new File([toArrayBuffer(sources[0].bytes)], sources[0].name, { type: 'application/pdf' });
-      createDownload(await splitPdf(file, parsed), `flixo-${sources[0].name.replace(/\.pdf$/i, '')}-${parsed.start}-${parsed.end}.pdf`);
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'PDF split failed.'); }
-    finally { setBusy(false); }
-  };
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-6 text-slate-100">
@@ -85,12 +95,15 @@ export function PdfMergerSplitterTool() {
           <label htmlFor="pdf-input" className="block cursor-pointer rounded-xl border-2 border-dashed border-slate-600 p-8 text-center hover:border-slate-400"><span className="block text-lg font-semibold">Drop PDFs here or choose files</span><span className="mt-2 block text-sm text-slate-400">Multiple files supported · pages remain editable before export</span></label>
           <input id="pdf-input" className="sr-only" type="file" accept="application/pdf,.pdf" multiple onChange={(event) => void loadFiles(Array.from(event.target.files ?? []))} />
           {sources.length > 0 && <div className="grid gap-2 sm:grid-cols-2">{sources.map((source) => <div key={source.id} className="rounded-xl border border-slate-700 bg-slate-950 p-3"><div className="truncate font-medium">{source.name}</div><div className="text-xs text-slate-400">{source.pageCount} pages · {formatBytes(source.bytes.byteLength)}</div></div>)}</div>}
-          <div className="flex flex-wrap gap-2"><button type="button" disabled={!pages.length || busy} onClick={() => void merge()} className="rounded-lg bg-indigo-500 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'Processing…' : `Merge ${totalPages} pages`}</button><button type="button" disabled={!selected || busy} onClick={rotateSelected} className="rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50">Rotate selected</button><button type="button" disabled={!selected || busy} onClick={() => moveSelected(-1)} className="rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50">Move ↑</button><button type="button" disabled={!selected || busy} onClick={() => moveSelected(1)} className="rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50">Move ↓</button><button type="button" disabled={!selected || busy} onClick={() => selected && removePage(selected)} className="rounded-lg border border-red-700 px-4 py-2 text-red-300 disabled:opacity-50">Delete</button></div>
+          <div className="flex flex-wrap gap-2">
+            {mergeUrl ? <a href={mergeUrl} download={mergeName} className="rounded-lg bg-indigo-500 px-4 py-2 font-semibold text-white">Merge {totalPages} pages</a> : <button type="button" disabled={!pages.length || busy} className="rounded-lg bg-indigo-500 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'Processing…' : `Merge ${totalPages} pages`}</button>}
+            <button type="button" disabled={!selected || busy} onClick={rotateSelected} className="rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50">Rotate selected</button><button type="button" disabled={!selected || busy} onClick={() => moveSelected(-1)} className="rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50">Move ↑</button><button type="button" disabled={!selected || busy} onClick={() => moveSelected(1)} className="rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50">Move ↓</button><button type="button" disabled={!selected || busy} onClick={() => selected && removePage(selected)} className="rounded-lg border border-red-700 px-4 py-2 text-red-300 disabled:opacity-50">Delete</button>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{pages.map((page, index) => <button key={page.id} type="button" onClick={() => setSelected(page.id)} className={`rounded-xl border p-4 text-left transition ${selected === page.id ? 'border-indigo-400 bg-indigo-500/10' : 'border-slate-700 bg-slate-950 hover:border-slate-500'}`}><div className="mb-3 flex aspect-[3/4] items-center justify-center rounded-lg bg-white text-slate-950 shadow-inner"><div className="text-center text-xs"><div className="text-3xl font-bold">PDF</div><div>Page {page.pageIndex + 1}</div></div></div><div className="truncate text-sm font-medium">#{index + 1} · {page.label}</div><div className="text-xs text-slate-400">Rotation {normalizeRotation(page.rotation)}°</div></button>)}</div>
           {!pages.length && <div className="rounded-xl bg-slate-950 p-8 text-center text-slate-400">No pages loaded yet.</div>}
           {error && <p role="alert" className="rounded-lg border border-red-800 bg-red-950/40 p-3 text-red-200">{error}</p>}
         </div>
-        <aside className="space-y-4 rounded-2xl border border-slate-700 bg-slate-900/70 p-4"><div><h2 className="text-lg font-semibold">Split first PDF</h2><p className="mt-1 text-sm text-slate-400">Examples: <code>1-3</code>, <code>4</code>, <code>2-5</code>.</p></div><input value={range} onChange={(event) => setRange(event.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" aria-label="Page range" /><button type="button" disabled={!sources.length || busy} onClick={() => void split()} className="w-full rounded-lg border border-indigo-400 px-4 py-2 font-semibold text-indigo-200 disabled:opacity-50">Split range</button>{selectedPage && <div className="rounded-xl bg-slate-950 p-4 text-sm text-slate-300"><div className="font-semibold">Selected page</div><div className="mt-1 break-words">{selectedPage.label}</div><div className="mt-1">Rotation: {normalizeRotation(selectedPage.rotation)}°</div></div>}{downloadUrl && <a className="block rounded-lg bg-emerald-600 px-4 py-3 text-center font-semibold text-white" href={downloadUrl} download={downloadName}>Download {downloadName}</a>}</aside>
+        <aside className="space-y-4 rounded-2xl border border-slate-700 bg-slate-900/70 p-4"><div><h2 className="text-lg font-semibold">Split first PDF</h2><p className="mt-1 text-sm text-slate-400">Examples: <code>1-3</code>, <code>4</code>, <code>2-5</code>.</p></div><input value={range} onChange={(event) => setRange(event.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" aria-label="Page range" />{splitUrl ? <a href={splitUrl} download={splitName} className="block w-full rounded-lg border border-indigo-400 px-4 py-2 text-center font-semibold text-indigo-200">Split range</a> : <button type="button" disabled={!sources.length || !parsedRange} className="w-full rounded-lg border border-indigo-400 px-4 py-2 font-semibold text-indigo-200 disabled:opacity-50">Split range</button>}{selectedPage && <div className="rounded-xl bg-slate-950 p-4 text-sm text-slate-300"><div className="font-semibold">Selected page</div><div className="mt-1 break-words">{selectedPage.label}</div><div className="mt-1">Rotation: {normalizeRotation(selectedPage.rotation)}°</div></div>}{mergeUrl && <a className="block rounded-lg bg-emerald-600 px-4 py-3 text-center font-semibold text-white" href={mergeUrl} download={mergeName}>Download {mergeName}</a>}{splitUrl && <a className="block rounded-lg bg-emerald-600 px-4 py-3 text-center font-semibold text-white" href={splitUrl} download={splitName}>Download {splitName}</a>}</aside>
       </section>
     </main>
   );
