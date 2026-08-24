@@ -5,6 +5,7 @@ import { getToolSeo } from '../lib/seo/tool-seo';
 import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
 import { getToolPrivacyCopy } from '../lib/privacy';
 import { getFavorites, recordRecentTool, toggleFavorite } from '../lib/local-workspace';
+import { ToolChainPanel } from '../components/tool-chain-panel';
 import '../tool-page-modern.css';
 
 export function LocalizedToolPage() {
@@ -86,6 +87,7 @@ export function LocalizedToolPage() {
       </nav>
 
       <div className="tool-page-modern__body">
+        <ToolChainPanel currentToolId={seo.tool.id} />
         <div className="tool-page-modern__breadcrumbs" aria-label={copy.about}>
           <a className="tool-page-modern__crumb" href={homeUrl}>FLIXO</a>
           <span className="tool-page-modern__crumb-sep">/</span>
