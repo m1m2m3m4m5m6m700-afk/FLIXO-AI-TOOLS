@@ -44,7 +44,9 @@ export function LocalizedToolPage() {
   const arabicToolUrl = `/ar/${seo.tool.id}`;
   const alternateUrl = locale === 'ar' ? englishToolUrl : arabicToolUrl;
   const alternateLabel = locale === 'ar' ? 'English' : 'العربية';
-  const capabilities = seo.tool.description.split(' ').slice(0, 0);
+  const homeLabel = locale === 'ar' || locale === 'ur' ? 'الرئيسية' : 'Home';
+  const readyLabel = locale === 'ar' ? 'جاهزة' : 'Ready';
+  const workspaceLabel = locale === 'ar' ? 'مساحة عمل الأداة' : 'Tool workspace';
 
   return (
     <main lang={seo.languageTag} dir={seo.direction} className="tool-page-modern">
@@ -60,7 +62,7 @@ export function LocalizedToolPage() {
             FLIXO
           </a>
           <div className="tool-page-modern__nav-actions">
-            <a className="tool-page-modern__nav-link" href={homeUrl}>← {copy.about === 'حول هذه الأداة' ? 'الرئيسية' : 'Home'}</a>
+            <a className="tool-page-modern__nav-link" href={homeUrl}>← {homeLabel}</a>
             <a className="tool-page-modern__lang" href={alternateUrl} lang={locale === 'ar' ? 'en' : 'ar'}>{alternateLabel}</a>
           </div>
         </div>
@@ -83,10 +85,9 @@ export function LocalizedToolPage() {
               <p className="tool-page-modern__description">{seo.description}</p>
               <div className="tool-page-modern__meta">
                 <div className="tool-page-modern__meta-row">
-                  <span className="tool-page-modern__badge"><span className="tool-page-modern__badge-dot" /> {copy.loading.replace('…', '') === 'Loading FLIXO tool' ? 'Browser-first' : 'FLIXO'}</span>
-                  <span className="tool-page-modern__chip">{seo.languageTag}</span>
+                  <span className="tool-page-modern__badge"><span className="tool-page-modern__badge-dot" /> {readyLabel}</span>
+                  <span className="tool-page-modern__chip">{copy.language}: {seo.languageTag}</span>
                   <span className="tool-page-modern__chip">{seo.tool.category}</span>
-                  <span className="tool-page-modern__chip">{capabilities.length === 0 ? 'Ready' : 'Ready'}</span>
                 </div>
               </div>
             </div>
@@ -95,8 +96,8 @@ export function LocalizedToolPage() {
 
         <section className="tool-page-modern__workspace" aria-label={seo.tool.title}>
           <div className="tool-page-modern__workspace-bar">
-            <span className="tool-page-modern__status"><span className="tool-page-modern__status-led" /> FLIXO TOOL WORKSPACE</span>
-            <span>{seo.languageTag} · {seo.tool.id}</span>
+            <span className="tool-page-modern__status"><span className="tool-page-modern__status-led" /> {workspaceLabel}</span>
+            <span>{seo.tool.id}</span>
           </div>
           <div className="tool-page-modern__tool-host">
             <Suspense fallback={<div className="tool-page-modern__loading">{copy.loading}</div>}>
