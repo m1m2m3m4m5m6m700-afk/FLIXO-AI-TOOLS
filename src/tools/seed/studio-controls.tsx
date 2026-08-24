@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import * as Accordion from '@radix-ui/react-accordion';
 import { ChevronDown, Minus, Plus, RotateCcw } from 'lucide-react';
@@ -138,25 +139,41 @@ export function NumericField({ label, value, defaultValue, min = -Infinity, max 
 type ToolSectionProps = { value: string; title: string; subtitle: string; icon: Icon; activeCount: number; children: ReactNode };
 
 export function ToolSection({ value, title, subtitle, icon: Icon, activeCount, children }: ToolSectionProps) {
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (value !== 'retouch' && value !== 'fx') return;
+    if (triggerRef.current?.getAttribute('data-state') === 'closed') {
+      triggerRef.current.click();
+    }
+  }, [value]);
+
   return (
-    <Accordion.Item value={value} className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-900/45 shadow-[0_14px_34px_rgba(0,0,0,0.12)]">
-      <Accordion.Header>
-        <Accordion.Trigger className="group flex w-full items-center gap-3 px-3.5 py-3.5 text-left outline-none transition hover:bg-white/[0.025] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400/60">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-indigo-300/10 bg-gradient-to-br from-indigo-500/12 via-violet-500/8 to-cyan-400/5 text-indigo-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"><Icon className="size-4" /></span>
-          <span className="min-w-0 flex-1">
-            <span className="flex flex-wrap items-center gap-2">
-              <span className="text-[12px] font-semibold tracking-tight text-zinc-100">{title}</span>
-              <span className={`rounded-full border px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.13em] ${activeCount > 0 ? 'border-cyan-300/15 bg-cyan-300/[0.06] text-cyan-200' : 'border-white/[0.06] bg-zinc-950/80 text-zinc-600'}`}>{activeCount} active</span>
+    <>
+      {value === 'basic' ? <style>{`
+        input[aria-label="Double Exposure file"] { position: absolute !important; width: 1px !important; height: 1px !important; opacity: 0.01 !important; clip: auto !important; clip-path: none !important; }
+        aside > div:last-child > div.grid > button:first-child { display: none !important; }
+        aside > div:last-child > div.grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      `}</style> : null}
+      <Accordion.Item value={value} className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-900/45 shadow-[0_14px_34px_rgba(0,0,0,0.12)]">
+        <Accordion.Header>
+          <Accordion.Trigger ref={triggerRef} className="group flex w-full items-center gap-3 px-3.5 py-3.5 text-left outline-none transition hover:bg-white/[0.025] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400/60">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-indigo-300/10 bg-gradient-to-br from-indigo-500/12 via-violet-500/8 to-cyan-400/5 text-indigo-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"><Icon className="size-4" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="text-[12px] font-semibold tracking-tight text-zinc-100">{title}</span>
+                <span className={`rounded-full border px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.13em] ${activeCount > 0 ? 'border-cyan-300/15 bg-cyan-300/[0.06] text-cyan-200' : 'border-white/[0.06] bg-zinc-950/80 text-zinc-600'}`}>{activeCount} active</span>
+              </span>
+              <span className="mt-0.5 block truncate text-[10px] text-zinc-500">{subtitle}</span>
             </span>
-            <span className="mt-0.5 block truncate text-[10px] text-zinc-500">{subtitle}</span>
-          </span>
-          <ChevronDown className="size-4 shrink-0 text-zinc-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-        </Accordion.Trigger>
-      </Accordion.Header>
-      <Accordion.Content className="data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-        <div className="space-y-2 border-t border-white/[0.05] bg-zinc-950/20 p-2.5">{children}</div>
-      </Accordion.Content>
-    </Accordion.Item>
+            <ChevronDown className="size-4 shrink-0 text-zinc-600 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+          </Accordion.Trigger>
+        </Accordion.Header>
+        <Accordion.Content className="data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+          <div className="space-y-2 border-t border-white/[0.05] bg-zinc-950/20 p-2.5">{children}</div>
+        </Accordion.Content>
+      </Accordion.Item>
+    </>
   );
 }
 
