@@ -16,16 +16,16 @@ concurrency:
   group: full-matrix-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# The matrix is deliberately split into independent parallel stages so failures
-# are isolated, visible, and diagnosable without changing the total coverage.
+# Maximum practical isolation: one job per spec + browser.
+# 23 suites × 3 browsers = 69 independent E2E jobs.
 
 jobs:
-  image-core:
-    name: Stage 1 — Image Core — ${{ matrix.tool }} — ${{ matrix.browser }}
+  e2e:
+    name: E2E — ${{ matrix.tool }} — ${{ matrix.browser }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: 12
+      max-parallel: 69
       matrix:
         browser: [chromium, firefox, webkit]
         include:
@@ -37,90 +37,30 @@ jobs:
             spec: tests/image-upscaler.spec.ts
           - tool: image-converter
             spec: tests/image-converter.spec.ts
+          - tool: ai-image-generator
+            spec: tests/ai-image-generator.spec.ts
           - tool: object-remover
             spec: tests/object-remover.spec.ts
+          - tool: watermark-remover
+            spec: tests/watermark-remover.spec.ts
           - tool: image-cropper
             spec: tests/image-cropper.spec.ts
           - tool: image-to-svg
             spec: tests/image-to-svg.spec.ts
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Run E2E
-        run: npx playwright test ${{ matrix.spec }} --project=${{ matrix.browser }}
-      - name: Upload E2E diagnostics
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v6
-        with:
-          name: full-matrix-stage1-${{ matrix.tool }}-${{ matrix.browser }}
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: warn
-          retention-days: 7
-
-  image-processing:
-    name: Stage 2 — Image Processing — ${{ matrix.tool }} — ${{ matrix.browser }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      max-parallel: 12
-      matrix:
-        browser: [chromium, firefox, webkit]
-        include:
-          - tool: ai-image-generator
-            spec: tests/ai-image-generator.spec.ts
-          - tool: watermark-remover
-            spec: tests/watermark-remover.spec.ts
           - tool: image-ocr
             spec: tests/image-ocr.spec.ts
           - tool: photo-colorizer
             spec: tests/photo-colorizer.spec.ts
           - tool: background-blur
             spec: tests/background-blur.spec.ts
+          - tool: passport-photo-maker
+            spec: tests/passport-photo-maker.spec.ts
           - tool: watermark-adder
             spec: tests/watermark-adder.spec.ts
           - tool: meme-generator
             spec: tests/meme-generator.spec.ts
           - tool: collage-maker
             spec: tests/collage-maker.spec.ts
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Run E2E
-        run: npx playwright test ${{ matrix.spec }} --project=${{ matrix.browser }}
-      - name: Upload E2E diagnostics
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v6
-        with:
-          name: full-matrix-stage2-${{ matrix.tool }}-${{ matrix.browser }}
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: warn
-          retention-days: 7
-
-  image-advanced:
-    name: Stage 3 — Image Advanced — ${{ matrix.tool }} — ${{ matrix.browser }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      max-parallel: 12
-      matrix:
-        browser: [chromium, firefox, webkit]
-        include:
-          - tool: passport-photo-maker
-            spec: tests/passport-photo-maker.spec.ts
           - tool: image-effects
             spec: tests/image-effects.spec.ts
           - tool: exif-cleaner
@@ -133,36 +73,6 @@ jobs:
             spec: tests/seed.spec.ts
           - tool: pix
             spec: tests/pix.spec.ts
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Run E2E
-        run: npx playwright test ${{ matrix.spec }} --project=${{ matrix.browser }}
-      - name: Upload E2E diagnostics
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v6
-        with:
-          name: full-matrix-stage3-${{ matrix.tool }}-${{ matrix.browser }}
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: warn
-          retention-days: 7
-
-  platform-localization:
-    name: Stage 4 — Platform & Localization — ${{ matrix.tool }} — ${{ matrix.browser }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      max-parallel: 12
-      matrix:
-        browser: [chromium, firefox, webkit]
-        include:
           - tool: localization
             spec: tests/localization-smoke.spec.ts
     steps:
@@ -173,13 +83,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Run E2E
+      - name: Run isolated E2E
         run: npx playwright test ${{ matrix.spec }} --project=${{ matrix.browser }}
       - name: Upload E2E diagnostics
         if: ${{ failure() }}
         uses: actions/upload-artifact@v6
         with:
-          name: full-matrix-stage4-${{ matrix.tool }}-${{ matrix.browser }}
+          name: e2e-${{ matrix.tool }}-${{ matrix.browser }}
           path: |
             playwright-report/
             test-results/
@@ -188,8 +98,8 @@ jobs:
 
   promotion:
     name: Full Matrix Promotion Gate
-    needs: [image-core, image-processing, image-advanced, platform-localization]
-    if: ${{ always() && needs.image-core.result == 'success' && needs.image-processing.result == 'success' && needs.image-advanced.result == 'success' && needs.platform-localization.result == 'success' }}
+    needs: [e2e]
+    if: ${{ always() && needs.e2e.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Write promotion evidence
@@ -197,20 +107,17 @@ jobs:
           {
             echo '## FLIXO Full Matrix Promotion'
             echo
-            echo 'All parallel E2E stages passed for:'
+            echo 'All isolated browser E2E jobs passed for:'
             echo '${{ github.sha }}'
             echo
-            echo 'Stage 1 — Image Core: 7 suites × 3 browsers = 21 jobs'
-            echo 'Stage 2 — Image Processing: 8 suites × 3 browsers = 24 jobs'
-            echo 'Stage 3 — Image Advanced: 7 suites × 3 browsers = 21 jobs'
-            echo 'Stage 4 — Platform & Localization: 1 suite × 3 browsers = 3 jobs'
-            echo 'Total: 23 suites × 3 browsers = 69 E2E jobs.'
+            echo '23 suites × 3 browsers = 69 independent E2E jobs.'
+            echo 'Each failure is isolated to one tool/spec/browser tuple.'
           } >> "$GITHUB_STEP_SUMMARY"
 
   diagnostic-summary:
     name: Full Matrix Diagnostic Summary
     if: ${{ always() }}
-    needs: [image-core, image-processing, image-advanced, platform-localization, promotion]
+    needs: [e2e, promotion]
     runs-on: ubuntu-latest
     steps:
       - name: Write matrix summary
@@ -218,11 +125,8 @@ jobs:
           {
             echo '## FLIXO Full Matrix Diagnostic Summary'
             echo
-            echo '| Parallel Stage | Result |'
+            echo '| Gate | Result |'
             echo '| --- | --- |'
-            echo '| Stage 1 — Image Core | ${{ needs.image-core.result }} |'
-            echo '| Stage 2 — Image Processing | ${{ needs.image-processing.result }} |'
-            echo '| Stage 3 — Image Advanced | ${{ needs.image-advanced.result }} |'
-            echo '| Stage 4 — Platform & Localization | ${{ needs.platform-localization.result }} |'
+            echo '| 69 isolated E2E jobs | ${{ needs.e2e.result }} |'
             echo '| Promotion Gate | ${{ needs.promotion.result }} |'
           } >> "$GITHUB_STEP_SUMMARY"
