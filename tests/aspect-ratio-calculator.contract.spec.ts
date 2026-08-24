@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-const ratioInput = (page: Parameters<Parameters<typeof test>[1]>[0]['page']) => page.getByRole('textbox', { name: 'Aspect ratio', exact: true });
+const ratioInput = (page: Page) => page.getByRole('textbox', { name: 'Aspect ratio', exact: true });
 
 test('aspect-ratio-calculator: presets and proportional height', async ({ page }) => {
   await page.goto('/en/aspect-ratio-calculator');
