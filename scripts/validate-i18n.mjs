@@ -1,16 +1,15 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { CANONICAL_LOCALES as expected } from './validation-contracts.mjs';
 
 const configSource = readFileSync('src/lib/i18n/config.ts', 'utf8');
 const homeSource = readFileSync('src/data/home-locales.ts', 'utf8');
 const quickflowSource = readFileSync('src/data/quickflow-locales.ts', 'utf8');
 const toolUiSource = readFileSync('src/data/tool-ui-i18n.ts', 'utf8');
 const localizedToolPageSource = readFileSync('src/routes/localized-tool-page.tsx', 'utf8');
-const expected = ['en','ar','es','fr','de','ru','zh','hi','id','ur','ja','pt','it','ko','nl','pl','tr','vi','th','sv'];
 
-const localeList = configSource.match(/export const LOCALES = \[([\s\S]*?)\] as const/);
-const listed = localeList?.[1]?.match(/'([a-z]{2})'/g)?.map((value) => value.slice(1, -1)) ?? [];
+const listed = configSource.match(/export const LOCALES = \[([\s\S]*?)\] as const/)?.[1]?.match(/'([a-z]{2})'/g)?.map((value) => value.slice(1, -1)) ?? [];
 if (listed.length !== expected.length || listed.some((locale, index) => locale !== expected[index])) {
-  console.error('LOCALES must contain exactly the canonical 20-locale order.');
+  console.error('LOCALES registry extraction drifted from the canonical validator contract.');
   process.exit(1);
 }
 
