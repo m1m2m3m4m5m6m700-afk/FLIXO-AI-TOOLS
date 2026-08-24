@@ -9,6 +9,14 @@ function formatBytes(bytes: number) {
 }
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer { const buffer = new ArrayBuffer(bytes.byteLength); new Uint8Array(buffer).set(bytes); return buffer; }
 function pdfBlob(bytes: Uint8Array): Blob { return new Blob([toArrayBuffer(bytes)], { type: 'application/pdf' }); }
+function pdfDataUrl(bytes: Uint8Array): string {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)));
+  }
+  return `data:application/pdf;base64,${btoa(binary)}`;
+}
 
 export function PdfMergerSplitterTool() {
   const [sources, setSources] = useState<PdfSource[]>([]);
@@ -39,12 +47,13 @@ export function PdfMergerSplitterTool() {
   const moveSelected = (delta: number) => { if (!selected) return; setPages((current) => { const index = current.findIndex((page) => page.id === selected); const target = index + delta; return index < 0 || target < 0 || target >= current.length ? current : reorderPages(current, index, target); }); };
   const createDownload = (bytes: Uint8Array, name: string) => {
     const blob = pdfBlob(bytes);
-    const url = URL.createObjectURL(blob);
-    setDownloadUrl((current) => { if (current) URL.revokeObjectURL(current); return url; });
+    const objectUrl = URL.createObjectURL(blob);
+    const dataUrl = pdfDataUrl(bytes);
+    setDownloadUrl((current) => { if (current) URL.revokeObjectURL(current); return objectUrl; });
     setDownloadName(name);
 
     const anchor = document.createElement('a');
-    anchor.href = url;
+    anchor.href = dataUrl;
     anchor.download = name;
     anchor.rel = 'noopener';
     document.body.appendChild(anchor);
