@@ -58,8 +58,7 @@ export function LocalizedToolPage() {
       <nav className="tool-page-modern__nav" aria-label="FLIXO tool navigation">
         <div className="tool-page-modern__nav-inner">
           <a className="tool-page-modern__brand" href={homeUrl} aria-label="FLIXO home">
-            <span className="tool-page-modern__brand-mark">F</span>
-            FLIXO
+            <img className="tool-page-modern__brand-logo" src="/flixo-logo.svg" width="44" height="44" alt="FLIXO" decoding="async" />
           </a>
           <div className="tool-page-modern__nav-actions">
             <a className="tool-page-modern__nav-link" href={homeUrl}>← {homeLabel}</a>
