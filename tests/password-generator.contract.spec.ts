@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-const generatedPassword = (page: Parameters<typeof test>[1] extends never ? never : import('@playwright/test').Page) =>
+const generatedPassword = (page: Page) =>
   page.getByRole('status', { name: 'Generated password', exact: true });
 
 test('password-generator: loads and generates', async ({ page }) => {
