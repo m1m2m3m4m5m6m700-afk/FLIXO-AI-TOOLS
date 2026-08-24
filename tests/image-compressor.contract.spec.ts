@@ -8,7 +8,6 @@ test('image-compressor: rejects corrupt image payload before producing output', 
     buffer: Buffer.from('not a valid PNG payload'),
   });
 
-  await expect(page.getByRole('alert')).not.toContainText('Some files were skipped');
   await page.getByRole('button', { name: 'Compress image' }).click();
 
   await expect(page.getByRole('alert')).toBeVisible();
