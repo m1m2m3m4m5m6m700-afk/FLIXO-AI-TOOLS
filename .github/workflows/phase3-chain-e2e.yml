@@ -1,0 +1,35 @@
+name: Phase 3 Chain E2E
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/tool-chain-panel.tsx'
+      - 'src/lib/tool-chain.ts'
+      - 'src/lib/tool-chain-runner.ts'
+      - 'src/lib/tool-chain-adapters.ts'
+      - 'src/lib/tool-chain-compatibility.ts'
+      - 'tests/phase3-tool-chain-e2e.spec.ts'
+      - 'playwright.config.ts'
+      - '.github/workflows/phase3-chain-e2e.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  chain-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Build
+        run: npm run build
+      - name: Tool chain E2E
+        run: npx playwright test tests/phase3-tool-chain-e2e.spec.ts

@@ -1,5 +1,6 @@
 import { createRoute } from '@tanstack/react-router';
 import { getToolConfigByPath } from '../config/tools';
+import { ToolChainPanel } from '../components/tool-chain-panel';
 import { rootRoute } from './__root';
 
 type ToolRouteConfig = {
@@ -28,7 +29,12 @@ function imageToolRoute({ path, title: titleOverride, description: descriptionOv
       { property: 'og:description', content: description },
       { property: 'og:type', content: 'website' },
     ] }),
-    component: () => <ToolComponent />,
+    component: () => (
+      <>
+        <ToolChainPanel currentToolId={tool.id} />
+        <ToolComponent />
+      </>
+    ),
   });
 }
 
