@@ -60,12 +60,21 @@
 .tool-page-modern__brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
   color: var(--tp-text);
   text-decoration: none;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-  font-size: 0.78rem;
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 15px;
+}
+
+.tool-page-modern__brand-logo {
+  display: block;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  object-fit: cover;
+  border: 1px solid rgba(103, 232, 249, 0.25);
+  box-shadow: 0 0 32px rgba(103, 232, 249, 0.16), 0 0 54px rgba(124, 58, 237, 0.10);
 }
 
 .tool-page-modern__brand-mark {
