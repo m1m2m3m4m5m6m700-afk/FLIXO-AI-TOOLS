@@ -116,6 +116,10 @@ export function VideoTrimmerSplitterTool() {
         </section>
       )}
 
+      {!metadata && (
+        <button type="button" onClick={() => void exportSelection()} className="rounded border px-4 py-2">Export clip</button>
+      )}
+
       {status && <p role="status">{status}</p>}
       {error && <p role="alert">{error}</p>}
     </main>
