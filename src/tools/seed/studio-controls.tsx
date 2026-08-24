@@ -127,7 +127,7 @@ export function NumericField({ label, value, defaultValue, min = -Infinity, max 
         <button type="button" onClick={() => onChange(clamp(value - step))} className="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-white/[0.06] hover:text-zinc-100" aria-label={`Decrease ${label}`}>
           <Minus className="size-3.5" />
         </button>
-        <input value={Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)))} onChange={(event) => onChange(clamp(Number(event.target.value)))} inputMode="decimal" aria-label={label} className="min-w-0 flex-1 bg-transparent px-2 text-center font-mono text-sm font-semibold text-zinc-100 outline-none" />
+        <input type="number" value={Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)))} min={Number.isFinite(min) ? min : undefined} max={Number.isFinite(max) ? max : undefined} step={step} onChange={(event) => onChange(clamp(Number(event.target.value)))} inputMode="decimal" aria-label={label} className="min-w-0 flex-1 bg-transparent px-2 text-center font-mono text-sm font-semibold text-zinc-100 outline-none" />
         <button type="button" onClick={() => onChange(clamp(value + step))} className="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-white/[0.06] hover:text-zinc-100" aria-label={`Increase ${label}`}>
           <Plus className="size-3.5" />
         </button>
