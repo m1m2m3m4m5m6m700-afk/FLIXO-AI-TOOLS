@@ -23,7 +23,6 @@ test('image-to-pdf: exposes workflow controls', async ({ page }) => {
 
 test('image-to-pdf: rejects missing images', async ({ page }) => {
   await page.goto('/en/image-to-pdf');
-  await page.getByRole('button', { name: 'Create PDF' }).click();
   await expect(page.getByRole('button', { name: 'Create PDF' })).toBeDisabled();
 });
 
