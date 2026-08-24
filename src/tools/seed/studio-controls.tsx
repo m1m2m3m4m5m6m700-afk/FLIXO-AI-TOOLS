@@ -2,13 +2,9 @@ import type { ComponentType, ReactNode } from 'react';
 import * as Accordion from '@radix-ui/react-accordion';
 import * as Slider from '@radix-ui/react-slider';
 import { ChevronDown, Minus, Plus, RotateCcw } from 'lucide-react';
+import { signedValue } from './studio-control-utils';
 
 type Icon = ComponentType<{ className?: string }>;
-
-export function signedValue(value: number, unit = '') {
-  const rounded = Number.isInteger(value) ? value : Number(value.toFixed(2));
-  return `${rounded > 0 ? '+' : ''}${rounded}${unit}`;
-}
 
 type StudioSliderProps = {
   label: string;
