@@ -2,7 +2,6 @@
 
 import type { ComponentType, ReactNode } from 'react';
 import * as Accordion from '@radix-ui/react-accordion';
-import * as Slider from '@radix-ui/react-slider';
 import { ChevronDown, Minus, Plus, RotateCcw } from 'lucide-react';
 import { signedValue } from './studio-utils';
 
@@ -18,34 +17,6 @@ const E2E_ACCESSIBLE_LABELS: Record<string, string> = {
 function getAccessibleSliderLabel(label: string): string {
   return E2E_ACCESSIBLE_LABELS[label] ?? label;
 }
-
-function installSeedFileInputAccessibilityBridge(): void {
-  if (typeof document === 'undefined') return;
-  const scope = globalThis as typeof globalThis & { __seedFileInputA11yInstalled?: boolean };
-  if (scope.__seedFileInputA11yInstalled) return;
-  scope.__seedFileInputA11yInstalled = true;
-
-  const apply = () => {
-    document.querySelectorAll<HTMLInputElement>('input[type="file"]').forEach((input) => {
-      if (input.id === 'seed-main-image-input' || input.hasAttribute('aria-label')) return;
-      let current: HTMLElement | null = input.parentElement;
-      for (let depth = 0; current && depth < 8; depth += 1) {
-        const text = current.textContent?.replace(/\s+/g, ' ').trim() ?? '';
-        if (text.includes('Double Exposure')) {
-          input.setAttribute('aria-label', 'Double Exposure file');
-          break;
-        }
-        current = current.parentElement;
-      }
-    });
-  };
-
-  apply();
-  const observer = new MutationObserver(apply);
-  observer.observe(document.documentElement, { childList: true, subtree: true });
-}
-
-installSeedFileInputAccessibilityBridge();
 
 type StudioSliderProps = {
   label: string;
@@ -98,13 +69,23 @@ export function StudioSlider({ label, code, icon: Icon, value, defaultValue, min
           </div>
 
           <div className="mt-3.5">
-            <Slider.Root value={[value]} min={min} max={max} step={step} onValueChange={([next]) => onChange(next ?? value)} disabled={disabled} className="relative flex h-6 w-full touch-none select-none items-center outline-none" aria-label={accessibleLabel}>
-              <Slider.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-zinc-800/90 ring-1 ring-inset ring-white/[0.04]">
-                <Slider.Range className="absolute h-full rounded-full bg-gradient-to-r from-indigo-500/80 via-violet-400/75 to-cyan-300/90" />
-              </Slider.Track>
+            <div className="relative flex h-6 w-full items-center">
+              <div className="pointer-events-none absolute inset-x-0 h-1.5 overflow-hidden rounded-full bg-zinc-800/90 ring-1 ring-inset ring-white/[0.04]">
+                <span className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500/80 via-violet-400/75 to-cyan-300/90" style={{ width: `${percentage}%` }} />
+              </div>
               {zeroPercentage !== null ? <span aria-hidden="true" className="pointer-events-none absolute top-1/2 z-10 h-4 w-px -translate-y-1/2 bg-white/30" style={{ left: `${zeroPercentage}%` }} /> : null}
-              <Slider.Thumb className="block size-[18px] rounded-full border border-white/80 bg-zinc-950 shadow-[0_0_0_3px_rgba(99,102,241,0.12),0_4px_14px_rgba(0,0,0,0.6)] outline-none transition duration-150 hover:scale-110 focus-visible:ring-2 focus-visible:ring-indigo-400/70 active:scale-95 disabled:pointer-events-none disabled:opacity-50" />
-            </Slider.Root>
+              <input
+                type="range"
+                value={value}
+                min={min}
+                max={max}
+                step={step}
+                onChange={(event) => onChange(Number(event.target.value))}
+                disabled={disabled}
+                aria-label={accessibleLabel}
+                className="relative z-20 h-6 w-full cursor-pointer appearance-none bg-transparent accent-indigo-400 outline-none disabled:cursor-not-allowed disabled:opacity-50 [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:mt-[-6px] [&::-webkit-slider-thumb]:h-[18px] [&::-webkit-slider-thumb]:w-[18px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-white/80 [&::-webkit-slider-thumb]:bg-zinc-950 [&::-webkit-slider-thumb]:shadow-[0_0_0_3px_rgba(99,102,241,0.12),0_4px_14px_rgba(0,0,0,0.6)] [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:h-[18px] [&::-moz-range-thumb]:w-[18px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-white/80 [&::-moz-range-thumb]:bg-zinc-950 [&::-moz-range-thumb]:shadow-[0_0_0_3px_rgba(99,102,241,0.12),0_4px_14px_rgba(0,0,0,0.6)] focus-visible:ring-2 focus-visible:ring-indigo-400/70"
+              />
+            </div>
 
             <div className="mt-1 flex items-center justify-between font-mono text-[8px] uppercase tracking-[0.14em] text-zinc-600">
               <span>{signedValue(min, unit)}</span>
