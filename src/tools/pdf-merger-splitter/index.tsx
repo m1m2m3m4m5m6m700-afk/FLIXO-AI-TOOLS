@@ -9,14 +9,6 @@ function formatBytes(bytes: number) {
 }
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer { const buffer = new ArrayBuffer(bytes.byteLength); new Uint8Array(buffer).set(bytes); return buffer; }
 function pdfBlob(bytes: Uint8Array): Blob { return new Blob([toArrayBuffer(bytes)], { type: 'application/pdf' }); }
-function pdfDataUrl(bytes: Uint8Array): string {
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)));
-  }
-  return `data:application/pdf;base64,${btoa(binary)}`;
-}
 
 export function PdfMergerSplitterTool() {
   const [sources, setSources] = useState<PdfSource[]>([]);
@@ -46,19 +38,27 @@ export function PdfMergerSplitterTool() {
   const rotateSelected = () => { if (!selected) return; setPages((current) => current.map((page) => page.id === selected ? rotatePage(page) : page)); };
   const moveSelected = (delta: number) => { if (!selected) return; setPages((current) => { const index = current.findIndex((page) => page.id === selected); const target = index + delta; return index < 0 || target < 0 || target >= current.length ? current : reorderPages(current, index, target); }); };
   const createDownload = (bytes: Uint8Array, name: string) => {
+    if (bytes.length < 5 || String.fromCharCode(...bytes.subarray(0, 5)) !== '%PDF-') {
+      throw new Error('Generated PDF data is invalid.');
+    }
     const blob = pdfBlob(bytes);
     const objectUrl = URL.createObjectURL(blob);
-    const dataUrl = pdfDataUrl(bytes);
-    setDownloadUrl((current) => { if (current) URL.revokeObjectURL(current); return objectUrl; });
+    const previousUrl = downloadUrl;
+    setDownloadUrl(objectUrl);
     setDownloadName(name);
 
     const anchor = document.createElement('a');
-    anchor.href = dataUrl;
+    anchor.href = objectUrl;
     anchor.download = name;
     anchor.rel = 'noopener';
+    anchor.style.display = 'none';
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
+
+    window.setTimeout(() => {
+      if (previousUrl) URL.revokeObjectURL(previousUrl);
+    }, 0);
   };
   const merge = async () => {
     setBusy(true); setError('');
