@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">FLIXO</title>
+  <desc id="desc">Square FLIXO logo with a futuristic cyan, blue, violet and magenta gradient mark on a deep navy background.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#08111f"/><stop offset="0.55" stop-color="#0a1235"/><stop offset="1" stop-color="#100a29"/></linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#19e7ff"/><stop offset="0.48" stop-color="#2563eb"/><stop offset="0.76" stop-color="#7c3aed"/><stop offset="1" stop-color="#ec22ff"/></linearGradient>
+    <linearGradient id="markTop" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#79f8ff"/><stop offset="0.42" stop-color="#1e90ff"/><stop offset="1" stop-color="#1937d8"/></linearGradient>
+    <linearGradient id="markBottom" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#35dfff"/><stop offset="0.48" stop-color="#7138ff"/><stop offset="1" stop-color="#f018ff"/></linearGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#dff8ff"/><stop offset="1" stop-color="#9ddcff"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="24" stdDeviation="30" flood-color="#000" flood-opacity="0.45"/></filter>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="16" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect x="18" y="18" width="988" height="988" rx="190" fill="url(#bg)" stroke="url(#edge)" stroke-width="18"/>
+  <rect x="52" y="52" width="920" height="920" rx="160" fill="none" stroke="#1d3a6a" stroke-opacity="0.55" stroke-width="2"/>
+  <path d="M96 350 L420 70 L928 70 L700 255 L425 255 L220 430 Z" fill="#0d1a43" opacity="0.8"/>
+  <path d="M804 944 L1000 748 L1000 920 L918 1000 L736 1000 Z" fill="#121a4d" opacity="0.85"/>
+  <g filter="url(#shadow)">
+    <path d="M190 446 C235 290 372 166 590 150 C687 143 771 149 846 170 C782 261 670 336 538 353 L365 353 C302 362 246 395 190 446 Z" fill="url(#markTop)"/>
+    <path d="M200 520 C255 454 333 412 420 403 L654 403 C708 393 761 371 812 343 C762 452 667 539 557 572 L399 572 C324 577 257 558 200 520 Z" fill="url(#markBottom)"/>
+    <path d="M200 520 C258 454 331 422 420 403 L365 353 C300 365 242 401 190 446 Z" fill="#15ddff" opacity="0.72" filter="url(#glow)"/>
+  </g>
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-weight="900" letter-spacing="-18">
+    <text x="118" y="832" font-size="178" fill="url(#word)">FLI</text>
+    <text x="527" y="832" font-size="178" fill="url(#markTop)">X</text>
+    <text x="724" y="832" font-size="178" fill="url(#markBottom)">O</text>
+  </g>
+  <path d="M150 878 H874" stroke="url(#edge)" stroke-width="8" stroke-linecap="round" opacity="0.72"/>
+  <circle cx="178" cy="900" r="8" fill="#67e8f9"/><circle cx="846" cy="900" r="8" fill="#c026ff"/>
+</svg>
