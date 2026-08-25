@@ -1,0 +1,38 @@
+name: Dependency Health
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: dependency-health-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    name: Dependency Health Inventory
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Generate dependency health report
+        run: |
+          mkdir -p diagnostics
+          npm run report:dependency-health > diagnostics/dependency-health.txt
+      - name: Upload dependency health report
+        uses: actions/upload-artifact@v6
+        with:
+          name: dependency-health-${{ github.sha }}
+          path: diagnostics/dependency-health.txt
+          if-no-files-found: error
+          retention-days: 14
