@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { HeadContent, Outlet, createRootRoute } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
+import { CommandPalette } from '../components/command-palette';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
 import { SITE_ORIGIN } from '../lib/i18n';
 
@@ -36,6 +37,7 @@ export const rootRoute = createRootRoute({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }}
         />
         <FlixoGlobalLogo />
+        <CommandPalette />
         <Outlet />
       </>
     );
