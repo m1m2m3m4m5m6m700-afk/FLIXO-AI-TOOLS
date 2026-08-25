@@ -1,0 +1,26 @@
+name: Lockfile Consistency
+on:
+  pull_request:
+    paths:
+      - package.json
+      - package-lock.json
+  push:
+    branches:
+      - main
+    paths:
+      - package.json
+      - package-lock.json
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install --package-lock-only --ignore-scripts
+      - name: Ensure lockfile is synchronized
+        run: git diff --exit-code -- package.json package-lock.json
