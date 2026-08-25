@@ -39,6 +39,6 @@ export const arQuickFlowRoute = createRoute({
     const percent = progress ? Math.round((progress.currentStepIndex / progress.totalSteps) * 100) : result ? 100 : 0;
     const currentName = progress?.currentToolId ? QUICKFLOW_TOOL_LABELS_AR[progress.currentToolId] ?? progress.currentToolId : '';
 
-    return <ArQuickFlowPanel copy={copy} workflow={workflow} plan={plan} file={file} progress={progress} resultUrl={resultUrl} resultType={result?.type ?? ''} error={error} busy={busy} percent={percent} currentName={currentName} onFileChange={setFile} onRun={run} />;
+    return <ArQuickFlowPanel copy={copy} workflow={workflow} plan={plan} file={file} resultUrl={resultUrl} resultType={result?.type ?? ''} error={error} busy={busy} percent={percent} currentName={currentName} onFileChange={setFile} onRun={run} />;
   },
 });
