@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { compressImage, MAX_FILES, MAX_INPUT_SIZE, type CompressionFormat } from './engine';
 
 const formatLabels: Record<CompressionFormat, string> = {
@@ -20,6 +21,10 @@ function extensionFor(format: CompressionFormat) {
 
 function label(locale: 'en' | 'ar', en: string, ar: string) {
   return locale === 'ar' ? ar : en;
+}
+
+function nextAnimationFrame() {
+  return new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 }
 
 export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
@@ -89,12 +94,24 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     targetSizeKB: targetSizeKB ? Number(targetSizeKB) : undefined,
   });
 
+  const beginProcessing = () => {
+    if (busy) return false;
+    flushSync(() => {
+      setBusy(true);
+      setError('');
+      setResult(null);
+    });
+    return true;
+  };
+
+  const finishProcessing = () => {
+    setBusy(false);
+  };
+
   const processCurrent = async () => {
-    if (!file) return;
-    setBusy(true);
-    setError('');
-    setResult(null);
+    if (!file || !beginProcessing()) return;
     try {
+      await nextAnimationFrame();
       const compressed = await processOne(file);
       const nextDownload = URL.createObjectURL(compressed.blob);
       setDownloadUrl((current) => {
@@ -109,16 +126,16 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : label(locale, 'Compression failed', 'فشل ضغط الصورة'));
     } finally {
-      setBusy(false);
+      finishProcessing();
     }
   };
 
   const processBatch = async () => {
     if (files.length < 2) return processCurrent();
-    setBusy(true);
-    setError('');
+    if (!beginProcessing()) return;
     setBatchZipUrl('');
     try {
+      await nextAnimationFrame();
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
       for (const nextFile of files) {
@@ -132,7 +149,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : label(locale, 'Batch compression failed', 'فشل ضغط الملفات دفعة واحدة'));
     } finally {
-      setBusy(false);
+      finishProcessing();
     }
   };
 
@@ -154,7 +171,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
               <label><span>{label(locale, 'Max width', 'أقصى عرض')}</span><input inputMode="numeric" placeholder="Auto" value={maxWidth} onChange={(event) => setMaxWidth(event.target.value.replace(/\D/g, ''))} /></label>
               <label><span>{label(locale, 'Max height', 'أقصى ارتفاع')}</span><input inputMode="numeric" placeholder="Auto" value={maxHeight} onChange={(event) => setMaxHeight(event.target.value.replace(/\D/g, ''))} /></label>
             </div>
-            <div className="button-row"><button className="primary-button" type="button" disabled={!file || busy} onClick={() => void processCurrent()}>{busy ? label(locale, 'Processing…', 'جارٍ المعالجة…') : label(locale, 'Compress image', 'ضغط الصورة')}</button><button className="secondary-button" type="button" disabled={files.length < 2 || busy} onClick={() => void processBatch()}>{label(locale, 'Compress all to ZIP', 'ضغط الكل إلى ZIP')}</button></div>
+            <div className="button-row"><button className="primary-button" type="button" disabled={!file || busy} aria-disabled={busy ? 'true' : 'false'} onClick={() => void processCurrent()}>{busy ? label(locale, 'Processing…', 'جارٍ المعالجة…') : label(locale, 'Compress image', 'ضغط الصورة')}</button><button className="secondary-button" type="button" disabled={files.length < 2 || busy} onClick={() => void processBatch()}>{label(locale, 'Compress all to ZIP', 'ضغط الكل إلى ZIP')}</button></div>
             {error && <p role="alert" className="error-box">{error}</p>}
             <p className="privacy-note">🔒 {label(locale, 'Browser-first: your images are processed locally and are not sent to a Flixo server.', 'المعالجة محلية داخل المتصفح؛ الصور لا تُرسل إلى خادم Flixo لمعالجتها.')}</p>
           </div>
