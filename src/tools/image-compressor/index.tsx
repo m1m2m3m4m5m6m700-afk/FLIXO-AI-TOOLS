@@ -6,6 +6,7 @@ const formatLabels: Record<CompressionFormat, string> = {
   'image/jpeg': 'JPG',
   'image/png': 'PNG',
 };
+const MIN_PROCESSING_MS = 120;
 
 function formatBytes(bytes: number) {
   if (!bytes) return '0 B';
@@ -20,6 +21,10 @@ function extensionFor(format: CompressionFormat) {
 
 function label(locale: 'en' | 'ar', en: string, ar: string) {
   return locale === 'ar' ? ar : en;
+}
+
+function delay(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
 export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
@@ -64,17 +69,6 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     headingRef.current?.focus({ preventScroll: true });
   }, [locale]);
 
-  useEffect(() => {
-    const action = actionRef.current;
-    if (!action) return;
-    action.setAttribute('aria-disabled', busy ? 'true' : 'false');
-    if (busy) {
-      action.setAttribute('disabled', '');
-    } else if (file) {
-      action.removeAttribute('disabled');
-    }
-  }, [busy, file]);
-
   const selectFiles = (nextFiles: File[]) => {
     setError('');
     setResult(null);
@@ -103,6 +97,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
 
   const processCurrent = async () => {
     if (!file || busy) return;
+    const startedAt = performance.now();
     const action = actionRef.current;
     action?.setAttribute('disabled', '');
     action?.setAttribute('aria-disabled', 'true');
@@ -111,6 +106,8 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     setResult(null);
     try {
       const compressed = await processOne(file);
+      const remaining = MIN_PROCESSING_MS - (performance.now() - startedAt);
+      if (remaining > 0) await delay(remaining);
       const nextDownload = URL.createObjectURL(compressed.blob);
       setDownloadUrl((current) => {
         if (current) URL.revokeObjectURL(current);
