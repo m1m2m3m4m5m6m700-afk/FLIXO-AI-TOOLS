@@ -10,7 +10,9 @@ const required = [
   ['lint prerequisite', /needs:\s*\[typecheck, lint,/],
   ['build prerequisite', /needs:\s*\[typecheck, lint, build,/],
   ['audit prerequisite', /needs:\s*\[typecheck, lint, build, audit,/],
-  ['security prerequisite', /needs:\s*\[typecheck, lint, build, audit, socket, security,/],
+  ['socket prerequisite', /needs:\s*\[typecheck, lint, build, audit, socket,/],
+  ['secret-scan prerequisite', /needs:\s*\[typecheck, lint, build, audit, socket, secret-scan,/],
+  ['security prerequisite', /secret-scan[\s\S]*?security/],
   ['fast-contract prerequisite', /fast-contract/],
   ['browser-smoke prerequisite', /browser-smoke/],
 ];
