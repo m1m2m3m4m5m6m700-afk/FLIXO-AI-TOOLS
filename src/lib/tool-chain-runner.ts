@@ -6,7 +6,7 @@ export async function runStoredToolChain(
   input: ChainInput,
   onStep?: (completed: number, total: number, toolId: string) => void,
 ): Promise<ChainOutput> {
-  const validation = validateToolChain(steps, input);
+  const validation = await validateToolChain(steps, input);
   if (!validation.valid) throw new Error(validation.reason ?? 'Tool chain is not compatible.');
 
   const { executeToolChain } = await import('./tool-chain-adapters');
