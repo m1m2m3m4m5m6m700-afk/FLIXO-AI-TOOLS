@@ -1,0 +1,43 @@
+name: Dependency Usage Classification v2
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'src/**'
+      - 'scripts/report-dependency-usage.mjs'
+      - 'scripts/test-dependency-usage-classification.mjs'
+      - '.github/workflows/dependency-usage-classification-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  classification:
+    name: Dependency usage classification
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node scripts/test-dependency-usage-classification.mjs
+      - name: Generate inventory
+        env:
+          DEPENDENCY_USAGE_JSON: diagnostics/dependency-usage.json
+        run: |
+          mkdir -p diagnostics
+          node scripts/report-dependency-usage.mjs > diagnostics/dependency-usage.txt
+      - uses: actions/upload-artifact@v6
+        with:
+          name: dependency-usage-v2-${{ github.sha }}
+          path: |
+            diagnostics/dependency-usage.txt
+            diagnostics/dependency-usage.json
+          if-no-files-found: error
+          retention-days: 14
