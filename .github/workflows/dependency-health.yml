@@ -25,6 +25,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Enforce dependency zero-debt gate
+        run: npm run validate:dependency-zero-debt
       - name: Generate dependency health report
         env:
           DEPENDENCY_HEALTH_JSON: diagnostics/dependency-health.json
