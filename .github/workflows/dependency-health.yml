@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   inventory:
@@ -24,6 +24,21 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      - name: Synchronize lockfile
+        if: github.event_name == 'pull_request'
+        run: npm install --package-lock-only --ignore-scripts --no-audit
+      - name: Commit synchronized lockfile
+        if: github.event_name == 'pull_request'
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile already synchronized"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "deps: synchronize lockfile after zero-debt cleanup"
+          git push origin "HEAD:${{ github.head_ref }}"
       - run: npm ci
       - name: Enforce dependency zero-debt gate
         run: npm run validate:dependency-zero-debt
