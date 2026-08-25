@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import type { ToolConfig } from './types';
+import type { ToolConfig } from './types.ts';
 
 export const AUDIO_TOOLS: readonly ToolConfig[] = Object.freeze([
   { id: 'audio-extractor-muter', title: 'Audio Extractor & Muter', path: '/en/audio-extractor-muter', description: 'Extract audio or mute a video locally in your browser.', category: 'Other', isReady: true, component: lazy(() => import('@/tools/audio-extractor-muter').then((m) => ({ default: m.AudioExtractorMuterTool }))) },
