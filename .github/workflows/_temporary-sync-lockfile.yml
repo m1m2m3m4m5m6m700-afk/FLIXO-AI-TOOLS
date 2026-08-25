@@ -11,7 +11,7 @@ on:
       - package.json
       - package-lock.json
 permissions:
-  contents: write
+  contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -22,22 +22,5 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm install --package-lock-only --ignore-scripts
-      - run: npm audit --json > audit.json || true
-      - name: Upload generated dependency evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-cleanup-evidence
-          path: |
-            package-lock.json
-            audit.json
-      - name: Commit generated lockfile when changed
-        run: |
-          if git diff --quiet -- package-lock.json; then
-            echo "Lockfile already synchronized."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "deps: sync lockfile after dependency cleanup"
-          git push origin "HEAD:${GITHUB_HEAD_REF}"
+      - name: Ensure lockfile is synchronized
+        run: git diff --exit-code -- package.json package-lock.json
