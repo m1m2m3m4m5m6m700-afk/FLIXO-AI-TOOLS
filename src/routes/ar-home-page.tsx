@@ -15,9 +15,17 @@ type ToolCard = {
   path: string;
 };
 
+type LocalizableTool = {
+  id: string;
+  title: string;
+  description: string;
+  category: ToolCard['category'];
+  path: string;
+};
+
 const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
 
-function localTool(tool: (typeof READY_TOOLS)[number]): ToolCard {
+function localTool(tool: LocalizableTool): ToolCard {
   return {
     title: HOME_AR.tools[tool.id as keyof typeof HOME_AR.tools] ?? tool.title,
     description: HOME_AR.toolDescriptions[tool.id as keyof typeof HOME_AR.toolDescriptions] ?? tool.description,
