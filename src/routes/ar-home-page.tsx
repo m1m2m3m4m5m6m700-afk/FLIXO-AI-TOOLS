@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { SmartCommandPalette } from '../components/SmartCommandPalette';
+import { ArHomeToolsSection } from '../components/ar-home-tools-section';
 import { TOOLS_REGISTRY } from '../config/tools';
 import { getBestToolIntent } from '../lib/intent-router';
 import { HOME_AR } from '../data/home-i18n';
@@ -13,7 +14,6 @@ type ToolCard = {
 };
 
 const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
-const AR_CATEGORY: Record<ToolCard['category'], string> = { Images: 'الصور', AI: 'الذكاء الاصطناعي', Other: 'أخرى' };
 
 function localTool(tool: (typeof READY_TOOLS)[number]): ToolCard {
   return {
@@ -72,7 +72,12 @@ export function ArHomePage() {
         </section>
         <section className="home-trust-grid" id="privacy" aria-label={HOME_AR.ariaTrust}>{HOME_AR.trust.map(([title, text]) => <div key={title}><strong>{title}</strong><span>{text}</span></div>)}</section>
         <section className="home-quick-drop" aria-labelledby="quick-drop-title"><div><span className="image-tool-eyebrow">{HOME_AR.quickDrop}</span><h2 id="quick-drop-title">{HOME_AR.quickDropTitle}</h2><p>{HOME_AR.quickDropLead}</p></div><label className="home-drop-zone"><input type="file" onChange={(event) => setDropRecommendation(event.target.files?.[0] ? recommendTool(event.target.files[0]) : null)} /><strong>{HOME_AR.dropChoose}</strong><span>{HOME_AR.dropSupport}</span></label>{dropRecommendation && <div className="drop-result"><div><span>{HOME_AR.suggestedTool}</span><strong>{dropRecommendation.title}</strong></div><Link className="primary-button" to={dropRecommendation.path}>{HOME_AR.openTool}</Link></div>}</section>
-        <section id="tools" className="home-tools-section" aria-labelledby="tools-title"><div className="section-heading"><div><span className="image-tool-eyebrow">{HOME_AR.toolbox}</span><h2 id="tools-title">{HOME_AR.toolboxTitle}</h2></div><span className="tool-count">{filteredTools.length} {HOME_AR.ready}</span></div><div id="categories" className="category-pills" aria-label={HOME_AR.ariaCategories}>{categories.map((category) => <button key={category} type="button" className={selectedCategory === category ? 'is-active' : ''} onClick={() => setSelectedCategory(category)}>{category === 'All' ? HOME_AR.all : AR_CATEGORY[category as ToolCard['category']]}</button>)}</div><div className="home-tools-grid">{filteredTools.map((tool) => <Link key={tool.path} to={tool.path} className="home-tool-card" aria-label={`${HOME_AR.openTool} ${tool.title}`}><div className="tool-card-topline"><span className="tool-card-category">{AR_CATEGORY[tool.category]}</span><span className="tool-card-arrow" aria-hidden="true">↗</span></div><h3>{tool.title}</h3><p>{tool.description}</p><span className="tool-card-meta">{HOME_AR.browserMeta}</span></Link>)}</div>{filteredTools.length === 0 && <div className="home-empty">{HOME_AR.empty}</div>}</section>
+        <ArHomeToolsSection
+          categories={categories}
+          filteredTools={filteredTools}
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+        />
         <section className="home-final-cta"><div><span className="image-tool-eyebrow">{HOME_AR.builtForFocus}</span><h2>{HOME_AR.finalTitle}</h2><p>{HOME_AR.finalLead}</p></div><button type="button" className="primary-button" onClick={() => setPaletteOpen(true)}>{HOME_AR.trySmart}</button></section>
       </div>
     </main>
