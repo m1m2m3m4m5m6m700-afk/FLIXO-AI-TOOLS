@@ -35,12 +35,13 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
       buffer: Buffer.from(validSvg),
     });
 
-    const action = page.getByRole('button', { name: 'Compress image', exact: true });
+    const action = page.locator('.primary-button');
     await expect(action).toBeEnabled();
     await action.click();
 
     await expect(page.locator('.compressor-grid')).toHaveAttribute('aria-busy', 'true');
     await expect(action).toHaveAttribute('aria-disabled', 'true');
+    await expect(action).toBeDisabled();
 
     const download = page.getByRole('link', { name: 'Download image' });
     await expect(download).toHaveAttribute('download', 'flixo-compressed.webp', { timeout: 15000 });
