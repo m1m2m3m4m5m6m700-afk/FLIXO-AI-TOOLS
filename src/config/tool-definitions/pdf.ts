@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import type { ToolConfig } from './types';
+import type { ToolConfig } from './types.ts';
 
 export const PDF_TOOLS: readonly ToolConfig[] = Object.freeze([
   { id: 'pdf-merger-splitter', title: 'PDF Merger & Splitter', path: '/en/pdf-merger-splitter', description: 'Merge, reorder, rotate, delete, and split PDF pages locally in your browser.', category: 'Other', isReady: true, component: lazy(() => import('@/tools/pdf-merger-splitter').then((m) => ({ default: m.PdfMergerSplitterTool }))) },
