@@ -3,6 +3,12 @@ import { expect, test } from '@playwright/test';
 const validSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#223344"/></svg>`;
 const oversizedSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="9000" height="9000" viewBox="0 0 9000 9000"><rect width="9000" height="9000" fill="#223344"/></svg>`;
 
+async function enableE2EProcessingState(page: Parameters<Parameters<typeof test>[2]>[0]['page']) {
+  await page.addInitScript(() => {
+    document.documentElement.dataset.e2e = 'true';
+  });
+}
+
 test.describe('UX + Accessibility phase 2 workflow contract', () => {
   test('covers upload and validation states accessibly', async ({ page }) => {
     await page.goto('/en/image-compressor');
@@ -20,6 +26,7 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
   });
 
   test('exposes processing and completion semantics', async ({ page }) => {
+    await enableE2EProcessingState(page);
     await page.goto('/en/image-compressor');
 
     await page.locator('#image-file').setInputFiles({
@@ -34,11 +41,13 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
 
     await expect(page.locator('.compressor-grid')).toHaveAttribute('aria-busy', 'true');
     await expect(action).toBeDisabled();
+    await expect(action).toHaveAttribute('aria-disabled', 'true');
 
     const download = page.getByRole('link', { name: 'Download image' });
     await expect(download).toHaveAttribute('download', 'flixo-compressed.webp', { timeout: 15000 });
     await expect(page.locator('.compressor-grid')).toHaveAttribute('aria-busy', 'false');
     await expect(action).toBeEnabled();
+    await expect(action).toHaveAttribute('aria-disabled', 'false');
     await expect(page.getByRole('complementary')).toBeVisible();
     await expect(page.getByRole('complementary').getByText('WebP', { exact: true })).toBeVisible();
   });
