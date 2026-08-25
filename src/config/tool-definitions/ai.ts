@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import type { ToolConfig } from './types';
+import type { ToolConfig } from './types.ts';
 
 export const AI_TOOLS: readonly ToolConfig[] = Object.freeze([
   { id: 'ai-captioner-srt', title: 'AI Auto-Captioner & SRT Generator', path: '/en/ai-captioner-srt', description: 'Transcribe short media locally with Whisper and export timestamped SRT/VTT captions.', category: 'AI', isReady: true, component: lazy(() => import('@/tools/ai-captioner-srt').then((m) => ({ default: m.AiCaptionerSrtTool }))) },
