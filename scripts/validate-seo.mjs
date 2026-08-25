@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-const toolsSource = readFileSync('src/config/tools.ts', 'utf8');
+const toolsSource = readFileSync('src/config/tool-definitions.ts', 'utf8');
 const seoSource = readFileSync('src/lib/seo/tool-seo.ts', 'utf8');
 const routerSource = readFileSync('src/routes/localized-tool.tsx', 'utf8');
 const localizedPageSource = readFileSync('src/routes/localized-tool-page.tsx', 'utf8');
@@ -10,7 +10,7 @@ const expectedLocales = ['en','ar','es','fr','de','ru','zh','hi','id','ur','ja',
 const readyToolIds = [...toolsSource.matchAll(/\{ id: '([^']+)',[^\n]*?isReady: true,/g)].map((match) => match[1]);
 
 if (readyToolIds.length === 0) {
-  console.error('No ready tools discovered in src/config/tools.ts');
+  console.error('No ready tools discovered in src/config/tool-definitions.ts');
   process.exit(1);
 }
 
