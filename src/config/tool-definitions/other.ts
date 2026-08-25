@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import type { ToolConfig } from './types';
+import type { ToolConfig } from './types.ts';
 
 export const OTHER_TOOLS: readonly ToolConfig[] = Object.freeze([
   { id: 'word-character-counter', title: 'Word & Character Counter', path: '/en/word-character-counter', description: 'Count words, characters, sentences, paragraphs, reading time, speaking time, and keyword density locally.', category: 'Other', isReady: true, component: lazy(() => import('@/tools/word-character-counter').then((m) => ({ default: m.WordCharacterCounterTool }))) },
