@@ -69,11 +69,7 @@ export function LocalizedToolPage() {
   const englishToolUrl = `/en/${seo.tool.id}`;
   const arabicToolUrl = `/ar/${seo.tool.id}`;
   const alternateUrl = locale === 'ar' ? englishToolUrl : arabicToolUrl;
-  const alternateLabel = locale === 'ar' ? 'English' : 'العربية';
-  const homeLabel = locale === 'ar' || locale === 'ur' ? 'الرئيسية' : 'Home';
-  const readyLabel = locale === 'ar' ? 'جاهزة' : 'Ready';
-  const workspaceLabel = locale === 'ar' ? 'مساحة عمل الأداة' : 'Tool workspace';
-  const favoriteLabel = locale === 'ar' ? 'المفضلة' : 'Favorite';
+  const alternateLabel = locale === 'ar' ? copy.english : copy.arabic;
 
   const onToggleFavorite = () => {
     const next = toggleFavorite(seo.tool.id);
@@ -87,16 +83,16 @@ export function LocalizedToolPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify({ ...seo.structuredData, keywords: seo.keywords }).replace(/</g, '\\u003c') }}
       />
 
-      <nav className="tool-page-modern__nav" aria-label="FLIXO tool navigation">
+      <nav className="tool-page-modern__nav" aria-label={copy.navigation}>
         <div className="tool-page-modern__nav-inner">
-          <a className="tool-page-modern__brand" href={homeUrl} aria-label="FLIXO home">
+          <a className="tool-page-modern__brand" href={homeUrl} aria-label={copy.home}>
             <img className="tool-page-modern__brand-logo" src="/flixo-logo.svg" width="44" height="44" alt="FLIXO" decoding="async" />
           </a>
           <div className="tool-page-modern__nav-actions">
-            <button className={`tool-page-modern__favorite ${favorite ? 'is-active' : ''}`} type="button" onClick={onToggleFavorite} aria-pressed={favorite} title={favoriteLabel}>
-              <span aria-hidden="true">{favorite ? '★' : '☆'}</span> {favoriteLabel}
+            <button className={`tool-page-modern__favorite ${favorite ? 'is-active' : ''}`} type="button" onClick={onToggleFavorite} aria-pressed={favorite} title={copy.favorite}>
+              <span aria-hidden="true">{favorite ? '★' : '☆'}</span> {copy.favorite}
             </button>
-            <a className="tool-page-modern__nav-link" href={homeUrl}>← {homeLabel}</a>
+            <a className="tool-page-modern__nav-link" href={homeUrl}>← {copy.home}</a>
             <a className="tool-page-modern__lang" href={alternateUrl} lang={locale === 'ar' ? 'en' : 'ar'}>{alternateLabel}</a>
           </div>
         </div>
@@ -122,7 +118,7 @@ export function LocalizedToolPage() {
               <p className="tool-page-modern__description">{seo.description}</p>
               <div className="tool-page-modern__meta">
                 <div className="tool-page-modern__meta-row">
-                  <span className="tool-page-modern__badge"><span className="tool-page-modern__badge-dot" /> {readyLabel}</span>
+                  <span className="tool-page-modern__badge"><span className="tool-page-modern__badge-dot" /> {copy.ready}</span>
                   <span className="tool-page-modern__chip">{copy.language}: {seo.languageTag}</span>
                   <span className="tool-page-modern__chip">{seo.tool.category}</span>
                 </div>
@@ -138,7 +134,7 @@ export function LocalizedToolPage() {
 
         <section className="tool-page-modern__workspace" aria-label={seo.tool.title} aria-busy="false">
           <div className="tool-page-modern__workspace-bar">
-            <span className="tool-page-modern__status"><span className="tool-page-modern__status-led" /> {workspaceLabel}</span>
+            <span className="tool-page-modern__status"><span className="tool-page-modern__status-led" /> {copy.workspace}</span>
             <span>{seo.tool.id}</span>
           </div>
           <div className="tool-page-modern__tool-host" aria-live="polite">
