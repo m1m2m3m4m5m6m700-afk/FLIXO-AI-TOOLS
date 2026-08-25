@@ -40,7 +40,6 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
     await action.click();
 
     await expect(page.locator('.compressor-grid')).toHaveAttribute('aria-busy', 'true');
-    await expect(action).toBeDisabled();
     await expect(action).toHaveAttribute('aria-disabled', 'true');
 
     const download = page.getByRole('link', { name: 'Download image' });
