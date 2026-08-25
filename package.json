@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "audit:production": "npm audit --omit=dev --audit-level=high",
+    "validate:dependency-zero-debt": "node scripts/validate-dependency-zero-debt.mjs",
     "validate:i18n": "node scripts/validate-i18n.mjs",
     "validate:home-i18n": "node scripts/validate-home-localization.mjs",
     "validate:seo": "node scripts/validate-seo.mjs",
