@@ -7,8 +7,6 @@ const formatLabels: Record<CompressionFormat, string> = {
   'image/png': 'PNG',
 };
 
-const E2E_PROCESSING_MS = 1000;
-
 function formatBytes(bytes: number) {
   if (!bytes) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB'];
@@ -24,8 +22,8 @@ function label(locale: 'en' | 'ar', en: string, ar: string) {
   return locale === 'ar' ? ar : en;
 }
 
-function delay(ms: number) {
-  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+function nextAnimationFrame() {
+  return new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 }
 
 export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
@@ -97,15 +95,12 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
 
   const processCurrent = async () => {
     if (!file || busy) return;
-    const startedAt = performance.now();
     setBusy(true);
     setError('');
     setResult(null);
     try {
+      await nextAnimationFrame();
       const compressed = await processOne(file);
-      const isE2E = typeof document !== 'undefined' && document.documentElement.dataset.e2e === 'true';
-      const remaining = isE2E ? E2E_PROCESSING_MS - (performance.now() - startedAt) : 0;
-      if (remaining > 0) await delay(remaining);
       const nextDownload = URL.createObjectURL(compressed.blob);
       setDownloadUrl((current) => {
         if (current) URL.revokeObjectURL(current);
@@ -129,6 +124,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     setError('');
     setBatchZipUrl('');
     try {
+      await nextAnimationFrame();
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
       for (const nextFile of files) {
