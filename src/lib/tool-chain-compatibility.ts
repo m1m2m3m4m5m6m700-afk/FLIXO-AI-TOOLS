@@ -1,5 +1,3 @@
-import { TOOL_CHAIN_ADAPTERS, type ChainInput } from './tool-chain-adapters';
-
 type ChainContract = Readonly<{
   inputMime: readonly string[];
   outputMime: readonly string[];
@@ -22,16 +20,28 @@ export type ToolChainValidation = Readonly<{
   reason?: string;
 }>;
 
-export function validateToolChain(steps: readonly string[], input: ChainInput): ToolChainValidation {
+export function validateToolChainContracts(steps: readonly string[], inputMime: string): ToolChainValidation {
   if (steps.length === 0) return { valid: false, reason: 'Tool chain is empty.' };
 
-  let mime = input.blob.type || 'application/octet-stream';
+  let mime = inputMime || 'application/octet-stream';
   for (const toolId of steps) {
-    if (!TOOL_CHAIN_ADAPTERS[toolId]) return { valid: false, reason: `Tool "${toolId}" has no local chain adapter.` };
     const contract = TOOL_CHAIN_CONTRACTS[toolId];
-    if (!contract) return { valid: false, reason: `Tool "${toolId}" has no declared chain contract.` };
-    if (!supportsMime(contract.inputMime, mime)) return { valid: false, reason: `Tool "${toolId}" cannot accept ${mime}.` };
+    if (!contract) return { valid: false, reason: `Tool \"${toolId}\" has no declared chain contract.` };
+    if (!supportsMime(contract.inputMime, mime)) return { valid: false, reason: `Tool \"${toolId}\" cannot accept ${mime}.` };
     mime = contract.outputMime[0] ?? 'application/octet-stream';
   }
   return { valid: true };
+}
+
+export async function validateToolChain(steps: readonly string[], input: { blob: Blob }): Promise<ToolChainValidation> {
+  const contractValidation = validateToolChainContracts(steps, input.blob.type);
+  if (!contractValidation.valid) return contractValidation;
+
+  const { getToolChainAdapter } = await import('./tool-chain-adapters');
+  for (const toolId of steps) {
+    if (!getToolChainAdapter(toolId)) {
+      return { valid: false, reason: `Tool \"${toolId}\" has no local chain adapter.` };
+    }
+  }
+  return contractValidation;
 }
