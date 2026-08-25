@@ -1,6 +1,10 @@
+import { lazy } from 'react';
 import { createRoute } from '@tanstack/react-router';
 import { rootRoute } from './__root';
-import { AspectRatioCalculatorTool } from '@/tools/aspect-ratio-calculator';
+
+const AspectRatioCalculatorTool = lazy(() =>
+  import('@/tools/aspect-ratio-calculator').then((module) => ({ default: module.AspectRatioCalculatorTool })),
+);
 
 export const enAspectRatioCalculatorRoute = createRoute({
   getParentRoute: () => rootRoute,
