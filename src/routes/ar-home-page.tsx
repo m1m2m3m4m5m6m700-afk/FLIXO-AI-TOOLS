@@ -14,32 +14,14 @@ type ToolCard = {
 
 const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
 const AR_CATEGORY: Record<ToolCard['category'], string> = { Images: 'الصور', AI: 'الذكاء الاصطناعي', Other: 'أخرى' };
-const AR_DESCRIPTIONS: Record<string, string> = {
-  'image-compressor': 'قلّل حجم صور JPG وPNG وWebP داخل المتصفح.',
-  'background-remover': 'أزل الخلفيات المتصلة محليًا من صورك.',
-  'image-upscaler': 'كبّر أبعاد الصور مع إعادة تحجيم عالية الجودة.',
-  'image-converter': 'حوّل صيغ الصور الشائعة محليًا داخل المتصفح.',
-  'ai-image-generator': 'أنشئ الصور عبر نقطة AI المهيأة للمشروع.',
-  'object-remover': 'أزل المناطق المحددة من الصور محليًا.',
-  'watermark-remover': 'نظّف مناطق العلامات المائية المحددة.',
-  'image-cropper': 'اقصص الصور واضبط أبعادها بدقة.',
-  'image-to-svg': 'حوّل الصور النقطية إلى SVG قابل للتنزيل.',
-  'image-ocr': 'استخرج النص من الصور باستخدام OCR.',
-  'background-blur': 'طبّق ضبابية على مناطق الخلفية محليًا.',
-  'passport-photo-maker': 'أنشئ قصاصات صور شخصية بمقاسات قياسية.',
-  'watermark-adder': 'أضف علامات مائية نصية محليًا.',
-  'meme-generator': 'أنشئ صور ميم مع نص علوي وسفلي.',
-  'collage-maker': 'اجمع عدة صور في كولاج واحد.',
-  'image-effects': 'طبّق السطوع والتباين والتشبع والتدرج الرمادي.',
-  'exif-cleaner': 'أزل بيانات EXIF بإعادة ترميز الصورة داخل المتصفح.',
-  'svg-optimizer': 'صغّر SVG ونظّف التعليقات والمسافات.',
-  'mockup-generator': 'ضع الصور داخل نموذج جهاز بسيط.',
-  seed: 'تعديلات صور غير مدمرة باستخدام WebGL.',
-  pix: 'محرر صور احترافي داخل المتصفح مع أدوات متقدمة.',
-};
 
 function localTool(tool: (typeof READY_TOOLS)[number]): ToolCard {
-  return { title: HOME_AR.tools[tool.id as keyof typeof HOME_AR.tools] ?? tool.title, description: AR_DESCRIPTIONS[tool.id] ?? tool.description, category: tool.category, path: tool.path.replace(/^\/en\//, '/ar/') };
+  return {
+    title: HOME_AR.tools[tool.id as keyof typeof HOME_AR.tools] ?? tool.title,
+    description: HOME_AR.toolDescriptions[tool.id as keyof typeof HOME_AR.toolDescriptions] ?? tool.description,
+    category: tool.category,
+    path: tool.path.replace(/^\/en\//, '/ar/'),
+  };
 }
 
 function recommendTool(file: File): ToolCard | null {
