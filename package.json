@@ -26,6 +26,7 @@
     "report:dependency-health": "node scripts/report-dependency-health.mjs",
     "report:dependency-trace": "node scripts/report-dependency-trace.mjs",
     "report:recharts-v3": "node scripts/report-recharts-v3-readiness.mjs",
+    "report:complexity": "node scripts/report-complexity-debt.mjs",
     "validate:performance-budget": "node scripts/validate-performance-budget.mjs",
     "report:performance-baseline": "node scripts/report-performance-baseline.mjs",
     "generate:sitemap": "node scripts/generate-sitemap.mjs",
