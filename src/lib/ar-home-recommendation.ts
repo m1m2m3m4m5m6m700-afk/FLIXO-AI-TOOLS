@@ -13,10 +13,12 @@ type ToolCard = {
   path: string;
 };
 
+type LocalizableTool = Pick<ReadyTool, 'id' | 'title' | 'description' | 'category' | 'path'>;
+
 export function recommendImageTool(
   file: File,
   readyTools: readonly ReadyTool[],
-  localize: (tool: ReadyTool) => ToolCard,
+  localize: (tool: LocalizableTool) => ToolCard,
 ): ToolCard | null {
   if (!file.type.startsWith('image/')) return null;
 
