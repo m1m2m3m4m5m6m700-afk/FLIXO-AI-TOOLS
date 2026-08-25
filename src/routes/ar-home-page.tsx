@@ -4,6 +4,7 @@ import { SmartCommandPalette } from '../components/SmartCommandPalette';
 import { ArHomeToolsSection } from '../components/ar-home-tools-section';
 import { TOOLS_REGISTRY } from '../config/tools';
 import { getBestToolIntent } from '../lib/intent-router';
+import { getToolCategories, filterTools } from '../lib/ar-home-search';
 import { HOME_AR } from '../data/home-i18n';
 
 type ToolCard = {
@@ -39,15 +40,11 @@ export function ArHomePage() {
   const [dropRecommendation, setDropRecommendation] = useState<ToolCard | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const intent = useMemo(() => getBestToolIntent(query, READY_TOOLS), [query]);
-  const categories = useMemo(() => ['All', ...Array.from(new Set(READY_TOOLS.map((tool) => tool.category)))], []);
-  const filteredTools = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return READY_TOOLS.filter((tool) => {
-      const matchesCategory = selectedCategory === 'All' || selectedCategory === tool.category;
-      const haystack = `${tool.id} ${tool.title} ${tool.description}`.toLowerCase();
-      return matchesCategory && (!normalized || haystack.includes(normalized));
-    }).map(localTool);
-  }, [query, selectedCategory]);
+  const categories = useMemo(() => getToolCategories(READY_TOOLS), []);
+  const filteredTools = useMemo(
+    () => filterTools(READY_TOOLS, query, selectedCategory).map(localTool),
+    [query, selectedCategory],
+  );
 
   return (
     <main className="home-shell" dir="rtl" lang="ar">
