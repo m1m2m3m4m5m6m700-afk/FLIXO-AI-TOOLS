@@ -1,6 +1,6 @@
+import { lazy } from 'react';
 import { createRoute } from '@tanstack/react-router';
 import { rootRoute } from './__root';
-import { EnglishImageCompressorPage } from '../tools/image-compressor/locale-pages';
 
 export const enImageCompressorRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -11,7 +11,7 @@ export const enImageCompressorRoute = createRoute({
       { name: 'description', content: 'Compress JPG, PNG, and WebP images online in your browser. Reduce file size, control quality, and resize images without uploading them to a server.' },
       { name: 'robots', content: 'index,follow,max-image-preview:large' },
       { property: 'og:title', content: 'Compress Images Online Free | FLIXO' },
-      { property: 'og:description', content: 'Reduce image file size in your browser with quality and dimension controls.' },
+      { property: 'og:description', content: 'Reduce image file size, control quality, and resize images without uploading them to a server.' },
       { property: 'og:type', content: 'website' },
       { property: 'og:url', content: '/en/image-compressor' },
       { name: 'twitter:card', content: 'summary' },
@@ -37,5 +37,7 @@ export const enImageCompressorRoute = createRoute({
       }),
     }],
   }),
-  component: EnglishImageCompressorPage,
+  component: lazy(() =>
+    import('../tools/image-compressor/locale-pages').then((module) => ({ default: module.EnglishImageCompressorPage })),
+  ),
 });

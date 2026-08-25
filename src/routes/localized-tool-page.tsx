@@ -1,12 +1,15 @@
-import { Suspense, useEffect, useState, type ComponentType } from 'react';
+import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react';
 import { useParams } from '@tanstack/react-router';
 import { LOCALES, isLocale, type Locale } from '../lib/i18n';
 import { getToolSeo } from '../lib/seo/tool-seo';
 import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
 import { getToolPrivacyCopy } from '../lib/privacy';
 import { getFavorites, recordRecentTool, toggleFavorite } from '../lib/local-workspace';
-import { ToolChainPanel } from '../components/tool-chain-panel';
 import '../tool-page-modern.css';
+
+const LazyToolChainPanel = lazy(() =>
+  import('../components/tool-chain-panel').then((module) => ({ default: module.ToolChainPanel })),
+);
 
 export function LocalizedToolPage() {
   const params = useParams({ strict: false });
@@ -98,7 +101,9 @@ export function LocalizedToolPage() {
       </nav>
 
       <div className="tool-page-modern__body">
-        <ToolChainPanel currentToolId={seo.tool.id} />
+        <Suspense fallback={<div className="tool-page-modern__loading">{copy.loading}</div>}>
+          <LazyToolChainPanel currentToolId={seo.tool.id} />
+        </Suspense>
         <div className="tool-page-modern__breadcrumbs" aria-label={copy.about}>
           <a className="tool-page-modern__crumb" href={homeUrl}>FLIXO</a>
           <span className="tool-page-modern__crumb-sep">/</span>

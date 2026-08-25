@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getReadyToolConfigs } from '../config/tools';
 import { addToolToChain, clearToolChain, getToolChain, moveToolInChain, removeToolFromChain } from '../lib/tool-chain';
-import { runStoredToolChain } from '../lib/tool-chain-runner';
 import './tool-chain-panel.css';
 
 export function ToolChainPanel({ currentToolId }: { currentToolId?: string | null }) {
@@ -38,6 +37,7 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
       setResultUrl('');
     }
     try {
+      const { runStoredToolChain } = await import('../lib/tool-chain-runner');
       const output = await runStoredToolChain(
         selected.map(({ step }) => step.id),
         { blob: inputFile, fileName: inputFile.name },

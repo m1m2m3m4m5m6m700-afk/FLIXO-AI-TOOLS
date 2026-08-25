@@ -1,5 +1,3 @@
-import { TOOL_CHAIN_ADAPTERS, type ChainInput } from './tool-chain-adapters';
-
 type ChainContract = Readonly<{
   inputMime: readonly string[];
   outputMime: readonly string[];
@@ -22,16 +20,27 @@ export type ToolChainValidation = Readonly<{
   reason?: string;
 }>;
 
-export function validateToolChain(steps: readonly string[], input: ChainInput): ToolChainValidation {
+/**
+ * Pure contract validation. This module intentionally has no runtime adapter imports
+ * so the home route can safely reference tool-chain metadata without loading tools.
+ */
+export function validateToolChainContracts(steps: readonly string[], inputMime: string): ToolChainValidation {
   if (steps.length === 0) return { valid: false, reason: 'Tool chain is empty.' };
 
-  let mime = input.blob.type || 'application/octet-stream';
+  let mime = inputMime || 'application/octet-stream';
   for (const toolId of steps) {
-    if (!TOOL_CHAIN_ADAPTERS[toolId]) return { valid: false, reason: `Tool "${toolId}" has no local chain adapter.` };
     const contract = TOOL_CHAIN_CONTRACTS[toolId];
     if (!contract) return { valid: false, reason: `Tool "${toolId}" has no declared chain contract.` };
     if (!supportsMime(contract.inputMime, mime)) return { valid: false, reason: `Tool "${toolId}" cannot accept ${mime}.` };
     mime = contract.outputMime[0] ?? 'application/octet-stream';
   }
   return { valid: true };
+}
+
+/**
+ * Contract-only validation. Runtime adapter availability is checked by the runner
+ * after the adapter module is dynamically imported.
+ */
+export function validateToolChain(steps: readonly string[], input: { blob: Blob }): ToolChainValidation {
+  return validateToolChainContracts(steps, input.blob.type);
 }

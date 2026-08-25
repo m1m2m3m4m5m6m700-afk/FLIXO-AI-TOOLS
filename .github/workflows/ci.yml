@@ -157,6 +157,8 @@ jobs:
             spec: tests/exif-cleaner.spec.ts
           - tool: image-to-svg
             spec: tests/image-to-svg.spec.ts
+          - tool: performance-route-loading
+            spec: tests/performance-route-loading.spec.ts
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -166,6 +168,8 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Run smoke test
+        env:
+          PLAYWRIGHT_SERVER: ${{ matrix.tool == 'performance-route-loading' && 'preview' || 'dev' }}
         run: npx playwright test ${{ matrix.spec }} --project=chromium
       - name: Upload smoke diagnostics
         if: ${{ failure() }}
@@ -234,12 +238,12 @@ jobs:
             echo '| Secret History Scan | ${{ needs.secret-scan.result }} |'
             echo '| CodeQL | ${{ needs.security.result }} |'
             echo '| Fast Contract Diagnostics | ${{ needs.fast-contract.result }} |'
-            echo '| Browser Smoke (4 Chromium tools) | ${{ needs.browser-smoke.result }} |'
+            echo '| Browser Smoke (5 Chromium checks) | ${{ needs.browser-smoke.result }} |'
             echo '| Canonical Verification | ${{ needs.canonical-verify.result }} |'
             echo
             echo 'Fast Contract Diagnostics fail early on source-level contract drift.'
             echo 'TypeScript and ESLint are validated by their dedicated parallel jobs and are not rerun in the reduced contract gate.'
-            echo 'Browser Smoke validates critical file workflows before canonical verification.'
+            echo 'Browser Smoke validates critical file workflows and the initial-route lazy-loading boundary before canonical verification.'
             echo 'Build performance budget and a reproducible asset baseline are validated before promotion.'
             echo 'Bundle size inventory is published as a diagnostic artifact for evidence-driven optimization.'
             echo 'The full 22×3 browser matrix runs independently as promotion/release evidence.'
