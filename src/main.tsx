@@ -8,6 +8,7 @@ import { FlixoUxShell } from './components/flixo-ux-shell';
 import './styles.css';
 import './home-motion.css';
 import './command-palette.css';
+import './tools/seed/seed-premium.css';
 
 installRuntimeDiagnostics();
 installPerformanceDiagnostics();
