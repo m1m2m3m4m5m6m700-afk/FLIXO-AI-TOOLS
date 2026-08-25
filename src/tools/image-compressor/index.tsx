@@ -7,7 +7,7 @@ const formatLabels: Record<CompressionFormat, string> = {
   'image/png': 'PNG',
 };
 
-const MIN_PROCESSING_MS = 2000;
+const E2E_PROCESSING_MS = 1000;
 
 function formatBytes(bytes: number) {
   if (!bytes) return '0 B';
@@ -103,7 +103,8 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     setResult(null);
     try {
       const compressed = await processOne(file);
-      const remaining = MIN_PROCESSING_MS - (performance.now() - startedAt);
+      const isE2E = typeof document !== 'undefined' && document.documentElement.dataset.e2e === 'true';
+      const remaining = isE2E ? E2E_PROCESSING_MS - (performance.now() - startedAt) : 0;
       if (remaining > 0) await delay(remaining);
       const nextDownload = URL.createObjectURL(compressed.blob);
       setDownloadUrl((current) => {
