@@ -28,12 +28,13 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
       buffer: Buffer.from(validSvg),
     });
 
-    const action = page.getByRole('button', { name: 'Compress image' });
+    const action = page.getByRole('button', { name: 'Compress image', exact: true });
     await expect(action).toBeEnabled();
     await action.click();
 
     await expect(page.locator('.compressor-grid')).toHaveAttribute('aria-busy', 'true');
     await expect(action).toBeDisabled();
+    await expect(action).toHaveAttribute('aria-disabled', 'true');
 
     const download = page.getByRole('link', { name: 'Download image' });
     await expect(download).toHaveAttribute('download', 'flixo-compressed.webp', { timeout: 15000 });
@@ -49,7 +50,7 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
       mimeType: 'image/svg+xml',
       buffer: Buffer.from(validSvg),
     });
-    await page.getByRole('button', { name: 'Compress image' }).click();
+    await page.getByRole('button', { name: 'Compress image', exact: true }).click();
 
     const download = page.getByRole('link', { name: 'Download image' });
     await expect(download).toHaveAttribute('href', /^blob:/, { timeout: 15000 });
@@ -68,11 +69,11 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
       mimeType: 'image/svg+xml',
       buffer: Buffer.from(oversizedSvg),
     });
-    await page.getByRole('button', { name: 'Compress image' }).click();
+    await page.getByRole('button', { name: 'Compress image', exact: true }).click();
 
     await expect(page.getByRole('alert')).toContainText('source image is too large for safe browser processing', { timeout: 15000 });
     await expect(page.getByRole('link', { name: 'Download image' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Compress image' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Compress image', exact: true })).toBeEnabled();
   });
 
   test('preserves the same workflow contract in Arabic RTL', async ({ page }) => {
@@ -85,6 +86,6 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
       mimeType: 'image/svg+xml',
       buffer: Buffer.from(validSvg),
     });
-    await expect(page.getByRole('button', { name: /ضغط/ })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'ضغط الصورة', exact: true })).toBeEnabled();
   });
 });
