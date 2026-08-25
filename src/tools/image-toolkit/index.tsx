@@ -3,6 +3,7 @@ import { convertImage, cropResizeImage, downloadBlob, imageInfo, removeBackgroun
 import { recognizeWithOcrWorker } from './ocr-worker-client';
 import { assertImageCropperOutputIntegrity } from '../image-cropper/output-integrity';
 import { validateFileSafety } from '../../lib/contracts/file-safety';
+import { validateUploadBoundary } from '../../lib/contracts/upload-boundary';
 import type { LocalToolId } from './engine';
 
 const DEFINITIONS: Record<Exclude<LocalToolId, 'ai-image-generator' | 'image-compressor'>, { title: string; description: string; accept: string }> = {
@@ -20,22 +21,31 @@ type Props = { toolId: Exclude<LocalToolId, 'image-compressor'> };
 type SharedImageToolId = Exclude<LocalToolId, 'ai-image-generator' | 'image-compressor'>;
 type Result = { blob: Blob; text?: string; fileName: string; info?: { width: number; height: number } };
 
+type RasterMime = 'image/png' | 'image/jpeg' | 'image/webp';
+const RASTER_SIGNATURE_POLICIES: Record<RasterMime, { extensions: readonly string[]; signatures: readonly string[] }> = {
+  'image/png': { extensions: ['png'], signatures: ['89504e470d0a1a0a'] },
+  'image/jpeg': { extensions: ['jpg', 'jpeg'], signatures: ['ffd8ff'] },
+  'image/webp': { extensions: ['webp'], signatures: ['52494646'] },
+};
+
 function baseName(name: string) { return name.replace(/\.[^.]+$/, '') || 'flixo-image'; }
-function hexSignature(bytes: Uint8Array) { return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join(''); }
 
 async function validateSharedImageInput(file: File, toolId: SharedImageToolId) {
   const allowedMime = DEFINITIONS[toolId].accept.split(',');
-  const rasterMimes = ['image/png', 'image/jpeg', 'image/webp'];
-  const signatures = rasterMimes.includes(file.type) ? ['89504e470d0a1a0a', 'ffd8ff', '52494646'] as const : undefined;
   const basePolicy = { allowedMime, maxBytes: 25 * 1024 * 1024, maxPixels: 40_000_000 } as const;
   const basic = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size }, basePolicy);
   if (!basic.safe) throw new Error(`Input rejected by File Safety: ${basic.failures.join('; ')}`);
-  if (signatures) {
+
+  const rasterPolicy = RASTER_SIGNATURE_POLICIES[file.type as RasterMime];
+  if (rasterPolicy) {
     const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
-    const signature = hexSignature(bytes);
-    const signatureCheck = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size, signature }, { ...basePolicy, signatures } as const);
-    if (!signatureCheck.safe) throw new Error(`Input rejected by File Safety: ${signatureCheck.failures.join('; ')}`);
+    const boundary = validateUploadBoundary(
+      { name: file.name, mime: file.type, bytes },
+      { ...basePolicy, allowedExtensions: rasterPolicy.extensions, signatures: rasterPolicy.signatures },
+    );
+    if (!boundary.safe) throw new Error(`Input rejected by Upload Security Boundary: ${boundary.failures.join('; ')}`);
   }
+
   const sourceInfo = await imageInfo(file);
   const dimensionCheck = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size, width: sourceInfo.width, height: sourceInfo.height }, basePolicy);
   if (!dimensionCheck.safe) throw new Error(`Input rejected by File Safety: ${dimensionCheck.failures.join('; ')}`);
