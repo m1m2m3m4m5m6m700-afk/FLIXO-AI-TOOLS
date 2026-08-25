@@ -4,7 +4,7 @@ import { routeChildren } from './routes/route-tree';
 
 const routeTree = rootRoute.addChildren(routeChildren);
 
-export const router = createRouter({ routeTree, defaultPreload: 'intent' });
+export const router = createRouter({ routeTree, defaultPreload: false });
 
 declare module '@tanstack/react-router' {
   interface Register {
