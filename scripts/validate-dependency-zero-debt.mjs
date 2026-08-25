@@ -39,6 +39,11 @@ console.log(`Forbidden transitive packages: ${forbiddenMatches.length}`);
 console.log(`Deprecated root packages: ${deprecatedRootMatches.length}`);
 
 if (forbiddenMatches.length || deprecatedRootMatches.length) {
+  if (forbiddenMatches.includes('tsconfck')) {
+    const explain = run('npm', ['ls', 'tsconfck', '--all', '--json']);
+    console.error('tsconfck dependency path:');
+    console.error(explain.stdout.trim() || explain.stderr.trim() || 'npm ls returned no dependency path');
+  }
   if (forbiddenMatches.length) console.error(`Forbidden packages found: ${forbiddenMatches.join(', ')}`);
   if (deprecatedRootMatches.length) console.error(`Deprecated roots found: ${deprecatedRootMatches.join(', ')}`);
   process.exit(1);
