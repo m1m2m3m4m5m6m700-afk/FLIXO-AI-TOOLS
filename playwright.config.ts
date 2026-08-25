@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const useProductionPreview = process.env.PLAYWRIGHT_SERVER === 'preview';
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
@@ -41,7 +43,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    command: useProductionPreview
+      ? 'npm run build && npm run preview -- --host 127.0.0.1 --port 3000'
+      : 'npm run dev',
     url: 'http://127.0.0.1:3000',
     reuseExistingServer: !process.env.CI,
   },
