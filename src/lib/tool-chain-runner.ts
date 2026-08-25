@@ -6,10 +6,16 @@ export async function runStoredToolChain(
   input: ChainInput,
   onStep?: (completed: number, total: number, toolId: string) => void,
 ): Promise<ChainOutput> {
-  const validation = await validateToolChain(steps, input);
+  const validation = validateToolChain(steps, input);
   if (!validation.valid) throw new Error(validation.reason ?? 'Tool chain is not compatible.');
 
-  const { executeToolChain } = await import('./tool-chain-adapters');
+  const { executeToolChain, getToolChainAdapter } = await import('./tool-chain-adapters');
+  for (const toolId of steps) {
+    if (!getToolChainAdapter(toolId)) {
+      throw new Error(`Tool "${toolId}" has no local chain adapter.`);
+    }
+  }
+
   let current = input;
   for (let index = 0; index < steps.length; index += 1) {
     const toolId = steps[index];
