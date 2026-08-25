@@ -1,7 +1,9 @@
+import { lazy } from 'react';
 import { createRoute } from '@tanstack/react-router';
 import { getToolConfigByPath } from '../config/tools';
-import { ToolChainPanel } from '../components/tool-chain-panel';
 import { rootRoute } from './__root';
+
+const LazyToolChainPanel = lazy(() => import('../components/tool-chain-panel').then((module) => ({ default: module.ToolChainPanel })));
 
 type ToolRouteConfig = {
   path: string;
@@ -31,7 +33,7 @@ function imageToolRoute({ path, title: titleOverride, description: descriptionOv
     ] }),
     component: () => (
       <>
-        <ToolChainPanel currentToolId={tool.id} />
+        <LazyToolChainPanel currentToolId={tool.id} />
         <ToolComponent />
       </>
     ),
