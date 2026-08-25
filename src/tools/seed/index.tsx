@@ -184,7 +184,17 @@ export default function SeedTool() {
       renderAdvanced(ctx, advanced);
       const blob = await new Promise<Blob | null>((resolve) => output.toBlob(resolve, 'image/png'));
       if (!blob || blob.size < 32) throw new Error('Export produced an invalid image.');
-      const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'seed-edited.png'; anchor.click(); URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'seed-edited.png';
+      document.body.appendChild(anchor);
+      anchor.click();
+      // WebKit can dispatch the download asynchronously; keep the object URL alive briefly.
+      window.setTimeout(() => {
+        URL.revokeObjectURL(url);
+        anchor.remove();
+      }, 1000);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to export the image.'); }
   };
 
@@ -229,7 +239,7 @@ export default function SeedTool() {
 
       <main className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_380px]">
         <section className={`relative flex min-h-[560px] min-w-0 items-center justify-center overflow-hidden rounded-2xl border bg-zinc-950 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.24)] transition ${isDragging ? 'border-indigo-400/70 bg-indigo-950/10' : 'border-white/[0.07]'}`} onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-          <div className="pointer-events-none absolute inset-0 opacity-70" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+          <div className="pointer-events-none absolute inset-0 opacity-70" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.028) 1px, transparent 0), linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 0)', backgroundSize: '32px 32px' }} />
           <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/[0.035] to-transparent" />
           <div className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-black/40 px-2.5 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-500 backdrop-blur-md"><Scan className="size-3 text-zinc-600" />Canvas / Linear Preview</div>
           {image ? (
