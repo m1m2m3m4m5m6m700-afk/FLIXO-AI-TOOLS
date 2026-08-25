@@ -168,6 +168,8 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Run smoke test
+        env:
+          PLAYWRIGHT_SERVER: ${{ matrix.tool == 'performance-route-loading' && 'preview' || 'dev' }}
         run: npx playwright test ${{ matrix.spec }} --project=chromium
       - name: Upload smoke diagnostics
         if: ${{ failure() }}
