@@ -116,10 +116,58 @@ function applyHealing(ctx: CanvasRenderingContext2D, rect: Rect | null) {
   ctx.restore();
 }
 
+function blendChannel(base: number, source: number, mode: GlobalCompositeOperation): number {
+  switch (mode) {
+    case 'multiply':
+      return (base * source) / 255;
+    case 'screen':
+      return 255 - ((255 - base) * (255 - source)) / 255;
+    case 'overlay':
+      return base < 128 ? (2 * base * source) / 255 : 255 - (2 * (255 - base) * (255 - source)) / 255;
+    case 'soft-light': {
+      const b = base / 255;
+      const s = source / 255;
+      const result = s <= 0.5
+        ? b - (1 - 2 * s) * b * (1 - b)
+        : b + (2 * s - 1) * (Math.sqrt(b) - b);
+      return result * 255;
+    }
+    default:
+      return source;
+  }
+}
+
 function applyDoubleExposure(ctx: CanvasRenderingContext2D, image: HTMLImageElement | null, opacity: number, blend: GlobalCompositeOperation) {
   if (!image || opacity <= 0) return;
-  ctx.save(); ctx.globalAlpha = Math.min(1, opacity / 100); ctx.globalCompositeOperation = blend;
-  ctx.drawImage(image, 0, 0, ctx.canvas.width, ctx.canvas.height); ctx.restore();
+
+  // Avoid browser-dependent Canvas compositing here. WebKit has historically
+  // had implementation/performance differences around globalCompositeOperation;
+  // flattening the supported blend modes in pixel space keeps export deterministic.
+  const width = ctx.canvas.width;
+  const height = ctx.canvas.height;
+  const layer = document.createElement('canvas');
+  layer.width = width;
+  layer.height = height;
+  const layerCtx = layer.getContext('2d', { willReadFrequently: true });
+  if (!layerCtx) return;
+  layerCtx.drawImage(image, 0, 0, width, height);
+
+  const base = ctx.getImageData(0, 0, width, height);
+  const source = layerCtx.getImageData(0, 0, width, height);
+  const alpha = Math.min(1, Math.max(0, opacity / 100));
+
+  for (let i = 0; i < base.data.length; i += 4) {
+    const sourceAlpha = (source.data[i + 3] / 255) * alpha;
+    if (sourceAlpha <= 0) continue;
+    const inverse = 1 - sourceAlpha;
+
+    base.data[i] = blendChannel(base.data[i], source.data[i], blend) * sourceAlpha + base.data[i] * inverse;
+    base.data[i + 1] = blendChannel(base.data[i + 1], source.data[i + 1], blend) * sourceAlpha + base.data[i + 1] * inverse;
+    base.data[i + 2] = blendChannel(base.data[i + 2], source.data[i + 2], blend) * sourceAlpha + base.data[i + 2] * inverse;
+    base.data[i + 3] = Math.min(255, source.data[i + 3] * alpha + base.data[i + 3] * inverse);
+  }
+
+  ctx.putImageData(base, 0, 0);
 }
 
 export function renderAdvanced(ctx: CanvasRenderingContext2D, settings: AdvancedSeedSettings) {
