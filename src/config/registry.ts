@@ -1,10 +1,10 @@
-import { AI_TOOLS } from './tool-definitions/ai';
-import { AUDIO_TOOLS } from './tool-definitions/audio';
-import { IMAGE_TOOLS } from './tool-definitions/image';
-import { OTHER_TOOLS } from './tool-definitions/other';
-import { PDF_TOOLS } from './tool-definitions/pdf';
-import type { ToolConfig } from './tool-definitions/types';
-import { VIDEO_TOOLS } from './tool-definitions/video';
+import { AI_TOOLS } from './tool-definitions/ai.ts';
+import { AUDIO_TOOLS } from './tool-definitions/audio.ts';
+import { IMAGE_TOOLS } from './tool-definitions/image.ts';
+import { OTHER_TOOLS } from './tool-definitions/other.ts';
+import { PDF_TOOLS } from './tool-definitions/pdf.ts';
+import type { ToolConfig } from './tool-definitions/types.ts';
+import { VIDEO_TOOLS } from './tool-definitions/video.ts';
 
 const TOOL_FAMILIES: readonly (readonly ToolConfig[])[] = [
   IMAGE_TOOLS,
