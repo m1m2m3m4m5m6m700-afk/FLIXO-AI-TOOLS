@@ -1,4 +1,4 @@
-import { createRoute, useParams } from '@tanstack/react-router';
+import { createRoute, Link, useParams } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ArQuickFlowPanel } from '@/components/ar-quickflow-panel';
 import { getWorkflow } from '@/lib/workflows/registry';
@@ -26,9 +26,7 @@ export const arQuickFlowRoute = createRoute({
     const resultUrl = useMemo(() => result ? URL.createObjectURL(result) : '', [result]);
     useEffect(() => () => { if (resultUrl) URL.revokeObjectURL(resultUrl); }, [resultUrl]);
 
-    if (!workflow || !plan) {
-      return <ArQuickFlowPanel copy={copy} workflow={workflow ?? { id: 'improve-image', title: copy.missing, description: '', intentPatterns: [], steps: [] }} plan={plan ?? { steps: [] }} file={null} progress={null} resultUrl="" resultType="" error={copy.missing} busy={false} percent={0} currentName="" onFileChange={() => undefined} onRun={() => undefined} />;
-    }
+    if (!workflow || !plan) return <main dir="rtl" lang="ar" className="image-tool-shell"><div className="image-tool-container"><h1>{copy.missing}</h1><Link className="primary-button" to="/ar">{copy.back}</Link></div></main>;
 
     const run = async () => {
       if (!file) { setError(copy.chooseError); return; }
