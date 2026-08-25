@@ -25,6 +25,7 @@ function label(locale: 'en' | 'ar', en: string, ar: string) {
 export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
   const isArabic = locale === 'ar';
   const inputRef = useRef<HTMLInputElement>(null);
+  const actionRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [quality, setQuality] = useState(0.82);
@@ -63,6 +64,17 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     headingRef.current?.focus({ preventScroll: true });
   }, [locale]);
 
+  useEffect(() => {
+    const action = actionRef.current;
+    if (!action) return;
+    action.setAttribute('aria-disabled', busy ? 'true' : 'false');
+    if (busy) {
+      action.setAttribute('disabled', '');
+    } else if (file) {
+      action.removeAttribute('disabled');
+    }
+  }, [busy, file]);
+
   const selectFiles = (nextFiles: File[]) => {
     setError('');
     setResult(null);
@@ -90,7 +102,10 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
   });
 
   const processCurrent = async () => {
-    if (!file) return;
+    if (!file || busy) return;
+    const action = actionRef.current;
+    action?.setAttribute('disabled', '');
+    action?.setAttribute('aria-disabled', 'true');
     setBusy(true);
     setError('');
     setResult(null);
@@ -154,7 +169,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
               <label><span>{label(locale, 'Max width', 'أقصى عرض')}</span><input inputMode="numeric" placeholder="Auto" value={maxWidth} onChange={(event) => setMaxWidth(event.target.value.replace(/\D/g, ''))} /></label>
               <label><span>{label(locale, 'Max height', 'أقصى ارتفاع')}</span><input inputMode="numeric" placeholder="Auto" value={maxHeight} onChange={(event) => setMaxHeight(event.target.value.replace(/\D/g, ''))} /></label>
             </div>
-            <div className="button-row"><button className="primary-button" type="button" disabled={!file || busy} onClick={() => void processCurrent()}>{busy ? label(locale, 'Processing…', 'جارٍ المعالجة…') : label(locale, 'Compress image', 'ضغط الصورة')}</button><button className="secondary-button" type="button" disabled={files.length < 2 || busy} onClick={() => void processBatch()}>{label(locale, 'Compress all to ZIP', 'ضغط الكل إلى ZIP')}</button></div>
+            <div className="button-row"><button ref={actionRef} className="primary-button" type="button" disabled={!file || busy} aria-disabled={!file || busy ? 'true' : 'false'} onClick={() => void processCurrent()}>{busy ? label(locale, 'Processing…', 'جارٍ المعالجة…') : label(locale, 'Compress image', 'ضغط الصورة')}</button><button className="secondary-button" type="button" disabled={files.length < 2 || busy} onClick={() => void processBatch()}>{label(locale, 'Compress all to ZIP', 'ضغط الكل إلى ZIP')}</button></div>
             {error && <p role="alert" className="error-box">{error}</p>}
             <p className="privacy-note">🔒 {label(locale, 'Browser-first: your images are processed locally and are not sent to a Flixo server.', 'المعالجة محلية داخل المتصفح؛ الصور لا تُرسل إلى خادم Flixo لمعالجتها.')}</p>
           </div>
