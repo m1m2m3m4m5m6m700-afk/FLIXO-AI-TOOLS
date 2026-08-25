@@ -3,18 +3,18 @@ import { expect, test } from '@playwright/test';
 test('keeps lazy tool modules out of the initial home route', async ({ page }) => {
   const homeToolRequests: string[] = [];
   const homeScriptRequests = new Set<string>();
-  const routeScriptRequests: string[] = [];
+  const routeScriptRequests = new Set<string>();
   let observingRoute = false;
 
   page.on('request', (request) => {
     const url = request.url();
     if (url.includes('/src/tools/')) {
-      if (observingRoute) homeToolRequests.push(url);
-      else homeToolRequests.push(url);
+      if (observingRoute) return;
+      homeToolRequests.push(url);
     }
 
     if (request.resourceType() !== 'script') return;
-    if (observingRoute) routeScriptRequests.push(url);
+    if (observingRoute) routeScriptRequests.add(url);
     else homeScriptRequests.add(url);
   });
 
@@ -28,6 +28,7 @@ test('keeps lazy tool modules out of the initial home route', async ({ page }) =
   await response?.finished();
   await page.waitForLoadState('networkidle');
 
-  const routeOnlyScripts = routeScriptRequests.filter((url) => !homeScriptRequests.has(url));
-  await expect.poll(() => routeOnlyScripts.length, { timeout: 10_000 }).toBeGreaterThan(0);
+  await expect
+    .poll(() => [...routeScriptRequests].filter((url) => !homeScriptRequests.has(url)).length, { timeout: 10_000 })
+    .toBeGreaterThan(0);
 });
