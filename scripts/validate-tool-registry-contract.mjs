@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 
-const source = readFileSync('src/config/tools.ts', 'utf8');
+const source = readFileSync('src/config/tool-definitions.ts', 'utf8');
 const entries = [...source.matchAll(/\{ id: '([^']+)', title: '([^']+)', path: '([^']+)',[\s\S]*?isReady: (true|false),/g)];
 
 if (entries.length === 0) {
-  console.error('Tool registry contract failed: no tool entries discovered.');
+  console.error('Tool registry contract failed: no tool definition entries discovered.');
   process.exit(1);
 }
 

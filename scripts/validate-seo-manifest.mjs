@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-const toolsSource = readFileSync('src/config/tools.ts', 'utf8');
+const toolsSource = readFileSync('src/config/tool-definitions.ts', 'utf8');
 const manifestSource = readFileSync('src/lib/seo/tool-manifests.ts', 'utf8');
 const catalogSource = readFileSync('src/lib/seo/tool-catalog.ts', 'utf8');
 const typeSource = readFileSync('src/lib/seo/tool-manifest.ts', 'utf8');
@@ -14,7 +14,7 @@ function fail(message) {
   process.exit(1);
 }
 
-if (readyToolIds.length === 0) fail('No ready tools discovered in src/config/tools.ts');
+if (readyToolIds.length === 0) fail('No ready tools discovered in src/config/tool-definitions.ts');
 if (new Set(readyToolIds).size !== readyToolIds.length) fail('Duplicate ready tool ids detected.');
 if (!manifestSource.includes('buildAllToolSeoManifests(getReadyToolConfigs())')) fail('all ready tools are not connected to the SEO manifest generator.');
 if (!catalogSource.includes("seoStatus: 'complete'")) fail('complete SEO status is not present in the manifest generator.');
