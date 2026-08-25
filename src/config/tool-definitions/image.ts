@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import type { ToolConfig } from './types';
+import type { ToolConfig } from './types.ts';
 
 export const IMAGE_TOOLS: readonly ToolConfig[] = Object.freeze([
   { id: 'image-compressor', title: 'Image Compressor', path: '/en/image-compressor', description: 'Reduce JPG, PNG, and WebP file size in your browser.', category: 'Images', isReady: true, aliases: ['/ar/image-compressor'], component: lazy(() => import('@/tools/image-compressor').then((m) => ({ default: m.ImageCompressor }))) },
