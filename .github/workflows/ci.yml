@@ -139,8 +139,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Run fast contract verifier
-        run: npm run verify:fast
+      - name: Run reduced contract verifier
+        run: npm run verify:contracts
 
   browser-smoke:
     name: Browser Smoke — ${{ matrix.tool }} — Chromium
@@ -238,6 +238,7 @@ jobs:
             echo '| Canonical Verification | ${{ needs.canonical-verify.result }} |'
             echo
             echo 'Fast Contract Diagnostics fail early on source-level contract drift.'
+            echo 'TypeScript and ESLint are validated by their dedicated parallel jobs and are not rerun in the reduced contract gate.'
             echo 'Browser Smoke validates critical file workflows before canonical verification.'
             echo 'Build performance budget and a reproducible asset baseline are validated before promotion.'
             echo 'Bundle size inventory is published as a diagnostic artifact for evidence-driven optimization.'
