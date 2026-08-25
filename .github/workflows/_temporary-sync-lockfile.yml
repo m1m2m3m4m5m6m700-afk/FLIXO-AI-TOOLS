@@ -22,5 +22,13 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm install --package-lock-only --ignore-scripts
+      - run: npm audit --json > audit.json || true
+      - name: Upload generated dependency evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-cleanup-evidence
+          path: |
+            package-lock.json
+            audit.json
       - name: Ensure lockfile is synchronized
         run: git diff --exit-code -- package.json package-lock.json
