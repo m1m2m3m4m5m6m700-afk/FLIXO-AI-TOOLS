@@ -7,10 +7,19 @@ const failures = [];
 const readText = (path) => readFile(resolve(root, path), 'utf8');
 const readJson = async (path) => JSON.parse(await readText(path));
 
-const [baseline, toolsSource, definitionsSource, routerSource] = await Promise.all([
+const TOOL_FAMILY_FILES = [
+  'src/config/tool-definitions/image.ts',
+  'src/config/tool-definitions/pdf.ts',
+  'src/config/tool-definitions/audio.ts',
+  'src/config/tool-definitions/video.ts',
+  'src/config/tool-definitions/ai.ts',
+  'src/config/tool-definitions/other.ts',
+];
+
+const [baseline, toolsSource, familySources, routerSource] = await Promise.all([
   readJson('config/engineering-baseline.json'),
   readText('src/config/tools.ts'),
-  readText('src/config/tool-definitions.ts'),
+  Promise.all(TOOL_FAMILY_FILES.map(readText)),
   readText('src/router.tsx'),
 ]);
 
@@ -21,7 +30,8 @@ if (baseline.rules?.noNonReadyStaticRoutes !== true) failures.push('noNonReadySt
 if (baseline.rules?.noDuplicateVerificationTruth !== true) failures.push('noDuplicateVerificationTruth must remain enabled');
 
 const toolPattern = /\{\s*id:\s*'([^']+)'[\s\S]*?isReady:\s*(true|false)[\s\S]*?component:\s*lazy\(/g;
-const source = toolPattern.test(toolsSource) ? toolsSource : definitionsSource;
+const familySource = familySources.join('\n');
+const source = toolPattern.test(familySource) ? familySource : toolsSource;
 toolPattern.lastIndex = 0;
 const tools = [...source.matchAll(toolPattern)].map((match) => ({ id: match[1], isReady: match[2] === 'true' }));
 
