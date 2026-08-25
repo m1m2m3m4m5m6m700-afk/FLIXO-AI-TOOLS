@@ -184,7 +184,17 @@ export default function SeedTool() {
       renderAdvanced(ctx, advanced);
       const blob = await new Promise<Blob | null>((resolve) => output.toBlob(resolve, 'image/png'));
       if (!blob || blob.size < 32) throw new Error('Export produced an invalid image.');
-      const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'seed-edited.png'; anchor.click(); URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'seed-edited.png';
+      document.body.appendChild(anchor);
+      anchor.click();
+      // WebKit can dispatch the download asynchronously; keep the object URL alive briefly.
+      window.setTimeout(() => {
+        URL.revokeObjectURL(url);
+        anchor.remove();
+      }, 1000);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to export the image.'); }
   };
 
