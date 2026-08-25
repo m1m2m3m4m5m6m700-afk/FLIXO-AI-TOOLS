@@ -25,6 +25,7 @@ function label(locale: 'en' | 'ar', en: string, ar: string) {
 export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
   const isArabic = locale === 'ar';
   const inputRef = useRef<HTMLInputElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [quality, setQuality] = useState(0.82);
   const [format, setFormat] = useState<CompressionFormat>('image/webp');
@@ -57,6 +58,10 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
       if (batchZipUrl) URL.revokeObjectURL(batchZipUrl);
     };
   }, [downloadUrl, outputPreviewUrl, batchZipUrl]);
+
+  useEffect(() => {
+    headingRef.current?.focus({ preventScroll: true });
+  }, [locale]);
 
   const selectFiles = (nextFiles: File[]) => {
     setError('');
@@ -137,8 +142,8 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
   return (
     <main dir={isArabic ? 'rtl' : 'ltr'} className="image-tool-shell">
       <div className="image-tool-container">
-        <header className="image-tool-header"><div><p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p><h1>{title}</h1><p className="image-tool-lead">{description}</p></div><a className="language-link" href={isArabic ? '/en/image-compressor' : '/ar/image-compressor'}>{label(locale, 'العربية', 'English')}</a></header>
-        <section className="compressor-grid" aria-label={label(locale, 'Image compression tool', 'أداة ضغط الصور')}>
+        <header className="image-tool-header"><div><p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p><h1 ref={headingRef} tabIndex={-1}>{title}</h1><p className="image-tool-lead">{description}</p></div><a className="language-link" href={isArabic ? '/en/image-compressor' : '/ar/image-compressor'}>{label(locale, 'العربية', 'English')}</a></header>
+        <section className="compressor-grid" aria-label={label(locale, 'Image compression tool', 'أداة ضغط الصور')} aria-busy={busy}>
           <div className="compressor-card">
             <label className="upload-zone" htmlFor="image-file"><span className="upload-title">{files.length ? `${files.length} ${label(locale, files.length === 1 ? 'image selected' : 'images selected', files.length === 1 ? 'صورة محددة' : 'صور محددة')}` : label(locale, 'Choose images to start', 'اختر الصور للبدء')}</span><span className="upload-subtitle">JPG · PNG · WebP · GIF · BMP · SVG · {label(locale, `up to ${MAX_FILES} files`, `حتى ${MAX_FILES} ملفًا`)}</span></label>
             <input ref={inputRef} id="image-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml" className="sr-only" multiple onChange={(event) => selectFiles(Array.from(event.target.files ?? []))} />
