@@ -5,6 +5,11 @@
   "installCommand": "npm ci",
   "devCommand": "npm run dev",
   "cleanUrls": true,
+  "git": {
+    "deploymentEnabled": {
+      "deps/cleanup-367-v2": false
+    }
+  },
   "rewrites": [
     { "source": "/ar/:path*", "destination": "/" }
   ],
