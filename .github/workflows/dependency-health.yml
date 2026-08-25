@@ -26,6 +26,8 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Generate dependency health report
+        env:
+          DEPENDENCY_HEALTH_JSON: diagnostics/dependency-health.json
         run: |
           mkdir -p diagnostics
           npm run report:dependency-health > diagnostics/dependency-health.txt
@@ -33,6 +35,8 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: dependency-health-${{ github.sha }}
-          path: diagnostics/dependency-health.txt
+          path: |
+            diagnostics/dependency-health.txt
+            diagnostics/dependency-health.json
           if-no-files-found: error
           retention-days: 14
