@@ -1,2 +1,2 @@
-export { TOOL_DEFINITIONS } from './registry';
-export type { ToolConfig } from './tool-definitions/types';
+export { TOOL_DEFINITIONS } from './registry.ts';
+export type { ToolConfig } from './tool-definitions/types.ts';
