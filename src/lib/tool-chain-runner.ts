@@ -1,4 +1,4 @@
-import { executeToolChain, type ChainInput, type ChainOutput } from './tool-chain-adapters';
+import type { ChainInput, ChainOutput } from './tool-chain-adapters';
 import { validateToolChain } from './tool-chain-compatibility';
 
 export async function runStoredToolChain(
@@ -9,6 +9,7 @@ export async function runStoredToolChain(
   const validation = validateToolChain(steps, input);
   if (!validation.valid) throw new Error(validation.reason ?? 'Tool chain is not compatible.');
 
+  const { executeToolChain } = await import('./tool-chain-adapters');
   let current = input;
   for (let index = 0; index < steps.length; index += 1) {
     const toolId = steps[index];
