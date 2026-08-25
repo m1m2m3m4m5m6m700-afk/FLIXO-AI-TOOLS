@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import { useParams } from '@tanstack/react-router';
 import { LOCALES, isLocale, type Locale } from '../lib/i18n';
 import { getToolSeo } from '../lib/seo/tool-seo';
@@ -18,6 +18,7 @@ export function LocalizedToolPage() {
   const isRtl = locale === 'ar' || locale === 'ur';
   const toolId = typeof params.tool === 'string' && isLocale(locale) && LOCALES.includes(locale) ? params.tool : null;
   const [favorite, setFavorite] = useState(() => (toolId ? getFavorites().includes(toolId) : false));
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -32,7 +33,8 @@ export function LocalizedToolPage() {
 
   useEffect(() => {
     if (toolId) recordRecentTool(toolId);
-  }, [toolId]);
+    headingRef.current?.focus({ preventScroll: true });
+  }, [toolId, locale]);
 
   if (typeof params.locale !== 'string' || typeof params.tool !== 'string' || !isLocale(params.locale) || !LOCALES.includes(params.locale)) {
     return (
@@ -40,7 +42,7 @@ export function LocalizedToolPage() {
         <div className="tool-page-modern__body">
           <section className="tool-page-modern__hero">
             <p className="tool-page-modern__eyebrow">FLIXO · TOOLS</p>
-            <h1 className="tool-page-modern__title">{copy.notFound}</h1>
+            <h1 ref={headingRef} tabIndex={-1} className="tool-page-modern__title">{copy.notFound}</h1>
           </section>
         </div>
       </main>
@@ -54,7 +56,7 @@ export function LocalizedToolPage() {
         <div className="tool-page-modern__body">
           <section className="tool-page-modern__hero">
             <p className="tool-page-modern__eyebrow">FLIXO · TOOLS</p>
-            <h1 className="tool-page-modern__title">{copy.notFound}</h1>
+            <h1 ref={headingRef} tabIndex={-1} className="tool-page-modern__title">{copy.notFound}</h1>
           </section>
         </div>
       </main>
@@ -101,7 +103,7 @@ export function LocalizedToolPage() {
       </nav>
 
       <div className="tool-page-modern__body">
-        <Suspense fallback={<div className="tool-page-modern__loading">{copy.loading}</div>}>
+        <Suspense fallback={<div className="tool-page-modern__loading" role="status" aria-live="polite">{copy.loading}</div>}>
           <LazyToolChainPanel currentToolId={seo.tool.id} />
         </Suspense>
         <div className="tool-page-modern__breadcrumbs" aria-label={copy.about}>
@@ -116,7 +118,7 @@ export function LocalizedToolPage() {
           <div className="tool-page-modern__hero-grid">
             <div>
               <p className="tool-page-modern__eyebrow">FLIXO · {seo.tool.category.toUpperCase()}</p>
-              <h1 className="tool-page-modern__title">{seo.title.replace(' | FLIXO', '')}</h1>
+              <h1 ref={headingRef} tabIndex={-1} className="tool-page-modern__title">{seo.title.replace(' | FLIXO', '')}</h1>
               <p className="tool-page-modern__description">{seo.description}</p>
               <div className="tool-page-modern__meta">
                 <div className="tool-page-modern__meta-row">
@@ -134,13 +136,13 @@ export function LocalizedToolPage() {
           </div>
         </header>
 
-        <section className="tool-page-modern__workspace" aria-label={seo.tool.title}>
+        <section className="tool-page-modern__workspace" aria-label={seo.tool.title} aria-busy="false">
           <div className="tool-page-modern__workspace-bar">
             <span className="tool-page-modern__status"><span className="tool-page-modern__status-led" /> {workspaceLabel}</span>
             <span>{seo.tool.id}</span>
           </div>
-          <div className="tool-page-modern__tool-host">
-            <Suspense fallback={<div className="tool-page-modern__loading">{copy.loading}</div>}>
+          <div className="tool-page-modern__tool-host" aria-live="polite">
+            <Suspense fallback={<div className="tool-page-modern__loading" role="status" aria-live="polite">{copy.loading}</div>}>
               <ToolComponent locale={locale} />
             </Suspense>
           </div>
