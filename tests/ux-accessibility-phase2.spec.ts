@@ -9,6 +9,45 @@ async function enableE2EProcessingState(page: Page) {
   });
 }
 
+async function armProcessingStateObservation(page: Page) {
+  await page.evaluate(() => {
+    (window as typeof window & { __processingSemantics?: Promise<boolean> }).__processingSemantics = new Promise<boolean>((resolve) => {
+      const grid = document.querySelector('.compressor-grid');
+      const button = document.querySelector('.primary-button');
+
+      if (!grid || !button) {
+        resolve(false);
+        return;
+      }
+
+      const isProcessingState = () => (
+        grid.getAttribute('aria-busy') === 'true'
+        && button.getAttribute('aria-disabled') === 'true'
+        && button.hasAttribute('disabled')
+      );
+
+      const observer = new MutationObserver(() => {
+        if (!isProcessingState()) return;
+        observer.disconnect();
+        resolve(true);
+      });
+
+      observer.observe(grid, { attributes: true, attributeFilter: ['aria-busy'] });
+      observer.observe(button, { attributes: true, attributeFilter: ['aria-disabled', 'disabled'] });
+
+      if (isProcessingState()) {
+        observer.disconnect();
+        resolve(true);
+      }
+
+      window.setTimeout(() => {
+        observer.disconnect();
+        resolve(false);
+      }, 3000);
+    });
+  });
+}
+
 test.describe('UX + Accessibility phase 2 workflow contract', () => {
   test('covers upload and validation states accessibly', async ({ page }) => {
     await page.goto('/en/image-compressor');
@@ -37,17 +76,16 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
 
     const action = page.locator('.primary-button');
     await expect(action).toBeEnabled();
+    await armProcessingStateObservation(page);
     await action.click();
 
-    await expect(page.locator('.compressor-grid')).toHaveAttribute('aria-busy', 'true');
-    await expect(action).toHaveAttribute('aria-disabled', 'true');
-    await expect(action).toBeDisabled();
-
-    const download = page.getByRole('link', { name: 'Download image' });
-    await expect(download).toHaveAttribute('download', 'flixo-compressed.webp', { timeout: 15000 });
+    await expect(page.evaluate(() => (window as typeof window & { __processingSemantics?: Promise<boolean> }).__processingSemantics)).resolves.toBe(true);
     await expect(page.locator('.compressor-grid')).toHaveAttribute('aria-busy', 'false');
     await expect(action).toBeEnabled();
     await expect(action).toHaveAttribute('aria-disabled', 'false');
+
+    const download = page.getByRole('link', { name: 'Download image' });
+    await expect(download).toHaveAttribute('download', 'flixo-compressed.webp', { timeout: 15000 });
     await expect(page.getByRole('complementary')).toBeVisible();
     await expect(page.getByRole('complementary').getByText('WebP', { exact: true })).toBeVisible();
   });
