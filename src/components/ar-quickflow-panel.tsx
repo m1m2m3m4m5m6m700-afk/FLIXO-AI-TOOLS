@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { QUICKFLOW_I18N, QUICKFLOW_NAMES_AR, QUICKFLOW_TOOL_LABELS_AR } from '../data/quickflow-i18n';
 import type { ExecutionPlan } from '@/lib/ai/planner';
-import type { PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import type { Workflow } from '@/lib/workflows/types';
 
 type Props = {
@@ -9,7 +8,6 @@ type Props = {
   workflow: Workflow;
   plan: ExecutionPlan;
   file: File | null;
-  progress: PipelineProgress | null;
   resultUrl: string;
   resultType: string;
   error: string;
@@ -27,7 +25,7 @@ function extensionForMime(mime: string) {
   return 'bin';
 }
 
-export function ArQuickFlowPanel({ copy, workflow, plan, file, progress, resultUrl, resultType, error, busy, percent, currentName, onFileChange, onRun }: Props) {
+export function ArQuickFlowPanel({ copy, workflow, plan, file, resultUrl, resultType, error, busy, percent, currentName, onFileChange, onRun }: Props) {
   return (
     <main dir="rtl" lang="ar" className="image-tool-shell">
       <div className="image-tool-container">
