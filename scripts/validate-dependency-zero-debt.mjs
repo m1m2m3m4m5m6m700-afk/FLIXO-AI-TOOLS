@@ -17,7 +17,7 @@ function packageTree() {
   try {
     return JSON.parse(result.stdout || '{}');
   } catch (error) {
-    throw new Error(`Unable to parse npm ls JSON: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Unable to parse npm ls JSON: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
 }
 
@@ -54,7 +54,7 @@ let auditJson;
 try {
   auditJson = JSON.parse(audit.stdout || '{}');
 } catch (error) {
-  throw new Error(`Unable to parse npm audit JSON: ${error instanceof Error ? error.message : String(error)}`);
+  throw new Error(`Unable to parse npm audit JSON: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
 }
 
 const vulnerabilities = auditJson?.metadata?.vulnerabilities ?? {};
