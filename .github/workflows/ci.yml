@@ -57,11 +57,20 @@ jobs:
         run: npm run validate:performance-budget
       - name: Write performance baseline
         run: npm run report:performance-baseline
+      - name: Write bundle size report
+        run: npm run report:bundle-size
       - name: Upload performance baseline
         uses: actions/upload-artifact@v6
         with:
           name: performance-baseline
           path: diagnostics/performance-baseline.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload bundle size report
+        uses: actions/upload-artifact@v6
+        with:
+          name: bundle-size-report
+          path: diagnostics/bundle-size.json
           if-no-files-found: error
           retention-days: 14
 
@@ -231,6 +240,7 @@ jobs:
             echo 'Fast Contract Diagnostics fail early on source-level contract drift.'
             echo 'Browser Smoke validates critical file workflows before canonical verification.'
             echo 'Build performance budget and a reproducible asset baseline are validated before promotion.'
+            echo 'Bundle size inventory is published as a diagnostic artifact for evidence-driven optimization.'
             echo 'The full 22×3 browser matrix runs independently as promotion/release evidence.'
             echo 'Diagnostics explain failures; Canonical Verification is the single PR/application gate.'
             echo 'Socket is intentionally skipped when SOCKET_SECURITY_API_KEY is not configured.'
