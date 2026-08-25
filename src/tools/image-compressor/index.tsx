@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { compressImage, MAX_FILES, MAX_INPUT_SIZE, type CompressionFormat } from './engine';
 
 const formatLabels: Record<CompressionFormat, string> = {
@@ -93,11 +94,22 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     targetSizeKB: targetSizeKB ? Number(targetSizeKB) : undefined,
   });
 
+  const beginProcessing = () => {
+    if (busy) return false;
+    flushSync(() => {
+      setBusy(true);
+      setError('');
+      setResult(null);
+    });
+    return true;
+  };
+
+  const finishProcessing = () => {
+    setBusy(false);
+  };
+
   const processCurrent = async () => {
-    if (!file || busy) return;
-    setBusy(true);
-    setError('');
-    setResult(null);
+    if (!file || !beginProcessing()) return;
     try {
       await nextAnimationFrame();
       const compressed = await processOne(file);
@@ -114,14 +126,13 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : label(locale, 'Compression failed', 'فشل ضغط الصورة'));
     } finally {
-      setBusy(false);
+      finishProcessing();
     }
   };
 
   const processBatch = async () => {
     if (files.length < 2) return processCurrent();
-    setBusy(true);
-    setError('');
+    if (!beginProcessing()) return;
     setBatchZipUrl('');
     try {
       await nextAnimationFrame();
@@ -138,7 +149,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : label(locale, 'Batch compression failed', 'فشل ضغط الملفات دفعة واحدة'));
     } finally {
-      setBusy(false);
+      finishProcessing();
     }
   };
 
