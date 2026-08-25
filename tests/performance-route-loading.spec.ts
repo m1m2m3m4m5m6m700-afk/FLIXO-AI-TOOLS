@@ -2,22 +2,24 @@ import { expect, test } from '@playwright/test';
 
 test('keeps lazy tool modules out of the initial home route', async ({ page }) => {
   const homeToolRequests: string[] = [];
-  const routeChunkRequests: string[] = [];
+  const homeScriptRequests = new Set<string>();
+  const routeScriptRequests: string[] = [];
   let observingRoute = false;
 
   page.on('request', (request) => {
     const url = request.url();
     if (url.includes('/src/tools/')) {
-      if (observingRoute) routeChunkRequests.push(url);
+      if (observingRoute) homeToolRequests.push(url);
       else homeToolRequests.push(url);
     }
-    if (observingRoute && request.resourceType() === 'script' && /image-compressor|image-tool/i.test(url)) {
-      routeChunkRequests.push(url);
-    }
+
+    if (request.resourceType() !== 'script') return;
+    if (observingRoute) routeScriptRequests.push(url);
+    else homeScriptRequests.add(url);
   });
 
   await page.goto('/');
-  await page.waitForLoadState('domcontentloaded');
+  await page.waitForLoadState('networkidle');
 
   expect(homeToolRequests, 'home route must not eagerly request tool modules').toEqual([]);
 
@@ -26,5 +28,6 @@ test('keeps lazy tool modules out of the initial home route', async ({ page }) =
   await response?.finished();
   await page.waitForLoadState('networkidle');
 
-  await expect.poll(() => routeChunkRequests.length, { timeout: 10_000 }).toBeGreaterThan(0);
+  const routeOnlyScripts = routeScriptRequests.filter((url) => !homeScriptRequests.has(url));
+  await expect.poll(() => routeOnlyScripts.length, { timeout: 10_000 }).toBeGreaterThan(0);
 });
