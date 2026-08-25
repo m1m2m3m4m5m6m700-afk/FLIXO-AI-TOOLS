@@ -21,7 +21,7 @@ const forbiddenStaticImports = [
   'nodemailer',
 ];
 
-const staticImportPattern = /(?:import\s+[^'"`]*?from\s*|import\s*\(\s*)['"`]([^'"`]+)['"`]/g;
+const staticImportPattern = /^\s*import\s+(?!\()(?:(?:[^'"`]*?\s+from\s+)?)[\s'"`]+([^'"`\s]+)['"`]/gm;
 
 const violations = [];
 
@@ -41,4 +41,4 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log(`Bundle boundaries OK (${protectedEntrypoints.length} entrypoints checked).`);
+console.log(`Bundle boundaries OK (${protectedEntrypoints.length} entrypoints checked; dynamic imports allowed).`);
