@@ -1,6 +1,15 @@
 import { readFileSync } from 'node:fs';
 
-const toolsSource = readFileSync('src/config/tool-definitions.ts', 'utf8');
+const toolFamilyFiles = [
+  'src/config/tool-definitions/image.ts',
+  'src/config/tool-definitions/pdf.ts',
+  'src/config/tool-definitions/audio.ts',
+  'src/config/tool-definitions/video.ts',
+  'src/config/tool-definitions/ai.ts',
+  'src/config/tool-definitions/other.ts',
+];
+
+const toolsSource = toolFamilyFiles.map((path) => readFileSync(path, 'utf8')).join('\n');
 const seoSource = readFileSync('src/lib/seo/tool-seo.ts', 'utf8');
 const routerSource = readFileSync('src/routes/localized-tool.tsx', 'utf8');
 const localizedPageSource = readFileSync('src/routes/localized-tool-page.tsx', 'utf8');
@@ -10,7 +19,7 @@ const expectedLocales = ['en','ar','es','fr','de','ru','zh','hi','id','ur','ja',
 const readyToolIds = [...toolsSource.matchAll(/\{ id: '([^']+)',[^\n]*?isReady: true,/g)].map((match) => match[1]);
 
 if (readyToolIds.length === 0) {
-  console.error('No ready tools discovered in src/config/tool-definitions.ts');
+  console.error('No ready tools discovered in split registry family files.');
   process.exit(1);
 }
 

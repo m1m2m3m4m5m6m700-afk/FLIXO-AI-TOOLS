@@ -1,14 +1,16 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync('src/lib/seo/use-cases.ts', 'utf8');
-const toolsSource = readFileSync('src/config/tool-definitions.ts', 'utf8');
+const familySources = ['image', 'pdf', 'audio', 'video', 'ai', 'other']
+  .map((family) => readFileSync(`src/config/tool-definitions/${family}.ts`, 'utf8'))
+  .join('\n');
 const routerSource = readFileSync('src/router.tsx', 'utf8');
 const routeTreeSource = readFileSync('src/routes/route-tree.ts', 'utf8');
 const routeSource = readFileSync('src/routes/use-case.tsx', 'utf8');
 
 const slugs = [...source.matchAll(/slug: '([^']+)'/g)].map((match) => match[1]);
 const refs = [...source.matchAll(/toolIds: \[([^\]]+)\]/g)].flatMap((match) => [...match[1].matchAll(/'([^']+)'/g)].map((item) => item[1]));
-const readyTools = new Set([...toolsSource.matchAll(/id: '([^']+)'[^\n]*isReady: true,/g)].map((match) => match[1]));
+const readyTools = new Set([...familySources.matchAll(/id: '([^']+)'[^\n]*isReady: true,/g)].map((match) => match[1]));
 const routeRegistrySource = `${routerSource}\n${routeTreeSource}`;
 
 if (slugs.length === 0) throw new Error('No use cases declared.');
