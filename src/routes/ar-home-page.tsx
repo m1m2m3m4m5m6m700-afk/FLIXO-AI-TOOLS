@@ -5,6 +5,7 @@ import { ArHomeToolsSection } from '../components/ar-home-tools-section';
 import { TOOLS_REGISTRY } from '../config/tools';
 import { getBestToolIntent } from '../lib/intent-router';
 import { getToolCategories, filterTools } from '../lib/ar-home-search';
+import { recommendImageTool } from '../lib/ar-home-recommendation';
 import { HOME_AR } from '../data/home-i18n';
 
 type ToolCard = {
@@ -23,15 +24,6 @@ function localTool(tool: (typeof READY_TOOLS)[number]): ToolCard {
     category: tool.category,
     path: tool.path.replace(/^\/en\//, '/ar/'),
   };
-}
-
-function recommendTool(file: File): ToolCard | null {
-  const lower = file.name.toLowerCase();
-  const imageTool = READY_TOOLS.find((tool) => tool.id === 'image-compressor');
-  const ocrTool = READY_TOOLS.find((tool) => tool.id === 'image-ocr');
-  if (!file.type.startsWith('image/')) return null;
-  const match = /ocr|text|scan/.test(lower) ? ocrTool ?? imageTool : imageTool;
-  return match ? localTool(match) : null;
 }
 
 export function ArHomePage() {
@@ -68,7 +60,7 @@ export function ArHomePage() {
           <div className="quick-tags" aria-label={HOME_AR.popular}>{HOME_AR.quickTags.map((tag) => <button key={tag} type="button" onClick={() => setQuery(tag)}>{tag}</button>)}</div>
         </section>
         <section className="home-trust-grid" id="privacy" aria-label={HOME_AR.ariaTrust}>{HOME_AR.trust.map(([title, text]) => <div key={title}><strong>{title}</strong><span>{text}</span></div>)}</section>
-        <section className="home-quick-drop" aria-labelledby="quick-drop-title"><div><span className="image-tool-eyebrow">{HOME_AR.quickDrop}</span><h2 id="quick-drop-title">{HOME_AR.quickDropTitle}</h2><p>{HOME_AR.quickDropLead}</p></div><label className="home-drop-zone"><input type="file" onChange={(event) => setDropRecommendation(event.target.files?.[0] ? recommendTool(event.target.files[0]) : null)} /><strong>{HOME_AR.dropChoose}</strong><span>{HOME_AR.dropSupport}</span></label>{dropRecommendation && <div className="drop-result"><div><span>{HOME_AR.suggestedTool}</span><strong>{dropRecommendation.title}</strong></div><Link className="primary-button" to={dropRecommendation.path}>{HOME_AR.openTool}</Link></div>}</section>
+        <section className="home-quick-drop" aria-labelledby="quick-drop-title"><div><span className="image-tool-eyebrow">{HOME_AR.quickDrop}</span><h2 id="quick-drop-title">{HOME_AR.quickDropTitle}</h2><p>{HOME_AR.quickDropLead}</p></div><label className="home-drop-zone"><input type="file" onChange={(event) => setDropRecommendation(event.target.files?.[0] ? recommendImageTool(event.target.files[0], READY_TOOLS, localTool) : null)} /><strong>{HOME_AR.dropChoose}</strong><span>{HOME_AR.dropSupport}</span></label>{dropRecommendation && <div className="drop-result"><div><span>{HOME_AR.suggestedTool}</span><strong>{dropRecommendation.title}</strong></div><Link className="primary-button" to={dropRecommendation.path}>{HOME_AR.openTool}</Link></div>}</section>
         <ArHomeToolsSection
           categories={categories}
           filteredTools={filteredTools}
