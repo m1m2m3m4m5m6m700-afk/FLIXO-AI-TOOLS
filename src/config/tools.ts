@@ -1,7 +1,7 @@
 import type { ComponentType, LazyExoticComponent } from 'react';
-import { TOOL_DEFINITIONS } from './tool-definitions';
+import { TOOL_DEFINITIONS } from './tool-definitions.ts';
 
-export type { ToolConfig } from './tool-definitions';
+export type { ToolConfig } from './tool-definitions.ts';
 export type ToolComponent = LazyExoticComponent<ComponentType>;
 
 export const TOOLS_REGISTRY = TOOL_DEFINITIONS;
