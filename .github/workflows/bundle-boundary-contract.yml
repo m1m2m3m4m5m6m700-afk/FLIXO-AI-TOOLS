@@ -1,0 +1,29 @@
+name: Bundle Boundary Contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/validate-bundle-boundaries.mjs'
+      - '.github/workflows/bundle-boundary-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/validate-bundle-boundaries.mjs'
+      - '.github/workflows/bundle-boundary-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  bundle-boundaries:
+    name: Protected bundle boundaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Validate protected entrypoints
+        run: node scripts/validate-bundle-boundaries.mjs
