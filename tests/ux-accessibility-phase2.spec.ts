@@ -1,9 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 const validSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#223344"/></svg>`;
 const oversizedSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="9000" height="9000" viewBox="0 0 9000 9000"><rect width="9000" height="9000" fill="#223344"/></svg>`;
 
-async function enableE2EProcessingState(page: Parameters<Parameters<typeof test>[2]>[0]['page']) {
+async function enableE2EProcessingState(page: Page) {
   await page.addInitScript(() => {
     document.documentElement.dataset.e2e = 'true';
   });
