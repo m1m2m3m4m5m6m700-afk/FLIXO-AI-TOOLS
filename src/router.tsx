@@ -1,17 +1,13 @@
 import { createRouter } from '@tanstack/react-router';
-import { legacyRouteTree } from './legacy-route-tree';
+import { rootRoute } from './routes/__root';
+import { routeChildren } from './routes/route-tree';
 
-export function getRouter() {
-  return createRouter({
-    routeTree: legacyRouteTree,
-    defaultPreload: false,
-  });
-}
+const routeTree = rootRoute.addChildren(routeChildren);
 
-export const router = getRouter();
+export const router = createRouter({ routeTree, defaultPreload: false });
 
 declare module '@tanstack/react-router' {
   interface Register {
-    router: ReturnType<typeof getRouter>;
+    router: typeof router;
   }
 }
