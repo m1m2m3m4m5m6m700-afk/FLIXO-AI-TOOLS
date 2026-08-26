@@ -1,6 +1,7 @@
 import { lazy } from 'react';
 import { createRoute } from '@tanstack/react-router';
-import { IMAGE_TOOLS } from '../config/tool-definitions/image';
+import type { ToolManifestEntry } from '../config/tool-manifest';
+import { getToolsByFamily } from '../config/tool-manifest';
 import { rootRoute } from './__root';
 
 const LazyToolChainPanel = lazy(() =>
@@ -9,9 +10,7 @@ const LazyToolChainPanel = lazy(() =>
   })),
 );
 
-type ImageToolRouteConfig = (typeof IMAGE_TOOLS)[number];
-
-function createImageToolRoute(tool: ImageToolRouteConfig, path = tool.path) {
+function createImageToolRoute(tool: ToolManifestEntry, path = tool.path) {
   if (!tool.isReady) {
     throw new Error(`Route points to a non-ready tool: ${tool.id}`);
   }
@@ -23,11 +22,11 @@ function createImageToolRoute(tool: ImageToolRouteConfig, path = tool.path) {
     path,
     head: () => ({
       meta: [
-        { title: `${tool.title} | FLIXO` },
-        { name: 'description', content: tool.description },
-        { name: 'robots', content: 'index,follow,max-image-preview:large' },
-        { property: 'og:title', content: `${tool.title} | FLIXO` },
-        { property: 'og:description', content: tool.description },
+        { title: tool.seo.title },
+        { name: 'description', content: tool.seo.description },
+        { name: 'robots', content: tool.seo.robots },
+        { property: 'og:title', content: tool.seo.title },
+        { property: 'og:description', content: tool.seo.description },
         { property: 'og:type', content: 'website' },
       ],
     }),
@@ -40,7 +39,7 @@ function createImageToolRoute(tool: ImageToolRouteConfig, path = tool.path) {
   });
 }
 
-const imageToolRouteEntries = IMAGE_TOOLS
+const imageToolRouteEntries = getToolsByFamily('image')
   .filter((tool) => tool.id !== 'image-compressor')
   .flatMap((tool) => [
     createImageToolRoute(tool),
