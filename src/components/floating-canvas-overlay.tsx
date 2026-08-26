@@ -75,10 +75,10 @@ export const FloatingCanvasOverlay: React.FC<FloatingCanvasOverlayProps> = ({
       <div className="h-4 w-px bg-white/[0.08]" aria-hidden="true" />
 
       <div className="flex items-center gap-0.5">
-        <button type="button" onClick={onUndo} disabled={!canUndo} data-testid="button-canvas-undo" aria-label={labels.undo} className="rounded-lg p-1.5 text-zinc-400 transition-all hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-500 disabled:opacity-30 disabled:hover:text-zinc-400">
+        <button type="button" onClick={onUndo} disabled={!canUndo} data-testid="button-canvas-undo" aria-label={`${labels.undo} Canvas`} className="rounded-lg p-1.5 text-zinc-400 transition-all hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-500 disabled:opacity-30 disabled:hover:text-zinc-400">
           <Undo2 className="h-3.5 w-3.5" />
         </button>
-        <button type="button" onClick={onRedo} disabled={!canRedo} data-testid="button-canvas-redo" aria-label={labels.redo} className="rounded-lg p-1.5 text-zinc-400 transition-all hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-500 disabled:opacity-30 disabled:hover:text-zinc-400">
+        <button type="button" onClick={onRedo} disabled={!canRedo} data-testid="button-canvas-redo" aria-label={`${labels.redo} Canvas`} className="rounded-lg p-1.5 text-zinc-400 transition-all hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-500 disabled:opacity-30 disabled:hover:text-zinc-400">
           <Redo2 className="h-3.5 w-3.5" />
         </button>
       </div>
