@@ -30,11 +30,13 @@ import { imageToolRoutes } from './image-tools';
 import { indexRoute } from './index';
 import { localizedToolRoute } from './localized-tool';
 import { useCaseRoute } from './use-case';
+import { Route as adminRoute } from './admin';
 
 export const routeChildren = [
   indexRoute,
   arIndexRoute,
   localizedHomeRoute,
+  adminRoute,
   enImageCompressorRoute,
   arImageCompressorRoute,
   enQuickFlowRoute,
