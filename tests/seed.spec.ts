@@ -107,3 +107,106 @@ test('Seed: shows a clear error when GPU rendering is unavailable', async ({ pag
   await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
   await expect(page.getByRole('alert')).toContainText('WebGL is not supported');
 });
+
+test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/en/seed');
+    await expect(page.getByRole('heading', { level: 1, name: 'Seed' })).toBeVisible();
+  });
+
+  test('exposes the frozen canvas overlay contract on the real Seed route', async ({ page }) => {
+    await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
+    await expect(page.getByTestId('button-canvas-zoom-reset')).toHaveText('100%');
+    await expect(page.getByTestId('button-canvas-compare')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.getByTestId('button-canvas-fullscreen')).toBeVisible();
+  });
+
+  test('applies 0.25x zoom steps and resets to 1x on the actual canvas stage', async ({ page }) => {
+    await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
+    const zoomReset = page.getByTestId('button-canvas-zoom-reset');
+    const zoomIn = page.getByTestId('button-canvas-zoom-in');
+    const zoomOut = page.getByTestId('button-canvas-zoom-out');
+
+    await zoomIn.click();
+    await expect(zoomReset).toHaveText('125%');
+    await expect(page.locator('[style*="transform: scale(1.25)"]')).toHaveCount(1);
+
+    await zoomOut.click();
+    await expect(zoomReset).toHaveText('100%');
+
+    await zoomOut.click();
+    await expect(zoomReset).toHaveText('75%');
+
+    await zoomReset.click();
+    await expect(zoomReset).toHaveText('100%');
+  });
+
+  test('binds compare lifecycle to the real Seed canvas', async ({ page }) => {
+    await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
+    const compareBtn = page.getByTestId('button-canvas-compare');
+    const canvas = page.locator('canvas[aria-label="Seed preview"]');
+    await expect(canvas).toBeVisible();
+
+    const baseline = await gpuPixels(page);
+    await page.getByRole('slider', { name: 'brightness' }).fill('40');
+    await page.waitForTimeout(150);
+    const edited = await gpuPixels(page);
+    expect(edited).not.toEqual(baseline);
+
+    const box = await compareBtn.boundingBox();
+    if (!box) throw new Error('Compare control has no bounding box.');
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
+    await page.waitForTimeout(50);
+    expect(await gpuPixels(page)).toEqual(baseline);
+
+    await page.mouse.up();
+    await expect(compareBtn).toHaveAttribute('aria-pressed', 'false');
+    await page.waitForTimeout(50);
+    expect(await gpuPixels(page)).toEqual(edited);
+  });
+
+  test('keeps compare lifecycle safe across keyboard activation and Escape cancellation', async ({ page }) => {
+    await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
+    const compareBtn = page.getByTestId('button-canvas-compare');
+    await compareBtn.focus();
+
+    await page.keyboard.down('Space');
+    await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.up('Space');
+    await expect(compareBtn).toHaveAttribute('aria-pressed', 'false');
+
+    await page.keyboard.down('Enter');
+    await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
+    await expect(compareBtn).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('cancels compare on window blur without changing the frozen API', async ({ page }) => {
+    await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
+    const compareBtn = page.getByTestId('button-canvas-compare');
+    const box = await compareBtn.boundingBox();
+    if (!box) throw new Error('Compare control has no bounding box.');
+
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await expect(compareBtn).toHaveAttribute('aria-pressed', 'false');
+    await page.mouse.up();
+  });
+
+  test('enters and exits fullscreen on the actual Seed stage when the browser exposes the API', async ({ page }) => {
+    const fullscreenEnabled = await page.evaluate(() => Boolean(document.fullscreenEnabled && document.documentElement.requestFullscreen));
+    test.skip(!fullscreenEnabled, 'Fullscreen API is unavailable in this browser environment.');
+
+    const fullscreenBtn = page.getByTestId('button-canvas-fullscreen');
+    await fullscreenBtn.click();
+    await expect(page.locator('[data-testid="button-canvas-fullscreen"]')).toHaveAttribute('aria-label', 'Exit Fullscreen');
+    await expect(page.locator('main > section')).toHaveJSProperty('tagName', 'SECTION');
+
+    await fullscreenBtn.click();
+    await expect(page.getByTestId('button-canvas-fullscreen')).toHaveAttribute('aria-label', 'Enter Fullscreen');
+  });
+});
