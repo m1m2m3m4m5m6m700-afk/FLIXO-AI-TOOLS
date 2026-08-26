@@ -1,9 +1,9 @@
 import { createRouter } from '@tanstack/react-router';
-import { routeTree } from './routeTree.gen';
+import { legacyRouteTree } from './legacy-route-tree';
 
 export function getRouter() {
   return createRouter({
-    routeTree,
+    routeTree: legacyRouteTree,
     defaultPreload: false,
   });
 }
