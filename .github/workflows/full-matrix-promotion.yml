@@ -24,53 +24,31 @@ jobs:
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
-        include:
-          - tool: image-compressor
-            spec: tests/image-compressor.spec.ts
-          - tool: background-remover
-            spec: tests/background-remover.spec.ts
-          - tool: image-upscaler
-            spec: tests/image-upscaler.spec.ts
-          - tool: image-converter
-            spec: tests/image-converter.spec.ts
-          - tool: ai-image-generator
-            spec: tests/ai-image-generator.spec.ts
-          - tool: object-remover
-            spec: tests/object-remover.spec.ts
-          - tool: watermark-remover
-            spec: tests/watermark-remover.spec.ts
-          - tool: image-cropper
-            spec: tests/image-cropper.spec.ts
-          - tool: image-to-svg
-            spec: tests/image-to-svg.spec.ts
-          - tool: image-ocr
-            spec: tests/image-ocr.spec.ts
-          - tool: photo-colorizer
-            spec: tests/photo-colorizer.spec.ts
-          - tool: background-blur
-            spec: tests/background-blur.spec.ts
-          - tool: passport-photo-maker
-            spec: tests/passport-photo-maker.spec.ts
-          - tool: watermark-adder
-            spec: tests/watermark-adder.spec.ts
-          - tool: meme-generator
-            spec: tests/meme-generator.spec.ts
-          - tool: collage-maker
-            spec: tests/collage-maker.spec.ts
-          - tool: image-effects
-            spec: tests/image-effects.spec.ts
-          - tool: exif-cleaner
-            spec: tests/exif-cleaner.spec.ts
-          - tool: svg-optimizer
-            spec: tests/svg-optimizer.spec.ts
-          - tool: mockup-generator
-            spec: tests/mockup-generator.spec.ts
-          - tool: seed
-            spec: tests/seed.spec.ts
-          - tool: pix
-            spec: tests/pix.spec.ts
-          - tool: localization
-            spec: tests/localization-smoke.spec.ts
+        tool: [
+          image-compressor,
+          background-remover,
+          image-upscaler,
+          image-converter,
+          ai-image-generator,
+          object-remover,
+          watermark-remover,
+          image-cropper,
+          image-to-svg,
+          image-ocr,
+          photo-colorizer,
+          background-blur,
+          passport-photo-maker,
+          watermark-adder,
+          meme-generator,
+          collage-maker,
+          image-effects,
+          exif-cleaner,
+          svg-optimizer,
+          mockup-generator,
+          seed,
+          pix,
+          localization
+        ]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -79,8 +57,18 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Resolve test specification
+        id: spec
+        shell: bash
+        run: |
+          set -euo pipefail
+          spec="tests/${{ matrix.tool }}.spec.ts"
+          if [[ "${{ matrix.tool }}" == "localization" ]]; then
+            spec="tests/localization-smoke.spec.ts"
+          fi
+          echo "spec=$spec" >> "$GITHUB_OUTPUT"
       - name: Run ${{ matrix.tool }} E2E on ${{ matrix.browser }}
-        run: npx playwright test ${{ matrix.spec }} --project=${{ matrix.browser }}
+        run: npx playwright test "${{ steps.spec.outputs.spec }}" --project=${{ matrix.browser }}
       - name: Upload E2E diagnostics
         if: ${{ failure() }}
         uses: actions/upload-artifact@v6
@@ -98,6 +86,13 @@ jobs:
     if: ${{ always() && needs.e2e.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
+      - name: Verify exact certified SHA
+        env:
+          CERTIFIED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$CERTIFIED_SHA" = "${{ github.sha }}"
+          echo "Exact certified SHA: $CERTIFIED_SHA"
       - name: Write promotion evidence
         run: |
           {
@@ -107,4 +102,5 @@ jobs:
             echo '${{ github.sha }}'
             echo
             echo '23 suites × 3 browsers = 69 E2E jobs completed successfully.'
+            echo 'Certification is bound to the exact commit SHA above.'
           } >> "$GITHUB_STEP_SUMMARY"
