@@ -10,7 +10,8 @@ const allowedHosts = (process.env.VITE_ALLOWED_HOSTS ?? '')
 function vendorChunk(id: string): string | undefined {
   if (!id.includes('node_modules')) return undefined;
 
-  if (id.includes('pdfjs-dist') || id.includes('pdf-lib') || id.includes('jspdf')) return 'vendor-pdf';
+  // PDF tools are route-lazy; keep their heavy dependencies in async chunks instead of
+  // forcing a shared vendor-pdf chunk into the initial entry graph.
   if (id.includes('@ffmpeg') || id.includes('gif.js') || id.includes('gifuct-js')) return 'vendor-media';
   if (id.includes('@tanstack/')) return 'vendor-tanstack';
   if (id.includes('@radix-ui/')) return 'vendor-radix';
