@@ -14,8 +14,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  socket-release:
+    name: Release Socket Supply Chain Gate
+    runs-on: ubuntu-latest
+    env:
+      SOCKET_SECURITY_API_KEY: ${{ secrets.SOCKET_SECURITY_API_KEY }}
+    steps:
+      - name: Require Socket Security secret
+        run: |
+          set -euo pipefail
+          if [[ -z "$SOCKET_SECURITY_API_KEY" ]]; then
+            echo 'SOCKET_SECURITY_API_KEY is required for release certification.'
+            echo 'Configure it as a GitHub Actions repository or environment secret before releasing.'
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Run blocking Socket supply-chain scan
+        run: npx --yes @socketsecurity/cli@1.1.158 ci
+
   engineering-gate:
     name: Engineering Release Gate
+    needs: [socket-release]
     runs-on: ubuntu-latest
     steps:
       - name: Wait for canonical GitHub CI
@@ -73,6 +98,7 @@ jobs:
             echo "Commit: $GITHUB_SHA"
             echo
             echo 'Required engineering evidence:'
+            echo '- Blocking Socket supply-chain scan: PASS'
             echo '- Canonical GitHub CI: PASS'
             echo '- Full browser matrix (Chromium/Firefox/WebKit): PASS'
             echo '- Performance and security checks are owned by GitHub CI and its promotion workflows.'
