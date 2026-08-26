@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { FormEvent, useState } from 'react';
 import { LockKeyhole, ShieldCheck } from 'lucide-react';
-import { loginAdmin } from '@/lib/admin/auth.server';
+import { loginAdmin } from '@/lib/admin/auth';
 import './admin.css';
 
 export const Route = createFileRoute('/admin/login')({
@@ -49,19 +49,10 @@ function AdminLoginPage() {
           <label htmlFor="admin-password">Administrator password</label>
           <div className="admin-password-field">
             <LockKeyhole size={17} aria-hidden="true" />
-            <input
-              id="admin-password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
+            <input id="admin-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
           </div>
           {error && <div className="admin-notice" role="alert">{error}</div>}
-          <button className="admin-primary admin-login-button" type="submit" disabled={busy}>
-            {busy ? 'Authenticating…' : 'Sign in'}
-          </button>
+          <button className="admin-primary admin-login-button" type="submit" disabled={busy}>{busy ? 'Authenticating…' : 'Sign in'}</button>
         </form>
       </section>
     </main>
