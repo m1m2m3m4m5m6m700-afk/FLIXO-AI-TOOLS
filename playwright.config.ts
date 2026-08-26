@@ -1,16 +1,17 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const useProductionServer = Boolean(process.env.CI) || process.env.PLAYWRIGHT_SERVER === 'production';
+const isCi = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+const useProductionServer = isCi || process.env.PLAYWRIGHT_SERVER === 'production';
 
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  workers: process.env.CI ? 2 : undefined,
-  retries: process.env.CI ? 2 : 0,
+  forbidOnly: isCi,
+  workers: isCi ? 2 : undefined,
+  retries: isCi ? 2 : 0,
   timeout: 45_000,
   expect: { timeout: 10_000 },
-  reporter: process.env.CI
+  reporter: isCi
     ? [['github'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]]
     : [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]],
   use: {
@@ -43,6 +44,6 @@ export default defineConfig({
       : 'npm run dev',
     url: 'http://127.0.0.1:3000',
     timeout: 120_000,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !isCi,
   },
 });
