@@ -69,6 +69,10 @@ Gates should be independently executable where practical. When a gate fails, re-
 
 Do not commit secrets, disable security gates to obtain green CI, or use forceful dependency changes as a blind workaround. External service failures such as deployment quotas must be classified separately from application-code failures.
 
+The normal CI Socket check may be skipped when `SOCKET_SECURITY_API_KEY` is not configured. Release certification is stricter: configure `SOCKET_SECURITY_API_KEY` as a GitHub Actions repository/environment secret so the blocking Socket supply-chain gate can pass.
+
+Never place the Socket credential in source code, workflow literals, committed `.env` files, or client-side configuration.
+
 ## Tool lifecycle
 
 ```text

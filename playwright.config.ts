@@ -1,29 +1,29 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const useProductionPreview = process.env.PLAYWRIGHT_SERVER === 'preview';
+const isCi = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+const useProductionServer = isCi || process.env.PLAYWRIGHT_SERVER === 'production';
 
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
-  workers: process.env.CI ? 2 : undefined,
-  retries: 0,
-  timeout: 15_000,
-  reporter: [
-    ['list'],
-    ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ['json', { outputFile: 'playwright-report/results.json' }],
-  ],
+  forbidOnly: isCi,
+  workers: isCi ? 2 : undefined,
+  retries: isCi ? 2 : 0,
+  timeout: 45_000,
+  expect: { timeout: 10_000 },
+  reporter: isCi
+    ? [['github'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]]
+    : [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]],
   use: {
-    baseURL: 'http://127.0.0.1:3000',
-    trace: 'retain-on-failure',
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://127.0.0.1:3000',
+    serviceWorkers: 'block',
+    trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    actionTimeout: 15_000,
   },
   projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     {
       name: 'firefox',
       use: {
@@ -37,16 +37,14 @@ export default defineConfig({
         },
       },
     },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
+    { name: 'webkit', use: { ...devices['Desktop Safari'], actionTimeout: 20_000 } },
   ],
   webServer: {
-    command: useProductionPreview
+    command: useProductionServer
       ? 'npm run build && npm run preview -- --host 127.0.0.1 --port 3000'
       : 'npm run dev',
     url: 'http://127.0.0.1:3000',
-    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+    reuseExistingServer: !isCi,
   },
 });

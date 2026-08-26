@@ -1,10 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { PNG } from './helpers/image-tool-fixture';
 
-test('ai-image-generator: consumes a real image endpoint response and downloads it', async ({ page }) => {
-  await page.route('**/api/ai/image', async (route) => {
+test('ai-image-generator: consumes an image endpoint response and downloads it', async ({ page }) => {
+  const endpoint = process.env.VITE_FLIXO_AI_IMAGE_ENDPOINT || '/api/ai/image';
+  await page.route(`**${endpoint}`, async (route) => {
     await route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
   });
+
   await page.goto('/en/ai-image-generator');
   await expect(page.getByRole('heading', { level: 1, name: 'AI Image Generator' })).toBeVisible();
   await page.getByPlaceholder('A cinematic sunset over Cairo...').fill('FLIXO test image');

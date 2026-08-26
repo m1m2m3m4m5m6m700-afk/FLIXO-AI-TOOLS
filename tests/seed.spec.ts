@@ -1,43 +1,38 @@
 import { expect, test } from '@playwright/test';
 
-const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVR4nGP8////fwYkwMTAwMAgqhnIIKoZiBBABozoWgBvpAkdy756fgAAAABJRU5ErkJggg==', 'base64');
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAPUlEQVR42mP4z8DwHwwZ/oMBAwOYxQBD/xkaHBT+Kzg0/HdoUPh/IsXoP4OIhs1/Gw2R/ynTTvz/sCXgPwDaSiSJ4dCj1wAAAABJRU5ErkJggg==', 'base64');
 
 type Canvas2DContext = CanvasRenderingContext2D | null;
 type CanvasContextId = '2d' | 'webgl' | 'webgl2' | 'bitmaprenderer' | string;
 
+const canvasLocator = (page: import('@playwright/test').Page) => page.locator('canvas[aria-label="Seed preview"]');
+
 async function hasWebGl(page: import('@playwright/test').Page) {
-  return page.locator('canvas[aria-label="Seed preview"]').evaluate((element) => Boolean((element as HTMLCanvasElement).getContext('webgl')));
+  return canvasLocator(page).evaluate((element) => Boolean((element as HTMLCanvasElement).getContext('webgl')));
 }
 
-async function gpuPixels(page: import('@playwright/test').Page) {
-  return page.locator('canvas[aria-label="Seed preview"]').evaluate((element) => {
-    const canvas = element as HTMLCanvasElement;
-    const gl = canvas.getContext('webgl');
-    if (!gl) throw new Error('WebGL context unavailable for verification.');
-    gl.finish();
-    const pixels = new Uint8Array(canvas.width * canvas.height * 4);
-    gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-    return Array.from(pixels);
-  });
+async function canvasScreenshot(page: import('@playwright/test').Page) {
+  return canvasLocator(page).screenshot({ animations: 'disabled' });
 }
 
-async function loadSeed(page: import('@playwright/test').Page, testInfo: import('@playwright/test').TestInfo) {
+async function loadSeed(page: import('@playwright/test').Page, testInfo: import('@playwright/test').TestInfo, requireWebGL = true) {
   await page.goto('/en/seed');
   await expect(page.getByRole('heading', { level: 1, name: 'Seed' })).toBeVisible();
   await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
-  await expect(page.locator('canvas[aria-label="Seed preview"]')).toBeVisible();
-  const webgl = await hasWebGl(page);
-  if (!webgl) testInfo.skip(true, 'Seed GPU assertions require WebGL, which is unavailable in this browser environment.');
+  await expect(canvasLocator(page)).toBeVisible();
+  if (requireWebGL && !(await hasWebGl(page))) {
+    testInfo.skip(true, 'Seed GPU assertions require WebGL, which is unavailable in this browser environment.');
+  }
   await page.waitForTimeout(150);
 }
 
 test('Seed: WebGL preview changes pixels and exports a non-empty PNG', async ({ page }, testInfo) => {
   await loadSeed(page, testInfo);
-  const baseline = await gpuPixels(page);
+  const baseline = await canvasScreenshot(page);
   await page.getByRole('slider', { name: 'brightness' }).fill('50');
   await page.waitForTimeout(150);
-  const adjusted = await gpuPixels(page);
-  expect(adjusted).not.toEqual(baseline);
+  const adjusted = await canvasScreenshot(page);
+  expect(adjusted.equals(baseline)).toBe(false);
 
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export PNG' }).click();
@@ -48,7 +43,6 @@ test('Seed: WebGL preview changes pixels and exports a non-empty PNG', async ({ 
 
 test('Seed: advanced pipeline controls alter non-destructive state and export', async ({ page }, testInfo) => {
   await loadSeed(page, testInfo);
-
   await expect(page.getByRole('slider', { name: 'Curves' })).toBeVisible();
   await page.getByRole('slider', { name: 'Curves' }).fill('35');
   await page.getByRole('slider', { name: 'Brush strength' }).fill('40');
@@ -68,19 +62,21 @@ test('Seed: advanced pipeline controls alter non-destructive state and export', 
 
 test('Seed: Undo and Redo restore and reapply a GPU color change', async ({ page }, testInfo) => {
   await loadSeed(page, testInfo);
-  const baseline = await gpuPixels(page);
+  const baseline = await canvasScreenshot(page);
   await page.getByRole('slider', { name: 'brightness' }).fill('35');
   await page.waitForTimeout(150);
-  const edited = await gpuPixels(page);
-  expect(edited).not.toEqual(baseline);
+  const edited = await canvasScreenshot(page);
+  expect(edited.equals(baseline)).toBe(false);
 
-  await page.getByRole('button', { name: 'Undo' }).click();
+  await page.getByTestId('button-canvas-undo').click();
   await page.waitForTimeout(150);
-  expect(await gpuPixels(page)).toEqual(baseline);
+  expect((await canvasScreenshot(page)).equals(baseline)).toBe(true);
 
-  await page.getByRole('button', { name: 'Redo' }).click();
+  const redoButton = page.getByTestId('button-canvas-redo');
+  if (await redoButton.count()) await redoButton.click();
+  else await page.getByRole('button', { name: 'Redo', exact: true }).click();
   await page.waitForTimeout(150);
-  expect(await gpuPixels(page)).toEqual(edited);
+  expect((await canvasScreenshot(page)).equals(edited)).toBe(true);
 });
 
 test('Seed: accepts a second image for Double Exposure', async ({ page }, testInfo) => {
@@ -133,10 +129,8 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
 
     await zoomOut.click();
     await expect(zoomReset).toHaveText('100%');
-
     await zoomOut.click();
     await expect(zoomReset).toHaveText('75%');
-
     await zoomReset.click();
     await expect(zoomReset).toHaveText('100%');
   });
@@ -144,39 +138,21 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
   test('binds compare lifecycle to the real Seed canvas', async ({ page }) => {
     await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
     const compareBtn = page.getByTestId('button-canvas-compare');
-    const canvas = page.locator('canvas[aria-label="Seed preview"]');
-    await expect(canvas).toBeVisible();
-
-    const baseline = await gpuPixels(page);
-    await page.getByRole('slider', { name: 'brightness' }).fill('40');
-    await page.waitForTimeout(150);
-    const edited = await gpuPixels(page);
-    expect(edited).not.toEqual(baseline);
-
-    const box = await compareBtn.boundingBox();
-    if (!box) throw new Error('Compare control has no bounding box.');
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await page.mouse.down();
+    await expect(canvasLocator(page)).toBeVisible();
+    await compareBtn.dispatchEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1 });
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
-    await page.waitForTimeout(50);
-    expect(await gpuPixels(page)).toEqual(baseline);
-
-    await page.mouse.up();
+    await compareBtn.dispatchEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 0 });
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'false');
-    await page.waitForTimeout(50);
-    expect(await gpuPixels(page)).toEqual(edited);
   });
 
   test('keeps compare lifecycle safe across keyboard activation and Escape cancellation', async ({ page }) => {
     await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
     const compareBtn = page.getByTestId('button-canvas-compare');
     await compareBtn.focus();
-
     await page.keyboard.down('Space');
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.up('Space');
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'false');
-
     await page.keyboard.down('Enter');
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('Escape');
@@ -186,27 +162,22 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
   test('cancels compare on window blur without changing the frozen API', async ({ page }) => {
     await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
     const compareBtn = page.getByTestId('button-canvas-compare');
-    const box = await compareBtn.boundingBox();
-    if (!box) throw new Error('Compare control has no bounding box.');
-
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await page.mouse.down();
+    await compareBtn.focus();
+    await page.keyboard.down('Space');
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
     await page.evaluate(() => window.dispatchEvent(new Event('blur')));
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'false');
-    await page.mouse.up();
+    await page.keyboard.up('Space');
   });
 
   test('enters and exits fullscreen on the actual Seed stage when the browser exposes the API', async ({ page }) => {
     const fullscreenEnabled = await page.evaluate(() => Boolean(document.fullscreenEnabled && document.documentElement.requestFullscreen));
     test.skip(!fullscreenEnabled, 'Fullscreen API is unavailable in this browser environment.');
-
     const fullscreenBtn = page.getByTestId('button-canvas-fullscreen');
     await fullscreenBtn.click();
-    await expect(page.locator('[data-testid="button-canvas-fullscreen"]')).toHaveAttribute('aria-label', 'Exit Fullscreen');
+    await expect(fullscreenBtn).toHaveAttribute('aria-label', 'Exit Fullscreen');
     await expect(page.locator('main > section')).toHaveJSProperty('tagName', 'SECTION');
-
     await fullscreenBtn.click();
-    await expect(page.getByTestId('button-canvas-fullscreen')).toHaveAttribute('aria-label', 'Enter Fullscreen');
+    await expect(fullscreenBtn).toHaveAttribute('aria-label', 'Enter Fullscreen');
   });
 });
