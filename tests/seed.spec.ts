@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVR4nGP8////fwYkwMTAwMAgqhnIIKoZiBBABozoWgBvpAkdy756fgAAAABJRU5ErkJggg==', 'base64');
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIUlEQVR42mP4z8DwHwwZ/v9vaGiAcqEcMA+FA4IoHKAkAHHaIeXCA421AAAAAElFTkSuQmCC', 'base64');
 
 type Canvas2DContext = CanvasRenderingContext2D | null;
 type CanvasContextId = '2d' | 'webgl' | 'webgl2' | 'bitmaprenderer' | string;
