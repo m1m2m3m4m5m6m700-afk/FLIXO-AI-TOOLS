@@ -1,10 +1,13 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createRoute, useNavigate } from '@tanstack/react-router';
 import { FormEvent, useState } from 'react';
 import { LockKeyhole, ShieldCheck } from 'lucide-react';
 import { loginAdmin } from '@/lib/admin/auth';
+import { rootRoute } from './__root';
 import './admin.css';
 
-export const Route = createFileRoute('/admin/login')({
+export const adminLoginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/login',
   head: () => ({
     meta: [
       { title: 'FLIXO Admin Login' },
