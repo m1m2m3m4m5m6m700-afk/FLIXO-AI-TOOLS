@@ -24,7 +24,7 @@ export default defineConfig({
     tanstackStart({
       router: {
         routesDirectory: 'start-routes',
-        generatedRouteTree: '../routeTree.gen.ts',
+        generatedRouteTree: 'routeTree.gen.ts',
       },
     }),
     react(),
