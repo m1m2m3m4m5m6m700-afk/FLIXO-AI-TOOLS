@@ -30,7 +30,7 @@ import { imageToolRoutes } from './image-tools';
 import { indexRoute } from './index';
 import { localizedToolRoute } from './localized-tool';
 import { useCaseRoute } from './use-case';
-import { adminLoginRoute } from './admin-login';
+import { Route as adminLoginRoute } from './admin-login';
 import { Route as adminRoute } from './admin';
 
 export const routeChildren = [
