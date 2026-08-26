@@ -6,11 +6,11 @@ on:
       - fix/ci-exact-head-certification-2026-08-26
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   refresh:
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore(ci): generate clean lockfile artifact') }}
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore: regenerate SPA lockfile') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -26,9 +26,14 @@ jobs:
             echo 'Stale SPA server dependencies remain in package-lock.json'
             exit 1
           fi
-      - name: Upload clean lockfile
-        uses: actions/upload-artifact@v6
-        with:
-          name: clean-package-lock
-          path: package-lock.json
-          retention-days: 1
+      - name: Commit regenerated lockfile only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo 'No lockfile changes.'
+            exit 0
+          fi
+          git commit -m 'chore: regenerate SPA lockfile'
+          git push
