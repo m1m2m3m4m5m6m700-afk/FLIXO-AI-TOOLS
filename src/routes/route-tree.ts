@@ -26,7 +26,7 @@ import { enRegexTesterRoute } from './regex-tools';
 import { enHashGeneratorRoute } from './hash-generator';
 import { localizedHomeRoute } from './localized-home';
 import { localizedQuickFlowRoute } from './localized-quickflow';
-import { enAiImageGeneratorRoute, enBackgroundBlurRoute, enBackgroundRemoverRoute, enCollageMakerRoute, enCropResizeRoute, enExifCleanerRoute, enImageConverterRoute, enImageCropperRoute, enImageEffectsRoute, enImageOcrRoute, enImageToSvgRoute, enImageToTextRoute, enImageUpscalerRoute, enMemeGeneratorRoute, enMockupGeneratorRoute, enObjectRemoverRoute, enPassportPhotoMakerRoute, enPixRoute, enRasterToSvgRoute, enSeedRoute, enSvgOptimizerRoute, enWatermarkAdderRoute, enWatermarkRemoverRoute } from './image-tools';
+import { imageToolRoutes } from './image-tools';
 import { indexRoute } from './index';
 import { localizedToolRoute } from './localized-tool';
 import { useCaseRoute } from './use-case';
@@ -66,28 +66,6 @@ export const routeChildren = [
   enAudioNoiseReducerRoute,
   enRegexTesterRoute,
   enHashGeneratorRoute,
-  enBackgroundRemoverRoute,
-  enAiImageGeneratorRoute,
-  enImageUpscalerRoute,
-  enImageConverterRoute,
-  enImageToTextRoute,
-  enObjectRemoverRoute,
-  enCropResizeRoute,
-  enWatermarkRemoverRoute,
-  enRasterToSvgRoute,
-  enImageCropperRoute,
-  enImageOcrRoute,
-  enBackgroundBlurRoute,
-  enPassportPhotoMakerRoute,
-  enWatermarkAdderRoute,
-  enMemeGeneratorRoute,
-  enCollageMakerRoute,
-  enImageEffectsRoute,
-  enExifCleanerRoute,
-  enSvgOptimizerRoute,
-  enMockupGeneratorRoute,
-  enImageToSvgRoute,
-  enSeedRoute,
-  enPixRoute,
+  ...imageToolRoutes,
   localizedToolRoute,
 ] as const;
