@@ -5,7 +5,7 @@ const useProductionPreview = process.env.PLAYWRIGHT_SERVER === 'preview';
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
-  workers: process.env.CI ? 2 : undefined,
+  workers: process.env.CI ? 4 : undefined,
   retries: 0,
   timeout: 15_000,
   reporter: [
