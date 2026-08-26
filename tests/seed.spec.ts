@@ -146,11 +146,15 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
     await expect(zoomReset).toHaveText('100%');
   });
 
-  test('binds compare lifecycle to the real Seed canvas', async ({ page }) => {
+  test('binds compare lifecycle to the real Seed canvas', async ({ page }, testInfo) => {
     await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
     const compareBtn = page.getByTestId('button-canvas-compare');
     const canvas = page.locator('canvas[aria-label="Seed preview"]');
     await expect(canvas).toBeVisible();
+
+    if (!(await hasWebGl(page))) {
+      testInfo.skip(true, 'Seed compare pixel assertions require WebGL, which is unavailable in this browser environment.');
+    }
 
     const baseline = await gpuPixels(page);
     await page.getByRole('slider', { name: 'brightness' }).fill('40');
