@@ -4,18 +4,21 @@ import path from 'node:path';
 const root = process.cwd();
 const budgetPath = path.join(root, 'performance-budget.json');
 const distPath = path.join(root, 'dist');
+const indexPath = path.join(distPath, 'index.html');
 
 const budget = JSON.parse(fs.readFileSync(budgetPath, 'utf8'));
 
-if (!fs.existsSync(distPath)) {
-  console.error('Performance budget validation requires a built dist/ directory.');
+if (!fs.existsSync(distPath) || !fs.existsSync(indexPath)) {
+  console.error('Performance budget validation requires a built dist/ directory and dist/index.html.');
   process.exit(1);
 }
 
 let javascriptBytes = 0;
 let cssBytes = 0;
 let totalAssetBytes = 0;
+let criticalJavascriptBytes = 0;
 const assets = [];
+const criticalJavascriptAssets = [];
 const deferredWorkerAssets = [];
 const nonRuntimeAssets = [];
 
@@ -25,6 +28,24 @@ function isDeferredWorkerAsset(relativePath) {
 
 function isNonRuntimeAsset(relativePath) {
   return /^(?:sitemap\.xml|robots\.txt)$/i.test(relativePath);
+}
+
+function normalizeAssetReference(value) {
+  const withoutQuery = value.split(/[?#]/u, 1)[0] ?? '';
+  return withoutQuery.replace(/^\/+/, '');
+}
+
+function getCriticalJavascriptReferences() {
+  const html = fs.readFileSync(indexPath, 'utf8');
+  const references = new Set();
+  const attributePattern = /<(?:script|link)\b[^>]+(?:src|href)=["']([^"']+)["'][^>]*>/giu;
+
+  for (const match of html.matchAll(attributePattern)) {
+    const asset = normalizeAssetReference(match[1]);
+    if (/\.m?js$/i.test(asset)) references.add(asset);
+  }
+
+  return references;
 }
 
 function walk(dir) {
@@ -47,17 +68,26 @@ function walk(dir) {
 
     totalAssetBytes += bytes;
 
-    if (/\.m?js$/.test(entry.name)) {
+    if (/\.m?js$/i.test(entry.name)) {
       if (isDeferredWorkerAsset(relativePath)) deferredWorkerAssets.push({ path: relativePath, bytes });
       else javascriptBytes += bytes;
     }
-    if (/\.css$/.test(entry.name)) cssBytes += bytes;
+    if (/\.css$/i.test(entry.name)) cssBytes += bytes;
   }
 }
 
 walk(distPath);
 
+const assetMap = new Map(assets.map((asset) => [asset.path, asset]));
+for (const reference of getCriticalJavascriptReferences()) {
+  const asset = assetMap.get(reference);
+  if (!asset || isDeferredWorkerAsset(asset.path)) continue;
+  criticalJavascriptAssets.push(asset);
+  criticalJavascriptBytes += asset.bytes;
+}
+
 const checks = [
+  ['Critical JavaScript', criticalJavascriptBytes, budget.criticalJavascriptBytes],
   ['JavaScript', javascriptBytes, budget.javascriptBytes],
   ['CSS', cssBytes, budget.cssBytes],
   ['Total runtime assets', totalAssetBytes, budget.totalAssetBytes],
@@ -65,14 +95,19 @@ const checks = [
 
 let failed = false;
 for (const [label, actual, limit] of checks) {
-  const actualMiB = (actual / 1024 / 1024).toFixed(2);
-  const limitMiB = (limit / 1024 / 1024).toFixed(2);
+  const actualKiB = (actual / 1024).toFixed(1);
+  const limitKiB = (limit / 1024).toFixed(1);
   if (actual > limit) {
-    console.error(`Performance budget exceeded: ${label} ${actualMiB} MiB > ${limitMiB} MiB`);
+    console.error(`Performance budget exceeded: ${label} ${actualKiB} KiB > ${limitKiB} KiB`);
     failed = true;
   } else {
-    console.log(`Performance budget OK: ${label} ${actualMiB} MiB <= ${limitMiB} MiB`);
+    console.log(`Performance budget OK: ${label} ${actualKiB} KiB <= ${limitKiB} KiB`);
   }
+}
+
+console.log(`Critical JavaScript assets discovered from dist/index.html: ${criticalJavascriptAssets.length}`);
+for (const asset of criticalJavascriptAssets) {
+  console.log(`  critical ${asset.path} ${(asset.bytes / 1024).toFixed(1)} KiB`);
 }
 
 if (nonRuntimeAssets.length) {
