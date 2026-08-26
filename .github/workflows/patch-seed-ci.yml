@@ -1,0 +1,32 @@
+name: Patch Seed CI Fix
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-seed-ci.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Apply Seed CI fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/tools/seed/index.tsx')
+          s = p.read_text()
+          s = s.replace('Focus, Gauge, Highlighter,', 'Focus, Highlighter,')
+          s = s.replace('Thermometer, Undo2, Upload, WandSparkles, Zap,', 'Thermometer, Undo2, Upload, WandSparkles,')
+          s = s.replace('const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {', 'const handleDrop = (event: React.DragEvent<HTMLElement>) => {')
+          s = s.replace('const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {', 'const handleDragLeave = (event: React.DragEvent<HTMLElement>) => {')
+          p.write_text(s)
+          PY
+      - name: Commit and push
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/tools/seed/index.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(seed): satisfy typecheck and lint'
+          git push
