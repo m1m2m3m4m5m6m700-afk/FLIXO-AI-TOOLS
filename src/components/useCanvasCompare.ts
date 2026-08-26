@@ -61,6 +61,7 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
   }, [endCompare]);
 
   const handlePointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
     if ('setPointerCapture' in event.currentTarget && typeof event.currentTarget.setPointerCapture === 'function') {
       try {
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -84,8 +85,8 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
     endCompare();
   }, [endCompare]);
 
-  const handleMouseDown = useCallback(() => {
-    startCompare();
+  const handleMouseDown = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    if (event.button === 0) startCompare();
   }, [startCompare]);
 
   const handleMouseUp = useCallback(() => {
@@ -110,10 +111,15 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
     isComparing,
     endCompare,
     bind: {
+      onPointerDownCapture: handlePointerDown,
       onPointerDown: handlePointerDown,
+      onPointerUpCapture: handlePointerUp,
       onPointerUp: handlePointerUp,
+      onPointerCancelCapture: handlePointerUp,
       onPointerCancel: handlePointerUp,
+      onMouseDownCapture: handleMouseDown,
       onMouseDown: handleMouseDown,
+      onMouseUpCapture: handleMouseUp,
       onMouseUp: handleMouseUp,
       onKeyDown: handleKeyDown,
       onKeyUp: handleKeyUp,
