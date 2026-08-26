@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as Accordion from '@radix-ui/react-accordion';
 import {
-  Activity, Aperture, Blend, Contrast, Download, Droplets, Eraser, Focus, Gauge, Highlighter,
+  Activity, Aperture, Blend, Contrast, Download, Droplets, Eraser, Focus, Highlighter,
   ImagePlus, Layers2, MoveHorizontal, MoveVertical, Redo2, RotateCcw, Scan, SlidersHorizontal,
-  Sparkles, Sun, Thermometer, Undo2, Upload, WandSparkles, Zap,
+  Sparkles, Sun, Thermometer, Undo2, Upload, WandSparkles,
 } from 'lucide-react';
 import fragmentSource from './glsl/fragment.glsl?raw';
 import { SeedGLEngine, type SeedRenderSettings } from './webgl-engine';
@@ -209,11 +209,11 @@ export default function SeedTool() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to export the image.'); }
   };
 
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (event: React.DragEvent<HTMLElement>) => {
     event.preventDefault(); setIsDragging(false);
     const file = event.dataTransfer.files?.[0]; if (file) openImage(file);
   };
-  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = (event: React.DragEvent<HTMLElement>) => {
     const nextTarget = event.relatedTarget as Node | null;
     if (!nextTarget || !event.currentTarget.contains(nextTarget)) setIsDragging(false);
   };
