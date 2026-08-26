@@ -54,7 +54,7 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
     };
   }, [endCompare]);
 
-  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+  const capturePointer = (event: React.PointerEvent<HTMLButtonElement>) => {
     if ('setPointerCapture' in event.currentTarget && typeof event.currentTarget.setPointerCapture === 'function') {
       try {
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -62,10 +62,9 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
         // Safe fallback for test environments and legacy implementations.
       }
     }
-    startCompare();
-  }, [startCompare]);
+  };
 
-  const handlePointerUp = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+  const releasePointer = (event: React.PointerEvent<HTMLButtonElement>) => {
     if ('hasPointerCapture' in event.currentTarget && typeof event.currentTarget.hasPointerCapture === 'function') {
       try {
         if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -75,6 +74,23 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
         // Safe fallback.
       }
     }
+  };
+
+  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    capturePointer(event);
+    startCompare();
+  }, [startCompare]);
+
+  const handlePointerUp = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    releasePointer(event);
+    endCompare();
+  }, [endCompare]);
+
+  const handleMouseDown = useCallback(() => {
+    startCompare();
+  }, [startCompare]);
+
+  const handleMouseUp = useCallback(() => {
     endCompare();
   }, [endCompare]);
 
@@ -99,6 +115,8 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
       onPointerDown: handlePointerDown,
       onPointerUp: handlePointerUp,
       onPointerCancel: handlePointerUp,
+      onMouseDown: handleMouseDown,
+      onMouseUp: handleMouseUp,
       onKeyDown: handleKeyDown,
       onKeyUp: handleKeyUp,
     },
