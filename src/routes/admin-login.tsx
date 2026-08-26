@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { FormEvent, useState } from 'react';
 import { LockKeyhole, ShieldCheck } from 'lucide-react';
-import { loginAdmin } from '@/lib/admin/auth';
+import { loginAdmin } from '@/lib/admin/auth.server';
 import './admin.css';
 
 export const Route = createFileRoute('/admin/login')({
