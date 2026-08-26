@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const useProductionPreview = process.env.PLAYWRIGHT_SERVER === 'preview';
+const useProductionServer = Boolean(process.env.CI) || process.env.PLAYWRIGHT_SERVER === 'production';
 
 export default defineConfig({
   testDir: './tests',
@@ -53,8 +53,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: useProductionPreview
-      ? 'npm run build && npm run preview -- --host 127.0.0.1 --port 3000'
+    command: useProductionServer
+      ? 'npm run build && node dist/server/server.js'
       : 'npm run dev',
     url: 'http://127.0.0.1:3000',
     reuseExistingServer: !process.env.CI,
