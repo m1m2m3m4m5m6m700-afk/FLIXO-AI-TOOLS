@@ -1,7 +1,6 @@
 /* eslint-disable */
-// This compatibility entry is committed so TypeScript can validate the router
-// before the TanStack Router Vite plugin refreshes the generated route tree.
-import { rootRoute } from './routes/__root';
-import { routeChildren } from './routes/route-tree';
+// Compatibility placeholder for typechecking; TanStack Start regenerates this
+// route tree from src/start-routes at build/dev time.
+import { Route } from './start-routes/__root';
 
-export const routeTree = rootRoute.addChildren(routeChildren);
+export const routeTree = Route;
