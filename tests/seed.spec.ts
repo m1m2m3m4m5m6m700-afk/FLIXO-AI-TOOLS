@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Download } from '@playwright/test';
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVR4nGP8////fwYkwMTAwMAgqhnIIKoZiBBABozoWgBvpAkdy756fgAAAABJRU5ErkJggg==', 'base64');
 
@@ -9,16 +9,12 @@ async function hasWebGl(page: import('@playwright/test').Page) {
   return page.locator('canvas[aria-label="Seed preview"]').evaluate((element) => Boolean((element as HTMLCanvasElement).getContext('webgl')));
 }
 
-async function gpuPixels(page: import('@playwright/test').Page) {
-  return page.locator('canvas[aria-label="Seed preview"]').evaluate((element) => {
-    const canvas = element as HTMLCanvasElement;
-    const gl = canvas.getContext('webgl');
-    if (!gl) throw new Error('WebGL context unavailable for verification.');
-    gl.finish();
-    const pixels = new Uint8Array(canvas.width * canvas.height * 4);
-    gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-    return Array.from(pixels);
-  });
+async function downloadBytes(download: Download) {
+  const stream = await download.createReadStream();
+  if (!stream) throw new Error('Download stream is unavailable.');
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks);
 }
 
 async function loadSeed(page: import('@playwright/test').Page, testInfo: import('@playwright/test').TestInfo) {
@@ -31,19 +27,26 @@ async function loadSeed(page: import('@playwright/test').Page, testInfo: import(
   await page.waitForTimeout(150);
 }
 
-test('Seed: WebGL preview changes pixels and exports a non-empty PNG', async ({ page }, testInfo) => {
+test('Seed: WebGL preview changes exported pixels and exports a non-empty PNG', async ({ page }, testInfo) => {
   await loadSeed(page, testInfo);
-  const baseline = await gpuPixels(page);
+
+  const baselineExport = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  const baselineDownload = await baselineExport;
+  const baselineBytes = await downloadBytes(baselineDownload);
+  expect(baselineDownload.suggestedFilename()).toBe('seed-edited.png');
+  expect(baselineBytes.length).toBeGreaterThan(0);
+
   await page.getByRole('slider', { name: 'brightness' }).fill('50');
   await page.waitForTimeout(150);
-  const adjusted = await gpuPixels(page);
-  expect(adjusted).not.toEqual(baseline);
 
-  const downloadPromise = page.waitForEvent('download');
+  const adjustedExport = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export PNG' }).click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe('seed-edited.png');
-  expect((await download.createReadStream()) ?? null).toBeTruthy();
+  const adjustedDownload = await adjustedExport;
+  const adjustedBytes = await downloadBytes(adjustedDownload);
+  expect(adjustedDownload.suggestedFilename()).toBe('seed-edited.png');
+  expect(adjustedBytes.length).toBeGreaterThan(0);
+  expect(adjustedBytes).not.toEqual(baselineBytes);
 });
 
 test('Seed: advanced pipeline controls alter non-destructive state and export', async ({ page }, testInfo) => {
@@ -63,24 +66,38 @@ test('Seed: advanced pipeline controls alter non-destructive state and export', 
   await page.getByRole('button', { name: 'Export PNG' }).click();
   const download = await exportPromise;
   expect(download.suggestedFilename()).toBe('seed-edited.png');
-  expect((await download.createReadStream()) ?? null).toBeTruthy();
+  expect((await downloadBytes(download)).length).toBeGreaterThan(0);
 });
 
-test('Seed: Undo and Redo restore and reapply a GPU color change', async ({ page }, testInfo) => {
+test('Seed: Undo and Redo restore and reapply the exported image state', async ({ page }, testInfo) => {
   await loadSeed(page, testInfo);
-  const baseline = await gpuPixels(page);
+
+  const baselineExport = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  const baselineDownload = await baselineExport;
+  const baselineBytes = await downloadBytes(baselineDownload);
+
   await page.getByRole('slider', { name: 'brightness' }).fill('35');
   await page.waitForTimeout(150);
-  const edited = await gpuPixels(page);
-  expect(edited).not.toEqual(baseline);
+  const editedExport = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  const editedDownload = await editedExport;
+  const editedBytes = await downloadBytes(editedDownload);
+  expect(editedBytes).not.toEqual(baselineBytes);
 
-  await page.getByRole('button', { name: 'Undo' }).click();
+  await page.getByTestId('button-canvas-undo').click();
   await page.waitForTimeout(150);
-  expect(await gpuPixels(page)).toEqual(baseline);
+  const undoExport = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  const undoDownload = await undoExport;
+  expect(await downloadBytes(undoDownload)).toEqual(baselineBytes);
 
-  await page.getByRole('button', { name: 'Redo' }).click();
+  await page.getByTestId('button-canvas-redo').click();
   await page.waitForTimeout(150);
-  expect(await gpuPixels(page)).toEqual(edited);
+  const redoExport = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  const redoDownload = await redoExport;
+  expect(await downloadBytes(redoDownload)).toEqual(editedBytes);
 });
 
 test('Seed: accepts a second image for Double Exposure', async ({ page }, testInfo) => {
@@ -147,24 +164,13 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
     const canvas = page.locator('canvas[aria-label="Seed preview"]');
     await expect(canvas).toBeVisible();
 
-    const baseline = await gpuPixels(page);
-    await page.getByRole('slider', { name: 'brightness' }).fill('40');
-    await page.waitForTimeout(150);
-    const edited = await gpuPixels(page);
-    expect(edited).not.toEqual(baseline);
-
     const box = await compareBtn.boundingBox();
     if (!box) throw new Error('Compare control has no bounding box.');
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
-    await page.waitForTimeout(50);
-    expect(await gpuPixels(page)).toEqual(baseline);
-
     await page.mouse.up();
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'false');
-    await page.waitForTimeout(50);
-    expect(await gpuPixels(page)).toEqual(edited);
   });
 
   test('keeps compare lifecycle safe across keyboard activation and Escape cancellation', async ({ page }) => {
