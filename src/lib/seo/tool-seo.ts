@@ -60,37 +60,40 @@ export function getToolSeo(localeInput: string, toolId: string) {
     })),
     structuredData: {
       '@context': 'https://schema.org',
-      '@type': 'SoftwareApplication',
-      name: title,
-      description,
-      url,
-      inLanguage: LOCALE_METADATA[locale].languageTag,
-      applicationCategory: 'MultimediaApplication',
-      operatingSystem: 'Any',
-      keywords: localizedPayload.keywords.join(', '),
-      breadcrumb: {
-        '@type': 'BreadcrumbList',
-        itemListElement: [
-          {
-            '@type': 'ListItem',
-            position: 1,
-            name: 'FLIXO',
-            item: `${SITE_ORIGIN}/${locale}`,
-          },
-          {
-            '@type': 'ListItem',
-            position: 2,
-            name: tool.category,
-            item: `${SITE_ORIGIN}/${locale}?category=${encodeURIComponent(tool.category)}`,
-          },
-          {
-            '@type': 'ListItem',
-            position: 3,
-            name: title,
-            item: getLocalizedToolUrl(locale, tool.id),
-          },
-        ],
-      },
+      '@graph': [
+        {
+          '@type': 'SoftwareApplication',
+          name: title,
+          description,
+          url,
+          inLanguage: LOCALE_METADATA[locale].languageTag,
+          applicationCategory: 'MultimediaApplication',
+          operatingSystem: 'Any',
+          keywords: localizedPayload.keywords.join(', '),
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            {
+              '@type': 'ListItem',
+              position: 1,
+              name: 'FLIXO',
+              item: `${SITE_ORIGIN}/${locale}`,
+            },
+            {
+              '@type': 'ListItem',
+              position: 2,
+              name: tool.category,
+            },
+            {
+              '@type': 'ListItem',
+              position: 3,
+              name: title,
+              item: getLocalizedToolUrl(locale, tool.id),
+            },
+          ],
+        },
+      ],
     },
   } as const;
 }
