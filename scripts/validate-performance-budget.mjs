@@ -4,13 +4,12 @@ import path from 'node:path';
 const root = process.cwd();
 const budgetPath = path.join(root, 'performance-budget.json');
 const distPath = path.join(root, 'dist');
-const candidateIndexPaths = [path.join(distPath, 'index.html'), path.join(distPath, 'client', 'index.html')];
-const indexPath = candidateIndexPaths.find((candidate) => fs.existsSync(candidate));
+const clientPath = path.join(distPath, 'client');
 
 const budget = JSON.parse(fs.readFileSync(budgetPath, 'utf8'));
 
-if (!fs.existsSync(distPath) || !indexPath) {
-  console.error('Performance budget validation requires a built dist/ directory and an index.html entrypoint.');
+if (!fs.existsSync(distPath)) {
+  console.error('Performance budget validation requires a built dist/ directory.');
   process.exit(1);
 }
 
@@ -31,24 +30,6 @@ function isNonRuntimeAsset(relativePath) {
   return /^(?:sitemap\.xml|robots\.txt)$/i.test(relativePath);
 }
 
-function normalizeAssetReference(value) {
-  const withoutQuery = value.split(/[?#]/u, 1)[0] ?? '';
-  return withoutQuery.replace(/^\/+/, '');
-}
-
-function getCriticalJavascriptReferences() {
-  const html = fs.readFileSync(indexPath, 'utf8');
-  const references = new Set();
-  const attributePattern = /<(?:script|link)\b[^>]+(?:src|href)=["']([^"']+)["'][^>]*>/giu;
-
-  for (const match of html.matchAll(attributePattern)) {
-    const asset = normalizeAssetReference(match[1]);
-    if (/\.m?js$/i.test(asset)) references.add(asset);
-  }
-
-  return references;
-}
-
 function walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const fullPath = path.join(dir, entry.name);
@@ -59,7 +40,6 @@ function walk(dir) {
 
     const bytes = fs.statSync(fullPath).size;
     const relativePath = path.relative(distPath, fullPath).replaceAll(path.sep, '/');
-
     assets.push({ path: relativePath, bytes });
 
     if (isNonRuntimeAsset(relativePath)) {
@@ -68,7 +48,6 @@ function walk(dir) {
     }
 
     totalAssetBytes += bytes;
-
     if (/\.m?js$/i.test(entry.name)) {
       if (isDeferredWorkerAsset(relativePath)) deferredWorkerAssets.push({ path: relativePath, bytes });
       else javascriptBytes += bytes;
@@ -79,15 +58,16 @@ function walk(dir) {
 
 walk(distPath);
 
-const clientIndexPrefix = path.relative(distPath, path.dirname(indexPath)).replaceAll(path.sep, '/');
-const assetMap = new Map(assets.map((asset) => [asset.path, asset]));
-for (const reference of getCriticalJavascriptReferences()) {
-  const direct = assetMap.get(reference);
-  const prefixed = clientIndexPrefix && clientIndexPrefix !== '.' ? assetMap.get(`${clientIndexPrefix}/${reference}`) : undefined;
-  const asset = direct ?? prefixed;
-  if (!asset || isDeferredWorkerAsset(asset.path)) continue;
-  criticalJavascriptAssets.push(asset);
-  criticalJavascriptBytes += asset.bytes;
+// TanStack Start emits separate client/server environments and does not emit
+// a top-level dist/index.html. The hashed client index chunk is the critical
+// JavaScript entry for the performance budget in this build architecture.
+if (fs.existsSync(clientPath)) {
+  for (const asset of assets) {
+    if (/^client\/assets\/index-[^/]+\.m?js$/i.test(asset.path)) {
+      criticalJavascriptAssets.push(asset);
+      criticalJavascriptBytes += asset.bytes;
+    }
+  }
 }
 
 const checks = [
@@ -109,7 +89,7 @@ for (const [label, actual, limit] of checks) {
   }
 }
 
-console.log(`Critical JavaScript assets discovered from ${path.relative(root, indexPath)}: ${criticalJavascriptAssets.length}`);
+console.log(`Critical JavaScript assets discovered from TanStack Start client output: ${criticalJavascriptAssets.length}`);
 for (const asset of criticalJavascriptAssets) {
   console.log(`  critical ${asset.path} ${(asset.bytes / 1024).toFixed(1)} KiB`);
 }
