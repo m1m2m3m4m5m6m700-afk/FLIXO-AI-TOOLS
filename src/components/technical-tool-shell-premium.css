@@ -1,0 +1,6 @@
+@keyframes flixo-ambient-breathe{0%,100%{opacity:.42;transform:scale(1)}50%{opacity:.7;transform:scale(1.04)}}
+@keyframes flixo-status-pulse{0%,100%{opacity:.55;transform:scale(.95)}50%{opacity:1;transform:scale(1.08)}}
+.flixo-premium-shell::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 12% 0%,rgba(139,92,246,.11),transparent 30%),radial-gradient(circle at 88% 8%,rgba(99,102,241,.09),transparent 26%),radial-gradient(circle at 50% 100%,rgba(16,185,129,.045),transparent 28%);animation:flixo-ambient-breathe 12s ease-in-out infinite}
+.flixo-premium-grid{background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);background-size:28px 28px}
+.flixo-status-dot{animation:flixo-status-pulse 1.8s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.flixo-premium-shell::before,.flixo-status-dot{animation:none}}
