@@ -10,6 +10,7 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
   const isComparingRef = useRef(false);
   const onStartRef = useRef(onCompareStart);
   const onEndRef = useRef(onCompareEnd);
+  const compareButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     onStartRef.current = onCompareStart;
@@ -29,6 +30,45 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
     setIsComparing(false);
     onEndRef.current?.();
   }, []);
+
+  useEffect(() => {
+    const button = compareButtonRef.current;
+    if (!button) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      try {
+        button.setPointerCapture(event.pointerId);
+      } catch {
+        // Safe fallback when pointer capture is unavailable.
+      }
+      startCompare();
+    };
+    const handleMouseDown = () => startCompare();
+    const handlePointerUp = (event: PointerEvent) => {
+      try {
+        if (button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
+      } catch {
+        // Safe fallback when pointer capture is unavailable.
+      }
+      endCompare();
+    };
+    const handleMouseUp = () => endCompare();
+    const handlePointerCancel = () => endCompare();
+
+    button.addEventListener('pointerdown', handlePointerDown);
+    button.addEventListener('mousedown', handleMouseDown);
+    button.addEventListener('pointerup', handlePointerUp);
+    button.addEventListener('mouseup', handleMouseUp);
+    button.addEventListener('pointercancel', handlePointerCancel);
+
+    return () => {
+      button.removeEventListener('pointerdown', handlePointerDown);
+      button.removeEventListener('mousedown', handleMouseDown);
+      button.removeEventListener('pointerup', handlePointerUp);
+      button.removeEventListener('mouseup', handleMouseUp);
+      button.removeEventListener('pointercancel', handlePointerCancel);
+    };
+  }, [endCompare, startCompare]);
 
   useEffect(() => {
     const handleBlur = () => endCompare();
@@ -60,46 +100,6 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
     };
   }, [endCompare]);
 
-  const capturePointer = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if ('setPointerCapture' in event.currentTarget && typeof event.currentTarget.setPointerCapture === 'function') {
-      try {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      } catch {
-        // Safe fallback for test environments and legacy implementations.
-      }
-    }
-  };
-
-  const releasePointer = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if ('hasPointerCapture' in event.currentTarget && typeof event.currentTarget.hasPointerCapture === 'function') {
-      try {
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }
-      } catch {
-        // Safe fallback.
-      }
-    }
-  };
-
-  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
-    capturePointer(event);
-    startCompare();
-  }, [startCompare]);
-
-  const handlePointerUp = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
-    releasePointer(event);
-    endCompare();
-  }, [endCompare]);
-
-  const handleMouseDown = useCallback(() => {
-    startCompare();
-  }, [startCompare]);
-
-  const handleMouseUp = useCallback(() => {
-    endCompare();
-  }, [endCompare]);
-
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLButtonElement>) => {
     if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
       event.preventDefault();
@@ -118,11 +118,7 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
     isComparing,
     endCompare,
     bind: {
-      onPointerDownCapture: handlePointerDown,
-      onPointerUpCapture: handlePointerUp,
-      onPointerCancelCapture: handlePointerUp,
-      onMouseDownCapture: handleMouseDown,
-      onMouseUpCapture: handleMouseUp,
+      ref: compareButtonRef,
       onKeyDown: handleKeyDown,
       onKeyUp: handleKeyUp,
     },
