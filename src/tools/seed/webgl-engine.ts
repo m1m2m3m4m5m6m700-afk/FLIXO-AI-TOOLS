@@ -18,6 +18,16 @@ export type SeedRenderSettings = {
   shadows: number;
 };
 
+const DEFAULT_RENDER_SETTINGS: SeedRenderSettings = {
+  brightness: 0,
+  contrast: 0,
+  saturation: 0,
+  warmth: 0,
+  ambiance: 0,
+  highlights: 0,
+  shadows: 0,
+};
+
 export class SeedGLEngine {
   private readonly gl: WebGLRenderingContext;
   private readonly program: WebGLProgram;
@@ -64,6 +74,10 @@ export class SeedGLEngine {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
     const error = gl.getError();
     if (error !== gl.NO_ERROR) throw new Error(`Unable to upload image to GPU (WebGL error ${error}).`);
+
+    // Prime the framebuffer immediately after texture upload. This removes a browser-timing
+    // dependency for consumers that inspect WebGL pixels immediately after loading an image.
+    this.render(DEFAULT_RENDER_SETTINGS);
   }
 
   render(settings: SeedRenderSettings) {

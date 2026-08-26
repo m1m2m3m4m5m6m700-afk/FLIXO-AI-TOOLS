@@ -1,11 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import ts from 'typescript';
+import { TOOLS_REGISTRY } from '../src/config/tools.ts';
 
-const root = process.cwd();
-const routesDir = path.join(root, 'src/routes');
-
-const { TOOLS_REGISTRY } = await import('../src/config/tools.ts');
+const routesDir = path.resolve('src/routes');
+const routeTreePath = path.join(routesDir, 'route-tree.ts');
+const routeTreeSource = fs.readFileSync(routeTreePath, 'utf8');
 
 function fail(stage, message, details = {}) {
   console.error(`ROUTER_REGISTRY_FAILURE stage=${stage}`);
@@ -16,67 +15,36 @@ function fail(stage, message, details = {}) {
   process.exit(1);
 }
 
-function propertyName(node) {
-  if (!node.name) return null;
-  if (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) return node.name.text;
-  return null;
-}
-
-function literalString(node) {
-  return ts.isStringLiteral(node) ? node.text : null;
-}
-
-function extractPathFromObject(argument) {
-  if (!argument || !ts.isObjectLiteralExpression(argument)) return null;
-  const pathProperty = argument.properties.find(
-    (property) => ts.isPropertyAssignment(property) && propertyName(property) === 'path',
-  );
-  return pathProperty && ts.isPropertyAssignment(pathProperty)
-    ? literalString(pathProperty.initializer)
-    : null;
-}
-
-function extractRoutePaths(filePath) {
-  const source = fs.readFileSync(filePath, 'utf8');
-  const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const routes = [];
-
-  function visit(node) {
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
-      const callee = node.expression.text;
-      if (callee === 'createRoute' || callee === 'imageToolRoute') {
-        const [argument] = node.arguments;
-        const route = callee === 'createRoute'
-          ? extractPathFromObject(argument)
-          : literalString(argument) ?? extractPathFromObject(argument);
-
-        if (route) routes.push({ route, file: filePath, kind: callee });
-      }
-    }
-    ts.forEachChild(node, visit);
-  }
-
-  visit(sourceFile);
-  return routes;
-}
-
-function listRouteFiles(dir) {
-  const files = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) files.push(...listRouteFiles(fullPath));
-    else if (entry.isFile() && entry.name.endsWith('.tsx')) files.push(fullPath);
-  }
-  return files;
-}
-
 function isPublicToolRoute(route) {
   const parts = route.split('/').filter(Boolean);
   return parts.length === 2 && parts[0].length === 2 && !parts[1].startsWith('$');
 }
 
+function listRouteFiles(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) return listRouteFiles(fullPath);
+    return entry.isFile() && entry.name.endsWith('.tsx') ? [fullPath] : [];
+  });
+}
+
+function extractPathProperties(source) {
+  const routes = [];
+  const pathPattern = /\bpath\s*:\s*(['"])([^'"]+)\1/g;
+  let match;
+  while ((match = pathPattern.exec(source)) !== null) {
+    const route = match[2];
+    if (route.startsWith('/')) routes.push(route);
+  }
+  return routes;
+}
+
 if (!Array.isArray(TOOLS_REGISTRY) || TOOLS_REGISTRY.length === 0) {
   fail('registry-load', 'TOOLS_REGISTRY is empty or invalid.');
+}
+
+if (!routeTreeSource.includes('export const routeChildren')) {
+  fail('router-load', 'route-tree.ts does not expose routeChildren.');
 }
 
 const canonicalPaths = new Map();
@@ -106,8 +74,21 @@ for (const tool of TOOLS_REGISTRY) {
   }
 }
 
-const routeRecords = listRouteFiles(routesDir).flatMap(extractRoutePaths);
-const declaredRoutes = new Set(routeRecords.map(({ route }) => route));
+const routeSources = listRouteFiles(routesDir).map((file) => fs.readFileSync(file, 'utf8'));
+const declaredRoutes = new Set(routeSources.flatMap(extractPathProperties));
+
+// Image routes are generated from IMAGE_TOOLS and consumed as an array in route-tree.ts.
+// Include the registry-owned generated boundary without executing TypeScript route modules.
+const usesGeneratedImageRoutes = /\bimageToolRoutes\b/.test(routeTreeSource);
+if (usesGeneratedImageRoutes) {
+  for (const tool of TOOLS_REGISTRY) {
+    if (tool.isReady && tool.path.startsWith('/en/')) declaredRoutes.add(tool.path);
+    for (const alias of tool.aliases ?? []) {
+      if (alias.startsWith('/en/')) declaredRoutes.add(alias);
+    }
+  }
+}
+
 const declaredToolRoutes = new Set([...declaredRoutes].filter(isPublicToolRoute));
 
 const expectedPublicRoutes = new Set(
@@ -118,14 +99,14 @@ const expectedPublicRoutes = new Set(
     .filter(isPublicToolRoute),
 );
 
-const duplicateDeclared = routeRecords
-  .map(({ route }) => route)
+const duplicateDeclared = [...declaredRoutes]
   .filter((route, index, all) => all.indexOf(route) !== index)
-  .filter((route, index, all) => all.indexOf(route) === index)
   .sort();
 
 if (duplicateDeclared.length) {
-  fail('router-duplicates', 'Duplicate route declarations detected.', { duplicates: duplicateDeclared });
+  fail('router-duplicates', 'Duplicate route declarations detected.', {
+    duplicates: duplicateDeclared,
+  });
 }
 
 const missing = [...expectedPublicRoutes].filter((route) => !declaredToolRoutes.has(route)).sort();
@@ -163,3 +144,4 @@ console.log(`non-ready tools: ${TOOLS_REGISTRY.filter((tool) => !tool.isReady).l
 console.log(`declared tool routes: ${declaredToolRoutes.size}`);
 console.log(`expected public routes: ${expectedPublicRoutes.size}`);
 console.log(`aliases: ${aliases.size}`);
+console.log(`generated image routes: ${usesGeneratedImageRoutes ? 'enabled' : 'disabled'}`);

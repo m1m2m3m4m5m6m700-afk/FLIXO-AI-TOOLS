@@ -119,7 +119,7 @@ export function ImageToolPage({ toolId }: Props) {
   return (
     <main dir={isArabic ? 'rtl' : 'ltr'} className="image-tool-shell">
       <div className="image-tool-container">
-        <header className="image-tool-header"><div><p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p><h1>{definition.title}</h1><p className="image-tool-lead">{definition.description}</p></div></header>
+        <header className="image-tool-header"><div><p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p>{isGenerator ? <h2>{definition.title}</h2> : <h1>{definition.title}</h1>}<p className="image-tool-lead">{definition.description}</p></div></header>
         <section className="compressor-grid" aria-label={definition.title}>
           <div className="compressor-card">
             {isGenerator ? <label><span>Prompt</span><textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="A cinematic sunset over Cairo..." rows={6} /></label> : <><label className="upload-zone" htmlFor="image-tool-file"><span className="upload-title">{file ? file.name : 'Choose an image'}</span><span className="upload-subtitle">{definition.accept.replaceAll('image/', '').toUpperCase() || 'IMAGE INPUT'}</span></label><input id="image-tool-file" className="sr-only" type="file" accept={definition.accept} onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></>}
