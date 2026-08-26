@@ -68,6 +68,29 @@ export function getToolSeo(localeInput: string, toolId: string) {
       applicationCategory: 'MultimediaApplication',
       operatingSystem: 'Any',
       keywords: localizedPayload.keywords.join(', '),
+      breadcrumb: {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'FLIXO',
+            item: `${SITE_ORIGIN}/${locale}`,
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: tool.category,
+            item: `${SITE_ORIGIN}/${locale}?category=${encodeURIComponent(tool.category)}`,
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: title,
+            item: getLocalizedToolUrl(locale, tool.id),
+          },
+        ],
+      },
     },
   } as const;
 }
