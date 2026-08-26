@@ -40,11 +40,13 @@ function createImageToolRoute(tool: ImageToolRouteConfig, path = tool.path) {
   });
 }
 
-const imageToolRouteEntries = IMAGE_TOOLS.flatMap((tool) => [
-  createImageToolRoute(tool),
-  ...(tool.aliases ?? [])
-    .filter((alias) => alias.startsWith('/en/'))
-    .map((alias) => createImageToolRoute(tool, alias)),
-]);
+const imageToolRouteEntries = IMAGE_TOOLS
+  .filter((tool) => tool.id !== 'image-compressor')
+  .flatMap((tool) => [
+    createImageToolRoute(tool),
+    ...(tool.aliases ?? [])
+      .filter((alias) => alias.startsWith('/en/'))
+      .map((alias) => createImageToolRoute(tool, alias)),
+  ]);
 
 export const imageToolRoutes = Object.freeze(imageToolRouteEntries);
