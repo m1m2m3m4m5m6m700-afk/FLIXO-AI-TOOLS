@@ -24,12 +24,10 @@ function AdminLoginPage() {
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
-    setBusy(true);
     try {
       const result = await loginAdmin({ data: { password } });
       if (!result.ok) {
@@ -39,8 +37,6 @@ function AdminLoginPage() {
       await navigate({ to: '/admin' });
     } catch {
       setError('Administrator authentication is not configured or available.');
-    } finally {
-      setBusy(false);
     }
   };
 
