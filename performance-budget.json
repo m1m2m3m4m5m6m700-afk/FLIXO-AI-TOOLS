@@ -3,5 +3,5 @@
   "javascriptBytes": 3145728,
   "cssBytes": 1048576,
   "totalAssetBytes": 5242880,
-  "notes": "Critical JavaScript is measured from assets directly referenced by dist/index.html. Existing JavaScript/total ceilings remain unchanged; deferred workers are excluded from the critical JavaScript budget."
+  "notes": "Critical JavaScript is measured from assets directly referenced by dist/index.html. Deferred worker assets and non-runtime deployment artifacts such as sitemap.xml and robots.txt are excluded from runtime asset ceilings. Existing JavaScript/total ceilings remain unchanged."
 }
