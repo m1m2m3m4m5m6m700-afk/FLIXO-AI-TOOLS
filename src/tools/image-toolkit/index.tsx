@@ -51,6 +51,26 @@ async function validateSharedImageInput(file: File, toolId: SharedImageToolId) {
   if (!dimensionCheck.safe) throw new Error(`Input rejected by File Safety: ${dimensionCheck.failures.join('; ')}`);
 }
 
+async function preprocessForOcr(file: File): Promise<Blob> {
+  const image = await createImageBitmap(file);
+  const scale = Math.min(2.5, Math.max(1, 1600 / Math.max(image.width, image.height)));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.width * scale));
+  canvas.height = Math.max(1, Math.round(image.height * scale));
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Canvas is unavailable.');
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const data = context.getImageData(0, 0, canvas.width, canvas.height);
+  for (let index = 0; index < data.data.length; index += 4) {
+    const luminance = 0.2126 * data.data[index] + 0.0722 * data.data[index + 2] + 0.7152 * data.data[index + 1];
+    const boosted = Math.max(0, Math.min(255, (luminance - 128) * 1.45 + 128));
+    data.data[index] = boosted; data.data[index + 1] = boosted; data.data[index + 2] = boosted;
+  }
+  context.putImageData(data, 0, 0);
+  image.close();
+  return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Could not prepare OCR input.')), 'image/png'));
+}
+
 async function createResult(blob: Blob, fileName: string, info?: Result['info'], text?: string): Promise<Result> {
   const objectUrl = blob.type.startsWith('image/') ? URL.createObjectURL(blob) : undefined;
   return { blob, fileName, info, text, objectUrl };
