@@ -48,6 +48,8 @@ test('pdf-unlock-protect: protects then unlocks a PDF and preserves content', as
 });
 
 test('pdf-unlock-protect: wrong password is rejected without a download', async ({ page }) => {
+  test.setTimeout(30_000);
+
   const input = await makePdf();
   await page.goto('/en/pdf-unlock-protect');
   await page.locator('#pdf-security-input').setInputFiles({ name: 'plain.pdf', mimeType: 'application/pdf', buffer: input });
