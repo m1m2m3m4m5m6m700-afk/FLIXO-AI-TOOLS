@@ -52,8 +52,22 @@ async function validateSharedImageInput(file: File, toolId: SharedImageToolId) {
 }
 
 function useObjectUrl(blob: Blob | null) {
-  const url = useMemo(() => (blob ? URL.createObjectURL(blob) : ''), [blob]);
-  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+  const [url, setUrl] = useState('');
+
+  useEffect(() => {
+    if (!blob) {
+      setUrl('');
+      return;
+    }
+
+    const nextUrl = URL.createObjectURL(blob);
+    setUrl(nextUrl);
+
+    return () => {
+      URL.revokeObjectURL(nextUrl);
+    };
+  }, [blob]);
+
   return url;
 }
 
