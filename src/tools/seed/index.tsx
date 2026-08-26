@@ -1,14 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as Accordion from '@radix-ui/react-accordion';
 import {
-  Activity, Aperture, Blend, Contrast, Download, Droplets, Eraser, Focus, Highlighter,
+  Activity, Aperture, Blend, Contrast, Download, Droplets, Eraser, Focus, Gauge, Highlighter,
   ImagePlus, Layers2, MoveHorizontal, MoveVertical, Redo2, RotateCcw, Scan, SlidersHorizontal,
-  Sparkles, Sun, Thermometer, Undo2, Upload, WandSparkles,
+  Sparkles, Sun, Thermometer, Undo2, Upload, WandSparkles, Zap,
 } from 'lucide-react';
 import fragmentSource from './glsl/fragment.glsl?raw';
 import { SeedGLEngine, type SeedRenderSettings } from './webgl-engine';
 import { DEFAULT_ADVANCED, renderAdvanced, type AdvancedSeedSettings } from './advanced-engine';
 import { CurveMiniPreview, NumericField, SectionReset, StudioSlider, ToolSection } from './studio-controls';
+import { FloatingCanvasOverlay, type FloatingCanvasOverlayLabels } from '../../components/floating-canvas-overlay';
+import { useFullscreenSync } from '../../components/useFullscreenSync';
 
 export interface SeedState extends SeedRenderSettings {
   blurRadius: number;
@@ -20,6 +22,18 @@ type Snapshot = { basic: SeedState; advanced: AdvancedSeedSettings };
 const DEFAULT_STATE: SeedState = {
   brightness: 0, contrast: 0, saturation: 0, warmth: 0,
   ambiance: 0, highlights: 0, shadows: 0, blurRadius: 0, crop: null,
+};
+
+const SEED_OVERLAY_LABELS: FloatingCanvasOverlayLabels = {
+  zoomIn: 'Zoom In Canvas',
+  zoomOut: 'Zoom Out Canvas',
+  zoomReset: 'Reset Canvas Zoom',
+  undo: 'Undo Action',
+  redo: 'Redo Action',
+  compareHold: 'Hold to Compare Original',
+  compareLabel: 'Compare',
+  fullscreenEnter: 'Enter Fullscreen',
+  fullscreenExit: 'Exit Fullscreen',
 };
 
 const cloneAdvanced = (value: AdvancedSeedSettings): AdvancedSeedSettings => ({
@@ -41,12 +55,14 @@ function pushHistory(next: Snapshot, history: Snapshot[], index: number) {
 }
 
 export default function SeedTool() {
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const engineRef = useRef<SeedGLEngine | null>(null);
   const imageUrlRef = useRef<string | null>(null);
   const doubleExposureUrlRef = useRef<string | null>(null);
   const renderFrameRef = useRef<number | null>(null);
+  const activeParamsRef = useRef<SeedState>(DEFAULT_STATE);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [imageName, setImageName] = useState('');
   const [settings, setSettings] = useState<SeedState>(DEFAULT_STATE);
@@ -56,7 +72,29 @@ export default function SeedTool() {
   const [error, setError] = useState('');
   const [isRendering, setIsRendering] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
   const [openSections, setOpenSections] = useState<string[]>(['basic', 'fx', 'geometry', 'retouch']);
+
+  const { isFullscreen, toggleFullscreen } = useFullscreenSync({
+    targetRef: stageRef,
+    onError: (cause) => setError(cause instanceof Error ? cause.message : 'Fullscreen is unavailable.'),
+  });
+
+  useEffect(() => { activeParamsRef.current = settings; }, [settings]);
+
+  const handleZoomIn = useCallback(() => setZoomLevel((previous) => Math.min(3, Number((previous + 0.25).toFixed(2)))), []);
+  const handleZoomOut = useCallback(() => setZoomLevel((previous) => Math.max(0.5, Number((previous - 0.25).toFixed(2)))), []);
+  const handleResetZoom = useCallback(() => setZoomLevel(1), []);
+
+  const handleCompareStart = useCallback(() => {
+    if (!engineRef.current || !image) return;
+    engineRef.current.render(DEFAULT_STATE);
+  }, [image]);
+
+  const handleCompareEnd = useCallback(() => {
+    if (!engineRef.current || !image) return;
+    engineRef.current.render(activeParamsRef.current);
+  }, [image]);
 
   const scheduleRender = useCallback(() => {
     if (!engineRef.current || !image) return;
@@ -98,23 +136,10 @@ export default function SeedTool() {
     if (doubleExposureUrlRef.current) URL.revokeObjectURL(doubleExposureUrlRef.current);
   }, []);
 
-  const renderCommittedState = (nextBasic: SeedState) => {
-    if (!engineRef.current || !image) return;
-    try {
-      setIsRendering(true);
-      engineRef.current.render(nextBasic);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'GPU rendering failed.');
-    } finally {
-      setIsRendering(false);
-    }
-  };
-
   const commit = (nextBasic: SeedState, nextAdvanced: AdvancedSeedSettings) => {
     const next = { basic: nextBasic, advanced: nextAdvanced };
     const result = pushHistory(next, history, historyIndex);
     setSettings(nextBasic); setAdvanced(nextAdvanced); setHistory(result.history); setHistoryIndex(result.index);
-    renderCommittedState(nextBasic);
   };
 
   const updateSetting = <K extends keyof SeedState>(key: K, value: SeedState[K]) => commit({ ...settings, [key]: value }, advanced);
@@ -124,14 +149,12 @@ export default function SeedTool() {
     if (historyIndex === 0) return;
     const next = cloneSnapshot(history[historyIndex - 1]);
     setHistoryIndex(historyIndex - 1); setSettings(next.basic); setAdvanced(next.advanced);
-    renderCommittedState(next.basic);
   };
 
   const redo = () => {
     if (historyIndex >= history.length - 1) return;
     const next = cloneSnapshot(history[historyIndex + 1]);
     setHistoryIndex(historyIndex + 1); setSettings(next.basic); setAdvanced(next.advanced);
-    renderCommittedState(next.basic);
   };
 
   const openImage = (file: File) => {
@@ -142,7 +165,7 @@ export default function SeedTool() {
     const img = new Image();
     img.onload = () => {
       setImage(img); setImageName(file.name); setSettings(DEFAULT_STATE); setAdvanced(cloneAdvanced(DEFAULT_ADVANCED));
-      setHistory([{ basic: DEFAULT_STATE, advanced: cloneAdvanced(DEFAULT_ADVANCED) }]); setHistoryIndex(0); setError('');
+      setHistory([{ basic: DEFAULT_STATE, advanced: cloneAdvanced(DEFAULT_ADVANCED) }]); setHistoryIndex(0); setZoomLevel(1); setError('');
     };
     img.onerror = () => setError('Unable to decode this image.');
     img.src = url;
@@ -205,15 +228,18 @@ export default function SeedTool() {
       anchor.download = 'seed-edited.png';
       document.body.appendChild(anchor);
       anchor.click();
-      window.setTimeout(() => { URL.revokeObjectURL(url); anchor.remove(); }, 1000);
+      window.setTimeout(() => {
+        URL.revokeObjectURL(url);
+        anchor.remove();
+      }, 1000);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to export the image.'); }
   };
 
-  const handleDrop = (event: React.DragEvent<HTMLElement>) => {
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault(); setIsDragging(false);
     const file = event.dataTransfer.files?.[0]; if (file) openImage(file);
   };
-  const handleDragLeave = (event: React.DragEvent<HTMLElement>) => {
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
     const nextTarget = event.relatedTarget as Node | null;
     if (!nextTarget || !event.currentTarget.contains(nextTarget)) setIsDragging(false);
   };
@@ -243,18 +269,50 @@ export default function SeedTool() {
           <div className="mr-1 flex items-center gap-2 rounded-lg border border-white/[0.06] bg-zinc-900/80 px-2.5 py-2 text-[9px] font-medium uppercase tracking-[0.12em] text-zinc-500"><span className={`size-1.5 rounded-full ${gpuReady ? 'bg-emerald-400 shadow-[0_0_9px_rgba(52,211,153,0.8)]' : 'bg-zinc-700'}`} /><span>{isRendering ? 'Rendering' : gpuReady ? 'WebGL Ready' : 'Waiting'}</span></div>
           <button type="button" onClick={() => undo()} disabled={historyIndex === 0} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/80 px-2.5 text-xs text-zinc-400 transition hover:border-white/[0.1] hover:text-white disabled:opacity-30" aria-label="Undo"><Undo2 className="size-3.5" /><span className="hidden md:inline">Undo</span></button>
           <button type="button" onClick={() => redo()} disabled={historyIndex >= history.length - 1} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/80 px-2.5 text-xs text-zinc-400 transition hover:border-white/[0.1] hover:text-white disabled:opacity-30" aria-label="Redo"><Redo2 className="size-3.5" /><span className="hidden md:inline">Redo</span></button>
-          <button type="button" onClick={() => resetAll()} disabled={!image} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/80 px-2.5 text-xs text-zinc-400 transition hover:border-white/[0.1] hover:text-white disabled:opacity-30" aria-label="Reset all"><RotateCcw className="size-3.5" /><span className="hidden md:inline">Reset</span></button>
-          <button type="button" onClick={() => exportImage()} disabled={!image} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-indigo-400/20 bg-indigo-500/10 px-3 text-xs font-medium text-indigo-200 transition hover:border-indigo-400/30 hover:bg-indigo-500/15 disabled:opacity-30" aria-label="Export PNG"><Download className="size-3.5" />Export PNG</button>
+          <button type="button" onClick={resetAll} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/80 px-2.5 text-xs text-zinc-400 transition hover:border-white/[0.1] hover:text-white" aria-label="Reset all controls"><RotateCcw className="size-3.5" /><span className="hidden md:inline">Reset</span></button>
+          <button type="button" onClick={exportImage} disabled={!image} className="inline-flex h-9 items-center gap-2 rounded-lg border border-indigo-300/20 bg-indigo-500 px-3 text-xs font-semibold text-white shadow-[0_8px_24px_rgba(99,102,241,0.28)] transition hover:bg-indigo-400 disabled:opacity-40" aria-label="Export PNG"><Download className="size-3.5" />Export PNG</button>
         </div>
       </header>
 
-      <main className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_390px]">
-        <section className="relative min-h-[520px] overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950 shadow-[0_30px_70px_rgba(0,0,0,0.35)]">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(99,102,241,0.08),transparent_55%)]" />
-          {!image ? <button type="button" onClick={() => imageInputRef.current?.click()} onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }} onDragLeave={handleDragLeave} onDrop={handleDrop} className={`absolute inset-4 flex flex-col items-center justify-center rounded-2xl border border-dashed ${isDragging ? 'border-indigo-400/50 bg-indigo-500/[0.08]' : 'border-white/[0.08] bg-white/[0.02]'} transition`} aria-label="Upload image"><span className="flex size-16 items-center justify-center rounded-2xl border border-white/[0.08] bg-zinc-900 text-zinc-500"><ImagePlus className="size-7" /></span><span className="mt-4 text-sm font-semibold text-zinc-200">Drop an image to start</span><span className="mt-1 text-xs text-zinc-600">JPG, PNG, WebP or any browser-decodable image</span></button> : <div className="absolute inset-0 flex items-center justify-center p-4"><canvas ref={canvasRef} aria-label="Seed preview" className="max-h-full max-w-full rounded-xl bg-transparent shadow-[0_25px_60px_rgba(0,0,0,0.35)]" onPointerDown={addBrushPoint} /></div>}
+      <main className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <section ref={stageRef} className={`relative flex min-h-[560px] min-w-0 items-center justify-center overflow-hidden rounded-2xl border bg-zinc-950 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.24)] transition ${isDragging ? 'border-indigo-400/70 bg-indigo-950/10' : 'border-white/[0.07]'}`} onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+          <div className="pointer-events-none absolute inset-0 opacity-70" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/[0.035] to-transparent" />
+          <div className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-black/40 px-2.5 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-500 backdrop-blur-md"><Scan className="size-3 text-zinc-600" />Canvas / Linear Preview</div>
+          {image ? (
+            <div className="relative z-10 max-h-[78vh] max-w-full origin-center transform-gpu transition-transform duration-150 ease-out" style={{ transform: `scale(${zoomLevel})` }}>
+              <canvas ref={canvasRef} onPointerDown={addBrushPoint} className={`block max-h-[78vh] max-w-full touch-none object-contain rounded-md shadow-[0_25px_80px_rgba(0,0,0,0.55)] ${advanced.brushStrength !== 0 ? 'cursor-crosshair' : 'cursor-default'}`} aria-label="Seed preview" />
+            </div>
+          ) : (
+            <div onClick={() => imageInputRef.current?.click()} className={`relative z-10 flex w-full max-w-lg cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed p-10 text-center transition ${isDragging ? 'border-indigo-400/70 bg-indigo-500/10' : 'border-white/[0.1] bg-black/20 hover:border-white/[0.16] hover:bg-white/[0.025]'}`}>
+              <span className="mb-4 flex size-16 items-center justify-center rounded-2xl border border-indigo-300/10 bg-gradient-to-br from-indigo-500/15 to-cyan-400/5 text-indigo-200"><ImagePlus className="size-7" /></span>
+              <span className="text-sm font-semibold text-zinc-100">Drop an image into Seed</span>
+              <span className="mt-2 max-w-sm text-xs leading-5 text-zinc-500">GPU preview, non-destructive history, technical controls and PNG export.</span>
+              <span className="mt-5 inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-zinc-900 px-3 py-2 text-xs text-zinc-300"><Upload className="size-3.5" />Browse files</span>
+            </div>
+          )}
+          {image && <div className="absolute bottom-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-black/40 px-2.5 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-zinc-500 backdrop-blur-md"><Gauge className="size-3 text-zinc-600" /><span>{Math.round(zoomLevel * 100)}%</span><span className="text-zinc-700">•</span><span>{image.naturalWidth}×{image.naturalHeight}</span></div>{advanced.brushStrength !== 0 ? <div className="flex items-center gap-2 rounded-lg border border-cyan-300/10 bg-cyan-400/5 px-2.5 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-cyan-200 backdrop-blur-md"><Sparkles className="size-3" />Brush active · click preview</div> : null}</div>}
+          {isRendering && image ? <span className="absolute right-3 top-3 z-20 inline-flex items-center gap-2 rounded-lg border border-indigo-300/10 bg-indigo-500/10 px-2.5 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-indigo-200 backdrop-blur-md"><Zap className="size-3" />GPU Render</span> : null}
+
+          <FloatingCanvasOverlay
+            zoomLevel={zoomLevel}
+            labels={SEED_OVERLAY_LABELS}
+            canUndo={historyIndex > 0}
+            canRedo={historyIndex < history.length - 1}
+            isFullscreen={isFullscreen}
+            isMobileSheetOpen={false}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onResetZoom={handleResetZoom}
+            onUndo={undo}
+            onRedo={redo}
+            onCompareStart={handleCompareStart}
+            onCompareEnd={handleCompareEnd}
+            onToggleFullscreen={toggleFullscreen}
+          />
         </section>
 
-        <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950/90 shadow-[0_30px_70px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+        <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950/90 shadow-[0_24px_70px_rgba(0,0,0,0.28)] backdrop-blur-xl">
           <div className="shrink-0 border-b border-white/[0.06] bg-zinc-950/95 px-3.5 py-3.5"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2.5"><span className="flex size-8 items-center justify-center rounded-lg border border-white/[0.07] bg-zinc-900 text-zinc-300"><SlidersHorizontal className="size-4" /></span><div><div className="text-[12px] font-semibold text-zinc-100">Control Matrix</div><div className="font-mono text-[9px] uppercase tracking-[0.12em] text-zinc-600">Non-destructive parameter graph</div></div></div><button type="button" onClick={() => imageInputRef.current?.click()} className="inline-flex size-8 items-center justify-center rounded-lg border border-white/[0.06] bg-zinc-900 text-zinc-500 transition hover:border-white/[0.11] hover:text-white" aria-label="Replace image"><Upload className="size-3.5" /></button></div></div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-2.5" style={{ scrollbarColor: '#3f3f46 transparent', scrollbarWidth: 'thin' }}>
