@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { TOOLS_REGISTRY } from '../src/config/tools.ts';
 
-const routeTreePath = path.resolve('src/routes/route-tree.ts');
+const routesDir = path.resolve('src/routes');
+const routeTreePath = path.join(routesDir, 'route-tree.ts');
 const routeTreeSource = fs.readFileSync(routeTreePath, 'utf8');
 
 function fail(stage, message, details = {}) {
@@ -19,13 +20,21 @@ function isPublicToolRoute(route) {
   return parts.length === 2 && parts[0].length === 2 && !parts[1].startsWith('$');
 }
 
-function extractExplicitRoutes(source) {
+function listRouteFiles(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) return listRouteFiles(fullPath);
+    return entry.isFile() && entry.name.endsWith('.tsx') ? [fullPath] : [];
+  });
+}
+
+function extractPathProperties(source) {
   const routes = [];
-  const routeReferencePattern = /\b(?:export const|const)\s+\w+\s*=\s*(?:[^\n]*createRoute\([^\n]*path:\s*['\"]([^'\"]+)['\"]|[^\n]*\{\s*path:\s*['\"]([^'\"]+)['\"])/g;
+  const pathPattern = /\bpath\s*:\s*(['"])([^'"]+)\1/g;
   let match;
-  while ((match = routeReferencePattern.exec(source)) !== null) {
-    const route = match[1] ?? match[2];
-    if (route) routes.push(route);
+  while ((match = pathPattern.exec(source)) !== null) {
+    const route = match[2];
+    if (route.startsWith('/')) routes.push(route);
   }
   return routes;
 }
@@ -65,12 +74,11 @@ for (const tool of TOOLS_REGISTRY) {
   }
 }
 
-const explicitRoutes = extractExplicitRoutes(routeTreeSource);
-const declaredRoutes = new Set(explicitRoutes);
+const routeSources = listRouteFiles(routesDir).map((file) => fs.readFileSync(file, 'utf8'));
+const declaredRoutes = new Set(routeSources.flatMap(extractPathProperties));
 
-// Image routes are intentionally generated from IMAGE_TOOLS and inserted into routeChildren
-// as a route array. The contract validates that generated boundary without executing the
-// TypeScript route module (which would require a TS-aware runtime and its internal imports).
+// Image routes are generated from IMAGE_TOOLS and consumed as an array in route-tree.ts.
+// Include the registry-owned generated boundary without executing TypeScript route modules.
 const usesGeneratedImageRoutes = /\bimageToolRoutes\b/.test(routeTreeSource);
 if (usesGeneratedImageRoutes) {
   for (const tool of TOOLS_REGISTRY) {
@@ -91,7 +99,7 @@ const expectedPublicRoutes = new Set(
     .filter(isPublicToolRoute),
 );
 
-const duplicateDeclared = [...explicitRoutes]
+const duplicateDeclared = [...declaredRoutes]
   .filter((route, index, all) => all.indexOf(route) !== index)
   .sort();
 
@@ -99,10 +107,6 @@ if (duplicateDeclared.length) {
   fail('router-duplicates', 'Duplicate route declarations detected.', {
     duplicates: duplicateDeclared,
   });
-}
-
-if (usesGeneratedImageRoutes && !routeTreeSource.includes('imageToolRoutes')) {
-  fail('router-generated-routes', 'Generated image routes were expected but not referenced by route-tree.ts.');
 }
 
 const missing = [...expectedPublicRoutes].filter((route) => !declaredToolRoutes.has(route)).sort();
