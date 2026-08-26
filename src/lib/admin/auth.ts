@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { timingSafeEqual, scryptSync } from 'node:crypto';
-import { useAdminSession } from './session';
+import { getAdminSession } from './session';
 import { rateLimit, RATE_PRESETS } from '../server/security/csrf';
 import { securityRequestMiddleware } from '../security/requestMiddleware';
 
@@ -35,7 +35,7 @@ function verifyAdminPassword(password: string): boolean {
 
 export const getAdminSessionStatus = createServerFn({ method: 'GET' }).handler(async () => {
   try {
-    const session = await useAdminSession();
+    const session = await getAdminSession();
     return { authenticated: Boolean(session.data.userId), role: session.data.role ?? null };
   } catch {
     return { authenticated: false, role: null };
@@ -49,13 +49,13 @@ export const loginAdmin = createServerFn({ method: 'POST' })
     const rl = rateLimit(`admin-login:${context.clientIp ?? 'unknown'}`, RATE_PRESETS.login);
     if (!rl.allowed) return { ok: false as const, error: 'Too many login attempts. Please try again later.' };
     if (!verifyAdminPassword(data.password)) return { ok: false as const, error: 'Invalid administrator credentials.' };
-    const session = await useAdminSession();
+    const session = await getAdminSession();
     await session.update({ userId: 'owner', role: 'owner' });
     return { ok: true as const, role: 'owner' as const };
   });
 
 export const logoutAdmin = createServerFn({ method: 'POST' }).handler(async () => {
-  const session = await useAdminSession();
+  const session = await getAdminSession();
   await session.clear();
   return { ok: true as const };
 });
