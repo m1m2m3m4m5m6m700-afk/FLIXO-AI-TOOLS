@@ -1,21 +1,54 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { LOCALES, SITE_ORIGIN, X_DEFAULT_LOCALE } from '../src/lib/i18n/config.ts';
+import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
+import { USE_CASES } from '../src/lib/seo/use-cases.ts';
 
-const siteOrigin = 'https://flexoai.vercel.app';
-const locales = ['en','ar','es','fr','de','ru','zh','hi','id','ur','ja','pt','it','ko','nl','pl','tr','vi','th','sv'];
-const toolsSource = readFileSync('src/config/tools.ts', 'utf8');
-const useCasesSource = readFileSync('src/lib/seo/use-cases.ts', 'utf8');
-const readyToolIds = [...toolsSource.matchAll(/\{ id: '([^']+)',[^\n]*?isReady: true,/g)].map((match) => match[1]);
-const useCaseSlugs = [...useCasesSource.matchAll(/slug: '([^']+)'/g)].map((match) => match[1]);
+const normalizePath = (path) => {
+  const value = path.startsWith('/') ? path : `/${path}`;
+  return value === '/' ? '/' : value.replace(/\/+$/, '');
+};
 
-const urls = [`${siteOrigin}/`];
-for (const locale of locales) {
-  urls.push(`${siteOrigin}/${locale}`);
-  for (const toolId of readyToolIds) urls.push(`${siteOrigin}/${locale}/${toolId}`);
-}
-for (const slug of useCaseSlugs) urls.push(`${siteOrigin}/use-cases/${slug}`);
+const localizedPath = (locale, path) => {
+  const normalized = normalizePath(path);
+  const localePrefix = new RegExp(`^/(?:${LOCALES.join('|')})(?=/|$)`);
+  const withoutLocale = normalized.replace(localePrefix, '');
+  return `/${locale}${withoutLocale || '/'}`.replace(/\/{2,}/g, '/');
+};
 
-const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((url) => `  <url><loc>${url}</loc></url>`).join('\n')}\n</urlset>\n`;
+const absoluteUrl = (path) => new URL(normalizePath(path), SITE_ORIGIN).toString();
+
+const readyTools = TOOL_MANIFEST.filter((tool) => tool.isReady);
+const toolPaths = readyTools.map((tool) => tool.path);
+const useCasePaths = USE_CASES.map((useCase) => `/use-cases/${useCase.slug}`);
+const pagePaths = ['/', ...toolPaths, ...useCasePaths];
+
+const unique = (values) => [...new Set(values)];
+
+const alternateLinks = (path) => {
+  const links = LOCALES.map((locale) =>
+    `    <xhtml:link rel="alternate" hreflang="${locale}" href="${absoluteUrl(localizedPath(locale, path))}" />`,
+  );
+  links.push(
+    `    <xhtml:link rel="alternate" hreflang="x-default" href="${absoluteUrl(localizedPath(X_DEFAULT_LOCALE, path))}" />`,
+  );
+  return links.join('\n');
+};
+
+const localizedUrls = unique(
+  pagePaths.flatMap((path) => LOCALES.map((locale) => localizedPath(locale, path))),
+);
+
+const urls = unique(localizedUrls);
+const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${urls
+  .map((url) => {
+    const path = new URL(url).pathname;
+    const pathWithoutLocale = path.replace(/^\/(?:${LOCALES.join('|')})(?=\/|$)/, '') || '/';
+    return `  <url>\n    <loc>${url}</loc>\n${alternateLinks(pathWithoutLocale)}\n  </url>`;
+  })
+  .join('\n')}\n</urlset>\n`;
 
 mkdirSync('public', { recursive: true });
 writeFileSync('public/sitemap.xml', xml, 'utf8');
-console.log(`Generated sitemap with ${urls.length} URLs (${readyToolIds.length} ready tools × ${locales.length} locales + ${locales.length + 1} home URLs + ${useCaseSlugs.length} use cases).`);
+console.log(
+  `Generated sitemap with ${urls.length} localized URLs (${readyTools.length} ready tools, ${LOCALES.length} locales, ${USE_CASES.length} use cases) with hreflang alternates.`,
+);
