@@ -8,8 +8,8 @@ const clientPath = path.join(distPath, 'client');
 
 const budget = JSON.parse(fs.readFileSync(budgetPath, 'utf8'));
 
-if (!fs.existsSync(distPath)) {
-  console.error('Performance budget validation requires a built dist/ directory.');
+if (!fs.existsSync(distPath) || !fs.existsSync(clientPath)) {
+  console.error('Performance budget validation requires a built dist/client/ directory.');
   process.exit(1);
 }
 
@@ -27,7 +27,7 @@ function isDeferredWorkerAsset(relativePath) {
 }
 
 function isNonRuntimeAsset(relativePath) {
-  return /^(?:sitemap\.xml|robots\.txt)$/i.test(relativePath);
+  return /(?:^|\/)(?:sitemap\.xml|robots\.txt)$/i.test(relativePath);
 }
 
 function walk(dir) {
@@ -39,7 +39,7 @@ function walk(dir) {
     }
 
     const bytes = fs.statSync(fullPath).size;
-    const relativePath = path.relative(distPath, fullPath).replaceAll(path.sep, '/');
+    const relativePath = path.relative(clientPath, fullPath).replaceAll(path.sep, '/');
     assets.push({ path: relativePath, bytes });
 
     if (isNonRuntimeAsset(relativePath)) {
@@ -47,26 +47,23 @@ function walk(dir) {
       continue;
     }
 
-    totalAssetBytes += bytes;
-    if (/\.m?js$/i.test(entry.name)) {
-      if (isDeferredWorkerAsset(relativePath)) deferredWorkerAssets.push({ path: relativePath, bytes });
-      else javascriptBytes += bytes;
+    if (isDeferredWorkerAsset(relativePath)) {
+      deferredWorkerAssets.push({ path: relativePath, bytes });
+      continue;
     }
+
+    totalAssetBytes += bytes;
+    if (/\.m?js$/i.test(entry.name)) javascriptBytes += bytes;
     if (/\.css$/i.test(entry.name)) cssBytes += bytes;
   }
 }
 
-walk(distPath);
+walk(clientPath);
 
-// TanStack Start emits separate client/server environments and does not emit
-// a top-level dist/index.html. The hashed client index chunk is the critical
-// JavaScript entry for the performance budget in this build architecture.
-if (fs.existsSync(clientPath)) {
-  for (const asset of assets) {
-    if (/^client\/assets\/index-[^/]+\.m?js$/i.test(asset.path)) {
-      criticalJavascriptAssets.push(asset);
-      criticalJavascriptBytes += asset.bytes;
-    }
+for (const asset of assets) {
+  if (/^assets\/index-[^/]+\.m?js$/i.test(asset.path)) {
+    criticalJavascriptAssets.push(asset);
+    criticalJavascriptBytes += asset.bytes;
   }
 }
 
@@ -104,7 +101,7 @@ if (nonRuntimeAssets.length) {
 
 if (deferredWorkerAssets.length) {
   const workerBytes = deferredWorkerAssets.reduce((total, asset) => total + asset.bytes, 0);
-  console.log(`Deferred worker assets excluded from critical JavaScript budget: ${(workerBytes / 1024 / 1024).toFixed(2)} MiB`);
+  console.log(`Deferred worker assets excluded from runtime budgets: ${(workerBytes / 1024 / 1024).toFixed(2)} MiB`);
   for (const asset of deferredWorkerAssets) {
     console.log(`  worker ${asset.path} ${(asset.bytes / 1024 / 1024).toFixed(2)} MiB`);
   }
@@ -112,7 +109,7 @@ if (deferredWorkerAssets.length) {
 
 if (failed) {
   const largestAssets = assets
-    .filter((asset) => !isNonRuntimeAsset(asset.path))
+    .filter((asset) => !isNonRuntimeAsset(asset.path) && !isDeferredWorkerAsset(asset.path))
     .sort((a, b) => b.bytes - a.bytes)
     .slice(0, 10);
   console.error('Largest runtime assets:');
