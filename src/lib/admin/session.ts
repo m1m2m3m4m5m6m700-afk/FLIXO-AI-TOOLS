@@ -1,30 +1,20 @@
 import { useSession } from '@tanstack/react-start/server';
 
 export type AdminRole = 'owner' | 'admin' | 'analyst';
-
-export interface AdminSessionData {
-  userId?: string;
-  role?: AdminRole;
-}
+export interface AdminSessionData { userId?: string; role?: AdminRole; }
 
 const SESSION_NAME = 'flixo-admin-session';
 
 export function getAdminSession() {
   const password = process.env.ADMIN_SESSION_SECRET;
-  if (!password || password.length < 32) {
-    throw new Error('ADMIN_SESSION_SECRET must be configured with at least 32 characters.');
-  }
-
+  if (!password || password.length < 32) throw new Error('ADMIN_SESSION_SECRET must be configured with at least 32 characters.');
+  // TanStack Start exposes useSession as the server-side session primitive.
+  // It is not a React component hook in this context.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   return useSession<AdminSessionData>({
     name: SESSION_NAME,
     password,
-    cookie: {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/admin',
-      maxAge: 60 * 60 * 12,
-    },
+    cookie: { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/admin', maxAge: 60 * 60 * 12 },
   });
 }
 
@@ -36,8 +26,6 @@ export async function getCurrentAdmin() {
 
 export async function requireAdminRole(allowed: AdminRole[]) {
   const admin = await getCurrentAdmin();
-  if (!admin || !allowed.includes(admin.role)) {
-    throw new Error('admin_unauthorized');
-  }
+  if (!admin || !allowed.includes(admin.role)) throw new Error('admin_unauthorized');
   return admin;
 }
