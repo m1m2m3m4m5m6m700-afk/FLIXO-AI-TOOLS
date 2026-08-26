@@ -34,7 +34,7 @@ async function loadSeed(page: import('@playwright/test').Page, testInfo: import(
 test('Seed: WebGL preview changes pixels and exports a non-empty PNG', async ({ page }, testInfo) => {
   await loadSeed(page, testInfo);
   const baseline = await gpuPixels(page);
-  await page.getByRole('slider', { name: 'brightness' }).fill('50');
+  await page.getByRole('slider', { name: 'brightness' }).fill('-50');
   await page.waitForTimeout(150);
   const adjusted = await gpuPixels(page);
   expect(adjusted).not.toEqual(baseline);
