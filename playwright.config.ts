@@ -24,7 +24,9 @@ export default defineConfig({
     { name: 'webkit', use: { ...devices['Desktop Safari'], actionTimeout: 20_000 } },
   ],
   webServer: {
-    command: useProductionServer ? 'npm run build && npm run preview -- --host 127.0.0.1 --port 3000',
+    command: useProductionServer
+      ? 'npm run build && npm run preview -- --host 127.0.0.1 --port 3000'
+      : 'npm run dev',
     url: 'http://127.0.0.1:3000',
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,
