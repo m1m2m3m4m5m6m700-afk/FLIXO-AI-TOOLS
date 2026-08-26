@@ -13,17 +13,18 @@ export interface AdminLoginResult {
 
 /**
  * Browser-safe facade for the Vite SPA.
- * Real administrator authentication is server-only and must not be bundled
- * into the client application.
+ * Real administrator authentication is server-only and is intentionally
+ * unavailable until the dedicated authentication backend is implemented.
  */
 export async function getAdminSessionStatus(): Promise<AdminSessionStatus> {
   return { authenticated: false, role: null };
 }
 
-export async function loginAdmin(_input: { data: { password: string } }): Promise<AdminLoginResult> {
+export async function loginAdmin(input: { data: { password: string } }): Promise<AdminLoginResult> {
+  void input;
   return {
     ok: false,
-    error: 'Administrator authentication requires the server runtime.',
+    error: 'Administrator authentication is not available in the SPA build.',
   };
 }
 
