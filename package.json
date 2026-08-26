@@ -28,6 +28,7 @@
     "report:localization": "node scripts/report-localization-coverage.mjs",
     "report:dependency-health": "node scripts/report-dependency-health.mjs",
     "report:dependency-trace": "node scripts/report-dependency-trace.mjs",
+    "report:heavy-dependency-usage": "node scripts/report-heavy-dependency-usage.mjs",
     "report:complexity": "node scripts/report-complexity-debt.mjs",
     "report:bundle-size": "node scripts/report-bundle-size.mjs",
     "validate:performance-budget": "node scripts/validate-performance-budget.mjs",

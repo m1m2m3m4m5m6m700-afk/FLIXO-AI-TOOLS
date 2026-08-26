@@ -6,12 +6,16 @@ on:
     paths:
       - 'src/**'
       - 'scripts/validate-bundle-boundaries.mjs'
+      - 'scripts/report-heavy-dependency-usage.mjs'
+      - 'package.json'
       - '.github/workflows/bundle-boundary-contract.yml'
   push:
     branches: [main]
     paths:
       - 'src/**'
       - 'scripts/validate-bundle-boundaries.mjs'
+      - 'scripts/report-heavy-dependency-usage.mjs'
+      - 'package.json'
       - '.github/workflows/bundle-boundary-contract.yml'
 
 permissions:
@@ -25,5 +29,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
       - name: Validate protected entrypoints
         run: node scripts/validate-bundle-boundaries.mjs
+      - name: Inventory heavy dependency usage
+        run: npm run report:heavy-dependency-usage
+      - name: Upload heavy dependency inventory
+        uses: actions/upload-artifact@v6
+        with:
+          name: heavy-dependency-usage
+          path: diagnostics/heavy-dependency-usage.json
+          if-no-files-found: error
+          retention-days: 14
