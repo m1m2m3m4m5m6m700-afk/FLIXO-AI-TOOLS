@@ -38,14 +38,20 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
     const handleGlobalKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') endCompare();
     };
+    const handleGlobalMouseUp = () => endCompare();
+    const handleGlobalPointerUp = () => endCompare();
 
     window.addEventListener('blur', handleBlur);
     window.addEventListener('keydown', handleGlobalKeyDown);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    window.addEventListener('pointerup', handleGlobalPointerUp);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('keydown', handleGlobalKeyDown);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+      window.removeEventListener('pointerup', handleGlobalPointerUp);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (isComparingRef.current) {
         isComparingRef.current = false;
@@ -112,11 +118,11 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
     isComparing,
     endCompare,
     bind: {
-      onPointerDown: handlePointerDown,
-      onPointerUp: handlePointerUp,
-      onPointerCancel: handlePointerUp,
-      onMouseDown: handleMouseDown,
-      onMouseUp: handleMouseUp,
+      onPointerDownCapture: handlePointerDown,
+      onPointerUpCapture: handlePointerUp,
+      onPointerCancelCapture: handlePointerUp,
+      onMouseDownCapture: handleMouseDown,
+      onMouseUpCapture: handleMouseUp,
       onKeyDown: handleKeyDown,
       onKeyUp: handleKeyUp,
     },
