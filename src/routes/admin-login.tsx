@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { FormEvent, useState } from 'react';
 import { LockKeyhole, ShieldCheck } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
 import { loginAdmin } from '@/lib/admin/auth';
 import './admin.css';
 
@@ -13,6 +13,9 @@ export const Route = createFileRoute('/admin/login')({
   }),
   component: AdminLoginPage,
 });
+
+/** Stable export used by the manually maintained route registry. */
+export const adminLoginRoute = Route;
 
 function AdminLoginPage() {
   const navigate = useNavigate();
