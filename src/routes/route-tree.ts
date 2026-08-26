@@ -3,7 +3,7 @@ import { arImageCompressorRoute } from './ar-image-compressor';
 import { arQuickFlowRoute } from './ar-quickflow';
 import { enImageCompressorRoute } from './en-image-compressor';
 import { enQuickFlowRoute } from './en-quickflow';
-import { enPdfCompressorRoute, enPdfMergerSplitterRoute, enPdfImageToPdfRoute, enPdfUnlockProtectRoute, enPdfToTextRoute } from './pdf-tools';
+import { enPdfCompressorRoute, enPdfMergerSplitterRoute, enImageToPdfRoute, enPdfUnlockProtectRoute, enPdfToTextRoute } from './pdf-tools';
 import { enWordCharacterCounterRoute } from './word-tools';
 import { enTextDiffCheckerRoute } from './text-tools';
 import { enCaseConverterRoute } from './case-tools';
@@ -14,7 +14,7 @@ import { enJsonFormatterValidatorRoute } from './json-tools';
 import { enBase64EncoderDecoderRoute } from './base64-tools';
 import { enColorPickerPaletteRoute } from './color-tools';
 import { enVideoTrimmerSplitterRoute } from './video-tools';
-import { enAudioExtractorMuterRoute } from './audio-extractor-muter';
+import { enAudioExtractorMuterRoute } from './audio-tools';
 import { enVideoGifMemeRoute } from './video-gif-meme';
 import { enVideoCompressorConverterRoute } from './video-compressor-converter';
 import { enAiCaptionerSrtRoute } from './ai-captioner-srt';
@@ -47,8 +47,7 @@ export const routeChildren = [
   useCaseRoute,
   enPdfMergerSplitterRoute,
   enPdfCompressorRoute,
-  enPdfCompressorRoute,
-  enPdfImageToPdfRoute,
+  enImageToPdfRoute,
   enPdfUnlockProtectRoute,
   enPdfToTextRoute,
   enWordCharacterCounterRoute,
