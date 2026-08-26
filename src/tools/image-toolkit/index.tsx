@@ -55,16 +55,16 @@ function useObjectUrl(blob: Blob | null) {
   const [url, setUrl] = useState('');
 
   useEffect(() => {
-    if (!blob) {
-      setUrl('');
-      return;
-    }
+    let active = true;
+    const nextUrl = blob ? URL.createObjectURL(blob) : '';
 
-    const nextUrl = URL.createObjectURL(blob);
-    setUrl(nextUrl);
+    Promise.resolve().then(() => {
+      if (active) setUrl(nextUrl);
+    });
 
     return () => {
-      URL.revokeObjectURL(nextUrl);
+      active = false;
+      if (nextUrl) URL.revokeObjectURL(nextUrl);
     };
   }, [blob]);
 
