@@ -74,11 +74,11 @@ test('Seed: Undo and Redo restore and reapply a GPU color change', async ({ page
   const edited = await gpuPixels(page);
   expect(edited).not.toEqual(baseline);
 
-  await page.getByRole('button', { name: 'Undo' }).click();
+  await page.getByTestId('button-canvas-undo').click();
   await page.waitForTimeout(150);
   expect(await gpuPixels(page)).toEqual(baseline);
 
-  await page.getByRole('button', { name: 'Redo' }).click();
+  await page.getByTestId('button-canvas-redo').click();
   await page.waitForTimeout(150);
   expect(await gpuPixels(page)).toEqual(edited);
 });
