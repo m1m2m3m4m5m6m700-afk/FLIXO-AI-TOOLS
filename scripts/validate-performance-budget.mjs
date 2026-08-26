@@ -17,9 +17,14 @@ let cssBytes = 0;
 let totalAssetBytes = 0;
 const assets = [];
 const deferredWorkerAssets = [];
+const nonRuntimeAssets = [];
 
 function isDeferredWorkerAsset(relativePath) {
   return /(?:^|\/)(?:pdf\.worker|.*\.worker)(?:[-.][^/]*)?\.m?js$/i.test(relativePath);
+}
+
+function isNonRuntimeAsset(relativePath) {
+  return /^(?:sitemap\.xml|robots\.txt)$/i.test(relativePath);
 }
 
 function walk(dir) {
@@ -32,8 +37,15 @@ function walk(dir) {
 
     const bytes = fs.statSync(fullPath).size;
     const relativePath = path.relative(distPath, fullPath).replaceAll(path.sep, '/');
-    totalAssetBytes += bytes;
+
     assets.push({ path: relativePath, bytes });
+
+    if (isNonRuntimeAsset(relativePath)) {
+      nonRuntimeAssets.push({ path: relativePath, bytes });
+      continue;
+    }
+
+    totalAssetBytes += bytes;
 
     if (/\.m?js$/.test(entry.name)) {
       if (isDeferredWorkerAsset(relativePath)) deferredWorkerAssets.push({ path: relativePath, bytes });
@@ -48,7 +60,7 @@ walk(distPath);
 const checks = [
   ['JavaScript', javascriptBytes, budget.javascriptBytes],
   ['CSS', cssBytes, budget.cssBytes],
-  ['Total assets', totalAssetBytes, budget.totalAssetBytes],
+  ['Total runtime assets', totalAssetBytes, budget.totalAssetBytes],
 ];
 
 let failed = false;
@@ -63,6 +75,14 @@ for (const [label, actual, limit] of checks) {
   }
 }
 
+if (nonRuntimeAssets.length) {
+  const nonRuntimeBytes = nonRuntimeAssets.reduce((total, asset) => total + asset.bytes, 0);
+  console.log(`Non-runtime artifacts excluded from runtime asset budget: ${(nonRuntimeBytes / 1024 / 1024).toFixed(2)} MiB`);
+  for (const asset of nonRuntimeAssets) {
+    console.log(`  artifact ${asset.path} ${(asset.bytes / 1024 / 1024).toFixed(2)} MiB`);
+  }
+}
+
 if (deferredWorkerAssets.length) {
   const workerBytes = deferredWorkerAssets.reduce((total, asset) => total + asset.bytes, 0);
   console.log(`Deferred worker assets excluded from critical JavaScript budget: ${(workerBytes / 1024 / 1024).toFixed(2)} MiB`);
@@ -73,9 +93,10 @@ if (deferredWorkerAssets.length) {
 
 if (failed) {
   const largestAssets = assets
+    .filter((asset) => !isNonRuntimeAsset(asset.path))
     .sort((a, b) => b.bytes - a.bytes)
     .slice(0, 10);
-  console.error('Largest dist assets:');
+  console.error('Largest runtime assets:');
   for (const asset of largestAssets) {
     console.error(`  ${(asset.bytes / 1024 / 1024).toFixed(2)} MiB  ${asset.path}`);
   }
