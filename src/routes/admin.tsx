@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { createRoute, redirect } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { BarChart3, ClipboardList, Download, FileText, LogOut, Plus, Shield, Trash2, Users } from 'lucide-react';
 import {
@@ -17,13 +17,16 @@ import {
   type SurveyResponse,
 } from '@/lib/admin-surveys';
 import { getAdminSessionStatus, logoutAdmin } from '@/lib/admin/auth';
+import { rootRoute } from './__root';
 import './admin.css';
 
-export const Route = createFileRoute('/admin')({
+export const Route = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin',
   head: () => ({ meta: [{ title: 'FLIXO Admin Control Center' }, { name: 'robots', content: 'noindex, nofollow, noarchive' }] }),
   beforeLoad: async () => {
     const session = await getAdminSessionStatus();
-    if (!session.authenticated) throw redirect({ to: '/admin-login' });
+    if (!session.authenticated) throw redirect({ to: '/admin/login' });
     return { adminRole: session.role };
   },
   component: AdminPage,
@@ -123,7 +126,7 @@ function AdminPage() {
     setBusy(true);
     try {
       await logoutAdmin();
-      window.location.assign('/admin-login');
+      window.location.assign('/admin/login');
     } finally {
       setBusy(false);
     }
