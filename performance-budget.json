@@ -1,6 +1,7 @@
 {
+  "criticalJavascriptBytes": 921600,
   "javascriptBytes": 3145728,
   "cssBytes": 1048576,
   "totalAssetBytes": 5242880,
-  "notes": "Initial safety ceilings. Tighten only after measured production baseline. Core Web Vitals remain field-data metrics, not static build assertions."
+  "notes": "Critical JavaScript is measured from assets directly referenced by dist/index.html. Existing JavaScript/total ceilings remain unchanged; deferred workers are excluded from the critical JavaScript budget."
 }
