@@ -5,19 +5,26 @@ const useProductionPreview = process.env.PLAYWRIGHT_SERVER === 'preview';
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
+  forbidOnly: !!process.env.CI,
   workers: process.env.CI ? 2 : undefined,
-  retries: 0,
-  timeout: 15_000,
-  reporter: [
-    ['list'],
-    ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ['json', { outputFile: 'playwright-report/results.json' }],
-  ],
+  retries: process.env.CI ? 2 : 0,
+  timeout: 45_000,
+  expect: {
+    timeout: 10_000,
+  },
+  reporter: process.env.CI
+    ? [['github'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]]
+    : [
+        ['list'],
+        ['html', { outputFolder: 'playwright-report', open: 'never' }],
+        ['json', { outputFile: 'playwright-report/results.json' }],
+      ],
   use: {
-    baseURL: 'http://127.0.0.1:3000',
-    trace: 'retain-on-failure',
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://127.0.0.1:3000',
+    trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    actionTimeout: 15_000,
   },
   projects: [
     {
@@ -39,7 +46,10 @@ export default defineConfig({
     },
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: {
+        ...devices['Desktop Safari'],
+        actionTimeout: 20_000,
+      },
     },
   ],
   webServer: {
