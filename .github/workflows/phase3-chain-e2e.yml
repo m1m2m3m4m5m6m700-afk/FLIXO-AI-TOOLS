@@ -19,15 +19,26 @@ permissions:
 jobs:
   chain-e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22.x
+          node-version-file: .nvmrc
           cache: npm
-      - name: Install
+      - name: Install dependencies
         run: npm ci
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit
-      - name: Tool chain E2E
-        run: npx playwright test tests/phase3-tool-chain-e2e.spec.ts
+      - name: Run Tool chain E2E
+        env:
+          CI: 'true'
+        run: npx playwright test tests/phase3-tool-chain-e2e.spec.ts --reporter=blob
+      - name: Upload diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: phase3-chain-e2e-blob
+          path: blob-report/
+          if-no-files-found: warn
+          retention-days: 2
