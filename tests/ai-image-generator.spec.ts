@@ -2,15 +2,9 @@ import { expect, test } from '@playwright/test';
 import { PNG } from './helpers/image-tool-fixture';
 
 test('ai-image-generator: consumes an image endpoint response and downloads it', async ({ page }) => {
-  let generationRequestHandled = false;
-  await page.route('**', async (route) => {
-    const request = route.request();
-    if (!generationRequestHandled && request.method() === 'POST') {
-      generationRequestHandled = true;
-      await route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
-      return;
-    }
-    await route.continue();
+  const endpoint = process.env.VITE_FLIXO_AI_IMAGE_ENDPOINT || '/api/ai/image';
+  await page.route(`**${endpoint}`, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
   });
 
   await page.goto('/en/ai-image-generator');
