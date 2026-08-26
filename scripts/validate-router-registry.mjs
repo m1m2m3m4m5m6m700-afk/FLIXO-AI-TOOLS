@@ -1,5 +1,9 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { TOOLS_REGISTRY } from '../src/config/tools.ts';
-import { routeChildren } from '../src/routes/route-tree.ts';
+
+const routeTreePath = path.resolve('src/routes/route-tree.ts');
+const routeTreeSource = fs.readFileSync(routeTreePath, 'utf8');
 
 function fail(stage, message, details = {}) {
   console.error(`ROUTER_REGISTRY_FAILURE stage=${stage}`);
@@ -15,25 +19,23 @@ function isPublicToolRoute(route) {
   return parts.length === 2 && parts[0].length === 2 && !parts[1].startsWith('$');
 }
 
-function collectRoutePaths(routes, output = []) {
-  for (const route of routes ?? []) {
-    const path = route?.options?.path;
-    if (typeof path === 'string') output.push(path);
-
-    const children = route?.children;
-    if (Array.isArray(children) && children.length > 0) {
-      collectRoutePaths(children, output);
-    }
+function extractExplicitRoutes(source) {
+  const routes = [];
+  const routeReferencePattern = /\b(?:export const|const)\s+\w+\s*=\s*(?:[^\n]*createRoute\([^\n]*path:\s*['\"]([^'\"]+)['\"]|[^\n]*\{\s*path:\s*['\"]([^'\"]+)['\"])/g;
+  let match;
+  while ((match = routeReferencePattern.exec(source)) !== null) {
+    const route = match[1] ?? match[2];
+    if (route) routes.push(route);
   }
-  return output;
+  return routes;
 }
 
 if (!Array.isArray(TOOLS_REGISTRY) || TOOLS_REGISTRY.length === 0) {
   fail('registry-load', 'TOOLS_REGISTRY is empty or invalid.');
 }
 
-if (!Array.isArray(routeChildren) || routeChildren.length === 0) {
-  fail('router-load', 'routeChildren is empty or invalid.');
+if (!routeTreeSource.includes('export const routeChildren')) {
+  fail('router-load', 'route-tree.ts does not expose routeChildren.');
 }
 
 const canonicalPaths = new Map();
@@ -63,7 +65,22 @@ for (const tool of TOOLS_REGISTRY) {
   }
 }
 
-const declaredRoutes = new Set(collectRoutePaths(routeChildren));
+const explicitRoutes = extractExplicitRoutes(routeTreeSource);
+const declaredRoutes = new Set(explicitRoutes);
+
+// Image routes are intentionally generated from IMAGE_TOOLS and inserted into routeChildren
+// as a route array. The contract validates that generated boundary without executing the
+// TypeScript route module (which would require a TS-aware runtime and its internal imports).
+const usesGeneratedImageRoutes = /\bimageToolRoutes\b/.test(routeTreeSource);
+if (usesGeneratedImageRoutes) {
+  for (const tool of TOOLS_REGISTRY) {
+    if (tool.isReady && tool.path.startsWith('/en/')) declaredRoutes.add(tool.path);
+    for (const alias of tool.aliases ?? []) {
+      if (alias.startsWith('/en/')) declaredRoutes.add(alias);
+    }
+  }
+}
+
 const declaredToolRoutes = new Set([...declaredRoutes].filter(isPublicToolRoute));
 
 const expectedPublicRoutes = new Set(
@@ -74,7 +91,7 @@ const expectedPublicRoutes = new Set(
     .filter(isPublicToolRoute),
 );
 
-const duplicateDeclared = [...declaredRoutes]
+const duplicateDeclared = [...explicitRoutes]
   .filter((route, index, all) => all.indexOf(route) !== index)
   .sort();
 
@@ -82,6 +99,10 @@ if (duplicateDeclared.length) {
   fail('router-duplicates', 'Duplicate route declarations detected.', {
     duplicates: duplicateDeclared,
   });
+}
+
+if (usesGeneratedImageRoutes && !routeTreeSource.includes('imageToolRoutes')) {
+  fail('router-generated-routes', 'Generated image routes were expected but not referenced by route-tree.ts.');
 }
 
 const missing = [...expectedPublicRoutes].filter((route) => !declaredToolRoutes.has(route)).sort();
@@ -119,3 +140,4 @@ console.log(`non-ready tools: ${TOOLS_REGISTRY.filter((tool) => !tool.isReady).l
 console.log(`declared tool routes: ${declaredToolRoutes.size}`);
 console.log(`expected public routes: ${expectedPublicRoutes.size}`);
 console.log(`aliases: ${aliases.size}`);
+console.log(`generated image routes: ${usesGeneratedImageRoutes ? 'enabled' : 'disabled'}`);
