@@ -1,6 +1,5 @@
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
-import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react from '@vitejs/plugin-react';
 
@@ -22,12 +21,11 @@ function vendorChunk(id: string): string | undefined {
 
 export default defineConfig({
   plugins: [
-    tanstackStart(),
-    tanstackRouter({
-      target: 'react',
-      autoCodeSplitting: true,
-      routesDirectory: './src/routes',
-      generatedRouteTree: './src/routeTree.gen.ts',
+    tanstackStart({
+      router: {
+        routesDirectory: 'start-routes',
+        generatedRouteTree: '../routeTree.gen.ts',
+      },
     }),
     react(),
   ],
