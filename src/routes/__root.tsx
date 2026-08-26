@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { HeadContent, Outlet, createRootRoute } from '@tanstack/react-router';
+import { HeadContent, Scripts, Outlet, createRootRoute } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
@@ -39,6 +39,7 @@ export const rootRoute = createRootRoute({
         <FlixoGlobalLogo />
         <CommandPalette />
         <Outlet />
+        <Scripts />
       </>
     );
   },
