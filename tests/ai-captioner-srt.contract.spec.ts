@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
-const openCaptioner = async (page: Parameters<Parameters<typeof test>[2]>[0] extends never ? never : any) => {
+const openCaptioner = async (page: Page) => {
   await page.goto('/en/ai-captioner-srt', {
     waitUntil: 'domcontentloaded',
     timeout: 30_000,
