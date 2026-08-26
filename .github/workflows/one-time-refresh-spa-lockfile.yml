@@ -20,6 +20,7 @@ jobs:
           cache: npm
       - name: Regenerate lockfile
         run: npm install --package-lock-only --ignore-scripts
+      # One-shot: remove this workflow together with the generated lockfile commit.
       - name: Commit lockfile and remove one-time workflow
         run: |
           git config user.name 'github-actions[bot]'
