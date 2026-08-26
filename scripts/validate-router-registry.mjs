@@ -6,6 +6,7 @@ const root = process.cwd();
 const routesDir = path.join(root, 'src/routes');
 
 const { TOOLS_REGISTRY } = await import('../src/config/tools.ts');
+const { IMAGE_TOOLS } = await import('../src/config/tool-definitions/image.ts');
 
 function fail(stage, message, details = {}) {
   console.error(`ROUTER_REGISTRY_FAILURE stage=${stage}`);
@@ -38,6 +39,22 @@ function extractPathFromObject(argument) {
 
 function extractRoutePaths(filePath) {
   const source = fs.readFileSync(filePath, 'utf8');
+
+  // Registry-backed image routes are generated from IMAGE_TOOLS rather than
+  // declared as one route constant per tool. Keep this validator aligned with
+  // the runtime architecture instead of reintroducing a duplicate route list.
+  if (
+    filePath.endsWith(path.join('routes', 'image-tools.tsx')) &&
+    source.includes('IMAGE_TOOLS.flatMap')
+  ) {
+    return IMAGE_TOOLS.flatMap((tool) => [
+      { route: tool.path, file: filePath, kind: 'registry-generated' },
+      ...(tool.aliases ?? [])
+        .filter((alias) => alias.startsWith('/en/'))
+        .map((alias) => ({ route: alias, file: filePath, kind: 'registry-generated' })),
+    ]);
+  }
+
   const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const routes = [];
 
