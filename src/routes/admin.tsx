@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { createRoute, redirect } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { BarChart3, ClipboardList, Download, FileText, LogOut, Plus, Shield, Trash2, Users } from 'lucide-react';
 import {
@@ -17,10 +17,12 @@ import {
   type SurveyResponse,
 } from '@/lib/admin-surveys';
 import { getAdminSessionStatus, logoutAdmin } from '@/lib/admin/auth';
+import { rootRoute } from './__root';
 import './admin.css';
 
-export const Route = createFileRoute('/admin')({
-  ssr: false,
+export const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin',
   head: () => ({
     meta: [
       { title: 'FLIXO Admin Control Center' },
@@ -54,7 +56,7 @@ const questionTypes: Array<{ value: SurveyQuestionType; label: string }> = [
 ];
 
 function AdminPage() {
-  const routeContext = Route.useRouteContext();
+  const routeContext = adminRoute.useRouteContext();
   const [tab, setTab] = useState<AdminTab>('overview');
   const [surveys, setSurveys] = useState<Survey[]>(getSurveys());
   const [responses, setResponses] = useState<SurveyResponse[]>(getResponses());
