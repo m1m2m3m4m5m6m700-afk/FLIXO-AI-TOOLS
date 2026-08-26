@@ -1,0 +1,34 @@
+name: Temporary Lockfile Refresh
+
+on:
+  push:
+    branches:
+      - fix/ci-exact-head-certification-2026-08-26
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(ci): generate clean lockfile artifact') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Regenerate package lockfile
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Validate SPA server dependencies are absent
+        run: |
+          if grep -Eiq '"(@tanstack/react-start|@tanstack/router-plugin|nitro)"[[:space:]]*:' package-lock.json; then
+            echo 'Stale SPA server dependencies remain in package-lock.json'
+            exit 1
+          fi
+      - name: Upload clean lockfile
+        uses: actions/upload-artifact@v6
+        with:
+          name: clean-package-lock
+          path: package-lock.json
+          retention-days: 1
