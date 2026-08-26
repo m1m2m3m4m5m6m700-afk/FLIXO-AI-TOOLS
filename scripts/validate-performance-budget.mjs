@@ -4,12 +4,13 @@ import path from 'node:path';
 const root = process.cwd();
 const budgetPath = path.join(root, 'performance-budget.json');
 const distPath = path.join(root, 'dist');
-const indexPath = path.join(distPath, 'index.html');
+const candidateIndexPaths = [path.join(distPath, 'index.html'), path.join(distPath, 'client', 'index.html')];
+const indexPath = candidateIndexPaths.find((candidate) => fs.existsSync(candidate));
 
 const budget = JSON.parse(fs.readFileSync(budgetPath, 'utf8'));
 
-if (!fs.existsSync(distPath) || !fs.existsSync(indexPath)) {
-  console.error('Performance budget validation requires a built dist/ directory and dist/index.html.');
+if (!fs.existsSync(distPath) || !indexPath) {
+  console.error('Performance budget validation requires a built dist/ directory and an index.html entrypoint.');
   process.exit(1);
 }
 
@@ -23,26 +24,26 @@ const deferredWorkerAssets = [];
 const nonRuntimeAssets = [];
 
 function isDeferredWorkerAsset(relativePath) {
-  return /(?:^|\/)(?:pdf\.worker|.*\.worker)(?:[-.][^/]*)?\.m?js$/i.test(relativePath);
+  return /(?:^|\\/)(?:pdf\\.worker|.*\\.worker)(?:[-.][^/]*)?\\.m?js$/i.test(relativePath);
 }
 
 function isNonRuntimeAsset(relativePath) {
-  return /^(?:sitemap\.xml|robots\.txt)$/i.test(relativePath);
+  return /^(?:sitemap\\.xml|robots\\.txt)$/i.test(relativePath);
 }
 
 function normalizeAssetReference(value) {
   const withoutQuery = value.split(/[?#]/u, 1)[0] ?? '';
-  return withoutQuery.replace(/^\/+/, '');
+  return withoutQuery.replace(/^\\/+/, '');
 }
 
 function getCriticalJavascriptReferences() {
   const html = fs.readFileSync(indexPath, 'utf8');
   const references = new Set();
-  const attributePattern = /<(?:script|link)\b[^>]+(?:src|href)=["']([^"']+)["'][^>]*>/giu;
+  const attributePattern = /<(?:script|link)\\b[^>]+(?:src|href)=["']([^"']+)["'][^>]*>/giu;
 
   for (const match of html.matchAll(attributePattern)) {
     const asset = normalizeAssetReference(match[1]);
-    if (/\.m?js$/i.test(asset)) references.add(asset);
+    if (/\\.m?js$/i.test(asset)) references.add(asset);
   }
 
   return references;
@@ -68,19 +69,22 @@ function walk(dir) {
 
     totalAssetBytes += bytes;
 
-    if (/\.m?js$/i.test(entry.name)) {
+    if (/\\.m?js$/i.test(entry.name)) {
       if (isDeferredWorkerAsset(relativePath)) deferredWorkerAssets.push({ path: relativePath, bytes });
       else javascriptBytes += bytes;
     }
-    if (/\.css$/i.test(entry.name)) cssBytes += bytes;
+    if (/\\.css$/i.test(entry.name)) cssBytes += bytes;
   }
 }
 
 walk(distPath);
 
+const clientIndexPrefix = path.relative(distPath, path.dirname(indexPath)).replaceAll(path.sep, '/');
 const assetMap = new Map(assets.map((asset) => [asset.path, asset]));
 for (const reference of getCriticalJavascriptReferences()) {
-  const asset = assetMap.get(reference);
+  const direct = assetMap.get(reference);
+  const prefixed = clientIndexPrefix && clientIndexPrefix !== '.' ? assetMap.get(`${clientIndexPrefix}/${reference}`) : undefined;
+  const asset = direct ?? prefixed;
   if (!asset || isDeferredWorkerAsset(asset.path)) continue;
   criticalJavascriptAssets.push(asset);
   criticalJavascriptBytes += asset.bytes;
@@ -105,7 +109,7 @@ for (const [label, actual, limit] of checks) {
   }
 }
 
-console.log(`Critical JavaScript assets discovered from dist/index.html: ${criticalJavascriptAssets.length}`);
+console.log(`Critical JavaScript assets discovered from ${path.relative(root, indexPath)}: ${criticalJavascriptAssets.length}`);
 for (const asset of criticalJavascriptAssets) {
   console.log(`  critical ${asset.path} ${(asset.bytes / 1024).toFixed(1)} KiB`);
 }
