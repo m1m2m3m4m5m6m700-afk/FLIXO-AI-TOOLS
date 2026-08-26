@@ -1,4 +1,4 @@
-import { useSession } from '@tanstack/react-start/server';
+import { useSession as createSession } from '@tanstack/react-start/server';
 
 export type AdminRole = 'owner' | 'admin' | 'analyst';
 
@@ -9,13 +9,13 @@ export interface AdminSessionData {
 
 const SESSION_NAME = 'flixo-admin-session';
 
-export function useAdminSession() {
+export function getAdminSession() {
   const password = process.env.ADMIN_SESSION_SECRET;
   if (!password || password.length < 32) {
     throw new Error('ADMIN_SESSION_SECRET must be configured with at least 32 characters.');
   }
 
-  return useSession<AdminSessionData>({
+  return createSession<AdminSessionData>({
     name: SESSION_NAME,
     password,
     cookie: {
@@ -29,7 +29,7 @@ export function useAdminSession() {
 }
 
 export async function getCurrentAdmin() {
-  const session = await useAdminSession();
+  const session = await getAdminSession();
   if (!session.data.userId || !session.data.role) return null;
   return { userId: session.data.userId, role: session.data.role };
 }
