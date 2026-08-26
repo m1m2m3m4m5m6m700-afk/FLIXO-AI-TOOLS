@@ -1,8 +1,11 @@
 name: Release Certification
 
 on:
+  # Release certification is release-only. Regular pushes to main must not
+  # consume the release-only Socket credential or create a release failure.
   push:
-    branches: [main]
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
 
 permissions:
@@ -28,7 +31,6 @@ jobs:
             echo 'Configure it as a GitHub Actions repository or environment secret before releasing.'
             exit 1
           fi
-
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
@@ -49,18 +51,11 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in {1..18}; do
-            result="$(gh run list \
-              --repo "$GITHUB_REPOSITORY" \
-              --workflow ci.yml \
-              --commit "$GITHUB_SHA" \
-              --limit 1 \
-              --json status,conclusion,databaseId)"
+            result="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" --limit 1 --json status,conclusion,databaseId)"
             echo "$result"
             status="$(node -e "const r=$result; console.log(r[0]?.status ?? '')")"
             conclusion="$(node -e "const r=$result; console.log(r[0]?.conclusion ?? '')")"
-            if [[ "$status" == "completed" && "$conclusion" == "success" ]]; then
-              exit 0
-            fi
+            if [[ "$status" == "completed" && "$conclusion" == "success" ]]; then exit 0; fi
             sleep 10
           done
           echo "Canonical CI did not complete successfully for $GITHUB_SHA."
@@ -72,18 +67,11 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in {1..18}; do
-            result="$(gh run list \
-              --repo "$GITHUB_REPOSITORY" \
-              --workflow full-matrix-promotion.yml \
-              --commit "$GITHUB_SHA" \
-              --limit 1 \
-              --json status,conclusion,databaseId)"
+            result="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow full-matrix-promotion.yml --commit "$GITHUB_SHA" --limit 1 --json status,conclusion,databaseId)"
             echo "$result"
             status="$(node -e "const r=$result; console.log(r[0]?.status ?? '')")"
             conclusion="$(node -e "const r=$result; console.log(r[0]?.conclusion ?? '')")"
-            if [[ "$status" == "completed" && "$conclusion" == "success" ]]; then
-              exit 0
-            fi
+            if [[ "$status" == "completed" && "$conclusion" == "success" ]]; then exit 0; fi
             sleep 10
           done
           echo "Full browser matrix did not complete successfully for $GITHUB_SHA."
@@ -105,8 +93,7 @@ jobs:
             echo
             echo 'Deployment provider:'
             echo '- Vercel: EXTERNAL / NON-BLOCKING'
-            echo '- A Vercel failure does not invalidate engineering certification when the provider reports an external deployment-plan or build-rate-limit condition.'
-            echo '- This gate never fabricates or overrides Vercel status; it records the separation explicitly.'
+            echo '- Provider-side deployment limits remain separate from application engineering certification.'
           } >> "$GITHUB_STEP_SUMMARY"
 
   deployment-provider:
