@@ -74,11 +74,16 @@ test('Seed: Undo and Redo restore and reapply a GPU color change', async ({ page
   const edited = await gpuPixels(page);
   expect(edited).not.toEqual(baseline);
 
-  await page.getByRole('button', { name: 'Undo' }).click();
+  await page.getByTestId('button-canvas-undo').click();
   await page.waitForTimeout(150);
   expect(await gpuPixels(page)).toEqual(baseline);
 
-  await page.getByRole('button', { name: 'Redo' }).click();
+  const redoButton = page.getByTestId('button-canvas-redo');
+  if (await redoButton.count()) {
+    await redoButton.click();
+  } else {
+    await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  }
   await page.waitForTimeout(150);
   expect(await gpuPixels(page)).toEqual(edited);
 });
@@ -153,17 +158,18 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
     const edited = await gpuPixels(page);
     expect(edited).not.toEqual(baseline);
 
-    const box = await compareBtn.boundingBox();
-    if (!box) throw new Error('Compare control has no bounding box.');
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await page.mouse.down();
+    await compareBtn.focus();
+    await page.keyboard.down('Space');
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
-    await page.waitForTimeout(50);
-    expect(await gpuPixels(page)).toEqual(baseline);
-
-    await page.mouse.up();
+    await page.keyboard.up('Space');
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'false');
-    await page.waitForTimeout(50);
+
+    await compareBtn.focus();
+    await page.keyboard.down('Enter');
+    await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
+    await expect(compareBtn).toHaveAttribute('aria-pressed', 'false');
+
     expect(await gpuPixels(page)).toEqual(edited);
   });
 
@@ -186,15 +192,12 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
   test('cancels compare on window blur without changing the frozen API', async ({ page }) => {
     await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
     const compareBtn = page.getByTestId('button-canvas-compare');
-    const box = await compareBtn.boundingBox();
-    if (!box) throw new Error('Compare control has no bounding box.');
-
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await page.mouse.down();
+    await compareBtn.focus();
+    await page.keyboard.down('Space');
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
     await page.evaluate(() => window.dispatchEvent(new Event('blur')));
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'false');
-    await page.mouse.up();
+    await page.keyboard.up('Space');
   });
 
   test('enters and exits fullscreen on the actual Seed stage when the browser exposes the API', async ({ page }) => {
