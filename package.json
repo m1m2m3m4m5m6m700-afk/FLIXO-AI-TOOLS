@@ -32,7 +32,7 @@
     "report:bundle-size": "node scripts/report-bundle-size.mjs",
     "validate:performance-budget": "node scripts/validate-performance-budget.mjs",
     "report:performance-baseline": "node scripts/report-performance-baseline.mjs",
-    "generate:sitemap": "node scripts/generate-sitemap.mjs",
+    "generate:sitemap": "node --experimental-strip-types scripts/generate-sitemap.mjs",
     "test:quickflow": "node --experimental-strip-types scripts/test-quickflow-contract.mjs",
     "test:ai-planner": "node --experimental-strip-types scripts/test-ai-planner-contract.mjs",
     "test:i18n": "node --experimental-strip-types scripts/test-i18n-contract.mjs",

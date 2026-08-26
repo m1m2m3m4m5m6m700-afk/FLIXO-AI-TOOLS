@@ -19,12 +19,14 @@ const normalizePath = (path: string) => {
   return value === '/' ? '/' : value.replace(/\/+$/, '');
 };
 
+const localePrefixPattern = new RegExp(`^/(?:${LOCALES.join('|')})(?=/|$)`);
+
 export const absoluteUrl = (path: string): string =>
   new URL(normalizePath(path), SITE_ORIGIN).toString();
 
 export const localizedPath = (locale: Locale, path: string): string => {
   const normalized = normalizePath(path);
-  const withoutLocale = normalized.replace(/^\/(?:en|ar|es|fr|de|ru|zh|hi|id|ur|ja|pt|it|ko|nl|pl|tr|vi|th|sv)(?=\/|$)/, '');
+  const withoutLocale = normalized.replace(localePrefixPattern, '');
   return `/${locale}${withoutLocale || '/'}`.replace(/\/{2,}/g, '/');
 };
 
