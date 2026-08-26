@@ -1,12 +1,5 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import ts from 'typescript';
-
-const root = process.cwd();
-const routesDir = path.join(root, 'src/routes');
-
-const { TOOLS_REGISTRY } = await import('../src/config/tools.ts');
-const { IMAGE_TOOLS } = await import('../src/config/tool-definitions/image.ts');
+import { TOOLS_REGISTRY } from '../src/config/tools.ts';
+import { routeChildren } from '../src/routes/route-tree.ts';
 
 function fail(stage, message, details = {}) {
   console.error(`ROUTER_REGISTRY_FAILURE stage=${stage}`);
@@ -17,83 +10,30 @@ function fail(stage, message, details = {}) {
   process.exit(1);
 }
 
-function propertyName(node) {
-  if (!node.name) return null;
-  if (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) return node.name.text;
-  return null;
-}
-
-function literalString(node) {
-  return ts.isStringLiteral(node) ? node.text : null;
-}
-
-function extractPathFromObject(argument) {
-  if (!argument || !ts.isObjectLiteralExpression(argument)) return null;
-  const pathProperty = argument.properties.find(
-    (property) => ts.isPropertyAssignment(property) && propertyName(property) === 'path',
-  );
-  return pathProperty && ts.isPropertyAssignment(pathProperty)
-    ? literalString(pathProperty.initializer)
-    : null;
-}
-
-function extractRoutePaths(filePath) {
-  const source = fs.readFileSync(filePath, 'utf8');
-
-  // Registry-backed image routes are generated from IMAGE_TOOLS rather than
-  // declared as one route constant per tool. Keep this validator aligned with
-  // the runtime architecture instead of reintroducing a duplicate route list.
-  if (
-    filePath.endsWith(path.join('routes', 'image-tools.tsx')) &&
-    source.includes('IMAGE_TOOLS.flatMap')
-  ) {
-    return IMAGE_TOOLS.flatMap((tool) => [
-      { route: tool.path, file: filePath, kind: 'registry-generated' },
-      ...(tool.aliases ?? [])
-        .filter((alias) => alias.startsWith('/en/'))
-        .map((alias) => ({ route: alias, file: filePath, kind: 'registry-generated' })),
-    ]);
-  }
-
-  const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const routes = [];
-
-  function visit(node) {
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
-      const callee = node.expression.text;
-      if (callee === 'createRoute' || callee === 'imageToolRoute') {
-        const [argument] = node.arguments;
-        const route = callee === 'createRoute'
-          ? extractPathFromObject(argument)
-          : literalString(argument) ?? extractPathFromObject(argument);
-
-        if (route) routes.push({ route, file: filePath, kind: callee });
-      }
-    }
-    ts.forEachChild(node, visit);
-  }
-
-  visit(sourceFile);
-  return routes;
-}
-
-function listRouteFiles(dir) {
-  const files = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) files.push(...listRouteFiles(fullPath));
-    else if (entry.isFile() && entry.name.endsWith('.tsx')) files.push(fullPath);
-  }
-  return files;
-}
-
 function isPublicToolRoute(route) {
   const parts = route.split('/').filter(Boolean);
   return parts.length === 2 && parts[0].length === 2 && !parts[1].startsWith('$');
 }
 
+function collectRoutePaths(routes, output = []) {
+  for (const route of routes ?? []) {
+    const path = route?.options?.path;
+    if (typeof path === 'string') output.push(path);
+
+    const children = route?.children;
+    if (Array.isArray(children) && children.length > 0) {
+      collectRoutePaths(children, output);
+    }
+  }
+  return output;
+}
+
 if (!Array.isArray(TOOLS_REGISTRY) || TOOLS_REGISTRY.length === 0) {
   fail('registry-load', 'TOOLS_REGISTRY is empty or invalid.');
+}
+
+if (!Array.isArray(routeChildren) || routeChildren.length === 0) {
+  fail('router-load', 'routeChildren is empty or invalid.');
 }
 
 const canonicalPaths = new Map();
@@ -123,8 +63,7 @@ for (const tool of TOOLS_REGISTRY) {
   }
 }
 
-const routeRecords = listRouteFiles(routesDir).flatMap(extractRoutePaths);
-const declaredRoutes = new Set(routeRecords.map(({ route }) => route));
+const declaredRoutes = new Set(collectRoutePaths(routeChildren));
 const declaredToolRoutes = new Set([...declaredRoutes].filter(isPublicToolRoute));
 
 const expectedPublicRoutes = new Set(
@@ -135,14 +74,14 @@ const expectedPublicRoutes = new Set(
     .filter(isPublicToolRoute),
 );
 
-const duplicateDeclared = routeRecords
-  .map(({ route }) => route)
+const duplicateDeclared = [...declaredRoutes]
   .filter((route, index, all) => all.indexOf(route) !== index)
-  .filter((route, index, all) => all.indexOf(route) === index)
   .sort();
 
 if (duplicateDeclared.length) {
-  fail('router-duplicates', 'Duplicate route declarations detected.', { duplicates: duplicateDeclared });
+  fail('router-duplicates', 'Duplicate route declarations detected.', {
+    duplicates: duplicateDeclared,
+  });
 }
 
 const missing = [...expectedPublicRoutes].filter((route) => !declaredToolRoutes.has(route)).sort();
