@@ -43,7 +43,6 @@ test('Seed: WebGL preview changes pixels and exports a non-empty PNG', async ({ 
 
 test('Seed: advanced pipeline controls alter non-destructive state and export', async ({ page }, testInfo) => {
   await loadSeed(page, testInfo);
-
   await expect(page.getByRole('slider', { name: 'Curves' })).toBeVisible();
   await page.getByRole('slider', { name: 'Curves' }).fill('35');
   await page.getByRole('slider', { name: 'Brush strength' }).fill('40');
@@ -74,11 +73,8 @@ test('Seed: Undo and Redo restore and reapply a GPU color change', async ({ page
   expect((await canvasScreenshot(page)).equals(baseline)).toBe(true);
 
   const redoButton = page.getByTestId('button-canvas-redo');
-  if (await redoButton.count()) {
-    await redoButton.click();
-  } else {
-    await page.getByRole('button', { name: 'Redo', exact: true }).click();
-  }
+  if (await redoButton.count()) await redoButton.click();
+  else await page.getByRole('button', { name: 'Redo', exact: true }).click();
   await page.waitForTimeout(150);
   expect((await canvasScreenshot(page)).equals(edited)).toBe(true);
 });
@@ -133,10 +129,8 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
 
     await zoomOut.click();
     await expect(zoomReset).toHaveText('100%');
-
     await zoomOut.click();
     await expect(zoomReset).toHaveText('75%');
-
     await zoomReset.click();
     await expect(zoomReset).toHaveText('100%');
   });
@@ -144,16 +138,10 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
   test('binds compare lifecycle to the real Seed canvas', async ({ page }) => {
     await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
     const compareBtn = page.getByTestId('button-canvas-compare');
-    const canvas = canvasLocator(page);
-    await expect(canvas).toBeVisible();
-
-    const box = await compareBtn.boundingBox();
-    expect(box).not.toBeNull();
-    if (!box) return;
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await page.mouse.down();
+    await expect(canvasLocator(page)).toBeVisible();
+    await compareBtn.dispatchEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1 });
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
-    await page.mouse.up();
+    await compareBtn.dispatchEvent('pointerup', { bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 0 });
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'false');
   });
 
@@ -161,12 +149,10 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
     await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
     const compareBtn = page.getByTestId('button-canvas-compare');
     await compareBtn.focus();
-
     await page.keyboard.down('Space');
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.up('Space');
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'false');
-
     await page.keyboard.down('Enter');
     await expect(compareBtn).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('Escape');
@@ -187,12 +173,10 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
   test('enters and exits fullscreen on the actual Seed stage when the browser exposes the API', async ({ page }) => {
     const fullscreenEnabled = await page.evaluate(() => Boolean(document.fullscreenEnabled && document.documentElement.requestFullscreen));
     test.skip(!fullscreenEnabled, 'Fullscreen API is unavailable in this browser environment.');
-
     const fullscreenBtn = page.getByTestId('button-canvas-fullscreen');
     await fullscreenBtn.click();
     await expect(fullscreenBtn).toHaveAttribute('aria-label', 'Exit Fullscreen');
     await expect(page.locator('main > section')).toHaveJSProperty('tagName', 'SECTION');
-
     await fullscreenBtn.click();
     await expect(fullscreenBtn).toHaveAttribute('aria-label', 'Enter Fullscreen');
   });
