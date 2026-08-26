@@ -100,6 +100,22 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
     };
   }, [endCompare]);
 
+  const handlePointerDownFallback = useCallback((_event: React.PointerEvent<HTMLButtonElement>) => {
+    startCompare();
+  }, [startCompare]);
+
+  const handlePointerUpFallback = useCallback((_event: React.PointerEvent<HTMLButtonElement>) => {
+    endCompare();
+  }, [endCompare]);
+
+  const handleMouseDownFallback = useCallback((_event: React.MouseEvent<HTMLButtonElement>) => {
+    startCompare();
+  }, [startCompare]);
+
+  const handleMouseUpFallback = useCallback((_event: React.MouseEvent<HTMLButtonElement>) => {
+    endCompare();
+  }, [endCompare]);
+
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLButtonElement>) => {
     if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
       event.preventDefault();
@@ -119,6 +135,11 @@ export const useCanvasCompare = ({ onCompareStart, onCompareEnd }: UseCanvasComp
     endCompare,
     bind: {
       ref: compareButtonRef,
+      onPointerDown: handlePointerDownFallback,
+      onPointerUp: handlePointerUpFallback,
+      onPointerCancel: handlePointerUpFallback,
+      onMouseDown: handleMouseDownFallback,
+      onMouseUp: handleMouseUpFallback,
       onKeyDown: handleKeyDown,
       onKeyUp: handleKeyUp,
     },
