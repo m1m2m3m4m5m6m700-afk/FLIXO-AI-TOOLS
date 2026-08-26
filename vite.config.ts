@@ -23,8 +23,8 @@ export default defineConfig({
   plugins: [
     tanstackStart({
       router: {
-        routesDirectory: './src/start-routes',
-        generatedRouteTree: './src/routeTree.gen.ts',
+        routesDirectory: 'start-routes',
+        generatedRouteTree: 'routeTree.gen.ts',
       },
     }),
     react(),
