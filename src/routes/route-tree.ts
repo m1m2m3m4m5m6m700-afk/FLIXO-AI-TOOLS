@@ -47,7 +47,7 @@ export const routeChildren = [
   useCaseRoute,
   enPdfMergerSplitterRoute,
   enPdfCompressorRoute,
-  enImageCompressorRoute,
+  enImageToPdfRoute,
   enPdfUnlockProtectRoute,
   enPdfToTextRoute,
   enWordCharacterCounterRoute,
