@@ -18,7 +18,6 @@ concurrency:
 
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   typecheck:
@@ -124,6 +123,9 @@ jobs:
   security:
     name: CodeQL
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v5
       - uses: github/codeql-action/init@v4
