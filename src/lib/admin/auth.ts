@@ -2,6 +2,8 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { timingSafeEqual, scryptSync } from 'node:crypto';
 import { getAdminSession } from './session';
+import { rateLimit, RATE_PRESETS } from '../server/security/csrf';
+import { securityRequestMiddleware } from '../security/requestMiddleware';
 
 const loginSchema = z.object({ password: z.string().min(1).max(256) });
 
@@ -52,7 +54,13 @@ export const getAdminSessionStatus = createServerFn({ method: 'GET' }).handler(a
 
 export const loginAdmin = createServerFn({ method: 'POST' })
   .validator(loginSchema)
-  .handler(async ({ data }) => {
+  .middleware([securityRequestMiddleware])
+  .handler(async ({ context, data }) => {
+    const rl = rateLimit(`admin-login:${context.clientIp ?? 'unknown'}`, RATE_PRESETS.login);
+    if (!rl.allowed) {
+      return { ok: false as const, error: 'Too many login attempts. Please try again later.' };
+    }
+
     if (!verifyAdminPassword(data.password)) {
       return { ok: false as const, error: 'Invalid administrator credentials.' };
     }
