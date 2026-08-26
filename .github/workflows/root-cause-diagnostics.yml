@@ -13,6 +13,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lockfile-refresh:
+    name: Refresh SPA lockfile once
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/fix/ci-exact-head-certification-2026-08-26' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Regenerate lockfile
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Validate removed SPA-server dependencies
+        run: |
+          ! grep -Eiq '"(@tanstack/react-start|@tanstack/router-plugin|nitro)"[[:space:]]*:' package-lock.json
+      - name: Remove one-shot job from workflow
+        env:
+          WORKFLOW_FILE: .github/workflows/root-cause-diagnostics.yml
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/workflows/root-cause-diagnostics.yml')
+          s = p.read_text()
+          start = s.index('  lockfile-refresh:\n')
+          end = s.index('\n  static:\n', start)
+          p.write_text(s[:start] + s[end+1:])
+          PY
+      - name: Commit generated lockfile and workflow cleanup
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package-lock.json .github/workflows/root-cause-diagnostics.yml
+          if git diff --cached --quiet; then
+            echo 'No lockfile/workflow changes to commit.'
+            exit 0
+          fi
+          git commit -m 'chore: regenerate SPA lockfile'
+          git push
+
   static:
     name: Root Cause — ${{ matrix.area }}
     runs-on: ubuntu-latest
