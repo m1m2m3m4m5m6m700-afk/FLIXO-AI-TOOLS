@@ -24,26 +24,26 @@ const deferredWorkerAssets = [];
 const nonRuntimeAssets = [];
 
 function isDeferredWorkerAsset(relativePath) {
-  return /(?:^|\\/)(?:pdf\\.worker|.*\\.worker)(?:[-.][^/]*)?\\.m?js$/i.test(relativePath);
+  return /(?:^|\/)(?:pdf\.worker|.*\.worker)(?:[-.][^/]*)?\.m?js$/i.test(relativePath);
 }
 
 function isNonRuntimeAsset(relativePath) {
-  return /^(?:sitemap\\.xml|robots\\.txt)$/i.test(relativePath);
+  return /^(?:sitemap\.xml|robots\.txt)$/i.test(relativePath);
 }
 
 function normalizeAssetReference(value) {
   const withoutQuery = value.split(/[?#]/u, 1)[0] ?? '';
-  return withoutQuery.replace(/^\\/+/, '');
+  return withoutQuery.replace(/^\/+/, '');
 }
 
 function getCriticalJavascriptReferences() {
   const html = fs.readFileSync(indexPath, 'utf8');
   const references = new Set();
-  const attributePattern = /<(?:script|link)\\b[^>]+(?:src|href)=["']([^"']+)["'][^>]*>/giu;
+  const attributePattern = /<(?:script|link)\b[^>]+(?:src|href)=["']([^"']+)["'][^>]*>/giu;
 
   for (const match of html.matchAll(attributePattern)) {
     const asset = normalizeAssetReference(match[1]);
-    if (/\\.m?js$/i.test(asset)) references.add(asset);
+    if (/\.m?js$/i.test(asset)) references.add(asset);
   }
 
   return references;
@@ -69,11 +69,11 @@ function walk(dir) {
 
     totalAssetBytes += bytes;
 
-    if (/\\.m?js$/i.test(entry.name)) {
+    if (/\.m?js$/i.test(entry.name)) {
       if (isDeferredWorkerAsset(relativePath)) deferredWorkerAssets.push({ path: relativePath, bytes });
       else javascriptBytes += bytes;
     }
-    if (/\\.css$/i.test(entry.name)) cssBytes += bytes;
+    if (/\.css$/i.test(entry.name)) cssBytes += bytes;
   }
 }
 
