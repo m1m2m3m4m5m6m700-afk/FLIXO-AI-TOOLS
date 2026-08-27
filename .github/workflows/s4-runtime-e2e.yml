@@ -1,0 +1,113 @@
+name: S4 Runtime + E2E Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - 's4-**'
+  workflow_dispatch:
+
+concurrency:
+  group: s4-runtime-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  s4-runtime-e2e:
+    name: S4 Runtime + E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install all Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Start isolated production server
+        shell: bash
+        run: |
+          set -euo pipefail
+          setsid npm run build >/tmp/s4-build.log 2>&1
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/s4-server.log 2>&1 &
+          echo $! > /tmp/s4-server.pid
+
+      - name: Wait for readiness and HTTP 200
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then
+              echo 'S4 PASS: server readiness + HTTP 200'
+              exit 0
+            fi
+            sleep 1
+          done
+          echo 'S4 FAIL: server did not become ready with HTTP 200'
+          cat /tmp/s4-build.log || true
+          cat /tmp/s4-server.log || true
+          exit 1
+
+      - name: Record server process identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          PID="$(cat /tmp/s4-server.pid)"
+          ps -o pid,ppid,pgid,lstart,args -p "$PID" > server_process_identity.txt
+          cat server_process_identity.txt
+
+      - name: Run Chromium Firefox WebKit with zero retries
+        env:
+          S4_RUNTIME_GATE: 'true'
+          S4_EXTERNAL_SERVER: 'true'
+          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+        run: npx playwright test --workers=1 --retries=0
+
+      - name: Validate S4 aggregate outcome
+        env:
+          S4_REQUIRED_PROJECTS: chromium,firefox,webkit
+        run: node scripts/validate-s4-e2e.mjs
+
+      - name: Verify server process group is gone
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/s4-server.pid ]; then
+            PID="$(cat /tmp/s4-server.pid)"
+            kill -- -"$PID" 2>/dev/null || true
+            wait "$PID" 2>/dev/null || true
+          fi
+          sleep 1
+          if pgrep -af 'vite preview --host 127.0.0.1 --port 3000' >/dev/null; then
+            echo 'S4 FAIL: preview process group remains after cleanup'
+            pgrep -af 'vite preview --host 127.0.0.1 --port 3000'
+            exit 1
+          fi
+          echo 'S4 PASS: clean server shutdown'
+
+      - name: Upload S4 evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: s4-runtime-e2e-evidence
+          path: |
+            playwright-report/results.json
+            playwright-report/
+            test-results/
+            server_process_identity.txt
+            /tmp/s4-build.log
+            /tmp/s4-server.log
+          if-no-files-found: warn
+          retention-days: 14
