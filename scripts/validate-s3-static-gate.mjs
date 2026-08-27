@@ -125,6 +125,7 @@ try {
     'playwright.config.ts',
     'scripts/validate-s3-static-gate.mjs',
     'scripts/validate-s4-e2e.mjs',
+    'README.md',
   ]);
   const unexpected = changed.filter((file) => !allow.has(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);
