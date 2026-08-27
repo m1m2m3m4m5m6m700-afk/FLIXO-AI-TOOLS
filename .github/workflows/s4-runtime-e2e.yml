@@ -64,7 +64,14 @@ jobs:
         run: |
           set -euo pipefail
           PID="$(cat /tmp/s4-server.pid)"
-          ps -o pid,ppid,pgid,lstart,args -p "$PID" > server_process_identity.txt
+          PGID="$(ps -o pgid= -p "$PID" | tr -d ' ')"
+          test -n "$PGID"
+          test "$PGID" != "1"
+          {
+            echo "S4 server PID=$PID PGID=$PGID"
+            ps -o pid,ppid,pgid,lstart,args -p "$PID"
+            ps -eo pid,ppid,pgid,lstart,args | awk -v pgid="$PGID" '$3 == pgid {print}'
+          } > server_process_identity.txt
           cat server_process_identity.txt
 
       - name: Run Chromium Firefox WebKit with zero retries
@@ -87,7 +94,10 @@ jobs:
           set +e
           if [ -f /tmp/s4-server.pid ]; then
             PID="$(cat /tmp/s4-server.pid)"
-            kill -- -"$PID" 2>/dev/null || true
+            PGID="$(ps -o pgid= -p "$PID" 2>/dev/null | tr -d ' ')"
+            if [ -n "$PGID" ] && [ "$PGID" != "1" ]; then
+              kill -- -"$PGID" 2>/dev/null || true
+            fi
             wait "$PID" 2>/dev/null || true
           fi
           sleep 1
@@ -104,7 +114,6 @@ jobs:
         with:
           name: s4-runtime-e2e-evidence
           path: |
-            playwright-report/results.json
             playwright-report/
             test-results/
             server_process_identity.txt
