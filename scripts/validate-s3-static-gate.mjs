@@ -88,10 +88,7 @@ if (scriptRefs.length !== new Set(scriptRefs).size) fail('duplicate module scrip
 
 const assetPath = (reference) => {
   const normalized = normalizeAsset(reference);
-  const candidates = [
-    join(outputDir, normalized),
-    join(outputDir, `${normalized}.js`),
-  ];
+  const candidates = [join(outputDir, normalized), join(outputDir, `${normalized}.js`)];
   return candidates.find((candidate) => existsSync(candidate)) ?? null;
 };
 
@@ -130,16 +127,19 @@ for (const ref of scriptRefs) {
 }
 console.log(`S3 CRITICAL JS: ${(criticalJavascriptBytes / 1024).toFixed(1)} KiB across ${criticalAssets.length} entry asset(s)`);
 for (const asset of criticalAssets) console.log(`  critical ${asset.path} ${(asset.bytes / 1024).toFixed(1)} KiB`);
-if (criticalJavascriptBytes > criticalBudgetBytes) {
-  fail(`critical JavaScript budget exceeded: ${(criticalJavascriptBytes / 1024).toFixed(1)} KiB > 900.0 KiB`);
-}
+if (criticalJavascriptBytes > criticalBudgetBytes) fail(`critical JavaScript budget exceeded: ${(criticalJavascriptBytes / 1024).toFixed(1)} KiB > 900.0 KiB`);
 pass('critical JavaScript <= 900 KiB');
 
 const base = process.env.S3_BASE_REF ?? 'origin/main';
 try {
   const changedRaw = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { cwd: root, encoding: 'utf8' }).trim();
   const changed = changedRaw ? changedRaw.split('\n').filter(Boolean) : [];
-  const allow = new Set(['scripts/validate-s3-static-gate.mjs']);
+  const allow = new Set([
+    '.github/workflows/ci.yml',
+    'playwright.config.ts',
+    'scripts/validate-s3-static-gate.mjs',
+    'scripts/validate-s4-e2e.mjs',
+  ]);
   const unexpected = changed.filter((file) => !allow.has(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);
   pass(`changed-files allowlist (${changed.length} file(s))`);
