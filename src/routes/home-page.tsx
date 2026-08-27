@@ -8,12 +8,13 @@ import { LOCALE_METADATA, LOCALES } from '@/lib/i18n';
 import { localizeToolCategory, localizeToolDescription, localizeToolTitle } from '@/lib/i18n/tool-localization';
 import type { HomeCopy } from '../data/home-locales';
 import type { Locale } from '@/lib/i18n';
+import type { ToolConfig } from '../config/tools';
 
 type ToolCardProps = { readonly id: string; readonly title: string; readonly description: string; readonly category: 'Images' | 'AI' | 'Other'; readonly categoryLabel: string; readonly path: string };
 const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
 const LANGUAGE_LABELS: Record<Locale, string> = { en: 'English', ar: 'العربية', es: 'Español', fr: 'Français', de: 'Deutsch', ru: 'Русский', zh: '中文', hi: 'हिन्दी', id: 'Bahasa Indonesia', ur: 'اردو', ja: '日本語', pt: 'Português', it: 'Italiano', ko: '한국어', nl: 'Nederlands', pl: 'Polski', tr: 'Türkçe', vi: 'Tiếng Việt', th: 'ไทย', sv: 'Svenska' };
 
-function toLocalizedTool(tool: (typeof READY_TOOLS)[number], locale: Locale): ToolCardProps {
+function toLocalizedTool(tool: ToolConfig, locale: Locale): ToolCardProps {
   return {
     id: tool.id,
     title: localizeToolTitle(locale, tool.title, tool.category),
