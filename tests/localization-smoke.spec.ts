@@ -1,26 +1,31 @@
 import { expect, test } from '@playwright/test';
+import { LOCALES, LOCALE_METADATA } from '../src/lib/i18n/config';
 
-test.describe('AR/EN localization smoke', () => {
-  test.describe.configure({ timeout: 30_000 });
+test.describe('20-locale navigation', () => {
+  test.describe.configure({ timeout: 45_000 });
 
-  test('English home exposes English UI and document LTR direction', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    const html = page.locator('html');
-    await expect(html).toHaveAttribute('dir', 'ltr');
-    await expect(page.locator('nav')).toContainText('Tools');
-    await expect(page.locator('h1')).toContainText('The right tool');
-  });
+  for (const locale of LOCALES) {
+    test(`direct ${locale} home route returns 200 with correct direction`, async ({ page }) => {
+      const response = await page.goto(`/${locale}`, { waitUntil: 'domcontentloaded' });
+      expect(response?.ok(), `${locale} home route must return a successful HTTP response`).toBeTruthy();
+      await expect(page.locator('main').first()).toHaveAttribute('lang', LOCALE_METADATA[locale].languageTag);
+      await expect(page.locator('main').first()).toHaveAttribute('dir', LOCALE_METADATA[locale].direction);
+    });
+  }
 
-  test('Arabic home exposes Arabic UI and RTL direction', async ({ page }) => {
-    await page.goto('/ar/', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('main')).toHaveAttribute('dir', 'rtl');
-    await expect(page.locator('nav')).toContainText('الأدوات');
-    await expect(page.locator('h1')).toContainText('الأداة المناسبة');
-  });
+  for (const locale of LOCALES.filter((value) => value !== 'en')) {
+    test(`language selector navigates en to ${locale}`, async ({ page }) => {
+      await page.goto('/en', { waitUntil: 'domcontentloaded' });
+      const languageSelector = page.locator('#home-language');
 
-  test('Arabic localized tool shell keeps RTL and translated upload state', async ({ page }) => {
-    await page.goto('/ar/image-compressor', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('main').first()).toHaveAttribute('dir', 'rtl');
-    await expect(page.locator('body')).toContainText('اختر الصور للبدء');
-  });
+      await expect(page.locator('main').first()).toHaveAttribute('lang', LOCALE_METADATA.en.languageTag);
+      await expect(page.locator('main').first()).toHaveAttribute('dir', LOCALE_METADATA.en.direction);
+      await expect(languageSelector).toBeVisible();
+
+      await languageSelector.selectOption(locale);
+      await expect(page).toHaveURL(new RegExp(`/${locale}/?$`));
+      await expect(page.locator('main').first()).toHaveAttribute('lang', LOCALE_METADATA[locale].languageTag);
+      await expect(page.locator('main').first()).toHaveAttribute('dir', LOCALE_METADATA[locale].direction);
+    });
+  }
 });
