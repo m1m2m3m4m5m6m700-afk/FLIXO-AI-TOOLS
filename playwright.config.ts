@@ -1,14 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const isCi = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+const isS4RuntimeGate = process.env.S4_RUNTIME_GATE === 'true';
 const useProductionServer = isCi || process.env.PLAYWRIGHT_SERVER === 'production';
 
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: isCi,
-  workers: isCi ? 2 : undefined,
-  retries: isCi ? 2 : 0,
+  workers: isS4RuntimeGate ? 1 : isCi ? 2 : undefined,
+  retries: isS4RuntimeGate ? 0 : isCi ? 2 : 0,
   timeout: 45_000,
   expect: { timeout: 10_000 },
   reporter: isCi
