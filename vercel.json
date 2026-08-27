@@ -11,7 +11,26 @@
     }
   },
   "rewrites": [
-    { "source": "/ar/:path*", "destination": "/" }
+    { "source": "/en/:path*", "destination": "/" },
+    { "source": "/ar/:path*", "destination": "/" },
+    { "source": "/es/:path*", "destination": "/" },
+    { "source": "/fr/:path*", "destination": "/" },
+    { "source": "/de/:path*", "destination": "/" },
+    { "source": "/ru/:path*", "destination": "/" },
+    { "source": "/zh/:path*", "destination": "/" },
+    { "source": "/hi/:path*", "destination": "/" },
+    { "source": "/id/:path*", "destination": "/" },
+    { "source": "/ur/:path*", "destination": "/" },
+    { "source": "/ja/:path*", "destination": "/" },
+    { "source": "/pt/:path*", "destination": "/" },
+    { "source": "/it/:path*", "destination": "/" },
+    { "source": "/ko/:path*", "destination": "/" },
+    { "source": "/nl/:path*", "destination": "/" },
+    { "source": "/pl/:path*", "destination": "/" },
+    { "source": "/tr/:path*", "destination": "/" },
+    { "source": "/vi/:path*", "destination": "/" },
+    { "source": "/th/:path*", "destination": "/" },
+    { "source": "/sv/:path*", "destination": "/" }
   ],
   "headers": [
     {
