@@ -1,0 +1,52 @@
+/* Minimal modern home refresh. Functionality and existing tool selectors remain unchanged. */
+.home-shell { background: #07090d !important; color: #eef2f6; }
+.home-shell::before { content: ''; position: fixed; inset: 0; pointer-events: none; background: radial-gradient(circle at 50% -10%, rgba(103,232,249,.10), transparent 34%), radial-gradient(circle at 100% 20%, rgba(124,58,237,.08), transparent 28%); }
+.home-nav { position: sticky; top: 0; z-index: 30; background: rgba(7,9,13,.78) !important; border-bottom: 1px solid rgba(255,255,255,.08) !important; backdrop-filter: blur(18px); }
+.home-nav-inner { min-height: 62px !important; width: min(1180px, calc(100% - 32px)) !important; padding: 8px 0 !important; }
+.home-brand { letter-spacing: .14em; font-size: 1rem; }
+.home-nav-links { gap: 6px; }
+.home-nav-links a, .home-nav-language { min-height: 40px !important; padding: 0 10px !important; border: 1px solid transparent !important; border-radius: 10px !important; font-size: .88rem; }
+.home-nav-links a:hover, .home-nav-language:hover { background: rgba(255,255,255,.05) !important; }
+.home-content { width: min(1180px, calc(100% - 32px)) !important; padding: 0 0 72px !important; }
+.home-hero { display: block !important; padding: clamp(72px, 11vw, 132px) 0 34px !important; max-width: 860px; }
+.home-hero > div:first-child { display: grid; gap: 14px; }
+.home-badge { width: fit-content; min-height: 32px !important; padding: 5px 10px !important; border-color: rgba(103,232,249,.22) !important; background: rgba(103,232,249,.06) !important; color: #b9f6fb !important; font-size: .74rem !important; }
+.home-hero h1 { max-width: 860px !important; margin: 0 !important; font-size: clamp(2.8rem, 8vw, 6.6rem) !important; line-height: .94 !important; letter-spacing: -.065em !important; }
+.home-hero h1 span { color: #67e8f9 !important; }
+.home-lead { max-width: 660px !important; color: #9ba7b4 !important; font-size: 1.02rem !important; line-height: 1.7 !important; }
+.home-hero-command { display: inline-flex; align-items: center; gap: 12px; width: fit-content; margin-top: 8px; min-height: 46px; padding: 0 13px; border: 1px solid rgba(255,255,255,.10); border-radius: 12px; background: rgba(255,255,255,.035); color: #cbd5df; cursor: pointer; }
+.home-hero-command:hover { border-color: rgba(103,232,249,.32); background: rgba(103,232,249,.05); }
+.home-hero-command kbd { padding: 3px 7px; border: 1px solid rgba(255,255,255,.12); border-radius: 7px; color: #7f8b99; font-size: .7rem; }
+.home-search-panel { position: sticky; top: 78px; z-index: 15; padding: 8px !important; border: 1px solid rgba(255,255,255,.10) !important; border-radius: 16px !important; background: rgba(10,13,18,.92) !important; box-shadow: 0 20px 60px rgba(0,0,0,.20) !important; }
+.home-search-wrap { min-height: 56px !important; border: 0 !important; border-radius: 11px !important; background: rgba(255,255,255,.045) !important; }
+.home-search-wrap input { font-size: .98rem !important; }
+.home-search-icon { font-size: 1.25rem !important; }
+.search-command-button { min-width: 40px; min-height: 36px; border: 1px solid rgba(255,255,255,.10); border-radius: 9px; background: transparent; color: #8ddfe8; cursor: pointer; }
+.quick-tags { margin-top: 7px !important; padding: 0 2px 2px; }
+.quick-tags button, .category-pills button { min-height: 36px !important; padding: 0 11px !important; border-color: rgba(255,255,255,.09) !important; background: rgba(255,255,255,.025) !important; color: #95a1ad !important; font-size: .78rem; }
+.quick-tags button:hover, .category-pills button:hover { background: rgba(103,232,249,.05) !important; color: #d9fafd !important; }
+.home-trust-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; margin: 16px 0 24px !important; }
+.home-trust-grid div { min-height: 78px !important; padding: 14px !important; border-radius: 14px !important; border-color: rgba(255,255,255,.07) !important; background: rgba(255,255,255,.025) !important; }
+.home-trust-grid strong { font-size: .86rem; }
+.home-trust-grid span { font-size: .76rem; color: #77838f; }
+.home-quick-drop { grid-template-columns: 1fr 1fr !important; gap: 16px !important; padding: 18px !important; border-radius: 18px !important; border-color: rgba(255,255,255,.08) !important; background: rgba(255,255,255,.02) !important; }
+.home-quick-drop h2, .home-tools-section h2, .home-final-cta h2 { font-size: clamp(1.35rem, 3vw, 2rem) !important; margin: 6px 0 8px !important; }
+.home-quick-drop p, .home-final-cta p { font-size: .9rem; color: #808c98; }
+.home-drop-zone { min-height: 150px !important; border-color: rgba(103,232,249,.20) !important; border-radius: 14px !important; background: rgba(103,232,249,.025) !important; }
+.home-drop-zone:hover { border-color: rgba(103,232,249,.45) !important; }
+.drop-result { padding-top: 12px !important; }
+.home-tools-section { margin-top: 34px !important; }
+.section-heading { align-items: center !important; }
+.category-pills { margin: 14px 0 !important; }
+.category-pills button.is-active { border-color: #67e8f9 !important; background: #67e8f9 !important; color: #071116 !important; }
+.home-tools-grid { grid-template-columns: repeat(4, minmax(0,1fr)) !important; gap: 10px !important; }
+.home-tool-card { min-height: 160px !important; padding: 16px !important; border-radius: 16px !important; border-color: rgba(255,255,255,.075) !important; background: rgba(255,255,255,.022) !important; }
+.home-tool-card:hover, .home-tool-card:focus-visible { transform: translateY(-1px) !important; border-color: rgba(103,232,249,.38) !important; background: rgba(255,255,255,.04) !important; }
+.tool-card-category { font-size: .66rem !important; }
+.home-tool-card h3 { margin: 15px 0 7px !important; font-size: 1rem !important; }
+.home-tool-card p { font-size: .82rem; line-height: 1.5; }
+.tool-card-meta { padding-top: 12px !important; font-size: .7rem !important; }
+.home-final-cta { margin-top: 34px !important; padding: 18px !important; border-radius: 18px !important; border-color: rgba(103,232,249,.12) !important; background: rgba(103,232,249,.035) !important; }
+@media (max-width: 1100px) { .home-tools-grid { grid-template-columns: repeat(3,minmax(0,1fr)) !important; } }
+@media (max-width: 840px) { .home-nav-links { display:none; } .home-search-panel { position: static; } .home-trust-grid, .home-quick-drop, .home-tools-grid { grid-template-columns: 1fr !important; } .home-hero { padding-top: 58px !important; } .home-final-cta { flex-direction: column; align-items: flex-start !important; } }
+@media (max-width: 520px) { .home-content, .home-nav-inner { width: min(100% - 20px, 1180px) !important; } .home-hero h1 { font-size: clamp(2.5rem, 15vw, 4rem) !important; } .home-search-wrap { grid-template-columns: auto 1fr auto !important; } }
