@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TOOLS_REGISTRY } from '../config/tools';
 import { SmartCommandPalette } from '../components/SmartCommandPalette';
@@ -21,6 +21,7 @@ function recommendTool(file: File): ToolCardProps | null {
 }
 
 export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
+  const navigate = useNavigate();
   const [copy, setCopy] = useState<HomeCopy | null>(null);
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -68,7 +69,7 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
         <div className="home-container home-nav-inner">
           <Link className="home-brand" to="/" aria-label={copy.ariaHome}>FLIXO</Link>
           <div className="home-nav-links"><a href="#tools">{copy.nav.tools}</a><a href="#categories">{copy.nav.categories}</a><a href="#privacy">{copy.nav.privacy}</a></div>
-          <label className="sr-only" htmlFor="home-language">{copy.nav.switch}</label><select id="home-language" className="home-nav-language" value={locale} aria-label={copy.nav.switch} onChange={(event) => { window.location.assign(`/${event.target.value}`); }}>{LOCALES.map((code) => <option key={code} value={code}>{LANGUAGE_LABELS[code]}</option>)}</select>
+          <label className="sr-only" htmlFor="home-language">{copy.nav.switch}</label><select id="home-language" className="home-nav-language" value={locale} aria-label={copy.nav.switch} onChange={(event) => { void navigate({ to: `/${event.target.value}` }); }}>{LOCALES.map((code) => <option key={code} value={code}>{LANGUAGE_LABELS[code]}</option>)}</select>
         </div>
       </nav>
       <div className="home-container home-content">
