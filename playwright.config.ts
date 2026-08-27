@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const isCi = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 const isS4RuntimeGate = process.env.S4_RUNTIME_GATE === 'true';
+const isS4ExternalServer = process.env.S4_EXTERNAL_SERVER === 'true';
 const useProductionServer = isCi || process.env.PLAYWRIGHT_SERVER === 'production';
 
 export default defineConfig({
@@ -46,6 +47,6 @@ export default defineConfig({
       : 'npm run dev',
     url: 'http://127.0.0.1:3000',
     timeout: 120_000,
-    reuseExistingServer: !isCi,
+    reuseExistingServer: !isCi || isS4ExternalServer,
   },
 });
