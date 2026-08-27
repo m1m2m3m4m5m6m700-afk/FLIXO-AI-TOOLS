@@ -15,14 +15,17 @@ test.describe('20-locale navigation', () => {
 
   test('language selector reaches every supported locale', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const languageSelector = page.locator('#home-language');
+    await expect(languageSelector).toBeVisible();
 
     for (const locale of LOCALES) {
-      await page.locator('#home-language').selectOption(locale);
+      await languageSelector.selectOption(locale);
       await expect
         .poll(() => new URL(page.url()).pathname)
         .toBe(`/${locale}`);
       await expect(page.locator('main').first()).toHaveAttribute('lang', LOCALE_METADATA[locale].languageTag);
       await expect(page.locator('main').first()).toHaveAttribute('dir', LOCALE_METADATA[locale].direction);
+      await expect(languageSelector).toBeVisible();
     }
   });
 });
