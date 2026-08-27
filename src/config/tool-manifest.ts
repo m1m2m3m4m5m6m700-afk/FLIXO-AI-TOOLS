@@ -1,6 +1,6 @@
-import type { Locale } from '@/lib/i18n/config';
-import { LOCALES } from '@/lib/i18n/config';
-import { getToolSeoName } from '@/lib/i18n/tool-seo-localization';
+import type { Locale } from '../lib/i18n/config.ts';
+import { LOCALES } from '../lib/i18n/config.ts';
+import { getToolSeoName } from '../lib/i18n/tool-seo-localization.ts';
 import type { ToolConfig, ToolFamily } from './tool-definitions/types.ts';
 import { AI_TOOLS, AUDIO_TOOLS, IMAGE_TOOLS, OTHER_TOOLS, PDF_TOOLS, VIDEO_TOOLS } from './registry.ts';
 
