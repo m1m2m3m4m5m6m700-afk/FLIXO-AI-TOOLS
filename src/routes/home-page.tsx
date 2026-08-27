@@ -47,11 +47,11 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const intent = useMemo(() => getBestToolIntent(query, READY_TO_TOOLS), [query]);
+  const intent = useMemo(() => getBestToolIntent(query, READY_TOOLS), [query]);
   const categories = useMemo(() => ['All', ...Array.from(new Set(READY_TOOLS.map((tool) => tool.category)))], []);
   const filteredTools = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return READY_TO_TOOLS.filter((tool) => {
+    return READY_TOOLS.filter((tool) => {
       const matchesCategory = selectedCategory === 'All' || tool.category === selectedCategory;
       const haystack = `${tool.id} ${tool.title} ${tool.description}`.toLowerCase();
       return matchesCategory && (!normalized || haystack.includes(normalized));
