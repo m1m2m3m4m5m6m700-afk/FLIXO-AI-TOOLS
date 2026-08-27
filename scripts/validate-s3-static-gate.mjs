@@ -125,13 +125,18 @@ try {
     'playwright.config.ts',
     'scripts/validate-s3-static-gate.mjs',
     'scripts/validate-s4-e2e.mjs',
+    'scripts/node-resolver-loader.mjs',
+    'scripts/register-node-resolver.mjs',
     'README.md',
+    'package.json',
     'release/finalization/C5_PLACEHOLDER.md',
     'release/finalization/README.md',
     'release/finalization/final_execution_manifest.json',
     'release/finalization/final_verification.json',
     'src/main.tsx',
     'src/home-modern.css',
+    'src/config/tool-manifest.ts',
+    'src/lib/i18n/tool-seo-localization.ts',
   ]);
   const unexpected = changed.filter((file) => !allow.has(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);
