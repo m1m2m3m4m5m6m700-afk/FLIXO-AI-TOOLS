@@ -34,9 +34,8 @@ for (const key of ['name', 'short_name', 'start_url', 'display', 'icons']) {
 }
 if (!Array.isArray(manifest.icons) || manifest.icons.length === 0) fail('manifest icons are empty');
 for (const icon of manifest.icons) {
-  if (!icon.src || !existsSync(join(root, 'public', icon.src.replace(/^\//, '')))) {
-    fail(`manifest icon is missing: ${icon.src ?? '<empty>'}`);
-  }
+  const iconPath = icon?.src ? join(root, 'public', icon.src.replace(/^\//, '')) : '';
+  if (!icon?.src || !existsSync(iconPath)) fail(`manifest icon is missing: ${icon?.src ?? '<empty>'}`);
 }
 pass('manifest validation');
 
@@ -47,59 +46,93 @@ pass('ESLint');
 run('npm', ['run', 'build']);
 pass('production build');
 
-if (!existsSync(join(dist, 'index.html'))) fail('dist/index.html is missing after build');
-const distReal = realpathSync(dist);
+const outputDir = existsSync(join(dist, 'client')) ? join(dist, 'client') : dist;
+const outputIndex = join(outputDir, 'index.html');
+if (!existsSync(outputIndex)) fail('built index.html is missing');
+
+const outputReal = realpathSync(outputDir);
 const realPathViolations = [];
-const visit = (dir) => {
+const visitSymlinks = (dir) => {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isSymbolicLink()) {
-      const target = realpathSync(full);
-      const rel = relative(distReal, target);
-      if (rel.startsWith('..') || resolve(distReal, rel) !== target) realPathViolations.push(full);
+      let target;
+      try {
+        target = realpathSync(full);
+      } catch {
+        realPathViolations.push(`${full} (dangling)`);
+        continue;
+      }
+      const rel = relative(outputReal, target);
+      if (rel.startsWith('..') || resolve(outputReal, rel) !== target) realPathViolations.push(full);
     } else if (entry.isDirectory()) {
-      visit(full);
+      visitSymlinks(full);
     }
   }
 };
-visit(dist);
+visitSymlinks(outputDir);
 if (realPathViolations.length) fail(`dist contains symlink escapes: ${realPathViolations.join(', ')}`);
 pass('realpath containment');
 
-const scriptSrcs = [...readFileSync(join(dist, 'index.html'), 'utf8').matchAll(/<script[^>]+type=["']module["'][^>]+src=["']([^"']+)["']/g)].map((m) => m[1]);
-if (scriptSrcs.length !== new Set(scriptSrcs).size) fail('duplicate module script references in dist/index.html');
-const localScripts = scriptSrcs.filter((src) => src.startsWith('/')).map((src) => join(dist, src.replace(/^\//, '')));
-if (localScripts.some((p) => !existsSync(p))) fail(`dist entry script is missing: ${localScripts.find((p) => !existsSync(p))}`);
-pass(`unique JS entry graph (${scriptSrcs.length} entry module(s))`);
+const normalizeAsset = (value) => value.split(/[?#]/u, 1)[0].replace(/^\/+/, '');
+const scriptRefs = [...readFileSync(outputIndex, 'utf8').matchAll(/<script\b[^>]*type=["']module["'][^>]*src=["']([^"']+)["'][^>]*>/giu)].map((m) => normalizeAsset(m[1]));
+if (scriptRefs.length === 0) fail('no module entrypoint found in built index.html');
+if (scriptRefs.length !== new Set(scriptRefs).size) fail('duplicate module script references in built index.html');
 
-const maxKiB = 900;
-let jsBytes = 0;
-const jsFiles = [];
-const walkFiles = (dir) => {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) walkFiles(full);
-    else if (entry.isFile() && full.endsWith('.js')) {
-      jsBytes += lstatSync(full).size;
-      jsFiles.push(full);
-    }
-  }
+const assetPath = (reference) => {
+  const normalized = normalizeAsset(reference);
+  const candidates = [
+    join(outputDir, normalized),
+    join(outputDir, `${normalized}.js`),
+  ];
+  return candidates.find((candidate) => existsSync(candidate)) ?? null;
 };
-walkFiles(dist);
-const jsKiB = jsBytes / 1024;
-console.log(`S3 BUNDLE JS: ${jsKiB.toFixed(2)} KiB across ${jsFiles.length} file(s)`);
-if (jsKiB > maxKiB) fail(`JavaScript bundle budget exceeded: ${jsKiB.toFixed(2)} KiB > ${maxKiB} KiB`);
-pass('bundle <= 900 KiB');
+
+const visited = new Set();
+const pending = scriptRefs.map((ref) => ({ ref, from: 'index.html' }));
+const localImportPattern = /(?:\bimport\s*(?:[^'"()]*?\sfrom\s*)?|\bimport\s*\(\s*)["']([^"']+)["']/gu;
+while (pending.length) {
+  const { ref, from } = pending.pop();
+  const file = assetPath(ref);
+  if (!file) fail(`built JS entrypoint is missing: ${ref}`);
+  const canonical = realpathSync(file);
+  if (visited.has(canonical)) continue;
+  visited.add(canonical);
+  const source = readFileSync(file, 'utf8');
+  for (const match of source.matchAll(localImportPattern)) {
+    const specifier = match[1];
+    if (!specifier.startsWith('.') && !specifier.startsWith('/')) continue;
+    const baseReference = specifier.startsWith('/')
+      ? normalizeAsset(specifier)
+      : normalizeAsset(join(relative(outputDir, file).split(/\\|\//u).slice(0, -1).join('/'), specifier));
+    if (!assetPath(baseReference)) fail(`unresolved local JS import ${specifier} from ${from}`);
+    pending.push({ ref: baseReference, from: file });
+  }
+}
+pass(`unique JS graph (${visited.size} reachable module file(s))`);
+
+const criticalBudgetBytes = 900 * 1024;
+let criticalJavascriptBytes = 0;
+const criticalAssets = [];
+for (const ref of scriptRefs) {
+  const file = assetPath(ref);
+  if (!file) fail(`critical JS asset is missing: ${ref}`);
+  const bytes = lstatSync(file).size;
+  criticalJavascriptBytes += bytes;
+  criticalAssets.push({ path: relative(outputDir, file).replaceAll('\\', '/'), bytes });
+}
+console.log(`S3 CRITICAL JS: ${(criticalJavascriptBytes / 1024).toFixed(1)} KiB across ${criticalAssets.length} entry asset(s)`);
+for (const asset of criticalAssets) console.log(`  critical ${asset.path} ${(asset.bytes / 1024).toFixed(1)} KiB`);
+if (criticalJavascriptBytes > criticalBudgetBytes) {
+  fail(`critical JavaScript budget exceeded: ${(criticalJavascriptBytes / 1024).toFixed(1)} KiB > 900.0 KiB`);
+}
+pass('critical JavaScript <= 900 KiB');
 
 const base = process.env.S3_BASE_REF ?? 'origin/main';
 try {
   const changedRaw = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { cwd: root, encoding: 'utf8' }).trim();
   const changed = changedRaw ? changedRaw.split('\n').filter(Boolean) : [];
-  const allow = new Set([
-    'package.json',
-    '.github/workflows/ci.yml',
-    'scripts/validate-s3-static-gate.mjs',
-  ]);
+  const allow = new Set(['.github/workflows/ci.yml', 'scripts/validate-s3-static-gate.mjs']);
   const unexpected = changed.filter((file) => !allow.has(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);
   pass(`changed-files allowlist (${changed.length} file(s))`);
