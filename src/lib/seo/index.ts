@@ -4,7 +4,7 @@ import {
   SITE_ORIGIN,
   X_DEFAULT_LOCALE,
   type Locale,
-} from '../i18n/index.ts';
+} from '../i18n/config.ts';
 
 export const SEO_DEFAULT_LOCALE: Locale = 'ar';
 
