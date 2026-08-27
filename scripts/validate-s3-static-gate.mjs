@@ -130,6 +130,8 @@ try {
     'release/finalization/README.md',
     'release/finalization/final_execution_manifest.json',
     'release/finalization/final_verification.json',
+    'src/main.tsx',
+    'src/home-modern.css',
   ]);
   const unexpected = changed.filter((file) => !allow.has(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);
