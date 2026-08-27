@@ -1,0 +1,1 @@
+S2A route-head integration is intentionally limited to src/routes/index.tsx and src/routes/ar-index.tsx.
