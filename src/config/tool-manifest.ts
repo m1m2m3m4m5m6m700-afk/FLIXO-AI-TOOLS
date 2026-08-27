@@ -1,3 +1,6 @@
+import type { Locale } from '@/lib/i18n/config';
+import { LOCALES } from '@/lib/i18n/config';
+import { getToolSeoName } from '@/lib/i18n/tool-seo-localization';
 import type { ToolConfig, ToolFamily } from './tool-definitions/types.ts';
 import { AI_TOOLS, AUDIO_TOOLS, IMAGE_TOOLS, OTHER_TOOLS, PDF_TOOLS, VIDEO_TOOLS } from './registry.ts';
 
@@ -8,18 +11,30 @@ export type ToolManifestEntry = ToolConfig & {
     readonly description: string;
     readonly robots: 'index,follow,max-image-preview:large';
   };
+  readonly seoByLocale: Readonly<Record<Locale, { readonly title: string }>>;
 };
 
 function withFamily(family: ToolFamily, tools: readonly ToolConfig[]): readonly ToolManifestEntry[] {
-  return tools.map((tool) => ({
-    ...tool,
-    family,
-    seo: {
-      title: `${tool.title} | FLIXO`,
-      description: tool.description,
-      robots: 'index,follow,max-image-preview:large',
-    },
-  }));
+  return tools.map((tool) => {
+    const seoByLocale = Object.fromEntries(
+      LOCALES.map((locale) => {
+        const name = getToolSeoName(tool.id, locale);
+        if (!name) throw new Error(`Missing reviewed SEO name: ${tool.id}:${locale}`);
+        return [locale, { title: `${name} | FLIXO` }];
+      }),
+    ) as Record<Locale, { readonly title: string }>;
+
+    return {
+      ...tool,
+      family,
+      seo: {
+        title: `${tool.title} | FLIXO`,
+        description: tool.description,
+        robots: 'index,follow,max-image-preview:large',
+      },
+      seoByLocale: Object.freeze(seoByLocale),
+    };
+  });
 }
 
 const TOOL_FAMILIES = [
