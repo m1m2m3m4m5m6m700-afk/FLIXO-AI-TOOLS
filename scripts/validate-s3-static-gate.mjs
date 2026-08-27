@@ -126,6 +126,10 @@ try {
     'scripts/validate-s3-static-gate.mjs',
     'scripts/validate-s4-e2e.mjs',
     'README.md',
+    'release/finalization/C5_PLACEHOLDER.md',
+    'release/finalization/README.md',
+    'release/finalization/final_execution_manifest.json',
+    'release/finalization/final_verification.json',
   ]);
   const unexpected = changed.filter((file) => !allow.has(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);

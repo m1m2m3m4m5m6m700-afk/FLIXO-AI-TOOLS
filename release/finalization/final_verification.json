@@ -1,0 +1,26 @@
+{
+  "schema": "FLIXO.final-verification.v1",
+  "phase": "S5/C5",
+  "status": "pending",
+  "release_sha": null,
+  "evidence": {
+    "bundle_metric": "pending",
+    "e2e_aggregate_report": "pending",
+    "environment_fingerprint": "pending",
+    "server_process_identity": "pending",
+    "server_execution_log": "pending",
+    "dag_manifest_pre_c4": "pending"
+  },
+  "checks": {
+    "exact_sha_runtime_gate": "pending",
+    "typecheck": "pending",
+    "lint": "pending",
+    "production_build": "pending",
+    "security_audit": "pending",
+    "performance_budget": "pending",
+    "cross_browser_e2e": "pending",
+    "working_tree_clean": "pending",
+    "main_head_consistency": "pending"
+  },
+  "release_rule": "This file must remain non-green until all evidence and checks are complete for one exact release SHA."
+}
