@@ -21,7 +21,7 @@ for (const locale of EXPECTED_LOCALES) {
   if (!new RegExp(`\\b${locale}:q\\(`).test(quickflow)) failValidation(`QuickFlow UI missing locale: ${locale}`);
 }
 
-const metadataEntries = config.match(/\\b(?:en|ar|es|fr|de|ru|zh|hi|id|ur|ja|pt|it|ko|nl|pl|tr|vi|th|sv):\\s*\\{/g) ?? [];
+const metadataEntries = config.match(/(?:^|[,{\n]\s*)(?:en|ar|es|fr|de|ru|zh|hi|id|ur|ja|pt|it|ko|nl|pl|tr|vi|th|sv):\s*\{/g) ?? [];
 if (metadataEntries.length !== EXPECTED_LOCALES.length) {
   failValidation(`Locale metadata coverage is ${metadataEntries.length}/${EXPECTED_LOCALES.length}`);
 }
