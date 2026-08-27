@@ -1,9 +1,11 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, unlinkSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 const root = resolve(process.cwd());
 const dist = join(root, 'dist');
+const generatedSitemapPath = join(root, 'public/sitemap.xml');
+const sitemapExistedBeforeBuild = existsSync(generatedSitemapPath);
 const fail = (message) => {
   console.error(`S3 FAIL: ${message}`);
   process.exit(1);
@@ -45,6 +47,11 @@ run('npm', ['run', 'lint']);
 pass('ESLint');
 run('npm', ['run', 'build']);
 pass('production build');
+
+if (!sitemapExistedBeforeBuild && existsSync(generatedSitemapPath)) {
+  unlinkSync(generatedSitemapPath);
+  pass('removed build-generated public/sitemap.xml');
+}
 
 const outputDir = existsSync(join(dist, 'client')) ? join(dist, 'client') : dist;
 const outputIndex = join(outputDir, 'index.html');
