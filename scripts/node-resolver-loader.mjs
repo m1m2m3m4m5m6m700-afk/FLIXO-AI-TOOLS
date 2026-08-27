@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs';
-import { extname, dirname, join, resolve } from 'node:path';
+import { extname, dirname, join, resolve as pathResolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = pathResolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'src');
 
 const isPathLike = (specifier) => specifier.startsWith('./') || specifier.startsWith('../') || specifier.startsWith('/');
