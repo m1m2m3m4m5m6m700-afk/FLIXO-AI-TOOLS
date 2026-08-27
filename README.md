@@ -81,6 +81,8 @@ A local success is development evidence, not release certification. A change is 
 
 Provider-side deployment limits, such as a Vercel quota error, are tracked as external deployment conditions. They are never converted into a fake application GREEN or a fake application failure without matching code evidence.
 
+C4 evidence is produced only from a completed, exact-SHA runtime gate; an absent or cancelled runtime run cannot be promoted to a release certificate.
+
 ## Development
 
 ```bash
