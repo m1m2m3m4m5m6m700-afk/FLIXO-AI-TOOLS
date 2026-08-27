@@ -1,7 +1,7 @@
 import type { Locale } from './config';
 
 export const CATEGORY_LABELS: Record<Locale, Record<'Images' | 'AI' | 'Other', string>> = {
-  en: { Images: 'Images', AI: 'AI', Other: 'Other' }, ar: { Images: 'الصور', AI: 'الذكاء الاصطناعي', Other: 'أخرى' }, es: { Images: 'Imágenes', AI: 'IA', Other: 'Otros' }, fr: { Images: 'Images', AI: 'IA', Other: 'Autres' }, de: { Images: 'Bilder', AI: 'KI', Other: 'Andere' }, ru: { Images: 'Изображения', AI: 'ИИ', Other: 'Другое' }, zh: { Images: '图像', AI: '人工智能', Other: '其他' }, hi: { Images: 'छवियाँ', AI: 'एआई', Other: 'अन्य' }, id: { Images: 'Gambar', AI: 'AI', Other: 'Lainnya' }, ur: { Images: 'تصاویر', AI: 'اے آئی', Other: 'دیگر' }, ja: { Images: '画像', AI: 'AI', Other: 'その他' }, pt: { Images: 'Imagens', AI: 'IA', Other: 'Outros' }, it: { Images: 'Immagini', AI: 'IA', Altro: 'Outro' }, ko: { Images: '이미지', AI: 'AI', Other: '기타' }, nl: { Images: 'Afbeeldingen', AI: 'AI', Other: 'Overig' }, pl: { Images: 'Obrazy', AI: 'AI', Other: 'Inne' }, tr: { Images: 'Görseller', AI: 'YZ', Other: 'Diğer' }, vi: { Images: 'Hình ảnh', AI: 'AI', Other: 'Khác' }, th: { Images: 'รูปภาพ', AI: 'AI', Other: 'อื่นๆ' }, sv: { Images: 'Bilder', AI: 'AI', Other: 'Övrigt' },
+  en: { Images: 'Images', AI: 'AI', Other: 'Other' }, ar: { Images: 'الصور', AI: 'الذكاء الاصطناعي', Other: 'أخرى' }, es: { Images: 'Imágenes', AI: 'IA', Other: 'Otros' }, fr: { Images: 'Images', AI: 'IA', Other: 'Autres' }, de: { Images: 'Bilder', AI: 'KI', Other: 'Andere' }, ru: { Images: 'Изображения', AI: 'ИИ', Other: 'Другое' }, zh: { Images: '图像', AI: '人工智能', Other: '其他' }, hi: { Images: 'छवियाँ', AI: 'एआई', Other: 'अन्य' }, id: { Images: 'Gambar', AI: 'AI', Other: 'Lainnya' }, ur: { Images: 'تصاویر', AI: 'اے آئی', Other: 'دیگر' }, ja: { Images: '画像', AI: 'AI', Other: 'その他' }, pt: { Images: 'Imagens', AI: 'IA', Other: 'Outros' }, it: { Images: 'Immagini', AI: 'IA', Other: 'Outro' }, ko: { Images: '이미지', AI: 'AI', Other: '기타' }, nl: { Images: 'Afbeeldingen', AI: 'AI', Other: 'Overig' }, pl: { Images: 'Obrazy', AI: 'AI', Other: 'Inne' }, tr: { Images: 'Görseller', AI: 'YZ', Other: 'Diğer' }, vi: { Images: 'Hình ảnh', AI: 'AI', Other: 'Khác' }, th: { Images: 'รูปภาพ', AI: 'AI', Other: 'อื่นๆ' }, sv: { Images: 'Bilder', AI: 'AI', Other: 'Övrigt' },
 };
 
 type LocalizedTerms = Partial<Record<Locale, string>>;
@@ -40,10 +40,10 @@ const TECHNICAL_TOKENS = new Set(['PDF', 'SVG', 'OCR', 'AI', 'EXIF', 'JPG', 'PNG
 
 type ToolTitleOverride = Partial<Record<Locale, string>>;
 const TITLE_OVERRIDES: Record<string, ToolTitleOverride> = {
-  'image-ocr': { fr: 'OCR d’image' },
-  'svg-optimizer': { nl: 'SVG-optimalisatie' },
-  'pdf-compressor': { pt: 'Compactador de PDF', nl: 'PDF-compressor' },
-  'audio-compressor': { nl: 'Audiocompressor' },
+  'image ocr': { fr: 'OCR d’image' },
+  'svg optimizer': { nl: 'SVG-optimalisatie' },
+  'pdf compressor': { pt: 'Compactador de PDF', nl: 'PDF-compressor' },
+  'audio compressor': { nl: 'Audiocompressor' },
 };
 
 function tokenize(value: string): string[] {
@@ -65,8 +65,8 @@ export function localizeToolCategory(locale: Locale, category: 'Images' | 'AI' |
 export function localizeToolTitle(locale: Locale, title: string, category: 'Images' | 'AI' | 'Other'): string {
   if (locale === 'en') return title;
   const normalizedTitleKey = title.trim().toLowerCase();
-  const override = Object.entries(TITLE_OVERRIDES).find(([key]) => key === normalizedTitleKey || title.toLowerCase().includes(key));
-  if (override?.[1][locale]) return override[1][locale] as string;
+  const override = TITLE_OVERRIDES[normalizedTitleKey];
+  if (override?.[locale]) return override[locale] as string;
 
   const parts = tokenize(title);
   const translated = parts.map((part) => {
@@ -84,7 +84,7 @@ export function localizeToolTitle(locale: Locale, title: string, category: 'Imag
 export function localizeToolDescription(locale: Locale, title: string, category: 'Images' | 'AI' | 'Other'): string {
   const localizedTitle = localizeToolTitle(locale, title, category);
   const templates: Record<Locale, string> = {
-    en: `Use ${localizedTitle} in FLIXO directly in your browser.`, ar: `استخدم ${localizedTitle} من FLIXO مباشرة داخل المتصفح.`, es: `Usa ${localizedTitle} de FLIXO directamente en tu navegador.`, fr: `Utilisez ${localizedTitle} de FLIXO directement dans votre navigateur.`, de: `Nutzen Sie ${localizedTitle} von FLIXO direkt im Browser.`, ru: `Используйте ${localizedTitle} от FLIXO прямо в браузере.`, zh: `直接在浏览器中使用 FLIXO 的${localizedTitle}。`, hi: `FLIXO के ${localizedTitle} का उपयोग सीधे ब्राउज़र में करें。`, id: `Gunakan ${localizedTitle} dari FLIXO langsung di browser.`, ur: `FLIXO کا ${localizedTitle} براہِ راست براؤزر میں استعمال کریں۔`, ja: `FLIXO の${localizedTitle}をブラウザで直接利用できます。`, pt: `Use ${localizedTitle} da FLIXO diretamente no navegador.`, it: `Usa ${localizedTitle} di FLIXO direttamente nel browser.`, ko: `브라우저에서 FLIXO의 ${localizedTitle}을(를) 바로 사용하세요.`, nl: `Gebruik ${localizedTitle} van FLIXO direct in je browser.`, pl: `Używaj ${localizedTitle} FLIXO bezpośrednio w przeglądarce.`, tr: `FLIXO ${localizedTitle} aracını doğrudan tarayıcıda kullanın.`, vi: `Sử dụng ${localizedTitle} của FLIXO ngay trong trình duyệt.`, th: `ใช้ ${localizedTitle} ของ FLIXO ได้โดยตรงในเบราว์เซอร์`, sv: `Använd FLIXO:s ${localizedTitle} direkt i webbläsaren.`,
+    en: `Use ${localizedTitle} in FLIXO directly in your browser.`, ar: `استخدم ${localizedTitle} من FLIXO مباشرة داخل المتصفح.`, es: `Usa ${localizedTitle} de FLIXO directamente en tu navegador.`, fr: `Utilisez ${localizedTitle} de FLIXO directement dans votre navigateur.`, de: `Nutzen Sie ${localizedTitle} von FLIXO direkt im Browser.`, ru: `Используйте ${localizedTitle} от FLIXO прямо в браузере.`, zh: `直接在浏览器中使用 FLIXO 的${localizedTitle}。`, hi: `FLIXO के ${localizedTitle} का उपयोग सीधे ब्राउज़र में करें।`, id: `Gunakan ${localizedTitle} dari FLIXO langsung di browser.`, ur: `FLIXO کا ${localizedTitle} براہِ راست براؤزر میں استعمال کریں۔`, ja: `FLIXO の${localizedTitle}をブラウザで直接利用できます。`, pt: `Use ${localizedTitle} da FLIXO diretamente no navegador.`, it: `Usa ${localizedTitle} di FLIXO direttamente nel browser.`, ko: `브라우저에서 FLIXO의 ${localizedTitle}을(를) 바로 사용하세요.`, nl: `Gebruik ${localizedTitle} van FLIXO direct in je browser.`, pl: `Używaj ${localizedTitle} FLIXO bezpośrednio w przeglądarce.`, tr: `FLIXO ${localizedTitle} aracını doğrudan tarayıcıda kullanın.`, vi: `Sử dụng ${localizedTitle} của FLIXO ngay trong trình duyệt.`, th: `ใช้ ${localizedTitle} ของ FLIXO ได้โดยตรงในเบราว์เซอร์`, sv: `Använd FLIXO:s ${localizedTitle} direkt i webbläsaren.`,
   };
   return templates[locale];
 }
