@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "audit:production": "npm audit --omit=dev --audit-level=high",
+    "validate:s2d": "node scripts/validate-s2d.mjs",
     "validate:dependency-zero-debt": "node scripts/validate-dependency-zero-debt.mjs",
     "validate:i18n": "node scripts/validate-i18n.mjs",
     "validate:locale-integrity": "node scripts/validate-locale-integrity.mjs",
@@ -55,6 +56,6 @@
   },
   "overrides": {"@tanstack/react-router":"1.170.32","@tanstack/react-router-core":"1.171.15","image-size":"2.0.2"},
   "devDependencies": {
-    "@eslint/js":"^10.0.1","@playwright/test":"1.62.1","@types/gif.js":"^0.2.5","@types/node":"^22.16.5","@types/nodemailer":"^8.0.1","@types/qrcode":"^1.5.6","@types/react":"^19.2.0","@types/react-dom":"^19.1.7","@vitejs/plugin-react":"^5.2.0","eslint":"^10.8.0","eslint-config-prettier":"^10.1.1","eslint-plugin-prettier":"^5.2.6","eslint-plugin-react-hooks":"^7.1.1","eslint-plugin-react-refresh":"^0.5.3","globals":"^15.15.0","playwright":"^1.62.1","prettier":"^3.7.3","typescript":"^5.8.3","typescript-eslint":"^8.56.1"
+    "@eslint/js":"^10.0.1","@playwright/test":"1.62.1","@types/gif.js":"^0.2.5","@types/node":"^22.16.5","@types/nodemailer":"^8.0.1","@types/qrcode":"^1.5.6","@types/react":"^19.2.0","@types/react-dom":"^19.1.7","@vitejs/plugin-react":"^5.2.0","eslint":"^10.8.0","eslint-config-prettier":"^10.1.1","eslint-plugin-prettier":"^5.2.6","eslint-plugin-react-hooks":"^7.1.1","eslint-plugin-react-refresh":"^0.5.3","globals":"^15.15.0","playwright":"^1.62.1","typescript":"^5.8.3","typescript-eslint":"^8.56.1"
   }
 }
