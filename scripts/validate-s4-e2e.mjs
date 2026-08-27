@@ -4,17 +4,22 @@ import { join } from 'node:path';
 const root = process.cwd();
 const reportPath = process.env.S4_E2E_REPORT ?? join(root, 'playwright-report/results.json');
 
-if (!existsSync(reportPath)) {
-  console.error(`S4 FAIL: Playwright JSON report is missing: ${reportPath}`);
+const fail = (message) => {
+  console.error(`S4 FAIL: ${message}`);
   process.exit(1);
-}
+};
+
+if (!existsSync(reportPath)) fail(`Playwright JSON report is missing: ${reportPath}`);
 
 let report;
 try {
   report = JSON.parse(readFileSync(reportPath, 'utf8'));
 } catch (error) {
-  console.error(`S4 FAIL: unable to parse Playwright JSON report: ${error?.message ?? error}`);
-  process.exit(1);
+  fail(`unable to parse Playwright JSON report: ${error?.message ?? error}`);
+}
+
+if (!report || typeof report !== 'object' || !Array.isArray(report.suites)) {
+  fail('Playwright JSON report has an invalid top-level structure');
 }
 
 const counts = {
@@ -26,19 +31,28 @@ const counts = {
   total: 0,
 };
 
+const projects = new Set();
+
 const visit = (suite) => {
   for (const spec of suite?.specs ?? []) {
     for (const test of spec?.tests ?? []) {
       counts.total += 1;
+      if (test?.projectName) projects.add(test.projectName);
+
       if (test.status === 'skipped' || test.expectedStatus === 'skipped') {
         counts.skipped += 1;
         continue;
       }
 
-      const results = test.results ?? [];
+      const results = Array.isArray(test.results) ? test.results : [];
+      if (results.length === 0) {
+        counts.unexpected += 1;
+        continue;
+      }
+
       const statuses = results.map((result) => result?.status).filter(Boolean);
       const hasFailure = statuses.some((status) => status === 'failed' || status === 'timedOut' || status === 'interrupted');
-      const allPassed = statuses.length > 0 && statuses.every((status) => status === 'passed');
+      const allPassed = statuses.length === results.length && statuses.every((status) => status === 'passed');
       const multipleAttempts = results.length > 1;
 
       if (hasFailure) {
@@ -57,42 +71,26 @@ const visit = (suite) => {
   for (const child of suite?.suites ?? []) visit(child);
 };
 
-for (const suite of report?.suites ?? []) visit(suite);
-
-const expectedBrowsers = new Set(['chromium', 'firefox', 'webkit']);
-const projects = new Set();
-const collectProjects = (suite) => {
-  for (const spec of suite?.specs ?? []) {
-    for (const test of spec?.tests ?? []) {
-      for (const result of test?.results ?? []) {
-        if (result?.workerIndex !== undefined) {
-          const project = test?.projectName;
-          if (project) projects.add(project);
-        }
-      }
-    }
-  }
-  for (const child of suite?.suites ?? []) collectProjects(child);
-};
-for (const suite of report?.suites ?? []) collectProjects(suite);
-
-console.log(`S4 E2E totals: total=${counts.total} passed=${counts.passed} failed=${counts.failed} flaky=${counts.flaky} skipped=${counts.skipped} unexpected=${counts.unexpected}`);
-if (counts.total === 0) {
-  console.error('S4 FAIL: no E2E tests were recorded');
-  process.exit(1);
-}
-if (counts.failed !== 0 || counts.flaky !== 0 || counts.skipped !== 0 || counts.unexpected !== 0) {
-  console.error('S4 FAIL: runtime/E2E outcome contract was not satisfied');
-  process.exit(1);
-}
+for (const suite of report.suites) visit(suite);
 
 const requiredProjectNames = process.env.S4_REQUIRED_PROJECTS
   ? process.env.S4_REQUIRED_PROJECTS.split(',').map((value) => value.trim()).filter(Boolean)
-  : [...expectedBrowsers];
+  : ['chromium', 'firefox', 'webkit'];
+
+console.log(`S4 E2E totals: total=${counts.total} passed=${counts.passed} failed=${counts.failed} flaky=${counts.flaky} skipped=${counts.skipped} unexpected=${counts.unexpected}`);
+if (counts.total === 0) fail('no E2E tests were recorded');
+if (counts.failed !== 0 || counts.flaky !== 0 || counts.skipped !== 0 || counts.unexpected !== 0) {
+  fail('runtime/E2E outcome contract was not satisfied');
+}
+
 const missingProjects = requiredProjectNames.filter((project) => !projects.has(project));
 if (missingProjects.length) {
-  console.error(`S4 FAIL: missing required browser projects in report: ${missingProjects.join(', ')}`);
-  process.exit(1);
+  fail(`missing required browser projects in report: ${missingProjects.join(', ')}`);
+}
+
+const unexpectedProjects = [...projects].filter((project) => !requiredProjectNames.includes(project)).sort();
+if (unexpectedProjects.length) {
+  fail(`unexpected browser projects in report: ${unexpectedProjects.join(', ')}`);
 }
 
 console.log(`S4 PASS: browsers=${[...projects].sort().join(',')} workers=1 retries=0`);
