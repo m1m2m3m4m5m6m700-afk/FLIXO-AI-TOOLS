@@ -4,7 +4,7 @@ import {
   SITE_ORIGIN,
   X_DEFAULT_LOCALE,
   type Locale,
-} from '@/lib/i18n';
+} from '../i18n';
 
 export const SEO_DEFAULT_LOCALE: Locale = 'ar';
 
