@@ -8,6 +8,7 @@ on:
       - main
       - 'work/**'
       - 'fix/**'
+      - 's3-**'
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -187,11 +188,28 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  s3-static-gate:
+    name: S3 Static Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Run S3 static certification
+        env:
+          S3_BASE_REF: origin/main
+        run: node scripts/validate-s3-static-gate.mjs
+
   canonical-verify:
     name: Canonical Verification Gate
-    if: ${{ needs.typecheck.result == 'success' && needs.lint.result == 'success' && needs.build.result == 'success' && needs.audit.result == 'success' && needs.socket.result == 'success' && needs.secret-scan.result == 'success' && needs.security.result == 'success' && needs.fast-contract.result == 'success' && needs.browser-smoke.result == 'success' }}
+    if: ${{ needs.typecheck.result == 'success' && needs.lint.result == 'success' && needs.build.result == 'success' && needs.audit.result == 'success' && needs.socket.result == 'success' && needs.secret-scan.result == 'success' && needs.security.result == 'success' && needs.fast-contract.result == 'success' && needs.browser-smoke.result == 'success' && needs.s3-static-gate.result == 'success' }}
     runs-on: ubuntu-latest
-    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, browser-smoke]
+    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, browser-smoke, s3-static-gate]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -218,6 +236,7 @@ jobs:
             echo '${{ github.sha }}'
             echo
             echo 'All diagnostic jobs, including the secret-history scan, were green before this gate ran.'
+            echo 'S3 Static Gate passed before canonical verification.'
             echo 'The full 22×3 browser matrix is promoted to the independent Full Matrix Promotion workflow.'
             echo 'Build performance budget validation and baseline reporting passed before promotion.'
           } >> "$GITHUB_STEP_SUMMARY"
@@ -226,7 +245,7 @@ jobs:
     name: Diagnostic Summary
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, browser-smoke, canonical-verify]
+    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, browser-smoke, s3-static-gate, canonical-verify]
     steps:
       - name: Write CI summary
         run: |
@@ -244,6 +263,7 @@ jobs:
             echo '| CodeQL | ${{ needs.security.result }} |'
             echo '| Fast Contract Diagnostics | ${{ needs.fast-contract.result }} |'
             echo '| Browser Smoke (5 Chromium checks) | ${{ needs.browser-smoke.result }} |'
+            echo '| S3 Static Gate | ${{ needs.s3-static-gate.result }} |'
             echo '| Canonical Verification | ${{ needs.canonical-verify.result }} |'
             echo
             echo 'Fast Contract Diagnostics fail early on source-level contract drift.'
@@ -253,6 +273,7 @@ jobs:
             echo 'Bundle size inventory is published as a diagnostic artifact for evidence-driven optimization.'
             echo 'The full 22×3 browser matrix runs independently as promotion/release evidence.'
             echo 'Diagnostics explain failures; Canonical Verification is the single PR/application gate.'
+            echo 'S3 Static Gate is a prerequisite for Canonical Verification.'
             echo 'Socket is intentionally skipped when SOCKET_SECURITY_API_KEY is not configured.'
             echo 'Secret History Scan is a blocking canonical dependency.'
           } >> "$GITHUB_STEP_SUMMARY"
