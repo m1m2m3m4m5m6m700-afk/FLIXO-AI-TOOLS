@@ -15,9 +15,7 @@ const run = (command, args = []) => execFileSync(command, args, { cwd: root, std
 
 const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 if (packageJson.type !== 'module') fail('package.json must declare type=module');
-if (!packageJson.scripts?.typecheck || !packageJson.scripts?.lint || !packageJson.scripts?.build) {
-  fail('required static scripts are missing');
-}
+if (!packageJson.scripts?.typecheck || !packageJson.scripts?.lint || !packageJson.scripts?.build) fail('required static scripts are missing');
 pass('package contract');
 
 const indexPath = join(root, 'index.html');
@@ -31,9 +29,7 @@ pass('entrypoint validation');
 const manifestPath = join(root, 'public/manifest.webmanifest');
 if (!existsSync(manifestPath)) fail('public/manifest.webmanifest is missing');
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-for (const key of ['name', 'short_name', 'start_url', 'display', 'icons']) {
-  if (!(key in manifest)) fail(`manifest missing ${key}`);
-}
+for (const key of ['name', 'short_name', 'start_url', 'display', 'icons']) if (!(key in manifest)) fail(`manifest missing ${key}`);
 if (!Array.isArray(manifest.icons) || manifest.icons.length === 0) fail('manifest icons are empty');
 for (const icon of manifest.icons) {
   const iconPath = icon?.src ? join(root, 'public', icon.src.replace(/^\//, '')) : '';
@@ -47,7 +43,6 @@ run('npm', ['run', 'lint']);
 pass('ESLint');
 run('npm', ['run', 'build']);
 pass('production build');
-
 if (!sitemapExistedBeforeBuild && existsSync(generatedSitemapPath)) {
   unlinkSync(generatedSitemapPath);
   pass('removed build-generated public/sitemap.xml');
@@ -56,25 +51,18 @@ if (!sitemapExistedBeforeBuild && existsSync(generatedSitemapPath)) {
 const outputDir = existsSync(join(dist, 'client')) ? join(dist, 'client') : dist;
 const outputIndex = join(outputDir, 'index.html');
 if (!existsSync(outputIndex)) fail('built index.html is missing');
-
 const outputReal = realpathSync(outputDir);
 const realPathViolations = [];
 const visitSymlinks = (dir) => {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isSymbolicLink()) {
-      let target;
       try {
-        target = realpathSync(full);
-      } catch {
-        realPathViolations.push(`${full} (dangling)`);
-        continue;
-      }
-      const rel = relative(outputReal, target);
-      if (rel.startsWith('..') || resolve(outputReal, rel) !== target) realPathViolations.push(full);
-    } else if (entry.isDirectory()) {
-      visitSymlinks(full);
-    }
+        const target = realpathSync(full);
+        const rel = relative(outputReal, target);
+        if (rel.startsWith('..') || resolve(outputReal, rel) !== target) realPathViolations.push(full);
+      } catch { realPathViolations.push(`${full} (dangling)`); }
+    } else if (entry.isDirectory()) visitSymlinks(full);
   }
 };
 visitSymlinks(outputDir);
@@ -85,13 +73,11 @@ const normalizeAsset = (value) => value.split(/[?#]/u, 1)[0].replace(/^\/+/, '')
 const scriptRefs = [...readFileSync(outputIndex, 'utf8').matchAll(/<script\b[^>]*type=["']module["'][^>]*src=["']([^"']+)["'][^>]*>/giu)].map((m) => normalizeAsset(m[1]));
 if (scriptRefs.length === 0) fail('no module entrypoint found in built index.html');
 if (scriptRefs.length !== new Set(scriptRefs).size) fail('duplicate module script references in built index.html');
-
 const assetPath = (reference) => {
   const normalized = normalizeAsset(reference);
   const candidates = [join(outputDir, normalized), join(outputDir, `${normalized}.js`)];
   return candidates.find((candidate) => existsSync(candidate)) ?? null;
 };
-
 const visited = new Set();
 const pending = scriptRefs.map((ref) => ({ ref, from: 'index.html' }));
 const localImportPattern = /(?:\bimport\s*(?:[^'"()]*?\sfrom\s*)?|\bimport\s*\(\s*)["']([^"']+)["']/gu;
@@ -135,7 +121,7 @@ try {
   const changedRaw = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { cwd: root, encoding: 'utf8' }).trim();
   const changed = changedRaw ? changedRaw.split('\n').filter(Boolean) : [];
   const allow = new Set([
-    '.github/workflows/ci.yml',
+    '.github/workflows/s4-runtime-e2e.yml',
     'playwright.config.ts',
     'scripts/validate-s3-static-gate.mjs',
     'scripts/validate-s4-e2e.mjs',
@@ -152,8 +138,6 @@ try {
   const status = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim();
   if (status) fail(`working tree is not clean:\n${status}`);
   pass('working tree clean');
-} catch {
-  fail('unable to inspect git working tree');
-}
+} catch { fail('unable to inspect git working tree'); }
 
 pass('S3 STATIC GATE COMPLETE');
