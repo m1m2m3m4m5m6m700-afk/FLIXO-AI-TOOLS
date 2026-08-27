@@ -1,9 +1,11 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, unlinkSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 const root = resolve(process.cwd());
 const dist = join(root, 'dist');
+const generatedSitemapPath = join(root, 'public/sitemap.xml');
+const sitemapExistedBeforeBuild = existsSync(generatedSitemapPath);
 const fail = (message) => {
   console.error(`S3 FAIL: ${message}`);
   process.exit(1);
@@ -45,6 +47,11 @@ run('npm', ['run', 'lint']);
 pass('ESLint');
 run('npm', ['run', 'build']);
 pass('production build');
+
+if (!sitemapExistedBeforeBuild && existsSync(generatedSitemapPath)) {
+  unlinkSync(generatedSitemapPath);
+  pass('removed build-generated public/sitemap.xml');
+}
 
 const outputDir = existsSync(join(dist, 'client')) ? join(dist, 'client') : dist;
 const outputIndex = join(outputDir, 'index.html');
@@ -132,7 +139,7 @@ const base = process.env.S3_BASE_REF ?? 'origin/main';
 try {
   const changedRaw = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { cwd: root, encoding: 'utf8' }).trim();
   const changed = changedRaw ? changedRaw.split('\n').filter(Boolean) : [];
-  const allow = new Set(['.github/workflows/ci.yml', 'scripts/validate-s3-static-gate.mjs']);
+  const allow = new Set(['scripts/validate-s3-static-gate.mjs']);
   const unexpected = changed.filter((file) => !allow.has(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);
   pass(`changed-files allowlist (${changed.length} file(s))`);
