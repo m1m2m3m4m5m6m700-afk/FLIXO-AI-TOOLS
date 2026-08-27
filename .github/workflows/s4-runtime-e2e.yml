@@ -71,6 +71,7 @@ jobs:
         env:
           S4_RUNTIME_GATE: 'true'
           S4_EXTERNAL_SERVER: 'true'
+          PLAYWRIGHT_SERVER: 'preview'
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
         run: npx playwright test --workers=1 --retries=0
 
