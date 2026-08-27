@@ -7,5 +7,4 @@ updates:
     open-pull-requests-limit: 5
     versioning-strategy: increase-if-necessary
     labels:
-      - dependencies
       - security
