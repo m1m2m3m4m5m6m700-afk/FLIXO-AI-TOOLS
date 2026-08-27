@@ -139,7 +139,7 @@ const base = process.env.S3_BASE_REF ?? 'origin/main';
 try {
   const changedRaw = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { cwd: root, encoding: 'utf8' }).trim();
   const changed = changedRaw ? changedRaw.split('\n').filter(Boolean) : [];
-  const allow = new Set(['.github/workflows/ci.yml', 'scripts/validate-s3-static-gate.mjs']);
+  const allow = new Set(['scripts/validate-s3-static-gate.mjs']);
   const unexpected = changed.filter((file) => !allow.has(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);
   pass(`changed-files allowlist (${changed.length} file(s))`);
