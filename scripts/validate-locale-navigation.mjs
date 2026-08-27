@@ -21,7 +21,7 @@ if (!home.includes('useNavigate') || !home.includes('navigate({ to: `/${event.ta
 const rewrites = JSON.parse(vercel).rewrites ?? [];
 const localeRewrites = new Set();
 for (const rewrite of rewrites) {
-  const match = /^\\/([a-z]{2})\\/:path\\*$/.exec(rewrite.source ?? '');
+  const match = /^\/([a-z]{2})\/:path\*$/.exec(rewrite.source ?? '');
   if (match && rewrite.destination === '/') localeRewrites.add(match[1]);
 }
 
