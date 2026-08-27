@@ -30,4 +30,6 @@ for (const locale of LOCALES) {
   assert.equal(normalizeLocale(locale), locale);
 }
 
+await import('./test-seo-contract.mjs');
+
 console.log('i18n contract tests passed.');
