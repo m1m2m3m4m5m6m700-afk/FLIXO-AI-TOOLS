@@ -8,10 +8,7 @@ const generatedSitemapPath = join(root, 'public/sitemap.xml');
 const generatedRobotsPath = join(root, 'public/robots.txt');
 const sitemapExistedBeforeBuild = existsSync(generatedSitemapPath);
 const robotsExistedBeforeBuild = existsSync(generatedRobotsPath);
-const fail = (message) => {
-  console.error(`S3 FAIL: ${message}`);
-  process.exit(1);
-};
+const fail = (message) => { console.error(`S3 FAIL: ${message}`); process.exit(1); };
 const pass = (message) => console.log(`S3 PASS: ${message}`);
 const run = (command, args = []) => execFileSync(command, args, { cwd: root, stdio: 'inherit' });
 
@@ -45,12 +42,7 @@ const logoAliasPath = join(root, 'public/logo.svg');
 const faviconPath = join(root, 'public/favicon.svg');
 const globalLogoPath = join(root, 'src/components/FlixoGlobalLogo.tsx');
 if (!existsSync(canonicalMasterPath)) fail('canonical FLIXO master artwork is missing: public/flixo-logo.jpg');
-for (const [label, file] of [
-  ['canonical logo', canonicalLogoPath],
-  ['logo alias', logoAliasPath],
-  ['favicon alias', faviconPath],
-  ['global logo component', globalLogoPath],
-]) {
+for (const [label, file] of [['canonical logo', canonicalLogoPath], ['logo alias', logoAliasPath], ['favicon alias', faviconPath], ['global logo component', globalLogoPath]]) {
   if (!existsSync(file)) fail(`${label} is missing: ${relative(root, file)}`);
 }
 const canonicalMaster = readFileSync(canonicalMasterPath);
@@ -68,10 +60,7 @@ for (const [label, source] of [['logo.svg', logoAlias], ['favicon.svg', favicon]
 }
 if (!globalLogo.includes('src="/flixo-logo.svg"')) fail('FlixoGlobalLogo must use canonical /flixo-logo.svg');
 const brandRuntimeTextFiles = [indexPath, manifestPath, globalLogoPath, canonicalLogoPath, logoAliasPath, faviconPath];
-for (const file of brandRuntimeTextFiles) {
-  const source = readFileSync(file, 'utf8');
-  if (/(?:^|\/)logo\.jpg/u.test(source)) fail(`obsolete duplicate logo.jpg reference in ${relative(root, file)}`);
-}
+for (const file of brandRuntimeTextFiles) if (/(?:^|\/)logo\.jpg/u.test(readFileSync(file, 'utf8'))) fail(`obsolete duplicate logo.jpg reference in ${relative(root, file)}`);
 if (!indexHtml.includes('href="/favicon.svg"')) fail('index.html favicon must use /favicon.svg');
 if (!indexHtml.includes('href="/logo.svg"')) fail('index.html alternate icon must use /logo.svg');
 if (!indexHtml.includes('href="/flixo-logo.svg"')) fail('index.html apple-touch-icon must use /flixo-logo.svg');
@@ -84,32 +73,17 @@ run('npm', ['run', 'lint']);
 pass('ESLint');
 run('npm', ['run', 'build']);
 pass('production build');
-if (!sitemapExistedBeforeBuild && existsSync(generatedSitemapPath)) {
-  unlinkSync(generatedSitemapPath);
-  pass('removed build-generated public/sitemap.xml');
-}
-if (!robotsExistedBeforeBuild && existsSync(generatedRobotsPath)) {
-  unlinkSync(generatedRobotsPath);
-  pass('removed build-generated public/robots.txt');
-}
+run('node', ['scripts/validate-google-multilingual-seo.mjs']);
+pass('Google multilingual SEO contract');
+if (!sitemapExistedBeforeBuild && existsSync(generatedSitemapPath)) { unlinkSync(generatedSitemapPath); pass('removed build-generated public/sitemap.xml'); }
+if (!robotsExistedBeforeBuild && existsSync(generatedRobotsPath)) { unlinkSync(generatedRobotsPath); pass('removed build-generated public/robots.txt'); }
 
 const outputDir = existsSync(join(dist, 'client')) ? join(dist, 'client') : dist;
 const outputIndex = join(outputDir, 'index.html');
 if (!existsSync(outputIndex)) fail('built index.html is missing');
 const outputReal = realpathSync(outputDir);
 const realPathViolations = [];
-const visitSymlinks = (dir) => {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isSymbolicLink()) {
-      try {
-        const target = realpathSync(full);
-        const rel = relative(outputReal, target);
-        if (rel.startsWith('..') || resolve(outputReal, rel) !== target) realPathViolations.push(full);
-      } catch { realPathViolations.push(`${full} (dangling)`); }
-    } else if (entry.isDirectory()) visitSymlinks(full);
-  }
-};
+const visitSymlinks = (dir) => { for (const entry of readdirSync(dir, { withFileTypes: true })) { const full = join(dir, entry.name); if (entry.isSymbolicLink()) { try { const target = realpathSync(full); const rel = relative(outputReal, target); if (rel.startsWith('..') || resolve(outputReal, rel) !== target) realPathViolations.push(full); } catch { realPathViolations.push(`${full} (dangling)`); } } else if (entry.isDirectory()) visitSymlinks(full); } };
 visitSymlinks(outputDir);
 if (realPathViolations.length) fail(`dist contains symlink escapes: ${realPathViolations.join(', ')}`);
 pass('realpath containment');
@@ -118,44 +92,17 @@ const normalizeAsset = (value) => value.split(/[?#]/u, 1)[0].replace(/^\/+/, '')
 const scriptRefs = [...readFileSync(outputIndex, 'utf8').matchAll(/<script\b[^>]*type=["']module["'][^>]*src=["']([^"']+)["'][^>]*>/giu)].map((m) => normalizeAsset(m[1]));
 if (scriptRefs.length === 0) fail('no module entrypoint found in built index.html');
 if (scriptRefs.length !== new Set(scriptRefs).size) fail('duplicate module script references in built index.html');
-const assetPath = (reference) => {
-  const normalized = normalizeAsset(reference);
-  const candidates = [join(outputDir, normalized), join(outputDir, `${normalized}.js`)];
-  return candidates.find((candidate) => existsSync(candidate)) ?? null;
-};
+const assetPath = (reference) => { const normalized = normalizeAsset(reference); return [join(outputDir, normalized), join(outputDir, `${normalized}.js`)].find((candidate) => existsSync(candidate)) ?? null; };
 const visited = new Set();
 const pending = scriptRefs.map((ref) => ({ ref, from: 'index.html' }));
 const localImportPattern = /(?:\bimport\s*(?:[^'"()]*?\sfrom\s*)?|\bimport\s*\(\s*)["']([^"']+)["']/gu;
-while (pending.length) {
-  const { ref, from } = pending.pop();
-  const file = assetPath(ref);
-  if (!file) fail(`built JS entrypoint is missing: ${ref}`);
-  const canonical = realpathSync(file);
-  if (visited.has(canonical)) continue;
-  visited.add(canonical);
-  const source = readFileSync(file, 'utf8');
-  for (const match of source.matchAll(localImportPattern)) {
-    const specifier = match[1];
-    if (!specifier.startsWith('.') && !specifier.startsWith('/')) continue;
-    const baseReference = specifier.startsWith('/')
-      ? normalizeAsset(specifier)
-      : normalizeAsset(join(relative(outputDir, file).split(/\\|\//u).slice(0, -1).join('/'), specifier));
-    if (!assetPath(baseReference)) fail(`unresolved local JS import ${specifier} from ${from}`);
-    pending.push({ ref: baseReference, from: file });
-  }
-}
+while (pending.length) { const { ref, from } = pending.pop(); const file = assetPath(ref); if (!file) fail(`built JS entrypoint is missing: ${ref}`); const canonical = realpathSync(file); if (visited.has(canonical)) continue; visited.add(canonical); const source = readFileSync(file, 'utf8'); for (const match of source.matchAll(localImportPattern)) { const specifier = match[1]; if (!specifier.startsWith('.') && !specifier.startsWith('/')) continue; const baseReference = specifier.startsWith('/') ? normalizeAsset(specifier) : normalizeAsset(join(relative(outputDir, file).split(/\\|\//u).slice(0, -1).join('/'), specifier)); if (!assetPath(baseReference)) fail(`unresolved local JS import ${specifier} from ${from}`); pending.push({ ref: baseReference, from: file }); } }
 pass(`unique JS graph (${visited.size} reachable module file(s))`);
 
 const criticalBudgetBytes = 900 * 1024;
 let criticalJavascriptBytes = 0;
 const criticalAssets = [];
-for (const ref of scriptRefs) {
-  const file = assetPath(ref);
-  if (!file) fail(`critical JS asset is missing: ${ref}`);
-  const bytes = lstatSync(file).size;
-  criticalJavascriptBytes += bytes;
-  criticalAssets.push({ path: relative(outputDir, file).replaceAll('\\', '/'), bytes });
-}
+for (const ref of scriptRefs) { const file = assetPath(ref); if (!file) fail(`critical JS asset is missing: ${ref}`); const bytes = lstatSync(file).size; criticalJavascriptBytes += bytes; criticalAssets.push({ path: relative(outputDir, file).replaceAll('\\', '/'), bytes }); }
 console.log(`S3 CRITICAL JS: ${(criticalJavascriptBytes / 1024).toFixed(1)} KiB across ${criticalAssets.length} entry asset(s)`);
 for (const asset of criticalAssets) console.log(`  critical ${asset.path} ${(asset.bytes / 1024).toFixed(1)} KiB`);
 if (criticalJavascriptBytes > criticalBudgetBytes) fail(`critical JavaScript budget exceeded: ${(criticalJavascriptBytes / 1024).toFixed(1)} KiB > 900.0 KiB`);
@@ -166,55 +113,24 @@ try {
   const changedRaw = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { cwd: root, encoding: 'utf8' }).trim();
   const changed = changedRaw ? changedRaw.split('\n').filter(Boolean) : [];
   const allow = new Set([
-    '.github/workflows/s4-runtime-e2e.yml',
-    'playwright.config.ts',
-    'scripts/validate-s3-static-gate.mjs',
-    'scripts/validate-s4-e2e.mjs',
-    'scripts/validate-language-quality.mjs',
-    'scripts/validate-language-quality-strict.mjs',
-    'scripts/validate-indexing.mjs',
-    'scripts/node-resolver-loader.mjs',
-    'scripts/register-node-resolver.mjs',
-    'scripts/generate-robots.mjs',
-    'README.md',
-    'docs/CONSOLIDATION-LOG.md',
-    'docs/DEBT-REGISTER.md',
-    'package.json',
-    'release/finalization/C5_PLACEHOLDER.md',
-    'release/finalization/README.md',
-    'release/finalization/final_execution_manifest.json',
-    'release/finalization/final_verification.json',
-    'src/main.tsx',
-    'src/home-modern.css',
-    'src/config/tool-manifest.ts',
-    'src/lib/i18n/config.ts',
-    'src/lib/i18n/home-loader.ts',
-    'src/lib/i18n/locale-quality-overrides.ts',
-    'src/lib/i18n/tool-seo-localization.ts',
-    'src/routes/__root.tsx',
-    'src/routes/home-page.tsx',
-    'src/routes/localized-quickflow.tsx',
-    'src/components/FlixoGlobalLogo.tsx',
-    'public/favicon.svg',
-    'public/flixo-logo.svg',
-    'public/logo.svg',
-    'public/flixo-logo.jpg',
-    'public/logo.jpg',
-    'index.html',
-    '.env.example',
+    '.github/workflows/s4-runtime-e2e.yml', 'playwright.config.ts',
+    'scripts/validate-s3-static-gate.mjs', 'scripts/validate-s4-e2e.mjs',
+    'scripts/validate-language-quality.mjs', 'scripts/validate-language-quality-strict.mjs',
+    'scripts/validate-indexing.mjs', 'scripts/validate-google-multilingual-seo.mjs',
+    'scripts/node-resolver-loader.mjs', 'scripts/register-node-resolver.mjs', 'scripts/generate-robots.mjs',
+    'README.md', 'docs/CONSOLIDATION-LOG.md', 'docs/DEBT-REGISTER.md', 'package.json',
+    'release/finalization/C5_PLACEHOLDER.md', 'release/finalization/README.md',
+    'release/finalization/final_execution_manifest.json', 'release/finalization/final_verification.json',
+    'src/main.tsx', 'src/home-modern.css', 'src/config/tool-manifest.ts', 'src/lib/i18n/config.ts',
+    'src/lib/i18n/home-loader.ts', 'src/lib/i18n/locale-quality-overrides.ts', 'src/lib/i18n/tool-seo-localization.ts',
+    'src/routes/__root.tsx', 'src/routes/home-page.tsx', 'src/routes/localized-quickflow.tsx',
+    'src/components/FlixoGlobalLogo.tsx', 'public/favicon.svg', 'public/flixo-logo.svg', 'public/logo.svg',
+    'public/flixo-logo.jpg', 'public/logo.jpg', 'index.html', '.env.example',
   ]);
   const unexpected = changed.filter((file) => !allow.has(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);
   pass(`changed-files allowlist (${changed.length} file(s))`);
-} catch (error) {
-  console.error(error?.message ?? error);
-  fail(`unable to evaluate changed-files allowlist against ${base}`);
-}
+} catch (error) { console.error(error?.message ?? error); fail(`unable to evaluate changed-files allowlist against ${base}`); }
 
-try {
-  const status = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim();
-  if (status) fail(`working tree is not clean:\n${status}`);
-  pass('working tree clean');
-} catch { fail('unable to inspect git working tree'); }
-
+try { const status = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(); if (status) fail(`working tree is not clean:\n${status}`); pass('working tree clean'); } catch { fail('unable to inspect git working tree'); }
 pass('S3 STATIC GATE COMPLETE');
