@@ -84,6 +84,8 @@ run('npm', ['run', 'lint']);
 pass('ESLint');
 run('npm', ['run', 'build']);
 pass('production build');
+run('node', ['scripts/validate-google-multilingual-seo.mjs']);
+pass('Google multilingual SEO contract');
 if (!sitemapExistedBeforeBuild && existsSync(generatedSitemapPath)) {
   unlinkSync(generatedSitemapPath);
   pass('removed build-generated public/sitemap.xml');
@@ -173,6 +175,7 @@ try {
     'scripts/validate-language-quality.mjs',
     'scripts/validate-language-quality-strict.mjs',
     'scripts/validate-indexing.mjs',
+    'scripts/validate-google-multilingual-seo.mjs',
     'scripts/node-resolver-loader.mjs',
     'scripts/register-node-resolver.mjs',
     'scripts/generate-robots.mjs',
