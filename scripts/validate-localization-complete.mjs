@@ -4,17 +4,6 @@ import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { CANONICAL_LOCALES } from './validation-utils.mjs';
 
-/*
- * FLIXO Localization Release Engine
- *
- * Release semantics are deliberately conjunctive:
- * eligible(locale) = MachineGate && every required metric == target.
- * No arithmetic average can mask a failed dimension.
- *
- * The engine is intentionally kept as one executable entry point in this PR
- * so CI can adopt the stronger contract without creating a second test stack.
- * It supports per-locale CI mode and complete-matrix reporting mode.
- */
 const root = process.cwd();
 const args = new Set(process.argv.slice(2));
 const requested = process.env.FLIXO_LOCALE ?? process.argv.slice(2).find((x) => CANONICAL_LOCALES.includes(x));
@@ -45,7 +34,6 @@ const scriptRules = {
 
 const normalize = (value) => String(value).replace(/\s+/gu, ' ').trim();
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-const read = (path) => readFileSync(join(root, path), 'utf8');
 const importTs = async (path) => import(pathToFileURL(join(root, path)).href);
 
 function walk(dir) {
@@ -68,10 +56,7 @@ function leaves(value, path = []) {
 
 function compareValues(source, localized, locale, context, issues) {
   const visit = (a, b, path) => {
-    if (typeof a !== typeof b) {
-      issues.push({ kind: 'missing', context, message: `type mismatch at ${path}` });
-      return;
-    }
+    if (typeof a !== typeof b) { issues.push({ kind: 'missing', context, message: `type mismatch at ${path}` }); return; }
     if (Array.isArray(a)) {
       if (!Array.isArray(b)) return;
       if (a.length !== b.length) issues.push({ kind: 'missing', context, message: `array length mismatch at ${path}` });
@@ -92,26 +77,21 @@ function compareValues(source, localized, locale, context, issues) {
     const value = normalize(b);
     if (!value && !nonTranslatable.has(leaf)) issues.push({ kind: 'missing', context, message: `empty translation at ${path}` });
     if (locale !== 'en' && a === b && value && !allowedSame.has(value) && !nonTranslatable.has(leaf)) issues.push({ kind: 'fallback', context, message: `exact English fallback at ${path}` });
-    const placeholders = (x) => [...x.matchAll(/\{\{[^}]+\}\}|\{[^}]+\}/gu)].map((m) => m[0]).join('|');
+    const placeholders = (x) => [...String(x).matchAll(/\{\{[^}]+\}\}|\{[^}]+\}/gu)].map((m) => m[0]).join('|');
     if (placeholders(a) !== placeholders(b)) issues.push({ kind: 'placeholder', context, message: `placeholder mismatch at ${path}` });
-    const tags = (x) => [...x.matchAll(/<\/?[a-z][^>]*>/giu)].map((m) => m[0].replace(/\s+/gu, ' ').trim()).join('|');
+    const tags = (x) => [...String(x).matchAll(/<\/?[a-z][^>]*>/giu)].map((m) => m[0].replace(/\s+/gu, ' ').trim()).join('|');
     if (tags(a) !== tags(b)) issues.push({ kind: 'html', context, message: `HTML structure mismatch at ${path}` });
   };
   visit(source, localized, '');
 }
 
-function addIssue(result, kind, context, message) {
-  result.issues.push({ kind, context, message });
-}
-
-function metric(result, name, target, value) {
-  result.metrics[name] = { target, value, pass: value === target };
-}
+function addIssue(result, kind, context, message) { result.issues.push({ kind, context, message }); }
+function metric(result, name, target, value) { result.metrics[name] = { target, value, pass: value === target }; }
 
 async function inspectLocale(locale, shared) {
   const result = { locale, issues: [], metrics: {}, machineGate: false, eligible: false };
-  const config = shared.config;
-  const metadata = config.LOCALE_METADATA?.[locale];
+  if (shared.registryDrift) addIssue(result, 'runtime', 'locale-registry', `runtime locale registry drift: ${shared.runtimeLocales.join(', ')}`);
+  const metadata = shared.config.LOCALE_METADATA?.[locale];
   if (!metadata) addIssue(result, 'direction', 'runtime', `missing locale metadata for ${locale}`);
   else {
     if (metadata.direction !== expectedDirection(locale)) addIssue(result, 'direction', 'runtime', `expected direction ${expectedDirection(locale)}, found ${metadata.direction}`);
@@ -128,17 +108,14 @@ async function inspectLocale(locale, shared) {
     if (localized?.direction !== expectedDirection(locale)) addIssue(result, 'direction', 'dictionary', `expected ${expectedDirection(locale)}, found ${localized?.direction ?? '<missing>'}`);
     if (shared.english && localized) compareValues(shared.english, localized, locale, 'core dictionary', result.issues);
     const script = scriptRules[locale];
-    if (script && localized) {
-      for (const leaf of leaves(localized)) {
-        const text = normalize(leaf.value);
-        const letters = [...text].filter((char) => /\p{L}/u.test(char));
-        if (letters.length < 8 || script.test(text) || /^(?:FLIXO|QuickFlow|OCR|PDF|AI|English|Ctrl K|Smart Intent)\b/iu.test(text)) continue;
-        if (!nonTranslatable.has(leaf.path.split('.').at(-1) ?? '')) addIssue(result, 'fallback', 'script', `expected ${locale} script absent at ${leaf.path}`);
-      }
+    if (script && localized) for (const leaf of leaves(localized)) {
+      const text = normalize(leaf.value);
+      const letters = [...text].filter((char) => /\p{L}/u.test(char));
+      if (letters.length < 8 || script.test(text) || /^(?:FLIXO|QuickFlow|OCR|PDF|AI|English|Ctrl K|Smart Intent)\b/iu.test(text)) continue;
+      if (!nonTranslatable.has(leaf.path.split('.').at(-1) ?? '')) addIssue(result, 'fallback', 'script', `expected ${locale} script absent at ${leaf.path}`);
     }
   }
 
-  // Every locale-bearing module under src is compared to its English sibling.
   const localeFiles = walk(join(root, 'src')).filter((path) => /(?:locale|locales|i18n)/iu.test(path));
   let moduleCount = 0;
   for (const absolute of localeFiles) {
@@ -151,12 +128,9 @@ async function inspectLocale(locale, shared) {
         moduleCount += 1;
         compareValues(exported.en, exported[locale], locale, `${rel}:${exportName}/${locale}`, result.issues);
       }
-    } catch (error) {
-      addIssue(result, 'runtime', rel, error instanceof Error ? error.message : String(error));
-    }
+    } catch (error) { addIssue(result, 'runtime', rel, error instanceof Error ? error.message : String(error)); }
   }
 
-  // Tool SEO is a hard coverage surface: every discovered SEO directory must expose all canonical locales.
   const toolsRoot = join(root, 'src/tools');
   let seoTools = 0; let seoExpected = 0; let seoCovered = 0;
   if (existsSync(toolsRoot)) {
@@ -178,13 +152,11 @@ async function inspectLocale(locale, shared) {
     }
   }
 
-  // TypeScript AST scan of all user-facing route/component/layout/tool surfaces.
   let uiFiles = 0; let routeFiles = 0;
   const uiRoots = ['src/routes', 'src/components', 'src/pages', 'src/layouts', 'src/tools'];
   const attrs = new Set(['aria-label', 'aria-description', 'aria-labelledby', 'placeholder', 'title', 'alt']);
   for (const rootDir of uiRoots) {
-    const files = walk(join(root, rootDir));
-    for (const absolute of files) {
+    for (const absolute of walk(join(root, rootDir))) {
       uiFiles += 1;
       if (rootDir === 'src/routes' && absolute.endsWith('.tsx') && !absolute.endsWith('__root.tsx')) routeFiles += 1;
       if (locale === 'en') continue;
@@ -206,7 +178,6 @@ async function inspectLocale(locale, shared) {
     }
   }
 
-  // Static fallback policy scan across the full source tree.
   let fallbackMarkers = 0;
   if (locale !== 'en') {
     const patterns = [/fallback\s*[:=]\s*['"]?en\b/iu, /defaultLocale\s*[:=]\s*['"]en['"]/u, /locale\s*\?\?\s*['"]en['"]/u];
@@ -223,14 +194,17 @@ async function inspectLocale(locale, shared) {
   const a11y = count('a11y');
   const fallbacks = count('fallback') + fallbackMarkers;
   const structural = count('missing') + count('orphan') + count('placeholder') + count('html') + count('runtime') + count('direction');
+  const routeDefects = result.issues.filter((i) => i.kind === 'hardcoded' && i.context.startsWith('src/routes/')).length;
+  const uiDefects = hardcoded;
 
-  metric(result, 'ROUTES', routeFiles, routeFiles - result.issues.filter((i) => i.kind === 'hardcoded' && i.context.startsWith('src/routes/')).length);
-  metric(result, 'UI', uiFiles, uiFiles - hardcoded);
+  metric(result, 'ROUTES', routeFiles, Math.max(0, routeFiles - routeDefects));
+  metric(result, 'UI', uiFiles, Math.max(0, uiFiles - uiDefects));
   metric(result, 'SEO', seoExpected, seoCovered);
   metric(result, 'A11Y', 0, a11y);
   metric(result, 'FALLBACKS', 0, fallbacks);
   metric(result, 'STRUCTURAL', 0, structural);
   metric(result, 'MODULES', moduleCount, moduleCount - result.issues.filter((i) => i.context.includes('i18n') && ['missing', 'orphan', 'placeholder', 'html'].includes(i.kind)).length);
+  metric(result, 'TOOLS', seoTools, seoTools - result.issues.filter((i) => i.kind === 'seo').length);
   result.machineGate = Object.values(result.metrics).every((m) => m.pass);
   result.eligible = result.machineGate;
   return result;
@@ -238,42 +212,34 @@ async function inspectLocale(locale, shared) {
 
 const config = await importTs('src/lib/i18n/config.ts');
 const runtimeLocales = [...(config.LOCALES ?? [])];
-const shared = { config, english: null };
-if (runtimeLocales.join('|') !== CANONICAL_LOCALES.join('|')) console.error(`Locale registry drift: ${runtimeLocales.join(', ')}`);
-const enPath = 'src/lib/i18n/locales/en.ts';
-if (existsSync(join(root, enPath))) {
-  const enModule = await importTs(enPath);
+const shared = { config, english: null, runtimeLocales, registryDrift: runtimeLocales.join('|') !== CANONICAL_LOCALES.join('|') };
+if (existsSync(join(root, 'src/lib/i18n/locales/en.ts'))) {
+  const enModule = await importTs('src/lib/i18n/locales/en.ts');
   shared.english = enModule.en ?? enModule.default;
 }
 
 const results = [];
 for (const locale of targets) results.push(await inspectLocale(locale, shared));
-
-const allEligible = results.length === CANONICAL_LOCALES.length && results.every((r) => r.eligible) && runtimeLocales.join('|') === CANONICAL_LOCALES.join('|');
-const percentage = (value, target) => target === 0 ? (value === 0 ? 100 : 0) : Math.round((value / target) * 100);
+const allEligible = allMode && results.length === CANONICAL_LOCALES.length && results.every((r) => r.eligible) && !shared.registryDrift;
+const releaseEligible = allMode ? allEligible : results[0]?.eligible === true;
+const percentage = (value, target) => target === 0 ? (value === 0 ? 100 : 0) : Math.max(0, Math.min(100, Math.round((value / target) * 100)));
 
 if (report) {
   console.log('FLIXO LOCALIZATION RELEASE ENGINE');
   console.log('────────────────────────────────────────────────────────────────────────────');
   console.log('LOCALE   ROUTES     UI        SEO       A11Y      FALLBACKS  ELIGIBLE');
   for (const r of results) {
-    const row = (name, fallback = '') => `${String(name).padEnd(8)}${fallback}`;
     const routes = r.metrics.ROUTES; const ui = r.metrics.UI; const seo = r.metrics.SEO; const a11y = r.metrics.A11Y;
-    console.log(`${row(r.locale)}${String(`${percentage(routes.value, routes.target)}%`).padEnd(10)}${String(`${percentage(ui.value, ui.target)}%`).padEnd(10)}${String(`${percentage(seo.value, seo.target)}%`).padEnd(10)}${String(`${a11y.value}`).padEnd(10)}${String(r.metrics.FALLBACKS.value).padEnd(11)}${r.eligible ? 'PASS 🟢' : 'BLOCK 🔴'}`);
+    console.log(`${r.locale.padEnd(8)}${`${percentage(routes.value, routes.target)}%`.padEnd(10)}${`${percentage(ui.value, ui.target)}%`.padEnd(10)}${`${percentage(seo.value, seo.target)}%`.padEnd(10)}${String(a11y.value).padEnd(10)}${String(r.metrics.FALLBACKS.value).padEnd(11)}${r.eligible ? 'PASS 🟢' : 'BLOCK 🔴'}`);
   }
-  console.log(`\nALL LOCALES: ${results.filter((r) => r.eligible).length}/${CANONICAL_LOCALES.length}`);
-  console.log(`ENGINEERING SCORE: ${allEligible ? '100% ALL LOCALES' : 'BLOCKED — AND gate not satisfied'}`);
-  console.log(`RELEASE DECISION: ${allEligible ? 'APPROVED 🟢' : 'BLOCKED 🔴'}`);
+  console.log(`\nVERIFIED: ${results.filter((r) => r.eligible).length}/${allMode ? CANONICAL_LOCALES.length : 1}`);
+  console.log(`ENGINEERING SCORE: ${releaseEligible ? '100%' : 'BLOCKED — AND gate not satisfied'}`);
+  console.log(`RELEASE DECISION: ${releaseEligible ? 'APPROVED 🟢' : 'BLOCKED 🔴'}`);
 }
-
-if (json) console.log(JSON.stringify({ canonicalLocales: CANONICAL_LOCALES, results, releaseEligible: allEligible }, null, 2));
-
-if (!report && !json) {
-  for (const r of results) {
-    console.log(`Localization ${r.locale}: ${r.eligible ? 'PASS' : 'FAIL'} — ${r.issues.length} issue(s)`);
-    for (const issue of r.issues.slice(0, 50)) console.log(`  [${issue.kind}] ${issue.context}: ${issue.message}`);
-    if (r.issues.length > 50) console.log(`  ... ${r.issues.length - 50} additional issue(s) omitted; use --report --json for the full report.`);
-  }
+if (json) console.log(JSON.stringify({ canonicalLocales: CANONICAL_LOCALES, results, releaseEligible: allMode ? allEligible : releaseEligible }, null, 2));
+if (!report && !json) for (const r of results) {
+  console.log(`Localization ${r.locale}: ${r.eligible ? 'PASS' : 'FAIL'} — ${r.issues.length} issue(s)`);
+  for (const issue of r.issues.slice(0, 50)) console.log(`  [${issue.kind}] ${issue.context}: ${issue.message}`);
+  if (r.issues.length > 50) console.log(`  ... ${r.issues.length - 50} additional issue(s) omitted; use --report --json for the full report.`);
 }
-
-if (strict && !allEligible) process.exit(1);
+if (strict && !releaseEligible) process.exit(1);
