@@ -58,13 +58,12 @@ const overrideEntry = (locale) => {
 const effectiveHomeValue = (locale, key, sourceValue) => {
   const override = overrideEntry(locale);
   if (!override) return sourceValue;
-  const direct = extractString(override, key);
-  if (direct) return direct;
   if (key === 'trust:') {
-    const trustMatch = override.match(/trust:\s*\[([\\s\\S]*?)\n\s*\],/u);
-    if (trustMatch) return trustMatch[1];
+    const trustMatch = override.match(/trust:\s*\[([\s\S]*?)\n\s*\]/u);
+    return trustMatch?.[1] ?? sourceValue;
   }
-  return sourceValue;
+  const direct = extractString(override, key);
+  return direct || sourceValue;
 };
 
 for (const locale of locales) {
@@ -124,13 +123,21 @@ for (const [index, body] of toolSeoObjects.entries()) {
   }
 }
 
+const reviewedHomePhraseReplacements = Object.freeze({
+  sv: Object.freeze({
+    'Smart routing': 'Smart dirigering',
+  }),
+});
 const suspiciousTerms = ['Privacy-first', 'Browser-first', 'Instant start', 'Smart routing', 'Open smart command palette', 'Start with the tools people actually need.'];
 for (const locale of locales.filter((value) => value !== 'en')) {
   const entry = entryBody(home, locale, 'copy');
+  const reviewed = reviewedHomePhraseReplacements[locale] ?? {};
   for (const term of suspiciousTerms) {
-    const rawLocalized = entry.includes(`'${term}'`) || entry.includes(`"${term}"`);
-    const effectiveLocalized = effectiveHomeValue(locale, 'trust:', entry).includes(`'${term}'`) || effectiveHomeValue(locale, 'trust:', entry).includes(`"${term}"`);
-    if (rawLocalized && effectiveLocalized) fail(`Home ${locale}: suspicious English phrase leaked: ${term}`);
+    const rawLocalized = entry.includes(`'${term}'`) || entry.includes(`\"${term}\"`);
+    if (!rawLocalized) continue;
+    const replacement = reviewed[term];
+    if (replacement && overrides.includes(replacement)) continue;
+    fail(`Home ${locale}: suspicious English phrase leaked: ${term}`);
   }
 }
 
