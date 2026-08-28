@@ -65,13 +65,26 @@ for (const [index, match] of urlBlocks.entries()) {
   }
   if (!seenTags.has('x-default')) fail(`${loc} is missing x-default.`);
   const xDefault = expectedHrefs.get('x-default');
-  if (!xDefault || !xDefault.includes('/en/')) fail(`${loc} x-default must target the default English URL.`);
+  if (!xDefault) fail(`${loc} is missing x-default.`);
+
+  const pathWithoutLocale = new URL(loc).pathname.replace(new RegExp(`^/(?:${locales.join('|')})(?=/|$)`, 'u'), '') || '/';
+  const expectedEnglishPath = `/en${pathWithoutLocale === '/' ? '' : pathWithoutLocale}`;
+  const expectedEnglishUrl = new URL(expectedEnglishPath, loc);
+  const actualXDefault = new URL(xDefault);
+  const normalizePath = (pathname) => pathname.replace(/\/+$/u, '') || '/';
+  if (
+    actualXDefault.origin !== expectedEnglishUrl.origin ||
+    normalizePath(actualXDefault.pathname) !== normalizePath(expectedEnglishUrl.pathname) ||
+    actualXDefault.search !== expectedEnglishUrl.search ||
+    actualXDefault.hash !== expectedEnglishUrl.hash
+  ) {
+    fail(`${loc} x-default must target ${expectedEnglishUrl.toString()}; found ${xDefault}.`);
+  }
 
   const canonicalTag = metadata.get(locale).languageTag;
   const selfHref = expectedHrefs.get(canonicalTag);
   if (selfHref !== loc) fail(`${loc} hreflang self-reference does not equal <loc>.`);
 
-  const pathWithoutLocale = new URL(loc).pathname.replace(new RegExp(`^/(?:${locales.join('|')})(?=/|$)`, 'u'), '') || '/';
   const key = pathWithoutLocale.replace(/\/+$/u, '') || '/';
   if (!groups.has(key)) groups.set(key, new Map());
   groups.get(key).set(locale, loc);
@@ -97,7 +110,8 @@ if (!indexing.includes('hreflang="x-default"')) fail('indexing validator does no
 if (!indexing.includes('20-locale hreflang is enabled')) fail('indexing validator does not certify the 20-locale contract.');
 if (!rootSource.includes("name: 'robots'") || !rootSource.includes('index,follow')) fail('root route does not expose index/follow policy.');
 if (!rootSource.includes("property: 'og:url'")) fail('root route lacks canonical social URL metadata.');
-if (!manifest.includes('"start_url": "/en"')) fail('manifest must start from the canonical localized English route.');
+const manifestJson = JSON.parse(manifest);
+if (manifestJson.start_url !== '/en') fail('manifest must start from the canonical localized English route /en.');
 pass('indexability and social discovery contract');
 
 const localeFiles = locales.map((locale) => `src/i18n/locales/${locale}.ts`);
