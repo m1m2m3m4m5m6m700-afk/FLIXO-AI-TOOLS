@@ -1,6 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1254" height="1254" viewBox="0 0 1254 1254" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
   <title id="title">FLIXO AI Tools</title>
-  <desc id="desc">Canonical FLIXO AI Tools brand logo.</desc>
-  <image href="/flixo-logo.jpg" x="0" y="0" width="1254" height="1254" preserveAspectRatio="xMidYMid meet"/>
+  <desc id="desc">Canonical FLIXO AI Tools abstract F-X ribbon mark in FLIXO cyan, blue, indigo, violet and magenta.</desc>
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#12D8FF"/><stop offset="0.42" stop-color="#1677FF"/><stop offset="1" stop-color="#6528FF"/></linearGradient>
+    <linearGradient id="g2" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7C2DFF"/><stop offset="0.55" stop-color="#C53AFF"/><stop offset="1" stop-color="#FF4FD8"/></linearGradient>
+    <linearGradient id="g3" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#0E8BFF"/><stop offset="0.55" stop-color="#1CD7FF"/><stop offset="1" stop-color="#8B4DFF"/></linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <g filter="url(#glow)">
+    <path d="M84 64 C120 74 157 104 188 145 L263 246 L216 302 L143 204 C122 176 98 151 72 137 C56 128 44 111 49 93 C54 75 67 62 84 64Z" fill="url(#g3)"/>
+    <path d="M254 246 C284 214 312 181 337 148 C358 121 382 90 409 73 C429 60 451 58 463 73 C475 88 469 108 452 130 L343 286 C329 306 309 326 287 341 L241 300 C245 281 248 263 254 246Z" fill="url(#g2)"/>
+    <path d="M106 391 C129 377 152 355 174 328 L293 181 C310 160 329 141 348 125 C370 107 393 96 421 96 L462 96 C472 96 480 102 479 111 C477 121 466 134 454 145 L305 293 C280 318 257 346 232 372 C211 394 189 414 165 427 C142 439 118 435 106 421 C95 409 95 399 106 391Z" fill="url(#g1)"/>
+    <path d="M296 268 C319 284 344 303 367 322 C388 340 413 359 441 376 C455 385 462 398 458 409 C454 421 441 427 427 424 C405 419 377 399 351 380 L293 338 C278 326 266 316 255 304 L296 268Z" fill="url(#g3)"/>
+    <path d="M73 361 C94 360 116 360 137 357 C158 354 179 348 196 340 L174 368 C155 388 139 400 123 407 L73 407 C57 407 48 397 48 383 C48 370 57 362 73 361Z" fill="url(#g1)"/>
+    <path d="M39 433 H107" stroke="#1FD9FF" stroke-width="10" stroke-linecap="round" opacity=".82"/>
+    <path d="M56 405 H132" stroke="#6A38FF" stroke-width="7" stroke-linecap="round" opacity=".68"/>
+  </g>
 </svg>
