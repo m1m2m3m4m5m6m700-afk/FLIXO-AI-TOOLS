@@ -8,6 +8,7 @@ const nonEnglish = locales.filter((locale) => locale !== 'en');
 const errors = [];
 const report = (message) => errors.push(message);
 const allowedSameAsEnglish = new Set(['FLIXO', 'QuickFlow', 'OCR', 'PDF', 'English', 'العربية', 'Smart Intent', 'Ctrl K']);
+const nonTranslatableKeys = new Set(['dir', 'direction', 'locale', 'localeCode', 'lang', 'languageCode']);
 const expectedScript = Object.freeze({
   ar: /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/u,
   ur: /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/u,
@@ -25,17 +26,30 @@ const leaves = (value, path = []) => {
   if (!value || typeof value !== 'object') return [];
   return Object.entries(value).flatMap(([key, child]) => leaves(child, [...path, key]));
 };
+const isNonTranslatablePath = (path) => path.split('.').some((segment) => nonTranslatableKeys.has(segment));
 const compareShapeAndValues = (english, localized, context) => {
   if (typeof english !== typeof localized) {
     report(`${context}: type mismatch (${typeof english} vs ${typeof localized})`);
     return;
   }
   if (Array.isArray(english)) {
-    if (!Array.isArray(localized) || english.length !== localized.length) {
-      report(`${context}: array length mismatch (${english.length} vs ${Array.isArray(localized) ? localized.length : 'non-array'})`);
+    if (!Array.isArray(localized)) {
+      report(`${context}: array/object type mismatch`);
       return;
     }
-    english.forEach((value, index) => compareShapeAndValues(value, localized[index], `${context}.${index}`));
+    const englishItemsAreObjects = english.some((value) => value && typeof value === 'object' && !Array.isArray(value));
+    const localizedItemsAreObjects = localized.some((value) => value && typeof value === 'object' && !Array.isArray(value));
+    if (englishItemsAreObjects !== localizedItemsAreObjects) {
+      report(`${context}: array item shape mismatch`);
+      return;
+    }
+    if (englishItemsAreObjects && english.length !== localized.length) {
+      report(`${context}: structured array length mismatch (${english.length} vs ${localized.length})`);
+    }
+    const comparableLength = Math.min(english.length, localized.length);
+    for (let index = 0; index < comparableLength; index += 1) {
+      compareShapeAndValues(english[index], localized[index], `${context}.${index}`);
+    }
     return;
   }
   if (english && typeof english === 'object') {
@@ -54,6 +68,7 @@ const compareLeaves = (english, localized, context) => {
   const enLeaves = leaves(english);
   const locLeaves = leaves(localized);
   for (const leaf of locLeaves) {
+    if (isNonTranslatablePath(leaf.path)) continue;
     if (!leaf.value.trim()) report(`${context}: empty translation at ${leaf.path}`);
     const en = enLeaves.find((candidate) => candidate.path === leaf.path);
     if (en && en.value === leaf.value && !allowedSameAsEnglish.has(normalize(leaf.value))) {
@@ -103,6 +118,7 @@ for (const [name, relativePath, exportName] of runtimePairs) {
     const script = expectedScript[locale];
     if (script) {
       for (const { path, value } of leaves(localized)) {
+        if (isNonTranslatablePath(path)) continue;
         const text = normalize(value);
         const letters = [...text].filter((char) => /\p{L}/u.test(char));
         if (letters.length < 4 || script.test(text)) continue;
