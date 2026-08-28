@@ -1,4 +1,4 @@
-name: Localization Core Gate
+name: Localization Core + Home Gate
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   localization-core:
-    name: Localization Core — EN + AR
+    name: Localization Core + Home — 20 locales
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -23,3 +23,5 @@ jobs:
       - run: npm ci
       - name: Validate EN + AR core localization
         run: node scripts/validate-localization-core.mjs
+      - name: Validate all Home locale translations
+        run: node scripts/validate-home-localization.mjs
