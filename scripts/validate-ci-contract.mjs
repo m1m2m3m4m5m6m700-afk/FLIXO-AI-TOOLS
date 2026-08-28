@@ -28,16 +28,21 @@ for (const [label, pattern] of required) {
 
 const canonicalAssignments = [...workflow.matchAll(/^\s*VITE_SITE_URL:\s*(.+?)\s*$/gm)].map((match) => match[1]);
 if (canonicalAssignments.length !== 1 || canonicalAssignments[0] !== '${{ vars.SITE_URL }}') {
-  console.error('CI contract failed: VITE_SITE_URL must have exactly one workflow-level assignment from repository variable SITE_URL.');
+  console.error('CI contract failed: the workflow-level VITE_SITE_URL contract must source repository variable SITE_URL.');
   process.exit(1);
 }
 
-for (const [name, source] of [['Lighthouse', lighthouseWorkflow], ['Root Cause Diagnostics', diagnosticsWorkflow]]) {
-  const assignments = [...source.matchAll(/^\s*VITE_SITE_URL:\s*(.+?)\s*$/gm)].map((match) => match[1]);
-  if (assignments.length !== 1 || assignments[0] !== '${{ vars.SITE_URL }}') {
-    console.error(`CI contract failed: ${name} must source VITE_SITE_URL from repository variable SITE_URL.`);
-    process.exit(1);
-  }
+// Runtime diagnostics and Lighthouse deliberately do not require the future
+// production domain. A production SEO build is the only CI consumer that may
+// require SITE_URL, and it is explicitly gated by vars.SITE_URL.
+if (!/production-seo:[\s\S]*?if:\s*\$\{\{\s*vars\.SITE_URL\s*!=\s*''\s*\}\}/.test(workflow)) {
+  console.error('CI contract failed: Production SEO build must be explicitly gated by the presence of SITE_URL.');
+  process.exit(1);
+}
+
+if (/^\s*VITE_SITE_URL:\s*https?:\/\//m.test(lighthouseWorkflow) || /^\s*VITE_SITE_URL:\s*https?:\/\//m.test(diagnosticsWorkflow)) {
+  console.error('CI contract failed: runtime diagnostics must not hardcode a canonical origin.');
+  process.exit(1);
 }
 
 const allWorkflowText = `${workflow}\n${lighthouseWorkflow}\n${diagnosticsWorkflow}`;
@@ -67,4 +72,9 @@ if (!/generate-lighthouse-matrix\.mjs/.test(lighthouseWorkflow) || !/fromJSON\(n
   process.exit(1);
 }
 
-console.log('CI contract passed: canonical origin is repository-configured; no Vercel deployment origin is hardcoded; Lighthouse is manifest-derived and uses an isolated local probe origin.');
+if (!/build:runtime/.test(lighthouseWorkflow) || !/build:runtime/.test(diagnosticsWorkflow)) {
+  console.error('CI contract failed: runtime browser/diagnostic builds must use build:runtime.');
+  process.exit(1);
+}
+
+console.log('CI contract passed: runtime CI is origin-independent; production SEO is explicitly SITE_URL-gated; Vercel deployment origins are not canonical; Lighthouse is manifest-derived and uses an isolated local probe.');
