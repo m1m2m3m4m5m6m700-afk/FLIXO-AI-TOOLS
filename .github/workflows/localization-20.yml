@@ -1,4 +1,5 @@
 name: Localization — 20 Locale Gate
+# Strict multi-surface localization enforcement: no locale may bypass the complete gate.
 
 on:
   pull_request:
