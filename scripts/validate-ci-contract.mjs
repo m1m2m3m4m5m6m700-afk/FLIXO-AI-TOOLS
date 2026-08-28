@@ -26,16 +26,17 @@ for (const [label, pattern] of required) {
   }
 }
 
-const canonicalAssignments = [...workflow.matchAll(/^\s*VITE_SITE_URL:\s*(.+?)\s*$/gm)].map((match) => match[1]);
-if (canonicalAssignments.length !== 1 || canonicalAssignments[0] !== '${{ vars.SITE_URL }}') {
+// Only the workflow-level env block defines the shared canonical input.
+// The production-seo job may intentionally restate it for its own step scope.
+const globalEnv = workflow.match(/^env:\s*\n([\s\S]*?)(?=^jobs:\s*$)/m)?.[1] ?? '';
+const globalCanonicalAssignments = [...globalEnv.matchAll(/^\s{2}VITE_SITE_URL:\s*(.+?)\s*$/gm)].map((match) => match[1]);
+if (globalCanonicalAssignments.length !== 1 || globalCanonicalAssignments[0] !== '${{ vars.SITE_URL }}') {
   console.error('CI contract failed: the workflow-level VITE_SITE_URL contract must source repository variable SITE_URL.');
   process.exit(1);
 }
 
-// Runtime diagnostics and Lighthouse deliberately do not require the future
-// production domain. A production SEO build is the only CI consumer that may
-// require SITE_URL, and it is explicitly gated by vars.SITE_URL.
-if (!/production-seo:[\s\S]*?if:\s*\$\{\{\s*vars\.SITE_URL\s*!=\s*''\s*\}\}/.test(workflow)) {
+const productionSeoJob = workflow.match(/^  production-seo:\s*\n([\s\S]*?)(?=^  [A-Za-z0-9_-]+:\s*$|$)/m)?.[1] ?? '';
+if (!/^\s+if:\s*\$\{\{\s*vars\.SITE_URL\s*!=\s*''\s*\}\}/m.test(productionSeoJob)) {
   console.error('CI contract failed: Production SEO build must be explicitly gated by the presence of SITE_URL.');
   process.exit(1);
 }
