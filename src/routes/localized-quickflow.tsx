@@ -5,6 +5,7 @@ import { getWorkflow } from '@/lib/workflows/registry';
 import { planFromWorkflow, type ExecutionPlan } from '@/lib/ai/planner';
 import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import { QUICKFLOW_LOCALES } from '@/data/quickflow-locales';
+import { QUICKFLOW_COPY_OVERRIDES } from '@/lib/i18n/locale-quality-overrides';
 import { rootRoute } from './__root';
 
 function extensionForMime(mime: string) { if (mime === 'image/png') return 'png'; if (mime === 'image/jpeg') return 'jpg'; if (mime === 'image/webp') return 'webp'; return 'bin'; }
@@ -15,7 +16,7 @@ export const localizedQuickFlowRoute = createRoute({
   component: function LocalizedQuickFlowPage() {
     const { locale: rawLocale, workflowId } = useParams({ from: '/$locale/quickflow/$workflowId' });
     const locale = isLocale(rawLocale) ? rawLocale : 'en';
-    const copy = QUICKFLOW_LOCALES[locale];
+    const copy = { ...QUICKFLOW_LOCALES[locale], ...(QUICKFLOW_COPY_OVERRIDES[locale] ?? {}) };
     const workflow = getWorkflow(workflowId);
     const [file, setFile] = useState<File | null>(null);
     const [plan, setPlan] = useState<ExecutionPlan | null>(() => planFromWorkflow(workflowId));
