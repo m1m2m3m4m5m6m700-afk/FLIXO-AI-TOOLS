@@ -2,11 +2,12 @@ import type { Locale } from '@/lib/i18n';
 
 export type AdSurface = 'content' | 'tool' | 'error' | 'empty' | 'modal' | 'loader' | 'internal';
 
+const BLOCKED_AD_SURFACES: readonly AdSurface[] = ['error', 'empty', 'modal', 'loader', 'internal'];
+
 export const ADSENSE_INTERNAL_POLICY = Object.freeze({
   minInteractiveGapPx: 25,
   reservedMinHeightPx: 100,
-  blockedSurfaces: ['error', 'empty', 'modal', 'loader', 'internal'] as const,
-  maxAdsWithoutContentRatio: 1,
+  blockedSurfaces: BLOCKED_AD_SURFACES,
   contentQuality: {
     note: 'Internal FLIXO hardening; Google does not publish a universal word-count quota.',
     minWords: 140,
@@ -47,7 +48,7 @@ export function getAdLabel(locale: Locale): string {
 }
 
 export function isAdSurfaceAllowed(surface: AdSurface): boolean {
-  return !ADSENSE_INTERNAL_POLICY.blockedSurfaces.includes(surface as never);
+  return !BLOCKED_AD_SURFACES.includes(surface);
 }
 
 export function isAdsenseConfigured(): boolean {
