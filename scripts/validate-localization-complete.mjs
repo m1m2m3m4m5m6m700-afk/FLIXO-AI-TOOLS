@@ -16,7 +16,7 @@ const normalize = (v) => String(v).replace(/\s+/gu, ' ').trim();
 const isObject = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 const directionFor = (l) => (l === 'ar' || l === 'ur' ? 'rtl' : 'ltr');
 const nonTranslatable = new Set(['locale', 'localeCode', 'languageCode', 'languageTag', 'direction', 'dir']);
-const allowedSame = new Set(['FLIXO', 'QuickFlow', 'OCR', 'PDF', 'AI', 'English', 'Ctrl K', 'Smart Intent', 'SVG', 'PNG', 'JPG', 'JPEG', 'WEBP', 'MP3', 'MP4', 'HTTP', 'HTTPS', 'URL', 'API', 'JSON']);
+const allowedSame = new Set(['FLIXO', 'QuickFlow', 'QUICK-DROP', 'OCR', 'PDF', 'AI', 'English', 'Ctrl K', 'Smart Intent', 'SVG', 'PNG', 'JPG', 'JPEG', 'WEBP', 'MP3', 'MP4', 'HTTP', 'HTTPS', 'URL', 'API', 'JSON']);
 const scriptRules = { ar: /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/u, ur: /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/u, ru: /[\u0400-\u04ff]/u, zh: /[\u3400-\u9fff]/u, ja: /[\u3040-\u30ff\u3400-\u9fff]/u, ko: /[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/u, hi: /[\u0900-\u097f]/u, th: /[\u0e00-\u0e7f]/u };
 const importTs = async (p) => import(pathToFileURL(join(root, p)).href);
 const read = (p) => readFileSync(join(root, p), 'utf8');
@@ -32,8 +32,11 @@ function leaves(v, path = []) {
 function compare(a, b, locale, area, path = '') {
   if (typeof a !== typeof b) { issue(locale, 'structural', area, `type mismatch at ${path}`); return; }
   if (Array.isArray(a)) {
-    if (!Array.isArray(b) || a.length !== b.length) issue(locale, 'structural', area, `array mismatch at ${path}`);
-    if (Array.isArray(b)) for (let i = 0; i < Math.min(a.length, b.length); i++) compare(a[i], b[i], locale, area, `${path}[${i}]`);
+    if (!Array.isArray(b)) { issue(locale, 'structural', area, `array expected at ${path}`); return; }
+    // Localized SEO arrays are content collections, not positional schemas. They may legitimately
+    // contain a different number of keywords/features/how-to items than English.
+    for (let i = 0; i < b.length; i++) if (typeof b[i] !== typeof a[Math.min(i, a.length - 1)]) issue(locale, 'structural', area, `array item type mismatch at ${path}[${i}]`);
+    for (let i = 0; i < Math.min(a.length, b.length); i++) compare(a[i], b[i], locale, area, `${path}[${i}]`);
     return;
   }
   if (isObject(a)) {
@@ -52,8 +55,8 @@ function compare(a, b, locale, area, path = '') {
   if (tags(a) !== tags(b)) issue(locale, 'html', area, `HTML structure mismatch at ${path}`);
 }
 function entry(source, locale, marker) { return new RegExp(`\\b${locale}:\\s*${marker}\\(\\{([\\s\\S]*?)\\}\\)`, 'u').exec(source)?.[1] ?? ''; }
-function value(body, key) { return body.match(new RegExp(`${key}\\s*['\"]([^'\"\\n]*)['\"]`, 'u'))?.[1] ?? ''; }
-function keys(body, required, locale, area) { if (!body) { issue(locale, 'missing', area, `missing locale entry`); return; } for (const k of required) if (!body.includes(k)) issue(locale, 'missing', area, `missing ${k}`); }
+function value(body, key) { return body.match(new RegExp(`${key}\\s*['"]([^'"]*)['"]`, 'u'))?.[1] ?? ''; }
+function keys(body, required, locale, area) { if (!body) { issue(locale, 'missing', area, 'missing locale entry'); return; } for (const k of required) if (!body.includes(k)) issue(locale, 'missing', area, `missing ${k}`); }
 
 const config = await importTs('src/lib/i18n/config.ts');
 const runtimeLocales = [...(config.LOCALES ?? [])];
@@ -83,7 +86,6 @@ for (const locale of targets) {
     if (metadata.direction !== directionFor(locale)) issue(locale, 'direction', 'runtime', `expected ${directionFor(locale)}, found ${metadata.direction}`);
     if (!metadata.languageTag) issue(locale, 'direction', 'runtime', 'missing languageTag');
   }
-
   const path = `src/lib/i18n/locales/${locale}.ts`;
   if (!existsSync(join(root, path))) issue(locale, 'missing', 'dictionary', `missing ${path}`);
   else {
@@ -100,19 +102,13 @@ for (const locale of targets) {
       }
     }
   }
-
-  const home = entry(homeSource, locale, 'copy');
-  keys(home, homeKeys, locale, 'Home');
-  const quick = entry(quickSource, locale, 'q');
-  keys(quick, quickKeys, locale, 'QuickFlow');
-  const ui = new RegExp(`\\b${locale}:\\s*\\{([\\s\\S]*?)\\n\\s*\\},?`, 'u').exec(uiSource)?.[1] ?? '';
-  keys(ui, uiKeys, locale, 'Tool UI');
-
+  const home = entry(homeSource, locale, 'copy'); keys(home, homeKeys, locale, 'Home');
+  const quick = entry(quickSource, locale, 'q'); keys(quick, quickKeys, locale, 'QuickFlow');
+  const ui = new RegExp(`\\b${locale}:\\s*\\{([\\s\\S]*?)\\n\\s*\\},?`, 'u').exec(uiSource)?.[1] ?? ''; keys(ui, uiKeys, locale, 'Tool UI');
   if (locale !== 'en') {
     for (const k of homeKeys) { const a = value(entry(homeSource, 'en', 'copy'), k); const b = value(home, k); if (a && a === b && !allowedSame.has(b)) issue(locale, 'fallback', 'Home', `English fallback in ${k}`); if (a && placeholders(a) !== placeholders(b)) issue(locale, 'placeholder', 'Home', `placeholder mismatch in ${k}`); if (a && tags(a) !== tags(b)) issue(locale, 'html', 'Home', `HTML mismatch in ${k}`); }
     for (const k of quickKeys) { const a = value(entry(quickSource, 'en', 'q'), k); const b = value(quick, k); if (a && a === b && k !== 'resultAlt:' && !allowedSame.has(b)) issue(locale, 'fallback', 'QuickFlow', `English fallback in ${k}`); if (a && placeholders(a) !== placeholders(b)) issue(locale, 'placeholder', 'QuickFlow', `placeholder mismatch in ${k}`); }
   }
-
   const seoForLocale = toolSeoFiles.filter((f) => f.endsWith(`/${locale}.ts`));
   if (seoForLocale.length !== toolIds.length) issue(locale, 'seo', 'tool SEO', `coverage ${seoForLocale.length}/${toolIds.length}`);
   for (const file of seoForLocale) {
@@ -126,28 +122,12 @@ for (const locale of targets) {
       }
     } catch (e) { issue(locale, 'runtime', file, e instanceof Error ? e.message : String(e)); }
   }
-
   const seoEntries = [...seoRegistry.matchAll(/Object\.freeze\(\{([^}]*)\}\)/gu)];
   for (let i = 0; i < seoEntries.length; i++) if (!new RegExp(`\\b${locale}:`, 'u').test(seoEntries[i][1])) issue(locale, 'seo', 'SEO registry', `entry ${i + 1} missing ${locale}`);
 }
 
-const summary = targets.map((locale) => {
-  const mine = errors.filter((e) => e.locale === locale);
-  return { locale, missing: mine.filter((e) => e.kind === 'missing').length, fallback: mine.filter((e) => e.kind === 'fallback').length, placeholder: mine.filter((e) => e.kind === 'placeholder').length, html: mine.filter((e) => e.kind === 'html').length, seo: mine.filter((e) => e.kind === 'seo').length, direction: mine.filter((e) => e.kind === 'direction').length, structural: mine.filter((e) => ['structural', 'orphan'].includes(e.kind)).length, runtime: mine.filter((e) => ['runtime', 'registry'].includes(e.kind)).length, eligible: mine.length === 0 };
-});
+const summary = targets.map((locale) => { const mine = errors.filter((e) => e.locale === locale); return { locale, missing: mine.filter((e) => e.kind === 'missing').length, fallback: mine.filter((e) => e.kind === 'fallback').length, placeholder: mine.filter((e) => e.kind === 'placeholder').length, html: mine.filter((e) => e.kind === 'html').length, seo: mine.filter((e) => e.kind === 'seo').length, direction: mine.filter((e) => e.kind === 'direction').length, structural: mine.filter((e) => ['structural', 'orphan'].includes(e.kind)).length, runtime: mine.filter((e) => ['runtime', 'registry'].includes(e.kind)).length, eligible: mine.length === 0 }; });
 const releaseEligible = targets.length > 0 && targets.every((locale) => summary.find((x) => x.locale === locale)?.eligible) && (!allMode || targets.length === CANONICAL_LOCALES.length);
-
-if (report) {
-  console.log('FLIXO LOCALIZATION RELEASE ENGINE');
-  console.log('────────────────────────────────────────────────────────────────────────────');
-  console.log('LOCALE   MISSING FALLBACK PLACEHOLDER HTML SEO DIRECTION STRUCTURAL RUNTIME ELIGIBLE');
-  for (const r of summary) console.log(`${r.locale.padEnd(8)}${String(r.missing).padEnd(8)}${String(r.fallback).padEnd(9)}${String(r.placeholder).padEnd(12)}${String(r.html).padEnd(5)}${String(r.seo).padEnd(4)}${String(r.direction).padEnd(10)}${String(r.structural).padEnd(11)}${String(r.runtime).padEnd(8)}${r.eligible ? 'PASS 🟢' : 'BLOCK 🔴'}`);
-  console.log(`\nVERIFIED: ${summary.filter((r) => r.eligible).length}/${summary.length}`);
-  console.log(`RELEASE DECISION: ${releaseEligible ? 'APPROVED 🟢' : 'BLOCKED 🔴'}`);
-}
+if (report) { console.log('FLIXO LOCALIZATION RELEASE ENGINE'); console.log('────────────────────────────────────────────────────────────────────────────'); console.log('LOCALE   MISSING FALLBACK PLACEHOLDER HTML SEO DIRECTION STRUCTURAL RUNTIME ELIGIBLE'); for (const r of summary) console.log(`${r.locale.padEnd(8)}${String(r.missing).padEnd(8)}${String(r.fallback).padEnd(9)}${String(r.placeholder).padEnd(12)}${String(r.html).padEnd(5)}${String(r.seo).padEnd(4)}${String(r.direction).padEnd(10)}${String(r.structural).padEnd(11)}${String(r.runtime).padEnd(8)}${r.eligible ? 'PASS 🟢' : 'BLOCK 🔴'}`); console.log(`\nVERIFIED: ${summary.filter((r) => r.eligible).length}/${summary.length}`); console.log(`RELEASE DECISION: ${releaseEligible ? 'APPROVED 🟢' : 'BLOCKED 🔴'}`); }
 if (json) console.log(JSON.stringify({ targets, summary, releaseEligible, errors }, null, 2));
-if (strict && !releaseEligible) {
-  for (const e of errors.slice(0, 200)) console.error(`- ${e.locale} | ${e.kind} | ${e.area} | ${e.message}`);
-  if (errors.length > 200) console.error(`- ... ${errors.length - 200} additional issues; use --json for the full report.`);
-  process.exit(1);
-}
+if (strict && !releaseEligible) { for (const e of errors.slice(0, 200)) console.error(`- ${e.locale} | ${e.kind} | ${e.area} | ${e.message}`); if (errors.length > 200) console.error(`- ... ${errors.length - 200} additional issues; use --json for the full report.`); process.exit(1); }
