@@ -1,5 +1,6 @@
 const DEFAULT_SITE_ORIGIN = 'https://flexoai.vercel.app';
-const configuredSiteOrigin = import.meta.env?.VITE_SITE_URL?.trim();
+const configuredSiteOrigin =
+  import.meta.env?.VITE_SITE_URL?.trim() || globalThis.process?.env?.VITE_SITE_URL?.trim();
 
 export const SITE_ORIGIN = (configuredSiteOrigin || DEFAULT_SITE_ORIGIN).replace(/\/+$/u, '');
 
