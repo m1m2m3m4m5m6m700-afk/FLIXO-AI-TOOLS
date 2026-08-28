@@ -129,6 +129,8 @@ try {
     'scripts/node-resolver-loader.mjs',
     'scripts/register-node-resolver.mjs',
     'README.md',
+    'docs/CONSOLIDATION-LOG.md',
+    'docs/DEBT-REGISTER.md',
     'package.json',
     'release/finalization/C5_PLACEHOLDER.md',
     'release/finalization/README.md',
