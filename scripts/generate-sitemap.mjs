@@ -1,10 +1,12 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { LOCALES, LOCALE_METADATA, X_DEFAULT_LOCALE, getCanonicalSiteOrigin } from '../src/lib/i18n/config.ts';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
 import { getLocalizedToolPath } from '../src/lib/routing/route-resolver.ts';
 import { USE_CASES } from '../src/lib/seo/use-cases.ts';
 
 const SITE_ORIGIN = getCanonicalSiteOrigin();
+const outputDir = process.env.FLIXO_GENERATED_OUTPUT_DIR?.trim() || 'public';
 
 const unique = (values) => [...new Set(values)];
 
@@ -24,12 +26,8 @@ const localizedPath = (locale, path) => {
 const absoluteUrl = (path) => new URL(normalizePath(path), `${SITE_ORIGIN}/`).toString();
 
 const readyTools = TOOL_MANIFEST.filter((tool) => tool.isReady);
-const localizedToolPaths = readyTools.flatMap((tool) =>
-  LOCALES.map((locale) => getLocalizedToolPath(tool, locale)),
-);
-const useCasePaths = USE_CASES.flatMap((useCase) =>
-  LOCALES.map((locale) => localizedPath(locale, `/use-cases/${useCase.slug}`)),
-);
+const localizedToolPaths = readyTools.flatMap((tool) => LOCALES.map((locale) => getLocalizedToolPath(tool, locale)));
+const useCasePaths = USE_CASES.flatMap((useCase) => LOCALES.map((locale) => localizedPath(locale, `/use-cases/${useCase.slug}`)));
 const localizedHomePaths = LOCALES.map((locale) => localizedPath(locale, '/'));
 const urls = unique([...localizedHomePaths, ...localizedToolPaths, ...useCasePaths]);
 
@@ -37,9 +35,7 @@ const alternateLinks = (path) => {
   const links = LOCALES.map((locale) =>
     `    <xhtml:link rel="alternate" hreflang="${LOCALE_METADATA[locale].languageTag}" href="${absoluteUrl(localizedPath(locale, path))}" />`,
   );
-  links.push(
-    `    <xhtml:link rel="alternate" hreflang="x-default" href="${absoluteUrl(localizedPath(X_DEFAULT_LOCALE, path))}" />`,
-  );
+  links.push(`    <xhtml:link rel="alternate" hreflang="x-default" href="${absoluteUrl(localizedPath(X_DEFAULT_LOCALE, path))}" />`);
   return links.join('\n');
 };
 
@@ -52,8 +48,8 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.s
   })
   .join('\n')}\n</urlset>\n`;
 
-mkdirSync('public', { recursive: true });
-writeFileSync('public/sitemap.xml', xml, 'utf8');
+mkdirSync(outputDir, { recursive: true });
+writeFileSync(join(outputDir, 'sitemap.xml'), xml, 'utf8');
 console.log(
-  `Generated sitemap with ${urls.length} localized URLs (${readyTools.length} ready tools, ${LOCALES.length} locales, ${USE_CASES.length} use cases) using canonical route/origin contracts.`,
+  `Generated sitemap with ${urls.length} localized URLs (${readyTools.length} ready tools, ${LOCALES.length} locales, ${USE_CASES.length} use cases) using canonical route/origin contracts at ${outputDir}/sitemap.xml.`,
 );
