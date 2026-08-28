@@ -3,10 +3,9 @@ const configuredSiteOrigin =
   import.meta.env?.VITE_SITE_URL?.trim() ||
   globalThis.process?.env?.VITE_SITE_URL?.trim();
 
-// Vercel exposes the stable production domain on both preview and production
-// deployments. Vite exposes system variables with the VITE_ prefix when
-// automatic system-variable exposure is enabled; Node build scripts receive
-// the unprefixed process variable. Neither value is a deployment-preview URL.
+// Platform deployment metadata is useful for runtime discovery, but it is
+// never authoritative for canonical SEO. The public domain must be supplied
+// explicitly through SITE_URL/VITE_SITE_URL once it exists.
 const vercelProductionOrigin =
   import.meta.env?.VITE_VERCEL_PROJECT_PRODUCTION_URL?.trim() ||
   globalThis.process?.env?.VERCEL_PROJECT_PRODUCTION_URL?.trim();
@@ -43,9 +42,9 @@ function isBlockedDeploymentOrigin(origin: URL): boolean {
 
 /**
  * Canonical SEO origin is deliberately independent from the deployment origin.
- * Vercel's project-production URL is the one safe platform fallback because it
- * is stable across preview deployments; per-deployment Vercel URLs are always
- * rejected. CI and non-Vercel production builds should still provide SITE_URL.
+ * Vercel deployment URLs are never valid canonical origins, including the
+ * platform project-production fallback while it still resolves to a
+ * *.vercel.* hostname.
  */
 export function getCanonicalSiteOrigin(): string {
   const vercelFallback = normalizeVercelProductionOrigin(vercelProductionOrigin);
@@ -53,7 +52,7 @@ export function getCanonicalSiteOrigin(): string {
 
   if (!configured) {
     throw new Error(
-      'VITE_SITE_URL is required for canonical SEO generation. Configure SITE_URL/VITE_SITE_URL with the real public production origin. Vercel deployments may use VERCEL_PROJECT_PRODUCTION_URL as the stable production-domain fallback.',
+      'VITE_SITE_URL is required for canonical SEO generation. Configure SITE_URL/VITE_SITE_URL with the real public production origin.',
     );
   }
 
@@ -65,16 +64,9 @@ export function getCanonicalSiteOrigin(): string {
   }
 
   if (isBlockedDeploymentOrigin(origin)) {
-    const allowedVercelFallback =
-      vercelFallback !== undefined &&
-      normalized === normalizeOrigin(vercelFallback) &&
-      origin.hostname === 'flixoai.vercel.app';
-
-    if (!allowedVercelFallback) {
-      throw new Error(
-        `VITE_SITE_URL must be the real public production origin, not a preview/deployment origin: ${origin.origin}`,
-      );
-    }
+    throw new Error(
+      `VITE_SITE_URL must be the real public production origin, not a preview/deployment origin: ${origin.origin}`,
+    );
   }
 
   return normalized;
