@@ -66,7 +66,6 @@ const toolSeoFiles = [];
 const toolsDir = join(root, 'src/tools');
 if (existsSync(toolsDir)) for (const tool of readdirSync(toolsDir, { withFileTypes: true })) { if (!tool.isDirectory() || tool.name.startsWith('_')) continue; const dir = join(toolsDir, tool.name, 'seo'); if (existsSync(dir)) for (const f of readdirSync(dir)) if (/^[a-z]{2}\.ts$/u.test(f)) toolSeoFiles.push(`src/tools/${tool.name}/seo/${f}`); }
 const toolIds = [...new Set(toolSeoFiles.map((f) => f.split('/')[2]))];
-
 for (const locale of targets) {
   const metadata = config.LOCALE_METADATA?.[locale];
   if (!metadata) issue(locale, 'direction', 'runtime', 'missing locale metadata');
