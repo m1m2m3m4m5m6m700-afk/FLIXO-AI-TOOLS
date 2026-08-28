@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 9
       matrix:
         include:
           - area: typecheck
@@ -40,13 +40,15 @@ jobs:
             command: npm run audit:production && node --experimental-strip-types scripts/test-file-safety.mjs && node --experimental-strip-types scripts/test-output-integrity.mjs && node --experimental-strip-types scripts/test-svg-integrity.mjs
           - area: release-contracts
             command: npm run test:quickflow && npm run test:ai-planner && node scripts/test-release-evidence.mjs
+    env:
+      VITE_SITE_URL: https://canonical.test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit
       - name: Run ${{ matrix.area }} diagnostics
         env:
           CI: 'true'
@@ -66,13 +68,15 @@ jobs:
     name: Root Cause — build-performance
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      VITE_SITE_URL: https://canonical.test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit
       - name: Build runtime artifacts for performance diagnostics
         run: npm run build:runtime
       - run: npm run validate:performance-budget
@@ -97,17 +101,28 @@ jobs:
       max-parallel: 3
       matrix:
         browser: [chromium, firefox, webkit]
+    env:
+      CI: 'true'
+      VITE_SITE_URL: https://canonical.test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Cache Playwright browser binaries
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-${{ matrix.browser }}-
+      - run: npm ci --prefer-offline --no-audit
+      - name: Install ${{ matrix.browser }} if cache missed
+        if: ${{ steps.playwright-cache.outputs.cache-hit != 'true' }}
+        run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Run E2E on ${{ matrix.browser }}
-        env:
-          CI: 'true'
         run: npx playwright test --project=${{ matrix.browser }}
       - name: Upload E2E diagnostics
         if: ${{ always() }}
@@ -131,7 +146,7 @@ jobs:
             echo '## Root Cause Diagnostics'
             echo
             echo 'Parallel gates: 9 contract/security areas + build/performance + 3 browser E2E jobs.'
-            echo 'fail-fast=false preserves independent failures for diagnosis.'
+            echo 'Static areas run independently with fail-fast=false; browser jobs use cached Playwright binaries.'
             echo "static=${{ needs.static.result }}"
             echo "build-performance=${{ needs.build-performance.result }}"
             echo "e2e=${{ needs.e2e.result }}"
