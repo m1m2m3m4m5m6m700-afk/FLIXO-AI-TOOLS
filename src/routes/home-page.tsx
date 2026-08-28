@@ -4,6 +4,7 @@ import { TOOLS_REGISTRY } from '../config/tools';
 import { SmartCommandPalette } from '../components/SmartCommandPalette';
 import { getBestToolIntent } from '@/lib/intent-router';
 import { loadHomeCopy } from '@/lib/i18n/home-loader';
+import { getToolSeoName } from '@/lib/i18n/tool-seo-localization';
 import { LOCALE_METADATA, LOCALES } from '@/lib/i18n';
 import { localizeToolCategory, localizeToolDescription, localizeToolTitle } from '@/lib/i18n/tool-localization';
 import type { HomeCopy } from '../data/home-locales';
@@ -17,7 +18,7 @@ const LANGUAGE_LABELS: Record<Locale, string> = { en: 'English', ar: 'العرب
 function toLocalizedTool(tool: ToolConfig, locale: Locale): ToolCardProps {
   return {
     id: tool.id,
-    title: localizeToolTitle(locale, tool.title, tool.category),
+    title: getToolSeoName(tool.id, locale) ?? localizeToolTitle(locale, tool.title, tool.category),
     description: localizeToolDescription(locale, tool.title, tool.category),
     category: tool.category,
     categoryLabel: localizeToolCategory(locale, tool.category),
