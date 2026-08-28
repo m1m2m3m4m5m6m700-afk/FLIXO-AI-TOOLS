@@ -20,6 +20,8 @@ jobs:
     name: S4 Runtime + E2E
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      VITE_SITE_URL: ${{ vars.SITE_URL }}
     steps:
       - uses: actions/checkout@v5
         with:
