@@ -11,11 +11,6 @@ type CommandPaletteProps = {
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [recent, setRecent] = useState<string[]>([]);
-
-  useEffect(() => {
-    setRecent(getRecentTools());
-  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -27,6 +22,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
   const tools = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const recent = getRecentTools();
     const all = getReadyToolConfigs();
     const ordered = [...all].sort((a, b) => {
       const ai = recent.indexOf(a.id);
@@ -37,7 +33,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     return q
       ? ordered.filter((tool) => [tool.title, tool.description, ...(tool.aliases ?? [])].join(' ').toLowerCase().includes(q))
       : ordered;
-  }, [query, recent]);
+  }, [query]);
 
   if (!open) return null;
 
