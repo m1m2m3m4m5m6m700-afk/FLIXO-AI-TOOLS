@@ -8,9 +8,6 @@ on:
 permissions:
   contents: read
 
-env:
-  VITE_SITE_URL: ${{ vars.SITE_URL }}
-
 concurrency:
   group: root-cause-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -76,7 +73,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run build
+      # Runtime builds intentionally do not require the future production domain.
+      # Production SEO builds remain strict in the release/deployment environment.
+      - run: npm run build:runtime
       - run: npm run validate:performance-budget
       - run: npm run report:performance-baseline
       - name: Upload build diagnostics
@@ -132,7 +131,7 @@ jobs:
           {
             echo '## Root Cause Diagnostics'
             echo
-            echo 'Parallel gates: 9 contract/security areas + build/performance + 3 browser E2E jobs.'
+            echo 'Runtime diagnostics are independent from production canonical-domain configuration.'
             echo 'fail-fast=false preserves independent failures for diagnosis.'
             echo "static=${{ needs.static.result }}"
             echo "build-performance=${{ needs.build-performance.result }}"
