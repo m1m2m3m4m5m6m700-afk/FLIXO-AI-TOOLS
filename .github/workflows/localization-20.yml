@@ -1,0 +1,82 @@
+name: Localization — 20 Locale Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/validate-language-quality*.mjs'
+      - 'scripts/validation-utils.mjs'
+      - '.github/workflows/localization-20.yml'
+  push:
+    branches:
+      - main
+      - 'fix/**'
+      - 'feat/**'
+      - 'seo/**'
+      - 'ci/**'
+      - 'refactor/**'
+      - 's3-**'
+  workflow_dispatch:
+
+concurrency:
+  group: localization-20-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  locale:
+    name: Localization — ${{ matrix.locale }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        locale:
+          - en
+          - ar
+          - es
+          - fr
+          - de
+          - ru
+          - zh
+          - hi
+          - id
+          - ur
+          - ja
+          - pt
+          - it
+          - ko
+          - nl
+          - pl
+          - tr
+          - vi
+          - th
+          - sv
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Validate ${{ matrix.locale }} translation contract
+        env:
+          FLIXO_LOCALE: ${{ matrix.locale }}
+        run: node scripts/validate-locale-contract.mjs
+
+  aggregate:
+    name: Localization — 20 Locale Gate
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    needs: [locale]
+    steps:
+      - name: Enforce all 20 locale checks
+        shell: bash
+        run: |
+          if [[ "${{ needs.locale.result }}" != "success" ]]; then
+            echo "Localization — 20 Locale Gate FAILED: at least one locale test failed."
+            exit 1
+          fi
+          echo "Localization — 20 Locale Gate PASSED: all 20 canonical locale checks are green."
