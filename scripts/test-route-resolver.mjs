@@ -11,11 +11,11 @@ assert.equal(
 );
 assert.throws(
   () => getLocalizedToolPath({ path: '/image-compressor' }, 'en'),
-  /Invalid canonical tool path/u,
+  /Invalid canonical tool path/,
 );
 assert.throws(
   () => getLocalizedToolPath({ path: '/en/image-compressor?x=1' }, 'en'),
-  /query/hash/u,
+  /query/hash/,
 );
 
 console.log('route resolver contract tests passed.');
