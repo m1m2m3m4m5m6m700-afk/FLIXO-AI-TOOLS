@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { CANONICAL_LOCALES, failValidation } from './validation-utils.mjs';
+import { CANONICAL_LOCALES } from './validation-utils.mjs';
 
 const root = process.cwd();
 const read = (path) => readFileSync(path, 'utf8');
@@ -53,7 +53,7 @@ for (const locale of locales) {
 
 const englishHome = entryBody(home, 'en', 'copy');
 const englishQuick = entryBody(quickflow, 'en', 'q');
-const extractString = (entry, key) => entry.match(new RegExp(`${key}['"]([^'"\\n]*)['"]`, 'u'))?.[1] ?? '';
+const extractString = (entry, key) => entry.match(new RegExp(`${key}['\"]([^'\"\\n]*)['\"]`, 'u'))?.[1] ?? '';
 const englishLeakKeys = ['badge:', 'heroLead:', 'describe:', 'searchLabel:', 'searchPlaceholder:', 'smartPalette:', 'popular:', 'quickDropTitle:', 'dropChoose:', 'dropSupport:', 'suggestedTool:', 'openTool:', 'toolboxTitle:', 'empty:', 'finalTitle:', 'finalLead:', 'trySmart:', 'browserMeta:'];
 for (const locale of locales.filter((value) => value !== 'en')) {
   const entry = entryBody(home, locale, 'copy');
@@ -65,7 +65,6 @@ for (const locale of locales.filter((value) => value !== 'en')) {
 
   const quick = entryBody(quickflow, locale, 'q');
   for (const key of quickflowKeys) {
-    if (!key.endsWith(':')) continue;
     const enValue = extractString(englishQuick, key);
     const localizedValue = extractString(quick, key);
     if (enValue && localizedValue === enValue && !['resultAlt:'].includes(key)) fail(`QuickFlow ${locale}: English fallback in ${key}`);
