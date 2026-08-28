@@ -4,14 +4,14 @@ This document separates **Google requirements** from **FLIXO internal hardening*
 
 ## Google-aligned blocking principles
 
-1. Ads must never be implemented so users can mistake them for navigation, download controls, menus, or other site UI. Google explicitly warns against placements that can cause accidental clicks, especially near download buttons and heavy-interaction elements. citeturn518423search0turn236219search2
-2. Do not serve Google ads on screens without meaningful publisher content, low-value screens, construction/placeholder screens, or screens used for navigation/alerts. citeturn236219search5
-3. Do not allow advertising or paid promotional material to exceed publisher content. citeturn518423search6
-4. Do not encourage clicks, manufacture traffic, buy low-quality traffic, or deploy implementations that create invalid traffic. Google monitors clicks/impressions and publishers are responsible for traffic quality. citeturn236219search0turn236219search2
-5. For personalized ads in the EEA, UK, and Switzerland, use a Google-certified CMP integrated with the IAB TCF. citeturn518423search3turn518423search5
-6. Avoid scaled, unoriginal, low-value content. Google Search considers mass-generated pages made primarily to manipulate rankings and provide little value to be scaled content abuse, including AI-generated pages without added value. citeturn518423search1
-7. Software/application structured data is a Search feature, not an AdSense policy requirement. Use it only where the page actually represents a software application and it follows Google's structured-data guidelines. citeturn518423search2
-8. Core Web Vitals targets are measured at real-world 75th percentile: LCP <2.5s, INP <200ms, CLS <0.1. citeturn132075search0
+1. Ads must never be implemented so users can mistake them for navigation, download controls, menus, or other site UI. Google explicitly warns against placements that can cause accidental clicks, especially near download buttons and heavy-interaction elements.
+2. Do not serve Google ads on screens without meaningful publisher content, low-value screens, construction/placeholder screens, or screens used for navigation/alerts.
+3. Do not allow advertising or paid promotional material to exceed publisher content.
+4. Do not encourage clicks, manufacture traffic, buy low-quality traffic, or deploy implementations that create invalid traffic. Google monitors clicks/impressions and publishers are responsible for traffic quality.
+5. For personalized ads in the EEA, UK, and Switzerland, use a Google-certified CMP integrated with the IAB TCF.
+6. Avoid scaled, unoriginal, low-value content. Google Search considers mass-generated pages made primarily to manipulate rankings and provide little value to be scaled content abuse, including AI-generated pages without added value.
+7. Software/application structured data is a Search feature, not an AdSense policy requirement. Use it only where the page actually represents a software application and it follows Google's structured-data guidelines.
+8. Core Web Vitals targets are measured at real-world 75th percentile: LCP <2.5s, INP <200ms, CLS <0.1.
 
 ## FLIXO internal hardening
 
