@@ -15,7 +15,7 @@ assert.throws(
 );
 assert.throws(
   () => getLocalizedToolPath({ path: '/en/image-compressor?x=1' }, 'en'),
-  /query/hash/,
+  /query\/hash/,
 );
 
 console.log('route resolver contract tests passed.');
