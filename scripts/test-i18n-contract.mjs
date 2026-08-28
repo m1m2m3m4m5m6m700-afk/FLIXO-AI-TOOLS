@@ -1,11 +1,16 @@
 import assert from 'node:assert/strict';
-import {
+
+// Contract tests use an isolated HTTPS origin. This is a test harness input,
+// not a production fallback and must never be a Vercel deployment hostname.
+process.env.VITE_SITE_URL ??= 'https://canonical.test';
+
+const {
   DEFAULT_LOCALE,
   LOCALES,
   LOCALE_METADATA,
   isLocale,
   normalizeLocale,
-} from '../src/lib/i18n/config.ts';
+} = await import('../src/lib/i18n/config.ts');
 
 assert.equal(DEFAULT_LOCALE, 'en');
 assert.equal(LOCALES.length, 20);
