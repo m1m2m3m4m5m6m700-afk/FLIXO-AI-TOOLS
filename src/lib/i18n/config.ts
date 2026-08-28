@@ -1,11 +1,15 @@
 const DEFAULT_RUNTIME_ORIGIN = 'http://127.0.0.1:3000';
 const configuredSiteOrigin =
-  import.meta.env?.VITE_SITE_URL?.trim() || globalThis.process?.env?.VITE_SITE_URL?.trim();
+  import.meta.env?.VITE_SITE_URL?.trim() ||
+  globalThis.process?.env?.VITE_SITE_URL?.trim();
 
 // Vercel exposes the stable production domain on both preview and production
-// deployments. It is not the per-deployment preview hostname and therefore can
-// safely be used for canonical metadata when SITE_URL is not injected.
-const vercelProductionOrigin = globalThis.process?.env?.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+// deployments. Vite exposes system variables with the VITE_ prefix when
+// automatic system-variable exposure is enabled; Node build scripts receive
+// the unprefixed process variable. Neither value is a deployment-preview URL.
+const vercelProductionOrigin =
+  import.meta.env?.VITE_VERCEL_PROJECT_PRODUCTION_URL?.trim() ||
+  globalThis.process?.env?.VERCEL_PROJECT_PRODUCTION_URL?.trim();
 
 function normalizeOrigin(value: string): string {
   let parsed: URL;
@@ -63,7 +67,7 @@ export function getCanonicalSiteOrigin(): string {
   if (isBlockedDeploymentOrigin(origin)) {
     const allowedVercelFallback =
       vercelFallback !== undefined &&
-      configured === vercelFallback &&
+      normalized === normalizeOrigin(vercelFallback) &&
       origin.hostname === 'flixoai.vercel.app';
 
     if (!allowedVercelFallback) {
