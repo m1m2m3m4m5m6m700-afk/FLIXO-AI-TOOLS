@@ -1,11 +1,26 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { CANONICAL_LOCALES } from './validation-utils.mjs';
 
 const root = process.cwd();
 const errors = [];
 const fail = (message) => errors.push(message);
 const locales = CANONICAL_LOCALES;
+const nonEnglish = locales.filter((locale) => locale !== 'en');
 const read = (path) => readFileSync(path, 'utf8');
+
+const expectedDirection = (locale) => (locale === 'ar' || locale === 'ur' ? 'rtl' : 'ltr');
+const expectedScript = Object.freeze({
+  ar: /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/u,
+  ur: /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/u,
+  ru: /[\u0400-\u04ff]/u,
+  zh: /[\u3400-\u9fff]/u,
+  ja: /[\u3040-\u30ff\u3400-\u9fff]/u,
+  ko: /[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/u,
+  hi: /[\u0900-\u097f]/u,
+  th: /[\u0e00-\u0e7f]/u,
+});
+const allowedSameAsEnglish = new Set(['FLIXO', 'QuickFlow', 'OCR', 'PDF', 'English', 'العربية', 'Smart Intent', 'Ctrl K']);
 
 const config = read(`${root}/src/lib/i18n/config.ts`);
 const expectedLocales = config.match(/export const LOCALES = \[([\s\S]*?)\] as const/)?.[1]?.match(/'([a-z]{2})'/g)?.map((v) => v.slice(1, -1)) ?? [];
@@ -23,6 +38,8 @@ for (const locale of locales) {
   if (!source.includes(`locale: '${locale}'`)) fail(`${locale}: locale identifier mismatch`);
   if (!/homeTitle:\s*'[^']+'/u.test(source)) fail(`${locale}: missing homeTitle`);
   if (!/homeDescription:\s*'[^']+'/u.test(source)) fail(`${locale}: missing homeDescription`);
+  const direction = /direction:\s*'([^']+)'/u.exec(source)?.[1];
+  if (direction !== expectedDirection(locale)) fail(`${locale}: direction mismatch; expected ${expectedDirection(locale)}, found ${direction ?? '<missing>'}`);
 }
 
 const home = read(`${root}/src/data/home-locales.ts`);
@@ -49,19 +66,47 @@ const entryBody = (source, locale, marker) => {
 
 const objectBody = (source, locale) => new RegExp(`\\b${locale}:\\s*\\{([\\s\\S]*?)\\}`, 'u').exec(source)?.[1] ?? '';
 const extractString = (entry, key) => entry.match(new RegExp(`${key}['"]([^'"\\n]*)['"]`, 'u'))?.[1] ?? '';
+const normalize = (value) => value.replace(/\s+/gu, ' ').trim();
+const stringLeaves = (value, path = []) => {
+  if (typeof value === 'string') return [{ path: path.join('.'), value }];
+  if (!value || typeof value !== 'object') return [];
+  return Object.entries(value).flatMap(([key, child]) => stringLeaves(child, [...path, key]));
+};
+const sameShape = (enValue, localizedValue, path = []) => {
+  const location = path.join('.') || '<root>';
+  if (typeof enValue !== typeof localizedValue) {
+    fail(`Shape mismatch at ${location}: English is ${typeof enValue}, localized is ${typeof localizedValue}`);
+    return;
+  }
+  if (typeof enValue === 'string') return;
+  if (Array.isArray(enValue)) {
+    if (!Array.isArray(localizedValue) || enValue.length !== localizedValue.length) {
+      fail(`Array shape mismatch at ${location}: English=${enValue.length}, localized=${Array.isArray(localizedValue) ? localizedValue.length : '<non-array>'}`);
+      return;
+    }
+    enValue.forEach((item, index) => sameShape(item, localizedValue[index], [...path, String(index)]));
+    return;
+  }
+  if (!enValue || typeof enValue !== 'object' || !localizedValue || typeof localizedValue !== 'object') return;
+  const enKeys = Object.keys(enValue).sort();
+  const localizedKeys = Object.keys(localizedValue).sort();
+  if (enKeys.join('|') !== localizedKeys.join('|')) {
+    const missing = enKeys.filter((key) => !localizedKeys.includes(key));
+    const extra = localizedKeys.filter((key) => !enKeys.includes(key));
+    if (missing.length) fail(`Missing translation keys at ${location}: ${missing.join(', ')}`);
+    if (extra.length) fail(`Unexpected translation keys at ${location}: ${extra.join(', ')}`);
+  }
+  for (const key of enKeys) if (key in localizedValue) sameShape(enValue[key], localizedValue[key], [...path, key]);
+};
 
 const overrideEntry = (locale) => {
   const match = new RegExp(`\\b${locale}:\\s*Object\\.freeze\\(\\{([\\s\\S]*?)\\n  \\}\\),?`, 'u').exec(overrides);
   return match?.[1] ?? '';
 };
-
 const effectiveHomeValue = (locale, key, sourceValue) => {
   const override = overrideEntry(locale);
   if (!override) return sourceValue;
-  if (key === 'trust:') {
-    const trustMatch = override.match(/trust:\s*\[([\s\S]*?)\n\s*\]/u);
-    return trustMatch?.[1] ?? sourceValue;
-  }
+  if (key === 'trust:') return override.match(/trust:\s*\[([\s\S]*?)\n\s*\]/u)?.[1] ?? sourceValue;
   const direct = extractString(override, key);
   return direct || sourceValue;
 };
@@ -84,19 +129,33 @@ const englishHome = entryBody(home, 'en', 'copy');
 const englishQuick = entryBody(quickflow, 'en', 'q');
 const englishLeakKeys = ['badge:', 'heroLead:', 'describe:', 'searchLabel:', 'searchPlaceholder:', 'smartPalette:', 'popular:', 'quickDropTitle:', 'dropChoose:', 'dropSupport:', 'suggestedTool:', 'openTool:', 'toolboxTitle:', 'empty:', 'finalTitle:', 'finalLead:', 'trySmart:', 'browserMeta:'];
 
-for (const locale of locales.filter((value) => value !== 'en')) {
+for (const locale of nonEnglish) {
   const entry = entryBody(home, locale, 'copy');
   for (const key of englishLeakKeys) {
     const enValue = extractString(englishHome, key);
     const localizedValue = effectiveHomeValue(locale, key, extractString(entry, key));
-    if (enValue && localizedValue === enValue) fail(`Home ${locale}: English fallback in ${key}`);
+    if (enValue && localizedValue === enValue && !allowedSameAsEnglish.has(normalize(enValue))) fail(`Home ${locale}: English fallback in ${key}`);
   }
 
   const quick = entryBody(quickflow, locale, 'q');
   for (const key of quickflowKeys) {
     const enValue = extractString(englishQuick, key);
     const localizedValue = extractString(quick, key);
-    if (enValue && localizedValue === enValue && key !== 'resultAlt:') fail(`QuickFlow ${locale}: English fallback in ${key}`);
+    if (enValue && localizedValue === enValue && !allowedSameAsEnglish.has(normalize(enValue))) fail(`QuickFlow ${locale}: English fallback in ${key}`);
+  }
+
+  const scriptPattern = expectedScript[locale];
+  if (scriptPattern) {
+    const localizedLeaves = [
+      ...homeKeys.map((key) => effectiveHomeValue(locale, key, extractString(entry, key))),
+      ...quickflowKeys.map((key) => extractString(quick, key)),
+      ...toolUiKeys.map((key) => extractString(objectBody(toolUi, locale), key)),
+    ].filter(Boolean).map(normalize).filter((value) => value.length >= 4);
+    const weak = localizedLeaves.filter((value) => {
+      const letters = [...value].filter((char) => /\p{L}/u.test(char));
+      return letters.length >= 4 && !scriptPattern.test(value) && !/^(?:FLIXO|QuickFlow|OCR|PDF|English|العربية|Smart Intent|Ctrl K)/u.test(value);
+    });
+    if (weak.length) fail(`${locale}: localized UI contains values without the expected script: ${weak.slice(0, 5).join(' | ')}`);
   }
 }
 
@@ -104,47 +163,68 @@ const htmlSource = extractString(englishHome, 'heroTitle:');
 for (const locale of locales) {
   const entry = entryBody(home, locale, 'copy');
   const localizedHero = effectiveHomeValue(locale, 'heroTitle:', extractString(entry, 'heroTitle:'));
-  if ((htmlSource.includes('<span>') && !localizedHero.includes('<span>')) || (htmlSource.includes('</span>') && !localizedHero.includes('</span>'))) {
-    fail(`Home ${locale}: heroTitle HTML emphasis structure differs from English`);
-  }
-}
-
-for (const locale of locales) {
-  const metadata = new RegExp(`${locale}:\\s*\\{[^}]*direction:\\s*'([^']+)'`, 'u').exec(config)?.[1];
-  const shouldBeRtl = locale === 'ar' || locale === 'ur';
-  if ((metadata === 'rtl') !== shouldBeRtl) fail(`Direction mismatch for ${locale}: expected ${shouldBeRtl ? 'rtl' : 'ltr'}, found ${metadata ?? '<missing>'}`);
+  const enTags = [...htmlSource.matchAll(/<[^>]+>/gu)].map((m) => m[0]);
+  const localizedTags = [...localizedHero.matchAll(/<[^>]+>/gu)].map((m) => m[0]);
+  if (enTags.join('|') !== localizedTags.join('|')) fail(`Home ${locale}: heroTitle HTML emphasis structure differs from English`);
 }
 
 const toolSeoObjects = [...seoNames.matchAll(/'[^']+':\s*Object\.freeze\(\{([^}]*)\}\)/gu)].map((match) => match[1]);
 if (!toolSeoObjects.length) fail('No TOOL_SEO_NAMES entries found');
 for (const [index, body] of toolSeoObjects.entries()) {
-  for (const locale of locales) {
-    if (!new RegExp(`\\b${locale}:`, 'u').test(body)) fail(`SEO name entry ${index + 1}: missing ${locale}`);
+  for (const locale of locales) if (!new RegExp(`\\b${locale}:`, 'u').test(body)) fail(`SEO name entry ${index + 1}: missing ${locale}`);
+}
+
+const uiModules = await import(pathToFileURL(`${root}/src/data/tool-ui-i18n.ts`).href);
+const homeModule = await import(pathToFileURL(`${root}/src/data/home-locales.ts`).href);
+const quickflowModule = await import(pathToFileURL(`${root}/src/data/quickflow-locales.ts`).href);
+const localeConfigModule = await import(pathToFileURL(`${root}/src/lib/i18n/config.ts`).href);
+
+const runtimeContracts = [
+  ['HOME_I18N', homeModule.HOME_I18N],
+  ['QUICKFLOW_LOCALES', quickflowModule.QUICKFLOW_LOCALES],
+  ['TOOL_UI_I18N', uiModules.TOOL_UI_I18N],
+];
+for (const [name, dictionary] of runtimeContracts) {
+  const english = dictionary?.en;
+  if (!english) {
+    fail(`${name}: missing English baseline`);
+    continue;
+  }
+  const englishLeaves = stringLeaves(english);
+  for (const locale of nonEnglish) {
+    const localized = dictionary?.[locale];
+    if (!localized) {
+      fail(`${name}: missing runtime locale ${locale}`);
+      continue;
+    }
+    sameShape(english, localized, [name, locale]);
+    for (const { path, value } of stringLeaves(localized)) {
+      if (!value.trim()) fail(`${name}/${locale}: empty translation at ${path}`);
+      const englishLeaf = englishLeaves.find((leaf) => leaf.path === path);
+      if (englishLeaf && englishLeaf.value === value && !allowedSameAsEnglish.has(normalize(value))) {
+        fail(`${name}/${locale}: exact English fallback at ${path}: ${JSON.stringify(value)}`);
+      }
+    }
   }
 }
 
-const reviewedHomePhraseReplacements = Object.freeze({
-  sv: Object.freeze({
-    'Smart routing': 'Smart dirigering',
-  }),
-});
-const suspiciousTerms = ['Privacy-first', 'Browser-first', 'Instant start', 'Smart routing', 'Open smart command palette', 'Start with the tools people actually need.'];
-for (const locale of locales.filter((value) => value !== 'en')) {
-  const entry = entryBody(home, locale, 'copy');
-  const reviewed = reviewedHomePhraseReplacements[locale] ?? {};
-  for (const term of suspiciousTerms) {
-    const rawLocalized = entry.includes(`'${term}'`) || entry.includes(`"${term}"`);
-    if (!rawLocalized) continue;
-    const replacement = reviewed[term];
-    if (replacement && overrides.includes(replacement)) continue;
-    fail(`Home ${locale}: suspicious English phrase leaked: ${term}`);
-  }
+const configLocales = localeConfigModule.LOCALES ?? [];
+if (configLocales.length !== locales.length || configLocales.some((locale, index) => locale !== locales[index])) fail(`Runtime LOCALES mismatch: ${configLocales.join(', ')}`);
+const metadata = localeConfigModule.LOCALE_METADATA ?? {};
+for (const locale of locales) {
+  const actual = metadata[locale];
+  if (!actual) fail(`Runtime locale metadata missing: ${locale}`);
+  else if (actual.direction !== expectedDirection(locale)) fail(`Runtime direction mismatch for ${locale}: expected ${expectedDirection(locale)}, found ${actual.direction}`);
 }
+
+const localeFiles = readdirSync(`${root}/src/lib/i18n/locales`).filter((file) => file.endsWith('.ts')).map((file) => file.slice(0, -3));
+const unexpectedLocaleFiles = localeFiles.filter((locale) => !locales.includes(locale));
+if (unexpectedLocaleFiles.length) fail(`Unexpected locale files outside canonical registry: ${unexpectedLocaleFiles.join(', ')}`);
 
 if (errors.length) {
-  console.error(`Language quality gate failed with ${errors.length} issue(s):`);
+  console.error(`Strict language quality gate failed with ${errors.length} issue(s):`);
   for (const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
 
-console.log(`Language quality gate passed: ${locales.length} locales; effective Home/QuickFlow/Tool UI output, locale dictionaries, RTL/LTR, SEO-name completeness, and English-leak checks are clean.`);
+console.log(`Strict language quality gate passed: ${locales.length} canonical locales; runtime key-shape parity, non-empty translations, English-fallback rejection, locale metadata/direction, script checks, Home/QuickFlow/Tool UI coverage, HTML structure, and SEO locale coverage are clean.`);
