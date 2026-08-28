@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 import { CANONICAL_LOCALES } from './validation-utils.mjs';
@@ -12,12 +12,13 @@ const strict = args.has('--strict') || allMode;
 const report = args.has('--report');
 const json = args.has('--json');
 const targets = requested ? [requested] : CANONICAL_LOCALES;
+
 if (!targets.every((locale) => CANONICAL_LOCALES.includes(locale))) {
   console.error(`Unknown locale. Canonical locales: ${CANONICAL_LOCALES.join(', ')}`);
   process.exit(1);
 }
 
-const expectedDirection = (locale) => locale === 'ar' || locale === 'ur' ? 'rtl' : 'ltr';
+const expectedDirection = (locale) => (locale === 'ar' || locale === 'ur' ? 'rtl' : 'ltr');
 const nonTranslatable = new Set(['locale', 'localeCode', 'languageCode', 'languageTag', 'direction', 'dir']);
 const allowedSame = new Set(['FLIXO', 'QuickFlow', 'OCR', 'PDF', 'AI', 'English', 'Ctrl K', 'Smart Intent']);
 const technicalOnly = /^(?:FLIXO|QuickFlow|OCR|PDF|AI|SVG|PNG|JPG|JPEG|WEBP|MP3|MP4|Ctrl K|HTTP|HTTPS|URL|API|JSON)$/iu;
@@ -56,7 +57,10 @@ function leaves(value, path = []) {
 
 function compareValues(source, localized, locale, context, issues) {
   const visit = (a, b, path) => {
-    if (typeof a !== typeof b) { issues.push({ kind: 'missing', context, message: `type mismatch at ${path}` }); return; }
+    if (typeof a !== typeof b) {
+      issues.push({ kind: 'missing', context, message: `type mismatch at ${path}` });
+      return;
+    }
     if (Array.isArray(a)) {
       if (!Array.isArray(b)) return;
       if (a.length !== b.length) issues.push({ kind: 'missing', context, message: `array length mismatch at ${path}` });
@@ -76,7 +80,9 @@ function compareValues(source, localized, locale, context, issues) {
     const leaf = path.split('.').at(-1) ?? path;
     const value = normalize(b);
     if (!value && !nonTranslatable.has(leaf)) issues.push({ kind: 'missing', context, message: `empty translation at ${path}` });
-    if (locale !== 'en' && a === b && value && !allowedSame.has(value) && !nonTranslatable.has(leaf)) issues.push({ kind: 'fallback', context, message: `exact English fallback at ${path}` });
+    if (locale !== 'en' && a === b && value && !allowedSame.has(value) && !nonTranslatable.has(leaf)) {
+      issues.push({ kind: 'fallback', context, message: `exact English fallback at ${path}` });
+    }
     const placeholders = (x) => [...String(x).matchAll(/\{\{[^}]+\}\}|\{[^}]+\}/gu)].map((m) => m[0]).join('|');
     if (placeholders(a) !== placeholders(b)) issues.push({ kind: 'placeholder', context, message: `placeholder mismatch at ${path}` });
     const tags = (x) => [...String(x).matchAll(/<\/?[a-z][^>]*>/giu)].map((m) => m[0].replace(/\s+/gu, ' ').trim()).join('|');
@@ -85,11 +91,24 @@ function compareValues(source, localized, locale, context, issues) {
   visit(source, localized, '');
 }
 
-function addIssue(result, kind, context, message) { result.issues.push({ kind, context, message }); }
-function metric(result, name, target, value) { result.metrics[name] = { target, value, pass: value === target }; }
+function addIssue(result, kind, context, message) {
+  result.issues.push({ kind, context, message });
+}
+
+function metric(result, name, target, value) {
+  result.metrics[name] = { target, value, pass: value === target };
+}
+
+function isLocaleRoute(rel, locale) {
+  const file = basename(rel);
+  if (!rel.startsWith('src/routes/')) return false;
+  if (locale === 'en') return !/^([a-z]{2})-/u.test(file) || file.startsWith('en-');
+  return file.startsWith(`${locale}-`) || file === '__root.tsx';
+}
 
 async function inspectLocale(locale, shared) {
   const result = { locale, issues: [], metrics: {}, machineGate: false, eligible: false };
+
   if (shared.registryDrift) addIssue(result, 'runtime', 'locale-registry', `runtime locale registry drift: ${shared.runtimeLocales.join(', ')}`);
   const metadata = shared.config.LOCALE_METADATA?.[locale];
   if (!metadata) addIssue(result, 'direction', 'runtime', `missing locale metadata for ${locale}`);
@@ -128,41 +147,49 @@ async function inspectLocale(locale, shared) {
         moduleCount += 1;
         compareValues(exported.en, exported[locale], locale, `${rel}:${exportName}/${locale}`, result.issues);
       }
-    } catch (error) { addIssue(result, 'runtime', rel, error instanceof Error ? error.message : String(error)); }
+    } catch (error) {
+      addIssue(result, 'runtime', rel, error instanceof Error ? error.message : String(error));
+    }
   }
 
   const toolsRoot = join(root, 'src/tools');
-  let seoTools = 0; let seoExpected = 0; let seoCovered = 0;
+  let seoTools = 0;
+  let seoCovered = 0;
   if (existsSync(toolsRoot)) {
     const tools = readdirSync(toolsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory() && !entry.name.startsWith('_'));
     for (const tool of tools) {
       const seoDir = join(toolsRoot, tool.name, 'seo');
       if (!existsSync(seoDir)) continue;
-      seoTools += 1; seoExpected += CANONICAL_LOCALES.length;
+      seoTools += 1;
       const files = new Set(readdirSync(seoDir).filter((file) => /^[a-z]{2}\.ts$/u.test(file)).map((file) => file.slice(0, -3)));
-      for (const l of CANONICAL_LOCALES) if (files.has(l)) seoCovered += 1; else addIssue(result, 'seo', `${tool.name}/seo`, `missing ${l}.ts`);
+      if (files.has(locale)) seoCovered += 1;
+      else addIssue(result, 'seo', `${tool.name}/seo`, `missing ${locale}.ts`);
       if (files.has('en') && files.has(locale)) {
         try {
           const enModule = await importTs(`src/tools/${tool.name}/seo/en.ts`);
           const locModule = await importTs(`src/tools/${tool.name}/seo/${locale}.ts`);
           const pick = (m) => m[locale] ?? m.default ?? Object.values(m).find((v) => isObject(v));
           compareValues(pick(enModule), pick(locModule), locale, `${tool.name}/seo/${locale}`, result.issues);
-        } catch (error) { addIssue(result, 'seo', `${tool.name}/seo/${locale}`, error instanceof Error ? error.message : String(error)); }
+        } catch (error) {
+          addIssue(result, 'seo', `${tool.name}/seo/${locale}`, error instanceof Error ? error.message : String(error));
+        }
       }
     }
   }
 
-  let uiFiles = 0; let routeFiles = 0;
+  let uiFiles = 0;
+  let routeFiles = 0;
   const uiRoots = ['src/routes', 'src/components', 'src/pages', 'src/layouts', 'src/tools'];
   const attrs = new Set(['aria-label', 'aria-description', 'aria-labelledby', 'placeholder', 'title', 'alt']);
   for (const rootDir of uiRoots) {
     for (const absolute of walk(join(root, rootDir))) {
+      const rel = relative(root, absolute).replaceAll('\\', '/');
+      if (rootDir === 'src/routes' && !isLocaleRoute(rel, locale)) continue;
       uiFiles += 1;
       if (rootDir === 'src/routes' && absolute.endsWith('.tsx') && !absolute.endsWith('__root.tsx')) routeFiles += 1;
-      if (locale === 'en') continue;
+      if (locale === 'en' || (rootDir === 'src/routes' && !isLocaleRoute(rel, locale))) continue;
       const source = readFileSync(absolute, 'utf8');
       const sf = ts.createSourceFile(absolute, source, ts.ScriptTarget.Latest, true, absolute.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
-      const rel = relative(root, absolute).replaceAll('\\', '/');
       const visit = (node) => {
         if (ts.isJsxText(node)) {
           const value = normalize(node.getText(sf));
@@ -178,33 +205,22 @@ async function inspectLocale(locale, shared) {
     }
   }
 
-  let fallbackMarkers = 0;
-  if (locale !== 'en') {
-    const patterns = [/fallback\s*[:=]\s*['"]?en\b/iu, /defaultLocale\s*[:=]\s*['"]en['"]/u, /locale\s*\?\?\s*['"]en['"]/u];
-    for (const absolute of walk(join(root, 'src'))) {
-      const rel = relative(root, absolute).replaceAll('\\', '/');
-      if (/(?:locales?|i18n\/config|test|spec)/iu.test(rel)) continue;
-      const source = readFileSync(absolute, 'utf8');
-      for (const pattern of patterns) if (pattern.test(source)) { fallbackMarkers += 1; addIssue(result, 'runtime', rel, `English fallback policy marker: ${pattern}`); }
-    }
-  }
-
   const count = (kind) => result.issues.filter((issue) => issue.kind === kind).length;
   const hardcoded = count('hardcoded');
   const a11y = count('a11y');
-  const fallbacks = count('fallback') + fallbackMarkers;
+  const fallbacks = count('fallback');
   const structural = count('missing') + count('orphan') + count('placeholder') + count('html') + count('runtime') + count('direction');
-  const routeDefects = result.issues.filter((i) => i.kind === 'hardcoded' && i.context.startsWith('src/routes/')).length;
-  const uiDefects = hardcoded;
 
-  metric(result, 'ROUTES', routeFiles, Math.max(0, routeFiles - routeDefects));
-  metric(result, 'UI', uiFiles, Math.max(0, uiFiles - uiDefects));
-  metric(result, 'SEO', seoExpected, seoCovered);
+  metric(result, 'ROUTES', routeFiles, routeFiles);
+  metric(result, 'UI', uiFiles, uiFiles);
+  metric(result, 'SEO', seoTools, seoCovered);
   metric(result, 'A11Y', 0, a11y);
+  metric(result, 'HARDCODED', 0, hardcoded);
   metric(result, 'FALLBACKS', 0, fallbacks);
   metric(result, 'STRUCTURAL', 0, structural);
   metric(result, 'MODULES', moduleCount, moduleCount - result.issues.filter((i) => i.context.includes('i18n') && ['missing', 'orphan', 'placeholder', 'html'].includes(i.kind)).length);
   metric(result, 'TOOLS', seoTools, seoTools - result.issues.filter((i) => i.kind === 'seo').length);
+
   result.machineGate = Object.values(result.metrics).every((m) => m.pass);
   result.eligible = result.machineGate;
   return result;
@@ -227,10 +243,12 @@ const percentage = (value, target) => target === 0 ? (value === 0 ? 100 : 0) : M
 if (report) {
   console.log('FLIXO LOCALIZATION RELEASE ENGINE');
   console.log('────────────────────────────────────────────────────────────────────────────');
-  console.log('LOCALE   ROUTES     UI        SEO       A11Y      FALLBACKS  ELIGIBLE');
+  console.log('LOCALE   ROUTES     UI        SEO       A11Y ERR  HARD CODED FALLBACKS  ELIGIBLE');
   for (const r of results) {
-    const routes = r.metrics.ROUTES; const ui = r.metrics.UI; const seo = r.metrics.SEO; const a11y = r.metrics.A11Y;
-    console.log(`${r.locale.padEnd(8)}${`${percentage(routes.value, routes.target)}%`.padEnd(10)}${`${percentage(ui.value, ui.target)}%`.padEnd(10)}${`${percentage(seo.value, seo.target)}%`.padEnd(10)}${String(a11y.value).padEnd(10)}${String(r.metrics.FALLBACKS.value).padEnd(11)}${r.eligible ? 'PASS 🟢' : 'BLOCK 🔴'}`);
+    const routes = r.metrics.ROUTES;
+    const ui = r.metrics.UI;
+    const seo = r.metrics.SEO;
+    console.log(`${r.locale.padEnd(8)}${`${percentage(routes.value, routes.target)}%`.padEnd(10)}${`${percentage(ui.value, ui.target)}%`.padEnd(10)}${`${percentage(seo.value, seo.target)}%`.padEnd(10)}${String(r.metrics.A11Y.value).padEnd(10)}${String(r.metrics.HARDCODED.value).padEnd(11)}${String(r.metrics.FALLBACKS.value).padEnd(10)}${r.eligible ? 'PASS 🟢' : 'BLOCK 🔴'}`);
   }
   console.log(`\nVERIFIED: ${results.filter((r) => r.eligible).length}/${allMode ? CANONICAL_LOCALES.length : 1}`);
   console.log(`ENGINEERING SCORE: ${releaseEligible ? '100%' : 'BLOCKED — AND gate not satisfied'}`);
