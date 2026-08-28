@@ -1,5 +1,5 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const root = resolve(process.cwd());
@@ -15,16 +15,6 @@ const trackedFiles = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'u
   .filter(Boolean);
 
 const read = (file) => readFileSync(join(root, file), 'utf8');
-const walk = (dir) => {
-  const result = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) result.push(...walk(full));
-    else result.push(full);
-  }
-  return result;
-};
-
 const sourceFiles = trackedFiles.filter((file) => /\.(?:ts|tsx|mjs|html|css)$/u.test(file));
 const adsImplementationFiles = new Set(['src/adsense/AdSlot.tsx', 'src/adsense/policy.ts']);
 const rawAdPattern = /adsbygoogle|pagead2\.googlesyndication\.com|googlesyndication\.com\/adsbygoogle/iu;
@@ -47,6 +37,7 @@ else pass('localized Advertisement labels cover all 20 canonical locales');
 const seoFiles = sourceFiles.filter((file) => file.startsWith('src/tools/') && /\/seo\/[a-z]{2}\.ts$/u.test(file));
 const introByLocale = new Map();
 const tokenize = (value) => value.replace(/<[^>]*>/gu, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(/\s+/u).filter(Boolean);
+const quotedItems = (value) => value.match(/(?:'[^']*'|"[^"]*")/gu) ?? [];
 let auditedSeo = 0;
 for (const file of seoFiles) {
   const source = read(file);
@@ -59,13 +50,14 @@ for (const file of seoFiles) {
   const features = source.match(/features:\s*\[([^\]]*)\]/u)?.[1] ?? '';
   if (tokenize(intro).length < 40) fail(`${file}: intro is too thin (<40 words)`);
   if (tokenize(description).length < 8) fail(`${file}: description is too thin (<8 words)`);
-  if ((howTo.match(/['"]/gu) ?? []).length < 6) fail(`${file}: howTo must contain at least 3 steps`);
-  if ((features.match(/['"]/gu) ?? []).length < 6) fail(`${file}: features must contain at least 3 items`);
+  if (quotedItems(howTo).length < 3) fail(`${file}: howTo must contain at least 3 steps`);
+  if (quotedItems(features).length < 3) fail(`${file}: features must contain at least 3 items`);
   const locale = file.match(/\/seo\/([a-z]{2})\.ts$/u)?.[1] ?? 'unknown';
-  const key = `${locale}:${intro.toLocaleLowerCase()}`;
-  if (intro.length >= 100) {
+  const normalizedIntro = intro.toLocaleLowerCase().replace(/\s+/gu, ' ').trim();
+  const key = `${locale}:${normalizedIntro}`;
+  if (normalizedIntro.length >= 100) {
     if (introByLocale.has(key)) fail(`${file}: exact duplicate route intro detected for locale ${locale}; source=${introByLocale.get(key)}`);
-    else introByLocale.set(key, relative(root, join(root, file)));
+    else introByLocale.set(key, file);
   }
   auditedSeo += 1;
 }
@@ -79,9 +71,8 @@ if (adsConfigured && missingLegal.length) fail(`AdSense is configured but requir
 else if (missingLegal.length) warn(`Legal routes not yet detected (${missingLegal.join(', ')}); AdSense remains fail-closed until legal + consent wiring is present`);
 else pass('privacy/terms/cookie routes are present in the route graph');
 
-const cwv = read('src/adsense/policy.ts');
 for (const required of ['lcpMs: 2500', 'inpMs: 200', 'cls: 0.1']) {
-  if (!cwv.includes(required)) fail(`Core Web Vitals target missing: ${required}`);
+  if (!policy.includes(required)) fail(`Core Web Vitals target missing: ${required}`);
 }
 if (errors.length === 0) pass('Core Web Vitals targets are codified: LCP 2.5s, INP 200ms, CLS 0.1');
 
@@ -90,7 +81,7 @@ if (!adsConfigured) {
   warn('This is an engineering readiness gate, not a claim of Google account approval. Enable ads only after a Google-certified CMP and legal surface are verified in production.');
 }
 
-if (warnings.length) for (const message of warnings) console.log(`ADSENSE WARN: ${message}`);
+for (const message of warnings) console.log(`ADSENSE WARN: ${message}`);
 if (errors.length) {
   for (const message of errors) console.error(`ADSENSE FAIL: ${message}`);
   process.exit(1);
