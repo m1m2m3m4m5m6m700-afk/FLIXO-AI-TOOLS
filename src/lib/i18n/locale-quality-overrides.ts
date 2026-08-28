@@ -25,8 +25,12 @@ export const HOME_COPY_OVERRIDES: Readonly<Partial<Record<Locale, HomeCopyOverri
     browserMeta: 'Tarayıcı öncelikli · Anında başla',
   }),
   sv: Object.freeze({
-    quickDrop: 'SNABBDROP',
     browserMeta: 'Webbläsare först · Starta direkt',
+    trust: [
+      ['Webbläsare först', 'Lokal bearbetning där verktyget stöder det.'],
+      ['Snabb start', 'Direkta vägar utan onödig introduktion.'],
+      ['Smart dirigering', 'Vanliga uppgifter går direkt till det bästa tillgängliga verktyget.'],
+    ],
   }),
 });
 
