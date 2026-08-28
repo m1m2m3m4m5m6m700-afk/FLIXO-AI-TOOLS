@@ -12,25 +12,48 @@ export const HOME_COPY_OVERRIDES: Readonly<Partial<Record<Locale, HomeCopyOverri
     quickDrop: 'السحب السريع',
     builtForFocus: 'مصمم للتركيز',
   }),
+  es: Object.freeze({
+    quickDrop: 'CARGA RÁPIDA',
+    quickDropTitle: 'Suelta un archivo. Te indicaremos la herramienta adecuada.',
+  }),
   id: Object.freeze({
     badge: 'Utamakan privasi · Utamakan browser',
     browserMeta: 'Di browser · Mulai instan',
     quickDrop: 'LETAKKAN CEPAT',
   }),
+  it: Object.freeze({
+    heroLead: 'Trova ciò che devi fare, apri lo strumento e completa il lavoro rapidamente. FLIXO mantiene l’esperienza focalizzata e usa l’elaborazione locale nel browser quando lo strumento la supporta.',
+    quickDropTitle: 'Trascina un file. Ti indicheremo lo strumento giusto.',
+  }),
+  ja: Object.freeze({
+    ariaTrust: '信頼のしるし',
+  }),
+  ko: Object.freeze({
+    heroTitle: '맞는 도구를, <span>헤매지 않고.</span>',
+  }),
   pl: Object.freeze({
+    heroTitle: 'Właściwe narzędzie, <span>bez zbędnych kroków.</span>',
     quickDrop: 'SZYBKIE DODAWANIE',
     browserMeta: 'W przeglądarce · Natychmiastowy start',
   }),
-  tr: Object.freeze({
-    browserMeta: 'Tarayıcı öncelikli · Anında başla',
+  pt: Object.freeze({
+    heroTitle: 'A ferramenta certa, <span>bez zbędnych kroków.</span>',
+  }),
+  ru: Object.freeze({
+    quickDrop: 'БЫСТРОЕ ДОБАВЛЕНИЕ',
+    ready: 'доступно',
   }),
   sv: Object.freeze({
     browserMeta: 'Webbläsare först · Starta direkt',
     trust: [
-      ['Webbläsare först', 'Lokal bearbetning där verktyget stöder det.'],
+      ['Webbläsare först', 'Lokal bearbetning där verktyget stöds.'],
       ['Snabb start', 'Direkta vägar utan onödig introduktion.'],
       ['Smart dirigering', 'Vanliga uppgifter går direkt till det bästa tillgängliga verktyget.'],
     ] as [string, string][],
+  }),
+  tr: Object.freeze({
+    quickDrop: 'HIZLI EKLEME',
+    browserMeta: 'Tarayıcı öncelikli · Anında başla',
   }),
 });
 
