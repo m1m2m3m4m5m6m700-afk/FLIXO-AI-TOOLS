@@ -68,10 +68,10 @@ jobs:
         env:
           FLIXO_LOCALE: ${{ matrix.locale }}
         run: node scripts/validate-locale-contract.mjs
-      - name: Validate ${{ matrix.locale }} complete localization surface
+      - name: Strict ${{ matrix.locale }} localization release engine
         env:
           FLIXO_LOCALE: ${{ matrix.locale }}
-        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-localization-complete.mjs
+        run: npm run verify:i18n -- --strict --report
 
   aggregate:
     name: Localization — 20 Locale Gate
