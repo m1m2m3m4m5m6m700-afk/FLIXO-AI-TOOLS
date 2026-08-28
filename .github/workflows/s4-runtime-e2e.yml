@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      VITE_SITE_URL: ${{ vars.SITE_URL }}
+      VITE_SITE_URL: https://canonical.test
     steps:
       - uses: actions/checkout@v5
         with:
