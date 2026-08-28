@@ -9,7 +9,7 @@ const indexSource = readFileSync('index.html', 'utf8');
 const manifestSource = readFileSync('public/manifest.webmanifest', 'utf8');
 const useCasesSource = readFileSync('src/lib/seo/use-cases.ts', 'utf8');
 
-const approvedFallback = i18nSource.match(/const DEFAULT_SITE_ORIGIN = ['\"]([^'\"]+)['\"]/u)?.[1]?.trim();
+const approvedFallback = i18nSource.match(/const DEFAULT_SITE_ORIGIN\s*=\s*['"]([^'"]+)['"]/u)?.[1]?.trim();
 const siteOriginExpression = i18nSource.match(/export const SITE_ORIGIN = \(configuredSiteOrigin \|\| ([^)]+)\)/u)?.[1]?.trim();
 if (approvedFallback !== 'https://flexoai.vercel.app' || siteOriginExpression !== 'DEFAULT_SITE_ORIGIN') {
   throw new Error('SITE_ORIGIN must retain the approved production fallback while remaining deployment-aware.');
