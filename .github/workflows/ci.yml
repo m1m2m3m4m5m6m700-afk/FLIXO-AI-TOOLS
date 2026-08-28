@@ -204,6 +204,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Validate canonical production origin
+        run: npm run validate:site-origin
       - name: Run S3 static certification
         env:
           S3_BASE_REF: origin/main
