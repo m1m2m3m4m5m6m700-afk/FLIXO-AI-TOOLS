@@ -37,6 +37,42 @@ for (const icon of manifest.icons) {
 }
 pass('manifest validation');
 
+// Brand contract: one canonical FLIXO mark, all logo entry points converge on it,
+// and obsolete raster references are forbidden from production-facing assets.
+const canonicalLogoPath = join(root, 'public/flixo-logo.svg');
+const logoAliasPath = join(root, 'public/logo.svg');
+const faviconPath = join(root, 'public/favicon.svg');
+const globalLogoPath = join(root, 'src/components/FlixoGlobalLogo.tsx');
+for (const [label, file] of [
+  ['canonical logo', canonicalLogoPath],
+  ['logo alias', logoAliasPath],
+  ['favicon alias', faviconPath],
+  ['global logo component', globalLogoPath],
+]) {
+  if (!existsSync(file)) fail(`${label} is missing: ${relative(root, file)}`);
+}
+const canonicalLogo = readFileSync(canonicalLogoPath, 'utf8');
+const logoAlias = readFileSync(logoAliasPath, 'utf8');
+const favicon = readFileSync(faviconPath, 'utf8');
+const globalLogo = readFileSync(globalLogoPath, 'utf8');
+if (!canonicalLogo.includes('FLIXO AI Tools')) fail('canonical logo title is missing');
+if (!canonicalLogo.includes('linearGradient') || !canonicalLogo.includes('<path')) fail('canonical logo does not contain the FLIXO mark');
+for (const [label, source] of [['logo.svg', logoAlias], ['favicon.svg', favicon]]) {
+  if (!source.includes('href="/flixo-logo.svg"')) fail(`${label} must render canonical /flixo-logo.svg`);
+  if (/<(?:path|linearGradient|radialGradient|filter)\b/u.test(source)) fail(`${label} must not contain duplicate logo geometry`);
+}
+if (!globalLogo.includes('src="/flixo-logo.svg"')) fail('FlixoGlobalLogo must use canonical /flixo-logo.svg');
+const brandRuntimeFiles = [indexPath, manifestPath, globalLogoPath, canonicalLogoPath, logoAliasPath, faviconPath];
+for (const file of brandRuntimeFiles) {
+  const source = readFileSync(file, 'utf8');
+  if (/flixo-logo\.jpg|(?:^|\/)logo\.jpg/u.test(source)) fail(`obsolete JPG logo reference in ${relative(root, file)}`);
+}
+if (!indexHtml.includes('href="/favicon.svg"')) fail('index.html favicon must use /favicon.svg');
+if (!indexHtml.includes('href="/logo.svg"')) fail('index.html alternate icon must use /logo.svg');
+if (!indexHtml.includes('href="/flixo-logo.svg"')) fail('index.html apple-touch-icon must use /flixo-logo.svg');
+if (!manifest.icons.some((icon) => icon?.src === '/flixo-logo.svg')) fail('manifest must expose canonical /flixo-logo.svg');
+pass('canonical FLIXO brand contract');
+
 run('npm', ['run', 'typecheck']);
 pass('TypeScript');
 run('npm', ['run', 'lint']);
@@ -150,7 +186,6 @@ try {
     'public/logo.svg',
     'public/flixo-logo.jpg',
     'public/logo.jpg',
-    'public/flixo-logo.png',
   ]);
   const unexpected = changed.filter((file) => !allow.has(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);
