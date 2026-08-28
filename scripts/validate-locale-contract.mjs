@@ -53,8 +53,8 @@ if (!existsSync(`${root}/${locPath}`)) {
 
   if (locale !== 'en') {
     const extractEntryValue = (body, key) => body.match(new RegExp(`${key}\\s*'([^']*)'`, 'u'))?.[1] ?? '';
-    const enHome = home.match(/\\ben:\\s*copy\\(\\{([\\s\\S]*?)\\n\\s*ar:\\s*copy\\(\\{/u)?.[1] ?? '';
-    const enQuick = quick.match(/\\ben:\\s*q\\(\\{([\\s\\S]*?)\\n\\s*ar:\\s*q\\(\\{/u)?.[1] ?? '';
+    const enHome = home.match(/\ben:\s*copy\(\{([\s\S]*?)\n\s*ar:\s*copy\(\{/u)?.[1] ?? '';
+    const enQuick = quick.match(/\ben:\s*q\(\{([\s\S]*?)\n\s*ar:\s*q\(\{/u)?.[1] ?? '';
     for (const key of ['badge:', 'heroLead:', 'describe:', 'searchLabel:', 'searchPlaceholder:', 'smartPalette:', 'popular:', 'quickDropTitle:', 'dropChoose:', 'dropSupport:', 'suggestedTool:', 'openTool:', 'toolboxTitle:', 'empty:', 'finalTitle:', 'finalLead:', 'trySmart:']) {
       const a = extractEntryValue(enHome, key); const b = extractEntryValue(homeEntry, key);
       if (a && b === a) fail(`Home English fallback in ${key}`);
