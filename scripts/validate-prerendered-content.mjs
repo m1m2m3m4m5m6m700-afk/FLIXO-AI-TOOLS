@@ -21,7 +21,10 @@ function removeElementContent(source, tagName) {
   let output = '';
   while (cursor < source.length) {
     const start = lower.indexOf(startToken, cursor);
-    if (start < 0) { output += source.slice(cursor); break; }
+    if (start < 0) {
+      output += source.slice(cursor);
+      break;
+    }
     output += source.slice(cursor, start);
     const end = lower.indexOf(endToken, start + startToken.length);
     if (end < 0) break;
@@ -31,11 +34,28 @@ function removeElementContent(source, tagName) {
   return output;
 }
 
+function stripTags(source) {
+  let output = '';
+  let inTag = false;
+  for (const character of source) {
+    if (character === '<') {
+      inTag = true;
+      continue;
+    }
+    if (inTag) {
+      if (character === '>') inTag = false;
+      continue;
+    }
+    output += character;
+  }
+  return output;
+}
+
 function stripHtml(value) {
   let output = String(value);
   output = removeElementContent(output, 'script');
   output = removeElementContent(output, 'style');
-  output = output.replace(/<[^>]+>/gu, ' ');
+  output = stripTags(output);
   output = output.replace(/&(?:amp|lt|gt|quot|#39);/gu, ' ');
   return output.replace(/\s+/gu, ' ').trim();
 }
