@@ -73,7 +73,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run build
+      - name: Build runtime artifacts for performance diagnostics
+        run: npm run build:runtime
       - run: npm run validate:performance-budget
       - run: npm run report:performance-baseline
       - name: Upload build diagnostics
