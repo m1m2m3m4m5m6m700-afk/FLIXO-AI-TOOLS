@@ -2,10 +2,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { CANONICAL_LOCALES } from './validation-utils.mjs';
 
 const root = process.cwd();
-const read = (path) => readFileSync(path, 'utf8');
 const errors = [];
 const fail = (message) => errors.push(message);
 const locales = CANONICAL_LOCALES;
+const read = (path) => readFileSync(path, 'utf8');
 
 const config = read(`${root}/src/lib/i18n/config.ts`);
 const expectedLocales = config.match(/export const LOCALES = \[([\s\S]*?)\] as const/)?.[1]?.match(/'([a-z]{2})'/g)?.map((v) => v.slice(1, -1)) ?? [];
@@ -45,7 +45,9 @@ const entryBody = (source, locale, marker) => {
   const end = next ? next.index : source.indexOf('\n};', start);
   return source.slice(start, end === -1 ? source.length : end);
 };
+
 const objectBody = (source, locale) => new RegExp(`\\b${locale}:\\s*\\{([\\s\\S]*?)\\}`, 'u').exec(source)?.[1] ?? '';
+const extractString = (entry, key) => entry.match(new RegExp(`${key}['"]([^'"\\n]*)['"]`, 'u'))?.[1] ?? '';
 
 for (const locale of locales) {
   const homeEntry = entryBody(home, locale, 'copy');
@@ -63,8 +65,8 @@ for (const locale of locales) {
 
 const englishHome = entryBody(home, 'en', 'copy');
 const englishQuick = entryBody(quickflow, 'en', 'q');
-const extractString = (entry, key) => entry.match(new RegExp(`${key}['\"]([^'\"\\n]*)['\"]`, 'u'))?.[1] ?? '';
 const englishLeakKeys = ['badge:', 'heroLead:', 'describe:', 'searchLabel:', 'searchPlaceholder:', 'smartPalette:', 'popular:', 'quickDropTitle:', 'dropChoose:', 'dropSupport:', 'suggestedTool:', 'openTool:', 'toolboxTitle:', 'empty:', 'finalTitle:', 'finalLead:', 'trySmart:', 'browserMeta:'];
+
 for (const locale of locales.filter((value) => value !== 'en')) {
   const entry = entryBody(home, locale, 'copy');
   for (const key of englishLeakKeys) {
@@ -77,7 +79,7 @@ for (const locale of locales.filter((value) => value !== 'en')) {
   for (const key of quickflowKeys) {
     const enValue = extractString(englishQuick, key);
     const localizedValue = extractString(quick, key);
-    if (enValue && localizedValue === enValue && !['resultAlt:'].includes(key)) fail(`QuickFlow ${locale}: English fallback in ${key}`);
+    if (enValue && localizedValue === enValue && key !== 'resultAlt:') fail(`QuickFlow ${locale}: English fallback in ${key}`);
   }
 }
 
@@ -91,7 +93,7 @@ for (const locale of locales) {
 }
 
 for (const locale of locales) {
-  const metadata = new RegExp(`${locale}:\\s*\\{[^}]*direction:\s*'([^']+)'`, 'u').exec(config)?.[1];
+  const metadata = new RegExp(`${locale}:\\s*\\{[^}]*direction:\\s*'([^']+)'`, 'u').exec(config)?.[1];
   const shouldBeRtl = locale === 'ar' || locale === 'ur';
   if ((metadata === 'rtl') !== shouldBeRtl) fail(`Direction mismatch for ${locale}: expected ${shouldBeRtl ? 'rtl' : 'ltr'}, found ${metadata ?? '<missing>'}`);
 }
@@ -108,7 +110,7 @@ const suspiciousTerms = ['Privacy-first', 'Browser-first', 'Instant start', 'Sma
 for (const locale of locales.filter((value) => value !== 'en')) {
   const entry = entryBody(home, locale, 'copy');
   for (const term of suspiciousTerms) {
-    if (entry.includes(`'${term}'`) || entry.includes(`\"${term}\"`)) fail(`Home ${locale}: suspicious English phrase leaked: ${term}`);
+    if (entry.includes(`'${term}'`) || entry.includes(`"${term}"`)) fail(`Home ${locale}: suspicious English phrase leaked: ${term}`);
   }
 }
 
