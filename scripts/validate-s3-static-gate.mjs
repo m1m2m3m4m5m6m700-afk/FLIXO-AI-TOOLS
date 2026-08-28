@@ -144,6 +144,13 @@ try {
     'src/lib/i18n/tool-seo-localization.ts',
     'src/routes/home-page.tsx',
     'src/routes/localized-quickflow.tsx',
+    'src/components/FlixoGlobalLogo.tsx',
+    'public/favicon.svg',
+    'public/flixo-logo.svg',
+    'public/logo.svg',
+    'public/flixo-logo.jpg',
+    'public/logo.jpg',
+    'public/flixo-logo.png',
   ]);
   const unexpected = changed.filter((file) => !allow.has(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);
