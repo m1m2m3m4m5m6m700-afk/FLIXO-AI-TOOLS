@@ -17,7 +17,7 @@ const requireSource = (source, pattern, message) => {
 // actual canonical URL is intentionally environment-dependent: PR/runtime CI
 // may have no public domain yet, while production indexing must have one.
 requireSource(sitemapSource, /getCanonicalSiteOrigin/u, 'Sitemap generator must depend on the canonical origin contract.');
-requireSource(sitemapSource, /TOOL_MANIFEST[\s\S]*filter\(\s*\(tool\)\s*=>\s*tool\.isReady\s*\)/u, 'Sitemap generator must derive tool URLs from ready TOOL_MANIFEST entries.');
+requireSource(sitemapSource, /TOOL_MANIFEST[\s\S]*filter(\s*\(tool\)\s*=>\s*tool\.isReady\s*)/u, 'Sitemap generator must derive tool URLs from ready TOOL_MANIFEST entries.');
 requireSource(sitemapSource, /USE_CASES\.map\(/u, 'Sitemap generator must emit canonical use-case URLs from USE_CASES.');
 requireSource(sitemapSource, /xmlns:xhtml=/u, 'Sitemap generator must emit hreflang alternates.');
 requireSource(sitemapSource, /hreflang="x-default"/u, 'Sitemap generator is missing x-default.');
@@ -48,7 +48,7 @@ if (!manifestSource.includes('"src": "/flixo-logo.svg"')) throw new Error('Manif
 const slugs = [...useCasesSource.matchAll(/slug: '([^']+)'/gu)].map((match) => match[1]);
 if (slugs.length === 0) throw new Error('No use-case slugs found for sitemap indexing.');
 
-let canonicalOrigin = null;
+let canonicalOrigin;
 try {
   canonicalOrigin = getCanonicalSiteOrigin();
 } catch (error) {
