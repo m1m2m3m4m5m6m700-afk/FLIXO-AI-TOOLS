@@ -194,7 +194,8 @@ jobs:
     name: S3 Static Gate
     runs-on: ubuntu-latest
     env:
-      VITE_SITE_URL: ${{ vars.SITE_URL }}
+      # PRs use the deterministic contract origin; production pushes must provide the real SITE_URL.
+      VITE_SITE_URL: ${{ github.event_name == 'pull_request' && 'https://canonical.test' || vars.SITE_URL }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -204,7 +205,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Validate canonical production origin
+      - name: Validate canonical origin contract
         run: npm run validate:site-origin
       - name: Run S3 static certification
         env:
@@ -217,7 +218,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, browser-smoke, s3-static-gate]
     env:
-      VITE_SITE_URL: ${{ vars.SITE_URL }}
+      # PR verification stays deterministic; production/main still requires the real SITE_URL variable.
+      VITE_SITE_URL: ${{ github.event_name == 'pull_request' && 'https://canonical.test' || vars.SITE_URL }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
