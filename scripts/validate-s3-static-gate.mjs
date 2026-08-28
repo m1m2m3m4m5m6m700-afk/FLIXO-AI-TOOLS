@@ -122,7 +122,7 @@ try {
     'scripts/validate-locale-contract.mjs', 'scripts/validate-localization-complete.mjs',
     'scripts/validate-indexing.mjs', 'scripts/validate-google-multilingual-seo.mjs',
     'scripts/node-resolver-loader.mjs', 'scripts/register-node-resolver.mjs', 'scripts/generate-robots.mjs',
-    'README.md', 'docs/CONSOLIDATION-LOG.md', 'docs/DEBT-REGISTER.md', 'package.json',
+    'README.md', 'README', 'docs/CONSOLIDATION-LOG.md', 'docs/DEBT-REGISTER.md', 'docs/engineering/pr-445-decomposition.md', 'package.json',
     'release/finalization/C5_PLACEHOLDER.md', 'release/finalization/README.md',
     'release/finalization/final_execution_manifest.json', 'release/finalization/final_verification.json',
     'src/main.tsx', 'src/home-modern.css', 'src/config/tool-manifest.ts', 'src/lib/i18n/config.ts',
