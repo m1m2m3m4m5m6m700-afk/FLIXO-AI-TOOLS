@@ -26,40 +26,42 @@ const readQuotedValueAfter = (source, marker) => {
 
 const extract = (source, key) => readQuotedValueAfter(source, key);
 const extractEntryValue = (body, key) => readQuotedValueAfter(body, key);
+const localeEntries = (source) => source.split('\n').map((line) => line.trim()).filter(Boolean);
 
 const extractEntry = (source, localeCode, marker) => {
-  const localePattern = new RegExp(`(?:^|\\n)\\s*${localeCode}\\s*:\\s*${marker}\\s*\\(\\{`, 'u');
-  const match = localePattern.exec(source);
-  if (!match) return '';
-  const markerStart = match.index + match[0].length - (`${marker}`.length + 3);
-  const bodyStart = markerStart + marker.length + 2;
-  const rest = source.slice(bodyStart);
-  const nextLocale = rest.search(/\n\s*[a-z]{2}\s*:\s*(?:copy|q)\s*\(\{/u);
-  if (nextLocale >= 0) return rest.slice(0, nextLocale);
-  const end = rest.search(/\n\s*\};/u);
-  return end >= 0 ? rest.slice(0, end) : rest;
+  const lines = localeEntries(source);
+  const prefix = `${localeCode}:`;
+  const markerPrefix = `${marker}({`;
+  const start = lines.findIndex((line) => line.startsWith(prefix) && line.slice(prefix.length).trimStart().startsWith(markerPrefix));
+  if (start < 0) return '';
+  const body = [];
+  for (let index = start; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (index > start && CANONICAL_LOCALES.some((code) => line.startsWith(`${code}:`))) break;
+    body.push(line);
+  }
+  return body.join('\n');
 };
 
 const extractObjectBody = (source, localeCode) => {
-  const localePattern = new RegExp(`(?:^|\\n)\\s*${localeCode}\\s*:\\s*\\{`, 'u');
-  const match = localePattern.exec(source);
-  if (!match) return '';
-  const objectStart = match.index + match[0].length - 1;
-  const rest = source.slice(objectStart + 1);
-  const nextLocale = rest.search(/\n\s*[a-z]{2}\s*:\s*\{/u);
-  if (nextLocale >= 0) return rest.slice(0, nextLocale);
-  const end = rest.search(/\n\s*\},?/u);
-  return end >= 0 ? rest.slice(0, end) : rest;
+  const lines = localeEntries(source);
+  const prefix = `${localeCode}:`;
+  const start = lines.findIndex((line) => line.startsWith(prefix) && line.slice(prefix.length).trimStart().startsWith('{'));
+  if (start < 0) return '';
+  const body = [];
+  for (let index = start; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (index > start && CANONICAL_LOCALES.some((code) => line.startsWith(`${code}:`))) break;
+    body.push(line);
+  }
+  return body.join('\n');
 };
 
 const readLocaleDirection = (config, localeCode) => {
-  const localePattern = new RegExp(`(?:^|\\n)\\s*${localeCode}\\s*:`, 'u');
-  const match = localePattern.exec(config);
-  if (!match) return '';
-  const start = match.index + match[0].length;
-  const end = config.indexOf('\n', start);
-  const entry = config.slice(start, end >= 0 ? end : config.length);
-  return readQuotedValueAfter(entry, 'direction:');
+  const lines = config.split('\n').map((line) => line.trim());
+  const prefix = `${localeCode}:`;
+  const line = lines.find((entry) => entry.startsWith(prefix));
+  return line ? readQuotedValueAfter(line, 'direction:') : '';
 };
 
 const en = read('src/lib/i18n/locales/en.ts');
