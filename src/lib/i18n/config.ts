@@ -2,11 +2,6 @@ const DEFAULT_RUNTIME_ORIGIN = 'http://127.0.0.1:3000';
 const configuredSiteOrigin =
   import.meta.env?.VITE_SITE_URL?.trim() || globalThis.process?.env?.VITE_SITE_URL?.trim();
 
-// Vercel exposes the project's production domain to deployments. It is safe
-// for canonical generation because it is the stable production domain rather
-// than the per-deployment preview hostname. Preview URLs are never selected.
-const vercelProductionOrigin = globalThis.process?.env?.VERCEL_PROJECT_PRODUCTION_URL?.trim();
-
 function normalizeOrigin(value: string): string {
   let parsed: URL;
   try {
@@ -32,43 +27,38 @@ function isBlockedDeploymentOrigin(origin: URL): boolean {
   );
 }
 
+/**
+ * Canonical SEO origin is deliberately independent from the deployment origin.
+ * Vercel URLs may host previews/runtime tests, but they must never silently
+ * become canonical metadata. Configure SITE_URL/VITE_SITE_URL when generating
+ * production SEO assets.
+ */
 export function getCanonicalSiteOrigin(): string {
-  const configured = configuredSiteOrigin || vercelProductionOrigin;
-
-  if (!configured) {
+  if (!configuredSiteOrigin) {
     throw new Error(
-      'VITE_SITE_URL is required for canonical SEO generation. Configure SITE_URL/VITE_SITE_URL for CI and non-Vercel production builds; Vercel deployments may use VERCEL_PROJECT_PRODUCTION_URL. Local test servers must use a separate runtime target such as LIGHTHOUSE_BASE_URL.',
+      'VITE_SITE_URL is required for canonical SEO generation. Configure SITE_URL/VITE_SITE_URL with the real public production origin. Deployment URLs are runtime targets only.',
     );
   }
 
-  const normalized = normalizeOrigin(configured);
+  const normalized = normalizeOrigin(configuredSiteOrigin);
   const origin = new URL(normalized);
 
   if (origin.protocol !== 'https:') {
     throw new Error('VITE_SITE_URL must use HTTPS.');
   }
 
-  // Never permit a deployment/preview hostname to become canonical. The only
-  // Vercel hostname accepted here is the platform-provided project production
-  // domain, and only when that exact value supplied the fallback.
   if (isBlockedDeploymentOrigin(origin)) {
-    const isAllowedVercelProductionDomain =
-      configured === vercelProductionOrigin &&
-      origin.hostname === 'flixoai.vercel.app';
-
-    if (!isAllowedVercelProductionDomain) {
-      throw new Error(
-        `VITE_SITE_URL must be the real public production origin, not a preview/deployment origin: ${origin.origin}`,
-      );
-    }
+    throw new Error(
+      `VITE_SITE_URL must be the real public production origin, not a preview/deployment origin: ${origin.origin}`,
+    );
   }
 
   return normalized;
 }
 
-// Browser runtime may operate without a build-time canonical origin during
-// local development. SEO/robots/sitemap/prerender generators must call
-// getCanonicalSiteOrigin() instead.
+// Runtime/browser target is intentionally separate from the canonical SEO
+// origin. This allows Vercel deployments and local previews to remain fully
+// testable without leaking their hostname into canonical/sitemap metadata.
 export const SITE_ORIGIN = configuredSiteOrigin
   ? normalizeOrigin(configuredSiteOrigin)
   : typeof window !== 'undefined'
