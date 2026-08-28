@@ -75,6 +75,8 @@ run('npm', ['run', 'build']);
 pass('production build');
 run('node', ['scripts/validate-google-multilingual-seo.mjs']);
 pass('Google multilingual SEO contract');
+run('node', ['scripts/validate-language-quality-strict.mjs']);
+pass('strict 20-locale localization quality');
 if (!sitemapExistedBeforeBuild && existsSync(generatedSitemapPath)) { unlinkSync(generatedSitemapPath); pass('removed build-generated public/sitemap.xml'); }
 if (!robotsExistedBeforeBuild && existsSync(generatedRobotsPath)) { unlinkSync(generatedRobotsPath); pass('removed build-generated public/robots.txt'); }
 
