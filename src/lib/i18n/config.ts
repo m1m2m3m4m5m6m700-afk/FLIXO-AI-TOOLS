@@ -1,4 +1,4 @@
-import { getCanonicalSiteOrigin, getRuntimeSiteOrigin } from '../../config/origin.config.ts';
+import { getRuntimeSiteOrigin } from '../../config/origin.config.ts';
 
 export { getCanonicalSiteOrigin } from '../../config/origin.config.ts';
 
@@ -21,5 +21,3 @@ export function normalizeLocale(value: string | null | undefined): Locale {
   const normalized = value?.toLowerCase().split('-')[0] ?? DEFAULT_LOCALE;
   return isLocale(normalized) ? normalized : DEFAULT_LOCALE;
 }
-
-void getCanonicalSiteOrigin;
