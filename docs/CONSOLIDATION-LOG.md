@@ -1,18 +1,71 @@
 # FLIXO Consolidation Log
 
-## Phase 0 — Current Baseline
+## Current State — 2026-08-28
 
-**Date:** 2026-08-23
+### CURRENT MAIN SHA
+`91606c19119ee62e4be8c23c2381568ac71b83ae`
+
+This section is the authoritative current-state snapshot for consolidation work. Older sections below are historical evidence only.
+
+### Current Repository State
+
+- Production source of truth: `main`.
+- Latest inspected `main` commit: `91606c19119ee62e4be8c23c2381568ac71b83ae`.
+- Open pull requests at inspection time: `0`.
+- Visible GitHub commit status for the exact SHA: `Vercel = success`.
+- GitHub Actions workflow runs returned for the exact SHA by the available workflow-run query: none.
+- Current open issues relevant to consolidation/debt triage include #127, #133, and #73.
+- No production-code change is part of the current baseline reset; this work begins with evidence and debt inventory.
+
+### Current Consolidation Direction
+
+```text
+Current baseline
+      ↓
+Debt register
+      ↓
+Single ToolDefinition contract
+      ↓
+Registry as source of truth
+      ↓
+Derived Router / SEO / Sitemap / Manifest / E2E
+      ↓
+Verification consolidation
+      ↓
+i18n ownership cleanup
+      ↓
+Dependency and artifact governance
+      ↓
+Shared test harness
+      ↓
+Final exact-SHA certification
+```
+
+### Evidence Classification
+
+The current Vercel success is deployment-provider evidence only. It does not by itself certify the repository, release contract, or browser promotion matrix. Missing workflow evidence remains missing evidence and must not be converted into a fabricated GREEN state.
+
+### Active Debt Register
+
+See `docs/DEBT-REGISTER.md` for the active debt inventory, priorities, actions, and exit criteria.
+
+---
+
+## Historical Record — Prior Consolidation State
+
+The following material is retained as historical evidence. It is not a current baseline.
+
+## Phase 0 — Historical Baseline (2026-08-23)
 
 ### BASE SHA
 `d543c3ce7a69c44731a19ab82f85051cfb891e6b`
 
-This is the `main` commit after PR #268 was merged.
+This was the `main` commit after PR #268 was merged.
 
 ### CI State
 - GitHub Actions workflow runs associated with BASE SHA: none returned by the available workflow-run query.
 - GitHub commit status: Vercel = failure due to external deployment quota (`api-deployments-free-per-day`).
-- Interpretation: deployment is unverified; this is not treated as application-code failure evidence.
+- Interpretation: deployment was unverified; this was not treated as application-code failure evidence.
 
 ### Open PR State
 - PR #263 — `test(i18n): enforce translation type boundary` — open, draft, not mergeable at baseline inspection.
@@ -31,7 +84,7 @@ This is the `main` commit after PR #268 was merged.
 - `src/lib/i18n/loader.ts`: `7b05a687b86321e8f730ae476bffdcc31adbb1aa`
 - `src/lib/i18n/home-loader.ts`: `91dfa775be19f78b2cb2460042281105a3dba747`
 - `src/lib/i18n/config.ts`: `2a4daeb12c0790500f8eb4f3d414e83da6de99f3`
-- `src/lib/i18n/index.ts`: `d42dc01084c2f08ef9367076bff3803ed08dbc5f`
+- `src/lib/i18n/index.ts`: `d42dc01084c2f08ef9367076bff3803ed08dbc5f8`
 
 #### data
 - `src/data/home-i18n.ts`: `ac30b2f3e26e2604e28ec21036fa014ee5ea6efe`
@@ -39,7 +92,7 @@ This is the `main` commit after PR #268 was merged.
 - `src/data/home-copy.ts`: `d740c139554fce3b851c286fbb879b3681af4c04`
 - `src/data/quickflow-i18n.ts`: `446912c1771857e383ba57d40d934826d04b2566`
 - `src/data/quickflow-locales.ts`: `445c37bca1d2d59e1aa7ccbd485816ec1477b458`
-- `src/data/tool-ui-i18n.ts`: `2a0b12879d9912f0a28db3236e4a39427b3bbe69`
+- `src/data/tool-ui-i18n.ts`: `2a0b12879d9912f0a28db3236e4a39427b3bbe69
 
 #### routes
 - `src/routes/__root.tsx`: `1fc7db6f43042b56bc4d56fbb45e343ccf227e21`
@@ -52,23 +105,23 @@ This is the `main` commit after PR #268 was merged.
 - `.github/workflows/browser-smoke.yml`: `ffedd8efd599df49b196874f5a1baa80819e99a9`
 - `.github/workflows/full-matrix-promotion.yml`: `4832b93ce15215ac646c15f1c007ccb974ad19bf`
 - `.github/workflows/localization-core.yml`: `eeea0ec2adeaf6a2688cf12cac2e0494602a957b`
-- `.github/workflows/claude-security-review.yml`: `94f0fa13d5a108d57aa1b1a05bfb5377cc54ad39`
+- `.github/workflows/claude-security-review.yml`: `94f0fa13d5a108d57aa1b1a05bfb5377cc54ad39
 
-### Phase 0 Change
+### Historical Phase 0 Change
 Add an evidence record only. No runtime or production code changes.
 
-### Expected Effect
+### Historical Expected Effect
 Freeze a known rollback point before Phase 1.
 
-### Validation
+### Historical Validation
 - BASE SHA known.
 - CI/status state known.
 - Open PR state known.
 - Sensitive file fingerprints recorded.
 - Rollback point = BASE SHA.
 
-### Rollback
-Reject/close the Phase 0 PR if required; `main` remains unchanged at BASE SHA.
+### Historical Rollback
+Reject/close the Phase 0 PR if required; `main` remained unchanged at BASE SHA.
 
 ---
 
@@ -81,21 +134,21 @@ Reject/close the Phase 0 PR if required; `main` remains unchanged at BASE SHA.
 - **Date:** 2026-08-23
 - **Source:** `main`
 - **Baseline CI state:** Code gates were exercised for PR-1; the only combined status reported on the PR-1 head was the external Vercel quota failure. No Vercel failure is treated as application-code GREEN or application-code failure.
-- **Current rollback point:** `aa945a4960a40a82c0588aa439d3be62a09ef3b8` before Phase 1.1 work.
+- **Current rollback point at that time:** `aa945a4960a40a82c0588aa439d3be62a09ef3b8` before Phase 1.1 work.
 
 > The current `main` SHA is authoritative for all new work. Older proposed SHAs are historical references only.
 
 ## Phase 1.1 Triage State
 
-The explicitly requested cleanup list `#91, #102, #103, #104, #106, #110, #111, #112, #113, #115` is not present in the current open-PR inventory, so no additional close action was performed.
+The explicitly requested cleanup list `#91, #102, #103, #104, #106, #110, #111, #112, #113, #115` was not present in the then-current open-PR inventory, so no additional close action was performed.
 
-Rebuild/isolation branches created from current `main`:
+Rebuild/isolation branches created from current `main` at that time:
 
 - `rebuild/seo-126-on-main` — rebuild candidate from #126.
 - `rebuild/governance-134-on-main` — rebuild candidate from #134.
 - `recharts-v3-test` — isolated Recharts v3 experiment from current `main`.
 
-## Repository State
+## Historical Repository State
 
 ### Sensitive files recorded
 
@@ -106,7 +159,7 @@ Rebuild/isolation branches created from current `main`:
 - `src/routes/` — route surface.
 - `.github/workflows/` — CI and promotion workflows.
 
-### Current architecture evidence
+### Historical architecture evidence
 
 - 20 configured locales are declared in `src/lib/i18n/config.ts`.
 - Locale dictionaries are loaded through `src/lib/i18n/loader.ts` with dynamic imports and Promise caching.
@@ -115,7 +168,7 @@ Rebuild/isolation branches created from current `main`:
 - `npm run check` is the repository/build gate; `npm run verify` is the release-oriented gate; `npm run test:e2e` is browser smoke.
 - Full browser promotion is defined separately in `.github/workflows/full-matrix-promotion.yml`.
 
-## Execution Register
+## Historical Execution Register
 
 | Work item | Phase | Status | Before SHA | Expected effect | Validation | Rollback |
 | --- | --- | --- | --- | --- | --- | --- |
