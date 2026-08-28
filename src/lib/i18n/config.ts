@@ -27,6 +27,7 @@ function isBlockedDeploymentOrigin(origin: URL): boolean {
     origin.hostname === 'localhost' ||
     origin.hostname === '127.0.0.1' ||
     origin.hostname === 'vercel.app' ||
+    origin.hostname.endsWith('.vercel.app') ||
     origin.hostname.endsWith('.vercel.sh')
   );
 }
