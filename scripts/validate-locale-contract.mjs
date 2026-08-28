@@ -27,42 +27,36 @@ const readQuotedValueAfter = (source, marker) => {
 const extract = (source, key) => readQuotedValueAfter(source, key);
 const extractEntryValue = (body, key) => readQuotedValueAfter(body, key);
 
-const findLocaleLineStart = (source, localeCode, signature) => {
-  const anchoredMarker = `\n  ${localeCode}: ${signature}`;
-  const anchoredIndex = source.indexOf(anchoredMarker);
-  if (anchoredIndex >= 0) return anchoredIndex + 1;
-  const beginningMarker = `${localeCode}: ${signature}`;
-  return source.indexOf(beginningMarker);
-};
-
 const extractEntry = (source, localeCode, marker) => {
-  const startIndex = findLocaleLineStart(source, localeCode, `${marker}({`);
-  if (startIndex < 0) return '';
-  const markerStart = source.indexOf(`${marker}({`, startIndex);
-  if (markerStart < 0) return '';
+  const localePattern = new RegExp(`(?:^|\\n)\\s*${localeCode}\\s*:\\s*${marker}\\s*\\(\\{`, 'u');
+  const match = localePattern.exec(source);
+  if (!match) return '';
+  const markerStart = match.index + match[0].length - (`${marker}`.length + 3);
   const bodyStart = markerStart + marker.length + 2;
   const rest = source.slice(bodyStart);
-  const nextLocale = rest.search(/\n\s*[a-z]{2}:\s*(?:copy|q)\(\{/u);
+  const nextLocale = rest.search(/\n\s*[a-z]{2}\s*:\s*(?:copy|q)\s*\(\{/u);
   if (nextLocale >= 0) return rest.slice(0, nextLocale);
   const end = rest.search(/\n\s*\};/u);
   return end >= 0 ? rest.slice(0, end) : rest;
 };
 
 const extractObjectBody = (source, localeCode) => {
-  const startIndex = findLocaleLineStart(source, localeCode, '{');
-  if (startIndex < 0) return '';
-  const objectStart = source.indexOf('{', startIndex + localeCode.length + 1);
-  if (objectStart < 0) return '';
+  const localePattern = new RegExp(`(?:^|\\n)\\s*${localeCode}\\s*:\\s*\\{`, 'u');
+  const match = localePattern.exec(source);
+  if (!match) return '';
+  const objectStart = match.index + match[0].length - 1;
   const rest = source.slice(objectStart + 1);
-  const nextLocale = rest.search(/\n\s*[a-z]{2}:\s*\{/u);
+  const nextLocale = rest.search(/\n\s*[a-z]{2}\s*:\s*\{/u);
   if (nextLocale >= 0) return rest.slice(0, nextLocale);
-  const end = rest.search(/\n\s*\};/u);
+  const end = rest.search(/\n\s*\},?/u);
   return end >= 0 ? rest.slice(0, end) : rest;
 };
 
 const readLocaleDirection = (config, localeCode) => {
-  const start = config.indexOf(`${localeCode}:`);
-  if (start < 0) return '';
+  const localePattern = new RegExp(`(?:^|\\n)\\s*${localeCode}\\s*:`, 'u');
+  const match = localePattern.exec(config);
+  if (!match) return '';
+  const start = match.index + match[0].length;
   const end = config.indexOf('\n', start);
   const entry = config.slice(start, end >= 0 ? end : config.length);
   return readQuotedValueAfter(entry, 'direction:');
