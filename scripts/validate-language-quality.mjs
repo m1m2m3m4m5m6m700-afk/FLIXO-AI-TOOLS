@@ -133,7 +133,7 @@ for (const locale of locales.filter((value) => value !== 'en')) {
   const entry = entryBody(home, locale, 'copy');
   const reviewed = reviewedHomePhraseReplacements[locale] ?? {};
   for (const term of suspiciousTerms) {
-    const rawLocalized = entry.includes(`'${term}'`) || entry.includes(`\"${term}\"`);
+    const rawLocalized = entry.includes(`'${term}'`) || entry.includes(`"${term}"`);
     if (!rawLocalized) continue;
     const replacement = reviewed[term];
     if (replacement && overrides.includes(replacement)) continue;
