@@ -1,40 +1,32 @@
 import { lazy } from 'react';
 import { createRoute } from '@tanstack/react-router';
+import { getImageCompressorHeadSeo } from '../lib/seo/image-compressor-head';
 import { rootRoute } from './__root';
+
+const seo = getImageCompressorHeadSeo('ar');
 
 export const arImageCompressorRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/ar/image-compressor',
   head: () => ({
     meta: [
-      { title: 'ضغط الصور أونلاين مجانًا | FLIXO' },
-      { name: 'description', content: 'اضغط صور JPG وPNG وWebP أونلاين داخل المتصفح. قلّل حجم الملفات وتحكم في الجودة والمقاسات بدون رفع الصور إلى خادم.' },
-      { name: 'robots', content: 'index,follow,max-image-preview:large' },
-      { property: 'og:title', content: 'ضغط الصور أونلاين مجانًا | FLIXO' },
-      { property: 'og:description', content: 'قلّل حجم الصور داخل المتصفح مع التحكم في الجودة والمقاسات.' },
+      { title: seo.title },
+      { name: 'description', content: seo.description },
+      { name: 'robots', content: 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1' },
+      { property: 'og:title', content: seo.title },
+      { property: 'og:description', content: seo.description },
       { property: 'og:type', content: 'website' },
-      { property: 'og:url', content: '/ar/image-compressor' },
-      { name: 'twitter:card', content: 'summary' },
+      { property: 'og:url', content: seo.url },
+      { name: 'twitter:card', content: 'summary_large_image' },
     ],
     links: [
-      { rel: 'canonical', href: '/ar/image-compressor' },
-      { rel: 'alternate', hrefLang: 'en', href: '/en/image-compressor' },
-      { rel: 'alternate', hrefLang: 'ar', href: '/ar/image-compressor' },
-      { rel: 'alternate', hrefLang: 'x-default', href: '/en/image-compressor' },
+      { rel: 'canonical', href: seo.url },
+      ...seo.alternates.map((alternate) => ({ rel: 'alternate', hrefLang: alternate.languageTag, href: alternate.url })),
+      { rel: 'alternate', hrefLang: 'x-default', href: seo.xDefaultUrl },
     ],
     scripts: [{
       type: 'application/ld+json',
-      children: JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'WebApplication',
-        name: 'FLIXO ضاغط الصور',
-        url: '/ar/image-compressor',
-        applicationCategory: 'MultimediaApplication',
-        operatingSystem: 'Any',
-        description: 'اضغط صور JPG وPNG وWebP أونلاين داخل المتصفح.',
-        inLanguage: 'ar',
-        isAccessibleForFree: true,
-      }),
+      children: JSON.stringify(seo.structuredData).replaceAll('<', '\\u003c'),
     }],
   }),
   component: lazy(() =>

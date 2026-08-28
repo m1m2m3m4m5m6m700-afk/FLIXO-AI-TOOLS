@@ -4,6 +4,8 @@ const isCi = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 const isS4RuntimeGate = process.env.S4_RUNTIME_GATE === 'true';
 const isS4ExternalServer = process.env.S4_EXTERNAL_SERVER === 'true';
 const useProductionServer = isCi || process.env.PLAYWRIGHT_SERVER === 'production';
+const canonicalOrigin = process.env.VITE_SITE_URL?.trim() || 'https://flexoai.vercel.app';
+const testBaseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://127.0.0.1:3000';
 
 export default defineConfig({
   testDir: './tests',
@@ -17,7 +19,7 @@ export default defineConfig({
     ? [['github'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]]
     : [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]],
   use: {
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://127.0.0.1:3000',
+    baseURL: testBaseUrl,
     serviceWorkers: 'block',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
@@ -48,9 +50,14 @@ export default defineConfig({
           command: useProductionServer
             ? 'npm run build && npm run preview -- --host 127.0.0.1 --port 3000'
             : 'npm run dev',
-          url: 'http://127.0.0.1:3000',
+          url: testBaseUrl,
           timeout: 120_000,
           reuseExistingServer: !isCi,
+          env: {
+            ...process.env,
+            VITE_SITE_URL: canonicalOrigin,
+            PLAYWRIGHT_TEST_BASE_URL: testBaseUrl,
+          },
         },
       }),
 });

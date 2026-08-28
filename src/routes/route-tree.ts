@@ -30,6 +30,9 @@ import { imageToolRoutes } from './image-tools';
 import { indexRoute } from './index';
 import { localizedToolRoute } from './localized-tool';
 import { useCaseRoute } from './use-case';
+import { privacyRoute } from './privacy';
+import { termsRoute } from './terms';
+import { cookiesRoute } from './cookies';
 import { adminLoginRoute } from './admin-login';
 import { Route as adminRoute } from './admin';
 
@@ -39,6 +42,9 @@ export const routeChildren = [
   localizedHomeRoute,
   adminLoginRoute,
   adminRoute,
+  privacyRoute,
+  termsRoute,
+  cookiesRoute,
   enImageCompressorRoute,
   arImageCompressorRoute,
   enQuickFlowRoute,

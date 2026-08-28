@@ -1,98 +1,84 @@
 import { createRoute } from '@tanstack/react-router';
+import { getToolSeo } from '../lib/seo/tool-seo';
 import { getToolConfigByPath } from '../config/tools';
 import { rootRoute } from './__root';
 
-const mergerSplitterTool = getToolConfigByPath('/en/pdf-merger-splitter');
-if (!mergerSplitterTool) throw new Error('Missing ToolConfig for /en/pdf-merger-splitter');
-if (!mergerSplitterTool.isReady) throw new Error('PDF Merger & Splitter route is not ready');
+function requireTool(path: string) {
+  const tool = getToolConfigByPath(path);
+  if (!tool) throw new Error(`Missing ToolConfig for ${path}`);
+  if (!tool.isReady) throw new Error(`Tool route is not ready: ${path}`);
+  return tool;
+}
+
+function toolHead(locale: 'en', toolId: string) {
+  const seo = getToolSeo(locale, toolId);
+  if (!seo) throw new Error(`Missing SEO manifest for ${locale}/${toolId}`);
+  return {
+    meta: [
+      { title: seo.title },
+      { name: 'description', content: seo.description },
+      { name: 'robots', content: 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1' },
+      { property: 'og:title', content: seo.title },
+      { property: 'og:description', content: seo.description },
+      { property: 'og:type', content: 'website' },
+      { property: 'og:url', content: seo.url },
+      { property: 'og:locale', content: seo.languageTag },
+    ],
+    links: [
+      { rel: 'canonical', href: seo.url },
+      ...seo.alternates.map((alternate) => ({ rel: 'alternate', hrefLang: alternate.languageTag, href: alternate.url })),
+      { rel: 'alternate', hrefLang: 'x-default', href: seo.xDefaultUrl },
+    ],
+    scripts: [{ type: 'application/ld+json', children: JSON.stringify(seo.structuredData).replaceAll('<', '\\u003c') }],
+  };
+}
+
+const mergerSplitterTool = requireTool('/en/pdf-merger-splitter');
 const MergerSplitterComponent = mergerSplitterTool.component;
 
 export const enPdfMergerSplitterRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/en/pdf-merger-splitter',
-  head: () => ({ meta: [
-    { title: 'PDF Merger & Splitter | FLIXO' },
-    { name: 'description', content: 'Merge, reorder, rotate, delete, and split PDF pages locally in your browser.' },
-    { name: 'robots', content: 'index,follow,max-image-preview:large' },
-    { property: 'og:title', content: 'PDF Merger & Splitter | FLIXO' },
-    { property: 'og:description', content: 'Merge, reorder, rotate, delete, and split PDF pages locally in your browser.' },
-    { property: 'og:type', content: 'website' },
-  ] }),
+  head: () => toolHead('en', 'pdf-merger-splitter'),
   component: () => <MergerSplitterComponent />,
 });
 
-const compressorTool = getToolConfigByPath('/en/pdf-compressor');
-if (!compressorTool) throw new Error('Missing ToolConfig for /en/pdf-compressor');
-if (!compressorTool.isReady) throw new Error('PDF Compressor route is not ready');
+const compressorTool = requireTool('/en/pdf-compressor');
 const CompressorComponent = compressorTool.component;
 
 export const enPdfCompressorRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/en/pdf-compressor',
-  head: () => ({ meta: [
-    { title: 'PDF Compressor | FLIXO' },
-    { name: 'description', content: 'Compress PDF files locally in your browser by re-encoding pages.' },
-    { name: 'robots', content: 'index,follow,max-image-preview:large' },
-    { property: 'og:title', content: 'PDF Compressor | FLIXO' },
-    { property: 'og:description', content: 'Compress PDF files locally in your browser by re-encoding pages.' },
-    { property: 'og:type', content: 'website' },
-  ] }),
+  head: () => toolHead('en', 'pdf-compressor'),
   component: () => <CompressorComponent />,
 });
 
-const imageToPdfTool = getToolConfigByPath('/en/image-to-pdf');
-if (!imageToPdfTool) throw new Error('Missing ToolConfig for /en/image-to-pdf');
-if (!imageToPdfTool.isReady) throw new Error('Image to PDF route is not ready');
+const imageToPdfTool = requireTool('/en/image-to-pdf');
 const ImageToPdfComponent = imageToPdfTool.component;
 
 export const enImageToPdfRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/en/image-to-pdf',
-  head: () => ({ meta: [
-    { title: 'Image to PDF | FLIXO' },
-    { name: 'description', content: 'Convert JPG, PNG, and WEBP images into a PDF locally in your browser.' },
-    { name: 'robots', content: 'index,follow,max-image-preview:large' },
-    { property: 'og:title', content: 'Image to PDF | FLIXO' },
-    { property: 'og:description', content: 'Convert JPG, PNG, and WEBP images into a PDF locally in your browser.' },
-    { property: 'og:type', content: 'website' },
-  ] }),
+  head: () => toolHead('en', 'image-to-pdf'),
   component: () => <ImageToPdfComponent />,
 });
 
-const unlockProtectTool = getToolConfigByPath('/en/pdf-unlock-protect');
-if (!unlockProtectTool) throw new Error('Missing ToolConfig for /en/pdf-unlock-protect');
-if (!unlockProtectTool.isReady) throw new Error('PDF Unlock & Protect route is not ready');
+const unlockProtectTool = requireTool('/en/pdf-unlock-protect');
 const UnlockProtectComponent = unlockProtectTool.component;
 
 export const enPdfUnlockProtectRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/en/pdf-unlock-protect',
-  head: () => ({ meta: [
-    { title: 'PDF Unlock & Protect | FLIXO' },
-    { name: 'description', content: 'Password-protect or unlock PDF files locally in your browser.' },
-    { name: 'robots', content: 'index,follow,max-image-preview:large' },
-    { property: 'og:title', content: 'PDF Unlock & Protect | FLIXO' },
-    { property: 'og:description', content: 'Password-protect or unlock PDF files locally in your browser.' },
-    { property: 'og:type', content: 'website' },
-  ] }),
+  head: () => toolHead('en', 'pdf-unlock-protect'),
   component: () => <UnlockProtectComponent />,
 });
 
-const pdfToTextTool = getToolConfigByPath('/en/pdf-to-text');
-if (!pdfToTextTool) throw new Error('Missing ToolConfig for /en/pdf-to-text');
-if (!pdfToTextTool.isReady) throw new Error('PDF to Text route is not ready');
+const pdfToTextTool = requireTool('/en/pdf-to-text');
 const PdfToTextComponent = pdfToTextTool.component;
 
 export const enPdfToTextRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/en/pdf-to-text',
-  head: () => ({ meta: [
-    { title: 'PDF to Text | FLIXO' },
-    { name: 'description', content: 'Extract selectable PDF text locally with page-level search and TXT/JSON export.' },
-    { name: 'robots', content: 'index,follow,max-image-preview:large' },
-    { property: 'og:title', content: 'PDF to Text | FLIXO' },
-    { property: 'og:description', content: 'Extract selectable PDF text locally with page-level search and TXT/JSON export.' },
-    { property: 'og:type', content: 'website' },
-  ] }),
+  head: () => toolHead('en', 'pdf-to-text'),
   component: () => <PdfToTextComponent />,
 });

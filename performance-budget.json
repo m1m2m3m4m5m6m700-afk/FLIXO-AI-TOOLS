@@ -2,6 +2,6 @@
   "criticalJavascriptBytes": 921600,
   "javascriptBytes": 3145728,
   "cssBytes": 1048576,
-  "totalAssetBytes": 5242880,
-  "notes": "Critical JavaScript is measured from assets directly referenced by dist/index.html. Existing JavaScript/total ceilings remain unchanged; deferred workers are excluded from the critical JavaScript budget."
+  "initialPayloadBytes": 5242880,
+  "notes": "Critical JavaScript is measured from assets directly referenced by dist/index.html. The initial payload ceiling covers only assets required by the initial HTML response; lazy tool/locale chunks and deferred workers are reported separately."
 }

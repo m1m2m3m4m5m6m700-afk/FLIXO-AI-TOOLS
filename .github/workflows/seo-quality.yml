@@ -1,0 +1,64 @@
+name: SEO Quality
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: seo-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  fast-content-quality:
+    name: SEO Content Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Validate people-first content signals
+        run: node --import=./scripts/register-node-resolver.mjs scripts/validate-content-quality.mjs
+
+  full-crawl-certification:
+    name: Full Crawl Certification
+    needs: fast-content-quality
+    runs-on: ubuntu-latest
+    env:
+      VITE_SITE_URL: ${{ vars.SITE_URL }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run validate:site-origin
+      - run: npm run build
+      - name: Validate generated crawler HTML
+        run: npm run validate:prerender
+      - name: Validate generated content quality
+        run: node --import=./scripts/register-node-resolver.mjs scripts/validate-prerendered-content.mjs
+      - name: Verify sitemap is generated
+        shell: bash
+        run: |
+          test -s public/sitemap.xml
+          grep -q 'hreflang' public/sitemap.xml
+      - name: Publish crawl evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: seo-crawl-evidence
+          path: |
+            public/sitemap.xml
+            dist/**/index.html
+          if-no-files-found: error
+          retention-days: 14

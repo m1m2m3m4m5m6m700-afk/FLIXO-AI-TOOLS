@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  VITE_SITE_URL: ${{ vars.SITE_URL }}
+
 concurrency:
   group: root-cause-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

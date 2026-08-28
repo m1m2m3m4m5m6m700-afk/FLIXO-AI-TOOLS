@@ -1,11 +1,17 @@
 import assert from 'node:assert/strict';
-import {
+
+// Unit/contract execution is allowed to run outside GitHub Actions. Supply the
+// approved production origin explicitly before importing modules that construct
+// canonical SEO metadata. This is a test harness contract, not a runtime fallback.
+process.env.VITE_SITE_URL ??= 'https://flexoai.vercel.app';
+
+const {
   DEFAULT_LOCALE,
   LOCALES,
   LOCALE_METADATA,
   isLocale,
   normalizeLocale,
-} from '../src/lib/i18n/config.ts';
+} = await import('../src/lib/i18n/config.ts');
 
 assert.equal(DEFAULT_LOCALE, 'en');
 assert.equal(LOCALES.length, 20);

@@ -8,6 +8,8 @@ export type ToolConfig = {
   readonly category: 'Images' | 'AI' | 'Other';
   readonly isReady: boolean;
   readonly aliases?: readonly string[];
+  readonly relatedToolIds?: readonly string[];
+  readonly prerequisiteToolIds?: readonly string[];
   readonly component: LazyExoticComponent<ComponentType>;
 };
 

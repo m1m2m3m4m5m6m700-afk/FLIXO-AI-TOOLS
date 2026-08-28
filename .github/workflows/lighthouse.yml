@@ -1,0 +1,96 @@
+name: Lighthouse Route Matrix
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lighthouse-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    name: Discover Lighthouse Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Derive matrix from TOOL_MANIFEST × LOCALES
+        id: matrix
+        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-lighthouse-matrix.mjs
+
+  lighthouse:
+    name: Lighthouse — ${{ matrix.family }} / ${{ matrix.locale }}
+    needs: discover
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    env:
+      # Production canonical origin is configuration, never a deployment hostname.
+      # Set the repository variable SITE_URL to the real public production origin.
+      VITE_SITE_URL: ${{ vars.SITE_URL }}
+      LIGHTHOUSE_BASE_URL: http://127.0.0.1:3000
+      LIGHTHOUSE_FAMILY: ${{ matrix.family }}
+      LIGHTHOUSE_LOCALE: ${{ matrix.locale }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Validate production origin configuration
+        run: npm run validate:site-origin
+      - run: npm run build
+      - name: Start production preview
+        shell: bash
+        run: |
+          nohup npm run preview > /tmp/flixo-preview.log 2>&1 &
+          for i in {1..60}; do
+            if curl --fail --silent "${LIGHTHOUSE_BASE_URL}/${LIGHTHOUSE_LOCALE}/" > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/flixo-preview.log
+          exit 1
+      - name: Run complete route-family Lighthouse shard
+        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/run-lighthouse-shard.mjs
+      - name: Upload Lighthouse evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: lighthouse-${{ matrix.family }}-${{ matrix.locale }}
+          path: diagnostics/lighthouse/${{ matrix.family }}/${{ matrix.locale }}/
+          if-no-files-found: error
+          retention-days: 14
+
+  summary:
+    name: Lighthouse Matrix Summary
+    if: ${{ always() }}
+    needs: [discover, lighthouse]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write matrix summary
+        run: |
+          {
+            echo '## Lighthouse Route Matrix'
+            echo
+            echo 'The matrix is generated from TOOL_MANIFEST and LOCALES; no route is hand-listed.'
+            echo 'Each ready tool is tested in every canonical locale, grouped by tool family to stay below the GitHub Actions 256-job matrix limit.'
+            echo "discover=${{ needs.discover.result }}"
+            echo "lighthouse=${{ needs.lighthouse.result }}"
+          } >> "$GITHUB_STEP_SUMMARY"

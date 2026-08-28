@@ -1,11 +1,13 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { LOCALES, LOCALE_METADATA, SITE_ORIGIN, X_DEFAULT_LOCALE } from '../src/lib/i18n/config.ts';
+import { LOCALES, LOCALE_METADATA, getCanonicalSiteOrigin, X_DEFAULT_LOCALE } from '../src/lib/i18n/config.ts';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
 import { USE_CASES } from '../src/lib/seo/use-cases.ts';
 
+const SITE_ORIGIN = getCanonicalSiteOrigin();
+
 const normalizePath = (path) => {
   const value = path.startsWith('/') ? path : `/${path}`;
-  return value === '/' ? '/' : value.replace(/\/+$/, '');
+  return value === '/' ? '/' : value.replace(/\/+$/u, '');
 };
 
 const localePrefixPattern = new RegExp(`^/(?:${LOCALES.join('|')})(?=/|$)`);
@@ -13,10 +15,10 @@ const localePrefixPattern = new RegExp(`^/(?:${LOCALES.join('|')})(?=/|$)`);
 const localizedPath = (locale, path) => {
   const normalized = normalizePath(path);
   const withoutLocale = normalized.replace(localePrefixPattern, '');
-  return `/${locale}${withoutLocale || '/'}`.replace(/\/{2,}/g, '/');
+  return `/${locale}${withoutLocale || '/'}`.replace(/\/{2,}/gu, '/');
 };
 
-const absoluteUrl = (path) => new URL(normalizePath(path), SITE_ORIGIN).toString();
+const absoluteUrl = (path) => new URL(normalizePath(path), `${SITE_ORIGIN}/`).toString();
 
 const readyTools = TOOL_MANIFEST.filter((tool) => tool.isReady);
 const toolPaths = readyTools.map((tool) => tool.path);

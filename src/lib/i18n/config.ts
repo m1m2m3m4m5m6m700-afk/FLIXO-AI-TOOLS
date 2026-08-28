@@ -1,8 +1,60 @@
-const DEFAULT_SITE_ORIGIN = 'https://flexoai.vercel.app';
+const DEFAULT_RUNTIME_ORIGIN = 'http://127.0.0.1:3000';
 const configuredSiteOrigin =
   import.meta.env?.VITE_SITE_URL?.trim() || globalThis.process?.env?.VITE_SITE_URL?.trim();
 
-export const SITE_ORIGIN = (configuredSiteOrigin || DEFAULT_SITE_ORIGIN).replace(/\/+$/u, '');
+function normalizeOrigin(value: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`VITE_SITE_URL must be an absolute URL: ${value}`);
+  }
+
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error('VITE_SITE_URL must not contain credentials, query parameters, or fragments.');
+  }
+
+  return parsed.origin.replace(/\/+$/u, '');
+}
+
+function isBlockedPreviewOrigin(origin: URL): boolean {
+  return (
+    origin.hostname === 'localhost' ||
+    origin.hostname === '127.0.0.1' ||
+    origin.hostname === 'vercel.app' ||
+    origin.hostname.endsWith('.vercel.app') ||
+    origin.hostname.endsWith('.vercel.sh')
+  );
+}
+
+export function getCanonicalSiteOrigin(): string {
+  if (!configuredSiteOrigin) {
+    throw new Error(
+      'VITE_SITE_URL is required for canonical SEO generation. Local test servers must use a separate runtime target such as LIGHTHOUSE_BASE_URL.',
+    );
+  }
+
+  const normalized = normalizeOrigin(configuredSiteOrigin);
+  const origin = new URL(normalized);
+
+  if (origin.protocol !== 'https:') {
+    throw new Error('VITE_SITE_URL must use HTTPS.');
+  }
+
+  if (isBlockedPreviewOrigin(origin)) {
+    throw new Error(`VITE_SITE_URL must be the real public production origin, not a preview/deployment origin: ${origin.origin}`);
+  }
+
+  return normalized;
+}
+
+// Browser runtime may operate without a build-time canonical origin during local development.
+// SEO/robots/sitemap/prerender generators must call getCanonicalSiteOrigin() instead.
+export const SITE_ORIGIN = configuredSiteOrigin
+  ? normalizeOrigin(configuredSiteOrigin)
+  : typeof window !== 'undefined'
+    ? window.location.origin
+    : DEFAULT_RUNTIME_ORIGIN;
 
 export const LOCALES = ['en','ar','es','fr','de','ru','zh','hi','id','ur','ja','pt','it','ko','nl','pl','tr','vi','th','sv'] as const;
 export type Locale = (typeof LOCALES)[number];

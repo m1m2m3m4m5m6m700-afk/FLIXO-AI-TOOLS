@@ -20,6 +20,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Canonical production origin is a repository variable, never a Vercel deployment URL.
+  VITE_SITE_URL: ${{ vars.SITE_URL }}
+
 jobs:
   typecheck:
     name: TypeScript
@@ -237,7 +241,7 @@ jobs:
             echo
             echo 'All diagnostic jobs, including the secret-history scan, were green before this gate ran.'
             echo 'S3 Static Gate passed before canonical verification.'
-            echo 'The full 22×3 browser matrix is promoted to the independent Full Matrix Promotion workflow.'
+            echo 'The full manifest-derived Lighthouse route matrix is independent release evidence.'
             echo 'Build performance budget validation and baseline reporting passed before promotion.'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -271,7 +275,7 @@ jobs:
             echo 'Browser Smoke validates critical file workflows and the initial-route lazy-loading boundary before canonical verification.'
             echo 'Build performance budget and a reproducible asset baseline are validated before promotion.'
             echo 'Bundle size inventory is published as a diagnostic artifact for evidence-driven optimization.'
-            echo 'The full 22×3 browser matrix runs independently as promotion/release evidence.'
+            echo 'The full manifest-derived Lighthouse route matrix runs independently as promotion/release evidence.'
             echo 'Diagnostics explain failures; Canonical Verification is the single PR/application gate.'
             echo 'S3 Static Gate is a prerequisite for Canonical Verification.'
             echo 'Socket is intentionally skipped when SOCKET_SECURITY_API_KEY is not configured.'

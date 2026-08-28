@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { compressPdf, type PdfCompressionLevel, type PdfCompressionResult } from './engine';
+import type { PdfCompressionLevel, PdfCompressionResult } from './engine';
 
 function formatBytes(bytes: number) {
   if (!bytes) return '0 B';
@@ -22,6 +22,7 @@ export function PdfCompressorTool() {
     if (!file) return;
     setBusy(true); setError(''); setResult(null);
     try {
+      const { compressPdf } = await import('./engine');
       const next = await compressPdf(file, { level });
       setResult(next);
       setDownloadUrl((current) => { if (current) URL.revokeObjectURL(current); return URL.createObjectURL(next.blob); });
