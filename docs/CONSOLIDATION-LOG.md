@@ -92,7 +92,7 @@ This was the `main` commit after PR #268 was merged.
 - `src/data/home-copy.ts`: `d740c139554fce3b851c286fbb879b3681af4c04`
 - `src/data/quickflow-i18n.ts`: `446912c1771857e383ba57d40d934826d04b2566`
 - `src/data/quickflow-locales.ts`: `445c37bca1d2d59e1aa7ccbd485816ec1477b458`
-- `src/data/tool-ui-i18n.ts`: `2a0b12879d9912f0a28db3236e4a39427b3bbe69
+- `src/data/tool-ui-i18n.ts`: `2a0b12879d9912f0a28db3236e4a39427b3bbe69`
 
 #### routes
 - `src/routes/__root.tsx`: `1fc7db6f43042b56bc4d56fbb45e343ccf227e21`
@@ -105,7 +105,7 @@ This was the `main` commit after PR #268 was merged.
 - `.github/workflows/browser-smoke.yml`: `ffedd8efd599df49b196874f5a1baa80819e99a9`
 - `.github/workflows/full-matrix-promotion.yml`: `4832b93ce15215ac646c15f1c007ccb974ad19bf`
 - `.github/workflows/localization-core.yml`: `eeea0ec2adeaf6a2688cf12cac2e0494602a957b`
-- `.github/workflows/claude-security-review.yml`: `94f0fa13d5a108d57aa1b1a05bfb5377cc54ad39
+- `.github/workflows/claude-security-review.yml`: `94f0fa13d5a108d57aa1b1a05bfb5377cc54ad39`
 
 ### Historical Phase 0 Change
 Add an evidence record only. No runtime or production code changes.
