@@ -41,13 +41,13 @@ if (!sitemapSource.includes('const useCasePaths = USE_CASES.flatMap')) {
 if (!sitemapSource.includes('/use-cases/${useCase.slug}')) {
   throw new Error('Sitemap generator does not include use-case slugs in canonical URLs.');
 }
-if (!sitemapSource.includes(`xmlns:xhtml=\"http://www.w3.org/1999/xhtml\"`)) {
+if (!sitemapSource.includes('xmlns:xhtml="http://www.w3.org/1999/xhtml"')) {
   throw new Error('Sitemap generator is missing the hreflang namespace.');
 }
-if (!sitemapSource.includes(`xhtml:link rel=\"alternate\" hreflang=`)) {
+if (!sitemapSource.includes('xhtml:link rel="alternate" hreflang=')) {
   throw new Error('Sitemap generator does not emit hreflang alternates.');
 }
-if (!sitemapSource.includes(`hreflang=\"x-default\"`)) {
+if (!sitemapSource.includes('hreflang="x-default"')) {
   throw new Error('Sitemap generator is missing x-default.');
 }
 
