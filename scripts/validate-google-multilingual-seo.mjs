@@ -114,7 +114,7 @@ const manifestJson = JSON.parse(manifest);
 if (manifestJson.start_url !== '/en') fail('manifest must start from the canonical localized English route /en.');
 pass('indexability and social discovery contract');
 
-const localeFiles = locales.map((locale) => `src/i18n/locales/${locale}.ts`);
+const localeFiles = locales.map((locale) => `src/lib/i18n/locales/${locale}.ts`);
 const missingLocaleFiles = localeFiles.filter((file) => !existsSync(file));
 if (missingLocaleFiles.length) fail(`missing locale resource files: ${missingLocaleFiles.join(', ')}`);
 pass('20 locale resource files present');
