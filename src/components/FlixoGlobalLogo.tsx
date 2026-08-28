@@ -24,7 +24,7 @@ const imageStyle: CSSProperties = {
   width: '100%',
   height: '100%',
   borderRadius: 16,
-  objectFit: 'cover',
+  objectFit: 'contain',
 };
 
 export function FlixoGlobalLogo() {
@@ -46,7 +46,7 @@ export function FlixoGlobalLogo() {
       }}
     >
       <img
-        src="/flixo-logo.jpg"
+        src="/flixo-logo.svg"
         alt="FLIXO AI Tools"
         width={256}
         height={256}
