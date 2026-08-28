@@ -1,11 +1,12 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { LOCALES, LOCALE_METADATA, SITE_ORIGIN, X_DEFAULT_LOCALE } from '../src/lib/i18n/config.ts';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
+import { getLocalizedToolPath } from '../src/lib/routing/route-resolver.ts';
 import { USE_CASES } from '../src/lib/seo/use-cases.ts';
 
 const normalizePath = (path) => {
   const value = path.startsWith('/') ? path : `/${path}`;
-  return value === '/' ? '/' : value.replace(/\/+$/, '');
+  return value === '/' ? '/' : value.replace(/\/+$/u, '');
 };
 
 const localePrefixPattern = new RegExp(`^/(?:${LOCALES.join('|')})(?=/|$)`);
@@ -13,15 +14,17 @@ const localePrefixPattern = new RegExp(`^/(?:${LOCALES.join('|')})(?=/|$)`);
 const localizedPath = (locale, path) => {
   const normalized = normalizePath(path);
   const withoutLocale = normalized.replace(localePrefixPattern, '');
-  return `/${locale}${withoutLocale || '/'}`.replace(/\/{2,}/g, '/');
+  return `/${locale}${withoutLocale || '/'}`.replace(/\/{2,}/gu, '/');
 };
 
-const absoluteUrl = (path) => new URL(normalizePath(path), SITE_ORIGIN).toString();
+const localizedToolPath = (locale, tool) => getLocalizedToolPath(tool, locale);
+const absoluteUrl = (path) => new URL(normalizePath(path), `${SITE_ORIGIN}/`).toString();
 
 const readyTools = TOOL_MANIFEST.filter((tool) => tool.isReady);
-const toolPaths = readyTools.map((tool) => tool.path);
-const useCasePaths = USE_CASES.map((useCase) => `/use-cases/${useCase.slug}`);
-const pagePaths = ['/', ...toolPaths, ...useCasePaths];
+const toolPaths = readyTools.flatMap((tool) => LOCALES.map((locale) => localizedToolPath(locale, tool)));
+const useCasePaths = USE_CASES.flatMap((useCase) => LOCALES.map((locale) => localizedPath(locale, `/use-cases/${useCase.slug}`)));
+const rootPaths = LOCALES.map((locale) => `/${locale}`);
+const localizedUrls = [...rootPaths, ...toolPaths, ...useCasePaths];
 
 const unique = (values) => [...new Set(values)];
 
@@ -34,10 +37,6 @@ const alternateLinks = (path) => {
   );
   return links.join('\n');
 };
-
-const localizedUrls = unique(
-  pagePaths.flatMap((path) => LOCALES.map((locale) => localizedPath(locale, path))),
-);
 
 const urls = unique(localizedUrls);
 const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${urls
