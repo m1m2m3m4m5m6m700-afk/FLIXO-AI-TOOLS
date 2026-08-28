@@ -1,4 +1,8 @@
-export const SITE_ORIGIN = 'https://flexoai.vercel.app';
+const DEFAULT_SITE_ORIGIN = 'https://flexoai.vercel.app';
+const configuredSiteOrigin =
+  import.meta.env?.VITE_SITE_URL?.trim() || globalThis.process?.env?.VITE_SITE_URL?.trim();
+
+export const SITE_ORIGIN = (configuredSiteOrigin || DEFAULT_SITE_ORIGIN).replace(/\/+$/u, '');
 
 export const LOCALES = ['en','ar','es','fr','de','ru','zh','hi','id','ur','ja','pt','it','ko','nl','pl','tr','vi','th','sv'] as const;
 export type Locale = (typeof LOCALES)[number];

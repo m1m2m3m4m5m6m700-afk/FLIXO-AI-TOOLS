@@ -5,7 +5,9 @@ import { join, relative, resolve } from 'node:path';
 const root = resolve(process.cwd());
 const dist = join(root, 'dist');
 const generatedSitemapPath = join(root, 'public/sitemap.xml');
+const generatedRobotsPath = join(root, 'public/robots.txt');
 const sitemapExistedBeforeBuild = existsSync(generatedSitemapPath);
+const robotsExistedBeforeBuild = existsSync(generatedRobotsPath);
 const fail = (message) => {
   console.error(`S3 FAIL: ${message}`);
   process.exit(1);
@@ -37,8 +39,6 @@ for (const icon of manifest.icons) {
 }
 pass('manifest validation');
 
-// Brand contract: one exact master artwork, all logo entry points converge on it,
-// and obsolete duplicate raster assets are forbidden from production-facing references.
 const canonicalMasterPath = join(root, 'public/flixo-logo.jpg');
 const canonicalLogoPath = join(root, 'public/flixo-logo.svg');
 const logoAliasPath = join(root, 'public/logo.svg');
@@ -87,6 +87,10 @@ pass('production build');
 if (!sitemapExistedBeforeBuild && existsSync(generatedSitemapPath)) {
   unlinkSync(generatedSitemapPath);
   pass('removed build-generated public/sitemap.xml');
+}
+if (!robotsExistedBeforeBuild && existsSync(generatedRobotsPath)) {
+  unlinkSync(generatedRobotsPath);
+  pass('removed build-generated public/robots.txt');
 }
 
 const outputDir = existsSync(join(dist, 'client')) ? join(dist, 'client') : dist;
@@ -168,8 +172,10 @@ try {
     'scripts/validate-s4-e2e.mjs',
     'scripts/validate-language-quality.mjs',
     'scripts/validate-language-quality-strict.mjs',
+    'scripts/validate-indexing.mjs',
     'scripts/node-resolver-loader.mjs',
     'scripts/register-node-resolver.mjs',
+    'scripts/generate-robots.mjs',
     'README.md',
     'docs/CONSOLIDATION-LOG.md',
     'docs/DEBT-REGISTER.md',
@@ -181,9 +187,11 @@ try {
     'src/main.tsx',
     'src/home-modern.css',
     'src/config/tool-manifest.ts',
+    'src/lib/i18n/config.ts',
     'src/lib/i18n/home-loader.ts',
     'src/lib/i18n/locale-quality-overrides.ts',
     'src/lib/i18n/tool-seo-localization.ts',
+    'src/routes/__root.tsx',
     'src/routes/home-page.tsx',
     'src/routes/localized-quickflow.tsx',
     'src/components/FlixoGlobalLogo.tsx',
@@ -192,6 +200,8 @@ try {
     'public/logo.svg',
     'public/flixo-logo.jpg',
     'public/logo.jpg',
+    'index.html',
+    '.env.example',
   ]);
   const unexpected = changed.filter((file) => !allow.has(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);
