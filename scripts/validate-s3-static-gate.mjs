@@ -11,6 +11,7 @@ const robotsExistedBeforeBuild = existsSync(generatedRobotsPath);
 const fail = (message) => { console.error(`S3 FAIL: ${message}`); process.exit(1); };
 const pass = (message) => console.log(`S3 PASS: ${message}`);
 const run = (command, args = []) => execFileSync(command, args, { cwd: root, stdio: 'inherit' });
+const runNodeScript = (script, args = []) => run('node', ['--import=./scripts/register-node-resolver.mjs', script, ...args]);
 
 const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 if (packageJson.type !== 'module') fail('package.json must declare type=module');
@@ -73,9 +74,9 @@ run('npm', ['run', 'lint']);
 pass('ESLint');
 run('npm', ['run', 'build']);
 pass('production build');
-run('node', ['scripts/validate-google-multilingual-seo.mjs']);
+runNodeScript('scripts/validate-google-multilingual-seo.mjs');
 pass('Google multilingual SEO contract');
-run('node', ['scripts/validate-language-quality-strict.mjs']);
+runNodeScript('scripts/validate-language-quality-strict.mjs');
 pass('strict 20-locale localization quality');
 if (!sitemapExistedBeforeBuild && existsSync(generatedSitemapPath)) { unlinkSync(generatedSitemapPath); pass('removed build-generated public/sitemap.xml'); }
 if (!robotsExistedBeforeBuild && existsSync(generatedRobotsPath)) { unlinkSync(generatedRobotsPath); pass('removed build-generated public/robots.txt'); }
