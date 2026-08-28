@@ -70,10 +70,12 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
     });
   }, [localizedTools, query, selectedCategory]);
 
-  if (!copy) return <main className="home-shell" lang={locale} dir={LOCALE_METADATA[locale].direction} aria-busy="true" />;
+  const localeMetadata = LOCALE_METADATA[locale];
+
+  if (!copy) return <main className="home-shell" lang={localeMetadata.languageTag} dir={localeMetadata.direction} aria-busy="true" />;
 
   return (
-    <main className="home-shell" lang={copy.language} dir={copy.dir}>
+    <main className="home-shell" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>
       {paletteOpen && <SmartCommandPalette onClose={() => setPaletteOpen(false)} />}
       <nav className="home-nav" aria-label={copy.ariaPrimary}>
         <div className="home-container home-nav-inner">
