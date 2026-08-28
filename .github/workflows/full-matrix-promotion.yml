@@ -45,9 +45,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-${{ matrix.browser }}-
       - run: npm ci --prefer-offline --no-audit
-      - name: Install ${{ matrix.browser }} if cache missed
+      - name: Install Playwright browser
         if: ${{ steps.playwright-cache.outputs.cache-hit != 'true' }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Ensure Playwright system dependencies
+        if: ${{ steps.playwright-cache.outputs.cache-hit == 'true' }}
+        run: npx playwright install-deps ${{ matrix.browser }}
       - name: Run shard ${{ matrix.shard }}/4 on ${{ matrix.browser }}
         run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/4
       - name: Upload E2E diagnostics
