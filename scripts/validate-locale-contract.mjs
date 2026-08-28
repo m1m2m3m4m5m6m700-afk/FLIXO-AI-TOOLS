@@ -58,10 +58,12 @@ const extractObjectBody = (source, localeCode) => {
 };
 
 const readLocaleDirection = (config, localeCode) => {
-  const lines = config.split('\n').map((line) => line.trim());
-  const prefix = `${localeCode}:`;
-  const line = lines.find((entry) => entry.startsWith(prefix));
-  return line ? readQuotedValueAfter(line, 'direction:') : '';
+  const marker = `${localeCode}: {`;
+  const start = config.indexOf(marker);
+  if (start < 0) return '';
+  const end = config.indexOf('}', start);
+  const entry = config.slice(start, end >= 0 ? end : config.length);
+  return readQuotedValueAfter(entry, 'direction:');
 };
 
 const en = read('src/lib/i18n/locales/en.ts');
