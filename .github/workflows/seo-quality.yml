@@ -31,6 +31,7 @@ jobs:
   full-crawl-certification:
     name: Full Crawl Certification
     needs: fast-content-quality
+    if: ${{ vars.SITE_URL != '' }}
     runs-on: ubuntu-latest
     env:
       VITE_SITE_URL: ${{ vars.SITE_URL }}
@@ -62,3 +63,33 @@ jobs:
             dist/**/index.html
           if-no-files-found: error
           retention-days: 14
+
+  production-seo-configuration:
+    name: Production SEO Configuration
+    needs: fast-content-quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require canonical origin when configured for production
+        shell: bash
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          if [ -z "$SITE_URL" ]; then
+            echo "SEO PRODUCTION CERTIFICATION DEFERRED: SITE_URL is not configured."
+            echo "Runtime, E2E, Lighthouse and content-quality checks remain active."
+            echo "Production canonical/sitemap certification will activate automatically when Repository Variable SITE_URL is configured."
+            exit 0
+          fi
+          case "$SITE_URL" in
+            https://*.vercel.app|http://*.vercel.app|https://*.vercel.sh|http://*.vercel.sh)
+              echo "ERROR: SITE_URL must not use a Vercel deployment domain: $SITE_URL" >&2
+              exit 1
+              ;;
+            https://*|http://*)
+              echo "PRODUCTION SEO ORIGIN CONFIGURED: $SITE_URL"
+              ;;
+            *)
+              echo "ERROR: SITE_URL must be an absolute HTTP(S) origin: $SITE_URL" >&2
+              exit 1
+              ;;
+          esac
