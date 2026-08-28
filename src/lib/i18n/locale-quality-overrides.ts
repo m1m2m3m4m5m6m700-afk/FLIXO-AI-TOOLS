@@ -30,7 +30,7 @@ export const HOME_COPY_OVERRIDES: Readonly<Partial<Record<Locale, HomeCopyOverri
       ['Webbläsare först', 'Lokal bearbetning där verktyget stöder det.'],
       ['Snabb start', 'Direkta vägar utan onödig introduktion.'],
       ['Smart dirigering', 'Vanliga uppgifter går direkt till det bästa tillgängliga verktyget.'],
-    ],
+    ] as const,
   }),
 });
 
