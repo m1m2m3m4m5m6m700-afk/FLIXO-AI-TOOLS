@@ -41,9 +41,8 @@ jobs:
       max-parallel: 12
       matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
     env:
-      # Production canonical origin is configuration, never a deployment hostname.
-      # Set the repository variable SITE_URL to the real public production origin.
-      VITE_SITE_URL: ${{ vars.SITE_URL }}
+      # Deployment/runtime target is intentionally separate from canonical SEO.
+      # Vercel deployment URLs are valid targets for browser testing.
       LIGHTHOUSE_BASE_URL: http://127.0.0.1:3000
       LIGHTHOUSE_FAMILY: ${{ matrix.family }}
       LIGHTHOUSE_LOCALE: ${{ matrix.locale }}
@@ -54,10 +53,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Validate production origin configuration
-        run: npm run validate:site-origin
-      - run: npm run build
-      - name: Start production preview
+      - name: Build browser-test artifact without production SEO generation
+        run: npm run build:runtime
+      - name: Start runtime preview
         shell: bash
         run: |
           nohup npm run preview > /tmp/flixo-preview.log 2>&1 &
@@ -84,13 +82,15 @@ jobs:
     needs: [discover, lighthouse]
     runs-on: ubuntu-latest
     steps:
-      - name: Write matrix summary
+      - name: Enforce matrix result
         run: |
+          if [[ "${{ needs.discover.result }}" != "success" || "${{ needs.lighthouse.result }}" != "success" ]]; then
+            echo "Lighthouse Route Matrix FAILED."
+            exit 1
+          fi
           {
             echo '## Lighthouse Route Matrix'
             echo
-            echo 'The matrix is generated from TOOL_MANIFEST and LOCALES; no route is hand-listed.'
-            echo 'Each ready tool is tested in every canonical locale, grouped by tool family to stay below the GitHub Actions 256-job matrix limit.'
-            echo "discover=${{ needs.discover.result }}"
-            echo "lighthouse=${{ needs.lighthouse.result }}"
+            echo 'Matrix source: TOOL_MANIFEST × LOCALES.'
+            echo 'Runtime target: local preview; canonical SEO origin is never required by this browser test.'
           } >> "$GITHUB_STEP_SUMMARY"
