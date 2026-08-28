@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 
-// Contract tests need a deterministic HTTPS origin without depending on the
-// production deployment domain. This is test infrastructure, not a runtime fallback.
-process.env.VITE_SITE_URL ??= 'https://canonical.test';
+// Contract tests use an explicit test/runtime origin; production canonical config remains separate.
+process.env.VITE_TEST_ORIGIN ??= 'https://canonical.test';
+process.env.VITE_RUNTIME_ORIGIN ??= process.env.VITE_TEST_ORIGIN;
 
 const {
   DEFAULT_LOCALE,
@@ -37,4 +37,4 @@ for (const locale of LOCALES) {
 
 await import('./test-seo-contract.mjs');
 
-console.log('i18n contract tests passed with deterministic test origin.');
+console.log('i18n contract tests passed with deterministic test/runtime origins.');

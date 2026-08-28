@@ -4,6 +4,7 @@ const isCi = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 const isS4RuntimeGate = process.env.S4_RUNTIME_GATE === 'true';
 const isS4ExternalServer = process.env.S4_EXTERNAL_SERVER === 'true';
 const useProductionServer = !isCi && process.env.PLAYWRIGHT_SERVER === 'production';
+const testOrigin = process.env.VITE_TEST_ORIGIN || 'https://canonical.test';
 
 export default defineConfig({
   testDir: './tests',
@@ -55,7 +56,10 @@ export default defineConfig({
             ...process.env,
             ...(useProductionServer
               ? {}
-              : { VITE_SITE_URL: process.env.VITE_SITE_URL || 'https://canonical.test' }),
+              : {
+                  VITE_RUNTIME_ORIGIN: process.env.VITE_RUNTIME_ORIGIN || testOrigin,
+                  VITE_TEST_ORIGIN: process.env.VITE_TEST_ORIGIN || testOrigin,
+                }),
           },
         },
       }),

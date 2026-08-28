@@ -18,46 +18,62 @@ concurrency:
 
 jobs:
   e2e:
-    name: Full Matrix — ${{ matrix.browser }} — shard ${{ matrix.shard }}/4
+    name: Full Matrix — ${{ matrix.tool }} — ${{ matrix.browser }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: 12
       matrix:
         browser: [chromium, firefox, webkit]
-        shard: [1, 2, 3, 4]
-        shards: [4]
-    env:
-      CI: 'true'
-      VITE_SITE_URL: https://canonical.test
+        tool: [
+          image-compressor,
+          background-remover,
+          image-upscaler,
+          image-converter,
+          ai-image-generator,
+          object-remover,
+          watermark-remover,
+          image-cropper,
+          image-to-svg,
+          image-ocr,
+          photo-colorizer,
+          background-blur,
+          passport-photo-maker,
+          watermark-adder,
+          meme-generator,
+          collage-maker,
+          image-effects,
+          exif-cleaner,
+          svg-optimizer,
+          mockup-generator,
+          seed,
+          pix,
+          localization
+        ]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Cache Playwright browser binaries
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-${{ matrix.browser }}-
-      - run: npm ci --prefer-offline --no-audit
-      - name: Install Playwright browser
-        if: ${{ steps.playwright-cache.outputs.cache-hit != 'true' }}
-        run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Ensure Playwright system dependencies
-        if: ${{ steps.playwright-cache.outputs.cache-hit == 'true' }}
-        run: npx playwright install-deps ${{ matrix.browser }}
-      - name: Run shard ${{ matrix.shard }}/4 on ${{ matrix.browser }}
-        run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/4
+      - run: npm ci
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Resolve test specification
+        id: spec
+        shell: bash
+        run: |
+          set -euo pipefail
+          spec="tests/${{ matrix.tool }}.spec.ts"
+          if [[ "${{ matrix.tool }}" == "localization" ]]; then
+            spec="tests/localization-smoke.spec.ts"
+          fi
+          echo "spec=$spec" >> "$GITHUB_OUTPUT"
+      - name: Run ${{ matrix.tool }} E2E on ${{ matrix.browser }}
+        run: npx playwright test "${{ steps.spec.outputs.spec }}" --project=${{ matrix.browser }}
       - name: Upload E2E diagnostics
         if: ${{ failure() }}
         uses: actions/upload-artifact@v6
         with:
-          name: full-matrix-${{ matrix.browser }}-shard-${{ matrix.shard }}
+          name: full-matrix-${{ matrix.tool }}-${{ matrix.browser }}
           path: |
             playwright-report/
             test-results/
@@ -85,6 +101,6 @@ jobs:
             echo 'Full browser matrix passed for:'
             echo '${{ github.sha }}'
             echo
-            echo '23 suites × 3 browsers = 69 certified browser test selections, distributed across 12 parallel shards.'
+            echo '23 suites × 3 browsers = 69 E2E jobs completed successfully.'
             echo 'Certification is bound to the exact commit SHA above.'
           } >> "$GITHUB_STEP_SUMMARY"

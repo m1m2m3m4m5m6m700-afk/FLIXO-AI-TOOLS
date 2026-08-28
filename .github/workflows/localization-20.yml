@@ -24,7 +24,7 @@ on:
 
 concurrency:
   group: localization-20-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -35,7 +35,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: 20
       matrix:
         locale:
           - en
@@ -64,7 +63,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --prefer-offline --no-audit
+      - run: npm ci
       - name: Validate ${{ matrix.locale }} translation contract
         env:
           FLIXO_LOCALE: ${{ matrix.locale }}
