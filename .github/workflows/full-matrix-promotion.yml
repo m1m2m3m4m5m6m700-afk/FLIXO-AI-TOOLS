@@ -37,6 +37,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - name: Cache Playwright browser binaries
+        id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
@@ -45,6 +46,7 @@ jobs:
             ${{ runner.os }}-playwright-${{ matrix.browser }}-
       - run: npm ci --prefer-offline --no-audit
       - name: Install ${{ matrix.browser }} if cache missed
+        if: ${{ steps.playwright-cache.outputs.cache-hit != 'true' }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Run shard ${{ matrix.shard }}/4 on ${{ matrix.browser }}
         run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/4
