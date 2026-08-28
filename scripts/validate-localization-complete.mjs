@@ -28,8 +28,8 @@ function compare(a, b, locale, area, path = '') {
   if (typeof a !== typeof b) { issue(locale, 'structural', area, `type mismatch at ${path}`); return; }
   if (Array.isArray(a)) {
     if (!Array.isArray(b)) { issue(locale, 'structural', area, `array expected at ${path}`); return; }
-    for (let i = 0; i < b.length; i++) if (typeof b[i] !== typeof a[Math.min(i, Math.max(0, a.length - 1))]) issue(locale, 'structural', area, `array item type mismatch at ${path}[${i}]`);
-    for (let i = 0; i < Math.min(a.length, b.length); i++) compare(a[i], b[i], locale, area, `${path}[${i}]`);
+    for (let i = 0; i < b.length; i += 1) if (typeof b[i] !== typeof a[Math.min(i, Math.max(0, a.length - 1))]) issue(locale, 'structural', area, `array item type mismatch at ${path}[${i}]`);
+    for (let i = 0; i < Math.min(a.length, b.length); i += 1) compare(a[i], b[i], locale, area, `${path}[${i}]`);
     return;
   }
   if (isObject(a)) {
@@ -47,9 +47,55 @@ function compare(a, b, locale, area, path = '') {
   if (placeholders(a) !== placeholders(b)) issue(locale, 'placeholder', area, `placeholder mismatch at ${path}`);
   if (tags(a) !== tags(b)) issue(locale, 'html', area, `HTML structure mismatch at ${path}`);
 }
-function entry(source, locale, marker) { return new RegExp(`\\b${locale}:\\s*${marker}\\(\\{([\\s\\S]*?)\\}\\)`, 'u').exec(source)?.[1] ?? ''; }
-function value(body, key) { return body.match(new RegExp(`${key}\\s*['"]([^'"]*)['"]`, 'u'))?.[1] ?? ''; }
-function keys(body, required, locale, area) { if (!body) { issue(locale, 'missing', area, 'missing locale entry'); return; } for (const k of required) if (!body.includes(k)) issue(locale, 'missing', area, `missing ${k}`); }
+function localeBlock(source, localeCode, marker) {
+  const prefix = `${localeCode}:`;
+  const markerPrefix = `${marker}({`;
+  const lines = source.split('\n');
+  const start = lines.findIndex((line) => {
+    const trimmed = line.trimStart();
+    const prefixIndex = trimmed.indexOf(prefix);
+    return prefixIndex === 0 && trimmed.slice(prefix.length).trimStart().startsWith(markerPrefix);
+  });
+  if (start < 0) return '';
+  const body = [];
+  for (let i = start; i < lines.length; i += 1) {
+    const line = lines[i].trimStart();
+    if (i > start && CANONICAL_LOCALES.some((code) => line.startsWith(`${code}:`))) break;
+    body.push(lines[i]);
+  }
+  return body.join('\n');
+}
+function objectBlock(source, localeCode) {
+  const prefix = `${localeCode}:`;
+  const lines = source.split('\n');
+  const start = lines.findIndex((line) => {
+    const trimmed = line.trimStart();
+    return trimmed.startsWith(prefix) && trimmed.slice(prefix.length).trimStart().startsWith('{');
+  });
+  if (start < 0) return '';
+  const body = [];
+  for (let i = start; i < lines.length; i += 1) {
+    const line = lines[i].trimStart();
+    if (i > start && CANONICAL_LOCALES.some((code) => line.startsWith(`${code}:`))) break;
+    body.push(lines[i]);
+  }
+  return body.join('\n');
+}
+function quotedValue(source, key) {
+  const index = source.indexOf(key);
+  if (index < 0) return '';
+  let i = index + key.length;
+  while (i < source.length && /\s/u.test(source[i])) i += 1;
+  if (source[i] !== ':' && source[i] !== '=') return '';
+  i += 1;
+  while (i < source.length && /\s/u.test(source[i])) i += 1;
+  const quote = source[i];
+  if (quote !== "'" && quote !== '"') return '';
+  i += 1;
+  const end = source.indexOf(quote, i);
+  return end >= 0 ? source.slice(i, end) : '';
+}
+function entryValue(body, key) { return quotedValue(body, key); }
 
 const config = await importTs('src/lib/i18n/config.ts');
 const runtimeLocales = [...(config.LOCALES ?? [])];
@@ -64,30 +110,83 @@ const quickKeys = ['missing:', 'back:', 'eyebrow:', 'runLabel:', 'choose:', 'pro
 const uiKeys = ['notFound:', 'loading:', 'language:', 'about:', 'howTo:', 'features:', 'navigation:', 'home:', 'ready:', 'waiting:', 'workspace:', 'favorite:', 'english:', 'arabic:', 'command:', 'openCommandPalette:', 'upload:', 'reset:', 'exportLabel:', 'localWorkspace:'];
 const toolSeoFiles = [];
 const toolsDir = join(root, 'src/tools');
-if (existsSync(toolsDir)) for (const tool of readdirSync(toolsDir, { withFileTypes: true })) { if (!tool.isDirectory() || tool.name.startsWith('_')) continue; const dir = join(toolsDir, tool.name, 'seo'); if (existsSync(dir)) for (const f of readdirSync(dir)) if (/^[a-z]{2}\.ts$/u.test(f)) toolSeoFiles.push(`src/tools/${tool.name}/seo/${f}`); }
+if (existsSync(toolsDir)) for (const tool of readdirSync(toolsDir, { withFileTypes: true })) {
+  if (!tool.isDirectory() || tool.name.startsWith('_')) continue;
+  const dir = join(toolsDir, tool.name, 'seo');
+  if (existsSync(dir)) for (const f of readdirSync(dir)) if (/^[a-z]{2}\.ts$/u.test(f)) toolSeoFiles.push(`src/tools/${tool.name}/seo/${f}`);
+}
 const toolIds = [...new Set(toolSeoFiles.map((f) => f.split('/')[2]))];
 for (const locale of targets) {
   const metadata = config.LOCALE_METADATA?.[locale];
   if (!metadata) issue(locale, 'direction', 'runtime', 'missing locale metadata');
-  else { if (metadata.direction !== directionFor(locale)) issue(locale, 'direction', 'runtime', `expected ${directionFor(locale)}, found ${metadata.direction}`); if (!metadata.languageTag) issue(locale, 'direction', 'runtime', 'missing languageTag'); }
+  else if (metadata.direction !== directionFor(locale)) issue(locale, 'direction', 'runtime', `expected ${directionFor(locale)}, found ${metadata.direction}`);
+  if (!metadata?.languageTag) issue(locale, 'direction', 'runtime', 'missing languageTag');
+
   const path = `src/lib/i18n/locales/${locale}.ts`;
   if (!existsSync(join(root, path))) issue(locale, 'missing', 'dictionary', `missing ${path}`);
   else {
     const localized = (await importTs(path))[locale];
     if (!localized) issue(locale, 'missing', 'dictionary', `missing ${locale} export`);
-    else { if (localized.locale !== locale) issue(locale, 'structural', 'dictionary', `locale identity is ${localized.locale}`); if (localized.direction !== directionFor(locale)) issue(locale, 'direction', 'dictionary', `expected ${directionFor(locale)}, found ${localized.direction}`); compare(en, localized, locale, 'core dictionary'); const script = scriptRules[locale]; if (script && locale !== 'en') for (const leaf of leaves(localized)) { const text = normalize(leaf.value); const letters = [...text].filter((c) => /\p{L}/u.test(c)); if (letters.length >= 10 && !script.test(text) && !allowedSame.has(text) && !nonTranslatable.has(leaf.path.split('.').at(-1) ?? '')) issue(locale, 'fallback', 'script', `expected ${locale} script absent at ${leaf.path}`); } }
+    else {
+      if (localized.locale !== locale) issue(locale, 'structural', 'dictionary', `locale identity is ${localized.locale}`);
+      if (localized.direction !== directionFor(locale)) issue(locale, 'direction', 'dictionary', `expected ${directionFor(locale)}, found ${localized.direction}`);
+      compare(en, localized, locale, 'core dictionary');
+      const script = scriptRules[locale];
+      if (script && locale !== 'en') for (const leaf of leaves(localized)) {
+        const text = normalize(leaf.value);
+        const letters = [...text].filter((c) => /\p{L}/u.test(c));
+        if (letters.length >= 10 && !script.test(text) && !allowedSame.has(text) && !nonTranslatable.has(leaf.path.split('.').at(-1) ?? '')) issue(locale, 'fallback', 'script', `expected ${locale} script absent at ${leaf.path}`);
+      }
+    }
   }
-  const home = entry(homeSource, locale, 'copy'); keys(home, homeKeys, locale, 'Home');
-  const quick = entry(quickSource, locale, 'q'); keys(quick, quickKeys, locale, 'QuickFlow');
-  const ui = new RegExp(`\\b${locale}:\\s*\\{([\\s\\S]*?)\\n\\s*\\},?`, 'u').exec(uiSource)?.[1] ?? ''; keys(ui, uiKeys, locale, 'Tool UI');
-  if (locale !== 'en') { for (const k of homeKeys) { const a = value(entry(homeSource, 'en', 'copy'), k); const b = value(home, k); if (a && a === b && !allowedSame.has(b)) issue(locale, 'fallback', 'Home', `English fallback in ${k}`); if (a && placeholders(a) !== placeholders(b)) issue(locale, 'placeholder', 'Home', `placeholder mismatch in ${k}`); if (a && tags(a) !== tags(b)) issue(locale, 'html', 'Home', `HTML mismatch in ${k}`); } for (const k of quickKeys) { const a = value(entry(quickSource, 'en', 'q'), k); const b = value(quick, k); if (a && a === b && k !== 'resultAlt:' && !allowedSame.has(b)) issue(locale, 'fallback', 'QuickFlow', `English fallback in ${k}`); if (a && placeholders(a) !== placeholders(b)) issue(locale, 'placeholder', 'QuickFlow', `placeholder mismatch in ${k}`); } }
+
+  const home = localeBlock(homeSource, locale, 'copy');
+  const quick = localeBlock(quickSource, locale, 'q');
+  const ui = objectBlock(uiSource, locale);
+  for (const key of homeKeys) if (!home.includes(key)) issue(locale, 'missing', 'Home', `missing ${key}`);
+  for (const key of quickKeys) if (!quick.includes(key)) issue(locale, 'missing', 'QuickFlow', `missing ${key}`);
+  for (const key of uiKeys) if (!ui.includes(key)) issue(locale, 'missing', 'Tool UI', `missing ${key}`);
+
+  if (locale !== 'en') {
+    const homeEn = localeBlock(homeSource, 'en', 'copy');
+    const quickEn = localeBlock(quickSource, 'en', 'q');
+    for (const k of homeKeys) {
+      const a = entryValue(homeEn, k); const b = entryValue(home, k);
+      if (a && a === b && !allowedSame.has(b)) issue(locale, 'fallback', 'Home', `English fallback in ${k}`);
+      if (a && placeholders(a) !== placeholders(b)) issue(locale, 'placeholder', 'Home', `placeholder mismatch in ${k}`);
+      if (a && tags(a) !== tags(b)) issue(locale, 'html', 'Home', `HTML mismatch in ${k}`);
+    }
+    for (const k of quickKeys) {
+      const a = entryValue(quickEn, k); const b = entryValue(quick, k);
+      if (a && a === b && k !== 'resultAlt:' && !allowedSame.has(b)) issue(locale, 'fallback', 'QuickFlow', `English fallback in ${k}`);
+      if (a && placeholders(a) !== placeholders(b)) issue(locale, 'placeholder', 'QuickFlow', `placeholder mismatch in ${k}`);
+    }
+  }
+
   const seoForLocale = toolSeoFiles.filter((f) => f.endsWith(`/${locale}.ts`));
   if (seoForLocale.length !== toolIds.length) issue(locale, 'seo', 'tool SEO', `coverage ${seoForLocale.length}/${toolIds.length}`);
-  for (const file of seoForLocale) { try { const mod = await importTs(file); const localized = mod[locale] ?? mod.default ?? Object.values(mod).find((v) => isObject(v)); if (!localized) issue(locale, 'seo', file, `missing ${locale} export`); const enFile = file.replace(/\/[^/]+\.ts$/u, '/en.ts'); if (localized && existsSync(join(root, enFile))) { const em = await importTs(enFile); const source = em.en ?? em.default ?? Object.values(em).find((v) => isObject(v)); if (source) compare(source, localized, locale, file); } } catch (e) { issue(locale, 'runtime', file, e instanceof Error ? e.message : String(e)); } }
+  for (const file of seoForLocale) {
+    try {
+      const mod = await importTs(file);
+      const localized = mod[locale] ?? mod.default ?? Object.values(mod).find((v) => isObject(v));
+      if (!localized) issue(locale, 'seo', file, `missing ${locale} export`);
+      const enFile = file.replace(/\/[^/]+\.ts$/u, '/en.ts');
+      if (localized && existsSync(join(root, enFile))) {
+        const em = await importTs(enFile);
+        const source = em.en ?? em.default ?? Object.values(em).find((v) => isObject(v));
+        if (source) compare(source, localized, locale, file);
+      }
+    } catch (e) { issue(locale, 'runtime', file, e instanceof Error ? e.message : String(e)); }
+  }
+
   const seoEntries = [...seoRegistry.matchAll(/Object\.freeze\(\{([^}]*)\}\)/gu)];
-  for (let i = 0; i < seoEntries.length; i++) if (!new RegExp(`\\b${locale}:`, 'u').test(seoEntries[i][1])) issue(locale, 'seo', 'SEO registry', `entry ${i + 1} missing ${locale}`);
+  for (let i = 0; i < seoEntries.length; i += 1) if (!seoEntries[i][1].includes(`${locale}:`)) issue(locale, 'seo', 'SEO registry', `entry ${i + 1} missing ${locale}`);
 }
-const summary = targets.map((locale) => { const mine = errors.filter((e) => e.locale === locale); return { locale, missing: mine.filter((e) => e.kind === 'missing').length, fallback: mine.filter((e) => e.kind === 'fallback').length, placeholder: mine.filter((e) => e.kind === 'placeholder').length, html: mine.filter((e) => e.kind === 'html').length, seo: mine.filter((e) => e.kind === 'seo').length, direction: mine.filter((e) => e.kind === 'direction').length, structural: mine.filter((e) => ['structural', 'orphan'].includes(e.kind)).length, runtime: mine.filter((e) => ['runtime', 'registry'].includes(e.kind)).length, eligible: mine.length === 0 }; });
+
+const summary = targets.map((locale) => {
+  const mine = errors.filter((e) => e.locale === locale);
+  return { locale, missing: mine.filter((e) => e.kind === 'missing').length, fallback: mine.filter((e) => e.kind === 'fallback').length, placeholder: mine.filter((e) => e.kind === 'placeholder').length, html: mine.filter((e) => e.kind === 'html').length, seo: mine.filter((e) => e.kind === 'seo').length, direction: mine.filter((e) => e.kind === 'direction').length, structural: mine.filter((e) => ['structural', 'orphan'].includes(e.kind)).length, runtime: mine.filter((e) => ['runtime', 'registry'].includes(e.kind)).length, eligible: mine.length === 0 };
+});
 const releaseEligible = targets.length > 0 && targets.every((locale) => summary.find((x) => x.locale === locale)?.eligible) && (!allMode || targets.length === CANONICAL_LOCALES.length);
 if (report) { console.log('FLIXO LOCALIZATION RELEASE ENGINE'); console.log('────────────────────────────────────────────────────────────────────────────'); console.log('LOCALE   MISSING FALLBACK PLACEHOLDER HTML SEO DIRECTION STRUCTURAL RUNTIME ELIGIBLE'); for (const r of summary) console.log(`${r.locale.padEnd(8)}${String(r.missing).padEnd(8)}${String(r.fallback).padEnd(9)}${String(r.placeholder).padEnd(12)}${String(r.html).padEnd(5)}${String(r.seo).padEnd(4)}${String(r.direction).padEnd(10)}${String(r.structural).padEnd(11)}${String(r.runtime).padEnd(8)}${r.eligible ? 'PASS 🟢' : 'BLOCK 🔴'}`); console.log(`\nVERIFIED: ${summary.filter((r) => r.eligible).length}/${summary.length}`); console.log(`RELEASE DECISION: ${releaseEligible ? 'APPROVED 🟢' : 'BLOCKED 🔴'}`); }
 if (json) console.log(JSON.stringify({ targets, summary, releaseEligible, errors }, null, 2));
