@@ -18,9 +18,9 @@ const extractEntry = (source, localeCode, marker) => {
   const start = source.match(new RegExp(`\\b${localeCode}:\\s*${marker}\\(\\{`, 'u'));
   if (!start || start.index === undefined) return '';
   const rest = source.slice(start.index + start[0].length);
-  const nextLocale = rest.search(/\\n\\s*[a-z]{2}:\\s*(?:copy|q)\\(\\{/u);
+  const nextLocale = rest.search(/\n\s*[a-z]{2}:\s*(?:copy|q)\(\{/u);
   if (nextLocale >= 0) return rest.slice(0, nextLocale);
-  const end = rest.search(/\\n\\s*\\};/u);
+  const end = rest.search(/\n\s*\};/u);
   return end >= 0 ? rest.slice(0, end) : rest;
 };
 
@@ -28,9 +28,9 @@ const extractObjectBody = (source, localeCode) => {
   const start = source.match(new RegExp(`\\b${localeCode}:\\s*\\{`, 'u'));
   if (!start || start.index === undefined) return '';
   const rest = source.slice(start.index + start[0].length);
-  const nextLocale = rest.search(/\\n\\s*[a-z]{2}:\\s*\\{/u);
+  const nextLocale = rest.search(/\n\s*[a-z]{2}:\s*\{/u);
   if (nextLocale >= 0) return rest.slice(0, nextLocale);
-  const end = rest.search(/\\n\\s*\\},?/u);
+  const end = rest.search(/\n\s*\},?/u);
   return end >= 0 ? rest.slice(0, end) : rest;
 };
 
@@ -93,8 +93,8 @@ if (!existsSync(`${root}/${locPath}`)) {
     const heroEn = extractEntryValue(enHome, 'heroTitle:');
     const heroLoc = extractEntryValue(homeEntry, 'heroTitle:');
     const signature = (value) => ({
-      spanOpen: (value.match(/<span\\b/giu) ?? []).length,
-      spanClose: (value.match(/<\\/span>/giu) ?? []).length,
+      spanOpen: (value.match(/<span\b/giu) ?? []).length,
+      spanClose: (value.match(/<\/span>/giu) ?? []).length,
     });
     const enSignature = signature(heroEn);
     const locSignature = signature(heroLoc);
@@ -104,7 +104,7 @@ if (!existsSync(`${root}/${locPath}`)) {
   }
 
   const seo = read('src/lib/i18n/tool-seo-localization.ts');
-  const seoObjects = [...seo.matchAll(/Object\\.freeze\\(\\{([^}]*)\\}\\)/gu)].map((m) => m[1]);
+  const seoObjects = [...seo.matchAll(/Object\.freeze\(\{([^}]*)\}\)/gu)].map((m) => m[1]);
   if (!seoObjects.length) fail('SEO localization registry is empty');
   for (const [index, body] of seoObjects.entries()) {
     if (!new RegExp(`\\b${locale}:`, 'u').test(body)) fail(`SEO name entry ${index + 1} missing ${locale}`);
