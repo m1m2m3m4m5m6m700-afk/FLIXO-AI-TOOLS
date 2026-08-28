@@ -1,57 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1254" height="1254" viewBox="0 0 1254 1254" role="img" aria-labelledby="title desc">
   <title id="title">FLIXO AI Tools</title>
-  <desc id="desc">Canonical FLIXO AI Tools F-X ribbon mark matching the official cyan, blue, indigo, violet and magenta identity.</desc>
-  <defs>
-    <linearGradient id="cyanBlueViolet" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0" stop-color="#1EE5FF"/>
-      <stop offset="0.38" stop-color="#0F8FFF"/>
-      <stop offset="0.72" stop-color="#284CFF"/>
-      <stop offset="1" stop-color="#7A34FF"/>
-    </linearGradient>
-    <linearGradient id="blueMagenta" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0F8CFF"/>
-      <stop offset="0.48" stop-color="#2A43FF"/>
-      <stop offset="0.78" stop-color="#8B2EFF"/>
-      <stop offset="1" stop-color="#FF3BD4"/>
-    </linearGradient>
-    <linearGradient id="violetPink" x1="1" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FF73E7"/>
-      <stop offset="0.28" stop-color="#E135FF"/>
-      <stop offset="0.68" stop-color="#6C25FF"/>
-      <stop offset="1" stop-color="#2354FF"/>
-    </linearGradient>
-    <linearGradient id="cyanViolet" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#20E7FF"/>
-      <stop offset="0.42" stop-color="#146EFF"/>
-      <stop offset="1" stop-color="#A83AFF"/>
-    </linearGradient>
-  </defs>
-
-  <!-- Rear upper-left ribbon -->
-  <path d="M84 64 C120 74 157 104 188 145 L263 246 L216 302 L143 204 C122 176 98 151 72 137 C56 128 44 111 49 93 C54 75 67 62 84 64Z" fill="url(#cyanViolet)"/>
-
-  <!-- Upper-right violet ribbon -->
-  <path d="M254 246 C284 214 312 181 337 148 C358 121 382 90 409 73 C429 60 451 58 463 73 C475 88 469 108 452 130 L343 286 C329 306 309 326 287 341 L241 300 C245 281 248 263 254 246Z" fill="url(#violetPink)"/>
-
-  <!-- Main sweeping ribbon -->
-  <path d="M106 391 C129 377 152 355 174 328 L293 181 C310 160 329 141 348 125 C370 107 393 96 421 96 L462 96 C472 96 480 102 479 111 C477 121 466 134 454 145 L305 293 C280 318 257 346 232 372 C211 394 189 414 165 427 C142 439 118 435 106 421 C95 409 95 399 106 391Z" fill="url(#blueMagenta)"/>
-
-  <!-- Rear lower-right ribbon -->
-  <path d="M296 268 C319 284 344 303 367 322 C388 340 413 359 441 376 C455 385 462 398 458 409 C454 421 441 427 427 424 C405 419 377 399 351 380 L293 338 C278 326 266 316 255 304 L296 268Z" fill="url(#cyanBlueViolet)"/>
-
-  <!-- Left speed ribbon -->
-  <path d="M73 361 C94 360 116 360 137 357 C158 354 179 348 196 340 L174 368 C155 388 139 400 123 407 L73 407 C57 407 48 397 48 383 C48 370 57 362 73 361Z" fill="url(#cyanBlueViolet)"/>
-
-  <!-- Precision highlights that preserve the glossy source identity at small sizes -->
-  <path d="M81 72 C116 88 146 113 169 145 L229 226" fill="none" stroke="#22E9FF" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
-  <path d="M276 247 C305 210 333 177 354 150 C375 123 398 102 425 91" fill="none" stroke="#FF8BEF" stroke-width="4" stroke-linecap="round" opacity="0.92"/>
-  <path d="M112 395 C137 378 158 355 181 327 L296 185 C316 161 335 141 353 128" fill="none" stroke="#62F5FF" stroke-width="3" stroke-linecap="round" opacity="0.78"/>
-  <path d="M300 276 C331 297 365 324 401 350" fill="none" stroke="#2FE4FF" stroke-width="3" stroke-linecap="round" opacity="0.82"/>
-
-  <!-- Speed marks -->
-  <path d="M39 433 H107" stroke="#1FD9FF" stroke-width="10" stroke-linecap="round" opacity="0.92"/>
-  <path d="M56 405 H132" stroke="#7A42FF" stroke-width="7" stroke-linecap="round" opacity="0.82"/>
-  <rect x="28" y="451" width="38" height="38" rx="19" fill="url(#cyanBlueViolet)"/>
-  <circle cx="98" cy="458" r="10" fill="#3155FF"/>
+  <desc id="desc">Canonical FLIXO AI Tools F-X ribbon mark. Exact master artwork is preserved from the approved FLIXO brand raster asset.</desc>
+  <image href="/flixo-logo.jpg" x="0" y="0" width="1254" height="1254" preserveAspectRatio="xMidYMid meet"/>
 </svg>
