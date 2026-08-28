@@ -6,7 +6,9 @@ on:
     paths:
       - 'src/**'
       - 'scripts/validate-language-quality*.mjs'
+      - 'scripts/validate-localization-complete.mjs'
       - 'scripts/validation-utils.mjs'
+      - 'package.json'
       - '.github/workflows/localization-20.yml'
   push:
     branches:
@@ -65,6 +67,10 @@ jobs:
         env:
           FLIXO_LOCALE: ${{ matrix.locale }}
         run: node scripts/validate-locale-contract.mjs
+      - name: Validate ${{ matrix.locale }} complete localization surface
+        env:
+          FLIXO_LOCALE: ${{ matrix.locale }}
+        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-localization-complete.mjs
 
   aggregate:
     name: Localization — 20 Locale Gate
