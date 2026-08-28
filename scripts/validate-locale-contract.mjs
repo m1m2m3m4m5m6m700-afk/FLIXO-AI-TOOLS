@@ -11,15 +11,30 @@ if (!locale || !CANONICAL_LOCALES.includes(locale)) {
 const errors = [];
 const fail = (message) => errors.push(`${locale}: ${message}`);
 const read = (path) => readFileSync(`${root}/${path}`, 'utf8');
-const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-const extract = (source, key) => source.match(new RegExp(`${escapeRegExp(key)}\\s*'([^']*)'`, 'u'))?.[1] ?? '';
-const extractEntryValue = (body, key) => sourceMatch(body, `${escapeRegExp(key)}\\s*'([^']*)'`);
-const sourceMatch = (source, pattern) => source.match(new RegExp(pattern, 'u'))?.[1] ?? '';
+
+const readQuotedValueAfter = (source, marker) => {
+  const markerIndex = source.indexOf(marker);
+  if (markerIndex < 0) return '';
+  const afterMarker = source.slice(markerIndex + marker.length);
+  const quoteIndex = afterMarker.search(/['"]/u);
+  if (quoteIndex < 0) return '';
+  const quote = afterMarker[quoteIndex];
+  const valueStart = quoteIndex + 1;
+  const valueEnd = afterMarker.indexOf(quote, valueStart);
+  return valueEnd >= 0 ? afterMarker.slice(valueStart, valueEnd) : '';
+};
+
+const extract = (source, key) => readQuotedValueAfter(source, key);
+const extractEntryValue = (body, key) => readQuotedValueAfter(body, key);
 
 const extractEntry = (source, localeCode, marker) => {
-  const start = source.match(new RegExp(`\\b${escapeRegExp(localeCode)}:\\s*${marker}\\(\\{`, 'u'));
-  if (!start || start.index === undefined) return '';
-  const rest = source.slice(start.index + start[0].length);
+  const localeStart = `${localeCode}:`;
+  const startIndex = source.indexOf(localeStart);
+  if (startIndex < 0) return '';
+  const markerStart = source.indexOf(`${marker}({`, startIndex + localeStart.length);
+  if (markerStart < 0) return '';
+  const bodyStart = markerStart + marker.length + 2;
+  const rest = source.slice(bodyStart);
   const nextLocale = rest.search(/\n\s*[a-z]{2}:\s*(?:copy|q)\(\{/u);
   if (nextLocale >= 0) return rest.slice(0, nextLocale);
   const end = rest.search(/\n\s*\};/u);
@@ -27,13 +42,24 @@ const extractEntry = (source, localeCode, marker) => {
 };
 
 const extractObjectBody = (source, localeCode) => {
-  const start = source.match(new RegExp(`\\b${escapeRegExp(localeCode)}:\\s*\\{`, 'u'));
-  if (!start || start.index === undefined) return '';
-  const rest = source.slice(start.index + start[0].length);
+  const localeStart = `${localeCode}:`;
+  const startIndex = source.indexOf(localeStart);
+  if (startIndex < 0) return '';
+  const objectStart = source.indexOf('{', startIndex + localeStart.length);
+  if (objectStart < 0) return '';
+  const rest = source.slice(objectStart + 1);
   const nextLocale = rest.search(/\n\s*[a-z]{2}:\s*\{/u);
   if (nextLocale >= 0) return rest.slice(0, nextLocale);
   const end = rest.search(/\n\s*\},?/u);
   return end >= 0 ? rest.slice(0, end) : rest;
+};
+
+const readLocaleDirection = (config, localeCode) => {
+  const start = config.indexOf(`${localeCode}:`);
+  if (start < 0) return '';
+  const end = config.indexOf('\n', start);
+  const entry = config.slice(start, end >= 0 ? end : config.length);
+  return readQuotedValueAfter(entry, 'direction:');
 };
 
 const en = read('src/lib/i18n/locales/en.ts');
@@ -44,7 +70,7 @@ if (!existsSync(`${root}/${locPath}`)) {
 } else {
   const loc = read(locPath);
   if (!loc.includes(`locale: '${locale}'`)) fail('locale identifier mismatch');
-  for (const key of ['homeTitle:', 'homeDescription:']) if (!new RegExp(`${escapeRegExp(key)}\\s*'[^']+'`, 'u').test(loc)) fail(`missing ${key}`);
+  for (const key of ['homeTitle:', 'homeDescription:']) if (!readQuotedValueAfter(loc, key)) fail(`missing ${key}`);
 
   if (locale !== 'en') for (const key of ['homeTitle:', 'homeDescription:']) {
     const enValue = extract(en, key); const locValue = extract(loc, key);
@@ -53,9 +79,9 @@ if (!existsSync(`${root}/${locPath}`)) {
   }
 
   const config = read('src/lib/i18n/config.ts');
-  const direction = sourceMatch(config, `${escapeRegExp(locale)}:\\s*\\{[^}]*direction:\\s*'([^']+)'`);
+  const direction = readLocaleDirection(config, locale);
   const expectedDirection = locale === 'ar' || locale === 'ur' ? 'rtl' : 'ltr';
-  if (direction !== expectedDirection) fail(`direction mismatch: expected ${expectedDirection}, found ${direction ?? '<missing>'}`);
+  if (direction !== expectedDirection) fail(`direction mismatch: expected ${expectedDirection}, found ${direction || '<missing>'}`);
 
   const home = read('src/data/home-locales.ts');
   const quick = read('src/data/quickflow-locales.ts');
@@ -90,7 +116,7 @@ if (!existsSync(`${root}/${locPath}`)) {
   const seo = read('src/lib/i18n/tool-seo-localization.ts');
   const seoObjects = [...seo.matchAll(/Object\.freeze\(\{([^}]*)\}\)/gu)].map((m) => m[1]);
   if (!seoObjects.length) fail('SEO localization registry is empty');
-  for (const [index, body] of seoObjects.entries()) if (!new RegExp(`\\b${escapeRegExp(locale)}:`, 'u').test(body)) fail(`SEO name entry ${index + 1} missing ${locale}`);
+  for (const [index, body] of seoObjects.entries()) if (!body.includes(`${locale}:`)) fail(`SEO name entry ${index + 1} missing ${locale}`);
 
   const expectedScript = { ar: /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/u, ur: /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/u, ru: /[\u0400-\u04ff]/u, zh: /[\u3400-\u9fff]/u, ja: /[\u3040-\u30ff\u3400-\u9fff]/u, ko: /[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/u, hi: /[\u0900-\u097f]/u, th: /[\u0e00-\u0e7f]/u }[locale];
   if (expectedScript) {
