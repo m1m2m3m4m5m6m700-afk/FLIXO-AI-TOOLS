@@ -9,13 +9,13 @@ const indexSource = readFileSync('index.html', 'utf8');
 const manifestSource = readFileSync('public/manifest.webmanifest', 'utf8');
 const useCasesSource = readFileSync('src/lib/seo/use-cases.ts', 'utf8');
 
-const canonicalOrigin = getCanonicalSiteOrigin();
-const sitemapUrl = `${canonicalOrigin}/sitemap.xml`;
-
 const requireSource = (source, pattern, message) => {
   if (!pattern.test(source)) throw new Error(message);
 };
 
+// Source-level SEO/indexing contracts are valid in every environment. The
+// actual canonical URL is intentionally environment-dependent: PR/runtime CI
+// may have no public domain yet, while production indexing must have one.
 requireSource(sitemapSource, /getCanonicalSiteOrigin/u, 'Sitemap generator must depend on the canonical origin contract.');
 requireSource(sitemapSource, /TOOL_MANIFEST[\s\S]*filter\(\s*\(tool\)\s*=>\s*tool\.isReady\s*\)/u, 'Sitemap generator must derive tool URLs from ready TOOL_MANIFEST entries.');
 requireSource(sitemapSource, /USE_CASES\.map\(/u, 'Sitemap generator must emit canonical use-case URLs from USE_CASES.');
@@ -24,9 +24,6 @@ requireSource(sitemapSource, /hreflang="x-default"/u, 'Sitemap generator is miss
 
 requireSource(robotsGeneratorSource, /getCanonicalSiteOrigin/u, 'Robots generator must depend on the canonical origin contract.');
 if (/process\.env\.SITE_URL/u.test(robotsGeneratorSource)) throw new Error('Robots generator must not bypass the canonical origin contract via SITE_URL.');
-
-if (!robotsSource.includes('User-agent: *\nAllow: /')) throw new Error('robots.txt must permit normal crawling.');
-if (!robotsSource.includes(`Sitemap: ${sitemapUrl}`)) throw new Error(`robots.txt must reference the canonical sitemap: ${sitemapUrl}`);
 
 for (const [pattern, message] of [
   [/name: ['"]robots['"]/u, 'Root route is missing robots metadata.'],
@@ -50,5 +47,20 @@ if (!manifestSource.includes('"src": "/flixo-logo.svg"')) throw new Error('Manif
 
 const slugs = [...useCasesSource.matchAll(/slug: '([^']+)'/gu)].map((match) => match[1]);
 if (slugs.length === 0) throw new Error('No use-case slugs found for sitemap indexing.');
+
+let canonicalOrigin = null;
+try {
+  canonicalOrigin = getCanonicalSiteOrigin();
+} catch (error) {
+  if (process.env.CI === 'true' && !process.env.VITE_SITE_URL?.trim()) {
+    console.log('Indexing validation: source contracts passed; production canonical URL checks deferred because SITE_URL is not configured in this runtime CI environment.');
+    process.exit(0);
+  }
+  throw error;
+}
+
+const sitemapUrl = `${canonicalOrigin}/sitemap.xml`;
+if (!robotsSource.includes('User-agent: *\nAllow: /')) throw new Error('robots.txt must permit normal crawling.');
+if (!robotsSource.includes(`Sitemap: ${sitemapUrl}`)) throw new Error(`robots.txt must reference the canonical sitemap: ${sitemapUrl}`);
 
 console.log(`Indexing validation passed: canonical origin ${canonicalOrigin}, ${slugs.length} use-case URLs, ready tools from TOOL_MANIFEST, 20-locale hreflang, crawlable robots, and index/follow + social discovery signals.`);
