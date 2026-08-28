@@ -16,7 +16,7 @@ if (siteOriginExpression !== 'https://flexoai.vercel.app') {
 
 if (!sitemapSource.includes('SITE_ORIGIN')) throw new Error('Sitemap generator does not use the canonical SITE_ORIGIN.');
 if (!sitemapSource.includes('TOOL_MANIFEST.filter((tool) => tool.isReady)')) throw new Error('Sitemap generator does not derive tool URLs from ready TOOL_MANIFEST entries.');
-if (!sitemapSource.includes('USE_CASES.map((useCase) => `/use-cases/${useCase.slug}`)) throw new Error('Sitemap generator does not emit canonical use-case URLs.');
+if (!sitemapSource.includes("USE_CASES.map((useCase) => `/use-cases/${useCase.slug}`")) throw new Error('Sitemap generator does not emit canonical use-case URLs.');
 if (!sitemapSource.includes('xmlns:xhtml="http://www.w3.org/1999/xhtml"')) throw new Error('Sitemap generator is missing the hreflang namespace.');
 if (!sitemapSource.includes('xhtml:link rel="alternate" hreflang=')) throw new Error('Sitemap generator does not emit hreflang alternates.');
 if (!sitemapSource.includes('hreflang="x-default"')) throw new Error('Sitemap generator is missing x-default.');
