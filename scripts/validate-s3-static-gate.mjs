@@ -126,6 +126,7 @@ try {
     'scripts/validate-s3-static-gate.mjs',
     'scripts/validate-s4-e2e.mjs',
     'scripts/validate-language-quality.mjs',
+    'scripts/validate-language-quality-strict.mjs',
     'scripts/node-resolver-loader.mjs',
     'scripts/register-node-resolver.mjs',
     'README.md',
