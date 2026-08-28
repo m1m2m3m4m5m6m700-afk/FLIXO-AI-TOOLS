@@ -12,7 +12,6 @@ if (!target || !CANONICAL_LOCALES.includes(target)) {
 
 const errors = [];
 const fail = (message) => errors.push(`${target}: ${message}`);
-const read = (path) => readFileSync(join(root, path), 'utf8');
 const normalize = (value) => value.replace(/\s+/gu, ' ').trim();
 const isObject = (value) => Boolean(value) && typeof value === 'object';
 const leaves = (value, path = []) => {
@@ -92,7 +91,6 @@ async function importTs(relativePath) {
   return import(pathToFileURL(join(root, relativePath)).href);
 }
 
-// Runtime locale registry and metadata.
 const config = await importTs('src/lib/i18n/config.ts');
 const runtimeLocales = [...(config.LOCALES ?? [])];
 if (runtimeLocales.join('|') !== CANONICAL_LOCALES.join('|')) fail(`runtime locale registry drift: ${runtimeLocales.join(', ')}`);
@@ -105,7 +103,6 @@ for (const locale of CANONICAL_LOCALES) {
   }
 }
 
-// Canonical locale dictionaries.
 const localeModules = {};
 for (const locale of CANONICAL_LOCALES) {
   const path = `src/lib/i18n/locales/${locale}.ts`;
@@ -121,7 +118,6 @@ for (const locale of CANONICAL_LOCALES) {
 }
 if (localeModules.en && localeModules[target] && target !== 'en') compareLocaleObject(localeModules.en, localeModules[target], 'core locale dictionary');
 
-// Automatically cover every locale-bearing data/i18n module under src.
 function walk(dir) {
   if (!existsSync(dir)) return [];
   const result = [];
@@ -149,7 +145,6 @@ for (const absolute of candidateFiles) {
   }
 }
 
-// Every tool with an SEO localization surface must have every canonical locale.
 const toolsRoot = join(root, 'src/tools');
 if (existsSync(toolsRoot)) {
   const tools = readdirSync(toolsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory() && !entry.name.startsWith('_'));
@@ -170,7 +165,6 @@ if (existsSync(toolsRoot)) {
   }
 }
 
-// User-facing UI literals must not bypass localization. This is intentionally strict.
 const uiRoots = ['src/routes', 'src/components', 'src/pages', 'src/layouts', 'src/tools'];
 const attrPattern = /\b(?:aria-label|aria-description|placeholder|title|alt)\s*=\s*["']([^"']{2,})["']/gu;
 const jsxTextPattern = />\s*([A-Za-z][A-Za-z0-9 ,.'’!?&:/()\-]{3,})\s*</gu;
