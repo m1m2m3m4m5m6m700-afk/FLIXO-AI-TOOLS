@@ -37,11 +37,11 @@ jobs:
       - name: Install all Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit
 
-      - name: Start isolated production server
+      - name: Start isolated runtime server
         shell: bash
         run: |
           set -euo pipefail
-          setsid npm run build >/tmp/s4-build.log 2>&1
+          npm run build:runtime >/tmp/s4-build.log 2>&1
           setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/s4-server.log 2>&1 &
           echo $! > /tmp/s4-server.pid
 
