@@ -27,11 +27,18 @@ const readQuotedValueAfter = (source, marker) => {
 const extract = (source, key) => readQuotedValueAfter(source, key);
 const extractEntryValue = (body, key) => readQuotedValueAfter(body, key);
 
+const findLocaleLineStart = (source, localeCode, signature) => {
+  const anchoredMarker = `\n  ${localeCode}: ${signature}`;
+  const anchoredIndex = source.indexOf(anchoredMarker);
+  if (anchoredIndex >= 0) return anchoredIndex + 1;
+  const beginningMarker = `${localeCode}: ${signature}`;
+  return source.indexOf(beginningMarker);
+};
+
 const extractEntry = (source, localeCode, marker) => {
-  const localeStart = `${localeCode}:`;
-  const startIndex = source.indexOf(localeStart);
+  const startIndex = findLocaleLineStart(source, localeCode, `${marker}({`);
   if (startIndex < 0) return '';
-  const markerStart = source.indexOf(`${marker}({`, startIndex + localeStart.length);
+  const markerStart = source.indexOf(`${marker}({`, startIndex);
   if (markerStart < 0) return '';
   const bodyStart = markerStart + marker.length + 2;
   const rest = source.slice(bodyStart);
@@ -42,15 +49,14 @@ const extractEntry = (source, localeCode, marker) => {
 };
 
 const extractObjectBody = (source, localeCode) => {
-  const localeStart = `${localeCode}:`;
-  const startIndex = source.indexOf(localeStart);
+  const startIndex = findLocaleLineStart(source, localeCode, '{');
   if (startIndex < 0) return '';
-  const objectStart = source.indexOf('{', startIndex + localeStart.length);
+  const objectStart = source.indexOf('{', startIndex + localeCode.length + 1);
   if (objectStart < 0) return '';
   const rest = source.slice(objectStart + 1);
   const nextLocale = rest.search(/\n\s*[a-z]{2}:\s*\{/u);
   if (nextLocale >= 0) return rest.slice(0, nextLocale);
-  const end = rest.search(/\n\s*\},?/u);
+  const end = rest.search(/\n\s*\};/u);
   return end >= 0 ? rest.slice(0, end) : rest;
 };
 
