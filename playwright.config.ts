@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 const isCi = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 const isS4RuntimeGate = process.env.S4_RUNTIME_GATE === 'true';
 const isS4ExternalServer = process.env.S4_EXTERNAL_SERVER === 'true';
-const useProductionServer = isCi || process.env.PLAYWRIGHT_SERVER === 'production';
+const useProductionServer = !isCi && process.env.PLAYWRIGHT_SERVER === 'production';
 
 export default defineConfig({
   testDir: './tests',
@@ -47,7 +47,7 @@ export default defineConfig({
         webServer: {
           command: useProductionServer
             ? 'npm run build && npm run preview -- --host 127.0.0.1 --port 3000'
-            : 'npm run dev',
+            : 'npm run build:runtime && npm run preview -- --host 127.0.0.1 --port 3000',
           url: 'http://127.0.0.1:3000',
           timeout: 120_000,
           reuseExistingServer: !isCi,
