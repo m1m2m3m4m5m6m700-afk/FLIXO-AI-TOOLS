@@ -34,7 +34,17 @@ const homeKeys = ['nav:', 'badge:', 'eyebrow:', 'heroTitle:', 'heroLead:', 'desc
 const quickflowKeys = ['missing:', 'back:', 'eyebrow:', 'runLabel:', 'choose:', 'processing:', 'result:', 'download:', 'chooseError:', 'failure:', 'running:', 'run:', 'resultAlt:', 'progress:'];
 const toolUiKeys = ['notFound:', 'loading:', 'language:', 'about:', 'howTo:', 'features:', 'navigation:', 'home:', 'ready:', 'waiting:', 'workspace:', 'favorite:', 'english:', 'arabic:', 'command:', 'openCommandPalette:', 'upload:', 'reset:', 'exportLabel:', 'localWorkspace:'];
 
-const entryBody = (source, locale, marker) => new RegExp(`\\b${locale}:\\s*${marker}\\(\\{([\\s\\S]*?)\\}\\)`, 'u').exec(source)?.[1] ?? '';
+const entryBody = (source, locale, marker) => {
+  const startPattern = new RegExp(`\\b${locale}:\\s*${marker}\\(\\{`, 'u');
+  const match = startPattern.exec(source);
+  if (!match) return '';
+  const start = match.index + match[0].length;
+  const endPattern = /\n\s*[a-z]{2}:\s*(?:copy|q)\(\{/gu;
+  endPattern.lastIndex = start;
+  const next = endPattern.exec(source);
+  const end = next ? next.index : source.indexOf('\n};', start);
+  return source.slice(start, end === -1 ? source.length : end);
+};
 const objectBody = (source, locale) => new RegExp(`\\b${locale}:\\s*\\{([\\s\\S]*?)\\}`, 'u').exec(source)?.[1] ?? '';
 
 for (const locale of locales) {
@@ -94,18 +104,11 @@ for (const [index, body] of toolSeoObjects.entries()) {
   }
 }
 
-const suspiciousTerms = [
-  'Privacy-first',
-  'Browser-first',
-  'Instant start',
-  'Smart routing',
-  'Open smart command palette',
-  'Start with the tools people actually need.',
-];
+const suspiciousTerms = ['Privacy-first', 'Browser-first', 'Instant start', 'Smart routing', 'Open smart command palette', 'Start with the tools people actually need.'];
 for (const locale of locales.filter((value) => value !== 'en')) {
   const entry = entryBody(home, locale, 'copy');
   for (const term of suspiciousTerms) {
-    if (entry.includes(`'${term}'`) || entry.includes(`"${term}"`)) fail(`Home ${locale}: suspicious English phrase leaked: ${term}`);
+    if (entry.includes(`'${term}'`) || entry.includes(`\"${term}\"`)) fail(`Home ${locale}: suspicious English phrase leaked: ${term}`);
   }
 }
 
