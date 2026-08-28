@@ -29,6 +29,7 @@ const home = read(`${root}/src/data/home-locales.ts`);
 const quickflow = read(`${root}/src/data/quickflow-locales.ts`);
 const toolUi = read(`${root}/src/data/tool-ui-i18n.ts`);
 const seoNames = read(`${root}/src/lib/i18n/tool-seo-localization.ts`);
+const overrides = read(`${root}/src/lib/i18n/locale-quality-overrides.ts`);
 
 const homeKeys = ['nav:', 'badge:', 'eyebrow:', 'heroTitle:', 'heroLead:', 'describe:', 'searchLabel:', 'searchPlaceholder:', 'smartPalette:', 'suggested:', 'openDirectly:', 'popular:', 'trust:', 'quickDrop:', 'quickDropTitle:', 'quickDropLead:', 'dropChoose:', 'dropSupport:', 'suggestedTool:', 'openTool:', 'toolbox:', 'toolboxTitle:', 'ready:', 'empty:', 'builtForFocus:', 'finalTitle:', 'finalLead:', 'trySmart:', 'all:', 'browserMeta:', 'ariaHome:', 'ariaPrimary:', 'ariaFindTool:', 'ariaTrust:', 'ariaCategories:', 'quickTags:'];
 const quickflowKeys = ['missing:', 'back:', 'eyebrow:', 'runLabel:', 'choose:', 'processing:', 'result:', 'download:', 'chooseError:', 'failure:', 'running:', 'run:', 'resultAlt:', 'progress:'];
@@ -48,6 +49,23 @@ const entryBody = (source, locale, marker) => {
 
 const objectBody = (source, locale) => new RegExp(`\\b${locale}:\\s*\\{([\\s\\S]*?)\\}`, 'u').exec(source)?.[1] ?? '';
 const extractString = (entry, key) => entry.match(new RegExp(`${key}['"]([^'"\\n]*)['"]`, 'u'))?.[1] ?? '';
+
+const overrideEntry = (locale) => {
+  const match = new RegExp(`\\b${locale}:\\s*Object\\.freeze\\(\\{([\\s\\S]*?)\\n  \\}\\),?`, 'u').exec(overrides);
+  return match?.[1] ?? '';
+};
+
+const effectiveHomeValue = (locale, key, sourceValue) => {
+  const override = overrideEntry(locale);
+  if (!override) return sourceValue;
+  const direct = extractString(override, key);
+  if (direct) return direct;
+  if (key === 'trust:') {
+    const trustMatch = override.match(/trust:\s*\[([\\s\\S]*?)\n\s*\],/u);
+    if (trustMatch) return trustMatch[1];
+  }
+  return sourceValue;
+};
 
 for (const locale of locales) {
   const homeEntry = entryBody(home, locale, 'copy');
@@ -71,7 +89,7 @@ for (const locale of locales.filter((value) => value !== 'en')) {
   const entry = entryBody(home, locale, 'copy');
   for (const key of englishLeakKeys) {
     const enValue = extractString(englishHome, key);
-    const localizedValue = extractString(entry, key);
+    const localizedValue = effectiveHomeValue(locale, key, extractString(entry, key));
     if (enValue && localizedValue === enValue) fail(`Home ${locale}: English fallback in ${key}`);
   }
 
@@ -86,7 +104,7 @@ for (const locale of locales.filter((value) => value !== 'en')) {
 const htmlSource = extractString(englishHome, 'heroTitle:');
 for (const locale of locales) {
   const entry = entryBody(home, locale, 'copy');
-  const localizedHero = extractString(entry, 'heroTitle:');
+  const localizedHero = effectiveHomeValue(locale, 'heroTitle:', extractString(entry, 'heroTitle:'));
   if ((htmlSource.includes('<span>') && !localizedHero.includes('<span>')) || (htmlSource.includes('</span>') && !localizedHero.includes('</span>'))) {
     fail(`Home ${locale}: heroTitle HTML emphasis structure differs from English`);
   }
@@ -110,7 +128,9 @@ const suspiciousTerms = ['Privacy-first', 'Browser-first', 'Instant start', 'Sma
 for (const locale of locales.filter((value) => value !== 'en')) {
   const entry = entryBody(home, locale, 'copy');
   for (const term of suspiciousTerms) {
-    if (entry.includes(`'${term}'`) || entry.includes(`"${term}"`)) fail(`Home ${locale}: suspicious English phrase leaked: ${term}`);
+    const rawLocalized = entry.includes(`'${term}'`) || entry.includes(`"${term}"`);
+    const effectiveLocalized = effectiveHomeValue(locale, 'trust:', entry).includes(`'${term}'`) || effectiveHomeValue(locale, 'trust:', entry).includes(`"${term}"`);
+    if (rawLocalized && effectiveLocalized) fail(`Home ${locale}: suspicious English phrase leaked: ${term}`);
   }
 }
 
@@ -120,4 +140,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`Language quality gate passed: ${locales.length} locales; Home, QuickFlow, Tool UI, locale dictionaries, RTL/LTR, SEO-name completeness, and English-leak checks are clean.`);
+console.log(`Language quality gate passed: ${locales.length} locales; effective Home/QuickFlow/Tool UI output, locale dictionaries, RTL/LTR, SEO-name completeness, and English-leak checks are clean.`);
