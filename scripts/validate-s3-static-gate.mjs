@@ -78,6 +78,8 @@ runNodeScript('scripts/validate-google-multilingual-seo.mjs');
 pass('Google multilingual SEO contract');
 runNodeScript('scripts/validate-language-quality-strict.mjs');
 pass('strict 20-locale localization quality');
+runNodeScript('scripts/validate-adsense-readiness.mjs');
+pass('AdSense readiness contract');
 if (!sitemapExistedBeforeBuild && existsSync(generatedSitemapPath)) { unlinkSync(generatedSitemapPath); pass('removed build-generated public/sitemap.xml'); }
 if (!robotsExistedBeforeBuild && existsSync(generatedRobotsPath)) { unlinkSync(generatedRobotsPath); pass('removed build-generated public/robots.txt'); }
 
@@ -119,23 +121,21 @@ try {
     '.github/workflows/s4-runtime-e2e.yml', '.github/workflows/localization-20.yml', 'playwright.config.ts',
     'scripts/validate-s3-static-gate.mjs', 'scripts/validate-s4-e2e.mjs',
     'scripts/validate-language-quality.mjs', 'scripts/validate-language-quality-strict.mjs',
-    'scripts/validate-locale-contract.mjs', 'scripts/validate-localization-complete.mjs',
+    'scripts/validate-locale-contract.mjs', 'scripts/validate-localization-complete.mjs', 'scripts/validate-adsense-readiness.mjs',
     'scripts/validate-indexing.mjs', 'scripts/validate-google-multilingual-seo.mjs',
     'scripts/node-resolver-loader.mjs', 'scripts/register-node-resolver.mjs', 'scripts/generate-robots.mjs',
-    'README.md', 'docs/CONSOLIDATION-LOG.md', 'docs/DEBT-REGISTER.md', 'package.json',
+    'README.md', 'docs/CONSOLIDATION-LOG.md', 'docs/DEBT-REGISTER.md', 'docs/ADSENSE-COMPLIANCE-2026.md', 'package.json',
     'release/finalization/C5_PLACEHOLDER.md', 'release/finalization/README.md',
     'release/finalization/final_execution_manifest.json', 'release/finalization/final_verification.json',
     'src/main.tsx', 'src/home-modern.css', 'src/config/tool-manifest.ts', 'src/lib/i18n/config.ts',
     'src/lib/i18n/home-loader.ts', 'src/lib/i18n/locale-quality-overrides.ts', 'src/lib/i18n/tool-seo-localization.ts',
     'src/routes/__root.tsx', 'src/routes/home-page.tsx', 'src/routes/localized-quickflow.tsx',
     'src/data/home-locales.ts', 'src/data/quickflow-locales.ts', 'src/data/tool-ui-i18n.ts',
-    'src/components/FlixoGlobalLogo.tsx', 'public/favicon.svg', 'public/flixo-logo.svg', 'public/logo.svg',
-    'public/flixo-logo.jpg', 'public/logo.jpg', 'index.html', '.env.example',
+    'src/components/FlixoGlobalLogo.tsx', 'src/adsense/policy.ts', 'src/adsense/AdSlot.tsx',
+    'public/favicon.svg', 'public/flixo-logo.svg', 'public/logo.svg', 'public/flixo-logo.jpg', 'public/logo.jpg', 'index.html', '.env.example',
   ]);
 
-  const localizationSeoPrefixes = [
-    'src/tools/',
-  ];
+  const localizationSeoPrefixes = ['src/tools/'];
   const isAllowedLocalizedSeo = (file) => localizationSeoPrefixes.some((prefix) => file.startsWith(prefix)) && file.includes('/seo/') && /\/seo\/[a-z]{2}\.ts$/u.test(file);
   const unexpected = changed.filter((file) => !exactAllow.has(file) && !isAllowedLocalizedSeo(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);
