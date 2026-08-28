@@ -14,7 +14,6 @@ export const HOME_COPY_OVERRIDES: Readonly<Partial<Record<Locale, HomeCopyOverri
   }),
   es: Object.freeze({
     quickDrop: 'CARGA RÁPIDA',
-    quickDropTitle: 'Suelta un archivo. Te indicaremos la herramienta adecuada.',
   }),
   id: Object.freeze({
     badge: 'Utamakan privasi · Utamakan browser',
@@ -24,6 +23,12 @@ export const HOME_COPY_OVERRIDES: Readonly<Partial<Record<Locale, HomeCopyOverri
   it: Object.freeze({
     heroLead: 'Trova ciò che devi fare, apri lo strumento e completa il lavoro rapidamente. FLIXO mantiene l’esperienza focalizzata e usa l’elaborazione locale nel browser quando lo strumento la supporta.',
     quickDropTitle: 'Trascina un file. Ti indicheremo lo strumento giusto.',
+  }),
+  fr: Object.freeze({
+    ready: 'disponibles',
+  }),
+  de: Object.freeze({
+    quickDrop: 'SCHNELLES ABLEGEN',
   }),
   ja: Object.freeze({
     ariaTrust: '信頼のしるし',
@@ -37,7 +42,7 @@ export const HOME_COPY_OVERRIDES: Readonly<Partial<Record<Locale, HomeCopyOverri
     browserMeta: 'W przeglądarce · Natychmiastowy start',
   }),
   pt: Object.freeze({
-    heroTitle: 'A ferramenta certa, <span>bez zbędnych kroków.</span>',
+    heroTitle: 'A ferramenta certa, <span>sem rodeios.</span>',
   }),
   ru: Object.freeze({
     quickDrop: 'БЫСТРОЕ ДОБАВЛЕНИЕ',
