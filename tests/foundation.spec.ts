@@ -28,6 +28,7 @@ test('application boots with image-first homepage', async ({ page }) => {
         JSON.stringify(diagnostics, null, 2),
         runtimeErrors.join('\n'),
       ].filter(Boolean).join('\n'),
+      { cause: error instanceof Error ? error : new Error(String(error)) },
     );
   }
 
