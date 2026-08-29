@@ -85,6 +85,39 @@ jobs:
           } > server_process_identity.txt
           cat server_process_identity.txt
 
+      - name: Diagnose first runtime-render failure
+        shell: bash
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+        continue-on-error: true
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage();
+          const errors = [];
+          const failed = [];
+          page.on('pageerror', (error) => errors.push({ type: 'pageerror', message: error.message, stack: error.stack }));
+          page.on('console', (message) => {
+            if (message.type() === 'error') errors.push({ type: 'console', message: message.text() });
+          });
+          page.on('requestfailed', (request) => failed.push({ url: request.url(), error: request.failure()?.errorText ?? 'unknown' }));
+          for (const path of ['/en', '/en/ai-captioner-srt']) {
+            await page.goto(`${process.env.PLAYWRIGHT_TEST_BASE_URL}${path}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await page.waitForTimeout(1500);
+            console.log(`=== S4 DIAGNOSTIC ${path} ===`);
+            console.log(`URL=${page.url()}`);
+            console.log(`TITLE=${await page.title()}`);
+            console.log(`BODY_TEXT=${(await page.locator('body').innerText()).slice(0, 2000)}`);
+            console.log(`BODY_HTML=${(await page.locator('body').innerHTML()).slice(0, 5000)}`);
+            console.log(`PAGE_ERRORS=${JSON.stringify(errors, null, 2)}`);
+            console.log(`FAILED_REQUESTS=${JSON.stringify(failed, null, 2)}`);
+            errors.length = 0;
+            failed.length = 0;
+          }
+          await browser.close();
+          NODE
+
       - name: Run Chromium Firefox WebKit with zero retries
         env:
           S4_RUNTIME_GATE: 'true'

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { LOCALES, LOCALE_METADATA, X_DEFAULT_LOCALE, getCanonicalSiteOrigin } from '../src/lib/i18n/config.ts';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
-import { getLocalizedToolPath } from '../src/lib/routing/route-resolver.ts';
+import { getLocalizedToolPath, getLocalizedToolUrl } from '../src/lib/routing/route-resolver.ts';
 
 const outputDir = process.env.FLIXO_GENERATED_OUTPUT_DIR?.trim() || 'dist';
 const sitemapPath = `${outputDir}/sitemap.xml`;
@@ -51,7 +51,11 @@ if (locMatches.length !== expectedPaths.size) fail(`sitemap has ${locMatches.len
 const uniqueLocs = new Set(locMatches);
 if (uniqueLocs.size !== locMatches.length) fail('sitemap contains duplicate <loc> entries');
 
-const expectedUrls = new Set([...expectedPaths].map((path) => new URL(path.slice(1), `${canonicalOrigin}/`).toString()));
+const localizedHomeUrl = (locale) => new URL(`/${locale}`, `${canonicalOrigin}/`).toString();
+const expectedUrls = new Set([
+  ...LOCALES.map(localizedHomeUrl),
+  ...readyTools.flatMap((tool) => LOCALES.map((locale) => getLocalizedToolUrl(canonicalOrigin, tool, locale))),
+]);
 for (const expectedUrl of expectedUrls) {
   if (!uniqueLocs.has(expectedUrl)) fail(`sitemap is missing expected URL: ${expectedUrl}`);
 }
@@ -67,11 +71,6 @@ if (urlBlocks.length !== locMatches.length) fail('sitemap <url> block count does
 const localeTags = new Map(LOCALES.map((locale) => [locale, LOCALE_METADATA[locale].languageTag]));
 const pathFromUrl = (url) => new URL(url).pathname.replace(/\/+$/u, '') || '/';
 const localizedPrefix = new RegExp(`^/(?:${LOCALES.join('|')})(?:/|$)`, 'u');
-const absoluteLocalizedUrl = (locale, path) => {
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const combinedPath = `/${locale}${normalizedPath}`.replace(/\/{2,}/gu, '/');
-  return new URL(combinedPath.replace(/\/$/u, ''), `${canonicalOrigin}/`).toString();
-};
 
 for (const block of urlBlocks) {
   const loc = block.match(/<loc>([^<]+)<\/loc>/u)?.[1];
@@ -79,11 +78,19 @@ for (const block of urlBlocks) {
   const path = pathFromUrl(loc);
   if (!localizedPrefix.test(path)) fail(`non-localized URL was published: ${loc}`);
 
-  const pathWithoutLocale = path.replace(new RegExp(`^/(?:${LOCALES.join('|')})(?=/|$)`, 'u'), '') || '/';
+  const locale = LOCALES.find((candidate) => path === `/${candidate}` || path.startsWith(`/${candidate}/`));
+  if (!locale) fail(`unable to resolve locale for sitemap URL: ${loc}`);
+  const tool = readyTools.find((candidate) => getLocalizedToolPath(candidate, locale) === path);
+
   const alternateMatches = [...block.matchAll(/<xhtml:link\s+rel="alternate"\s+hreflang="([^"]+)"\s+href="([^"]+)"\s*\/>/gu)];
   if (alternateMatches.length !== LOCALES.length + 1) {
     fail(`${loc} has ${alternateMatches.length} alternates; expected ${LOCALES.length + 1}`);
   }
+
+  const expectedLocalizedUrl = (targetLocale) =>
+    tool
+      ? getLocalizedToolUrl(canonicalOrigin, tool, targetLocale)
+      : localizedHomeUrl(targetLocale);
 
   const seenTags = new Set();
   for (const [, hreflang, href] of alternateMatches) {
@@ -92,14 +99,14 @@ for (const block of urlBlocks) {
     if (!href.startsWith(`${canonicalOrigin}/`)) fail(`${loc} has alternate outside canonical origin: ${href}`);
 
     if (hreflang === 'x-default') {
-      const expected = absoluteLocalizedUrl(X_DEFAULT_LOCALE, pathWithoutLocale);
+      const expected = expectedLocalizedUrl(X_DEFAULT_LOCALE);
       if (href !== expected) fail(`${loc} has incorrect x-default target: ${href}`);
       continue;
     }
 
-    const locale = LOCALES.find((candidate) => localeTags.get(candidate) === hreflang);
-    if (!locale) fail(`${loc} contains unsupported hreflang: ${hreflang}`);
-    const expected = absoluteLocalizedUrl(locale, pathWithoutLocale);
+    const targetLocale = LOCALES.find((candidate) => localeTags.get(candidate) === hreflang);
+    if (!targetLocale) fail(`${loc} contains unsupported hreflang: ${hreflang}`);
+    const expected = expectedLocalizedUrl(targetLocale);
     if (href !== expected) fail(`${loc} has incorrect ${hreflang} alternate: ${href}`);
   }
 
