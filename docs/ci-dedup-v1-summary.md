@@ -1,1 +1,0 @@
-CI deduplication retains all unique verification surfaces and removes only duplicate execution. Required checks remain fail-closed: skipped or missing evidence is not success, and the exact commit SHA remains part of promotion evidence.
