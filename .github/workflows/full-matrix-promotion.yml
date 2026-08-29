@@ -3,8 +3,6 @@ name: Full Matrix Promotion
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: '0 2 * * *'
@@ -12,14 +10,66 @@ on:
 permissions:
   contents: read
 
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
+
 concurrency:
   group: full-matrix-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  build-once:
+    name: Full Matrix Build Once
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Build immutable certification artifact
+        run: |
+          set -euo pipefail
+          npm run build
+          test -f dist/index.html
+          node --input-type=module <<'NODE'
+          import { writeFile } from 'node:fs/promises';
+          await writeFile(
+            'full-matrix-build-metadata.json',
+            JSON.stringify(
+              {
+                sha: process.env.GITHUB_SHA,
+                workflow: process.env.GITHUB_WORKFLOW,
+                run_id: process.env.GITHUB_RUN_ID,
+                generated_at: new Date().toISOString(),
+              },
+              null,
+              2,
+            ) + '\n',
+          );
+          NODE
+          cat full-matrix-build-metadata.json
+      - name: Publish immutable certification artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: full-matrix-build-${{ github.sha }}
+          path: |
+            dist/
+            full-matrix-build-metadata.json
+          if-no-files-found: error
+          retention-days: 14
+
   e2e:
     name: Full Matrix — ${{ matrix.tool }} — ${{ matrix.browser }}
+    needs: [build-once]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -55,7 +105,25 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Download immutable certification artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: full-matrix-build-${{ github.sha }}
+          path: .
+      - name: Verify exact build SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f full-matrix-build-metadata.json
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const metadata = JSON.parse(await readFile('full-matrix-build-metadata.json', 'utf8'));
+          if (metadata.sha !== process.env.GITHUB_SHA) {
+            throw new Error(`Build SHA mismatch: expected ${process.env.GITHUB_SHA}, got ${metadata.sha}`);
+          }
+          NODE
+          test -f dist/index.html
       - name: Sanitize blocked external APT sources
         shell: bash
         run: |
@@ -65,6 +133,20 @@ jobs:
             sudo rm -f "$source"
           done < <(grep -RIl 'packages\.microsoft\.com' /etc/apt/sources.list.d 2>/dev/null || true)
       - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Start prebuilt production server
+        shell: bash
+        run: |
+          set -euo pipefail
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/full-matrix-server.log 2>&1 &
+          echo $! > /tmp/full-matrix-server.pid
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/full-matrix-server.log || true
+          exit 1
       - name: Resolve test specification
         id: spec
         shell: bash
@@ -74,8 +156,13 @@ jobs:
           if [[ "${{ matrix.tool }}" == "localization" ]]; then
             spec="tests/localization-smoke.spec.ts"
           fi
+          test -f "$spec"
           echo "spec=$spec" >> "$GITHUB_OUTPUT"
       - name: Run ${{ matrix.tool }} E2E on ${{ matrix.browser }}
+        env:
+          CI: 'true'
+          PLAYWRIGHT_EXTERNAL_SERVER: 'true'
+          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
         run: npx playwright test "${{ steps.spec.outputs.spec }}" --project=${{ matrix.browser }}
       - name: Upload E2E diagnostics
         if: ${{ failure() }}
@@ -85,13 +172,28 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            /tmp/full-matrix-server.log
           if-no-files-found: warn
           retention-days: 7
+      - name: Cleanup prebuilt server
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/full-matrix-server.pid ]; then
+            PID="$(cat /tmp/full-matrix-server.pid)"
+            PGID="$(ps -o pgid= -p "$PID" 2>/dev/null | tr -d ' ')"
+            if [ -n "$PGID" ] && [ "$PGID" != "1" ]; then
+              kill -- -"$PGID" 2>/dev/null || true
+            fi
+          fi
+          sleep 1
+          ! pgrep -af 'vite preview --host 127.0.0.1 --port 3000' >/dev/null
 
   promotion:
     name: Full Matrix Promotion Gate
-    needs: [e2e]
-    if: ${{ always() && needs.e2e.result == 'success' }}
+    needs: [build-once, e2e]
+    if: ${{ always() && needs.build-once.result == 'success' && needs.e2e.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Verify exact certified SHA
@@ -106,7 +208,7 @@ jobs:
           {
             echo '## FLIXO Full Matrix Promotion'
             echo
-            echo 'Full browser matrix passed for:'
+            echo 'One immutable build artifact was reused across the complete browser matrix for:'
             echo '${{ github.sha }}'
             echo
             echo '23 suites × 3 browsers = 69 E2E jobs completed successfully.'
