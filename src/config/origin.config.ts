@@ -24,21 +24,6 @@ function normalizeOrigin(value: string, variableName: string): string {
   return parsed.origin.replace(/\/$/u, '');
 }
 
-function isBlockedCanonicalHost(hostname: string): boolean {
-  const normalized = hostname.toLowerCase();
-
-  return (
-    normalized === 'localhost' ||
-    normalized === '127.0.0.1' ||
-    normalized === '[::1]' ||
-    normalized === '::1' ||
-    normalized === 'vercel.app' ||
-    normalized.endsWith('.vercel.app') ||
-    normalized === 'vercel.sh' ||
-    normalized.endsWith('.vercel.sh')
-  );
-}
-
 export function getCanonicalSiteOrigin(): string {
   const configured = readOriginEnv('VITE_SITE_URL');
   if (!configured) {
@@ -57,12 +42,6 @@ export function getCanonicalSiteOrigin(): string {
   if (origin.origin !== OFFICIAL_PRODUCTION_ORIGIN) {
     throw new Error(
       `VITE_SITE_URL must be the sole official FLIXO production origin: ${OFFICIAL_PRODUCTION_ORIGIN}`,
-    );
-  }
-
-  if (isBlockedCanonicalHost(origin.hostname) && origin.origin !== OFFICIAL_PRODUCTION_ORIGIN) {
-    throw new Error(
-      `VITE_SITE_URL must be the official production origin, not a local or deployment origin: ${origin.origin}`,
     );
   }
 
