@@ -47,8 +47,8 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.s
     const absolute = absoluteUrl(url);
     const path = new URL(absolute).pathname;
     const pathWithoutLocale = path.replace(localePrefixPattern, '') || '/';
-    const isLocalizedPage = path !== pathWithoutLocale;
-    const alternates = isLocalizedPage || path === '/use-cases/' || path.startsWith('/use-cases/') ? '' : localizedAlternateLinks(pathWithoutLocale);
+    const isLocalizedPage = localePrefixPattern.test(path);
+    const alternates = isLocalizedPage ? localizedAlternateLinks(pathWithoutLocale) : '';
     return `  <url>\n    <loc>${absolute}</loc>${alternates ? `\n${alternates}` : ''}\n  </url>`;
   })
   .join('\n')}\n</urlset>\n`;
