@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 
 const sitemapSource = readFileSync('scripts/generate-sitemap.mjs', 'utf8');
 const robotsGeneratorSource = readFileSync('scripts/generate-robots.mjs', 'utf8');
@@ -12,10 +12,15 @@ const useCasesSource = readFileSync('src/lib/seo/use-cases.ts', 'utf8');
 const useCaseRouteSource = readFileSync('src/routes/use-case.tsx', 'utf8');
 const localizedToolRouteSource = readFileSync('src/routes/localized-tool.tsx', 'utf8');
 const toolSeoSource = readFileSync('src/lib/seo/tool-seo.ts', 'utf8');
+const toolDefinitionDir = 'src/config/tool-definitions';
+const toolDefinitionSources = readdirSync(toolDefinitionDir)
+  .filter((name) => name.endsWith('.ts') && name !== 'types.ts')
+  .map((name) => readFileSync(`${toolDefinitionDir}/${name}`, 'utf8'));
+const readyToolIds = toolDefinitionSources.flatMap((source) => [...source.matchAll(/\bid:\s*'([^']+)'/g)].map((match) => match[1]));
+if (readyToolIds.length === 0) throw new Error('No tool ids discovered in canonical tool definition modules.');
 
-const expectedLocales = ['en','ar','es','fr','de','ru','zh','hi','id','ur','ja','pt','it','ko','nl','pl','tr','vi','th','sv'];
-const readyToolIds = [...readFileSync('src/config/tool-manifest.ts', 'utf8').matchAll(/id: '([^']+)'/g)].map((match) => match[1]);
-if (readyToolIds.length === 0) throw new Error('No tool ids discovered in TOOL_MANIFEST.');
+const expectedLocales = ['en', 'ar', 'es', 'fr', 'de', 'ru', 'zh', 'hi', 'id', 'ur', 'ja', 'pt', 'it', 'ko', 'nl', 'pl', 'tr', 'vi', 'th', 'sv'];
+if (expectedLocales.length !== 20) throw new Error('Indexing gate locale registry expectation must contain exactly 20 locales.');
 
 if (!originSource.includes('export function getCanonicalSiteOrigin()')) throw new Error('Canonical origin contract is missing getCanonicalSiteOrigin().');
 if (!originSource.includes("if (origin.protocol !== 'https:')")) throw new Error('Canonical origin contract must enforce HTTPS.');
@@ -77,5 +82,5 @@ for (const slug of slugs) {
 }
 
 console.log(
-  `Indexing validation passed: ${expectedLocales.length} locales, ${readyToolIds.length} tool ids, localized tool canonical/hreflang symmetry, canonical-only use-case routes, HTTPS canonical origin, and robots/sitemap contracts are aligned.`,
+  `Indexing validation passed: ${expectedLocales.length} locales, ${readyToolIds.length} canonical tool definitions, localized tool canonical/hreflang symmetry, canonical-only use-case routes, HTTPS canonical origin, and robots/sitemap contracts are aligned.`,
 );
