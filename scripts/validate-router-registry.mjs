@@ -74,8 +74,10 @@ for (const tool of TOOLS_REGISTRY) {
   }
 }
 
-const routeSources = listRouteFiles(routesDir).map((file) => fs.readFileSync(file, 'utf8'));
+const routeFiles = listRouteFiles(routesDir);
+const routeSources = routeFiles.map((file) => fs.readFileSync(file, 'utf8'));
 const declaredRouteList = routeSources.flatMap(extractPathProperties);
+const hasLocalizedToolRoute = declaredRouteList.includes('/$locale/$tool');
 
 // imageToolRoutes is generated from IMAGE_TOOLS. image-compressor is excluded there
 // because it has its own explicit route module, so it must not be reintroduced here.
@@ -107,7 +109,16 @@ const expectedPublicRoutes = new Set(
     .filter(isPublicToolRoute),
 );
 
-const missing = [...expectedPublicRoutes].filter((route) => !declaredToolRoutes.has(route)).sort();
+// The localized tool route is a registry-backed dynamic boundary for any ready
+// locale/tool pair that is not represented by a dedicated static route module.
+const dynamicOwnedExpectedRoutes = hasLocalizedToolRoute
+  ? [...expectedPublicRoutes].filter((route) => !declaredToolRoutes.has(route))
+  : [];
+
+const missing = [...expectedPublicRoutes].filter(
+  (route) => !declaredToolRoutes.has(route) && !dynamicOwnedExpectedRoutes.includes(route),
+).sort();
+
 const orphan = [...declaredToolRoutes].filter((route) => !expectedPublicRoutes.has(route)).sort();
 
 if (missing.length) {
@@ -115,6 +126,7 @@ if (missing.length) {
     missing,
     expectedCount: expectedPublicRoutes.size,
     declaredCount: declaredToolRoutes.size,
+    dynamicLocalizedRoute: hasLocalizedToolRoute,
   });
 }
 
@@ -123,6 +135,7 @@ if (orphan.length) {
     orphan,
     expectedCount: expectedPublicRoutes.size,
     declaredCount: declaredToolRoutes.size,
+    dynamicLocalizedRoute: hasLocalizedToolRoute,
   });
 }
 
@@ -143,3 +156,5 @@ console.log(`declared tool routes: ${declaredToolRoutes.size}`);
 console.log(`expected public routes: ${expectedPublicRoutes.size}`);
 console.log(`aliases: ${aliases.size}`);
 console.log(`generated image routes: ${usesGeneratedImageRoutes ? 'enabled' : 'disabled'}`);
+console.log(`dynamic localized tool route: ${hasLocalizedToolRoute ? 'enabled' : 'disabled'}`);
+console.log(`dynamic-owned ready routes: ${dynamicOwnedExpectedRoutes.length}`);
