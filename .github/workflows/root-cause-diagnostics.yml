@@ -1,9 +1,13 @@
 name: Root Cause Diagnostics
 
+# Deep diagnostics are intentionally opt-in. Required PR gates already run
+# the blocking contracts; this workflow is a debugging microscope, not a second
+# blocking pipeline that competes for the same runner capacity.
+
 on:
-  pull_request:
-  push:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -11,6 +15,11 @@ permissions:
 concurrency:
   group: root-cause-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
 
 jobs:
   static:
@@ -46,7 +55,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Run ${{ matrix.area }} diagnostics
         env:
           CI: 'true'
@@ -75,7 +84,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Validate deterministic PR origin
         run: npm run validate:site-origin
       - run: npm run build
@@ -108,7 +117,14 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Cache Playwright ${{ matrix.browser }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-${{ matrix.browser }}-
       - name: Sanitize blocked external APT sources
         shell: bash
         run: |
@@ -117,7 +133,8 @@ jobs:
             echo "Removing inaccessible Microsoft APT source: $source"
             sudo rm -f "$source"
           done < <(grep -RIl 'packages\.microsoft\.com' /etc/apt/sources.list.d 2>/dev/null || true)
-      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: npx playwright install-deps ${{ matrix.browser }}
+      - run: npx playwright install ${{ matrix.browser }}
       - name: Run E2E on ${{ matrix.browser }}
         env:
           CI: 'true'
@@ -144,7 +161,7 @@ jobs:
           {
             echo '## Root Cause Diagnostics'
             echo
-            echo 'Parallel gates: 9 contract/security areas + build/performance + 3 browser E2E jobs.'
+            echo 'This workflow is diagnostic-only and does not duplicate the blocking PR pipeline.'
             echo 'fail-fast=false preserves independent failures for diagnosis.'
             echo "static=${{ needs.static.result }}"
             echo "build-performance=${{ needs.build-performance.result }}"
