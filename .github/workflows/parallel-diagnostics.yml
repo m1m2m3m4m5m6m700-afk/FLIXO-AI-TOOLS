@@ -1,13 +1,13 @@
 name: Parallel Diagnostics
 
-# Deep-diagnostic workflow. It intentionally does not replace the canonical CI gate.
-# 23 suites × 3 browsers = 69 independent suite/browser diagnostic executions.
+# Deep diagnostics are intentionally opt-in. Required PR gates provide the
+# blocking evidence; this workflow is a debugging microscope.
+# When invoked, all 23 suites × 3 browsers = 69 executions remain covered.
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - '.github/workflows/parallel-diagnostics.yml'
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -18,8 +18,8 @@ env:
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
 
 concurrency:
-  group: parallel-diagnostics-${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: parallel-diagnostics-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   e2e:
