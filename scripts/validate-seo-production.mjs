@@ -67,6 +67,11 @@ if (urlBlocks.length !== locMatches.length) fail('sitemap <url> block count does
 const localeTags = new Map(LOCALES.map((locale) => [locale, LOCALE_METADATA[locale].languageTag]));
 const pathFromUrl = (url) => new URL(url).pathname.replace(/\/+$/u, '') || '/';
 const localizedPrefix = new RegExp(`^/(?:${LOCALES.join('|')})(?:/|$)`, 'u');
+const absoluteLocalizedUrl = (locale, path) => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const combinedPath = `/${locale}${normalizedPath}`.replace(/\/{2,}/gu, '/');
+  return new URL(combinedPath.replace(/\/$/u, ''), `${canonicalOrigin}/`).toString();
+};
 
 for (const block of urlBlocks) {
   const loc = block.match(/<loc>([^<]+)<\/loc>/u)?.[1];
@@ -87,14 +92,14 @@ for (const block of urlBlocks) {
     if (!href.startsWith(`${canonicalOrigin}/`)) fail(`${loc} has alternate outside canonical origin: ${href}`);
 
     if (hreflang === 'x-default') {
-      const expected = new URL(pathWithoutLocale.replace(/^\//u, ''), `${canonicalOrigin}/${X_DEFAULT_LOCALE}/`).toString();
+      const expected = absoluteLocalizedUrl(X_DEFAULT_LOCALE, pathWithoutLocale);
       if (href !== expected) fail(`${loc} has incorrect x-default target: ${href}`);
       continue;
     }
 
     const locale = LOCALES.find((candidate) => localeTags.get(candidate) === hreflang);
     if (!locale) fail(`${loc} contains unsupported hreflang: ${hreflang}`);
-    const expected = new URL(`${locale}${pathWithoutLocale}`.replace(/^\//u, ''), `${canonicalOrigin}/`).toString();
+    const expected = absoluteLocalizedUrl(locale, pathWithoutLocale);
     if (href !== expected) fail(`${loc} has incorrect ${hreflang} alternate: ${href}`);
   }
 
