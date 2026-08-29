@@ -7,7 +7,9 @@ const fail = (message) => {
 const pass = (message) => console.log(`GOOGLE MULTILINGUAL SEO PASS: ${message}`);
 
 const config = readFileSync('src/lib/i18n/config.ts', 'utf8');
-const sitemap = readFileSync('public/sitemap.xml', 'utf8');
+const sitemapPath = existsSync('dist/sitemap.xml') ? 'dist/sitemap.xml' : 'public/sitemap.xml';
+if (!existsSync(sitemapPath)) fail('generated sitemap.xml is missing from both dist/ and public/.');
+const sitemap = readFileSync(sitemapPath, 'utf8');
 const manifest = readFileSync('public/manifest.webmanifest', 'utf8');
 const rootSource = readFileSync('src/routes/__root.tsx', 'utf8');
 const indexing = readFileSync('scripts/validate-indexing.mjs', 'utf8');
@@ -47,7 +49,6 @@ for (const [index, match] of urlBlocks.entries()) {
   const body = match[2];
   const locale = loc.match(new RegExp(`^https?://[^/]+/(${locales.join('|')})(?:/|$)`, 'u'))?.[1];
   if (!locale || !localeUrlPattern.test(loc)) fail(`non-localized URL in sitemap: ${loc}`);
-
   const alternates = [...body.matchAll(/<xhtml:link rel="alternate" hreflang="([^"]+)" href="([^"]+)"\s*\/>/gu)];
   if (alternates.length !== 21) fail(`${loc} has ${alternates.length} hreflang links; expected 20 locales + x-default.`);
   const seenTags = new Set();
@@ -66,25 +67,17 @@ for (const [index, match] of urlBlocks.entries()) {
   if (!seenTags.has('x-default')) fail(`${loc} is missing x-default.`);
   const xDefault = expectedHrefs.get('x-default');
   if (!xDefault) fail(`${loc} is missing x-default.`);
-
   const pathWithoutLocale = new URL(loc).pathname.replace(new RegExp(`^/(?:${locales.join('|')})(?=/|$)`, 'u'), '') || '/';
   const expectedEnglishPath = `/en${pathWithoutLocale === '/' ? '' : pathWithoutLocale}`;
   const expectedEnglishUrl = new URL(expectedEnglishPath, loc);
   const actualXDefault = new URL(xDefault);
   const normalizePath = (pathname) => pathname.replace(/\/+$/u, '') || '/';
-  if (
-    actualXDefault.origin !== expectedEnglishUrl.origin ||
-    normalizePath(actualXDefault.pathname) !== normalizePath(expectedEnglishUrl.pathname) ||
-    actualXDefault.search !== expectedEnglishUrl.search ||
-    actualXDefault.hash !== expectedEnglishUrl.hash
-  ) {
+  if (actualXDefault.origin !== expectedEnglishUrl.origin || normalizePath(actualXDefault.pathname) !== normalizePath(expectedEnglishUrl.pathname) || actualXDefault.search !== expectedEnglishUrl.search || actualXDefault.hash !== expectedEnglishUrl.hash) {
     fail(`${loc} x-default must target ${expectedEnglishUrl.toString()}; found ${xDefault}.`);
   }
-
   const canonicalTag = metadata.get(locale).languageTag;
   const selfHref = expectedHrefs.get(canonicalTag);
   if (selfHref !== loc) fail(`${loc} hreflang self-reference does not equal <loc>.`);
-
   const key = pathWithoutLocale.replace(/\/+$/u, '') || '/';
   if (!groups.has(key)) groups.set(key, new Map());
   groups.get(key).set(locale, loc);
@@ -93,9 +86,7 @@ for (const [index, match] of urlBlocks.entries()) {
 
 for (const [path, group] of groups) {
   if (group.size !== 20) fail(`localized sitemap group ${path} contains ${group.size}/20 locale URLs.`);
-  for (const locale of locales) {
-    if (!group.has(locale)) fail(`localized sitemap group ${path} is missing ${locale}.`);
-  }
+  for (const locale of locales) if (!group.has(locale)) fail(`localized sitemap group ${path} is missing ${locale}.`);
 }
 pass(`${groups.size} localized page families × 20 locales with symmetric hreflang`);
 
@@ -103,6 +94,7 @@ if (!sitemapGenerator.includes('LOCALES.map((locale)')) fail('sitemap generator 
 if (!sitemapGenerator.includes('LOCALE_METADATA[locale].languageTag')) fail('sitemap generator does not use canonical language tags.');
 if (!sitemapGenerator.includes('X_DEFAULT_LOCALE')) fail('sitemap generator does not derive x-default from canonical locale config.');
 if (!sitemapGenerator.includes('TOOL_MANIFEST.filter((tool) => tool.isReady)')) fail('sitemap generator is not gated by ready TOOL_MANIFEST entries.');
+if (!sitemapGenerator.includes('FLIXO_GENERATED_OUTPUT_DIR')) fail('sitemap generator must support deployment-output generation without mutating public sources.');
 pass('sitemap single-source-of-truth contract');
 
 if (!indexing.includes('xhtml:link rel="alternate" hreflang=')) fail('indexing validator does not enforce hreflang generation.');

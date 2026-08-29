@@ -1,11 +1,16 @@
 import assert from 'node:assert/strict';
-import {
+
+// Contract tests use an explicit test/runtime origin; production canonical config remains separate.
+process.env.VITE_TEST_ORIGIN ??= 'https://canonical.test';
+process.env.VITE_RUNTIME_ORIGIN ??= process.env.VITE_TEST_ORIGIN;
+
+const {
   DEFAULT_LOCALE,
   LOCALES,
   LOCALE_METADATA,
   isLocale,
   normalizeLocale,
-} from '../src/lib/i18n/config.ts';
+} = await import('../src/lib/i18n/config.ts');
 
 assert.equal(DEFAULT_LOCALE, 'en');
 assert.equal(LOCALES.length, 20);
@@ -32,4 +37,4 @@ for (const locale of LOCALES) {
 
 await import('./test-seo-contract.mjs');
 
-console.log('i18n contract tests passed.');
+console.log('i18n contract tests passed with deterministic test/runtime origins.');

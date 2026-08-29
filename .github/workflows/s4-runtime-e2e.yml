@@ -20,6 +20,8 @@ jobs:
     name: S4 Runtime + E2E
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      VITE_SITE_URL: https://canonical.test
     steps:
       - uses: actions/checkout@v5
         with:

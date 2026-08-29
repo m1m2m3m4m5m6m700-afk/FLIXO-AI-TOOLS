@@ -17,9 +17,11 @@ assert.equal(SEO_DEFAULT_LOCALE, 'ar');
 assert.equal(X_DEFAULT_LOCALE, 'en');
 assert.equal(new URL(SITE_ORIGIN).protocol, 'https:');
 
+const expectedSiteOrigin = new URL(SITE_ORIGIN).origin;
+
 assert.equal(
   absoluteUrl('/ar/tools?utm_source=test#fragment'),
-  'https://flexoai.vercel.app/ar/tools',
+  `${expectedSiteOrigin}/ar/tools`,
 );
 assert.throws(() => absoluteUrl('//evil.example/tools'));
 assert.throws(() => absoluteUrl('https://evil.example/tools'));
@@ -33,13 +35,13 @@ assert.equal(alternates.length, 21);
 assert.equal(new Set(alternates.map(({ hreflang }) => hreflang)).size, 21);
 assert.equal(
   alternates.find(({ hreflang }) => hreflang === 'x-default')?.href,
-  'https://flexoai.vercel.app/en/tools',
+  `${expectedSiteOrigin}/en/tools`,
 );
 
 for (const alternate of alternates) {
   const url = new URL(alternate.href);
   assert.equal(url.protocol, 'https:');
-  assert.equal(url.origin, new URL(SITE_ORIGIN).origin);
+  assert.equal(url.origin, expectedSiteOrigin);
   assert.equal(url.search, '');
   assert.equal(url.hash, '');
 }
@@ -51,7 +53,7 @@ const metadata = buildSeoMetadata({
   description: 'Description',
 });
 
-assert.equal(metadata.canonical, 'https://flexoai.vercel.app/ar/tools');
+assert.equal(metadata.canonical, `${expectedSiteOrigin}/ar/tools`);
 assert.equal(metadata.language, 'ar');
 assert.equal(metadata.direction, 'rtl');
 assert.equal(metadata.structuredData.url, metadata.canonical);

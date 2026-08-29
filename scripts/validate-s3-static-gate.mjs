@@ -1,16 +1,12 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, unlinkSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 const root = resolve(process.cwd());
 const dist = join(root, 'dist');
-const generatedSitemapPath = join(root, 'public/sitemap.xml');
-const generatedRobotsPath = join(root, 'public/robots.txt');
-const sitemapExistedBeforeBuild = existsSync(generatedSitemapPath);
-const robotsExistedBeforeBuild = existsSync(generatedRobotsPath);
 const fail = (message) => { console.error(`S3 FAIL: ${message}`); process.exit(1); };
 const pass = (message) => console.log(`S3 PASS: ${message}`);
-const run = (command, args = []) => execFileSync(command, args, { cwd: root, stdio: 'inherit' });
+const run = (command, args = [], extraEnv = {}) => execFileSync(command, args, { cwd: root, stdio: 'inherit', env: { ...process.env, ...extraEnv } });
 const runNodeScript = (script, args = []) => run('node', ['--import=./scripts/register-node-resolver.mjs', script, ...args]);
 
 const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
@@ -72,14 +68,25 @@ run('npm', ['run', 'typecheck']);
 pass('TypeScript');
 run('npm', ['run', 'lint']);
 pass('ESLint');
-run('npm', ['run', 'build']);
-pass('production build');
+
+const siteUrl = process.env.VITE_SITE_URL?.trim();
+if (!siteUrl) fail('production S3 certification requires VITE_SITE_URL from repository variable SITE_URL');
+run('npm', ['run', 'validate:site-origin']);
+run('npm', ['run', 'build'], { VITE_SITE_URL: siteUrl, FLIXO_GENERATED_OUTPUT_DIR: 'dist' });
+pass(`production build for ${siteUrl}`);
+
+const builtRobotsPath = join(dist, 'robots.txt');
+const builtSitemapPath = join(dist, 'sitemap.xml');
+if (!existsSync(builtRobotsPath)) fail('build output is missing dist/robots.txt');
+if (!existsSync(builtSitemapPath)) fail('build output is missing dist/sitemap.xml');
+const expectedRobots = `User-agent: *\nAllow: /\n\nSitemap: ${siteUrl}/sitemap.xml\n`;
+if (readFileSync(builtRobotsPath, 'utf8') !== expectedRobots) fail('dist/robots.txt does not match the canonical origin contract');
+pass('deployment metadata emitted into dist without mutating public sources');
+
 runNodeScript('scripts/validate-google-multilingual-seo.mjs');
 pass('Google multilingual SEO contract');
 runNodeScript('scripts/validate-language-quality-strict.mjs');
 pass('strict 20-locale localization quality');
-if (!sitemapExistedBeforeBuild && existsSync(generatedSitemapPath)) { unlinkSync(generatedSitemapPath); pass('removed build-generated public/sitemap.xml'); }
-if (!robotsExistedBeforeBuild && existsSync(generatedRobotsPath)) { unlinkSync(generatedRobotsPath); pass('removed build-generated public/robots.txt'); }
 
 const outputDir = existsSync(join(dist, 'client')) ? join(dist, 'client') : dist;
 const outputIndex = join(outputDir, 'index.html');
@@ -116,28 +123,17 @@ try {
   const changedRaw = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { cwd: root, encoding: 'utf8' }).trim();
   const changed = changedRaw ? changedRaw.split('\n').filter(Boolean) : [];
   const exactAllow = new Set([
-    '.github/workflows/s4-runtime-e2e.yml', '.github/workflows/localization-20.yml', 'playwright.config.ts',
-    'scripts/validate-s3-static-gate.mjs', 'scripts/validate-s4-e2e.mjs',
-    'scripts/validate-language-quality.mjs', 'scripts/validate-language-quality-strict.mjs',
-    'scripts/validate-locale-contract.mjs', 'scripts/validate-localization-complete.mjs',
-    'scripts/validate-indexing.mjs', 'scripts/validate-google-multilingual-seo.mjs',
-    'scripts/node-resolver-loader.mjs', 'scripts/register-node-resolver.mjs', 'scripts/generate-robots.mjs',
-    'README.md', 'README', 'docs/CONSOLIDATION-LOG.md', 'docs/DEBT-REGISTER.md', 'docs/engineering/pr-445-decomposition.md', 'package.json',
-    'release/finalization/C5_PLACEHOLDER.md', 'release/finalization/README.md',
-    'release/finalization/final_execution_manifest.json', 'release/finalization/final_verification.json',
-    'src/main.tsx', 'src/home-modern.css', 'src/config/tool-manifest.ts', 'src/lib/i18n/config.ts',
-    'src/lib/i18n/home-loader.ts', 'src/lib/i18n/locale-quality-overrides.ts', 'src/lib/i18n/tool-seo-localization.ts',
-    'src/routes/__root.tsx', 'src/routes/home-page.tsx', 'src/routes/localized-quickflow.tsx',
-    'src/data/home-locales.ts', 'src/data/quickflow-locales.ts', 'src/data/tool-ui-i18n.ts',
-    'src/components/FlixoGlobalLogo.tsx', 'public/favicon.svg', 'public/flixo-logo.svg', 'public/logo.svg',
-    'public/flixo-logo.jpg', 'public/logo.jpg', 'index.html', '.env.example',
+    '.github/workflows/ci.yml', '.github/workflows/full-matrix-promotion.yml', '.github/workflows/root-cause-diagnostics.yml', '.github/workflows/s4-runtime-e2e.yml', '.github/workflows/localization-20.yml',
+    'playwright.config.ts', 'scripts/validate-s3-static-gate.mjs', 'scripts/validate-s4-e2e.mjs', 'scripts/validate-site-origin.mjs', 'scripts/test-route-resolver.mjs', 'scripts/test-i18n-contract.mjs', 'scripts/test-seo-contract.mjs',
+    'scripts/validate-language-quality.mjs', 'scripts/validate-language-quality-strict.mjs', 'scripts/validate-locale-contract.mjs', 'scripts/validate-localization-complete.mjs', 'scripts/validate-indexing.mjs', 'scripts/validate-google-multilingual-seo.mjs',
+    'scripts/node-resolver-loader.mjs', 'scripts/register-node-resolver.mjs', 'scripts/generate-robots.mjs', 'scripts/generate-sitemap.mjs', 'README.md', 'README', 'docs/CONSOLIDATION-LOG.md', 'docs/DEBT-REGISTER.md',
+    'docs/engineering/pr-445-decomposition.md', 'package.json', 'release/finalization/C5_PLACEHOLDER.md', 'release/finalization/README.md', 'release/finalization/final_execution_manifest.json', 'release/finalization/final_verification.json',
+    'src/main.tsx', 'src/home-modern.css', 'src/config/tool-manifest.ts', 'src/config/origin.config.ts', 'src/lib/i18n/config.ts', 'src/lib/i18n/home-loader.ts', 'src/lib/i18n/locale-quality-overrides.ts', 'src/lib/i18n/tool-seo-localization.ts',
+    'src/lib/routing/route-resolver.ts', 'src/routes/__root.tsx', 'src/routes/home-page.tsx', 'src/routes/localized-quickflow.tsx', 'src/data/home-locales.ts', 'src/data/quickflow-locales.ts', 'src/data/tool-ui-i18n.ts', 'src/components/FlixoGlobalLogo.tsx',
+    'public/favicon.svg', 'public/flixo-logo.svg', 'public/flixo-logo.jpg', 'public/logo.svg', 'public/logo.jpg', 'index.html', '.env.example',
   ]);
-
-  const localizationSeoPrefixes = [
-    'src/tools/',
-  ];
-  const isAllowedLocalizedSeo = (file) => localizationSeoPrefixes.some((prefix) => file.startsWith(prefix)) && file.includes('/seo/') && /\/seo\/[a-z]{2}\.ts$/u.test(file);
-  const unexpected = changed.filter((file) => !exactAllow.has(file) && !isAllowedLocalizedSeo(file));
+  const allowedLocalizedSeo = (file) => file.startsWith('src/tools/') && file.includes('/seo/') && /\/seo\/[a-z]{2}\.ts$/u.test(file);
+  const unexpected = changed.filter((file) => !exactAllow.has(file) && !allowedLocalizedSeo(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);
   pass(`changed-files allowlist (${changed.length} file(s))`);
 } catch (error) { console.error(error?.message ?? error); fail(`unable to evaluate changed-files allowlist against ${base}`); }

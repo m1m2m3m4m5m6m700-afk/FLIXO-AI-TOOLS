@@ -66,6 +66,8 @@ jobs:
     name: Root Cause — build-performance
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      VITE_SITE_URL: https://canonical.test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -73,6 +75,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Validate deterministic PR origin
+        run: npm run validate:site-origin
       - run: npm run build
       - run: npm run validate:performance-budget
       - run: npm run report:performance-baseline
@@ -83,6 +87,7 @@ jobs:
           name: root-cause-build-performance
           path: |
             dist/
+            diagnostics/
             .flixo-performance-report.*
           if-no-files-found: ignore
           retention-days: 14
