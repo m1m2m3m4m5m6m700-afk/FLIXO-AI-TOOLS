@@ -95,23 +95,19 @@ jobs:
   socket:
     name: Socket Supply Chain
     runs-on: ubuntu-latest
-    env:
-      SOCKET_SECURITY_API_KEY: ${{ secrets.SOCKET_SECURITY_API_KEY }}
     steps:
       - uses: actions/checkout@v5
+      - uses: SocketDev/action@2d3f25590c6ed6ba11a9a14c064d962a3a04698f # v1.3.1
+        with:
+          mode: firewall-free
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Run Socket CI
-        if: ${{ env.SOCKET_SECURITY_API_KEY != '' }}
-        run: npx --yes @socketsecurity/cli@1.1.158 ci
-      - name: Fail closed when Socket token is unavailable
-        if: ${{ env.SOCKET_SECURITY_API_KEY == '' }}
-        run: |
-          echo 'Socket CI cannot establish supply-chain evidence because SOCKET_SECURITY_API_KEY is missing.'
-          exit 1
+      - name: Install dependencies through Socket Firewall
+        run: sfw npm ci --prefer-offline --no-audit --no-fund
+      - name: Verify Socket Firewall is active
+        run: sfw --help >/dev/null
 
   secret-scan:
     name: Secret History Scan
