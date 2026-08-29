@@ -1,5 +1,5 @@
 name: Localization — 20 Locale Gate
-# Strict multi-surface localization enforcement: no locale may bypass the complete gate.
+# Strict multi-surface localization enforcement: every locale remains required.
 
 on:
   pull_request:
@@ -25,96 +25,152 @@ on:
       - 's3-**'
   workflow_dispatch:
 
+env:
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
 concurrency:
-  group: localization-20-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  group: localization-20-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
   locale:
-    name: Localization — ${{ matrix.locale }}
+    name: Localization Static — shard ${{ matrix.shard }}/10
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
+      max-parallel: 10
       matrix:
-        locale:
-          - en
-          - ar
-          - es
-          - fr
-          - de
-          - ru
-          - zh
-          - hi
-          - id
-          - ur
-          - ja
-          - pt
-          - it
-          - ko
-          - nl
-          - pl
-          - tr
-          - vi
-          - th
-          - sv
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        locales:
+          - 'en ar'
+          - 'es fr'
+          - 'de ru'
+          - 'zh hi'
+          - 'id ur'
+          - 'ja pt'
+          - 'it ko'
+          - 'nl pl'
+          - 'tr vi'
+          - 'th sv'
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - name: Validate ${{ matrix.locale }} translation contract
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Validate all locales in shard
+        shell: bash
         env:
-          FLIXO_LOCALE: ${{ matrix.locale }}
-        run: node scripts/validate-locale-contract.mjs
-      - name: Strict ${{ matrix.locale }} localization release engine
-        env:
-          FLIXO_LOCALE: ${{ matrix.locale }}
-        run: npm run verify:i18n -- --strict --report
+          FLIXO_LOCALES: ${{ matrix.locales }}
+        run: |
+          set +e
+          failures=0
+          mkdir -p diagnostics/localization
+          for locale in $FLIXO_LOCALES; do
+            echo "===== STATIC LOCALE: $locale ====="
+            FLIXO_LOCALE="$locale" node scripts/validate-locale-contract.mjs > "diagnostics/localization/${locale}-contract.log" 2>&1
+            contract_status=$?
+            cat "diagnostics/localization/${locale}-contract.log"
+            FLIXO_LOCALE="$locale" npm run verify:i18n -- --strict --report > "diagnostics/localization/${locale}-quality.log" 2>&1
+            quality_status=$?
+            cat "diagnostics/localization/${locale}-quality.log"
+            printf '%s contract=%s quality=%s\n' "$locale" "$contract_status" "$quality_status" >> diagnostics/localization/summary.txt
+            if [[ $contract_status -ne 0 || $quality_status -ne 0 ]]; then
+              failures=$((failures + 1))
+            fi
+          done
+          cat diagnostics/localization/summary.txt
+          if [[ $failures -ne 0 ]]; then
+            echo "Localization static shard FAILED: $failures locale(s) had failures."
+            exit 1
+          fi
+          echo "Localization static shard PASSED: all locales executed successfully."
+      - name: Upload locale diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: localization-static-shard-${{ matrix.shard }}
+          path: diagnostics/localization/
+          if-no-files-found: warn
+          retention-days: 7
 
   runtime:
-    name: Localization Runtime — ${{ matrix.locale }} — Chromium
+    name: Localization Runtime — shard ${{ matrix.shard }}/10
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
+      max-parallel: 10
       matrix:
-        locale:
-          - en
-          - ar
-          - es
-          - fr
-          - de
-          - ru
-          - zh
-          - hi
-          - id
-          - ur
-          - ja
-          - pt
-          - it
-          - ko
-          - nl
-          - pl
-          - tr
-          - vi
-          - th
-          - sv
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        locales:
+          - 'en ar'
+          - 'es fr'
+          - 'de ru'
+          - 'zh hi'
+          - 'id ur'
+          - 'ja pt'
+          - 'it ko'
+          - 'nl pl'
+          - 'tr vi'
+          - 'th sv'
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Render and verify ${{ matrix.locale }} runtime
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-chromium-
+      - name: Install Playwright system dependencies
+        run: npx playwright install-deps chromium
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium
+      - name: Render and verify all locales in shard
+        shell: bash
         env:
-          FLIXO_TEST_LOCALE: ${{ matrix.locale }}
-        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --grep "representative tool runtime is localized for ${{ matrix.locale }}"
+          FLIXO_LOCALES: ${{ matrix.locales }}
+        run: |
+          set +e
+          failures=0
+          mkdir -p diagnostics/localization-runtime
+          for locale in $FLIXO_LOCALES; do
+            echo "===== RUNTIME LOCALE: $locale ====="
+            FLIXO_TEST_LOCALE="$locale" npx playwright test tests/localization-runtime.spec.ts --project=chromium --grep "representative tool runtime is localized for $locale" > "diagnostics/localization-runtime/${locale}.log" 2>&1
+            status=$?
+            cat "diagnostics/localization-runtime/${locale}.log"
+            printf '%s status=%s\n' "$locale" "$status" >> diagnostics/localization-runtime/summary.txt
+            if [[ $status -ne 0 ]]; then
+              failures=$((failures + 1))
+            fi
+          done
+          cat diagnostics/localization-runtime/summary.txt
+          if [[ $failures -ne 0 ]]; then
+            echo "Localization runtime shard FAILED: $failures locale(s) had failures."
+            exit 1
+          fi
+          echo "Localization runtime shard PASSED: all locales executed successfully."
+      - name: Upload runtime locale diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: localization-runtime-shard-${{ matrix.shard }}
+          path: diagnostics/localization-runtime/
+          if-no-files-found: warn
+          retention-days: 7
 
   aggregate:
     name: Localization — 20 Locale Gate
@@ -126,11 +182,11 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ needs.locale.result }}" != "success" ]]; then
-            echo "Localization — 20 Locale Gate FAILED: at least one static locale test failed."
+            echo "Localization — 20 Locale Gate FAILED: at least one static shard failed."
             exit 1
           fi
           if [[ "${{ needs.runtime.result }}" != "success" ]]; then
-            echo "Localization — 20 Locale Gate FAILED: at least one rendered runtime locale test failed."
+            echo "Localization — 20 Locale Gate FAILED: at least one rendered runtime shard failed."
             exit 1
           fi
-          echo "Localization — 20 Locale Gate PASSED: all 20 static and rendered runtime locale checks are green."
+          echo "Localization — 20 Locale Gate PASSED: all 20 static and rendered runtime locale checks executed and passed."
