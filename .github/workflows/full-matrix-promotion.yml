@@ -12,50 +12,40 @@ on:
 permissions:
   contents: read
 
+env:
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
 concurrency:
-  group: full-matrix-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: full-matrix-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   e2e:
-    name: Full Matrix — ${{ matrix.tool }} — ${{ matrix.browser }}
+    name: Full Matrix — ${{ matrix.browser }} — shard ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
+      max-parallel: 12
       matrix:
         browser: [chromium, firefox, webkit]
-        tool: [
-          image-compressor,
-          background-remover,
-          image-upscaler,
-          image-converter,
-          ai-image-generator,
-          object-remover,
-          watermark-remover,
-          image-cropper,
-          image-to-svg,
-          image-ocr,
-          photo-colorizer,
-          background-blur,
-          passport-photo-maker,
-          watermark-adder,
-          meme-generator,
-          collage-maker,
-          image-effects,
-          exif-cleaner,
-          svg-optimizer,
-          mockup-generator,
-          seed,
-          pix,
-          localization
-        ]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Cache Playwright ${{ matrix.browser }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-${{ matrix.browser }}-
       - name: Sanitize blocked external APT sources
         shell: bash
         run: |
@@ -64,24 +54,46 @@ jobs:
             echo "Removing inaccessible Microsoft APT source: $source"
             sudo rm -f "$source"
           done < <(grep -RIl 'packages\.microsoft\.com' /etc/apt/sources.list.d 2>/dev/null || true)
-      - run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Resolve test specification
-        id: spec
-        shell: bash
+      - name: Install Playwright system dependencies
+        run: npx playwright install-deps ${{ matrix.browser }}
+      - name: Install Playwright browser
+        run: npx playwright install ${{ matrix.browser }}
+      - name: Run complete browser shard
+        env:
+          CI: 'true'
         run: |
           set -euo pipefail
-          spec="tests/${{ matrix.tool }}.spec.ts"
-          if [[ "${{ matrix.tool }}" == "localization" ]]; then
-            spec="tests/localization-smoke.spec.ts"
-          fi
-          echo "spec=$spec" >> "$GITHUB_OUTPUT"
-      - name: Run ${{ matrix.tool }} E2E on ${{ matrix.browser }}
-        run: npx playwright test "${{ steps.spec.outputs.spec }}" --project=${{ matrix.browser }}
+          specs=(
+            tests/image-compressor.spec.ts
+            tests/background-remover.spec.ts
+            tests/image-upscaler.spec.ts
+            tests/image-converter.spec.ts
+            tests/ai-image-generator.spec.ts
+            tests/object-remover.spec.ts
+            tests/watermark-remover.spec.ts
+            tests/image-cropper.spec.ts
+            tests/image-to-svg.spec.ts
+            tests/image-ocr.spec.ts
+            tests/photo-colorizer.spec.ts
+            tests/background-blur.spec.ts
+            tests/passport-photo-maker.spec.ts
+            tests/watermark-adder.spec.ts
+            tests/meme-generator.spec.ts
+            tests/collage-maker.spec.ts
+            tests/image-effects.spec.ts
+            tests/exif-cleaner.spec.ts
+            tests/svg-optimizer.spec.ts
+            tests/mockup-generator.spec.ts
+            tests/seed.spec.ts
+            tests/pix.spec.ts
+            tests/localization-smoke.spec.ts
+          )
+          npx playwright test "${specs[@]}" --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/4
       - name: Upload E2E diagnostics
         if: ${{ failure() }}
         uses: actions/upload-artifact@v6
         with:
-          name: full-matrix-${{ matrix.tool }}-${{ matrix.browser }}
+          name: full-matrix-${{ matrix.browser }}-shard-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/
@@ -109,6 +121,6 @@ jobs:
             echo 'Full browser matrix passed for:'
             echo '${{ github.sha }}'
             echo
-            echo '23 suites × 3 browsers = 69 E2E jobs completed successfully.'
+            echo '23 suites × 3 browsers = 69 suite/browser executions distributed across 12 required shards.'
             echo 'Certification is bound to the exact commit SHA above.'
           } >> "$GITHUB_STEP_SUMMARY"
