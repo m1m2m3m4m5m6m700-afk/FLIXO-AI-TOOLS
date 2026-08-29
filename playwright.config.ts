@@ -2,7 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 const isCi = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 const isS4RuntimeGate = process.env.S4_RUNTIME_GATE === 'true';
-const isS4ExternalServer = process.env.S4_EXTERNAL_SERVER === 'true';
+const isExternalServer =
+  process.env.PLAYWRIGHT_EXTERNAL_SERVER === 'true' ||
+  process.env.S4_EXTERNAL_SERVER === 'true';
 const useProductionServer = !isCi && process.env.PLAYWRIGHT_SERVER === 'production';
 const testOrigin = process.env.VITE_TEST_ORIGIN || 'https://canonical.test';
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === 'true';
@@ -43,7 +45,7 @@ export default defineConfig({
     },
     { name: 'webkit', use: { ...devices['Desktop Safari'], actionTimeout: 20_000 } },
   ],
-  ...(isS4ExternalServer
+  ...(isExternalServer
     ? {}
     : {
         webServer: {
