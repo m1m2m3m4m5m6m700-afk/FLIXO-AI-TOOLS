@@ -1,0 +1,1 @@
+Verification ownership is explicit: CI owns core engineering contracts; S4 owns browser/runtime E2E; Localization 20 owns locale checks; SEO Production Certification owns generated SEO artifact certification. Duplicate execution is removed only where another owner already proves the same surface.
