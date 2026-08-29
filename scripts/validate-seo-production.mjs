@@ -39,7 +39,7 @@ const assertCanonicalOnly = (text, artifactName) => {
   const urls = artifactName === 'sitemap'
     ? [
         ...[...text.matchAll(/<loc>(https?:\/\/[^<]+)<\/loc>/gu)].map((match) => match[1]),
-        ...[...text.matchAll(/<xhtml:link\s+rel="alternate"\s+hreflang="[^"]+"\s+href="(https?:\/\/[^\"]+)"\s*\/>/gu)].map((match) => match[1]),
+        ...[...text.matchAll(/<xhtml:link\s+rel="alternate"\s+hreflang="[^"]+"\s+href="(https?:\/\/[^" ]+)"\s*\/>/gu)].map((match) => match[1]),
       ]
     : [...text.matchAll(/^Sitemap:\s*(https?:\/\/\S+)$/gmu)].map((match) => match[1]);
 
