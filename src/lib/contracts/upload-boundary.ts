@@ -1,4 +1,9 @@
-import { validateFileSafety, type FileSafetyPolicy, type FileSafetyResult } from './file-safety.ts';
+import {
+  EXTENSION_MIME_MAP,
+  validateFileSafety,
+  type FileSafetyPolicy,
+  type FileSafetyResult,
+} from './file-safety.ts';
 
 export type UploadBoundaryPolicy = FileSafetyPolicy & {
   allowedExtensions?: readonly string[];
@@ -16,16 +21,6 @@ export type UploadBoundaryInput = {
 export type UploadBoundaryResult = FileSafetyResult & {
   signature: string;
 };
-
-const EXTENSION_MIME_MAP: Readonly<Record<string, string>> = Object.freeze({
-  bmp: 'image/bmp',
-  gif: 'image/gif',
-  jpeg: 'image/jpeg',
-  jpg: 'image/jpeg',
-  png: 'image/png',
-  svg: 'image/svg+xml',
-  webp: 'image/webp',
-});
 
 function normalizeExtension(name: string): string {
   const lastDot = name.lastIndexOf('.');
