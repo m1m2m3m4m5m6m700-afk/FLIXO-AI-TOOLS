@@ -4,6 +4,20 @@ import { validateOutputIntegrity } from '../src/lib/contracts/output-integrity.t
 const bytes = (...values) => new Uint8Array(values);
 
 const REQUIRED_OUTPUT_TYPES = ['Image', 'PDF', 'ZIP', 'Text', 'JSON', 'CSV', 'Audio', 'Video'];
+const REQUIRED_NEGATIVE_CASES = [
+  'empty',
+  'missing artifact',
+  'size mismatch',
+  'mime spoof',
+  'extension spoof',
+  'path traversal',
+  'corrupt signature',
+  'oversized',
+  'pixel overflow',
+  'malformed JSON',
+  'invalid UTF-8',
+];
+
 const matrix = [
   { type: 'Image', mime: 'image/png', extension: 'png', signature: '89504e470d0a1a0a', content: bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a) },
   { type: 'PDF', mime: 'application/pdf', extension: 'pdf', signature: '255044462d', content: bytes(0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37) },
@@ -16,7 +30,9 @@ const matrix = [
 ];
 
 function assertMatrixDefinition() {
-  assert.deepEqual([...new Set(matrix.map((entry) => entry.type))].sort(), [...REQUIRED_OUTPUT_TYPES].sort(), 'G3 output-type matrix is incomplete or duplicated');
+  const types = matrix.map((entry) => entry.type);
+  assert.equal(new Set(types).size, types.length, 'G3 output-type matrix contains duplicates');
+  assert.deepEqual([...types].sort(), [...REQUIRED_OUTPUT_TYPES].sort(), 'G3 output-type matrix is incomplete or unexpected');
   assert.equal(matrix.length, REQUIRED_OUTPUT_TYPES.length, 'G3 output-type matrix cardinality changed unexpectedly');
 }
 
@@ -24,8 +40,8 @@ const results = [];
 
 function runCase(name, fn) {
   try {
-    const result = fn();
-    if (result === undefined) {
+    const outcome = fn();
+    if (outcome === 'SKIP') {
       results.push({ name, status: 'SKIP' });
       return;
     }
@@ -135,6 +151,17 @@ runCase('invalid UTF-8', () => {
   assert.equal(result.valid, false);
   assert.ok(result.failures.includes('output content is not valid UTF-8'));
 });
+
+const expectedCaseNames = [
+  'matrix definition',
+  ...matrix.map((entry) => `${entry.type} valid artifact`),
+  ...negativeCases.map(([name]) => name),
+  'malformed JSON',
+  'invalid UTF-8',
+];
+assert.deepEqual(results.map((result) => result.name), expectedCaseNames, 'G3 test registration drift detected');
+assert.equal(new Set(results.map((result) => result.name)).size, expectedCaseNames.length, 'G3 test registration contains duplicates');
+assert.deepEqual([...negativeCases.map(([name]) => name), 'malformed JSON', 'invalid UTF-8'].sort(), [...REQUIRED_NEGATIVE_CASES].sort(), 'G3 negative matrix is incomplete or unexpected');
 
 const skipped = results.filter((result) => result.status === 'SKIP');
 const failed = results.filter((result) => result.status === 'FAIL');
