@@ -45,15 +45,16 @@ test.describe('20-locale rendered runtime certification', () => {
       const response = await page.goto(`/${locale.code}/image-compressor`);
       expect(response?.ok()).toBeTruthy();
 
-      await expect(page.locator('.tool-page-modern__title')).toBeVisible();
-      await expect(page.locator('main.tool-page-modern')).toHaveAttribute('lang', locale.languageTag);
-      await expect(page.locator('main.tool-page-modern')).toHaveAttribute('dir', locale.direction);
+      const toolMain = page.locator('main.image-tool-shell');
+      await expect(toolMain.locator('h1')).toBeVisible();
+      await expect(toolMain).toHaveAttribute('lang', locale.languageTag);
+      await expect(toolMain).toHaveAttribute('dir', locale.direction);
       await expect(page.locator('html')).toHaveAttribute('lang', locale.languageTag);
       await expect(page.locator('html')).toHaveAttribute('dir', locale.direction);
 
-      await expect(page.locator('.tool-page-modern__description')).toHaveText(/\S+/);
-      await expect(page.locator('.tool-page-modern__badge')).toHaveText(/\S+/);
-      await expect(page.locator('.tool-page-modern__seo-card').first()).toBeVisible();
+      await expect(toolMain.locator('.image-tool-lead')).toHaveText(/\S+/);
+      await expect(toolMain.locator('.compressor-card')).toBeVisible();
+      await expect(toolMain.locator('.privacy-note')).toHaveText(/\S+/);
     });
   }
 });
