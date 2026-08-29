@@ -72,7 +72,10 @@ function isUnsafeName(name: string): boolean {
   if (!name.trim()) return true;
   if (/^[A-Za-z]:($|[\\/])/.test(name)) return true;
   if (/^[/\\]/.test(name)) return true;
-  if (/[\u0000-\u001f\u007f]/.test(name)) return true;
+  if (Array.from(name).some((char) => {
+    const code = char.codePointAt(0) ?? 0;
+    return (code >= 0 && code <= 0x1f) || code === 0x7f;
+  })) return true;
   const normalized = name.replace(/\\/g, '/');
   const segments = normalized.split('/');
   return segments.some((segment) => segment === '..' || segment === '.') || segments.length !== 1;
