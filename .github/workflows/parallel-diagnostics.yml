@@ -1,9 +1,8 @@
 name: Parallel Diagnostics
 
 # Deep-diagnostic workflow. It intentionally does not replace the canonical CI gate.
-# 23 suites × 3 browsers × 3 Playwright shards = 207 independent diagnostic jobs.
-# The 3-shard split stays under GitHub Actions' 256-job matrix limit while
-# exposing failures at suite + browser + shard granularity.
+# 23 suites × 3 browsers = 69 suite/browser executions, distributed across 4 shards/browser.
+# 12 runner jobs preserve the full matrix while reducing repeated runner/setup overhead.
 
 on:
   workflow_dispatch:
@@ -14,68 +13,26 @@ on:
 permissions:
   contents: read
 
+env:
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
 concurrency:
-  group: parallel-diagnostics-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: parallel-diagnostics-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   e2e:
-    name: Diagnostic — ${{ matrix.tool }} — ${{ matrix.browser }} — shard ${{ matrix.shard }}/3
+    name: Diagnostic — ${{ matrix.browser }} — shard ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      max-parallel: 64
+      max-parallel: 12
       matrix:
         browser: [chromium, firefox, webkit]
-        shard: [1, 2, 3]
-        include:
-          - tool: image-compressor
-            spec: tests/image-compressor.spec.ts
-          - tool: background-remover
-            spec: tests/background-remover.spec.ts
-          - tool: image-upscaler
-            spec: tests/image-upscaler.spec.ts
-          - tool: image-converter
-            spec: tests/image-converter.spec.ts
-          - tool: ai-image-generator
-            spec: tests/ai-image-generator.spec.ts
-          - tool: object-remover
-            spec: tests/object-remover.spec.ts
-          - tool: watermark-remover
-            spec: tests/watermark-remover.spec.ts
-          - tool: image-cropper
-            spec: tests/image-cropper.spec.ts
-          - tool: image-to-svg
-            spec: tests/image-to-svg.spec.ts
-          - tool: image-ocr
-            spec: tests/image-ocr.spec.ts
-          - tool: photo-colorizer
-            spec: tests/photo-colorizer.spec.ts
-          - tool: background-blur
-            spec: tests/background-blur.spec.ts
-          - tool: passport-photo-maker
-            spec: tests/passport-photo-maker.spec.ts
-          - tool: watermark-adder
-            spec: tests/watermark-adder.spec.ts
-          - tool: meme-generator
-            spec: tests/meme-generator.spec.ts
-          - tool: collage-maker
-            spec: tests/collage-maker.spec.ts
-          - tool: image-effects
-            spec: tests/image-effects.spec.ts
-          - tool: exif-cleaner
-            spec: tests/exif-cleaner.spec.ts
-          - tool: svg-optimizer
-            spec: tests/svg-optimizer.spec.ts
-          - tool: mockup-generator
-            spec: tests/mockup-generator.spec.ts
-          - tool: seed
-            spec: tests/seed.spec.ts
-          - tool: pix
-            spec: tests/pix.spec.ts
-          - tool: localization
-            spec: tests/localization-smoke.spec.ts
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -83,9 +40,26 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - name: Install dependencies
-        run: npm ci
-      - name: Install ${{ matrix.browser }}
-        run: npx playwright install --with-deps ${{ matrix.browser }}
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Cache Playwright ${{ matrix.browser }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-${{ matrix.browser }}-
+      - name: Sanitize blocked external APT sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r source; do
+            echo "Removing inaccessible Microsoft APT source: $source"
+            sudo rm -f "$source"
+          done < <(grep -RIl 'packages\.microsoft\.com' /etc/apt/sources.list.d 2>/dev/null || true)
+      - name: Install Playwright system dependencies
+        run: npx playwright install-deps ${{ matrix.browser }}
+      - name: Install Playwright browser
+        run: npx playwright install ${{ matrix.browser }}
       - name: Write diagnostic context
         shell: bash
         run: |
@@ -94,27 +68,49 @@ jobs:
           commit=${{ github.sha }}
           workflow=${{ github.workflow }}
           run=${{ github.run_id }}
-          tool=${{ matrix.tool }}
-          spec=${{ matrix.spec }}
           browser=${{ matrix.browser }}
-          shard=${{ matrix.shard }}/3
+          shard=${{ matrix.shard }}/4
           node=$(node --version)
           npm=$(npm --version)
           playwright=$(npx playwright --version)
           EOF
           cat diagnostics/context.txt
-      - name: Run isolated Playwright shard
+      - name: Run complete diagnostic browser shard
         env:
           CI: 'true'
-        run: >-
-          npx playwright test ${{ matrix.spec }}
-          --project=${{ matrix.browser }}
-          --shard=${{ matrix.shard }}/3
+        run: |
+          set -euo pipefail
+          specs=(
+            tests/image-compressor.spec.ts
+            tests/background-remover.spec.ts
+            tests/image-upscaler.spec.ts
+            tests/image-converter.spec.ts
+            tests/ai-image-generator.spec.ts
+            tests/object-remover.spec.ts
+            tests/watermark-remover.spec.ts
+            tests/image-cropper.spec.ts
+            tests/image-to-svg.spec.ts
+            tests/image-ocr.spec.ts
+            tests/photo-colorizer.spec.ts
+            tests/background-blur.spec.ts
+            tests/passport-photo-maker.spec.ts
+            tests/watermark-adder.spec.ts
+            tests/meme-generator.spec.ts
+            tests/collage-maker.spec.ts
+            tests/image-effects.spec.ts
+            tests/exif-cleaner.spec.ts
+            tests/svg-optimizer.spec.ts
+            tests/mockup-generator.spec.ts
+            tests/seed.spec.ts
+            tests/pix.spec.ts
+            tests/localization-smoke.spec.ts
+          )
+          npx playwright test "${specs[@]}" --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/4
       - name: Upload shard diagnostics
         if: ${{ always() }}
         uses: actions/upload-artifact@v6
         with:
-          name: diagnostic-${{ matrix.tool }}-${{ matrix.browser }}-shard-${{ matrix.shard }}
+          name: diagnostic-${{ matrix.browser }}-shard-${{ matrix.shard }}
           path: |
             diagnostics/context.txt
             playwright-report/
@@ -133,7 +129,7 @@ jobs:
           {
             echo '## FLIXO Parallel Diagnostic Matrix'
             echo
-            echo 'Matrix design: 23 suites × 3 browsers × 3 shards = 207 diagnostic jobs.'
+            echo 'Matrix design: 23 suites × 3 browsers = 69 suite/browser executions across 12 required shards.'
             echo 'fail-fast=false keeps independent failures visible in parallel.'
             echo 'Every shard retains trace/video/screenshot/report artifacts from Playwright config.'
             echo 'Overall matrix result: ${{ needs.e2e.result }}'
