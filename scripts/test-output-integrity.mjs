@@ -3,6 +3,7 @@ import { validateOutputIntegrity } from '../src/lib/contracts/output-integrity.t
 
 const bytes = (...values) => new Uint8Array(values);
 
+const REQUIRED_OUTPUT_TYPES = ['Image', 'PDF', 'ZIP', 'Text', 'JSON', 'CSV', 'Audio', 'Video'];
 const matrix = [
   { type: 'Image', mime: 'image/png', extension: 'png', signature: '89504e470d0a1a0a', content: bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a) },
   { type: 'PDF', mime: 'application/pdf', extension: 'pdf', signature: '255044462d', content: bytes(0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37) },
@@ -14,26 +15,50 @@ const matrix = [
   { type: 'Video', mime: 'video/mp4', extension: 'mp4', signature: { hex: '66747970', offset: 4 }, content: bytes(0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70) },
 ];
 
+function assertMatrixDefinition() {
+  assert.deepEqual([...new Set(matrix.map((entry) => entry.type))].sort(), [...REQUIRED_OUTPUT_TYPES].sort(), 'G3 output-type matrix is incomplete or duplicated');
+  assert.equal(matrix.length, REQUIRED_OUTPUT_TYPES.length, 'G3 output-type matrix cardinality changed unexpectedly');
+}
+
+const results = [];
+
+function runCase(name, fn) {
+  try {
+    const result = fn();
+    if (result === undefined) {
+      results.push({ name, status: 'SKIP' });
+      return;
+    }
+    results.push({ name, status: 'PASS' });
+  } catch (error) {
+    results.push({ name, status: 'FAIL', error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+runCase('matrix definition', assertMatrixDefinition);
+
 for (const entry of matrix) {
-  const spec = {
-    toolId: `g3-${entry.type.toLowerCase()}`,
-    allowedMime: [entry.mime],
-    allowedExtensions: [entry.extension],
-    signatures: entry.signature === undefined ? undefined : [entry.signature],
-    parseAs: entry.parseAs,
-    minBytes: 1,
-    maxBytes: 64 * 1024 * 1024,
-    requireArtifact: true,
-    requireSafeFilename: true,
-  };
-  const result = validateOutputIntegrity(
-    entry.content.byteLength,
-    entry.mime,
-    spec,
-    entry.type === 'Image' ? { width: 100, height: 100 } : undefined,
-    { filename: `flixo-result.${entry.extension}`, bytes: entry.content },
-  );
-  assert.equal(result.valid, true, `${entry.type} valid artifact rejected: ${result.failures.join('; ')}`);
+  runCase(`${entry.type} valid artifact`, () => {
+    const spec = {
+      toolId: `g3-${entry.type.toLowerCase()}`,
+      allowedMime: [entry.mime],
+      allowedExtensions: [entry.extension],
+      signatures: entry.signature === undefined ? undefined : [entry.signature],
+      parseAs: entry.parseAs,
+      minBytes: 1,
+      maxBytes: 64 * 1024 * 1024,
+      requireArtifact: true,
+      requireSafeFilename: true,
+    };
+    const result = validateOutputIntegrity(
+      entry.content.byteLength,
+      entry.mime,
+      spec,
+      entry.type === 'Image' ? { width: 100, height: 100 } : undefined,
+      { filename: `flixo-result.${entry.extension}`, bytes: entry.content },
+    );
+    assert.equal(result.valid, true, `${entry.type} valid artifact rejected: ${result.failures.join('; ')}`);
+  });
 }
 
 const baseline = {
@@ -49,40 +74,79 @@ const baseline = {
 };
 const validPng = bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
 
-const cases = [
-  ['empty', validateOutputIntegrity(0, 'image/png', baseline, undefined, { filename: 'flixo-result.png', bytes: new Uint8Array() }), 'bytes must be a positive integer'],
-  ['missing artifact', validateOutputIntegrity(validPng.byteLength, 'image/png', baseline), 'artifact bytes and filename are required for artifact integrity validation'],
-  ['size mismatch', validateOutputIntegrity(validPng.byteLength + 1, 'image/png', baseline, undefined, { filename: 'flixo-result.png', bytes: validPng }), 'declared output size does not match artifact byte length'],
-  ['mime spoof', validateOutputIntegrity(validPng.byteLength, 'application/octet-stream', baseline, undefined, { filename: 'flixo-result.png', bytes: validPng }), 'unsupported output MIME type: application/octet-stream'],
-  ['extension spoof', validateOutputIntegrity(validPng.byteLength, 'image/png', baseline, undefined, { filename: 'flixo-result.jpg', bytes: validPng }), 'unsupported output extension: jpg'],
-  ['path traversal', validateOutputIntegrity(validPng.byteLength, 'image/png', baseline, undefined, { filename: '../evil.png', bytes: validPng }), 'output filename must be a single safe relative filename'],
-  ['corrupt signature', validateOutputIntegrity(validPng.byteLength, 'image/png', baseline, undefined, { filename: 'flixo-result.png', bytes: bytes(0, 1, 2, 3, 4, 5, 6, 7) }), 'output signature does not match the allowed file signatures'],
-  ['oversized', validateOutputIntegrity(1025, 'image/png', baseline, undefined, { filename: 'flixo-result.png', bytes: validPng }), 'output exceeds the maximum size'],
-  ['pixel overflow', validateOutputIntegrity(validPng.byteLength, 'image/png', baseline, { width: 101, height: 100 }, { filename: 'flixo-result.png', bytes: validPng }), 'output exceeds the maximum pixel count'],
+const negativeCases = [
+  ['empty', () => validateOutputIntegrity(0, 'image/png', baseline, undefined, { filename: 'flixo-result.png', bytes: new Uint8Array() }), 'bytes must be a positive integer'],
+  ['missing artifact', () => validateOutputIntegrity(validPng.byteLength, 'image/png', baseline), 'artifact bytes and filename are required for artifact integrity validation'],
+  ['size mismatch', () => validateOutputIntegrity(validPng.byteLength + 1, 'image/png', baseline, undefined, { filename: 'flixo-result.png', bytes: validPng }), 'declared output size does not match artifact byte length'],
+  ['mime spoof', () => validateOutputIntegrity(validPng.byteLength, 'application/octet-stream', baseline, undefined, { filename: 'flixo-result.png', bytes: validPng }), 'unsupported output MIME type: application/octet-stream'],
+  ['extension spoof', () => validateOutputIntegrity(validPng.byteLength, 'image/png', baseline, undefined, { filename: 'flixo-result.jpg', bytes: validPng }), 'unsupported output extension: jpg'],
+  ['path traversal', () => validateOutputIntegrity(validPng.byteLength, 'image/png', baseline, undefined, { filename: '../evil.png', bytes: validPng }), 'output filename must be a single safe relative filename'],
+  ['corrupt signature', () => validateOutputIntegrity(validPng.byteLength, 'image/png', baseline, undefined, { filename: 'flixo-result.png', bytes: bytes(0, 1, 2, 3, 4, 5, 6, 7) }), 'output signature does not match the allowed file signatures'],
+  ['oversized', () => validateOutputIntegrity(1025, 'image/png', baseline, undefined, { filename: 'flixo-result.png', bytes: validPng }), 'output exceeds the maximum size'],
+  ['pixel overflow', () => validateOutputIntegrity(validPng.byteLength, 'image/png', baseline, { width: 101, height: 100 }, { filename: 'flixo-result.png', bytes: validPng }), 'output exceeds the maximum pixel count'],
 ];
 
-for (const [name, result, expected] of cases) {
-  assert.equal(result.valid, false, `${name} artifact accepted`);
-  assert.ok(result.failures.includes(expected), `${name} diagnostic missing: ${expected}`);
+for (const [name, fn, expected] of negativeCases) {
+  runCase(name, () => {
+    const result = fn();
+    assert.equal(result.valid, false, `${name} artifact accepted`);
+    assert.ok(result.failures.includes(expected), `${name} diagnostic missing: ${expected}`);
+  });
 }
 
-const malformedJson = new TextEncoder().encode('{"ok":}');
-const jsonResult = validateOutputIntegrity(
-  malformedJson.byteLength,
-  'application/json',
-  {
-    toolId: 'g3-json',
-    allowedMime: ['application/json'],
-    allowedExtensions: ['json'],
-    parseAs: 'json',
-    maxBytes: 1024,
-    requireArtifact: true,
-    requireSafeFilename: true,
-  },
-  undefined,
-  { filename: 'flixo-result.json', bytes: malformedJson },
-);
-assert.equal(jsonResult.valid, false);
-assert.ok(jsonResult.failures.includes('output JSON content is malformed'));
+runCase('malformed JSON', () => {
+  const malformedJson = new TextEncoder().encode('{"ok":}');
+  const result = validateOutputIntegrity(
+    malformedJson.byteLength,
+    'application/json',
+    {
+      toolId: 'g3-json',
+      allowedMime: ['application/json'],
+      allowedExtensions: ['json'],
+      parseAs: 'json',
+      maxBytes: 1024,
+      requireArtifact: true,
+      requireSafeFilename: true,
+    },
+    undefined,
+    { filename: 'flixo-result.json', bytes: malformedJson },
+  );
+  assert.equal(result.valid, false);
+  assert.ok(result.failures.includes('output JSON content is malformed'));
+});
 
-console.log(`G3 universal artifact integrity matrix passed: ${matrix.length} output types, ${cases.length + 1} negative/edge scenarios`);
+runCase('invalid UTF-8', () => {
+  const invalidUtf8 = bytes(0xc3, 0x28);
+  const result = validateOutputIntegrity(
+    invalidUtf8.byteLength,
+    'text/plain',
+    {
+      toolId: 'g3-utf8',
+      allowedMime: ['text/plain'],
+      allowedExtensions: ['txt'],
+      parseAs: 'utf8',
+      maxBytes: 1024,
+      requireArtifact: true,
+      requireSafeFilename: true,
+    },
+    undefined,
+    { filename: 'flixo-result.txt', bytes: invalidUtf8 },
+  );
+  assert.equal(result.valid, false);
+  assert.ok(result.failures.includes('output content is not valid UTF-8'));
+});
+
+const skipped = results.filter((result) => result.status === 'SKIP');
+const failed = results.filter((result) => result.status === 'FAIL');
+const passed = results.filter((result) => result.status === 'PASS');
+
+console.log(`G3 universal artifact integrity matrix: executed=${results.length} passed=${passed.length} failed=${failed.length} skipped=${skipped.length}`);
+
+if (skipped.length > 0 || failed.length > 0 || passed.length !== results.length) {
+  for (const result of [...failed, ...skipped]) {
+    console.error(`G3 ${result.status}: ${result.name}${result.error ? ` — ${result.error}` : ''}`);
+  }
+  process.exitCode = 1;
+} else {
+  console.log('G3 universal artifact integrity matrix: PASS — no skipped or errored cases');
+}
