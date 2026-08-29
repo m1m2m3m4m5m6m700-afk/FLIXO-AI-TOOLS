@@ -39,34 +39,34 @@ permissions:
 
 jobs:
   locale:
-    name: Localization Static — shard ${{ matrix.shard }}/10
+    name: Localization Static — ${{ matrix.locale }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
-      max-parallel: 10
+      max-parallel: 64
       matrix:
-        include:
-          - shard: 1
-            locales: 'en ar'
-          - shard: 2
-            locales: 'es fr'
-          - shard: 3
-            locales: 'de ru'
-          - shard: 4
-            locales: 'zh hi'
-          - shard: 5
-            locales: 'id ur'
-          - shard: 6
-            locales: 'ja pt'
-          - shard: 7
-            locales: 'it ko'
-          - shard: 8
-            locales: 'nl pl'
-          - shard: 9
-            locales: 'tr vi'
-          - shard: 10
-            locales: 'th sv'
+        locale:
+          - en
+          - ar
+          - es
+          - fr
+          - de
+          - ru
+          - zh
+          - hi
+          - id
+          - ur
+          - ja
+          - pt
+          - it
+          - ko
+          - nl
+          - pl
+          - tr
+          - vi
+          - th
+          - sv
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -74,71 +74,44 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Validate all locales in shard
-        shell: bash
+      - name: Validate translation contract
         env:
-          FLIXO_LOCALES: ${{ matrix.locales }}
-        run: |
-          set +e
-          failures=0
-          mkdir -p diagnostics/localization
-          for locale in $FLIXO_LOCALES; do
-            echo "===== STATIC LOCALE: $locale ====="
-            FLIXO_LOCALE="$locale" node scripts/validate-locale-contract.mjs > "diagnostics/localization/${locale}-contract.log" 2>&1
-            contract_status=$?
-            cat "diagnostics/localization/${locale}-contract.log"
-            FLIXO_LOCALE="$locale" npm run verify:i18n -- --strict --report > "diagnostics/localization/${locale}-quality.log" 2>&1
-            quality_status=$?
-            cat "diagnostics/localization/${locale}-quality.log"
-            printf '%s contract=%s quality=%s\n' "$locale" "$contract_status" "$quality_status" >> diagnostics/localization/summary.txt
-            if [[ $contract_status -ne 0 || $quality_status -ne 0 ]]; then
-              failures=$((failures + 1))
-            fi
-          done
-          cat diagnostics/localization/summary.txt
-          if [[ $failures -ne 0 ]]; then
-            echo "Localization static shard FAILED: $failures locale(s) had failures."
-            exit 1
-          fi
-          echo "Localization static shard PASSED: all locales executed successfully."
-      - name: Upload locale diagnostics
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v6
-        with:
-          name: localization-static-shard-${{ matrix.shard }}
-          path: diagnostics/localization/
-          if-no-files-found: warn
-          retention-days: 7
+          FLIXO_LOCALE: ${{ matrix.locale }}
+        run: node scripts/validate-locale-contract.mjs
+      - name: Strict localization release engine
+        env:
+          FLIXO_LOCALE: ${{ matrix.locale }}
+        run: npm run verify:i18n -- --strict --report
 
   runtime:
-    name: Localization Runtime — shard ${{ matrix.shard }}/10
+    name: Localization Runtime — ${{ matrix.locale }} — Chromium
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      max-parallel: 10
+      max-parallel: 64
       matrix:
-        include:
-          - shard: 1
-            locales: 'en ar'
-          - shard: 2
-            locales: 'es fr'
-          - shard: 3
-            locales: 'de ru'
-          - shard: 4
-            locales: 'zh hi'
-          - shard: 5
-            locales: 'id ur'
-          - shard: 6
-            locales: 'ja pt'
-          - shard: 7
-            locales: 'it ko'
-          - shard: 8
-            locales: 'nl pl'
-          - shard: 9
-            locales: 'tr vi'
-          - shard: 10
-            locales: 'th sv'
+        locale:
+          - en
+          - ar
+          - es
+          - fr
+          - de
+          - ru
+          - zh
+          - hi
+          - id
+          - ur
+          - ja
+          - pt
+          - it
+          - ko
+          - nl
+          - pl
+          - tr
+          - vi
+          - th
+          - sv
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -157,38 +130,10 @@ jobs:
         run: npx playwright install-deps chromium
       - name: Install Playwright Chromium
         run: npx playwright install chromium
-      - name: Render and verify all locales in shard
-        shell: bash
+      - name: Render and verify locale
         env:
-          FLIXO_LOCALES: ${{ matrix.locales }}
-        run: |
-          set +e
-          failures=0
-          mkdir -p diagnostics/localization-runtime
-          for locale in $FLIXO_LOCALES; do
-            echo "===== RUNTIME LOCALE: $locale ====="
-            FLIXO_TEST_LOCALE="$locale" npx playwright test tests/localization-runtime.spec.ts --project=chromium --grep "representative tool runtime is localized for $locale" > "diagnostics/localization-runtime/${locale}.log" 2>&1
-            status=$?
-            cat "diagnostics/localization-runtime/${locale}.log"
-            printf '%s status=%s\n' "$locale" "$status" >> diagnostics/localization-runtime/summary.txt
-            if [[ $status -ne 0 ]]; then
-              failures=$((failures + 1))
-            fi
-          done
-          cat diagnostics/localization-runtime/summary.txt
-          if [[ $failures -ne 0 ]]; then
-            echo "Localization runtime shard FAILED: $failures locale(s) had failures."
-            exit 1
-          fi
-          echo "Localization runtime shard PASSED: all locales executed successfully."
-      - name: Upload runtime locale diagnostics
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v6
-        with:
-          name: localization-runtime-shard-${{ matrix.shard }}
-          path: diagnostics/localization-runtime/
-          if-no-files-found: warn
-          retention-days: 7
+          FLIXO_TEST_LOCALE: ${{ matrix.locale }}
+        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --grep "representative tool runtime is localized for ${{ matrix.locale }}"
 
   aggregate:
     name: Localization — 20 Locale Gate
@@ -200,11 +145,11 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ needs.locale.result }}" != "success" ]]; then
-            echo "Localization — 20 Locale Gate FAILED: at least one static shard failed."
+            echo "Localization — 20 Locale Gate FAILED: at least one static locale check failed."
             exit 1
           fi
           if [[ "${{ needs.runtime.result }}" != "success" ]]; then
-            echo "Localization — 20 Locale Gate FAILED: at least one rendered runtime shard failed."
+            echo "Localization — 20 Locale Gate FAILED: at least one rendered runtime locale check failed."
             exit 1
           fi
           echo "Localization — 20 Locale Gate PASSED: all 20 static and rendered runtime locale checks executed and passed."
