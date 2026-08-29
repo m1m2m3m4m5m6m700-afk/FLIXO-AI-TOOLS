@@ -1,13 +1,10 @@
 name: Root Cause Diagnostics
 
-# Deep diagnostics are intentionally opt-in. Required PR gates already run
-# the blocking contracts; this workflow is a debugging microscope, not a second
-# blocking pipeline that competes for the same runner capacity.
+# Deep diagnostics are intentionally opt-in. Required PR/main gates already run
+# the blocking evidence; this workflow is a debugging microscope only.
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 permissions:
   contents: read
@@ -161,7 +158,7 @@ jobs:
           {
             echo '## Root Cause Diagnostics'
             echo
-            echo 'This workflow is diagnostic-only and does not duplicate the blocking PR pipeline.'
+            echo 'This workflow is diagnostic-only and runs only when manually requested.'
             echo 'fail-fast=false preserves independent failures for diagnosis.'
             echo "static=${{ needs.static.result }}"
             echo "build-performance=${{ needs.build-performance.result }}"
