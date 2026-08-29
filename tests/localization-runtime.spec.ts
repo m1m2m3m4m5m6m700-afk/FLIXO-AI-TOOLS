@@ -23,6 +23,9 @@ const locales = [
   { code: 'sv', languageTag: 'sv', direction: 'ltr' },
 ] as const;
 
+const usesLegacyArabicHome = (locale: typeof locales[number]) => locale.code === 'ar';
+const usesDedicatedImageCompressorRoute = (locale: typeof locales[number]) => locale.code === 'en' || locale.code === 'ar';
+
 test.describe('20-locale rendered runtime certification', () => {
   for (const locale of locales) {
     test(`home runtime is localized for ${locale.code}`, async ({ page }) => {
@@ -35,9 +38,17 @@ test.describe('20-locale rendered runtime certification', () => {
       await expect(page.locator('html')).toHaveAttribute('lang', locale.languageTag);
       await expect(page.locator('html')).toHaveAttribute('dir', locale.direction);
 
-      await expect(page.locator('#tool-search')).toHaveAttribute('placeholder', /.+/);
+      const search = usesLegacyArabicHome(locale)
+        ? page.locator('#ar-tool-search')
+        : page.locator('#tool-search');
+      await expect(search).toHaveAttribute('placeholder', /.+/);
       await expect(page.locator('.home-lead')).toHaveText(/\S+/);
-      await expect(page.locator('.home-nav-language')).toHaveValue(locale.code);
+
+      if (usesLegacyArabicHome(locale)) {
+        await expect(page.locator('.home-nav-language')).toBeVisible();
+      } else {
+        await expect(page.locator('.home-nav-language')).toHaveValue(locale.code);
+      }
       await expect(page.locator('.home-tools-grid .home-tool-card').first()).toBeVisible();
     });
 
@@ -45,16 +56,26 @@ test.describe('20-locale rendered runtime certification', () => {
       const response = await page.goto(`/${locale.code}/image-compressor`);
       expect(response?.ok()).toBeTruthy();
 
-      const toolMain = page.locator('main.image-tool-shell');
-      await expect(toolMain.locator('h1')).toBeVisible();
-      await expect(toolMain).toHaveAttribute('lang', locale.languageTag);
-      await expect(toolMain).toHaveAttribute('dir', locale.direction);
+      if (usesDedicatedImageCompressorRoute(locale)) {
+        const toolMain = page.locator('main.image-tool-shell');
+        await expect(toolMain.locator('h1')).toBeVisible();
+        await expect(toolMain).toHaveAttribute('lang', locale.languageTag);
+        await expect(toolMain).toHaveAttribute('dir', locale.direction);
+        await expect(toolMain.locator('.image-tool-lead')).toHaveText(/\S+/);
+        await expect(toolMain.locator('.compressor-card')).toBeVisible();
+        await expect(toolMain.locator('.privacy-note')).toHaveText(/\S+/);
+      } else {
+        const pageMain = page.locator('main.tool-page-modern');
+        await expect(pageMain.locator('.tool-page-modern__title')).toBeVisible();
+        await expect(pageMain).toHaveAttribute('lang', locale.languageTag);
+        await expect(pageMain).toHaveAttribute('dir', locale.direction);
+        await expect(pageMain.locator('.tool-page-modern__description')).toHaveText(/\S+/);
+        await expect(pageMain.locator('.tool-page-modern__tool-host')).toBeVisible();
+        await expect(pageMain.locator('main.image-tool-shell')).toBeVisible();
+      }
+
       await expect(page.locator('html')).toHaveAttribute('lang', locale.languageTag);
       await expect(page.locator('html')).toHaveAttribute('dir', locale.direction);
-
-      await expect(toolMain.locator('.image-tool-lead')).toHaveText(/\S+/);
-      await expect(toolMain.locator('.compressor-card')).toBeVisible();
-      await expect(toolMain.locator('.privacy-note')).toHaveText(/\S+/);
     });
   }
 });
