@@ -79,7 +79,7 @@ export const useCaseRoute = createRoute({
             <article className="tool-page-modern__seo-card">
               <h2>Frequently asked questions</h2>
               {useCase.faq.map((item) => (
-                <div key={item.question)}>
+                <div key={item.question}>
                   <h3>{item.question}</h3>
                   <p>{item.answer}</p>
                 </div>
