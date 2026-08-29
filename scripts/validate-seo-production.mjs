@@ -80,7 +80,6 @@ for (const block of urlBlocks) {
 
   const locale = LOCALES.find((candidate) => path === `/${candidate}` || path.startsWith(`/${candidate}/`));
   if (!locale) fail(`unable to resolve locale for sitemap URL: ${loc}`);
-  const pathWithoutLocale = path.slice(`/${locale}`.length) || '/';
   const tool = readyTools.find((candidate) => getLocalizedToolPath(candidate, locale) === path);
 
   const alternateMatches = [...block.matchAll(/<xhtml:link\s+rel="alternate"\s+hreflang="([^"]+)"\s+href="([^"]+)"\s*\/>/gu)];
@@ -92,10 +91,6 @@ for (const block of urlBlocks) {
     tool
       ? getLocalizedToolUrl(canonicalOrigin, tool, targetLocale)
       : localizedHomeUrl(targetLocale);
-
-  if (tool && pathWithoutLocale !== path.slice(`/${locale}`.length)) {
-    fail(`route resolver mismatch for ${loc}`);
-  }
 
   const seenTags = new Set();
   for (const [, hreflang, href] of alternateMatches) {
