@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { validateArchiveEntries, validateFileSafety } from '../src/lib/contracts/file-safety.ts';
+import { MAGIC_BYTE_SIGNATURES, validateArchiveEntries, validateFileSafety } from '../src/lib/contracts/file-safety.ts';
 
 const rasterPolicy = {
   allowedMime: ['image/png', 'image/jpeg', 'image/webp'],
@@ -21,6 +21,72 @@ const safe = validateFileSafety(
   rasterPolicy,
 );
 assert.deepEqual(safe, { safe: true, failures: [] });
+
+const magicPolicy = {
+  allowedMime: ['image/png', 'image/jpeg'],
+  allowedExtensions: ['png', 'jpg', 'jpeg'],
+  maxBytes: 25 * 1024 * 1024,
+  magicBytes: [MAGIC_BYTE_SIGNATURES.png, MAGIC_BYTE_SIGNATURES.jpeg],
+};
+
+const validPng = validateFileSafety(
+  {
+    name: 'real.png',
+    mime: 'image/png',
+    bytes: 1024,
+    content: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]),
+  },
+  magicPolicy,
+);
+assert.deepEqual(validPng, { safe: true, failures: [] });
+
+const spoofedPng = validateFileSafety(
+  {
+    name: 'spoofed.png',
+    mime: 'image/png',
+    bytes: 1024,
+    content: new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]),
+  },
+  magicPolicy,
+);
+assert.equal(spoofedPng.safe, false);
+assert.ok(spoofedPng.failures.includes('input magic bytes do not match the allowed file signatures'));
+
+const missingBytes = validateFileSafety(
+  { name: 'missing.png', mime: 'image/png', bytes: 1024 },
+  magicPolicy,
+);
+assert.equal(missingBytes.safe, false);
+assert.ok(missingBytes.failures.includes('input content bytes are required when magic-byte validation is enabled'));
+
+const offsetPolicy = {
+  allowedMime: ['audio/wav'],
+  allowedExtensions: ['wav'],
+  maxBytes: 10_000_000,
+  magicBytes: [MAGIC_BYTE_SIGNATURES.wav],
+};
+const validWav = validateFileSafety(
+  {
+    name: 'audio.wav',
+    mime: 'audio/wav',
+    bytes: 100,
+    content: new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x41, 0x56, 0x45]),
+  },
+  offsetPolicy,
+);
+assert.deepEqual(validWav, { safe: true, failures: [] });
+
+const spoofedWav = validateFileSafety(
+  {
+    name: 'fake.wav',
+    mime: 'audio/wav',
+    bytes: 100,
+    content: new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x41, 0x56, 0x49, 0x20]),
+  },
+  offsetPolicy,
+);
+assert.equal(spoofedWav.safe, false);
+assert.ok(spoofedWav.failures.includes('input magic bytes do not match the allowed file signatures'));
 
 const rejectMime = validateFileSafety(
   { name: 'payload.txt', mime: 'text/plain', bytes: 10, signature: '25504446' },
