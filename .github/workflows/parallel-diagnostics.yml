@@ -1,8 +1,7 @@
 name: Parallel Diagnostics
 
 # Deep-diagnostic workflow. It intentionally does not replace the canonical CI gate.
-# 23 suites × 3 browsers = 69 suite/browser executions, distributed across 4 shards/browser.
-# 12 runner jobs preserve the full matrix while reducing repeated runner/setup overhead.
+# 23 suites × 3 browsers = 69 independent suite/browser diagnostic executions.
 
 on:
   workflow_dispatch:
@@ -24,15 +23,38 @@ concurrency:
 
 jobs:
   e2e:
-    name: Diagnostic — ${{ matrix.browser }} — shard ${{ matrix.shard }}/4
+    name: Diagnostic — ${{ matrix.tool }} — ${{ matrix.browser }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      max-parallel: 12
+      max-parallel: 64
       matrix:
         browser: [chromium, firefox, webkit]
-        shard: [1, 2, 3, 4]
+        tool:
+          - image-compressor
+          - background-remover
+          - image-upscaler
+          - image-converter
+          - ai-image-generator
+          - object-remover
+          - watermark-remover
+          - image-cropper
+          - image-to-svg
+          - image-ocr
+          - photo-colorizer
+          - background-blur
+          - passport-photo-maker
+          - watermark-adder
+          - meme-generator
+          - collage-maker
+          - image-effects
+          - exif-cleaner
+          - svg-optimizer
+          - mockup-generator
+          - seed
+          - pix
+          - localization
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -60,59 +82,27 @@ jobs:
         run: npx playwright install-deps ${{ matrix.browser }}
       - name: Install Playwright browser
         run: npx playwright install ${{ matrix.browser }}
-      - name: Write diagnostic context
+      - name: Resolve test specification
+        id: spec
         shell: bash
         run: |
-          mkdir -p diagnostics
-          cat > diagnostics/context.txt <<'EOF'
-          commit=${{ github.sha }}
-          workflow=${{ github.workflow }}
-          run=${{ github.run_id }}
-          browser=${{ matrix.browser }}
-          shard=${{ matrix.shard }}/4
-          node=$(node --version)
-          npm=$(npm --version)
-          playwright=$(npx playwright --version)
-          EOF
-          cat diagnostics/context.txt
-      - name: Run complete diagnostic browser shard
+          set -euo pipefail
+          spec="tests/${{ matrix.tool }}.spec.ts"
+          if [[ "${{ matrix.tool }}" == "localization" ]]; then
+            spec="tests/localization-smoke.spec.ts"
+          fi
+          test -f "$spec"
+          echo "spec=$spec" >> "$GITHUB_OUTPUT"
+      - name: Run diagnostic E2E
         env:
           CI: 'true'
-        run: |
-          set -euo pipefail
-          specs=(
-            tests/image-compressor.spec.ts
-            tests/background-remover.spec.ts
-            tests/image-upscaler.spec.ts
-            tests/image-converter.spec.ts
-            tests/ai-image-generator.spec.ts
-            tests/object-remover.spec.ts
-            tests/watermark-remover.spec.ts
-            tests/image-cropper.spec.ts
-            tests/image-to-svg.spec.ts
-            tests/image-ocr.spec.ts
-            tests/photo-colorizer.spec.ts
-            tests/background-blur.spec.ts
-            tests/passport-photo-maker.spec.ts
-            tests/watermark-adder.spec.ts
-            tests/meme-generator.spec.ts
-            tests/collage-maker.spec.ts
-            tests/image-effects.spec.ts
-            tests/exif-cleaner.spec.ts
-            tests/svg-optimizer.spec.ts
-            tests/mockup-generator.spec.ts
-            tests/seed.spec.ts
-            tests/pix.spec.ts
-            tests/localization-smoke.spec.ts
-          )
-          npx playwright test "${specs[@]}" --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/4
-      - name: Upload shard diagnostics
-        if: ${{ always() }}
+        run: npx playwright test "${{ steps.spec.outputs.spec }}" --project=${{ matrix.browser }}
+      - name: Upload diagnostic evidence
+        if: ${{ always() && failure() }}
         uses: actions/upload-artifact@v6
         with:
-          name: diagnostic-${{ matrix.browser }}-shard-${{ matrix.shard }}
+          name: diagnostic-${{ matrix.tool }}-${{ matrix.browser }}
           path: |
-            diagnostics/context.txt
             playwright-report/
             test-results/
           if-no-files-found: warn
@@ -129,8 +119,9 @@ jobs:
           {
             echo '## FLIXO Parallel Diagnostic Matrix'
             echo
-            echo 'Matrix design: 23 suites × 3 browsers = 69 suite/browser executions across 12 required shards.'
-            echo 'fail-fast=false keeps independent failures visible in parallel.'
-            echo 'Every shard retains trace/video/screenshot/report artifacts from Playwright config.'
+            echo 'Matrix design: 23 suites × 3 browsers = 69 independent diagnostic jobs.'
+            echo 'max-parallel=64 uses the highest practical matrix parallelism while GitHub applies the account concurrency ceiling.'
+            echo 'fail-fast=false keeps independent failures visible.'
+            echo 'Any failed matrix job leaves the diagnostic workflow red.'
             echo 'Overall matrix result: ${{ needs.e2e.result }}'
           } >> "$GITHUB_STEP_SUMMARY"
