@@ -29,6 +29,8 @@ export const useCaseRoute = createRoute({
 
     if (!useCase) return <main><h1>Use case not found</h1></main>;
 
+    const siteOrigin = getCanonicalSiteOrigin();
+    const url = `${siteOrigin}/use-cases/${useCase.slug}`;
     const tools = useCase.toolIds
       .map((toolId) => getToolConfig(toolId))
       .filter((tool): tool is NonNullable<typeof tool> => Boolean(tool?.isReady));
@@ -38,8 +40,8 @@ export const useCaseRoute = createRoute({
       '@type': 'WebPage',
       name: useCase.title,
       description: useCase.description,
-      url: `/use-cases/${useCase.slug}`,
-      isPartOf: { '@type': 'WebSite', name: 'FLIXO', url: '/' },
+      url,
+      isPartOf: { '@type': 'WebSite', name: 'FLIXO', url: siteOrigin },
       mainEntity: {
         '@type': 'FAQPage',
         mainEntity: useCase.faq.map((item) => ({
