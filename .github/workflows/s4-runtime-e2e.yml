@@ -34,6 +34,15 @@ jobs:
 
       - run: npm ci
 
+      - name: Sanitize blocked external APT sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r source; do
+            echo "Removing inaccessible Microsoft APT source: $source"
+            sudo rm -f "$source"
+          done < <(grep -RIl 'packages\.microsoft\.com' /etc/apt/sources.list.d 2>/dev/null || true)
+
       - name: Install all Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit
 

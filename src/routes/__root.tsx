@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect } from 'react';
+import { Suspense, useEffect, useLayoutEffect } from 'react';
 import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
@@ -39,6 +39,14 @@ function RuntimeLocaleAttributes() {
   return null;
 }
 
+function RouteContent() {
+  return (
+    <Suspense fallback={<div role="status" aria-live="polite">Loading…</div>}>
+      <Outlet />
+    </Suspense>
+  );
+}
+
 export const rootRoute = createRootRoute({
   component: function RootLayout() {
     useEffect(() => installCoreWebVitalsDiagnostics(), []);
@@ -49,7 +57,7 @@ export const rootRoute = createRootRoute({
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} />
         <FlixoGlobalLogo />
         <CommandPalette />
-        <Outlet />
+        <RouteContent />
         <Scripts />
       </>
     );
