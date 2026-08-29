@@ -1,7 +1,6 @@
 const DEFAULT_RUNTIME_ORIGIN = 'http://127.0.0.1:3000';
 const DEFAULT_TEST_ORIGIN = 'https://canonical.test';
 const OFFICIAL_PRODUCTION_ORIGIN = 'https://flixoai.vercel.app';
-const OFFICIAL_PRODUCTION_HOST = 'flixoai.vercel.app';
 
 function readOriginEnv(name: 'VITE_SITE_URL' | 'VITE_RUNTIME_ORIGIN' | 'VITE_TEST_ORIGIN'): string | undefined {
   const configured =
@@ -61,7 +60,7 @@ export function getCanonicalSiteOrigin(): string {
     );
   }
 
-  if (isBlockedCanonicalHost(origin.hostname) && origin.hostname !== OFFICIAL_PRODUCTION_HOST) {
+  if (isBlockedCanonicalHost(origin.hostname) && origin.origin !== OFFICIAL_PRODUCTION_ORIGIN) {
     throw new Error(
       `VITE_SITE_URL must be the official production origin, not a local or deployment origin: ${origin.origin}`,
     );
