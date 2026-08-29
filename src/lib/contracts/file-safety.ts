@@ -56,7 +56,7 @@ export const EXTENSION_MIME_MAP: Readonly<Record<string, string>> = Object.freez
   txt: 'text/plain',
   csv: 'text/csv',
   json: 'application/json',
-};
+});
 
 function normalizeExtension(name: string): string {
   const lastDot = name.lastIndexOf('.');
