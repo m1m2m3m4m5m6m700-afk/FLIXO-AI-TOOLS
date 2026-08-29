@@ -36,7 +36,13 @@ const robots = readRequired(robotsPath);
 if (!canonicalOrigin.startsWith('https://')) fail(`canonical origin is not HTTPS: ${canonicalOrigin}`);
 
 const assertCanonicalOnly = (text, artifactName) => {
-  const urls = [...text.matchAll(/https?:\/\/[^\s<]+/gu)].map((match) => match[0].replace(/[),.;]+$/u, ''));
+  const urls = artifactName === 'sitemap'
+    ? [
+        ...[...text.matchAll(/<loc>(https?:\/\/[^<]+)<\/loc>/gu)].map((match) => match[1]),
+        ...[...text.matchAll(/<xhtml:link\s+rel="alternate"\s+hreflang="[^"]+"\s+href="(https?:\/\/[^\"]+)"\s*\/>/gu)].map((match) => match[1]),
+      ]
+    : [...text.matchAll(/^Sitemap:\s*(https?:\/\/\S+)$/gmu)].map((match) => match[1]);
+
   for (const rawUrl of urls) {
     let url;
     try {
