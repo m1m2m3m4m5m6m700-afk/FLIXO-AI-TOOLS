@@ -1,19 +1,20 @@
 import type { Locale } from '@/lib/i18n';
-import type { HomeCopy } from '../../data/home-locales';
+import { HOME_I18N, type HomeCopy } from '../../data/home-locales';
 import { HOME_COPY_OVERRIDES } from './locale-quality-overrides';
 
-const cache = new Map<Locale, Promise<HomeCopy>>();
+const cache = new Map<Locale, HomeCopy>();
 
 export function loadHomeCopy(locale: Locale): Promise<HomeCopy> {
   const cached = cache.get(locale);
-  if (cached) return cached;
+  if (cached) return Promise.resolve(cached);
 
-  const pending = import('../../data/home-locales').then(({ getHomeCopy }) => ({
-    ...getHomeCopy(locale),
+  const base = HOME_I18N[locale];
+  const value: HomeCopy = {
+    ...base,
     ...(HOME_COPY_OVERRIDES[locale] ?? {}),
-  }));
-  cache.set(locale, pending);
-  return pending;
+  };
+  cache.set(locale, value);
+  return Promise.resolve(value);
 }
 
 export function clearHomeCopyCache(): void {
