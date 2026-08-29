@@ -75,20 +75,28 @@ for (const tool of TOOLS_REGISTRY) {
 }
 
 const routeSources = listRouteFiles(routesDir).map((file) => fs.readFileSync(file, 'utf8'));
-const declaredRoutes = new Set(routeSources.flatMap(extractPathProperties));
+const declaredRouteList = routeSources.flatMap(extractPathProperties);
 
 // Image routes are generated from IMAGE_TOOLS and consumed as an array in route-tree.ts.
 // Include the registry-owned generated boundary without executing TypeScript route modules.
 const usesGeneratedImageRoutes = /\bimageToolRoutes\b/.test(routeTreeSource);
 if (usesGeneratedImageRoutes) {
   for (const tool of TOOLS_REGISTRY) {
-    if (tool.isReady && tool.path.startsWith('/en/')) declaredRoutes.add(tool.path);
+    if (tool.isReady && tool.path.startsWith('/en/')) declaredRouteList.push(tool.path);
     for (const alias of tool.aliases ?? []) {
-      if (alias.startsWith('/en/')) declaredRoutes.add(alias);
+      if (alias.startsWith('/en/')) declaredRouteList.push(alias);
     }
   }
 }
 
+const duplicateDeclared = declaredRouteList.filter((route, index, all) => all.indexOf(route) !== index).sort();
+if (duplicateDeclared.length) {
+  fail('router-duplicates', 'Duplicate route declarations detected.', {
+    duplicates: [...new Set(duplicateDeclared)],
+  });
+}
+
+const declaredRoutes = new Set(declaredRouteList);
 const declaredToolRoutes = new Set([...declaredRoutes].filter(isPublicToolRoute));
 
 const expectedPublicRoutes = new Set(
@@ -98,16 +106,6 @@ const expectedPublicRoutes = new Set(
     .concat([...aliases.keys()])
     .filter(isPublicToolRoute),
 );
-
-const duplicateDeclared = [...declaredRoutes]
-  .filter((route, index, all) => all.indexOf(route) !== index)
-  .sort();
-
-if (duplicateDeclared.length) {
-  fail('router-duplicates', 'Duplicate route declarations detected.', {
-    duplicates: duplicateDeclared,
-  });
-}
 
 const missing = [...expectedPublicRoutes].filter((route) => !declaredToolRoutes.has(route)).sort();
 const orphan = [...declaredToolRoutes].filter((route) => !expectedPublicRoutes.has(route)).sort();
