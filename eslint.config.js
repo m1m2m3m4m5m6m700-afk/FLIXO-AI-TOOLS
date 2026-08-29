@@ -23,6 +23,14 @@ export default tseslint.config(
     },
   },
   {
+    // TanStack Router route modules intentionally export route definitions alongside React components.
+    // The Fast Refresh rule is designed for component modules and is not applicable to route configuration modules.
+    files: ['src/routes/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
     files: ['src/tools/image-compressor/index.tsx'],
     rules: {
       'react-hooks/set-state-in-effect': 'warn',
