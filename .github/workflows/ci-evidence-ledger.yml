@@ -1,0 +1,135 @@
+name: CI Evidence Ledger
+
+# Cross-workflow evidence attestation. This workflow never reruns test surfaces.
+on:
+  workflow_run:
+    workflows:
+      - CI
+      - Full Matrix Promotion
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  attest:
+    name: Release Evidence / Cross-Workflow Attestation
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Wait for required evidence workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          EVENT_NAME: ${{ github.event.workflow_run.event }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          required_pr=(
+            'CI'
+            'S4 Runtime + E2E Gate'
+            'Localization — 20 Locale Gate'
+            'SEO Production Certification'
+            'Dependency Health'
+            'Claude Security Review'
+          )
+          required_main=(
+            'CI'
+            'S4 Runtime + E2E Gate'
+            'Localization — 20 Locale Gate'
+            'SEO Production Certification'
+            'Dependency Health'
+            'Claude Security Review'
+            'Full Matrix Promotion'
+          )
+
+          for attempt in $(seq 1 30); do
+            runs="$(gh api --paginate "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${SHA}&per_page=100" --jq '.workflow_runs[] | [.name,.status,.conclusion] | @tsv' | sort -u)"
+            echo "Evidence snapshot attempt ${attempt}"
+            printf '%s\n' "$runs"
+            missing=0
+            while IFS=$'\t' read -r name status conclusion; do
+              [[ -z "$name" ]] && continue
+              case "$EVENT_NAME:$name" in
+                *) : ;;
+              esac
+            done <<< "$runs"
+
+            required=("${required_pr[@]}")
+            if [[ "$EVENT_NAME" == "push" ]]; then required=("${required_main[@]}"); fi
+
+            complete=1
+            : > /tmp/evidence.tsv
+            for name in "${required[@]}"; do
+              line="$(printf '%s\n' "$runs" | awk -F '\t' -v n="$name" '$1==n {last=$0} END{print last}')"
+              if [[ -z "$line" ]]; then
+                echo "MISSING	$name" | tee -a /tmp/evidence.tsv
+                complete=0
+                continue
+              fi
+              printf '%s\n' "$line" >> /tmp/evidence.tsv
+              status="$(printf '%s' "$line" | cut -f2)"
+              conclusion="$(printf '%s' "$line" | cut -f3)"
+              if [[ "$status" != "completed" ]]; then complete=0; fi
+              if [[ "$conclusion" != "success" ]]; then
+                if [[ "$status" == "completed" ]]; then
+                  echo "FAIL	$name	$conclusion"
+                  exit 1
+                fi
+                complete=0
+              fi
+            done
+
+            if [[ "$complete" -eq 1 ]]; then
+              echo "All required evidence workflows completed successfully for $SHA"
+              break
+            fi
+            if [[ "$attempt" -eq 30 ]]; then
+              echo 'Evidence attestation timeout: required workflows did not all reach success.'
+              exit 1
+            fi
+            sleep 30
+          done
+
+      - name: Generate signed-by-context evidence ledger
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p diagnostics
+          node --input-type=module <<'NODE'
+          import { readFile, writeFile } from 'node:fs/promises';
+          const lines = (await readFile('/tmp/evidence.tsv', 'utf8')).split(/\r?\n/).filter(Boolean);
+          const gates = lines.map((line) => {
+            const [name, status, conclusion] = line.split('\t');
+            return { name, status, conclusion };
+          });
+          const ledger = {
+            version: 1,
+            sha: process.env.SHA,
+            generatedAt: new Date().toISOString(),
+            expected: gates.length,
+            executed: gates.filter((gate) => gate.status === 'completed').length,
+            failed: gates.filter((gate) => gate.conclusion && gate.conclusion !== 'success').length,
+            skipped: 0,
+            missing: gates.filter((gate) => gate.status === 'MISSING').length,
+            exactShaMatch: true,
+            gates,
+          };
+          await writeFile('diagnostics/cross-workflow-evidence-ledger.json', `${JSON.stringify(ledger, null, 2)}\n`);
+          if (ledger.failed || ledger.skipped || ledger.missing || ledger.executed !== ledger.expected || !ledger.exactShaMatch) process.exit(1);
+          NODE
+          cat diagnostics/cross-workflow-evidence-ledger.json
+
+      - name: Publish release evidence artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: cross-workflow-evidence-${{ github.event.workflow_run.head_sha }}
+          path: diagnostics/cross-workflow-evidence-ledger.json
+          if-no-files-found: error
+          retention-days: 30
