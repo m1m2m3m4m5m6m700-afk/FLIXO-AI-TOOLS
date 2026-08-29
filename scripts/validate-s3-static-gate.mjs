@@ -70,7 +70,7 @@ run('npm', ['run', 'lint']);
 pass('ESLint');
 
 const siteUrl = process.env.VITE_SITE_URL?.trim() || (process.env.GITHUB_ACTIONS === 'true' ? 'https://canonical.test' : '');
-if (!siteUrl) fail('production S3 certification requires VITE_SITE_URL');
+if (!siteUrl) fail('production S3 certification requires VITE_SITE_URL from repository variable SITE_URL');
 run('npm', ['run', 'validate:site-origin'], { VITE_SITE_URL: siteUrl });
 run('npm', ['run', 'build'], { VITE_SITE_URL: siteUrl, FLIXO_GENERATED_OUTPUT_DIR: 'dist' });
 pass(`production build for ${siteUrl}`);
@@ -101,9 +101,7 @@ const visitSymlinks = (dir) => {
         const target = realpathSync(full);
         const rel = relative(outputReal, target);
         if (rel.startsWith('..') || resolve(outputReal, rel) !== target) realPathViolations.push(full);
-      } catch {
-        realPathViolations.push(`${full} (dangling)`);
-      }
+      } catch { realPathViolations.push(`${full} (dangling)`); }
     } else if (entry.isDirectory()) visitSymlinks(full);
   }
 };
@@ -165,6 +163,8 @@ try {
     '.github/workflows/ci.yml',
     '.github/workflows/parallel-diagnostics.yml',
     '.github/workflows/root-cause-diagnostics.yml',
+    '.github/workflows/localization-core.yml',
+    '.github/workflows/phase3-chain-e2e.yml',
     'scripts/validate-ci-contract.mjs',
     'scripts/validate-s3-static-gate.mjs',
     'scripts/verify-contracts-core.mjs',
