@@ -99,7 +99,8 @@ pass('sitemap single-source-of-truth contract');
 
 if (!indexing.includes('xhtml:link rel="alternate" hreflang=')) fail('indexing validator does not enforce hreflang generation.');
 if (!indexing.includes('hreflang="x-default"')) fail('indexing validator does not enforce x-default.');
-if (!indexing.includes('20-locale hreflang is enabled')) fail('indexing validator does not certify the 20-locale contract.');
+if (!indexing.includes('expectedLocales.length !== 20')) fail('indexing validator does not enforce exactly 20 canonical locales.');
+if (!indexing.includes('localized tool canonical/hreflang symmetry')) fail('indexing validator does not certify localized tool canonical/hreflang symmetry.');
 if (!rootSource.includes("name: 'robots'") || !rootSource.includes('index,follow')) fail('root route does not expose index/follow policy.');
 if (!rootSource.includes("property: 'og:url'")) fail('root route lacks canonical social URL metadata.');
 const manifestJson = JSON.parse(manifest);
