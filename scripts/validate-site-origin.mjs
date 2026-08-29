@@ -1,20 +1,16 @@
 import { getCanonicalSiteOrigin } from '../src/config/origin.config.ts';
 
+const OFFICIAL_PRODUCTION_ORIGIN = 'https://flixoai.vercel.app';
 const configured = process.env.VITE_SITE_URL?.trim();
-const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+const isVercelBuild = process.env.VERCEL === '1';
 const isCanonicalCi =
   process.env.GITHUB_ACTIONS === 'true' &&
   process.env.GITHUB_WORKFLOW === 'CI';
-const systemProductionOrigin = vercelProductionUrl
-  ? /^https?:\/\//u.test(vercelProductionUrl)
-    ? vercelProductionUrl
-    : `https://${vercelProductionUrl}`
-  : '';
-const raw = configured || systemProductionOrigin || (isCanonicalCi ? 'https://canonical.test' : '');
+const raw = configured || (isVercelBuild ? OFFICIAL_PRODUCTION_ORIGIN : '') || (isCanonicalCi ? 'https://canonical.test' : '');
 
 if (!raw) {
   throw new Error(
-    'VITE_SITE_URL or VERCEL_PROJECT_PRODUCTION_URL is required for canonical origin validation.',
+    'VITE_SITE_URL is required outside Vercel. Configure SITE_URL/VITE_SITE_URL with the official production origin.',
   );
 }
 
