@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-29T00:49:00Z",
+  "commitSha": "9ae7a0f097cc8b7981ffe7286dedc295266374cc",
+  "execution": {
+    "runnerJobId": 99023946133,
+    "mode": "CI",
+    "framework": "Playwright"
+  },
+  "server": {
+    "type": "Vite preview",
+    "command": "npm run build:runtime && npm run preview -- --host 127.0.0.1 --port 3000",
+    "baseUrl": "http://127.0.0.1:3000",
+    "managedBy": "Playwright webServer",
+    "reuseExistingServer": false
+  },
+  "processId": null,
+  "processIdCapture": "not exposed by the recorded GitHub Actions log; process identity is verified at command/config level, not PID level."
+}
