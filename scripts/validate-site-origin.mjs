@@ -6,11 +6,11 @@ const isVercelBuild = process.env.VERCEL === '1';
 const isCanonicalCi =
   process.env.GITHUB_ACTIONS === 'true' &&
   process.env.GITHUB_WORKFLOW === 'CI';
-const raw = configured || (isVercelBuild ? OFFICIAL_PRODUCTION_ORIGIN : '') || (isCanonicalCi ? 'https://canonical.test' : '');
+const raw = configured || (isVercelBuild || isCanonicalCi ? OFFICIAL_PRODUCTION_ORIGIN : '');
 
 if (!raw) {
   throw new Error(
-    'VITE_SITE_URL is required outside Vercel. Configure SITE_URL/VITE_SITE_URL with the official production origin.',
+    'VITE_SITE_URL is required outside Vercel/CI. Configure SITE_URL/VITE_SITE_URL with the official production origin.',
   );
 }
 
