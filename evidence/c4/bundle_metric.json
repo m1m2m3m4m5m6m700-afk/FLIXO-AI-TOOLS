@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-29T00:49:00Z",
+  "commitSha": "9ae7a0f097cc8b7981ffe7286dedc295266374cc",
+  "source": {
+    "workflowRunId": 33224032020,
+    "jobId": 99023946125,
+    "artifactId": 9706221587,
+    "artifactName": "bundle-size-report",
+    "artifactSha256": "d093ecbcbb630fb788c0b456b95ac6c881c5f10ebf045726e07cd554a7ee5ba0"
+  },
+  "metrics": {
+    "assetCount": 106,
+    "javascriptBytes": 4548884,
+    "cssBytes": 48374,
+    "totalAssetBytes": 4608885,
+    "gzipBytes": 1263980,
+    "brotliBytes": 1037855,
+    "criticalJavascriptBytes": 849625
+  },
+  "budget": {
+    "criticalJavascriptBytes": 921600,
+    "javascriptBytes": 3145728,
+    "cssBytes": 1048576,
+    "totalAssetBytes": 5242880
+  },
+  "budgetResult": "critical/total/css PASS; total JavaScript ceiling currently exceeded by 1403156 bytes and remains an explicit tuning item."
+}
