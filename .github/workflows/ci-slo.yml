@@ -1,0 +1,44 @@
+name: CI SLO Budget
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+      - Full Matrix Promotion
+    types: [completed]
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  slo:
+    name: CI SLO / Budget Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Measure workflow SLOs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          RUN_ID: ${{ github.event.workflow_run.id || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$RUN_ID"
+          if [[ -z "$run_id" ]]; then
+            run_id="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${SHA}&per_page=20" --jq '.workflow_runs | map(select(.name=="CI" and .conclusion=="success")) | .[0].id')"
+          fi
+          test -n "$run_id"
+          run="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}")"
+          wall="$(jq -r '((.updated_at|fromdateiso8601)-(.run_started_at|fromdateiso8601))' <<< "$run")"
+          queue="$(jq -r '((.run_started_at|fromdateiso8601)-(.created_at|fromdateiso8601))' <<< "$run")"
+          jobs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100")"
+          critical="$(jq -r '[.jobs[] | select(.status=="completed") | ((.completed_at|fromdateiso8601)-(.started_at|fromdateiso8601))] | max // 0' <<< "$jobs")"
+          runner_minutes="$(jq -r '[.jobs[] | select(.status=="completed") | (((.completed_at|fromdateiso8601)-(.started_at|fromdateiso8601))/60)] | add // 0' <<< "$jobs")"
+          echo "wall=$wall queue=$queue critical=$critical runner_minutes=$runner_minutes"
+          CI_WALL_CLOCK_SECONDS="$wall" CI_QUEUE_SECONDS="$queue" CI_CRITICAL_PATH_SECONDS="$critical" CI_RUNNER_MINUTES="$runner_minutes" node scripts/ci-slo-check.mjs | tee diagnostics-ci-slo.json
+          cat diagnostics-ci-slo.json >> "$GITHUB_STEP_SUMMARY"
