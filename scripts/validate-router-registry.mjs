@@ -78,10 +78,11 @@ const routeSources = listRouteFiles(routesDir).map((file) => fs.readFileSync(fil
 const declaredRouteList = routeSources.flatMap(extractPathProperties);
 
 // Image routes are generated from IMAGE_TOOLS and consumed as an array in route-tree.ts.
-// Include the registry-owned generated boundary without executing TypeScript route modules.
+// Only the image-family registry entries belong to this generated declaration boundary;
+// the remaining tool families have explicit route modules and must not be duplicated here.
 const usesGeneratedImageRoutes = /\bimageToolRoutes\b/.test(routeTreeSource);
 if (usesGeneratedImageRoutes) {
-  for (const tool of TOOLS_REGISTRY) {
+  for (const tool of TOOLS_REGISTRY.filter((entry) => entry.family === 'image')) {
     if (tool.isReady && tool.path.startsWith('/en/')) declaredRouteList.push(tool.path);
     for (const alias of tool.aliases ?? []) {
       if (alias.startsWith('/en/')) declaredRouteList.push(alias);
