@@ -36,7 +36,9 @@ function RuntimeLocaleAttributes() {
     document.documentElement.lang = metadata.languageTag;
     document.documentElement.dir = metadata.direction;
 
-    const localizedMain = document.querySelector<HTMLElement>('main.home-shell, main.tool-page-modern');
+    const localizedMain = document.querySelector<HTMLElement>(
+      'main.home-shell, main.tool-page-modern, main.image-tool-shell',
+    );
     if (localizedMain) {
       localizedMain.lang = metadata.languageTag;
       localizedMain.dir = metadata.direction;
