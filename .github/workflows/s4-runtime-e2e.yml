@@ -22,6 +22,8 @@ jobs:
     timeout-minutes: 45
     env:
       VITE_SITE_URL: https://canonical.test
+      VITE_RUNTIME_ORIGIN: https://canonical.test
+      VITE_TEST_ORIGIN: https://canonical.test
     steps:
       - uses: actions/checkout@v5
         with:
