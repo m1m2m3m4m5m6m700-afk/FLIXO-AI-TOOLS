@@ -1,6 +1,7 @@
 const DEFAULT_RUNTIME_ORIGIN = 'http://127.0.0.1:3000';
 const DEFAULT_TEST_ORIGIN = 'https://canonical.test';
-const APPROVED_VERCEL_PRODUCTION_HOST = 'flexo1.vercel.app';
+const OFFICIAL_PRODUCTION_ORIGIN = 'https://flixoai.vercel.app';
+const OFFICIAL_PRODUCTION_HOST = 'flixoai.vercel.app';
 
 function readOriginEnv(name: 'VITE_SITE_URL' | 'VITE_RUNTIME_ORIGIN' | 'VITE_TEST_ORIGIN'): string | undefined {
   const configured =
@@ -26,7 +27,6 @@ function normalizeOrigin(value: string, variableName: string): string {
 
 function isBlockedCanonicalHost(hostname: string): boolean {
   const normalized = hostname.toLowerCase();
-  if (normalized === APPROVED_VERCEL_PRODUCTION_HOST) return false;
 
   return (
     normalized === 'localhost' ||
@@ -44,7 +44,7 @@ export function getCanonicalSiteOrigin(): string {
   const configured = readOriginEnv('VITE_SITE_URL');
   if (!configured) {
     throw new Error(
-      'VITE_SITE_URL is required for canonical SEO generation. Configure SITE_URL/VITE_SITE_URL with the real public HTTPS production origin.',
+      'VITE_SITE_URL is required for canonical SEO generation. Configure SITE_URL/VITE_SITE_URL with the official production origin.',
     );
   }
 
@@ -55,9 +55,15 @@ export function getCanonicalSiteOrigin(): string {
     throw new Error('VITE_SITE_URL must use HTTPS.');
   }
 
-  if (isBlockedCanonicalHost(origin.hostname)) {
+  if (origin.origin !== OFFICIAL_PRODUCTION_ORIGIN) {
     throw new Error(
-      `VITE_SITE_URL must be the real public production origin, not a local or deployment origin: ${origin.origin}`,
+      `VITE_SITE_URL must be the sole official FLIXO production origin: ${OFFICIAL_PRODUCTION_ORIGIN}`,
+    );
+  }
+
+  if (isBlockedCanonicalHost(origin.hostname) && origin.hostname !== OFFICIAL_PRODUCTION_HOST) {
+    throw new Error(
+      `VITE_SITE_URL must be the official production origin, not a local or deployment origin: ${origin.origin}`,
     );
   }
 
