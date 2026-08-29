@@ -9,6 +9,65 @@ const outputPath = fs.existsSync(clientPath) ? clientPath : distPath;
 const indexPath = path.join(outputPath, 'index.html');
 
 const budget = JSON.parse(fs.readFileSync(budgetPath, 'utf8'));
+const budgetFailures = [];
+const expectedBudgetKeys = [
+  'criticalJavascriptBytes',
+  'javascriptBytes',
+  'cssBytes',
+  'totalAssetBytes',
+  'notes',
+];
+const releaseCeilings = {
+  criticalJavascriptBytes: 921600,
+  javascriptBytes: 3145728,
+  cssBytes: 1048576,
+  totalAssetBytes: 5242880,
+};
+
+if (!budget || typeof budget !== 'object' || Array.isArray(budget)) {
+  budgetFailures.push('performance budget must be a JSON object');
+} else {
+  const actualKeys = Object.keys(budget).sort();
+  const requiredKeys = [...expectedBudgetKeys].sort();
+  if (JSON.stringify(actualKeys) !== JSON.stringify(requiredKeys)) {
+    budgetFailures.push(`performance budget keys must be exactly: ${requiredKeys.join(', ')}`);
+  }
+
+  for (const key of Object.keys(releaseCeilings)) {
+    const value = budget[key];
+    const ceiling = releaseCeilings[key];
+    if (!Number.isSafeInteger(value) || value <= 0) {
+      budgetFailures.push(`${key} must be a positive integer`);
+      continue;
+    }
+    if (value > ceiling) budgetFailures.push(`${key} exceeds the release ceiling of ${ceiling} bytes`);
+  }
+
+  if (typeof budget.notes !== 'string' || budget.notes.trim() === '') budgetFailures.push('notes must be a non-empty string');
+
+  const { criticalJavascriptBytes, javascriptBytes, cssBytes, totalAssetBytes } = budget;
+  if (
+    Number.isSafeInteger(criticalJavascriptBytes) &&
+    Number.isSafeInteger(javascriptBytes) &&
+    criticalJavascriptBytes > javascriptBytes
+  ) budgetFailures.push('criticalJavascriptBytes must not exceed javascriptBytes');
+  if (
+    Number.isSafeInteger(javascriptBytes) &&
+    Number.isSafeInteger(totalAssetBytes) &&
+    javascriptBytes > totalAssetBytes
+  ) budgetFailures.push('javascriptBytes must not exceed totalAssetBytes');
+  if (
+    Number.isSafeInteger(cssBytes) &&
+    Number.isSafeInteger(totalAssetBytes) &&
+    cssBytes > totalAssetBytes
+  ) budgetFailures.push('cssBytes must not exceed totalAssetBytes');
+}
+
+if (budgetFailures.length) {
+  console.error('Performance budget contract: FAIL');
+  for (const failure of budgetFailures) console.error(`- ${failure}`);
+  process.exit(1);
+}
 
 if (!fs.existsSync(distPath) || !fs.existsSync(indexPath)) {
   console.error('Performance budget validation requires a built dist/ directory and index.html entrypoint.');
