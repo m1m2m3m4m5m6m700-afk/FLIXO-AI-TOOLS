@@ -20,14 +20,22 @@ const readRequired = (path) => {
   }
 };
 
-const xmlEscape = (value) => value.replace(/[&<>\"']/gu, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&apos;' })[char]);
+const xmlEscape = (value) =>
+  value.replace(/[&<>"']/gu, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&apos;',
+  })[char]);
+
 const canonicalOrigin = getCanonicalSiteOrigin();
 const sitemap = readRequired(sitemapPath);
 const robots = readRequired(robotsPath);
 
 if (!canonicalOrigin.startsWith('https://')) fail(`canonical origin is not HTTPS: ${canonicalOrigin}`);
-if (/\b(?:localhost|127\\.0\\.0\\.1|vercel\\.(?:app|sh))\b/iu.test(sitemap)) fail('sitemap contains a forbidden local/preview host');
-if (/\b(?:localhost|127\\.0\\.0\\.1|vercel\\.(?:app|sh))\b/iu.test(robots)) fail('robots.txt contains a forbidden local/preview host');
+if (/\b(?:localhost|127\.0\.0\.1|vercel\.(?:app|sh))\b/iu.test(sitemap)) fail('sitemap contains a forbidden local/preview host');
+if (/\b(?:localhost|127\.0\.0\.1|vercel\.(?:app|sh))\b/iu.test(robots)) fail('robots.txt contains a forbidden local/preview host');
 
 const readyTools = TOOL_MANIFEST.filter((tool) => tool.isReady);
 if (readyTools.length === 0) fail('no ready tools are available');
