@@ -1,8 +1,21 @@
+export type MagicByteSegment = {
+  bytes: readonly number[];
+  offset: number;
+};
+
+export type MagicByteSignature = {
+  name: string;
+  bytes: readonly number[];
+  offset?: number;
+  segments?: readonly MagicByteSegment[];
+};
+
 export type FileSafetyInput = {
   name: string;
   mime: string;
   bytes: number;
   signature?: string;
+  content?: Uint8Array;
   width?: number;
   height?: number;
 };
@@ -12,6 +25,7 @@ export type FileSafetyPolicy = {
   maxBytes: number;
   maxPixels?: number;
   signatures?: readonly string[];
+  magicBytes?: readonly MagicByteSignature[];
   allowedExtensions?: readonly string[];
 };
 
@@ -58,6 +72,40 @@ export const EXTENSION_MIME_MAP: Readonly<Record<string, string>> = Object.freez
   json: 'application/json',
 });
 
+const riffSignature = [0x52, 0x49, 0x46, 0x46];
+const ftypSignature = [0x66, 0x74, 0x79, 0x70];
+
+export const MAGIC_BYTE_SIGNATURES: Readonly<Record<string, MagicByteSignature>> = Object.freeze({
+  png: { name: 'PNG', bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
+  jpeg: { name: 'JPEG', bytes: [0xff, 0xd8, 0xff] },
+  gif: { name: 'GIF', bytes: [0x47, 0x49, 0x46, 0x38] },
+  bmp: { name: 'BMP', bytes: [0x42, 0x4d] },
+  pdf: { name: 'PDF', bytes: [0x25, 0x50, 0x44, 0x46, 0x2d] },
+  zip: { name: 'ZIP', bytes: [0x50, 0x4b, 0x03, 0x04] },
+  ogg: { name: 'OggS', bytes: [0x4f, 0x67, 0x67, 0x53] },
+  flac: { name: 'FLAC', bytes: [0x66, 0x4c, 0x61, 0x43] },
+  webp: {
+    name: 'WEBP',
+    bytes: riffSignature,
+    segments: [{ bytes: [0x57, 0x45, 0x42, 0x50], offset: 8 }],
+  },
+  wav: {
+    name: 'WAV',
+    bytes: riffSignature,
+    segments: [{ bytes: [0x57, 0x41, 0x56, 0x45], offset: 8 }],
+  },
+  avi: {
+    name: 'AVI',
+    bytes: riffSignature,
+    segments: [{ bytes: [0x41, 0x56, 0x49, 0x20], offset: 8 }],
+  },
+  mp4: { name: 'ISO-BMFF', bytes: ftypSignature, offset: 4 },
+  mov: { name: 'ISO-BMFF', bytes: ftypSignature, offset: 4 },
+  m4a: { name: 'ISO-BMFF', bytes: ftypSignature, offset: 4 },
+  avif: { name: 'ISO-BMFF', bytes: ftypSignature, offset: 4 },
+  webm: { name: 'WebM/EBML', bytes: [0x1a, 0x45, 0xdf, 0xa3] },
+});
+
 function normalizeExtension(name: string): string {
   const lastDot = name.lastIndexOf('.');
   if (lastDot < 0) return '';
@@ -79,6 +127,16 @@ function isUnsafeName(name: string): boolean {
   const normalized = name.replace(/\\/g, '/');
   const segments = normalized.split('/');
   return segments.some((segment) => segment === '..' || segment === '.') || segments.length !== 1;
+}
+
+function matchesSegment(content: Uint8Array, segment: MagicByteSegment): boolean {
+  if (segment.offset < 0 || content.length < segment.offset + segment.bytes.length) return false;
+  return segment.bytes.every((expected, index) => content[segment.offset + index] === expected);
+}
+
+function matchesMagicBytes(content: Uint8Array, signature: MagicByteSignature): boolean {
+  const primary: MagicByteSegment = { bytes: signature.bytes, offset: signature.offset ?? 0 };
+  return matchesSegment(content, primary) && (signature.segments ?? []).every((segment) => matchesSegment(content, segment));
 }
 
 export function validateFileSafety(input: FileSafetyInput, policy: FileSafetyPolicy): FileSafetyResult {
@@ -119,6 +177,14 @@ export function validateFileSafety(input: FileSafetyInput, policy: FileSafetyPol
       if (!policy.signatures.some((allowed) => signature.startsWith(normalizeSignature(allowed)))) {
         failures.push('input signature does not match the allowed file signatures');
       }
+    }
+  }
+
+  if (policy.magicBytes) {
+    if (!input.content) {
+      failures.push('input content bytes are required when magic-byte validation is enabled');
+    } else if (!policy.magicBytes.some((allowed) => matchesMagicBytes(input.content!, allowed))) {
+      failures.push('input magic bytes do not match the allowed file signatures');
     }
   }
 
