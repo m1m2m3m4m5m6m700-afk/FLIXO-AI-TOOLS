@@ -70,7 +70,7 @@ run('npm', ['run', 'lint']);
 pass('ESLint');
 
 const siteUrl = process.env.VITE_SITE_URL?.trim() || (process.env.GITHUB_ACTIONS === 'true' ? 'https://canonical.test' : '');
-if (!siteUrl) fail('production S3 certification requires VITE_SITE_URL from repository variable SITE_URL');
+if (!siteUrl) fail('production S3 certification requires VITE_SITE_URL');
 run('npm', ['run', 'validate:site-origin'], { VITE_SITE_URL: siteUrl });
 run('npm', ['run', 'build'], { VITE_SITE_URL: siteUrl, FLIXO_GENERATED_OUTPUT_DIR: 'dist' });
 pass(`production build for ${siteUrl}`);
@@ -93,7 +93,20 @@ const outputIndex = join(outputDir, 'index.html');
 if (!existsSync(outputIndex)) fail('built index.html is missing');
 const outputReal = realpathSync(outputDir);
 const realPathViolations = [];
-const visitSymlinks = (dir) => { for (const entry of readdirSync(dir, { withFileTypes: true })) { const full = join(dir, entry.name); if (entry.isSymbolicLink()) { try { const target = realpathSync(full); const rel = relative(outputReal, target); if (rel.startsWith('..') || resolve(outputReal, rel) !== target) realPathViolations.push(full); } catch { realPathViolations.push(`${full} (dangling)`); } } else if (entry.isDirectory()) visitSymlinks(full); } };
+const visitSymlinks = (dir) => {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isSymbolicLink()) {
+      try {
+        const target = realpathSync(full);
+        const rel = relative(outputReal, target);
+        if (rel.startsWith('..') || resolve(outputReal, rel) !== target) realPathViolations.push(full);
+      } catch {
+        realPathViolations.push(`${full} (dangling)`);
+      }
+    } else if (entry.isDirectory()) visitSymlinks(full);
+  }
+};
 visitSymlinks(outputDir);
 if (realPathViolations.length) fail(`dist contains symlink escapes: ${realPathViolations.join(', ')}`);
 pass('realpath containment');
@@ -102,17 +115,43 @@ const normalizeAsset = (value) => value.split(/[?#]/u, 1)[0].replace(/^\/+/, '')
 const scriptRefs = [...readFileSync(outputIndex, 'utf8').matchAll(/<script\b[^>]*type=["']module["'][^>]*src=["']([^"']+)["'][^>]*>/giu)].map((m) => normalizeAsset(m[1]));
 if (scriptRefs.length === 0) fail('no module entrypoint found in built index.html');
 if (scriptRefs.length !== new Set(scriptRefs).size) fail('duplicate module script references in built index.html');
-const assetPath = (reference) => { const normalized = normalizeAsset(reference); return [join(outputDir, normalized), join(outputDir, `${normalized}.js`)].find((candidate) => existsSync(candidate)) ?? null; };
+const assetPath = (reference) => {
+  const normalized = normalizeAsset(reference);
+  return [join(outputDir, normalized), join(outputDir, `${normalized}.js`)].find((candidate) => existsSync(candidate)) ?? null;
+};
 const visited = new Set();
 const pending = scriptRefs.map((ref) => ({ ref, from: 'index.html' }));
 const localImportPattern = /(?:\bimport\s*(?:[^'"()]*?\sfrom\s*)?|\bimport\s*\(\s*)["']([^"']+)["']/gu;
-while (pending.length) { const { ref, from } = pending.pop(); const file = assetPath(ref); if (!file) fail(`built JS entrypoint is missing: ${ref}`); const canonical = realpathSync(file); if (visited.has(canonical)) continue; visited.add(canonical); const source = readFileSync(file, 'utf8'); for (const match of source.matchAll(localImportPattern)) { const specifier = match[1]; if (!specifier.startsWith('.') && !specifier.startsWith('/')) continue; const baseReference = specifier.startsWith('/') ? normalizeAsset(specifier) : normalizeAsset(join(relative(outputDir, file).split(/\\|\//u).slice(0, -1).join('/'), specifier)); if (!assetPath(baseReference)) fail(`unresolved local JS import ${specifier} from ${from}`); pending.push({ ref: baseReference, from: file }); } }
+while (pending.length) {
+  const { ref, from } = pending.pop();
+  const file = assetPath(ref);
+  if (!file) fail(`built JS entrypoint is missing: ${ref}`);
+  const canonical = realpathSync(file);
+  if (visited.has(canonical)) continue;
+  visited.add(canonical);
+  const source = readFileSync(file, 'utf8');
+  for (const match of source.matchAll(localImportPattern)) {
+    const specifier = match[1];
+    if (!specifier.startsWith('.') && !specifier.startsWith('/')) continue;
+    const baseReference = specifier.startsWith('/')
+      ? normalizeAsset(specifier)
+      : normalizeAsset(join(relative(outputDir, file).split(/\\|\//u).slice(0, -1).join('/'), specifier));
+    if (!assetPath(baseReference)) fail(`unresolved local JS import ${specifier} from ${from}`);
+    pending.push({ ref: baseReference, from: file });
+  }
+}
 pass(`unique JS graph (${visited.size} reachable module file(s))`);
 
 const criticalBudgetBytes = 900 * 1024;
 let criticalJavascriptBytes = 0;
 const criticalAssets = [];
-for (const ref of scriptRefs) { const file = assetPath(ref); if (!file) fail(`critical JS asset is missing: ${ref}`); const bytes = lstatSync(file).size; criticalJavascriptBytes += bytes; criticalAssets.push({ path: relative(outputDir, file).replaceAll('\\', '/'), bytes }); }
+for (const ref of scriptRefs) {
+  const file = assetPath(ref);
+  if (!file) fail(`critical JS asset is missing: ${ref}`);
+  const bytes = lstatSync(file).size;
+  criticalJavascriptBytes += bytes;
+  criticalAssets.push({ path: relative(outputDir, file).replaceAll('\\', '/'), bytes });
+}
 console.log(`S3 CRITICAL JS: ${(criticalJavascriptBytes / 1024).toFixed(1)} KiB across ${criticalAssets.length} entry asset(s)`);
 for (const asset of criticalAssets) console.log(`  critical ${asset.path} ${(asset.bytes / 1024).toFixed(1)} KiB`);
 if (criticalJavascriptBytes > criticalBudgetBytes) fail(`critical JavaScript budget exceeded: ${(criticalJavascriptBytes / 1024).toFixed(1)} KiB > 900.0 KiB`);
@@ -123,21 +162,31 @@ try {
   const changedRaw = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { cwd: root, encoding: 'utf8' }).trim();
   const changed = changedRaw ? changedRaw.split('\n').filter(Boolean) : [];
   const exactAllow = new Set([
-    '.github/workflows/ci.yml', '.github/workflows/full-matrix-promotion.yml', '.github/workflows/root-cause-diagnostics.yml', '.github/workflows/s4-runtime-e2e.yml', '.github/workflows/localization-20.yml', '.github/workflows/seo-production-certification.yml',
-    'eslint.config.js', 'playwright.config.ts', 'scripts/validate-s3-static-gate.mjs', 'scripts/validate-s4-e2e.mjs', 'scripts/validate-site-origin.mjs', 'scripts/test-route-resolver.mjs', 'scripts/test-i18n-contract.mjs', 'scripts/test-seo-contract.mjs', 'scripts/test-upload-boundary.mjs', 'scripts/test-file-safety.mjs', 'scripts/test-output-integrity.mjs',
-    'scripts/validate-language-quality.mjs', 'scripts/validate-language-quality-strict.mjs', 'scripts/validate-locale-contract.mjs', 'scripts/validate-localization-complete.mjs', 'scripts/validation-utils.mjs', 'scripts/validate-indexing.mjs', 'scripts/validate-google-multilingual-seo.mjs', 'scripts/validate-seo-production.mjs',
-    'scripts/node-resolver-loader.mjs', 'scripts/register-node-resolver.mjs', 'scripts/generate-robots.mjs', 'scripts/generate-sitemap.mjs', 'scripts/validate-router-registry.mjs', 'scripts/validate-performance-budget.mjs', 'README.md', 'README', 'docs/CONSOLIDATION-LOG.md', 'docs/DEBT-REGISTER.md',
-    'docs/engineering/pr-445-decomposition.md', 'package.json', 'release/finalization/C5_PLACEHOLDER.md', 'release/finalization/README.md', 'release/finalization/final_execution_manifest.json', 'release/finalization/final_verification.json',
-    'src/main.tsx', 'src/home-modern.css', 'src/config/tool-manifest.ts', 'src/config/origin.config.ts', 'src/lib/i18n/config.ts', 'src/lib/i18n/home-loader.ts', 'src/lib/i18n/locale-quality-overrides.ts', 'src/lib/i18n/tool-seo-localization.ts',
-    'src/lib/routing/route-resolver.ts', 'src/lib/seo/tool-seo.ts', 'src/routes/__root.tsx', 'src/routes/home-page.tsx', 'src/routes/localized-home.tsx', 'src/routes/locale-pages.tsx', 'src/routes/use-case.tsx', 'src/data/home-locales.ts', 'src/data/quickflow-locales.ts', 'src/data/tool-ui-i18n.ts', 'src/components/FlixoGlobalLogo.tsx', 'src/components/auto-localized-tool-surface.tsx', 'src/lib/contracts/upload-boundary.ts', 'src/lib/contracts/file-safety.ts', 'src/lib/contracts/output-integrity.ts', 'src/tools/image-toolkit/index.tsx', 'src/tools/image-compressor/index.tsx', 'src/tools/image-compressor/output-contract.ts', 'tests/image-converter.contract.spec.ts', 'tests/localization-runtime.spec.ts',
-    'public/favicon.svg', 'public/flixo-logo.svg', 'public/flixo-logo.jpg', 'public/logo.svg', 'public/logo.jpg', 'index.html', '.env.example',
-    'evidence/c4/bundle_metric.json', 'evidence/c4/dag_manifest.pre_c4.json', 'evidence/c4/e2e_aggregate_report.json', 'evidence/c4/environment_fingerprint.json', 'evidence/c4/server_execution.log', 'evidence/c4/server_process_identity.json',
+    '.github/workflows/ci.yml',
+    '.github/workflows/parallel-diagnostics.yml',
+    '.github/workflows/root-cause-diagnostics.yml',
+    'scripts/validate-ci-contract.mjs',
+    'scripts/validate-s3-static-gate.mjs',
+    'scripts/verify-contracts-core.mjs',
+    'src/lib/i18n/home-loader.ts',
+    'src/routes/ar-image-compressor.tsx',
+    'src/routes/ar-index.tsx',
+    'tests/localization-runtime.spec.ts',
   ]);
-  const allowedLocalizedSeo = (file) => file.startsWith('src/tools/') && file.includes('/seo/') && /\/seo\/[a-z]{2}\.ts$/u.test(file);
-  const unexpected = changed.filter((file) => !exactAllow.has(file) && !allowedLocalizedSeo(file));
+  const unexpected = changed.filter((file) => !exactAllow.has(file));
   if (unexpected.length) fail(`changed-files allowlist violation: ${unexpected.join(', ')}`);
   pass(`changed-files allowlist (${changed.length} file(s))`);
-} catch (error) { console.error(error?.message ?? error); fail(`unable to evaluate changed-files allowlist against ${base}`); }
+} catch (error) {
+  console.error(error?.message ?? error);
+  fail(`unable to evaluate changed-files allowlist against ${base}`);
+}
 
-try { const status = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(); if (status) fail(`working tree is not clean:\n${status}`); pass('working tree clean'); } catch { fail('unable to inspect git working tree'); }
+try {
+  const status = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim();
+  if (status) fail(`working tree is not clean:\n${status}`);
+  pass('working tree clean');
+} catch {
+  fail('unable to inspect git working tree');
+}
+
 pass('S3 STATIC GATE COMPLETE');
