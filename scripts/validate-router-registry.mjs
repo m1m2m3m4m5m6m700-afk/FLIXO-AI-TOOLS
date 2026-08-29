@@ -30,9 +30,9 @@ function listRouteFiles(dir) {
 
 function extractPathProperties(source) {
   const routes = [];
-  const pathPattern = /\bpath\s*:\s*(['"])([^'"]+)\1/g;
+  const routeFactoryPattern = /create(?:Root)?Route\(\s*\{[\s\S]*?\bpath\s*:\s*(['"])([^'"]+)\1/g;
   let match;
-  while ((match = pathPattern.exec(source)) !== null) {
+  while ((match = routeFactoryPattern.exec(source)) !== null) {
     const route = match[2];
     if (route.startsWith('/')) routes.push(route);
   }
@@ -77,12 +77,11 @@ for (const tool of TOOLS_REGISTRY) {
 const routeSources = listRouteFiles(routesDir).map((file) => fs.readFileSync(file, 'utf8'));
 const declaredRouteList = routeSources.flatMap(extractPathProperties);
 
-// Image routes are generated from IMAGE_TOOLS and consumed as an array in route-tree.ts.
-// Only the image-family registry entries belong to this generated declaration boundary;
-// the remaining tool families have explicit route modules and must not be duplicated here.
+// imageToolRoutes is generated from IMAGE_TOOLS. image-compressor is excluded there
+// because it has its own explicit route module, so it must not be reintroduced here.
 const usesGeneratedImageRoutes = /\bimageToolRoutes\b/.test(routeTreeSource);
 if (usesGeneratedImageRoutes) {
-  for (const tool of TOOLS_REGISTRY.filter((entry) => entry.family === 'image')) {
+  for (const tool of TOOLS_REGISTRY.filter((entry) => entry.family === 'image' && entry.id !== 'image-compressor')) {
     if (tool.isReady && tool.path.startsWith('/en/')) declaredRouteList.push(tool.path);
     for (const alias of tool.aliases ?? []) {
       if (alias.startsWith('/en/')) declaredRouteList.push(alias);
