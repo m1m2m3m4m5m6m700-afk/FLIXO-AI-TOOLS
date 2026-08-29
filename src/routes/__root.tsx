@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
-import { HeadContent, Scripts, Outlet, createRootRoute } from '@tanstack/react-router';
+import { useEffect, useLayoutEffect } from 'react';
+import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
-import { SITE_ORIGIN } from '../lib/i18n';
+import { LOCALE_METADATA, isLocale, SITE_ORIGIN } from '../lib/i18n';
 
 const GLOBAL_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
@@ -25,6 +25,27 @@ const GLOBAL_STRUCTURED_DATA = {
   ],
 } as const;
 
+function RuntimeLocaleAttributes() {
+  const location = useLocation();
+
+  useLayoutEffect(() => {
+    const localeCode = location.pathname.split('/').filter(Boolean)[0] ?? '';
+    const locale = isLocale(localeCode) ? localeCode : 'en';
+    const metadata = LOCALE_METADATA[locale];
+
+    document.documentElement.lang = metadata.languageTag;
+    document.documentElement.dir = metadata.direction;
+
+    const localizedMain = document.querySelector<HTMLElement>('main.home-shell, main.tool-page-modern');
+    if (localizedMain) {
+      localizedMain.lang = metadata.languageTag;
+      localizedMain.dir = metadata.direction;
+    }
+  }, [location.pathname]);
+
+  return null;
+}
+
 export const rootRoute = createRootRoute({
   component: function RootLayout() {
     useEffect(() => installCoreWebVitalsDiagnostics(), []);
@@ -32,6 +53,7 @@ export const rootRoute = createRootRoute({
     return (
       <>
         <HeadContent />
+        <RuntimeLocaleAttributes />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }}
