@@ -2,8 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { TOOLS_REGISTRY } from '../src/config/tools.ts';
 
+const rootRoutePath = path.resolve('src/routes/__root.tsx');
 const routesDir = path.resolve('src/routes');
 const routeTreePath = path.join(routesDir, 'route-tree.ts');
+const rootRouteSource = fs.readFileSync(rootRoutePath, 'utf8');
 const routeTreeSource = fs.readFileSync(routeTreePath, 'utf8');
 
 function fail(stage, message, details = {}) {
@@ -45,6 +47,14 @@ if (!Array.isArray(TOOLS_REGISTRY) || TOOLS_REGISTRY.length === 0) {
 
 if (!routeTreeSource.includes('export const routeChildren')) {
   fail('router-load', 'route-tree.ts does not expose routeChildren.');
+}
+
+if (!rootRouteSource.includes('<Suspense')) {
+  fail('runtime', 'Root route must guard lazy route rendering with Suspense.');
+}
+
+if (!rootRouteSource.includes('<Outlet />')) {
+  fail('runtime', 'Root route must contain the router Outlet.');
 }
 
 const canonicalPaths = new Map();
@@ -148,7 +158,7 @@ if (nonReadyToolRoutes.length) {
   fail('readiness', 'Non-ready tools expose public routes.', { routes: nonReadyToolRoutes });
 }
 
-console.log('router/registry contract passed');
+console.log('router/registry/runtime contract passed');
 console.log(`registry tools: ${TOOLS_REGISTRY.length}`);
 console.log(`ready tools: ${TOOLS_REGISTRY.filter((tool) => tool.isReady).length}`);
 console.log(`non-ready tools: ${TOOLS_REGISTRY.filter((tool) => !tool.isReady).length}`);
@@ -158,3 +168,4 @@ console.log(`aliases: ${aliases.size}`);
 console.log(`generated image routes: ${usesGeneratedImageRoutes ? 'enabled' : 'disabled'}`);
 console.log(`dynamic localized tool route: ${hasLocalizedToolRoute ? 'enabled' : 'disabled'}`);
 console.log(`dynamic-owned ready routes: ${dynamicOwnedExpectedRoutes.length}`);
+console.log('lazy route Suspense: enabled');
