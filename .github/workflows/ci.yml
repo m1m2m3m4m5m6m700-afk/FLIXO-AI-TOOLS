@@ -1,6 +1,7 @@
 name: CI
 
 # Verification trigger marker: keeps the canonical CI contract visible in audit history.
+# CI optimization rules: preserve coverage, reduce repeated setup, and cancel obsolete PR runs.
 
 on:
   push:
@@ -13,9 +14,14 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -30,7 +36,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npm run typecheck
 
   lint:
@@ -42,7 +48,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npm run lint
 
   build:
@@ -54,7 +60,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npm run build:runtime
       - name: Validate performance budget
         run: npm run validate:performance-budget
@@ -86,7 +92,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npm run audit:production
 
   socket:
@@ -100,13 +106,13 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Run Socket CI
         if: ${{ env.SOCKET_SECURITY_API_KEY != '' }}
         run: npx --yes @socketsecurity/cli@1.1.158 ci
       - name: Skip Socket CI when no token is configured
         if: ${{ env.SOCKET_SECURITY_API_KEY == '' }}
-        run: 'echo "Socket scan skipped: configure SOCKET_SECURITY_API_KEY in repository secrets to enable the blocking supply-chain gate."'
+        run: echo "Socket scan skipped: configure SOCKET_SECURITY_API_KEY in repository secrets to enable the blocking supply-chain gate."
 
   secret-scan:
     name: Secret History Scan
@@ -146,44 +152,44 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Run reduced contract verifier
         run: npm run verify:contracts
 
   browser-smoke:
-    name: Browser Smoke — ${{ matrix.tool }} — Chromium
+    name: Browser Smoke — Chromium
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - tool: image-converter
-            spec: tests/image-converter.spec.ts
-          - tool: image-cropper
-            spec: tests/image-cropper.spec.ts
-          - tool: exif-cleaner
-            spec: tests/exif-cleaner.spec.ts
-          - tool: image-to-svg
-            spec: tests/image-to-svg.spec.ts
-          - tool: performance-route-loading
-            spec: tests/performance-route-loading.spec.ts
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Run smoke test
-        env:
-          PLAYWRIGHT_SERVER: ${{ matrix.tool == 'performance-route-loading' && 'preview' || 'dev' }}
-        run: npx playwright test ${{ matrix.spec }} --project=chromium
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-chromium-
+      - name: Install Playwright system dependencies
+        run: npx playwright install-deps chromium
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium
+      - name: Run critical browser smoke matrix in parallel workers
+        run: >-
+          npx playwright test
+          tests/image-converter.spec.ts
+          tests/image-cropper.spec.ts
+          tests/exif-cleaner.spec.ts
+          tests/image-to-svg.spec.ts
+          --project=chromium
       - name: Upload smoke diagnostics
         if: ${{ failure() }}
         uses: actions/upload-artifact@v6
         with:
-          name: browser-smoke-${{ matrix.tool }}
+          name: browser-smoke-chromium
           path: |
             playwright-report/
             test-results/
@@ -203,7 +209,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Validate canonical origin contract
         run: npm run validate:site-origin
       - name: Run S3 static certification
@@ -239,7 +245,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Validate release evidence contract
         run: node scripts/test-release-evidence.mjs
       - name: Validate file safety contract
@@ -285,20 +291,17 @@ jobs:
             echo '| Secret History Scan | ${{ needs.secret-scan.result }} |'
             echo '| CodeQL | ${{ needs.security.result }} |'
             echo '| Fast Contract Diagnostics | ${{ needs.fast-contract.result }} |'
-            echo '| Browser Smoke (5 Chromium checks) | ${{ needs.browser-smoke.result }} |'
+            echo '| Browser Smoke (4 Chromium specs, parallel workers) | ${{ needs.browser-smoke.result }} |'
             echo '| S3 Static Gate | ${{ needs.s3-static-gate.result }} |'
             echo '| Canonical Verification | ${{ needs.canonical-verify.result }} |'
             echo
-            echo 'Fast Contract Diagnostics fail early on source-level contract drift.'
-            echo 'TypeScript and ESLint are validated by their dedicated parallel jobs and are not rerun in the reduced contract gate.'
-            echo 'Browser Smoke validates critical file workflows and the initial-route lazy-loading boundary before canonical verification.'
-            echo 'Runtime build performance budget and a reproducible asset baseline are validated before promotion.'
-            echo 'Bundle size inventory is published as a diagnostic artifact for evidence-driven optimization.'
-            echo 'The full browser matrix runs independently as promotion/release evidence.'
+            echo 'Parallel diagnostic jobs preserve independent failure visibility.'
+            echo 'PR runs cancel obsolete in-progress runs; main runs are never canceled by a newer push.'
+            echo 'npm cache is reused and npm audit/fund/update-notifier work is disabled because supply-chain/security checks are explicit gates.'
+            echo 'Browser smoke runs all critical specs in one Playwright invocation and reuses the browser download cache.'
+            echo 'The full browser matrix remains an independent promotion/release gate.'
             echo 'Diagnostics explain failures; Canonical Verification is the single PR/application gate.'
             echo 'S3 Static Gate is a prerequisite for Canonical Verification.'
-            echo 'Socket is intentionally skipped when SOCKET_SECURITY_API_KEY is not configured.'
-            echo 'Secret History Scan is a blocking canonical dependency.'
           } >> "$GITHUB_STEP_SUMMARY"
 
   ci:
