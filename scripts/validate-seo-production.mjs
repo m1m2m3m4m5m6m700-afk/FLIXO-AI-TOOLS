@@ -34,8 +34,24 @@ const sitemap = readRequired(sitemapPath);
 const robots = readRequired(robotsPath);
 
 if (!canonicalOrigin.startsWith('https://')) fail(`canonical origin is not HTTPS: ${canonicalOrigin}`);
-if (/\b(?:localhost|127\.0\.0\.1|vercel\.(?:app|sh))\b/iu.test(sitemap)) fail('sitemap contains a forbidden local/preview host');
-if (/\b(?:localhost|127\.0\.0\.1|vercel\.(?:app|sh))\b/iu.test(robots)) fail('robots.txt contains a forbidden local/preview host');
+
+const assertCanonicalOnly = (text, artifactName) => {
+  const urls = [...text.matchAll(/https?:\/\/[^\s<]+/gu)].map((match) => match[0].replace(/[),.;]+$/u, ''));
+  for (const rawUrl of urls) {
+    let url;
+    try {
+      url = new URL(rawUrl);
+    } catch {
+      fail(`${artifactName} contains an invalid URL: ${rawUrl}`);
+    }
+    if (url.origin !== canonicalOrigin) {
+      fail(`${artifactName} contains a non-canonical origin: ${url.origin}; expected ${canonicalOrigin}`);
+    }
+  }
+};
+
+assertCanonicalOnly(sitemap, 'sitemap');
+assertCanonicalOnly(robots, 'robots.txt');
 
 const readyTools = TOOL_MANIFEST.filter((tool) => tool.isReady);
 if (readyTools.length === 0) fail('no ready tools are available');
