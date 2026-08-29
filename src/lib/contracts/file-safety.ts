@@ -10,6 +10,8 @@ export type MagicByteSignature = {
   segments?: readonly MagicByteSegment[];
 };
 
+export type ContentValidation = 'utf8' | 'json';
+
 export type FileSafetyInput = {
   name: string;
   mime: string;
@@ -26,6 +28,7 @@ export type FileSafetyPolicy = {
   maxPixels?: number;
   signatures?: readonly string[];
   magicBytes?: readonly MagicByteSignature[];
+  contentValidation?: ContentValidation;
   allowedExtensions?: readonly string[];
 };
 
@@ -84,6 +87,8 @@ export const MAGIC_BYTE_SIGNATURES: Readonly<Record<string, MagicByteSignature>>
   zip: { name: 'ZIP', bytes: [0x50, 0x4b, 0x03, 0x04] },
   ogg: { name: 'OggS', bytes: [0x4f, 0x67, 0x67, 0x53] },
   flac: { name: 'FLAC', bytes: [0x66, 0x4c, 0x61, 0x43] },
+  mp3: { name: 'ID3/MP3', bytes: [0x49, 0x44, 0x33] },
+  aac: { name: 'AAC', bytes: [0xff, 0xf1] },
   webp: {
     name: 'WEBP',
     bytes: riffSignature,
@@ -136,7 +141,26 @@ function matchesSegment(content: Uint8Array, segment: MagicByteSegment): boolean
 
 function matchesMagicBytes(content: Uint8Array, signature: MagicByteSignature): boolean {
   const primary: MagicByteSegment = { bytes: signature.bytes, offset: signature.offset ?? 0 };
-  return matchesSegment(content, primary) && (signature.segments ?? []).every((segment) => matchesSegment(content, segment));
+  return matchesSegment(content, primary)
+    && (signature.segments ?? []).every((segment) => matchesSegment(content, segment));
+}
+
+function validateContent(content: Uint8Array, validation: ContentValidation, failures: string[]): void {
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(content).replace(/^\uFEFF/, '');
+  } catch {
+    failures.push('input content is not valid UTF-8');
+    return;
+  }
+
+  if (validation === 'json') {
+    try {
+      JSON.parse(text);
+    } catch {
+      failures.push('input JSON content is malformed');
+    }
+  }
 }
 
 export function validateFileSafety(input: FileSafetyInput, policy: FileSafetyPolicy): FileSafetyResult {
@@ -150,6 +174,10 @@ export function validateFileSafety(input: FileSafetyInput, policy: FileSafetyPol
   if (!Number.isInteger(input.bytes) || input.bytes < 1) failures.push('file size must be a positive integer');
   if (input.bytes > policy.maxBytes) failures.push('file exceeds the maximum size');
   if (!policy.allowedMime.includes(input.mime)) failures.push(`unsupported input MIME type: ${input.mime}`);
+
+  if (input.content && input.content.byteLength !== input.bytes) {
+    failures.push('declared file size does not match input content length');
+  }
 
   if (policy.allowedExtensions) {
     if (!extension || !policy.allowedExtensions.includes(extension)) {
@@ -185,6 +213,14 @@ export function validateFileSafety(input: FileSafetyInput, policy: FileSafetyPol
       failures.push('input content bytes are required when magic-byte validation is enabled');
     } else if (!policy.magicBytes.some((allowed) => matchesMagicBytes(input.content!, allowed))) {
       failures.push('input magic bytes do not match the allowed file signatures');
+    }
+  }
+
+  if (policy.contentValidation) {
+    if (!input.content) {
+      failures.push('input content bytes are required when content validation is enabled');
+    } else if (input.content.byteLength > 0) {
+      validateContent(input.content, policy.contentValidation, failures);
     }
   }
 
