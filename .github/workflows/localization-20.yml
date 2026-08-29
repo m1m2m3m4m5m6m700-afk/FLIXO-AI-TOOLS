@@ -6,10 +6,13 @@ on:
     branches: [main]
     paths:
       - 'src/**'
+      - 'tests/localization-runtime.spec.ts'
       - 'scripts/validate-language-quality*.mjs'
+      - 'scripts/validate-locale-contract.mjs'
       - 'scripts/validate-localization-complete.mjs'
       - 'scripts/validation-utils.mjs'
       - 'package.json'
+      - 'playwright.config.ts'
       - '.github/workflows/localization-20.yml'
   push:
     branches:
@@ -73,17 +76,61 @@ jobs:
           FLIXO_LOCALE: ${{ matrix.locale }}
         run: npm run verify:i18n -- --strict --report
 
+  runtime:
+    name: Localization Runtime — ${{ matrix.locale }} — Chromium
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        locale:
+          - en
+          - ar
+          - es
+          - fr
+          - de
+          - ru
+          - zh
+          - hi
+          - id
+          - ur
+          - ja
+          - pt
+          - it
+          - ko
+          - nl
+          - pl
+          - tr
+          - vi
+          - th
+          - sv
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Render and verify ${{ matrix.locale }} runtime
+        env:
+          FLIXO_TEST_LOCALE: ${{ matrix.locale }}
+        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --grep "${{ matrix.locale }}"
+
   aggregate:
     name: Localization — 20 Locale Gate
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    needs: [locale]
+    needs: [locale, runtime]
     steps:
       - name: Enforce all 20 locale checks
         shell: bash
         run: |
           if [[ "${{ needs.locale.result }}" != "success" ]]; then
-            echo "Localization — 20 Locale Gate FAILED: at least one locale test failed."
+            echo "Localization — 20 Locale Gate FAILED: at least one static locale test failed."
             exit 1
           fi
-          echo "Localization — 20 Locale Gate PASSED: all 20 canonical locale checks are green."
+          if [[ "${{ needs.runtime.result }}" != "success" ]]; then
+            echo "Localization — 20 Locale Gate FAILED: at least one rendered runtime locale test failed."
+            exit 1
+          fi
+          echo "Localization — 20 Locale Gate PASSED: all 20 static and rendered runtime locale checks are green."
