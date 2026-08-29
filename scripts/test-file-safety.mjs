@@ -95,7 +95,8 @@ for (const { extension, mime, content, signature } of binaryMatrix) {
   );
 
   const spoofedContent = content.slice();
-  spoofedContent[0] ^= 0xff;
+  const corruptionOffset = signature.offset ?? 0;
+  spoofedContent[corruptionOffset] ^= 0xff;
   rejects(
     validateFileSafety(
       { name: `spoofed.${extension}`, mime, bytes: spoofedContent.byteLength, content: spoofedContent },
