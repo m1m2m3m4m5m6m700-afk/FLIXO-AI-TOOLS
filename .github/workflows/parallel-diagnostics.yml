@@ -1,15 +1,9 @@
 name: Parallel Diagnostics
 
-# Deep-diagnostic workflow. It intentionally does not replace the canonical CI gate.
-# 23 suites × 3 browsers × 3 Playwright shards = 207 independent diagnostic jobs.
-# The 3-shard split stays under GitHub Actions' 256-job matrix limit while
-# exposing failures at suite + browser + shard granularity.
+# Diagnostic microscope only. Blocking evidence is owned by CI, S4, Localization, SEO, and release certification.
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - '.github/workflows/parallel-diagnostics.yml'
 
 permissions:
   contents: read
@@ -20,7 +14,7 @@ concurrency:
 
 jobs:
   e2e:
-    name: Diagnostic — ${{ matrix.tool }} — ${{ matrix.browser }} — shard ${{ matrix.shard }}/3
+    name: Diagnostic — ${{ matrix.tool }} — ${{ matrix.browser }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -28,95 +22,65 @@ jobs:
       max-parallel: 64
       matrix:
         browser: [chromium, firefox, webkit]
-        shard: [1, 2, 3]
-        include:
-          - tool: image-compressor
-            spec: tests/image-compressor.spec.ts
-          - tool: background-remover
-            spec: tests/background-remover.spec.ts
-          - tool: image-upscaler
-            spec: tests/image-upscaler.spec.ts
-          - tool: image-converter
-            spec: tests/image-converter.spec.ts
-          - tool: ai-image-generator
-            spec: tests/ai-image-generator.spec.ts
-          - tool: object-remover
-            spec: tests/object-remover.spec.ts
-          - tool: watermark-remover
-            spec: tests/watermark-remover.spec.ts
-          - tool: image-cropper
-            spec: tests/image-cropper.spec.ts
-          - tool: image-to-svg
-            spec: tests/image-to-svg.spec.ts
-          - tool: image-ocr
-            spec: tests/image-ocr.spec.ts
-          - tool: photo-colorizer
-            spec: tests/photo-colorizer.spec.ts
-          - tool: background-blur
-            spec: tests/background-blur.spec.ts
-          - tool: passport-photo-maker
-            spec: tests/passport-photo-maker.spec.ts
-          - tool: watermark-adder
-            spec: tests/watermark-adder.spec.ts
-          - tool: meme-generator
-            spec: tests/meme-generator.spec.ts
-          - tool: collage-maker
-            spec: tests/collage-maker.spec.ts
-          - tool: image-effects
-            spec: tests/image-effects.spec.ts
-          - tool: exif-cleaner
-            spec: tests/exif-cleaner.spec.ts
-          - tool: svg-optimizer
-            spec: tests/svg-optimizer.spec.ts
-          - tool: mockup-generator
-            spec: tests/mockup-generator.spec.ts
-          - tool: seed
-            spec: tests/seed.spec.ts
-          - tool: pix
-            spec: tests/pix.spec.ts
-          - tool: localization
-            spec: tests/localization-smoke.spec.ts
+        tool:
+          - image-compressor
+          - background-remover
+          - image-upscaler
+          - image-converter
+          - ai-image-generator
+          - object-remover
+          - watermark-remover
+          - image-cropper
+          - image-to-svg
+          - image-ocr
+          - photo-colorizer
+          - background-blur
+          - passport-photo-maker
+          - watermark-adder
+          - meme-generator
+          - collage-maker
+          - image-effects
+          - exif-cleaner
+          - svg-optimizer
+          - mockup-generator
+          - seed
+          - pix
+          - localization
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Install ${{ matrix.browser }}
-        run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Write diagnostic context
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Cache Playwright ${{ matrix.browser }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-${{ matrix.browser }}-
+      - name: Install Playwright ${{ matrix.browser }}
+        run: |
+          npx playwright install-deps ${{ matrix.browser }}
+          npx playwright install ${{ matrix.browser }}
+      - name: Resolve test specification
+        id: spec
         shell: bash
         run: |
-          mkdir -p diagnostics
-          cat > diagnostics/context.txt <<'EOF'
-          commit=${{ github.sha }}
-          workflow=${{ github.workflow }}
-          run=${{ github.run_id }}
-          tool=${{ matrix.tool }}
-          spec=${{ matrix.spec }}
-          browser=${{ matrix.browser }}
-          shard=${{ matrix.shard }}/3
-          node=$(node --version)
-          npm=$(npm --version)
-          playwright=$(npx playwright --version)
-          EOF
-          cat diagnostics/context.txt
-      - name: Run isolated Playwright shard
-        env:
-          CI: 'true'
-        run: >-
-          npx playwright test ${{ matrix.spec }}
-          --project=${{ matrix.browser }}
-          --shard=${{ matrix.shard }}/3
-      - name: Upload shard diagnostics
-        if: ${{ always() }}
+          set -euo pipefail
+          spec="tests/${{ matrix.tool }}.spec.ts"
+          if [[ "${{ matrix.tool }}" == "localization" ]]; then spec="tests/localization-smoke.spec.ts"; fi
+          test -f "$spec"
+          echo "spec=$spec" >> "$GITHUB_OUTPUT"
+      - name: Run diagnostic E2E
+        run: npx playwright test "${{ steps.spec.outputs.spec }}" --project=${{ matrix.browser }}
+      - name: Upload diagnostic evidence
+        if: ${{ always() && failure() }}
         uses: actions/upload-artifact@v6
         with:
-          name: diagnostic-${{ matrix.tool }}-${{ matrix.browser }}-shard-${{ matrix.shard }}
+          name: diagnostic-${{ matrix.tool }}-${{ matrix.browser }}
           path: |
-            diagnostics/context.txt
             playwright-report/
             test-results/
           if-no-files-found: warn
@@ -128,13 +92,10 @@ jobs:
     needs: [e2e]
     runs-on: ubuntu-latest
     steps:
-      - name: Write summary
-        run: |
+      - run: |
           {
             echo '## FLIXO Parallel Diagnostic Matrix'
-            echo
-            echo 'Matrix design: 23 suites × 3 browsers × 3 shards = 207 diagnostic jobs.'
-            echo 'fail-fast=false keeps independent failures visible in parallel.'
-            echo 'Every shard retains trace/video/screenshot/report artifacts from Playwright config.'
-            echo 'Overall matrix result: ${{ needs.e2e.result }}'
+            echo 'Manual-only diagnostic workflow; it does not duplicate normal main or PR certification.'
+            echo 'All 23 suites × 3 browsers remain available when explicitly requested.'
+            echo "Overall matrix result: ${{ needs.e2e.result }}"
           } >> "$GITHUB_STEP_SUMMARY"
