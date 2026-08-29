@@ -8,6 +8,7 @@ on:
       - 'work/**'
       - 'fix/**'
       - 's3-**'
+      - 'chore/ci-dedup-clean'
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -106,9 +107,11 @@ jobs:
       - name: Run Socket CI
         if: ${{ env.SOCKET_SECURITY_API_KEY != '' }}
         run: npx --yes @socketsecurity/cli@1.1.158 ci
-      - name: Skip Socket CI when no token is configured
+      - name: Fail closed when Socket token is unavailable
         if: ${{ env.SOCKET_SECURITY_API_KEY == '' }}
-        run: echo "Socket scan skipped: configure SOCKET_SECURITY_API_KEY to enable the blocking supply-chain gate."
+        run: |
+          echo 'Socket CI cannot establish supply-chain evidence because SOCKET_SECURITY_API_KEY is missing.'
+          exit 1
 
   secret-scan:
     name: Secret History Scan
@@ -138,9 +141,6 @@ jobs:
   fast-contract:
     name: Fast Contract Diagnostics
     runs-on: ubuntu-latest
-    env:
-      VITE_SITE_URL: https://flixoai.vercel.app
-      VITE_TEST_ORIGIN: https://canonical.test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -192,15 +192,13 @@ jobs:
             "FastContract=${{ needs.fast-contract.result }}"
             "S3=${{ needs.s3-static-gate.result }}"
           )
-          failed=0
           for result in "${results[@]}"; do
             echo "$result"
-            if [[ "$result" != *=success ]]; then failed=1; fi
+            if [[ "$result" != *=success ]]; then
+              echo 'Canonical Verification FAILED: required evidence is not successful.'
+              exit 1
+            fi
           done
-          if [[ "$failed" -ne 0 ]]; then
-            echo 'Canonical Verification FAILED: one or more required evidence jobs did not succeed.'
-            exit 1
-          fi
           echo 'Canonical Verification PASSED: every required evidence job succeeded for the exact commit.'
       - name: Write canonical evidence
         run: |
@@ -248,9 +246,10 @@ jobs:
     needs: [canonical-verify]
     steps:
       - name: Confirm canonical CI gate
-        if: ${{ needs.canonical-verify.result != 'success' }}
         run: |
-          echo "Canonical Verification did not pass: ${{ needs.canonical-verify.result }}"
-          exit 1
-      - name: Confirm canonical CI gate
-        run: echo "CI gate passed for ${{ github.sha }}"
+          set -euo pipefail
+          if [[ '${{ needs.canonical-verify.result }}' != 'success' ]]; then
+            echo "Canonical Verification did not pass: ${{ needs.canonical-verify.result }}"
+            exit 1
+          fi
+          echo "CI gate passed for exact commit ${{ github.sha }}"
