@@ -46,18 +46,27 @@ jobs:
       fail-fast: false
       max-parallel: 10
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        locales:
-          - 'en ar'
-          - 'es fr'
-          - 'de ru'
-          - 'zh hi'
-          - 'id ur'
-          - 'ja pt'
-          - 'it ko'
-          - 'nl pl'
-          - 'tr vi'
-          - 'th sv'
+        include:
+          - shard: 1
+            locales: 'en ar'
+          - shard: 2
+            locales: 'es fr'
+          - shard: 3
+            locales: 'de ru'
+          - shard: 4
+            locales: 'zh hi'
+          - shard: 5
+            locales: 'id ur'
+          - shard: 6
+            locales: 'ja pt'
+          - shard: 7
+            locales: 'it ko'
+          - shard: 8
+            locales: 'nl pl'
+          - shard: 9
+            locales: 'tr vi'
+          - shard: 10
+            locales: 'th sv'
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -109,18 +118,27 @@ jobs:
       fail-fast: false
       max-parallel: 10
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        locales:
-          - 'en ar'
-          - 'es fr'
-          - 'de ru'
-          - 'zh hi'
-          - 'id ur'
-          - 'ja pt'
-          - 'it ko'
-          - 'nl pl'
-          - 'tr vi'
-          - 'th sv'
+        include:
+          - shard: 1
+            locales: 'en ar'
+          - shard: 2
+            locales: 'es fr'
+          - shard: 3
+            locales: 'de ru'
+          - shard: 4
+            locales: 'zh hi'
+          - shard: 5
+            locales: 'id ur'
+          - shard: 6
+            locales: 'ja pt'
+          - shard: 7
+            locales: 'it ko'
+          - shard: 8
+            locales: 'nl pl'
+          - shard: 9
+            locales: 'tr vi'
+          - shard: 10
+            locales: 'th sv'
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
