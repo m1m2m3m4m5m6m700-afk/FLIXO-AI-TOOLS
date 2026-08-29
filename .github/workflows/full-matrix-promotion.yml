@@ -14,14 +14,41 @@ env:
   VITE_SITE_URL: https://flixoai.vercel.app
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
   VITE_TEST_ORIGIN: https://canonical.test
+  CI_MAX_PARALLEL: ${{ vars.CI_MAX_PARALLEL || '12' }}
 
 concurrency:
   group: full-matrix-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  plan:
+    name: Full Matrix — Dynamic Weighted Plan
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      max_parallel: ${{ steps.plan.outputs.max_parallel }}
+      shard_count: ${{ steps.plan.outputs.shard_count }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compute deterministic weighted matrix
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/ci-shard-plan.mjs
+          matrix="$(node --input-type=module -e "const x=require('fs').readFileSync('diagnostics/ci-shard-plan.json','utf8'); console.log(JSON.stringify(JSON.parse(x).units))")"
+          max_parallel="$(node --input-type=module -e "console.log(JSON.parse(require('fs').readFileSync('diagnostics/ci-shard-plan.json','utf8')).maxParallel)")"
+          shard_count="$(node --input-type=module -e "console.log(JSON.parse(require('fs').readFileSync('diagnostics/ci-shard-plan.json','utf8')).shardCount)")"
+          {
+            echo "matrix=$matrix"
+            echo "max_parallel=$max_parallel"
+            echo "shard_count=$shard_count"
+          } >> "$GITHUB_OUTPUT"
+          cat diagnostics/ci-shard-plan.json >> "$GITHUB_STEP_SUMMARY"
+
   build-once:
     name: Full Matrix Build Once
+    needs: [plan]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -54,7 +81,6 @@ jobs:
             ) + '\n',
           );
           NODE
-          cat full-matrix-build-metadata.json
       - name: Publish immutable certification artifact
         uses: actions/upload-artifact@v6
         with:
@@ -67,38 +93,14 @@ jobs:
 
   e2e:
     name: Full Matrix — ${{ matrix.tool }} — ${{ matrix.browser }}
-    needs: [build-once]
+    needs: [plan, build-once]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      max-parallel: ${{ fromJSON(needs.plan.outputs.max_parallel) }}
       matrix:
-        browser: [chromium, firefox, webkit]
-        tool: [
-          image-compressor,
-          background-remover,
-          image-upscaler,
-          image-converter,
-          ai-image-generator,
-          object-remover,
-          watermark-remover,
-          image-cropper,
-          image-to-svg,
-          image-ocr,
-          photo-colorizer,
-          background-blur,
-          passport-photo-maker,
-          watermark-adder,
-          meme-generator,
-          collage-maker,
-          image-effects,
-          exif-cleaner,
-          svg-optimizer,
-          mockup-generator,
-          seed,
-          pix,
-          localization
-        ]
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -119,9 +121,7 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFile } from 'node:fs/promises';
           const metadata = JSON.parse(await readFile('full-matrix-build-metadata.json', 'utf8'));
-          if (metadata.sha !== process.env.GITHUB_SHA) {
-            throw new Error(`Build SHA mismatch: expected ${process.env.GITHUB_SHA}, got ${metadata.sha}`);
-          }
+          if (metadata.sha !== process.env.GITHUB_SHA) throw new Error(`Build SHA mismatch: expected ${process.env.GITHUB_SHA}, got ${metadata.sha}`);
           NODE
           test -f dist/index.html
       - name: Sanitize blocked external APT sources
@@ -132,7 +132,8 @@ jobs:
             echo "Removing inaccessible Microsoft APT source: $source"
             sudo rm -f "$source"
           done < <(grep -RIl 'packages\.microsoft\.com' /etc/apt/sources.list.d 2>/dev/null || true)
-      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: npx playwright install-deps ${{ matrix.browser }}
+      - run: npx playwright install ${{ matrix.browser }}
       - name: Start prebuilt production server
         shell: bash
         run: |
@@ -140,39 +141,29 @@ jobs:
           setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/full-matrix-server.log 2>&1 &
           echo $! > /tmp/full-matrix-server.pid
           for _ in $(seq 1 60); do
-            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then
-              exit 0
-            fi
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
             sleep 1
           done
           cat /tmp/full-matrix-server.log || true
           exit 1
-      - name: Resolve test specification
-        id: spec
-        shell: bash
-        run: |
-          set -euo pipefail
-          spec="tests/${{ matrix.tool }}.spec.ts"
-          if [[ "${{ matrix.tool }}" == "localization" ]]; then
-            spec="tests/localization-smoke.spec.ts"
-          fi
-          test -f "$spec"
-          echo "spec=$spec" >> "$GITHUB_OUTPUT"
-      - name: Run ${{ matrix.tool }} E2E on ${{ matrix.browser }}
+      - name: Verify resolved specification
+        run: test -f "${{ matrix.spec }}"
+      - name: Run weighted E2E unit
         env:
           CI: 'true'
           PLAYWRIGHT_EXTERNAL_SERVER: 'true'
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-        run: npx playwright test "${{ steps.spec.outputs.spec }}" --project=${{ matrix.browser }}
-      - name: Upload E2E diagnostics
-        if: ${{ failure() }}
+          CI_TEST_UNIT_WEIGHT: ${{ matrix.weight }}
+        run: /usr/bin/time -f '%e' -o /tmp/test-duration-seconds.txt npx playwright test "${{ matrix.spec }}" --project=${{ matrix.browser }}
+      - name: Upload unit evidence
+        if: ${{ always() }}
         uses: actions/upload-artifact@v6
         with:
-          name: full-matrix-${{ matrix.tool }}-${{ matrix.browser }}
+          name: full-matrix-unit-${{ matrix.tool }}-${{ matrix.browser }}-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/
-            /tmp/full-matrix-server.log
+            /tmp/test-duration-seconds.txt
           if-no-files-found: warn
           retention-days: 7
       - name: Cleanup prebuilt server
@@ -183,17 +174,15 @@ jobs:
           if [ -f /tmp/full-matrix-server.pid ]; then
             PID="$(cat /tmp/full-matrix-server.pid)"
             PGID="$(ps -o pgid= -p "$PID" 2>/dev/null | tr -d ' ')"
-            if [ -n "$PGID" ] && [ "$PGID" != "1" ]; then
-              kill -- -"$PGID" 2>/dev/null || true
-            fi
+            if [ -n "$PGID" ] && [ "$PGID" != "1" ]; then kill -- -"$PGID" 2>/dev/null || true; fi
           fi
           sleep 1
           ! pgrep -af 'vite preview --host 127.0.0.1 --port 3000' >/dev/null
 
   promotion:
     name: Full Matrix Promotion Gate
-    needs: [build-once, e2e]
-    if: ${{ always() && needs.build-once.result == 'success' && needs.e2e.result == 'success' }}
+    needs: [plan, build-once, e2e]
+    if: ${{ always() && needs.plan.result == 'success' && needs.build-once.result == 'success' && needs.e2e.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Verify exact certified SHA
@@ -208,9 +197,10 @@ jobs:
           {
             echo '## FLIXO Full Matrix Promotion'
             echo
-            echo 'One immutable build artifact was reused across the complete browser matrix for:'
+            echo 'Dynamic weighted matrix completed against one immutable build artifact.'
+            echo '23 suites × 3 browsers = 69 E2E units.'
+            echo "Planner parallelism: ${{ needs.plan.outputs.max_parallel }}"
+            echo "Planner shards: ${{ needs.plan.outputs.shard_count }}"
+            echo 'Exact certification SHA:'
             echo '${{ github.sha }}'
-            echo
-            echo '23 suites × 3 browsers = 69 E2E jobs completed successfully.'
-            echo 'Certification is bound to the exact commit SHA above.'
           } >> "$GITHUB_STEP_SUMMARY"
