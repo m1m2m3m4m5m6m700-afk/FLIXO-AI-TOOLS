@@ -1,6 +1,6 @@
 import { createRoute } from '@tanstack/react-router';
 import { rootRoute } from './__root';
-import { ArHomePage } from './ar-home-page';
+import { HomePage } from './home-page';
 import { buildSeoMetadata } from '../lib/seo';
 
 const SEO = buildSeoMetadata({
@@ -43,5 +43,5 @@ export const arIndexRoute = createRoute({
       },
     ],
   }),
-  component: ArHomePage,
+  component: () => <HomePage locale="ar" />,
 });
