@@ -131,6 +131,7 @@ try {
     'src/main.tsx', 'src/home-modern.css', 'src/config/tool-manifest.ts', 'src/config/origin.config.ts', 'src/lib/i18n/config.ts', 'src/lib/i18n/home-loader.ts', 'src/lib/i18n/locale-quality-overrides.ts', 'src/lib/i18n/tool-seo-localization.ts',
     'src/lib/routing/route-resolver.ts', 'src/routes/__root.tsx', 'src/routes/home-page.tsx', 'src/routes/localized-quickflow.tsx', 'src/data/home-locales.ts', 'src/data/quickflow-locales.ts', 'src/data/tool-ui-i18n.ts', 'src/components/FlixoGlobalLogo.tsx',
     'public/favicon.svg', 'public/flixo-logo.svg', 'public/flixo-logo.jpg', 'public/logo.svg', 'public/logo.jpg', 'index.html', '.env.example',
+    'evidence/c4/bundle_metric.json', 'evidence/c4/dag_manifest.pre_c4.json', 'evidence/c4/e2e_aggregate_report.json', 'evidence/c4/environment_fingerprint.json', 'evidence/c4/server_execution.log', 'evidence/c4/server_process_identity.json',
   ]);
   const allowedLocalizedSeo = (file) => file.startsWith('src/tools/') && file.includes('/seo/') && /\/seo\/[a-z]{2}\.ts$/u.test(file);
   const unexpected = changed.filter((file) => !exactAllow.has(file) && !allowedLocalizedSeo(file));
