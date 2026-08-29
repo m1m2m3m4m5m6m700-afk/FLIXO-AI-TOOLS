@@ -157,8 +157,23 @@ jobs:
         run: npm run verify:contracts
 
   browser-smoke:
-    name: Browser Smoke — Chromium
+    name: Browser Smoke — ${{ matrix.tool }} — Chromium
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        include:
+          - tool: image-converter
+            spec: tests/image-converter.spec.ts
+          - tool: image-cropper
+            spec: tests/image-cropper.spec.ts
+          - tool: exif-cleaner
+            spec: tests/exif-cleaner.spec.ts
+          - tool: image-to-svg
+            spec: tests/image-to-svg.spec.ts
+          - tool: performance-route-loading
+            spec: tests/performance-route-loading.spec.ts
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -177,19 +192,15 @@ jobs:
         run: npx playwright install-deps chromium
       - name: Install Playwright Chromium
         run: npx playwright install chromium
-      - name: Run critical browser smoke matrix in parallel workers
-        run: >-
-          npx playwright test
-          tests/image-converter.spec.ts
-          tests/image-cropper.spec.ts
-          tests/exif-cleaner.spec.ts
-          tests/image-to-svg.spec.ts
-          --project=chromium
+      - name: Run browser smoke spec
+        env:
+          PLAYWRIGHT_SERVER: ${{ matrix.tool == 'performance-route-loading' && 'preview' || 'dev' }}
+        run: npx playwright test ${{ matrix.spec }} --project=chromium
       - name: Upload smoke diagnostics
         if: ${{ failure() }}
         uses: actions/upload-artifact@v6
         with:
-          name: browser-smoke-chromium
+          name: browser-smoke-${{ matrix.tool }}
           path: |
             playwright-report/
             test-results/
@@ -288,7 +299,7 @@ jobs:
             echo '| Secret History Scan | ${{ needs.secret-scan.result }} |'
             echo '| CodeQL | ${{ needs.security.result }} |'
             echo '| Fast Contract Diagnostics | ${{ needs.fast-contract.result }} |'
-            echo '| Browser Smoke (4 Chromium specs, parallel workers) | ${{ needs.browser-smoke.result }} |'
+            echo '| Browser Smoke (5 Chromium shards, fail-fast=false) | ${{ needs.browser-smoke.result }} |'
             echo '| S3 Static Gate | ${{ needs.s3-static-gate.result }} |'
             echo '| Canonical Verification | ${{ needs.canonical-verify.result }} |'
             echo
@@ -296,7 +307,8 @@ jobs:
             echo 'PR runs cancel obsolete in-progress runs; main runs are never canceled by a newer push.'
             echo 'npm cache is reused and npm audit/fund/update-notifier work is disabled because supply-chain/security checks are explicit gates.'
             echo 'S3 Static Gate is dependency-free at runtime and no longer pays for an unnecessary npm install.'
-            echo 'Browser smoke runs all critical specs in one Playwright invocation and reuses the browser download cache.'
+            echo 'Browser smoke uses five independent Chromium shards with max-parallel=5 and cached dependencies/browser binaries.'
+            echo 'Each browser shard remains independently visible and fail-closed; no smoke coverage is removed.'
             echo 'Canonical Verification reuses prerequisite evidence for build, performance, audit, lint, typecheck, security and S3 instead of rebuilding/re-auditing them.'
             echo 'The canonical gate reruns the contract matrix fail-closed for final contract evidence.'
             echo 'The full browser matrix remains an independent promotion/release gate.'
