@@ -23,7 +23,6 @@ const locales = [
   { code: 'sv', languageTag: 'sv', direction: 'ltr' },
 ] as const;
 
-const usesLegacyArabicHome = (locale: typeof locales[number]) => locale.code === 'ar';
 const usesDedicatedImageCompressorRoute = (locale: typeof locales[number]) => locale.code === 'en' || locale.code === 'ar';
 
 test.describe('20-locale rendered runtime certification', () => {
@@ -38,17 +37,10 @@ test.describe('20-locale rendered runtime certification', () => {
       await expect(page.locator('html')).toHaveAttribute('lang', locale.languageTag);
       await expect(page.locator('html')).toHaveAttribute('dir', locale.direction);
 
-      const search = usesLegacyArabicHome(locale)
-        ? page.locator('#ar-tool-search')
-        : page.locator('#tool-search');
+      const search = page.locator('#tool-search');
       await expect(search).toHaveAttribute('placeholder', /.+/);
       await expect(page.locator('.home-lead')).toHaveText(/\S+/);
-
-      if (usesLegacyArabicHome(locale)) {
-        await expect(page.locator('.home-nav-language')).toBeVisible();
-      } else {
-        await expect(page.locator('.home-nav-language')).toHaveValue(locale.code);
-      }
+      await expect(page.locator('.home-nav-language')).toHaveValue(locale.code);
       await expect(page.locator('.home-tools-grid .home-tool-card').first()).toBeVisible();
     });
 
