@@ -1,5 +1,6 @@
 const DEFAULT_RUNTIME_ORIGIN = 'http://127.0.0.1:3000';
 const DEFAULT_TEST_ORIGIN = 'https://canonical.test';
+const APPROVED_VERCEL_PRODUCTION_HOST = 'flexo1.vercel.app';
 
 function readOriginEnv(name: 'VITE_SITE_URL' | 'VITE_RUNTIME_ORIGIN' | 'VITE_TEST_ORIGIN'): string | undefined {
   const configured =
@@ -25,6 +26,8 @@ function normalizeOrigin(value: string, variableName: string): string {
 
 function isBlockedCanonicalHost(hostname: string): boolean {
   const normalized = hostname.toLowerCase();
+  if (normalized === APPROVED_VERCEL_PRODUCTION_HOST) return false;
+
   return (
     normalized === 'localhost' ||
     normalized === '127.0.0.1' ||
