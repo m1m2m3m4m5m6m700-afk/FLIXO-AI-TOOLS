@@ -5,7 +5,7 @@ const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
 const required = [
   ['pull_request trigger', /pull_request:\s*\n\s*branches:\s*\[main\]/],
   ['Canonical Verification job', /canonical-verify:/],
-  ['canonical npm run verify', /name:\s*Canonical Verification Gate[\s\S]*?run:\s*npm run verify/],
+  ['canonical aggregator name', /name:\s*Canonical Verification Gate/],
   ['typecheck prerequisite', /needs:\s*\[typecheck,/],
   ['lint prerequisite', /needs:\s*\[typecheck, lint,/],
   ['build prerequisite', /needs:\s*\[typecheck, lint, build,/],
@@ -14,7 +14,7 @@ const required = [
   ['secret-scan prerequisite', /needs:\s*\[typecheck, lint, build, audit, socket, secret-scan,/],
   ['security prerequisite', /secret-scan[\s\S]*?security/],
   ['fast-contract prerequisite', /fast-contract/],
-  ['browser-smoke prerequisite', /browser-smoke/],
+  ['s3 prerequisite', /s3-static-gate/],
 ];
 
 for (const [label, pattern] of required) {
@@ -25,9 +25,19 @@ for (const [label, pattern] of required) {
 }
 
 const canonicalSection = workflow.match(/canonical-verify:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
-if (/npm test(?![\w-])/.test(canonicalSection)) {
-  console.error('CI contract failed: Canonical Verification must not use npm test; use npm run verify.');
+if (/npm\s+run\s+verify|npm\s+test(?![\w-])/.test(canonicalSection)) {
+  console.error('CI contract failed: Canonical Verification must be aggregator-only and must not rerun the verification suite.');
   process.exit(1);
 }
 
-console.log('CI contract passed: pull_request trigger, canonical npm run verify, and required diagnostic prerequisites are enforced.');
+if (!/github\.sha/.test(canonicalSection)) {
+  console.error('CI contract failed: Canonical Verification must attest the exact GitHub SHA.');
+  process.exit(1);
+}
+
+if (!/!=\s*'skipped'/.test(canonicalSection)) {
+  console.error('CI contract failed: Canonical Verification must reject skipped prerequisites.');
+  process.exit(1);
+}
+
+console.log('CI contract passed: canonical aggregator, explicit prerequisites, exact-SHA evidence, and skip rejection are enforced.');
