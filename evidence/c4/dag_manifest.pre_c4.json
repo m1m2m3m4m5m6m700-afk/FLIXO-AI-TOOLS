@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-29T00:49:00Z",
+  "commitSha": "9ae7a0f097cc8b7981ffe7286dedc295266374cc",
+  "nodes": [
+    {"name":"TypeScript","workflowRunId":33224032020,"jobId":99023946107,"result":"success"},
+    {"name":"ESLint","workflowRunId":33224032020,"jobId":99023946266,"result":"success"},
+    {"name":"Runtime Build + Performance","workflowRunId":33224032020,"jobId":99023946125,"result":"success"},
+    {"name":"Production Audit","workflowRunId":33224032020,"jobId":99023945988,"result":"success"},
+    {"name":"Secret History Scan","workflowRunId":33224032020,"jobId":99023946103,"result":"success"},
+    {"name":"CodeQL","workflowRunId":33224032020,"jobId":99023946119,"result":"success"},
+    {"name":"Fast Contract Diagnostics","workflowRunId":33224032020,"jobId":99023946148,"result":"success"},
+    {"name":"S3 Static Gate","workflowRunId":33224032020,"jobId":99023946094,"result":"success"},
+    {"name":"Canonical Verification Gate","workflowRunId":33224032020,"jobId":99024320993,"result":"success"},
+    {"name":"Localization — 20 Locale Gate","workflowRunId":33224032026,"jobId":99024322410,"result":"success"},
+    {"name":"Full Matrix Promotion Gate","workflowRunId":33224032016,"jobId":99025107355,"result":"success","dependsOn":"69/69 E2E jobs"}
+  ],
+  "requiredChecks": ["CI","Canonical Verification Gate","Fast Contract Diagnostics"],
+  "requiredChecksResult": "all passed",
+  "nonBlockingExternalCheck": {"name":"Vercel","state":"failure","classification":"infrastructure / non-required status"}
+}
