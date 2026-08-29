@@ -1,0 +1,1 @@
+CI deduplication is based on explicit verification ownership. Duplicate executions are removed only where another required or domain-owner workflow already executes the same test surface. Diagnostic microscopes remain available manually.
