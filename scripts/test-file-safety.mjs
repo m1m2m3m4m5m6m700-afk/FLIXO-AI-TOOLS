@@ -123,7 +123,7 @@ const tooLargeArchive = validateArchiveEntries(
     { name: 'one.bin', uncompressedBytes: 6_000 },
     { name: 'two.bin', uncompressedBytes: 5_000 },
   ],
-  archivePolicy,
+  { ...archivePolicy, maxUncompressedBytes: 10_000 },
 );
 assert.equal(tooLargeArchive.safe, false);
 assert.ok(tooLargeArchive.failures.includes('archive exceeds the maximum uncompressed size'));
