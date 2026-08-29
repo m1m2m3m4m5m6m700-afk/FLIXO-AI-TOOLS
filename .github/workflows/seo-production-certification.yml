@@ -22,7 +22,7 @@ jobs:
     name: Production SEO Artifacts
     runs-on: ubuntu-latest
     env:
-      VITE_SITE_URL: https://canonical.test
+      VITE_SITE_URL: https://flixoai.vercel.app
       FLIXO_GENERATED_OUTPUT_DIR: dist
     steps:
       - uses: actions/checkout@v5
