@@ -29,12 +29,10 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Build immutable runtime artifact
         run: |
@@ -58,7 +56,6 @@ jobs:
           );
           NODE
           cat s4-build-metadata.json
-
       - name: Publish immutable runtime artifact
         uses: actions/upload-artifact@v6
         with:
@@ -78,30 +75,30 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-
       - run: npm ci --prefer-offline --no-audit --no-fund
-
       - name: Download immutable runtime artifact
         uses: actions/download-artifact@v6
         with:
           name: s4-runtime-build-${{ github.sha }}
           path: .
-
       - name: Verify exact build SHA
         shell: bash
         run: |
           set -euo pipefail
           test -f s4-build-metadata.json
-          certified_sha="$(node --input-type=module -e "console.log(JSON.parse(require('fs').readFileSync('s4-build-metadata.json','utf8')).sha)")"
-          test "$certified_sha" = "$GITHUB_SHA"
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const metadata = JSON.parse(await readFile('s4-build-metadata.json', 'utf8'));
+          if (metadata.sha !== process.env.GITHUB_SHA) {
+            throw new Error(`Build SHA mismatch: expected ${process.env.GITHUB_SHA}, got ${metadata.sha}`);
+          }
+          NODE
           test -f dist/index.html
-          echo "S4 artifact SHA verified: $certified_sha"
-
+          echo "S4 artifact SHA verified: $GITHUB_SHA"
       - name: Sanitize blocked external APT sources
         shell: bash
         run: |
@@ -110,17 +107,14 @@ jobs:
             echo "Removing inaccessible Microsoft APT source: $source"
             sudo rm -f "$source"
           done < <(grep -RIl 'packages\.microsoft\.com' /etc/apt/sources.list.d 2>/dev/null || true)
-
       - name: Install all Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit
-
       - name: Start isolated prebuilt production server
         shell: bash
         run: |
           set -euo pipefail
           setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/s4-server.log 2>&1 &
           echo $! > /tmp/s4-server.pid
-
       - name: Wait for readiness and HTTP 200
         shell: bash
         run: |
@@ -135,7 +129,6 @@ jobs:
           echo 'S4 FAIL: prebuilt server did not become ready with HTTP 200'
           cat /tmp/s4-server.log || true
           exit 1
-
       - name: Record server process identity
         shell: bash
         run: |
@@ -150,7 +143,6 @@ jobs:
             ps -eo pid,ppid,pgid,lstart,args | awk -v pgid="$PGID" '$3 == pgid {print}'
           } > server_process_identity.txt
           cat server_process_identity.txt
-
       - name: Diagnose first runtime-render failure
         shell: bash
         env:
@@ -184,7 +176,6 @@ jobs:
           }
           await browser.close();
           NODE
-
       - name: Run Chromium Firefox WebKit with zero retries
         env:
           S4_RUNTIME_GATE: 'true'
@@ -192,12 +183,10 @@ jobs:
           PLAYWRIGHT_SERVER: 'preview'
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
         run: xvfb-run -a npx playwright test --workers=1 --retries=0 --headed
-
       - name: Validate S4 aggregate outcome
         env:
           S4_REQUIRED_PROJECTS: chromium,firefox,webkit
         run: node scripts/validate-s4-e2e.mjs
-
       - name: Verify server process group is gone
         if: ${{ always() }}
         shell: bash
@@ -218,7 +207,6 @@ jobs:
             exit 1
           fi
           echo 'S4 PASS: clean server shutdown'
-
       - name: Upload S4 evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@v6
