@@ -88,6 +88,18 @@ const spoofedWav = validateFileSafety(
 assert.equal(spoofedWav.safe, false);
 assert.ok(spoofedWav.failures.includes('input magic bytes do not match the allowed file signatures'));
 
+const partialRiff = validateFileSafety(
+  {
+    name: 'partial.wav',
+    mime: 'audio/wav',
+    bytes: 8,
+    content: new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00]),
+  },
+  offsetPolicy,
+);
+assert.equal(partialRiff.safe, false);
+assert.ok(partialRiff.failures.includes('input magic bytes do not match the allowed file signatures'));
+
 const rejectMime = validateFileSafety(
   { name: 'payload.txt', mime: 'text/plain', bytes: 10, signature: '25504446' },
   rasterPolicy,
