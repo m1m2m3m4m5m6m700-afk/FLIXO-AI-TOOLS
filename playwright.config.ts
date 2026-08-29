@@ -5,6 +5,7 @@ const isS4RuntimeGate = process.env.S4_RUNTIME_GATE === 'true';
 const isS4ExternalServer = process.env.S4_EXTERNAL_SERVER === 'true';
 const useProductionServer = !isCi && process.env.PLAYWRIGHT_SERVER === 'production';
 const testOrigin = process.env.VITE_TEST_ORIGIN || 'https://canonical.test';
+const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === 'true';
 
 export default defineConfig({
   testDir: './tests',
@@ -51,7 +52,7 @@ export default defineConfig({
             : 'npm run build:runtime && npm run preview -- --host 127.0.0.1 --port 3000',
           url: 'http://127.0.0.1:3000',
           timeout: 120_000,
-          reuseExistingServer: !isCi,
+          reuseExistingServer,
           env: {
             ...process.env,
             ...(useProductionServer
