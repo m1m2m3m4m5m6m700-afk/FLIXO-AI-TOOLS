@@ -40,3 +40,9 @@ jobs:
 
       - name: Existing SVG integrity contract
         run: node --experimental-strip-types scripts/test-svg-integrity.mjs
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Artifact download integration
+        run: npx playwright test tests/image-converter.spec.ts --project=chromium
