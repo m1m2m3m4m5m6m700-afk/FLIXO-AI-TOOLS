@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { LOCALES, LOCALE_METADATA, X_DEFAULT_LOCALE, getCanonicalSiteOrigin } from '../src/lib/i18n/config.ts';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
 import { getLocalizedToolPath } from '../src/lib/routing/route-resolver.ts';
-import { USE_CASES } from '../src/lib/seo/use-cases.ts';
 
 const SITE_ORIGIN = getCanonicalSiteOrigin();
 const outputDir = process.env.FLIXO_GENERATED_OUTPUT_DIR?.trim() || 'public';
@@ -27,11 +26,10 @@ const absoluteUrl = (path) => new URL(normalizePath(path), `${SITE_ORIGIN}/`).to
 
 const readyTools = TOOL_MANIFEST.filter((tool) => tool.isReady);
 const localizedToolPaths = readyTools.flatMap((tool) => LOCALES.map((locale) => getLocalizedToolPath(tool, locale)));
-const useCasePaths = USE_CASES.flatMap((useCase) => LOCALES.map((locale) => localizedPath(locale, `/use-cases/${useCase.slug}`)));
 const localizedHomePaths = LOCALES.map((locale) => localizedPath(locale, '/'));
-const urls = unique([...localizedHomePaths, ...localizedToolPaths, ...useCasePaths]);
+const urls = unique([...localizedHomePaths, ...localizedToolPaths]);
 
-const alternateLinks = (path) => {
+const localizedAlternateLinks = (path) => {
   const links = LOCALES.map((locale) =>
     `    <xhtml:link rel="alternate" hreflang="${LOCALE_METADATA[locale].languageTag}" href="${absoluteUrl(localizedPath(locale, path))}" />`,
   );
@@ -44,12 +42,14 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.s
     const absolute = absoluteUrl(url);
     const path = new URL(absolute).pathname;
     const pathWithoutLocale = path.replace(localePrefixPattern, '') || '/';
-    return `  <url>\n    <loc>${absolute}</loc>\n${alternateLinks(pathWithoutLocale)}\n  </url>`;
+    const isLocalizedPage = localePrefixPattern.test(path);
+    const alternates = isLocalizedPage ? localizedAlternateLinks(pathWithoutLocale) : '';
+    return `  <url>\n    <loc>${absolute}</loc>${alternates ? `\n${alternates}` : ''}\n  </url>`;
   })
   .join('\n')}\n</urlset>\n`;
 
 mkdirSync(outputDir, { recursive: true });
 writeFileSync(join(outputDir, 'sitemap.xml'), xml, 'utf8');
 console.log(
-  `Generated sitemap with ${urls.length} localized URLs (${readyTools.length} ready tools, ${LOCALES.length} locales, ${USE_CASES.length} use cases) using canonical route/origin contracts at ${outputDir}/sitemap.xml.`,
+  `Generated sitemap with ${urls.length} localized URLs (${readyTools.length} ready tools, ${LOCALES.length} locales) using canonical route/origin contracts at ${outputDir}/sitemap.xml.`,
 );
