@@ -1,5 +1,6 @@
 import { getReadyToolConfigs, getToolConfig, type ToolConfig } from '../../config/tools';
 import { LOCALES, LOCALE_METADATA, SITE_ORIGIN, type Locale, normalizeLocale } from '../i18n';
+import { getLocalizedToolUrl as resolveLocalizedToolUrl } from '../routing/route-resolver';
 import { localizeToolCategory, localizeToolDescription, localizeToolTitle } from '../i18n/tool-localization';
 import { getToolSeoManifest } from './tool-manifests';
 
@@ -37,7 +38,9 @@ const FALLBACK_COPY: Record<Locale, Readonly<{ open: string; configure: string; 
 export const READY_TOOL_IDS = Object.freeze(getReadyToolConfigs().map((tool) => tool.id));
 
 export function getLocalizedToolUrl(locale: Locale, toolId: string): string {
-  return `${SITE_ORIGIN}/${locale}/${toolId}`;
+  const tool = getToolConfig(toolId);
+  if (!tool) throw new Error(`Unknown tool id: ${toolId}`);
+  return resolveLocalizedToolUrl(SITE_ORIGIN, tool, locale);
 }
 
 export function getToolSeo(localeInput: string, toolId: string) {
