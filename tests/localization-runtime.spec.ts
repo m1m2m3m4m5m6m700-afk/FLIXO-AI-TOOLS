@@ -65,13 +65,13 @@ test.describe('20-locale rendered runtime certification', () => {
         await expect(toolMain.locator('.compressor-card')).toBeVisible();
         await expect(toolMain.locator('.privacy-note')).toHaveText(/\S+/);
       } else {
-        const pageMain = page.locator('main.tool-page-modern');
-        await expect(pageMain.locator('.tool-page-modern__title')).toBeVisible();
-        await expect(pageMain).toHaveAttribute('lang', locale.languageTag);
-        await expect(pageMain).toHaveAttribute('dir', locale.direction);
-        await expect(pageMain.locator('.tool-page-modern__description')).toHaveText(/\S+/);
-        await expect(pageMain.locator('.tool-page-modern__tool-host')).toBeVisible();
-        await expect(pageMain.locator('main.image-tool-shell')).toBeVisible();
+        const toolMain = page.locator('main.tool-page-modern');
+        await expect(toolMain.locator('.tool-page-modern__title')).toBeVisible();
+        await expect(toolMain).toHaveAttribute('lang', locale.languageTag);
+        await expect(toolMain).toHaveAttribute('dir', locale.direction);
+        await expect(toolMain.locator('.tool-page-modern__description')).toHaveText(/\S+/);
+        await expect(toolMain.locator('.tool-page-modern__workspace')).toBeVisible();
+        await expect(toolMain.locator('.tool-page-modern__tool-host')).toBeVisible();
       }
 
       await expect(page.locator('html')).toHaveAttribute('lang', locale.languageTag);
