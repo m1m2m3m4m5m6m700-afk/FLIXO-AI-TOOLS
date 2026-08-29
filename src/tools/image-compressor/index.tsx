@@ -157,7 +157,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
   const description = label(locale, 'Compress JPG, PNG, and WebP images locally in your browser with smart quality, target size, resizing, preview, and batch ZIP export.', 'قلّل حجم صور JPG وPNG وWebP داخل المتصفح مع جودة ذكية، وحجم مستهدف، وتغيير المقاس، ومعاينة، وضغط جماعي في ملف ZIP.');
 
   return (
-    <main dir={isArabic ? 'rtl' : 'ltr'} className="image-tool-shell">
+    <main lang={locale} dir={isArabic ? 'rtl' : 'ltr'} className="image-tool-shell">
       <div className="image-tool-container">
         <header className="image-tool-header"><div><p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p><h1 ref={headingRef} tabIndex={-1}>{title}</h1><p className="image-tool-lead">{description}</p></div><a className="language-link" href={isArabic ? '/en/image-compressor' : '/ar/image-compressor'}>{label(locale, 'العربية', 'English')}</a></header>
         <section className="compressor-grid" aria-label={label(locale, 'Image compression tool', 'أداة ضغط الصور')} aria-busy={busy}>

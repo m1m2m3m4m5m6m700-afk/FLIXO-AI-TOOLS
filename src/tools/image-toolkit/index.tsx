@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from '@tanstack/react-router';
 import { convertImage, cropResizeImage, downloadBlob, imageInfo, removeBackground, rasterToSvg, resizeImage, watermarkRemove, fillRemoveRegion } from './engine';
 import { recognizeWithOcrWorker } from './ocr-worker-client';
 import { assertImageCropperOutputIntegrity } from '../image-cropper/output-integrity';
 import { assertImageConverterOutputIntegrity } from '../image-converter/output-integrity';
 import { validateFileSafety } from '../../lib/contracts/file-safety';
 import { validateUploadBoundary } from '../../lib/contracts/upload-boundary';
+import { LOCALE_METADATA, isLocale } from '../../lib/i18n';
 import type { LocalToolId } from './engine';
 
 const DEFINITIONS: Record<Exclude<LocalToolId, 'ai-image-generator' | 'image-compressor'>, { title: string; description: string; accept: string }> = {
@@ -78,9 +80,12 @@ async function createResult(blob: Blob, fileName: string, info?: Result['info'],
 }
 
 export function ImageToolPage({ toolId }: Props) {
+  const location = useLocation();
+  const localeCode = location.pathname.split('/').filter(Boolean)[0] ?? '';
+  const locale = isLocale(localeCode) ? localeCode : 'en';
+  const localeMetadata = LOCALE_METADATA[locale];
   const isGenerator = toolId === 'ai-image-generator';
   const definition = isGenerator ? { title: 'AI Image Generator', description: 'Generate an image through the configured FLIXO image model endpoint.', accept: '' } : DEFINITIONS[toolId];
-  const isArabic = typeof document !== 'undefined' && document.documentElement.lang.toLowerCase().startsWith('ar');
   const [file, setFile] = useState<File | null>(null);
   const [prompt, setPrompt] = useState('');
   const [outputFormat, setOutputFormat] = useState<'image/png' | 'image/jpeg' | 'image/webp'>('image/webp');
@@ -128,7 +133,7 @@ export function ImageToolPage({ toolId }: Props) {
   };
 
   return (
-    <main dir={isArabic ? 'rtl' : 'ltr'} className="image-tool-shell">
+    <main lang={localeMetadata.languageTag} dir={localeMetadata.direction} className="image-tool-shell">
       <div className="image-tool-container">
         <header className="image-tool-header"><div><p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p>{isGenerator ? <h2>{definition.title}</h2> : <h1>{definition.title}</h1>}<p className="image-tool-lead">{definition.description}</p></div></header>
         <section className="compressor-grid" aria-label={definition.title}>
