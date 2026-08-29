@@ -19,6 +19,11 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
 jobs:
   typecheck:
     name: TypeScript
@@ -135,6 +140,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VITE_SITE_URL: https://flixoai.vercel.app
+      VITE_TEST_ORIGIN: https://canonical.test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -142,55 +148,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
-      - run: npm run verify:contracts
-
-  browser-smoke:
-    name: Browser Smoke — ${{ matrix.tool }} — Chromium
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      max-parallel: 5
-      matrix:
-        include:
-          - tool: image-converter
-            spec: tests/image-converter.spec.ts
-          - tool: image-cropper
-            spec: tests/image-cropper.spec.ts
-          - tool: exif-cleaner
-            spec: tests/exif-cleaner.spec.ts
-          - tool: image-to-svg
-            spec: tests/image-to-svg.spec.ts
-          - tool: performance-route-loading
-            spec: tests/performance-route-loading.spec.ts
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-chromium-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-chromium-
-      - run: npx playwright install chromium
-      - name: Run smoke test
-        env:
-          PLAYWRIGHT_SERVER: ${{ matrix.tool == 'performance-route-loading' && 'preview' || 'dev' }}
-        run: npx playwright test "${{ matrix.spec }}" --project=chromium
-      - name: Upload smoke diagnostics
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v6
-        with:
-          name: browser-smoke-${{ matrix.tool }}
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: warn
-          retention-days: 7
+      - name: Run unique core contract suite
+        run: node scripts/verify-contracts-core.mjs
 
   s3-static-gate:
     name: S3 Static Gate
@@ -214,9 +173,9 @@ jobs:
 
   canonical-verify:
     name: Canonical Verification Gate
-    if: ${{ always() && (needs.typecheck.result != 'skipped') && (needs.lint.result != 'skipped') && (needs.build.result != 'skipped') && (needs.audit.result != 'skipped') && (needs.socket.result != 'skipped') && (needs.secret-scan.result != 'skipped') && (needs.security.result != 'skipped') && (needs.fast-contract.result != 'skipped') && (needs.browser-smoke.result != 'skipped') && (needs.s3-static-gate.result != 'skipped') }}
+    if: ${{ always() && needs.typecheck.result != 'skipped' && needs.lint.result != 'skipped' && needs.build.result != 'skipped' && needs.audit.result != 'skipped' && needs.socket.result != 'skipped' && needs.secret-scan.result != 'skipped' && needs.security.result != 'skipped' && needs.fast-contract.result != 'skipped' && needs.s3-static-gate.result != 'skipped' }}
     runs-on: ubuntu-latest
-    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, browser-smoke, s3-static-gate]
+    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, s3-static-gate]
     steps:
       - name: Fail closed on any prerequisite result
         shell: bash
@@ -231,7 +190,6 @@ jobs:
             [SecretScan]="${{ needs.secret-scan.result }}"
             [CodeQL]="${{ needs.security.result }}"
             [FastContract]="${{ needs.fast-contract.result }}"
-            [BrowserSmoke]="${{ needs.browser-smoke.result }}"
             [S3]="${{ needs.s3-static-gate.result }}"
           )
           failed=0
@@ -252,16 +210,17 @@ jobs:
             echo 'All required evidence jobs succeeded for exact commit:'
             echo '${{ github.sha }}'
             echo
-            echo 'Build, performance, audit, supply-chain, secret-history, CodeQL, contracts, browser smoke and S3 were each evaluated by dedicated required jobs.'
-            echo 'Canonical Verification is an aggregator and intentionally does not rerun those same suites.'
+            echo 'Canonical is an aggregator only; it does not rerun tests already owned by required evidence jobs.'
             echo 'Full browser certification remains independent on main/release.'
+            echo 'Localization certification remains owned by the Localization — 20 Locale Gate.'
+            echo 'Production SEO artifact certification remains owned by SEO Production Certification.'
           } >> "$GITHUB_STEP_SUMMARY"
 
   diagnostic-summary:
     name: Diagnostic Summary
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, browser-smoke, s3-static-gate, canonical-verify]
+    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, s3-static-gate, canonical-verify]
     steps:
       - name: Write CI summary
         run: |
@@ -278,7 +237,6 @@ jobs:
             echo '| Secret History Scan | ${{ needs.secret-scan.result }} |'
             echo '| CodeQL | ${{ needs.security.result }} |'
             echo '| Fast Contract Diagnostics | ${{ needs.fast-contract.result }} |'
-            echo '| Browser Smoke | ${{ needs.browser-smoke.result }} |'
             echo '| S3 Static Gate | ${{ needs.s3-static-gate.result }} |'
             echo '| Canonical Verification | ${{ needs.canonical-verify.result }} |'
           } >> "$GITHUB_STEP_SUMMARY"
