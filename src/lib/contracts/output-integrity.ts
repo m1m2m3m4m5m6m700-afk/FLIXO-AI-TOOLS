@@ -1,3 +1,5 @@
+export type ArtifactSignature = string | { hex: string; offset?: number };
+
 export type OutputIntegritySpec = {
   toolId: string;
   allowedMime: readonly string[];
@@ -5,7 +7,10 @@ export type OutputIntegritySpec = {
   minBytes?: number;
   maxPixels?: number;
   allowedExtensions?: readonly string[];
-  signatures?: readonly string[];
+  signatures?: readonly ArtifactSignature[];
+  requireArtifact?: boolean;
+  requireSafeFilename?: boolean;
+  parseAs?: 'utf8' | 'json';
 };
 
 export type OutputIntegrityResult = {
@@ -31,6 +36,38 @@ function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function signatureMatches(content: Uint8Array, signature: ArtifactSignature): boolean {
+  const expected = typeof signature === 'string' ? normalizeSignature(signature) : normalizeSignature(signature.hex);
+  const offset = typeof signature === 'string' ? 0 : signature.offset ?? 0;
+  if (!Number.isInteger(offset) || offset < 0) return false;
+  const actual = bytesToHex(content.slice(offset, offset + expected.length / 2));
+  return actual === expected;
+}
+
+function hasSafeFilename(filename?: string): boolean {
+  if (!filename || filename === '.' || filename === '..') return false;
+  if (filename.includes('/') || filename.includes('\\') || filename.includes('\0')) return false;
+  return filename.trim() === filename;
+}
+
+function validateParseability(content: Uint8Array, parseAs?: 'utf8' | 'json'): string | undefined {
+  if (!parseAs) return undefined;
+  let decoded: string;
+  try {
+    decoded = new TextDecoder('utf-8', { fatal: true }).decode(content);
+  } catch {
+    return 'output content is not valid UTF-8';
+  }
+  if (parseAs === 'json') {
+    try {
+      JSON.parse(decoded);
+    } catch {
+      return 'output JSON content is malformed';
+    }
+  }
+  return undefined;
+}
+
 export function validateOutputIntegrity(
   bytes: number,
   mime: string,
@@ -39,11 +76,22 @@ export function validateOutputIntegrity(
   artifact?: { filename?: string; bytes?: Uint8Array },
 ): OutputIntegrityResult {
   const failures: string[] = [];
+  const artifactRequired = spec.requireArtifact === true || Boolean(spec.allowedExtensions) || Boolean(spec.signatures) || Boolean(spec.parseAs);
 
   if (!Number.isInteger(bytes) || bytes < 1) failures.push('bytes must be a positive integer');
   if (spec.minBytes !== undefined && bytes < spec.minBytes) failures.push('output is smaller than the minimum size');
   if (bytes > spec.maxBytes) failures.push('output exceeds the maximum size');
   if (!spec.allowedMime.includes(mime)) failures.push(`unsupported output MIME type: ${mime}`);
+
+  if (artifactRequired && !artifact) {
+    failures.push('artifact bytes and filename are required for artifact integrity validation');
+  }
+
+  if (spec.requireSafeFilename || spec.allowedExtensions) {
+    if (!hasSafeFilename(artifact?.filename)) {
+      failures.push('output filename must be a single safe relative filename');
+    }
+  }
 
   if (spec.allowedExtensions) {
     const extension = normalizeExtension(artifact?.filename);
@@ -52,16 +100,21 @@ export function validateOutputIntegrity(
     }
   }
 
+  if (artifact?.bytes && artifact.bytes.byteLength !== bytes) {
+    failures.push('declared output size does not match artifact byte length');
+  }
+
   if (spec.signatures) {
     if (!artifact?.bytes) {
       failures.push('output signature bytes are required when signature validation is enabled');
-    } else {
-      const signature = bytesToHex(artifact.bytes);
-      const normalizedSignatures = spec.signatures.map(normalizeSignature);
-      if (!normalizedSignatures.some((allowed) => signature.startsWith(allowed))) {
-        failures.push('output signature does not match the allowed file signatures');
-      }
+    } else if (!spec.signatures.some((signature) => signatureMatches(artifact.bytes!, signature))) {
+      failures.push('output signature does not match the allowed file signatures');
     }
+  }
+
+  if (artifact?.bytes) {
+    const parseFailure = validateParseability(artifact.bytes, spec.parseAs);
+    if (parseFailure) failures.push(parseFailure);
   }
 
   if (dimensions) {
