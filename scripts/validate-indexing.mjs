@@ -26,7 +26,8 @@ if (expectedLocales.length !== 20) throw new Error('Indexing gate locale registr
 
 if (!originSource.includes('export function getCanonicalSiteOrigin()')) throw new Error('Canonical origin contract is missing getCanonicalSiteOrigin().');
 if (!originSource.includes("if (origin.protocol !== 'https:')")) throw new Error('Canonical origin contract must enforce HTTPS.');
-if (!originSource.includes('isBlockedCanonicalHost(origin.hostname)')) throw new Error('Canonical origin contract must reject local and deployment hosts.');
+if (!originSource.includes('OFFICIAL_PRODUCTION_ORIGIN = \'https://flixoai.vercel.app\'')) throw new Error('Canonical origin contract must define the sole official FLIXO production origin.');
+if (!originSource.includes('origin.origin !== OFFICIAL_PRODUCTION_ORIGIN')) throw new Error('Canonical origin contract must reject every non-official production origin.');
 if (!i18nSource.includes('export const SITE_ORIGIN = getRuntimeSiteOrigin();')) throw new Error('Runtime SITE_ORIGIN must come from the runtime origin contract.');
 
 if (!sitemapSource.includes('getCanonicalSiteOrigin()')) throw new Error('Sitemap generator must source its origin from the canonical origin contract.');

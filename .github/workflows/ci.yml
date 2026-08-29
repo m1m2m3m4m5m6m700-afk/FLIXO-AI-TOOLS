@@ -139,7 +139,7 @@ jobs:
     name: Fast Contract Diagnostics
     runs-on: ubuntu-latest
     env:
-      VITE_SITE_URL: https://canonical.test
+      VITE_SITE_URL: https://flixoai.vercel.app
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -194,7 +194,7 @@ jobs:
     name: S3 Static Gate
     runs-on: ubuntu-latest
     env:
-      VITE_SITE_URL: https://canonical.test
+      VITE_SITE_URL: https://flixoai.vercel.app
     steps:
       - uses: actions/checkout@v5
         with:
@@ -217,7 +217,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, browser-smoke, s3-static-gate]
     env:
-      VITE_SITE_URL: https://canonical.test
+      VITE_SITE_URL: https://flixoai.vercel.app
     steps:
       - name: Block canonical verification when prerequisites are not green
         if: ${{ needs.typecheck.result != 'success' || needs.lint.result != 'success' || needs.build.result != 'success' || needs.audit.result != 'success' || needs.socket.result != 'success' || needs.secret-scan.result != 'success' || needs.security.result != 'success' || needs.fast-contract.result != 'success' || needs.browser-smoke.result != 'success' || needs.s3-static-gate.result != 'success' }}
