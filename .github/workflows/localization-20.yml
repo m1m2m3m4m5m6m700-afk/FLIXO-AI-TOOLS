@@ -114,7 +114,7 @@ jobs:
       - name: Render and verify ${{ matrix.locale }} runtime
         env:
           FLIXO_TEST_LOCALE: ${{ matrix.locale }}
-        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --grep "${{ matrix.locale }}"
+        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --grep "^representative tool runtime is localized for ${{ matrix.locale }}$"
 
   aggregate:
     name: Localization — 20 Locale Gate
