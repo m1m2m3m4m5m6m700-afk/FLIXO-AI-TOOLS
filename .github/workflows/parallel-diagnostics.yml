@@ -1,13 +1,11 @@
 name: Parallel Diagnostics
 
-# Deep diagnostics are intentionally opt-in. Required PR gates provide the
-# blocking evidence; this workflow is a debugging microscope.
+# Deep diagnostics are intentionally opt-in. Required PR/main gates provide
+# the blocking evidence; this workflow is a debugging microscope only.
 # When invoked, all 23 suites × 3 browsers = 69 executions remain covered.
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 permissions:
   contents: read
@@ -70,14 +68,6 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-playwright-${{ matrix.browser }}-
-      - name: Sanitize blocked external APT sources
-        shell: bash
-        run: |
-          set -euo pipefail
-          while IFS= read -r source; do
-            echo "Removing inaccessible Microsoft APT source: $source"
-            sudo rm -f "$source"
-          done < <(grep -RIl 'packages\.microsoft\.com' /etc/apt/sources.list.d 2>/dev/null || true)
       - name: Install Playwright system dependencies
         run: npx playwright install-deps ${{ matrix.browser }}
       - name: Install Playwright browser
@@ -120,7 +110,7 @@ jobs:
             echo '## FLIXO Parallel Diagnostic Matrix'
             echo
             echo 'Matrix design: 23 suites × 3 browsers = 69 independent diagnostic jobs.'
-            echo 'max-parallel=64 uses the highest practical matrix parallelism while GitHub applies the account concurrency ceiling.'
+            echo 'This workflow runs only when manually requested.'
             echo 'fail-fast=false keeps independent failures visible.'
             echo 'Any failed matrix job leaves the diagnostic workflow red.'
             echo 'Overall matrix result: ${{ needs.e2e.result }}'
