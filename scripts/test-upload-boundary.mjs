@@ -42,6 +42,17 @@ const wrongExtension = validateUploadBoundary(
 assert.equal(wrongExtension.safe, false);
 assert.ok(wrongExtension.failures.includes('unsupported file extension: jpg'));
 
+const extensionMimeMismatch = validateUploadBoundary(
+  { name: 'payload.png', mime: 'image/jpeg', bytes: pngBytes },
+  {
+    ...policy,
+    allowedMime: ['image/png', 'image/jpeg'],
+    allowedExtensions: ['png'],
+  },
+);
+assert.equal(extensionMimeMismatch.safe, false);
+assert.ok(extensionMimeMismatch.failures.includes('file extension does not match MIME type: .png -> image/jpeg'));
+
 const oversized = validateUploadBoundary(
   { name: 'large.png', mime: 'image/png', bytes: new Uint8Array(policy.maxBytes + 1) },
   policy,
