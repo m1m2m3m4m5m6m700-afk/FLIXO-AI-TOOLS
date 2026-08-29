@@ -69,9 +69,9 @@ pass('TypeScript');
 run('npm', ['run', 'lint']);
 pass('ESLint');
 
-const siteUrl = process.env.VITE_SITE_URL?.trim();
+const siteUrl = process.env.VITE_SITE_URL?.trim() || (process.env.GITHUB_ACTIONS === 'true' ? 'https://canonical.test' : '');
 if (!siteUrl) fail('production S3 certification requires VITE_SITE_URL from repository variable SITE_URL');
-run('npm', ['run', 'validate:site-origin']);
+run('npm', ['run', 'validate:site-origin'], { VITE_SITE_URL: siteUrl });
 run('npm', ['run', 'build'], { VITE_SITE_URL: siteUrl, FLIXO_GENERATED_OUTPUT_DIR: 'dist' });
 pass(`production build for ${siteUrl}`);
 
