@@ -259,8 +259,20 @@ assert.equal(
   'archive exact depth boundary rejected',
 );
 
-for (const name of ['../evil.txt', '..\\evil.txt', '/etc/passwd', 'C:\\Windows\\system.ini', 'a/./b.txt']) {
-  rejects(validateArchiveEntries([{ name, uncompressedBytes: 10 }], archivePolicy), `archive entry contains an unsafe path segment: ${name}`, `unsafe archive path accepted: ${name}`);
+for (const name of ['../evil.txt', '..\\evil.txt', 'a/./b.txt']) {
+  rejects(
+    validateArchiveEntries([{ name, uncompressedBytes: 10 }], archivePolicy),
+    `archive entry contains an unsafe path segment: ${name}`,
+    `unsafe archive path segment accepted: ${name}`,
+  );
+}
+
+for (const name of ['/etc/passwd', 'C:\\Windows\\system.ini', '\\\\server\\share\\evil.txt']) {
+  rejects(
+    validateArchiveEntries([{ name, uncompressedBytes: 10 }], archivePolicy),
+    `archive entry has an unsafe absolute path: ${name}`,
+    `unsafe archive absolute path accepted: ${name}`,
+  );
 }
 
 rejects(
