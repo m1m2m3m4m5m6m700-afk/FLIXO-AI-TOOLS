@@ -35,5 +35,19 @@ jobs:
         run: npm run build
       - name: Validate generated sitemap and robots artifacts
         run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-seo-production.mjs
-      - name: Validate source SEO contracts
-        run: npm run validate:seo && npm run validate:indexing
+      - name: Validate complete SEO and indexing source contract
+        run: |
+          npm run validate:seo
+          npm run validate:seo-manifest
+          npm run validate:use-case-seo
+          npm run validate:indexing
+          npm run validate:breadcrumb-seo
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-google-multilingual-seo.mjs
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-language-quality-strict.mjs
+      - name: Final SEO/indexing certification
+        run: |
+          test -f dist/robots.txt
+          test -f dist/sitemap.xml
+          grep -Fx "Sitemap: ${VITE_SITE_URL}/sitemap.xml" dist/robots.txt
+          grep -Fq 'xmlns:xhtml="http://www.w3.org/1999/xhtml"' dist/sitemap.xml
+          echo "SEO/Indexing certification GREEN: production artifacts + canonical origin + hreflang + x-default + robots + indexing contracts passed."
