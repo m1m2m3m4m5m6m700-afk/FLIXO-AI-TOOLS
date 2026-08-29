@@ -21,8 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      VITE_SITE_URL: https://canonical.test
-      VITE_RUNTIME_ORIGIN: https://canonical.test
+      VITE_SITE_URL: https://flixoai.vercel.app
+      VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
       VITE_TEST_ORIGIN: https://canonical.test
     steps:
       - uses: actions/checkout@v5
