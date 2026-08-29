@@ -1,6 +1,7 @@
 import { createRoute } from '@tanstack/react-router';
 import { getToolConfig } from '../config/tools';
 import { getUseCase } from '../lib/seo/use-cases';
+import { getCanonicalSiteOrigin } from '../config/origin.config';
 import { rootRoute } from './__root';
 
 export const useCaseRoute = createRoute({
@@ -9,6 +10,7 @@ export const useCaseRoute = createRoute({
   head: ({ params }) => {
     const useCase = getUseCase(params.slug);
     if (!useCase) return { meta: [{ title: 'FLIXO | Use case not found' }, { name: 'robots', content: 'noindex,nofollow' }] };
+    const url = `${getCanonicalSiteOrigin()}/use-cases/${useCase.slug}`;
     return {
       meta: [
         { title: `${useCase.title} | FLIXO` },
@@ -16,7 +18,9 @@ export const useCaseRoute = createRoute({
         { name: 'robots', content: 'index,follow,max-image-preview:large' },
         { property: 'og:title', content: `${useCase.title} | FLIXO` },
         { property: 'og:description', content: useCase.description },
+        { property: 'og:url', content: url },
       ],
+      links: [{ rel: 'canonical', href: url }],
     };
   },
   component: function UseCasePage() {
@@ -73,7 +77,7 @@ export const useCaseRoute = createRoute({
             <article className="tool-page-modern__seo-card">
               <h2>Frequently asked questions</h2>
               {useCase.faq.map((item) => (
-                <div key={item.question}>
+                <div key={item.question)}>
                   <h3>{item.question}</h3>
                   <p>{item.answer}</p>
                 </div>
