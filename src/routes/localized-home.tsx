@@ -10,6 +10,7 @@ export const localizedHomeRoute = createRoute({
   head: async ({ params }) => {
     const locale = isLocale(params.locale) ? params.locale : 'en';
     const bundle = await getTranslationBundle(locale);
+    const direction = locale === 'ar' || locale === 'ur' ? 'rtl' : 'ltr';
     return {
       meta: [
         { title: `${bundle.siteName} | ${bundle.homeTitle}` },
@@ -18,6 +19,12 @@ export const localizedHomeRoute = createRoute({
         { property: 'og:title', content: `${bundle.siteName} | ${bundle.homeTitle}` },
         { property: 'og:description', content: bundle.homeDescription },
         { property: 'og:locale', content: bundle.languageTag },
+      ],
+      scripts: [
+        {
+          type: 'text/javascript',
+          children: `document.documentElement.lang=${JSON.stringify(bundle.languageTag)};document.documentElement.dir=${JSON.stringify(direction)};`,
+        },
       ],
     };
   },
