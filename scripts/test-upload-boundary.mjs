@@ -60,4 +60,11 @@ const oversized = validateUploadBoundary(
 assert.equal(oversized.safe, false);
 assert.ok(oversized.failures.includes('file exceeds the maximum size'));
 
+const unsafeName = validateUploadBoundary(
+  { name: '../outside.png', mime: 'image/png', bytes: pngBytes },
+  policy,
+);
+assert.equal(unsafeName.safe, false);
+assert.ok(unsafeName.failures.includes('file name must be a single safe relative name'));
+
 console.log('upload boundary security contract checks passed');
