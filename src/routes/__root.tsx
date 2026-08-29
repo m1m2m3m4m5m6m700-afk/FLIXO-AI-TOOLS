@@ -26,7 +26,7 @@ function RuntimeLocaleAttributes() {
       document.documentElement.dir = metadata.direction;
       const localizedMain = document.querySelector<HTMLElement>('main.home-shell, main.tool-page-modern, main.image-tool-shell');
       if (localizedMain) {
-        localizedMain.lang = localizedMain.getAttribute('lang') || metadata.languageTag;
+        localizedMain.lang = metadata.languageTag;
         localizedMain.dir = metadata.direction;
       }
     };
