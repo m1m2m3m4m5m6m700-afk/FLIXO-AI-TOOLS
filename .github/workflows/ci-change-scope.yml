@@ -1,0 +1,44 @@
+name: CI Change Scope
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  scope:
+    name: CI Change Scope — fail-closed planner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Classify changed surface
+        id: classify
+        env:
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/ci-change-scope.mjs
+      - name: Publish fail-closed plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          scope=$(sed -n 's/^scope=//p' "$GITHUB_OUTPUT" | tail -n1)
+          reason=$(sed -n 's/^reason=//p' "$GITHUB_OUTPUT" | tail -n1)
+          changed=$(sed -n 's/^changed_files=//p' "$GITHUB_OUTPUT" | tail -n1)
+          echo "scope=${scope:-full}"
+          echo "reason=${reason:-missing-reason}"
+          echo "changed_files=${changed:-0}"
+          {
+            echo '## CI Change Scope'
+            echo
+            echo "- Scope: ${scope:-full}"
+            echo "- Reason: ${reason:-missing-reason}"
+            echo "- Changed files: ${changed:-0}"
+            echo
+            echo 'Fail-closed rule: unknown or high-impact changes select full verification.'
+          } >> "$GITHUB_STEP_SUMMARY"
