@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { compressImage, MAX_FILES, MAX_INPUT_SIZE, type CompressionFormat } from './engine';
+import { imageCompressorOutputIntegrity } from './output-contract';
+import { validateOutputIntegrity } from '../../lib/contracts/output-integrity';
 
 const formatLabels: Record<CompressionFormat, string> = {
   'image/webp': 'WebP',
@@ -94,6 +96,22 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     targetSizeKB: targetSizeKB ? Number(targetSizeKB) : undefined,
   });
 
+  const validateCompressedOutput = async (compressed: Awaited<ReturnType<typeof processOne>>) => {
+    const outputBytes = new Uint8Array(await compressed.blob.arrayBuffer());
+    const extension = extensionFor(format);
+    const validation = validateOutputIntegrity(
+      compressed.blob.size,
+      compressed.blob.type || format,
+      imageCompressorOutputIntegrity,
+      { width: compressed.width, height: compressed.height },
+      { filename: `flixo-compressed.${extension}`, bytes: outputBytes },
+    );
+    if (!validation.valid) {
+      throw new Error(`Output integrity validation failed: ${validation.failures.join('; ')}`);
+    }
+    return compressed;
+  };
+
   const beginProcessing = () => {
     if (busy) return false;
     flushSync(() => {
@@ -112,7 +130,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     if (!file || !beginProcessing()) return;
     try {
       await nextAnimationFrame();
-      const compressed = await processOne(file);
+      const compressed = await validateCompressedOutput(await processOne(file));
       const nextDownload = URL.createObjectURL(compressed.blob);
       setDownloadUrl((current) => {
         if (current) URL.revokeObjectURL(current);
@@ -139,7 +157,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
       for (const nextFile of files) {
-        const compressed = await processOne(nextFile);
+        const compressed = await validateCompressedOutput(await processOne(nextFile));
         const baseName = nextFile.name.replace(/\.[^.]+$/, '') || 'image';
         zip.file(`${baseName}-flixo.${extensionFor(format)}`, compressed.blob);
       }
