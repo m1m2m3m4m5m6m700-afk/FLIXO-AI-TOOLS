@@ -15,9 +15,7 @@ for (const locale of LOCALES) {
 
     for (const route of routes) {
       const response = await page.goto(route, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      if (response && response.status() >= 500) {
-        throw new Error(`G1 route ${route} returned server failure ${response.status()}`);
-      }
+      if (response && response.status() >= 500) throw new Error(`G1 route ${route} returned server failure ${response.status()}`);
 
       const notFoundHeading = page.getByRole('heading', { name: /Tool not found/i });
       await expect(notFoundHeading, `${locale} ${route} must resolve through the not-found boundary`).toBeVisible();
@@ -25,6 +23,9 @@ for (const locale of LOCALES) {
       await expect(page.locator('html')).toHaveAttribute('dir', direction);
       await expect(page.locator('h1')).toHaveCount(1);
       await expect(page.locator('[data-tool-workspace], .tool-page-modern__workspace, .image-tool-shell')).toHaveCount(0);
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/i);
+      await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
+      await expect(page.locator('link[rel="alternate"][hreflang]')).toHaveCount(0);
     }
   });
 }
