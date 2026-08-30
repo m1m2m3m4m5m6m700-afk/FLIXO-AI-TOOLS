@@ -39,6 +39,23 @@ function RuntimeLocaleAttributes() {
   return null;
 }
 
+function RuntimeHeadNormalization() {
+  useEffect(() => {
+    const normalizeDescription = () => {
+      const descriptions = Array.from(document.head.querySelectorAll<HTMLMetaElement>('meta[name="description"]'));
+      if (descriptions.length <= 1) return;
+      for (const description of descriptions.slice(0, -1)) description.remove();
+    };
+
+    normalizeDescription();
+    const observer = new MutationObserver(normalizeDescription);
+    observer.observe(document.head, { childList: true });
+    return () => observer.disconnect();
+  }, []);
+
+  return null;
+}
+
 function RouteContent() {
   return (
     <Suspense fallback={<div role="status" aria-live="polite">Loading…</div>}>
@@ -54,6 +71,7 @@ export const rootRoute = createRootRoute({
       <>
         <HeadContent />
         <RuntimeLocaleAttributes />
+        <RuntimeHeadNormalization />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} />
         <FlixoGlobalLogo />
         <CommandPalette />
