@@ -66,10 +66,6 @@ if (!/Secret History Scan[\s\S]*?--config=\/repo\/\.gitleaks\.toml/.test(workflo
   process.exit(1);
 }
 
-if (!/name:\s*Browser Smoke[\s\S]*?runs-on:/.test(workflow)) {
-  console.log('CI contract note: no duplicate blocking Browser Smoke surface detected.');
-}
-
 if (!/s4-runtime-e2e:[\s\S]*?Run Chromium Firefox WebKit with zero retries/.test(workflow)) {
   console.error('CI contract failed: S4 must execute the zero-retry Chromium/Firefox/WebKit promotion matrix.');
   process.exit(1);
