@@ -17,14 +17,18 @@ jobs:
         shell: bash
         run: |
           set +e
-          docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.24.3 \
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/repo:ro" \
+            -v "$RUNNER_TEMP/gitleaks:/report" \
+            ghcr.io/gitleaks/gitleaks:v8.24.3 \
             detect --source=/repo --no-banner --redact \
-            --report-format=json --report-path=/tmp/gitleaks.json
+            --report-format=json --report-path=/report/gitleaks.json
           status=$?
-          test -f /tmp/gitleaks.json || exit "$status"
+          test -f "$RUNNER_TEMP/gitleaks/gitleaks.json" || exit "$status"
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
-          const findings = JSON.parse(readFileSync('/tmp/gitleaks.json', 'utf8'));
+          const findings = JSON.parse(readFileSync(`${process.env.RUNNER_TEMP}/gitleaks/gitleaks.json`, 'utf8'));
           for (const [i, f] of findings.entries()) {
             console.log(JSON.stringify({
               index: i + 1,
@@ -35,7 +39,6 @@ jobs:
               endLine: f.EndLine,
               commit: f.Commit,
               author: f.Author,
-              email: f.Email,
               date: f.Date,
               fingerprint: f.Fingerprint,
             }));
