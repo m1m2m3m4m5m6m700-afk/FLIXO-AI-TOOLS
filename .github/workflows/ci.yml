@@ -197,10 +197,14 @@ jobs:
         run: node scripts/validate-s3-static-gate.mjs
 
   s4-runtime-e2e:
-    name: S4 Runtime + E2E
+    name: S4 Runtime + E2E (${{ matrix.browser }})
     needs: [build]
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     env:
       VITE_SITE_URL: https://flixoai.vercel.app
       VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
@@ -214,15 +218,16 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Sanitize blocked external APT sources
-        shell: bash
-        run: |
-          set -euo pipefail
-          while IFS= read -r source; do
-            sudo rm -f "$source"
-          done < <(grep -RIl 'packages\.microsoft\.com' /etc/apt/sources.list.d 2>/dev/null || true)
-      - name: Install all Playwright browsers
-        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Cache Playwright browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-${{ matrix.browser }}-
+            ${{ runner.os }}-playwright-
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Download immutable build artifact
         uses: actions/download-artifact@v7
         with:
@@ -257,7 +262,6 @@ jobs:
           setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/s4-server.log 2>&1 &
           echo $! > /tmp/s4-server.pid
       - name: Wait for readiness and HTTP 200
-        shell: bash
         run: |
           set -euo pipefail
           for _ in $(seq 1 60); do
@@ -274,10 +278,11 @@ jobs:
           PGID="$(ps -o pgid= -p "$PID" | tr -d ' ')"
           test -n "$PGID" && test "$PGID" != "1"
           {
-            echo "S4 server PID=$PID PGID=$PGID"
+            echo "S4 server PID=$PID PGID=$PGID browser=${{ matrix.browser }}"
             ps -o pid,ppid,pgid,lstart,args -p "$PID"
           } > server_process_identity.txt
       - name: Diagnose first runtime-render failure
+        if: ${{ matrix.browser == 'chromium' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -306,13 +311,13 @@ jobs:
           }
           await browser.close();
           NODE
-      - name: Run Chromium Firefox WebKit with zero retries
+      - name: Run ${{ matrix.browser }} with zero retries
         env:
           S4_RUNTIME_GATE: 'true'
           S4_EXTERNAL_SERVER: 'true'
           PLAYWRIGHT_SERVER: 'preview'
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-        run: npx playwright test --workers=4 --retries=0
+        run: npx playwright test --project=${{ matrix.browser }} --workers=4 --retries=0
       - name: Verify server process group is gone
         if: ${{ always() }}
         shell: bash
@@ -329,7 +334,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v6
         with:
-          name: s4-runtime-e2e-evidence-${{ github.sha }}
+          name: s4-runtime-e2e-evidence-${{ github.sha }}-${{ matrix.browser }}
           path: |
             playwright-report/
             test-results/
