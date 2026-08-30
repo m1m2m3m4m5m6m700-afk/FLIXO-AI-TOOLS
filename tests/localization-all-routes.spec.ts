@@ -58,7 +58,7 @@ test.describe('G4 all-public-route localization certification', () => {
         expect(accessibilityViolations, `${locale} ${route} empty aria-labels`).toEqual([]);
 
         const unnamedControlDetails = await page
-          .locator('button:visible, input:visible, select:visible, textarea:visible')
+          .locator('button:visible, input:visible:not([type="file"]), select:visible, textarea:visible')
           .evaluateAll((nodes) =>
             nodes.flatMap((node) => {
               if (node.getAttribute('aria-hidden') === 'true') return [];
@@ -80,7 +80,24 @@ test.describe('G4 all-public-route localization certification', () => {
               }];
             }),
           );
-        expect(unnamedControlDetails, `${locale} ${route} unnamed controls`).toEqual([]);
+        expect(unnamedControlDetails, `${locale} ${route} unnamed visible controls`).toEqual([]);
+
+        const visibleFileInputDetails = await page
+          .locator('input[type="file"]:visible')
+          .evaluateAll((nodes) =>
+            nodes.flatMap((node) => {
+              if (node.getAttribute('aria-hidden') === 'true') return [];
+              const aria = (node.getAttribute('aria-label') ?? '').trim();
+              const labelledBy = (node.getAttribute('aria-labelledby') ?? '').trim();
+              const title = (node.getAttribute('title') ?? '').trim();
+              const id = node.getAttribute('id');
+              const explicitLabel = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`)?.textContent?.trim() : '';
+              const implicitLabel = node.closest('label')?.textContent?.trim() ?? '';
+              if (aria || labelledBy || title || explicitLabel || implicitLabel) return [];
+              return [{ id: node.id, html: node.outerHTML }];
+            }),
+          );
+        expect(visibleFileInputDetails, `${locale} ${route} unnamed visible file inputs`).toEqual([]);
 
         const imagesMissingAlt = await page.locator('img:not([alt])').count();
         expect(imagesMissingAlt, `${locale} ${route} images without alt`).toBe(0);
