@@ -12,12 +12,15 @@ test('watermark-remover: produces a valid cleaned PNG', async ({ page }) => {
   }
   await page.getByRole('button', { name: 'Run tool' }).click();
   const result = await assertImageResult(page);
+  const download = await assertDownload(page, /\.png$/);
   assertToolOutputContract(watermarkRemoverOutputContract, {
     mimeType: result.type,
     byteLength: result.size,
+    filename: download.suggestedFilename(),
+    bytes: Uint8Array.from(result.bytes),
+    dimensions: { width: result.width, height: result.height },
   });
   expect(result.type).toBe('image/png');
   expect(result.width).toBeGreaterThan(0);
   expect(result.height).toBeGreaterThan(0);
-  await assertDownload(page, /\.png$/);
 });
