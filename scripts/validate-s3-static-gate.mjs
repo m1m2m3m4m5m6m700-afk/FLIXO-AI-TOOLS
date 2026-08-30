@@ -152,6 +152,8 @@ try {
     'scripts/validate-ci-contract.mjs',
     'scripts/validate-architecture.mjs',
     'scripts/validate-architecture-v2.mjs',
+    'scripts/ci/validate-architecture.mjs',
+    'scripts/ci/validate-architecture-v2.mjs',
     'scripts/validate-s3-static-gate.mjs',
     'scripts/verify-contracts-core.mjs',
     'scripts/validate-s4-e2e.mjs',
