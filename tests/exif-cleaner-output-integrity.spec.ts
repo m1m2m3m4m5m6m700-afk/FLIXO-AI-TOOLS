@@ -14,9 +14,12 @@ test('exif-cleaner: produces a contract-valid PNG download', async ({ page }) =>
   expect(result.width).toBe(4);
   expect(result.height).toBe(4);
 
+  const download = await assertDownload(page, /flixo-exif-cleaner\.png$/);
   assertToolOutputContract(exifCleanerOutputContract, {
     mimeType: result.type,
     byteLength: result.size,
+    filename: download.suggestedFilename(),
+    bytes: Uint8Array.from(result.bytes),
+    dimensions: { width: result.width, height: result.height },
   });
-  await assertDownload(page, /flixo-exif-cleaner\.png$/);
 });
