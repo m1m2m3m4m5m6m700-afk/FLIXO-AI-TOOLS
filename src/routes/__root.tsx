@@ -22,11 +22,10 @@ function RuntimeLocaleAttributes() {
     const apply = () => {
       document.documentElement.lang = metadata.languageTag;
       document.documentElement.dir = metadata.direction;
-      const localizedMain = document.querySelector<HTMLElement>('main.home-shell, main.tool-page-modern, main.image-tool-shell');
-      if (localizedMain) {
+      document.querySelectorAll<HTMLElement>('main').forEach((localizedMain) => {
         localizedMain.lang = metadata.languageTag;
         localizedMain.dir = metadata.direction;
-      }
+      });
     };
     apply();
     const frame = window.requestAnimationFrame(apply);
