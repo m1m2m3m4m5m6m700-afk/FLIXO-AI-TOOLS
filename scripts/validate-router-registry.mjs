@@ -3,9 +3,11 @@ import path from 'node:path';
 import { TOOLS_REGISTRY } from '../src/config/tools.ts';
 
 const rootRoutePath = path.resolve('src/routes/__root.tsx');
+const localizedToolRoutePath = path.resolve('src/routes/localized-tool.tsx');
 const routesDir = path.resolve('src/routes');
 const routeTreePath = path.join(routesDir, 'route-tree.ts');
 const rootRouteSource = fs.readFileSync(rootRoutePath, 'utf8');
+const localizedToolRouteSource = fs.readFileSync(localizedToolRoutePath, 'utf8');
 const routeTreeSource = fs.readFileSync(routeTreePath, 'utf8');
 
 function fail(stage, message, details = {}) {
@@ -79,8 +81,6 @@ const expectedPublicRoutes = new Set([
   ...readyTools.flatMap((tool) => tool.aliases ?? []),
 ].filter(isPublicToolRoute));
 
-// If a dynamic localized boundary exists, every locale/tool URL is owned by that
-// boundary and is later proven exhaustively by G1's runtime resolver check.
 const missingStaticRoutes = hasLocalizedToolRoute
   ? []
   : [...expectedPublicRoutes].filter((route) => !declaredToolRoutes.has(route)).sort();
@@ -94,7 +94,13 @@ const nonReadyToolRoutes = TOOLS_REGISTRY
   .map((tool) => tool.path)
   .sort();
 if (nonReadyToolRoutes.length) fail('readiness', 'Non-ready tools expose public routes.', { routes: nonReadyToolRoutes });
-if (hasLocalizedToolRoute && !rootRouteSource.includes('notFound')) fail('runtime', 'Localized dynamic tool routing must retain a notFound boundary.');
+if (hasLocalizedToolRoute) {
+  if (!localizedToolRouteSource.includes("path: '/$locale/$tool'")) fail('runtime', 'Localized dynamic tool route path is missing.');
+  if (!localizedToolRouteSource.includes('getToolConfig(params.tool)')) fail('runtime', 'Localized dynamic tool route must resolve registry ownership.');
+  if (!localizedToolRouteSource.includes('!tool?.isReady')) fail('runtime', 'Localized dynamic tool route must enforce isReady.');
+  if (!localizedToolRouteSource.includes('throw notFound()')) fail('runtime', 'Localized dynamic tool route must throw notFound() for unready/unknown tools.');
+  if (!localizedToolRouteSource.includes('notFoundComponent:')) fail('runtime', 'Localized dynamic tool route must retain a notFound boundary.');
+}
 
 console.log('router/registry/runtime contract passed');
 console.log(`registry tools: ${TOOLS_REGISTRY.length}`);
