@@ -1,8 +1,8 @@
-import { createReadStream, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { basename, extname, join, normalize, relative, sep } from 'node:path';
+import { extname, join, normalize, relative, sep } from 'node:path';
 import { TOOLS_REGISTRY, getToolConfig } from '../src/config/tools.ts';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
 import { LOCALES, LOCALE_METADATA, getCanonicalSiteOrigin } from '../src/lib/i18n/config.ts';
@@ -149,7 +149,6 @@ try {
     return response.status;
   };
 
-  // Prove every ready localized route is a real static HTTP 200 route.
   for (const locale of LOCALES) {
     if (await requestStatus(`/${locale}`) !== 200) fail('localized home route is not publicly reachable', [locale]);
     for (const tool of readyTools) {
@@ -159,7 +158,6 @@ try {
     }
   }
 
-  // Prove every non-ready tool is absent from the public static route set.
   if (!unreadyTools.length) fail('G1 requires at least one non-ready tool to prove the 404 contract');
   for (const locale of LOCALES) {
     for (const tool of unreadyTools) {
