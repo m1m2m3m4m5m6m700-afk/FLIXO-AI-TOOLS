@@ -1,8 +1,8 @@
 import { getReadyToolConfigs, getToolConfig, type ToolConfig } from '../../config/tools';
 import { LOCALES, LOCALE_METADATA, SITE_ORIGIN, type Locale, normalizeLocale } from '../i18n';
 import { getLocalizedToolUrl as resolveLocalizedToolUrl } from '../routing/route-resolver';
-import { localizeToolCategory, localizeToolDescription, localizeToolTitle } from '../i18n/tool-localization';
-import { getToolSeoManifest } from './tool-manifests';
+import { localizeToolCategory, localizeToolDescription } from '../i18n/tool-localization';
+import { TOOL_SEO_NAMES } from '../i18n/tool-seo-localization';
 
 const LOCALE_LABELS: Record<Locale, string> = {
   en: 'Online tool', ar: 'أداة عبر الإنترنت', es: 'Herramienta en línea', fr: 'Outil en ligne',
@@ -37,6 +37,11 @@ const FALLBACK_COPY: Record<Locale, Readonly<{ open: string; configure: string; 
 
 export const READY_TOOL_IDS = Object.freeze(getReadyToolConfigs().map((tool) => tool.id));
 
+export function getLocalizedToolTitle(localeInput: string, toolId: string, fallbackTitle: string): string {
+  const locale = normalizeLocale(localeInput);
+  return TOOL_SEO_NAMES[toolId]?.[locale] ?? fallbackTitle;
+}
+
 export function getLocalizedToolUrl(locale: Locale, toolId: string): string {
   const tool = getToolConfig(toolId);
   if (!tool) throw new Error(`Unknown tool id: ${toolId}`);
@@ -52,15 +57,17 @@ export function getToolSeo(localeInput: string, toolId: string) {
   const label = LOCALE_LABELS[locale];
   const url = getLocalizedToolUrl(locale, tool.id);
   const xDefaultUrl = getLocalizedToolUrl('en', tool.id);
-  const manifest = getToolSeoManifest(tool.id);
-  const manifestSeo = manifest?.seoLocales[locale];
-  const localizedTitle = localizeToolTitle(locale, tool.title, tool.category);
-  const localizedDescription = localizeToolDescription(locale, tool.title, tool.category);
+  const localizedTitle = getLocalizedToolTitle(locale, tool.id, tool.title);
+  const localizedDescription = locale === 'en' ? tool.description : localizeToolDescription(locale, localizedTitle, localizeToolCategory(locale, tool.category));
   const title = `${localizedTitle} | FLIXO`;
   const description = localizedDescription;
   const fallback = FALLBACK_COPY[locale];
   const localizedCategory = localizeToolCategory(locale, tool.category);
-  const localizedPayload = manifestSeo ?? {
+
+  // Runtime localized pages must never inherit English manifest copy. The SEO manifest
+  // remains independently certified by static gates; this payload is the authoritative
+  // user-facing runtime copy for the selected locale.
+  const localizedPayload = {
     title,
     description,
     intro: description,
@@ -68,7 +75,7 @@ export function getToolSeo(localeInput: string, toolId: string) {
     howTo: [fallback.open, fallback.configure, fallback.run, fallback.download],
     features: [fallback.browser],
     altText: [`${localizedTitle} ${fallback.interface}`],
-  };
+  } as const;
 
   return {
     locale,
