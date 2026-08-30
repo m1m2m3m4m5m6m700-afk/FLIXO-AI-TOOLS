@@ -37,6 +37,17 @@ const FALLBACK_COPY: Record<Locale, Readonly<{ open: string; configure: string; 
 
 export const READY_TOOL_IDS = Object.freeze(getReadyToolConfigs().map((tool) => tool.id));
 
+export type ToolCategory = 'Images' | 'AI' | 'Other';
+
+const TOOL_CATEGORIES = new Set<ToolCategory>(['Images', 'AI', 'Other']);
+
+export function assertToolCategory(value: string): ToolCategory {
+  if (!TOOL_CATEGORIES.has(value as ToolCategory)) {
+    throw new Error(`Unsupported tool category: ${value}`);
+  }
+  return value as ToolCategory;
+}
+
 export function getLocalizedToolTitle(localeInput: string, toolId: string, fallbackTitle: string): string {
   const locale = normalizeLocale(localeInput);
   return TOOL_SEO_NAMES[toolId]?.[locale] ?? fallbackTitle;
@@ -54,19 +65,17 @@ export function getToolSeo(localeInput: string, toolId: string) {
 
   if (!tool || !tool.isReady) return null;
 
+  const category = assertToolCategory(tool.category);
   const label = LOCALE_LABELS[locale];
   const url = getLocalizedToolUrl(locale, tool.id);
   const xDefaultUrl = getLocalizedToolUrl('en', tool.id);
   const localizedTitle = getLocalizedToolTitle(locale, tool.id, tool.title);
-  const localizedDescription = locale === 'en' ? tool.description : localizeToolDescription(locale, localizedTitle, localizeToolCategory(locale, tool.category));
+  const localizedCategory = localizeToolCategory(locale, category);
+  const localizedDescription = locale === 'en' ? tool.description : localizeToolDescription(locale, localizedTitle, localizedCategory);
   const title = `${localizedTitle} | FLIXO`;
   const description = localizedDescription;
   const fallback = FALLBACK_COPY[locale];
-  const localizedCategory = localizeToolCategory(locale, tool.category);
 
-  // Runtime localized pages must never inherit English manifest copy. The SEO manifest
-  // remains independently certified by static gates; this payload is the authoritative
-  // user-facing runtime copy for the selected locale.
   const localizedPayload = {
     title,
     description,
