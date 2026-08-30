@@ -18,6 +18,7 @@ test('image-to-svg: creates a contract-valid SVG output and download', async ({ 
   await page.getByRole('button', { name: 'Download now' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.svg$/);
+  expect(download.suggestedFilename()).not.toContain('undefined');
 
   const stream = await download.createReadStream();
   if (!stream) throw new Error('SVG download stream unavailable.');
@@ -29,6 +30,8 @@ test('image-to-svg: creates a contract-valid SVG output and download', async ({ 
   assertToolOutputContract(imageToSvgOutputContract, {
     mimeType: 'image/svg+xml',
     byteLength: bytes.byteLength,
+    filename: download.suggestedFilename(),
+    bytes: new Uint8Array(bytes),
   });
 
   expect(bytes.byteLength).toBeGreaterThan(100);
