@@ -95,7 +95,7 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/ci/weighted-shard-plan.mjs > /tmp/full-matrix-plan.json
-          matrix="$(node --input-type=module -e "const fs=require('node:fs'); const d=JSON.parse(fs.readFileSync('/tmp/full-matrix-plan.json','utf8')); process.stdout.write(JSON.stringify(d.matrix))")"
+          matrix="$(node --input-type=module -e "import { readFileSync } from 'node:fs'; const d=JSON.parse(readFileSync('/tmp/full-matrix-plan.json','utf8')); process.stdout.write(JSON.stringify(d.matrix))")"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           cp /tmp/full-matrix-plan.json full-matrix-plan.json
       - name: Upload audited shard plan
