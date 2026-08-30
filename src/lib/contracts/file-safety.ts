@@ -161,7 +161,7 @@ export function validateFileSafety(input: FileSafetyInput, policy: FileSafetyPol
   if (policy.allowedExtensions) {
     if (!extension || !policy.allowedExtensions.includes(extension)) failures.push(`unsupported file extension: ${extension || '(none)'}`);
     if (extension) {
-      const expectedMime = EXTENSION_MIME_MAP[extension];
+      const expectedMime = EXTENSION_MIME_MAP[extension] ?? '';
       if (expectedMime && expectedMime !== input.mime) failures.push(`file extension does not match MIME type: .${extension} -> ${input.mime}`);
     }
   }
