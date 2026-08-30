@@ -93,7 +93,34 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/ci/weighted-shard-plan.mjs > /tmp/full-matrix-plan.json
-          matrix="$(node --input-type=module -e "import { readFileSync } from 'node:fs'; const d=JSON.parse(readFileSync('/tmp/full-matrix-plan.json','utf8')); const m=d?.matrix; if(!Array.isArray(m)||m.length!==18) throw new Error('Full Matrix plan must contain 18 jobs'); const browsers=new Set(['chromium','firefox','webkit']); const seen=new Set(); for(const x of m){if(!browsers.has(x.browser)||!Number.isInteger(x.shard)||x.shard<1||x.shard>6||!Array.isArray(x.tests)||!x.tests.length) throw new Error('Invalid matrix entry'); seen.add(`${x.browser}:${x.shard}`);} if(seen.size!==18) throw new Error('Matrix must contain 18 unique browser/shard entries'); process.stdout.write(JSON.stringify(m));")"
+          matrix="$(node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const d = JSON.parse(readFileSync('/tmp/full-matrix-plan.json', 'utf8'));
+          const m = d?.matrix;
+          if (!Array.isArray(m) || m.length !== 18) {
+            throw new Error('Full Matrix plan must contain 18 jobs');
+          }
+          const browsers = new Set(['chromium', 'firefox', 'webkit']);
+          const seen = new Set();
+          for (const x of m) {
+            if (
+              !browsers.has(x.browser) ||
+              !Number.isInteger(x.shard) ||
+              x.shard < 1 ||
+              x.shard > 6 ||
+              !Array.isArray(x.tests) ||
+              !x.tests.length
+            ) {
+              throw new Error('Invalid matrix entry');
+            }
+            seen.add(`${x.browser}:${x.shard}`);
+          }
+          if (seen.size !== 18) {
+            throw new Error('Matrix must contain 18 unique browser/shard entries');
+          }
+          process.stdout.write(JSON.stringify(m));
+          NODE
+          )"
           {
             echo 'matrix<<FULL_MATRIX_EOF'
             echo "$matrix"
