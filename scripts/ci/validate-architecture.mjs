@@ -19,7 +19,7 @@ for (const item of text) {
 }
 
 const ci = find('ci.yml');
-for (const marker of ['canonical-verify:', 'fast-contract:', 'build:', 'evidence-ledger:']) {
+for (const marker of ['canonical-verify:', 'fast-contract:', 'build:', 'evidence-ledger:', 's4-runtime-e2e:']) {
   if (!ci.includes(marker)) failures.push(`ci.yml missing canonical owner: ${marker}`);
 }
 if (!/FAIL-CLOSED/i.test(ci)) failures.push('ci.yml must declare FAIL-CLOSED architecture.');
@@ -27,6 +27,12 @@ if (/Skip Socket CI when no token is configured/.test(ci)) failures.push('Socket
 if (/browser-smoke/i.test(ci)) failures.push('Canonical CI must not own browser-smoke verification.');
 if (/s3-static-gate:[\s\S]{0,1600}npm run build(?!:runtime)/.test(ci)) failures.push('S3 Static Gate must consume artifact, never rebuild.');
 if (!/flixo-build-\$\{\{ github\.sha \}\}/.test(ci)) failures.push('CI must publish a SHA-addressed immutable build artifact.');
+if (!/s4-runtime-e2e:[\s\S]{0,1400}needs:\s*\[build\]/.test(ci)) failures.push('S4 must depend on the canonical Build Once job.');
+if (!/s4-runtime-e2e:[\s\S]{0,6000}download-artifact@v7/.test(ci)) failures.push('S4 must consume the immutable CI build artifact.');
+if (!/s4-runtime-e2e:[\s\S]{0,12000}S4 RUNTIME ROOT CAUSE DETECTED/.test(ci)) failures.push('S4 must fail-fast on first runtime root cause.');
+
+const standaloneS4 = find('s4-runtime-e2e.yml');
+if (standaloneS4) failures.push('Standalone s4-runtime-e2e.yml must be removed; S4 has one owner inside canonical CI.');
 
 const fullMatrix = find('full-matrix-promotion.yml');
 if (/^\s*pull_request:/m.test(fullMatrix)) failures.push('Full Matrix must not run independently on pull requests; S4 owns PR runtime coverage.');
@@ -36,13 +42,6 @@ if (!/download-artifact@v7/.test(fullMatrix)) failures.push('Full Matrix must co
 if (!/23/.test(fullMatrix) || !/webkit/.test(fullMatrix) || !/chromium/.test(fullMatrix) || !/firefox/.test(fullMatrix)) {
   failures.push('Full Matrix must retain the complete 23-suite × 3-browser surface.');
 }
-
-const s4 = find('s4-runtime-e2e.yml');
-if (/^\s*pull_request:/m.test(s4)) failures.push('S4 must not run as an independent PR build; CI is the artifact producer.');
-if (!/workflow_run:[\s\S]*workflows:\s*\[CI\]/.test(s4)) failures.push('S4 must consume the canonical CI artifact.');
-if (/npm run build(?!:runtime)/.test(s4) && !/workflow_dispatch/.test(s4)) failures.push('S4 must not rebuild in automated execution.');
-if (!/S4 RUNTIME ROOT CAUSE DETECTED/.test(s4)) failures.push('S4 must fail-fast on first runtime root cause.');
-if (!/flixo-build-\$\{\{ github\.event\.workflow_run\.head_sha \}\}/.test(s4)) failures.push('S4 automated execution must download the exact CI SHA artifact.');
 
 const localization = find('localization-20.yml');
 if (/['"]fix\/\*\*|['"]feat\/\*\*|['"]ci\/\*\*|['"]refactor\/\*\*|['"]seo\/\*\*/.test(localization)) {
