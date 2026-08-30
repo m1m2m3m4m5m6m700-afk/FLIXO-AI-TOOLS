@@ -40,18 +40,32 @@ function RuntimeLocaleAttributes() {
 }
 
 function RuntimeHeadNormalization() {
+  const location = useLocation();
+
   useEffect(() => {
-    const normalizeDescription = () => {
+    const canonicalPath = location.pathname === '/' ? '/' : location.pathname.replace(/\/+$/u, '');
+    const expectedCanonical = `${SITE_ORIGIN}${canonicalPath}`;
+
+    const normalize = () => {
+      const canonicals = Array.from(document.head.querySelectorAll<HTMLLinkElement>('link[rel="canonical"]'));
+      for (const canonical of canonicals) canonical.remove();
+
+      const canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      canonical.setAttribute('href', expectedCanonical);
+      document.head.appendChild(canonical);
+
       const descriptions = Array.from(document.head.querySelectorAll<HTMLMetaElement>('meta[name="description"]'));
-      if (descriptions.length <= 1) return;
-      for (const description of descriptions.slice(0, -1)) description.remove();
+      if (descriptions.length > 1) {
+        for (const description of descriptions.slice(0, -1)) description.remove();
+      }
     };
 
-    normalizeDescription();
-    const observer = new MutationObserver(normalizeDescription);
+    normalize();
+    const observer = new MutationObserver(normalize);
     observer.observe(document.head, { childList: true });
     return () => observer.disconnect();
-  }, []);
+  }, [location.pathname]);
 
   return null;
 }
