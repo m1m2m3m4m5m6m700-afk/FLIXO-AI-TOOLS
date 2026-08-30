@@ -11,6 +11,9 @@ for (const locale of LOCALES) {
       ? unreadyTools.map((tool) => getLocalizedToolPath(tool, locale))
       : [`/${locale}/__flixo_unregistered_tool__`];
 
+    const duplicateRoutes = routes.filter((route, index) => routes.indexOf(route) !== index);
+    expect(duplicateRoutes, `G1 ${locale} must not duplicate unready-route coverage`).toEqual([]);
+
     for (const route of routes) {
       const response = await request.get(route, { timeout: 30000 });
       expect(response.status(), `G1 ${locale} ${route} must be a real HTTP 404`).toBe(404);
