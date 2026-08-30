@@ -1,60 +1,50 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = process.env.EVIDENCE_ROOT || 'full-matrix-evidence';
-const expectedBrowsers = ['chromium', 'firefox', 'webkit'];
-const expectedSuites = [
-  'image-compressor', 'background-remover', 'image-upscaler', 'image-converter',
-  'ai-image-generator', 'object-remover', 'watermark-remover', 'image-cropper',
-  'image-to-svg', 'image-ocr', 'photo-colorizer', 'background-blur',
-  'passport-photo-maker', 'watermark-adder', 'meme-generator', 'collage-maker',
-  'image-effects', 'exif-cleaner', 'svg-optimizer', 'mockup-generator',
-  'seed', 'pix', 'localization'
-];
 const sha = process.env.EXACT_SHA || process.env.GITHUB_SHA;
+const expectedBrowsers = ['chromium', 'firefox', 'webkit'];
+const expectedSuites = Object.keys(JSON.parse(readFileSync('ci/test-duration-history.json', 'utf8')).tests);
+
 if (!sha) throw new Error('EXACT_SHA/GITHUB_SHA is required.');
 if (!statSync(root, { throwIfNoEntry: false })?.isDirectory()) {
   throw new Error(`Missing full matrix evidence directory: ${root}`);
 }
 
-const files = readdirSync(root).filter((name) => name.endsWith('.json')).map((name) => join(root, name));
+const files = readdirSync(root)
+  .filter((name) => name.endsWith('.json'))
+  .map((name) => join(root, name));
 if (!files.length) throw new Error('Full matrix evidence is empty.');
-const records = files.map((file) => ({ file, record: JSON.parse(readFileSync(file, 'utf8')) }));
+
+const records = files.map((file) => ({
+  file,
+  record: JSON.parse(readFileSync(file, 'utf8')),
+}));
 const seen = new Set();
 const errors = [];
-const normalizeSuite = (value) => {
-  const raw = String(value).replace(/\\/gu, '/').split('/').pop();
-  if (raw === 'localization-smoke.spec.ts' || raw === 'localization-smoke.spec.js') return 'localization';
-  return raw.replace(/\\.spec\\.(?:ts|js)$/u, '');
-};
 
 for (const { file, record } of records) {
-  for (const key of ['sha', 'browser', 'shard', 'expected_suites', 'executed_suites', 'failed', 'skipped']) {
+  for (const key of ['sha', 'browser', 'shard', 'expected_suites', 'executed_suites', 'failed', 'status']) {
     if (!(key in record)) errors.push(`${file} missing ${key}`);
   }
+
   if (record.sha !== sha) errors.push(`${file} SHA mismatch: ${record.sha} != ${sha}`);
   if (!expectedBrowsers.includes(record.browser)) errors.push(`${file} unknown browser=${record.browser}`);
   if (!Number.isInteger(record.shard) || record.shard < 1) errors.push(`${file} invalid shard=${record.shard}`);
-
-  const failedCount = Number(record.failed || 0);
-  const status = record.status;
-  if (failedCount !== 0 || (status && !['success', 'passed'].includes(status))) {
-    errors.push(`${file} failed=${failedCount} status=${status ?? 'unknown'}`);
-  }
+  if (record.status !== 'success') errors.push(`${file} status=${record.status ?? 'missing'}`);
+  if (Number(record.failed || 0) !== 0) errors.push(`${file} failed=${record.failed}`);
 
   const suites = Array.isArray(record.executed_suites) ? record.executed_suites : [];
-  for (const rawSuite of suites) {
-    const suite = normalizeSuite(rawSuite);
-    if (!expectedSuites.includes(suite)) errors.push(`${file} unknown executed suite=${rawSuite}`);
+  if (record.expected_suites !== expectedSuites.length) {
+    errors.push(`${file} expected_suites=${record.expected_suites} != ${expectedSuites.length}`);
+  }
+  if (suites.length !== new Set(suites).size) errors.push(`${file} duplicate suites in shard evidence`);
+
+  for (const suite of suites) {
+    if (!expectedSuites.includes(suite)) errors.push(`${file} unknown executed suite=${suite}`);
     const key = `${record.browser}:${suite}`;
     if (seen.has(key)) errors.push(`duplicate execution: ${key}`);
     seen.add(key);
-  }
-
-  const skipped = Number(record.skipped || 0);
-  const skippedSuites = Array.isArray(record.skipped_suites) ? record.skipped_suites : [];
-  if (skipped < skippedSuites.length) {
-    errors.push(`${file} skipped count ${skipped} is less than skipped_suites length ${skippedSuites.length}`);
   }
 }
 
@@ -65,21 +55,18 @@ for (const browser of expectedBrowsers) {
   }
 }
 
+const expected = expectedBrowsers.length * expectedSuites.length;
 const summary = {
   sha,
-  expected: expectedBrowsers.length * expectedSuites.length,
+  expected,
   executed: seen.size,
-  missing: expectedBrowsers.length * expectedSuites.length - seen.size,
+  missing: expected - seen.size,
   failed: records.reduce((sum, item) => sum + Number(item.record.failed || 0), 0),
-  skipped: records.reduce((sum, item) => sum + Number(item.record.skipped || 0), 0),
   shards: files.length,
-  skipped_detail: records.filter((item) => Number(item.record.skipped || 0) > 0).map((item) => ({
-    browser: item.record.browser,
-    shard: item.record.shard,
-    skipped: Number(item.record.skipped || 0),
-    skipped_suites: item.record.skipped_suites || [],
-  })),
+  browsers: expectedBrowsers.length,
+  suites: expectedSuites.length,
   result: errors.length ? 'FAIL' : 'PASS',
 };
+
 console.log(JSON.stringify({ summary, errors }, null, 2));
 if (errors.length) process.exit(1);
