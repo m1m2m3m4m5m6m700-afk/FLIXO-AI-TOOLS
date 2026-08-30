@@ -1,8 +1,7 @@
-import { failValidation } from './validation-contracts.mjs';
+import { CANONICAL_LOCALES, failValidation } from './validation-contracts.mjs';
 
 const PRODUCTION_ORIGIN = process.env.PRODUCTION_ORIGIN ?? 'https://flixoai.vercel.app';
 const EXPECTED_ORIGIN = 'https://flixoai.vercel.app';
-const EXPECTED_LOCALES = ['en', 'ar', 'es', 'fr', 'de', 'ru', 'zh', 'hi', 'id', 'ur', 'ja', 'pt', 'it', 'ko', 'nl', 'pl', 'tr', 'vi', 'th', 'sv'];
 const timeoutMs = Number(process.env.PRODUCTION_CERT_TIMEOUT_MS ?? 30000);
 
 if (PRODUCTION_ORIGIN !== EXPECTED_ORIGIN) {
@@ -67,17 +66,21 @@ for (const rawUrl of locs) {
   if (seen.has(url.href)) failValidation(`Duplicate sitemap URL: ${url.href}`);
   seen.add(url.href);
   const [locale] = url.pathname.split('/').filter(Boolean);
-  if (locale) localeCoverage.add(locale);
+  if (locale && CANONICAL_LOCALES.includes(locale)) localeCoverage.add(locale);
 }
 
-for (const locale of EXPECTED_LOCALES) {
+for (const locale of CANONICAL_LOCALES) {
   if (!localeCoverage.has(locale)) failValidation(`Production sitemap is missing locale coverage for ${locale}`);
 }
-if (localeCoverage.size !== EXPECTED_LOCALES.length) {
-  failValidation(`Production sitemap locale coverage is ${localeCoverage.size}/${EXPECTED_LOCALES.length}`);
+if (localeCoverage.size !== CANONICAL_LOCALES.length) {
+  failValidation(`Production sitemap locale coverage is ${localeCoverage.size}/${CANONICAL_LOCALES.length}`);
 }
 
-const hreflangs = [...sitemap.matchAll(/hreflang=["']([^"']+)["'][^>]*href=["']([^"']+)["']/g)].map((match) => ({ locale: match[1], href: match[2] }));
+const hreflangTags = [...sitemap.matchAll(/<xhtml:link\b([^>]*?)\/?>(?:<\/xhtml:link>)?/g)].map((match) => match[1]);
+const hreflangs = hreflangTags.map((tag) => ({
+  locale: tag.match(/\bhreflang=["']([^"']+)["']/i)?.[1],
+  href: tag.match(/\bhref=["']([^"']+)["']/i)?.[1],
+})).filter((entry) => entry.locale && entry.href);
 if (!hreflangs.some((entry) => entry.locale === 'x-default')) failValidation('Production sitemap is missing x-default hreflang');
 for (const entry of hreflangs) {
   const target = new URL(entry.href);
@@ -96,4 +99,4 @@ if (canonical.origin !== PRODUCTION_ORIGIN || canonical.protocol !== 'https:' ||
 const htmlLang = homepage.match(/<html[^>]+\blang=["']([^"']+)["']/i)?.[1];
 if (htmlLang !== 'en') failValidation(`Production /en html lang must be en, got ${htmlLang ?? 'missing'}`);
 
-console.log(`Production certification passed: ${EXPECTED_ORIGIN}, ${EXPECTED_LOCALES.length} locale coverage, canonical sitemap binding, HTTPS-only URLs, no preview leakage, x-default, and /en canonical/lang.`);
+console.log(`Production certification passed: ${EXPECTED_ORIGIN}, ${CANONICAL_LOCALES.length} canonical locales, canonical sitemap binding, HTTPS-only URLs, no preview leakage, x-default, and /en canonical/lang.`);
