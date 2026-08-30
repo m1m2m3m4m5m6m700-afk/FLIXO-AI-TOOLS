@@ -1,7 +1,7 @@
 name: Full Matrix Parallel
 
-# Canonical full certification surface. It runs directly on PR/main events
-# and keeps one simple contract: planner -> browser shards -> evidence -> promotion.
+# Canonical full certification surface. One deterministic contract:
+# source build -> weighted plan -> browser shards -> evidence -> promotion.
 on:
   push:
     branches: [main]
@@ -70,6 +70,8 @@ jobs:
   weighted-plan:
     name: Full Matrix — Weighted Plan
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -80,6 +82,7 @@ jobs:
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Generate deterministic weighted browser matrix
+        id: plan
         env:
           CI_SHARD_COUNT: '6'
           CI_MAX_SHARDS: '6'
@@ -87,11 +90,40 @@ jobs:
           CI_RUNNER_BUDGET: '18'
           CI_BROWSERS: chromium,firefox,webkit
         shell: bash
-        run: node scripts/ci/weighted-shard-plan.mjs
+        run: |
+          set -euo pipefail
+          node scripts/ci/weighted-shard-plan.mjs > /tmp/full-matrix-plan.json
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const plan = JSON.parse(readFileSync('/tmp/full-matrix-plan.json', 'utf8'));
+          const matrix = plan?.matrix;
+          if (!Array.isArray(matrix) || matrix.length !== 18) {
+            throw new Error(`Full Matrix plan must contain 18 jobs; got ${Array.isArray(matrix) ? matrix.length : 'invalid'}`);
+          }
+          const expectedBrowsers = new Set(['chromium', 'firefox', 'webkit']);
+          const seen = new Set();
+          for (const item of matrix) {
+            if (!expectedBrowsers.has(item.browser)) throw new Error(`Unknown browser: ${item.browser}`);
+            if (!Number.isInteger(item.shard) || item.shard < 1 || item.shard > 6) throw new Error(`Invalid shard: ${item.shard}`);
+            if (!Array.isArray(item.tests) || item.tests.length === 0) throw new Error(`Empty suite set for ${item.browser}:${item.shard}`);
+            seen.add(`${item.browser}:${item.shard}`);
+          }
+          if (seen.size !== 18) throw new Error(`Expected 18 unique browser/shard jobs; got ${seen.size}`);
+          NODE
+          matrix="$(node --input-type=module -e "import { readFileSync } from 'node:fs'; const d=JSON.parse(readFileSync('/tmp/full-matrix-plan.json','utf8')); process.stdout.write(JSON.stringify(d.matrix))")"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+      - name: Upload audited shard plan
+        uses: actions/upload-artifact@v6
+        with:
+          name: full-matrix-plan-${{ github.sha }}
+          path: /tmp/full-matrix-plan.json
+          if-no-files-found: error
+          retention-days: 14
 
   e2e:
     name: Full Matrix — ${{ matrix.browser }} — shard ${{ matrix.shard }}/${{ matrix.total_shards }}
     needs: [source-build, weighted-plan]
+    if: ${{ needs.source-build.result == 'success' && needs.weighted-plan.result == 'success' }}
     strategy:
       fail-fast: false
       max-parallel: 18
@@ -198,7 +230,6 @@ jobs:
           mkdir -p full-matrix-evidence
           node --input-type=module <<'NODE'
           import { writeFileSync } from 'node:fs';
-
           const tests = JSON.parse(process.env.TESTS_JSON);
           if (!Array.isArray(tests) || tests.length === 0) throw new Error('Shard suite list is empty.');
           const status = process.env.TEST_OUTCOME;
@@ -213,7 +244,6 @@ jobs:
             skipped: 0,
             status,
           };
-
           writeFileSync(
             `full-matrix-evidence/${record.browser}-shard-${record.shard}.json`,
             JSON.stringify(record, null, 2),
