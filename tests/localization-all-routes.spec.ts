@@ -46,37 +46,39 @@ test.describe('G4 all-public-route localization certification', () => {
         expect(new URL(canonical!, page.url()).pathname).toBe(route);
 
         const alternates = await page.locator('link[rel="alternate"][hreflang]').evaluateAll((links) =>
-          links.map((link) => ({
-            lang: link.getAttribute('hreflang'),
-            href: link.getAttribute('href'),
-          })),
+          links.map((link) => ({ lang: link.getAttribute('hreflang'), href: link.getAttribute('href') })),
         );
         const requiredLocales = [...LOCALES.map((entry) => LOCALE_METADATA[entry].languageTag), 'x-default'];
         for (const required of requiredLocales) expect(alternates.map((entry) => entry.lang)).toContain(required);
-        for (const alternate of alternates) {
-          expect(new URL(alternate.href!, page.url()).origin).toBe('https://flixoai.vercel.app');
-        }
+        for (const alternate of alternates) expect(new URL(alternate.href!, page.url()).origin).toBe('https://flixoai.vercel.app');
 
         const accessibilityViolations = await page.locator('[aria-label]').evaluateAll((nodes) =>
-          nodes
-            .filter((node) => !(node.getAttribute('aria-label') ?? '').trim())
-            .map((node) => `${node.tagName}.${node.className}`),
+          nodes.filter((node) => !(node.getAttribute('aria-label') ?? '').trim()).map((node) => `${node.tagName}.${node.className}`),
         );
         expect(accessibilityViolations, `${locale} ${route} empty aria-labels`).toEqual([]);
 
-        const unnamedControls = await page.locator('button, input, select, textarea').evaluateAll((nodes) =>
-          nodes.filter((node) => {
-            if (node.getAttribute('aria-hidden') === 'true') return false;
+        const unnamedControlDetails = await page.locator('button, input, select, textarea').evaluateAll((nodes) =>
+          nodes.flatMap((node) => {
+            if (node.getAttribute('aria-hidden') === 'true') return [];
             const aria = (node.getAttribute('aria-label') ?? '').trim();
             const labelledBy = (node.getAttribute('aria-labelledby') ?? '').trim();
+            const title = (node.getAttribute('title') ?? '').trim();
             const text = (node.textContent ?? '').trim();
             const placeholder = (node.getAttribute('placeholder') ?? '').trim();
             const id = node.getAttribute('id');
-            const associatedLabel = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`)?.textContent?.trim() : '';
-            return !(aria || labelledBy || text || placeholder || associatedLabel);
-          }).length,
+            const explicitLabel = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`)?.textContent?.trim() : '';
+            const implicitLabel = node.closest('label')?.textContent?.trim() ?? '';
+            if (aria || labelledBy || title || text || placeholder || explicitLabel || implicitLabel) return [];
+            return [{
+              tag: node.tagName.toLowerCase(),
+              type: node.getAttribute('type'),
+              id: node.id,
+              className: typeof node.className === 'string' ? node.className : '',
+              html: node.outerHTML,
+            }];
+          }),
         );
-        expect(unnamedControls, `${locale} ${route} unnamed controls`).toBe(0);
+        expect(unnamedControlDetails, `${locale} ${route} unnamed controls`).toEqual([]);
 
         const imagesMissingAlt = await page.locator('img:not([alt])').count();
         expect(imagesMissingAlt, `${locale} ${route} images without alt`).toBe(0);
