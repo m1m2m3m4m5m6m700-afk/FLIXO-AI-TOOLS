@@ -1,21 +1,15 @@
 name: SEO Production Certification
 
+# Release/diagnostic certification only. PR blocking SEO evidence is owned by the canonical CI artifact consumer.
 on:
-  push:
-    branches:
-      - main
-      - 'work/**'
-      - 'fix/**'
-  pull_request:
-    branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: seo-production-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
 
 permissions:
   contents: read
+
+concurrency:
+  group: seo-production-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   production-seo:
@@ -30,7 +24,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Build production SEO artifacts
         run: npm run build
       - name: Validate generated sitemap and robots artifacts
@@ -46,6 +40,7 @@ jobs:
           node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-language-quality-strict.mjs
       - name: Final SEO/indexing certification
         run: |
+          set -euo pipefail
           test -f dist/robots.txt
           test -f dist/sitemap.xml
           grep -Fx "Sitemap: ${VITE_SITE_URL}/sitemap.xml" dist/robots.txt
