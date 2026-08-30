@@ -110,6 +110,9 @@ jobs:
     name: Full Matrix — ${{ matrix.browser }} — shard ${{ matrix.shard }}/${{ matrix.total_shards }}
     needs: [source-artifact, plan]
     runs-on: ubuntu-latest
+    env:
+      VITE_SITE_URL: https://flixoai.vercel.app
+      SITE_URL: https://flixoai.vercel.app
     strategy:
       fail-fast: false
       max-parallel: 6
