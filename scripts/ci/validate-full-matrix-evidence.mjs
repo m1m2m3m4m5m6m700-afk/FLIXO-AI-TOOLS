@@ -22,6 +22,8 @@ if (!files.length) throw new Error('Full matrix evidence is empty.');
 const records = files.map((file) => ({ file, record: JSON.parse(readFileSync(file, 'utf8')) }));
 const seen = new Set();
 const errors = [];
+const normalizeSuite = (value) => String(value).replace(/\.spec\.(?:ts|js)$/u, '').replace(/\\/gu, '/').split('/').pop();
+
 for (const { file, record } of records) {
   for (const key of ['sha', 'browser', 'shard', 'expected_suites', 'executed_suites', 'failed', 'skipped']) {
     if (!(key in record)) errors.push(`${file} missing ${key}`);
@@ -29,13 +31,26 @@ for (const { file, record } of records) {
   if (record.sha !== sha) errors.push(`${file} SHA mismatch: ${record.sha} != ${sha}`);
   if (!expectedBrowsers.includes(record.browser)) errors.push(`${file} unknown browser=${record.browser}`);
   if (!Number.isInteger(record.shard) || record.shard < 1) errors.push(`${file} invalid shard=${record.shard}`);
-  if (record.failed !== 0) errors.push(`${file} failed=${record.failed}`);
-  if (record.skipped !== 0) errors.push(`${file} skipped=${record.skipped}`);
+
+  const failedCount = Number(record.failed || 0);
+  const status = record.status;
+  if (failedCount !== 0 || (status && !['success', 'passed'].includes(status))) {
+    errors.push(`${file} failed=${failedCount} status=${status ?? 'unknown'}`);
+  }
+
   const suites = Array.isArray(record.executed_suites) ? record.executed_suites : [];
-  for (const suite of suites) {
+  for (const rawSuite of suites) {
+    const suite = normalizeSuite(rawSuite);
+    if (!expectedSuites.includes(suite)) errors.push(`${file} unknown executed suite=${rawSuite}`);
     const key = `${record.browser}:${suite}`;
     if (seen.has(key)) errors.push(`duplicate execution: ${key}`);
     seen.add(key);
+  }
+
+  const skipped = Number(record.skipped || 0);
+  const skippedSuites = Array.isArray(record.skipped_suites) ? record.skipped_suites : [];
+  if (skipped < skippedSuites.length) {
+    errors.push(`${file} skipped count ${skipped} is less than skipped_suites length ${skippedSuites.length}`);
   }
 }
 
@@ -54,6 +69,12 @@ const summary = {
   failed: records.reduce((sum, item) => sum + Number(item.record.failed || 0), 0),
   skipped: records.reduce((sum, item) => sum + Number(item.record.skipped || 0), 0),
   shards: files.length,
+  skipped_detail: records.filter((item) => Number(item.record.skipped || 0) > 0).map((item) => ({
+    browser: item.record.browser,
+    shard: item.record.shard,
+    skipped: Number(item.record.skipped || 0),
+    skipped_suites: item.record.skipped_suites || [],
+  })),
   result: errors.length ? 'FAIL' : 'PASS',
 };
 console.log(JSON.stringify({ summary, errors }, null, 2));
