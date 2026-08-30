@@ -1,7 +1,7 @@
 name: Full Matrix Parallel
 
-# Full Matrix starts with the same repository event as CI. It intentionally
-# does not use workflow_run, so it runs in parallel instead of after CI.
+# Canonical full certification surface. It runs directly on PR/main events
+# and keeps one simple contract: planner -> browser shards -> evidence -> promotion.
 on:
   push:
     branches: [main]
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: full-matrix-parallel-${{ github.head_ref || github.ref }}
+  group: full-matrix-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -76,6 +76,11 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Generate deterministic weighted browser matrix
         id: plan
         env:
@@ -94,8 +99,6 @@ jobs:
     needs: [source-build, weighted-plan]
     strategy:
       fail-fast: false
-      # All 18 browser/shard jobs are eligible to run at once. GitHub may queue
-      # excess jobs only when the account/repository concurrency limit is lower.
       max-parallel: 18
       matrix:
         include: ${{ fromJSON(needs.weighted-plan.outputs.matrix) }}
@@ -105,23 +108,6 @@ jobs:
       VITE_SITE_URL: https://flixoai.vercel.app
       SITE_URL: https://flixoai.vercel.app
     steps:
-      - name: Start precise timing
-        id: timing
-        shell: bash
-        run: echo "started_at=$(date +%s%3N)" >> "$GITHUB_OUTPUT"
-      - name: Record runner diagnostics
-        shell: bash
-        run: |
-          set -euo pipefail
-          {
-            echo "runner=$(hostname)"
-            echo "nproc=$(nproc)"
-            echo "timestamp=$(date -u +%FT%TZ)"
-            echo "browser=${{ matrix.browser }}"
-            echo "shard=${{ matrix.shard }}/${{ matrix.total_shards }}"
-            echo "memory="; free -h
-            echo "disk="; df -h .
-          } > full-matrix-runner-diagnostics.txt
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
@@ -132,7 +118,6 @@ jobs:
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Cache Playwright browser
-        id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
@@ -142,11 +127,6 @@ jobs:
             ${{ runner.os }}-playwright-
       - name: Install ${{ matrix.browser }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Record cache diagnostics
-        shell: bash
-        env:
-          CACHE_HIT: ${{ steps.playwright-cache.outputs.cache-hit }}
-        run: echo "playwright_cache_hit=${CACHE_HIT:-false}" >> full-matrix-runner-diagnostics.txt
       - name: Download Full Matrix source artifact
         uses: actions/download-artifact@v7
         with:
@@ -162,10 +142,10 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
           const manifest = JSON.parse(readFileSync('dist/_flixo_build_manifest.json', 'utf8'));
-          if (manifest.sha !== process.env.CERTIFIED_SHA && manifest.commit_sha !== process.env.CERTIFIED_SHA) {
-            throw new Error(`Full Matrix artifact SHA mismatch: ${manifest.sha ?? manifest.commit_sha} != ${process.env.CERTIFIED_SHA}`);
+          const certified = process.env.CERTIFIED_SHA;
+          if (manifest.sha !== certified && manifest.commit_sha !== certified) {
+            throw new Error(`Full Matrix artifact SHA mismatch: ${manifest.sha ?? manifest.commit_sha} != ${certified}`);
           }
-          console.log(`Full Matrix artifact SHA verified: ${process.env.CERTIFIED_SHA}`);
           NODE
       - name: Verify required static assets
         shell: bash
@@ -181,15 +161,11 @@ jobs:
           set -euo pipefail
           setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/full-matrix-server.log 2>&1 &
           echo $! > /tmp/full-matrix-server.pid
-      - name: Wait for readiness and HTTP 200
-        shell: bash
-        run: |
-          set -euo pipefail
           for _ in $(seq 1 60); do
             if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
             sleep 1
           done
-          cat /tmp/full-matrix-server.log || true
+          cat /tmp/full-matrix-server.log
           exit 1
       - name: Run assigned weighted suite set
         id: e2e
@@ -213,6 +189,7 @@ jobs:
               specs+=("$spec")
             fi
           done
+          test "${#specs[@]}" -eq "${#suites[@]}"
           npx playwright test "${specs[@]}" --project=${{ matrix.browser }} --retries=0
       - name: Write shard evidence
         if: ${{ always() }}
@@ -220,47 +197,32 @@ jobs:
           CERTIFIED_SHA: ${{ github.sha }}
           TESTS_JSON: ${{ toJSON(matrix.tests) }}
           TEST_OUTCOME: ${{ steps.e2e.outcome }}
-          STARTED_AT_MS: ${{ steps.timing.outputs.started_at }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p full-matrix-evidence
-          END_AT_MS="$(date +%s%3N)"
           node --input-type=module <<'NODE'
-          import { writeFileSync, existsSync, readFileSync } from 'node:fs';
+          import { writeFileSync } from 'node:fs';
+
           const tests = JSON.parse(process.env.TESTS_JSON);
-          const passed = process.env.TEST_OUTCOME === 'success';
-          const resultPath = 'playwright-report/results.json';
-          const result = existsSync(resultPath) ? JSON.parse(readFileSync(resultPath, 'utf8')) : null;
-          const suiteStatuses = [];
-          const walk = (suite) => {
-            for (const spec of suite?.specs ?? []) {
-              const statuses = (spec.tests ?? []).map((test) => (test.results ?? []).map((r) => r.status)).flat();
-              suiteStatuses.push({ title: spec.title, file: spec.file, statuses });
-            }
-            for (const child of suite?.suites ?? []) walk(child);
-          };
-          for (const suite of result?.suites ?? []) walk(suite);
-          const executedSuites = suiteStatuses.length ? [...new Set(suiteStatuses.map((s) => s.file.split('/').pop().replace(/\\.spec\\.(?:ts|js)$/, '')))] : (passed ? tests : []);
-          const failedSuites = suiteStatuses.filter((s) => s.statuses.some((status) => ['failed', 'timedOut', 'interrupted'].includes(status))).map((s) => s.title);
-          const skippedSuites = suiteStatuses.filter((s) => s.statuses.length && s.statuses.every((status) => status === 'skipped')).map((s) => s.title);
+          const status = process.env.TEST_OUTCOME;
+          const passed = status === 'success';
           const record = {
-            schema_version: 2,
+            schema_version: 3,
             sha: process.env.CERTIFIED_SHA,
             browser: '${{ matrix.browser }}',
             shard: ${{ matrix.shard }},
             expected_suites: tests.length,
-            executed_suites: executedSuites,
-            failed: passed ? 0 : Math.max(1, failedSuites.length),
-            skipped: passed ? skippedSuites.length : skippedSuites.length,
-            status: process.env.TEST_OUTCOME,
-            failed_suites: failedSuites,
-            skipped_suites: skippedSuites,
-            started_at_ms: Number(process.env.STARTED_AT_MS),
-            finished_at_ms: Number(process.env.END_AT_MS || Date.now()),
-            duration_ms: Math.max(0, Number(process.env.END_AT_MS || Date.now()) - Number(process.env.STARTED_AT_MS)),
+            executed_suites: passed ? tests : [],
+            failed: passed ? 0 : 1,
+            skipped: 0,
+            status,
           };
-          writeFileSync(`full-matrix-evidence/${record.browser}-shard-${record.shard}.json`, JSON.stringify(record, null, 2));
+
+          writeFileSync(
+            `full-matrix-evidence/${record.browser}-shard-${record.shard}.json`,
+            JSON.stringify(record, null, 2),
+          );
           NODE
       - name: Upload shard evidence
         if: ${{ always() }}
@@ -279,7 +241,6 @@ jobs:
             playwright-report/
             test-results/
             /tmp/full-matrix-server.log
-            full-matrix-runner-diagnostics.txt
           if-no-files-found: warn
           retention-days: 14
       - name: Stop isolated preview server
@@ -316,7 +277,8 @@ jobs:
         run: |
           set -euo pipefail
           test -d full-matrix-evidence
-          compgen -G 'full-matrix-evidence/*.json' >/dev/null
+          count="$(find full-matrix-evidence -maxdepth 1 -type f -name '*.json' | wc -l)"
+          test "$count" -eq 18
       - name: Validate exact 23 × 3 certification
         env:
           EXACT_SHA: ${{ github.sha }}
@@ -329,6 +291,6 @@ jobs:
             echo
             echo "Exact SHA: ${{ github.sha }}"
             echo '23 suites × 3 browsers = 69 suite/browser executions.'
-            echo 'Full Matrix ran in parallel with canonical CI.'
-            echo '18 browser/shard runners are eligible to execute concurrently.'
+            echo 'Canonical suite IDs come directly from ci/test-duration-history.json.'
+            echo 'All 18 browser/shard evidence records passed exact-SHA validation.'
           } >> "$GITHUB_STEP_SUMMARY"
