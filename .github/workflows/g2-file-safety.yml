@@ -1,0 +1,36 @@
+name: G2 Universal File Safety Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: g2-file-safety-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  g2-file-safety:
+    name: G2 Universal File Safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: TypeScript contract
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Existing File Safety v2 regression suite
+        run: node --experimental-strip-types scripts/test-file-safety.mjs
+      - name: Consolidated G2 matrix and upload boundary
+        run: node --experimental-strip-types scripts/test-g2-file-safety.mjs

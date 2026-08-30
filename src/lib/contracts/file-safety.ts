@@ -41,6 +41,7 @@ export type ArchiveEntry = {
   name: string;
   uncompressedBytes?: number;
   isSymlink?: boolean;
+  nestedEntries?: readonly ArchiveEntry[];
 };
 
 export type ArchiveSafetyPolicy = {
@@ -89,21 +90,9 @@ export const MAGIC_BYTE_SIGNATURES: Readonly<Record<string, MagicByteSignature>>
   flac: { name: 'FLAC', bytes: [0x66, 0x4c, 0x61, 0x43] },
   mp3: { name: 'ID3/MP3', bytes: [0x49, 0x44, 0x33] },
   aac: { name: 'AAC', bytes: [0xff, 0xf1] },
-  webp: {
-    name: 'WEBP',
-    bytes: riffSignature,
-    segments: [{ bytes: [0x57, 0x45, 0x42, 0x50], offset: 8 }],
-  },
-  wav: {
-    name: 'WAV',
-    bytes: riffSignature,
-    segments: [{ bytes: [0x57, 0x41, 0x56, 0x45], offset: 8 }],
-  },
-  avi: {
-    name: 'AVI',
-    bytes: riffSignature,
-    segments: [{ bytes: [0x41, 0x56, 0x49, 0x20], offset: 8 }],
-  },
+  webp: { name: 'WEBP', bytes: riffSignature, segments: [{ bytes: [0x57, 0x45, 0x42, 0x50], offset: 8 }] },
+  wav: { name: 'WAV', bytes: riffSignature, segments: [{ bytes: [0x57, 0x41, 0x56, 0x45], offset: 8 }] },
+  avi: { name: 'AVI', bytes: riffSignature, segments: [{ bytes: [0x41, 0x56, 0x49, 0x20], offset: 8 }] },
   mp4: { name: 'ISO-BMFF', bytes: ftypSignature, offset: 4 },
   mov: { name: 'ISO-BMFF', bytes: ftypSignature, offset: 4 },
   m4a: { name: 'ISO-BMFF', bytes: ftypSignature, offset: 4 },
@@ -141,8 +130,7 @@ function matchesSegment(content: Uint8Array, segment: MagicByteSegment): boolean
 
 function matchesMagicBytes(content: Uint8Array, signature: MagicByteSignature): boolean {
   const primary: MagicByteSegment = { bytes: signature.bytes, offset: signature.offset ?? 0 };
-  return matchesSegment(content, primary)
-    && (signature.segments ?? []).every((segment) => matchesSegment(content, segment));
+  return matchesSegment(content, primary) && (signature.segments ?? []).every((segment) => matchesSegment(content, segment));
 }
 
 function validateContent(content: Uint8Array, validation: ContentValidation, failures: string[]): void {
@@ -153,13 +141,8 @@ function validateContent(content: Uint8Array, validation: ContentValidation, fai
     failures.push('input content is not valid UTF-8');
     return;
   }
-
   if (validation === 'json') {
-    try {
-      JSON.parse(text);
-    } catch {
-      failures.push('input JSON content is malformed');
-    }
+    try { JSON.parse(text); } catch { failures.push('input JSON content is malformed'); }
   }
 }
 
@@ -170,104 +153,86 @@ export function validateFileSafety(input: FileSafetyInput, policy: FileSafetyPol
 
   if (!name) failures.push('file name is required');
   else if (isUnsafeName(name)) failures.push('file name must be a single safe relative name');
-
   if (!Number.isInteger(input.bytes) || input.bytes < 1) failures.push('file size must be a positive integer');
   if (input.bytes > policy.maxBytes) failures.push('file exceeds the maximum size');
   if (!policy.allowedMime.includes(input.mime)) failures.push(`unsupported input MIME type: ${input.mime}`);
-
-  if (input.content && input.content.byteLength !== input.bytes) {
-    failures.push('declared file size does not match input content length');
-  }
+  if (input.content && input.content.byteLength !== input.bytes) failures.push('declared file size does not match input content length');
 
   if (policy.allowedExtensions) {
-    if (!extension || !policy.allowedExtensions.includes(extension)) {
-      failures.push(`unsupported file extension: ${extension || '(none)'}`);
-    }
-    const expectedMime = EXTENSION_MIME_MAP[extension];
-    if (expectedMime && expectedMime !== input.mime) {
-      failures.push(`file extension does not match MIME type: .${extension} -> ${input.mime}`);
+    if (!extension || !policy.allowedExtensions.includes(extension)) failures.push(`unsupported file extension: ${extension || '(none)'}`);
+    if (extension) {
+      const expectedMime = EXTENSION_MIME_MAP[extension] ?? '';
+      if (expectedMime && expectedMime !== input.mime) failures.push(`file extension does not match MIME type: .${extension} -> ${input.mime}`);
     }
   }
 
   if (input.width !== undefined || input.height !== undefined) {
     if (!Number.isInteger(input.width) || !input.width || input.width < 1) failures.push('width must be a positive integer');
     if (!Number.isInteger(input.height) || !input.height || input.height < 1) failures.push('height must be a positive integer');
-    if (policy.maxPixels !== undefined && Number(input.width) * Number(input.height) > policy.maxPixels) {
-      failures.push('input exceeds the maximum pixel count');
-    }
+    if (policy.maxPixels !== undefined && Number(input.width) * Number(input.height) > policy.maxPixels) failures.push('input exceeds the maximum pixel count');
   }
 
   if (policy.signatures) {
-    if (!input.signature) {
-      failures.push('input signature is required when signature validation is enabled');
-    } else {
-      const signature = normalizeSignature(input.signature);
-      if (!policy.signatures.some((allowed) => signature.startsWith(normalizeSignature(allowed)))) {
-        failures.push('input signature does not match the allowed file signatures');
-      }
-    }
+    const signature = input.signature;
+    if (!signature) failures.push('input signature is required when signature validation is enabled');
+    else if (!policy.signatures.some((allowed) => normalizeSignature(signature).startsWith(normalizeSignature(allowed)))) failures.push('input signature does not match the allowed file signatures');
   }
 
   if (policy.magicBytes) {
-    if (!input.content) {
-      failures.push('input content bytes are required when magic-byte validation is enabled');
-    } else if (!policy.magicBytes.some((allowed) => matchesMagicBytes(input.content!, allowed))) {
-      failures.push('input magic bytes do not match the allowed file signatures');
-    }
+    if (!input.content) failures.push('input content bytes are required when magic-byte validation is enabled');
+    else if (!policy.magicBytes.some((allowed) => matchesMagicBytes(input.content!, allowed))) failures.push('input magic bytes do not match the allowed file signatures');
   }
 
   if (policy.contentValidation) {
-    if (!input.content) {
-      failures.push('input content bytes are required when content validation is enabled');
-    } else if (input.content.byteLength > 0) {
-      validateContent(input.content, policy.contentValidation, failures);
-    }
+    if (!input.content) failures.push('input content bytes are required when content validation is enabled');
+    else if (input.content.byteLength > 0) validateContent(input.content, policy.contentValidation, failures);
   }
 
   return { safe: failures.length === 0, failures };
 }
 
-export function validateArchiveEntries(
-  entries: readonly ArchiveEntry[],
-  policy: ArchiveSafetyPolicy,
-): FileSafetyResult {
+export function validateArchiveEntries(entries: readonly ArchiveEntry[], policy: ArchiveSafetyPolicy): FileSafetyResult {
   const failures: string[] = [];
   let totalBytes = 0;
+  let totalEntries = 0;
+  let stopped = false;
 
   if (!Number.isInteger(policy.maxEntries) || policy.maxEntries < 1) failures.push('archive maximum entry count must be a positive integer');
-  if (!Number.isInteger(policy.maxUncompressedBytes) || policy.maxUncompressedBytes < 1) {
-    failures.push('archive maximum uncompressed size must be a positive integer');
-  }
+  if (!Number.isInteger(policy.maxUncompressedBytes) || policy.maxUncompressedBytes < 1) failures.push('archive maximum uncompressed size must be a positive integer');
   if (!Number.isInteger(policy.maxDepth) || policy.maxDepth < 0) failures.push('archive maximum depth must be a non-negative integer');
 
-  if (entries.length > policy.maxEntries) failures.push('archive exceeds the maximum entry count');
+  const visit = (current: readonly ArchiveEntry[], parentDepth: number): void => {
+    for (const entry of current) {
+      if (stopped) return;
+      totalEntries += 1;
+      if (totalEntries > policy.maxEntries) {
+        failures.push('archive exceeds the maximum entry count');
+        stopped = true;
+        return;
+      }
 
-  for (const entry of entries) {
-    const normalized = entry.name.replace(/\\/g, '/');
-    const segments = normalized.split('/').filter(Boolean);
-    const depth = Math.max(0, segments.length - 1);
-
-    if (!entry.name || /^[/\\]/.test(entry.name) || /^[A-Za-z]:($|[\\/])/.test(entry.name)) {
-      failures.push(`archive entry has an unsafe absolute path: ${entry.name || '(empty)'}`);
-    }
-    if (segments.some((segment) => segment === '..' || segment === '.')) {
-      failures.push(`archive entry contains an unsafe path segment: ${entry.name}`);
-    }
-    if (depth > policy.maxDepth) failures.push(`archive entry exceeds the maximum path depth: ${entry.name}`);
-    if (entry.isSymlink) failures.push(`archive symlink entries are not allowed: ${entry.name}`);
-
-    if (entry.uncompressedBytes !== undefined) {
-      if (!Number.isInteger(entry.uncompressedBytes) || entry.uncompressedBytes < 0) {
-        failures.push(`archive entry has an invalid uncompressed size: ${entry.name}`);
-      } else {
-        totalBytes += entry.uncompressedBytes;
-        if (totalBytes > policy.maxUncompressedBytes) {
-          failures.push('archive exceeds the maximum uncompressed size');
-          break;
+      const normalized = entry.name.replace(/\\/g, '/');
+      const segments = normalized.split('/').filter(Boolean);
+      const depth = parentDepth + Math.max(0, segments.length - 1);
+      if (!entry.name || /^[/\\]/.test(entry.name) || /^[A-Za-z]:($|[\\/])/.test(entry.name)) failures.push(`archive entry has an unsafe absolute path: ${entry.name || '(empty)'}`);
+      if (segments.some((segment) => segment === '..' || segment === '.')) failures.push(`archive entry contains an unsafe path segment: ${entry.name}`);
+      if (depth > policy.maxDepth) failures.push(`archive entry exceeds the maximum path depth: ${entry.name}`);
+      if (entry.isSymlink) failures.push(`archive symlink entries are not allowed: ${entry.name}`);
+      if (entry.uncompressedBytes !== undefined) {
+        if (!Number.isInteger(entry.uncompressedBytes) || entry.uncompressedBytes < 0) failures.push(`archive entry has an invalid uncompressed size: ${entry.name}`);
+        else {
+          totalBytes += entry.uncompressedBytes;
+          if (totalBytes > policy.maxUncompressedBytes) {
+            failures.push('archive exceeds the maximum uncompressed size');
+            stopped = true;
+            return;
+          }
         }
       }
+      if (entry.nestedEntries) visit(entry.nestedEntries, depth + 1);
     }
-  }
+  };
 
+  visit(entries, 0);
   return { safe: failures.length === 0, failures };
 }

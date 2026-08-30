@@ -33,6 +33,7 @@ export function validateUploadBoundary(
       width: input.width,
       height: input.height,
       signature,
+      content: input.bytes,
     },
     policy,
   );
