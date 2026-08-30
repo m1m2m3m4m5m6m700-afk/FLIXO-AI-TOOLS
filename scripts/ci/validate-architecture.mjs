@@ -59,7 +59,7 @@ const owners = [
   ['build', /name:\s*Runtime Build \+ Performance/],
   ['s4', /name:\s*S4 Runtime \+ E2E/],
   ['full-matrix', /name:\s*Full Matrix Promotion/],
-  ['localization', /name:\s*Localization — 20 Locale Gate/],
+  ['localization', /name:\s*(?:Localization — 20 Locale Gate|G4 — Localization \+ SEO Matrix)/],
   ['canonical', /name:\s*Canonical Verification Gate/],
 ];
 for (const [owner, pattern] of owners) {
