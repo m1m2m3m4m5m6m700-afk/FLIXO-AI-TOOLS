@@ -178,7 +178,7 @@ try {
   const expectedUrls = new Set(LOCALES.flatMap((locale) => [
     `/${locale}`,
     ...readyTools.map((tool) => getLocalizedToolPath(tool, locale)),
-  ].map((route) => new URL(route, `${canonicalOrigin}/`).toString()));
+  ].map((route) => new URL(route, `${canonicalOrigin}/`).toString())));
 
   const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)].map((match) => match[1]);
   const actualUrls = new Set(locs);
