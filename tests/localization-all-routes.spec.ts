@@ -82,21 +82,27 @@ test.describe('G4 all-public-route localization certification', () => {
           );
         expect(unnamedControlDetails, `${locale} ${route} unnamed visible controls`).toEqual([]);
 
-        const visibleFileInputDetails = await page
-          .locator('input[type="file"]:visible')
-          .evaluateAll((nodes) =>
-            nodes.flatMap((node) => {
-              if (node.getAttribute('aria-hidden') === 'true') return [];
-              const aria = (node.getAttribute('aria-label') ?? '').trim();
-              const labelledBy = (node.getAttribute('aria-labelledby') ?? '').trim();
-              const title = (node.getAttribute('title') ?? '').trim();
-              const id = node.getAttribute('id');
-              const explicitLabel = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`)?.textContent?.trim() : '';
-              const implicitLabel = node.closest('label')?.textContent?.trim() ?? '';
-              if (aria || labelledBy || title || explicitLabel || implicitLabel) return [];
-              return [{ id: node.id, html: node.outerHTML }];
-            }),
-          );
+        const visibleFileInputDetails = await page.locator('input[type="file"]').evaluateAll((nodes) =>
+          nodes.flatMap((node) => {
+            if (node.getAttribute('aria-hidden') === 'true') return [];
+            const style = window.getComputedStyle(node);
+            const rect = node.getBoundingClientRect();
+            const actuallyVisible =
+              style.display !== 'none' &&
+              style.visibility !== 'hidden' &&
+              rect.width > 0 &&
+              rect.height > 0;
+            if (!actuallyVisible) return [];
+            const aria = (node.getAttribute('aria-label') ?? '').trim();
+            const labelledBy = (node.getAttribute('aria-labelledby') ?? '').trim();
+            const title = (node.getAttribute('title') ?? '').trim();
+            const id = node.getAttribute('id');
+            const explicitLabel = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`)?.textContent?.trim() : '';
+            const implicitLabel = node.closest('label')?.textContent?.trim() ?? '';
+            if (aria || labelledBy || title || explicitLabel || implicitLabel) return [];
+            return [{ id: node.id, html: node.outerHTML }];
+          }),
+        );
         expect(visibleFileInputDetails, `${locale} ${route} unnamed visible file inputs`).toEqual([]);
 
         const imagesMissingAlt = await page.locator('img:not([alt])').count();
