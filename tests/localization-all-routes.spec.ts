@@ -60,6 +60,9 @@ test.describe('G4 all-public-route localization certification', () => {
         const unnamedControlDetails = await page.locator('button, input, select, textarea').evaluateAll((nodes) =>
           nodes.flatMap((node) => {
             if (node.getAttribute('aria-hidden') === 'true') return [];
+            const element = node as HTMLElement;
+            const styles = window.getComputedStyle(element);
+            if (element.hidden || styles.display === 'none' || styles.visibility === 'hidden') return [];
             const aria = (node.getAttribute('aria-label') ?? '').trim();
             const labelledBy = (node.getAttribute('aria-labelledby') ?? '').trim();
             const title = (node.getAttribute('title') ?? '').trim();
