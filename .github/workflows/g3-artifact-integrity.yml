@@ -39,6 +39,8 @@ jobs:
         run: npm run typecheck
       - name: ESLint
         run: npm run lint
+      - name: G3 ready-tool output contract parity
+        run: node --experimental-strip-types scripts/test-g3-output-contract-registry.mjs
       - name: Retained output integrity regression
         run: node --experimental-strip-types scripts/test-output-integrity.mjs
       - name: G3 universal artifact integrity matrix
