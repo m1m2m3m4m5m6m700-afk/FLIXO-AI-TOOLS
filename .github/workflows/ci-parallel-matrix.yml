@@ -1,0 +1,216 @@
+name: CI Parallel Full Matrix
+
+# Temporary integration workflow: runs Full Matrix in parallel with canonical CI.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-parallel-matrix-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+  VITE_SITE_URL: https://flixoai.vercel.app
+  SITE_URL: https://flixoai.vercel.app
+  CI_SHARD_COUNT: 6
+
+jobs:
+  plan:
+    name: Full Matrix — Weighted Plan
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Generate deterministic weighted browser matrix
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/ci/weighted-shard-plan.mjs > /tmp/full-matrix-plan.json
+          matrix="$(node --input-type=module -e "import { readFileSync } from 'node:fs'; const d=JSON.parse(readFileSync('/tmp/full-matrix-plan.json','utf8')); process.stdout.write(JSON.stringify(d.matrix))")"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    name: Full Matrix — ${{ matrix.browser }} — shard ${{ matrix.shard }}/${{ matrix.total_shards }}
+    needs: [plan]
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Cache Playwright browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-${{ matrix.browser }}-
+            ${{ runner.os }}-playwright-
+      - name: Install ${{ matrix.browser }}
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Build runtime artifact locally
+        run: npm run build
+      - name: Start isolated preview server
+        shell: bash
+        run: |
+          set -euo pipefail
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/full-matrix-server.log 2>&1 &
+          echo $! > /tmp/full-matrix-server.pid
+      - name: Wait for readiness and HTTP 200
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/full-matrix-server.log || true
+          exit 1
+      - name: Run assigned weighted suite set
+        id: e2e
+        env:
+          PLAYWRIGHT_SERVER: preview
+          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+          PLAYWRIGHT_REUSE_SERVER: 'true'
+          S4_EXTERNAL_SERVER: 'true'
+          TESTS_JSON: ${{ toJSON(matrix.tests) }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t suites < <(node --input-type=module -e "for (const suite of JSON.parse(process.env.TESTS_JSON)) console.log(suite)")
+          specs=()
+          for suite in "${suites[@]}"; do
+            if [[ "$suite" == "localization" ]]; then
+              specs+=("tests/localization-smoke.spec.ts")
+            else
+              spec="tests/${suite}.spec.ts"
+              test -f "$spec"
+              specs+=("$spec")
+            fi
+          done
+          npx playwright test "${specs[@]}" --project=${{ matrix.browser }} --retries=0
+      - name: Write shard evidence
+        if: ${{ always() }}
+        env:
+          CERTIFIED_SHA: ${{ github.sha }}
+          TESTS_JSON: ${{ toJSON(matrix.tests) }}
+          TEST_OUTCOME: ${{ steps.e2e.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p full-matrix-evidence
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs';
+          const tests = JSON.parse(process.env.TESTS_JSON);
+          const passed = process.env.TEST_OUTCOME === 'success';
+          const record = {
+            sha: process.env.CERTIFIED_SHA,
+            browser: '${{ matrix.browser }}',
+            shard: ${{ matrix.shard }},
+            expected_suites: tests.length,
+            executed_suites: passed ? tests : [],
+            failed: passed ? 0 : 1,
+            skipped: passed ? 0 : tests.length,
+          };
+          writeFileSync(`full-matrix-evidence/${record.browser}-shard-${record.shard}.json`, JSON.stringify(record, null, 2));
+          NODE
+      - name: Upload shard evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: full-matrix-evidence-${{ matrix.browser }}-${{ matrix.shard }}-${{ github.sha }}
+          path: full-matrix-evidence/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload shard diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: full-matrix-diagnostics-${{ matrix.browser }}-${{ matrix.shard }}-${{ github.sha }}
+          path: |
+            playwright-report/
+            test-results/
+            /tmp/full-matrix-server.log
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Stop isolated preview server
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/full-matrix-server.pid ]; then
+            PID="$(cat /tmp/full-matrix-server.pid)"
+            if kill -0 "$PID" 2>/dev/null; then
+              kill "$PID" 2>/dev/null || true
+              for _ in $(seq 1 10); do
+                kill -0 "$PID" 2>/dev/null || break
+                sleep 1
+              done
+              kill -KILL "$PID" 2>/dev/null || true
+            fi
+          fi
+
+  promotion:
+    name: Full Matrix Promotion Gate
+    needs: [e2e]
+    if: ${{ always() && needs.e2e.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Download all shard evidence
+        uses: actions/download-artifact@v7
+        with:
+          pattern: full-matrix-evidence-*
+          path: full-matrix-evidence
+          merge-multiple: true
+      - name: Require evidence files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d full-matrix-evidence
+          compgen -G 'full-matrix-evidence/*.json' >/dev/null
+      - name: Validate exact 23 × 3 certification
+        env:
+          EXACT_SHA: ${{ github.sha }}
+          EVIDENCE_ROOT: full-matrix-evidence
+        run: node scripts/ci/validate-full-matrix-evidence.mjs
+      - name: Write certification summary
+        run: |
+          {
+            echo '## FLIXO Full Matrix Certification'
+            echo
+            echo "Exact SHA: ${{ github.sha }}"
+            echo '23 suites × 3 browsers = 69 suite/browser executions.'
+            echo 'Full Matrix ran in parallel with canonical CI.'
+          } >> "$GITHUB_STEP_SUMMARY"
