@@ -312,7 +312,7 @@ jobs:
           S4_EXTERNAL_SERVER: 'true'
           PLAYWRIGHT_SERVER: 'preview'
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-        run: xvfb-run -a npx playwright test --workers=1 --retries=0 --headed
+        run: npx playwright test --workers=4 --retries=0
       - name: Verify server process group is gone
         if: ${{ always() }}
         shell: bash
