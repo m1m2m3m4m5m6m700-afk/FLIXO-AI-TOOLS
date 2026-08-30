@@ -22,7 +22,11 @@ if (!files.length) throw new Error('Full matrix evidence is empty.');
 const records = files.map((file) => ({ file, record: JSON.parse(readFileSync(file, 'utf8')) }));
 const seen = new Set();
 const errors = [];
-const normalizeSuite = (value) => String(value).replace(/\.spec\.(?:ts|js)$/u, '').replace(/\\/gu, '/').split('/').pop();
+const normalizeSuite = (value) => {
+  const raw = String(value).replace(/\\/gu, '/').split('/').pop();
+  if (raw === 'localization-smoke.spec.ts' || raw === 'localization-smoke.spec.js') return 'localization';
+  return raw.replace(/\\.spec\\.(?:ts|js)$/u, '');
+};
 
 for (const { file, record } of records) {
   for (const key of ['sha', 'browser', 'shard', 'expected_suites', 'executed_suites', 'failed', 'skipped']) {
