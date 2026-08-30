@@ -1,6 +1,7 @@
 import { createRoute, useParams } from '@tanstack/react-router';
 import { isLocale } from '@/lib/i18n';
 import { getTranslationBundle } from '@/lib/i18n/translations';
+import { buildSeoMetadata } from '../lib/seo';
 import { HomePage } from './home-page';
 import { rootRoute } from './__root';
 
@@ -10,20 +11,35 @@ export const localizedHomeRoute = createRoute({
   head: async ({ params }) => {
     const locale = isLocale(params.locale) ? params.locale : 'en';
     const bundle = await getTranslationBundle(locale);
+    const seo = buildSeoMetadata({
+      locale,
+      path: '/',
+      title: `${bundle.siteName} | ${bundle.homeTitle}`,
+      description: bundle.homeDescription,
+    });
     const direction = locale === 'ar' || locale === 'ur' ? 'rtl' : 'ltr';
+
     return {
       meta: [
-        { title: `${bundle.siteName} | ${bundle.homeTitle}` },
-        { name: 'description', content: bundle.homeDescription },
+        { title: seo.title },
+        { name: 'description', content: seo.description },
         { name: 'robots', content: 'index,follow,max-image-preview:large' },
-        { property: 'og:title', content: `${bundle.siteName} | ${bundle.homeTitle}` },
-        { property: 'og:description', content: bundle.homeDescription },
-        { property: 'og:locale', content: bundle.languageTag },
+        { property: 'og:title', content: seo.title },
+        { property: 'og:description', content: seo.description },
+        { property: 'og:locale', content: seo.language },
+      ],
+      links: [
+        { rel: 'canonical', href: seo.canonical },
+        ...seo.alternates.map(({ hreflang, href }) => ({ rel: 'alternate', hrefLang: hreflang, href })),
       ],
       scripts: [
         {
           type: 'text/javascript',
           children: `document.documentElement.lang=${JSON.stringify(bundle.languageTag)};document.documentElement.dir=${JSON.stringify(direction)};`,
+        },
+        {
+          type: 'application/ld+json',
+          children: JSON.stringify(seo.structuredData).replace(/</g, '\\u003c'),
         },
       ],
     };
