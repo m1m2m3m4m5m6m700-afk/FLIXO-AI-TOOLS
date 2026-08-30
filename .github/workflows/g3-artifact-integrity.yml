@@ -21,7 +21,7 @@ env:
 
 jobs:
   g3:
-    name: G3 Universal File Safety
+    name: G3 Universal Artifact Integrity
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
