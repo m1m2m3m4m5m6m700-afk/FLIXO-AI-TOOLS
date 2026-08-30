@@ -72,8 +72,17 @@ pass('ESLint');
 const siteUrl = process.env.VITE_SITE_URL?.trim() || (process.env.GITHUB_ACTIONS === 'true' ? 'https://canonical.test' : '');
 if (!siteUrl) fail('production S3 certification requires VITE_SITE_URL from repository variable SITE_URL');
 run('npm', ['run', 'validate:site-origin'], { VITE_SITE_URL: siteUrl });
-run('npm', ['run', 'build'], { VITE_SITE_URL: siteUrl, FLIXO_GENERATED_OUTPUT_DIR: 'dist' });
-pass(`production build for ${siteUrl}`);
+if (process.env.FLIXO_BUILD_ARTIFACT === 'true') {
+  if (!existsSync(dist)) fail('immutable build artifact directory dist is missing');
+  const buildManifestPath = join(dist, '_flixo_build_manifest.json');
+  if (!existsSync(buildManifestPath)) fail('immutable build manifest is missing from dist');
+  const buildManifest = JSON.parse(readFileSync(buildManifestPath, 'utf8'));
+  if (buildManifest.sha !== process.env.GITHUB_SHA) fail(`build artifact SHA mismatch: ${buildManifest.sha} != ${process.env.GITHUB_SHA}`);
+  pass(`verified immutable build artifact for ${buildManifest.sha}`);
+} else {
+  run('npm', ['run', 'build'], { VITE_SITE_URL: siteUrl, FLIXO_GENERATED_OUTPUT_DIR: 'dist' });
+  pass(`production build for ${siteUrl}`);
+}
 
 const builtRobotsPath = join(dist, 'robots.txt');
 const builtSitemapPath = join(dist, 'sitemap.xml');
@@ -123,15 +132,102 @@ try {
   const changedRaw = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { cwd: root, encoding: 'utf8' }).trim();
   const changed = changedRaw ? changedRaw.split('\n').filter(Boolean) : [];
   const exactAllow = new Set([
-    '.github/workflows/ci.yml', '.github/workflows/full-matrix-promotion.yml', '.github/workflows/root-cause-diagnostics.yml', '.github/workflows/s4-runtime-e2e.yml', '.github/workflows/localization-20.yml', '.github/workflows/seo-production-certification.yml',
-    'eslint.config.js', 'playwright.config.ts', 'scripts/validate-s3-static-gate.mjs', 'scripts/validate-s4-e2e.mjs', 'scripts/validate-site-origin.mjs', 'scripts/test-route-resolver.mjs', 'scripts/test-i18n-contract.mjs', 'scripts/test-seo-contract.mjs', 'scripts/test-upload-boundary.mjs', 'scripts/test-file-safety.mjs', 'scripts/test-output-integrity.mjs',
-    'scripts/validate-language-quality.mjs', 'scripts/validate-language-quality-strict.mjs', 'scripts/validate-locale-contract.mjs', 'scripts/validate-localization-complete.mjs', 'scripts/validation-utils.mjs', 'scripts/validate-indexing.mjs', 'scripts/validate-google-multilingual-seo.mjs', 'scripts/validate-seo-production.mjs',
-    'scripts/node-resolver-loader.mjs', 'scripts/register-node-resolver.mjs', 'scripts/generate-robots.mjs', 'scripts/generate-sitemap.mjs', 'scripts/validate-router-registry.mjs', 'scripts/validate-performance-budget.mjs', 'README.md', 'README', 'docs/CONSOLIDATION-LOG.md', 'docs/DEBT-REGISTER.md',
-    'docs/engineering/pr-445-decomposition.md', 'package.json', 'release/finalization/C5_PLACEHOLDER.md', 'release/finalization/README.md', 'release/finalization/final_execution_manifest.json', 'release/finalization/final_verification.json',
-    'src/main.tsx', 'src/home-modern.css', 'src/config/tool-manifest.ts', 'src/config/origin.config.ts', 'src/lib/i18n/config.ts', 'src/lib/i18n/home-loader.ts', 'src/lib/i18n/locale-quality-overrides.ts', 'src/lib/i18n/tool-seo-localization.ts',
-    'src/lib/routing/route-resolver.ts', 'src/lib/seo/tool-seo.ts', 'src/routes/__root.tsx', 'src/routes/home-page.tsx', 'src/routes/localized-home.tsx', 'src/routes/locale-pages.tsx', 'src/routes/use-case.tsx', 'src/data/home-locales.ts', 'src/data/quickflow-locales.ts', 'src/data/tool-ui-i18n.ts', 'src/components/FlixoGlobalLogo.tsx', 'src/components/auto-localized-tool-surface.tsx', 'src/lib/contracts/upload-boundary.ts', 'src/lib/contracts/file-safety.ts', 'src/lib/contracts/output-integrity.ts', 'src/tools/image-toolkit/index.tsx', 'src/tools/image-compressor/index.tsx', 'src/tools/image-compressor/output-contract.ts', 'tests/image-converter.contract.spec.ts', 'tests/localization-runtime.spec.ts',
-    'public/favicon.svg', 'public/flixo-logo.svg', 'public/flixo-logo.jpg', 'public/logo.svg', 'public/logo.jpg', 'index.html', '.env.example',
-    'evidence/c4/bundle_metric.json', 'evidence/c4/dag_manifest.pre_c4.json', 'evidence/c4/e2e_aggregate_report.json', 'evidence/c4/environment_fingerprint.json', 'evidence/c4/server_execution.log', 'evidence/c4/server_process_identity.json',
+    '.github/workflows/ci.yml',
+    '.github/workflows/full-matrix-promotion.yml',
+    '.github/workflows/root-cause-diagnostics.yml',
+    '.github/workflows/s4-runtime-e2e.yml',
+    '.github/workflows/localization-20.yml',
+    '.github/workflows/parallel-diagnostics.yml',
+    '.github/workflows/localization-core.yml',
+    '.github/workflows/phase3-chain-e2e.yml',
+    '.github/workflows/seo-production-certification.yml',
+    'eslint.config.js',
+    'playwright.config.ts',
+    'scripts/ci/architecture-benchmark.mjs',
+    'scripts/ci/change-risk-planner.mjs',
+    'scripts/ci/evidence-ledger.mjs',
+    'scripts/ci/weighted-shard-plan.mjs',
+    'scripts/ci/write-build-artifact-manifest.mjs',
+    'scripts/ci/write-evidence-ledger.mjs',
+    'scripts/validate-ci-contract.mjs',
+    'scripts/validate-architecture.mjs',
+    'scripts/validate-architecture-v2.mjs',
+    'scripts/validate-s3-static-gate.mjs',
+    'scripts/verify-contracts-core.mjs',
+    'scripts/validate-s4-e2e.mjs',
+    'scripts/validate-site-origin.mjs',
+    'scripts/test-route-resolver.mjs',
+    'scripts/test-i18n-contract.mjs',
+    'scripts/test-seo-contract.mjs',
+    'scripts/validate-language-quality.mjs',
+    'scripts/validate-language-quality-strict.mjs',
+    'scripts/validate-locale-contract.mjs',
+    'scripts/validate-localization-complete.mjs',
+    'scripts/validation-utils.mjs',
+    'scripts/validate-indexing.mjs',
+    'scripts/validate-google-multilingual-seo.mjs',
+    'scripts/validate-seo-production.mjs',
+    'scripts/node-resolver-loader.mjs',
+    'scripts/register-node-resolver.mjs',
+    'scripts/generate-robots.mjs',
+    'scripts/generate-sitemap.mjs',
+    'README.md',
+    'README',
+    'docs/CONSOLIDATION-LOG.md',
+    'docs/DEBT-REGISTER.md',
+    'docs/engineering/pr-445-decomposition.md',
+    'ci/INTEGRATION-BLOCKER.md',
+    'ci/README.md',
+    'ci/V5-V10-STATUS.md',
+    'ci/architecture-plan.md',
+    'ci/test-duration-history.json',
+    'package.json',
+    'release/finalization/C5_PLACEHOLDER.md',
+    'release/finalization/README.md',
+    'release/finalization/final_execution_manifest.json',
+    'release/finalization/final_verification.json',
+    'src/main.tsx',
+    'src/home-modern.css',
+    'src/config/tool-manifest.ts',
+    'src/config/origin.config.ts',
+    'src/lib/i18n/config.ts',
+    'src/lib/i18n/home-loader.ts',
+    'src/lib/i18n/locale-quality-overrides.ts',
+    'src/lib/i18n/tool-seo-localization.ts',
+    'src/lib/routing/route-resolver.ts',
+    'src/lib/seo/tool-seo.ts',
+    'src/routes/__root.tsx',
+    'src/routes/home-page.tsx',
+    'src/routes/localized-home.tsx',
+    'src/routes/locale-pages.tsx',
+    'src/routes/use-case.tsx',
+    'src/routes/localized-quickflow.tsx',
+    'src/data/home-locales.ts',
+    'src/data/quickflow-locales.ts',
+    'src/data/tool-ui-i18n.ts',
+    'src/components/FlixoGlobalLogo.tsx',
+    'src/components/auto-localized-tool-surface.tsx',
+    'src/lib/contracts/upload-boundary.ts',
+    'src/lib/contracts/file-safety.ts',
+    'src/lib/contracts/output-integrity.ts',
+    'src/tools/image-toolkit/index.tsx',
+    'src/tools/image-compressor/index.tsx',
+    'src/tools/image-compressor/output-contract.ts',
+    'tests/image-converter.contract.spec.ts',
+    'tests/localization-runtime.spec.ts',
+    'public/favicon.svg',
+    'public/flixo-logo.svg',
+    'public/flixo-logo.jpg',
+    'public/logo.svg',
+    'public/logo.jpg',
+    'index.html',
+    '.env.example',
+    'evidence/c4/bundle_metric.json',
+    'evidence/c4/dag_manifest.pre_c4.json',
+    'evidence/c4/e2e_aggregate_report.json',
+    'evidence/c4/environment_fingerprint.json',
+    'evidence/c4/server_execution.log',
+    'evidence/c4/server_process_identity.json',
   ]);
   const allowedLocalizedSeo = (file) => file.startsWith('src/tools/') && file.includes('/seo/') && /\/seo\/[a-z]{2}\.ts$/u.test(file);
   const unexpected = changed.filter((file) => !exactAllow.has(file) && !allowedLocalizedSeo(file));
