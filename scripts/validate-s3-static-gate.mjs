@@ -129,7 +129,14 @@ pass('critical JavaScript <= 900 KiB');
 
 const base = process.env.S3_BASE_REF ?? 'origin/main';
 try {
-  const changedRaw = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { cwd: root, encoding: 'utf8' }).trim();
+  let changedRaw;
+  try {
+    changedRaw = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { cwd: root, encoding: 'utf8' }).trim();
+  } catch (error) {
+    const headParent = execFileSync('git', ['rev-parse', 'HEAD^1'], { cwd: root, encoding: 'utf8' }).trim();
+    changedRaw = execFileSync('git', ['diff', '--name-only', `${headParent}..HEAD`], { cwd: root, encoding: 'utf8' }).trim();
+    console.log(`S3 BASE FALLBACK: ${base} has no merge base; using first-parent diff ${headParent}..HEAD for PR merge checkout.`);
+  }
   const changed = changedRaw ? changedRaw.split('\n').filter(Boolean) : [];
   const exactAllow = new Set([
     '.github/workflows/ci.yml',
