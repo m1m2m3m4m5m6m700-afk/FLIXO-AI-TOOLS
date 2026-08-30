@@ -57,30 +57,29 @@ test.describe('G4 all-public-route localization certification', () => {
         );
         expect(accessibilityViolations, `${locale} ${route} empty aria-labels`).toEqual([]);
 
-        const unnamedControlDetails = await page.locator('button, input, select, textarea').evaluateAll((nodes) =>
-          nodes.flatMap((node) => {
-            if (node.getAttribute('aria-hidden') === 'true') return [];
-            const element = node as HTMLElement;
-            const styles = window.getComputedStyle(element);
-            if (element.hidden || styles.display === 'none' || styles.visibility === 'hidden') return [];
-            const aria = (node.getAttribute('aria-label') ?? '').trim();
-            const labelledBy = (node.getAttribute('aria-labelledby') ?? '').trim();
-            const title = (node.getAttribute('title') ?? '').trim();
-            const text = (node.textContent ?? '').trim();
-            const placeholder = (node.getAttribute('placeholder') ?? '').trim();
-            const id = node.getAttribute('id');
-            const explicitLabel = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`)?.textContent?.trim() : '';
-            const implicitLabel = node.closest('label')?.textContent?.trim() ?? '';
-            if (aria || labelledBy || title || text || placeholder || explicitLabel || implicitLabel) return [];
-            return [{
-              tag: node.tagName.toLowerCase(),
-              type: node.getAttribute('type'),
-              id: node.id,
-              className: typeof node.className === 'string' ? node.className : '',
-              html: node.outerHTML,
-            }];
-          }),
-        );
+        const unnamedControlDetails = await page
+          .locator('button:visible, input:visible, select:visible, textarea:visible')
+          .evaluateAll((nodes) =>
+            nodes.flatMap((node) => {
+              if (node.getAttribute('aria-hidden') === 'true') return [];
+              const aria = (node.getAttribute('aria-label') ?? '').trim();
+              const labelledBy = (node.getAttribute('aria-labelledby') ?? '').trim();
+              const title = (node.getAttribute('title') ?? '').trim();
+              const text = (node.textContent ?? '').trim();
+              const placeholder = (node.getAttribute('placeholder') ?? '').trim();
+              const id = node.getAttribute('id');
+              const explicitLabel = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`)?.textContent?.trim() : '';
+              const implicitLabel = node.closest('label')?.textContent?.trim() ?? '';
+              if (aria || labelledBy || title || text || placeholder || explicitLabel || implicitLabel) return [];
+              return [{
+                tag: node.tagName.toLowerCase(),
+                type: node.getAttribute('type'),
+                id: node.id,
+                className: typeof node.className === 'string' ? node.className : '',
+                html: node.outerHTML,
+              }];
+            }),
+          );
         expect(unnamedControlDetails, `${locale} ${route} unnamed controls`).toEqual([]);
 
         const imagesMissingAlt = await page.locator('img:not([alt])').count();
