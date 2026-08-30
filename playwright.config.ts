@@ -11,20 +11,23 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: isCi,
-  workers: isS4RuntimeGate ? 1 : isCi ? 3 : undefined,
+  workers: isS4RuntimeGate ? 4 : isCi ? 3 : undefined,
   retries: isS4RuntimeGate ? 0 : isCi ? 2 : 0,
-  timeout: 45_000,
-  expect: { timeout: 10_000 },
-  reporter: isCi
-    ? [['github'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]]
-    : [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]],
+  timeout: isS4RuntimeGate ? 30_000 : 45_000,
+  expect: { timeout: isS4RuntimeGate ? 7_000 : 10_000 },
+  preserveOutput: isS4RuntimeGate ? 'failures-only' : 'always',
+  reporter: isS4RuntimeGate
+    ? [['github'], ['json', { outputFile: 'playwright-report/results.json' }]]
+    : isCi
+      ? [['github'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]]
+      : [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]],
   use: {
     baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://127.0.0.1:3000',
     serviceWorkers: 'block',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
-    actionTimeout: 15_000,
+    actionTimeout: isS4RuntimeGate ? 10_000 : 15_000,
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
@@ -41,7 +44,7 @@ export default defineConfig({
         },
       },
     },
-    { name: 'webkit', use: { ...devices['Desktop Safari'], actionTimeout: 20_000 } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'], actionTimeout: isS4RuntimeGate ? 12_000 : 20_000 } },
   ],
   ...(isS4ExternalServer
     ? {}
