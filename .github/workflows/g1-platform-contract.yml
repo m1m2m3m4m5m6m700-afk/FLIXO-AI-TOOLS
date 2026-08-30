@@ -32,32 +32,34 @@ jobs:
         run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-platform-contract.mjs
       - name: Install Chromium for G1 runtime boundary
         run: npx playwright install --with-deps chromium
-      - name: Build G1 runtime target
-        run: npm run build
-      - name: Start isolated G1 preview server
+      - name: Build G1 static route target
+        run: |
+          npm run build
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-static-route-entries.mjs
+      - name: Start isolated G1 static server
         shell: bash
         run: |
           set -euo pipefail
-          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/g1-preview.log 2>&1 &
-          echo $! >/tmp/g1-preview.pid
+          setsid python3 -m http.server 3000 --bind 127.0.0.1 --directory dist >/tmp/g1-static.log 2>&1 &
+          echo $! >/tmp/g1-static.pid
           for _ in $(seq 1 60); do
             if curl --fail --silent --show-error http://127.0.0.1:3000/en >/dev/null; then exit 0; fi
             sleep 1
           done
-          cat /tmp/g1-preview.log
+          cat /tmp/g1-static.log
           exit 1
-      - name: Prove every unready tool is non-public at runtime
+      - name: Prove every unready tool is non-public at HTTP layer
         env:
           S4_EXTERNAL_SERVER: 'true'
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
         run: npx playwright test tests/g1-unready-routes.spec.ts --project=chromium
-      - name: Cleanup G1 preview server
+      - name: Cleanup G1 static server
         if: ${{ always() }}
         shell: bash
         run: |
           set +e
-          if [ -f /tmp/g1-preview.pid ]; then
-            PID="$(cat /tmp/g1-preview.pid)"
+          if [ -f /tmp/g1-static.pid ]; then
+            PID="$(cat /tmp/g1-static.pid)"
             PGID="$(ps -o pgid= -p "$PID" 2>/dev/null | tr -d ' ' )"
             if [ -n "$PGID" ] && [ "$PGID" != "1" ]; then kill -- -"$PGID" 2>/dev/null || true; fi
           fi
