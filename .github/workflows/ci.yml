@@ -1,6 +1,6 @@
 name: CI
 
-# Canonical CI: parallel evidence + one fail-closed aggregator.
+# Canonical CI: build once, parallel evidence, one fail-closed ledger and aggregator.
 on:
   push:
     branches:
@@ -56,13 +56,27 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
-      - run: npm run build:runtime
+      - run: npm run build
       - name: Validate performance budget
         run: npm run validate:performance-budget
       - name: Write performance baseline
         run: npm run report:performance-baseline
       - name: Write bundle size report
         run: npm run report:bundle-size
+      - name: Write immutable build manifest
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_WORKFLOW: ${{ github.workflow }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: node scripts/ci/write-build-artifact-manifest.mjs
+      - name: Upload immutable build artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-build-${{ github.sha }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 14
       - uses: actions/upload-artifact@v6
         with:
           name: performance-baseline
@@ -145,9 +159,11 @@ jobs:
 
   s3-static-gate:
     name: S3 Static Gate
+    needs: [build]
     runs-on: ubuntu-latest
     env:
       VITE_SITE_URL: https://flixoai.vercel.app
+      FLIXO_BUILD_ARTIFACT: 'true'
     steps:
       - uses: actions/checkout@v5
         with:
@@ -157,60 +173,117 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Download immutable build artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: flixo-build-${{ github.sha }}
+          path: dist
       - run: npm run validate:site-origin
-      - name: Run S3 static certification
+      - name: Run S3 static certification against immutable build
         env:
           S3_BASE_REF: origin/main
         run: node scripts/validate-s3-static-gate.mjs
 
+  production-seo:
+    name: Production SEO Artifacts
+    needs: [build]
+    runs-on: ubuntu-latest
+    env:
+      VITE_SITE_URL: https://flixoai.vercel.app
+      FLIXO_BUILD_ARTIFACT: 'true'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Download immutable build artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: flixo-build-${{ github.sha }}
+          path: dist
+      - name: Validate generated SEO artifacts
+        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-seo-production.mjs
+      - name: Validate complete SEO and indexing source contract
+        run: |
+          npm run validate:seo
+          npm run validate:seo-manifest
+          npm run validate:use-case-seo
+          npm run validate:indexing
+          npm run validate:breadcrumb-seo
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-google-multilingual-seo.mjs
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-language-quality-strict.mjs
+      - name: Final SEO/indexing certification
+        run: |
+          set -euo pipefail
+          test -f dist/robots.txt
+          test -f dist/sitemap.xml
+          grep -Fx "Sitemap: ${VITE_SITE_URL}/sitemap.xml" dist/robots.txt
+          grep -Fq 'xmlns:xhtml="http://www.w3.org/1999/xhtml"' dist/sitemap.xml
+          echo "SEO/Indexing certification GREEN: production artifacts + canonical origin + hreflang + x-default + robots + indexing contracts passed."
+
+  evidence-ledger:
+    name: Evidence Ledger
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, s3-static-gate, production-seo]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Write fail-closed evidence ledger
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_WORKFLOW: ${{ github.workflow }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          FLIXO_EVIDENCE_GATES: >-
+            [
+              {"gate":"typecheck","owner":"CI / TypeScript","result":"${{ needs.typecheck.result }}"},
+              {"gate":"lint","owner":"CI / ESLint","result":"${{ needs.lint.result }}"},
+              {"gate":"build","owner":"CI / Build","result":"${{ needs.build.result }}"},
+              {"gate":"audit","owner":"CI / Production Audit","result":"${{ needs.audit.result }}"},
+              {"gate":"socket","owner":"CI / Socket Supply Chain","result":"${{ needs.socket.result }}"},
+              {"gate":"secret-scan","owner":"CI / Secret History Scan","result":"${{ needs.secret-scan.result }}"},
+              {"gate":"codeql","owner":"CI / CodeQL","result":"${{ needs.security.result }}"},
+              {"gate":"fast-contract","owner":"CI / Fast Contract Diagnostics","result":"${{ needs.fast-contract.result }}"},
+              {"gate":"s3","owner":"CI / S3 Static Gate","result":"${{ needs.s3-static-gate.result }}"},
+              {"gate":"production-seo","owner":"CI / Production SEO Artifacts","result":"${{ needs.production-seo.result }}"}
+            ]
+        run: node scripts/ci/write-evidence-ledger.mjs
+      - name: Upload evidence ledger
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-evidence-ledger-${{ github.sha }}
+          path: evidence/ci/evidence-ledger.json
+          if-no-files-found: error
+          retention-days: 30
+
   canonical-verify:
     name: Canonical Verification Gate
-    if: ${{ always() && needs.typecheck.result != 'skipped' && needs.lint.result != 'skipped' && needs.build.result != 'skipped' && needs.audit.result != 'skipped' && needs.socket.result != 'skipped' && needs.secret-scan.result != 'skipped' && needs.security.result != 'skipped' && needs.fast-contract.result != 'skipped' && needs.s3-static-gate.result != 'skipped' }}
+    if: ${{ always() }}
     runs-on: ubuntu-latest
-    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, s3-static-gate]
+    needs: [evidence-ledger]
     steps:
-      - name: Fail closed on any prerequisite result
+      - name: Fail closed on ledger status
         shell: bash
         run: |
           set -euo pipefail
-          results=(
-            "TypeScript=${{ needs.typecheck.result }}"
-            "ESLint=${{ needs.lint.result }}"
-            "Build=${{ needs.build.result }}"
-            "Audit=${{ needs.audit.result }}"
-            "Socket=${{ needs.socket.result }}"
-            "SecretScan=${{ needs.secret-scan.result }}"
-            "CodeQL=${{ needs.security.result }}"
-            "FastContract=${{ needs.fast-contract.result }}"
-            "S3=${{ needs.s3-static-gate.result }}"
-          )
-          for result in "${results[@]}"; do
-            echo "$result"
-            if [[ "$result" != *=success ]]; then
-              echo 'Canonical Verification FAILED: required evidence is not successful.'
-              exit 1
-            fi
-          done
-          echo 'Canonical Verification PASSED: every required evidence job succeeded for the exact commit.'
-      - name: Write canonical evidence
-        run: |
-          {
-            echo '## FLIXO Canonical Verification'
-            echo
-            echo 'All required evidence jobs succeeded for exact commit:'
-            echo '${{ github.sha }}'
-            echo
-            echo 'Canonical is an aggregator only; it does not rerun tests already owned by required evidence jobs.'
-            echo 'Full browser certification remains independent on main/release.'
-            echo 'Localization certification remains owned by the Localization — 20 Locale Gate.'
-            echo 'Production SEO artifact certification remains owned by SEO Production Certification.'
-          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ '${{ needs.evidence-ledger.result }}' != 'success' ]]; then
+            echo "Evidence Ledger did not pass: ${{ needs.evidence-ledger.result }}"
+            exit 1
+          fi
+          echo 'Canonical Verification PASSED: evidence ledger is complete, fail-closed, and tied to the current SHA.'
 
   diagnostic-summary:
     name: Diagnostic Summary
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, s3-static-gate, canonical-verify]
+    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, s3-static-gate, production-seo, evidence-ledger, canonical-verify]
     steps:
       - name: Write CI summary
         run: |
@@ -228,6 +301,8 @@ jobs:
             echo '| CodeQL | ${{ needs.security.result }} |'
             echo '| Fast Contract Diagnostics | ${{ needs.fast-contract.result }} |'
             echo '| S3 Static Gate | ${{ needs.s3-static-gate.result }} |'
+            echo '| Production SEO Artifacts | ${{ needs.production-seo.result }} |'
+            echo '| Evidence Ledger | ${{ needs.evidence-ledger.result }} |'
             echo '| Canonical Verification | ${{ needs.canonical-verify.result }} |'
           } >> "$GITHUB_STEP_SUMMARY"
 
