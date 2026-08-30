@@ -28,11 +28,15 @@ if (/browser-smoke/i.test(ci)) failures.push('Canonical CI must not own browser-
 if (/s3-static-gate:[\s\S]{0,1600}npm run build(?!:runtime)/.test(ci)) failures.push('S3 Static Gate must consume artifact, never rebuild.');
 if (!/flixo-build-\$\{\{ github\.sha \}\}/.test(ci)) failures.push('CI must publish a SHA-addressed immutable build artifact.');
 if (!/s4-runtime-e2e:[\s\S]{0,1400}needs:\s*\[build\]/.test(ci)) failures.push('S4 must depend on the canonical Build Once job.');
-if (!/s4-runtime-e2e:[\s\S]{0,6000}download-artifact@v7/.test(ci)) failures.push('S4 must consume the immutable CI build artifact.');
-if (!/s4-runtime-e2e:[\s\S]{0,12000}S4 RUNTIME ROOT CAUSE DETECTED/.test(ci)) failures.push('S4 must fail-fast on first runtime root cause.');
+if (!/s4-runtime-e2e:[\s\S]{0,14000}download-artifact@v7/.test(ci)) failures.push('S4 must consume the immutable CI build artifact.');
+if (!/s4-runtime-e2e:[\s\S]{0,20000}S4 RUNTIME ROOT CAUSE DETECTED/.test(ci)) failures.push('S4 must fail-fast on first runtime root cause.');
 
 const standaloneS4 = find('s4-runtime-e2e.yml');
-if (standaloneS4) failures.push('Standalone s4-runtime-e2e.yml must be removed; S4 has one owner inside canonical CI.');
+if (standaloneS4) {
+  if (/(^|\n)\s*(pull_request|push):/.test(standaloneS4)) failures.push('Standalone S4 diagnostic must be manual-only.');
+  if (/name:\s*S4 Runtime \+ E2E/.test(standaloneS4)) failures.push('Standalone S4 diagnostic may not reuse the blocking owner name.');
+  if (!/workflow_dispatch:/.test(standaloneS4)) failures.push('Standalone S4 diagnostic must support manual execution.');
+}
 
 const fullMatrix = find('full-matrix-promotion.yml');
 if (/^\s*pull_request:/m.test(fullMatrix)) failures.push('Full Matrix must not run independently on pull requests; S4 owns PR runtime coverage.');
