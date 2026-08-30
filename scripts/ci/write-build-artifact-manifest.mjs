@@ -28,10 +28,12 @@ const artifactSha = createHash('sha256')
   .update(files.map(({ path, bytes, sha256 }) => `${path}\0${bytes}\0${sha256}`).join('\n'))
   .digest('hex');
 
+const commitSha = process.env.GITHUB_SHA ?? null;
 const manifest = {
   schema_version: 1,
   artifact_sha256: artifactSha,
-  commit_sha: process.env.GITHUB_SHA ?? null,
+  sha: commitSha,
+  commit_sha: commitSha,
   run_id: process.env.GITHUB_RUN_ID ?? null,
   workflow: process.env.GITHUB_WORKFLOW ?? null,
   event: process.env.GITHUB_EVENT_NAME ?? null,
@@ -40,4 +42,4 @@ const manifest = {
 };
 
 writeFileSync(join(distRoot, '_flixo_build_manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(JSON.stringify({ artifact_sha256: artifactSha, file_count: files.length }, null, 2));
+console.log(JSON.stringify({ artifact_sha256: artifactSha, commit_sha: commitSha, file_count: files.length }, null, 2));
