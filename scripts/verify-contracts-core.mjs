@@ -15,6 +15,7 @@ const commands = [
   ['tool-manifest', 'npm', ['run', 'validate:tool-manifest']],
   ['router-registry', 'npm', ['run', 'validate:router-registry']],
   ['ci-contract', 'npm', ['run', 'validate:ci-contract']],
+  ['ci-artifact-contract', 'node', ['scripts/validate-ci-artifact-contract.mjs']],
 ];
 
 for (const [name, command, args] of commands) {
