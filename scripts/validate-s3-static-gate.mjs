@@ -72,8 +72,18 @@ pass('ESLint');
 const siteUrl = process.env.VITE_SITE_URL?.trim() || (process.env.GITHUB_ACTIONS === 'true' ? 'https://canonical.test' : '');
 if (!siteUrl) fail('production S3 certification requires VITE_SITE_URL from repository variable SITE_URL');
 run('npm', ['run', 'validate:site-origin'], { VITE_SITE_URL: siteUrl });
-run('npm', ['run', 'build'], { VITE_SITE_URL: siteUrl, FLIXO_GENERATED_OUTPUT_DIR: 'dist' });
-pass(`production build for ${siteUrl}`);
+
+if (process.env.FLIXO_BUILD_ARTIFACT === 'true') {
+  if (!existsSync(dist)) fail('immutable build artifact directory dist is missing');
+  const buildManifestPath = join(dist, '_flixo_build_manifest.json');
+  if (!existsSync(buildManifestPath)) fail('immutable build manifest is missing from dist');
+  const buildManifest = JSON.parse(readFileSync(buildManifestPath, 'utf8'));
+  if (buildManifest.sha !== process.env.GITHUB_SHA) fail(`build artifact SHA mismatch: ${buildManifest.sha} != ${process.env.GITHUB_SHA}`);
+  pass(`verified immutable build artifact for ${buildManifest.sha}`);
+} else {
+  run('npm', ['run', 'build'], { VITE_SITE_URL: siteUrl, FLIXO_GENERATED_OUTPUT_DIR: 'dist' });
+  pass(`production build for ${siteUrl}`);
+}
 
 const builtRobotsPath = join(dist, 'robots.txt');
 const builtSitemapPath = join(dist, 'sitemap.xml');
@@ -165,6 +175,9 @@ try {
     '.github/workflows/root-cause-diagnostics.yml',
     '.github/workflows/localization-core.yml',
     '.github/workflows/phase3-chain-e2e.yml',
+    '.github/workflows/seo-production-certification.yml',
+    'scripts/ci/write-build-artifact-manifest.mjs',
+    'scripts/ci/write-evidence-ledger.mjs',
     'scripts/validate-ci-contract.mjs',
     'scripts/validate-s3-static-gate.mjs',
     'scripts/verify-contracts-core.mjs',
