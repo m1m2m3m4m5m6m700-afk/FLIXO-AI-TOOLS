@@ -1,0 +1,79 @@
+name: CI Diagnostic Intelligence & SLO
+
+# Advisory post-run analysis. It never reruns or replaces blocking CI gates.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  analyze:
+    name: CI Diagnostic Intelligence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Collect completed CI run and jobs
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const { data } = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: run.id,
+              per_page: 100,
+            });
+            const fs = require('node:fs');
+            fs.mkdirSync('diagnostics/ci', { recursive: true });
+            fs.writeFileSync('diagnostics/ci/workflow-run.json', JSON.stringify({
+              workflow: run.name,
+              run_id: run.id,
+              head_sha: run.head_sha,
+              conclusion: run.conclusion,
+              run_started_at: run.run_started_at,
+              updated_at: run.updated_at,
+              event: run.event,
+              jobs: data.jobs.map(job => ({
+                name: job.name,
+                status: job.status,
+                conclusion: job.conclusion,
+                started_at: job.started_at,
+                completed_at: job.completed_at,
+              })),
+            }, null, 2));
+
+      - name: Generate deterministic diagnostic report
+        run: node scripts/ci/analyze-workflow-run.mjs
+
+      - name: Validate CI SLO
+        id: slo
+        continue-on-error: true
+        run: node scripts/ci/validate-ci-slo.mjs
+
+      - name: Write diagnostic summary
+        if: always()
+        shell: bash
+        run: |
+          echo '## CI Diagnostic Intelligence & SLO' >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo '- Blocking CI remains the source of truth; this workflow never reruns tests.' >> "$GITHUB_STEP_SUMMARY"
+          echo '- Diagnostic report: `diagnostics/ci/diagnostic-report.json`' >> "$GITHUB_STEP_SUMMARY"
+          echo '- SLO result: `${{ steps.slo.outcome }}`' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-ci-diagnostics-${{ github.event.workflow_run.head_sha }}
+          path: |
+            diagnostics/ci/workflow-run.json
+            diagnostics/ci/diagnostic-report.json
+          if-no-files-found: error
+          retention-days: 30
