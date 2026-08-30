@@ -27,6 +27,7 @@ env:
   CI_MAX_SHARDS: '6'
   CI_RUNNER_RESERVE: '0'
   CI_RUNNER_BUDGET: '18'
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
 jobs:
   source-build:
@@ -93,8 +94,8 @@ jobs:
     needs: [source-build, weighted-plan]
     strategy:
       fail-fast: false
-      # Run all 18 browser/shard executions concurrently. Each shard is an
-      # independent runner with 4 Playwright workers, preserving test coverage.
+      # All 18 browser/shard jobs are eligible to run at once. GitHub may queue
+      # excess jobs only when the account/repository concurrency limit is lower.
       max-parallel: 18
       matrix:
         include: ${{ fromJSON(needs.weighted-plan.outputs.matrix) }}
@@ -104,6 +105,10 @@ jobs:
       VITE_SITE_URL: https://flixoai.vercel.app
       SITE_URL: https://flixoai.vercel.app
     steps:
+      - name: Start precise timing
+        id: timing
+        shell: bash
+        run: echo "started_at=$(date +%s%3N)" >> "$GITHUB_OUTPUT"
       - name: Record runner diagnostics
         shell: bash
         run: |
@@ -114,7 +119,8 @@ jobs:
             echo "timestamp=$(date -u +%FT%TZ)"
             echo "browser=${{ matrix.browser }}"
             echo "shard=${{ matrix.shard }}/${{ matrix.total_shards }}"
-            echo "npm_cache=$HOME/.npm"
+            echo "memory="; free -h
+            echo "disk="; df -h .
           } > full-matrix-runner-diagnostics.txt
       - uses: actions/checkout@v5
         with:
@@ -126,6 +132,7 @@ jobs:
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Cache Playwright browser
+        id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
@@ -135,6 +142,11 @@ jobs:
             ${{ runner.os }}-playwright-
       - name: Install ${{ matrix.browser }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Record cache diagnostics
+        shell: bash
+        env:
+          CACHE_HIT: ${{ steps.playwright-cache.outputs.cache-hit }}
+        run: echo "playwright_cache_hit=${CACHE_HIT:-false}" >> full-matrix-runner-diagnostics.txt
       - name: Download Full Matrix source artifact
         uses: actions/download-artifact@v7
         with:
@@ -179,21 +191,6 @@ jobs:
           done
           cat /tmp/full-matrix-server.log || true
           exit 1
-      - name: Diagnose runtime baseline
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --input-type=module <<'NODE' > full-matrix-runtime-baseline.json
-          import { writeFileSync } from 'node:fs';
-          const payload = {
-            browser: '${{ matrix.browser }}',
-            shard: ${{ matrix.shard }},
-            url: 'http://127.0.0.1:3000/',
-            timestamp: new Date().toISOString(),
-          };
-          writeFileSync('full-matrix-runtime-baseline.json', JSON.stringify(payload, null, 2));
-          console.log(JSON.stringify(payload));
-          NODE
       - name: Run assigned weighted suite set
         id: e2e
         env:
@@ -223,24 +220,45 @@ jobs:
           CERTIFIED_SHA: ${{ github.sha }}
           TESTS_JSON: ${{ toJSON(matrix.tests) }}
           TEST_OUTCOME: ${{ steps.e2e.outcome }}
+          STARTED_AT_MS: ${{ steps.timing.outputs.started_at }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p full-matrix-evidence
+          END_AT_MS="$(date +%s%3N)"
           node --input-type=module <<'NODE'
-          import { writeFileSync } from 'node:fs';
+          import { writeFileSync, existsSync, readFileSync } from 'node:fs';
           const tests = JSON.parse(process.env.TESTS_JSON);
           const passed = process.env.TEST_OUTCOME === 'success';
+          const resultPath = 'playwright-report/results.json';
+          const result = existsSync(resultPath) ? JSON.parse(readFileSync(resultPath, 'utf8')) : null;
+          const suiteStatuses = [];
+          const walk = (suite) => {
+            for (const spec of suite?.specs ?? []) {
+              const statuses = (spec.tests ?? []).map((test) => (test.results ?? []).map((r) => r.status)).flat();
+              suiteStatuses.push({ title: spec.title, file: spec.file, statuses });
+            }
+            for (const child of suite?.suites ?? []) walk(child);
+          };
+          for (const suite of result?.suites ?? []) walk(suite);
+          const executedSuites = suiteStatuses.length ? [...new Set(suiteStatuses.map((s) => s.file.split('/').pop().replace(/\\.spec\\.(?:ts|js)$/, '')))] : (passed ? tests : []);
+          const failedSuites = suiteStatuses.filter((s) => s.statuses.some((status) => ['failed', 'timedOut', 'interrupted'].includes(status))).map((s) => s.title);
+          const skippedSuites = suiteStatuses.filter((s) => s.statuses.length && s.statuses.every((status) => status === 'skipped')).map((s) => s.title);
           const record = {
-            schema_version: 1,
+            schema_version: 2,
             sha: process.env.CERTIFIED_SHA,
             browser: '${{ matrix.browser }}',
             shard: ${{ matrix.shard }},
             expected_suites: tests.length,
-            executed_suites: tests,
-            failed: passed ? 0 : 1,
+            executed_suites: executedSuites,
+            failed: passed ? 0 : Math.max(1, failedSuites.length),
+            skipped: passed ? skippedSuites.length : skippedSuites.length,
             status: process.env.TEST_OUTCOME,
-            evidence_generated_at: new Date().toISOString(),
+            failed_suites: failedSuites,
+            skipped_suites: skippedSuites,
+            started_at_ms: Number(process.env.STARTED_AT_MS),
+            finished_at_ms: Number(process.env.END_AT_MS || Date.now()),
+            duration_ms: Math.max(0, Number(process.env.END_AT_MS || Date.now()) - Number(process.env.STARTED_AT_MS)),
           };
           writeFileSync(`full-matrix-evidence/${record.browser}-shard-${record.shard}.json`, JSON.stringify(record, null, 2));
           NODE
@@ -262,7 +280,6 @@ jobs:
             test-results/
             /tmp/full-matrix-server.log
             full-matrix-runner-diagnostics.txt
-            full-matrix-runtime-baseline.json
           if-no-files-found: warn
           retention-days: 14
       - name: Stop isolated preview server
@@ -313,5 +330,5 @@ jobs:
             echo "Exact SHA: ${{ github.sha }}"
             echo '23 suites × 3 browsers = 69 suite/browser executions.'
             echo 'Full Matrix ran in parallel with canonical CI.'
-            echo 'All 18 browser/shard runners are eligible to execute concurrently.'
+            echo '18 browser/shard runners are eligible to execute concurrently.'
           } >> "$GITHUB_STEP_SUMMARY"
