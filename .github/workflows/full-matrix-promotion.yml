@@ -142,7 +142,7 @@ jobs:
           SITE_URL: https://flixoai.vercel.app
         run: |
           set -euo pipefail
-          npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/full-matrix-server.log 2>&1 &
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/full-matrix-server.log 2>&1 &
           echo $! >/tmp/full-matrix-server.pid
           for _ in $(seq 1 60); do
             if curl --fail --silent http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
