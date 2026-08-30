@@ -137,6 +137,9 @@ jobs:
           path: dist
       - name: Start isolated preview server
         shell: bash
+        env:
+          VITE_SITE_URL: https://flixoai.vercel.app
+          SITE_URL: https://flixoai.vercel.app
         run: |
           set -euo pipefail
           npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/full-matrix-server.log 2>&1 &
@@ -154,6 +157,8 @@ jobs:
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
           PLAYWRIGHT_REUSE_SERVER: 'true'
           S4_EXTERNAL_SERVER: 'true'
+          VITE_SITE_URL: https://flixoai.vercel.app
+          SITE_URL: https://flixoai.vercel.app
           TESTS_JSON: ${{ toJSON(matrix.tests) }}
         shell: bash
         run: |
@@ -195,18 +200,37 @@ jobs:
           };
           writeFileSync(`full-matrix-evidence/${record.browser}-shard-${record.shard}.json`, JSON.stringify(record, null, 2));
           NODE
-      - name: Upload shard diagnostics and evidence
+      - name: Upload shard evidence only
         if: ${{ always() }}
         uses: actions/upload-artifact@v6
         with:
-          name: full-matrix-${{ matrix.browser }}-${{ matrix.shard }}-${{ needs.source-artifact.outputs.certified_sha }}
+          name: full-matrix-evidence-${{ matrix.browser }}-${{ matrix.shard }}-${{ needs.source-artifact.outputs.certified_sha }}
+          path: full-matrix-evidence/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload shard diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: full-matrix-diagnostics-${{ matrix.browser }}-${{ matrix.shard }}-${{ needs.source-artifact.outputs.certified_sha }}
           path: |
-            full-matrix-evidence/
             playwright-report/
             test-results/
             /tmp/full-matrix-server.log
           if-no-files-found: warn
           retention-days: 14
+      - name: Verify server process group is gone
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/full-matrix-server.pid ]; then
+            PID="$(cat /tmp/full-matrix-server.pid)"
+            PGID="$(ps -o pgid= -p "$PID" 2>/dev/null | tr -d ' ' )"
+            if [ -n "$PGID" ] && [ "$PGID" != "1" ] && kill -0 "$PID" 2>/dev/null; then
+              kill -- -"$PGID" 2>/dev/null || true
+            fi
+          fi
 
   promotion:
     name: Full Matrix Promotion Gate
@@ -221,13 +245,19 @@ jobs:
       - name: Download all shard evidence
         uses: actions/download-artifact@v7
         with:
-          pattern: full-matrix-*-*-*${{ needs.source-artifact.outputs.certified_sha }}
+          pattern: full-matrix-evidence-*
           path: full-matrix-evidence
           merge-multiple: true
+      - name: Require evidence files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d full-matrix-evidence
+          compgen -G 'full-matrix-evidence/*.json' >/dev/null
       - name: Validate exact 23 × 3 certification
         env:
           EXACT_SHA: ${{ needs.source-artifact.outputs.certified_sha }}
-          EVIDENCE_ROOT: full-matrix-evidence/full-matrix-evidence
+          EVIDENCE_ROOT: full-matrix-evidence
         run: node scripts/ci/validate-full-matrix-evidence.mjs
       - name: Write certification evidence
         env:
