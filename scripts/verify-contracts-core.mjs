@@ -15,6 +15,9 @@ const commands = [
   ['tool-manifest', 'npm', ['run', 'validate:tool-manifest']],
   ['router-registry', 'npm', ['run', 'validate:router-registry']],
   ['ci-contract', 'npm', ['run', 'validate:ci-contract']],
+  ['final-architecture', 'node', ['scripts/ci/validate-architecture.mjs']],
+  ['change-intelligence', 'node', ['scripts/ci/change-risk-planner.mjs']],
+  ['weighted-shard-plan', 'node', ['scripts/ci/weighted-shard-plan.mjs']],
 ];
 
 for (const [name, command, args] of commands) {
