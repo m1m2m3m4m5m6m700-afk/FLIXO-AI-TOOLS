@@ -1,0 +1,45 @@
+name: Gitleaks Diagnostic
+on:
+  push:
+    branches: [diag/gitleaks-20260830]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Scan history and print redacted metadata
+        shell: bash
+        run: |
+          set +e
+          docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.24.3 \
+            detect --source=/repo --no-banner --redact \
+            --report-format=json --report-path=/tmp/gitleaks.json
+          status=$?
+          test -f /tmp/gitleaks.json || exit "$status"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const findings = JSON.parse(readFileSync('/tmp/gitleaks.json', 'utf8'));
+          for (const [i, f] of findings.entries()) {
+            console.log(JSON.stringify({
+              index: i + 1,
+              ruleId: f.RuleID,
+              description: f.Description,
+              file: f.File,
+              startLine: f.StartLine,
+              endLine: f.EndLine,
+              commit: f.Commit,
+              author: f.Author,
+              email: f.Email,
+              date: f.Date,
+              fingerprint: f.Fingerprint,
+            }));
+          }
+          console.log(`FINDINGS=${findings.length}`);
+          process.exit(findings.length ? 1 : 0);
+          NODE
