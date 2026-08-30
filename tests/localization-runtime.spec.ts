@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { TOOL_SEO_NAMES } from '../src/lib/i18n/tool-seo-localization';
 
 const sitemap = readFileSync('dist/sitemap.xml', 'utf8');
 const routes = [...new Set([...sitemap.matchAll(/<url>\s*<loc>([^<]+)<\/loc>[\s\S]*?<\/url>/gu)].map((match) => new URL(match[1]).pathname))].sort();
@@ -23,7 +24,7 @@ async function snapshot(page: Page): Promise<Snapshot> {
   return page.evaluate(() => {
     const visible = (element: Element) => {
       const node = element as HTMLElement;
-      if (node.hidden) return false;
+      if (node.hidden || node.getAttribute('aria-hidden') === 'true') return false;
       const style = window.getComputedStyle(node);
       return style.display !== 'none' && style.visibility !== 'hidden';
     };
@@ -71,7 +72,9 @@ for (const pathname of routes) {
     await expect(page.locator('html')).toHaveAttribute('lang', languageTags[localeCode]);
     await expect(page.locator('html')).toHaveAttribute('dir', expectedDirection);
 
-    const main = page.locator('main').first();
+    const mains = page.locator('main');
+    await expect(mains).toHaveCount(1);
+    const main = mains.first();
     await expect(main).toBeVisible();
     await expect(main).toHaveAttribute('lang', languageTags[localeCode]);
     await expect(main).toHaveAttribute('dir', expectedDirection);
@@ -100,6 +103,7 @@ for (const pathname of routes) {
       tag: node.getAttribute('hreflang') ?? '',
       href: node.getAttribute('href') ?? '',
     })));
+    expect(hreflangs.length).toBe(21);
     expect(new Set(hreflangs.map((entry) => entry.tag)).size).toBe(21);
     for (const code of localeCodes) expect(hreflangs.map((entry) => entry.tag)).toContain(languageTags[code]);
     expect(hreflangs.map((entry) => entry.tag)).toContain('x-default');
@@ -110,7 +114,9 @@ for (const pathname of routes) {
     }
     for (const code of localeCodes) {
       const tag = languageTags[code];
-      const target = new URL(hreflangs.find((entry) => entry.tag === tag)!.href, page.url());
+      const found = hreflangs.find((entry) => entry.tag === tag);
+      expect(found, `${pathname} missing hreflang ${tag}`).toBeTruthy();
+      const target = new URL(found!.href, page.url());
       expect(target.pathname, `${pathname} hreflang ${tag} target`).toBe(localizedPath(code, family));
     }
     expect(new URL(hreflangs.find((entry) => entry.tag === languageTags[localeCode])!.href, page.url()).pathname).toBe(pathname);
@@ -127,30 +133,52 @@ for (const pathname of routes) {
       await page.waitForLoadState('networkidle').catch(() => undefined);
       const current = await snapshot(page);
 
-      const seoDiffers = current.title !== baseline.title || current.description !== baseline.description || current.h1 !== baseline.h1;
-      expect(seoDiffers, `${pathname} appears to reuse English title/description/H1`).toBe(true);
+      expect(current.title, `${pathname} must not reuse English document title`).not.toBe(baseline.title);
+      expect(current.description, `${pathname} must not reuse English meta description`).not.toBe(baseline.description);
+      expect(current.h1, `${pathname} must not reuse English H1`).not.toBe(baseline.h1);
+
       const englishUi = new Set(baseline.ui.filter((value) => value.length >= 4 && !sharedOnly(value)));
       const leakedEnglish = current.ui.filter((value) => englishUi.has(value));
       expect(leakedEnglish, `${pathname} exact English UI fallback(s): ${leakedEnglish.slice(0, 10).join(' | ')}`).toEqual([]);
+
+      const toolFamily = family.slice(1);
+      const expectedToolName = toolFamily && TOOL_SEO_NAMES[toolFamily]?.[localeCode];
+      if (expectedToolName) {
+        expect(current.h1, `${pathname} must expose the reviewed localized tool name`).toContain(expectedToolName);
+      }
     }
 
     const a11yIssues = await page.locator('button,a,input,textarea,select,img').evaluateAll((nodes) => {
       const visible = (element: Element) => {
         const node = element as HTMLElement;
-        if (node.hidden) return false;
+        if (node.hidden || node.getAttribute('aria-hidden') === 'true') return false;
         const style = window.getComputedStyle(node);
         return style.display !== 'none' && style.visibility !== 'hidden';
+      };
+      const referencedLabelText = (element: HTMLElement) => {
+        const ids = (element.getAttribute('aria-labelledby') ?? '').split(/\s+/u).filter(Boolean);
+        return ids.map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
       };
       return nodes.filter(visible).flatMap((element) => {
         const node = element as HTMLElement;
         if (node.tagName === 'IMG') {
           const img = node as HTMLImageElement;
-          if (img.getAttribute('aria-hidden') === 'true' || img.getAttribute('role') === 'presentation') return [];
+          if (img.getAttribute('role') === 'presentation') return [];
           return img.alt.trim() ? [] : ['visible image missing alt'];
         }
         const input = node as HTMLInputElement;
-        const name = node.getAttribute('aria-label') || node.getAttribute('title') || input.placeholder || node.textContent || '';
-        return name.trim() ? [] : [`${node.tagName.toLowerCase()} missing accessible name`];
+        const explicitLabel = input.id ? document.querySelector(`label[for="${CSS.escape(input.id)}"]`)?.textContent ?? '' : '';
+        const parentLabel = node.closest('label')?.textContent ?? '';
+        const name = [
+          node.getAttribute('aria-label'),
+          referencedLabelText(node),
+          explicitLabel,
+          parentLabel,
+          node.getAttribute('title'),
+          input.placeholder,
+          node.textContent,
+        ].map((value) => (value ?? '').trim()).find(Boolean) ?? '';
+        return name ? [] : [`${node.tagName.toLowerCase()} missing accessible name`];
       });
     });
     expect(a11yIssues, `${pathname} accessibility naming failures`).toEqual([]);
