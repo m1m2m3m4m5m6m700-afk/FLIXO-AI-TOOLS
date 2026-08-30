@@ -1,0 +1,5 @@
+{
+  "schema": "flixo.ci-slo-config.v1",
+  "full_run_max_seconds": 1800,
+  "notes": "Advisory benchmark for completed CI workflow duration; it never bypasses or weakens required gates."
+}
