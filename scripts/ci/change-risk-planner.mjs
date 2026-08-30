@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 
 const base = process.env.CHANGE_BASE || 'origin/main';
-let names = [];
+let names;
 try {
   names = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
 } catch {
