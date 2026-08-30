@@ -9,18 +9,16 @@ const GLOBAL_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
   '@graph': [
     { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: 'FLIXO', url: SITE_ORIGIN, logo: `${SITE_ORIGIN}/flixo-logo.svg` },
-    { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'FLIXO', url: SITE_ORIGIN, publisher: { '@id': `${SITE_ORIGIN}/#organization` } },
+    { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'FLIXO', url: SITE_ORIGIN, publisher: { '@id': `${SITE_ORIGIN}/#organization` },
   ],
 } as const;
 
 function RuntimeLocaleAttributes() {
   const location = useLocation();
-
   useLayoutEffect(() => {
     const localeCode = location.pathname.split('/').filter(Boolean)[0] ?? '';
     const locale = isLocale(localeCode) ? localeCode : 'en';
     const metadata = LOCALE_METADATA[locale];
-
     const apply = () => {
       document.documentElement.lang = metadata.languageTag;
       document.documentElement.dir = metadata.direction;
@@ -30,21 +28,15 @@ function RuntimeLocaleAttributes() {
         localizedMain.dir = metadata.direction;
       }
     };
-
     apply();
     const frame = window.requestAnimationFrame(apply);
     return () => window.cancelAnimationFrame(frame);
   }, [location.pathname]);
-
   return null;
 }
 
 function RouteContent() {
-  return (
-    <Suspense fallback={<div role="status" aria-live="polite">Loading…</div>}>
-      <Outlet />
-    </Suspense>
-  );
+  return <Suspense fallback={<div role="status" aria-live="polite">Loading…</div>}><Outlet /></Suspense>;
 }
 
 export const rootRoute = createRootRoute({
@@ -67,7 +59,6 @@ export const rootRoute = createRootRoute({
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { name: 'theme-color', content: '#090d12' },
-      { name: 'description', content: 'FLIXO — fast browser-first tools for images, PDFs, audio, video, text, and everyday productivity.' },
       { name: 'robots', content: 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1' },
       { property: 'og:site_name', content: 'FLIXO' },
       { property: 'og:type', content: 'website' },
