@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import { validateOutputIntegrity } from '../src/lib/contracts/output-integrity';
 
@@ -13,6 +14,16 @@ async function readBlob(page: Page, href: string): Promise<BrowserArtifact> {
     const content = new Uint8Array(await blob.arrayBuffer());
     return { mime: blob.type, bytes: Array.from(content), size: blob.size };
   }, href);
+}
+
+async function readDownloadedFile(page: Page, link: ReturnType<Page['getByRole']>) {
+  const downloadPromise = page.waitForEvent('download');
+  await link.click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBeTruthy();
+  const path = await download.path();
+  if (!path) throw new Error('Playwright did not provide a downloaded artifact path');
+  return new Uint8Array(await readFile(path));
 }
 
 test('G3 real flow: upload → process → download → inspect image artifact', async ({ page }) => {
@@ -33,10 +44,14 @@ test('G3 real flow: upload → process → download → inspect image artifact',
   expect(filename).toBe('flixo-compressed.webp');
   expect(href).toMatch(/^blob:/);
 
-  const artifact = await readBlob(page, href!);
+  const blobArtifact = await readBlob(page, href!);
+  const savedBytes = await readDownloadedFile(page, download);
+  expect(savedBytes.byteLength).toBe(blobArtifact.size);
+  expect(Array.from(savedBytes)).toEqual(blobArtifact.bytes);
+
   const result = validateOutputIntegrity(
-    artifact.size,
-    artifact.mime,
+    savedBytes.byteLength,
+    blobArtifact.mime,
     {
       toolId: 'image-compressor',
       allowedMime: ['image/webp'],
@@ -51,7 +66,7 @@ test('G3 real flow: upload → process → download → inspect image artifact',
       requireSafeFilename: true,
     },
     { width: 1200, height: 800 },
-    { filename: filename!, bytes: Uint8Array.from(artifact.bytes) },
+    { filename: filename!, bytes: savedBytes },
   );
 
   expect(result.valid, result.failures.join('; ')).toBe(true);
@@ -74,10 +89,14 @@ test('G3 real flow: upload → process → download → inspect ZIP artifact', a
   expect(filename).toBe('flixo-compressed-images.zip');
   expect(href).toMatch(/^blob:/);
 
-  const artifact = await readBlob(page, href!);
+  const blobArtifact = await readBlob(page, href!);
+  const savedBytes = await readDownloadedFile(page, download);
+  expect(savedBytes.byteLength).toBe(blobArtifact.size);
+  expect(Array.from(savedBytes)).toEqual(blobArtifact.bytes);
+
   const result = validateOutputIntegrity(
-    artifact.size,
-    artifact.mime,
+    savedBytes.byteLength,
+    blobArtifact.mime,
     {
       toolId: 'image-compressor-batch',
       allowedMime: ['application/zip'],
@@ -89,7 +108,7 @@ test('G3 real flow: upload → process → download → inspect ZIP artifact', a
       requireSafeFilename: true,
     },
     undefined,
-    { filename: filename!, bytes: Uint8Array.from(artifact.bytes) },
+    { filename: filename!, bytes: savedBytes },
   );
 
   expect(result.valid, result.failures.join('; ')).toBe(true);
