@@ -26,9 +26,9 @@ if (expectedLocales.length !== 20) throw new Error('Indexing gate locale registr
 
 if (!originSource.includes('export function getCanonicalSiteOrigin()')) throw new Error('Canonical origin contract is missing getCanonicalSiteOrigin().');
 if (!originSource.includes("if (origin.protocol !== 'https:')")) throw new Error('Canonical origin contract must enforce HTTPS.');
-if (!originSource.includes('OFFICIAL_PRODUCTION_ORIGIN = \'https://flixoai.vercel.app\'')) throw new Error('Canonical origin contract must define the sole official FLIXO production origin.');
+if (!originSource.includes("OFFICIAL_PRODUCTION_ORIGIN = 'https://flixoai.vercel.app'")) throw new Error('Canonical origin contract must define the sole official FLIXO production origin.');
 if (!originSource.includes('origin.origin !== OFFICIAL_PRODUCTION_ORIGIN')) throw new Error('Canonical origin contract must reject every non-official production origin.');
-if (!i18nSource.includes('export const SITE_ORIGIN = getRuntimeSiteOrigin();')) throw new Error('Runtime SITE_ORIGIN must come from the runtime origin contract.');
+if (!i18nSource.includes('export const SITE_ORIGIN = getCanonicalSiteOrigin();')) throw new Error('SITE_ORIGIN must come from the canonical origin contract.');
 
 if (!sitemapSource.includes('getCanonicalSiteOrigin()')) throw new Error('Sitemap generator must source its origin from the canonical origin contract.');
 if (!sitemapSource.includes('TOOL_MANIFEST.filter((tool) => tool.isReady)')) throw new Error('Sitemap generator does not derive tool URLs from ready TOOL_MANIFEST entries.');
@@ -78,5 +78,5 @@ if (!manifestSource.includes('"start_url": "/en"')) throw new Error('Manifest st
 if (!manifestSource.includes('"src": "/flixo-logo.svg"')) throw new Error('Manifest must use the canonical FLIXO logo asset.');
 
 console.log(
-  `Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical tool definitions, localized tool canonical/hreflang symmetry, canonical-only use-case routes, HTTPS canonical origin, and robots/sitemap contracts are aligned.`,
+  `Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical tool definitions, localized tool canonical/hreflang symmetry, canonical-only use-case routes, canonical HTTPS origin, and robots/sitemap contracts are aligned.`,
 );
