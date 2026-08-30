@@ -47,11 +47,29 @@ jobs:
       - name: ESLint
         run: npm run lint
 
-      - name: Strict G4 static localization and SEO certification
-        run: node scripts/test-g4-localization-static.mjs
-
       - name: Build canonical production artifacts
         run: npm run build
+
+      - name: Static G4 locale + SEO certification
+        run: |
+          set -euo pipefail
+          npm run verify:i18n -- --strict --report
+          npm run validate:locale-integrity
+          npm run validate:locale-navigation
+          npm run validate:home-i18n
+          npm run validate:seo
+          npm run validate:seo-manifest
+          npm run validate:use-case-seo
+          npm run validate:indexing
+          npm run validate:breadcrumb-seo
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-google-multilingual-seo.mjs
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-language-quality-strict.mjs
+          test -f dist/robots.txt
+          test -f dist/sitemap.xml
+          grep -Fx "Sitemap: ${VITE_SITE_URL}/sitemap.xml" dist/robots.txt
+          grep -Fq 'xmlns:xhtml="http://www.w3.org/1999/xhtml"' dist/sitemap.xml
+          grep -Fq 'hreflang="x-default"' dist/sitemap.xml
+          echo "G4 STATIC CERTIFICATION GREEN"
 
       - name: Start isolated production preview
         shell: bash
@@ -73,7 +91,7 @@ jobs:
           S4_EXTERNAL_SERVER: 'true'
           PLAYWRIGHT_SERVER: preview
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-        run: npx playwright test tests/g4-localization-seo.spec.ts --project=chromium --workers=6 --retries=0
+        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --workers=6 --retries=0
 
       - name: Stop isolated production preview
         if: always()
