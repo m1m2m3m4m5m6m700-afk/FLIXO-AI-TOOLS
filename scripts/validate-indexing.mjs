@@ -68,11 +68,12 @@ if (useCaseRouteSource.includes('hrefLang')) throw new Error('Use-case route mus
 if (!useCaseRouteSource.includes("rel: 'canonical'")) throw new Error('Use-case route must emit a canonical URL.');
 
 if (!indexSource.includes('<html lang="en" dir="ltr">')) throw new Error('index.html must declare the default language and direction.');
-if (!indexSource.includes('<meta name="description"')) throw new Error('index.html is missing a base description.');
 if (!indexSource.includes('<meta name="viewport"')) throw new Error('index.html is missing the viewport declaration.');
 if (!indexSource.includes('<link rel="manifest" href="/manifest.webmanifest"')) throw new Error('index.html is missing the web manifest.');
 if (!indexSource.includes('<link rel="icon" type="image/svg+xml" href="/favicon.svg"')) throw new Error('index.html must use the canonical favicon.');
 if (indexSource.includes('/flixo-logo.jpg') || indexSource.includes('/logo.jpg')) throw new Error('index.html references stale JPG logo assets.');
+
+if (!rootSource.includes("{ name: 'description', content:")) throw new Error('Root route is missing the base description metadata.');
 
 if (!manifestSource.includes('"start_url": "/en"')) throw new Error('Manifest start_url must resolve to a localized public route.');
 if (!manifestSource.includes('"src": "/flixo-logo.svg"')) throw new Error('Manifest must use the canonical FLIXO logo asset.');
