@@ -1,4 +1,4 @@
-import { assertSafeImageInput, IMAGE_COMPRESSOR_MAX_INPUT_SIZE, IMAGE_COMPRESSOR_MAX_PIXELS } from './file-safety';
+import { assertSafeImageFile, assertSafeImageInput, IMAGE_COMPRESSOR_MAX_INPUT_SIZE, IMAGE_COMPRESSOR_MAX_PIXELS } from './file-safety';
 
 export type CompressionFormat = 'image/jpeg' | 'image/webp' | 'image/png';
 
@@ -119,7 +119,7 @@ async function loadSourceImage(file: File): Promise<SourceImage> {
 }
 
 async function compressImageOnMainThread(file: File, options: CompressionOptions): Promise<CompressionResult> {
-  assertSafeImageInput(file);
+  await assertSafeImageFile(file);
 
   const image = await loadSourceImage(file);
   try {
@@ -194,7 +194,7 @@ function compressImageInWorker(file: File, options: CompressionOptions): Promise
 }
 
 export async function compressImage(file: File, options: CompressionOptions): Promise<CompressionResult> {
-  assertSafeImageInput(file);
+  await assertSafeImageFile(file);
 
   if (canUseCompressionWorker(file)) {
     try {
