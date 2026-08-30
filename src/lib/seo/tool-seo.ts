@@ -56,8 +56,8 @@ export function getToolSeo(localeInput: string, toolId: string) {
   const manifestSeo = manifest?.seoLocales[locale];
   const localizedTitle = localizeToolTitle(locale, tool.title, tool.category);
   const localizedDescription = localizeToolDescription(locale, tool.title, tool.category);
-  const title = manifestSeo?.title ?? `${localizedTitle} | FLIXO`;
-  const description = manifestSeo?.description ?? localizedDescription;
+  const title = `${localizedTitle} | FLIXO`;
+  const description = localizedDescription;
   const fallback = FALLBACK_COPY[locale];
   const localizedCategory = localizeToolCategory(locale, tool.category);
   const localizedPayload = manifestSeo ?? {
