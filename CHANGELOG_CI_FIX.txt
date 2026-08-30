@@ -1,1 +1,0 @@
-CI fix marker: Full Matrix Weighted Plan now reads JSON with native ESM import instead of CommonJS require().
