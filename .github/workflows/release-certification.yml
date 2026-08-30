@@ -1,8 +1,6 @@
 name: Release Certification
 
 on:
-  # Release certification is release-only. Regular pushes to main must not
-  # consume the release-only Socket credential or create a release failure.
   push:
     tags:
       - 'v*.*.*'
@@ -61,21 +59,26 @@ jobs:
           echo "Canonical CI did not complete successfully for $GITHUB_SHA."
           exit 1
 
-      - name: Wait for full browser matrix
+      - name: Wait for canonical Full Matrix Parallel certification
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          for attempt in {1..18}; do
-            result="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow full-matrix-promotion.yml --commit "$GITHUB_SHA" --limit 1 --json status,conclusion,databaseId)"
+          for attempt in {1..36}; do
+            result="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow full-matrix-parallel.yml --commit "$GITHUB_SHA" --limit 1 --json status,conclusion,databaseId)"
             echo "$result"
             status="$(node -e "const r=$result; console.log(r[0]?.status ?? '')")"
             conclusion="$(node -e "const r=$result; console.log(r[0]?.conclusion ?? '')")"
             if [[ "$status" == "completed" && "$conclusion" == "success" ]]; then exit 0; fi
             sleep 10
           done
-          echo "Full browser matrix did not complete successfully for $GITHUB_SHA."
+          echo "Canonical Full Matrix Parallel certification did not complete successfully for $GITHUB_SHA."
           exit 1
+
+      - name: Verify production surface
+        env:
+          PRODUCTION_ORIGIN: https://flixoai.vercel.app
+        run: node scripts/validate-production-certification.mjs
 
       - name: Write release evidence
         run: |
@@ -88,12 +91,13 @@ jobs:
             echo 'Required engineering evidence:'
             echo '- Blocking Socket supply-chain scan: PASS'
             echo '- Canonical GitHub CI: PASS'
-            echo '- Full browser matrix (Chromium/Firefox/WebKit): PASS'
-            echo '- Performance and security checks are owned by GitHub CI and its promotion workflows.'
+            echo '- Full Matrix Parallel certification: PASS'
+            echo '- Production surface certification: PASS'
+            echo '- Performance and security checks remain owned by repository blocking gates.'
             echo
             echo 'Deployment provider:'
             echo '- Vercel: EXTERNAL / NON-BLOCKING'
-            echo '- Provider-side deployment limits remain separate from application engineering certification.'
+            echo '- Provider-side availability/quotas remain separate from engineering correctness.'
           } >> "$GITHUB_STEP_SUMMARY"
 
   deployment-provider:
@@ -107,6 +111,5 @@ jobs:
             echo
             echo 'Provider: Vercel'
             echo 'Classification: external / non-blocking for engineering certification'
-            echo 'Reason: deployment-provider availability, plan limits, and build quotas are outside repository engineering correctness.'
-            echo 'No code or test is weakened by this classification.'
+            echo 'The release gate directly validates the canonical production URL; provider-side limits do not fabricate a PASS.'
           } >> "$GITHUB_STEP_SUMMARY"
