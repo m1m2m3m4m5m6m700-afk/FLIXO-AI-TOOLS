@@ -2,12 +2,15 @@ import type { ToolOutputContract } from '../../lib/contracts/tool-output';
 
 export const imageToSvgOutputContract = {
   toolId: 'image-to-svg',
-  kind: 'svg',
-  outputMimeTypes: ['image/svg+xml'],
-  downloadRequired: true,
-  minOutputBytes: 1,
-  validateSignature: false,
-  validateDecode: false,
-  validateDimensions: false,
-  validateMetadata: false,
+  variants: [
+    {
+      kind: 'svg',
+      outputMimeTypes: ['image/svg+xml'],
+      allowedExtensions: ['svg'],
+      downloadRequired: true,
+      minOutputBytes: 1,
+      maxOutputBytes: 10 * 1024 * 1024,
+      parseAs: 'utf8',
+    },
+  ],
 } as const satisfies ToolOutputContract;
