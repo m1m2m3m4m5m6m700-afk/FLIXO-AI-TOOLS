@@ -1,7 +1,8 @@
+import { createReadStream, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, extname, join, normalize, relative, sep } from 'node:path';
 import { TOOLS_REGISTRY, getToolConfig } from '../src/config/tools.ts';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
 import { LOCALES, LOCALE_METADATA, getCanonicalSiteOrigin } from '../src/lib/i18n/config.ts';
@@ -38,6 +39,7 @@ for (const token of ['loader:', 'getToolConfig(params.tool)', '!tool?.isReady', 
 
 const duplicate = (values) => [...new Set(values.filter((value, index) => values.indexOf(value) !== index))];
 const readyTools = TOOL_MANIFEST.filter((tool) => tool.isReady);
+const unreadyTools = TOOL_MANIFEST.filter((tool) => !tool.isReady);
 const ids = TOOLS_REGISTRY.map((tool) => tool.id);
 const registryRoutes = TOOLS_REGISTRY.flatMap((tool) => [tool.path, ...(tool.aliases ?? [])]);
 const manifestShape = TOOL_MANIFEST.map((tool) => `${tool.id}|${tool.path}|${tool.isReady}`);
@@ -93,7 +95,83 @@ for (const tool of readyTools) {
 }
 
 const temp = mkdtempSync(join(tmpdir(), 'flixo-g1-'));
+let staticServer;
 try {
+  run('production build', 'npm', ['run', 'build'], { VITE_SITE_URL: canonicalOrigin });
+  run('static ready-route entries', process.execPath, ['--import=./scripts/register-node-resolver.mjs', '--experimental-strip-types', 'scripts/generate-static-route-entries.mjs'], { FLIXO_DIST_DIR: 'dist' });
+
+  const distRoot = normalize(join(process.cwd(), 'dist'));
+  const contentType = (filePath) => {
+    const extension = extname(filePath).toLowerCase();
+    return ({
+      '.html': 'text/html; charset=utf-8',
+      '.css': 'text/css; charset=utf-8',
+      '.js': 'text/javascript; charset=utf-8',
+      '.json': 'application/json; charset=utf-8',
+      '.svg': 'image/svg+xml',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp',
+      '.txt': 'text/plain; charset=utf-8',
+      '.xml': 'application/xml; charset=utf-8',
+    })[extension] ?? 'application/octet-stream';
+  };
+
+  staticServer = createServer((request, response) => {
+    const requestPath = decodeURIComponent(new URL(request.url ?? '/', 'http://127.0.0.1').pathname);
+    const relativePath = requestPath.replace(/^\/+|\/+$/gu, '');
+    const candidate = normalize(join(distRoot, relativePath, relativePath ? 'index.html' : 'index.html'));
+    const relativeCandidate = relative(distRoot, candidate);
+    if (relativeCandidate.startsWith(`..${sep}`) || relativeCandidate === '..' || relativeCandidate.includes(`${sep}..${sep}`)) {
+      response.writeHead(400);
+      response.end('Bad Request');
+      return;
+    }
+    if (!existsSync(candidate) || !statSync(candidate).isFile()) {
+      response.writeHead(404);
+      response.end('Not Found');
+      return;
+    }
+    response.writeHead(200, { 'Content-Type': contentType(candidate) });
+    if (request.method === 'HEAD') response.end();
+    else createReadStream(candidate).pipe(response);
+  });
+
+  const port = await new Promise((resolve, reject) => {
+    staticServer.once('error', reject);
+    staticServer.listen(0, '127.0.0.1', () => resolve(staticServer.address().port));
+  });
+  const baseUrl = `http://127.0.0.1:${port}`;
+
+  const requestStatus = async (path) => {
+    const response = await fetch(`${baseUrl}${path}`, { redirect: 'manual' });
+    return response.status;
+  };
+
+  // Prove every ready localized route is a real static HTTP 200 route.
+  for (const locale of LOCALES) {
+    if (await requestStatus(`/${locale}`) !== 200) fail('localized home route is not publicly reachable', [locale]);
+    for (const tool of readyTools) {
+      const path = getLocalizedToolPath(tool, locale);
+      const status = await requestStatus(path);
+      if (status !== 200) fail('ready localized route is not HTTP 200', [`${tool.id}@${locale}`, path, `status=${status}`]);
+    }
+  }
+
+  // Prove every non-ready tool is absent from the public static route set.
+  if (!unreadyTools.length) fail('G1 requires at least one non-ready tool to prove the 404 contract');
+  for (const locale of LOCALES) {
+    for (const tool of unreadyTools) {
+      const path = getLocalizedToolPath(tool, locale);
+      const status = await requestStatus(path);
+      if (status !== 404) fail('unready localized route is publicly reachable', [`${tool.id}@${locale}`, path, `status=${status}`]);
+    }
+    const unknownPath = `/${locale}/__g1_unknown_tool__`;
+    const unknownStatus = await requestStatus(unknownPath);
+    if (unknownStatus !== 404) fail('unknown localized route is publicly reachable', [unknownPath, `status=${unknownStatus}`]);
+  }
+
   run('sitemap generation', process.execPath, ['--import=./scripts/register-node-resolver.mjs', '--experimental-strip-types', 'scripts/generate-sitemap.mjs'], { VITE_SITE_URL: canonicalOrigin, FLIXO_GENERATED_OUTPUT_DIR: temp });
   run('robots generation', process.execPath, ['--import=./scripts/register-node-resolver.mjs', '--experimental-strip-types', 'scripts/generate-robots.mjs'], { VITE_SITE_URL: canonicalOrigin, FLIXO_GENERATED_OUTPUT_DIR: temp });
 
@@ -102,7 +180,7 @@ try {
   const expectedUrls = new Set(LOCALES.flatMap((locale) => [
     `/${locale}`,
     ...readyTools.map((tool) => getLocalizedToolPath(tool, locale)),
-  ].map((route) => new URL(route, `${canonicalOrigin}/`).toString())));
+  ].map((route) => new URL(route, `${canonicalOrigin}/`).toString()));
 
   const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)].map((match) => match[1]);
   const actualUrls = new Set(locs);
@@ -135,7 +213,8 @@ try {
     fail('preview/test origin leaked into discovery artifacts');
   }
 } finally {
+  if (staticServer) await new Promise((resolve) => staticServer.close(resolve));
   rmSync(temp, { recursive: true, force: true });
 }
 
-console.log(`G1 PLATFORM CONTRACT PASSED: registry=${TOOLS_REGISTRY.length}, ready=${readyTools.length}, locales=${LOCALES.length}, seoBindings=${seoChecked}/${seoExpectedCount}, sitemap=${LOCALES.length * (readyTools.length + 1)}, canonical=${canonicalOrigin}`);
+console.log(`G1 PLATFORM CONTRACT PASSED: registry=${TOOLS_REGISTRY.length}, ready=${readyTools.length}, unready=${unreadyTools.length}, locales=${LOCALES.length}, seoBindings=${seoChecked}/${seoExpectedCount}, sitemap=${LOCALES.length * (readyTools.length + 1)}, canonical=${canonicalOrigin}, httpReady=${readyTools.length * LOCALES.length}, http404=${unreadyTools.length * LOCALES.length}`);
