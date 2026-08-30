@@ -27,16 +27,8 @@ for (const [label, pattern] of required) {
 
 const evidenceSection = workflow.match(/evidence-ledger:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
 const requiredEvidenceNeeds = [
-  'typecheck',
-  'lint',
-  'build',
-  'audit',
-  'socket',
-  'secret-scan',
-  'security',
-  'fast-contract',
-  's3-static-gate',
-  's4-runtime-e2e',
+  'typecheck', 'lint', 'build', 'audit', 'socket', 'secret-scan', 'security',
+  'fast-contract', 's3-static-gate', 's4-runtime-e2e',
 ];
 
 for (const gate of requiredEvidenceNeeds) {
