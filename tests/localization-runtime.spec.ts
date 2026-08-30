@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 const sitemap = readFileSync('dist/sitemap.xml', 'utf8');
@@ -19,7 +19,7 @@ const familyPath = (pathname: string) => pathname.replace(new RegExp(`^/(?:${loc
 const localizedPath = (locale: string, family: string) => `/${locale}${family === '/' ? '' : family}`;
 const sharedOnly = (value: string) => sharedPhrases.has(normalize(value)) || value.split(/\s+/u).filter(Boolean).every((word) => sharedTerms.has(word.replace(/[^\p{L}\p{N}]+/gu, '')));
 
-async function snapshot(page: Parameters<typeof test>[0]['page']): Promise<Snapshot> {
+async function snapshot(page: Page): Promise<Snapshot> {
   return page.evaluate(() => {
     const visible = (element: Element) => {
       const node = element as HTMLElement;
