@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 
 const base = process.env.CHANGE_BASE || 'origin/main';
 let names;
@@ -29,6 +29,19 @@ if (seo) gates.add('seo');
 for (const tool of tools) gates.add(`e2e:${tool}`);
 if (mode === 'FULL') gates.add('full-matrix');
 
-const result = { mode, files: names, gates: [...gates].sort(), unknown, exactSha: process.env.GITHUB_SHA ?? null };
+const result = {
+  schema_version: 2,
+  exactSha: process.env.GITHUB_SHA ?? null,
+  base,
+  mode,
+  files: names,
+  gates: [...gates].sort(),
+  unknown,
+  dependency,
+  workflow,
+};
+
+mkdirSync('diagnostics', { recursive: true });
+writeFileSync('diagnostics/change-risk-plan.json', `${JSON.stringify(result, null, 2)}\n`);
 console.log(JSON.stringify(result, null, 2));
 if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `mode=${mode}\ngates=${JSON.stringify(result.gates)}\n`);

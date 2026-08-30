@@ -1,14 +1,8 @@
 name: Phase 3 Chain Compatibility
 
+# Legacy compatibility microscope. Canonical CI owns blocking verification.
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'src/lib/tool-chain-adapters.ts'
-      - 'src/lib/tool-chain-compatibility.ts'
-      - 'src/lib/tool-chain-runner.ts'
-      - 'tests/phase3-chain-compatibility.mjs'
-      - '.github/workflows/phase3-chain-compatibility.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
