@@ -7,6 +7,7 @@ on:
     paths:
       - 'src/**'
       - 'tests/localization-runtime.spec.ts'
+      - 'tests/localization-all-routes.spec.ts'
       - 'scripts/validate-language-quality*.mjs'
       - 'scripts/validate-locale-contract.mjs'
       - 'scripts/validate-localization-complete.mjs'
@@ -77,10 +78,10 @@ jobs:
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
-      - name: Render and verify ${{ matrix.locale }} runtime
+      - name: Render and verify every public route for ${{ matrix.locale }}
         env:
           FLIXO_TEST_LOCALE: ${{ matrix.locale }}
-        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --grep "representative tool runtime is localized for ${{ matrix.locale }}"
+        run: npx playwright test tests/localization-all-routes.spec.ts --project=chromium --grep "all public routes are localized and SEO-safe for ${{ matrix.locale }}"
 
   seo:
     name: G4 SEO + Indexing Certification
@@ -131,11 +132,11 @@ jobs:
             exit 1
           fi
           if [[ "${{ needs.runtime.result }}" != "success" ]]; then
-            echo "G4 FAILED: one or more rendered locale runtime contracts failed."
+            echo "G4 FAILED: one or more all-route locale runtime contracts failed."
             exit 1
           fi
           if [[ "${{ needs.seo.result }}" != "success" ]]; then
             echo "G4 FAILED: canonical SEO/indexing certification failed."
             exit 1
           fi
-          echo "G4 PASS: 20 locales + rendered runtime + canonical SEO/indexing are all green."
+          echo "G4 PASS: 20 locales × all public routes + canonical SEO/indexing are all green."
