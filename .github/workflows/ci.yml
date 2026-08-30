@@ -57,6 +57,13 @@ jobs:
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npm run build:runtime
+      - name: Generate deployment metadata into artifact
+        env:
+          VITE_SITE_URL: https://flixoai.vercel.app
+          FLIXO_GENERATED_OUTPUT_DIR: dist
+        run: |
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-robots.mjs
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-sitemap.mjs
       - name: Validate performance budget
         run: npm run validate:performance-budget
       - name: Write performance baseline
