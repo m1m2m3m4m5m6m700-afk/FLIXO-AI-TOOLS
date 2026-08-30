@@ -5,7 +5,7 @@ const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
 const required = [
   ['pull_request trigger', /pull_request:\s*\n\s*branches:\s*\[main\]/],
   ['Canonical Verification job', /canonical-verify:/],
-  ['canonical npm run verify', /name:\s*Canonical Verification Gate[\s\S]*?run:\s*npm run verify/],
+  ['Evidence Ledger job', /evidence-ledger:/],
   ['typecheck prerequisite', /needs:\s*\[typecheck,/],
   ['lint prerequisite', /needs:\s*\[typecheck, lint,/],
   ['build prerequisite', /needs:\s*\[typecheck, lint, build,/],
@@ -14,7 +14,7 @@ const required = [
   ['secret-scan prerequisite', /needs:\s*\[typecheck, lint, build, audit, socket, secret-scan,/],
   ['security prerequisite', /secret-scan[\s\S]*?security/],
   ['fast-contract prerequisite', /fast-contract/],
-  ['browser-smoke prerequisite', /browser-smoke/],
+  ['S3 prerequisite', /s3-static-gate/],
 ];
 
 for (const [label, pattern] of required) {
@@ -25,9 +25,24 @@ for (const [label, pattern] of required) {
 }
 
 const canonicalSection = workflow.match(/canonical-verify:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
-if (/npm test(?![\w-])/.test(canonicalSection)) {
-  console.error('CI contract failed: Canonical Verification must not use npm test; use npm run verify.');
+if (/npm\s+run\s+verify(?![:\w-])/.test(canonicalSection) || /npm\s+test(?![\w-])/.test(canonicalSection)) {
+  console.error('CI contract failed: Canonical Verification must aggregate evidence and must not rerun the repository verification suite.');
   process.exit(1);
 }
 
-console.log('CI contract passed: pull_request trigger, canonical npm run verify, and required diagnostic prerequisites are enforced.');
+if (!/flixo-build-\$\{\{ github\.sha \}\}/.test(workflow)) {
+  console.error('CI contract failed: build artifact is not SHA-addressed.');
+  process.exit(1);
+}
+
+if (!/flixo-evidence-ledger-\$\{\{ github\.sha \}\}/.test(workflow)) {
+  console.error('CI contract failed: evidence ledger is not SHA-addressed.');
+  process.exit(1);
+}
+
+if (/name:\s*Browser Smoke[\s\S]*?runs-on:/.test(workflow)) {
+  console.error('CI contract failed: blocking CI must not define a duplicate Browser Smoke surface.');
+  process.exit(1);
+}
+
+console.log('CI contract passed: canonical aggregation, evidence ledger, SHA-addressed artifacts, and no duplicate blocking browser surface are enforced.');

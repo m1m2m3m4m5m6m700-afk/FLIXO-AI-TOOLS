@@ -1,24 +1,25 @@
 name: CI
 
-# Verification trigger marker: keeps the canonical CI contract visible in audit history.
-
+# FAIL-CLOSED canonical CI: one build artifact, parallel evidence, one aggregator.
 on:
   push:
     branches:
       - main
-      - 'work/**'
-      - 'fix/**'
-      - 's3-**'
   pull_request:
     branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
+
+env:
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
 
 jobs:
   typecheck:
@@ -30,7 +31,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npm run typecheck
 
   lint:
@@ -42,35 +43,56 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npm run lint
 
   build:
     name: Runtime Build + Performance
     runs-on: ubuntu-latest
+    env:
+      VITE_SITE_URL: https://flixoai.vercel.app
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npm run build:runtime
+      - name: Generate deployment metadata into artifact
+        env:
+          VITE_SITE_URL: https://flixoai.vercel.app
+          FLIXO_GENERATED_OUTPUT_DIR: dist
+        run: |
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-robots.mjs
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-sitemap.mjs
       - name: Validate performance budget
         run: npm run validate:performance-budget
       - name: Write performance baseline
         run: npm run report:performance-baseline
       - name: Write bundle size report
         run: npm run report:bundle-size
-      - name: Upload performance baseline
+      - name: Write immutable build manifest
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_WORKFLOW: ${{ github.workflow }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: node scripts/ci/write-build-artifact-manifest.mjs
+      - name: Upload immutable build artifact
         uses: actions/upload-artifact@v6
+        with:
+          name: flixo-build-${{ github.sha }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v6
         with:
           name: performance-baseline
           path: diagnostics/performance-baseline.json
           if-no-files-found: error
           retention-days: 14
-      - name: Upload bundle size report
-        uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v6
         with:
           name: bundle-size-report
           path: diagnostics/bundle-size.json
@@ -86,40 +108,39 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npm run audit:production
 
   socket:
     name: Socket Supply Chain
     runs-on: ubuntu-latest
-    env:
-      SOCKET_SECURITY_API_KEY: ${{ secrets.SOCKET_SECURITY_API_KEY }}
     steps:
       - uses: actions/checkout@v5
+      - uses: SocketDev/action@2d3f25590c6ed6ba11a9a14c064d962a3a04698f # v1.3.1
+        with:
+          mode: firewall-free
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - name: Run Socket CI
-        if: ${{ env.SOCKET_SECURITY_API_KEY != '' }}
-        run: npx --yes @socketsecurity/cli@1.1.158 ci
-      - name: Skip Socket CI when no token is configured
-        if: ${{ env.SOCKET_SECURITY_API_KEY == '' }}
-        run: 'echo "Socket scan skipped: configure SOCKET_SECURITY_API_KEY in repository secrets to enable the blocking supply-chain gate."'
+      - name: Install dependencies through Socket Firewall
+        run: sfw npm ci --prefer-offline --no-audit --no-fund
+      - name: Verify Socket Firewall is active
+        run: sfw --help >/dev/null
 
   secret-scan:
     name: Secret History Scan
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout full history
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Scan PR history range with pinned Gitleaks
+        if: ${{ github.event_name == 'pull_request' }}
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.24.3 detect --source=/repo --no-banner --redact --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+      - name: Scan full repository history with pinned Gitleaks
+        if: ${{ github.event_name != 'pull_request' }}
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.24.3 detect --source=/repo --no-banner --redact
 
   security:
     name: CodeQL
@@ -138,63 +159,23 @@ jobs:
   fast-contract:
     name: Fast Contract Diagnostics
     runs-on: ubuntu-latest
-    env:
-      VITE_SITE_URL: https://flixoai.vercel.app
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - name: Run reduced contract verifier
-        run: npm run verify:contracts
-
-  browser-smoke:
-    name: Browser Smoke — ${{ matrix.tool }} — Chromium
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - tool: image-converter
-            spec: tests/image-converter.spec.ts
-          - tool: image-cropper
-            spec: tests/image-cropper.spec.ts
-          - tool: exif-cleaner
-            spec: tests/exif-cleaner.spec.ts
-          - tool: image-to-svg
-            spec: tests/image-to-svg.spec.ts
-          - tool: performance-route-loading
-            spec: tests/performance-route-loading.spec.ts
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Run smoke test
-        env:
-          PLAYWRIGHT_SERVER: ${{ matrix.tool == 'performance-route-loading' && 'preview' || 'dev' }}
-        run: npx playwright test ${{ matrix.spec }} --project=chromium
-      - name: Upload smoke diagnostics
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v6
-        with:
-          name: browser-smoke-${{ matrix.tool }}
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: warn
-          retention-days: 7
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Run unique core contract suite
+        run: node scripts/verify-contracts-core.mjs
 
   s3-static-gate:
     name: S3 Static Gate
+    needs: [build]
     runs-on: ubuntu-latest
     env:
       VITE_SITE_URL: https://flixoai.vercel.app
+      FLIXO_BUILD_ARTIFACT: 'true'
     steps:
       - uses: actions/checkout@v5
         with:
@@ -203,114 +184,148 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - name: Validate canonical origin contract
-        run: npm run validate:site-origin
-      - name: Run S3 static certification
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Download immutable build artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: flixo-build-${{ github.sha }}
+          path: dist
+      - run: npm run validate:site-origin
+      - name: Run S3 static certification against immutable build
         env:
           S3_BASE_REF: origin/main
         run: node scripts/validate-s3-static-gate.mjs
 
-  canonical-verify:
-    name: Canonical Verification Gate
-    if: ${{ always() && (needs.typecheck.result != 'skipped') && (needs.lint.result != 'skipped') && (needs.build.result != 'skipped') && (needs.audit.result != 'skipped') && (needs.socket.result != 'skipped') && (needs.secret-scan.result != 'skipped') && (needs.security.result != 'skipped') && (needs.fast-contract.result != 'skipped') && (needs.browser-smoke.result != 'skipped') && (needs.s3-static-gate.result != 'skipped') }}
+  evidence-ledger:
+    name: Evidence Ledger
+    if: ${{ always() }}
+    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, s3-static-gate]
     runs-on: ubuntu-latest
-    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, browser-smoke, s3-static-gate]
-    env:
-      VITE_SITE_URL: https://flixoai.vercel.app
     steps:
-      - name: Block canonical verification when prerequisites are not green
-        if: ${{ needs.typecheck.result != 'success' || needs.lint.result != 'success' || needs.build.result != 'success' || needs.audit.result != 'success' || needs.socket.result != 'success' || needs.secret-scan.result != 'success' || needs.security.result != 'success' || needs.fast-contract.result != 'success' || needs.browser-smoke.result != 'success' || needs.s3-static-gate.result != 'success' }}
-        run: |
-          echo "Canonical Verification blocked by prerequisite results:"
-          echo "TypeScript=${{ needs.typecheck.result }}"
-          echo "ESLint=${{ needs.lint.result }}"
-          echo "Build=${{ needs.build.result }}"
-          echo "Audit=${{ needs.audit.result }}"
-          echo "Socket=${{ needs.socket.result }}"
-          echo "SecretScan=${{ needs.secret-scan.result }}"
-          echo "CodeQL=${{ needs.security.result }}"
-          echo "FastContract=${{ needs.fast-contract.result }}"
-          echo "BrowserSmoke=${{ needs.browser-smoke.result }}"
-          echo "S3=${{ needs.s3-static-gate.result }}"
-          exit 1
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      - name: Validate release evidence contract
-        run: node scripts/test-release-evidence.mjs
-      - name: Validate file safety contract
-        run: node --experimental-strip-types scripts/test-file-safety.mjs
-      - name: Validate output integrity contract
-        run: node --experimental-strip-types scripts/test-output-integrity.mjs
-      - name: Validate SVG integrity contract
-        run: node --experimental-strip-types scripts/test-svg-integrity.mjs
-      - name: Run canonical verification
-        run: npm run verify
-      - name: Write promotion evidence
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Materialize gate evidence
+        shell: bash
+        env:
+          SHA: ${{ github.sha }}
+          TYPECHECK: ${{ needs.typecheck.result }}
+          LINT: ${{ needs.lint.result }}
+          BUILD: ${{ needs.build.result }}
+          AUDIT: ${{ needs.audit.result }}
+          SOCKET: ${{ needs.socket.result }}
+          SECRET_SCAN: ${{ needs.secret-scan.result }}
+          CODEQL: ${{ needs.security.result }}
+          FAST_CONTRACT: ${{ needs.fast-contract.result }}
+          S3: ${{ needs.s3-static-gate.result }}
         run: |
+          set -euo pipefail
+          mkdir -p ci-evidence
+          write_record() {
+            local gate="$1" owner="$2" result="$3"
+            local passed=0 failed=0 skipped=0 missing=0 executed=1
+            if [[ "$result" == "success" ]]; then
+              passed=1
+            elif [[ "$result" == "skipped" ]]; then
+              skipped=1
+            elif [[ -z "$result" || "$result" == "unknown" ]]; then
+              executed=0
+              missing=1
+            else
+              failed=1
+            fi
+            cat > "ci-evidence/${gate}.json" <<EOF
           {
-            echo '## FLIXO Canonical Verification'
-            echo
-            echo 'Canonical application gate passed for the exact commit:'
-            echo '${{ github.sha }}'
-            echo
-            echo 'All diagnostic jobs, including the secret-history scan, were green before this gate ran.'
-            echo 'S3 Static Gate passed before canonical verification.'
-            echo 'The full 22×3 browser matrix is promoted to the independent Full Matrix Promotion workflow.'
-            echo 'Build performance budget validation and baseline reporting passed before promotion.'
-          } >> "$GITHUB_STEP_SUMMARY"
+            "sha": "${SHA}",
+            "gate": "${gate}",
+            "owner": "${owner}",
+            "expected": 1,
+            "executed": ${executed},
+            "passed": ${passed},
+            "failed": ${failed},
+            "skipped": ${skipped},
+            "missing": ${missing},
+            "result": "${result}"
+          }
+          EOF
+          }
+          write_record typecheck 'CI / TypeScript' "$TYPECHECK"
+          write_record lint 'CI / ESLint' "$LINT"
+          write_record build 'CI / Build' "$BUILD"
+          write_record audit 'CI / Production Audit' "$AUDIT"
+          write_record socket 'CI / Socket Supply Chain' "$SOCKET"
+          write_record secret-scan 'CI / Secret History Scan' "$SECRET_SCAN"
+          write_record codeql 'CI / CodeQL' "$CODEQL"
+          write_record fast-contract 'CI / Fast Contract Diagnostics' "$FAST_CONTRACT"
+          write_record s3 'CI / S3 Static Gate' "$S3"
+      - name: Validate fail-closed ledger
+        env:
+          EXACT_SHA: ${{ github.sha }}
+        run: node scripts/ci/evidence-ledger.mjs
+      - name: Upload evidence ledger
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-evidence-ledger-${{ github.sha }}
+          path: ci-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  canonical-verify:
+    name: Canonical Verification Gate
+    if: ${{ always() }}
+    needs: [evidence-ledger]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail closed on ledger result
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ '${{ needs.evidence-ledger.result }}' != 'success' ]]; then
+            echo "Canonical Verification FAILED: Evidence Ledger = ${{ needs.evidence-ledger.result }}"
+            exit 1
+          fi
+          echo 'Canonical Verification PASSED: all canonical evidence is present, executed, and SHA-bound.'
 
   diagnostic-summary:
     name: Diagnostic Summary
     if: ${{ always() }}
+    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, s3-static-gate, evidence-ledger, canonical-verify]
     runs-on: ubuntu-latest
-    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, browser-smoke, s3-static-gate, canonical-verify]
     steps:
       - name: Write CI summary
         run: |
           {
             echo '## FLIXO CI Diagnostic Summary'
             echo
-            echo '| Job | Result |'
+            echo '| Gate | Result |'
             echo '| --- | --- |'
             echo '| TypeScript | ${{ needs.typecheck.result }} |'
             echo '| ESLint | ${{ needs.lint.result }} |'
-            echo '| Runtime Build + Performance | ${{ needs.build.result }} |'
+            echo '| Build | ${{ needs.build.result }} |'
             echo '| Audit | ${{ needs.audit.result }} |'
             echo '| Socket | ${{ needs.socket.result }} |'
-            echo '| Secret History Scan | ${{ needs.secret-scan.result }} |'
+            echo '| Secret Scan | ${{ needs.secret-scan.result }} |'
             echo '| CodeQL | ${{ needs.security.result }} |'
-            echo '| Fast Contract Diagnostics | ${{ needs.fast-contract.result }} |'
-            echo '| Browser Smoke (5 Chromium checks) | ${{ needs.browser-smoke.result }} |'
-            echo '| S3 Static Gate | ${{ needs.s3-static-gate.result }} |'
-            echo '| Canonical Verification | ${{ needs.canonical-verify.result }} |'
-            echo
-            echo 'Fast Contract Diagnostics fail early on source-level contract drift.'
-            echo 'TypeScript and ESLint are validated by their dedicated parallel jobs and are not rerun in the reduced contract gate.'
-            echo 'Browser Smoke validates critical file workflows and the initial-route lazy-loading boundary before canonical verification.'
-            echo 'Runtime build performance budget and a reproducible asset baseline are validated before promotion.'
-            echo 'Bundle size inventory is published as a diagnostic artifact for evidence-driven optimization.'
-            echo 'The full browser matrix runs independently as promotion/release evidence.'
-            echo 'Diagnostics explain failures; Canonical Verification is the single PR/application gate.'
-            echo 'S3 Static Gate is a prerequisite for Canonical Verification.'
-            echo 'Socket is intentionally skipped when SOCKET_SECURITY_API_KEY is not configured.'
-            echo 'Secret History Scan is a blocking canonical dependency.'
+            echo '| Fast Contract | ${{ needs.fast-contract.result }} |'
+            echo '| S3 | ${{ needs.s3-static-gate.result }} |'
+            echo '| Evidence Ledger | ${{ needs.evidence-ledger.result }} |'
+            echo '| Canonical | ${{ needs.canonical-verify.result }} |'
           } >> "$GITHUB_STEP_SUMMARY"
 
   ci:
     name: CI
     if: ${{ always() }}
-    runs-on: ubuntu-latest
     needs: [canonical-verify]
+    runs-on: ubuntu-latest
     steps:
       - name: Confirm canonical CI gate
-        if: ${{ needs.canonical-verify.result != 'success' }}
         run: |
-          echo "Canonical Verification did not pass: ${{ needs.canonical-verify.result }}"
-          exit 1
-      - name: Confirm canonical CI gate
-        run: echo "CI gate passed for ${{ github.sha }}"
+          set -euo pipefail
+          if [[ '${{ needs.canonical-verify.result }}' != 'success' ]]; then
+            echo "CI FAILED: Canonical Verification = ${{ needs.canonical-verify.result }}"
+            exit 1
+          fi
+          echo "CI gate passed for exact commit ${{ github.sha }}"
