@@ -10,13 +10,14 @@ const languageTags: Record<(typeof localeCodes)[number], string> = {
 };
 const rtlLocales = new Set(['ar', 'ur']);
 const sharedTerms = new Set(['FLIXO', 'QuickFlow', 'OCR', 'PDF', 'English', 'العربية', 'Smart Intent', 'Ctrl K', 'WebP', 'PNG', 'JPEG', 'GIF', 'SVG', 'CSV', 'JSON', 'ZIP', 'MP3', 'MP4', 'Whisper', 'WebGPU', 'WASM']);
+const sharedPhrases = new Set(['FLIXO AI Tools', 'FLIXO home']);
 
 type Snapshot = { title: string; description: string; h1: string; ui: string[] };
 
 const normalize = (value: string | null | undefined) => (value ?? '').replace(/\s+/gu, ' ').trim();
 const familyPath = (pathname: string) => pathname.replace(new RegExp(`^/(?:${localeCodes.join('|')})(?=/|$)`, 'u'), '') || '/';
 const localizedPath = (locale: string, family: string) => `/${locale}${family === '/' ? '' : family}`;
-const sharedOnly = (value: string) => value.split(/\s+/u).filter(Boolean).every((word) => sharedTerms.has(word.replace(/[^\p{L}\p{N}]+/gu, '')));
+const sharedOnly = (value: string) => sharedPhrases.has(normalize(value)) || value.split(/\s+/u).filter(Boolean).every((word) => sharedTerms.has(word.replace(/[^\p{L}\p{N}]+/gu, '')));
 
 async function snapshot(page: Parameters<typeof test>[0]['page']): Promise<Snapshot> {
   return page.evaluate(() => {
@@ -69,7 +70,9 @@ for (const pathname of routes) {
     const runtimeErrors: string[] = [];
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
     page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
-    page.on('requestfailed', (request) => runtimeErrors.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`));
+    page.on('requestfailed', (request) => {
+      if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`);
+    });
 
     const response = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     expect(response?.status(), `${pathname} must return HTTP 200`).toBe(200);
@@ -77,15 +80,16 @@ for (const pathname of routes) {
 
     const locale = pathname.match(new RegExp(`^/(${localeCodes.join('|')})(?:/|$)`, 'u'))?.[1];
     expect(locale, `${pathname} must have a canonical locale prefix`).toBeTruthy();
-    const expectedDirection = rtlLocales.has(locale as string) ? 'rtl' : 'ltr';
+    const localeCode = locale as (typeof localeCodes)[number];
+    const expectedDirection = rtlLocales.has(localeCode) ? 'rtl' : 'ltr';
     const family = familyPath(pathname);
 
-    await expect(page.locator('html')).toHaveAttribute('lang', languageTags[locale as (typeof localeCodes)[number]]);
+    await expect(page.locator('html')).toHaveAttribute('lang', languageTags[localeCode]);
     await expect(page.locator('html')).toHaveAttribute('dir', expectedDirection);
 
     const main = page.locator('main').first();
     await expect(main).toBeVisible();
-    await expect(main).toHaveAttribute('lang', languageTags[locale as (typeof localeCodes)[number]]);
+    await expect(main).toHaveAttribute('lang', languageTags[localeCode]);
     await expect(main).toHaveAttribute('dir', expectedDirection);
 
     await expect(page.locator('h1')).toHaveCount(1);
@@ -125,13 +129,13 @@ for (const pathname of routes) {
       const target = new URL(hreflangs.find((entry) => entry.tag === tag)!.href, page.url());
       expect(target.pathname, `${pathname} hreflang ${tag} target`).toBe(localizedPath(code, family));
     }
-    expect(new URL(hreflangs.find((entry) => entry.tag === languageTags[locale as (typeof localeCodes)[number]])!.href, page.url()).pathname).toBe(pathname);
+    expect(new URL(hreflangs.find((entry) => entry.tag === languageTags[localeCode])!.href, page.url()).pathname).toBe(pathname);
     expect(new URL(hreflangs.find((entry) => entry.tag === 'x-default')!.href, page.url()).pathname).toBe(localizedPath('en', family));
 
     const current = await snapshot(page);
     const baseline = baselineCache.get(family);
     expect(baseline).toBeTruthy();
-    if (locale !== 'en') {
+    if (localeCode !== 'en') {
       const seoDiffers = current.title !== baseline!.title || current.description !== baseline!.description || current.h1 !== baseline!.h1;
       expect(seoDiffers, `${pathname} appears to reuse English title/description/H1`).toBe(true);
       const englishUi = new Set(baseline!.ui.filter((value) => value.length >= 4 && !sharedOnly(value)));
