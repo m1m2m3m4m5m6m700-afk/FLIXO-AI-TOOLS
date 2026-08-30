@@ -1,8 +1,8 @@
-import { getRuntimeSiteOrigin, getCanonicalSiteOrigin } from '../../config/origin.config.ts';
+import { getCanonicalSiteOrigin } from '../../config/origin.config.ts';
 
 export { getCanonicalSiteOrigin };
 
-export const SITE_ORIGIN = getRuntimeSiteOrigin();
+export const SITE_ORIGIN = getCanonicalSiteOrigin();
 
 export const LOCALES = ['en','ar','es','fr','de','ru','zh','hi','id','ur','ja','pt','it','ko','nl','pl','tr','vi','th','sv'] as const;
 export type Locale = (typeof LOCALES)[number];
