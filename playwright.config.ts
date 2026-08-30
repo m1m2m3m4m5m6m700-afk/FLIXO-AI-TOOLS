@@ -11,7 +11,7 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: isCi,
-  workers: isS4RuntimeGate ? 3 : isCi ? 3 : undefined,
+  workers: isS4RuntimeGate ? 4 : isCi ? 3 : undefined,
   retries: isS4RuntimeGate ? 0 : isCi ? 2 : 0,
   timeout: 45_000,
   expect: { timeout: 10_000 },
