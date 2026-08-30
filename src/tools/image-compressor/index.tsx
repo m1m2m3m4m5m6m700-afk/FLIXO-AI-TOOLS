@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { assertSafeImageFile } from './file-safety';
 import { compressImage, MAX_FILES, MAX_INPUT_SIZE, type CompressionFormat } from './engine';
 import { imageCompressorOutputIntegrity } from './output-contract';
 import { validateOutputIntegrity } from '../../lib/contracts/output-integrity';
@@ -70,22 +71,34 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     headingRef.current?.focus({ preventScroll: true });
   }, [locale]);
 
-  const selectFiles = (nextFiles: File[]) => {
+  const selectFiles = async (nextFiles: File[]) => {
     setError('');
     setResult(null);
     setBatchZipUrl('');
-    const empty = nextFiles.find((nextFile) => nextFile.size === 0);
-    if (empty) {
-      setFiles([]);
-      setError(label(locale, 'The selected image file is empty.', 'ملف الصورة المحدد فارغ.'));
-      return;
-    }
-    const selected = nextFiles.slice(0, MAX_FILES).filter((nextFile) => nextFile.size <= MAX_INPUT_SIZE);
-    const rejectedCount = nextFiles.length - selected.length;
-    if (rejectedCount > 0) {
-      setError(label(locale, `Some files were skipped. Maximum ${MAX_FILES} files and ${formatBytes(MAX_INPUT_SIZE)} per file.`, `تم تجاهل بعض الملفات. الحد الأقصى ${MAX_FILES} ملفًا و${formatBytes(MAX_INPUT_SIZE)} لكل ملف.`));
-    }
+
+    const candidates = nextFiles.slice(0, MAX_FILES).filter((nextFile) => nextFile.size > 0 && nextFile.size <= MAX_INPUT_SIZE);
+    let rejectedCount = nextFiles.length - candidates.length;
+
+    const validationResults = await Promise.all(candidates.map(async (nextFile) => {
+      try {
+        await assertSafeImageFile(nextFile);
+        return nextFile;
+      } catch {
+        rejectedCount += 1;
+        return null;
+      }
+    }));
+
+    const selected = validationResults.filter((nextFile): nextFile is File => nextFile !== null);
     setFiles(selected);
+
+    if (rejectedCount > 0) {
+      setError(label(
+        locale,
+        `Some files were skipped. Only valid supported image files within the ${formatBytes(MAX_INPUT_SIZE)} per-file limit can be processed.`,
+        `تم تجاهل بعض الملفات. يمكن معالجة ملفات الصور المدعومة والسليمة فقط ضمن حد ${formatBytes(MAX_INPUT_SIZE)} لكل ملف.`,
+      ));
+    }
   };
 
   const processOne = async (nextFile: File) => compressImage(nextFile, {
@@ -181,7 +194,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
         <section className="compressor-grid" aria-label={label(locale, 'Image compression tool', 'أداة ضغط الصور')} aria-busy={busy}>
           <div className="compressor-card">
             <label className="upload-zone" htmlFor="image-file"><span className="upload-title">{files.length ? `${files.length} ${label(locale, files.length === 1 ? 'image selected' : 'images selected', files.length === 1 ? 'صورة محددة' : 'صور محددة')}` : label(locale, 'Choose images to start', 'اختر الصور للبدء')}</span><span className="upload-subtitle">JPG · PNG · WebP · GIF · BMP · SVG · {label(locale, `up to ${MAX_FILES} files`, `حتى ${MAX_FILES} ملفًا`)}</span></label>
-            <input ref={inputRef} id="image-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml" className="sr-only" multiple onChange={(event) => selectFiles(Array.from(event.target.files ?? []))} />
+            <input ref={inputRef} id="image-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml" className="sr-only" multiple onChange={(event) => void selectFiles(Array.from(event.target.files ?? []))} />
             <div className="control-grid">
               <label><span>{label(locale, 'Output format', 'الصيغة')}</span><select value={format} onChange={(event) => setFormat(event.target.value as CompressionFormat)}>{Object.entries(formatLabels).map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
               <label><span>{label(locale, 'Quality', 'الجودة')} ({Math.round(quality * 100)}%)</span><input aria-label={label(locale, 'Quality', 'الجودة')} type="range" min="0.1" max="1" step="0.05" value={quality} onChange={(event) => setQuality(Number(event.target.value))} /></label>
