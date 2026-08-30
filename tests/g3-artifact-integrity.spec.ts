@@ -1,6 +1,6 @@
-import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import { validateOutputIntegrity } from '../src/lib/contracts/output-integrity';
+import { getToolOutputContract } from '../src/lib/contracts/tool-output-contracts';
 
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#223344"/><circle cx="300" cy="220" r="180" fill="#67e8f9"/><circle cx="850" cy="560" r="260" fill="#164e63"/></svg>`;
 
@@ -16,14 +16,17 @@ async function readBlob(page: Page, href: string): Promise<BrowserArtifact> {
   }, href);
 }
 
-async function readDownloadedFile(page: Page, link: ReturnType<Page['getByRole']>) {
+async function readDownload(page: Page, link: ReturnType<Page['getByRole']>, expectedFilename: string): Promise<{ filename: string; bytes: number[] }> {
   const downloadPromise = page.waitForEvent('download');
   await link.click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBeTruthy();
-  const path = await download.path();
-  if (!path) throw new Error('Playwright did not provide a downloaded artifact path');
-  return new Uint8Array(await readFile(path));
+  const filename = download.suggestedFilename();
+  expect(filename).toBe(expectedFilename);
+  const stream = await download.createReadStream();
+  expect(stream).not.toBeNull();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  return { filename, bytes: Array.from(Buffer.concat(chunks)) };
 }
 
 test('G3 real flow: upload → process → download → inspect image artifact', async ({ page }) => {
@@ -37,21 +40,24 @@ test('G3 real flow: upload → process → download → inspect image artifact',
   });
   await page.getByRole('button', { name: 'Compress image' }).click();
 
-  const download = page.getByRole('link', { name: 'Download image' });
-  await expect(download).toHaveAttribute('download', 'flixo-compressed.webp', { timeout: 15000 });
-  const filename = await download.getAttribute('download');
-  const href = await download.getAttribute('href');
+  const downloadLink = page.getByRole('link', { name: 'Download image' });
+  await expect(downloadLink).toHaveAttribute('download', 'flixo-compressed.webp', { timeout: 15000 });
+  const filename = await downloadLink.getAttribute('download');
+  const href = await downloadLink.getAttribute('href');
   expect(filename).toBe('flixo-compressed.webp');
   expect(href).toMatch(/^blob:/);
 
-  const blobArtifact = await readBlob(page, href!);
-  const savedBytes = await readDownloadedFile(page, download);
-  expect(savedBytes.byteLength).toBe(blobArtifact.size);
-  expect(Array.from(savedBytes)).toEqual(blobArtifact.bytes);
+  const artifact = await readBlob(page, href!);
+  const saved = await readDownload(page, downloadLink, 'flixo-compressed.webp');
+  expect(saved.bytes).toEqual(artifact.bytes);
+
+  const contract = getToolOutputContract('image-compressor');
+  expect(contract).toBeDefined();
+  expect(contract!.variants.some((variant) => variant.allowedExtensions.includes('webp'))).toBe(true);
 
   const result = validateOutputIntegrity(
-    savedBytes.byteLength,
-    blobArtifact.mime,
+    artifact.size,
+    artifact.mime,
     {
       toolId: 'image-compressor',
       allowedMime: ['image/webp'],
@@ -59,14 +65,12 @@ test('G3 real flow: upload → process → download → inspect image artifact',
       maxBytes: 25 * 1024 * 1024,
       minBytes: 1,
       maxPixels: 40_000_000,
-      signatures: [
-        { hex: '52494646' },
-      ],
+      signatures: [{ hex: '52494646' }],
       requireArtifact: true,
       requireSafeFilename: true,
     },
     { width: 1200, height: 800 },
-    { filename: filename!, bytes: savedBytes },
+    { filename: filename!, bytes: Uint8Array.from(saved.bytes) },
   );
 
   expect(result.valid, result.failures.join('; ')).toBe(true);
@@ -82,21 +86,20 @@ test('G3 real flow: upload → process → download → inspect ZIP artifact', a
   ]);
   await page.getByRole('button', { name: 'Compress all to ZIP' }).click();
 
-  const download = page.getByRole('link', { name: 'Download ZIP' });
-  await expect(download).toHaveAttribute('download', 'flixo-compressed-images.zip', { timeout: 15000 });
-  const filename = await download.getAttribute('download');
-  const href = await download.getAttribute('href');
+  const downloadLink = page.getByRole('link', { name: 'Download ZIP' });
+  await expect(downloadLink).toHaveAttribute('download', 'flixo-compressed-images.zip', { timeout: 15000 });
+  const filename = await downloadLink.getAttribute('download');
+  const href = await downloadLink.getAttribute('href');
   expect(filename).toBe('flixo-compressed-images.zip');
   expect(href).toMatch(/^blob:/);
 
-  const blobArtifact = await readBlob(page, href!);
-  const savedBytes = await readDownloadedFile(page, download);
-  expect(savedBytes.byteLength).toBe(blobArtifact.size);
-  expect(Array.from(savedBytes)).toEqual(blobArtifact.bytes);
+  const artifact = await readBlob(page, href!);
+  const saved = await readDownload(page, downloadLink, 'flixo-compressed-images.zip');
+  expect(saved.bytes).toEqual(artifact.bytes);
 
   const result = validateOutputIntegrity(
-    savedBytes.byteLength,
-    blobArtifact.mime,
+    artifact.size,
+    artifact.mime,
     {
       toolId: 'image-compressor-batch',
       allowedMime: ['application/zip'],
@@ -108,7 +111,7 @@ test('G3 real flow: upload → process → download → inspect ZIP artifact', a
       requireSafeFilename: true,
     },
     undefined,
-    { filename: filename!, bytes: savedBytes },
+    { filename: filename!, bytes: Uint8Array.from(saved.bytes) },
   );
 
   expect(result.valid, result.failures.join('; ')).toBe(true);
