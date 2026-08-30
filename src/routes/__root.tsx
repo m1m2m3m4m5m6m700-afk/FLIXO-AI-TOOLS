@@ -48,6 +48,7 @@ export const rootRoute = createRootRoute({
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { name: 'theme-color', content: '#090d12' },
+      { name: 'description', content: 'FLIXO AI Tools — fast browser-first productivity tools with privacy-focused local processing.' },
       { name: 'robots', content: 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1' },
       { property: 'og:site_name', content: 'FLIXO' },
       { property: 'og:type', content: 'website' },
