@@ -149,6 +149,8 @@ jobs:
         env:
           PLAYWRIGHT_SERVER: preview
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+          PLAYWRIGHT_REUSE_SERVER: 'true'
+          S4_EXTERNAL_SERVER: 'true'
           TESTS_JSON: ${{ toJSON(matrix.tests) }}
         shell: bash
         run: |
