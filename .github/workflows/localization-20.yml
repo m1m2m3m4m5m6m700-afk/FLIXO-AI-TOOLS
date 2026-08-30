@@ -1,5 +1,5 @@
 name: Localization — 20 Locale Gate
-# Strict multi-surface localization enforcement: no locale may bypass the complete gate.
+# Strict multi-surface localization enforcement: PR + main only; no feature-branch replay.
 
 on:
   pull_request:
@@ -15,19 +15,12 @@ on:
       - 'playwright.config.ts'
       - '.github/workflows/localization-20.yml'
   push:
-    branches:
-      - main
-      - 'fix/**'
-      - 'feat/**'
-      - 'seo/**'
-      - 'ci/**'
-      - 'refactor/**'
-      - 's3-**'
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: localization-20-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  group: localization-20-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -39,34 +32,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        locale:
-          - en
-          - ar
-          - es
-          - fr
-          - de
-          - ru
-          - zh
-          - hi
-          - id
-          - ur
-          - ja
-          - pt
-          - it
-          - ko
-          - nl
-          - pl
-          - tr
-          - vi
-          - th
-          - sv
+        locale: [en, ar, es, fr, de, ru, zh, hi, id, ur, ja, pt, it, ko, nl, pl, tr, vi, th, sv]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Validate ${{ matrix.locale }} translation contract
         env:
           FLIXO_LOCALE: ${{ matrix.locale }}
@@ -82,34 +55,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        locale:
-          - en
-          - ar
-          - es
-          - fr
-          - de
-          - ru
-          - zh
-          - hi
-          - id
-          - ur
-          - ja
-          - pt
-          - it
-          - ko
-          - nl
-          - pl
-          - tr
-          - vi
-          - th
-          - sv
+        locale: [en, ar, es, fr, de, ru, zh, hi, id, ur, ja, pt, it, ko, nl, pl, tr, vi, th, sv]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
       - name: Render and verify ${{ matrix.locale }} runtime
         env:
@@ -125,6 +78,7 @@ jobs:
       - name: Enforce all 20 locale checks
         shell: bash
         run: |
+          set -euo pipefail
           if [[ "${{ needs.locale.result }}" != "success" ]]; then
             echo "Localization — 20 Locale Gate FAILED: at least one static locale test failed."
             exit 1
