@@ -2,7 +2,9 @@ import { CANONICAL_LOCALES, failValidation } from './validation-contracts.mjs';
 
 const PRODUCTION_ORIGIN = process.env.PRODUCTION_ORIGIN ?? 'https://flixoai.vercel.app';
 const EXPECTED_ORIGIN = 'https://flixoai.vercel.app';
-const timeoutMs = Number(process.env.PRODUCTION_CERT_TIMEOUT_MS ?? 30000);
+const EXPECTED_SHA = process.env.EXPECTED_SHA?.trim() ?? '';
+const timeoutMs = Number(process.env.PRODUCTION_CERT_TIMEOUT_MS ?? 15000);
+const concurrency = Math.max(1, Number(process.env.PRODUCTION_CERT_CONCURRENCY ?? 12));
 
 if (PRODUCTION_ORIGIN !== EXPECTED_ORIGIN) {
   failValidation(`Production certification origin mismatch: expected ${EXPECTED_ORIGIN}, got ${PRODUCTION_ORIGIN}`);
@@ -20,7 +22,7 @@ async function fetchText(path) {
     const response = await fetch(`${PRODUCTION_ORIGIN}${path}`, {
       redirect: 'follow',
       signal: controller.signal,
-      headers: { 'user-agent': 'FLIXO-production-certification/1' },
+      headers: { 'user-agent': 'FLIXO-production-certification/2' },
     });
     const body = await response.text();
     if (!response.ok) failValidation(`${path} returned HTTP ${response.status}`);
@@ -34,6 +36,11 @@ async function fetchText(path) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+const buildManifest = JSON.parse(await fetchText('/_flixo_build_manifest.json'));
+if (EXPECTED_SHA && buildManifest.sha !== EXPECTED_SHA && buildManifest.commit_sha !== EXPECTED_SHA) {
+  failValidation(`Production deployment SHA mismatch: deployed=${buildManifest.sha ?? buildManifest.commit_sha ?? 'missing'} expected=${EXPECTED_SHA}`);
 }
 
 const robots = await fetchText('/robots.txt');
@@ -81,7 +88,10 @@ const hreflangs = hreflangTags.map((tag) => ({
   locale: tag.match(/\bhreflang=["']([^"']+)["']/i)?.[1],
   href: tag.match(/\bhref=["']([^"']+)["']/i)?.[1],
 })).filter((entry) => entry.locale && entry.href);
-if (!hreflangs.some((entry) => entry.locale === 'x-default')) failValidation('Production sitemap is missing x-default hreflang');
+const requiredHreflangs = [...CANONICAL_LOCALES.map((locale) => (locale === 'zh' ? 'zh-CN' : locale)), 'x-default'];
+for (const required of requiredHreflangs) {
+  if (!hreflangs.some((entry) => entry.locale === required)) failValidation(`Production sitemap is missing hreflang ${required}`);
+}
 for (const entry of hreflangs) {
   const target = new URL(entry.href);
   if (target.origin !== PRODUCTION_ORIGIN || target.protocol !== 'https:' || target.search || target.hash) {
@@ -92,11 +102,39 @@ for (const entry of hreflangs) {
 const canonicalMatch = homepage.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i) ?? homepage.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i);
 if (!canonicalMatch) failValidation('Production /en page is missing canonical link');
 const canonical = new URL(canonicalMatch[1]);
-if (canonical.origin !== PRODUCTION_ORIGIN || canonical.protocol !== 'https:' || canonical.search || canonical.hash) {
+if (canonical.origin !== PRODUCTION_ORIGIN || canonical.protocol !== 'https:' || canonical.pathname !== '/en' || canonical.search || canonical.hash) {
   failValidation(`Production /en canonical violates the production origin: ${canonical.href}`);
 }
 
 const htmlLang = homepage.match(/<html[^>]+\blang=["']([^"']+)["']/i)?.[1];
 if (htmlLang !== 'en') failValidation(`Production /en html lang must be en, got ${htmlLang ?? 'missing'}`);
 
-console.log(`Production certification passed: ${EXPECTED_ORIGIN}, ${CANONICAL_LOCALES.length} canonical locales, canonical sitemap binding, HTTPS-only URLs, no preview leakage, x-default, and /en canonical/lang.`);
+const routePaths = [...seen].map((url) => new URL(url).pathname);
+const chunks = [];
+for (let index = 0; index < routePaths.length; index += concurrency) chunks.push(routePaths.slice(index, index + concurrency));
+let certifiedPages = 0;
+for (const chunk of chunks) {
+  await Promise.all(chunk.map(async (path) => {
+    const body = await fetchText(path);
+    const locale = path.split('/').filter(Boolean)[0];
+    if (!locale || !CANONICAL_LOCALES.includes(locale)) failValidation(`Production public route has invalid locale: ${path}`);
+    const expectedLang = locale === 'zh' ? 'zh-CN' : locale;
+    const lang = body.match(/<html[^>]+\blang=["']([^"']+)["']/i)?.[1];
+    if (lang !== expectedLang) failValidation(`${path} html lang=${lang ?? 'missing'} expected=${expectedLang}`);
+    const canonicalMatch = body.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i) ?? body.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i);
+    if (!canonicalMatch) failValidation(`${path} missing canonical link`);
+    const pageCanonical = new URL(canonicalMatch[1], PRODUCTION_ORIGIN);
+    if (pageCanonical.origin !== PRODUCTION_ORIGIN || pageCanonical.pathname !== path || pageCanonical.search || pageCanonical.hash) {
+      failValidation(`${path} canonical mismatch: ${pageCanonical.href}`);
+    }
+    const pageHreflangs = [...body.matchAll(/<link[^>]+rel=["']alternate["'][^>]+hreflang=["']([^"']+)["'][^>]+href=["']([^"']+)["']/gi)].map((match) => ({ locale: match[1], href: match[2] }));
+    if (!pageHreflangs.some((entry) => entry.locale === 'x-default')) failValidation(`${path} missing x-default hreflang`);
+    for (const entry of pageHreflangs) {
+      const target = new URL(entry.href, PRODUCTION_ORIGIN);
+      if (target.origin !== PRODUCTION_ORIGIN || target.protocol !== 'https:') failValidation(`${path} has non-canonical hreflang target ${entry.href}`);
+    }
+    certifiedPages += 1;
+  }));
+}
+
+console.log(`Production certification passed: ${EXPECTED_ORIGIN}, sha=${EXPECTED_SHA || 'not-required'}, ${CANONICAL_LOCALES.length} locales, ${certifiedPages} sitemap routes, HTTPS-only URLs, no preview leakage, complete hreflang, canonical/locale runtime, robots binding, and exact production deployment identity.`);
