@@ -39,6 +39,8 @@ jobs:
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Build certification artifact once
         run: npm run build
+      - name: Write immutable build manifest
+        run: node scripts/ci/write-build-artifact-manifest.mjs
       - name: Verify static artifact completeness
         shell: bash
         run: |
