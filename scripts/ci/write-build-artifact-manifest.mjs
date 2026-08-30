@@ -39,5 +39,5 @@ const manifest = {
   files,
 };
 
-writeFileSync(join(distRoot, 'build-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+writeFileSync(join(distRoot, '_flixo_build_manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 console.log(JSON.stringify({ artifact_sha256: artifactSha, file_count: files.length }, null, 2));
