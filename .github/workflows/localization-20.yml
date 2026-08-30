@@ -18,6 +18,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+
 concurrency:
   group: localization-20-${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
