@@ -30,7 +30,7 @@ env:
   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
 jobs:
-  source-build:
+  source_build:
     name: Full Matrix — Source Build
     runs-on: ubuntu-latest
     steps:
@@ -67,7 +67,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  weighted-plan:
+  weighted_plan:
     name: Full Matrix — Weighted Plan
     runs-on: ubuntu-latest
     outputs:
@@ -109,13 +109,13 @@ jobs:
 
   e2e:
     name: Full Matrix — ${{ matrix.browser }} — shard ${{ matrix.shard }}/${{ matrix.total_shards }}
-    needs: [source-build, weighted-plan]
-    if: ${{ needs.source-build.result == 'success' && needs.weighted-plan.result == 'success' }}
+    needs: [source_build, weighted_plan]
+    if: ${{ needs.source_build.result == 'success' && needs.weighted_plan.result == 'success' }}
     strategy:
       fail-fast: false
       max-parallel: 18
       matrix:
-        include: ${{ fromJSON(needs.weighted-plan.outputs.matrix) }}
+        include: ${{ fromJSON(needs.weighted_plan.outputs.matrix) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
