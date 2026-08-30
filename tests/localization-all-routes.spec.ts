@@ -31,7 +31,9 @@ test.describe('G4 all-public-route localization certification', () => {
         const title = await page.title();
         expect(title.trim(), `${locale} ${route} title`).not.toBe('');
 
-        const description = await page.locator('meta[name="description"]').getAttribute('content');
+        const descriptionLocator = page.locator('meta[name="description"]');
+        await expect(descriptionLocator, `${locale} ${route} description meta uniqueness`).toHaveCount(1);
+        const description = await descriptionLocator.getAttribute('content');
         expect(description?.trim(), `${locale} ${route} description`).not.toBe('');
 
         const h1 = page.locator('h1').first();
