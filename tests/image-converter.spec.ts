@@ -3,15 +3,23 @@ import { assertToolOutputContract } from '../src/lib/contracts/tool-output';
 import { imageConverterOutputContract } from '../src/tools/image-converter/output-contract';
 import { assertDownload, assertImageResult, uploadFixture } from './helpers/image-tool-fixture';
 
-async function assertWebpSignature(page: Parameters<typeof test>[0]['page']) {
+async function inspectWebpOutput(page: Parameters<typeof test>[0]['page']) {
   return page.evaluate(async () => {
     const image = document.querySelector('img[alt="Tool result"]') as HTMLImageElement | null;
     if (!image) throw new Error('Tool result image not found.');
     const response = await fetch(image.src);
+    if (!response.ok) throw new Error(`Output blob fetch failed: ${response.status}`);
     const blob = await response.blob();
-    const bytes = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
-    const signature = Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
-    return { mimeType: blob.type, byteLength: blob.size, signature };
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const signature = Array.from(bytes.slice(0, 12)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    return {
+      mimeType: blob.type,
+      byteLength: blob.size,
+      signature,
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+      bytes: Array.from(bytes),
+    };
   });
 }
 
@@ -27,11 +35,16 @@ test('image-converter: converts to WebP with a contract-valid output', async ({ 
   expect(result.width).toBe(4);
   expect(result.height).toBe(4);
 
-  const output = await assertWebpSignature(page);
-  assertToolOutputContract(imageConverterOutputContract, output);
+  const output = await inspectWebpOutput(page);
+  const download = await assertDownload(page, /\.webp$/);
+  assertToolOutputContract(imageConverterOutputContract, {
+    mimeType: output.mimeType,
+    byteLength: output.byteLength,
+    filename: download.suggestedFilename(),
+    bytes: Uint8Array.from(output.bytes),
+    dimensions: { width: output.width, height: output.height },
+  });
   expect(output.signature.startsWith('52494646')).toBe(true);
-
-  await assertDownload(page, /\.webp$/);
 });
 
 test('image-converter: rejects unsupported MIME before decoding', async ({ page }) => {

@@ -15,19 +15,27 @@ export async function assertImageResult(page: Page) {
     const image = document.querySelector('img[alt="Tool result"]') as HTMLImageElement | null;
     if (!image) throw new Error('Tool result image not found.');
     const response = await fetch(image.src);
+    if (!response.ok) throw new Error(`Output blob fetch failed: ${response.status}`);
     const blob = await response.blob();
-    return { type: blob.type, size: blob.size, width: image.naturalWidth, height: image.naturalHeight };
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    return { type: blob.type, size: blob.size, width: image.naturalWidth, height: image.naturalHeight, bytes: Array.from(bytes) };
   });
   expect(meta.size).toBeGreaterThan(20);
   expect(meta.width).toBeGreaterThan(0);
   expect(meta.height).toBeGreaterThan(0);
+  expect(meta.bytes.length).toBe(meta.size);
   return meta;
 }
 
-export async function assertDownload(page: Page, pattern: RegExp) {
+export async function captureDownload(page: Page) {
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download now' }).click();
-  const download = await downloadPromise;
+  return downloadPromise;
+}
+
+export async function assertDownload(page: Page, pattern: RegExp) {
+  const download = await captureDownload(page);
   expect(download.suggestedFilename()).toMatch(pattern);
   expect(download.suggestedFilename()).not.toContain('undefined');
+  return download;
 }

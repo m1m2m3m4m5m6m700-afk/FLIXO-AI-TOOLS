@@ -1,0 +1,51 @@
+name: G3 Universal Artifact Integrity Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: g3-artifact-integrity-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
+jobs:
+  g3:
+    name: G3 Universal Artifact Integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_SITE_URL: https://flixoai.vercel.app
+      VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+      VITE_TEST_ORIGIN: https://canonical.test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: G3 ready-tool output contract parity
+        run: node --experimental-strip-types scripts/test-g3-output-contract-registry.mjs
+      - name: Retained output integrity regression
+        run: node --experimental-strip-types scripts/test-output-integrity.mjs
+      - name: G3 universal artifact integrity matrix
+        run: node --experimental-strip-types scripts/test-g3-artifact-integrity.mjs
+      - name: G3 real artifact browser flow
+        run: npx playwright test tests/g3-artifact-integrity.spec.ts --project=chromium --workers=1
