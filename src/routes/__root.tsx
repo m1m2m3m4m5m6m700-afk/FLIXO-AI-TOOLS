@@ -9,7 +9,7 @@ const GLOBAL_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
   '@graph': [
     { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: 'FLIXO', url: SITE_ORIGIN, logo: `${SITE_ORIGIN}/flixo-logo.svg` },
-    { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'FLIXO', url: SITE_ORIGIN, publisher: { '@id': `${SITE_ORIGIN}/#organization` },
+    { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'FLIXO', url: SITE_ORIGIN, publisher: { '@id': `${SITE_ORIGIN}/#organization` } },
   ],
 } as const;
 
@@ -42,17 +42,7 @@ function RouteContent() {
 export const rootRoute = createRootRoute({
   component: function RootLayout() {
     useEffect(() => installCoreWebVitalsDiagnostics(), []);
-    return (
-      <>
-        <HeadContent />
-        <RuntimeLocaleAttributes />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} />
-        <FlixoGlobalLogo />
-        <CommandPalette />
-        <RouteContent />
-        <Scripts />
-      </>
-    );
+    return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} /><FlixoGlobalLogo /><CommandPalette /><RouteContent /><Scripts /></>;
   },
   head: () => ({
     meta: [
