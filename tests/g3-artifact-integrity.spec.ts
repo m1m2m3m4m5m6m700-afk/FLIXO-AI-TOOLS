@@ -1,9 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { validateOutputIntegrity } from '../src/lib/contracts/output-integrity';
 
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#223344"/><circle cx="300" cy="220" r="180" fill="#67e8f9"/><circle cx="850" cy="560" r="260" fill="#164e63"/></svg>`;
 
-async function readBlob(page: Parameters<typeof test>[0] extends never ? never : any, href: string) {
+type BrowserArtifact = { mime: string; bytes: number[]; size: number };
+
+async function readBlob(page: Page, href: string): Promise<BrowserArtifact> {
   return page.evaluate(async (objectUrl: string) => {
     const response = await fetch(objectUrl);
     if (!response.ok) throw new Error(`download fetch failed with HTTP ${response.status}`);
