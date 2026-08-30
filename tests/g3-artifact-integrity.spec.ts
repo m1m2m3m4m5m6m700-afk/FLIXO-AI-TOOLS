@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { validateOutputIntegrity } from '../src/lib/contracts/output-integrity';
 import { getToolOutputContract } from '../src/lib/contracts/tool-output-contracts';
 
@@ -16,7 +16,7 @@ async function readBlob(page: Page, href: string): Promise<BrowserArtifact> {
   }, href);
 }
 
-async function readDownload(page: Page, link: ReturnType<Page['getByRole']>, expectedFilename: string): Promise<{ filename: string; bytes: number[] }> {
+async function readDownload(page: Page, link: Locator, expectedFilename: string): Promise<{ filename: string; bytes: number[] }> {
   const downloadPromise = page.waitForEvent('download');
   await link.click();
   const download = await downloadPromise;
