@@ -326,7 +326,7 @@ jobs:
           set +e
           if [ -f /tmp/s4-server.pid ]; then
             PID="$(cat /tmp/s4-server.pid)"
-            PGID="$(ps -o pgid= -p "$PID" 2>/dev/null | tr -d ' ')
+            PGID="$(ps -o pgid= -p "$PID" 2>/dev/null | tr -d ' ' )"
             if [ -n "$PGID" ] && [ "$PGID" != "1" ] && kill -0 "$PID" 2>/dev/null; then
               kill -- -"$PGID" 2>/dev/null || true
             fi
