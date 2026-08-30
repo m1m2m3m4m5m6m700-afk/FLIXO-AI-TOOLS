@@ -1,9 +1,9 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import { useParams } from '@tanstack/react-router';
 import { LOCALES, isLocale, type Locale, LOCALE_METADATA } from '../lib/i18n';
-import { getToolSeo } from '../lib/seo/tool-seo';
+import { getLocalizedToolTitle, getToolSeo } from '../lib/seo/tool-seo';
 import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
-import { localizeToolCategory, localizeToolDescription, localizeToolTitle } from '../lib/i18n/tool-localization';
+import { localizeToolCategory, localizeToolDescription } from '../lib/i18n/tool-localization';
 import { AutoLocalizedToolSurface } from '../components/auto-localized-tool-surface';
 import { getToolPrivacyCopy } from '../lib/privacy';
 import { getFavorites, recordRecentTool, toggleFavorite } from '../lib/local-workspace';
@@ -41,8 +41,8 @@ export function LocalizedToolPage() {
     return <main lang={locale} dir={direction} className="tool-page-modern"><div className="tool-page-modern__body"><section className="tool-page-modern__hero"><p className="tool-page-modern__eyebrow">FLIXO · {copy.navigation}</p><h1 ref={headingRef} tabIndex={-1} className="tool-page-modern__title">{copy.notFound}</h1></section></div></main>;
   }
 
-  const localizedTitle = localizeToolTitle(locale, seo.tool.title, seo.tool.category);
-  const localizedDescription = locale === 'en' ? seo.tool.description : localizeToolDescription(locale, seo.tool.title, seo.tool.category);
+  const localizedTitle = getLocalizedToolTitle(locale, seo.tool.id, seo.tool.title);
+  const localizedDescription = locale === 'en' ? seo.tool.description : localizeToolDescription(locale, localizedTitle, localizeToolCategory(locale, seo.tool.category));
   const localizedCategory = localizeToolCategory(locale, seo.tool.category);
   const ToolComponent = seo.tool.component as unknown as ComponentType<{ locale?: Locale }>;
   const privacy = getToolPrivacyCopy(seo.tool.id, locale);
