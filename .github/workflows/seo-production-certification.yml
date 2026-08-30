@@ -1,25 +1,19 @@
-name: SEO Production Certification
+name: SEO Production Certification (Manual Diagnostic)
+# Consolidated into G4. This workflow remains available for explicit diagnostic runs only.
 
 on:
-  push:
-    branches:
-      - main
-      - 'work/**'
-      - 'fix/**'
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: seo-production-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  group: seo-production-diagnostic
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
   production-seo:
-    name: Production SEO Artifacts
+    name: SEO Production Diagnostic
     runs-on: ubuntu-latest
     env:
       VITE_SITE_URL: https://flixoai.vercel.app
@@ -30,7 +24,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Build production SEO artifacts
         run: npm run build
       - name: Validate generated sitemap and robots artifacts
@@ -44,10 +38,12 @@ jobs:
           npm run validate:breadcrumb-seo
           node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-google-multilingual-seo.mjs
           node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-language-quality-strict.mjs
-      - name: Final SEO/indexing certification
+      - name: Final SEO/indexing diagnostic
         run: |
+          set -euo pipefail
           test -f dist/robots.txt
           test -f dist/sitemap.xml
           grep -Fx "Sitemap: ${VITE_SITE_URL}/sitemap.xml" dist/robots.txt
           grep -Fq 'xmlns:xhtml="http://www.w3.org/1999/xhtml"' dist/sitemap.xml
-          echo "SEO/Indexing certification GREEN: production artifacts + canonical origin + hreflang + x-default + robots + indexing contracts passed."
+          grep -Fq 'hreflang="x-default"' dist/sitemap.xml
+          echo "SEO/Indexing diagnostic GREEN"
