@@ -1,5 +1,6 @@
 name: Localization — 20 Locale Gate
 # Strict multi-surface localization enforcement: no locale may bypass the complete gate.
+# CI retrigger after dependency-manifest synchronization on FA-3.
 
 on:
   pull_request:
