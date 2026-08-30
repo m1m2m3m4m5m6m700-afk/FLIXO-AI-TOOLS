@@ -46,24 +46,8 @@ async function snapshot(page: Page): Promise<Snapshot> {
   });
 }
 
-const baselineCache = new Map<string, Snapshot>();
-
 test.describe.configure({ mode: 'parallel' });
 test.setTimeout(60_000);
-
-test.beforeAll(async ({ browser }) => {
-  const page = await browser.newPage();
-  const families = [...new Set(routes.map(familyPath))];
-  for (const family of families) {
-    const response = await page.goto(localizedPath('en', family), { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    expect(response?.status()).toBe(200);
-    await page.waitForLoadState('networkidle').catch(() => undefined);
-    baselineCache.set(family, await snapshot(page));
-  }
-  await page.close();
-});
-
-test.afterAll(() => baselineCache.clear());
 
 for (const pathname of routes) {
   test(`G4 all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
@@ -132,13 +116,20 @@ for (const pathname of routes) {
     expect(new URL(hreflangs.find((entry) => entry.tag === languageTags[localeCode])!.href, page.url()).pathname).toBe(pathname);
     expect(new URL(hreflangs.find((entry) => entry.tag === 'x-default')!.href, page.url()).pathname).toBe(localizedPath('en', family));
 
-    const current = await snapshot(page);
-    const baseline = baselineCache.get(family);
-    expect(baseline).toBeTruthy();
     if (localeCode !== 'en') {
-      const seoDiffers = current.title !== baseline!.title || current.description !== baseline!.description || current.h1 !== baseline!.h1;
+      const baselineResponse = await page.goto(localizedPath('en', family), { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      expect(baselineResponse?.status(), `${pathname} English baseline ${family} must return HTTP 200`).toBe(200);
+      await page.waitForLoadState('networkidle').catch(() => undefined);
+      const baseline = await snapshot(page);
+
+      const localizedResponse = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      expect(localizedResponse?.status(), `${pathname} must return HTTP 200 after baseline comparison`).toBe(200);
+      await page.waitForLoadState('networkidle').catch(() => undefined);
+      const current = await snapshot(page);
+
+      const seoDiffers = current.title !== baseline.title || current.description !== baseline.description || current.h1 !== baseline.h1;
       expect(seoDiffers, `${pathname} appears to reuse English title/description/H1`).toBe(true);
-      const englishUi = new Set(baseline!.ui.filter((value) => value.length >= 4 && !sharedOnly(value)));
+      const englishUi = new Set(baseline.ui.filter((value) => value.length >= 4 && !sharedOnly(value)));
       const leakedEnglish = current.ui.filter((value) => englishUi.has(value));
       expect(leakedEnglish, `${pathname} exact English UI fallback(s): ${leakedEnglish.slice(0, 10).join(' | ')}`).toEqual([]);
     }
