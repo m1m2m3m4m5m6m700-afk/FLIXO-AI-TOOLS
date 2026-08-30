@@ -3,7 +3,7 @@ import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tan
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
-import { LOCALE_METADATA, isLocale, SITE_ORIGIN } from '../lib/i18n';
+import { LOCALES, LOCALE_METADATA, isLocale, SITE_ORIGIN } from '../lib/i18n';
 
 const GLOBAL_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
@@ -44,7 +44,21 @@ function RuntimeHeadNormalization() {
 
   useEffect(() => {
     const canonicalPath = location.pathname === '/' ? '/' : location.pathname.replace(/\/+$/u, '');
+    const firstSegment = canonicalPath.split('/').filter(Boolean)[0] ?? '';
+    const localizedPath = isLocale(firstSegment)
+      ? canonicalPath.slice(firstSegment.length + 1) || '/'
+      : canonicalPath;
     const expectedCanonical = `${SITE_ORIGIN}${canonicalPath}`;
+    const expectedAlternates = [
+      ...LOCALES.map((locale) => ({
+        hreflang: LOCALE_METADATA[locale].languageTag,
+        href: `${SITE_ORIGIN}/${locale}${localizedPath === '/' ? '' : localizedPath}`,
+      })),
+      {
+        hreflang: 'x-default',
+        href: `${SITE_ORIGIN}/${LOCALES[0]}${localizedPath === '/' ? '' : localizedPath}`,
+      },
+    ];
 
     const normalize = () => {
       const canonicals = Array.from(document.head.querySelectorAll<HTMLLinkElement>('link[rel="canonical"]'));
@@ -55,6 +69,25 @@ function RuntimeHeadNormalization() {
         canonical.setAttribute('rel', 'canonical');
         canonical.setAttribute('href', expectedCanonical);
         document.head.appendChild(canonical);
+      }
+
+      const alternates = Array.from(document.head.querySelectorAll<HTMLLinkElement>('link[rel="alternate"][hreflang]'));
+      const current = new Map(alternates.map((link) => [
+        `${link.getAttribute('hreflang') ?? ''}|${link.href}`,
+        link,
+      ]));
+      const expectedKeys = new Set(expectedAlternates.map(({ hreflang, href }) => `${hreflang}|${href}`));
+      const complete = alternates.length === expectedAlternates.length && expectedAlternates.every(({ hreflang, href }) => current.has(`${hreflang}|${href}`));
+
+      if (!complete) {
+        for (const alternate of alternates) alternate.remove();
+        for (const { hreflang, href } of expectedAlternates) {
+          const alternate = document.createElement('link');
+          alternate.setAttribute('rel', 'alternate');
+          alternate.setAttribute('hreflang', hreflang);
+          alternate.setAttribute('href', href);
+          document.head.appendChild(alternate);
+        }
       }
 
       const descriptions = Array.from(document.head.querySelectorAll<HTMLMetaElement>('meta[name="description"]'));
