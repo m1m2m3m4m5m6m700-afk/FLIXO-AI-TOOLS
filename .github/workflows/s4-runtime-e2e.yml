@@ -91,33 +91,37 @@ jobs:
         shell: bash
         env:
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-        continue-on-error: true
         run: |
           node --input-type=module <<'NODE'
           import { chromium } from 'playwright';
           const browser = await chromium.launch({ headless: true });
           const page = await browser.newPage();
-          const errors = [];
-          const failed = [];
-          page.on('pageerror', (error) => errors.push({ type: 'pageerror', message: error.message, stack: error.stack }));
+          const diagnostics = [];
+          page.on('pageerror', (error) => diagnostics.push({ type: 'pageerror', message: error.message, stack: error.stack }));
           page.on('console', (message) => {
-            if (message.type() === 'error') errors.push({ type: 'console', message: message.text() });
+            if (message.type() === 'error') diagnostics.push({ type: 'console', message: message.text() });
           });
-          page.on('requestfailed', (request) => failed.push({ url: request.url(), error: request.failure()?.errorText ?? 'unknown' }));
+          page.on('requestfailed', (request) => diagnostics.push({ type: 'requestfailed', url: request.url(), error: request.failure()?.errorText ?? 'unknown' }));
           for (const path of ['/en', '/en/ai-captioner-srt']) {
+            diagnostics.length = 0;
             await page.goto(`${process.env.PLAYWRIGHT_TEST_BASE_URL}${path}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
             await page.waitForTimeout(1500);
+            const body = await page.locator('body').innerText();
+            const rootHtml = await page.locator('#root').innerHTML();
             console.log(`=== S4 DIAGNOSTIC ${path} ===`);
             console.log(`URL=${page.url()}`);
             console.log(`TITLE=${await page.title()}`);
-            console.log(`BODY_TEXT=${(await page.locator('body').innerText()).slice(0, 2000)}`);
-            console.log(`BODY_HTML=${(await page.locator('body').innerHTML()).slice(0, 5000)}`);
-            console.log(`PAGE_ERRORS=${JSON.stringify(errors, null, 2)}`);
-            console.log(`FAILED_REQUESTS=${JSON.stringify(failed, null, 2)}`);
-            errors.length = 0;
-            failed.length = 0;
+            console.log(`BODY_TEXT=${body.slice(0, 3000)}`);
+            console.log(`ROOT_HTML=${rootHtml.slice(0, 5000)}`);
+            console.log(`DIAGNOSTICS=${JSON.stringify(diagnostics, null, 2)}`);
+            if (diagnostics.length || rootHtml.trim().length === 0) {
+              console.error(`S4 RUNTIME ROOT CAUSE DETECTED on ${path}`);
+              process.exitCode = 1;
+              break;
+            }
           }
           await browser.close();
+          if (process.exitCode) process.exit(process.exitCode);
           NODE
 
       - name: Run Chromium Firefox WebKit with zero retries
