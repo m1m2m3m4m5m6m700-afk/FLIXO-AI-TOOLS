@@ -1,35 +1,11 @@
 name: G4 — Localization + SEO Matrix
-# Consolidated G4 gate: 20-locale static/runtime coverage plus canonical SEO/indexing in one fail-closed aggregate.
 
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'src/**'
-      - 'tests/localization-runtime.spec.ts'
-      - 'scripts/validate-language-quality*.mjs'
-      - 'scripts/validate-locale-contract.mjs'
-      - 'scripts/validate-localization-complete.mjs'
-      - 'scripts/validation-utils.mjs'
-      - 'scripts/validate-seo-production.mjs'
-      - 'scripts/validate-google-multilingual-seo.mjs'
-      - 'scripts/validate-indexing.mjs'
-      - 'scripts/validate-seo.mjs'
-      - 'scripts/validate-seo-manifest.mjs'
-      - 'scripts/validate-use-case-seo.mjs'
-      - 'scripts/validate-breadcrumb-seo.mjs'
-      - 'scripts/generate-robots.mjs'
-      - 'scripts/generate-sitemap.mjs'
-      - 'package.json'
-      - 'playwright.config.ts'
-      - '.github/workflows/localization-20.yml'
-      - '.github/workflows/seo-production-certification.yml'
   push:
     branches: [main]
   workflow_dispatch:
-
-env:
-  VITE_SITE_URL: https://flixoai.vercel.app
 
 concurrency:
   group: g4-localization-seo-${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -38,104 +14,92 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
 jobs:
-  locale:
-    name: G4 Localization — ${{ matrix.locale }}
+  g4:
+    name: G4 Universal Localization & SEO
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        locale: [en, ar, es, fr, de, ru, zh, hi, id, ur, ja, pt, it, ko, nl, pl, tr, vi, th, sv]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Validate ${{ matrix.locale }} translation contract
-        env:
-          FLIXO_LOCALE: ${{ matrix.locale }}
-        run: node scripts/validate-locale-contract.mjs
-      - name: Strict ${{ matrix.locale }} localization release engine
-        env:
-          FLIXO_LOCALE: ${{ matrix.locale }}
-        run: npm run verify:i18n -- --strict --report
 
-  runtime:
-    name: G4 Localization Runtime — ${{ matrix.locale }} — Chromium
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        locale: [en, ar, es, fr, de, ru, zh, hi, id, ur, ja, pt, it, ko, nl, pl, tr, vi, th, sv]
-    steps:
-      - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      - run: npx playwright install --with-deps chromium
-      - name: Render and verify ${{ matrix.locale }} runtime
-        env:
-          FLIXO_TEST_LOCALE: ${{ matrix.locale }}
-        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --grep "representative tool runtime is localized for ${{ matrix.locale }}"
 
-  seo:
-    name: G4 SEO + Indexing Certification
-    runs-on: ubuntu-latest
-    needs: [locale]
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Strict G4 static localization and SEO certification
+        run: node scripts/test-g4-localization-static.mjs
+
       - name: Build canonical production artifacts
         run: npm run build
-      - name: Validate generated sitemap and robots artifacts
-        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-seo-production.mjs
-      - name: Validate canonical SEO/indexing source contract
-        run: |
-          npm run validate:seo
-          npm run validate:seo-manifest
-          npm run validate:use-case-seo
-          npm run validate:indexing
-          npm run validate:breadcrumb-seo
-          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-google-multilingual-seo.mjs
-          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-language-quality-strict.mjs
-      - name: Final G4 SEO certification
-        run: |
-          set -euo pipefail
-          test -f dist/robots.txt
-          test -f dist/sitemap.xml
-          grep -Fx "Sitemap: ${VITE_SITE_URL}/sitemap.xml" dist/robots.txt
-          grep -Fq 'xmlns:xhtml="http://www.w3.org/1999/xhtml"' dist/sitemap.xml
-          grep -Fq 'hreflang="x-default"' dist/sitemap.xml
-          echo "G4 SEO certification GREEN"
 
-  aggregate:
-    name: G4 Localization + SEO Gate
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    needs: [locale, runtime, seo]
-    steps:
-      - name: Enforce complete G4 matrix
+      - name: Start isolated production preview
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ needs.locale.result }}" != "success" ]]; then
-            echo "G4 FAILED: one or more static locale contracts failed."
-            exit 1
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/g4-server.log 2>&1 &
+          echo $! >/tmp/g4-server.pid
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/g4-server.log || true
+          exit 1
+
+      - name: G4 all-public-route runtime matrix — 20 locales
+        env:
+          S4_EXTERNAL_SERVER: 'true'
+          PLAYWRIGHT_SERVER: preview
+          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+        run: npx playwright test tests/g4-localization-seo.spec.ts --project=chromium --workers=6 --retries=0
+
+      - name: Stop isolated production preview
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/g4-server.pid ]; then
+            PID="$(cat /tmp/g4-server.pid)"
+            PGID="$(ps -o pgid= -p "$PID" 2>/dev/null | tr -d ' ' )"
+            if [ -n "$PGID" ] && [ "$PGID" != "1" ] && kill -0 "$PID" 2>/dev/null; then
+              kill -- -"$PGID" 2>/dev/null || true
+            fi
           fi
-          if [[ "${{ needs.runtime.result }}" != "success" ]]; then
-            echo "G4 FAILED: one or more rendered locale runtime contracts failed."
-            exit 1
-          fi
-          if [[ "${{ needs.seo.result }}" != "success" ]]; then
-            echo "G4 FAILED: canonical SEO/indexing certification failed."
-            exit 1
-          fi
-          echo "G4 PASS: 20 locales + rendered runtime + canonical SEO/indexing are all green."
+          cat /tmp/g4-server.log 2>/dev/null || true
+
+      - name: Final G4 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: g4-localization-seo-evidence-${{ github.sha }}
+          path: |
+            playwright-report/
+            test-results/
+            /tmp/g4-server.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: G4 certification
+        run: echo 'G4 PASS: 20 locales × every public sitemap route × runtime UI/SEO/accessibility certification.'
