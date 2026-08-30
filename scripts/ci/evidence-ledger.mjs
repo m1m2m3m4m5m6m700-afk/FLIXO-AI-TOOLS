@@ -12,16 +12,26 @@ if (!files.length) throw new Error('Evidence ledger is empty: missing evidence i
 
 const records = files.map((file) => JSON.parse(readFileSync(file, 'utf8')));
 const errors = [];
-for (const [index, record] of records.entries()) {
-  for (const key of ['sha', 'gate', 'expected', 'executed', 'passed', 'failed', 'skipped', 'missing', 'result']) {
-    if (!(key in record)) errors.push(`${files[index]} missing ${key}`);
+const normalizeResult = (value) => {
+  switch (String(value).toLowerCase()) {
+    case 'success': case 'pass': return 'PASS';
+    case 'failure': case 'fail': return 'FAIL';
+    case 'skipped': case 'skip': return 'SKIP';
+    default: return 'MISSING';
   }
-  if (record.sha !== sha) errors.push(`${files[index]} SHA mismatch: ${record.sha} != ${sha}`);
-  if (record.result !== 'PASS') errors.push(`${files[index]} result=${record.result}`);
-  if (record.failed !== 0) errors.push(`${files[index]} failed=${record.failed}`);
-  if (record.skipped !== 0) errors.push(`${files[index]} skipped=${record.skipped}`);
-  if (record.missing !== 0) errors.push(`${files[index]} missing=${record.missing}`);
-  if (record.executed !== record.expected) errors.push(`${files[index]} executed=${record.executed} expected=${record.expected}`);
+};
+for (const [index, record] of records.entries()) {
+  const file = files[index];
+  for (const key of ['sha', 'gate', 'expected', 'executed', 'passed', 'failed', 'skipped', 'missing', 'result']) {
+    if (!(key in record)) errors.push(`${file} missing ${key}`);
+  }
+  const result = normalizeResult(record.result);
+  if (record.sha !== sha) errors.push(`${file} SHA mismatch: ${record.sha} != ${sha}`);
+  if (result !== 'PASS') errors.push(`${file} result=${result}`);
+  if (record.failed !== 0) errors.push(`${file} failed=${record.failed}`);
+  if (record.skipped !== 0) errors.push(`${file} skipped=${record.skipped}`);
+  if (record.missing !== 0) errors.push(`${file} missing=${record.missing}`);
+  if (record.executed !== record.expected) errors.push(`${file} executed=${record.executed} expected=${record.expected}`);
 }
 
 const summary = {
