@@ -38,11 +38,24 @@ if (standaloneS4) {
   if (!/workflow_dispatch:/.test(standaloneS4)) failures.push('Standalone S4 diagnostic must support manual execution.');
 }
 
-const fullMatrix = find('full-matrix-promotion.yml');
-if (/^\s*pull_request:/m.test(fullMatrix)) failures.push('Full Matrix must not run independently on pull requests; S4 owns PR runtime coverage.');
-if (!/workflow_run:[\s\S]*workflows:\s*\[CI\]/.test(fullMatrix)) failures.push('Full Matrix must consume the canonical CI workflow artifact on main.');
+const fullMatrix = find('full-matrix-parallel.yml') || find('full-matrix-promotion.yml');
+const fullMatrixParallel = find('full-matrix-parallel.yml');
+const legacyFullMatrix = find('full-matrix-promotion.yml');
+if (legacyFullMatrix && /(^|\n)\s*(pull_request|push):/.test(legacyFullMatrix)) {
+  failures.push('Legacy Full Matrix Promotion workflow must not define its own PR/push surface.');
+}
+if (!fullMatrixParallel) {
+  if (!/workflow_run:[\s\S]*workflows:\s*\[CI\]/.test(fullMatrix)) failures.push('Full Matrix must either run in the parallel DAG or consume the canonical CI workflow artifact on main.');
+} else {
+  if (!/pull_request:[\s\S]*branches:\s*\[main\]/.test(fullMatrixParallel)) failures.push('Full Matrix Parallel must run on the canonical pull request trigger.');
+  if (!/source_build:[\s\S]*npm run build/.test(fullMatrixParallel)) failures.push('Full Matrix Parallel must establish its own immutable source build.');
+  if (!/write-build-artifact-manifest\.mjs/.test(fullMatrixParallel)) failures.push('Full Matrix Parallel must publish an immutable build manifest.');
+  if (!/full-matrix-source-\$\{\{ github\.sha \}\}/.test(fullMatrixParallel)) failures.push('Full Matrix Parallel source artifact must be SHA-addressed.');
+  if (!/needs:\s*\[source_build, weighted_plan\]/.test(fullMatrixParallel)) failures.push('Full Matrix E2E must depend on both canonical source build and weighted plan.');
+  if (!/fromJSON\(needs\.weighted_plan\.outputs\.matrix\)/.test(fullMatrixParallel)) failures.push('Full Matrix E2E must consume the weighted plan output without ambiguous expression property access.');
+}
 if (!/weighted-shard-plan\.mjs/.test(fullMatrix)) failures.push('Full Matrix must use the weighted shard planner.');
-if (!/download-artifact@v7/.test(fullMatrix)) failures.push('Full Matrix must consume an immutable upstream artifact.');
+if (!/download-artifact@v7/.test(fullMatrix)) failures.push('Full Matrix must consume an immutable artifact.');
 if (!/23/.test(fullMatrix) || !/webkit/.test(fullMatrix) || !/chromium/.test(fullMatrix) || !/firefox/.test(fullMatrix)) {
   failures.push('Full Matrix must retain the complete 23-suite × 3-browser surface.');
 }
@@ -58,7 +71,7 @@ if (!/matrix:[\s\S]{0,400}en, ar, es, fr, de, ru, zh, hi, id, ur, ja, pt, it, ko
 const owners = [
   ['build', /name:\s*Runtime Build \+ Performance/],
   ['s4', /name:\s*S4 Runtime \+ E2E/],
-  ['full-matrix', /name:\s*Full Matrix Promotion/],
+  ['full-matrix', /name:\s*Full Matrix (?:Promotion|Parallel)/],
   ['localization', /name:\s*(?:Localization — 20 Locale Gate|G4 — Localization \+ SEO Matrix)/],
   ['canonical', /name:\s*Canonical Verification Gate/],
 ];
