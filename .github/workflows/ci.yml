@@ -127,10 +127,10 @@ jobs:
           fetch-depth: 0
       - name: Scan PR history range with pinned Gitleaks
         if: ${{ github.event_name == 'pull_request' }}
-        run: docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.24.3 detect --source=/repo --no-banner --redact --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.24.3 detect --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
       - name: Scan full repository history with pinned Gitleaks
         if: ${{ github.event_name != 'pull_request' }}
-        run: docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.24.3 detect --source=/repo --no-banner --redact
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.24.3 detect --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact
 
   security:
     name: CodeQL
@@ -395,76 +395,8 @@ jobs:
           write_record audit 'CI / Production Audit' "$AUDIT"
           write_record socket 'CI / Socket Supply Chain' "$SOCKET"
           write_record secret-scan 'CI / Secret History Scan' "$SECRET_SCAN"
-          write_record codeql 'CI / CodeQL' "$CODEQL"
+          write_record security 'CI / CodeQL' "$CODEQL"
           write_record fast-contract 'CI / Fast Contract Diagnostics' "$FAST_CONTRACT"
-          write_record s3 'CI / S3 Static Gate' "$S3"
-          write_record s4 'CI / S4 Runtime + E2E' "$S4"
-      - name: Validate fail-closed ledger
-        env:
-          EXACT_SHA: ${{ github.sha }}
-        run: node scripts/ci/evidence-ledger.mjs
-      - name: Upload evidence ledger
-        uses: actions/upload-artifact@v6
-        with:
-          name: flixo-evidence-ledger-${{ github.sha }}
-          path: ci-evidence/
-          if-no-files-found: error
-          retention-days: 30
-
-  canonical-verify:
-    name: Canonical Verification Gate
-    if: ${{ always() }}
-    needs: [evidence-ledger]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Fail closed on ledger result
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ '${{ needs.evidence-ledger.result }}' != 'success' ]]; then
-            echo "Canonical Verification FAILED: Evidence Ledger = ${{ needs.evidence-ledger.result }}"
-            exit 1
-          fi
-          echo 'Canonical Verification PASSED: all canonical evidence is present, executed, and SHA-bound.'
-
-  diagnostic-summary:
-    name: Diagnostic Summary
-    if: ${{ always() }}
-    needs: [typecheck, lint, build, audit, socket, secret-scan, security, fast-contract, s3-static-gate, s4-runtime-e2e, evidence-ledger, canonical-verify]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Write CI summary
-        run: |
-          {
-            echo '## FLIXO CI Diagnostic Summary'
-            echo
-            echo '| Gate | Result |'
-            echo '| --- | --- |'
-            echo '| TypeScript | ${{ needs.typecheck.result }} |'
-            echo '| ESLint | ${{ needs.lint.result }} |'
-            echo '| Build | ${{ needs.build.result }} |'
-            echo '| Audit | ${{ needs.audit.result }} |'
-            echo '| Socket | ${{ needs.socket.result }} |'
-            echo '| Secret Scan | ${{ needs.secret-scan.result }} |'
-            echo '| CodeQL | ${{ needs.security.result }} |'
-            echo '| Fast Contract | ${{ needs.fast-contract.result }} |'
-            echo '| S3 | ${{ needs.s3-static-gate.result }} |'
-            echo '| S4 Runtime + E2E | ${{ needs.s4-runtime-e2e.result }} |'
-            echo '| Evidence Ledger | ${{ needs.evidence-ledger.result }} |'
-            echo '| Canonical | ${{ needs.canonical-verify.result }} |'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  ci:
-    name: CI
-    if: ${{ always() }}
-    needs: [canonical-verify]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Confirm canonical CI gate
-        run: |
-          set -euo pipefail
-          if [[ '${{ needs.canonical-verify.result }}' != 'success' ]]; then
-            echo "CI FAILED: Canonical Verification = ${{ needs.canonical-verify.result }}"
-            exit 1
-          fi
-          echo "CI gate passed for exact commit ${{ github.sha }}"
+          write_record s3-static-gate 'CI / S3 Static Gate' "$S3"
+          write_record s4-runtime-e2e 'CI / S4 Runtime + E2E' "$S4"
+          node scripts/ci/evidence-ledger.mjs ci-evidence
