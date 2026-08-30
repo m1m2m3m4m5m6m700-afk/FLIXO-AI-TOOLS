@@ -48,12 +48,14 @@ function RuntimeHeadNormalization() {
 
     const normalize = () => {
       const canonicals = Array.from(document.head.querySelectorAll<HTMLLinkElement>('link[rel="canonical"]'));
-      for (const canonical of canonicals) canonical.remove();
-
-      const canonical = document.createElement('link');
-      canonical.setAttribute('rel', 'canonical');
-      canonical.setAttribute('href', expectedCanonical);
-      document.head.appendChild(canonical);
+      const matching = canonicals.filter((canonical) => canonical.href === expectedCanonical);
+      if (canonicals.length !== 1 || matching.length !== 1) {
+        for (const canonical of canonicals) canonical.remove();
+        const canonical = document.createElement('link');
+        canonical.setAttribute('rel', 'canonical');
+        canonical.setAttribute('href', expectedCanonical);
+        document.head.appendChild(canonical);
+      }
 
       const descriptions = Array.from(document.head.querySelectorAll<HTMLMetaElement>('meta[name="description"]'));
       if (descriptions.length > 1) {
