@@ -132,7 +132,7 @@ try {
   let changedRaw;
   try {
     changedRaw = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { cwd: root, encoding: 'utf8' }).trim();
-  } catch (error) {
+  } catch {
     const headParent = execFileSync('git', ['rev-parse', 'HEAD^1'], { cwd: root, encoding: 'utf8' }).trim();
     changedRaw = execFileSync('git', ['diff', '--name-only', `${headParent}..HEAD`], { cwd: root, encoding: 'utf8' }).trim();
     console.log(`S3 BASE FALLBACK: ${base} has no merge base; using first-parent diff ${headParent}..HEAD for PR merge checkout.`);
