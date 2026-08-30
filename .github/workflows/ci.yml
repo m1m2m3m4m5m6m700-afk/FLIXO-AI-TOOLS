@@ -49,6 +49,8 @@ jobs:
   build:
     name: Runtime Build + Performance
     runs-on: ubuntu-latest
+    env:
+      VITE_SITE_URL: https://flixoai.vercel.app
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
