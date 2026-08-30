@@ -197,12 +197,13 @@ jobs:
         run: node scripts/validate-s3-static-gate.mjs
 
   s4-runtime-e2e:
-    name: S4 Runtime + E2E (${{ matrix.browser }})
+    name: S4 Runtime + E2E (${{ matrix.browser }} / shard ${{ matrix.shard }})
     needs: [build]
     strategy:
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
+        shard: ['1/3', '2/3', '3/3']
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -278,11 +279,11 @@ jobs:
           PGID="$(ps -o pgid= -p "$PID" | tr -d ' ')"
           test -n "$PGID" && test "$PGID" != "1"
           {
-            echo "S4 server PID=$PID PGID=$PGID browser=${{ matrix.browser }}"
+            echo "S4 server PID=$PID PGID=$PGID browser=${{ matrix.browser }} shard=${{ matrix.shard }}"
             ps -o pid,ppid,pgid,lstart,args -p "$PID"
           } > server_process_identity.txt
       - name: Diagnose first runtime-render failure
-        if: ${{ matrix.browser == 'chromium' }}
+        if: ${{ matrix.browser == 'chromium' && matrix.shard == '1/3' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -311,13 +312,13 @@ jobs:
           }
           await browser.close();
           NODE
-      - name: Run ${{ matrix.browser }} with zero retries
+      - name: Run ${{ matrix.browser }} shard ${{ matrix.shard }} with zero retries
         env:
           S4_RUNTIME_GATE: 'true'
           S4_EXTERNAL_SERVER: 'true'
           PLAYWRIGHT_SERVER: 'preview'
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-        run: npx playwright test --project=${{ matrix.browser }} --workers=4 --retries=0
+        run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }} --workers=4 --retries=0
       - name: Verify server process group is gone
         if: ${{ always() }}
         shell: bash
@@ -325,7 +326,7 @@ jobs:
           set +e
           if [ -f /tmp/s4-server.pid ]; then
             PID="$(cat /tmp/s4-server.pid)"
-            PGID="$(ps -o pgid= -p "$PID" 2>/dev/null | tr -d ' ')"
+            PGID="$(ps -o pgid= -p "$PID" 2>/dev/null | tr -d ' ')
             if [ -n "$PGID" ] && [ "$PGID" != "1" ] && kill -0 "$PID" 2>/dev/null; then
               kill -- -"$PGID" 2>/dev/null || true
             fi
@@ -334,7 +335,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v6
         with:
-          name: s4-runtime-e2e-evidence-${{ github.sha }}-${{ matrix.browser }}
+          name: s4-runtime-e2e-evidence-${{ github.sha }}-${{ matrix.browser }}-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/
