@@ -36,19 +36,14 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 1
-
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-
       - run: npm ci --prefer-offline --no-audit --no-fund
-
       - name: Resolve certified SHA
         id: certified-sha
-        shell: bash
         run: echo "sha=${{ github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_OUTPUT"
-
       - name: Consume canonical CI build artifact
         if: ${{ github.event_name == 'workflow_run' }}
         uses: actions/download-artifact@v7
@@ -57,13 +52,11 @@ jobs:
           path: dist
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id }}
-
-      - name: Build certification artifact once
+      - name: Build certification artifact once for manual certification
         if: ${{ github.event_name != 'workflow_run' }}
         env:
           VITE_SITE_URL: https://flixoai.vercel.app
         run: npm run build
-
       - name: Verify static artifact completeness
         shell: bash
         run: |
@@ -71,8 +64,7 @@ jobs:
           test -f dist/index.html
           test -f dist/robots.txt
           test -f dist/sitemap.xml
-          test -f dist/build-manifest.json || test -f dist/manifest.json
-
+          test -f dist/_flixo_build_manifest.json
       - name: Upload certification source artifact
         uses: actions/upload-artifact@v6
         with:
@@ -99,12 +91,6 @@ jobs:
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Generate deterministic weighted browser matrix
         id: plan
-        env:
-          CI_BROWSERS: ${{ env.CI_BROWSERS }}
-          CI_SHARD_COUNT: ${{ env.CI_SHARD_COUNT }}
-          CI_MAX_SHARDS: ${{ env.CI_MAX_SHARDS }}
-          CI_RUNNER_RESERVE: ${{ env.CI_RUNNER_RESERVE }}
-          CI_RUNNER_BUDGET: ${{ env.CI_RUNNER_BUDGET }}
         shell: bash
         run: |
           set -euo pipefail
@@ -134,23 +120,18 @@ jobs:
         with:
           ref: ${{ needs.source-artifact.outputs.certified_sha }}
           fetch-depth: 1
-
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-
       - run: npm ci --prefer-offline --no-audit --no-fund
-
       - name: Install ${{ matrix.browser }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
-
       - name: Download canonical source artifact
         uses: actions/download-artifact@v7
         with:
           name: full-matrix-source-${{ needs.source-artifact.outputs.certified_sha }}
           path: dist
-
       - name: Start isolated preview server
         shell: bash
         run: |
@@ -163,7 +144,6 @@ jobs:
           done
           cat /tmp/full-matrix-server.log
           exit 1
-
       - name: Run assigned weighted suite set
         id: e2e
         env:
@@ -185,7 +165,6 @@ jobs:
             fi
           done
           npx playwright test "${specs[@]}" --project=${{ matrix.browser }} --retries=0
-
       - name: Write shard evidence
         if: ${{ always() }}
         env:
@@ -199,19 +178,18 @@ jobs:
           node --input-type=module <<'NODE'
           import { writeFileSync } from 'node:fs';
           const tests = JSON.parse(process.env.TESTS_JSON);
-          const failed = process.env.TEST_OUTCOME === 'success' ? 0 : 1;
+          const passed = process.env.TEST_OUTCOME === 'success';
           const record = {
             sha: process.env.CERTIFIED_SHA,
             browser: '${{ matrix.browser }}',
             shard: ${{ matrix.shard }},
             expected_suites: tests.length,
-            executed_suites: failed === 0 ? tests : tests,
-            failed,
-            skipped: 0,
+            executed_suites: passed ? tests : [],
+            failed: passed ? 0 : 1,
+            skipped: passed ? 0 : tests.length,
           };
           writeFileSync(`full-matrix-evidence/${record.browser}-shard-${record.shard}.json`, JSON.stringify(record, null, 2));
           NODE
-
       - name: Upload shard diagnostics and evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@v6
@@ -235,20 +213,17 @@ jobs:
         with:
           ref: ${{ needs.source-artifact.outputs.certified_sha }}
           fetch-depth: 1
-
       - name: Download all shard evidence
         uses: actions/download-artifact@v7
         with:
           pattern: full-matrix-*-*-*${{ needs.source-artifact.outputs.certified_sha }}
           path: full-matrix-evidence
           merge-multiple: true
-
       - name: Validate exact 23 × 3 certification
         env:
           EXACT_SHA: ${{ needs.source-artifact.outputs.certified_sha }}
           EVIDENCE_ROOT: full-matrix-evidence/full-matrix-evidence
         run: node scripts/ci/validate-full-matrix-evidence.mjs
-
       - name: Write certification evidence
         env:
           CERTIFIED_SHA: ${{ needs.source-artifact.outputs.certified_sha }}
@@ -260,5 +235,5 @@ jobs:
             echo "Exact SHA: ${CERTIFIED_SHA}"
             echo '23 suites × 3 browsers = 69 suite/browser executions.'
             echo 'Weighted shard plan was generated from repository duration history.'
-            echo 'No PR execution is performed by this workflow; PR runtime coverage belongs to S4.'
+            echo 'No PR execution is performed by this workflow; PR runtime coverage belongs to canonical CI S4.'
           } >> "$GITHUB_STEP_SUMMARY"
