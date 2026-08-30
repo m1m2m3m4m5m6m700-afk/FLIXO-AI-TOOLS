@@ -173,8 +173,9 @@ export function validateFileSafety(input: FileSafetyInput, policy: FileSafetyPol
   }
 
   if (policy.signatures) {
-    if (!input.signature) failures.push('input signature is required when signature validation is enabled');
-    else if (!policy.signatures.some((allowed) => normalizeSignature(input.signature).startsWith(normalizeSignature(allowed)))) failures.push('input signature does not match the allowed file signatures');
+    const signature = input.signature;
+    if (!signature) failures.push('input signature is required when signature validation is enabled');
+    else if (!policy.signatures.some((allowed) => normalizeSignature(signature).startsWith(normalizeSignature(allowed)))) failures.push('input signature does not match the allowed file signatures');
   }
 
   if (policy.magicBytes) {
@@ -228,7 +229,7 @@ export function validateArchiveEntries(entries: readonly ArchiveEntry[], policy:
           }
         }
       }
-      if (entry.nestedEntries?.length) visit(entry.nestedEntries, depth + 1);
+      if (entry.nestedEntries) visit(entry.nestedEntries, depth + 1);
     }
   };
 
