@@ -70,8 +70,6 @@ jobs:
   weighted-plan:
     name: Full Matrix — Weighted Plan
     runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.plan.outputs.matrix }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -82,7 +80,6 @@ jobs:
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Generate deterministic weighted browser matrix
-        id: plan
         env:
           CI_SHARD_COUNT: '6'
           CI_MAX_SHARDS: '6'
@@ -90,9 +87,7 @@ jobs:
           CI_RUNNER_BUDGET: '18'
           CI_BROWSERS: chromium,firefox,webkit
         shell: bash
-        run: |
-          set -euo pipefail
-          node scripts/ci/weighted-shard-plan.mjs
+        run: node scripts/ci/weighted-shard-plan.mjs
 
   e2e:
     name: Full Matrix — ${{ matrix.browser }} — shard ${{ matrix.shard }}/${{ matrix.total_shards }}
@@ -205,6 +200,7 @@ jobs:
           import { writeFileSync } from 'node:fs';
 
           const tests = JSON.parse(process.env.TESTS_JSON);
+          if (!Array.isArray(tests) || tests.length === 0) throw new Error('Shard suite list is empty.');
           const status = process.env.TEST_OUTCOME;
           const passed = status === 'success';
           const record = {
@@ -212,7 +208,6 @@ jobs:
             sha: process.env.CERTIFIED_SHA,
             browser: '${{ matrix.browser }}',
             shard: ${{ matrix.shard }},
-            expected_suites: tests.length,
             executed_suites: passed ? tests : [],
             failed: passed ? 0 : 1,
             skipped: 0,
