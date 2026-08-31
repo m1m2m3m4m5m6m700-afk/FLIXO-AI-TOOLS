@@ -45,24 +45,23 @@ async function waitForImageCompressorReady(page: Page) {
   return input;
 }
 
-async function setTestFiles(input: Locator, files: TestFile[]) {
-  await input.evaluate((element, descriptors) => {
-    const dataTransfer = new DataTransfer();
-    for (const descriptor of descriptors) {
-      dataTransfer.items.add(new File([descriptor.content], descriptor.name, { type: descriptor.mimeType }));
-    }
-    element.files = dataTransfer.files;
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-  }, files);
+async function setTestFiles(page: Page, input: Locator, files: TestFile[]) {
+  const fileChooserPromise = page.waitForEvent('filechooser');
+  await input.click({ force: true });
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles(files.map((file) => ({
+    name: file.name,
+    mimeType: file.mimeType,
+    buffer: Buffer.from(file.content),
+  })));
   await expect(input).toHaveJSProperty('files', expect.any(Object));
-  const count = await input.evaluate((element) => element.files?.length ?? 0);
-  expect(count).toBe(files.length);
+  await expect.poll(async () => input.evaluate((element) => element.files?.length ?? 0)).toBe(files.length);
 }
 
 test('G3 real flow: upload → process → download → inspect image artifact', async ({ page }) => {
   const input = await waitForImageCompressorReady(page);
 
-  await setTestFiles(input, [
+  await setTestFiles(page, input, [
     { name: 'g3-source.svg', mimeType: 'image/svg+xml', content: SVG },
   ]);
   await page.getByRole('button', { name: 'Compress image', exact: true }).click();
@@ -107,7 +106,7 @@ test('G3 real flow: upload → process → download → inspect image artifact',
 
 test('G3 real flow: upload → process → download → inspect ZIP artifact', async ({ page }) => {
   const input = await waitForImageCompressorReady(page);
-  await setTestFiles(input, [
+  await setTestFiles(page, input, [
     { name: 'g3-one.svg', mimeType: 'image/svg+xml', content: SVG },
     { name: 'g3-two.svg', mimeType: 'image/svg+xml', content: SVG },
   ]);
