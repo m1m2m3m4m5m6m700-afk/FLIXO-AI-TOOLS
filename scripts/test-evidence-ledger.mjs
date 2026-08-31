@@ -25,11 +25,28 @@ if (serializeEvidence(record) !== serializeEvidence(createEvidenceRecord(result,
   throw new Error('Evidence serialization is not deterministic');
 }
 
+for (const invalid of [
+  { ...metadata, commit: 'short' },
+  { ...metadata, contractVersion: '0' },
+  { ...metadata, recordedAt: '2026-08-31T00:00:00Z' },
+]) {
+  let rejected = false;
+  try {
+    buildEvidenceRecord(result, invalid);
+  } catch {
+    rejected = true;
+  }
+  if (!rejected) throw new Error('Invalid evidence metadata was accepted');
+}
+
 const root = await mkdtemp(join(tmpdir(), 'flixo-evidence-'));
 try {
   const written = await writeEvidence(record, root);
   if (written !== evidencePath(root, record)) throw new Error('Evidence path mismatch');
   const restored = JSON.parse(await readFile(written, 'utf8'));
+  if (serializeEvidence(restored) !== serializeEvidence(record)) {
+    throw new Error('Persisted evidence is not byte-deterministic after parse');
+  }
   if (restored.contract !== result.contract || restored.status !== result.status) {
     throw new Error('Persisted evidence mismatch');
   }
