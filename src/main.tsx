@@ -4,6 +4,7 @@ import { RouterProvider } from '@tanstack/react-router';
 import { router } from './router';
 import { installRuntimeDiagnostics } from './lib/diagnostics/runtime';
 import { installPerformanceDiagnostics } from './lib/diagnostics/performance';
+import { installToolUiRuntimeLocalization } from './lib/i18n/tool-ui-runtime';
 import { FlixoUxShell } from './components/flixo-ux-shell';
 import './styles.css';
 import './home-motion.css';
@@ -13,6 +14,7 @@ import './tools/seed/seed-premium.css';
 
 installRuntimeDiagnostics();
 installPerformanceDiagnostics();
+const disposeToolUiLocalization = installToolUiRuntimeLocalization();
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
@@ -29,3 +31,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </FlixoUxShell>
   </React.StrictMode>,
 );
+
+if (import.meta.hot) import.meta.hot.dispose(disposeToolUiLocalization);
