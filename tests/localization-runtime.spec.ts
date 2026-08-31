@@ -16,6 +16,7 @@ const sharedPhrases = new Set(['FLIXO AI Tools', 'FLIXO home']);
 const technicalCapabilityPhrase = /^(?:WebGPU|WASM|CPU)(?:\s+(?:WebGPU|WASM|CPU))*$/u;
 const technicalCodecPhrase = /^(?:WebP|JPG|PNG|JPEG|GIF|SVG)(?:\s+(?:WebP|JPG|PNG|JPEG|GIF|SVG))*$/u;
 const technicalHashPhrase = /^(?:SHA-\d+)(?:\s+SHA-\d+)*$/u;
+const technicalRatioValue = /^\d+:\d+$/u;
 const technicalRatioList = /^(?:\d+:\d+){2,}$/u;
 const technicalCaseNames = new Set([
   'UPPERCASE',
@@ -36,7 +37,7 @@ const sharedOnly = (value: string) => {
   if (technicalCapabilityPhrase.test(normalized)) return true;
   if (technicalCodecPhrase.test(normalized)) return true;
   if (technicalHashPhrase.test(normalized)) return true;
-  if (technicalRatioList.test(normalized)) return true;
+  if (technicalRatioValue.test(normalized) || technicalRatioList.test(normalized)) return true;
   if (technicalCaseNames.has(normalized) || technicalCaseList.test(normalized)) return true;
   if (technicalHexColor.test(normalized)) return true;
   return normalized.split(/\s+/u).filter(Boolean).every((word) => sharedTerms.has(word.replace(/[^\p{L}\p{N}]+/gu, '')));
