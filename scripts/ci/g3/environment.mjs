@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 
+const OFFICIAL_PRODUCTION_ORIGIN = 'https://flixoai.vercel.app';
 const vars = {
   SITE_URL: process.env.SITE_URL ?? process.env.VITE_SITE_URL ?? '',
   TEST_ORIGIN: process.env.TEST_ORIGIN ?? process.env.VITE_TEST_ORIGIN ?? '',
@@ -56,7 +57,9 @@ try {
   runtimeUrl = undefined;
 }
 
-add('G3-03', Boolean(site) && !forbiddenProductionHosts.test(site.hostname) && !localHosts.has(site.hostname), site ? `canonical test production origin=${site.origin}` : 'invalid SITE_URL');
+const isOfficialProduction = site?.origin === OFFICIAL_PRODUCTION_ORIGIN;
+const isForbiddenPreview = site ? forbiddenProductionHosts.test(site.hostname) && !isOfficialProduction : false;
+add('G3-03', Boolean(site) && isOfficialProduction && !localHosts.has(site.hostname) && !isForbiddenPreview, site ? `production origin=${site.origin}` : 'invalid SITE_URL', 'ENVIRONMENT', isOfficialProduction ? 'G3-03' : 'INVALID_PRODUCTION_ORIGIN');
 add('G3-03-origin-isolation', Boolean(site && test && runtimeUrl) && site.origin !== test.origin && site.origin !== runtimeUrl.origin, { site: site?.origin ?? null, test: test?.origin ?? null, runtime: runtimeUrl?.origin ?? null });
 add('G3-03-test-runtime', Boolean(test && runtimeUrl), { test: test?.origin ?? null, runtime: runtimeUrl?.origin ?? null }, 'ENVIRONMENT', 'TEST_RUNTIME_ORIGIN');
 add('G3-03-node-env', vars.NODE_ENV !== 'production', vars.NODE_ENV || '<unset>', 'ENVIRONMENT', 'BROWSER_PRODUCTION_MODE');
