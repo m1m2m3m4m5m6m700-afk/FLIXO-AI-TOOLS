@@ -46,9 +46,7 @@ async function waitForImageCompressorReady(page: Page) {
 }
 
 async function setTestFiles(input: Locator, files: TestFile[]) {
-  const element = await input.elementHandle();
-  if (!element) throw new Error('Missing #image-file element');
-  await element.setInputFiles(files.map((file) => ({
+  await input.setInputFiles(files.map((file) => ({
     name: file.name,
     mimeType: file.mimeType,
     buffer: Buffer.from(file.content),
