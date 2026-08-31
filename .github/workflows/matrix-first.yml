@@ -31,8 +31,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
-      # Each browser/shard is an independent verification unit.
-      # One failing unit must never cancel unrelated units.
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
@@ -96,6 +94,32 @@ jobs:
           done
           cat /tmp/matrix-first-server.log || true
           exit 1
+
+      - name: Diagnose document locale bootstrap
+        timeout-minutes: 3
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { chromium, firefox, webkit } from 'playwright';
+          const browsers = { chromium, firefox, webkit };
+          const browser = await browsers[process.env.BROWSER].launch();
+          const page = await browser.newPage();
+          const errors = [];
+          page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+          page.on('console', (message) => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
+          await page.goto('http://127.0.0.1:3000/ar/aspect-ratio-calculator', { waitUntil: 'domcontentloaded', timeout: 30_000 });
+          await page.waitForLoadState('networkidle').catch(() => undefined);
+          const snapshot = await page.locator('html').evaluate((html) => ({
+            lang: html.getAttribute('lang'),
+            dir: html.getAttribute('dir'),
+            dataLocale: html.getAttribute('data-flixo-locale'),
+            outerHTML: html.outerHTML.slice(0, 1200),
+          }));
+          console.log(JSON.stringify({ browser: process.env.BROWSER, snapshot, errors }, null, 2));
+          await browser.close();
+          NODE
 
       - name: Run owned shard — stop at first failure
         timeout-minutes: 15
