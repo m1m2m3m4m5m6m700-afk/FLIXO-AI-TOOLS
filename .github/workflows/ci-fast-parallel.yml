@@ -24,6 +24,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install Chromium for localization smoke
+        if: matrix.group == 'localization'
+        run: npx playwright install chromium
       - name: Run fast diagnostic group
         env:
           CHANGE_BASE: origin/main
