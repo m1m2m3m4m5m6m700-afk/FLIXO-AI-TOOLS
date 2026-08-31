@@ -73,10 +73,14 @@ for (const tool of flags.tools) {
   const candidate = `tests/${tool}.spec.ts`;
   if (existsSync(candidate)) toolTestCandidates.push(candidate);
 }
-if (toolTestCandidates.length) {
-  add('playwright-install', 'npx', ['playwright', 'install', 'chromium'], 'affected browser checks');
-  add('affected-e2e', 'npx', ['playwright', 'test', ...toolTestCandidates, '--project=chromium', '--workers=2', '--retries=0'], 'changed tool surfaces');
-}
+
+const browserInstall = toolTestCandidates.length
+  ? { id: 'playwright-install', command: 'npx', args: ['playwright', 'install', 'chromium'], reason: 'affected browser checks' }
+  : null;
+
+const affectedE2E = toolTestCandidates.length
+  ? { id: 'affected-e2e', command: 'npx', args: ['playwright', 'test', ...toolTestCandidates, '--project=chromium', '--workers=2', '--retries=0'], reason: 'changed tool surfaces' }
+  : null;
 
 const needBuild = flags.workflow || flags.dependency || flags.registry || flags.routing || flags.localization || flags.seo;
 const results = [];
@@ -109,6 +113,16 @@ console.log(JSON.stringify({ mode, sha, files, flags, commands: commands.map(({ 
 
 const staticResults = await Promise.all(commands.map(runOne));
 if (staticResults.some((value) => !value)) process.exit(1);
+
+if (browserInstall) {
+  const browserOk = await runOne(browserInstall);
+  if (!browserOk) process.exit(1);
+}
+
+if (affectedE2E) {
+  const e2eOk = await runOne(affectedE2E);
+  if (!e2eOk) process.exit(1);
+}
 
 if (needBuild) {
   const buildItem = { id: 'build', command: 'npm', args: ['run', 'build'], reason: 'affected application graph' };
