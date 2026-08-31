@@ -8,12 +8,22 @@ import { installToolUiRuntimeLocalization } from './lib/i18n/tool-ui-runtime';
 import { installToolUiRuntimeSupplement } from './lib/i18n/tool-ui-runtime-supplement';
 import { installToolUiTechnicalValueNormalization } from './lib/i18n/tool-ui-technical-values';
 import { FlixoUxShell } from './components/flixo-ux-shell';
+import { isLocale, LOCALE_METADATA } from './lib/i18n';
 import './styles.css';
 import './home-motion.css';
 import './command-palette.css';
 import './home-modern.css';
 import './tools/seed/seed-premium.css';
 
+function bootstrapDocumentLocale(): void {
+  const candidate = window.location.pathname.split('/').filter(Boolean)[0] ?? 'en';
+  const locale = isLocale(candidate) ? candidate : 'en';
+  const metadata = LOCALE_METADATA[locale];
+  document.documentElement.setAttribute('lang', metadata.languageTag);
+  document.documentElement.setAttribute('dir', metadata.direction);
+}
+
+bootstrapDocumentLocale();
 installRuntimeDiagnostics();
 installPerformanceDiagnostics();
 const disposeToolUiLocalization = installToolUiRuntimeLocalization();
