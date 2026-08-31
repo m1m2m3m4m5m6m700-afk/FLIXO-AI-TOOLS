@@ -12,13 +12,7 @@ const emit = async (gate, name, status, extra = {}) => {
 };
 
 const executable = chromium.executablePath();
-let installOk = false;
-try {
-  await fs.access(executable);
-  installOk = true;
-} catch {
-  installOk = false;
-}
+const installOk = await fs.access(executable).then(() => true).catch(() => false);
 await emit('G3-50', 'Browser Installed', installOk ? 'PASS' : 'FAIL', { executable, rootCause: installOk ? null : 'BROWSER_NOT_INSTALLED', class: installOk ? null : 'DEPENDENCY' });
 if (!installOk) {
   await emit('G3-51', 'Browser Launch', 'BLOCKED', { class: 'DEPENDENCY', rootCause: 'G3-50', derivedFrom: 'G3-50' });
@@ -60,7 +54,7 @@ try {
   await emit('G3-52', 'WebServer Ready', 'PASS', { statusCode: response.status() });
   await emit('G3-53', 'Health Endpoint', 'PASS', { endpoint: '/en/image-compressor', statusCode: response.status() });
   try {
-    await page.getByRole('heading', { name: /Image Compressor/i }).first().waitFor({ state: 'visible', timeout: 10000 });
+    await page.getByRole('heading', { name: 'Compress Images Online', exact: true }).first().waitFor({ state: 'visible', timeout: 10000 });
     await emit('G3-54', 'Page Load', 'PASS');
   } catch (error) {
     await emit('G3-54', 'Page Load', 'FAIL', { stderr: String(error), class: 'RUNTIME', rootCause: 'PAGE_LOAD' });
