@@ -9,17 +9,19 @@ const HISTORICAL_DICTIONARIES: Partial<Record<Locale, Record<string, unknown>>> 
   uk: uk as Record<string, unknown>,
 };
 
-/** Reviewed additions not yet present in the historical dictionaries. */
+/** Reviewed additions that were introduced after the historical locale dictionaries. */
 const REVIEWED_TOOL_SEO_OVERRIDES: Partial<Record<Locale, Record<string, string>>> = {
   ms: {
     'image-upscaler': 'Peningkat Resolusi Imej',
+    'image-converter': 'Penukar Imej',
   },
   uk: {
     'image-upscaler': 'Збільшувач зображень',
+    'image-converter': 'Конвертер зображень',
   },
 };
 
-/** Resolve reviewed SEO names from the canonical catalog, verified locale dictionaries, then reviewed additions. */
+/** Resolve reviewed SEO names without allowing an English fallback to masquerade as localization. */
 export function getAuthoritativeToolSeoName(tool: ToolConfig, locale: Locale): string | undefined {
   const legacy = TOOL_SEO_NAMES[tool.id]?.[locale];
   if (typeof legacy === 'string' && legacy.trim()) return legacy;
