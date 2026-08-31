@@ -1,0 +1,136 @@
+name: FLIXO CI — G3 Decomposed Shadow
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: flixo-ci-g3-decomposed-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
+  VITE_SITE_URL: https://canonical.test
+
+jobs:
+  identity:
+    name: G3-00 Identity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: node scripts/ci/g3/identity.mjs
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: g3-decomposed-identity-${{ github.run_id }}
+          path: artifacts/ci/g3/identity.json
+          retention-days: 14
+
+  environment:
+    name: G3-01/02/03 Environment
+    needs: identity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: node scripts/ci/g3/environment.mjs
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: g3-decomposed-environment-${{ github.run_id }}
+          path: artifacts/ci/g3/environment.json
+          retention-days: 14
+
+  contracts:
+    name: G3-20/31 Artifact Contract
+    needs: identity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: G3-20/31 consolidated contract
+        run: node scripts/ci/g3/gates.mjs
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: g3-decomposed-contracts-${{ github.run_id }}
+          path: artifacts/ci/g3/gates/
+          retention-days: 14
+
+  browser:
+    name: G3-50/85 Browser
+    needs: environment
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: G3-50 Browser Installed and Launchable
+        run: npx playwright install --with-deps chromium
+      - name: G3-52/53/54/55/56 Browser and page diagnostics
+        run: npx playwright test tests/g3-artifact-integrity.spec.ts --project=chromium --workers=1 --retries=0
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: g3-decomposed-browser-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  aggregator:
+    name: G3 Aggregator
+    if: always()
+    needs: [identity, environment, contracts, browser]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Aggregate result
+        env:
+          IDENTITY_RESULT: ${{ needs.identity.result }}
+          ENVIRONMENT_RESULT: ${{ needs.environment.result }}
+          CONTRACT_RESULT: ${{ needs.contracts.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+        run: |
+          mkdir -p artifacts/ci/g3
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const r = {
+            gate: 'G3-AGGREGATOR',
+            identity: process.env.IDENTITY_RESULT,
+            environment: process.env.ENVIRONMENT_RESULT,
+            contracts: process.env.CONTRACT_RESULT,
+            browser: process.env.BROWSER_RESULT,
+            status: [process.env.IDENTITY_RESULT,process.env.ENVIRONMENT_RESULT,process.env.CONTRACT_RESULT,process.env.BROWSER_RESULT].every(v=>v==='success') ? 'PASS' : 'FAIL'
+          };
+          fs.writeFileSync('artifacts/ci/g3/aggregator.json', JSON.stringify(r,null,2)+'\n');
+          console.log(JSON.stringify(r,null,2));
+          if (r.status !== 'PASS') process.exit(1);
+          NODE
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: g3-decomposed-aggregator-${{ github.run_id }}
+          path: artifacts/ci/g3/aggregator.json
+          retention-days: 14
