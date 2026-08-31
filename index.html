@@ -19,8 +19,9 @@
         };
         const candidate = window.location.pathname.split('/').filter(Boolean)[0] ?? 'en';
         const [lang, dir] = localeMap[candidate] ?? localeMap.en;
-        document.documentElement.lang = lang;
-        document.documentElement.dir = dir;
+        const html = document.documentElement;
+        html.setAttribute('lang', lang);
+        html.setAttribute('dir', dir);
       })();
     </script>
   </head>

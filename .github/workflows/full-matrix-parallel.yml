@@ -28,7 +28,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
-      fail-fast: false
+      # First failure cancels remaining matrix jobs. This workflow is a repair loop,
+      # not a failure-counting diagnostic ladder.
+      fail-fast: true
       matrix:
         browser: [chromium, firefox, webkit]
         shard: [1, 2, 3, 4]
@@ -94,7 +96,7 @@ jobs:
           exit 1
       - name: Verify public routes × all canonical locales
         timeout-minutes: 15
-        run: npx playwright test tests/localization-runtime.spec.ts --project=${{ matrix.browser }} --workers=6 --retries=0 --shard=${{ matrix.shard }}/4
+        run: npx playwright test tests/localization-runtime.spec.ts --project=${{ matrix.browser }} --workers=6 --retries=0 --max-failures=1 --shard=${{ matrix.shard }}/4
       - name: Cleanup
         if: always()
         shell: bash
@@ -125,4 +127,4 @@ jobs:
           set -euo pipefail
           result='${{ needs.matrix.result }}'
           test "$result" = success || { echo "Full Matrix certification failed: matrix=$result"; exit 1; }
-          echo "Full Matrix Parallel PASS: chromium + firefox + webkit; complete public-route × canonical-locale coverage across 4 deterministic shards per browser."
+          echo "Full Matrix Parallel PASS: chromium + firefox + webkit; complete public-route × canonical-locale coverage across deterministic shards."

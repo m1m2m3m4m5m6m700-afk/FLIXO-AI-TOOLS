@@ -1,8 +1,7 @@
 name: CI
 
 # PR and main use the same impact-aware verification engine.
-# The only difference is the comparison base: PR base SHA vs the previous main commit.
-# This prevents post-merge reclassification of an already-passed change into an unrelated full suite.
+# Ultra Fast triage runs first for early failure discovery; official contracts remain the final authority.
 on:
   pull_request:
     branches: [main]
@@ -26,8 +25,64 @@ env:
   CHANGE_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && github.event.before) || github.sha }}
 
 jobs:
+  ultra-fast:
+    name: Ultra — Fast Triage
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Run Ultra Fast triage
+        id: triage
+        continue-on-error: true
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CHANGE_BASE: ${{ env.CHANGE_BASE }}
+        run: node --experimental-strip-types scripts/ci/ultra-fast.mjs
+      - name: Require Ultra Fast evidence
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test -s diagnostics/investigation/ultra-fast.json
+          node --experimental-strip-types -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/investigation/ultra-fast.json','utf8')); if(r.sha!==process.env.EXPECTED_SHA) throw new Error('Ultra Fast SHA mismatch'); if(r.actualHeadSha!==process.env.EXPECTED_SHA) throw new Error('Ultra Fast actual SHA mismatch'); if(r.checksExecuted!==r.checksExpected) throw new Error('Ultra Fast incomplete execution'); console.log(JSON.stringify({phase:r.phase,status:r.status,failed:r.failed,rootCauseCount:r.rootCauseCount,unknownCount:r.unknownCount},null,2));"
+      - name: Upload Ultra Fast evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ultra-fast-${{ github.event.pull_request.head.sha || github.sha }}
+          path: diagnostics/investigation/ultra-fast.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Finalize Ultra Fast triage status
+        env:
+          TRIAGE_OUTCOME: ${{ steps.triage.outcome }}
+        run: |
+          set -euo pipefail
+          test "$TRIAGE_OUTCOME" = success || { echo "Ultra Fast detected a failure; escalating to Deep Recovery."; exit 1; }
+
+  ultra-deep-recovery:
+    name: Ultra — Deep Recovery (conditional)
+    if: needs.ultra-fast.result == 'failure'
+    needs: [ultra-fast]
+    uses: ./.github/workflows/ultra-investigator.yml
+    with:
+      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
   ci:
     name: CI
+    needs: [ultra-fast]
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -57,19 +112,32 @@ jobs:
 
   fast-contract:
     name: Fast Contract Diagnostics
-    needs: [ci]
+    needs: [ultra-fast, ci]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     env:
       EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-    timeout-minutes: 1
+    timeout-minutes: 2
     steps:
+      - name: Download Ultra Fast evidence
+        uses: actions/download-artifact@v6
+        with:
+          name: ultra-fast-${{ github.event.pull_request.head.sha || github.sha }}
+          path: diagnostics/investigation
       - name: Download CI evidence
+        if: ${{ needs.ci.result == 'success' }}
         uses: actions/download-artifact@v6
         with:
           name: ci-fast-evidence-${{ github.sha }}
           path: diagnostics
-      - name: Validate fast-path evidence
+      - name: Validate exact-head triage evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s diagnostics/investigation/ultra-fast.json
+          node --experimental-strip-types -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/investigation/ultra-fast.json','utf8')); if(r.sha!==process.env.EXPECTED_HEAD_SHA) throw new Error('Ultra Fast evidence SHA mismatch'); if(r.actualHeadSha!==process.env.EXPECTED_HEAD_SHA) throw new Error('Ultra Fast actual SHA mismatch'); if(r.checksExecuted!==r.checksExpected) throw new Error('Ultra Fast check coverage incomplete'); if(r.integrityErrors?.length) throw new Error('Ultra Fast integrity errors: '+r.integrityErrors.join('; ')); console.log('Ultra Fast evidence identity PASS');"
+      - name: Validate fast-path CI evidence
+        if: ${{ needs.ci.result == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -327,3 +395,36 @@ jobs:
           path: artifacts/ci/g3/aggregator.json
           if-no-files-found: warn
           retention-days: 30
+
+  final-contract-gate:
+    name: Final Contract Decision
+    needs: [ultra-fast, ultra-deep-recovery, ci, fast-contract, canonical-verify, g3-aggregator]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Enforce final decision graph
+        shell: bash
+        env:
+          ULTRA_FAST_RESULT: ${{ needs.ultra-fast.result }}
+          ULTRA_DEEP_RESULT: ${{ needs.ultra-deep-recovery.result }}
+          CI_RESULT: ${{ needs.ci.result }}
+          FAST_CONTRACT_RESULT: ${{ needs.fast-contract.result }}
+          CANONICAL_RESULT: ${{ needs.canonical-verify.result }}
+          G3_RESULT: ${{ needs.g3-aggregator.result }}
+        run: |
+          set -euo pipefail
+          echo "ultra-fast=$ULTRA_FAST_RESULT"
+          echo "ultra-deep=$ULTRA_DEEP_RESULT"
+          echo "ci=$CI_RESULT"
+          echo "fast-contract=$FAST_CONTRACT_RESULT"
+          echo "canonical=$CANONICAL_RESULT"
+          echo "g3=$G3_RESULT"
+          test "$CI_RESULT" = success
+          test "$FAST_CONTRACT_RESULT" = success
+          test "$CANONICAL_RESULT" = success
+          test "$G3_RESULT" = success
+          if [[ "$ULTRA_FAST_RESULT" == "failure" ]]; then
+            test "$ULTRA_DEEP_RESULT" = success
+          fi
+          echo 'FINAL CONTRACT DECISION PASS: Ultra triage completed, required recovery completed when triggered, and official downstream contracts passed.'
