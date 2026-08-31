@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { LOCALE_METADATA, LOCALES } from '../src/lib/i18n/config';
-import { TOOL_SEO_NAMES } from '../src/lib/i18n/tool-seo-localization';
+import { getAuthoritativeToolSeoName } from '../src/config/tool-seo-name-resolver';
+import { getToolConfig } from '../src/config/tools';
 
 const sitemap = readFileSync('dist/sitemap.xml', 'utf8');
 const routes = [...new Set([...sitemap.matchAll(/<url>\s*<loc>([^<]+)<\/loc>[\s\S]*?<\/url>/gu)].map((match) => new URL(match[1]).pathname))].sort();
@@ -168,9 +169,10 @@ for (const pathname of routes) {
       expect(leakedEnglish, `${pathname} exact English UI fallback(s): ${leakedEnglish.slice(0, 10).join(' | ')}`).toEqual([]);
 
       const toolFamily = family.slice(1);
-      const expectedToolName = toolFamily && TOOL_SEO_NAMES[toolFamily]?.[localeCode];
+      const tool = toolFamily ? getToolConfig(toolFamily) : undefined;
+      const expectedToolName = tool ? getAuthoritativeToolSeoName(tool, localeCode) : undefined;
       if (expectedToolName) {
-        expect(current.h1, `${pathname} must expose the reviewed localized tool name`).toContain(expectedToolName);
+        expect(current.h1, `${pathname} must expose the authoritative localized tool name`).toContain(expectedToolName);
       }
     }
 
