@@ -3,6 +3,11 @@ import { join } from 'node:path';
 import { CANONICAL_LOCALES } from './validation-utils.mjs';
 
 const root = process.cwd();
+const cliArgs = process.argv.slice(2);
+const requestedLocale = process.env.FLIXO_LOCALE ?? cliArgs.find((value) => /^[a-z]{2}$/u.test(value));
+const jsonMode = cliArgs.includes('--json');
+const reportMode = cliArgs.includes('--report');
+const strictMode = cliArgs.includes('--strict');
 const issue = [];
 const norm = (v) => String(v ?? '').replace(/\s+/gu, ' ').trim();
 const isObject = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
@@ -47,8 +52,11 @@ const effectiveQuick = (locale) => ({ ...(quickData.QUICKFLOW_LOCALES[locale] ??
 const requiredHome = Object.keys(homeData.getHomeCopy('en'));
 const requiredQuick = Object.keys(quickData.QUICKFLOW_LOCALES.en);
 const requiredUi = Object.keys(toolUi.TOOL_UI_I18N.en);
+const targets = requestedLocale ? [requestedLocale] : CANONICAL_LOCALES;
+if (requestedLocale && !CANONICAL_LOCALES.includes(requestedLocale)) issue.push(`runtime | registry | runtime | unsupported requested locale: ${requestedLocale}`);
 
-for (const locale of CANONICAL_LOCALES) {
+for (const locale of targets) {
+  if (!CANONICAL_LOCALES.includes(locale)) continue;
   const metadata = config.LOCALE_METADATA?.[locale];
   if (!metadata) issue.push(`${locale} | direction | runtime | missing locale metadata`);
   const dictionary = (await importTs(`src/lib/i18n/locales/${locale}.ts`))[locale];
@@ -81,12 +89,25 @@ for (const locale of CANONICAL_LOCALES) {
   }
 }
 
-const byLocale = Object.fromEntries(CANONICAL_LOCALES.map((locale) => [locale, issue.filter((x) => x.startsWith(`${locale} |`))]));
-const failedLocales = CANONICAL_LOCALES.filter((locale) => byLocale[locale].length > 0);
-console.log(`Effective localization verification: ${CANONICAL_LOCALES.length - failedLocales.length}/${CANONICAL_LOCALES.length} locales PASS`);
-if (failedLocales.length) {
-  for (const locale of failedLocales) for (const line of byLocale[locale]) console.error(line);
-  console.error(`RELEASE DECISION: BLOCKED — ${failedLocales.join(', ')}`);
-  process.exit(1);
+const byLocale = Object.fromEntries(targets.map((locale) => [locale, issue.filter((x) => x.startsWith(`${locale} |`))]));
+const failedLocales = targets.filter((locale) => byLocale[locale].length > 0);
+const result = {
+  schemaVersion: 1,
+  mode: strictMode ? 'strict' : 'effective',
+  scope: targets,
+  status: failedLocales.length ? 'FAIL' : 'PASS',
+  failedLocales,
+  issues: [...issue],
+};
+
+if (jsonMode) {
+  console.log(JSON.stringify(result, null, 2));
+} else {
+  console.log(`Effective localization verification: ${targets.length - failedLocales.length}/${targets.length} locales PASS`);
+  if (reportMode || failedLocales.length) {
+    for (const locale of failedLocales) for (const line of byLocale[locale]) console.error(line);
+  }
+  if (failedLocales.length) console.error(`RELEASE DECISION: BLOCKED — ${failedLocales.join(', ')}`);
+  else console.log('RELEASE DECISION: PASS — effective dictionaries, Home, QuickFlow, Tool UI, direction, and ready-tool SEO are complete.');
 }
-console.log('RELEASE DECISION: PASS — effective dictionaries, Home, QuickFlow, Tool UI, direction, and ready-tool SEO are complete.');
+if (failedLocales.length) process.exit(1);
