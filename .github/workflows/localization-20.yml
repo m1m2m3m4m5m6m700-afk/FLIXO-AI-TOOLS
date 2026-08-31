@@ -1,15 +1,14 @@
 name: G4 — Localization + SEO Matrix
 
+# Deep G4 certification is temporarily manual/main-only while PR development uses the canonical fast CI path.
 on:
-  pull_request:
-    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: g4-localization-seo-${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: g4-localization-seo-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -30,37 +29,27 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
-
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
-
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-
       - name: TypeScript
         run: npm run typecheck
-
       - name: ESLint
         run: npm run lint
-
       - name: Build canonical production artifacts
         run: npm run build
-
       - name: Validate canonical 20-locale declaration
         shell: bash
         run: |
           set -euo pipefail
           IFS=',' read -r -a locales <<< "$G4_LOCALES"
           test "${#locales[@]}" -eq 20
-          for locale in "${locales[@]}"; do
-            test -n "$locale"
-          done
-
+          for locale in "${locales[@]}"; do test -n "$locale"; done
       - name: Static G4 locale + SEO certification
         run: |
           set -euo pipefail
@@ -80,8 +69,6 @@ jobs:
           grep -Fx "Sitemap: ${VITE_SITE_URL}/sitemap.xml" dist/robots.txt
           grep -Fq 'xmlns:xhtml="http://www.w3.org/1999/xhtml"' dist/sitemap.xml
           grep -Fq 'hreflang="x-default"' dist/sitemap.xml
-          echo "G4 STATIC CERTIFICATION GREEN"
-
       - name: Start isolated production preview
         shell: bash
         run: |
@@ -89,36 +76,24 @@ jobs:
           setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/g4-server.log 2>&1 &
           echo $! >/tmp/g4-server.pid
           for _ in $(seq 1 60); do
-            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then
-              exit 0
-            fi
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
             sleep 1
           done
           cat /tmp/g4-server.log || true
           exit 1
-
       - name: G4 all-public-route runtime matrix — 20 locales
         env:
           S4_EXTERNAL_SERVER: 'true'
           PLAYWRIGHT_SERVER: preview
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
         run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --workers=6 --retries=0
-
-      - name: Stop isolated production preview
+      - name: Cleanup
         if: always()
         shell: bash
         run: |
           set +e
-          if [ -f /tmp/g4-server.pid ]; then
-            PID="$(cat /tmp/g4-server.pid)"
-            PGID="$(ps -o pgid= -p "$PID" 2>/dev/null | tr -d ' ' )"
-            if [ -n "$PGID" ] && [ "$PGID" != "1" ] && kill -0 "$PID" 2>/dev/null; then
-              kill -- -"$PGID" 2>/dev/null || true
-            fi
-          fi
-          cat /tmp/g4-server.log 2>/dev/null || true
-
-      - name: Final G4 evidence
+          if [ -f /tmp/g4-server.pid ]; then kill "$(cat /tmp/g4-server.pid)" 2>/dev/null || true; fi
+      - name: Upload G4 evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -129,6 +104,3 @@ jobs:
             /tmp/g4-server.log
           if-no-files-found: warn
           retention-days: 14
-
-      - name: G4 certification
-        run: echo 'G4 PASS: 20 locales × every public sitemap route × runtime UI/SEO/accessibility certification.'
