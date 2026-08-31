@@ -30,21 +30,24 @@ const sharedOnly = (value: string) => {
 };
 
 async function uiSnapshot(page: Page) {
-  return page.evaluate(() => [...document.querySelectorAll('button,a,input,textarea,select,[aria-label],[placeholder],[title]')]
-    .filter((element) => {
-      const node = element as HTMLElement;
-      if (node.hidden || node.getAttribute('aria-hidden') === 'true') return false;
-      const style = window.getComputedStyle(node);
-      return style.display !== 'none' && style.visibility !== 'hidden';
-    })
-    .map((element) => {
-      const node = element as HTMLElement;
-      const input = node as HTMLInputElement;
-      return [node.innerText, node.getAttribute('aria-label'), node.getAttribute('title'), input.placeholder, node.getAttribute('alt')]
-        .map((value) => normalize(value))
-        .find(Boolean) ?? '';
-    })
-    .filter((value) => value.length >= 4));
+  return page.evaluate(() => {
+    const normalizeInPage = (value: string | null | undefined) => (value ?? '').replace(/\s+/gu, ' ').trim();
+    return [...document.querySelectorAll('button,a,input,textarea,select,[aria-label],[placeholder],[title]')]
+      .filter((element) => {
+        const node = element as HTMLElement;
+        if (node.hidden || node.getAttribute('aria-hidden') === 'true') return false;
+        const style = window.getComputedStyle(node);
+        return style.display !== 'none' && style.visibility !== 'hidden';
+      })
+      .map((element) => {
+        const node = element as HTMLElement;
+        const input = node as HTMLInputElement;
+        return [node.innerText, node.getAttribute('aria-label'), node.getAttribute('title'), input.placeholder, node.getAttribute('alt')]
+          .map((value) => normalizeInPage(value))
+          .find(Boolean) ?? '';
+      })
+      .filter((value) => value.length >= 4);
+  });
 }
 
 test.describe('Fast browser localization smoke', () => {
