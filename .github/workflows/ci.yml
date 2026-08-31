@@ -43,6 +43,7 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Run Ultra Fast triage
+        id: triage
         continue-on-error: true
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -63,6 +64,12 @@ jobs:
           path: diagnostics/investigation/ultra-fast.json
           if-no-files-found: error
           retention-days: 14
+      - name: Finalize Ultra Fast triage status
+        env:
+          TRIAGE_OUTCOME: ${{ steps.triage.outcome }}
+        run: |
+          set -euo pipefail
+          test "$TRIAGE_OUTCOME" = success || { echo "Ultra Fast detected a failure; escalating to Deep Recovery."; exit 1; }
 
   ultra-deep-recovery:
     name: Ultra — Deep Recovery (conditional)
