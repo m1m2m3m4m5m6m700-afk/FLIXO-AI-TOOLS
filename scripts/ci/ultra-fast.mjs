@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { aggregateFailures } from './failure/engine.ts';
 import { ULTRA_SCHEMA_VERSION, ultraContractHash } from './ultra-contract.mjs';
@@ -112,7 +112,7 @@ function runCheck(check) {
 }
 
 const CHECKS = [
-  { id: 'diff-check', contract: 'CI-ULTRA-FAST-001', command: 'git', args: ['diff', '--check'], timeoutMs: 30_000 },
+  { id: 'diff-check', contract: 'CI-ULTRA-FAST-001', command: 'git', args: BASE_SHA ? ['diff', '--check', `${BASE_SHA}...HEAD`] : ['diff', '--check'], timeoutMs: 30_000 },
   { id: 'typecheck', contract: 'CI-TOOLCHAIN-001', command: 'npm', args: ['run', 'typecheck'], timeoutMs: 90_000 },
   { id: 'ci-contract', contract: 'CI-CONFIG-001', command: 'npm', args: ['run', 'validate:ci-contract'], timeoutMs: 90_000 },
   { id: 'tool-registry', contract: 'G1-REGISTRY-001', command: 'npm', args: ['run', 'validate:tool-registry'], timeoutMs: 90_000 },
