@@ -1,93 +1,69 @@
 import { useRef, useState } from 'react';
 import { buildQrPayload, renderQrDataUrl, renderQrSvg, scanQrFile, type QrPayloadType } from './engine';
+import type { Locale } from '../../lib/i18n/config';
 
-const TYPES: Array<{ value: QrPayloadType; label: string }> = [
-  { value: 'text', label: 'Text' },
-  { value: 'url', label: 'URL' },
-  { value: 'wifi', label: 'Wi-Fi (SSID|Password|Security)' },
-  { value: 'vcard', label: 'vCard (name)' },
-];
+type Copy = { title:string; description:string; generate:string; payload:string; content:string; foreground:string; background:string; downloadPng:string; downloadSvg:string; read:string; readDescription:string; choose:string; scanResult:string; types:Record<QrPayloadType,string> };
 
-export function QrGeneratorReaderTool() {
-  const [type, setType] = useState<QrPayloadType>('text');
-  const [value, setValue] = useState('https://flixo.tools');
-  const [foreground, setForeground] = useState('#111827');
-  const [background, setBackground] = useState('#ffffff');
-  const [preview, setPreview] = useState('');
-  const [svg, setSvg] = useState('');
-  const [scanResult, setScanResult] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+const COPY: Record<Locale, Copy> = {
+  en:{title:'QR Code Generator & Reader',description:'Generate QR codes and scan QR images locally in your browser.',generate:'Generate',payload:'Payload type',content:'Content',foreground:'Foreground color',background:'Background color',downloadPng:'Download PNG',downloadSvg:'Download SVG',read:'Read QR image',readDescription:'Uses the browser BarcodeDetector API; no image is uploaded.',choose:'Choose QR image',scanResult:'QR scan result',types:{text:'Text',url:'URL',wifi:'Wi-Fi (SSID|Password|Security)',vcard:'vCard (name)'}},
+  ar:{title:'منشئ وقارئ رموز QR',description:'أنشئ رموز QR واقرأ صور QR محليًا في متصفحك.',generate:'إنشاء',payload:'نوع المحتوى',content:'المحتوى',foreground:'اللون الأمامي',background:'لون الخلفية',downloadPng:'تنزيل PNG',downloadSvg:'تنزيل SVG',read:'قراءة صورة QR',readDescription:'يستخدم واجهة BarcodeDetector في المتصفح ولا يتم رفع أي صورة.',choose:'اختيار صورة QR',scanResult:'نتيجة قراءة QR',types:{text:'نص',url:'رابط URL',wifi:'شبكة Wi‑Fi (SSID|كلمة المرور|الأمان)',vcard:'بطاقة vCard (الاسم)'}},
+  es:{title:'Generador y lector de códigos QR',description:'Genera códigos QR y analiza imágenes QR localmente en tu navegador.',generate:'Generar',payload:'Tipo de contenido',content:'Contenido',foreground:'Color frontal',background:'Color de fondo',downloadPng:'Descargar PNG',downloadSvg:'Descargar SVG',read:'Leer imagen QR',readDescription:'Usa BarcodeDetector del navegador; ninguna imagen se sube.',choose:'Elegir imagen QR',scanResult:'Resultado del escaneo QR',types:{text:'Texto',url:'URL',wifi:'Wi‑Fi (SSID|Contraseña|Seguridad)',vcard:'vCard (nombre)'}},
+  fr:{title:'Générateur et lecteur de codes QR',description:'Générez des codes QR et analysez les images QR localement dans votre navigateur.',generate:'Générer',payload:'Type de contenu',content:'Contenu',foreground:'Couleur de premier plan',background:'Couleur d’arrière-plan',downloadPng:'Télécharger PNG',downloadSvg:'Télécharger SVG',read:'Lire une image QR',readDescription:'Utilise BarcodeDetector du navigateur ; aucune image n’est envoyée.',choose:'Choisir une image QR',scanResult:'Résultat du scan QR',types:{text:'Texte',url:'URL',wifi:'Wi‑Fi (SSID|Mot de passe|Sécurité)',vcard:'vCard (nom)'}},
+  de:{title:'QR-Code-Generator und -Leser',description:'Erstellen Sie QR-Codes und lesen Sie QR-Bilder lokal im Browser.',generate:'Erstellen',payload:'Inhaltstyp',content:'Inhalt',foreground:'Vordergrundfarbe',background:'Hintergrundfarbe',downloadPng:'PNG herunterladen',downloadSvg:'SVG herunterladen',read:'QR-Bild lesen',readDescription:'Verwendet BarcodeDetector im Browser; kein Bild wird hochgeladen.',choose:'QR-Bild auswählen',scanResult:'QR-Leseergebnis',types:{text:'Text',url:'URL',wifi:'WLAN (SSID|Passwort|Sicherheit)',vcard:'vCard (Name)'}},
+  ru:{title:'Генератор и сканер QR-кодов',description:'Создавайте QR-коды и сканируйте изображения QR локально в браузере.',generate:'Создать',payload:'Тип данных',content:'Содержимое',foreground:'Цвет переднего плана',background:'Цвет фона',downloadPng:'Скачать PNG',downloadSvg:'Скачать SVG',read:'Читать изображение QR',readDescription:'Используется BarcodeDetector браузера; изображение не загружается.',choose:'Выбрать изображение QR',scanResult:'Результат сканирования QR',types:{text:'Текст',url:'URL',wifi:'Wi‑Fi (SSID|Пароль|Безопасность)',vcard:'vCard (имя)'}},
+  zh:{title:'二维码生成器和读取器',description:'在浏览器本地生成二维码并读取二维码图片。',generate:'生成',payload:'内容类型',content:'内容',foreground:'前景色',background:'背景色',downloadPng:'下载 PNG',downloadSvg:'下载 SVG',read:'读取二维码图片',readDescription:'使用浏览器 BarcodeDetector，不会上传图片。',choose:'选择二维码图片',scanResult:'二维码扫描结果',types:{text:'文本',url:'网址',wifi:'Wi‑Fi（SSID|密码|安全）',vcard:'vCard（姓名）'}},
+  hi:{title:'QR कोड जनरेटर और रीडर',description:'अपने ब्राउज़र में स्थानीय रूप से QR कोड बनाएँ और QR छवियाँ पढ़ें।',generate:'बनाएँ',payload:'सामग्री प्रकार',content:'सामग्री',foreground:'अग्रभूमि रंग',background:'पृष्ठभूमि रंग',downloadPng:'PNG डाउनलोड करें',downloadSvg:'SVG डाउनलोड करें',read:'QR छवि पढ़ें',readDescription:'ब्राउज़र BarcodeDetector का उपयोग करता है; कोई छवि अपलोड नहीं होती।',choose:'QR छवि चुनें',scanResult:'QR स्कैन परिणाम',types:{text:'टेक्स्ट',url:'URL',wifi:'Wi‑Fi (SSID|पासवर्ड|सुरक्षा)',vcard:'vCard (नाम)'}},
+  id:{title:'Pembuat dan Pembaca Kode QR',description:'Buat kode QR dan baca gambar QR secara lokal di browser.',generate:'Buat',payload:'Jenis konten',content:'Konten',foreground:'Warna depan',background:'Warna latar',downloadPng:'Unduh PNG',downloadSvg:'Unduh SVG',read:'Baca gambar QR',readDescription:'Menggunakan BarcodeDetector browser; gambar tidak diunggah.',choose:'Pilih gambar QR',scanResult:'Hasil pemindaian QR',types:{text:'Teks',url:'URL',wifi:'Wi‑Fi (SSID|Kata sandi|Keamanan)',vcard:'vCard (nama)'}},
+  ur:{title:'QR کوڈ جنریٹر اور ریڈر',description:'اپنے براؤزر میں مقامی طور پر QR کوڈ بنائیں اور تصاویر پڑھیں۔',generate:'بنائیں',payload:'مواد کی قسم',content:'مواد',foreground:'پیش منظر کا رنگ',background:'پس منظر کا رنگ',downloadPng:'PNG ڈاؤن لوڈ کریں',downloadSvg:'SVG ڈاؤن لوڈ کریں',read:'QR تصویر پڑھیں',readDescription:'براؤزر کا BarcodeDetector استعمال ہوتا ہے؛ کوئی تصویر اپ لوڈ نہیں ہوتی۔',choose:'QR تصویر منتخب کریں',scanResult:'QR اسکین کا نتیجہ',types:{text:'متن',url:'URL',wifi:'Wi‑Fi (SSID|پاس ورڈ|سیکیورٹی)',vcard:'vCard (نام)'}},
+  ja:{title:'QRコード生成・読み取り',description:'ブラウザ上でQRコードを生成し、QR画像をローカルで読み取ります。',generate:'生成',payload:'内容の種類',content:'内容',foreground:'前景色',background:'背景色',downloadPng:'PNGをダウンロード',downloadSvg:'SVGをダウンロード',read:'QR画像を読み取る',readDescription:'ブラウザのBarcodeDetectorを使用し、画像はアップロードされません。',choose:'QR画像を選択',scanResult:'QR読み取り結果',types:{text:'テキスト',url:'URL',wifi:'Wi‑Fi（SSID|パスワード|セキュリティ）',vcard:'vCard（名前）'}},
+  pt:{title:'Gerador e leitor de códigos QR',description:'Gere códigos QR e leia imagens QR localmente no navegador.',generate:'Gerar',payload:'Tipo de conteúdo',content:'Conteúdo',foreground:'Cor do primeiro plano',background:'Cor de fundo',downloadPng:'Baixar PNG',downloadSvg:'Baixar SVG',read:'Ler imagem QR',readDescription:'Usa BarcodeDetector do navegador; nenhuma imagem é enviada.',choose:'Escolher imagem QR',scanResult:'Resultado da leitura QR',types:{text:'Texto',url:'URL',wifi:'Wi‑Fi (SSID|Senha|Segurança)',vcard:'vCard (nome)'}},
+  it:{title:'Generatore e lettore di codici QR',description:'Genera codici QR e leggi immagini QR localmente nel browser.',generate:'Genera',payload:'Tipo di contenuto',content:'Contenuto',foreground:'Colore in primo piano',background:'Colore di sfondo',downloadPng:'Scarica PNG',downloadSvg:'Scarica SVG',read:'Leggi immagine QR',readDescription:'Usa BarcodeDetector del browser; nessuna immagine viene caricata.',choose:'Scegli immagine QR',scanResult:'Risultato scansione QR',types:{text:'Testo',url:'URL',wifi:'Wi‑Fi (SSID|Password|Sicurezza)',vcard:'vCard (nome)'}},
+  ko:{title:'QR 코드 생성기 및 리더',description:'브라우저에서 QR 코드를 만들고 QR 이미지를 로컬로 읽습니다.',generate:'생성',payload:'콘텐츠 유형',content:'콘텐츠',foreground:'전경색',background:'배경색',downloadPng:'PNG 다운로드',downloadSvg:'SVG 다운로드',read:'QR 이미지 읽기',readDescription:'브라우저의 BarcodeDetector를 사용하며 이미지는 업로드되지 않습니다.',choose:'QR 이미지 선택',scanResult:'QR 스캔 결과',types:{text:'텍스트',url:'URL',wifi:'Wi‑Fi (SSID|비밀번호|보안)',vcard:'vCard (이름)'}},
+  nl:{title:'QR-codegenerator en -lezer',description:'Genereer QR-codes en lees QR-afbeeldingen lokaal in je browser.',generate:'Genereren',payload:'Inhoudstype',content:'Inhoud',foreground:'Voorgrondkleur',background:'Achtergrondkleur',downloadPng:'PNG downloaden',downloadSvg:'SVG downloaden',read:'QR-afbeelding lezen',readDescription:'Gebruikt BarcodeDetector van de browser; geen afbeelding wordt geüpload.',choose:'QR-afbeelding kiezen',scanResult:'QR-scanresultaat',types:{text:'Tekst',url:'URL',wifi:'Wi‑Fi (SSID|Wachtwoord|Beveiliging)',vcard:'vCard (naam)'}},
+  pl:{title:'Generator i czytnik kodów QR',description:'Generuj kody QR i odczytuj obrazy QR lokalnie w przeglądarce.',generate:'Generuj',payload:'Typ danych',content:'Treść',foreground:'Kolor pierwszego planu',background:'Kolor tła',downloadPng:'Pobierz PNG',downloadSvg:'Pobierz SVG',read:'Odczytaj obraz QR',readDescription:'Używa BarcodeDetector przeglądarki; obraz nie jest wysyłany.',choose:'Wybierz obraz QR',scanResult:'Wynik skanowania QR',types:{text:'Tekst',url:'URL',wifi:'Wi‑Fi (SSID|Hasło|Zabezpieczenia)',vcard:'vCard (nazwa)'}},
+  tr:{title:'QR Kod Oluşturucu ve Okuyucu',description:'Tarayıcınızda QR kodları oluşturun ve QR görsellerini yerel olarak okuyun.',generate:'Oluştur',payload:'İçerik türü',content:'İçerik',foreground:'Ön plan rengi',background:'Arka plan rengi',downloadPng:'PNG indir',downloadSvg:'SVG indir',read:'QR görselini oku',readDescription:'Tarayıcının BarcodeDetector API’sini kullanır; görsel yüklenmez.',choose:'QR görseli seç',scanResult:'QR tarama sonucu',types:{text:'Metin',url:'URL',wifi:'Wi‑Fi (SSID|Parola|Güvenlik)',vcard:'vCard (ad)'}},
+  vi:{title:'Trình tạo và đọc mã QR',description:'Tạo mã QR và đọc ảnh QR cục bộ trong trình duyệt.',generate:'Tạo',payload:'Loại nội dung',content:'Nội dung',foreground:'Màu tiền cảnh',background:'Màu nền',downloadPng:'Tải PNG',downloadSvg:'Tải SVG',read:'Đọc ảnh QR',readDescription:'Dùng BarcodeDetector của trình duyệt; không tải ảnh lên.',choose:'Chọn ảnh QR',scanResult:'Kết quả quét QR',types:{text:'Văn bản',url:'URL',wifi:'Wi‑Fi (SSID|Mật khẩu|Bảo mật)',vcard:'vCard (tên)'}},
+  th:{title:'เครื่องสร้างและอ่านรหัส QR',description:'สร้างรหัส QR และอ่านภาพ QR ภายในเบราว์เซอร์',generate:'สร้าง',payload:'ประเภทข้อมูล',content:'เนื้อหา',foreground:'สีพื้นหน้า',background:'สีพื้นหลัง',downloadPng:'ดาวน์โหลด PNG',downloadSvg:'ดาวน์โหลด SVG',read:'อ่านภาพ QR',readDescription:'ใช้ BarcodeDetector ของเบราว์เซอร์และไม่อัปโหลดภาพ',choose:'เลือกภาพ QR',scanResult:'ผลการสแกน QR',types:{text:'ข้อความ',url:'URL',wifi:'Wi‑Fi (SSID|รหัสผ่าน|ความปลอดภัย)',vcard:'vCard (ชื่อ)'}},
+  sv:{title:'QR-kodsgenerator och läsare',description:'Skapa QR-koder och läs QR-bilder lokalt i webbläsaren.',generate:'Skapa',payload:'Innehållstyp',content:'Innehåll',foreground:'Förgrundsfärg',background:'Bakgrundsfärg',downloadPng:'Ladda ner PNG',downloadSvg:'Ladda ner SVG',read:'Läs QR-bild',readDescription:'Använder webbläsarens BarcodeDetector; ingen bild laddas upp.',choose:'Välj QR-bild',scanResult:'QR-skanningsresultat',types:{text:'Text',url:'URL',wifi:'Wi‑Fi (SSID|Lösenord|Säkerhet)',vcard:'vCard (namn)'}},
+};
+
+export function QrGeneratorReaderTool({ locale: localeProp }: { locale?: Locale }) {
+  const locale = localeProp ?? 'en';
+  const copy = COPY[locale];
+  const [type,setType] = useState<QrPayloadType>('text');
+  const [value,setValue] = useState('https://flixo.tools');
+  const [foreground,setForeground] = useState('#111827');
+  const [background,setBackground] = useState('#ffffff');
+  const [preview,setPreview] = useState('');
+  const [svg,setSvg] = useState('');
+  const [scanResult,setScanResult] = useState('');
+  const [error,setError] = useState('');
+  const [busy,setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const generate = async () => {
-    setBusy(true);
-    setError('');
-    try {
-      buildQrPayload(type, value);
-      const [dataUrl, svgMarkup] = await Promise.all([
-        renderQrDataUrl({ type, value, foreground, background, width: 360 }),
-        renderQrSvg({ type, value, foreground, background, width: 360 }),
-      ]);
-      setPreview(dataUrl);
-      setSvg(svgMarkup);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to generate QR code.');
-      setPreview('');
-      setSvg('');
-    } finally {
-      setBusy(false);
-    }
-  };
+  const generate = async () => { setBusy(true); setError(''); try { buildQrPayload(type,value); const [dataUrl,svgMarkup]=await Promise.all([renderQrDataUrl({type,value,foreground,background,width:360}),renderQrSvg({type,value,foreground,background,width:360})]); setPreview(dataUrl); setSvg(svgMarkup); } catch(cause) { setError(cause instanceof Error ? cause.message : 'QR error'); setPreview(''); setSvg(''); } finally { setBusy(false); } };
+  const scanFile = async (file: File | undefined) => { if(!file)return; setBusy(true); setError(''); try { setScanResult(await scanQrFile(file)); } catch(cause) { setError(cause instanceof Error ? cause.message : 'QR error'); setScanResult(''); } finally { setBusy(false); } };
 
-  const scanFile = async (file: File | undefined) => {
-    if (!file) return;
-    setBusy(true);
-    setError('');
-    try {
-      setScanResult(await scanQrFile(file));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to scan QR code.');
-      setScanResult('');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <section className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6" aria-labelledby="qr-title">
-      <header>
-        <h1 id="qr-title" className="text-3xl font-bold">QR Code Generator &amp; Reader</h1>
-        <p className="mt-2 text-sm opacity-75">Generate QR codes and scan QR images locally in your browser.</p>
-      </header>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-2xl border p-5" aria-labelledby="generator-title">
-          <h2 id="generator-title" className="font-semibold">Generate</h2>
-          <label className="mt-4 block text-sm font-medium" htmlFor="qr-type">Payload type</label>
-          <select id="qr-type" className="mt-2 w-full rounded-xl border p-3" value={type} onChange={(event) => setType(event.target.value as QrPayloadType)}>
-            {TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-          </select>
-          <label className="mt-4 block text-sm font-medium" htmlFor="qr-content">Content</label>
-          <textarea id="qr-content" className="mt-2 min-h-32 w-full rounded-xl border p-3" value={value} onChange={(event) => setValue(event.target.value)} />
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <label className="text-sm">Foreground<input aria-label="Foreground color" className="mt-2 h-11 w-full" type="color" value={foreground} onChange={(event) => setForeground(event.target.value)} /></label>
-            <label className="text-sm">Background<input aria-label="Background color" className="mt-2 h-11 w-full" type="color" value={background} onChange={(event) => setBackground(event.target.value)} /></label>
-          </div>
-          <button type="button" className="mt-4 rounded-xl border px-4 py-2" onClick={generate} disabled={busy}>Generate QR</button>
-          {preview ? <div className="mt-4 flex flex-col items-center gap-3"><img src={preview} alt="Generated QR code" className="max-w-full rounded-lg border p-2" /><a className="rounded-xl border px-4 py-2" download="flixo-qr.png" href={preview}>Download PNG</a><a className="rounded-xl border px-4 py-2" download="flixo-qr.svg" href={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`}>Download SVG</a></div> : null}
-        </section>
-
-        <section className="rounded-2xl border p-5" aria-labelledby="reader-title">
-          <h2 id="reader-title" className="font-semibold">Read QR image</h2>
-          <p className="mt-2 text-sm opacity-70">Uses the browser BarcodeDetector API; no image is uploaded.</p>
-          <input ref={inputRef} className="mt-4 block w-full rounded-xl border p-3" type="file" accept="image/*" onChange={(event) => { void scanFile(event.target.files?.[0]); }} />
-          <button type="button" className="mt-3 rounded-xl border px-4 py-2" onClick={() => inputRef.current?.click()} disabled={busy}>Choose QR image</button>
-          {scanResult ? <output className="mt-4 block rounded-xl border p-4 break-words" aria-label="QR scan result">{scanResult}</output> : null}
-        </section>
-      </div>
-
-      {error ? <p role="alert" className="rounded-xl border p-4">{error}</p> : null}
-    </section>
-  );
+  return <section className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6" aria-labelledby="qr-title">
+    <header><h1 id="qr-title" className="text-3xl font-bold">{copy.title}</h1><p className="mt-2 text-sm opacity-75">{copy.description}</p></header>
+    <div className="grid gap-6 lg:grid-cols-2">
+      <section className="rounded-2xl border p-5" aria-labelledby="generator-title">
+        <h2 id="generator-title" className="font-semibold">{copy.generate}</h2>
+        <label className="mt-4 block text-sm font-medium" htmlFor="qr-type">{copy.payload}</label>
+        <select id="qr-type" className="mt-2 w-full rounded-xl border p-3" value={type} onChange={(event)=>setType(event.target.value as QrPayloadType)}>{(Object.keys(copy.types) as QrPayloadType[]).map((item)=><option key={item} value={item}>{copy.types[item]}</option>)}</select>
+        <label className="mt-4 block text-sm font-medium" htmlFor="qr-content">{copy.content}</label>
+        <textarea id="qr-content" className="mt-2 min-h-32 w-full rounded-xl border p-3" value={value} onChange={(event)=>setValue(event.target.value)} />
+        <div className="mt-4 grid grid-cols-2 gap-3"><label className="text-sm">{copy.foreground}<input aria-label={copy.foreground} className="mt-2 h-11 w-full" type="color" value={foreground} onChange={(event)=>setForeground(event.target.value)} /></label><label className="text-sm">{copy.background}<input aria-label={copy.background} className="mt-2 h-11 w-full" type="color" value={background} onChange={(event)=>setBackground(event.target.value)} /></label></div>
+        <button type="button" className="mt-4 rounded-xl border px-4 py-2" onClick={generate} disabled={busy}>{copy.generate}</button>
+        {preview ? <div className="mt-4 flex flex-col items-center gap-3"><img src={preview} alt={copy.generate} className="max-w-full rounded-lg border p-2" /><a className="rounded-xl border px-4 py-2" download="flixo-qr.png" href={preview}>{copy.downloadPng}</a><a className="rounded-xl border px-4 py-2" download="flixo-qr.svg" href={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`}>{copy.downloadSvg}</a></div> : null}
+      </section>
+      <section className="rounded-2xl border p-5" aria-labelledby="reader-title">
+        <h2 id="reader-title" className="font-semibold">{copy.read}</h2><p className="mt-2 text-sm opacity-70">{copy.readDescription}</p>
+        <input ref={inputRef} className="mt-4 block w-full rounded-xl border p-3" type="file" accept="image/*" onChange={(event)=>{void scanFile(event.target.files?.[0]);}} />
+        <button type="button" className="mt-3 rounded-xl border px-4 py-2" onClick={()=>inputRef.current?.click()} disabled={busy}>{copy.choose}</button>
+        {scanResult ? <output className="mt-4 block rounded-xl border p-4 break-words" aria-label={copy.scanResult}>{scanResult}</output> : null}
+      </section>
+    </div>
+    {error ? <p role="alert" className="rounded-xl border p-4">{error}</p> : null}
+  </section>;
 }
