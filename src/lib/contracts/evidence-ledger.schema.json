@@ -6,7 +6,7 @@
   "required": ["schemaVersion", "gate", "contract", "status", "scope", "recordedAt", "commit", "contractVersion"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "gate": { "type": "string", "minLength": 1 },
+    "gate": { "type": "string", "pattern": "^G[1-4]$" },
     "contract": { "type": "string", "pattern": "^(G[1-4]-[A-Z0-9-]+-\\d{3})$" },
     "status": { "enum": ["PASS", "FAIL", "BLOCKED", "NOT_APPLICABLE"] },
     "rootCauseId": { "type": "string", "minLength": 1 },
@@ -37,5 +37,23 @@
     "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
     "contractVersion": { "type": "string", "minLength": 1 }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "gate": { "const": "G1" } }, "required": ["gate"] },
+      "then": { "properties": { "contract": { "pattern": "^G1-" } } }
+    },
+    {
+      "if": { "properties": { "gate": { "const": "G2" } }, "required": ["gate"] },
+      "then": { "properties": { "contract": { "pattern": "^G2-" } } }
+    },
+    {
+      "if": { "properties": { "gate": { "const": "G3" } }, "required": ["gate"] },
+      "then": { "properties": { "contract": { "pattern": "^G3-" } } }
+    },
+    {
+      "if": { "properties": { "gate": { "const": "G4" } }, "required": ["gate"] },
+      "then": { "properties": { "contract": { "pattern": "^G4-" } } }
+    }
+  ],
   "additionalProperties": false
 }
