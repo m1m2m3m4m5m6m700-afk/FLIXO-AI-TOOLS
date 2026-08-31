@@ -65,10 +65,11 @@ const passedChecks = records.reduce((sum, record) => sum + Number(record.passed 
 const failedChecks = records.reduce((sum, record) => sum + Number(record.failed ?? 0), 0);
 const skippedChecks = records.reduce((sum, record) => sum + Number(record.skipped ?? 0), 0);
 const missingChecks = records.reduce((sum, record) => sum + Number(record.missing ?? 0), 0);
+const reportStatus = integrityErrors.length || records.some((record) => record.status !== 'PASS') || failureEvents.length ? 'FAIL' : 'PASS';
 
 const report = {
   schema_version: ULTRA_SCHEMA_VERSION,
-  status: integrityErrors.length || records.some((record) => record.status !== 'PASS') || failureEvents.length ? 'FAIL' : 'PASS',
+  status: reportStatus,
   sha: expectedSha,
   contractHash: ultraContractHash(),
   generatedAt: new Date().toISOString(),
@@ -108,8 +109,8 @@ writeFileSync(path.join(ledgerRoot, 'ultra-recovery.json'), JSON.stringify({
   failed: failedChecks,
   skipped: skippedChecks,
   missing: missingChecks,
-  result: report.status,
+  result: reportStatus,
 }, null, 2) + '\n');
 
 console.log(JSON.stringify(report, null, 2));
-if (report.status !== 'PASS') process.exit(1);
+if (reportStatus !== 'PASS') process.exit(1);
