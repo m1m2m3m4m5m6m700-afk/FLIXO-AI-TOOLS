@@ -7,8 +7,10 @@ const required = [
   ['CI job', /\n\s{2}ci:\n/],
   ['Fast Contract Diagnostics job', /name:\s*Fast Contract Diagnostics/],
   ['Canonical Verification Gate job', /name:\s*Canonical Verification Gate/],
-  ['impact-aware fast verifier', /scripts\/ci\/fast-verify\.mjs/],
-  ['parallel fast dependency install', /name:\s*Install dependencies\s*\n\s*run:\s*npm ci/],
+  ['fast micro-check matrix', /fast-check:\s*\n[\s\S]*?matrix:\s*\n[\s\S]*?check:/],
+  ['micro-check runner', /FAST_CI_CHECK:\s*\$\{\{\s*matrix\.check\s*\}\}/],
+  ['micro-check evidence', /fast-check-\$\{\{\s*matrix\.check\s*\}\}-\$\{\{\s*github\.sha\s*\}\}/],
+  ['fast diagnostics aggregate', /Aggregate fast diagnostics/],
   ['PR cancellation', /cancel-in-progress:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*\}\}/],
 ];
 
@@ -25,4 +27,4 @@ if (/npm\s+run\s+verify(?![:\w-])/.test(canonicalSection) || /npm\s+test(?![\w-]
   process.exit(1);
 }
 
-console.log('CI contract passed: parallel fast dependency install, exact required check names, cancellation, and no duplicate repository-wide verification are enforced.');
+console.log('CI contract passed: micro-check matrix, evidence aggregation, exact required check names, cancellation, and no duplicate repository-wide verification are enforced.');
