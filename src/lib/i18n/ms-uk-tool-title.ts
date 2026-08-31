@@ -33,18 +33,17 @@ const TERMS: Record<string, Partial<Record<TargetLocale, string>>> = {
   online: { ms: 'dalam talian', uk: 'онлайн' },
 };
 
-const CATEGORY_FALLBACKS: Record<TargetLocale, Record<Category, string>> = {
-  ms: { Images: 'Alat Imej', AI: 'Alat AI', Other: 'Alat' },
-  uk: { Images: 'Інструмент зображень', AI: 'Інструмент ШІ', Other: 'Інструмент' },
-};
-
 function tokenize(value: string): string[] {
   return value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').split(/\s+/).filter(Boolean);
 }
 
-export function localizeMsUkToolTitle(locale: Locale, title: string, category: Category): string | undefined {
+/**
+ * Resolve only genuinely localized ms/uk tool titles.
+ * Returning undefined is intentional: callers must fail closed rather than exposing an English title.
+ */
+export function localizeMsUkToolTitle(locale: Locale, title: string, _category: Category): string | undefined {
   if (locale !== 'ms' && locale !== 'uk') return undefined;
   const translated = tokenize(title).map((part) => TERMS[part.toLowerCase()]?.[locale] ?? part).join(' ').trim();
-  if (translated && translated.toLowerCase() !== title.trim().toLowerCase()) return translated;
-  return `${CATEGORY_FALLBACKS[locale][category]}: ${title.trim()}`;
+  if (!translated || translated.toLowerCase() === title.trim().toLowerCase()) return undefined;
+  return translated;
 }
