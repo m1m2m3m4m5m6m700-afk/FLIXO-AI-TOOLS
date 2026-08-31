@@ -5,9 +5,39 @@ import { promisify } from 'node:util';
 const exec = promisify(execFile);
 const base = process.env.CHANGE_BASE ?? 'origin/main';
 const sha = process.env.GITHUB_SHA ?? execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-const group = process.env.FAST_CI_GROUP ?? 'all';
-const supportedGroups = new Set(['all', 'core', 'structure', 'localization', 'seo', 'security', 'artifact', 'browser', 'build']);
-if (!supportedGroups.has(group)) throw new Error(`Unknown FAST_CI_GROUP: ${group}`);
+const check = process.env.FAST_CI_CHECK ?? '';
+
+const CHECKS = new Map([
+  ['typecheck', { command: 'npm', args: ['run', 'typecheck'], impact: 'always' }],
+  ['lint', { command: 'npm', args: ['run', 'lint'], impact: 'always' }],
+  ['ci-contract', { command: 'npm', args: ['run', 'validate:ci-contract'], impact: 'always' }],
+  ['tool-registry', { command: 'npm', args: ['run', 'validate:tool-registry'], impact: 'always' }],
+  ['tool-manifest', { command: 'npm', args: ['run', 'validate:tool-manifest'], impact: 'always' }],
+  ['router-registry', { command: 'npm', args: ['run', 'validate:router-registry'], impact: 'always' }],
+  ['baseline', { command: 'npm', args: ['run', 'validate:baseline'], impact: 'registry' }],
+  ['route-resolver', { command: 'npm', args: ['run', 'test:route-resolver'], impact: 'routing' }],
+  ['i18n-strict', { command: 'npm', args: ['run', 'verify:i18n', '--', '--strict', '--report'], impact: 'localization' }],
+  ['locale-integrity', { command: 'npm', args: ['run', 'validate:locale-integrity'], impact: 'localization' }],
+  ['locale-navigation', { command: 'npm', args: ['run', 'validate:locale-navigation'], impact: 'localization' }],
+  ['home-i18n', { command: 'npm', args: ['run', 'validate:home-i18n'], impact: 'localization' }],
+  ['tool-localization', { command: 'npm', args: ['run', 'test:tool-localization'], impact: 'localization' }],
+  ['browser-localization-smoke', { command: 'npx', args: ['playwright', 'test', 'tests/localization-browser-smoke.spec.ts', '--project=chromium', '--workers=1', '--retries=0', '--max-failures=1'], impact: 'localization', browser: true }],
+  ['seo', { command: 'npm', args: ['run', 'validate:seo'], impact: 'seo' }],
+  ['seo-manifest', { command: 'npm', args: ['run', 'validate:seo-manifest'], impact: 'seo' }],
+  ['use-case-seo', { command: 'npm', args: ['run', 'validate:use-case-seo'], impact: 'seo' }],
+  ['indexing', { command: 'npm', args: ['run', 'validate:indexing'], impact: 'seo' }],
+  ['breadcrumb-seo', { command: 'npm', args: ['run', 'validate:breadcrumb-seo'], impact: 'seo' }],
+  ['multilingual-seo', { command: 'node', args: ['--import=./scripts/register-node-resolver.mjs', '--experimental-strip-types', 'scripts/validate-google-multilingual-seo.mjs'], impact: 'seo' }],
+  ['language-quality-strict', { command: 'node', args: ['--import=./scripts/register-node-resolver.mjs', '--experimental-strip-types', 'scripts/validate-language-quality-strict.mjs'], impact: 'localization' }],
+  ['upload-boundary', { command: 'npm', args: ['run', 'test:upload-boundary'], impact: 'security' }],
+  ['file-safety', { command: 'node', args: ['--experimental-strip-types', 'scripts/test-file-safety.mjs'], impact: 'artifact' }],
+  ['output-integrity', { command: 'node', args: ['--experimental-strip-types', 'scripts/test-output-integrity.mjs'], impact: 'artifact' }],
+  ['svg-integrity', { command: 'node', args: ['--experimental-strip-types', 'scripts/test-svg-integrity.mjs'], impact: 'artifact' }],
+  ['affected-e2e', { impact: 'tools', browser: true }],
+  ['build', { command: 'npm', args: ['run', 'build'], impact: 'build' }],
+]);
+
+if (check && !CHECKS.has(check)) throw new Error(`Unknown FAST_CI_CHECK: ${check}`);
 
 function changedFiles() {
   const output = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { encoding: 'utf8' });
@@ -34,60 +64,49 @@ const flags = {
   tools: [...new Set(files.map((file) => file.match(/^src\/tools\/([^/]+)/)?.[1]).filter(Boolean))],
 };
 
-const mode = files.length > 0 && files.every((file) => /^(docs\/|README|CHANGELOG|LICENSE|\.github\/ISSUE_TEMPLATE\/)/i.test(file)) ? 'FAST' : 'TARGETED';
-const commands = [];
-const add = (id, command, args, reason, commandGroup) => commands.push({ id, command, args, reason, group: commandGroup });
+const impactMatched = (impact) => {
+  if (impact === 'always') return true;
+  if (impact === 'registry') return flags.registry;
+  if (impact === 'routing') return flags.routing;
+  if (impact === 'localization') return flags.localization;
+  if (impact === 'seo') return flags.seo;
+  if (impact === 'security') return flags.security;
+  if (impact === 'artifact') return flags.artifact;
+  if (impact === 'build') return flags.workflow || flags.dependency || flags.registry || flags.routing || flags.localization || flags.seo;
+  if (impact === 'tools') return flags.tools.length > 0;
+  return false;
+};
 
-add('typecheck', 'npm', ['run', 'typecheck'], 'always', 'core');
-add('lint', 'npm', ['run', 'lint'], 'always', 'core');
-add('ci-contract', 'npm', ['run', 'validate:ci-contract'], 'always', 'core');
-add('tool-registry', 'npm', ['run', 'validate:tool-registry'], 'always', 'structure');
-add('tool-manifest', 'npm', ['run', 'validate:tool-manifest'], 'always', 'structure');
-add('router-registry', 'npm', ['run', 'validate:router-registry'], 'always', 'structure');
-if (flags.registry) add('baseline', 'npm', ['run', 'validate:baseline'], 'registry impact', 'structure');
-if (flags.routing) add('route-resolver', 'npm', ['run', 'test:route-resolver'], 'routing impact', 'structure');
-if (flags.localization) {
-  add('i18n-strict', 'npm', ['run', 'verify:i18n', '--', '--strict', '--report'], 'localization impact', 'localization');
-  add('locale-integrity', 'npm', ['run', 'validate:locale-integrity'], 'localization impact', 'localization');
-  add('locale-navigation', 'npm', ['run', 'validate:locale-navigation'], 'localization impact', 'localization');
-  add('home-i18n', 'npm', ['run', 'validate:home-i18n'], 'localization impact', 'localization');
-  add('tool-localization', 'npm', ['run', 'test:tool-localization'], 'localization impact', 'localization');
-  add('browser-localization-smoke', 'npx', ['playwright', 'test', 'tests/localization-browser-smoke.spec.ts', '--project=chromium', '--workers=1', '--retries=0', '--max-failures=1'], 'localization browser smoke; fail at first failure', 'localization');
-}
-if (flags.seo) {
-  add('seo', 'npm', ['run', 'validate:seo'], 'SEO impact', 'seo');
-  add('seo-manifest', 'npm', ['run', 'validate:seo-manifest'], 'SEO impact', 'seo');
-  add('use-case-seo', 'npm', ['run', 'validate:use-case-seo'], 'SEO impact', 'seo');
-  add('indexing', 'npm', ['run', 'validate:indexing'], 'SEO/indexing impact', 'seo');
-  add('breadcrumb-seo', 'npm', ['run', 'validate:breadcrumb-seo'], 'SEO impact', 'seo');
-}
-if (flags.security) add('upload-boundary', 'npm', ['run', 'test:upload-boundary'], 'security/upload impact', 'security');
-if (flags.artifact) {
-  add('file-safety', 'node', ['--experimental-strip-types', 'scripts/test-file-safety.mjs'], 'artifact/file safety impact', 'artifact');
-  add('output-integrity', 'node', ['--experimental-strip-types', 'scripts/test-output-integrity.mjs'], 'artifact impact', 'artifact');
-  add('svg-integrity', 'node', ['--experimental-strip-types', 'scripts/test-svg-integrity.mjs'], 'artifact impact', 'artifact');
-}
+const toolTestCandidates = flags.tools.map((tool) => `tests/${tool}.spec.ts`).filter((path) => existsSync(path));
+const runBrowserSmoke = check === 'browser-localization-smoke';
+const runAffectedE2E = check === 'affected-e2e' && toolTestCandidates.length > 0;
+const plan = {
+  schema_version: 3,
+  sha,
+  base,
+  check: check || 'all',
+  files,
+  flags,
+  impact_matched: check ? impactMatched(CHECKS.get(check).impact) : true,
+  tool_tests: toolTestCandidates,
+  runBrowserSmoke,
+  runAffectedE2E,
+};
 
-const toolTestCandidates = [];
-for (const tool of flags.tools) {
-  const candidate = `tests/${tool}.spec.ts`;
-  if (existsSync(candidate)) toolTestCandidates.push(candidate);
-}
-const needBrowser = toolTestCandidates.length > 0;
-const needBuild = flags.workflow || flags.dependency || flags.registry || flags.routing || flags.localization || flags.seo;
-const selectedCommands = group === 'all' ? commands : commands.filter((item) => item.group === group);
-const skipped = [];
-if (selectedCommands.length === 0 && !((group === 'browser' && needBrowser) || (group === 'build' && needBuild))) skipped.push({ id: group, reason: 'no dependency impact' });
+mkdirSync('diagnostics', { recursive: true });
+writeFileSync('diagnostics/fast-ci-plan.json', `${JSON.stringify(plan, null, 2)}\n`);
+console.log(JSON.stringify(plan, null, 2));
 
-const results = [];
 const start = Date.now();
+const results = [];
+
 async function runOne(item) {
   const started = Date.now();
   try {
     await exec(item.command, item.args, { env: process.env, maxBuffer: 4 * 1024 * 1024 });
     const durationMs = Date.now() - started;
     console.log(`PASS ${item.id} (${durationMs}ms)`);
-    results.push({ id: item.id, status: 'PASS', durationMs, reason: item.reason });
+    results.push({ id: item.id, status: 'PASS', durationMs });
     return true;
   } catch (error) {
     const durationMs = Date.now() - started;
@@ -96,42 +115,61 @@ async function runOne(item) {
     console.error(`FAIL ${item.id} (${durationMs}ms)`);
     if (stdout) console.error(stdout);
     if (stderr) console.error(stderr);
-    results.push({ id: item.id, status: 'FAIL', durationMs, reason: item.reason });
+    results.push({ id: item.id, status: 'FAIL', durationMs, error: stderr.slice(-12000) });
     return false;
   }
 }
 
-mkdirSync('diagnostics', { recursive: true });
-const plan = { schema_version: 2, sha, base, mode, group, files, flags, commands: selectedCommands.map(({ id, reason }) => ({ id, reason })), needBrowser, needBuild };
-writeFileSync('diagnostics/fast-ci-plan.json', `${JSON.stringify(plan, null, 2)}\n`);
-console.log(JSON.stringify(plan, null, 2));
+async function runCheck(id) {
+  const definition = CHECKS.get(id);
+  if (!definition) throw new Error(`Unknown FAST_CI_CHECK: ${id}`);
 
-const staticResults = await Promise.all(selectedCommands.map(runOne));
-if (staticResults.some((value) => !value)) process.exit(1);
+  if (!impactMatched(definition.impact)) {
+    console.log(`SKIP ${id} (no impact)`);
+    results.push({ id, status: 'SKIPPED', durationMs: 0, reason: 'no dependency impact' });
+    return true;
+  }
 
-if (group === 'browser' && needBrowser) {
-  const install = await runOne({ id: 'playwright-install', command: 'npx', args: ['playwright', 'install', 'chromium'], reason: 'affected browser checks' });
-  if (!install) process.exit(1);
-  const e2e = await runOne({ id: 'affected-e2e', command: 'npx', args: ['playwright', 'test', ...toolTestCandidates, '--project=chromium', '--workers=2', '--retries=0'], reason: 'changed tool surfaces' });
-  if (!e2e) process.exit(1);
+  if (id === 'affected-e2e' && !runAffectedE2E) {
+    console.log(`SKIP ${id} (no changed tool test candidates)`);
+    results.push({ id, status: 'SKIPPED', durationMs: 0, reason: 'no changed tool test candidates' });
+    return true;
+  }
+
+  if (id === 'affected-e2e') {
+    const install = await runOne({ id: 'playwright-install', command: 'npx', args: ['playwright', 'install', 'chromium'] });
+    if (!install) return false;
+    return runOne({ id, command: 'npx', args: ['playwright', 'test', ...toolTestCandidates, '--project=chromium', '--workers=2', '--retries=0'] });
+  }
+
+  if (definition.browser && (runBrowserSmoke || id === 'browser-localization-smoke')) {
+    const install = await runOne({ id: 'playwright-install', command: 'npx', args: ['playwright', 'install', 'chromium'] });
+    if (!install) return false;
+  }
+
+  return runOne({ id, command: definition.command, args: definition.args });
 }
-if (group === 'build' && needBuild) {
-  const build = await runOne({ id: 'build', command: 'npm', args: ['run', 'build'], reason: 'affected application graph' });
-  if (!build) process.exit(1);
+
+if (check) {
+  await runCheck(check);
+} else {
+  for (const id of CHECKS.keys()) {
+    const ok = await runCheck(id);
+    if (!ok) break;
+  }
 }
 
+const status = results.some((item) => item.status === 'FAIL') ? 'FAIL' : 'PASS';
 const summary = {
-  schema_version: 2,
+  schema_version: 3,
   sha,
   base,
-  mode,
-  group,
-  status: results.every((item) => item.status === 'PASS') ? 'PASS' : 'FAIL',
+  check: check || 'all',
+  status,
   durationMs: Date.now() - start,
   executed: results,
-  reused: [],
-  skipped,
+  skipped: results.filter((item) => item.status === 'SKIPPED'),
 };
 writeFileSync('diagnostics/fast-ci-result.json', `${JSON.stringify(summary, null, 2)}\n`);
 console.log(JSON.stringify(summary, null, 2));
-if (summary.status !== 'PASS') process.exit(1);
+if (status !== 'PASS') process.exit(1);
