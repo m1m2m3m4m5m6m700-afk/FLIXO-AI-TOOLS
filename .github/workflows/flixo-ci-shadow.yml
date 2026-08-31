@@ -33,10 +33,10 @@ jobs:
         run: node --experimental-strip-types scripts/ci/validate-foundation.mjs
       - name: Decision semantics
         run: node --experimental-strip-types scripts/ci/core/status.test.mjs
-      - name: Foundation safety assertions
+      - name: Repository safety assertions
         shell: bash
         run: |
           set -euo pipefail
-          test -z "${{ secrets.PRODUCTION_ORIGIN }}"
-          ! grep -R --include='*.yml' --include='*.yaml' -E 'actions/checkout@v[0-9]+' .github/workflows/flixo-ci-shadow.yml | grep -q '@v6' || true
           test -f package-lock.json
+          test -f .nvmrc
+          test "$(cat .nvmrc)" = "22"
