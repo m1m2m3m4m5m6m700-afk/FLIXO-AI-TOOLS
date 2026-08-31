@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import { useParams } from '@tanstack/react-router';
 import { LOCALES, isLocale, type Locale, LOCALE_METADATA } from '../lib/i18n';
-import { assertToolCategory, getLocalizedToolTitle, getToolSeo } from '../lib/seo/tool-seo';
+import { assertToolCategory, getToolSeo } from '../lib/seo/tool-seo';
+import { getAuthoritativeToolSeoName } from '../config/tool-seo-name-resolver';
 import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
+import { localizeMsUkCategory, localizeMsUkDescription } from '../lib/i18n/ms-uk-category';
 import { localizeToolCategory, localizeToolDescription } from '../lib/i18n/tool-localization';
 import { AutoLocalizedToolSurface } from '../components/auto-localized-tool-surface';
 import { getToolPrivacyCopy } from '../lib/privacy';
@@ -42,14 +44,15 @@ export function LocalizedToolPage() {
   }
 
   const category = assertToolCategory(seo.tool.category);
-  const localizedTitle = getLocalizedToolTitle(locale, seo.tool.id, seo.tool.title);
-  const localizedCategory = localizeToolCategory(locale, category);
-  const localizedDescription = locale === 'en' ? seo.tool.description : localizeToolDescription(locale, localizedTitle, category);
+  const localizedTitle = getAuthoritativeToolSeoName(seo.tool, locale) ?? seo.tool.title;
+  const localizedCategory = localizeMsUkCategory(locale, category) ?? localizeToolCategory(locale, category);
+  const localizedDescription = locale === 'en' ? seo.tool.description : localizeMsUkDescription(locale, localizedTitle) ?? localizeToolDescription(locale, localizedTitle, category);
   const ToolComponent = seo.tool.component as unknown as ComponentType<{ locale?: Locale }>;
   const privacy = getToolPrivacyCopy(seo.tool.id, locale);
   const homeUrl = `/${locale}`;
-  const alternateUrl = locale === 'ar' ? `/en/${seo.tool.id}` : `/ar/${seo.tool.id}`;
-  const alternateLabel = locale === 'ar' ? copy.english : copy.arabic;
+  const alternateLocale = locale === 'en' ? 'ar' : 'en';
+  const alternateUrl = `/${alternateLocale}/${seo.tool.id}`;
+  const alternateLabel = alternateLocale === 'ar' ? copy.arabic : copy.english;
   const onToggleFavorite = () => {
     const next = toggleFavorite(seo.tool.id);
     setFavorite(next.includes(seo.tool.id));
@@ -64,7 +67,7 @@ export function LocalizedToolPage() {
           <div className="tool-page-modern__nav-actions">
             <button className={`tool-page-modern__favorite ${favorite ? 'is-active' : ''}`} type="button" onClick={onToggleFavorite} aria-pressed={favorite} title={copy.favorite}><span aria-hidden="true">{favorite ? '★' : '☆'}</span> {copy.favorite}</button>
             <a className="tool-page-modern__nav-link" href={homeUrl}>← {copy.home}</a>
-            <a className="tool-page-modern__lang" href={alternateUrl} lang={locale === 'ar' ? 'en' : 'ar'}>{alternateLabel}</a>
+            <a className="tool-page-modern__lang" href={alternateUrl} lang={alternateLocale}>{alternateLabel}</a>
           </div>
         </div>
       </nav>
