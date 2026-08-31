@@ -1,17 +1,5 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-
-const exec = promisify(execFile);
-const run = async (cmd, args) => {
-  try {
-    const { stdout } = await exec(cmd, args);
-    return stdout.trim();
-  } catch (error) {
-    return `ERROR: ${error instanceof Error ? error.message : String(error)}`;
-  }
-};
 
 const vars = {
   SITE_URL: process.env.SITE_URL ?? process.env.VITE_SITE_URL ?? '',
@@ -44,10 +32,7 @@ const runtime = {
   os: `${os.platform()} ${os.release()}`,
   arch: os.arch(),
   node: process.version,
-  npm: await run('npm', ['--version']),
-  typescript: await run('npx', ['tsc', '--version']),
-  vite: await run('npx', ['vite', '--version']),
-  playwright: await run('npx', ['playwright', '--version']),
+  npm: process.env.npm_version ?? '<unknown>',
 };
 add('G3-01', true, runtime);
 add('G3-02', Boolean(vars.SITE_URL && vars.TEST_ORIGIN && vars.RUNTIME_ORIGIN), 'SITE_URL, TEST_ORIGIN and RUNTIME_ORIGIN are required');
@@ -71,7 +56,7 @@ try {
   runtimeUrl = undefined;
 }
 
-add('G3-03', Boolean(site) && !forbiddenProductionHosts.test(site.hostname) && !localHosts.has(site.hostname), site ? `canonical production origin=${site.origin}` : 'invalid SITE_URL');
+add('G3-03', Boolean(site) && !forbiddenProductionHosts.test(site.hostname) && !localHosts.has(site.hostname), site ? `canonical test production origin=${site.origin}` : 'invalid SITE_URL');
 add('G3-03-origin-isolation', Boolean(site && test && runtimeUrl) && site.origin !== test.origin && site.origin !== runtimeUrl.origin, { site: site?.origin ?? null, test: test?.origin ?? null, runtime: runtimeUrl?.origin ?? null });
 add('G3-03-test-runtime', Boolean(test && runtimeUrl), { test: test?.origin ?? null, runtime: runtimeUrl?.origin ?? null }, 'ENVIRONMENT', 'TEST_RUNTIME_ORIGIN');
 add('G3-03-node-env', vars.NODE_ENV !== 'production', vars.NODE_ENV || '<unset>', 'ENVIRONMENT', 'BROWSER_PRODUCTION_MODE');
