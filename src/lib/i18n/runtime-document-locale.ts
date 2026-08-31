@@ -26,14 +26,19 @@ export function applyDocumentLocale(locale: Locale): void {
   });
 }
 
+/**
+ * Installs the document-level locale contract outside React's lifecycle.
+ * The pathname is evaluated on every enforcement pass so the observer remains
+ * correct across client-side navigation and DOM replacement.
+ */
 export function installDocumentLocaleContract(getPathname: () => string): () => void {
   if (typeof document === 'undefined') return () => undefined;
 
-  const currentLocale = localeFromPathname(getPathname());
-  const apply = () => applyDocumentLocale(currentLocale);
+  const apply = () => applyDocumentLocale(localeFromPathname(getPathname()));
   apply();
 
   const frame = window.requestAnimationFrame(apply);
+  const interval = window.setInterval(apply, 250);
 
   const htmlObserver = new MutationObserver((mutations) => {
     if (mutations.some((mutation) => mutation.type === 'attributes' && (mutation.attributeName === 'lang' || mutation.attributeName === 'dir' || mutation.attributeName === 'data-flixo-locale'))) {
@@ -44,6 +49,11 @@ export function installDocumentLocaleContract(getPathname: () => string): () => 
     attributes: true,
     attributeFilter: ['lang', 'dir', 'data-flixo-locale'],
   });
+
+  const documentObserver = new MutationObserver((mutations) => {
+    if (mutations.some((mutation) => mutation.type === 'childList')) apply();
+  });
+  documentObserver.observe(document, { childList: true, subtree: false });
 
   const bodyObserver = new MutationObserver((mutations) => {
     if (mutations.some((mutation) => {
@@ -65,7 +75,9 @@ export function installDocumentLocaleContract(getPathname: () => string): () => 
 
   return () => {
     window.cancelAnimationFrame(frame);
+    window.clearInterval(interval);
     htmlObserver.disconnect();
+    documentObserver.disconnect();
     bodyObserver.disconnect();
   };
 }
