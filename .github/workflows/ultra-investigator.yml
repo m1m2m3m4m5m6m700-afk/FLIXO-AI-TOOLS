@@ -99,7 +99,7 @@ jobs:
       - name: Download exact-run suite evidence
         uses: actions/download-artifact@v6
         with:
-          pattern: ultra-investigation-*-{github.event.pull_request.head.sha || github.sha}
+          pattern: ultra-investigation-*-${{ github.event.pull_request.head.sha || github.sha }}
           path: diagnostics/investigation
           merge-multiple: true
       - name: Aggregate evidence
@@ -139,7 +139,6 @@ jobs:
         env:
           INVESTIGATE_RESULT: ${{ needs.investigate.result }}
           AGGREGATE_RESULT: ${{ needs.aggregate.result }}
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           test "$INVESTIGATE_RESULT" = success || { echo "investigate=$INVESTIGATE_RESULT"; exit 1; }
