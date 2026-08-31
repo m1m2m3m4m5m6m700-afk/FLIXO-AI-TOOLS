@@ -1,7 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { validateOutputIntegrity } from '../src/lib/contracts/output-integrity';
 import { getToolOutputContract } from '../src/lib/contracts/tool-output-contracts';
-import { getLocalizedToolTitle } from '../src/lib/seo/tool-seo';
 
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#223344"/><circle cx="300" cy="220" r="180" fill="#67e8f9"/><circle cx="850" cy="560" r="260" fill="#164e63"/></svg>`;
 
@@ -32,14 +31,13 @@ async function readDownload(page: Page, link: Locator, expectedFilename: string)
 
 async function waitForImageCompressorReady(page: Page) {
   await page.goto('/en/image-compressor', { waitUntil: 'domcontentloaded' });
-  const heading = page.getByRole('heading', { name: getLocalizedToolTitle('en', 'image-compressor', 'Image Compressor'), exact: true });
-  await expect(heading).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Compress Images Online', exact: true })).toBeVisible();
   const input = page.locator('#image-file');
   await expect(input).toHaveCount(1);
   await expect(input).toBeAttached();
   await page.waitForFunction(() => {
     const element = document.querySelector<HTMLInputElement>('#image-file');
-    return Boolean(element?.isConnected && !element.disabled);
+    return Boolean(element?.isConnected && !element.disabled && element.form !== null);
   });
   return input;
 }
