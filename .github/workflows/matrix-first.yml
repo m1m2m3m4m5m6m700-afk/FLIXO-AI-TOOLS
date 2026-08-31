@@ -96,7 +96,7 @@ jobs:
           head -c 5000 /tmp/matrix-first-html.html
           echo
           echo '--- BROWSER BOOT DIAGNOSTICS ---'
-          node - <<'NODE'
+          timeout --preserve-status 45s node - <<'NODE'
           const { chromium, firefox, webkit } = require('playwright');
           const browserType = { chromium, firefox, webkit }[process.env.BROWSER];
           if (!browserType) throw new Error(`Unsupported browser: ${process.env.BROWSER}`);
@@ -104,6 +104,37 @@ jobs:
             const browser = await browserType.launch({ headless: true });
             const page = await browser.newPage();
             const events = [];
+            await page.addInitScript(() => {
+              const traces = [];
+              const htmlElement = document.documentElement;
+              const record = (kind, name, value) => {
+                traces.push({ kind, name, value: String(value), stack: new Error().stack });
+              };
+              const langProto = Object.getPrototypeOf(htmlElement);
+              const protos = [langProto, HTMLElement.prototype, Element.prototype].filter(Boolean);
+              for (const prop of ['lang', 'dir']) {
+                for (const proto of protos) {
+                  const descriptor = Object.getOwnPropertyDescriptor(proto, prop);
+                  if (!descriptor?.configurable || (!descriptor.get && !descriptor.set)) continue;
+                  Object.defineProperty(proto, prop, {
+                    configurable: true,
+                    enumerable: descriptor.enumerable ?? false,
+                    get: descriptor.get ? function () { return descriptor.get.call(this); } : undefined,
+                    set: descriptor.set ? function (value) {
+                      if (this === document.documentElement) record('property', prop, value);
+                      return descriptor.set.call(this, value);
+                    } : undefined,
+                  });
+                  break;
+                }
+              }
+              const originalSetAttribute = Element.prototype.setAttribute;
+              Element.prototype.setAttribute = function (name, value) {
+                if (this === document.documentElement && (name === 'lang' || name === 'dir')) record('setAttribute', name, value);
+                return originalSetAttribute.call(this, name, value);
+              };
+              window.__flixoLocaleTrace = traces;
+            });
             page.on('pageerror', (error) => events.push(`pageerror: ${error.message}`));
             page.on('console', (message) => events.push(`console:${message.type()}: ${message.text()}`));
             page.on('requestfailed', (request) => events.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`));
@@ -115,13 +146,14 @@ jobs:
             const state = await page.evaluate(() => ({
               readyState: document.readyState,
               href: location.href,
-              html: document.documentElement.outerHTML.slice(0, 12000),
               htmlLang: document.documentElement.getAttribute('lang'),
               htmlDir: document.documentElement.getAttribute('dir'),
+              html: document.documentElement.outerHTML.slice(0, 12000),
               bodyChildren: [...document.body.children].map((node) => ({ tag: node.tagName, id: node.id, class: node.className })),
               rootHtml: document.getElementById('root')?.innerHTML.slice(0, 6000) ?? null,
               scripts: [...document.scripts].map((script) => script.src || '[inline]'),
               resources: performance.getEntriesByType('resource').map((entry) => entry.name).filter((name) => name.includes('/src/') || name.includes('.js')).slice(-100),
+              localeTrace: window.__flixoLocaleTrace ?? [],
             }));
             console.log(JSON.stringify({ responseStatus: response?.status(), events, state }, null, 2));
             await browser.close();
