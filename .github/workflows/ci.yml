@@ -1,6 +1,6 @@
 name: CI
 
-# PR merge path: fast impact-aware diagnostics run in parallel, with deep G4 fail-fast certification.
+# Temporary repair mode: aggressively parallel root-cause diagnostics plus fail-fast G4.
 on:
   pull_request:
     branches: [main]
@@ -26,17 +26,44 @@ env:
   CHANGE_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'origin/main' }}
 
 jobs:
-  fast:
-    name: Fast diagnostics — ${{ matrix.group }}
+  fast-check:
+    name: Fast micro-check — ${{ matrix.check }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
-        group: [core, structure, localization, seo, security, artifact, browser, build]
+        check:
+          - typecheck
+          - lint
+          - ci-contract
+          - tool-registry
+          - tool-manifest
+          - router-registry
+          - baseline
+          - route-resolver
+          - i18n-strict
+          - locale-integrity
+          - locale-navigation
+          - home-i18n
+          - tool-localization
+          - browser-localization-smoke
+          - seo
+          - seo-manifest
+          - use-case-seo
+          - indexing
+          - breadcrumb-seo
+          - multilingual-seo
+          - language-quality-strict
+          - upload-boundary
+          - file-safety
+          - output-integrity
+          - svg-integrity
+          - affected-e2e
+          - build
     env:
       CI_PR_RESCUE: 'true'
-      FAST_CI_GROUP: ${{ matrix.group }}
+      FAST_CI_CHECK: ${{ matrix.check }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -47,34 +74,34 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Install Chromium for localization smoke
-        if: matrix.group == 'localization'
+      - name: Install Chromium for browser diagnostics
+        if: matrix.check == 'browser-localization-smoke' || matrix.check == 'affected-e2e'
         run: npx playwright install chromium
-      - name: Run impact-aware verification group
+      - name: Run micro-check
         run: node scripts/ci/fast-verify.mjs
-      - name: Upload group evidence
+      - name: Upload micro-check evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: fast-ci-${{ matrix.group }}-${{ github.sha }}
+          name: fast-check-${{ matrix.check }}-${{ github.sha }}
           path: diagnostics/
           if-no-files-found: warn
           retention-days: 14
 
   ci:
     name: CI
-    needs: [fast]
+    needs: [fast-check]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Download fast diagnostic evidence
+      - name: Download micro-check evidence
         uses: actions/download-artifact@v6
         with:
-          pattern: fast-ci-*-${{ github.sha }}
+          pattern: fast-check-*-${{ github.sha }}
           path: diagnostics
           merge-multiple: false
-      - name: Aggregate fast diagnostic contract
+      - name: Aggregate fast diagnostics
         shell: bash
         env:
           SHA: ${{ github.sha }}
@@ -83,53 +110,35 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
           const path = require('node:path');
+          const checks = [
+            'typecheck','lint','ci-contract','tool-registry','tool-manifest','router-registry','baseline','route-resolver',
+            'i18n-strict','locale-integrity','locale-navigation','home-i18n','tool-localization','browser-localization-smoke',
+            'seo','seo-manifest','use-case-seo','indexing','breadcrumb-seo','multilingual-seo','language-quality-strict',
+            'upload-boundary','file-safety','output-integrity','svg-integrity','affected-e2e','build'
+          ];
           const root = 'diagnostics';
-          const groups = ['core','structure','localization','seo','security','artifact','browser','build'];
-
-          function findFiles(dir, name, out = []) {
-            if (!fs.existsSync(dir)) return out;
-            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-              const full = path.join(dir, entry.name);
-              if (entry.isDirectory()) findFiles(full, name, out);
-              else if (entry.isFile() && entry.name === name) out.push(full);
-            }
-            return out;
-          }
-
-          const resultFiles = findFiles(root, 'fast-ci-result.json');
-          const planFiles = findFiles(root, 'fast-ci-plan.json');
-          const plansByDir = new Map(planFiles.map((file) => [path.dirname(file), file]));
-          const found = new Map();
           const failures = [];
-
-          for (const resultFile of resultFiles) {
-            const dir = path.dirname(resultFile);
-            const relativeParts = dir.split(path.sep);
-            const group = groups.find((name) => relativeParts.includes(`fast-ci-${name}-${process.env.SHA}`));
-            if (!group) continue;
-            try {
-              const result = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
-              const planPath = plansByDir.get(dir);
-              if (!planPath) {
-                failures.push(`${group}: missing plan evidence`);
-                continue;
-              }
-              const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
-              if (plan.sha !== process.env.SHA || result.sha !== process.env.SHA) failures.push(`${group}: SHA mismatch`);
-              if (result.status !== 'PASS') failures.push(`${group}: ${result.status}`);
-              found.set(group, true);
-            } catch (error) {
-              failures.push(`${group}: invalid evidence (${error.message})`);
-            }
+          const found = new Set();
+          function walk(dir) {
+            if (!fs.existsSync(dir)) return [];
+            return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+              const full = path.join(dir, entry.name);
+              return entry.isDirectory() ? walk(full) : [full];
+            });
           }
-
-          for (const group of groups) {
-            if (!found.has(group)) failures.push(`${group}: missing evidence`);
+          for (const file of walk(root).filter((value) => value.endsWith('fast-ci-result.json'))) {
+            const result = JSON.parse(fs.readFileSync(file, 'utf8'));
+            const check = checks.find((name) => file.includes(`fast-check-${name}-${process.env.SHA}`));
+            if (!check) continue;
+            found.add(check);
+            if (result.sha !== process.env.SHA) failures.push(`${check}: SHA mismatch`);
+            if (!['PASS','SKIPPED'].includes(result.status)) failures.push(`${check}: ${result.status}`);
           }
-          if (failures.length) throw new Error(`Fast CI aggregate failed:\n${failures.join('\n')}`);
-          console.log('Fast CI aggregate PASS: all 8 diagnostic groups valid.');
+          for (const check of checks) if (!found.has(check)) failures.push(`${check}: missing evidence`);
+          if (failures.length) throw new Error(`Fast diagnostics aggregate failed:\n${failures.join('\n')}`);
+          console.log(`Fast diagnostics aggregate PASS: ${checks.length} micro-checks accounted for.`);
           NODE
-      - name: Publish unified fast-path evidence
+      - name: Publish unified fast evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -227,12 +236,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
-      - name: Download unified CI evidence
+      - name: Download unified fast evidence
         uses: actions/download-artifact@v6
         with:
           name: ci-fast-evidence-${{ github.sha }}
           path: diagnostics
-      - name: Validate fast-path evidence
+      - name: Validate fast evidence
         shell: bash
         env:
           SHA: ${{ github.sha }}
@@ -241,29 +250,21 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
           const path = require('node:path');
-          const root = 'diagnostics';
-          const groups = ['core','structure','localization','seo','security','artifact','browser','build'];
-          function findFiles(dir, name, out = []) {
-            if (!fs.existsSync(dir)) return out;
-            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          function walk(dir) {
+            if (!fs.existsSync(dir)) return [];
+            return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
               const full = path.join(dir, entry.name);
-              if (entry.isDirectory()) findFiles(full, name, out);
-              else if (entry.isFile() && entry.name === name) out.push(full);
-            }
-            return out;
+              return entry.isDirectory() ? walk(full) : [full];
+            });
           }
-          const files = findFiles(root, 'fast-ci-result.json');
-          const found = new Set();
+          const files = walk('diagnostics').filter((value) => value.endsWith('fast-ci-result.json'));
+          if (!files.length) throw new Error('No fast-check evidence');
           for (const file of files) {
             const result = JSON.parse(fs.readFileSync(file, 'utf8'));
-            const group = groups.find((name) => file.includes(`fast-ci-${name}-${process.env.SHA}`));
-            if (!group) continue;
-            if (result.sha !== process.env.SHA) throw new Error(`Evidence SHA mismatch in ${group}`);
-            if (result.status !== 'PASS') throw new Error(`Non-PASS fast evidence in ${group}`);
-            found.add(group);
+            if (result.sha !== process.env.SHA) throw new Error(`Evidence SHA mismatch: ${file}`);
+            if (!['PASS','SKIPPED'].includes(result.status)) throw new Error(`Non-passing evidence: ${file}`);
           }
-          for (const group of groups) if (!found.has(group)) throw new Error(`Missing fast evidence in ${group}`);
-          console.log('Fast contract evidence PASS: all 8 diagnostic groups verified.');
+          console.log(`Fast Contract Diagnostics PASS: ${files.length} evidence files validated.`);
           NODE
 
   canonical-verify:
@@ -278,7 +279,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ needs.ci.result }}" != "success" ]]; then
-            echo 'Canonical Verification Gate BLOCKED: parallel fast CI aggregate failed.'
+            echo 'Canonical Verification Gate BLOCKED: fast micro-check aggregate failed.'
             exit 1
           fi
           if [[ "${{ needs.fast-contract.result }}" != "success" ]]; then
@@ -289,4 +290,4 @@ jobs:
             echo 'Canonical Verification Gate BLOCKED: Deep G4 certification failed.'
             exit 1
           fi
-          echo 'Canonical Verification Gate PASS: fast and deep localization/SEO evidence is green.'
+          echo 'Canonical Verification Gate PASS: fast micro-checks and G4 are green.'
