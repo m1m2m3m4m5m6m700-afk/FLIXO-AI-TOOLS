@@ -39,6 +39,19 @@ for (const invalid of [
   if (!rejected) throw new Error('Invalid evidence metadata was accepted');
 }
 
+for (const invalidResult of [
+  { ...result, gate: 'G3' },
+  { ...result, status: 'UNKNOWN' },
+]) {
+  let rejected = false;
+  try {
+    buildEvidenceRecord(invalidResult, metadata);
+  } catch {
+    rejected = true;
+  }
+  if (!rejected) throw new Error('Invalid evidence identity/status was accepted');
+}
+
 const configuredRoot = process.env.EVIDENCE_OUTPUT_ROOT;
 const root = configuredRoot ?? await mkdtemp(join(tmpdir(), 'flixo-evidence-'));
 const cleanup = !configuredRoot;
