@@ -10,14 +10,17 @@ export function localeFromPathname(pathname: string): Locale {
 
 export function applyDocumentLocale(locale: Locale): void {
   if (typeof document === 'undefined') return;
+
   const html = document.documentElement;
   const metadata = LOCALE_METADATA[locale];
   const languageTag = metadata.languageTag;
   const direction = metadata.direction;
 
+  // Single-source runtime invariant: the document and every page-level <main>
+  // must always agree with the locale encoded in the current route.
   if (html.getAttribute('lang') !== languageTag) html.setAttribute('lang', languageTag);
   if (html.getAttribute('dir') !== direction) html.setAttribute('dir', direction);
-  html.setAttribute('data-flixo-locale', locale);
+  if (html.getAttribute('data-flixo-locale') !== locale) html.setAttribute('data-flixo-locale', locale);
 
   document.querySelectorAll<HTMLElement>('main').forEach((main) => {
     if (main.getAttribute('lang') !== languageTag) main.setAttribute('lang', languageTag);
@@ -28,17 +31,14 @@ export function applyDocumentLocale(locale: Locale): void {
 export function installDocumentLocaleContract(getPathname: () => string): () => void {
   if (typeof document === 'undefined') return () => undefined;
 
-  let currentLocale = localeFromPathname(getPathname());
+  const currentLocale = localeFromPathname(getPathname());
   const apply = () => applyDocumentLocale(currentLocale);
-  const refreshFromPath = () => {
-    const nextLocale = localeFromPathname(getPathname());
-    if (nextLocale !== currentLocale) currentLocale = nextLocale;
-    apply();
-  };
 
   apply();
   const frame = window.requestAnimationFrame(apply);
 
+  // Guard against any late runtime/component code that removes or changes the
+  // document locale attributes. The guard only writes when the invariant is broken.
   const htmlObserver = new MutationObserver((mutations) => {
     if (mutations.some((mutation) => mutation.type === 'attributes' && (mutation.attributeName === 'lang' || mutation.attributeName === 'dir' || mutation.attributeName === 'data-flixo-locale'))) {
       apply();
@@ -49,19 +49,16 @@ export function installDocumentLocaleContract(getPathname: () => string): () => 
     attributeFilter: ['lang', 'dir', 'data-flixo-locale'],
   });
 
+  // React route transitions may mount the page <main> after the initial effect.
+  // Re-assert the invariant whenever a new DOM subtree is inserted.
   const bodyObserver = new MutationObserver((mutations) => {
     if (mutations.some((mutation) => mutation.type === 'childList' && mutation.addedNodes.length > 0)) apply();
   });
   if (document.body) bodyObserver.observe(document.body, { subtree: true, childList: true });
 
-  const dispose = () => {
+  return () => {
     window.cancelAnimationFrame(frame);
     htmlObserver.disconnect();
     bodyObserver.disconnect();
   };
-
-  // Route transitions are owned by the caller. This hook only guards the current route's
-  // document contract; refreshFromPath is intentionally exposed through navigation-safe setup.
-  void refreshFromPath;
-  return dispose;
 }
