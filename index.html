@@ -19,19 +19,34 @@
         };
         const candidate = window.location.pathname.split('/').filter(Boolean)[0] ?? 'en';
         const [lang, dir] = localeMap[candidate] ?? localeMap.en;
-        const apply = () => {
-          if (document.documentElement.getAttribute('lang') !== lang) {
-            document.documentElement.setAttribute('lang', lang);
-          }
-          if (document.documentElement.getAttribute('dir') !== dir) {
-            document.documentElement.setAttribute('dir', dir);
-          }
-        };
-        apply();
-        new MutationObserver(apply).observe(document.documentElement, {
-          attributes: true,
-          attributeFilter: ['lang', 'dir'],
+        let observedRoot = null;
+        const attributeObserver = new MutationObserver(() => {
+          applyLocale();
         });
+        const rootObserver = new MutationObserver(() => {
+          bindLocaleObserver();
+          applyLocale();
+        });
+        const applyLocale = () => {
+          const root = document.documentElement;
+          if (!root) return;
+          if (root.getAttribute('lang') !== lang) root.setAttribute('lang', lang);
+          if (root.getAttribute('dir') !== dir) root.setAttribute('dir', dir);
+        };
+        const bindLocaleObserver = () => {
+          const root = document.documentElement;
+          if (!root || root === observedRoot) return;
+          attributeObserver.disconnect();
+          attributeObserver.observe(root, {
+            attributes: true,
+            attributeFilter: ['lang', 'dir'],
+          });
+          observedRoot = root;
+        };
+        bindLocaleObserver();
+        applyLocale();
+        rootObserver.observe(document, { childList: true, subtree: true });
+        window.requestAnimationFrame(applyLocale);
       })();
     </script>
   </head>
