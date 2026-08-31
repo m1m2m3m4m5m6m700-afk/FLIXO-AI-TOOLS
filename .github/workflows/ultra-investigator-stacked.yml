@@ -1,0 +1,108 @@
+name: FLIXO — Ultra Investigator (Stacked PR)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+      - ci/g3-012-legacy-push-parity
+      - recovery/legacy-fixes-20260831
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ultra-investigator-stacked-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
+jobs:
+  investigate:
+    name: Investigator — ${{ matrix.suite }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: 9
+      matrix:
+        suite: [toolchain, architecture, localization, seo, security, artifact, runtime, browser, build]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install Chromium
+        if: matrix.suite == 'runtime' || matrix.suite == 'browser'
+        run: npx playwright install --with-deps chromium
+      - name: Run investigator suite
+        env:
+          INVESTIGATION_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          INVESTIGATION_SUITE: ${{ matrix.suite }}
+        run: node scripts/ci/ultra-investigate.mjs --suite "$INVESTIGATION_SUITE"
+      - name: Upload suite evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ultra-stacked-${{ matrix.suite }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: diagnostics/investigation/${{ matrix.suite }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  aggregate:
+    name: Investigator — Fail-Closed Aggregate
+    needs: [investigate]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Download suite evidence
+        uses: actions/download-artifact@v6
+        with:
+          pattern: ultra-stacked-*
+          path: diagnostics/investigation
+          merge-multiple: true
+      - name: Verify every suite and exact SHA
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = 'diagnostics/investigation';
+          const files = fs.existsSync(root) ? fs.readdirSync(root).filter((f) => /^(toolchain|architecture|localization|seo|security|artifact|runtime|browser|build)\.json$/u.test(f)) : [];
+          const errors = [];
+          const failures = [];
+          if (files.length !== 9) errors.push(`Expected 9 suite evidence files, found ${files.length}`);
+          for (const file of files) {
+            const record = JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
+            if (record.sha !== process.env.EXPECTED_SHA) errors.push(`${file}: SHA mismatch`);
+            if (record.status !== 'PASS') failures.push({ suite: record.suite, status: record.status, failures: record.results.filter((x) => x.status === 'FAIL').map((x) => x.id) });
+          }
+          const report = { schema_version: 3, sha: process.env.EXPECTED_SHA, generatedAt: new Date().toISOString(), status: errors.length || failures.length ? 'FAIL' : 'PASS', suiteCount: files.length, failures, integrityErrors: errors };
+          fs.writeFileSync(path.join(root, 'stacked-aggregate.json'), JSON.stringify(report, null, 2) + '\n');
+          console.log(JSON.stringify(report, null, 2));
+          if (errors.length || failures.length) process.exit(1);
+          NODE
+      - name: Upload aggregate evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ultra-stacked-aggregate-${{ github.event.pull_request.head.sha || github.sha }}
+          path: diagnostics/investigation/stacked-aggregate.json
+          if-no-files-found: error
+          retention-days: 14
