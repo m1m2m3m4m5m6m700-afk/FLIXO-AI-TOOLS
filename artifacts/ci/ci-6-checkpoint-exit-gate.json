@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "phase": "CI-6",
+  "status": "VERIFYING",
+  "base": "b33e364e01d9c83789fd336b399aad3aed6a10b8",
+  "acceptance": {
+    "fingerprint": "PENDING",
+    "identityValidation": "PENDING",
+    "passReuse": "PENDING",
+    "invalidReuseRejected": "PENDING",
+    "invalidation": "PENDING",
+    "selfTest": "PENDING",
+    "shadowWorkflow": "PENDING"
+  },
+  "safety": {
+    "mainModified": false,
+    "branchProtectionModified": false,
+    "requiredChecksModified": false,
+    "productionConfigurationModified": false,
+    "legacyWorkflowDeleted": false,
+    "legacyWorkflowBehaviorModified": false
+  },
+  "nextPhaseAllowed": false
+}
