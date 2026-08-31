@@ -54,7 +54,7 @@ async function snapshot(page: Page): Promise<Snapshot> {
 }
 
 test.describe.configure({ mode: 'parallel' });
-test.setTimeout(60_000);
+test.setTimeout(90_000);
 
 const batch = Number.parseInt(process.env.G4_BATCH ?? '0', 10);
 const batchCount = Number.parseInt(process.env.G4_BATCH_COUNT ?? '1', 10);
@@ -63,28 +63,95 @@ const batchedRoutes = batch >= 1 && batch <= batchCount
   : routes;
 
 for (const pathname of batchedRoutes) {
-  test(`G4 all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
+  test(`G4 all-public-route localization/SEO contract — ${pathname}`, async ({ page }, testInfo) => {
+    const locale = pathname.match(new RegExp(`^/(${localeCodes.join('|')})(?:/|$)`, 'u'))?.[1];
+    expect(locale, `${pathname} must have a canonical locale prefix`).toBeTruthy();
+    const localeCode = locale as (typeof localeCodes)[number];
+    const expectedLanguage = languageTags[localeCode];
+    const expectedDirection = rtlLocales.has(localeCode) ? 'rtl' : 'ltr';
+    const family = familyPath(pathname);
     const runtimeErrors: string[] = [];
+
+    await page.addInitScript(({ expectedLanguage: expectedLang, expectedDirection: expectedDir }) => {
+      const trace: Array<Record<string, unknown>> = [];
+      const push = (entry: Record<string, unknown>) => {
+        trace.push({ at: performance.now(), ...entry });
+        if (trace.length > 100) trace.shift();
+      };
+      Object.defineProperty(window, '__g4LocaleTrace', { value: trace, configurable: true });
+
+      const originalSetAttribute = Element.prototype.setAttribute;
+      const originalRemoveAttribute = Element.prototype.removeAttribute;
+      Element.prototype.setAttribute = function(name: string, value: string) {
+        if (this === document.documentElement && (name === 'lang' || name === 'dir')) {
+          push({ type: 'setAttribute', name, value, stack: new Error().stack });
+        }
+        return originalSetAttribute.call(this, name, value);
+      };
+      Element.prototype.removeAttribute = function(name: string) {
+        if (this === document.documentElement && (name === 'lang' || name === 'dir')) {
+          push({ type: 'removeAttribute', name, stack: new Error().stack });
+        }
+        return originalRemoveAttribute.call(this, name);
+      };
+
+      const observe = () => {
+        const html = document.documentElement;
+        if (!html) return;
+        push({ type: 'html-observe-start', lang: html.getAttribute('lang'), dir: html.getAttribute('dir') });
+        new MutationObserver((mutations) => {
+          for (const mutation of mutations) {
+            if (mutation.type === 'attributes' && (mutation.attributeName === 'lang' || mutation.attributeName === 'dir')) {
+              push({ type: 'mutation', name: mutation.attributeName, lang: html.getAttribute('lang'), dir: html.getAttribute('dir') });
+            }
+          }
+        }).observe(html, { attributes: true, attributeFilter: ['lang', 'dir'] });
+      };
+      if (document.documentElement) observe();
+      else document.addEventListener('DOMContentLoaded', observe, { once: true });
+
+      push({ type: 'expected', lang: expectedLang, dir: expectedDir });
+    }, { expectedLanguage, expectedDirection });
+
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
     page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
     page.on('requestfailed', (request) => {
       if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`);
     });
+
     const response = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     expect(response?.status(), `${pathname} must return HTTP 200`).toBe(200);
     await page.waitForLoadState('networkidle').catch(() => undefined);
-    const locale = pathname.match(new RegExp(`^/(${localeCodes.join('|')})(?:/|$)`, 'u'))?.[1];
-    expect(locale, `${pathname} must have a canonical locale prefix`).toBeTruthy();
-    const localeCode = locale as (typeof localeCodes)[number];
-    const expectedDirection = rtlLocales.has(localeCode) ? 'rtl' : 'ltr';
-    const family = familyPath(pathname);
-    await expect(page.locator('html')).toHaveAttribute('lang', languageTags[localeCode]);
-    await expect(page.locator('html')).toHaveAttribute('dir', expectedDirection);
+
+    const localeDiagnostics = async () => page.evaluate(() => ({
+      url: location.href,
+      htmlLang: document.documentElement.getAttribute('lang'),
+      htmlDir: document.documentElement.getAttribute('dir'),
+      mainLang: document.querySelector('main')?.getAttribute('lang') ?? null,
+      mainDir: document.querySelector('main')?.getAttribute('dir') ?? null,
+      rootOuterHTML: document.documentElement.outerHTML.slice(0, 1200),
+      scripts: [...document.scripts].map((script) => script.src || '<inline>').slice(-20),
+      trace: (window as Window & { __g4LocaleTrace?: unknown[] }).__g4LocaleTrace ?? [],
+    }));
+
+    const htmlLocaleResult = await page.waitForFunction(
+      ({ lang, dir }) => document.documentElement.getAttribute('lang') === lang && document.documentElement.getAttribute('dir') === dir,
+      { arg: { lang: expectedLanguage, dir: expectedDirection }, timeout: 10_000 },
+    ).catch(async () => {
+      const diagnostics = await localeDiagnostics();
+      await testInfo.attach('g4-locale-diagnostics.json', {
+        body: JSON.stringify(diagnostics, null, 2),
+        contentType: 'application/json',
+      });
+      throw new Error(`${pathname} locale bootstrap/runtime mismatch: expected html lang=${expectedLanguage} dir=${expectedDirection}; diagnostics=${JSON.stringify(diagnostics)}`);
+    });
+    expect(htmlLocaleResult, `${pathname} locale bootstrap/runtime must settle correctly`).toBeTruthy();
+
     const mains = page.locator('main');
     await expect(mains).toHaveCount(1);
     const main = mains.first();
     await expect(main).toBeVisible();
-    await expect(main).toHaveAttribute('lang', languageTags[localeCode]);
+    await expect(main).toHaveAttribute('lang', expectedLanguage);
     await expect(main).toHaveAttribute('dir', expectedDirection);
     await expect(page.locator('h1')).toHaveCount(1);
     await expect(page.locator('h1').first()).toHaveText(/\S+/);
