@@ -55,27 +55,27 @@ jobs:
     needs: [ci]
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 3
-    env:
-      CI_PR_RESCUE: 'true'
+    timeout-minutes: 1
     steps:
-      - uses: actions/checkout@v5
+      - name: Download CI evidence
+        uses: actions/download-artifact@v6
         with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Run core platform contracts
-        run: node scripts/verify-contracts-core.mjs
+          name: ci-fast-evidence-${{ github.sha }}
+          path: diagnostics
+      - name: Validate fast-path evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s diagnostics/fast-ci-plan.json
+          test -s diagnostics/fast-ci-result.json
+          node -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/fast-ci-result.json','utf8')); if(r.sha!==process.env.GITHUB_SHA) throw new Error('Evidence SHA mismatch'); if(r.status!=='PASS') throw new Error('Fast CI result is not PASS'); console.log('Fast contract evidence PASS');"
 
   canonical-verify:
     name: Canonical Verification Gate
     needs: [ci, fast-contract]
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 1
     steps:
       - name: Enforce prerequisite results
         shell: bash
