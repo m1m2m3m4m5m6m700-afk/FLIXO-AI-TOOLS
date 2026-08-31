@@ -17,12 +17,6 @@ const commands = [
   ['ci-contract', 'npm', ['run', 'validate:ci-contract']],
 ];
 
-const deepOnly = new Set([
-  ['final-architecture', 'node', ['scripts/ci/validate-architecture.mjs']].join('\u0000'),
-  ['change-intelligence', 'node', ['scripts/ci/change-risk-planner.mjs']].join('\u0000'),
-  ['weighted-shard-plan', 'node', ['scripts/ci/weighted-shard-plan.mjs']].join('\u0000'),
-]);
-
 const requested = [
   ['final-architecture', 'node', ['scripts/ci/validate-architecture.mjs']],
   ['change-intelligence', 'node', ['scripts/ci/change-risk-planner.mjs']],
@@ -30,9 +24,7 @@ const requested = [
 ];
 
 const isRescuePr = process.env.CI_PR_RESCUE === 'true';
-const selected = isRescuePr
-  ? commands
-  : [...commands, ...requested.filter((entry) => !deepOnly.has(entry.join('\u0000')) || process.env.CI_DEEP_CONTRACTS === 'true')];
+const selected = isRescuePr ? commands : [...commands, ...requested];
 
 for (const [name, command, args] of selected) {
   console.log(`\n===== CORE CONTRACT: ${name} =====`);
