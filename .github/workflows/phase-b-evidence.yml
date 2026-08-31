@@ -10,6 +10,7 @@ on:
       - 'scripts/evidence-ledger.mjs'
       - 'scripts/test-evidence-ledger.mjs'
       - 'scripts/validate-evidence-ledger.mjs'
+      - 'scripts/validate-generated-evidence.mjs'
       - '.github/workflows/phase-b-evidence.yml'
 
 permissions:
@@ -20,13 +21,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: 22.x
           cache: npm
       - name: Install
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --no-fund
       - name: Validate evidence contract
         run: node --experimental-strip-types scripts/validate-evidence-ledger.mjs
-      - name: Test evidence writer and storage
+      - name: Generate Evidence Ledger artifact
+        env:
+          EVIDENCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVIDENCE_OUTPUT_ROOT: artifacts/contracts
+          EVIDENCE_RECORDED_AT: ${{ github.event.head_commit.timestamp || github.run_started_at }}
         run: node --experimental-strip-types scripts/test-evidence-ledger.mjs
+      - name: Validate generated evidence identity
+        env:
+          EVIDENCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVIDENCE_OUTPUT_ROOT: artifacts/contracts
+        run: node --experimental-strip-types scripts/validate-generated-evidence.mjs
+      - name: Upload Evidence Ledger
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: phase-b-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/contracts/
+          if-no-files-found: error
+          retention-days: 14
