@@ -19,7 +19,9 @@ function demoteNestedPageLandmarks(node: ReactNode): ReactNode {
     const replacement = child.type === 'main' ? 'div' : child.type === 'h1' ? 'h2' : null;
 
     if (replacement) {
-      const { children: _children, ref: _ref, ...safeProps } = props;
+      const safeProps = { ...props };
+      delete safeProps.children;
+      delete safeProps.ref;
       return createElement(replacement, { ...safeProps, 'data-flixo-semantic-boundary': 'demoted', key: child.key ?? undefined }, normalizedChildren);
     }
 
@@ -78,7 +80,7 @@ export function LocalizedToolPage() {
 
   return (
     <main lang={seo.languageTag} dir={direction} className="tool-page-modern">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ ...seo.structuredData, keywords: seo.keywords }).replace(/</g, '\\u003c') }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ ...seo.structuredData, keywords: seo.keywords }).replace(/</g, '\u003c') }} />
       <nav className="tool-page-modern__nav" aria-label={copy.navigation}>
         <div className="tool-page-modern__nav-inner">
           <a className="tool-page-modern__brand" href={homeUrl} aria-label={copy.home}><img className="tool-page-modern__brand-logo" src="/flixo-logo.svg" width="44" height="44" alt="FLIXO" decoding="async" /></a>
