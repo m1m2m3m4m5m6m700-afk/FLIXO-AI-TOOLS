@@ -1,9 +1,9 @@
 import { getReadyToolConfigs, getToolConfig, type ToolConfig } from '../../config/tools';
+import { getAuthoritativeToolSeoName } from '../../config/tool-seo-name-resolver';
 import { LOCALES, LOCALE_METADATA, SITE_ORIGIN, type Locale, normalizeLocale } from '../i18n';
 import { getLocalizedToolUrl as resolveLocalizedToolUrl } from '../routing/route-resolver';
 import { localizeMsUkCategory, localizeMsUkDescription } from '../i18n/ms-uk-category';
 import { localizeToolCategory, localizeToolDescription } from '../i18n/tool-localization';
-import { TOOL_SEO_NAMES } from '../i18n/tool-seo-localization';
 
 const LOCALE_LABELS: Record<string, string> = {
   ar: 'أداة عبر الإنترنت', en: 'Online tool', es: 'Herramienta en línea', fr: 'Outil en ligne',
@@ -40,12 +40,12 @@ export const READY_TOOL_IDS = Object.freeze(getReadyToolConfigs().map((tool) => 
 export type ToolCategory = 'Images' | 'AI' | 'Other';
 const TOOL_CATEGORIES = new Set<ToolCategory>(['Images', 'AI', 'Other']);
 export function assertToolCategory(value: string): ToolCategory { if (!TOOL_CATEGORIES.has(value as ToolCategory)) throw new Error(`Unsupported tool category: ${value}`); return value as ToolCategory; }
-export function getLocalizedToolTitle(localeInput: string, toolId: string, fallbackTitle: string): string { const locale = normalizeLocale(localeInput); return TOOL_SEO_NAMES[toolId]?.[locale] ?? fallbackTitle; }
+export function getLocalizedToolTitle(localeInput: string, toolId: string, fallbackTitle: string): string { const locale = normalizeLocale(localeInput); const tool = getToolConfig(toolId); return tool ? getAuthoritativeToolSeoName(tool, locale) ?? fallbackTitle : fallbackTitle; }
 export function getLocalizedToolUrl(locale: Locale, toolId: string): string { const tool = getToolConfig(toolId); if (!tool) throw new Error(`Unknown tool id: ${toolId}`); return resolveLocalizedToolUrl(SITE_ORIGIN, tool, locale); }
 export function getToolSeo(localeInput: string, toolId: string) {
   const locale = normalizeLocale(localeInput); const tool = getToolConfig(toolId); if (!tool || !tool.isReady) return null;
   const category = assertToolCategory(tool.category); const label = LOCALE_LABELS[locale]; if (!label) throw new Error(`Missing locale SEO label: ${locale}`);
-  const url = getLocalizedToolUrl(locale, tool.id); const xDefaultUrl = getLocalizedToolUrl('en', tool.id); const localizedTitle = getLocalizedToolTitle(locale, tool.id, tool.title);
+  const url = getLocalizedToolUrl(locale, tool.id); const xDefaultUrl = getLocalizedToolUrl('en', tool.id); const localizedTitle = getAuthoritativeToolSeoName(tool, locale) ?? tool.title;
   const localizedCategory = localizeMsUkCategory(locale, category) ?? localizeToolCategory(locale, category);
   const localizedDescription = locale === 'en' ? tool.description : localizeMsUkDescription(locale, localizedTitle) ?? localizeToolDescription(locale, localizedTitle, category);
   const title = `${localizedTitle} | FLIXO`; const description = localizedDescription; const fallback = FALLBACK_COPY[locale]; if (!fallback) throw new Error(`Missing locale SEO fallback copy: ${locale}`);
