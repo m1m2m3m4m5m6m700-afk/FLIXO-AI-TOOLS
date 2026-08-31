@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "phase": "CI-10",
+  "status": "VERIFYING",
+  "acceptance": {
+    "extension": "PENDING",
+    "mime": "PENDING",
+    "magicBytes": "PENDING",
+    "signature": "PENDING",
+    "path": "PENDING",
+    "containment": "PENDING",
+    "unsafeInput": "PENDING",
+    "legacyRegression": "PENDING",
+    "shadowWorkflow": "PENDING"
+  },
+  "promotion": "FORBIDDEN_UNTIL_PARITY",
+  "safety": {"mainModified": false, "branchProtectionModified": false, "requiredChecksModified": false, "productionConfigurationModified": false, "legacyWorkflowDeleted": false, "legacyWorkflowBehaviorModified": false},
+  "nextPhaseAllowed": false
+}
