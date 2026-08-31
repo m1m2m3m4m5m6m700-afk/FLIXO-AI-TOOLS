@@ -5,6 +5,9 @@ import { promisify } from 'node:util';
 const exec = promisify(execFile);
 const base = process.env.CHANGE_BASE ?? 'origin/main';
 const sha = process.env.GITHUB_SHA ?? execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+const group = process.env.FAST_CI_GROUP ?? 'all';
+const supportedGroups = new Set(['all', 'core', 'structure', 'localization', 'seo', 'security', 'artifact', 'browser', 'build']);
+if (!supportedGroups.has(group)) throw new Error(`Unknown FAST_CI_GROUP: ${group}`);
 
 function changedFiles() {
   const output = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], { encoding: 'utf8' });
@@ -31,41 +34,37 @@ const flags = {
   tools: [...new Set(files.map((file) => file.match(/^src\/tools\/([^/]+)/)?.[1]).filter(Boolean))],
 };
 
-const fastOnly = files.length > 0 && files.every((file) => /^(docs\/|README|CHANGELOG|LICENSE|\.github\/ISSUE_TEMPLATE\/)/i.test(file));
-const fullImpact = flags.workflow || flags.dependency || flags.registry || flags.routing || flags.localization || flags.seo || flags.security || flags.artifact;
-const mode = fastOnly ? 'FAST' : fullImpact ? 'TARGETED' : 'TARGETED';
-
+const mode = files.length > 0 && files.every((file) => /^(docs\/|README|CHANGELOG|LICENSE|\.github\/ISSUE_TEMPLATE\/)/i.test(file)) ? 'FAST' : 'TARGETED';
 const commands = [];
-const add = (id, command, args, reason) => commands.push({ id, command, args, reason });
+const add = (id, command, args, reason, commandGroup) => commands.push({ id, command, args, reason, group: commandGroup });
 
-add('typecheck', 'npm', ['run', 'typecheck'], 'always');
-add('lint', 'npm', ['run', 'lint'], 'always');
-add('tool-registry', 'npm', ['run', 'validate:tool-registry'], 'always');
-add('tool-manifest', 'npm', ['run', 'validate:tool-manifest'], 'always');
-add('router-registry', 'npm', ['run', 'validate:router-registry'], 'always');
-add('ci-contract', 'npm', ['run', 'validate:ci-contract'], 'always');
-
-if (flags.registry) add('baseline', 'npm', ['run', 'validate:baseline'], 'registry impact');
-if (flags.routing) add('route-resolver', 'npm', ['run', 'test:route-resolver'], 'routing impact');
+add('typecheck', 'npm', ['run', 'typecheck'], 'always', 'core');
+add('lint', 'npm', ['run', 'lint'], 'always', 'core');
+add('ci-contract', 'npm', ['run', 'validate:ci-contract'], 'always', 'core');
+add('tool-registry', 'npm', ['run', 'validate:tool-registry'], 'always', 'structure');
+add('tool-manifest', 'npm', ['run', 'validate:tool-manifest'], 'always', 'structure');
+add('router-registry', 'npm', ['run', 'validate:router-registry'], 'always', 'structure');
+if (flags.registry) add('baseline', 'npm', ['run', 'validate:baseline'], 'registry impact', 'structure');
+if (flags.routing) add('route-resolver', 'npm', ['run', 'test:route-resolver'], 'routing impact', 'structure');
 if (flags.localization) {
-  add('i18n-strict', 'npm', ['run', 'verify:i18n', '--', '--strict', '--report'], 'localization impact');
-  add('locale-integrity', 'npm', ['run', 'validate:locale-integrity'], 'localization impact');
-  add('locale-navigation', 'npm', ['run', 'validate:locale-navigation'], 'localization impact');
-  add('home-i18n', 'npm', ['run', 'validate:home-i18n'], 'localization impact');
-  add('tool-localization', 'npm', ['run', 'test:tool-localization'], 'localization impact');
+  add('i18n-strict', 'npm', ['run', 'verify:i18n', '--', '--strict', '--report'], 'localization impact', 'localization');
+  add('locale-integrity', 'npm', ['run', 'validate:locale-integrity'], 'localization impact', 'localization');
+  add('locale-navigation', 'npm', ['run', 'validate:locale-navigation'], 'localization impact', 'localization');
+  add('home-i18n', 'npm', ['run', 'validate:home-i18n'], 'localization impact', 'localization');
+  add('tool-localization', 'npm', ['run', 'test:tool-localization'], 'localization impact', 'localization');
 }
 if (flags.seo) {
-  add('seo', 'npm', ['run', 'validate:seo'], 'SEO impact');
-  add('seo-manifest', 'npm', ['run', 'validate:seo-manifest'], 'SEO impact');
-  add('use-case-seo', 'npm', ['run', 'validate:use-case-seo'], 'SEO impact');
-  add('indexing', 'npm', ['run', 'validate:indexing'], 'SEO/indexing impact');
-  add('breadcrumb-seo', 'npm', ['run', 'validate:breadcrumb-seo'], 'SEO impact');
+  add('seo', 'npm', ['run', 'validate:seo'], 'SEO impact', 'seo');
+  add('seo-manifest', 'npm', ['run', 'validate:seo-manifest'], 'SEO impact', 'seo');
+  add('use-case-seo', 'npm', ['run', 'validate:use-case-seo'], 'SEO impact', 'seo');
+  add('indexing', 'npm', ['run', 'validate:indexing'], 'SEO/indexing impact', 'seo');
+  add('breadcrumb-seo', 'npm', ['run', 'validate:breadcrumb-seo'], 'SEO impact', 'seo');
 }
-if (flags.security) add('upload-boundary', 'npm', ['run', 'test:upload-boundary'], 'security/upload impact');
+if (flags.security) add('upload-boundary', 'npm', ['run', 'test:upload-boundary'], 'security/upload impact', 'security');
 if (flags.artifact) {
-  add('file-safety', 'node', ['--experimental-strip-types', 'scripts/test-file-safety.mjs'], 'artifact/file safety impact');
-  add('output-integrity', 'node', ['--experimental-strip-types', 'scripts/test-output-integrity.mjs'], 'artifact impact');
-  add('svg-integrity', 'node', ['--experimental-strip-types', 'scripts/test-svg-integrity.mjs'], 'artifact impact');
+  add('file-safety', 'node', ['--experimental-strip-types', 'scripts/test-file-safety.mjs'], 'artifact/file safety impact', 'artifact');
+  add('output-integrity', 'node', ['--experimental-strip-types', 'scripts/test-output-integrity.mjs'], 'artifact impact', 'artifact');
+  add('svg-integrity', 'node', ['--experimental-strip-types', 'scripts/test-svg-integrity.mjs'], 'artifact impact', 'artifact');
 }
 
 const toolTestCandidates = [];
@@ -73,19 +72,14 @@ for (const tool of flags.tools) {
   const candidate = `tests/${tool}.spec.ts`;
   if (existsSync(candidate)) toolTestCandidates.push(candidate);
 }
-
-const browserInstall = toolTestCandidates.length
-  ? { id: 'playwright-install', command: 'npx', args: ['playwright', 'install', 'chromium'], reason: 'affected browser checks' }
-  : null;
-
-const affectedE2E = toolTestCandidates.length
-  ? { id: 'affected-e2e', command: 'npx', args: ['playwright', 'test', ...toolTestCandidates, '--project=chromium', '--workers=2', '--retries=0'], reason: 'changed tool surfaces' }
-  : null;
-
+const needBrowser = toolTestCandidates.length > 0;
 const needBuild = flags.workflow || flags.dependency || flags.registry || flags.routing || flags.localization || flags.seo;
+const selectedCommands = group === 'all' ? commands : commands.filter((item) => item.group === group);
+const skipped = [];
+if (selectedCommands.length === 0 && !((group === 'browser' && needBrowser) || (group === 'build' && needBuild))) skipped.push({ id: group, reason: 'no dependency impact' });
+
 const results = [];
 const start = Date.now();
-
 async function runOne(item) {
   const started = Date.now();
   try {
@@ -107,41 +101,36 @@ async function runOne(item) {
 }
 
 mkdirSync('diagnostics', { recursive: true });
-writeFileSync('diagnostics/fast-ci-plan.json', `${JSON.stringify({ schema_version: 1, sha, base, mode, files, flags, commands: commands.map(({ id, reason }) => ({ id, reason })), needBuild }, null, 2)}\n`);
+const plan = { schema_version: 2, sha, base, mode, group, files, flags, commands: selectedCommands.map(({ id, reason }) => ({ id, reason })), needBrowser, needBuild };
+writeFileSync('diagnostics/fast-ci-plan.json', `${JSON.stringify(plan, null, 2)}\n`);
+console.log(JSON.stringify(plan, null, 2));
 
-console.log(JSON.stringify({ mode, sha, files, flags, commands: commands.map(({ id, reason }) => ({ id, reason })), needBuild }, null, 2));
-
-const staticResults = await Promise.all(commands.map(runOne));
+const staticResults = await Promise.all(selectedCommands.map(runOne));
 if (staticResults.some((value) => !value)) process.exit(1);
 
-if (browserInstall) {
-  const browserOk = await runOne(browserInstall);
-  if (!browserOk) process.exit(1);
+if (group === 'browser' && needBrowser) {
+  const install = await runOne({ id: 'playwright-install', command: 'npx', args: ['playwright', 'install', 'chromium'], reason: 'affected browser checks' });
+  if (!install) process.exit(1);
+  const e2e = await runOne({ id: 'affected-e2e', command: 'npx', args: ['playwright', 'test', ...toolTestCandidates, '--project=chromium', '--workers=2', '--retries=0'], reason: 'changed tool surfaces' });
+  if (!e2e) process.exit(1);
 }
-
-if (affectedE2E) {
-  const e2eOk = await runOne(affectedE2E);
-  if (!e2eOk) process.exit(1);
-}
-
-if (needBuild) {
-  const buildItem = { id: 'build', command: 'npm', args: ['run', 'build'], reason: 'affected application graph' };
-  const buildOk = await runOne(buildItem);
-  if (!buildOk) process.exit(1);
+if (group === 'build' && needBuild) {
+  const build = await runOne({ id: 'build', command: 'npm', args: ['run', 'build'], reason: 'affected application graph' });
+  if (!build) process.exit(1);
 }
 
 const summary = {
-  schema_version: 1,
+  schema_version: 2,
   sha,
   base,
   mode,
+  group,
   status: results.every((item) => item.status === 'PASS') ? 'PASS' : 'FAIL',
   durationMs: Date.now() - start,
   executed: results,
   reused: [],
-  skipped: [],
+  skipped,
 };
 writeFileSync('diagnostics/fast-ci-result.json', `${JSON.stringify(summary, null, 2)}\n`);
 console.log(JSON.stringify(summary, null, 2));
-
 if (summary.status !== 'PASS') process.exit(1);
