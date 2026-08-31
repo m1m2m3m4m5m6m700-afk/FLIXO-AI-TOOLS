@@ -1,9 +1,27 @@
 name: G4 — Localization + SEO Matrix
 
-# Deep G4 certification is temporarily manual/main-only while PR development uses the canonical fast CI path.
+# Deep G4 certification runs on main only when the pushed change can affect G4.
+# PR development uses the canonical fast/impact-aware CI path.
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**/i18n/**'
+      - 'src/**/locale/**'
+      - 'src/**/localization/**'
+      - 'src/**/seo/**'
+      - 'src/routes/**'
+      - 'scripts/validate-locale-*.mjs'
+      - 'scripts/validate-language*.mjs'
+      - 'scripts/validate-localization*.mjs'
+      - 'scripts/validate-home-localization.mjs'
+      - 'scripts/validate-seo*.mjs'
+      - 'scripts/validate-use-case-seo.mjs'
+      - 'scripts/validate-indexing.mjs'
+      - 'scripts/validate-breadcrumb-seo.mjs'
+      - 'scripts/validate-google-multilingual-seo.mjs'
+      - 'tests/localization/**'
+      - '.github/workflows/localization-20.yml'
   workflow_dispatch:
 
 concurrency:
