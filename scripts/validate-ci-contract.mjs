@@ -8,7 +8,7 @@ const required = [
   ['Fast Contract Diagnostics job', /name:\s*Fast Contract Diagnostics/],
   ['Canonical Verification Gate job', /name:\s*Canonical Verification Gate/],
   ['impact-aware fast verifier', /scripts\/ci\/fast-verify\.mjs/],
-  ['single npm ci fast path', /Install dependencies once/],
+  ['parallel fast dependency install', /name:\s*Install dependencies\s*\n\s*run:\s*npm ci/],
   ['PR cancellation', /cancel-in-progress:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*\}\}/],
 ];
 
@@ -25,4 +25,4 @@ if (/npm\s+run\s+verify(?![:\w-])/.test(canonicalSection) || /npm\s+test(?![\w-]
   process.exit(1);
 }
 
-console.log('CI contract passed: fast PR path, exact required check names, cancellation, and no duplicate repository-wide verification are enforced.');
+console.log('CI contract passed: parallel fast dependency install, exact required check names, cancellation, and no duplicate repository-wide verification are enforced.');
