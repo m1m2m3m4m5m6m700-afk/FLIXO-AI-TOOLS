@@ -67,10 +67,10 @@ export function classifyContractFailure(result: ContractResult): FailureClassifi
     category = 'TYPE_ERROR'; rootCauseId = 'RC-TYPE-001';
   } else if (/build|vite|bundl/.test(text)) {
     category = 'BUILD_ERROR'; rootCauseId = 'RC-BUILD-001';
-  } else if (/registry/.test(text)) {
-    category = 'REGISTRY_DRIFT'; rootCauseId = 'RC-G1-REGISTRY-001';
   } else if (/router/.test(text)) {
     category = 'ROUTER_DRIFT'; rootCauseId = 'RC-G1-ROUTER-001';
+  } else if (/registry/.test(text)) {
+    category = 'REGISTRY_DRIFT'; rootCauseId = 'RC-G1-REGISTRY-001';
   } else if (/route.?resolution|resolver/.test(text)) {
     category = 'ROUTE_RESOLUTION_ERROR'; rootCauseId = 'RC-G1-ROUTE-001';
   } else if (/title/.test(text) && /localized|locale|translation/.test(text)) {
