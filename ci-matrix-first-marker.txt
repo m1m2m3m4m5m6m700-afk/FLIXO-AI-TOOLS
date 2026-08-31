@@ -1,1 +1,0 @@
-Matrix First orchestration marker. Official CI must be serialized behind Matrix Certification before release verification is accepted.
