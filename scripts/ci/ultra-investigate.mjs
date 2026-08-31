@@ -31,77 +31,47 @@ function identity() {
   const treeSha = git(['rev-parse', 'HEAD^{tree}']);
   const status = git(['status', '--porcelain']);
   const expectedSha = process.env.INVESTIGATION_SHA ?? process.env.EXPECTED_SHA ?? actualHeadSha;
-  return {
-    expectedSha,
-    actualHeadSha,
-    treeSha,
-    worktreeClean: status === '',
-    status,
-  };
+  return { expectedSha, actualHeadSha, treeSha, worktreeClean: status === '', status };
 }
 
 function environmentIdentity() {
   const keys = [
-    'CI',
-    'GITHUB_ACTIONS',
-    'GITHUB_WORKFLOW',
-    'GITHUB_RUN_ID',
-    'GITHUB_RUN_ATTEMPT',
-    'RUNNER_OS',
-    'RUNNER_ARCH',
-    'VITE_SITE_URL',
-    'VITE_RUNTIME_ORIGIN',
-    'VITE_TEST_ORIGIN',
-    'NODE_ENV',
-    'NPM_CONFIG_USER_AGENT',
+    'CI', 'GITHUB_ACTIONS', 'GITHUB_WORKFLOW', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT',
+    'RUNNER_OS', 'RUNNER_ARCH', 'VITE_SITE_URL', 'VITE_RUNTIME_ORIGIN', 'VITE_TEST_ORIGIN',
+    'NODE_ENV', 'NPM_CONFIG_USER_AGENT',
   ];
-  const safe = Object.fromEntries(keys.map((key) => [key, process.env[key] ?? null]));
-  safe.node = process.version;
-  safe.platform = process.platform;
-  safe.arch = process.arch;
-  return { values: safe, fingerprint: hash(JSON.stringify(safe)) };
+  const values = Object.fromEntries(keys.map((key) => [key, process.env[key] ?? null]));
+  values.node = process.version;
+  values.platform = process.platform;
+  values.arch = process.arch;
+  return { values, fingerprint: hash(JSON.stringify(values)) };
 }
 
 function commandLabel(check) {
   return [check.command, ...check.args].join(' ');
 }
 
-function killProcessTree(child) {
-  if (!child.pid) return;
-  try {
-    process.kill(-child.pid, 'SIGTERM');
-  } catch {
-    try { child.kill('SIGTERM'); } catch { /* process already exited */ }
-  }
-  const hardKill = setTimeout(() => {
-    try {
-      process.kill(-child.pid, 'SIGKILL');
-    } catch {
-      try { child.kill('SIGKILL'); } catch { /* process already exited */ }
-    }
-  }, 5_000);
-  hardKill.unref();
-}
-
 export function runCheck(check, context = process.env) {
   return new Promise((resolve) => {
     const startedAt = new Date().toISOString();
     const started = Date.now();
+    let timeout;
+    let hardTimeout;
+    let settled = false;
+    let timedOut = false;
+    let stdout = '';
+    let stderr = '';
     const child = spawn(check.command, check.args, {
       env: context,
       cwd: process.cwd(),
-      detached: process.platform !== 'win32',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    let stdout = '';
-    let stderr = '';
-    let settled = false;
-    let timedOut = false;
 
     const finish = (code, signal, spawnError = null) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeout);
+      if (timeout) clearTimeout(timeout);
+      if (hardTimeout) clearTimeout(hardTimeout);
       if (spawnError) stderr += `\nspawn-error: ${spawnError.stack ?? spawnError}`;
       const durationMs = Date.now() - started;
       const message = normalizeOutput([stderr, stdout].filter(Boolean).join('\n'));
@@ -129,16 +99,21 @@ export function runCheck(check, context = process.env) {
     child.once('error', (error) => finish(null, null, error));
     child.once('close', (code, signal) => finish(code, signal));
 
-    const timeout = setTimeout(() => {
+    timeout = setTimeout(() => {
+      if (settled) return;
       timedOut = true;
       stderr += `\nUltra timeout after ${check.timeoutMs}ms: ${commandLabel(check)}`;
-      killProcessTree(child);
+      child.kill('SIGTERM');
+      hardTimeout = setTimeout(() => {
+        if (!settled) child.kill('SIGKILL');
+      }, 5_000);
+      hardTimeout.unref();
     }, check.timeoutMs);
     timeout.unref();
   });
 }
 
-function buildFailureEvents(suite, results) {
+function buildFailureEvents(results) {
   return results.filter((result) => result.status === 'FAIL').map((result) => ({
     id: result.id,
     contract: result.contract,
@@ -169,9 +144,9 @@ export function buildEnvironmentFingerprint(identityState) {
 async function investigateSuite(suite, checks, identityState, environmentState) {
   const startedAt = new Date().toISOString();
   const results = await Promise.all(checks.map((check) => runCheck(check)));
-  const failures = buildFailureEvents(suite, results);
+  const failures = buildFailureEvents(results);
   const failureIntelligence = deriveFailureIntelligence(failures);
-  const record = {
+  return {
     schema_version: ULTRA_SCHEMA_VERSION,
     suite,
     sha: identityState.expectedSha,
@@ -183,7 +158,7 @@ async function investigateSuite(suite, checks, identityState, environmentState) 
     environment: environmentState.values,
     startedAt,
     generatedAt: new Date().toISOString(),
-    status: failures.length ? 'FAIL' : (identityState.expectedSha === identityState.actualHeadSha && identityState.worktreeClean ? 'PASS' : 'FAIL'),
+    status: failures.length || identityState.expectedSha !== identityState.actualHeadSha || !identityState.worktreeClean ? 'FAIL' : 'PASS',
     checksExpected: checks.length,
     checksExecuted: results.length,
     passed: results.filter((result) => result.status === 'PASS').length,
@@ -196,9 +171,7 @@ async function investigateSuite(suite, checks, identityState, environmentState) 
     failureCount: failures.length,
     rootCauseCount: failureIntelligence.rootCauses.length,
     unknownCount: failureIntelligence.unknownCount,
-    artifact: `diagnostics/investigation/${suite}.json`,
   };
-  return record;
 }
 
 export async function investigate(requestedSuite = process.env.INVESTIGATION_SUITE ?? 'all', outputDir = DEFAULT_OUTPUT_DIR) {
@@ -235,6 +208,7 @@ export async function investigate(requestedSuite = process.env.INVESTIGATION_SUI
     suites: records.map((record) => ({
       suite: record.suite,
       status: record.status,
+      sha: record.sha,
       expected: record.checksExpected,
       executed: record.checksExecuted,
       passed: record.passed,
