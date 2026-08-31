@@ -1,7 +1,6 @@
 import { readFileSync, readdirSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { aggregateFailures } from './failure/engine.ts';
-import { classifyFailure } from './failure/taxonomy.ts';
 import { ULTRA_SCHEMA_VERSION, ULTRA_SUITE_NAMES, ultraContractHash } from './ultra-contract.mjs';
 
 const root = process.env.INVESTIGATION_DIR ?? 'diagnostics/investigation';
@@ -51,7 +50,7 @@ for (const record of records) {
   }
 }
 
-const intelligence = failureEvents.length ? aggregateFailures(failureEvents.map((event) => classifyFailure(event))) : {
+const intelligence = failureEvents.length ? aggregateFailures(failureEvents) : {
   schemaVersion: 1,
   rootCauses: [],
   failures: [],
@@ -99,17 +98,25 @@ const report = {
   integrityErrors,
 };
 
-writeFileSync(path.join(root, 'aggregate.json'), JSON.stringify(report, null, 2) + '\n');
+const artifactPath = path.join(root, 'aggregate.json');
+writeFileSync(artifactPath, JSON.stringify(report, null, 2) + '\n');
 writeFileSync(path.join(ledgerRoot, 'ultra-recovery.json'), JSON.stringify({
-  sha: expectedSha,
+  schema_version: ULTRA_SCHEMA_VERSION,
   gate: 'ULTRA',
-  expected: expectedChecks,
-  executed: executedChecks,
-  passed: passedChecks,
-  failed: failedChecks,
+  contract: 'CI-ULTRA-001',
+  sha: expectedSha,
+  expected: ULTRA_SUITE_NAMES.length,
+  executed: records.length,
+  passed: records.filter((record) => record.status === 'PASS').length,
+  failed: records.filter((record) => record.status !== 'PASS').length,
   skipped: skippedChecks,
-  missing: missingChecks,
+  missing: ULTRA_SUITE_NAMES.length - records.length,
   result: reportStatus,
+  rootCauseCount: report.rootCauseCount,
+  unknownCount: report.unknownCount,
+  artifact: artifactPath,
+  evidence_sha256: intelligence.reportHash,
+  generatedAt: report.generatedAt,
 }, null, 2) + '\n');
 
 console.log(JSON.stringify(report, null, 2));
