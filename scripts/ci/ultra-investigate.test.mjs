@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeOutput, suiteContract, ultraContractHash, ULTRA_SCHEMA_VERSION, ULTRA_SUITE_NAMES } from './ultra-contract.mjs';
+import { normalizeOutput, runCheck } from './ultra-investigate.mjs';
+import { suiteContract, ultraContractHash, ULTRA_SCHEMA_VERSION, ULTRA_SUITE_NAMES } from './ultra-contract.mjs';
 import { classifyFailure } from './failure/taxonomy.ts';
 
 test('Ultra contract is deterministic and complete', () => {
@@ -26,4 +27,17 @@ test('Ultra delegates failure classification to the official taxonomy', () => {
   });
   assert.equal(failure.classification, 'INFRASTRUCTURE_ERROR');
   assert.equal(failure.rootCauseId, 'RC-INFRA-001');
+});
+
+test('Ultra converts a hanging subprocess into a real timeout failure', async () => {
+  const result = await runCheck({
+    id: 'timeout-test',
+    contract: 'CI-ULTRA-TEST-001',
+    command: process.execPath,
+    args: ['-e', 'setTimeout(() => {}, 1000)'],
+    timeoutMs: 50,
+  });
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.timedOut, true);
+  assert.ok(result.durationMs >= 50);
 });
