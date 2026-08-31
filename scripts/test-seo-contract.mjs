@@ -52,8 +52,6 @@ for (const locale of LOCALES) {
   assert.equal(url.search, '');
   assert.equal(url.hash, '');
 }
-
-assert.equal(alternatesByTag.get(LOCALE_METADATA.zh.languageTag), `${expectedSiteOrigin}/zh/tools`);
 assert.equal(alternatesByTag.get('x-default'), `${expectedSiteOrigin}/en/tools`);
 
 const metadataByLocale = LOCALES.map((locale) => buildSeoMetadata({
@@ -63,8 +61,9 @@ const metadataByLocale = LOCALES.map((locale) => buildSeoMetadata({
   description: `Description ${locale}`,
 }));
 
-for (const metadata of metadataByLocale) {
-  const expectedCanonical = `${expectedSiteOrigin}${localizedPath(metadata.language === 'zh-CN' ? 'zh' : LOCALES.find((locale) => LOCALE_METADATA[locale].languageTag === metadata.language), basePath)}`;
+for (const [index, metadata] of metadataByLocale.entries()) {
+  const locale = LOCALES[index];
+  const expectedCanonical = `${expectedSiteOrigin}${localizedPath(locale, basePath)}`;
   assert.equal(metadata.canonical, expectedCanonical);
   assert.equal(metadata.structuredData.url, metadata.canonical);
   assert.equal(metadata.structuredData.inLanguage, metadata.language);
