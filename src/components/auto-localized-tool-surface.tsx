@@ -83,7 +83,7 @@ function localize(root: HTMLElement, locale: Locale, toolId: string) {
   const localizedTitle = getLocalizedToolTitle(locale, toolId, root.querySelector('h1')?.textContent?.trim() ?? toolId);
   root.querySelectorAll<HTMLElement>('h1').forEach((heading, index) => {
     if (index === 0) {
-      heading.textContent = localizedTitle;
+      if (heading.textContent !== localizedTitle) heading.textContent = localizedTitle;
       return;
     }
     const replacement = document.createElement('h2');
@@ -103,6 +103,10 @@ function localize(root: HTMLElement, locale: Locale, toolId: string) {
 
 export function AutoLocalizedToolSurface({ locale, toolId, children }: Props) {
   useEffect(() => {
+    // English is already the canonical source locale. Avoid DOM rewriting and
+    // MutationObserver churn altogether so browser interaction targets remain stable.
+    if (locale === 'en') return;
+
     const root = document.querySelector<HTMLElement>('.tool-page-modern');
     if (!root) return;
     root.lang = LOCALE_METADATA[locale].languageTag;
