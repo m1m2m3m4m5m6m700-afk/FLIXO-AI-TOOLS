@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { TOOL_REGISTRY } from '../src/config/registry.ts';
+import { imageCompressorOutputContract } from '../src/tools/image-compressor/output-contract.ts';
 import { TOOL_OUTPUT_CONTRACTS, assertReadyToolsHaveOutputContracts } from '../src/lib/contracts/tool-output-contracts.ts';
 
 const ready = TOOL_REGISTRY.filter((tool) => tool.isReady);
@@ -9,6 +10,16 @@ assert.doesNotThrow(() => assertReadyToolsHaveOutputContracts());
 const readyIds = new Set(ready.map((tool) => tool.id));
 const contractIds = new Set(Object.keys(TOOL_OUTPUT_CONTRACTS));
 assert.deepEqual([...contractIds].sort(), [...readyIds].sort(), 'Ready tools and output contracts must have exact ID parity');
+
+assert.strictEqual(
+  TOOL_OUTPUT_CONTRACTS['image-compressor'],
+  imageCompressorOutputContract,
+  'image-compressor output contract must be the tool-owned contract; duplicate registry definitions are forbidden',
+);
+assert.ok(
+  TOOL_OUTPUT_CONTRACTS['image-compressor']?.variants.some((variant) => variant.outputMimeTypes.includes('application/zip')),
+  'image-compressor contract must expose the ZIP batch-output variant through the public registry',
+);
 
 let variantCount = 0;
 for (const tool of ready) {
