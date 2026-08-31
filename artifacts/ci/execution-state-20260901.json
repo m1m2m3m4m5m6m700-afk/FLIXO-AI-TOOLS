@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "contractVersion": "MASTER AUTONOMOUS RECOVERY & EXECUTION CONTRACT v5",
+  "state": "VERIFYING",
+  "recordedAt": "2026-09-01T01:19:00+03:00",
+  "currentPhase": "G4 runtime recovery -> release convergence",
+  "currentHead": "03907ad76550b1110daec97d7035c6f0b1d2ccbc",
+  "mainlineChange": "PR #548 merged after exact-head GitHub Actions verification passed",
+  "verifiedSignals": {
+    "pr548HeadSha": "9af65463a2f6815f56ad904eccf5e38d062a804d",
+    "pr548GitHubActions": "PASS",
+    "mainVercelStatus": "SUCCESS",
+    "mainFullMatrix": "QUEUED"
+  },
+  "activeRootCauses": [
+    {
+      "id": "RC-INFRA-FULL-MATRIX-QUEUE-001",
+      "classification": "INFRASTRUCTURE_ERROR",
+      "status": "OPEN",
+      "description": "Exact-main Full Matrix run 33445737911 is queued; no browser job has completed yet, so release evidence is not available."
+    },
+    {
+      "id": "RC-INFRA-VERCEL-RATE-LIMIT-001",
+      "classification": "INFRASTRUCTURE_ERROR",
+      "status": "OPEN",
+      "description": "Vercel status for PR #548 reported an upgrade/build-rate-limit failure; it is external and cannot be converted into an engineering PASS."
+    }
+  ],
+  "invalidatedEvidence": [
+    "pre-G4 Full Matrix evidence on predecessor SHAs",
+    "PR #548 preview Vercel failure as release evidence",
+    "pre-merge CI evidence for main before SHA 03907ad76550b1110daec97d7035c6f0b1d2ccbc"
+  ],
+  "nextRequiredAction": "Verify fresh exact-SHA main CI and Full Matrix completion, then run production surface certification and release gates; do not claim completion while any required gate is queued, failed, stale, or externally blocked."
+}
