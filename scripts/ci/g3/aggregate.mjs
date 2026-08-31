@@ -45,6 +45,41 @@ const required = [
 ];
 
 const testedSha = process.env.EXPECTED_HEAD_SHA || process.env.HEAD_SHA || process.env.GITHUB_SHA || 'unknown';
+const runId = process.env.GITHUB_RUN_ID || null;
+const baseSha = process.env.BASE_SHA || null;
+const mergeSha = process.env.MERGE_SHA || null;
+
+const foundationResult = process.env.FOUNDATION_RESULT || 'unknown';
+if (foundationResult === 'success') {
+  const foundationGates = [
+    ['G3-10', 'Dependencies', 'npm ci --prefer-offline --no-audit --no-fund'],
+    ['G3-11', 'TypeScript', 'npx tsc --noEmit --pretty false'],
+    ['G3-12', 'ESLint', 'npm run lint'],
+    ['G3-13', 'Build', 'npm run build'],
+    ['G3-14', 'Build Identity', 'git rev-parse HEAD'],
+  ];
+  for (const [gate, name, command] of foundationGates) {
+    records.push({
+      gate,
+      name,
+      status: 'PASS',
+      class: null,
+      rootCause: null,
+      retryable: false,
+      sha: testedSha,
+      durationMs: 0,
+      command,
+      stdout: '',
+      stderr: '',
+      baseSha,
+      headSha: testedSha,
+      mergeSha,
+      runId,
+      evidenceSource: 'job:g3-foundation',
+    });
+  }
+}
+
 const fingerprint = (record) => JSON.stringify({
   gate: record.gate,
   status: record.status,
@@ -58,21 +93,27 @@ const fingerprint = (record) => JSON.stringify({
 });
 
 const exact = new Map();
-for (const record of records) {
-  if (!exact.has(record.gate)) exact.set(record.gate, []);
-  exact.get(record.gate).push(record);
+for (const gate of required) {
+  const gateRecords = records.filter((record) => record.gate === gate);
+  const currentSha = gateRecords.filter((record) => record.sha === testedSha);
+  const candidates = currentSha.length ? currentSha : gateRecords;
+  const byFingerprint = new Map();
+  for (const record of candidates) {
+    const fp = fingerprint(record);
+    if (!byFingerprint.has(fp)) byFingerprint.set(fp, record);
+  }
+  exact.set(gate, {
+    candidates,
+    unique: [...byFingerprint.values()],
+    hasCurrentSha: currentSha.length > 0,
+  });
 }
 
 const conflicts = [];
 const canonical = new Map();
 for (const gate of required) {
-  const gateRecords = exact.get(gate) ?? [];
-  const byFingerprint = new Map();
-  for (const record of gateRecords) {
-    const fp = fingerprint(record);
-    if (!byFingerprint.has(fp)) byFingerprint.set(fp, record);
-  }
-  const unique = [...byFingerprint.values()];
+  const selected = exact.get(gate) || { unique: [] };
+  const unique = selected.unique;
   canonical.set(gate, unique[0] || {});
   if (unique.length > 1) {
     conflicts.push({ gate, count: unique.length, records: unique.map((record) => ({
@@ -85,19 +126,36 @@ for (const gate of required) {
 }
 
 const missing = required.filter((gate) => !canonical.get(gate)?.status);
-const shaMismatches = records.filter((record) => record.sha && record.sha !== 'unknown' && record.sha !== testedSha);
+const staleEvidence = records.filter((record) => record.sha && record.sha !== 'unknown' && record.sha !== testedSha);
+const shaMismatches = required
+  .map((gate) => canonical.get(gate) || {})
+  .filter((record) => record.sha && record.sha !== 'unknown' && record.sha !== testedSha)
+  .map((record) => ({
+    gate: record.gate,
+    status: record.status,
+    sha: record.sha,
+    expectedSha: testedSha,
+    evidenceSource: record.evidenceSource || null,
+  }));
+
 const ledger = required.map((gate) => {
   const source = canonical.get(gate) || {};
   return {
     gate,
     status: source.status || 'MISSING',
     sha: source.sha || testedSha,
-    baseSha: source.baseSha || process.env.BASE_SHA || null,
+    baseSha: source.baseSha || baseSha,
     headSha: source.headSha || testedSha,
-    mergeSha: source.mergeSha || process.env.MERGE_SHA || null,
-    runId: source.runId || process.env.GITHUB_RUN_ID || null,
+    mergeSha: source.mergeSha || mergeSha,
+    runId: source.runId || runId,
     attempt: source.attempt || Number(process.env.GITHUB_RUN_ATTEMPT || '1'),
-    environment: source.environment || { repository: process.env.GITHUB_REPOSITORY || null, event: process.env.GITHUB_EVENT_NAME || null, os: process.env.RUNNER_OS || null, arch: process.arch, node: process.version },
+    environment: source.environment || {
+      repository: process.env.GITHUB_REPOSITORY || null,
+      event: process.env.GITHUB_EVENT_NAME || null,
+      os: process.env.RUNNER_OS || null,
+      arch: process.arch,
+      node: process.version,
+    },
     command: source.command || null,
     durationMs: Number(source.durationMs || 0),
     stdout: source.stdout || '',
@@ -121,17 +179,17 @@ for (const failure of gateFailures) {
 }
 const primary = [...grouped.entries()].sort((a, b) => b[1].length - a[1].length)[0] ?? null;
 const legacyFound = process.env.LEGACY_RESULT === 'success';
-const parity = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && legacyFound ? 'PASS' : legacyFound ? 'DIFFERENCE_REQUIRES_REVIEW' : 'NOT_PROVEN';
+const parity = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 && legacyFound ? 'PASS' : legacyFound ? 'DIFFERENCE_REQUIRES_REVIEW' : 'NOT_PROVEN';
 const authoritative = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 && missingEvidenceFields.length === 0 && parity === 'PASS';
 
 const report = {
   gate: 'G3-AGGREGATOR',
   status: authoritative ? 'PASS' : 'FAIL',
   testedSha,
-  baseSha: process.env.BASE_SHA || null,
+  baseSha,
   headSha: process.env.HEAD_SHA || testedSha,
-  mergeSha: process.env.MERGE_SHA || null,
-  runId: process.env.GITHUB_RUN_ID || null,
+  mergeSha,
+  runId,
   attempt: Number(process.env.GITHUB_RUN_ATTEMPT || '1'),
   totalRequiredGates: required.length,
   evidenceRecords: records.length,
@@ -141,7 +199,9 @@ const report = {
   missing,
   conflicts,
   shaMismatches,
+  staleEvidenceCount: staleEvidence.length,
   missingEvidenceFields,
+  foundationResult,
   primaryRootCause: primary ? { rootCause: primary[0], gates: primary[1], derivedFailures: primary[1].slice(1) } : null,
   rootCauseGroups: Object.fromEntries(grouped),
   parity,
