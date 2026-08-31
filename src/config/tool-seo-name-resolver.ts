@@ -9,7 +9,17 @@ const HISTORICAL_DICTIONARIES: Partial<Record<Locale, Record<string, unknown>>> 
   uk: uk as Record<string, unknown>,
 };
 
-/** Resolve reviewed SEO names from the legacy catalog, then verified ms/uk dictionaries. */
+/** Reviewed additions not yet present in the historical dictionaries. */
+const REVIEWED_TOOL_SEO_OVERRIDES: Partial<Record<Locale, Record<string, string>>> = {
+  ms: {
+    'image-upscaler': 'Peningkat Resolusi Imej',
+  },
+  uk: {
+    'image-upscaler': 'Збільшувач зображень',
+  },
+};
+
+/** Resolve reviewed SEO names from the canonical catalog, verified locale dictionaries, then reviewed additions. */
 export function getAuthoritativeToolSeoName(tool: ToolConfig, locale: Locale): string | undefined {
   const legacy = TOOL_SEO_NAMES[tool.id]?.[locale];
   if (typeof legacy === 'string' && legacy.trim()) return legacy;
@@ -18,5 +28,6 @@ export function getAuthoritativeToolSeoName(tool: ToolConfig, locale: Locale): s
   const translated = dictionary?.[`tool.${tool.id}.name`];
   if (typeof translated === 'string' && translated.trim()) return translated;
 
-  return undefined;
+  const reviewed = REVIEWED_TOOL_SEO_OVERRIDES[locale]?.[tool.id];
+  return typeof reviewed === 'string' && reviewed.trim() ? reviewed : undefined;
 }
