@@ -6,7 +6,7 @@ import { localizeToolCategory, localizeToolDescription } from '../i18n/tool-loca
 import { TOOL_SEO_NAMES } from '../i18n/tool-seo-localization';
 
 const LOCALE_LABELS: Record<string, string> = {
-  en: 'Online tool', ar: 'أداة عبر الإنترنت', es: 'Herramienta en línea', fr: 'Outil en ligne',
+  ar: 'أداة عبر الإنترنت', en: 'Online tool', es: 'Herramienta en línea', fr: 'Outil en ligne',
   de: 'Online-Tool', hi: 'ऑनलाइन टूल', id: 'Alat online', it: 'Strumento online',
   ja: 'オンラインツール', ko: '온라인 도구', ms: 'Alat dalam talian', nl: 'Online tool',
   pl: 'Narzędzie online', pt: 'Ferramenta online', ru: 'Онлайн-инструмент', sv: 'Onlineverktyg',
@@ -37,92 +37,19 @@ const FALLBACK_COPY: Record<string, Readonly<{ open: string; configure: string; 
 };
 
 export const READY_TOOL_IDS = Object.freeze(getReadyToolConfigs().map((tool) => tool.id));
-
 export type ToolCategory = 'Images' | 'AI' | 'Other';
 const TOOL_CATEGORIES = new Set<ToolCategory>(['Images', 'AI', 'Other']);
-
-export function assertToolCategory(value: string): ToolCategory {
-  if (!TOOL_CATEGORIES.has(value as ToolCategory)) throw new Error(`Unsupported tool category: ${value}`);
-  return value as ToolCategory;
-}
-
-export function getLocalizedToolTitle(localeInput: string, toolId: string, fallbackTitle: string): string {
-  const locale = normalizeLocale(localeInput);
-  return TOOL_SEO_NAMES[toolId]?.[locale] ?? fallbackTitle;
-}
-
-export function getLocalizedToolUrl(locale: Locale, toolId: string): string {
-  const tool = getToolConfig(toolId);
-  if (!tool) throw new Error(`Unknown tool id: ${toolId}`);
-  return resolveLocalizedToolUrl(SITE_ORIGIN, tool, locale);
-}
-
+export function assertToolCategory(value: string): ToolCategory { if (!TOOL_CATEGORIES.has(value as ToolCategory)) throw new Error(`Unsupported tool category: ${value}`); return value as ToolCategory; }
+export function getLocalizedToolTitle(localeInput: string, toolId: string, fallbackTitle: string): string { const locale = normalizeLocale(localeInput); return TOOL_SEO_NAMES[toolId]?.[locale] ?? fallbackTitle; }
+export function getLocalizedToolUrl(locale: Locale, toolId: string): string { const tool = getToolConfig(toolId); if (!tool) throw new Error(`Unknown tool id: ${toolId}`); return resolveLocalizedToolUrl(SITE_ORIGIN, tool, locale); }
 export function getToolSeo(localeInput: string, toolId: string) {
-  const locale = normalizeLocale(localeInput);
-  const tool = getToolConfig(toolId);
-  if (!tool || !tool.isReady) return null;
-
-  const category = assertToolCategory(tool.category);
-  const label = LOCALE_LABELS[locale];
-  if (!label) throw new Error(`Missing locale SEO label: ${locale}`);
-  const url = getLocalizedToolUrl(locale, tool.id);
-  const xDefaultUrl = getLocalizedToolUrl('en', tool.id);
-  const localizedTitle = getLocalizedToolTitle(locale, tool.id, tool.title);
+  const locale = normalizeLocale(localeInput); const tool = getToolConfig(toolId); if (!tool || !tool.isReady) return null;
+  const category = assertToolCategory(tool.category); const label = LOCALE_LABELS[locale]; if (!label) throw new Error(`Missing locale SEO label: ${locale}`);
+  const url = getLocalizedToolUrl(locale, tool.id); const xDefaultUrl = getLocalizedToolUrl('en', tool.id); const localizedTitle = getLocalizedToolTitle(locale, tool.id, tool.title);
   const localizedCategory = localizeMsUkCategory(locale, category) ?? localizeToolCategory(locale, category);
-  const localizedDescription =
-    locale === 'en'
-      ? tool.description
-      : localizeMsUkDescription(locale, localizedTitle) ?? localizeToolDescription(locale, localizedTitle, category);
-  const title = `${localizedTitle} | FLIXO`;
-  const description = localizedDescription;
-  const fallback = FALLBACK_COPY[locale];
-  if (!fallback) throw new Error(`Missing locale SEO fallback copy: ${locale}`);
-
-  const localizedPayload = {
-    title, description, intro: description,
-    keywords: [localizedTitle, 'FLIXO', label],
-    howTo: [fallback.open, fallback.configure, fallback.run, fallback.download],
-    features: [fallback.browser],
-    altText: [`${localizedTitle} ${fallback.interface}`],
-  } as const;
-
-  return {
-    locale, tool, url, xDefaultUrl, title, description,
-    intro: localizedPayload.intro, keywords: localizedPayload.keywords,
-    howTo: localizedPayload.howTo, features: localizedPayload.features, altText: localizedPayload.altText,
-    languageTag: LOCALE_METADATA[locale].languageTag,
-    direction: LOCALE_METADATA[locale].direction,
-    alternates: LOCALES.map((alternateLocale) => ({
-      locale: alternateLocale,
-      languageTag: LOCALE_METADATA[alternateLocale].languageTag,
-      url: getLocalizedToolUrl(alternateLocale, tool.id),
-    })),
-    structuredData: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'SoftwareApplication',
-          name: title,
-          description,
-          url,
-          inLanguage: LOCALE_METADATA[locale].languageTag,
-          applicationCategory: 'MultimediaApplication',
-          operatingSystem: 'Any',
-          keywords: localizedPayload.keywords.join(', '),
-        },
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'FLIXO', item: `${SITE_ORIGIN}/${locale}` },
-            { '@type': 'ListItem', position: 2, name: localizedCategory },
-            { '@type': 'ListItem', position: 3, name: title, item: getLocalizedToolUrl(locale, tool.id) },
-          ],
-        },
-      ],
-    },
-  } as const;
+  const localizedDescription = locale === 'en' ? tool.description : localizeMsUkDescription(locale, localizedTitle) ?? localizeToolDescription(locale, localizedTitle, category);
+  const title = `${localizedTitle} | FLIXO`; const description = localizedDescription; const fallback = FALLBACK_COPY[locale]; if (!fallback) throw new Error(`Missing locale SEO fallback copy: ${locale}`);
+  const localizedPayload = { title, description, intro: description, keywords: [localizedTitle, 'FLIXO', label], howTo: [fallback.open, fallback.configure, fallback.run, fallback.download], features: [fallback.browser], altText: [`${localizedTitle} ${fallback.interface}`] } as const;
+  return { locale, tool, url, xDefaultUrl, title, description, intro: localizedPayload.intro, keywords: localizedPayload.keywords, howTo: localizedPayload.howTo, features: localizedPayload.features, altText: localizedPayload.altText, languageTag: LOCALE_METADATA[locale].languageTag, direction: LOCALE_METADATA[locale].direction, alternates: LOCALES.map((alternateLocale) => ({ locale: alternateLocale, languageTag: LOCALE_METADATA[alternateLocale].languageTag, url: getLocalizedToolUrl(alternateLocale, tool.id) })), structuredData: { '@context': 'https://schema.org', '@graph': [{ '@type': 'SoftwareApplication', name: title, description, url, inLanguage: LOCALE_METADATA[locale].languageTag, applicationCategory: 'MultimediaApplication', operatingSystem: 'Any', keywords: localizedPayload.keywords.join(', ') }, { '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'FLIXO', item: `${SITE_ORIGIN}/${locale}` }, { '@type': 'ListItem', position: 2, name: localizedCategory }, { '@type': 'ListItem', position: 3, name: title, item: getLocalizedToolUrl(locale, tool.id) }] }] } } as const;
 }
-
-export function getReadyToolsForSeo(): readonly ToolConfig[] {
-  return getReadyToolConfigs();
-}
+export function getReadyToolsForSeo(): readonly ToolConfig[] { return getReadyToolConfigs(); }
