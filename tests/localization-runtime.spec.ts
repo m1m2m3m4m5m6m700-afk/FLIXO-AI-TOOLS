@@ -44,7 +44,15 @@ for (const pathname of batchedRoutes) {
     expect(response?.status(),`${pathname} must return HTTP 200`).toBe(200);
     await page.waitForLoadState('networkidle').catch(() => undefined);
 
-    const diagnostics = async () => page.evaluate(() => ({ url:location.href, htmlLang:document.documentElement.getAttribute('lang'), htmlDir:document.documentElement.getAttribute('dir'), mainLang:document.querySelector('main')?.getAttribute('lang') ?? null, mainDir:document.querySelector('main')?.getAttribute('dir') ?? null, rootOuterHTML:document.documentElement.outerHTML.slice(0,2000), scripts:[...document.scripts].map((script) => script.src || '<inline>').slice(-20), trace:(window as Window & { __g4LocaleTrace?: unknown[] }).__g4LocaleTrace ?? [] }));
+    // Keep diagnostics lightweight and protocol-based. A large page.evaluate() snapshot can
+    // itself hang on problematic /seed pages and mask the actual G4 assertion failure.
+    const diagnostics = async () => ({
+      url: page.url(),
+      htmlLang: await page.locator('html').getAttribute('lang', { timeout: 2_000 }).catch(() => null),
+      htmlDir: await page.locator('html').getAttribute('dir', { timeout: 2_000 }).catch(() => null),
+      mainLang: await page.locator('main').first().getAttribute('lang', { timeout: 2_000 }).catch(() => null),
+      mainDir: await page.locator('main').first().getAttribute('dir', { timeout: 2_000 }).catch(() => null),
+    });
 
     let localeStable = false;
     let lastDiagnostics: Awaited<ReturnType<typeof diagnostics>> | null = null;
