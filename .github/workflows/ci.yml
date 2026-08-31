@@ -30,6 +30,10 @@ jobs:
     name: G4 Universal Localization & SEO (fail-fast)
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        batch: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -86,12 +90,14 @@ jobs:
           done
           cat /tmp/g4-server.log || true
           exit 1
-      - name: G4 all-public-route runtime — 20 locales — parallel
+      - name: G4 all-public-route runtime — 20 locales — parallel batch
         env:
           S4_EXTERNAL_SERVER: 'true'
           PLAYWRIGHT_SERVER: preview
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --workers=8 --retries=0 --max-failures=1
+          G4_BATCH: ${{ matrix.batch }}
+          G4_BATCH_COUNT: '10'
+        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --workers=8 --retries=0 --max-failures=10
       - name: Cleanup
         if: always()
         shell: bash
@@ -102,7 +108,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: g4-localization-seo-evidence-${{ github.sha }}
+          name: g4-localization-seo-evidence-${{ github.sha }}-batch-${{ matrix.batch }}
           path: |
             playwright-report/
             test-results/
