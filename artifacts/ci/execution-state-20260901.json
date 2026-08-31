@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "contractVersion": "MASTER AUTONOMOUS RECOVERY & EXECUTION CONTRACT v5",
+  "state": "RECOVERING",
+  "recordedAt": "2026-09-01T01:55:00+03:00",
+  "currentPhase": "G4 runtime locale recovery + matrix-first CI",
+  "currentHead": "57dd08d78fd1a507a46bbb293a83d661bfcebbaa",
+  "mainHead": "03907ad76550b1110daec97d7035c6f0b1d2ccbc",
+  "activeRootCauses": [
+    {
+      "id": "RC-G4-RUNTIME-LOCALE-001",
+      "classification": "RUNTIME_EXCEPTION",
+      "status": "REPAIR_STAGED",
+      "description": "Localized tool pages can observe html[lang]=\"\" during G4 browser verification; root route lacked route-aware document locale synchronization."
+    },
+    {
+      "id": "RC-CI-MATRIX-ORDER-001",
+      "classification": "INFRASTRUCTURE_ERROR",
+      "status": "OPEN",
+      "description": "Matrix First exists as a separate workflow and is not yet an upstream dependency of the existing CI workflow."
+    },
+    {
+      "id": "RC-INFRA-VERCEL-RATE-LIMIT-001",
+      "classification": "INFRASTRUCTURE_ERROR",
+      "status": "OPEN_EXTERNAL",
+      "description": "Vercel preview deployments are rate-limited; this is not release PASS evidence."
+    }
+  ],
+  "verifiedSignals": {
+    "matrixIsolation": "PROVEN",
+    "matrixIndependentUnitFailure": "PROVEN",
+    "maxFailuresOne": "PROVEN",
+    "g3FoundationLatest": "PASS",
+    "g3ContractsLatest": "PASS",
+    "g3BrowserLatest": "PASS"
+  },
+  "invalidatedEvidence": [
+    "pre-root-locale-fix G4 matrix browser failures remain FAIL evidence only",
+    "dirty PR #555 accumulated diff",
+    "PR #553 and #554 closed non-final attempts"
+  ],
+  "nextRequiredAction": "Verify clean PR root-locale fix, rerun Matrix First on exact SHA, then bind the official CI orchestration behind the Matrix certification gate and reverify all affected contracts."
+}
