@@ -1,6 +1,4 @@
 import { expect, type Page } from '@playwright/test';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
 
 export type UploadFixture = {
   name: string;
@@ -27,16 +25,17 @@ export async function uploadFixture(
   await expect(input).toBeAttached();
   await expect(input).toBeEnabled();
 
-  const fixtureDir = path.join(process.cwd(), 'test-results', 'g3-upload-fixtures');
-  await fs.mkdir(fixtureDir, { recursive: true });
-  const filePaths = await Promise.all(fixtures.map(async (item) => {
-    const filePath = path.join(fixtureDir, item.name);
-    await fs.writeFile(filePath, item.content);
-    return filePath;
-  }));
+  // G3 Upload Adapter boundary: keep Playwright file injection in one helper.
+  // Use in-memory payloads so browser tests do not depend on a transient filesystem
+  // path or a second I/O boundary between the fixture and the <input type=file>.
+  await input.setInputFiles(
+    fixtures.map((item) => ({
+      name: item.name,
+      mimeType: item.mimeType,
+      buffer: Buffer.isBuffer(item.content) ? item.content : Buffer.from(item.content),
+    })),
+  );
 
-  // G3 Upload Adapter boundary: implementation details stay here.
-  await input.setInputFiles(filePaths);
   await expect.poll(async () => input.evaluate((element) => element.files?.length ?? 0)).toBe(fixtures.length);
-  await expect.poll(async () => input.evaluate((element) => element.files ? Array.from(element.files).map(file => file.name) : [])).toEqual(fixtures.map(item => item.name));
+  await expect.poll(async () => input.evaluate((element) => element.files ? Array.from(element.files).map((file) => file.name) : [])).toEqual(fixtures.map((item) => item.name));
 }
