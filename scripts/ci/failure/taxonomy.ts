@@ -49,6 +49,7 @@ const patterns: Array<{ re: RegExp; classification: FailureClass; rootCauseId: s
   { re: /english|fallback|leakage/i, classification: 'ENGLISH_UI_LEAKAGE', rootCauseId: 'RC-G4-I18N-001', confidence: 'HIGH' },
   { re: /duplicate .*main|duplicate landmark/i, classification: 'A11Y_DUPLICATE_LANDMARK', rootCauseId: 'RC-G4-A11Y-001', confidence: 'HIGH' },
   { re: /accessible name|unnamed/i, classification: 'A11Y_MISSING_NAME', rootCauseId: 'RC-G4-A11Y-002', confidence: 'HIGH' },
+  { re: /TimeoutError.*locator\.setInputFiles|locator\.setInputFiles.*Timeout/i, classification: 'RUNTIME_EXCEPTION', rootCauseId: 'RC-G3-RUNTIME-001', confidence: 'HIGH' },
   { re: /console|uncaught|exception/i, classification: 'RUNTIME_EXCEPTION', rootCauseId: 'RC-G4-RUNTIME-001', confidence: 'MEDIUM' },
   { re: /network|request failed|ECONN/i, classification: 'NETWORK_ERROR', rootCauseId: 'RC-INFRA-002', confidence: 'MEDIUM' },
   { re: /signature|magic bytes|mime/i, classification: 'FILE_SIGNATURE_ERROR', rootCauseId: 'RC-G2-SIGNATURE-001', confidence: 'HIGH' },
