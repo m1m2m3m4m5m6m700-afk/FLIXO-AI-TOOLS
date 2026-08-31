@@ -31,22 +31,38 @@ const flags = {
   tools: [...new Set(files.map((file) => file.match(/^src\/tools\/([^/]+)/)?.[1]).filter(Boolean))],
 };
 
-const fastOnly = files.length > 0 && files.every((file) => /^(docs\/|README|CHANGELOG|LICENSE|\.github\/ISSUE_TEMPLATE\/)/i.test(file));
-const fullImpact = flags.workflow || flags.dependency || flags.registry || flags.routing || flags.localization || flags.seo || flags.security || flags.artifact;
-const mode = fastOnly ? 'FAST' : fullImpact ? 'TARGETED' : 'TARGETED';
+const sourceFiles = files.filter((file) => /\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file));
+const typedSourceFiles = files.filter((file) => /\.(?:ts|tsx)$/.test(file));
+const testFiles = files.filter((file) => /^(?:tests|test)\/.*\.(?:ts|tsx|js|mjs|cjs)$/.test(file));
+const docsOnly = files.length > 0 && files.every((file) => /^(docs\/|README|CHANGELOG|LICENSE|\.github\/ISSUE_TEMPLATE\/)/i.test(file));
 
 const commands = [];
 const add = (id, command, args, reason) => commands.push({ id, command, args, reason });
 
-add('typecheck', 'npm', ['run', 'typecheck'], 'always');
-add('lint', 'npm', ['run', 'lint'], 'always');
-add('tool-registry', 'npm', ['run', 'validate:tool-registry'], 'always');
-add('tool-manifest', 'npm', ['run', 'validate:tool-manifest'], 'always');
-add('router-registry', 'npm', ['run', 'validate:router-registry'], 'always');
-add('ci-contract', 'npm', ['run', 'validate:ci-contract'], 'always');
+// Minimal invariant for every PR/main execution.
+add('ci-contract', 'npm', ['run', 'validate:ci-contract'], 'CI contract invariant');
 
-if (flags.registry) add('baseline', 'npm', ['run', 'validate:baseline'], 'registry impact');
-if (flags.routing) add('route-resolver', 'npm', ['run', 'test:route-resolver'], 'routing impact');
+// Typecheck only when typed source or dependency/toolchain inputs can affect types.
+if (typedSourceFiles.length > 0 || flags.dependency) {
+  add('typecheck', 'npm', ['run', 'typecheck'], 'typed/dependency impact');
+}
+
+// Fast lint is limited to changed source files rather than the entire repository.
+if (sourceFiles.length > 0) {
+  add('lint-changed', 'npx', ['eslint', '--no-warn-ignored', ...sourceFiles], 'changed files only');
+}
+
+if (flags.registry) {
+  add('tool-registry', 'npm', ['run', 'validate:tool-registry'], 'registry impact');
+  add('tool-manifest', 'npm', ['run', 'validate:tool-manifest'], 'registry manifest impact');
+  add('baseline', 'npm', ['run', 'validate:baseline'], 'registry impact');
+}
+
+if (flags.routing) {
+  add('router-registry', 'npm', ['run', 'validate:router-registry'], 'routing impact');
+  add('route-resolver', 'npm', ['run', 'test:route-resolver'], 'routing impact');
+}
+
 if (flags.localization) {
   add('i18n-strict', 'npm', ['run', 'verify:i18n', '--', '--strict', '--report'], 'localization impact');
   add('locale-integrity', 'npm', ['run', 'validate:locale-integrity'], 'localization impact');
@@ -54,6 +70,7 @@ if (flags.localization) {
   add('home-i18n', 'npm', ['run', 'validate:home-i18n'], 'localization impact');
   add('tool-localization', 'npm', ['run', 'test:tool-localization'], 'localization impact');
 }
+
 if (flags.seo) {
   add('seo', 'npm', ['run', 'validate:seo'], 'SEO impact');
   add('seo-manifest', 'npm', ['run', 'validate:seo-manifest'], 'SEO impact');
@@ -61,7 +78,11 @@ if (flags.seo) {
   add('indexing', 'npm', ['run', 'validate:indexing'], 'SEO/indexing impact');
   add('breadcrumb-seo', 'npm', ['run', 'validate:breadcrumb-seo'], 'SEO impact');
 }
-if (flags.security) add('upload-boundary', 'npm', ['run', 'test:upload-boundary'], 'security/upload impact');
+
+if (flags.security) {
+  add('upload-boundary', 'npm', ['run', 'test:upload-boundary'], 'security/upload impact');
+}
+
 if (flags.artifact) {
   add('file-safety', 'node', ['--experimental-strip-types', 'scripts/test-file-safety.mjs'], 'artifact/file safety impact');
   add('output-integrity', 'node', ['--experimental-strip-types', 'scripts/test-output-integrity.mjs'], 'artifact impact');
@@ -74,15 +95,25 @@ for (const tool of flags.tools) {
   if (existsSync(candidate)) toolTestCandidates.push(candidate);
 }
 
-const browserInstall = toolTestCandidates.length
-  ? { id: 'playwright-install', command: 'npx', args: ['playwright', 'install', 'chromium'], reason: 'affected browser checks' }
-  : null;
-
-const affectedE2E = toolTestCandidates.length
-  ? { id: 'affected-e2e', command: 'npx', args: ['playwright', 'test', ...toolTestCandidates, '--project=chromium', '--workers=2', '--retries=0'], reason: 'changed tool surfaces' }
-  : null;
+if (toolTestCandidates.length) {
+  add('playwright-install', 'npx', ['playwright', 'install', 'chromium'], 'affected browser checks');
+  add('affected-e2e', 'npx', ['playwright', 'test', ...toolTestCandidates, '--project=chromium', '--workers=2', '--retries=0'], 'changed tool surfaces');
+}
 
 const needBuild = flags.workflow || flags.dependency || flags.registry || flags.routing || flags.localization || flags.seo;
+const sensitiveChange = flags.workflow || flags.dependency || files.some((file) => file.startsWith('src/lib/contracts/'));
+if (needBuild) add('build', 'npm', ['run', 'build'], 'affected application/build graph');
+
+if (testFiles.length === 1 && !sensitiveChange && !sourceFiles.includes(testFiles[0])) {
+  add('changed-test', 'node', ['--experimental-strip-types', testFiles[0]], 'single changed test');
+}
+
+if (docsOnly) {
+  commands.splice(0, commands.length);
+  add('ci-contract', 'npm', ['run', 'validate:ci-contract'], 'CI contract invariant');
+}
+
+const mode = sensitiveChange ? 'DEEP-ESCALATED' : docsOnly ? 'FAST-MINIMAL' : 'FAST-TARGETED';
 const results = [];
 const start = Date.now();
 
@@ -107,31 +138,29 @@ async function runOne(item) {
 }
 
 mkdirSync('diagnostics', { recursive: true });
-writeFileSync('diagnostics/fast-ci-plan.json', `${JSON.stringify({ schema_version: 1, sha, base, mode, files, flags, commands: commands.map(({ id, reason }) => ({ id, reason })), needBuild }, null, 2)}\n`);
+const plan = {
+  schema_version: 2,
+  sha,
+  base,
+  mode,
+  files,
+  flags,
+  sourceFiles,
+  typedSourceFiles,
+  testFiles,
+  commands: commands.map(({ id, reason }) => ({ id, reason })),
+  needBuild,
+  sensitiveChange,
+};
+writeFileSync('diagnostics/fast-ci-plan.json', `${JSON.stringify(plan, null, 2)}\n`);
 
-console.log(JSON.stringify({ mode, sha, files, flags, commands: commands.map(({ id, reason }) => ({ id, reason })), needBuild }, null, 2));
+console.log(JSON.stringify(plan, null, 2));
 
 const staticResults = await Promise.all(commands.map(runOne));
 if (staticResults.some((value) => !value)) process.exit(1);
 
-if (browserInstall) {
-  const browserOk = await runOne(browserInstall);
-  if (!browserOk) process.exit(1);
-}
-
-if (affectedE2E) {
-  const e2eOk = await runOne(affectedE2E);
-  if (!e2eOk) process.exit(1);
-}
-
-if (needBuild) {
-  const buildItem = { id: 'build', command: 'npm', args: ['run', 'build'], reason: 'affected application graph' };
-  const buildOk = await runOne(buildItem);
-  if (!buildOk) process.exit(1);
-}
-
 const summary = {
-  schema_version: 1,
+  schema_version: 2,
   sha,
   base,
   mode,
