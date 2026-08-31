@@ -1,60 +1,31 @@
 # FLIXO CI Rebuild Execution Log
 
-CURRENT PHASE: CI-2 — Contract Registry
+CURRENT PHASE: CI-3 — Execution Engine
 
-PHASE STATUS: COMPLETE
+PHASE STATUS: VERIFYING
 
-CURRENT PR: #530 — ci: harden contract registry and deterministic snapshots
+CURRENT PR: pending CI-3 PR
 
-VERIFIED SHA: 31a8a7abab6d5f75a982c6830cff640791b74521
-FINAL PHASE EVIDENCE SHA: 69d4de554db182c849bb852331273872ab86baae
+BASE: 128b638f7bd1f87a03b95fa4ab6c4dac83300d74 (CI-2 COMPLETE)
 
-BASE: d737bbf1a38b8f0aa1e63430c83d2fd8bd551cff (CI-1 COMPLETE)
+IMPLEMENTATION:
+- explicit dependency graph: COMPLETE
+- DAG validation/cycle detection: COMPLETE
+- topological scheduling: COMPLETE
+- dependency closure: COMPLETE
+- BLOCKED propagation: COMPLETE
+- deterministic execution plan: COMPLETE
+- plan hashing: COMPLETE
+- execution-plan self-reproducibility: COMPLETE
+- shadow workflow: COMPLETE
 
-SAFETY LOCKS:
+SAFETY:
 - main modified: NO
 - branch protection modified: NO
 - required checks modified: NO
-- production deployment configuration modified: NO
-- DNS/secrets modified: NO
+- production configuration modified: NO
 - legacy workflows deleted: NO
 - legacy workflow behavior modified: NO
 
-CI-2 IMPLEMENTATION:
-- Contract registry invariant validator: PASS
-- Immutable ID/version validation: PASS
-- Dependency reference validation: PASS
-- Cycle detection: PASS
-- Registry self-test: PASS
-- Deterministic snapshot compiler: PASS
-- Contract hash evidence: PASS
-- Determinism recompile proof: PASS
-- Shadow workflow: PASS
-
-CI-2 VERIFICATION:
-- TypeScript: PASS
-- Registry invariants: PASS
-- Registry self-test: PASS
-- Snapshot compilation: PASS
-- Snapshot hash stability: PASS
-- Evidence upload: PASS
-
-LEGACY STATUS:
-- Legacy CI remains authoritative.
-- No legacy evaluator or workflow was removed.
-- Known Vercel infrastructure rate limit remains external and unsuppressed.
-
-PHASE EXIT:
-- Implementation: PASS
-- Contract: PASS
-- Tests: PASS
-- Regression: PASS
-- Evidence: PASS
-- CI: PASS
-- Acceptance Criteria: PASS
-- Unresolved Critical: 0
-
-NEXT PHASE ALLOWED: YES
-
 NEXT REQUIRED ACTION:
-CI-3 — Dependency graph + execution engine foundation, including explicit DAG validation, topological scheduling, BLOCKED propagation, and deterministic execution-plan generation.
+Run CI-3 shadow workflow and prove graph/planner semantics. CI-4 remains forbidden until CI-3 exit gate is PASS.
