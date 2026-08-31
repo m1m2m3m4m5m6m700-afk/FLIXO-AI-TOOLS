@@ -12,5 +12,5 @@
   "matrixIsolation": "PROVEN",
   "matrixIndependentFailure": "PROVEN",
   "matrixFirstOrder": "PENDING_IN_CI_ORCHESTRATOR",
-  "nextRequiredAction": "Verify clean PR exact SHA, repair any deterministic failures, then bind official CI behind Matrix certification."
+  "nextRequiredAction": "Verify clean PR exact SHA, repair deterministic failures, then bind official CI behind Matrix certification."
 }
