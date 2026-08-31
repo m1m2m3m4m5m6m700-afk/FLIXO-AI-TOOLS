@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useLayoutEffect, type ReactNode } from 'react';
 import type { Locale } from '@/lib/i18n';
 import { LOCALE_METADATA } from '@/lib/i18n';
 import { getLocalizedToolTitle } from '@/lib/seo/tool-seo';
@@ -11,7 +11,7 @@ const P: Record<string, LocaleMap> = {
   'Choose images to start': { ar: 'اختر الصور للبدء', es: 'Elige imágenes para comenzar', fr: 'Choisissez des images pour commencer', de: 'Bilder zum Start auswählen', ru: 'Выберите изображения для начала', zh: '选择图像开始', hi: 'शुरू करने के लिए छवियाँ चुनें', id: 'Pilih gambar untuk memulai', ur: 'شروع کرنے کے لیے تصاویر منتخب کریں', ja: '開始する画像を選択', pt: 'Escolha imagens para iniciar', it: 'Scegli immagini per iniziare', ko: '시작할 이미지 선택', nl: 'Kies afbeeldingen om te beginnen', pl: 'Wybierz obrazy, aby rozpocząć', tr: 'Başlamak için görselleri seçin', vi: 'Chọn hình ảnh để bắt đầu', th: 'เลือกภาพเพื่อเริ่มต้น', sv: 'Välj bilder för att börja' },
   'Choose audio': { ar: 'اختر ملفًا صوتيًا', es: 'Elige audio', fr: 'Choisissez un fichier audio', de: 'Audio auswählen', ru: 'Выберите аудио', zh: '选择音频', hi: 'ऑडियो चुनें', id: 'Pilih audio', ur: 'آڈیو منتخب کریں', ja: '音声を選択', pt: 'Escolha um áudio', it: 'Scegli audio', ko: '오디오 선택', nl: 'Kies audio', pl: 'Wybierz audio', tr: 'Ses seçin', vi: 'Chọn âm thanh', th: 'เลือกเสียง', sv: 'Välj ljud' },
   Upload: { ar: 'رفع', es: 'Subir', fr: 'Importer', de: 'Hochladen', ru: 'Загрузить', zh: '上传', hi: 'अपलोड', id: 'Unggah', ur: 'اپ لوڈ', ja: 'アップロード', pt: 'Enviar', it: 'Carica', ko: '업로드', nl: 'Uploaden', pl: 'Prześlij', tr: 'Yükle', vi: 'Tải lên', th: 'อัปโหลด', sv: 'Ladda upp' },
-  Download: { ar: 'تنزيل', es: 'Descargar', fr: 'Télécharger', de: 'Herunterladen', ru: 'Скачать', zh: '下载', hi: 'डाउनलोड', id: 'Unduh', ur: 'ڈاؤن لوڈ', ja: 'ダウンロード', pt: 'Baixar', it: 'Scarica', ko: '다운로드', nl: 'Downloaden', pl: 'Pobierz', tr: 'İndir', vi: 'Tải xuống', th: 'ดาวน์โหลด', sv: 'Ladda ner' },
+  Download: { ar: 'تنزيل', es: 'Descargar', fr: 'Télécharger', de: 'Herunterladen', ru: 'Скачать', zh: '下载', hi: 'डाउनलोड', id: 'Unduh', ur: 'ڈاؤن لوڈ', ja: 'ダウンロード', pt: 'Baixar', it: 'Scarica', ko: '다운로드', nl: 'Downloaden', pl: 'Pobierz', tr: 'İndir', vi: 'Tải xuống', th: 'ดาวน์โหลด', sv: 'Ladda upp' },
   'Download now': { ar: 'تنزيل الآن', es: 'Descargar ahora', fr: 'Télécharger maintenant', de: 'Jetzt herunterladen', ru: 'Скачать сейчас', zh: '立即下载', hi: 'अभी डाउनलोड करें', id: 'Unduh sekarang', ur: 'اب ڈاؤن لوڈ کریں', ja: '今すぐダウンロード', pt: 'Baixar agora', it: 'Scarica ora', ko: '지금 다운로드', nl: 'Nu downloaden', pl: 'Pobierz teraz', tr: 'Şimdi indir', vi: 'Tải xuống ngay', th: 'ดาวน์โหลดตอนนี้', sv: 'Ladda ner nu' },
   'Download compressed WAV': { ar: 'تنزيل WAV المضغوط', es: 'Descargar WAV comprimido', fr: 'Télécharger le WAV compressé', de: 'Komprimiertes WAV herunterladen', ru: 'Скачать сжатый WAV', zh: '下载压缩 WAV', hi: 'संपीड़ित WAV डाउनलोड करें', id: 'Unduh WAV terkompresi', ur: 'کمپریس شدہ WAV ڈاؤن لوڈ کریں', ja: '圧縮 WAV をダウンロード', pt: 'Baixar WAV compactado', it: 'Scarica WAV compresso', ko: '압축 WAV 다운로드', nl: 'Gecomprimeerde WAV downloaden', pl: 'Pobierz skompresowany WAV', tr: 'Sıkıştırılmış WAV indir', vi: 'Tải WAV nén xuống', th: 'ดาวน์โหลด WAV ที่บีบอัด', sv: 'Ladda ner komprimerad WAV' },
   'Run tool': { ar: 'تشغيل الأداة', es: 'Ejecutar herramienta', fr: 'Exécuter l’outil', de: 'Werkzeug ausführen', ru: 'Запустить инструмент', zh: '运行工具', hi: 'टूल चलाएँ', id: 'Jalankan alat', ur: 'ٹول چلائیں', ja: 'ツールを実行', pt: 'Executar ferramenta', it: 'Esegui strumento', ko: '도구 실행', nl: 'Tool uitvoeren', pl: 'Uruchom narzędzie', tr: 'Aracı çalıştır', vi: 'Chạy công cụ', th: 'เรียกใช้เครื่องมือ', sv: 'Kör verktyg' },
@@ -36,10 +36,10 @@ const P: Record<string, LocaleMap> = {
 };
 
 const PREFIXES: Array<[string, LocaleMap]> = [
-  ['Download ', { ar: 'تنزيل ', es: 'Descargar ', fr: 'Télécharger ', de: 'Herunterladen ', ru: 'Скачать ', zh: '下载 ', hi: 'डाउनलोड ', id: 'Unduh ', ur: 'ڈاؤن لوڈ ', ja: 'ダウンロード ', pt: 'Baixar ', it: 'Scarica ', ko: '다운로드 ', nl: 'Downloaden ', pl: 'Pobierz ', tr: 'İndir ', vi: 'Tải xuống ', th: 'ดาวน์โหลด ', sv: 'Ladda ner ' }],
+  ['Download ', { ar: 'تنزيل ', es: 'Descargar ', fr: 'Télécharger ', de: 'Herunterladen ', ru: 'Скачать ', zh: '下载 ', hi: 'डाउनلود ', id: 'Unduh ', ur: 'ڈاؤن لوڈ ', ja: 'ダウンロード ', pt: 'Baixar ', it: 'Scarica ', ko: '다운로드 ', nl: 'Downloaden ', pl: 'Pobierz ', tr: 'İndir ', vi: 'Tải xuống ', th: 'ดาวน์โหลด ', sv: 'Ladda ner ' }],
   ['Input: ', { ar: 'الإدخال: ', es: 'Entrada: ', fr: 'Entrée : ', de: 'Eingabe: ', ru: 'Вход: ', zh: '输入：', hi: 'इनपुट: ', id: 'Input: ', ur: 'ان پٹ: ', ja: '入力: ', pt: 'Entrada: ', it: 'Input: ', ko: '입력: ', nl: 'Invoer: ', pl: 'Wejście: ', tr: 'Girdi: ', vi: 'Đầu vào: ', th: 'อินพุต: ', sv: 'Indata: ' }],
   ['Output: ', { ar: 'الإخراج: ', es: 'Salida: ', fr: 'Sortie : ', de: 'Ausgabe: ', ru: 'Результат: ', zh: '输出：', hi: 'आउटपुट: ', id: 'Keluaran: ', ur: 'آؤٹ پٹ: ', ja: '出力: ', pt: 'Saída: ', it: 'Output: ', ko: '출력: ', nl: 'Uitvoer: ', pl: 'Wyjście: ', tr: 'Çıktı: ', vi: 'Đầu ra: ', th: 'เอาต์พุต: ', sv: 'Utdata: ' }],
-  ['Size change: ', { ar: 'تغير الحجم: ', es: 'Cambio de tamaño: ', fr: 'Variation de taille : ', de: 'Größenänderung: ', ru: 'Изменение размера: ', zh: '大小变化：', hi: 'आकार परिवर्तन: ', id: 'Perubahan ukuran: ', ur: 'سائز میں تبدیلی: ', ja: 'サイズ変更: ', pt: 'Alteração de tamanho: ', it: 'Variazione dimensione: ', ko: '크기 변경: ', nl: 'Groottewijziging: ', pl: 'Zmiana rozmiaru: ', tr: 'Boyut değişimi: ', vi: 'Thay đổi kích thước: ', th: 'การเปลี่ยนขนาด: ', sv: 'Storleksändring: ' }],
+  ['Size change: ', { ar: 'تغير الحجم: ', es: 'Cambio de tamaño: ', fr: 'Variation de taille : ', de: 'Größenänderung: ', ru: 'Изменение размера: ', zh: '大小变化：', hi: 'आकार परिवर्तन: ', id: 'Perubahan ukuran: ', ur: 'سائز میں تبدیلی: ', ja: 'サイズ変更: ', pt: 'Alteração de tamanho: ', it: 'Variazione dimensione: ', ko: '크기 변경: ', nl: 'Groottewijziging: ', pl: 'Zmiana rozmiaru: ', tr: 'Boyut değişimi: ', vi: 'Thay đổi kích thước: ', th: 'การเปลี่ยนแปลงขนาด: ', sv: 'Storleksändring: ' }],
 ];
 
 function excluded(node: Text): boolean {
@@ -102,11 +102,19 @@ function localize(root: HTMLElement, locale: Locale, toolId: string) {
 }
 
 export function AutoLocalizedToolSurface({ locale, toolId, children }: Props) {
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const metadata = LOCALE_METADATA[locale];
+    document.documentElement.lang = metadata.languageTag;
+    document.documentElement.dir = metadata.direction;
+
     const root = document.querySelector<HTMLElement>('.tool-page-modern');
     if (!root) return;
-    root.lang = LOCALE_METADATA[locale].languageTag;
-    root.dir = LOCALE_METADATA[locale].direction;
+    root.lang = metadata.languageTag;
+    root.dir = metadata.direction;
+    root.querySelectorAll<HTMLElement>('main').forEach((localizedMain) => {
+      localizedMain.lang = metadata.languageTag;
+      localizedMain.dir = metadata.direction;
+    });
     localize(root, locale, toolId);
     const observer = new MutationObserver(() => localize(root, locale, toolId));
     observer.observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['aria-label', 'title', 'placeholder'] });
