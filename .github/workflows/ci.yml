@@ -191,10 +191,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      SITE_URL: https://canonical.test
+      SITE_URL: https://flixoai.vercel.app
       TEST_ORIGIN: http://127.0.0.1:3000
       RUNTIME_ORIGIN: http://127.0.0.1:3000
-      VITE_SITE_URL: https://canonical.test
+      VITE_SITE_URL: https://flixoai.vercel.app
       VITE_TEST_ORIGIN: http://127.0.0.1:3000
       VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
       NODE_ENV: test
