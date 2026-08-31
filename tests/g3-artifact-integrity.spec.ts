@@ -86,9 +86,22 @@ test('G3-54..85 batch flow: upload → process → download → validate ZIP', a
   const saved = await readDownload(page, downloadLink, 'flixo-compressed-images.zip');
   expect(saved.bytes).toEqual(artifact.bytes);
 
+  const contract = getToolOutputContract('image-compressor');
+  expect(contract).toBeDefined();
+  const zipVariant = contract!.variants.find((variant) => variant.outputMimeTypes.includes('application/zip'));
+  expect(zipVariant).toBeDefined();
   const result = validateOutputIntegrity(
     artifact.size, artifact.mime,
-    { toolId: 'image-compressor-batch', allowedMime: ['application/zip'], allowedExtensions: ['zip'], maxBytes: 25 * 1024 * 1024, minBytes: 1, signatures: ['504b0304'], requireArtifact: true, requireSafeFilename: true },
+    {
+      toolId: 'image-compressor',
+      allowedMime: ['application/zip'],
+      allowedExtensions: ['zip'],
+      maxBytes: zipVariant!.maxOutputBytes,
+      minBytes: zipVariant!.minOutputBytes,
+      signatures: [{ hex: '504b0304' }],
+      requireArtifact: true,
+      requireSafeFilename: true,
+    },
     undefined,
     { filename: filename!, bytes: Uint8Array.from(saved.bytes) },
   );
