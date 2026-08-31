@@ -24,5 +24,12 @@ export function ArabicImageCompressorPage() {
     };
   }, []);
 
-  return <ImageCompressor locale="ar" />;
+  return (
+    <>
+      <nav aria-label="التنقل بين اللغات">
+        <a lang="en" href="/en/image-compressor">English</a>
+      </nav>
+      <ImageCompressor locale="ar" />
+    </>
+  );
 }
