@@ -32,6 +32,7 @@ jobs:
     timeout-minutes: 5
     env:
       CI_PR_RESCUE: 'true'
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -59,6 +60,8 @@ jobs:
     needs: [ci]
     if: ${{ always() }}
     runs-on: ubuntu-latest
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     timeout-minutes: 1
     steps:
       - name: Download CI evidence
@@ -72,7 +75,7 @@ jobs:
           set -euo pipefail
           test -s diagnostics/fast-ci-plan.json
           test -s diagnostics/fast-ci-result.json
-          node -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/fast-ci-result.json','utf8')); if(r.sha!==process.env.GITHUB_SHA) throw new Error('Evidence SHA mismatch'); if(r.status!=='PASS') throw new Error('Fast CI result is not PASS'); console.log('Fast contract evidence PASS');"
+          node -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/fast-ci-result.json','utf8')); if(r.sha!==process.env.EXPECTED_HEAD_SHA) throw new Error('Evidence SHA mismatch'); if(r.status!=='PASS') throw new Error('Fast CI result is not PASS'); console.log('Fast contract evidence PASS');"
 
   canonical-verify:
     name: Canonical Verification Gate
@@ -119,7 +122,7 @@ jobs:
         run: node scripts/ci/g3/environment.mjs
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          SITE_URL: https://canonical.test
+          SITE_URL: https://flixoai.vercel.app
           TEST_ORIGIN: http://127.0.0.1:3000
           RUNTIME_ORIGIN: http://127.0.0.1:3000
           NODE_ENV: test
