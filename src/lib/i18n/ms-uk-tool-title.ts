@@ -1,7 +1,5 @@
 import type { Locale } from './config';
 
-type Category = 'Images' | 'AI' | 'Other';
-
 type TargetLocale = 'ms' | 'uk';
 
 const TERMS: Record<string, Partial<Record<TargetLocale, string>>> = {
