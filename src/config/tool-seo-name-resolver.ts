@@ -24,8 +24,8 @@ const REVIEWED_TOOL_SEO_OVERRIDES: Partial<Record<Locale, Record<string, string>
     'exif-cleaner': 'Pembersih Metadata EXIF',
     'svg-optimizer': 'Pengoptimum SVG',
     'mockup-generator': 'Penjana Mockup',
-    'seed': 'Alat Seed',
-    'pix': 'Studio Pix',
+    seed: 'Alat Seed',
+    pix: 'Studio Pix',
     'pdf-merger-splitter': 'Penggabung dan Pemisah PDF',
     'pdf-compressor': 'Pemampat PDF',
     'image-to-pdf': 'Penukar Imej kepada PDF',
@@ -72,8 +72,8 @@ const REVIEWED_TOOL_SEO_OVERRIDES: Partial<Record<Locale, Record<string, string>
     'exif-cleaner': 'Очищення метаданих EXIF',
     'svg-optimizer': 'Оптимізатор SVG',
     'mockup-generator': 'Генератор мокапів',
-    'seed': 'Інструмент Seed',
-    'pix': 'Студія Pix',
+    seed: 'Інструмент Seed',
+    pix: 'Студія Pix',
     'pdf-merger-splitter': 'Об’єднання та розділення PDF',
     'pdf-compressor': 'Компресор PDF',
     'image-to-pdf': 'Конвертер зображень у PDF',
@@ -111,5 +111,5 @@ export function getAuthoritativeToolSeoName(tool: ToolConfig, locale: Locale): s
   const legacy = TOOL_SEO_NAMES[tool.id]?.[locale];
   if (typeof legacy === 'string' && legacy.trim()) return legacy;
 
-  return localizeMsUkToolTitle(locale, tool.title, tool.category);
+  return localizeMsUkToolTitle(locale, tool.title);
 }
