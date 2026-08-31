@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
   "phase": "CI-1",
-  "status": "VERIFYING",
+  "status": "COMPLETE",
+  "verifiedSha": "2879529f70a9a2842e1b79e6a61ba80a5b96200d",
   "baseReference": "365190e68591d1943752e6416520095e8b8925ff",
   "safety": {
     "mainModified": false,
@@ -11,22 +12,23 @@
     "legacyWorkflowDeleted": false,
     "legacyWorkflowBehaviorModified": false
   },
-  "implemented": [
-    "typed CI result/status model",
-    "deterministic execution context",
-    "central decision semantics",
-    "initial contract registry",
-    "foundation validator",
-    "foundation unit test",
-    "non-authoritative shadow workflow"
-  ],
   "acceptance": {
-    "typecheck": "PENDING_CI",
-    "foundationValidator": "PENDING_CI",
-    "decisionSemantics": "PENDING_CI",
-    "shadowWorkflow": "PENDING_CI",
+    "typecheck": "PASS",
+    "foundationValidator": "PASS",
+    "decisionSemantics": "PASS",
+    "shadowWorkflow": "PASS",
+    "legacyCiRegression": "PASS",
+    "g1Regression": "PASS",
+    "legacyFastDiagnostics": "PASS",
+    "canonicalVerification": "PASS",
     "legacyBehaviorChanged": "NO"
   },
-  "exitDecision": "PENDING_VERIFICATION",
-  "nextPhaseAllowed": false
+  "externalInfrastructure": {
+    "vercelStatus": "FAILURE",
+    "classification": "INFRASTRUCTURE_ERROR",
+    "impactOnCi1": "NONE",
+    "note": "Vercel reported deployment-rate-limit failure on the PR SHA. It is external to the CI-1 foundation contracts and remains visible; no allowlist or suppression was added."
+  },
+  "exitDecision": "PASS",
+  "nextPhaseAllowed": true
 }
