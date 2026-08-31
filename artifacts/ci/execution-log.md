@@ -1,19 +1,21 @@
 # FLIXO CI Rebuild Execution Log
 
-CURRENT PHASE: CI-5 — Change Impact Analysis
+CURRENT PHASE: CI-6 — Checkpoint Store
 
 PHASE STATUS: VERIFYING
 
-CURRENT PR: pending CI-5 PR
+CURRENT PR: pending CI-6 PR
 
-BASE: 1bc8b7ab8b821ff45c0679239cd95a7ea871d66a (CI-4 COMPLETE)
+BASE: b33e364e01d9c83789fd336b399aad3aed6a10b8 (CI-5 COMPLETE)
 
 IMPLEMENTATION:
-- conservative file impact matcher: COMPLETE
-- affected contract selection: COMPLETE
-- conservative unknown-file escalation: COMPLETE
-- impact decision artifact: COMPLETE
-- impact engine self-tests: COMPLETE
+- cryptographic checkpoint fingerprint: COMPLETE
+- identity validation: COMPLETE
+- checkpoint store: COMPLETE
+- PASS-only safe reuse: COMPLETE
+- invalid checkpoint rejection: COMPLETE
+- invalidation engine: COMPLETE
+- checkpoint self-tests: COMPLETE
 - shadow workflow: COMPLETE
 
 SAFETY:
@@ -25,4 +27,4 @@ SAFETY:
 - legacy workflow behavior modified: NO
 
 NEXT REQUIRED ACTION:
-Run and verify CI-5 shadow workflow. CI-6 remains forbidden until impact analysis passes its exit gate.
+Verify CI-6 shadow workflow. CI-7 remains forbidden until checkpoint reuse/invalidation is proven.
