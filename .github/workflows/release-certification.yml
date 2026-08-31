@@ -26,7 +26,6 @@ jobs:
           set -euo pipefail
           if [[ -z "$SOCKET_SECURITY_API_KEY" ]]; then
             echo 'SOCKET_SECURITY_API_KEY is required for release certification.'
-            echo 'Configure it as a GitHub Actions repository or environment secret before releasing.'
             exit 1
           fi
       - uses: actions/checkout@v5
@@ -42,6 +41,7 @@ jobs:
     name: Engineering Release Gate
     needs: [socket-release]
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - name: Wait for canonical GitHub CI
         env:
@@ -85,19 +85,16 @@ jobs:
           {
             echo '## FLIXO Release Certification'
             echo
-            echo "Engineering gate: PASS"
+            echo 'Engineering gate: PASS'
             echo "Commit: $GITHUB_SHA"
             echo
-            echo 'Required engineering evidence:'
-            echo '- Blocking Socket supply-chain scan: PASS'
+            echo 'Blocking evidence:'
+            echo '- Socket supply-chain scan: PASS'
             echo '- Canonical GitHub CI: PASS'
             echo '- Full Matrix Parallel certification: PASS'
             echo '- Production surface certification: PASS'
-            echo '- Performance and security checks remain owned by repository blocking gates.'
             echo
-            echo 'Deployment provider:'
-            echo '- Vercel: EXTERNAL / NON-BLOCKING'
-            echo '- Provider-side availability/quotas remain separate from engineering correctness.'
+            echo 'Vercel provider-side quota status is recorded separately and never converted into an engineering PASS.'
           } >> "$GITHUB_STEP_SUMMARY"
 
   deployment-provider:
@@ -110,6 +107,5 @@ jobs:
             echo '## External Deployment Provider'
             echo
             echo 'Provider: Vercel'
-            echo 'Classification: external / non-blocking for engineering certification'
-            echo 'The release gate directly validates the canonical production URL; provider-side limits do not fabricate a PASS.'
+            echo 'Classification: external dependency; provider failures remain failures for release freshness.'
           } >> "$GITHUB_STEP_SUMMARY"
