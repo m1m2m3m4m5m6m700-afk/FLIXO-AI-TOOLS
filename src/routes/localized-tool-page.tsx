@@ -1,4 +1,4 @@
-import { Children, cloneElement, createElement, lazy, Suspense, useEffect, useRef, useState, isValidElement, type ComponentType, type ReactNode } from 'react';
+import { Children, cloneElement, createElement, lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, isValidElement, type ComponentType, type ReactNode } from 'react';
 import { useParams } from '@tanstack/react-router';
 import { LOCALES, isLocale, type Locale, LOCALE_METADATA } from '../lib/i18n';
 import { assertToolCategory, getLocalizedToolTitle, getToolSeo } from '../lib/seo/tool-seo';
@@ -39,9 +39,28 @@ export function LocalizedToolPage() {
   const locale = (typeof params.locale === 'string' && isLocale(params.locale) ? params.locale : 'en') as Locale;
   const copy = TOOL_UI_I18N[locale];
   const direction = LOCALE_METADATA[locale].direction;
+  const languageTag = LOCALE_METADATA[locale].languageTag;
   const toolId = typeof params.tool === 'string' && isLocale(locale) && LOCALES.includes(locale) ? params.tool : null;
   const [favorite, setFavorite] = useState(() => (toolId ? getFavorites().includes(toolId) : false));
   const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // G4 runtime contract: enforce the locale on the real document and the page
+  // landmark after every route transition. This is intentionally layout-timed
+  // and has no cleanup that could reset the document back to English during
+  // TanStack Router navigation or React StrictMode remounts.
+  useLayoutEffect(() => {
+    if (typeof document === 'undefined') return;
+    const html = document.documentElement;
+    html.setAttribute('lang', languageTag);
+    html.setAttribute('dir', direction);
+    html.setAttribute('data-flixo-locale', locale);
+
+    const mains = document.querySelectorAll<HTMLElement>('main');
+    mains.forEach((main) => {
+      main.setAttribute('lang', languageTag);
+      main.setAttribute('dir', direction);
+    });
+  }, [locale, languageTag, direction]);
 
   useEffect(() => {
     if (toolId) recordRecentTool(toolId);
