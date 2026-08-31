@@ -198,6 +198,8 @@ jobs:
       VITE_TEST_ORIGIN: http://127.0.0.1:3000
       VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
       NODE_ENV: test
+      PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+      PLAYWRIGHT_REUSE_SERVER: 'true'
     steps:
       - uses: actions/checkout@v5
         with:
