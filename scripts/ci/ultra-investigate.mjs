@@ -15,7 +15,8 @@ function git(args) {
 }
 
 function hash(value) {
-  return createHash('sha256').update(String(value), 'utf8').digest('hex');
+  const input = Buffer.isBuffer(value) ? value : String(value);
+  return createHash('sha256').update(input).digest('hex');
 }
 
 function fileHash(file) {
