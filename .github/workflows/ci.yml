@@ -83,20 +83,48 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
           const path = require('node:path');
+          const root = 'diagnostics';
           const groups = ['core','structure','localization','seo','security','artifact','browser','build'];
-          const failures = [];
-          for (const group of groups) {
-            const dir = path.join('diagnostics', `fast-ci-${group}-${process.env.SHA}`);
-            const resultFile = path.join(dir, 'fast-ci-result.json');
-            const planFile = path.join(dir, 'fast-ci-plan.json');
-            if (!fs.existsSync(resultFile) || !fs.existsSync(planFile)) {
-              failures.push(`${group}: missing evidence`);
-              continue;
+
+          function findFiles(dir, name, out = []) {
+            if (!fs.existsSync(dir)) return out;
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              const full = path.join(dir, entry.name);
+              if (entry.isDirectory()) findFiles(full, name, out);
+              else if (entry.isFile() && entry.name === name) out.push(full);
             }
-            const plan = JSON.parse(fs.readFileSync(planFile, 'utf8'));
-            const result = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
-            if (plan.sha !== process.env.SHA || result.sha !== process.env.SHA) failures.push(`${group}: SHA mismatch`);
-            if (result.status !== 'PASS') failures.push(`${group}: ${result.status}`);
+            return out;
+          }
+
+          const resultFiles = findFiles(root, 'fast-ci-result.json');
+          const planFiles = findFiles(root, 'fast-ci-plan.json');
+          const plansByDir = new Map(planFiles.map((file) => [path.dirname(file), file]));
+          const found = new Map();
+          const failures = [];
+
+          for (const resultFile of resultFiles) {
+            const dir = path.dirname(resultFile);
+            const relativeParts = dir.split(path.sep);
+            const group = groups.find((name) => relativeParts.includes(`fast-ci-${name}-${process.env.SHA}`));
+            if (!group) continue;
+            try {
+              const result = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
+              const planPath = plansByDir.get(dir);
+              if (!planPath) {
+                failures.push(`${group}: missing plan evidence`);
+                continue;
+              }
+              const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
+              if (plan.sha !== process.env.SHA || result.sha !== process.env.SHA) failures.push(`${group}: SHA mismatch`);
+              if (result.status !== 'PASS') failures.push(`${group}: ${result.status}`);
+              found.set(group, true);
+            } catch (error) {
+              failures.push(`${group}: invalid evidence (${error.message})`);
+            }
+          }
+
+          for (const group of groups) {
+            if (!found.has(group)) failures.push(`${group}: missing evidence`);
           }
           if (failures.length) throw new Error(`Fast CI aggregate failed:\n${failures.join('\n')}`);
           console.log('Fast CI aggregate PASS: all 8 diagnostic groups valid.');
@@ -210,8 +238,33 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test -s diagnostics/fast-ci-core-*/fast-ci-result.json
-          node -e "const fs=require('node:fs'); const p=process.cwd() + '/diagnostics'; const dirs=fs.readdirSync(p).filter(d=>d.startsWith('fast-ci-')); if(!dirs.length) throw new Error('No fast group evidence'); for(const d of dirs){const f=p+'/'+d+'/fast-ci-result.json'; if(!fs.existsSync(f)) continue; const r=JSON.parse(fs.readFileSync(f,'utf8')); if(r.sha!==process.env.SHA) throw new Error('Evidence SHA mismatch in '+d); if(r.status!=='PASS') throw new Error('Non-PASS fast evidence in '+d); } console.log('Fast contract evidence PASS');"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = 'diagnostics';
+          const groups = ['core','structure','localization','seo','security','artifact','browser','build'];
+          function findFiles(dir, name, out = []) {
+            if (!fs.existsSync(dir)) return out;
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              const full = path.join(dir, entry.name);
+              if (entry.isDirectory()) findFiles(full, name, out);
+              else if (entry.isFile() && entry.name === name) out.push(full);
+            }
+            return out;
+          }
+          const files = findFiles(root, 'fast-ci-result.json');
+          const found = new Set();
+          for (const file of files) {
+            const result = JSON.parse(fs.readFileSync(file, 'utf8'));
+            const group = groups.find((name) => file.includes(`fast-ci-${name}-${process.env.SHA}`));
+            if (!group) continue;
+            if (result.sha !== process.env.SHA) throw new Error(`Evidence SHA mismatch in ${group}`);
+            if (result.status !== 'PASS') throw new Error(`Non-PASS fast evidence in ${group}`);
+            found.add(group);
+          }
+          for (const group of groups) if (!found.has(group)) throw new Error(`Missing fast evidence in ${group}`);
+          console.log('Fast contract evidence PASS: all 8 diagnostic groups verified.');
+          NODE
 
   canonical-verify:
     name: Canonical Verification Gate
