@@ -75,7 +75,7 @@ jobs:
           set -euo pipefail
           test -s diagnostics/fast-ci-plan.json
           test -s diagnostics/fast-ci-result.json
-          node -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/fast-ci-result.json','utf8')); if(r.sha!==process.env.EXPECTED_HEAD_SHA) throw new Error('Evidence SHA mismatch'); if(r.status!=='PASS') throw new Error('Fast CI result is not PASS'); console.log('Fast contract evidence PASS');"
+          node -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/fast-ci-result.json','utf8')); if(r.sha!==process.env.EXPECTED_HEAD_SHA) throw new Error('Evidence SHA mismatch'); if(r.status!=='PASS') throw new Error('Fast CI result is not PASS'); console.log('Fast CI result PASS');"
 
   canonical-verify:
     name: Canonical Verification Gate
@@ -218,9 +218,28 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: G3-50 Browser Installed
-        if: always()
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          executable="$(node -e "const { chromium } = require('playwright'); process.stdout.write(chromium.executablePath())")"
+          if [[ -x "$executable" ]]; then
+            echo "Playwright Chromium cache hit: $executable"
+            exit 0
+          fi
+          timeout --preserve-status 420s npx playwright install chromium
+      - name: Verify Playwright browser executable
+        run: |
+          set -euo pipefail
+          executable="$(node -e "const { chromium } = require('playwright'); process.stdout.write(chromium.executablePath())")"
+          test -x "$executable"
+          echo "Chromium executable verified: $executable"
       - name: Build runtime
         if: always()
         run: npm run build:runtime
