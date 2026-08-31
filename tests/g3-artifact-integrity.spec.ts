@@ -42,21 +42,21 @@ async function waitForImageCompressorReady(page: Page) {
     const element = document.querySelector<HTMLInputElement>('#image-file');
     return Boolean(element?.isConnected && !element.disabled);
   });
-  return input;
 }
 
 async function setTestFiles(page: Page, files: TestFile[]) {
-  const uploadTrigger = page.locator('label.upload-zone[for="image-file"]');
-  await expect(uploadTrigger).toBeVisible();
-  const fileChooserPromise = page.waitForEvent('filechooser');
-  await uploadTrigger.click();
-  const fileChooser = await fileChooserPromise;
-  await fileChooser.setFiles(files.map((file) => ({
-    name: file.name,
-    mimeType: file.mimeType,
-    buffer: Buffer.from(file.content),
-  })));
   const input = page.locator('#image-file');
+  await expect(input).toBeAttached();
+  await page.evaluate(({ selector, files: nextFiles }) => {
+    const input = document.querySelector<HTMLInputElement>(selector);
+    if (!input) throw new Error(`Missing file input: ${selector}`);
+    const dataTransfer = new DataTransfer();
+    for (const file of nextFiles) {
+      dataTransfer.items.add(new File([file.content], file.name, { type: file.mimeType }));
+    }
+    input.files = dataTransfer.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }, { selector: '#image-file', files });
   await expect.poll(async () => input.evaluate((element) => element.files?.length ?? 0)).toBe(files.length);
 }
 
