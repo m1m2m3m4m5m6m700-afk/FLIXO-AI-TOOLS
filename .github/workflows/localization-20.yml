@@ -21,7 +21,6 @@ on:
       - 'scripts/validate-breadcrumb-seo.mjs'
       - 'scripts/validate-google-multilingual-seo.mjs'
       - 'tests/localization/**'
-      - '.github/workflows/localization-20.yml'
   workflow_dispatch:
 
 concurrency:
