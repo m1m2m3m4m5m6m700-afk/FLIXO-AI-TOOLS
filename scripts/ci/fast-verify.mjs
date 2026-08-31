@@ -15,7 +15,8 @@ let files;
 try {
   files = changedFiles();
 } catch (error) {
-  throw new Error(`Cannot resolve change base ${base}; refusing to guess impact. ${error instanceof Error ? error.message : String(error)}`);
+  const cause = error instanceof Error ? error : new Error(String(error));
+  throw new Error(`Cannot resolve change base ${base}; refusing to guess impact. ${cause.message}`, { cause });
 }
 
 const flags = {
