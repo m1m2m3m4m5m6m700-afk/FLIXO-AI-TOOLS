@@ -1,0 +1,130 @@
+name: Matrix First Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: matrix-first-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
+  PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+  S4_EXTERNAL_SERVER: 'true'
+  PLAYWRIGHT_SERVER: preview
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
+jobs:
+  matrix:
+    name: Matrix First — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install browser system dependencies
+        timeout-minutes: 8
+        run: npx playwright install-deps '${{ matrix.browser }}'
+      - name: Cache Playwright browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: matrix-first-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+      - name: Install browser
+        timeout-minutes: 8
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: |
+          set -euo pipefail
+          executable="$(node - <<'NODE'
+          const p = require('playwright');
+          const b = p[process.env.BROWSER];
+          process.stdout.write(b.executablePath());
+          NODE
+          )"
+          if [[ -x "$executable" ]]; then
+            echo "Browser cache hit: $executable"
+            exit 0
+          fi
+          timeout --preserve-status 420s npx playwright install '${{ matrix.browser }}'
+      - name: Build preview
+        run: npm run build
+      - name: Start isolated preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/matrix-first-server.log 2>&1 &
+          echo $! >/tmp/matrix-first-server.pid
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/matrix-first-server.log || true
+          exit 1
+      - name: Run owned shard — stop at first failure
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          echo "Matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/4"
+          npx playwright test tests/localization-runtime.spec.ts \
+            --project=${{ matrix.browser }} \
+            --workers=6 \
+            --retries=0 \
+            --max-failures=1 \
+            --shard=${{ matrix.shard }}/4
+      - name: Upload independent diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: matrix-first-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+            /tmp/matrix-first-server.log
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/matrix-first-server.pid ]; then kill "$(cat /tmp/matrix-first-server.pid)" 2>/dev/null || true; fi
+
+  certification:
+    name: Matrix First Certification
+    needs: [matrix]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Fail closed on any matrix unit
+        run: |
+          set -euo pipefail
+          result='${{ needs.matrix.result }}'
+          echo "matrix=$result"
+          test "$result" = success
+          echo 'Matrix First Certification PASS: all 12 browser/shard units passed independently.'
