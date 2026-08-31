@@ -1,29 +1,15 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { TOOL_SEO_NAMES } from '../src/lib/i18n/tool-seo-localization';
 
 const sitemap = readFileSync('dist/sitemap.xml', 'utf8');
 const routes = [...new Set([...sitemap.matchAll(/<url>\s*<loc>([^<]+)<\/loc>[\s\S]*?<\/url>/gu)].map((match) => new URL(match[1]).pathname))].sort();
 const localeCodes = ['en','ar','es','fr','de','ru','zh','hi','id','ur','ja','pt','it','ko','nl','pl','tr','vi','th','sv'] as const;
 const languageTags: Record<(typeof localeCodes)[number], string> = { en:'en', ar:'ar', es:'es', fr:'fr', de:'de', ru:'ru', zh:'zh-CN', hi:'hi', id:'id', ur:'ur', ja:'ja', pt:'pt', it:'it', ko:'ko', nl:'nl', pl:'pl', tr:'tr', vi:'vi', th:'th', sv:'sv' };
 const rtlLocales = new Set(['ar', 'ur']);
-const sharedTerms = new Set(['FLIXO','QuickFlow','OCR','PDF','English','العربية','Smart Intent','Ctrl K','WebP','PNG','JPEG','GIF','SVG','CSV','JSON','ZIP','MP3','MP4','Whisper','WebGPU','WASM']);
-const sharedPhrases = new Set(['FLIXO AI Tools','FLIXO home']);
-const technicalCapabilityPhrase = /^(?:WebGPU|WASM|CPU)(?:\s+(?:WebGPU|WASM|CPU))*$/u;
-const technicalCodecPhrase = /^(?:WebP|JPG|PNG|JPEG|GIF|SVG)(?:\s+(?:WebP|JPG|PNG|JPEG|GIF|SVG))*$/u;
-const technicalHashPhrase = /^(?:SHA-\d+)(?:\s+SHA-\d+)*$/u;
-const technicalRatioValue = /^\d+:\d+$/u;
-const technicalRatioList = /^(?:\d+:\d+){2,}$/u;
-const technicalCaseNames = new Set(['UPPERCASE','lowercase','Title Case','Sentence case','camelCase','PascalCase','snake_case','kebab-case','CONSTANT_CASE']);
-const technicalCaseList = /^(?:UPPERCASElowercaseTitle CaseSentence casecamelCasePascalCasesnake_casekebab-caseCONSTANT_CASE)$/u;
-const technicalHexColor = /^#[0-9A-Fa-f]{3,8}$/u;
 const normalize = (value: string | null | undefined) => (value ?? '').replace(/\s+/gu, ' ').trim();
-const sharedOnly = (value: string) => { const normalized = normalize(value); if (sharedPhrases.has(normalized)) return true; if (technicalCapabilityPhrase.test(normalized) || technicalCodecPhrase.test(normalized) || technicalHashPhrase.test(normalized)) return true; if (technicalRatioValue.test(normalized) || technicalRatioList.test(normalized) || technicalCaseNames.has(normalized) || technicalCaseList.test(normalized) || technicalHexColor.test(normalized)) return true; return normalized.split(/\s+/u).filter(Boolean).every((word) => sharedTerms.has(word.replace(/[^\p{L}\p{N}]+/gu, ''))); };
+const familyPath = (pathname: string): string => pathname.replace(new RegExp(`^/(?:${localeCodes.join('|')})(?=/|$)`, 'u'), '') || '/';
 
-type Snapshot = { title: string; description: string; h1: string; ui: string[] };
-async function snapshot(page: Page): Promise<Snapshot> { return page.evaluate(() => { const visible = (element: Element) => { const node = element as HTMLElement; if (node.hidden || node.getAttribute('aria-hidden') === 'true') return false; const style = window.getComputedStyle(node); return style.display !== 'none' && style.visibility !== 'hidden'; }; const ui = [...document.querySelectorAll('button,a,input,textarea,select,[aria-label],[placeholder],[title]')].filter(visible).map((element) => { const node = element as HTMLElement; const input = node as HTMLInputElement; return [node.innerText,node.getAttribute('aria-label'),node.getAttribute('title'),input.placeholder,node.getAttribute('alt')].map((value) => (value ?? '').replace(/\s+/gu,' ').trim()).find(Boolean) ?? ''; }).filter((value) => value.length >= 3); return { title: document.title.trim(), description: document.querySelector('meta[name="description"]')?.getAttribute('content')?.trim() ?? '', h1: document.querySelector('h1')?.textContent?.replace(/\s+/gu,' ').trim() ?? '', ui }; }); }
-
-const familyPath = (pathname: string): string[] => pathname.split('/').filter(Boolean);
+void familyPath;
 
 test.describe.configure({ mode: 'parallel' });
 test.setTimeout(90_000);
@@ -38,7 +24,6 @@ for (const pathname of batchedRoutes) {
     const localeCode = locale as (typeof localeCodes)[number];
     const expectedLanguage = languageTags[localeCode];
     const expectedDirection = rtlLocales.has(localeCode) ? 'rtl' : 'ltr';
-    const family = familyPath(pathname);
     const runtimeErrors: string[] = [];
 
     await page.addInitScript(({ expectedLanguage: expectedLang, expectedDirection: expectedDir }) => {
