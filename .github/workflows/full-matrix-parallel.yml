@@ -23,8 +23,150 @@ env:
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
 
 jobs:
+  matrix-diagnosis:
+    name: Matrix — Rapid Failure Diagnosis / ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    env:
+      PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+      S4_EXTERNAL_SERVER: 'true'
+      PLAYWRIGHT_SERVER: preview
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install Playwright system dependencies
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          case "${{ matrix.browser }}" in
+            chromium) browser_bin="chromium" ;;
+            firefox) browser_bin="firefox" ;;
+            webkit) browser_bin="webkit" ;;
+            *) exit 2 ;;
+          esac
+          npx playwright install-deps "$browser_bin"
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-diagnostic-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ matrix.browser }}
+      - name: Install browser
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          case "${{ matrix.browser }}" in
+            chromium) browser_bin="chromium" ;;
+            firefox) browser_bin="firefox" ;;
+            webkit) browser_bin="webkit" ;;
+            *) exit 2 ;;
+          esac
+          executable="$(node -e "const p=require('playwright'); const b={chromium:p.chromium,firefox:p.firefox,webkit:p.webkit}['${{ matrix.browser }}']; process.stdout.write(b.executablePath())")"
+          if [[ -x "$executable" ]]; then
+            echo "Playwright browser cache hit: $executable"
+            exit 0
+          fi
+          timeout --preserve-status 420s npx playwright install "$browser_bin"
+      - name: Build production preview
+        run: npm run build
+      - name: Start isolated preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/full-matrix-diagnosis-server.log 2>&1 &
+          echo $! >/tmp/full-matrix-diagnosis-server.pid
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/full-matrix-diagnosis-server.log || true
+          exit 1
+      - name: Progressive failure-limit diagnosis
+        shell: bash
+        run: |
+          set +e
+          mkdir -p matrix-diagnostics
+          limits=(1 3 5 10)
+          final_status="CLEAN"
+          final_limit="0"
+          final_failures="0"
+          final_exit="0"
+          for limit in "${limits[@]}"; do
+            echo "=== Matrix diagnosis level: max failures = ${limit} ==="
+            rm -rf playwright-report test-results
+            npx playwright test tests/localization-runtime.spec.ts \
+              --project="${{ matrix.browser }}" \
+              --workers=6 \
+              --retries=0 \
+              --max-failures="${limit}"
+            exit_code=$?
+            printf '%s\n' "$exit_code" > "matrix-diagnostics/${{ matrix.browser }}-level-${limit}.exit"
+            final_limit="$limit"
+            final_exit="$exit_code"
+            if [ "$exit_code" -eq 0 ]; then
+              final_status="PASS_NO_FAILURES"
+              final_failures="0"
+              echo "No failures observed at level ${limit}; stopping diagnosis ladder."
+              break
+            fi
+            final_status="FAILURE_DETECTED"
+            final_failures="$limit"
+            echo "Failure detected at level ${limit}; escalation continues."
+          done
+          cat > "matrix-diagnostics/${{ matrix.browser }}.json" <<EOF
+          {
+            "schema_version": 1,
+            "phase": "FULL_MATRIX_RAPID_FAILURE_DIAGNOSIS",
+            "status": "${final_status}",
+            "authority": "diagnostic_only",
+            "sha": "${EXPECTED_HEAD_SHA}",
+            "browser": "${{ matrix.browser }}",
+            "limits": [1,3,5,10],
+            "last_limit_executed": ${final_limit},
+            "failure_signal": ${final_failures},
+            "last_exit_code": ${final_exit},
+            "auto_close_semantics": "FAILURE_LIMIT_REACHED_IS_NOT_PASS",
+            "final_matrix_remains_authoritative": true,
+            "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          cat "matrix-diagnostics/${{ matrix.browser }}.json"
+          # Diagnosis is intentionally non-authoritative; failures remain visible in evidence.
+          exit 0
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/full-matrix-diagnosis-server.pid ]; then kill "$(cat /tmp/full-matrix-diagnosis-server.pid)" 2>/dev/null || true; fi
+      - name: Upload rapid matrix diagnosis evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: matrix-diagnosis-${{ matrix.browser }}-${{ github.run_id }}
+          path: |
+            matrix-diagnostics/
+            playwright-report/
+            test-results/
+            /tmp/full-matrix-diagnosis-server.log
+          if-no-files-found: warn
+          retention-days: 14
+
   matrix:
     name: Full Matrix — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    needs: [matrix-diagnosis]
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -115,7 +257,7 @@ jobs:
 
   certification:
     name: Full Matrix Parallel Certification
-    needs: [matrix]
+    needs: [matrix, matrix-diagnosis]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -126,3 +268,4 @@ jobs:
           result='${{ needs.matrix.result }}'
           test "$result" = success || { echo "Full Matrix certification failed: matrix=$result"; exit 1; }
           echo "Full Matrix Parallel PASS: chromium + firefox + webkit; complete public-route × canonical-locale coverage across 4 deterministic shards per browser."
+          echo "Rapid failure diagnosis ran separately as non-authoritative evidence."
