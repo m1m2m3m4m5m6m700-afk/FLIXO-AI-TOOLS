@@ -156,8 +156,23 @@ writeFileSync('diagnostics/fast-ci-plan.json', `${JSON.stringify(plan, null, 2)}
 
 console.log(JSON.stringify(plan, null, 2));
 
-const staticResults = await Promise.all(commands.map(runOne));
-if (staticResults.some((value) => !value)) process.exit(1);
+const playwrightInstall = commands.find((item) => item.id === 'playwright-install');
+const affectedE2e = commands.find((item) => item.id === 'affected-e2e');
+const independentCommands = commands.filter((item) => item.id !== 'affected-e2e' && item.id !== 'playwright-install');
+
+const independentResults = await Promise.all(independentCommands.map(runOne));
+let playwrightReady = true;
+if (playwrightInstall) {
+  playwrightReady = await runOne(playwrightInstall);
+}
+if (affectedE2e) {
+  if (playwrightReady) {
+    await runOne(affectedE2e);
+  } else {
+    console.error('BLOCK affected-e2e: Playwright installation failed; browser tests were not started.');
+    results.push({ id: 'affected-e2e', status: 'BLOCKED', durationMs: 0, reason: 'Playwright prerequisite failed' });
+  }
+}
 
 const summary = {
   schema_version: 2,
@@ -173,4 +188,4 @@ const summary = {
 writeFileSync('diagnostics/fast-ci-result.json', `${JSON.stringify(summary, null, 2)}\n`);
 console.log(JSON.stringify(summary, null, 2));
 
-if (summary.status !== 'PASS') process.exit(1);
+if (independentResults.some((value) => !value) || !results.every((item) => item.status === 'PASS')) process.exit(1);
