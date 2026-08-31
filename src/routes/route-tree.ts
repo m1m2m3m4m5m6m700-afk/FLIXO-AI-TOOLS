@@ -1,3 +1,4 @@
+import { arImageCompressorRoute } from './ar-image-compressor';
 import { arIndexRoute } from './ar-index';
 import { arQuickFlowRoute } from './ar-quickflow';
 import { enQuickFlowRoute } from './en-quickflow';
@@ -12,6 +13,7 @@ import { Route as adminRoute } from './admin';
 export const routeChildren = [
   indexRoute,
   arIndexRoute,
+  arImageCompressorRoute,
   localizedHomeRoute,
   adminLoginRoute,
   adminRoute,
