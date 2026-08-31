@@ -8,12 +8,6 @@ const norm = (v) => String(v ?? '').replace(/\s+/gu, ' ').trim();
 const isObject = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 const placeholders = (v) => [...String(v ?? '').matchAll(/\{\{[^}]+\}\}|\{[^}]+\}/gu)].map((m) => m[0]).sort().join('|');
 const tags = (v) => [...String(v ?? '').matchAll(/<\/?[a-z][^>]*>/giu)].map((m) => m[0].replace(/\s+/gu, ' ').trim()).join('|');
-const leaves = (v, path = []) => {
-  if (typeof v === 'string') return [{ path: path.join('.'), value: v }];
-  if (Array.isArray(v)) return v.flatMap((x, i) => leaves(x, [...path, String(i)]));
-  if (!isObject(v)) return [];
-  return Object.entries(v).flatMap(([k, x]) => leaves(x, [...path, k]));
-};
 const importTs = async (file) => import(pathToFileURL(join(root, file)).href);
 function compare(reference, localized, locale, area, path = '') {
   if (typeof reference !== typeof localized) { issue.push(`${locale} | structural | ${area} | type mismatch at ${path}`); return; }
