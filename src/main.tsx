@@ -19,19 +19,14 @@ function applyDocumentLocale(): void {
   const candidate = window.location.pathname.split('/').filter(Boolean)[0] ?? '';
   const locale = isLocale(candidate) ? candidate : 'en';
   const metadata = LOCALE_METADATA[locale];
-  document.documentElement.lang = metadata.languageTag;
-  document.documentElement.dir = metadata.direction;
-}
-
-applyDocumentLocale();
-const localeObserver = new MutationObserver(() => {
-  const candidate = window.location.pathname.split('/').filter(Boolean)[0] ?? '';
-  const locale = isLocale(candidate) ? candidate : 'en';
-  const metadata = LOCALE_METADATA[locale];
   const html = document.documentElement;
   if (html.lang !== metadata.languageTag) html.lang = metadata.languageTag;
   if (html.dir !== metadata.direction) html.dir = metadata.direction;
-});
+}
+
+applyDocumentLocale();
+const localeInterval = window.setInterval(applyDocumentLocale, 100);
+const localeObserver = new MutationObserver(applyDocumentLocale);
 localeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'dir'] });
 
 installRuntimeDiagnostics();
@@ -57,6 +52,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 );
 
 if (import.meta.hot) import.meta.hot.dispose(() => {
+  window.clearInterval(localeInterval);
   localeObserver.disconnect();
   disposeToolUiLocalization();
   disposeToolUiLocalizationSupplement();
