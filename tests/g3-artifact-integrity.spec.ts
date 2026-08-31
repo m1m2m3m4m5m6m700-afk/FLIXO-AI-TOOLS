@@ -42,28 +42,24 @@ async function waitForImageCompressorReady(page: Page) {
     const element = document.querySelector<HTMLInputElement>('#image-file');
     return Boolean(element?.isConnected && !element.disabled);
   });
+  return input;
 }
 
-async function setTestFiles(page: Page, files: TestFile[]) {
-  const input = page.locator('#image-file');
-  await expect(input).toBeAttached();
-  await page.evaluate(({ selector, files: nextFiles }) => {
-    const input = document.querySelector<HTMLInputElement>(selector);
-    if (!input) throw new Error(`Missing file input: ${selector}`);
-    const dataTransfer = new DataTransfer();
-    for (const file of nextFiles) {
-      dataTransfer.items.add(new File([file.content], file.name, { type: file.mimeType }));
-    }
-    input.files = dataTransfer.files;
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-  }, { selector: '#image-file', files });
+async function setTestFiles(input: Locator, files: TestFile[]) {
+  const element = await input.elementHandle();
+  if (!element) throw new Error('Missing #image-file element');
+  await element.setInputFiles(files.map((file) => ({
+    name: file.name,
+    mimeType: file.mimeType,
+    buffer: Buffer.from(file.content),
+  })));
   await expect.poll(async () => input.evaluate((element) => element.files?.length ?? 0)).toBe(files.length);
 }
 
 test('G3 real flow: upload → process → download → inspect image artifact', async ({ page }) => {
-  await waitForImageCompressorReady(page);
+  const input = await waitForImageCompressorReady(page);
 
-  await setTestFiles(page, [
+  await setTestFiles(input, [
     { name: 'g3-source.svg', mimeType: 'image/svg+xml', content: SVG },
   ]);
   await page.getByRole('button', { name: 'Compress image', exact: true }).click();
@@ -107,8 +103,8 @@ test('G3 real flow: upload → process → download → inspect image artifact',
 });
 
 test('G3 real flow: upload → process → download → inspect ZIP artifact', async ({ page }) => {
-  await waitForImageCompressorReady(page);
-  await setTestFiles(page, [
+  const input = await waitForImageCompressorReady(page);
+  await setTestFiles(input, [
     { name: 'g3-one.svg', mimeType: 'image/svg+xml', content: SVG },
     { name: 'g3-two.svg', mimeType: 'image/svg+xml', content: SVG },
   ]);
