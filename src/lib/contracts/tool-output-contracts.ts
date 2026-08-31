@@ -1,4 +1,5 @@
 import { TOOL_REGISTRY } from '../../config/registry.ts';
+import { imageCompressorOutputContract } from '../../tools/image-compressor/output-contract.ts';
 import type { ToolOutputContract, ToolOutputVariant } from './tool-output';
 
 const image: ToolOutputVariant = { kind: 'image', outputMimeTypes: ['image/png', 'image/jpeg', 'image/webp'], allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'], signatures: ['89504e470d0a1a0a', 'ffd8ff', '52494646'], downloadRequired: true, minOutputBytes: 1, maxOutputBytes: 50 * 1024 * 1024, maxPixels: 100_000_000, validateDimensions: true };
@@ -13,7 +14,7 @@ const video: ToolOutputVariant = { kind: 'video', outputMimeTypes: ['video/webm'
 const caption: ToolOutputVariant = { kind: 'text', outputMimeTypes: ['text/plain', 'application/x-subrip', 'text/vtt'], allowedExtensions: ['txt', 'srt', 'vtt'], downloadRequired: true, minOutputBytes: 1, maxOutputBytes: 25 * 1024 * 1024, parseAs: 'utf8' };
 
 const contracts: Record<string, ToolOutputContract> = {
-  'image-compressor': { toolId: 'image-compressor', variants: [image] },
+  'image-compressor': imageCompressorOutputContract,
   'background-remover': { toolId: 'background-remover', variants: [image] },
   'image-upscaler': { toolId: 'image-upscaler', variants: [image] },
   'image-converter': { toolId: 'image-converter', variants: [image, svg] },
