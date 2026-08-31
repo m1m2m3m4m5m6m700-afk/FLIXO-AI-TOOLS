@@ -9,11 +9,6 @@ const CATEGORY_LABELS: Record<TargetLocale, Record<Category, string>> = {
   uk: { Images: 'Зображення', AI: 'ШІ', Other: 'Інше' },
 };
 
-const CATEGORY_DESCRIPTIONS: Record<TargetLocale, Record<Category, string>> = {
-  ms: { Images: 'Imej', AI: 'AI', Other: 'Lain-lain' },
-  uk: { Images: 'зображень', AI: 'ШІ', Other: 'інші' },
-};
-
 export function localizeMsUkCategory(locale: Locale, category: Category): string | undefined {
   if (locale !== 'ms' && locale !== 'uk') return undefined;
   return CATEGORY_LABELS[locale][category];
