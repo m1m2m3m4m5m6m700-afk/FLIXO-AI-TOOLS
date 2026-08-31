@@ -1,16 +1,18 @@
 {
   "schemaVersion": 1,
   "phase": "CI-2",
-  "status": "VERIFYING",
+  "status": "COMPLETE",
+  "verifiedSha": "31a8a7abab6d5f75a982c6830cff640791b74521",
   "base": "d737bbf1a38b8f0aa1e63430c83d2fd8bd551cff",
   "acceptance": {
-    "uniqueContractIds": "PENDING",
-    "validDependencies": "PENDING",
-    "noCycles": "PENDING",
-    "versionedContracts": "PENDING",
-    "deterministicSnapshot": "PENDING",
-    "snapshotHashReuseIdentity": "PENDING",
-    "registrySelfTests": "PENDING"
+    "uniqueContractIds": "PASS",
+    "validDependencies": "PASS",
+    "noCycles": "PASS",
+    "versionedContracts": "PASS",
+    "deterministicSnapshot": "PASS",
+    "snapshotHashReuseIdentity": "PASS",
+    "registrySelfTests": "PASS",
+    "shadowWorkflow": "PASS"
   },
   "safety": {
     "mainModified": false,
@@ -20,5 +22,9 @@
     "legacyWorkflowDeleted": false,
     "legacyWorkflowBehaviorModified": false
   },
-  "nextPhaseAllowed": false
+  "externalInfrastructure": {
+    "vercel": "not_authoritative_for_ci2"
+  },
+  "exitDecision": "PASS",
+  "nextPhaseAllowed": true
 }
