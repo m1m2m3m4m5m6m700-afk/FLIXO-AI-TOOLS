@@ -96,7 +96,8 @@ jobs:
           head -c 5000 /tmp/matrix-first-html.html
           echo
           echo '--- BROWSER BOOT DIAGNOSTICS ---'
-          timeout --preserve-status 45s node - <<'NODE'
+          set +e
+          timeout --preserve-status 45s node - <<'NODE' > /tmp/matrix-first-bootstrap.log 2>&1
           const { chromium, firefox, webkit } = require('playwright');
           const browserType = { chromium, firefox, webkit }[process.env.BROWSER];
           if (!browserType) throw new Error(`Unsupported browser: ${process.env.BROWSER}`);
@@ -159,6 +160,22 @@ jobs:
             await browser.close();
           })().catch((error) => { console.error(error); process.exitCode = 1; });
           NODE
+          status=$?
+          set -e
+          cat /tmp/matrix-first-bootstrap.log
+          echo "bootstrap_diagnostic_exit=$status"
+          exit 0
+      - name: Upload bootstrap diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: matrix-first-bootstrap-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
+          path: |
+            /tmp/matrix-first-bootstrap.log
+            /tmp/matrix-first-server.log
+            /tmp/matrix-first-html.html
+          if-no-files-found: warn
+          retention-days: 14
       - name: Run owned shard — stop at first failure
         timeout-minutes: 15
         run: |
@@ -180,6 +197,7 @@ jobs:
             test-results/
             /tmp/matrix-first-server.log
             /tmp/matrix-first-html.html
+            /tmp/matrix-first-bootstrap.log
           if-no-files-found: warn
           retention-days: 14
       - name: Cleanup
