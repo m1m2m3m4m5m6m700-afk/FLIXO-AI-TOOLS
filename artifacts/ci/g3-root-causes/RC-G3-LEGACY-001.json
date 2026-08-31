@@ -14,21 +14,35 @@
   "actual": "The main-push G3 aggregator waited for a check named 'G3 Artifact Integrity Shadow' on the exact main SHA, but the legacy shadow workflow only declared pull_request and workflow_dispatch triggers, so no exact-head legacy check could be produced by the push pipeline.",
   "repair": {
     "path": ".github/workflows/flixo-ci-g3-shadow.yml",
-    "change": "Add push trigger for main while preserving the exact-head checkout and evidence identity contract."
+    "changes": [
+      "Add push trigger for main while preserving the exact-head checkout and evidence identity contract.",
+      "Bound the G3 browser step with an explicit 8-minute step timeout and 420-second shell timeout after an observed in-progress runner state exceeded the 25-minute job budget."
+    ]
+  },
+  "secondaryExecutionFinding": {
+    "rootCauseId": "RC-CI-G3-HANG-001",
+    "classification": "INFRASTRUCTURE_ERROR",
+    "observedRunId": 33420288242,
+    "jobId": 99580711952,
+    "sha": "abaa30ece5b95b7f7e5a821ede7b0f34f076223f",
+    "stage": "Real G3 browser flow",
+    "evidence": "Steps 1-9 completed successfully; browser step remained in_progress; workflow run remained in_progress beyond its declared 25-minute job timeout; GitHub rejected a targeted rerun because the run was still marked running.",
+    "recovery": "Invalidate the stale run as release evidence, close/reopen PR to clear its queued successor, and push a fresh SHA with explicit step/process time bounds."
   },
   "safety": {
     "assertionsWeakened": false,
     "coverageReduced": false,
     "allowlistAdded": false,
+    "legacyWorkflowDeleted": false,
     "legacyBehaviorRemoved": false,
     "productionConfigurationChanged": false
   },
   "verificationRequired": [
-    "legacy G3 exact-head check on new main SHA",
-    "G3 aggregator success",
-    "CI-11 exit gate PASS"
+    "legacy G3 exact-head check on fresh SHA",
+    "G3 aggregator success on fresh SHA",
+    "CI-11 exit gate PASS with fresh evidence"
   ],
-  "source": ".github/workflows/ci.yml + .github/workflows/flixo-ci-g3-shadow.yml",
+  "source": ".github/workflows/ci.yml + .github/workflows/flixo-ci-g3-shadow.yml + Actions run 33420002645/33420288242",
   "artifact": "artifacts/ci/g3-root-causes/RC-G3-LEGACY-001.json",
   "recordedAt": "2026-08-31T20:32:00+03:00"
 }
