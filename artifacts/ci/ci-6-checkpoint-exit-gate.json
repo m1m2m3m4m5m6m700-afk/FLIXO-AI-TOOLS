@@ -1,16 +1,23 @@
 {
   "schemaVersion": 1,
   "phase": "CI-6",
-  "status": "VERIFYING",
+  "status": "COMPLETE",
+  "verifiedSha": "05a84482840e072020d8d31c4af4fe5a7d03ea3e",
   "base": "b33e364e01d9c83789fd336b399aad3aed6a10b8",
   "acceptance": {
-    "fingerprint": "PENDING",
-    "identityValidation": "PENDING",
-    "passReuse": "PENDING",
-    "invalidReuseRejected": "PENDING",
-    "invalidation": "PENDING",
-    "selfTest": "PENDING",
-    "shadowWorkflow": "PENDING"
+    "fingerprint": "PASS",
+    "identityValidation": "PASS",
+    "passReuse": "PASS",
+    "invalidReuseRejected": "PASS",
+    "invalidation": "PASS",
+    "selfTest": "PASS",
+    "shadowWorkflow": "PASS"
+  },
+  "incident": {
+    "type": "BUILD_ERROR",
+    "cause": "Node 22 strip-only mode rejects TypeScript parameter properties",
+    "resolvedBy": "rewriting constructor parameter property to explicit field initialization",
+    "verification": "PASS"
   },
   "safety": {
     "mainModified": false,
@@ -20,5 +27,6 @@
     "legacyWorkflowDeleted": false,
     "legacyWorkflowBehaviorModified": false
   },
-  "nextPhaseAllowed": false
+  "exitDecision": "PASS",
+  "nextPhaseAllowed": true
 }
