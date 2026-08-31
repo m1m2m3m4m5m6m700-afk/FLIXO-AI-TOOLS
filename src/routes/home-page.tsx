@@ -49,6 +49,7 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [dropRecommendation, setDropRecommendation] = useState<ToolCardProps | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -60,6 +61,7 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setPaletteOpen(true); }
+      if (event.key === 'Escape') setLanguageMenuOpen(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -89,7 +91,37 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
         <div className="home-container home-nav-inner">
           <Link className="home-brand" to="/" aria-label={copy.ariaHome}>FLIXO</Link>
           <div className="home-nav-links"><a href="#tools">{copy.nav.tools}</a><a href="#categories">{copy.nav.categories}</a><a href="#privacy">{copy.nav.privacy}</a></div>
-          <label className="sr-only" htmlFor="home-language">{copy.nav.switch}</label><select id="home-language" className="home-nav-language" value={locale} aria-label={copy.nav.switch} onChange={(event) => { void navigate({ to: `/${event.target.value}` }); }}>{LOCALES.map((code) => <option key={code} value={code}>{LANGUAGE_LABELS[code] ?? code}</option>)}</select>
+          <div className="home-language-switcher">
+            <button
+              type="button"
+              className="home-nav-language"
+              aria-label={copy.nav.switch}
+              aria-haspopup="listbox"
+              aria-expanded={languageMenuOpen}
+              onClick={() => setLanguageMenuOpen((open) => !open)}
+            >
+              {LANGUAGE_LABELS[locale] ?? localeMetadata.languageTag}
+            </button>
+            {languageMenuOpen && (
+              <div className="home-language-menu" role="listbox" aria-label={copy.nav.switch}>
+                {LOCALES.map((code) => (
+                  <button
+                    key={code}
+                    type="button"
+                    role="option"
+                    aria-selected={code === locale}
+                    className="home-language-option"
+                    onClick={() => {
+                      setLanguageMenuOpen(false);
+                      void navigate({ to: `/${code}` });
+                    }}
+                  >
+                    {LANGUAGE_LABELS[code] ?? code}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </nav>
       <div className="home-container home-content">
