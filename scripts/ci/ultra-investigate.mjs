@@ -1,65 +1,270 @@
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import { aggregateFailures } from './failure/engine.ts';
+import { classifyFailure } from './failure/taxonomy.ts';
+import { normalizeOutput, suiteContract, ultraContractHash, ULTRA_SCHEMA_VERSION, ULTRA_SUITE_NAMES } from './ultra-contract.mjs';
 
-const sha = process.env.INVESTIGATION_SHA ?? process.env.GITHUB_SHA ?? execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-const requestedSuite = process.argv[process.argv.indexOf('--suite') + 1] ?? 'all';
-const out = process.env.INVESTIGATION_DIR ?? 'diagnostics/investigation';
-mkdirSync(out, { recursive: true });
+const DEFAULT_OUTPUT_DIR = process.env.INVESTIGATION_DIR ?? 'diagnostics/investigation';
+const OUTPUT_TAIL = 12_000;
 
-const checks = {
-  toolchain: [['typecheck', 'npm', ['run', 'typecheck']], ['lint', 'npm', ['run', 'lint']], ['ci-contract', 'npm', ['run', 'validate:ci-contract']]],
-  architecture: [['tool-registry', 'npm', ['run', 'validate:tool-registry']], ['tool-manifest', 'npm', ['run', 'validate:tool-manifest']], ['router-registry', 'npm', ['run', 'validate:router-registry']], ['baseline', 'npm', ['run', 'validate:baseline']], ['route-resolver', 'npm', ['run', 'test:route-resolver']]],
-  localization: [['i18n-strict', 'npm', ['run', 'verify:i18n', '--', '--strict', '--report']], ['locale-integrity', 'npm', ['run', 'validate:locale-integrity']], ['locale-navigation', 'npm', ['run', 'validate:locale-navigation']], ['home-i18n', 'npm', ['run', 'validate:home-i18n']], ['tool-localization', 'npm', ['run', 'test:tool-localization']], ['language-quality', 'node', ['--import=./scripts/register-node-resolver.mjs', '--experimental-strip-types', 'scripts/validate-language-quality-strict.mjs']]],
-  seo: [['seo', 'npm', ['run', 'validate:seo']], ['seo-manifest', 'npm', ['run', 'validate:seo-manifest']], ['use-case-seo', 'npm', ['run', 'validate:use-case-seo']], ['indexing', 'npm', ['run', 'validate:indexing']], ['breadcrumb-seo', 'npm', ['run', 'validate:breadcrumb-seo']], ['multilingual-seo', 'node', ['--import=./scripts/register-node-resolver.mjs', '--experimental-strip-types', 'scripts/validate-google-multilingual-seo.mjs']]],
-  security: [['upload-boundary', 'npm', ['run', 'test:upload-boundary']], ['file-safety', 'node', ['--experimental-strip-types', 'scripts/test-file-safety.mjs']]],
-  artifact: [['output-integrity', 'node', ['--experimental-strip-types', 'scripts/test-output-integrity.mjs']], ['svg-integrity', 'node', ['--experimental-strip-types', 'scripts/test-svg-integrity.mjs']]],
-  runtime: [['g4-runtime', 'npx', ['playwright', 'test', 'tests/localization-runtime.spec.ts', '--project=chromium', '--workers=4', '--retries=0', '--max-failures=25']]],
-  browser: [['browser-localization', 'npx', ['playwright', 'test', 'tests/localization-browser-smoke.spec.ts', '--project=chromium', '--workers=4', '--retries=0', '--max-failures=25']]],
-  build: [['build', 'npm', ['run', 'build']]],
-};
+function git(args) {
+  return execFileSync('git', args, { encoding: 'utf8' }).trim();
+}
 
-const run = ([id, command, args]) => new Promise((resolve) => {
-  const started = Date.now();
-  const child = spawn(command, args, { env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
-  let stdout = '';
-  let stderr = '';
-  child.stdout.on('data', (x) => { stdout += x.toString(); });
-  child.stderr.on('data', (x) => { stderr += x.toString(); });
-  child.on('close', (code, signal) => resolve({ id, status: code === 0 ? 'PASS' : 'FAIL', code, signal, durationMs: Date.now() - started, stdout: stdout.slice(-12000), stderr: stderr.slice(-12000) }));
-});
+function hash(value) {
+  return createHash('sha256').update(String(value), 'utf8').digest('hex');
+}
 
-const sig = (text) => text.replace(/https?:\/\/[^\s]+/gu, '<URL>').replace(/[0-9a-f]{7,40}/giu, '<SHA>').replace(/\b\d+(?:\.\d+)?\b/gu, '<N>').replace(/\s+/gu, ' ').trim().slice(-800);
+function fileHash(file) {
+  try {
+    return hash(readFileSync(file));
+  } catch {
+    return null;
+  }
+}
 
-async function investigate(suite, items) {
-  const results = await Promise.all(items.map(run));
-  const record = { schema_version: 1, suite, sha, status: results.some((r) => r.status === 'FAIL') ? 'FAIL' : 'PASS', results };
-  writeFileSync(join(out, `${suite}.json`), JSON.stringify(record, null, 2) + '\n');
+function identity() {
+  const actualHeadSha = git(['rev-parse', 'HEAD']);
+  const treeSha = git(['rev-parse', 'HEAD^{tree}']);
+  const status = git(['status', '--porcelain']);
+  const expectedSha = process.env.INVESTIGATION_SHA ?? process.env.EXPECTED_SHA ?? actualHeadSha;
+  return {
+    expectedSha,
+    actualHeadSha,
+    treeSha,
+    worktreeClean: status === '',
+    status,
+  };
+}
+
+function environmentIdentity() {
+  const keys = [
+    'CI',
+    'GITHUB_ACTIONS',
+    'GITHUB_WORKFLOW',
+    'GITHUB_RUN_ID',
+    'GITHUB_RUN_ATTEMPT',
+    'RUNNER_OS',
+    'RUNNER_ARCH',
+    'VITE_SITE_URL',
+    'VITE_RUNTIME_ORIGIN',
+    'VITE_TEST_ORIGIN',
+    'NODE_ENV',
+    'NPM_CONFIG_USER_AGENT',
+  ];
+  const safe = Object.fromEntries(keys.map((key) => [key, process.env[key] ?? null]));
+  safe.node = process.version;
+  safe.platform = process.platform;
+  safe.arch = process.arch;
+  return { values: safe, fingerprint: hash(JSON.stringify(safe)) };
+}
+
+function commandLabel(check) {
+  return [check.command, ...check.args].join(' ');
+}
+
+function killProcessTree(child) {
+  if (!child.pid) return;
+  try {
+    process.kill(-child.pid, 'SIGTERM');
+  } catch {
+    try { child.kill('SIGTERM'); } catch { /* process already exited */ }
+  }
+  const hardKill = setTimeout(() => {
+    try {
+      process.kill(-child.pid, 'SIGKILL');
+    } catch {
+      try { child.kill('SIGKILL'); } catch { /* process already exited */ }
+    }
+  }, 5_000);
+  hardKill.unref();
+}
+
+export function runCheck(check, context = process.env) {
+  return new Promise((resolve) => {
+    const startedAt = new Date().toISOString();
+    const started = Date.now();
+    const child = spawn(check.command, check.args, {
+      env: context,
+      cwd: process.cwd(),
+      detached: process.platform !== 'win32',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+    let timedOut = false;
+
+    const finish = (code, signal, spawnError = null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (spawnError) stderr += `\nspawn-error: ${spawnError.stack ?? spawnError}`;
+      const durationMs = Date.now() - started;
+      const message = normalizeOutput([stderr, stdout].filter(Boolean).join('\n'));
+      resolve({
+        id: check.id,
+        contract: check.contract,
+        command: commandLabel(check),
+        status: code === 0 && !timedOut ? 'PASS' : 'FAIL',
+        exitCode: code,
+        signal,
+        timedOut,
+        durationMs,
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        expected: { exitCode: 0, maxDurationMs: check.timeoutMs },
+        actual: { exitCode: code, signal, timedOut },
+        assertion: 'Command exits with code 0 before the contract timeout and without forced termination.',
+        source: `scripts/ci/ultra-investigate.mjs:${check.id}`,
+        output: { stdout: stdout.slice(-OUTPUT_TAIL), stderr: stderr.slice(-OUTPUT_TAIL), signature: message },
+      });
+    };
+
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    child.once('error', (error) => finish(null, null, error));
+    child.once('close', (code, signal) => finish(code, signal));
+
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      stderr += `\nUltra timeout after ${check.timeoutMs}ms: ${commandLabel(check)}`;
+      killProcessTree(child);
+    }, check.timeoutMs);
+    timeout.unref();
+  });
+}
+
+function buildFailureEvents(suite, results) {
+  return results.filter((result) => result.status === 'FAIL').map((result) => ({
+    id: result.id,
+    contract: result.contract,
+    status: 'FAIL',
+    message: result.output.signature || `${result.command} failed`,
+    source: result.source,
+    durationMs: result.durationMs,
+  }));
+}
+
+function deriveFailureIntelligence(events) {
+  if (!events.length) return { schemaVersion: 1, rootCauses: [], failures: [], unknownCount: 0, reportHash: hash('empty') };
+  return aggregateFailures(events.map((event) => classifyFailure(event)));
+}
+
+export function buildEnvironmentFingerprint(identityState) {
+  return hash(JSON.stringify({
+    schemaVersion: ULTRA_SCHEMA_VERSION,
+    contractHash: ultraContractHash(),
+    sha: identityState.actualHeadSha,
+    treeSha: identityState.treeSha,
+    node: process.version,
+    lockfile: fileHash('package-lock.json'),
+    package: fileHash('package.json'),
+  }));
+}
+
+async function investigateSuite(suite, checks, identityState, environmentState) {
+  const startedAt = new Date().toISOString();
+  const results = await Promise.all(checks.map((check) => runCheck(check)));
+  const failures = buildFailureEvents(suite, results);
+  const failureIntelligence = deriveFailureIntelligence(failures);
+  const record = {
+    schema_version: ULTRA_SCHEMA_VERSION,
+    suite,
+    sha: identityState.expectedSha,
+    actualHeadSha: identityState.actualHeadSha,
+    treeSha: identityState.treeSha,
+    worktreeClean: identityState.worktreeClean,
+    contractHash: ultraContractHash(),
+    environmentFingerprint: environmentState.fingerprint,
+    environment: environmentState.values,
+    startedAt,
+    generatedAt: new Date().toISOString(),
+    status: failures.length ? 'FAIL' : (identityState.expectedSha === identityState.actualHeadSha && identityState.worktreeClean ? 'PASS' : 'FAIL'),
+    checksExpected: checks.length,
+    checksExecuted: results.length,
+    passed: results.filter((result) => result.status === 'PASS').length,
+    failed: results.filter((result) => result.status === 'FAIL').length,
+    skipped: 0,
+    missing: checks.length - results.length,
+    results,
+    failureIntelligence,
+    rootCauses: failureIntelligence.rootCauses,
+    failureCount: failures.length,
+    rootCauseCount: failureIntelligence.rootCauses.length,
+    unknownCount: failureIntelligence.unknownCount,
+    artifact: `diagnostics/investigation/${suite}.json`,
+  };
   return record;
 }
 
-async function main() {
-  if (requestedSuite !== 'all' && !(requestedSuite in checks)) throw new Error(`Unknown suite: ${requestedSuite}`);
-  const selected = requestedSuite === 'all' ? Object.entries(checks) : [[requestedSuite, checks[requestedSuite]]];
-  const records = await Promise.all(selected.map(([suite, items]) => investigate(suite, items)));
-  const failures = records.flatMap((r) => r.results.filter((x) => x.status === 'FAIL').map((x) => ({ suite: r.suite, id: x.id, code: x.code, durationMs: x.durationMs, signature: sig(`${x.stderr}\n${x.stdout}`) })));
-  const groups = new Map();
-  for (const failure of failures) {
-    const key = `${failure.id}|${failure.signature}`;
-    const group = groups.get(key) ?? { count: 0, affectedSuites: new Set(), example: failure };
-    group.count += 1; group.affectedSuites.add(failure.suite); groups.set(key, group);
-  }
-  const rootCauses = [...groups.values()].sort((a, b) => b.count - a.count).map((g, i) => ({ rcId: `RC-INV-${String(i + 1).padStart(3, '0')}`, classification: g.example.id.toUpperCase().replace(/[^A-Z0-9]+/gu, '_'), count: g.count, affectedSuites: [...g.affectedSuites], signature: g.example.signature }));
-  const report = { schema_version: 2, sha, status: failures.length ? 'FAIL' : 'PASS', generatedAt: new Date().toISOString(), suiteScope: requestedSuite, failureCount: failures.length, rootCauseCount: rootCauses.length, suites: records.map((r) => ({ suite: r.suite, status: r.status, failures: r.results.filter((x) => x.status === 'FAIL').map((x) => x.id) })), rootCauses };
-  writeFileSync(join(out, 'ultra-investigation.json'), JSON.stringify(report, null, 2) + '\n');
-  console.log(JSON.stringify(report, null, 2));
-  process.exitCode = failures.length ? 1 : 0;
+export async function investigate(requestedSuite = process.env.INVESTIGATION_SUITE ?? 'all', outputDir = DEFAULT_OUTPUT_DIR) {
+  mkdirSync(outputDir, { recursive: true });
+  const identityState = identity();
+  const environmentState = environmentIdentity();
+  const selection = requestedSuite === 'all' ? ULTRA_SUITE_NAMES : [requestedSuite];
+  for (const suite of selection) suiteContract(suite);
+
+  const records = await Promise.all(selection.map((suite) => investigateSuite(suite, suiteContract(suite), identityState, environmentState)));
+  const failureEvents = records.flatMap((record) => record.failureIntelligence.failures);
+  const allFailureIntelligence = deriveFailureIntelligence(failureEvents);
+  const integrityErrors = [];
+  if (identityState.expectedSha !== identityState.actualHeadSha) integrityErrors.push(`SHA mismatch: ${identityState.actualHeadSha} != ${identityState.expectedSha}`);
+  if (!identityState.worktreeClean) integrityErrors.push('Working tree is not clean; reproducible CI evidence requires a clean tree.');
+  if (records.length !== selection.length) integrityErrors.push(`Suite count mismatch: ${records.length} != ${selection.length}`);
+  if (records.some((record) => record.checksExecuted !== record.checksExpected)) integrityErrors.push('One or more suites did not execute their complete contract set.');
+  const report = {
+    schema_version: ULTRA_SCHEMA_VERSION,
+    status: integrityErrors.length || records.some((record) => record.status !== 'PASS') ? 'FAIL' : 'PASS',
+    sha: identityState.expectedSha,
+    actualHeadSha: identityState.actualHeadSha,
+    treeSha: identityState.treeSha,
+    worktreeClean: identityState.worktreeClean,
+    contractHash: ultraContractHash(),
+    environmentFingerprint: environmentState.fingerprint,
+    environment: environmentState.values,
+    generatedAt: new Date().toISOString(),
+    workflow: process.env.GITHUB_WORKFLOW ?? null,
+    runId: process.env.GITHUB_RUN_ID ?? null,
+    runAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
+    suiteScope: requestedSuite,
+    expectedSuites: selection,
+    suites: records.map((record) => ({
+      suite: record.suite,
+      status: record.status,
+      expected: record.checksExpected,
+      executed: record.checksExecuted,
+      passed: record.passed,
+      failed: record.failed,
+      skipped: record.skipped,
+      missing: record.missing,
+      failures: record.results.filter((result) => result.status === 'FAIL').map((result) => result.id),
+    })),
+    failureCount: records.reduce((sum, record) => sum + record.failureCount, 0),
+    rootCauseCount: allFailureIntelligence.rootCauses.length,
+    unknownCount: allFailureIntelligence.unknownCount,
+    rootCauses: allFailureIntelligence.rootCauses,
+    failures: allFailureIntelligence.failures,
+    failureIntelligenceHash: allFailureIntelligence.reportHash,
+    integrityErrors,
+  };
+  for (const record of records) writeFileSync(path.join(outputDir, `${record.suite}.json`), JSON.stringify(record, null, 2) + '\n');
+  writeFileSync(path.join(outputDir, 'ultra-investigation.json'), JSON.stringify(report, null, 2) + '\n');
+  return report;
 }
 
-main().catch((error) => {
-  const report = { schema_version: 2, sha, status: 'FAIL', failureCount: 1, rootCauseCount: 1, rootCauses: [{ rcId: 'RC-INV-000', classification: 'INVESTIGATOR_CRASH', signature: error?.stack ?? String(error) }], generatedAt: new Date().toISOString() };
-  writeFileSync(join(out, 'ultra-investigation.json'), JSON.stringify(report, null, 2) + '\n');
-  console.error(error);
-  process.exitCode = 2;
-});
+async function main() {
+  const report = await investigate();
+  console.log(JSON.stringify(report, null, 2));
+  process.exitCode = report.status === 'PASS' ? 0 : 1;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 2;
+  });
+}
