@@ -262,6 +262,7 @@ jobs:
           path: artifacts/ci/g3/all
           merge-multiple: true
       - name: Resolve legacy G3
+        id: legacy-g3
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -274,15 +275,15 @@ jobs:
             echo 'Legacy G3 result is not yet available on the exact head SHA.'
             exit 1
           fi
-          echo "LEGACY_RESULT=$conclusion" >> "$GITHUB_ENV"
-          echo "Legacy G3 conclusion: $conclusion"
+          echo "LEGACY_RESULT=$conclusion"
+          echo "legacy_result=$conclusion" >> "$GITHUB_OUTPUT"
       - name: G3 authoritative aggregation
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
           MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
-          LEGACY_RESULT: ${{ env.LEGACY_RESULT }}
+          LEGACY_RESULT: ${{ steps.legacy-g3.outputs.legacy_result }}
         run: node scripts/ci/g3/aggregate.mjs
       - uses: actions/upload-artifact@v6
         if: always()
