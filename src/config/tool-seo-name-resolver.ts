@@ -1,4 +1,5 @@
 import type { Locale } from '../lib/i18n/config';
+import { localizeMsUkToolTitle } from '../lib/i18n/ms-uk-tool-title';
 import { ms } from '../lib/i18n/locales/ms';
 import { uk } from '../lib/i18n/locales/uk';
 import { TOOL_SEO_NAMES } from '../lib/i18n/tool-seo-localization';
@@ -31,5 +32,7 @@ export function getAuthoritativeToolSeoName(tool: ToolConfig, locale: Locale): s
   if (typeof translated === 'string' && translated.trim()) return translated;
 
   const reviewed = REVIEWED_TOOL_SEO_OVERRIDES[locale]?.[tool.id];
-  return typeof reviewed === 'string' && reviewed.trim() ? reviewed : undefined;
+  if (typeof reviewed === 'string' && reviewed.trim()) return reviewed;
+
+  return localizeMsUkToolTitle(locale, tool.title, tool.category);
 }
