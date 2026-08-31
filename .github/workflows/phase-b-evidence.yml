@@ -36,7 +36,7 @@ jobs:
         env:
           EVIDENCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
           EVIDENCE_OUTPUT_ROOT: artifacts/contracts
-          EVIDENCE_RECORDED_AT: ${{ github.event.head_commit.timestamp || github.run_started_at }}
+          EVIDENCE_RECORDED_AT: ${{ github.run_started_at }}
         run: node --experimental-strip-types scripts/test-evidence-ledger.mjs
       - name: Validate generated evidence identity
         env:
