@@ -1,0 +1,146 @@
+name: G4 Targeted Debug
+
+# Development/debug workflow only.
+# The required PR G4 remains the authoritative full matrix. This workflow lets us
+# rerun only the failing contract family/locale cluster while fixing a regression.
+# No assertions are weakened and no production coverage is removed.
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: 'Targeted G4 scope'
+        required: true
+        type: choice
+        default: rtl
+        options:
+          - static
+          - rtl
+          - cjk
+          - latin-a
+          - latin-b
+          - all
+
+permissions:
+  contents: read
+
+env:
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+  VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
+  G4_LOCALES: 'en,ar,es,fr,de,ru,zh,hi,id,ur,ja,pt,it,ko,nl,pl,tr,vi,th,sv'
+
+jobs:
+  static-contracts:
+    if: inputs.scope == 'static' || inputs.scope == 'all'
+    name: G4 Debug — Static Localization & SEO
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Build canonical production artifacts
+        run: npm run build
+      - name: Static G4 certification
+        run: |
+          set -euo pipefail
+          npm run verify:i18n -- --strict --report
+          npm run validate:locale-integrity
+          npm run validate:locale-navigation
+          npm run validate:home-i18n
+          npm run validate:seo
+          npm run validate:seo-manifest
+          npm run validate:use-case-seo
+          npm run validate:indexing
+          npm run validate:breadcrumb-seo
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-google-multilingual-seo.mjs
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-language-quality-strict.mjs
+          test -f dist/robots.txt
+          test -f dist/sitemap.xml
+          grep -Fx "Sitemap: ${VITE_SITE_URL}/sitemap.xml" dist/robots.txt
+          grep -Fq 'xmlns:xhtml="http://www.w3.org/1999/xhtml"' dist/sitemap.xml
+          grep -Fq 'hreflang="x-default"' dist/sitemap.xml
+
+  runtime-cluster:
+    if: inputs.scope != 'static'
+    name: G4 Debug — Runtime ${{ inputs.scope }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Build canonical production artifacts
+        run: npm run build
+      - name: Validate canonical 20-locale declaration
+        run: |
+          set -euo pipefail
+          IFS=',' read -r -a locales <<< "$G4_LOCALES"
+          test "${#locales[@]}" -eq 20
+          for locale in "${locales[@]}"; do test -n "$locale"; done
+      - name: Start isolated production preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/g4-server.log 2>&1 &
+          echo $! >/tmp/g4-server.pid
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/g4-server.log || true
+          exit 1
+      - name: Select only requested runtime cluster
+        id: selector
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ inputs.scope }}" in
+            rtl)     echo 'grep=/(ar|ur)/' >> "$GITHUB_OUTPUT" ;;
+            cjk)     echo 'grep=/(zh|ja|ko)/' >> "$GITHUB_OUTPUT" ;;
+            latin-a) echo 'grep=/(en|es|fr|de|ru|hi|id)/' >> "$GITHUB_OUTPUT" ;;
+            latin-b) echo 'grep=/(pt|it|nl|pl|tr|vi|th|sv)/' >> "$GITHUB_OUTPUT" ;;
+            all)     echo 'grep=' >> "$GITHUB_OUTPUT" ;;
+            *)       echo "Unsupported scope: ${{ inputs.scope }}" >&2; exit 2 ;;
+          esac
+      - name: Run only selected G4 runtime tests
+        env:
+          S4_EXTERNAL_SERVER: 'true'
+          PLAYWRIGHT_SERVER: preview
+          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+        run: |
+          set -euo pipefail
+          if [ -n "${{ steps.selector.outputs.grep }}" ]; then
+            npx playwright test tests/localization-runtime.spec.ts --project=chromium --workers=2 --retries=0 --max-failures=10 --grep '${{ steps.selector.outputs.grep }}'
+          else
+            npx playwright test tests/localization-runtime.spec.ts --project=chromium --workers=2 --retries=0 --max-failures=10
+          fi
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/g4-server.pid ]; then kill "$(cat /tmp/g4-server.pid)" 2>/dev/null || true; fi
