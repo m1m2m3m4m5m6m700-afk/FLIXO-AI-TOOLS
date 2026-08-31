@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "phase": "CI-2",
+  "status": "VERIFYING",
+  "base": "2879529f70a9a2842e1b79e6a61ba80a5b96200d",
+  "acceptance": {
+    "uniqueContractIds": "PENDING",
+    "validDependencies": "PENDING",
+    "noCycles": "PENDING",
+    "versionedContracts": "PENDING",
+    "deterministicSnapshot": "PENDING",
+    "snapshotHashReuseIdentity": "PENDING",
+    "registrySelfTests": "PENDING"
+  },
+  "safety": {
+    "mainModified": false,
+    "branchProtectionModified": false,
+    "requiredChecksModified": false,
+    "productionConfigurationModified": false,
+    "legacyWorkflowDeleted": false,
+    "legacyWorkflowBehaviorModified": false
+  },
+  "nextPhaseAllowed": false
+}
