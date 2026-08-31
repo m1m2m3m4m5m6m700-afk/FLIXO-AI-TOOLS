@@ -12,7 +12,9 @@ permissions:
 
 concurrency:
   group: matrix-first-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # Do not cancel an active Matrix run: each browser/shard is an independent
+  # verification unit and must finish or fail on its own first failure.
+  cancel-in-progress: false
 
 env:
   VITE_SITE_URL: https://flixoai.vercel.app
