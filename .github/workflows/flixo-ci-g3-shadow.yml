@@ -13,7 +13,6 @@ permissions:
   contents: read
 
 env:
-  VITE_SITE_URL: https://flixoai.vercel.app
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
   VITE_TEST_ORIGIN: https://canonical.test
 
