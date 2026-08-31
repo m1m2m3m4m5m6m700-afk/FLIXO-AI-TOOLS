@@ -20,7 +20,7 @@ const CHECKS = new Map([
   ['locale-integrity', { command: 'npm', args: ['run', 'validate:locale-integrity'], impact: 'localization' }],
   ['locale-navigation', { command: 'npm', args: ['run', 'validate:locale-navigation'], impact: 'localization' }],
   ['home-i18n', { command: 'npm', args: ['run', 'validate:home-i18n'], impact: 'localization' }],
-  ['tool-localization', { command: 'npm', args: ['test:tool-localization'], impact: 'localization' }],
+  ['tool-localization', { command: 'npm', args: ['run', 'test:tool-localization'], impact: 'localization' }],
   ['browser-localization-smoke', { command: 'npx', args: ['playwright', 'test', 'tests/localization-browser-smoke.spec.ts', '--project=chromium', '--workers=1', '--retries=0', '--max-failures=1'], impact: 'localization', browser: true }],
   ['seo', { command: 'npm', args: ['run', 'validate:seo'], impact: 'seo' }],
   ['seo-manifest', { command: 'npm', args: ['run', 'validate:seo-manifest'], impact: 'seo' }],
