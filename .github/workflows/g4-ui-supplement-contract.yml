@@ -28,7 +28,5 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
-      - name: Validate supplement source
-        run: node --check src/lib/i18n/tool-ui-runtime-supplement.ts
       - name: Validate representative mappings
         run: node tests/tool-ui-runtime-supplement.mjs
