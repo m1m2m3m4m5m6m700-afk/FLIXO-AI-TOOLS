@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { buildQrPayload, renderQrDataUrl, renderQrSvg, scanQrFile, type QrPayloadType } from './engine';
-import type { Locale } from '../../lib/i18n/config';
+import { normalizeLocale, type Locale } from '../../lib/i18n/config';
 
 type Copy = { title:string; description:string; generate:string; payload:string; content:string; foreground:string; background:string; downloadPng:string; downloadSvg:string; read:string; readDescription:string; choose:string; scanResult:string; types:Record<QrPayloadType,string> };
 
@@ -28,7 +28,7 @@ const COPY: Record<Locale, Copy> = {
 };
 
 export function QrGeneratorReaderTool({ locale: localeProp }: { locale?: Locale }) {
-  const locale = localeProp ?? 'en';
+  const locale = localeProp ?? normalizeLocale(typeof document === 'undefined' ? 'en' : document.documentElement.lang);
   const copy = COPY[locale];
   const [type,setType] = useState<QrPayloadType>('text');
   const [value,setValue] = useState('https://flixo.tools');
@@ -64,6 +64,5 @@ export function QrGeneratorReaderTool({ locale: localeProp }: { locale?: Locale 
         {scanResult ? <output className="mt-4 block rounded-xl border p-4 break-words" aria-label={copy.scanResult}>{scanResult}</output> : null}
       </section>
     </div>
-    {error ? <p role="alert" className="rounded-xl border p-4">{error}</p> : null}
   </section>;
 }
