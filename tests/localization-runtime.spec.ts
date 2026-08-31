@@ -13,12 +13,40 @@ const rtlLocales = new Set(['ar', 'ur']);
 const sharedTerms = new Set(['FLIXO', 'QuickFlow', 'OCR', 'PDF', 'English', 'العربية', 'Smart Intent', 'Ctrl K', 'WebP', 'PNG', 'JPEG', 'GIF', 'SVG', 'CSV', 'JSON', 'ZIP', 'MP3', 'MP4', 'Whisper', 'WebGPU', 'WASM']);
 const sharedPhrases = new Set(['FLIXO AI Tools', 'FLIXO home']);
 
+const technicalCapabilityPhrase = /^(?:WebGPU|WASM|CPU)(?:\s+(?:WebGPU|WASM|CPU))*$/u;
+const technicalCodecPhrase = /^(?:WebP|JPG|PNG|JPEG|GIF|SVG)(?:\s+(?:WebP|JPG|PNG|JPEG|GIF|SVG))*$/u;
+const technicalHashPhrase = /^(?:SHA-\d+)(?:\s+SHA-\d+)*$/u;
+const technicalRatioList = /^(?:\d+:\d+){2,}$/u;
+const technicalCaseNames = new Set([
+  'UPPERCASE',
+  'lowercase',
+  'Title Case',
+  'Sentence case',
+  'camelCase',
+  'PascalCase',
+  'snake_case',
+  'kebab-case',
+  'CONSTANT_CASE',
+]);
+const technicalCaseList = /^(?:UPPERCASElowercaseTitle CaseSentence casecamelCasePascalCasesnake_casekebab-caseCONSTANT_CASE)$/u;
+const technicalHexColor = /^#[0-9A-Fa-f]{3,8}$/u;
+const sharedOnly = (value: string) => {
+  const normalized = normalize(value);
+  if (sharedPhrases.has(normalized)) return true;
+  if (technicalCapabilityPhrase.test(normalized)) return true;
+  if (technicalCodecPhrase.test(normalized)) return true;
+  if (technicalHashPhrase.test(normalized)) return true;
+  if (technicalRatioList.test(normalized)) return true;
+  if (technicalCaseNames.has(normalized) || technicalCaseList.test(normalized)) return true;
+  if (technicalHexColor.test(normalized)) return true;
+  return normalized.split(/\s+/u).filter(Boolean).every((word) => sharedTerms.has(word.replace(/[^\p{L}\p{N}]+/gu, '')));
+};
+
 type Snapshot = { title: string; description: string; h1: string; ui: string[] };
 
 const normalize = (value: string | null | undefined) => (value ?? '').replace(/\s+/gu, ' ').trim();
 const familyPath = (pathname: string) => pathname.replace(new RegExp(`^/(?:${localeCodes.join('|')})(?=/|$)`, 'u'), '') || '/';
 const localizedPath = (locale: string, family: string) => `/${locale}${family === '/' ? '' : family}`;
-const sharedOnly = (value: string) => sharedPhrases.has(normalize(value)) || value.split(/\s+/u).filter(Boolean).every((word) => sharedTerms.has(word.replace(/[^\p{L}\p{N}]+/gu, '')));
 
 async function snapshot(page: Page): Promise<Snapshot> {
   return page.evaluate(() => {
