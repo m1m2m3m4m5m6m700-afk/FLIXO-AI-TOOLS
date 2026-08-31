@@ -85,6 +85,48 @@ jobs:
           done
           cat /tmp/matrix-first-server.log || true
           exit 1
+      - name: Capture bootstrap diagnostics
+        continue-on-error: true
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error http://127.0.0.1:3000/ar/ai-image-generator > /tmp/matrix-first-html.html
+          echo '--- SERVED HTML HEAD ---'
+          head -c 5000 /tmp/matrix-first-html.html
+          echo
+          echo '--- BROWSER BOOT DIAGNOSTICS ---'
+          node - <<'NODE'
+          const { chromium, firefox, webkit } = require('playwright');
+          const browserType = { chromium, firefox, webkit }[process.env.BROWSER];
+          if (!browserType) throw new Error(`Unsupported browser: ${process.env.BROWSER}`);
+          (async () => {
+            const browser = await browserType.launch({ headless: true });
+            const page = await browser.newPage();
+            const events = [];
+            page.on('pageerror', (error) => events.push(`pageerror: ${error.message}`));
+            page.on('console', (message) => events.push(`console:${message.type()}: ${message.text()}`));
+            page.on('requestfailed', (request) => events.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`));
+            page.on('response', (response) => {
+              if (response.url().includes('/src/') && response.status() >= 400) events.push(`response:${response.status()}: ${response.url()}`);
+            });
+            const response = await page.goto('http://127.0.0.1:3000/ar/ai-image-generator', { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await page.waitForTimeout(3000);
+            const state = await page.evaluate(() => ({
+              readyState: document.readyState,
+              href: location.href,
+              html: document.documentElement.outerHTML.slice(0, 12000),
+              htmlLang: document.documentElement.getAttribute('lang'),
+              htmlDir: document.documentElement.getAttribute('dir'),
+              bodyChildren: [...document.body.children].map((node) => ({ tag: node.tagName, id: node.id, class: node.className })),
+              rootHtml: document.getElementById('root')?.innerHTML.slice(0, 6000) ?? null,
+              scripts: [...document.scripts].map((script) => script.src || '[inline]'),
+              resources: performance.getEntriesByType('resource').map((entry) => entry.name).filter((name) => name.includes('/src/') || name.includes('.js')).slice(-100),
+            }));
+            console.log(JSON.stringify({ responseStatus: response?.status(), events, state }, null, 2));
+            await browser.close();
+          })().catch((error) => { console.error(error); process.exitCode = 1; });
+          NODE
       - name: Run owned shard — stop at first failure
         timeout-minutes: 15
         run: |
@@ -105,6 +147,7 @@ jobs:
             playwright-report/
             test-results/
             /tmp/matrix-first-server.log
+            /tmp/matrix-first-html.html
           if-no-files-found: warn
           retention-days: 14
       - name: Cleanup
