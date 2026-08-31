@@ -8,26 +8,11 @@ import { installToolUiRuntimeLocalization } from './lib/i18n/tool-ui-runtime';
 import { installToolUiRuntimeSupplement } from './lib/i18n/tool-ui-runtime-supplement';
 import { installToolUiTechnicalValueNormalization } from './lib/i18n/tool-ui-technical-values';
 import { FlixoUxShell } from './components/flixo-ux-shell';
-import { LOCALE_METADATA, isLocale } from './lib/i18n';
 import './styles.css';
 import './home-motion.css';
 import './command-palette.css';
 import './home-modern.css';
 import './tools/seed/seed-premium.css';
-
-function applyDocumentLocale(): void {
-  const candidate = window.location.pathname.split('/').filter(Boolean)[0] ?? '';
-  const locale = isLocale(candidate) ? candidate : 'en';
-  const metadata = LOCALE_METADATA[locale];
-  const html = document.documentElement;
-  if (html.lang !== metadata.languageTag) html.lang = metadata.languageTag;
-  if (html.dir !== metadata.direction) html.dir = metadata.direction;
-}
-
-applyDocumentLocale();
-const localeInterval = window.setInterval(applyDocumentLocale, 100);
-const localeObserver = new MutationObserver(applyDocumentLocale);
-localeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'dir'] });
 
 installRuntimeDiagnostics();
 installPerformanceDiagnostics();
@@ -52,8 +37,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 );
 
 if (import.meta.hot) import.meta.hot.dispose(() => {
-  window.clearInterval(localeInterval);
-  localeObserver.disconnect();
   disposeToolUiLocalization();
   disposeToolUiLocalizationSupplement();
   disposeToolUiTechnicalValues();
