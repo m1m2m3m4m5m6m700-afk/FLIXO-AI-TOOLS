@@ -22,6 +22,7 @@ function vendorChunk(id: string): string | undefined {
 }
 
 export default defineConfig({
+  appType: 'spa',
   plugins: [react()],
   resolve: {
     alias: {
@@ -40,5 +41,10 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
     allowedHosts,
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 3000,
+    strictPort: true,
   },
 });
