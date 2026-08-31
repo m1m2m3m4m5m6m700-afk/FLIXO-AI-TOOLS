@@ -1,6 +1,7 @@
 name: CI
 
-# PR RESCUE MODE: one short deterministic path. Deep certification remains manual/main-only.
+# PR fast path: independent impact-aware diagnostics run in parallel.
+# Deep certification remains manual/main-only.
 on:
   pull_request:
     branches: [main]
@@ -23,12 +24,17 @@ env:
   CHANGE_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'origin/main' }}
 
 jobs:
-  ci:
-    name: CI
+  fast:
+    name: Fast diagnostics — ${{ matrix.group }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [core, structure, localization, seo, security, artifact, browser, build]
     env:
       CI_PR_RESCUE: 'true'
+      FAST_CI_GROUP: ${{ matrix.group }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -37,11 +43,60 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Install dependencies once
+      - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Run impact-aware verification
+      - name: Run impact-aware verification group
         run: node scripts/ci/fast-verify.mjs
-      - name: Upload CI evidence
+      - name: Upload group evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: fast-ci-${{ matrix.group }}-${{ github.sha }}
+          path: diagnostics/
+          if-no-files-found: warn
+          retention-days: 14
+
+  ci:
+    name: CI
+    needs: [fast]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Download fast diagnostic evidence
+        uses: actions/download-artifact@v6
+        with:
+          pattern: fast-ci-*-${{ github.sha }}
+          path: diagnostics
+          merge-multiple: false
+      - name: Aggregate fast diagnostic contract
+        shell: bash
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const groups = ['core','structure','localization','seo','security','artifact','browser','build'];
+          const failures = [];
+          for (const group of groups) {
+            const dir = path.join('diagnostics', `fast-ci-${group}-${process.env.SHA}`);
+            const resultFile = path.join(dir, 'fast-ci-result.json');
+            const planFile = path.join(dir, 'fast-ci-plan.json');
+            if (!fs.existsSync(resultFile) || !fs.existsSync(planFile)) {
+              failures.push(`${group}: missing evidence`);
+              continue;
+            }
+            const plan = JSON.parse(fs.readFileSync(planFile, 'utf8'));
+            const result = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
+            if (plan.sha !== process.env.SHA || result.sha !== process.env.SHA) failures.push(`${group}: SHA mismatch`);
+            if (result.status !== 'PASS') failures.push(`${group}: ${result.status}`);
+          }
+          if (failures.length) throw new Error(`Fast CI aggregate failed:\n${failures.join('\n')}`);
+          console.log('Fast CI aggregate PASS: all 8 diagnostic groups valid.');
+          NODE
+      - name: Publish unified fast-path evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -57,18 +112,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
-      - name: Download CI evidence
+      - name: Download unified CI evidence
         uses: actions/download-artifact@v6
         with:
           name: ci-fast-evidence-${{ github.sha }}
           path: diagnostics
       - name: Validate fast-path evidence
         shell: bash
+        env:
+          SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test -s diagnostics/fast-ci-plan.json
-          test -s diagnostics/fast-ci-result.json
-          node -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/fast-ci-result.json','utf8')); if(r.sha!==process.env.GITHUB_SHA) throw new Error('Evidence SHA mismatch'); if(r.status!=='PASS') throw new Error('Fast CI result is not PASS'); console.log('Fast contract evidence PASS');"
+          test -s diagnostics/fast-ci-core-*/fast-ci-result.json
+          node -e "const fs=require('node:fs'); const p=process.cwd() + '/diagnostics'; const dirs=fs.readdirSync(p).filter(d=>d.startsWith('fast-ci-')); if(!dirs.length) throw new Error('No fast group evidence'); for(const d of dirs){const f=p+'/'+d+'/fast-ci-result.json'; if(!fs.existsSync(f)) continue; const r=JSON.parse(fs.readFileSync(f,'utf8')); if(r.sha!==process.env.SHA) throw new Error('Evidence SHA mismatch in '+d); if(r.status!=='PASS') throw new Error('Non-PASS fast evidence in '+d); } console.log('Fast contract evidence PASS');"
 
   canonical-verify:
     name: Canonical Verification Gate
@@ -82,7 +138,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ needs.ci.result }}" != "success" ]]; then
-            echo 'Canonical Verification Gate BLOCKED: canonical CI failed.'
+            echo 'Canonical Verification Gate BLOCKED: parallel fast CI aggregate failed.'
             exit 1
           fi
           if [[ "${{ needs.fast-contract.result }}" != "success" ]]; then
