@@ -35,6 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -264,8 +265,12 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           conclusion=$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/check-runs?per_page=100" --jq '[.check_runs[] | select(.name=="FLIXO CI — G3 Artifact Integrity Shadow")] | sort_by(.completed_at) | last | .conclusion // "NOT_FOUND"')
+          if [[ "$conclusion" == "NOT_FOUND" || "$conclusion" == "null" || "$conclusion" == "" ]]; then
+            echo 'Legacy G3 result is not yet available on the exact head SHA.'
+            exit 1
+          fi
           echo "LEGACY_RESULT=$conclusion" >> "$GITHUB_ENV"
           echo "Legacy G3 conclusion: $conclusion"
       - name: G3 authoritative aggregation
