@@ -1,0 +1,105 @@
+name: FLIXO — Ultra Failure Investigator
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ultra-investigator-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
+jobs:
+  investigate:
+    name: Investigator — ${{ matrix.suite }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        suite: [toolchain, architecture, localization, seo, security, artifact, runtime, browser, build]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install Chromium
+        if: matrix.suite == 'runtime' || matrix.suite == 'browser'
+        run: npx playwright install --with-deps chromium
+      - name: Run ultra investigator suite
+        env:
+          INVESTIGATION_SUITE: ${{ matrix.suite }}
+        run: |
+          node scripts/ci/ultra-investigate.mjs --suite "$INVESTIGATION_SUITE"
+      - name: Upload suite evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ultra-investigation-${{ matrix.suite }}-${{ github.sha }}
+          path: diagnostics/investigation/
+          if-no-files-found: warn
+          retention-days: 14
+
+  aggregate:
+    name: Investigator — Aggregate
+    needs: [investigate]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Download suite evidence
+        uses: actions/download-artifact@v6
+        with:
+          pattern: ultra-investigation-*-${{ github.sha }}
+          path: diagnostics/investigation
+          merge-multiple: true
+      - name: Aggregate failure intelligence
+        env:
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = 'diagnostics/investigation';
+          const files = fs.existsSync(root) ? fs.readdirSync(root).filter((f) => f.endsWith('.json')) : [];
+          const records = [];
+          for (const file of files) {
+            try { records.push(JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'))); } catch {}
+          }
+          const rootCauses = records.flatMap((r) => r.rootCauses ?? []).sort((a, b) => (b.count ?? 1) - (a.count ?? 1));
+          const report = { schema_version: 2, sha: process.env.GITHUB_SHA, generatedAt: new Date().toISOString(), status: rootCauses.length ? 'FAIL' : 'PASS', sourceFiles: files, rootCauseCount: rootCauses.length, rootCauses };
+          fs.writeFileSync(path.join(root, 'aggregate.json'), JSON.stringify(report, null, 2) + '\n');
+          console.log(JSON.stringify(report, null, 2));
+          if (rootCauses.length) process.exit(1);
+          NODE
+      - name: Upload aggregate evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ultra-investigation-aggregate-${{ github.sha }}
+          path: diagnostics/investigation/
+          if-no-files-found: error
+          retention-days: 14
