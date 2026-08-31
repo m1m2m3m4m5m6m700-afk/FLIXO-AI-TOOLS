@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useLayoutEffect } from 'react';
 import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
@@ -15,14 +15,21 @@ const GLOBAL_STRUCTURED_DATA = {
 
 function RuntimeLocaleAttributes() {
   const location = useLocation();
-  useEffect(() => {
+  useLayoutEffect(() => {
     const localeCode = location.pathname.split('/').filter(Boolean)[0] ?? '';
     const locale = isLocale(localeCode) ? localeCode : 'en';
     const metadata = LOCALE_METADATA[locale];
-    document.querySelectorAll<HTMLElement>('main').forEach((localizedMain) => {
-      localizedMain.lang = metadata.languageTag;
-      localizedMain.dir = metadata.direction;
-    });
+    const apply = () => {
+      document.documentElement.lang = metadata.languageTag;
+      document.documentElement.dir = metadata.direction;
+      document.querySelectorAll<HTMLElement>('main').forEach((localizedMain) => {
+        localizedMain.lang = metadata.languageTag;
+        localizedMain.dir = metadata.direction;
+      });
+    };
+    apply();
+    const frame = window.requestAnimationFrame(apply);
+    return () => window.cancelAnimationFrame(frame);
   }, [location.pathname]);
   return null;
 }
@@ -34,7 +41,7 @@ function RouteContent() {
 export const rootRoute = createRootRoute({
   component: function RootLayout() {
     useEffect(() => installCoreWebVitalsDiagnostics(), []);
-    return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} /><FlixoGlobalLogo /><CommandPalette /><RouteContent /><Scripts /></>;
+    return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\u003c') }} /><FlixoGlobalLogo /><CommandPalette /><RouteContent /><Scripts /></>;
   },
   head: () => ({
     meta: [
