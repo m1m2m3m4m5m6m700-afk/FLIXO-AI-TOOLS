@@ -1,14 +1,9 @@
 import { spawnSync } from 'node:child_process';
 
 const args = process.argv.slice(2);
-const requestedLocale = process.env.FLIXO_LOCALE ?? args.find((value) => /^[a-z]{2}$/u.test(value));
-const forwardedArgs = [];
-
-if (requestedLocale) forwardedArgs.push(requestedLocale);
-
 const result = spawnSync(
   process.execPath,
-  ['--import=./scripts/register-node-resolver.mjs', '--experimental-strip-types', 'scripts/validate-effective-localization.mjs', ...forwardedArgs],
+  ['--import=./scripts/register-node-resolver.mjs', '--experimental-strip-types', 'scripts/validate-effective-localization.mjs', ...args],
   { stdio: 'inherit', env: process.env },
 );
 
