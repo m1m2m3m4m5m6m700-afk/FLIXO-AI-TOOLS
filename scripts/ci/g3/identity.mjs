@@ -7,7 +7,7 @@ const event = env.GITHUB_EVENT_NAME ?? 'unknown';
 const runId = env.GITHUB_RUN_ID ?? 'unknown';
 const attempt = Number(env.GITHUB_RUN_ATTEMPT ?? '1');
 const expectedHeadSha = env.EXPECTED_HEAD_SHA ?? '';
-const mergeSha = env.MERGE_SHA ?? env.GITHUB_SHA ?? '';
+const mergeSha = env.MERGE_SHA ?? null;
 let baseSha = env.BASE_SHA ?? '';
 let headSha = expectedHeadSha;
 let prNumber = null;
@@ -32,18 +32,22 @@ const identity = {
   prNumber,
   baseSha: baseSha || 'unknown',
   headSha: headSha || 'unknown',
-  mergeSha: mergeSha || null,
+  mergeSha,
   testedSha,
   runId,
   attempt,
-  identityRule: 'testedSha=git rev-parse HEAD; mergeSha is metadata only',
+  identityRule: 'testedSha must equal authoritative PR headSha; mergeSha is metadata only',
 };
 
 const failures = [];
-if (identity.headSha === 'unknown' || !identity.headSha) failures.push('headSha missing');
+if (!identity.headSha || identity.headSha === 'unknown') failures.push('headSha missing');
 if (identity.testedSha !== identity.headSha) failures.push(`testedSha ${identity.testedSha} != headSha ${identity.headSha}`);
-if (env.GITHUB_SHA && identity.mergeSha !== env.GITHUB_SHA && event === 'pull_request') failures.push('merge SHA metadata mismatch');
 
+identity.mergeShaWarning = event === 'pull_request' && mergeSha && mergeSha === identity.testedSha
+  ? null
+  : event === 'pull_request' && mergeSha
+    ? 'mergeSha is metadata and may refer to a mutable PR merge ref; it is not a gate identity'
+    : null;
 identity.status = failures.length ? 'FAIL' : 'PASS';
 identity.classification = failures.length ? 'CI' : null;
 identity.rootCause = failures.length ? 'SHA_IDENTITY' : null;
