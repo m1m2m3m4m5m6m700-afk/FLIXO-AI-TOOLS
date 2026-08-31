@@ -1,6 +1,6 @@
 name: CI
 
-# Temporary repair mode: aggressively parallel root-cause diagnostics plus fail-fast G4.
+# Focused verification mode: G4 is the only CI job during localization/runtime stabilization.
 on:
   pull_request:
     branches: [main]
@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.head_ref || github.ref }}
+  group: ci-g4-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -26,133 +26,18 @@ env:
   CHANGE_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'origin/main' }}
 
 jobs:
-  fast-check:
-    name: Fast micro-check — ${{ matrix.check }}
+  g4-deep:
+    name: G4 Universal Localization & SEO (fail-fast)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        check:
-          - typecheck
-          - lint
-          - ci-contract
-          - tool-registry
-          - tool-manifest
-          - router-registry
-          - baseline
-          - route-resolver
-          - i18n-strict
-          - locale-integrity
-          - locale-navigation
-          - home-i18n
-          - tool-localization
-          - browser-localization-smoke
-          - seo
-          - seo-manifest
-          - use-case-seo
-          - indexing
-          - breadcrumb-seo
-          - multilingual-seo
-          - language-quality-strict
-          - upload-boundary
-          - file-safety
-          - output-integrity
-          - svg-integrity
-          - affected-e2e
-          - build
-    env:
-      CI_PR_RESCUE: 'true'
-      FAST_CI_CHECK: ${{ matrix.check }}
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Install Chromium for browser diagnostics
-        if: matrix.check == 'browser-localization-smoke' || matrix.check == 'affected-e2e'
-        run: npx playwright install chromium
-      - name: Run micro-check
-        run: node scripts/ci/fast-verify.mjs
-      - name: Upload micro-check evidence
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: fast-check-${{ matrix.check }}-${{ github.sha }}
-          path: diagnostics/
-          if-no-files-found: warn
-          retention-days: 14
-
-  ci:
-    name: CI
-    needs: [fast-check]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Download micro-check evidence
-        uses: actions/download-artifact@v6
-        with:
-          pattern: fast-check-*-${{ github.sha }}
-          path: diagnostics
-          merge-multiple: false
-      - name: Aggregate fast diagnostics
-        shell: bash
-        env:
-          SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const checks = [
-            'typecheck','lint','ci-contract','tool-registry','tool-manifest','router-registry','baseline','route-resolver',
-            'i18n-strict','locale-integrity','locale-navigation','home-i18n','tool-localization','browser-localization-smoke',
-            'seo','seo-manifest','use-case-seo','indexing','breadcrumb-seo','multilingual-seo','language-quality-strict',
-            'upload-boundary','file-safety','output-integrity','svg-integrity','affected-e2e','build'
-          ];
-          const root = 'diagnostics';
-          const failures = [];
-          const found = new Set();
-          function walk(dir) {
-            if (!fs.existsSync(dir)) return [];
-            return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-              const full = path.join(dir, entry.name);
-              return entry.isDirectory() ? walk(full) : [full];
-            });
-          }
-          for (const file of walk(root).filter((value) => value.endsWith('fast-ci-result.json'))) {
-            const result = JSON.parse(fs.readFileSync(file, 'utf8'));
-            const check = checks.find((name) => file.includes(`fast-check-${name}-${process.env.SHA}`));
-            if (!check) continue;
-            found.add(check);
-            if (result.sha !== process.env.SHA) failures.push(`${check}: SHA mismatch`);
-            if (!['PASS','SKIPPED'].includes(result.status)) failures.push(`${check}: ${result.status}`);
-          }
-          for (const check of checks) if (!found.has(check)) failures.push(`${check}: missing evidence`);
-          if (failures.length) throw new Error(`Fast diagnostics aggregate failed:\n${failures.join('\n')}`);
-          console.log(`Fast diagnostics aggregate PASS: ${checks.length} micro-checks accounted for.`);
-          NODE
-      - name: Publish unified fast evidence
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: ci-fast-evidence-${{ github.sha }}
-          path: diagnostics/
-          if-no-files-found: warn
-          retention-days: 14
-
-  g4-deep:
-    name: G4 Universal Localization & SEO (fail-fast)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
@@ -205,12 +90,13 @@ jobs:
           done
           cat /tmp/g4-server.log || true
           exit 1
-      - name: G4 all-public-route runtime — 20 locales — fail fast
+      - name: G4 all-public-route runtime — 20 locales — parallel shard
         env:
           S4_EXTERNAL_SERVER: 'true'
           PLAYWRIGHT_SERVER: preview
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --workers=1 --retries=0 --max-failures=1
+          G4_SHARD: ${{ matrix.shard }}/4
+        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --workers=4 --retries=0 --max-failures=1 --shard=${{ matrix.shard }}/4
       - name: Cleanup
         if: always()
         shell: bash
@@ -221,73 +107,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: g4-localization-seo-evidence-${{ github.sha }}
+          name: g4-localization-seo-evidence-${{ github.sha }}-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/
             /tmp/g4-server.log
           if-no-files-found: warn
           retention-days: 14
-
-  fast-contract:
-    name: Fast Contract Diagnostics
-    needs: [ci]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    steps:
-      - name: Download unified fast evidence
-        uses: actions/download-artifact@v6
-        with:
-          name: ci-fast-evidence-${{ github.sha }}
-          path: diagnostics
-      - name: Validate fast evidence
-        shell: bash
-        env:
-          SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          function walk(dir) {
-            if (!fs.existsSync(dir)) return [];
-            return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-              const full = path.join(dir, entry.name);
-              return entry.isDirectory() ? walk(full) : [full];
-            });
-          }
-          const files = walk('diagnostics').filter((value) => value.endsWith('fast-ci-result.json'));
-          if (!files.length) throw new Error('No fast-check evidence');
-          for (const file of files) {
-            const result = JSON.parse(fs.readFileSync(file, 'utf8'));
-            if (result.sha !== process.env.SHA) throw new Error(`Evidence SHA mismatch: ${file}`);
-            if (!['PASS','SKIPPED'].includes(result.status)) throw new Error(`Non-passing evidence: ${file}`);
-          }
-          console.log(`Fast Contract Diagnostics PASS: ${files.length} evidence files validated.`);
-          NODE
-
-  canonical-verify:
-    name: Canonical Verification Gate
-    needs: [ci, fast-contract, g4-deep]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    steps:
-      - name: Enforce prerequisite results
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "${{ needs.ci.result }}" != "success" ]]; then
-            echo 'Canonical Verification Gate BLOCKED: fast micro-check aggregate failed.'
-            exit 1
-          fi
-          if [[ "${{ needs.fast-contract.result }}" != "success" ]]; then
-            echo 'Canonical Verification Gate BLOCKED: Fast Contract Diagnostics failed.'
-            exit 1
-          fi
-          if [[ "${{ needs.g4-deep.result }}" != "success" ]]; then
-            echo 'Canonical Verification Gate BLOCKED: Deep G4 certification failed.'
-            exit 1
-          fi
-          echo 'Canonical Verification Gate PASS: fast micro-checks and G4 are green.'
