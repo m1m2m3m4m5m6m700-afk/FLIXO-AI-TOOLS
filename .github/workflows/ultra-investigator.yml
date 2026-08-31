@@ -27,6 +27,24 @@ env:
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
 
 jobs:
+  self-test:
+    name: Ultra — Contract Self-Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Run Ultra contract tests
+        run: node --experimental-strip-types --test scripts/ci/ultra-investigate.test.mjs
+
   investigate:
     name: Ultra — ${{ matrix.suite }}
     runs-on: ubuntu-latest
@@ -110,18 +128,25 @@ jobs:
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/ci/ultra-investigate-guard.mjs diagnostics/investigation/aggregate.json
-      - name: Upload aggregate evidence
+      - name: Validate against shared Evidence Ledger
+        env:
+          EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVIDENCE_ROOT: ci-evidence
+        run: node scripts/ci/evidence-ledger.mjs
+      - name: Upload aggregate and ledger evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: ultra-investigation-aggregate-${{ github.event.pull_request.head.sha || github.sha }}
-          path: diagnostics/investigation/aggregate.json
+          path: |
+            diagnostics/investigation/aggregate.json
+            ci-evidence/ultra-recovery.json
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
   official-gate:
     name: Ultra Recovery Gate — OFFICIAL
-    needs: [investigate, aggregate]
+    needs: [self-test, investigate, aggregate]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -130,18 +155,24 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
-      - name: Download official aggregate
+      - name: Download official aggregate and ledger
         uses: actions/download-artifact@v6
         with:
           name: ultra-investigation-aggregate-${{ github.event.pull_request.head.sha || github.sha }}
-          path: diagnostics/investigation
-      - name: Require investigator and aggregate success
+          path: .
+      - name: Require complete official Ultra evidence
         env:
+          SELF_TEST_RESULT: ${{ needs.self-test.result }}
           INVESTIGATE_RESULT: ${{ needs.investigate.result }}
           AGGREGATE_RESULT: ${{ needs.aggregate.result }}
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVIDENCE_ROOT: ci-evidence
         run: |
           set -euo pipefail
+          test "$SELF_TEST_RESULT" = success || { echo "self-test=$SELF_TEST_RESULT"; exit 1; }
           test "$INVESTIGATE_RESULT" = success || { echo "investigate=$INVESTIGATE_RESULT"; exit 1; }
           test "$AGGREGATE_RESULT" = success || { echo "aggregate=$AGGREGATE_RESULT"; exit 1; }
           node scripts/ci/ultra-investigate-guard.mjs diagnostics/investigation/aggregate.json
-          echo "ULTRA OFFICIAL GATE PASS: exact-head, complete nine-suite evidence, zero failures, zero root causes, zero unknowns."
+          node scripts/ci/evidence-ledger.mjs
+          echo "ULTRA OFFICIAL GATE PASS: exact-head, complete nine-suite evidence, zero failures, zero root causes, zero unknowns, shared ledger PASS."
