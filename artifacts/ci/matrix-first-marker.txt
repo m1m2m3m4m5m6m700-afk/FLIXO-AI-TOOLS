@@ -1,0 +1,1 @@
+Matrix First Gate is the first verification entrypoint; 12 independent browser/shard units; fail-fast=false; max-failures=1 per unit.
