@@ -13,7 +13,11 @@ export interface StoredCheckpoint {
 }
 
 export class CheckpointStore {
-  constructor(private readonly root = 'artifacts/ci/checkpoints') {}
+  private readonly root: string;
+
+  constructor(root = 'artifacts/ci/checkpoints') {
+    this.root = root;
+  }
 
   async save(checkpoint: StoredCheckpoint): Promise<string> {
     await mkdir(this.root, { recursive: true });
@@ -26,7 +30,7 @@ export class CheckpointStore {
     try {
       return JSON.parse(await readFile(join(this.root, `${fingerprint}.json`), 'utf8')) as StoredCheckpoint;
     } catch (error) {
-      if (error?.code === 'ENOENT') return null;
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') return null;
       throw error;
     }
   }
@@ -35,6 +39,9 @@ export class CheckpointStore {
     const checkpoint = await this.load(fingerprint);
     if (!checkpoint || !isCheckpointIdentityValid(checkpoint.identity, identity)) return null;
     if (checkpoint.result.status !== 'PASS') return null;
-    return { ...checkpoint.result, evidence: [...(checkpoint.result.evidence ?? []), { source: 'checkpoint', artifact: checkpoint.evidencePath }] };
+    return {
+      ...checkpoint.result,
+      evidence: [...(checkpoint.result.evidence ?? []), { source: 'checkpoint', artifact: checkpoint.evidencePath }],
+    };
   }
 }
