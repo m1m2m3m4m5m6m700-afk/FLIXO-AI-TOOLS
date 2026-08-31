@@ -46,7 +46,11 @@ An unclassified failure remains `UNKNOWN` and fails the gate.
 
 ## Timeout safety
 
-Every subprocess has a contract timeout. A timeout is recorded as a real failure and the spawned process group is terminated. Browser and build checks have longer explicit limits; static checks have shorter limits to prevent silent hangs.
+Every subprocess has a contract timeout. A timeout is recorded as a real failure and the child process is terminated. Browser and build checks have longer explicit limits; static checks have shorter limits to prevent silent hangs.
+
+## Shared Evidence Ledger
+
+The aggregate emits `ci-evidence/ultra-recovery.json` using the same `sha/expected/executed/passed/failed/skipped/missing/result` semantics consumed by `scripts/ci/evidence-ledger.mjs`. This prevents Ultra evidence from becoming a parallel evidence system.
 
 ## Official-gate semantics
 
