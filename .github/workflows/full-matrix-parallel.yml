@@ -28,9 +28,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
-      # First failure cancels remaining matrix jobs. This workflow is a repair loop,
-      # not a failure-counting diagnostic ladder.
-      fail-fast: true
+      # Every browser/shard is an independent verification unit.
+      # A failure in one unit must NOT cancel unrelated units.
+      fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
         shard: [1, 2, 3, 4]
@@ -94,9 +94,18 @@ jobs:
           done
           cat /tmp/full-matrix-server.log || true
           exit 1
-      - name: Verify public routes × all canonical locales
+      - name: Verify shard scope only
         timeout-minutes: 15
-        run: npx playwright test tests/localization-runtime.spec.ts --project=${{ matrix.browser }} --workers=6 --retries=0 --max-failures=1 --shard=${{ matrix.shard }}/4
+        run: |
+          set -euo pipefail
+          echo "Independent matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/4"
+          echo "This unit owns only its Playwright shard and stops on its first failing test."
+          npx playwright test tests/localization-runtime.spec.ts \
+            --project=${{ matrix.browser }} \
+            --workers=6 \
+            --retries=0 \
+            --max-failures=1 \
+            --shard=${{ matrix.shard }}/4
       - name: Cleanup
         if: always()
         shell: bash
@@ -126,5 +135,5 @@ jobs:
         run: |
           set -euo pipefail
           result='${{ needs.matrix.result }}'
-          test "$result" = success || { echo "Full Matrix certification failed: matrix=$result"; exit 1; }
-          echo "Full Matrix Parallel PASS: chromium + firefox + webkit; complete public-route × canonical-locale coverage across deterministic shards."
+          test "$result" = success || { echo "Full Matrix certification failed: one or more independent matrix units failed; matrix=$result"; exit 1; }
+          echo "Full Matrix Parallel PASS: every chromium/firefox/webkit shard completed independently; each shard covered a disjoint Playwright shard and stopped on its own first failure."
