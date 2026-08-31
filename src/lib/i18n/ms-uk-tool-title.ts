@@ -28,7 +28,6 @@ const TERMS: Record<string, Partial<Record<TargetLocale, string>>> = {
   text: { ms: 'Teks', uk: 'Текст' },
   pdf: { ms: 'PDF', uk: 'PDF' },
   ocr: { ms: 'OCR', uk: 'OCR' },
-  svg: { ms: 'SVG', uk: 'SVG' },
   ai: { ms: 'AI', uk: 'ШІ' },
   online: { ms: 'dalam talian', uk: 'онлайн' },
 };
@@ -41,7 +40,7 @@ function tokenize(value: string): string[] {
  * Resolve only genuinely localized ms/uk tool titles.
  * Returning undefined is intentional: callers must fail closed rather than exposing an English title.
  */
-export function localizeMsUkToolTitle(locale: Locale, title: string, _category: Category): string | undefined {
+export function localizeMsUkToolTitle(locale: Locale, title: string): string | undefined {
   if (locale !== 'ms' && locale !== 'uk') return undefined;
   const translated = tokenize(title).map((part) => TERMS[part.toLowerCase()]?.[locale] ?? part).join(' ').trim();
   if (!translated || translated.toLowerCase() === title.trim().toLowerCase()) return undefined;
