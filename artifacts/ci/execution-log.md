@@ -1,48 +1,16 @@
 # FLIXO CI Rebuild Execution Log
 
-CURRENT PHASE: CI-0 — Discovery
+CURRENT PHASE: CI-1 — Clean Foundation
 
-PHASE STATUS: IN_PROGRESS
+PHASE STATUS: VERIFYING
 
-CURRENT PR: #527 — ci: bootstrap from-scratch CI rebuild foundation
+CURRENT PR: CI foundation PR from `ci/foundation-001`
 
-RELATED LEGACY PR: #526 — fix(g3): root-cause sweep and merge protection; untouched by the rebuild.
+AUTHORITATIVE BASE: merge commit `365190e68591d1943752e6416520095e8b8925ff` containing CI-0.
 
-CURRENT HEAD: c63dbc651f008f54e05abaf8a2d7b56168e66961 (latest branch commit observed before this log update)
+MAIN REMAINS: `f8c99b41d0e66b3bf958bcf24ad5499b7722b2db` at last verified ref observation.
 
-BASELINE SHA: f8c99b41d0e66b3bf958bcf24ad5499b7722b2db
-
-REBUILD BRANCH: ci/rebuild-foundation
-
-LATEST VERIFIED MAIN CI: baseline SHA had CI and Fast Contract Diagnostics successful; G3 Universal Artifact Integrity failed. That failure is preserved as legacy evidence and is not reclassified by the new engine yet.
-
-ROOT CAUSES: Not yet reclassified by the new engine.
-
-BLOCKERS:
-- Detailed branch-protection endpoint is unavailable through the current GitHub integration; no protection mutation is permitted.
-- CI-0 is not allowed to exit until remaining workflow dependency and duplicate mapping is complete.
-
-COMPLETED ITEMS:
-- Repository identity verified.
-- Main baseline SHA and tree SHA verified.
-- Open PR #526 and its head SHA verified.
-- Rebuild branch created from exact main baseline.
-- Legacy workflow inventory recorded.
-- Package command inventory recorded.
-- Workflow dependency map started and systemic duplication identified.
-- Architecture freeze recorded.
-- Rollback plan recorded.
-- CI-0 exit gate recorded as NEXT PHASE FORBIDDEN.
-- Draft PR #527 opened for isolated review.
-
-INCOMPLETE ITEMS:
-- Finish dependency mapping for remaining diagnostic/security/release workflows.
-- Finish duplicate evaluator/command inventory.
-- Verify workflow permissions/concurrency patterns across remaining workflows.
-- Verify branch-protection required checks through an accessible administrative source.
-- Complete CI-0 exit-gate validation.
-
-SAFETY STATE:
+SAFETY LOCKS:
 - main modified: NO
 - branch protection modified: NO
 - required checks modified: NO
@@ -50,6 +18,26 @@ SAFETY STATE:
 - DNS/secrets modified: NO
 - legacy workflows deleted: NO
 - legacy workflow behavior modified: NO
+- second authoritative CI introduced: NO
+
+CI-1 IMPLEMENTATION:
+- Typed ContractResult / CiContract / execution context model: COMPLETE
+- Centralized decision semantics: COMPLETE
+- Deterministic context hashing: COMPLETE
+- Initial CI contract registry: COMPLETE
+- Foundation validator: COMPLETE
+- Decision semantic tests: COMPLETE
+- Non-authoritative shadow workflow: COMPLETE
+
+VERIFICATION:
+- CI shadow workflow: PENDING
+- TypeScript: PENDING
+- Foundation validator: PENDING
+- Decision semantics: PENDING
+
+KNOWN LEGACY EVIDENCE:
+- Baseline CI run 33398133005: CI and Fast Contract Diagnostics passed.
+- Baseline G3 run 33398133071: deterministic browser upload flow failed with `filechooser` timeout after static G3 checks passed. This remains legacy evidence and is not hidden by the new foundation.
 
 NEXT REQUIRED ACTION:
-Finish CI-0 discovery only. Do not start CI-1 implementation until the CI-0 exit gate is PASS.
+Allow the CI-1 shadow workflow to verify the foundation. Do not promote it to authority or modify branch protection until CI-1 exit gate is PASS.
