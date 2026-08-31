@@ -14,10 +14,6 @@ concurrency:
   group: ci-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-permissions:
-  contents: read
-  checks: read
-
 env:
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
@@ -249,7 +245,7 @@ jobs:
     if: always()
     needs: [g3-foundation, g3-contracts, g3-browser]
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v5
         with:
@@ -270,9 +266,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          conclusion=$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/check-runs?per_page=100" --jq '[.check_runs[] | select(.name=="FLIXO CI — G3 Artifact Integrity Shadow")] | sort_by(.completed_at) | last | .conclusion // "NOT_FOUND"')
+          conclusion="NOT_FOUND"
+          for attempt in {1..60}; do
+            conclusion=$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/check-runs?per_page=100" --jq '[.check_runs[] | select(.name=="G3 Artifact Integrity Shadow") | select(.head_sha==env.HEAD_SHA)] | sort_by(.completed_at) | last | .conclusion // "NOT_FOUND"')
+            case "$conclusion" in
+              success|failure|cancelled|timed_out|action_required|neutral|skipped|stale)
+                break
+                ;;
+              *)
+                echo "Legacy G3 exact-head result not terminal yet (poll $attempt/60): $conclusion"
+                sleep 5
+                ;;
+            esac
+          done
           if [[ "$conclusion" == "NOT_FOUND" || "$conclusion" == "null" || "$conclusion" == "" ]]; then
-            echo 'Legacy G3 result is not yet available on the exact head SHA.'
+            echo 'Legacy G3 result was not available on the exact head SHA after bounded polling.'
             exit 1
           fi
           echo "LEGACY_RESULT=$conclusion"
