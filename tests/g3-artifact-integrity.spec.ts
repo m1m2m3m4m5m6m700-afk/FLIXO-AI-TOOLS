@@ -1,14 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
 import { validateOutputIntegrity } from '../src/lib/contracts/output-integrity';
 import { getToolOutputContract } from '../src/lib/contracts/tool-output-contracts';
 import { getLocalizedToolTitle } from '../src/lib/seo/tool-seo';
+import { uploadFixture } from './helpers/upload-file';
 
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#223344"/><circle cx="300" cy="220" r="180" fill="#67e8f9"/><circle cx="850" cy="560" r="260" fill="#164e63"/></svg>`;
 
 type BrowserArtifact = { mime: string; bytes: number[]; size: number };
-type TestFile = { name: string; mimeType: string; content: string };
 
 async function readBlob(page: Page, href: string): Promise<BrowserArtifact> {
   return page.evaluate(async (objectUrl: string) => {
@@ -47,25 +45,9 @@ async function waitForImageCompressorReady(page: Page) {
   return input;
 }
 
-async function materializeTestFiles(testInfo: { outputPath: (relativePath: string) => string }, files: TestFile[]) {
-  return Promise.all(files.map(async (file) => {
-    const filePath = testInfo.outputPath(path.join('fixtures', file.name));
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, file.content, 'utf8');
-    return filePath;
-  }));
-}
-
-async function setTestFiles(input: Locator, testInfo: { outputPath: (relativePath: string) => string }, files: TestFile[]) {
-  const filePaths = await materializeTestFiles(testInfo, files);
-  await input.setInputFiles(filePaths, { timeout: 30000 });
-  await expect.poll(async () => input.evaluate((element) => element.files?.length ?? 0)).toBe(files.length);
-}
-
 test('G3 real flow: upload → process → download → inspect image artifact', async ({ page }, testInfo) => {
   const input = await waitForImageCompressorReady(page);
-
-  await setTestFiles(input, testInfo, [
+  await uploadFixture(page, input, testInfo, [
     { name: 'g3-source.svg', mimeType: 'image/svg+xml', content: SVG },
   ]);
   await page.getByRole('button', { name: 'Compress image', exact: true }).click();
@@ -110,7 +92,7 @@ test('G3 real flow: upload → process → download → inspect image artifact',
 
 test('G3 real flow: upload → process → download → inspect ZIP artifact', async ({ page }, testInfo) => {
   const input = await waitForImageCompressorReady(page);
-  await setTestFiles(input, testInfo, [
+  await uploadFixture(page, input, testInfo, [
     { name: 'g3-one.svg', mimeType: 'image/svg+xml', content: SVG },
     { name: 'g3-two.svg', mimeType: 'image/svg+xml', content: SVG },
   ]);
