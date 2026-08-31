@@ -1,6 +1,7 @@
 import { createRoute, useParams } from '@tanstack/react-router';
 import { isLocale } from '@/lib/i18n';
 import { getTranslationBundle } from '@/lib/i18n/translations';
+import { LOCALE_METADATA } from '@/lib/i18n/config';
 import { HomePage } from './home-page';
 import { rootRoute } from './__root';
 
@@ -10,7 +11,7 @@ export const localizedHomeRoute = createRoute({
   head: async ({ params }) => {
     const locale = isLocale(params.locale) ? params.locale : 'en';
     const bundle = await getTranslationBundle(locale);
-    const direction = locale === 'ar' || locale === 'ur' ? 'rtl' : 'ltr';
+    const direction = LOCALE_METADATA[locale].direction;
     return {
       meta: [
         { title: `${bundle.siteName} | ${bundle.homeTitle}` },
