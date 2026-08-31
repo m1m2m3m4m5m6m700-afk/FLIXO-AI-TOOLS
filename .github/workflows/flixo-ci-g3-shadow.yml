@@ -16,6 +16,7 @@ env:
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
   VITE_TEST_ORIGIN: https://canonical.test
   VITE_SITE_URL: https://flixoai.vercel.app
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   g3-shadow:
@@ -24,6 +25,17 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Verify checked-out identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          expected="${EXPECTED_HEAD_SHA}"
+          test "$actual" = "$expected" || { echo "G3 exact-head identity mismatch: expected=$expected actual=$actual"; exit 1; }
+          echo "G3 exact-head identity PASS: $actual"
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
@@ -39,11 +51,19 @@ jobs:
         run: node --experimental-strip-types scripts/test-g3-artifact-integrity.mjs
       - name: Real G3 browser flow
         run: npx playwright install --with-deps chromium && npx playwright test tests/g3-artifact-integrity.spec.ts --project=chromium --workers=1 --retries=0
+      - name: Verify G3 evidence identity
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          expected="${EXPECTED_HEAD_SHA}"
+          test "$actual" = "$expected" || { echo "G3 evidence identity mismatch: expected=$expected actual=$actual"; exit 1; }
       - name: Upload G3 shadow evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-g3-shadow-${{ github.sha }}
+          name: ci-g3-shadow-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             playwright-report/
             test-results/
