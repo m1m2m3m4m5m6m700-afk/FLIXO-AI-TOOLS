@@ -1,0 +1,52 @@
+name: FLIXO CI — G3 Artifact Integrity Shadow
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: flixo-ci-g3-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
+
+jobs:
+  g3-shadow:
+    name: G3 Artifact Integrity Shadow
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: TypeScript
+        run: npx tsc --noEmit --pretty false
+      - name: Existing output integrity regression
+        run: node --experimental-strip-types scripts/test-output-integrity.mjs
+      - name: Existing SVG integrity regression
+        run: node --experimental-strip-types scripts/test-svg-integrity.mjs
+      - name: Existing G3 artifact matrix
+        run: node --experimental-strip-types scripts/test-g3-artifact-integrity.mjs
+      - name: Real G3 browser flow
+        run: npx playwright install --with-deps chromium && npx playwright test tests/g3-artifact-integrity.spec.ts --project=chromium --workers=1 --retries=0
+      - name: Upload G3 shadow evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-g3-shadow-${{ github.sha }}
+          path: |
+            playwright-report/
+            test-results/
+            artifacts/ci/
+          if-no-files-found: warn
+          retention-days: 14
