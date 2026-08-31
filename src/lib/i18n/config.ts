@@ -4,12 +4,17 @@ export { getCanonicalSiteOrigin };
 
 export const SITE_ORIGIN = getCanonicalSiteOrigin();
 
+/** Runtime-supported public locale set. This is the sole public locale matrix. */
 export const LOCALES = ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'] as const;
-export type Locale = (typeof LOCALES)[number];
-export const DEFAULT_LOCALE: Locale = 'ar';
-export const X_DEFAULT_LOCALE: Locale = 'en';
+export type CanonicalLocale = (typeof LOCALES)[number];
 
-export const LOCALE_METADATA: Record<Locale, Readonly<{ languageTag: string; direction: 'ltr' | 'rtl' }>> = {
+/** Compatibility key type for legacy auxiliary maps. Runtime input is validated with isLocale. */
+export type Locale = string;
+
+export const DEFAULT_LOCALE: CanonicalLocale = 'ar';
+export const X_DEFAULT_LOCALE: CanonicalLocale = 'en';
+
+export const LOCALE_METADATA: Record<string, Readonly<{ languageTag: string; direction: 'ltr' | 'rtl' }>> = {
   ar: { languageTag: 'ar', direction: 'rtl' },
   en: { languageTag: 'en', direction: 'ltr' },
   es: { languageTag: 'es', direction: 'ltr' },
@@ -32,11 +37,11 @@ export const LOCALE_METADATA: Record<Locale, Readonly<{ languageTag: string; dir
   vi: { languageTag: 'vi', direction: 'ltr' },
 };
 
-export function isLocale(value: string): value is Locale {
+export function isLocale(value: string): value is CanonicalLocale {
   return (LOCALES as readonly string[]).includes(value);
 }
 
-export function normalizeLocale(value: string | null | undefined): Locale {
+export function normalizeLocale(value: string | null | undefined): CanonicalLocale {
   const normalized = value?.toLowerCase().split('-')[0] ?? DEFAULT_LOCALE;
   return isLocale(normalized) ? normalized : DEFAULT_LOCALE;
 }
