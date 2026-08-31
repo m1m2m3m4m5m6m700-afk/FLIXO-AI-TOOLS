@@ -38,3 +38,33 @@ test.describe('Pix Studio', () => {
     await page.getByRole('button', { name: 'إضافة نص' }).click();
     await expect(page.getByRole('button', { name: 'تراجع Undo' })).toBeEnabled();
     await expect(page.getByRole('button', { name: 'إعادة Redo' })).toBeDisabled();
+  });
+
+  test('supports liquify and dispersion interactions', async ({ page }) => {
+    await uploadFixture(page, 'pix-effects.png');
+    const canvas = page.getByLabel('Pix Studio preview');
+    await page.getByRole('button', { name: 'liquify' }).click();
+    await page.getByLabel('Liquify radius').fill('60');
+    await page.getByLabel('Liquify strength').fill('0.8');
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('Pix canvas is not measurable.');
+    await page.mouse.move(box.x + box.width / 2 - 10, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 10, box.y + box.height / 2 + 5);
+    await page.mouse.up();
+
+    await page.getByRole('button', { name: 'dispersion' }).click();
+    await page.getByLabel('Dispersion radius').fill('50');
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(canvas).toBeVisible();
+  });
+
+  test('exports a high-resolution PNG', async ({ page }) => {
+    await uploadFixture(page, 'pix-export.png');
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'تصدير الصورة PNG عالي الدقة' }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe('pix-studio-export.png');
+    expect(download.suggestedFilename()).not.toContain('undefined');
+  });
+});
