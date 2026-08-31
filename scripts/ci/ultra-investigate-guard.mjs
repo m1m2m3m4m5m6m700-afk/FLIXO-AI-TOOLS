@@ -12,9 +12,6 @@ function requireEqual(actual, expected, label) {
 
 if (report.schema_version !== ULTRA_SCHEMA_VERSION) errors.push(`schema_version=${report.schema_version}`);
 if (expectedSha) requireEqual(report.sha, expectedSha, 'report.sha');
-if (expectedSha) {
-  for (const suite of report.suites ?? []) requireEqual(suite.sha ?? report.sha, expectedSha, `${suite.suite}.sha`);
-}
 requireEqual(report.contractHash, ultraContractHash(), 'contractHash');
 requireEqual(report.suiteCount, ULTRA_SUITE_NAMES.length, 'suiteCount');
 requireEqual(report.expectedSuiteCount, ULTRA_SUITE_NAMES.length, 'expectedSuiteCount');
@@ -29,6 +26,7 @@ for (const suite of report.suites ?? []) {
   if (actualSuites.has(suite.suite)) errors.push(`Duplicate suite=${suite.suite}`);
   actualSuites.add(suite.suite);
   if (!ULTRA_SUITE_NAMES.includes(suite.suite)) errors.push(`Unexpected suite=${suite.suite}`);
+  if (expectedSha) requireEqual(suite.sha, expectedSha, `${suite.suite}.sha`);
   if (suite.status !== 'PASS') errors.push(`Suite ${suite.suite} is ${suite.status}`);
   requireEqual(suite.expected, suite.executed, `${suite.suite}.executed`);
   requireEqual(suite.failed, 0, `${suite.suite}.failed`);
