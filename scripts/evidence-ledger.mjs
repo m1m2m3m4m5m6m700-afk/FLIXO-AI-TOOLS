@@ -4,6 +4,7 @@ import { CONTRACT_ID_LIST, CONTRACT_VERSIONS } from '../src/lib/contracts/ci-con
 import { EVIDENCE_SCHEMA_VERSION, createEvidenceRecord, serializeEvidence } from '../src/lib/contracts/evidence-ledger.ts';
 
 export const EVIDENCE_ROOT = 'artifacts/contracts';
+const SHA_PATTERN = /^[0-9a-f]{40}$/;
 
 export function assertKnownContract(contract) {
   if (!CONTRACT_ID_LIST.includes(contract)) throw new Error(`Unknown contract ID: ${contract}`);
@@ -14,6 +15,9 @@ export function buildEvidenceRecord(result, metadata) {
   const expectedVersion = CONTRACT_VERSIONS[result.contract];
   if (String(expectedVersion) !== String(metadata.contractVersion)) {
     throw new Error(`Contract version mismatch: ${result.contract}`);
+  }
+  if (!SHA_PATTERN.test(metadata.commit)) {
+    throw new Error(`Invalid commit SHA for evidence: ${metadata.commit}`);
   }
   return createEvidenceRecord(result, metadata);
 }
