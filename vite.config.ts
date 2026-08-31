@@ -6,6 +6,7 @@ const allowedHosts = (process.env.VITE_ALLOWED_HOSTS ?? '')
   .split(',')
   .map((host) => host.trim())
   .filter(Boolean);
+const isCi = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 
 function vendorChunk(id: string): string | undefined {
   if (!id.includes('node_modules')) return undefined;
@@ -21,8 +22,22 @@ function vendorChunk(id: string): string | undefined {
   return 'vendor-common';
 }
 
+function deterministicCiPreview() {
+  return {
+    name: 'deterministic-ci-preview',
+    configurePreviewServer(server: { middlewares: { use: (handler: (req: { headers: Record<string, string | undefined> }, res: unknown, next: () => void) => void) => void } }) {
+      if (!isCi) return;
+      server.middlewares.use((req, _res, next) => {
+        delete req.headers['if-none-match'];
+        delete req.headers['if-modified-since'];
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), deterministicCiPreview()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
