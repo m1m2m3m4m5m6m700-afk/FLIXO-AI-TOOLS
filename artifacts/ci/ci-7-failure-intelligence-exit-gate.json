@@ -1,16 +1,25 @@
 {
   "schemaVersion": 1,
   "phase": "CI-7",
-  "status": "VERIFYING",
+  "status": "COMPLETE",
+  "verifiedSha": "19c5f1f2e850229384993b95b4bb1be4fb82f071",
   "base": "60d121bd1b9d87bc38ce45533a575c985be84201",
   "acceptance": {
-    "taxonomy": "PENDING",
-    "classification": "PENDING",
-    "unknownHandling": "PENDING",
-    "rootCauseGrouping": "PENDING",
-    "deterministicReport": "PENDING",
-    "shadowWorkflow": "PENDING"
+    "taxonomy": "PASS",
+    "classification": "PASS",
+    "unknownHandling": "PASS",
+    "rootCauseGrouping": "PASS",
+    "deterministicReport": "PASS",
+    "shadowWorkflow": "PASS"
   },
-  "safety": {"mainModified": false, "branchProtectionModified": false, "requiredChecksModified": false, "productionConfigurationModified": false, "legacyWorkflowDeleted": false, "legacyWorkflowBehaviorModified": false},
-  "nextPhaseAllowed": false
+  "safety": {
+    "mainModified": false,
+    "branchProtectionModified": false,
+    "requiredChecksModified": false,
+    "productionConfigurationModified": false,
+    "legacyWorkflowDeleted": false,
+    "legacyWorkflowBehaviorModified": false
+  },
+  "exitDecision": "PASS",
+  "nextPhaseAllowed": true
 }
