@@ -1,0 +1,86 @@
+name: CI — Fast Parallel Diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parallel:
+    name: Fast diagnostics — ${{ matrix.group }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [core, structure, localization, seo, security, artifact, browser, build]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Run fast diagnostic group
+        env:
+          CHANGE_BASE: origin/main
+          VITE_SITE_URL: https://flixoai.vercel.app
+          FAST_CI_GROUP: ${{ matrix.group }}
+        run: node scripts/ci/fast-verify.mjs
+      - name: Publish group evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: fast-ci-${{ matrix.group }}-${{ github.sha }}
+          path: diagnostics/
+          if-no-files-found: warn
+          retention-days: 14
+  aggregate:
+    name: Fast Parallel Diagnostics — Aggregate
+    needs: [parallel]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Download all group evidence
+        uses: actions/download-artifact@v6
+        with:
+          pattern: fast-ci-*-${{ github.sha }}
+          path: diagnostics
+          merge-multiple: false
+      - name: Validate every group
+        shell: bash
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const groups = ['core','structure','localization','seo','security','artifact','browser','build'];
+          const root = 'diagnostics';
+          const failures = [];
+          for (const group of groups) {
+            const file = path.join(root, `fast-ci-${group}-${process.env.SHA}`, 'fast-ci-result.json');
+            if (!fs.existsSync(file)) {
+              failures.push(`${group}: missing evidence`);
+              continue;
+            }
+            const result = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (result.sha !== process.env.SHA) failures.push(`${group}: SHA mismatch`);
+            if (result.status !== 'PASS') failures.push(`${group}: ${result.status}`);
+          }
+          if (failures.length) throw new Error(`Fast CI aggregate failed:\n${failures.join('\n')}`);
+          console.log('Fast parallel aggregate PASS');
+          NODE
+      - name: Publish aggregate evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-fast-evidence-${{ github.sha }}
+          path: diagnostics/
+          if-no-files-found: warn
+          retention-days: 14
