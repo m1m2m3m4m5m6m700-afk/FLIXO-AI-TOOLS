@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "phase": "CI-3",
+  "status": "VERIFYING",
+  "base": "128b638f7bd1f87a03b95fa4ab6c4dac83300d74",
+  "acceptance": {
+    "dependencyGraph": "PENDING",
+    "cycleDetection": "PENDING",
+    "topologicalOrder": "PENDING",
+    "dependencyClosure": "PENDING",
+    "blockedPropagation": "PENDING",
+    "deterministicPlan": "PENDING",
+    "planHash": "PENDING",
+    "planReproducibility": "PENDING",
+    "shadowWorkflow": "PENDING"
+  },
+  "safety": {
+    "mainModified": false,
+    "branchProtectionModified": false,
+    "requiredChecksModified": false,
+    "productionConfigurationModified": false,
+    "legacyWorkflowDeleted": false,
+    "legacyWorkflowBehaviorModified": false
+  },
+  "nextPhaseAllowed": false
+}
