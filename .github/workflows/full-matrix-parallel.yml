@@ -46,6 +46,17 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install Playwright system dependencies
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          case "${{ matrix.browser }}" in
+            chromium) browser_bin="chromium" ;;
+            firefox) browser_bin="firefox" ;;
+            webkit) browser_bin="webkit" ;;
+            *) exit 2 ;;
+          esac
+          npx playwright install-deps "$browser_bin"
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
