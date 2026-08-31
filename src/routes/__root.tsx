@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useLayoutEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
@@ -15,21 +15,14 @@ const GLOBAL_STRUCTURED_DATA = {
 
 function RuntimeLocaleAttributes() {
   const location = useLocation();
-  useLayoutEffect(() => {
+  useEffect(() => {
     const localeCode = location.pathname.split('/').filter(Boolean)[0] ?? '';
     const locale = isLocale(localeCode) ? localeCode : 'en';
     const metadata = LOCALE_METADATA[locale];
-    const apply = () => {
-      document.documentElement.lang = metadata.languageTag;
-      document.documentElement.dir = metadata.direction;
-      document.querySelectorAll<HTMLElement>('main').forEach((localizedMain) => {
-        localizedMain.lang = metadata.languageTag;
-        localizedMain.dir = metadata.direction;
-      });
-    };
-    apply();
-    const frame = window.requestAnimationFrame(apply);
-    return () => window.cancelAnimationFrame(frame);
+    document.querySelectorAll<HTMLElement>('main').forEach((localizedMain) => {
+      localizedMain.lang = metadata.languageTag;
+      localizedMain.dir = metadata.direction;
+    });
   }, [location.pathname]);
   return null;
 }
