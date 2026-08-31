@@ -7,7 +7,6 @@ const sitemap = readFileSync('dist/sitemap.xml', 'utf8');
 const routes = [...new Set([...sitemap.matchAll(/<url>\s*<loc>([^<]+)<\/loc>[\s\S]*?<\/url>/gu)].map((match) => new URL(match[1]).pathname))].sort();
 const localeCodes = LOCALES;
 const languageTags = Object.fromEntries(LOCALES.map((locale) => [locale, LOCALE_METADATA[locale].languageTag])) as Record<(typeof localeCodes)[number], string>;
-const rtlLocales = new Set(LOCALES.filter((locale) => LOCALE_METADATA[locale].direction === 'rtl'));
 const sharedTerms = new Set(['FLIXO', 'QuickFlow', 'OCR', 'PDF', 'English', 'العربية', 'Smart Intent', 'Ctrl K', 'WebP', 'PNG', 'JPEG', 'GIF', 'SVG', 'CSV', 'JSON', 'ZIP', 'MP3', 'MP4', 'Whisper', 'WebGPU', 'WASM']);
 const sharedPhrases = new Set(['FLIXO AI Tools', 'FLIXO home']);
 
