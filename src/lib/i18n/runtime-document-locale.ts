@@ -16,8 +16,6 @@ export function applyDocumentLocale(locale: Locale): void {
   const languageTag = metadata.languageTag;
   const direction = metadata.direction;
 
-  // Single-source runtime invariant: the document and every page-level <main>
-  // must always agree with the locale encoded in the current route.
   if (html.getAttribute('lang') !== languageTag) html.setAttribute('lang', languageTag);
   if (html.getAttribute('dir') !== direction) html.setAttribute('dir', direction);
   if (html.getAttribute('data-flixo-locale') !== locale) html.setAttribute('data-flixo-locale', locale);
@@ -33,12 +31,10 @@ export function installDocumentLocaleContract(getPathname: () => string): () => 
 
   const currentLocale = localeFromPathname(getPathname());
   const apply = () => applyDocumentLocale(currentLocale);
-
   apply();
+
   const frame = window.requestAnimationFrame(apply);
 
-  // Guard against any late runtime/component code that removes or changes the
-  // document locale attributes. The guard only writes when the invariant is broken.
   const htmlObserver = new MutationObserver((mutations) => {
     if (mutations.some((mutation) => mutation.type === 'attributes' && (mutation.attributeName === 'lang' || mutation.attributeName === 'dir' || mutation.attributeName === 'data-flixo-locale'))) {
       apply();
@@ -49,12 +45,23 @@ export function installDocumentLocaleContract(getPathname: () => string): () => 
     attributeFilter: ['lang', 'dir', 'data-flixo-locale'],
   });
 
-  // React route transitions may mount the page <main> after the initial effect.
-  // Re-assert the invariant whenever a new DOM subtree is inserted.
   const bodyObserver = new MutationObserver((mutations) => {
-    if (mutations.some((mutation) => mutation.type === 'childList' && mutation.addedNodes.length > 0)) apply();
+    if (mutations.some((mutation) => {
+      if (mutation.type === 'childList') return mutation.addedNodes.length > 0;
+      if (mutation.type === 'attributes') return mutation.target instanceof HTMLElement && mutation.target.tagName === 'MAIN';
+      return false;
+    })) {
+      apply();
+    }
   });
-  if (document.body) bodyObserver.observe(document.body, { subtree: true, childList: true });
+  if (document.body) {
+    bodyObserver.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['lang', 'dir'],
+    });
+  }
 
   return () => {
     window.cancelAnimationFrame(frame);
