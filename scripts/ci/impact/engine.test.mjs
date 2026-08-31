@@ -24,4 +24,15 @@ assert.equal(ambiguous.conservative, true);
 assert.equal(ambiguous.escalation, 'L3');
 assert.deepEqual(ambiguous.affectedContracts, ['CI-A', 'CI-B']);
 
+const g3Adapter = calculateImpact(
+  ['tests/helpers/upload-file.ts'],
+  [
+    ...contracts,
+    { id: 'G3-DOWNLOAD-001', version: 1, gate: 'G3', name: 'Download', dependencies: [], inputs: [], outputs: [], evaluator: 'g3-download', scope: 'artifact', severity: 'critical', execution: 'browser', reusable: true, retry: 'controlled', freshness: 'dependency', escalation: { deep: true, full: true } },
+  ],
+);
+assert.deepEqual(g3Adapter.affectedContracts, ['G3-DOWNLOAD-001']);
+assert.equal(g3Adapter.escalation, 'L1');
+assert.equal(g3Adapter.conservative, false);
+
 console.log('CI impact engine safety PASS');
