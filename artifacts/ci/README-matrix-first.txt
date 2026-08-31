@@ -1,0 +1,1 @@
+Matrix First contract: 12 independent browser/shard units; fail-fast=false; max-failures=1 within each unit.
