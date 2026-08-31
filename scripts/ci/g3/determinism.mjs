@@ -1,0 +1,13 @@
+import fs from 'node:fs/promises';
+import crypto from 'node:crypto';
+const file='tests/fixtures/g3/manifest.json';
+const bytes=await fs.readFile(file);
+const hash=crypto.createHash('sha256').update(bytes).digest('hex');
+const payload=JSON.parse(bytes.toString('utf8'));
+const names=payload.fixtures.map(f=>f.name);
+const unique=new Set(names);
+const result={gate:'G3-DET',status:names.length===unique.size?'PASS':'FAIL',fixtureCount:names.length,uniqueFixtureCount:unique.size,manifestSha256:hash,principle:'same fixture manifest must produce same gate input identity'};
+await fs.mkdir('artifacts/ci/g3',{recursive:true});
+await fs.writeFile('artifacts/ci/g3/determinism.json',JSON.stringify(result,null,2)+'\n');
+console.log(JSON.stringify(result,null,2));
+process.exit(result.status==='PASS'?0:1);
