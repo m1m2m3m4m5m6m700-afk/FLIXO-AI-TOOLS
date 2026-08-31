@@ -28,9 +28,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
-      # First failure cancels remaining matrix jobs. This workflow is a repair loop,
-      # not a failure-counting diagnostic ladder.
-      fail-fast: true
+      # Every browser/shard is an independent verification unit.
+      # A failing unit must not cancel unrelated units.
+      fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
         shard: [1, 2, 3, 4]
@@ -63,7 +63,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-full-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: playwright-full-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
       - name: Install browser
         timeout-minutes: 8
         run: |
@@ -94,9 +94,17 @@ jobs:
           done
           cat /tmp/full-matrix-server.log || true
           exit 1
-      - name: Verify public routes × all canonical locales
+      - name: Verify owned shard — stop at first failure
         timeout-minutes: 15
-        run: npx playwright test tests/localization-runtime.spec.ts --project=${{ matrix.browser }} --workers=6 --retries=0 --max-failures=1 --shard=${{ matrix.shard }}/4
+        run: |
+          set -euo pipefail
+          echo "Independent matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/4"
+          npx playwright test tests/localization-runtime.spec.ts \
+            --project=${{ matrix.browser }} \
+            --workers=6 \
+            --retries=0 \
+            --max-failures=1 \
+            --shard=${{ matrix.shard }}/4
       - name: Cleanup
         if: always()
         shell: bash
@@ -126,5 +134,5 @@ jobs:
         run: |
           set -euo pipefail
           result='${{ needs.matrix.result }}'
-          test "$result" = success || { echo "Full Matrix certification failed: matrix=$result"; exit 1; }
-          echo "Full Matrix Parallel PASS: chromium + firefox + webkit; complete public-route × canonical-locale coverage across deterministic shards."
+          test "$result" = success || { echo "Full Matrix certification failed: one or more independent matrix units failed; matrix=$result"; exit 1; }
+          echo "Full Matrix Parallel PASS: all 12 browser/shard units passed independently."
