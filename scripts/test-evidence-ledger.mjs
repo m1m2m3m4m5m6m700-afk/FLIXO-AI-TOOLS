@@ -14,9 +14,9 @@ const result = {
   actual: 'عنوان عربي',
 };
 const metadata = {
-  commit: '0123456789abcdef0123456789abcdef01234567',
+  commit: process.env.EVIDENCE_COMMIT ?? '0123456789abcdef0123456789abcdef01234567',
   contractVersion: String(CONTRACT_VERSIONS[result.contract]),
-  recordedAt: '2026-08-31T00:00:00.000Z',
+  recordedAt: process.env.EVIDENCE_RECORDED_AT ?? '2026-08-31T00:00:00.000Z',
 };
 
 const record = buildEvidenceRecord(result, metadata);
@@ -39,7 +39,9 @@ for (const invalid of [
   if (!rejected) throw new Error('Invalid evidence metadata was accepted');
 }
 
-const root = await mkdtemp(join(tmpdir(), 'flixo-evidence-'));
+const configuredRoot = process.env.EVIDENCE_OUTPUT_ROOT;
+const root = configuredRoot ?? await mkdtemp(join(tmpdir(), 'flixo-evidence-'));
+const cleanup = !configuredRoot;
 try {
   const written = await writeEvidence(record, root);
   if (written !== evidencePath(root, record)) throw new Error('Evidence path mismatch');
@@ -50,8 +52,7 @@ try {
   if (restored.contract !== result.contract || restored.status !== result.status) {
     throw new Error('Persisted evidence mismatch');
   }
+  console.log(`Evidence ledger PASS: ${written}`);
 } finally {
-  await rm(root, { recursive: true, force: true });
+  if (cleanup) await rm(root, { recursive: true, force: true });
 }
-
-console.log('Evidence ledger PASS');
