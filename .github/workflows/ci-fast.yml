@@ -1,0 +1,68 @@
+name: CI — Fast Incremental
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-fast-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
+jobs:
+  fast:
+    name: CI / Fast Incremental Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CHANGE_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'origin/main' }}
+      VITE_SITE_URL: https://flixoai.vercel.app
+    steps:
+      - name: Checkout full history for impact analysis
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies once
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Run impact-aware fast verification
+        run: node scripts/ci/fast-verify.mjs
+
+      - name: Publish fast CI evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: fast-ci-evidence-${{ github.sha }}
+          path: diagnostics/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Fast CI summary
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f diagnostics/fast-ci-result.json ]; then
+            echo '## CI — Fast Incremental' >> "$GITHUB_STEP_SUMMARY"
+            cat diagnostics/fast-ci-result.json >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '## CI — Fast Incremental' >> "$GITHUB_STEP_SUMMARY"
+            echo 'No final fast-ci result was generated.' >> "$GITHUB_STEP_SUMMARY"
+          fi
