@@ -1,7 +1,6 @@
 name: CI
 
-# Temporary CI rescue mode: fast, strict, impact-aware PR gate.
-# Deep certification remains available on main/manual workflows.
+# PR RESCUE MODE: one short deterministic path. Deep certification remains manual/main-only.
 on:
   pull_request:
     branches: [main]
@@ -10,7 +9,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  group: ci-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -29,24 +28,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout full history for impact analysis
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v5
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-
       - name: Install dependencies once
         run: npm ci --prefer-offline --no-audit --no-fund
-
       - name: Run impact-aware verification
         run: node scripts/ci/fast-verify.mjs
-
-      - name: Publish CI evidence
+      - name: Upload CI evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -55,14 +48,41 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: CI summary
-        if: always()
+  fast-contract:
+    name: Fast Contract Diagnostics
+    needs: [ci]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Run core platform contracts
+        run: node scripts/verify-contracts-core.mjs
+
+  canonical-verify:
+    name: Canonical Verification Gate
+    needs: [ci, fast-contract]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Enforce prerequisite results
         shell: bash
         run: |
           set -euo pipefail
-          echo '## CI — Fast Incremental' >> "$GITHUB_STEP_SUMMARY"
-          if [ -f diagnostics/fast-ci-result.json ]; then
-            cat diagnostics/fast-ci-result.json >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo 'No final fast-ci result was generated.' >> "$GITHUB_STEP_SUMMARY"
+          if [[ "${{ needs.ci.result }}" != "success" ]]; then
+            echo 'Canonical Verification Gate BLOCKED: canonical CI failed.'
+            exit 1
           fi
+          if [[ "${{ needs.fast-contract.result }}" != "success" ]]; then
+            echo 'Canonical Verification Gate BLOCKED: Fast Contract Diagnostics failed.'
+            exit 1
+          fi
+          echo 'Canonical Verification Gate PASS: required fast-path evidence is green.'
