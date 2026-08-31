@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "phase": "CI-8",
+  "status": "VERIFYING",
+  "base": "b5b5fe85e21866ffcc4743be5af679a1c7e79492",
+  "acceptance": {
+    "toolchainIdentity": "PENDING",
+    "toolchainDeterminism": "PENDING",
+    "typecheck": "PENDING",
+    "singleBuild": "PENDING",
+    "buildIdentity": "PENDING",
+    "artifactHash": "PENDING",
+    "shadowWorkflow": "PENDING"
+  },
+  "safety": {"mainModified": false, "branchProtectionModified": false, "requiredChecksModified": false, "productionConfigurationModified": false, "legacyWorkflowDeleted": false, "legacyWorkflowBehaviorModified": false},
+  "nextPhaseAllowed": false
+}
