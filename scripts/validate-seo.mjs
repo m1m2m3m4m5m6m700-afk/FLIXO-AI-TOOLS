@@ -14,8 +14,17 @@ const seoSource = readFileSync('src/lib/seo/tool-seo.ts', 'utf8');
 const routerSource = readFileSync('src/routes/localized-tool.tsx', 'utf8');
 const localizedPageSource = readFileSync('src/routes/localized-tool-page.tsx', 'utf8');
 const rootSource = readFileSync('src/routes/__root.tsx', 'utf8');
+const i18nConfigSource = readFileSync('src/lib/i18n/config.ts', 'utf8');
 
-const expectedLocales = ['en','ar','es','fr','de','ru','zh','hi','id','ur','ja','pt','it','ko','nl','pl','tr','vi','th','sv'];
+const expectedLocales = i18nConfigSource.match(/export const LOCALES = \[([\s\S]*?)\] as const/)?.[1]
+  ?.match(/'([a-z]{2})'/g)
+  ?.map((value) => value.slice(1, -1)) ?? [];
+
+if (expectedLocales.length !== 20) {
+  console.error(`Canonical locale registry must contain exactly 20 locales, found ${expectedLocales.length}.`);
+  process.exit(1);
+}
+
 const readyToolIds = [...toolsSource.matchAll(/\{ id: '([^']+)',[^\n]*?isReady: true,/g)].map((match) => match[1]);
 
 if (readyToolIds.length === 0) {
@@ -29,7 +38,7 @@ if (uniqueReadyTools.size !== readyToolIds.length) {
   process.exit(1);
 }
 
-const labelsBlockMatch = seoSource.match(/const LOCALE_LABELS: Record<Locale, string> = \{([\s\S]*?)\n\};/);
+const labelsBlockMatch = seoSource.match(/const LOCALE_LABELS: Record<(?:Locale|string), string> = \{([\s\S]*?)\n\};/);
 if (!labelsBlockMatch) {
   console.error('LOCALE_LABELS registry is missing or malformed.');
   process.exit(1);

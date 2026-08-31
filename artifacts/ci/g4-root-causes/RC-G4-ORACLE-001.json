@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "rootCauseId": "RC-G4-ORACLE-001",
+  "classification": "G4_TEST_ORACLE_DRIFT",
+  "status": "RESOLVED",
+  "scope": "G4 localized-tool H1 verification for canonical ms/uk locales",
+  "firstObserved": {
+    "sha": "9a3d76f9f465a60a200a5ebe23984bb8e5129a63",
+    "source": "tests/localization-runtime.spec.ts"
+  },
+  "expected": "G4 must assert each localized tool H1 against the same authoritative tool-SEO resolver used by production rendering.",
+  "actual": "The runtime test asserted TOOL_SEO_NAMES only. Newly supported ms/uk routes could therefore omit the H1 localization assertion when the legacy dictionary had no corresponding entry.",
+  "repair": {
+    "file": "tests/localization-runtime.spec.ts",
+    "changes": [
+      "Replace the legacy TOOL_SEO_NAMES test oracle with getAuthoritativeToolSeoName().",
+      "Resolve the tool from the route family using getToolConfig().",
+      "Keep the H1 assertion active for every non-English tool route where the production resolver returns a reviewed/localized name."
+    ]
+  },
+  "safety": {
+    "assertionsWeakened": false,
+    "coverageReduced": false,
+    "fallbacksAdded": false,
+    "testsDisabled": false
+  },
+  "verificationRequired": [
+    "typecheck",
+    "G4 localization runtime suite on fresh SHA",
+    "full affected browser matrix",
+    "regression of canonical locale and SEO contracts"
+  ],
+  "artifact": "artifacts/ci/g4-root-causes/RC-G4-ORACLE-001.json",
+  "recordedAt": "2026-08-31T22:27:00+03:00"
+}

@@ -1,6 +1,7 @@
 import { createRoute, useParams } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { isLocale } from '@/lib/i18n';
+import { LOCALE_METADATA } from '@/lib/i18n/config';
 import { getWorkflow } from '@/lib/workflows/registry';
 import { planFromWorkflow, type ExecutionPlan } from '@/lib/ai/planner';
 import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipeline-runner';
@@ -30,7 +31,7 @@ export const localizedQuickFlowRoute = createRoute({
     useEffect(() => () => { if (resultUrl) URL.revokeObjectURL(resultUrl); }, [resultUrl]);
 
     const homeHref = `/${locale}`;
-    const direction = locale === 'ar' || locale === 'ur' ? 'rtl' : 'ltr';
+    const direction = LOCALE_METADATA[locale].direction;
 
     if (!workflow || !plan) return <main lang={locale} dir={direction}><div className="image-tool-container"><h1>{copy.missing}</h1><a className="primary-button" href={homeHref}>{copy.back}</a></div></main>;
 

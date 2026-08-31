@@ -3,6 +3,8 @@ name: FLIXO CI — G3 Artifact Integrity Shadow
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -22,7 +24,7 @@ jobs:
   g3-shadow:
     name: G3 Artifact Integrity Shadow
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
         with:
@@ -50,7 +52,8 @@ jobs:
       - name: Existing G3 artifact matrix
         run: node --experimental-strip-types scripts/test-g3-artifact-integrity.mjs
       - name: Real G3 browser flow
-        run: npx playwright install --with-deps chromium && npx playwright test tests/g3-artifact-integrity.spec.ts --project=chromium --workers=1 --retries=0
+        timeout-minutes: 8
+        run: timeout --preserve-status 420s bash -c 'npx playwright install --with-deps chromium && npx playwright test tests/g3-artifact-integrity.spec.ts --project=chromium --workers=1 --retries=0'
       - name: Verify G3 evidence identity
         if: always()
         shell: bash

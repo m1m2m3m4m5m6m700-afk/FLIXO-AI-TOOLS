@@ -1,15 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { TOOL_SEO_NAMES } from '../src/lib/i18n/tool-seo-localization';
+import { LOCALE_METADATA, LOCALES } from '../src/lib/i18n/config';
+import { getAuthoritativeToolSeoName } from '../src/config/tool-seo-name-resolver';
+import { getToolConfig } from '../src/config/tools';
 
 const sitemap = readFileSync('dist/sitemap.xml', 'utf8');
 const routes = [...new Set([...sitemap.matchAll(/<url>\s*<loc>([^<]+)<\/loc>[\s\S]*?<\/url>/gu)].map((match) => new URL(match[1]).pathname))].sort();
-const localeCodes = ['en','ar','es','fr','de','ru','zh','hi','id','ur','ja','pt','it','ko','nl','pl','tr','vi','th','sv'] as const;
-const languageTags: Record<(typeof localeCodes)[number], string> = {
-  en: 'en', ar: 'ar', es: 'es', fr: 'fr', de: 'de', ru: 'ru', zh: 'zh-CN', hi: 'hi', id: 'id', ur: 'ur',
-  ja: 'ja', pt: 'pt', it: 'it', ko: 'ko', nl: 'nl', pl: 'pl', tr: 'tr', vi: 'vi', th: 'th', sv: 'sv',
-};
-const rtlLocales = new Set(['ar', 'ur']);
+const localeCodes = LOCALES;
+const languageTags = Object.fromEntries(LOCALES.map((locale) => [locale, LOCALE_METADATA[locale].languageTag])) as Record<(typeof localeCodes)[number], string>;
 const sharedTerms = new Set(['FLIXO', 'QuickFlow', 'OCR', 'PDF', 'English', 'العربية', 'Smart Intent', 'Ctrl K', 'WebP', 'PNG', 'JPEG', 'GIF', 'SVG', 'CSV', 'JSON', 'ZIP', 'MP3', 'MP4', 'Whisper', 'WebGPU', 'WASM']);
 const sharedPhrases = new Set(['FLIXO AI Tools', 'FLIXO home']);
 
@@ -95,7 +93,7 @@ for (const pathname of routes) {
     const locale = pathname.match(new RegExp(`^/(${localeCodes.join('|')})(?:/|$)`, 'u'))?.[1];
     expect(locale, `${pathname} must have a canonical locale prefix`).toBeTruthy();
     const localeCode = locale as (typeof localeCodes)[number];
-    const expectedDirection = rtlLocales.has(localeCode) ? 'rtl' : 'ltr';
+    const expectedDirection = LOCALE_METADATA[localeCode].direction;
     const family = familyPath(pathname);
 
     await expect(page.locator('html')).toHaveAttribute('lang', languageTags[localeCode]);
@@ -132,8 +130,8 @@ for (const pathname of routes) {
       tag: node.getAttribute('hreflang') ?? '',
       href: node.getAttribute('href') ?? '',
     })));
-    expect(hreflangs.length).toBe(21);
-    expect(new Set(hreflangs.map((entry) => entry.tag)).size).toBe(21);
+    expect(hreflangs.length).toBe(localeCodes.length + 1);
+    expect(new Set(hreflangs.map((entry) => entry.tag)).size).toBe(localeCodes.length + 1);
     for (const code of localeCodes) expect(hreflangs.map((entry) => entry.tag)).toContain(languageTags[code]);
     expect(hreflangs.map((entry) => entry.tag)).toContain('x-default');
     for (const entry of hreflangs) {
@@ -171,9 +169,10 @@ for (const pathname of routes) {
       expect(leakedEnglish, `${pathname} exact English UI fallback(s): ${leakedEnglish.slice(0, 10).join(' | ')}`).toEqual([]);
 
       const toolFamily = family.slice(1);
-      const expectedToolName = toolFamily && TOOL_SEO_NAMES[toolFamily]?.[localeCode];
+      const tool = toolFamily ? getToolConfig(toolFamily) : undefined;
+      const expectedToolName = tool ? getAuthoritativeToolSeoName(tool, localeCode) : undefined;
       if (expectedToolName) {
-        expect(current.h1, `${pathname} must expose the reviewed localized tool name`).toContain(expectedToolName);
+        expect(current.h1, `${pathname} must expose the authoritative localized tool name`).toContain(expectedToolName);
       }
     }
 

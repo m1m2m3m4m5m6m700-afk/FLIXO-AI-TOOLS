@@ -1,4 +1,4 @@
-export const CANONICAL_LOCALES = ['en', 'ar', 'es', 'fr', 'de', 'ru', 'zh', 'hi', 'id', 'ur', 'ja', 'pt', 'it', 'ko', 'nl', 'pl', 'tr', 'vi', 'th', 'sv'];
+export const CANONICAL_LOCALES = ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'];
 
 export function failValidation(message) {
   console.error(`Validation gate failed: ${message}`);
