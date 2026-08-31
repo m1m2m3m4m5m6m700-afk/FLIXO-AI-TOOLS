@@ -2,9 +2,11 @@
 
 CURRENT PHASE: CI-1 — Clean Foundation
 
-PHASE STATUS: VERIFYING
+PHASE STATUS: COMPLETE
 
-CURRENT PR: CI foundation PR from `ci/foundation-001`
+CURRENT PR: #528 — ci: build typed CI foundation in shadow mode
+
+VERIFIED SHA: 2879529f70a9a2842e1b79e6a61ba80a5b96200d
 
 AUTHORITATIVE BASE: merge commit `365190e68591d1943752e6416520095e8b8925ff` containing CI-0.
 
@@ -21,23 +23,45 @@ SAFETY LOCKS:
 - second authoritative CI introduced: NO
 
 CI-1 IMPLEMENTATION:
-- Typed ContractResult / CiContract / execution context model: COMPLETE
-- Centralized decision semantics: COMPLETE
-- Deterministic context hashing: COMPLETE
-- Initial CI contract registry: COMPLETE
-- Foundation validator: COMPLETE
-- Decision semantic tests: COMPLETE
-- Non-authoritative shadow workflow: COMPLETE
+- Typed ContractResult / CiContract / execution context model: PASS
+- Centralized decision semantics: PASS
+- Deterministic context hashing: PASS
+- Initial CI contract registry: PASS
+- Foundation validator: PASS
+- Decision semantic tests: PASS
+- Non-authoritative shadow workflow: PASS
 
 VERIFICATION:
-- CI shadow workflow: PENDING
-- TypeScript: PENDING
-- Foundation validator: PENDING
-- Decision semantics: PENDING
+- CI Foundation Shadow: PASS
+- TypeScript foundation compile: PASS
+- Foundation contract validation: PASS
+- Decision semantics: PASS
+- Repository safety assertions: PASS
+- Legacy CI: PASS
+- G1 Platform Contract: PASS
+- Fast Contract Diagnostics: PASS
+- Canonical Verification Gate: PASS
 
-KNOWN LEGACY EVIDENCE:
-- Baseline CI run 33398133005: CI and Fast Contract Diagnostics passed.
-- Baseline G3 run 33398133071: deterministic browser upload flow failed with `filechooser` timeout after static G3 checks passed. This remains legacy evidence and is not hidden by the new foundation.
+EXTERNAL INFRASTRUCTURE:
+- Vercel status on PR SHA: FAILURE
+- Classification: INFRASTRUCTURE_ERROR
+- Not suppressed, not allowlisted, and not attributed to CI-1.
+- Existing evidence indicates a Vercel deployment-rate-limit condition.
+
+KNOWN LEGACY G3:
+- Baseline G3 run 33398133071 failed in browser upload with a `filechooser` timeout after static G3 checks passed. This remains legacy evidence and is not hidden.
+
+PHASE EXIT:
+- Implementation: PASS
+- Contract: PASS
+- Tests: PASS
+- Regression: PASS
+- Evidence: PASS
+- CI: PASS
+- Acceptance Criteria: PASS
+- Unresolved Critical: 0
+
+NEXT PHASE ALLOWED: YES
 
 NEXT REQUIRED ACTION:
-Allow the CI-1 shadow workflow to verify the foundation. Do not promote it to authority or modify branch protection until CI-1 exit gate is PASS.
+CI-2 — Contract Registry hardening, dependency validation, versioning, deterministic snapshot/hash, and registry self-contracts.
