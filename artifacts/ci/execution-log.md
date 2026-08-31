@@ -1,20 +1,19 @@
 # FLIXO CI Rebuild Execution Log
 
-CURRENT PHASE: CI-4 — Evidence Ledger
+CURRENT PHASE: CI-5 — Change Impact Analysis
 
 PHASE STATUS: VERIFYING
 
-CURRENT PR: pending CI-4 PR
+CURRENT PR: pending CI-5 PR
 
-BASE: 6080e0a404e13130ff7d4268b944cedcbdc313c6 (CI-3 COMPLETE)
+BASE: 1bc8b7ab8b821ff45c0679239cd95a7ea871d66a (CI-4 COMPLETE)
 
 IMPLEMENTATION:
-- evidence schema: COMPLETE
-- immutable evidence identity: COMPLETE
-- atomic write semantics: COMPLETE
-- manifest generation: COMPLETE
-- manifest hash: COMPLETE
-- ledger self-tests: COMPLETE
+- conservative file impact matcher: COMPLETE
+- affected contract selection: COMPLETE
+- conservative unknown-file escalation: COMPLETE
+- impact decision artifact: COMPLETE
+- impact engine self-tests: COMPLETE
 - shadow workflow: COMPLETE
 
 SAFETY:
@@ -26,4 +25,4 @@ SAFETY:
 - legacy workflow behavior modified: NO
 
 NEXT REQUIRED ACTION:
-Verify CI-4 shadow workflow. CI-5 remains forbidden until evidence contracts are PASS.
+Run and verify CI-5 shadow workflow. CI-6 remains forbidden until impact analysis passes its exit gate.
