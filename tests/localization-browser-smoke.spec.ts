@@ -1,7 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { TOOL_SEO_NAMES } from '../src/lib/i18n/tool-seo-localization';
 
-const locale = 'ar';
 const routes = [
   '/ar/case-converter',
   '/ar/color-picker-palette',
@@ -30,7 +29,7 @@ const sharedOnly = (value: string) => {
   return normalized.split(/\s+/u).filter(Boolean).every((word) => sharedTerms.has(word.replace(/[^\p{L}\p{N}-]+/gu, '')));
 };
 
-async function uiSnapshot(page: import('@playwright/test').Page) {
+async function uiSnapshot(page: Page) {
   return page.evaluate(() => [...document.querySelectorAll('button,a,input,textarea,select,[aria-label],[placeholder],[title]')]
     .filter((element) => {
       const node = element as HTMLElement;
@@ -64,14 +63,10 @@ test.describe('Fast browser localization smoke', () => {
       const expectedH1 = TOOL_SEO_NAMES[pathname.replace(/^\/ar\//u, '')]?.ar;
       if (expectedH1) await expect(page.locator('h1')).toContainText(expectedH1);
 
-      const [arabicUi, englishUi] = await Promise.all([
-        uiSnapshot(page),
-        (async () => {
-          await page.goto(pathname.replace(/^\/ar(?=\/)/u, '/en'), { waitUntil: 'domcontentloaded' });
-          await page.waitForLoadState('networkidle').catch(() => undefined);
-          return uiSnapshot(page);
-        })(),
-      ]);
+      const arabicUi = await uiSnapshot(page);
+      await page.goto(pathname.replace(/^\/ar(?=\/)/u, '/en'), { waitUntil: 'domcontentloaded' });
+      await page.waitForLoadState('networkidle').catch(() => undefined);
+      const englishUi = await uiSnapshot(page);
       const englishSet = new Set(englishUi.filter((value) => !sharedOnly(value)));
       const leaked = arabicUi.filter((value) => englishSet.has(value) && !sharedOnly(value));
       expect(leaked, `${pathname} Arabic UI must not exactly reuse English UI: ${leaked.slice(0, 10).join(' | ')}`).toEqual([]);
