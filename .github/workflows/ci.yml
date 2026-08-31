@@ -27,6 +27,8 @@ jobs:
     name: CI
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      CI_PR_RESCUE: 'true'
     steps:
       - uses: actions/checkout@v5
         with:
@@ -54,6 +56,8 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    env:
+      CI_PR_RESCUE: 'true'
     steps:
       - uses: actions/checkout@v5
         with:
