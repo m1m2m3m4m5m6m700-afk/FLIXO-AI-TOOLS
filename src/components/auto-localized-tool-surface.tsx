@@ -1,6 +1,5 @@
 import { useLayoutEffect, type ReactNode } from 'react';
 import type { Locale } from '@/lib/i18n';
-import { LOCALE_METADATA } from '@/lib/i18n';
 import { getLocalizedToolTitle } from '@/lib/seo/tool-seo';
 
 type Props = Readonly<{ locale: Locale; toolId: string; children: ReactNode }>;
@@ -36,7 +35,7 @@ const P: Record<string, LocaleMap> = {
 };
 
 const PREFIXES: Array<[string, LocaleMap]> = [
-  ['Download ', { ar: 'تنزيل ', es: 'Descargar ', fr: 'Télécharger ', de: 'Herunterladen ', ru: 'Скачать ', zh: '下载 ', hi: 'डाउनلود ', id: 'Unduh ', ur: 'ڈاؤن لوڈ ', ja: 'ダウンロード ', pt: 'Baixar ', it: 'Scarica ', ko: '다운로드 ', nl: 'Downloaden ', pl: 'Pobierz ', tr: 'İndir ', vi: 'Tải xuống ', th: 'ดาวน์โหลด ', sv: 'Ladda ner ' }],
+  ['Download ', { ar: 'تنزيل ', es: 'Descargar ', fr: 'Télécharger ', de: 'Herunterladen ', ru: 'Скачать ', zh: '下载 ', hi: 'डाउनलोड ', id: 'Unduh ', ur: 'ڈاؤن لوڈ ', ja: 'ダウンロード ', pt: 'Baixar ', it: 'Scarica ', ko: '다운로드 ', nl: 'Downloaden ', pl: 'Pobierz ', tr: 'İndir ', vi: 'Tải xuống ', th: 'ดาวน์โหลด ', sv: 'Ladda ner ' }],
   ['Input: ', { ar: 'الإدخال: ', es: 'Entrada: ', fr: 'Entrée : ', de: 'Eingabe: ', ru: 'Вход: ', zh: '输入：', hi: 'इनपुट: ', id: 'Input: ', ur: 'ان پٹ: ', ja: '入力: ', pt: 'Entrada: ', it: 'Input: ', ko: '입력: ', nl: 'Invoer: ', pl: 'Wejście: ', tr: 'Girdi: ', vi: 'Đầu vào: ', th: 'อินพุต: ', sv: 'Indata: ' }],
   ['Output: ', { ar: 'الإخراج: ', es: 'Salida: ', fr: 'Sortie : ', de: 'Ausgabe: ', ru: 'Результат: ', zh: '输出：', hi: 'आउटपुट: ', id: 'Keluaran: ', ur: 'آؤٹ پٹ: ', ja: '出力: ', pt: 'Saída: ', it: 'Output: ', ko: '출력: ', nl: 'Uitvoer: ', pl: 'Wyjście: ', tr: 'Çıktı: ', vi: 'Đầu ra: ', th: 'เอาต์พุต: ', sv: 'Utdata: ' }],
   ['Size change: ', { ar: 'تغير الحجم: ', es: 'Cambio de tamaño: ', fr: 'Variation de taille : ', de: 'Größenänderung: ', ru: 'Изменение размера: ', zh: '大小变化：', hi: 'आकार परिवर्तन: ', id: 'Perubahan ukuran: ', ur: 'سائز میں تبدیلی: ', ja: 'サイズ変更: ', pt: 'Alteração de tamanho: ', it: 'Variazione dimensione: ', ko: '크기 변경: ', nl: 'Groottewijziging: ', pl: 'Zmiana rozmiaru: ', tr: 'Boyut değişimi: ', vi: 'Thay đổi kích thước: ', th: 'การเปลี่ยนแปลงขนาด: ', sv: 'Storleksändring: ' }],
@@ -103,18 +102,11 @@ function localize(root: HTMLElement, locale: Locale, toolId: string) {
 
 export function AutoLocalizedToolSurface({ locale, toolId, children }: Props) {
   useLayoutEffect(() => {
-    const metadata = LOCALE_METADATA[locale];
-    document.documentElement.lang = metadata.languageTag;
-    document.documentElement.dir = metadata.direction;
-
     const root = document.querySelector<HTMLElement>('.tool-page-modern');
     if (!root) return;
-    root.lang = metadata.languageTag;
-    root.dir = metadata.direction;
-    root.querySelectorAll<HTMLElement>('main').forEach((localizedMain) => {
-      localizedMain.lang = metadata.languageTag;
-      localizedMain.dir = metadata.direction;
-    });
+
+    // Document language/direction belongs exclusively to the root runtime locale contract.
+    // This component is responsible only for content localization and semantic boundaries.
     localize(root, locale, toolId);
     const observer = new MutationObserver(() => localize(root, locale, toolId));
     observer.observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['aria-label', 'title', 'placeholder'] });
