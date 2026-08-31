@@ -6,7 +6,7 @@ import { getLocalizedToolTitle } from '../src/lib/seo/tool-seo';
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#223344"/><circle cx="300" cy="220" r="180" fill="#67e8f9"/><circle cx="850" cy="560" r="260" fill="#164e63"/></svg>`;
 
 type BrowserArtifact = { mime: string; bytes: number[]; size: number };
-type TestFile = { name: string; mimeType: string; content: string };
+type TestFile = { name: string; mimeType: string; buffer: Buffer };
 
 async function readBlob(page: Page, href: string): Promise<BrowserArtifact> {
   return page.evaluate(async (objectUrl: string) => {
@@ -45,25 +45,18 @@ async function waitForImageCompressorReady(page: Page) {
   return input;
 }
 
-async function setTestFiles(input: Locator, files: TestFile[]) {
-  await input.evaluate((element, descriptors) => {
-    const dataTransfer = new DataTransfer();
-    for (const descriptor of descriptors) {
-      dataTransfer.items.add(new File([descriptor.content], descriptor.name, { type: descriptor.mimeType }));
-    }
-    element.files = dataTransfer.files;
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-  }, files);
-  await expect(input).toHaveJSProperty('files', expect.any(Object));
-  const count = await input.evaluate((element) => element.files?.length ?? 0);
-  expect(count).toBe(files.length);
+async function setTestFiles(page: Page, files: TestFile[]) {
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.locator('label.upload-zone').click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles(files);
 }
 
 test('G3 real flow: upload → process → download → inspect image artifact', async ({ page }) => {
-  const input = await waitForImageCompressorReady(page);
+  await waitForImageCompressorReady(page);
 
-  await setTestFiles(input, [
-    { name: 'g3-source.svg', mimeType: 'image/svg+xml', content: SVG },
+  await setTestFiles(page, [
+    { name: 'g3-source.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(SVG) },
   ]);
   await page.getByRole('button', { name: 'Compress image', exact: true }).click();
 
@@ -106,10 +99,10 @@ test('G3 real flow: upload → process → download → inspect image artifact',
 });
 
 test('G3 real flow: upload → process → download → inspect ZIP artifact', async ({ page }) => {
-  const input = await waitForImageCompressorReady(page);
-  await setTestFiles(input, [
-    { name: 'g3-one.svg', mimeType: 'image/svg+xml', content: SVG },
-    { name: 'g3-two.svg', mimeType: 'image/svg+xml', content: SVG },
+  await waitForImageCompressorReady(page);
+  await setTestFiles(page, [
+    { name: 'g3-one.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(SVG) },
+    { name: 'g3-two.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(SVG) },
   ]);
   await page.getByRole('button', { name: 'Compress all to ZIP', exact: true }).click();
 
