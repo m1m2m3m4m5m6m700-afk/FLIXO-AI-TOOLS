@@ -7,9 +7,6 @@ const localeCodes = ['en','ar','es','fr','de','ru','zh','hi','id','ur','ja','pt'
 const languageTags: Record<(typeof localeCodes)[number], string> = { en:'en', ar:'ar', es:'es', fr:'fr', de:'de', ru:'ru', zh:'zh-CN', hi:'hi', id:'id', ur:'ur', ja:'ja', pt:'pt', it:'it', ko:'ko', nl:'nl', pl:'pl', tr:'tr', vi:'vi', th:'th', sv:'sv' };
 const rtlLocales = new Set(['ar', 'ur']);
 const normalize = (value: string | null | undefined) => (value ?? '').replace(/\s+/gu, ' ').trim();
-const familyPath = (pathname: string): string => pathname.replace(new RegExp(`^/(?:${localeCodes.join('|')})(?=/|$)`, 'u'), '') || '/';
-
-void familyPath;
 
 test.describe.configure({ mode: 'parallel' });
 test.setTimeout(90_000);
