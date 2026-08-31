@@ -16,6 +16,16 @@ export const imageCompressorOutputContract = {
       validateDecode: true,
       validateDimensions: true,
     },
+    {
+      kind: 'zip',
+      outputMimeTypes: ['application/zip'],
+      allowedExtensions: ['zip'],
+      signatures: ['504b0304'],
+      downloadRequired: true,
+      minOutputBytes: 1,
+      maxOutputBytes: 25 * 1024 * 1024,
+      validateSignature: true,
+    },
   ],
 } as const satisfies ToolOutputContract;
 

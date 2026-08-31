@@ -1,0 +1,47 @@
+name: FLIXO CI — G1 Contract Shadow
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: flixo-ci-g1-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
+
+jobs:
+  g1-shadow:
+    name: G1 Contract Shadow
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Validate CI contract registry
+        run: node --experimental-strip-types scripts/ci/contracts/validate-registry.mjs
+      - name: TypeScript
+        run: npx tsc --noEmit --pretty false
+      - name: Legacy G1 evaluator in shadow mode
+        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-platform-contract.mjs
+      - name: Upload G1 shadow evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-g1-shadow-${{ github.sha }}
+          path: |
+            artifacts/ci/
+            dist/
+          if-no-files-found: warn
+          retention-days: 14
