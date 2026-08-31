@@ -8,16 +8,17 @@ import { installToolUiRuntimeLocalization } from './lib/i18n/tool-ui-runtime';
 import { installToolUiRuntimeSupplement } from './lib/i18n/tool-ui-runtime-supplement';
 import { installToolUiTechnicalValueNormalization } from './lib/i18n/tool-ui-technical-values';
 import { FlixoUxShell } from './components/flixo-ux-shell';
-import { applyDocumentLocale, localeFromPathname } from './lib/i18n/runtime-document-locale';
+import { applyDocumentLocale, localeFromPathname, installDocumentLocaleContract } from './lib/i18n/runtime-document-locale';
 import './styles.css';
 import './home-motion.css';
 import './command-palette.css';
 import './home-modern.css';
 import './tools/seed/seed-premium.css';
 
-// Establish the correct document language before React mounts. The root route then owns
-// the persistent runtime contract for navigation and late DOM insertion.
+// Establish and continuously enforce the document locale before and independently
+// of React mounting. This is the runtime contract consumed by the full G4 matrix.
 applyDocumentLocale(localeFromPathname(window.location.pathname));
+const disposeDocumentLocaleContract = installDocumentLocaleContract(() => window.location.pathname);
 installRuntimeDiagnostics();
 installPerformanceDiagnostics();
 const disposeToolUiLocalization = installToolUiRuntimeLocalization();
@@ -41,6 +42,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 );
 
 if (import.meta.hot) import.meta.hot.dispose(() => {
+  disposeDocumentLocaleContract();
   disposeToolUiLocalization();
   disposeToolUiLocalizationSupplement();
   disposeToolUiTechnicalValues();
