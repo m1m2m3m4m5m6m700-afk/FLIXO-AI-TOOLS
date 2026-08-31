@@ -13,10 +13,16 @@ const result = {
   expected: 'عنوان عربي',
   actual: 'عنوان عربي',
 };
+
+const recordedAtSource = process.env.EVIDENCE_RECORDED_AT;
+const recordedAt = recordedAtSource
+  ? new Date(recordedAtSource).toISOString()
+  : '2026-08-31T00:00:00.000Z';
+
 const metadata = {
   commit: process.env.EVIDENCE_COMMIT ?? '0123456789abcdef0123456789abcdef01234567',
   contractVersion: String(CONTRACT_VERSIONS[result.contract]),
-  recordedAt: process.env.EVIDENCE_RECORDED_AT ?? '2026-08-31T00:00:00.000Z',
+  recordedAt,
 };
 
 const record = buildEvidenceRecord(result, metadata);
