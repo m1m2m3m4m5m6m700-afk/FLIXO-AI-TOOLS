@@ -1,81 +1,56 @@
 import { useEffect, useState } from 'react';
 import { imagesToPdf, type ImageToPdfMargin, type ImageToPdfOrientation } from './engine';
+import { normalizeLocale, type Locale } from '../../lib/i18n/config';
+
+type Copy = { title:string; description:string; choose:string; selected:string; orientation:string; portrait:string; landscape:string; margins:string; none:string; small:string; large:string; generating:string; create:string; download:string; pdfTools:string; fileTypes:string };
+const COPY: Record<Locale, Copy> = {
+  en:{title:'Image to PDF',description:'Convert JPG, PNG, and WEBP images into a PDF entirely inside your browser.',choose:'Choose images',selected:'Selected images',orientation:'Orientation',portrait:'Portrait',landscape:'Landscape',margins:'Margins',none:'None',small:'Small',large:'Large',generating:'Generating…',create:'Create PDF',download:'Download PDF',pdfTools:'FLIXO · PDF TOOLS',fileTypes:'JPG · PNG · WEBP · up to 50 images'},
+  ar:{title:'تحويل الصور إلى PDF',description:'حوّل صور JPG وPNG وWEBP إلى ملف PDF بالكامل داخل متصفحك.',choose:'اختيار الصور',selected:'الصور المحددة',orientation:'الاتجاه',portrait:'عمودي',landscape:'أفقي',margins:'الهوامش',none:'بدون',small:'صغير',large:'كبير',generating:'جارٍ الإنشاء…',create:'إنشاء PDF',download:'تنزيل PDF',pdfTools:'FLIXO · أدوات PDF',fileTypes:'JPG · PNG · WEBP · حتى 50 صورة'},
+  es:{title:'Convertir imágenes a PDF',description:'Convierte imágenes JPG, PNG y WEBP a PDF dentro de tu navegador.',choose:'Elegir imágenes',selected:'Imágenes seleccionadas',orientation:'Orientación',portrait:'Vertical',landscape:'Horizontal',margins:'Márgenes',none:'Ninguno',small:'Pequeño',large:'Grande',generating:'Generando…',create:'Crear PDF',download:'Descargar PDF',pdfTools:'FLIXO · HERRAMIENTAS PDF',fileTypes:'JPG · PNG · WEBP · hasta 50 imágenes'},
+  fr:{title:'Convertir des images en PDF',description:'Convertissez des images JPG, PNG et WEBP en PDF directement dans votre navigateur.',choose:'Choisir des images',selected:'Images sélectionnées',orientation:'Orientation',portrait:'Portrait',landscape:'Paysage',margins:'Marges',none:'Aucune',small:'Petite',large:'Grande',generating:'Génération…',create:'Créer le PDF',download:'Télécharger le PDF',pdfTools:'FLIXO · OUTILS PDF',fileTypes:'JPG · PNG · WEBP · jusqu’à 50 images'},
+  de:{title:'Bilder in PDF umwandeln',description:'Wandeln Sie JPG-, PNG- und WEBP-Bilder vollständig im Browser in PDF um.',choose:'Bilder auswählen',selected:'Ausgewählte Bilder',orientation:'Ausrichtung',portrait:'Hochformat',landscape:'Querformat',margins:'Ränder',none:'Keine',small:'Klein',large:'Groß',generating:'Wird erstellt…',create:'PDF erstellen',download:'PDF herunterladen',pdfTools:'FLIXO · PDF-WERKZEUGE',fileTypes:'JPG · PNG · WEBP · bis zu 50 Bilder'},
+  ru:{title:'Изображения в PDF',description:'Преобразуйте изображения JPG, PNG и WEBP в PDF прямо в браузере.',choose:'Выбрать изображения',selected:'Выбранные изображения',orientation:'Ориентация',portrait:'Книжная',landscape:'Альбомная',margins:'Поля',none:'Нет',small:'Малые',large:'Большие',generating:'Создание…',create:'Создать PDF',download:'Скачать PDF',pdfTools:'FLIXO · ИНСТРУМЕНТЫ PDF',fileTypes:'JPG · PNG · WEBP · до 50 изображений'},
+  zh:{title:'图片转 PDF',description:'直接在浏览器中将 JPG、PNG 和 WEBP 图片转换为 PDF。',choose:'选择图片',selected:'已选图片',orientation:'方向',portrait:'纵向',landscape:'横向',margins:'边距',none:'无',small:'小',large:'大',generating:'正在生成…',create:'创建 PDF',download:'下载 PDF',pdfTools:'FLIXO · PDF 工具',fileTypes:'JPG · PNG · WEBP · 最多 50 张图片'},
+  hi:{title:'इमेज से PDF',description:'ब्राउज़र में JPG, PNG और WEBP छवियों को PDF में बदलें।',choose:'छवियाँ चुनें',selected:'चयनित छवियाँ',orientation:'दिशा',portrait:'पोर्ट्रेट',landscape:'लैंडस्केप',margins:'मार्जिन',none:'कोई नहीं',small:'छोटा',large:'बड़ा',generating:'बना रहे हैं…',create:'PDF बनाएँ',download:'PDF डाउनलोड करें',pdfTools:'FLIXO · PDF टूल्स',fileTypes:'JPG · PNG · WEBP · अधिकतम 50 छवियाँ'},
+  id:{title:'Gambar ke PDF',description:'Konversi gambar JPG, PNG, dan WEBP menjadi PDF langsung di browser.',choose:'Pilih gambar',selected:'Gambar terpilih',orientation:'Orientasi',portrait:'Potret',landscape:'Lanskap',margins:'Margin',none:'Tidak ada',small:'Kecil',large:'Besar',generating:'Membuat…',create:'Buat PDF',download:'Unduh PDF',pdfTools:'FLIXO · ALAT PDF',fileTypes:'JPG · PNG · WEBP · hingga 50 gambar'},
+  ur:{title:'تصاویر سے PDF',description:'JPG، PNG اور WEBP تصاویر کو براہ راست براؤزر میں PDF میں تبدیل کریں۔',choose:'تصاویر منتخب کریں',selected:'منتخب تصاویر',orientation:'سمت',portrait:'عمودی',landscape:'افقی',margins:'حاشیے',none:'کوئی نہیں',small:'چھوٹا',large:'بڑا',generating:'بنایا جا رہا ہے…',create:'PDF بنائیں',download:'PDF ڈاؤن لوڈ کریں',pdfTools:'FLIXO · PDF ٹولز',fileTypes:'JPG · PNG · WEBP · زیادہ سے زیادہ 50 تصاویر'},
+  ja:{title:'画像を PDF に変換',description:'JPG、PNG、WEBP 画像をブラウザ内だけで PDF に変換します。',choose:'画像を選択',selected:'選択した画像',orientation:'向き',portrait:'縦',landscape:'横',margins:'余白',none:'なし',small:'小',large:'大',generating:'生成中…',create:'PDF を作成',download:'PDF をダウンロード',pdfTools:'FLIXO · PDF ツール',fileTypes:'JPG · PNG · WEBP · 最大 50 枚'},
+  pt:{title:'Imagem para PDF',description:'Converta imagens JPG, PNG e WEBP em PDF diretamente no navegador.',choose:'Escolher imagens',selected:'Imagens selecionadas',orientation:'Orientação',portrait:'Retrato',landscape:'Paisagem',margins:'Margens',none:'Nenhuma',small:'Pequena',large:'Grande',generating:'Gerando…',create:'Criar PDF',download:'Baixar PDF',pdfTools:'FLIXO · FERRAMENTAS PDF',fileTypes:'JPG · PNG · WEBP · até 50 imagens'},
+  it:{title:'Immagini in PDF',description:'Converti immagini JPG, PNG e WEBP in PDF direttamente nel browser.',choose:'Scegli immagini',selected:'Immagini selezionate',orientation:'Orientamento',portrait:'Verticale',landscape:'Orizzontale',margins:'Margini',none:'Nessuno',small:'Piccolo',large:'Grande',generating:'Generazione…',create:'Crea PDF',download:'Scarica PDF',pdfTools:'FLIXO · STRUMENTI PDF',fileTypes:'JPG · PNG · WEBP · fino a 50 immagini'},
+  ko:{title:'이미지를 PDF로',description:'JPG, PNG, WEBP 이미지를 브라우저 안에서 PDF로 변환합니다.',choose:'이미지 선택',selected:'선택한 이미지',orientation:'방향',portrait:'세로',landscape:'가로',margins:'여백',none:'없음',small:'작게',large:'크게',generating:'생성 중…',create:'PDF 만들기',download:'PDF 다운로드',pdfTools:'FLIXO · PDF 도구',fileTypes:'JPG · PNG · WEBP · 최대 50개 이미지'},
+  nl:{title:'Afbeelding naar PDF',description:'Converteer JPG-, PNG- en WEBP-afbeeldingen volledig in je browser naar PDF.',choose:'Afbeeldingen kiezen',selected:'Geselecteerde afbeeldingen',orientation:'Oriëntatie',portrait:'Staand',landscape:'Liggend',margins:'Marges',none:'Geen',small:'Klein',large:'Groot',generating:'Bezig met genereren…',create:'PDF maken',download:'PDF downloaden',pdfTools:'FLIXO · PDF-HULPMIDDELEN',fileTypes:'JPG · PNG · WEBP · maximaal 50 afbeeldingen'},
+  pl:{title:'Obraz do PDF',description:'Konwertuj obrazy JPG, PNG i WEBP do PDF bezpośrednio w przeglądarce.',choose:'Wybierz obrazy',selected:'Wybrane obrazy',orientation:'Orientacja',portrait:'Pionowa',landscape:'Pozioma',margins:'Marginesy',none:'Brak',small:'Małe',large:'Duże',generating:'Generowanie…',create:'Utwórz PDF',download:'Pobierz PDF',pdfTools:'FLIXO · NARZĘDZIA PDF',fileTypes:'JPG · PNG · WEBP · do 50 obrazów'},
+  tr:{title:'Görselden PDF',description:'JPG, PNG ve WEBP görsellerini doğrudan tarayıcıda PDF’e dönüştürün.',choose:'Görselleri seç',selected:'Seçilen görseller',orientation:'Yön',portrait:'Dikey',landscape:'Yatay',margins:'Kenar boşlukları',none:'Yok',small:'Küçük',large:'Büyük',generating:'Oluşturuluyor…',create:'PDF oluştur',download:'PDF indir',pdfTools:'FLIXO · PDF ARAÇLARI',fileTypes:'JPG · PNG · WEBP · en fazla 50 görsel'},
+  vi:{title:'Chuyển ảnh sang PDF',description:'Chuyển đổi ảnh JPG, PNG và WEBP thành PDF ngay trong trình duyệt.',choose:'Chọn ảnh',selected:'Ảnh đã chọn',orientation:'Hướng',portrait:'Dọc',landscape:'Ngang',margins:'Lề',none:'Không',small:'Nhỏ',large:'Lớn',generating:'Đang tạo…',create:'Tạo PDF',download:'Tải PDF',pdfTools:'FLIXO · CÔNG CỤ PDF',fileTypes:'JPG · PNG · WEBP · tối đa 50 ảnh'},
+  th:{title:'แปลงรูปภาพเป็น PDF',description:'แปลงรูปภาพ JPG, PNG และ WEBP เป็น PDF ในเบราว์เซอร์โดยตรง',choose:'เลือกรูปภาพ',selected:'รูปภาพที่เลือก',orientation:'การวางแนว',portrait:'แนวตั้ง',landscape:'แนวนอน',margins:'ระยะขอบ',none:'ไม่มี',small:'เล็ก',large:'ใหญ่',generating:'กำลังสร้าง…',create:'สร้าง PDF',download:'ดาวน์โหลด PDF',pdfTools:'FLIXO · เครื่องมือ PDF',fileTypes:'JPG · PNG · WEBP · สูงสุด 50 รูป'},
+  sv:{title:'Bild till PDF',description:'Konvertera JPG-, PNG- och WEBP-bilder till PDF direkt i webbläsaren.',choose:'Välj bilder',selected:'Valda bilder',orientation:'Orientering',portrait:'Stående',landscape:'Liggande',margins:'Marginaler',none:'Ingen',small:'Liten',large:'Stor',generating:'Genererar…',create:'Skapa PDF',download:'Ladda ner PDF',pdfTools:'FLIXO · PDF-VERKTYG',fileTypes:'JPG · PNG · WEBP · upp till 50 bilder'},
+};
 
 export function ImageToPdfTool() {
+  const locale = normalizeLocale(typeof document === 'undefined' ? 'en' : document.documentElement.lang);
+  const copy = COPY[locale];
   const [files, setFiles] = useState<File[]>([]);
   const [orientation, setOrientation] = useState<ImageToPdfOrientation>('portrait');
   const [margin, setMargin] = useState<ImageToPdfMargin>('small');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [url, setUrl] = useState('');
-
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
-
-  const generate = async () => {
-    setBusy(true);
-    setError('');
-    try {
-      const blob = await imagesToPdf(files, { orientation, margin });
-      setUrl((current) => {
-        if (current) URL.revokeObjectURL(current);
-        return URL.createObjectURL(blob);
-      });
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'PDF generation failed.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
+  const generate = async () => { setBusy(true); setError(''); try { const blob = await imagesToPdf(files, { orientation, margin }); setUrl((current) => { if (current) URL.revokeObjectURL(current); return URL.createObjectURL(blob); }); } catch (caught) { setError(caught instanceof Error ? caught.message : 'PDF generation failed.'); } finally { setBusy(false); } };
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6 text-slate-100">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">FLIXO · PDF TOOLS</p>
-        <h1 className="text-3xl font-bold">Image to PDF</h1>
-        <p className="text-slate-300">Convert JPG, PNG, and WEBP images into a PDF entirely inside your browser.</p>
-      </header>
-
+      <header className="space-y-2"><p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">{copy.pdfTools}</p><h1 className="text-3xl font-bold">{copy.title}</h1><p className="text-slate-300">{copy.description}</p></header>
       <section className="space-y-4 rounded-2xl border border-slate-700 bg-slate-900/70 p-5">
-        <label htmlFor="image-to-pdf-input" className="block cursor-pointer rounded-xl border-2 border-dashed border-slate-600 p-8 text-center hover:border-slate-400">
-          <span className="block text-lg font-semibold">Choose images</span>
-          <span className="mt-2 block text-sm text-slate-400">JPG · PNG · WEBP · up to 50 images</span>
-        </label>
+        <label htmlFor="image-to-pdf-input" className="block cursor-pointer rounded-xl border-2 border-dashed border-slate-600 p-8 text-center hover:border-slate-400"><span className="block text-lg font-semibold">{copy.choose}</span><span className="mt-2 block text-sm text-slate-400">{copy.fileTypes}</span></label>
         <input id="image-to-pdf-input" className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple onChange={(event) => setFiles(Array.from(event.target.files ?? []))} />
-
-        {files.length > 0 && <ol className="space-y-2 rounded-xl bg-slate-950 p-4" aria-label="Selected images">
-          {files.map((file, index) => <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 border-b border-slate-800 py-2 last:border-0">
-            <span className="truncate">{index + 1}. {file.name}</span>
-            <span className="text-xs text-slate-400">{Math.round(file.size / 1024)} KB</span>
-          </li>)}
-        </ol>}
-
+        {files.length > 0 && <ol className="space-y-2 rounded-xl bg-slate-950 p-4" aria-label={copy.selected}>{files.map((file,index)=><li key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 border-b border-slate-800 py-2 last:border-0"><span className="truncate">{index+1}. {file.name}</span><span className="text-xs text-slate-400">{Math.round(file.size/1024)} KB</span></li>)}</ol>}
         <div className="grid gap-4 sm:grid-cols-2">
-          <fieldset className="space-y-2">
-            <legend className="font-semibold">Orientation</legend>
-            <div className="flex gap-2">
-              {(['portrait', 'landscape'] as const).map((value) => <label key={value} className="flex flex-1 items-center gap-2 rounded-lg border border-slate-700 p-3">
-                <input type="radio" name="image-to-pdf-orientation" value={value} checked={orientation === value} onChange={() => setOrientation(value)} />
-                {value[0].toUpperCase() + value.slice(1)}
-              </label>)}
-            </div>
-          </fieldset>
-          <fieldset className="space-y-2">
-            <legend className="font-semibold">Margins</legend>
-            <div className="flex gap-2">
-              {(['none', 'small', 'large'] as const).map((value) => <label key={value} className="flex flex-1 items-center gap-2 rounded-lg border border-slate-700 p-3">
-                <input type="radio" name="image-to-pdf-margin" value={value} checked={margin === value} onChange={() => setMargin(value)} />
-                {value[0].toUpperCase() + value.slice(1)}
-              </label>)}
-            </div>
-          </fieldset>
+          <fieldset className="space-y-2"><legend className="font-semibold">{copy.orientation}</legend><div className="flex gap-2">{(['portrait','landscape'] as const).map((value)=><label key={value} className="flex flex-1 items-center gap-2 rounded-lg border border-slate-700 p-3"><input type="radio" name="image-to-pdf-orientation" value={value} checked={orientation===value} onChange={()=>setOrientation(value)}/>{value==='portrait'?copy.portrait:copy.landscape}</label>)}</div></fieldset>
+          <fieldset className="space-y-2"><legend className="font-semibold">{copy.margins}</legend><div className="flex gap-2">{(['none','small','large'] as const).map((value)=><label key={value} className="flex flex-1 items-center gap-2 rounded-lg border border-slate-700 p-3"><input type="radio" name="image-to-pdf-margin" value={value} checked={margin===value} onChange={()=>setMargin(value)}/>{value==='none'?copy.none:value==='small'?copy.small:copy.large}</label>)}</div></fieldset>
         </div>
-
-        <button type="button" disabled={!files.length || busy} onClick={() => void generate()} className="rounded-lg bg-indigo-500 px-5 py-3 font-semibold text-white disabled:opacity-50">
-          {busy ? 'Generating…' : 'Create PDF'}
-        </button>
-
+        <button type="button" disabled={!files.length || busy} onClick={()=>void generate()} className="rounded-lg bg-indigo-500 px-5 py-3 font-semibold text-white disabled:opacity-50">{busy?copy.generating:copy.create}</button>
         {error && <p role="alert" className="rounded-lg border border-red-800 bg-red-950/40 p-3 text-red-200">{error}</p>}
-        {url && <a href={url} download="flixo-images.pdf" className="block rounded-lg bg-emerald-600 px-5 py-3 text-center font-semibold text-white">Download PDF</a>}
+        {url && <a href={url} download="flixo-images.pdf" className="block rounded-lg bg-emerald-600 px-5 py-3 text-center font-semibold text-white">{copy.download}</a>}
       </section>
     </main>
   );
