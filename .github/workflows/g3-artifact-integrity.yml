@@ -1,15 +1,13 @@
 name: G3 Universal Artifact Integrity Gate
 
 on:
-  pull_request:
-    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: g3-artifact-integrity-${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: g3-artifact-integrity-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
