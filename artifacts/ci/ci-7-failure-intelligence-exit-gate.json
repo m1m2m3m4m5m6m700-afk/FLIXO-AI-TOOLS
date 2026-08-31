@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "phase": "CI-7",
+  "status": "VERIFYING",
+  "base": "60d121bd1b9d87bc38ce45533a575c985be84201",
+  "acceptance": {
+    "taxonomy": "PENDING",
+    "classification": "PENDING",
+    "unknownHandling": "PENDING",
+    "rootCauseGrouping": "PENDING",
+    "deterministicReport": "PENDING",
+    "shadowWorkflow": "PENDING"
+  },
+  "safety": {"mainModified": false, "branchProtectionModified": false, "requiredChecksModified": false, "productionConfigurationModified": false, "legacyWorkflowDeleted": false, "legacyWorkflowBehaviorModified": false},
+  "nextPhaseAllowed": false
+}
