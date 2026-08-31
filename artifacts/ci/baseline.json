@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "baselineType": "CI_REBUILD_BASELINE",
+  "repository": "m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS",
+  "defaultBranch": "main",
+  "baselineSha": "f8c99b41d0e66b3bf958bcf24ad5499b7722b2db",
+  "baselineTreeSha": "5bce80b08c4680fa7f0dc52285d4bf46b13ef708",
+  "baselineCommit": "test(g3): use Playwright file chooser for real upload flow (#525)",
+  "observedAt": "2026-08-31T13:39:00Z",
+  "main": {
+    "protected": true,
+    "protectionDetailsReadable": false,
+    "requiredChecksChanged": false,
+    "note": "GitHub integration returned branch metadata showing main protected, but the branch-protection endpoint was not accessible. No mutation was attempted."
+  },
+  "openPullRequests": [
+    {
+      "number": 526,
+      "head": "1d1ab8151b53b19be5f84535bfd07fc4c1f5dfbe",
+      "base": "f8c99b41d0e66b3bf958bcf24ad5499b7722b2db",
+      "branch": "fix/g3-root-cause-sweep",
+      "status": "open"
+    }
+  ],
+  "protectionPolicy": {
+    "branchProtectionMutationAllowed": false,
+    "requiredChecksMutationAllowed": false,
+    "productionDeploymentMutationAllowed": false,
+    "legacyWorkflowDeletionAllowed": false,
+    "legacyWorkflowBehaviorChangeAllowed": false
+  },
+  "rollback": {
+    "branch": "main",
+    "baselineSha": "f8c99b41d0e66b3bf958bcf24ad5499b7722b2db",
+    "rule": "No CI foundation change may rewrite main. All rebuild work begins on ci/rebuild-foundation and proceeds through pull requests."
+  }
+}
