@@ -11,17 +11,16 @@
     <title>FLIXO — Fast browser-first tools</title>
     <script>
       (() => {
-        const localeMap = {
-          en: ['en', 'ltr'], ar: ['ar', 'rtl'], es: ['es', 'ltr'], fr: ['fr', 'ltr'], de: ['de', 'ltr'],
-          ru: ['ru', 'ltr'], zh: ['zh-CN', 'ltr'], hi: ['hi', 'ltr'], id: ['id', 'ltr'], ur: ['ur', 'rtl'],
-          ja: ['ja', 'ltr'], pt: ['pt', 'ltr'], it: ['it', 'ltr'], ko: ['ko', 'ltr'], nl: ['nl', 'ltr'],
-          pl: ['pl', 'ltr'], tr: ['tr', 'ltr'], vi: ['vi', 'ltr'], th: ['th', 'ltr'], sv: ['sv', 'ltr'],
-        };
+        const supportedLocales = new Set([
+          'ar', 'en', 'es', 'fr', 'de', 'hi', 'id', 'it', 'ja', 'ko',
+          'ms', 'nl', 'pl', 'pt', 'ru', 'sv', 'th', 'tr', 'uk', 'vi',
+        ]);
         const candidate = window.location.pathname.split('/').filter(Boolean)[0] ?? 'en';
-        const [lang, dir] = localeMap[candidate] ?? localeMap.en;
+        const locale = supportedLocales.has(candidate) ? candidate : 'en';
+        const direction = locale === 'ar' ? 'rtl' : 'ltr';
         const html = document.documentElement;
-        html.setAttribute('lang', lang);
-        html.setAttribute('dir', dir);
+        html.setAttribute('lang', locale);
+        html.setAttribute('dir', direction);
       })();
     </script>
   </head>
