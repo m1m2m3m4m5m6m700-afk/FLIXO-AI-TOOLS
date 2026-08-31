@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "rootCauseId": "RC-G3-LEGACY-001",
+  "classification": "INFRASTRUCTURE_ERROR",
+  "status": "RECOVERING",
+  "scope": "G3 legacy-vs-decomposed parity on push to main",
+  "firstObserved": {
+    "runId": 33420002645,
+    "sha": "e7dd9cabe94da4e38551042df261eca1d3b871bb",
+    "jobId": 99580038225,
+    "stage": "Resolve legacy G3"
+  },
+  "expected": "Legacy G3 produces an exact-head check result for every release/main SHA consumed by the G3 aggregator.",
+  "actual": "The main-push G3 aggregator waited for a check named 'G3 Artifact Integrity Shadow' on the exact main SHA, but the legacy shadow workflow only declared pull_request and workflow_dispatch triggers, so no exact-head legacy check could be produced by the push pipeline.",
+  "repair": {
+    "path": ".github/workflows/flixo-ci-g3-shadow.yml",
+    "change": "Add push trigger for main while preserving the exact-head checkout and evidence identity contract."
+  },
+  "safety": {
+    "assertionsWeakened": false,
+    "coverageReduced": false,
+    "allowlistAdded": false,
+    "legacyBehaviorRemoved": false,
+    "productionConfigurationChanged": false
+  },
+  "verificationRequired": [
+    "legacy G3 exact-head check on new main SHA",
+    "G3 aggregator success",
+    "CI-11 exit gate PASS"
+  ],
+  "source": ".github/workflows/ci.yml + .github/workflows/flixo-ci-g3-shadow.yml",
+  "artifact": "artifacts/ci/g3-root-causes/RC-G3-LEGACY-001.json",
+  "recordedAt": "2026-08-31T20:32:00+03:00"
+}
