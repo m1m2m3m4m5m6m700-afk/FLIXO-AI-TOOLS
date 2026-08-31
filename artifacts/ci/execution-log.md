@@ -1,26 +1,21 @@
 # FLIXO CI Rebuild Execution Log
 
-CURRENT PHASE: CI-3 — Execution Engine
+CURRENT PHASE: CI-4 — Evidence Ledger
 
-PHASE STATUS: COMPLETE
+PHASE STATUS: VERIFYING
 
-CURRENT PR: #531 — ci: build deterministic execution engine and dependency graph
+CURRENT PR: pending CI-4 PR
 
-VERIFIED SHA: fb2322a90b5af8434630f18c9cc362be79252ebb
-FINAL PHASE EVIDENCE SHA: f308e5655bb3b69b3d692326c39fde0a2fd0454e
-
-BASE: 128b638f7bd1f87a03b95fa4ab6c4dac83300d74 (CI-2 COMPLETE)
+BASE: 6080e0a404e13130ff7d4268b944cedcbdc313c6 (CI-3 COMPLETE)
 
 IMPLEMENTATION:
-- explicit dependency graph: PASS
-- DAG validation/cycle detection: PASS
-- topological scheduling: PASS
-- dependency closure: PASS
-- BLOCKED propagation: PASS
-- deterministic execution plan: PASS
-- plan hashing: PASS
-- execution-plan self-reproducibility: PASS
-- shadow workflow: PASS
+- evidence schema: COMPLETE
+- immutable evidence identity: COMPLETE
+- atomic write semantics: COMPLETE
+- manifest generation: COMPLETE
+- manifest hash: COMPLETE
+- ledger self-tests: COMPLETE
+- shadow workflow: COMPLETE
 
 SAFETY:
 - main modified: NO
@@ -30,17 +25,5 @@ SAFETY:
 - legacy workflows deleted: NO
 - legacy workflow behavior modified: NO
 
-PHASE EXIT:
-- Implementation: PASS
-- Contract: PASS
-- Tests: PASS
-- Regression: PASS
-- Evidence: PASS
-- CI: PASS
-- Acceptance Criteria: PASS
-- Unresolved Critical: 0
-
-NEXT PHASE ALLOWED: YES
-
 NEXT REQUIRED ACTION:
-CI-4 — Evidence Ledger schema, writers, manifest, immutable evidence identity, and result normalization.
+Verify CI-4 shadow workflow. CI-5 remains forbidden until evidence contracts are PASS.
