@@ -1,4 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import { validateOutputIntegrity } from '../src/lib/contracts/output-integrity';
 import { getToolOutputContract } from '../src/lib/contracts/tool-output-contracts';
 import { getLocalizedToolTitle } from '../src/lib/seo/tool-seo';
@@ -45,19 +47,25 @@ async function waitForImageCompressorReady(page: Page) {
   return input;
 }
 
-async function setTestFiles(input: Locator, files: TestFile[]) {
-  await input.setInputFiles(files.map((file) => ({
-    name: file.name,
-    mimeType: file.mimeType,
-    buffer: Buffer.from(file.content),
-  })));
+async function materializeTestFiles(testInfo: { outputPath: (relativePath: string) => string }, files: TestFile[]) {
+  return Promise.all(files.map(async (file) => {
+    const filePath = testInfo.outputPath(path.join('fixtures', file.name));
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, file.content, 'utf8');
+    return filePath;
+  }));
+}
+
+async function setTestFiles(input: Locator, testInfo: { outputPath: (relativePath: string) => string }, files: TestFile[]) {
+  const filePaths = await materializeTestFiles(testInfo, files);
+  await input.setInputFiles(filePaths, { timeout: 30000 });
   await expect.poll(async () => input.evaluate((element) => element.files?.length ?? 0)).toBe(files.length);
 }
 
-test('G3 real flow: upload → process → download → inspect image artifact', async ({ page }) => {
+test('G3 real flow: upload → process → download → inspect image artifact', async ({ page }, testInfo) => {
   const input = await waitForImageCompressorReady(page);
 
-  await setTestFiles(input, [
+  await setTestFiles(input, testInfo, [
     { name: 'g3-source.svg', mimeType: 'image/svg+xml', content: SVG },
   ]);
   await page.getByRole('button', { name: 'Compress image', exact: true }).click();
@@ -100,9 +108,9 @@ test('G3 real flow: upload → process → download → inspect image artifact',
   expect(result.mime).toBe('image/webp');
 });
 
-test('G3 real flow: upload → process → download → inspect ZIP artifact', async ({ page }) => {
+test('G3 real flow: upload → process → download → inspect ZIP artifact', async ({ page }, testInfo) => {
   const input = await waitForImageCompressorReady(page);
-  await setTestFiles(input, [
+  await setTestFiles(input, testInfo, [
     { name: 'g3-one.svg', mimeType: 'image/svg+xml', content: SVG },
     { name: 'g3-two.svg', mimeType: 'image/svg+xml', content: SVG },
   ]);
