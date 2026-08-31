@@ -93,8 +93,6 @@ export function classifyContractFailure(result: ContractResult): FailureClassifi
     category = 'CONSOLE_ERROR'; rootCauseId = 'RC-G4-RUNTIME-001';
   } else if (/network|fetch failed|request failed/.test(text)) {
     category = 'NETWORK_ERROR'; rootCauseId = 'RC-G4-RUNTIME-001';
-  } else if (/runtime|exception|uncaught/.test(text)) {
-    category = 'RUNTIME_EXCEPTION'; rootCauseId = 'RC-G4-RUNTIME-001';
   } else if (/signature|magic byte|mime/.test(text)) {
     category = 'FILE_SIGNATURE_ERROR'; rootCauseId = 'RC-G2-SIGNATURE-001';
   } else if (/artifact|sha|integrity|corrupt/.test(text)) {
@@ -105,6 +103,8 @@ export function classifyContractFailure(result: ContractResult): FailureClassifi
     deterministic = /rate.?limit/.test(text);
   } else if (/flaky|intermittent|timeout/.test(text)) {
     category = 'FLAKY_TEST'; rootCauseId = 'RC-G4-RUNTIME-001'; deterministic = false;
+  } else if (/runtime|exception|uncaught/.test(text)) {
+    category = 'RUNTIME_EXCEPTION'; rootCauseId = 'RC-G4-RUNTIME-001';
   }
 
   return { category, rootCauseId, deterministic, contract: result };
