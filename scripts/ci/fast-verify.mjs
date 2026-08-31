@@ -1,5 +1,5 @@
 import { execFile, execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { promisify } from 'node:util';
 
 const exec = promisify(execFile);
@@ -73,25 +73,26 @@ for (const tool of flags.tools) {
   if (existsSync(candidate)) toolTestCandidates.push(candidate);
 }
 if (toolTestCandidates.length) {
+  add('playwright-install', 'npx', ['playwright', 'install', 'chromium'], 'affected browser checks');
   add('affected-e2e', 'npx', ['playwright', 'test', ...toolTestCandidates, '--project=chromium', '--workers=2', '--retries=0'], 'changed tool surfaces');
 }
 
-const needBuild = flags.workflow || flags.dependency || flags.registry || flags.routing || flags.localization || flags.seo || flags.tools.length > 0;
+const needBuild = flags.workflow || flags.dependency || flags.registry || flags.routing || flags.localization || flags.seo;
 const results = [];
 const start = Date.now();
 
 async function runOne(item) {
   const started = Date.now();
   try {
-    const { stdout, stderr } = await exec(item.command, item.args, { env: process.env, maxBuffer: 4 * 1024 * 1024 });
+    await exec(item.command, item.args, { env: process.env, maxBuffer: 4 * 1024 * 1024 });
     const durationMs = Date.now() - started;
     console.log(`PASS ${item.id} (${durationMs}ms)`);
     results.push({ id: item.id, status: 'PASS', durationMs, reason: item.reason });
     return true;
   } catch (error) {
     const durationMs = Date.now() - started;
-    const stdout = error?.stdout ?? '';
-    const stderr = error?.stderr ?? error?.message ?? String(error);
+    const stdout = typeof error?.stdout === 'string' ? error.stdout : '';
+    const stderr = typeof error?.stderr === 'string' ? error.stderr : error instanceof Error ? error.message : String(error);
     console.error(`FAIL ${item.id} (${durationMs}ms)`);
     if (stdout) console.error(stdout);
     if (stderr) console.error(stderr);
