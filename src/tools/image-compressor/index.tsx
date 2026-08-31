@@ -177,7 +177,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
   return (
     <main lang={locale} dir={isArabic ? 'rtl' : 'ltr'} className="image-tool-shell">
       <div className="image-tool-container">
-        <header className="image-tool-header"><div><p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p><h1 ref={headingRef} tabIndex={-1}>{title}</h1><p className="image-tool-lead">{description}</p></div><a className="language-link" href={isArabic ? '/en/image-compressor' : '/ar/image-compressor'}>{label(locale, 'العربية', 'English')}</a></header>
+        <header className="image-tool-header"><div><p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p><h1 ref={headingRef} tabIndex={-1}>{title}</h1><p className="image-tool-lead">{description}</p></div><a className="language-link" lang={isArabic ? 'en' : 'ar'} href={isArabic ? '/en/image-compressor' : '/ar/image-compressor'}>{label(locale, 'العربية', 'English')}</a></header>
         <section className="compressor-grid" aria-label={label(locale, 'Image compression tool', 'أداة ضغط الصور')} aria-busy={busy}>
           <div className="compressor-card">
             <label className="upload-zone" htmlFor="image-file"><span className="upload-title">{files.length ? `${files.length} ${label(locale, files.length === 1 ? 'image selected' : 'images selected', files.length === 1 ? 'صورة محددة' : 'صور محددة')}` : label(locale, 'Choose images to start', 'اختر الصور للبدء')}</span><span className="upload-subtitle">JPG · PNG · WebP · GIF · BMP · SVG · {label(locale, `up to ${MAX_FILES} files`, `حتى ${MAX_FILES} ملفًا`)}</span></label>
