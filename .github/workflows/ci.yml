@@ -126,5 +126,26 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test -f diagnostics/ci-fast-evidence-${SHA}/fast-ci-result.json || true
-          node -e "const fs=require('node:fs'); const p='diagnostics'; const files=fs.readdirSync(p,{recursive:true}).filter(f=>f.endsWith('fast-ci-result.json')); if(!files.length) throw new Error('No fast-path evidence found'); console.log('Fast Contract Diagnostics PASS');"
+          test -s diagnostics/fast-ci-core-*/fast-ci-result.json
+          node -e "const fs=require('node:fs'); const p=process.cwd() + '/diagnostics'; const dirs=fs.readdirSync(p).filter(d=>d.startsWith('fast-ci-')); if(!dirs.length) throw new Error('No fast group evidence'); for(const d of dirs){const f=p+'/'+d+'/fast-ci-result.json'; if(!fs.existsSync(f)) continue; const r=JSON.parse(fs.readFileSync(f,'utf8')); if(r.sha!==process.env.SHA) throw new Error('Evidence SHA mismatch in '+d); if(r.status!=='PASS') throw new Error('Non-PASS fast evidence in '+d); } console.log('Fast contract evidence PASS');"
+
+  canonical-verify:
+    name: Canonical Verification Gate
+    needs: [ci, fast-contract]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Enforce prerequisite results
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ needs.ci.result }}" != "success" ]]; then
+            echo 'Canonical Verification Gate BLOCKED: parallel fast CI aggregate failed.'
+            exit 1
+          fi
+          if [[ "${{ needs.fast-contract.result }}" != "success" ]]; then
+            echo 'Canonical Verification Gate BLOCKED: Fast Contract Diagnostics failed.'
+            exit 1
+          fi
+          echo 'Canonical Verification Gate PASS: required fast-path evidence is green.'
