@@ -1,6 +1,8 @@
 name: CI
 
-# PR RESCUE MODE: one short deterministic path. Deep certification remains manual/main-only.
+# PR and main use the same impact-aware verification engine.
+# The only difference is the comparison base: PR base SHA vs the previous main commit.
+# This prevents post-merge reclassification of an already-passed change into an unrelated full suite.
 on:
   pull_request:
     branches: [main]
@@ -20,7 +22,7 @@ env:
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
   VITE_SITE_URL: https://flixoai.vercel.app
-  CHANGE_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'origin/main' }}
+  CHANGE_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && github.event.before) || github.sha }}
 
 jobs:
   ci:
