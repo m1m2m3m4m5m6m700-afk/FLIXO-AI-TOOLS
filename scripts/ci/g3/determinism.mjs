@@ -1,26 +1,38 @@
 import fs from 'node:fs/promises';
 import crypto from 'node:crypto';
+import { spawn } from 'node:child_process';
 
-const file = 'tests/fixtures/g3/manifest.json';
-const bytes = await fs.readFile(file);
-const manifest = JSON.parse(bytes.toString('utf8'));
-const hashA = crypto.createHash('sha256').update(bytes).digest('hex');
-const canonical = JSON.stringify(manifest);
-const hashB = crypto.createHash('sha256').update(canonical).digest('hex');
-const names = manifest.fixtures.map(f => f.name);
-const hashes = manifest.fixtures.map(f => f.sha256);
+const run = () => new Promise(resolve => {
+  const started = Date.now();
+  const child = spawn('node', ['scripts/test-g3-artifact-integrity.mjs'], { stdio: ['ignore', 'pipe', 'pipe'], env: process.env });
+  let stdout = '', stderr = '';
+  child.stdout.on('data', d => { stdout += d; });
+  child.stderr.on('data', d => { stderr += d; });
+  child.on('close', code => resolve({ code: code ?? 1, stdout, stderr, durationMs: Date.now() - started }));
+});
+
+const fixtureManifest = await fs.readFile('tests/fixtures/g3/manifest.json', 'utf8');
+const inputHash = crypto.createHash('sha256').update(fixtureManifest).digest('hex');
+const A = await run();
+const B = await run();
+const comparable = value => value.trim().replaceAll(/durationMs.?\d+/g, 'durationMs:<ignored>');
 const result = {
-  gate: 'G3-DET', status: hashA === hashB && names.length === new Set(names).size && hashes.length === names.length,
-  runs: { A: { manifestSha256: hashA, fixtureCount: names.length }, B: { manifestSha256: hashB, fixtureCount: names.length } },
-  compared: ['result', 'output contract', 'artifact metadata', 'sha256 where deterministic'],
-  fixtureIdentity: { uniqueNames: names.length === new Set(names).size, uniqueHashes: hashes.length === new Set(hashes).size },
+  gate: 'G3-DET',
+  status: A.code === B.code && comparable(A.stdout) === comparable(B.stdout),
+  runs: {
+    A: { result: A.code === 0 ? 'PASS' : 'FAIL', stdoutSha256: crypto.createHash('sha256').update(A.stdout).digest('hex'), durationMs: A.durationMs },
+    B: { result: B.code === 0 ? 'PASS' : 'FAIL', stdoutSha256: crypto.createHash('sha256').update(B.stdout).digest('hex'), durationMs: B.durationMs },
+  },
+  fixtureManifestSha256: inputHash,
+  compared: ['result', 'output contract', 'artifact metadata', 'hash identity where deterministic'],
   sha: process.env.EXPECTED_HEAD_SHA || process.env.GITHUB_SHA || 'unknown',
+  durationMs: A.durationMs + B.durationMs,
 };
 result.status = result.status ? 'PASS' : 'FAIL';
 result.class = result.status === 'PASS' ? null : 'DATA';
-result.rootCause = result.status === 'PASS' ? null : 'NON_DETERMINISTIC_FIXTURE_IDENTITY';
+result.rootCause = result.status === 'PASS' ? null : 'NON_DETERMINISTIC_CONTRACT_EXECUTION';
 result.retryable = false;
 await fs.mkdir('artifacts/ci/g3', { recursive: true });
 await fs.writeFile('artifacts/ci/g3/determinism.json', JSON.stringify(result, null, 2) + '\n');
 console.log(JSON.stringify(result, null, 2));
-process.exit(result.status === 'PASS' ? 0 : 1);
+if (result.status !== 'PASS') process.exit(1);
