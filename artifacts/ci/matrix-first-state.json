@@ -1,0 +1,1 @@
+{"contractVersion":"MASTER AUTONOMOUS RECOVERY & EXECUTION CONTRACT v5","state":"IN_PROGRESS","matrixFirst":true,"units":12,"browsers":["chromium","firefox","webkit"],"shards":4,"failFast":false,"maxFailuresPerUnit":1,"nextAction":"Create PR and verify CI."}
