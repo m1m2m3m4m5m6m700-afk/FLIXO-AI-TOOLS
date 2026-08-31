@@ -190,6 +190,14 @@ jobs:
     name: G3 / Browser
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      SITE_URL: https://canonical.test
+      TEST_ORIGIN: http://127.0.0.1:3000
+      RUNTIME_ORIGIN: http://127.0.0.1:3000
+      VITE_SITE_URL: https://canonical.test
+      VITE_TEST_ORIGIN: http://127.0.0.1:3000
+      VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v5
         with:
