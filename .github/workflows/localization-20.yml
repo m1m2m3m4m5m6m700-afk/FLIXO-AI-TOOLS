@@ -40,8 +40,8 @@ env:
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
 
 jobs:
-  g4:
-    name: G4 Universal Localization & SEO
+  g4-static:
+    name: G4 Static Localization & SEO Certification
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -86,6 +86,30 @@ jobs:
           grep -Fx "Sitemap: ${VITE_SITE_URL}/sitemap.xml" dist/robots.txt
           grep -Fq 'xmlns:xhtml="http://www.w3.org/1999/xhtml"' dist/sitemap.xml
           grep -Fq 'hreflang="x-default"' dist/sitemap.xml
+
+  g4-runtime-matrix:
+    name: G4 Runtime Matrix — lane-${{ matrix.lane }} / 20
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    env:
+      PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+      S4_EXTERNAL_SERVER: 'true'
+      PLAYWRIGHT_SERVER: preview
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Build production preview
+        run: npm run build
       - name: Start isolated production preview
         shell: bash
         run: |
@@ -98,26 +122,58 @@ jobs:
           done
           cat /tmp/g4-server.log || true
           exit 1
-      - name: G4 all-public-route runtime matrix — 20 locales
-        env:
-          S4_EXTERNAL_SERVER: 'true'
-          PLAYWRIGHT_SERVER: preview
-          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --workers=6 --retries=0
+      - name: G4 runtime lane — progressive failure policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "G4 lane=${{ matrix.lane }}"
+          if [ "${{ matrix.lane }}" -eq 20 ]; then
+            echo "Policy: NO EARLY STOP — run the complete lane."
+            npx playwright test tests/localization-runtime.spec.ts \
+              --project=chromium \
+              --workers=6 \
+              --retries=0 \
+              --shard=${{ matrix.lane }}/20
+          else
+            echo "Policy: STOP AFTER ${{ matrix.lane }} FAILED TEST(S)."
+            npx playwright test tests/localization-runtime.spec.ts \
+              --project=chromium \
+              --workers=6 \
+              --retries=0 \
+              --max-failures=${{ matrix.lane }} \
+              --shard=${{ matrix.lane }}/20
+          fi
       - name: Cleanup
         if: always()
         shell: bash
         run: |
           set +e
           if [ -f /tmp/g4-server.pid ]; then kill "$(cat /tmp/g4-server.pid)" 2>/dev/null || true; fi
-      - name: Upload G4 evidence
+      - name: Upload G4 lane evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: g4-localization-seo-evidence-${{ github.sha }}
+          name: g4-runtime-lane-${{ matrix.lane }}-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/
             /tmp/g4-server.log
           if-no-files-found: warn
           retention-days: 14
+
+  g4-certification:
+    name: G4 Runtime Matrix Certification
+    needs: [g4-static, g4-runtime-matrix]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require static gate and all 20 runtime lanes to pass
+        shell: bash
+        run: |
+          set -euo pipefail
+          static_result='${{ needs.g4-static.result }}'
+          matrix_result='${{ needs.g4-runtime-matrix.result }}'
+          test "$static_result" = success || { echo "G4 static certification failed: $static_result"; exit 1; }
+          test "$matrix_result" = success || { echo "G4 runtime matrix certification failed: $matrix_result"; exit 1; }
+          echo "G4 PASS: 20 runtime lanes; lanes 1–19 stop at their numbered failure threshold; lane 20 has no early-stop threshold."
