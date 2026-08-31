@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "phase": "CI-5",
+  "status": "VERIFYING",
+  "base": "1bc8b7ab8b821ff45c0679239cd95a7ea871d66a",
+  "acceptance": {
+    "affectedSelection": "PENDING",
+    "unaffectedSafety": "PENDING",
+    "ambiguousConservativeEscalation": "PENDING",
+    "impactPlan": "PENDING",
+    "shadowWorkflow": "PENDING"
+  },
+  "safety": {
+    "mainModified": false,
+    "branchProtectionModified": false,
+    "requiredChecksModified": false,
+    "productionConfigurationModified": false,
+    "legacyWorkflowDeleted": false,
+    "legacyWorkflowBehaviorModified": false
+  },
+  "nextPhaseAllowed": false
+}
