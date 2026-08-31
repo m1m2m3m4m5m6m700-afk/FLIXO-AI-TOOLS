@@ -122,26 +122,26 @@ jobs:
           done
           cat /tmp/g4-server.log || true
           exit 1
-      - name: G4 runtime lane — progressive failure policy
+      - name: G4 runtime lane — immediate progressive failure stop
         shell: bash
         run: |
           set -euo pipefail
-          echo "G4 lane=${{ matrix.lane }}"
-          if [ "${{ matrix.lane }}" -eq 20 ]; then
-            echo "Policy: NO EARLY STOP — run the complete lane."
+          lane='${{ matrix.lane }}'
+          echo "G4 lane=$lane"
+          echo "Detection mode: sequential (workers=1) so a failure is observed before the next test starts."
+          if [ "$lane" -eq 20 ]; then
+            echo "Policy: NO EARLY STOP — complete the entire lane."
             npx playwright test tests/localization-runtime.spec.ts \
               --project=chromium \
-              --workers=6 \
-              --retries=0 \
-              --shard=${{ matrix.lane }}/20
+              --workers=1 \
+              --retries=0
           else
-            echo "Policy: STOP AFTER ${{ matrix.lane }} FAILED TEST(S)."
+            echo "Policy: IMMEDIATE STOP ON FAILURE #$lane."
             npx playwright test tests/localization-runtime.spec.ts \
               --project=chromium \
-              --workers=6 \
+              --workers=1 \
               --retries=0 \
-              --max-failures=${{ matrix.lane }} \
-              --shard=${{ matrix.lane }}/20
+              --max-failures="$lane"
           fi
       - name: Cleanup
         if: always()
@@ -176,4 +176,4 @@ jobs:
           matrix_result='${{ needs.g4-runtime-matrix.result }}'
           test "$static_result" = success || { echo "G4 static certification failed: $static_result"; exit 1; }
           test "$matrix_result" = success || { echo "G4 runtime matrix certification failed: $matrix_result"; exit 1; }
-          echo "G4 PASS: 20 runtime lanes; lanes 1–19 stop at their numbered failure threshold; lane 20 has no early-stop threshold."
+          echo "G4 PASS: 20 runtime lanes; lanes 1–19 stop immediately at their numbered failure threshold; lane 20 has no early-stop threshold."
