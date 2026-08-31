@@ -2,11 +2,14 @@
 
 CURRENT PHASE: CI-2 — Contract Registry
 
-PHASE STATUS: VERIFYING
+PHASE STATUS: COMPLETE
 
-CURRENT PR: pending clean CI-2 PR
+CURRENT PR: #530 — ci: harden contract registry and deterministic snapshots
 
-BASE: d737bbf1a38b8f0aa1e63430c83d2fd8bd551cff (verified CI-1 COMPLETE)
+VERIFIED SHA: 31a8a7abab6d5f75a982c6830cff640791b74521
+FINAL PHASE EVIDENCE SHA: 69d4de554db182c849bb852331273872ab86baae
+
+BASE: d737bbf1a38b8f0aa1e63430c83d2fd8bd551cff (CI-1 COMPLETE)
 
 SAFETY LOCKS:
 - main modified: NO
@@ -18,18 +21,40 @@ SAFETY LOCKS:
 - legacy workflow behavior modified: NO
 
 CI-2 IMPLEMENTATION:
-- Contract registry invariant validator: COMPLETE
-- Immutable ID/version validation: COMPLETE
-- Dependency reference validation: COMPLETE
-- Cycle detection: COMPLETE
-- Registry self-test: COMPLETE
-- Deterministic snapshot compiler: COMPLETE
-- Contract hash evidence: COMPLETE
-- Determinism recompile check: COMPLETE
-- Shadow workflow: COMPLETE
+- Contract registry invariant validator: PASS
+- Immutable ID/version validation: PASS
+- Dependency reference validation: PASS
+- Cycle detection: PASS
+- Registry self-test: PASS
+- Deterministic snapshot compiler: PASS
+- Contract hash evidence: PASS
+- Determinism recompile proof: PASS
+- Shadow workflow: PASS
 
-NOTE:
-A prior draft CI-2 branch contained an intermediate malformed package.json update. That branch is abandoned. This clean branch is based directly on the last verified CI-1 tree and does not include the malformed manifest change.
+CI-2 VERIFICATION:
+- TypeScript: PASS
+- Registry invariants: PASS
+- Registry self-test: PASS
+- Snapshot compilation: PASS
+- Snapshot hash stability: PASS
+- Evidence upload: PASS
+
+LEGACY STATUS:
+- Legacy CI remains authoritative.
+- No legacy evaluator or workflow was removed.
+- Known Vercel infrastructure rate limit remains external and unsuppressed.
+
+PHASE EXIT:
+- Implementation: PASS
+- Contract: PASS
+- Tests: PASS
+- Regression: PASS
+- Evidence: PASS
+- CI: PASS
+- Acceptance Criteria: PASS
+- Unresolved Critical: 0
+
+NEXT PHASE ALLOWED: YES
 
 NEXT REQUIRED ACTION:
-Run and verify the clean CI-2 shadow workflow. CI-3 remains forbidden until the CI-2 exit gate is PASS.
+CI-3 — Dependency graph + execution engine foundation, including explicit DAG validation, topological scheduling, BLOCKED propagation, and deterministic execution-plan generation.
