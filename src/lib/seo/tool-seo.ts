@@ -71,7 +71,7 @@ export function getToolSeo(localeInput: string, toolId: string) {
   const xDefaultUrl = getLocalizedToolUrl('en', tool.id);
   const localizedTitle = getLocalizedToolTitle(locale, tool.id, tool.title);
   const localizedCategory = localizeToolCategory(locale, category);
-  const localizedDescription = locale === 'en' ? tool.description : localizeToolDescription(locale, localizedTitle, localizedCategory);
+  const localizedDescription = locale === 'en' ? tool.description : localizeToolDescription(locale, localizedTitle, category);
   const title = `${localizedTitle} | FLIXO`;
   const description = localizedDescription;
   const fallback = FALLBACK_COPY[locale];
