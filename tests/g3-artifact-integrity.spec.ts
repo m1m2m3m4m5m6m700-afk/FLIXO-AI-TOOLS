@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { validateOutputIntegrity } from '../src/lib/contracts/output-integrity';
 import { getToolOutputContract } from '../src/lib/contracts/tool-output-contracts';
+import { getLocalizedToolTitle } from '../src/lib/seo/tool-seo';
 
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#223344"/><circle cx="300" cy="220" r="180" fill="#67e8f9"/><circle cx="850" cy="560" r="260" fill="#164e63"/></svg>`;
 
@@ -29,18 +30,31 @@ async function readDownload(page: Page, link: Locator, expectedFilename: string)
   return { filename, bytes: Array.from(Buffer.concat(chunks)) };
 }
 
-test('G3 real flow: upload → process → download → inspect image artifact', async ({ page }) => {
-  await page.goto('/en/image-compressor');
-  await expect(page.getByRole('heading', { name: 'Compress Images Online' })).toBeVisible();
+async function waitForImageCompressorReady(page: Page) {
+  await page.goto('/en/image-compressor', { waitUntil: 'domcontentloaded' });
+  const heading = page.getByRole('heading', { name: getLocalizedToolTitle('en', 'image-compressor', 'Image Compressor'), exact: true });
+  await expect(heading).toBeVisible();
+  const input = page.locator('#image-file');
+  await expect(input).toHaveCount(1);
+  await expect(input).toBeAttached();
+  await page.waitForFunction(() => {
+    const element = document.querySelector<HTMLInputElement>('#image-file');
+    return Boolean(element?.isConnected && !element.disabled);
+  });
+  return input;
+}
 
-  await page.locator('#image-file').setInputFiles({
+test('G3 real flow: upload → process → download → inspect image artifact', async ({ page }) => {
+  const input = await waitForImageCompressorReady(page);
+
+  await input.setInputFiles({
     name: 'g3-source.svg',
     mimeType: 'image/svg+xml',
     buffer: Buffer.from(SVG),
   });
-  await page.getByRole('button', { name: 'Compress image' }).click();
+  await page.getByRole('button', { name: 'Compress image', exact: true }).click();
 
-  const downloadLink = page.getByRole('link', { name: 'Download image' });
+  const downloadLink = page.getByRole('link', { name: 'Download image', exact: true });
   await expect(downloadLink).toHaveAttribute('download', 'flixo-compressed.webp', { timeout: 15000 });
   const filename = await downloadLink.getAttribute('download');
   const href = await downloadLink.getAttribute('href');
@@ -79,14 +93,14 @@ test('G3 real flow: upload → process → download → inspect image artifact',
 });
 
 test('G3 real flow: upload → process → download → inspect ZIP artifact', async ({ page }) => {
-  await page.goto('/en/image-compressor');
-  await page.locator('#image-file').setInputFiles([
+  const input = await waitForImageCompressorReady(page);
+  await input.setInputFiles([
     { name: 'g3-one.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(SVG) },
     { name: 'g3-two.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(SVG) },
   ]);
-  await page.getByRole('button', { name: 'Compress all to ZIP' }).click();
+  await page.getByRole('button', { name: 'Compress all to ZIP', exact: true }).click();
 
-  const downloadLink = page.getByRole('link', { name: 'Download ZIP' });
+  const downloadLink = page.getByRole('link', { name: 'Download ZIP', exact: true });
   await expect(downloadLink).toHaveAttribute('download', 'flixo-compressed-images.zip', { timeout: 15000 });
   const filename = await downloadLink.getAttribute('download');
   const href = await downloadLink.getAttribute('href');
