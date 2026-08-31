@@ -53,6 +53,32 @@ export function diffText(original: string, modified: string, ignoreWhitespace = 
   return { parts, added: count('added'), removed: count('removed'), unchanged: count('equal') };
 }
 
+const SUMMARY_LABELS: Record<string, readonly [string, string, string]> = {
+  en: ['Added', 'Removed', 'Unchanged'],
+  ar: ['أضيف', 'حُذف', 'دون تغيير'],
+  es: ['Añadido', 'Eliminado', 'Sin cambios'],
+  fr: ['Ajouté', 'Supprimé', 'Inchangé'],
+  de: ['Hinzugefügt', 'Entfernt', 'Unverändert'],
+  ru: ['Добавлено', 'Удалено', 'Без изменений'],
+  zh: ['新增', '删除', '未更改'],
+  hi: ['जोड़ा गया', 'हटाया गया', 'अपरिवर्तित'],
+  id: ['Ditambahkan', 'Dihapus', 'Tidak berubah'],
+  ur: ['شامل کیا گیا', 'حذف کیا گیا', 'کوئی تبدیلی نہیں'],
+  ja: ['追加', '削除', '変更なし'],
+  pt: ['Adicionado', 'Removido', 'Inalterado'],
+  it: ['Aggiunti', 'Rimossi', 'Invariati'],
+  ko: ['추가', '제거', '변경 없음'],
+  nl: ['Toegevoegd', 'Verwijderd', 'Ongewijzigd'],
+  pl: ['Dodano', 'Usunięto', 'Bez zmian'],
+  tr: ['Eklenen', 'Kaldırılan', 'Değişmeyen'],
+  vi: ['Đã thêm', 'Đã xóa', 'Không thay đổi'],
+  th: ['เพิ่ม', 'ลบ', 'ไม่เปลี่ยนแปลง'],
+  sv: ['Tillagda', 'Borttagna', 'Oförändrade'],
+};
+
 export function diffSummary(result: DiffResult): string {
-  return `Added ${result.added} · Removed ${result.removed} · Unchanged ${result.unchanged}`;
+  const rawLocale = typeof document === 'undefined' ? 'en' : document.documentElement.lang || 'en';
+  const locale = rawLocale.toLowerCase().split('-')[0];
+  const [added, removed, unchanged] = SUMMARY_LABELS[locale] ?? SUMMARY_LABELS.en;
+  return `${added} ${result.added} · ${removed} ${result.removed} · ${unchanged} ${result.unchanged}`;
 }
