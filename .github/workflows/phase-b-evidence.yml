@@ -1,0 +1,32 @@
+name: Phase B Evidence Ledger
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/contracts/ci-contracts.ts'
+      - 'src/lib/contracts/evidence-ledger.ts'
+      - 'src/lib/contracts/evidence-ledger.schema.json'
+      - 'scripts/evidence-ledger.mjs'
+      - 'scripts/test-evidence-ledger.mjs'
+      - 'scripts/validate-evidence-ledger.mjs'
+      - '.github/workflows/phase-b-evidence.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-ledger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.x
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Validate evidence contract
+        run: node --experimental-strip-types scripts/validate-evidence-ledger.mjs
+      - name: Test evidence writer and storage
+        run: node --experimental-strip-types scripts/test-evidence-ledger.mjs
