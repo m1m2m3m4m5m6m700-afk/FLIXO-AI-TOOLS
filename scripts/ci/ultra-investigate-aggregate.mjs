@@ -5,10 +5,12 @@ import { classifyFailure } from './failure/taxonomy.ts';
 import { ULTRA_SCHEMA_VERSION, ULTRA_SUITE_NAMES, ultraContractHash } from './ultra-contract.mjs';
 
 const root = process.env.INVESTIGATION_DIR ?? 'diagnostics/investigation';
+const ledgerRoot = process.env.EVIDENCE_ROOT ?? 'ci-evidence';
 const expectedSha = process.env.EXPECTED_SHA ?? process.env.GITHUB_SHA;
 if (!expectedSha) throw new Error('EXPECTED_SHA/GITHUB_SHA is required.');
 
 mkdirSync(root, { recursive: true });
+mkdirSync(ledgerRoot, { recursive: true });
 const expected = new Set(ULTRA_SUITE_NAMES.map((suite) => `${suite}.json`));
 const files = statSync(root, { throwIfNoEntry: false })?.isDirectory()
   ? readdirSync(root).filter((file) => expected.has(file)).sort()
@@ -57,6 +59,13 @@ const intelligence = failureEvents.length ? aggregateFailures(failureEvents.map(
   reportHash: 'empty',
 };
 
+const expectedChecks = records.reduce((sum, record) => sum + Number(record.checksExpected ?? 0), 0);
+const executedChecks = records.reduce((sum, record) => sum + Number(record.checksExecuted ?? 0), 0);
+const passedChecks = records.reduce((sum, record) => sum + Number(record.passed ?? 0), 0);
+const failedChecks = records.reduce((sum, record) => sum + Number(record.failed ?? 0), 0);
+const skippedChecks = records.reduce((sum, record) => sum + Number(record.skipped ?? 0), 0);
+const missingChecks = records.reduce((sum, record) => sum + Number(record.missing ?? 0), 0);
+
 const report = {
   schema_version: ULTRA_SCHEMA_VERSION,
   status: integrityErrors.length || records.some((record) => record.status !== 'PASS') || failureEvents.length ? 'FAIL' : 'PASS',
@@ -68,9 +77,11 @@ const report = {
   runAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
   suiteCount: records.length,
   expectedSuiteCount: ULTRA_SUITE_NAMES.length,
+  checks: { expected: expectedChecks, executed: executedChecks, passed: passedChecks, failed: failedChecks, skipped: skippedChecks, missing: missingChecks },
   suites: records.map((record) => ({
     suite: record.suite,
     status: record.status,
+    sha: record.sha,
     expected: record.checksExpected,
     executed: record.checksExecuted,
     passed: record.passed,
@@ -88,5 +99,17 @@ const report = {
 };
 
 writeFileSync(path.join(root, 'aggregate.json'), JSON.stringify(report, null, 2) + '\n');
+writeFileSync(path.join(ledgerRoot, 'ultra-recovery.json'), JSON.stringify({
+  sha: expectedSha,
+  gate: 'ULTRA',
+  expected: expectedChecks,
+  executed: executedChecks,
+  passed: passedChecks,
+  failed: failedChecks,
+  skipped: skippedChecks,
+  missing: missingChecks,
+  result: report.status,
+}, null, 2) + '\n');
+
 console.log(JSON.stringify(report, null, 2));
 if (report.status !== 'PASS') process.exit(1);
