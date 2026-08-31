@@ -34,6 +34,10 @@ export const QUICKFLOW_COPY_OVERRIDES: Readonly<Partial<Record<Locale, QuickFlow
   pl: Object.freeze({ failure: 'Nie udało się ukończyć przepływu pracy.', processing: 'Przetwarzanie odbywa się w przeglądarce.' }),
   tr: Object.freeze({ failure: 'İş akışı tamamlanamadı.', processing: 'İşleme tarayıcınızda gerçekleştirilir.' }),
   sv: Object.freeze({ failure: 'Arbetsflödet kunde inte slutföras.', processing: 'Bearbetningen sker i webbläsaren.' }),
-  ms: Object.freeze({ missing: 'QuickFlow tidak ditemui', processing: 'Pemprosesan berlaku dalam pelayar anda.', result: 'Hasil sudah sedia', failure: 'Aliran kerja tidak dapat diselesaikan.' }),
-  uk: Object.freeze({ missing: 'QuickFlow не знайдено', processing: 'Обробка виконується у вашому браузері.', result: 'Результат готовий', failure: 'Не вдалося завершити робочий процес.' }),
+  ms: Object.freeze({
+    missing: 'QuickFlow tidak ditemui', back: 'Kembali ke FLIXO', eyebrow: 'QUICKFLOW · UTAMAKAN TEMPATAN', runLabel: 'Jalankan QuickFlow', choose: 'Pilih imej untuk bermula', processing: 'Pemprosesan kekal dalam pelayar anda.', result: 'Hasil sudah sedia', download: 'Muat turun hasil', chooseError: 'Pilih imej dahulu.', failure: 'Aliran kerja gagal.', running: 'Sedang dijalankan…', run: 'Jalankan aliran kerja', resultAlt: 'Hasil QuickFlow FLIXO', progress: 'Kemajuan'
+  }),
+  uk: Object.freeze({
+    missing: 'QuickFlow не знайдено', back: 'Назад до FLIXO', eyebrow: 'QUICKFLOW · ЛОКАЛЬНА ОБРОБКА', runLabel: 'Запустити QuickFlow', choose: 'Виберіть зображення для початку', processing: 'Обробка залишається у вашому браузері.', result: 'Результат готовий', download: 'Завантажити результат', chooseError: 'Спочатку виберіть зображення.', failure: 'Робочий процес не виконано.', running: 'Виконується…', run: 'Запустити робочий процес', resultAlt: 'Результат QuickFlow від FLIXO', progress: 'Прогрес'
+  }),
 });
