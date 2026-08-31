@@ -1,0 +1,1 @@
+{"contractVersion":"MASTER AUTONOMOUS RECOVERY & EXECUTION CONTRACT v5","state":"IN_PROGRESS","phase":"CI Matrix First Gate","head":"4af1145aa34dbadd624dd7be4f496eb72858ca55","matrix":{"browsers":["chromium","firefox","webkit"],"shards":4,"units":12,"failFast":false,"maxFailuresPerUnit":1},"nextRequiredAction":"Verify Matrix First Gate CI on exact PR head before merge."}
