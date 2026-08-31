@@ -3,7 +3,7 @@ import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tan
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
-import { LOCALE_METADATA, SITE_ORIGIN } from '../lib/i18n';
+import { SITE_ORIGIN } from '../lib/i18n';
 import { applyDocumentLocale, localeFromPathname, installDocumentLocaleContract } from '../lib/i18n/runtime-document-locale';
 
 const GLOBAL_STRUCTURED_DATA = {
