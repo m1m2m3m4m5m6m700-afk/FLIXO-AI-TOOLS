@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flixo.ai/schemas/contract-evidence-v1.json",
+  "title": "FLIXO Contract Evidence",
+  "type": "object",
+  "required": ["schemaVersion", "gate", "contract", "status", "scope", "recordedAt", "commit", "contractVersion"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "gate": { "type": "string", "minLength": 1 },
+    "contract": { "type": "string", "pattern": "^(G[1-4]-[A-Z0-9-]+-\\d{3})$" },
+    "status": { "enum": ["PASS", "FAIL", "BLOCKED", "NOT_APPLICABLE"] },
+    "rootCauseId": { "type": "string", "minLength": 1 },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "toolId": { "type": "string" },
+        "route": { "type": "string" },
+        "locale": { "type": "string" },
+        "file": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "expected": {},
+    "actual": {},
+    "assertion": { "type": "string" },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "source": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "artifact": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "blockedBy": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "contractVersion": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}
