@@ -1,24 +1,19 @@
 # FLIXO CI Rebuild Execution Log
 
-CURRENT PHASE: CI-6 — Checkpoint Store
+CURRENT PHASE: CI-7 — Failure Intelligence
 
 PHASE STATUS: COMPLETE
 
-VERIFIED SHA: 05a84482840e072020d8d31c4af4fe5a7d03ea3e
-FINAL PHASE EVIDENCE SHA: 60d121bd1b9d87bc38ce45533a575c985be84201
+VERIFIED SHA: 19c5f1f2e850229384993b95b4bb1be4fb82f071
+FINAL PHASE EVIDENCE SHA: 7f1aebbf0e3b88696e84ee2bbb75dbd641a8b3fa
 
 IMPLEMENTATION:
-- cryptographic checkpoint fingerprint: PASS
-- identity validation: PASS
-- checkpoint store: PASS
-- PASS-only safe reuse: PASS
-- invalid checkpoint rejection: PASS
-- invalidation engine: PASS
-- checkpoint self-tests: PASS
+- normalized failure taxonomy: PASS
+- failure classifier: PASS
+- root-cause aggregation: PASS
+- unknown failure preservation: PASS
+- deterministic report generation: PASS
 - shadow workflow: PASS
-
-INCIDENT:
-Node 22 strip-only mode rejected a TypeScript parameter property. The defect was fixed in source by explicit field initialization, then the complete shadow suite passed.
 
 SAFETY:
 - main modified: NO
@@ -41,4 +36,4 @@ PHASE EXIT:
 NEXT PHASE ALLOWED: YES
 
 NEXT REQUIRED ACTION:
-CI-7 — Failure Intelligence, normalized failure taxonomy, root-cause mapping, deduplication, and report generation.
+CI-8 — Canonical toolchain/build contract, one verified build artifact, build identity and artifact reuse.
