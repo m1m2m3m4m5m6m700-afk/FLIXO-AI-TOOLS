@@ -52,6 +52,7 @@ if (flags.localization) {
   add('locale-navigation', 'npm', ['run', 'validate:locale-navigation'], 'localization impact', 'localization');
   add('home-i18n', 'npm', ['run', 'validate:home-i18n'], 'localization impact', 'localization');
   add('tool-localization', 'npm', ['run', 'test:tool-localization'], 'localization impact', 'localization');
+  add('browser-localization-smoke', 'npx', ['playwright', 'test', 'tests/localization-browser-smoke.spec.ts', '--project=chromium', '--workers=3', '--retries=0'], 'localization browser smoke', 'localization');
 }
 if (flags.seo) {
   add('seo', 'npm', ['run', 'validate:seo'], 'SEO impact', 'seo');
