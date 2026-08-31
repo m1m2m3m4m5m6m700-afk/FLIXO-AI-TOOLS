@@ -35,7 +35,8 @@ const flaky = classifyContractFailure(fail('G4-RUNTIME-001', 'intermittent timeo
 assert.equal(flaky.category, 'FLAKY_TEST');
 assert.equal(flaky.deterministic, false);
 
-assert.throws(() => classifyContractFailure(fail('G4-TEST-001', 'not a failure').toSpliced(0, 0)), /not/);
+const malformed = { ...fail('G4-TEST-001', 'invalid status'), status: 'UNKNOWN' };
+assert.throws(() => classifyContractFailure(malformed), /requires FAIL/);
 
 const pass = { gate: 'G4', contract: 'G4-TEST-001', status: 'PASS', scope: {} };
 assert.throws(() => classifyContractFailure(pass), /requires FAIL/);
