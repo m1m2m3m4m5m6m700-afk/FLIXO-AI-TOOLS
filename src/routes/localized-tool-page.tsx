@@ -21,6 +21,13 @@ export function LocalizedToolPage() {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
+    const root = document.documentElement;
+    root.lang = locale;
+    root.dir = direction;
+    return () => { root.lang = 'en'; root.dir = 'ltr'; };
+  }, [locale, direction]);
+
+  useEffect(() => {
     if (toolId) recordRecentTool(toolId);
     headingRef.current?.focus({ preventScroll: true });
   }, [toolId, locale]);
