@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "phase": "CI-11",
+  "status": "VERIFYING",
+  "acceptance": {"output":"PENDING","signature":"PENDING","integrity":"PENDING","sha":"PENDING","download":"PENDING","corruption":"PENDING","browserFlow":"PENDING","shadowWorkflow":"PENDING"},
+  "promotion": "FORBIDDEN_UNTIL_PARITY",
+  "safety": {"mainModified": false, "branchProtectionModified": false, "requiredChecksModified": false, "productionConfigurationModified": false, "legacyWorkflowDeleted": false, "legacyWorkflowBehaviorModified": false},
+  "nextPhaseAllowed": false
+}
