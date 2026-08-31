@@ -45,23 +45,19 @@ async function waitForImageCompressorReady(page: Page) {
   return input;
 }
 
-async function setTestFiles(page: Page, input: Locator, files: TestFile[]) {
-  const fileChooserPromise = page.waitForEvent('filechooser');
-  await input.click({ force: true });
-  const fileChooser = await fileChooserPromise;
-  await fileChooser.setFiles(files.map((file) => ({
+async function setTestFiles(input: Locator, files: TestFile[]) {
+  await input.setInputFiles(files.map((file) => ({
     name: file.name,
     mimeType: file.mimeType,
     buffer: Buffer.from(file.content),
   })));
-  await expect(input).toHaveJSProperty('files', expect.any(Object));
   await expect.poll(async () => input.evaluate((element) => element.files?.length ?? 0)).toBe(files.length);
 }
 
 test('G3 real flow: upload → process → download → inspect image artifact', async ({ page }) => {
   const input = await waitForImageCompressorReady(page);
 
-  await setTestFiles(page, input, [
+  await setTestFiles(input, [
     { name: 'g3-source.svg', mimeType: 'image/svg+xml', content: SVG },
   ]);
   await page.getByRole('button', { name: 'Compress image', exact: true }).click();
@@ -106,7 +102,7 @@ test('G3 real flow: upload → process → download → inspect image artifact',
 
 test('G3 real flow: upload → process → download → inspect ZIP artifact', async ({ page }) => {
   const input = await waitForImageCompressorReady(page);
-  await setTestFiles(page, input, [
+  await setTestFiles(input, [
     { name: 'g3-one.svg', mimeType: 'image/svg+xml', content: SVG },
     { name: 'g3-two.svg', mimeType: 'image/svg+xml', content: SVG },
   ]);
