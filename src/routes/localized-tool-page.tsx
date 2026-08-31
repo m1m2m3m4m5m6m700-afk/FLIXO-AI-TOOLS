@@ -1,4 +1,4 @@
-import { Children, cloneElement, createElement, lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, isValidElement, type ComponentType, type ReactNode } from 'react';
+import { Children, cloneElement, createElement, lazy, Suspense, useEffect, useRef, useState, isValidElement, type ComponentType, type ReactNode } from 'react';
 import { useParams } from '@tanstack/react-router';
 import { LOCALES, isLocale, type Locale, LOCALE_METADATA } from '../lib/i18n';
 import { assertToolCategory, getLocalizedToolTitle, getToolSeo } from '../lib/seo/tool-seo';
@@ -42,17 +42,6 @@ export function LocalizedToolPage() {
   const toolId = typeof params.tool === 'string' && isLocale(locale) && LOCALES.includes(locale) ? params.tool : null;
   const [favorite, setFavorite] = useState(() => (toolId ? getFavorites().includes(toolId) : false));
   const headingRef = useRef<HTMLHeadingElement>(null);
-
-  useLayoutEffect(() => {
-    const root = document.documentElement;
-    const languageTag = LOCALE_METADATA[locale].languageTag;
-    root.setAttribute('lang', languageTag);
-    root.setAttribute('dir', direction);
-    document.querySelectorAll<HTMLElement>('main').forEach((localizedMain) => {
-      localizedMain.setAttribute('lang', languageTag);
-      localizedMain.setAttribute('dir', direction);
-    });
-  }, [locale, direction]);
 
   useEffect(() => {
     if (toolId) recordRecentTool(toolId);
