@@ -1,10 +1,29 @@
 name: G4 — Localization + SEO Matrix
 
-# Deep G4 certification runs on main only when the pushed change can affect G4.
-# PR development uses the canonical fast/impact-aware CI path.
+# Deep G4 certification runs on main and on PRs that affect G4.
+# Each runtime lane is strictly sequential so Playwright observes a failure
+# before starting the next test. Lanes 1–19 stop at their numbered failure;
+# lane 20 runs the complete suite.
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**/i18n/**'
+      - 'src/**/locale/**'
+      - 'src/**/localization/**'
+      - 'src/**/seo/**'
+      - 'src/routes/**'
+      - 'scripts/validate-locale-*.mjs'
+      - 'scripts/validate-language*.mjs'
+      - 'scripts/validate-localization*.mjs'
+      - 'scripts/validate-home-localization.mjs'
+      - 'scripts/validate-seo*.mjs'
+      - 'scripts/validate-use-case-seo.mjs'
+      - 'scripts/validate-indexing.mjs'
+      - 'scripts/validate-breadcrumb-seo.mjs'
+      - 'scripts/validate-google-multilingual-seo.mjs'
+      - 'tests/localization/**'
+  pull_request:
     paths:
       - 'src/**/i18n/**'
       - 'src/**/locale/**'
@@ -128,7 +147,7 @@ jobs:
           set -euo pipefail
           lane='${{ matrix.lane }}'
           echo "G4 lane=$lane"
-          echo "Detection mode: sequential (workers=1) so a failure is observed before the next test starts."
+          echo "Detection mode: sequential (workers=1); a failed test is observed before the next test starts."
           if [ "$lane" -eq 20 ]; then
             echo "Policy: NO EARLY STOP — complete the entire lane."
             npx playwright test tests/localization-runtime.spec.ts \
