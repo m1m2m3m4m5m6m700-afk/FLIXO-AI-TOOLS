@@ -15,59 +15,40 @@ const GLOBAL_STRUCTURED_DATA = {
 
 function RuntimeLocaleAttributes() {
   const location = useLocation();
-
   useLayoutEffect(() => {
     const localeCode = location.pathname.split('/').filter(Boolean)[0] ?? '';
     const locale = isLocale(localeCode) ? localeCode : 'en';
     const metadata = LOCALE_METADATA[locale];
-
     const apply = () => {
       document.documentElement.lang = metadata.languageTag;
       document.documentElement.dir = metadata.direction;
-      const localizedMain = document.querySelector<HTMLElement>('main.home-shell, main.tool-page-modern, main.image-tool-shell');
-      if (localizedMain) {
+      document.querySelectorAll<HTMLElement>('main').forEach((localizedMain) => {
         localizedMain.lang = metadata.languageTag;
         localizedMain.dir = metadata.direction;
-      }
+      });
     };
-
     apply();
     const frame = window.requestAnimationFrame(apply);
     return () => window.cancelAnimationFrame(frame);
   }, [location.pathname]);
-
   return null;
 }
 
 function RouteContent() {
-  return (
-    <Suspense fallback={<div role="status" aria-live="polite">Loading…</div>}>
-      <Outlet />
-    </Suspense>
-  );
+  return <Suspense fallback={<div role="status" aria-live="polite">Loading…</div>}><Outlet /></Suspense>;
 }
 
 export const rootRoute = createRootRoute({
   component: function RootLayout() {
     useEffect(() => installCoreWebVitalsDiagnostics(), []);
-    return (
-      <>
-        <HeadContent />
-        <RuntimeLocaleAttributes />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} />
-        <FlixoGlobalLogo />
-        <CommandPalette />
-        <RouteContent />
-        <Scripts />
-      </>
-    );
+    return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} /><FlixoGlobalLogo /><CommandPalette /><RouteContent /><Scripts /></>;
   },
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { name: 'theme-color', content: '#090d12' },
-      { name: 'description', content: 'FLIXO — fast browser-first tools for images, PDFs, audio, video, text, and everyday productivity.' },
+      { name: 'description', content: 'FLIXO AI Tools — fast browser-first productivity tools with privacy-focused local processing.' },
       { name: 'robots', content: 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1' },
       { property: 'og:site_name', content: 'FLIXO' },
       { property: 'og:type', content: 'website' },

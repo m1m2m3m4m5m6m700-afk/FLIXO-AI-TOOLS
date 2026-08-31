@@ -64,7 +64,10 @@ const localization = find('localization-20.yml');
 if (/['"]fix\/\*\*|['"]feat\/\*\*|['"]ci\/\*\*|['"]refactor\/\*\*|['"]seo\/\*\*/.test(localization)) {
   failures.push('Localization must not replay automatically on feature/fix/ci/seo/refactor branch pushes.');
 }
-if (!/matrix:[\s\S]{0,400}en, ar, es, fr, de, ru, zh, hi, id, ur, ja, pt, it, ko, nl, pl, tr, vi, th, sv/.test(localization)) {
+
+const localeContract = /(?:matrix:\s*[\s\S]{0,400}locale:\s*\[)?en, ar, es, fr, de, ru, zh, hi, id, ur, ja, pt, it, ko, nl, pl, tr, vi, th, sv/.test(localization);
+const canonicalLocaleDeclaration = /G4_LOCALES:\s*['"]en,ar,es,fr,de,ru,zh,hi,id,ur,ja,pt,it,ko,nl,pl,tr,vi,th,sv['"]/.test(localization);
+if (!localeContract && !canonicalLocaleDeclaration) {
   failures.push('Localization gate must retain all 20 locales.');
 }
 

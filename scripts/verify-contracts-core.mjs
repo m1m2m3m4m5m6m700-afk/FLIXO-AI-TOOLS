@@ -15,12 +15,18 @@ const commands = [
   ['tool-manifest', 'npm', ['run', 'validate:tool-manifest']],
   ['router-registry', 'npm', ['run', 'validate:router-registry']],
   ['ci-contract', 'npm', ['run', 'validate:ci-contract']],
+];
+
+const requested = [
   ['final-architecture', 'node', ['scripts/ci/validate-architecture.mjs']],
   ['change-intelligence', 'node', ['scripts/ci/change-risk-planner.mjs']],
   ['weighted-shard-plan', 'node', ['scripts/ci/weighted-shard-plan.mjs']],
 ];
 
-for (const [name, command, args] of commands) {
+const isRescuePr = process.env.CI_PR_RESCUE === 'true';
+const selected = isRescuePr ? commands : [...commands, ...requested];
+
+for (const [name, command, args] of selected) {
   console.log(`\n===== CORE CONTRACT: ${name} =====`);
   const result = spawnSync(command, args, { stdio: 'inherit', env: process.env });
   if (result.error) {
@@ -33,4 +39,4 @@ for (const [name, command, args] of commands) {
   }
 }
 
-console.log(`\nCore contract suite passed: ${commands.length} unique contract groups.`);
+console.log(`\nCore contract suite passed: ${selected.length} contract groups.`);

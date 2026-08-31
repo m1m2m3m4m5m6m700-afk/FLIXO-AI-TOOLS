@@ -48,8 +48,8 @@ async function validateDownloadedImage(page: Page, href: string, expectedMime: s
 test('English image compressor produces a real WebP output', async ({ page }) => {
   await page.goto('/en/image-compressor');
   await expect(page.getByRole('heading', { name: 'Compress Images Online' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'العربية' })).toHaveAttribute('href', '/ar/image-compressor');
-  await expect(page.locator('meta[name="description"][content*="Compress JPG, PNG, and WebP images online in your browser."]')).toHaveCount(1);
+  await expect(page.locator('a[lang="ar"]').filter({ hasText: 'العربية' })).toHaveAttribute('href', '/ar/image-compressor');
+  await expect(page.locator('meta[name="description"][content*="Reduce JPG, PNG, and WebP file size"]')).toHaveCount(1);
   await page.locator('#image-file').setInputFiles({ name: 'source.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(svg) });
   await page.getByRole('button', { name: 'Compress image' }).click();
   const download = page.getByRole('link', { name: 'Download image' });
@@ -126,8 +126,8 @@ test('Arabic image compressor exposes localized SEO and output controls', async 
   await page.goto('/ar/image-compressor');
   await expect(page.getByRole('heading', { name: 'ضغط الصور أونلاين' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-  await expect(page.getByRole('link', { name: 'English' })).toHaveAttribute('href', '/en/image-compressor');
-  await expect(page.locator('meta[name="description"][content*="اضغط صور JPG وPNG وWebP"]')).toHaveCount(1);
+  await expect(page.locator('a[lang="en"]').filter({ hasText: 'English' })).toHaveAttribute('href', '/en/image-compressor');
+  await expect(page.locator('meta[name="description"][content*="استخدم ضاغط الصور"]')).toHaveCount(1);
 });
 
 test('runtime diagnostics capture an application error without breaking the page', async ({ page }) => {
