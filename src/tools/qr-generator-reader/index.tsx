@@ -55,6 +55,7 @@ export function QrGeneratorReaderTool({ locale: localeProp }: { locale?: Locale 
         <textarea id="qr-content" className="mt-2 min-h-32 w-full rounded-xl border p-3" value={value} onChange={(event)=>setValue(event.target.value)} />
         <div className="mt-4 grid grid-cols-2 gap-3"><label className="text-sm">{copy.foreground}<input aria-label={copy.foreground} className="mt-2 h-11 w-full" type="color" value={foreground} onChange={(event)=>setForeground(event.target.value)} /></label><label className="text-sm">{copy.background}<input aria-label={copy.background} className="mt-2 h-11 w-full" type="color" value={background} onChange={(event)=>setBackground(event.target.value)} /></label></div>
         <button type="button" className="mt-4 rounded-xl border px-4 py-2" onClick={generate} disabled={busy}>{copy.generate}</button>
+        {error ? <p role="alert" className="mt-3 text-sm">{error}</p> : null}
         {preview ? <div className="mt-4 flex flex-col items-center gap-3"><img src={preview} alt={copy.generate} className="max-w-full rounded-lg border p-2" /><a className="rounded-xl border px-4 py-2" download="flixo-qr.png" href={preview}>{copy.downloadPng}</a><a className="rounded-xl border px-4 py-2" download="flixo-qr.svg" href={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`}>{copy.downloadSvg}</a></div> : null}
       </section>
       <section className="rounded-2xl border p-5" aria-labelledby="reader-title">
