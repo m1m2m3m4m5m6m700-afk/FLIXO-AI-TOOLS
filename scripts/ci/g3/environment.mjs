@@ -57,17 +57,17 @@ let test;
 let runtimeUrl;
 try {
   site = new URL(vars.SITE_URL);
-} catch (error) {
+} catch {
   site = undefined;
 }
 try {
   test = new URL(vars.TEST_ORIGIN);
-} catch (error) {
+} catch {
   test = undefined;
 }
 try {
   runtimeUrl = new URL(vars.RUNTIME_ORIGIN);
-} catch (error) {
+} catch {
   runtimeUrl = undefined;
 }
 
