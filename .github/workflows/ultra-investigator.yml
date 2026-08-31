@@ -1,26 +1,34 @@
-name: FLIXO — Ultra Failure Investigator
+name: FLIXO — Ultra Recovery Gate
 
 on:
   workflow_dispatch:
-  pull_request:
+  push:
     branches: [main]
+  pull_request:
+    branches:
+      - main
+      - ci/g3-012-legacy-push-parity
+      - recovery/legacy-fixes-20260831
+      - recovery/final-g4-contracts-20260831
 
 permissions:
   contents: read
 
 concurrency:
-  group: ultra-investigator-${{ github.event.pull_request.number || github.ref }}
+  group: ultra-recovery-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
   VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
 
 jobs:
   investigate:
-    name: Investigator — ${{ matrix.suite }}
+    name: Ultra — ${{ matrix.suite }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -37,26 +45,48 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install dependencies
+        timeout-minutes: 5
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Cache Playwright browsers
+        if: matrix.suite == 'runtime' || matrix.suite == 'browser'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-ultra-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Chromium
         if: matrix.suite == 'runtime' || matrix.suite == 'browser'
-        run: npx playwright install --with-deps chromium
-      - name: Run ultra investigator suite
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          executable="$(node -e "const { chromium } = require('playwright'); process.stdout.write(chromium.executablePath())")"
+          if [[ -x "$executable" ]]; then
+            echo "Playwright Chromium cache hit: $executable"
+            exit 0
+          fi
+          timeout --preserve-status 420s npx playwright install chromium
+      - name: Verify Chromium executable
+        if: matrix.suite == 'runtime' || matrix.suite == 'browser'
+        run: |
+          set -euo pipefail
+          executable="$(node -e "const { chromium } = require('playwright'); process.stdout.write(chromium.executablePath())")"
+          test -x "$executable"
+      - name: Run Ultra investigator suite
         env:
           INVESTIGATION_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           INVESTIGATION_SUITE: ${{ matrix.suite }}
-        run: node scripts/ci/ultra-investigate.mjs --suite "$INVESTIGATION_SUITE"
+        run: node --experimental-strip-types scripts/ci/ultra-investigate.mjs --suite "$INVESTIGATION_SUITE"
       - name: Upload suite evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: ultra-investigation-${{ matrix.suite }}-${{ github.event.pull_request.head.sha || github.sha }}
-          path: diagnostics/investigation/
-          if-no-files-found: warn
+          path: diagnostics/investigation/${{ matrix.suite }}.json
+          if-no-files-found: error
           retention-days: 14
 
   aggregate:
-    name: Investigator — Aggregate
+    name: Ultra — Fail-Closed Aggregate
     needs: [investigate]
     if: always()
     runs-on: ubuntu-latest
@@ -66,40 +96,53 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
-      - name: Download suite evidence
+      - name: Download exact-run suite evidence
         uses: actions/download-artifact@v6
         with:
-          pattern: ultra-investigation-*-${{ github.event.pull_request.head.sha || github.sha }}
+          pattern: ultra-investigation-*-{github.event.pull_request.head.sha || github.sha}
           path: diagnostics/investigation
           merge-multiple: true
-      - name: Verify exact SHA and aggregate root causes
+      - name: Aggregate evidence
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          set -euo pipefail
-          node <<'NODE'
-          const fs = require('node:fs'); const path = require('node:path');
-          const root = 'diagnostics/investigation';
-          const files = fs.existsSync(root) ? fs.readdirSync(root).filter((f) => f.endsWith('.json')) : [];
-          const records = []; const errors = [];
-          for (const file of files) {
-            try {
-              const record = JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
-              if (record.sha !== process.env.EXPECTED_SHA) errors.push(`${file}: SHA mismatch ${record.sha} != ${process.env.EXPECTED_SHA}`);
-              records.push(record);
-            } catch (error) { errors.push(`${file}: invalid JSON`); }
-          }
-          const roots = records.flatMap((r) => r.rootCauses ?? []).sort((a, b) => (b.count ?? 1) - (a.count ?? 1));
-          const report = { schema_version: 2, sha: process.env.EXPECTED_SHA, generatedAt: new Date().toISOString(), status: errors.length || roots.length ? 'FAIL' : 'PASS', sourceFiles: files, rootCauseCount: roots.length, rootCauses: roots, integrityErrors: errors };
-          fs.writeFileSync(path.join(root, 'aggregate.json'), JSON.stringify(report, null, 2) + '\n');
-          console.log(JSON.stringify(report, null, 2));
-          if (errors.length || roots.length) process.exit(1);
-          NODE
+        run: node --experimental-strip-types scripts/ci/ultra-investigate-aggregate.mjs
+      - name: Guard official evidence
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/ci/ultra-investigate-guard.mjs diagnostics/investigation/aggregate.json
       - name: Upload aggregate evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: ultra-investigation-aggregate-${{ github.event.pull_request.head.sha || github.sha }}
-          path: diagnostics/investigation/
+          path: diagnostics/investigation/aggregate.json
           if-no-files-found: error
           retention-days: 14
+
+  official-gate:
+    name: Ultra Recovery Gate — OFFICIAL
+    needs: [investigate, aggregate]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Download official aggregate
+        uses: actions/download-artifact@v6
+        with:
+          name: ultra-investigation-aggregate-${{ github.event.pull_request.head.sha || github.sha }}
+          path: diagnostics/investigation
+      - name: Require investigator and aggregate success
+        env:
+          INVESTIGATE_RESULT: ${{ needs.investigate.result }}
+          AGGREGATE_RESULT: ${{ needs.aggregate.result }}
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$INVESTIGATE_RESULT" = success || { echo "investigate=$INVESTIGATE_RESULT"; exit 1; }
+          test "$AGGREGATE_RESULT" = success || { echo "aggregate=$AGGREGATE_RESULT"; exit 1; }
+          node scripts/ci/ultra-investigate-guard.mjs diagnostics/investigation/aggregate.json
+          echo "ULTRA OFFICIAL GATE PASS: exact-head, complete nine-suite evidence, zero failures, zero root causes, zero unknowns."
