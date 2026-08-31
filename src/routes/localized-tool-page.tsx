@@ -44,7 +44,7 @@ export function LocalizedToolPage() {
   const category = assertToolCategory(seo.tool.category);
   const localizedTitle = getLocalizedToolTitle(locale, seo.tool.id, seo.tool.title);
   const localizedCategory = localizeToolCategory(locale, category);
-  const localizedDescription = locale === 'en' ? seo.tool.description : localizeToolDescription(locale, localizedTitle, localizedCategory);
+  const localizedDescription = locale === 'en' ? seo.tool.description : localizeToolDescription(locale, localizedTitle, category);
   const ToolComponent = seo.tool.component as unknown as ComponentType<{ locale?: Locale }>;
   const privacy = getToolPrivacyCopy(seo.tool.id, locale);
   const homeUrl = `/${locale}`;
