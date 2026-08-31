@@ -42,6 +42,14 @@ jobs:
       - name: Install dependencies once
         run: npm ci --prefer-offline --no-audit --no-fund
 
+      - name: Cache Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-chromium-
+
       - name: Run impact-aware fast verification
         run: node scripts/ci/fast-verify.mjs
 
