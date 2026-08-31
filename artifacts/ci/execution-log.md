@@ -2,22 +2,25 @@
 
 CURRENT PHASE: CI-3 — Execution Engine
 
-PHASE STATUS: VERIFYING
+PHASE STATUS: COMPLETE
 
-CURRENT PR: pending CI-3 PR
+CURRENT PR: #531 — ci: build deterministic execution engine and dependency graph
+
+VERIFIED SHA: fb2322a90b5af8434630f18c9cc362be79252ebb
+FINAL PHASE EVIDENCE SHA: f308e5655bb3b69b3d692326c39fde0a2fd0454e
 
 BASE: 128b638f7bd1f87a03b95fa4ab6c4dac83300d74 (CI-2 COMPLETE)
 
 IMPLEMENTATION:
-- explicit dependency graph: COMPLETE
-- DAG validation/cycle detection: COMPLETE
-- topological scheduling: COMPLETE
-- dependency closure: COMPLETE
-- BLOCKED propagation: COMPLETE
-- deterministic execution plan: COMPLETE
-- plan hashing: COMPLETE
-- execution-plan self-reproducibility: COMPLETE
-- shadow workflow: COMPLETE
+- explicit dependency graph: PASS
+- DAG validation/cycle detection: PASS
+- topological scheduling: PASS
+- dependency closure: PASS
+- BLOCKED propagation: PASS
+- deterministic execution plan: PASS
+- plan hashing: PASS
+- execution-plan self-reproducibility: PASS
+- shadow workflow: PASS
 
 SAFETY:
 - main modified: NO
@@ -27,5 +30,17 @@ SAFETY:
 - legacy workflows deleted: NO
 - legacy workflow behavior modified: NO
 
+PHASE EXIT:
+- Implementation: PASS
+- Contract: PASS
+- Tests: PASS
+- Regression: PASS
+- Evidence: PASS
+- CI: PASS
+- Acceptance Criteria: PASS
+- Unresolved Critical: 0
+
+NEXT PHASE ALLOWED: YES
+
 NEXT REQUIRED ACTION:
-Run CI-3 shadow workflow and prove graph/planner semantics. CI-4 remains forbidden until CI-3 exit gate is PASS.
+CI-4 — Evidence Ledger schema, writers, manifest, immutable evidence identity, and result normalization.
