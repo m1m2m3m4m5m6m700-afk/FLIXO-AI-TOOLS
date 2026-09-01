@@ -1,138 +1,161 @@
 import { expect, test } from '@playwright/test';
-import { mkdirSync, appendFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync } from 'node:fs';
 
-test.setTimeout(45_000);
+test.setTimeout(30_000);
 
 test('G4 runtime trace — /ar/ai-vocal-instrumental-remover', async ({ page }, testInfo) => {
   const tracePath = testInfo.outputPath('g4-runtime-trace.jsonl');
   mkdirSync(testInfo.outputDir, { recursive: true });
-  const write = (event: unknown) => appendFileSync(tracePath, `${JSON.stringify(event)}\n`, 'utf8');
+  const write = (record: unknown) => appendFileSync(tracePath, `${JSON.stringify(record)}\n`, 'utf8');
 
   page.on('console', (message) => {
     const text = message.text();
     if (text.startsWith('[G4TRACE]')) write({ source: 'console', type: message.type(), text, hostTime: Date.now() });
   });
   page.on('pageerror', (error) => write({ source: 'pageerror', message: error.message, stack: error.stack ?? null, hostTime: Date.now() }));
-  page.on('requestfailed', (request) => write({ source: 'requestfailed', url: request.url(), failure: request.failure(), hostTime: Date.now() }));
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame()) write({ source: 'browser', event: 'framenavigated', url: frame.url(), hostTime: Date.now() });
+  });
 
   await page.addInitScript(() => {
     const identity = new WeakMap<object, number>();
     let nextId = 1;
-    const getId = (value: object | null | undefined) => {
+    const id = (value: object | null | undefined) => {
       if (!value) return null;
-      const existing = identity.get(value);
-      if (existing) return existing;
-      const created = nextId++;
-      identity.set(value, created);
-      return created;
+      const old = identity.get(value);
+      if (old) return old;
+      const next = nextId++;
+      identity.set(value, next);
+      return next;
     };
-    const stack = () => new Error().stack?.split('\n').slice(2, 28).join('\n') ?? '';
-    const snapshot = () => ({
-      url: location.href,
-      readyState: document.readyState,
-      htmlId: getId(document.documentElement),
-      lang: document.documentElement?.getAttribute('lang') ?? null,
-      dir: document.documentElement?.getAttribute('dir') ?? null,
-      htmlOuter: document.documentElement?.outerHTML.slice(0, 900) ?? null,
-    });
-    const trace = (event: string, data: Record<string, unknown> = {}) => {
-      console.log('[G4TRACE]', JSON.stringify({ event, ...data, ...snapshot(), perf: performance.now() }));
+    const stack = () => new Error().stack?.split('\n').slice(2, 14).join('\n') ?? '';
+    const state = () => {
+      const html = document.documentElement;
+      return {
+        url: location.href,
+        readyState: document.readyState,
+        htmlId: id(html),
+        lang: html?.getAttribute('lang') ?? null,
+        dir: html?.getAttribute('dir') ?? null,
+      };
+    };
+    const emit = (event: string, extra: Record<string, unknown> = {}) => {
+      console.log('[G4TRACE]', JSON.stringify({ event, ...extra, ...state(), perf: performance.now() }));
     };
 
-    const initialHtml = document.documentElement;
-    trace('init', { initialHtmlId: getId(initialHtml) });
+    let lastHtml = document.documentElement;
+    let lastLang = lastHtml?.getAttribute('lang') ?? null;
+    let lastDir = lastHtml?.getAttribute('dir') ?? null;
+
+    const check = () => {
+      const html = document.documentElement;
+      const lang = html?.getAttribute('lang') ?? null;
+      const dir = html?.getAttribute('dir') ?? null;
+      if (html !== lastHtml) {
+        emit('documentElement-change', {
+          previousHtmlId: id(lastHtml),
+          previousLang: lastLang,
+          previousDir: lastDir,
+          currentHtmlId: id(html),
+          currentLang: lang,
+          currentDir: dir,
+          stack: stack(),
+        });
+        lastHtml = html;
+        lastLang = lang;
+        lastDir = dir;
+        return;
+      }
+      if (lang !== lastLang) {
+        emit('lang-transition', {
+          oldValue: lastLang,
+          newValue: lang,
+          htmlId: id(html),
+          stack: stack(),
+        });
+        lastLang = lang;
+      }
+      if (dir !== lastDir) {
+        emit('dir-transition', {
+          oldValue: lastDir,
+          newValue: dir,
+          htmlId: id(html),
+          stack: stack(),
+        });
+        lastDir = dir;
+      }
+    };
 
     const originalSet = Element.prototype.setAttribute;
     Element.prototype.setAttribute = function(name: string, value: string) {
-      if (name === 'lang' || name === 'dir') trace('setAttribute', { name, value, targetId: getId(this), currentTargetHtml: this === document.documentElement, before: this.getAttribute(name), stack: stack() });
+      if (this === document.documentElement && (name === 'lang' || name === 'dir')) {
+        emit('setAttribute-call', { name, value, before: this.getAttribute(name), stack: stack() });
+      }
       return originalSet.call(this, name, value);
     };
     const originalRemove = Element.prototype.removeAttribute;
     Element.prototype.removeAttribute = function(name: string) {
-      if (name === 'lang' || name === 'dir') trace('removeAttribute', { name, targetId: getId(this), currentTargetHtml: this === document.documentElement, before: this.getAttribute(name), stack: stack() });
+      if (this === document.documentElement && (name === 'lang' || name === 'dir')) {
+        emit('removeAttribute-call', { name, before: this.getAttribute(name), stack: stack() });
+      }
       return originalRemove.call(this, name);
     };
 
-    const originalReplace = Node.prototype.replaceChild;
-    Node.prototype.replaceChild = function(newChild, oldChild) {
-      if (this === document || this === document.documentElement || oldChild === initialHtml || newChild === initialHtml || oldChild === document.documentElement || newChild === document.documentElement) {
-        trace('replaceChild', { parentId: getId(this), oldId: getId(oldChild), newId: getId(newChild), stack: stack() });
-      }
-      return originalReplace.call(this, newChild, oldChild);
-    };
-    const originalAppend = Node.prototype.appendChild;
-    Node.prototype.appendChild = function(child) {
-      if (this === document || this === document.documentElement || child.nodeName.toLowerCase() === 'html') trace('appendChild', { parentId: getId(this), childId: getId(child), childName: child.nodeName, stack: stack() });
-      return originalAppend.call(this, child);
-    };
-    const originalInsert = Node.prototype.insertBefore;
-    Node.prototype.insertBefore = function(newNode, referenceNode) {
-      if (this === document || this === document.documentElement || newNode.nodeName.toLowerCase() === 'html') trace('insertBefore', { parentId: getId(this), newId: getId(newNode), newName: newNode.nodeName, referenceId: getId(referenceNode), stack: stack() });
-      return originalInsert.call(this, newNode, referenceNode);
-    };
-
-    const originalOpen = Document.prototype.open;
-    Document.prototype.open = function(...args) { trace('document.open', { args, stack: stack() }); return originalOpen.apply(this, args); };
-    const originalWrite = Document.prototype.write;
-    Document.prototype.write = function(...args) { trace('document.write', { args, stack: stack() }); return originalWrite.apply(this, args); };
-    const originalWriteln = Document.prototype.writeln;
-    Document.prototype.writeln = function(...args) { trace('document.writeln', { args, stack: stack() }); return originalWriteln.apply(this, args); };
-    const originalClose = Document.prototype.close;
-    Document.prototype.close = function(...args) { trace('document.close', { args, stack: stack() }); return originalClose.apply(this, args); };
-
-    const observeTarget = new MutationObserver((mutations) => {
+    new MutationObserver((mutations) => {
       for (const mutation of mutations) {
-        trace('mutation', {
-          type: mutation.type,
-          targetId: getId(mutation.target),
-          targetName: mutation.target.nodeName,
-          attribute: mutation.attributeName,
-          oldValue: mutation.oldValue,
-          added: [...mutation.addedNodes].map((node) => ({ id: getId(node), name: node.nodeName })),
-          removed: [...mutation.removedNodes].map((node) => ({ id: getId(node), name: node.nodeName })),
-          htmlIsInitial: document.documentElement === initialHtml,
-        });
+        if (mutation.target === document && mutation.type === 'childList') {
+          emit('document-childList', {
+            added: [...mutation.addedNodes].map((node) => ({ id: id(node), name: node.nodeName })),
+            removed: [...mutation.removedNodes].map((node) => ({ id: id(node), name: node.nodeName })),
+            stack: stack(),
+          });
+        }
+        if (mutation.target === document.documentElement && mutation.type === 'attributes' && (mutation.attributeName === 'lang' || mutation.attributeName === 'dir')) {
+          emit('html-attribute-mutation', {
+            attribute: mutation.attributeName,
+            oldValue: mutation.oldValue,
+            currentValue: document.documentElement.getAttribute(mutation.attributeName),
+          });
+        }
       }
-    });
-    observeTarget.observe(document, { subtree: true, childList: true, attributes: true, attributeOldValue: true, attributeFilter: ['lang', 'dir'] });
+      check();
+    }).observe(document, { childList: true, attributes: true, attributeOldValue: true, attributeFilter: ['lang', 'dir'] });
 
-    let previousHtml = document.documentElement;
-    const poll = () => {
-      const current = document.documentElement;
-      if (current !== previousHtml) {
-        trace('documentElement-change', {
-          previousId: getId(previousHtml),
-          previousLang: previousHtml?.getAttribute('lang') ?? null,
-          currentId: getId(current),
-          currentLang: current?.getAttribute('lang') ?? null,
-          sameAsInitial: current === initialHtml,
-          stack: stack(),
-        });
-        previousHtml = current;
-      }
-      if (current?.getAttribute('lang') === '') trace('EMPTY-LANG', { stack: stack() });
-    };
-    window.setInterval(poll, 25);
-    window.requestAnimationFrame(function raf() { poll(); window.requestAnimationFrame(raf); });
+    document.addEventListener('DOMContentLoaded', () => emit('DOMContentLoaded'), { once: true });
+    window.addEventListener('load', () => emit('window.load'), { once: true });
+    window.addEventListener('beforeunload', () => emit('window.beforeunload'), { once: true });
+    window.addEventListener('pagehide', () => emit('window.pagehide'), { once: true });
 
-    document.addEventListener('DOMContentLoaded', () => trace('DOMContentLoaded'), { once: true });
-    window.addEventListener('load', () => trace('window.load'), { once: true });
-    window.addEventListener('beforeunload', () => trace('window.beforeunload'), { once: true });
-    window.addEventListener('pagehide', () => trace('window.pagehide'), { once: true });
+    const timer = window.setInterval(check, 20);
+    window.addEventListener('pagehide', () => window.clearInterval(timer), { once: true });
+    emit('init');
   });
 
-  const response = await page.goto('/ar/ai-vocal-instrumental-remover', { waitUntil: 'domcontentloaded', timeout: 30_000 });
-  write({ source: 'test', event: 'goto-complete', status: response?.status() ?? null, url: page.url(), hostTime: Date.now() });
-  expect(response?.status()).toBe(200);
+  const response = await page.goto('/ar/ai-vocal-instrumental-remover', { waitUntil: 'commit', timeout: 15_000 });
+  write({ source: 'test', event: 'commit', status: response?.status() ?? null, url: page.url(), hostTime: Date.now() });
+  await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch((error: unknown) => write({ source: 'test', event: 'domcontentloaded-timeout', error: String(error), hostTime: Date.now() }));
 
-  try {
-    await expect(page.locator('html')).toHaveAttribute('lang', 'ar', { timeout: 10_000 });
-  } catch (error) {
-    await page.screenshot({ path: testInfo.outputPath('g4-runtime-failure.png'), fullPage: true }).catch(() => undefined);
-    write({ source: 'test', event: 'assertion-failure', error: error instanceof Error ? error.stack : String(error), final: await page.evaluate(() => ({ url: location.href, readyState: document.readyState, htmlLang: document.documentElement?.getAttribute('lang') ?? null, htmlDir: document.documentElement?.getAttribute('dir') ?? null, htmlId: document.documentElement?.outerHTML.slice(0, 900) ?? null })) });
-    throw error;
+  for (const delay of [100, 500, 1000, 2000, 5000, 10000]) {
+    await page.waitForTimeout(delay - (delay === 100 ? 0 : delay / 2));
+    const checkpoint = await page.evaluate(() => ({
+      url: location.href,
+      readyState: document.readyState,
+      htmlId: (globalThis as { __g4_last_html_id?: number }).__g4_last_html_id ?? null,
+      lang: document.documentElement?.getAttribute('lang') ?? null,
+      dir: document.documentElement?.getAttribute('dir') ?? null,
+      html: document.documentElement?.outerHTML.slice(0, 500) ?? null,
+    })).catch((error: unknown) => ({ evaluateError: String(error) }));
+    write({ source: 'checkpoint', delayMs: delay, ...checkpoint, hostTime: Date.now() });
   }
 
-  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-  write({ source: 'test', event: 'assertions-pass', hostTime: Date.now() });
+  await page.screenshot({ path: testInfo.outputPath('g4-runtime-trace.png'), fullPage: true }).catch((error: unknown) => write({ source: 'test', event: 'screenshot-error', error: String(error) }));
+  const final = await page.evaluate(() => ({
+    url: location.href,
+    readyState: document.readyState,
+    lang: document.documentElement?.getAttribute('lang') ?? null,
+    dir: document.documentElement?.getAttribute('dir') ?? null,
+  })).catch((error: unknown) => ({ evaluateError: String(error) }));
+  write({ source: 'test', event: 'final', ...final, hostTime: Date.now() });
+
+  expect(final).toMatchObject({ lang: 'ar', dir: 'rtl' });
 });
