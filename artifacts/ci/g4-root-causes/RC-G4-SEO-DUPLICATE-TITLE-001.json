@@ -1,0 +1,23 @@
+{
+  "root_cause_id": "RC-G4-SEO-DUPLICATE-TITLE-001",
+  "classification": "SEO_METADATA_MISMATCH",
+  "status": "RECOVERING",
+  "contract": "G4",
+  "scope": {
+    "route": "/hi",
+    "browser": "chromium",
+    "shard": "2/4"
+  },
+  "first_observed_sha": "0d73958045132a95bb18a1417298bcb0f6449664",
+  "observed_run": 33560593884,
+  "expected": "Exactly one authoritative HTML title is emitted for a public route.",
+  "actual": "G4 diagnostic captured two title elements: the localized router title and the static index.html title FLIXO — Fast browser-first tools.",
+  "source": "index.html, src/routes/localized-home.tsx, Matrix First Chromium shard-2 artifact 9821160375",
+  "repair": "Removed the static index.html title so route head metadata is the single title authority.",
+  "repair_commit": "8ba687be9e7374f8db3fbe5d0d417b9ae29a3f40",
+  "follow_up": {
+    "verification_status": "NOT_STARTED"
+  },
+  "final_status": "NOT_VERIFIED",
+  "next_action": "Verify one title on fresh Matrix First output and continue through complete SEO/G4 regression."
+}
