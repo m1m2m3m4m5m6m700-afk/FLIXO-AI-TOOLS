@@ -6,7 +6,7 @@ import { extname, join, normalize, relative, sep } from 'node:path';
 import { TOOLS_REGISTRY, getToolConfig } from '../src/config/tools.ts';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
 import { LOCALES, LOCALE_METADATA, getCanonicalSiteOrigin } from '../src/lib/i18n/config.ts';
-import { getLocalizedToolPath } from '../src/lib/routing/route-resolver.ts';
+import { getToolPath } from '../src/lib/routing/route-resolver.ts';
 import { getToolSeo } from '../src/lib/seo/tool-seo.ts';
 
 const fail = (message, details = []) => {
@@ -56,7 +56,7 @@ if (TOOL_MANIFEST.length !== TOOLS_REGISTRY.length || manifestShape.some((value,
 for (const tool of readyTools) {
   if (getToolConfig(tool.id)?.id !== tool.id) fail('registry resolver ownership drift', [`missing=${tool.id}`]);
   for (const locale of LOCALES) {
-    const localizedPath = getLocalizedToolPath(tool, locale);
+    const localizedPath = getToolPath(tool, locale);
     const expectedPrefix = `/${locale}/`;
     if (!localizedPath.startsWith(expectedPrefix)) fail('localized route resolver drift', [`${tool.id}@${locale}`, localizedPath]);
     if (localizedPath.includes('//')) fail('localized route contains duplicate slash', [`${tool.id}@${locale}`, localizedPath]);
@@ -69,7 +69,7 @@ const seoExpectedCount = readyTools.length * LOCALES.length;
 let seoChecked = 0;
 for (const tool of readyTools) {
   for (const locale of LOCALES) {
-    const expectedPath = getLocalizedToolPath(tool, locale);
+    const expectedPath = getToolPath(tool, locale);
     const seo = getToolSeo(locale, tool.id);
     if (!seo) fail('SEO ownership drift', [`missing SEO model for ${tool.id}@${locale}`]);
     const expectedUrl = new URL(expectedPath, `${canonicalOrigin}/`).toString();
@@ -84,11 +84,11 @@ for (const tool of readyTools) {
     for (const alternateLocale of LOCALES) {
       const alternate = seo.alternates.find((entry) => entry.locale === alternateLocale);
       if (!alternate) fail('SEO hreflang missing locale', [`${tool.id}@${locale}`, `missing=${alternateLocale}`]);
-      const expectedAlternateUrl = new URL(getLocalizedToolPath(tool, alternateLocale), `${canonicalOrigin}/`).toString();
+      const expectedAlternateUrl = new URL(getToolPath(tool, alternateLocale), `${canonicalOrigin}/`).toString();
       if (alternate.url !== expectedAlternateUrl) fail('SEO hreflang route drift', [`${tool.id}@${locale}`, `alternate=${alternateLocale}`, `expected=${expectedAlternateUrl}`, `actual=${alternate.url}`]);
     }
 
-    const expectedXDefault = new URL(getLocalizedToolPath(tool, 'en'), `${canonicalOrigin}/`).toString();
+    const expectedXDefault = new URL(getToolPath(tool, 'en'), `${canonicalOrigin}/`).toString();
     if (seo.xDefaultUrl !== expectedXDefault) fail('SEO x-default drift', [`${tool.id}@${locale}`, `expected=${expectedXDefault}`, `actual=${seo.xDefaultUrl}`]);
     seoChecked += 1;
   }
@@ -152,7 +152,7 @@ try {
   for (const locale of LOCALES) {
     if (await requestStatus(`/${locale}`) !== 200) fail('localized home route is not publicly reachable', [locale]);
     for (const tool of readyTools) {
-      const path = getLocalizedToolPath(tool, locale);
+      const path = getToolPath(tool, locale);
       const status = await requestStatus(path);
       if (status !== 200) fail('ready localized route is not HTTP 200', [`${tool.id}@${locale}`, path, `status=${status}`]);
     }
@@ -161,7 +161,7 @@ try {
   if (!unreadyTools.length) fail('G1 requires at least one non-ready tool to prove the 404 contract');
   for (const locale of LOCALES) {
     for (const tool of unreadyTools) {
-      const path = getLocalizedToolPath(tool, locale);
+      const path = getToolPath(tool, locale);
       const status = await requestStatus(path);
       if (status !== 404) fail('unready localized route is publicly reachable', [`${tool.id}@${locale}`, path, `status=${status}`]);
     }
@@ -177,8 +177,8 @@ try {
   const robots = readFileSync(join(temp, 'robots.txt'), 'utf8');
   const expectedUrls = new Set(LOCALES.flatMap((locale) => [
     `/${locale}`,
-    ...readyTools.map((tool) => getLocalizedToolPath(tool, locale)),
-  ].map((route) => new URL(route, `${canonicalOrigin}/`).toString())));
+    ...readyTools.map((tool) => getToolPath(tool, locale)),
+  ].map((route) => new URL(route, `${canonicalOrigin}/`).toString()));
 
   const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)].map((match) => match[1]);
   const actualUrls = new Set(locs);
