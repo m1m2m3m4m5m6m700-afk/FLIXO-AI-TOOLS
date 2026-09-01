@@ -14,6 +14,7 @@ import { installAiVocalToolUiRuntimeLocalization } from './lib/i18n/ai-vocal-too
 import { installAudioCutterToolUiRuntimeLocalization } from './lib/i18n/audio-cutter-tool-ui-runtime';
 import { installAudioExtractorToolUiRuntimeLocalization } from './lib/i18n/audio-extractor-tool-ui-runtime';
 import { installCaseConverterToolUiRuntimeLocalization } from './lib/i18n/case-converter-tool-ui-runtime';
+import { installAudioNoiseReducerToolUiRuntimeLocalization } from './lib/i18n/audio-noise-reducer-tool-ui-runtime';
 import { applyDocumentLocale, localeFromPathname, installDocumentLocaleContract } from './lib/i18n/runtime-document-locale';
 import { FlixoUxShell } from './components/flixo-ux-shell';
 import './styles.css';
@@ -36,6 +37,7 @@ const disposeAiVocalToolUiLocalization = installAiVocalToolUiRuntimeLocalization
 const disposeAudioCutterToolUiLocalization = installAudioCutterToolUiRuntimeLocalization();
 const disposeAudioExtractorToolUiLocalization = installAudioExtractorToolUiRuntimeLocalization();
 const disposeCaseConverterToolUiLocalization = installCaseConverterToolUiRuntimeLocalization();
+const disposeAudioNoiseReducerToolUiLocalization = installAudioNoiseReducerToolUiRuntimeLocalization();
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
@@ -65,4 +67,5 @@ if (import.meta.hot) import.meta.hot.dispose(() => {
   disposeAudioCutterToolUiLocalization();
   disposeAudioExtractorToolUiLocalization();
   disposeCaseConverterToolUiLocalization();
+  disposeAudioNoiseReducerToolUiLocalization();
 });
