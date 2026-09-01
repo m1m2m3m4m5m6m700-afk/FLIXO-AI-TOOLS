@@ -20,17 +20,10 @@ applyDocumentLocale(localeFromPathname(window.location.pathname));
 const disposeDocumentLocaleContract = installDocumentLocaleContract(() => window.location.pathname);
 installRuntimeDiagnostics();
 installPerformanceDiagnostics();
-
-let disposeToolUiLocalization = () => undefined;
-let disposeToolUiLocalizationSupplement = () => undefined;
-let disposeToolUiTechnicalValues = () => undefined;
-let disposeToolUiRuntimeCompleteness = () => undefined;
-let uiRuntimeTimer = window.setTimeout(() => {
-  disposeToolUiLocalization = installToolUiRuntimeLocalization();
-  disposeToolUiLocalizationSupplement = installToolUiRuntimeSupplement();
-  disposeToolUiTechnicalValues = installToolUiTechnicalValueNormalization();
-  disposeToolUiRuntimeCompleteness = installToolUiRuntimeCompleteness();
-}, 1500);
+const disposeToolUiLocalization = installToolUiRuntimeLocalization();
+const disposeToolUiLocalizationSupplement = installToolUiRuntimeSupplement();
+const disposeToolUiTechnicalValues = installToolUiTechnicalValueNormalization();
+const disposeToolUiRuntimeCompleteness = installToolUiRuntimeCompleteness();
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
@@ -49,7 +42,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 );
 
 if (import.meta.hot) import.meta.hot.dispose(() => {
-  window.clearTimeout(uiRuntimeTimer);
   disposeDocumentLocaleContract();
   disposeToolUiLocalization();
   disposeToolUiLocalizationSupplement();
