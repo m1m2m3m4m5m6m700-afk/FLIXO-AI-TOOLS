@@ -21,8 +21,11 @@ const toolIds = toolDefinitionSources.flatMap((source) => [
 ].map((match) => match[1]));
 if (toolIds.length === 0) throw new Error('No tool ids discovered in canonical tool definition modules.');
 
-const expectedLocales = ['en', 'ar', 'es', 'fr', 'de', 'ru', 'zh', 'hi', 'id', 'ur', 'ja', 'pt', 'it', 'ko', 'nl', 'pl', 'tr', 'vi', 'th', 'sv'];
+const expectedLocales = ['ar', 'en', 'es', 'fr', 'de', 'hi', 'id', 'it', 'ja', 'ko', 'ms', 'nl', 'pl', 'pt', 'ru', 'sv', 'th', 'tr', 'uk', 'vi'];
 if (expectedLocales.length !== 20) throw new Error('Indexing gate locale registry expectation must contain exactly 20 locales.');
+const localeDeclaration = i18nSource.match(/export const LOCALES[^=]*=\s*\[([\s\S]*?)\]\s*as const/u)?.[1] ?? '';
+const declaredLocales = [...localeDeclaration.matchAll(/['"]([a-z]{2})['"]/gu)].map((match) => match[1]);
+if (declaredLocales.length !== expectedLocales.length || expectedLocales.some((locale) => !declaredLocales.includes(locale))) throw new Error(`Indexing locale registry drift: expected=${expectedLocales.join(',')} actual=${declaredLocales.join(',')}`);
 
 if (!originSource.includes('export function getCanonicalSiteOrigin()')) throw new Error('Canonical origin contract is missing getCanonicalSiteOrigin().');
 if (!originSource.includes("if (origin.protocol !== 'https:')")) throw new Error('Canonical origin contract must enforce HTTPS.');
@@ -32,7 +35,8 @@ if (!i18nSource.includes('export const SITE_ORIGIN = getCanonicalSiteOrigin();')
 
 if (!sitemapSource.includes('getCanonicalSiteOrigin()')) throw new Error('Sitemap generator must source its origin from the canonical origin contract.');
 if (!sitemapSource.includes('TOOL_MANIFEST.filter((tool) => tool.isReady)')) throw new Error('Sitemap generator does not derive tool URLs from ready TOOL_MANIFEST entries.');
-if (!sitemapSource.includes('getLocalizedToolPath(tool, locale)')) throw new Error('Sitemap generator must use getLocalizedToolPath for localized tool routes.');
+if (!sitemapSource.includes('getToolPath(tool, locale)')) throw new Error('Sitemap generator must use getToolPath for localized tool routes.');
+if (sitemapSource.includes('getLocalizedToolPath')) throw new Error('Sitemap generator must not depend on the deprecated localized tool-path alias.');
 if (sitemapSource.includes('USE_CASES') || sitemapSource.includes('useCasePaths')) throw new Error('Sitemap must not publish non-localized use-case URLs.');
 if (!sitemapSource.includes('xmlns:xhtml="http://www.w3.org/1999/xhtml"')) throw new Error('Sitemap generator is missing the hreflang namespace.');
 if (!sitemapSource.includes('xhtml:link rel="alternate" hreflang=')) throw new Error('Sitemap generator does not emit hreflang alternates.');
@@ -72,12 +76,11 @@ if (!indexSource.includes('<meta name="viewport"')) throw new Error('index.html 
 if (!indexSource.includes('<link rel="manifest" href="/manifest.webmanifest"')) throw new Error('index.html is missing the web manifest.');
 if (!indexSource.includes('<link rel="icon" type="image/svg+xml" href="/favicon.svg"')) throw new Error('index.html must use the canonical favicon.');
 if (indexSource.includes('/flixo-logo.jpg') || indexSource.includes('/logo.jpg')) throw new Error('index.html references stale JPG logo assets.');
+if (indexSource.includes('<title>')) throw new Error('index.html must not inject a competing static title; localized route metadata owns the document title.');
 
 if (!rootSource.includes("{ name: 'description', content:")) throw new Error('Root route is missing the base description metadata.');
 
 if (!manifestSource.includes('"start_url": "/en"')) throw new Error('Manifest start_url must resolve to a localized public route.');
 if (!manifestSource.includes('"src": "/flixo-logo.svg"')) throw new Error('Manifest must use the canonical FLIXO logo asset.');
 
-console.log(
-  `Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical tool definitions, localized tool canonical/hreflang symmetry, canonical-only use-case routes, canonical HTTPS origin, and robots/sitemap contracts are aligned.`,
-);
+console.log(`Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical tool definitions, localized tool canonical/hreflang symmetry, canonical-only use-case routes, canonical HTTPS origin, and robots/sitemap contracts are aligned.`);
