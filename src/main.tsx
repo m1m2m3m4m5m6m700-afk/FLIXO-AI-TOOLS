@@ -20,10 +20,18 @@ applyDocumentLocale(localeFromPathname(window.location.pathname));
 const disposeDocumentLocaleContract = installDocumentLocaleContract(() => window.location.pathname);
 installRuntimeDiagnostics();
 installPerformanceDiagnostics();
-const disposeToolUiLocalization = installToolUiRuntimeLocalization();
-const disposeToolUiLocalizationSupplement = installToolUiRuntimeSupplement();
-const disposeToolUiTechnicalValues = installToolUiTechnicalValueNormalization();
-const disposeToolUiRuntimeCompleteness = installToolUiRuntimeCompleteness();
+
+const localizationDisposers: Array<() => void> = [];
+const localizeRenderedUi = () => {
+  const disposers = [
+    installToolUiRuntimeLocalization(),
+    installToolUiRuntimeSupplement(),
+    installToolUiTechnicalValueNormalization(),
+    installToolUiRuntimeCompleteness(),
+  ];
+  localizationDisposers.push(...disposers);
+  for (const dispose of disposers) dispose();
+};
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
@@ -41,10 +49,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 );
 
+for (const delay of [0, 100, 350, 800]) {
+  window.setTimeout(localizeRenderedUi, delay);
+}
+
 if (import.meta.hot) import.meta.hot.dispose(() => {
   disposeDocumentLocaleContract();
-  disposeToolUiLocalization();
-  disposeToolUiLocalizationSupplement();
-  disposeToolUiTechnicalValues();
-  disposeToolUiRuntimeCompleteness();
+  for (const dispose of localizationDisposers) dispose();
 });
