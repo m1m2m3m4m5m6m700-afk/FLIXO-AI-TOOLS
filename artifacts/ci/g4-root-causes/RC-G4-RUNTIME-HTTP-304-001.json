@@ -1,0 +1,26 @@
+{
+  "root_cause_id": "RC-G4-RUNTIME-HTTP-304-001",
+  "classification": "NETWORK_ERROR",
+  "status": "RECOVERING",
+  "contract": "G4",
+  "scope": {
+    "route": "/sv/ai-vocal-instrumental-remover",
+    "phase": "localized route after English baseline navigation",
+    "browsers": ["firefox"],
+    "matrix_shard": "4/4"
+  },
+  "first_observed_sha": "795332115810826a1b8b9ecb84d943fdc1dc1877",
+  "observed_run": 33558147985,
+  "expected": "Localized document navigation returns HTTP 200 for the G4 route contract.",
+  "actual": "Firefox returned HTTP 304 on the localized navigation after visiting the English baseline route. Build and isolated preview startup both passed; the failure occurred at tests/localization-runtime.spec.ts:193.",
+  "source": "Matrix First Firefox shard 4 job 100023930910",
+  "hypothesis": "The Vite preview server/browser cache interaction revalidated the shared SPA HTML document during cross-locale navigation, producing a 304 instead of the contract-required deterministic 200.",
+  "repair_commit": "bd109149f362cc206fee6ba98b04b5cb0fd797f3",
+  "repair": "Configured Vite preview response headers with Cache-Control: no-store so preview document navigations are not browser-revalidated from a prior locale response.",
+  "follow_up": {
+    "verification_run": 33560518053,
+    "status": "IN_PROGRESS"
+  },
+  "final_status": "NOT_VERIFIED",
+  "next_action": "Verify a fresh Firefox matrix unit on the repair SHA and confirm the localized navigation remains HTTP 200 without weakening G4 assertions."
+}
