@@ -3,7 +3,8 @@ import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tan
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
-import { LOCALE_METADATA, isLocale, SITE_ORIGIN } from '../lib/i18n';
+import { applyDocumentLocale, installDocumentLocaleContract, localeFromPathname } from '../lib/i18n/runtime-document-locale';
+import { SITE_ORIGIN } from '../lib/i18n';
 
 const GLOBAL_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
@@ -13,29 +14,20 @@ const GLOBAL_STRUCTURED_DATA = {
   ],
 } as const;
 
-function RuntimeLocaleAttributes() {
-  const location = useLocation();
-  useLayoutEffect(() => {
-    const localeCode = location.pathname.split('/').filter(Boolean)[0] ?? '';
-    const locale = isLocale(localeCode) ? localeCode : 'en';
-    const metadata = LOCALE_METADATA[locale];
-    const apply = () => {
-      document.documentElement.lang = metadata.languageTag;
-      document.documentElement.dir = metadata.direction;
-      document.querySelectorAll<HTMLElement>('main').forEach((localizedMain) => {
-        localizedMain.lang = metadata.languageTag;
-        localizedMain.dir = metadata.direction;
-      });
-    };
-    apply();
-    const frame = window.requestAnimationFrame(apply);
-    return () => window.cancelAnimationFrame(frame);
-  }, [location.pathname]);
-  return null;
-}
-
 function RouteContent() {
   return <Suspense fallback={<div role="status" aria-live="polite">Loading…</div>}><Outlet /></Suspense>;
+}
+
+function RuntimeLocaleAttributes() {
+  const location = useLocation();
+
+  useLayoutEffect(() => {
+    const locale = localeFromPathname(location.pathname);
+    applyDocumentLocale(locale);
+    return installDocumentLocaleContract(() => location.pathname);
+  }, [location.pathname]);
+
+  return null;
 }
 
 export const rootRoute = createRootRoute({
