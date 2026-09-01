@@ -1,0 +1,24 @@
+{
+  "root_cause_id": "RC-G4-RUNTIME-MUTATION-STARVATION-001",
+  "classification": "RUNTIME_EXCEPTION",
+  "status": "RECOVERING",
+  "contract": "G4",
+  "scope": {
+    "route": "/hi",
+    "browsers": ["chromium"],
+    "shard": "2/4"
+  },
+  "first_observed_sha": "0d73958045132a95bb18a1417298bcb0f6449664",
+  "observed_run": 33560593884,
+  "expected": "Browser event loop remains responsive after DOMContentLoaded so independent G4 assertions can execute.",
+  "actual": "Chromium shard-2 reached DOMContentLoaded with lang=hi and HTTP 200, then page.evaluate timed out at 60 seconds. Source inspection showed multiple whole-body MutationObservers invoking full-document translation passes on childList/characterData/attribute changes.",
+  "source": "src/lib/i18n/tool-ui-runtime.ts, src/lib/i18n/tool-ui-runtime-supplement.ts, src/lib/i18n/tool-ui-technical-values.ts, src/lib/i18n/tool-ui-runtime-completeness.ts, tests/localization-runtime.spec.ts, Matrix First run 33560593884",
+  "repair": "Stop the global runtime localization observers immediately after bounded post-render translation passes. Preserve synchronous source localization and component-level AutoLocalizedToolSurface behavior while eliminating unbounded whole-body observer churn.",
+  "repair_commit": "3149f6aac7ac0d883e6f423eb9485a10756bc7d1",
+  "follow_up": {
+    "verification_sha": "8ba687be9e7374f8db3fbe5d0d417b9ae29a3f40",
+    "verification_status": "NOT_STARTED"
+  },
+  "final_status": "NOT_VERIFIED",
+  "next_action": "Run fresh Matrix First on the reopened PR and verify browser responsiveness and localization completeness."
+}
