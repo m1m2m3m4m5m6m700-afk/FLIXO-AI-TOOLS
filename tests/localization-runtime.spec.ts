@@ -42,6 +42,14 @@ const sharedOnly = (value: string) => {
 };
 
 type Snapshot = { title: string; description: string; h1: string; ui: string[] };
+type LangTraceEntry = { label: string; lang: string | null; dir: string | null; time: number; htmlId: string };
+type LangTraceState = {
+  trace: LangTraceEntry[];
+  callbackCount: number;
+  firstEmptyAt: number | null;
+  lastArAt: number | null;
+  mutationCountBetweenLastArAndFirstEmpty: number | null;
+};
 
 const normalize = (value: string | null | undefined) => (value ?? '').replace(/\s+/gu, ' ').trim();
 const familyPath = (pathname: string) => pathname.replace(new RegExp(`^/(?:${localeCodes.join('|')})(?=/|$)`, 'u'), '') || '/';
@@ -79,6 +87,56 @@ test.setTimeout(60_000);
 
 for (const pathname of routes) {
   test(`G4 all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
+    await page.addInitScript(() => {
+      const target = document.documentElement as HTMLElement & { __g4Id?: string };
+      const state = {
+        trace: [],
+        callbackCount: 0,
+        firstEmptyAt: null,
+        lastArAt: null,
+        mutationCountBetweenLastArAndFirstEmpty: null,
+      } as {
+        trace: Array<{ label: string; lang: string | null; dir: string | null; time: number; htmlId: string }>;
+        callbackCount: number;
+        firstEmptyAt: number | null;
+        lastArAt: number | null;
+        mutationCountBetweenLastArAndFirstEmpty: number | null;
+      };
+      window.__g4LangTrace = state;
+      target.__g4Id ??= Math.random().toString(36).slice(2);
+
+      const record = (label: string) => {
+        const lang = target.getAttribute('lang');
+        const entry = {
+          label,
+          lang,
+          dir: target.getAttribute('dir'),
+          time: performance.now(),
+          htmlId: target.__g4Id,
+        };
+        state.trace.push(entry);
+        if (lang === 'ar') {
+          state.lastArAt = entry.time;
+        } else if (lang === '') {
+          if (state.firstEmptyAt === null) {
+            state.firstEmptyAt = entry.time;
+            state.mutationCountBetweenLastArAndFirstEmpty = state.callbackCount;
+          }
+        }
+      };
+
+      new MutationObserver(() => {
+        state.callbackCount += 1;
+        record('mutation');
+      }).observe(target, {
+        attributes: true,
+        attributeFilter: ['lang', 'dir'],
+      });
+
+      window.addEventListener('DOMContentLoaded', () => record('DOMContentLoaded'));
+      window.addEventListener('load', () => record('load'));
+    });
+
     const runtimeErrors: string[] = [];
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
     page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
@@ -95,6 +153,31 @@ for (const pathname of routes) {
     const localeCode = locale as (typeof localeCodes)[number];
     const expectedDirection = LOCALE_METADATA[localeCode].direction;
     const family = familyPath(pathname);
+
+    const nativeTrace = await page.evaluate(() => {
+      const state = (window as typeof window & { __g4LangTrace?: LangTraceState }).__g4LangTrace;
+      const html = document.documentElement;
+      const trace = state?.trace ?? [];
+      const lastAr = [...trace].reverse().find((entry) => entry.lang === 'ar');
+      const firstEmpty = trace.find((entry) => entry.lang === '');
+      let mutationsBetweenLastArAndFirstEmpty: number | null = null;
+      if (lastAr && firstEmpty) {
+        const lastArIndex = trace.indexOf(lastAr);
+        const firstEmptyIndex = trace.indexOf(firstEmpty);
+        if (firstEmptyIndex >= lastArIndex) mutationsBetweenLastArAndFirstEmpty = firstEmptyIndex - lastArIndex;
+      }
+      return {
+        lang: html.getAttribute('lang'),
+        dir: html.getAttribute('dir'),
+        trace,
+        callbackCount: state?.callbackCount ?? 0,
+        lastAr,
+        firstEmpty,
+        mutationsBetweenLastArAndFirstEmpty,
+        htmlId: (html as HTMLElement & { __g4Id?: string }).__g4Id ?? 'unknown',
+      };
+    });
+    console.log('[G4 TRACE]', JSON.stringify(nativeTrace));
 
     await expect(page.locator('html')).toHaveAttribute('lang', languageTags[localeCode]);
     await expect(page.locator('html')).toHaveAttribute('dir', expectedDirection);
