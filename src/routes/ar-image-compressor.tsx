@@ -1,6 +1,9 @@
 import { lazy } from 'react';
 import { createRoute } from '@tanstack/react-router';
 import { rootRoute } from './__root';
+import { getCanonicalSiteOrigin } from '../config/origin.config';
+
+const CANONICAL_ORIGIN = getCanonicalSiteOrigin();
 
 export const arImageCompressorRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -13,14 +16,14 @@ export const arImageCompressorRoute = createRoute({
       { property: 'og:title', content: 'ضغط الصور أونلاين مجانًا | FLIXO' },
       { property: 'og:description', content: 'قلّل حجم الصور داخل المتصفح مع التحكم في الجودة والمقاسات.' },
       { property: 'og:type', content: 'website' },
-      { property: 'og:url', content: '/ar/image-compressor' },
+      { property: 'og:url', content: `${CANONICAL_ORIGIN}/ar/image-compressor` },
       { name: 'twitter:card', content: 'summary' },
     ],
     links: [
-      { rel: 'canonical', href: '/ar/image-compressor' },
-      { rel: 'alternate', hrefLang: 'en', href: '/en/image-compressor' },
-      { rel: 'alternate', hrefLang: 'ar', href: '/ar/image-compressor' },
-      { rel: 'alternate', hrefLang: 'x-default', href: '/en/image-compressor' },
+      { rel: 'canonical', href: `${CANONICAL_ORIGIN}/ar/image-compressor` },
+      { rel: 'alternate', hrefLang: 'en', href: `${CANONICAL_ORIGIN}/en/image-compressor` },
+      { rel: 'alternate', hrefLang: 'ar', href: `${CANONICAL_ORIGIN}/ar/image-compressor` },
+      { rel: 'alternate', hrefLang: 'x-default', href: `${CANONICAL_ORIGIN}/en/image-compressor` },
     ],
     scripts: [{
       type: 'application/ld+json',
@@ -28,7 +31,7 @@ export const arImageCompressorRoute = createRoute({
         '@context': 'https://schema.org',
         '@type': 'WebApplication',
         name: 'FLIXO ضاغط الصور',
-        url: '/ar/image-compressor',
+        url: `${CANONICAL_ORIGIN}/ar/image-compressor`,
         applicationCategory: 'MultimediaApplication',
         operatingSystem: 'Any',
         description: 'اضغط صور JPG وPNG وWebP أونلاين داخل المتصفح.',
