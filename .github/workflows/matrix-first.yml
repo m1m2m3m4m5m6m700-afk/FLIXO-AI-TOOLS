@@ -85,36 +85,6 @@ jobs:
           done
           cat /tmp/matrix-first-server.log || true
           exit 1
-      - name: Probe raw /ms document
-        if: matrix.browser == 'chromium' && matrix.shard == 1
-        continue-on-error: false
-        timeout-minutes: 1
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-          import urllib.request
-          url = 'http://127.0.0.1:3000/ms'
-          with urllib.request.urlopen(url, timeout=15) as response:
-              body = response.read().decode('utf-8', errors='replace')
-              result = {
-                  'status': response.status,
-                  'content_type': response.headers.get('content-type'),
-                  'content_length': len(body),
-                  'has_locale_bootstrap': 'const localeMap' in body and "html.setAttribute('lang', lang)" in body,
-                  'html_open': body[:2500],
-              }
-          Path('/tmp/matrix-first-ms-raw.json').write_text(__import__('json').dumps(result, indent=2), encoding='utf-8')
-          print(__import__('json').dumps(result, indent=2))
-          PY
-      - name: Upload immediate raw locale probe
-        if: matrix.browser == 'chromium' && matrix.shard == 1 && always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: matrix-first-raw-locale-probe-${{ github.run_id }}
-          path: /tmp/matrix-first-ms-raw.json
-          if-no-files-found: error
-          retention-days: 14
       - name: Run owned shard — stop at first failure
         timeout-minutes: 15
         run: |
