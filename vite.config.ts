@@ -41,4 +41,12 @@ export default defineConfig({
     strictPort: true,
     allowedHosts,
   },
+  preview: {
+    // G4 navigates between localized and English versions of the same SPA
+    // document. Disable browser revalidation in preview so every document
+    // navigation has a deterministic 200 response instead of a 304.
+    headers: {
+      'Cache-Control': 'no-store',
+    },
+  },
 });
