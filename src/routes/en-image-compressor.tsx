@@ -2,6 +2,7 @@ import { lazy } from 'react';
 import { createRoute } from '@tanstack/react-router';
 import { rootRoute } from './__root';
 import { getCanonicalSiteOrigin } from '../config/origin.config';
+import { LOCALES, LOCALE_METADATA } from '../lib/i18n/config';
 
 const CANONICAL_ORIGIN = getCanonicalSiteOrigin();
 
@@ -21,8 +22,7 @@ export const enImageCompressorRoute = createRoute({
     ],
     links: [
       { rel: 'canonical', href: `${CANONICAL_ORIGIN}/en/image-compressor` },
-      { rel: 'alternate', hrefLang: 'en', href: `${CANONICAL_ORIGIN}/en/image-compressor` },
-      { rel: 'alternate', hrefLang: 'ar', href: `${CANONICAL_ORIGIN}/ar/image-compressor` },
+      ...LOCALES.map((locale) => ({ rel: 'alternate' as const, hrefLang: LOCALE_METADATA[locale].languageTag, href: `${CANONICAL_ORIGIN}/${locale}/image-compressor` })),
       { rel: 'alternate', hrefLang: 'x-default', href: `${CANONICAL_ORIGIN}/en/image-compressor` },
     ],
     scripts: [{
