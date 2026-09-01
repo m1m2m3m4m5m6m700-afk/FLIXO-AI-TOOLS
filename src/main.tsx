@@ -4,10 +4,6 @@ import { RouterProvider } from '@tanstack/react-router';
 import { router } from './router';
 import { installRuntimeDiagnostics } from './lib/diagnostics/runtime';
 import { installPerformanceDiagnostics } from './lib/diagnostics/performance';
-import { installToolUiRuntimeLocalization } from './lib/i18n/tool-ui-runtime';
-import { installToolUiRuntimeSupplement } from './lib/i18n/tool-ui-runtime-supplement';
-import { installToolUiTechnicalValueNormalization } from './lib/i18n/tool-ui-technical-values';
-import { installToolUiRuntimeCompleteness } from './lib/i18n/tool-ui-runtime-completeness';
 import { applyDocumentLocale, localeFromPathname, installDocumentLocaleContract } from './lib/i18n/runtime-document-locale';
 import { FlixoUxShell } from './components/flixo-ux-shell';
 import './styles.css';
@@ -21,16 +17,11 @@ const disposeDocumentLocaleContract = installDocumentLocaleContract(() => window
 installRuntimeDiagnostics();
 installPerformanceDiagnostics();
 
+let uiRuntimeFrame = window.requestAnimationFrame(() => undefined);
 let disposeToolUiLocalization = () => undefined;
 let disposeToolUiLocalizationSupplement = () => undefined;
 let disposeToolUiTechnicalValues = () => undefined;
 let disposeToolUiRuntimeCompleteness = () => undefined;
-let uiRuntimeFrame = window.requestAnimationFrame(() => {
-  disposeToolUiLocalization = installToolUiRuntimeLocalization();
-  disposeToolUiLocalizationSupplement = installToolUiRuntimeSupplement();
-  disposeToolUiTechnicalValues = installToolUiTechnicalValueNormalization();
-  disposeToolUiRuntimeCompleteness = installToolUiRuntimeCompleteness();
-});
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
