@@ -143,7 +143,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-fast-evidence-${{ github.sha }}
+          name: ci-fast-evidence-${{ env.EXPECTED_HEAD_SHA }}
           path: diagnostics/
           if-no-files-found: warn
           retention-days: 14
@@ -166,7 +166,7 @@ jobs:
         if: ${{ needs.ci.result == 'success' }}
         uses: actions/download-artifact@v6
         with:
-          name: ci-fast-evidence-${{ github.sha }}
+          name: ci-fast-evidence-${{ env.EXPECTED_HEAD_SHA }}
           path: diagnostics
       - name: Validate exact-head triage evidence
         shell: bash
