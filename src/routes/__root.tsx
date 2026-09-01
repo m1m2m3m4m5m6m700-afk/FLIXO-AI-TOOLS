@@ -10,7 +10,7 @@ const GLOBAL_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
   '@graph': [
     { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: 'FLIXO', url: SITE_ORIGIN, logo: `${SITE_ORIGIN}/flixo-logo.svg` },
-    { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'FLIXO', url: SITE_ORIGIN, publisher: { '@id': `${SITE_ORIGIN}/#organization` },
+    { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'FLIXO', url: SITE_ORIGIN, publisher: { '@id': `${SITE_ORIGIN}/#organization` } },
   ],
 } as const;
 
