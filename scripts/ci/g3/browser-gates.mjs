@@ -35,8 +35,16 @@ try {
   const page = await browser.newPage();
   const consoleErrors = [];
   const runtimeErrors = [];
-  page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
-  page.on('pageerror', (error) => runtimeErrors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push({ type: 'console', message: message.text(), url: message.location().url || page.url() });
+  });
+  page.on('pageerror', (error) => runtimeErrors.push({
+    type: 'pageerror',
+    message: error.message,
+    name: error.name,
+    stack: error.stack || '',
+    url: page.url(),
+  }));
   let response;
   let lastError;
   for (let i = 0; i < 20; i += 1) {
@@ -48,9 +56,7 @@ try {
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  if (!response?.ok()) {
-    throw new Error(`web server not ready: ${response?.status() ?? ''} ${lastError ? String(lastError) : ''}`);
-  }
+  if (!response?.ok()) throw new Error(`web server not ready: ${response?.status() ?? ''} ${lastError ? String(lastError) : ''}`);
   await emit('G3-52', 'WebServer Ready', 'PASS', { statusCode: response.status() });
   await emit('G3-53', 'Health Endpoint', 'PASS', { endpoint: '/en/image-compressor', statusCode: response.status() });
   try {
@@ -70,9 +76,7 @@ try {
   }
 } catch (error) {
   for (const [gate, name] of [['G3-52','WebServer Ready'],['G3-53','Health Endpoint'],['G3-54','Page Load'],['G3-55','Console Errors'],['G3-56','Runtime Errors']]) {
-    if (!results.some((result) => result.gate === gate)) {
-      await emit(gate, name, gate === 'G3-52' ? 'FAIL' : 'BLOCKED', { stderr: String(error), class: gate === 'G3-52' ? 'INFRA' : 'DEPENDENCY', rootCause: gate === 'G3-52' ? 'BROWSER_SERVER' : 'G3-52', derivedFrom: gate === 'G3-52' ? undefined : 'G3-52' });
-    }
+    if (!results.some((result) => result.gate === gate)) await emit(gate, name, gate === 'G3-52' ? 'FAIL' : 'BLOCKED', { stderr: String(error), class: gate === 'G3-52' ? 'INFRA' : 'DEPENDENCY', rootCause: gate === 'G3-52' ? 'BROWSER_SERVER' : 'G3-52', derivedFrom: gate === 'G3-52' ? undefined : 'G3-52' });
   }
 }
 await browser.close();
@@ -87,46 +91,17 @@ const flow = await new Promise((resolve) => {
   child.on('close', (code) => resolve({ code: code ?? 1, stdout, stderr, durationMs: Date.now() - started }));
 });
 
-function isSetInputFilesFailure(text) {
-  return /TimeoutError[\s\S]*locator\.setInputFiles|locator\.setInputFiles[\s\S]*Timeout/i.test(text);
-}
-
-const downstreamGates = [
-  ['G3-63','FileList Verification'], ['G3-64','React Change Event'], ['G3-65','UI Selected State'],
-  ['G3-70','Processing Started'], ['G3-71','Loading State'], ['G3-72','Processing Completed'], ['G3-73','Success State'], ['G3-74','Error State'],
-  ['G3-80','Download Trigger'], ['G3-81','Download Event'], ['G3-82','Download Exists'], ['G3-83','Download Filename'], ['G3-84','Download MIME'], ['G3-85','Download Size'],
-];
-
+function isSetInputFilesFailure(text) { return /TimeoutError[\s\S]*locator\.setInputFiles|locator\.setInputFiles[\s\S]*Timeout/i.test(text); }
+const downstreamGates = [['G3-63','FileList Verification'], ['G3-64','React Change Event'], ['G3-65','UI Selected State'], ['G3-70','Processing Started'], ['G3-71','Loading State'], ['G3-72','Processing Completed'], ['G3-73','Success State'], ['G3-74','Error State'], ['G3-80','Download Trigger'], ['G3-81','Download Event'], ['G3-82','Download Exists'], ['G3-83','Download Filename'], ['G3-84','Download MIME'], ['G3-85','Download Size']];
 if (flow.code === 0) {
-  for (const [gate, name] of [
-    ['G3-60','Upload Trigger'], ['G3-61','Input Discovery'], ['G3-62','File Injection'], ['G3-63','FileList Verification'], ['G3-64','React Change Event'], ['G3-65','UI Selected State'],
-    ['G3-70','Processing Started'], ['G3-71','Loading State'], ['G3-72','Processing Completed'], ['G3-73','Success State'], ['G3-74','Error State'],
-    ['G3-80','Download Trigger'], ['G3-81','Download Event'], ['G3-82','Download Exists'], ['G3-83','Download Filename'], ['G3-84','Download MIME'], ['G3-85','Download Size'],
-  ]) await emit(gate, name, 'PASS', { stdout: flow.stdout, stderr: flow.stderr, durationMs: flow.durationMs });
+  for (const [gate, name] of [['G3-60','Upload Trigger'], ['G3-61','Input Discovery'], ['G3-62','File Injection'], ...downstreamGates]) await emit(gate, name, 'PASS', { stdout: flow.stdout, stderr: flow.stderr, durationMs: flow.durationMs });
 } else {
   const flowText = `${flow.stdout}\n${flow.stderr}`;
   const setInputFailure = isSetInputFilesFailure(flowText);
   await emit('G3-60', 'Upload Trigger', 'PASS', { stdout: flow.stdout, stderr: flow.stderr, durationMs: flow.durationMs });
   await emit('G3-61', 'Input Discovery', setInputFailure ? 'PASS' : 'FAIL', { stdout: flow.stdout, stderr: flow.stderr, durationMs: flow.durationMs, class: setInputFailure ? undefined : 'TEST', rootCause: setInputFailure ? undefined : 'BROWSER_FLOW' });
-  await emit('G3-62', 'File Injection', 'FAIL', {
-    stdout: flow.stdout,
-    stderr: flow.stderr,
-    durationMs: flow.durationMs,
-    class: setInputFailure ? 'RUNTIME' : 'TEST',
-    rootCause: setInputFailure ? 'RC-G3-RUNTIME-001' : 'BROWSER_FLOW',
-    retryable: false,
-    assertion: 'Playwright file injection must complete without timeout',
-  });
-  for (const [gate, name] of downstreamGates) await emit(gate, name, 'BLOCKED', {
-    stdout: flow.stdout,
-    stderr: flow.stderr,
-    durationMs: flow.durationMs,
-    class: 'DEPENDENCY',
-    rootCause: 'G3-62',
-    derivedFrom: 'G3-62',
-    blockedBy: ['G3-62'],
-  });
+  await emit('G3-62', 'File Injection', 'FAIL', { stdout: flow.stdout, stderr: flow.stderr, durationMs: flow.durationMs, class: setInputFailure ? 'RUNTIME' : 'TEST', rootCause: setInputFailure ? 'RC-G3-RUNTIME-001' : 'BROWSER_FLOW', retryable: false, assertion: 'Playwright file injection must complete without timeout' });
+  for (const [gate, name] of downstreamGates) await emit(gate, name, 'BLOCKED', { stdout: flow.stdout, stderr: flow.stderr, durationMs: flow.durationMs, class: 'DEPENDENCY', rootCause: 'G3-62', derivedFrom: 'G3-62', blockedBy: ['G3-62'] });
 }
-
 await fs.writeFile('artifacts/ci/g3/browser/index.json', JSON.stringify({ results }, null, 2) + '\n');
 process.exit(results.some((result) => result.status === 'FAIL' || result.status === 'BLOCKED') ? 1 : 0);
