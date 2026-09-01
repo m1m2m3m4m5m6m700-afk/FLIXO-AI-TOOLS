@@ -2,7 +2,7 @@ import { copyFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
 import { LOCALES } from '../src/lib/i18n/config.ts';
-import { getLocalizedToolPath } from '../src/lib/routing/route-resolver.ts';
+import { getToolPath } from '../src/lib/routing/route-resolver.ts';
 
 const DIST_DIR = process.env.FLIXO_DIST_DIR ?? 'dist';
 const INDEX_FILE = join(DIST_DIR, 'index.html');
@@ -16,7 +16,7 @@ for (const locale of LOCALES) {
   copyFileSync(INDEX_FILE, join(homeDir, 'index.html'));
 
   for (const tool of readyTools) {
-    const route = getLocalizedToolPath(tool, locale).replace(/^\//u, '');
+    const route = getToolPath(tool, locale).replace(/^\//u, '');
     const routeDir = join(DIST_DIR, route);
     mkdirSync(routeDir, { recursive: true });
     copyFileSync(INDEX_FILE, join(routeDir, 'index.html'));
