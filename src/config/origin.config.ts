@@ -5,9 +5,7 @@ const OFFICIAL_PRODUCTION_ORIGIN = 'https://flixoai.vercel.app';
 type OriginEnvName = 'SITE_URL' | 'VITE_SITE_URL' | 'VITE_RUNTIME_ORIGIN' | 'VITE_TEST_ORIGIN';
 
 function readOriginEnv(name: OriginEnvName): string | undefined {
-  const configured =
-    import.meta.env?.[name]?.trim() ||
-    globalThis.process?.env?.[name]?.trim();
+  const configured = import.meta.env?.[name]?.trim() || globalThis.process?.env?.[name]?.trim();
   return configured || undefined;
 }
 
@@ -18,11 +16,9 @@ function normalizeOrigin(value: string, variableName: string): string {
   } catch {
     throw new Error(`${variableName} must be an absolute URL: ${value}`);
   }
-
   if (parsed.username || parsed.password || parsed.search || parsed.hash) {
     throw new Error(`${variableName} must not contain credentials, query parameters, or fragments.`);
   }
-
   return parsed.origin.replace(/\/$/u, '');
 }
 
@@ -31,11 +27,9 @@ export function getCanonicalSiteOrigin(): string {
   const siteConfigured = readOriginEnv('SITE_URL');
   const configured = viteConfigured || siteConfigured;
   const configuredName = viteConfigured ? 'VITE_SITE_URL' : siteConfigured ? 'SITE_URL' : 'VITE_SITE_URL';
+  const isGithubActions = globalThis.process?.env?.GITHUB_ACTIONS === 'true';
   const isVercelBuild = globalThis.process?.env?.VERCEL === '1';
-  const isCanonicalCi =
-    globalThis.process?.env?.GITHUB_ACTIONS === 'true' &&
-    globalThis.process?.env?.GITHUB_WORKFLOW === 'CI';
-  const raw = configured || (isVercelBuild || isCanonicalCi ? OFFICIAL_PRODUCTION_ORIGIN : undefined);
+  const raw = configured || (isVercelBuild || isGithubActions ? OFFICIAL_PRODUCTION_ORIGIN : undefined);
 
   if (!raw) {
     throw new Error(
@@ -45,17 +39,10 @@ export function getCanonicalSiteOrigin(): string {
 
   const normalized = normalizeOrigin(raw, configuredName);
   const origin = new URL(normalized);
-
-  if (origin.protocol !== 'https:') {
-    throw new Error(`${configuredName} must use HTTPS.`);
-  }
-
+  if (origin.protocol !== 'https:') throw new Error(`${configuredName} must use HTTPS.`);
   if (origin.origin !== OFFICIAL_PRODUCTION_ORIGIN) {
-    throw new Error(
-      `${configuredName} must be the sole official FLIXO production origin: ${OFFICIAL_PRODUCTION_ORIGIN}`,
-    );
+    throw new Error(`${configuredName} must be the sole official FLIXO production origin: ${OFFICIAL_PRODUCTION_ORIGIN}`);
   }
-
   return normalized;
 }
 
