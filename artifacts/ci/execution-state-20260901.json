@@ -3,14 +3,22 @@
   "contractVersion": "MASTER AUTONOMOUS RECOVERY & EXECUTION CONTRACT v5",
   "state": "RECOVERING",
   "currentPhase": "G4 runtime locale recovery + matrix-first CI",
-  "mainHead": "03907ad76550b1110daec97d7035c6f0b1d2ccbc",
+  "currentPr": 558,
+  "currentHead": "dc6bcfb7f45e14a30a1060780db84d5875fe1f2f",
+  "baseMainHead": "dfefd2973dd8e51f4318968c7a0613c50985a66b",
+  "latestVerifiedSha": "03907ad76550b1110daec97d7035c6f0b1d2ccbc",
   "activeRootCauses": [
+    "RC-BUILD-BASE64-APOSTROPHE-001",
     "RC-G4-RUNTIME-LOCALE-001",
     "RC-CI-MATRIX-ORDER-001",
     "RC-INFRA-VERCEL-RATE-LIMIT-001"
   ],
   "matrixIsolation": "PROVEN",
   "matrixIndependentFailure": "PROVEN",
-  "matrixFirstOrder": "PENDING_IN_CI_ORCHESTRATOR",
-  "nextRequiredAction": "Verify clean PR exact SHA, repair deterministic failures, then bind official CI behind Matrix certification."
+  "matrixFirstOrder": "IMPLEMENTED_ON_MAIN; CURRENT_SHA_REVERIFYING",
+  "lastFailure": "Matrix First run 33455931478 failed in Build preview because base64-tool-ui-runtime.ts contained an unescaped apostrophe in the Turkish translation.",
+  "lastFix": "Changed the Turkish Base64 UI translation to a double-quoted string and pushed commit dc6bcfb7f45e14a30a1060780db84d5875fe1f2f.",
+  "lastVerification": "Previous exact-head failure is classified deterministic; new exact-head workflow runs are queued/in progress.",
+  "externalBlocker": "Vercel status on the prior PR head reported a build-rate-limit failure; this is tracked separately and is not treated as application PASS/FAIL.",
+  "nextRequiredAction": "Verify new exact-head Matrix First build; classify any remaining deterministic failures; then run affected regression and release gates."
 }
