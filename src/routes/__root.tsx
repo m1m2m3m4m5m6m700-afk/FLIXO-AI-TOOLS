@@ -1,9 +1,8 @@
-import { Suspense, useEffect, useLayoutEffect } from 'react';
-import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tanstack/react-router';
+import { Suspense, useEffect } from 'react';
+import { HeadContent, Scripts, Outlet, createRootRoute } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
-import { applyDocumentLocale, localeFromPathname } from '../lib/i18n/runtime-document-locale';
 import { SITE_ORIGIN } from '../lib/i18n';
 
 const GLOBAL_STRUCTURED_DATA = {
@@ -20,11 +19,7 @@ function RouteContent() {
 
 export const rootRoute = createRootRoute({
   component: function RootLayout() {
-    const { pathname } = useLocation();
     useEffect(() => installCoreWebVitalsDiagnostics(), []);
-    useLayoutEffect(() => {
-      applyDocumentLocale(localeFromPathname(pathname));
-    }, [pathname]);
     return <><HeadContent /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} /><FlixoGlobalLogo /><CommandPalette /><RouteContent /><Scripts /></>;
   },
   head: () => ({
