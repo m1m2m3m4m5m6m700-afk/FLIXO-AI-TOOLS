@@ -2,8 +2,9 @@
   "schemaVersion": 1,
   "contractVersion": "MASTER AUTONOMOUS RECOVERY & EXECUTION CONTRACT v5",
   "state": "RECOVERING",
-  "currentPhase": "G4 runtime locale recovery + matrix-first CI",
-  "mainHead": "03907ad76550b1110daec97d7035c6f0b1d2ccbc",
+  "currentPhase": "PFS cycle 1 application + exact-SHA verification",
+  "mainHead": "pfs-branch-pending",
+  "baselineMainHead": "dfefd2973dd8e51f4318968c7a0613c50985a66b",
   "activeRootCauses": [
     "RC-G4-RUNTIME-LOCALE-001",
     "RC-CI-MATRIX-ORDER-001",
@@ -11,6 +12,7 @@
   ],
   "matrixIsolation": "PROVEN",
   "matrixIndependentFailure": "PROVEN",
-  "matrixFirstOrder": "PENDING_IN_CI_ORCHESTRATOR",
-  "nextRequiredAction": "Verify clean PR exact SHA, repair deterministic failures, then bind official CI behind Matrix certification."
+  "matrixFirstOrder": "IMPLEMENTED_IN_CI_ORCHESTRATOR",
+  "pfsCycle": "1",
+  "nextRequiredAction": "Run exact-SHA CI and PFS verification on the resulting branch head."
 }
