@@ -80,15 +80,49 @@ test.setTimeout(60_000);
 for (const pathname of routes) {
   test(`G4 all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
     const runtimeErrors: string[] = [];
+    const navigationEvents: string[] = [];
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
     page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
     page.on('requestfailed', (request) => {
       if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`);
     });
+    page.on('framenavigated', (frame) => {
+      if (frame === page.mainFrame()) navigationEvents.push(`framenavigated:${frame.url()}`);
+    });
 
     const response = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     expect(response?.status(), `${pathname} must return HTTP 200`).toBe(200);
+    if (pathname === '/hi') {
+      const afterDomContent = await page.evaluate(() => ({
+        url: location.href,
+        readyState: document.readyState,
+        lang: document.documentElement.getAttribute('lang'),
+        dir: document.documentElement.getAttribute('dir'),
+        root: document.getElementById('root')?.outerHTML.slice(0, 1200) ?? null,
+        html: document.documentElement.outerHTML.slice(0, 3500),
+      }));
+      console.log(`G4_DIAG_AFTER_DOMCONTENT=${JSON.stringify({ responseUrl: response?.url(), responseStatus: response?.status(), afterDomContent, navigationEvents })}`);
+      await page.waitForTimeout(1000);
+      const afterOneSecond = await page.evaluate(() => ({
+        url: location.href,
+        readyState: document.readyState,
+        lang: document.documentElement.getAttribute('lang'),
+        dir: document.documentElement.getAttribute('dir'),
+        root: document.getElementById('root')?.outerHTML.slice(0, 1200) ?? null,
+      }));
+      console.log(`G4_DIAG_AFTER_1S=${JSON.stringify({ afterOneSecond, navigationEvents })}`);
+    }
     await page.waitForLoadState('networkidle').catch(() => undefined);
+    if (pathname === '/hi') {
+      const afterNetworkIdle = await page.evaluate(() => ({
+        url: location.href,
+        readyState: document.readyState,
+        lang: document.documentElement.getAttribute('lang'),
+        dir: document.documentElement.getAttribute('dir'),
+        root: document.getElementById('root')?.outerHTML.slice(0, 1200) ?? null,
+      }));
+      console.log(`G4_DIAG_AFTER_NETWORKIDLE=${JSON.stringify({ afterNetworkIdle, navigationEvents, runtimeErrors })}`);
+    }
 
     const locale = pathname.match(new RegExp(`^/(${localeCodes.join('|')})(?:/|$)`, 'u'))?.[1];
     expect(locale, `${pathname} must have a canonical locale prefix`).toBeTruthy();
