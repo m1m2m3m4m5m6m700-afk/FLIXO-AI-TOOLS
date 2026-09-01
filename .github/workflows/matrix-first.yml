@@ -159,12 +159,14 @@ jobs:
           mapfile -t files < <(find matrix-evidence -name 'unit-*.json' -type f | sort)
           test "${#files[@]}" -eq 12
           for file in "${files[@]}"; do
-            node - "$file" "$EXPECTED_SHA" <<'NODE'
-            const fs = require('node:fs');
-            const [file, expected] = process.argv.slice(2);
-            const payload = JSON.parse(fs.readFileSync(file, 'utf8'));
-            if (payload.sha !== expected || payload.actualHeadSha !== expected) throw new Error(`Exact-head identity mismatch in ${file}`);
-            NODE
+            node -e '
+              const fs = require("node:fs");
+              const [file, expected] = process.argv.slice(1);
+              const payload = JSON.parse(fs.readFileSync(file, "utf8"));
+              if (payload.sha !== expected || payload.actualHeadSha !== expected) {
+                throw new Error(`Exact-head identity mismatch in ${file}`);
+              }
+            ' "$file" "$EXPECTED_SHA"
           done
       - name: Fail closed on any matrix unit
         run: |
