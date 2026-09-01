@@ -85,52 +85,35 @@ jobs:
           done
           cat /tmp/matrix-first-server.log || true
           exit 1
-      - name: Probe raw and browser /ms runtime
+      - name: Probe raw /ms document
         if: matrix.browser == 'chromium' && matrix.shard == 1
-        continue-on-error: true
-        timeout-minutes: 2
+        continue-on-error: false
+        timeout-minutes: 1
         run: |
           set -euo pipefail
-          timeout --preserve-status 90s node --input-type=module <<'NODE'
-          import { chromium } from 'playwright';
-          import { writeFile } from 'node:fs/promises';
-          const raw = await fetch('http://127.0.0.1:3000/ms');
-          const rawBody = await raw.text();
-          const result = {rawStatus: raw.status, rawLength: rawBody.length, raw: rawBody.slice(0, 12000)};
-          const browser = await chromium.launch({headless: true, timeout: 15000});
-          try {
-            const page = await browser.newPage();
-            const events = [];
-            page.on('pageerror', (error) => events.push(`pageerror:${error.message}`));
-            page.on('console', (message) => events.push(`console:${message.type()}:${message.text()}`));
-            page.on('requestfailed', (request) => events.push(`requestfailed:${request.url()}:${request.failure()?.errorText ?? 'unknown'}`));
-            const response = await page.goto('http://127.0.0.1:3000/ms', {waitUntil: 'domcontentloaded', timeout: 15000});
-            await page.waitForTimeout(1000);
-            result.browserStatus = response?.status() ?? null;
-            result.state = await page.evaluate(() => ({
-              url: location.href,
-              ready: document.readyState,
-              lang: document.documentElement.getAttribute('lang'),
-              dir: document.documentElement.getAttribute('dir'),
-              root: document.getElementById('root')?.innerHTML.slice(0, 12000) ?? null,
-              body: document.body?.innerHTML.slice(0, 12000) ?? null,
-              html: document.documentElement.outerHTML.slice(0, 16000),
-              scripts: [...document.scripts].map((script) => ({src: script.src, type: script.type, text: script.src ? '' : script.textContent?.slice(0, 1200) ?? ''})),
-            }));
-            result.events = events;
-          } finally {
-            await browser.close();
-          }
-          await writeFile('/tmp/matrix-first-ms-probe.json', JSON.stringify(result, null, 2));
-          console.log(JSON.stringify(result, null, 2));
-          NODE
-      - name: Upload immediate locale probe
+          python - <<'PY'
+          from pathlib import Path
+          import urllib.request
+          url = 'http://127.0.0.1:3000/ms'
+          with urllib.request.urlopen(url, timeout=15) as response:
+              body = response.read().decode('utf-8', errors='replace')
+              result = {
+                  'status': response.status,
+                  'content_type': response.headers.get('content-type'),
+                  'content_length': len(body),
+                  'has_locale_bootstrap': 'const localeMap' in body and "html.setAttribute('lang', lang)" in body,
+                  'html_open': body[:2500],
+              }
+          Path('/tmp/matrix-first-ms-raw.json').write_text(__import__('json').dumps(result, indent=2), encoding='utf-8')
+          print(__import__('json').dumps(result, indent=2))
+          PY
+      - name: Upload immediate raw locale probe
         if: matrix.browser == 'chromium' && matrix.shard == 1 && always()
         uses: actions/upload-artifact@v6
         with:
-          name: matrix-first-locale-probe-${{ github.run_id }}
-          path: /tmp/matrix-first-ms-probe.json
-          if-no-files-found: warn
+          name: matrix-first-raw-locale-probe-${{ github.run_id }}
+          path: /tmp/matrix-first-ms-raw.json
+          if-no-files-found: error
           retention-days: 14
       - name: Run owned shard — stop at first failure
         timeout-minutes: 15
