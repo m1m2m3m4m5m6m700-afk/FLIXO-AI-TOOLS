@@ -1,6 +1,9 @@
 import { lazy } from 'react';
 import { createRoute } from '@tanstack/react-router';
 import { rootRoute } from './__root';
+import { getCanonicalSiteOrigin } from '../config/origin.config';
+
+const CANONICAL_ORIGIN = getCanonicalSiteOrigin();
 
 export const enImageCompressorRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -13,14 +16,14 @@ export const enImageCompressorRoute = createRoute({
       { property: 'og:title', content: 'Compress Images Online Free | FLIXO' },
       { property: 'og:description', content: 'Reduce image file size, control quality, and resize images without uploading them to a server.' },
       { property: 'og:type', content: 'website' },
-      { property: 'og:url', content: '/en/image-compressor' },
+      { property: 'og:url', content: `${CANONICAL_ORIGIN}/en/image-compressor` },
       { name: 'twitter:card', content: 'summary' },
     ],
     links: [
-      { rel: 'canonical', href: '/en/image-compressor' },
-      { rel: 'alternate', hrefLang: 'en', href: '/en/image-compressor' },
-      { rel: 'alternate', hrefLang: 'ar', href: '/ar/image-compressor' },
-      { rel: 'alternate', hrefLang: 'x-default', href: '/en/image-compressor' },
+      { rel: 'canonical', href: `${CANONICAL_ORIGIN}/en/image-compressor` },
+      { rel: 'alternate', hrefLang: 'en', href: `${CANONICAL_ORIGIN}/en/image-compressor` },
+      { rel: 'alternate', hrefLang: 'ar', href: `${CANONICAL_ORIGIN}/ar/image-compressor` },
+      { rel: 'alternate', hrefLang: 'x-default', href: `${CANONICAL_ORIGIN}/en/image-compressor` },
     ],
     scripts: [{
       type: 'application/ld+json',
@@ -28,7 +31,7 @@ export const enImageCompressorRoute = createRoute({
         '@context': 'https://schema.org',
         '@type': 'WebApplication',
         name: 'FLIXO Image Compressor',
-        url: '/en/image-compressor',
+        url: `${CANONICAL_ORIGIN}/en/image-compressor`,
         applicationCategory: 'MultimediaApplication',
         operatingSystem: 'Any',
         description: 'Compress JPG, PNG, and WebP images online in your browser.',
