@@ -81,9 +81,60 @@ for (const pathname of routes) {
   test(`G4 all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
     const runtimeErrors: string[] = [];
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
-    page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
+    page.on('console', (message) => {
+      if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`);
+      if (message.type() === 'log' && message.text().startsWith('[TRACE]')) console.log(message.text());
+    });
     page.on('requestfailed', (request) => {
       if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`);
+    });
+
+    await page.addInitScript(() => {
+      const trace = (label: string, details: Record<string, unknown>) => {
+        console.log('[TRACE]', label, JSON.stringify(details));
+      };
+      const stack = () => new Error().stack?.split('\n').slice(1, 12).join('\n') ?? '';
+      const originalSetAttribute = Element.prototype.setAttribute;
+      const originalRemoveAttribute = Element.prototype.removeAttribute;
+      Element.prototype.setAttribute = function setAttribute(name: string, value: string) {
+        if (this === document.documentElement && (name === 'lang' || name === 'dir')) {
+          trace('attribute-write', { name, value, current: document.documentElement.getAttribute(name), time: performance.now(), stack: stack() });
+        }
+        return originalSetAttribute.call(this, name, value);
+      };
+      Element.prototype.removeAttribute = function removeAttribute(name: string) {
+        if (this === document.documentElement && (name === 'lang' || name === 'dir')) {
+          trace('attribute-remove', { name, current: document.documentElement.getAttribute(name), time: performance.now(), stack: stack() });
+        }
+        return originalRemoveAttribute.call(this, name);
+      };
+      const initialHtml = document.documentElement;
+      new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.type === 'attributes' && (mutation.attributeName === 'lang' || mutation.attributeName === 'dir')) {
+            trace('attribute-mutation', {
+              attribute: mutation.attributeName,
+              oldValue: mutation.oldValue,
+              current: document.documentElement.getAttribute(mutation.attributeName),
+              sameHtmlNode: document.documentElement === initialHtml,
+              time: performance.now(),
+            });
+          }
+        }
+      }).observe(initialHtml, { attributes: true, attributeOldValue: true, attributeFilter: ['lang', 'dir'] });
+      new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.type === 'childList' && mutation.target === document) {
+            trace('document-element-childlist', {
+              oldHtmlSame: document.documentElement === initialHtml,
+              currentLang: document.documentElement.getAttribute('lang'),
+              currentDir: document.documentElement.getAttribute('dir'),
+              time: performance.now(),
+            });
+          }
+        }
+      }).observe(document, { childList: true });
+      trace('init', { initialLang: initialHtml.getAttribute('lang'), initialDir: initialHtml.getAttribute('dir'), time: performance.now() });
     });
 
     const response = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
@@ -107,7 +158,7 @@ for (const pathname of routes) {
     await expect(main).toHaveAttribute('dir', expectedDirection);
 
     await expect(page.locator('h1')).toHaveCount(1);
-    await expect(page.locator('h1').first()).toHaveText(/\S+/);
+    await expect(page.locator('h1').first()).toHaveText(/\S+/u);
 
     const title = await page.title();
     const description = await page.locator('meta[name="description"]').getAttribute('content');
