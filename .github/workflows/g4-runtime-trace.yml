@@ -1,0 +1,83 @@
+name: G4 Runtime Trace (diagnostic)
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
+  PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+  S4_EXTERNAL_SERVER: 'true'
+  PLAYWRIGHT_SERVER: preview
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
+jobs:
+  trace:
+    name: G4 Runtime Trace — chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Build preview
+        run: npm run build
+      - name: Start isolated preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/g4-runtime-trace-server.log 2>&1 &
+          echo $! >/tmp/g4-runtime-trace-server.pid
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/g4-runtime-trace-server.log || true
+          exit 1
+      - name: Verify exact head
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual=$(git rev-parse HEAD)
+          test "$actual" = "$EXPECTED_SHA"
+          echo "Exact head verified: $actual"
+      - name: Run isolated G4 runtime trace
+        run: |
+          set -euo pipefail
+          npx playwright test tests/g4-runtime-trace.spec.ts --project=chromium --workers=1 --retries=0
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: g4-runtime-trace-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+            /tmp/g4-runtime-trace-server.log
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/g4-runtime-trace-server.pid ]; then kill "$(cat /tmp/g4-runtime-trace-server.pid)" 2>/dev/null || true; fi
