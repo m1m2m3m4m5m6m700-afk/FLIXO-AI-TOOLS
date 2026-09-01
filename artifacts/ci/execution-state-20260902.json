@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "contractVersion": "MASTER AUTONOMOUS RECOVERY & EXECUTION CONTRACT v5",
+  "state": "RECOVERING",
+  "currentPhase": "G4 runtime locale recovery + Matrix First certification",
+  "currentPR": 560,
+  "currentHead": "baf8a8a1a4a44ca6c5297249d605364a8585a41e",
+  "latestVerifiedSha": null,
+  "latestVerifiedCI": null,
+  "latestDeploymentSha": null,
+  "rootCauses": [
+    "RC-G4-I18N-001",
+    "RC-G4-ENGLISH-UI-TOOLCHAIN-001",
+    "RC-G4-RUNTIME-HTTP-304-001"
+  ],
+  "activeRecovery": [
+    "Restore synchronous DOM UI localization before React render.",
+    "Make isolated Vite preview document navigation cache-deterministic.",
+    "Re-run Matrix First on the exact current SHA and classify all fresh failures."
+  ],
+  "blockers": [],
+  "completedItems": [
+    "Inspected main branch, PR #560, current HEAD, prior checkpoint, and failed Matrix First run #95.",
+    "Confirmed the Matrix localization failure was deterministic and traced it to a 1500ms deferred localization runtime.",
+    "Restored synchronous localization installers before React render.",
+    "Confirmed Firefox shard 4 independently failed with HTTP 304 after English-baseline navigation.",
+    "Configured Vite preview Cache-Control: no-store without changing G4 assertions.",
+    "Recorded root-cause evidence for the two fresh failures."
+  ],
+  "incompleteItems": [
+    "Fresh Matrix First certification PASS.",
+    "Fresh G1/G2/G3/G4 and repository-wide CI verification PASS.",
+    "Final independent architecture, i18n, SEO, accessibility, artifact, regression, CI, and release audit."
+  ],
+  "invalidatedCheckpoints": [
+    "artifacts/ci/execution-state-20260901.json because its recorded main SHA 03907ad76550b1110daec97d7035c6f0b1d2ccbc is not the current execution SHA."
+  ],
+  "reusedCheckpoints": [],
+  "lastFailure": {
+    "run": 33558147985,
+    "sha": "795332115810826a1b8b9ecb84d943fdc1dc1877",
+    "signatures": [
+      "G4 exact English UI leakage in Tool Chain",
+      "Firefox localized navigation returned HTTP 304"
+    ]
+  },
+  "lastFix": {
+    "commit": "baf8a8a1a4a44ca6c5297249d605364a8585a41e",
+    "changes": [
+      "Synchronous runtime localization initialization",
+      "Preview Cache-Control: no-store",
+      "Persistent root-cause and execution-state evidence"
+    ]
+  },
+  "lastVerification": {
+    "status": "NOT_VERIFIED",
+    "verifiedAgainstSha": "795332115810826a1b8b9ecb84d943fdc1dc1877",
+    "result": "FAIL"
+  },
+  "nextRequiredAction": "Inspect the fresh Matrix First run for the exact current SHA; resolve every deterministic failure, then execute the complete affected regression graph before any release decision.",
+  "executionAttempt": 3
+}
