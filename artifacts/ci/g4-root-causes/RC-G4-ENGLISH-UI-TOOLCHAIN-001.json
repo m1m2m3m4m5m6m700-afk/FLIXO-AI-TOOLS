@@ -1,0 +1,26 @@
+{
+  "root_cause_id": "RC-G4-ENGLISH-UI-TOOLCHAIN-001",
+  "classification": "ENGLISH_UI_LEAKAGE",
+  "status": "RECOVERING",
+  "contract": "G4",
+  "scope": {
+    "routes": ["/ar/ai-captioner-srt", "/sv/ai-captioner-srt"],
+    "locales": ["ar", "sv"],
+    "browsers": ["chromium", "firefox", "webkit"]
+  },
+  "first_observed_sha": "795332115810826a1b8b9ecb84d943fdc1dc1877",
+  "observed_run": 33558147985,
+  "expected": "Non-English public routes expose localized visible UI before the G4 snapshot assertion runs.",
+  "actual": "Matrix First failed deterministically on hard-coded Tool Chain labels including Tool Chain, Open, Media file, and Generate captions. Chromium shard 1 and shard 4 reproduced the same signature in different locales; retries are not required to establish instability.",
+  "source": "tests/localization-runtime.spec.ts, tool-chain-panel.tsx, main.tsx, Matrix First run 33558147985",
+  "hypothesis": "The application deferred all DOM runtime localization installers for 1500ms, allowing React-rendered English literals to remain visible when G4 snapshots ran.",
+  "repair_commit": "77e5d2b266065bfda55d1238eab22ab6e27ab5aa",
+  "repair": "Restored synchronous runtime localization installation before React render; preserved the existing localization installers and assertions.",
+  "follow_up": {
+    "verification_sha": "bd109149f362cc206fee6ba98b04b5cb0fd797f3",
+    "verification_run": 33560518053,
+    "status": "IN_PROGRESS"
+  },
+  "final_status": "NOT_VERIFIED",
+  "next_action": "Complete Matrix First on the repair SHA and inspect any fresh independent failures before marking the root cause resolved."
+}
