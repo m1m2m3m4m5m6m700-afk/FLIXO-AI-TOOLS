@@ -20,6 +20,29 @@ const DEFINITIONS: Record<Exclude<LocalToolId, 'ai-image-generator' | 'image-com
   'raster-to-svg': { title: 'Raster to SVG', description: 'Convert a small raster image to compact pixel-based SVG locally.', accept: 'image/png,image/jpeg,image/webp' },
 };
 
+const GENERATOR_COPY: Readonly<Record<string, { title: string; description: string }>> = {
+  ar: { title: 'مولد الصور بالذكاء الاصطناعي', description: 'أنشئ صورة باستخدام نموذج الصور بالذكاء الاصطناعي المهيأ في FLIXO.' },
+  en: { title: 'AI Image Generator', description: 'Generate an image through the configured FLIXO image model endpoint.' },
+  es: { title: 'Generador de imágenes con IA', description: 'Genera una imagen mediante el modelo de imágenes con IA configurado en FLIXO.' },
+  fr: { title: 'Générateur d’images IA', description: 'Générez une image avec le modèle d’images IA configuré dans FLIXO.' },
+  de: { title: 'KI-Bildgenerator', description: 'Erstellen Sie ein Bild mit dem in FLIXO konfigurierten KI-Bildmodell.' },
+  hi: { title: 'एआई इमेज जनरेटर', description: 'FLIXO में कॉन्फ़िगर किए गए AI इमेज मॉडल से एक चित्र बनाएँ।' },
+  id: { title: 'Generator Gambar AI', description: 'Buat gambar melalui model gambar AI yang dikonfigurasi di FLIXO.' },
+  it: { title: 'Generatore di immagini IA', description: 'Genera un’immagine tramite il modello di immagini IA configurato in FLIXO.' },
+  ja: { title: 'AI画像生成', description: 'FLIXOで設定されたAI画像モデルを使って画像を生成します。' },
+  ko: { title: 'AI 이미지 생성기', description: 'FLIXO에 구성된 AI 이미지 모델을 통해 이미지를 생성합니다.' },
+  ms: { title: 'Penjana Imej AI', description: 'Jana imej melalui model imej AI yang dikonfigurasikan dalam FLIXO.' },
+  nl: { title: 'AI-afbeeldingsgenerator', description: 'Genereer een afbeelding met het in FLIXO geconfigureerde AI-afbeeldingsmodel.' },
+  pl: { title: 'Generator obrazów AI', description: 'Generuj obraz za pomocą modelu obrazów AI skonfigurowanego w FLIXO.' },
+  pt: { title: 'Gerador de imagens IA', description: 'Gere uma imagem usando o modelo de imagens IA configurado no FLIXO.' },
+  ru: { title: 'Генератор изображений ИИ', description: 'Создайте изображение с помощью модели изображений ИИ, настроенной в FLIXO.' },
+  sv: { title: 'AI-bildgenerator', description: 'Skapa en bild med den AI-bildmodell som är konfigurerad i FLIXO.' },
+  th: { title: 'เครื่องสร้างภาพ AI', description: 'สร้างภาพผ่านโมเดลสร้างภาพ AI ที่กำหนดค่าไว้ใน FLIXO' },
+  tr: { title: 'Yapay Zeka Görsel Oluşturucu', description: 'FLIXO’da yapılandırılmış yapay zeka görsel modeliyle bir görsel oluşturun.' },
+  uk: { title: 'Генератор зображень ШІ', description: 'Створюйте зображення через модель зображень ШІ, налаштовану у FLIXO.' },
+  vi: { title: 'Trình tạo hình ảnh AI', description: 'Tạo hình ảnh thông qua mô hình hình ảnh AI được cấu hình trong FLIXO.' },
+};
+
 type Props = { toolId: Exclude<LocalToolId, 'image-compressor'> };
 type SharedImageToolId = Exclude<LocalToolId, 'ai-image-generator' | 'image-compressor'>;
 type Result = { blob: Blob; text?: string; fileName: string; info?: { width: number; height: number }; objectUrl?: string };
@@ -85,7 +108,7 @@ export function ImageToolPage({ toolId }: Props) {
   const locale = isLocale(localeCode) ? localeCode : 'en';
   const localeMetadata = LOCALE_METADATA[locale];
   const isGenerator = toolId === 'ai-image-generator';
-  const definition = isGenerator ? { title: 'AI Image Generator', description: 'Generate an image through the configured FLIXO image model endpoint.', accept: '' } : DEFINITIONS[toolId];
+  const definition = isGenerator ? (GENERATOR_COPY[locale] ?? GENERATOR_COPY.en) : DEFINITIONS[toolId];
   const [file, setFile] = useState<File | null>(null);
   const [prompt, setPrompt] = useState('');
   const [outputFormat, setOutputFormat] = useState<'image/png' | 'image/jpeg' | 'image/webp'>('image/webp');
