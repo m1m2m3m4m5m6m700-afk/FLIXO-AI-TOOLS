@@ -85,6 +85,27 @@ jobs:
           done
           cat /tmp/matrix-first-server.log || true
           exit 1
+      - name: Record exact-head unit identity
+        shell: bash
+        env:
+          TESTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BROWSER: ${{ matrix.browser }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/ci/matrix-first
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const { execFileSync } = require('node:child_process');
+          const payload = {
+            sha: process.env.TESTED_SHA,
+            actualHeadSha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+            browser: process.env.BROWSER,
+            shard: process.env.SHARD,
+          };
+          if (payload.sha !== payload.actualHeadSha) throw new Error(`SHA mismatch: ${payload.sha} !== ${payload.actualHeadSha}`);
+          fs.writeFileSync(`artifacts/ci/matrix-first/unit-${payload.browser}-shard-${payload.shard}.json`, JSON.stringify(payload, null, 2));
+          NODE
       - name: Run owned shard — stop at first failure
         timeout-minutes: 15
         run: |
@@ -96,12 +117,13 @@ jobs:
             --retries=0 \
             --max-failures=1 \
             --shard=${{ matrix.shard }}/4
-      - name: Upload independent diagnostics
+      - name: Upload independent diagnostics and identity
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: matrix-first-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
           path: |
+            artifacts/ci/matrix-first/
             playwright-report/
             test-results/
             /tmp/matrix-first-server.log
@@ -121,10 +143,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
+      - name: Download all matrix identity evidence
+        uses: actions/download-artifact@v6
+        with:
+          pattern: matrix-first-*-shard-*-${{ github.run_id }}
+          path: matrix-evidence
+          merge-multiple: true
+      - name: Verify every unit exact-head identity
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$EXPECTED_SHA"
+          mapfile -t files < <(find matrix-evidence -name 'unit-*.json' -type f | sort)
+          test "${#files[@]}" -eq 12
+          for file in "${files[@]}"; do
+            node - "$file" "$EXPECTED_SHA" <<'NODE'
+            const fs = require('node:fs');
+            const [file, expected] = process.argv.slice(2);
+            const payload = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (payload.sha !== expected || payload.actualHeadSha !== expected) throw new Error(`Exact-head identity mismatch in ${file}`);
+            NODE
+          done
       - name: Fail closed on any matrix unit
         run: |
           set -euo pipefail
           result='${{ needs.matrix.result }}'
           echo "matrix=$result"
           test "$result" = success
-          echo 'Matrix First Certification PASS: all 12 browser/shard units passed independently.'
+          echo 'Matrix First Certification PASS: all 12 browser/shard units passed independently with exact-head identity evidence.'
