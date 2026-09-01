@@ -14,9 +14,13 @@ function canonicalSlug(path: string): string {
   return match[1];
 }
 
-export function getLocalizedToolPath(tool: CanonicalToolPathSource, locale: Locale): string {
+/** Authoritative tool-route resolver. All subsystems must derive localized tool paths from here. */
+export function getToolPath(tool: CanonicalToolPathSource, locale: Locale): string {
   return `/${locale}/${canonicalSlug(tool.path)}`;
 }
+
+/** Backward-compatible alias; new consumers must use getToolPath. */
+export const getLocalizedToolPath = getToolPath;
 
 export function getLocalizedToolUrl(
   origin: string,
@@ -24,5 +28,5 @@ export function getLocalizedToolUrl(
   locale: Locale,
 ): string {
   const base = origin.endsWith('/') ? origin : `${origin}/`;
-  return new URL(getLocalizedToolPath(tool, locale).slice(1), base).toString();
+  return new URL(getToolPath(tool, locale).slice(1), base).toString();
 }
