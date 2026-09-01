@@ -10,7 +10,7 @@ const localeCodes = LOCALES;
 const languageTags = Object.fromEntries(LOCALES.map((locale) => [locale, LOCALE_METADATA[locale].languageTag])) as Record<(typeof localeCodes)[number], string>;
 const sharedTerms = new Set(['FLIXO', 'QuickFlow', 'OCR', 'PDF', 'English', 'العربية', 'Smart Intent', 'Ctrl K', 'WebP', 'PNG', 'JPEG', 'GIF', 'SVG', 'CSV', 'JSON', 'ZIP', 'MP3', 'MP4', 'Whisper', 'WebGPU', 'WASM']);
 const sharedPhrases = new Set(['FLIXO AI Tools', 'FLIXO home']);
-const traceRoute = '/ar/ai-vocal-instrumental-remover';
+const traceRoute = '/ar/ai-captioner-srt';
 const technicalCapabilityPhrase = /^(?:WebGPU|WASM|CPU)(?:\s+(?:WebGPU|WASM|CPU))*$/u;
 const technicalCodecPhrase = /^(?:WebP|JPG|PNG|JPEG|GIF|SVG)(?:\s+(?:WebP|JPG|PNG|JPEG|GIF|SVG))*$/u;
 const technicalHashPhrase = /^(?:SHA-\d+)(?:\s+SHA-\d+)*$/u;
@@ -27,8 +27,7 @@ const sharedOnly = (value: string) => {
 };
 
 type Snapshot = { title: string; description: string; h1: string; ui: string[] };
-type LangTraceEntry = { label: string; lang: string | null; dir: string | null; time: number; htmlId: string };
-declare global { interface Window { __g4NativeTrace?: LangTraceEntry[]; __g4NativeHtmlId?: string } }
+
 const familyPath = (pathname: string) => pathname.replace(new RegExp(`^/(?:${localeCodes.join('|')})(?=/|$)`, 'u'), '') || '/';
 const localizedPath = (locale: string, family: string) => `/${locale}${family === '/' ? '' : family}`;
 
@@ -46,43 +45,43 @@ test.setTimeout(60_000);
 for (const pathname of routes) {
   test(`G4 all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
     const runtimeErrors: string[] = [];
-    const captureNativeTrace = async (label: string) => {
-      if (pathname !== traceRoute) return;
-      const payload = await page.evaluate((traceLabel) => ({ label: traceLabel, lang: document.documentElement.getAttribute('lang'), dir: document.documentElement.getAttribute('dir'), trace: window.__g4NativeTrace ?? [], htmlId: window.__g4NativeHtmlId ?? 'unknown', time: performance.now() }), label);
-      console.log('[G4 NATIVE TRACE]', JSON.stringify(payload));
-    };
+
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
-    page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
+    page.on('console', (message) => {
+      const text = message.text();
+      if (text.startsWith('[G4 NATIVE READ]')) console.log(text);
+      if (message.type() === 'error') runtimeErrors.push(`console: ${text}`);
+    });
     page.on('requestfailed', (request) => { if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`); });
 
     await page.addInitScript(() => {
-      const trace: LangTraceEntry[] = [];
       const rawGetAttribute = Element.prototype.getAttribute;
       const rawSetAttribute = Element.prototype.setAttribute;
       const rawRemoveAttribute = Element.prototype.removeAttribute;
-      const record = (label: string, lang?: string | null, dir?: string | null) => {
-        if (trace.length >= 512) trace.shift();
+      let reads = 0;
+      const emit = (kind: string, value: string | null) => {
+        if (reads >= 64) return;
+        reads += 1;
         const html = document.documentElement;
-        trace.push({ label, lang: lang === undefined ? (html ? rawGetAttribute.call(html, 'lang') : null) : lang, dir: dir === undefined ? (html ? rawGetAttribute.call(html, 'dir') : null) : dir, time: performance.now(), htmlId: window.__g4NativeHtmlId ?? 'unknown' });
+        const lang = html ? rawGetAttribute.call(html, 'lang') : null;
+        const dir = html ? rawGetAttribute.call(html, 'dir') : null;
+        console.log(`[G4 NATIVE READ] ${JSON.stringify({ kind, value, lang, dir, time: performance.now() })}`);
       };
-      window.__g4NativeTrace = trace;
-      window.__g4NativeHtmlId = Math.random().toString(36).slice(2);
-      window.addEventListener('DOMContentLoaded', () => record('DOMContentLoaded'));
-      window.addEventListener('load', () => record('load'));
+      window.addEventListener('DOMContentLoaded', () => emit('DOMContentLoaded', null));
+      window.addEventListener('load', () => emit('load', null));
       Element.prototype.setAttribute = function(name: string, value: string) {
-        if (this === document.documentElement && (name === 'lang' || name === 'dir')) record(`setAttribute:${name}`, name === 'lang' ? value : undefined, name === 'dir' ? value : undefined);
+        if (this === document.documentElement && (name === 'lang' || name === 'dir')) emit(`setAttribute:${name}`, value);
         return rawSetAttribute.call(this, name, value);
       };
       Element.prototype.removeAttribute = function(name: string) {
-        if (this === document.documentElement && (name === 'lang' || name === 'dir')) record(`removeAttribute:${name}`, null, null);
+        if (this === document.documentElement && (name === 'lang' || name === 'dir')) emit(`removeAttribute:${name}`, null);
         return rawRemoveAttribute.call(this, name);
       };
       Element.prototype.getAttribute = function(name: string) {
         const value = rawGetAttribute.call(this, name);
-        if (this === document.documentElement && name === 'lang') record(`getAttribute:lang:${value === null ? 'null' : value}`, value, undefined);
+        if (this === document.documentElement && name === 'lang') emit('getAttribute:lang', value);
         return value;
       };
-      record('init');
     });
 
     const response = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
@@ -93,16 +92,9 @@ for (const pathname of routes) {
     const localeCode = locale as (typeof localeCodes)[number];
     const expectedDirection = LOCALE_METADATA[localeCode].direction;
     const family = familyPath(pathname);
-    await captureNativeTrace('before-lang-assertion');
+
     await expect(page.locator('html')).toHaveAttribute('lang', languageTags[localeCode]);
-    await captureNativeTrace('after-lang-assertion');
     await expect(page.locator('html')).toHaveAttribute('dir', expectedDirection);
-
-    if (pathname === traceRoute) {
-      const finalTrace = await page.evaluate(() => ({ lang: document.documentElement.getAttribute('lang'), dir: document.documentElement.getAttribute('dir'), trace: window.__g4NativeTrace ?? [], htmlId: window.__g4NativeHtmlId ?? 'unknown' }));
-      console.log('[G4 NATIVE TRACE FINAL]', JSON.stringify(finalTrace));
-    }
-
     const mains = page.locator('main');
     await expect(mains).toHaveCount(1);
     const main = mains.first();
