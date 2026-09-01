@@ -3,16 +3,18 @@
   "contractVersion": "MASTER AUTONOMOUS RECOVERY & EXECUTION CONTRACT v5",
   "state": "RECOVERING",
   "currentPhase": "PFS cycle 1 application + exact-SHA verification",
-  "mainHead": "pfs-branch-pending",
-  "baselineMainHead": "dfefd2973dd8e51f4318968c7a0613c50985a66b",
+  "mainHead": "dfefd2973dd8e51f4318968c7a0613c50985a66b",
+  "workingBranch": "pfs/cycle-1-apply-decisions",
+  "workingHead": "e61913bcf2fe96348782ee564f046bb670acc983",
   "activeRootCauses": [
     "RC-G4-RUNTIME-LOCALE-001",
     "RC-CI-MATRIX-ORDER-001",
-    "RC-INFRA-VERCEL-RATE-LIMIT-001"
+    "RC-INFRA-VERCEL-RATE-LIMIT-001",
+    "RC-PFS-STATE-IDENTITY-001"
   ],
   "matrixIsolation": "PROVEN",
   "matrixIndependentFailure": "PROVEN",
   "matrixFirstOrder": "IMPLEMENTED_IN_CI_ORCHESTRATOR",
   "pfsCycle": "1",
-  "nextRequiredAction": "Run exact-SHA CI and PFS verification on the resulting branch head."
+  "nextRequiredAction": "Open PR from the isolated branch, then collect fresh exact-SHA CI and PFS verification evidence."
 }
