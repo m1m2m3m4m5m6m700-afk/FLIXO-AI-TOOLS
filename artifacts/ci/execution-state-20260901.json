@@ -3,7 +3,7 @@
   "contractVersion": "MASTER AUTONOMOUS RECOVERY & EXECUTION CONTRACT v5",
   "state": "RECOVERING",
   "currentPhase": "G4 runtime locale recovery + matrix-first CI",
-  "mainHead": "03907ad76550b1110daec97d7035c6f0b1d2ccbc",
+  "mainHead": "dfefd2973dd8e51f4318968c7a0613c50985a66b",
   "activeRootCauses": [
     "RC-G4-RUNTIME-LOCALE-001",
     "RC-CI-MATRIX-ORDER-001",
