@@ -20,10 +20,17 @@ applyDocumentLocale(localeFromPathname(window.location.pathname));
 const disposeDocumentLocaleContract = installDocumentLocaleContract(() => window.location.pathname);
 installRuntimeDiagnostics();
 installPerformanceDiagnostics();
-const disposeToolUiLocalization = installToolUiRuntimeLocalization();
-const disposeToolUiLocalizationSupplement = installToolUiRuntimeSupplement();
-const disposeToolUiTechnicalValues = installToolUiTechnicalValueNormalization();
-const disposeToolUiRuntimeCompleteness = installToolUiRuntimeCompleteness();
+
+let disposeToolUiLocalization = () => undefined;
+let disposeToolUiLocalizationSupplement = () => undefined;
+let disposeToolUiTechnicalValues = () => undefined;
+let disposeToolUiRuntimeCompleteness = () => undefined;
+let uiRuntimeFrame = window.requestAnimationFrame(() => {
+  disposeToolUiLocalization = installToolUiRuntimeLocalization();
+  disposeToolUiLocalizationSupplement = installToolUiRuntimeSupplement();
+  disposeToolUiTechnicalValues = installToolUiTechnicalValueNormalization();
+  disposeToolUiRuntimeCompleteness = installToolUiRuntimeCompleteness();
+});
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
@@ -42,6 +49,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 );
 
 if (import.meta.hot) import.meta.hot.dispose(() => {
+  window.cancelAnimationFrame(uiRuntimeFrame);
   disposeDocumentLocaleContract();
   disposeToolUiLocalization();
   disposeToolUiLocalizationSupplement();
