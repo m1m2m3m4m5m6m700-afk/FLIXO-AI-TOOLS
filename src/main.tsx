@@ -49,7 +49,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 );
 
-for (const delay of [0, 100, 350, 800]) {
+// Tool routes are lazy-loaded. Use bounded post-render passes long enough to
+// cover asynchronous module/component resolution without restoring a global
+// DOM MutationObserver that can starve the browser event loop.
+for (const delay of [0, 100, 350, 800, 1500, 2500, 4000]) {
   window.setTimeout(localizeRenderedUi, delay);
 }
 
