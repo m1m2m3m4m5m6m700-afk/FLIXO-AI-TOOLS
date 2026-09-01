@@ -20,27 +20,28 @@ const DEFINITIONS: Record<Exclude<LocalToolId, 'ai-image-generator' | 'image-com
   'raster-to-svg': { title: 'Raster to SVG', description: 'Convert a small raster image to compact pixel-based SVG locally.', accept: 'image/png,image/jpeg,image/webp' },
 };
 
-const GENERATOR_COPY: Readonly<Record<string, { title: string; description: string }>> = {
-  ar: { title: 'مولد الصور بالذكاء الاصطناعي', description: 'أنشئ صورة باستخدام نموذج الصور بالذكاء الاصطناعي المهيأ في FLIXO.' },
-  en: { title: 'AI Image Generator', description: 'Generate an image through the configured FLIXO image model endpoint.' },
-  es: { title: 'Generador de imágenes con IA', description: 'Genera una imagen mediante el modelo de imágenes con IA configurado en FLIXO.' },
-  fr: { title: 'Générateur d’images IA', description: 'Générez une image avec le modèle d’images IA configuré dans FLIXO.' },
-  de: { title: 'KI-Bildgenerator', description: 'Erstellen Sie ein Bild mit dem in FLIXO konfigurierten KI-Bildmodell.' },
-  hi: { title: 'एआई इमेज जनरेटर', description: 'FLIXO में कॉन्फ़िगर किए गए AI इमेज मॉडल से एक चित्र बनाएँ।' },
-  id: { title: 'Generator Gambar AI', description: 'Buat gambar melalui model gambar AI yang dikonfigurasi di FLIXO.' },
-  it: { title: 'Generatore di immagini IA', description: 'Genera un’immagine tramite il modello di immagini IA configurato in FLIXO.' },
-  ja: { title: 'AI画像生成', description: 'FLIXOで設定されたAI画像モデルを使って画像を生成します。' },
-  ko: { title: 'AI 이미지 생성기', description: 'FLIXO에 구성된 AI 이미지 모델을 통해 이미지를 생성합니다.' },
-  ms: { title: 'Penjana Imej AI', description: 'Jana imej melalui model imej AI yang dikonfigurasikan dalam FLIXO.' },
-  nl: { title: 'AI-afbeeldingsgenerator', description: 'Genereer een afbeelding met het in FLIXO geconfigureerde AI-afbeeldingsmodel.' },
-  pl: { title: 'Generator obrazów AI', description: 'Generuj obraz za pomocą modelu obrazów AI skonfigurowanego w FLIXO.' },
-  pt: { title: 'Gerador de imagens IA', description: 'Gere uma imagem usando o modelo de imagens IA configurado no FLIXO.' },
-  ru: { title: 'Генератор изображений ИИ', description: 'Создайте изображение с помощью модели изображений ИИ, настроенной в FLIXO.' },
-  sv: { title: 'AI-bildgenerator', description: 'Skapa en bild med den AI-bildmodell som är konfigurerad i FLIXO.' },
-  th: { title: 'เครื่องสร้างภาพ AI', description: 'สร้างภาพผ่านโมเดลสร้างภาพ AI ที่กำหนดค่าไว้ใน FLIXO' },
-  tr: { title: 'Yapay Zeka Görsel Oluşturucu', description: 'FLIXO’da yapılandırılmış yapay zeka görsel modeliyle bir görsel oluşturun.' },
-  uk: { title: 'Генератор зображень ШІ', description: 'Створюйте зображення через модель зображень ШІ, налаштовану у FLIXO.' },
-  vi: { title: 'Trình tạo hình ảnh AI', description: 'Tạo hình ảnh thông qua mô hình hình ảnh AI được cấu hình trong FLIXO.' },
+type ToolDefinition = { title: string; description: string; accept: string };
+const GENERATOR_COPY: Readonly<Record<string, ToolDefinition>> = {
+  ar: { title: 'مولد الصور بالذكاء الاصطناعي', description: 'أنشئ صورة باستخدام نموذج الصور بالذكاء الاصطناعي المهيأ في FLIXO.', accept: '' },
+  en: { title: 'AI Image Generator', description: 'Generate an image through the configured FLIXO image model endpoint.', accept: '' },
+  es: { title: 'Generador de imágenes con IA', description: 'Genera una imagen mediante el modelo de imágenes con IA configurado en FLIXO.', accept: '' },
+  fr: { title: 'Générateur d’images IA', description: 'Générez une image avec le modèle d’images IA configuré dans FLIXO.', accept: '' },
+  de: { title: 'KI-Bildgenerator', description: 'Erstellen Sie ein Bild mit dem in FLIXO konfigurierten KI-Bildmodell.', accept: '' },
+  hi: { title: 'एआई इमेज जनरेटर', description: 'FLIXO में कॉन्फ़िगर किए गए AI इमेज मॉडल से एक चित्र बनाएँ।', accept: '' },
+  id: { title: 'Generator Gambar AI', description: 'Buat gambar melalui model gambar AI yang dikonfigurasi di FLIXO.', accept: '' },
+  it: { title: 'Generatore di immagini IA', description: 'Genera un’immagine tramite il modello di immagini IA configurato in FLIXO.', accept: '' },
+  ja: { title: 'AI画像生成', description: 'FLIXOで設定されたAI画像モデルを使って画像を生成します。', accept: '' },
+  ko: { title: 'AI 이미지 생성기', description: 'FLIXO에 구성된 AI 이미지 모델을 통해 이미지를 생성합니다.', accept: '' },
+  ms: { title: 'Penjana Imej AI', description: 'Jana imej melalui model imej AI yang dikonfigurasikan dalam FLIXO.', accept: '' },
+  nl: { title: 'AI-afbeeldingsgenerator', description: 'Genereer een afbeelding met het in FLIXO geconfigureerde AI-afbeeldingsmodel.', accept: '' },
+  pl: { title: 'Generator obrazów AI', description: 'Generuj obraz za pomocą modelu obrazów AI skonfigurowanego w FLIXO.', accept: '' },
+  pt: { title: 'Gerador de imagens IA', description: 'Gere uma imagem usando o modelo de imagens IA configurado no FLIXO.', accept: '' },
+  ru: { title: 'Генератор изображений ИИ', description: 'Создайте изображение с помощью модели изображений ИИ, настроенной в FLIXO.', accept: '' },
+  sv: { title: 'AI-bildgenerator', description: 'Skapa en bild med den AI-bildmodell som är konfigurerad i FLIXO.', accept: '' },
+  th: { title: 'เครื่องสร้างภาพ AI', description: 'สร้างภาพผ่านโมเดลสร้างภาพ AI ที่กำหนดค่าไว้ใน FLIXO', accept: '' },
+  tr: { title: 'Yapay Zeka Görsel Oluşturucu', description: 'FLIXO’da yapılandırılmış yapay zeka görsel modeliyle bir görsel oluşturun.', accept: '' },
+  uk: { title: 'Генератор зображень ШІ', description: 'Створюйте зображення через модель зображень ШІ, налаштовану у FLIXO.', accept: '' },
+  vi: { title: 'Trình tạo hình ảnh AI', description: 'Tạo hình ảnh thông qua mô hình hình ảnh AI được cấu hình trong FLIXO.', accept: '' },
 };
 
 type Props = { toolId: Exclude<LocalToolId, 'image-compressor'> };
@@ -61,17 +62,12 @@ async function validateSharedImageInput(file: File, toolId: SharedImageToolId) {
   const basePolicy = { allowedMime, maxBytes: 25 * 1024 * 1024, maxPixels: 40_000_000 } as const;
   const basic = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size }, basePolicy);
   if (!basic.safe) throw new Error(`Input rejected by File Safety: ${basic.failures.join('; ')}`);
-
   const rasterPolicy = RASTER_SIGNATURE_POLICIES[file.type as RasterMime];
   if (rasterPolicy) {
     const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
-    const boundary = validateUploadBoundary(
-      { name: file.name, mime: file.type, bytes },
-      { ...basePolicy, allowedExtensions: rasterPolicy.extensions, signatures: rasterPolicy.signatures },
-    );
+    const boundary = validateUploadBoundary({ name: file.name, mime: file.type, bytes }, { ...basePolicy, allowedExtensions: rasterPolicy.extensions, signatures: rasterPolicy.signatures });
     if (!boundary.safe) throw new Error(`Input rejected by Upload Security Boundary: ${boundary.failures.join('; ')}`);
   }
-
   const sourceInfo = await imageInfo(file);
   const dimensionCheck = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size, width: sourceInfo.width, height: sourceInfo.height }, basePolicy);
   if (!dimensionCheck.safe) throw new Error(`Input rejected by File Safety: ${dimensionCheck.failures.join('; ')}`);
@@ -108,7 +104,7 @@ export function ImageToolPage({ toolId }: Props) {
   const locale = isLocale(localeCode) ? localeCode : 'en';
   const localeMetadata = LOCALE_METADATA[locale];
   const isGenerator = toolId === 'ai-image-generator';
-  const definition = isGenerator ? (GENERATOR_COPY[locale] ?? GENERATOR_COPY.en) : DEFINITIONS[toolId];
+  const definition: ToolDefinition = isGenerator ? (GENERATOR_COPY[locale] ?? GENERATOR_COPY.en) : DEFINITIONS[toolId];
   const [file, setFile] = useState<File | null>(null);
   const [prompt, setPrompt] = useState('');
   const [outputFormat, setOutputFormat] = useState<'image/png' | 'image/jpeg' | 'image/webp'>('image/webp');
@@ -116,17 +112,8 @@ export function ImageToolPage({ toolId }: Props) {
   const [cropX, setCropX] = useState('0'); const [cropY, setCropY] = useState('0'); const [cropW, setCropW] = useState('500'); const [cropH, setCropH] = useState('500'); const [outW, setOutW] = useState('500'); const [outH, setOutH] = useState('500');
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [result, setResult] = useState<Result | null>(null);
   const objectUrlRef = useRef<string | undefined>(undefined);
-
-  useEffect(() => () => {
-    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-  }, []);
-
-  const replaceResult = (next: Result | null) => {
-    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    objectUrlRef.current = next?.objectUrl;
-    setResult(next);
-  };
-
+  useEffect(() => () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current); }, []);
+  const replaceResult = (next: Result | null) => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current); objectUrlRef.current = next?.objectUrl; setResult(next); };
   const run = async () => {
     setBusy(true); setError(''); replaceResult(null);
     try {
@@ -154,7 +141,6 @@ export function ImageToolPage({ toolId }: Props) {
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Tool failed.'); }
     finally { setBusy(false); }
   };
-
   return (
     <main lang={localeMetadata.languageTag} dir={localeMetadata.direction} className="image-tool-shell">
       <div className="image-tool-container">
