@@ -12,6 +12,13 @@ const TreeNode = ({ value, depth = 0 }: TreeNodeProps) => {
   return <span>{JSON.stringify(value)}</span>;
 };
 
+const YAML_LABELS: Record<string, string> = {
+  ar: 'تنسيق YAML', en: 'YAML', es: 'Formato YAML', fr: 'Format YAML', de: 'YAML-Format', hi: 'YAML प्रारूप',
+  id: 'Format YAML', it: 'Formato YAML', ja: 'YAML形式', ko: 'YAML 형식', ms: 'Format YAML', nl: 'YAML-indeling',
+  pl: 'Format YAML', pt: 'Formato YAML', ru: 'Формат YAML', sv: 'YAML-format', th: 'รูปแบบ YAML', tr: 'YAML biçimi',
+  uk: 'Формат YAML', vi: 'Định dạng YAML',
+};
+
 export function JsonFormatterValidatorTool() {
   const [input, setInput] = useState(DEFAULT_JSON);
   const [output, setOutput] = useState(DEFAULT_JSON);
@@ -20,6 +27,8 @@ export function JsonFormatterValidatorTool() {
   const [format, setFormat] = useState<'json' | 'yaml' | 'csv'>('json');
   const validation = useMemo(() => validateJson(input), [input]);
   const parsedValue = useMemo(() => validation.valid ? JSON.parse(input) as unknown : null, [input, validation.valid]);
+  const pageLocale = typeof document !== 'undefined' ? document.documentElement.lang.toLowerCase().split('-')[0] : 'en';
+  const yamlLabel = YAML_LABELS[pageLocale] ?? YAML_LABELS.en;
 
   const run = (action: 'pretty' | 'minify' | 'yaml' | 'csv') => {
     if (!validation.valid) { setOutput(validation.error ?? 'Invalid JSON'); return; }
@@ -44,7 +53,7 @@ export function JsonFormatterValidatorTool() {
   return <main className="mx-auto max-w-6xl space-y-6 p-6">
     <header><h1 className="text-3xl font-bold">JSON Formatter &amp; Validator</h1><p className="mt-2 opacity-80">Format, validate, inspect, convert, copy, and download JSON locally.</p></header>
     <div className="flex flex-wrap gap-2">
-      <button type="button" onClick={() => run('pretty')}>Prettify</button><button type="button" onClick={() => run('minify')}>Minify</button><button type="button" onClick={() => run('yaml')}>YAML</button><button type="button" onClick={() => run('csv')}>CSV</button>
+      <button type="button" onClick={() => run('pretty')}>Prettify</button><button type="button" onClick={() => run('minify')}>Minify</button><button type="button" onClick={() => run('yaml')}>{yamlLabel}</button><button type="button" onClick={() => run('csv')}>CSV</button>
       <label className="flex items-center gap-2">Spaces<select value={spaces} onChange={(event) => setSpaces(Number(event.target.value) as 2 | 4)}><option value="2">2</option><option value="4">4</option></select></label>
       <button type="button" onClick={() => setMode((current) => current === 'editor' ? 'tree' : 'editor')}>{mode === 'editor' ? 'Tree View' : 'Editor View'}</button><button type="button" onClick={copyOutput}>Copy</button><button type="button" onClick={downloadOutput}>Download</button>
     </div>
