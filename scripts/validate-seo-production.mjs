@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { LOCALES, LOCALE_METADATA, X_DEFAULT_LOCALE, getCanonicalSiteOrigin } from '../src/lib/i18n/config.ts';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
-import { getLocalizedToolPath, getLocalizedToolUrl } from '../src/lib/routing/route-resolver.ts';
+import { getToolPath, getLocalizedToolUrl } from '../src/lib/routing/route-resolver.ts';
 
 const outputDir = process.env.FLIXO_GENERATED_OUTPUT_DIR?.trim() || 'dist';
 const sitemapPath = `${outputDir}/sitemap.xml`;
@@ -20,14 +20,7 @@ const readRequired = (path) => {
   }
 };
 
-const xmlEscape = (value) =>
-  value.replace(/[&<>"']/gu, (char) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&apos;',
-  })[char]);
+const xmlEscape = (value) => value.replace(/[&<>"']/gu, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[char]);
 
 const canonicalOrigin = getCanonicalSiteOrigin();
 const sitemap = readRequired(sitemapPath);
@@ -42,17 +35,10 @@ const assertCanonicalOnly = (text, artifactName) => {
         ...[...text.matchAll(/<xhtml:link\s+rel="alternate"\s+hreflang="[^"]+"\s+href="(https?:\/\/[^" ]+)"\s*\/>/gu)].map((match) => match[1]),
       ]
     : [...text.matchAll(/^Sitemap:\s*(https?:\/\/\S+)$/gmu)].map((match) => match[1]);
-
   for (const rawUrl of urls) {
     let url;
-    try {
-      url = new URL(rawUrl);
-    } catch {
-      fail(`${artifactName} contains an invalid URL: ${rawUrl}`);
-    }
-    if (url.origin !== canonicalOrigin) {
-      fail(`${artifactName} contains a non-canonical origin: ${url.origin}; expected ${canonicalOrigin}`);
-    }
+    try { url = new URL(rawUrl); } catch { fail(`${artifactName} contains an invalid URL: ${rawUrl}`); }
+    if (url.origin !== canonicalOrigin) fail(`${artifactName} contains a non-canonical origin: ${url.origin}; expected ${canonicalOrigin}`);
   }
 };
 
@@ -63,13 +49,10 @@ const readyTools = TOOL_MANIFEST.filter((tool) => tool.isReady);
 if (readyTools.length === 0) fail('no ready tools are available');
 
 const expectedPaths = new Set(LOCALES.map((locale) => `/${locale}`));
-for (const tool of readyTools) {
-  for (const locale of LOCALES) expectedPaths.add(getLocalizedToolPath(tool, locale));
-}
+for (const tool of readyTools) for (const locale of LOCALES) expectedPaths.add(getToolPath(tool, locale));
 
 const locMatches = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)].map((match) => match[1]);
 if (locMatches.length !== expectedPaths.size) fail(`sitemap has ${locMatches.length} <loc> entries; expected ${expectedPaths.size}`);
-
 const uniqueLocs = new Set(locMatches);
 if (uniqueLocs.size !== locMatches.length) fail('sitemap contains duplicate <loc> entries');
 
@@ -78,12 +61,8 @@ const expectedUrls = new Set([
   ...LOCALES.map(localizedHomeUrl),
   ...readyTools.flatMap((tool) => LOCALES.map((locale) => getLocalizedToolUrl(canonicalOrigin, tool, locale))),
 ]);
-for (const expectedUrl of expectedUrls) {
-  if (!uniqueLocs.has(expectedUrl)) fail(`sitemap is missing expected URL: ${expectedUrl}`);
-}
-for (const actualUrl of uniqueLocs) {
-  if (!expectedUrls.has(actualUrl)) fail(`sitemap contains an unexpected URL: ${actualUrl}`);
-}
+for (const expectedUrl of expectedUrls) if (!uniqueLocs.has(expectedUrl)) fail(`sitemap is missing expected URL: ${expectedUrl}`);
+for (const actualUrl of uniqueLocs) if (!expectedUrls.has(actualUrl)) fail(`sitemap contains an unexpected URL: ${actualUrl}`);
 
 if (!sitemap.includes('xmlns:xhtml="http://www.w3.org/1999/xhtml"')) fail('sitemap is missing the XHTML namespace');
 
@@ -99,44 +78,32 @@ for (const block of urlBlocks) {
   if (!loc) fail('sitemap contains a <url> without <loc>');
   const path = pathFromUrl(loc);
   if (!localizedPrefix.test(path)) fail(`non-localized URL was published: ${loc}`);
-
   const locale = LOCALES.find((candidate) => path === `/${candidate}` || path.startsWith(`/${candidate}/`));
   if (!locale) fail(`unable to resolve locale for sitemap URL: ${loc}`);
-  const tool = readyTools.find((candidate) => getLocalizedToolPath(candidate, locale) === path);
+  const tool = readyTools.find((candidate) => getToolPath(candidate, locale) === path);
 
   const alternateMatches = [...block.matchAll(/<xhtml:link\s+rel="alternate"\s+hreflang="([^"]+)"\s+href="([^"]+)"\s*\/>/gu)];
-  if (alternateMatches.length !== LOCALES.length + 1) {
-    fail(`${loc} has ${alternateMatches.length} alternates; expected ${LOCALES.length + 1}`);
-  }
+  if (alternateMatches.length !== LOCALES.length + 1) fail(`${loc} has ${alternateMatches.length} alternates; expected ${LOCALES.length + 1}`);
 
-  const expectedLocalizedUrl = (targetLocale) =>
-    tool
-      ? getLocalizedToolUrl(canonicalOrigin, tool, targetLocale)
-      : localizedHomeUrl(targetLocale);
-
+  const expectedLocalizedUrl = (targetLocale) => tool ? getLocalizedToolUrl(canonicalOrigin, tool, targetLocale) : localizedHomeUrl(targetLocale);
   const seenTags = new Set();
   for (const [, hreflang, href] of alternateMatches) {
     if (seenTags.has(hreflang)) fail(`${loc} contains duplicate hreflang: ${hreflang}`);
     seenTags.add(hreflang);
     if (!href.startsWith(`${canonicalOrigin}/`)) fail(`${loc} has alternate outside canonical origin: ${href}`);
-
     if (hreflang === 'x-default') {
       const expected = expectedLocalizedUrl(X_DEFAULT_LOCALE);
       if (href !== expected) fail(`${loc} has incorrect x-default target: ${href}`);
       continue;
     }
-
     const targetLocale = LOCALES.find((candidate) => localeTags.get(candidate) === hreflang);
     if (!targetLocale) fail(`${loc} contains unsupported hreflang: ${hreflang}`);
     const expected = expectedLocalizedUrl(targetLocale);
     if (href !== expected) fail(`${loc} has incorrect ${hreflang} alternate: ${href}`);
   }
-
   for (const tag of localeTags.values()) if (!seenTags.has(tag)) fail(`${loc} is missing hreflang: ${tag}`);
   if (!seenTags.has('x-default')) fail(`${loc} is missing x-default hreflang`);
-
-  const expectedEscapedLoc = xmlEscape(loc);
-  if (!block.includes(`<loc>${expectedEscapedLoc}</loc>`)) fail(`malformed loc serialization for ${loc}`);
+  if (!block.includes(`<loc>${xmlEscape(loc)}</loc>`)) fail(`malformed loc serialization for ${loc}`);
 }
 
 const sitemapLine = robots.match(/^Sitemap:\s*(\S+)$/mu)?.[1];
