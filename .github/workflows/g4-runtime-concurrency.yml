@@ -1,0 +1,69 @@
+name: G4 Runtime Concurrency Trace (diagnostic)
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
+  PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+  S4_EXTERNAL_SERVER: 'true'
+  PLAYWRIGHT_SERVER: preview
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
+jobs:
+  trace:
+    name: G4 Runtime Concurrency Trace — 6 pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Start isolated preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/g4-runtime-concurrency-server.log 2>&1 &
+          echo $! >/tmp/g4-runtime-concurrency-server.pid
+          for _ in $(seq 1 60); do curl --fail --silent http://127.0.0.1:3000/ >/dev/null && exit 0 || sleep 1; done
+          cat /tmp/g4-runtime-concurrency-server.log
+          exit 1
+      - name: Verify exact head
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Run six-page pressure trace
+        run: npx playwright test tests/g4-runtime-concurrency-trace.spec.ts --project=chromium --workers=1 --retries=0
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: g4-runtime-concurrency-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+            /tmp/g4-runtime-concurrency-server.log
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Cleanup
+        if: always()
+        run: |
+          set +e
+          test -f /tmp/g4-runtime-concurrency-server.pid && kill "$(cat /tmp/g4-runtime-concurrency-server.pid)" 2>/dev/null || true
