@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE, normalizeLocale } from './config';
 import type { Locale } from './config';
 import type { TranslationBundle } from './types';
 
@@ -25,13 +26,19 @@ const LOCALE_LOADERS: Record<Locale, () => Promise<TranslationBundle>> = {
   vi: async () => (await import('./locales/vi')).vi,
 };
 
-const cache = new Map<Locale, Promise<TranslationBundle>>();
+const cache = new Map<ReturnType<typeof normalizeLocale>, Promise<TranslationBundle>>();
 
 export function loadTranslationDictionary(locale: Locale): Promise<TranslationBundle> {
-  const cached = cache.get(locale);
+  const canonicalLocale = normalizeLocale(locale);
+  const cached = cache.get(canonicalLocale);
   if (cached) return cached;
-  const pending = LOCALE_LOADERS[locale]();
-  cache.set(locale, pending);
+  const loader = LOCALE_LOADERS[canonicalLocale];
+  const pending = loader?.();
+  if (!pending) {
+    // The canonical locale map is intentionally total; this guard keeps the runtime fail-closed if that invariant is ever broken.
+    return LOCALE_LOADERS[DEFAULT_LOCALE]();
+  }
+  cache.set(canonicalLocale, pending);
   return pending;
 }
 
