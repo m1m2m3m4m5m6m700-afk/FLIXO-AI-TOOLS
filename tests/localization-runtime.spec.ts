@@ -10,6 +10,7 @@ const localeCodes = LOCALES;
 const languageTags = Object.fromEntries(LOCALES.map((locale) => [locale, LOCALE_METADATA[locale].languageTag])) as Record<(typeof localeCodes)[number], string>;
 const sharedTerms = new Set(['FLIXO', 'QuickFlow', 'OCR', 'PDF', 'English', 'العربية', 'Smart Intent', 'Ctrl K', 'WebP', 'PNG', 'JPEG', 'GIF', 'SVG', 'CSV', 'JSON', 'ZIP', 'MP3', 'MP4', 'Whisper', 'WebGPU', 'WASM']);
 const sharedPhrases = new Set(['FLIXO AI Tools', 'FLIXO home']);
+const traceRoute = '/ar/ai-vocal-instrumental-remover';
 
 const technicalCapabilityPhrase = /^(?:WebGPU|WASM|CPU)(?:\s+(?:WebGPU|WASM|CPU))*$/u;
 const technicalCodecPhrase = /^(?:WebP|JPG|PNG|JPEG|GIF|SVG)(?:\s+(?:WebP|JPG|PNG|JPEG|GIF|SVG))*$/u;
@@ -42,6 +43,20 @@ const sharedOnly = (value: string) => {
 };
 
 type Snapshot = { title: string; description: string; h1: string; ui: string[] };
+type LangTraceEntry = {
+  label: string;
+  lang: string | null;
+  dir: string | null;
+  time: number;
+  htmlId: string;
+};
+
+declare global {
+  interface Window {
+    __g4NativeTrace?: LangTraceEntry[];
+    __g4NativeHtmlId?: string;
+  }
+}
 
 const normalize = (value: string | null | undefined) => (value ?? '').replace(/\s+/gu, ' ').trim();
 const familyPath = (pathname: string) => pathname.replace(new RegExp(`^/(?:${localeCodes.join('|')})(?=/|$)`, 'u'), '') || '/';
@@ -80,61 +95,51 @@ test.setTimeout(60_000);
 for (const pathname of routes) {
   test(`G4 all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
     const runtimeErrors: string[] = [];
+    const nativeReads: Array<{ time: number; value: string | null }> = [];
+    const captureNativeTrace = async (label: string) => {
+      if (pathname !== traceRoute) return;
+      const payload = await page.evaluate((traceLabel) => ({
+        label: traceLabel,
+        lang: document.documentElement.getAttribute('lang'),
+        dir: document.documentElement.getAttribute('dir'),
+        trace: window.__g4NativeTrace ?? [],
+        htmlId: window.__g4NativeHtmlId ?? 'unknown',
+        time: performance.now(),
+      }), label);
+      console.log('[G4 NATIVE TRACE]', JSON.stringify(payload));
+    };
+
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
     page.on('console', (message) => {
       if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`);
-      if (message.type() === 'log' && message.text().startsWith('[TRACE]')) console.log(message.text());
     });
     page.on('requestfailed', (request) => {
       if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`);
     });
 
     await page.addInitScript(() => {
-      const trace = (label: string, details: Record<string, unknown>) => {
-        console.log('[TRACE]', label, JSON.stringify(details));
+      const html = document.documentElement;
+      const trace: LangTraceEntry[] = [];
+      const record = (label: string) => {
+        if (trace.length >= 512) trace.shift();
+        trace.push({
+          label,
+          lang: document.documentElement.getAttribute('lang'),
+          dir: document.documentElement.getAttribute('dir'),
+          time: performance.now(),
+          htmlId: window.__g4NativeHtmlId ?? 'unknown',
+        });
       };
-      const stack = () => new Error().stack?.split('\n').slice(1, 12).join('\n') ?? '';
-      const originalSetAttribute = Element.prototype.setAttribute;
-      const originalRemoveAttribute = Element.prototype.removeAttribute;
-      Element.prototype.setAttribute = function setAttribute(name: string, value: string) {
-        if (this === document.documentElement && (name === 'lang' || name === 'dir')) {
-          trace('attribute-write', { name, value, current: document.documentElement.getAttribute(name), time: performance.now(), stack: stack() });
-        }
-        return originalSetAttribute.call(this, name, value);
-      };
-      Element.prototype.removeAttribute = function removeAttribute(name: string) {
-        if (this === document.documentElement && (name === 'lang' || name === 'dir')) {
-          trace('attribute-remove', { name, current: document.documentElement.getAttribute(name), time: performance.now(), stack: stack() });
-        }
-        return originalRemoveAttribute.call(this, name);
-      };
-      const initialHtml = document.documentElement;
+      window.__g4NativeTrace = trace;
+      window.__g4NativeHtmlId = Math.random().toString(36).slice(2);
+      window.addEventListener('DOMContentLoaded', () => record('DOMContentLoaded'));
+      window.addEventListener('load', () => record('load'));
       new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-          if (mutation.type === 'attributes' && (mutation.attributeName === 'lang' || mutation.attributeName === 'dir')) {
-            trace('attribute-mutation', {
-              attribute: mutation.attributeName,
-              oldValue: mutation.oldValue,
-              current: document.documentElement.getAttribute(mutation.attributeName),
-              sameHtmlNode: document.documentElement === initialHtml,
-              time: performance.now(),
-            });
-          }
+        if (mutations.some((mutation) => mutation.type === 'attributes' && (mutation.attributeName === 'lang' || mutation.attributeName === 'dir'))) {
+          record('mutation');
         }
-      }).observe(initialHtml, { attributes: true, attributeOldValue: true, attributeFilter: ['lang', 'dir'] });
-      new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-          if (mutation.type === 'childList' && mutation.target === document) {
-            trace('document-element-childlist', {
-              oldHtmlSame: document.documentElement === initialHtml,
-              currentLang: document.documentElement.getAttribute('lang'),
-              currentDir: document.documentElement.getAttribute('dir'),
-              time: performance.now(),
-            });
-          }
-        }
-      }).observe(document, { childList: true });
-      trace('init', { initialLang: initialHtml.getAttribute('lang'), initialDir: initialHtml.getAttribute('dir'), time: performance.now() });
+      }).observe(html, { attributes: true, attributeOldValue: true, attributeFilter: ['lang', 'dir'] });
+      record('init');
     });
 
     const response = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
@@ -147,8 +152,34 @@ for (const pathname of routes) {
     const expectedDirection = LOCALE_METADATA[localeCode].direction;
     const family = familyPath(pathname);
 
-    await expect(page.locator('html')).toHaveAttribute('lang', languageTags[localeCode]);
+    await captureNativeTrace('before-lang-assertion');
+    if (pathname === traceRoute) {
+      await expect
+        .poll(
+          async () => {
+            const value = await page.locator('html').getAttribute('lang');
+            nativeReads.push({ time: Date.now(), value });
+            return value;
+          },
+          { timeout: 5_000, intervals: [50, 100, 250, 500] },
+        )
+        .toBe(languageTags[localeCode]);
+      await captureNativeTrace('after-lang-assertion');
+    } else {
+      await expect(page.locator('html')).toHaveAttribute('lang', languageTags[localeCode]);
+    }
     await expect(page.locator('html')).toHaveAttribute('dir', expectedDirection);
+
+    if (pathname === traceRoute) {
+      const finalTrace = await page.evaluate(() => ({
+        lang: document.documentElement.getAttribute('lang'),
+        dir: document.documentElement.getAttribute('dir'),
+        trace: window.__g4NativeTrace ?? [],
+        htmlId: window.__g4NativeHtmlId ?? 'unknown',
+      }));
+      console.log('[G4 NATIVE READS]', JSON.stringify(nativeReads));
+      console.log('[G4 NATIVE FINAL]', JSON.stringify(finalTrace));
+    }
 
     const mains = page.locator('main');
     await expect(mains).toHaveCount(1);
