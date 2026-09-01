@@ -90,7 +90,7 @@ export function LocalizedToolPage() {
   };
 
   return (
-    <main lang={seo.languageTag} dir={direction} className="tool-page-modern">
+    <main data-tool-id={seo.tool.id} lang={seo.languageTag} dir={direction} className="tool-page-modern">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ ...seo.structuredData, keywords: seo.keywords }).replace(/</g, '\\u003c') }} />
       <nav className="tool-page-modern__nav" aria-label={copy.navigation}>
         <div className="tool-page-modern__nav-inner">
