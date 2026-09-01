@@ -51,8 +51,6 @@ if (TOOL_MANIFEST.length !== TOOLS_REGISTRY.length || manifestShape.some((value,
   fail('manifest/registry contract drift', [`manifest=${TOOL_MANIFEST.length}`, `registry=${TOOLS_REGISTRY.length}`]);
 }
 
-// The registry is the source of truth. Every ready tool must resolve through the
-// same canonical localized route resolver for every supported locale.
 for (const tool of readyTools) {
   if (getToolConfig(tool.id)?.id !== tool.id) fail('registry resolver ownership drift', [`missing=${tool.id}`]);
   for (const locale of LOCALES) {
@@ -63,8 +61,6 @@ for (const tool of readyTools) {
   }
 }
 
-// Every ready tool × locale must have an exact SEO binding to the canonical route,
-// complete hreflang symmetry, and the canonical x-default target.
 const seoExpectedCount = readyTools.length * LOCALES.length;
 let seoChecked = 0;
 for (const tool of readyTools) {
@@ -78,7 +74,6 @@ for (const tool of readyTools) {
     if (seo.direction !== LOCALE_METADATA[locale].direction) fail('SEO direction drift', [`${tool.id}@${locale}`]);
     if (!seo.title.trim() || !seo.description.trim()) fail('SEO content missing', [`${tool.id}@${locale}`]);
     if (seo.alternates.length !== LOCALES.length) fail('SEO hreflang cardinality drift', [`${tool.id}@${locale}`, `expected=${LOCALES.length}`, `actual=${seo.alternates.length}`]);
-
     const alternateLanguages = seo.alternates.map((alternate) => alternate.languageTag);
     if (new Set(alternateLanguages).size !== LOCALES.length) fail('SEO hreflang duplicate languages', [`${tool.id}@${locale}`]);
     for (const alternateLocale of LOCALES) {
@@ -87,7 +82,6 @@ for (const tool of readyTools) {
       const expectedAlternateUrl = new URL(getToolPath(tool, alternateLocale), `${canonicalOrigin}/`).toString();
       if (alternate.url !== expectedAlternateUrl) fail('SEO hreflang route drift', [`${tool.id}@${locale}`, `alternate=${alternateLocale}`, `expected=${expectedAlternateUrl}`, `actual=${alternate.url}`]);
     }
-
     const expectedXDefault = new URL(getToolPath(tool, 'en'), `${canonicalOrigin}/`).toString();
     if (seo.xDefaultUrl !== expectedXDefault) fail('SEO x-default drift', [`${tool.id}@${locale}`, `expected=${expectedXDefault}`, `actual=${seo.xDefaultUrl}`]);
     seoChecked += 1;
@@ -99,55 +93,31 @@ let staticServer;
 try {
   run('production build', 'npm', ['run', 'build'], { VITE_SITE_URL: canonicalOrigin });
   run('static ready-route entries', process.execPath, ['--import=./scripts/register-node-resolver.mjs', '--experimental-strip-types', 'scripts/generate-static-route-entries.mjs'], { FLIXO_DIST_DIR: 'dist' });
-
   const distRoot = normalize(join(process.cwd(), 'dist'));
   const contentType = (filePath) => {
     const extension = extname(filePath).toLowerCase();
-    return ({
-      '.html': 'text/html; charset=utf-8',
-      '.css': 'text/css; charset=utf-8',
-      '.js': 'text/javascript; charset=utf-8',
-      '.json': 'application/json; charset=utf-8',
-      '.svg': 'image/svg+xml',
-      '.png': 'image/png',
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.webp': 'image/webp',
-      '.txt': 'text/plain; charset=utf-8',
-      '.xml': 'application/xml; charset=utf-8',
-    })[extension] ?? 'application/octet-stream';
+    return ({ '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8' })[extension] ?? 'application/octet-stream';
   };
-
   staticServer = createServer((request, response) => {
     const requestPath = decodeURIComponent(new URL(request.url ?? '/', 'http://127.0.0.1').pathname);
     const relativePath = requestPath.replace(/^\/+|\/+$/gu, '');
-    const candidate = normalize(join(distRoot, relativePath, relativePath ? 'index.html' : 'index.html'));
+    const candidate = normalize(join(distRoot, relativePath, 'index.html'));
     const relativeCandidate = relative(distRoot, candidate);
     if (relativeCandidate.startsWith(`..${sep}`) || relativeCandidate === '..' || relativeCandidate.includes(`${sep}..${sep}`)) {
-      response.writeHead(400);
-      response.end('Bad Request');
-      return;
+      response.writeHead(400); response.end('Bad Request'); return;
     }
     if (!existsSync(candidate) || !statSync(candidate).isFile()) {
-      response.writeHead(404);
-      response.end('Not Found');
-      return;
+      response.writeHead(404); response.end('Not Found'); return;
     }
     response.writeHead(200, { 'Content-Type': contentType(candidate) });
-    if (request.method === 'HEAD') response.end();
-    else createReadStream(candidate).pipe(response);
+    if (request.method === 'HEAD') response.end(); else createReadStream(candidate).pipe(response);
   });
-
   const port = await new Promise((resolve, reject) => {
     staticServer.once('error', reject);
     staticServer.listen(0, '127.0.0.1', () => resolve(staticServer.address().port));
   });
   const baseUrl = `http://127.0.0.1:${port}`;
-
-  const requestStatus = async (path) => {
-    const response = await fetch(`${baseUrl}${path}`, { redirect: 'manual' });
-    return response.status;
-  };
+  const requestStatus = async (path) => (await fetch(`${baseUrl}${path}`, { redirect: 'manual' })).status;
 
   for (const locale of LOCALES) {
     if (await requestStatus(`/${locale}`) !== 200) fail('localized home route is not publicly reachable', [locale]);
@@ -172,44 +142,30 @@ try {
 
   run('sitemap generation', process.execPath, ['--import=./scripts/register-node-resolver.mjs', '--experimental-strip-types', 'scripts/generate-sitemap.mjs'], { VITE_SITE_URL: canonicalOrigin, FLIXO_GENERATED_OUTPUT_DIR: temp });
   run('robots generation', process.execPath, ['--import=./scripts/register-node-resolver.mjs', '--experimental-strip-types', 'scripts/generate-robots.mjs'], { VITE_SITE_URL: canonicalOrigin, FLIXO_GENERATED_OUTPUT_DIR: temp });
-
   const sitemap = readFileSync(join(temp, 'sitemap.xml'), 'utf8');
   const robots = readFileSync(join(temp, 'robots.txt'), 'utf8');
   const expectedUrls = new Set(LOCALES.flatMap((locale) => [
     `/${locale}`,
     ...readyTools.map((tool) => getToolPath(tool, locale)),
-  ].map((route) => new URL(route, `${canonicalOrigin}/`).toString()));
-
+  ]).map((route) => new URL(route, `${canonicalOrigin}/`).toString()));
   const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/gu)].map((match) => match[1]);
   const actualUrls = new Set(locs);
   if (locs.length !== actualUrls.size) fail('duplicate sitemap URLs detected');
-
   const missing = [...expectedUrls].filter((url) => !actualUrls.has(url));
   const unexpected = [...actualUrls].filter((url) => !expectedUrls.has(url));
   if (missing.length || unexpected.length || expectedUrls.size !== actualUrls.size) {
-    fail('sitemap registry drift', [
-      `expected=${expectedUrls.size}`,
-      `actual=${actualUrls.size}`,
-      ...missing.slice(0, 10).map((url) => `missing=${url}`),
-      ...unexpected.slice(0, 10).map((url) => `unexpected=${url}`),
-    ]);
+    fail('sitemap registry drift', [`expected=${expectedUrls.size}`, `actual=${actualUrls.size}`, ...missing.slice(0, 10).map((url) => `missing=${url}`), ...unexpected.slice(0, 10).map((url) => `unexpected=${url}`)]);
   }
-
   const expectedHreflangs = [...LOCALES.map((locale) => LOCALE_METADATA[locale].languageTag), 'x-default'];
   for (const url of actualUrls) {
     const escaped = url.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
     const block = sitemap.match(new RegExp(`<url>\\s*<loc>${escaped}<\\/loc>([\\s\\S]*?)<\\/url>`, 'u'));
     if (!block) fail('missing sitemap URL block', [url]);
     const hreflangs = [...block[1].matchAll(/hreflang="([^"]+)"/gu)].map((match) => match[1]);
-    if (hreflangs.length !== expectedHreflangs.length || expectedHreflangs.some((lang) => !hreflangs.includes(lang))) {
-      fail('sitemap hreflang drift', [url, `expectedLanguages=${expectedHreflangs.join(',')}`, `actualCount=${hreflangs.length}`]);
-    }
+    if (hreflangs.length !== expectedHreflangs.length || expectedHreflangs.some((lang) => !hreflangs.includes(lang))) fail('sitemap hreflang drift', [url, `expectedLanguages=${expectedHreflangs.join(',')}`, `actualCount=${hreflangs.length}`]);
   }
-
   if (!robots.includes(`Sitemap: ${canonicalOrigin}/sitemap.xml`)) fail('robots is not bound to canonical sitemap');
-  if (/localhost|127\.0\.0\.1|canonical\.test|git-main-|flexo1\.vercel\.app/iu.test(`${sitemap}\n${robots}`)) {
-    fail('preview/test origin leaked into discovery artifacts');
-  }
+  if (/localhost|127\.0\.0\.1|canonical\.test|git-main-|flexo1\.vercel\.app/iu.test(`${sitemap}\n${robots}`)) fail('preview/test origin leaked into discovery artifacts');
 } finally {
   if (staticServer) await new Promise((resolve) => staticServer.close(resolve));
   rmSync(temp, { recursive: true, force: true });
