@@ -1,4 +1,4 @@
-name: FLIXO CI — Error Collector
+name: FLIXO CI — Comprehensive Error Collector
 
 on:
   pull_request:
@@ -9,6 +9,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-error-collector-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NPM_CONFIG_AUDIT: 'false'
@@ -22,38 +26,33 @@ env:
   CI: 'true'
 
 jobs:
-  test-001-typecheck:
-    name: TEST-001 — Typecheck
+  ci_001:
+    name: CI-001 — TypeScript Type Checking
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Run TEST-001
-        shell: bash
-        run: |
-          set +e
-          npm run typecheck -- --incremental --skipLibCheck 2>&1 | tee typecheck.log
-          status=${PIPESTATUS[0]}
-          printf '{"testId":"TEST-001","testName":"TypeScript Type Checking","category":"typecheck","priority":"P0","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("typecheck.log","utf8")))')" > result.json
-          exit "$status"
-      - uses: actions/upload-artifact@v5
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute CI-001
+        run: node scripts/run-ci-error-job.mjs CI-001 || true
+      - name: Upload CI-001 evidence
         if: always()
+        uses: actions/upload-artifact@v6
         with:
-          name: test-001-typecheck-${{ github.run_id }}
-          path: |
-            typecheck.log
-            result.json
+          name: ci-001-typecheck-${{ github.run_id }}
+          path: ci-error-results/CI-001/
           if-no-files-found: error
+          retention-days: 14
 
-  test-002-lint:
-    name: TEST-002 — Lint
+  ci_002:
+    name: CI-002 — ESLint Code Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -61,61 +60,21 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Run TEST-002
-        shell: bash
-        run: |
-          set +e
-          npm run lint -- --cache --format json --output-file eslint-report.json 2>&1 | tee lint.log
-          status=${PIPESTATUS[0]}
-          printf '{"testId":"TEST-002","testName":"ESLint Code Quality","category":"lint","priority":"P0","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("lint.log","utf8")))')" > result.json
-          exit "$status"
-      - uses: actions/upload-artifact@v5
+      - name: Execute CI-002
+        run: node scripts/run-ci-error-job.mjs CI-002 || true
+      - name: Upload CI-002 evidence
         if: always()
+        uses: actions/upload-artifact@v6
         with:
-          name: test-002-lint-${{ github.run_id }}
-          path: |
-            lint.log
-            eslint-report.json
-            result.json
-          if-no-files-found: warn
-
-  test-003-contracts:
-    name: TEST-003 — Contracts
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Run TEST-003
-        shell: bash
-        run: |
-          set +e
-          : > contracts.log
-          npm run validate:router-registry >>contracts.log 2>&1
-          s1=$?
-          npm run validate:contracts >>contracts.log 2>&1
-          s2=$?
-          status=$(( s1 || s2 ))
-          printf '{"testId":"TEST-003","testName":"Registry & Contracts Validation","category":"contracts","priority":"P0","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("contracts.log","utf8")))')" > result.json
-          cat contracts.log
-          exit "$status"
-      - uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: test-003-contracts-${{ github.run_id }}
-          path: |
-            contracts.log
-            result.json
+          name: ci-002-lint-${{ github.run_id }}
+          path: ci-error-results/CI-002/
           if-no-files-found: error
+          retention-days: 14
 
-  test-004-unit-tests:
-    name: TEST-004 — Unit Tests
+  ci_003:
+    name: CI-003 — Registry & Contracts
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -123,25 +82,41 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Run TEST-004
-        shell: bash
-        run: |
-          set +e
-          npm run test:unit 2>&1 | tee unit.log
-          status=${PIPESTATUS[0]}
-          printf '{"testId":"TEST-004","testName":"Unit Tests","category":"unit","priority":"P1","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("unit.log","utf8")))')" > result.json
-          exit "$status"
-      - uses: actions/upload-artifact@v5
+      - name: Execute CI-003
+        run: node scripts/run-ci-error-job.mjs CI-003 || true
+      - name: Upload CI-003 evidence
         if: always()
+        uses: actions/upload-artifact@v6
         with:
-          name: test-004-unit-tests-${{ github.run_id }}
-          path: |
-            unit.log
-            result.json
+          name: ci-003-contracts-${{ github.run_id }}
+          path: ci-error-results/CI-003/
           if-no-files-found: error
+          retention-days: 14
 
-  test-005-integration-tests:
-    name: TEST-005 — Integration Tests
+  ci_004:
+    name: CI-004 — Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute CI-004
+        run: node scripts/run-ci-error-job.mjs CI-004 || true
+      - name: Upload CI-004 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-004-unit-${{ github.run_id }}
+          path: ci-error-results/CI-004/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci_005:
+    name: CI-005 — Integration Tests
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -151,55 +126,23 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-      - name: Run TEST-005
-        shell: bash
-        run: |
-          set +e
-          npm run build:runtime 2>&1 | tee integration-build.log
-          build_status=${PIPESTATUS[0]}
-          test_status=0
-          if [ "$build_status" -eq 0 ]; then
-            npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/flixo-integration-server.log 2>&1 &
-            pid=$!
-            ready=1
-            for _ in $(seq 1 60); do curl --fail --silent http://127.0.0.1:3000/ >/dev/null && { ready=0; break; }; sleep 1; done
-            if [ "$ready" -eq 0 ]; then
-              npm exec playwright test tests/integration/ --project=chromium --workers=1 --retries=0 2>&1 | tee integration.log
-              test_status=${PIPESTATUS[0]}
-            else
-              echo 'Integration preview did not become ready.' | tee integration.log
-              test_status=1
-            fi
-            kill "$pid" 2>/dev/null || true
-          fi
-          status=$(( build_status || test_status ))
-          { cat integration-build.log 2>/dev/null || true; cat integration.log 2>/dev/null || true; cat /tmp/flixo-integration-server.log 2>/dev/null || true; } > integration-combined.log
-          printf '{"testId":"TEST-005","testName":"Integration Tests","category":"integration","priority":"P1","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("integration-combined.log","utf8")))')" > result.json
-          exit "$status"
-      - uses: actions/upload-artifact@v5
+      - name: Install Chromium dependencies
+        run: npx playwright install-deps chromium
+      - name: Execute CI-005
+        run: node scripts/run-ci-error-job.mjs CI-005 || true
+      - name: Upload CI-005 evidence
         if: always()
+        uses: actions/upload-artifact@v6
         with:
-          name: test-005-integration-tests-${{ github.run_id }}
-          path: |
-            integration-build.log
-            integration.log
-            integration-combined.log
-            result.json
-            /tmp/flixo-integration-server.log
-          if-no-files-found: warn
+          name: ci-005-integration-${{ github.run_id }}
+          path: ci-error-results/CI-005/
+          if-no-files-found: error
+          retention-days: 14
 
-  test-006-e2e-matrix:
-    name: TEST-006 — E2E / ${{ matrix.browser }} / shard-${{ matrix.shard }}
+  ci_006:
+    name: CI-006 — E2E Tests (Chromium)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      max-parallel: 12
-      matrix:
-        browser: [chromium, firefox, webkit]
-        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -207,93 +150,345 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Install browser dependencies
-        run: npx playwright install-deps '${{ matrix.browser }}'
-      - name: Install browser
-        run: npx playwright install '${{ matrix.browser }}'
-      - name: Run TEST-006
-        shell: bash
-        run: |
-          set +e
-          npm run build 2>&1 | tee build.log
-          build_status=${PIPESTATUS[0]}
-          test_status=0
-          if [ "$build_status" -eq 0 ]; then
-            npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/flixo-e2e-server.log 2>&1 &
-            pid=$!
-            ready=1
-            for _ in $(seq 1 60); do curl --fail --silent http://127.0.0.1:3000/ >/dev/null && { ready=0; break; }; sleep 1; done
-            if [ "$ready" -eq 0 ]; then
-              npm exec playwright test --project='${{ matrix.browser }}' --workers=4 --retries=0 --shard='${{ matrix.shard }}/4' 2>&1 | tee e2e.log
-              test_status=${PIPESTATUS[0]}
-            else
-              echo 'E2E preview did not become ready.' | tee e2e.log
-              test_status=1
-            fi
-            kill "$pid" 2>/dev/null || true
-          fi
-          status=$(( build_status || test_status ))
-          { cat build.log 2>/dev/null || true; cat e2e.log 2>/dev/null || true; cat /tmp/flixo-e2e-server.log 2>/dev/null || true; } > e2e-combined.log
-          printf '{"testId":"TEST-006","testName":"End-to-End Tests","category":"e2e","priority":"P1","browser":"${{ matrix.browser }}","shard":"${{ matrix.shard }}/4","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("e2e-combined.log","utf8")))')" > result.json
-          exit "$status"
-      - uses: actions/upload-artifact@v5
+      - run: npx playwright install-deps chromium && npx playwright install chromium
+      - name: Execute CI-006
+        run: node scripts/run-ci-error-job.mjs CI-006 || true
+      - name: Upload CI-006 evidence
         if: always()
+        uses: actions/upload-artifact@v6
         with:
-          name: test-006-e2e-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
-          path: |
-            build.log
-            e2e.log
-            e2e-combined.log
-            result.json
-            playwright-report/
-            test-results/
-            /tmp/flixo-e2e-server.log
-          if-no-files-found: warn
+          name: ci-006-e2e-chromium-${{ github.run_id }}
+          path: ci-error-results/CI-006/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci_007:
+    name: CI-007 — E2E Tests (Firefox)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npx playwright install-deps firefox && npx playwright install firefox
+      - name: Execute CI-007
+        run: node scripts/run-ci-error-job.mjs CI-007 || true
+      - name: Upload CI-007 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-007-e2e-firefox-${{ github.run_id }}
+          path: ci-error-results/CI-007/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci_008:
+    name: CI-008 — E2E Tests (WebKit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npx playwright install-deps webkit && npx playwright install webkit
+      - name: Execute CI-008
+        run: node scripts/run-ci-error-job.mjs CI-008 || true
+      - name: Upload CI-008 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-008-e2e-webkit-${{ github.run_id }}
+          path: ci-error-results/CI-008/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci_009:
+    name: CI-009 — Build & Artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute CI-009
+        run: node scripts/run-ci-error-job.mjs CI-009 || true
+      - name: Upload CI-009 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-009-build-${{ github.run_id }}
+          path: ci-error-results/CI-009/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci_010:
+    name: CI-010 — Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute CI-010
+        run: node scripts/run-ci-error-job.mjs CI-010 || true
+      - name: Upload CI-010 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-010-security-${{ github.run_id }}
+          path: ci-error-results/CI-010/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci_011:
+    name: CI-011 — Bundle Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute CI-011
+        run: node scripts/run-ci-error-job.mjs CI-011 || true
+      - name: Upload CI-011 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-011-bundle-${{ github.run_id }}
+          path: ci-error-results/CI-011/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci_012:
+    name: CI-012 — Localization Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute CI-012
+        run: node scripts/run-ci-error-job.mjs CI-012 || true
+      - name: Upload CI-012 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-012-localization-${{ github.run_id }}
+          path: ci-error-results/CI-012/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci_013:
+    name: CI-013 — 20-Language UI Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute CI-013
+        run: node scripts/run-ci-error-job.mjs CI-013 || true
+      - name: Upload CI-013 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-013-20-lang-ui-${{ github.run_id }}
+          path: ci-error-results/CI-013/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci_014:
+    name: CI-014 — 20-Language SEO Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute CI-014
+        run: node scripts/run-ci-error-job.mjs CI-014 || true
+      - name: Upload CI-014 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-014-20-lang-seo-${{ github.run_id }}
+          path: ci-error-results/CI-014/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci_015:
+    name: CI-015 — 20-Language Routing Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute CI-015
+        run: node scripts/run-ci-error-job.mjs CI-015 || true
+      - name: Upload CI-015 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-015-20-lang-routing-${{ github.run_id }}
+          path: ci-error-results/CI-015/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci_016:
+    name: CI-016 — Tool Input Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute CI-016
+        run: node scripts/run-ci-error-job.mjs CI-016 || true
+      - name: Upload CI-016 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-016-tool-input-${{ github.run_id }}
+          path: ci-error-results/CI-016/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci_017:
+    name: CI-017 — Tool Output Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute CI-017
+        run: node scripts/run-ci-error-job.mjs CI-017 || true
+      - name: Upload CI-017 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-017-tool-output-${{ github.run_id }}
+          path: ci-error-results/CI-017/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci_018:
+    name: CI-018 — Tool Data Integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute CI-018
+        run: node scripts/run-ci-error-job.mjs CI-018 || true
+      - name: Upload CI-018 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-018-tool-data-${{ github.run_id }}
+          path: ci-error-results/CI-018/
+          if-no-files-found: error
           retention-days: 14
 
   aggregator:
     name: Aggregator — Root Cause Report
     needs:
-      - test-001-typecheck
-      - test-002-lint
-      - test-003-contracts
-      - test-004-unit-tests
-      - test-005-integration-tests
-      - test-006-e2e-matrix
+      - ci_001
+      - ci_002
+      - ci_003
+      - ci_004
+      - ci_005
+      - ci_006
+      - ci_007
+      - ci_008
+      - ci_009
+      - ci_010
+      - ci_011
+      - ci_012
+      - ci_013
+      - ci_014
+      - ci_015
+      - ci_016
+      - ci_017
+      - ci_018
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Download all evidence
+      - name: Verify Phase 0 baseline artifact
+        shell: bash
+        run: test -f ci.yml.backup
+      - name: Download all CI evidence
         uses: actions/download-artifact@v5
         with:
-          pattern: test-*-*
+          pattern: ci-*-*
           path: artifacts
           merge-multiple: false
-      - name: Generate report
+      - name: Generate error-report.json
         env:
-          SETUP_RESULT: success
           GITHUB_SHA: ${{ github.sha }}
           ERROR_ARTIFACT_ROOT: artifacts
         run: |
-          node scripts/collect-errors.mjs
+          node scripts/collect-errors.mjs || true
           test -s error-report.json
           cat error-report.json
       - name: Publish report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: error-report-${{ github.run_id }}
           path: error-report.json
           if-no-files-found: error
           retention-days: 14
-      - name: 100/100 fail-closed gate
+      - name: Final 100/100 fail-closed gate
         run: |
           set -euo pipefail
-          node -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('error-report.json','utf8')); if(!r.summary || r.summary.total!==0) throw new Error('100/100 FAILED: '+(r.summary?.total ?? 'unknown')+' collected error(s)'); if(r.summary.receivedResults!==17) throw new Error('100/100 FAILED: incomplete evidence'); console.log('100/100 PASS');"
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const r = JSON.parse(fs.readFileSync('error-report.json', 'utf8'));
+          if (r.summary?.total !== 0) throw new Error(`100/100 FAILED: ${r.summary?.total ?? 'unknown'} error(s)`);
+          if (r.summary?.receivedResults !== 18) throw new Error(`100/100 FAILED: received ${r.summary?.receivedResults ?? 'unknown'} / 18 results`);
+          if (r.execution?.missingEvidence?.length) throw new Error(`100/100 FAILED: missing ${r.execution.missingEvidence.join(', ')}`);
+          if (r.execution?.duplicateEvidence?.length) throw new Error(`100/100 FAILED: duplicate ${r.execution.duplicateEvidence.join(', ')}`);
+          if (r.execution?.parseErrors?.length) throw new Error('100/100 FAILED: parse errors present');
+          console.log('100/100 PASS');
+          NODE
