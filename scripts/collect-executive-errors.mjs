@@ -42,6 +42,7 @@ const summary = {
 
 const jobResults = new Map();
 const errors = [];
+const seenErrors = new Set();
 
 function normalize(message) {
   return String(message)
@@ -51,10 +52,45 @@ function normalize(message) {
     .slice(0, 1000);
 }
 
+function resultFailed(result) {
+  const status = typeof result?.status === 'string' ? result.status.toUpperCase() : null;
+  if (status) return status !== 'PASS';
+  const exitCode = Number(result?.exitCode);
+  const totalErrors = Number(result?.totalErrors ?? 0);
+  return !Number.isFinite(exitCode) || exitCode !== 0 || totalErrors > 0;
+}
+
 function recordResult(result) {
   if (!result?.jobId || !JOB_CATEGORIES[result.jobId]) return;
   const existing = jobResults.get(result.jobId);
-  if (!existing || String(existing.completedAt) < String(result.completedAt)) jobResults.set(result.jobId, result);
+  if (!existing || String(existing.completedAt ?? '') < String(result.completedAt ?? '')) {
+    jobResults.set(result.jobId, result);
+  }
+}
+
+function recordError(error, jobId) {
+  const normalized = normalize(error.normalized ?? error.message ?? error.raw ?? '');
+  const key = [
+    error.jobId ?? jobId,
+    error.type ?? 'unknown',
+    error.line ?? '',
+    normalized,
+  ].join('|');
+  if (seenErrors.has(key)) return;
+  seenErrors.add(key);
+  errors.push({
+    jobId: error.jobId ?? jobId,
+    jobName: error.jobName ?? JOB_CATEGORIES[jobId]?.name ?? jobId,
+    category: error.category ?? JOB_CATEGORIES[jobId]?.category ?? 'unknown',
+    priority: error.priority ?? JOB_CATEGORIES[jobId]?.priority ?? 'P2',
+    type: error.type ?? 'unknown',
+    severity: error.severity ?? 'error',
+    line: error.line ?? null,
+    message: error.message ?? error.raw ?? 'Unknown error',
+    raw: error.raw ?? error.message ?? '',
+    normalized,
+    exitCode: error.exitCode ?? null,
+  });
 }
 
 async function parseJson(filePath) {
@@ -65,30 +101,27 @@ async function parseJson(filePath) {
   }
 }
 
-async function collectDirectory(jobId) {
-  const dir = path.join(artifactsDir, jobId);
-  const entries = await readdir(dir, { withFileTypes: true });
+async function collectFiles(dir, jobId) {
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
   for (const entry of entries) {
+    const entryPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      await collectFiles(entryPath, jobId);
+      continue;
+    }
     if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
-    const data = await parseJson(path.join(dir, entry.name));
+
+    const data = await parseJson(entryPath);
     if (!data) continue;
     if (data.jobId) recordResult(data);
-    if (Array.isArray(data.errors) && entry.name.endsWith('-errors.json')) {
-      for (const error of data.errors) {
-        errors.push({
-          jobId: data.jobId ?? jobId,
-          jobName: data.jobName ?? JOB_CATEGORIES[jobId]?.name ?? jobId,
-          category: data.category ?? JOB_CATEGORIES[jobId]?.category ?? 'unknown',
-          priority: data.priority ?? JOB_CATEGORIES[jobId]?.priority ?? 'P2',
-          type: error.type ?? 'unknown',
-          severity: error.severity ?? 'error',
-          line: error.line ?? null,
-          message: error.message ?? error.raw ?? 'Unknown error',
-          raw: error.raw ?? error.message ?? '',
-          normalized: normalize(error.normalized ?? error.message ?? error.raw ?? ''),
-          exitCode: data.exitCode ?? null,
-        });
-      }
+    if (entry.name === 'job-errors.json' && Array.isArray(data.errors)) {
+      for (const error of data.errors) recordError({ ...error, ...data }, jobId);
     }
   }
 }
@@ -97,16 +130,16 @@ try {
   await mkdir(artifactsDir, { recursive: true });
   const entries = await readdir(artifactsDir, { withFileTypes: true });
   for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    await collectDirectory(entry.name);
+    if (!entry.isDirectory() || !JOB_CATEGORIES[entry.name]) continue;
+    await collectFiles(path.join(artifactsDir, entry.name), entry.name);
   }
 } catch (error) {
-  errors.push({ jobId: 'AGGREGATOR', jobName: 'Aggregation', category: 'ci', priority: 'P0', message: error.message, normalized: normalize(error.message) });
+  recordError({ jobId: 'AGGREGATOR', jobName: 'Aggregation', category: 'ci', priority: 'P0', message: error.message }, 'AGGREGATOR');
 }
 
 for (const [jobId, result] of jobResults) {
   const meta = JOB_CATEGORIES[jobId];
-  const failed = result.status !== 'PASS' || Number(result.exitCode) !== 0;
+  const failed = resultFailed(result);
   if (failed) {
     summary.failedJobs += 1;
     summary.byCategory[meta.category] += 1;
@@ -114,7 +147,15 @@ for (const [jobId, result] of jobResults) {
     summary.byJob[jobId] = 1;
     if (!errors.some((error) => error.jobId === jobId)) {
       for (const message of result.failureEvidence ?? []) {
-        errors.push({ jobId, jobName: result.name ?? meta.name, category: result.category ?? meta.category, priority: result.priority ?? meta.priority, message, normalized: normalize(message), exitCode: result.exitCode });
+        recordError({
+          jobId,
+          jobName: result.name ?? meta.name,
+          category: result.category ?? meta.category,
+          priority: result.priority ?? meta.priority,
+          message,
+          normalized: message,
+          exitCode: result.exitCode,
+        }, jobId);
       }
     }
   } else {
@@ -126,7 +167,15 @@ for (const jobId of Object.keys(JOB_CATEGORIES)) {
   if (!jobResults.has(jobId)) {
     summary.missingJobs += 1;
     const meta = JOB_CATEGORIES[jobId];
-    errors.push({ jobId, jobName: meta.name, category: meta.category, priority: meta.priority, message: 'No result artifact was reported for this executive path.', normalized: 'No result artifact was reported for this executive path.', exitCode: null });
+    recordError({
+      jobId,
+      jobName: meta.name,
+      category: meta.category,
+      priority: meta.priority,
+      message: 'No result artifact was reported for this executive path.',
+      normalized: 'No result artifact was reported for this executive path.',
+      exitCode: null,
+    }, jobId);
   }
 }
 
@@ -146,10 +195,14 @@ const topErrors = [...counts.entries()]
   .slice(0, 10)
   .map(([message, data]) => ({ message, count: data.count, jobs: [...data.jobs].sort(), example: data.example }));
 
-const failedP0 = [...jobResults.values()].filter((result) => result.status !== 'PASS' && result.priority === 'P0').map((result) => result.jobId);
+const failedP0 = [...jobResults.values()]
+  .filter((result) => result.priority === 'P0' && resultFailed(result))
+  .map((result) => result.jobId);
+
 const recommendations = [];
-if (!summary.failedJobs && !summary.missingJobs) recommendations.push('All 18 executive paths produced PASS evidence.');
-else {
+if (!summary.failedJobs && !summary.missingJobs) {
+  recommendations.push('All 18 executive paths produced PASS evidence.');
+} else {
   if (failedP0.length) recommendations.push(`Fix P0 failures first: ${failedP0.join(', ')}.`);
   if (summary.missingJobs) recommendations.push('Resolve missing executive result artifacts before trusting the aggregate verdict.');
   if (errors.some((error) => error.category === 'i18n')) recommendations.push('Review i18n routing, UI, and SEO failures together for shared locale-contract regressions.');
