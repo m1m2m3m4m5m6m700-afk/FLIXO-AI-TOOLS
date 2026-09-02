@@ -1,0 +1,66 @@
+name: G4 Live Trace
+
+on:
+  push:
+    branches:
+      - g4-live-trace
+
+jobs:
+  live-trace:
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    runs-on: ubuntu-latest
+    env:
+      VITE_SITE_URL: https://flixoai.vercel.app
+      VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+      VITE_TEST_ORIGIN: https://canonical.test
+      PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+      S4_EXTERNAL_SERVER: true
+      PLAYWRIGHT_SERVER: preview
+      NPM_CONFIG_AUDIT: false
+      NPM_CONFIG_FUND: false
+      NPM_CONFIG_UPDATE_NOTIFIER: false
+      BROWSER: ${{ matrix.browser }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npx playwright install-deps '${{ matrix.browser }}'
+      - run: npx playwright install '${{ matrix.browser }}'
+      - run: npm run build
+      - name: Start isolated preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/g4-live-trace-server.log 2>&1 &
+          echo $! >/tmp/g4-live-trace-server.pid
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/g4-live-trace-server.log || true
+          exit 1
+      - name: Run isolated live trace
+        run: npx playwright test tests/g4-live-trace.spec.ts --project=${{ matrix.browser }} --workers=1 --retries=0
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: g4-live-trace-${{ matrix.browser }}-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+            /tmp/g4-live-trace-server.log
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/g4-live-trace-server.pid ]; then kill "$(cat /tmp/g4-live-trace-server.pid)" 2>/dev/null || true; fi
