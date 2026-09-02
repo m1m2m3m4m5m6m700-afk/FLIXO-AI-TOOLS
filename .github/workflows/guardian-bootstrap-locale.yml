@@ -1,0 +1,37 @@
+name: FLIXO CI — Guardian Bootstrap Locale
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'src/main.tsx'
+      - 'src/lib/i18n/**'
+      - 'tests/integration/bootstrap-locale.spec.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/guardian-bootstrap-locale.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap-locale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Run isolated bootstrap test
+        run: npm run test:bootstrap
