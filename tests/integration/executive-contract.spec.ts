@@ -17,7 +17,7 @@ const EXECUTIVE_JOBS = Array.from({ length: 18 }, (_, index) => `CI-${String(ind
 test.describe('Executive Contract Integration', () => {
   test('workflow declares exactly CI-001 through CI-018', async () => {
     const source = await readFile(workflowPath, 'utf8');
-    const jobs = [...source.matchAll(/^  (CI-\d{3}|ci-\d{3}):$/gim)].map((match) => match[1].toUpperCase());
+    const jobs = [...source.matchAll(/^ {2}(CI-\d{3}|ci-\d{3}):$/gim)].map((match) => match[1].toUpperCase());
     expect([...new Set(jobs)].sort()).toEqual(EXECUTIVE_JOBS);
   });
 
