@@ -29,7 +29,7 @@ const patterns = [
   { regex: /\b(?:TypeError|ReferenceError|SyntaxError|RangeError):\s*(.+)/i, type: 'javascript', severity: 'error', message: (m) => m[1] },
   { regex: /^\s*(?:FAIL|Failed|FAILED)\b\s*(.*)$/i, type: 'test', severity: 'failure', message: (m) => m[1] || 'Test failure' },
   { regex: /\b(?:AssertionError|AssertionFailedError):\s*(.+)/i, type: 'assertion', severity: 'failure', message: (m) => m[1] },
-  { regex: /\b(?:timeout|timed out|ETIMEDOUT)\b\s*[:\-]?\s*(.*)/i, type: 'timeout', severity: 'error', message: (m) => m[1] || 'Timeout' },
+  { regex: /\b(?:timeout|timed out|ETIMEDOUT)\b\s*[:-]?\s*(.*)/i, type: 'timeout', severity: 'error', message: (m) => m[1] || 'Timeout' },
   { regex: /\b(?:fatal|panic):\s*(.+)/i, type: 'fatal', severity: 'error', message: (m) => m[1] },
   { regex: /\bexpect\([^)]*\)\.(?:toBe|toEqual|toHave|toContain|toMatch|toBeVisible)[^\n]*/i, type: 'assertion', severity: 'failure', message: (m) => m[0] },
 ];
