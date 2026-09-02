@@ -5,11 +5,16 @@ const root = process.env.ERROR_ARTIFACT_ROOT || 'error-artifacts';
 const output = process.env.ERROR_REPORT_PATH || 'error-report.json';
 const commit = process.env.GITHUB_SHA || 'unknown';
 const setupResult = process.env.SETUP_RESULT || 'unknown';
-const expectedJobs = 5;
-const expectedE2eUnits = 12;
+const baseJobs = ['typecheck', 'lint', 'contracts', 'unit-tests', 'integration-tests'];
+const browsers = ['chromium', 'firefox', 'webkit'];
+const shards = ['1/4', '2/4', '3/4', '4/4'];
+const expectedIds = new Set(baseJobs);
+for (const browser of browsers) for (const shard of shards) expectedIds.add(`e2e-matrix:${browser}:${shard}`);
 
 const files = fs.existsSync(root)
-  ? fs.readdirSync(root, { recursive: true }).map((value) => path.join(root, value)).filter((value) => fs.existsSync(value) && fs.statSync(value).isFile())
+  ? fs.readdirSync(root, { recursive: true })
+      .map((value) => path.join(root, value))
+      .filter((value) => fs.existsSync(value) && fs.statSync(value).isFile())
   : [];
 
 const results = files
@@ -26,23 +31,19 @@ const classify = (message, job) => {
 };
 
 const errors = [];
-const baseJobs = new Set();
-let e2eUnits = 0;
+const seen = new Set();
 
-if (setupResult !== 'success') {
-  errors.push({
-    type: 'TestError',
-    job: 'setup',
-    file: null,
-    message: `Phase 0 setup result: ${setupResult}.`,
-  });
-}
+const addStructuralError = (message) => errors.push({ type: 'TestError', job: 'aggregator', browser: null, shard: null, file: null, message });
+
+if (setupResult !== 'success') addStructuralError(`Phase 0 setup result: ${setupResult}.`);
 
 for (const result of results) {
-  if (result.job) {
-    baseJobs.add(result.job);
-    if (result.job === 'e2e-matrix') e2eUnits += 1;
-  }
+  const id = result.job === 'e2e-matrix'
+    ? `e2e-matrix:${result.browser || 'unknown'}:${result.shard || 'unknown'}`
+    : result.job;
+  if (seen.has(id)) addStructuralError(`Duplicate job result artifact identity: ${id}.`);
+  seen.add(id);
+
   if (result.status === 'success') continue;
   const outputText = typeof result.output === 'string' ? result.output : '';
   const lines = outputText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -60,17 +61,10 @@ for (const result of results) {
   }
 }
 
-const expectedResultCount = expectedJobs + expectedE2eUnits;
-if (results.length !== expectedResultCount) {
-  errors.push({
-    type: 'TestError',
-    job: 'aggregator',
-    file: null,
-    message: `Missing job result artifacts: expected ${expectedResultCount}, received ${results.length}.`,
-  });
-}
+for (const id of expectedIds) if (!seen.has(id)) addStructuralError(`Missing job result artifact identity: ${id}.`);
 
 const byCategory = (type) => errors.filter((error) => error.type === type).length;
+const failedJobs = new Set(results.filter((result) => result.status !== 'success').map((result) => result.job));
 const report = {
   timestamp: new Date().toISOString(),
   commit,
@@ -78,18 +72,16 @@ const report = {
   summary: {
     total: errors.length,
     setup: setupResult === 'success' ? 0 : 1,
-    typecheck: results.filter((r) => r.job === 'typecheck' && r.status !== 'success').length,
-    lint: results.filter((r) => r.job === 'lint' && r.status !== 'success').length,
-    contracts: results.filter((r) => r.job === 'contracts' && r.status !== 'success').length,
-    unit: results.filter((r) => r.job === 'unit-tests' && r.status !== 'success').length,
-    integration: results.filter((r) => r.job === 'integration-tests' && r.status !== 'success').length,
-    e2e: results.filter((r) => r.job === 'e2e-matrix' && r.status !== 'success').length,
-    expectedResults: expectedResultCount,
+    typecheck: failedJobs.has('typecheck') ? 1 : 0,
+    lint: failedJobs.has('lint') ? 1 : 0,
+    contracts: failedJobs.has('contracts') ? 1 : 0,
+    unit: failedJobs.has('unit-tests') ? 1 : 0,
+    integration: failedJobs.has('integration-tests') ? 1 : 0,
+    e2e: failedJobs.has('e2e-matrix') ? 1 : 0,
+    expectedResults: expectedIds.size,
     receivedResults: results.length,
-    expectedBaseJobs: expectedJobs,
-    receivedBaseJobs: baseJobs.size,
-    expectedE2eUnits,
-    receivedE2eUnits: e2eUnits,
+    expectedIdentities: expectedIds.size,
+    receivedIdentities: seen.size,
     classified: {
       TypeError: byCategory('TypeError'),
       LintError: byCategory('LintError'),
