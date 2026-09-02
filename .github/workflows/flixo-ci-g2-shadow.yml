@@ -1,42 +1,11 @@
 name: FLIXO CI — G2 File Safety Shadow
-
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: flixo-ci-g2-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
-
 jobs:
-  g2-shadow:
-    name: G2 File Safety Shadow
+  disabled:
+    name: G2 File Safety Shadow — disabled
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Validate CI contract registry
-        run: node --experimental-strip-types scripts/ci/contracts/validate-registry.mjs
-      - name: TypeScript
-        run: npx tsc --noEmit --pretty false
-      - name: Existing File Safety regression suite
-        run: node --experimental-strip-types scripts/test-file-safety.mjs
-      - name: Existing consolidated G2 contract
-        run: node --experimental-strip-types scripts/test-g2-file-safety.mjs
-      - name: Upload G2 shadow evidence
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: ci-g2-shadow-${{ github.sha }}
-          path: artifacts/ci/
-          if-no-files-found: warn
-          retention-days: 14
+      - run: echo "G2 File Safety Shadow is disabled; Executive Contract CI-016 owns input/file-safety validation."
