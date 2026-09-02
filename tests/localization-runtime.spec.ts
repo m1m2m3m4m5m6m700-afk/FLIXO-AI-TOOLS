@@ -42,12 +42,13 @@ const sharedOnly = (value: string) => {
 };
 
 type Snapshot = { title: string; description: string; h1: string; ui: string[] };
-type LangTraceEntry = { label: string; lang: string | null; dir: string | null; time: number; htmlId: string };
+type LangTraceEntry = { label: string; lang: string | null; dir: string | null; time: number; htmlId: string; callbackCount: number };
 type LangTraceState = {
-  trace: LangTraceEntry[];
   callbackCount: number;
-  firstEmptyAt: number | null;
-  lastArAt: number | null;
+  lastObservedLang: string | null;
+  recentTrace: LangTraceEntry[];
+  lastAr: LangTraceEntry | null;
+  firstEmpty: LangTraceEntry | null;
   mutationCountBetweenLastArAndFirstEmpty: number | null;
 };
 
@@ -88,53 +89,66 @@ test.setTimeout(60_000);
 for (const pathname of routes) {
   test(`G4 all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
     await page.addInitScript(() => {
+      const MAX_RECENT_TRACE = 32;
+      const SAMPLE_EVERY = 5_000;
       const target = document.documentElement as HTMLElement & { __g4Id?: string };
       const state = {
-        trace: [],
         callbackCount: 0,
-        firstEmptyAt: null,
-        lastArAt: null,
+        lastObservedLang: null,
+        recentTrace: [],
+        lastAr: null,
+        firstEmpty: null,
         mutationCountBetweenLastArAndFirstEmpty: null,
       } as {
-        trace: Array<{ label: string; lang: string | null; dir: string | null; time: number; htmlId: string }>;
         callbackCount: number;
-        firstEmptyAt: number | null;
-        lastArAt: number | null;
+        lastObservedLang: string | null;
+        recentTrace: Array<{ label: string; lang: string | null; dir: string | null; time: number; htmlId: string; callbackCount: number }>;
+        lastAr: { label: string; lang: string | null; dir: string | null; time: number; htmlId: string; callbackCount: number } | null;
+        firstEmpty: { label: string; lang: string | null; dir: string | null; time: number; htmlId: string; callbackCount: number } | null;
         mutationCountBetweenLastArAndFirstEmpty: number | null;
       };
-      window.__g4LangTrace = state;
+      (window as typeof window & { __g4LangTrace?: LangTraceState }).__g4LangTrace = state;
       target.__g4Id ??= Math.random().toString(36).slice(2);
 
-      const record = (label: string) => {
+      const pushRecent = (entry: typeof state.recentTrace[number]) => {
+        if (state.recentTrace.length >= MAX_RECENT_TRACE) state.recentTrace.shift();
+        state.recentTrace.push(entry);
+      };
+
+      const record = (label: string, incrementCallback: boolean) => {
+        if (incrementCallback) state.callbackCount += 1;
         const lang = target.getAttribute('lang');
+        const dir = target.getAttribute('dir');
         const entry = {
           label,
           lang,
-          dir: target.getAttribute('dir'),
+          dir,
           time: performance.now(),
-          htmlId: target.__g4Id,
+          htmlId: target.__g4Id!,
+          callbackCount: state.callbackCount,
         };
-        state.trace.push(entry);
+        const langChanged = lang !== state.lastObservedLang;
+        const isCritical = lang === '' || lang === 'ar';
+        const isPeriodicSample = incrementCallback && state.callbackCount % SAMPLE_EVERY === 0;
+
+        if (langChanged || isCritical || isPeriodicSample || !incrementCallback) pushRecent(entry);
+
         if (lang === 'ar') {
-          state.lastArAt = entry.time;
-        } else if (lang === '') {
-          if (state.firstEmptyAt === null) {
-            state.firstEmptyAt = entry.time;
-            state.mutationCountBetweenLastArAndFirstEmpty = state.callbackCount;
-          }
+          state.lastAr = entry;
+        } else if (lang === '' && state.firstEmpty === null) {
+          state.firstEmpty = entry;
+          state.mutationCountBetweenLastArAndFirstEmpty = entry.callbackCount - (state.lastAr?.callbackCount ?? 0);
         }
+        state.lastObservedLang = lang;
       };
 
-      new MutationObserver(() => {
-        state.callbackCount += 1;
-        record('mutation');
-      }).observe(target, {
+      new MutationObserver(() => record('mutation', true)).observe(target, {
         attributes: true,
         attributeFilter: ['lang', 'dir'],
       });
 
-      window.addEventListener('DOMContentLoaded', () => record('DOMContentLoaded'));
-      window.addEventListener('load', () => record('load'));
+      window.addEventListener('DOMContentLoaded', () => record('DOMContentLoaded', false));
+      window.addEventListener('load', () => record('load', false));
     });
 
     const runtimeErrors: string[] = [];
@@ -157,23 +171,15 @@ for (const pathname of routes) {
     const nativeTrace = await page.evaluate(() => {
       const state = (window as typeof window & { __g4LangTrace?: LangTraceState }).__g4LangTrace;
       const html = document.documentElement;
-      const trace = state?.trace ?? [];
-      const lastAr = [...trace].reverse().find((entry) => entry.lang === 'ar');
-      const firstEmpty = trace.find((entry) => entry.lang === '');
-      let mutationsBetweenLastArAndFirstEmpty: number | null = null;
-      if (lastAr && firstEmpty) {
-        const lastArIndex = trace.indexOf(lastAr);
-        const firstEmptyIndex = trace.indexOf(firstEmpty);
-        if (firstEmptyIndex >= lastArIndex) mutationsBetweenLastArAndFirstEmpty = firstEmptyIndex - lastArIndex;
-      }
       return {
         lang: html.getAttribute('lang'),
         dir: html.getAttribute('dir'),
-        trace,
         callbackCount: state?.callbackCount ?? 0,
-        lastAr,
-        firstEmpty,
-        mutationsBetweenLastArAndFirstEmpty,
+        lastObservedLang: state?.lastObservedLang ?? null,
+        lastAr: state?.lastAr ?? null,
+        firstEmpty: state?.firstEmpty ?? null,
+        mutationCountBetweenLastArAndFirstEmpty: state?.mutationCountBetweenLastArAndFirstEmpty ?? null,
+        recentTrace: state?.recentTrace ?? [],
         htmlId: (html as HTMLElement & { __g4Id?: string }).__g4Id ?? 'unknown',
       };
     });
