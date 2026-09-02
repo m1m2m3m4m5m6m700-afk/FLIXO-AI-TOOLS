@@ -1,43 +1,11 @@
 name: FLIXO CI — Failure Intelligence Shadow
-
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: flixo-ci-failure-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
-
 jobs:
-  failure-intelligence-shadow:
-    name: CI Failure Intelligence Shadow
+  disabled:
+    name: Failure Intelligence Shadow — disabled
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      - run: npx tsc --noEmit --pretty false
-      - name: Failure classification semantics
-        run: node --experimental-strip-types scripts/ci/failure/engine.test.mjs
-      - name: Deterministic failure report
-        env:
-          CI_FAILURE_EVENTS: '[{"id":"1","contract":"G4-TITLE-001","status":"FAIL","message":"localized title mismatch","route":"/tr/x","locale":"tr"},{"id":"2","contract":"G3-INTEGRITY-001","status":"FAIL","message":"artifact integrity SHA mismatch","route":"/en/x","locale":"en"}]'
-        run: node --experimental-strip-types scripts/ci/failure/report.mjs
-      - name: Verify report
-        run: test -s artifacts/ci/failure/report.json && test -s artifacts/ci/failure/report.md
-      - name: Upload failure evidence
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: ci-failure-intelligence-${{ github.sha }}
-          path: artifacts/ci/failure/
-          if-no-files-found: error
-          retention-days: 14
+      - run: echo "Failure Intelligence Shadow is disabled; Executive Contract owns failure extraction and aggregation."
