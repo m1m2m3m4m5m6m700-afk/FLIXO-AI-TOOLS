@@ -1,49 +1,11 @@
 name: FLIXO CI — Evidence Ledger Shadow
-
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: flixo-ci-evidence-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
-
 jobs:
-  evidence-shadow:
-    name: CI Evidence Ledger Shadow
+  disabled:
+    name: Evidence Ledger Shadow — disabled
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Checkout exact revision
-        uses: actions/checkout@v5
-      - name: Setup Node
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: TypeScript
-        run: npx tsc --noEmit --pretty false
-      - name: Evidence ledger semantics
-        run: node --experimental-strip-types scripts/ci/evidence/ledger.test.mjs
-      - name: Evidence ledger self-test
-        run: node --experimental-strip-types scripts/ci/evidence/self-test.mjs
-      - name: Verify evidence output
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s artifacts/ci/evidence/manifest.json
-          test "$(find artifacts/ci/evidence -name '*.json' | wc -l)" -ge 2
-      - name: Upload evidence ledger
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: ci-evidence-ledger-${{ github.sha }}
-          path: artifacts/ci/evidence/
-          if-no-files-found: error
-          retention-days: 14
+      - run: echo "Evidence Ledger Shadow is disabled; Executive Contract owns per-job evidence and error-report.json."
