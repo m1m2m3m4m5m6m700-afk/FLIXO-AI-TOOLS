@@ -44,12 +44,7 @@ function readResults() {
       const data = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (data && typeof data === 'object') results.push({ ...data, _artifact: file });
     } catch (error) {
-      results.push({
-        testId: 'UNKNOWN',
-        status: 'failure',
-        output: `Unable to parse ${file}: ${error.message}`,
-        _artifact: file,
-      });
+      results.push({ testId: 'UNKNOWN', status: 'failure', output: `Unable to parse ${file}: ${error.message}`, _artifact: file });
     }
   }
   return results;
@@ -69,11 +64,10 @@ function classify(message, category) {
 }
 
 function extractMessages(result, meta) {
+  if (result.status === 'success') return [];
   const output = typeof result.output === 'string' ? result.output : '';
   const lines = output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const candidates = lines.filter((line) => /error|failed|failure|timeout|TS\d+/i.test(line));
-
-  if (result.status === 'success') return [];
   return (candidates.length ? candidates : [result.message || `${meta.name} failed`]).map((message) => ({
     testId: meta.id,
     testName: meta.name,
@@ -93,10 +87,7 @@ function topErrors(errors, limit = 5) {
     const key = error.message.replace(/\s+/g, ' ').slice(0, 160);
     counts.set(key, (counts.get(key) || 0) + 1);
   }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, limit)
-    .map(([message, count]) => ({ message, count }));
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([message, count]) => ({ message, count }));
 }
 
 function detectPatterns(errors) {
@@ -105,12 +96,10 @@ function detectPatterns(errors) {
     const key = `${error.category}:${error.type}`;
     patterns.set(key, (patterns.get(key) || 0) + 1);
   }
-  return [...patterns.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([key, count]) => {
-      const [category, type] = key.split(':');
-      return { category, type, count, severity: count >= 5 ? 'high' : count > 1 ? 'medium' : 'low' };
-    });
+  return [...patterns.entries()].sort((a, b) => b[1] - a[1]).map(([key, count]) => {
+    const [category, type] = key.split(':');
+    return { category, type, count, severity: count >= 5 ? 'high' : count > 1 ? 'medium' : 'low' };
+  });
 }
 
 function recommendations(errors, missing, duplicates) {
@@ -138,17 +127,7 @@ function main() {
 
     const meta = TEST_CATEGORIES[result.testId];
     if (!meta) {
-      errors.push({
-        testId: 'UNKNOWN',
-        testName: 'Unknown Test',
-        priority: 'P2',
-        category: 'unknown',
-        type: 'TestError',
-        browser: result.browser || null,
-        shard: result.shard || null,
-        file: result._artifact || null,
-        message: `Unknown test identity: ${identity}.`,
-      });
+      errors.push({ testId: 'UNKNOWN', testName: 'Unknown Test', priority: 'P2', category: 'unknown', type: 'TestError', browser: result.browser || null, shard: result.shard || null, file: result._artifact || null, message: `Unknown test identity: ${identity}.` });
       continue;
     }
     errors.push(...extractMessages(result, meta));
@@ -157,31 +136,12 @@ function main() {
   const missing = EXPECTED_IDENTITIES.filter((identity) => !seen.has(identity));
   for (const identity of missing) {
     const baseId = identity.split(':')[0];
-    const meta = TEST_CATEGORIES[baseId] || TEST_CATEGORIES['TEST-006'];
-    errors.push({
-      testId: meta.id,
-      testName: meta.name,
-      priority: 'P0',
-      category: meta.category,
-      type: 'TestError',
-      browser: identity.split(':')[1] || null,
-      shard: identity.split(':')[2] || null,
-      file: null,
-      message: `Missing result artifact identity: ${identity}.`,
-    });
+    const meta = TEST_CATEGORIES[baseId];
+    errors.push({ testId: meta.id, testName: meta.name, priority: 'P0', category: meta.category, type: 'TestError', browser: identity.split(':')[1] || null, shard: identity.split(':')[2] || null, file: null, message: `Missing result artifact identity: ${identity}.` });
   }
   for (const identity of duplicates) {
-    errors.push({
-      testId: identity.split(':')[0],
-      testName: 'Evidence Integrity',
-      priority: 'P0',
-      category: TEST_CATEGORIES[identity.split(':')[0]]?.category || 'unknown',
-      type: 'TestError',
-      browser: identity.split(':')[1] || null,
-      shard: identity.split(':')[2] || null,
-      file: null,
-      message: `Duplicate result artifact identity: ${identity}.`,
-    });
+    const baseId = identity.split(':')[0];
+    errors.push({ testId: baseId, testName: 'Evidence Integrity', priority: 'P0', category: TEST_CATEGORIES[baseId]?.category || 'unknown', type: 'TestError', browser: identity.split(':')[1] || null, shard: identity.split(':')[2] || null, file: null, message: `Duplicate result artifact identity: ${identity}.` });
   }
 
   const failedResults = results.filter((result) => result.status !== 'success');
@@ -206,24 +166,13 @@ function main() {
       duplicateEvidence: duplicates,
     },
     errors,
-    summary: {
-      total: errors.length,
-      byCategory,
-      byPriority,
-      expectedResults: EXPECTED_IDENTITIES.length,
-      receivedResults: results.length,
-    },
-    rootCauseAnalysis: {
-      topErrors: topErrors(errors),
-      errorPatterns: detectPatterns(errors),
-      recommendations: recommendations(errors, missing, duplicates),
-    },
+    summary: { total: errors.length, byCategory, byPriority, expectedResults: EXPECTED_IDENTITIES.length, receivedResults: results.length },
+    rootCauseAnalysis: { topErrors: topErrors(errors), errorPatterns: detectPatterns(errors), recommendations: recommendations(errors, missing, duplicates) },
   };
 
   fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`);
   console.log(`Wrote ${output}: ${errors.length} error(s).`);
   console.log(JSON.stringify(report.summary, null, 2));
-
   if (errors.length > 0 || results.length !== EXPECTED_IDENTITIES.length || missing.length || duplicates.length) process.exitCode = 1;
 }
 
