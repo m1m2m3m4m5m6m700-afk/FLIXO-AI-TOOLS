@@ -1,0 +1,510 @@
+name: FLIXO CI — Executive Contract
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: executive-ci-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+# This workflow is intentionally additive: the existing canonical CI remains intact.
+# The 18 executive paths below are independent and never block one another.
+
+jobs:
+  ci-001:
+    name: CI-001 — TypeScript Type Checking
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-001 "TypeScript Type Checking" static-analysis P0 "npm run typecheck"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-001-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-001/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci-002:
+    name: CI-002 — ESLint Code Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-002 "ESLint Code Quality" static-analysis P0 "npm run lint"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-002-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-002/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci-003:
+    name: CI-003 — Registry & Contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-003 "Registry & Contracts" contract-validation P0 "npm run validate:ci-contract && npm run validate:tool-registry && npm run validate:tool-manifest && npm run validate:router-registry && npm run validate:contracts"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-003-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-003/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci-004:
+    name: CI-004 — Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-004 "Unit Tests" testing P1 "npm run test:unit"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-004-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-004/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci-005:
+    name: CI-005 — Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-005 "Integration Tests" testing P1 "npm run verify:contracts"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-005-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-005/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci-006:
+    name: CI-006 — E2E Tests (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-006 "E2E Tests (Chromium)" testing P1 "npx playwright install --with-deps chromium && npx playwright test --project=chromium"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-006-${{ github.run_id }}
+          path: |
+            artifacts/ci-executive/CI-006/
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  ci-007:
+    name: CI-007 — E2E Tests (Firefox)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-007 "E2E Tests (Firefox)" testing P1 "npx playwright install --with-deps firefox && npx playwright test --project=firefox"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-007-${{ github.run_id }}
+          path: |
+            artifacts/ci-executive/CI-007/
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  ci-008:
+    name: CI-008 — E2E Tests (WebKit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-008 "E2E Tests (WebKit)" testing P1 "npx playwright install --with-deps webkit && npx playwright test --project=webkit"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-008-${{ github.run_id }}
+          path: |
+            artifacts/ci-executive/CI-008/
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  ci-009:
+    name: CI-009 — Build & Artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-009 "Build & Artifact" build P0 "npm run build"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-009-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-009/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci-010:
+    name: CI-010 — Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-010 "Security Audit" security P0 "npm run audit:production"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-010-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-010/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci-011:
+    name: CI-011 — Bundle Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-011 "Bundle Analysis" performance P2 "npm run build:runtime && npm run report:bundle-size && npm run validate:performance-budget"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-011-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-011/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci-012:
+    name: CI-012 — Localization Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-012 "Localization Validation" i18n P1 "npm run validate:i18n && npm run validate:localization-full"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-012-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-012/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci-013:
+    name: CI-013 — 20-Language UI Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-013 "20-Language UI Validation" i18n P1 "npm run verify:i18n && npm run validate:language-quality && npm run validate:locale-integrity && npm run validate:locale-navigation && npm run validate:home-i18n"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-013-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-013/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci-014:
+    name: CI-014 — 20-Language SEO Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-014 "20-Language SEO Validation" i18n P1 "npm run validate:seo && npm run validate:seo-manifest && npm run validate:use-case-seo && npm run validate:indexing && npm run validate:breadcrumb-seo"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-014-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-014/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci-015:
+    name: CI-015 — 20-Language Routing Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-015 "20-Language Routing Validation" i18n P1 "npm run validate:router-registry && npm run test:route-resolver"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-015-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-015/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci-016:
+    name: CI-016 — Tool Input Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-016 "Tool Input Validation" tool-contract P0 "npm run test:upload-boundary && node --experimental-strip-types scripts/test-file-safety.mjs"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-016-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-016/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci-017:
+    name: CI-017 — Tool Output Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-017 "Tool Output Validation" tool-contract P0 "node --experimental-strip-types scripts/test-output-integrity.mjs"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-017-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-017/
+          if-no-files-found: error
+          retention-days: 14
+
+  ci-018:
+    name: CI-018 — Tool Data Integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        continue-on-error: true
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Execute path
+        run: node scripts/ci/execute-executive-job.mjs CI-018 "Tool Data Integrity" tool-contract P0 "npm run validate:tool-registry && npm run validate:tool-manifest && node scripts/test-release-evidence.mjs && npm run test:tool-localization"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ci-executive-CI-018-${{ github.run_id }}
+          path: artifacts/ci-executive/CI-018/
+          if-no-files-found: error
+          retention-days: 14
+
+  aggregator:
+    name: Aggregation — Executive Error Report
+    needs:
+      - ci-001
+      - ci-002
+      - ci-003
+      - ci-004
+      - ci-005
+      - ci-006
+      - ci-007
+      - ci-008
+      - ci-009
+      - ci-010
+      - ci-011
+      - ci-012
+      - ci-013
+      - ci-014
+      - ci-015
+      - ci-016
+      - ci-017
+      - ci-018
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Download all executive artifacts
+        uses: actions/download-artifact@v5
+        with:
+          pattern: ci-executive-*
+          path: artifacts/ci-executive
+          merge-multiple: true
+      - name: Verify artifact coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=18
+          actual=$(find artifacts/ci-executive -mindepth 2 -maxdepth 2 -name result.json | wc -l)
+          echo "Executive result artifacts: $actual/$expected"
+          if [[ "$actual" -ne "$expected" ]]; then
+            echo "Missing executive result artifacts; collector will mark the run RED."
+          fi
+      - name: Generate error-report.json
+        id: aggregate
+        run: node scripts/collect-errors.mjs
+      - name: Publish report artifact
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: error-report-${{ github.run_id }}
+          path: error-report.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Print report summary
+        if: always()
+        shell: bash
+        run: |
+          cat error-report.json
+          {
+            echo '### FLIXO Executive CI'
+            echo
+            node -e "const r=require('./error-report.json'); console.log('**Verdict:** '+r.verdict); console.log('**Jobs:** '+r.jobResults.length+'/18'); console.log('**Failed jobs:** '+r.summary.failedJobs); console.log('**Missing jobs:** '+r.summary.missingJobs); console.log('**Errors:** '+r.summary.total);"
+          } >> "$GITHUB_STEP_SUMMARY"
