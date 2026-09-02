@@ -17,10 +17,7 @@ const TEST_CATEGORIES = {
 };
 
 const EXPECTED_BASE = ['TEST-001', 'TEST-002', 'TEST-003', 'TEST-004', 'TEST-005'];
-const EXPECTED_E2E = [];
-for (const browser of ['chromium', 'firefox', 'webkit']) {
-  for (const shard of ['1/4', '2/4', '3/4', '4/4']) EXPECTED_E2E.push(`TEST-006:${browser}:${shard}`);
-}
+const EXPECTED_E2E = ['1/4', '2/4', '3/4', '4/4'].flatMap((shard) => ['chromium', 'firefox', 'webkit'].map((browser) => `TEST-006:${browser}:${shard}`));
 const EXPECTED_IDENTITIES = [...EXPECTED_BASE, ...EXPECTED_E2E];
 
 function collectFiles(dir) {
@@ -38,21 +35,17 @@ function collectFiles(dir) {
 }
 
 function readResults() {
-  const results = [];
-  for (const file of collectFiles(root)) {
+  return collectFiles(root).map((file) => {
     try {
-      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-      if (data && typeof data === 'object') results.push({ ...data, _artifact: file });
+      return { ...JSON.parse(fs.readFileSync(file, 'utf8')), _artifact: file };
     } catch (error) {
-      results.push({ testId: 'UNKNOWN', status: 'failure', output: `Unable to parse ${file}: ${error.message}`, _artifact: file });
+      return { testId: 'UNKNOWN', status: 'failure', output: `Unable to parse ${file}: ${error.message}`, _artifact: file };
     }
-  }
-  return results;
+  });
 }
 
 function identityOf(result) {
-  if (result.testId === 'TEST-006') return `TEST-006:${result.browser || 'unknown'}:${result.shard || 'unknown'}`;
-  return result.testId || 'UNKNOWN';
+  return result.testId === 'TEST-006' ? `TEST-006:${result.browser || 'unknown'}:${result.shard || 'unknown'}` : (result.testId || 'UNKNOWN');
 }
 
 function classify(message, category) {
@@ -69,15 +62,9 @@ function extractMessages(result, meta) {
   const lines = output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const candidates = lines.filter((line) => /error|failed|failure|timeout|TS\d+/i.test(line));
   return (candidates.length ? candidates : [result.message || `${meta.name} failed`]).map((message) => ({
-    testId: meta.id,
-    testName: meta.name,
-    priority: meta.priority,
-    category: meta.category,
-    type: classify(message, meta.category),
-    browser: result.browser || null,
-    shard: result.shard || null,
-    file: result.file || null,
-    message,
+    testId: meta.id, testName: meta.name, priority: meta.priority, category: meta.category,
+    type: classify(message, meta.category), browser: result.browser || null, shard: result.shard || null,
+    file: result.file || null, message,
   }));
 }
 
@@ -124,7 +111,6 @@ function main() {
     const identity = identityOf(result);
     if (seen.has(identity)) duplicates.push(identity);
     seen.add(identity);
-
     const meta = TEST_CATEGORIES[result.testId];
     if (!meta) {
       errors.push({ testId: 'UNKNOWN', testName: 'Unknown Test', priority: 'P2', category: 'unknown', type: 'TestError', browser: result.browser || null, shard: result.shard || null, file: result._artifact || null, message: `Unknown test identity: ${identity}.` });
@@ -144,27 +130,14 @@ function main() {
     errors.push({ testId: baseId, testName: 'Evidence Integrity', priority: 'P0', category: TEST_CATEGORIES[baseId]?.category || 'unknown', type: 'TestError', browser: identity.split(':')[1] || null, shard: identity.split(':')[2] || null, file: null, message: `Duplicate result artifact identity: ${identity}.` });
   }
 
-  const failedResults = results.filter((result) => result.status !== 'success');
   const byCategory = Object.fromEntries(Object.values(TEST_CATEGORIES).map((meta) => [meta.category, errors.filter((error) => error.category === meta.category).length]));
-  const byPriority = {
-    P0: errors.filter((error) => error.priority === 'P0').length,
-    P1: errors.filter((error) => error.priority === 'P1').length,
-    P2: errors.filter((error) => error.priority === 'P2').length,
-  };
-
+  const byPriority = { P0: errors.filter((error) => error.priority === 'P0').length, P1: errors.filter((error) => error.priority === 'P1').length, P2: errors.filter((error) => error.priority === 'P2').length };
   const report = {
     schemaVersion: 1,
     timestamp: new Date().toISOString(),
     commit,
     testCategories: TEST_CATEGORIES,
-    execution: {
-      expectedIdentities: EXPECTED_IDENTITIES.length,
-      receivedResults: results.length,
-      uniqueIdentities: seen.size,
-      failedResults: failedResults.length,
-      missingEvidence: missing,
-      duplicateEvidence: duplicates,
-    },
+    execution: { expectedIdentities: EXPECTED_IDENTITIES.length, receivedResults: results.length, uniqueIdentities: seen.size, failedResults: results.filter((r) => r.status !== 'success').length, missingEvidence: missing, duplicateEvidence: duplicates },
     errors,
     summary: { total: errors.length, byCategory, byPriority, expectedResults: EXPECTED_IDENTITIES.length, receivedResults: results.length },
     rootCauseAnalysis: { topErrors: topErrors(errors), errorPatterns: detectPatterns(errors), recommendations: recommendations(errors, missing, duplicates) },
