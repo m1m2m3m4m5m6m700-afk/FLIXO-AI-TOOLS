@@ -1,52 +1,11 @@
 name: FLIXO CI — Contract Registry Shadow
-
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: flixo-ci-contracts-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
-
 jobs:
-  contract-registry-shadow:
-    name: CI Contract Registry Shadow
+  disabled:
+    name: Contract Registry Shadow — disabled
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Checkout exact revision
-        uses: actions/checkout@v5
-      - name: Setup Node
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: TypeScript
-        run: npx tsc --noEmit --pretty false
-      - name: Registry invariants
-        run: node --experimental-strip-types scripts/ci/contracts/validate-registry.mjs
-      - name: Registry self-test
-        run: node --experimental-strip-types scripts/ci/contracts/registry.test.mjs
-      - name: Compile deterministic contract snapshot
-        run: node --experimental-strip-types scripts/ci/contracts/snapshot.mjs
-      - name: Recompile and prove deterministic hash
-        shell: bash
-        run: |
-          set -euo pipefail
-          cp artifacts/ci/contracts/contract-hash.txt /tmp/contract-hash-1.txt
-          node --experimental-strip-types scripts/ci/contracts/snapshot.mjs
-          cmp /tmp/contract-hash-1.txt artifacts/ci/contracts/contract-hash.txt
-      - name: Upload contract evidence
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: ci-contract-registry-${{ github.sha }}
-          path: artifacts/ci/contracts/
-          if-no-files-found: error
-          retention-days: 14
+      - run: echo "Contract Registry Shadow is disabled; Executive Contract CI-003 owns registry and contract validation."
