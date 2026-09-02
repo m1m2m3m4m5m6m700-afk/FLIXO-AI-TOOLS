@@ -1,58 +1,11 @@
 name: FLIXO CI — Execution Engine Shadow
-
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: flixo-ci-execution-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
-
 jobs:
-  execution-engine-shadow:
-    name: CI Execution Engine Shadow
+  disabled:
+    name: Execution Engine Shadow — disabled
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Checkout full history
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Setup Node
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: TypeScript
-        run: npx tsc --noEmit --pretty false
-      - name: Graph semantics
-        run: node --experimental-strip-types scripts/ci/core/graph.test.mjs
-      - name: Planner semantics
-        run: node --experimental-strip-types scripts/ci/core/planner.test.mjs
-      - name: Compile execution plan
-        env:
-          CI_MODE: L1
-        run: node --experimental-strip-types scripts/ci/core/plan.mjs
-      - name: Compile execution plan twice
-        env:
-          CI_MODE: L1
-        shell: bash
-        run: |
-          set -euo pipefail
-          cp artifacts/ci/plan/execution-plan.json /tmp/execution-plan-1.json
-          node --experimental-strip-types scripts/ci/core/plan.mjs
-          cmp /tmp/execution-plan-1.json artifacts/ci/plan/execution-plan.json
-      - name: Upload execution evidence
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: ci-execution-engine-${{ github.sha }}
-          path: artifacts/ci/plan/
-          if-no-files-found: error
-          retention-days: 14
+      - run: echo "Execution Engine Shadow is disabled; Executive Contract owns execution-path verification."
