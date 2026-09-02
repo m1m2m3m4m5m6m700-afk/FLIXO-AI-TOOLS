@@ -45,13 +45,13 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Cache Vite build acceleration
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Restore Vite build acceleration
         uses: actions/cache@v5
         with:
           path: node_modules/.vite
           key: matrix-first-vite-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
       - name: Install browser system dependencies
         timeout-minutes: 8
         run: npx playwright install-deps '${{ matrix.browser }}'
