@@ -202,9 +202,14 @@ jobs:
           if [ "$build_status" -eq 0 ]; then
             npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/error-collector-preview.log 2>&1 &
             echo $! >/tmp/error-collector-preview.pid
-            for _ in $(seq 1 60); do curl --fail --silent http://127.0.0.1:3000/ >/dev/null && break; sleep 1; done
-            npm exec playwright test tests/integration/bootstrap-locale.spec.ts --project=chromium --workers=1 --retries=0 2>&1 | tee integration.log
-            test_status=${PIPESTATUS[0]}
+            ready=1
+            for _ in $(seq 1 60); do curl --fail --silent http://127.0.0.1:3000/ >/dev/null && { ready=0; break; }; sleep 1; done
+            if [ "$ready" -ne 0 ]; then
+              test_status=1
+            else
+              npm exec playwright test tests/integration/bootstrap-locale.spec.ts --project=chromium --workers=1 --retries=0 2>&1 | tee integration.log
+              test_status=${PIPESTATUS[0]}
+            fi
           else
             test_status=$build_status
           fi
