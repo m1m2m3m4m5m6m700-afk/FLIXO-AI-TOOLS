@@ -57,7 +57,6 @@ jobs:
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Run typecheck and capture errors
-        id: test
         shell: bash
         run: |
           set +e
@@ -314,9 +313,13 @@ jobs:
           merge-multiple: false
       - name: Generate error-report.json
         shell: bash
+        env:
+          SETUP_RESULT: ${{ needs.setup.result }}
+          GITHUB_SHA: ${{ github.sha }}
+          ERROR_ARTIFACT_ROOT: error-artifacts
         run: |
           set -euo pipefail
-          ERROR_ARTIFACT_ROOT=error-artifacts GITHUB_SHA='${{ github.sha }}' node scripts/collect-errors.mjs || true
+          node scripts/collect-errors.mjs || true
           test -s error-report.json
           cat error-report.json
       - name: Upload mandatory error report
