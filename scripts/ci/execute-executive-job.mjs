@@ -14,6 +14,7 @@ if (![jobId, name, category, priority, command].every(Boolean)) {
 const outputDir = path.join('artifacts', 'ci-executive', jobId);
 const logPath = path.join(outputDir, 'combined.log');
 const resultPath = path.join(outputDir, 'result.json');
+const uniqueResultPath = path.join(outputDir, `${jobId}-result.json`);
 
 await mkdir(outputDir, { recursive: true });
 
@@ -66,7 +67,11 @@ const result = {
   outputTail: tail,
 };
 
-await writeFile(resultPath, JSON.stringify(result, null, 2) + '\n', 'utf8');
+const serialized = JSON.stringify(result, null, 2) + '\n';
+await writeFile(resultPath, serialized, 'utf8');
+// Unique root-level filename survives download-artifact merge-multiple: true.
+await writeFile(uniqueResultPath, serialized, 'utf8');
+
 console.log(`\n[${jobId}] ${result.status} exitCode=${exitCode} evidence=${resultPath}`);
 
 // Deliberately return success so every executive path can finish and report.
