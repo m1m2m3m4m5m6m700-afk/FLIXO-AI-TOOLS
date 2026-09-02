@@ -1,40 +1,11 @@
 name: FLIXO CI — Checkpoint Shadow
-
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: flixo-ci-checkpoints-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
-
 jobs:
-  checkpoints-shadow:
-    name: CI Checkpoint Shadow
+  disabled:
+    name: Checkpoint Shadow — disabled
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Checkout exact revision
-        uses: actions/checkout@v5
-      - name: Setup Node
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: TypeScript
-        run: npx tsc --noEmit --pretty false
-      - name: Checkpoint semantics
-        run: node --experimental-strip-types scripts/ci/checkpoints/checkpoint.test.mjs
-      - name: Checkpoint self-test
-        run: node --experimental-strip-types scripts/ci/checkpoints/self-test.mjs
-      - name: Verify checkpoint fingerprint shape
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(printf '%s' 'checkpoint' | sha256sum | awk '{print length($1)}')" -eq 64
+      - run: echo "Checkpoint Shadow is disabled; Executive Contract is authoritative."
