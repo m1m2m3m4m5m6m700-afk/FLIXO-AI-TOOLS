@@ -63,6 +63,10 @@ npm run test:e2e
 
 The full 23-suite × 3-browser promotion matrix runs independently through `.github/workflows/full-matrix-promotion.yml`.
 
+### PR gate — Executive Contract
+
+PRs against `main` are verified by the Executive Contract (`.github/workflows/ci-executive.yml`): 18 independent paths (typecheck, lint, contracts, unit/integration/E2E, build, security, bundle, localization, SEO, routing, and tool contracts) run to completion and never block one another. Each path records `combined.log`, `job-errors.json`, and `result.json` under `artifacts/ci-executive/<job>/`. The aggregator (`scripts/collect-errors.mjs`) reads every result and emits the single authoritative `error-report.json` with a status-based verdict — `GREEN` only when all 18 paths PASS and none are missing, `RED` otherwise while preserving the collected evidence. The report always materializes as an artifact, whatever the test outcomes.
+
 ## Internationalization
 
 Locale identifiers and metadata live in `src/lib/i18n/config.ts`. Locale dictionaries live in `src/lib/i18n/locales/`, and runtime access is owned by `src/lib/i18n/loader.ts`.
@@ -77,7 +81,7 @@ Future performance work will preserve **zero AI cost on the initial page** and l
 
 ## Evidence-first release rule
 
-A local success is development evidence, not release certification. A change is considered green only when the canonical checks and relevant browser evidence pass for the **exact commit SHA** being promoted.
+A local success is development evidence, not release certification. A change is considered green only when the canonical checks and relevant browser evidence pass for the **exact commit SHA** being promoted. The Executive Contract aggregator is the PR authority for that exact-SHA verdict.
 
 Provider-side deployment limits, such as a Vercel quota error, are tracked as external deployment conditions. They are never converted into a fake application GREEN or a fake application failure without matching code evidence.
 
