@@ -1,51 +1,11 @@
 name: FLIXO CI — Toolchain Build Shadow
-
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: flixo-ci-toolchain-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
-
-env:
-  VITE_SITE_URL: https://flixoai.vercel.app
-
 jobs:
-  toolchain-build-shadow:
-    name: CI Toolchain and Build Shadow
+  disabled:
+    name: Toolchain Build Shadow — disabled
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Toolchain identity
-        run: node --experimental-strip-types scripts/ci/runtime/toolchain.test.mjs
-      - name: TypeScript
-        run: npx tsc --noEmit --pretty false
-      - name: Build
-        env:
-          CI: 'true'
-        run: npm run build
-      - name: Build identity
-        run: node --experimental-strip-types scripts/ci/runtime/build-identity.mjs
-      - name: Validate build identity
-        run: node --experimental-strip-types scripts/ci/runtime/build-identity.test.mjs
-      - name: Upload verified build evidence
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: ci-verified-build-${{ github.sha }}
-          path: |
-            dist/
-            artifacts/ci/build/
-          if-no-files-found: error
-          retention-days: 14
+      - run: echo "Toolchain Build Shadow is disabled; Executive Contract owns build validation."
