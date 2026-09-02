@@ -27,7 +27,7 @@ test.describe('Executive Contract Integration', () => {
       const input = path.join(tempDir, 'combined.log');
       const output = path.join(tempDir, 'job-errors.json');
       await writeFile(input, 'error TS2688: Cannot find type definition file for vite/client\n', 'utf8');
-      await execFileAsync(process.execPath, [extractorPath, '--input', input, '--output', output, '--exit-code', '1', '--job-id', 'CI-001', '--job-name', 'TypeScript Type Checking', '--category', 'static-analysis', '--priority', 'P0']);
+      await execFileAsync(process.execPath, [extractorPath, `--input=${input}`, `--output=${output}`, '--exit-code=1', '--job-id=CI-001', '--job-name=TypeScript Type Checking', '--category=static-analysis', '--priority=P0']);
       const report = JSON.parse(await readFile(output, 'utf8'));
       expect(report.schemaVersion).toBe(1);
       expect(report.jobId).toBe('CI-001');
@@ -65,7 +65,6 @@ test.describe('Executive Contract Integration', () => {
 
   test('aggregator emits error-report.json with the 18-job contract', async () => {
     const backupRoot = path.join(repoRoot, 'artifacts', 'ci-executive');
-    const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'flixo-aggregator-'));
     const jobIds = EXECUTIVE_JOBS;
     try {
       await mkdir(backupRoot, { recursive: true });
@@ -94,7 +93,6 @@ test.describe('Executive Contract Integration', () => {
     } finally {
       await rm(path.join(repoRoot, 'error-report.json'), { force: true });
       for (const jobId of jobIds) await rm(path.join(backupRoot, jobId), { recursive: true, force: true });
-      await rm(tempRoot, { recursive: true, force: true });
     }
   });
 });
