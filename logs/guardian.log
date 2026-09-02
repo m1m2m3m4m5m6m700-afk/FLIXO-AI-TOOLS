@@ -1,0 +1,8 @@
+[Guardian] Mission: Fix locale bootstrap
+[Guardian] Base: main
+[Guardian] Finding: early locale bootstrap existed, but document-level locale could be lost after bootstrap.
+[Guardian] Repair: synchronous index-level self-healing locale guard added.
+[Guardian] Test: isolated tests/integration/bootstrap-locale.spec.ts
+[Guardian] Package: test:bootstrap added without dependency changes.
+[Guardian] CI: isolated bootstrap-locale workflow
+[Guardian] Status: READY_FOR_CI
