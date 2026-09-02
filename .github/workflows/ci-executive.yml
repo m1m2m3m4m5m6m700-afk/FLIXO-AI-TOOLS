@@ -14,7 +14,7 @@ concurrency:
 permissions:
   contents: read
 
-# This workflow is intentionally additive: the existing canonical CI remains intact.
+# The Executive Contract is the PR verification authority.
 # The 18 executive paths below are independent and never block one another.
 
 jobs:
@@ -476,7 +476,7 @@ jobs:
         with:
           pattern: ci-executive-*
           path: artifacts/ci-executive
-          merge-multiple: true
+          merge-multiple: false
       - name: Verify artifact coverage
         shell: bash
         run: |
