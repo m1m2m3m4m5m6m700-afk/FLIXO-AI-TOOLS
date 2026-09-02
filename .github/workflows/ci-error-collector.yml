@@ -18,9 +18,12 @@ env:
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+  VITE_SITE_URL: https://flixoai.vercel.app
   PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
   VITE_TEST_ORIGIN: http://127.0.0.1:3000
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  S4_EXTERNAL_SERVER: 'true'
+  CI: 'true'
 
 jobs:
   setup:
@@ -35,18 +38,18 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Verify baseline metadata
+      - name: Verify baseline
         run: |
           set -euo pipefail
-          echo "commit=$(git rev-parse HEAD)"
-          echo "node=$(node --version)"
-          echo "npm=$(npm --version)"
+          git rev-parse HEAD
+          node --version
+          npm --version
           test -s package-lock.json
 
   typecheck:
     name: Phase 1 — Typecheck
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
         with:
@@ -76,7 +79,7 @@ jobs:
   lint:
     name: Phase 1 — Lint
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
         with:
@@ -90,7 +93,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          npm run lint -- --cache 2>&1 | tee lint.log
+          npm run lint -- --cache --format json --output-file eslint-report.json 2>&1 | tee lint.log
           status=${PIPESTATUS[0]}
           printf '{"job":"lint","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("lint.log","utf8")))')" > result.json
           exit "$status"
@@ -100,13 +103,14 @@ jobs:
           name: error-collector-lint-${{ github.run_id }}
           path: |
             lint.log
+            eslint-report.json
             result.json
-          if-no-files-found: error
+          if-no-files-found: warn
 
   contracts:
     name: Phase 1 — Contracts
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
         with:
@@ -120,19 +124,14 @@ jobs:
         shell: bash
         run: |
           set +e
-          {
-            echo '--- validate:router-registry ---'
-            npm run validate:router-registry
-            s1=$?
-            echo "router-registry-exit=$s1"
-            echo '--- validate:contracts ---'
-            npm run validate:contracts
-            s2=$?
-            echo "contracts-exit=$s2"
-            exit $(( s1 || s2 ))
-          } 2>&1 | tee contracts.log
-          status=${PIPESTATUS[0]}
+          : > contracts.log
+          npm run validate:router-registry >>contracts.log 2>&1
+          s1=$?
+          npm run validate:contracts >>contracts.log 2>&1
+          s2=$?
+          status=$(( s1 || s2 ))
           printf '{"job":"contracts","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("contracts.log","utf8")))')" > result.json
+          cat contracts.log
           exit "$status"
       - uses: actions/upload-artifact@v5
         if: always()
@@ -146,7 +145,7 @@ jobs:
   unit-tests:
     name: Phase 1 — Unit Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
         with:
@@ -176,7 +175,7 @@ jobs:
   integration-tests:
     name: Phase 1 — Integration Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
         with:
@@ -199,19 +198,22 @@ jobs:
           set +e
           npm run build:runtime 2>&1 | tee integration-build.log
           build_status=${PIPESTATUS[0]}
+          test_status=0
           if [ "$build_status" -eq 0 ]; then
             npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/error-collector-preview.log 2>&1 &
             echo $! >/tmp/error-collector-preview.pid
             ready=1
-            for _ in $(seq 1 60); do curl --fail --silent http://127.0.0.1:3000/ >/dev/null && { ready=0; break; }; sleep 1; done
+            for _ in $(seq 1 60); do
+              curl --fail --silent http://127.0.0.1:3000/ >/dev/null && { ready=0; break; }
+              sleep 1
+            done
             if [ "$ready" -ne 0 ]; then
               test_status=1
+              echo 'Integration preview did not become ready.' | tee integration.log
             else
-              npm exec playwright test tests/integration/bootstrap-locale.spec.ts --project=chromium --workers=1 --retries=0 2>&1 | tee integration.log
+              npm exec playwright test tests/integration/ --project=chromium --workers=1 --retries=0 2>&1 | tee integration.log
               test_status=${PIPESTATUS[0]}
             fi
-          else
-            test_status=$build_status
           fi
           status=$(( build_status || test_status ))
           {
@@ -236,7 +238,7 @@ jobs:
   e2e-matrix:
     name: Phase 1 — E2E / ${{ matrix.browser }} / shard-${{ matrix.shard }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       max-parallel: 12
@@ -261,34 +263,45 @@ jobs:
         run: npx playwright install-deps '${{ matrix.browser }}'
       - name: Install browser
         run: npx playwright install '${{ matrix.browser }}'
-      - name: Build preview
-        run: npm run build
-      - name: Start preview
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/error-collector-preview.log 2>&1 &
-          echo $! >/tmp/error-collector-preview.pid
-          for _ in $(seq 1 60); do
-            curl --fail --silent http://127.0.0.1:3000/ >/dev/null && exit 0
-            sleep 1
-          done
-          cat /tmp/error-collector-preview.log
-          exit 1
-      - name: Run E2E shard and capture errors
+      - name: Build preview and run E2E shard
         shell: bash
         run: |
           set +e
-          npm exec playwright test --project='${{ matrix.browser }}' --workers=4 --retries=0 --shard='${{ matrix.shard }}/4' 2>&1 | tee e2e.log
-          status=${PIPESTATUS[0]}
-          printf '{"job":"e2e-matrix","browser":"${{ matrix.browser }}","shard":"${{ matrix.shard }}/4","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("e2e.log","utf8")))')" > result.json
+          npm run build 2>&1 | tee build.log
+          build_status=${PIPESTATUS[0]}
+          test_status=0
+          if [ "$build_status" -eq 0 ]; then
+            npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/error-collector-preview.log 2>&1 &
+            echo $! >/tmp/error-collector-preview.pid
+            ready=1
+            for _ in $(seq 1 60); do
+              curl --fail --silent http://127.0.0.1:3000/ >/dev/null && { ready=0; break; }
+              sleep 1
+            done
+            if [ "$ready" -ne 0 ]; then
+              test_status=1
+              echo 'E2E preview did not become ready.' | tee e2e.log
+            else
+              npm exec playwright test --project='${{ matrix.browser }}' --workers=4 --retries=0 --shard='${{ matrix.shard }}/4' 2>&1 | tee e2e.log
+              test_status=${PIPESTATUS[0]}
+            fi
+          fi
+          status=$(( build_status || test_status ))
+          {
+            cat build.log 2>/dev/null || true
+            cat e2e.log 2>/dev/null || true
+            cat /tmp/error-collector-preview.log 2>/dev/null || true
+          } > e2e-combined.log
+          printf '{"job":"e2e-matrix","browser":"${{ matrix.browser }}","shard":"${{ matrix.shard }}/4","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("e2e-combined.log","utf8")))')" > result.json
           exit "$status"
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: error-collector-e2e-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
           path: |
+            build.log
             e2e.log
+            e2e-combined.log
             result.json
             playwright-report/
             test-results/
@@ -301,7 +314,7 @@ jobs:
     needs: [setup, typecheck, lint, contracts, unit-tests, integration-tests, e2e-matrix]
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
         with:
@@ -310,7 +323,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Download all phase-1 artifacts
+      - name: Download all evidence artifacts
         uses: actions/download-artifact@v5
         with:
           pattern: error-collector-*
@@ -327,15 +340,16 @@ jobs:
           node scripts/collect-errors.mjs || true
           test -s error-report.json
           cat error-report.json
-      - name: Upload mandatory error report
+      - name: Publish error-report.json
+        if: always()
         uses: actions/upload-artifact@v5
         with:
           name: error-report-${{ github.run_id }}
           path: error-report.json
           if-no-files-found: error
           retention-days: 14
-      - name: 100/100 fail-closed decision
+      - name: Enforce 100/100 fail-closed
         shell: bash
         run: |
           set -euo pipefail
-          node -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('error-report.json','utf8')); if(!r || !r.summary || r.summary.total!==0) { console.error('100/100 FAILED: '+(r?.summary?.total ?? 'unknown')+' error(s)'); process.exit(1); } console.log('100/100 PASS: error-report.json contains zero errors.');"
+          node -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('error-report.json','utf8')); if(!r || !r.summary || r.summary.total!==0) { console.error('100/100 FAILED: '+(r?.summary?.total ?? 'unknown')+' error(s)'); process.exit(1); } console.log('100/100 PASS: zero collected errors and complete evidence.');"
