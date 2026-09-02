@@ -482,7 +482,7 @@ jobs:
         run: |
           set -euo pipefail
           expected=18
-          actual=$(find artifacts/ci-executive -mindepth 2 -maxdepth 2 -name result.json | wc -l)
+          actual=$(find artifacts/ci-executive -type f -name "result.json" | wc -l)
           echo "Executive result artifacts: $actual/$expected"
           if [[ "$actual" -ne "$expected" ]]; then
             echo "Missing executive result artifacts; collector will mark the run RED."

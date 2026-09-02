@@ -126,12 +126,23 @@ async function collectFiles(dir, jobId) {
   }
 }
 
+function extractJobId(dirName) {
+  // Direct match: CI-001
+  if (JOB_CATEGORIES[dirName]) return dirName;
+  // Artifact prefix: ci-executive-CI-001-<runId> or ci-executive-CI-001
+  const match = dirName.match(/(CI-\d{3})/);
+  if (match && JOB_CATEGORIES[match[1]]) return match[1];
+  return null;
+}
+
 try {
   await mkdir(artifactsDir, { recursive: true });
   const entries = await readdir(artifactsDir, { withFileTypes: true });
   for (const entry of entries) {
-    if (!entry.isDirectory() || !JOB_CATEGORIES[entry.name]) continue;
-    await collectFiles(path.join(artifactsDir, entry.name), entry.name);
+    if (!entry.isDirectory()) continue;
+    const jobId = extractJobId(entry.name);
+    if (!jobId) continue;
+    await collectFiles(path.join(artifactsDir, entry.name), jobId);
   }
 } catch (error) {
   recordError({ jobId: 'AGGREGATOR', jobName: 'Aggregation', category: 'ci', priority: 'P0', message: error.message }, 'AGGREGATOR');
