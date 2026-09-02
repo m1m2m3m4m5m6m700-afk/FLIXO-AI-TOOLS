@@ -1,28 +1,33 @@
 import { readFileSync } from 'node:fs';
 
-const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
+const executiveWorkflow = readFileSync('.github/workflows/ci-executive.yml', 'utf8');
 
 const required = [
   ['pull_request trigger', /pull_request:\s*\n\s*branches:\s*\[main\]/],
-  ['CI job', /\n\s{2}ci:\n/],
-  ['Fast Contract Diagnostics job', /name:\s*Fast Contract Diagnostics/],
-  ['Canonical Verification Gate job', /name:\s*Canonical Verification Gate/],
-  ['impact-aware fast verifier', /scripts\/ci\/fast-verify\.mjs/],
-  ['single npm ci fast path', /Install dependencies once/],
-  ['PR cancellation', /cancel-in-progress:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*\}\}/],
+  ['18 executive paths', /ci-001:[\s\S]*ci-018:/],
+  ['Executive aggregator', /name:\s*Aggregation — Executive Error Report/],
+  ['artifact aggregation', /actions\/download-artifact@v5/],
+  ['always-run aggregator', /aggregator:[\s\S]*?if:\s*always\(\)/],
+  ['Executive error report', /scripts\/collect-errors\.mjs/],
 ];
 
 for (const [label, pattern] of required) {
-  if (!pattern.test(workflow)) {
-    console.error(`CI contract failed: ${label} is missing from .github/workflows/ci.yml`);
+  if (!pattern.test(executiveWorkflow)) {
+    console.error(`CI contract failed: ${label} is missing from .github/workflows/ci-executive.yml`);
     process.exit(1);
   }
 }
 
-const canonicalSection = workflow.match(/canonical-verify:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
-if (/npm\s+run\s+verify(?![:\w-])/.test(canonicalSection) || /npm\s+test(?![\w-])/.test(canonicalSection)) {
-  console.error('CI contract failed: Canonical Verification must aggregate fast-path evidence and must not rerun the repository-wide verification suite.');
+if (executiveWorkflow.includes('merge-multiple: true')) {
+  console.error('CI contract failed: executive artifacts must retain per-job directories for aggregation.');
   process.exit(1);
 }
 
-console.log('CI contract passed: fast PR path, exact required check names, cancellation, and no duplicate repository-wide verification are enforced.');
+const jobs = [...executiveWorkflow.matchAll(/^\s{2}ci-(\d{3}):$/gm)].map((match) => match[1]);
+const expected = Array.from({ length: 18 }, (_, index) => String(index + 1).padStart(3, '0'));
+if (jobs.length !== expected.length || jobs.some((job, index) => job !== expected[index])) {
+  console.error('CI contract failed: Executive CI paths must be exactly CI-001..CI-018.');
+  process.exit(1);
+}
+
+console.log('CI contract passed: Executive Contract owns the 18-path PR verification surface and authoritative aggregation.');
