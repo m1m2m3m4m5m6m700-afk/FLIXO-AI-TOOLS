@@ -1,0 +1,333 @@
+name: FLIXO CI — Error Collector
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-error-collector-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+  PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: http://127.0.0.1:3000
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+
+jobs:
+  setup:
+    name: Phase 0 — Setup / Baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Verify baseline metadata
+        run: |
+          set -euo pipefail
+          echo "commit=$(git rev-parse HEAD)"
+          echo "node=$(node --version)"
+          echo "npm=$(npm --version)"
+          test -s package-lock.json
+
+  typecheck:
+    name: Phase 1 — Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Run typecheck and capture errors
+        id: test
+        shell: bash
+        run: |
+          set +e
+          npm run typecheck -- --incremental --skipLibCheck 2>&1 | tee typecheck.log
+          status=${PIPESTATUS[0]}
+          printf '{"job":"typecheck","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("typecheck.log","utf8")))')" > result.json
+          exit "$status"
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: error-collector-typecheck-${{ github.run_id }}
+          path: |
+            typecheck.log
+            result.json
+          if-no-files-found: error
+
+  lint:
+    name: Phase 1 — Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Run lint and capture errors
+        shell: bash
+        run: |
+          set +e
+          npm run lint -- --cache 2>&1 | tee lint.log
+          status=${PIPESTATUS[0]}
+          printf '{"job":"lint","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("lint.log","utf8")))')" > result.json
+          exit "$status"
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: error-collector-lint-${{ github.run_id }}
+          path: |
+            lint.log
+            result.json
+          if-no-files-found: error
+
+  contracts:
+    name: Phase 1 — Contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Run contracts and capture errors
+        shell: bash
+        run: |
+          set +e
+          {
+            echo '--- validate:router-registry ---'
+            npm run validate:router-registry
+            s1=$?
+            echo "router-registry-exit=$s1"
+            echo '--- validate:contracts ---'
+            npm run validate:contracts
+            s2=$?
+            echo "contracts-exit=$s2"
+            exit $(( s1 || s2 ))
+          } 2>&1 | tee contracts.log
+          status=${PIPESTATUS[0]}
+          printf '{"job":"contracts","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("contracts.log","utf8")))')" > result.json
+          exit "$status"
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: error-collector-contracts-${{ github.run_id }}
+          path: |
+            contracts.log
+            result.json
+          if-no-files-found: error
+
+  unit-tests:
+    name: Phase 1 — Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Run unit tests and capture errors
+        shell: bash
+        run: |
+          set +e
+          npm run test:unit 2>&1 | tee unit.log
+          status=${PIPESTATUS[0]}
+          printf '{"job":"unit-tests","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("unit.log","utf8")))')" > result.json
+          exit "$status"
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: error-collector-unit-${{ github.run_id }}
+          path: |
+            unit.log
+            result.json
+          if-no-files-found: error
+
+  integration-tests:
+    name: Phase 1 — Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Cache Chromium
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: error-collector-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run integration tests and capture errors
+        shell: bash
+        run: |
+          set +e
+          npm run build:runtime 2>&1 | tee integration-build.log
+          build_status=${PIPESTATUS[0]}
+          if [ "$build_status" -eq 0 ]; then
+            npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/error-collector-preview.log 2>&1 &
+            echo $! >/tmp/error-collector-preview.pid
+            for _ in $(seq 1 60); do curl --fail --silent http://127.0.0.1:3000/ >/dev/null && break; sleep 1; done
+            npm exec playwright test tests/integration/bootstrap-locale.spec.ts --project=chromium --workers=1 --retries=0 2>&1 | tee integration.log
+            test_status=${PIPESTATUS[0]}
+          else
+            test_status=$build_status
+          fi
+          status=$(( build_status || test_status ))
+          {
+            cat integration-build.log 2>/dev/null || true
+            cat integration.log 2>/dev/null || true
+            cat /tmp/error-collector-preview.log 2>/dev/null || true
+          } > integration-combined.log
+          printf '{"job":"integration-tests","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("integration-combined.log","utf8")))')" > result.json
+          exit "$status"
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: error-collector-integration-${{ github.run_id }}
+          path: |
+            integration-build.log
+            integration.log
+            integration-combined.log
+            result.json
+            /tmp/error-collector-preview.log
+          if-no-files-found: warn
+
+  e2e-matrix:
+    name: Phase 1 — E2E / ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        browser: [chromium, firefox, webkit]
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Cache Playwright browser
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: error-collector-playwright-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+      - name: Install browser dependencies
+        run: npx playwright install-deps '${{ matrix.browser }}'
+      - name: Install browser
+        run: npx playwright install '${{ matrix.browser }}'
+      - name: Build preview
+        run: npm run build
+      - name: Start preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/error-collector-preview.log 2>&1 &
+          echo $! >/tmp/error-collector-preview.pid
+          for _ in $(seq 1 60); do
+            curl --fail --silent http://127.0.0.1:3000/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/error-collector-preview.log
+          exit 1
+      - name: Run E2E shard and capture errors
+        shell: bash
+        run: |
+          set +e
+          npm exec playwright test --project='${{ matrix.browser }}' --workers=4 --retries=0 --shard='${{ matrix.shard }}/4' 2>&1 | tee e2e.log
+          status=${PIPESTATUS[0]}
+          printf '{"job":"e2e-matrix","browser":"${{ matrix.browser }}","shard":"${{ matrix.shard }}/4","status":"%s","output":%s}\n' "$([ "$status" -eq 0 ] && echo success || echo failure)" "$(node -e 'process.stdout.write(JSON.stringify(require("fs").readFileSync("e2e.log","utf8")))')" > result.json
+          exit "$status"
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: error-collector-e2e-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
+          path: |
+            e2e.log
+            result.json
+            playwright-report/
+            test-results/
+            /tmp/error-collector-preview.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  aggregator:
+    name: Phase 2/3 — Aggregate + 100/100 Gate
+    needs: [setup, typecheck, lint, contracts, unit-tests, integration-tests, e2e-matrix]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Download all phase-1 artifacts
+        uses: actions/download-artifact@v5
+        with:
+          pattern: error-collector-*
+          path: error-artifacts
+          merge-multiple: false
+      - name: Generate error-report.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          ERROR_ARTIFACT_ROOT=error-artifacts GITHUB_SHA='${{ github.sha }}' node scripts/collect-errors.mjs || true
+          test -s error-report.json
+          cat error-report.json
+      - name: Upload mandatory error report
+        uses: actions/upload-artifact@v5
+        with:
+          name: error-report-${{ github.run_id }}
+          path: error-report.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: 100/100 fail-closed decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('error-report.json','utf8')); if(!r || !r.summary || r.summary.total!==0) { console.error('100/100 FAILED: '+(r?.summary?.total ?? 'unknown')+' error(s)'); process.exit(1); } console.log('100/100 PASS: error-report.json contains zero errors.');"
