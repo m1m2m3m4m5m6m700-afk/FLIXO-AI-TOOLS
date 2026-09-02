@@ -47,14 +47,14 @@ function normalize(message) {
   return String(message)
     .replace(/\b[0-9a-f]{7,40}\b/g, '<sha>')
     .replace(/\b\d+(?:\.\d+)?ms\b/g, '<duration>')
-    .slice(0, 500);
+    .replace(/\/home\/runner\/work\/[^\s:]+/g, '<path>')
+    .slice(0, 1000);
 }
 
 function recordResult(result) {
   if (!result?.jobId || !JOB_CATEGORIES[result.jobId]) return;
   const existing = jobResults.get(result.jobId);
-  if (existing && existing.completedAt >= result.completedAt) return;
-  jobResults.set(result.jobId, result);
+  if (!existing || String(existing.completedAt) < String(result.completedAt)) jobResults.set(result.jobId, result);
 }
 
 async function parseJson(filePath) {
@@ -65,22 +65,40 @@ async function parseJson(filePath) {
   }
 }
 
+async function collectDirectory(jobId) {
+  const dir = path.join(artifactsDir, jobId);
+  const entries = await readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+    const data = await parseJson(path.join(dir, entry.name));
+    if (!data) continue;
+    if (data.jobId) recordResult(data);
+    if (Array.isArray(data.errors) && entry.name.endsWith('-errors.json')) {
+      for (const error of data.errors) {
+        errors.push({
+          jobId: data.jobId ?? jobId,
+          jobName: data.jobName ?? JOB_CATEGORIES[jobId]?.name ?? jobId,
+          category: data.category ?? JOB_CATEGORIES[jobId]?.category ?? 'unknown',
+          priority: data.priority ?? JOB_CATEGORIES[jobId]?.priority ?? 'P2',
+          type: error.type ?? 'unknown',
+          severity: error.severity ?? 'error',
+          line: error.line ?? null,
+          message: error.message ?? error.raw ?? 'Unknown error',
+          raw: error.raw ?? error.message ?? '',
+          normalized: normalize(error.normalized ?? error.message ?? error.raw ?? ''),
+          exitCode: data.exitCode ?? null,
+        });
+      }
+    }
+  }
+}
+
 try {
   await mkdir(artifactsDir, { recursive: true });
   const entries = await readdir(artifactsDir, { withFileTypes: true });
-
   for (const entry of entries) {
-    const fullPath = path.join(artifactsDir, entry.name);
-    if (entry.isFile() && entry.name.endsWith('-result.json')) {
-      const result = await parseJson(fullPath);
-      if (result) recordResult(result);
-      continue;
-    }
-    if (entry.isDirectory()) {
-      const nested = path.join(fullPath, 'result.json');
-      const result = await parseJson(nested);
-      if (result) recordResult(result);
-    }
+    if (!entry.isDirectory()) continue;
+    await collectDirectory(entry.name);
   }
 } catch (error) {
   errors.push({ jobId: 'AGGREGATOR', jobName: 'Aggregation', category: 'ci', priority: 'P0', message: error.message, normalized: normalize(error.message) });
@@ -94,16 +112,10 @@ for (const [jobId, result] of jobResults) {
     summary.byCategory[meta.category] += 1;
     summary.byPriority[meta.priority] += 1;
     summary.byJob[jobId] = 1;
-    for (const message of result.failureEvidence ?? []) {
-      errors.push({
-        jobId,
-        jobName: result.name ?? meta.name,
-        category: result.category ?? meta.category,
-        priority: result.priority ?? meta.priority,
-        message,
-        normalized: normalize(message),
-        exitCode: result.exitCode,
-      });
+    if (!errors.some((error) => error.jobId === jobId)) {
+      for (const message of result.failureEvidence ?? []) {
+        errors.push({ jobId, jobName: result.name ?? meta.name, category: result.category ?? meta.category, priority: result.priority ?? meta.priority, message, normalized: normalize(message), exitCode: result.exitCode });
+      }
     }
   } else {
     summary.passedJobs += 1;
@@ -114,15 +126,7 @@ for (const jobId of Object.keys(JOB_CATEGORIES)) {
   if (!jobResults.has(jobId)) {
     summary.missingJobs += 1;
     const meta = JOB_CATEGORIES[jobId];
-    errors.push({
-      jobId,
-      jobName: meta.name,
-      category: meta.category,
-      priority: meta.priority,
-      message: 'No result artifact was reported for this executive path.',
-      normalized: 'No result artifact was reported for this executive path.',
-      exitCode: null,
-    });
+    errors.push({ jobId, jobName: meta.name, category: meta.category, priority: meta.priority, message: 'No result artifact was reported for this executive path.', normalized: 'No result artifact was reported for this executive path.', exitCode: null });
   }
 }
 
@@ -131,7 +135,7 @@ summary.total = errors.length;
 const counts = new Map();
 for (const error of errors) {
   const key = error.normalized || error.message;
-  const item = counts.get(key) ?? { count: 0, jobs: new Set() };
+  const item = counts.get(key) ?? { count: 0, jobs: new Set(), example: error.message };
   item.count += 1;
   item.jobs.add(error.jobId);
   counts.set(key, item);
@@ -140,13 +144,12 @@ for (const error of errors) {
 const topErrors = [...counts.entries()]
   .sort((a, b) => b[1].count - a[1].count)
   .slice(0, 10)
-  .map(([message, data]) => ({ message, count: data.count, jobs: [...data.jobs].sort() }));
+  .map(([message, data]) => ({ message, count: data.count, jobs: [...data.jobs].sort(), example: data.example }));
 
 const failedP0 = [...jobResults.values()].filter((result) => result.status !== 'PASS' && result.priority === 'P0').map((result) => result.jobId);
 const recommendations = [];
-if (!summary.failedJobs && !summary.missingJobs) {
-  recommendations.push('All 18 executive paths produced PASS evidence.');
-} else {
+if (!summary.failedJobs && !summary.missingJobs) recommendations.push('All 18 executive paths produced PASS evidence.');
+else {
   if (failedP0.length) recommendations.push(`Fix P0 failures first: ${failedP0.join(', ')}.`);
   if (summary.missingJobs) recommendations.push('Resolve missing executive result artifacts before trusting the aggregate verdict.');
   if (errors.some((error) => error.category === 'i18n')) recommendations.push('Review i18n routing, UI, and SEO failures together for shared locale-contract regressions.');
@@ -154,7 +157,7 @@ if (!summary.failedJobs && !summary.missingJobs) {
 }
 
 const report = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   timestamp: new Date().toISOString(),
   commit: process.env.GITHUB_SHA || 'local',
   runId: process.env.GITHUB_RUN_ID || 'local',
@@ -170,6 +173,6 @@ const report = {
   },
 };
 
-await writeFile(outputPath, JSON.stringify(report, null, 2) + '\n', 'utf8');
+await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 console.log(JSON.stringify({ verdict: report.verdict, jobsExpected: 18, jobsReported: jobResults.size, failedJobs: summary.failedJobs, missingJobs: summary.missingJobs, errors: summary.total }, null, 2));
 process.exitCode = report.verdict === 'GREEN' ? 0 : 1;
