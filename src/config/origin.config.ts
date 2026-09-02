@@ -34,7 +34,7 @@ export function getCanonicalSiteOrigin(): string {
   const isVercelBuild = globalThis.process?.env?.VERCEL === '1';
   const isCanonicalCi =
     globalThis.process?.env?.GITHUB_ACTIONS === 'true' &&
-    globalThis.process?.env?.GITHUB_WORKFLOW === 'CI';
+    ['CI', 'FLIXO CI — Executive Contract'].includes(globalThis.process?.env?.GITHUB_WORKFLOW ?? '');
   const raw = configured || (isVercelBuild || isCanonicalCi ? OFFICIAL_PRODUCTION_ORIGIN : undefined);
 
   if (!raw) {
