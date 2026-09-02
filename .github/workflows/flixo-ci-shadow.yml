@@ -1,42 +1,11 @@
 name: FLIXO CI — Foundation Shadow
-
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: flixo-ci-foundation-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
-
 jobs:
-  foundation-shadow:
-    name: CI Foundation Shadow
+  disabled:
+    name: Foundation Shadow — disabled
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Checkout exact revision
-        uses: actions/checkout@v5
-      - name: Setup Node
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: TypeScript foundation compile
-        run: npx tsc --noEmit --pretty false
-      - name: Foundation contract validation
-        run: node --experimental-strip-types scripts/ci/validate-foundation.mjs
-      - name: Decision semantics
-        run: node --experimental-strip-types scripts/ci/core/status.test.mjs
-      - name: Repository safety assertions
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f package-lock.json
-          test -f .nvmrc
-          test "$(cat .nvmrc)" = "22"
+      - run: echo "Foundation Shadow is disabled; Executive Contract CI-001/CI-003 own the required checks."
