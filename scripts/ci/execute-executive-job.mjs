@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 
@@ -51,16 +51,22 @@ function runShell(commandText, logWriter) {
     });
     let output = '';
     const append = (chunk) => {
-      const text = chunk.toString();
-      output += text;
-      process.stdout.write(text);
-      logWriter(text);
+      output += chunk.toString();
     };
     child.stdout.on('data', append);
     child.stderr.on('data', append);
     child.on('error', (error) => resolve({ exitCode: 1, output: `${output}\n${error.message}\n` }));
     child.on('close', (code, signal) => resolve({ exitCode: code ?? (signal ? 128 : 1), output }));
+    child.on('close', () => logWriter(output));
   });
+}
+
+function conciseFailures(output) {
+  return output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && /\b(?:error|failed|failure|fatal|panic|exception|timeout|timed out|assertion)\b/i.test(line))
+    .slice(-8);
 }
 
 const startedAt = new Date().toISOString();
@@ -70,11 +76,17 @@ const appendLog = (text) => { combinedOutput += text; };
 const commands = splitCommands(command);
 const commandResults = [];
 
+console.log(`[${jobId}] executing ${commands.length} command${commands.length === 1 ? '' : 's'}`);
+
 for (const [index, commandText] of commands.entries()) {
-  console.log(`\n[${jobId}] command ${index + 1}/${commands.length}: ${commandText}`);
   const result = await runShell(commandText, appendLog);
-  commandResults.push({ command: commandText, exitCode: result.exitCode, status: result.exitCode === 0 ? 'PASS' : 'FAIL' });
-  console.log(`[${jobId}] command ${index + 1} ${result.exitCode === 0 ? 'PASS' : 'FAIL'} — continuing`);
+  const status = result.exitCode === 0 ? 'PASS' : 'FAIL';
+  commandResults.push({ command: commandText, exitCode: result.exitCode, status });
+  console.log(`[${jobId}] ${index + 1}/${commands.length} ${status}`);
+  if (status === 'FAIL') {
+    for (const line of conciseFailures(result.output)) console.log(`[${jobId}] ${line}`);
+    console.log(`[${jobId}] continuing after failure`);
+  }
 }
 
 await writeFile(logPath, combinedOutput, 'utf8');
@@ -97,7 +109,7 @@ const extractor = spawn('node', [
 ], { stdio: 'inherit', env: process.env });
 await new Promise((resolve) => extractor.on('close', resolve));
 
-const errors = JSON.parse(await (await import('node:fs/promises')).readFile(errorsPath, 'utf8'));
+const errors = JSON.parse(await readFile(errorsPath, 'utf8'));
 await writeFile(uniqueErrorsPath, `${JSON.stringify(errors, null, 2)}\n`, 'utf8');
 
 const lines = combinedOutput.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -131,7 +143,7 @@ const serialized = `${JSON.stringify(result, null, 2)}\n`;
 await writeFile(resultPath, serialized, 'utf8');
 await writeFile(uniqueResultPath, serialized, 'utf8');
 
-console.log(`\n[${jobId}] ${result.status} commands=${commandResults.length} failedCommands=${failed} errors=${errors.totalErrors}`);
+console.log(`\n[${jobId}] ${result.status} commands=${commands.length} failed=${failed} errors=${errors.totalErrors}`);
 
 // Never fail the workflow step itself: the aggregator is the final release verdict.
 process.exit(0);
