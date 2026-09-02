@@ -4,7 +4,8 @@ import path from 'node:path';
 const root = process.env.ERROR_ARTIFACT_ROOT || 'error-artifacts';
 const output = process.env.ERROR_REPORT_PATH || 'error-report.json';
 const commit = process.env.GITHUB_SHA || 'unknown';
-const expectedJobs = 6;
+const setupResult = process.env.SETUP_RESULT || 'unknown';
+const expectedJobs = 5;
 const expectedE2eUnits = 12;
 
 const files = fs.existsSync(root)
@@ -27,6 +28,15 @@ const classify = (message, job) => {
 const errors = [];
 const baseJobs = new Set();
 let e2eUnits = 0;
+
+if (setupResult !== 'success') {
+  errors.push({
+    type: 'TestError',
+    job: 'setup',
+    file: null,
+    message: `Phase 0 setup result: ${setupResult}.`,
+  });
+}
 
 for (const result of results) {
   if (result.job) {
@@ -67,7 +77,7 @@ const report = {
   errors,
   summary: {
     total: errors.length,
-    setup: results.filter((r) => r.job === 'setup' && r.status !== 'success').length,
+    setup: setupResult === 'success' ? 0 : 1,
     typecheck: results.filter((r) => r.job === 'typecheck' && r.status !== 'success').length,
     lint: results.filter((r) => r.job === 'lint' && r.status !== 'success').length,
     contracts: results.filter((r) => r.job === 'contracts' && r.status !== 'success').length,
@@ -91,4 +101,4 @@ const report = {
 
 fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`);
 console.log(`Wrote ${output}: ${errors.length} error(s).`);
-if (errors.length > 0 || results.some((result) => result.status !== 'success')) process.exitCode = 1;
+if (errors.length > 0 || setupResult !== 'success' || results.some((result) => result.status !== 'success')) process.exitCode = 1;
