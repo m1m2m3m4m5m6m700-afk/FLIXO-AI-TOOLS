@@ -1,0 +1,7 @@
+[Guardian] Mission: Fix locale bootstrap
+[Guardian] Base: 932f0c7e701038194f20bf0394890c59dacd747a
+[Guardian] Finding: early index bootstrap exists, but a later lifecycle can leave document-level locale empty.
+[Guardian] Repair: strengthen synchronous bootstrap with a DOM-level self-healing guard.
+[Guardian] Test: isolated tests/integration/bootstrap-locale.spec.ts
+[Guardian] CI: isolated bootstrap-locale workflow
+[Guardian] Status: IN_PROGRESS
