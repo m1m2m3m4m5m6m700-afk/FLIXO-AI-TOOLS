@@ -5,4 +5,4 @@
 [Guardian] Test: isolated tests/integration/bootstrap-locale.spec.ts
 [Guardian] Package: test:bootstrap added without dependency changes.
 [Guardian] CI: isolated bootstrap-locale workflow
-[Guardian] Status: READY_FOR_CI
+[Guardian] Status: CI_TRIGGERED
