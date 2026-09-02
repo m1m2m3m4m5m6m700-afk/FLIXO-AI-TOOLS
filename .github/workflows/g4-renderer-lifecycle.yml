@@ -1,0 +1,62 @@
+name: G4 Chromium Renderer Lifecycle
+
+on:
+  push:
+    branches:
+      - g4-renderer-lifecycle
+
+jobs:
+  renderer-lifecycle:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SITE_URL: https://flixoai.vercel.app
+      VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+      VITE_TEST_ORIGIN: https://canonical.test
+      PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+      S4_EXTERNAL_SERVER: true
+      PLAYWRIGHT_SERVER: preview
+      NPM_CONFIG_AUDIT: false
+      NPM_CONFIG_FUND: false
+      NPM_CONFIG_UPDATE_NOTIFIER: false
+      BROWSER: chromium
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npx playwright install-deps chromium
+      - run: npx playwright install chromium
+      - run: npm run build
+      - name: Start isolated preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/g4-renderer-lifecycle-server.log 2>&1 &
+          echo $! >/tmp/g4-renderer-lifecycle-server.pid
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/g4-renderer-lifecycle-server.log || true
+          exit 1
+      - name: Run Chromium renderer lifecycle probe
+        run: npx playwright test tests/g4-renderer-lifecycle.spec.ts --project=chromium --workers=1 --retries=0
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: g4-renderer-lifecycle-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+            /tmp/g4-renderer-lifecycle-server.log
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/g4-renderer-lifecycle-server.pid ]; then kill "$(cat /tmp/g4-renderer-lifecycle-server.pid)" 2>/dev/null || true; fi
