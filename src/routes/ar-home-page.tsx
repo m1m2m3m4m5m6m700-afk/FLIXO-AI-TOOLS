@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { SmartCommandPalette } from '../components/SmartCommandPalette';
+import { FlixoHeroWorkspace } from '../components/FlixoHeroWorkspace';
 import { ArHomeToolsSection } from '../components/ar-home-tools-section';
 import { TOOLS_REGISTRY } from '../config/tools';
 import { getBestToolIntent } from '../lib/intent-router';
@@ -57,10 +58,34 @@ export function ArHomePage() {
         </div>
       </nav>
       <div className="home-container home-content">
-        <section className="home-hero" aria-labelledby="home-title">
-          <div><span className="home-badge">{HOME_AR.badge}</span><p className="image-tool-eyebrow">{HOME_AR.eyebrow}</p><h1 id="home-title" dangerouslySetInnerHTML={{ __html: HOME_AR.heroTitle }} /><p className="home-lead">{HOME_AR.heroLead}</p></div>
-          <button type="button" className="home-hero-command" onClick={() => setPaletteOpen(true)}><span>{HOME_AR.describe}</span><kbd>Ctrl K</kbd></button>
-        </section>
+        <FlixoHeroWorkspace
+          copy={{
+            badge: HOME_AR.badge,
+            eyebrow: HOME_AR.eyebrow,
+            title: HOME_AR.heroTitle.replace(/<[^>]+>/g, ''),
+            lead: HOME_AR.heroLead,
+            describe: HOME_AR.describe,
+            workspace: 'مساحة عمل FLIXO الأساسية',
+            ready: HOME_AR.ready,
+            processTab: 'المعالجة الذكية',
+            layersTab: 'إدارة الطبقات',
+            settingsTab: 'الإعدادات المتقدمة',
+            processTitle: 'ابدأ من المهمة التي تريد إنجازها',
+            processDescription: 'ارفع ملفًا أو افتح الأداة المناسبة مباشرة من مسارات FLIXO الجاهزة.',
+            processAction: 'ابدأ المعالجة الآن',
+            processingAction: 'جاري فتح المسار…',
+            layersDescription: 'قائمة الطبقات والعمليات النشطة تظهر هنا تلقائيًا أثناء تنفيذ الأدوات التي تدعمها.',
+            settingsDescription: 'خيارات التخصيص، دقة التصدير، وحفظ الملفات تبقى مرتبطة بالأداة الفعلية المستخدمة.',
+            speedTitle: 'بدء سريع',
+            speedDescription: 'مسارات مباشرة إلى الأدوات الجاهزة بدون حواجز غير ضرورية.',
+            privacyTitle: 'المتصفح أولًا',
+            privacyDescription: 'المعالجة المحلية تُستخدم عندما تدعمها الأداة.',
+            apiTitle: 'توجيه ذكي',
+            apiDescription: 'النية الشائعة يمكنها الانتقال مباشرة إلى أفضل أداة جاهزة.',
+          }}
+          onDescribeTask={() => setPaletteOpen(true)}
+          onProcess={() => setPaletteOpen(true)}
+        />
         <section className="home-search-panel" aria-label={HOME_AR.ariaFindTool}>
           <label className="sr-only" htmlFor="ar-tool-search">{HOME_AR.searchLabel}</label>
           <div className="home-search-wrap"><span className="home-search-icon" aria-hidden="true">⌕</span><input id="ar-tool-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={HOME_AR.searchPlaceholder} autoComplete="off" /><button type="button" className="search-command-button" onClick={() => setPaletteOpen(true)} aria-label={HOME_AR.smartPalette}>AI</button></div>
@@ -69,12 +94,7 @@ export function ArHomePage() {
         </section>
         <section className="home-trust-grid" id="privacy" aria-label={HOME_AR.ariaTrust}>{HOME_AR.trust.map(([title, text]) => <div key={title}><strong>{title}</strong><span>{text}</span></div>)}</section>
         <section className="home-quick-drop" aria-labelledby="quick-drop-title"><div><span className="image-tool-eyebrow">{HOME_AR.quickDrop}</span><h2 id="quick-drop-title">{HOME_AR.quickDropTitle}</h2><p>{HOME_AR.quickDropLead}</p></div><label className="home-drop-zone"><input type="file" onChange={(event) => setDropRecommendation(event.target.files?.[0] ? recommendImageTool(event.target.files[0], READY_TOOLS, localTool) : null)} /><strong>{HOME_AR.dropChoose}</strong><span>{HOME_AR.dropSupport}</span></label>{dropRecommendation && <div className="drop-result"><div><span>{HOME_AR.suggestedTool}</span><strong>{dropRecommendation.title}</strong></div><Link className="primary-button" to={dropRecommendation.path}>{HOME_AR.openTool}</Link></div>}</section>
-        <ArHomeToolsSection
-          categories={categories}
-          filteredTools={filteredTools}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-        />
+        <ArHomeToolsSection categories={categories} filteredTools={filteredTools} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
         <section className="home-final-cta"><div><span className="image-tool-eyebrow">{HOME_AR.builtForFocus}</span><h2>{HOME_AR.finalTitle}</h2><p>{HOME_AR.finalLead}</p></div><button type="button" className="primary-button" onClick={() => setPaletteOpen(true)}>{HOME_AR.trySmart}</button></section>
       </div>
     </main>
