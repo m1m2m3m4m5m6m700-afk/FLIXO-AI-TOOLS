@@ -23,8 +23,69 @@ env:
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
 
 jobs:
+  build-artifact:
+    name: Build production artifact once
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Assert exact build SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_HEAD_SHA" || {
+            echo "Build SHA mismatch: expected=$EXPECTED_HEAD_SHA actual=$actual"
+            exit 1
+          }
+      - name: Build production preview artifact
+        run: npm run build
+      - name: Generate immutable artifact provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifact-provenance
+          printf '%s\n' "$EXPECTED_HEAD_SHA" > artifact-provenance/source-sha.txt
+          node --version > artifact-provenance/node-version.txt
+          npm --version > artifact-provenance/npm-version.txt
+          sha256sum package-lock.json > artifact-provenance/package-lock.sha256
+          (
+            cd dist
+            find . -type f -print0 | sort -z | xargs -0 sha256sum
+          ) > artifact-provenance/dist.sha256
+      - name: Verify generated artifact before upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s artifact-provenance/source-sha.txt
+          test "$(cat artifact-provenance/source-sha.txt)" = "$EXPECTED_HEAD_SHA"
+          test -s artifact-provenance/dist.sha256
+          (cd dist && sha256sum -c ../artifact-provenance/dist.sha256)
+      - name: Upload immutable production artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: full-matrix-build-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            dist/
+            artifact-provenance/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
   matrix:
     name: Full Matrix — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    needs: [build-artifact]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -38,6 +99,7 @@ jobs:
       PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
       S4_EXTERNAL_SERVER: 'true'
       PLAYWRIGHT_SERVER: preview
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -80,8 +142,29 @@ jobs:
             exit 0
           fi
           timeout --preserve-status 420s npx playwright install "$browser_bin"
-      - name: Build production preview
-        run: npm run build
+      - name: Download immutable build artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: full-matrix-build-${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify artifact provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          source_sha="$(cat artifact-provenance/source-sha.txt)"
+          test "$actual" = "$EXPECTED_HEAD_SHA" || {
+            echo "Checkout SHA mismatch: expected=$EXPECTED_HEAD_SHA actual=$actual"
+            exit 1
+          }
+          test "$source_sha" = "$EXPECTED_HEAD_SHA" || {
+            echo "Artifact source SHA mismatch: expected=$EXPECTED_HEAD_SHA artifact=$source_sha"
+            exit 1
+          }
+          test -s artifact-provenance/package-lock.sha256
+          sha256sum -c artifact-provenance/package-lock.sha256
+          test -s artifact-provenance/dist.sha256
+          (cd dist && sha256sum -c ../artifact-provenance/dist.sha256)
+          echo "Immutable build artifact provenance PASS: $EXPECTED_HEAD_SHA"
       - name: Start isolated preview
         shell: bash
         run: |
