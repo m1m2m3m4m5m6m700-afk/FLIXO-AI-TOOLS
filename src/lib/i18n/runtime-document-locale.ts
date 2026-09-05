@@ -13,6 +13,10 @@ export function applyDocumentLocale(locale: Locale): void {
 
   const html = document.documentElement;
   const metadata = LOCALE_METADATA[locale];
+  
+  // ✅ GUARD CLAUSE: Prevent undefined metadata from reaching setAttribute
+  if (!metadata) return;
+  
   const languageTag = metadata.languageTag;
   const direction = metadata.direction;
 
