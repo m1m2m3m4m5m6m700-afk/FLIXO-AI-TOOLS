@@ -31,14 +31,17 @@ export function createGitHubClient({ token, apiBaseUrl = 'https://api.github.com
 
   return {
     async request<T>(path, init = {}) {
+      const headers = new Headers(init.headers);
+      headers.set('Accept', 'application/vnd.github+json');
+      headers.set('Authorization', `Bearer ${token}`);
+      headers.set('X-GitHub-Api-Version', '2022-11-28');
+      if (typeof init.body === 'string' && !headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+      }
+
       const response = await fetch(`${apiBaseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`, {
         ...init,
-        headers: {
-          Accept: 'application/vnd.github+json',
-          Authorization: `Bearer ${token}`,
-          'X-GitHub-Api-Version': '2022-11-28',
-          ...(init.headers ?? {}),
-        },
+        headers,
       });
 
       const contentType = response.headers.get('content-type') ?? '';
