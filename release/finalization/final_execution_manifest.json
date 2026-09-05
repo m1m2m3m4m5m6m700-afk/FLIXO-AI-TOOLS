@@ -1,0 +1,30 @@
+{
+  "schema": "FLIXO.final-execution-manifest.v1",
+  "phase": "S5",
+  "status": "pending-final-verification",
+  "source": {
+    "main_head_at_start": "6bdc0003a820f247b0020378e02a3397badef121",
+    "c4_merged": true
+  },
+  "required_evidence": [
+    "bundle_metric.json",
+    "e2e_aggregate_report.json",
+    "environment_fingerprint.json",
+    "server_process_identity.json",
+    "server_execution.log",
+    "dag_manifest.pre_c4.json"
+  ],
+  "required_final_checks": [
+    "exact_sha_runtime_gate",
+    "typecheck",
+    "lint",
+    "production_build",
+    "security_audit",
+    "performance_budget",
+    "cross_browser_e2e",
+    "working_tree_clean",
+    "main_head_consistency"
+  ],
+  "finalization_rule": "Do not promote status to release-ready until every required evidence item and final check is present and tied to the exact release SHA.",
+  "created_at": "2026-08-28T00:00:00+03:00"
+}

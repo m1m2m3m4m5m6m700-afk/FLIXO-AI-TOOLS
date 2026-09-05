@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-29T00:49:00Z",
+  "commitSha": "9ae7a0f097cc8b7981ffe7286dedc295266374cc",
+  "workflow": {
+    "name": "Full Matrix Promotion",
+    "runId": 33224032016,
+    "promotionJobId": 99025107355
+  },
+  "matrix": {
+    "suites": 23,
+    "browsers": 3,
+    "expectedJobs": 69,
+    "completedJobs": 69,
+    "passedJobs": 69,
+    "failedJobs": 0,
+    "skippedJobs": 0
+  },
+  "browserDistribution": {
+    "chromium": 23,
+    "firefox": 23,
+    "webkit": 23
+  },
+  "localizationSuite": {
+    "chromium": "passed",
+    "firefox": "passed",
+    "webkit": "passed"
+  },
+  "promotionGate": "passed"
+}

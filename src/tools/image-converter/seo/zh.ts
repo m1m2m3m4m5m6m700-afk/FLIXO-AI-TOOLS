@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const zh: LocalizedToolSeo = Object.freeze({ title: '在线转换图片格式 | FLIXO', description: '直接在浏览器中转换 PNG、JPG 和 WebP 图片。', intro: 'FLIXO 图片转换器可在浏览器本地转换常见图片格式。选择图片、指定输出格式、预览结果并下载，无需将源文件发送到 FLIXO 处理服务器。', keywords: ['图片格式转换','PNG转JPG','JPG转换器','WebP转换'], howTo: ['选择图片。','选择 PNG、JPG 或 WebP。','预览并下载转换后的图片。'], features: ['浏览器本地处理','支持 PNG、JPG、WebP','下载前预览','本地转换无需上传'], altText: ['图片转换工作区','原图预览','可下载的转换图片'] });

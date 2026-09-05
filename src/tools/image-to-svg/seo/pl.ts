@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const pl: LocalizedToolSeo = { title:'Konwertuj obraz do SVG', description:'Konwertuj obrazy do SVG bezpośrednio w przeglądarce.', intro:'Konwertuj obsługiwany obraz lokalnie do SVG bez przesyłania oryginalnego pliku.', keywords:['obraz do svg','konwerter svg','konwersja obrazu svg'], howTo:['Prześlij obraz.','Konwertuj do SVG.','Pobierz wynik.'], features:['Przetwarzanie lokalne','Eksport SVG','Szybkie pobieranie'], altText:['Narzędzie obraz do SVG','Podgląd konwersji','Wynik SVG'] };

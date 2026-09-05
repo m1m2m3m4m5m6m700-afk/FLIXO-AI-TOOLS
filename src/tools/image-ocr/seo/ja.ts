@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const ja: LocalizedToolSeo = Object.freeze({title:'画像をテキストに変換 OCR オンライン | FLIXO',description:'ブラウザで画像から編集可能なテキストを抽出します。',intro:'FLIXO Image OCR は画像内の文字をコピーできるテキストに変換します。',keywords:['画像からテキスト','OCR オンライン','画像文字抽出','OCR'],howTo:['画像を選択。','OCRを実行。','テキストをコピーまたはダウンロード。'],features:['ブラウザOCR','編集可能なテキスト','スクリーンショットとスキャン対応','簡単コピーとダウンロード'],altText:['画像OCRワークスペース','OCRテキストプレビュー','コピー可能な抽出テキスト']});

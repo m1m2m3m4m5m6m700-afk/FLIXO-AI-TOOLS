@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const ko: LocalizedToolSeo = { title:'이미지 텍스트 OCR 온라인', description:'브라우저에서 OCR로 이미지의 텍스트를 추출합니다.', intro:'이미지를 업로드하고 로컬 OCR 전처리를 실행한 뒤 인식된 텍스트를 TXT로 다운로드합니다.', keywords:['이미지 텍스트 변환','OCR 온라인','이미지 글자 추출'], howTo:['이미지를 업로드합니다.','OCR을 실행합니다.','텍스트를 확인하고 다운로드합니다.'], features:['브라우저 OCR','전용 Web Worker','TXT 다운로드'], altText:['이미지 텍스트 OCR 도구','OCR 결과 미리보기','추출된 텍스트 다운로드'] };

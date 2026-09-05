@@ -1,0 +1,17 @@
+{
+  "name": "FLIXO AI Tools",
+  "short_name": "FLIXO",
+  "description": "Fast browser-first productivity tools with privacy-focused local processing.",
+  "start_url": "/en",
+  "display": "standalone",
+  "background_color": "#071116",
+  "theme_color": "#071116",
+  "icons": [
+    {
+      "src": "/flixo-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

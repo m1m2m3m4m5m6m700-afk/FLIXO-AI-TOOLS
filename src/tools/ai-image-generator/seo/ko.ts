@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const ko: LocalizedToolSeo={title:'AI 이미지 생성기',description:'FLIXO에서 프롬프트로 이미지를 생성하세요.',intro:'원하는 이미지를 설명하고 결과를 생성합니다.',keywords:['AI 이미지 생성기','텍스트 이미지','AI 아트'],howTo:['프롬프트 입력.','이미지 생성.','결과 다운로드.'],features:['프롬프트 생성','간단한 흐름','결과 다운로드'],altText:['이미지 생성 작업 공간','생성 이미지 미리보기','완성된 AI 이미지']};

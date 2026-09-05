@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Africa/Cairo",
+  "schedule": ["before 5am on Monday"],
+  "enabledManagers": ["npm", "github-actions"],
+  "dependencyDashboard": true,
+  "rangeStrategy": "bump",
+  "separateMajorMinor": true,
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 1,
+  "labels": ["dependencies", "automated"],
+  "packageRules": [
+    {
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "npm non-major maintenance"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "GitHub Actions maintenance"
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    }
+  ]
+}

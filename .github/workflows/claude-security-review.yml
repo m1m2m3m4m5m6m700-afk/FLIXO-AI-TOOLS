@@ -1,0 +1,66 @@
+name: Claude Security Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: claude-security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Advisory only: this workflow never modifies source code and is not a merge gate.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  security-review:
+    name: Claude Security Review (Advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
+
+      - name: Check whether Claude API key is configured
+        id: key-check
+        shell: bash
+        env:
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+        run: |
+          if [ -n "$CLAUDE_API_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Claude API key is configured; advisory review will run."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Claude API key is not configured; advisory review will be skipped."
+          fi
+
+      - name: Run Claude Security Review
+        if: steps.key-check.outputs.configured == 'true'
+        uses: anthropics/claude-code-security-review@0c6a49f1fa56a1d472575da86a94dbc1edb78eda # verified upstream commit
+        with:
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          comment-pr: true
+          upload-results: true
+          run-every-commit: true
+          claudecode-timeout: "20"
+
+      - name: Record advisory policy
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## Claude Security Review Policy'
+            echo
+            echo '- Mode: advisory'
+            echo '- Auto-apply: false'
+            echo '- Human review required: true'
+            echo '- Merge gate: false'
+            echo '- Source modification by AI: disabled'
+            echo '- Re-scan policy: every PR commit'
+          } >> "$GITHUB_STEP_SUMMARY"

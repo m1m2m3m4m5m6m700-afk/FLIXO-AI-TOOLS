@@ -1,0 +1,27 @@
+{
+  "phase": "CI-0",
+  "status": "INCOMPLETE",
+  "baselineSha": "f8c99b41d0e66b3bf958bcf24ad5499b7722b2db",
+  "branch": "ci/rebuild-foundation",
+  "checks": {
+    "repositoryIdentity": "PASS",
+    "mainSha": "PASS",
+    "openPrInventory": "PASS",
+    "workflowInventory": "PASS",
+    "packageCommandInventory": "PASS",
+    "architectureSafetyFreeze": "PASS",
+    "requiredChecksDetailedRead": "BLOCKED",
+    "workflowToScriptDependencyMapping": "INCOMPLETE",
+    "duplicateEvaluatorInventory": "INCOMPLETE"
+  },
+  "safety": {
+    "mainModified": false,
+    "branchProtectionModified": false,
+    "requiredChecksModified": false,
+    "productionConfigurationModified": false,
+    "legacyWorkflowsDeleted": false,
+    "legacyWorkflowBehaviorModified": false
+  },
+  "exitDecision": "NEXT_PHASE_FORBIDDEN",
+  "reason": "CI-0 requires complete dependency and duplicate mapping. Branch protection details are also unreadable through the current integration, so no assumption may be made. Continue discovery before CI-1."
+}

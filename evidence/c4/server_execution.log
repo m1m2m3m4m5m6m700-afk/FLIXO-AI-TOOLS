@@ -1,0 +1,14 @@
+C4 server execution extract
+commitSha=9ae7a0f097cc8b7981ffe7286dedc295266374cc
+workflowRun=33224032016
+jobId=99023946133
+timestampStart=2026-08-29T00:36:32Z
+runner=ubuntu-24.04
+node=v22.23.2
+serverObserved=Playwright webServer
+serverCommand=npm run build:runtime && npm run preview -- --host 127.0.0.1 --port 3000
+serverUrl=http://127.0.0.1:3000
+testCommand=npx playwright test "tests/photo-colorizer.spec.ts" --project=chromium
+testResult=1 passed (3.1s)
+serverWarnings=Vite chunk-size warning only; no test failure
+processPid=not-captured-by-existing-run

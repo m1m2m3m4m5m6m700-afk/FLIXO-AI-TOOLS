@@ -1,0 +1,6 @@
+# Image to SVG — VERIFIED
+
+- CI: Run #1378
+- Commit tested: `9115dcdc7390117b661bfc97ccb4459f9bbb49fc`
+- Result: PASS
+- Checks: SVG output contains valid `<svg>`/vector content and passes direct-download E2E.

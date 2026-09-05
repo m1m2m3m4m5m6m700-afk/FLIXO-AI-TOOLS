@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FLIXO Release Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "commitSha", "verification", "deployment", "runtime"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "commitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "canonicalGate", "requiredChecks"],
+      "properties": {
+        "state": { "enum": ["passed", "failed", "unknown"] },
+        "canonicalGate": { "enum": ["passed", "failed", "unknown"] },
+        "requiredChecks": { "enum": ["passed", "failed", "unknown"] }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state"],
+      "properties": {
+        "state": { "enum": ["deployed", "blocked", "failed", "unknown"] },
+        "provider": { "type": "string", "minLength": 1 },
+        "deploymentId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state"],
+      "properties": {
+        "state": { "enum": ["healthy", "degraded", "failed", "unknown"] },
+        "evidenceId": { "type": "string", "minLength": 1 },
+        "observedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
+  }
+}

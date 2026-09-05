@@ -1,0 +1,130 @@
+name: Full Matrix Parallel
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: full-matrix-parallel-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
+jobs:
+  matrix:
+    name: Full Matrix — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      # First failure cancels remaining matrix jobs. This workflow is a repair loop,
+      # not a failure-counting diagnostic ladder.
+      fail-fast: true
+      matrix:
+        browser: [chromium, firefox, webkit]
+        shard: [1, 2, 3, 4]
+    env:
+      PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+      S4_EXTERNAL_SERVER: 'true'
+      PLAYWRIGHT_SERVER: preview
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install Playwright system dependencies
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          case "${{ matrix.browser }}" in
+            chromium) browser_bin="chromium" ;;
+            firefox) browser_bin="firefox" ;;
+            webkit) browser_bin="webkit" ;;
+            *) exit 2 ;;
+          esac
+          npx playwright install-deps "$browser_bin"
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-full-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install browser
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          case "${{ matrix.browser }}" in
+            chromium) browser_bin="chromium" ;;
+            firefox) browser_bin="firefox" ;;
+            webkit) browser_bin="webkit" ;;
+            *) exit 2 ;;
+          esac
+          executable="$(node -e "const p=require('playwright'); const b={chromium:p.chromium,firefox:p.firefox,webkit:p.webkit}['${{ matrix.browser }}']; process.stdout.write(b.executablePath())")"
+          if [[ -x "$executable" ]]; then
+            echo "Playwright browser cache hit: $executable"
+            exit 0
+          fi
+          timeout --preserve-status 420s npx playwright install "$browser_bin"
+      - name: Build production preview
+        run: npm run build
+      - name: Start isolated preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/full-matrix-server.log 2>&1 &
+          echo $! >/tmp/full-matrix-server.pid
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/full-matrix-server.log || true
+          exit 1
+      - name: Verify public routes × all canonical locales
+        timeout-minutes: 15
+        run: npx playwright test tests/localization-runtime.spec.ts --project=${{ matrix.browser }} --workers=6 --retries=0 --max-failures=1 --shard=${{ matrix.shard }}/4
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/full-matrix-server.pid ]; then kill "$(cat /tmp/full-matrix-server.pid)" 2>/dev/null || true; fi
+      - name: Upload matrix diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: full-matrix-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+            /tmp/full-matrix-server.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  certification:
+    name: Full Matrix Parallel Certification
+    needs: [matrix]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every browser/shard job to pass
+        run: |
+          set -euo pipefail
+          result='${{ needs.matrix.result }}'
+          test "$result" = success || { echo "Full Matrix certification failed: matrix=$result"; exit 1; }
+          echo "Full Matrix Parallel PASS: chromium + firefox + webkit; complete public-route × canonical-locale coverage across deterministic shards."

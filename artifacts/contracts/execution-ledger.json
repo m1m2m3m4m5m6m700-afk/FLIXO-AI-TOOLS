@@ -1,0 +1,50 @@
+{
+  "contractVersion": "v5",
+  "executionState": "RECOVERING",
+  "currentPhase": "G3",
+  "phaseStatus": "IN_PROGRESS",
+  "currentPr": 542,
+  "currentHead": "30d94ea716b095ac455ae3691e54c5328150c406",
+  "latestVerifiedSha": "914a8c27df36991019b86c6b556a671ef9bcfb5d",
+  "latestVerifiedCi": "CI failed on 914a8c27 due G3 Foundation ESLint; failure was followed by deterministic TypeScript regression after the lint fix.",
+  "latestDeploymentSha": "723923d3f7d0c3cc9e39f25a81bb2dd7e8ea7e2a",
+  "rootCauses": [
+    "RC-G4-ORACLE-001: resolved",
+    "RC-G1-SEO-001: resolved",
+    "RC-G3-LINT-001: resolved",
+    "RC-G3-TYPE-001: resolved",
+    "RC-G3-LEGACY-001: active scope documented by PR #542",
+    "RC-CI-G3-HANG-001: stale/superseded evidence, not current"
+  ],
+  "activeRecovery": "Fresh exact-head verification of 30d94ea716b095ac455ae3691e54c5328150c406, followed by full matrix, release evidence, and current deployment verification.",
+  "blockers": [
+    "Fresh Vercel deployment for the current head is not yet present; prior provider quota errors were observed and remain release-blocking until current SHA deployment is verified."
+  ],
+  "completedItems": [
+    "Authoritative localized tool SEO resolver introduced for ms/uk",
+    "G4 runtime test moved to authoritative resolver oracle",
+    "Localization validator CLI argument forwarding repaired",
+    "ms/uk untranslated fallback made fail-closed",
+    "Reviewed ms/uk names added for all ready tools",
+    "G3 lint/type root causes recorded"
+  ],
+  "incompleteItems": [
+    "Current-head CI pass",
+    "Current-head G3 shadow pass",
+    "Current-head Full Matrix pass",
+    "Current-head release evidence freshness",
+    "Current-head Vercel deployment verification",
+    "Final independent audit",
+    "PR merge/release decision"
+  ],
+  "invalidatedCheckpoints": [
+    "All verification tied to SHAs older than 30d94ea716b095ac455ae3691e54c5328150c406"
+  ],
+  "reusedCheckpoints": [],
+  "lastFailure": "TypeScript TS2554 in src/config/tool-seo-name-resolver.ts after signature hardening.",
+  "lastFix": "Aligned localizeMsUkToolTitle call to its two-argument signature.",
+  "lastVerification": "G3 Browser, G3 Contracts, G1 and Toolchain had passed on 914a8c27 except main CI Foundation lint; all are invalidated by later SHAs.",
+  "nextRequiredAction": "Verify fresh CI and shadow workflows on 30d94ea716b095ac455ae3691e54c5328150c406; repair any new root cause; then certify full release gates.",
+  "executionAttempt": 1,
+  "updatedAt": "2026-08-31T19:34:00Z"
+}

@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const ko: LocalizedToolSeo = { title:'온라인 이미지에서 객체 제거', description:'브라우저에서 원치 않는 객체를 제거하세요.', intro:'제거할 영역을 선택하고 원본을 업로드하지 않고 로컬에서 이미지를 처리합니다.', keywords:['이미지 객체 제거'], howTo:['이미지를 업로드합니다.','영역을 선택합니다.','제거 후 다운로드합니다.'], features:['로컬 처리','간단한 선택','빠른 다운로드'], altText:['객체 제거 도구','선택 영역','정리된 미리보기'] };

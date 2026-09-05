@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const ko: LocalizedToolSeo = { title:'이미지 효과 온라인', description:'브라우저에서 이미지에 효과를 적용합니다.', intro:'이미지를 업로드하고 효과를 선택한 뒤 로컬에서 처리하고 결과를 다운로드합니다.', keywords:['이미지 효과','사진 효과','이미지 편집'], howTo:['이미지를 업로드합니다.','효과를 선택합니다.','적용 후 다운로드합니다.'], features:['브라우저 처리','이미지 효과','빠른 다운로드'], altText:['이미지 효과 도구','효과 미리보기','편집된 이미지'] };

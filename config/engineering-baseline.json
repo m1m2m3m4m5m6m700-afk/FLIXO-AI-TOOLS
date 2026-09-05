@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "productionBranch": "main",
+  "integrationBranch": "develop",
+  "experimentalBranch": "experimental",
+  "releaseFlow": ["feature/*", "fix/*", "chore/*", "develop", "main"],
+  "canonicalVerification": "npm run verify",
+  "diagnosticEvidence": "CI job outputs and artifacts",
+  "promotionEvidence": "canonical verification plus required checks",
+  "readinessPolicy": {
+    "ready": "public-and-indexable",
+    "nonReady": "unavailable-and-noindex"
+  },
+  "performanceTargets": {
+    "lcpP75Ms": 2500,
+    "inpP75Ms": 200,
+    "clsP75": 0.1,
+    "internalInpTargetMs": 100
+  },
+  "rules": {
+    "registryIsSourceOfTruth": true,
+    "noNonReadyStaticRoutes": true,
+    "noExperimentalToMain": true,
+    "noDestructiveCleanup": true,
+    "noDuplicateVerificationTruth": true
+  }
+}

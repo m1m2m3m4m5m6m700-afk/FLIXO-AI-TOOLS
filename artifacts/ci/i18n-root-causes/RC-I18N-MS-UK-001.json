@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "rootCauseId": "RC-I18N-MS-UK-001",
+  "classification": "LOCALIZATION_CONTRACT_ERROR",
+  "status": "RECOVERING",
+  "scope": "20-locale strict localization and Tool UI parity for ms/uk",
+  "firstObserved": {
+    "runId": 33425550669,
+    "sha": "301fb1280772c48dabf42a2d264df052089d0953",
+    "jobId": 99598344413,
+    "stage": "Fast Contract Diagnostics / i18n-strict"
+  },
+  "expected": "Each canonical locale has its own locale identity, canonical metadata, and Tool UI entry without inheriting English as its locale identity.",
+  "actual": "ms and uk dictionaries spread the en dictionary, retaining locale: en; strict comparison then reported the legacy dictionaries as structurally incompatible. TOOL_UI_I18N contained superseded zh/ur entries but no canonical ms/uk entries.",
+  "repair": {
+    "files": [
+      "src/lib/i18n/locales/ms.ts",
+      "src/lib/i18n/locales/uk.ts",
+      "src/data/tool-ui-i18n.ts"
+    ],
+    "changes": [
+      "Replace ms/uk legacy spreading dictionaries with canonical metadata dictionaries whose locale identities are ms/uk.",
+      "Replace superseded zh/ur Tool UI entries with ms/uk entries aligned to the canonical 20-locale runtime matrix."
+    ]
+  },
+  "safety": {
+    "assertionsWeakened": false,
+    "coverageReduced": false,
+    "allowlistAdded": false,
+    "testsDisabled": false,
+    "fallbacksAuthorized": false,
+    "productionConfigurationChanged": false
+  },
+  "verificationRequired": [
+    "validate-locale-integrity",
+    "verify:i18n --strict --report",
+    "typecheck",
+    "build",
+    "full affected CI regression"
+  ],
+  "source": "scripts/validate-locale-integrity.mjs + scripts/validate-localization-complete.mjs + src/lib/i18n/locales/ms.ts + src/lib/i18n/locales/uk.ts + src/data/tool-ui-i18n.ts",
+  "recordedAt": "2026-08-31T21:45:00+03:00"
+}

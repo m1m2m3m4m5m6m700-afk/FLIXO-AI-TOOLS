@@ -1,0 +1,173 @@
+/* Seed Premium UI
+ * Visual-only layer: preserves editor logic, DOM semantics, and test selectors.
+ */
+
+body:has(#seed-main-image-input) {
+  background:
+    radial-gradient(circle at 15% 8%, rgba(99,102,241,.10), transparent 24%),
+    radial-gradient(circle at 86% 12%, rgba(34,211,238,.07), transparent 22%),
+    #07070a;
+}
+
+body:has(#seed-main-image-input) #root {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.018), transparent 16%),
+    transparent;
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) {
+  max-width: 1680px;
+  gap: 16px;
+  padding: 14px;
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > header {
+  position: sticky;
+  top: 12px;
+  z-index: 40;
+  min-height: 72px;
+  border-color: rgba(255,255,255,.10);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(28,28,35,.94), rgba(11,11,15,.94)),
+    rgba(10,10,14,.90);
+  box-shadow:
+    0 26px 70px rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > header::after {
+  content: '';
+  position: absolute;
+  inset-inline: 18%;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(129,140,248,.45), rgba(34,211,238,.22), transparent);
+  pointer-events: none;
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > header button {
+  border-color: rgba(255,255,255,.09);
+  background: rgba(255,255,255,.035);
+  min-height: 40px;
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > header button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,.16);
+  background: rgba(255,255,255,.07);
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > header button[aria-label="Export PNG"] {
+  background: linear-gradient(135deg, #6366f1, #7c3aed 55%, #0891b2);
+  border-color: rgba(165,180,252,.40);
+  box-shadow: 0 14px 34px rgba(79,70,229,.28), inset 0 1px 0 rgba(255,255,255,.18);
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > main {
+  gap: 16px;
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > main > section {
+  min-height: min(76vh, 900px);
+  border-color: rgba(255,255,255,.10) !important;
+  border-radius: 24px !important;
+  background:
+    radial-gradient(circle at 50% 34%, rgba(99,102,241,.065), transparent 34%),
+    linear-gradient(180deg, rgba(18,18,23,.96), rgba(7,7,10,.98));
+  box-shadow:
+    0 34px 100px rgba(0,0,0,.38),
+    inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > main > section::before {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border: 1px solid rgba(255,255,255,.035);
+  border-radius: 18px;
+  pointer-events: none;
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > main > section canvas[aria-label="Seed preview"] {
+  max-height: 82vh;
+  border-radius: 14px;
+  box-shadow:
+    0 35px 100px rgba(0,0,0,.58),
+    0 0 0 1px rgba(255,255,255,.04);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > main > section canvas[aria-label="Seed preview"]:hover {
+  transform: scale(1.002);
+  box-shadow:
+    0 40px 120px rgba(0,0,0,.62),
+    0 0 0 1px rgba(129,140,248,.12);
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > main > section > div[class*="max-w-lg"] {
+  max-width: 600px;
+  min-height: 390px;
+  border-radius: 24px;
+  border-color: rgba(129,140,248,.22);
+  background:
+    radial-gradient(circle at 50% 22%, rgba(99,102,241,.12), transparent 36%),
+    rgba(9,9,13,.72);
+  box-shadow:
+    0 30px 90px rgba(0,0,0,.34),
+    inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > main > aside {
+  border-color: rgba(255,255,255,.10) !important;
+  border-radius: 24px !important;
+  background:
+    linear-gradient(180deg, rgba(18,18,23,.98), rgba(9,9,13,.99));
+  box-shadow:
+    0 34px 100px rgba(0,0,0,.34),
+    inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > main > aside > div:first-child {
+  padding: 17px 18px;
+  border-bottom-color: rgba(255,255,255,.08);
+  background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012));
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > main > aside > div:nth-child(2) {
+  padding: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(113,113,122,.55) transparent;
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) [data-state="open"] {
+  box-shadow: 0 12px 34px rgba(0,0,0,.18);
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) input[type="range"] {
+  accent-color: #818cf8;
+}
+
+body:has(#seed-main-image-input) div:has(> #seed-main-image-input) input[type="file"] {
+  border-radius: 12px;
+  background: rgba(255,255,255,.025);
+}
+
+@media (max-width: 1023px) {
+  body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > header {
+    position: relative;
+    top: 0;
+  }
+  body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > main > section {
+    min-height: 58vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > header button,
+  body:has(#seed-main-image-input) div:has(> #seed-main-image-input) > main > section canvas[aria-label="Seed preview"] {
+    transition: none;
+  }
+}

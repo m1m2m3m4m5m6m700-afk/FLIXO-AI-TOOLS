@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const id: LocalizedToolSeo = { title:'Tambahkan Watermark ke Gambar', description:'Tambahkan watermark teks langsung di browser.', intro:'Masukkan teks watermark dan proses gambar secara lokal tanpa mengunggah file asli.', keywords:['tambah watermark gambar','watermark gambar','teks pada gambar'], howTo:['Unggah gambar.','Masukkan teks watermark.','Terapkan dan unduh hasil.'], features:['Pemrosesan lokal','Watermark teks','Unduhan cepat'], altText:['Editor watermark','Pratinjau teks','Gambar dengan watermark'] };

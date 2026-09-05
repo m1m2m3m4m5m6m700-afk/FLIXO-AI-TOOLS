@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const ar: LocalizedToolSeo = Object.freeze({title:'محسّن SVG أونلاين | FLIXO',description:'حسّن وصغّر ملفات SVG مباشرة في المتصفح.',intro:'يقوم FLIXO بتصغير ملفات SVG محليًا في المتصفح دون رفعها إلى الخادم.',keywords:['ضغط SVG','تحسين SVG','تصغير SVG'],howTo:['اختر ملف SVG.','حسّن الملف.','نزّل SVG المحسّن.'],features:['معالجة محلية','ملفات أصغر','بدون رفع','تنزيل مباشر'],altText:['واجهة تحسين SVG','معاينة SVG المحسّن','تنزيل SVG المحسّن']});

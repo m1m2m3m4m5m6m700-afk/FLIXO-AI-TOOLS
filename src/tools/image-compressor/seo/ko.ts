@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const ko: LocalizedToolSeo = Object.freeze({ title: '온라인 이미지 압축 | FLIXO', description: '브라우저에서 JPG, PNG, WebP 이미지의 용량을 직접 줄이세요.', intro: 'FLIXO Image Compressor는 이미지를 서버에 업로드하지 않고 브라우저에서 로컬로 압축합니다. 한 장 또는 여러 장을 선택하고 품질이나 목표 크기를 설정한 뒤 최적화된 결과를 다운로드하세요.', keywords: ['이미지 압축','이미지 용량 줄이기','JPG PNG 압축','WebP 압축'], howTo: ['이미지를 하나 이상 선택하세요.','품질 또는 목표 크기를 설정하세요.','압축된 이미지를 다운로드하세요.'], features: ['브라우저 로컬 처리','일괄 압축','JPG, PNG, WebP 지원','선택적 크기 조정'], altText: ['이미지 압축 작업 영역','원본 이미지 미리보기','다운로드할 압축 이미지'] });

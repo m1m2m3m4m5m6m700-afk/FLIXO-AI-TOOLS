@@ -1,0 +1,67 @@
+name: S4 Manual Diagnostic
+
+# Manual microscope only. Blocking S4 ownership lives inside canonical CI.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
+
+jobs:
+  diagnostic:
+    name: S4 Manual Diagnostic
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Build local diagnostic target
+        run: npm run build
+      - name: Start preview server
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/s4-manual.log 2>&1 &
+          echo $! >/tmp/s4-manual.pid
+          for _ in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/s4-manual.log
+          exit 1
+      - name: Focused runtime diagnostic
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage();
+          const diagnostics = [];
+          page.on('pageerror', (error) => diagnostics.push({ type: 'pageerror', message: error.message }));
+          page.on('console', (message) => { if (message.type() === 'error') diagnostics.push({ type: 'console', message: message.text() }); });
+          page.on('requestfailed', (request) => diagnostics.push({ type: 'requestfailed', url: request.url(), error: request.failure()?.errorText ?? 'unknown' }));
+          for (const path of ['/en', '/en/ai-captioner-srt']) {
+            diagnostics.length = 0;
+            await page.goto(`http://127.0.0.1:3000${path}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await page.waitForTimeout(750);
+            const rootHtml = await page.locator('#root').innerHTML();
+            console.log(JSON.stringify({ path, url: page.url(), title: await page.title(), root_html: rootHtml.slice(0, 3000), diagnostics }, null, 2));
+            if (diagnostics.length || !rootHtml.trim()) process.exit(1);
+          }
+          await browser.close();
+          NODE
+      - name: Cleanup diagnostic server
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/s4-manual.pid ]; then kill "$(cat /tmp/s4-manual.pid)" 2>/dev/null || true; fi
