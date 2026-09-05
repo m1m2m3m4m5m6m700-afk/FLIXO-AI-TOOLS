@@ -11,7 +11,6 @@ export const localizedHomeRoute = createRoute({
   head: async ({ params }) => {
     const locale = isLocale(params.locale) ? params.locale : 'en';
     const bundle = await getTranslationBundle(locale);
-    const direction = LOCALE_METADATA[locale].direction;
     const canonicalUrl = `${SITE_ORIGIN}/${locale}`;
     const alternateLinks = LOCALES.map((alternateLocale) => ({
       rel: 'alternate' as const,
@@ -32,12 +31,6 @@ export const localizedHomeRoute = createRoute({
         { rel: 'canonical', href: canonicalUrl },
         ...alternateLinks,
         { rel: 'alternate', hrefLang: 'x-default', href: `${SITE_ORIGIN}/en` },
-      ],
-      scripts: [
-        {
-          type: 'text/javascript',
-          children: `document.documentElement.lang=${JSON.stringify(bundle.languageTag)};document.documentElement.dir=${JSON.stringify(direction)};`,
-        },
       ],
     };
   },
