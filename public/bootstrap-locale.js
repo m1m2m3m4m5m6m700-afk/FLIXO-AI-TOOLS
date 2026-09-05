@@ -15,8 +15,8 @@
   const applyLocale = () => {
     const html = document.documentElement;
     const [lang, dir] = resolveLocale();
-    html.setAttribute('lang', lang || 'en');
-    html.setAttribute('dir', dir || 'ltr');
+    if (html.getAttribute('lang') !== lang) html.setAttribute('lang', lang || 'en');
+    if (html.getAttribute('dir') !== dir) html.setAttribute('dir', dir || 'ltr');
   };
 
   applyLocale();
