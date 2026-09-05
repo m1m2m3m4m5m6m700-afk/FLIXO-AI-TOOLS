@@ -33,12 +33,6 @@ export const localizedHomeRoute = createRoute({
         ...alternateLinks,
         { rel: 'alternate', hrefLang: 'x-default', href: `${SITE_ORIGIN}/en` },
       ],
-      scripts: [
-        {
-          type: 'text/javascript',
-          children: `document.documentElement.lang=${JSON.stringify(bundle.languageTag)};document.documentElement.dir=${JSON.stringify(direction)};`,
-        },
-      ],
     };
   },
   component: function LocalizedHomeRoute() {
