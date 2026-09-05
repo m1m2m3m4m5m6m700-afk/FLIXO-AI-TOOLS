@@ -27,7 +27,7 @@ const FALLBACK_COPY: Record<CanonicalLocale, { title: string; body: string; acti
   ru: { title: 'Рекламное покрытие расширяется', body: 'Это место предназначено для рекламы. Пока этот язык не монетизируется, показывается лёгкая замена.', action: 'Открыть FLIXO AI' },
   sv: { title: 'Annonsbevakningen byggs ut', body: 'Detta utrymme är reserverat för annonser. En lätt reservbanner visas tills språket är monetiserat.', action: 'Utforska FLIXO AI' },
   th: { title: 'กำลังขยายการรองรับโฆษณา', body: 'พื้นที่นี้จัดไว้สำหรับโฆษณา โดยจะแสดงแบนเนอร์สำรองแบบเบาจนกว่าภาษานี้จะเปิดสร้างรายได้', action: 'สำรวจ FLIXO AI' },
-  tr: { title: 'Reklam kapsamı genişletiliyor', body: 'Bu alan reklamlar için ayrılmıştır. Bu dil para kazandırma kapsamına girene kadar hafif bir yedek gösterilir.', action: 'FLIXO AI'ı keşfet' },
+  tr: { title: 'Reklam kapsamı genişletiliyor', body: 'Bu alan reklamlar için ayrılmıştır. Bu dil para kazandırma kapsamına girene kadar hafif bir yedek gösterilir.', action: 'FLIXO AI\'ı keşfet' },
   uk: { title: 'Рекламне покриття розширюється', body: 'Цей простір призначено для реклами. Поки цю мову не монетизовано, показується легкий резервний банер.', action: 'Відкрити FLIXO AI' },
   vi: { title: 'Phạm vi quảng cáo đang được mở rộng', body: 'Khu vực này dành cho quảng cáo. Trong khi ngôn ngữ này chưa được kiếm tiền, một banner thay thế nhẹ sẽ được hiển thị.', action: 'Khám phá FLIXO AI' },
 };
