@@ -6,10 +6,24 @@
     pl: ['pl', 'ltr'], tr: ['tr', 'ltr'], vi: ['vi', 'ltr'], th: ['th', 'ltr'], sv: ['sv', 'ltr'],
     ms: ['ms', 'ltr'], uk: ['uk', 'ltr'],
   };
-  const candidate = window.location.pathname.split('/').filter(Boolean)[0] || 'en';
-  const [lang, dir] = localeMap[candidate] || localeMap.en;
-  const html = document.documentElement;
-  html.setAttribute('lang', lang);
-  html.setAttribute('dir', dir);
-  html.setAttribute('data-flixo-locale', candidate in localeMap ? candidate : 'en');
+
+  const resolveLocale = () => {
+    const candidate = window.location.pathname.split('/').filter(Boolean)[0] || 'en';
+    return localeMap[candidate] || localeMap.en;
+  };
+
+  const applyLocale = () => {
+    const html = document.documentElement;
+    const [lang, dir] = resolveLocale();
+    html.setAttribute('lang', lang || 'en');
+    html.setAttribute('dir', dir || 'ltr');
+  };
+
+  applyLocale();
+
+  const guard = new MutationObserver(() => applyLocale());
+  guard.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['lang', 'dir'],
+  });
 })();
