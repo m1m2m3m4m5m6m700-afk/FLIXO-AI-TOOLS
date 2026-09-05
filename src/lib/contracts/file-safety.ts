@@ -123,6 +123,58 @@ function isUnsafeName(name: string): boolean {
   return segments.some((segment) => segment === '..' || segment === '.') || segments.length !== 1;
 }
 
+// ✅ PHASE 1: Boundary Conditions Validation
+export function validateBoundaryConditions(name: string, bytes: number): string | undefined {
+  // Zero-byte check (prevent empty vector exploits)
+  if (bytes === 0) return 'File is empty (0 bytes).';
+  
+  // Filename length restrictions
+  if (!name || name.length === 0) return 'Filename is empty.';
+  if (name.length > 255) return 'Filename exceeds maximum length of 255 characters.';
+  
+  // Unicode/Emoji length bomb check (prevent rendering/memory exploits via massive char lengths)
+  if (Array.from(name).length > 150) {
+    return 'Filename contains excessive character payload length.';
+  }
+
+  return undefined;
+}
+
+// ✅ PHASE 2: Zip Bomb Detection (Compression Ratio Analysis)
+export function detectZipBombRisk(
+  compressedSize: number,
+  uncompressedSize: number,
+  maxCompressionRatio: number = 40
+): { isBomb: boolean; reason?: string } {
+  if (compressedSize > 0 && uncompressedSize > 0) {
+    const ratio = uncompressedSize / compressedSize;
+    if (ratio > maxCompressionRatio) {
+      return {
+        isBomb: true,
+        reason: `Potential ZIP bomb detected: Expansion ratio of ${ratio.toFixed(1)}x exceeds safety threshold (${maxCompressionRatio}x).`
+      };
+    }
+  }
+  return { isBomb: false };
+}
+
+// ✅ PHASE 3: Magic Bytes Enforcement (Actual Signature Verification)
+export function verifyMagicBytesMatch(
+  headerBytes: Uint8Array,
+  allowedSignatures?: readonly string[]
+): boolean {
+  if (!allowedSignatures || allowedSignatures.length === 0) return true;
+  
+  for (const sigName of allowedSignatures) {
+    const signature = MAGIC_BYTE_SIGNATURES[sigName.toLowerCase()];
+    if (signature && signature.bytes) {
+      const matches = signature.bytes.every((byte, index) => headerBytes[index] === byte);
+      if (matches) return true;
+    }
+  }
+  return false;
+}
+
 function matchesSegment(content: Uint8Array, segment: MagicByteSegment): boolean {
   if (segment.offset < 0 || content.length < segment.offset + segment.bytes.length) return false;
   return segment.bytes.every((expected, index) => content[segment.offset + index] === expected);
@@ -150,6 +202,10 @@ export function validateFileSafety(input: FileSafetyInput, policy: FileSafetyPol
   const failures: string[] = [];
   const name = input.name.trim();
   const extension = normalizeExtension(name);
+
+  // ✅ G2 PHASE 1: Apply boundary conditions validation first (fail-fast)
+  const boundaryError = validateBoundaryConditions(name, input.bytes);
+  if (boundaryError) failures.push(boundaryError);
 
   if (!name) failures.push('file name is required');
   else if (isUnsafeName(name)) failures.push('file name must be a single safe relative name');
