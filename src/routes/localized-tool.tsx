@@ -1,5 +1,5 @@
 import { createRoute, notFound, redirect } from '@tanstack/react-router';
-import { getToolConfig, getToolManifestByPath } from '../config/tools';
+import { getToolConfig, getToolConfigByPath } from '../config/tools';
 import { getLocalizedToolPath } from '../lib/routing/route-resolver';
 import { getToolSeo } from '../lib/seo/tool-seo';
 import { LocalizedToolPage } from './localized-tool-page';
@@ -10,7 +10,7 @@ export const localizedToolRoute = createRoute({
   path: '/$locale/$tool',
   loader: ({ params }) => {
     const rawSlug = params.tool;
-    const tool = getToolManifestByPath(`/en/${rawSlug}`) ?? getToolManifestByPath(`/${rawSlug}`) ?? getToolConfig(rawSlug);
+    const tool = getToolConfigByPath(`/en/${rawSlug}`) ?? getToolConfigByPath(`/${rawSlug}`) ?? getToolConfig(rawSlug);
     if (!tool?.isReady) throw notFound();
 
     const canonicalPath = getLocalizedToolPath(tool, params.locale as Parameters<typeof getLocalizedToolPath>[1]);
@@ -28,18 +28,3 @@ export const localizedToolRoute = createRoute({
       meta: [
         { title: seo.title },
         { name: 'description', content: seo.description },
-        { name: 'robots', content: 'index,follow,max-image-preview:large' },
-        { property: 'og:title', content: seo.title },
-        { property: 'og:description', content: seo.description },
-        { property: 'og:url', content: seo.url },
-        { property: 'og:locale', content: seo.languageTag },
-      ],
-      links: [
-        { rel: 'canonical', href: seo.url },
-        ...seo.alternates.map((alternate) => ({ rel: 'alternate', hrefLang: alternate.languageTag, href: alternate.url })),
-        { rel: 'alternate', hrefLang: 'x-default', href: seo.xDefaultUrl },
-      ],
-    };
-  },
-  component: LocalizedToolPage,
-});
