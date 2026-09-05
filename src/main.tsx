@@ -9,6 +9,7 @@ import { installToolUiRuntimeSupplement } from './lib/i18n/tool-ui-runtime-suppl
 import { installToolUiTechnicalValueNormalization } from './lib/i18n/tool-ui-technical-values';
 import { installToolUiRuntimeCompleteness } from './lib/i18n/tool-ui-runtime-completeness';
 import { applyDocumentLocale, localeFromPathname, installDocumentLocaleContract } from './lib/i18n/runtime-document-locale';
+import { installPersistentTheme } from './lib/theme';
 import { FlixoUxShell } from './components/flixo-ux-shell';
 import './styles.css';
 import './home-motion.css';
@@ -18,6 +19,7 @@ import './tools/seed/seed-premium.css';
 
 applyDocumentLocale(localeFromPathname(window.location.pathname));
 const disposeDocumentLocaleContract = installDocumentLocaleContract(() => window.location.pathname);
+const disposePersistentTheme = installPersistentTheme();
 installRuntimeDiagnostics();
 installPerformanceDiagnostics();
 const disposeToolUiLocalization = installToolUiRuntimeLocalization();
@@ -43,6 +45,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 
 if (import.meta.hot) import.meta.hot.dispose(() => {
   disposeDocumentLocaleContract();
+  disposePersistentTheme();
   disposeToolUiLocalization();
   disposeToolUiLocalizationSupplement();
   disposeToolUiTechnicalValues();
