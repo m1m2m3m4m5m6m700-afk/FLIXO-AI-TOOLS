@@ -1,5 +1,5 @@
 import { createRoute, notFound } from '@tanstack/react-router';
-import { getToolConfig } from '../config/tools';
+import { getToolConfig, getToolManifestByPath } from '../config/tools';
 import { getToolSeo } from '../lib/seo/tool-seo';
 import { LocalizedToolPage } from './localized-tool-page';
 import { rootRoute } from './__root';
@@ -8,7 +8,8 @@ export const localizedToolRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/$locale/$tool',
   loader: ({ params }) => {
-    const tool = getToolConfig(params.tool);
+    const rawSlug = params.tool;
+    const tool = getToolManifestByPath(`/en/${rawSlug}`) ?? getToolManifestByPath(`/${rawSlug}`) ?? getToolConfig(rawSlug);
     if (!tool?.isReady) throw notFound();
     return { tool };
   },
