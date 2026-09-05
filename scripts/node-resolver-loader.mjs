@@ -8,9 +8,16 @@ const SRC = join(ROOT, 'src');
 const isPathLike = (specifier) => specifier.startsWith('./') || specifier.startsWith('../') || specifier.startsWith('/');
 
 function withTsExtension(url) {
-  if (extname(fileURLToPath(url))) return url;
-  const candidate = `${fileURLToPath(url)}.ts`;
-  return existsSync(candidate) ? pathToFileURL(candidate).href : url;
+  const filePath = fileURLToPath(url);
+  if (extname(filePath)) return url;
+
+  const fileCandidate = `${filePath}.ts`;
+  if (existsSync(fileCandidate)) return pathToFileURL(fileCandidate).href;
+
+  const indexCandidate = join(filePath, 'index.ts');
+  if (existsSync(indexCandidate)) return pathToFileURL(indexCandidate).href;
+
+  return url;
 }
 
 export async function resolve(specifier, context, nextResolve) {

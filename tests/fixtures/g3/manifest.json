@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "fixtures": [
+    {"name":"valid.svg","mime":"image/svg+xml","expected":"accept","magic":"3c737667"},
+    {"name":"empty.bin","mime":"application/octet-stream","expected":"reject"},
+    {"name":"wrong-extension.jpg","mime":"image/svg+xml","expected":"reject"},
+    {"name":"wrong-signature.svg","mime":"image/svg+xml","expected":"reject"}
+  ],
+  "principle": "fixture identity and expected outcomes are data, not test-local constants"
+}

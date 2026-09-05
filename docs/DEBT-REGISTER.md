@@ -1,15 +1,17 @@
 # FLIXO Debt Register
 
-## Current baseline
+## Current baseline — 2026-08-28
 
-- Date: 2026-08-28
-- Main baseline SHA: `91606c19119ee62e4be8c23c2381568ac71b83ae`
-- Open pull requests at baseline inspection: `0`
-- Visible commit status: `Vercel = success`
-- GitHub Actions runs returned for this exact SHA: none through the available workflow-run query
+- Main SHA: `c81d6da7fcb8bf02334d11e3ce8254f19ef3e793`
 - Production source of truth: `main`
+- Open pull requests: `#435` (`feat(i18n): strict localization quality gate`)
+- PR #436: merged into `main`
+- Vercel status on current main SHA: `success` (deployment-provider evidence)
+- Full Matrix Promotion on current main SHA: Run `33173614731` = `success` (23 suites × 3 browsers)
+- Canonical GitHub CI certification for the current main SHA is not asserted unless a completed exact-SHA canonical run is independently present.
+- Open consolidation issues: `#127`, `#133`, `#73`
 
-This register is the active engineering debt inventory. Historical consolidation notes remain historical evidence and must not be treated as current state.
+This register is the active engineering debt inventory. Historical notes remain evidence only.
 
 ## Priority model
 
@@ -21,34 +23,43 @@ This register is the active engineering debt inventory. Historical consolidation
 
 | ID | Area | Priority | Evidence | Risk | Action | Exit criterion | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| D-001 | Current-state documentation | P0 | `docs/CONSOLIDATION-LOG.md` starts with a 2026-08-23 baseline while `main` is now at `91606c1` | Engineers can act on stale state | Add a current-state section and keep older entries explicitly historical | Current baseline, CI evidence, and open-PR state are unambiguous | In progress |
-| D-002 | Release evidence observability | P0 | The exact `91606c1` status exposed through the available GitHub query is Vercel only; no workflow run was returned | A single provider status cannot certify repository/browser gates | Preserve exact-SHA evidence classification and verify required Actions evidence before certification | Release decision can distinguish CODE, DEPLOYMENT, and missing-evidence states | Open |
-| D-003 | Verification surface | P1 | `package.json` exposes many independent `validate:*`, `report:*`, and `test:*` scripts in addition to `check`, `verify`, and E2E | Hidden coupling and duplicated checks increase CI complexity | Group checks by stable contract domain and keep only a small public command surface | Every check has one owner, one purpose, and one canonical entry point | Open |
-| D-004 | Tool contract cohesion | P0 | Tool registry, manifest, router, SEO, sitemap, localization, QuickFlow, and E2E all depend on related tool metadata | Drift can reappear when a new tool requires edits in multiple sources | Introduce one canonical `ToolDefinition` contract, then derive consumers incrementally | A new tool can be represented once and consumers are derived from that definition | Planned |
-| D-005 | Heavy dependency governance | P1 | Runtime manifest contains heavy/optional packages such as FFmpeg, PDF stacks, database, mail, and media tooling | Unnecessary initial-load cost and dependency maintenance burden | Inventory usage and classify dependencies as core, lazy, server-only, removable, or experimental | No optional heavy dependency is part of the initial route without explicit evidence | Open |
-| D-006 | i18n surface fragmentation | P1 | Historical consolidation records multiple localized data surfaces (`home-*`, `quickflow-*`, and `tool-ui-*`) plus the canonical i18n loader | Duplicate ownership can create translation drift and awkward migration paths | Audit the current owners, then converge on config/types/loader plus derived feature data | One clear owner per translation concern and no parallel runtime loaders | Open |
-| D-007 | Historical work hygiene | P2 | Current open issues include #127, #73, and #133 while older consolidation records refer to obsolete PR states | Stale work creates decision noise and accidental resurrection of legacy assumptions | Triage each item as active, rebuild, archive, or close | No issue remains without a current purpose and next action | Open |
-| D-008 | Tool test duplication | P1 | Browser verification is broad and independent, while tool contracts are separately tested | Adding tools can multiply custom test logic | Build a shared tool test harness around stable contracts | Common lifecycle/input/output/error/accessibility checks are reusable across tools | Planned |
-| D-009 | Artifact contract cohesion | P1 | Output integrity is already tested but the platform still benefits from a single output contract spanning MIME/signature/binary/download behavior | A tool can pass UI checks while producing a wrong artifact | Standardize artifact validators and tool output contracts | Every file-producing tool declares and proves its output contract | Planned |
+| D-001 | Current-state documentation | P0 | Previous baseline sections pointed to `91606c1`; current main is `c81d6da` | Engineers can act on stale state | Synchronize both governance documents with exact current SHA, PR, and evidence state | Current state is unambiguous and evidence-backed | **In progress** |
+| D-002 | Release evidence observability | P0 | Current main has deployment and matrix evidence, but canonical CI certification is not independently asserted here | Release state can be misclassified | Keep CODE / DEPLOYMENT / MISSING-EVIDENCE states explicit | Every promotion decision is tied to exact-SHA evidence | Open |
+| D-003 | Verification surface | P1 | Many public `validate:*`, `report:*`, and `test:*` commands exist beside `check`, `verify`, and E2E | Hidden coupling and duplicated checks increase CI complexity | Group checks by stable contract domain and retain small public entry points | One owner and one canonical entry point per check | Open |
+| D-004 | Tool contract cohesion | P0 | Registry, manifest, router, SEO, sitemap, localization, QuickFlow, and E2E share tool metadata | Drift can reappear | Converge on one canonical `ToolDefinition` and derive consumers | A new tool is represented once | Planned |
+| D-005 | Canonical origin | P1 | `SITE_ORIGIN` is hardcoded while architecture expects deployment-time `VITE_SITE_URL` | SEO/sitemap can point at the wrong origin | Define one validated runtime/build source for the production origin | No hardcoded deployment origin remains in canonical SEO generation | Planned |
+| D-006 | Heavy dependency governance | P1 | Runtime manifest includes heavy/optional media, PDF, database, and mail packages | Initial-load and maintenance costs can grow | Inventory and classify core, lazy, server-only, removable, experimental | Optional heavy packages do not enter initial route without evidence | Open |
+| D-007 | i18n ownership fragmentation | P1 | Multiple historical localized data surfaces coexist with canonical config/types/loader | Translation ownership can drift | Audit and converge owners | One clear owner per translation concern | Open |
+| D-008 | Artifact contract cohesion | P1 | Output integrity exists but is spread across validators/tests | UI can pass while output contract is wrong | Standardize MIME/signature/binary/download contracts | Every file-producing tool declares and proves its artifact contract | Planned |
+| D-009 | Shared browser harness | P1 | Full matrix and tool contracts both carry tool lifecycle checks | Test logic multiplies as tools grow | Introduce reusable lifecycle/input/output/error/a11y harness | Common checks are reused across tools | Planned |
+| D-010 | Branch hygiene | P2 | Hundreds of historical/final/tmp/self-heal branches remain | Historical noise can be mistaken for release truth | Triage, archive, or delete only after evidence review | Active branches are few and intentional | Open |
+| D-011 | Issue hygiene | P2 | Open issues include `#133` (`ignore`) plus legacy roadmap items | Task queue contains noise and stale intent | Close/archive obsolete items; preserve useful roadmap work | Every open issue has purpose and next action | Open |
+| D-012 | Release artifacts | P2 | Repository has no GitHub Releases yet | No immutable public release checkpoint | Introduce `v1.0.0` only after full certification | Tag + release + exact-SHA evidence linked | Planned |
 
 ## Execution order
 
 ```text
 D-001 / D-002
       ↓
+PR #435 strict i18n gate
+      ↓
 D-004 ToolDefinition + Registry SSOT
       ↓
-D-003 Verification consolidation
+D-005 canonical origin
       ↓
-D-006 i18n ownership cleanup
+D-003 verification consolidation
       ↓
-D-005 Dependency governance
+D-007 i18n ownership cleanup
       ↓
-D-009 Artifact contracts
+D-006 dependency governance
       ↓
-D-008 Shared E2E harness
+D-008 artifact contracts
       ↓
-D-007 Historical issue/branch cleanup
+D-009 shared E2E harness
+      ↓
+D-010 / D-011 branch + issue hygiene
+      ↓
+D-012 release v1.0.0
 ```
 
 ## Rules
@@ -57,6 +68,6 @@ D-007 Historical issue/branch cleanup
 2. One coherent debt cluster per PR.
 3. No unrelated dependency upgrades inside consolidation work.
 4. No historical deletion merely for cleanliness.
-5. No release certification without fresh evidence for the exact promoted SHA.
+5. No release certification without fresh exact-SHA evidence.
 6. A cleanup is complete only when its exit criterion is demonstrable by code or CI evidence.
 7. A new duplicate source of truth is a regression and must be rejected.

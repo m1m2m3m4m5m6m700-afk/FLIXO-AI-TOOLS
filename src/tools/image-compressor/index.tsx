@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { compressImage, MAX_FILES, MAX_INPUT_SIZE, type CompressionFormat } from './engine';
+import { imageCompressorOutputIntegrity } from './output-contract';
+import { validateOutputIntegrity } from '../../lib/contracts/output-integrity';
 
 const formatLabels: Record<CompressionFormat, string> = {
   'image/webp': 'WebP',
@@ -94,6 +96,22 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     targetSizeKB: targetSizeKB ? Number(targetSizeKB) : undefined,
   });
 
+  const validateCompressedOutput = async (compressed: Awaited<ReturnType<typeof processOne>>) => {
+    const outputBytes = new Uint8Array(await compressed.blob.arrayBuffer());
+    const extension = extensionFor(format);
+    const validation = validateOutputIntegrity(
+      compressed.blob.size,
+      compressed.blob.type || format,
+      imageCompressorOutputIntegrity,
+      { width: compressed.width, height: compressed.height },
+      { filename: `flixo-compressed.${extension}`, bytes: outputBytes },
+    );
+    if (!validation.valid) {
+      throw new Error(`Output integrity validation failed: ${validation.failures.join('; ')}`);
+    }
+    return compressed;
+  };
+
   const beginProcessing = () => {
     if (busy) return false;
     flushSync(() => {
@@ -112,7 +130,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     if (!file || !beginProcessing()) return;
     try {
       await nextAnimationFrame();
-      const compressed = await processOne(file);
+      const compressed = await validateCompressedOutput(await processOne(file));
       const nextDownload = URL.createObjectURL(compressed.blob);
       setDownloadUrl((current) => {
         if (current) URL.revokeObjectURL(current);
@@ -139,7 +157,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
       for (const nextFile of files) {
-        const compressed = await processOne(nextFile);
+        const compressed = await validateCompressedOutput(await processOne(nextFile));
         const baseName = nextFile.name.replace(/\.[^.]+$/, '') || 'image';
         zip.file(`${baseName}-flixo.${extensionFor(format)}`, compressed.blob);
       }
@@ -157,13 +175,13 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
   const description = label(locale, 'Compress JPG, PNG, and WebP images locally in your browser with smart quality, target size, resizing, preview, and batch ZIP export.', 'قلّل حجم صور JPG وPNG وWebP داخل المتصفح مع جودة ذكية، وحجم مستهدف، وتغيير المقاس، ومعاينة، وضغط جماعي في ملف ZIP.');
 
   return (
-    <main dir={isArabic ? 'rtl' : 'ltr'} className="image-tool-shell">
+    <main lang={locale} dir={isArabic ? 'rtl' : 'ltr'} className="image-tool-shell">
       <div className="image-tool-container">
         <header className="image-tool-header"><div><p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p><h1 ref={headingRef} tabIndex={-1}>{title}</h1><p className="image-tool-lead">{description}</p></div><a className="language-link" href={isArabic ? '/en/image-compressor' : '/ar/image-compressor'}>{label(locale, 'العربية', 'English')}</a></header>
         <section className="compressor-grid" aria-label={label(locale, 'Image compression tool', 'أداة ضغط الصور')} aria-busy={busy}>
           <div className="compressor-card">
             <label className="upload-zone" htmlFor="image-file"><span className="upload-title">{files.length ? `${files.length} ${label(locale, files.length === 1 ? 'image selected' : 'images selected', files.length === 1 ? 'صورة محددة' : 'صور محددة')}` : label(locale, 'Choose images to start', 'اختر الصور للبدء')}</span><span className="upload-subtitle">JPG · PNG · WebP · GIF · BMP · SVG · {label(locale, `up to ${MAX_FILES} files`, `حتى ${MAX_FILES} ملفًا`)}</span></label>
-            <input ref={inputRef} id="image-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml" className="sr-only" multiple onChange={(event) => selectFiles(Array.from(event.target.files ?? []))} />
+            <input ref={inputRef} id="image-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml" className="file-input-control" style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} multiple onChange={(event) => selectFiles(Array.from(event.target.files ?? []))} />
             <div className="control-grid">
               <label><span>{label(locale, 'Output format', 'الصيغة')}</span><select value={format} onChange={(event) => setFormat(event.target.value as CompressionFormat)}>{Object.entries(formatLabels).map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
               <label><span>{label(locale, 'Quality', 'الجودة')} ({Math.round(quality * 100)}%)</span><input aria-label={label(locale, 'Quality', 'الجودة')} type="range" min="0.1" max="1" step="0.05" value={quality} onChange={(event) => setQuality(Number(event.target.value))} /></label>

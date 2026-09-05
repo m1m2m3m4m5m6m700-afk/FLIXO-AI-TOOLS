@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "rootCauseId": "RC-G3-LINT-001",
+  "classification": "BUILD_ERROR",
+  "status": "RESOLVED",
+  "scope": "G3 Foundation lint gate",
+  "firstObserved": {
+    "sha": "914a8c27df36991019b86c6b556a671ef9bcfb5d",
+    "job": "G3 / Foundation",
+    "step": "G3-12 ESLint",
+    "source": "src/lib/i18n/ms-uk-tool-title.ts"
+  },
+  "failure": "@typescript-eslint/no-unused-vars rejected the unused _category parameter.",
+  "repair": "Removed the unused third parameter from localizeMsUkToolTitle(); existing callers may still pass the legacy third argument because JavaScript ignores extra call arguments.",
+  "safety": {
+    "assertionsWeakened": false,
+    "coverageReduced": false,
+    "testsDisabled": false,
+    "behavioralFallbackAdded": false
+  },
+  "verificationRequired": ["npm run lint", "TypeScript", "build", "G3 Foundation", "full affected regression"],
+  "artifact": "artifacts/ci/g3-root-causes/RC-G3-LINT-001.json"
+}

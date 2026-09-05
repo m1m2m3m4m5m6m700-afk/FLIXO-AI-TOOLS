@@ -13,8 +13,8 @@ function control(page: Page, text: string) {
 }
 
 async function validateDownloadedImage(page: Page, href: string, expectedMime: string, expectedWidth: number, expectedHeight: number) {
-  expect(imageCompressorOutputContract.outputMimeTypes).toContain(expectedMime);
-  expect(imageCompressorOutputContract.downloadRequired).toBe(true);
+  expect(imageCompressorOutputContract.variants[0].outputMimeTypes).toContain(expectedMime);
+  expect(imageCompressorOutputContract.variants[0].downloadRequired).toBe(true);
 
   return page.evaluate(async ({ href: objectUrl, expectedMimeType, expectedW, expectedH }) => {
     const response = await fetch(objectUrl);
@@ -48,18 +48,15 @@ async function validateDownloadedImage(page: Page, href: string, expectedMime: s
 test('English image compressor produces a real WebP output', async ({ page }) => {
   await page.goto('/en/image-compressor');
   await expect(page.getByRole('heading', { name: 'Compress Images Online' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'العربية' })).toHaveAttribute('href', '/ar/image-compressor');
-  await expect(page.locator('meta[name="description"][content*="Compress JPG, PNG, and WebP images online in your browser."]')).toHaveCount(1);
-
+  await expect(page.locator('a[lang="ar"]').filter({ hasText: 'العربية' })).toHaveAttribute('href', '/ar/image-compressor');
+  await expect(page.locator('meta[name="description"][content*="Reduce JPG, PNG, and WebP file size"]')).toHaveCount(1);
   await page.locator('#image-file').setInputFiles({ name: 'source.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(svg) });
   await page.getByRole('button', { name: 'Compress image' }).click();
-
   const download = page.getByRole('link', { name: 'Download image' });
   await expect(download).toHaveAttribute('download', 'flixo-compressed.webp', { timeout: 15000 });
   await expect(page.getByText(/smaller file size/)).toBeVisible({ timeout: 15000 });
   await expect(page.getByRole('complementary').getByText('WebP', { exact: true })).toBeVisible({ timeout: 15000 });
   await expect(page.getByRole('complementary').getByText('1200 × 800', { exact: true })).toBeVisible();
-
   const href = await download.getAttribute('href');
   expect(href).toMatch(/^blob:/);
   await validateDownloadedImage(page, href!, 'image/webp', 1200, 800);
@@ -71,7 +68,6 @@ test('PNG output and resizing produce the requested dimensions', async ({ page }
   await outputFormat(page, 'image/png');
   await control(page, 'Max width').fill('600');
   await page.getByRole('button', { name: 'Compress image' }).click();
-
   const download = page.getByRole('link', { name: 'Download image' });
   await expect(download).toHaveAttribute('download', 'flixo-compressed.png', { timeout: 15000 });
   await expect(page.getByRole('complementary').getByText('PNG', { exact: true })).toBeVisible();
@@ -86,7 +82,6 @@ test('Target size optimization respects a safe size ceiling', async ({ page }) =
   await page.locator('#image-file').setInputFiles({ name: 'source.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(svg) });
   await control(page, 'Target size (KB)').fill('20');
   await page.getByRole('button', { name: 'Compress image' }).click();
-
   await expect(page.getByRole('link', { name: 'Download image' })).toHaveAttribute('download', 'flixo-compressed.webp', { timeout: 15000 });
   const after = page.getByRole('complementary').locator('dd').nth(1);
   await expect(after).toContainText(/KB|B/);
@@ -105,7 +100,6 @@ test('Batch processing produces a ZIP for multiple images', async ({ page }) => 
   ]);
   await expect(page.getByText('2 images selected')).toBeVisible();
   await page.getByRole('button', { name: 'Compress all to ZIP' }).click();
-
   const download = page.getByRole('link', { name: 'Download ZIP' });
   await expect(download).toHaveAttribute('download', 'flixo-compressed-images.zip', { timeout: 15000 });
   await expect(page.getByRole('complementary').getByText('2', { exact: true })).toBeVisible();
@@ -116,7 +110,6 @@ test('Input limit rejects oversized files before processing', async ({ page }) =
   await page.goto('/en/image-compressor');
   const oversized = Buffer.alloc(10 * 1024 * 1024 + 1, 0);
   await page.locator('#image-file').setInputFiles({ name: 'oversized.jpg', mimeType: 'image/jpeg', buffer: oversized });
-
   await expect(page.getByRole('alert')).toContainText('Some files were skipped');
   await expect(page.getByRole('button', { name: 'Compress image' })).toBeDisabled();
 });
@@ -125,7 +118,6 @@ test('Large pixel dimensions are rejected before expensive canvas work', async (
   await page.goto('/en/image-compressor');
   await page.locator('#image-file').setInputFiles({ name: 'huge.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(hugeSvg) });
   await page.getByRole('button', { name: 'Compress image' }).click();
-
   await expect(page.getByRole('alert')).toContainText('source image is too large for safe browser processing', { timeout: 15000 });
   await expect(page.getByRole('link', { name: 'Download image' })).toHaveCount(0);
 });
@@ -134,29 +126,19 @@ test('Arabic image compressor exposes localized SEO and output controls', async 
   await page.goto('/ar/image-compressor');
   await expect(page.getByRole('heading', { name: 'ضغط الصور أونلاين' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-  await expect(page.getByRole('link', { name: 'English' })).toHaveAttribute('href', '/en/image-compressor');
-  await expect(page.locator('meta[name="description"][content*="اضغط صور JPG وPNG وWebP"]')).toHaveCount(1);
+  await expect(page.locator('a[lang="en"]').filter({ hasText: 'English' })).toHaveAttribute('href', '/en/image-compressor');
+  await expect(page.locator('meta[name="description"][content*="اضغط صور JPG وPNG وWebP أونلاين"]')).toHaveCount(1);
 });
 
 test('runtime diagnostics capture an application error without breaking the page', async ({ page }) => {
   await page.goto('/en/image-compressor');
   await page.evaluate(() => {
-    window.dispatchEvent(
-      new ErrorEvent('error', {
-        message: 'diagnostic-smoke-test',
-        error: new Error('diagnostic-smoke-test'),
-      }),
-    );
+    window.dispatchEvent(new ErrorEvent('error', { message: 'diagnostic-smoke-test', error: new Error('diagnostic-smoke-test') }));
   });
-
   const diagnostic = await page.evaluate(() => {
     const raw = localStorage.getItem('flixo:runtime-diagnostics');
     return raw ? JSON.parse(raw).at(-1) : null;
   });
-
-  expect(diagnostic).toMatchObject({
-    kind: 'error',
-    message: 'diagnostic-smoke-test',
-  });
+  expect(diagnostic).toMatchObject({ kind: 'error', message: 'diagnostic-smoke-test' });
   await expect(page.getByRole('heading', { name: 'Compress Images Online' })).toBeVisible();
 });

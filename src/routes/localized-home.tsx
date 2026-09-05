@@ -1,6 +1,7 @@
 import { createRoute, useParams } from '@tanstack/react-router';
-import { isLocale } from '@/lib/i18n';
+import { isLocale, LOCALES, SITE_ORIGIN } from '@/lib/i18n';
 import { getTranslationBundle } from '@/lib/i18n/translations';
+import { LOCALE_METADATA } from '@/lib/i18n/config';
 import { HomePage } from './home-page';
 import { rootRoute } from './__root';
 
@@ -10,6 +11,13 @@ export const localizedHomeRoute = createRoute({
   head: async ({ params }) => {
     const locale = isLocale(params.locale) ? params.locale : 'en';
     const bundle = await getTranslationBundle(locale);
+    const direction = LOCALE_METADATA[locale].direction;
+    const canonicalUrl = `${SITE_ORIGIN}/${locale}`;
+    const alternateLinks = LOCALES.map((alternateLocale) => ({
+      rel: 'alternate' as const,
+      hrefLang: LOCALE_METADATA[alternateLocale].languageTag,
+      href: `${SITE_ORIGIN}/${alternateLocale}`,
+    }));
     return {
       meta: [
         { title: `${bundle.siteName} | ${bundle.homeTitle}` },
@@ -18,6 +26,18 @@ export const localizedHomeRoute = createRoute({
         { property: 'og:title', content: `${bundle.siteName} | ${bundle.homeTitle}` },
         { property: 'og:description', content: bundle.homeDescription },
         { property: 'og:locale', content: bundle.languageTag },
+        { property: 'og:url', content: canonicalUrl },
+      ],
+      links: [
+        { rel: 'canonical', href: canonicalUrl },
+        ...alternateLinks,
+        { rel: 'alternate', hrefLang: 'x-default', href: `${SITE_ORIGIN}/en` },
+      ],
+      scripts: [
+        {
+          type: 'text/javascript',
+          children: `document.documentElement.lang=${JSON.stringify(bundle.languageTag)};document.documentElement.dir=${JSON.stringify(direction)};`,
+        },
       ],
     };
   },

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
   <title id="title">FLIXO AI Tools</title>
-  <desc id="desc">FLIXO AI Tools F-X ribbon mark. This alias intentionally renders the canonical flixo-logo.svg asset.</desc>
+  <desc id="desc">FLIXO AI Tools F-X ribbon mark. Canonical favicon alias for flixo-logo.svg.</desc>
   <image href="/flixo-logo.svg" x="0" y="0" width="512" height="512" preserveAspectRatio="xMidYMid meet"/>
 </svg>

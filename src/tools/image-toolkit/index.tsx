@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from '@tanstack/react-router';
 import { convertImage, cropResizeImage, downloadBlob, imageInfo, removeBackground, rasterToSvg, resizeImage, watermarkRemove, fillRemoveRegion } from './engine';
 import { recognizeWithOcrWorker } from './ocr-worker-client';
 import { assertImageCropperOutputIntegrity } from '../image-cropper/output-integrity';
+import { assertImageConverterOutputIntegrity } from '../image-converter/output-integrity';
 import { validateFileSafety } from '../../lib/contracts/file-safety';
 import { validateUploadBoundary } from '../../lib/contracts/upload-boundary';
+import { LOCALE_METADATA, isLocale } from '../../lib/i18n';
 import type { LocalToolId } from './engine';
 
 const DEFINITIONS: Record<Exclude<LocalToolId, 'ai-image-generator' | 'image-compressor'>, { title: string; description: string; accept: string }> = {
@@ -77,9 +80,12 @@ async function createResult(blob: Blob, fileName: string, info?: Result['info'],
 }
 
 export function ImageToolPage({ toolId }: Props) {
+  const location = useLocation();
+  const localeCode = location.pathname.split('/').filter(Boolean)[0] ?? '';
+  const locale = isLocale(localeCode) ? localeCode : 'en';
+  const localeMetadata = LOCALE_METADATA[locale];
   const isGenerator = toolId === 'ai-image-generator';
   const definition = isGenerator ? { title: 'AI Image Generator', description: 'Generate an image through the configured FLIXO image model endpoint.', accept: '' } : DEFINITIONS[toolId];
-  const isArabic = typeof document !== 'undefined' && document.documentElement.lang.toLowerCase().startsWith('ar');
   const [file, setFile] = useState<File | null>(null);
   const [prompt, setPrompt] = useState('');
   const [outputFormat, setOutputFormat] = useState<'image/png' | 'image/jpeg' | 'image/webp'>('image/webp');
@@ -114,7 +120,7 @@ export function ImageToolPage({ toolId }: Props) {
       let blob: Blob; let fileName = baseName(file.name); let info: Result['info'];
       if (toolId === 'background-remover') { blob = await removeBackground(file, Number(tolerance) || 42); fileName += '-no-background.png'; }
       else if (toolId === 'image-upscaler') { const factor = Number(scale); if (!Number.isFinite(factor) || factor < 0.25 || factor > 4) throw new Error('Scale must be between 0.25 and 4.'); blob = await resizeImage(file, factor); fileName += `-upscaled-${factor}x.png`; }
-      else if (toolId === 'image-converter') { blob = await convertImage(file, outputFormat); fileName += outputFormat === 'image/jpeg' ? '.jpg' : outputFormat === 'image/png' ? '.png' : '.webp'; }
+      else if (toolId === 'image-converter') { blob = await convertImage(file, outputFormat); info = await imageInfo(blob); assertImageConverterOutputIntegrity(blob, info); fileName += outputFormat === 'image/jpeg' ? '.jpg' : outputFormat === 'image/png' ? '.png' : '.webp'; }
       else if (toolId === 'image-to-text') { const prepared = await preprocessForOcr(file); const ocr = await recognizeWithOcrWorker(prepared, 'eng+ara'); replaceResult(await createResult(new Blob([ocr.text], { type: 'text/plain;charset=utf-8' }), `${baseName(file.name)}.txt`, undefined, ocr.text)); return; }
       else if (toolId === 'object-remover') { blob = await fillRemoveRegion(file, { x: Number(cropX), y: Number(cropY), width: Number(cropW), height: Number(cropH) }); fileName += '-object-removed.png'; }
       else if (toolId === 'watermark-remover') { blob = await watermarkRemove(file, { x: Number(cropX), y: Number(cropY), width: Number(cropW), height: Number(cropH) }); fileName += '-watermark-removed.png'; }
@@ -127,9 +133,9 @@ export function ImageToolPage({ toolId }: Props) {
   };
 
   return (
-    <main dir={isArabic ? 'rtl' : 'ltr'} className="image-tool-shell">
+    <main lang={localeMetadata.languageTag} dir={localeMetadata.direction} className="image-tool-shell">
       <div className="image-tool-container">
-        <header className="image-tool-header"><div><p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p>{isGenerator ? <h2>{definition.title}</h2> : <h1>{definition.title}</h1>}<p className="image-tool-lead">{definition.description}</p></div></header>
+        <header className="image-tool-header"><div><p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p><h1>{definition.title}</h1><p className="image-tool-lead">{definition.description}</p></div></header>
         <section className="compressor-grid" aria-label={definition.title}>
           <div className="compressor-card">
             {isGenerator ? <label><span>Prompt</span><textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="A cinematic sunset over Cairo..." rows={6} /></label> : <><label className="upload-zone" htmlFor="image-tool-file"><span className="upload-title">{file ? file.name : 'Choose an image'}</span><span className="upload-subtitle">{definition.accept.replaceAll('image/', '').toUpperCase() || 'IMAGE INPUT'}</span></label><input id="image-tool-file" className="sr-only" type="file" accept={definition.accept} onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></>}

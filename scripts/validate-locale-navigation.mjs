@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 const config = readFileSync('src/lib/i18n/config.ts', 'utf8');
 const home = readFileSync('src/routes/home-page.tsx', 'utf8');
-const vercel = readFileSync('vercel.json', 'utf8');
+const vercel = JSON.parse(readFileSync('vercel.json', 'utf8'));
 
 const locales = config.match(/export const LOCALES = \[([\s\S]*?)\] as const/)?.[1]?.match(/'([a-z]{2})'/g)?.map((value) => value.slice(1, -1)) ?? [];
 
@@ -18,16 +18,21 @@ if (!home.includes('useNavigate') || !home.includes('navigate({ to: `/${event.ta
   throw new Error('Home locale selector is missing TanStack Router client-side navigation.');
 }
 
-const rewrites = JSON.parse(vercel).rewrites ?? [];
+const rewrites = Array.isArray(vercel.rewrites) ? vercel.rewrites : [];
 const localeRewrites = new Set();
 for (const rewrite of rewrites) {
   const match = /^\/([a-z]{2})\/:path\*$/.exec(rewrite.source ?? '');
   if (match && rewrite.destination === '/') localeRewrites.add(match[1]);
 }
 
-const missingRewrites = locales.filter((locale) => !localeRewrites.has(locale));
-if (missingRewrites.length) {
-  throw new Error(`Missing Vercel SPA fallback rewrite(s): ${missingRewrites.join(', ')}`);
+const hasCompleteRewriteFallback = locales.every((locale) => localeRewrites.has(locale));
+const buildCommand = String(vercel.buildCommand ?? '');
+const hasStaticRouteGeneration = buildCommand.includes('scripts/generate-static-route-entries.mjs');
+
+if (!hasCompleteRewriteFallback && !hasStaticRouteGeneration) {
+  const missingRewrites = locales.filter((locale) => !localeRewrites.has(locale));
+  throw new Error(`Locale navigation has neither complete SPA fallback rewrites nor the canonical static route generator. Missing rewrites: ${missingRewrites.join(', ')}`);
 }
 
-console.log(`Locale navigation validation passed: ${locales.length} locales use client-side navigation and Vercel SPA fallbacks.`);
+const routingMode = hasCompleteRewriteFallback ? 'rewrite fallback' : 'canonical static route generation';
+console.log(`Locale navigation validation passed: ${locales.length} locales use client-side navigation with ${routingMode}.`);

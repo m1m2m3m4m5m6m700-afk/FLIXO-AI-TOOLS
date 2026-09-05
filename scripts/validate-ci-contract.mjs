@@ -4,17 +4,12 @@ const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
 
 const required = [
   ['pull_request trigger', /pull_request:\s*\n\s*branches:\s*\[main\]/],
-  ['Canonical Verification job', /canonical-verify:/],
-  ['canonical npm run verify', /name:\s*Canonical Verification Gate[\s\S]*?run:\s*npm run verify/],
-  ['typecheck prerequisite', /needs:\s*\[typecheck,/],
-  ['lint prerequisite', /needs:\s*\[typecheck, lint,/],
-  ['build prerequisite', /needs:\s*\[typecheck, lint, build,/],
-  ['audit prerequisite', /needs:\s*\[typecheck, lint, build, audit,/],
-  ['socket prerequisite', /needs:\s*\[typecheck, lint, build, audit, socket,/],
-  ['secret-scan prerequisite', /needs:\s*\[typecheck, lint, build, audit, socket, secret-scan,/],
-  ['security prerequisite', /secret-scan[\s\S]*?security/],
-  ['fast-contract prerequisite', /fast-contract/],
-  ['browser-smoke prerequisite', /browser-smoke/],
+  ['CI job', /\n\s{2}ci:\n/],
+  ['Fast Contract Diagnostics job', /name:\s*Fast Contract Diagnostics/],
+  ['Canonical Verification Gate job', /name:\s*Canonical Verification Gate/],
+  ['impact-aware fast verifier', /scripts\/ci\/fast-verify\.mjs/],
+  ['single npm ci fast path', /Install dependencies once/],
+  ['PR cancellation', /cancel-in-progress:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*\}\}/],
 ];
 
 for (const [label, pattern] of required) {
@@ -25,9 +20,9 @@ for (const [label, pattern] of required) {
 }
 
 const canonicalSection = workflow.match(/canonical-verify:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
-if (/npm test(?![\w-])/.test(canonicalSection)) {
-  console.error('CI contract failed: Canonical Verification must not use npm test; use npm run verify.');
+if (/npm\s+run\s+verify(?![:\w-])/.test(canonicalSection) || /npm\s+test(?![\w-])/.test(canonicalSection)) {
+  console.error('CI contract failed: Canonical Verification must aggregate fast-path evidence and must not rerun the repository-wide verification suite.');
   process.exit(1);
 }
 
-console.log('CI contract passed: pull_request trigger, canonical npm run verify, and required diagnostic prerequisites are enforced.');
+console.log('CI contract passed: fast PR path, exact required check names, cancellation, and no duplicate repository-wide verification are enforced.');

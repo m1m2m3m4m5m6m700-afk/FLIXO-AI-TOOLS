@@ -1,6 +1,7 @@
 import { createRoute } from '@tanstack/react-router';
 import { getToolConfig } from '../config/tools';
 import { getUseCase } from '../lib/seo/use-cases';
+import { getCanonicalSiteOrigin } from '../config/origin.config';
 import { rootRoute } from './__root';
 
 export const useCaseRoute = createRoute({
@@ -9,6 +10,7 @@ export const useCaseRoute = createRoute({
   head: ({ params }) => {
     const useCase = getUseCase(params.slug);
     if (!useCase) return { meta: [{ title: 'FLIXO | Use case not found' }, { name: 'robots', content: 'noindex,nofollow' }] };
+    const url = `${getCanonicalSiteOrigin()}/use-cases/${useCase.slug}`;
     return {
       meta: [
         { title: `${useCase.title} | FLIXO` },
@@ -16,7 +18,9 @@ export const useCaseRoute = createRoute({
         { name: 'robots', content: 'index,follow,max-image-preview:large' },
         { property: 'og:title', content: `${useCase.title} | FLIXO` },
         { property: 'og:description', content: useCase.description },
+        { property: 'og:url', content: url },
       ],
+      links: [{ rel: 'canonical', href: url }],
     };
   },
   component: function UseCasePage() {
@@ -25,6 +29,8 @@ export const useCaseRoute = createRoute({
 
     if (!useCase) return <main><h1>Use case not found</h1></main>;
 
+    const siteOrigin = getCanonicalSiteOrigin();
+    const url = `${siteOrigin}/use-cases/${useCase.slug}`;
     const tools = useCase.toolIds
       .map((toolId) => getToolConfig(toolId))
       .filter((tool): tool is NonNullable<typeof tool> => Boolean(tool?.isReady));
@@ -34,8 +40,8 @@ export const useCaseRoute = createRoute({
       '@type': 'WebPage',
       name: useCase.title,
       description: useCase.description,
-      url: `/use-cases/${useCase.slug}`,
-      isPartOf: { '@type': 'WebSite', name: 'FLIXO', url: '/' },
+      url,
+      isPartOf: { '@type': 'WebSite', name: 'FLIXO', url: siteOrigin },
       mainEntity: {
         '@type': 'FAQPage',
         mainEntity: useCase.faq.map((item) => ({

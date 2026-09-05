@@ -1,6 +1,6 @@
 import type { Locale } from '../lib/i18n/config.ts';
 import { LOCALES } from '../lib/i18n/config.ts';
-import { getToolSeoName } from '../lib/i18n/tool-seo-localization.ts';
+import { getAuthoritativeToolSeoName } from './tool-seo-name-resolver.ts';
 import type { ToolConfig, ToolFamily } from './tool-definitions/types.ts';
 import { AI_TOOLS, AUDIO_TOOLS, IMAGE_TOOLS, OTHER_TOOLS, PDF_TOOLS, VIDEO_TOOLS } from './registry.ts';
 
@@ -18,7 +18,7 @@ function withFamily(family: ToolFamily, tools: readonly ToolConfig[]): readonly 
   return tools.map((tool) => {
     const seoByLocale = Object.fromEntries(
       LOCALES.map((locale) => {
-        const name = getToolSeoName(tool.id, locale);
+        const name = getAuthoritativeToolSeoName(tool, locale);
         if (!name) throw new Error(`Missing reviewed SEO name: ${tool.id}:${locale}`);
         return [locale, { title: `${name} | FLIXO` }];
       }),

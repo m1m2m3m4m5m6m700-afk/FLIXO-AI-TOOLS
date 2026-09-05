@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "phase": "CI-10",
+  "status": "COMPLETE",
+  "verifiedSha": "fd13d396e0c9384a3b73ea5153f07535b75eda82",
+  "acceptance": {
+    "extension": "PASS",
+    "mime": "PASS",
+    "magicBytes": "PASS",
+    "signature": "PASS",
+    "path": "PASS",
+    "containment": "PASS",
+    "unsafeInput": "PASS",
+    "legacyRegression": "PASS",
+    "shadowWorkflow": "PASS"
+  },
+  "promotion": "NOT_YET_AUTHORIZED",
+  "promotionReason": "G2 is proven in shadow mode with retained legacy suites; independent evaluator promotion remains a later migration step.",
+  "safety": {"mainModified": false, "branchProtectionModified": false, "requiredChecksModified": false, "productionConfigurationModified": false, "legacyWorkflowDeleted": false, "legacyWorkflowBehaviorModified": false},
+  "exitDecision": "PASS",
+  "nextPhaseAllowed": true
+}

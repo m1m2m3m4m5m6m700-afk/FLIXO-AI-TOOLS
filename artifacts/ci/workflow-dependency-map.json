@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "baselineSha": "f8c99b41d0e66b3bf958bcf24ad5499b7722b2db",
+  "workflows": {
+    ".github/workflows/ci.yml": {
+      "authority": true,
+      "commands": ["node scripts/ci/fast-verify.mjs"],
+      "duplicates": [".github/workflows/ci-fast.yml"],
+      "builds": false,
+      "installs": true,
+      "browser": false,
+      "origin": "https://flixoai.vercel.app"
+    },
+    ".github/workflows/ci-fast.yml": {
+      "authority": false,
+      "commands": ["node scripts/ci/fast-verify.mjs"],
+      "duplicates": [".github/workflows/ci.yml"],
+      "builds": false,
+      "installs": true,
+      "browser": false,
+      "origin": "https://flixoai.vercel.app"
+    },
+    ".github/workflows/g1-platform-contract.yml": {
+      "authority": true,
+      "commands": ["node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-platform-contract.mjs"],
+      "dependencies": ["typecheck-implicit-not-present", "TOOL_REGISTRY", "route/platform contracts"],
+      "duplicates": [],
+      "builds": false,
+      "installs": true,
+      "browser": false,
+      "origin": "https://flixoai.vercel.app"
+    },
+    ".github/workflows/g2-file-safety.yml": {
+      "authority": true,
+      "commands": ["npm run typecheck", "npm run lint", "node --experimental-strip-types scripts/test-file-safety.mjs", "node --experimental-strip-types scripts/test-g2-file-safety.mjs"],
+      "duplicates": ["typecheck", "lint"],
+      "builds": false,
+      "installs": true,
+      "browser": false,
+      "origin": null
+    },
+    ".github/workflows/g3-artifact-integrity.yml": {
+      "authority": true,
+      "commands": ["npm run typecheck", "npm run lint", "node --experimental-strip-types scripts/test-g3-output-contract-registry.mjs", "node --experimental-strip-types scripts/test-output-integrity.mjs", "node --experimental-strip-types scripts/test-g3-artifact-integrity.mjs", "npx playwright test tests/g3-artifact-integrity.spec.ts --project=chromium --workers=1"],
+      "duplicates": ["typecheck", "lint", "test-output-integrity"],
+      "builds": false,
+      "installs": true,
+      "browser": true,
+      "origin": "https://flixoai.vercel.app; http://127.0.0.1:3000; https://canonical.test"
+    },
+    ".github/workflows/g4-ui-supplement-contract.yml": {
+      "authority": true,
+      "commands": ["npm ci", "node tests/tool-ui-runtime-supplement.mjs"],
+      "duplicates": ["dependency installation"],
+      "builds": false,
+      "installs": true,
+      "browser": false,
+      "origin": null
+    },
+    ".github/workflows/localization-20.yml": {
+      "authority": true,
+      "commands": ["npm run typecheck", "npm run lint", "npm run build", "npm run verify:i18n -- --strict --report", "npm run validate:locale-integrity", "npm run validate:locale-navigation", "npm run validate:home-i18n", "npm run validate:seo", "npm run validate:seo-manifest", "npm run validate:use-case-seo", "npm run validate:indexing", "npm run validate:breadcrumb-seo", "scripts/validate-google-multilingual-seo.mjs", "scripts/validate-language-quality-strict.mjs", "npx playwright test tests/localization-runtime.spec.ts --project=chromium --workers=6 --retries=0"],
+      "duplicates": ["typecheck", "lint", "build", "SEO validation", "localization validation"],
+      "builds": true,
+      "installs": true,
+      "browser": true,
+      "origin": "https://flixoai.vercel.app; http://127.0.0.1:3000; https://canonical.test"
+    }
+  },
+  "confirmedSystemicFindings": [
+    "Dependency installation is repeated across workflows.",
+    "TypeScript and ESLint are repeated inside G2, G3 and Localization workflows.",
+    "Production-origin semantics are duplicated as workflow environment variables.",
+    "G3/G4 mix production-origin-like values with test-origin values in the same workflow environment.",
+    "The current CI model is split between workflow YAML and scripts/ci/fast-verify.mjs rather than a single typed execution engine."
+  ],
+  "coverageNote": "This map covers the highest-value authoritative/overlapping workflows confirmed during CI-0. Remaining diagnostic/release/security workflows still require classification before CI-0 exit."
+}

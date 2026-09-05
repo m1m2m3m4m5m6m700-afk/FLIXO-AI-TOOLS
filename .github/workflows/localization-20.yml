@@ -1,0 +1,123 @@
+name: G4 — Localization + SEO Matrix
+
+# Deep G4 certification runs on main only when the pushed change can affect G4.
+# PR development uses the canonical fast/impact-aware CI path.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**/i18n/**'
+      - 'src/**/locale/**'
+      - 'src/**/localization/**'
+      - 'src/**/seo/**'
+      - 'src/routes/**'
+      - 'scripts/validate-locale-*.mjs'
+      - 'scripts/validate-language*.mjs'
+      - 'scripts/validate-localization*.mjs'
+      - 'scripts/validate-home-localization.mjs'
+      - 'scripts/validate-seo*.mjs'
+      - 'scripts/validate-use-case-seo.mjs'
+      - 'scripts/validate-indexing.mjs'
+      - 'scripts/validate-breadcrumb-seo.mjs'
+      - 'scripts/validate-google-multilingual-seo.mjs'
+      - 'tests/localization/**'
+  workflow_dispatch:
+
+concurrency:
+  group: g4-localization-seo-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
+  G4_LOCALES: 'en,ar,es,fr,de,ru,zh,hi,id,ur,ja,pt,it,ko,nl,pl,tr,vi,th,sv'
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
+jobs:
+  g4:
+    name: G4 Universal Localization & SEO
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Build canonical production artifacts
+        run: npm run build
+      - name: Validate canonical 20-locale declaration
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=',' read -r -a locales <<< "$G4_LOCALES"
+          test "${#locales[@]}" -eq 20
+          for locale in "${locales[@]}"; do test -n "$locale"; done
+      - name: Static G4 locale + SEO certification
+        run: |
+          set -euo pipefail
+          npm run verify:i18n -- --strict --report
+          npm run validate:locale-integrity
+          npm run validate:locale-navigation
+          npm run validate:home-i18n
+          npm run validate:seo
+          npm run validate:seo-manifest
+          npm run validate:use-case-seo
+          npm run validate:indexing
+          npm run validate:breadcrumb-seo
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-google-multilingual-seo.mjs
+          node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-language-quality-strict.mjs
+          test -f dist/robots.txt
+          test -f dist/sitemap.xml
+          grep -Fx "Sitemap: ${VITE_SITE_URL}/sitemap.xml" dist/robots.txt
+          grep -Fq 'xmlns:xhtml="http://www.w3.org/1999/xhtml"' dist/sitemap.xml
+          grep -Fq 'hreflang="x-default"' dist/sitemap.xml
+      - name: Start isolated production preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/g4-server.log 2>&1 &
+          echo $! >/tmp/g4-server.pid
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/g4-server.log || true
+          exit 1
+      - name: G4 all-public-route runtime matrix — 20 locales
+        env:
+          S4_EXTERNAL_SERVER: 'true'
+          PLAYWRIGHT_SERVER: preview
+          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --workers=6 --retries=0
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/g4-server.pid ]; then kill "$(cat /tmp/g4-server.pid)" 2>/dev/null || true; fi
+      - name: Upload G4 evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: g4-localization-seo-evidence-${{ github.sha }}
+          path: |
+            playwright-report/
+            test-results/
+            /tmp/g4-server.log
+          if-no-files-found: warn
+          retention-days: 14

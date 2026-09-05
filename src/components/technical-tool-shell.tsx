@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Activity, CheckCircle2, Download, RotateCcw, Upload, Command } from 'lucide-react';
 import { getToolUiCopy } from '@/data/tool-ui-i18n';
+import { SHARED_TOOL_UI_COPY, translateSharedToolText } from '@/lib/i18n/shared-tool-ui';
+import type { Locale } from '@/lib/i18n';
 import './technical-tool-shell-premium.css';
 
 type TechnicalToolShellProps = {
@@ -19,11 +21,91 @@ type TechnicalToolShellProps = {
 
 const actionClass = 'inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.07] bg-white/[0.035] px-2.5 text-xs text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition duration-200 hover:-translate-y-px hover:border-violet-300/20 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/70';
 
+const EXTERNAL_PROCESSING: Record<Locale, string> = {
+  ar: 'معالجة خارجية',
+  en: 'External processing',
+  es: 'Procesamiento externo',
+  fr: 'Traitement externe',
+  de: 'Externe Verarbeitung',
+  ru: 'Внешняя обработка',
+  zh: '外部处理',
+  hi: 'बाहरी प्रोसेसिंग',
+  id: 'Pemrosesan eksternal',
+  ur: 'بیرونی پروسیسنگ',
+  ja: '外部処理',
+  pt: 'Processamento externo',
+  it: 'Elaborazione esterna',
+  ko: '외부 처리',
+  nl: 'Externe verwerking',
+  pl: 'Przetwarzanie zewnętrzne',
+  tr: 'Harici işleme',
+  vi: 'Xử lý bên ngoài',
+  th: 'การประมวลผลภายนอก',
+  sv: 'Extern bearbetning',
+  ms: 'Pemprosesan luaran',
+  uk: 'Зовнішня обробка',
+};
+
+function localeFromDocument(): Locale {
+  const value = typeof document === 'undefined' ? 'en' : document.documentElement.lang.toLowerCase().split('-')[0];
+  return value in SHARED_TOOL_UI_COPY ? value as Locale : 'en';
+}
+
+function translateShellValue(locale: Locale, value: string): string {
+  if (locale === 'en') return value;
+  const compact = value.trim();
+  const externalMatch = compact.match(/^↗\s*External processing (.+?) uses a configured external processing endpoint and is not presented as local-only\.$/);
+  if (externalMatch) {
+    return `↗ ${EXTERNAL_PROCESSING[locale]} ${externalMatch[1].trim()} ${SHARED_TOOL_UI_COPY[locale].externalSuffix}`;
+  }
+  return translateSharedToolText(locale, value);
+}
+
+function localizeSharedShell(root: HTMLElement, locale: Locale) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    const parent = node.parentElement;
+    if (!node.nodeValue?.trim() || !parent) continue;
+    if (parent.closest('script,style,pre,textarea,[contenteditable="true"],[data-no-auto-i18n]')) continue;
+    nodes.push(node);
+  }
+
+  for (const node of nodes) {
+    const current = node.nodeValue ?? '';
+    const next = translateShellValue(locale, current);
+    if (next !== current) node.nodeValue = next;
+  }
+
+  root.querySelectorAll<HTMLElement>('[aria-label],[title],[placeholder]').forEach((element) => {
+    if (element.matches('[data-no-auto-i18n]')) return;
+    for (const attribute of ['aria-label', 'title', 'placeholder'] as const) {
+      const value = element.getAttribute(attribute);
+      if (!value) continue;
+      const next = translateShellValue(locale, value);
+      if (next !== value) element.setAttribute(attribute, next);
+    }
+  });
+}
+
 export function TechnicalToolShell({ title, eyebrow, description, ready = true, progress, onUpload, onReset, onExport, exportDisabled = false, onCommandMenu, children }: TechnicalToolShellProps) {
   const copy = getToolUiCopy();
+  const shellRef = useRef<HTMLDivElement>(null);
+  const locale = localeFromDocument();
+
+  useEffect(() => {
+    const root = shellRef.current;
+    if (!root || locale === 'en') return;
+    const apply = () => localizeSharedShell(root, locale);
+    apply();
+    const observer = new MutationObserver(apply);
+    observer.observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['aria-label', 'title', 'placeholder'] });
+    return () => observer.disconnect();
+  }, [locale]);
 
   return (
-    <div className="relative mx-auto w-full max-w-[1480px] p-2 sm:p-3 lg:p-4">
+    <div ref={shellRef} className="relative mx-auto w-full max-w-[1480px] p-2 sm:p-3 lg:p-4">
       <div className="flixo-premium-shell relative overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#050507] shadow-[0_28px_100px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
         <div className="flixo-premium-grid pointer-events-none absolute inset-0 opacity-45" />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-violet-500/[0.05] via-indigo-500/[0.02] to-transparent" />

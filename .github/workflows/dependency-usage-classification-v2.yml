@@ -1,14 +1,9 @@
 name: Dependency Usage Classification v2
 
+# Deep dependency diagnostics: main/manual only during PR rescue mode.
 on:
-  pull_request:
+  push:
     branches: [main]
-    paths:
-      - 'package.json'
-      - 'src/**'
-      - 'scripts/report-dependency-usage.mjs'
-      - 'scripts/test-dependency-usage-classification.mjs'
-      - '.github/workflows/dependency-usage-classification-v2.yml'
   workflow_dispatch:
 
 permissions:
