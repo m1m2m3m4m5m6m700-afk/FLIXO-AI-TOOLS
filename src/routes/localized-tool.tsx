@@ -28,3 +28,18 @@ export const localizedToolRoute = createRoute({
       meta: [
         { title: seo.title },
         { name: 'description', content: seo.description },
+        { name: 'robots', content: 'index,follow,max-image-preview:large' },
+        { property: 'og:title', content: seo.title },
+        { property: 'og:description', content: seo.description },
+        { property: 'og:url', content: seo.url },
+        { property: 'og:locale', content: seo.languageTag },
+      ],
+      links: [
+        { rel: 'canonical', href: seo.url },
+        ...seo.alternates.map((alternate) => ({ rel: 'alternate', hrefLang: alternate.languageTag, href: alternate.url })),
+        { rel: 'alternate', hrefLang: 'x-default', href: seo.xDefaultUrl },
+      ],
+    };
+  },
+  component: LocalizedToolPage,
+});
