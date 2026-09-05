@@ -1,6 +1,6 @@
-# FLIXO AI Tools
+# FLIXO AI
 
-FLIXO is a browser-first toolbox built with React, Vite, TypeScript, and TanStack Router. The production source of truth is `main`; every change reaches `main` through a small, reviewable PR with fresh CI evidence for the exact commit.
+FLIXO AI is a browser-first toolbox built with React, Vite, TypeScript, and TanStack Router. The production source of truth is `main`; every change reaches `main` through a small, reviewable PR with fresh CI evidence for the exact commit.
 
 ## Production foundation
 
