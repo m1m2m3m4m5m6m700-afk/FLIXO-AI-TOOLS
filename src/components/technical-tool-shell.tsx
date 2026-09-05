@@ -3,6 +3,7 @@ import { Activity, CheckCircle2, Download, RotateCcw, Upload, Command } from 'lu
 import { getToolUiCopy } from '@/data/tool-ui-i18n';
 import { SHARED_TOOL_UI_COPY, translateSharedToolText } from '@/lib/i18n/shared-tool-ui';
 import type { Locale } from '@/lib/i18n';
+import { ElegantAdSlot } from '@/components/ads/ElegantAdSlot';
 import './technical-tool-shell-premium.css';
 
 type TechnicalToolShellProps = {
@@ -22,28 +23,7 @@ type TechnicalToolShellProps = {
 const actionClass = 'inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.07] bg-white/[0.035] px-2.5 text-xs text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition duration-200 hover:-translate-y-px hover:border-violet-300/20 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/70';
 
 const EXTERNAL_PROCESSING: Record<Locale, string> = {
-  ar: 'معالجة خارجية',
-  en: 'External processing',
-  es: 'Procesamiento externo',
-  fr: 'Traitement externe',
-  de: 'Externe Verarbeitung',
-  ru: 'Внешняя обработка',
-  zh: '外部处理',
-  hi: 'बाहरी प्रोसेसिंग',
-  id: 'Pemrosesan eksternal',
-  ur: 'بیرونی پروسیسنگ',
-  ja: '外部処理',
-  pt: 'Processamento externo',
-  it: 'Elaborazione esterna',
-  ko: '외부 처리',
-  nl: 'Externe verwerking',
-  pl: 'Przetwarzanie zewnętrzne',
-  tr: 'Harici işleme',
-  vi: 'Xử lý bên ngoài',
-  th: 'การประมวลผลภายนอก',
-  sv: 'Extern bearbetning',
-  ms: 'Pemprosesan luaran',
-  uk: 'Зовнішня обробка',
+  ar: 'معالجة خارجية', en: 'External processing', es: 'Procesamiento externo', fr: 'Traitement externe', de: 'Externe Verarbeitung', ru: 'Внешняя обработка', zh: '外部处理', hi: 'बाहरी प्रोसेसिंग', id: 'Pemrosesan eksternal', ur: 'بیرونی پروسیسنگ', ja: '外部処理', pt: 'Processamento externo', it: 'Elaborazione esterna', ko: '외부 처리', nl: 'Externe verwerking', pl: 'Przetwarzanie zewnętrzne', tr: 'Harici işleme', vi: 'Xử lý bên ngoài', th: 'การประมวลผลภายนอก', sv: 'Extern bearbetning', ms: 'Pemprosesan luaran', uk: 'Зовнішня обробка',
 };
 
 function localeFromDocument(): Locale {
@@ -55,9 +35,7 @@ function translateShellValue(locale: Locale, value: string): string {
   if (locale === 'en') return value;
   const compact = value.trim();
   const externalMatch = compact.match(/^↗\s*External processing (.+?) uses a configured external processing endpoint and is not presented as local-only\.$/);
-  if (externalMatch) {
-    return `↗ ${EXTERNAL_PROCESSING[locale]} ${externalMatch[1].trim()} ${SHARED_TOOL_UI_COPY[locale].externalSuffix}`;
-  }
+  if (externalMatch) return `↗ ${EXTERNAL_PROCESSING[locale]} ${externalMatch[1].trim()} ${SHARED_TOOL_UI_COPY[locale].externalSuffix}`;
   return translateSharedToolText(locale, value);
 }
 
@@ -71,13 +49,11 @@ function localizeSharedShell(root: HTMLElement, locale: Locale) {
     if (parent.closest('script,style,pre,textarea,[contenteditable="true"],[data-no-auto-i18n]')) continue;
     nodes.push(node);
   }
-
   for (const node of nodes) {
     const current = node.nodeValue ?? '';
     const next = translateShellValue(locale, current);
     if (next !== current) node.nodeValue = next;
   }
-
   root.querySelectorAll<HTMLElement>('[aria-label],[title],[placeholder]').forEach((element) => {
     if (element.matches('[data-no-auto-i18n]')) return;
     for (const attribute of ['aria-label', 'title', 'placeholder'] as const) {
@@ -109,45 +85,20 @@ export function TechnicalToolShell({ title, eyebrow, description, ready = true, 
       <div className="flixo-premium-shell relative overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#050507] shadow-[0_28px_100px_rgba(0,0,0,0.38)] backdrop-blur-2xl">
         <div className="flixo-premium-grid pointer-events-none absolute inset-0 opacity-45" />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-violet-500/[0.05] via-indigo-500/[0.02] to-transparent" />
-
         <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] bg-zinc-950/75 px-3 py-3 backdrop-blur-2xl sm:px-4 sm:py-3.5">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <div className="min-w-0 truncate text-sm font-semibold tracking-tight text-white">{title}</div>
-              {eyebrow ? <span className="hidden rounded-md border border-violet-300/10 bg-violet-500/[0.06] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-violet-200/65 md:inline">{eyebrow}</span> : null}
-            </div>
-            {description ? <p className="mt-1 max-w-2xl truncate text-[11px] leading-5 text-zinc-500">{description}</p> : null}
-          </div>
-
+          <div className="min-w-0"><div className="flex items-center gap-2"><div className="min-w-0 truncate text-sm font-semibold tracking-tight text-white">{title}</div>{eyebrow ? <span className="hidden rounded-md border border-violet-300/10 bg-violet-500/[0.06] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-violet-200/65 md:inline">{eyebrow}</span> : null}</div>{description ? <p className="mt-1 max-w-2xl truncate text-[11px] leading-5 text-zinc-500">{description}</p> : null}</div>
           <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-            <div className="inline-flex items-center gap-2 rounded-lg border border-white/[0.07] bg-white/[0.035] px-2.5 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-zinc-400" aria-label={ready ? copy.ready : copy.waiting}>
-              <span className={`flixo-status-dot size-1.5 rounded-full ${ready ? 'bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.75)]' : 'bg-zinc-600'}`} />
-              <Activity className="size-3" aria-hidden="true" />
-              {ready ? copy.ready : copy.waiting}
-            </div>
-
-            {onCommandMenu ? (
-              <button type="button" onClick={onCommandMenu} className="inline-flex h-9 items-center gap-2 rounded-lg border border-violet-300/10 bg-violet-500/[0.06] px-2.5 text-xs text-violet-100 transition hover:bg-violet-500/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/70" aria-label={copy.openCommandPalette}>
-                <Command className="size-3.5" aria-hidden="true" />
-                <span className="hidden sm:inline">{copy.command}</span>
-                <kbd className="hidden rounded border border-white/10 bg-black/20 px-1.5 py-0.5 font-mono text-[9px] text-violet-200/70 sm:inline">⌘K</kbd>
-              </button>
-            ) : null}
-
+            <div className="inline-flex items-center gap-2 rounded-lg border border-white/[0.07] bg-white/[0.035] px-2.5 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-zinc-400" aria-label={ready ? copy.ready : copy.waiting}><span className={`flixo-status-dot size-1.5 rounded-full ${ready ? 'bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.75)]' : 'bg-zinc-600'}`} /><Activity className="size-3" aria-hidden="true" />{ready ? copy.ready : copy.waiting}</div>
+            {onCommandMenu ? <button type="button" onClick={onCommandMenu} className="inline-flex h-9 items-center gap-2 rounded-lg border border-violet-300/10 bg-violet-500/[0.06] px-2.5 text-xs text-violet-100 transition hover:bg-violet-500/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/70" aria-label={copy.openCommandPalette}><Command className="size-3.5" aria-hidden="true" /><span className="hidden sm:inline">{copy.command}</span><kbd className="hidden rounded border border-white/10 bg-black/20 px-1.5 py-0.5 font-mono text-[9px] text-violet-200/70 sm:inline">⌘K</kbd></button> : null}
             {onUpload ? <button type="button" onClick={onUpload} className={actionClass} aria-label={copy.upload}><Upload className="size-3.5" aria-hidden="true" /><span className="hidden sm:inline">{copy.upload}</span></button> : null}
             {onReset ? <button type="button" onClick={onReset} className={actionClass} aria-label={copy.reset}><RotateCcw className="size-3.5" aria-hidden="true" /><span className="hidden sm:inline">{copy.reset}</span></button> : null}
             {onExport ? <button type="button" onClick={onExport} disabled={exportDisabled} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-violet-300/20 bg-gradient-to-r from-violet-500 to-indigo-500 px-3 text-xs font-semibold text-white shadow-[0_10px_28px_rgba(99,102,241,0.28)] transition duration-200 hover:-translate-y-px hover:from-violet-400 hover:to-indigo-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/70 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0" aria-label={copy.exportLabel}><Download className="size-3.5" aria-hidden="true" />{copy.exportLabel}</button> : null}
           </div>
         </header>
-
-        {typeof progress === 'number' ? (
-          <div className="relative h-0.5 overflow-hidden bg-zinc-900/90">
-            <div className="h-full bg-gradient-to-r from-violet-500 via-indigo-400 to-emerald-400 transition-[width] duration-300" style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
-          </div>
-        ) : null}
-
+        {typeof progress === 'number' ? <div className="relative h-0.5 overflow-hidden bg-zinc-900/90"><div className="h-full bg-gradient-to-r from-violet-500 via-indigo-400 to-emerald-400 transition-[width] duration-300" style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} /></div> : null}
         <div className="relative z-10 p-2.5 sm:p-3 lg:p-4">{children}</div>
       </div>
+      <ElegantAdSlot />
       <div className="mt-2 flex items-center justify-end gap-1.5 px-1 text-[9px] text-zinc-600"><CheckCircle2 className="size-3" aria-hidden="true" />{copy.localWorkspace}</div>
     </div>
   );
