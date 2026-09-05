@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { SmartCommandPalette } from '../components/SmartCommandPalette';
-import { FlixoHeroWorkspace } from '../components/FlixoHeroWorkspace';
+import { FlixoHeroWorkspace } from '../components/home/FlixoHeroWorkspace';
 import { ArHomeToolsSection } from '../components/ar-home-tools-section';
 import { TOOLS_REGISTRY } from '../config/tools';
 import { getBestToolIntent } from '../lib/intent-router';
