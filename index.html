@@ -24,6 +24,20 @@
         html.setAttribute('dir', dir);
       })();
     </script>
+    <script>
+      (() => {
+        const storageKey = 'flixo.theme';
+        const stored = (() => {
+          try { return window.localStorage.getItem(storageKey); } catch { return null; }
+        })();
+        const preference = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const resolved = preference === 'dark' || (preference === 'system' && prefersDark) ? 'dark' : 'light';
+        const html = document.documentElement;
+        html.dataset.theme = resolved;
+        html.style.colorScheme = resolved;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
