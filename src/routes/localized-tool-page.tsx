@@ -1,4 +1,4 @@
-import { Children, cloneElement, createElement, lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, isValidElement, type ComponentType, type ReactNode } from 'react';
+import { Children, cloneElement, createElement, lazy, Suspense, useEffect, useRef, useState, isValidElement, type ComponentType, type ReactNode } from 'react';
 import { useParams } from '@tanstack/react-router';
 import { LOCALES, isLocale, type Locale, LOCALE_METADATA } from '../lib/i18n';
 import { assertToolCategory, getToolSeo } from '../lib/seo/tool-seo';
@@ -45,20 +45,6 @@ export function LocalizedToolPage() {
   const toolId = typeof params.tool === 'string' && isLocale(locale) && LOCALES.includes(locale) ? params.tool : null;
   const [favorite, setFavorite] = useState(() => (toolId ? getFavorites().includes(toolId) : false));
   const headingRef = useRef<HTMLHeadingElement>(null);
-
-  useLayoutEffect(() => {
-    if (typeof document === 'undefined') return;
-    const html = document.documentElement;
-    html.setAttribute('lang', languageTag);
-    html.setAttribute('dir', direction);
-    html.setAttribute('data-flixo-locale', locale);
-
-    const mains = document.querySelectorAll<HTMLElement>('main');
-    mains.forEach((main) => {
-      main.setAttribute('lang', languageTag);
-      main.setAttribute('dir', direction);
-    });
-  }, [locale, languageTag, direction]);
 
   useEffect(() => {
     if (toolId) recordRecentTool(toolId);
