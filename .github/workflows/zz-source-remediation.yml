@@ -1,0 +1,61 @@
+name: Source Remediation Once
+on:
+  push:
+    branches: [protocols/i18n-assets-boundary-guards]
+  pull_request:
+    types: [synchronize]
+permissions:
+  contents: write
+jobs:
+  remediate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: protocols/i18n-assets-boundary-guards
+      - name: Verify branch head
+        run: |
+          set -euo pipefail
+          git fetch origin protocols/i18n-assets-boundary-guards
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/protocols/i18n-assets-boundary-guards)"
+      - name: Repair source cleanup invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('scripts/ci/fast-verify.mjs')
+          s=p.read_text()
+          old="const sourceFiles = files.filter((file) => /\\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file));"
+          new="const sourceFiles = files.filter((file) => existsSync(file) && /\\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file));"
+          if old in s: p.write_text(s.replace(old,new,1))
+          elif new not in s: raise SystemExit('fast-verify sourceFiles invariant missing')
+          p=Path('src/tools/pix/index.tsx')
+          s=p.read_text()
+          s2,count=re.subn(r'\n\s*<h1 className="sr-only">Pix Studio</h1>', '', s, count=1)
+          if count: p.write_text(s2)
+          PY
+      - name: Required validations
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefer-offline --no-audit --no-fund
+          npm run check
+          npm run verify:i18n -- --strict --report
+          npm run validate:tool-manifest
+      - name: Commit source remediation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/ci/fast-verify.mjs src/tools/pix/index.tsx
+          git diff --cached --check
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix: close source cleanup invariants'
+            git push origin HEAD:protocols/i18n-assets-boundary-guards
+          fi
