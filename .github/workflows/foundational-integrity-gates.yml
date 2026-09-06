@@ -4,7 +4,11 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'feat/**'
+      - 'feature/**'
+      - 'agent/**'
   workflow_dispatch:
 
 permissions:
@@ -34,8 +38,6 @@ jobs:
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: G1-G3 / Canonical npm check
         run: npm run check
-      - name: G1-G3 / Explicit localization parity proof
-        run: npm run validate:i18n
       - name: G1-G3 / Final exact-head identity
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
