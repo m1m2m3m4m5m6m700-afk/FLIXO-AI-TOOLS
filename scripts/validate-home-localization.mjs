@@ -135,7 +135,7 @@ for (const locale of expected) {
     console.error(`Locale ${locale} has unknown Home override keys: ${unknownOverrideKeys.join(', ')}`);
     process.exit(1);
   }
-  if (overrideBlock && overrideKeys.size >= required.length && required.every((key) => overrideKeys.has(key))) {
+  if (primaryBlock && overrideBlock && overrideKeys.size >= required.length && required.every((key) => overrideKeys.has(key))) {
     console.error(`Locale ${locale} override shadows the full Home catalog; reviewed overrides must remain partial overlays.`);
     process.exit(1);
   }
