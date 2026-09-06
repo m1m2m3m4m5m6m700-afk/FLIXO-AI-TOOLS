@@ -7,11 +7,13 @@ const UI: Readonly<Record<'ms' | 'uk', Readonly<Record<string, string>>>> = {
     'Generate captions': 'Jana sari kata',
     'Media file': 'Fail media',
     'Video file': 'Fail video',
+    'Audio file': 'Fail audio',
     'Inference device': 'Peranti inferens',
     Prompt: 'Arahan',
     'Generate image': 'Jana imej',
     'No result yet.': 'Belum ada hasil.',
     'A cinematic sunset over Cairo...': 'Matahari terbenam sinematik di atas Kaherah...',
+    'Separate vocals / instrumental': 'Asingkan vokal / instrumental',
   },
   uk: {
     Open: 'Відкрити',
@@ -19,11 +21,13 @@ const UI: Readonly<Record<'ms' | 'uk', Readonly<Record<string, string>>>> = {
     'Generate captions': 'Створити субтитри',
     'Media file': 'Медіафайл',
     'Video file': 'Відеофайл',
+    'Audio file': 'Аудіофайл',
     'Inference device': 'Пристрій інференсу',
     Prompt: 'Запит',
     'Generate image': 'Створити зображення',
     'No result yet.': 'Результату ще немає.',
     'A cinematic sunset over Cairo...': 'Кінематографічний захід сонця над Каїром...',
+    'Separate vocals / instrumental': 'Розділити вокал / інструментал',
   },
 };
 
