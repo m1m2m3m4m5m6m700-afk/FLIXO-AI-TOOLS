@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { validateOutputIntegrity } from '../../../src/lib/contracts/output-integrity.ts';
 
 const PNG = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'));
+const EXPECTED_SHA256 = '431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460';
 const SHA = crypto.createHash('sha256').update(PNG).digest('hex');
 const base = { filename: 'flixo-result.png', bytes: PNG };
 const spec = {
@@ -17,6 +18,10 @@ const spec = {
   requireSafeFilename: true,
 };
 
+const tamperedPng = PNG.slice();
+tamperedPng[tamperedPng.length - 1] ^= 0xff;
+const TAMPERED_SHA256 = crypto.createHash('sha256').update(tamperedPng).digest('hex');
+
 const gates = [
   ['G3-20', 'Extension', () => validateOutputIntegrity(PNG.length, 'image/png', spec, { width: 1, height: 1 }, base).valid],
   ['G3-21', 'MIME', () => validateOutputIntegrity(PNG.length, 'image/png', spec, { width: 1, height: 1 }, base).valid],
@@ -29,7 +34,8 @@ const gates = [
   ['G3-28', 'Artifact Existence', () => !validateOutputIntegrity(PNG.length, 'image/png', spec, { width: 1, height: 1 }).valid],
   ['G3-29', 'Artifact Readability', () => validateOutputIntegrity(PNG.length, 'image/png', spec, { width: 1, height: 1 }, base).valid],
   ['G3-30', 'Byte Integrity', () => !validateOutputIntegrity(PNG.length + 1, 'image/png', spec, { width: 1, height: 1 }, base).valid],
-  ['G3-31', 'SHA256 Integrity', () => SHA.length === 64 && /^[0-9a-f]+$/.test(SHA)],
+  ['G3-31', 'SHA256 Integrity', () => SHA === EXPECTED_SHA256],
+  ['G3-32', 'SHA256 Tamper Resistance', () => TAMPERED_SHA256 !== EXPECTED_SHA256],
 ];
 
 await fs.mkdir('artifacts/ci/g3/gates', { recursive: true });
@@ -43,7 +49,7 @@ for (const [gate, name, fn] of gates) {
     gate, name, status: ok ? 'PASS' : 'FAIL',
     class: ok ? null : 'PRODUCT', rootCause: ok ? null : `ARTIFACT_${name.toUpperCase().replaceAll(' ', '_')}`,
     retryable: false, sha: process.env.EXPECTED_HEAD_SHA || process.env.GITHUB_SHA || 'unknown', durationMs: Date.now() - started,
-    command: `artifact contract assertion: ${name}`, stdout: '', stderr: error ?? '', hashes: { fixtureSha256: SHA },
+    command: `artifact contract assertion: ${name}`, stdout: '', stderr: error ?? '', hashes: { fixtureSha256: SHA, expectedFixtureSha256: EXPECTED_SHA256, tamperedFixtureSha256: TAMPERED_SHA256 },
   };
   results.push(result);
   await fs.writeFile(`artifacts/ci/g3/gates/${gate}.json`, JSON.stringify(result, null, 2) + '\n');
