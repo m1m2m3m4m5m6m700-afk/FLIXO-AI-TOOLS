@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { SmartCommandPalette } from '../components/SmartCommandPalette';
 import { FlixoHeroWorkspace } from '../components/home/FlixoHeroWorkspace';
 import { ArHomeToolsSection } from '../components/ar-home-tools-section';
-import { TOOLS_REGISTRY } from '../config/tools';
+import { TOOLS_REGISTRY, getToolConfig } from '../config/tools';
 import { getBestToolIntent } from '../lib/intent-router';
 import { getToolCategories, filterTools } from '../lib/ar-home-search';
 import { recommendImageTool } from '../lib/ar-home-recommendation';
@@ -11,9 +11,8 @@ import { HOME_I18N } from '../data/home-locales';
 import { getAuthoritativeToolSeoName } from '../config/tool-seo-name-resolver';
 import { localizeMsUkCategory, localizeMsUkDescription } from '../lib/i18n/ms-uk-category';
 import { localizeToolCategory, localizeToolDescription } from '../lib/i18n/tool-localization';
-import type { Locale } from '../lib/i18n';
 
-type ToolCard = {
+ type ToolCard = {
   title: string;
   description: string;
   category: 'Images' | 'AI' | 'Other';
@@ -32,7 +31,8 @@ const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
 const HOME_AR = HOME_I18N.ar;
 
 function localTool(tool: LocalizableTool): ToolCard {
-  const localizedTitle = getAuthoritativeToolSeoName(tool as never, 'ar' as Locale) ?? tool.title;
+  const toolConfig = getToolConfig(tool.id);
+  const localizedTitle = toolConfig ? getAuthoritativeToolSeoName(toolConfig, 'ar') ?? tool.title : tool.title;
   const localizedCategory = localizeMsUkCategory('ar', tool.category) ?? localizeToolCategory('ar', tool.category);
   const localizedDescription = localizeMsUkDescription('ar', localizedTitle) ?? localizeToolDescription('ar', localizedTitle, tool.category);
   return {
