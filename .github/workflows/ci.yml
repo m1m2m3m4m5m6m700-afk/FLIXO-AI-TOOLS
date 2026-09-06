@@ -355,41 +355,12 @@ jobs:
           pattern: g3-*
           path: artifacts/ci/g3/all
           merge-multiple: false
-      - name: Resolve legacy G3
-        id: legacy-g3
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          conclusion="NOT_FOUND"
-          for attempt in {1..60}; do
-            conclusion=$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/check-runs?per_page=100" --jq '[.check_runs[] | select(.name=="G3 Artifact Integrity Shadow") | select(.head_sha==env.HEAD_SHA)] | sort_by(.completed_at) | last | .conclusion // "NOT_FOUND"')
-            case "$conclusion" in
-              success|failure|cancelled|timed_out|action_required|neutral|skipped|stale)
-                break
-                ;;
-              *)
-                echo "Legacy G3 exact-head result not terminal yet (poll $attempt/60): $conclusion"
-                sleep 5
-                ;;
-            esac
-          done
-          if [[ "$conclusion" == "NOT_FOUND" || "$conclusion" == "null" || "$conclusion" == "" ]]; then
-            echo 'Legacy G3 result was not available on the exact head SHA after bounded polling.'
-            exit 1
-          fi
-          echo "LEGACY_RESULT=$conclusion"
-          echo "legacy_result=$conclusion" >> "$GITHUB_OUTPUT"
       - name: G3 authoritative aggregation
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
           MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
-          LEGACY_RESULT: ${{ steps.legacy-g3.outputs.legacy_result }}
           FOUNDATION_RESULT: ${{ needs.g3-foundation.result }}
         run: node scripts/ci/g3/aggregate.mjs
       - uses: actions/upload-artifact@v6

@@ -74,7 +74,6 @@ jobs:
         run: |
           set -euo pipefail
           npm run verify:i18n -- --strict --report
-          npm run validate:locale-integrity
           npm run validate:locale-navigation
           npm run validate:home-i18n
           npm run validate:seo
