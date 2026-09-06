@@ -60,13 +60,17 @@ if (suspiciousHomeFallbacks.length) {
 }
 
 const requiredQuickFlowKeys = ['missing:', 'back:', 'eyebrow:', 'runLabel:', 'choose:', 'processing:', 'result:', 'download:', 'chooseError:', 'failure:', 'running:', 'run:', 'resultAlt:', 'progress:'];
-const getQuickFlowEntry = (locale) => new RegExp(`\\b${locale}:q\\(\\{([\\s\\S]*?)\\}\\)`).exec(quickflowSource)?.[1] ?? '';
+const getQuickFlowEntry = (locale) => {
+  const sourceMatch = new RegExp(`\\b${locale}:q\\(\\{([\\s\\S]*?)\\}\\)`).exec(quickflowSource)?.[1];
+  if (sourceMatch) return sourceMatch;
+  return new RegExp(`\\b${locale}:\\s*Object\\.freeze\\(\\{([\\s\\S]*?)\\}\\),`).exec(homeOverrideSource)?.[1] ?? '';
+};
 const missingQuickFlowLocales = expected.filter((locale) => {
   const entry = getQuickFlowEntry(locale);
   return !entry || requiredQuickFlowKeys.some((key) => !entry.includes(key));
 });
 if (missingQuickFlowLocales.length) {
-  console.error(`QuickFlow UI is incomplete for locale(s): ${missingQuickFlowLocales.join(', ')}`);
+  console.error(`QuickFlow UI is incomplete in the effective locale bundle for locale(s): ${missingQuickFlowLocales.join(', ')}`);
   process.exit(1);
 }
 
