@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { HOME_AR } from '../data/home-i18n';
+import { HOME_I18N } from '../data/home-locales';
 
 type ToolCard = {
   title: string;
@@ -15,6 +15,7 @@ type Props = {
   onSelectCategory: (category: string) => void;
 };
 
+const HOME_AR = HOME_I18N.ar;
 const AR_CATEGORY: Record<ToolCard['category'], string> = {
   Images: 'الصور',
   AI: 'الذكاء الاصطناعي',
