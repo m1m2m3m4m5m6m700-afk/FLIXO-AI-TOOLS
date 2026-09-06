@@ -84,7 +84,7 @@ for (const tool of flags.tools) {
 }
 if (toolTestCandidates.length) {
   add('playwright-install', 'npx', ['playwright', 'install', 'chromium'], 'affected browser checks');
-  add('affected-e2e', 'npx', ['playwright', 'test', ...toolTestCandidates, '--project=chromium', '--workers=2', '--retries=0'], 'changed tool surfaces');
+  add('affected-e2e', 'npx', ['playwright', 'test', ...toolTestCandidates, '--project=chromium', '--workers=2', '--retries=0', '--max-failures=1'], 'changed tool surfaces');
 }
 
 const needBuild = flags.workflow || flags.dependency || flags.registry || flags.routing || flags.localization || flags.seo;
