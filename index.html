@@ -41,18 +41,8 @@
         };
         const candidate = window.location.pathname.split('/').filter(Boolean)[0] ?? 'en';
         const [lang, dir] = localeMap[candidate] ?? localeMap.en;
-        const apply = () => {
-          const html = document.documentElement;
-          if (html.getAttribute('lang') !== lang) html.setAttribute('lang', lang);
-          if (html.getAttribute('dir') !== dir) html.setAttribute('dir', dir);
-        };
-        apply();
-        const observer = new MutationObserver(apply);
-        observer.observe(document.documentElement, {
-          attributes: true,
-          attributeFilter: ['lang', 'dir'],
-        });
-        window.addEventListener('beforeunload', () => observer.disconnect(), { once: true });
+        document.documentElement.setAttribute('lang', lang);
+        document.documentElement.setAttribute('dir', dir);
       })();
     </script>
   </head>
