@@ -1,22 +1,20 @@
-import type { Locale } from './config';
+import type { CanonicalLocale } from './config';
 import { isLocale, LOCALE_METADATA } from './config';
 
 const LOCALE_PATH_RE = /^\/([^/]+)(?:\/|$)/u;
 
-export function localeFromPathname(pathname: string): Locale {
+export function localeFromPathname(pathname: string): CanonicalLocale {
   const candidate = pathname.match(LOCALE_PATH_RE)?.[1] ?? 'en';
   return isLocale(candidate) ? candidate : 'en';
 }
 
-export function applyDocumentLocale(locale: Locale): void {
+export function applyDocumentLocale(locale: CanonicalLocale): void {
   if (typeof document === 'undefined') return;
 
   const html = document.documentElement;
   const metadata = LOCALE_METADATA[locale];
-  
-  // ✅ GUARD CLAUSE: Prevent undefined metadata from reaching setAttribute
   if (!metadata) return;
-  
+
   const languageTag = metadata.languageTag;
   const direction = metadata.direction;
 
@@ -28,6 +26,15 @@ export function applyDocumentLocale(locale: Locale): void {
     if (main.getAttribute('lang') !== languageTag) main.setAttribute('lang', languageTag);
     if (main.getAttribute('dir') !== direction) main.setAttribute('dir', direction);
   });
+}
+
+/**
+ * Establish the document locale immediately when this browser module loads.
+ * index.html provides the earliest bootstrap; this closes the gap before the
+ * React root lifecycle is mounted and keeps the same canonical pathname rule.
+ */
+if (typeof window !== 'undefined') {
+  applyDocumentLocale(localeFromPathname(window.location.pathname));
 }
 
 /**

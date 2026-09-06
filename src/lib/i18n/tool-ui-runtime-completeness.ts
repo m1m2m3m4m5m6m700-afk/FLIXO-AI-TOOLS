@@ -15,6 +15,10 @@ const UI: Readonly<Record<string, LocaleMap>> = {
   'Modified text': { ar: 'النص المعدّل', es: 'Texto modificado', fr: 'Texte modifié', de: 'Geänderter Text', hi: 'संशोधित टेक्स्ट', id: 'Teks yang diubah', it: 'Testo modificato', ja: '変更後のテキスト', ko: '수정된 텍스트', ms: 'Teks diubah suai', nl: 'Aangepaste tekst', pl: 'Zmodyfikowany tekst', pt: 'Texto modificado', ru: 'Изменённый текст', sv: 'Ändrad text', th: 'ข้อความที่แก้ไข', tr: 'Değiştirilmiş metin', uk: 'Змінений текст', vi: 'Văn bản đã sửa' },
   Compare: { ar: 'مقارنة', es: 'Comparar', fr: 'Comparer', de: 'Vergleichen', hi: 'तुलना करें', id: 'Bandingkan', it: 'Confronta', ja: '比較', ko: '비교', ms: 'Bandingkan', nl: 'Vergelijken', pl: 'Porównaj', pt: 'Comparar', ru: 'Сравнить', sv: 'Jämför', th: 'เปรียบเทียบ', tr: 'Karşılaştır', uk: 'Порівняти', vi: 'So sánh' },
   'Copy text': { ar: 'نسخ النص', es: 'Copiar texto', fr: 'Copier le texte', de: 'Text kopieren', hi: 'टेक्स्ट कॉपी करें', id: 'Salin teks', it: 'Copia testo', ja: 'テキストをコピー', ko: '텍스트 복사', ms: 'Salin teks', nl: 'Tekst kopiëren', pl: 'Kopiuj tekst', pt: 'Copiar texto', ru: 'Копировать текст', sv: 'Kopiera text', th: 'คัดลอกข้อความ', tr: 'Metni kopyala', uk: 'Копіювати текст', vi: 'Sao chép văn bản' },
+  Brightness: { ar: 'السطوع', es: 'Brillo', fr: 'Luminosité', de: 'Helligkeit', hi: 'चमक', id: 'Kecerahan', it: 'Luminosità', ja: '明るさ', ko: '밝기', ms: 'Kecerahan', nl: 'Helderheid', pl: 'Jasność', pt: 'Brilho', ru: 'Яркость', sv: 'Ljusstyrka', th: 'ความสว่าง', tr: 'Parlaklık', uk: 'Яскравість', vi: 'Độ sáng' },
+  Contrast: { ar: 'التباين', es: 'Contraste', fr: 'Contraste', de: 'Kontrast', hi: 'कंट्रास्ट', id: 'Kontras', it: 'Contrasto', ja: 'コントラスト', ko: '대비', ms: 'Kontras', nl: 'Contrast', pl: 'Kontrast', pt: 'Contraste', ru: 'Контраст', sv: 'Kontrast', th: 'คอนทราสต์', tr: 'Kontrast', uk: 'Контраст', vi: 'Độ tương phản' },
+  Saturation: { ar: 'التشبع', es: 'Saturación', fr: 'Saturation', de: 'Sättigung', hi: 'संतृप्ति', id: 'Saturasi', it: 'Saturazione', ja: '彩度', ko: '채도', ms: 'Ketepuan', nl: 'Verzadiging', pl: 'Nasycenie', pt: 'Saturação', ru: 'Насыщенность', sv: 'Mättnad', th: 'ความอิ่มตัว', tr: 'Doygunluk', uk: 'Насиченість', vi: 'Độ bão hòa' },
+  Grayscale: { ar: 'تدرج رمادي', es: 'Escala de grises', fr: 'Niveaux de gris', de: 'Graustufen', hi: 'ग्रेस्केल', id: 'Skala abu-abu', it: 'Scala di grigi', ja: 'グレースケール', ko: '그레이스케일', ms: 'Skala kelabu', nl: 'Grijswaarden', pl: 'Skala szarości', pt: 'Escala de cinzentos', ru: 'Оттенки серого', sv: 'Gråskala', th: 'โทนสีเทา', tr: 'Gri tonlama', uk: 'Відтінки сірого', vi: 'Thang độ xám' },
 };
 
 const PREFIXES: ReadonlyArray<readonly [string, LocaleMap]> = [
@@ -62,8 +66,9 @@ function localizeRoot(root: HTMLElement, locale: CanonicalLocale, toolId: string
   });
   const firstHeading = root.querySelector<HTMLElement>('h1');
   if (firstHeading) {
-    const title = getLocalizedToolTitle(locale, toolId, firstHeading.textContent?.trim() || toolId);
-    if (title) firstHeading.textContent = title;
+    const current = firstHeading.textContent?.trim() ?? '';
+    const title = getLocalizedToolTitle(locale, toolId, current || toolId);
+    if (title && current !== title) firstHeading.textContent = title;
   }
 }
 
