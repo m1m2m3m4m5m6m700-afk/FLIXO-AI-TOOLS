@@ -1,7 +1,7 @@
-import type { Locale } from '../lib/i18n/config';
+import type { Locale } from '../lib/i18n/config.ts';
 import { localizeMsUkToolTitle } from '../lib/i18n/ms-uk-tool-title.ts';
 import { TOOL_SEO_NAMES } from '../lib/i18n/tool-seo-localization.ts';
-import type { ToolConfig } from './tool-definitions/types';
+import type { ToolConfig } from './tool-definitions/types.ts';
 
 /** Human-reviewed additions for ready tools absent from the historical locale dictionaries. */
 const REVIEWED_TOOL_SEO_OVERRIDES: Partial<Record<Locale, Record<string, string>>> = {
