@@ -7,7 +7,6 @@ const fail = (message) => {
 };
 const pass = (message) => console.log(`GOOGLE MULTILINGUAL SEO PASS: ${message}`);
 
-const config = readFileSync('src/lib/i18n/config.ts', 'utf8');
 const sitemapPath = existsSync('dist/sitemap.xml') ? 'dist/sitemap.xml' : 'public/sitemap.xml';
 if (!existsSync(sitemapPath)) fail('generated sitemap.xml is missing from both dist/ and public/.');
 const sitemap = readFileSync(sitemapPath, 'utf8');
