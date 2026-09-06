@@ -82,6 +82,8 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
 
   if (!copy) return <main className="home-shell" lang={localeMetadata.languageTag} dir={localeMetadata.direction} aria-busy="true" />;
 
+  const languageOptionLabel = (code: string): string => locale === 'en' ? (LANGUAGE_LABELS[code] ?? code) : `${LANGUAGE_LABELS[code] ?? code} · ${copy.nav.switch}`;
+
   return (
     <main className="home-shell" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>
       {paletteOpen && <SmartCommandPalette onClose={() => setPaletteOpen(false)} />}
@@ -89,7 +91,7 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
         <div className="home-container home-nav-inner">
           <Link className="home-brand" to="/" aria-label={copy.ariaHome}>FLIXO</Link>
           <div className="home-nav-links"><a href="#tools">{copy.nav.tools}</a><a href="#categories">{copy.nav.categories}</a><a href="#privacy">{copy.nav.privacy}</a></div>
-          <label className="sr-only" htmlFor="home-language">{copy.nav.switch}</label><select id="home-language" className="home-nav-language" value={locale} aria-label={copy.nav.switch} onChange={(event) => { void navigate({ to: `/${event.target.value}` }); }}>{LOCALES.map((code) => <option key={code} value={code}>{LANGUAGE_LABELS[code] ?? code}</option>)}</select>
+          <label className="sr-only" htmlFor="home-language">{copy.nav.switch}</label><select id="home-language" className="home-nav-language" value={locale} aria-label={copy.nav.switch} onChange={(event) => { void navigate({ to: `/${event.target.value}` }); }}>{LOCALES.map((code) => <option key={code} value={code}>{languageOptionLabel(code)}</option>)}</select>
         </div>
       </nav>
       <div className="home-container home-content">
