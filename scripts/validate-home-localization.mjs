@@ -3,14 +3,21 @@ import { readFileSync } from 'node:fs';
 const config = readFileSync('src/lib/i18n/config.ts', 'utf8');
 const source = readFileSync('src/data/home-locales.ts', 'utf8');
 const overrides = readFileSync('src/lib/i18n/locale-quality-overrides.ts', 'utf8');
+const homeLoader = readFileSync('src/lib/i18n/home-loader.ts', 'utf8');
 const homePage = readFileSync('src/routes/home-page.tsx', 'utf8');
 const translations = readFileSync('src/lib/i18n/translations.ts', 'utf8');
 
 const expected = config.match(/export const LOCALES = \[([\s\S]*?)\] as const/)?.[1]
   ?.match(/'([a-z]{2})'/g)?.map((v) => v.slice(1, -1)) ?? [];
 const canonical = new Set(expected);
+const deprecated = new Set(['zh', 'ur']);
+
 if (expected.length !== 20 || expected.length !== canonical.size) {
   console.error(`LOCALES must contain exactly 20 unique canonical locales; got ${expected.length}.`);
+  process.exit(1);
+}
+if ([...deprecated].some((locale) => canonical.has(locale))) {
+  console.error('Deprecated home locales must never be canonical: zh/ur.');
   process.exit(1);
 }
 
@@ -22,11 +29,14 @@ if (duplicateLocales.length) {
   process.exit(1);
 }
 
-const allDefined = [...new Set([...primary, ...reviewed])];
-const missingLocales = expected.filter((locale) => !allDefined.includes(locale));
-const orphanedLocales = allDefined.filter((locale) => !canonical.has(locale));
-if (missingLocales.length || orphanedLocales.length) {
-  console.error(`Home locale matrix mismatch. Missing canonical: ${missingLocales.join(', ') || 'none'}; orphaned/noncanonical: ${orphanedLocales.join(', ') || 'none'}`);
+const unsupportedPrimary = primary.filter((locale) => !canonical.has(locale) && !deprecated.has(locale));
+if (unsupportedPrimary.length) {
+  console.error(`Unsupported primary Home locales: ${unsupportedPrimary.join(', ')}`);
+  process.exit(1);
+}
+const missingCanonical = expected.filter((locale) => !primary.includes(locale) && !reviewed.includes(locale));
+if (missingCanonical.length) {
+  console.error(`Missing canonical Home locales: ${missingCanonical.join(', ')}`);
   process.exit(1);
 }
 
@@ -37,7 +47,6 @@ const readLocaleBlock = (text, locale, matcher) => {
   const next = text.indexOf('\n  ', start + 4);
   return text.slice(start, next < 0 ? text.length : next);
 };
-
 for (const locale of expected) {
   const block = primary.includes(locale)
     ? readLocaleBlock(source, locale, 'copy({')
@@ -49,8 +58,12 @@ for (const locale of expected) {
   }
 }
 
-if (!source.includes("dir:'rtl'") && !overrides.includes("dir: 'rtl'")) {
-  console.error('RTL locale direction is missing.');
+if (!/isLocale\(locale\)/.test(homeLoader) || !/return cached/.test(homeLoader)) {
+  console.error('Home loader must enforce canonical locale validation before serving cached Home copy.');
+  process.exit(1);
+}
+if (!source.includes('HOME_I18N')) {
+  console.error('home-locales.ts must remain the Home catalog source.');
   process.exit(1);
 }
 const runtimeHomeImport = /(^|\n)\s*import\s+(?!type\b)[^;]*from\s+['"][^'"]*home-locales['"]/m;
@@ -58,13 +71,9 @@ if (runtimeHomeImport.test(homePage)) {
   console.error('HomePage must not runtime-import home-locales.ts; use the lazy home loader.');
   process.exit(1);
 }
-if (!source.includes('HOME_I18N')) {
-  console.error('home-locales.ts must remain the canonical HOME_I18N source during locale extraction.');
-  process.exit(1);
-}
 if (/(?:import|export)\s+(?:[^'";]+?from\s+)?['"].*\/locales\/[^'"]+['"]/.test(translations)) {
   console.error('translations.ts must not statically import locale modules.');
   process.exit(1);
 }
-console.log(`Home localization coverage passed: ${expected.length} canonical locales across primary and reviewed catalog layers.`);
+console.log(`Home localization coverage passed: ${expected.length} canonical locales; deprecated legacy entries remain noncanonical: ${[...deprecated].join(', ')}.`);
 console.log('Home lazy boundary contract passed.');
