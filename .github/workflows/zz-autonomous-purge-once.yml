@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - protocols/i18n-assets-boundary-guards
+  pull_request:
+    types: [synchronize]
 
 permissions:
   contents: write
