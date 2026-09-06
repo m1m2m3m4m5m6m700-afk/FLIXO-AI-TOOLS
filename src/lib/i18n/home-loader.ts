@@ -1,5 +1,5 @@
-import type { Locale } from '@/lib/i18n';
-import { isLocale } from '@/lib/i18n';
+import type { Locale } from './config';
+import { isLocale } from './config';
 import type { HomeCopy } from '../../data/home-locales';
 import { HOME_COPY_OVERRIDES } from './locale-quality-overrides';
 
