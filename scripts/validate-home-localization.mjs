@@ -45,8 +45,7 @@ if (missingCanonical.length) {
 }
 
 const required = ['language','dir','nav','badge','eyebrow','heroTitle','heroLead','describe','searchLabel','searchPlaceholder','smartPalette','suggested','openDirectly','popular','trust','quickDrop','quickDropTitle','quickDropLead','dropChoose','dropSupport','suggestedTool','openTool','toolbox','toolboxTitle','ready','empty','builtForFocus','finalTitle','finalLead','trySmart','all','browserMeta','ariaHome','ariaPrimary','ariaFindTool','ariaTrust','ariaCategories','quickTags'];
-const nestedKeys = new Set(['tools','categories','privacy','switch']);
-const scalarKeys = new Set(required.filter((key) => !['nav','trust','quickTags'].includes(key)).concat([...nestedKeys]));
+const allowedOverrideKeys = new Set(required);
 
 const objectKeys = (block) => {
   const keys = new Set();
@@ -64,7 +63,7 @@ for (const locale of expected) {
     console.error(`Locale ${locale} is structurally incomplete; missing keys across primary + reviewed overlay: ${missingKeys.join(', ')}`);
     process.exit(1);
   }
-  const unknownOverrideKeys = [...overrideKeys].filter((key) => !scalarKeys.has(key));
+  const unknownOverrideKeys = [...overrideKeys].filter((key) => !allowedOverrideKeys.has(key));
   if (unknownOverrideKeys.length) {
     console.error(`Locale ${locale} has unknown Home override keys: ${unknownOverrideKeys.join(', ')}`);
     process.exit(1);
