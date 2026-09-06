@@ -31,7 +31,7 @@ const flags = {
   tools: [...new Set(files.map((file) => file.match(/^src\/tools\/([^/]+)/)?.[1]).filter(Boolean))],
 };
 
-const sourceFiles = files.filter((file) => /\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file));
+const sourceFiles = files.filter((file) => existsSync(file) && /\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file));
 const typedSourceFiles = files.filter((file) => /\.(?:ts|tsx)$/.test(file));
 const testFiles = files.filter((file) => /^(?:tests|test)\/.*\.(?:ts|tsx|js|mjs|cjs)$/.test(file));
 const docsOnly = files.length > 0 && files.every((file) => /^(docs\/|README|CHANGELOG|LICENSE|\.github\/ISSUE_TEMPLATE\/)/i.test(file));
