@@ -81,7 +81,16 @@ export function installToolUiRuntimeLocalization(): () => void {
     if (locale !== 'en') translateRoot(document.body, locale);
   };
   apply();
-  const observer = new MutationObserver(apply);
+  let scheduled = false;
+  const schedule = () => {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      apply();
+    });
+  };
+  const observer = new MutationObserver(schedule);
   observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['aria-label', 'title', 'placeholder'] });
   return () => observer.disconnect();
 }

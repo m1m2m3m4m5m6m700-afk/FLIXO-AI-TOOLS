@@ -76,7 +76,16 @@ export function installToolUiRuntimeSupplement(): () => void {
       }
     });
   };
-  const observer = new MutationObserver(translate);
+  let scheduled = false;
+  const schedule = () => {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      translate();
+    });
+  };
+  const observer = new MutationObserver(schedule);
   translate();
   observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['aria-label', 'title', 'placeholder'] });
   return () => observer.disconnect();
