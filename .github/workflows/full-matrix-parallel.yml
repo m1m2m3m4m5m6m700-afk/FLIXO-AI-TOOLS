@@ -1,7 +1,8 @@
 name: Full Matrix Parallel
 
-# Full browser × locale certification is intentionally reserved for pre-merge PRs,
-# release tags, and explicit certification runs. It never executes on ordinary main pushes.
+# Full browser × locale certification is reserved for pre-merge PRs, release tags,
+# and explicit certification runs. The matrix is fail-closed behind one Linux
+# static/build gate and consumes the exact build artifact produced by that gate.
 on:
   pull_request:
     branches: [main]
@@ -24,22 +25,15 @@ env:
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+  NODE_MODULES_CACHE_KEY: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
 
 jobs:
-  matrix:
-    name: Full Matrix — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+  static-and-build:
+    name: Static Gate + Single Build
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      # Parallel shards preserve complete coverage without serial bottlenecks.
-      fail-fast: false
-      matrix:
-        browser: [chromium, firefox, webkit]
-        shard: [1, 2, 3, 4]
+    timeout-minutes: 20
     env:
-      PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-      S4_EXTERNAL_SERVER: 'true'
-      PLAYWRIGHT_SERVER: preview
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -49,41 +43,136 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Install Playwright system dependencies
-        timeout-minutes: 8
+      - name: Restore node_modules cache
+        id: node-modules-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ env.NODE_MODULES_CACHE_KEY }}
+      - name: Install dependencies
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Verify exact HEAD
+        shell: bash
         run: |
           set -euo pipefail
-          case "${{ matrix.browser }}" in
-            chromium) browser_bin="chromium" ;;
-            firefox) browser_bin="firefox" ;;
-            webkit) browser_bin="webkit" ;;
-            *) exit 2 ;;
-          esac
-          npx playwright install-deps "$browser_bin"
-      - name: Cache Playwright browsers
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_SHA"
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Localization parity and fallback guard
+        run: npm run validate:i18n
+      - name: Single production build + asset-chain validation
+        run: npm run build
+      - name: Verify build exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d dist
+          test -f dist/index.html
+      - name: Publish reusable production artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: full-matrix-build-${{ env.EXPECTED_SHA }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 3
+
+  matrix:
+    name: Full Matrix — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    needs: [static-and-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      # Explicit production-critical combinations only: one Linux/Node target,
+      # three supported browsers, three balanced shards. No OS/Node Cartesian product.
+      matrix:
+        include:
+          - browser: chromium
+            shard: 1
+            total_shards: 3
+          - browser: chromium
+            shard: 2
+            total_shards: 3
+          - browser: chromium
+            shard: 3
+            total_shards: 3
+          - browser: firefox
+            shard: 1
+            total_shards: 3
+          - browser: firefox
+            shard: 2
+            total_shards: 3
+          - browser: firefox
+            shard: 3
+            total_shards: 3
+          - browser: webkit
+            shard: 1
+            total_shards: 3
+          - browser: webkit
+            shard: 2
+            total_shards: 3
+          - browser: webkit
+            shard: 3
+            total_shards: 3
+    env:
+      PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+      S4_EXTERNAL_SERVER: 'true'
+      PLAYWRIGHT_SERVER: preview
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Restore node_modules cache
+        id: node-modules-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ env.NODE_MODULES_CACHE_KEY }}
+      - name: Install dependencies on cache miss
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Download exact reusable build
+        uses: actions/download-artifact@v6
+        with:
+          name: full-matrix-build-${{ env.EXPECTED_SHA }}
+          path: dist
+      - name: Verify exact build identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d dist
+          test -f dist/index.html
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_SHA"
+      - name: Install Playwright system dependencies
+        timeout-minutes: 8
+        run: npx playwright install-deps ${{ matrix.browser }}
+      - name: Cache Playwright browser
+        id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-full-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: playwright-full-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
       - name: Install browser
         timeout-minutes: 8
         run: |
           set -euo pipefail
-          case "${{ matrix.browser }}" in
-            chromium) browser_bin="chromium" ;;
-            firefox) browser_bin="firefox" ;;
-            webkit) browser_bin="webkit" ;;
-            *) exit 2 ;;
-          esac
-          executable="$(node -e "const p=require('playwright'); const b={chromium:p.chromium,firefox:p.firefox,webkit:p.webkit}['${{ matrix.browser }}']; process.stdout.write(b.executablePath())")"
+          executable="$(node -e "const p=require('playwright'); const b=p['${{ matrix.browser }}']; process.stdout.write(b.executablePath())")"
           if [[ -x "$executable" ]]; then
             echo "Playwright browser cache hit: $executable"
             exit 0
           fi
-          timeout --preserve-status 420s npx playwright install "$browser_bin"
-      - name: Build production preview
-        run: npm run build
+          timeout --preserve-status 420s npx playwright install ${{ matrix.browser }}
       - name: Start isolated preview
         shell: bash
         run: |
@@ -98,7 +187,7 @@ jobs:
           exit 1
       - name: Verify public routes × all canonical locales
         timeout-minutes: 15
-        run: npx playwright test tests/localization-runtime.spec.ts --project=${{ matrix.browser }} --workers=6 --retries=0 --max-failures=1 --shard=${{ matrix.shard }}/4
+        run: npx playwright test tests/localization-runtime.spec.ts --project=${{ matrix.browser }} --workers=6 --retries=0 --max-failures=1 --shard=${{ matrix.shard }}/${{ matrix.total_shards }}
       - name: Cleanup
         if: always()
         shell: bash
@@ -119,14 +208,16 @@ jobs:
 
   certification:
     name: Full Matrix Parallel Certification
-    needs: [matrix]
+    needs: [static-and-build, matrix]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Require every browser/shard job to pass
+      - name: Require static gate and every browser/shard to pass
         run: |
           set -euo pipefail
-          result='${{ needs.matrix.result }}'
-          test "$result" = success || { echo "Full Matrix certification failed: matrix=$result"; exit 1; }
-          echo "Full Matrix Parallel PASS: chromium + firefox + webkit; complete public-route × canonical-locale coverage across deterministic shards."
+          static_result='${{ needs.static-and-build.result }}'
+          matrix_result='${{ needs.matrix.result }}'
+          test "$static_result" = success || { echo "Static/build gate failed: $static_result"; exit 1; }
+          test "$matrix_result" = success || { echo "Full Matrix certification failed: matrix=$matrix_result"; exit 1; }
+          echo "Full Matrix Parallel PASS: chromium + firefox + webkit; complete public-route × canonical-locale coverage across 9 deterministic shards using one exact production build."
