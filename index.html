@@ -40,9 +40,17 @@
         };
         const candidate = window.location.pathname.split('/').filter(Boolean)[0] ?? 'en';
         const [lang, dir] = localeMap[candidate] ?? localeMap.en;
-        const html = document.documentElement;
-        html.setAttribute('lang', lang);
-        html.setAttribute('dir', dir);
+        const apply = () => {
+          const html = document.documentElement;
+          if (html.getAttribute('lang') !== lang) html.setAttribute('lang', lang);
+          if (html.getAttribute('dir') !== dir) html.setAttribute('dir', dir);
+        };
+        apply();
+        const observer = new MutationObserver((mutations) => {
+          if (mutations.some((mutation) => mutation.type === 'attributes' && (mutation.attributeName === 'lang' || mutation.attributeName === 'dir'))) apply();
+        });
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'dir'] });
+        window.addEventListener('beforeunload', () => observer.disconnect(), { once: true });
       })();
     </script>
   </head>
