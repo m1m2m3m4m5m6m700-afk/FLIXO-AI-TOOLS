@@ -146,15 +146,15 @@ jobs:
         run: |
           set -euo pipefail
           test ! -e .github/workflows/matrix-first.yml
-          if find .github/workflows -maxdepth 1 -type f \( -name 'flixo-ci-*-shadow.yml' -o -name 'flixo-ci-shadow.yml' \) -print -quit | grep -q .; then
+          if find .github/workflows -maxdepth 1 -type f ! -name 'zz-autonomous-purge-once.yml' \( -name 'flixo-ci-*-shadow.yml' -o -name 'flixo-ci-shadow.yml' \) -print -quit | grep -q .; then
             echo 'shadow workflows remain' >&2
             exit 1
           fi
-          if grep -R -nE 'gh api|gh run list|check-runs|LEGACY_RESULT|Resolve legacy G3|legacy-g3' .github/workflows; then
+          if grep -R -nE 'gh api|gh run list|check-runs|LEGACY_RESULT|Resolve legacy G3|legacy-g3' .github/workflows --exclude='zz-autonomous-purge-once.yml'; then
             echo 'forbidden polling/shadow references remain' >&2
             exit 1
           fi
-          if grep -R -n 'matrix-first.yml' .github/workflows; then
+          if grep -R -n 'matrix-first.yml' .github/workflows --exclude='zz-autonomous-purge-once.yml'; then
             echo 'deleted matrix-first entry point still referenced' >&2
             exit 1
           fi
