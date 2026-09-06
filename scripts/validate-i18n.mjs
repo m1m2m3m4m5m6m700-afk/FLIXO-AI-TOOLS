@@ -7,6 +7,7 @@ if (parity.status !== 0) process.exit(parity.status ?? 1);
 
 const configSource = readFileSync('src/lib/i18n/config.ts', 'utf8');
 const homeSource = readFileSync('src/data/home-locales.ts', 'utf8');
+const homeOverrideSource = readFileSync('src/lib/i18n/locale-quality-overrides.ts', 'utf8');
 const quickflowSource = readFileSync('src/data/quickflow-locales.ts', 'utf8');
 const toolUiSource = readFileSync('src/data/tool-ui-i18n.ts', 'utf8');
 const localizedToolPageSource = readFileSync('src/routes/localized-tool-page.tsx', 'utf8');
@@ -35,14 +36,18 @@ if (!localizedToolPageSource.includes('<ToolComponent locale={locale} />')) {
   process.exit(1);
 }
 
-const getHomeEntry = (locale) => new RegExp(`\\b${locale}:\\s*copy\\(\\{([\\s\\S]*?)\\}\\)`).exec(homeSource)?.[1] ?? '';
+const getHomeEntry = (locale) => {
+  const sourceMatch = new RegExp(`\\b${locale}:\\s*copy\\(\\{([\\s\\S]*?)\\}\\)`).exec(homeSource)?.[1];
+  if (sourceMatch) return sourceMatch;
+  return new RegExp(`\\b${locale}:\\s*Object\\.freeze\\(\\{([\\s\\S]*?)\\}\\),`).exec(homeOverrideSource)?.[1] ?? '';
+};
 const requiredHomeKeys = ['nav:', 'badge:', 'heroTitle:', 'heroLead:', 'searchPlaceholder:', 'smartPalette:', 'trust:', 'quickDropTitle:', 'dropChoose:', 'toolboxTitle:', 'finalTitle:', 'quickTags:'];
 const missingHomeLocales = expected.filter((locale) => {
   const entry = getHomeEntry(locale);
   return !entry || requiredHomeKeys.some((key) => !entry.includes(key));
 });
 if (missingHomeLocales.length) {
-  console.error(`Home UI is incomplete for locale(s): ${missingHomeLocales.join(', ')}`);
+  console.error(`Home UI is incomplete in the effective locale bundle for locale(s): ${missingHomeLocales.join(', ')}`);
   process.exit(1);
 }
 
@@ -85,4 +90,4 @@ if (missingUiFiles.length > 0) {
   process.exit(1);
 }
 
-console.log(`i18n validation passed: ${expected.length} locale files, complete Home/QuickFlow UI copy, localized tool route shell, and no exact English QuickFlow fallbacks.`);
+console.log(`i18n validation passed: ${expected.length} locale files, complete effective Home/QuickFlow UI copy, localized tool route shell, and no exact English QuickFlow fallbacks.`);
