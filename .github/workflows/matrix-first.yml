@@ -1,6 +1,7 @@
 name: Matrix First Gate
 
 # Lightweight browser smoke only. Full multi-locale certification lives in Full Matrix Parallel.
+# Static analysis and the production build run once before any smoke matrix job.
 on:
   pull_request:
     branches: [main]
@@ -25,14 +26,12 @@ env:
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
 
 jobs:
-  matrix:
-    name: Matrix First — ${{ matrix.browser }} smoke
+  static-and-build:
+    name: Static Gate + Single Build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: true
-      matrix:
-        browser: [chromium, firefox, webkit]
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -42,8 +41,85 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      - name: Restore node_modules cache
+        id: node-modules-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
       - name: Install dependencies
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Verify exact HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Localization parity and fallback guard
+        run: npm run validate:i18n
+      - name: Single production build + asset-chain validation
+        run: npm run build
+      - name: Verify build exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d dist
+          test -f dist/index.html
+      - name: Publish reusable production artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: matrix-first-build-${{ env.EXPECTED_SHA }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 3
+
+  matrix:
+    name: Matrix First — ${{ matrix.browser }} smoke
+    needs: [static-and-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - browser: chromium
+          - browser: firefox
+          - browser: webkit
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Restore node_modules cache
+        id: node-modules-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
+      - name: Install dependencies on cache miss
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Download exact reusable build
+        uses: actions/download-artifact@v6
+        with:
+          name: matrix-first-build-${{ env.EXPECTED_SHA }}
+          path: dist
+      - name: Verify exact build identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -f dist/index.html
       - name: Install browser system dependencies
         timeout-minutes: 8
         run: npx playwright install-deps '${{ matrix.browser }}'
@@ -69,8 +145,6 @@ jobs:
             exit 0
           fi
           timeout --preserve-status 420s npx playwright install '${{ matrix.browser }}'
-      - name: Build preview
-        run: npm run build
       - name: Start isolated preview
         shell: bash
         run: |
@@ -112,15 +186,16 @@ jobs:
 
   certification:
     name: Matrix First Certification
-    needs: [matrix]
+    needs: [static-and-build, matrix]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Fail closed on any smoke unit
+      - name: Fail closed on static gate or smoke unit
         run: |
           set -euo pipefail
-          result='${{ needs.matrix.result }}'
-          echo "matrix=$result"
-          test "$result" = success
-          echo 'Matrix First Certification PASS: Chromium + Firefox + WebKit smoke passed.'
+          static_result='${{ needs.static-and-build.result }}'
+          matrix_result='${{ needs.matrix.result }}'
+          test "$static_result" = success
+          test "$matrix_result" = success
+          echo 'Matrix First Certification PASS: static gate + Chromium + Firefox + WebKit smoke passed.'
