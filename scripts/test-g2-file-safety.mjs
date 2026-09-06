@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { MAGIC_BYTE_SIGNATURES, validateArchiveEntries, validateFileSafety } from '../src/lib/contracts/file-safety.ts';
+import { detectZipBombRisk, MAGIC_BYTE_SIGNATURES, validateArchiveEntries, validateFileSafety } from '../src/lib/contracts/file-safety.ts';
 import { validateUploadBoundary } from '../src/lib/contracts/upload-boundary.ts';
 
 const bytes = (...values) => new Uint8Array(values);
@@ -163,6 +163,20 @@ assert.equal(
   true,
 );
 
+assert.equal(detectZipBombRisk(10, 400).isBomb, false, 'exact compression threshold should be safe');
+assert.equal(detectZipBombRisk(10, 401).isBomb, true, 'compression ratio above threshold must be rejected');
+assert.equal(detectZipBombRisk(0, 1).isBomb, true, 'zero compressed size must fail closed');
+failContains(
+  validateArchiveEntries([{ name: 'bomb.bin', compressedBytes: 10, uncompressedBytes: 401 }], archivePolicy),
+  'Potential ZIP bomb detected',
+  'archive compression ratio bypassed',
+);
+assert.equal(
+  validateArchiveEntries([{ name: 'safe.bin', compressedBytes: 10, uncompressedBytes: 400 }], archivePolicy).safe,
+  true,
+  'archive exactly at compression ratio boundary rejected',
+);
+
 failContains(
   validateArchiveEntries([
     { name: 'outer.zip', nestedEntries: [{ name: 'level1.zip', nestedEntries: [{ name: 'level2.zip', nestedEntries: [{ name: 'payload.bin', uncompressedBytes: 1 }] }] }] },
@@ -194,4 +208,4 @@ const categories = ['PNG', 'JPEG', 'WebP', 'GIF', 'PDF', 'ZIP', 'Audio', 'Video'
 assert.equal(binaryKeys.size >= 10, true);
 assert.equal(categories.length, 11);
 
-console.log(`G2 UNIVERSAL FILE SAFETY PASSED: matrix=${matrix.length} formats, binary=${binaryKeys.size}, archive=nested-recursive, upload=raw-bytes, dimensions=bounded`);
+console.log(`G2 UNIVERSAL FILE SAFETY PASSED: matrix=${matrix.length} formats, binary=${binaryKeys.size}, archive=nested-recursive+compression-ratio, upload=raw-bytes, dimensions=bounded`);
