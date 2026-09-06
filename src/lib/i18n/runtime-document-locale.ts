@@ -13,6 +13,8 @@ export function applyDocumentLocale(locale: CanonicalLocale): void {
 
   const html = document.documentElement;
   const metadata = LOCALE_METADATA[locale];
+  if (!metadata) return;
+
   const languageTag = metadata.languageTag;
   const direction = metadata.direction;
 
