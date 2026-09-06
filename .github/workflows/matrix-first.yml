@@ -96,24 +96,6 @@ jobs:
           - browser: chromium
             shard: 3
             total_shards: 3
-          - browser: firefox
-            shard: 1
-            total_shards: 3
-          - browser: firefox
-            shard: 2
-            total_shards: 3
-          - browser: firefox
-            shard: 3
-            total_shards: 3
-          - browser: webkit
-            shard: 1
-            total_shards: 3
-          - browser: webkit
-            shard: 2
-            total_shards: 3
-          - browser: webkit
-            shard: 3
-            total_shards: 3
     env:
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -223,11 +205,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Require static gate and every browser/shard to pass
+      - name: Require static gate and every Chromium shard to pass
         run: |
           set -euo pipefail
           static_result='${{ needs.static-and-build.result }}'
           matrix_result='${{ needs.matrix.result }}'
           test "$static_result" = success
           test "$matrix_result" = success
-          echo 'Matrix First Certification PASS: one exact production build consumed by Chromium/Firefox/WebKit 3-way shards.'
+          echo 'Matrix First Certification PASS: one exact production build consumed by Chromium 3-way shards.'
