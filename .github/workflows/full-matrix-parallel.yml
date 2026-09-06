@@ -178,15 +178,16 @@ jobs:
           set -euo pipefail
           setsid npx vite preview --host 127.0.0.1 --port 3000 >/tmp/full-matrix-server.log 2>&1 &
           echo $! >/tmp/full-matrix-server.pid
+          ready=0
           for _ in $(seq 1 60); do
             if curl --fail --silent --show-error --http1.1 http://127.0.0.1:3000/ >/dev/null; then
+              ready=1
               break
             fi
             sleep 1
           done
-          curl --fail --silent --show-error --http1.1 http://127.0.0.1:3000/ >/dev/null
-          readiness_route="$(node -e "const fs=require('fs'); const xml=fs.readFileSync('dist/sitemap.xml','utf8'); const m=xml.match(/<loc>https:\/\/[^<]+\/ar(?:\/[^<]*)?<\/loc>/); process.stdout.write(m ? new URL(m[0].match(/<loc>([^<]+)<\\/loc>/)[1]).pathname : '/ar');")"
-          curl --fail --silent --show-error --http1.1 "http://127.0.0.1:3000${readiness_route}" >/tmp/full-matrix-readiness.html
+          test "$ready" = 1
+          curl --fail --silent --show-error --http1.1 http://127.0.0.1:3000/ar/aspect-ratio-calculator >/tmp/full-matrix-readiness.html
           grep -qi '<html' /tmp/full-matrix-readiness.html
       - name: Verify public routes × all canonical locales
         timeout-minutes: 15
