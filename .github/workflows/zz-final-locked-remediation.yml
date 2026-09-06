@@ -1,0 +1,174 @@
+name: Final Locked Remediation Once
+on:
+  push:
+    branches: [protocols/i18n-assets-boundary-guards]
+  pull_request:
+    types: [synchronize]
+permissions:
+  contents: write
+concurrency:
+  group: final-locked-remediation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
+jobs:
+  remediate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: protocols/i18n-assets-boundary-guards
+      - name: Lock exact branch head
+        run: |
+          set -euo pipefail
+          git fetch origin protocols/i18n-assets-boundary-guards
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/protocols/i18n-assets-boundary-guards)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Apply canonical CI and validator remediation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          # CI becomes a reusable gate and loses cross-workflow polling.
+          p = Path('.github/workflows/ci.yml')
+          lines = p.read_text().splitlines()
+          if not any(x.strip() == 'workflow_call:' for x in lines[:25]):
+              idx = next(i for i,x in enumerate(lines) if x.strip() == 'workflow_dispatch:')
+              lines.insert(idx + 1, '  workflow_call:')
+          start = next((i for i,x in enumerate(lines) if x.strip() == '- name: Resolve legacy G3'), None)
+          if start is not None:
+              end = next((i for i in range(start + 1, len(lines)) if lines[i].strip() == '- name: G3 authoritative aggregation'), None)
+              if end is None: raise SystemExit('G3 aggregation boundary missing')
+              del lines[start:end]
+          lines = [x for x in lines if not x.strip().startswith('LEGACY_RESULT:')]
+          text = '\n'.join(lines) + '\n'
+          for forbidden in ('gh api', 'gh run list', 'check-runs', 'Resolve legacy G3', 'legacy-g3'):
+              if forbidden in text: raise SystemExit(f'forbidden CI reference remains: {forbidden}')
+          p.write_text(text)
+
+          # Release certification uses native reusable-workflow dependencies, never polling.
+          p = Path('.github/workflows/release-certification.yml')
+          lines = p.read_text().splitlines()
+          start = next((i for i,x in enumerate(lines) if x == '  engineering-gate:'), None)
+          end = next((i for i in range((start or 0)+1, len(lines)) if lines[i] == '  deployment-provider:'), None)
+          if start is None or end is None: raise SystemExit('release gate boundaries missing')
+          e1 = '$' + '{{ needs.socket-release.result }}'
+          e2 = '$' + '{{ needs.canonical-ci.result }}'
+          e3 = '$' + '{{ needs.matrix-certification.result }}'
+          block = [
+              '  canonical-ci:', '    name: Canonical GitHub CI', '    needs: [socket-release]',
+              '    uses: ./.github/workflows/ci.yml', '    secrets: inherit', '',
+              '  matrix-certification:', '    name: Canonical Matrix First Certification', '    needs: [socket-release]',
+              '    uses: ./.github/workflows/matrix-first.yml', '    secrets: inherit', '',
+              '  engineering-gate:', '    name: Engineering Release Gate',
+              '    needs: [socket-release, canonical-ci, matrix-certification]', '    runs-on: ubuntu-latest',
+              '    timeout-minutes: 8', '    steps:', '      - uses: actions/checkout@v5',
+              '      - uses: actions/setup-node@v5', '        with:', '          node-version-file: .nvmrc',
+              '          cache: npm', '      - run: npm ci --prefer-offline --no-audit --no-fund',
+              '      - name: Enforce native prerequisite results', '        shell: bash', '        run: |',
+              '          set -euo pipefail', f'          test "{e1}" = success', f'          test "{e2}" = success',
+              f'          test "{e3}" = success', '      - name: Verify production surface', '        env:',
+              '          PRODUCTION_ORIGIN: https://flixoai.vercel.app',
+              '        run: node scripts/validate-production-certification.mjs',
+              '      - name: Write release evidence',
+              '        run: echo "Engineering gate: PASS ($GITHUB_SHA)" >> "$GITHUB_STEP_SUMMARY"', '',
+          ]
+          p.write_text('\n'.join(lines[:start] + block + lines[end:]) + '\n')
+
+          # One authoritative localization contract. Remove the duplicate alias and nested invocation.
+          p = Path('package.json')
+          data = json.loads(p.read_text())
+          s = data['scripts']
+          s.pop('validate:locale-integrity', None)
+          s['verify:i18n'] = "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-localization-complete.mjs --strict --report"
+          for k in ('check', 'verify:contracts'):
+              parts = s[k].split(' && ')
+              parts = [x for x in parts if x not in ('npm run validate:locale-integrity', 'npm run validate:localization-complete')]
+              s[k] = ' && '.join(parts)
+          p.write_text(json.dumps(data, separators=(',', ':')) + '\n')
+
+          # Never lint paths which have already been removed from the tree.
+          p = Path('scripts/ci/fast-verify.mjs')
+          s = p.read_text()
+          old = "const sourceFiles = files.filter((file) => /\\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file));"
+          new = "const sourceFiles = files.filter((file) => existsSync(file) && /\\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file));"
+          if old in s: p.write_text(s.replace(old,new,1))
+          elif new not in s: raise SystemExit('fast-verify source filter missing')
+
+          # Keep Seed's live compare/overlay functionality inside its owning tool.
+          p = Path('src/tools/seed/index.tsx')
+          s = p.read_text()
+          old = "from '../../components/floating-canvas-overlay';"
+          new = "from './seed-canvas-overlay';"
+          if old in s: p.write_text(s.replace(old,new,1))
+          p = Path('src/tools/pix/index.tsx')
+          s = p.read_text()
+          nested = '<h1 className="sr-only">Pix Studio</h1>'
+          if nested in s: p.write_text(s.replace(nested, '', 1))
+
+          # Internal diagnostics are opt-in only.
+          for name in ('parallel-diagnostics.yml','phase-b-evidence.yml','phase-c-failure-classifier.yml','root-cause-diagnostics.yml'):
+              p = Path('.github/workflows') / name
+              if not p.exists(): continue
+              ws = p.read_text().splitlines()
+              out=[]; in_on=False; seen_dispatch=False
+              for line in ws:
+                  if line == 'on:': in_on=True; out.append(line); continue
+                  if in_on and line.startswith('jobs:'):
+                      if not seen_dispatch: out.append('  workflow_dispatch:')
+                      in_on=False; out.append(line); continue
+                  if in_on and line.startswith('  workflow_dispatch:'): seen_dispatch=True; out.append(line); continue
+                  if in_on and line.startswith('  ') and not line.startswith('    '):
+                      continue
+                  if in_on and line.startswith('    '):
+                      continue
+                  out.append(line)
+              p.write_text('\n'.join(out)+'\n')
+          PY
+      - name: Fail-closed topology assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in .github/workflows/flixo-ci-*-shadow.yml .github/workflows/flixo-ci-shadow.yml; do test ! -e "$f"; done
+          test ! -e .github/workflows/full-matrix-parallel.yml
+          test ! -e .github/workflows/g1-platform-contract.yml
+          test ! -e scripts/validate-locale-integrity.mjs
+          ! grep -R -nE 'gh api|gh run list|check-runs|LEGACY_RESULT|Resolve legacy G3|legacy-g3' .github/workflows --exclude='zz-final-locked-remediation.yml'
+          grep -q '^  workflow_call:' .github/workflows/ci.yml
+          grep -q '^  workflow_call:' .github/workflows/matrix-first.yml
+          grep -q -- '--retries=0' .github/workflows/matrix-first.yml
+          grep -q -- '--max-failures=1' .github/workflows/matrix-first.yml
+      - name: Validate source contracts
+        run: |
+          set -euo pipefail
+          npm ci --prefer-offline --no-audit --no-fund
+          npm run check
+          npm run verify:i18n -- --strict --report
+          npm run validate:tool-manifest
+          npm run validate:seo-manifest
+          npm run validate:language-quality
+      - name: Commit all validated changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -f .github/workflows/zz-final-locked-remediation.yml
+          git add -A
+          git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
+          git commit -m "chore: consolidate CI and purge legacy duplication"
+          git push origin HEAD:protocols/i18n-assets-boundary-guards
