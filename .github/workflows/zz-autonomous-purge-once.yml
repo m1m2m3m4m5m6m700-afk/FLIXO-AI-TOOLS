@@ -75,7 +75,7 @@ jobs:
           p.write_text(s.replace(old,new,1))
           p=Path('src/tools/pix/index.tsx')
           s=p.read_text()
-          old='    <h1 className="sr-only">Pix Studio</h1>\\n'
+          old='<h1 className="sr-only">Pix Studio</h1>'
           if old not in s: raise SystemExit('Pix nested H1 not found')
           p.write_text(s.replace(old,'',1))
           PY
