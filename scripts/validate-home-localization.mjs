@@ -49,7 +49,74 @@ const allowedOverrideKeys = new Set(required);
 
 const objectKeys = (block) => {
   const keys = new Set();
-  for (const match of block.matchAll(/(?:^|[,{]\s*)([A-Za-z][A-Za-z0-9]*)\s*:/gmu)) keys.add(match[1]);
+  const open = block.indexOf('{');
+  if (open < 0) return keys;
+
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+
+  for (let i = open; i < block.length; i += 1) {
+    const ch = block[i];
+    const next = block[i + 1];
+
+    if (lineComment) {
+      if (ch === '\n') lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      if (ch === '*' && next === '/') {
+        blockComment = false;
+        i += 1;
+      }
+      continue;
+    }
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (ch === '/' && next === '/') {
+      lineComment = true;
+      i += 1;
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      blockComment = true;
+      i += 1;
+      continue;
+    }
+    if (ch === '\'' || ch === '"' || ch === '`') {
+      quote = ch;
+      continue;
+    }
+    if (ch === '{') {
+      depth += 1;
+      continue;
+    }
+    if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) break;
+      continue;
+    }
+    if (depth !== 1 || !/[A-Za-z_$]/.test(ch)) continue;
+
+    let end = i + 1;
+    while (/[A-Za-z0-9_$]/.test(block[end] ?? '')) end += 1;
+    let cursor = end;
+    while (/\s/.test(block[cursor] ?? '')) cursor += 1;
+    if (block[cursor] === ':') keys.add(block.slice(i, end));
+    i = end - 1;
+  }
+
   return keys;
 };
 
