@@ -1,0 +1,44 @@
+name: Foundational Integrity Gates
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: foundational-integrity-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  g1-g3-foundation:
+    name: G1-G3 / i18n + asset integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: G1-G3 / Localization parity guard
+        run: npm run validate:i18n
+      - name: G1-G3 / Build and asset-chain guard
+        run: npm run build
+      - name: G1-G3 / Final exact-head identity
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          test "$ACTUAL_SHA" = "$EXPECTED_SHA"
+          echo "Foundational Integrity PASS on exact SHA $ACTUAL_SHA"

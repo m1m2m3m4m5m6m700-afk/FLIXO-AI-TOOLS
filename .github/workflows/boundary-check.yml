@@ -1,0 +1,84 @@
+name: Domain Boundary Lock
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  boundary-lock:
+    name: Multi-Agent Domain Boundary Lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Enforce cross-domain isolation
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const isPullRequest = context.eventName === 'pull_request_target';
+
+            let files;
+            if (isPullRequest) {
+              const result = await github.paginate(github.rest.pulls.listFiles, {
+                owner,
+                repo,
+                pull_number: context.payload.pull_request.number,
+                per_page: 100,
+              });
+              files = result.map((file) => file.filename);
+            } else {
+              const comparison = await github.rest.repos.compareCommitsWithBasehead({
+                owner,
+                repo,
+                basehead: `${context.payload.before}...${context.payload.after}`,
+              });
+              files = (comparison.data.files || []).map((file) => file.filename);
+            }
+
+            const i18nPattern = /^(?:src\/lib\/i18n\/|src\/data\/.*(?:locale|locales)|scripts\/validate-i18n(?:-parity)?\.ts|scripts\/validate-i18n\.mjs|tests\/.*(?:i18n|localization))/i;
+            const perfE2ePattern = /^(?:tests\/(?:e2e|performance|browser)|e2e\/|playwright(?:\.|\/)|scripts\/(?:ci\/.*(?:browser|performance|e2e)|.*(?:performance|benchmark))|perf(?:\.|\/)|performance(?:\.|\/))/i;
+
+            const i18nFiles = files.filter((file) => i18nPattern.test(file));
+            const perfE2eFiles = files.filter((file) => perfE2ePattern.test(file));
+            if (i18nFiles.length === 0 || perfE2eFiles.length === 0) {
+              core.info(`Boundary PASS: i18n=${i18nFiles.length}, performance/E2E=${perfE2eFiles.length}.`);
+              return;
+            }
+
+            if (!isPullRequest) {
+              core.setFailed(`Boundary violation on main: one change touched both protected domains. i18n=${i18nFiles.join(', ')}; performance/E2E=${perfE2eFiles.join(', ')}`);
+              return;
+            }
+
+            const pr = context.payload.pull_request;
+            const labels = new Set((pr.labels || []).map((label) => label.name));
+            if (!labels.has('boundary-cross-review')) {
+              core.setFailed('Boundary violation: mixed i18n and performance/E2E changes require the boundary-cross-review label plus an independent approval.');
+              return;
+            }
+
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner,
+              repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const approvedByIndependentReviewer = reviews.some((review) =>
+              review.state === 'APPROVED' && review.user?.login && review.user.login !== pr.user?.login,
+            );
+
+            if (!approvedByIndependentReviewer) {
+              core.setFailed('Boundary violation: boundary-cross-review is present, but no independent APPROVED review was found.');
+              return;
+            }
+
+            core.info(`Boundary override authorized by independent review: i18n=${i18nFiles.length}, performance/E2E=${perfE2eFiles.length}.`);

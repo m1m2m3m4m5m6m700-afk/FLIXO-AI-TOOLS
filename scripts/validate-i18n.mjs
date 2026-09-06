@@ -1,5 +1,9 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { CANONICAL_LOCALES as expected } from './validation-contracts.mjs';
+
+const parity = spawnSync(process.execPath, ['--experimental-strip-types', 'scripts/validate-i18n-parity.ts'], { stdio: 'inherit' });
+if (parity.status !== 0) process.exit(parity.status ?? 1);
 
 const configSource = readFileSync('src/lib/i18n/config.ts', 'utf8');
 const homeSource = readFileSync('src/data/home-locales.ts', 'utf8');

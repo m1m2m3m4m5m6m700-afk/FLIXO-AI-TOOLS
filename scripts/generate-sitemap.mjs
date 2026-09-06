@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { LOCALES, LOCALE_METADATA, X_DEFAULT_LOCALE, getCanonicalSiteOrigin } from '../src/lib/i18n/config.ts';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
 import { getLocalizedToolPath } from '../src/lib/routing/route-resolver.ts';
@@ -53,3 +54,9 @@ writeFileSync(join(outputDir, 'sitemap.xml'), xml, 'utf8');
 console.log(
   `Generated sitemap with ${urls.length} localized URLs (${readyTools.length} ready tools, ${LOCALES.length} locales) using canonical route/origin contracts at ${outputDir}/sitemap.xml.`,
 );
+
+execFileSync(process.execPath, ['--experimental-strip-types', 'scripts/validate-assets.ts'], {
+  stdio: 'inherit',
+  cwd: process.cwd(),
+  env: process.env,
+});
