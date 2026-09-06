@@ -1,5 +1,7 @@
 import type { ComponentType, LazyExoticComponent } from 'react';
 
+export type ToolComponent = ComponentType | LazyExoticComponent<ComponentType>;
+
 export type ToolConfig = {
   readonly id: string;
   readonly title: string;
@@ -8,7 +10,7 @@ export type ToolConfig = {
   readonly category: 'Images' | 'AI' | 'Other';
   readonly isReady: boolean;
   readonly aliases?: readonly string[];
-  readonly component: LazyExoticComponent<ComponentType>;
+  readonly component: ToolComponent;
 };
 
 export type ToolFamily = 'image' | 'pdf' | 'audio' | 'video' | 'ai' | 'other';
