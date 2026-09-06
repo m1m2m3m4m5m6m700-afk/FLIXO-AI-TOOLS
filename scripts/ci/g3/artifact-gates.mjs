@@ -34,8 +34,7 @@ const gates = [
   ['G3-28', 'Artifact Existence', () => !validateOutputIntegrity(PNG.length, 'image/png', spec, { width: 1, height: 1 }).valid],
   ['G3-29', 'Artifact Readability', () => validateOutputIntegrity(PNG.length, 'image/png', spec, { width: 1, height: 1 }, base).valid],
   ['G3-30', 'Byte Integrity', () => !validateOutputIntegrity(PNG.length + 1, 'image/png', spec, { width: 1, height: 1 }, base).valid],
-  ['G3-31', 'SHA256 Integrity', () => SHA === EXPECTED_SHA256],
-  ['G3-32', 'SHA256 Tamper Resistance', () => TAMPERED_SHA256 !== EXPECTED_SHA256],
+  ['G3-31', 'SHA256 Integrity', () => SHA === EXPECTED_SHA256 && TAMPERED_SHA256 !== EXPECTED_SHA256],
 ];
 
 await fs.mkdir('artifacts/ci/g3/gates', { recursive: true });
