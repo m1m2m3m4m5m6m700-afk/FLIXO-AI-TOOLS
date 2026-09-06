@@ -21,11 +21,8 @@ function verifyReference(rawValue: string, file: string): void {
   if (!value || isExternalReference(value)) return;
 
   let target: string;
-  if (value.startsWith('/')) {
-    target = path.resolve(ROOT, `.${value}`);
-  } else {
-    target = path.resolve(path.dirname(file), value);
-  }
+  if (value.startsWith('/')) target = path.resolve(ROOT, `.${value}`);
+  else target = path.resolve(path.dirname(file), value);
 
   const relativeTarget = path.relative(ROOT, target);
   if (relativeTarget.startsWith('..') || path.isAbsolute(relativeTarget)) {
@@ -42,12 +39,8 @@ function scanHtml(file: string, html: string): void {
   for (const match of html.matchAll(/\b(?:src|href|poster|srcset|content)\s*=\s*["']([^"']+)["']/giu)) {
     const value = match[1];
     if (value.includes(',')) {
-      for (const candidate of value.split(',').map((item) => item.trim().split(/\s+/u)[0])) {
-        verifyReference(candidate, file);
-      }
-    } else {
-      verifyReference(value, file);
-    }
+      for (const candidate of value.split(',').map((item) => item.trim().split(/\s+/u)[0])) verifyReference(candidate, file);
+    } else verifyReference(value, file);
   }
 
   for (const match of html.matchAll(/(?:href|xlink:href)\s*=\s*["']#([^"']+)["']/giu)) {
@@ -60,23 +53,15 @@ function scanHtml(file: string, html: string): void {
 }
 
 function scanCss(file: string, css: string): void {
-  for (const match of css.matchAll(/url\(\s*(?:["']([^"']+)["']|([^)]\s+))\s*\)/giu)) {
+  for (const match of css.matchAll(/url\(\s*(?:["']([^"']+)["']|([^)]\s+)+)\s*\)/giu)) {
     verifyReference(match[1] ?? match[2], file);
   }
 }
 
 function scanJs(file: string, js: string): void {
-  for (const match of js.matchAll(/\bnew\s+URL\(\s*["']([^"']+)["']\s*,\s*import\.meta\.url\s*\)/giu)) {
-    verifyReference(match[1], file);
-  }
-
-  for (const match of js.matchAll(/\b(?:import|fetch)\(\s*["'](\.?\/?[^"']+)["']/giu)) {
-    verifyReference(match[1], file);
-  }
-
-  for (const match of js.matchAll(/["'`]\/(?:assets|icons|images|fonts|media)\/[^"'`\s?#]+/giu)) {
-    verifyReference(match[0].slice(1), file);
-  }
+  for (const match of js.matchAll(/\bnew\s+URL\(\s*["']([^"']+)["']\s*,\s*import\.meta\.url\s*\)/giu)) verifyReference(match[1], file);
+  for (const match of js.matchAll(/\b(?:import|fetch)\(\s*["'](\.?\/?[^"']+)["']/giu)) verifyReference(match[1], file);
+  for (const match of js.matchAll(/["'`]\/(?:assets|icons|images|fonts|media)\/[^"'`\s?#]+/giu)) verifyReference(match[0].slice(1), file);
 }
 
 function visit(dir: string): void {
@@ -97,11 +82,8 @@ function visit(dir: string): void {
   }
 }
 
-if (!fs.existsSync(ROOT) || !fs.statSync(ROOT).isDirectory()) {
-  fail(`built output directory does not exist: ${ROOT}`);
-} else {
-  visit(ROOT);
-}
+if (!fs.existsSync(ROOT) || !fs.statSync(ROOT).isDirectory()) fail(`built output directory does not exist: ${ROOT}`);
+else visit(ROOT);
 
 if (failures.length) {
   console.error(`asset-chain validation FAILED: ${failures.length} unresolved reference(s)`);
