@@ -1,6 +1,14 @@
+import { lazy } from 'react';
 import { createRoute } from '@tanstack/react-router';
 import { rootRoute } from './__root';
-import { ArabicImageCompressorPage } from '../tools/image-compressor/locale-pages';
+
+const ArabicImageCompressorPage = lazy(() =>
+  import('../tools/image-compressor').then(({ ImageCompressor }) => ({
+    default: function ArabicImageCompressorRoute() {
+      return <ImageCompressor locale="ar" />;
+    },
+  })),
+);
 
 export const arImageCompressorRoute = createRoute({
   getParentRoute: () => rootRoute,
