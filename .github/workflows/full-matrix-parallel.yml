@@ -1,10 +1,13 @@
 name: Full Matrix Parallel
 
+# Full browser × locale certification is intentionally reserved for pre-merge PRs,
+# release tags, and explicit certification runs. It never executes on ordinary main pushes.
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
 
 concurrency:
@@ -28,9 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
-      # First failure cancels remaining matrix jobs. This workflow is a repair loop,
-      # not a failure-counting diagnostic ladder.
-      fail-fast: true
+      # Parallel shards preserve complete coverage without serial bottlenecks.
+      fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
         shard: [1, 2, 3, 4]
