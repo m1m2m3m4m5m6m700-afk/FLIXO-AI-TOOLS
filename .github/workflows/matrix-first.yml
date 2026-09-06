@@ -149,14 +149,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/matrix-first-server.log 2>&1 &
+          setsid npx vite preview --host 127.0.0.1 --port 3000 >/tmp/matrix-first-server.log 2>&1 &
           echo $! >/tmp/matrix-first-server.pid
+          ready=0
           for _ in $(seq 1 60); do
-            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            if curl --fail --silent --show-error --http1.1 http://127.0.0.1:3000/ >/dev/null; then
+              ready=1
+              break
+            fi
             sleep 1
           done
-          cat /tmp/matrix-first-server.log || true
-          exit 1
+          test "$ready" = 1
+          curl --fail --silent --show-error --http1.1 http://127.0.0.1:3000/ar/aspect-ratio-calculator >/tmp/matrix-first-readiness.html
+          grep -qi '<html' /tmp/matrix-first-readiness.html
       - name: Run browser smoke — fail on first failure
         timeout-minutes: 10
         run: |
@@ -175,6 +180,7 @@ jobs:
             playwright-report/
             test-results/
             /tmp/matrix-first-server.log
+            /tmp/matrix-first-readiness.html
           if-no-files-found: warn
           retention-days: 14
       - name: Cleanup
