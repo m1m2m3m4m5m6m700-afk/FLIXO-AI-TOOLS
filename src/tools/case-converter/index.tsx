@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { convertCase, type CaseMode } from './engine';
 import type { Locale } from '@/lib/i18n';
-import { LOCALE_METADATA } from '@/lib/i18n';
 
 const MODES: Array<{ id: CaseMode; label: string }> = [
   { id: 'upper', label: 'UPPERCASE' },
