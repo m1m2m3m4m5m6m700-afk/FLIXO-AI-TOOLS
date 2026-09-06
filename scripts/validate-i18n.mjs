@@ -8,6 +8,7 @@ if (parity.status !== 0) process.exit(parity.status ?? 1);
 const configSource = readFileSync('src/lib/i18n/config.ts', 'utf8');
 const homeSource = readFileSync('src/data/home-locales.ts', 'utf8');
 const homeOverrideSource = readFileSync('src/lib/i18n/locale-quality-overrides.ts', 'utf8');
+const quickflowOverrideSource = homeOverrideSource.slice(homeOverrideSource.indexOf('export const QUICKFLOW_COPY_OVERRIDES'));
 const quickflowSource = readFileSync('src/data/quickflow-locales.ts', 'utf8');
 const toolUiSource = readFileSync('src/data/tool-ui-i18n.ts', 'utf8');
 const localizedToolPageSource = readFileSync('src/routes/localized-tool-page.tsx', 'utf8');
@@ -63,7 +64,7 @@ const requiredQuickFlowKeys = ['missing:', 'back:', 'eyebrow:', 'runLabel:', 'ch
 const getQuickFlowEntry = (locale) => {
   const sourceMatch = new RegExp(`\\b${locale}:q\\(\\{([\\s\\S]*?)\\}\\)`).exec(quickflowSource)?.[1];
   if (sourceMatch) return sourceMatch;
-  return new RegExp(`\\b${locale}:\\s*Object\\.freeze\\(\\{([\\s\\S]*?)\\}\\),`).exec(homeOverrideSource)?.[1] ?? '';
+  return new RegExp(`\\b${locale}:\\s*Object\\.freeze\\(\\{([\\s\\S]*?)\\}\\),`).exec(quickflowOverrideSource)?.[1] ?? '';
 };
 const missingQuickFlowLocales = expected.filter((locale) => {
   const entry = getQuickFlowEntry(locale);
