@@ -3,7 +3,7 @@ import { extname, dirname, join, normalize, relative, resolve } from 'node:path'
 
 const ROOT = process.cwd();
 const DIST = resolve(process.env.FLIXO_GENERATED_OUTPUT_DIR?.trim() || 'dist');
-const TEXT_EXTENSIONS = new Set(['.html', '.htm', '.js', '.mjs', '.cjs', '.css', '.map']);
+const TEXT_EXTENSIONS = new Set(['.html', '.htm', '.js', '.mjs', '.cjs', '.css']);
 const ASSET_EXTENSIONS = new Set(['.js', '.mjs', '.css', '.svg', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.ico', '.avif', '.woff', '.woff2', '.ttf', '.otf', '.json', '.wasm', '.mp4', '.webm', '.mp3', '.wav', '.pdf']);
 const errors: string[] = [];
 const checked = new Set<string>();
@@ -26,6 +26,8 @@ function collectFiles(dir: string): string[] {
 const files = collectFiles(DIST);
 const textFiles = files.filter((file) => TEXT_EXTENSIONS.has(extname(file).toLowerCase()));
 const htmlFiles = files.filter((file) => ['.html', '.htm'].includes(extname(file).toLowerCase()));
+const cssFiles = files.filter((file) => extname(file).toLowerCase() === '.css');
+const jsFiles = files.filter((file) => ['.js', '.mjs', '.cjs'].includes(extname(file).toLowerCase()));
 
 function stripQueryHash(value: string): string {
   return value.split(/[?#]/u, 1)[0];
@@ -65,34 +67,50 @@ function verifyReference(raw: string, sourceFile: string): void {
   errors.push(`${relative(ROOT, sourceFile)} -> ${raw}: ${resolved.reason === 'missing' ? `unresolved asset path ${relative(DIST, resolved.target)}` : resolved.reason}`);
 }
 
-for (const file of textFiles) {
-  const text = readFileSync(file, 'utf8');
-
-  for (const match of text.matchAll(/<(?:script|img|source|video|audio|image|use)\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']/giu)) verifyReference(match[1], file);
-  for (const match of text.matchAll(/<(?:image|use)\b[^>]*?\b(?:href|xlink:href)\s*=\s*["']([^"']+)["']/giu)) verifyReference(match[1], file);
-  for (const match of text.matchAll(/<link\b[^>]*?\brel\s*=\s*["']([^"']+)["'][^>]*?\bhref\s*=\s*["']([^"']+)["']/giu)) {
+function scanHtml(file: string, html: string): void {
+  for (const match of html.matchAll(/<(?:script|img|source|video|audio|iframe)\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']/giu)) verifyReference(match[1], file);
+  for (const match of html.matchAll(/<(?:image|use)\b[^>]*?\b(?:href|xlink:href)\s*=\s*["']([^"']+)["']/giu)) verifyReference(match[1], file);
+  for (const match of html.matchAll(/<link\b[^>]*?\brel\s*=\s*["']([^"']+)["'][^>]*?\bhref\s*=\s*["']([^"']+)["']/giu)) {
     if (/(?:stylesheet|icon|mask-icon|manifest|preload|modulepreload)/iu.test(match[1])) verifyReference(match[2], file);
   }
-  for (const match of text.matchAll(/\b(?:src|href|poster)\s*=\s*["']([^"']+)["']/giu)) {
+  for (const match of html.matchAll(/\b(?:poster|src|href)\s*=\s*["']([^"']+)["']/giu)) {
     if (assetLike(match[1])) verifyReference(match[1], file);
   }
-  for (const match of text.matchAll(/\burl\(\s*["']?([^\)"']+)["']?\s*\)/giu)) verifyReference(match[1], file);
-  for (const match of text.matchAll(/\b(?:import|fetch)\(\s*["']([^"']+)["']\s*\)/giu)) {
-    if (assetLike(match[1]) && (match[1].startsWith('/') || match[1].startsWith('./') || match[1].startsWith('../'))) verifyReference(match[1], file);
-  }
-  for (const match of text.matchAll(/new\s+URL\(\s*["']([^"']+)["']\s*,\s*import\.meta\.url\s*\)/giu)) {
-    const raw = match[1];
-    if (raw.startsWith('./') || raw.startsWith('../') || raw.startsWith('/')) verifyReference(raw, file);
-  }
 
-  for (const match of text.matchAll(/<(?:use|image)\b[^>]*?\b(?:href|xlink:href)\s*=\s*["']#([^"']+)["']/giu)) {
+  for (const match of html.matchAll(/<(?:use|image)\b[^>]*?\b(?:href|xlink:href)\s*=\s*["']#([^"']+)["']/giu)) {
     const id = match[1];
     const escapedId = id.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-    if (!new RegExp(`\\bid=["']${escapedId}["']`, 'u').test(text)) {
+    if (!new RegExp(`\\bid=["']${escapedId}["']`, 'u').test(html)) {
       errors.push(`${relative(ROOT, file)}: SVG fragment #${id} has no matching id definition in the built document`);
     }
   }
 }
+
+function scanCss(file: string, css: string): void {
+  for (const match of css.matchAll(/url\(\s*(?:["']([^"']+)["']|([^\)\s]+))\s*\)/giu)) {
+    verifyReference(match[1] ?? match[2], file);
+  }
+}
+
+function scanJs(file: string, js: string): void {
+  for (const match of js.matchAll(/\bnew\s+URL\(\s*["']([^"']+)["']\s*,\s*import\.meta\.url\s*\)/giu)) {
+    const raw = match[1];
+    if (raw.startsWith('./') || raw.startsWith('../') || raw.startsWith('/')) verifyReference(raw, file);
+  }
+  for (const match of js.matchAll(/\b(?:import|fetch)\(\s*["']([^"']+)["']\s*\)/giu)) {
+    const raw = match[1];
+    if ((raw.startsWith('./') || raw.startsWith('../') || raw.startsWith('/')) && assetLike(raw)) verifyReference(raw, file);
+  }
+
+  // Vite/Rollup emits worker references as string literals passed to URL/import.meta.url.
+  for (const match of js.matchAll(/(?:["'`])(\/assets\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+)(?:["'`])/gu)) {
+    verifyReference(match[1], file);
+  }
+}
+
+for (const file of htmlFiles) scanHtml(file, readFileSync(file, 'utf8'));
+for (const file of cssFiles) scanCss(file, readFileSync(file, 'utf8'));
+for (const file of jsFiles) scanJs(file, readFileSync(file, 'utf8'));
 
 for (const htmlFile of htmlFiles) {
   const html = readFileSync(htmlFile, 'utf8');
