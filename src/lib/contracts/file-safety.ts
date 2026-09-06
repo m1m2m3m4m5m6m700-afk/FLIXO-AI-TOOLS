@@ -39,6 +39,7 @@ export type FileSafetyResult = {
 
 export type ArchiveEntry = {
   name: string;
+  compressedBytes?: number;
   uncompressedBytes?: number;
   isSymlink?: boolean;
   nestedEntries?: readonly ArchiveEntry[];
@@ -48,6 +49,7 @@ export type ArchiveSafetyPolicy = {
   maxEntries: number;
   maxUncompressedBytes: number;
   maxDepth: number;
+  maxCompressionRatio?: number;
 };
 
 export const EXTENSION_MIME_MAP: Readonly<Record<string, string>> = Object.freeze({
@@ -123,48 +125,40 @@ function isUnsafeName(name: string): boolean {
   return segments.some((segment) => segment === '..' || segment === '.') || segments.length !== 1;
 }
 
-// ✅ PHASE 1: Boundary Conditions Validation
 export function validateBoundaryConditions(name: string, bytes: number): string | undefined {
-  // Zero-byte check (prevent empty vector exploits)
   if (bytes === 0) return 'File is empty (0 bytes).';
-  
-  // Filename length restrictions
   if (!name || name.length === 0) return 'Filename is empty.';
   if (name.length > 255) return 'Filename exceeds maximum length of 255 characters.';
-  
-  // Unicode/Emoji length bomb check (prevent rendering/memory exploits via massive char lengths)
-  if (Array.from(name).length > 150) {
-    return 'Filename contains excessive character payload length.';
-  }
-
+  if (Array.from(name).length > 150) return 'Filename contains excessive character payload length.';
   return undefined;
 }
 
-// ✅ PHASE 2: Zip Bomb Detection (Compression Ratio Analysis)
 export function detectZipBombRisk(
   compressedSize: number,
   uncompressedSize: number,
   maxCompressionRatio: number = 40
 ): { isBomb: boolean; reason?: string } {
-  if (compressedSize > 0 && uncompressedSize > 0) {
-    const ratio = uncompressedSize / compressedSize;
-    if (ratio > maxCompressionRatio) {
-      return {
-        isBomb: true,
-        reason: `Potential ZIP bomb detected: Expansion ratio of ${ratio.toFixed(1)}x exceeds safety threshold (${maxCompressionRatio}x).`
-      };
-    }
+  if (!Number.isFinite(compressedSize) || !Number.isFinite(uncompressedSize) || !Number.isFinite(maxCompressionRatio)) {
+    return { isBomb: true, reason: 'Invalid ZIP bomb detection size or ratio input.' };
+  }
+  if (compressedSize <= 0 || uncompressedSize < 0 || maxCompressionRatio <= 0) {
+    return { isBomb: true, reason: 'Invalid ZIP bomb detection boundary values.' };
+  }
+  const ratio = uncompressedSize / compressedSize;
+  if (ratio > maxCompressionRatio) {
+    return {
+      isBomb: true,
+      reason: `Potential ZIP bomb detected: Expansion ratio of ${ratio.toFixed(1)}x exceeds safety threshold (${maxCompressionRatio}x).`,
+    };
   }
   return { isBomb: false };
 }
 
-// ✅ PHASE 3: Magic Bytes Enforcement (Actual Signature Verification)
 export function verifyMagicBytesMatch(
   headerBytes: Uint8Array,
   allowedSignatures?: readonly string[]
 ): boolean {
   if (!allowedSignatures || allowedSignatures.length === 0) return true;
-  
   for (const sigName of allowedSignatures) {
     const signature = MAGIC_BYTE_SIGNATURES[sigName.toLowerCase()];
     if (signature && signature.bytes) {
@@ -203,7 +197,6 @@ export function validateFileSafety(input: FileSafetyInput, policy: FileSafetyPol
   const name = input.name.trim();
   const extension = normalizeExtension(name);
 
-  // ✅ G2 PHASE 1: Apply boundary conditions validation first (fail-fast)
   const boundaryError = validateBoundaryConditions(name, input.bytes);
   if (boundaryError) failures.push(boundaryError);
 
@@ -252,10 +245,12 @@ export function validateArchiveEntries(entries: readonly ArchiveEntry[], policy:
   let totalBytes = 0;
   let totalEntries = 0;
   let stopped = false;
+  const maxCompressionRatio = policy.maxCompressionRatio ?? 40;
 
   if (!Number.isInteger(policy.maxEntries) || policy.maxEntries < 1) failures.push('archive maximum entry count must be a positive integer');
   if (!Number.isInteger(policy.maxUncompressedBytes) || policy.maxUncompressedBytes < 1) failures.push('archive maximum uncompressed size must be a positive integer');
   if (!Number.isInteger(policy.maxDepth) || policy.maxDepth < 0) failures.push('archive maximum depth must be a non-negative integer');
+  if (!Number.isFinite(maxCompressionRatio) || maxCompressionRatio <= 0) failures.push('archive maximum compression ratio must be a positive number');
 
   const visit = (current: readonly ArchiveEntry[], parentDepth: number): void => {
     for (const entry of current) {
@@ -274,6 +269,11 @@ export function validateArchiveEntries(entries: readonly ArchiveEntry[], policy:
       if (segments.some((segment) => segment === '..' || segment === '.')) failures.push(`archive entry contains an unsafe path segment: ${entry.name}`);
       if (depth > policy.maxDepth) failures.push(`archive entry exceeds the maximum path depth: ${entry.name}`);
       if (entry.isSymlink) failures.push(`archive symlink entries are not allowed: ${entry.name}`);
+
+      if (entry.compressedBytes !== undefined) {
+        if (!Number.isInteger(entry.compressedBytes) || entry.compressedBytes < 1) failures.push(`archive entry has an invalid compressed size: ${entry.name}`);
+      }
+
       if (entry.uncompressedBytes !== undefined) {
         if (!Number.isInteger(entry.uncompressedBytes) || entry.uncompressedBytes < 0) failures.push(`archive entry has an invalid uncompressed size: ${entry.name}`);
         else {
@@ -282,6 +282,10 @@ export function validateArchiveEntries(entries: readonly ArchiveEntry[], policy:
             failures.push('archive exceeds the maximum uncompressed size');
             stopped = true;
             return;
+          }
+          if (entry.compressedBytes !== undefined && Number.isInteger(entry.compressedBytes) && entry.compressedBytes > 0) {
+            const bombRisk = detectZipBombRisk(entry.compressedBytes, entry.uncompressedBytes, maxCompressionRatio);
+            if (bombRisk.isBomb) failures.push(bombRisk.reason ?? `archive entry exceeds the maximum compression ratio: ${entry.name}`);
           }
         }
       }
