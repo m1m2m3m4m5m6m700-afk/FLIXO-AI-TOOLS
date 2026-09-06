@@ -21,19 +21,23 @@ if ([...deprecated].some((locale) => canonical.has(locale))) {
   process.exit(1);
 }
 
-const primary = [...source.matchAll(/^\x20{2}([a-z]{2}): copy\(\{/gm)].map((m) => m[1]);
+const localeEntry = (text, locale, kind) => {
+  const marker = `  ${locale}: ${kind}({`;
+  const start = text.indexOf(marker);
+  if (start < 0) return '';
+  const next = text.slice(start + marker.length).search(/^\x20{2}[a-z]{2}: (?:copy|Object\.freeze)\(\{/m);
+  return text.slice(start, next < 0 ? text.length : start + marker.length + next);
+};
+const primary = expected.filter((locale) => source.includes(`  ${locale}: copy({`));
 const reviewed = [...overrides.matchAll(/^\x20{2}([a-z]{2}): Object\.freeze\(\{/gm)].map((m) => m[1]);
-const duplicateLocales = [...new Set(primary.filter((locale) => reviewed.includes(locale)))];
-if (duplicateLocales.length) {
-  console.error(`Home locale may not be defined in both primary catalog and reviewed overrides: ${duplicateLocales.join(', ')}`);
+
+const unsupportedPrimary = [...new Set(primary.filter((locale) => !canonical.has(locale) && !deprecated.has(locale)))];
+const unsupportedOverrides = [...new Set(reviewed.filter((locale) => !canonical.has(locale)))];
+if (unsupportedPrimary.length || unsupportedOverrides.length) {
+  console.error(`Unsupported Home locales. Primary: ${unsupportedPrimary.join(', ') || 'none'}; overrides: ${unsupportedOverrides.join(', ') || 'none'}`);
   process.exit(1);
 }
 
-const unsupportedPrimary = primary.filter((locale) => !canonical.has(locale) && !deprecated.has(locale));
-if (unsupportedPrimary.length) {
-  console.error(`Unsupported primary Home locales: ${unsupportedPrimary.join(', ')}`);
-  process.exit(1);
-}
 const missingCanonical = expected.filter((locale) => !primary.includes(locale) && !reviewed.includes(locale));
 if (missingCanonical.length) {
   console.error(`Missing canonical Home locales: ${missingCanonical.join(', ')}`);
@@ -41,19 +45,32 @@ if (missingCanonical.length) {
 }
 
 const required = ['language','dir','nav','badge','eyebrow','heroTitle','heroLead','describe','searchLabel','searchPlaceholder','smartPalette','suggested','openDirectly','popular','trust','quickDrop','quickDropTitle','quickDropLead','dropChoose','dropSupport','suggestedTool','openTool','toolbox','toolboxTitle','ready','empty','builtForFocus','finalTitle','finalLead','trySmart','all','browserMeta','ariaHome','ariaPrimary','ariaFindTool','ariaTrust','ariaCategories','quickTags'];
-const readLocaleBlock = (text, locale, matcher) => {
-  const start = text.indexOf(`  ${locale}: ${matcher}`);
-  if (start < 0) return '';
-  const next = text.indexOf('\n  ', start + 4);
-  return text.slice(start, next < 0 ? text.length : next);
+const nestedKeys = new Set(['tools','categories','privacy','switch']);
+const scalarKeys = new Set(required.filter((key) => !['nav','trust','quickTags'].includes(key)).concat([...nestedKeys]));
+
+const objectKeys = (block) => {
+  const keys = new Set();
+  for (const match of block.matchAll(/(?:^|[,{]\s*)([A-Za-z][A-Za-z0-9]*)\s*:/gmu)) keys.add(match[1]);
+  return keys;
 };
+
 for (const locale of expected) {
-  const block = primary.includes(locale)
-    ? readLocaleBlock(source, locale, 'copy({')
-    : readLocaleBlock(overrides, locale, 'Object.freeze({');
-  const missingKeys = required.filter((key) => !block.includes(`${key}:`));
+  const primaryBlock = localeEntry(source, locale, 'copy');
+  const overrideBlock = localeEntry(overrides, locale, 'Object.freeze');
+  const primaryKeys = objectKeys(primaryBlock);
+  const overrideKeys = objectKeys(overrideBlock);
+  const missingKeys = required.filter((key) => !primaryKeys.has(key) && !overrideKeys.has(key));
   if (missingKeys.length) {
-    console.error(`Locale ${locale} is structurally incomplete; missing keys: ${missingKeys.join(', ')}`);
+    console.error(`Locale ${locale} is structurally incomplete; missing keys across primary + reviewed overlay: ${missingKeys.join(', ')}`);
+    process.exit(1);
+  }
+  const unknownOverrideKeys = [...overrideKeys].filter((key) => !scalarKeys.has(key));
+  if (unknownOverrideKeys.length) {
+    console.error(`Locale ${locale} has unknown Home override keys: ${unknownOverrideKeys.join(', ')}`);
+    process.exit(1);
+  }
+  if (overrideBlock && overrideKeys.size >= required.length && required.every((key) => overrideKeys.has(key))) {
+    console.error(`Locale ${locale} override shadows the full Home catalog; reviewed overrides must remain partial overlays.`);
     process.exit(1);
   }
 }
@@ -75,5 +92,5 @@ if (/(?:import|export)\s+(?:[^'";]+?from\s+)?['"].*\/locales\/[^'"]+['"]/.test(t
   console.error('translations.ts must not statically import locale modules.');
   process.exit(1);
 }
-console.log(`Home localization coverage passed: ${expected.length} canonical locales; deprecated legacy entries remain noncanonical: ${[...deprecated].join(', ')}.`);
+console.log(`Home localization coverage passed: ${expected.length} canonical locales with reviewed partial overlays; deprecated legacy entries remain noncanonical: ${[...deprecated].join(', ')}.`);
 console.log('Home lazy boundary contract passed.');
