@@ -1,6 +1,6 @@
 import type { Locale } from '../lib/i18n/config';
 import { localizeMsUkToolTitle } from '../lib/i18n/ms-uk-tool-title.ts';
-import { TOOL_SEO_NAMES } from '../lib/i18n/tool-seo-localization';
+import { TOOL_SEO_NAMES } from '../lib/i18n/tool-seo-localization.ts';
 import type { ToolConfig } from './tool-definitions/types';
 
 /** Human-reviewed additions for ready tools absent from the historical locale dictionaries. */
