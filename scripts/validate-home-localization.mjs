@@ -7,7 +7,7 @@ const homeLoader = readFileSync('src/lib/i18n/home-loader.ts', 'utf8');
 const homePage = readFileSync('src/routes/home-page.tsx', 'utf8');
 const translations = readFileSync('src/lib/i18n/translations.ts', 'utf8');
 
-const expected = config.match(/export const LOCALES = \[([\s\S]*?)\] as const/)?.[1]
+const expected = config.match(/export\s+const\s+LOCALES\s*=\s*\[([\s\S]*?)\]\s+as\s+const/)?.[1]
   ?.match(/'([a-z]{2})'/g)?.map((v) => v.slice(1, -1)) ?? [];
 const canonical = new Set(expected);
 const deprecated = new Set(['zh', 'ur']);
@@ -21,8 +21,8 @@ if ([...deprecated].some((locale) => canonical.has(locale))) {
   process.exit(1);
 }
 
-const primary = [...source.matchAll(/^  ([a-z]{2}): copy\(\{/gm)].map((m) => m[1]);
-const reviewed = [...overrides.matchAll(/^  ([a-z]{2}): Object\.freeze\(\{/gm)].map((m) => m[1]);
+const primary = [...source.matchAll(/^\x20{2}([a-z]{2}): copy\(\{/gm)].map((m) => m[1]);
+const reviewed = [...overrides.matchAll(/^\x20{2}([a-z]{2}): Object\.freeze\(\{/gm)].map((m) => m[1]);
 const duplicateLocales = [...new Set(primary.filter((locale) => reviewed.includes(locale)))];
 if (duplicateLocales.length) {
   console.error(`Home locale may not be defined in both primary catalog and reviewed overrides: ${duplicateLocales.join(', ')}`);
