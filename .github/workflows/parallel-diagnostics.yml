@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
-      fail-fast: false
+      fail-fast: true
       max-parallel: 64
       matrix:
         browser: [chromium, firefox, webkit]
@@ -96,6 +96,6 @@ jobs:
           {
             echo '## FLIXO Parallel Diagnostic Matrix'
             echo 'Manual-only diagnostic workflow; it does not duplicate normal main or PR certification.'
-            echo 'All 23 suites × 3 browsers remain available when explicitly requested.'
+            echo 'All 23 suites × 3 browsers remain available when explicitly requested; the matrix aborts sibling lanes after the first deterministic failure.'
             echo "Overall matrix result: ${{ needs.e2e.result }}"
           } >> "$GITHUB_STEP_SUMMARY"
