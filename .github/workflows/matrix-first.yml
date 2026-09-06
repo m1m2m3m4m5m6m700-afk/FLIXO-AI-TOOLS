@@ -1,11 +1,12 @@
 name: Matrix First Gate
 
-# Lightweight browser smoke only. Full multi-locale certification lives in Full Matrix Parallel.
-# Static analysis and the production build run once before any smoke matrix job.
+# Canonical browser certification pipeline.
+# One static/build job produces the exact production artifact; every browser/shard consumes it.
 on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -27,7 +28,7 @@ env:
 
 jobs:
   static-and-build:
-    name: Static Gate + Single Build
+    name: Static Gate + Single Production Build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -78,17 +79,41 @@ jobs:
           retention-days: 3
 
   matrix:
-    name: Matrix First — ${{ matrix.browser }} smoke
+    name: Matrix First — ${{ matrix.browser }} / shard-${{ matrix.shard }}
     needs: [static-and-build]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     strategy:
       fail-fast: true
       matrix:
         include:
           - browser: chromium
+            shard: 1
+            total_shards: 3
+          - browser: chromium
+            shard: 2
+            total_shards: 3
+          - browser: chromium
+            shard: 3
+            total_shards: 3
           - browser: firefox
+            shard: 1
+            total_shards: 3
+          - browser: firefox
+            shard: 2
+            total_shards: 3
+          - browser: firefox
+            shard: 3
+            total_shards: 3
           - browser: webkit
+            shard: 1
+            total_shards: 3
+          - browser: webkit
+            shard: 2
+            total_shards: 3
+          - browser: webkit
+            shard: 3
+            total_shards: 3
     env:
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -120,7 +145,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           test -f dist/index.html
-      - name: Install browser system dependencies
+      - name: Install Playwright system dependencies
         timeout-minutes: 8
         run: npx playwright install-deps '${{ matrix.browser }}'
       - name: Cache Playwright browser
@@ -162,20 +187,21 @@ jobs:
           test "$ready" = 1
           curl --fail --silent --show-error --http1.1 http://127.0.0.1:3000/ar/aspect-ratio-calculator >/tmp/matrix-first-readiness.html
           grep -qi '<html' /tmp/matrix-first-readiness.html
-      - name: Run browser smoke — fail on first failure
-        timeout-minutes: 10
+      - name: Run browser shard — fail on first failure
+        timeout-minutes: 15
         run: |
           set -euo pipefail
           npx playwright test tests/localization-runtime.spec.ts \
             --project=${{ matrix.browser }} \
             --workers=6 \
             --retries=0 \
-            --max-failures=1
-      - name: Upload independent diagnostics
+            --max-failures=1 \
+            --shard=${{ matrix.shard }}/${{ matrix.total_shards }}
+      - name: Upload matrix diagnostics
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: matrix-first-${{ matrix.browser }}-${{ github.run_id }}
+          name: matrix-first-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/
@@ -197,11 +223,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Fail closed on static gate or smoke unit
+      - name: Require static gate and every browser/shard to pass
         run: |
           set -euo pipefail
           static_result='${{ needs.static-and-build.result }}'
           matrix_result='${{ needs.matrix.result }}'
           test "$static_result" = success
           test "$matrix_result" = success
-          echo 'Matrix First Certification PASS: static gate + Chromium + Firefox + WebKit smoke passed.'
+          echo 'Matrix First Certification PASS: one exact production build consumed by Chromium/Firefox/WebKit 3-way shards.'
