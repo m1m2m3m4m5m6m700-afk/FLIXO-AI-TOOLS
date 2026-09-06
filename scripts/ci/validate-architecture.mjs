@@ -65,10 +65,14 @@ if (/['"]fix\/\*\*|['"]feat\/\*\*|['"]ci\/\*\*|['"]refactor\/\*\*|['"]seo\/\*\*/
   failures.push('Localization must not replay automatically on feature/fix/ci/seo/refactor branch pushes.');
 }
 
-const localeContract = /(?:matrix:\s*[\s\S]{0,400}locale:\s*\[)?en, ar, es, fr, de, ru, zh, hi, id, ur, ja, pt, it, ko, nl, pl, tr, vi, th, sv/.test(localization);
-const canonicalLocaleDeclaration = /G4_LOCALES:\s*['"]en,ar,es,fr,de,ru,zh,hi,id,ur,ja,pt,it,ko,nl,pl,tr,vi,th,sv['"]/.test(localization);
-if (!localeContract && !canonicalLocaleDeclaration) {
-  failures.push('Localization gate must retain all 20 locales.');
+// Canonical locale set is owned by src/lib/i18n/config.ts. The workflow must match it
+// exactly; a legacy hard-coded locale list is drift and must fail closed.
+const localeConfig = readFileSync('src/lib/i18n/config.ts', 'utf8').match(/export const LOCALES = \[([^\]]+)\] as const;/u)?.[1] ?? '';
+const canonicalLocales = localeConfig.match(/['"][A-Za-z-]+['"]/gu)?.map((value) => value.slice(1, -1)) ?? [];
+const workflowLocales = localization.match(/G4_LOCALES:\s*['"]([^'"]+)['"]/u)?.[1]?.split(',').map((value) => value.trim()).filter(Boolean) ?? [];
+if (canonicalLocales.length !== 20) failures.push(`Canonical locale registry count=${canonicalLocales.length}; expected 20.`);
+if (canonicalLocales.length !== workflowLocales.length || canonicalLocales.some((locale, index) => locale !== workflowLocales[index])) {
+  failures.push(`Localization workflow locale drift: registry=${canonicalLocales.join(',')} workflow=${workflowLocales.join(',')}`);
 }
 
 const owners = [
