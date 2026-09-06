@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
-      fail-fast: false
+      fail-fast: true
       max-parallel: 8
       matrix:
         include:
@@ -103,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
-      fail-fast: false
+      fail-fast: true
       max-parallel: 3
       matrix:
         browser: [chromium, firefox, webkit]
@@ -158,7 +158,7 @@ jobs:
             echo '## Root Cause Diagnostics'
             echo
             echo 'This workflow is diagnostic-only and runs only when manually requested.'
-            echo 'fail-fast=false preserves independent failures for diagnosis.'
+            echo 'All diagnostic matrices are fail-fast to stop sibling compute on the first failure.'
             echo "static=${{ needs.static.result }}"
             echo "build-performance=${{ needs.build-performance.result }}"
             echo "e2e=${{ needs.e2e.result }}"
