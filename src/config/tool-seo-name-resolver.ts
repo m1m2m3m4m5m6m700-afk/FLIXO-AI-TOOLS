@@ -1,5 +1,5 @@
 import type { Locale } from '../lib/i18n/config';
-import { localizeMsUkToolTitle } from '../lib/i18n/ms-uk-tool-title';
+import { localizeMsUkToolTitle } from '../lib/i18n/ms-uk-tool-title.ts';
 import { TOOL_SEO_NAMES } from '../lib/i18n/tool-seo-localization';
 import type { ToolConfig } from './tool-definitions/types';
 
