@@ -53,10 +53,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
-      fail-fast: false
+      fail-fast: true
       max-parallel: 9
       matrix:
-        suite: [toolchain, architecture, localization, seo, security, artifact, runtime, browser, build]
+        include:
+          - suite: toolchain
+          - suite: architecture
+          - suite: localization
+          - suite: seo
+          - suite: security
+          - suite: artifact
+          - suite: runtime
+          - suite: browser
+          - suite: build
     steps:
       - uses: actions/checkout@v5
         with:
