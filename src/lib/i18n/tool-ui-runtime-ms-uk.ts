@@ -9,12 +9,10 @@ const LOCALIZED_COPY = {
   uk: TOOL_UI_I18N.uk,
 } as const;
 
-const exactTextMaps: Record<RuntimeLocale, ReadonlyMap<string, string>> = Object.fromEntries(
-  LOCALES.map((locale) => [
-    locale,
-    new Map(Object.keys(BASE_COPY).map((key) => [BASE_COPY[key as keyof typeof BASE_COPY], LOCALIZED_COPY[locale][key as keyof typeof LOCALIZED_COPY[typeof locale]]])),
-  ]),
-) as Record<RuntimeLocale, ReadonlyMap<string, string>>;
+const exactTextMaps: Record<RuntimeLocale, ReadonlyMap<string, string>> = {
+  ms: new Map(Object.entries(BASE_COPY).map(([key, value]) => [value, LOCALIZED_COPY.ms[key as keyof typeof LOCALIZED_COPY.ms]])),
+  uk: new Map(Object.entries(BASE_COPY).map(([key, value]) => [value, LOCALIZED_COPY.uk[key as keyof typeof LOCALIZED_COPY.uk]])),
+};
 
 function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/gu, ' ').trim();
@@ -57,7 +55,7 @@ function translateRoot(root: ParentNode, locale: RuntimeLocale): void {
   });
 }
 
-export function installToolUiRuntimeMsUkCoverage(): () => void {
+export function installToolUiMsUkRuntimeCoverage(): () => void {
   if (typeof document === 'undefined' || !document.body) return () => undefined;
   const apply = () => {
     const locale = activeLocale();
