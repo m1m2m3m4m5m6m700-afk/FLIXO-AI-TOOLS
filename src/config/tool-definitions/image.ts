@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { ImageCompressor } from '@/tools/image-compressor/index';
+import { ImageCompressor } from '@/tools/image-compressor/index.tsx';
 import type { ToolConfig } from './types.ts';
 
 export const IMAGE_TOOLS: readonly ToolConfig[] = Object.freeze([
