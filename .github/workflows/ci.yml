@@ -27,6 +27,8 @@ jobs:
   matrix-certification:
     name: Matrix First Certification
     uses: ./.github/workflows/matrix-first.yml
+    with:
+      expected_head_sha: ${{ github.event.pull_request.head.sha || github.sha }}
     secrets: inherit
 
   ci:
