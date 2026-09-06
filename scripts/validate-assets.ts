@@ -5,11 +5,7 @@ const ROOT = path.resolve(process.env.FLIXO_GENERATED_OUTPUT_DIR ?? 'dist');
 const failures: string[] = [];
 
 function fail(message: string): void { failures.push(message); }
-
-function isExternalReference(value: string): boolean {
-  return /^(?:[a-z][a-z\d+.-]*:|\/\/|data:|blob:|#|mailto:|tel:)/iu.test(value);
-}
-
+function isExternalReference(value: string): boolean { return /^(?:[a-z][a-z\d+.-]*:|\/\/|data:|blob:|#|mailto:|tel:)/iu.test(value); }
 function normalizeReference(value: string): string { return value.split(/[?#]/u, 1)[0]; }
 
 function verifyReference(rawValue: string, file: string): void {
@@ -33,9 +29,7 @@ function scanHtml(file: string, html: string): void {
   }
   for (const match of html.matchAll(/(?:href|xlink:href)\s*=\s*["']#([^"']+)["']/giu)) {
     const escapedId = match[1].replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-    if (!new RegExp(`\\bid=["']${escapedId}["']`, 'u').test(html)) {
-      fail(`${path.relative(ROOT, file)}: SVG fragment #${match[1]} has no matching id definition in the built document`);
-    }
+    if (!new RegExp(`\\bid=["']${escapedId}["']`, 'u').test(html)) fail(`${path.relative(ROOT, file)}: SVG fragment #${match[1]} has no matching id definition in the built document`);
   }
 }
 
