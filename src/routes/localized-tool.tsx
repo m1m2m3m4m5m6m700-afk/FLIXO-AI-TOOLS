@@ -10,7 +10,7 @@ export const localizedToolRoute = createRoute({
   path: '/$locale/$tool',
   loader: ({ params }) => {
     const rawSlug = params.tool;
-    const tool = getToolConfigByPath(`/en/${rawSlug}`) ?? getToolConfigByPath(`/${rawSlug}`) ?? getToolConfig(rawSlug);
+    const tool = getToolConfigByPath(`/en/${rawSlug}`) ?? getToolConfigByPath(`/${rawSlug}`) ?? getToolConfig(params.tool);
     if (!tool?.isReady) throw notFound();
 
     const canonicalPath = getLocalizedToolPath(tool, params.locale as Parameters<typeof getLocalizedToolPath>[1]);
