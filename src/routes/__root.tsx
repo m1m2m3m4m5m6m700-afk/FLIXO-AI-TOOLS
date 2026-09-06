@@ -6,6 +6,12 @@ import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance'
 import { applyDocumentLocale, installDocumentLocaleContract, localeFromPathname } from '../lib/i18n/runtime-document-locale';
 import { SITE_ORIGIN } from '../lib/i18n';
 
+if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+  const initialPath = window.location.pathname;
+  const initialLocale = localeFromPathname(initialPath);
+  applyDocumentLocale(initialLocale);
+}
+
 const GLOBAL_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
   '@graph': [

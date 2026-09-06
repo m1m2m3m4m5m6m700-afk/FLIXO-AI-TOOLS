@@ -92,7 +92,7 @@ jobs:
           echo "Matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/4"
           npx playwright test tests/localization-runtime.spec.ts \
             --project=${{ matrix.browser }} \
-            --workers=6 \
+            --workers=2 \
             --retries=0 \
             --max-failures=1 \
             --shard=${{ matrix.shard }}/4
