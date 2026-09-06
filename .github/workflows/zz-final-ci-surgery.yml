@@ -40,6 +40,13 @@ jobs:
           from pathlib import Path
           import json
 
+          p = Path('src/tools/seed/index.tsx')
+          s = p.read_text()
+          old = "from '../../components/floating-canvas-overlay';"
+          new = "from './seed-canvas-overlay';"
+          if old in s:
+              p.write_text(s.replace(old, new, 1))
+
           p = Path('.github/workflows/ci.yml')
           lines = p.read_text().splitlines()
           if not any(x.strip() == 'workflow_call:' for x in lines[:20]):
@@ -58,6 +65,9 @@ jobs:
           start = next((i for i,x in enumerate(lines) if x == '  engineering-gate:'), None)
           end = next((i for i in range((start or 0)+1, len(lines)) if lines[i] == '  deployment-provider:'), None)
           if start is None or end is None: raise SystemExit('release gate boundaries missing')
+          e1 = '$' + '{{ needs.socket-release.result }}'
+          e2 = '$' + '{{ needs.canonical-ci.result }}'
+          e3 = '$' + '{{ needs.matrix-certification.result }}'
           block = [
               '  canonical-ci:',
               '    name: Canonical GitHub CI',
@@ -87,16 +97,15 @@ jobs:
               '        shell: bash',
               '        run: |',
               '          set -euo pipefail',
-              '          test "${{ needs.socket-release.result }}" = success',
-              '          test "${{ needs.canonical-ci.result }}" = success',
-              '          test "${{ needs.matrix-certification.result }}" = success',
+              f'          test "{e1}" = success',
+              f'          test "{e2}" = success',
+              f'          test "{e3}" = success',
               '      - name: Verify production surface',
               '        env:',
               '          PRODUCTION_ORIGIN: https://flixoai.vercel.app',
               '        run: node scripts/validate-production-certification.mjs',
               '      - name: Write release evidence',
-              '        run: |',
-              '          echo "Engineering gate: PASS ($GITHUB_SHA)" >> "$GITHUB_STEP_SUMMARY"',
+              '        run: echo "Engineering gate: PASS ($GITHUB_SHA)" >> "$GITHUB_STEP_SUMMARY"',
               '',
           ]
           p.write_text('\n'.join(lines[:start] + block + lines[end:]) + '\n')
