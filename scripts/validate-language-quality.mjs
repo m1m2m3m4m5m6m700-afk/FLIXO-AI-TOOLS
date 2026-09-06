@@ -29,7 +29,6 @@ for (const locale of locales) {
 const home = read(`${root}/src/data/home-locales.ts`);
 const quickflow = read(`${root}/src/data/quickflow-locales.ts`);
 const toolUi = read(`${root}/src/data/tool-ui-i18n.ts`);
-const seoNames = read(`${root}/src/lib/i18n/tool-seo-localization.ts`);
 const overrides = read(`${root}/src/lib/i18n/locale-quality-overrides.ts`);
 
 const homeKeys = ['nav:', 'badge:', 'eyebrow:', 'heroTitle:', 'heroLead:', 'describe:', 'searchLabel:', 'searchPlaceholder:', 'smartPalette:', 'suggested:', 'openDirectly:', 'popular:', 'trust:', 'quickDrop:', 'quickDropTitle:', 'quickDropLead:', 'dropChoose:', 'dropSupport:', 'suggestedTool:', 'openTool:', 'toolbox:', 'toolboxTitle:', 'ready:', 'empty:', 'builtForFocus:', 'finalTitle:', 'finalLead:', 'trySmart:', 'all:', 'browserMeta:', 'ariaHome:', 'ariaPrimary:', 'ariaFindTool:', 'ariaTrust:', 'ariaCategories:', 'quickTags:'];
@@ -38,6 +37,7 @@ const toolUiKeys = ['notFound:', 'loading:', 'language:', 'about:', 'howTo:', 'f
 
 const runtimeI18n = await import(pathToFileURL(`${root}/src/lib/i18n/locale-quality-overrides.ts`).href);
 const seoResolver = await import(pathToFileURL(`${root}/src/config/tool-seo-name-resolver.ts`).href);
+const seoLocalization = await import(pathToFileURL(`${root}/src/lib/i18n/tool-seo-localization.ts`).href);
 
 const homeOverride = (locale) => runtimeI18n.HOME_COPY_OVERRIDES[locale] ?? {};
 const quickOverride = (locale) => runtimeI18n.QUICKFLOW_COPY_OVERRIDES[locale] ?? {};
@@ -121,16 +121,17 @@ for (const locale of locales) {
   if ((metadata === 'rtl') !== shouldBeRtl) fail(`Direction mismatch for ${locale}: expected ${shouldBeRtl ? 'rtl' : 'ltr'}, found ${metadata ?? '<missing>'}`);
 }
 
-const toolSeoEntries = [...seoNames.matchAll(/'([^']+)'\s*:\s*Object\.freeze\(\{([^}]*)\}\)/gu)];
+const toolSeoEntries = Object.entries(seoLocalization.TOOL_SEO_NAMES ?? {});
 if (!toolSeoEntries.length) fail('No TOOL_SEO_NAMES entries found');
-for (const [index, [toolId, body]] of toolSeoEntries.entries()) {
+for (const [toolId, translations] of toolSeoEntries) {
   for (const locale of locales) {
-    if (new RegExp(`\\b${locale}:`, 'u').test(body)) continue;
+    const value = translations?.[locale];
+    if (typeof value === 'string' && value.trim()) continue;
     if (locale === 'ms' || locale === 'uk') {
-      const authoritative = seoResolver.getAuthoritativeToolSeoName({ id: toolId, title: toolId } , locale);
+      const authoritative = seoResolver.getAuthoritativeToolSeoName({ id: toolId, title: toolId }, locale);
       if (typeof authoritative === 'string' && authoritative.trim() && authoritative.toLowerCase() !== toolId.toLowerCase()) continue;
     }
-    fail(`SEO name entry ${index + 1}: missing ${locale}`);
+    fail(`SEO name entry ${toolId}: missing ${locale}`);
   }
 }
 
