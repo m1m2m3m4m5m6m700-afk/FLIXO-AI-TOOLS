@@ -6,6 +6,34 @@ type WorkerMessage =
   | { type: 'done'; jobId: string; result: { text?: string; chunks?: unknown[] } }
   | { type: 'error'; jobId: string; message: string };
 
+const INFERENCE_DEVICE_LABELS: Record<string, string> = {
+  ar: 'جهاز الاستدلال',
+  en: 'Inference device',
+  es: 'Dispositivo de inferencia',
+  fr: 'Périphérique d’inférence',
+  de: 'Inferenzgerät',
+  hi: 'इन्फ़रेंस डिवाइस',
+  id: 'Perangkat inferensi',
+  it: 'Dispositivo di inferenza',
+  ja: '推論デバイス',
+  ko: '추론 장치',
+  ms: 'Peranti inferens',
+  nl: 'Inferentieapparaat',
+  pl: 'Urządzenie inferencyjne',
+  pt: 'Dispositivo de inferência',
+  ru: 'Устройство вывода',
+  sv: 'Inferensenhet',
+  th: 'อุปกรณ์อนุมาน',
+  tr: 'Çıkarım cihazı',
+  uk: 'Пристрій інференсу',
+  vi: 'Thiết bị suy luận',
+};
+
+function getInferenceDeviceLabel(): string {
+  const locale = document.documentElement.lang.toLowerCase().split('-')[0];
+  return INFERENCE_DEVICE_LABELS[locale] ?? INFERENCE_DEVICE_LABELS.en;
+}
+
 export function AiCaptionerSrtTool() {
   const workerRef = useRef<Worker | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -93,7 +121,7 @@ export function AiCaptionerSrtTool() {
         <input aria-label="Media file" type="file" accept="video/*,audio/*" onChange={(event) => choose(event.target.files?.[0])} />
       </label>
       <div className="grid gap-4 md:grid-cols-2">
-        <label>Inference device<select aria-label="Inference device" className="mt-1 w-full rounded border p-2" value={device} onChange={(event) => setDevice(event.target.value === 'wasm' ? 'wasm' : 'webgpu')}><option value="webgpu">WebGPU</option><option value="wasm">WASM CPU</option></select></label>
+        <label>{getInferenceDeviceLabel()}<select aria-label="Inference device" className="mt-1 w-full rounded border p-2" value={device} onChange={(event) => setDevice(event.target.value === 'wasm' ? 'wasm' : 'webgpu')}><option value="webgpu">WebGPU</option><option value="wasm">WASM CPU</option></select></label>
         {file ? <p className="self-end text-sm text-muted-foreground">{file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB · max 10 min</p> : null}
       </div>
       <button type="button" disabled={!file || busy} onClick={() => void transcribe()} className="rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50">{busy ? 'Generating captions…' : 'Generate captions'}</button>
