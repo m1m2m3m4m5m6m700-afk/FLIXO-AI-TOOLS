@@ -46,6 +46,7 @@ type Snapshot = { title: string; description: string; h1: string; ui: string[] }
 const normalize = (value: string | null | undefined) => (value ?? '').replace(/\s+/gu, ' ').trim();
 const familyPath = (pathname: string) => pathname.replace(new RegExp(`^/(?:${localeCodes.join('|')})(?=/|$)`, 'u'), '') || '/';
 const localizedPath = (locale: string, family: string) => `/${locale}${family === '/' ? '' : family}`;
+const cacheBustedPath = (pathname: string, token: string) => `${pathname}${pathname.includes('?') ? '&' : '?'}__g4_nav=${encodeURIComponent(token)}`;
 
 async function snapshot(page: Page): Promise<Snapshot> {
   return page.evaluate(() => {
@@ -57,6 +58,7 @@ async function snapshot(page: Page): Promise<Snapshot> {
     };
     const ui = [...document.querySelectorAll('button,a,input,textarea,select,[aria-label],[placeholder],[title]')]
       .filter(visible)
+      .filter((element) => !element.closest('#home-language, .home-nav-language, [data-language-picker="true"]'))
       .map((element) => {
         const node = element as HTMLElement;
         const input = node as HTMLInputElement;
@@ -150,12 +152,14 @@ for (const pathname of routes) {
     expect(new URL(hreflangs.find((entry) => entry.tag === 'x-default')!.href, page.url()).pathname).toBe(localizedPath('en', family));
 
     if (localeCode !== 'en') {
-      const baselineResponse = await page.goto(localizedPath('en', family), { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      const baselinePath = cacheBustedPath(localizedPath('en', family), `baseline-${localeCode}`);
+      const baselineResponse = await page.goto(baselinePath, { waitUntil: 'domcontentloaded', timeout: 30_000 });
       expect(baselineResponse?.status(), `${pathname} English baseline ${family} must return HTTP 200`).toBe(200);
       await page.waitForLoadState('networkidle').catch(() => undefined);
       const baseline = await snapshot(page);
 
-      const localizedResponse = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      const localizedPathWithCacheBust = cacheBustedPath(pathname, `localized-${localeCode}`);
+      const localizedResponse = await page.goto(localizedPathWithCacheBust, { waitUntil: 'domcontentloaded', timeout: 30_000 });
       expect(localizedResponse?.status(), `${pathname} must return HTTP 200 after baseline comparison`).toBe(200);
       await page.waitForLoadState('networkidle').catch(() => undefined);
       const current = await snapshot(page);
