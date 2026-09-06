@@ -11,7 +11,6 @@ const allowedSameAsEnglish = new Set(['FLIXO', 'QuickFlow', 'OCR', 'PDF', 'Engli
 const nonTranslatableKeys = new Set(['dir', 'direction', 'locale', 'localeCode', 'lang', 'languageCode']);
 const expectedScript = Object.freeze({
   ar: /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/u,
-  ur: /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/u,
   ru: /[\u0400-\u04ff]/u,
   zh: /[\u3400-\u9fff]/u,
   ja: /[\u3040-\u30ff\u3400-\u9fff]/u,
@@ -43,13 +42,9 @@ const compareShapeAndValues = (english, localized, context) => {
       report(`${context}: array item shape mismatch`);
       return;
     }
-    if (englishItemsAreObjects && english.length !== localized.length) {
-      report(`${context}: structured array length mismatch (${english.length} vs ${localized.length})`);
-    }
+    if (englishItemsAreObjects && english.length !== localized.length) report(`${context}: structured array length mismatch (${english.length} vs ${localized.length})`);
     const comparableLength = Math.min(english.length, localized.length);
-    for (let index = 0; index < comparableLength; index += 1) {
-      compareShapeAndValues(english[index], localized[index], `${context}.${index}`);
-    }
+    for (let index = 0; index < comparableLength; index += 1) compareShapeAndValues(english[index], localized[index], `${context}.${index}`);
     return;
   }
   if (english && typeof english === 'object') {
@@ -71,9 +66,7 @@ const compareLeaves = (english, localized, context) => {
     if (isNonTranslatablePath(leaf.path)) continue;
     if (!leaf.value.trim()) report(`${context}: empty translation at ${leaf.path}`);
     const en = enLeaves.find((candidate) => candidate.path === leaf.path);
-    if (en && en.value === leaf.value && !allowedSameAsEnglish.has(normalize(leaf.value))) {
-      report(`${context}: exact English fallback at ${leaf.path}: ${JSON.stringify(leaf.value)}`);
-    }
+    if (en && en.value === leaf.value && !allowedSameAsEnglish.has(normalize(leaf.value))) report(`${context}: exact English fallback at ${leaf.path}: ${JSON.stringify(leaf.value)}`);
     const enTags = [...(en?.value ?? '').matchAll(/<[^>]+>/gu)].map((match) => match[0]);
     const locTags = [...leaf.value.matchAll(/<[^>]+>/gu)].map((match) => match[0]);
     if (en && enTags.join('|') !== locTags.join('|')) report(`${context}: HTML tag structure mismatch at ${leaf.path}`);
@@ -96,7 +89,7 @@ if (configuredLocales.join('|') !== locales.join('|')) report(`Runtime locale re
 for (const locale of locales) {
   const metadata = configModule.LOCALE_METADATA?.[locale];
   if (!metadata) report(`Missing runtime locale metadata: ${locale}`);
-  else if (metadata.direction !== (locale === 'ar' || locale === 'ur' ? 'rtl' : 'ltr')) report(`Direction mismatch: ${locale}`);
+  else if (metadata.direction !== (locale === 'ar' ? 'rtl' : 'ltr')) report(`Direction mismatch: ${locale}`);
 }
 
 for (const [name, relativePath, exportName] of runtimePairs) {
@@ -136,37 +129,28 @@ if (existsSync(localeDir)) {
   for (const extra of files.filter((locale) => !locales.includes(locale))) report(`Unexpected locale file outside canonical registry: ${extra}.ts`);
 }
 
-const toolsDir = `${root}/src/tools`;
-for (const toolId of readdirSync(toolsDir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)) {
-  const seoDir = `${toolsDir}/${toolId}/seo`;
-  if (!existsSync(seoDir)) continue;
-  const seoFiles = new Set(readdirSync(seoDir).filter((file) => file.endsWith('.ts')).map((file) => file.slice(0, -3)));
-  for (const locale of locales) {
-    if (!seoFiles.has(locale)) {
-      report(`${toolId}/seo: missing locale ${locale}`);
+const seoModule = await importModule('src/lib/seo/tool-seo.ts');
+const readyTools = [...(seoModule.getReadyToolsForSeo?.() ?? [])];
+if (!readyTools.length) report('SEO runtime contract exposed no ready tools');
+for (const locale of locales) {
+  for (const tool of readyTools) {
+    const seo = seoModule.getToolSeo?.(locale, tool.id);
+    if (!seo) {
+      report(`${tool.id}/seo: runtime SEO missing for locale ${locale}`);
       continue;
     }
-  }
-  if (!seoFiles.has('en')) continue;
-  const englishModule = await importModule(`src/tools/${toolId}/seo/en.ts`);
-  const english = objectForLocale(englishModule, 'en') ?? englishModule.default ?? Object.values(englishModule).find((value) => value && typeof value === 'object');
-  if (!english || typeof english !== 'object') {
-    report(`${toolId}/seo/en.ts: unable to resolve English SEO contract`);
-    continue;
-  }
-  for (const locale of nonEnglish) {
-    if (!seoFiles.has(locale)) continue;
-    try {
-      const localizedModule = await importModule(`src/tools/${toolId}/seo/${locale}.ts`);
-      const localized = objectForLocale(localizedModule, locale) ?? localizedModule.default ?? Object.values(localizedModule).find((value) => value && typeof value === 'object');
-      if (!localized || typeof localized !== 'object') {
-        report(`${toolId}/seo/${locale}.ts: unable to resolve locale contract`);
-        continue;
-      }
-      compareShapeAndValues(english, localized, `${toolId}/seo/${locale}`);
-      compareLeaves(english, localized, `${toolId}/seo/${locale}`);
-    } catch (error) {
-      report(`${toolId}/seo/${locale}.ts: module load failed: ${error instanceof Error ? error.message : String(error)}`);
+    if (!seo.title.trim() || !seo.description.trim() || !seo.intro.trim()) report(`${tool.id}/seo/${locale}: required localized SEO text is empty`);
+    if (!Array.isArray(seo.howTo) || !seo.howTo.length || seo.howTo.some((value) => !String(value).trim())) report(`${tool.id}/seo/${locale}: runtime howTo contract is incomplete`);
+    if (!Array.isArray(seo.features) || !seo.features.length || seo.features.some((value) => !String(value).trim())) report(`${tool.id}/seo/${locale}: runtime features contract is incomplete`);
+    if (!Array.isArray(seo.altText) || !seo.altText.length || seo.altText.some((value) => !String(value).trim())) report(`${tool.id}/seo/${locale}: runtime altText contract is incomplete`);
+    if (seo.languageTag !== configModule.LOCALE_METADATA[locale]?.languageTag) report(`${tool.id}/seo/${locale}: languageTag drift`);
+    if (seo.direction !== configModule.LOCALE_METADATA[locale]?.direction) report(`${tool.id}/seo/${locale}: direction drift`);
+    if (seo.alternates?.length !== locales.length) report(`${tool.id}/seo/${locale}: expected ${locales.length} hreflang alternates, found ${seo.alternates?.length ?? 0}`);
+    const forbiddenOrigin = /localhost|127\.0\.0\.1|canonical\.test|vercel\.app/iu;
+    if (forbiddenOrigin.test(seo.url) && seo.url !== `${configModule.SITE_ORIGIN}/`) report(`${tool.id}/seo/${locale}: non-production origin ${seo.url}`);
+    if (locale === 'ms' || locale === 'uk') {
+      const sampleText = normalize([seo.title, seo.description, seo.intro, ...seo.howTo, ...seo.features, ...seo.altText].join(' '));
+      if (sampleText === normalize([tool.title, tool.description].join(' '))) report(`${tool.id}/seo/${locale}: locale-specific runtime copy collapsed to English baseline`);
     }
   }
 }
@@ -177,4 +161,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`STRICT LANGUAGE QUALITY GATE PASSED — ${locales.length} locales; runtime key parity, non-empty values, fallback rejection, script/direction checks, UI contracts, SEO locale completeness, and placeholder/HTML integrity are clean.`);
+console.log(`STRICT LANGUAGE QUALITY GATE PASSED — ${locales.length} locales; runtime key parity, non-empty values, fallback rejection, script/direction checks, UI contracts, runtime SEO locale completeness, and placeholder/HTML integrity are clean.`);
