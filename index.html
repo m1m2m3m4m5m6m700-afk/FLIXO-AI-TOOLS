@@ -32,20 +32,20 @@
     </script>
     <script>
       (() => {
+        // This synchronous bootstrap is the pre-bundle locale boundary. It must match
+        // src/lib/i18n/config.ts exactly so every public locale is correct at time-zero.
         const localeMap = {
-          en: ['en', 'ltr'], ar: ['ar', 'rtl'], es: ['es', 'ltr'], fr: ['fr', 'ltr'], de: ['de', 'ltr'],
-          ru: ['ru', 'ltr'], zh: ['zh-CN', 'ltr'], hi: ['hi', 'ltr'], id: ['id', 'ltr'], ur: ['ur', 'rtl'],
-          ja: ['ja', 'ltr'], pt: ['pt', 'ltr'], it: ['it', 'ltr'], ko: ['ko', 'ltr'], nl: ['nl', 'ltr'],
-          pl: ['pl', 'ltr'], tr: ['tr', 'ltr'], vi: ['vi', 'ltr'], th: ['th', 'ltr'], sv: ['sv', 'ltr'],
+          ar: ['ar', 'rtl'], en: ['en', 'ltr'], es: ['es', 'ltr'], fr: ['fr', 'ltr'], de: ['de', 'ltr'],
+          hi: ['hi', 'ltr'], id: ['id', 'ltr'], it: ['it', 'ltr'], ja: ['ja', 'ltr'], ko: ['ko', 'ltr'],
+          ms: ['ms', 'ltr'], nl: ['nl', 'ltr'], pl: ['pl', 'ltr'], pt: ['pt', 'ltr'], ru: ['ru', 'ltr'],
+          sv: ['sv', 'ltr'], th: ['th', 'ltr'], tr: ['tr', 'ltr'], uk: ['uk', 'ltr'], vi: ['vi', 'ltr'],
         };
-        const candidate = window.location.pathname.split('/').filter(Boolean)[0] ?? 'en';
-        const [lang, dir] = localeMap[candidate] ?? localeMap.en;
+        const candidate = window.location.pathname.split('/').filter(Boolean)[0]?.toLowerCase() ?? 'ar';
+        const [lang, dir, localeKey] = localeMap[candidate] ? [...localeMap[candidate], candidate] : ['ar', 'rtl', 'ar'];
         const html = document.documentElement;
-        // This is the pre-application locale boundary: it must be present before the
-        // module graph loads, so client hydration can never begin from an empty locale.
         html.setAttribute('lang', lang);
         html.setAttribute('dir', dir);
-        html.setAttribute('data-flixo-locale', candidate in localeMap ? candidate : 'en');
+        html.setAttribute('data-flixo-locale', localeKey);
       })();
     </script>
   </head>
