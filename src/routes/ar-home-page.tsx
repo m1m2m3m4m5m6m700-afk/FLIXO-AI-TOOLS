@@ -12,7 +12,7 @@ import { getAuthoritativeToolSeoName } from '../config/tool-seo-name-resolver';
 import { localizeMsUkCategory, localizeMsUkDescription } from '../lib/i18n/ms-uk-category';
 import { localizeToolCategory, localizeToolDescription } from '../lib/i18n/tool-localization';
 
- type ToolCard = {
+type ToolCard = {
   title: string;
   description: string;
   category: 'Images' | 'AI' | 'Other';
