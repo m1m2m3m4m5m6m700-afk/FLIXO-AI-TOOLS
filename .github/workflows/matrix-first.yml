@@ -1,10 +1,8 @@
 name: Matrix First Gate
 
-# Canonical browser certification pipeline.
-# One static/build job produces the exact production artifact; every browser/shard consumes it.
+# Canonical blocking browser certification pipeline.
+# One exact source build is consumed by every browser/shard lane.
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
   workflow_call:
 
@@ -32,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -42,20 +40,13 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Restore node_modules cache
-        id: node-modules-cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
       - name: Install dependencies
-        if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Verify exact HEAD
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
       - name: TypeScript
         run: npm run typecheck
       - name: ESLint
@@ -73,7 +64,7 @@ jobs:
       - name: Publish reusable production artifact
         uses: actions/upload-artifact@v6
         with:
-          name: matrix-first-build-${{ env.EXPECTED_SHA }}
+          name: matrix-first-build-${{ env.EXPECTED_HEAD_SHA }}
           path: dist/
           if-no-files-found: error
           retention-days: 3
@@ -84,7 +75,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
-      fail-fast: true
+      fail-fast: false
+      max-parallel: 9
       matrix:
         include:
           - browser: chromium
@@ -96,8 +88,26 @@ jobs:
           - browser: chromium
             shard: 3
             total_shards: 3
+          - browser: firefox
+            shard: 1
+            total_shards: 3
+          - browser: firefox
+            shard: 2
+            total_shards: 3
+          - browser: firefox
+            shard: 3
+            total_shards: 3
+          - browser: webkit
+            shard: 1
+            total_shards: 3
+          - browser: webkit
+            shard: 2
+            total_shards: 3
+          - browser: webkit
+            shard: 3
+            total_shards: 3
     env:
-      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -107,25 +117,18 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Restore node_modules cache
-        id: node-modules-cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
-      - name: Install dependencies on cache miss
-        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+      - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Download exact reusable build
         uses: actions/download-artifact@v6
         with:
-          name: matrix-first-build-${{ env.EXPECTED_SHA }}
+          name: matrix-first-build-${{ env.EXPECTED_HEAD_SHA }}
           path: dist
       - name: Verify exact build identity
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
           test -f dist/index.html
       - name: Install Playwright system dependencies
         timeout-minutes: 8
@@ -135,6 +138,8 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: matrix-first-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            matrix-first-${{ runner.os }}-${{ matrix.browser }}-
       - name: Install browser
         timeout-minutes: 8
         env:
@@ -205,11 +210,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Require static gate and every Chromium shard to pass
+      - name: Require static gate and every browser shard to pass
         run: |
           set -euo pipefail
           static_result='${{ needs.static-and-build.result }}'
           matrix_result='${{ needs.matrix.result }}'
           test "$static_result" = success
           test "$matrix_result" = success
-          echo 'Matrix First Certification PASS: one exact production build consumed by Chromium 3-way shards.'
+          echo 'Matrix First Certification PASS: one exact-head production build consumed by all Chromium, Firefox, and WebKit shards.'
