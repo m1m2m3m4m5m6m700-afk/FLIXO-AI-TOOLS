@@ -7,7 +7,11 @@ import { TOOLS_REGISTRY } from '../config/tools';
 import { getBestToolIntent } from '../lib/intent-router';
 import { getToolCategories, filterTools } from '../lib/ar-home-search';
 import { recommendImageTool } from '../lib/ar-home-recommendation';
-import { HOME_AR } from '../data/home-i18n';
+import { HOME_I18N } from '../data/home-locales';
+import { getAuthoritativeToolSeoName } from '../config/tool-seo-name-resolver';
+import { localizeMsUkCategory, localizeMsUkDescription } from '../lib/i18n/ms-uk-category';
+import { localizeToolCategory, localizeToolDescription } from '../lib/i18n/tool-localization';
+import type { Locale } from '../lib/i18n';
 
 type ToolCard = {
   title: string;
@@ -25,11 +29,15 @@ type LocalizableTool = {
 };
 
 const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
+const HOME_AR = HOME_I18N.ar;
 
 function localTool(tool: LocalizableTool): ToolCard {
+  const localizedTitle = getAuthoritativeToolSeoName(tool as never, 'ar' as Locale) ?? tool.title;
+  const localizedCategory = localizeMsUkCategory('ar', tool.category) ?? localizeToolCategory('ar', tool.category);
+  const localizedDescription = localizeMsUkDescription('ar', localizedTitle) ?? localizeToolDescription('ar', localizedTitle, tool.category);
   return {
-    title: HOME_AR.tools[tool.id as keyof typeof HOME_AR.tools] ?? tool.title,
-    description: HOME_AR.toolDescriptions[tool.id as keyof typeof HOME_AR.toolDescriptions] ?? tool.description,
+    title: localizedTitle,
+    description: localizedDescription,
     category: tool.category,
     path: tool.path.replace(/^\/en\//, '/ar/'),
   };
@@ -89,7 +97,7 @@ export function ArHomePage() {
         <section className="home-search-panel" aria-label={HOME_AR.ariaFindTool}>
           <label className="sr-only" htmlFor="ar-tool-search">{HOME_AR.searchLabel}</label>
           <div className="home-search-wrap"><span className="home-search-icon" aria-hidden="true">⌕</span><input id="ar-tool-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={HOME_AR.searchPlaceholder} autoComplete="off" /><button type="button" className="search-command-button" onClick={() => setPaletteOpen(true)} aria-label={HOME_AR.smartPalette}>AI</button></div>
-          {intent && <Link className="intent-suggestion" to={intent.tool.path.replace(/^\/en\//, '/ar/')}><span><strong>{HOME_AR.suggested}</strong> {HOME_AR.tools[intent.tool.id as keyof typeof HOME_AR.tools] ?? intent.tool.title}</span><small>{intent.score}% · {HOME_AR.openDirectly}</small></Link>}
+          {intent && <Link className="intent-suggestion" to={intent.tool.path.replace(/^\/en\//, '/ar/')}><span><strong>{HOME_AR.suggested}</strong> {getAuthoritativeToolSeoName(intent.tool, 'ar') ?? intent.tool.title}</span><small>{intent.score}% · {HOME_AR.openDirectly}</small></Link>}
           <div className="quick-tags" aria-label={HOME_AR.popular}>{HOME_AR.quickTags.map((tag) => <button key={tag} type="button" onClick={() => setQuery(tag)}>{tag}</button>)}</div>
         </section>
         <section className="home-trust-grid" id="privacy" aria-label={HOME_AR.ariaTrust}>{HOME_AR.trust.map(([title, text]) => <div key={title}><strong>{title}</strong><span>{text}</span></div>)}</section>
