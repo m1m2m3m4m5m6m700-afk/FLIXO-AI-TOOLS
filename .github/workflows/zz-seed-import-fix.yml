@@ -1,0 +1,38 @@
+name: Seed Import Fix Once
+on:
+  push:
+    branches: [protocols/i18n-assets-boundary-guards]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: protocols/i18n-assets-boundary-guards
+      - name: Fix Seed import and commit
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/tools/seed/index.tsx')
+          s=p.read_text()
+          old="from '../../components/floating-canvas-overlay';"
+          new="from './seed-canvas-overlay';"
+          if old not in s:
+              raise SystemExit('legacy Seed overlay import not found')
+          p.write_text(s.replace(old,new,1))
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/tools/seed/index.tsx
+          git diff --cached --check
+          git commit -m 'fix: restore Seed local overlay import'
+          git push origin HEAD:protocols/i18n-assets-boundary-guards
+          git rm -f .github/workflows/zz-seed-import-fix.yml
+          git add -A
+          git commit -m 'chore: remove temporary seed fix runner'
+          git push origin HEAD:protocols/i18n-assets-boundary-guards
