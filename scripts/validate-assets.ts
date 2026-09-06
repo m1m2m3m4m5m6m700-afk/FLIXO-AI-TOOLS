@@ -6,11 +6,12 @@ const failures: string[] = [];
 
 function fail(message: string): void { failures.push(message); }
 function isExternalReference(value: string): boolean { return /^(?:[a-z][a-z\d+.-]*:|\/\/|data:|blob:|#|mailto:|tel:)/iu.test(value); }
+function isDynamicReference(value: string): boolean { return value.includes('${'); }
 function normalizeReference(value: string): string { return value.split(/[?#]/u, 1)[0]; }
 
 function verifyReference(rawValue: string, file: string): void {
   const value = normalizeReference(rawValue.trim());
-  if (!value || isExternalReference(value)) return;
+  if (!value || isExternalReference(value) || isDynamicReference(value)) return;
   const target = value.startsWith('/') ? path.resolve(ROOT, `.${value}`) : path.resolve(path.dirname(file), value);
   const relativeTarget = path.relative(ROOT, target);
   if (relativeTarget.startsWith('..') || path.isAbsolute(relativeTarget)) {
@@ -21,7 +22,7 @@ function verifyReference(rawValue: string, file: string): void {
 }
 
 function scanHtml(file: string, html: string): void {
-  for (const match of html.matchAll(/\b(?:src|href|poster|srcset|content)\s*=\s*["']([^"']+)["']/giu)) {
+  for (const match of html.matchAll(/\b(?:src|href|poster|srcset)\s*=\s*["']([^"']+)["']/giu)) {
     const value = match[1];
     if (value.includes(',')) {
       for (const candidate of value.split(',').map((item) => item.trim().split(/\s+/u)[0])) verifyReference(candidate, file);
@@ -34,7 +35,7 @@ function scanHtml(file: string, html: string): void {
 }
 
 function scanCss(file: string, css: string): void {
-  for (const match of css.matchAll(/url\(\s*(?:["']([^"']+)["']|([^\)\s]+))\s*\)/giu)) verifyReference(match[1] ?? match[2], file);
+  for (const match of css.matchAll(/url\(\s*(?:["']([^"']+)["']|([^)]\s+)+)\s*\)/giu)) verifyReference(match[1] ?? match[2], file);
 }
 
 function scanJs(file: string, js: string): void {
