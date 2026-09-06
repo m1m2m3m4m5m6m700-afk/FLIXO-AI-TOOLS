@@ -1,12 +1,16 @@
 name: CI
 
-# PR and main use the same impact-aware verification engine.
-# Matrix First is the mandatory browser verification barrier for all official test jobs.
+# Fast-path verification is single-environment and impact-aware.
+# Browser and heavy certification matrices run independently and never gate the fast path.
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'feat/**'
+      - 'feature/**'
+      - 'agent/**'
   workflow_dispatch:
 
 concurrency:
@@ -25,46 +29,8 @@ env:
   CHANGE_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && github.event.before) || github.sha }}
 
 jobs:
-  matrix-first-barrier:
-    name: Matrix First Barrier
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Wait for exact-head Matrix First Certification
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Waiting for Matrix First Certification on exact SHA: $HEAD_SHA"
-          conclusion="NOT_FOUND"
-          for attempt in {1..60}; do
-            conclusion=$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/check-runs?per_page=100" \
-              --jq '[.check_runs[] | select(.name=="Matrix First Certification") | select(.head_sha==env.HEAD_SHA)] | sort_by(.completed_at) | last | .conclusion // "NOT_FOUND"')
-            case "$conclusion" in
-              success)
-                echo "Matrix First Certification PASS on $HEAD_SHA"
-                exit 0
-                ;;
-              failure|cancelled|timed_out|action_required|stale)
-                echo "Matrix First Certification FAILED on $HEAD_SHA: $conclusion"
-                exit 1
-                ;;
-              *)
-                echo "Matrix First Certification not terminal yet (poll $attempt/60): $conclusion"
-                sleep 30
-                ;;
-            esac
-          done
-          echo "Matrix First Certification did not reach a terminal result for exact SHA $HEAD_SHA."
-          exit 1
-
   ultra-fast:
     name: Ultra — Fast Triage
-    needs: [matrix-first-barrier]
-    if: needs.matrix-first-barrier.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -119,8 +85,8 @@ jobs:
 
   ci:
     name: CI
-    needs: [matrix-first-barrier, ultra-fast]
-    if: always() && needs.matrix-first-barrier.result == 'success'
+    needs: [ultra-fast]
+    if: needs.ultra-fast.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -150,8 +116,8 @@ jobs:
 
   fast-contract:
     name: Fast Contract Diagnostics
-    needs: [matrix-first-barrier, ultra-fast, ci]
-    if: always() && needs.matrix-first-barrier.result == 'success'
+    needs: [ultra-fast, ci]
+    if: always() && needs.ultra-fast.result == 'success'
     runs-on: ubuntu-latest
     env:
       EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -185,8 +151,8 @@ jobs:
 
   canonical-verify:
     name: Canonical Verification Gate
-    needs: [matrix-first-barrier, ci, fast-contract]
-    if: always() && needs.matrix-first-barrier.result == 'success'
+    needs: [ci, fast-contract]
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
@@ -206,8 +172,6 @@ jobs:
 
   g3-foundation:
     name: G3 / Foundation
-    needs: [matrix-first-barrier]
-    if: needs.matrix-first-barrier.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -259,8 +223,6 @@ jobs:
 
   g3-contracts:
     name: G3 / Contracts
-    needs: [matrix-first-barrier]
-    if: needs.matrix-first-barrier.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
@@ -304,8 +266,6 @@ jobs:
 
   g3-browser:
     name: G3 / Browser
-    needs: [matrix-first-barrier]
-    if: needs.matrix-first-barrier.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -380,8 +340,8 @@ jobs:
 
   g3-aggregator:
     name: G3 / Aggregator
-    needs: [matrix-first-barrier, g3-foundation, g3-contracts, g3-browser]
-    if: always() && needs.matrix-first-barrier.result == 'success'
+    needs: [g3-foundation, g3-contracts, g3-browser]
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -442,7 +402,7 @@ jobs:
 
   final-contract-gate:
     name: Final Contract Decision
-    needs: [matrix-first-barrier, ultra-fast, ultra-deep-recovery, ci, fast-contract, canonical-verify, g3-aggregator]
+    needs: [ultra-fast, ultra-deep-recovery, ci, fast-contract, canonical-verify, g3-aggregator]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -450,7 +410,6 @@ jobs:
       - name: Enforce final decision graph
         shell: bash
         env:
-          MATRIX_FIRST_RESULT: ${{ needs.matrix-first-barrier.result }}
           ULTRA_FAST_RESULT: ${{ needs.ultra-fast.result }}
           ULTRA_DEEP_RESULT: ${{ needs.ultra-deep-recovery.result }}
           CI_RESULT: ${{ needs.ci.result }}
@@ -459,14 +418,13 @@ jobs:
           G3_RESULT: ${{ needs.g3-aggregator.result }}
         run: |
           set -euo pipefail
-          echo "matrix-first=$MATRIX_FIRST_RESULT"
           echo "ultra-fast=$ULTRA_FAST_RESULT"
           echo "ultra-deep=$ULTRA_DEEP_RESULT"
           echo "ci=$CI_RESULT"
           echo "fast-contract=$FAST_CONTRACT_RESULT"
           echo "canonical=$CANONICAL_RESULT"
           echo "g3=$G3_RESULT"
-          test "$MATRIX_FIRST_RESULT" = success
+          test "$ULTRA_FAST_RESULT" = success
           test "$CI_RESULT" = success
           test "$FAST_CONTRACT_RESULT" = success
           test "$CANONICAL_RESULT" = success
@@ -474,4 +432,4 @@ jobs:
           if [[ "$ULTRA_FAST_RESULT" == "failure" ]]; then
             test "$ULTRA_DEEP_RESULT" = success
           fi
-          echo 'FINAL CONTRACT DECISION PASS: Matrix First and official downstream contracts passed.'
+          echo 'FINAL CONTRACT DECISION PASS: fast path and official G3 contracts passed.'
