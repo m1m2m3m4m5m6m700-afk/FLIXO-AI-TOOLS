@@ -1,6 +1,6 @@
 name: CI
 
-# Canonical fast PR verification. Heavy browser certification lives exclusively in matrix-first.yml.
+# Canonical PR verification. Matrix First is a native prerequisite and owns blocking browser certification.
 on:
   pull_request:
     branches: [main]
@@ -24,8 +24,15 @@ env:
   VITE_SITE_URL: https://flixoai.vercel.app
 
 jobs:
+  matrix-certification:
+    name: Matrix First Certification
+    uses: ./.github/workflows/matrix-first.yml
+    secrets: inherit
+
   ci:
     name: CI
+    needs: [matrix-certification]
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
@@ -49,14 +56,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-fast-evidence-${{ github.sha }}
+          name: ci-fast-evidence-${{ env.EXPECTED_HEAD_SHA }}
           path: diagnostics/
           if-no-files-found: warn
           retention-days: 14
 
   fast-contract:
     name: Fast Contract Diagnostics
-    needs: [ci]
+    needs: [matrix-certification, ci]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -70,7 +77,7 @@ jobs:
         if: ${{ needs.ci.result == 'success' }}
         uses: actions/download-artifact@v6
         with:
-          name: ci-fast-evidence-${{ github.sha }}
+          name: ci-fast-evidence-${{ env.EXPECTED_HEAD_SHA }}
           path: diagnostics
       - name: Validate fast-path evidence
         if: ${{ needs.ci.result == 'success' }}
@@ -79,20 +86,24 @@ jobs:
           set -euo pipefail
           test -s diagnostics/fast-ci-result.json
           node -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/fast-ci-result.json','utf8')); if(r.sha!==process.env.EXPECTED_HEAD_SHA) throw new Error('Evidence SHA mismatch'); if(r.status!=='PASS') throw new Error('Fast CI result is not PASS'); console.log('Fast CI result PASS');"
-      - name: Require CI success
-        run: test '${{ needs.ci.result }}' = success
+      - name: Require native prerequisite success
+        run: |
+          set -euo pipefail
+          test '${{ needs.matrix-certification.result }}' = success
+          test '${{ needs.ci.result }}' = success
 
   canonical-verify:
     name: Canonical Verification Gate
-    needs: [ci, fast-contract]
+    needs: [matrix-certification, ci, fast-contract]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
-      - name: Enforce prerequisite results without rerunning the suite
+      - name: Enforce all native prerequisite results without rerunning suites
         shell: bash
         run: |
           set -euo pipefail
+          test '${{ needs.matrix-certification.result }}' = success
           test '${{ needs.ci.result }}' = success
           test '${{ needs.fast-contract.result }}' = success
-          echo 'Canonical Verification Gate PASS: fast-path evidence is green.'
+          echo 'Canonical Verification Gate PASS: exact-head Matrix First and fast-path evidence are both green.'
