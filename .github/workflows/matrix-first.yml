@@ -1,9 +1,8 @@
 name: Matrix First Gate
 
+# Lightweight browser smoke only. Full multi-locale certification lives in Full Matrix Parallel.
 on:
   pull_request:
-    branches: [main]
-  push:
     branches: [main]
   workflow_dispatch:
 
@@ -27,14 +26,13 @@ env:
 
 jobs:
   matrix:
-    name: Matrix First — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    name: Matrix First — ${{ matrix.browser }} smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         browser: [chromium, firefox, webkit]
-        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -85,22 +83,20 @@ jobs:
           done
           cat /tmp/matrix-first-server.log || true
           exit 1
-      - name: Run owned shard — stop at first failure
-        timeout-minutes: 15
+      - name: Run browser smoke — fail on first failure
+        timeout-minutes: 10
         run: |
           set -euo pipefail
-          echo "Matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/4"
           npx playwright test tests/localization-runtime.spec.ts \
             --project=${{ matrix.browser }} \
             --workers=6 \
             --retries=0 \
-            --max-failures=1 \
-            --shard=${{ matrix.shard }}/4
+            --max-failures=1
       - name: Upload independent diagnostics
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: matrix-first-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
+          name: matrix-first-${{ matrix.browser }}-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/
@@ -121,10 +117,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Fail closed on any matrix unit
+      - name: Fail closed on any smoke unit
         run: |
           set -euo pipefail
           result='${{ needs.matrix.result }}'
           echo "matrix=$result"
           test "$result" = success
-          echo 'Matrix First Certification PASS: all 12 browser/shard units passed independently.'
+          echo 'Matrix First Certification PASS: Chromium + Firefox + WebKit smoke passed.'
