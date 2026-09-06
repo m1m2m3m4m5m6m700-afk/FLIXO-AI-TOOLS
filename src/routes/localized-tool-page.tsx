@@ -41,7 +41,6 @@ export function LocalizedToolPage() {
   const locale = (typeof params.locale === 'string' && isLocale(params.locale) ? params.locale : 'en') as Locale;
   const copy = TOOL_UI_I18N[locale];
   const direction = LOCALE_METADATA[locale].direction;
-  const languageTag = LOCALE_METADATA[locale].languageTag;
   const toolId = typeof params.tool === 'string' && isLocale(locale) && LOCALES.includes(locale) ? params.tool : null;
   const [favorite, setFavorite] = useState(() => (toolId ? getFavorites().includes(toolId) : false));
   const headingRef = useRef<HTMLHeadingElement>(null);
