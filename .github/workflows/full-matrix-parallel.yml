@@ -85,7 +85,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
-      fail-fast: false
+      fail-fast: true
       # Explicit production-critical combinations only: one Linux/Node target,
       # three supported browsers, three balanced shards. No OS/Node Cartesian product.
       matrix:
