@@ -35,7 +35,7 @@ function scanHtml(file: string, html: string): void {
 }
 
 function scanCss(file: string, css: string): void {
-  for (const match of css.matchAll(/url\(\s*(?:["']([^"']+)["']|([^\)\s]+))\s*\)/giu)) verifyReference(match[1] ?? match[2], file);
+  for (const match of css.matchAll(/url\(\s*(?:["']([^"']+)["']|([^)]\s+))\s*\)/giu)) verifyReference(match[1] ?? match[2], file);
 }
 
 function scanJs(file: string, js: string): void {
