@@ -1,17 +1,15 @@
 import type { Locale } from './i18n/config';
 
-import { getToolConfig } from '../config/tools';
-
-export type ProcessingMode = 'local' | 'remote';
-
-const REMOTE_TOOL_IDS = new Set(['ai-image-generator']);
-
 type PrivacyCopy = {
   localLabel: string;
   localDetail: string;
   remoteLabel: string;
   remoteDetail: string;
 };
+
+export type ProcessingMode = 'local' | 'remote';
+
+const REMOTE_TOOL_IDS = new Set(['ai-image-generator']);
 
 const PRIVACY_COPY: Record<Locale, PrivacyCopy> = {
   en: {
@@ -160,7 +158,6 @@ export function getToolPrivacyCopy(toolId: string, locale: string): {
   const mode = getToolProcessingMode(toolId);
   const localeKey = locale.split('-')[0] as Locale;
   const copy = PRIVACY_COPY[localeKey] ?? PRIVACY_COPY.en;
-  void getToolConfig;
 
   return mode === 'local'
     ? { mode, label: copy.localLabel, detail: copy.localDetail }
