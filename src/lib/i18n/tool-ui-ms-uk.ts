@@ -3,15 +3,27 @@ import type { Locale } from './config';
 const UI: Readonly<Record<'ms' | 'uk', Readonly<Record<string, string>>>> = {
   ms: {
     Open: 'Buka',
+    'Tool Chain': 'Rangkaian alat',
     'Generate captions': 'Jana sari kata',
     'Media file': 'Fail media',
+    'Video file': 'Fail video',
     'Inference device': 'Peranti inferens',
+    Prompt: 'Arahan',
+    'Generate image': 'Jana imej',
+    'No result yet.': 'Belum ada hasil.',
+    'A cinematic sunset over Cairo...': 'Matahari terbenam sinematik di atas Kaherah...',
   },
   uk: {
     Open: 'Відкрити',
+    'Tool Chain': 'Ланцюжок інструментів',
     'Generate captions': 'Створити субтитри',
     'Media file': 'Медіафайл',
+    'Video file': 'Відеофайл',
     'Inference device': 'Пристрій інференсу',
+    Prompt: 'Запит',
+    'Generate image': 'Створити зображення',
+    'No result yet.': 'Результату ще немає.',
+    'A cinematic sunset over Cairo...': 'Кінематографічний захід сонця над Каїром...',
   },
 };
 
@@ -24,10 +36,10 @@ function translateValue(locale: 'ms' | 'uk', value: string): string {
   const toolChain = value.match(/^Tool Chain (\d+)\/(\d+) steps Open$/);
   if (toolChain) {
     const [, completed, total] = toolChain;
-    const chain = locale === 'ms' ? 'Rangkaian alat' : 'Ланцюжок інструментів';
-    const open = UI[locale].Open;
-    return `${chain} ${completed}/${total} ${TOOL_CHAIN_STEPS[locale]} ${open}`;
+    return `${UI[locale]['Tool Chain']} ${completed}/${total} ${TOOL_CHAIN_STEPS[locale]} ${UI[locale].Open}`;
   }
+  const chainStepCount = value.match(/^(\d+)\/8 steps$/);
+  if (chainStepCount) return `${chainStepCount[1]}/8 ${TOOL_CHAIN_STEPS[locale]}`;
   return UI[locale][value] ?? value;
 }
 
