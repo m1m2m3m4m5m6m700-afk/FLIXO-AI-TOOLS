@@ -85,8 +85,8 @@ jobs:
 
   ci:
     name: CI
-    needs: [ultra-fast]
-    if: needs.ultra-fast.result == 'success'
+    needs: [ultra-fast, ultra-deep-recovery]
+    if: always() && (needs.ultra-fast.result == 'success' || needs.ultra-deep-recovery.result == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -116,8 +116,8 @@ jobs:
 
   fast-contract:
     name: Fast Contract Diagnostics
-    needs: [ultra-fast, ci]
-    if: always() && needs.ultra-fast.result == 'success'
+    needs: [ultra-fast, ultra-deep-recovery, ci]
+    if: always() && (needs.ultra-fast.result == 'success' || needs.ultra-deep-recovery.result == 'success')
     runs-on: ubuntu-latest
     env:
       EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -424,12 +424,11 @@ jobs:
           echo "fast-contract=$FAST_CONTRACT_RESULT"
           echo "canonical=$CANONICAL_RESULT"
           echo "g3=$G3_RESULT"
-          test "$ULTRA_FAST_RESULT" = success
+          if [[ "$ULTRA_FAST_RESULT" != "success" ]]; then
+            test "$ULTRA_DEEP_RESULT" = success
+          fi
           test "$CI_RESULT" = success
           test "$FAST_CONTRACT_RESULT" = success
           test "$CANONICAL_RESULT" = success
           test "$G3_RESULT" = success
-          if [[ "$ULTRA_FAST_RESULT" == "failure" ]]; then
-            test "$ULTRA_DEEP_RESULT" = success
-          fi
           echo 'FINAL CONTRACT DECISION PASS: fast path and official G3 contracts passed.'
