@@ -9,7 +9,7 @@ import { installToolUiRuntimeSupplement } from './lib/i18n/tool-ui-runtime-suppl
 import { installToolUiTechnicalValueNormalization } from './lib/i18n/tool-ui-technical-values';
 import { installToolUiRuntimeCompleteness } from './lib/i18n/tool-ui-runtime-completeness';
 import { FlixoUxShell } from './components/flixo-ux-shell';
-import { localeFromPathname, installDocumentLocaleContract } from './lib/i18n/runtime-document-locale';
+import { installDocumentLocaleContract } from './lib/i18n/runtime-document-locale';
 import './styles.css';
 import './home-motion.css';
 import './command-palette.css';
