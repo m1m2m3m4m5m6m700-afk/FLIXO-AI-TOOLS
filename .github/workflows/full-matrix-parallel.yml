@@ -25,7 +25,6 @@ env:
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
-  NODE_MODULES_CACHE_KEY: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
 
 jobs:
   static-and-build:
@@ -48,7 +47,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: ${{ env.NODE_MODULES_CACHE_KEY }}
+          key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
       - name: Install dependencies
         if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline --no-audit --no-fund
@@ -137,7 +136,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: ${{ env.NODE_MODULES_CACHE_KEY }}
+          key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json') }}
       - name: Install dependencies on cache miss
         if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline --no-audit --no-fund
