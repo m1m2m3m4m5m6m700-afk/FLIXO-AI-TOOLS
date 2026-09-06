@@ -80,6 +80,7 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+          import re
 
           p=Path('scripts/ci/fast-verify.mjs')
           s=p.read_text()
@@ -100,30 +101,28 @@ jobs:
           s=p.read_text()
           marker='      - name: Resolve legacy G3\n'
           start=s.find(marker)
-          if start < 0:
-              raise SystemExit('legacy G3 polling step not found')
-          end=s.find('      - name: G3 authoritative aggregation\n', start)
-          if end < 0:
-              raise SystemExit('G3 aggregation step boundary not found')
-          s=s[:start]+s[end:]
-          old="          LEGACY_RESULT: ${{ steps.legacy-g3.outputs.legacy_result }}\n"
-          if old not in s:
-              raise SystemExit('LEGACY_RESULT env line not found')
-          s=s.replace(old,'',1)
-          s=s.replace("  pull_request:\n    branches: [main]\n  push:", "  workflow_call:\n  pull_request:\n    branches: [main]\n  push:",1)
+          if start >= 0:
+              end=s.find('      - name: G3 authoritative aggregation\n', start)
+              if end < 0:
+                  raise SystemExit('G3 aggregation step boundary not found')
+              s=s[:start]+s[end:]
+          s=re.sub(r'^\s*LEGACY_RESULT:\s*\$\{\{[^\n]*\}\}\s*\n','',s,flags=re.M)
+          if 'gh api' in s or 'gh run list' in s or 'check-runs' in s or 'Resolve legacy G3' in s or 'legacy-g3' in s:
+              raise SystemExit('CI polling references remain after rewrite')
+          if 'workflow_call:' not in s.split('jobs:',1)[0]:
+              s=s.replace("  pull_request:\n    branches: [main]\n  push:", "  workflow_call:\n  pull_request:\n    branches: [main]\n  push:",1)
           p.write_text(s)
 
           p=Path('.github/workflows/full-matrix-parallel.yml')
           s=p.read_text()
-          s=s.replace("  pull_request:\n    branches: [main]\n  push:", "  workflow_call:\n  pull_request:\n    branches: [main]\n  push:",1)
+          if 'workflow_call:' not in s.split('jobs:',1)[0]:
+              s=s.replace("  pull_request:\n    branches: [main]\n  push:", "  workflow_call:\n  pull_request:\n    branches: [main]\n  push:",1)
+          if '--retries=0' not in s or '--max-failures=1' not in s:
+              raise SystemExit('strict matrix failure flags missing')
           p.write_text(s)
 
           p=Path('.github/workflows/release-certification.yml')
           s=p.read_text()
-          old='  workflow_dispatch:\n'
-          if old not in s:
-              raise SystemExit('release trigger anchor not found')
-          # Replace the polling-based engineering gate with native reusable-workflow dependencies.
           start=s.find('  engineering-gate:\n')
           end=s.find('  deployment-provider:\n', start)
           if start < 0 or end < 0:
@@ -135,9 +134,11 @@ jobs:
           s=p.read_text()
           old="const legacyFound = process.env.LEGACY_RESULT === 'success';\nconst parity = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 && legacyFound ? 'PASS' : legacyFound ? 'DIFFERENCE_REQUIRES_REVIEW' : 'NOT_PROVEN';\nconst authoritative = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 && missingEvidenceFields.length === 0 && parity === 'PASS';"
           new="const parity = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 ? 'PASS' : 'NOT_PROVEN';\nconst authoritative = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 && missingEvidenceFields.length === 0 && parity === 'PASS';"
-          if old not in s:
-              raise SystemExit('G3 legacy parity block not found')
-          p.write_text(s.replace(old,new,1))
+          if old in s:
+              s=s.replace(old,new,1)
+          elif 'LEGACY_RESULT' in s:
+              raise SystemExit('Unexpected G3 legacy parity form')
+          p.write_text(s)
           PY
 
       - name: Validate purge closure and workflow topology
@@ -145,15 +146,23 @@ jobs:
         run: |
           set -euo pipefail
           test ! -e .github/workflows/matrix-first.yml
-          ! find .github/workflows -maxdepth 1 -type f -name 'flixo-ci-*-shadow.yml' -print -quit | grep -q .
-          ! grep -R -nE 'gh api .*check-runs|gh run list .*--workflow|LEGACY_RESULT|sleep [0-9]+' .github/workflows || true
-          ! grep -R -n 'matrix-first.yml' .github/workflows || true
+          if find .github/workflows -maxdepth 1 -type f \( -name 'flixo-ci-*-shadow.yml' -o -name 'flixo-ci-shadow.yml' \) -print -quit | grep -q .; then
+            echo 'shadow workflows remain' >&2
+            exit 1
+          fi
+          if grep -R -nE 'gh api|gh run list|check-runs|LEGACY_RESULT|Resolve legacy G3|legacy-g3' .github/workflows; then
+            echo 'forbidden polling/shadow references remain' >&2
+            exit 1
+          fi
+          if grep -R -n 'matrix-first.yml' .github/workflows; then
+            echo 'deleted matrix-first entry point still referenced' >&2
+            exit 1
+          fi
           grep -q '^  workflow_call:' .github/workflows/ci.yml
           grep -q '^  workflow_call:' .github/workflows/full-matrix-parallel.yml
           grep -q -- '--retries=0' .github/workflows/full-matrix-parallel.yml
           grep -q -- '--max-failures=1' .github/workflows/full-matrix-parallel.yml
-          ! grep -n 'Resolve legacy G3\|legacy-g3\|LEGACY_RESULT' .github/workflows/ci.yml
-          ! grep -n 'gh run list\|sleep ' .github/workflows/release-certification.yml
+          ! grep -R -nE 'sleep [0-9]+' .github/workflows/release-certification.yml
 
       - name: Validate source integrity before commit
         run: |
