@@ -8,6 +8,9 @@ import { installToolUiRuntimeLocalization } from './lib/i18n/tool-ui-runtime';
 import { installToolUiRuntimeSupplement } from './lib/i18n/tool-ui-runtime-supplement';
 import { installToolUiTechnicalValueNormalization } from './lib/i18n/tool-ui-technical-values';
 import { installToolUiRuntimeCompleteness } from './lib/i18n/tool-ui-runtime-completeness';
+import { installToolUiMsUkLocalization } from './lib/i18n/tool-ui-ms-uk';
+import { installToolUiInferenceDeviceLocalization } from './lib/i18n/tool-ui-inference-device';
+import { installToolUiSyncBridge } from './lib/i18n/tool-ui-sync-bridge';
 import { FlixoUxShell } from './components/flixo-ux-shell';
 import './styles.css';
 import './home-motion.css';
@@ -21,6 +24,9 @@ const disposeToolUiLocalization = installToolUiRuntimeLocalization();
 const disposeToolUiLocalizationSupplement = installToolUiRuntimeSupplement();
 const disposeToolUiTechnicalValues = installToolUiTechnicalValueNormalization();
 const disposeToolUiRuntimeCompleteness = installToolUiRuntimeCompleteness();
+const disposeToolUiMsUkLocalization = installToolUiMsUkLocalization();
+const disposeToolUiInferenceDeviceLocalization = installToolUiInferenceDeviceLocalization();
+const disposeToolUiSyncBridge = installToolUiSyncBridge();
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
@@ -43,4 +49,7 @@ if (import.meta.hot) import.meta.hot.dispose(() => {
   disposeToolUiLocalizationSupplement();
   disposeToolUiTechnicalValues();
   disposeToolUiRuntimeCompleteness();
+  disposeToolUiMsUkLocalization();
+  disposeToolUiInferenceDeviceLocalization();
+  disposeToolUiSyncBridge();
 });

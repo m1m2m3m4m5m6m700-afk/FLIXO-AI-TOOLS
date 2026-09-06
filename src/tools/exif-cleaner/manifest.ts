@@ -6,10 +6,12 @@ import { es } from './seo/es';
 import { fr } from './seo/fr';
 import { hi } from './seo/hi';
 import { id } from './seo/id';
+import { ms } from './seo/ms';
 import { it } from './seo/it';
 import { ja } from './seo/ja';
 import { ko } from './seo/ko';
 import { nl } from './seo/nl';
+import { uk } from './seo/uk';
 import { pl } from './seo/pl';
 import { pt } from './seo/pt';
 import { ru } from './seo/ru';
@@ -26,5 +28,5 @@ export const EXIF_CLEANER_MANIFEST: ToolManifest = Object.freeze({
   status: 'ready',
   seoStatus: 'pilot',
   capabilities: ['client-side', 'metadata-removal', 'privacy', 'jpg', 'png'] as const,
-  seoLocales: Object.freeze({ en, ar, es, fr, de, ru, zh, hi, id, ur, ja, pt, it, ko, nl, pl, tr, vi, th, sv }),
+  seoLocales: Object.freeze({ en, ar, es, fr, de, ru, zh, hi, id, ms, ur, ja, pt, it, ko, nl, pl, tr, vi, th, sv, uk }),
 });
