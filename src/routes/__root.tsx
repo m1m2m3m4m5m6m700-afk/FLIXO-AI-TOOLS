@@ -3,7 +3,7 @@ import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tan
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
-import { applyDocumentLocale, localeFromPathname } from '../lib/i18n/runtime-document-locale';
+import { applyDocumentLocale, installDocumentLocaleContract, localeFromPathname } from '../lib/i18n/runtime-document-locale';
 import { SITE_ORIGIN } from '../lib/i18n';
 
 const GLOBAL_STRUCTURED_DATA = {
@@ -18,7 +18,9 @@ function RuntimeLocaleAttributes() {
   const location = useLocation();
 
   useLayoutEffect(() => {
-    applyDocumentLocale(localeFromPathname(location.pathname));
+    const locale = localeFromPathname(location.pathname);
+    applyDocumentLocale(locale);
+    return installDocumentLocaleContract(() => location.pathname);
   }, [location.pathname]);
 
   return null;
