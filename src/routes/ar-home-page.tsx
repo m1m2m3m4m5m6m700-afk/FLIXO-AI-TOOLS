@@ -9,8 +9,8 @@ import { getToolCategories, filterTools } from '../lib/ar-home-search';
 import { recommendImageTool } from '../lib/ar-home-recommendation';
 import { HOME_I18N } from '../data/home-locales';
 import { getAuthoritativeToolSeoName } from '../config/tool-seo-name-resolver';
-import { localizeMsUkCategory, localizeMsUkDescription } from '../lib/i18n/ms-uk-category';
-import { localizeToolCategory, localizeToolDescription } from '../lib/i18n/tool-localization';
+import { localizeMsUkDescription } from '../lib/i18n/ms-uk-category';
+import { localizeToolDescription } from '../lib/i18n/tool-localization';
 
 type ToolCard = {
   title: string;
@@ -33,7 +33,6 @@ const HOME_AR = HOME_I18N.ar;
 function localTool(tool: LocalizableTool): ToolCard {
   const toolConfig = getToolConfig(tool.id);
   const localizedTitle = toolConfig ? getAuthoritativeToolSeoName(toolConfig, 'ar') ?? tool.title : tool.title;
-  const localizedCategory = localizeMsUkCategory('ar', tool.category) ?? localizeToolCategory('ar', tool.category);
   const localizedDescription = localizeMsUkDescription('ar', localizedTitle) ?? localizeToolDescription('ar', localizedTitle, tool.category);
   return {
     title: localizedTitle,
