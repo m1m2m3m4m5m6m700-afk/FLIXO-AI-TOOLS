@@ -45,7 +45,6 @@ jobs:
           set -euo pipefail
           route_files=(
             src/routes/ai-captioner-srt.tsx src/routes/ai-vocal-instrumental-remover.tsx src/routes/aspect-ratio-tools.tsx src/routes/audio-compressor.tsx src/routes/audio-cutter-trimmer.tsx src/routes/audio-noise-reducer.tsx src/routes/audio-tools.tsx src/routes/base64-tools.tsx src/routes/case-tools.tsx src/routes/color-tools.tsx src/routes/en-image-compressor.tsx src/routes/hash-generator.tsx src/routes/image-tools.tsx src/routes/json-tools.tsx src/routes/password-tools.tsx src/routes/pdf-tools.tsx src/routes/qr-tools.tsx src/routes/regex-tools.tsx src/routes/text-tools.tsx src/routes/video-compressor-converter.tsx src/routes/video-gif-meme.tsx src/routes/video-tools.tsx src/routes/word-tools.tsx
-          )
           dead_components=(
             src/components/lazy-image-compressor.tsx src/components/technical-tool-shell.tsx src/components/tool-header-hud.tsx src/lib/i18n/shared-tool-ui.ts src/components/technical-tool-shell-premium.css src/components/canvas/ZenCanvas.tsx src/components/floating-canvas-overlay.tsx src/components/useCanvasCompare.ts
           )
@@ -174,12 +173,28 @@ jobs:
           npm run validate:seo-manifest
           npm run validate:language-quality
           npx playwright install chromium firefox
+          cat > tests/.ci-route-probe.spec.ts <<'EOF'
+          import { test, expect } from '@playwright/test';
+
+          test('diagnose Arabic image compressor route', async ({ page }) => {
+            const response = await page.goto('/ar/image-compressor', { waitUntil: 'domcontentloaded' });
+            console.log('ROUTE_PROBE_STATUS', response?.status());
+            console.log('ROUTE_PROBE_URL', page.url());
+            console.log('ROUTE_PROBE_HTML_LANG', await page.locator('html').getAttribute('lang'));
+            console.log('ROUTE_PROBE_H1S', await page.locator('h1').allTextContents());
+            console.log('ROUTE_PROBE_BODY', (await page.locator('body').innerText()).slice(0, 4000));
+            await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+          });
+          EOF
+          npx playwright test tests/.ci-route-probe.spec.ts --project=chromium --workers=1 --retries=0 --max-failures=1
+          rm -f tests/.ci-route-probe.spec.ts
           npx playwright test tests/pix.spec.ts tests/image-compressor.spec.ts --project=chromium --workers=2 --retries=0 --max-failures=1
 
       - name: Validate deletion targets
         shell: bash
         run: |
           set -euo pipefail
+          rm -f tests/.ci-route-probe.spec.ts
           test "$(git status --short | wc -l)" -gt 0
           ! git status --short | grep -E '\.github/workflows/zz-autonomous-purge-once\.yml$'
 
