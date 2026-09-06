@@ -21,7 +21,7 @@ const quantile = (values, q) => {
 
 const [ciRuns, fullRuns] = await Promise.all([
   fetchRuns('ci.yml'),
-  fetchRuns('full-matrix-promotion.yml'),
+  fetchRuns('full-matrix-parallel.yml'),
 ]);
 const ciSuccess = ciRuns.filter((run) => run.conclusion === 'success');
 const fullSuccess = fullRuns.filter((run) => run.conclusion === 'success');
