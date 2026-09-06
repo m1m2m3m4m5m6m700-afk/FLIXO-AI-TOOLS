@@ -14,14 +14,13 @@ concurrency:
   group: foundational-integrity-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
-env:
-  VITE_SITE_URL: https://flixoai.vercel.app
-
 jobs:
   g1-g3-foundation:
     name: G1-G3 / i18n + asset integrity
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      VITE_SITE_URL: https://flixoai.vercel.app
     steps:
       - uses: actions/checkout@v5
         with:
@@ -33,10 +32,10 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
-      - name: G1-G3 / Localization parity guard
+      - name: G1-G3 / Canonical npm check
+        run: npm run check
+      - name: G1-G3 / Explicit localization parity proof
         run: npm run validate:i18n
-      - name: G1-G3 / Build and asset-chain guard
-        run: npm run build
       - name: G1-G3 / Final exact-head identity
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
