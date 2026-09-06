@@ -81,7 +81,14 @@ for (const pathname of routes) {
   test(`G4 all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
     const runtimeErrors: string[] = [];
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
-    page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
+    page.on('console', (message) => {
+      const text = message.text();
+      if (text.startsWith('[G4 LANG WRITER]')) {
+        console.log(text);
+        return;
+      }
+      if (message.type() === 'error') runtimeErrors.push(`console: ${text}`);
+    });
     page.on('requestfailed', (request) => {
       if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`);
     });
@@ -106,14 +113,21 @@ for (const pathname of routes) {
         if (this === document.documentElement && name.toLowerCase() === 'lang') emit('setAttribute', { value });
         return originalSetAttribute.call(this, name, value);
       };
+      const originalSetAttributeNS = Element.prototype.setAttributeNS;
+      Element.prototype.setAttributeNS = function(namespace: string | null, name: string, value: string) {
+        if (this === document.documentElement && name.toLowerCase() === 'lang') emit('setAttributeNS', { namespace, value });
+        return originalSetAttributeNS.call(this, namespace, name, value);
+      };
       const originalRemoveAttribute = Element.prototype.removeAttribute;
       Element.prototype.removeAttribute = function(name: string) {
         if (this === document.documentElement && name.toLowerCase() === 'lang') emit('removeAttribute', { name });
         return originalRemoveAttribute.call(this, name);
       };
-      const langDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'lang');
-      if (langDescriptor?.set && langDescriptor.get && langDescriptor.configurable) {
-        Object.defineProperty(HTMLElement.prototype, 'lang', {
+      const langPrototypes = [HTMLElement.prototype, typeof HTMLHtmlElement !== 'undefined' ? HTMLHtmlElement.prototype : undefined].filter(Boolean) as typeof HTMLElement.prototype[];
+      for (const prototype of langPrototypes) {
+        const langDescriptor = Object.getOwnPropertyDescriptor(prototype, 'lang');
+        if (!langDescriptor?.set || !langDescriptor.get || !langDescriptor.configurable) continue;
+        Object.defineProperty(prototype, 'lang', {
           configurable: langDescriptor.configurable,
           enumerable: langDescriptor.enumerable,
           get: langDescriptor.get,
@@ -210,9 +224,7 @@ for (const pathname of routes) {
       const toolFamily = family.slice(1);
       const tool = toolFamily ? getToolConfig(toolFamily) : undefined;
       const expectedToolName = tool ? getAuthoritativeToolSeoName(tool, localeCode) : undefined;
-      if (expectedToolName) {
-        expect(current.h1, `${pathname} must expose the authoritative localized tool name`).toContain(expectedToolName);
-      }
+      if (expectedToolName) expect(current.h1, `${pathname} must expose the authoritative localized tool name`).toContain(expectedToolName);
     }
 
     const a11yIssues = await page.locator('button,a,input,textarea,select,img').evaluateAll((nodes) => {
@@ -236,15 +248,8 @@ for (const pathname of routes) {
         const input = node as HTMLInputElement;
         const explicitLabel = input.id ? document.querySelector(`label[for="${CSS.escape(input.id)}"]`)?.textContent ?? '' : '';
         const parentLabel = node.closest('label')?.textContent ?? '';
-        const name = [
-          node.getAttribute('aria-label'),
-          referencedLabelText(node),
-          explicitLabel,
-          parentLabel,
-          node.getAttribute('title'),
-          input.placeholder,
-          node.textContent,
-        ].map((value) => (value ?? '').trim()).find(Boolean) ?? '';
+        const name = [node.getAttribute('aria-label'), referencedLabelText(node), explicitLabel, parentLabel, node.getAttribute('title'), input.placeholder, node.textContent]
+          .map((value) => (value ?? '').trim()).find(Boolean) ?? '';
         return name ? [] : [`${node.tagName.toLowerCase()} missing accessible name`];
       });
     });
