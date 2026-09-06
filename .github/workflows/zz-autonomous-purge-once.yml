@@ -16,16 +16,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout exact head
+      - name: Checkout exact branch head
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          ref: protocols/i18n-assets-boundary-guards
 
-      - name: Configure git
+      - name: Configure git and verify branch head
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          git fetch origin protocols/i18n-assets-boundary-guards
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/protocols/i18n-assets-boundary-guards)"
 
       - name: Purge explicit dead code
         shell: bash
@@ -81,6 +84,23 @@ jobs:
             seed pix image-compressor ai-image-generator background-blur background-remover collage-maker crop-resize exif-cleaner image-converter image-cropper image-effects image-ocr image-to-svg image-toolkit image-upscaler meme-generator mockup-generator object-remover passport-photo-maker raster-to-svg svg-optimizer watermark-adder watermark-remover
           )
 
+          # The shared overlay and compare hook are referenced by Seed's live UI.
+          # Move those implementations into the owning tool before deleting the shared files.
+          mkdir -p src/tools/seed
+          cp src/components/floating-canvas-overlay.tsx src/tools/seed/seed-canvas-overlay.tsx
+          cp src/components/useCanvasCompare.ts src/tools/seed/useCanvasCompare.ts
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/tools/seed/seed-canvas-overlay.tsx')
+          s = p.read_text()
+          s = s.replace("import { useCanvasCompare } from './useCanvasCompare';", "import { useCanvasCompare } from './useCanvasCompare';")
+          s = s.replace("from './useCanvasCompare';", "from './useCanvasCompare';")
+          p.write_text(s)
+          p = Path('src/tools/seed/index.tsx')
+          s = p.read_text().replace("from '../../components/floating-canvas-overlay';", "from './seed-canvas-overlay';")
+          p.write_text(s)
+          PY
+
           git rm -f --ignore-unmatch "${route_files[@]}" "${dead_components[@]}" "${dead_scripts[@]}"
 
           for tool in "${tools[@]}"; do
@@ -110,6 +130,29 @@ jobs:
           p.write_text(s.replace(old, '', 1))
           PY
 
+      - name: Ghost reference audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          for needle in \
+            "components/floating-canvas-overlay" \
+            "components/useCanvasCompare" \
+            "components/lazy-image-compressor" \
+            "components/technical-tool-shell" \
+            "components/tool-header-hud" \
+            "lib/i18n/shared-tool-ui"; do
+            if git grep -n -- "$needle" -- ':!src/tools/seed/seed-canvas-overlay.tsx'; then
+              echo "Residual reference: $needle"
+              exit 1
+            fi
+          done
+
+      - name: Runtime locale writer audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git grep -n -E "document\.documentElement(\.lang|\.dir)|setAttribute\(['\"](lang|dir)['\"]" -- src index.html || true
+
       - name: Validate source integrity before commit
         run: |
           set -euo pipefail
@@ -117,6 +160,8 @@ jobs:
           npm run check
           npm run verify:i18n -- --strict --report
           npm run validate:tool-manifest
+          npm run validate:seo-manifest
+          npm run validate:language-quality
           npx playwright install chromium firefox
           npx playwright test tests/pix.spec.ts tests/image-compressor.spec.ts --project=chromium --workers=2 --retries=0 --max-failures=1
 
