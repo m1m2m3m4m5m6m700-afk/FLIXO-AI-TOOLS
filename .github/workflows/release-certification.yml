@@ -43,15 +43,9 @@ jobs:
     uses: ./.github/workflows/ci.yml
     secrets: inherit
 
-  matrix-certification:
-    name: Canonical Matrix First Certification
-    needs: [socket-release]
-    uses: ./.github/workflows/matrix-first.yml
-    secrets: inherit
-
   engineering-gate:
     name: Engineering Release Gate
-    needs: [socket-release, canonical-ci, matrix-certification]
+    needs: [socket-release, canonical-ci]
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -61,7 +55,6 @@ jobs:
           set -euo pipefail
           test "${{ needs.socket-release.result }}" = success
           test "${{ needs.canonical-ci.result }}" = success
-          test "${{ needs.matrix-certification.result }}" = success
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
@@ -82,8 +75,7 @@ jobs:
             echo
             echo 'Blocking evidence:'
             echo '- Socket supply-chain scan: PASS'
-            echo '- Canonical GitHub CI: PASS'
-            echo '- Canonical Matrix First certification: PASS'
+            echo '- Canonical GitHub CI + Matrix First certification: PASS'
             echo '- Production surface certification: PASS'
             echo
             echo 'Vercel provider-side quota status is recorded separately and never converted into an engineering PASS.'
