@@ -59,7 +59,7 @@ jobs:
           git rm -f --ignore-unmatch \
             src/routes/ai-captioner-srt.tsx src/routes/ai-vocal-instrumental-remover.tsx src/routes/aspect-ratio-tools.tsx src/routes/audio-compressor.tsx src/routes/audio-cutter-trimmer.tsx src/routes/audio-noise-reducer.tsx src/routes/audio-tools.tsx src/routes/base64-tools.tsx src/routes/case-tools.tsx src/routes/color-tools.tsx src/routes/en-image-compressor.tsx src/routes/hash-generator.tsx src/routes/image-tools.tsx src/routes/json-tools.tsx src/routes/password-tools.tsx src/routes/pdf-tools.tsx src/routes/qr-tools.tsx src/routes/regex-tools.tsx src/routes/text-tools.tsx src/routes/video-compressor-converter.tsx src/routes/video-gif-meme.tsx src/routes/video-tools.tsx src/routes/word-tools.tsx \
             src/components/lazy-image-compressor.tsx src/components/technical-tool-shell.tsx src/components/tool-header-hud.tsx src/lib/i18n/shared-tool-ui.ts src/components/technical-tool-shell-premium.css src/components/canvas/ZenCanvas.tsx src/components/floating-canvas-overlay.tsx src/components/useCanvasCompare.ts \
-            scripts/generate-home-locale-modules.mjs scripts/split-home-locales.mjs scripts/generate-admin-password-hash.mjs scripts/quickflow-intent.test.mjs scripts/test-image-compressor-file-safety.mjs
+            scripts/generate-home-locale-modules.mjs scripts/split-home-locales.mjs scripts/generate-admin-password-hash.mjs scripts/quickflow-intent.test.mjs scripts/test-image-compressor-file-safety.mjs scripts/validate-locale-integrity.mjs
 
           git rm -f --ignore-unmatch src/tools/{seed,pix,image-compressor,ai-image-generator,background-blur,background-remover,collage-maker,crop-resize,exif-cleaner,image-converter,image-cropper,image-effects,image-ocr,image-to-svg,image-toolkit,image-upscaler,meme-generator,mockup-generator,object-remover,passport-photo-maker,raster-to-svg,svg-optimizer,watermark-adder,watermark-remover}/{manifest.ts,test.ts}
           git rm -rf --ignore-unmatch src/tools/{seed,pix,image-compressor,ai-image-generator,background-blur,background-remover,collage-maker,crop-resize,exif-cleaner,image-converter,image-cropper,image-effects,image-ocr,image-to-svg,image-toolkit,image-upscaler,meme-generator,mockup-generator,object-remover,passport-photo-maker,raster-to-svg,svg-optimizer,watermark-adder,watermark-remover}/seo
@@ -71,9 +71,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import json
-          import re
 
-          # Fast-verify: never pass deleted paths from git diff to ESLint.
           p = Path('scripts/ci/fast-verify.mjs')
           s = p.read_text()
           old = "const sourceFiles = files.filter((file) => /\\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file));"
@@ -83,14 +81,12 @@ jobs:
           elif new not in s:
               raise SystemExit('fast-verify sourceFiles rule missing')
 
-          # Pix: remove duplicate nested heading.
           p = Path('src/tools/pix/index.tsx')
           s = p.read_text()
           nested = '<h1 className="sr-only">Pix Studio</h1>'
           if nested in s:
               p.write_text(s.replace(nested, '', 1))
 
-          # CI: make it reusable and eliminate the legacy cross-workflow G3 polling barrier.
           p = Path('.github/workflows/ci.yml')
           lines = p.read_text().splitlines()
           if not any(line.strip() == 'workflow_call:' for line in lines[:20]):
@@ -107,7 +103,6 @@ jobs:
           lines = [line for line in lines if not line.strip().startswith('LEGACY_RESULT:')]
           p.write_text('\n'.join(lines) + '\n')
 
-          # Release certification: native reusable DAG, no gh polling/sleeps.
           p = Path('.github/workflows/release-certification.yml')
           lines = p.read_text().splitlines()
           start = next((i for i, line in enumerate(lines) if line == '  engineering-gate:'), None)
@@ -170,7 +165,6 @@ jobs:
           ]
           p.write_text('\n'.join(lines[:start] + block + lines[end:]) + '\n')
 
-          # Validator-chain deduplication: locale-integrity is an exact spawn-only alias of effective localization.
           p = Path('package.json')
           data = json.loads(p.read_text())
           scripts = data['scripts']
@@ -182,7 +176,7 @@ jobs:
               scripts[key] = ' && '.join(parts)
           p.write_text(json.dumps(data, separators=(',', ':')) + '\n')
 
-          # Diagnostics are manual-only; they must not pollute the PR critical path.
+          # Diagnostics are manual-only; remove PR/push/schedule triggers while retaining workflow_dispatch.
           for name in ('parallel-diagnostics.yml', 'phase-b-evidence.yml', 'phase-c-failure-classifier.yml', 'root-cause-diagnostics.yml'):
               p = Path('.github/workflows') / name
               if not p.exists():
@@ -222,7 +216,15 @@ jobs:
           grep -q '^  workflow_call:' .github/workflows/matrix-first.yml
           grep -q -- '--retries=0' .github/workflows/matrix-first.yml
           grep -q -- '--max-failures=1' .github/workflows/matrix-first.yml
-          ! grep -R -nE '^  pull_request:|^  push:|^  schedule:' .github/workflows/{parallel-diagnostics.yml,phase-b-evidence.yml,phase-c-failure-classifier.yml,root-cause-diagnostics.yml} 2>/dev/null || true
+          for f in parallel-diagnostics.yml phase-b-evidence.yml phase-c-failure-classifier.yml root-cause-diagnostics.yml; do
+            if [ -f ".github/workflows/$f" ]; then
+              if grep -qE '^  (pull_request|push|schedule):' ".github/workflows/$f"; then
+                echo "diagnostic workflow still has an automatic trigger: $f" >&2
+                exit 1
+              fi
+              grep -q '^  workflow_dispatch:' ".github/workflows/$f"
+            fi
+          done
 
       - name: Validate exact source state before commit
         shell: bash
