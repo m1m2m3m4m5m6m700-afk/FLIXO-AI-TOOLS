@@ -6,6 +6,7 @@ import { installRuntimeDiagnostics } from './lib/diagnostics/runtime';
 import { installPerformanceDiagnostics } from './lib/diagnostics/performance';
 import { installToolUiRuntimeLocalization } from './lib/i18n/tool-ui-runtime';
 import { installToolUiRuntimeSupplement } from './lib/i18n/tool-ui-runtime-supplement';
+import { installToolUiMsUkRuntimeCoverage } from './lib/i18n/tool-ui-runtime-ms-uk';
 import { installToolUiTechnicalValueNormalization } from './lib/i18n/tool-ui-technical-values';
 import { installToolUiRuntimeCompleteness } from './lib/i18n/tool-ui-runtime-completeness';
 import { applyDocumentLocale, localeFromPathname, installDocumentLocaleContract } from './lib/i18n/runtime-document-locale';
@@ -22,6 +23,7 @@ installRuntimeDiagnostics();
 installPerformanceDiagnostics();
 const disposeToolUiLocalization = installToolUiRuntimeLocalization();
 const disposeToolUiLocalizationSupplement = installToolUiRuntimeSupplement();
+const disposeToolUiMsUkRuntimeCoverage = installToolUiMsUkRuntimeCoverage();
 const disposeToolUiTechnicalValues = installToolUiTechnicalValueNormalization();
 const disposeToolUiRuntimeCompleteness = installToolUiRuntimeCompleteness();
 
@@ -45,6 +47,7 @@ if (import.meta.hot) import.meta.hot.dispose(() => {
   disposeDocumentLocaleContract();
   disposeToolUiLocalization();
   disposeToolUiLocalizationSupplement();
+  disposeToolUiMsUkRuntimeCoverage();
   disposeToolUiTechnicalValues();
   disposeToolUiRuntimeCompleteness();
 });
