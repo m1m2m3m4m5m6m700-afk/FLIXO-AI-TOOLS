@@ -5,6 +5,11 @@ name: Matrix First Gate
 on:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      expected_head_sha:
+        description: Exact source SHA to certify.
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -23,18 +28,17 @@ env:
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+  EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   static-and-build:
     name: Static Gate + Single Production Build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -106,12 +110,10 @@ jobs:
           - browser: webkit
             shard: 3
             total_shards: 3
-    env:
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -217,4 +219,4 @@ jobs:
           matrix_result='${{ needs.matrix.result }}'
           test "$static_result" = success
           test "$matrix_result" = success
-          echo 'Matrix First Certification PASS: one exact-head production build consumed by all Chromium, Firefox, and WebKit shards.'
+          echo "Matrix First Certification PASS: exact source ${EXPECTED_HEAD_SHA} consumed by Chromium, Firefox, and WebKit shards."
