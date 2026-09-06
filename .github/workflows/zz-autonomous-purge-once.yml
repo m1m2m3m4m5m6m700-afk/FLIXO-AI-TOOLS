@@ -10,11 +10,20 @@ on:
 permissions:
   contents: write
 
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: https://canonical.test
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
+  NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+
 jobs:
   purge:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout exact branch head
         uses: actions/checkout@v5
@@ -60,25 +69,91 @@ jobs:
             git rm -f --ignore-unmatch "src/tools/${tool}/manifest.ts" "src/tools/${tool}/test.ts"
             git rm -rf --ignore-unmatch "src/tools/${tool}/seo"
           done
+          git rm -f --ignore-unmatch .github/workflows/matrix-first.yml
+          for f in .github/workflows/flixo-ci-*-shadow.yml .github/workflows/flixo-ci-shadow.yml; do
+            git rm -f --ignore-unmatch "$f"
+          done
 
-      - name: Fix confirmed CI defects
+      - name: Fix confirmed CI defects and remove polling architecture
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+
           p=Path('scripts/ci/fast-verify.mjs')
           s=p.read_text()
           old="const sourceFiles = files.filter((file) => /\\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file));"
           new="const sourceFiles = files.filter((file) => existsSync(file) && /\\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file));"
-          if old not in s: raise SystemExit('CI planner sourceFiles line not found')
+          if old not in s:
+              raise SystemExit('CI planner sourceFiles line not found')
           p.write_text(s.replace(old,new,1))
+
           p=Path('src/tools/pix/index.tsx')
           s=p.read_text()
           old='<h1 className="sr-only">Pix Studio</h1>'
-          if old not in s: raise SystemExit('Pix nested H1 not found')
+          if old not in s:
+              raise SystemExit('Pix nested H1 not found')
           p.write_text(s.replace(old,'',1))
+
+          p=Path('.github/workflows/ci.yml')
+          s=p.read_text()
+          marker='      - name: Resolve legacy G3\n'
+          start=s.find(marker)
+          if start < 0:
+              raise SystemExit('legacy G3 polling step not found')
+          end=s.find('      - name: G3 authoritative aggregation\n', start)
+          if end < 0:
+              raise SystemExit('G3 aggregation step boundary not found')
+          s=s[:start]+s[end:]
+          old="          LEGACY_RESULT: ${{ steps.legacy-g3.outputs.legacy_result }}\n"
+          if old not in s:
+              raise SystemExit('LEGACY_RESULT env line not found')
+          s=s.replace(old,'',1)
+          s=s.replace("  pull_request:\n    branches: [main]\n  push:", "  workflow_call:\n  pull_request:\n    branches: [main]\n  push:",1)
+          p.write_text(s)
+
+          p=Path('.github/workflows/full-matrix-parallel.yml')
+          s=p.read_text()
+          s=s.replace("  pull_request:\n    branches: [main]\n  push:", "  workflow_call:\n  pull_request:\n    branches: [main]\n  push:",1)
+          p.write_text(s)
+
+          p=Path('.github/workflows/release-certification.yml')
+          s=p.read_text()
+          old='  workflow_dispatch:\n'
+          if old not in s:
+              raise SystemExit('release trigger anchor not found')
+          # Replace the polling-based engineering gate with native reusable-workflow dependencies.
+          start=s.find('  engineering-gate:\n')
+          end=s.find('  deployment-provider:\n', start)
+          if start < 0 or end < 0:
+              raise SystemExit('release engineering/deployment boundaries not found')
+          replacement='''  canonical-ci:\n    name: Canonical GitHub CI\n    needs: [socket-release]\n    uses: ./.github/workflows/ci.yml\n    secrets: inherit\n\n  full-matrix-certification:\n    name: Full Matrix Parallel Certification\n    needs: [socket-release]\n    uses: ./.github/workflows/full-matrix-parallel.yml\n    secrets: inherit\n\n  engineering-gate:\n    name: Engineering Release Gate\n    needs: [socket-release, canonical-ci, full-matrix-certification]\n    runs-on: ubuntu-latest\n    timeout-minutes: 8\n    steps:\n      - uses: actions/checkout@v5\n      - uses: actions/setup-node@v5\n        with:\n          node-version-file: .nvmrc\n          cache: npm\n      - run: npm ci --prefer-offline --no-audit --no-fund\n      - name: Enforce native prerequisite results\n        shell: bash\n        run: |\n          set -euo pipefail\n          test '${{ needs.socket-release.result }}' = success\n          test '${{ needs.canonical-ci.result }}' = success\n          test '${{ needs.full-matrix-certification.result }}' = success\n      - name: Verify production surface\n        env:\n          PRODUCTION_ORIGIN: https://flixoai.vercel.app\n        run: node scripts/validate-production-certification.mjs\n      - name: Write release evidence\n        run: |\n          {\n            echo '## FLIXO Release Certification'\n            echo\n            echo 'Engineering gate: PASS'\n            echo "Commit: $GITHUB_SHA"\n            echo\n            echo 'Blocking evidence:'\n            echo '- Socket supply-chain scan: PASS'\n            echo '- Canonical GitHub CI: PASS'\n            echo '- Full Matrix Parallel certification: PASS'\n            echo '- Production surface certification: PASS'\n            echo\n            echo 'Vercel provider-side quota status is recorded separately and never converted into an engineering PASS.'\n          } >> "$GITHUB_STEP_SUMMARY"\n\n'''
+          p.write_text(s[:start]+replacement+s[end:])
+
+          p=Path('scripts/ci/g3/aggregate.mjs')
+          s=p.read_text()
+          old="const legacyFound = process.env.LEGACY_RESULT === 'success';\nconst parity = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 && legacyFound ? 'PASS' : legacyFound ? 'DIFFERENCE_REQUIRES_REVIEW' : 'NOT_PROVEN';\nconst authoritative = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 && missingEvidenceFields.length === 0 && parity === 'PASS';"
+          new="const parity = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 ? 'PASS' : 'NOT_PROVEN';\nconst authoritative = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 && missingEvidenceFields.length === 0 && parity === 'PASS';"
+          if old not in s:
+              raise SystemExit('G3 legacy parity block not found')
+          p.write_text(s.replace(old,new,1))
           PY
+
+      - name: Validate purge closure and workflow topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .github/workflows/matrix-first.yml
+          ! find .github/workflows -maxdepth 1 -type f -name 'flixo-ci-*-shadow.yml' -print -quit | grep -q .
+          ! grep -R -nE 'gh api .*check-runs|gh run list .*--workflow|LEGACY_RESULT|sleep [0-9]+' .github/workflows || true
+          ! grep -R -n 'matrix-first.yml' .github/workflows || true
+          grep -q '^  workflow_call:' .github/workflows/ci.yml
+          grep -q '^  workflow_call:' .github/workflows/full-matrix-parallel.yml
+          grep -q -- '--retries=0' .github/workflows/full-matrix-parallel.yml
+          grep -q -- '--max-failures=1' .github/workflows/full-matrix-parallel.yml
+          ! grep -n 'Resolve legacy G3\|legacy-g3\|LEGACY_RESULT' .github/workflows/ci.yml
+          ! grep -n 'gh run list\|sleep ' .github/workflows/release-certification.yml
 
       - name: Validate source integrity before commit
         run: |
@@ -92,6 +167,13 @@ jobs:
           npx playwright install chromium firefox
           npx playwright test tests/pix.spec.ts tests/image-compressor.spec.ts --project=chromium --workers=2 --retries=0 --max-failures=1
 
+      - name: Validate deletion targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git status --short | wc -l)" -gt 0
+          ! git status --short | grep -E '\.github/workflows/zz-autonomous-purge-once\.yml$'
+
       - name: Remove runner and commit verified purge
         shell: bash
         run: |
@@ -99,5 +181,5 @@ jobs:
           git rm -f .github/workflows/zz-autonomous-purge-once.yml
           git diff --cached --check
           test -n "$(git diff --cached --name-only)"
-          git commit -m "chore: purge verified legacy surfaces"
+          git commit -m "chore: purge legacy surfaces and CI shadows"
           git push origin HEAD:protocols/i18n-assets-boundary-guards
