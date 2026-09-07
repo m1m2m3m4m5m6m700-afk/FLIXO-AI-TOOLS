@@ -1,6 +1,7 @@
 name: Parallel Diagnostics
 
-# Diagnostic microscope only. Blocking evidence is owned by CI, S4, Localization, SEO, and release certification.
+# Diagnostic microscope only. Blocking evidence is owned by the canonical
+# full matrix certification workflow and the contract/release gates.
 
 on:
   workflow_dispatch:
@@ -48,6 +49,9 @@ jobs:
           - localization
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
@@ -79,7 +83,7 @@ jobs:
         if: ${{ always() && failure() }}
         uses: actions/upload-artifact@v6
         with:
-          name: diagnostic-${{ matrix.tool }}-${{ matrix.browser }}
+          name: diagnostic-${{ matrix.tool }}-${{ matrix.browser }}-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/
