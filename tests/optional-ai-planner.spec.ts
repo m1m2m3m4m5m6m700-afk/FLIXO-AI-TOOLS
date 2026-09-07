@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { planWithOptionalAI } from '@/lib/ai/optional-planner';
+import { planWithOptionalAI } from '@/lib/ai/planner';
 
 test.describe('optional AI planner', () => {
   test('uses deterministic planning when AI is not configured', async () => {
