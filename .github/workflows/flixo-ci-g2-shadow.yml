@@ -19,6 +19,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
@@ -36,7 +39,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-g2-shadow-${{ github.sha }}
+          name: ci-g2-shadow-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/ci/
           if-no-files-found: warn
           retention-days: 14
