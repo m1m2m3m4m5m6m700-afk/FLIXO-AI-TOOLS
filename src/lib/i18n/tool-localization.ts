@@ -1,6 +1,6 @@
 import type { KnownLocale, Locale } from './config';
 
-export const CATEGORY_LABELS: Partial<Record<KnownLocale, Record<'Images' | 'AI' | 'Other', string>> = {
+export const CATEGORY_LABELS: Record<Locale, Record<'Images' | 'AI' | 'Other', string>> = {
   ar: { Images: 'الصور', AI: 'الذكاء الاصطناعي', Other: 'أخرى' }, en: { Images: 'Images', AI: 'AI', Other: 'Other' }, es: { Images: 'Imágenes', AI: 'IA', Other: 'Otros' }, fr: { Images: 'Images', AI: 'IA', Other: 'Autres' }, de: { Images: 'Bilder', AI: 'KI', Other: 'Andere' }, hi: { Images: 'छवियाँ', AI: 'एआई', Other: 'अन्य' }, id: { Images: 'Gambar', AI: 'AI', Other: 'Lainnya' }, it: { Images: 'Immagini', AI: 'IA', Other: 'Altro' }, ja: { Images: '画像', AI: 'AI', Other: 'その他' }, ko: { Images: '이미지', AI: 'AI', Other: '기타' }, ms: { Images: 'Imej', AI: 'AI', Other: 'Lain-lain' }, nl: { Images: 'Afbeeldingen', AI: 'AI', Other: 'Overig' }, pl: { Images: 'Obrazy', AI: 'AI', Other: 'Inne' }, pt: { Images: 'Imagens', AI: 'IA', Other: 'Outros' }, ru: { Images: 'Изображения', AI: 'ИИ', Other: 'Другое' }, sv: { Images: 'Bilder', AI: 'AI', Other: 'Övrigt' }, th: { Images: 'รูปภาพ', AI: 'AI', Other: 'อื่นๆ' }, tr: { Images: 'Görseller', AI: 'YZ', Other: 'Diğer' }, uk: { Images: 'Зображення', AI: 'ШІ', Other: 'Інше' }, vi: { Images: 'Hình ảnh', AI: 'AI', Other: 'Khác' },
 };
 
