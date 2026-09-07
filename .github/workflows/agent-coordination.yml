@@ -28,6 +28,10 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Replay swarm state before packet validation
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node --experimental-strip-types scripts/ci/swarm-engine.mjs --replay-only
       - name: Validate claims protocol
         run: node scripts/ci/validate-agent-coordination-protocol.mjs
       - name: Validate work queue
@@ -37,7 +41,7 @@ jobs:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           FLIXO_SWARM_LEDGER: artifacts/ci/agent-coordination/events.ndjson
           FLIXO_SWARM_WORK_QUEUE: .ci/agent-coordination/work-queue.json
-        run: node scripts/ci/validate-swarm-state.mjs
+        run: node --experimental-strip-types scripts/ci/validate-swarm-state.mjs
       - name: Validate local agent sessions
         env:
           FLIXO_AGENT_COORDINATION_STRICT_SHA: 'true'
@@ -55,10 +59,16 @@ jobs:
           GITHUB_EVENT_PATH: ${{ github.event_path }}
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/ci/validate-agent-pr-collisions.mjs
-      - name: Validate swarm state after event packet checks
+      - name: Replay swarm state after packet validation
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: node scripts/ci/validate-swarm-state.mjs
+        run: node --experimental-strip-types scripts/ci/swarm-engine.mjs --replay-only
+      - name: Revalidate swarm state after packet validation
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          FLIXO_SWARM_LEDGER: artifacts/ci/agent-coordination/events.ndjson
+          FLIXO_SWARM_WORK_QUEUE: .ci/agent-coordination/work-queue.json
+        run: node --experimental-strip-types scripts/ci/validate-swarm-state.mjs
       - name: Build coordination dashboard
         run: node scripts/ci/agent-coordination-dashboard.mjs
       - name: Audit coordination state
