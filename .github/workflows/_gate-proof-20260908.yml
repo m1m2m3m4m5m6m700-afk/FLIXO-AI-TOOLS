@@ -1,0 +1,49 @@
+name: Temporary Gate Proof
+
+on:
+  push:
+    branches:
+      - remediation/dependency-lock-harmonization-20260908
+
+permissions:
+  contents: write
+
+jobs:
+  gate-proof:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: remediation/dependency-lock-harmonization-20260908
+          fetch-depth: 0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Dependency gate - real npm ci
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Type gate
+        run: npm run typecheck
+
+      - name: Build gate
+        run: npm run build
+
+      - name: Remove proof workflow and commit cleanup
+        if: always()
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm -f .github/workflows/_gate-proof-20260908.yml
+          git add .github/workflows/_gate-proof-20260908.yml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'chore: remove temporary gate proof workflow'
+          git push origin HEAD:remediation/dependency-lock-harmonization-20260908
