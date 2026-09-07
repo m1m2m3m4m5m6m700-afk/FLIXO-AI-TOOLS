@@ -34,7 +34,7 @@
         "RC-MATRIX-006",
         "RC-MATRIX-007"
       ],
-      "status": "active",
+      "status": "released",
       "leasedAt": "2026-09-07T17:00:00Z",
       "leaseUntil": "2026-09-07T17:30:00Z"
     }
