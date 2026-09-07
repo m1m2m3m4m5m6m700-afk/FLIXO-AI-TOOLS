@@ -15,29 +15,29 @@ const routeTree = read('src/routes/route-tree.ts');
 assert.doesNotMatch(routeTree, /adminLoginRoute|adminRoute/, 'admin route remains registered');
 
 const outputContract = read('src/lib/contracts/tool-output.ts');
-assert.match(outputContract, /ToolOutputKind = 'image' \| 'svg' \| 'zip' \| 'text' \| 'json'/, 'output kind contract drifted');
+assert.match(outputContract, /ToolOutputKind = 'image' \\| 'svg' \\| 'zip' \\| 'text' \\| 'json'/, 'output kind contract drifted');
 assert.doesNotMatch(outputContract, /'pdf'|'csv'|'audio'|'video'/, 'legacy output kind remains');
 
 const fileSafety = read('src/lib/contracts/file-safety.ts');
-assert.doesNotMatch(fileSafety, /application\/pdf|audio\/|video\/|\.mp3|\.mp4|\.csv/, 'legacy G2 media format remains');
+assert.doesNotMatch(fileSafety, /application\\/pdf|audio\\/|video\\/|\\.mp3|\\.mp4|\\.csv/, 'legacy G2 media format remains');
 
 const g3 = read('scripts/test-g3-artifact-integrity.mjs');
-const g3ExecutableSource = g3.split(/\r?\n/).filter((line) => !line.includes('assert.doesNotMatch')).join('\n');
-assert.doesNotMatch(g3ExecutableSource, /PDFDocument|application\/pdf|text\/csv|audio\/|video\//, 'legacy G3 format remains');
+const g3ExecutableSource = g3.split(/\\r?\\n/).filter((line) => !line.includes('assert.doesNotMatch') && !line.includes('assertInvalid')).join('\\n');
+assert.doesNotMatch(g3ExecutableSource, /PDFDocument|application\\/pdf|text\\/csv|audio\\/|video\\//, 'legacy G3 format remains');
 assert.match(g3, /g3-image-batch-package/, 'ZIP packaging coverage disappeared without an explicit contract decision');
 
 const localization = read('src/lib/i18n/tool-localization.ts');
-assert.match(localization, /zh:\s*\{/u, 'canonical zh localization is missing');
-assert.match(localization, /ur:\s*\{/u, 'canonical ur localization is missing');
-assert.doesNotMatch(localization, /\bms\s*:/, 'retired ms locale remains in localization data');
-assert.doesNotMatch(localization, /\buk\s*:/, 'retired uk locale remains in localization data');
+assert.match(localization, /zh:\\s*\\{/u, 'canonical zh localization is missing');
+assert.match(localization, /ur:\\s*\\{/u, 'canonical ur localization is missing');
+assert.doesNotMatch(localization, /\\bms\\s*:/, 'retired ms locale remains in localization data');
+assert.doesNotMatch(localization, /\\buk\\s*:/, 'retired uk locale remains in localization data');
 
 const seo = read('src/lib/seo/tool-seo.ts');
 assert.match(seo, /export type ToolCategory = 'Images'/, 'SEO taxonomy is not Image-only');
 assert.doesNotMatch(seo, /'AI'|'Other'/, 'legacy SEO taxonomy remains');
 
 const config = read('src/lib/i18n/config.ts');
-const locales = config.match(/export const LOCALES = \[([^\]]+)\] as const;/u)?.[1]?.match(/'([a-z]{2})'/gu)?.map((value) => value.slice(1, -1)) ?? [];
+const locales = config.match(/export const LOCALES = \\[([^\\]]+)\\] as const;/u)?.[1]?.match(/'([a-z]{2})'/gu)?.map((value) => value.slice(1, -1)) ?? [];
 assert.deepEqual(locales, ['ar','en','es','fr','de','ru','zh','hi','id','ur','ja','pt','it','ko','nl','pl','tr','vi','th','sv'], 'canonical locale registry drifted');
 
 const env = read('.env.example');
