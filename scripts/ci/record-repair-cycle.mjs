@@ -29,7 +29,7 @@ function correlate({ cycle, reports }) {
   const clusters = roots.map((root) => ({ id: `SRC-${root.id}`, rootCauseId: root.id, occurrences: root.occurrences, distinctSymptoms: root.distinctSymptoms, confidence: root.confidence }));
   return { distinctSymptoms: new Set(failures.map((failure) => failure.fingerprint ?? failure.label)).size, clusters, recurrenceCount: 0, regressionCount: 0, newRootCount: roots.filter((root) => root.status === 'UNKNOWN').length, memory: { cycles: cycle.status === 'PASS' ? 0 : 1 }, roots };
 }
-function cycleFingerprint(cycle) { return createHash('sha256').update(JSON.stringify({ mode: cycle.mode, rootCauses: cycle.rootCauses, failures: cycle.failures.map(({ fingerprints, ...item }) => item) })).digest('hex'); }
+function cycleFingerprint(cycle) { return createHash('sha256').update(JSON.stringify({ mode: cycle.mode, rootCauses: cycle.rootCauses, failures: cycle.failures.map((item) => Object.fromEntries(Object.entries(item).filter(([key]) => key !== 'fingerprints'))) })).digest('hex'); }
 function writeCycleFiles(cycle, correlation) {
   appendFileSync(resolve(DIAG_DIR, 'repair-cycles.jsonl'), `${JSON.stringify(cycle)}\n`);
   writeFileSync(resolve(DIAG_DIR, 'latest-repair-cycle.json'), `${JSON.stringify({ ...cycle, correlation }, null, 2)}\n`);
