@@ -42,6 +42,7 @@ const sharedOnly = (value: string) => {
 };
 
 type Snapshot = { title: string; description: string; h1: string; ui: string[] };
+type LocaleTraceEntry = { op: string; name: string; value: string | null; stack: string };
 
 const normalize = (value: string | null | undefined) => (value ?? '').replace(/\s+/gu, ' ').trim();
 const familyPath = (pathname: string) => pathname.replace(new RegExp(`^/(?:${localeCodes.join('|')})(?=/|$)`, 'u'), '') || '/';
@@ -80,6 +81,30 @@ test.setTimeout(60_000);
 for (const pathname of routes) {
   test(`G4 all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
     const runtimeErrors: string[] = [];
+    const localeTrace: LocaleTraceEntry[] = [];
+
+    await page.addInitScript(() => {
+      const trace: LocaleTraceEntry[] = [];
+      const rootWindow = window as Window & { __g4LocaleTrace?: LocaleTraceEntry[] };
+      rootWindow.__g4LocaleTrace = trace;
+
+      const originalSetAttribute = Element.prototype.setAttribute;
+      Element.prototype.setAttribute = function setAttribute(name: string, value: string): void {
+        if (this === document.documentElement && (name === 'lang' || name === 'dir' || name === 'data-flixo-locale')) {
+          trace.push({ op: 'setAttribute', name, value, stack: new Error().stack ?? '' });
+        }
+        originalSetAttribute.call(this, name, value);
+      };
+
+      const originalRemoveAttribute = Element.prototype.removeAttribute;
+      Element.prototype.removeAttribute = function removeAttribute(name: string): void {
+        if (this === document.documentElement && (name === 'lang' || name === 'dir' || name === 'data-flixo-locale')) {
+          trace.push({ op: 'removeAttribute', name, value: null, stack: new Error().stack ?? '' });
+        }
+        originalRemoveAttribute.call(this, name);
+      };
+    });
+
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
     page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
     page.on('response', (response) => {
@@ -104,6 +129,13 @@ for (const pathname of routes) {
     const localeCode = locale as (typeof localeCodes)[number];
     const expectedDirection = LOCALE_METADATA[localeCode].direction;
     const family = familyPath(pathname);
+
+    const currentLang = await page.locator('html').getAttribute('lang');
+    if (currentLang !== languageTags[localeCode]) {
+      const currentTrace = await page.evaluate(() => (window as Window & { __g4LocaleTrace?: LocaleTraceEntry[] }).__g4LocaleTrace ?? []);
+      localeTrace.push(...currentTrace);
+      console.log(`[G4 locale mutation trace] path=${pathname} expected=${languageTags[localeCode]} actual=${currentLang ?? '<missing>'} trace=${JSON.stringify(currentTrace)}`);
+    }
 
     await expect(page.locator('html')).toHaveAttribute('lang', languageTags[localeCode]);
     await expect(page.locator('html')).toHaveAttribute('dir', expectedDirection);
