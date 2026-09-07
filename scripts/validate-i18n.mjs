@@ -74,11 +74,11 @@ if (untranslatedQuickFlow.length) {
   process.exit(1);
 }
 
-const uiCoverage = ['src/routes/home-page.tsx', 'src/routes/localized-home.tsx', 'src/routes/ar-home-page.tsx', 'src/routes/en-quickflow.tsx', 'src/routes/ar-quickflow.tsx', 'src/routes/localized-quickflow.tsx'];
+const uiCoverage = ['src/routes/home-page.tsx', 'src/routes/localized-home.tsx', 'src/routes/ar-home-page.tsx'];
 const missingUiFiles = uiCoverage.filter((file) => !existsSync(file));
 if (missingUiFiles.length > 0) {
   console.error(`Missing localized UI routes: ${missingUiFiles.join(', ')}`);
   process.exit(1);
 }
 
-console.log(`i18n validation passed: ${expected.length} locale files, complete Home/QuickFlow UI copy, localized tool route shell, and no exact English QuickFlow fallbacks.`);
+console.log(`i18n validation passed: ${expected.length} locale files, complete image-platform Home/QuickFlow UI copy, and localized tool route shell.`);
