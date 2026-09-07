@@ -28,7 +28,7 @@ const files = [...sourceRoots.flatMap((root) => walk(root)), ...rootConfigFiles.
 const source = files.map((file) => ({ file: relative('.', file).replaceAll('\\', '/'), content: readFileSync(file, 'utf8') }));
 function escapeRegex(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function usageFor(name) {
-  const pattern = new RegExp(`(?:from\\s*|import\\s*\\(|require\\s*\\(|require\\.resolve\\s*\\()\\s*[\"']${escapeRegex(name)}(?:/[^\"']*)?[\"']`, 'g');
+  const pattern = new RegExp(`(?:from\\s*|import\\s*\\(|require\\s*\\(|require\\.resolve\\s*\\()\\s*["']${escapeRegex(name)}(?:/[^"']*)?["']`, 'g');
   return source.flatMap(({ file, content }) => { const count = content.match(pattern)?.length ?? 0; return count ? [{ file, count }] : []; });
 }
 function scriptUsageFor(name) {
@@ -76,14 +76,15 @@ function run(command, args) { return spawnSync(command, args, { encoding: 'utf8'
 const lockfileDiff = run('git', ['status', '--porcelain=v1', '--', 'package-lock.json']);
 const lockfileDirty = Boolean(lockfileDiff.stdout.trim());
 const npmLs = run('npm', ['ls', '--all', '--json', '--omit=optional']);
-let npmLsProblems = [];
-try {
-  const parsed = JSON.parse(npmLs.stdout || '{}');
-  npmLsProblems = Array.isArray(parsed?.problems) ? parsed.problems : [];
-} catch (error) {
-  console.error(npmLs.stdout || npmLs.stderr);
-  throw new Error(`npm ls JSON parse failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
-}
+const npmLsProblems = (() => {
+  try {
+    const parsed = JSON.parse(npmLs.stdout || '{}');
+    return Array.isArray(parsed?.problems) ? parsed.problems : [];
+  } catch (error) {
+    console.error(npmLs.stdout || npmLs.stderr);
+    throw new Error(`npm ls JSON parse failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+  }
+})();
 const npmLsBroken = npmLs.status !== 0 || npmLsProblems.length > 0;
 const counts = entries.reduce((acc, entry) => { acc.total += 1; acc[entry.classification] = (acc[entry.classification] ?? 0) + 1; return acc; }, { total: 0, USED_RUNTIME: 0, USED_BUILD: 0, USED_TEST: 0, TRANSITIVE_ONLY: transitiveOnly.length, UNUSED: 0, LEGACY: 0 });
 const report = { generatedAt: new Date().toISOString(), repository: process.env.GITHUB_REPOSITORY ?? null, sha: process.env.GITHUB_SHA ?? null, lockfileVersion: lock.lockfileVersion ?? null, rootParity, npm: { reportingMode: 'READ_ONLY', installAttempted: false, lockfileDirty, npmLsExit: npmLs.status, npmLsBroken }, roots: [...sourceRoots, ...rootConfigFiles], summary: counts, transitiveOnly, entries };
