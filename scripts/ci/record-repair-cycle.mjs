@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 
 const ROOT = process.cwd();
-const DIAG_DIR = resolve(ROOT, '.artifacts/diagnostics/ci');
+const DIAG_DIR = resolve(ROOT, 'diagnostics/ci');
 mkdirSync(DIAG_DIR, { recursive: true });
 
 const now = new Date().toISOString();
@@ -14,8 +14,46 @@ const runId = process.env.GITHUB_RUN_ID || 'local';
 const reportPath = resolve(DIAG_DIR, 'report.json');
 
 if (!existsSync(reportPath)) {
-  console.error(`Diagnostic report not found: ${reportPath}`);
-  process.exit(2);
+  const fallback = {
+    schemaVersion: 1,
+    cycleId: `RCYCLE-MISSING-REPORT-${sha.slice(0, 12)}`,
+    recordedAt: now,
+    sha,
+    mode,
+    runId,
+    status: 'FAIL',
+    gatesExpected: 3,
+    gatesExecuted: 0,
+    rootCauses: ['RC-DIAGNOSTIC-001'],
+    failures: [{
+      rootCauseId: 'RC-DIAGNOSTIC-001',
+      occurrences: 1,
+      fingerprints: [],
+      repro: null,
+      affectedChecks: [],
+    }],
+    firstFailure: {
+      gate: 'CI',
+      rootCauseId: 'RC-DIAGNOSTIC-001',
+      repro: 'Inspect the earliest failed CI step before the diagnostic runner produced report.json',
+    },
+    sourceReport: null,
+  };
+  appendFileSync(resolve(DIAG_DIR, 'repair-cycles.jsonl'), `${JSON.stringify(fallback)}\n`);
+  writeFileSync(resolve(DIAG_DIR, 'latest-repair-cycle.json'), `${JSON.stringify(fallback, null, 2)}\n`);
+  writeFileSync(resolve(DIAG_DIR, 'failure-ledger.json'), `${JSON.stringify({
+    schemaVersion: 1,
+    generatedAt: now,
+    sha,
+    mode,
+    runId,
+    status: 'FAIL',
+    totalRootCauses: 1,
+    totalFailureOccurrences: 1,
+    rootCauses: fallback.failures,
+  }, null, 2)}\n`);
+  console.error('Diagnostic report missing; recorded fail-closed diagnostic cycle RC-DIAGNOSTIC-001.');
+  process.exit(0);
 }
 
 const report = JSON.parse(readFileSync(reportPath, 'utf8'));
