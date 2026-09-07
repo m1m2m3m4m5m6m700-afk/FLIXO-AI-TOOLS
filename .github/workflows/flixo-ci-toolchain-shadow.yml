@@ -1,13 +1,11 @@
 name: FLIXO CI — Toolchain Build Shadow
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-toolchain-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: flixo-ci-toolchain-shadow-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -17,11 +15,14 @@ env:
 
 jobs:
   toolchain-build-shadow:
-    name: CI Toolchain and Build Shadow
+    name: CI Toolchain and Build Shadow (Diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
@@ -39,7 +40,7 @@ jobs:
         run: node --experimental-strip-types scripts/ci/runtime/build-identity.mjs
       - name: Validate build identity
         run: node --experimental-strip-types scripts/ci/runtime/build-identity.test.mjs
-      - name: Upload verified build evidence
+      - name: Upload verified build diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
