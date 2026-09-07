@@ -166,8 +166,8 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_NAME=full-matrix-evidence/playwright-results.json npx playwright test "${TEST_SPECS[@]}" --project=${{ matrix.browser }} --workers=6 --retries=0 --reporter=json
           rc=$?
           set -e
-          MATRIX_PLAN_HASH='$(node -e 'process.stdout.write(require("./matrix-plan/_flixo_matrix_plan.json").plan_hash)')'
-          MATRIX_TEST_COUNT='$(node -e 'process.stdout.write(String(require("./matrix-plan/_flixo_matrix_plan.json").matrix.find((u)=>u.browser==="${{ matrix.browser }}"&&u.shard===${{ matrix.shard }}).test_count))')'
+          MATRIX_PLAN_HASH="$(node -e 'process.stdout.write(require("./matrix-plan/_flixo_matrix_plan.json").plan_hash)')"
+          MATRIX_TEST_COUNT="$(node -e 'process.stdout.write(String(require("./matrix-plan/_flixo_matrix_plan.json").matrix.find((u)=>u.browser==="${{ matrix.browser }}"&&u.shard===${{ matrix.shard }}).test_count))')"
           FLIXO_SOURCE_SHA="$FLIXO_SOURCE_SHA" MATRIX_PLAN_HASH="$MATRIX_PLAN_HASH" MATRIX_BROWSER='${{ matrix.browser }}' MATRIX_SHARD='${{ matrix.shard }}' MATRIX_TESTS="$TESTS" MATRIX_TEST_COUNT="$MATRIX_TEST_COUNT" PLAYWRIGHT_JSON_REPORT=full-matrix-evidence/playwright-results.json MATRIX_EVIDENCE_OUTPUT=full-matrix-evidence/evidence.json node scripts/ci/write-matrix-evidence.mjs
           evidence_rc=$?
           echo "$rc" > full-matrix-evidence/process-exit-code.txt
@@ -182,7 +182,6 @@ jobs:
             playwright-report/
             test-results/
             dist/_flixo_build_manifest.json
-            matrix-plan/_flixo_matrix_plan.json
           if-no-files-found: error
           retention-days: 14
       - name: Cleanup
@@ -201,6 +200,11 @@ jobs:
     env:
       FLIXO_MATRIX_PLAN_SIGNING_KEY: ${{ secrets.FLIXO_MATRIX_PLAN_SIGNING_KEY }}
     steps:
+      - name: Download authoritative matrix plan
+        uses: actions/download-artifact@v7
+        with:
+          name: full-matrix-plan-${{ github.sha }}
+          path: matrix-plan
       - name: Download all matrix evidence
         uses: actions/download-artifact@v7
         with:
@@ -211,7 +215,7 @@ jobs:
         env:
           EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           EVIDENCE_ROOT: full-matrix-evidence
-          MATRIX_PLAN_PATH: full-matrix-evidence/_flixo_matrix_plan.json
+          MATRIX_PLAN_PATH: matrix-plan/matrix-plan.json
         run: node scripts/ci/validate-full-matrix-evidence.mjs
       - name: Fail closed on matrix result
         run: |
