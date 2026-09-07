@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import GIF from 'gif.js';
 import workerUrl from 'gif.js/dist/gif.worker.js?url';
 import { clampGifRange, drawMemeText, normalizeFps, normalizeWidth } from './engine';
@@ -27,6 +27,7 @@ async function metadata(file: File) {
 
 export function VideoGifMemeTool() {
   const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [start, setStart] = useState(0);
   const [end, setEnd] = useState(0);
@@ -39,6 +40,10 @@ export function VideoGifMemeTool() {
   const [error, setError] = useState('');
   const [outputUrl, setOutputUrl] = useState<string | null>(null);
 
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
+
   const choose = async (next?: File) => {
     if (!next) return;
     if (!next.type.startsWith('video/')) {
@@ -47,6 +52,9 @@ export function VideoGifMemeTool() {
     }
     setError('');
     if (outputUrl) URL.revokeObjectURL(outputUrl);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    const nextPreviewUrl = URL.createObjectURL(next);
+    setPreviewUrl(nextPreviewUrl);
     setOutputUrl(null);
     try {
       const m = await metadata(next);
@@ -57,6 +65,8 @@ export function VideoGifMemeTool() {
       setWidth(Math.min(720, Math.max(160, m.width)));
       setStatus(`${m.width}×${m.height} · ${m.duration.toFixed(2)}s`);
     } catch (e) {
+      URL.revokeObjectURL(nextPreviewUrl);
+      setPreviewUrl(null);
       setError(e instanceof Error ? e.message : 'Unable to read video');
     }
   };
@@ -139,7 +149,7 @@ export function VideoGifMemeTool() {
 
       {file ? (
         <>
-          <video className="max-h-80 w-full rounded-xl bg-black" src={URL.createObjectURL(file)} controls muted />
+          <video className="max-h-80 w-full rounded-xl bg-black" src={previewUrl ?? undefined} controls muted />
           <div className="grid gap-4 md:grid-cols-2">
             <label>Start<input aria-label="Start" className="mt-1 w-full rounded border p-2" type="number" min={0} max={duration} step={0.1} value={start} onChange={(e) => setStart(Number(e.target.value))} /></label>
             <label>End<input aria-label="End" className="mt-1 w-full rounded border p-2" type="number" min={0} max={duration} step={0.1} value={end} onChange={(e) => setEnd(Number(e.target.value))} /></label>
