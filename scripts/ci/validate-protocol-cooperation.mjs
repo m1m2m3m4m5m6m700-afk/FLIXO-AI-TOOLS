@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { CI_CONTRACTS } from './contracts/registry.ts';
@@ -6,6 +7,10 @@ import { dependencyClosure, topologicalOrder, validateDependencyGraph } from './
 const fail = (message) => {
   throw new Error(`Protocol cooperation validation failed: ${message}`);
 };
+
+const sessionGuard = spawnSync(process.execPath, ['scripts/ci/validate-agent-sessions.mjs'], { stdio: 'inherit', env: process.env });
+if (sessionGuard.error) fail(`agent session guard failed to start: ${sessionGuard.error.message}`);
+if (sessionGuard.status !== 0) fail(`agent session guard failed with exit code ${sessionGuard.status ?? 'unknown'}`);
 
 validateDependencyGraph(CI_CONTRACTS);
 
@@ -81,6 +86,7 @@ const report = {
     'dependencies execute before dependents',
     'full dependency closure',
     'downstream blocking is derived from dependency outcomes',
+    'agent session guard passes before protocol cooperation can pass',
   ],
 };
 
