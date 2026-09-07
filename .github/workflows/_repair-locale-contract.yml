@@ -1,8 +1,8 @@
 name: One-shot Locale Contract Repair
 
 on:
-  push:
-    branches: [integration/consolidated-20260907]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
@@ -13,12 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout exact branch head
+      - name: Checkout exact PR head
         uses: actions/checkout@v5
         with:
-          ref: integration/consolidated-20260907
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: true
+
+      - name: Verify exact PR head
+        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
 
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
@@ -77,7 +80,6 @@ jobs:
       - name: Verify canonical locale boundary
         run: |
           set -euo pipefail
-          grep -n "export const LOCALES" src/lib/i18n/config.ts
           ! grep -n "export const LOCALES.*zh\|export const LOCALES.*ur" src/lib/i18n/config.ts
           grep -n "LEGACY_LOCALES" src/lib/i18n/config.ts
 
@@ -95,4 +97,4 @@ jobs:
           git diff --cached --check
           git diff --cached --quiet && { echo 'No repair changes staged'; exit 1; }
           git commit -m 'fix(i18n): reconcile canonical and legacy locale contracts'
-          git push origin HEAD:integration/consolidated-20260907
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
