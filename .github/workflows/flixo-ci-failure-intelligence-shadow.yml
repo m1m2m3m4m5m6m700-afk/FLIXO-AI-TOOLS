@@ -1,24 +1,25 @@
 name: FLIXO CI — Failure Intelligence Shadow
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-failure-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: flixo-ci-failure-shadow-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
   failure-intelligence-shadow:
-    name: CI Failure Intelligence Shadow
+    name: CI Failure Intelligence Shadow (Diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
@@ -33,7 +34,7 @@ jobs:
         run: node --experimental-strip-types scripts/ci/failure/report.mjs
       - name: Verify report
         run: test -s artifacts/ci/failure/report.json && test -s artifacts/ci/failure/report.md
-      - name: Upload failure evidence
+      - name: Upload failure diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
