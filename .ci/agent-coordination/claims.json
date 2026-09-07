@@ -5,41 +5,32 @@
   "heartbeatMinutes": 10,
   "claims": [
     {
-      "agentId": "matrix-therapy-v2",
-      "branch": "agent/matrix-therapy/one-artifact-v2",
-      "observedHeadSha": "381de3abe4d4808b55f8e536033dcdb47d168c82",
+      "agentId": "matrix-contract-alignment",
+      "branch": "agent/ci-surgery/contracts-alignment",
+      "observedHeadSha": "3b152e22dcc8dcfd807531392208a77a1ce4045c",
       "scope": {
         "paths": [
-          ".github/workflows/full-matrix-parallel.yml",
-          "scripts/ci/weighted-shard-plan.mjs",
-          "scripts/ci/write-matrix-test-inventory.mjs",
-          "scripts/ci/write-matrix-evidence.mjs",
-          "scripts/ci/validate-full-matrix-evidence.mjs",
-          "src/lib/contracts/failure-classifier.ts",
-          "scripts/ci/validate-architecture.mjs",
-          "scripts/ci/validate-contract-coverage.mjs",
-          "README.md",
-          "docs/RELEASE_POLICY.md"
+          "src/lib/contracts/ci-contracts.ts",
+          "scripts/ci/contracts/registry.ts",
+          "scripts/ci/validate-agent-coordination.mjs",
+          "scripts/ci/validate-agent-pr-collisions.mjs",
+          "scripts/ci/validate-contract-coverage.mjs"
         ],
         "contracts": [
-          "G4-RUNTIME-001",
-          "G4-CONSOLE-001",
-          "G4-NETWORK-001",
-          "G4-OUTPUT-001"
+          "CI-TOOLCHAIN-001",
+          "G1-LOCALE-MATRIX-001",
+          "G3-TYPE-001"
         ]
       },
       "rootCauseIds": [
-        "RC-MATRIX-001",
-        "RC-MATRIX-002",
-        "RC-MATRIX-003",
-        "RC-MATRIX-004",
-        "RC-MATRIX-005",
-        "RC-MATRIX-006",
-        "RC-MATRIX-007"
+        "RC-CI-CONTRACT-001",
+        "RC-AGENT-SCHEMA-001"
       ],
-      "status": "released",
-      "leasedAt": "2026-09-07T17:10:00Z",
-      "leaseUntil": "2026-09-07T17:40:00Z"
+      "status": "active",
+      "leasedAt": "2026-09-07T16:46:45Z",
+      "leaseUntil": "2026-09-07T17:16:45Z",
+      "lastHeartbeatAt": "2026-09-07T16:46:45Z",
+      "sessionId": "matrix-contract-alignment-20260907"
     }
   ]
 }
