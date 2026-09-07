@@ -61,6 +61,15 @@ const expectedSha = process.env.EXPECTED_HEAD_SHA;
 const strictSha = process.env.FLIXO_AGENT_COORDINATION_STRICT_SHA === 'true';
 if (expectedSha && !HEX_SHA.test(expectedSha)) fail('EXPECTED_HEAD_SHA must be a 40-hex SHA when supplied');
 
+const currentActive = currentBranch ? active.filter((claim) => claim.branch === currentBranch) : [];
+if (strictSha && currentBranch && AGENT_BRANCH.test(currentBranch)) {
+  if (currentActive.length !== 1) {
+    fail(`agent branch ${currentBranch} must have exactly one active writer claim; found ${currentActive.length}`);
+  }
+  if (currentActive[0]?.observedHeadSha !== expectedSha) {
+    fail(`active claim SHA does not match exact CI head on ${currentBranch}: observed=${currentActive[0]?.observedHeadSha ?? 'missing'} expected=${expectedSha ?? 'missing'}`);
+  }
+}
 if (strictSha && active.length > 0 && (!currentBranch || !AGENT_BRANCH.test(currentBranch))) {
   fail(`active writer claims are only valid on agent branches; current branch is ${currentBranch ?? 'unknown'}`);
 }
@@ -120,6 +129,7 @@ const report = {
   })),
   invariants: [
     'one writable scope per active agent',
+    'agent branches require exactly one active claim when strict SHA is enabled',
     'no active path/contract/root-cause collisions',
     'active writers use isolated agent branches',
     'active claims match the exact CI head when strict SHA is enabled',
