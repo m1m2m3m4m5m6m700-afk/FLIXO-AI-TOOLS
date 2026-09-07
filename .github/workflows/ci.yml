@@ -87,6 +87,10 @@ jobs:
       - name: Unified diagnostic runner
         run: npm run test:diagnose
 
+      - name: Normalize reproduction evidence
+        if: always()
+        run: node scripts/ci/normalize-reproduction.mjs
+
       - name: Record repair-cycle diagnostics
         if: always()
         run: npm run diagnose:cycle
