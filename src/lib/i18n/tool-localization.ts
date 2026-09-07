@@ -1,7 +1,7 @@
 import type { Locale } from './config';
 
-export const CATEGORY_LABELS: Record<Locale, Record<'Images' | 'AI' | 'Other', string>> = {
-  ar: { Images: 'الصور', AI: 'الذكاء الاصطناعي', Other: 'أخرى' }, en: { Images: 'Images', AI: 'AI', Other: 'Other' }, es: { Images: 'Imágenes', AI: 'IA', Other: 'Otros' }, fr: { Images: 'Images', AI: 'IA', Other: 'Autres' }, de: { Images: 'Bilder', AI: 'KI', Other: 'Andere' }, hi: { Images: 'छवियाँ', AI: 'एआई', Other: 'अन्य' }, id: { Images: 'Gambar', AI: 'AI', Other: 'Lainnya' }, it: { Images: 'Immagini', AI: 'IA', Other: 'Altro' }, ja: { Images: '画像', AI: 'AI', Other: 'その他' }, ko: { Images: '이미지', AI: 'AI', Other: '기타' }, ms: { Images: 'Imej', AI: 'AI', Other: 'Lain-lain' }, nl: { Images: 'Afbeeldingen', AI: 'AI', Other: 'Overig' }, pl: { Images: 'Obrazy', AI: 'AI', Other: 'Inne' }, pt: { Images: 'Imagens', AI: 'IA', Other: 'Outros' }, ru: { Images: 'Изображения', AI: 'ИИ', Other: 'Другое' }, sv: { Images: 'Bilder', AI: 'AI', Other: 'Övrigt' }, th: { Images: 'รูปภาพ', AI: 'AI', Other: 'อื่นๆ' }, tr: { Images: 'Görseller', AI: 'YZ', Other: 'Diğer' }, uk: { Images: 'Зображення', AI: 'ШІ', Other: 'Інше' }, vi: { Images: 'Hình ảnh', AI: 'AI', Other: 'Khác' },
+export const CATEGORY_LABELS: Record<Locale, { Images: string }> = {
+  ar: { Images: 'الصور' }, en: { Images: 'Images' }, es: { Images: 'Imágenes' }, fr: { Images: 'Images' }, de: { Images: 'Bilder' }, hi: { Images: 'छवियाँ' }, id: { Images: 'Gambar' }, it: { Images: 'Immagini' }, ja: { Images: '画像' }, ko: { Images: '이미지' }, ms: { Images: 'Imej' }, nl: { Images: 'Afbeeldingen' }, pl: { Images: 'Obrazy' }, pt: { Images: 'Imagens' }, ru: { Images: 'Изображения' }, sv: { Images: 'Bilder' }, th: { Images: 'รูปภาพ' }, tr: { Images: 'Görseller' }, uk: { Images: 'Зображення' }, vi: { Images: 'Hình ảnh' }, zh: { Images: '图像' }, ur: { Images: 'تصاویر' },
 };
 
 type LocalizedTerms = Partial<Record<Locale, string>>;
@@ -24,33 +24,27 @@ const TERMS: Record<string, LocalizedTerms> = {
   watermark: { ar: 'علامة مائية', es: 'Marca de agua', fr: 'Filigrane', de: 'Wasserzeichen', ru: 'Водяной знак', zh: '水印', hi: 'वॉटरमार्क', id: 'Tanda air', ur: 'واٹر مارک', ja: '透かし', pt: 'Marca d’água', it: 'Filigrana', ko: '워터마크', nl: 'Watermerk', pl: 'Znak wodny', tr: 'Filigran', vi: 'Hình mờ', th: 'ลายน้ำ', sv: 'Vattenstämpel', ms: 'Tanda air', uk: 'Водяний знак' },
   object: { ar: 'عنصر', es: 'Objeto', fr: 'Objet', de: 'Objekt', ru: 'Объект', zh: '对象', hi: 'वस्तु', id: 'Objek', ur: 'آبجیکٹ', ja: 'オブジェクト', pt: 'Objeto', it: 'Oggetto', ko: '개체', nl: 'Object', pl: 'Obiekt', tr: 'Nesne', vi: 'Đối tượng', th: 'วัตถุ', sv: 'Objekt', ms: 'Objek', uk: 'Об’єкт' },
   text: { ar: 'النص', es: 'Texto', fr: 'Texte', de: 'Text', ru: 'Текст', zh: '文本', hi: 'टेक्स्ट', id: 'Teks', ur: 'متن', ja: 'テキスト', pt: 'Texto', it: 'Testo', ko: '텍스트', nl: 'Tekst', pl: 'Tekst', tr: 'Metin', vi: 'Văn bản', th: 'ข้อความ', sv: 'Text', ms: 'Teks', uk: 'Текст' },
-  audio: { ar: 'الصوت', es: 'Audio', fr: 'Audio', de: 'Audio', ru: 'Аудио', zh: '音频', hi: 'ऑडियो', id: 'Audio', ur: 'آڈیو', ja: '音声', pt: 'Áudio', it: 'Audio', ko: '오디오', nl: 'Audio', pl: 'Audio', tr: 'Ses', vi: 'Âm thanh', th: 'เสียง', sv: 'Ljud', ms: 'Audio', uk: 'Аудіо' },
-  video: { ar: 'الفيديو', es: 'Vídeo', fr: 'Vidéo', de: 'Video', ru: 'Видео', zh: '视频', hi: 'वीडियो', id: 'Video', ur: 'ویڈیو', ja: '動画', pt: 'Vídeo', it: 'Video', ko: '비디오', nl: 'Video', pl: 'Wideo', tr: 'Video', vi: 'Video', th: 'วิดีโอ', sv: 'Video', ms: 'Video', uk: 'Відео' },
   online: { ar: 'عبر الإنترنت', es: 'en línea', fr: 'en ligne', de: 'online', ru: 'онлайн', zh: '在线', hi: 'ऑनलाइन', id: 'online', ur: 'آن لائن', ja: 'オンライン', pt: 'online', it: 'online', ko: '온라인', nl: 'online', pl: 'online', tr: 'çevrimiçi', vi: 'trực tuyến', th: 'ออนไลน์', sv: 'online', ms: 'dalam talian', uk: 'онлайн' },
   to: { ar: 'إلى', es: 'a', fr: 'vers', de: 'zu', ru: 'в', zh: '到', hi: 'से', id: 'ke', ur: 'تک', ja: 'へ', pt: 'para', it: 'a', ko: '로', nl: 'naar', pl: 'do', tr: 'için', vi: 'sang', th: 'ไปยัง', sv: 'till', ms: 'ke', uk: 'до' },
   from: { ar: 'من', es: 'de', fr: 'de', de: 'aus', ru: 'из', zh: '从', hi: 'से', id: 'dari', ur: 'سے', ja: 'から', pt: 'de', it: 'da', ko: '에서', nl: 'van', pl: 'z', tr: 'dan', vi: 'từ', th: 'จาก', sv: 'från', ms: 'dari', uk: 'з' },
-  pdf: { ar: 'PDF', es: 'PDF', fr: 'PDF', de: 'PDF', ru: 'PDF', zh: 'PDF', hi: 'PDF', id: 'PDF', ur: 'PDF', ja: 'PDF', pt: 'PDF', it: 'PDF', ko: 'PDF', nl: 'PDF', pl: 'PDF', tr: 'PDF', vi: 'PDF', th: 'PDF', sv: 'PDF', ms: 'PDF', uk: 'PDF' },
   svg: { ar: 'SVG', es: 'SVG', fr: 'SVG', de: 'SVG', ru: 'SVG', zh: 'SVG', hi: 'SVG', id: 'SVG', ur: 'SVG', ja: 'SVG', pt: 'SVG', it: 'SVG', ko: 'SVG', nl: 'SVG', pl: 'SVG', tr: 'SVG', vi: 'SVG', th: 'SVG', sv: 'SVG', ms: 'SVG', uk: 'SVG' },
   ocr: { ar: 'OCR', es: 'OCR', fr: 'OCR', de: 'OCR', ru: 'OCR', zh: 'OCR', hi: 'OCR', id: 'OCR', ur: 'OCR', ja: 'OCR', pt: 'OCR', it: 'OCR', ko: 'OCR', nl: 'OCR', pl: 'OCR', tr: 'OCR', vi: 'OCR', th: 'OCR', sv: 'OCR', ms: 'OCR', uk: 'OCR' },
-  ai: { ar: 'ذكاء اصطناعي', es: 'IA', fr: 'IA', de: 'KI', ru: 'ИИ', zh: '人工智能', hi: 'एआई', id: 'AI', ur: 'اے آئی', ja: 'AI', pt: 'IA', it: 'IA', ko: 'AI', nl: 'AI', pl: 'AI', tr: 'YZ', vi: 'AI', th: 'AI', sv: 'AI', ms: 'AI', uk: 'ШІ' },
 };
 
 const CONNECTORS: Record<string, boolean> = { and: true, of: true, the: true, a: true, to: true, from: true, in: true, on: true, for: true, online: true };
-const TECHNICAL_TOKENS = new Set(['PDF', 'SVG', 'OCR', 'AI', 'EXIF', 'JPG', 'PNG', 'WebP', 'ZIP', 'WAV']);
+const TECHNICAL_TOKENS = new Set(['SVG', 'OCR', 'EXIF', 'JPG', 'PNG', 'WebP', 'ZIP']);
 
 type ToolTitleOverride = Partial<Record<Locale, string>>;
 const TITLE_OVERRIDES: Record<string, ToolTitleOverride> = {
   'image ocr': { fr: 'OCR d’image' },
   'svg optimizer': { nl: 'SVG-optimalisatie' },
-  'pdf compressor': { pt: 'Compactador de PDF', nl: 'PDF-compressor' },
-  'audio compressor': { nl: 'Audiocompressor' },
 };
 
 function tokenize(value: string): string[] {
   return value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').split(/\s+/).filter(Boolean);
 }
 
-function fallbackTitle(locale: Locale, category: 'Images' | 'AI' | 'Other'): string {
+function fallbackTitle(locale: Locale, category: 'Images'): string {
   const label = CATEGORY_LABELS[locale][category];
   const templates: Record<Locale, string> = {
     ar: `أداة ${label}`, en: `Tool ${label}`, es: `Herramienta de ${label}`, fr: `Outil ${label}`, de: `${label}-Werkzeug`, ru: `Инструмент ${label}`, zh: `${label}工具`, hi: `${label} टूल`, id: `Alat ${label}`, ur: `${label} ٹول`, ja: `${label}ツール`, pt: `Ferramenta de ${label}`, it: `Strumento ${label}`, ko: `${label} 도구`, nl: `${label}-tool`, pl: `Narzędzie ${label}`, tr: `${label} aracı`, vi: `Công cụ ${label}`, th: `เครื่องมือ${label}`, sv: `${label}-verktyg`, ms: `Alat ${label}`, uk: `Інструмент ${label}`,
@@ -58,16 +52,15 @@ function fallbackTitle(locale: Locale, category: 'Images' | 'AI' | 'Other'): str
   return templates[locale];
 }
 
-export function localizeToolCategory(locale: Locale, category: 'Images' | 'AI' | 'Other'): string {
+export function localizeToolCategory(locale: Locale, category: 'Images'): string {
   return CATEGORY_LABELS[locale][category];
 }
 
-export function localizeToolTitle(locale: Locale, title: string, category: 'Images' | 'AI' | 'Other'): string {
+export function localizeToolTitle(locale: Locale, title: string, category: 'Images'): string {
   if (locale === 'en') return title;
   const normalizedTitleKey = title.trim().toLowerCase();
   const override = TITLE_OVERRIDES[normalizedTitleKey];
   if (override?.[locale]) return override[locale] as string;
-
   const parts = tokenize(title);
   const translated = parts.map((part) => {
     const key = part.toLowerCase();
@@ -81,7 +74,7 @@ export function localizeToolTitle(locale: Locale, title: string, category: 'Imag
   return result && result.toLowerCase() !== title.trim().toLowerCase() ? result : fallbackTitle(locale, category);
 }
 
-export function localizeToolDescription(locale: Locale, title: string, category: 'Images' | 'AI' | 'Other'): string {
+export function localizeToolDescription(locale: Locale, title: string, category: 'Images'): string {
   const localizedTitle = localizeToolTitle(locale, title, category);
   const templates: Record<Locale, string> = {
     ar: `استخدم ${localizedTitle} من FLIXO مباشرة داخل المتصفح.`, en: `Use ${localizedTitle} in FLIXO directly in your browser.`, es: `Usa ${localizedTitle} de FLIXO directamente en tu navegador.`, fr: `Utilisez ${localizedTitle} de FLIXO directement dans votre navigateur.`, de: `Nutzen Sie ${localizedTitle} von FLIXO direkt im Browser.`, ru: `Используйте ${localizedTitle} от FLIXO прямо в браузере.`, zh: `直接在浏览器中使用 FLIXO 的${localizedTitle}。`, hi: `FLIXO के ${localizedTitle} का उपयोग सीधे ब्राउज़र में करें।`, id: `Gunakan ${localizedTitle} dari FLIXO langsung di browser.`, ur: `FLIXO کا ${localizedTitle} براہِ راست براؤزر میں استعمال کریں۔`, ja: `FLIXO の${localizedTitle}をブラウザで直接利用できます。`, pt: `Use ${localizedTitle} da FLIXO diretamente no navegador.`, it: `Usa ${localizedTitle} di FLIXO direttamente nel browser.`, ko: `브라우저에서 FLIXO의 ${localizedTitle}을(를) 바로 사용하세요.`, nl: `Gebruik ${localizedTitle} van FLIXO direct in je browser.`, pl: `Używaj ${localizedTitle} FLIXO bezpośrednio w przeglądarce.`, tr: `FLIXO ${localizedTitle} aracını doğrudan tarayıcıda kullanın.`, vi: `Sử dụng ${localizedTitle} của FLIXO ngay trong trình duyệt.`, th: `ใช้ ${localizedTitle} ของ FLIXO ได้โดยตรงในเบราว์เซอร์`, sv: `Använd FLIXO:s ${localizedTitle} direkt i webbläsaren.`, ms: `Gunakan ${localizedTitle} FLIXO terus dalam pelayar anda.`, uk: `Використовуйте ${localizedTitle} FLIXO безпосередньо у браузері.`,
