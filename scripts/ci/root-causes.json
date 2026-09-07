@@ -1,5 +1,6 @@
 {
   "RC-DEPENDENCY-001":{"category":"DEPENDENCY","description":"Committed dependency graph cannot be installed or resolved.","repairTargets":["package.json","package-lock.json"],"verification":["npm ci"]},
+  "RC-DEP-REVALIDATION-001":{"category":"DEPENDENCY_LIFECYCLE","description":"Dependency measurement mutates the lockfile or dependency state while validating it.","repairTargets":["scripts/report-dependency-usage.mjs"],"verification":["npm run audit:technical-debt"]},
   "RC-TYPE-001":{"category":"TYPE","description":"Canonical type graph and its consumers are inconsistent.","repairTargets":["src/lib","src/config","src/routes"],"verification":["npm run test:static"]},
   "RC-ROUTER-001":{"category":"ROUTER","description":"Public route or canonical route resolution is inconsistent.","repairTargets":["src/routes","src/lib/route"],"verification":["npm run test:static"]},
   "RC-I18N-001":{"category":"I18N","description":"Locale, translation, or localized UI contract is inconsistent.","repairTargets":["src/lib/i18n","src/locales"],"verification":["npm run test:static"]},
@@ -10,6 +11,10 @@
   "RC-NETWORK-001":{"category":"NETWORK","description":"Browser request or network contract failed.","repairTargets":["src","playwright.config.ts"],"verification":["npm run test:browser"]},
   "RC-BUILD-001":{"category":"BUILD","description":"Production build or generated artifact contract failed.","repairTargets":["vite.config.ts","src","scripts"],"verification":["npm run test:build"]},
   "RC-BROWSER-001":{"category":"BROWSER","description":"Browser gate failed without a more specific classified root cause.","repairTargets":["src","tests"],"verification":["npm run test:browser"]},
+  "RC-BROWSER-INTELLIGENCE-001":{"category":"BROWSER_ORCHESTRATION","description":"Browser engine coverage is not independently represented by the shared test plan and runner.","repairTargets":["scripts/ci/test-plan.json","scripts/test.mjs"],"verification":["npm run audit:technical-debt"]},
+  "RC-CI-ORCH-001":{"category":"CI_ORCHESTRATION","description":"Diagnostic lifecycle ownership remains distributed outside the unified runner.","repairTargets":[".github/workflows","scripts/test.mjs","scripts/ci"],"verification":["npm run audit:technical-debt"]},
+  "RC-CI-DEPENDENCY-STATE-001":{"category":"CI_DEPENDENCY_LIFECYCLE","description":"Active CI behavior depends on an external dependency-ready state instead of the committed bootstrap contract.","repairTargets":[".github/workflows/ci.yml","scripts/test.mjs"],"verification":["npm run audit:technical-debt"]},
+  "RC-CI-LEGACY-SURFACE-001":{"category":"CI_ARCHITECTURE","description":"Executable CI helper files remain outside the active repository execution graph.","repairTargets":["scripts/ci"],"verification":["npm run audit:technical-debt"]},
   "RC-UNKNOWN-001":{"category":"UNKNOWN","description":"Failure could not be assigned to a known root cause.","repairTargets":[],"verification":["npm run test:diagnose"]},
   "RC-DIAGNOSTIC-001":{"category":"DIAGNOSTIC","description":"No gate report was produced; diagnostic evidence is incomplete.","repairTargets":["scripts/test.mjs",".github/workflows"],"verification":["npm run diagnose:cycle"]},
   "RC-DIAGNOSTIC-002":{"category":"DIAGNOSTIC","description":"A gate report exists but cannot be parsed as valid JSON.","repairTargets":["scripts/test.mjs","scripts/ci/record-repair-cycle.mjs"],"verification":["npm run diagnose:cycle"]},
