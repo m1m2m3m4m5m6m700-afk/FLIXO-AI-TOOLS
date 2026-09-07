@@ -1,8 +1,6 @@
 name: FLIXO CI — G2 File Safety Shadow
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -20,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -39,7 +37,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-g2-shadow-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ci-g2-shadow-${{ github.sha }}
           path: artifacts/ci/
           if-no-files-found: warn
           retention-days: 14
