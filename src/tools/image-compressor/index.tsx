@@ -1,8 +1,9 @@
 import { flushSync } from 'react-dom';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { compressImage, MAX_FILES, MAX_INPUT_SIZE, type CompressionFormat } from './engine';
 import { imageCompressorOutputIntegrity } from './output-contract';
 import { validateOutputIntegrity } from '../../lib/contracts/output-integrity';
+import { useDisposableResourceOwner } from '@/lib/resources/disposable-resource-owner';
 import type { ReadyToolComponentProps } from '../../config/tools';
 
 const formatLabels: Record<CompressionFormat, string> = {
@@ -26,15 +27,12 @@ function label(locale: ReadyToolComponentProps['locale'], en: string, ar: string
   return locale === 'ar' ? ar : en;
 }
 
-function nextAnimationFrame() {
-  return new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-}
-
 export function ImageCompressor({ locale = 'en' }: ReadyToolComponentProps) {
   const isArabic = locale === 'ar';
   const inputRef = useRef<HTMLInputElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const mountedRef = useRef(true);
+  const resources = useDisposableResourceOwner();
+  const processingControllerRef = useRef<AbortController | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [quality, setQuality] = useState(0.82);
   const [format, setFormat] = useState<CompressionFormat>('image/webp');
@@ -50,30 +48,28 @@ export function ImageCompressor({ locale = 'en' }: ReadyToolComponentProps) {
   const [batchCount, setBatchCount] = useState(0);
 
   const file = files[0] ?? null;
-  const sourcePreviewUrl = useMemo(() => (file ? URL.createObjectURL(file) : ''), [file]);
-  const savings = useMemo(() => {
-    if (!file || !result) return 0;
-    return Math.max(0, Math.round((1 - result.blob.size / file.size) * 100));
-  }, [file, result]);
+  const sourcePreviewUrl = file ? resources.objectUrl('source-preview', file) : '';
+  const savings = file && result ? Math.max(0, Math.round((1 - result.blob.size / file.size) * 100)) : 0;
 
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
-      if (downloadUrl) URL.revokeObjectURL(downloadUrl);
-      if (outputPreviewUrl) URL.revokeObjectURL(outputPreviewUrl);
-      if (batchZipUrl) URL.revokeObjectURL(batchZipUrl);
-    };
-  }, [sourcePreviewUrl, downloadUrl, outputPreviewUrl, batchZipUrl]);
+  useEffect(() => () => {
+    processingControllerRef.current?.abort();
+    void resources.disposeAll();
+  }, [resources]);
 
   useEffect(() => {
     headingRef.current?.focus({ preventScroll: true });
   }, [locale]);
 
   const selectFiles = (nextFiles: File[]) => {
+    processingControllerRef.current?.abort();
+    processingControllerRef.current = null;
+    void resources.dispose('download');
+    void resources.dispose('output-preview');
+    void resources.dispose('batch-zip');
     setError('');
     setResult(null);
+    setDownloadUrl('');
+    setOutputPreviewUrl('');
     setBatchZipUrl('');
     const empty = nextFiles.find((nextFile) => nextFile.size === 0);
     if (empty) {
@@ -89,7 +85,26 @@ export function ImageCompressor({ locale = 'en' }: ReadyToolComponentProps) {
     setFiles(selected);
   };
 
-  const processOne = async (nextFile: File) => compressImage(nextFile, {
+  const beginProcessing = () => {
+    processingControllerRef.current?.abort();
+    const controller = new AbortController();
+    processingControllerRef.current = controller;
+    flushSync(() => {
+      setBusy(true);
+      setError('');
+      setResult(null);
+    });
+    return controller;
+  };
+
+  const finishProcessing = (controller: AbortController) => {
+    if (processingControllerRef.current === controller) {
+      processingControllerRef.current = null;
+      setBusy(false);
+    }
+  };
+
+  const options = () => ({
     quality,
     format,
     maxWidth: maxWidth ? Number(maxWidth) : undefined,
@@ -97,82 +112,64 @@ export function ImageCompressor({ locale = 'en' }: ReadyToolComponentProps) {
     targetSizeKB: targetSizeKB ? Number(targetSizeKB) : undefined,
   });
 
-  const validateCompressedOutput = async (compressed: Awaited<ReturnType<typeof processOne>>) => {
+  const validateCompressedOutput = async (compressed: Awaited<ReturnType<typeof compressImage>>, signal: AbortSignal) => {
+    if (signal.aborted) throw signal.reason instanceof Error ? signal.reason : new DOMException('The operation was aborted.', 'AbortError');
     const outputBytes = new Uint8Array(await compressed.blob.arrayBuffer());
     const extension = extensionFor(format);
-    const validation = validateOutputIntegrity(
-      compressed.blob.size,
-      compressed.blob.type || format,
-      imageCompressorOutputIntegrity,
-      { width: compressed.width, height: compressed.height },
-      { filename: `flixo-compressed.${extension}`, bytes: outputBytes },
-    );
+    const validation = validateOutputIntegrity(compressed.blob.size, compressed.blob.type || format, imageCompressorOutputIntegrity, { width: compressed.width, height: compressed.height }, { filename: `flixo-compressed.${extension}`, bytes: outputBytes });
     if (!validation.valid) throw new Error(`Output integrity validation failed: ${validation.failures.join('; ')}`);
     return compressed;
   };
 
-  const beginProcessing = () => {
-    if (busy || !mountedRef.current) return false;
-    flushSync(() => {
-      setBusy(true);
-      setError('');
-      setResult(null);
-    });
-    return true;
-  };
-
-  const finishProcessing = () => {
-    if (mountedRef.current) setBusy(false);
-  };
-
   const processCurrent = async () => {
-    if (!file || !beginProcessing()) return;
+    if (!file || busy) return;
+    const controller = beginProcessing();
     try {
-      await nextAnimationFrame();
-      const compressed = await validateCompressedOutput(await processOne(file));
-      if (!mountedRef.current) return;
-      const nextDownload = URL.createObjectURL(compressed.blob);
-      if (!mountedRef.current) { URL.revokeObjectURL(nextDownload); return; }
-      setDownloadUrl((current) => {
-        if (current) URL.revokeObjectURL(current);
-        return nextDownload;
-      });
-      const nextPreview = URL.createObjectURL(compressed.blob);
-      if (!mountedRef.current) { URL.revokeObjectURL(nextPreview); return; }
-      setOutputPreviewUrl((current) => {
-        if (current) URL.revokeObjectURL(current);
-        return nextPreview;
-      });
+      const compressed = await validateCompressedOutput(await compressImage(file, options(), resources, controller.signal), controller.signal);
+      if (controller.signal.aborted) return;
+      const nextDownload = resources.objectUrl('download', compressed.blob);
+      const nextPreview = resources.objectUrl('output-preview', compressed.blob);
+      setDownloadUrl(nextDownload);
+      setOutputPreviewUrl(nextPreview);
       setResult(compressed);
     } catch (caught) {
-      if (mountedRef.current) setError(caught instanceof Error ? caught.message : label(locale, 'Compression failed', 'فشل ضغط الصورة'));
+      if (!controller.signal.aborted) setError(caught instanceof Error ? caught.message : label(locale, 'Compression failed', 'فشل ضغط الصورة'));
     } finally {
-      finishProcessing();
+      try {
+        await resources.dispose('compression-worker');
+      } finally {
+        finishProcessing(controller);
+      }
     }
   };
 
   const processBatch = async () => {
     if (files.length < 2) return processCurrent();
-    if (!beginProcessing()) return;
-    setBatchZipUrl('');
+    if (busy) return;
+    const controller = beginProcessing();
+    await resources.dispose('batch-zip');
     try {
-      await nextAnimationFrame();
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
       for (const nextFile of files) {
-        const compressed = await validateCompressedOutput(await processOne(nextFile));
+        if (controller.signal.aborted) return;
+        const compressed = await validateCompressedOutput(await compressImage(nextFile, options(), resources, controller.signal), controller.signal);
         const baseName = nextFile.name.replace(/\.[^.]+$/, '') || 'image';
         zip.file(`${baseName}-flixo.${extensionFor(format)}`, compressed.blob);
       }
       const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
-      const nextZipUrl = URL.createObjectURL(zipBlob);
-      if (!mountedRef.current) { URL.revokeObjectURL(nextZipUrl); return; }
+      if (controller.signal.aborted) return;
+      const nextZipUrl = resources.objectUrl('batch-zip', zipBlob);
       setBatchZipUrl(nextZipUrl);
       setBatchCount(files.length);
     } catch (caught) {
-      if (mountedRef.current) setError(caught instanceof Error ? caught.message : label(locale, 'Batch compression failed', 'فشل ضغط الملفات دفعة واحدة'));
+      if (!controller.signal.aborted) setError(caught instanceof Error ? caught.message : label(locale, 'Batch compression failed', 'فشل ضغط الملفات دفعة واحدة'));
     } finally {
-      finishProcessing();
+      try {
+        await resources.dispose('compression-worker');
+      } finally {
+        finishProcessing(controller);
+      }
     }
   };
 
@@ -187,6 +184,7 @@ export function ImageCompressor({ locale = 'en' }: ReadyToolComponentProps) {
           <div className="compressor-card">
             <label className="upload-zone" htmlFor="image-file"><span className="upload-title">{files.length ? `${files.length} ${label(locale, files.length === 1 ? 'image selected' : 'images selected', files.length === 1 ? 'صورة محددة' : 'صور محددة')}` : label(locale, 'Choose images to start', 'اختر الصور للبدء')}</span><span className="upload-subtitle">JPG · PNG · WebP · GIF · BMP · SVG · {label(locale, `up to ${MAX_FILES} files`, `حتى ${MAX_FILES} ملفًا`)}</span></label>
             <input ref={inputRef} id="image-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml" className="file-input-control" style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} multiple onChange={(event) => selectFiles(Array.from(event.target.files ?? []))} />
+            {sourcePreviewUrl ? <img src={sourcePreviewUrl} alt={label(locale, 'Selected image preview', 'معاينة الصورة المحددة')} className="sr-only" /> : null}
             <div className="control-grid">
               <label><span>{label(locale, 'Output format', 'الصيغة')}</span><select value={format} onChange={(event) => setFormat(event.target.value as CompressionFormat)}>{Object.entries(formatLabels).map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
               <label><span>{label(locale, 'Quality', 'الجودة')} ({Math.round(quality * 100)}%)</span><input aria-label={label(locale, 'Quality', 'الجودة')} type="range" min="0.1" max="1" step="0.05" value={quality} onChange={(event) => setQuality(Number(event.target.value))} /></label>

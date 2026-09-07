@@ -22,19 +22,19 @@ export type ImageAIResponse = {
 };
 
 export type ImageAIClient = {
-  request(request: ImageAIRequest): Promise<ImageAIResponse>;
+  request(request: ImageAIRequest, signal?: AbortSignal): Promise<ImageAIResponse>;
 };
 
 export function createImageAIClient(endpoint = '/api/ai/image'): ImageAIClient {
   return {
-    async request(request) {
+    async request(request, signal) {
       const body = new FormData();
       body.append('capability', request.capability);
       if (request.prompt) body.append('prompt', request.prompt);
       if (request.image) body.append('image', request.image);
       if (request.options) body.append('options', JSON.stringify(request.options));
 
-      const response = await fetch(endpoint, { method: 'POST', body });
+      const response = await fetch(endpoint, { method: 'POST', body, signal });
       if (!response.ok) {
         throw new Error(`AI image request failed: ${response.status}`);
       }

@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { encodeWav, mixInstrumental, validateDuration, type SeparationBackend, type SeparationResult } from './engine';
+import { useDisposableResourceOwner, throwIfAborted } from '@/lib/resources/disposable-resource-owner';
 
 type Stem = 'vocals' | 'instrumental';
 
 export function AiVocalInstrumentalRemoverTool() {
+  const resources = useDisposableResourceOwner();
+  const processingControllerRef = useRef<AbortController | null>(null);
+  const jobIdRef = useRef<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState(0);
   const [backend, setBackend] = useState<SeparationBackend>('webgpu');
@@ -11,9 +15,11 @@ export function AiVocalInstrumentalRemoverTool() {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('Choose an audio file.');
   const [stems, setStems] = useState<Partial<Record<Stem, Blob>>>({});
-  const workerRef = useRef<Worker | null>(null);
 
-  useEffect(() => () => workerRef.current?.terminate(), []);
+  useEffect(() => () => {
+    processingControllerRef.current?.abort();
+    void resources.disposeAll();
+  }, [resources]);
 
   const audioContextOptions = useMemo(() => ({ sampleRate: 44100 }), []);
 
@@ -22,81 +28,107 @@ export function AiVocalInstrumentalRemoverTool() {
       setStatus('Please choose an audio file.');
       return;
     }
-    const context = new AudioContext(audioContextOptions);
+    processingControllerRef.current?.abort();
+    processingControllerRef.current = null;
+    await resources.dispose('ai-vocal-context');
+    const controller = new AbortController();
+    processingControllerRef.current = controller;
     try {
+      const context = resources.audioContext('ai-vocal-context', new AudioContext(audioContextOptions));
       const buffer = await context.decodeAudioData(await nextFile.arrayBuffer());
+      throwIfAborted(controller.signal);
       validateDuration(buffer.duration);
       setFile(nextFile);
       setDuration(buffer.duration);
       setStems({});
       setStatus(`Ready: ${nextFile.name}`);
     } catch (error) {
-      setFile(null);
-      setDuration(0);
-      setStatus(error instanceof Error ? error.message : 'Unable to decode this audio file.');
+      if (!controller.signal.aborted) {
+        setFile(null);
+        setDuration(0);
+        setStatus(error instanceof Error ? error.message : 'Unable to decode this audio file.');
+      }
     } finally {
-      await context.close();
+      try {
+        await resources.dispose('ai-vocal-context');
+      } finally {
+        if (processingControllerRef.current === controller) processingControllerRef.current = null;
+      }
     }
   };
 
   const start = async () => {
     if (!file || busy) return;
+    processingControllerRef.current?.abort();
+    const controller = new AbortController();
+    const jobId = crypto.randomUUID();
+    processingControllerRef.current = controller;
+    jobIdRef.current = jobId;
     setBusy(true);
     setProgress(0);
     setStems({});
-    const context = new AudioContext(audioContextOptions);
-    const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-    workerRef.current = worker;
-    const jobId = crypto.randomUUID();
-    worker.onmessage = (event: MessageEvent<{ type: string; jobId: string; data?: { phase: string; progress: number }; result?: SeparationResult; message?: string }>) => {
-      if (event.data.jobId !== jobId) return;
-      if (event.data.type === 'progress' && event.data.data) {
-        setStatus(event.data.data.phase);
-        setProgress(Math.round(event.data.data.progress * 100));
-      }
-      if (event.data.type === 'done' && event.data.result) {
-        const result = event.data.result;
-        const vocals = new Blob([encodeWav(result.vocals)], { type: 'audio/wav' });
-        const instrumental = new Blob([encodeWav(mixInstrumental(result))], { type: 'audio/wav' });
-        setStems({ vocals, instrumental });
-        setProgress(100);
-        setStatus('Separation complete.');
-        setBusy(false);
-        worker.terminate();
-        void context.close();
-      }
-      if (event.data.type === 'error') {
-        setStatus(event.data.message ?? 'Local AI separation failed.');
-        setBusy(false);
-        worker.terminate();
-        void context.close();
-      }
-    };
-
     try {
+      const context = resources.audioContext('ai-vocal-context', new AudioContext(audioContextOptions));
       const audio = await context.decodeAudioData(await file.arrayBuffer());
+      throwIfAborted(controller.signal);
       const left = audio.getChannelData(0).slice();
       const right = audio.numberOfChannels > 1 ? audio.getChannelData(1).slice() : left.slice();
       const effectiveBackend: SeparationBackend = backend === 'webgpu' && !('gpu' in navigator) ? 'wasm' : backend;
       if (effectiveBackend !== backend) setStatus('WebGPU is unavailable; using WASM CPU fallback.');
-      worker.postMessage({ jobId, left, right, backend: effectiveBackend }, [left.buffer, right.buffer]);
+      const worker = resources.worker('ai-vocal-worker', new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }));
+      await new Promise<void>((resolve, reject) => {
+        const onAbort = () => reject(controller.signal.reason instanceof Error ? controller.signal.reason : new DOMException('The operation was aborted.', 'AbortError'));
+        controller.signal.addEventListener('abort', onAbort, { once: true });
+        worker.onmessage = (event: MessageEvent<{ type: string; jobId: string; data?: { phase: string; progress: number }; result?: SeparationResult; message?: string }>) => {
+          if (controller.signal.aborted || event.data.jobId !== jobId || jobIdRef.current !== jobId) return;
+          if (event.data.type === 'progress' && event.data.data) {
+            setStatus(event.data.data.phase);
+            setProgress(Math.round(event.data.data.progress * 100));
+            return;
+          }
+          controller.signal.removeEventListener('abort', onAbort);
+          if (event.data.type === 'error') {
+            reject(new Error(event.data.message ?? 'Local AI separation failed.'));
+            return;
+          }
+          if (event.data.type === 'done' && event.data.result) {
+            const result = event.data.result;
+            setStems({ vocals: new Blob([encodeWav(result.vocals)], { type: 'audio/wav' }), instrumental: new Blob([encodeWav(mixInstrumental(result))], { type: 'audio/wav' }) });
+            setProgress(100);
+            setStatus('Separation complete.');
+            resolve();
+          }
+        };
+        worker.onerror = () => {
+          controller.signal.removeEventListener('abort', onAbort);
+          reject(new Error('Local AI separation worker failed.'));
+        };
+      });
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Unable to prepare audio.');
-      setBusy(false);
-      worker.terminate();
-      await context.close();
+      if (!controller.signal.aborted && jobIdRef.current === jobId) setStatus(error instanceof Error ? error.message : 'Unable to prepare audio.');
+    } finally {
+      try {
+        await resources.dispose('ai-vocal-worker');
+      } finally {
+        await resources.dispose('ai-vocal-context');
+        if (jobIdRef.current === jobId) {
+          jobIdRef.current = null;
+          processingControllerRef.current = null;
+          setBusy(false);
+        }
+      }
     }
   };
 
   const download = (kind: Stem) => {
     const blob = stems[kind];
     if (!blob) return;
-    const url = URL.createObjectURL(blob);
+    const url = resources.objectUrl(`ai-vocal-download-${kind}`, blob);
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = `${file?.name.replace(/\.[^.]+$/, '') ?? 'audio'}-${kind}.wav`;
     anchor.click();
-    URL.revokeObjectURL(url);
+    void resources.dispose(`ai-vocal-download-${kind}`);
   };
 
   return (

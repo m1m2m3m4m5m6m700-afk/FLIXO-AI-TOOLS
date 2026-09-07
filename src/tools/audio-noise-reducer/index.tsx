@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { DisposableResourceOwner, throwIfAborted } from '@/lib/resources/disposable-resource-owner';
 
 type WorkerResponse = { channels: Float32Array[] } | { error: string };
 
@@ -21,7 +22,10 @@ function encodeWav(channels: Float32Array[], sampleRate: number): Blob {
 
 export function AudioNoiseReducerTool() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const workerRef = useRef<Worker | null>(null);
+  const resources = new DisposableResourceOwner();
+  const ownerRef = useRef(resources);
+  const processingControllerRef = useRef<AbortController | null>(null);
+  const jobIdRef = useRef<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [reduction, setReduction] = useState(0.65);
   const [status, setStatus] = useState('Ready');
@@ -29,47 +33,57 @@ export function AudioNoiseReducerTool() {
   const [outputUrl, setOutputUrl] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (!output) {
-      setOutputUrl((current) => { if (current) URL.revokeObjectURL(current); return ''; });
-      return undefined;
-    }
-    const url = URL.createObjectURL(output);
-    setOutputUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [output]);
-
   useEffect(() => () => {
-    workerRef.current?.terminate();
-    workerRef.current = null;
+    processingControllerRef.current?.abort();
+    void ownerRef.current.disposeAll();
   }, []);
 
   async function process() {
-    if (!file) return;
-    setBusy(true); setStatus('Decoding audio…'); setOutput(null);
-    const context = new AudioContext();
+    if (!file || busy) return;
+    processingControllerRef.current?.abort();
+    const controller = new AbortController();
+    const jobId = crypto.randomUUID();
+    processingControllerRef.current = controller;
+    jobIdRef.current = jobId;
+    setBusy(true); setStatus('Decoding audio…'); setOutput(null); setOutputUrl('');
+    await ownerRef.current.dispose('noise-reducer-output');
     try {
+      const context = ownerRef.current.audioContext('noise-reducer-context', new AudioContext());
       const decoded = await context.decodeAudioData(await file.arrayBuffer());
-      workerRef.current?.terminate();
-      const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-      workerRef.current = worker;
-      const done = new Promise<WorkerResponse>((resolve) => {
-        worker.onmessage = (event: MessageEvent<WorkerResponse>) => resolve(event.data);
-        worker.onerror = () => resolve({ error: 'Noise reduction worker failed.' });
+      throwIfAborted(controller.signal);
+      const worker = ownerRef.current.worker('noise-reducer-worker', new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }));
+      const result = await new Promise<WorkerResponse>((resolve, reject) => {
+        const onAbort = () => reject(controller.signal.reason instanceof Error ? controller.signal.reason : new DOMException('The operation was aborted.', 'AbortError'));
+        controller.signal.addEventListener('abort', onAbort, { once: true });
+        worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+          if (controller.signal.aborted || jobIdRef.current !== jobId) return;
+          controller.signal.removeEventListener('abort', onAbort);
+          resolve(event.data);
+        };
+        worker.onerror = () => {
+          controller.signal.removeEventListener('abort', onAbort);
+          reject(new Error('Noise reduction worker failed.'));
+        };
       });
-      const channels = Array.from({ length: decoded.numberOfChannels }, (_, c) => new Float32Array(decoded.getChannelData(c)));
-      const transfer = channels.map((channel) => channel.buffer);
-      setStatus('Reducing noise…');
-      worker.postMessage({ channels, options: { reduction, highPassHz: 70 } }, transfer);
-      const result = await done;
-      worker.terminate(); workerRef.current = null;
       if ('error' in result) throw new Error(result.error);
-      const blob = encodeWav(result.channels, decoded.sampleRate);
-      setOutput(blob); setStatus(`Done • output ${Math.round(blob.size / 1024)} KB`);
-    } catch (error) { setStatus(error instanceof Error ? error.message : 'Noise reduction failed.'); }
-    finally {
-      await context.close();
-      setBusy(false);
+      throwIfAborted(controller.signal);
+      const channels = result.channels;
+      const blob = encodeWav(channels, decoded.sampleRate);
+      const nextUrl = ownerRef.current.objectUrl('noise-reducer-output', blob);
+      setOutput(blob); setOutputUrl(nextUrl); setStatus(`Done • output ${Math.round(blob.size / 1024)} KB`);
+    } catch (error) {
+      if (!controller.signal.aborted && jobIdRef.current === jobId) setStatus(error instanceof Error ? error.message : 'Noise reduction failed.');
+    } finally {
+      try {
+        await ownerRef.current.dispose('noise-reducer-worker');
+      } finally {
+        await ownerRef.current.dispose('noise-reducer-context');
+        if (jobIdRef.current === jobId) {
+          jobIdRef.current = null;
+          processingControllerRef.current = null;
+          setBusy(false);
+        }
+      }
     }
   }
 
@@ -81,8 +95,8 @@ export function AudioNoiseReducerTool() {
     <label className="block">Reduction: {Math.round(reduction * 100)}%
       <input className="mt-2 w-full" type="range" min="0" max="100" value={Math.round(reduction * 100)} onChange={(e) => setReduction(Number(e.target.value) / 100)} />
     </label>
-    <button disabled={!file || busy} className="rounded bg-black px-4 py-2 text-white disabled:opacity-50" onClick={process}>{busy ? 'Processing…' : 'Reduce Noise'}</button>
+    <button disabled={!file || busy} className="rounded bg-black px-4 py-2 text-white disabled:opacity-50" onClick={() => void process()}>{busy ? 'Processing…' : 'Reduce Noise'}</button>
     <p className="text-sm" aria-live="polite">{status}</p>
-    {outputUrl && <a className="inline-block rounded border px-4 py-2" href={outputUrl} download="flixo-noise-reduced.wav">Download WAV</a>}
+    {output && outputUrl && <a className="inline-block rounded border px-4 py-2" href={outputUrl} download="flixo-noise-reduced.wav">Download WAV</a>}
   </section>;
 }

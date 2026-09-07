@@ -1,31 +1,35 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import GIF from 'gif.js';
 import workerUrl from 'gif.js/dist/gif.worker.js?url';
 import { clampGifRange, drawMemeText, normalizeFps, normalizeWidth } from './engine';
+import { useDisposableResourceOwner, throwIfAborted } from '@/lib/resources/disposable-resource-owner';
 
-async function metadata(file: File) {
-  return new Promise<{ duration: number; width: number; height: number }>((resolve, reject) => {
-    const video = document.createElement('video');
-    const url = URL.createObjectURL(file);
+async function metadata(file: File, owner: ReturnType<typeof useDisposableResourceOwner>, signal: AbortSignal) {
+  throwIfAborted(signal);
+  const video = document.createElement('video');
+  const url = owner.objectUrl('video-metadata-source', file);
+  try {
     video.preload = 'metadata';
-    video.onloadedmetadata = () => {
-      const value = { duration: video.duration, width: video.videoWidth, height: video.videoHeight };
-      URL.revokeObjectURL(url);
-      if (value.duration > 0) {
-        resolve(value);
-        return;
-      }
-      reject(new Error('Unable to read video metadata'));
-    };
-    video.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Unable to load video'));
-    };
-    video.src = url;
-  });
+    await new Promise<void>((resolve, reject) => {
+      const onAbort = () => reject(signal.reason instanceof Error ? signal.reason : new DOMException('The operation was aborted.', 'AbortError'));
+      signal.addEventListener('abort', onAbort, { once: true });
+      video.onloadedmetadata = () => { signal.removeEventListener('abort', onAbort); resolve(); };
+      video.onerror = () => { signal.removeEventListener('abort', onAbort); reject(new Error('Unable to load video')); };
+      video.src = url;
+    });
+    const value = { duration: video.duration, width: video.videoWidth, height: video.videoHeight };
+    if (value.duration <= 0) throw new Error('Unable to read video metadata');
+    return value;
+  } finally {
+    await owner.dispose('video-metadata-source');
+    video.removeAttribute('src');
+    video.load();
+  }
 }
 
 export function VideoGifMemeTool() {
+  const resources = useDisposableResourceOwner();
+  const controllerRef = useRef<AbortController | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState(0);
   const [start, setStart] = useState(0);
@@ -38,92 +42,106 @@ export function VideoGifMemeTool() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [outputUrl, setOutputUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => () => {
+    controllerRef.current?.abort();
+    void resources.disposeAll();
+  }, [resources]);
+
+  useEffect(() => {
+    if (!file) {
+      void resources.dispose('video-preview');
+      setPreviewUrl(null);
+      return;
+    }
+    const url = resources.objectUrl('video-preview', file);
+    setPreviewUrl(url);
+    return () => { void resources.dispose('video-preview'); };
+  }, [file, resources]);
 
   const choose = async (next?: File) => {
     if (!next) return;
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    await resources.dispose('gif-output');
     if (!next.type.startsWith('video/')) {
       setError('Please choose a video file.');
+      if (controllerRef.current === controller) controllerRef.current = null;
       return;
     }
     setError('');
-    if (outputUrl) URL.revokeObjectURL(outputUrl);
     setOutputUrl(null);
     try {
-      const m = await metadata(next);
-      setFile(next);
-      setDuration(m.duration);
-      setStart(0);
-      setEnd(Math.min(5, m.duration));
-      setWidth(Math.min(720, Math.max(160, m.width)));
-      setStatus(`${m.width}×${m.height} · ${m.duration.toFixed(2)}s`);
+      const m = await metadata(next, resources, controller.signal);
+      throwIfAborted(controller.signal);
+      setFile(next); setDuration(m.duration); setStart(0); setEnd(Math.min(5, m.duration)); setWidth(Math.min(720, Math.max(160, m.width))); setStatus(`${m.width}×${m.height} · ${m.duration.toFixed(2)}s`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unable to read video');
+      if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'Unable to read video');
+    } finally {
+      if (controllerRef.current === controller) controllerRef.current = null;
     }
   };
 
   const generate = async () => {
-    if (!file) return;
+    if (!file || busy) return;
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
     const range = clampGifRange(start, end, duration);
     const safeFps = normalizeFps(fps);
     const safeWidth = normalizeWidth(width);
     const seconds = range.end - range.start;
-    if (seconds <= 0 || seconds > 12) {
-      setError('GIF duration must be between 0 and 12 seconds.');
-      return;
-    }
-
-    setBusy(true);
-    setError('');
-    setStatus('Rendering GIF…');
-
+    if (seconds <= 0 || seconds > 12) { setError('GIF duration must be between 0 and 12 seconds.'); return; }
+    setBusy(true); setError(''); setStatus('Rendering GIF…');
     const video = document.createElement('video');
-    const sourceUrl = URL.createObjectURL(file);
-    video.src = sourceUrl;
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = 'auto';
-
+    const sourceUrl = resources.objectUrl('video-gif-source', file);
+    video.src = sourceUrl; video.muted = true; video.playsInline = true; video.preload = 'auto';
     try {
       await new Promise<void>((resolve, reject) => {
-        video.onloadedmetadata = () => resolve();
-        video.onerror = () => reject(new Error('Unable to load video'));
+        const onAbort = () => reject(controller.signal.reason instanceof Error ? controller.signal.reason : new DOMException('The operation was aborted.', 'AbortError'));
+        controller.signal.addEventListener('abort', onAbort, { once: true });
+        video.onloadedmetadata = () => { controller.signal.removeEventListener('abort', onAbort); resolve(); };
+        video.onerror = () => { controller.signal.removeEventListener('abort', onAbort); reject(new Error('Unable to load video')); };
       });
+      throwIfAborted(controller.signal);
       const ratio = video.videoHeight ? video.videoWidth / video.videoHeight : 1;
       const height = Math.max(1, Math.round(safeWidth / ratio));
-      const canvas = document.createElement('canvas');
-      canvas.width = safeWidth;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas is unavailable');
-
-      const gif = new GIF({ workers: 2, quality: 10, width: canvas.width, height: canvas.height, workerScript: workerUrl });
+      const canvas = document.createElement('canvas'); canvas.width = safeWidth; canvas.height = height;
+      const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('Canvas is unavailable');
+      const gif = resources.track('video-gif-renderer', new GIF({ workers: 2, quality: 10, width: canvas.width, height: canvas.height, workerScript: workerUrl }), (instance) => instance.abort());
       const frameCount = Math.min(180, Math.ceil(seconds * safeFps));
       for (let i = 0; i < frameCount; i += 1) {
+        throwIfAborted(controller.signal);
         video.currentTime = range.start + (seconds * i) / Math.max(1, frameCount - 1);
-        await new Promise<void>((resolve) => video.addEventListener('seeked', () => resolve(), { once: true }));
+        await new Promise<void>((resolve, reject) => {
+          const onAbort = () => reject(controller.signal.reason instanceof Error ? controller.signal.reason : new DOMException('The operation was aborted.', 'AbortError'));
+          controller.signal.addEventListener('abort', onAbort, { once: true });
+          video.addEventListener('seeked', () => { controller.signal.removeEventListener('abort', onAbort); resolve(); }, { once: true });
+        });
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         drawMemeText(ctx, topText, canvas.width / 2, 12, canvas.width - 24);
         drawMemeText(ctx, bottomText, canvas.width / 2, Math.max(12, canvas.height - 72), canvas.width - 24);
         gif.addFrame(canvas, { copy: true, delay: Math.round(1000 / safeFps) });
         setStatus(`Rendering GIF… ${i + 1}/${frameCount}`);
       }
-
-      gif.on('finished', (blob: Blob) => {
-        setOutputUrl(URL.createObjectURL(blob));
-        setStatus(`GIF ready · ${(blob.size / 1024).toFixed(1)} KB`);
-        setBusy(false);
-        URL.revokeObjectURL(sourceUrl);
+      await new Promise<void>((resolve, reject) => {
+        const onAbort = () => reject(controller.signal.reason instanceof Error ? controller.signal.reason : new DOMException('The operation was aborted.', 'AbortError'));
+        controller.signal.addEventListener('abort', onAbort, { once: true });
+        gif.on('finished', (blob: Blob) => { controller.signal.removeEventListener('abort', onAbort); const nextUrl = resources.objectUrl('gif-output', blob); setOutputUrl(nextUrl); setStatus(`GIF ready · ${(blob.size / 1024).toFixed(1)} KB`); resolve(); });
+        gif.on('abort', () => { controller.signal.removeEventListener('abort', onAbort); reject(new Error('GIF rendering was aborted.')); });
+        gif.render();
       });
-      gif.on('abort', () => {
-        setError('GIF rendering was aborted.');
-        setBusy(false);
-        URL.revokeObjectURL(sourceUrl);
-      });
-      gif.render();
     } catch (e) {
-      setBusy(false);
-      URL.revokeObjectURL(sourceUrl);
-      setError(e instanceof Error ? e.message : 'Unable to render GIF');
+      if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'Unable to render GIF');
+    } finally {
+      try {
+        await resources.dispose('video-gif-renderer');
+      } finally {
+        await resources.dispose('video-gif-source');
+        if (controllerRef.current === controller) { controllerRef.current = null; setBusy(false); }
+      }
     }
   };
 
@@ -131,28 +149,9 @@ export function VideoGifMemeTool() {
     <section className="mx-auto flex max-w-3xl flex-col gap-5 rounded-2xl border border-border bg-background p-6 text-foreground">
       <div><h1 className="text-2xl font-bold">Video to GIF & Meme Maker</h1><p className="mt-1 text-sm text-muted-foreground">Convert a short video clip to GIF and add top/bottom meme text locally.</p></div>
       <label className="rounded-xl border border-dashed border-border p-6 text-center"><span className="mb-3 block font-medium">Choose video</span><input aria-label="Video file" type="file" accept="video/*" onChange={(e) => void choose(e.target.files?.[0])} /></label>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <label>FPS<input aria-label="FPS" className="mt-1 w-full rounded border p-2" type="number" min={2} max={15} value={fps} onChange={(e) => setFps(Number(e.target.value))} /></label>
-        <label>Width<input aria-label="Width" className="mt-1 w-full rounded border p-2" type="number" min={160} max={720} value={width} onChange={(e) => setWidth(Number(e.target.value))} /></label>
-      </div>
-
-      {file ? (
-        <>
-          <video className="max-h-80 w-full rounded-xl bg-black" src={URL.createObjectURL(file)} controls muted />
-          <div className="grid gap-4 md:grid-cols-2">
-            <label>Start<input aria-label="Start" className="mt-1 w-full rounded border p-2" type="number" min={0} max={duration} step={0.1} value={start} onChange={(e) => setStart(Number(e.target.value))} /></label>
-            <label>End<input aria-label="End" className="mt-1 w-full rounded border p-2" type="number" min={0} max={duration} step={0.1} value={end} onChange={(e) => setEnd(Number(e.target.value))} /></label>
-            <label>Top text<input aria-label="Top text" className="mt-1 w-full rounded border p-2" value={topText} onChange={(e) => setTopText(e.target.value)} /></label>
-            <label>Bottom text<input aria-label="Bottom text" className="mt-1 w-full rounded border p-2" value={bottomText} onChange={(e) => setBottomText(e.target.value)} /></label>
-          </div>
-          <button type="button" disabled={busy} onClick={() => void generate()} className="rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50">{busy ? 'Rendering…' : 'Create GIF'}</button>
-        </>
-      ) : null}
-
-      {status ? <p aria-live="polite" className="text-sm text-muted-foreground">{status}</p> : null}
-      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-      {outputUrl ? <a className="rounded-xl border border-border px-4 py-3 text-center font-semibold" href={outputUrl} download="flixo-meme.gif">Download GIF</a> : null}
+      <div className="grid gap-4 md:grid-cols-2"><label>FPS<input aria-label="FPS" className="mt-1 w-full rounded border p-2" type="number" min={2} max={15} value={fps} onChange={(e) => setFps(Number(e.target.value))} /></label><label>Width<input aria-label="Width" className="mt-1 w-full rounded border p-2" type="number" min={160} max={720} value={width} onChange={(e) => setWidth(Number(e.target.value))} /></label></div>
+      {file ? <><video className="max-h-80 w-full rounded-xl bg-black" src={previewUrl ?? undefined} controls muted /><div className="grid gap-4 md:grid-cols-2"><label>Start<input aria-label="Start" className="mt-1 w-full rounded border p-2" type="number" min={0} max={duration} step={0.1} value={start} onChange={(e) => setStart(Number(e.target.value))} /></label><label>End<input aria-label="End" className="mt-1 w-full rounded border p-2" type="number" min={0} max={duration} step={0.1} value={end} onChange={(e) => setEnd(Number(e.target.value))} /></label><label>Top text<input aria-label="Top text" className="mt-1 w-full rounded border p-2" value={topText} onChange={(e) => setTopText(e.target.value)} /></label><label>Bottom text<input aria-label="Bottom text" className="mt-1 w-full rounded border p-2" value={bottomText} onChange={(e) => setBottomText(e.target.value)} /></label></div><button type="button" disabled={busy} onClick={() => void generate()} className="rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-50">{busy ? 'Rendering…' : 'Create GIF'}</button></> : null}
+      {status ? <p aria-live="polite" className="text-sm text-muted-foreground">{status}</p> : null}{error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}{outputUrl ? <a className="rounded-xl border border-border px-4 py-3 text-center font-semibold" href={outputUrl} download="flixo-meme.gif">Download GIF</a> : null}
     </section>
   );
 }
