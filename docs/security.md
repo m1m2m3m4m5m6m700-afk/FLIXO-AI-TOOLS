@@ -22,18 +22,21 @@ CI contains a Socket gate. It runs as a blocking check when the repository secre
 
 Vercel applies a conservative baseline including CSP, `nosniff`, referrer policy, permissions policy, and frame protection.
 
-The CSP allows only the resource types FLIXO currently needs, including local scripts, WebAssembly, data/blob images, media, workers, and HTTPS API connections.
+The CSP keeps browser connections limited to the FLIXO origin plus the explicitly reviewed jsDelivr dependency currently required by the application. External script trust must remain intentional and reviewed; WebAssembly execution and inline styles are permitted only where the current runtime requires them.
 
 ## Input sanitization and trusted HTML boundaries
 
-DOMPurify is not installed globally because the current HTML insertion sites are trusted static-data boundaries rather than general-purpose HTML rendering paths. There are four intentional `dangerouslySetInnerHTML` usages in the current application:
+DOMPurify is not installed globally because ordinary UI rendering is implemented with React text/nodes. `dangerouslySetInnerHTML` is not permitted for ordinary UI content.
+
+The only permitted `dangerouslySetInnerHTML` sinks are repository-controlled JSON-LD `<script type="application/ld+json">` blocks, and each serialized payload must escape `<` before insertion. Current application boundaries are:
 
 - `src/routes/__root.tsx`: repository-controlled `GLOBAL_STRUCTURED_DATA`, serialized as JSON-LD and escaped for `<`.
 - `src/routes/localized-tool-page.tsx`: repository-controlled localized tool SEO JSON-LD, serialized and escaped for `<`.
 - `src/routes/use-case.tsx`: repository-controlled use-case JSON-LD, serialized and escaped for `<`.
-- `src/routes/home-page.tsx`: repository-controlled locale `heroTitle` strings containing the intentional `<span>` presentation wrapper.
 
-None of these four boundaries accepts uploaded files, request parameters, persisted user content, or remote HTML as its HTML source. This is an explicit trust boundary, not permission to introduce arbitrary HTML later. A future untrusted HTML path must use normal React elements or an explicit sanitizer at that boundary.
+`src/routes/home-page.tsx` must render the localized hero title with normal React nodes; it must not reintroduce `dangerouslySetInnerHTML`. Its intentional `<span>` presentation wrapper is parsed into React text plus an actual `<span>` element, not injected as HTML.
+
+None of these JSON-LD boundaries accepts uploaded files, request parameters, persisted user content, or remote HTML as its HTML source. This is an explicit trust boundary, not permission to introduce arbitrary HTML later. A future untrusted HTML path must use normal React elements or an explicit sanitizer at that boundary.
 
 ## Rules
 
@@ -42,3 +45,4 @@ None of these four boundaries accepts uploaded files, request parameters, persis
 3. Keep tool isolation intact.
 4. Never weaken existing CI checks just to make a run green.
 5. Keep trusted HTML boundaries narrow, repository-controlled, and explicitly documented.
+6. Treat browser-reported MIME as advisory; file safety must include extension, MIME, magic bytes, and decoder validation where applicable.
