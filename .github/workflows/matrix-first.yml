@@ -74,16 +74,16 @@ jobs:
           retention-days: 3
 
   matrix:
-    name: Matrix First — shard-${{ matrix.shardIndex }}/12
+    name: Matrix First — shard-${{ matrix.shardIndex }}/20
     needs: [static-and-build]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
       fail-fast: false
-      max-parallel: 12
+      max-parallel: 20
       matrix:
-        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-        totalShards: [12]
+        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        totalShards: [20]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -106,6 +106,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
           test -f dist/index.html
+          test -f dist/sitemap.xml
       - name: Install Playwright system dependencies
         timeout-minutes: 8
         run: |
@@ -132,54 +133,107 @@ jobs:
               timeout --preserve-status 420s npx playwright install "$browser"
             fi
           done
-      - name: Prepare isolated logical shard
-        id: shard
+      - name: Prepare staggered execution tile
+        id: tile
         shell: bash
         env:
           SHARD_INDEX: ${{ matrix.shardIndex }}
           TOTAL_SHARDS: ${{ matrix.totalShards }}
         run: |
           set -euo pipefail
-          node >tests/.matrix-localization-runtime-${SHARD_INDEX}.spec.ts <<'NODE'
+          mkdir -p tests
+          rm -f tests/.matrix-*.spec.ts tests/.matrix-targets-*.txt tests/.matrix-dispatch.mjs
+
+          node >tests/.matrix-dispatch.mjs <<'NODE'
           const fs = require('node:fs');
+          const path = require('node:path');
           const index = Number(process.env.SHARD_INDEX);
           const total = Number(process.env.TOTAL_SHARDS);
-          if (!Number.isInteger(index) || index < 1 || index > total || total !== 12) throw new Error(`Invalid logical shard ${index}/${total}`);
+          if (!Number.isInteger(index) || index < 1 || index > total || total !== 20) throw new Error(`Invalid shard ${index}/${total}`);
 
-          const source = fs.readFileSync('tests/localization-runtime.spec.ts', 'utf8');
-          const sitemap = fs.readFileSync('dist/sitemap.xml', 'utf8');
-          const routes = [...new Set([...sitemap.matchAll(/<url>\s*<loc>([^<]+)<\/loc>[\s\S]*?<\/url>/gu)].map((match) => new URL(match[1]).pathname))].sort((a, b) => a.localeCompare(b));
-          const familyPath = (pathname) => pathname.replace(/^\/[^/]+(?=\/|$)/u, '') || '/';
+          const allSpecs = fs.readdirSync('tests').filter((name) => name.endsWith('.spec.ts')).sort((a, b) => a.localeCompare(b)).map((name) => `tests/${name}`);
+          const localizationSpec = 'tests/localization-runtime.spec.ts';
+          const nonLocalization = allSpecs.filter((file) => file !== localizationSpec);
+
+          const bucket = (items, count) => {
+            const buckets = Array.from({ length: count }, () => []);
+            items.forEach((item, itemIndex) => buckets[itemIndex % count].push(item));
+            return buckets;
+          };
+
+          const middleOut = (items) => {
+            const ordered = [];
+            let left = Math.floor((items.length - 1) / 2);
+            let right = left + 1;
+            while (left >= 0 || right < items.length) {
+              if (left >= 0) ordered.push(items[left--]);
+              if (right < items.length) ordered.push(items[right++]);
+            }
+            return ordered;
+          };
+
           const coreFamilies = new Set([
-            '/',
-            '/aspect-ratio-calculator',
-            '/image-compressor',
-            '/image-converter',
-            '/image-cropper',
-            '/image-to-svg',
-            '/image-ocr',
-            '/background-remover',
-            '/object-remover',
-            '/ai-image-generator',
-            '/seed',
-            '/pix',
+            '/', '/aspect-ratio-calculator', '/image-compressor', '/image-converter',
+            '/image-cropper', '/image-to-svg', '/image-ocr', '/background-remover',
+            '/object-remover', '/ai-image-generator', '/seed', '/pix',
           ]);
-          const core = routes.filter((route) => coreFamilies.has(familyPath(route)));
-          const remainder = routes.filter((route) => !coreFamilies.has(familyPath(route)));
-          const buckets = Array.from({ length: total }, () => []);
-          buckets[0].push(...core);
-          remainder.forEach((route, offset) => buckets[(offset % (total - 1)) + 1].push(route));
-          const selected = buckets[index - 1].slice();
-          if (index % 2 === 0) selected.reverse();
-          const replacement = `const routes = ${JSON.stringify(selected, null, 2)};`;
-          const rewritten = source.replace(/const routes = .*?\.sort\(\);/su, replacement);
-          if (rewritten === source) throw new Error('Failed to materialize shard route list');
-          process.stdout.write(rewritten);
-          console.error(`logical shard ${index}/${total}: ${selected.length} routes; order=${index % 2 === 0 ? 'reverse' : 'forward'}`);
-          console.error(`first=${selected[0] ?? '<none>'}`);
-          console.error(`last=${selected.at(-1) ?? '<none>'}`);
+          const localizationSource = fs.readFileSync(localizationSpec, 'utf8');
+          const sitemap = fs.readFileSync('dist/sitemap.xml', 'utf8');
+          const routes = [...new Set([...sitemap.matchAll(/<url>\s*<loc>([^<]+)<\/loc>[\s\S]*?<\/url>/gu)].map((match) => new URL(match[1]).pathname))];
+          const familyPath = (pathname) => pathname.replace(/^\/[^/]+(?=\/|$)/u, '') || '/';
+          const core = routes.filter((route) => coreFamilies.has(familyPath(route))).sort((a, b) => a.localeCompare(b));
+          const remainderRoutes = routes.filter((route) => !coreFamilies.has(familyPath(route))).sort((a, b) => a.localeCompare(b));
+          const prioritizedRoutes = [...core, ...remainderRoutes];
+
+          if (index <= 5) {
+            const selectedRoutes = bucket(prioritizedRoutes, 5)[index - 1];
+            const rewritten = localizationSource.replace(/const routes = .*?\.sort\(\);/su, `const routes = ${JSON.stringify(selectedRoutes, null, 2)};`);
+            if (rewritten === localizationSource) throw new Error('Failed to materialize locale shard');
+            const spec = `tests/.matrix-localization-${index}.spec.ts`;
+            fs.writeFileSync(spec, rewritten);
+            fs.writeFileSync(`tests/.matrix-targets-${index}.txt`, `${spec}\n`);
+            process.stderr.write(`group=A-core-locale mode=forward shard=${index}/20 routes=${selectedRoutes.length}\n`);
+            process.stdout.write(JSON.stringify({ group: 'A-core-locale', targets: [spec] }));
+            process.exit(0);
+          }
+
+          const classified = (pattern, assigned) => nonLocalization.filter((file) => pattern.test(path.basename(file)) && !assigned.has(file));
+          const assigned = new Set();
+          const bCandidates = classified(/seed|studio|tool|image/i, assigned);
+          bCandidates.forEach((file) => assigned.add(file));
+          const cCandidates = classified(/performance|route|loading|dynamic|import|lazy/i, assigned);
+          cCandidates.forEach((file) => assigned.add(file));
+          const dCandidates = classified(/boundary|hydration/i, assigned);
+          dCandidates.forEach((file) => assigned.add(file));
+          const remaining = nonLocalization.filter((file) => !assigned.has(file));
+
+          const fill = (group) => {
+            while (group.length < 5 && remaining.length) group.push(remaining.shift());
+          };
+          fill(bCandidates);
+          fill(cCandidates);
+          fill(dCandidates);
+          dCandidates.push(...remaining.splice(0));
+
+          const layout = index <= 10 ? 'B' : index <= 15 ? 'C' : 'D';
+          const localIndex = ((index - 1) % 5);
+          let targets = bucket(layout === 'B' ? bCandidates : layout === 'C' ? cCandidates : dCandidates, 5)[localIndex] ?? [];
+          if (!targets.length) throw new Error(`Empty execution tile for shard ${index}/20 (${layout})`);
+          if (layout === 'B') targets = targets.slice().sort((a, b) => b.localeCompare(a));
+          if (layout === 'C') {
+            const ordered = targets.slice().sort((a, b) => a.localeCompare(b));
+            targets = ordered.slice(localIndex % 2).concat(ordered.slice(0, localIndex % 2));
+          }
+          if (layout === 'D') targets = middleOut(targets.slice());
+
+          fs.writeFileSync(`tests/.matrix-targets-${index}.txt`, `${targets.join('\n')}\n`);
+          process.stderr.write(`group=${layout} mode=${layout === 'B' ? 'reverse' : layout === 'C' ? 'interleaved' : 'middle-out'} shard=${index}/20 specs=${targets.length}\n`);
+          process.stdout.write(JSON.stringify({ group: layout, targets }));
           NODE
-          echo "MATRIX_SPEC=tests/.matrix-localization-runtime-${SHARD_INDEX}.spec.ts" >> "$GITHUB_OUTPUT"
+
+          node tests/.matrix-dispatch.mjs
+          rm -f tests/.matrix-dispatch.mjs
+          echo "TARGET_MANIFEST=tests/.matrix-targets-${SHARD_INDEX}.txt" >> "$GITHUB_OUTPUT"
       - name: Start isolated preview
         shell: bash
         run: |
@@ -197,14 +251,16 @@ jobs:
           test "$ready" = 1
           curl --fail --silent --show-error --http1.1 http://127.0.0.1:3000/ar/aspect-ratio-calculator >/tmp/matrix-first-readiness.html
           grep -Eqi '<html[^>]*lang="ar"[^>]*>' /tmp/matrix-first-readiness.html
-      - name: Run three-browser logical shard — fail on first failure
+      - name: Run staggered browser tile — fail on first failure
         timeout-minutes: 18
         env:
-          MATRIX_SPEC: ${{ steps.shard.outputs.MATRIX_SPEC }}
+          TARGET_MANIFEST: ${{ steps.tile.outputs.TARGET_MANIFEST }}
         run: |
           set -euo pipefail
-          npx playwright test "$MATRIX_SPEC" \
-            --workers=6 \
+          mapfile -t TARGETS < "$TARGET_MANIFEST"
+          test "${#TARGETS[@]}" -gt 0
+          npx playwright test "${TARGETS[@]}" \
+            --workers=1 \
             --retries=0 \
             --max-failures=1 \
             --trace=retain-on-failure
@@ -218,6 +274,7 @@ jobs:
             test-results/
             /tmp/matrix-first-server.log
             /tmp/matrix-first-readiness.html
+            tests/.matrix-targets-${{ matrix.shardIndex }}.txt
           if-no-files-found: warn
           retention-days: 14
       - name: Cleanup
@@ -226,7 +283,7 @@ jobs:
         run: |
           set +e
           if [ -f /tmp/matrix-first-server.pid ]; then kill "$(cat /tmp/matrix-first-server.pid)" 2>/dev/null || true; fi
-          rm -f tests/.matrix-localization-runtime-${{ matrix.shardIndex }}.spec.ts
+          rm -f tests/.matrix-*.spec.ts tests/.matrix-targets-*.txt tests/.matrix-dispatch.mjs
 
   certification:
     name: Matrix First Certification
@@ -242,4 +299,4 @@ jobs:
           matrix_result='${{ needs.matrix.result }}'
           test "$static_result" = success
           test "$matrix_result" = success
-          echo "Matrix First Certification PASS: exact source ${EXPECTED_HEAD_SHA} consumed by Chromium, Firefox, and WebKit across 12 logical shards."
+          echo "Matrix First Certification PASS: exact source ${EXPECTED_HEAD_SHA} consumed across 20 staggered execution shards."
