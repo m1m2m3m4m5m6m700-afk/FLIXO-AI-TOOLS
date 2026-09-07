@@ -8,21 +8,21 @@ const LOCALE_LOADERS: Record<Locale, () => Promise<TranslationBundle>> = {
   es: async () => (await import('./locales/es')).es,
   fr: async () => (await import('./locales/fr')).fr,
   de: async () => (await import('./locales/de')).de,
+  ru: async () => (await import('./locales/ru')).ru,
+  zh: async () => (await import('./locales/zh')).zh,
   hi: async () => (await import('./locales/hi')).hi,
   id: async () => (await import('./locales/id')).id,
-  it: async () => (await import('./locales/it')).it,
+  ur: async () => (await import('./locales/ur')).ur,
   ja: async () => (await import('./locales/ja')).ja,
+  pt: async () => (await import('./locales/pt')).pt,
+  it: async () => (await import('./locales/it')).it,
   ko: async () => (await import('./locales/ko')).ko,
-  ms: async () => (await import('./locales/ms')).ms,
   nl: async () => (await import('./locales/nl')).nl,
   pl: async () => (await import('./locales/pl')).pl,
-  pt: async () => (await import('./locales/pt')).pt,
-  ru: async () => (await import('./locales/ru')).ru,
-  sv: async () => (await import('./locales/sv')).sv,
-  th: async () => (await import('./locales/th')).th,
   tr: async () => (await import('./locales/tr')).tr,
-  uk: async () => (await import('./locales/uk')).uk,
   vi: async () => (await import('./locales/vi')).vi,
+  th: async () => (await import('./locales/th')).th,
+  sv: async () => (await import('./locales/sv')).sv,
 };
 
 const cache = new Map<Locale, Promise<TranslationBundle>>();
@@ -35,14 +35,6 @@ export function loadTranslationDictionary(locale: Locale): Promise<TranslationBu
   return pending;
 }
 
-export async function getTranslationBundle(locale: Locale): Promise<TranslationBundle> {
-  return loadTranslationDictionary(locale);
-}
-
-export async function preloadTranslationDictionaries(locales: readonly Locale[]): Promise<void> {
-  await Promise.all(locales.map(loadTranslationDictionary));
-}
-
-export function clearTranslationDictionaryCache(): void {
-  cache.clear();
-}
+export async function getTranslationBundle(locale: Locale): Promise<TranslationBundle> { return loadTranslationDictionary(locale); }
+export async function preloadTranslationDictionaries(locales: readonly Locale[]): Promise<void> { await Promise.all(locales.map(loadTranslationDictionary)); }
+export function clearTranslationDictionaryCache(): void { cache.clear(); }
