@@ -4,7 +4,9 @@ import { execFileSync } from 'node:child_process';
 import { replayAgentLedger } from './replay-agent-ledger.mjs';
 
 const LEDGER = process.env.FLIXO_SWARM_LEDGER ?? 'artifacts/ci/agent-coordination/events.ndjson';
-const QUEUE = process.env.FLIXO_SWARM_WORK_QUEUE ?? '.ci/agent-coordination/work-queue.json';
+const QUEUE = 'artifacts/ci/agent-coordination/work-queue.json';
+const CLAIMS = process.env.FLIXO_AGENT_CLAIMS_FILE ?? '.ci/agent-coordination/claims.json';
+const SESSIONS = process.env.FLIXO_AGENT_SESSIONS_FILE ?? 'scripts/ci/active-sessions.json';
 const fail = (message) => { throw new Error(`SWARM_STATE_INVALID: ${message}`); };
 const headSha = process.env.EXPECTED_HEAD_SHA ?? (() => { try { return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return ''; } })();
 if (!headSha) fail('current HEAD unavailable');
@@ -34,8 +36,51 @@ for (const claim of state.claims.values()) {
   }
 }
 
-const stateHash = createHash('sha256').update(JSON.stringify({
-  claims: [...state.claims.values()].sort((a, b) => a.agentId.localeCompare(b.agentId)),
-  workItems: [...state.workItems.values()].sort((a, b) => a.id.localeCompare(b.id)),
-})).digest('hex');
-console.log(JSON.stringify({ result: 'PASS', mode: 'ledger-authoritative', headSha, events: state.events.length, activeClaims: [...state.claims.values()].filter((claim) => claim.status === 'active').map((claim) => claim.agentId).sort(), workItems: state.workItems.size, stateHash }, null, 2));
+const canonicalize = (value) => {
+  if (!value || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(canonicalize);
+  const result = {};
+  for (const key of Object.keys(value).sort()) {
+    if (['generatedAt', 'generated_at', 'updatedAt'].includes(key)) continue;
+    result[key] = canonicalize(value[key]);
+  }
+  return result;
+};
+const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
+const claims = [...state.claims.values()].sort((a, b) => a.agentId.localeCompare(b.agentId));
+const expectedClaims = {
+  schemaVersion: 2,
+  protocol: 'FLIXO multi-agent coordination',
+  sourceOfTruth: LEDGER,
+  leaseMinutes: Number(process.env.FLIXO_SWARM_LEASE_MINUTES ?? '30'),
+  heartbeatMinutes: Number(process.env.FLIXO_SWARM_HEARTBEAT_MINUTES ?? '10'),
+  claims,
+};
+const expectedSessions = {
+  schema_version: 1,
+  protocol: 'FLIXO active agent sessions',
+  source_of_truth: LEDGER,
+  active_sessions: claims.filter((claim) => claim.status === 'active').map((claim) => ({
+    agentId: claim.agentId,
+    branch: claim.branch,
+    observedHeadSha: claim.observedHeadSha,
+    scope: claim.scope,
+    rootCauseIds: claim.rootCauseIds,
+    workItemIds: claim.workItemIds ?? [],
+    leasedAt: claim.leasedAt,
+    leaseUntil: claim.leaseUntil,
+    lastHeartbeatAt: claim.lastHeartbeatAt ?? null,
+    sessionId: claim.sessionId,
+  })),
+};
+let projectionDrift = false;
+try {
+  projectionDrift = JSON.stringify(canonicalize(readJson(CLAIMS))) !== JSON.stringify(canonicalize(expectedClaims)) ||
+    JSON.stringify(canonicalize(readJson(SESSIONS))) !== JSON.stringify(canonicalize(expectedSessions));
+} catch (error) {
+  fail(`CONTROL_PLANE_DESYNC_DETECTED: projection unreadable (${error.message})`);
+}
+if (projectionDrift) fail(`CONTROL_PLANE_DESYNC_DETECTED: claims/session projections diverge from ${LEDGER}`);
+
+const stateHash = createHash('sha256').update(JSON.stringify({ claims, workItems: [...state.workItems.values()].sort((a, b) => a.id.localeCompare(b.id)) })).digest('hex');
+console.log(JSON.stringify({ result: 'PASS', mode: 'ledger-authoritative', headSha, events: state.events.length, activeClaims: claims.filter((claim) => claim.status === 'active').map((claim) => claim.agentId), workItems: state.workItems.size, projections: 'in-sync', stateHash }, null, 2));
