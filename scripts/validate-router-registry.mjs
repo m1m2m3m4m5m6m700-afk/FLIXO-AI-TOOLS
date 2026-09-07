@@ -8,13 +8,13 @@ const rootRoutePath = path.resolve('src/routes/__root.tsx');
 const localizedToolRoutePath = path.resolve('src/routes/localized-tool.tsx');
 const routesDir = path.resolve('src/routes');
 const routeTreePath = path.join(routesDir, 'route-tree.ts');
-const runtimeLocalePath = path.resolve('src/lib/i18n/runtime-document-locale.ts');
-const autoSurfacePath = path.resolve('src/components/auto-localized-tool-surface.tsx');
+const mainPath = path.resolve('src/main.tsx');
+const indexPath = path.resolve('index.html');
 const rootRouteSource = fs.readFileSync(rootRoutePath, 'utf8');
 const localizedToolRouteSource = fs.readFileSync(localizedToolRoutePath, 'utf8');
 const routeTreeSource = fs.readFileSync(routeTreePath, 'utf8');
-const runtimeLocaleSource = fs.readFileSync(runtimeLocalePath, 'utf8');
-const autoSurfaceSource = fs.readFileSync(autoSurfacePath, 'utf8');
+const mainSource = fs.readFileSync(mainPath, 'utf8');
+const indexSource = fs.readFileSync(indexPath, 'utf8');
 
 function fail(stage, message, details = {}) {
   console.error(`ROUTER_REGISTRY_FAILURE stage=${stage}`);
@@ -33,6 +33,14 @@ function listRouteFiles(dir) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) return listRouteFiles(fullPath);
     return entry.isFile() && entry.name.endsWith('.tsx') ? [fullPath] : [];
+  });
+}
+
+function listSourceFiles(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) return listSourceFiles(fullPath);
+    return entry.isFile() && /\.(?:ts|tsx|mts|cts)$/u.test(entry.name) ? [fullPath] : [];
   });
 }
 
@@ -81,32 +89,47 @@ if (!rootRouteSource.includes('notFoundComponent: NotFoundComponent')) fail('not
 if (!localizedToolRouteSource.includes('errorComponent: ErrorComponent')) fail('error-boundary', 'Dynamic localized tool route must install ErrorComponent.');
 if (!localizedToolRouteSource.includes('notFoundComponent: NotFoundComponent')) fail('not-found', 'Dynamic localized tool route must install NotFoundComponent.');
 
-const htmlMutationPattern = /(?:document\.documentElement|\.setAttribute\(\s*['"](?:lang|dir|data-flixo-locale)['"]|\.(?:lang|dir)\s*=)/u;
-if (!runtimeLocaleSource.includes('document.documentElement') || !runtimeLocaleSource.includes("setAttribute('lang'") || !runtimeLocaleSource.includes("setAttribute('dir'")) {
-  fail('dom-owner', 'The canonical document locale owner must mutate html lang/dir attributes.');
-}
-if (htmlMutationPattern.test(rootRouteSource)) fail('dom-owner', 'Root entry layout must not mutate document locale attributes; runtime-document-locale.ts is the sole owner.');
-const competingDomOwners = listRouteFiles(routesDir)
-  .filter((file) => file !== rootRoutePath)
-  .filter((file) => htmlMutationPattern.test(fs.readFileSync(file, 'utf8')))
-  .map((file) => path.relative(process.cwd(), file).split(path.sep).join('/'))
-  .filter((file) => file !== 'src/routes/__root.tsx')
-  .sort();
-if (competingDomOwners.length) fail('dom-owner', 'Route modules contain competing document locale writers.', { competingDomOwners });
+if (!mainSource.includes('createRoot(document)')) fail('dom-owner', 'React must own the document root via createRoot(document).');
+if (!mainSource.includes('<html lang={metadata.languageTag}')) fail('dom-owner', 'Document locale attributes must be rendered declaratively by React.');
+if (!mainSource.includes('data-flixo-locale={locale}')) fail('dom-owner', 'data-flixo-locale must be rendered declaratively by React.');
+if (!mainSource.includes("router.subscribe('onResolved'")) fail('dom-owner', 'Document locale state must derive from TanStack Router navigation state.');
+if (/\b(?:lang|dir)\s*=|data-flixo-locale\s*=/u.test(indexSource)) fail('dom-owner', 'index.html must not own runtime locale attributes; React is the sole writer.');
 
-const localizedToolLines = autoSurfaceSource.split(/\r?\n/u);
-const allowedPortugueseItalianMatches = new Set(['Prompt']);
-for (const line of localizedToolLines) {
-  const match = line.match(/pt:\s*'([^']*)'.*?it:\s*'([^']*)'/u);
-  if (!match) continue;
-  const [, portuguese, italian] = match;
-  if (portuguese === italian && !allowedPortugueseItalianMatches.has(portuguese)) {
-    fail('i18n-purity', 'Portuguese dictionary contains an Italian-equal value.', { value: portuguese });
-  }
-  if (/\b(?:Scegli|Elaborazione|Compressione|Scarica|Salva|Reimposta|Tolleranza)\b/u.test(portuguese)) {
-    fail('i18n-purity', 'Portuguese auto-localization dictionary contains Italian lexical markers.', { value: portuguese });
-  }
-}
+const forbiddenRuntimeFiles = [
+  'src/lib/i18n/runtime-document-locale.ts',
+  'src/lib/i18n/tool-ui-runtime.ts',
+  'src/lib/i18n/tool-ui-runtime-supplement.ts',
+  'src/lib/i18n/tool-ui-runtime-completeness.ts',
+  'src/lib/i18n/tool-ui-runtime-ms-uk.ts',
+  'src/lib/i18n/tool-ui-technical-values.ts',
+  'src/components/auto-localized-tool-surface.tsx',
+];
+const remainingLegacyRuntimeFiles = forbiddenRuntimeFiles.filter((relativePath) => fs.existsSync(path.resolve(relativePath)));
+if (remainingLegacyRuntimeFiles.length) fail('dom-ownership', 'Legacy post-render localization runtime files are still present.', { files: remainingLegacyRuntimeFiles });
+
+const sourceFiles = listSourceFiles(path.resolve('src'));
+const mutationObserverOwners = sourceFiles
+  .filter((file) => /\bnew\s+MutationObserver\s*\(/u.test(fs.readFileSync(file, 'utf8')))
+  .map((file) => path.relative(process.cwd(), file).split(path.sep).join('/'))
+  .sort();
+if (mutationObserverOwners.length) fail('dom-observer', 'MutationObserver is forbidden in production source for localization/attribute repair.', { files: mutationObserverOwners });
+
+const i18nFiles = sourceFiles.filter((file) => file.startsWith(`${path.resolve('src/lib/i18n')}${path.sep}`));
+const forbiddenSchedulingOwners = i18nFiles
+  .filter((file) => {
+    const source = fs.readFileSync(file, 'utf8');
+    return /\b(?:setInterval|requestAnimationFrame)\s*\(/u.test(source);
+  })
+  .map((file) => path.relative(process.cwd(), file).split(path.sep).join('/'))
+  .sort();
+if (forbiddenSchedulingOwners.length) fail('dom-scheduling', 'Polling or animation-frame DOM enforcement is forbidden in i18n source.', { files: forbiddenSchedulingOwners });
+
+const localeMutationPattern = /document\.documentElement(?:\.setAttribute\(\s*['"](?:lang|dir|data-flixo-locale)['"]|\.(?:lang|dir)\s*=)/u;
+const localeMutationOwners = sourceFiles
+  .filter((file) => localeMutationPattern.test(fs.readFileSync(file, 'utf8')))
+  .map((file) => path.relative(process.cwd(), file).split(path.sep).join('/'))
+  .sort();
+if (localeMutationOwners.length) fail('dom-owner', 'Imperative document locale writers remain in production source.', { files: localeMutationOwners });
 
 const canonicalPaths = new Map();
 const aliases = new Map();
@@ -200,6 +223,6 @@ console.log(`dynamic-owned ready routes: ${dynamicOwnedExpectedRoutes.length}`);
 console.log(`reachable route modules: ${reachableRouteModules.size}/${routeFiles.length}`);
 console.log('orphan route files: 0');
 console.log('localized SEO matrix: validated');
-console.log('DOM locale owner: runtime-document-locale.ts');
-console.log('auto-localized dictionary purity: validated');
+console.log('DOM locale owner: React document root + TanStack Router state');
+console.log('post-render localization observers: forbidden');
 console.log('lazy route Suspense: enabled');

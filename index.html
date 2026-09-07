@@ -1,56 +1,10 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#071116" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="alternate icon" type="image/svg+xml" href="/logo.svg" />
-    <link rel="apple-touch-icon" href="/flixo-logo.svg" />
-    <title>FLIXO AI — Fast browser-first tools</title>
-    <script>
-      (() => {
-        const reportStartupFailure = (label, details) => {
-          const message = `[G4 STARTUP ${label}] ${details}`;
-          console.error(message);
-          document.documentElement.setAttribute('data-g4-startup-error', message.slice(0, 1000));
-          const pre = document.createElement('pre');
-          pre.setAttribute('data-g4-startup-error', 'true');
-          pre.style.cssText = 'position:fixed;inset:0;margin:0;padding:24px;overflow:auto;background:#090d12;color:#fff;font:14px/1.5 monospace;white-space:pre-wrap;z-index:2147483647';
-          pre.textContent = message;
-          document.body?.appendChild(pre);
-        };
-        window.addEventListener('error', (event) => {
-          reportStartupFailure('ERROR', event.error?.stack || event.message || 'unknown error');
-        });
-        window.addEventListener('unhandledrejection', (event) => {
-          const reason = event.reason instanceof Error ? event.reason.stack || event.reason.message : String(event.reason);
-          reportStartupFailure('UNHANDLED_REJECTION', reason);
-        });
-      })();
-    </script>
-    <script>
-      (() => {
-        // This synchronous bootstrap is the pre-bundle locale boundary. It must match
-        // src/config/locale.config.ts: DEFAULT_LOCALE = 'ar'.
-        const localeMap = {
-          ar: ['ar', 'rtl'], en: ['en', 'ltr'], es: ['es', 'ltr'], fr: ['fr', 'ltr'], de: ['de', 'ltr'],
-          hi: ['hi', 'ltr'], id: ['id', 'ltr'], it: ['it', 'ltr'], ja: ['ja', 'ltr'], ko: ['ko', 'ltr'],
-          ms: ['ms', 'ltr'], nl: ['nl', 'ltr'], pl: ['pl', 'ltr'], pt: ['pt', 'ltr'], ru: ['ru', 'ltr'],
-          sv: ['sv', 'ltr'], th: ['th', 'ltr'], tr: ['tr', 'ltr'], uk: ['uk', 'ltr'], vi: ['vi', 'ltr'],
-        };
-        const candidate = window.location.pathname.split('/').filter(Boolean)[0]?.toLowerCase() ?? 'ar';
-        const [lang, dir, localeKey] = localeMap[candidate] ? [...localeMap[candidate], candidate] : ['ar', 'rtl', 'ar'];
-        const html = document.documentElement;
-        html.setAttribute('lang', lang);
-        html.setAttribute('dir', dir);
-        html.setAttribute('data-flixo-locale', localeKey);
-      })();
-    </script>
   </head>
   <body>
-    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
