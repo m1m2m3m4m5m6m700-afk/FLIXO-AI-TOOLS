@@ -1,4 +1,5 @@
 import { createHash, createHmac } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const historyPath = 'ci/test-duration-history.json';
@@ -26,8 +27,19 @@ const plan = bins.filter((bin) => bin.tests.length).map((bin) => ({
   ratio: Number((bin.weight / total).toFixed(4)),
 }));
 const spread = Math.max(...plan.map((bin) => bin.weight)) - Math.min(...plan.map((bin) => bin.weight));
-if (spread > Math.max(2, Math.ceil(total / shardCount))) {
-  throw new Error(`Shard plan is too imbalanced: spread=${spread}, total=${total}, shards=${shardCount}`);
+if (spread > Math.max(2, Math.ceil(total / shardCount))) throw new Error(`Shard plan is too imbalanced: spread=${spread}, total=${total}, shards=${shardCount}`);
+
+const suiteCount = new Map();
+for (const entry of entries) {
+  const output = execFileSync('npx', ['playwright', 'test', `tests/${entry.name}.spec.ts`, '--list', '--project=chromium', '--reporter=json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+  const report = JSON.parse(output);
+  const count = Number(report.stats?.expected ?? report.stats?.total ?? 0);
+  if (!Number.isInteger(count) || count < 1) throw new Error(`Unable to determine Playwright test count for ${entry.name}`);
+  suiteCount.set(entry.name, count);
+}
+
+for (const bin of plan) {
+  bin.test_count = bin.tests.reduce((sum, suite) => sum + suiteCount.get(suite), 0);
 }
 
 const matrix = plan.flatMap((bin) => browsers.map((browser) => ({
@@ -35,11 +47,12 @@ const matrix = plan.flatMap((bin) => browsers.map((browser) => ({
   shard: bin.shard,
   total_shards: plan.length,
   tests: bin.tests,
+  test_count: bin.test_count,
   weight: bin.weight,
 })));
 
 const unsignedPlan = {
-  schema_version: 1,
+  schema_version: 2,
   source_sha: process.env.FLIXO_SOURCE_SHA || process.env.GITHUB_SHA || null,
   browsers,
   shard_count: plan.length,
@@ -50,9 +63,7 @@ const unsignedPlan = {
 const canonical = JSON.stringify(unsignedPlan);
 const planHash = createHash('sha256').update(canonical).digest('hex');
 const signingKey = process.env.FLIXO_MATRIX_PLAN_SIGNING_KEY;
-if (!signingKey) {
-  throw new Error('FLIXO_MATRIX_PLAN_SIGNING_KEY is required to sign the matrix plan.');
-}
+if (!signingKey) throw new Error('FLIXO_MATRIX_PLAN_SIGNING_KEY is required to sign the matrix plan.');
 const signature = createHmac('sha256', signingKey).update(canonical).digest('hex');
 const artifact = { ...unsignedPlan, plan_hash: planHash, signature_algorithm: 'HMAC-SHA256', signature };
 writeFileSync('matrix-plan.json', JSON.stringify(artifact, null, 2) + '\n');
