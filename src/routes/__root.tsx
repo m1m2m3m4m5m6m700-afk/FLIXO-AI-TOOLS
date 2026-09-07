@@ -1,9 +1,8 @@
-import { Suspense, useEffect, useLayoutEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { HeadContent, Scripts, Outlet, createRootRoute } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
-import { applyDocumentLocale, localeFromPathname } from '../lib/i18n/runtime-document-locale';
 import { SITE_ORIGIN } from '../lib/i18n';
 
 const GLOBAL_STRUCTURED_DATA = {
@@ -20,22 +19,6 @@ function RouteContent() {
 
 export const rootRoute = createRootRoute({
   component: function RootLayout() {
-    const validLocale = typeof window === 'undefined' ? 'ar' : localeFromPathname(window.location.pathname);
-
-    // The document <html> node is outside React's rendered subtree. Establish the
-    // localized language contract synchronously before returning any JSX so no React
-    // reconciliation step can introduce or reconcile a JSX-owned `lang` prop.
-    if (typeof document !== 'undefined') {
-      document.documentElement.setAttribute('lang', validLocale);
-      applyDocumentLocale(validLocale);
-    }
-
-    useLayoutEffect(() => {
-      const currentLocale = localeFromPathname(window.location.pathname);
-      document.documentElement.setAttribute('lang', currentLocale);
-      applyDocumentLocale(currentLocale);
-    }, [validLocale]);
-
     useEffect(() => installCoreWebVitalsDiagnostics(), []);
     return <><HeadContent /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\u003c') }} /><FlixoGlobalLogo /><CommandPalette /><RouteContent /><Scripts /></>;
   },

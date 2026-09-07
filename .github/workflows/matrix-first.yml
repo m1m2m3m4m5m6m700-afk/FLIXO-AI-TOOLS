@@ -196,7 +196,7 @@ jobs:
           done
           test "$ready" = 1
           curl --fail --silent --show-error --http1.1 http://127.0.0.1:3000/ar/aspect-ratio-calculator >/tmp/matrix-first-readiness.html
-          grep -qi '<html' /tmp/matrix-first-readiness.html
+          grep -Eqi '<html[^>]*lang="ar"[^>]*>' /tmp/matrix-first-readiness.html
       - name: Run three-browser logical shard — fail on first failure
         timeout-minutes: 18
         env:

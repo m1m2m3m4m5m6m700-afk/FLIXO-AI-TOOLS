@@ -1,10 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const isProductionPreview = process.env.PLAYWRIGHT_SERVER === 'preview';
-
-test('keeps lazy tool modules out of the initial home route', async ({ page }) => {
-  test.skip(!isProductionPreview, 'Production bundle boundary is certified on preview; Vite dev source-graph requests are not equivalent to production chunk loading.');
-
+test('keeps lazy tool modules out of the initial home route and loads the tool chunk on demand', async ({ page }) => {
   const homeToolRequests: string[] = [];
   const homeScriptRequests = new Set<string>();
   const routeScriptRequests = new Set<string>();
@@ -24,14 +20,14 @@ test('keeps lazy tool modules out of the initial home route', async ({ page }) =
   await page.goto('/');
   await page.waitForLoadState('networkidle');
 
-  expect(homeToolRequests, 'production home route must not eagerly request tool modules').toEqual([]);
+  expect(homeToolRequests, 'home route must not eagerly request tool source modules').toEqual([]);
 
   observingRoute = true;
   const response = await page.goto('/en/image-compressor');
   await response?.finished();
   await page.waitForLoadState('networkidle');
 
-  await expect
-    .poll(() => [...routeScriptRequests].filter((url) => !homeScriptRequests.has(url)).length, { timeout: 10_000 })
-    .toBeGreaterThan(0);
+  const newRouteScripts = [...routeScriptRequests].filter((url) => !homeScriptRequests.has(url));
+  expect(newRouteScripts.length, 'opening the tool route must load a script not required by home').toBeGreaterThan(0);
+  expect(newRouteScripts.some((url) => /image-compressor/u.test(url)), 'image-compressor must load its own lazy chunk').toBe(true);
 });

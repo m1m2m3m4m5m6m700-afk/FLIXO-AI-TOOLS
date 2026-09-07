@@ -17,12 +17,13 @@ import './components/command-palette.css';
 import './home-modern.css';
 import './tools/seed/seed-premium.css';
 
-const syncRouteDocumentLocale = () => {
+const bootstrapDocumentLocale = () => {
   applyDocumentLocale(localeFromPathname(window.location.pathname));
 };
 
-// Synchronous first pass: establish the route locale before any application runtime starts.
-syncRouteDocumentLocale();
+// The <html> element is outside React's rendered subtree. Establish its locale exactly
+// once, synchronously, before installing runtime observers or mounting React.
+bootstrapDocumentLocale();
 const disposeDocumentLocaleContract = installDocumentLocaleContract(() => window.location.pathname);
 installRuntimeDiagnostics();
 installPerformanceDiagnostics();
@@ -39,10 +40,6 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     });
   });
 }
-
-// Final synchronous pre-render pass: runtime initializers above are not permitted to
-// leave the document root with an empty/stale locale before React mounts.
-syncRouteDocumentLocale();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

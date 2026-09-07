@@ -49,13 +49,14 @@ jobs:
           page.on('pageerror', (error) => diagnostics.push({ type: 'pageerror', message: error.message }));
           page.on('console', (message) => { if (message.type() === 'error') diagnostics.push({ type: 'console', message: message.text() }); });
           page.on('requestfailed', (request) => diagnostics.push({ type: 'requestfailed', url: request.url(), error: request.failure()?.errorText ?? 'unknown' }));
-          for (const path of ['/en', '/en/ai-captioner-srt']) {
+          for (const [path, locale] of [['/en', 'en'], ['/en/ai-captioner-srt', 'en'], ['/ar/ai-captioner-srt', 'ar']]) {
             diagnostics.length = 0;
             await page.goto(`http://127.0.0.1:3000${path}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
             await page.waitForTimeout(750);
+            const htmlLanguage = await page.locator('html').getAttribute('lang');
             const rootHtml = await page.locator('#root').innerHTML();
-            console.log(JSON.stringify({ path, url: page.url(), title: await page.title(), root_html: rootHtml.slice(0, 3000), diagnostics }, null, 2));
-            if (diagnostics.length || !rootHtml.trim()) process.exit(1);
+            console.log(JSON.stringify({ path, locale, url: page.url(), html_lang: htmlLanguage, title: await page.title(), root_html: rootHtml.slice(0, 3000), diagnostics }, null, 2));
+            if (htmlLanguage !== locale || diagnostics.length || !rootHtml.trim()) process.exit(1);
           }
           await browser.close();
           NODE
