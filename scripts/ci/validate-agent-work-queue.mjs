@@ -1,16 +1,14 @@
 import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { replayAgentLedger, normalizePath, overlaps } from './replay-agent-ledger.mjs';
 
 const QUEUE = process.env.FLIXO_SWARM_WORK_QUEUE ?? '.ci/agent-coordination/work-queue.json';
 const LEDGER = process.env.FLIXO_SWARM_LEDGER ?? 'artifacts/ci/agent-coordination/events.ndjson';
 const HEAD = process.env.EXPECTED_HEAD_SHA ?? '';
 const fail = (message) => { throw new Error(`Agent work queue validation failed: ${message}`); };
+const headSha = HEAD || (() => { try { return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return ''; } })();
+if (!headSha) fail('current HEAD unavailable');
 
-const resolveHead = () => {
-  if (HEAD) return HEAD;
-  try { return require('node:child_process').execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { fail('current HEAD unavailable'); }
-};
-const headSha = resolveHead();
 const queue = JSON.parse(readFileSync(QUEUE, 'utf8'));
 if (queue.schemaVersion !== 2 || queue.protocol !== 'FLIXO agent work queue') fail('schema/protocol mismatch');
 if (!Array.isArray(queue.items) || queue.items.length === 0) fail('items must be non-empty');
@@ -59,8 +57,7 @@ for (let i = 0; i < queue.items.length; i += 1) {
     const sharedPath = left.paths.some((path) => right.paths.some((other) => overlaps(path, other)));
     const overlap = sharedContract || sharedRootCause || sharedPath;
     if (!overlap) continue;
-    const sameParallelGroup = left.parallelGroup && left.parallelGroup === right.parallelGroup;
-    if (sameParallelGroup) fail(`parallel group contains overlapping scope: ${left.id} <-> ${right.id}`);
+    if (left.parallelGroup && left.parallelGroup === right.parallelGroup) fail(`parallel group contains overlapping scope: ${left.id} <-> ${right.id}`);
     if (left.ownerAgentId !== right.ownerAgentId && !sequentiallyOrdered(left, right)) fail(`concurrent logical ownership collision: ${left.id} <-> ${right.id}`);
   }
 }
