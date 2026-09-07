@@ -1,4 +1,4 @@
-export type ToolOutputKind = 'image' | 'svg' | 'pdf' | 'zip' | 'text' | 'json' | 'csv' | 'audio' | 'video';
+export type ToolOutputKind = 'image' | 'svg' | 'zip' | 'text' | 'json';
 
 export type ToolOutputVariant = {
   readonly kind: ToolOutputKind;

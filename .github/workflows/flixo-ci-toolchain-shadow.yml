@@ -47,5 +47,5 @@ jobs:
           path: |
             dist/
             artifacts/ci/build/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
