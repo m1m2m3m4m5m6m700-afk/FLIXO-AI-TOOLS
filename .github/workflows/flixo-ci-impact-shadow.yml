@@ -21,6 +21,7 @@ jobs:
       - name: Checkout full history
         uses: actions/checkout@v5
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -45,7 +46,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-impact-analysis-${{ github.sha }}
+          name: ci-impact-analysis-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/ci/impact/
           if-no-files-found: error
           retention-days: 14
