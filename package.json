@@ -17,7 +17,6 @@
     "validate:dependency-zero-debt": "node scripts/validate-dependency-zero-debt.mjs",
     "validate:i18n": "node scripts/validate-i18n.mjs",
     "validate:language-quality": "node scripts/validate-language-quality.mjs",
-    "validate:locale-integrity": "node scripts/validate-locale-integrity.mjs",
     "validate:locale-navigation": "node scripts/validate-locale-navigation.mjs",
     "validate:home-i18n": "node scripts/validate-home-localization.mjs",
     "validate:seo": "node scripts/validate-seo.mjs",
@@ -90,7 +89,6 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^15.15.0",
-    "playwright": "^1.62.1",
     "prettier": "^3.6.2",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.0.0"
