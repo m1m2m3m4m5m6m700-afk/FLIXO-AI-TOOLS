@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "protocol": "FLIXO agent work queue",
+  "items": [
+    {
+      "id": "WQ-MATRIX-001",
+      "title": "Canonical Matrix First orchestration",
+      "ownerRole": "Writer",
+      "ownerAgentId": "ci-matrix-recovery",
+      "status": "in_progress",
+      "dependsOn": [],
+      "contracts": ["G1-ROUTE-001", "G1-REGISTRY-001", "G1-ROUTER-001"],
+      "rootCauseIds": ["RC-MATRIX-008"],
+      "verification": ["Matrix First Certification", "validate-full-matrix-evidence.mjs"]
+    },
+    {
+      "id": "WQ-MATRIX-002",
+      "title": "Immutable plan and native evidence identity",
+      "ownerRole": "Writer",
+      "ownerAgentId": "ci-matrix-recovery",
+      "status": "in_progress",
+      "dependsOn": ["WQ-MATRIX-001"],
+      "contracts": ["G4-RUNTIME-001", "G4-CONSOLE-001", "G4-NETWORK-001", "G4-OUTPUT-001"],
+      "rootCauseIds": ["RC-MATRIX-008", "RC-G4-MATRIX-001"],
+      "verification": ["planner/evidence identity equality", "native Playwright JSON verification"]
+    },
+    {
+      "id": "WQ-CI-001",
+      "title": "CI barrier dependency coherence",
+      "ownerRole": "Writer",
+      "ownerAgentId": "ci-matrix-recovery",
+      "status": "in_progress",
+      "dependsOn": ["WQ-MATRIX-001", "WQ-MATRIX-002"],
+      "contracts": [],
+      "rootCauseIds": ["RC-CI-002", "RC-CI-003"],
+      "verification": ["exact-head Matrix First barrier", "final-contract-gate"]
+    },
+    {
+      "id": "WQ-G4-001",
+      "title": "Browser/runtime contract convergence",
+      "ownerRole": "Verifier",
+      "ownerAgentId": "ci-matrix-recovery",
+      "status": "blocked_by_ci",
+      "dependsOn": ["WQ-MATRIX-001", "WQ-CI-001"],
+      "contracts": ["G4-ROUTE-001", "G4-HTTP-001", "G4-DOCUMENT-001", "G4-LANG-001", "G4-DIR-001", "G4-TITLE-001", "G4-DESCRIPTION-001", "G4-H1-001", "G4-CANONICAL-001", "G4-HREFLANG-001", "G4-ROBOTS-001", "G4-STRUCTURED-DATA-001", "G4-TRANSLATION-001", "G4-ENGLISH-LEAKAGE-001", "G4-A11Y-001", "G4-RUNTIME-001", "G4-CONSOLE-001", "G4-NETWORK-001", "G4-INTERACTION-001", "G4-OUTPUT-001"],
+      "rootCauseIds": ["RC-G4-MATRIX-001", "RC-G4-ROUTER-001"],
+      "verification": ["Full Matrix", "G4 browser/runtime evidence"]
+    }
+  ]
+}
