@@ -88,11 +88,11 @@ const signingKey = process.env.FLIXO_MATRIX_PLAN_SIGNING_KEY;
 if (!signingKey) throw new Error('FLIXO_MATRIX_PLAN_SIGNING_KEY is required to sign the matrix plan.');
 const signature = createHmac('sha256', signingKey).update(canonical).digest('hex');
 const artifact = { ...unsignedPlan, plan_hash: planHash, signature_algorithm: 'HMAC-SHA256', signature };
-writeFileSync('matrix-plan.json', JSON.stringify(artifact, null, 2) + '\n');
+writeFileSync('_flixo_matrix_plan.json', JSON.stringify(artifact, null, 2) + '\n');
 
 const output = JSON.stringify(matrix);
-console.log(JSON.stringify({ plan, matrix, plan_hash: planHash, registry_hash: registryHash, cooperation_map_hash: cooperationMapHash, architecture_hash: architectureHash, lockfile_sha: lockfileHash }, null, 2));
+console.log(JSON.stringify({ plan, matrix, plan_hash: planHash, registry_hash: registryHash, cooperation_map_hash: cooperationMapHash, architecture_hash: architectureHash, lockfile_sha: lockfileHash, plan_file: '_flixo_matrix_plan.json' }, null, 2));
 if (process.env.GITHUB_OUTPUT) {
   const fs = await import('node:fs');
-  fs.appendFileSync(process.env.GITHUB_OUTPUT, `plan=${JSON.stringify(plan)}\nshard_count=${plan.length}\nmatrix=${output}\nplan_hash=${planHash}\nplan_file=matrix-plan.json\n`);
+  fs.appendFileSync(process.env.GITHUB_OUTPUT, `plan=${JSON.stringify(plan)}\nshard_count=${plan.length}\nmatrix=${output}\nplan_hash=${planHash}\nplan_file=_flixo_matrix_plan.json\n`);
 }
