@@ -30,7 +30,6 @@ jobs:
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       FLIXO_TEST_MODE: diagnose
-      FLIXO_MEMORY_ARTIFACT: failure-memory-${{ github.event.pull_request.number || 'main' }}
     steps:
       - name: Checkout exact SHA
         uses: actions/checkout@v5
@@ -51,28 +50,6 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-
-      - name: Restore prior failure memory
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -u
-          artifact_name="$FLIXO_MEMORY_ARTIFACT"
-          api="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts?name=$artifact_name&per_page=1"
-          if response="$(curl --fail-with-body -sS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" 2>/tmp/memory-restore.err)"; then
-            artifact_id="$(printf '%s' "$response" | jq -r '.artifacts[0].id // empty')"
-            if [ -n "$artifact_id" ] && curl --fail-with-body -sSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" -o /tmp/failure-memory.zip; then
-              mkdir -p diagnostics/ci
-              unzip -o /tmp/failure-memory.zip -d diagnostics/ci >/dev/null
-              echo "FAILURE_MEMORY_RESTORED=$artifact_id"
-            else
-              echo 'No usable prior failure-memory artifact; starting with local memory.'
-            fi
-          else
-            echo 'Failure-memory restore unavailable; continuing without historical memory.'
-            cat /tmp/memory-restore.err || true
-          fi
 
       - name: Install committed dependency graph
         run: npm ci --prefer-offline --no-audit --no-fund
@@ -95,20 +72,6 @@ jobs:
           path: diagnostics/ci/
           if-no-files-found: warn
           retention-days: 30
-
-      - name: Persist failure memory
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ env.FLIXO_MEMORY_ARTIFACT }}
-          path: |
-            diagnostics/ci/failure-memory.json
-            diagnostics/ci/failure-clusters.json
-            diagnostics/ci/root-cause-graph.json
-            diagnostics/ci/repair-history.jsonl
-            diagnostics/ci/shared-root-candidates.json
-          if-no-files-found: warn
-          retention-days: 90
 
   certify:
     name: CERTIFY
