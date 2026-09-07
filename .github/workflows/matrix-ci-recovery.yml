@@ -41,6 +41,13 @@ jobs:
           test "$actual" = "$EXPECTED_HEAD_SHA"
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
+      - name: External service circuit preflight
+        env:
+          FLIXO_EXTERNAL_SERVICE: vercel
+          FLIXO_EXTERNAL_CIRCUIT_STATE: ${{ vars.FLIXO_VERCEL_CIRCUIT_STATE || 'unknown' }}
+        run: node scripts/ci/check-external-circuit.mjs
+      - name: Sweep orphaned coordination claims
+        run: node scripts/ci/sweep-orphaned-claims.mjs
       - name: Validate swarm work queue
         run: node scripts/ci/validate-agent-work-queue.mjs
       - name: Matrix identity regression
@@ -59,7 +66,18 @@ jobs:
         run: node --experimental-strip-types scripts/ci/validate-contract-coverage.mjs
       - name: CI architecture coherence
         run: node scripts/ci/validate-architecture.mjs
+      - name: Coordination telemetry
+        run: node scripts/ci/agent-coordination-dashboard.mjs
       - name: TypeScript
         run: npx tsc --noEmit --pretty false
       - name: Build
         run: npm run build
+      - name: Upload coordination evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swarm-coordination-${{ github.run_id }}
+          path: |
+            artifacts/ci/agent-coordination/**
+            artifacts/ci/external-circuit/**
+          if-no-files-found: ignore
