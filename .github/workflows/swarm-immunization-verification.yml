@@ -1,0 +1,80 @@
+name: Swarm Immunization Verification
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: swarm-immunization-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  FLIXO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  CI: '1'
+
+jobs:
+  verify:
+    name: Swarm Immunization P0 Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact HEAD
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Install repository Git hooks
+        run: node scripts/ci/install-git-hooks.mjs
+
+      - name: TypeScript strict verification
+        run: npx tsc --noEmit
+
+      - name: Session and claim guard
+        env:
+          EXPECTED_HEAD_SHA: ${{ env.EXACT_SHA }}
+          GITHUB_HEAD_REF: ${{ github.head_ref || '' }}
+        run: node scripts/ci/validate-agent-sessions.mjs
+
+      - name: Protocol cooperation DAG verification
+        env:
+          FLIXO_SOURCE_SHA: ${{ env.EXACT_SHA }}
+        run: node --experimental-strip-types scripts/ci/validate-protocol-cooperation.mjs
+
+      - name: Contract coverage verification
+        env:
+          FLIXO_SOURCE_SHA: ${{ env.EXACT_SHA }}
+        run: node --experimental-strip-types scripts/ci/validate-contract-coverage.mjs
+
+      - name: Full build verification
+        run: npm run build
+
+      - name: Record exact verified SHA
+        run: |
+          printf '%s\n' "$EXACT_SHA" > swarm-immunization-verified-sha.txt
+          git diff --exit-code -- swarm-immunization-verified-sha.txt || true
+
+      - name: Upload verification evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: swarm-immunization-verification-${{ github.run_id }}
+          path: |
+            artifacts/ci/
+            swarm-immunization-verified-sha.txt
+          if-no-files-found: warn
+          retention-days: 14
