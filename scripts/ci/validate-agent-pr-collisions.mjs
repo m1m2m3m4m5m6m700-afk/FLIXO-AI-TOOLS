@@ -16,7 +16,7 @@ const fail = (message) => {
   throw new Error(`Cross-branch agent collision validation failed: ${message}`);
 };
 
-const normalizePath = (value) => value.replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
+const normalizePath = (value) => String(value ?? '').replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
 const pathConflicts = (a, b) => {
   const left = normalizePath(a);
   const right = normalizePath(b);
@@ -26,7 +26,7 @@ const pathConflicts = (a, b) => {
 
 const validateClaims = (state, branch) => {
   if (!state || typeof state !== 'object') fail(`claims state unreadable for ${branch}`);
-  if (state.schemaVersion !== 1 || state.protocol !== 'FLIXO multi-agent coordination') fail(`claims schema/protocol invalid for ${branch}`);
+  if (state.schemaVersion !== 2 || state.protocol !== 'FLIXO multi-agent coordination') fail(`claims schema/protocol invalid for ${branch}`);
   if (!Array.isArray(state.claims)) fail(`claims registry is not an array for ${branch}`);
   const now = Date.now();
   const active = [];
