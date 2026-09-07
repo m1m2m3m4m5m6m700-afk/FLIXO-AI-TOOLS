@@ -53,6 +53,10 @@ jobs:
   weighted_plan:
     name: Full Matrix Weighted Plan
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      plan: ${{ steps.plan.outputs.plan }}
+      shard_count: ${{ steps.plan.outputs.shard_count }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -76,8 +80,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
-      # 23 suites × 3 browsers. Every unit is an independent evidence
-      # producer; sibling failures must never cancel evidence collection.
       fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.weighted_plan.outputs.matrix) }}
@@ -133,11 +135,7 @@ jobs:
             test -f "tests/${test_file}.spec.ts" || exit 2
             specs+=("tests/${test_file}.spec.ts")
           done
-          npx playwright test "${specs[@]}" \
-            --project=${{ matrix.browser }} \
-            --workers=6 \
-            --retries=0 \
-            --max-failures=1
+          npx playwright test "${specs[@]}" --project=${{ matrix.browser }} --workers=6 --retries=0 --max-failures=1
           rc=$?
           set -e
           mkdir -p full-matrix-evidence
@@ -145,16 +143,7 @@ jobs:
           const { writeFileSync } = require('node:fs');
           const tests = process.env.MATRIX_TESTS.split(',').filter(Boolean);
           const failed = Number(process.env.TEST_RC) === 0 ? 0 : 1;
-          const record = {
-            schema_version: 3,
-            sha: process.env.MATRIX_SHA,
-            browser: process.env.MATRIX_BROWSER,
-            shard: Number(process.env.MATRIX_SHARD),
-            executed_suites: tests,
-            failed,
-            skipped: 0,
-            status: failed === 0 ? 'success' : 'failure',
-          };
+          const record = { schema_version: 3, sha: process.env.MATRIX_SHA, browser: process.env.MATRIX_BROWSER, shard: Number(process.env.MATRIX_SHARD), executed_suites: tests, failed, skipped: 0, status: failed === 0 ? 'success' : 'failure' };
           writeFileSync(`full-matrix-evidence/${record.browser}-shard-${record.shard}.json`, JSON.stringify(record, null, 2) + '\n');
           NODE
           exit "$rc"
@@ -201,4 +190,4 @@ jobs:
           result='${{ needs.matrix.result }}'
           echo "matrix=$result"
           test "$result" = success
-          echo 'Full Matrix Certification PASS: all 23 suites executed exactly once per browser across 6 weighted shards.'
+          echo 'Full Matrix Certification PASS: all planned suites executed exactly once per browser across the weighted shards.'
