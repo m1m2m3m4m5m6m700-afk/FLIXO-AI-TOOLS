@@ -18,6 +18,7 @@ permissions:
   checks: read
 
 env:
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
@@ -34,7 +35,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEAD_SHA: ${{ env.EXPECTED_HEAD_SHA }}
         shell: bash
         run: |
           set -euo pipefail
@@ -68,11 +69,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_SHA: ${{ env.EXPECTED_HEAD_SHA }}
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -84,12 +85,12 @@ jobs:
         id: triage
         continue-on-error: true
         env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_SHA: ${{ env.EXPECTED_HEAD_SHA }}
           CHANGE_BASE: ${{ env.CHANGE_BASE }}
         run: node --experimental-strip-types scripts/ci/ultra-fast.mjs
       - name: Require Ultra Fast evidence
         env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_SHA: ${{ env.EXPECTED_HEAD_SHA }}
         run: |
           set -euo pipefail
           test -s diagnostics/investigation/ultra-fast.json
@@ -98,7 +99,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ultra-fast-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ultra-fast-${{ env.EXPECTED_HEAD_SHA }}
           path: diagnostics/investigation/ultra-fast.json
           if-no-files-found: error
           retention-days: 14
@@ -115,7 +116,7 @@ jobs:
     if: needs.ultra-fast.result == 'failure'
     uses: ./.github/workflows/ultra-investigator.yml
     with:
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      expected_sha: ${{ env.EXPECTED_HEAD_SHA }}
 
   ci:
     name: CI
@@ -125,11 +126,11 @@ jobs:
     timeout-minutes: 5
     env:
       CI_PR_RESCUE: 'true'
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_HEAD_SHA: ${{ env.EXPECTED_HEAD_SHA }}
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -143,7 +144,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-fast-evidence-${{ github.sha }}
+          name: ci-fast-evidence-${{ env.EXPECTED_HEAD_SHA }}
           path: diagnostics/
           if-no-files-found: warn
           retention-days: 14
@@ -154,19 +155,19 @@ jobs:
     if: always() && needs.matrix-first-barrier.result == 'success'
     runs-on: ubuntu-latest
     env:
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_HEAD_SHA: ${{ env.EXPECTED_HEAD_SHA }}
     timeout-minutes: 2
     steps:
       - name: Download Ultra Fast evidence
         uses: actions/download-artifact@v6
         with:
-          name: ultra-fast-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ultra-fast-${{ env.EXPECTED_HEAD_SHA }}
           path: diagnostics/investigation
       - name: Download CI evidence
         if: ${{ needs.ci.result == 'success' }}
         uses: actions/download-artifact@v6
         with:
-          name: ci-fast-evidence-${{ github.sha }}
+          name: ci-fast-evidence-${{ env.EXPECTED_HEAD_SHA }}
           path: diagnostics
       - name: Validate exact-head triage evidence
         shell: bash
@@ -213,7 +214,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -222,14 +223,14 @@ jobs:
       - name: G3-00 Identity
         run: node scripts/ci/g3/identity.mjs
         env:
-          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_HEAD_SHA: ${{ env.EXPECTED_HEAD_SHA }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
           MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
       - name: G3-01/02/03 Environment
         if: always()
         run: node scripts/ci/g3/environment.mjs
         env:
-          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_HEAD_SHA: ${{ env.EXPECTED_HEAD_SHA }}
           SITE_URL: https://flixoai.vercel.app
           TEST_ORIGIN: http://127.0.0.1:3000
           RUNTIME_ORIGIN: http://127.0.0.1:3000
@@ -264,11 +265,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_HEAD_SHA: ${{ env.EXPECTED_HEAD_SHA }}
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -309,7 +310,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_HEAD_SHA: ${{ env.EXPECTED_HEAD_SHA }}
       SITE_URL: https://flixoai.vercel.app
       TEST_ORIGIN: http://127.0.0.1:3000
       RUNTIME_ORIGIN: http://127.0.0.1:3000
@@ -322,7 +323,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -387,7 +388,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
       - name: Download all G3 evidence
         uses: actions/download-artifact@v6
@@ -400,7 +401,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEAD_SHA: ${{ env.EXPECTED_HEAD_SHA }}
         shell: bash
         run: |
           set -euo pipefail
@@ -425,8 +426,8 @@ jobs:
           echo "legacy_result=$conclusion" >> "$GITHUB_OUTPUT"
       - name: G3 authoritative aggregation
         env:
-          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_HEAD_SHA: ${{ env.EXPECTED_HEAD_SHA }}
+          HEAD_SHA: ${{ env.EXPECTED_HEAD_SHA }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
           MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
           LEGACY_RESULT: ${{ steps.legacy-g3.outputs.legacy_result }}
