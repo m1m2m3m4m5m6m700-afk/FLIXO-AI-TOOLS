@@ -133,6 +133,12 @@ jobs:
               timeout --preserve-status 420s npx playwright install "$browser"
             fi
           done
+      - name: Isolate fresh matrix evidence workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf playwright-report test-results
+          mkdir -p playwright-report test-results
       - name: Prepare staggered execution tile
         id: tile
         shell: bash
@@ -187,7 +193,8 @@ jobs:
 
           if (index <= 5) {
             const selectedRoutes = bucket(prioritizedRoutes, 5)[index - 1];
-            const rewritten = localizationSource.replace(/const routes = .*?\.sort\(\);/su, `const routes = ${JSON.stringify(selectedRoutes, null, 2)};`);
+            if (selectedRoutes.length === 0) throw new Error(`Empty locale route tile for shard ${index}/20`);
+            const rewritten = localizationSource.replace(/const routes = [\s\S]*?\.sort\(\);/u, `const routes = ${JSON.stringify(selectedRoutes, null, 2)};`);
             if (rewritten === localizationSource) throw new Error('Failed to materialize locale shard');
             const spec = `tests/.matrix-localization-${index}.spec.ts`;
             fs.writeFileSync(spec, rewritten);
@@ -217,7 +224,8 @@ jobs:
 
           const layout = index <= 10 ? 'B' : index <= 15 ? 'C' : 'D';
           const localIndex = ((index - 1) % 5);
-          let targets = bucket(layout === 'B' ? bCandidates : layout === 'C' ? cCandidates : dCandidates, 5)[localIndex] ?? [];
+          const groups = layout === 'B' ? bCandidates : layout === 'C' ? cCandidates : dCandidates;
+          let targets = bucket(groups, 5)[localIndex] ?? [];
           if (!targets.length) throw new Error(`Empty execution tile for shard ${index}/20 (${layout})`);
           if (layout === 'B') targets = targets.slice().sort((a, b) => b.localeCompare(a));
           if (layout === 'C') {
