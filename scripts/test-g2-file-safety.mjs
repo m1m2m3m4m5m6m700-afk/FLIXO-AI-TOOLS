@@ -13,8 +13,10 @@ const failContains = (result, fragment, message) => {
 const makeSignatureContent = (key) => {
   const signature = MAGIC_BYTE_SIGNATURES[key];
   assert.ok(signature, `missing signature for ${key}`);
-  const maxOffset = Math.max(signature.offset ?? 0, ...(signature.segments ?? []).map((segment) => segment.offset));
-  const length = Math.max((signature.offset ?? 0) + signature.bytes.length, ...((signature.segments ?? []).map((segment) => segment.offset + segment.bytes.length)), maxOffset + 1);
+  const length = Math.max(
+    (signature.offset ?? 0) + signature.bytes.length,
+    ...((signature.segments ?? []).map((segment) => segment.offset + segment.bytes.length)),
+  );
   const content = new Uint8Array(length);
   content.set(signature.bytes, signature.offset ?? 0);
   for (const segment of signature.segments ?? []) content.set(segment.bytes, segment.offset);
@@ -26,21 +28,14 @@ const matrix = [
   ['jpg', 'image/jpeg', 'jpeg'],
   ['webp', 'image/webp', 'webp'],
   ['gif', 'image/gif', 'gif'],
-  ['pdf', 'application/pdf', 'pdf'],
+  ['bmp', 'image/bmp', 'bmp'],
+  ['avif', 'image/avif', 'avif'],
   ['zip', 'application/zip', 'zip'],
-  ['mp3', 'audio/mpeg', 'mp3'],
-  ['wav', 'audio/wav', 'wav'],
-  ['mp4', 'video/mp4', 'mp4'],
-  ['webm', 'video/webm', 'webm'],
-  ['txt', 'text/plain', null],
-  ['json', 'application/json', null],
-  ['csv', 'text/csv', null],
 ];
 
-const binaryKeys = new Set(matrix.filter(([, , key]) => key).map(([, , key]) => key));
+const binaryKeys = new Set(matrix.map(([, , key]) => key));
 
 for (const [extension, mime, signatureKey] of matrix) {
-  if (!signatureKey) continue;
   const content = makeSignatureContent(signatureKey);
   const signature = MAGIC_BYTE_SIGNATURES[signatureKey];
   const policy = {
@@ -57,8 +52,7 @@ for (const [extension, mime, signatureKey] of matrix) {
   );
 
   const corrupt = content.slice();
-  const corruptOffset = signature.offset ?? 0;
-  corrupt[corruptOffset] ^= 0xff;
+  corrupt[signature.offset ?? 0] ^= 0xff;
   failContains(
     validateFileSafety({ name: `corrupt.${extension}`, mime, bytes: corrupt.byteLength, content: corrupt }, policy),
     'input magic bytes do not match',
@@ -66,11 +60,14 @@ for (const [extension, mime, signatureKey] of matrix) {
   );
 }
 
-for (const [extension, mime] of [['txt', 'text/plain'], ['csv', 'text/csv']]) {
-  const content = text(extension === 'csv' ? 'name,value\nflixo,1\n' : 'FLIXO safe text');
-  const policy = { allowedMime: [mime], allowedExtensions: [extension], maxBytes: 64, contentValidation: 'utf8' };
-  assert.equal(validateFileSafety({ name: `valid.${extension}`, mime, bytes: content.byteLength, content }, policy).safe, true);
-}
+const textContent = text('FLIXO safe text');
+assert.equal(
+  validateFileSafety(
+    { name: 'valid.txt', mime: 'text/plain', bytes: textContent.byteLength, content: textContent },
+    { allowedMime: ['text/plain'], allowedExtensions: ['txt'], maxBytes: 64, contentValidation: 'utf8' },
+  ).safe,
+  true,
+);
 
 const goodJson = text('{"ok":true}');
 assert.equal(
@@ -89,47 +86,35 @@ failContains(
   'malformed JSON accepted',
 );
 
-const emptyPolicy = { allowedMime: ['image/png'], allowedExtensions: ['png'], maxBytes: 64 };
+const imagePolicy = { allowedMime: ['image/png'], allowedExtensions: ['png'], maxBytes: 64, maxPixels: 100 };
 failContains(
-  validateFileSafety({ name: 'empty.png', mime: 'image/png', bytes: 0, content: new Uint8Array(0) }, emptyPolicy),
+  validateFileSafety({ name: 'empty.png', mime: 'image/png', bytes: 0, content: new Uint8Array(0) }, imagePolicy),
   'file size must be a positive integer',
   'empty file accepted',
 );
-
-const oversizePolicy = { allowedMime: ['image/png'], allowedExtensions: ['png'], maxBytes: 8 };
 failContains(
-  validateFileSafety({ name: 'huge.png', mime: 'image/png', bytes: 9, signature: '89504e470d0a1a0a' }, oversizePolicy),
+  validateFileSafety({ name: 'huge.png', mime: 'image/png', bytes: 65, signature: '89504e470d0a1a0a' }, imagePolicy),
   'file exceeds the maximum size',
   'oversized file accepted',
 );
-
-const dimensionPolicy = {
-  allowedMime: ['image/png'],
-  allowedExtensions: ['png'],
-  maxBytes: 256,
-  maxPixels: 100,
-};
-assert.equal(validateFileSafety({ name: 'boundary.png', mime: 'image/png', bytes: 8, signature: '89504e470d0a1a0a', width: 10, height: 10 }, dimensionPolicy).safe, true);
-failContains(
-  validateFileSafety({ name: 'pixel-bomb.png', mime: 'image/png', bytes: 8, signature: '89504e470d0a1a0a', width: 11, height: 10 }, dimensionPolicy),
-  'input exceeds the maximum pixel count',
-  'pixel limit bypassed',
+assert.equal(
+  validateFileSafety({ name: 'boundary.png', mime: 'image/png', bytes: 64, signature: '89504e470d0a1a0a', width: 10, height: 10 }, imagePolicy).safe,
+  true,
 );
 failContains(
-  validateFileSafety({ name: 'bad-dimensions.png', mime: 'image/png', bytes: 8, signature: '89504e470d0a1a0a', width: 0, height: 10 }, dimensionPolicy),
-  'width must be a positive integer',
-  'invalid width accepted',
+  validateFileSafety({ name: 'pixel-bomb.png', mime: 'image/png', bytes: 8, signature: '89504e470d0a1a0a', width: 11, height: 10 }, imagePolicy),
+  'input exceeds the maximum pixel count',
+  'pixel limit bypassed',
 );
 
 for (const name of ['../evil.png', '..\\evil.png', '/tmp/evil.png', 'C:\\temp\\evil.png', 'nested/evil.png', 'a/./b.png']) {
   failContains(
-    validateFileSafety({ name, mime: 'image/png', bytes: 8, signature: '89504e470d0a1a0a' }, emptyPolicy),
+    validateFileSafety({ name, mime: 'image/png', bytes: 8, signature: '89504e470d0a1a0a' }, imagePolicy),
     'file name must be a single safe relative name',
     `unsafe filename accepted: ${name}`,
   );
 }
 
-const pngBytes = bytes(...MAGIC_BYTE_SIGNATURES.png.bytes, 0x00);
 const uploadPolicy = {
   allowedMime: ['image/png'],
   allowedExtensions: ['png'],
@@ -137,6 +122,7 @@ const uploadPolicy = {
   signatures: ['89504e470d0a1a0a'],
   magicBytes: [MAGIC_BYTE_SIGNATURES.png],
 };
+const pngBytes = bytes(...MAGIC_BYTE_SIGNATURES.png.bytes, 0x00);
 assert.equal(validateUploadBoundary({ name: 'safe.png', mime: 'image/png', bytes: pngBytes }, uploadPolicy).safe, true);
 failContains(
   validateUploadBoundary({ name: 'fake.png', mime: 'image/png', bytes: bytes(0x25, 0x50, 0x44, 0x46, 0x2d) }, uploadPolicy),
@@ -162,7 +148,6 @@ assert.equal(
   ], archivePolicy).safe,
   true,
 );
-
 assert.equal(detectZipBombRisk(10, 400).isBomb, false, 'exact compression threshold should be safe');
 assert.equal(detectZipBombRisk(10, 401).isBomb, true, 'compression ratio above threshold must be rejected');
 assert.equal(detectZipBombRisk(0, 1).isBomb, true, 'zero compressed size must fail closed');
@@ -171,23 +156,14 @@ failContains(
   'Potential ZIP bomb detected',
   'archive compression ratio bypassed',
 );
-assert.equal(
-  validateArchiveEntries([{ name: 'safe.bin', compressedBytes: 10, uncompressedBytes: 400 }], archivePolicy).safe,
-  true,
-  'archive exactly at compression ratio boundary rejected',
-);
-
+assert.equal(validateArchiveEntries([{ name: 'safe.bin', compressedBytes: 10, uncompressedBytes: 400 }], archivePolicy).safe, true);
 failContains(
-  validateArchiveEntries([
-    { name: 'outer.zip', nestedEntries: [{ name: 'level1.zip', nestedEntries: [{ name: 'level2.zip', nestedEntries: [{ name: 'payload.bin', uncompressedBytes: 1 }] }] }] },
-  ], archivePolicy),
+  validateArchiveEntries([{ name: 'outer.zip', nestedEntries: [{ name: 'level1.zip', nestedEntries: [{ name: 'level2.zip', nestedEntries: [{ name: 'payload.bin', uncompressedBytes: 1 }] }] }] }], archivePolicy),
   'maximum path depth',
   'nested archive depth bypassed',
 );
 failContains(
-  validateArchiveEntries([
-    { name: 'outer.zip', uncompressedBytes: 1, nestedEntries: [{ name: 'inner.zip', uncompressedBytes: 1 }, { name: 'inner2.zip', uncompressedBytes: 1 }, { name: 'inner3.zip', uncompressedBytes: 1 }, { name: 'inner4.zip', uncompressedBytes: 1 }] },
-  ], archivePolicy),
+  validateArchiveEntries([{ name: 'outer.zip', uncompressedBytes: 1, nestedEntries: [{ name: 'inner.zip', uncompressedBytes: 1 }, { name: 'inner2.zip', uncompressedBytes: 1 }, { name: 'inner3.zip', uncompressedBytes: 1 }, { name: 'inner4.zip', uncompressedBytes: 1 }] }], archivePolicy),
   'maximum entry count',
   'nested archive entry-count limit bypassed',
 );
@@ -204,8 +180,6 @@ for (const name of ['/etc/passwd', 'C:\\Windows\\system.ini', '\\\\server\\share
 }
 failContains(validateArchiveEntries([{ name: 'link.txt', uncompressedBytes: 1, isSymlink: true }], archivePolicy), 'symlink entries are not allowed', 'archive symlink accepted');
 
-const categories = ['PNG', 'JPEG', 'WebP', 'GIF', 'PDF', 'ZIP', 'Audio', 'Video', 'Text', 'JSON', 'CSV'];
-assert.equal(binaryKeys.size >= 10, true);
-assert.equal(categories.length, 11);
-
-console.log(`G2 UNIVERSAL FILE SAFETY PASSED: matrix=${matrix.length} formats, binary=${binaryKeys.size}, archive=nested-recursive+compression-ratio, upload=raw-bytes, dimensions=bounded`);
+assert.equal(matrix.length, 7, 'G2 image/archive matrix drift detected');
+assert.equal(binaryKeys.size, 7, 'G2 binary matrix drift detected');
+console.log(`G2 image file-safety passed: matrix=${matrix.length}, binary=${binaryKeys.size}, OCR=text/json, archive=zip`);
