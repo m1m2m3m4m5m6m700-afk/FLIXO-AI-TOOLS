@@ -57,7 +57,7 @@
     "test:static": "node scripts/test.mjs --gate=static --mode=certification",
     "test:build": "node scripts/test.mjs --gate=build --mode=certification",
     "test:browser": "node scripts/test.mjs --gate=browser --mode=certification",
-    "test:diagnose": "node scripts/test.mjs --mode=diagnose",
+    "test:diagnose": "node scripts/ci/diagnose-run.mjs",
     "diagnose:cycle": "node scripts/ci/record-repair-cycle.mjs",
     "test:e2e": "playwright test",
     "test": "node scripts/test.mjs --mode=certification"
@@ -83,7 +83,6 @@
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.1.7",
-    "@vitejs/plugin-react": "^5.2.0",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-react-hooks": "^7.1.1",
