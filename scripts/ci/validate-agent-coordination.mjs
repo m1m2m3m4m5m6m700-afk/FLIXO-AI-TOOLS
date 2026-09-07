@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 const CLAIMS_FILE = process.env.FLIXO_AGENT_CLAIMS_FILE ?? '.ci/agent-coordination/claims.json';
 const EVIDENCE_FILE = process.env.FLIXO_AGENT_COORDINATION_EVIDENCE ?? 'artifacts/ci/agent-coordination/coordination.json';
 const HEX_SHA = /^[0-9a-f]{40}$/iu;
+const AGENT_BRANCH = /^agent\/[^/]+\/.+$/u;
 
 const fail = (message) => {
   throw new Error(`Agent coordination validation failed: ${message}`);
@@ -43,6 +44,9 @@ for (const claim of state.claims) {
   }
   if (claim.status !== 'active') continue;
 
+  if (!AGENT_BRANCH.test(claim.branch)) {
+    fail(`${claim.agentId}: active writer branch must match agent/<agentId>/<work-id>`);
+  }
   if (seenAgents.has(claim.agentId)) fail(`duplicate active agentId ${claim.agentId}`);
   if (seenBranches.has(claim.branch)) fail(`duplicate active branch ${claim.branch}`);
   seenAgents.add(claim.agentId);
@@ -50,6 +54,17 @@ for (const claim of state.claims) {
 
   const leaseUntil = Date.parse(claim.leaseUntil);
   if (leaseUntil > now) active.push({ ...claim, leaseUntilMs: leaseUntil });
+}
+
+const currentBranch = process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || null;
+if (currentBranch && !AGENT_BRANCH.test(currentBranch) && active.length > 0) {
+  fail(`integration branch ${currentBranch} contains active writer claims; release claims before integration`);
+}
+if (currentBranch && AGENT_BRANCH.test(currentBranch)) {
+  const foreign = active.filter((claim) => claim.branch !== currentBranch);
+  if (foreign.length > 0) {
+    fail(`agent branch ${currentBranch} contains foreign active claims: ${foreign.map((claim) => claim.agentId).join(', ')}`);
+  }
 }
 
 const normalizePath = (value) => value.replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
@@ -81,6 +96,7 @@ const report = {
   protocol: state.protocol,
   generatedAt: new Date().toISOString(),
   expectedHeadSha: expectedSha ?? null,
+  currentBranch,
   activeClaimCount: active.length,
   activeAgents: active.map(({ agentId, branch, observedHeadSha, scope, rootCauseIds, leaseUntil }) => ({
     agentId,
@@ -89,23 +105,18 @@ const report = {
     scope,
     rootCauseIds: rootCauseIds ?? [],
     leaseUntil,
-    staleObservation: Boolean(expectedSha && observedHeadSha !== expectedSha),
   })),
   invariants: [
     'one writable scope per active agent',
     'no active path/contract/root-cause collisions',
+    'active writers use isolated agent branches',
+    'integration branches contain no active writer claims',
     'leases expire without permanent locks',
     'agent count is not fixed by protocol',
-    'isolated agent branches are required by policy',
     'diagnostics do not grant write ownership',
     'canonical certification remains singular',
   ],
 };
-
-const staleClaims = report.activeAgents.filter((claim) => claim.staleObservation);
-if (staleClaims.length > 0 && process.env.FLIXO_AGENT_COORDINATION_STRICT_SHA === 'true') {
-  fail(`active claim(s) were observed on a different HEAD: ${staleClaims.map((claim) => claim.agentId).join(', ')}`);
-}
 
 const reportHash = createHash('sha256').update(JSON.stringify(report)).digest('hex');
 report.reportHash = reportHash;
