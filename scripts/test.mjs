@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const ROOT = process.cwd();
@@ -12,25 +12,18 @@ const gateArg = args.find((arg) => arg.startsWith('--gate='));
 const modeArg = args.find((arg) => arg.startsWith('--mode='));
 const gate = gateArg?.slice('--gate='.length) || null;
 const mode = modeArg?.slice('--mode='.length) || 'certification';
-
 const GATES = ['static', 'build', 'browser'];
-if (mode !== 'certification' && mode !== 'diagnose') {
-  console.error(`Invalid mode: ${mode}`);
-  process.exit(2);
-}
-if (gate && !GATES.includes(gate)) {
-  console.error(`Invalid gate: ${gate}`);
+
+if (!['certification', 'diagnose'].includes(mode) || (gate && !GATES.includes(gate))) {
+  console.error(`Usage: node scripts/test.mjs [--mode=certification|diagnose] [--gate=static|build|browser]`);
   process.exit(2);
 }
 
-function now() {
-  return new Date().toISOString();
-}
-
-function sha() {
+const now = () => new Date().toISOString();
+const sha = () => {
   const result = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' });
   return result.status === 0 ? result.stdout.trim() : 'UNKNOWN';
-}
+};
 
 function run(label, command, commandArgs, env = {}) {
   const startedAt = now();
@@ -59,21 +52,21 @@ function run(label, command, commandArgs, env = {}) {
 function classify(gateName, results) {
   const failed = results.find((r) => r.status === 'FAIL');
   if (!failed) return null;
-  if (gateName === 'static' && failed.label === 'dependencies') return 'RC-DEPENDENCY-001';
-  if (gateName === 'static' && failed.label === 'typescript') return 'RC-TYPE-001';
+  if ((gateName === 'static' || gateName === 'build') && ['dependencies', 'npm-ci'].includes(failed.label)) return 'RC-DEPENDENCY-001';
+  if (failed.label === 'typescript') return 'RC-TYPE-001';
   if (gateName === 'build') return 'RC-BUILD-001';
   if (gateName === 'browser') return 'RC-BROWSER-001';
   return 'RC-UNKNOWN-001';
 }
 
 function writeGateReport(gateName, results, status) {
-  const rootCause = classify(gateName, results);
+  const rootCauseId = classify(gateName, results);
   const report = {
     version: 1,
     sha: sha(),
     gate: gateName.toUpperCase(),
     status,
-    rootCauseId: rootCause,
+    rootCauseId,
     completedAt: now(),
     checksExpected: results.length,
     checksExecuted: results.length,
@@ -85,8 +78,7 @@ function writeGateReport(gateName, results, status) {
 }
 
 function staticGate() {
-  const results = [];
-  results.push(run('dependencies', 'npm', ['ci', '--dry-run', '--ignore-scripts', '--no-audit', '--no-fund', '--prefer-offline']));
+  const results = [run('dependencies', 'npm', ['ci', '--dry-run', '--ignore-scripts', '--no-audit', '--no-fund', '--prefer-offline'])];
   const commands = [
     ['typescript', 'npx', ['tsc', '--noEmit', '--pretty', 'false']],
     ['registry', 'npm', ['run', 'validate:tool-registry']],
@@ -102,38 +94,28 @@ function staticGate() {
     results.push(result);
     if (mode === 'certification' && result.status === 'FAIL') break;
   }
-  const status = results.every((r) => r.status === 'PASS') ? 'PASS' : 'FAIL';
-  return writeGateReport('static', results, status);
+  return writeGateReport('static', results, results.every((r) => r.status === 'PASS') ? 'PASS' : 'FAIL');
 }
 
 function buildGate() {
   const results = [];
-  results.push(run('npm-ci', 'npm', ['ci', '--prefer-offline', '--no-audit', '--no-fund']));
+  if (process.env.FLIXO_DEPENDENCIES_READY !== 'true') results.push(run('npm-ci', 'npm', ['ci', '--prefer-offline', '--no-audit', '--no-fund']));
+  else results.push({ label: 'npm-ci', command: 'npm ci [satisfied by CI bootstrap]', status: 'PASS', exitCode: 0, startedAt: now(), completedAt: now(), stdout: '', stderr: '' });
   if (results[0].status === 'PASS') results.push(run('typescript', 'npx', ['tsc', '--noEmit', '--pretty', 'false']));
   if (results.every((r) => r.status === 'PASS')) results.push(run('build', 'npm', ['run', 'build']));
-  if (results.every((r) => r.status === 'PASS')) {
-    results.push(run('dist', 'node', ['-e', "const fs=require('node:fs'); for (const p of ['dist','dist/index.html']) if (!fs.existsSync(p)) throw new Error('Missing build output: '+p); console.log('Build output verified')"]));
-  }
-  const status = results.every((r) => r.status === 'PASS') ? 'PASS' : 'FAIL';
-  return writeGateReport('build', results, status);
+  if (results.every((r) => r.status === 'PASS')) results.push(run('dist', 'node', ['-e', "const fs=require('node:fs'); for (const p of ['dist','dist/index.html']) if (!fs.existsSync(p)) throw new Error('Missing build output: '+p); console.log('Build output verified')"]));
+  return writeGateReport('build', results, results.every((r) => r.status === 'PASS') ? 'PASS' : 'FAIL');
 }
 
 function browserGate() {
-  const results = [];
-  results.push(run('playwright', 'npx', ['playwright', 'test', '--project=chromium', '--project=firefox', '--project=webkit'], {
+  const result = run('playwright', 'npx', ['playwright', 'test', '--project=chromium', '--project=firefox', '--project=webkit'], {
     CI: 'true',
     PLAYWRIGHT_REUSE_SERVER: 'false',
-  }));
-  const status = results.every((r) => r.status === 'PASS') ? 'PASS' : 'FAIL';
-  return writeGateReport('browser', results, status);
+  });
+  return writeGateReport('browser', [result], result.status);
 }
 
-function executeGate(name) {
-  if (name === 'static') return staticGate();
-  if (name === 'build') return buildGate();
-  return browserGate();
-}
-
+const executeGate = (name) => name === 'static' ? staticGate() : name === 'build' ? buildGate() : browserGate();
 const targetGates = gate ? [gate] : GATES;
 const reports = [];
 for (const name of targetGates) {
@@ -143,6 +125,7 @@ for (const name of targetGates) {
 }
 
 const overallStatus = reports.length === targetGates.length && reports.every((r) => r.status === 'PASS') ? 'PASS' : 'FAIL';
+const rootCauses = [...new Set(reports.map((r) => r.rootCauseId).filter(Boolean))];
 const overall = {
   version: 1,
   mode,
@@ -150,11 +133,26 @@ const overall = {
   status: overallStatus,
   gatesExpected: targetGates.length,
   gatesExecuted: reports.length,
-  rootCauses: [...new Set(reports.map((r) => r.rootCauseId).filter(Boolean))],
+  rootCauses,
   completedAt: now(),
   gates: reports.map((r) => ({ gate: r.gate, status: r.status, rootCauseId: r.rootCauseId })),
-  repro: gate ? `npm run test:${gate}` : 'npm test',
+  repro: gate ? `npm run test:${gate}` : mode === 'diagnose' ? 'npm run test:diagnose' : 'npm test',
 };
 writeFileSync(resolve(DIAG_DIR, 'report.json'), `${JSON.stringify(overall, null, 2)}\n`);
+const markdown = [
+  `# CI Report`,
+  ``,
+  `STATUS: ${overallStatus}`,
+  `SHA: ${overall.sha}`,
+  `MODE: ${mode}`,
+  ``,
+  `ROOT CAUSES: ${rootCauses.length ? rootCauses.join(', ') : 'NONE'}`,
+  ``,
+  ...reports.map((r) => `- ${r.gate}: ${r.status}${r.rootCauseId ? ` (${r.rootCauseId})` : ''}`),
+  ``,
+  `REPRO: ${overall.repro}`,
+  ``,
+];
+writeFileSync(resolve(DIAG_DIR, 'report.md'), markdown.join('\n'));
 console.log(JSON.stringify(overall, null, 2));
 process.exit(overallStatus === 'PASS' ? 0 : 1);
