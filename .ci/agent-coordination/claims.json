@@ -1,6 +1,7 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "protocol": "FLIXO multi-agent coordination",
   "leaseMinutes": 30,
+  "heartbeatMinutes": 10,
   "claims": []
 }
