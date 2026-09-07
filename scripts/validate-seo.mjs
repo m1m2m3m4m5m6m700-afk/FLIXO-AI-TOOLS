@@ -16,7 +16,7 @@ const readyToolIds = [...imageSource.matchAll(/\{ id: '([^']+)',[^\n]*?isReady: 
 if (!readyToolIds.length) { console.error('No ready image tools discovered.'); process.exit(1); }
 if (new Set(readyToolIds).size !== readyToolIds.length) { console.error('Duplicate ready image tool ids detected.'); process.exit(1); }
 
-const labels = seoSource.match(/const LOCALE_LABELS: Record<string, string> = \{([\s\S]*?)\n\};/u)?.[1] ?? '';
+const labels = seoSource.match(/const LOCALE_LABELS: Record<[^>]+, string> = \{([\s\S]*?)\n\};/u)?.[1] ?? '';
 for (const locale of expectedLocales) if (!new RegExp(`\\b${locale}:\\s*'`, 'u').test(labels)) { console.error(`SEO locale label missing: ${locale}`); process.exit(1); }
 if (!seoSource.includes("export type ToolCategory = 'Images'")) { console.error('SEO taxonomy is not Image-only.'); process.exit(1); }
 if (/'AI'|'Other'|'PDF'|'CSV'|'audio'|'video'/u.test(seoSource)) { console.error('Legacy SEO taxonomy/media surface remains.'); process.exit(1); }
