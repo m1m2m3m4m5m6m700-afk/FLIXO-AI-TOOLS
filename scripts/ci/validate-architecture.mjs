@@ -1,95 +1,73 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const workflowDir = '.github/workflows';
-const workflows = readdirSync(workflowDir).filter((file) => /\.(ya?ml)$/.test(file));
-const text = workflows.map((file) => ({ file, text: readFileSync(`${workflowDir}/${file}`, 'utf8') }));
+const workflows = readdirSync(workflowDir).filter((file) => /\.(ya?ml)$/u.test(file));
+const contents = Object.fromEntries(workflows.map((file) => [file, readFileSync(join(workflowDir, file), 'utf8')]));
 const failures = [];
-const find = (file) => text.find((item) => item.file === file)?.text ?? '';
+const fail = (message) => failures.push(message);
+const has = (file, pattern) => pattern.test(contents[file] ?? '');
 
-const deprecated = new Set([
-  'browser-smoke.yml',
-  'phase3-chain-compatibility.yml',
-  'parallel-diagnostics.yml',
-  'root-cause-diagnostics.yml',
-]);
-for (const item of text) {
-  if (deprecated.has(item.file) && /(^|\n)\s*(pull_request|push):/.test(item.text)) {
-    failures.push(`${item.file}: legacy/diagnostic workflow must be manual-only.`);
-  }
-}
+const ci = contents['ci.yml'] ?? '';
+if (!ci) fail('ci.yml is missing.');
+if (!/pull_request:\s*\n\s*branches:\s*\[main\]/u.test(ci)) fail('ci.yml must own the canonical pull-request verification surface.');
+if (!/workflow_dispatch:/u.test(ci)) fail('ci.yml must support deterministic manual execution.');
+if (!/Matrix First Barrier/u.test(ci)) fail('ci.yml must gate official verification behind Matrix First Barrier.');
+if (!/HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/u.test(ci)) fail('ci.yml must derive the exact PR head SHA.');
+if (/s4-runtime-e2e|ai-captioner-srt|canonical\.test/u.test(ci)) fail('ci.yml contains stale S4/legacy route diagnostics.');
+if (/continue-on-error:\s*true/u.test(ci)) fail('CI may not suppress failures with continue-on-error.');
 
-const ci = find('ci.yml');
-for (const marker of ['canonical-verify:', 'fast-contract:', 'build:', 'evidence-ledger:', 's4-runtime-e2e:']) {
-  if (!ci.includes(marker)) failures.push(`ci.yml missing canonical owner: ${marker}`);
-}
-if (!/FAIL-CLOSED/i.test(ci)) failures.push('ci.yml must declare FAIL-CLOSED architecture.');
-if (/Skip Socket CI when no token is configured/.test(ci)) failures.push('Socket gate may not silently skip.');
-if (/browser-smoke/i.test(ci)) failures.push('Canonical CI must not own browser-smoke verification.');
-if (/s3-static-gate:[\s\S]{0,1600}npm run build(?!:runtime)/.test(ci)) failures.push('S3 Static Gate must consume artifact, never rebuild.');
-if (!/flixo-build-\$\{\{ github\.sha \}\}/.test(ci)) failures.push('CI must publish a SHA-addressed immutable build artifact.');
-if (!/s4-runtime-e2e:[\s\S]{0,1400}needs:\s*\[build\]/.test(ci)) failures.push('S4 must depend on the canonical Build Once job.');
-if (!/s4-runtime-e2e:[\s\S]{0,14000}download-artifact@v7/.test(ci)) failures.push('S4 must consume the immutable CI build artifact.');
-if (!/s4-runtime-e2e:[\s\S]{0,20000}S4 RUNTIME ROOT CAUSE DETECTED/.test(ci)) failures.push('S4 must fail-fast on first runtime root cause.');
+const matrixFirst = contents['matrix-first.yml'] ?? '';
+if (!matrixFirst) fail('matrix-first.yml is missing.');
+if (!/browser:\s*\[chromium, firefox, webkit\]/u.test(matrixFirst)) fail('Matrix First must retain Chromium, Firefox, and WebKit.');
+if (!/tests\/localization-runtime\.spec\.ts/u.test(matrixFirst)) fail('Matrix First must execute the canonical G4 public-route localization contract.');
+if (!/retries=0/u.test(matrixFirst)) fail('Matrix First retries must remain disabled for deterministic failure propagation.');
+if (/S4_EXTERNAL_SERVER|PLAYWRIGHT_SERVER|canonical\.test/u.test(matrixFirst)) fail('Matrix First contains stale S4/test-origin environment residue.');
+if (!/name:\s*Image Matrix Certification/u.test(matrixFirst)) fail('Matrix First certification owner is missing.');
 
-const standaloneS4 = find('s4-runtime-e2e.yml');
-if (standaloneS4) {
-  if (/(^|\n)\s*(pull_request|push):/.test(standaloneS4)) failures.push('Standalone S4 diagnostic must be manual-only.');
-  if (/name:\s*S4 Runtime \+ E2E/.test(standaloneS4)) failures.push('Standalone S4 diagnostic may not reuse the blocking owner name.');
-  if (!/workflow_dispatch:/.test(standaloneS4)) failures.push('Standalone S4 diagnostic must support manual execution.');
-}
+const fullMatrix = contents['full-matrix-parallel.yml'] ?? '';
+if (!fullMatrix) fail('full-matrix-parallel.yml is missing.');
+if (!/browser:\s*\[chromium, firefox, webkit\]/u.test(fullMatrix)) fail('Full Matrix must retain Chromium, Firefox, and WebKit.');
+if (!/tests\/localization-runtime\.spec\.ts/u.test(fullMatrix)) fail('Full Matrix must execute canonical public-route × locale coverage.');
+if (!/retries=0/u.test(fullMatrix)) fail('Full Matrix retries must remain disabled for deterministic failure propagation.');
+if (/S4_EXTERNAL_SERVER|PLAYWRIGHT_SERVER|canonical\.test/u.test(fullMatrix)) fail('Full Matrix contains stale S4/test-origin environment residue.');
+if (!/if:\s*\$\{\{\s*always\(\)\s*\}\}/u.test(fullMatrix)) fail('Full Matrix certification must evaluate after all browser units.');
 
-const fullMatrix = find('full-matrix-parallel.yml') || find('full-matrix-promotion.yml');
-const fullMatrixParallel = find('full-matrix-parallel.yml');
-const legacyFullMatrix = find('full-matrix-promotion.yml');
-if (legacyFullMatrix && /(^|\n)\s*(pull_request|push):/.test(legacyFullMatrix)) {
-  failures.push('Legacy Full Matrix Promotion workflow must not define its own PR/push surface.');
-}
-if (!fullMatrixParallel) {
-  if (!/workflow_run:[\s\S]*workflows:\s*\[CI\]/.test(fullMatrix)) failures.push('Full Matrix must either run in the parallel DAG or consume the canonical CI workflow artifact on main.');
-} else {
-  if (!/pull_request:[\s\S]*branches:\s*\[main\]/.test(fullMatrixParallel)) failures.push('Full Matrix Parallel must run on the canonical pull request trigger.');
-  if (!/source_build:[\s\S]*npm run build/.test(fullMatrixParallel)) failures.push('Full Matrix Parallel must establish its own immutable source build.');
-  if (!/write-build-artifact-manifest\.mjs/.test(fullMatrixParallel)) failures.push('Full Matrix Parallel must publish an immutable build manifest.');
-  if (!/full-matrix-source-\$\{\{ github\.sha \}\}/.test(fullMatrixParallel)) failures.push('Full Matrix Parallel source artifact must be SHA-addressed.');
-  if (!/needs:\s*\[source_build, weighted_plan\]/.test(fullMatrixParallel)) failures.push('Full Matrix E2E must depend on both canonical source build and weighted plan.');
-  if (!/fromJSON\(needs\.weighted_plan\.outputs\.matrix\)/.test(fullMatrixParallel)) failures.push('Full Matrix E2E must consume the weighted plan output without ambiguous expression property access.');
-}
-if (!/weighted-shard-plan\.mjs/.test(fullMatrix)) failures.push('Full Matrix must use the weighted shard planner.');
-if (!/download-artifact@v7/.test(fullMatrix)) failures.push('Full Matrix must consume an immutable artifact.');
-if (!/23/.test(fullMatrix) || !/webkit/.test(fullMatrix) || !/chromium/.test(fullMatrix) || !/firefox/.test(fullMatrix)) {
-  failures.push('Full Matrix must retain the complete 23-suite × 3-browser surface.');
+const forbiddenWorkflowResidue = /(^|[\s/'"`])(s4-runtime-e2e|ai-captioner-srt)(?:$|[\s/'"`])/iu;
+for (const [file, source] of Object.entries(contents)) {
+  if (forbiddenWorkflowResidue.test(source)) fail(`${file}: forbidden legacy S4/tool residue detected.`);
+  if (/\b(if|continue-on-error):\s*(?:false|true)/u.test(source) && /continue-on-error:\s*true/u.test(source)) fail(`${file}: failure suppression detected.`);
 }
 
-const localization = find('localization-20.yml');
-if (/['"]fix\/\*\*|['"]feat\/\*\*|['"]ci\/\*\*|['"]refactor\/\*\*|['"]seo\/\*\*/.test(localization)) {
-  failures.push('Localization must not replay automatically on feature/fix/ci/seo/refactor branch pushes.');
-}
-
-// Canonical locale set is owned by src/lib/i18n/config.ts. The workflow must match it
-// exactly; a legacy hard-coded locale list is drift and must fail closed.
-const localeConfig = readFileSync('src/lib/i18n/config.ts', 'utf8').match(/export const LOCALES = \[([^\]]+)\] as const;/u)?.[1] ?? '';
-const canonicalLocales = localeConfig.match(/['"][A-Za-z-]+['"]/gu)?.map((value) => value.slice(1, -1)) ?? [];
-const workflowLocales = localization.match(/G4_LOCALES:\s*['"]([^'"]+)['"]/u)?.[1]?.split(',').map((value) => value.trim()).filter(Boolean) ?? [];
-if (canonicalLocales.length !== 20) failures.push(`Canonical locale registry count=${canonicalLocales.length}; expected 20.`);
-if (canonicalLocales.length !== workflowLocales.length || canonicalLocales.some((locale, index) => locale !== workflowLocales[index])) {
-  failures.push(`Localization workflow locale drift: registry=${canonicalLocales.join(',')} workflow=${workflowLocales.join(',')}`);
-}
-
-const owners = [
-  ['build', /name:\s*Runtime Build \+ Performance/],
-  ['s4', /name:\s*S4 Runtime \+ E2E/],
-  ['full-matrix', /name:\s*Full Matrix (?:Promotion|Parallel)/],
-  ['localization', /name:\s*(?:Localization — 20 Locale Gate|G4 — Localization \+ SEO Matrix)/],
-  ['canonical', /name:\s*Canonical Verification Gate/],
+const requiredStaticFiles = [
+  'src/lib/i18n/config.ts',
+  'src/lib/i18n/loader.ts',
+  'src/config/tools.ts',
+  'src/config/tool-definitions/image.ts',
+  'src/routes/route-tree.ts',
+  'src/routes/localized-tool.tsx',
+  'scripts/validate-seo.mjs',
+  'scripts/validate-seo-manifest.mjs',
+  'scripts/validate-canonical-locale-surface.mjs',
 ];
-for (const [owner, pattern] of owners) {
-  const count = text.filter((item) => pattern.test(item.text)).length;
-  if (count !== 1) failures.push(`${owner} owner count=${count}; expected exactly 1.`);
-}
+for (const file of requiredStaticFiles) if (!existsSync(file)) fail(`required canonical source is missing: ${file}`);
+
+const localeSource = readFileSync('src/lib/i18n/config.ts', 'utf8').match(/export const LOCALES = \[([^\]]+)\] as const;/u)?.[1] ?? '';
+const locales = localeSource.match(/['"][A-Za-z-]+['"]/gu)?.map((value) => value.slice(1, -1)) ?? [];
+if (locales.length !== 20) fail(`canonical locale count=${locales.length}; expected 20.`);
+if (new Set(locales).size !== 20) fail('canonical locale registry contains duplicates.');
+
+const routeTree = readFileSync('src/routes/route-tree.ts', 'utf8');
+if (/admin-login|admin\.tsx|ai-captioner-srt|\/admin/u.test(routeTree)) fail('public route tree contains removed admin or legacy AI routes.');
+if (!/localizedToolRoute/u.test(routeTree)) fail('canonical localized tool route is not registered.');
+
+const imageSource = readFileSync('src/config/tool-definitions/image.ts', 'utf8');
+if (/(?:category\s*:\s*['"](?:AI|Other|Audio|Video|PDF|CSV)['"])/u.test(imageSource)) fail('image registry exposes non-image taxonomy.');
+if (imageSource.includes('isReady: false') && !/photo-colorizer/u.test(imageSource)) fail('non-ready image tools must be explicit, known inventory entries.');
 
 console.log(
   failures.length
     ? failures.map((message) => `FAIL: ${message}`).join('\n')
-    : `CI architecture contract PASS: ${workflows.length} workflow definitions inspected; canonical ownership is unique.`,
+    : `CI architecture contract PASS: ${workflows.length} workflows inspected; canonical Image-only routing, 20-locale SSOT, fail-closed matrix, and no stale S4 surface.`,
 );
 if (failures.length) process.exit(1);
