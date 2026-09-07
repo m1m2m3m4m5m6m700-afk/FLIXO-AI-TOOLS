@@ -28,7 +28,9 @@ const artifactSha = createHash('sha256')
   .update(files.map(({ path, bytes, sha256 }) => `${path}\0${bytes}\0${sha256}`).join('\n'))
   .digest('hex');
 
-const commitSha = process.env.GITHUB_SHA ?? null;
+// On pull_request GitHub_SHA may identify the synthetic merge ref. The
+// canonical source identity must be the exact commit actually checked out.
+const commitSha = process.env.FLIXO_SOURCE_SHA ?? process.env.GITHUB_SHA ?? null;
 const manifest = {
   schema_version: 1,
   artifact_sha256: artifactSha,
