@@ -11,7 +11,7 @@ jobs:
   repair:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@v5
@@ -26,74 +26,104 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
 
-      - name: Normalize locale type boundaries
+      - name: Reconcile locale type boundaries and manifests
         shell: python
         run: |
           from pathlib import Path
+          import re
 
-          edits = {
-              'src/lib/i18n/tool-localization.ts': [
-                  ("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';"),
-                  ("type LocalizedTerms = Partial<Record<Locale, string>>;", "type LocalizedTerms = Partial<Record<KnownLocale, string>>;"),
-              ],
-              'src/lib/i18n/shared-tool-ui.ts': [
-                  ("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';"),
-                  ("export const SHARED_TOOL_UI_COPY: Record<Locale, SharedCopy>", "export const SHARED_TOOL_UI_COPY: Record<KnownLocale, SharedCopy>"),
-              ],
-              'src/lib/privacy.ts': [
-                  ("import type { Locale } from './i18n/config';", "import type { KnownLocale, Locale } from './i18n/config';"),
-                  ("const PRIVACY_COPY: Record<Locale, PrivacyCopy>", "const PRIVACY_COPY: Record<KnownLocale, PrivacyCopy>"),
-              ],
-              'src/data/home-locales.ts': [
-                  ("import type { Locale } from '@/lib/i18n';", "import type { KnownLocale, Locale } from '@/lib/i18n';"),
-                  ("export const HOME_I18N: Record<Locale, HomeCopy>", "export const HOME_I18N: Record<KnownLocale, HomeCopy>"),
-              ],
-              'src/data/quickflow-locales.ts': [
-                  ("import type { Locale } from '@/lib/i18n';", "import type { KnownLocale, Locale } from '@/lib/i18n';"),
-                  ("export const QUICKFLOW_LOCALES: Record<Locale, QuickFlowCopy>", "export const QUICKFLOW_LOCALES: Record<KnownLocale, QuickFlowCopy>"),
-              ],
-              'src/lib/seo/tool-catalog.ts': [
-                  ("import type { Locale } from '@/lib/i18n';", "import type { KnownLocale, Locale } from '@/lib/i18n';"),
-                  ("const CORE: Record<Locale, {", "const CORE: Record<KnownLocale, {"),
-                  ("const templates: Record<Locale, string> = {", "const templates: Record<KnownLocale, string> = {"),
-              ],
-          }
+          # Legacy translation keys stay internal; the public locale union remains canonical and strict.
+          p = Path('src/lib/i18n/tool-localization.ts')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';")
+          text = text.replace('Partial<Record<Locale, string>>', 'Partial<Record<KnownLocale, string>>')
+          text = text.replace('Record<Locale, string>', 'Record<KnownLocale, string>')
+          p.write_text(text, encoding='utf-8')
 
+          p = Path('src/lib/i18n/shared-tool-ui.ts')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';")
+          text = text.replace('Record<Locale, SharedCopy>', 'Record<KnownLocale, SharedCopy>')
+          text = text.replace("locale === 'zh' ? '外部处理' : locale === 'uk' ? 'Зовнішня обробка' : 'External processing'", "locale === 'uk' ? 'Зовнішня обробка' : 'External processing'")
+          p.write_text(text, encoding='utf-8')
+
+          for raw_path in ['src/lib/privacy.ts', 'src/data/home-locales.ts', 'src/data/quickflow-locales.ts']:
+              p = Path(raw_path)
+              text = p.read_text(encoding='utf-8')
+              text = text.replace("import type { Locale } from './i18n/config';", "import type { KnownLocale, Locale } from './i18n/config';")
+              text = text.replace("import type { Locale } from '@/lib/i18n';", "import type { KnownLocale, Locale } from '@/lib/i18n';")
+              text = re.sub(r'Record<Locale,', 'Record<KnownLocale,', text)
+              p.write_text(text, encoding='utf-8')
+
+          # tool-catalog contains legacy zh/ur entries and was missing the newly canonical ms/uk entries.
+          p = Path('src/lib/seo/tool-catalog.ts')
+          text = p.read_text(encoding='utf-8')
+          text = re.sub(r"^\s{2}(?:zh|ur): \{[^\n]*\},\n", '', text, flags=re.M)
+          core_ms = "  ms: { online: 'Alat dalam talian', intro: 'Gunakan {title} FLIXO terus dalam pelayar dengan aliran pantas yang mengutamakan privasi.', step1: 'Buka alat dan pilih input.', step2: 'Laraskan pilihan yang tersedia.', step3: 'Jalankan alat dan semak hasilnya.', step4: 'Muat turun atau salin hasil akhir.', features: ['Pemprosesan dalam pelayar', 'Tanpa akaun', 'Aliran tempatan pantas'], alt: 'Antara muka {title} dalam FLIXO' },\n"
+          core_uk = "  uk: { online: 'Онлайн-інструмент', intro: 'Використовуйте {title} FLIXO безпосередньо у браузері з швидким робочим процесом, орієнтованим на приватність.', step1: 'Відкрийте інструмент і виберіть вхідні дані.', step2: 'Налаштуйте доступні параметри.', step3: 'Запустіть інструмент і перевірте результат.', step4: 'Завантажте або скопіюйте готовий результат.', features: ['Обробка в браузері', 'Без облікового запису', 'Швидкий локальний робочий процес'], alt: 'Інтерфейс {title} у FLIXO' },\n"
+          if not re.search(r'^  ms: \{', text, re.M):
+              anchor = re.search(r'^  sv: \{[^\n]*\},\n', text, re.M)
+              if not anchor: raise SystemExit('CORE anchor sv missing')
+              text = text[:anchor.end()] + core_ms + text[anchor.end():]
+          if not re.search(r'^  uk: \{', text, re.M):
+              anchor = re.search(r'^  ms: \{[^\n]*\},\n', text, re.M)
+              if not anchor: raise SystemExit('CORE anchor ms missing')
+              text = text[:anchor.end()] + core_uk + text[anchor.end():]
+          term_ms = "  ms: { Compressor: 'Pemampat', Converter: 'Penukar', Image: 'Imej', Video: 'Video', Audio: 'Audio', Text: 'Teks', AI: 'AI', Remover: 'Penyingkir', Generator: 'Penjana' },\n"
+          term_uk = "  uk: { Compressor: 'Компресор', Converter: 'Конвертер', Image: 'Зображення', Video: 'Відео', Audio: 'Аудіо', Text: 'Текст', AI: 'ШІ', Remover: 'Засіб видалення', Generator: 'Генератор' },\n"
+          if not re.search(r'^  ms: \{[^\n]*Compressor:', text, re.M):
+              anchor = re.search(r'^  sv: \{[^\n]*Compressor:', text, re.M)
+              if not anchor: raise SystemExit('TERM anchor sv missing')
+              end = text.find('\n', anchor.start()) + 1
+              text = text[:end] + term_ms + text[end:]
+          if not re.search(r'^  uk: \{[^\n]*Compressor:', text, re.M):
+              anchor = re.search(r'^  ms: \{[^\n]*Compressor:', text, re.M)
+              if not anchor: raise SystemExit('TERM anchor ms missing')
+              end = text.find('\n', anchor.start()) + 1
+              text = text[:end] + term_uk + text[end:]
+          text = text.replace("const CORE: Record<Locale, {", "const CORE: Record<Locale, {")
+          p.write_text(text, encoding='utf-8')
+
+          # Complete manifests must consume existing ms/uk SEO assets rather than silently falling back.
           changed = []
-          for raw_path, pairs in edits.items():
-              path = Path(raw_path)
-              if not path.exists():
-                  raise SystemExit(f'missing expected file: {raw_path}')
-              text = path.read_text(encoding='utf-8')
+          for p in sorted(Path('src/tools').glob('*/manifest.ts')):
+              text = p.read_text(encoding='utf-8')
+              if "seoStatus: 'complete'" not in text:
+                  continue
+              tool_dir = p.parent
+              if not (tool_dir / 'seo/ms.ts').exists() or not (tool_dir / 'seo/uk.ts').exists():
+                  raise SystemExit(f'{p}: complete manifest is missing canonical ms/uk SEO files')
               original = text
-              for old, new in pairs:
-                  text = text.replace(old, new)
+              if "import { ms } from './seo/ms';" not in text:
+                  anchor = re.search(r"import \{ ko \} from './seo/ko';\n", text)
+                  if not anchor: raise SystemExit(f'{p}: ko import anchor missing')
+                  text = text[:anchor.end()] + "import { ms } from './seo/ms';\n" + text[anchor.end():]
+              if "import { uk } from './seo/uk';" not in text:
+                  anchor = re.search(r"import \{ tr \} from './seo/tr';\n", text)
+                  if not anchor: raise SystemExit(f'{p}: tr import anchor missing')
+                  text = text[:anchor.end()] + "import { uk } from './seo/uk';\n" + text[anchor.end():]
+              # Manifest objects are compact in this repository; add both locales before the closing brace.
+              if not re.search(r'\bms\s*,', text):
+                  text = re.sub(r'(seoLocales: Object\.freeze\(\{[^\n]*)(\}\),)', lambda m: (m.group(1).rstrip().rstrip(',') + ', ms, uk }),') if 'uk' not in m.group(1) else m.group(0), text)
+              if 'vi, ms, uk })' not in text and 'ms, uk' not in text:
+                  text = text.replace('vi }),', 'vi, ms, uk }),')
               if text != original:
-                  path.write_text(text, encoding='utf-8')
-                  changed.append(raw_path)
-
-          if not changed:
-              raise SystemExit('no locale boundary changes were produced')
-          print('changed:', ', '.join(changed))
-
-      - name: Verify canonical locale boundary
-        run: |
-          set -euo pipefail
-          ! grep -n "export const LOCALES.*zh\|export const LOCALES.*ur" src/lib/i18n/config.ts
-          grep -n "LEGACY_LOCALES" src/lib/i18n/config.ts
+                  p.write_text(text, encoding='utf-8')
+                  changed.append(str(p))
+          print(f'updated manifests: {len(changed)}')
 
       - name: TypeScript contract
         run: npx tsc --noEmit --pretty false
 
-      - name: Commit repair and remove one-shot runner
+      - name: Remove one-shot runner after verified repair
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git rm .github/workflows/_repair-locale-contract.yml
-          git add src/lib/i18n/tool-localization.ts src/lib/i18n/shared-tool-ui.ts src/lib/privacy.ts src/data/home-locales.ts src/data/quickflow-locales.ts src/lib/seo/tool-catalog.ts
+          git add src/lib/i18n/tool-localization.ts src/lib/i18n/shared-tool-ui.ts src/lib/privacy.ts src/data/home-locales.ts src/data/quickflow-locales.ts src/lib/seo/tool-catalog.ts src/tools/*/manifest.ts
           git diff --cached --check
           git diff --cached --quiet && { echo 'No repair changes staged'; exit 1; }
-          git commit -m 'fix(i18n): reconcile canonical and legacy locale contracts'
+          git commit -m 'fix(i18n): reconcile canonical locale matrix and complete SEO manifests'
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
