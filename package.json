@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "audit:production": "npm audit --omit=dev --audit-level=high",
+    "audit:technical-debt": "node scripts/ci/audit-technical-debt.mjs",
     "validate:s2d": "node scripts/validate-s2d.mjs",
     "validate:dependency-zero-debt": "node scripts/validate-dependency-zero-debt.mjs",
     "validate:i18n": "node scripts/validate-i18n.mjs",
