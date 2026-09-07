@@ -40,7 +40,9 @@ const dependencyStateCoupling = /FLIXO_DEPENDENCIES_READY/.test(`${ci}\n${runner
 findings.push(finding('RC-CI-DEPENDENCY-STATE-001', 'DEPENDENCY_LIFECYCLE', dependencyStateCoupling ? 'HIGH' : 'CLEAR', dependencyStateCoupling ? 'LATENT_CI_DEBT' : 'RESOLVED', dependencyStateCoupling ? 'Runner behavior depends on an external dependency-ready state flag.' : 'Dependency lifecycle is owned by npm ci; runner behavior is observational.', dependencyStateCoupling ? 'FLIXO_DEPENDENCIES_READY remains referenced.' : 'No FLIXO_DEPENDENCIES_READY reference exists in the active lifecycle.', 'Keep npm ci as the sole dependency bootstrap owner.'));
 
 const ciFiles = [...fileText.entries()].filter(([path]) => path.startsWith('scripts/ci/') && /\.(mjs|json|ts)$/.test(path)).map(([path]) => path);
-const activeReferenceTexts = [workflowText = [...fileText.entries()].filter(([path]) => path.startsWith('.github/workflows/')).map(([, text]) => text).join('\n'), packageScriptsText = JSON.stringify(packageJson.scripts ?? {}), runner, diagnose, collector];
+const workflowText = [...fileText.entries()].filter(([path]) => path.startsWith('.github/workflows/')).map(([, text]) => text).join('\n');
+const packageScriptsText = JSON.stringify(packageJson.scripts ?? {});
+const activeReferenceTexts = [workflowText, packageScriptsText, runner, diagnose, collector];
 for (const [path, text] of fileText.entries()) {
   if (path === '.github/workflows/ci.yml' || path === 'package.json' || path.startsWith('artifacts/') || path.startsWith('docs/') || path.startsWith('diagnostics/') || path.endsWith('.md')) continue;
   if (/\.(mjs|js|ts|json)$/.test(path)) activeReferenceTexts.push(text);
