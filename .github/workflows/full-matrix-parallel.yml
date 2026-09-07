@@ -53,17 +53,26 @@ jobs:
   weighted_plan:
     name: Full Matrix Weighted Plan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FLIXO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      FLIXO_MATRIX_PLAN_SIGNING_KEY: ${{ secrets.FLIXO_MATRIX_PLAN_SIGNING_KEY }}
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
       plan: ${{ steps.plan.outputs.plan }}
       shard_count: ${{ steps.plan.outputs.shard_count }}
+      plan_hash: ${{ steps.plan.outputs.plan_hash }}
+      plan_file: ${{ steps.plan.outputs.plan_file }}
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Build weighted shard plan
         id: plan
         env:
@@ -72,7 +81,16 @@ jobs:
           CI_RUNNER_BUDGET: 8
           CI_RUNNER_RESERVE: 2
           CI_BROWSERS: chromium,firefox,webkit
-        run: node scripts/ci/weighted-shard-plan.mjs
+        run: |
+          node scripts/ci/weighted-shard-plan.mjs
+          echo 'plan_file=matrix-plan.json' >> "$GITHUB_OUTPUT"
+      - name: Publish immutable matrix plan
+        uses: actions/upload-artifact@v6
+        with:
+          name: full-matrix-plan-${{ github.sha }}
+          path: matrix-plan.json
+          if-no-files-found: error
+          retention-days: 14
 
   matrix:
     name: Full Matrix — ${{ matrix.browser }} / shard-${{ matrix.shard }}
@@ -85,6 +103,7 @@ jobs:
         include: ${{ fromJSON(needs.weighted_plan.outputs.matrix) }}
     env:
       FLIXO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      FLIXO_MATRIX_PLAN_SIGNING_KEY: ${{ secrets.FLIXO_MATRIX_PLAN_SIGNING_KEY }}
       PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
       S4_EXTERNAL_SERVER: 'true'
       PLAYWRIGHT_SERVER: preview
@@ -103,10 +122,16 @@ jobs:
         with:
           name: full-matrix-source-${{ github.sha }}
           path: dist
-      - name: Verify artifact source identity
+      - name: Download immutable matrix plan
+        uses: actions/download-artifact@v7
+        with:
+          name: full-matrix-plan-${{ github.sha }}
+          path: matrix-plan
+      - name: Verify source and plan identity
         run: |
           set -euo pipefail
           node -e 'const m=require("./dist/_flixo_build_manifest.json"); const expected=process.env.FLIXO_SOURCE_SHA; if(m.sha!==expected || m.commit_sha!==expected) { console.error({manifest:m.sha, expected}); process.exit(1); }'
+          node -e 'const crypto=require("node:crypto"),fs=require("node:fs"); const p=require("./matrix-plan/matrix-plan.json"); const {plan_hash,signature,signature_algorithm,...u}=p; const c=JSON.stringify(u); const h=crypto.createHash("sha256").update(c).digest("hex"); const s=crypto.createHmac("sha256",process.env.FLIXO_MATRIX_PLAN_SIGNING_KEY).update(c).digest("hex"); if(h!==plan_hash||s!==signature||signature_algorithm!=="HMAC-SHA256"||p.source_sha!==process.env.FLIXO_SOURCE_SHA) process.exit(1); fs.copyFileSync("matrix-plan/matrix-plan.json","matrix-plan/_flixo_matrix_plan.json");'
       - name: Install Playwright system dependencies
         timeout-minutes: 8
         run: npx playwright install-deps '${{ matrix.browser }}'
@@ -125,28 +150,28 @@ jobs:
           done
           cat /tmp/full-matrix-server.log || true
           exit 1
-      - name: Run shard and write exact evidence
+      - name: Run shard and produce native Playwright JSON
         id: test
         shell: bash
         run: |
           set +e
-          specs=()
-          for test_file in ${{ join(matrix.tests, ' ') }}; do
+          mkdir -p full-matrix-evidence
+          TESTS='${{ join(matrix.tests, ',') }}'
+          TEST_SPECS=()
+          IFS=',' read -ra SUITES <<< "$TESTS"
+          for test_file in "${SUITES[@]}"; do
             test -f "tests/${test_file}.spec.ts" || exit 2
-            specs+=("tests/${test_file}.spec.ts")
+            TEST_SPECS+=("tests/${test_file}.spec.ts")
           done
-          npx playwright test "${specs[@]}" --project=${{ matrix.browser }} --workers=6 --retries=0 --max-failures=1
+          PLAYWRIGHT_JSON_OUTPUT_NAME=full-matrix-evidence/playwright-results.json npx playwright test "${TEST_SPECS[@]}" --project=${{ matrix.browser }} --workers=6 --retries=0 --reporter=json
           rc=$?
           set -e
-          mkdir -p full-matrix-evidence
-          TEST_RC="$rc" MATRIX_SHA="$FLIXO_SOURCE_SHA" MATRIX_BROWSER="${{ matrix.browser }}" MATRIX_SHARD="${{ matrix.shard }}" MATRIX_TESTS="${{ join(matrix.tests, ',') }}" node - <<'NODE'
-          const { writeFileSync } = require('node:fs');
-          const tests = process.env.MATRIX_TESTS.split(',').filter(Boolean);
-          const failed = Number(process.env.TEST_RC) === 0 ? 0 : 1;
-          const record = { schema_version: 3, sha: process.env.MATRIX_SHA, browser: process.env.MATRIX_BROWSER, shard: Number(process.env.MATRIX_SHARD), executed_suites: tests, failed, skipped: 0, status: failed === 0 ? 'success' : 'failure' };
-          writeFileSync(`full-matrix-evidence/${record.browser}-shard-${record.shard}.json`, JSON.stringify(record, null, 2) + '\n');
-          NODE
-          exit "$rc"
+          MATRIX_PLAN_HASH='$(node -e 'process.stdout.write(require("./matrix-plan/_flixo_matrix_plan.json").plan_hash)')'
+          MATRIX_TEST_COUNT='$(node -e 'process.stdout.write(String(require("./matrix-plan/_flixo_matrix_plan.json").matrix.find((u)=>u.browser==="${{ matrix.browser }}"&&u.shard===${{ matrix.shard }}).test_count))')'
+          FLIXO_SOURCE_SHA="$FLIXO_SOURCE_SHA" MATRIX_PLAN_HASH="$MATRIX_PLAN_HASH" MATRIX_BROWSER='${{ matrix.browser }}' MATRIX_SHARD='${{ matrix.shard }}' MATRIX_TESTS="$TESTS" MATRIX_TEST_COUNT="$MATRIX_TEST_COUNT" PLAYWRIGHT_JSON_REPORT=full-matrix-evidence/playwright-results.json MATRIX_EVIDENCE_OUTPUT=full-matrix-evidence/evidence.json node scripts/ci/write-matrix-evidence.mjs
+          evidence_rc=$?
+          echo "$rc" > full-matrix-evidence/process-exit-code.txt
+          exit $(( rc != 0 ? rc : evidence_rc ))
       - name: Upload matrix evidence
         if: always()
         uses: actions/upload-artifact@v6
@@ -157,7 +182,8 @@ jobs:
             playwright-report/
             test-results/
             dist/_flixo_build_manifest.json
-          if-no-files-found: warn
+            matrix-plan/_flixo_matrix_plan.json
+          if-no-files-found: error
           retention-days: 14
       - name: Cleanup
         if: always()
@@ -172,6 +198,8 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      FLIXO_MATRIX_PLAN_SIGNING_KEY: ${{ secrets.FLIXO_MATRIX_PLAN_SIGNING_KEY }}
     steps:
       - name: Download all matrix evidence
         uses: actions/download-artifact@v7
@@ -183,6 +211,7 @@ jobs:
         env:
           EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           EVIDENCE_ROOT: full-matrix-evidence
+          MATRIX_PLAN_PATH: full-matrix-evidence/_flixo_matrix_plan.json
         run: node scripts/ci/validate-full-matrix-evidence.mjs
       - name: Fail closed on matrix result
         run: |
@@ -190,4 +219,4 @@ jobs:
           result='${{ needs.matrix.result }}'
           echo "matrix=$result"
           test "$result" = success
-          echo 'Matrix First Certification PASS: all planned suites executed exactly once per browser across the weighted shards.'
+          echo 'Matrix First Certification PASS: all planned suites executed exactly once per browser across the signed weighted plan.'
