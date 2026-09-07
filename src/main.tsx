@@ -13,7 +13,7 @@ import { applyDocumentLocale, localeFromPathname, installDocumentLocaleContract 
 import { FlixoUxShell } from './components/flixo-ux-shell';
 import './styles.css';
 import './home-motion.css';
-import './command-palette.css';
+import './components/command-palette.css';
 import './home-modern.css';
 import './tools/seed/seed-premium.css';
 
