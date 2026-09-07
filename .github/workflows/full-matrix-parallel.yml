@@ -17,7 +17,6 @@ permissions:
 env:
   VITE_SITE_URL: https://flixoai.vercel.app
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
-  VITE_TEST_ORIGIN: https://canonical.test
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
@@ -28,16 +27,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
-      # First failure cancels remaining matrix jobs. This workflow is a repair loop,
-      # not a failure-counting diagnostic ladder.
-      fail-fast: true
+      # All browser/shard jobs must execute so certification receives complete evidence.
+      fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
         shard: [1, 2, 3, 4]
     env:
       PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-      S4_EXTERNAL_SERVER: 'true'
-      PLAYWRIGHT_SERVER: preview
     steps:
       - uses: actions/checkout@v5
         with:
@@ -63,7 +59,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-full-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: playwright-full-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
       - name: Install browser
         timeout-minutes: 8
         run: |
