@@ -1,37 +1,38 @@
+import { parseToolChain } from './runtime-boundaries.ts';
+
 const CHAIN_KEY = 'flixo:tool-chain:v1';
 const MAX_CHAIN_LENGTH = 8;
 
-export type ToolChainStep = Readonly<{
+type ToolChainStep = Readonly<{
   id: string;
   order: number;
 }>;
 
-const normalize = (steps: unknown): ToolChainStep[] => {
-  if (!Array.isArray(steps)) return [];
-  return steps
-    .filter((step): step is { id: string; order: number } => Boolean(step) && typeof step === 'object' && typeof (step as { id?: unknown }).id === 'string')
-    .slice(0, MAX_CHAIN_LENGTH)
-    .map((step, index) => ({ id: step.id, order: index }));
-};
+function readStoredChain(): ToolChainStep[] {
+  const raw = localStorage.getItem(CHAIN_KEY);
+  if (raw === null) return [];
 
-export const getToolChain = (): ToolChainStep[] => {
   try {
-    const raw = localStorage.getItem(CHAIN_KEY);
-    return normalize(raw ? JSON.parse(raw) : []);
-  } catch {
+    return parseToolChain(JSON.parse(raw));
+  } catch (error) {
+    localStorage.removeItem(CHAIN_KEY);
+    console.error('[FLIXO][boundary] Purged invalid tool-chain persistence.', { key: CHAIN_KEY, error });
     return [];
   }
-};
+}
+
+export const getToolChain = (): ToolChainStep[] => readStoredChain();
 
 export const setToolChain = (ids: string[]) => {
-  const unique = ids.filter((id, index) => typeof id === 'string' && ids.indexOf(id) === index).slice(0, MAX_CHAIN_LENGTH);
-  const steps = unique.map((id, order) => ({ id, order }));
+  const unique = Array.from(new Set(ids)).slice(0, MAX_CHAIN_LENGTH);
   try {
+    const steps = parseToolChain(unique.map((id, order) => ({ id, order })));
     localStorage.setItem(CHAIN_KEY, JSON.stringify(steps));
-  } catch {
-    // Local workspace persistence must never block tool usage.
+    return steps;
+  } catch (error) {
+    console.error('[FLIXO][boundary] Refused invalid tool-chain write.', { key: CHAIN_KEY, error });
+    return readStoredChain();
   }
-  return steps;
 };
 
 export const addToolToChain = (toolId: string) => setToolChain([...getToolChain().map((step) => step.id), toolId]);

@@ -1,16 +1,11 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ContractResult } from '../core/types.ts';
 import type { CheckpointIdentity } from './fingerprint.ts';
 import { isCheckpointIdentityValid } from './fingerprint.ts';
+import { parseStoredCheckpoint, type StoredCheckpointData } from '../../../src/lib/runtime-boundaries.ts';
 
-export interface StoredCheckpoint {
-  schemaVersion: 1;
-  identity: CheckpointIdentity;
-  fingerprint: string;
-  result: ContractResult;
-  evidencePath?: string;
-}
+export type StoredCheckpoint = StoredCheckpointData;
 
 export class CheckpointStore {
   private readonly root: string;
@@ -20,6 +15,7 @@ export class CheckpointStore {
   }
 
   async save(checkpoint: StoredCheckpoint): Promise<string> {
+    parseStoredCheckpoint(checkpoint);
     await mkdir(this.root, { recursive: true });
     const path = join(this.root, `${checkpoint.fingerprint}.json`);
     await writeFile(path, JSON.stringify(checkpoint, null, 2) + '\n', { flag: 'wx' });
@@ -27,11 +23,14 @@ export class CheckpointStore {
   }
 
   async load(fingerprint: string): Promise<StoredCheckpoint | null> {
+    const path = join(this.root, `${fingerprint}.json`);
     try {
-      return JSON.parse(await readFile(join(this.root, `${fingerprint}.json`), 'utf8')) as StoredCheckpoint;
+      return parseStoredCheckpoint(JSON.parse(await readFile(path, 'utf8')));
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') return null;
-      throw error;
+      try { await unlink(path); } catch { /* Corrupt checkpoint cleanup is best-effort. */ }
+      console.error('[FLIXO][checkpoint] Purged invalid checkpoint.', { path, error });
+      return null;
     }
   }
 

@@ -1,31 +1,44 @@
-export type RuntimeDiagnostic = {
-  kind: 'error' | 'unhandledrejection';
-  message: string;
-  stack?: string;
-  route: string;
-  userAgent: string;
-  timestamp: string;
-};
+import { parseRuntimeDiagnostics, RuntimeDiagnosticSchema } from '../runtime-boundaries.ts';
+import type { z } from 'zod';
+
+export type RuntimeDiagnostic = z.infer<typeof RuntimeDiagnosticSchema>;
 
 const STORAGE_KEY = 'flixo:runtime-diagnostics';
 const MAX_ENTRIES = 20;
 
+function clearInvalidDiagnostics(reason: unknown): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Diagnostics must never block recovery from corrupted persistence.
+  }
+  console.error('[FLIXO][boundary] Purged invalid runtime diagnostics.', { key: STORAGE_KEY, reason });
+}
+
 function saveDiagnostic(diagnostic: RuntimeDiagnostic): void {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    const current = raw ? (JSON.parse(raw) as RuntimeDiagnostic[]) : [];
-    current.push(diagnostic);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(current.slice(-MAX_ENTRIES)));
-  } catch {
-    // Diagnostics must never break the application.
+    const current = raw === null ? [] : parseRuntimeDiagnostics(JSON.parse(raw));
+    const validated = RuntimeDiagnosticSchema.parse(diagnostic);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...current, validated].slice(-MAX_ENTRIES)));
+  } catch (error) {
+    clearInvalidDiagnostics(error);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([diagnostic]));
+    } catch {
+      // Diagnostics must never break the application.
+    }
   }
 }
 
 export function getRuntimeDiagnostics(): RuntimeDiagnostic[] {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw === null) return [];
+
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as RuntimeDiagnostic[]) : [];
-  } catch {
+    return parseRuntimeDiagnostics(JSON.parse(raw));
+  } catch (error) {
+    clearInvalidDiagnostics(error);
     return [];
   }
 }

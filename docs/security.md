@@ -22,11 +22,13 @@ CI contains a Socket gate. It runs as a blocking check when the repository secre
 
 Vercel applies a conservative baseline including CSP, `nosniff`, referrer policy, permissions policy, and frame protection.
 
-The CSP allows only the resource types FLIXO currently needs, including local scripts, WebAssembly, data/blob images, media, workers, and HTTPS API connections.
+The CSP limits browser connections to the FLIXO origin and keeps external script trust disabled unless a concrete runtime dependency is intentionally added and reviewed.
 
 ## Input sanitization
 
-DOMPurify is intentionally not installed globally. The repository currently has no `dangerouslySetInnerHTML` usage found by the code search. If an untrusted HTML rendering path is introduced, sanitize that specific boundary instead of adding a project-wide wrapper.
+DOMPurify is intentionally not installed globally. Ordinary UI rendering must use React text/nodes and must not use `dangerouslySetInnerHTML`. The only permitted `dangerouslySetInnerHTML` sinks are JSON-LD `<script type="application/ld+json">` blocks whose serialized payload is escaped for `<` before insertion.
+
+Untrusted persisted state, API responses, checkpoints, and file inputs are validated at their runtime boundaries before entering domain state.
 
 ## Rules
 
@@ -34,3 +36,4 @@ DOMPurify is intentionally not installed globally. The repository currently has 
 2. Add a security package only when a concrete threat or code path requires it.
 3. Keep tool isolation intact.
 4. Never weaken existing CI checks just to make a run green.
+5. Treat browser-reported MIME as advisory; file safety must include extension, MIME, magic bytes, and decoder validation where applicable.
