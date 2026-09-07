@@ -56,9 +56,13 @@ export function ArHomePage() {
   );
 
   useEffect(() => {
-    let active = true;
-    void loadHomeCopy('ar').then((nextCopy) => { if (active) setCopy(nextCopy); });
-    return () => { active = false; };
+    const controller = new AbortController();
+    void loadHomeCopy('ar').then((nextCopy) => {
+      if (!controller.signal.aborted) setCopy(nextCopy);
+    }).catch(() => {
+      if (!controller.signal.aborted) setCopy(null);
+    });
+    return () => controller.abort();
   }, []);
 
   if (!copy) return <main className="home-shell" lang="ar" dir="rtl" aria-busy="true" />;
