@@ -2,5 +2,54 @@
   "schema_version": 1,
   "protocol": "FLIXO active agent sessions",
   "source_of_truth": ".ci/agent-coordination/claims.json",
-  "active_sessions": []
+  "active_sessions": [
+    {
+      "agentId": "ci-matrix-recovery",
+      "branch": "agent/ci-matrix/full-recovery",
+      "observedHeadSha": "3b152e22dcc8dcfd807531392208a77a1ce4045c",
+      "scope": {
+        "paths": [
+          ".github/workflows/ci.yml",
+          ".github/workflows/full-matrix-parallel.yml",
+          ".github/workflows/matrix-first.yml",
+          ".github/workflows/agent-coordination.yml",
+          "scripts/ci/weighted-shard-plan.mjs",
+          "scripts/ci/write-matrix-test-inventory.mjs",
+          "scripts/ci/write-matrix-evidence.mjs",
+          "scripts/ci/validate-full-matrix-evidence.mjs",
+          "scripts/ci/validate-architecture.mjs",
+          "scripts/ci/validate-protocol-cooperation.mjs",
+          "scripts/ci/validate-contract-coverage.mjs",
+          "scripts/ci/agent-coordination-protocol.mjs"
+        ],
+        "contracts": [
+          "G1-ROUTE-001",
+          "G1-REGISTRY-001",
+          "G1-ROUTER-001",
+          "G1-SEO-001",
+          "G4-ROUTE-001",
+          "G4-HTTP-001",
+          "G4-DOCUMENT-001",
+          "G4-LANG-001",
+          "G4-DIR-001",
+          "G4-TITLE-001",
+          "G4-DESCRIPTION-001",
+          "G4-H1-001",
+          "G4-CANONICAL-001",
+          "G4-HREFLANG-001",
+          "G4-ROBOTS-001",
+          "G4-STRUCTURED-DATA-001",
+          "G4-TRANSLATION-001",
+          "G4-ENGLISH-LEAKAGE-001",
+          "G4-A11Y-001",
+          "G4-RUNTIME-001",
+          "G4-CONSOLE-001",
+          "G4-NETWORK-001",
+          "G4-INTERACTION-001",
+          "G4-OUTPUT-001"
+        ]
+      },
+      "startedAt": "2026-09-07T18:00:00Z"
+    }
+  ]
 }
