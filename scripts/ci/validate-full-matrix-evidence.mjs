@@ -44,7 +44,6 @@ if (!Array.isArray(matrix) || matrix.length !== expectedBrowsers.length * expect
 
 const inventory = JSON.parse(readFileSync(inventoryPath, 'utf8'));
 if (inventory.schema_version !== 1 || inventory.source_sha !== sha || inventory.plan_hash !== planHash) throw new Error('Matrix test inventory provenance mismatch.');
-const inventoryCanonical = JSON.stringify({ ...inventory, inventory_hash: undefined });
 const recomputedInventoryHash = createHash('sha256').update(JSON.stringify({ schema_version: inventory.schema_version, source_sha: inventory.source_sha, plan_hash: inventory.plan_hash, units: inventory.units })).digest('hex');
 if (inventory.inventory_hash !== recomputedInventoryHash) throw new Error('Matrix test inventory hash mismatch.');
 
@@ -82,7 +81,7 @@ const collectNativeTests = (report) => {
   for (const suite of report.suites || []) walk(suite);
   return tests;
 };
-const normalizeSuite = (file) => file.replace(/^.*[\\/]tests[\\/] /, '').replace(/\.spec\.ts$/, '');
+const normalizeSuite = (file) => file.replace(/^.*[\\/]tests[\\/]/, '').replace(/\.spec\.ts$/, '');
 
 for (const fileName of files) {
   const file = join(root, fileName);
