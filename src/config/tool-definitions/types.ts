@@ -1,6 +1,12 @@
 import type { ComponentType, LazyExoticComponent } from 'react';
+import type { CanonicalLocale } from '../../lib/i18n/config.ts';
 
-export type ToolComponent = ComponentType | LazyExoticComponent<ComponentType>;
+export interface ReadyToolComponentProps {
+  locale?: CanonicalLocale;
+}
+
+export type ReadyToolComponent = ComponentType<ReadyToolComponentProps>;
+export type ToolComponent = ReadyToolComponent | LazyExoticComponent<ReadyToolComponent>;
 
 export type ToolConfig = {
   readonly id: string;
