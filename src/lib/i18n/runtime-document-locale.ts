@@ -8,32 +8,58 @@ export function localeFromPathname(pathname: string): Locale {
   return isLocale(candidate) ? candidate : 'en';
 }
 
-export function applyDocumentLocale(locale: Locale): void {
+/**
+ * Canonical and only application-owned writer for document-level locale state.
+ * Rejects invalid/empty runtime values before they can reach the DOM.
+ */
+export function applyDocumentLocale(locale: string): void {
   if (typeof document === 'undefined') return;
 
-  const html = document.documentElement;
-  const metadata = LOCALE_METADATA[locale];
-  
-  // ✅ GUARD CLAUSE: Prevent undefined metadata from reaching setAttribute
-  if (!metadata) return;
-  
-  const languageTag = metadata.languageTag;
-  const direction = metadata.direction;
+  const normalized = locale.trim().toLowerCase();
+  if (!normalized || !isLocale(normalized)) {
+    console.warn(`[Flixo Locale Security] Blocked invalid document locale: ${JSON.stringify(locale)}`);
+    return;
+  }
 
-  if (html.getAttribute('lang') !== languageTag) html.setAttribute('lang', languageTag);
-  if (html.getAttribute('dir') !== direction) html.setAttribute('dir', direction);
-  if (html.getAttribute('data-flixo-locale') !== locale) html.setAttribute('data-flixo-locale', locale);
+  const metadata = LOCALE_METADATA[normalized];
+  if (!metadata || !metadata.languageTag || !metadata.direction) {
+    console.warn(`[Flixo Locale Security] Blocked document locale without valid metadata: ${normalized}`);
+    return;
+  }
+
+  const html = document.documentElement;
+  const { languageTag, direction } = metadata;
+
+  if (!languageTag.trim()) {
+    console.warn(`[Flixo Locale Security] Blocked empty languageTag for locale: ${normalized}`);
+    return;
+  }
+
+  if (html.getAttribute('lang') !== languageTag) {
+    html.setAttribute('lang', languageTag);
+  }
+  if (html.getAttribute('dir') !== direction) {
+    html.setAttribute('dir', direction);
+  }
+  if (html.getAttribute('data-flixo-locale') !== normalized) {
+    html.setAttribute('data-flixo-locale', normalized);
+  }
 
   document.querySelectorAll<HTMLElement>('main').forEach((main) => {
-    if (main.getAttribute('lang') !== languageTag) main.setAttribute('lang', languageTag);
-    if (main.getAttribute('dir') !== direction) main.setAttribute('dir', direction);
+    if (main.getAttribute('lang') !== languageTag) {
+      main.setAttribute('lang', languageTag);
+    }
+    if (main.getAttribute('dir') !== direction) {
+      main.setAttribute('dir', direction);
+    }
   });
 }
 
 /**
- * Installs the document-level locale contract outside React's lifecycle.
- * The pathname is evaluated on every enforcement pass so the observer remains
- * correct across client-side navigation and DOM replacement.
+ * Installs the document-level locale contract around the router lifecycle.
+ * This observer is defensive only: all actual locale writes go through
+ * applyDocumentLocale(), so third-party/legacy DOM mutations are repaired
+ * without introducing another writer.
  */
 export function installDocumentLocaleContract(getPathname: () => string): () => void {
   if (typeof document === 'undefined') return () => undefined;
@@ -41,12 +67,24 @@ export function installDocumentLocaleContract(getPathname: () => string): () => 
   const apply = () => applyDocumentLocale(localeFromPathname(getPathname()));
   apply();
 
-  const frame = window.requestAnimationFrame(apply);
-  const interval = window.setInterval(apply, 250);
+  let scheduled = false;
+  const schedule = () => {
+    if (scheduled) return;
+    scheduled = true;
+    queueMicrotask(() => {
+      scheduled = false;
+      apply();
+    });
+  };
 
   const htmlObserver = new MutationObserver((mutations) => {
-    if (mutations.some((mutation) => mutation.type === 'attributes' && (mutation.attributeName === 'lang' || mutation.attributeName === 'dir' || mutation.attributeName === 'data-flixo-locale'))) {
-      apply();
+    if (mutations.some((mutation) =>
+      mutation.type === 'attributes' &&
+      (mutation.attributeName === 'lang' ||
+        mutation.attributeName === 'dir' ||
+        mutation.attributeName === 'data-flixo-locale')
+    )) {
+      schedule();
     }
   });
   htmlObserver.observe(document.documentElement, {
@@ -54,34 +92,20 @@ export function installDocumentLocaleContract(getPathname: () => string): () => 
     attributeFilter: ['lang', 'dir', 'data-flixo-locale'],
   });
 
-  const documentObserver = new MutationObserver((mutations) => {
-    if (mutations.some((mutation) => mutation.type === 'childList')) apply();
-  });
-  documentObserver.observe(document, { childList: true, subtree: false });
-
   const bodyObserver = new MutationObserver((mutations) => {
-    if (mutations.some((mutation) => {
-      if (mutation.type === 'childList') return mutation.addedNodes.length > 0;
-      if (mutation.type === 'attributes') return mutation.target instanceof HTMLElement && mutation.target.tagName === 'MAIN';
-      return false;
-    })) {
-      apply();
+    if (mutations.some((mutation) => mutation.type === 'childList' && mutation.addedNodes.length > 0)) {
+      schedule();
     }
   });
   if (document.body) {
     bodyObserver.observe(document.body, {
       subtree: true,
       childList: true,
-      attributes: true,
-      attributeFilter: ['lang', 'dir'],
     });
   }
 
   return () => {
-    window.cancelAnimationFrame(frame);
-    window.clearInterval(interval);
     htmlObserver.disconnect();
-    documentObserver.disconnect();
     bodyObserver.disconnect();
   };
 }
