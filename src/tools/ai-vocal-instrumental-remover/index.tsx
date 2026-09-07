@@ -55,8 +55,7 @@ export function AiVocalInstrumentalRemoverTool() {
     const releaseContext = resourceOwner.track(() => {
       void context.close();
     });
-    const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-    const releaseWorker = resourceOwner.track(() => worker.terminate());
+    const worker = resourceOwner.trackWorker(new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }));
     workerRef.current = worker;
     const jobId = crypto.randomUUID();
     worker.onmessage = (event: MessageEvent<{ type: string; jobId: string; data?: { phase: string; progress: number }; result?: SeparationResult; message?: string }>) => {
@@ -73,14 +72,14 @@ export function AiVocalInstrumentalRemoverTool() {
         setProgress(100);
         setStatus('Separation complete.');
         setBusy(false);
-        releaseWorker();
+        worker.terminate();
         releaseContext();
         workerRef.current = null;
       }
       if (event.data.type === 'error') {
         setStatus(event.data.message ?? 'Local AI separation failed.');
         setBusy(false);
-        releaseWorker();
+        worker.terminate();
         releaseContext();
         workerRef.current = null;
       }
@@ -96,7 +95,7 @@ export function AiVocalInstrumentalRemoverTool() {
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Unable to prepare audio.');
       setBusy(false);
-      releaseWorker();
+      worker.terminate();
       releaseContext();
       workerRef.current = null;
     }
@@ -116,7 +115,7 @@ export function AiVocalInstrumentalRemoverTool() {
   return (
     <section className="mx-auto max-w-3xl space-y-6 rounded-2xl border p-6">
       <div>
-        <h1 className="text-2xl font-bold">AI Vocal & Instrumental Remover</h1>
+        <h2 className="text-2xl font-bold">AI Vocal & Instrumental Remover</h2>
         <p className="mt-2 text-sm opacity-75">Local Demucs separation. The model downloads on first use and stays out of the initial bundle.</p>
       </div>
       <input aria-label="Audio file" type="file" accept="audio/*" onChange={(event) => { const selected = event.target.files?.[0]; if (selected) void handleFile(selected); }} />
