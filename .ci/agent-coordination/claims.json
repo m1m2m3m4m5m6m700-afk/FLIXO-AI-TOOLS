@@ -3,5 +3,42 @@
   "protocol": "FLIXO multi-agent coordination",
   "leaseMinutes": 30,
   "heartbeatMinutes": 10,
-  "claims": []
+  "claims": [
+    {
+      "agentId": "matrix-therapy-v2",
+      "branch": "agent/matrix-therapy/one-artifact-v2",
+      "observedHeadSha": "381de3abe4d4808b55f8e536033dcdb47d168c82",
+      "scope": {
+        "paths": [
+          ".github/workflows/full-matrix-parallel.yml",
+          "scripts/ci/weighted-shard-plan.mjs",
+          "scripts/ci/write-matrix-test-inventory.mjs",
+          "scripts/ci/write-matrix-evidence.mjs",
+          "scripts/ci/validate-full-matrix-evidence.mjs",
+          "src/lib/contracts/failure-classifier.ts",
+          "scripts/ci/validate-architecture.mjs",
+          "README.md",
+          "docs/RELEASE_POLICY.md"
+        ],
+        "contracts": [
+          "G4-RUNTIME-001",
+          "G4-CONSOLE-001",
+          "G4-NETWORK-001",
+          "G4-OUTPUT-001"
+        ]
+      },
+      "rootCauseIds": [
+        "RC-MATRIX-001",
+        "RC-MATRIX-002",
+        "RC-MATRIX-003",
+        "RC-MATRIX-004",
+        "RC-MATRIX-005",
+        "RC-MATRIX-006",
+        "RC-MATRIX-007"
+      ],
+      "status": "active",
+      "leasedAt": "2026-09-07T17:10:00Z",
+      "leaseUntil": "2026-09-07T17:40:00Z"
+    }
+  ]
 }
