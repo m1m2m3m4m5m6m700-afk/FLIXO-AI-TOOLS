@@ -1,25 +1,26 @@
 name: FLIXO CI — Evidence Ledger Shadow
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-evidence-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: flixo-ci-evidence-shadow-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
   evidence-shadow:
-    name: CI Evidence Ledger Shadow
+    name: CI Evidence Ledger Shadow (Diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
@@ -39,7 +40,7 @@ jobs:
           set -euo pipefail
           test -s artifacts/ci/evidence/manifest.json
           test "$(find artifacts/ci/evidence -name '*.json' | wc -l)" -ge 2
-      - name: Upload evidence ledger
+      - name: Upload evidence ledger diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
