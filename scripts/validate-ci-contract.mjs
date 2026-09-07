@@ -5,15 +5,21 @@ const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
 const required = [
   ['pull_request trigger', /pull_request:\s*\n\s*branches:\s*\[main\]/u],
   ['unified test job', /name:\s*Test — Static \/ Build \/ Browser/u],
-  ['STATIC gate', /name:\s*STATIC[\s\S]*npm run test:static/u],
-  ['BUILD gate', /name:\s*BUILD[\s\S]*npm run test:build/u],
-  ['BROWSER gate', /name:\s*BROWSER[\s\S]*npm run test:browser/u],
-  ['cycle diagnostics', /Record repair-cycle diagnostics[\s\S]*always\(\)[\s\S]*diagnose:cycle/u],
+  ['exact SHA checkout', /name:\s*Checkout exact SHA[\s\S]*ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/u],
+  ['exact SHA verification', /name:\s*Verify exact SHA[\s\S]*git rev-parse HEAD[\s\S]*EXPECTED_SHA/u],
+  ['dependency bootstrap', /name:\s*Install committed dependency graph[\s\S]*npm ci/u],
+  ['playwright browser bootstrap', /name:\s*Install Playwright browsers[\s\S]*chromium firefox webkit/u],
+  ['unified diagnostic runner', /name:\s*Unified diagnostic runner[\s\S]*npm run test:diagnose/u],
+  ['technical debt audit', /name:\s*Technical-debt classification audit[\s\S]*npm run audit:technical-debt/u],
   ['diagnostic artifact', /upload-artifact@v6[\s\S]*diagnostics\/ci\//u],
+  ['failure-memory artifact', /Persist failure memory[\s\S]*failure-memory\.json/u],
   ['fail-closed certification', /name:\s*CERTIFY[\s\S]*needs:\s*\[test\][\s\S]*needs\.test\.result/u],
+  ['authoritative evidence', /completeness\.authoritative\s*==\s*true/u],
 ];
 for (const [label, pattern] of required) if (!pattern.test(workflow)) { console.error(`CI contract failed: ${label}`); process.exit(1); }
 if (packageJson.scripts?.test !== 'node scripts/test.mjs --mode=certification') { console.error('CI contract failed: npm test is not the unified certification runner.'); process.exit(1); }
 if (packageJson.scripts?.['diagnose:cycle'] !== 'node scripts/ci/record-repair-cycle.mjs') { console.error('CI contract failed: diagnose:cycle is not the cycle collector.'); process.exit(1); }
+if (packageJson.scripts?.['test:diagnose'] !== 'node scripts/test.mjs --mode=diagnose') { console.error('CI contract failed: test:diagnose is not the unified diagnostic runner.'); process.exit(1); }
 if (!/cancel-in-progress:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*\}\}/u.test(workflow)) { console.error('CI contract failed: PR cancellation is missing.'); process.exit(1); }
-console.log('CI contract passed: one unified runner, three gates, cycle diagnostics, artifact evidence, and fail-closed certification.');
+if (/full-matrix-parallel|Matrix First Certification/u.test(workflow)) { console.error('CI contract failed: retired matrix certification reference remains.'); process.exit(1); }
+console.log('CI contract passed: exact-SHA bootstrap, one unified diagnostic runner, evidence artifacts, technical-debt audit, and fail-closed certification.');
