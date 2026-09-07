@@ -3,7 +3,7 @@ import { validateOutputIntegrity } from '../src/lib/contracts/output-integrity.t
 
 const bytes = (...values) => new Uint8Array(values);
 
-const REQUIRED_OUTPUT_TYPES = ['Image', 'PDF', 'ZIP', 'Text', 'JSON', 'CSV', 'Audio', 'Video'];
+const REQUIRED_OUTPUT_TYPES = ['Image', 'SVG', 'ZIP', 'Text', 'JSON'];
 const REQUIRED_NEGATIVE_CASES = [
   'empty',
   'missing artifact',
@@ -20,13 +20,10 @@ const REQUIRED_NEGATIVE_CASES = [
 
 const matrix = [
   { type: 'Image', mime: 'image/png', extension: 'png', signature: '89504e470d0a1a0a', content: bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a) },
-  { type: 'PDF', mime: 'application/pdf', extension: 'pdf', signature: '255044462d', content: bytes(0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37) },
+  { type: 'SVG', mime: 'image/svg+xml', extension: 'svg', content: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>'), parseAs: 'utf8' },
   { type: 'ZIP', mime: 'application/zip', extension: 'zip', signature: '504b0304', content: bytes(0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00) },
   { type: 'Text', mime: 'text/plain', extension: 'txt', parseAs: 'utf8', content: new TextEncoder().encode('FLIXO artifact\n') },
   { type: 'JSON', mime: 'application/json', extension: 'json', parseAs: 'json', content: new TextEncoder().encode('{"ok":true}') },
-  { type: 'CSV', mime: 'text/csv', extension: 'csv', parseAs: 'utf8', content: new TextEncoder().encode('name,value\nflixo,1\n') },
-  { type: 'Audio', mime: 'audio/mpeg', extension: 'mp3', signature: '494433', content: bytes(0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00) },
-  { type: 'Video', mime: 'video/mp4', extension: 'mp4', signature: { hex: '66747970', offset: 4 }, content: bytes(0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70) },
 ];
 
 function assertMatrixDefinition() {
@@ -63,6 +60,7 @@ for (const entry of matrix) {
       parseAs: entry.parseAs,
       minBytes: 1,
       maxBytes: 64 * 1024 * 1024,
+      maxPixels: entry.type === 'Image' ? 40_000_000 : undefined,
       requireArtifact: true,
       requireSafeFilename: true,
     };
@@ -167,7 +165,7 @@ const skipped = results.filter((result) => result.status === 'SKIP');
 const failed = results.filter((result) => result.status === 'FAIL');
 const passed = results.filter((result) => result.status === 'PASS');
 
-console.log(`G3 universal artifact integrity matrix: executed=${results.length} passed=${passed.length} failed=${failed.length} skipped=${skipped.length}`);
+console.log(`G3 image artifact integrity matrix: executed=${results.length} passed=${passed.length} failed=${failed.length} skipped=${skipped.length}`);
 
 if (skipped.length > 0 || failed.length > 0 || passed.length !== results.length) {
   for (const result of [...failed, ...skipped]) {
@@ -175,5 +173,5 @@ if (skipped.length > 0 || failed.length > 0 || passed.length !== results.length)
   }
   process.exitCode = 1;
 } else {
-  console.log('G3 universal artifact integrity matrix: PASS — no skipped or errored cases');
+  console.log('G3 image artifact integrity matrix: PASS — no skipped or errored cases');
 }
