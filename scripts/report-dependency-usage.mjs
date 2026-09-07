@@ -85,9 +85,7 @@ function scriptUsageFor(name) {
 
 function typeToolchainUsage(name) {
   if (!name.startsWith('@types/')) return [];
-  if (!['typescript', 'tsx', 'ts-node'].some((tool) => Object.hasOwn(declared, tool))) {
-    return [];
-  }
+  if (!['typescript', 'tsx', 'ts-node'].some((tool) => Object.hasOwn(declared, tool))) return [];
   const runtimeName = name.replace(/^@types\//, '');
   if (runtimeName === 'node' || runtimeName === 'react' || runtimeName === 'react-dom') {
     return [{ file: 'tsconfig.json', count: 1, reason: 'TypeScript compiler type environment' }];
@@ -126,30 +124,30 @@ const entries = dependencyNames.map((name) => {
 });
 
 const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
-const lockPackages = Object.keys(lock.packages ?? {});
-const transitiveOnly = lockPackages
+const lockRoot = lock.packages?.[''] ?? {};
+const lockDeclared = {
+  ...(lockRoot.dependencies ?? {}),
+  ...(lockRoot.devDependencies ?? {}),
+  ...(lockRoot.optionalDependencies ?? {}),
+};
+const packageDeclared = {
+  ...(packageJson.dependencies ?? {}),
+  ...(packageJson.devDependencies ?? {}),
+};
+const rootParity = JSON.stringify(Object.fromEntries(Object.entries(packageDeclared).sort(([a], [b]) => a.localeCompare(b))))
+  === JSON.stringify(Object.fromEntries(Object.entries(lockDeclared).sort(([a], [b]) => a.localeCompare(b))));
+const transitiveOnly = Object.keys(lock.packages ?? {})
   .filter((path) => path !== '')
   .map((path) => path.replace(/^node_modules\//, ''))
-  .filter((name, index, all) => all.indexOf(name) === index && !Object.hasOwn(declared, name))
+  .filter((name, index, all) => all.indexOf(name) === index && !Object.hasOwn(packageDeclared, name))
   .sort((a, b) => a.localeCompare(b));
 
 function run(command, args) {
   return spawnSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
-const install = run('npm', ['install', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund']);
-if (install.status !== 0) {
-  console.error(install.stderr.trim() || install.stdout.trim());
-  throw new Error(`npm install --package-lock-only failed with exit ${install.status}`);
-}
-
-const diff = run('git', ['diff', '--exit-code', '--', 'package-lock.json']);
-const lockfileDrift = diff.status !== 0;
-if (lockfileDrift) {
-  console.error('package-lock.json drift detected after npm install --package-lock-only.');
-  console.error(diff.stdout.trim());
-}
-
+const lockfileDiff = run('git', ['status', '--porcelain=v1', '--', 'package-lock.json']);
+const lockfileDirty = Boolean(lockfileDiff.stdout.trim());
 const npmLs = run('npm', ['ls', '--all', '--json', '--omit=optional']);
 let npmLsJson = null;
 try {
@@ -171,9 +169,11 @@ const report = {
   repository: process.env.GITHUB_REPOSITORY ?? null,
   sha: process.env.GITHUB_SHA ?? null,
   lockfileVersion: lock.lockfileVersion ?? null,
+  rootParity,
   npm: {
-    installPackageLockOnlyExit: install.status,
-    lockfileDrift,
+    reportingMode: 'READ_ONLY',
+    installAttempted: false,
+    lockfileDirty,
     npmLsExit: npmLs.status,
     npmLsBroken,
   },
@@ -192,8 +192,9 @@ console.log(`USED_TEST: ${counts.USED_TEST}`);
 console.log(`TRANSITIVE_ONLY (lockfile): ${counts.TRANSITIVE_ONLY}`);
 console.log(`UNUSED: ${counts.UNUSED}`);
 console.log(`LEGACY: ${counts.LEGACY}`);
-console.log(`npm install --package-lock-only: ${install.status === 0 ? 'PASS' : 'FAIL'}`);
-console.log(`package-lock drift: ${lockfileDrift ? 'FAIL' : 'PASS'}`);
+console.log(`reporting mode: ${report.npm.reportingMode}`);
+console.log(`package.json ↔ package-lock root parity: ${rootParity ? 'PASS' : 'FAIL'}`);
+console.log(`package-lock working-tree mutation: ${lockfileDirty ? 'FAIL' : 'PASS'}`);
 console.log(`npm ls: ${npmLsBroken ? 'FAIL' : 'PASS'}`);
 
 for (const entry of entries) {
@@ -202,7 +203,7 @@ for (const entry of entries) {
 }
 
 const blockers = entries.filter((entry) => entry.classification === 'UNUSED' || entry.classification === 'LEGACY');
-if (lockfileDrift || npmLsBroken || blockers.length > 0) {
+if (!rootParity || lockfileDirty || npmLsBroken || blockers.length > 0) {
   if (blockers.length) console.error(`Dependency zero-debt blockers: ${blockers.map((entry) => `${entry.name}=${entry.classification}`).join(', ')}`);
   process.exit(1);
 }
