@@ -12,7 +12,7 @@ const contract = {
   escalation: { deep: true, full: true },
 };
 const context = {
-  commitSha: 'abc', baseSha: 'base', event: 'test', branch: 'test', repository: 'repo', mode: 'L1',
+  commitSha: '0123456789abcdef0123456789abcdef01234567', baseSha: 'fedcba9876543210fedcba9876543210fedcba98', event: 'test', branch: 'test', repository: 'repo', mode: 'L1',
   toolchainFingerprint: 'tool', lockfileHash: 'lock', contractHash: 'contract', ciConfigHash: 'ci', configHash: 'config',
   changedFiles: [], affectedContracts: [], affectedRoutes: [], affectedLocales: [], production: false,
 };

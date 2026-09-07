@@ -1,32 +1,59 @@
-name: G4 UI Supplement Contract
+name: G4 Document Locale Contract
 
 on:
   pull_request:
     branches: [main]
     paths:
-      - 'src/lib/i18n/tool-ui-runtime-supplement.ts'
-      - 'tests/tool-ui-runtime-supplement.mjs'
+      - 'src/main.tsx'
+      - 'src/routes/__root.tsx'
+      - 'src/routes/localized-tool.tsx'
+      - 'src/lib/i18n/**'
+      - 'index.html'
+      - 'src/components/RouteErrorBoundary.tsx'
+      - 'tests/document-locale-contract.mjs'
       - '.github/workflows/g4-ui-supplement-contract.yml'
   push:
     branches: [main]
     paths:
-      - 'src/lib/i18n/tool-ui-runtime-supplement.ts'
-      - 'tests/tool-ui-runtime-supplement.mjs'
+      - 'src/main.tsx'
+      - 'src/routes/__root.tsx'
+      - 'src/routes/localized-tool.tsx'
+      - 'src/lib/i18n/**'
+      - 'index.html'
+      - 'src/components/RouteErrorBoundary.tsx'
+      - 'tests/document-locale-contract.mjs'
       - '.github/workflows/g4-ui-supplement-contract.yml'
 
 permissions:
   contents: read
 
+env:
+  SITE_URL: https://flixoai.vercel.app
+  VITE_SITE_URL: https://flixoai.vercel.app
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
-  supplement-contract:
+  document-locale-contract:
+    name: G4 Document Locale Contract
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - name: Checkout exact PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Verify checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha=$(git rev-parse HEAD)
+          test "$actual_sha" = "$EXPECTED_HEAD_SHA"
+      - uses: actions/setup-node@v5
         with:
           node-version: 22.x
           cache: npm
       - name: Install
-        run: npm ci
-      - name: Validate representative mappings
-        run: node tests/tool-ui-runtime-supplement.mjs
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Validate canonical document locale ownership
+        run: node tests/document-locale-contract.mjs

@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import GIF from 'gif.js';
 import workerUrl from 'gif.js/dist/gif.worker.js?url';
 import { clampGifRange, drawMemeText, normalizeFps, normalizeWidth } from './engine';
+import { DisposableResourceOwner } from '../_shared/disposable-resource-owner';
 
-async function metadata(file: File) {
+async function metadata(file: File, owner: DisposableResourceOwner) {
   return new Promise<{ duration: number; width: number; height: number }>((resolve, reject) => {
     const video = document.createElement('video');
-    const url = URL.createObjectURL(file);
+    const url = owner.createObjectURL(file);
+    const cleanup = () => owner.revokeObjectURL(url);
     video.preload = 'metadata';
     video.onloadedmetadata = () => {
       const value = { duration: video.duration, width: video.videoWidth, height: video.videoHeight };
-      URL.revokeObjectURL(url);
+      cleanup();
       if (value.duration > 0) {
         resolve(value);
         return;
@@ -18,7 +20,7 @@ async function metadata(file: File) {
       reject(new Error('Unable to read video metadata'));
     };
     video.onerror = () => {
-      URL.revokeObjectURL(url);
+      cleanup();
       reject(new Error('Unable to load video'));
     };
     video.src = url;
@@ -38,6 +40,9 @@ export function VideoGifMemeTool() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [outputUrl, setOutputUrl] = useState<string | null>(null);
+  const resourceOwner = useMemo(() => new DisposableResourceOwner(), []);
+
+  useEffect(() => () => resourceOwner.dispose(), [resourceOwner]);
 
   const choose = async (next?: File) => {
     if (!next) return;
@@ -46,10 +51,10 @@ export function VideoGifMemeTool() {
       return;
     }
     setError('');
-    if (outputUrl) URL.revokeObjectURL(outputUrl);
+    if (outputUrl) resourceOwner.revokeObjectURL(outputUrl);
     setOutputUrl(null);
     try {
-      const m = await metadata(next);
+      const m = await metadata(next, resourceOwner);
       setFile(next);
       setDuration(m.duration);
       setStart(0);
@@ -77,12 +82,13 @@ export function VideoGifMemeTool() {
     setStatus('Rendering GIF…');
 
     const video = document.createElement('video');
-    const sourceUrl = URL.createObjectURL(file);
+    const sourceUrl = resourceOwner.createObjectURL(file);
     video.src = sourceUrl;
     video.muted = true;
     video.playsInline = true;
     video.preload = 'auto';
 
+    let gif: GIF | null = null;
     try {
       await new Promise<void>((resolve, reject) => {
         video.onloadedmetadata = () => resolve();
@@ -96,7 +102,7 @@ export function VideoGifMemeTool() {
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Canvas is unavailable');
 
-      const gif = new GIF({ workers: 2, quality: 10, width: canvas.width, height: canvas.height, workerScript: workerUrl });
+      gif = new GIF({ workers: 2, quality: 10, width: canvas.width, height: canvas.height, workerScript: workerUrl });
       const frameCount = Math.min(180, Math.ceil(seconds * safeFps));
       for (let i = 0; i < frameCount; i += 1) {
         video.currentTime = range.start + (seconds * i) / Math.max(1, frameCount - 1);
@@ -109,20 +115,20 @@ export function VideoGifMemeTool() {
       }
 
       gif.on('finished', (blob: Blob) => {
-        setOutputUrl(URL.createObjectURL(blob));
+        setOutputUrl(resourceOwner.createObjectURL(blob));
         setStatus(`GIF ready · ${(blob.size / 1024).toFixed(1)} KB`);
         setBusy(false);
-        URL.revokeObjectURL(sourceUrl);
+        resourceOwner.revokeObjectURL(sourceUrl);
       });
       gif.on('abort', () => {
         setError('GIF rendering was aborted.');
         setBusy(false);
-        URL.revokeObjectURL(sourceUrl);
+        resourceOwner.revokeObjectURL(sourceUrl);
       });
       gif.render();
     } catch (e) {
       setBusy(false);
-      URL.revokeObjectURL(sourceUrl);
+      resourceOwner.revokeObjectURL(sourceUrl);
       setError(e instanceof Error ? e.message : 'Unable to render GIF');
     }
   };
@@ -139,7 +145,7 @@ export function VideoGifMemeTool() {
 
       {file ? (
         <>
-          <video className="max-h-80 w-full rounded-xl bg-black" src={URL.createObjectURL(file)} controls muted />
+          <video className="max-h-80 w-full rounded-xl bg-black" src={resourceOwner.createObjectURL(file)} controls muted />
           <div className="grid gap-4 md:grid-cols-2">
             <label>Start<input aria-label="Start" className="mt-1 w-full rounded border p-2" type="number" min={0} max={duration} step={0.1} value={start} onChange={(e) => setStart(Number(e.target.value))} /></label>
             <label>End<input aria-label="End" className="mt-1 w-full rounded border p-2" type="number" min={0} max={duration} step={0.1} value={end} onChange={(e) => setEnd(Number(e.target.value))} /></label>

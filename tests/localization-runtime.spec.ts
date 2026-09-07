@@ -29,6 +29,7 @@ const technicalCaseNames = new Set([
 ]);
 const technicalCaseList = /^(?:UPPERCASElowercaseTitle CaseSentence casecamelCasePascalCasesnake_casekebab-caseCONSTANT_CASE)$/u;
 const technicalHexColor = /^#[0-9A-Fa-f]{3,8}$/u;
+const normalize = (value: string | null | undefined) => (value ?? '').replace(/\s+/gu, ' ').trim();
 const sharedOnly = (value: string) => {
   const normalized = normalize(value);
   if (sharedPhrases.has(normalized)) return true;
@@ -42,8 +43,6 @@ const sharedOnly = (value: string) => {
 };
 
 type Snapshot = { title: string; description: string; h1: string; ui: string[] };
-
-const normalize = (value: string | null | undefined) => (value ?? '').replace(/\s+/gu, ' ').trim();
 const familyPath = (pathname: string) => pathname.replace(new RegExp(`^/(?:${localeCodes.join('|')})(?=/|$)`, 'u'), '') || '/';
 const localizedPath = (locale: string, family: string) => `/${locale}${family === '/' ? '' : family}`;
 
@@ -80,8 +79,18 @@ test.setTimeout(60_000);
 for (const pathname of routes) {
   test(`G4 all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
     const runtimeErrors: string[] = [];
+    const seenHttpErrors = new Set<string>();
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
     page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
+    page.on('response', (resourceResponse) => {
+      const status = resourceResponse.status();
+      if (status < 400) return;
+      const entry = `response: HTTP ${status} ${resourceResponse.request().method()} ${resourceResponse.url()}`;
+      if (!seenHttpErrors.has(entry)) {
+        seenHttpErrors.add(entry);
+        runtimeErrors.push(entry);
+      }
+    });
     page.on('requestfailed', (request) => {
       if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`);
     });

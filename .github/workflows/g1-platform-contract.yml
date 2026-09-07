@@ -21,8 +21,19 @@ jobs:
     timeout-minutes: 15
     env:
       VITE_SITE_URL: https://flixoai.vercel.app
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout exact PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Verify checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha=$(git rev-parse HEAD)
+          test "$actual_sha" = "$EXPECTED_HEAD_SHA"
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc

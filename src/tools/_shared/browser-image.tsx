@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { recordToolPerformance } from '../../lib/diagnostics/performance';
 import { validateFileSafety } from '../../lib/contracts/file-safety';
 import { assertExifCleanerOutputIntegrity } from '../exif-cleaner/output-integrity';
 import { validateSvgOutput } from '../image-to-svg/output-integrity';
+import { DisposableResourceOwner } from './disposable-resource-owner';
 
 type Mode = 'photo-colorizer' | 'background-blur' | 'passport-photo-maker' | 'watermark-adder' | 'meme-generator' | 'collage-maker' | 'image-effects' | 'exif-cleaner' | 'svg-optimizer' | 'mockup-generator' | 'image-to-svg';
 type Props = { mode: Mode; title: string; accept?: string; multi?: boolean; locale?: 'en' | 'ar' };
@@ -75,11 +76,10 @@ function download(result: Result) {
   link.href = result.url;
   link.download = result.name;
   link.click();
-  setTimeout(() => URL.revokeObjectURL(result.url), 0);
 }
 
-async function loadImage(file: File) {
-  const url = URL.createObjectURL(file);
+async function loadImage(file: File, resourceOwner: DisposableResourceOwner) {
+  const url = resourceOwner.createObjectURL(file);
   try {
     const image = new Image();
     image.decoding = 'async';
@@ -87,20 +87,20 @@ async function loadImage(file: File) {
     await image.decode();
     return image;
   } finally {
-    URL.revokeObjectURL(url);
+    resourceOwner.revokeObjectURL(url);
   }
 }
 
-async function canvasResult(canvas: HTMLCanvasElement, name: string, mime = 'image/png', quality = 0.96): Promise<Result> {
+async function canvasResult(resourceOwner: DisposableResourceOwner, canvas: HTMLCanvasElement, name: string, mime = 'image/png', quality = 0.96): Promise<Result> {
   const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error('Could not encode output.')), mime, quality));
-  return { blob, url: URL.createObjectURL(blob), name, width: canvas.width, height: canvas.height };
+  return { blob, url: resourceOwner.createObjectURL(blob), name, width: canvas.width, height: canvas.height };
 }
 
-async function runImageEffectsWorker(blob: Blob, effect: { brightness: number; contrast: number; saturate: number; grayscale: number }, width: number, height: number): Promise<Result> {
+async function runImageEffectsWorker(resourceOwner: DisposableResourceOwner, blob: Blob, effect: { brightness: number; contrast: number; saturate: number; grayscale: number }, width: number, height: number): Promise<Result> {
   if (typeof Worker === 'undefined') throw new Error('Image Effects Worker is unavailable.');
   const startedAt = typeof performance === 'undefined' ? Date.now() : performance.now();
   return await new Promise<Result>((resolve, reject) => {
-    const worker = new Worker(new URL('./image-effects-worker.ts', import.meta.url), { type: 'classic' });
+    const worker = resourceOwner.trackWorker(new Worker(new URL('./image-effects-worker.ts', import.meta.url), { type: 'classic' }));
     const cleanup = () => worker.terminate();
     worker.onmessage = (event: MessageEvent<EffectsWorkerResponse>) => {
       const workerDurationMs = Math.max(0, (typeof performance === 'undefined' ? Date.now() : performance.now()) - startedAt);
@@ -108,7 +108,7 @@ async function runImageEffectsWorker(blob: Blob, effect: { brightness: number; c
       if (event.data.ok && event.data.blob instanceof Blob) {
         const output = event.data.blob;
         recordToolPerformance({ toolId: 'image-effects', operation: 'worker-transform', durationMs: workerDurationMs, workerDurationMs, encodeDurationMs: workerDurationMs });
-        resolve({ blob: output, url: URL.createObjectURL(output), name: 'flixo-image-effects.png', width, height });
+        resolve({ blob: output, url: resourceOwner.createObjectURL(output), name: 'flixo-image-effects.png', width, height });
       } else {
         reject(new Error(event.data.error || 'Image Effects Worker failed.'));
       }
@@ -122,6 +122,7 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
   const resolvedLocale: 'en' | 'ar' = locale ?? (typeof document !== 'undefined' && document.documentElement.lang.toLowerCase().startsWith('ar') ? 'ar' : 'en');
   const copy = UI_COPY[resolvedLocale];
   const dir = resolvedLocale === 'ar' ? 'rtl' : 'ltr';
+  const resourceOwner = useMemo(() => new DisposableResourceOwner(), []);
   const [files, setFiles] = useState<File[]>([]);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState('');
@@ -131,18 +132,34 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
   const [bottom, setBottom] = useState('BOTTOM TEXT');
   const [effect, setEffect] = useState({ brightness: 100, contrast: 100, saturate: 100, grayscale: 0 });
 
+  useEffect(() => () => resourceOwner.dispose(), [resourceOwner]);
+
   const status = useMemo(() => result ? `${result.width ?? ''}×${result.height ?? ''} · ${Math.max(1, Math.round(result.blob.size / 1024))} KB` : copy.noResult, [result, copy.noResult]);
+
+  const clearResult = () => {
+    setResult((current) => {
+      if (current) resourceOwner.revokeObjectURL(current.url);
+      return null;
+    });
+  };
+
+  const commitResult = (next: Result) => {
+    setResult((current) => {
+      if (current && current.url !== next.url) resourceOwner.revokeObjectURL(current.url);
+      return next;
+    });
+  };
 
   async function run() {
     if (!files.length) { setError(copy.chooseImage); return; }
-    setError(''); setBusy(true); setResult(null);
+    setError(''); setBusy(true); clearResult();
     try {
       for (const file of files) assertFileSafe(file, mode);
       if (mode === 'svg-optimizer') {
         const svg = await files[0].text();
         const optimized = svg.replace(/<!--[\s\S]*?-->/g, '').replace(/>\s+</g, '><').replace(/\s{2,}/g, ' ').trim();
         const blob = new Blob([optimized], { type: 'image/svg+xml' });
-        setResult({ blob, url: URL.createObjectURL(blob), name: 'flixo-optimized.svg', text: optimized }); return;
+        commitResult({ blob, url: resourceOwner.createObjectURL(blob), name: 'flixo-optimized.svg', text: optimized }); return;
       }
       if (mode === 'photo-colorizer') {
         const endpoint = import.meta.env.VITE_PHOTO_COLORIZER_ENDPOINT;
@@ -151,19 +168,19 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
         const response = await fetch(endpoint, { method: 'POST', body });
         if (!response.ok) throw new Error(`Colorizer request failed (${response.status}).`);
         const blob = await response.blob();
-        setResult({ blob, url: URL.createObjectURL(blob), name: 'flixo-colorized.png' }); return;
+        commitResult({ blob, url: resourceOwner.createObjectURL(blob), name: 'flixo-colorized.png' }); return;
       }
       if (mode === 'collage-maker') {
-        const images = await Promise.all(files.map(loadImage));
+        const images = await Promise.all(files.map((file) => loadImage(file, resourceOwner)));
         images.forEach((image, index) => assertDecodedImageSafe(files[index], image.width, image.height));
         const cell = 512; const columns = Math.min(3, Math.ceil(Math.sqrt(images.length))); const rows = Math.ceil(images.length / columns);
         const canvas = document.createElement('canvas'); canvas.width = columns * cell; canvas.height = rows * cell;
         const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('Canvas unavailable.');
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
         images.forEach((image, index) => { const x = (index % columns) * cell; const y = Math.floor(index / columns) * cell; const scale = Math.min(cell / image.width, cell / image.height); const w = image.width * scale; const h = image.height * scale; ctx.drawImage(image, x + (cell - w) / 2, y + (cell - h) / 2, w, h); });
-        setResult(await canvasResult(canvas, 'flixo-collage.png')); return;
+        commitResult(await canvasResult(resourceOwner, canvas, 'flixo-collage.png')); return;
       }
-      const image = await loadImage(files[0]);
+      const image = await loadImage(files[0], resourceOwner);
       assertDecodedImageSafe(files[0], image.width, image.height);
       const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('Canvas unavailable.');
       let width = image.width; let height = image.height;
@@ -176,7 +193,7 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
         const blob = new Blob([svg], { type: 'image/svg+xml' });
         const integrity = validateSvgOutput(blob, svg);
         if (!integrity.valid) throw new Error(`Image to SVG produced invalid output: ${integrity.failures.join('; ')}`);
-        setResult({ blob, url: URL.createObjectURL(blob), name: 'flixo-image.svg', width: image.width, height: image.height, text: svg }); return;
+        commitResult({ blob, url: resourceOwner.createObjectURL(blob), name: 'flixo-image.svg', width: image.width, height: image.height, text: svg }); return;
       }
       if (mode === 'mockup-generator') {
         ctx.fillStyle = '#111827'; ctx.fillRect(0, 0, width, height); ctx.fillStyle = '#1f2937'; ctx.roundRect(18, 18, width - 36, height - 36, 42); ctx.fill();
@@ -191,13 +208,13 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
         ctx.drawImage(image, 0, 0, width, height); ctx.font = `900 ${Math.max(32, Math.round(width / 10))}px Impact, sans-serif`; ctx.textAlign = 'center'; ctx.lineWidth = 8; ctx.strokeStyle = '#000'; ctx.fillStyle = '#fff'; ctx.strokeText(top, width / 2, 60); ctx.fillText(top, width / 2, 60); ctx.strokeText(bottom, width / 2, height - 30); ctx.fillText(bottom, width / 2, height - 30);
       } else if (mode === 'image-effects') {
         const baseBlob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error('Could not prepare image.')), 'image/png'));
-        setResult(await runImageEffectsWorker(baseBlob, effect, width, height)); return;
+        commitResult(await runImageEffectsWorker(resourceOwner, baseBlob, effect, width, height)); return;
       } else if (mode === 'exif-cleaner') {
         ctx.drawImage(image, 0, 0, width, height);
       } else { ctx.drawImage(image, 0, 0, width, height); }
-      const output = await canvasResult(canvas, `flixo-${mode}.png`);
+      const output = await canvasResult(resourceOwner, canvas, `flixo-${mode}.png`);
       if (mode === 'exif-cleaner') assertExifCleanerOutputIntegrity(output.blob, { width: output.width ?? width, height: output.height ?? height });
-      setResult(output);
+      commitResult(output);
     } catch (cause) { setError(cause instanceof Error ? cause.message : copy.alertOperationFailed); }
     finally { setBusy(false); }
   }

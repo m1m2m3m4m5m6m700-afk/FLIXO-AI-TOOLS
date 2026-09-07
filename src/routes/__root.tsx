@@ -2,15 +2,16 @@ import { Suspense, useEffect, useLayoutEffect } from 'react';
 import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
+import { RouteErrorBoundary, ErrorComponent, NotFoundComponent } from '../components/RouteErrorBoundary';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
-import { applyDocumentLocale, installDocumentLocaleContract, localeFromPathname } from '../lib/i18n/runtime-document-locale';
+import { applyDocumentLocale, localeFromPathname } from '../lib/i18n/runtime-document-locale';
 import { SITE_ORIGIN } from '../lib/i18n';
 
 const GLOBAL_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
   '@graph': [
-    { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: 'FLIXO AI', url: SITE_ORIGIN, logo: `${SITE_ORIGIN}/flixo-logo.svg` },
-    { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'FLIXO AI', url: SITE_ORIGIN, publisher: { '@id': `${SITE_ORIGIN}/#organization` } },
+    { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: 'FLIXO', url: SITE_ORIGIN, logo: `${SITE_ORIGIN}/flixo-logo.svg` },
+    { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'FLIXO', url: SITE_ORIGIN, publisher: { '@id': `${SITE_ORIGIN}/#organization` } },
   ],
 } as const;
 
@@ -18,9 +19,7 @@ function RuntimeLocaleAttributes() {
   const location = useLocation();
 
   useLayoutEffect(() => {
-    const locale = localeFromPathname(location.pathname);
-    applyDocumentLocale(locale);
-    return installDocumentLocaleContract(() => location.pathname);
+    applyDocumentLocale(localeFromPathname(location.pathname));
   }, [location.pathname]);
 
   return null;
@@ -33,8 +32,10 @@ function RouteContent() {
 export const rootRoute = createRootRoute({
   component: function RootLayout() {
     useEffect(() => installCoreWebVitalsDiagnostics(), []);
-    return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} /><FlixoGlobalLogo /><CommandPalette /><RouteContent /><Scripts /></>;
+    return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} /><FlixoGlobalLogo /><CommandPalette /><RouteErrorBoundary><RouteContent /></RouteErrorBoundary><Scripts /></>;
   },
+  errorComponent: ErrorComponent,
+  notFoundComponent: NotFoundComponent,
   head: () => ({
     meta: [
       { charSet: 'utf-8' },

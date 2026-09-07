@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { imagesToPdf, type ImageToPdfMargin, type ImageToPdfOrientation } from './engine';
+import { DisposableResourceOwner } from '../_shared/disposable-resource-owner';
 
 export function ImageToPdfTool() {
   const [files, setFiles] = useState<File[]>([]);
@@ -8,17 +9,18 @@ export function ImageToPdfTool() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [url, setUrl] = useState('');
+  const resourceOwner = useMemo(() => new DisposableResourceOwner(), []);
 
-  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+  useEffect(() => () => resourceOwner.dispose(), [resourceOwner]);
 
   const generate = async () => {
     setBusy(true);
     setError('');
     try {
-      const blob = await imagesToPdf(files, { orientation, margin });
+      const blob = await imagesToPdf(files, { orientation, margin }, resourceOwner);
       setUrl((current) => {
-        if (current) URL.revokeObjectURL(current);
-        return URL.createObjectURL(blob);
+        if (current) resourceOwner.revokeObjectURL(current);
+        return resourceOwner.createObjectURL(blob);
       });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'PDF generation failed.');

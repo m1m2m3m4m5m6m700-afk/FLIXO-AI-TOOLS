@@ -12,14 +12,28 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  SITE_URL: https://flixoai.vercel.app
+  VITE_SITE_URL: https://flixoai.vercel.app
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   checkpoints-shadow:
     name: CI Checkpoint Shadow
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout exact revision
+      - name: Checkout exact PR head
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Verify checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha=$(git rev-parse HEAD)
+          test "$actual_sha" = "$EXPECTED_HEAD_SHA"
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
@@ -30,9 +44,9 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit --pretty false
       - name: Checkpoint semantics
-        run: node --experimental-strip-types scripts/ci/checkpoints/checkpoint.test.mjs
+        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/checkpoints/checkpoint.test.mjs
       - name: Checkpoint self-test
-        run: node --experimental-strip-types scripts/ci/checkpoints/self-test.mjs
+        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/checkpoints/self-test.mjs
       - name: Verify checkpoint fingerprint shape
         shell: bash
         run: |

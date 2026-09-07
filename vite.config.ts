@@ -1,4 +1,6 @@
 import { fileURLToPath, URL } from 'node:url';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { Plugin, PreviewServer, ViteDevServer } from 'vite';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -6,6 +8,55 @@ const allowedHosts = (process.env.VITE_ALLOWED_HOSTS ?? '')
   .split(',')
   .map((host) => host.trim())
   .filter(Boolean);
+
+type MiddlewareServer = Pick<ViteDevServer, 'middlewares'> | Pick<PreviewServer, 'middlewares'>;
+
+type MiddlewareRequest = IncomingMessage & { method?: string };
+
+function telemetryPreviewPlugin(): Plugin {
+  return {
+    name: 'flixo-telemetry-endpoint',
+    configureServer(server: ViteDevServer) {
+      installTelemetryMiddleware(server);
+    },
+    configurePreviewServer(server: PreviewServer) {
+      return () => installTelemetryMiddleware(server);
+    },
+  };
+}
+
+function installTelemetryMiddleware(server: MiddlewareServer): void {
+  server.middlewares.use('/api/telemetry', (req: MiddlewareRequest, res: ServerResponse, _next) => {
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.statusCode = 405;
+      res.setHeader('allow', 'POST');
+      res.end();
+      return;
+    }
+
+    let total = 0;
+    req.on('data', (chunk: Buffer) => {
+      total += chunk.byteLength;
+      if (total > 64 * 1024) req.destroy();
+    });
+    req.on('end', () => {
+      res.statusCode = 204;
+      res.setHeader('cache-control', 'no-store');
+      res.end();
+    });
+    req.on('error', () => {
+      if (!res.headersSent) {
+        res.statusCode = 400;
+        res.end();
+      }
+    });
+  });
+}
 
 function vendorChunk(id: string): string | undefined {
   if (!id.includes('node_modules')) return undefined;
@@ -22,7 +73,7 @@ function vendorChunk(id: string): string | undefined {
 }
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), telemetryPreviewPlugin()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

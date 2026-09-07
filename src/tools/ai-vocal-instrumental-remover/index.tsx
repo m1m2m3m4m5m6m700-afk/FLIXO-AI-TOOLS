@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { DisposableResourceOwner } from '../_shared/disposable-resource-owner';
 import { encodeWav, mixInstrumental, validateDuration, type SeparationBackend, type SeparationResult } from './engine';
 
 type Stem = 'vocals' | 'instrumental';
@@ -12,8 +13,11 @@ export function AiVocalInstrumentalRemoverTool() {
   const [status, setStatus] = useState('Choose an audio file.');
   const [stems, setStems] = useState<Partial<Record<Stem, Blob>>>({});
   const workerRef = useRef<Worker | null>(null);
+  const resourceOwnerRef = useRef<DisposableResourceOwner | null>(null);
+  if (!resourceOwnerRef.current) resourceOwnerRef.current = new DisposableResourceOwner();
+  const resourceOwner = resourceOwnerRef.current;
 
-  useEffect(() => () => workerRef.current?.terminate(), []);
+  useEffect(() => () => resourceOwner.dispose(), [resourceOwner]);
 
   const audioContextOptions = useMemo(() => ({ sampleRate: 44100 }), []);
 
@@ -23,6 +27,9 @@ export function AiVocalInstrumentalRemoverTool() {
       return;
     }
     const context = new AudioContext(audioContextOptions);
+    const releaseContext = resourceOwner.track(() => {
+      void context.close();
+    });
     try {
       const buffer = await context.decodeAudioData(await nextFile.arrayBuffer());
       validateDuration(buffer.duration);
@@ -35,7 +42,7 @@ export function AiVocalInstrumentalRemoverTool() {
       setDuration(0);
       setStatus(error instanceof Error ? error.message : 'Unable to decode this audio file.');
     } finally {
-      await context.close();
+      releaseContext();
     }
   };
 
@@ -45,7 +52,10 @@ export function AiVocalInstrumentalRemoverTool() {
     setProgress(0);
     setStems({});
     const context = new AudioContext(audioContextOptions);
-    const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+    const releaseContext = resourceOwner.track(() => {
+      void context.close();
+    });
+    const worker = resourceOwner.trackWorker(new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }));
     workerRef.current = worker;
     const jobId = crypto.randomUUID();
     worker.onmessage = (event: MessageEvent<{ type: string; jobId: string; data?: { phase: string; progress: number }; result?: SeparationResult; message?: string }>) => {
@@ -63,13 +73,15 @@ export function AiVocalInstrumentalRemoverTool() {
         setStatus('Separation complete.');
         setBusy(false);
         worker.terminate();
-        void context.close();
+        releaseContext();
+        workerRef.current = null;
       }
       if (event.data.type === 'error') {
         setStatus(event.data.message ?? 'Local AI separation failed.');
         setBusy(false);
         worker.terminate();
-        void context.close();
+        releaseContext();
+        workerRef.current = null;
       }
     };
 
@@ -84,25 +96,26 @@ export function AiVocalInstrumentalRemoverTool() {
       setStatus(error instanceof Error ? error.message : 'Unable to prepare audio.');
       setBusy(false);
       worker.terminate();
-      await context.close();
+      releaseContext();
+      workerRef.current = null;
     }
   };
 
   const download = (kind: Stem) => {
     const blob = stems[kind];
     if (!blob) return;
-    const url = URL.createObjectURL(blob);
+    const url = resourceOwner.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = `${file?.name.replace(/\.[^.]+$/, '') ?? 'audio'}-${kind}.wav`;
     anchor.click();
-    URL.revokeObjectURL(url);
+    resourceOwner.revokeObjectURL(url);
   };
 
   return (
     <section className="mx-auto max-w-3xl space-y-6 rounded-2xl border p-6">
       <div>
-        <h1 className="text-2xl font-bold">AI Vocal & Instrumental Remover</h1>
+        <h2 className="text-2xl font-bold">AI Vocal & Instrumental Remover</h2>
         <p className="mt-2 text-sm opacity-75">Local Demucs separation. The model downloads on first use and stays out of the initial bundle.</p>
       </div>
       <input aria-label="Audio file" type="file" accept="audio/*" onChange={(event) => { const selected = event.target.files?.[0]; if (selected) void handleFile(selected); }} />

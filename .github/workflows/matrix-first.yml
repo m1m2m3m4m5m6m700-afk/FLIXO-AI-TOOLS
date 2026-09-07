@@ -15,6 +15,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
   VITE_SITE_URL: https://flixoai.vercel.app
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
   VITE_TEST_ORIGIN: https://canonical.test
@@ -38,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -89,7 +90,7 @@ jobs:
         timeout-minutes: 15
         run: |
           set -euo pipefail
-          echo "Matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/4"
+          echo "Matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/4 sha=$EXPECTED_HEAD_SHA"
           npx playwright test tests/localization-runtime.spec.ts \
             --project=${{ matrix.browser }} \
             --workers=6 \
@@ -100,7 +101,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: matrix-first-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
+          name: matrix-first-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ env.EXPECTED_HEAD_SHA }}-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/
@@ -125,6 +126,6 @@ jobs:
         run: |
           set -euo pipefail
           result='${{ needs.matrix.result }}'
-          echo "matrix=$result"
+          echo "matrix=$result sha=$EXPECTED_HEAD_SHA"
           test "$result" = success
           echo 'Matrix First Certification PASS: all 12 browser/shard units passed independently.'

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { DisposableResourceOwner } from '../_shared/disposable-resource-owner';
 
 type WorkerResponse = { channels: Float32Array[] } | { error: string };
 
@@ -21,24 +22,25 @@ function encodeWav(channels: Float32Array[], sampleRate: number): Blob {
 
 export function AudioNoiseReducerTool() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const workerRef = useRef<Worker | null>(null);
+  const ownerRef = useRef<DisposableResourceOwner | null>(null);
+  if (ownerRef.current === null) ownerRef.current = new DisposableResourceOwner();
+  const owner = ownerRef.current;
   const [file, setFile] = useState<File | null>(null);
   const [reduction, setReduction] = useState(0.65);
   const [status, setStatus] = useState('Ready');
-  const [output, setOutput] = useState<Blob | null>(null);
   const [busy, setBusy] = useState(false);
+  const [outputUrl, setOutputUrl] = useState('');
 
-  useEffect(() => () => workerRef.current?.terminate(), []);
-  const outputUrl = useMemo(() => output ? URL.createObjectURL(output) : '', [output]);
+  useEffect(() => () => owner.dispose(), [owner]);
 
   async function process() {
-    if (!file) return;
-    setBusy(true); setStatus('Decoding audio…'); setOutput(null);
+    if (!file || busy) return;
+    setBusy(true); setStatus('Decoding audio…'); setOutputUrl('');
     try {
       const context = new AudioContext();
+      owner.track(() => { void context.close(); });
       const decoded = await context.decodeAudioData(await file.arrayBuffer());
-      const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-      workerRef.current?.terminate(); workerRef.current = worker;
+      const worker = owner.trackWorker(new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }));
       const done = new Promise<WorkerResponse>((resolve) => {
         worker.onmessage = (event: MessageEvent<WorkerResponse>) => resolve(event.data);
         worker.onerror = () => resolve({ error: 'Noise reduction worker failed.' });
@@ -48,11 +50,10 @@ export function AudioNoiseReducerTool() {
       setStatus('Reducing noise…');
       worker.postMessage({ channels, options: { reduction, highPassHz: 70 } }, transfer);
       const result = await done;
-      worker.terminate(); workerRef.current = null;
       if ('error' in result) throw new Error(result.error);
       const blob = encodeWav(result.channels, decoded.sampleRate);
-      setOutput(blob); setStatus(`Done • output ${Math.round(blob.size / 1024)} KB`);
-      await context.close();
+      const nextUrl = owner.createObjectURL(blob);
+      setOutputUrl(nextUrl); setStatus(`Done • output ${Math.round(blob.size / 1024)} KB`);
     } catch (error) { setStatus(error instanceof Error ? error.message : 'Noise reduction failed.'); }
     finally { setBusy(false); }
   }
