@@ -1,11 +1,19 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
 const SESSIONS_FILE = process.env.FLIXO_AGENT_SESSIONS_FILE ?? 'scripts/ci/active-sessions.json';
 const CLAIMS_FILE = process.env.FLIXO_AGENT_CLAIMS_FILE ?? '.ci/agent-coordination/claims.json';
 const EVIDENCE_FILE = process.env.FLIXO_AGENT_SESSIONS_EVIDENCE ?? 'artifacts/ci/agent-coordination/sessions.json';
-const BRANCH = process.env.GITHUB_HEAD_REF ?? process.env.GITHUB_REF_NAME ?? '';
-const SHA = process.env.EXPECTED_HEAD_SHA ?? process.env.GITHUB_SHA ?? '';
+const readGitValue = (args) => {
+  try {
+    return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return '';
+  }
+};
+const BRANCH = process.env.GITHUB_HEAD_REF ?? process.env.GITHUB_REF_NAME ?? readGitValue(['branch', '--show-current']);
+const SHA = process.env.EXPECTED_HEAD_SHA ?? process.env.GITHUB_SHA ?? readGitValue(['rev-parse', 'HEAD']);
 const AGENT_BRANCH = /^agent\/[^/]+\/.+$/u;
 const HEX_SHA = /^[0-9a-f]{40}$/iu;
 
@@ -18,6 +26,15 @@ const pathConflicts = (left, right) => {
   const a = normalizePath(left);
   const b = normalizePath(right);
   return Boolean(a && b && (a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`)));
+};
+const changedPaths = () => {
+  if (!process.env.FLIXO_AGENT_ENFORCE_WORKTREE_SCOPE || !AGENT_BRANCH.test(BRANCH)) return [];
+  const raw = readGitValue(['status', '--porcelain=v1', '--untracked-files=all']);
+  return raw.split(/\r?\n/u).filter(Boolean).map((line) => {
+    const payload = line.slice(3);
+    const rename = payload.indexOf(' -> ');
+    return normalizePath(rename >= 0 ? payload.slice(rename + 4) : payload);
+  }).filter(Boolean);
 };
 
 let sessions;
@@ -60,6 +77,8 @@ for (const claim of activeClaims) {
   if (session.branch !== claim.branch) fail(`${claim.agentId} session branch ${session.branch} != claim branch ${claim.branch}`);
   if (JSON.stringify([...session.claimed_paths].map(normalizePath).sort()) !== JSON.stringify([...claim.scope.paths].map(normalizePath).sort())) fail(`${claim.agentId} path scope drift between session ledger and claims registry`);
   if (JSON.stringify([...session.claimed_contracts].sort()) !== JSON.stringify([...claim.scope.contracts].sort())) fail(`${claim.agentId} contract scope drift between session ledger and claims registry`);
+  if ((claim.rootCauseIds ?? []).some((id) => typeof id !== 'string' || !id.trim())) fail(`${claim.agentId} rootCauseIds invalid`);
+  if (!HEX_SHA.test(claim.observedHeadSha ?? '')) fail(`${claim.agentId} observedHeadSha invalid`);
 }
 
 for (const session of sessions.active_sessions) {
@@ -74,9 +93,7 @@ for (let i = 0; i < activeClaims.length; i += 1) {
     const pathCollision = a.scope.paths.some((path) => b.scope.paths.some((other) => pathConflicts(path, other)));
     const contractCollision = a.scope.contracts.some((id) => b.scope.contracts.includes(id));
     const rootCauseCollision = (a.rootCauseIds ?? []).some((id) => (b.rootCauseIds ?? []).includes(id));
-    if (pathCollision || contractCollision || rootCauseCollision) {
-      fail(`AGENT_COLLISION_DETECTED: ${a.agentId} <-> ${b.agentId}`);
-    }
+    if (pathCollision || contractCollision || rootCauseCollision) fail(`AGENT_COLLISION_DETECTED: ${a.agentId} <-> ${b.agentId}`);
   }
 }
 
@@ -85,6 +102,11 @@ if (AGENT_BRANCH.test(BRANCH)) {
   if (currentClaim.length !== 1) fail(`agent branch ${BRANCH} requires exactly one active claim`);
   if (SHA && !HEX_SHA.test(SHA)) fail(`invalid expected SHA ${SHA}`);
   if (SHA && currentClaim[0].observedHeadSha !== SHA) fail(`stale claim SHA ${currentClaim[0].observedHeadSha} != current ${SHA}`);
+  const dirtyPaths = changedPaths();
+  for (const path of dirtyPaths) {
+    const allowed = currentClaim[0].scope.paths.some((claimed) => pathConflicts(claimed, path));
+    if (!allowed) fail(`working-tree path ${path} is outside active claim scope`);
+  }
 }
 
 const report = {
@@ -96,6 +118,7 @@ const report = {
   expected_head_sha: SHA || null,
   active_sessions: sessions.active_sessions,
   active_claim_count: activeClaims.length,
+  checked_worktree_scope: Boolean(process.env.FLIXO_AGENT_ENFORCE_WORKTREE_SCOPE && AGENT_BRANCH.test(BRANCH)),
   collision_count: 0,
   invariants: [
     'claims registry is authoritative; session ledger is a transparent projection',
@@ -104,9 +127,11 @@ const report = {
     'active writers use isolated agent branches',
     'path, contract, or root-cause overlap is fatal',
     'stale agent claims are rejected',
+    'agent worktree changes are restricted to the claimed path scope when hook enforcement is enabled',
     'no external lock database is used',
   ],
 };
+await mkdir(EVIDENCE_FILE.split('/').slice(0, -1).join('/') || '.', { recursive: true });
 report.report_hash = createHash('sha256').update(JSON.stringify(report)).digest('hex');
 await writeFile(EVIDENCE_FILE, JSON.stringify(report, null, 2) + '\n', 'utf8');
 console.log(`Agent Session Guard PASS: activeSessions=${sessions.active_sessions.length} activeClaims=${activeClaims.length}`);
