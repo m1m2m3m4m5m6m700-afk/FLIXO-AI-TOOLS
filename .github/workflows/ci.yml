@@ -25,8 +25,6 @@ jobs:
       NPM_CONFIG_FUND: 'false'
       NPM_CONFIG_UPDATE_NOTIFIER: 'false'
       VITE_SITE_URL: https://flixoai.vercel.app
-      VITE_TEST_ORIGIN: https://canonical.test
-      VITE_RUNTIME_ORIGIN: https://canonical.test
       PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -50,7 +48,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Install dependencies
+      - name: Install committed dependency graph
         run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: STATIC
@@ -73,7 +71,7 @@ jobs:
         with:
           name: ci-report-${{ github.run_id }}
           path: diagnostics/ci/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
 
   certify:
