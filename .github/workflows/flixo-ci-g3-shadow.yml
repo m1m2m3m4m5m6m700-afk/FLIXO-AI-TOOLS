@@ -1,15 +1,11 @@
 name: FLIXO CI — G3 Artifact Integrity Shadow
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-g3-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: flixo-ci-g3-shadow-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -18,17 +14,17 @@ env:
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
   VITE_TEST_ORIGIN: https://canonical.test
   VITE_SITE_URL: https://flixoai.vercel.app
-  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  EXPECTED_HEAD_SHA: ${{ github.sha }}
 
 jobs:
   g3-shadow:
-    name: G3 Artifact Integrity Shadow
+    name: G3 Artifact Integrity Shadow (Diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
       - name: Verify checked-out identity
         shell: bash
@@ -53,7 +49,7 @@ jobs:
         run: node --experimental-strip-types scripts/test-g3-artifact-integrity.mjs
       - name: Real G3 browser flow
         timeout-minutes: 8
-        run: timeout --preserve-status 420s bash -c 'npx playwright install --with-deps chromium && npx playwright test tests/g3-artifact-integrity.spec.ts --project=chromium --workers=1 --retries=0'
+        run: timeout --preserve-status 420s bash -c 'npx playwright install --with-deps chromium && npx playwright test tests/g3-artifact-integrity.spec.ts --project=chromium --workers=1 --retries=0 --fail-on-flaky-tests'
       - name: Verify G3 evidence identity
         if: always()
         shell: bash
@@ -62,11 +58,11 @@ jobs:
           actual="$(git rev-parse HEAD)"
           expected="${EXPECTED_HEAD_SHA}"
           test "$actual" = "$expected" || { echo "G3 evidence identity mismatch: expected=$expected actual=$actual"; exit 1; }
-      - name: Upload G3 shadow evidence
+      - name: Upload G3 diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-g3-shadow-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ci-g3-shadow-${{ github.sha }}
           path: |
             playwright-report/
             test-results/
