@@ -2,7 +2,26 @@ import type { Locale } from './config';
 import { buildLocalizedToolSeo } from '../seo/tool-catalog';
 
 export const CATEGORY_LABELS: Record<Locale, { Images: string }> = {
-  ar: { Images: 'الصور' }, en: { Images: 'Images' }, es: { Images: 'Imágenes' }, fr: { Images: 'Images' }, de: { Images: 'Bilder' }, ru: { Images: 'Изображения' }, zh: { Images: '图像' }, hi: { Images: 'छवियाँ' }, id: { Images: 'Gambar' }, ur: { Images: 'تصاویر' }, ja: { Images: '画像' }, pt: { Images: 'Imagens' }, it: { Images: 'Immagini' }, ko: { Images: '이미지' }, nl: { Images: 'Afbeeldingen' }, pl: { Images: 'Obrazy' }, tr: { Images: 'Görseller' }, vi: { Images: 'Hình ảnh' }, th: { Images: 'รูปภาพ' }, sv: { Images: 'Bilder' },
+  ar: { Images: 'الصور' },
+  en: { Images: 'Images' },
+  es: { Images: 'Imágenes' },
+  fr: { Images: 'Images' },
+  de: { Images: 'Bilder' },
+  ru: { Images: 'Изображения' },
+  hi: { Images: 'छवियाँ' },
+  id: { Images: 'Gambar' },
+  ja: { Images: '画像' },
+  pt: { Images: 'Imagens' },
+  it: { Images: 'Immagini' },
+  ko: { Images: '이미지' },
+  ms: { Images: 'Imej' },
+  nl: { Images: 'Afbeeldingen' },
+  pl: { Images: 'Obrazy' },
+  tr: { Images: 'Görseller' },
+  vi: { Images: 'Hình ảnh' },
+  th: { Images: 'รูปภาพ' },
+  sv: { Images: 'Bilder' },
+  uk: { Images: 'Зображення' },
 };
 
 function canonicalSeo(locale: Locale, title: string) {
