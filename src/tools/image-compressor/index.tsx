@@ -1,38 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { compressImage, MAX_FILES, MAX_INPUT_SIZE, type CompressionFormat } from './engine';
 import { imageCompressorOutputIntegrity } from './output-contract';
 import { validateOutputIntegrity } from '../../lib/contracts/output-integrity';
+import { DisposableResourceOwner } from '../_shared/disposable-resource-owner';
 
-const formatLabels: Record<CompressionFormat, string> = {
-  'image/webp': 'WebP',
-  'image/jpeg': 'JPG',
-  'image/png': 'PNG',
-};
-
-function formatBytes(bytes: number) {
-  if (!bytes) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
-}
-
-function extensionFor(format: CompressionFormat) {
-  return format === 'image/webp' ? 'webp' : format === 'image/png' ? 'png' : 'jpg';
-}
-
-function label(locale: 'en' | 'ar', en: string, ar: string) {
-  return locale === 'ar' ? ar : en;
-}
-
-function nextAnimationFrame() {
-  return new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-}
+const formatLabels: Record<CompressionFormat, string> = { 'image/webp': 'WebP', 'image/jpeg': 'JPG', 'image/png': 'PNG' };
+function formatBytes(bytes: number) { if (!bytes) return '0 B'; const units = ['B', 'KB', 'MB', 'GB']; const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1); return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`; }
+function extensionFor(format: CompressionFormat) { return format === 'image/webp' ? 'webp' : format === 'image/png' ? 'png' : 'jpg'; }
+function label(locale: 'en' | 'ar', en: string, ar: string) { return locale === 'ar' ? ar : en; }
+function nextAnimationFrame() { return new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve())); }
 
 export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
   const isArabic = locale === 'ar';
   const inputRef = useRef<HTMLInputElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const ownerRef = useRef<DisposableResourceOwner | null>(null);
+  if (ownerRef.current === null) ownerRef.current = new DisposableResourceOwner();
+  const owner = ownerRef.current;
   const [files, setFiles] = useState<File[]>([]);
   const [quality, setQuality] = useState(0.82);
   const [format, setFormat] = useState<CompressionFormat>('image/webp');
@@ -46,106 +31,53 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
   const [outputPreviewUrl, setOutputPreviewUrl] = useState('');
   const [batchZipUrl, setBatchZipUrl] = useState('');
   const [batchCount, setBatchCount] = useState(0);
-
   const file = files[0] ?? null;
-  const sourcePreviewUrl = useMemo(() => (file ? URL.createObjectURL(file) : ''), [file]);
-  const savings = useMemo(() => {
-    if (!file || !result) return 0;
-    return Math.max(0, Math.round((1 - result.blob.size / file.size) * 100));
-  }, [file, result]);
 
-  useEffect(() => () => {
-    if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
-  }, [sourcePreviewUrl]);
-
+  useEffect(() => () => owner.dispose(), [owner]);
   useEffect(() => {
-    return () => {
-      if (downloadUrl) URL.revokeObjectURL(downloadUrl);
-      if (outputPreviewUrl) URL.revokeObjectURL(outputPreviewUrl);
-      if (batchZipUrl) URL.revokeObjectURL(batchZipUrl);
-    };
-  }, [downloadUrl, outputPreviewUrl, batchZipUrl]);
+    if (!file) return setSourcePreviewUrl('');
+    const url = owner.createObjectURL(file);
+    setSourcePreviewUrl(url);
+    return () => owner.revokeObjectURL?.(url);
+  }, [file, owner]);
+  const [sourcePreviewUrl, setSourcePreviewUrl] = useState('');
+  const savings = file && result ? Math.max(0, Math.round((1 - result.blob.size / file.size) * 100)) : 0;
 
-  useEffect(() => {
-    headingRef.current?.focus({ preventScroll: true });
-  }, [locale]);
+  useEffect(() => { headingRef.current?.focus({ preventScroll: true }); }, [locale]);
 
   const selectFiles = (nextFiles: File[]) => {
-    setError('');
-    setResult(null);
-    setBatchZipUrl('');
+    setError(''); setResult(null); setBatchZipUrl('');
     const empty = nextFiles.find((nextFile) => nextFile.size === 0);
-    if (empty) {
-      setFiles([]);
-      setError(label(locale, 'The selected image file is empty.', 'ملف الصورة المحدد فارغ.'));
-      return;
-    }
+    if (empty) { setFiles([]); setError(label(locale, 'The selected image file is empty.', 'ملف الصورة المحدد فارغ.')); return; }
     const selected = nextFiles.slice(0, MAX_FILES).filter((nextFile) => nextFile.size <= MAX_INPUT_SIZE);
     const rejectedCount = nextFiles.length - selected.length;
-    if (rejectedCount > 0) {
-      setError(label(locale, `Some files were skipped. Maximum ${MAX_FILES} files and ${formatBytes(MAX_INPUT_SIZE)} per file.`, `تم تجاهل بعض الملفات. الحد الأقصى ${MAX_FILES} ملفًا و${formatBytes(MAX_INPUT_SIZE)} لكل ملف.`));
-    }
+    if (rejectedCount > 0) setError(label(locale, `Some files were skipped. Maximum ${MAX_FILES} files and ${formatBytes(MAX_INPUT_SIZE)} per file.`, `تم تجاهل بعض الملفات. الحد الأقصى ${MAX_FILES} ملفًا و${formatBytes(MAX_INPUT_SIZE)} لكل ملف.`));
     setFiles(selected);
   };
-
-  const processOne = async (nextFile: File) => compressImage(nextFile, {
-    quality,
-    format,
-    maxWidth: maxWidth ? Number(maxWidth) : undefined,
-    maxHeight: maxHeight ? Number(maxHeight) : undefined,
-    targetSizeKB: targetSizeKB ? Number(targetSizeKB) : undefined,
-  });
-
+  const processOne = async (nextFile: File) => compressImage(nextFile, { quality, format, maxWidth: maxWidth ? Number(maxWidth) : undefined, maxHeight: maxHeight ? Number(maxHeight) : undefined, targetSizeKB: targetSizeKB ? Number(targetSizeKB) : undefined });
   const validateCompressedOutput = async (compressed: Awaited<ReturnType<typeof processOne>>) => {
     const outputBytes = new Uint8Array(await compressed.blob.arrayBuffer());
     const extension = extensionFor(format);
-    const validation = validateOutputIntegrity(
-      compressed.blob.size,
-      compressed.blob.type || format,
-      imageCompressorOutputIntegrity,
-      { width: compressed.width, height: compressed.height },
-      { filename: `flixo-compressed.${extension}`, bytes: outputBytes },
-    );
-    if (!validation.valid) {
-      throw new Error(`Output integrity validation failed: ${validation.failures.join('; ')}`);
-    }
+    const validation = validateOutputIntegrity(compressed.blob.size, compressed.blob.type || format, imageCompressorOutputIntegrity, { width: compressed.width, height: compressed.height }, { filename: `flixo-compressed.${extension}`, bytes: outputBytes });
+    if (!validation.valid) throw new Error(`Output integrity validation failed: ${validation.failures.join('; ')}`);
     return compressed;
   };
-
-  const beginProcessing = () => {
-    if (busy) return false;
-    flushSync(() => {
-      setBusy(true);
-      setError('');
-      setResult(null);
-    });
-    return true;
-  };
-
-  const finishProcessing = () => {
-    setBusy(false);
-  };
+  const beginProcessing = () => { if (busy) return false; flushSync(() => { setBusy(true); setError(''); setResult(null); }); return true; };
+  const finishProcessing = () => setBusy(false);
+  const replaceOwnedUrl = (setter: (value: string) => void, current: string, next: string) => { if (current) owner.release(current); setter(next); };
 
   const processCurrent = async () => {
     if (!file || !beginProcessing()) return;
     try {
       await nextAnimationFrame();
       const compressed = await validateCompressedOutput(await processOne(file));
-      const nextDownload = URL.createObjectURL(compressed.blob);
-      setDownloadUrl((current) => {
-        if (current) URL.revokeObjectURL(current);
-        return nextDownload;
-      });
-      setOutputPreviewUrl((current) => {
-        if (current) URL.revokeObjectURL(current);
-        return URL.createObjectURL(compressed.blob);
-      });
+      const nextDownload = owner.createObjectURL(compressed.blob);
+      replaceOwnedUrl(setDownloadUrl, downloadUrl, nextDownload);
+      const nextPreview = owner.createObjectURL(compressed.blob);
+      replaceOwnedUrl(setOutputPreviewUrl, outputPreviewUrl, nextPreview);
       setResult(compressed);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : label(locale, 'Compression failed', 'فشل ضغط الصورة'));
-    } finally {
-      finishProcessing();
-    }
+    } catch (caught) { setError(caught instanceof Error ? caught.message : label(locale, 'Compression failed', 'فشل ضغط الصورة')); }
+    finally { finishProcessing(); }
   };
 
   const processBatch = async () => {
@@ -154,26 +86,16 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     setBatchZipUrl('');
     try {
       await nextAnimationFrame();
-      const JSZip = (await import('jszip')).default;
-      const zip = new JSZip();
-      for (const nextFile of files) {
-        const compressed = await validateCompressedOutput(await processOne(nextFile));
-        const baseName = nextFile.name.replace(/\.[^.]+$/, '') || 'image';
-        zip.file(`${baseName}-flixo.${extensionFor(format)}`, compressed.blob);
-      }
+      const JSZip = (await import('jszip')).default; const zip = new JSZip();
+      for (const nextFile of files) { const compressed = await validateCompressedOutput(await processOne(nextFile)); const baseName = nextFile.name.replace(/\.[^.]+$/, '') || 'image'; zip.file(`${baseName}-flixo.${extensionFor(format)}`, compressed.blob); }
       const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
-      setBatchZipUrl(URL.createObjectURL(zipBlob));
-      setBatchCount(files.length);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : label(locale, 'Batch compression failed', 'فشل ضغط الملفات دفعة واحدة'));
-    } finally {
-      finishProcessing();
-    }
+      const nextZip = owner.createObjectURL(zipBlob); replaceOwnedUrl(setBatchZipUrl, batchZipUrl, nextZip); setBatchCount(files.length);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : label(locale, 'Batch compression failed', 'فشل ضغط الملفات دفعة واحدة')); }
+    finally { finishProcessing(); }
   };
 
   const title = label(locale, 'Compress Images Online', 'ضغط الصور أونلاين');
   const description = label(locale, 'Compress JPG, PNG, and WebP images locally in your browser with smart quality, target size, resizing, preview, and batch ZIP export.', 'قلّل حجم صور JPG وPNG وWebP داخل المتصفح مع جودة ذكية، وحجم مستهدف، وتغيير المقاس، ومعاينة، وضغط جماعي في ملف ZIP.');
-
   return (
     <main lang={locale} dir={isArabic ? 'rtl' : 'ltr'} className="image-tool-shell">
       <div className="image-tool-container">
