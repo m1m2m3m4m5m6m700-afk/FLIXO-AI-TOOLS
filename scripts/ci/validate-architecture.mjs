@@ -38,31 +38,35 @@ if (standaloneS4) {
   if (!/workflow_dispatch:/.test(standaloneS4)) failures.push('Standalone S4 diagnostic must support manual execution.');
 }
 
-const fullMatrix = find('full-matrix-parallel.yml') || find('full-matrix-promotion.yml');
-const fullMatrixParallel = find('full-matrix-parallel.yml');
+const fullMatrix = find('full-matrix-parallel.yml');
 const legacyFullMatrix = find('full-matrix-promotion.yml');
 if (legacyFullMatrix && /(^|\n)\s*(pull_request|push):/.test(legacyFullMatrix)) {
-  failures.push('Legacy Full Matrix Promotion workflow must not define its own PR/push surface.');
+  failures.push('Legacy Matrix Promotion workflow must not define its own PR/push surface.');
 }
-if (!fullMatrixParallel) {
-  if (!/workflow_run:[\s\S]*workflows:\s*\[CI\]/.test(fullMatrix)) failures.push('Full Matrix must either run in the parallel DAG or consume the canonical CI workflow artifact on main.');
+if (!fullMatrix) {
+  failures.push('Canonical Matrix First workflow is missing: full-matrix-parallel.yml.');
 } else {
-  if (!/pull_request:[\s\S]*branches:\s*\[main\]/.test(fullMatrixParallel)) failures.push('Full Matrix Parallel must run on the canonical pull request trigger.');
-  if (!/source_build:[\s\S]*npm run build/.test(fullMatrixParallel)) failures.push('Full Matrix Parallel must establish its own immutable source build.');
-  if (!/write-build-artifact-manifest\.mjs/.test(fullMatrixParallel)) failures.push('Full Matrix Parallel must publish an immutable build manifest.');
-  if (!/full-matrix-source-\$\{\{ github\.sha \}\}/.test(fullMatrixParallel)) failures.push('Full Matrix Parallel source artifact must be SHA-addressed.');
-  if (!/needs:\s*\[source_build, weighted_plan\]/.test(fullMatrixParallel)) failures.push('Full Matrix E2E must depend on both canonical source build and weighted plan.');
-  if (!/fromJSON\(needs\.weighted_plan\.outputs\.matrix\)/.test(fullMatrixParallel)) failures.push('Full Matrix E2E must consume the weighted plan output without ambiguous expression property access.');
+  if (!/name:\s*Matrix First/.test(fullMatrix)) failures.push('Canonical matrix workflow must be named Matrix First.');
+  if (!/pull_request:[\s\S]*branches:\s*\[main\]/.test(fullMatrix)) failures.push('Matrix First must run on the canonical pull request trigger.');
+  if (!/source_build:[\s\S]*npm run build/.test(fullMatrix)) failures.push('Matrix First must establish its own immutable source build.');
+  if (!/write-build-artifact-manifest\.mjs/.test(fullMatrix)) failures.push('Matrix First must publish an immutable build manifest.');
+  if (!/matrix-first-source-\$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/.test(fullMatrix)) failures.push('Matrix First source artifact must be SHA-addressed.');
+  if (!/needs:\s*\[source_build, weighted_plan\]/.test(fullMatrix)) failures.push('Matrix execution must depend on both source build and weighted plan.');
+  if (!/fromJSON\(needs\.weighted_plan\.outputs\.matrix\)/.test(fullMatrix)) failures.push('Matrix execution must consume the weighted plan output.');
+  if (!/name:\s*Matrix First Certification/.test(fullMatrix)) failures.push('Matrix First must expose exactly one canonical certification job.');
+  if (!/_flixo_matrix_plan\.json/.test(fullMatrix)) failures.push('Matrix First must consume the signed _flixo_matrix_plan.json artifact.');
+  if (/matrix-test-inventory\.json|write-matrix-test-inventory\.mjs/.test(fullMatrix)) failures.push('Matrix First must not define a secondary test inventory authority.');
+  if (!/--fail-on-flaky-tests/.test(fullMatrix)) failures.push('Matrix First must fail closed on flaky Playwright tests.');
 }
-if (!/weighted-shard-plan\.mjs/.test(fullMatrix)) failures.push('Full Matrix must use the weighted shard planner.');
-if (!/download-artifact@v7/.test(fullMatrix)) failures.push('Full Matrix must consume an immutable artifact.');
+if (!/weighted-shard-plan\.mjs/.test(fullMatrix)) failures.push('Matrix First must use the weighted shard planner.');
+if (!/download-artifact@v7/.test(fullMatrix)) failures.push('Matrix First must consume immutable artifacts.');
 const historyTests = Object.keys(JSON.parse(readFileSync('ci/test-duration-history.json', 'utf8')).tests);
 if (historyTests.length !== 23) failures.push(`Canonical matrix suite registry count=${historyTests.length}; expected 23.`);
 if (!/webkit/.test(fullMatrix) || !/chromium/.test(fullMatrix) || !/firefox/.test(fullMatrix)) {
-  failures.push('Full Matrix must retain the complete three-browser surface.');
+  failures.push('Matrix First must retain the complete three-browser surface.');
 }
-if (!/full-matrix-evidence-/.test(fullMatrix) || !/validate-full-matrix-evidence\.mjs/.test(fullMatrix)) {
-  failures.push('Full Matrix must produce and validate exact-SHA evidence.');
+if (!/matrix-first-evidence-/.test(fullMatrix) || !/validate-full-matrix-evidence\.mjs/.test(fullMatrix)) {
+  failures.push('Matrix First must produce and validate exact-SHA evidence.');
 }
 
 const localization = find('localization-20.yml');
@@ -81,14 +85,16 @@ if (canonicalLocales.length !== workflowLocales.length || canonicalLocales.some(
 const owners = [
   ['build', /name:\s*Runtime Build \+ Performance/],
   ['s4', /name:\s*S4 Runtime \+ E2E/],
-  ['full-matrix', /name:\s*Full Matrix (?:Promotion|Parallel)/],
+  ['matrix-first', /name:\s*Matrix First(?: Certification)?/],
   ['localization', /name:\s*(?:Localization — 20 Locale Gate|G4 — Localization \+ SEO Matrix)/],
   ['canonical', /name:\s*Canonical Verification Gate/],
 ];
 for (const [owner, pattern] of owners) {
   const count = text.filter((item) => pattern.test(item.text)).length;
-  if (count !== 1) failures.push(`${owner} owner count=${count}; expected exactly 1.`);
+  if (count !== 1 && owner !== 'matrix-first') failures.push(`${owner} owner count=${count}; expected exactly 1.`);
 }
+const matrixCertificationCount = text.reduce((count, item) => count + (item.text.match(/name:\s*Matrix First Certification/g) || []).length, 0);
+if (matrixCertificationCount !== 1) failures.push(`Matrix First Certification owner count=${matrixCertificationCount}; expected exactly 1.`);
 
 console.log(
   failures.length
