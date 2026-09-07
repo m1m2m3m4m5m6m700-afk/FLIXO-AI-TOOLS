@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const ja: LocalizedToolSeo = { title:'画像をテキストに変換 OCR オンライン', description:'ブラウザでOCRを使って画像から文字を抽出します。', intro:'画像をアップロードし、ローカルOCR前処理を実行して認識した文字をTXTで保存します。', keywords:['画像 テキスト 変換','OCR オンライン','画像 文字抽出'], howTo:['画像をアップロード。','OCRを実行。','文字を確認してダウンロード。'], features:['ブラウザOCR','専用Web Worker','TXTダウンロード'], altText:['画像からテキストOCR','OCR結果プレビュー','抽出テキストのダウンロード'] };

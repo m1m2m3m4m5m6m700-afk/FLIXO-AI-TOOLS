@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import {
-  DEFAULT_LOCALE,
   LOCALES,
   LOCALE_METADATA,
   SITE_ORIGIN,
+  X_DEFAULT_LOCALE,
 } from '../src/lib/i18n/config.ts';
 import {
+  SEO_DEFAULT_LOCALE,
   absoluteUrl,
   buildHreflang,
   buildSeoMetadata,
@@ -13,7 +14,8 @@ import {
 } from '../src/lib/seo/index.ts';
 
 assert.equal(LOCALES.length, 20);
-assert.equal(DEFAULT_LOCALE, 'ar');
+assert.equal(SEO_DEFAULT_LOCALE, 'ar');
+assert.equal(X_DEFAULT_LOCALE, 'en');
 assert.equal(new URL(SITE_ORIGIN).protocol, 'https:');
 
 const expectedSiteOrigin = new URL(SITE_ORIGIN).origin;
@@ -35,7 +37,7 @@ assert.equal(alternates.length, LOCALES.length + 1);
 assert.equal(new Set(alternates.map(({ hreflang }) => hreflang)).size, LOCALES.length + 1);
 assert.equal(
   alternates.find(({ hreflang }) => hreflang === 'x-default')?.href,
-  `${expectedSiteOrigin}/ar/tools`,
+  `${expectedSiteOrigin}/en/tools`,
 );
 
 const alternatesByTag = new Map(alternates.map((alternate) => [alternate.hreflang, alternate.href]));
@@ -50,7 +52,7 @@ for (const locale of LOCALES) {
   assert.equal(url.search, '');
   assert.equal(url.hash, '');
 }
-assert.equal(alternatesByTag.get('x-default'), `${expectedSiteOrigin}/ar/tools`);
+assert.equal(alternatesByTag.get('x-default'), `${expectedSiteOrigin}/en/tools`);
 
 const metadataByLocale = LOCALES.map((locale) => buildSeoMetadata({
   locale,
@@ -67,7 +69,7 @@ for (const [index, metadata] of metadataByLocale.entries()) {
   assert.equal(metadata.structuredData.inLanguage, metadata.language);
   assert.equal(metadata.alternates.length, LOCALES.length + 1);
   assert.equal(metadata.alternates.find(({ hreflang }) => hreflang === metadata.language)?.href, metadata.canonical);
-  assert.equal(metadata.alternates.find(({ hreflang }) => hreflang === 'x-default')?.href, `${expectedSiteOrigin}/ar/tools`);
+  assert.equal(metadata.alternates.find(({ hreflang }) => hreflang === 'x-default')?.href, `${expectedSiteOrigin}/en/tools`);
 }
 
 const arMetadata = buildSeoMetadata({
@@ -81,4 +83,4 @@ assert.equal(arMetadata.canonical, `${expectedSiteOrigin}/ar/tools`);
 assert.equal(arMetadata.language, LOCALE_METADATA.ar.languageTag);
 assert.equal(arMetadata.direction, 'rtl');
 
-console.log('SEO contract tests passed: canonical URLs, exact 20-locale hreflang targets, default locale x-default, locale language tags, and structured-data URL parity.');
+console.log('SEO contract tests passed: canonical URLs, exact 20-locale hreflang targets, x-default, locale language tags, and structured-data URL parity.');

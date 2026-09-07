@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const zh: LocalizedToolSeo = Object.freeze({title:'Pix Studio — 浏览器图片编辑器 | FLIXO',description:'在浏览器中进行调色、液化、色散、文字图层、历史记录和 PNG 导出。',intro:'Pix Studio 是无需安装桌面软件的浏览器图片编辑器，适合快速创意处理。',keywords:['在线图片编辑器','图片编辑','液化效果','色散效果','图片加文字'],howTo:['选择图片。','调整滤镜或使用液化、色散和文字工具。','撤销或重做修改，然后导出 PNG。'],features:['浏览器编辑','液化与色散','文字图层','撤销与重做','PNG 导出'],altText:['Pix Studio 编辑画布','图片编辑控件','导出的 PNG 图片']});

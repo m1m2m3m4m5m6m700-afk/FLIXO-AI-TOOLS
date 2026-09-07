@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const th: LocalizedToolSeo = { title:'แปลงรูปภาพเป็น SVG', description:'แปลงรูปภาพเป็น SVG โดยตรงในเบราว์เซอร์', intro:'แปลงรูปภาพที่รองรับเป็น SVG แบบประมวลผลภายในเบราว์เซอร์โดยไม่ต้องอัปโหลดไฟล์ต้นฉบับ', keywords:['แปลงภาพเป็น svg','ตัวแปลง svg','image to svg'], howTo:['อัปโหลดรูปภาพ','แปลงเป็น SVG','ดาวน์โหลดผลลัพธ์'], features:['ประมวลผลภายในเครื่อง','ส่งออก SVG','ดาวน์โหลดรวดเร็ว'], altText:['เครื่องมือแปลงภาพเป็น SVG','ตัวอย่างการแปลง','ผลลัพธ์ SVG'] };

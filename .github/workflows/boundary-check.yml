@@ -27,19 +27,35 @@ jobs:
             const isPullRequest = context.eventName === 'pull_request';
 
             let files;
+            let headSha = context.sha;
+
             if (isPullRequest) {
-              const result = await github.paginate(github.rest.pulls.listFiles, {
+              const pr = await github.rest.pulls.get({
                 owner,
                 repo,
                 pull_number: context.payload.pull_request.number,
+              });
+              headSha = pr.data.head.sha;
+
+              const result = await github.paginate(github.rest.pulls.listFiles, {
+                owner,
+                repo,
+                pull_number: pr.data.number,
                 per_page: 100,
               });
               files = result.map((file) => file.filename);
             } else {
+              const before = context.payload.before;
+              const after = context.payload.after;
+              if (!before || !after || /^0+$/.test(before)) {
+                core.info('Boundary PASS: no comparable parent commit exists for this push event.');
+                return;
+              }
+
               const comparison = await github.rest.repos.compareCommitsWithBasehead({
                 owner,
                 repo,
-                basehead: `${context.payload.before}...${context.payload.after}`,
+                basehead: `${before}...${after}`,
               });
               files = (comparison.data.files || []).map((file) => file.filename);
             }
@@ -49,36 +65,56 @@ jobs:
 
             const i18nFiles = files.filter((file) => i18nPattern.test(file));
             const perfE2eFiles = files.filter((file) => perfE2ePattern.test(file));
+
             if (i18nFiles.length === 0 || perfE2eFiles.length === 0) {
               core.info(`Boundary PASS: i18n=${i18nFiles.length}, performance/E2E=${perfE2eFiles.length}.`);
               return;
             }
 
+            const violation = `i18n=${i18nFiles.join(', ')}; performance/E2E=${perfE2eFiles.join(', ')}`;
             if (!isPullRequest) {
-              core.setFailed(`Boundary violation on main: one change touched both protected domains. i18n=${i18nFiles.join(', ')}; performance/E2E=${perfE2eFiles.join(', ')}`);
+              core.setFailed(`Boundary violation on main: one change touched both protected domains. ${violation}`);
               return;
             }
 
-            const pr = context.payload.pull_request;
-            const labels = new Set((pr.labels || []).map((label) => label.name));
+            const pr = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: context.payload.pull_request.number,
+            });
+            const labels = new Set((pr.data.labels || []).map((label) => label.name));
             if (!labels.has('boundary-cross-review')) {
-              core.setFailed('Boundary violation: mixed i18n and performance/E2E changes require the boundary-cross-review label plus an independent approval.');
+              core.setFailed(`Boundary violation: mixed protected domains require boundary-cross-review plus an independent approval on the exact head SHA. ${violation}`);
               return;
             }
 
             const reviews = await github.paginate(github.rest.pulls.listReviews, {
               owner,
               repo,
-              pull_number: pr.number,
+              pull_number: pr.data.number,
               per_page: 100,
             });
-            const approvedByIndependentReviewer = reviews.some((review) =>
-              review.state === 'APPROVED' && review.user?.login && review.user.login !== pr.user?.login,
+
+            const latestReviewByUser = new Map();
+            for (const review of reviews) {
+              const login = review.user?.login;
+              if (!login || !review.submitted_at) continue;
+              const previous = latestReviewByUser.get(login);
+              if (!previous || new Date(review.submitted_at) > new Date(previous.submitted_at)) {
+                latestReviewByUser.set(login, review);
+              }
+            }
+
+            const approvedByIndependentReviewer = [...latestReviewByUser.values()].some((review) =>
+              review.state === 'APPROVED' &&
+              review.user?.login &&
+              review.user.login !== pr.data.user?.login &&
+              review.commit_id === headSha,
             );
 
             if (!approvedByIndependentReviewer) {
-              core.setFailed('Boundary violation: boundary-cross-review is present, but no independent APPROVED review was found.');
+              core.setFailed('Boundary violation: boundary-cross-review is present, but no independent APPROVED review is attached to the current PR head SHA.');
               return;
             }
 
-            core.info(`Boundary override authorized by independent review: i18n=${i18nFiles.length}, performance/E2E=${perfE2eFiles.length}.`);
+            core.info(`Boundary PASS: protected-domain crossing authorized by an independent APPROVED review on ${headSha}.`);

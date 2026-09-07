@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const zh: LocalizedToolSeo = Object.freeze({title:'图片转文字 OCR 在线工具 | FLIXO',description:'直接在浏览器中从图片提取可编辑文字。',intro:'FLIXO Image OCR 将图片中的文字转换为可复制文本，适用于文档、截图、扫描件和笔记。',keywords:['图片转文字','在线 OCR','图片文字提取','OCR'],howTo:['选择图片。','运行 OCR。','复制或下载提取的文字。'],features:['浏览器 OCR','可编辑文字','适合截图和扫描件','轻松复制和下载'],altText:['图片 OCR 工作区','OCR 文字预览','可复制的提取文字']});

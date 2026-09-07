@@ -1,49 +1,37 @@
-import { z } from 'zod';
-import { TOOLS_REGISTRY } from '@/config/tools';
+import { parseToolChain } from './runtime-boundaries.ts';
 
 const CHAIN_KEY = 'flixo:tool-chain:v1';
 const MAX_CHAIN_LENGTH = 8;
 
-export type ToolChainStep = Readonly<{ id: string; order: number }>;
-const persistedStepSchema = z.object({ id: z.string().min(1).max(128), order: z.number().int().nonnegative() }).strict();
-const persistedChainSchema = z.array(persistedStepSchema).max(MAX_CHAIN_LENGTH);
-const readyToolIds = new Set(TOOLS_REGISTRY.filter((tool) => tool.isReady).map((tool) => tool.id));
+type ToolChainStep = Readonly<{
+  id: string;
+  order: number;
+}>;
 
-function purgeCorruptState(reason: unknown): ToolChainStep[] {
-  console.error('[tool-chain] rejected persisted state', reason);
-  try { localStorage.removeItem(CHAIN_KEY); } catch { /* storage may be unavailable */ }
-  return [];
-}
+function readStoredChain(): ToolChainStep[] {
+  const raw = localStorage.getItem(CHAIN_KEY);
+  if (raw === null) return [];
 
-function parseStoredChain(value: unknown): ToolChainStep[] {
-  const parsed = persistedChainSchema.safeParse(value);
-  if (!parsed.success) return purgeCorruptState(parsed.error.flatten());
-  const invalidIds = parsed.data.filter((step) => !readyToolIds.has(step.id));
-  if (invalidIds.length) return purgeCorruptState({ invalidToolIds: invalidIds.map((step) => step.id) });
-  return [...parsed.data].sort((a, b) => a.order - b.order).map((step, index) => ({ id: step.id, order: index }));
-}
-
-export const getToolChain = (): ToolChainStep[] => {
   try {
-    const raw = localStorage.getItem(CHAIN_KEY);
-    if (!raw) return [];
-    return parseStoredChain(JSON.parse(raw));
+    return parseToolChain(JSON.parse(raw));
   } catch (error) {
-    return purgeCorruptState(error);
+    localStorage.removeItem(CHAIN_KEY);
+    console.error('[FLIXO][boundary] Purged invalid tool-chain persistence.', { key: CHAIN_KEY, error });
+    return [];
   }
-};
+}
 
-export const setToolChain = (ids: string[]): ToolChainStep[] => {
-  const requested = Array.from(new Set(ids)).slice(0, MAX_CHAIN_LENGTH);
-  const invalidIds = requested.filter((id) => !readyToolIds.has(id));
-  if (invalidIds.length) return purgeCorruptState({ invalidToolIds: invalidIds });
-  const steps = parseStoredChain(requested.map((id, order) => ({ id, order })));
+export const getToolChain = (): ToolChainStep[] => readStoredChain();
+
+export const setToolChain = (ids: string[]) => {
+  const unique = Array.from(new Set(ids)).slice(0, MAX_CHAIN_LENGTH);
   try {
+    const steps = parseToolChain(unique.map((id, order) => ({ id, order })));
     localStorage.setItem(CHAIN_KEY, JSON.stringify(steps));
     return steps;
   } catch (error) {
-    console.error('[tool-chain] persistence write failed', error);
-    return getToolChain();
+    console.error('[FLIXO][boundary] Refused invalid tool-chain write.', { key: CHAIN_KEY, error });
+    return readStoredChain();
   }
 };
 

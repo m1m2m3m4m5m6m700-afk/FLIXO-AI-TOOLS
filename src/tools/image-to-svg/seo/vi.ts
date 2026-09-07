@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const vi: LocalizedToolSeo = { title:'Chuyển Hình Ảnh Sang SVG', description:'Chuyển hình ảnh sang SVG trực tiếp trong trình duyệt.', intro:'Chuyển hình ảnh được hỗ trợ sang SVG ngay trên trình duyệt mà không cần tải tệp gốc lên máy chủ.', keywords:['chuyển ảnh sang svg','trình chuyển svg','image to svg'], howTo:['Tải hình ảnh lên.','Chuyển sang SVG.','Tải kết quả xuống.'], features:['Xử lý cục bộ','Xuất SVG','Tải xuống nhanh'], altText:['Công cụ ảnh sang SVG','Xem trước chuyển đổi','Kết quả SVG'] };

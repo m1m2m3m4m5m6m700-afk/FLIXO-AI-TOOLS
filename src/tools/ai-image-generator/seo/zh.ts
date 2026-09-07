@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const zh: LocalizedToolSeo={title:'AI 图片生成器',description:'使用 FLIXO 根据提示词生成图片。',intro:'描述你想要的图片并生成结果。',keywords:['AI 图片生成','文生图','AI 艺术'],howTo:['输入提示词。','生成图片。','下载结果。'],features:['提示词生成','简单流程','结果下载'],altText:['图片生成工作区','生成图片预览','完成的 AI 图片']};

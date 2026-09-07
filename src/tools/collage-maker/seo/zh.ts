@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const zh: LocalizedToolSeo = { title:'在线拼图制作工具', description:'直接在浏览器中本地处理图片，快速制作照片拼图。', intro:'上传多张图片，排列成拼图并下载最终作品。', keywords:['拼图制作','照片拼图在线','图片拼接'], howTo:['上传多张图片。','排列图片。','生成并下载拼图。'], features:['本地多图处理','简单拼图布局','结果下载'], altText:['拼图制作工作区','照片拼图预览','完成的拼图'] };

@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const ja: LocalizedToolSeo = Object.freeze({ title: '画像形式をオンラインで変換 | FLIXO', description: 'PNG、JPG、WebPをブラウザ上で直接変換します。', intro: 'FLIXO Image Converter は一般的な画像形式をブラウザ内で変換します。画像を選び、出力形式を指定し、結果を確認してダウンロードできます。ローカル処理では元ファイルをサーバーへ送信しません。', keywords: ['画像変換','PNG JPG 変換','JPG 変換','WebP 変換'], howTo: ['画像を選択します。','PNG、JPG、WebPから形式を選びます。','結果を確認してダウンロードします。'], features: ['ブラウザ内処理','PNG、JPG、WebP','ダウンロード前プレビュー','ローカル変換ではアップロード不要'], altText: ['画像変換ワークスペース','元画像のプレビュー','変換済み画像'] });

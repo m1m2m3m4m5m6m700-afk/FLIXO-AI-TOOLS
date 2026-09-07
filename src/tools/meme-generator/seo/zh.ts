@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const zh: LocalizedToolSeo = { title:'在线表情包生成器', description:'在浏览器中本地处理图片并创建表情包。', intro:'上传图片，添加表情文字并下载成品。', keywords:['表情包生成器','在线做表情包','meme'], howTo:['上传图片。','添加并调整文字。','生成并下载。'], features:['浏览器本地处理','自定义文字','结果下载'], altText:['表情包编辑区','文字预览','成品表情包'] };

@@ -1,0 +1,101 @@
+name: Parallel Diagnostics
+
+# Diagnostic microscope only. Blocking evidence is owned by CI, S4, Localization, SEO, and release certification.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: parallel-diagnostics-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Diagnostic — ${{ matrix.tool }} — ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 64
+      matrix:
+        browser: [chromium, firefox, webkit]
+        tool:
+          - image-compressor
+          - background-remover
+          - image-upscaler
+          - image-converter
+          - ai-image-generator
+          - object-remover
+          - watermark-remover
+          - image-cropper
+          - image-to-svg
+          - image-ocr
+          - photo-colorizer
+          - background-blur
+          - passport-photo-maker
+          - watermark-adder
+          - meme-generator
+          - collage-maker
+          - image-effects
+          - exif-cleaner
+          - svg-optimizer
+          - mockup-generator
+          - seed
+          - pix
+          - localization
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Cache Playwright ${{ matrix.browser }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-${{ matrix.browser }}-
+      - name: Install Playwright ${{ matrix.browser }}
+        run: |
+          npx playwright install-deps ${{ matrix.browser }}
+          npx playwright install ${{ matrix.browser }}
+      - name: Resolve test specification
+        id: spec
+        shell: bash
+        run: |
+          set -euo pipefail
+          spec="tests/${{ matrix.tool }}.spec.ts"
+          if [[ "${{ matrix.tool }}" == "localization" ]]; then spec="tests/localization-smoke.spec.ts"; fi
+          test -f "$spec"
+          echo "spec=$spec" >> "$GITHUB_OUTPUT"
+      - name: Run diagnostic E2E
+        run: npx playwright test "${{ steps.spec.outputs.spec }}" --project=${{ matrix.browser }}
+      - name: Upload diagnostic evidence
+        if: ${{ always() && failure() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: diagnostic-${{ matrix.tool }}-${{ matrix.browser }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  summary:
+    name: Diagnostic Summary
+    if: ${{ always() }}
+    needs: [e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          {
+            echo '## FLIXO Parallel Diagnostic Matrix'
+            echo 'Manual-only diagnostic workflow; it does not duplicate normal main or PR certification.'
+            echo 'All 23 suites × 3 browsers remain available when explicitly requested.'
+            echo "Overall matrix result: ${{ needs.e2e.result }}"
+          } >> "$GITHUB_STEP_SUMMARY"

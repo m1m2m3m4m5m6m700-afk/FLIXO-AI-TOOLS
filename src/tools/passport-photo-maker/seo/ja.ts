@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const ja: LocalizedToolSeo={title:'パスポート写真メーカー',description:'FLIXOでパスポートや証明写真を作成します。',intro:'公式写真に合うように人物写真をトリミングしてサイズ調整します。',keywords:['パスポート写真','証明写真','写真メーカー'],howTo:['人物写真をアップロード。','トリミングとサイズを調整。','結果をダウンロード。'],features:['公式サイズ','簡単なトリミング','ダウンロード'],altText:['パスポート写真ワークスペース','写真プレビュー','完成したパスポート写真']};

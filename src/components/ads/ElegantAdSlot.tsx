@@ -2,7 +2,13 @@ import { useEffect, useRef } from 'react';
 import { LOCALES, isLocale, normalizeLocale, type CanonicalLocale } from '@/lib/i18n';
 import { trackUserMovement } from '@/lib/telemetry/telemetry-tracker';
 
-type ElegantAdSlotProps = { slotId?: string; className?: string; monetizedLocales?: readonly CanonicalLocale[]; adHref?: string };
+type ElegantAdSlotProps = {
+  slotId?: string;
+  className?: string;
+  monetizedLocales?: readonly CanonicalLocale[];
+  adHref?: string;
+};
+
 const FALLBACK_COPY: Record<CanonicalLocale, { title: string; body: string; action: string }> = {
   ar: { title: 'FLIXO AI يعمل على توسيع التغطية الإعلانية', body: 'هذه المساحة مخصصة للإعلانات. في هذا البلد، نعرض رسالة بديلة بدلًا من وحدة إعلانية غير متاحة.', action: 'استكشاف FLIXO AI' },
   en: { title: 'Advertising coverage is expanding', body: 'This space is reserved for ads. A lightweight fallback is shown while this locale is not monetized.', action: 'Explore FLIXO AI' },
@@ -25,23 +31,76 @@ const FALLBACK_COPY: Record<CanonicalLocale, { title: string; body: string; acti
   uk: { title: 'Рекламне покриття розширюється', body: 'Цей простір призначено для реклами. Поки цю мову не монетизовано, показується легкий резервний банер.', action: 'Відкрити FLIXO AI' },
   vi: { title: 'Phạm vi quảng cáo đang được mở rộng', body: 'Khu vực này dành cho quảng cáo. Trong khi ngôn ngữ này chưa được kiếm tiền, một banner thay thế nhẹ sẽ được hiển thị.', action: 'Khám phá FLIXO AI' },
 };
-function getCurrentLocale(): CanonicalLocale { const value = typeof document === 'undefined' ? 'en' : document.documentElement.lang; return isLocale(value.toLowerCase().split('-')[0]) ? normalizeLocale(value) : 'en'; }
-export function ElegantAdSlot({ slotId = 'default', className = '', monetizedLocales = ['en'], adHref = '/' }: ElegantAdSlotProps) {
-  const slotRef = useRef<HTMLDivElement | null>(null); const impressionTracked = useRef(false); const locale = getCurrentLocale(); const isMonetized = monetizedLocales.includes(locale); const copy = FALLBACK_COPY[locale];
-  useEffect(() => {
-    const element = slotRef.current; if (!element || impressionTracked.current) return;
-    const emit = () => { if (impressionTracked.current) return; impressionTracked.current = true; trackUserMovement('ad_impression', locale, { slotId, monetized: isMonetized }); };
-    if (typeof IntersectionObserver === 'undefined') { emit(); return; }
-    const observer = new IntersectionObserver((entries) => { if (entries.some((entry) => entry.isIntersecting)) emit(); }, { threshold: 0.25 });
-    observer.observe(element); return () => observer.disconnect();
-  }, [isMonetized, locale, slotId]);
-  return <div ref={slotRef} data-ad-slot={slotId} data-monetized={isMonetized ? 'true' : 'false'} className={`mx-auto w-full max-w-[1480px] px-2 pb-2 sm:px-3 lg:px-4 ${className}`} aria-label="Advertisement">
-    <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50/90 p-4 shadow-[0_14px_40px_rgba(0,0,0,0.06)] transition dark:border-white/[0.08] dark:bg-zinc-950/80 dark:shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
-      {isMonetized ? <div className="min-h-[90px] text-center" data-ad-provider="native"><div className="flex min-h-[90px] items-center justify-center text-xs text-zinc-400 dark:text-zinc-500"><span>Advertisement</span></div></div> : <a href={adHref} onClick={() => trackUserMovement('ad_clicked', locale, { slotId, monetized: false })} className="group flex min-h-[90px] items-center justify-between gap-4 rounded-xl px-3 py-2 text-left outline-none transition focus-visible:ring-2 focus-visible:ring-violet-500/70" aria-label={copy.action} dir={locale === 'ar' ? 'rtl' : 'ltr'}>
-        <div className="min-w-0"><div className="mb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-violet-500/80 dark:text-violet-300/70">FLIXO AI</div><div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{copy.title}</div><p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">{copy.body}</p></div>
-        <span className="shrink-0 rounded-lg border border-violet-300/50 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-700 transition group-hover:bg-violet-500/15 dark:border-violet-400/20 dark:text-violet-200">{copy.action}</span>
-      </a>}
-    </div>
-  </div>;
+
+function getCurrentLocale(): CanonicalLocale {
+  const value = typeof document === 'undefined' ? 'en' : document.documentElement.lang;
+  return isLocale(value.toLowerCase().split('-')[0]) ? normalizeLocale(value) : 'en';
 }
+
+export function ElegantAdSlot({ slotId = 'default', className = '', monetizedLocales = ['en'], adHref = '/' }: ElegantAdSlotProps) {
+  const slotRef = useRef<HTMLDivElement | null>(null);
+  const impressionTracked = useRef(false);
+  const locale = getCurrentLocale();
+  const isMonetized = monetizedLocales.includes(locale);
+  const copy = FALLBACK_COPY[locale];
+
+  useEffect(() => {
+    const element = slotRef.current;
+    if (!element || impressionTracked.current) return;
+    const emit = () => {
+      if (impressionTracked.current) return;
+      impressionTracked.current = true;
+      trackUserMovement('ad_impression', { slotId, locale, monetized: isMonetized });
+    };
+
+    if (typeof IntersectionObserver === 'undefined') {
+      emit();
+      return;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) emit();
+    }, { threshold: 0.25 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [isMonetized, locale, slotId]);
+
+  return (
+    <div
+      ref={slotRef}
+      data-ad-slot={slotId}
+      data-monetized={isMonetized ? 'true' : 'false'}
+      className={`mx-auto w-full max-w-[1480px] px-2 pb-2 sm:px-3 lg:px-4 ${className}`}
+      aria-label="Advertisement"
+    >
+      <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50/90 p-4 shadow-[0_14px_40px_rgba(0,0,0,0.06)] transition dark:border-white/[0.08] dark:bg-zinc-950/80 dark:shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+        {isMonetized ? (
+          <div className="min-h-[90px] text-center" data-ad-provider="native">
+            <div className="flex min-h-[90px] items-center justify-center text-xs text-zinc-400 dark:text-zinc-500">
+              <span>Advertisement</span>
+            </div>
+          </div>
+        ) : (
+          <a
+            href={adHref}
+            onClick={() => trackUserMovement('ad_clicked', { slotId, locale, monetized: false })}
+            className="group flex min-h-[90px] items-center justify-between gap-4 rounded-xl px-3 py-2 text-left outline-none transition focus-visible:ring-2 focus-visible:ring-violet-500/70"
+            aria-label={copy.action}
+            dir={locale === 'ar' ? 'rtl' : 'ltr'}
+          >
+            <div className="min-w-0">
+              <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-violet-500/80 dark:text-violet-300/70">FLIXO AI</div>
+              <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{copy.title}</div>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-zinc-500 dark:text-zinc-400">{copy.body}</p>
+            </div>
+            <span className="shrink-0 rounded-lg border border-violet-300/50 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-700 transition group-hover:bg-violet-500/15 dark:border-violet-400/20 dark:text-violet-200">
+              {copy.action}
+            </span>
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export { LOCALES };

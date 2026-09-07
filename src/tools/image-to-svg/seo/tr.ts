@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const tr: LocalizedToolSeo = { title:'Görseli SVG’ye Dönüştür', description:'Görselleri doğrudan tarayıcıda SVG’ye dönüştürün.', intro:'Desteklenen bir görseli özgün dosyayı yüklemeden yerel olarak SVG’ye dönüştürün.', keywords:['görseli svg yap','svg dönüştürücü','resmi svgye çevir'], howTo:['Görsel yükleyin.','SVG’ye dönüştürün.','Sonucu indirin.'], features:['Yerel işleme','SVG dışa aktarma','Hızlı indirme'], altText:['Görselden SVG aracı','Dönüşüm önizlemesi','SVG sonucu'] };

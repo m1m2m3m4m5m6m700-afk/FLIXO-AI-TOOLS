@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const ur: LocalizedToolSeo = { title:'تصویر سے متن OCR آن لائن', description:'OCR کے ذریعے براؤزر میں تصاویر سے متن نکالیں۔', intro:'تصویر اپ لوڈ کریں، مقامی OCR چلائیں اور شناخت شدہ متن TXT فائل میں ڈاؤن لوڈ کریں۔', keywords:['تصویر سے متن','OCR آن لائن','تصویر کا متن نکالیں'], howTo:['تصویر اپ لوڈ کریں۔','OCR چلائیں۔','متن چیک کریں اور ڈاؤن لوڈ کریں۔'], features:['براؤزر OCR','مخصوص Web Worker','TXT ڈاؤن لوڈ'], altText:['تصویر سے متن OCR ٹول','OCR نتیجہ','نکالا گیا متن'] };

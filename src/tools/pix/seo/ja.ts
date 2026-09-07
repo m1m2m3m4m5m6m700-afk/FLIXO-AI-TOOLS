@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const ja: LocalizedToolSeo = Object.freeze({title:'Pix Studio — ブラウザ画像エディター | FLIXO',description:'調整、リキファイ、ディスパージョン、テキストレイヤー、履歴、PNG書き出しに対応した画像編集。',intro:'Pix Studioはインストール不要で使えるブラウザ型画像エディターです。',keywords:['オンライン画像編集','写真編集','リキファイ','ディスパージョン','画像に文字'],howTo:['画像を選択します。','フィルターまたはLiquify、Dispersion、Textを使います。','変更を元に戻すかやり直してPNGを書き出します。'],features:['ブラウザ編集','LiquifyとDispersion','テキストレイヤー','UndoとRedo','PNG書き出し'],altText:['Pix Studio編集画面','画像編集コントロール','書き出したPNG画像']});

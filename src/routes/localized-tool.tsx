@@ -1,6 +1,5 @@
 import { createRoute, notFound, redirect } from '@tanstack/react-router';
 import { getToolConfig, getToolConfigByPath } from '../config/tools';
-import { ErrorComponent, NotFoundComponent } from '../components/route-fallbacks';
 import { getLocalizedToolPath } from '../lib/routing/route-resolver';
 import { getToolSeo } from '../lib/seo/tool-seo';
 import { LocalizedToolPage } from './localized-tool-page';
@@ -21,8 +20,7 @@ export const localizedToolRoute = createRoute({
 
     return { tool };
   },
-  errorComponent: ErrorComponent,
-  notFoundComponent: NotFoundComponent,
+  notFoundComponent: () => <main><h1>Tool not found</h1></main>,
   head: ({ params }) => {
     const seo = getToolSeo(params.locale, params.tool);
     if (!seo) return { meta: [{ title: 'FLIXO | Tool not found' }, { name: 'robots', content: 'noindex,nofollow' }] };

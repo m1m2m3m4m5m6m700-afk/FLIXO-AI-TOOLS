@@ -1,10 +1,12 @@
 import {
-  DEFAULT_LOCALE,
   LOCALES,
   LOCALE_METADATA,
   SITE_ORIGIN,
+  X_DEFAULT_LOCALE,
   type Locale,
 } from '../i18n/config.ts';
+
+export const SEO_DEFAULT_LOCALE: Locale = 'ar';
 
 const SITE_URL = new URL(SITE_ORIGIN);
 
@@ -61,7 +63,7 @@ export const buildHreflang = (path: string) => {
   }));
   alternates.push({
     hreflang: 'x-default',
-    href: absoluteUrl(localizedPath(DEFAULT_LOCALE, path)),
+    href: absoluteUrl(localizedPath(X_DEFAULT_LOCALE, path)),
   });
   return alternates;
 };

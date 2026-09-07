@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const ja: LocalizedToolSeo = { title:'画像から不要なオブジェクトを削除', description:'ブラウザで不要な部分を簡単に削除できます。', intro:'削除したい範囲を選択し、画像をローカルで処理します。', keywords:['画像 オブジェクト削除'], howTo:['画像をアップロード。','範囲を選択。','削除して保存。'], features:['ローカル処理','簡単選択','高速保存'], altText:['オブジェクト削除画面','選択範囲','処理後の画像'] };

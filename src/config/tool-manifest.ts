@@ -2,7 +2,7 @@ import type { Locale } from '../lib/i18n/config.ts';
 import { LOCALES } from '../lib/i18n/config.ts';
 import { getAuthoritativeToolSeoName } from './tool-seo-name-resolver.ts';
 import type { ToolConfig, ToolFamily } from './tool-definitions/types.ts';
-import { AI_TOOLS, AUDIO_TOOLS, IMAGE_TOOLS, OTHER_TOOLS, PDF_TOOLS, VIDEO_TOOLS } from './registry.ts';
+import { AI_TOOLS, AUDIO_TOOLS, IMAGE_TOOLS, OTHER_TOOLS, PDF_TOOLS, VIDEO_TOOLS, createToolPathIndex } from './registry.ts';
 
 export type ToolManifestEntry = ToolConfig & {
   readonly family: ToolFamily;
@@ -49,11 +49,7 @@ const TOOL_FAMILIES = [
 export const TOOL_MANIFEST: readonly ToolManifestEntry[] = Object.freeze(TOOL_FAMILIES.flat());
 
 const byId = new Map(TOOL_MANIFEST.map((tool) => [tool.id, tool]));
-const byPath = new Map<string, ToolManifestEntry>();
-for (const tool of TOOL_MANIFEST) {
-  byPath.set(tool.path, tool);
-  for (const alias of tool.aliases ?? []) byPath.set(alias, tool);
-}
+const byPath = createToolPathIndex(TOOL_MANIFEST);
 
 export function getToolManifest(id: string): ToolManifestEntry | undefined {
   return byId.get(id);

@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const zh: LocalizedToolSeo={title:'栅格转 SVG 转换器',description:'使用 FLIXO 将栅格图像转换为 SVG。',intro:'将栅格图像转换为 SVG 结果。',keywords:['栅格转SVG','图片转SVG','SVG转换器'],howTo:['选择图片。','转换为 SVG。','下载结果。'],features:['本地转换','简单流程','SVG下载'],altText:['栅格转SVG工作区','SVG转换预览','转换后的SVG结果']};

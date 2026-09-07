@@ -1,0 +1,32 @@
+name: G1 Platform Contract Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: g1-platform-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  g1-platform-contract:
+    name: G1 Platform Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_SITE_URL: https://flixoai.vercel.app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Run consolidated G1 contract
+        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-platform-contract.mjs

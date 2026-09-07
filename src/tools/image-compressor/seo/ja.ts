@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
+export const ja: LocalizedToolSeo = Object.freeze({ title: '画像をオンラインで圧縮 | FLIXO', description: 'JPG、PNG、WebP画像をブラウザ上で直接圧縮して容量を削減します。', intro: 'FLIXO Image Compressor は画像をサーバーへアップロードせず、ブラウザ内で圧縮します。1枚または複数の画像を選び、品質や目標サイズを設定して最適化した画像をダウンロードできます。', keywords: ['画像圧縮','画像サイズを小さくする','JPG PNG 圧縮','WebP 圧縮'], howTo: ['1枚または複数の画像を選択します。','品質または目標サイズを設定します。','圧縮した画像をダウンロードします。'], features: ['ブラウザ内ローカル処理','一括圧縮','JPG、PNG、WebP対応','任意のリサイズ'], altText: ['画像圧縮ワークスペース','元画像のプレビュー','ダウンロード可能な圧縮画像'] });

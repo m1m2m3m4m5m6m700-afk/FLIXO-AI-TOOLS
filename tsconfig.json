@@ -9,7 +9,6 @@
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
-    "resolvePackageJsonExports": true,
     "verbatimModuleSyntax": false,
     "noEmit": true,
     "skipLibCheck": true,

@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const zh: LocalizedToolSeo = { title:'在线图片效果工具', description:'直接在浏览器中为图片应用效果。', intro:'上传图片，选择效果，在本地处理后下载结果。', keywords:['图片效果','照片效果','图片编辑'], howTo:['上传图片。','选择效果。','应用并下载结果。'], features:['浏览器处理','图片效果','快速下载'], altText:['图片效果工具','效果预览','编辑后的图片'] };
