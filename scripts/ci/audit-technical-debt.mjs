@@ -45,11 +45,11 @@ for (const { path } of ciFiles) {
   if (workflowText.includes(base) || packageScriptsText.includes(path) || runner.includes(path) || diagnose.includes(path) || collector.includes(path) || otherFilesText.includes(base)) referencedActive.add(path);
 }
 const legacyCandidates = ciFiles.filter(({ path }) => !referencedActive.has(path)).map(({ path }) => path).sort();
-findings.push(finding('RC-CI-LEGACY-SURFACE-001', legacyCandidates.length ? 'ARCHITECTURE' : 'ARCHITECTURE', legacyCandidates.length ? 'HIGH' : 'CLEAR', legacyCandidates.length ? 'LATENT_CI_DEBT' : 'RESOLVED', legacyCandidates.length ? `${legacyCandidates.length} scripts/configs under scripts/ci are not referenced by the active repository execution graph.` : 'All CI helper files are referenced by the active repository execution graph.', legacyCandidates.length ? legacyCandidates.join(', ') : 'No unreferenced CI helper candidate detected.', 'Classify candidates before deletion: ACTIVE / REQUIRED / SUPPORTING / LEGACY / DEAD.'));
+findings.push(finding('RC-CI-LEGACY-SURFACE-001', 'ARCHITECTURE', legacyCandidates.length ? 'HIGH' : 'CLEAR', legacyCandidates.length ? 'LATENT_CI_DEBT' : 'RESOLVED', legacyCandidates.length ? `${legacyCandidates.length} scripts/configs under scripts/ci are not referenced by the active repository execution graph.` : 'All CI helper files are referenced by the active repository execution graph.', legacyCandidates.length ? legacyCandidates.join(', ') : 'No unreferenced CI helper candidate detected.', 'Classify candidates before deletion: ACTIVE / REQUIRED / SUPPORTING / LEGACY / DEAD.'));
 const configText = fileText.get('src/lib/i18n/config.ts') ?? '';
 const loaderText = fileText.get('src/lib/i18n/loader.ts') ?? '';
 const localeMatch = configText.match(/export const LOCALES\s*=\s*\[([\s\S]*?)\]\s*as\s+const/u);
-const configuredLocales = localeMatch ? [...localeMatch[1].matchAll(/[\'\"]([a-z]{2})[\'\"]/g)].map((m) => m[1]) : [];
+const configuredLocales = localeMatch ? [...localeMatch[1].matchAll(/([\'\"])([a-z]{2})\1/g)].map((m) => m[2]) : [];
 const loaderLocales = [...loaderText.matchAll(/^\s*([a-z]{2}):\s*async\s*\(\)\s*=>/gm)].map((m) => m[1]);
 const localeFiles = files.filter((path) => /^.*src\/lib\/i18n\/locales\/[a-z]{2}\.ts$/u.test(normalize(path))).map((path) => normalize(path).split('/').pop().replace(/\.ts$/u, '')).sort();
 const sortedConfigured = [...configuredLocales].sort();
