@@ -1,8 +1,8 @@
-name: Agent Coordination Guard
+name: Agent Coordination
 
 on:
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   workflow_dispatch:
@@ -11,36 +11,49 @@ permissions:
   contents: read
   pull-requests: read
 
-concurrency:
-  group: agent-coordination-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   coordination:
-    name: Agent Coordination Guard
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    env:
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      GITHUB_HEAD_REF: ${{ github.head_ref || '' }}
-      FLIXO_AGENT_COORDINATION_STRICT_SHA: 'true'
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    timeout-minutes: 10
     steps:
-      - name: Checkout exact revision
-        uses: actions/checkout@v5
+      - name: Checkout exact event SHA
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 1
-      - name: Validate agent session ledger
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate claims protocol
+        run: node scripts/ci/validate-agent-coordination-protocol.mjs
+      - name: Validate local agent sessions
+        env:
+          FLIXO_AGENT_COORDINATION_STRICT_SHA: 'true'
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/ci/validate-agent-sessions.mjs
-      - name: Validate local multi-agent coordination
-        run: node scripts/ci/validate-agent-coordination.mjs
-      - name: Validate cross-branch agent collisions
+      - name: Validate protocol cooperation graph
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/ci/validate-protocol-cooperation.mjs
+      - name: Validate cross-branch collisions
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/ci/validate-agent-pr-collisions.mjs
+      - name: Build coordination dashboard
+        run: node scripts/ci/agent-coordination-dashboard.mjs
+      - name: Audit coordination state
+        run: node scripts/ci/agent-coordination-state.mjs
       - name: Upload coordination evidence
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: agent-coordination-${{ github.run_id }}
-          path: artifacts/ci/agent-coordination/
+          path: artifacts/ci/agent-coordination
           if-no-files-found: error
-          retention-days: 14
