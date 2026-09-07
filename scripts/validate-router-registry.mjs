@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import * as ts from 'typescript';
 import { TOOLS_REGISTRY } from '../src/config/tools.ts';
 import { LOCALES, LOCALE_METADATA } from '../src/lib/i18n/config.ts';
 import { getToolSeo } from '../src/lib/seo/tool-seo.ts';
@@ -26,13 +25,15 @@ function listSourceFiles(dir) { return fs.readdirSync(dir, { withFileTypes: true
 function resolveLocalModule(fromFile, specifier) { if (!specifier.startsWith('.')) return null; const base = path.resolve(path.dirname(fromFile), specifier); const candidates = [base, `${base}.ts`, `${base}.tsx`, path.join(base, 'index.ts'), path.join(base, 'index.tsx')]; return candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile()) ?? null; }
 function listReachableRouteModules(entryFiles) { const reachable = new Set(); const pending = [...entryFiles]; const importPattern = /(?:import\s+(?:[\s\S]*?\sfrom\s+)?|export\s+(?:[\s\S]*?\sfrom\s+)|import\s*\()(['"])([^'"]+)\1/g; while (pending.length) { const file = pending.pop(); if (!file || reachable.has(file) || !fs.existsSync(file)) continue; reachable.add(file); const source = fs.readFileSync(file, 'utf8'); for (const match of source.matchAll(importPattern)) { const resolved = resolveLocalModule(file, match[2]); if (resolved && resolved.startsWith(`${routesDir}${path.sep}`) && !reachable.has(resolved)) pending.push(resolved); } } return reachable; }
 function extractPathProperties(source) { const routes = []; const routeFactoryPattern = /create(?:Root)?Route\(\s*\{[\s\S]*?\bpath\s*:\s*(['"])([^'"]+)\1/g; let match; while ((match = routeFactoryPattern.exec(source)) !== null) { if (match[2].startsWith('/')) routes.push(match[2]); } return routes; }
-function unwrapExpression(node) { let current = node; while (current && (ts.isParenthesizedExpression(current) || ts.isAsExpression(current) || ts.isTypeAssertionExpression(current))) current = current.expression; return current; }
-function propertyName(property) { if (!property.name) return null; if (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) return property.name.text; return null; }
-function findProperty(objectLiteral, name) { return objectLiteral.properties.find((property) => propertyName(property) === name) ?? null; }
-function literalText(property) { const initializer = property?.initializer; if (!initializer) return ''; const value = unwrapExpression(initializer); return ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value) ? value.text : ''; }
-function isRouteHeadProperty(property) { return propertyName(property) === 'head' && !!property.initializer; }
-function getHeadResultObject(property) { let initializer = unwrapExpression(property.initializer); if (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)) initializer = unwrapExpression(initializer.body); return initializer && ts.isObjectLiteralExpression(initializer) ? initializer : null; }
-function hasRouteSeoMetadata(source) { const sourceFile = ts.createSourceFile('route.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX); let valid = false; function inspect(node) { if (valid) return; if (ts.isObjectLiteralExpression(node)) { const head = node.properties.find(isRouteHeadProperty); if (head) { const headObject = getHeadResultObject(head); const meta = headObject && findProperty(headObject, 'meta'); const metaArray = meta ? unwrapExpression(meta.initializer) : null; if (metaArray && ts.isArrayLiteralExpression(metaArray)) { let title = false; let description = false; let noindex = false; for (const element of metaArray.elements) { const item = unwrapExpression(element); if (!item || !ts.isObjectLiteralExpression(item)) continue; const titleProp = findProperty(item, 'title'); title ||= !!titleProp; const nameProp = findProperty(item, 'name'); const contentProp = findProperty(item, 'content'); const nameText = literalText(nameProp); const contentText = literalText(contentProp); description ||= nameText === 'description' && !!contentText; noindex ||= nameText === 'robots' && /\bnoindex\b/u.test(contentText); } valid = (title && description) || noindex; } } } if (!valid) ts.forEachChild(node, inspect); } inspect(sourceFile); return valid; }
+function hasRouteSeoMetadata(source) {
+  const headStart = source.indexOf('head:');
+  if (headStart === -1) return false;
+  const headSource = source.slice(headStart, headStart + 6000);
+  const hasTitle = /\btitle\s*:/u.test(headSource);
+  const hasDescription = /\bname\s*:\s*['"]description['"][\s\S]{0,500}?\bcontent\s*:/u.test(headSource);
+  const hasNoindex = /\bname\s*:\s*['"]robots['"][\s\S]{0,500}?\bcontent\s*:\s*['"][^'"]*\bnoindex\b[^'"]*['"]/u.test(headSource);
+  return (hasTitle && hasDescription) || hasNoindex;
+}
 
 if (!Array.isArray(TOOLS_REGISTRY) || TOOLS_REGISTRY.length === 0) fail('registry-load', 'TOOLS_REGISTRY is empty or invalid.');
 if (!routeTreeSource.includes('export const routeChildren')) fail('router-load', 'route-tree.ts does not expose routeChildren.');
