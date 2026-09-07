@@ -4,7 +4,7 @@ const commands = [
   ['quickflow', 'npm', ['run', 'test:quickflow']],
   ['ai-planner', 'npm', ['run', 'test:ai-planner']],
   ['route-resolver', 'npm', ['run', 'test:route-resolver']],
-  ['upload-boundary', 'npm', ['test:upload-boundary']],
+  ['upload-boundary', 'npm', ['run', 'test:upload-boundary']],
   ['tool-localization', 'npm', ['run', 'test:tool-localization']],
   ['release-evidence', 'node', ['scripts/test-release-evidence.mjs']],
   ['file-safety', 'node', ['--experimental-strip-types', 'scripts/test-file-safety.mjs']],
