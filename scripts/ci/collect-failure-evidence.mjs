@@ -28,6 +28,9 @@ const failures = reports.flatMap((report) => (report.checks ?? []).filter((check
   gate: report.gate,
   ...check,
 })));
+const skipped = reports.flatMap((report) => (report.checks ?? []).filter((check) => check.status === 'SKIPPED').map((check) => ({ gate: report.gate, label: check.label })));
+const masked = reports.some((report) => report.status === 'PASS' && Number(report.failures ?? 0) > 0)
+  || reports.some((report) => report.status === 'PASS' && Number(report.checksExecuted ?? 0) < Number(report.checksExpected ?? 0));
 const bundle = {
   schema: 'flixo-failure-evidence/v1',
   generatedAt: now,
@@ -46,6 +49,7 @@ const bundle = {
     artifactSha256: fileHash(`${String(report.gate).toLowerCase()}.json`),
   })),
   failures,
+  skipped,
   repository: {
     head: git(['rev-parse', 'HEAD']),
     statusPorcelain: git(['status', '--porcelain']),
@@ -60,8 +64,8 @@ const bundle = {
   invariants: {
     exactShaMatch: Boolean(context?.execution?.expectedSha && context.execution.expectedSha === context.execution.sha),
     cleanCheckout: context?.execution?.dirty === false,
-    requiredTestsSkipped: failures.some((failure) => failure.status === 'SKIPPED'),
-    maskedFailures: false,
+    requiredTestsSkipped: skipped.length > 0,
+    maskedFailures: masked,
     staleEvidence: reports.some((report) => report.sha && report.sha !== context?.execution?.sha),
   },
 };
@@ -71,4 +75,6 @@ writeFileSync(resolve(DIR, 'failure-evidence.json'), `${JSON.stringify(bundle, n
 console.log(`FAILURE_EVIDENCE_ID=${bundle.evidenceId}`);
 console.log(`FAILURE_EVIDENCE_SHA256=${fileHash('failure-evidence.json')}`);
 console.log(`FAILURE_COUNT=${failures.length}`);
+console.log(`SKIPPED_REQUIRED=${skipped.length}`);
+console.log(`MASKED_FAILURES=${masked}`);
 console.log(`STALE_EVIDENCE=${bundle.invariants.staleEvidence}`);
