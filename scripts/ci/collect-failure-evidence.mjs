@@ -27,14 +27,16 @@ const incompleteReports = reports.filter(({ name, report }) => !report || report
 const masked = reports.some(({ report }) => report?.status === 'PASS' && Number(report.failures ?? 0) > 0) || reports.some(({ report }) => report?.status === 'PASS' && Number(report.checksExecuted ?? 0) < Number(report.checksExpected ?? 0));
 const exactSha = Boolean(context?.execution?.expectedSha && context.execution.expectedSha === context.execution.sha && context.execution.sha === git(['rev-parse', 'HEAD']));
 const overallCoherent = Boolean(overall?.sha === context?.execution?.sha && overall?.gatesExpected === requiredGates.length && overall?.gatesExecuted === requiredGates.length && overall?.checksExpected === overall?.checksExecuted);
-const canonicalRequired = Boolean(canonical?.schema === 'flixo-ci-canonical-result/v1');
+const canonicalRequired = Boolean(canonical?.schema === 'flixo-ci-report/v5');
 const authoritative = canonicalRequired && missingReports.length === 0 && incompleteReports.length === 0 && blocked.length === 0 && failures.length === 0 && skipped.length === 0 && !masked && exactSha && overallCoherent;
 const bundle = {
   schema: 'flixo-failure-evidence/v4', generatedAt: now, sha: git(['rev-parse', 'HEAD']), executionIdentityHash: context?.identityHash ?? null,
   canonicalResultArtifact: canonical ? 'canonical-result.json' : null, contextArtifact: 'execution-context.json', testPlanArtifact: 'scripts/ci/test-plan.json',
-  testPlan: { version: plan.version, gates: plan.gates, execution: plan.execution },
-  reports: reports.map(({ name, report }) => ({ gate: name, present: Boolean(report), status: report?.status ?? 'MISSING', sha: report?.sha ?? null, mode: report?.mode ?? null, checksExpected: report?.checksExpected ?? null, checksExecuted: report?.checksExecuted ?? null, expectedChecks: expected[name], failures: report?.failures ?? null, rootCauses: report?.rootCauses ?? [], artifactSha256: fileHash(`${name.toLowerCase()}.json`) })),
+  testPlan: { version: plan.version, gates: plan.gates, execution: plan.execution, assertions: plan.assertions },
+  reports: reports.map(({ name, report }) => ({ gate: name, present: Boolean(report), status: report?.status ?? 'MISSING', sha: report?.sha ?? null, mode: report?.mode ?? null, checksExpected: report?.checksExpected ?? null, checksExecuted: report?.checksExecuted ?? null, expectedChecks: expected[name], failures: report?.failures ?? null, rootCauses: report?.rootCauses ?? [], assertions: report?.assertions ?? [], artifactSha256: fileHash(`${name.toLowerCase()}.json`) })),
   matrix: canonical?.matrix ?? null,
+  assertions: canonical?.assertions ?? null,
+  coverage: canonical?.coverage ?? null,
   failures, skipped, blocked,
   completeness: { requiredGates, missingReports, incompleteReports: incompleteReports.map(({ name }) => name), blockedGates: blocked, allRequiredReportsPresent: missingReports.length === 0, allExpectedChecksExecuted: incompleteReports.length === 0, overallCoherent, canonicalResultPresent: canonicalRequired, authoritative },
   repository: { head: git(['rev-parse', 'HEAD']), statusPorcelain: git(['status', '--porcelain']), diffStat: git(['diff', '--stat']) },
@@ -48,7 +50,7 @@ console.log(`FAILURE_EVIDENCE_SHA256=${fileHash('failure-evidence.json')}`);
 console.log(`FAILURE_COUNT=${failures.length}`);
 console.log(`SKIPPED_REQUIRED=${skipped.length}`);
 console.log(`MASKED_FAILURES=${masked}`);
-console.log(`STALE_EVIDENCE=${bundle.invariants.staleEvidence}`);
+console.log(`STALE_EVIDENCE=${reports.some(({ report }) => report?.sha && report.sha !== context?.execution?.sha)}`);
 console.log(`CANONICAL_RESULT_USED=${canonicalRequired}`);
 console.log(`EVIDENCE_AUTHORITATIVE=${authoritative}`);
 if (!authoritative) process.exitCode = 1;
