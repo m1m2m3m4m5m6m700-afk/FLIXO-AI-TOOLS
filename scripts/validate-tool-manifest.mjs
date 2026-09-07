@@ -6,17 +6,17 @@ const fail = (message) => {
 };
 
 if (!Array.isArray(TOOL_MANIFEST) || TOOL_MANIFEST.length === 0) {
-  fail('manifest is empty or invalid');
+  fail('image manifest is empty or invalid');
 }
 
 const ids = new Set();
 const routes = new Map();
-const families = new Set(['image', 'pdf', 'audio', 'video', 'ai', 'other']);
 
 for (const tool of TOOL_MANIFEST) {
   if (!tool.id || ids.has(tool.id)) fail(`duplicate tool id: ${tool.id}`);
   if (!tool.path.startsWith('/en/')) fail(`invalid canonical path: ${tool.id}`);
-  if (!families.has(tool.family)) fail(`invalid family: ${tool.id}`);
+  if (tool.family !== 'image') fail(`non-image family: ${tool.id}`);
+  if (tool.category !== 'Images') fail(`non-image category: ${tool.id}`);
   if (!tool.seo?.title || !tool.seo?.description) fail(`missing SEO metadata: ${tool.id}`);
   if (routes.has(tool.path)) fail(`duplicate canonical path: ${tool.path}`);
 
@@ -30,6 +30,6 @@ for (const tool of TOOL_MANIFEST) {
   }
 }
 
-console.log(`tool manifest entries: ${TOOL_MANIFEST.length}`);
-console.log(`tool manifest routes: ${routes.size}`);
-console.log('tool manifest contract: PASS');
+console.log(`image tool manifest entries: ${TOOL_MANIFEST.length}`);
+console.log(`image tool manifest routes: ${routes.size}`);
+console.log('image-only tool manifest contract: PASS');

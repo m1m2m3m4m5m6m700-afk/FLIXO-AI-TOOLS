@@ -2,12 +2,14 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const definitionsDir = 'src/config/tool-definitions';
-const requiredFamilies = ['image.ts', 'pdf.ts', 'audio.ts', 'video.ts', 'ai.ts', 'other.ts'];
+const requiredFamilies = ['image.ts'];
 const files = readdirSync(definitionsDir).filter((name) => name.endsWith('.ts') && name !== 'types.ts');
 
+const unexpectedFamilies = files.filter((name) => !requiredFamilies.includes(name));
 const missingFamilies = requiredFamilies.filter((name) => !files.includes(name));
-if (missingFamilies.length) {
-  console.error(`Tool registry contract failed: missing family files: ${missingFamilies.join(', ')}`);
+if (missingFamilies.length || unexpectedFamilies.length) {
+  if (missingFamilies.length) console.error(`Tool registry contract failed: missing family files: ${missingFamilies.join(', ')}`);
+  if (unexpectedFamilies.length) console.error(`Tool registry contract failed: non-image family files remain: ${unexpectedFamilies.join(', ')}`);
   process.exit(1);
 }
 
@@ -20,7 +22,7 @@ for (const file of files) {
 }
 
 if (entries.length === 0) {
-  console.error('Tool registry contract failed: no family tool definitions discovered.');
+  console.error('Tool registry contract failed: no image tool definitions discovered.');
   process.exit(1);
 }
 
@@ -49,4 +51,4 @@ for (const { id, title, path, file } of entries) {
   }
 }
 
-console.log(`Tool registry contract passed: ${entries.length} unique tools across ${files.length} family files with canonical IDs, titles, and /en/ paths.`);
+console.log(`Image-only tool registry contract passed: ${entries.length} unique tools in image.ts with canonical IDs, titles, and /en/ paths.`);
