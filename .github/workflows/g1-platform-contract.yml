@@ -1,15 +1,15 @@
 name: G1 Platform Contract Gate
 
+# G1 is a deep certification gate. PR verification is owned by the canonical
+# impact-aware CI path; this workflow certifies the resulting main state.
 on:
-  pull_request:
-    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: g1-platform-${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: g1-platform-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
