@@ -20,7 +20,6 @@ const FALLBACK_COPY: Record<CanonicalLocale, { title: string; body: string; acti
   it: { title: 'La copertura pubblicitaria è in espansione', body: 'Questo spazio è riservato agli annunci. Mostriamo un fallback leggero finché questa lingua non è monetizzata.', action: 'Scopri FLIXO AI' },
   ja: { title: '広告対象地域を拡大しています', body: 'このスペースは広告用です。この言語が収益化されるまでは、軽量な代替表示を使用します。', action: 'FLIXO AI を見る' },
   ko: { title: '광고 지원 범위를 확대하고 있습니다', body: '이 공간은 광고용입니다. 이 언어가 수익화되기 전까지 가벼운 대체 배너를 표시합니다.', action: 'FLIXO AI 살펴보기' },
-  ms: { title: 'Liputan iklan sedang diperluas', body: 'Ruang ini dikhaskan untuk iklan. Fallback ringan dipaparkan selagi bahasa ini belum dimonetisasi.', action: 'Terokai FLIXO AI' },
   nl: { title: 'Advertentiedekking wordt uitgebreid', body: 'Deze ruimte is gereserveerd voor advertenties. Tot deze taal is gemonetiseerd, tonen we een lichte fallback.', action: 'FLIXO AI ontdekken' },
   pl: { title: 'Zasięg reklam jest rozszerzany', body: 'To miejsce jest przeznaczone na reklamy. Dopóki ten język nie jest monetyzowany, wyświetlamy lekką alternatywę.', action: 'Poznaj FLIXO AI' },
   pt: { title: 'A cobertura de anúncios está a ser expandida', body: 'Este espaço é reservado para anúncios. Enquanto este idioma não for monetizado, mostramos uma alternativa leve.', action: 'Explorar FLIXO AI' },
@@ -28,8 +27,8 @@ const FALLBACK_COPY: Record<CanonicalLocale, { title: string; body: string; acti
   sv: { title: 'Annonsbevakningen byggs ut', body: 'Detta utrymme är reserverat för annonser. En lätt reservbanner visas tills språket är monetiserat.', action: 'Utforska FLIXO AI' },
   th: { title: 'กำลังขยายการรองรับโฆษณา', body: 'พื้นที่นี้จัดไว้สำหรับโฆษณา โดยจะแสดงแบนเนอร์สำรองแบบเบาจนกว่าภาษานี้จะเปิดสร้างรายได้', action: 'สำรวจ FLIXO AI' },
   tr: { title: 'Reklam kapsamı genişletiliyor', body: 'Bu alan reklamlar için ayrılmıştır. Bu dil para kazandırma kapsamına girene kadar hafif bir yedek gösterilir.', action: 'FLIXO AI\'ı keşfet' },
-  uk: { title: 'Рекламне покриття розширюється', body: 'Цей простір призначено для реклами. Поки цю мову не монетизовано, показується легкий резервний банер.', action: 'Відкрити FLIXO AI' },
   vi: { title: 'Phạm vi quảng cáo đang được mở rộng', body: 'Khu vực này dành cho quảng cáo. Trong khi ngôn ngữ này chưa được kiếm tiền, một banner thay thế nhẹ sẽ được hiển thị.', action: 'Khám phá FLIXO AI' },
+  zh: { title: '广告覆盖正在扩展', body: '此空间用于广告。在此语言尚未开通变现时，会显示轻量替代内容。', action: '探索 FLIXO AI' },
 };
 
 function getCurrentLocale(): CanonicalLocale {
