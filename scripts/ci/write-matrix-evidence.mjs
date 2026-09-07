@@ -1,6 +1,7 @@
 import { createHash, createHmac } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
+import { collectNativeTests, testId } from './matrix-test-identity.mjs';
 
 const reportPath = process.env.PLAYWRIGHT_JSON_REPORT || 'playwright-results.json';
 const planPath = process.env.MATRIX_PLAN_PATH || '_flixo_matrix_plan.json';
@@ -32,28 +33,9 @@ const plannedTestCount = Number(unit.test_count);
 if (!plannedSuites.length || !plannedTestIds.length || !Number.isInteger(plannedTestCount) || plannedTestCount < 1) throw new Error(`Matrix plan unit is incomplete: ${browser}:shard-${shard}`);
 if (plannedTestIds.length !== plannedTestCount || new Set(plannedTestIds).size !== plannedTestIds.length) throw new Error(`Matrix plan unit test IDs/count are inconsistent: ${browser}:shard-${shard}`);
 
-const normalizeTestFile = (file) => {
-  const normalized = String(file).replace(/\\/g, '/');
-  const marker = '/tests/';
-  const index = normalized.lastIndexOf(marker);
-  if (index >= 0) return normalized.slice(index + 1);
-  return normalized.replace(/^\.\//, '');
-};
-const testId = (test) => `${normalizeTestFile(test.file)}::${test.title}::${test.ordinal}`;
-
 const reportText = readFileSync(reportPath, 'utf8');
 const report = JSON.parse(reportText);
-const tests = [];
-const walk = (suite) => {
-  for (const spec of suite?.specs || []) {
-    for (const [ordinal, test] of (spec.tests || []).entries()) {
-      tests.push({ file: normalizeTestFile(spec.file), title: spec.title, ordinal, status: test.status, results: test.results || [] });
-    }
-  }
-  for (const child of suite?.suites || []) walk(child);
-};
-for (const suite of report?.suites || []) walk(suite);
-
+const tests = collectNativeTests(report);
 const observedTestIds = tests.map(testId).sort();
 const observedSuites = [...new Set(tests.map((test) => test.file.replace(/^tests\//, '').replace(/\.spec\.ts$/, '')))].sort();
 const expectedFiles = plannedSuites.map((suite) => `tests/${suite}.spec.ts`).sort();
@@ -102,7 +84,7 @@ const result = {
   flaky,
   native_report_path: basename(reportPath),
   native_report_sha256: createHash('sha256').update(reportText).digest('hex'),
-  test_records: tests.map(({ file, title, ordinal, status, results }) => ({ file, title, ordinal, status, result_count: results.length })),
+  test_records: tests.map(({ file, title, titlePath, ordinal, status, results }) => ({ file, title, titlePath, ordinal, status, result_count: results.length })),
 };
 
 const resultText = JSON.stringify(result, null, 2) + '\n';
