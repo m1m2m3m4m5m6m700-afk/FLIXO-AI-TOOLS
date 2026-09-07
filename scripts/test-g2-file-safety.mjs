@@ -8,12 +8,12 @@ const json = new TextEncoder().encode('{"ok":true}');
 const imagePolicy = {
   allowedMime: ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/bmp', 'image/avif', 'image/svg+xml'],
   allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'avif', 'svg'],
-  signatures: ['png'],
+  signatures: ['89504e470d0a1a0a'],
   maxBytes: 10 * 1024 * 1024,
   maxPixels: 40_000_000,
 };
 
-assert.equal(validateFileSafety({ name: 'input.png', mime: 'image/png', bytes: png.byteLength, content: png, width: 1, height: 1 }, imagePolicy).safe, true);
+assert.equal(validateFileSafety({ name: 'input.png', mime: 'image/png', bytes: png.byteLength, content: png, width: 1, height: 1, signature: '89504e470d0a1a0a' }, imagePolicy).safe, true);
 assert.equal(validateFileSafety({ name: '../input.png', mime: 'image/png', bytes: png.byteLength, content: png, width: 1, height: 1 }, imagePolicy).safe, false);
 assert.equal(validateFileSafety({ name: 'input.pdf', mime: 'application/pdf', bytes: png.byteLength, content: png }, imagePolicy).safe, false);
 assert.equal(validateFileSafety({ name: 'input.png', mime: 'image/png', bytes: png.byteLength + 1, content: png }, imagePolicy).safe, false);
@@ -28,8 +28,8 @@ const jsonPolicy = {
 assert.equal(validateFileSafety({ name: 'ocr.json', mime: 'application/json', bytes: json.byteLength, content: json }, jsonPolicy).safe, true);
 assert.equal(validateFileSafety({ name: 'ocr.json', mime: 'application/json', bytes: json.byteLength, content: new TextEncoder().encode('{bad') }, jsonPolicy).safe, false);
 
-assert.equal(validateUploadBoundary({ name: 'input.png', size: png.byteLength, type: 'image/png' }, { maxBytes: 10 * 1024 * 1024, allowedMime: ['image/png'] }).allowed, true);
-assert.equal(validateUploadBoundary({ name: 'input.pdf', size: png.byteLength, type: 'application/pdf' }, { maxBytes: 10 * 1024 * 1024, allowedMime: ['image/png'] }).allowed, false);
+assert.equal(validateUploadBoundary({ name: 'input.png', mime: 'image/png', bytes: png }, { ...imagePolicy, signatures: ['89504e470d0a1a0a'] }).safe, true);
+assert.equal(validateUploadBoundary({ name: 'input.pdf', mime: 'application/pdf', bytes: png }, { ...imagePolicy, signatures: ['89504e470d0a1a0a'] }).safe, false);
 
 assert.equal(detectZipBombRisk(100, 1000, 40).isBomb, false);
 assert.equal(detectZipBombRisk(1, 1000, 40).isBomb, true);
