@@ -45,7 +45,7 @@ jobs:
       - name: Publish immutable source artifact
         uses: actions/upload-artifact@v6
         with:
-          name: full-matrix-source-${{ github.sha }}
+          name: full-matrix-source-${{ github.event.pull_request.head.sha || github.sha }}
           path: dist
           if-no-files-found: error
           retention-days: 14
@@ -53,7 +53,7 @@ jobs:
   weighted_plan:
     name: Full Matrix Weighted Plan
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       FLIXO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       FLIXO_MATRIX_PLAN_SIGNING_KEY: ${{ secrets.FLIXO_MATRIX_PLAN_SIGNING_KEY }}
@@ -73,6 +73,12 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Validate protocol cooperation
+        run: node --experimental-strip-types scripts/ci/validate-protocol-cooperation.mjs
+      - name: Validate contract coverage closure
+        env:
+          FLIXO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node --experimental-strip-types scripts/ci/validate-contract-coverage.mjs
       - name: Build weighted shard plan
         id: plan
         env:
@@ -81,14 +87,22 @@ jobs:
           CI_RUNNER_BUDGET: 8
           CI_RUNNER_RESERVE: 2
           CI_BROWSERS: chromium,firefox,webkit
-        run: |
-          node scripts/ci/weighted-shard-plan.mjs
-          echo 'plan_file=matrix-plan.json' >> "$GITHUB_OUTPUT"
-      - name: Publish immutable matrix plan
+        run: node scripts/ci/weighted-shard-plan.mjs
+      - name: Build immutable test inventory
+        env:
+          FLIXO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          MATRIX_PLAN_PATH: matrix-plan.json
+          MATRIX_TEST_INVENTORY_OUTPUT: matrix-test-inventory.json
+        run: node scripts/ci/write-matrix-test-inventory.mjs
+      - name: Publish immutable matrix provenance bundle
         uses: actions/upload-artifact@v6
         with:
-          name: full-matrix-plan-${{ github.sha }}
-          path: matrix-plan.json
+          name: full-matrix-plan-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            matrix-plan.json
+            matrix-test-inventory.json
+            artifacts/ci/protocol-cooperation/cooperation-map.json
+            artifacts/ci/protocol-cooperation/contract-coverage.json
           if-no-files-found: error
           retention-days: 14
 
@@ -120,18 +134,19 @@ jobs:
       - name: Download immutable source artifact
         uses: actions/download-artifact@v7
         with:
-          name: full-matrix-source-${{ github.sha }}
+          name: full-matrix-source-${{ github.event.pull_request.head.sha || github.sha }}
           path: dist
-      - name: Download immutable matrix plan
+      - name: Download immutable matrix provenance bundle
         uses: actions/download-artifact@v7
         with:
-          name: full-matrix-plan-${{ github.sha }}
-          path: matrix-plan
-      - name: Verify source and plan identity
+          name: full-matrix-plan-${{ github.event.pull_request.head.sha || github.sha }}
+          path: matrix-provenance
+      - name: Verify source, plan, and inventory identity
         run: |
           set -euo pipefail
           node -e 'const m=require("./dist/_flixo_build_manifest.json"); const expected=process.env.FLIXO_SOURCE_SHA; if(m.sha!==expected || m.commit_sha!==expected) { console.error({manifest:m.sha, expected}); process.exit(1); }'
-          node -e 'const crypto=require("node:crypto"),fs=require("node:fs"); const p=require("./matrix-plan/matrix-plan.json"); const {plan_hash,signature,signature_algorithm,...u}=p; const c=JSON.stringify(u); const h=crypto.createHash("sha256").update(c).digest("hex"); const s=crypto.createHmac("sha256",process.env.FLIXO_MATRIX_PLAN_SIGNING_KEY).update(c).digest("hex"); if(h!==plan_hash||s!==signature||signature_algorithm!=="HMAC-SHA256"||p.source_sha!==process.env.FLIXO_SOURCE_SHA) process.exit(1);'
+          node -e 'const crypto=require("node:crypto"); const p=require("./matrix-provenance/matrix-plan.json"); const {plan_hash,signature,signature_algorithm,...u}=p; const c=JSON.stringify(u); const h=crypto.createHash("sha256").update(c).digest("hex"); const s=crypto.createHmac("sha256",process.env.FLIXO_MATRIX_PLAN_SIGNING_KEY).update(c).digest("hex"); if(h!==plan_hash||s!==signature||signature_algorithm!=="HMAC-SHA256"||p.source_sha!==process.env.FLIXO_SOURCE_SHA||p.schema_version!==3) process.exit(1);'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto"); const i=require("./matrix-provenance/matrix-test-inventory.json"); if(i.source_sha!==process.env.FLIXO_SOURCE_SHA||i.plan_hash!==require("./matrix-provenance/matrix-plan.json").plan_hash) process.exit(1); const h=crypto.createHash("sha256").update(JSON.stringify({schema_version:i.schema_version,source_sha:i.source_sha,plan_hash:i.plan_hash,units:i.units})).digest("hex"); if(h!==i.inventory_hash) process.exit(1);'
       - name: Install Playwright system dependencies
         timeout-minutes: 8
         run: npx playwright install-deps '${{ matrix.browser }}'
@@ -167,9 +182,9 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_NAME="$RESULT_FILE" npx playwright test "${TEST_SPECS[@]}" --project=${{ matrix.browser }} --workers=6 --retries=0 --reporter=json
           rc=$?
           set -e
-          MATRIX_PLAN_HASH="$(node -e 'process.stdout.write(require("./matrix-plan/matrix-plan.json").plan_hash)')"
-          MATRIX_TEST_COUNT="$(node -e 'const p=require("./matrix-plan/matrix-plan.json"); const u=p.matrix.find((item)=>item.browser==="${{ matrix.browser }}"&&item.shard===${{ matrix.shard }}); if(!u) process.exit(2); process.stdout.write(String(u.test_count))')"
-          FLIXO_SOURCE_SHA="$FLIXO_SOURCE_SHA" MATRIX_PLAN_HASH="$MATRIX_PLAN_HASH" MATRIX_BROWSER='${{ matrix.browser }}' MATRIX_SHARD='${{ matrix.shard }}' MATRIX_TESTS="$TESTS" MATRIX_TEST_COUNT="$MATRIX_TEST_COUNT" PLAYWRIGHT_JSON_REPORT="$RESULT_FILE" MATRIX_EVIDENCE_OUTPUT="full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}.json" node scripts/ci/write-matrix-evidence.mjs
+          MATRIX_PLAN_HASH="$(node -e 'process.stdout.write(require("./matrix-provenance/matrix-plan.json").plan_hash)')"
+          MATRIX_TEST_COUNT="$(node -e 'const p=require("./matrix-provenance/matrix-plan.json"); const u=p.matrix.find((item)=>item.browser==="${{ matrix.browser }}"&&item.shard===${{ matrix.shard }}); if(!u) process.exit(2); process.stdout.write(String(u.test_count))')"
+          FLIXO_SOURCE_SHA="$FLIXO_SOURCE_SHA" MATRIX_PLAN_HASH="$MATRIX_PLAN_HASH" MATRIX_BROWSER='${{ matrix.browser }}' MATRIX_SHARD='${{ matrix.shard }}' MATRIX_TESTS="$TESTS" MATRIX_TEST_COUNT="$MATRIX_TEST_COUNT" PLAYWRIGHT_JSON_REPORT="$RESULT_FILE" MATRIX_TEST_INVENTORY_PATH="matrix-provenance/matrix-test-inventory.json" MATRIX_EVIDENCE_OUTPUT="full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}.json" node scripts/ci/write-matrix-evidence.mjs
           evidence_rc=$?
           echo "$rc" > "full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}-process-exit-code.txt"
           exit $(( rc != 0 ? rc : evidence_rc ))
@@ -197,15 +212,20 @@ jobs:
     needs: [matrix]
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     env:
       FLIXO_MATRIX_PLAN_SIGNING_KEY: ${{ secrets.FLIXO_MATRIX_PLAN_SIGNING_KEY }}
     steps:
-      - name: Download authoritative matrix plan
+      - name: Checkout exact certification SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Download authoritative matrix provenance bundle
         uses: actions/download-artifact@v7
         with:
-          name: full-matrix-plan-${{ github.sha }}
-          path: matrix-plan
+          name: full-matrix-plan-${{ github.event.pull_request.head.sha || github.sha }}
+          path: matrix-provenance
       - name: Download all matrix evidence
         uses: actions/download-artifact@v7
         with:
@@ -216,7 +236,8 @@ jobs:
         env:
           EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           EVIDENCE_ROOT: full-matrix-evidence
-          MATRIX_PLAN_PATH: matrix-plan/matrix-plan.json
+          MATRIX_PLAN_PATH: matrix-provenance/matrix-plan.json
+          MATRIX_TEST_INVENTORY_PATH: matrix-provenance/matrix-test-inventory.json
         run: node scripts/ci/validate-full-matrix-evidence.mjs
       - name: Fail closed on matrix result
         run: |
@@ -224,4 +245,4 @@ jobs:
           result='${{ needs.matrix.result }}'
           echo "matrix=$result"
           test "$result" = success
-          echo 'Matrix First Certification PASS: all planned suites executed exactly once per browser across the signed weighted plan.'
+          echo 'Matrix First Certification PASS: all planned suites and immutable test IDs executed exactly once per browser across the signed weighted plan.'
