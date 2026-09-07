@@ -25,7 +25,8 @@ const skipped = reports.flatMap(({ name, report }) => (report?.checks ?? []).fil
 const blocked = reports.filter(({ report }) => report?.status === 'BLOCKED').map(({ name }) => name);
 const incompleteReports = reports.filter(({ name, report }) => !report || report.sha !== context?.execution?.sha || report.checksExpected !== expected[name] || report.checksExecuted !== expected[name] || report.status !== 'PASS');
 const masked = reports.some(({ report }) => report?.status === 'PASS' && Number(report.failures ?? 0) > 0) || reports.some(({ report }) => report?.status === 'PASS' && Number(report.checksExecuted ?? 0) < Number(report.checksExpected ?? 0));
-const exactSha = Boolean(context?.execution?.expectedSha && context.execution.expectedSha === context.execution.sha && context.execution.sha === git(['rev-parse', 'HEAD']));
+const expectedSha = context?.runtime?.expectedSha ?? null;
+const exactSha = Boolean(expectedSha && expectedSha === context?.execution?.sha && context.execution.sha === git(['rev-parse', 'HEAD']));
 const overallCoherent = Boolean(overall?.sha === context?.execution?.sha && overall?.gatesExpected === requiredGates.length && overall?.gatesExecuted === requiredGates.length && overall?.checksExpected === overall?.checksExecuted);
 const canonicalRequired = Boolean(canonical?.schema === 'flixo-ci-report/v5');
 const authoritative = canonicalRequired && missingReports.length === 0 && incompleteReports.length === 0 && blocked.length === 0 && failures.length === 0 && skipped.length === 0 && !masked && exactSha && overallCoherent;
