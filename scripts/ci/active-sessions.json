@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "protocol": "FLIXO active agent sessions",
+  "source_of_truth": ".ci/agent-coordination/claims.json",
+  "active_sessions": []
+}
