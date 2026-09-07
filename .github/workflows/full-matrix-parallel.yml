@@ -167,7 +167,7 @@ jobs:
           if [ -f /tmp/full-matrix-server.pid ]; then kill "$(cat /tmp/full-matrix-server.pid)" 2>/dev/null || true; fi
 
   certification:
-    name: Full Matrix Certification
+    name: Matrix First Certification
     needs: [matrix]
     if: ${{ always() }}
     runs-on: ubuntu-latest
@@ -190,4 +190,4 @@ jobs:
           result='${{ needs.matrix.result }}'
           echo "matrix=$result"
           test "$result" = success
-          echo 'Full Matrix Certification PASS: all planned suites executed exactly once per browser across the weighted shards.'
+          echo 'Matrix First Certification PASS: all planned suites executed exactly once per browser across the weighted shards.'
