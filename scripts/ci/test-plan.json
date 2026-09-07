@@ -1,58 +1,14 @@
 {
   "version": 3,
-  "execution": {
-    "maxConcurrency": 6,
-    "failFast": false,
-    "certification": "complete-gate-results",
-    "identityFields": ["sha", "packageLockSha256", "testPlanSha256"]
-  },
-  "gateDependencies": {
-    "static": [],
-    "build": ["static"],
-    "browser": ["build"]
-  },
+  "execution": {"maxConcurrency": 6,"failFast": false,"certification": "complete-gate-results","identityFields": ["sha", "packageLockSha256", "testPlanSha256"]},
+  "gateDependencies": {"static": [],"build": ["static"],"browser": ["build"]},
   "coverage": {
-    "COV-TYPEGRAPH":"TypeScript type graph",
-    "COV-LINT":"Static lint correctness",
-    "COV-UNIT":"Core unit behavior",
-    "COV-TOOL-LOCALIZATION":"Tool localization contract",
-    "COV-BASELINE":"Engineering baseline and readiness",
-    "COV-REGISTRY":"Tool registry contract",
-    "COV-MANIFEST":"Tool manifest contract",
-    "COV-ROUTER":"Router/registry parity",
-    "COV-I18N-SOURCE":"Canonical locale source of truth",
-    "COV-I18N-COMPLETENESS":"Locale dictionary completeness",
-    "COV-I18N-DIRECTION":"Locale direction metadata",
-    "COV-I18N-NO-LEAKAGE":"Translation leakage/quality",
-    "COV-I18N-NAVIGATION":"Locale navigation",
-    "COV-I18N-EFFECTIVE-UI":"Effective localized UI",
-    "COV-I18N-SEO":"Localized SEO semantics",
-    "COV-HOME-I18N":"Home localization",
-    "COV-LOCALIZATION-FULL":"Per-tool SEO localization completeness",
-    "COV-LOCALIZATION-EFFECTIVE":"Effective runtime localization",
-    "COV-SEO":"SEO contract",
-    "COV-SEO-MANIFEST":"SEO manifest completeness",
-    "COV-INDEXING":"Indexing contract",
-    "COV-BREADCRUMB-SEO":"Breadcrumb SEO",
-    "COV-CI-CONTRACT":"CI workflow/runner contract",
-    "COV-IMAGE-CLOSURE":"Image-only closure",
-    "COV-DEPENDENCY":"Dependency graph integrity",
-    "COV-FILE-SAFETY":"File safety boundary",
-    "COV-OUTPUT-INTEGRITY":"Output artifact integrity",
-    "COV-SVG-INTEGRITY":"SVG integrity",
-    "COV-RELEASE-EVIDENCE":"Release evidence integrity",
-    "COV-TECHNICAL-DEBT":"Technical debt classification",
-    "COV-BUILD":"Production build",
-    "COV-DIST":"Built distribution structure",
-    "COV-PERFORMANCE":"Post-build asset performance budget",
-    "COV-BROWSER-CHROMIUM":"Chromium browser behavior",
-    "COV-BROWSER-FIREFOX":"Firefox browser behavior",
-    "COV-BROWSER-WEBKIT":"WebKit browser behavior"
+    "COV-TYPEGRAPH":"TypeScript type graph","COV-LINT":"Static lint correctness","COV-UNIT":"Core unit behavior","COV-TOOL-LOCALIZATION":"Tool localization contract","COV-BASELINE":"Engineering baseline and readiness","COV-REGISTRY":"Tool registry contract","COV-MANIFEST":"Tool manifest contract","COV-ROUTER":"Router/registry parity","COV-I18N-SOURCE":"Canonical locale source of truth","COV-I18N-COMPLETENESS":"Locale dictionary completeness","COV-I18N-DIRECTION":"Locale direction metadata","COV-I18N-NO-LEAKAGE":"Translation leakage/quality","COV-I18N-NAVIGATION":"Locale navigation","COV-I18N-EFFECTIVE-UI":"Effective localized UI","COV-I18N-SEO":"Localized SEO semantics","COV-HOME-I18N":"Home localization","COV-LOCALIZATION-FULL":"Per-tool SEO localization completeness","COV-LOCALIZATION-EFFECTIVE":"Effective runtime localization","COV-SEO":"SEO contract","COV-SEO-MANIFEST":"SEO manifest completeness","COV-INDEXING":"Indexing contract","COV-BREADCRUMB-SEO":"Breadcrumb SEO","COV-CI-CONTRACT":"CI workflow/runner contract","COV-IMAGE-CLOSURE":"Image-only closure","COV-DEPENDENCY":"Dependency graph integrity","COV-FILE-SAFETY":"File safety boundary","COV-OUTPUT-INTEGRITY":"Output artifact integrity","COV-SVG-INTEGRITY":"SVG integrity","COV-RELEASE-EVIDENCE":"Release evidence integrity","COV-TECHNICAL-DEBT":"Technical debt classification","COV-BUILD":"Production build","COV-DIST":"Built distribution structure","COV-PERFORMANCE":"Post-build asset performance budget","COV-BROWSER-CHROMIUM":"Chromium browser behavior","COV-BROWSER-FIREFOX":"Firefox browser behavior","COV-BROWSER-WEBKIT":"WebKit browser behavior"
   },
   "assertions": {
     "ASSERT-TYPEGRAPH-001":{"description":"TypeScript type graph compiles without errors","owner":"STATIC-001","mode":"static"},
     "ASSERT-LINT-001":{"description":"Source satisfies lint constraints","owner":"STATIC-002","mode":"static"},
-    "ASSERT-QUICKFLOW-001":{"description":"QuickFlow produces expected ready-tool plans and rejects unknown/empty input","owner":"STATIC-003","mode":"unit"},
+    "ASSERT-QUICKFLOW-001":{"description":"QuickFlow produces expected ready-tool plans and rejects invalid input","owner":"STATIC-003","mode":"unit"},
     "ASSERT-I18N-SOURCE-001":{"description":"Canonical locale list and normalization match the authoritative 20-locale SOT","owners":[{"check":"STATIC-003","mode":"unit-runtime"},{"check":"STATIC-009","mode":"static-structural"}],"allowReuse":true},
     "ASSERT-ROUTE-RESOLVER-001":{"description":"Canonical route resolver maps tool/locale routes correctly","owner":"STATIC-003","mode":"unit"},
     "ASSERT-UPLOAD-BOUNDARY-001":{"description":"Upload boundary rejects unsafe inputs and accepts valid inputs","owner":"STATIC-003","mode":"unit"},
@@ -89,7 +45,7 @@
     "ASSERT-BROWSER-WEBKIT-001":{"description":"WebKit proves browser-visible runtime behavior","owner":"BROWSER-003","mode":"runtime"}
   },
   "gates": {
-    "static":{"expected":27,"checks":[
+    "static":{"expected":26,"checks":[
       {"id":"STATIC-001","label":"typescript","command":"npx","args":["tsc","--noEmit","--pretty","false"],"rootCause":"RC-TYPE-001","assertions":["ASSERT-TYPEGRAPH-001"],"coverage":["COV-TYPEGRAPH"],"cost":"medium","value":"high","dependencies":[]},
       {"id":"STATIC-002","label":"lint","command":"npm","args":["run","lint"],"rootCause":"RC-TYPE-001","assertions":["ASSERT-LINT-001"],"coverage":["COV-LINT"],"cost":"medium","value":"medium","dependencies":[]},
       {"id":"STATIC-003","label":"unit","command":"npm","args":["run","test:unit"],"rootCause":"RC-UNKNOWN-001","assertions":["ASSERT-QUICKFLOW-001","ASSERT-I18N-SOURCE-001","ASSERT-ROUTE-RESOLVER-001","ASSERT-UPLOAD-BOUNDARY-001"],"coverage":["COV-UNIT","COV-I18N-SOURCE"],"cost":"medium","value":"high","dependencies":[]},
@@ -100,7 +56,6 @@
       {"id":"STATIC-008","label":"router","command":"npm","args":["run","validate:router-registry"],"rootCause":"RC-ROUTER-001","assertions":["ASSERT-ROUTER-001"],"coverage":["COV-ROUTER"],"cost":"medium","value":"high","dependencies":[]},
       {"id":"STATIC-009","label":"i18n","command":"npm","args":["run","validate:i18n"],"rootCause":"RC-I18N-001","assertions":["ASSERT-I18N-SOURCE-001","ASSERT-I18N-COMPLETENESS-001"],"coverage":["COV-I18N-SOURCE","COV-I18N-COMPLETENESS"],"cost":"medium","value":"high","dependencies":[]},
       {"id":"STATIC-010","label":"language-quality","command":"npm","args":["run","validate:language-quality"],"rootCause":"RC-I18N-001","assertions":["ASSERT-I18N-DIRECTION-001","ASSERT-I18N-NO-LEAKAGE-001"],"coverage":["COV-I18N-DIRECTION","COV-I18N-NO-LEAKAGE","COV-I18N-SEO"],"cost":"medium","value":"high","dependencies":[]},
-      {"id":"STATIC-011","label":"locale-integrity","command":"npm","args":["run","validate:locale-integrity"],"rootCause":"RC-I18N-001","assertions":["ASSERT-I18N-COMPLETENESS-001"],"coverage":["COV-I18N-COMPLETENESS"],"cost":"medium","value":"medium","dependencies":[]},
       {"id":"STATIC-012","label":"locale-navigation","command":"npm","args":["run","validate:locale-navigation"],"rootCause":"RC-I18N-001","assertions":["ASSERT-I18N-NAVIGATION-001"],"coverage":["COV-I18N-NAVIGATION"],"cost":"medium","value":"high","dependencies":[]},
       {"id":"STATIC-013","label":"home-i18n","command":"npm","args":["run","validate:home-i18n"],"rootCause":"RC-I18N-001","assertions":["ASSERT-HOME-I18N-001"],"coverage":["COV-HOME-I18N"],"cost":"medium","value":"medium","dependencies":[]},
       {"id":"STATIC-014","label":"localization-full","command":"npm","args":["run","validate:localization-full"],"rootCause":"RC-I18N-001","assertions":["ASSERT-LOCALIZATION-FULL-001"],"coverage":["COV-LOCALIZATION-FULL"],"cost":"medium","value":"high","dependencies":[]},
