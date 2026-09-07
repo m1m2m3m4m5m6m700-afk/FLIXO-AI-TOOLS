@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
 import { LOCALES, LOCALE_METADATA } from '../src/lib/i18n/config.ts';
@@ -11,7 +11,7 @@ const indexHtml = readFileSync(INDEX_FILE, 'utf8');
 const readyTools = TOOL_MANIFEST.filter((tool) => tool.isReady);
 if (!readyTools.length) throw new Error('Static route generation requires at least one ready tool.');
 
-function localizedDocument(index: string, locale: (typeof LOCALES)[number]): string {
+function localizedDocument(index, locale) {
   const metadata = LOCALE_METADATA[locale];
   if (!metadata) throw new Error(`Missing locale metadata for static route: ${locale}`);
 
