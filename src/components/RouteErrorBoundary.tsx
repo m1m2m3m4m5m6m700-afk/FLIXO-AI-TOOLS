@@ -1,3 +1,4 @@
+import type { ErrorComponentProps, NotFoundComponentProps } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { Component } from 'react';
 
@@ -33,4 +34,22 @@ export class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, Route
 
     return this.props.children;
   }
+}
+
+export function ErrorComponent({ error }: ErrorComponentProps): ReactNode {
+  return (
+    <main role="alert" aria-live="assertive">
+      <h1>Something went wrong</h1>
+      <p>{error instanceof Error ? error.message : 'The page could not be rendered.'}</p>
+    </main>
+  );
+}
+
+export function NotFoundComponent(_props: NotFoundComponentProps): ReactNode {
+  return (
+    <main>
+      <h1>Page not found</h1>
+      <p>The requested FLIXO route does not exist.</p>
+    </main>
+  );
 }
