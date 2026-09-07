@@ -1,64 +1,90 @@
 import { readFileSync } from 'node:fs';
+import { replayAgentLedger, normalizePath, overlaps } from './replay-agent-ledger.mjs';
 
-const queuePath = '.ci/agent-coordination/work-queue.json';
-const claimsPath = '.ci/agent-coordination/claims.json';
-const queue = JSON.parse(readFileSync(queuePath, 'utf8'));
-const claims = JSON.parse(readFileSync(claimsPath, 'utf8'));
+const QUEUE = process.env.FLIXO_SWARM_WORK_QUEUE ?? '.ci/agent-coordination/work-queue.json';
+const LEDGER = process.env.FLIXO_SWARM_LEDGER ?? 'artifacts/ci/agent-coordination/events.ndjson';
+const HEAD = process.env.EXPECTED_HEAD_SHA ?? '';
 const fail = (message) => { throw new Error(`Agent work queue validation failed: ${message}`); };
-const normalize = (value) => String(value ?? '').replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
-const overlaps = (left, right) => left === right || left.startsWith(`${right}/`) || right.startsWith(`${left}/`);
+
+const resolveHead = () => {
+  if (HEAD) return HEAD;
+  try { return require('node:child_process').execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { fail('current HEAD unavailable'); }
+};
+const headSha = resolveHead();
+const queue = JSON.parse(readFileSync(QUEUE, 'utf8'));
 if (queue.schemaVersion !== 2 || queue.protocol !== 'FLIXO agent work queue') fail('schema/protocol mismatch');
 if (!Array.isArray(queue.items) || queue.items.length === 0) fail('items must be non-empty');
 if (!Number.isInteger(queue.parallelism?.maxReadyPerLane) || queue.parallelism.maxReadyPerLane < 1) fail('parallelism.maxReadyPerLane must be >= 1');
-const ids = new Set();
+
 const byId = new Map();
 for (const item of queue.items) {
   if (!item || typeof item !== 'object') fail('item must be object');
   if (!/^WQ-[A-Z0-9-]+$/u.test(item.id ?? '')) fail(`invalid item id: ${item.id}`);
-  if (ids.has(item.id)) fail(`duplicate item id: ${item.id}`);
-  ids.add(item.id); byId.set(item.id, item);
+  if (byId.has(item.id)) fail(`duplicate item id: ${item.id}`);
   if (!item.title || !item.ownerRole || !item.ownerAgentId) fail(`incomplete ownership on ${item.id}`);
   if (!Array.isArray(item.dependsOn) || !Array.isArray(item.contracts) || !Array.isArray(item.rootCauseIds) || !Array.isArray(item.paths)) fail(`invalid arrays on ${item.id}`);
   if (item.parallelGroup !== undefined && (typeof item.parallelGroup !== 'string' || !item.parallelGroup)) fail(`invalid parallelGroup on ${item.id}`);
-  if (item.paths.some((path) => !normalize(path))) fail(`empty path on ${item.id}`);
+  if (item.paths.some((path) => !normalizePath(path))) fail(`empty path on ${item.id}`);
+  byId.set(item.id, item);
 }
+
 for (const item of queue.items) for (const dep of item.dependsOn) if (dep === item.id || !byId.has(dep)) fail(`unknown/self dependency ${dep} on ${item.id}`);
-const visiting = new Set(); const visited = new Set();
+const visiting = new Set();
+const visited = new Set();
 const visit = (id) => {
   if (visited.has(id)) return;
   if (visiting.has(id)) fail(`dependency cycle involving ${id}`);
   visiting.add(id);
   for (const dep of byId.get(id).dependsOn) visit(dep);
-  visiting.delete(id); visited.add(id);
+  visiting.delete(id);
+  visited.add(id);
 };
 for (const item of queue.items) visit(item.id);
-for (const item of queue.items) {
-  for (const other of queue.items) if (item.id !== other.id) {
-    const sharedContract = item.contracts.some((id) => other.contracts.includes(id));
-    const sharedRootCause = item.rootCauseIds.some((id) => other.rootCauseIds.includes(id));
-    const sharedPath = item.paths.some((path) => other.paths.some((otherPath) => overlaps(normalize(path), normalize(otherPath))));
-    if ((sharedContract || sharedRootCause || sharedPath) && item.ownerAgentId !== other.ownerAgentId) fail(`logical ownership collision: ${item.id} <-> ${other.id}`);
-    if (item.parallelGroup && item.parallelGroup === other.parallelGroup && (sharedContract || sharedRootCause || sharedPath)) fail(`parallel group contains overlapping scope: ${item.id} <-> ${other.id}`);
+
+const dependsTransitivelyOn = (fromId, targetId, seen = new Set()) => {
+  if (seen.has(fromId)) return false;
+  seen.add(fromId);
+  const item = byId.get(fromId);
+  if (!item) return false;
+  return item.dependsOn.includes(targetId) || item.dependsOn.some((dep) => dependsTransitivelyOn(dep, targetId, seen));
+};
+const sequentiallyOrdered = (left, right) => dependsTransitivelyOn(left.id, right.id) || dependsTransitivelyOn(right.id, left.id);
+
+for (let i = 0; i < queue.items.length; i += 1) {
+  for (let j = i + 1; j < queue.items.length; j += 1) {
+    const left = queue.items[i];
+    const right = queue.items[j];
+    const sharedContract = left.contracts.some((id) => right.contracts.includes(id));
+    const sharedRootCause = left.rootCauseIds.some((id) => right.rootCauseIds.includes(id));
+    const sharedPath = left.paths.some((path) => right.paths.some((other) => overlaps(path, other)));
+    const overlap = sharedContract || sharedRootCause || sharedPath;
+    if (!overlap) continue;
+    const sameParallelGroup = left.parallelGroup && left.parallelGroup === right.parallelGroup;
+    if (sameParallelGroup) fail(`parallel group contains overlapping scope: ${left.id} <-> ${right.id}`);
+    if (left.ownerAgentId !== right.ownerAgentId && !sequentiallyOrdered(left, right)) fail(`concurrent logical ownership collision: ${left.id} <-> ${right.id}`);
   }
 }
-const claimedItems = new Map();
-for (const claim of claims.claims ?? []) {
+
+const state = replayAgentLedger(readFileSync(LEDGER, 'utf8'), { headSha, signingKey: process.env.FLIXO_SWARM_EVENT_SIGNING_KEY ?? '' });
+for (const claim of state.claims.values()) {
+  if (claim.status !== 'active') continue;
   for (const workItemId of claim.workItemIds ?? []) {
-    if (!byId.has(workItemId)) fail(`claim ${claim.agentId} references unknown work item ${workItemId}`);
-    if (claimedItems.has(workItemId) && claimedItems.get(workItemId) !== claim.agentId) fail(`work item ${workItemId} claimed by multiple agents`);
-    claimedItems.set(workItemId, claim.agentId);
-    if (claim.status === 'active') {
-      const item = byId.get(workItemId);
-      if (item.ownerAgentId !== claim.agentId) fail(`active claim ${claim.agentId} does not match owner of ${workItemId}`);
-      const claimPaths = (claim.scope?.paths ?? []).map(normalize);
-      for (const itemPath of item.paths.map(normalize)) if (!claimPaths.some((claimPath) => overlaps(itemPath, claimPath))) fail(`claim ${claim.agentId} does not cover path ${itemPath} for ${workItemId}`);
-    }
+    const item = byId.get(workItemId);
+    if (!item) fail(`active claim ${claim.agentId} references unknown work item ${workItemId}`);
+    if (item.ownerAgentId !== claim.agentId || item.status !== 'in_progress') fail(`active claim binding mismatch for ${claim.agentId}/${workItemId}`);
+    const claimPaths = (claim.scope?.paths ?? []).map(normalizePath);
+    for (const itemPath of item.paths.map(normalizePath)) if (!claimPaths.some((path) => overlaps(itemPath, path))) fail(`active claim ${claim.agentId} does not cover ${itemPath}`);
   }
 }
+
 for (const item of queue.items) {
-  if (!['in_progress', 'blocked_by_ci', 'ready'].includes(item.status)) continue;
-  const claimAgent = claimedItems.get(item.id);
-  if (item.status === 'in_progress' && claimAgent !== item.ownerAgentId) fail(`in_progress work item ${item.id} has no matching claim`);
+  const stateItem = state.workItems.get(item.id);
+  if (!stateItem) fail(`queue item ${item.id} absent from ledger`);
+  if ((stateItem.status ?? null) !== (item.status ?? null) || (stateItem.ownerAgentId ?? null) !== (item.ownerAgentId ?? null)) fail(`queue projection drift for ${item.id}`);
+  if (item.status === 'in_progress') {
+    const claim = [...state.claims.values()].find((candidate) => candidate.status === 'active' && (candidate.workItemIds ?? []).includes(item.id));
+    if (!claim || claim.agentId !== item.ownerAgentId) fail(`in_progress work item ${item.id} lacks ledger claim binding`);
+  }
 }
-for (const [agentId, claim] of (claims.claims ?? []).map((claim) => [claim.agentId, claim])) if (!Array.isArray(claim.workItemIds ?? [])) fail(`claim ${agentId}.workItemIds must be an array`);
-console.log(`Agent work queue PASS: ${queue.items.length} items, acyclic DAG, path/logical isolation enforced, claim bindings coherent.`);
+
+console.log(`Agent work queue PASS: ${queue.items.length} items, acyclic DAG, parallel isolation enforced, ledger-authoritative claim bindings.`);
