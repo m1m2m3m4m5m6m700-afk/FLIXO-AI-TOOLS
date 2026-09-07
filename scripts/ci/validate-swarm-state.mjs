@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { replayAgentLedger } from './replay-agent-ledger.mjs';
 
 const LEDGER = process.env.FLIXO_SWARM_LEDGER ?? 'artifacts/ci/agent-coordination/events.ndjson';
 const QUEUE = process.env.FLIXO_SWARM_WORK_QUEUE ?? '.ci/agent-coordination/work-queue.json';
-const HEAD = process.env.EXPECTED_HEAD_SHA ?? '';
 const fail = (message) => { throw new Error(`SWARM_STATE_INVALID: ${message}`); };
-const headSha = HEAD || (() => { try { return require('node:child_process').execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return ''; } })();
+const headSha = process.env.EXPECTED_HEAD_SHA ?? (() => { try { return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return ''; } })();
 if (!headSha) fail('current HEAD unavailable');
 
 const state = replayAgentLedger(readFileSync(LEDGER, 'utf8'), { headSha, signingKey: process.env.FLIXO_SWARM_EVENT_SIGNING_KEY ?? '' });
@@ -38,12 +38,4 @@ const stateHash = createHash('sha256').update(JSON.stringify({
   claims: [...state.claims.values()].sort((a, b) => a.agentId.localeCompare(b.agentId)),
   workItems: [...state.workItems.values()].sort((a, b) => a.id.localeCompare(b.id)),
 })).digest('hex');
-console.log(JSON.stringify({
-  result: 'PASS',
-  mode: 'ledger-authoritative',
-  headSha,
-  events: state.events.length,
-  activeClaims: [...state.claims.values()].filter((claim) => claim.status === 'active').map((claim) => claim.agentId).sort(),
-  workItems: state.workItems.size,
-  stateHash,
-}, null, 2));
+console.log(JSON.stringify({ result: 'PASS', mode: 'ledger-authoritative', headSha, events: state.events.length, activeClaims: [...state.claims.values()].filter((claim) => claim.status === 'active').map((claim) => claim.agentId).sort(), workItems: state.workItems.size, stateHash }, null, 2));
