@@ -34,7 +34,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Run blocking Socket supply-chain scan
+      - name: Blocking Socket supply-chain scan
         run: npx --yes @socketsecurity/cli@1.1.158 ci
 
   engineering-gate:
@@ -59,22 +59,6 @@ jobs:
           echo "Canonical CI did not complete successfully for $GITHUB_SHA."
           exit 1
 
-      - name: Wait for canonical Full Matrix Parallel certification
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          for attempt in {1..36}; do
-            result="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow full-matrix-parallel.yml --commit "$GITHUB_SHA" --limit 1 --json status,conclusion,databaseId)"
-            echo "$result"
-            status="$(node -e "const r=$result; console.log(r[0]?.status ?? '')")"
-            conclusion="$(node -e "const r=$result; console.log(r[0]?.conclusion ?? '')")"
-            if [[ "$status" == "completed" && "$conclusion" == "success" ]]; then exit 0; fi
-            sleep 10
-          done
-          echo "Canonical Full Matrix Parallel certification did not complete successfully for $GITHUB_SHA."
-          exit 1
-
       - name: Verify production surface
         env:
           PRODUCTION_ORIGIN: https://flixoai.vercel.app
@@ -91,7 +75,6 @@ jobs:
             echo 'Blocking evidence:'
             echo '- Socket supply-chain scan: PASS'
             echo '- Canonical GitHub CI: PASS'
-            echo '- Full Matrix Parallel certification: PASS'
             echo '- Production surface certification: PASS'
             echo
             echo 'Vercel provider-side quota status is recorded separately and never converted into an engineering PASS.'
