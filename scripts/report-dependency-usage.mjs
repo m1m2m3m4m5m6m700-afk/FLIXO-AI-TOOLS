@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { execFileSync, spawnSync } from 'node:child_process';
-import { basename, join, relative } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { join, relative } from 'node:path';
 
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
 const declared = {
@@ -23,6 +23,14 @@ const legacyNames = new Set([
   '@ffmpeg/core', '@ffmpeg/ffmpeg', '@types/gif.js', 'gif.js', 'gifuct-js',
   'pdf-lib', 'pdfjs-dist', 'jspdf', 'nodemailer', '@types/nodemailer',
   'drizzle-orm', 'postgres', 'drizzle-kit', 'vite-tsconfig-paths',
+]);
+
+const commandToDependency = new Map([
+  ['vite', 'vite'],
+  ['eslint', 'eslint'],
+  ['prettier', 'prettier'],
+  ['tsc', 'typescript'],
+  ['playwright', 'playwright'],
 ]);
 
 function walk(dir) {
@@ -62,19 +70,44 @@ function usageFor(name) {
   });
 }
 
+function scriptUsageFor(name) {
+  const hits = [];
+  for (const [scriptName, command] of Object.entries(packageJson.scripts ?? {})) {
+    for (const [commandName, dependencyName] of commandToDependency) {
+      if (dependencyName !== name) continue;
+      const pattern = new RegExp(`(^|[;&|\\s])${escapeRegex(commandName)}(?=\\s|$)`, 'g');
+      const count = command.match(pattern)?.length ?? 0;
+      if (count) hits.push({ file: 'package.json', script: scriptName, count });
+    }
+  }
+  return hits;
+}
+
+function typeToolchainUsage(name) {
+  if (!name.startsWith('@types/')) return [];
+  if (!['typescript', 'tsx', 'ts-node'].some((tool) => Object.hasOwn(declared, tool))) {
+    return [];
+  }
+  const runtimeName = name.replace(/^@types\//, '');
+  if (runtimeName === 'node' || runtimeName === 'react' || runtimeName === 'react-dom') {
+    return [{ file: 'tsconfig.json', count: 1, reason: 'TypeScript compiler type environment' }];
+  }
+  return [];
+}
+
 function roleFor(file) {
-  if (file.startsWith('tests/') || /(?:^|[/_.-])(?:test|tests|spec|e2e)(?:[/_.-]|$)/i.test(file)) {
-    return 'USED_TEST';
-  }
+  if (file.startsWith('tests/') || /(?:^|[/_.-])(?:test|tests|spec|e2e)(?:[/_.-]|$)/i.test(file)) return 'USED_TEST';
   if (file.startsWith('src/')) return 'USED_RUNTIME';
-  if (file.startsWith('scripts/') || file.startsWith('.github/') || rootConfigFiles.includes(file)) {
-    return 'USED_BUILD';
-  }
+  if (file.startsWith('scripts/') || file.startsWith('.github/') || rootConfigFiles.includes(file)) return 'USED_BUILD';
   return 'USED_BUILD';
 }
 
 const entries = dependencyNames.map((name) => {
-  const usage = usageFor(name).map((item) => ({ ...item, role: roleFor(item.file) }));
+  const usage = [
+    ...usageFor(name).map((item) => ({ ...item, role: roleFor(item.file) })),
+    ...scriptUsageFor(name).map((item) => ({ ...item, role: 'USED_BUILD' })),
+    ...typeToolchainUsage(name).map((item) => ({ ...item, role: 'USED_BUILD' })),
+  ];
   const roles = new Set(usage.map((item) => item.role));
   let classification = 'UNUSED';
   if (legacyNames.has(name)) classification = 'LEGACY';
@@ -131,15 +164,7 @@ const counts = entries.reduce((acc, entry) => {
   acc.total += 1;
   acc[entry.classification] = (acc[entry.classification] ?? 0) + 1;
   return acc;
-}, {
-  total: 0,
-  USED_RUNTIME: 0,
-  USED_BUILD: 0,
-  USED_TEST: 0,
-  TRANSITIVE_ONLY: transitiveOnly.length,
-  UNUSED: 0,
-  LEGACY: 0,
-});
+}, { total: 0, USED_RUNTIME: 0, USED_BUILD: 0, USED_TEST: 0, TRANSITIVE_ONLY: transitiveOnly.length, UNUSED: 0, LEGACY: 0 });
 
 const report = {
   generatedAt: new Date().toISOString(),
@@ -172,7 +197,7 @@ console.log(`package-lock drift: ${lockfileDrift ? 'FAIL' : 'PASS'}`);
 console.log(`npm ls: ${npmLsBroken ? 'FAIL' : 'PASS'}`);
 
 for (const entry of entries) {
-  const files = entry.files.map((item) => `${item.file}:${item.count}`).join(', ');
+  const files = entry.files.map((item) => `${item.file}:${item.count}${item.reason ? `:${item.reason}` : ''}`).join(', ');
   console.log(`${entry.classification.padEnd(13)} ${entry.name} [${entry.declaredIn}] ${files || 'NO_USAGE'}`);
 }
 
