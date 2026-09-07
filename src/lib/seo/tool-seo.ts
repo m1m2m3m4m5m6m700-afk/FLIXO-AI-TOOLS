@@ -6,11 +6,9 @@ import { localizeToolCategory, localizeToolDescription } from '../i18n/tool-loca
 
 const LOCALE_LABELS: Record<string, string> = {
   ar: 'أداة عبر الإنترنت', en: 'Online tool', es: 'Herramienta en línea', fr: 'Outil en ligne',
-  de: 'Online-Tool', hi: 'ऑनलाइन टूल', id: 'Alat online', it: 'Strumento online',
-  ja: 'オンラインツール', ko: '온라인 도구', nl: 'Online tool', pl: 'Narzędzie online',
-  pt: 'Ferramenta online', ru: 'Онлайн-инструмент', sv: 'Onlineverktyg',
-  th: 'เครื่องมือออนไลน์', tr: 'Çevrimiçi araç', vi: 'Công cụ trực tuyến',
-  ur: 'آن لائن ٹول', zh: '在线工具',
+  de: 'Online-Tool', ru: 'Онлайн-инструмент', zh: '在线工具', hi: 'ऑनलाइन टूल', id: 'Alat online', ur: 'آن لائن ٹول',
+  ja: 'オンラインツール', pt: 'Ferramenta online', it: 'Strumento online', ko: '온라인 도구', nl: 'Online tool',
+  pl: 'Narzędzie online', tr: 'Çevrimiçi araç', vi: 'Công cụ trực tuyến', th: 'เครื่องมือออนไลน์', sv: 'Onlineverktyg',
 };
 
 const FALLBACK_COPY: Record<string, Readonly<{ open: string; configure: string; run: string; download: string; browser: string; interface: string }>> = {
@@ -21,19 +19,18 @@ const FALLBACK_COPY: Record<string, Readonly<{ open: string; configure: string; 
   de: { open: 'Öffnen Sie das Tool.', configure: 'Konfigurieren Sie die verfügbaren Optionen.', run: 'Führen Sie das Tool aus.', download: 'Laden Sie das Ergebnis herunter.', browser: 'Browserbasierte Verarbeitung', interface: 'Oberfläche' },
   hi: { open: 'टूल खोलें।', configure: 'उपलब्ध विकल्प कॉन्फ़िगर करें।', run: 'टूल चलाएँ।', download: 'परिणाम डाउनलोड करें।', browser: 'ब्राउज़र-प्राथमिक प्रोसेसिंग', interface: 'इंटरफ़ेस' },
   id: { open: 'Buka alat.', configure: 'Atur opsi yang tersedia.', run: 'Jalankan alat.', download: 'Unduh hasilnya.', browser: 'Pemrosesan berbasis browser', interface: 'antarmuka' },
-  it: { open: 'Apri lo strumento.', configure: 'Configura le opzioni disponibili.', run: 'Esegui lo strumento.', download: 'Scarica il risultato.', browser: 'Elaborazione prioritaria nel browser', interface: 'interfaccia' },
+  ur: { open: 'ٹول کھولیں۔', configure: 'دستیاب اختیارات مرتب کریں۔', run: 'ٹول چلائیں۔', download: 'نتیجہ ڈاؤن لوڈ کریں۔', browser: 'براؤزر پر مبنی پراسیسنگ', interface: 'انٹرفیس' },
   ja: { open: 'ツールを開きます。', configure: '利用可能なオプションを設定します。', run: 'ツールを実行します。', download: '結果をダウンロードします。', browser: 'ブラウザ優先の処理', interface: 'インターフェース' },
+  pt: { open: 'Abra a ferramenta.', configure: 'Configure as opções disponíveis.', run: 'Execute a ferramenta.', download: 'Baixe o resultado.', browser: 'Processamento prioritário no navegador', interface: 'interface' },
+  it: { open: 'Apri lo strumento.', configure: 'Configura le opzioni disponibili.', run: 'Esegui lo strumento.', download: 'Scarica il risultato.', browser: 'Elaborazione prioritaria nel browser', interface: 'interfaccia' },
   ko: { open: '도구를 엽니다.', configure: '사용 가능한 옵션을 설정합니다.', run: '도구를 실행합니다.', download: '결과를 다운로드합니다.', browser: '브라우저 우선 처리', interface: '인터페이스' },
   nl: { open: 'Open de tool.', configure: 'Configureer de beschikbare opties.', run: 'Voer de tool uit.', download: 'Download het resultaat.', browser: 'Browsergerichte verwerking', interface: 'interface' },
   pl: { open: 'Otwórz narzędzie.', configure: 'Skonfiguruj dostępne opcje.', run: 'Uruchom narzędzie.', download: 'Pobierz wynik.', browser: 'Przetwarzanie w przeglądarce', interface: 'interfejs' },
-  pt: { open: 'Abra a ferramenta.', configure: 'Configure as opções disponíveis.', run: 'Execute a ferramenta.', download: 'Baixe o resultado.', browser: 'Processamento prioritário no navegador', interface: 'interface' },
-  ru: { open: 'Откройте инструмент.', configure: 'Настройте доступные параметры.', run: 'Запустите инструмент.', download: 'Скачайте результат.', browser: 'Обработка в браузере', interface: 'интерфейс' },
-  sv: { open: 'Öppna verktyget.', configure: 'Konfigurera tillgängliga alternativ.', run: 'Kör verktyget.', download: 'Ladda ner resultatet.', browser: 'Webbläsarbaserad bearbetning', interface: 'gränssnitt' },
-  th: { open: 'เปิดเครื่องมือ', configure: 'กำหนดค่าตัวเลือกที่มี', run: 'เรียกใช้เครื่องมือ', download: 'ดาวน์โหลดผลลัพธ์', browser: 'ประมวลผลในเบราว์เซอร์เป็นหลัก', interface: 'อินเทอร์เฟซ' },
   tr: { open: 'Aracı açın.', configure: 'Mevcut seçenekleri yapılandırın.', run: 'Aracı çalıştırın.', download: 'Sonucu indirin.', browser: 'Tarayıcı öncelikli işleme', interface: 'arayüz' },
-  ur: { open: 'ٹول کھولیں۔', configure: 'دستیاب اختیارات مرتب کریں۔', run: 'ٹول چلائیں۔', download: 'نتیجہ ڈاؤن لوڈ کریں۔', browser: 'براؤزر پر مبنی پراسیسنگ', interface: 'انٹرفیس' },
   vi: { open: 'Mở công cụ.', configure: 'Cấu hình các tùy chọn có sẵn.', run: 'Chạy công cụ.', download: 'Tải kết quả xuống.', browser: 'Xử lý ưu tiên trong trình duyệt', interface: 'giao diện' },
   zh: { open: '打开工具。', configure: '配置可用选项。', run: '运行工具。', download: '下载结果。', browser: '浏览器优先处理', interface: '界面' },
+  th: { open: 'เปิดเครื่องมือ', configure: 'กำหนดค่าตัวเลือกที่มี', run: 'เรียกใช้เครื่องมือ', download: 'ดาวน์โหลดผลลัพธ์', browser: 'ประมวลผลในเบราว์เซอร์เป็นหลัก', interface: 'อินเทอร์เฟซ' },
+  sv: { open: 'Öppna verktyget.', configure: 'Konfigurera tillgängliga alternativ.', run: 'Kör verktyget.', download: 'Ladda ner resultatet.', browser: 'Webbläsarbaserad bearbetning', interface: 'gränssnitt' },
 };
 
 export const READY_TOOL_IDS = Object.freeze(getReadyToolConfigs().map((tool) => tool.id));
