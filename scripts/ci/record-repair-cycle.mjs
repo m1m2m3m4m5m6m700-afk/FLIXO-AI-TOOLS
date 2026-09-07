@@ -1,106 +1,100 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { resolve } from 'node:path';
 
 const ROOT = process.cwd();
-const DIAG_DIR = resolve(ROOT, 'diagnostics/ci');
-mkdirSync(DIAG_DIR, { recursive: true });
+const DIR = resolve(ROOT, 'diagnostics/ci');
+mkdirSync(DIR, { recursive: true });
 const now = new Date().toISOString();
 const sha = process.env.GITHUB_SHA || process.env.EXPECTED_SHA || 'UNKNOWN';
 const mode = process.env.FLIXO_TEST_MODE || 'certification';
 const runId = process.env.GITHUB_RUN_ID || 'local';
-const gateNames = ['static', 'build', 'browser'];
-const reportPath = resolve(DIAG_DIR, 'report.json');
 const registry = JSON.parse(readFileSync(resolve(ROOT, 'scripts/ci/root-causes.json'), 'utf8'));
-
-function readGateReports() {
-  return gateNames.map((gate) => {
-    const path = resolve(DIAG_DIR, `${gate}.json`);
-    if (!existsSync(path)) return null;
-    try {
-      return JSON.parse(readFileSync(path, 'utf8'));
-    } catch {
-      return { schema: 'flixo-gate-report/v5', sha, gate: gate.toUpperCase(), mode, status: 'FAIL', rootCauses: ['RC-DIAGNOSTIC-002'], checks: [{ label: `${gate}-report`, status: 'FAIL', exitCode: 1, command: `npm run test:${gate}`, rootCauseId: 'RC-DIAGNOSTIC-002', fingerprint: 'FPR-DIAGNOSTIC-002', repro: `npm run test:${gate}`, error: { category: 'DIAGNOSTIC', normalized: `Unable to parse ${gate}.json` } }] };
-    }
-  }).filter(Boolean);
-}
-
-function correlate({ cycle, reports }) {
-  const failures = reports.flatMap((report) => (report.checks ?? []).filter((check) => check.status === 'FAIL').map((check) => ({ ...check, gate: report.gate })));
-  const byRoot = new Map();
-  for (const failure of failures) {
-    const id = failure.rootCauseId ?? 'RC-UNKNOWN-001';
-    const current = byRoot.get(id) ?? { id, rootCauseId: id, occurrences: 0, distinctSymptoms: new Set(), confidence: 0.5 };
-    current.occurrences += 1;
-    current.distinctSymptoms.add(failure.fingerprint ?? failure.label);
-    current.confidence = Math.min(0.99, current.confidence + 0.1);
-    byRoot.set(id, current);
-  }
-  const roots = [...byRoot.values()].map((root) => ({ ...root, distinctSymptoms: [...root.distinctSymptoms], status: registry[root.id] ? 'KNOWN' : 'UNKNOWN', recurrenceCount: 0, regressionCount: 0 }));
-  const clusters = roots.map((root) => ({ id: `SRC-${root.id}`, rootCauseId: root.id, occurrences: root.occurrences, distinctSymptoms: root.distinctSymptoms, confidence: root.confidence }));
-  return { distinctSymptoms: new Set(failures.map((failure) => failure.fingerprint ?? failure.label)).size, clusters, recurrenceCount: 0, regressionCount: 0, newRootCount: roots.filter((root) => root.status === 'UNKNOWN').length, memory: { cycles: cycle.status === 'PASS' ? 0 : 1 }, roots };
-}
-
-function cycleFingerprint(cycle) {
-  const stableFailures = cycle.failures.map(({ rootCauseId, occurrences, fingerprints, repro, affectedChecks }) => ({ rootCauseId, occurrences, fingerprints: [...(fingerprints ?? [])].sort(), repro: repro ?? null, affectedChecks: affectedChecks ?? [] }));
-  return createHash('sha256').update(JSON.stringify({ mode: cycle.mode, rootCauses: cycle.rootCauses, failures: stableFailures })).digest('hex');
-}
-
-function writeCycleFiles(cycle, correlation) {
-  appendFileSync(resolve(DIAG_DIR, 'repair-cycles.jsonl'), `${JSON.stringify(cycle)}\n`);
-  writeFileSync(resolve(DIAG_DIR, 'latest-repair-cycle.json'), `${JSON.stringify({ ...cycle, correlation }, null, 2)}\n`);
-  const ledger = {
-    schemaVersion: 3, schema: 'flixo-failure-ledger/v3', generatedAt: now, sha, mode, runId, status: cycle.status,
-    totalRootCauses: cycle.failures.length, totalFailureOccurrences: cycle.failures.reduce((sum, item) => sum + item.occurrences, 0), rootCauses: cycle.failures,
-    distinctSymptoms: correlation.distinctSymptoms, correlatedClusters: correlation.clusters.length, knownRootCausesRecurring: correlation.recurrenceCount,
-    regressions: correlation.regressionCount, newRootCauses: correlation.newRootCount, memoryCycles: correlation.memory.cycles, noSymptomPatching: correlation.roots.length > 0,
-  };
-  writeFileSync(resolve(DIAG_DIR, 'failure-ledger.json'), `${JSON.stringify(ledger, null, 2)}\n`);
-  return ledger;
-}
-
-function fallbackCycle() {
-  return { schemaVersion: 3, schema: 'flixo-repair-cycle/v3', cycleId: `RCYCLE-NO-REPORT-${sha.slice(0, 12)}`, recordedAt: now, sha, mode, runId, status: 'FAIL', gatesExpected: 3, gatesExecuted: 0, rootCauses: ['RC-DIAGNOSTIC-001'], failures: [{ rootCauseId: 'RC-DIAGNOSTIC-001', occurrences: 1, fingerprints: ['FPR-DIAGNOSTIC-001'], repro: 'Inspect the earliest failed CI step before gate diagnostics were produced', affectedChecks: [] }], firstFailure: { gate: 'CI', rootCauseId: 'RC-DIAGNOSTIC-001', fingerprint: 'FPR-DIAGNOSTIC-001', repro: 'Inspect the earliest failed CI step before gate diagnostics were produced' }, sourceReports: [] };
-}
-
-const gateReports = readGateReports();
-if (gateReports.length === 0 && !existsSync(reportPath)) {
-  const fallback = fallbackCycle();
-  const correlation = correlate({ cycle: fallback, reports: [{ gate: 'CI', checks: [{ label: 'diagnostic-report', status: 'FAIL', exitCode: 1, rootCauseId: 'RC-DIAGNOSTIC-001', fingerprint: 'FPR-DIAGNOSTIC-001', repro: fallback.firstFailure.repro, error: { category: 'DIAGNOSTIC', normalized: 'No gate report was produced' } }] }] });
-  writeCycleFiles(fallback, correlation);
-  console.error('No gate report was produced; recorded fail-closed diagnostic cycle RC-DIAGNOSTIC-001.');
-  process.exit(0);
-}
-
-const reports = gateReports.length > 0 ? gateReports : [JSON.parse(readFileSync(reportPath, 'utf8'))];
+const canonicalPath = resolve(DIR, 'canonical-result.json');
+const canonical = existsSync(canonicalPath) ? JSON.parse(readFileSync(canonicalPath, 'utf8')) : null;
+const cycleHistoryPath = resolve(DIR, 'repair-cycles.jsonl');
+const previousCycles = existsSync(cycleHistoryPath)
+  ? readFileSync(cycleHistoryPath, 'utf8').split(/\r?\n/).filter(Boolean).flatMap((line) => { try { return [JSON.parse(line)]; } catch { return []; } })
+  : [];
+const reports = canonical?.reports ?? ['static', 'build', 'browser'].map((gate) => { const path = resolve(DIR, `${gate}.json`); return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null; }).filter(Boolean);
 const allFailures = reports.flatMap((report) => (report.checks ?? []).filter((check) => check.status === 'FAIL').map((check) => ({ gate: report.gate, ...check })));
 const clusters = new Map();
 for (const failure of allFailures) {
   const rootCauseId = failure.rootCauseId ?? 'RC-UNKNOWN-001';
-  const current = clusters.get(rootCauseId) ?? { rootCauseId, occurrences: 0, fingerprints: new Set(), repro: failure.repro ?? null, affectedChecks: [] };
+  const current = clusters.get(rootCauseId) ?? { rootCauseId, occurrences: 0, fingerprints: new Set(), repro: failure.repro ?? null, affectedChecks: [], symptoms: new Set(), category: registry[rootCauseId]?.category ?? 'UNKNOWN' };
   current.occurrences += 1;
-  if (failure.fingerprint) current.fingerprints.add(failure.fingerprint);
+  if (failure.fingerprint) { current.fingerprints.add(failure.fingerprint); current.symptoms.add(failure.fingerprint); }
   current.affectedChecks.push({ gate: failure.gate, label: failure.label, exitCode: failure.exitCode });
   clusters.set(rootCauseId, current);
 }
-const failures = [...clusters.values()].map((cluster) => ({ ...cluster, fingerprints: [...cluster.fingerprints] }));
-const status = reports.length === gateNames.length && reports.every((report) => report.status === 'PASS') ? 'PASS' : 'FAIL';
-const rootCauses = failures.map((failure) => failure.rootCauseId);
-const firstFailure = allFailures[0] ?? null;
-const baseCycle = { schemaVersion: 3, schema: 'flixo-repair-cycle/v3', recordedAt: now, sha, mode, runId, status, gatesExpected: gateNames.length, gatesExecuted: reports.length, rootCauses, failures, firstFailure: firstFailure ? { gate: firstFailure.gate, rootCauseId: firstFailure.rootCauseId ?? 'RC-UNKNOWN-001', fingerprint: firstFailure.fingerprint ?? null, repro: firstFailure.repro ?? null } : null, sourceReports: reports.map((report) => `${String(report.gate).toLowerCase()}.json`) };
-const cycleId = `RCYCLE-${cycleFingerprint(baseCycle).slice(0, 12).toUpperCase()}`;
-const cycle = { ...baseCycle, cycleId };
-const correlation = correlate({ cycle, reports });
-const ledger = writeCycleFiles(cycle, correlation);
-const markdown = ['# Repair Cycle Diagnostic', '', `STATUS: ${status}`, `SHA: ${sha}`, `MODE: ${mode}`, `RUN: ${runId}`, `CYCLE: ${cycleId}`, '', `FAILURES: ${allFailures.length}`, `DISTINCT SYMPTOMS: ${correlation.distinctSymptoms}`, `CORRELATED CLUSTERS: ${correlation.clusters.length}`, `KNOWN ROOT CAUSES RECURRING: ${correlation.recurrenceCount}`, `REGRESSIONS: ${correlation.regressionCount}`, `NEW ROOT CAUSES: ${correlation.newRootCount}`, `MEMORY CYCLES: ${correlation.memory.cycles}`, '', 'ROOT CAUSE MEMORY:', ...(correlation.roots.length ? correlation.roots.map((root) => `- ${root.id}: status=${root.status}, confidence=${root.confidence}, occurrences=${root.occurrences}`) : ['- NONE']), '', 'OPERATING RULE:', 'NO SYMPTOM PATCHING WHEN SHARED ROOT IS DETECTED', '', 'GATES:', ...reports.map((report) => `- ${report.gate}: ${report.status}`), ''];
-writeFileSync(resolve(DIAG_DIR, 'repair-cycle-report.md'), `${markdown.join('\n')}\n`);
-console.log(`REPAIR_CYCLE_ID=${cycleId}`);
+const failures = [...clusters.values()].map((cluster) => ({ ...cluster, fingerprints: [...cluster.fingerprints], symptoms: [...cluster.symptoms], affectedChecks: cluster.affectedChecks }));
+const currentRoots = new Set(failures.map((failure) => failure.rootCauseId));
+const priorRootSets = previousCycles.map((cycle) => new Set(cycle.rootCauses ?? []));
+const recurrenceCount = [...currentRoots].filter((id) => priorRootSets.some((roots) => roots.has(id))).length;
+const regressionCount = [...currentRoots].filter((id) => {
+  const priorIndex = previousCycles.map((cycle) => cycle.rootCauses ?? []).findLastIndex((roots) => roots.includes(id));
+  if (priorIndex < 0) return false;
+  return previousCycles.slice(priorIndex + 1).some((cycle) => (cycle.rootCauses ?? []).length === 0 && cycle.status === 'PASS');
+}).length;
+const status = canonical?.status === 'PASS' && canonical.gatesExecuted === canonical.gatesExpected ? 'PASS' : 'FAIL';
+const baseCycle = {
+  schemaVersion: 4,
+  schema: 'flixo-repair-cycle/v4',
+  cycleId: '',
+  recordedAt: now,
+  sha,
+  mode,
+  runId,
+  status,
+  gatesExpected: canonical?.gatesExpected ?? 3,
+  gatesExecuted: canonical?.gatesExecuted ?? reports.length,
+  checksExpected: canonical?.checksExpected ?? reports.reduce((sum, report) => sum + (report.checksExpected ?? 0), 0),
+  checksExecuted: canonical?.checksExecuted ?? reports.reduce((sum, report) => sum + (report.checksExecuted ?? 0), 0),
+  rootCauses: failures.map((failure) => failure.rootCauseId),
+  failures,
+  firstFailure: allFailures[0] ? { gate: allFailures[0].gate, rootCauseId: allFailures[0].rootCauseId ?? 'RC-UNKNOWN-001', fingerprint: allFailures[0].fingerprint ?? null, repro: allFailures[0].repro ?? null } : null,
+  sourceArtifact: canonical ? 'canonical-result.json' : 'gate reports',
+};
+baseCycle.cycleId = `RCYCLE-${createHash('sha256').update(JSON.stringify({ sha, mode, rootCauses: baseCycle.rootCauses, failures })).digest('hex').slice(0, 12).toUpperCase()}`;
+const correlation = {
+  distinctSymptoms: new Set(allFailures.map((failure) => failure.fingerprint ?? failure.label)).size,
+  clusters: failures.map((failure) => ({ id: `SRC-${failure.rootCauseId}`, rootCauseId: failure.rootCauseId, occurrences: failure.occurrences, distinctSymptoms: failure.symptoms, confidence: Math.min(0.99, 0.5 + Math.max(0, failure.occurrences - 1) * 0.1) })),
+  recurrenceCount,
+  regressionCount,
+  newRootCount: failures.filter((failure) => !priorRootSets.some((roots) => roots.has(failure.rootCauseId))).length,
+};
+const ledger = {
+  schemaVersion: 4,
+  schema: 'flixo-failure-ledger/v4',
+  generatedAt: now,
+  sha,
+  mode,
+  runId,
+  status,
+  sourceArtifact: canonical ? 'canonical-result.json' : 'gate reports',
+  totalRootCauses: failures.length,
+  totalFailureOccurrences: failures.reduce((sum, failure) => sum + failure.occurrences, 0),
+  rootCauses: failures,
+  distinctSymptoms: correlation.distinctSymptoms,
+  correlatedClusters: correlation.clusters.length,
+  knownRootCausesRecurring: correlation.recurrenceCount,
+  regressions: correlation.regressionCount,
+  newRootCauses: correlation.newRootCount,
+  memoryCycles: previousCycles.length + 1,
+  noSymptomPatching: failures.length > 0,
+};
+appendFileSync(cycleHistoryPath, `${JSON.stringify(baseCycle)}\n`);
+writeFileSync(resolve(DIR, 'latest-repair-cycle.json'), `${JSON.stringify({ ...baseCycle, correlation }, null, 2)}\n`);
+writeFileSync(resolve(DIR, 'failure-ledger.json'), `${JSON.stringify(ledger, null, 2)}\n`);
+const markdown = ['# Repair Cycle Diagnostic', '', `STATUS: ${status}`, `SHA: ${sha}`, `MODE: ${mode}`, `RUN: ${runId}`, `CYCLE: ${baseCycle.cycleId}`, '', `FAILURES: ${allFailures.length}`, `DISTINCT SYMPTOMS: ${correlation.distinctSymptoms}`, `CORRELATED CLUSTERS: ${correlation.clusters.length}`, `KNOWN ROOT CAUSES RECURRING: ${correlation.recurrenceCount}`, `REGRESSIONS: ${correlation.regressionCount}`, `NEW ROOT CAUSES: ${correlation.newRootCount}`, `MEMORY CYCLES: ${ledger.memoryCycles}`, '', 'ROOT CAUSE MEMORY:', ...(failures.length ? failures.map((failure) => `- ${failure.rootCauseId}: status=${registry[failure.rootCauseId] ? 'KNOWN' : 'UNKNOWN'}, occurrences=${failure.occurrences}`) : ['- NONE']), '', 'OPERATING RULE:', 'NO SYMPTOM PATCHING WHEN SHARED ROOT IS DETECTED', '', 'GATES:', ...reports.map((report) => `- ${report.gate}: ${report.status}`), ''];
+writeFileSync(resolve(DIR, 'repair-cycle-report.md'), `${markdown.join('\n')}\n`);
+console.log(`REPAIR_CYCLE_ID=${baseCycle.cycleId}`);
 console.log(`REPAIR_CYCLE_STATUS=${status}`);
 console.log(`DISTINCT_SYMPTOMS=${correlation.distinctSymptoms}`);
 console.log(`CORRELATED_CLUSTERS=${correlation.clusters.length}`);
 console.log(`KNOWN_ROOT_CAUSES_RECURRING=${correlation.recurrenceCount}`);
 console.log(`REGRESSIONS=${correlation.regressionCount}`);
 console.log(`NEW_ROOT_CAUSES=${correlation.newRootCount}`);
-console.log(`ROOT_CAUSES=${rootCauses.join(',') || 'NONE'}`);
+console.log(`ROOT_CAUSES=${baseCycle.rootCauses.join(',') || 'NONE'}`);
 console.log(`FAILURE_OCCURRENCES=${ledger.totalFailureOccurrences}`);
