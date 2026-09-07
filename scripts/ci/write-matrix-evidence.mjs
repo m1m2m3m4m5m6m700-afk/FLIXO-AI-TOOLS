@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { basename } from 'node:path';
 
 const reportPath = process.env.PLAYWRIGHT_JSON_REPORT || 'playwright-results.json';
 const outputPath = process.env.MATRIX_EVIDENCE_OUTPUT || 'full-matrix-evidence/evidence.json';
@@ -38,7 +39,7 @@ const expectedFiles = expectedSuites.map((suite) => `tests/${suite}.spec.ts`).so
 if (JSON.stringify(expectedSuites) !== JSON.stringify(observedSuites)) throw new Error('Planned suite != executed suite.');
 if (JSON.stringify(expectedFiles) !== JSON.stringify(observedFiles)) throw new Error('Playwright executed an unplanned or missing suite.');
 if (observedTestCount !== plannedTestCount) throw new Error(`planned_test_count=${plannedTestCount} != observed_test_count=${observedTestCount}`);
-if (skipped !== 0 || unexpected !== 0 || failed !== 0) throw new Error(`Native Playwright result is not clean: failed=${failed}, skipped=${skipped}, unexpected=${unexpected}`);
+if (skipped !== 0 || unexpected !== 0 || failed !== 0 || flaky !== 0) throw new Error(`Native Playwright result is not clean: failed=${failed}, skipped=${skipped}, unexpected=${unexpected}, flaky=${flaky}`);
 
 const result = {
   schema_version: 1,
@@ -54,6 +55,7 @@ const result = {
   skipped,
   unexpected,
   flaky,
+  native_report_path: basename(reportPath),
   native_report_sha256: createHash('sha256').update(reportText).digest('hex'),
   test_records: tests.map(({ file, title, status, results }) => ({ file, title, status, result_count: results.length })),
 };
