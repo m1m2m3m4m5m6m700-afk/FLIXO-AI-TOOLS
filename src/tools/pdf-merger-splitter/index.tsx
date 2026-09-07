@@ -27,10 +27,8 @@ function downloadPdf(bytes: Uint8Array, name: string) {
   anchor.style.display = 'none';
   document.body.appendChild(anchor);
   anchor.click();
-  window.setTimeout(() => {
-    anchor.remove();
-    URL.revokeObjectURL(url);
-  }, 60_000);
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 export function PdfMergerSplitterTool() {

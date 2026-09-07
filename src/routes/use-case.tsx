@@ -2,6 +2,7 @@ import { createRoute } from '@tanstack/react-router';
 import { getToolConfig } from '../config/tools';
 import { getUseCase } from '../lib/seo/use-cases';
 import { getCanonicalSiteOrigin } from '../config/origin.config';
+import { serializeJsonLd } from '../lib/seo/json-ld';
 import { rootRoute } from './__root';
 
 export const useCaseRoute = createRoute({
@@ -51,10 +52,11 @@ export const useCaseRoute = createRoute({
         })),
       },
     };
+    const structuredDataJson = serializeJsonLd(structuredData);
 
     return (
       <main className="tool-page-modern" lang="en">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }} />
+        <script type="application/ld+json">{structuredDataJson}</script>
         <div className="tool-page-modern__body">
           <nav className="tool-page-modern__breadcrumbs" aria-label="Breadcrumb">
             <a className="tool-page-modern__crumb" href="/">FLIXO</a>

@@ -1,8 +1,14 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { CANONICAL_LOCALES as expected } from './validation-contracts.mjs';
 
+const parity = spawnSync(process.execPath, ['--experimental-strip-types', 'scripts/validate-i18n-parity.ts'], { stdio: 'inherit' });
+if (parity.status !== 0) process.exit(parity.status ?? 1);
+
 const configSource = readFileSync('src/lib/i18n/config.ts', 'utf8');
 const homeSource = readFileSync('src/data/home-locales.ts', 'utf8');
+const homeOverrideSource = readFileSync('src/lib/i18n/locale-quality-overrides.ts', 'utf8');
+const quickflowOverrideSource = homeOverrideSource.slice(homeOverrideSource.indexOf('export const QUICKFLOW_COPY_OVERRIDES'));
 const quickflowSource = readFileSync('src/data/quickflow-locales.ts', 'utf8');
 const toolUiSource = readFileSync('src/data/tool-ui-i18n.ts', 'utf8');
 const localizedToolPageSource = readFileSync('src/routes/localized-tool-page.tsx', 'utf8');
@@ -31,14 +37,18 @@ if (!localizedToolPageSource.includes('<ToolComponent locale={locale} />')) {
   process.exit(1);
 }
 
-const getHomeEntry = (locale) => new RegExp(`\\b${locale}:\\s*copy\\(\\{([\\s\\S]*?)\\}\\)`).exec(homeSource)?.[1] ?? '';
+const getHomeEntry = (locale) => {
+  const sourceMatch = new RegExp(`\\b${locale}:\\s*copy\\(\\{([\\s\\S]*?)\\}\\)`).exec(homeSource)?.[1];
+  if (sourceMatch) return sourceMatch;
+  return new RegExp(`\\b${locale}:\\s*Object\\.freeze\\(\\{([\\s\\S]*?)\\}\\),`).exec(homeOverrideSource)?.[1] ?? '';
+};
 const requiredHomeKeys = ['nav:', 'badge:', 'heroTitle:', 'heroLead:', 'searchPlaceholder:', 'smartPalette:', 'trust:', 'quickDropTitle:', 'dropChoose:', 'toolboxTitle:', 'finalTitle:', 'quickTags:'];
 const missingHomeLocales = expected.filter((locale) => {
   const entry = getHomeEntry(locale);
   return !entry || requiredHomeKeys.some((key) => !entry.includes(key));
 });
 if (missingHomeLocales.length) {
-  console.error(`Home UI is incomplete for locale(s): ${missingHomeLocales.join(', ')}`);
+  console.error(`Home UI is incomplete in the effective locale bundle for locale(s): ${missingHomeLocales.join(', ')}`);
   process.exit(1);
 }
 
@@ -51,13 +61,17 @@ if (suspiciousHomeFallbacks.length) {
 }
 
 const requiredQuickFlowKeys = ['missing:', 'back:', 'eyebrow:', 'runLabel:', 'choose:', 'processing:', 'result:', 'download:', 'chooseError:', 'failure:', 'running:', 'run:', 'resultAlt:', 'progress:'];
-const getQuickFlowEntry = (locale) => new RegExp(`\\b${locale}:q\\(\\{([\\s\\S]*?)\\}\\)`).exec(quickflowSource)?.[1] ?? '';
+const getQuickFlowEntry = (locale) => {
+  const sourceMatch = new RegExp(`\\b${locale}:q\\(\\{([\\s\\S]*?)\\}\\)`).exec(quickflowSource)?.[1];
+  if (sourceMatch) return sourceMatch;
+  return new RegExp(`\\b${locale}:\\s*Object\\.freeze\\(\\{([\\s\\S]*?)\\}\\),`).exec(quickflowOverrideSource)?.[1] ?? '';
+};
 const missingQuickFlowLocales = expected.filter((locale) => {
   const entry = getQuickFlowEntry(locale);
   return !entry || requiredQuickFlowKeys.some((key) => !entry.includes(key));
 });
 if (missingQuickFlowLocales.length) {
-  console.error(`QuickFlow UI is incomplete for locale(s): ${missingQuickFlowLocales.join(', ')}`);
+  console.error(`QuickFlow UI is incomplete in the effective locale bundle for locale(s): ${missingQuickFlowLocales.join(', ')}`);
   process.exit(1);
 }
 
@@ -81,4 +95,4 @@ if (missingUiFiles.length > 0) {
   process.exit(1);
 }
 
-console.log(`i18n validation passed: ${expected.length} locale files, complete Home/QuickFlow UI copy, localized tool route shell, and no exact English QuickFlow fallbacks.`);
+console.log(`i18n validation passed: ${expected.length} locale files, complete effective Home/QuickFlow UI copy, localized tool route shell, and no exact English QuickFlow fallbacks.`);

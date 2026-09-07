@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { recordToolPerformance } from '../../lib/diagnostics/performance';
 import { validateFileSafety } from '../../lib/contracts/file-safety';
 import { assertExifCleanerOutputIntegrity } from '../exif-cleaner/output-integrity';
@@ -59,6 +59,8 @@ const SVG_FILE_POLICY = {
   maxBytes: 25 * 1024 * 1024,
 } as const;
 
+const ACTIVE_IMAGE_EFFECT_WORKERS = new Set<Worker>();
+
 function assertFileSafe(file: File, mode: Mode) {
   const policy = mode === 'svg-optimizer' ? SVG_FILE_POLICY : RASTER_IMAGE_POLICY;
   const result = validateFileSafety({ name: file.name, mime: file.type, bytes: file.size }, policy);
@@ -75,7 +77,7 @@ function download(result: Result) {
   link.href = result.url;
   link.download = result.name;
   link.click();
-  setTimeout(() => URL.revokeObjectURL(result.url), 0);
+  URL.revokeObjectURL(result.url);
 }
 
 async function loadImage(file: File) {
@@ -101,7 +103,11 @@ async function runImageEffectsWorker(blob: Blob, effect: { brightness: number; c
   const startedAt = typeof performance === 'undefined' ? Date.now() : performance.now();
   return await new Promise<Result>((resolve, reject) => {
     const worker = new Worker(new URL('./image-effects-worker.ts', import.meta.url), { type: 'classic' });
-    const cleanup = () => worker.terminate();
+    ACTIVE_IMAGE_EFFECT_WORKERS.add(worker);
+    const cleanup = () => {
+      ACTIVE_IMAGE_EFFECT_WORKERS.delete(worker);
+      worker.terminate();
+    };
     worker.onmessage = (event: MessageEvent<EffectsWorkerResponse>) => {
       const workerDurationMs = Math.max(0, (typeof performance === 'undefined' ? Date.now() : performance.now()) - startedAt);
       cleanup();
@@ -132,6 +138,12 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
   const [effect, setEffect] = useState({ brightness: 100, contrast: 100, saturate: 100, grayscale: 0 });
 
   const status = useMemo(() => result ? `${result.width ?? ''}×${result.height ?? ''} · ${Math.max(1, Math.round(result.blob.size / 1024))} KB` : copy.noResult, [result, copy.noResult]);
+
+  useEffect(() => () => {
+    ACTIVE_IMAGE_EFFECT_WORKERS.forEach((worker) => worker.terminate());
+    ACTIVE_IMAGE_EFFECT_WORKERS.clear();
+    if (result?.url) URL.revokeObjectURL(result.url);
+  }, [result]);
 
   async function run() {
     if (!files.length) { setError(copy.chooseImage); return; }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { buildQuickFlowPlan } from '../src/lib/quickflow.ts';
-import { buildOptionalAiPlan } from '../src/lib/ai-planner.ts';
+import { buildOptionalAiPlan } from '../src/lib/ai/planner.ts';
 import { TOOLS_REGISTRY } from '../src/config/tools.ts';
 
 const deterministicPlan = buildQuickFlowPlan('compress image', TOOLS_REGISTRY);

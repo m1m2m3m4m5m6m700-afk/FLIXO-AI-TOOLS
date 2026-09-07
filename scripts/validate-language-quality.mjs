@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { CANONICAL_LOCALES } from './validation-utils.mjs';
 
 const root = process.cwd();
@@ -28,12 +29,19 @@ for (const locale of locales) {
 const home = read(`${root}/src/data/home-locales.ts`);
 const quickflow = read(`${root}/src/data/quickflow-locales.ts`);
 const toolUi = read(`${root}/src/data/tool-ui-i18n.ts`);
-const seoNames = read(`${root}/src/lib/i18n/tool-seo-localization.ts`);
 const overrides = read(`${root}/src/lib/i18n/locale-quality-overrides.ts`);
 
 const homeKeys = ['nav:', 'badge:', 'eyebrow:', 'heroTitle:', 'heroLead:', 'describe:', 'searchLabel:', 'searchPlaceholder:', 'smartPalette:', 'suggested:', 'openDirectly:', 'popular:', 'trust:', 'quickDrop:', 'quickDropTitle:', 'quickDropLead:', 'dropChoose:', 'dropSupport:', 'suggestedTool:', 'openTool:', 'toolbox:', 'toolboxTitle:', 'ready:', 'empty:', 'builtForFocus:', 'finalTitle:', 'finalLead:', 'trySmart:', 'all:', 'browserMeta:', 'ariaHome:', 'ariaPrimary:', 'ariaFindTool:', 'ariaTrust:', 'ariaCategories:', 'quickTags:'];
 const quickflowKeys = ['missing:', 'back:', 'eyebrow:', 'runLabel:', 'choose:', 'processing:', 'result:', 'download:', 'chooseError:', 'failure:', 'running:', 'run:', 'resultAlt:', 'progress:'];
 const toolUiKeys = ['notFound:', 'loading:', 'language:', 'about:', 'howTo:', 'features:', 'navigation:', 'home:', 'ready:', 'waiting:', 'workspace:', 'favorite:', 'english:', 'arabic:', 'command:', 'openCommandPalette:', 'upload:', 'reset:', 'exportLabel:', 'localWorkspace:'];
+
+const runtimeI18n = await import(pathToFileURL(`${root}/src/lib/i18n/locale-quality-overrides.ts`).href);
+const seoResolver = await import(pathToFileURL(`${root}/src/config/tool-seo-name-resolver.ts`).href);
+const seoLocalization = await import(pathToFileURL(`${root}/src/lib/i18n/tool-seo-localization.ts`).href);
+
+const homeOverride = (locale) => runtimeI18n.HOME_COPY_OVERRIDES[locale] ?? {};
+const quickOverride = (locale) => runtimeI18n.QUICKFLOW_COPY_OVERRIDES[locale] ?? {};
+const homeKeyName = (key) => key.slice(0, -1);
 
 const entryBody = (source, locale, marker) => {
   const startPattern = new RegExp(`\\b${locale}:\\s*${marker}\\(\\{`, 'u');
@@ -50,30 +58,28 @@ const entryBody = (source, locale, marker) => {
 const objectBody = (source, locale) => new RegExp(`\\b${locale}:\\s*\\{([\\s\\S]*?)\\}`, 'u').exec(source)?.[1] ?? '';
 const extractString = (entry, key) => entry.match(new RegExp(`${key}['"]([^'"\\n]*)['"]`, 'u'))?.[1] ?? '';
 
-const overrideEntry = (locale) => {
-  const match = new RegExp(`\\b${locale}:\\s*Object\\.freeze\\(\\{([\\s\\S]*?)\\n  \\}\\),?`, 'u').exec(overrides);
-  return match?.[1] ?? '';
+const effectiveHomeValue = (locale, key, sourceValue) => {
+  const override = homeOverride(locale);
+  const name = homeKeyName(key);
+  const value = override[name];
+  if (Array.isArray(value)) return value.map((pair) => pair.join(' — ')).join(' | ');
+  if (value && typeof value === 'object') return JSON.stringify(value);
+  if (typeof value === 'string') return value;
+  return sourceValue;
 };
 
-const effectiveHomeValue = (locale, key, sourceValue) => {
-  const override = overrideEntry(locale);
-  if (!override) return sourceValue;
-  if (key === 'trust:') {
-    const trustMatch = override.match(/trust:\s*\[([\s\S]*?)\n\s*\]/u);
-    return trustMatch?.[1] ?? sourceValue;
-  }
-  const direct = extractString(override, key);
-  return direct || sourceValue;
-};
+const effectiveHomeHasKey = (locale, key, sourceEntry) => Boolean(sourceEntry.includes(key)) || Object.prototype.hasOwnProperty.call(homeOverride(locale), homeKeyName(key));
+const effectiveQuickHasKey = (locale, key, sourceEntry) => Boolean(sourceEntry.includes(key)) || Object.prototype.hasOwnProperty.call(quickOverride(locale), homeKeyName(key));
+const effectiveQuickValue = (locale, key, sourceValue) => quickOverride(locale)[homeKeyName(key)] ?? sourceValue;
 
 for (const locale of locales) {
   const homeEntry = entryBody(home, locale, 'copy');
-  if (!homeEntry) fail(`Home: missing locale entry ${locale}`);
-  else for (const key of homeKeys) if (!homeEntry.includes(key)) fail(`Home ${locale}: missing ${key}`);
+  if (!homeEntry && Object.keys(homeOverride(locale)).length === 0) fail(`Home: missing locale entry ${locale}`);
+  for (const key of homeKeys) if (!effectiveHomeHasKey(locale, key, homeEntry)) fail(`Home ${locale}: missing ${key}`);
 
   const quickEntry = entryBody(quickflow, locale, 'q');
-  if (!quickEntry) fail(`QuickFlow: missing locale entry ${locale}`);
-  else for (const key of quickflowKeys) if (!quickEntry.includes(key)) fail(`QuickFlow ${locale}: missing ${key}`);
+  if (!quickEntry && Object.keys(quickOverride(locale)).length === 0) fail(`QuickFlow: missing locale entry ${locale}`);
+  for (const key of quickflowKeys) if (!effectiveQuickHasKey(locale, key, quickEntry)) fail(`QuickFlow ${locale}: missing ${key}`);
 
   const uiEntry = objectBody(toolUi, locale);
   if (!uiEntry) fail(`Tool UI: missing locale entry ${locale}`);
@@ -95,7 +101,7 @@ for (const locale of locales.filter((value) => value !== 'en')) {
   const quick = entryBody(quickflow, locale, 'q');
   for (const key of quickflowKeys) {
     const enValue = extractString(englishQuick, key);
-    const localizedValue = extractString(quick, key);
+    const localizedValue = effectiveQuickValue(locale, key, extractString(quick, key));
     if (enValue && localizedValue === enValue && key !== 'resultAlt:') fail(`QuickFlow ${locale}: English fallback in ${key}`);
   }
 }
@@ -115,11 +121,17 @@ for (const locale of locales) {
   if ((metadata === 'rtl') !== shouldBeRtl) fail(`Direction mismatch for ${locale}: expected ${shouldBeRtl ? 'rtl' : 'ltr'}, found ${metadata ?? '<missing>'}`);
 }
 
-const toolSeoObjects = [...seoNames.matchAll(/'[^']+':\s*Object\.freeze\(\{([^}]*)\}\)/gu)].map((match) => match[1]);
-if (!toolSeoObjects.length) fail('No TOOL_SEO_NAMES entries found');
-for (const [index, body] of toolSeoObjects.entries()) {
+const toolSeoEntries = Object.entries(seoLocalization.TOOL_SEO_NAMES ?? {});
+if (!toolSeoEntries.length) fail('No TOOL_SEO_NAMES entries found');
+for (const [toolId, translations] of toolSeoEntries) {
   for (const locale of locales) {
-    if (!new RegExp(`\\b${locale}:`, 'u').test(body)) fail(`SEO name entry ${index + 1}: missing ${locale}`);
+    const value = translations?.[locale];
+    if (typeof value === 'string' && value.trim()) continue;
+    if (locale === 'ms' || locale === 'uk') {
+      const authoritative = seoResolver.getAuthoritativeToolSeoName({ id: toolId, title: toolId }, locale);
+      if (typeof authoritative === 'string' && authoritative.trim() && authoritative.toLowerCase() !== toolId.toLowerCase()) continue;
+    }
+    fail(`SEO name entry ${toolId}: missing ${locale}`);
   }
 }
 

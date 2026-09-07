@@ -41,6 +41,8 @@ const CORE: Record<Locale, {
   vi: { online: 'Công cụ trực tuyến', intro: 'Sử dụng {title} của FLIXO ngay trong trình duyệt với quy trình nhanh và ưu tiên quyền riêng tư.', step1: 'Mở công cụ và chọn dữ liệu đầu vào.', step2: 'Điều chỉnh các tùy chọn cần thiết.', step3: 'Chạy công cụ và kiểm tra kết quả.', step4: 'Tải xuống hoặc sao chép kết quả cuối cùng.', features: ['Xử lý ngay trong trình duyệt', 'Không cần tài khoản', 'Quy trình cục bộ nhanh'], alt: 'Giao diện {title} trong FLIXO' },
   th: { online: 'เครื่องมือออนไลน์', intro: 'ใช้ {title} ของ FLIXO ได้โดยตรงในเบราว์เซอร์ พร้อมขั้นตอนการทำงานที่รวดเร็วและเน้นความเป็นส่วนตัว', step1: 'เปิดเครื่องมือและเลือกข้อมูลนำเข้า', step2: 'ปรับตัวเลือกตามผลลัพธ์ที่ต้องการ', step3: 'เรียกใช้เครื่องมือและตรวจสอบผลลัพธ์', step4: 'ดาวน์โหลดหรือคัดลอกผลลัพธ์', features: ['ประมวลผลในเบราว์เซอร์', 'ไม่ต้องมีบัญชี', 'เวิร์กโฟลว์ภายในเครื่องที่รวดเร็ว'], alt: 'อินเทอร์เฟซ {title} ใน FLIXO' },
   sv: { online: 'Onlineverktyg', intro: 'Använd FLIXO:s {title} direkt i webbläsaren med ett snabbt arbetsflöde som prioriterar integritet.', step1: 'Öppna verktyget och välj indata.', step2: 'Justera tillgängliga alternativ.', step3: 'Kör verktyget och granska resultatet.', step4: 'Ladda ner eller kopiera resultatet.', features: ['Bearbetning i webbläsaren', 'Inget konto krävs', 'Snabbt lokalt arbetsflöde'], alt: '{title}-gränssnitt i FLIXO' },
+  ms: { online: 'Alat dalam talian', intro: 'Gunakan {title} FLIXO terus dalam pelayar dengan aliran kerja pantas yang mengutamakan privasi.', step1: 'Buka alat dan pilih input anda.', step2: 'Laraskan pilihan yang tersedia mengikut hasil yang dikehendaki.', step3: 'Jalankan alat dan semak hasilnya dalam pelayar.', step4: 'Muat turun atau salin hasil yang telah siap.', features: ['Pemprosesan berasaskan pelayar', 'Tiada akaun diperlukan', 'Aliran kerja setempat yang pantas'], alt: 'Antara muka {title} dalam FLIXO' },
+  uk: { online: 'Онлайн-інструмент', intro: 'Використовуйте {title} FLIXO безпосередньо у браузері зі швидким процесом, орієнтованим на конфіденційність.', step1: 'Відкрийте інструмент і виберіть вхідні дані.', step2: 'Налаштуйте доступні параметри для потрібного результату.', step3: 'Запустіть інструмент і перегляньте результат у браузері.', step4: 'Завантажте або скопіюйте готовий результат.', features: ['Обробка в браузері', 'Акаунт не потрібен', 'Швидкий локальний процес'], alt: 'Інтерфейс {title} у FLIXO' },
 };
 
 function splitTitle(title: string): string[] {
@@ -67,6 +69,8 @@ const TERM_MAPS: Record<Locale, Record<string, string>> = {
   vi: { Compressor: 'Trình nén', Converter: 'Trình chuyển đổi', Image: 'Hình ảnh', Video: 'Video', Audio: 'Âm thanh', Text: 'Văn bản', AI: 'AI', Remover: 'Xóa', Generator: 'Trình tạo' },
   th: { Compressor: 'ตัวบีบอัด', Converter: 'ตัวแปลง', Image: 'รูปภาพ', Video: 'วิดีโอ', Audio: 'เสียง', Text: 'ข้อความ', AI: 'AI', Remover: 'ลบ', Generator: 'ตัวสร้าง' },
   sv: { Compressor: 'Kompressor', Converter: 'Konverterare', Image: 'Bilder', Video: 'Video', Audio: 'Ljud', Text: 'Text', AI: 'AI', Remover: 'Borttagning', Generator: 'Generator' },
+  ms: { Compressor: 'Pemampat', Converter: 'Penukar', Image: 'Imej', Video: 'Video', Audio: 'Audio', Text: 'Teks', AI: 'AI', Remover: 'Penyingkir', Generator: 'Penjana' },
+  uk: { Compressor: 'Компресор', Converter: 'Конвертер', Image: 'Зображення', Video: 'Відео', Audio: 'Аудіо', Text: 'Текст', AI: 'ШІ', Remover: 'Видалення', Generator: 'Генератор' },
 };
 
 function localizeTitle(locale: Locale, title: string): string {

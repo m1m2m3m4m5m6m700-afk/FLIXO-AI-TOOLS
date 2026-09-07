@@ -41,3 +41,14 @@ The normal CI Socket check may be skipped when `SOCKET_SECURITY_API_KEY` is not 
 Configure `SOCKET_SECURITY_API_KEY` as a GitHub Actions repository/environment secret before running release certification. Do not place the value in source files, workflow YAML, logs, or client-visible environment variables.
 
 Changes to authentication, authorization, secret handling, dependency execution, or CI permissions require targeted review and fresh evidence on the exact commit being promoted.
+
+## Trusted HTML boundaries
+
+The repository currently contains four intentional `dangerouslySetInnerHTML` boundaries. They are trusted static-data boundaries and are not general-purpose user HTML rendering sinks.
+
+- `src/routes/__root.tsx` emits `GLOBAL_STRUCTURED_DATA`, a compile-time JSON-LD object derived from repository configuration. The serialized value escapes `<` before insertion.
+- `src/routes/localized-tool-page.tsx` emits localized tool JSON-LD derived from the authoritative repository SEO/tool configuration. The serialized value escapes `<` before insertion.
+- `src/routes/use-case.tsx` emits use-case JSON-LD derived from repository-managed use-case data. The serialized value escapes `<` before insertion.
+- `src/routes/home-page.tsx` renders `copy.heroTitle`, which is static locale-managed translation content and may contain the intentional `<span>` presentation wrapper used by the hero design. It is not populated from request data, uploaded files, or remote HTML.
+
+These boundaries must remain limited to repository-controlled static data. Any future change that introduces remote, persisted, or user-controlled HTML must replace the sink with normal React elements or introduce an explicit sanitizer at that boundary. Do not broaden trust based only on current call sites.

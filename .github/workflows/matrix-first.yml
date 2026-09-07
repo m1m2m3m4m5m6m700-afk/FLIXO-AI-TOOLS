@@ -1,11 +1,15 @@
 name: Matrix First Gate
 
+# Canonical blocking browser certification pipeline.
+# One exact source build is consumed by every browser/shard lane.
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      expected_head_sha:
+        description: Exact source SHA to certify.
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -24,21 +28,17 @@ env:
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+  EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || github.event.pull_request.head.sha || github.sha }}
 
 jobs:
-  matrix:
-    name: Matrix First — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+  static-and-build:
+    name: Static Gate + Single Production Build
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        browser: [chromium, firefox, webkit]
-        shard: [1, 2, 3, 4]
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -46,65 +46,235 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Install browser system dependencies
+      - name: Verify exact HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Localization parity and fallback guard
+        run: npm run validate:i18n
+      - name: Single production build + asset-chain validation
+        run: npm run build
+      - name: Verify build exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d dist
+          test -f dist/index.html
+      - name: Publish reusable production artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: matrix-first-build-${{ env.EXPECTED_HEAD_SHA }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 3
+
+  matrix:
+    name: Matrix First — shard-${{ matrix.shardIndex }}/20
+    needs: [static-and-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        totalShards: [20]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Download exact reusable build
+        uses: actions/download-artifact@v6
+        with:
+          name: matrix-first-build-${{ env.EXPECTED_HEAD_SHA }}
+          path: dist
+      - name: Verify exact build identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test -f dist/index.html
+          test -f dist/sitemap.xml
+      - name: Install Playwright system dependencies
         timeout-minutes: 8
-        run: npx playwright install-deps '${{ matrix.browser }}'
-      - name: Cache Playwright browser
+        run: |
+          set -euo pipefail
+          npx playwright install-deps chromium
+          npx playwright install-deps firefox
+          npx playwright install-deps webkit
+      - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: matrix-first-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
-      - name: Install browser
-        timeout-minutes: 8
-        env:
-          BROWSER: ${{ matrix.browser }}
+          key: matrix-first-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            matrix-first-${{ runner.os }}-
+      - name: Install Playwright browsers
+        timeout-minutes: 12
         run: |
           set -euo pipefail
-          executable="$(node - <<'NODE'
-          const p = require('playwright');
-          const b = p[process.env.BROWSER];
-          process.stdout.write(b.executablePath());
+          for browser in chromium firefox webkit; do
+            executable="$(node -e "const p=require('playwright'); process.stdout.write(p[process.argv[1]].executablePath())" "$browser")"
+            if [[ -x "$executable" ]]; then
+              echo "Browser cache hit: $browser -> $executable"
+            else
+              timeout --preserve-status 420s npx playwright install "$browser"
+            fi
+          done
+      - name: Prepare staggered execution tile
+        id: tile
+        shell: bash
+        env:
+          SHARD_INDEX: ${{ matrix.shardIndex }}
+          TOTAL_SHARDS: ${{ matrix.totalShards }}
+        run: |
+          set -euo pipefail
+          mkdir -p tests
+          rm -f tests/.matrix-*.spec.ts tests/.matrix-targets-*.txt tests/.matrix-dispatch.mjs
+
+          node >tests/.matrix-dispatch.mjs <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const index = Number(process.env.SHARD_INDEX);
+          const total = Number(process.env.TOTAL_SHARDS);
+          if (!Number.isInteger(index) || index < 1 || index > total || total !== 20) throw new Error(`Invalid shard ${index}/${total}`);
+
+          const allSpecs = fs.readdirSync('tests').filter((name) => name.endsWith('.spec.ts')).sort((a, b) => a.localeCompare(b)).map((name) => `tests/${name}`);
+          const localizationSpec = 'tests/localization-runtime.spec.ts';
+          const nonLocalization = allSpecs.filter((file) => file !== localizationSpec);
+
+          const bucket = (items, count) => {
+            const buckets = Array.from({ length: count }, () => []);
+            items.forEach((item, itemIndex) => buckets[itemIndex % count].push(item));
+            return buckets;
+          };
+
+          const middleOut = (items) => {
+            const ordered = [];
+            let left = Math.floor((items.length - 1) / 2);
+            let right = left + 1;
+            while (left >= 0 || right < items.length) {
+              if (left >= 0) ordered.push(items[left--]);
+              if (right < items.length) ordered.push(items[right++]);
+            }
+            return ordered;
+          };
+
+          const coreFamilies = new Set([
+            '/', '/aspect-ratio-calculator', '/image-compressor', '/image-converter',
+            '/image-cropper', '/image-to-svg', '/image-ocr', '/background-remover',
+            '/object-remover', '/ai-image-generator', '/seed', '/pix',
+          ]);
+          const localizationSource = fs.readFileSync(localizationSpec, 'utf8');
+          const sitemap = fs.readFileSync('dist/sitemap.xml', 'utf8');
+          const routes = [...new Set([...sitemap.matchAll(/<url>\s*<loc>([^<]+)<\/loc>[\s\S]*?<\/url>/gu)].map((match) => new URL(match[1]).pathname))];
+          const familyPath = (pathname) => pathname.replace(/^\/[^/]+(?=\/|$)/u, '') || '/';
+          const core = routes.filter((route) => coreFamilies.has(familyPath(route))).sort((a, b) => a.localeCompare(b));
+          const remainderRoutes = routes.filter((route) => !coreFamilies.has(familyPath(route))).sort((a, b) => a.localeCompare(b));
+          const prioritizedRoutes = [...core, ...remainderRoutes];
+
+          if (index <= 5) {
+            const selectedRoutes = bucket(prioritizedRoutes, 5)[index - 1];
+            const rewritten = localizationSource.replace(/const routes = .*?\.sort\(\);/su, `const routes = ${JSON.stringify(selectedRoutes, null, 2)};`);
+            if (rewritten === localizationSource) throw new Error('Failed to materialize locale shard');
+            const spec = `tests/.matrix-localization-${index}.spec.ts`;
+            fs.writeFileSync(spec, rewritten);
+            fs.writeFileSync(`tests/.matrix-targets-${index}.txt`, `${spec}\n`);
+            process.stderr.write(`group=A-core-locale mode=forward shard=${index}/20 routes=${selectedRoutes.length}\n`);
+            process.stdout.write(JSON.stringify({ group: 'A-core-locale', targets: [spec] }));
+            process.exit(0);
+          }
+
+          const classified = (pattern, assigned) => nonLocalization.filter((file) => pattern.test(path.basename(file)) && !assigned.has(file));
+          const assigned = new Set();
+          const bCandidates = classified(/seed|studio|tool|image/i, assigned);
+          bCandidates.forEach((file) => assigned.add(file));
+          const cCandidates = classified(/performance|route|loading|dynamic|import|lazy/i, assigned);
+          cCandidates.forEach((file) => assigned.add(file));
+          const dCandidates = classified(/boundary|hydration/i, assigned);
+          dCandidates.forEach((file) => assigned.add(file));
+          const remaining = nonLocalization.filter((file) => !assigned.has(file));
+
+          const fill = (group) => {
+            while (group.length < 5 && remaining.length) group.push(remaining.shift());
+          };
+          fill(bCandidates);
+          fill(cCandidates);
+          fill(dCandidates);
+          dCandidates.push(...remaining.splice(0));
+
+          const layout = index <= 10 ? 'B' : index <= 15 ? 'C' : 'D';
+          const localIndex = ((index - 1) % 5);
+          let targets = bucket(layout === 'B' ? bCandidates : layout === 'C' ? cCandidates : dCandidates, 5)[localIndex] ?? [];
+          if (!targets.length) throw new Error(`Empty execution tile for shard ${index}/20 (${layout})`);
+          if (layout === 'B') targets = targets.slice().sort((a, b) => b.localeCompare(a));
+          if (layout === 'C') {
+            const ordered = targets.slice().sort((a, b) => a.localeCompare(b));
+            targets = ordered.slice(localIndex % 2).concat(ordered.slice(0, localIndex % 2));
+          }
+          if (layout === 'D') targets = middleOut(targets.slice());
+
+          fs.writeFileSync(`tests/.matrix-targets-${index}.txt`, `${targets.join('\n')}\n`);
+          process.stderr.write(`group=${layout} mode=${layout === 'B' ? 'reverse' : layout === 'C' ? 'interleaved' : 'middle-out'} shard=${index}/20 specs=${targets.length}\n`);
+          process.stdout.write(JSON.stringify({ group: layout, targets }));
           NODE
-          )"
-          if [[ -x "$executable" ]]; then
-            echo "Browser cache hit: $executable"
-            exit 0
-          fi
-          timeout --preserve-status 420s npx playwright install '${{ matrix.browser }}'
-      - name: Build preview
-        run: npm run build
+
+          node tests/.matrix-dispatch.mjs
+          rm -f tests/.matrix-dispatch.mjs
+          echo "TARGET_MANIFEST=tests/.matrix-targets-${SHARD_INDEX}.txt" >> "$GITHUB_OUTPUT"
       - name: Start isolated preview
         shell: bash
         run: |
           set -euo pipefail
-          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/matrix-first-server.log 2>&1 &
+          setsid npx vite preview --host 127.0.0.1 --port 3000 >/tmp/matrix-first-server.log 2>&1 &
           echo $! >/tmp/matrix-first-server.pid
+          ready=0
           for _ in $(seq 1 60); do
-            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            if curl --fail --silent --show-error --http1.1 http://127.0.0.1:3000/ >/dev/null; then
+              ready=1
+              break
+            fi
             sleep 1
           done
-          cat /tmp/matrix-first-server.log || true
-          exit 1
-      - name: Run owned shard — stop at first failure
-        timeout-minutes: 15
+          test "$ready" = 1
+          curl --fail --silent --show-error --http1.1 http://127.0.0.1:3000/ar/aspect-ratio-calculator >/tmp/matrix-first-readiness.html
+          grep -Eqi '<html[^>]*lang="ar"[^>]*>' /tmp/matrix-first-readiness.html
+      - name: Run staggered browser tile — fail on first failure
+        timeout-minutes: 18
+        env:
+          TARGET_MANIFEST: ${{ steps.tile.outputs.TARGET_MANIFEST }}
         run: |
           set -euo pipefail
-          echo "Matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/4"
-          npx playwright test tests/localization-runtime.spec.ts \
-            --project=${{ matrix.browser }} \
-            --workers=6 \
+          mapfile -t TARGETS < "$TARGET_MANIFEST"
+          test "${#TARGETS[@]}" -gt 0
+          npx playwright test "${TARGETS[@]}" \
+            --workers=1 \
             --retries=0 \
             --max-failures=1 \
-            --shard=${{ matrix.shard }}/4
-      - name: Upload independent diagnostics
-        if: always()
+            --trace=retain-on-failure
+      - name: Upload matrix diagnostics
+        if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: matrix-first-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
+          name: matrix-first-shard-${{ matrix.shardIndex }}-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/
             /tmp/matrix-first-server.log
+            /tmp/matrix-first-readiness.html
+            tests/.matrix-targets-${{ matrix.shardIndex }}.txt
           if-no-files-found: warn
           retention-days: 14
       - name: Cleanup
@@ -113,18 +283,20 @@ jobs:
         run: |
           set +e
           if [ -f /tmp/matrix-first-server.pid ]; then kill "$(cat /tmp/matrix-first-server.pid)" 2>/dev/null || true; fi
+          rm -f tests/.matrix-*.spec.ts tests/.matrix-targets-*.txt tests/.matrix-dispatch.mjs
 
   certification:
     name: Matrix First Certification
-    needs: [matrix]
+    needs: [static-and-build, matrix]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Fail closed on any matrix unit
+      - name: Require static gate and every browser shard to pass
         run: |
           set -euo pipefail
-          result='${{ needs.matrix.result }}'
-          echo "matrix=$result"
-          test "$result" = success
-          echo 'Matrix First Certification PASS: all 12 browser/shard units passed independently.'
+          static_result='${{ needs.static-and-build.result }}'
+          matrix_result='${{ needs.matrix.result }}'
+          test "$static_result" = success
+          test "$matrix_result" = success
+          echo "Matrix First Certification PASS: exact source ${EXPECTED_HEAD_SHA} consumed across 20 staggered execution shards."

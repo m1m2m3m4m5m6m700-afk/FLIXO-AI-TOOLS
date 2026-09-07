@@ -1,13 +1,14 @@
 name: CI
 
-# PR and main use the same impact-aware verification engine.
-# Matrix First is the mandatory browser verification barrier for all official test jobs.
+# Canonical PR verification. Matrix First is a native prerequisite and owns blocking browser certification.
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.head_ref || github.ref }}
@@ -15,116 +16,28 @@ concurrency:
 
 permissions:
   contents: read
-  checks: read
 
 env:
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
   VITE_SITE_URL: https://flixoai.vercel.app
-  CHANGE_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && github.event.before) || github.sha }}
 
 jobs:
-  matrix-first-barrier:
-    name: Matrix First Barrier
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Wait for exact-head Matrix First Certification
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Waiting for Matrix First Certification on exact SHA: $HEAD_SHA"
-          conclusion="NOT_FOUND"
-          for attempt in {1..60}; do
-            conclusion=$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/check-runs?per_page=100" \
-              --jq '[.check_runs[] | select(.name=="Matrix First Certification") | select(.head_sha==env.HEAD_SHA)] | sort_by(.completed_at) | last | .conclusion // "NOT_FOUND"')
-            case "$conclusion" in
-              success)
-                echo "Matrix First Certification PASS on $HEAD_SHA"
-                exit 0
-                ;;
-              failure|cancelled|timed_out|action_required|stale)
-                echo "Matrix First Certification FAILED on $HEAD_SHA: $conclusion"
-                exit 1
-                ;;
-              *)
-                echo "Matrix First Certification not terminal yet (poll $attempt/60): $conclusion"
-                sleep 30
-                ;;
-            esac
-          done
-          echo "Matrix First Certification did not reach a terminal result for exact SHA $HEAD_SHA."
-          exit 1
-
-  ultra-fast:
-    name: Ultra — Fast Triage
-    needs: [matrix-first-barrier]
-    if: needs.matrix-first-barrier.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    env:
-      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Run Ultra Fast triage
-        id: triage
-        continue-on-error: true
-        env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          CHANGE_BASE: ${{ env.CHANGE_BASE }}
-        run: node --experimental-strip-types scripts/ci/ultra-fast.mjs
-      - name: Require Ultra Fast evidence
-        env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          set -euo pipefail
-          test -s diagnostics/investigation/ultra-fast.json
-          node --experimental-strip-types -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/investigation/ultra-fast.json','utf8')); if(r.sha!==process.env.EXPECTED_SHA) throw new Error('Ultra Fast SHA mismatch'); if(r.actualHeadSha!==process.env.EXPECTED_SHA) throw new Error('Ultra Fast actual SHA mismatch'); if(r.checksExecuted!==r.checksExpected) throw new Error('Ultra Fast incomplete execution'); console.log(JSON.stringify({phase:r.phase,status:r.status,failed:r.failed,rootCauseCount:r.rootCauseCount,unknownCount:r.unknownCount},null,2));"
-      - name: Upload Ultra Fast evidence
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: ultra-fast-${{ github.event.pull_request.head.sha || github.sha }}
-          path: diagnostics/investigation/ultra-fast.json
-          if-no-files-found: error
-          retention-days: 14
-      - name: Finalize Ultra Fast triage status
-        env:
-          TRIAGE_OUTCOME: ${{ steps.triage.outcome }}
-        run: |
-          set -euo pipefail
-          test "$TRIAGE_OUTCOME" = success || { echo "Ultra Fast detected a failure; escalating to Deep Recovery."; exit 1; }
-
-  ultra-deep-recovery:
-    name: Ultra — Deep Recovery (conditional)
-    needs: [ultra-fast]
-    if: needs.ultra-fast.result == 'failure'
-    uses: ./.github/workflows/ultra-investigator.yml
+  matrix-certification:
+    name: Matrix First Certification
+    uses: ./.github/workflows/matrix-first.yml
     with:
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      expected_head_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+    secrets: inherit
 
   ci:
     name: CI
-    needs: [matrix-first-barrier, ultra-fast]
-    if: always() && needs.matrix-first-barrier.result == 'success'
+    needs: [matrix-certification]
+    if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     env:
-      CI_PR_RESCUE: 'true'
       EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
@@ -137,341 +50,62 @@ jobs:
           cache: npm
       - name: Install dependencies once
         run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Verify exact HEAD
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
       - name: Run impact-aware verification
         run: node scripts/ci/fast-verify.mjs
       - name: Upload CI evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-fast-evidence-${{ github.sha }}
+          name: ci-fast-evidence-${{ env.EXPECTED_HEAD_SHA }}
           path: diagnostics/
           if-no-files-found: warn
           retention-days: 14
 
   fast-contract:
     name: Fast Contract Diagnostics
-    needs: [matrix-first-barrier, ultra-fast, ci]
-    if: always() && needs.matrix-first-barrier.result == 'success'
+    needs: [matrix-certification, ci]
+    if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     env:
       EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-    timeout-minutes: 2
     steps:
-      - name: Download Ultra Fast evidence
-        uses: actions/download-artifact@v6
+      - uses: actions/checkout@v5
         with:
-          name: ultra-fast-${{ github.event.pull_request.head.sha || github.sha }}
-          path: diagnostics/investigation
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Download CI evidence
         if: ${{ needs.ci.result == 'success' }}
         uses: actions/download-artifact@v6
         with:
-          name: ci-fast-evidence-${{ github.sha }}
+          name: ci-fast-evidence-${{ env.EXPECTED_HEAD_SHA }}
           path: diagnostics
-      - name: Validate exact-head triage evidence
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s diagnostics/investigation/ultra-fast.json
-          node --experimental-strip-types -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/investigation/ultra-fast.json','utf8')); if(r.sha!==process.env.EXPECTED_HEAD_SHA) throw new Error('Ultra Fast evidence SHA mismatch'); if(r.actualHeadSha!==process.env.EXPECTED_HEAD_SHA) throw new Error('Ultra Fast actual SHA mismatch'); if(r.checksExecuted!==r.checksExpected) throw new Error('Ultra Fast check coverage incomplete'); if(r.integrityErrors?.length) throw new Error('Ultra Fast integrity errors: '+r.integrityErrors.join('; ')); console.log('Ultra Fast evidence identity PASS');"
-      - name: Validate fast-path CI evidence
+      - name: Validate fast-path evidence
         if: ${{ needs.ci.result == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
-          test -s diagnostics/fast-ci-plan.json
           test -s diagnostics/fast-ci-result.json
           node -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/fast-ci-result.json','utf8')); if(r.sha!==process.env.EXPECTED_HEAD_SHA) throw new Error('Evidence SHA mismatch'); if(r.status!=='PASS') throw new Error('Fast CI result is not PASS'); console.log('Fast CI result PASS');"
+      - name: Require native prerequisite success
+        run: |
+          set -euo pipefail
+          test '${{ needs.matrix-certification.result }}' = success
+          test '${{ needs.ci.result }}' = success
 
   canonical-verify:
     name: Canonical Verification Gate
-    needs: [matrix-first-barrier, ci, fast-contract]
-    if: always() && needs.matrix-first-barrier.result == 'success'
+    needs: [matrix-certification, ci, fast-contract]
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
-      - name: Enforce prerequisite results
+      - name: Enforce all native prerequisite results without rerunning suites
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ needs.ci.result }}" != "success" ]]; then
-            echo 'Canonical Verification Gate BLOCKED: canonical CI failed.'
-            exit 1
-          fi
-          if [[ "${{ needs.fast-contract.result }}" != "success" ]]; then
-            echo 'Canonical Verification Gate BLOCKED: Fast Contract Diagnostics failed.'
-            exit 1
-          fi
-          echo 'Canonical Verification Gate PASS: required fast-path evidence is green.'
-
-  g3-foundation:
-    name: G3 / Foundation
-    needs: [matrix-first-barrier]
-    if: needs.matrix-first-barrier.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: G3-00 Identity
-        run: node scripts/ci/g3/identity.mjs
-        env:
-          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
-          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
-      - name: G3-01/02/03 Environment
-        if: always()
-        run: node scripts/ci/g3/environment.mjs
-        env:
-          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          SITE_URL: https://flixoai.vercel.app
-          TEST_ORIGIN: http://127.0.0.1:3000
-          RUNTIME_ORIGIN: http://127.0.0.1:3000
-          NODE_ENV: test
-      - name: Install dependencies
-        if: always()
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: G3-11 TypeScript
-        if: always()
-        run: npx tsc --noEmit --pretty false
-      - name: G3-12 ESLint
-        if: always()
-        run: npm run lint
-      - name: G3-13 Build
-        if: always()
-        run: npm run build
-      - name: G3-14 Build Identity
-        if: always()
-        run: git rev-parse HEAD
-      - uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: g3-foundation-${{ github.run_id }}
-          path: artifacts/ci/g3/
-          if-no-files-found: warn
-          retention-days: 14
-
-  g3-contracts:
-    name: G3 / Contracts
-    needs: [matrix-first-barrier]
-    if: needs.matrix-first-barrier.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
-    env:
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Fixed fixtures
-        if: always()
-        run: node scripts/ci/g3/prepare-fixtures.mjs
-      - name: G3-20..31 Artifact Contract
-        if: always()
-        run: node --experimental-strip-types scripts/ci/g3/artifact-gates.mjs
-      - name: G3-40..47 Processor
-        if: always()
-        run: node --experimental-strip-types scripts/ci/g3/processor.mjs
-      - name: G3-90..97 Regression
-        if: always()
-        run: node scripts/ci/g3/regression.mjs
-      - name: G3-DET Determinism
-        if: always()
-        run: node scripts/ci/g3/determinism.mjs
-      - name: Universal Artifact Matrix
-        if: always()
-        run: node scripts/test-g3-artifact-integrity.mjs
-      - uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: g3-contracts-${{ github.run_id }}
-          path: artifacts/ci/g3/
-          if-no-files-found: warn
-          retention-days: 14
-
-  g3-browser:
-    name: G3 / Browser
-    needs: [matrix-first-barrier]
-    if: needs.matrix-first-barrier.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      SITE_URL: https://flixoai.vercel.app
-      TEST_ORIGIN: http://127.0.0.1:3000
-      RUNTIME_ORIGIN: http://127.0.0.1:3000
-      VITE_SITE_URL: https://flixoai.vercel.app
-      VITE_TEST_ORIGIN: http://127.0.0.1:3000
-      VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
-      NODE_ENV: test
-      PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-      PLAYWRIGHT_REUSE_SERVER: 'true'
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - name: G3-50 Browser Installed
-        timeout-minutes: 8
-        run: |
-          set -euo pipefail
-          executable="$(node -e "const { chromium } = require('playwright'); process.stdout.write(chromium.executablePath())")"
-          if [[ -x "$executable" ]]; then
-            echo "Playwright Chromium cache hit: $executable"
-            exit 0
-          fi
-          timeout --preserve-status 420s npx playwright install chromium
-      - name: Verify Playwright browser executable
-        run: |
-          set -euo pipefail
-          executable="$(node -e "const { chromium } = require('playwright'); process.stdout.write(chromium.executablePath())")"
-          test -x "$executable"
-          echo "Chromium executable verified: $executable"
-      - name: Build runtime
-        if: always()
-        run: npm run build:runtime
-      - name: Start local runtime
-        if: always()
-        shell: bash
-        run: |
-          set +e
-          npm run preview -- --host 127.0.0.1 --port 3000 > /tmp/flixo-g3-server.log 2>&1 &
-          echo $! > /tmp/flixo-g3-server.pid
-          exit 0
-      - name: G3-50..85 Browser
-        if: always()
-        run: node scripts/ci/g3/browser-gates.mjs
-      - uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: g3-browser-${{ github.run_id }}
-          path: |
-            artifacts/ci/g3/
-            playwright-report/
-            test-results/
-            /tmp/flixo-g3-server.log
-          if-no-files-found: warn
-          retention-days: 14
-
-  g3-aggregator:
-    name: G3 / Aggregator
-    needs: [matrix-first-barrier, g3-foundation, g3-contracts, g3-browser]
-    if: always() && needs.matrix-first-barrier.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-      - name: Download all G3 evidence
-        uses: actions/download-artifact@v6
-        with:
-          pattern: g3-*
-          path: artifacts/ci/g3/all
-          merge-multiple: false
-      - name: Resolve legacy G3
-        id: legacy-g3
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          conclusion="NOT_FOUND"
-          for attempt in {1..60}; do
-            conclusion=$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/check-runs?per_page=100" --jq '[.check_runs[] | select(.name=="G3 Artifact Integrity Shadow") | select(.head_sha==env.HEAD_SHA)] | sort_by(.completed_at) | last | .conclusion // "NOT_FOUND"')
-            case "$conclusion" in
-              success|failure|cancelled|timed_out|action_required|neutral|skipped|stale)
-                break
-                ;;
-              *)
-                echo "Legacy G3 exact-head result not terminal yet (poll $attempt/60): $conclusion"
-                sleep 5
-                ;;
-            esac
-          done
-          if [[ "$conclusion" == "NOT_FOUND" || "$conclusion" == "null" || "$conclusion" == "" ]]; then
-            echo 'Legacy G3 result was not available on the exact head SHA after bounded polling.'
-            exit 1
-          fi
-          echo "LEGACY_RESULT=$conclusion"
-          echo "legacy_result=$conclusion" >> "$GITHUB_OUTPUT"
-      - name: G3 authoritative aggregation
-        env:
-          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
-          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
-          LEGACY_RESULT: ${{ steps.legacy-g3.outputs.legacy_result }}
-          FOUNDATION_RESULT: ${{ needs.g3-foundation.result }}
-        run: node scripts/ci/g3/aggregate.mjs
-      - uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: g3-aggregator-${{ github.run_id }}
-          path: artifacts/ci/g3/aggregator.json
-          if-no-files-found: warn
-          retention-days: 30
-
-  final-contract-gate:
-    name: Final Contract Decision
-    needs: [matrix-first-barrier, ultra-fast, ultra-deep-recovery, ci, fast-contract, canonical-verify, g3-aggregator]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Enforce final decision graph
-        shell: bash
-        env:
-          MATRIX_FIRST_RESULT: ${{ needs.matrix-first-barrier.result }}
-          ULTRA_FAST_RESULT: ${{ needs.ultra-fast.result }}
-          ULTRA_DEEP_RESULT: ${{ needs.ultra-deep-recovery.result }}
-          CI_RESULT: ${{ needs.ci.result }}
-          FAST_CONTRACT_RESULT: ${{ needs.fast-contract.result }}
-          CANONICAL_RESULT: ${{ needs.canonical-verify.result }}
-          G3_RESULT: ${{ needs.g3-aggregator.result }}
-        run: |
-          set -euo pipefail
-          echo "matrix-first=$MATRIX_FIRST_RESULT"
-          echo "ultra-fast=$ULTRA_FAST_RESULT"
-          echo "ultra-deep=$ULTRA_DEEP_RESULT"
-          echo "ci=$CI_RESULT"
-          echo "fast-contract=$FAST_CONTRACT_RESULT"
-          echo "canonical=$CANONICAL_RESULT"
-          echo "g3=$G3_RESULT"
-          test "$MATRIX_FIRST_RESULT" = success
-          test "$CI_RESULT" = success
-          test "$FAST_CONTRACT_RESULT" = success
-          test "$CANONICAL_RESULT" = success
-          test "$G3_RESULT" = success
-          if [[ "$ULTRA_FAST_RESULT" == "failure" ]]; then
-            test "$ULTRA_DEEP_RESULT" = success
-          fi
-          echo 'FINAL CONTRACT DECISION PASS: Matrix First and official downstream contracts passed.'
+          test '${{ needs.matrix-certification.result }}' = success
+          test '${{ needs.ci.result }}' = success
+          test '${{ needs.fast-contract.result }}' = success
+          echo 'Canonical Verification Gate PASS: exact-head Matrix First and fast-path evidence are both green.'

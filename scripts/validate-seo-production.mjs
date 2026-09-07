@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { LOCALES, LOCALE_METADATA, X_DEFAULT_LOCALE, getCanonicalSiteOrigin } from '../src/lib/i18n/config.ts';
+import { DEFAULT_LOCALE, LOCALES, LOCALE_METADATA, getCanonicalSiteOrigin } from '../src/lib/i18n/config.ts';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
 import { getLocalizedToolPath, getLocalizedToolUrl } from '../src/lib/routing/route-resolver.ts';
 
@@ -121,7 +121,7 @@ for (const block of urlBlocks) {
     if (!href.startsWith(`${canonicalOrigin}/`)) fail(`${loc} has alternate outside canonical origin: ${href}`);
 
     if (hreflang === 'x-default') {
-      const expected = expectedLocalizedUrl(X_DEFAULT_LOCALE);
+      const expected = expectedLocalizedUrl(DEFAULT_LOCALE);
       if (href !== expected) fail(`${loc} has incorrect x-default target: ${href}`);
       continue;
     }

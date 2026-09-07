@@ -1,10 +1,11 @@
-import { Suspense, useEffect, useLayoutEffect } from 'react';
-import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tanstack/react-router';
+import { Suspense, useEffect } from 'react';
+import { HeadContent, Scripts, Outlet, createRootRoute } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
+import { ErrorComponent, NotFoundComponent } from '../components/route-fallbacks';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
-import { applyDocumentLocale, installDocumentLocaleContract, localeFromPathname } from '../lib/i18n/runtime-document-locale';
 import { SITE_ORIGIN } from '../lib/i18n';
+import { serializeJsonLd } from '../lib/seo/json-ld';
 
 const GLOBAL_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
@@ -14,26 +15,17 @@ const GLOBAL_STRUCTURED_DATA = {
   ],
 } as const;
 
-function RuntimeLocaleAttributes() {
-  const location = useLocation();
-
-  useLayoutEffect(() => {
-    const locale = localeFromPathname(location.pathname);
-    applyDocumentLocale(locale);
-    return installDocumentLocaleContract(() => location.pathname);
-  }, [location.pathname]);
-
-  return null;
-}
-
 function RouteContent() {
   return <Suspense fallback={<div role="status" aria-live="polite">Loading…</div>}><Outlet /></Suspense>;
 }
 
 export const rootRoute = createRootRoute({
+  errorComponent: ErrorComponent,
+  notFoundComponent: NotFoundComponent,
   component: function RootLayout() {
     useEffect(() => installCoreWebVitalsDiagnostics(), []);
-    return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} /><FlixoGlobalLogo /><CommandPalette /><RouteContent /><Scripts /></>;
+    const jsonLd = serializeJsonLd(GLOBAL_STRUCTURED_DATA);
+    return <><HeadContent /><script type="application/ld+json">{jsonLd}</script><FlixoGlobalLogo /><CommandPalette /><RouteContent /><Scripts /></>;
   },
   head: () => ({
     meta: [

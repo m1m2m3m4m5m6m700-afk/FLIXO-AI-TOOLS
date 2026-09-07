@@ -6,19 +6,26 @@ import { installRuntimeDiagnostics } from './lib/diagnostics/runtime';
 import { installPerformanceDiagnostics } from './lib/diagnostics/performance';
 import { installToolUiRuntimeLocalization } from './lib/i18n/tool-ui-runtime';
 import { installToolUiRuntimeSupplement } from './lib/i18n/tool-ui-runtime-supplement';
+import { installToolUiMsUkRuntimeCoverage } from './lib/i18n/tool-ui-runtime-ms-uk';
 import { installToolUiTechnicalValueNormalization } from './lib/i18n/tool-ui-technical-values';
 import { installToolUiRuntimeCompleteness } from './lib/i18n/tool-ui-runtime-completeness';
+import { ToolUiLocalizationEngine } from './lib/i18n/runtime-document-locale';
 import { FlixoUxShell } from './components/flixo-ux-shell';
 import './styles.css';
 import './home-motion.css';
-import './command-palette.css';
+import './components/command-palette.css';
 import './home-modern.css';
 import './tools/seed/seed-premium.css';
 
+// The document root is outside React's rendered tree. Establish its locale synchronously
+// before React mounts, then retain a single lifecycle owner for route-driven locale changes.
+const documentLocalizationEngine = new ToolUiLocalizationEngine();
+const disposeDocumentLocaleEngine = documentLocalizationEngine.start();
 installRuntimeDiagnostics();
 installPerformanceDiagnostics();
 const disposeToolUiLocalization = installToolUiRuntimeLocalization();
 const disposeToolUiLocalizationSupplement = installToolUiRuntimeSupplement();
+const disposeToolUiMsUkRuntimeCoverage = installToolUiMsUkRuntimeCoverage();
 const disposeToolUiTechnicalValues = installToolUiTechnicalValueNormalization();
 const disposeToolUiRuntimeCompleteness = installToolUiRuntimeCompleteness();
 
@@ -39,8 +46,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 );
 
 if (import.meta.hot) import.meta.hot.dispose(() => {
+  disposeDocumentLocaleEngine();
   disposeToolUiLocalization();
   disposeToolUiLocalizationSupplement();
+  disposeToolUiMsUkRuntimeCoverage();
   disposeToolUiTechnicalValues();
   disposeToolUiRuntimeCompleteness();
 });

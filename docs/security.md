@@ -24,9 +24,16 @@ Vercel applies a conservative baseline including CSP, `nosniff`, referrer policy
 
 The CSP allows only the resource types FLIXO currently needs, including local scripts, WebAssembly, data/blob images, media, workers, and HTTPS API connections.
 
-## Input sanitization
+## Input sanitization and trusted HTML boundaries
 
-DOMPurify is intentionally not installed globally. The repository currently has no `dangerouslySetInnerHTML` usage found by the code search. If an untrusted HTML rendering path is introduced, sanitize that specific boundary instead of adding a project-wide wrapper.
+DOMPurify is not installed globally because the current HTML insertion sites are trusted static-data boundaries rather than general-purpose HTML rendering paths. There are four intentional `dangerouslySetInnerHTML` usages in the current application:
+
+- `src/routes/__root.tsx`: repository-controlled `GLOBAL_STRUCTURED_DATA`, serialized as JSON-LD and escaped for `<`.
+- `src/routes/localized-tool-page.tsx`: repository-controlled localized tool SEO JSON-LD, serialized and escaped for `<`.
+- `src/routes/use-case.tsx`: repository-controlled use-case JSON-LD, serialized and escaped for `<`.
+- `src/routes/home-page.tsx`: repository-controlled locale `heroTitle` strings containing the intentional `<span>` presentation wrapper.
+
+None of these four boundaries accepts uploaded files, request parameters, persisted user content, or remote HTML as its HTML source. This is an explicit trust boundary, not permission to introduce arbitrary HTML later. A future untrusted HTML path must use normal React elements or an explicit sanitizer at that boundary.
 
 ## Rules
 
@@ -34,3 +41,4 @@ DOMPurify is intentionally not installed globally. The repository currently has 
 2. Add a security package only when a concrete threat or code path requires it.
 3. Keep tool isolation intact.
 4. Never weaken existing CI checks just to make a run green.
+5. Keep trusted HTML boundaries narrow, repository-controlled, and explicitly documented.

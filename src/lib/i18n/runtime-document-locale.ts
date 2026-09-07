@@ -1,87 +1,186 @@
-import type { Locale } from './config';
-import { isLocale, LOCALE_METADATA } from './config';
+import { DEFAULT_LOCALE, isLocale, LOCALE_METADATA, type CanonicalLocale } from './config';
 
 const LOCALE_PATH_RE = /^\/([^/]+)(?:\/|$)/u;
+const LOCALE_RUNTIME_EVENT = 'flixo:document-locale-path-change';
 
-export function localeFromPathname(pathname: string): Locale {
-  const candidate = pathname.match(LOCALE_PATH_RE)?.[1] ?? 'en';
-  return isLocale(candidate) ? candidate : 'en';
+type PatchedHistory = History & {
+  __flixoLocalePatched?: boolean;
+};
+
+function canonicalLocale(value: string | null | undefined): CanonicalLocale {
+  const candidate = value?.trim().toLowerCase() ?? '';
+  return isLocale(candidate) ? candidate : DEFAULT_LOCALE;
 }
 
-export function applyDocumentLocale(locale: Locale): void {
+export function localeFromPathname(pathname: string): CanonicalLocale {
+  const candidate = pathname?.match(LOCALE_PATH_RE)?.[1] ?? '';
+  return canonicalLocale(candidate);
+}
+
+export function applyDocumentLocale(locale: CanonicalLocale): void {
   if (typeof document === 'undefined') return;
 
   const html = document.documentElement;
-  const metadata = LOCALE_METADATA[locale];
-  
-  // ✅ GUARD CLAUSE: Prevent undefined metadata from reaching setAttribute
+  if (!html) return;
+
+  const safeLocale = canonicalLocale(locale);
+  const metadata = LOCALE_METADATA[safeLocale];
   if (!metadata) return;
-  
-  const languageTag = metadata.languageTag;
+
+  const languageTag = metadata.languageTag.trim();
   const direction = metadata.direction;
+  if (!languageTag) return;
 
   if (html.getAttribute('lang') !== languageTag) html.setAttribute('lang', languageTag);
   if (html.getAttribute('dir') !== direction) html.setAttribute('dir', direction);
-  if (html.getAttribute('data-flixo-locale') !== locale) html.setAttribute('data-flixo-locale', locale);
+  if (html.getAttribute('data-flixo-locale') !== safeLocale) html.setAttribute('data-flixo-locale', safeLocale);
 
-  document.querySelectorAll<HTMLElement>('main').forEach((main) => {
-    if (main.getAttribute('lang') !== languageTag) main.setAttribute('lang', languageTag);
-    if (main.getAttribute('dir') !== direction) main.setAttribute('dir', direction);
-  });
+  const body = document.body;
+  if (body && body.getAttribute('data-flixo-locale') !== safeLocale) {
+    body.setAttribute('data-flixo-locale', safeLocale);
+  }
 }
 
-/**
- * Installs the document-level locale contract outside React's lifecycle.
- * The pathname is evaluated on every enforcement pass so the observer remains
- * correct across client-side navigation and DOM replacement.
- */
-export function installDocumentLocaleContract(getPathname: () => string): () => void {
-  if (typeof document === 'undefined') return () => undefined;
+export class ToolUiLocalizationEngine {
+  private static active: ToolUiLocalizationEngine | null = null;
 
-  const apply = () => applyDocumentLocale(localeFromPathname(getPathname()));
-  apply();
+  private disposed = false;
+  private started = false;
+  private observedHtml: HTMLElement | null = null;
+  private htmlObserver: MutationObserver | null = null;
+  private documentObserver: MutationObserver | null = null;
+  private scheduled = false;
+  private restoreHistory = () => undefined;
 
-  const frame = window.requestAnimationFrame(apply);
-  const interval = window.setInterval(apply, 250);
+  public constructor(private readonly getPathname: () => string = () => window.location.pathname) {}
 
-  const htmlObserver = new MutationObserver((mutations) => {
-    if (mutations.some((mutation) => mutation.type === 'attributes' && (mutation.attributeName === 'lang' || mutation.attributeName === 'dir' || mutation.attributeName === 'data-flixo-locale'))) {
-      apply();
+  public start(): () => void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return () => undefined;
+    if (this.started) return () => this.dispose();
+
+    ToolUiLocalizationEngine.active?.dispose();
+    ToolUiLocalizationEngine.active = this;
+    this.started = true;
+    this.disposed = false;
+
+    this.apply();
+    this.installHtmlObserver();
+    this.installPathLifecycle();
+
+    this.documentObserver = new MutationObserver(() => {
+      if (document.documentElement !== this.observedHtml) {
+        this.installHtmlObserver();
+        this.scheduleApply();
+      }
+    });
+    this.documentObserver.observe(document, { childList: true });
+
+    return () => this.dispose();
+  }
+
+  private readPathname(): string {
+    try {
+      const pathname = this.getPathname();
+      return typeof pathname === 'string' ? pathname : '/';
+    } catch {
+      return '/';
     }
-  });
-  htmlObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['lang', 'dir', 'data-flixo-locale'],
-  });
+  }
 
-  const documentObserver = new MutationObserver((mutations) => {
-    if (mutations.some((mutation) => mutation.type === 'childList')) apply();
-  });
-  documentObserver.observe(document, { childList: true, subtree: false });
-
-  const bodyObserver = new MutationObserver((mutations) => {
-    if (mutations.some((mutation) => {
-      if (mutation.type === 'childList') return mutation.addedNodes.length > 0;
-      if (mutation.type === 'attributes') return mutation.target instanceof HTMLElement && mutation.target.tagName === 'MAIN';
-      return false;
-    })) {
-      apply();
+  private installHtmlObserver(): void {
+    const html = document.documentElement;
+    if (!html) {
+      this.htmlObserver?.disconnect();
+      this.htmlObserver = null;
+      this.observedHtml = null;
+      return;
     }
-  });
-  if (document.body) {
-    bodyObserver.observe(document.body, {
-      subtree: true,
-      childList: true,
+
+    if (this.observedHtml === html && this.htmlObserver) return;
+
+    this.htmlObserver?.disconnect();
+    this.observedHtml = html;
+    this.htmlObserver = new MutationObserver(() => this.scheduleApply());
+    this.htmlObserver.observe(html, {
       attributes: true,
-      attributeFilter: ['lang', 'dir'],
+      attributeFilter: ['lang', 'dir', 'data-flixo-locale'],
     });
   }
 
-  return () => {
-    window.cancelAnimationFrame(frame);
-    window.clearInterval(interval);
-    htmlObserver.disconnect();
-    documentObserver.disconnect();
-    bodyObserver.disconnect();
-  };
+  private apply(): void {
+    if (this.disposed) return;
+    this.installHtmlObserver();
+    if (!document.documentElement) return;
+    applyDocumentLocale(localeFromPathname(this.readPathname()));
+  }
+
+  private scheduleApply(): void {
+    if (this.disposed || this.scheduled) return;
+    this.scheduled = true;
+    queueMicrotask(() => {
+      this.scheduled = false;
+      this.apply();
+    });
+  }
+
+  private installPathLifecycle(): void {
+    const onPathChange = () => this.scheduleApply();
+    window.addEventListener('popstate', onPathChange);
+    window.addEventListener('hashchange', onPathChange);
+    window.addEventListener(LOCALE_RUNTIME_EVENT, onPathChange);
+    document.addEventListener('DOMContentLoaded', onPathChange, { once: true });
+    window.addEventListener('load', onPathChange, { once: true });
+
+    const history = window.history as PatchedHistory;
+    if (!history.__flixoLocalePatched) {
+      const originalPushState = history.pushState;
+      const originalReplaceState = history.replaceState;
+
+      history.pushState = function pushState(...args) {
+        const result = originalPushState.apply(this, args);
+        window.dispatchEvent(new Event(LOCALE_RUNTIME_EVENT));
+        return result;
+      };
+      history.replaceState = function replaceState(...args) {
+        const result = originalReplaceState.apply(this, args);
+        window.dispatchEvent(new Event(LOCALE_RUNTIME_EVENT));
+        return result;
+      };
+
+      history.__flixoLocalePatched = true;
+      this.restoreHistory = () => {
+        history.pushState = originalPushState;
+        history.replaceState = originalReplaceState;
+        delete history.__flixoLocalePatched;
+      };
+    }
+
+    this.pathCleanup = () => {
+      window.removeEventListener('popstate', onPathChange);
+      window.removeEventListener('hashchange', onPathChange);
+      window.removeEventListener(LOCALE_RUNTIME_EVENT, onPathChange);
+      document.removeEventListener('DOMContentLoaded', onPathChange);
+      window.removeEventListener('load', onPathChange);
+      this.restoreHistory();
+      this.restoreHistory = () => undefined;
+    };
+  }
+
+  private pathCleanup = () => undefined;
+
+  public dispose(): void {
+    if (!this.started || this.disposed) return;
+    this.disposed = true;
+    this.pathCleanup();
+    this.htmlObserver?.disconnect();
+    this.documentObserver?.disconnect();
+    this.htmlObserver = null;
+    this.documentObserver = null;
+    this.observedHtml = null;
+    if (ToolUiLocalizationEngine.active === this) ToolUiLocalizationEngine.active = null;
+  }
+}
+
+export function installDocumentLocaleContract(getPathname: () => string): () => void {
+  return new ToolUiLocalizationEngine(getPathname).start();
 }

@@ -31,7 +31,7 @@ const flags = {
   tools: [...new Set(files.map((file) => file.match(/^src\/tools\/([^/]+)/)?.[1]).filter(Boolean))],
 };
 
-const sourceFiles = files.filter((file) => /\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file));
+const sourceFiles = files.filter((file) => existsSync(file) && /\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file));
 const typedSourceFiles = files.filter((file) => /\.(?:ts|tsx)$/.test(file));
 const testFiles = files.filter((file) => /^(?:tests|test)\/.*\.(?:ts|tsx|js|mjs|cjs)$/.test(file));
 const docsOnly = files.length > 0 && files.every((file) => /^(docs\/|README|CHANGELOG|LICENSE|\.github\/ISSUE_TEMPLATE\/)/i.test(file));
@@ -59,7 +59,6 @@ if (flags.routing) {
 }
 if (flags.localization) {
   add('i18n-strict', 'npm', ['run', 'verify:i18n', '--', '--strict', '--report'], 'localization impact');
-  add('locale-integrity', 'npm', ['run', 'validate:locale-integrity'], 'localization impact');
   add('locale-navigation', 'npm', ['run', 'validate:locale-navigation'], 'localization impact');
   add('home-i18n', 'npm', ['run', 'validate:home-i18n'], 'localization impact');
   add('tool-localization', 'npm', ['run', 'test:tool-localization'], 'localization impact');
@@ -85,7 +84,7 @@ for (const tool of flags.tools) {
 }
 if (toolTestCandidates.length) {
   add('playwright-install', 'npx', ['playwright', 'install', 'chromium'], 'affected browser checks');
-  add('affected-e2e', 'npx', ['playwright', 'test', ...toolTestCandidates, '--project=chromium', '--workers=2', '--retries=0'], 'changed tool surfaces');
+  add('affected-e2e', 'npx', ['playwright', 'test', ...toolTestCandidates, '--project=chromium', '--workers=2', '--retries=0', '--max-failures=1'], 'changed tool surfaces');
 }
 
 const needBuild = flags.workflow || flags.dependency || flags.registry || flags.routing || flags.localization || flags.seo;

@@ -22,7 +22,7 @@ function downloadBytes(bytes: Uint8Array, filename: string) {
   anchor.href = url;
   anchor.download = filename;
   anchor.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  URL.revokeObjectURL(url);
 }
 
 export function PdfUnlockProtectTool() {

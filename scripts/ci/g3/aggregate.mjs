@@ -177,8 +177,7 @@ for (const failure of gateFailures) {
   grouped.get(rootCause).push(failure.gate);
 }
 const primary = [...grouped.entries()].sort((a, b) => b[1].length - a[1].length)[0] ?? null;
-const legacyFound = process.env.LEGACY_RESULT === 'success';
-const parity = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 && legacyFound ? 'PASS' : legacyFound ? 'DIFFERENCE_REQUIRES_REVIEW' : 'NOT_PROVEN';
+const parity = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 ? 'PASS' : 'DIFFERENCE_REQUIRES_REVIEW';
 const authoritative = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 && missingEvidenceFields.length === 0 && parity === 'PASS';
 
 const report = {

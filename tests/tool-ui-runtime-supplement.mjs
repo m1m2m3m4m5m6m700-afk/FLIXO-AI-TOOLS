@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 
+const supplement = await import('../src/lib/i18n/tool-ui-runtime-supplement.ts');
+assert.ok(supplement, 'tool UI runtime supplement module must load');
+
 const samples = [
   ['ar', 'A cinematic sunset over Cairo...', 'غروب سينمائي فوق القاهرة...'],
   ['de', 'A cinematic sunset over Cairo...', 'Ein filmischer Sonnenuntergang über Kairo …'],

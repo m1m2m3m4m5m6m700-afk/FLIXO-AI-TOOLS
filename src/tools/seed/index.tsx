@@ -9,7 +9,7 @@ import fragmentSource from './glsl/fragment.glsl?raw';
 import { SeedGLEngine, type SeedRenderSettings } from './webgl-engine';
 import { DEFAULT_ADVANCED, renderAdvanced, type AdvancedSeedSettings } from './advanced-engine';
 import { CurveMiniPreview, NumericField, SectionReset, StudioSlider, ToolSection } from './studio-controls';
-import { FloatingCanvasOverlay, type FloatingCanvasOverlayLabels } from '../../components/floating-canvas-overlay';
+import { FloatingCanvasOverlay, type FloatingCanvasOverlayLabels } from './seed-canvas-overlay';
 import { useFullscreenSync } from '../../components/useFullscreenSync';
 
 export interface SeedState extends SeedRenderSettings {
