@@ -1,4 +1,4 @@
-import type { LocalizedToolSeo } from '../manifest';
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
 
 export const uk: LocalizedToolSeo = Object.freeze({
   title: 'Mockup Генератор Online',

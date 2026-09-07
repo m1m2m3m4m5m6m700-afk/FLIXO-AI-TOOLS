@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
-import type { KnownLocale, Locale } from '@/lib/i18n';
+import type { Locale } from '@/lib/i18n';
+import type { KnownLocale } from '@/lib/i18n/config';
 import { LOCALE_METADATA } from '@/lib/i18n';
 import { getLocalizedToolTitle } from '@/lib/seo/tool-seo';
 

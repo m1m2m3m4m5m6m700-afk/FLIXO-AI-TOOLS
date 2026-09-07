@@ -1,4 +1,4 @@
-import type { LocalizedToolSeo } from '../manifest';
+import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
 
 export const ms: LocalizedToolSeo = Object.freeze({
   title: 'Imej Effects Online',
