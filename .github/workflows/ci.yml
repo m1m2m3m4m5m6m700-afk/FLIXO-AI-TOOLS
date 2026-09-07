@@ -83,6 +83,10 @@ jobs:
       - name: Unified diagnostic runner
         run: npm run test:diagnose
 
+      - name: Technical-debt classification audit
+        if: always()
+        run: npm run audit:technical-debt
+
       - name: Upload unified CI diagnostics
         if: always()
         uses: actions/upload-artifact@v6
