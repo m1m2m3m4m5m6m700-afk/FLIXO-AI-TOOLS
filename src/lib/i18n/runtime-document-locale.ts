@@ -34,119 +34,153 @@ export function applyDocumentLocale(locale: CanonicalLocale): void {
   if (html.getAttribute('lang') !== languageTag) html.setAttribute('lang', languageTag);
   if (html.getAttribute('dir') !== direction) html.setAttribute('dir', direction);
   if (html.getAttribute('data-flixo-locale') !== safeLocale) html.setAttribute('data-flixo-locale', safeLocale);
+
+  const body = document.body;
+  if (body && body.getAttribute('data-flixo-locale') !== safeLocale) {
+    body.setAttribute('data-flixo-locale', safeLocale);
+  }
 }
 
-export function installDocumentLocaleContract(getPathname: () => string): () => void {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return () => undefined;
+export class ToolUiLocalizationEngine {
+  private static active: ToolUiLocalizationEngine | null = null;
 
-  let disposed = false;
-  let observedHtml: HTMLElement | null = null;
-  let htmlObserver: MutationObserver | null = null;
-  let scheduled = false;
+  private disposed = false;
+  private started = false;
+  private observedHtml: HTMLElement | null = null;
+  private htmlObserver: MutationObserver | null = null;
+  private documentObserver: MutationObserver | null = null;
+  private scheduled = false;
+  private restoreHistory = () => undefined;
 
-  const readPathname = () => {
+  public constructor(private readonly getPathname: () => string = () => window.location.pathname) {}
+
+  public start(): () => void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return () => undefined;
+    if (this.started) return () => this.dispose();
+
+    ToolUiLocalizationEngine.active?.dispose();
+    ToolUiLocalizationEngine.active = this;
+    this.started = true;
+    this.disposed = false;
+
+    this.apply();
+    this.installHtmlObserver();
+    this.installPathLifecycle();
+
+    this.documentObserver = new MutationObserver(() => {
+      if (document.documentElement !== this.observedHtml) {
+        this.installHtmlObserver();
+        this.scheduleApply();
+      }
+    });
+    this.documentObserver.observe(document, { childList: true });
+
+    return () => this.dispose();
+  }
+
+  private readPathname(): string {
     try {
-      const pathname = getPathname();
+      const pathname = this.getPathname();
       return typeof pathname === 'string' ? pathname : '/';
     } catch {
       return '/';
     }
-  };
+  }
 
-  const disconnectHtmlObserver = () => {
-    htmlObserver?.disconnect();
-    htmlObserver = null;
-    observedHtml = null;
-  };
-
-  const ensureHtmlObserver = () => {
+  private installHtmlObserver(): void {
     const html = document.documentElement;
     if (!html) {
-      disconnectHtmlObserver();
-      return null;
+      this.htmlObserver?.disconnect();
+      this.htmlObserver = null;
+      this.observedHtml = null;
+      return;
     }
 
-    if (observedHtml === html && htmlObserver) return html;
+    if (this.observedHtml === html && this.htmlObserver) return;
 
-    disconnectHtmlObserver();
-    observedHtml = html;
-    htmlObserver = new MutationObserver(() => scheduleApply());
-    htmlObserver.observe(html, {
+    this.htmlObserver?.disconnect();
+    this.observedHtml = html;
+    this.htmlObserver = new MutationObserver(() => this.scheduleApply());
+    this.htmlObserver.observe(html, {
       attributes: true,
       attributeFilter: ['lang', 'dir', 'data-flixo-locale'],
     });
-    return html;
-  };
+  }
 
-  const apply = () => {
-    if (disposed) return;
-    const html = ensureHtmlObserver();
-    if (!html) return;
-    applyDocumentLocale(localeFromPathname(readPathname()));
-  };
+  private apply(): void {
+    if (this.disposed) return;
+    this.installHtmlObserver();
+    if (!document.documentElement) return;
+    applyDocumentLocale(localeFromPathname(this.readPathname()));
+  }
 
-  const scheduleApply = () => {
-    if (disposed || scheduled) return;
-    scheduled = true;
+  private scheduleApply(): void {
+    if (this.disposed || this.scheduled) return;
+    this.scheduled = true;
     queueMicrotask(() => {
-      scheduled = false;
-      apply();
+      this.scheduled = false;
+      this.apply();
     });
-  };
+  }
 
-  const onPathChange = () => scheduleApply();
+  private installPathLifecycle(): void {
+    const onPathChange = () => this.scheduleApply();
+    window.addEventListener('popstate', onPathChange);
+    window.addEventListener('hashchange', onPathChange);
+    window.addEventListener(LOCALE_RUNTIME_EVENT, onPathChange);
+    document.addEventListener('DOMContentLoaded', onPathChange, { once: true });
+    window.addEventListener('load', onPathChange, { once: true });
 
-  apply();
-  window.addEventListener('popstate', onPathChange);
-  window.addEventListener('hashchange', onPathChange);
-  window.addEventListener(LOCALE_RUNTIME_EVENT, onPathChange);
-  document.addEventListener('DOMContentLoaded', scheduleApply, { once: true });
-  window.addEventListener('load', scheduleApply, { once: true });
+    const history = window.history as PatchedHistory;
+    if (!history.__flixoLocalePatched) {
+      const originalPushState = history.pushState;
+      const originalReplaceState = history.replaceState;
 
-  const documentObserver = new MutationObserver(() => {
-    const html = document.documentElement;
-    if (html !== observedHtml) {
-      ensureHtmlObserver();
-      scheduleApply();
+      history.pushState = function pushState(...args) {
+        const result = originalPushState.apply(this, args);
+        window.dispatchEvent(new Event(LOCALE_RUNTIME_EVENT));
+        return result;
+      };
+      history.replaceState = function replaceState(...args) {
+        const result = originalReplaceState.apply(this, args);
+        window.dispatchEvent(new Event(LOCALE_RUNTIME_EVENT));
+        return result;
+      };
+
+      history.__flixoLocalePatched = true;
+      this.restoreHistory = () => {
+        history.pushState = originalPushState;
+        history.replaceState = originalReplaceState;
+        delete history.__flixoLocalePatched;
+      };
     }
-  });
-  documentObserver.observe(document, { childList: true });
 
-  const history = window.history as PatchedHistory;
-  let restoreHistory = () => undefined;
-
-  if (!history.__flixoLocalePatched) {
-    const originalPushState = history.pushState;
-    const originalReplaceState = history.replaceState;
-
-    history.pushState = function pushState(...args) {
-      const result = originalPushState.apply(this, args);
-      window.dispatchEvent(new Event(LOCALE_RUNTIME_EVENT));
-      return result;
-    };
-    history.replaceState = function replaceState(...args) {
-      const result = originalReplaceState.apply(this, args);
-      window.dispatchEvent(new Event(LOCALE_RUNTIME_EVENT));
-      return result;
-    };
-
-    history.__flixoLocalePatched = true;
-    restoreHistory = () => {
-      history.pushState = originalPushState;
-      history.replaceState = originalReplaceState;
-      delete history.__flixoLocalePatched;
+    this.pathCleanup = () => {
+      window.removeEventListener('popstate', onPathChange);
+      window.removeEventListener('hashchange', onPathChange);
+      window.removeEventListener(LOCALE_RUNTIME_EVENT, onPathChange);
+      document.removeEventListener('DOMContentLoaded', onPathChange);
+      window.removeEventListener('load', onPathChange);
+      this.restoreHistory();
+      this.restoreHistory = () => undefined;
     };
   }
 
-  return () => {
-    disposed = true;
-    window.removeEventListener('popstate', onPathChange);
-    window.removeEventListener('hashchange', onPathChange);
-    window.removeEventListener(LOCALE_RUNTIME_EVENT, onPathChange);
-    document.removeEventListener('DOMContentLoaded', scheduleApply);
-    window.removeEventListener('load', scheduleApply);
-    disconnectHtmlObserver();
-    documentObserver.disconnect();
-    restoreHistory();
-  };
+  private pathCleanup = () => undefined;
+
+  public dispose(): void {
+    if (!this.started || this.disposed) return;
+    this.disposed = true;
+    this.pathCleanup();
+    this.htmlObserver?.disconnect();
+    this.documentObserver?.disconnect();
+    this.htmlObserver = null;
+    this.documentObserver = null;
+    this.observedHtml = null;
+    if (ToolUiLocalizationEngine.active === this) ToolUiLocalizationEngine.active = null;
+  }
+}
+
+export function installDocumentLocaleContract(getPathname: () => string): () => void {
+  return new ToolUiLocalizationEngine(getPathname).start();
 }

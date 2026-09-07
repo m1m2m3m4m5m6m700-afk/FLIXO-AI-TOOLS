@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -33,7 +33,7 @@
     <script>
       (() => {
         // This synchronous bootstrap is the pre-bundle locale boundary. It must match
-        // src/lib/i18n/config.ts exactly so every public locale is correct at time-zero.
+        // src/config/locale.config.ts: DEFAULT_LOCALE = 'ar'.
         const localeMap = {
           ar: ['ar', 'rtl'], en: ['en', 'ltr'], es: ['es', 'ltr'], fr: ['fr', 'ltr'], de: ['de', 'ltr'],
           hi: ['hi', 'ltr'], id: ['id', 'ltr'], it: ['it', 'ltr'], ja: ['ja', 'ltr'], ko: ['ko', 'ltr'],

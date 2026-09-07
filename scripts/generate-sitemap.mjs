@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { LOCALES, LOCALE_METADATA, X_DEFAULT_LOCALE, getCanonicalSiteOrigin } from '../src/lib/i18n/config.ts';
+import { DEFAULT_LOCALE, LOCALES, LOCALE_METADATA, getCanonicalSiteOrigin } from '../src/lib/i18n/config.ts';
 import { TOOL_MANIFEST } from '../src/config/tool-manifest.ts';
 import { getLocalizedToolPath } from '../src/lib/routing/route-resolver.ts';
 
@@ -34,7 +34,7 @@ const localizedAlternateLinks = (path) => {
   const links = LOCALES.map((locale) =>
     `    <xhtml:link rel="alternate" hreflang="${LOCALE_METADATA[locale].languageTag}" href="${absoluteUrl(localizedPath(locale, path))}" />`,
   );
-  links.push(`    <xhtml:link rel="alternate" hreflang="x-default" href="${absoluteUrl(localizedPath(X_DEFAULT_LOCALE, path))}" />`);
+  links.push(`    <xhtml:link rel="alternate" hreflang="x-default" href="${absoluteUrl(localizedPath(DEFAULT_LOCALE, path))}" />`);
   return links.join('\n');
 };
 

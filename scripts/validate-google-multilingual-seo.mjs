@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { LOCALES, LOCALE_METADATA } from '../src/lib/i18n/config.ts';
+import { DEFAULT_LOCALE, LOCALES, LOCALE_METADATA } from '../src/lib/i18n/config.ts';
 
 const fail = (message) => {
   console.error(`GOOGLE MULTILINGUAL SEO FAIL: ${message}`);
@@ -61,12 +61,12 @@ for (const [index, match] of urlBlocks.entries()) {
   const xDefault = expectedHrefs.get('x-default');
   if (!xDefault) fail(`${loc} is missing x-default.`);
   const pathWithoutLocale = new URL(loc).pathname.replace(new RegExp(`^/(?:${locales.join('|')})(?=/|$)`, 'u'), '') || '/';
-  const expectedEnglishPath = `/en${pathWithoutLocale === '/' ? '' : pathWithoutLocale}`;
-  const expectedEnglishUrl = new URL(expectedEnglishPath, loc);
+  const expectedDefaultPath = `/${DEFAULT_LOCALE}${pathWithoutLocale === '/' ? '' : pathWithoutLocale}`;
+  const expectedDefaultUrl = new URL(expectedDefaultPath, loc);
   const actualXDefault = new URL(xDefault);
   const normalizePath = (pathname) => pathname.replace(/\/+$/u, '') || '/';
-  if (actualXDefault.origin !== expectedEnglishUrl.origin || normalizePath(actualXDefault.pathname) !== normalizePath(expectedEnglishUrl.pathname) || actualXDefault.search !== expectedEnglishUrl.search || actualXDefault.hash !== expectedEnglishUrl.hash) {
-    fail(`${loc} x-default must target ${expectedEnglishUrl.toString()}; found ${xDefault}.`);
+  if (actualXDefault.origin !== expectedDefaultUrl.origin || normalizePath(actualXDefault.pathname) !== normalizePath(expectedDefaultUrl.pathname) || actualXDefault.search !== expectedDefaultUrl.search || actualXDefault.hash !== expectedDefaultUrl.hash) {
+    fail(`${loc} x-default must target ${expectedDefaultUrl.toString()}; found ${xDefault}.`);
   }
   const canonicalTag = LOCALE_METADATA[locale].languageTag;
   const selfHref = expectedHrefs.get(canonicalTag);
@@ -85,7 +85,7 @@ pass(`${groups.size} localized page families × ${locales.length} locales with s
 
 if (!sitemapGenerator.includes('LOCALES.map((locale)')) fail('sitemap generator does not derive alternates from the canonical locale registry.');
 if (!sitemapGenerator.includes('LOCALE_METADATA[locale].languageTag')) fail('sitemap generator does not use canonical language tags.');
-if (!sitemapGenerator.includes('X_DEFAULT_LOCALE')) fail('sitemap generator does not derive x-default from canonical locale config.');
+if (!sitemapGenerator.includes('DEFAULT_LOCALE')) fail('sitemap generator does not derive x-default from canonical locale config.');
 if (!sitemapGenerator.includes('TOOL_MANIFEST.filter((tool) => tool.isReady)')) fail('sitemap generator is not gated by ready TOOL_MANIFEST entries.');
 if (!sitemapGenerator.includes('FLIXO_GENERATED_OUTPUT_DIR')) fail('sitemap generator must support deployment-output generation without mutating public sources.');
 pass('sitemap single-source-of-truth contract');
@@ -105,4 +105,4 @@ const missingLocaleFiles = localeFiles.filter((file) => !existsSync(file));
 if (missingLocaleFiles.length) fail(`missing locale resource files: ${missingLocaleFiles.join(', ')}`);
 pass(`${locales.length} locale resource files present`);
 
-console.log(`Google multilingual SEO certification passed: ${groups.size} page families, ${groups.size * locales.length} localized URLs, ${locales.length} canonical language variants, reciprocal hreflang, x-default, sitemap symmetry, crawl/index policy, and locale resource coverage.`);
+console.log(`Google multilingual SEO certification passed: ${groups.size} page families, ${groups.size * locales.length} localized URLs, ${locales.length} canonical language variants, reciprocal hreflang, default-locale x-default, sitemap symmetry, crawl/index policy, and locale resource coverage.`);

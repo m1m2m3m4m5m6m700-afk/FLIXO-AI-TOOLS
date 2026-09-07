@@ -9,7 +9,7 @@ import { installToolUiRuntimeSupplement } from './lib/i18n/tool-ui-runtime-suppl
 import { installToolUiMsUkRuntimeCoverage } from './lib/i18n/tool-ui-runtime-ms-uk';
 import { installToolUiTechnicalValueNormalization } from './lib/i18n/tool-ui-technical-values';
 import { installToolUiRuntimeCompleteness } from './lib/i18n/tool-ui-runtime-completeness';
-import { applyDocumentLocale, localeFromPathname, installDocumentLocaleContract } from './lib/i18n/runtime-document-locale';
+import { ToolUiLocalizationEngine } from './lib/i18n/runtime-document-locale';
 import { FlixoUxShell } from './components/flixo-ux-shell';
 import './styles.css';
 import './home-motion.css';
@@ -17,14 +17,10 @@ import './components/command-palette.css';
 import './home-modern.css';
 import './tools/seed/seed-premium.css';
 
-const bootstrapDocumentLocale = () => {
-  applyDocumentLocale(localeFromPathname(window.location.pathname));
-};
-
-// The <html> element is outside React's rendered subtree. Establish its locale exactly
-// once, synchronously, before installing runtime observers or mounting React.
-bootstrapDocumentLocale();
-const disposeDocumentLocaleContract = installDocumentLocaleContract(() => window.location.pathname);
+// The document root is outside React's rendered tree. Establish its locale synchronously
+// before React mounts, then retain a single lifecycle owner for route-driven locale changes.
+const documentLocalizationEngine = new ToolUiLocalizationEngine();
+const disposeDocumentLocaleEngine = documentLocalizationEngine.start();
 installRuntimeDiagnostics();
 installPerformanceDiagnostics();
 const disposeToolUiLocalization = installToolUiRuntimeLocalization();
@@ -50,7 +46,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 );
 
 if (import.meta.hot) import.meta.hot.dispose(() => {
-  disposeDocumentLocaleContract();
+  disposeDocumentLocaleEngine();
   disposeToolUiLocalization();
   disposeToolUiLocalizationSupplement();
   disposeToolUiMsUkRuntimeCoverage();

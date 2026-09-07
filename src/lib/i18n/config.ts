@@ -1,6 +1,7 @@
 import { getCanonicalSiteOrigin } from '../../config/origin.config.ts';
+import { DEFAULT_LOCALE } from '../../config/locale.config.ts';
 
-export { getCanonicalSiteOrigin };
+export { DEFAULT_LOCALE, getCanonicalSiteOrigin };
 
 export const SITE_ORIGIN = getCanonicalSiteOrigin();
 
@@ -10,9 +11,6 @@ export type CanonicalLocale = (typeof LOCALES)[number];
 
 /** Compatibility key type for legacy auxiliary maps. Runtime input is validated with isLocale. */
 export type Locale = string;
-
-export const DEFAULT_LOCALE: CanonicalLocale = 'ar';
-export const X_DEFAULT_LOCALE: CanonicalLocale = 'en';
 
 export const LOCALE_METADATA: Record<string, Readonly<{ languageTag: string; direction: 'ltr' | 'rtl' }>> = {
   ar: { languageTag: 'ar', direction: 'rtl' },
