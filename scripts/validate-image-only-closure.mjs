@@ -22,7 +22,8 @@ const fileSafety = read('src/lib/contracts/file-safety.ts');
 assert.doesNotMatch(fileSafety, /application\/pdf|audio\/|video\/|\.mp3|\.mp4|\.csv/, 'legacy G2 media format remains');
 
 const g3 = read('scripts/test-g3-artifact-integrity.mjs');
-assert.doesNotMatch(g3, /PDFDocument|application\/pdf|text\/csv|audio\/|video\//, 'legacy G3 format remains');
+const g3ExecutableSource = g3.split(/\r?\n/).filter((line) => !line.includes('assert.doesNotMatch')).join('\n');
+assert.doesNotMatch(g3ExecutableSource, /PDFDocument|application\/pdf|text\/csv|audio\/|video\//, 'legacy G3 format remains');
 assert.match(g3, /g3-image-batch-package/, 'ZIP packaging coverage disappeared without an explicit contract decision');
 
 const localization = read('src/lib/i18n/tool-localization.ts');
