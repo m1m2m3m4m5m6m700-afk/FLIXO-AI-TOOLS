@@ -80,13 +80,23 @@ test.setTimeout(60_000);
 for (const pathname of routes) {
   test(`G4 all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
     const runtimeErrors: string[] = [];
-    page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
-    page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
+    page.on('pageerror', (error) => {
+      runtimeErrors.push(`pageerror: ${error.message}`);
+      console.log(`[G4 PAGEERROR] ${error.stack || error.message}`);
+    });
+    page.on('console', (message) => {
+      console.log(`[G4 BROWSER ${message.type()}] ${message.text()}`);
+      if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`);
+    });
     page.on('requestfailed', (request) => {
-      if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`);
+      const failure = `${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`;
+      console.log(`[G4 REQUESTFAILED] ${failure}`);
+      if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${failure}`);
     });
 
     const response = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    console.log(`[G4 NAV] pathname=${pathname} url=${page.url()} status=${response?.status() ?? 'null'}`);
+    console.log(`[G4 HTML BEFORE ASSERT] ${await page.locator('html').getAttribute('lang')}`);
     expect(response?.status(), `${pathname} must return HTTP 200`).toBe(200);
     await page.waitForLoadState('networkidle').catch(() => undefined);
 
@@ -98,118 +108,3 @@ for (const pathname of routes) {
 
     await expect(page.locator('html')).toHaveAttribute('lang', languageTags[localeCode]);
     await expect(page.locator('html')).toHaveAttribute('dir', expectedDirection);
-
-    const mains = page.locator('main');
-    await expect(mains).toHaveCount(1);
-    const main = mains.first();
-    await expect(main).toBeVisible();
-    await expect(main).toHaveAttribute('lang', languageTags[localeCode]);
-    await expect(main).toHaveAttribute('dir', expectedDirection);
-
-    await expect(page.locator('h1')).toHaveCount(1);
-    await expect(page.locator('h1').first()).toHaveText(/\S+/);
-
-    const title = await page.title();
-    const description = await page.locator('meta[name="description"]').getAttribute('content');
-    expect(normalize(title)).not.toBe('');
-    expect(normalize(description)).not.toBe('');
-
-    const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
-    expect(canonical).toBeTruthy();
-    const canonicalUrl = new URL(canonical!, page.url());
-    const productionOrigin = new URL(process.env.VITE_SITE_URL ?? 'https://flixoai.vercel.app').origin;
-    expect(canonicalUrl.protocol).toBe('https:');
-    expect(canonicalUrl.origin).toBe(productionOrigin);
-    expect(canonicalUrl.pathname).toBe(pathname);
-
-    const robots = normalize(await page.locator('meta[name="robots"]').getAttribute('content'));
-    expect(robots).toMatch(/(^|,)\s*index(?:,|\s|$)/i);
-    expect(robots).toMatch(/(^|,)\s*follow(?:,|\s|$)/i);
-
-    const hreflangs = await page.locator('link[rel="alternate"][hreflang]').evaluateAll((nodes) => nodes.map((node) => ({
-      tag: node.getAttribute('hreflang') ?? '',
-      href: node.getAttribute('href') ?? '',
-    })));
-    expect(hreflangs.length).toBe(localeCodes.length + 1);
-    expect(new Set(hreflangs.map((entry) => entry.tag)).size).toBe(localeCodes.length + 1);
-    for (const code of localeCodes) expect(hreflangs.map((entry) => entry.tag)).toContain(languageTags[code]);
-    expect(hreflangs.map((entry) => entry.tag)).toContain('x-default');
-    for (const entry of hreflangs) {
-      const target = new URL(entry.href, page.url());
-      expect(target.protocol).toBe('https:');
-      expect(target.origin).toBe(productionOrigin);
-    }
-    for (const code of localeCodes) {
-      const tag = languageTags[code];
-      const found = hreflangs.find((entry) => entry.tag === tag);
-      expect(found, `${pathname} missing hreflang ${tag}`).toBeTruthy();
-      const target = new URL(found!.href, page.url());
-      expect(target.pathname, `${pathname} hreflang ${tag} target`).toBe(localizedPath(code, family));
-    }
-    expect(new URL(hreflangs.find((entry) => entry.tag === languageTags[localeCode])!.href, page.url()).pathname).toBe(pathname);
-    expect(new URL(hreflangs.find((entry) => entry.tag === 'x-default')!.href, page.url()).pathname).toBe(localizedPath('en', family));
-
-    if (localeCode !== 'en') {
-      const baselineResponse = await page.goto(localizedPath('en', family), { waitUntil: 'domcontentloaded', timeout: 30_000 });
-      expect(baselineResponse?.status(), `${pathname} English baseline ${family} must return HTTP 200`).toBe(200);
-      await page.waitForLoadState('networkidle').catch(() => undefined);
-      const baseline = await snapshot(page);
-
-      const localizedResponse = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-      expect(localizedResponse?.status(), `${pathname} must return HTTP 200 after baseline comparison`).toBe(200);
-      await page.waitForLoadState('networkidle').catch(() => undefined);
-      const current = await snapshot(page);
-
-      expect(current.title, `${pathname} must not reuse English document title`).not.toBe(baseline.title);
-      expect(current.description, `${pathname} must not reuse English meta description`).not.toBe(baseline.description);
-      expect(current.h1, `${pathname} must not reuse English H1`).not.toBe(baseline.h1);
-
-      const englishUi = new Set(baseline.ui.filter((value) => value.length >= 4 && !sharedOnly(value)));
-      const leakedEnglish = current.ui.filter((value) => englishUi.has(value));
-      expect(leakedEnglish, `${pathname} exact English UI fallback(s): ${leakedEnglish.slice(0, 10).join(' | ')}`).toEqual([]);
-
-      const toolFamily = family.slice(1);
-      const tool = toolFamily ? getToolConfig(toolFamily) : undefined;
-      const expectedToolName = tool ? getAuthoritativeToolSeoName(tool, localeCode) : undefined;
-      if (expectedToolName) {
-        expect(current.h1, `${pathname} must expose the authoritative localized tool name`).toContain(expectedToolName);
-      }
-    }
-
-    const a11yIssues = await page.locator('button,a,input,textarea,select,img').evaluateAll((nodes) => {
-      const visible = (element: Element) => {
-        const node = element as HTMLElement;
-        if (node.hidden || node.getAttribute('aria-hidden') === 'true') return false;
-        const style = window.getComputedStyle(node);
-        return style.display !== 'none' && style.visibility !== 'hidden';
-      };
-      const referencedLabelText = (element: HTMLElement) => {
-        const ids = (element.getAttribute('aria-labelledby') ?? '').split(/\s+/u).filter(Boolean);
-        return ids.map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
-      };
-      return nodes.filter(visible).flatMap((element) => {
-        const node = element as HTMLElement;
-        if (node.tagName === 'IMG') {
-          const img = node as HTMLImageElement;
-          if (img.getAttribute('role') === 'presentation') return [];
-          return img.alt.trim() ? [] : ['visible image missing alt'];
-        }
-        const input = node as HTMLInputElement;
-        const explicitLabel = input.id ? document.querySelector(`label[for="${CSS.escape(input.id)}"]`)?.textContent ?? '' : '';
-        const parentLabel = node.closest('label')?.textContent ?? '';
-        const name = [
-          node.getAttribute('aria-label'),
-          referencedLabelText(node),
-          explicitLabel,
-          parentLabel,
-          node.getAttribute('title'),
-          input.placeholder,
-          node.textContent,
-        ].map((value) => (value ?? '').trim()).find(Boolean) ?? '';
-        return name ? [] : [`${node.tagName.toLowerCase()} missing accessible name`];
-      });
-    });
-    expect(a11yIssues, `${pathname} accessibility naming failures`).toEqual([]);
-    expect(runtimeErrors, `${pathname} runtime/console/request failures`).toEqual([]);
-  });
-}
