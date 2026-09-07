@@ -28,13 +28,22 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Replay swarm state before packet validation
+      - name: Replay swarm state before projection rebuild
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node --experimental-strip-types scripts/ci/swarm-engine.mjs --replay-only
+      - name: Self-heal agent projections from immutable ledger
+        env:
+          FLIXO_SWARM_LEDGER: artifacts/ci/agent-coordination/events.ndjson
+          FLIXO_AGENT_CLAIMS_FILE: .ci/agent-coordination/claims.json
+          FLIXO_AGENT_SESSIONS_FILE: scripts/ci/active-sessions.json
+        run: node scripts/ci/rebuild-agent-projections.mjs
       - name: Validate claims protocol
         run: node scripts/ci/validate-agent-coordination-protocol.mjs
       - name: Validate work queue
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          FLIXO_SWARM_LEDGER: artifacts/ci/agent-coordination/events.ndjson
         run: node scripts/ci/validate-agent-work-queue.mjs
       - name: Validate swarm event-sourced state
         env:
@@ -42,22 +51,24 @@ jobs:
           FLIXO_SWARM_LEDGER: artifacts/ci/agent-coordination/events.ndjson
           FLIXO_SWARM_WORK_QUEUE: .ci/agent-coordination/work-queue.json
         run: node --experimental-strip-types scripts/ci/validate-swarm-state.mjs
-      - name: Validate local agent sessions
+      - name: Validate local agent sessions from ledger
         env:
           FLIXO_AGENT_COORDINATION_STRICT_SHA: 'true'
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          FLIXO_SWARM_LEDGER: artifacts/ci/agent-coordination/events.ndjson
         run: node scripts/ci/validate-agent-sessions.mjs
       - name: Validate protocol cooperation graph
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/ci/validate-protocol-cooperation.mjs
-      - name: Validate cross-branch collisions
+      - name: Validate cross-branch collisions from ledgers
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           GITHUB_EVENT_PATH: ${{ github.event_path }}
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          FLIXO_SWARM_LEDGER: artifacts/ci/agent-coordination/events.ndjson
         run: node scripts/ci/validate-agent-pr-collisions.mjs
       - name: Replay swarm state after packet validation
         env:
