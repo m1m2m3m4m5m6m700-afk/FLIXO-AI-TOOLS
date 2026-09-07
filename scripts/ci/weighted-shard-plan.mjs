@@ -11,8 +11,19 @@ const runnerBudget = Math.max(1, Number(process.env.CI_RUNNER_BUDGET || Math.max
 const shardCount = Math.max(1, Math.min(requested, maximum, runnerBudget));
 const browsers = (process.env.CI_BROWSERS || 'chromium,firefox,webkit').split(',').map((value) => value.trim()).filter(Boolean);
 const entries = Object.entries(history.tests).map(([name, value]) => ({ name, weight: Math.max(1, Number(value.weight) || 1) }));
+const sourceSha = process.env.FLIXO_SOURCE_SHA || process.env.GITHUB_SHA || null;
+if (!sourceSha) throw new Error('FLIXO_SOURCE_SHA/GITHUB_SHA is required.');
 if (!entries.length) throw new Error('No test weights configured.');
 if (!browsers.length) throw new Error('No browsers configured.');
+
+const hashFile = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
+
+execFileSync('node', ['--experimental-strip-types', 'scripts/ci/validate-protocol-cooperation.mjs'], { stdio: 'inherit', env: { ...process.env, FLIXO_SOURCE_SHA: sourceSha, CI: '1' } });
+const cooperationMap = JSON.parse(readFileSync('artifacts/ci/protocol-cooperation/cooperation-map.json', 'utf8'));
+const cooperationMapHash = createHash('sha256').update(JSON.stringify(cooperationMap)).digest('hex');
+const registryHash = hashFile('scripts/ci/contracts/registry.ts');
+const architectureHash = hashFile('scripts/ci/validate-architecture.mjs');
+const lockfileHash = hashFile('package-lock.json');
 
 const total = entries.reduce((sum, item) => sum + item.weight, 0);
 const bins = Array.from({ length: shardCount }, (_, index) => ({ shard: index + 1, weight: 0, tests: [] }));
@@ -58,8 +69,13 @@ const matrix = plan.flatMap((bin) => browsers.map((browser) => ({
 })));
 
 const unsignedPlan = {
-  schema_version: 2,
-  source_sha: process.env.FLIXO_SOURCE_SHA || process.env.GITHUB_SHA || null,
+  schema_version: 3,
+  source_sha: sourceSha,
+  registry_hash: registryHash,
+  cooperation_map_hash: cooperationMapHash,
+  architecture_hash: architectureHash,
+  lockfile_sha: lockfileHash,
+  cooperation_contract_count: cooperationMap.contractCount,
   browsers,
   shard_count: plan.length,
   suites: Object.keys(history.tests).sort(),
@@ -75,8 +91,8 @@ const artifact = { ...unsignedPlan, plan_hash: planHash, signature_algorithm: 'H
 writeFileSync('matrix-plan.json', JSON.stringify(artifact, null, 2) + '\n');
 
 const output = JSON.stringify(matrix);
-console.log(JSON.stringify({ plan, matrix, plan_hash: planHash }, null, 2));
+console.log(JSON.stringify({ plan, matrix, plan_hash: planHash, registry_hash: registryHash, cooperation_map_hash: cooperationMapHash, architecture_hash: architectureHash, lockfile_sha: lockfileHash }, null, 2));
 if (process.env.GITHUB_OUTPUT) {
   const fs = await import('node:fs');
-  fs.appendFileSync(process.env.GITHUB_OUTPUT, `plan=${JSON.stringify(plan)}\nshard_count=${plan.length}\nmatrix=${output}\nplan_hash=${planHash}\n`);
+  fs.appendFileSync(process.env.GITHUB_OUTPUT, `plan=${JSON.stringify(plan)}\nshard_count=${plan.length}\nmatrix=${output}\nplan_hash=${planHash}\nplan_file=matrix-plan.json\n`);
 }
