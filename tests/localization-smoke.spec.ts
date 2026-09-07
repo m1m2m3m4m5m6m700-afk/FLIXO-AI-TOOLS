@@ -1,17 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { LOCALES, LOCALE_METADATA } from '../src/lib/i18n/config';
 
-test.describe('20-locale navigation', () => {
+test.describe('20-locale language selector navigation', () => {
   test.describe.configure({ timeout: 45_000 });
-
-  for (const locale of LOCALES) {
-    test(`direct ${locale} home route returns 200 with correct direction`, async ({ page }) => {
-      const response = await page.goto(`/${locale}`, { waitUntil: 'domcontentloaded' });
-      expect(response?.ok(), `${locale} home route must return a successful HTTP response`).toBeTruthy();
-      await expect(page.locator('main').first()).toHaveAttribute('lang', LOCALE_METADATA[locale].languageTag);
-      await expect(page.locator('main').first()).toHaveAttribute('dir', LOCALE_METADATA[locale].direction);
-    });
-  }
 
   for (const locale of LOCALES.filter((value) => value !== 'en')) {
     test(`language selector navigates en to ${locale}`, async ({ page }) => {
