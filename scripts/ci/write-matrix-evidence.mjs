@@ -52,11 +52,26 @@ if (observedTestCount !== Number(inventoryUnit.test_count)) throw new Error(`inv
 if (JSON.stringify(plannedIds) !== JSON.stringify(observedIds)) throw new Error(`Native test inventory mismatch for ${browser}:shard-${shard}`);
 if (skipped !== 0 || unexpected !== 0 || failed !== 0 || flaky !== 0) throw new Error(`Native Playwright result is not clean: failed=${failed}, skipped=${skipped}, unexpected=${unexpected}, flaky=${flaky}`);
 
+let playwrightVersion = null;
+try { playwrightVersion = JSON.parse(readFileSync('node_modules/playwright/package.json', 'utf8')).version; } catch { playwrightVersion = null; }
+const environment = {
+  runner_os: process.env.RUNNER_OS || null,
+  runner_arch: process.env.RUNNER_ARCH || process.arch,
+  node_version: process.version,
+  playwright_version: playwrightVersion,
+  browser_project: browser,
+  source_sha: sourceSha,
+  lockfile_sha256: createHash('sha256').update(readFileSync('package-lock.json')).digest('hex'),
+  plan_hash: planHash,
+};
+if (!environment.runner_os || !environment.playwright_version) throw new Error('Matrix environment fingerprint is incomplete.');
+
 const result = {
   schema_version: 1,
   sha: sourceSha,
   plan_hash: planHash,
   inventory_hash: inventory.inventory_hash,
+  environment,
   browser,
   shard,
   planned_suites: expectedSuites,
