@@ -1,8 +1,6 @@
 name: FLIXO CI — Evidence Ledger Shadow
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -21,7 +19,7 @@ jobs:
       - name: Checkout exact revision
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -46,7 +44,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-evidence-ledger-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ci-evidence-ledger-${{ github.sha }}
           path: artifacts/ci/evidence/
           if-no-files-found: error
           retention-days: 14
