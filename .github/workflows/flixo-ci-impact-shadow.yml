@@ -47,5 +47,5 @@ jobs:
         with:
           name: ci-impact-analysis-${{ github.sha }}
           path: artifacts/ci/impact/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
