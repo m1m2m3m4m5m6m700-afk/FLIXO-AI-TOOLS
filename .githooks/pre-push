@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+set -eu
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -n "$local_ref" ] || continue
+  case "$local_ref" in
+    refs/heads/*)
+      FLIXO_AGENT_ENFORCE_WORKTREE_SCOPE=1 \
+      EXPECTED_HEAD_SHA="$local_sha" \
+      node scripts/ci/validate-agent-sessions.mjs
+      ;;
+  esac
+done
