@@ -1,149 +1,53 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const ROOT = process.cwd();
-const DIAG_DIR = resolve(ROOT, 'diagnostics/ci');
-mkdirSync(DIAG_DIR, { recursive: true });
+const DIR = resolve(ROOT, 'diagnostics/ci');
+mkdirSync(DIR, { recursive: true });
 const args = process.argv.slice(2);
-const gateArg = args.find((arg) => arg.startsWith('--gate='));
-const modeArg = args.find((arg) => arg.startsWith('--mode='));
-const gate = gateArg?.slice(7) || null;
-const mode = modeArg?.slice(7) || 'certification';
+const gate = args.find((arg) => arg.startsWith('--gate='))?.slice(7) ?? null;
+const mode = args.find((arg) => arg.startsWith('--mode='))?.slice(7) ?? 'certification';
 const GATES = ['static', 'build', 'browser'];
-if (!['certification', 'diagnose'].includes(mode) || (gate && !GATES.includes(gate))) {
-  console.error('Usage: node scripts/test.mjs [--mode=certification|diagnose] [--gate=static|build|browser]');
-  process.exit(2);
-}
+if (!['certification', 'diagnose'].includes(mode) || (gate && !GATES.includes(gate))) process.exit(2);
 const now = () => new Date().toISOString();
 const git = (args) => { const r = spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' }); return r.status === 0 ? r.stdout.trim() : 'UNKNOWN'; };
 const sha = () => git(['rev-parse', 'HEAD']);
-const rootCauseRegistry = JSON.parse(readFileSync(resolve(ROOT, 'scripts/ci/root-causes.json'), 'utf8'));
-const runNodeScript = (script, args = []) => spawnSync(process.execPath, [script, ...args], { cwd: ROOT, env: process.env, encoding: 'utf8' });
-
+const rootCauses = JSON.parse(readFileSync(resolve(ROOT, 'scripts/ci/root-causes.json'), 'utf8'));
+const runNode = (script) => spawnSync(process.execPath, [script], { cwd: ROOT, env: process.env, encoding: 'utf8' });
 const CHECKS = {
   static: [
-    ['typescript', 'npx', ['tsc', '--noEmit', '--pretty', 'false'], 'RC-TYPE-001'],
-    ['lint', 'npm', ['run', 'lint'], 'RC-TYPE-001'],
-    ['unit', 'npm', ['run', 'test:unit'], 'RC-UNKNOWN-001'],
-    ['tool-localization', 'npm', ['run', 'test:tool-localization'], 'RC-I18N-001'],
-    ['baseline', 'npm', ['run', 'validate:baseline'], 'RC-UNKNOWN-001'],
-    ['tool-registry', 'npm', ['run', 'validate:tool-registry'], 'RC-UNKNOWN-001'],
-    ['tool-manifest', 'npm', ['run', 'validate:tool-manifest'], 'RC-UNKNOWN-001'],
-    ['router', 'npm', ['run', 'validate:router-registry'], 'RC-ROUTER-001'],
-    ['i18n', 'npm', ['run', 'validate:i18n'], 'RC-I18N-001'],
-    ['language-quality', 'npm', ['run', 'validate:language-quality'], 'RC-I18N-001'],
-    ['locale-integrity', 'npm', ['run', 'validate:locale-integrity'], 'RC-I18N-001'],
-    ['locale-navigation', 'npm', ['run', 'validate:locale-navigation'], 'RC-I18N-001'],
-    ['home-i18n', 'npm', ['run', 'validate:home-i18n'], 'RC-I18N-001'],
-    ['localization-full', 'npm', ['run', 'validate:localization-full'], 'RC-I18N-001'],
-    ['localization-complete', 'npm', ['run', 'validate:localization-complete'], 'RC-I18N-001'],
-    ['seo', 'npm', ['run', 'validate:seo'], 'RC-SEO-001'],
-    ['seo-manifest', 'npm', ['run', 'validate:seo-manifest'], 'RC-SEO-001'],
-    ['indexing', 'npm', ['run', 'validate:indexing'], 'RC-SEO-001'],
-    ['breadcrumb-seo', 'npm', ['run', 'validate:breadcrumb-seo'], 'RC-SEO-001'],
-    ['ci-contract', 'npm', ['run', 'validate:ci-contract'], 'RC-CI-CONTRACT-001'],
-    ['image-only', 'npm', ['run', 'validate:image-only-closure'], 'RC-UNKNOWN-001'],
-    ['dependency-zero-debt', 'npm', ['run', 'validate:dependency-zero-debt'], 'RC-DEPENDENCY-001'],
-    ['file-safety', 'node', ['--experimental-strip-types', 'scripts/test-file-safety.mjs'], 'RC-G2-SIGNATURE-001'],
-    ['output-integrity', 'node', ['--experimental-strip-types', 'scripts/test-output-integrity.mjs'], 'RC-G3-INTEGRITY-001'],
-    ['svg-integrity', 'node', ['--experimental-strip-types', 'scripts/test-svg-integrity.mjs'], 'RC-G2-SIGNATURE-001'],
-    ['release-evidence', 'node', ['scripts/test-release-evidence.mjs'], 'RC-CI-EVIDENCE-001'],
-    ['technical-debt-audit', 'npm', ['run', 'audit:technical-debt'], 'RC-CI-TECHNICAL-DEBT-001'],
+    ['typescript','npx',['tsc','--noEmit','--pretty','false'],'RC-TYPE-001'], ['lint','npm',['run','lint'],'RC-TYPE-001'], ['unit','npm',['run','test:unit'],'RC-UNKNOWN-001'],
+    ['tool-localization','npm',['run','test:tool-localization'],'RC-I18N-001'], ['baseline','npm',['run','validate:baseline'],'RC-UNKNOWN-001'], ['tool-registry','npm',['run','validate:tool-registry'],'RC-UNKNOWN-001'],
+    ['tool-manifest','npm',['run','validate:tool-manifest'],'RC-UNKNOWN-001'], ['router','npm',['run','validate:router-registry'],'RC-ROUTER-001'], ['i18n','npm',['run','validate:i18n'],'RC-I18N-001'],
+    ['language-quality','npm',['run','validate:language-quality'],'RC-I18N-001'], ['locale-integrity','npm',['run','validate:locale-integrity'],'RC-I18N-001'], ['locale-navigation','npm',['run','validate:locale-navigation'],'RC-I18N-001'],
+    ['home-i18n','npm',['run','validate:home-i18n'],'RC-I18N-001'], ['localization-full','npm',['run','validate:localization-full'],'RC-I18N-001'], ['localization-complete','npm',['run','validate:localization-complete'],'RC-I18N-001'],
+    ['seo','npm',['run','validate:seo'],'RC-SEO-001'], ['seo-manifest','npm',['run','validate:seo-manifest'],'RC-SEO-001'], ['indexing','npm',['run','validate:indexing'],'RC-SEO-001'],
+    ['breadcrumb-seo','npm',['run','validate:breadcrumb-seo'],'RC-SEO-001'], ['ci-contract','npm',['run','validate:ci-contract'],'RC-CI-CONTRACT-001'], ['image-only','npm',['run','validate:image-only-closure'],'RC-UNKNOWN-001'],
+    ['dependency-zero-debt','npm',['run','validate:dependency-zero-debt'],'RC-DEPENDENCY-001'], ['file-safety','node',['--experimental-strip-types','scripts/test-file-safety.mjs'],'RC-G2-SIGNATURE-001'],
+    ['output-integrity','node',['--experimental-strip-types','scripts/test-output-integrity.mjs'],'RC-G3-INTEGRITY-001'], ['svg-integrity','node',['--experimental-strip-types','scripts/test-svg-integrity.mjs'],'RC-G2-SIGNATURE-001'],
+    ['release-evidence','node',['scripts/test-release-evidence.mjs'],'RC-CI-EVIDENCE-001'], ['technical-debt-audit','npm',['run','audit:technical-debt'],'RC-CI-TECHNICAL-DEBT-001'],
   ],
-  build: [
-    ['typescript', 'npx', ['tsc', '--noEmit', '--pretty', 'false'], 'RC-TYPE-001'],
-    ['build', 'npm', ['run', 'build'], 'RC-BUILD-001'],
-    ['dist', 'node', ['-e', "const fs=require('node:fs'); for (const p of ['dist','dist/index.html']) if (!fs.existsSync(p)) throw new Error('Missing build output: '+p); console.log('Build output verified')"], 'RC-BUILD-001'],
-  ],
+  build: [['typescript','npx',['tsc','--noEmit','--pretty','false'],'RC-TYPE-001'],['build','npm',['run','build'],'RC-BUILD-001'],['dist','node',['-e',"const fs=require('node:fs'); for(const p of ['dist','dist/index.html']) if(!fs.existsSync(p)) throw new Error('Missing build output: '+p);"],'RC-BUILD-001']],
 };
-const EXPECTED_CHECKS = Object.fromEntries(Object.entries(CHECKS).map(([name, checks]) => [name, checks.length]));
-EXPECTED_CHECKS.browser = 3;
+const EXPECTED = { static: CHECKS.static.length, build: CHECKS.build.length, browser: 3 };
+function execute(label, command, commandArgs, env = {}) { const startedAt = now(); const r = spawnSync(command, commandArgs, { cwd: ROOT, env: { ...process.env, ...env }, encoding: 'utf8' }); const output = `${r.stdout ?? ''}\n${r.stderr ?? ''}`.slice(-16000); process.stdout.write(r.stdout ?? ''); process.stderr.write(r.stderr ?? ''); return { label, command: [command, ...commandArgs].join(' '), status: r.status === 0 ? 'PASS' : 'FAIL', exitCode: r.status ?? 1, startedAt, completedAt: now(), output }; }
+const ansi = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, 'g');
+function normalize(output) { return output.replace(ansi,'').replace(/https?:\/\/[^\s]+/g,'<URL>').replace(/[A-Za-z]:\\[^\s]+/g,'<PATH>').replace(/\/(?:[^\s/]+\/){2,}[^\s]+/g,'<PATH>').replace(/[0-9a-f]{7,40}/gi,'<SHA>').replace(/\d+(?:\.\d+)?/g,'#').replace(/\s+/g,' ').trim(); }
+function signature(check) { return [...new Set(check.output.split(/\r?\n/).map(normalize).filter((line)=>/error|failed|failure|cannot|not assignable|not found|expected|received|timeout|exception|assert|locale|route|canonical|hreflang|playwright|chromium|firefox|webkit/i.test(line)).filter(Boolean))].sort().slice(0,40).join(' ').slice(0,5000); }
+const fallback = [['RC-DEPENDENCY-001',/cannot find module|npm err|npm ci|lockfile|package-lock|ERESOLVE/i],['RC-TYPE-001',/TS\d+|Type error|not assignable|cannot find name/i],['RC-I18N-001',/translation|locale|language|English leakage|localized/i],['RC-SEO-001',/canonical|hreflang|robots|sitemap|seo/i],['RC-ROUTER-001',/route|404|not found|path resolver/i],['RC-BUILD-001',/build failed|vite.*error|rollup|esbuild/i]];
+function classify(gateName, check, declared) { if (check.status === 'PASS') return null; if (declared && rootCauses[declared]) return declared; for (const [id,re] of fallback) if (re.test(check.output)) return id; return gateName === 'browser' ? 'RC-BROWSER-001' : 'RC-UNKNOWN-001'; }
+function enrich(gateName, check, declared) { const id=classify(gateName,check,declared); if(check.status==='PASS') return {...check,rootCauseId:null,fingerprint:null,repro:null,error:null}; const fp=`FPR-${createHash('sha256').update([id,gateName,check.label,signature(check)].join('\n')).digest('hex').slice(0,12).toUpperCase()}`; return {...check,rootCauseId:id,fingerprint:fp,repro:gateName==='browser'?`npx playwright test --project=${check.label}`:check.command,error:{category:rootCauses[id]?.category??'UNKNOWN',normalized:normalize(check.output).slice(-4000)}}; }
+function report(gateName, results, status) { const checks=results.map((x)=>enrich(gateName,x.result,x.rootCause)); const failures=checks.filter((x)=>x.status==='FAIL'); const r={version:5,schema:'flixo-gate-report/v5',sha:sha(),gate:gateName.toUpperCase(),mode,status,failures:failures.length,checksExpected:EXPECTED[gateName],checksExecuted:checks.length,rootCauses:[...new Set(failures.map((x)=>x.rootCauseId).filter(Boolean))],completedAt:now(),checks}; writeFileSync(resolve(DIR,`${gateName}.json`),`${JSON.stringify(r,null,2)}\n`); return r; }
+function runChecks(gateName) { const results=[]; for(const [label,cmd,a,rc] of CHECKS[gateName]) { const result=execute(label,cmd,a); results.push({result,rootCause:rc}); if(mode==='certification'&&result.status==='FAIL') break; } return report(gateName,results,results.length===EXPECTED[gateName]&&results.every((x)=>x.result.status==='PASS')?'PASS':'FAIL'); }
+async function waitForServer(url) { for(let i=0;i<40;i+=1){try{const r=await fetch(url);if(r.ok)return;}catch{} await new Promise((resolveSleep)=>setTimeout(resolveSleep,500));} throw new Error(`Preview server did not become ready: ${url}`); }
+async function browserGate() { const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port','3000'],{cwd:ROOT,env:{...process.env,CI:'true'},stdio:'ignore'}); try { await waitForServer('http://127.0.0.1:3000'); const results=[]; for(const project of ['chromium','firefox','webkit']){const result=execute(project,'npx',['playwright','test',`--project=${project}`],{CI:'true',S4_EXTERNAL_SERVER:'true',PLAYWRIGHT_REUSE_SERVER:'false'}); results.push({result,rootCause:'RC-BROWSER-001'}); if(mode==='certification'&&result.status==='FAIL')break;} return report('browser',results,results.length===3&&results.every((x)=>x.result.status==='PASS')?'PASS':'FAIL'); } finally { server.kill('SIGTERM'); } }
+function blocked(){return report('browser',[],'BLOCKED');}
+function overall(reports,target){const failures=reports.flatMap((r)=>(r.checks??[]).filter((c)=>c.status==='FAIL'));const roots=[...new Set(failures.map((c)=>c.rootCauseId).filter(Boolean))];const pass=reports.length===target.length&&reports.every((r)=>r.status==='PASS'&&r.checksExpected===r.checksExecuted)&&failures.length===0;const out={version:5,schema:'flixo-ci-report/v5',mode,sha:sha(),status:pass?'PASS':'FAIL',gatesExpected:target.length,gatesExecuted:reports.length,rootCauses:roots,firstFailure:failures[0]?{rootCauseId:failures[0].rootCauseId,fingerprint:failures[0].fingerprint,repro:failures[0].repro}:null,completedAt:now()};writeFileSync(resolve(DIR,'report.json'),`${JSON.stringify(out,null,2)}\n`);writeFileSync(resolve(DIR,'failures.json'),`${JSON.stringify(failures,null,2)}\n`);return out;}
 
-function execute(label, command, commandArgs, env = {}) {
-  const startedAt = now();
-  const result = spawnSync(command, commandArgs, { cwd: ROOT, env: { ...process.env, ...env }, encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'] });
-  const stdout = result.stdout ?? ''; const stderr = result.stderr ?? '';
-  process.stdout.write(stdout); process.stderr.write(stderr);
-  return { label, command: [command, ...commandArgs].join(' '), status: result.status === 0 ? 'PASS' : 'FAIL', exitCode: result.status ?? 1, startedAt, completedAt: now(), output: `${stdout}\n${stderr}`.slice(-16000) };
-}
-function normalizeError(output) {
-  return output.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').replace(/https?:\/\/[^\s]+/g, '<URL>').replace(/[A-Za-z]:\\[^\s]+/g, '<PATH>').replace(/\/(?:[^\s/]+\/){2,}[^\s]+/g, '<PATH>').replace(/[0-9a-f]{7,40}/gi, '<SHA>').replace(/\d+(?:\.\d+)?/g, '#').replace(/\s+/g, ' ').trim();
-}
-function stableFailureSignature(check) {
-  return [...new Set(check.output.split(/\r?\n/).map(normalizeError).filter((line) => /error|failed|failure|cannot|not assignable|not found|expected|received|timeout|exception|assert|locale|route|canonical|hreflang|playwright|chromium|firefox|webkit/i.test(line)).filter(Boolean))].sort().slice(0, 40).join(' ').slice(0, 5000);
-}
-const FALLBACK_RULES = [
-  ['RC-DEPENDENCY-001', /cannot find module|npm err|npm ci|lockfile|package-lock|ERESOLVE/i],
-  ['RC-TYPE-001', /TS\d+|Type error|type .* is not assignable|cannot find name/i],
-  ['RC-ROUTER-001', /route|404|not found|path resolver|localized path/i],
-  ['RC-I18N-001', /translation|locale|language|English leakage|localized title|localized description/i],
-  ['RC-SEO-001', /canonical|hreflang|robots|sitemap|seo/i],
-  ['RC-A11Y-001', /accessib|aria|landmark|accessible name/i],
-  ['RC-RUNTIME-001', /console|uncaught|exception|runtime error|pageerror/i],
-  ['RC-NETWORK-001', /network|request failed|ERR_|ECONN|timeout/i],
-  ['RC-BUILD-001', /build failed|vite.*error|rollup|esbuild|failed to build/i],
-];
-function classify(gateName, check, declaredRootCause) {
-  if (check.status === 'PASS') return null;
-  if (declaredRootCause && rootCauseRegistry[declaredRootCause]) return declaredRootCause;
-  for (const [id, pattern] of FALLBACK_RULES) if (pattern.test(check.output)) return id;
-  return gateName === 'browser' ? 'RC-BROWSER-001' : 'RC-UNKNOWN-001';
-}
-function fingerprint(gateName, check, rootCauseId) { return `FPR-${createHash('sha256').update([rootCauseId, gateName, check.label, stableFailureSignature(check)].join('\n')).digest('hex').slice(0, 12).toUpperCase()}`; }
-function repro(gateName, check) { return gateName === 'browser' ? `npx playwright test --project=${check.label}` : check.command; }
-function enrich(gateName, check, declaredRootCause) {
-  const rootCauseId = classify(gateName, check, declaredRootCause);
-  if (check.status === 'PASS') return { ...check, rootCauseId: null, fingerprint: null, repro: null, error: null };
-  return { ...check, rootCauseId, fingerprint: fingerprint(gateName, check, rootCauseId), repro: repro(gateName, check), error: { category: rootCauseRegistry[rootCauseId]?.category ?? 'UNKNOWN', normalized: normalizeError(check.output).slice(-4000) } };
-}
-function writeGateReport(gateName, results, status) {
-  const checks = results.map((item) => enrich(gateName, item.result, item.rootCauseId));
-  const failures = checks.filter((item) => item.status === 'FAIL');
-  const report = { version: 5, schema: 'flixo-gate-report/v5', sha: sha(), gate: gateName.toUpperCase(), mode, status, failures: failures.length, checksExpected: EXPECTED_CHECKS[gateName], checksExecuted: checks.length, rootCauses: [...new Set(failures.map((item) => item.rootCauseId).filter(Boolean))], completedAt: now(), checks };
-  writeFileSync(resolve(DIAG_DIR, `${gateName}.json`), `${JSON.stringify(report, null, 2)}\n`); return report;
-}
-function runChecks(gateName) {
-  const results = [];
-  for (const [label, command, commandArgs, rootCauseId] of CHECKS[gateName]) { const result = execute(label, command, commandArgs); results.push({ result, rootCauseId }); if (mode === 'certification' && result.status === 'FAIL') break; }
-  return writeGateReport(gateName, results, results.length === EXPECTED_CHECKS[gateName] && results.every((item) => item.result.status === 'PASS') ? 'PASS' : 'FAIL');
-}
-function browserGate() {
-  const results = [];
-  for (const project of ['chromium', 'firefox', 'webkit']) { const result = execute(project, 'npx', ['playwright', 'test', `--project=${project}`], { CI: 'true', PLAYWRIGHT_REUSE_SERVER: 'false', PLAYWRIGHT_SERVER: 'production' }); results.push({ result, rootCauseId: 'RC-BROWSER-001' }); if (mode === 'certification' && result.status === 'FAIL') break; }
-  return writeGateReport('browser', results, results.length === 3 && results.every((item) => item.result.status === 'PASS') ? 'PASS' : 'FAIL');
-}
-function blockedReport(gateName, reason) {
-  const report = { version: 5, schema: 'flixo-gate-report/v5', sha: sha(), gate: gateName.toUpperCase(), mode, status: 'BLOCKED', failures: 0, checksExpected: EXPECTED_CHECKS[gateName], checksExecuted: 0, rootCauses: ['RC-BUILD-001'], completedAt: now(), blockedBy: reason, checks: [] };
-  writeFileSync(resolve(DIAG_DIR, `${gateName}.json`), `${JSON.stringify(report, null, 2)}\n`); return report;
-}
-function clusterFailures(reports) {
-  const clusters = new Map();
-  for (const report of reports) for (const check of (report.checks ?? []).filter((item) => item.status === 'FAIL')) { const key = check.rootCauseId ?? 'RC-UNKNOWN-001'; const cluster = clusters.get(key) ?? { rootCauseId: key, occurrences: 0, fingerprints: new Set(), affectedChecks: [], repro: check.repro ?? null }; cluster.occurrences += 1; if (check.fingerprint) cluster.fingerprints.add(check.fingerprint); cluster.affectedChecks.push({ gate: report.gate, label: check.label, exitCode: check.exitCode }); clusters.set(key, cluster); }
-  return [...clusters.values()].map((cluster) => ({ ...cluster, fingerprints: [...cluster.fingerprints] }));
-}
-function writeOverall(reports, targetGates) {
-  const failures = reports.flatMap((report) => (report.checks ?? []).filter((check) => check.status === 'FAIL'));
-  const clusters = clusterFailures(reports);
-  const complete = reports.length === targetGates.length && reports.every((report) => report.status === 'PASS' && report.checksExpected === report.checksExecuted);
-  const overall = { version: 5, schema: 'flixo-ci-report/v5', mode, sha: sha(), status: complete && failures.length === 0 ? 'PASS' : 'FAIL', gatesExpected: targetGates.length, gatesExecuted: reports.length, rootCauses: clusters.map((cluster) => cluster.rootCauseId), firstFailure: failures[0] ? { gate: reports.find((r) => r.checks?.some((c) => c.label === failures[0].label))?.gate ?? null, rootCauseId: failures[0].rootCauseId, fingerprint: failures[0].fingerprint, repro: failures[0].repro } : null, clusters, completedAt: now() };
-  writeFileSync(resolve(DIAG_DIR, 'report.json'), `${JSON.stringify(overall, null, 2)}\n`);
-  writeFileSync(resolve(DIAG_DIR, 'failures.json'), `${JSON.stringify(clusters, null, 2)}\n`);
-  writeFileSync(resolve(DIAG_DIR, 'report.md'), `# CI Report\n\nSTATUS: ${overall.status}\nSHA: ${overall.sha}\nMODE: ${mode}\n\nROOT CAUSES: ${overall.rootCauses.join(', ') || 'NONE'}\n\n${reports.map((r) => `- ${r.gate}: ${r.status} (${r.checksExecuted}/${r.checksExpected})`).join('\n')}\n`);
-  console.log(JSON.stringify(overall, null, 2)); return overall;
-}
-
-const currentSha = sha();
-const expectedSha = process.env.EXPECTED_SHA;
-if (expectedSha && expectedSha !== currentSha) { console.error(`EXACT SHA VIOLATION: expected ${expectedSha}, executed ${currentSha}`); process.exit(1); }
-if (!existsSync(resolve(ROOT, 'node_modules/.package-lock.json'))) { console.error('DEPENDENCY STATE VIOLATION: npm ci must complete before certification runner.'); process.exit(1); }
-const context = runNodeScript('scripts/ci/capture-execution-context.mjs'); process.stdout.write(context.stdout ?? ''); process.stderr.write(context.stderr ?? ''); if ((context.status ?? 1) !== 0) process.exit(context.status ?? 1);
-
-const targetGates = gate ? [gate] : GATES;
-const reports = [];
-for (const name of targetGates) { const report = name === 'static' ? runChecks('static') : name === 'build' ? runChecks('build') : (reports.find((item) => item.gate === 'BUILD')?.status !== 'PASS' ? blockedReport('browser', 'BUILD did not pass; browser artifact certification is not valid') : browserGate()); reports.push(report); if (mode === 'certification' && report.status !== 'PASS') break; }
-const overall = writeOverall(reports, targetGates);
-for (const script of ['scripts/ci/normalize-reproduction.mjs', 'scripts/ci/collect-failure-evidence.mjs', 'scripts/ci/record-repair-cycle.mjs', 'scripts/ci/detect-shared-root-candidates.mjs']) { const result = runNodeScript(script); process.stdout.write(result.stdout ?? ''); process.stderr.write(result.stderr ?? ''); if ((result.status ?? 1) !== 0) console.error(`Supporting diagnostic ${script} returned ${result.status ?? 1}.`); }
-process.exit(overall.status === 'PASS' ? 0 : 1);
+const currentSha=sha(); if(process.env.EXPECTED_SHA&&process.env.EXPECTED_SHA!==currentSha){console.error(`EXACT SHA VIOLATION: expected ${process.env.EXPECTED_SHA}, executed ${currentSha}`);process.exit(1);} if(!existsSync(resolve(ROOT,'node_modules/.package-lock.json'))){console.error('DEPENDENCY STATE VIOLATION: npm ci must complete before certification runner.');process.exit(1);}
+const context=runNode('scripts/ci/capture-execution-context.mjs');process.stdout.write(context.stdout??'');process.stderr.write(context.stderr??'');if((context.status??1)!==0)process.exit(context.status??1);
+const target=gate?[gate]:GATES;const reports=[];for(const name of target){const r=name==='static'?runChecks('static'):name==='build'?runChecks('build'):(reports.find((x)=>x.gate==='BUILD')?.status==='PASS'?await browserGate():blocked());reports.push(r);if(mode==='certification'&&r.status!=='PASS')break;}
+const result=overall(reports,target);for(const script of ['scripts/ci/normalize-reproduction.mjs','scripts/ci/collect-failure-evidence.mjs','scripts/ci/record-repair-cycle.mjs','scripts/ci/detect-shared-root-candidates.mjs']){const r=runNode(script);process.stdout.write(r.stdout??'');process.stderr.write(r.stderr??'');if((r.status??1)!==0)console.error(`Supporting diagnostic ${script} returned ${r.status??1}.`);}process.exit(result.status==='PASS'?0:1);
