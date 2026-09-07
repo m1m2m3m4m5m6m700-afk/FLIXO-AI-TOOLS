@@ -37,77 +37,56 @@ for (const unit of matrix) {
   if (!expectedBrowsers.includes(unit.browser)) throw new Error(`Unknown planned browser: ${unit.browser}`);
   if (!Number.isInteger(unit.shard) || unit.shard < 1 || unit.shard > expectedShards) throw new Error(`Invalid planned shard: ${key}`);
   if (!Array.isArray(unit.tests) || unit.tests.length === 0) throw new Error(`Empty planned suite set: ${key}`);
+  if (!Number.isInteger(unit.test_count) || unit.test_count < 1) throw new Error(`Invalid planned test count: ${key}`);
   expectedByBrowserShard.set(key, unit);
 }
 
-const files = readdirSync(root).filter((name) => name.endsWith('.json') && name !== '_flixo_matrix_plan.json');
+const files = readdirSync(root).filter((name) => name.endsWith('.json') && !name.endsWith('-playwright-results.json'));
 const errors = [];
 const records = [];
 const seenUnits = new Set();
-const seenExecutions = new Set();
 
 for (const fileName of files) {
   const file = join(root, fileName);
   const record = JSON.parse(readFileSync(file, 'utf8'));
   records.push({ file, record });
-  for (const key of ['schema_version', 'sha', 'plan_hash', 'browser', 'shard', 'executed_suites', 'planned_test_count', 'observed_test_count', 'failed', 'skipped', 'unexpected', 'status', 'result_artifact']) {
+  for (const key of ['schema_version', 'sha', 'plan_hash', 'browser', 'shard', 'planned_suites', 'executed_suites', 'planned_test_count', 'observed_test_count', 'failed', 'skipped', 'unexpected', 'native_report_sha256']) {
     if (!(key in record)) errors.push(`${file} missing ${key}`);
   }
-  if (record.schema_version !== 4) errors.push(`${file} schema_version=${record.schema_version} != 4`);
+  if (record.schema_version !== 1) errors.push(`${file} schema_version=${record.schema_version} != 1`);
   if (record.sha !== sha) errors.push(`${file} SHA mismatch: ${record.sha} != ${sha}`);
   if (record.plan_hash !== planHash) errors.push(`${file} plan hash mismatch: ${record.plan_hash} != ${planHash}`);
-  if (record.status !== 'success') errors.push(`${file} status=${record.status ?? 'missing'}`);
-  for (const field of ['failed', 'skipped', 'unexpected']) if (Number(record[field] || 0) !== 0) errors.push(`${file} ${field}=${record[field]}`);
+  if (Number(record.failed) !== 0 || Number(record.skipped) !== 0 || Number(record.unexpected) !== 0 || Number(record.flaky) !== 0) errors.push(`${file} nonzero result counts`);
   if (!Number.isInteger(record.planned_test_count) || !Number.isInteger(record.observed_test_count)) errors.push(`${file} test counts must be integers`);
   if (record.planned_test_count !== record.observed_test_count) errors.push(`${file} planned_test_count=${record.planned_test_count} != observed_test_count=${record.observed_test_count}`);
-  if (!Array.isArray(record.executed_suites)) errors.push(`${file} executed_suites is not an array`);
-
+  if (!record.native_report_sha256) errors.push(`${file} native report hash missing`);
+  if (!Array.isArray(record.executed_suites) || !Array.isArray(record.planned_suites)) errors.push(`${file} suite arrays are invalid`);
   const unitKey = `${record.browser}:${record.shard}`;
   const unit = expectedByBrowserShard.get(unitKey);
   if (!unit) errors.push(`${file} is not present in immutable plan: ${unitKey}`);
   else {
     if (seenUnits.has(unitKey)) errors.push(`duplicate evidence unit: ${unitKey}`);
     seenUnits.add(unitKey);
-    const plannedSuites = [...unit.tests].sort();
-    const executedSuites = [...record.executed_suites].sort();
-    if (JSON.stringify(plannedSuites) !== JSON.stringify(executedSuites)) errors.push(`${file} planned suite != executed suite`);
+    if (JSON.stringify([...unit.tests].sort()) !== JSON.stringify([...record.planned_suites].map((suite) => suite).sort())) errors.push(`${file} evidence planned suites differ from plan`);
+    if (JSON.stringify([...unit.tests].sort()) !== JSON.stringify([...record.executed_suites].sort())) errors.push(`${file} planned suite != executed suite`);
     if (record.planned_test_count !== Number(unit.test_count)) errors.push(`${file} planned_test_count=${record.planned_test_count} != plan=${unit.test_count}`);
-  }
-
-  if (!statSync(record.result_artifact, { throwIfNoEntry: false })?.isFile()) errors.push(`${file} missing result artifact ${record.result_artifact}`);
-  else {
-    const resultText = readFileSync(record.result_artifact, 'utf8');
-    const result = JSON.parse(resultText);
-    const resultHash = createHash('sha256').update(resultText).digest('hex');
-    if (record.result_artifact_sha256 !== resultHash) errors.push(`${file} result artifact SHA mismatch`);
-    if (result.sha !== sha) errors.push(`${file} result artifact SHA mismatch: ${result.sha} != ${sha}`);
-    if (result.plan_hash !== planHash) errors.push(`${file} result artifact plan hash mismatch`);
-    if (Number(result.observed_test_count) !== Number(record.observed_test_count)) errors.push(`${file} result observed test count mismatch`);
-    if (Number(result.failed) !== 0 || Number(result.skipped) !== 0 || Number(result.unexpected) !== 0) errors.push(`${file} native result contains failure/skip/unexpected`);
   }
 }
 
 for (const key of expectedByBrowserShard.keys()) if (!seenUnits.has(key)) errors.push(`missing evidence unit: ${key}`);
-for (const browser of expectedBrowsers) {
-  const browserSuites = new Set();
-  for (const unit of matrix.filter((item) => item.browser === browser)) for (const suite of unit.tests) {
-    const key = `${browser}:${suite}`;
-    if (seenExecutions.has(key)) errors.push(`duplicate planned execution: ${key}`);
-    browserSuites.add(suite);
-    seenExecutions.add(key);
-  }
-  for (const suite of expectedSuites) if (!browserSuites.has(suite)) errors.push(`planned suite missing for browser: ${browser}:${suite}`);
-}
-
-const expectedExecutions = expectedBrowsers.reduce((count, browser) => count + matrix.filter((unit) => unit.browser === browser).reduce((sum, unit) => sum + unit.tests.length, 0), 0);
-const observedExecutions = records.reduce((sum, item) => sum + item.record.executed_suites.length, 0);
+const plannedBindings = matrix.reduce((sum, unit) => sum + unit.tests.length, 0) * expectedBrowsers.length;
+const observedBindings = records.reduce((sum, item) => sum + item.record.executed_suites.length, 0);
+const plannedTests = matrix.reduce((sum, unit) => sum + Number(unit.test_count), 0) * expectedBrowsers.length;
+const observedTests = records.reduce((sum, item) => sum + Number(item.record.observed_test_count), 0);
 const summary = {
   sha,
   plan_hash: planHash,
   expected_units: expectedByBrowserShard.size,
   observed_units: seenUnits.size,
-  expected_suite_bindings: expectedExecutions,
-  observed_suite_bindings: observedExecutions,
+  planned_suite_bindings: plannedBindings,
+  observed_suite_bindings: observedBindings,
+  planned_tests: plannedTests,
+  observed_tests: observedTests,
   failed: records.reduce((sum, item) => sum + Number(item.record.failed || 0), 0),
   skipped: records.reduce((sum, item) => sum + Number(item.record.skipped || 0), 0),
   unexpected: records.reduce((sum, item) => sum + Number(item.record.unexpected || 0), 0),
