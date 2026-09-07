@@ -5,7 +5,7 @@ export { getCanonicalSiteOrigin };
 export const SITE_ORIGIN = getCanonicalSiteOrigin();
 
 /** Runtime-supported public locale set. This is the sole public locale matrix. */
-export const LOCALES = ['ar','en','es','fr','de','hi','id','it','ja','ko','nl','pl','pt','ru','sv','th','tr','ur','vi','zh'] as const;
+export const LOCALES = ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'] as const;
 export type CanonicalLocale = (typeof LOCALES)[number];
 
 /** Public locale type. Runtime strings must be narrowed with isLocale/normalizeLocale before use. */
@@ -28,6 +28,7 @@ export const LOCALE_METADATA: Readonly<Record<CanonicalLocale, Readonly<{
   it: { languageTag: 'it', direction: 'ltr' },
   ja: { languageTag: 'ja', direction: 'ltr' },
   ko: { languageTag: 'ko', direction: 'ltr' },
+  ms: { languageTag: 'ms', direction: 'ltr' },
   nl: { languageTag: 'nl', direction: 'ltr' },
   pl: { languageTag: 'pl', direction: 'ltr' },
   pt: { languageTag: 'pt', direction: 'ltr' },
@@ -35,9 +36,8 @@ export const LOCALE_METADATA: Readonly<Record<CanonicalLocale, Readonly<{
   sv: { languageTag: 'sv', direction: 'ltr' },
   th: { languageTag: 'th', direction: 'ltr' },
   tr: { languageTag: 'tr', direction: 'ltr' },
-  ur: { languageTag: 'ur', direction: 'rtl' },
+  uk: { languageTag: 'uk', direction: 'ltr' },
   vi: { languageTag: 'vi', direction: 'ltr' },
-  zh: { languageTag: 'zh', direction: 'ltr' },
 };
 
 export function isLocale(value: string): value is CanonicalLocale {
