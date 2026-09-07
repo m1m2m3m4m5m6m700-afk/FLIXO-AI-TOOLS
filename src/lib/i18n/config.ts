@@ -8,13 +8,16 @@ export const SITE_ORIGIN = getCanonicalSiteOrigin();
 export const LOCALES = ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'] as const;
 export type CanonicalLocale = (typeof LOCALES)[number];
 
-/** Compatibility key type for legacy auxiliary maps. Runtime input is validated with isLocale. */
-export type Locale = string;
+/** Public locale type. Runtime strings must be narrowed with isLocale/normalizeLocale before use. */
+export type Locale = CanonicalLocale;
 
 export const DEFAULT_LOCALE: CanonicalLocale = 'ar';
 export const X_DEFAULT_LOCALE: CanonicalLocale = 'en';
 
-export const LOCALE_METADATA: Record<string, Readonly<{ languageTag: string; direction: 'ltr' | 'rtl' }>> = {
+export const LOCALE_METADATA: Readonly<Record<CanonicalLocale, Readonly<{
+  languageTag: string;
+  direction: 'ltr' | 'rtl';
+}>> = {
   ar: { languageTag: 'ar', direction: 'rtl' },
   en: { languageTag: 'en', direction: 'ltr' },
   es: { languageTag: 'es', direction: 'ltr' },
