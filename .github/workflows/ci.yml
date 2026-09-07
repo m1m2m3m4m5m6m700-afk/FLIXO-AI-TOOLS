@@ -124,9 +124,36 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Fail closed unless unified runner passed
+      - name: Download exact-run diagnostics
+        uses: actions/download-artifact@v6
+        with:
+          name: ci-diagnostics-${{ github.run_id }}
+          path: diagnostics/ci
+
+      - name: Verify evidence-bound certification
         shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TEST_RESULT: ${{ needs.test.result }}
         run: |
           set -euo pipefail
-          test "${{ needs.test.result }}" = "success"
+          test "$TEST_RESULT" = "success"
+          test -s diagnostics/ci/report.json
+          test -s diagnostics/ci/failure-evidence.json
+          jq -e --arg sha "$EXPECTED_SHA" '
+            .status == "PASS" and
+            .sha == $sha and
+            .gatesExpected == 3 and
+            .gatesExecuted == 3 and
+            (.rootCauses | length) == 0
+          ' diagnostics/ci/report.json >/dev/null
+          jq -e --arg sha "$EXPECTED_SHA" '
+            .sha == $sha and
+            .invariants.exactShaMatch == true and
+            .invariants.cleanCheckout == true and
+            .invariants.requiredTestsSkipped == false and
+            .invariants.maskedFailures == false and
+            .invariants.staleEvidence == false
+          ' diagnostics/ci/failure-evidence.json >/dev/null
           echo "CERTIFICATION: PASS"
+          echo "CERTIFIED_SHA=$EXPECTED_SHA"
