@@ -10,6 +10,11 @@ export type CanonicalLocale = (typeof LOCALES)[number];
 /** Canonical locale type used by all internal i18n APIs. External strings must be validated with isLocale. */
 export type Locale = CanonicalLocale;
 
+/** Retained legacy localization keys are explicitly modeled and are not part of the public locale matrix. */
+export const LEGACY_LOCALES = ['ur', 'zh'] as const;
+export type LegacyLocale = (typeof LEGACY_LOCALES)[number];
+export type KnownLocale = CanonicalLocale | LegacyLocale;
+
 export const DEFAULT_LOCALE: CanonicalLocale = 'ar';
 export const X_DEFAULT_LOCALE: CanonicalLocale = 'en';
 
