@@ -1,0 +1,120 @@
+name: Domain Boundary Lock
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  boundary-lock:
+    name: Multi-Agent Domain Boundary Lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Enforce cross-domain isolation
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const isPullRequest = context.eventName === 'pull_request';
+
+            let files;
+            let headSha = context.sha;
+
+            if (isPullRequest) {
+              const pr = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: context.payload.pull_request.number,
+              });
+              headSha = pr.data.head.sha;
+
+              const result = await github.paginate(github.rest.pulls.listFiles, {
+                owner,
+                repo,
+                pull_number: pr.data.number,
+                per_page: 100,
+              });
+              files = result.map((file) => file.filename);
+            } else {
+              const before = context.payload.before;
+              const after = context.payload.after;
+              if (!before || !after || /^0+$/.test(before)) {
+                core.info('Boundary PASS: no comparable parent commit exists for this push event.');
+                return;
+              }
+
+              const comparison = await github.rest.repos.compareCommitsWithBasehead({
+                owner,
+                repo,
+                basehead: `${before}...${after}`,
+              });
+              files = (comparison.data.files || []).map((file) => file.filename);
+            }
+
+            const i18nPattern = /^(?:src\/lib\/i18n\/|src\/data\/.*(?:locale|locales)|scripts\/validate-i18n(?:-parity)?\.ts|scripts\/validate-i18n\.mjs|tests\/.*(?:i18n|localization))/i;
+            const perfE2ePattern = /^(?:tests\/(?:e2e|performance|browser)|e2e\/|playwright(?:\.|\/)|scripts\/(?:ci\/.*(?:browser|performance|e2e)|.*(?:performance|benchmark))|perf(?:\.|\/)|performance(?:\.|\/))/i;
+
+            const i18nFiles = files.filter((file) => i18nPattern.test(file));
+            const perfE2eFiles = files.filter((file) => perfE2ePattern.test(file));
+
+            if (i18nFiles.length === 0 || perfE2eFiles.length === 0) {
+              core.info(`Boundary PASS: i18n=${i18nFiles.length}, performance/E2E=${perfE2eFiles.length}.`);
+              return;
+            }
+
+            const violation = `i18n=${i18nFiles.join(', ')}; performance/E2E=${perfE2eFiles.join(', ')}`;
+            if (!isPullRequest) {
+              core.setFailed(`Boundary violation on main: one change touched both protected domains. ${violation}`);
+              return;
+            }
+
+            const pr = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: context.payload.pull_request.number,
+            });
+            const labels = new Set((pr.data.labels || []).map((label) => label.name));
+            if (!labels.has('boundary-cross-review')) {
+              core.setFailed(`Boundary violation: mixed protected domains require boundary-cross-review plus an independent approval on the exact head SHA. ${violation}`);
+              return;
+            }
+
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner,
+              repo,
+              pull_number: pr.data.number,
+              per_page: 100,
+            });
+
+            const latestReviewByUser = new Map();
+            for (const review of reviews) {
+              const login = review.user?.login;
+              if (!login || !review.submitted_at) continue;
+              const previous = latestReviewByUser.get(login);
+              if (!previous || new Date(review.submitted_at) > new Date(previous.submitted_at)) {
+                latestReviewByUser.set(login, review);
+              }
+            }
+
+            const approvedByIndependentReviewer = [...latestReviewByUser.values()].some((review) =>
+              review.state === 'APPROVED' &&
+              review.user?.login &&
+              review.user.login !== pr.data.user?.login &&
+              review.commit_id === headSha,
+            );
+
+            if (!approvedByIndependentReviewer) {
+              core.setFailed('Boundary violation: boundary-cross-review is present, but no independent APPROVED review is attached to the current PR head SHA.');
+              return;
+            }
+
+            core.info(`Boundary PASS: protected-domain crossing authorized by an independent APPROVED review on ${headSha}.`);
