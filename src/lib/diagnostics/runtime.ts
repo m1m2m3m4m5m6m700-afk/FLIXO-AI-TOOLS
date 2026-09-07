@@ -13,36 +13,45 @@ const STORAGE_KEY = 'flixo:runtime-diagnostics';
 const MAX_ENTRIES = 20;
 const diagnosticSchema = z.object({
   kind: z.enum(['error', 'unhandledrejection']),
-  message: z.string(),
-  stack: z.string().optional(),
-  route: z.string(),
-  userAgent: z.string(),
-  timestamp: z.string(),
+  message: z.string().max(16 * 1024),
+  stack: z.string().max(32 * 1024).optional(),
+  route: z.string().max(4096),
+  userAgent: z.string().max(2048),
+  timestamp: z.string().datetime(),
 }).strict();
 const diagnosticsSchema = z.array(diagnosticSchema).max(MAX_ENTRIES);
 
+function purgeCorruptState(reason: unknown): void {
+  try { localStorage.removeItem(STORAGE_KEY); } catch { /* restricted storage */ }
+  console.error('[runtime-diagnostics] rejected persisted state', reason);
+}
+
 function parsePersisted(raw: string | null): RuntimeDiagnostic[] {
   if (!raw) return [];
-  const parsed = diagnosticsSchema.safeParse(JSON.parse(raw));
-  if (parsed.success) return parsed.data;
-  console.error('[runtime-diagnostics] rejected persisted state', parsed.error.flatten());
-  try { localStorage.removeItem(STORAGE_KEY); } catch { /* restricted storage */ }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    const result = diagnosticsSchema.safeParse(parsed);
+    if (result.success) return result.data;
+    purgeCorruptState(result.error.flatten());
+  } catch (error) {
+    purgeCorruptState(error);
+  }
   return [];
 }
 
 function saveDiagnostic(diagnostic: RuntimeDiagnostic): void {
   try {
     const current = parsePersisted(localStorage.getItem(STORAGE_KEY));
-    current.push(diagnostic);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(current.slice(-MAX_ENTRIES)));
+    const validated = diagnosticSchema.parse(diagnostic);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...current, validated].slice(-MAX_ENTRIES)));
   } catch (error) {
-    console.error('[runtime-diagnostics] persistence failed', error);
+    console.error('[runtime-diagnostics] persistence rejected', error);
   }
 }
 
 export function getRuntimeDiagnostics(): RuntimeDiagnostic[] {
   try { return parsePersisted(localStorage.getItem(STORAGE_KEY)); }
-  catch (error) { console.error('[runtime-diagnostics] read failed', error); return []; }
+  catch (error) { purgeCorruptState(error); return []; }
 }
 
 export function clearRuntimeDiagnostics(): void {
@@ -51,14 +60,15 @@ export function clearRuntimeDiagnostics(): void {
 }
 
 function record(kind: RuntimeDiagnostic['kind'], error: unknown): void {
-  saveDiagnostic({
+  const diagnostic: RuntimeDiagnostic = {
     kind,
     message: error instanceof Error ? error.message : String(error),
     stack: error instanceof Error ? error.stack : undefined,
     route: `${window.location.pathname}${window.location.search}`,
     userAgent: navigator.userAgent,
     timestamp: new Date().toISOString(),
-  });
+  };
+  saveDiagnostic(diagnostic);
 }
 
 export function installRuntimeDiagnostics(): () => void {

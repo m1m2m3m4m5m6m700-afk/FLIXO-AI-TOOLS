@@ -15,31 +15,36 @@ function purgeCorruptState(reason: unknown): ToolChainStep[] {
   return [];
 }
 
-const normalize = (value: unknown): ToolChainStep[] => {
+function parseStoredChain(value: unknown): ToolChainStep[] {
   const parsed = persistedChainSchema.safeParse(value);
   if (!parsed.success) return purgeCorruptState(parsed.error.flatten());
   const invalidIds = parsed.data.filter((step) => !readyToolIds.has(step.id));
   if (invalidIds.length) return purgeCorruptState({ invalidToolIds: invalidIds.map((step) => step.id) });
-  return parsed.data
-    .sort((a, b) => a.order - b.order)
-    .map((step, index) => ({ id: step.id, order: index }));
-};
+  return [...parsed.data].sort((a, b) => a.order - b.order).map((step, index) => ({ id: step.id, order: index }));
+}
 
 export const getToolChain = (): ToolChainStep[] => {
   try {
     const raw = localStorage.getItem(CHAIN_KEY);
     if (!raw) return [];
-    return normalize(JSON.parse(raw));
+    return parseStoredChain(JSON.parse(raw));
   } catch (error) {
     return purgeCorruptState(error);
   }
 };
 
-export const setToolChain = (ids: string[]) => {
-  const unique = ids.filter((id, index) => typeof id === 'string' && readyToolIds.has(id) && ids.indexOf(id) === index).slice(0, MAX_CHAIN_LENGTH);
-  const steps = unique.map((id, order) => ({ id, order }));
-  try { localStorage.setItem(CHAIN_KEY, JSON.stringify(steps)); } catch { /* Local persistence must not block tool usage. */ }
-  return steps;
+export const setToolChain = (ids: string[]): ToolChainStep[] => {
+  const requested = Array.from(new Set(ids)).slice(0, MAX_CHAIN_LENGTH);
+  const invalidIds = requested.filter((id) => !readyToolIds.has(id));
+  if (invalidIds.length) return purgeCorruptState({ invalidToolIds: invalidIds });
+  const steps = parseStoredChain(requested.map((id, order) => ({ id, order })));
+  try {
+    localStorage.setItem(CHAIN_KEY, JSON.stringify(steps));
+    return steps;
+  } catch (error) {
+    console.error('[tool-chain] persistence write failed', error);
+    return getToolChain();
+  }
 };
 
 export const addToolToChain = (toolId: string) => setToolChain([...getToolChain().map((step) => step.id), toolId]);
