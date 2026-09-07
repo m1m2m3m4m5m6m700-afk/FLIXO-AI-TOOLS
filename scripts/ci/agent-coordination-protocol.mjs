@@ -7,6 +7,7 @@ const HEAD_SHA = process.env.EXPECTED_HEAD_SHA ?? (() => { try { return execFile
 const BRANCH = process.env.GITHUB_HEAD_REF ?? process.env.GITHUB_REF_NAME ?? (() => { try { return execFileSync('git', ['branch', '--show-current'], { encoding: 'utf8' }).trim(); } catch { return ''; } })();
 const AGENT_ID = process.env.FLIXO_AGENT_ID ?? '';
 const ACTION = process.env.FLIXO_AGENT_ACTION ?? 'status';
+const DRY_RUN = process.env.FLIXO_AGENT_DRY_RUN === '1' || process.argv.includes('--dry-run') || ACTION === 'dry-run';
 const CLAIMS_FILE = process.env.FLIXO_AGENT_CLAIMS_FILE ?? '.ci/agent-coordination/claims.json';
 const EVIDENCE_FILE = process.env.FLIXO_AGENT_PROTOCOL_EVIDENCE ?? 'artifacts/ci/agent-coordination/protocol-state.json';
 const HEX_SHA = /^[0-9a-f]{40}$/iu;
@@ -35,7 +36,8 @@ const validateState = (state) => {
     if (!Array.isArray(claim.scope?.paths)) fail(`claim ${claim.agentId} scope.paths missing`);
     if (!Array.isArray(claim.scope?.contracts)) fail(`claim ${claim.agentId} scope.contracts missing`);
     if (!Array.isArray(claim.rootCauseIds)) fail(`claim ${claim.agentId} rootCauseIds missing`);
-    if (!['active', 'handoff-pending', 'released'].includes(claim.status)) fail(`claim ${claim.agentId} invalid status`);
+    if (claim.workItemIds !== undefined && !Array.isArray(claim.workItemIds)) fail(`claim ${claim.agentId} workItemIds must be an array`);
+    if (!['active', 'handoff-pending', 'released', 'expired_evicted'].includes(claim.status)) fail(`claim ${claim.agentId} invalid status`);
     parseIso(claim.leasedAt, `claim ${claim.agentId}.leasedAt`);
     parseIso(claim.leaseUntil, `claim ${claim.agentId}.leaseUntil`);
     if (claim.lastHeartbeatAt) parseIso(claim.lastHeartbeatAt, `claim ${claim.agentId}.lastHeartbeatAt`);
@@ -54,24 +56,27 @@ const assertSafeScope = (candidate, existingClaims) => {
 const isAncestor = (ancestor, descendant) => {
   if (!HEX_SHA.test(ancestor) || !HEX_SHA.test(descendant)) return false;
   if (ancestor === descendant) return true;
-  try {
-    execFileSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
+  try { execFileSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], { stdio: 'ignore' }); return true; } catch { return false; }
 };
 const assertAnchored = (claim, currentHead) => {
-  if (!isAncestor(claim.observedHeadSha, currentHead)) {
-    fail(`claim ${claim.agentId} is stale or diverged: anchor=${claim.observedHeadSha} current=${currentHead}; re-ingest and re-claim required`);
-  }
+  if (!isAncestor(claim.observedHeadSha, currentHead)) fail(`claim ${claim.agentId} is stale or diverged: anchor=${claim.observedHeadSha} current=${currentHead}; re-ingest and re-claim required`);
 };
 
 const state = validateState(await readState());
-const evidence = { schemaVersion: 2, protocol: 'FLIXO agent coordination runtime', repository: REPO, branch: BRANCH, headSha: HEAD_SHA || null, action: ACTION, generatedAt: now().toISOString() };
+const evidence = { schemaVersion: 3, protocol: 'FLIXO agent coordination runtime', repository: REPO, branch: BRANCH, headSha: HEAD_SHA || null, action: DRY_RUN ? 'dry-run' : ACTION, generatedAt: now().toISOString() };
 
-if (ACTION === 'status') {
-  evidence.active = activeClaims(state).map((claim) => ({ agentId: claim.agentId, branch: claim.branch, observedHeadSha: claim.observedHeadSha, leaseUntil: claim.leaseUntil, lastHeartbeatAt: claim.lastHeartbeatAt ?? null }));
+if (DRY_RUN) {
+  if (!AGENT_ID) fail('dry-run requires FLIXO_AGENT_ID');
+  if (!HEX_SHA.test(HEAD_SHA)) fail(`current HEAD ${HEAD_SHA || '<unset>'} is not an exact SHA`);
+  const paths = unique((process.env.FLIXO_AGENT_PATHS ?? '').split(',').map(normalize).filter(Boolean));
+  const contracts = unique((process.env.FLIXO_AGENT_CONTRACTS ?? '').split(',').map((v) => v.trim()).filter(Boolean));
+  const rootCauseIds = unique((process.env.FLIXO_AGENT_ROOT_CAUSES ?? '').split(',').map((v) => v.trim()).filter(Boolean));
+  if (!paths.length && !contracts.length && !rootCauseIds.length) fail('dry-run requires paths, contracts, or rootCauseIds');
+  assertSafeScope({ scope: { paths, contracts }, rootCauseIds }, activeClaims(state).filter((claim) => claim.agentId !== AGENT_ID));
+  evidence.result = 'dry-run-safe';
+  evidence.candidate = { agentId: AGENT_ID, paths, contracts, rootCauseIds, headSha: HEAD_SHA };
+} else if (ACTION === 'status') {
+  evidence.active = activeClaims(state).map((claim) => ({ agentId: claim.agentId, branch: claim.branch, observedHeadSha: claim.observedHeadSha, leaseUntil: claim.leaseUntil, lastHeartbeatAt: claim.lastHeartbeatAt ?? null, workItemIds: claim.workItemIds ?? [] }));
 } else {
   if (!AGENT_ID) fail('FLIXO_AGENT_ID is required for mutating actions');
   if (!AGENT_BRANCH.test(BRANCH)) fail(`current branch ${BRANCH || '<unset>'} is not an agent branch`);
@@ -82,10 +87,11 @@ if (ACTION === 'status') {
     const paths = unique((process.env.FLIXO_AGENT_PATHS ?? '').split(',').map(normalize).filter(Boolean));
     const contracts = unique((process.env.FLIXO_AGENT_CONTRACTS ?? '').split(',').map((v) => v.trim()).filter(Boolean));
     const rootCauseIds = unique((process.env.FLIXO_AGENT_ROOT_CAUSES ?? '').split(',').map((v) => v.trim()).filter(Boolean));
+    const workItemIds = unique((process.env.FLIXO_AGENT_WORK_ITEMS ?? '').split(',').map((v) => v.trim()).filter(Boolean));
     if (!paths.length && !contracts.length && !rootCauseIds.length) fail('check-in requires paths, contracts, or rootCauseIds');
     assertSafeScope({ scope: { paths, contracts }, rootCauseIds }, activeClaims(state).filter((claim) => claim.agentId !== AGENT_ID));
     const leasedAt = now();
-    const claim = { agentId: AGENT_ID, branch: BRANCH, observedHeadSha: HEAD_SHA, scope: { paths, contracts }, rootCauseIds, status: 'active', leasedAt: leasedAt.toISOString(), leaseUntil: new Date(leasedAt.getTime() + state.leaseMinutes * 60000).toISOString(), lastHeartbeatAt: leasedAt.toISOString(), sessionId: randomUUID() };
+    const claim = { agentId: AGENT_ID, branch: BRANCH, observedHeadSha: HEAD_SHA, scope: { paths, contracts }, rootCauseIds, workItemIds, status: 'active', leasedAt: leasedAt.toISOString(), leaseUntil: new Date(leasedAt.getTime() + state.leaseMinutes * 60000).toISOString(), lastHeartbeatAt: leasedAt.toISOString(), sessionId: randomUUID() };
     state.claims = state.claims.filter((item) => item.agentId !== AGENT_ID); state.claims.push(claim); evidence.claim = claim; evidence.result = 'checked-in';
   } else if (ACTION === 'heartbeat') {
     if (!existing || existing.status !== 'active') fail(`agent ${AGENT_ID} has no active claim`);
@@ -104,6 +110,8 @@ if (ACTION === 'status') {
 evidence.activeCount = activeClaims(state).length;
 evidence.activeAgentIds = activeClaims(state).map((claim) => claim.agentId).sort();
 evidence.stateHash = createHash('sha256').update(JSON.stringify(state)).digest('hex');
-await mkdir('artifacts/ci/agent-coordination', { recursive: true });
-await writeFile(EVIDENCE_FILE, JSON.stringify(evidence, null, 2) + '\n');
-console.log(`Agent coordination ${ACTION} PASS: active=${evidence.activeCount} stateHash=${evidence.stateHash}`);
+if (!DRY_RUN) {
+  await mkdir('artifacts/ci/agent-coordination', { recursive: true });
+  await writeFile(EVIDENCE_FILE, JSON.stringify(evidence, null, 2) + '\n');
+}
+console.log(`Agent coordination ${evidence.action} PASS: active=${evidence.activeCount} stateHash=${evidence.stateHash}`);
