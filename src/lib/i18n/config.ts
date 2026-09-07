@@ -7,13 +7,15 @@ export const SITE_ORIGIN = getCanonicalSiteOrigin();
 /** Runtime-supported public locale set. This is the sole public locale matrix. */
 export const LOCALES = ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'] as const;
 export type CanonicalLocale = (typeof LOCALES)[number];
-/** Canonical locale type used by all internal i18n APIs. External strings must be validated with isLocale. */
-export type Locale = CanonicalLocale;
+/** Legacy locale keys retained only for compatibility with pre-20-locale data manifests. They are never public routes. */
+export type LegacyLocale = 'ur' | 'zh';
+/** Locale keys accepted by compatibility data structures. Public/runtime locale selection must use CanonicalLocale. */
+export type Locale = CanonicalLocale | LegacyLocale;
 
 export const DEFAULT_LOCALE: CanonicalLocale = 'ar';
 export const X_DEFAULT_LOCALE: CanonicalLocale = 'en';
 
-export const LOCALE_METADATA: Record<CanonicalLocale, Readonly<{ languageTag: string; direction: 'ltr' | 'rtl' }>> = {
+export const LOCALE_METADATA: Record<Locale, Readonly<{ languageTag: string; direction: 'ltr' | 'rtl' }>> = {
   ar: { languageTag: 'ar', direction: 'rtl' },
   en: { languageTag: 'en', direction: 'ltr' },
   es: { languageTag: 'es', direction: 'ltr' },
@@ -34,6 +36,8 @@ export const LOCALE_METADATA: Record<CanonicalLocale, Readonly<{ languageTag: st
   tr: { languageTag: 'tr', direction: 'ltr' },
   uk: { languageTag: 'uk', direction: 'ltr' },
   vi: { languageTag: 'vi', direction: 'ltr' },
+  ur: { languageTag: 'ur', direction: 'rtl' },
+  zh: { languageTag: 'zh', direction: 'ltr' },
 };
 
 export function isLocale(value: string): value is CanonicalLocale {
