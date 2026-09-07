@@ -1,76 +1,11 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 1,
   "protocol": "FLIXO agent work queue",
-  "parallelism": {
-    "model": "parallel-sharded-dag",
-    "maxReadyPerLane": 8,
-    "safety": "parallelism requires disjoint paths, contracts, and rootCauseIds"
-  },
   "items": [
-    {
-      "id": "WQ-MATRIX-001",
-      "title": "Canonical Matrix First orchestration",
-      "ownerRole": "Writer",
-      "ownerAgentId": "ci-matrix-recovery",
-      "status": "in_progress",
-      "parallelGroup": "matrix-core",
-      "dependsOn": [],
-      "paths": [".github/workflows/full-matrix-parallel.yml", ".github/workflows/matrix-first.yml", "scripts/ci/validate-architecture.mjs"],
-      "contracts": ["G1-ROUTE-001", "G1-REGISTRY-001", "G1-ROUTER-001"],
-      "rootCauseIds": ["RC-MATRIX-008"],
-      "verification": ["Matrix First Certification", "validate-full-matrix-evidence.mjs"]
-    },
-    {
-      "id": "WQ-MATRIX-002",
-      "title": "Immutable plan and native evidence identity",
-      "ownerRole": "Writer",
-      "ownerAgentId": "ci-matrix-recovery",
-      "status": "in_progress",
-      "parallelGroup": "matrix-evidence",
-      "dependsOn": [],
-      "paths": ["scripts/ci/weighted-shard-plan.mjs", "scripts/ci/write-matrix-evidence.mjs", "scripts/ci/validate-full-matrix-evidence.mjs"],
-      "contracts": ["G4-RUNTIME-001", "G4-CONSOLE-001", "G4-NETWORK-001", "G4-OUTPUT-001"],
-      "rootCauseIds": ["RC-G4-MATRIX-001"],
-      "verification": ["planner/evidence identity equality", "native Playwright JSON verification"]
-    },
-    {
-      "id": "WQ-MATRIX-MERGE-001",
-      "title": "Matrix parallel merge barrier",
-      "ownerRole": "Barrier",
-      "ownerAgentId": "sovereign-certifier",
-      "status": "waiting_on_dependencies",
-      "parallelGroup": "matrix-barrier",
-      "dependsOn": ["WQ-MATRIX-001", "WQ-MATRIX-002"],
-      "paths": [".ci/agent-coordination/work-queue.json"],
-      "contracts": [],
-      "rootCauseIds": [],
-      "verification": ["both matrix lanes complete on compatible SHA", "barrier admission"]
-    },
-    {
-      "id": "WQ-CI-001",
-      "title": "CI barrier dependency coherence",
-      "ownerRole": "Writer",
-      "ownerAgentId": "ci-matrix-recovery",
-      "status": "in_progress",
-      "parallelGroup": "ci-orchestration",
-      "dependsOn": ["WQ-MATRIX-MERGE-001"],
-      "paths": [".github/workflows/ci.yml", ".github/workflows/agent-coordination.yml", ".github/workflows/matrix-ci-recovery.yml"],
-      "contracts": [],
-      "rootCauseIds": ["RC-CI-002", "RC-CI-003"],
-      "verification": ["exact-head Matrix First barrier", "final-contract-gate"]
-    },
-    {
-      "id": "WQ-G4-001",
-      "title": "Browser/runtime contract convergence",
-      "ownerRole": "Verifier",
-      "ownerAgentId": "ci-matrix-recovery",
-      "status": "blocked_by_ci",
-      "parallelGroup": "browser-verification",
-      "dependsOn": ["WQ-CI-001"],
-      "paths": ["tests", "playwright.config.*", "scripts/ci/contracts/registry.ts"],
-      "contracts": ["G4-ROUTE-001", "G4-HTTP-001", "G4-DOCUMENT-001", "G4-LANG-001", "G4-DIR-001", "G4-TITLE-001", "G4-DESCRIPTION-001", "G4-H1-001", "G4-CANONICAL-001", "G4-HREFLANG-001", "G4-ROBOTS-001", "G4-STRUCTURED-DATA-001", "G4-TRANSLATION-001", "G4-ENGLISH-LEAKAGE-001", "G4-A11Y-001", "G4-RUNTIME-001", "G4-CONSOLE-001", "G4-NETWORK-001", "G4-INTERACTION-001", "G4-OUTPUT-001"],
-      "rootCauseIds": ["RC-G4-ROUTER-001"],
-      "verification": ["Full Matrix", "G4 browser/runtime evidence"]
-    }
+    {"id":"WQ-MATRIX-001","title":"Canonical Matrix First orchestration","ownerRole":"Writer","ownerAgentId":"ci-matrix-recovery","status":"in_progress","dependsOn":[],"contracts":["G1-ROUTE-001","G1-REGISTRY-001","G1-ROUTER-001"],"rootCauseIds":["RC-MATRIX-008"],"verification":["Matrix First Certification","validate-full-matrix-evidence.mjs"]},
+    {"id":"WQ-MATRIX-002","title":"Immutable plan and native evidence identity","ownerRole":"Writer","ownerAgentId":"ci-matrix-recovery","status":"in_progress","dependsOn":[],"contracts":["G4-RUNTIME-001","G4-CONSOLE-001","G4-NETWORK-001","G4-OUTPUT-001"],"rootCauseIds":["RC-G4-MATRIX-001"],"verification":["planner/evidence identity equality","native Playwright JSON verification"]},
+    {"id":"WQ-MATRIX-MERGE-001","title":"Matrix parallel-lane merge barrier","ownerRole":"Writer","ownerAgentId":"ci-matrix-recovery","status":"blocked","dependsOn":["WQ-MATRIX-001","WQ-MATRIX-002"],"contracts":[],"rootCauseIds":[],"verification":["both matrix lanes complete","shared evidence identity check"]},
+    {"id":"WQ-CI-001","title":"CI barrier dependency coherence","ownerRole":"Writer","ownerAgentId":"ci-matrix-recovery","status":"in_progress","dependsOn":["WQ-MATRIX-MERGE-001"],"contracts":[],"rootCauseIds":["RC-CI-002","RC-CI-003"],"verification":["exact-head Matrix First barrier","final-contract-gate"]},
+    {"id":"WQ-G4-001","title":"Browser/runtime contract convergence","ownerRole":"Verifier","ownerAgentId":"ci-matrix-recovery","status":"blocked_by_ci","dependsOn":["WQ-CI-001"],"contracts":["G4-ROUTE-001","G4-HTTP-001","G4-DOCUMENT-001","G4-LANG-001","G4-DIR-001","G4-TITLE-001","G4-DESCRIPTION-001","G4-H1-001","G4-CANONICAL-001","G4-HREFLANG-001","G4-ROBOTS-001","G4-STRUCTURED-DATA-001","G4-TRANSLATION-001","G4-ENGLISH-LEAKAGE-001","G4-A11Y-001","G4-RUNTIME-001","G4-CONSOLE-001","G4-NETWORK-001","G4-INTERACTION-001","G4-OUTPUT-001"],"rootCauseIds":["RC-G4-MATRIX-001","RC-G4-ROUTER-001"],"verification":["Full Matrix","G4 browser/runtime evidence"]}
   ]
 }
