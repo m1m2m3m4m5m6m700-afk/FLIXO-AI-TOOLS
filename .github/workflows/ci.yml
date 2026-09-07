@@ -27,6 +27,8 @@ jobs:
       VITE_SITE_URL: https://flixoai.vercel.app
       PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      FLIXO_TEST_MODE: certification
     steps:
       - name: Checkout exact SHA
         uses: actions/checkout@v5
@@ -65,14 +67,18 @@ jobs:
       - name: BROWSER
         run: npm run test:browser
 
-      - name: Upload unified CI report
+      - name: Record repair-cycle diagnostics
+        if: always()
+        run: npm run diagnose:cycle
+
+      - name: Upload unified CI diagnostics
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-report-${{ github.run_id }}
+          name: ci-diagnostics-${{ github.run_id }}
           path: diagnostics/ci/
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 30
 
   certify:
     name: CERTIFY
