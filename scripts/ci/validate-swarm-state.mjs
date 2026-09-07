@@ -4,213 +4,42 @@ import { execFileSync } from 'node:child_process';
 
 const LEDGER = process.env.FLIXO_SWARM_LEDGER ?? 'artifacts/ci/agent-coordination/events.ndjson';
 const QUEUE = process.env.FLIXO_SWARM_WORK_QUEUE ?? '.ci/agent-coordination/work-queue.json';
+const CLAIMS = process.env.FLIXO_AGENT_CLAIMS_FILE ?? '.ci/agent-coordination/claims.json';
 const HEAD = process.env.EXPECTED_HEAD_SHA ?? git(['rev-parse', 'HEAD']);
 const KEY = process.env.FLIXO_SWARM_EVENT_SIGNING_KEY ?? '';
 const HEARTBEAT_MS = integerEnv('FLIXO_SWARM_HEARTBEAT_MINUTES', 10) * 60_000;
 const HEX = /^[0-9a-f]{40}$/u;
+const EVENT_TYPES = new Set(['STATE_BOOTSTRAP','WORK_QUEUE_RECONCILE','CLAIM_REQUEST','HEARTBEAT','CHECK_OUT','HANDOFF_PENDING','BID_REQUEST','CLAIM_AWARDED','EXPIRED_EVICTED']);
 
-function integerEnv(name, fallback) {
-  const value = Number.parseInt(process.env[name] ?? String(fallback), 10);
-  if (!Number.isInteger(value) || value < 1) fail(`${name} must be positive`);
-  return value;
+function integerEnv(name, fallback) { const value = Number.parseInt(process.env[name] ?? String(fallback), 10); if (!Number.isInteger(value) || value < 1) fail(`${name} must be positive`); return value; }
+function fail(message) { throw new Error(`SWARM_STATE_INVALID: ${message}`); }
+function git(args) { try { return execFileSync('git', args, { encoding: 'utf8' }).trim(); } catch { return ''; } }
+function parseTime(value, field) { const time = Date.parse(value ?? ''); if (!Number.isFinite(time)) fail(`${field} invalid timestamp`); return time; }
+function canonical(value) { return JSON.stringify(value, Object.keys(value).sort()); }
+function ancestor(a,b) { if(a===b)return true; if(!HEX.test(a)||!HEX.test(b))return false; try{execFileSync('git',['merge-base','--is-ancestor',a,b],{stdio:'ignore'});return true;}catch{return false;} }
+function buildHash(event){ const unsigned={...event}; delete unsigned.hash; delete unsigned.signature; return createHash('sha256').update(canonical(unsigned)).digest('hex'); }
+function claimCollides(a,b){ const path=(a.scope?.paths??[]).some(p=>(b.scope?.paths??[]).some(q=>{const x=String(p).replaceAll('\\','/').replace(/^\.\/+/, '').replace(/\/+$/u,'');const y=String(q).replaceAll('\\','/').replace(/^\.\/+/, '').replace(/\/+$/u,'');return x===y||x.startsWith(`${y}/`)||y.startsWith(`${x}/`);})); const contract=(a.scope?.contracts??[]).some(x=>(b.scope?.contracts??[]).includes(x)); const root=(a.rootCauseIds??[]).some(x=>(b.rootCauseIds??[]).includes(x)); return path||contract||root; }
+function verifyEvent(e,seq,prev){ if(e?.schemaVersion!==1||e.protocol!=='FLIXO swarm event ledger')fail(`schema/protocol at ${seq}`); if(e.sequence!==seq)fail(`sequence mismatch at ${seq}`); if(seq>1&&e.parentSequence!==seq-1)fail(`parentSequence mismatch at ${seq}`); if(e.prevHash!==prev)fail(`prevHash mismatch at ${seq}`); if(!HEX.test(e.parentSha??'')||!ancestor(e.parentSha,HEAD))fail(`parentSha is not ancestor at ${seq}`); if(!e.eventId||!e.agentId||!EVENT_TYPES.has(e.type))fail(`invalid event identity/type at ${seq}`); parseTime(e.timestamp,`event ${seq}.timestamp`); if(buildHash(e)!==e.hash)fail(`hash mismatch at ${seq}`); if(e.signature){if(!KEY)fail(`signature ${seq} unverifiable`); if(createHmac('sha256',KEY).update(e.hash).digest('hex')!==e.signature)fail(`signature mismatch at ${seq}`);} }
+
+const rows=readFileSync(LEDGER,'utf8').split(/\r?\n/u).filter(Boolean); if(!rows.length)fail('event ledger is empty'); if(!HEX.test(HEAD))fail('current HEAD invalid');
+let previousHash='GENESIS'; let lastTimestamp=0; let bootstrapSeen=false; const claims=new Map(); const workItems=new Map(); const bids=new Map();
+for(let sequence=1;sequence<=rows.length;sequence+=1){ let event; try{event=JSON.parse(rows[sequence-1]);}catch{fail(`invalid JSON at ${sequence}`);} verifyEvent(event,sequence,previousHash); const timestamp=parseTime(event.timestamp,`event ${sequence}.timestamp`); if(timestamp<lastTimestamp)fail(`timestamp regression at ${sequence}`); lastTimestamp=timestamp; const p=event.payload??{};
+  if(event.type==='STATE_BOOTSTRAP'){ if(sequence!==1||bootstrapSeen)fail('invalid bootstrap placement'); bootstrapSeen=true; for(const c of p.claims??[])claims.set(c.agentId,{...c}); for(const w of p.workItems??[])workItems.set(w.id,{...w}); }
+  else if(event.type==='WORK_QUEUE_RECONCILE'){ for(const patch of p.workItems??[]){ const item=workItems.get(patch.id); if(!item)fail(`reconcile references unknown work item ${patch.id}`); if(!['available','ready','waiting_on_dependencies','in_progress','completed','blocked','blocked_by_ci'].includes(patch.status))fail(`invalid status for ${patch.id}`); item.status=patch.status; item.ownerAgentId=patch.ownerAgentId??null; if(patch.awardedAt!==undefined)item.awardedAt=patch.awardedAt; } }
+  else if(event.type==='CLAIM_REQUEST'){ const c=p.claim; if(!c?.agentId||!Array.isArray(c.scope?.paths)||!Array.isArray(c.scope?.contracts)||!Array.isArray(c.rootCauseIds))fail(`invalid claim at ${sequence}`); for(const current of claims.values()){if(current.status!=='active'||current.agentId===c.agentId)continue;if(parseTime(current.leaseUntil,`${current.agentId}.leaseUntil`)<=timestamp)continue;if(claimCollides(c,current))fail(`claim collision at ${sequence}`);} claims.set(c.agentId,{...c,status:'active'}); }
+  else if(event.type==='HEARTBEAT'){ const c=claims.get(event.agentId); if(!c||c.status!=='active')fail(`heartbeat without active claim at ${sequence}`); if(timestamp>parseTime(c.leaseUntil,`${event.agentId}.leaseUntil`))fail(`late heartbeat at ${sequence}`); c.lastHeartbeatAt=event.timestamp; c.leaseUntil=p.leaseUntil; c.lastReanchorSha=event.parentSha; }
+  else if(event.type==='CHECK_OUT'||event.type==='HANDOFF_PENDING'){ const c=claims.get(event.agentId); if(!c||!['active','handoff-pending'].includes(c.status))fail(`release without claim at ${sequence}`); c.status=event.type==='HANDOFF_PENDING'?'handoff-pending':'released'; c.releasedAt=event.timestamp; }
+  else if(event.type==='BID_REQUEST'){ if(!workItems.has(p.workItemId)||!p.timestamp)fail(`invalid bid at ${sequence}`); parseTime(p.timestamp,`bid ${sequence}.timestamp`); const list=bids.get(p.workItemId)??[]; if(list.some(b=>b.agentId===event.agentId&&b.timestamp===p.timestamp))fail(`duplicate bid at ${sequence}`); list.push({agentId:event.agentId,timestamp:p.timestamp}); bids.set(p.workItemId,list); }
+  else if(event.type==='CLAIM_AWARDED'){ const item=workItems.get(p.workItemId); if(!item)fail(`award references unknown work item at ${sequence}`); const winner=[...(bids.get(p.workItemId)??[])].sort((a,b)=>parseTime(a.timestamp,'left bid')-parseTime(b.timestamp,'right bid')||a.agentId.localeCompare(b.agentId))[0]; if(!winner||winner.agentId!==p.agentId)fail(`tie-break violation at ${sequence}`); item.status='in_progress'; item.ownerAgentId=p.agentId; item.awardedAt=event.timestamp; }
+  else if(event.type==='EXPIRED_EVICTED'){ const c=claims.get(p.agentId); if(!c)fail(`eviction references unknown agent at ${sequence}`); const leaseExpired=timestamp>parseTime(c.leaseUntil,`${p.agentId}.leaseUntil`); const heartbeatExpired=timestamp-parseTime(c.lastHeartbeatAt??c.leasedAt,`${p.agentId}.heartbeat`)>HEARTBEAT_MS; if(!leaseExpired&&!heartbeatExpired)fail(`premature eviction at ${sequence}`); c.status='released'; c.eviction='expired_evicted'; c.releasedAt=event.timestamp; if(p.workItemId){const item=workItems.get(p.workItemId);if(!item)fail(`evicted work item unknown at ${sequence}`);item.status='available';item.ownerAgentId=null;item.awardedAt=null;} }
+  previousHash=event.hash;
 }
-
-function fail(message) {
-  throw new Error(`SWARM_STATE_INVALID: ${message}`);
-}
-
-function git(args) {
-  try {
-    return execFileSync('git', args, { encoding: 'utf8' }).trim();
-  } catch {
-    return '';
-  }
-}
-
-function parseTime(value, field) {
-  const time = Date.parse(value ?? '');
-  if (!Number.isFinite(time)) fail(`${field} invalid timestamp`);
-  return time;
-}
-
-function canonicalLegacy(value) {
-  return JSON.stringify(value, Object.keys(value).sort());
-}
-
-function ancestor(ancestorSha, descendantSha) {
-  if (ancestorSha === descendantSha) return true;
-  if (!HEX.test(ancestorSha) || !HEX.test(descendantSha)) return false;
-  try {
-    execFileSync('git', ['merge-base', '--is-ancestor', ancestorSha, descendantSha], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function buildHash(event) {
-  const unsigned = { ...event };
-  delete unsigned.hash;
-  delete unsigned.signature;
-  return createHash('sha256').update(canonicalLegacy(unsigned)).digest('hex');
-}
-
-function verifyEvent(event, sequence, previousHash) {
-  if (event?.schemaVersion !== 1 || event.protocol !== 'FLIXO swarm event ledger') {
-    fail(`invalid schema/protocol at sequence ${sequence}`);
-  }
-  if (event.sequence !== sequence) fail(`sequence mismatch at ${sequence}`);
-  if (sequence > 1 && event.parentSequence !== sequence - 1) fail(`parentSequence mismatch at ${sequence}`);
-  if (event.prevHash !== previousHash) fail(`prevHash mismatch at ${sequence}`);
-  if (!HEX.test(event.parentSha ?? '') || !ancestor(event.parentSha, HEAD)) {
-    fail(`parentSha is not an ancestor of current HEAD at ${sequence}`);
-  }
-  if (!event.eventId || !event.agentId || typeof event.type !== 'string') {
-    fail(`identity/type missing at ${sequence}`);
-  }
-  const expectedHash = buildHash(event);
-  if (expectedHash !== event.hash) fail(`hash mismatch at ${sequence}`);
-  if (event.signature) {
-    if (!KEY) fail(`signature ${sequence} unverifiable without FLIXO_SWARM_EVENT_SIGNING_KEY`);
-    const expected = createHmac('sha256', KEY).update(event.hash).digest('hex');
-    if (expected !== event.signature) fail(`signature mismatch at ${sequence}`);
-  }
-  parseTime(event.timestamp, `event ${sequence}.timestamp`);
-}
-
-const raw = readFileSync(LEDGER, 'utf8');
-const rows = raw.split(/\r?\n/u).filter(Boolean);
-if (!rows.length) fail('event ledger is empty');
-if (!HEX.test(HEAD)) fail('current HEAD invalid');
-
-let previousHash = 'GENESIS';
-let lastTimestamp = 0;
-const claims = new Map();
-const workItems = new Map();
-const bids = new Map();
-let bootstrapSeen = false;
-
-for (let sequence = 1; sequence <= rows.length; sequence += 1) {
-  let event;
-  try {
-    event = JSON.parse(rows[sequence - 1]);
-  } catch {
-    fail(`invalid JSON at sequence ${sequence}`);
-  }
-
-  verifyEvent(event, sequence, previousHash);
-  const timestamp = parseTime(event.timestamp, `event ${sequence}.timestamp`);
-  if (timestamp < lastTimestamp) fail(`timestamp regression at ${sequence}`);
-  lastTimestamp = timestamp;
-  const payload = event.payload ?? {};
-
-  if (event.type === 'STATE_BOOTSTRAP') {
-    if (sequence !== 1 || bootstrapSeen) fail('invalid bootstrap placement');
-    bootstrapSeen = true;
-    for (const claim of payload.claims ?? []) claims.set(claim.agentId, { ...claim });
-    for (const item of payload.workItems ?? []) workItems.set(item.id, { ...item });
-  } else if (event.type === 'CLAIM_REQUEST') {
-    const claim = payload.claim;
-    if (!claim?.agentId || !Array.isArray(claim.scope?.paths) || !Array.isArray(claim.scope?.contracts) || !Array.isArray(claim.rootCauseIds)) {
-      fail(`invalid claim at ${sequence}`);
-    }
-    for (const current of claims.values()) {
-      if (current.status !== 'active' || current.agentId === claim.agentId) continue;
-      if (parseTime(current.leaseUntil, `${current.agentId}.leaseUntil`) <= timestamp) continue;
-      const pathConflict = claim.scope.paths.some((left) => current.scope.paths.some((right) => left === right || left.startsWith(`${right}/`) || right.startsWith(`${left}/`)));
-      const contractConflict = claim.scope.contracts.some((id) => current.scope.contracts.includes(id));
-      const rootCauseConflict = claim.rootCauseIds.some((id) => current.rootCauseIds.includes(id));
-      if (pathConflict || contractConflict || rootCauseConflict) fail(`claim collision at ${sequence}`);
-    }
-    claims.set(claim.agentId, { ...claim, status: 'active' });
-  } else if (event.type === 'HEARTBEAT') {
-    const claim = claims.get(event.agentId);
-    if (!claim || claim.status !== 'active') fail(`heartbeat without active claim at ${sequence}`);
-    if (timestamp > parseTime(claim.leaseUntil, `${event.agentId}.leaseUntil`)) fail(`late heartbeat at ${sequence}`);
-    if (!payload.leaseUntil) fail(`heartbeat leaseUntil missing at ${sequence}`);
-    claim.lastHeartbeatAt = event.timestamp;
-    claim.leaseUntil = payload.leaseUntil;
-    claim.lastReanchorSha = event.parentSha;
-  } else if (event.type === 'CHECK_OUT' || event.type === 'HANDOFF_PENDING') {
-    const claim = claims.get(event.agentId);
-    if (!claim || !['active', 'handoff-pending'].includes(claim.status)) fail(`release without claim at ${sequence}`);
-    claim.status = event.type === 'HANDOFF_PENDING' ? 'handoff-pending' : 'released';
-    claim.releasedAt = event.timestamp;
-  } else if (event.type === 'BID_REQUEST') {
-    if (!workItems.has(payload.workItemId) || !payload.timestamp) fail(`invalid bid at ${sequence}`);
-    parseTime(payload.timestamp, `bid ${sequence}.timestamp`);
-    const list = bids.get(payload.workItemId) ?? [];
-    if (list.some((bid) => bid.agentId === event.agentId && bid.timestamp === payload.timestamp)) fail(`duplicate bid at ${sequence}`);
-    list.push({ agentId: event.agentId, timestamp: payload.timestamp });
-    list.sort((left, right) => parseTime(left.timestamp, 'left bid') - parseTime(right.timestamp, 'right bid') || left.agentId.localeCompare(right.agentId));
-    bids.set(payload.workItemId, list);
-  } else if (event.type === 'CLAIM_AWARDED') {
-    const item = workItems.get(payload.workItemId);
-    if (!item) fail(`award references unknown work item at ${sequence}`);
-    const winner = [...(bids.get(payload.workItemId) ?? [])].sort((left, right) => parseTime(left.timestamp, 'left bid') - parseTime(right.timestamp, 'right bid') || left.agentId.localeCompare(right.agentId))[0];
-    if (!winner || winner.agentId !== payload.agentId) fail(`tie-break violation at ${sequence}`);
-    item.status = 'in_progress';
-    item.ownerAgentId = payload.agentId;
-  } else if (event.type === 'EXPIRED_EVICTED') {
-    const claim = claims.get(payload.agentId);
-    if (!claim) fail(`eviction references unknown agent at ${sequence}`);
-    const leaseExpired = timestamp > parseTime(claim.leaseUntil, `${payload.agentId}.leaseUntil`);
-    const heartbeatExpired = timestamp - parseTime(claim.lastHeartbeatAt ?? claim.leasedAt, `${payload.agentId}.heartbeat`) > HEARTBEAT_MS;
-    if (!leaseExpired && !heartbeatExpired) fail(`premature eviction at ${sequence}`);
-    claim.status = 'released';
-    claim.eviction = 'expired_evicted';
-    claim.releasedAt = event.timestamp;
-    if (payload.workItemId) {
-      const item = workItems.get(payload.workItemId);
-      if (!item) fail(`eviction references unknown work item at ${sequence}`);
-      item.status = 'available';
-      item.ownerAgentId = null;
-      item.awardedAt = null;
-    }
-  } else {
-    fail(`unsupported event type ${event.type} at ${sequence}`);
-  }
-
-  previousHash = event.hash;
-}
-
-if (!bootstrapSeen) fail('STATE_BOOTSTRAP missing');
-
-for (const claim of claims.values()) {
-  if (claim.status !== 'active') continue;
-  const stale = Date.now() > parseTime(claim.leaseUntil, `${claim.agentId}.leaseUntil`) || Date.now() - parseTime(claim.lastHeartbeatAt ?? claim.leasedAt, `${claim.agentId}.heartbeat`) > HEARTBEAT_MS;
-  if (stale) fail(`stale active claim ${claim.agentId} missing EXPIRED_EVICTED`);
-}
-
-const queue = JSON.parse(readFileSync(QUEUE, 'utf8'));
-if (queue.schemaVersion !== 1 || queue.protocol !== 'FLIXO agent work queue' || !Array.isArray(queue.items)) fail('queue schema invalid');
-const queueIds = new Set();
-for (const item of queue.items) {
-  if (queueIds.has(item.id)) fail(`duplicate queue item ${item.id}`);
-  queueIds.add(item.id);
-  if (!workItems.has(item.id)) fail(`queue item ${item.id} absent from ledger bootstrap/state`);
-  const stateItem = workItems.get(item.id);
-  if ((stateItem.status ?? null) !== (item.status ?? null) || (stateItem.ownerAgentId ?? null) !== (item.ownerAgentId ?? null)) fail(`queue projection drift for ${item.id}`);
-  if (!Array.isArray(item.dependsOn)) fail(`dependsOn missing for ${item.id}`);
-  for (const dependencyId of item.dependsOn) {
-    if (!queueIds.has(dependencyId) && !queue.items.some((candidate) => candidate.id === dependencyId)) fail(`unknown dependency ${dependencyId} for ${item.id}`);
-    if (dependencyId === item.id) fail(`self dependency ${item.id}`);
-  }
-}
-
-const activeClaims = [...claims.values()].filter((claim) => claim.status === 'active');
-const activeWorkOwnership = new Map();
-for (const claim of activeClaims) {
-  for (const workItemId of claim.workItemIds ?? []) {
-    if (activeWorkOwnership.has(workItemId) && activeWorkOwnership.get(workItemId) !== claim.agentId) fail(`work item ${workItemId} owned by multiple active agents`);
-    if (!workItems.has(workItemId)) fail(`claim ${claim.agentId} references unknown work item ${workItemId}`);
-    activeWorkOwnership.set(workItemId, claim.agentId);
-  }
-}
-
-const stateHash = createHash('sha256').update(JSON.stringify({
-  claims: [...claims.values()].sort((left, right) => left.agentId.localeCompare(right.agentId)),
-  workItems: [...workItems.values()].sort((left, right) => left.id.localeCompare(right.id)),
-})).digest('hex');
-
-console.log(JSON.stringify({ result: 'PASS', headSha: HEAD, events: rows.length, activeClaims: activeClaims.map((claim) => claim.agentId).sort(), workItems: workItems.size, stateHash }, null, 2));
+if(!bootstrapSeen)fail('STATE_BOOTSTRAP missing');
+for(const claim of claims.values()) if(claim.status==='active'&&(Date.now()>parseTime(claim.leaseUntil,`${claim.agentId}.leaseUntil`)||Date.now()-parseTime(claim.lastHeartbeatAt??claim.leasedAt,`${claim.agentId}.heartbeat`)>HEARTBEAT_MS))fail(`stale active claim ${claim.agentId} missing EXPIRED_EVICTED`);
+const queue=JSON.parse(readFileSync(QUEUE,'utf8')); if(queue.schemaVersion!==2||queue.protocol!=='FLIXO agent work queue'||!Array.isArray(queue.items))fail('queue schema invalid'); const queueById=new Map(queue.items.map(item=>[item.id,item]));
+for(const item of queue.items){ if(!workItems.has(item.id))fail(`queue item ${item.id} absent from ledger`); const stateItem=workItems.get(item.id); if((stateItem.status??null)!==(item.status??null)||(stateItem.ownerAgentId??null)!==(item.ownerAgentId??null))fail(`queue projection drift for ${item.id}`); for(const dep of item.dependsOn??[])if(!queueById.has(dep))fail(`unknown dependency ${dep} for ${item.id}`); if(['in_progress','ready'].includes(item.status))for(const dep of item.dependsOn??[]){const depItem=queueById.get(dep);if(!['completed'].includes(depItem.status))fail(`dependency ${dep} not complete for ${item.id}`);} }
+const claimsProjection=JSON.parse(readFileSync(CLAIMS,'utf8')); if(claimsProjection.schemaVersion!==2||claimsProjection.protocol!=='FLIXO multi-agent coordination'||!Array.isArray(claimsProjection.claims))fail('claims projection schema invalid');
+const replayClaims=new Map([...claims.entries()].map(([id,c])=>[id,{status:c.status,workItemIds:[...(c.workItemIds??[])].sort()}]));
+for(const claim of claimsProjection.claims){ const expected=replayClaims.get(claim.agentId); if(!expected){ if(claim.status!=='released'||(claim.workItemIds??[]).length!==0)fail(`claims projection contains non-ledger claim ${claim.agentId}`); continue;} if(claim.status!==expected.status)fail(`claims projection status drift for ${claim.agentId}`); if(JSON.stringify([...(claim.workItemIds??[])].sort())!==JSON.stringify(expected.workItemIds))fail(`claims projection workItemIds drift for ${claim.agentId}`); }
+const stateHash=createHash('sha256').update(JSON.stringify({claims:[...claims.values()].sort((a,b)=>a.agentId.localeCompare(b.agentId)),workItems:[...workItems.values()].sort((a,b)=>a.id.localeCompare(b.id))})).digest('hex');
+console.log(JSON.stringify({result:'PASS',headSha:HEAD,events:rows.length,activeClaims:[...claims.values()].filter(c=>c.status==='active').map(c=>c.agentId).sort(),workItems:workItems.size,stateHash},null,2));
