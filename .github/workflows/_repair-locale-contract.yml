@@ -11,7 +11,7 @@ jobs:
   repair:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@v5
@@ -23,164 +23,122 @@ jobs:
       - name: Verify exact PR head
         run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
 
+      - name: Fetch source branches for completed locale work
+        run: git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
+
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
 
-      - name: Reconcile canonical locale matrix and SEO manifests
+      - name: Apply canonical locale reconciliation
         shell: python
         run: |
           from pathlib import Path
           import re
+          import subprocess
 
-          CANONICAL = ['en','ar','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi']
-          MS_TERMS = {
-              'image':'Imej','images':'Imej','photo':'Foto','background':'Latar belakang','blur':'Kabur','remove':'Buang','remover':'Penyingkir',
-              'compressor':'Pemampat','compress':'Mampat','converter':'Penukar','convert':'Tukar','cropper':'Pemangkas','crop':'Pangkas',
-              'resize':'Saiz semula','effects':'Kesan','effect':'Kesan','ocr':'OCR','svg':'SVG','raster':'Raster','toolkit':'Kit alat',
-              'upscaler':'Penskala','upscale':'Penskalaan','meme':'Meme','generator':'Penjana','mockup':'Mockup','object':'Objek',
-              'passport':'Pasport','maker':'Pembuat','seed':'Seed','optimizer':'Pengoptimum','watermark':'Tanda air','adder':'Penambah',
-              'ai':'AI','audio':'Audio','video':'Video','pdf':'PDF','text':'Teks','zip':'ZIP','exif':'EXIF','cleaner':'Pembersih',
-              'collage':'Kolaj','background-remover':'Penyingkir latar belakang'
+          sources = {
+              'ai-image-generator': 'feat/ai-image-generator-seo-20',
+              'collage-maker': 'feat/collage-maker-seo-20',
+              'crop-resize': 'feat/crop-resize-seo-20',
+              'image-effects': 'feat/image-effects-seo-20',
+              'image-ocr': 'feat/image-ocr-seo-20',
+              'image-to-svg': 'feat/image-to-svg-seo-20',
+              'image-toolkit': 'feat/image-tools-20',
+              'image-upscaler': 'feat/image-upscaler-seo-20',
+              'meme-generator': 'feat/meme-generator-seo-20',
+              'mockup-generator': 'feat/mockup-generator-seo-20',
+              'object-remover': 'feat/object-remover-seo-20',
+              'passport-photo-maker': 'feat/passport-photo-maker-seo-20',
+              'pix': 'feat/pix-seo-20',
+              'raster-to-svg': 'feat/raster-to-svg-seo-20',
+              'seed': 'feat/seed-seo-20',
+              'svg-optimizer': 'feat/svg-optimizer-seo-20',
+              'watermark-adder': 'feat/watermark-adder-seo-20',
+              'watermark-remover': 'feat/watermark-remover-seo-20',
           }
-          UK_TERMS = {
-              'image':'Зображення','images':'Зображення','photo':'Фото','background':'Фон','blur':'Розмиття','remove':'Видалення','remover':'Засіб видалення',
-              'compressor':'Компресор','compress':'Стиснення','converter':'Конвертер','convert':'Конвертувати','cropper':'Обрізувач','crop':'Обрізання',
-              'resize':'Зміна розміру','effects':'Ефекти','effect':'Ефект','ocr':'OCR','svg':'SVG','raster':'Растр','toolkit':'Набір інструментів',
-              'upscaler':'Масштабувальник','upscale':'Масштабування','meme':'Мем','generator':'Генератор','mockup':'Макет','object':'Об’єкт',
-              'passport':'Паспорт','maker':'Створювач','seed':'Seed','optimizer':'Оптимізатор','watermark':'Водяний знак','adder':'Додавання',
-              'ai':'ШІ','audio':'Аудіо','video':'Відео','pdf':'PDF','text':'Текст','zip':'ZIP','exif':'EXIF','cleaner':'Очищувач',
-              'collage':'Колаж'
-          }
+          locales = ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi']
 
-          def localized_name(tool_id, terms):
-              parts = []
-              for token in tool_id.lower().split('-'):
-                  parts.append(terms.get(token, token))
-              return ' '.join(parts)
+          def git_show(branch, path):
+              return subprocess.check_output(['git', 'show', f'origin/{branch}:{path}'], text=True, stderr=subprocess.STDOUT)
 
-          def write_locale_file(tool_dir: Path, locale: str):
-              path = tool_dir / 'seo' / f'{locale}.ts'
-              if path.exists():
-                  return False
-              terms = MS_TERMS if locale == 'ms' else UK_TERMS
-              name = localized_name(tool_dir.name, terms)
-              if locale == 'ms':
-                  title = f'{name} Dalam Talian | FLIXO'
-                  description = f'Gunakan {name} terus dalam pelayar untuk memproses fail dengan pantas dan mengutamakan privasi.'
-                  intro = f'FLIXO {name} memproses input terus dalam pelayar anda apabila disokong. Pilih fail, gunakan pilihan alat, dan semak hasil sebelum memuat turun.'
-                  keywords = [name, 'alat dalam talian', 'pemprosesan dalam pelayar', 'FLIXO']
-                  how = ['Pilih fail atau input yang diperlukan.', 'Laraskan pilihan alat yang tersedia.', 'Jalankan pemprosesan dan semak hasil.', 'Muat turun hasil yang telah siap.']
-                  features = ['Pemprosesan dalam pelayar', 'Aliran kerja ringkas', 'Muat turun hasil']
-                  alt = [f'Antara muka {name}', f'Pratonton hasil {name}']
-                  body = 'ms'
-              else:
-                  title = f'{name} онлайн | FLIXO'
-                  description = f'Використовуйте {name} безпосередньо у браузері для швидкої обробки файлів із фокусом на приватність.'
-                  intro = f'FLIXO {name} обробляє вхідні дані безпосередньо у браузері, коли це підтримується. Виберіть файл, налаштуйте параметри, перевірте результат і завантажте його.'
-                  keywords = [name, 'онлайн інструмент', 'обробка у браузері', 'FLIXO']
-                  how = ['Виберіть потрібний файл або вхідні дані.', 'Налаштуйте доступні параметри інструмента.', 'Запустіть обробку та перевірте результат.', 'Завантажте готовий результат.']
-                  features = ['Обробка у браузері', 'Простий робочий процес', 'Завантаження результату']
-                  alt = [f'Інтерфейс {name}', f'Попередній перегляд результату {name}']
-                  body = 'uk'
-              content = "import type { LocalizedToolSeo } from '../manifest';\n\n"
-              content += f"export const {locale}: LocalizedToolSeo = Object.freeze({{\n"
-              content += f"  title: {title!r},\n  description: {description!r},\n  intro: {intro!r},\n"
-              content += f"  keywords: {keywords!r},\n  howTo: {how!r},\n  features: {features!r},\n  altText: {alt!r},\n}});\n"
-              path.parent.mkdir(parents=True, exist_ok=True)
-              path.write_text(content, encoding='utf-8')
-              return True
-
-          # Internal historical dictionaries may retain zh/ur keys; model those separately from public Locale.
           p = Path('src/lib/i18n/tool-localization.ts')
           text = p.read_text(encoding='utf-8')
           text = text.replace("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';")
-          text = text.replace('Partial<Record<Locale, string>>', 'Partial<Record<KnownLocale, string>>')
-          text = text.replace('Record<Locale, string>', 'Record<KnownLocale, string>')
+          text = text.replace('type LocalizedTerms = Partial<Record<Locale, string>>;', 'type LocalizedTerms = Partial<Record<KnownLocale, string>>;')
+          text = text.replace('const templates: Record<Locale, string> = {', 'const templates: Record<KnownLocale, string> = {')
           p.write_text(text, encoding='utf-8')
 
-          # Shared runtime UI and other public dictionaries must expose only canonical locales.
-          p = Path('src/lib/i18n/shared-tool-ui.ts')
-          text = p.read_text(encoding='utf-8')
-          text = re.sub(r'^  (?:zh|ur): \{.*?\},\n', '', text, flags=re.M)
-          text = text.replace("locale === 'zh' ? '外部处理' : locale === 'uk' ? 'Зовнішня обробка' : 'External processing'", "locale === 'uk' ? 'Зовнішня обробка' : 'External processing'")
-          text = text.replace("locale === 'ur' ?", "false ?")
-          text = text.replace("import type { KnownLocale, Locale } from './config';", "import type { Locale } from './config';")
-          text = text.replace('Record<KnownLocale, SharedCopy>', 'Record<Locale, SharedCopy>')
-          p.write_text(text, encoding='utf-8')
-
-          for raw_path in ['src/lib/privacy.ts', 'src/data/home-locales.ts', 'src/data/quickflow-locales.ts']:
-              p = Path(raw_path)
+          # Legacy zh/ur are not public route locales.
+          for raw in ['src/data/home-locales.ts', 'src/data/quickflow-locales.ts', 'src/lib/i18n/shared-tool-ui.ts', 'src/lib/privacy.ts', 'src/lib/seo/tool-catalog.ts']:
+              p = Path(raw)
               text = p.read_text(encoding='utf-8')
-              text = re.sub(r'^  (?:zh|ur): \{.*?\},\n', '', text, flags=re.M)
-              text = text.replace("import type { KnownLocale, Locale } from './i18n/config';", "import type { Locale } from './i18n/config';")
-              text = text.replace("import type { KnownLocale, Locale } from '@/lib/i18n';", "import type { Locale } from '@/lib/i18n';")
-              text = text.replace('Record<KnownLocale,', 'Record<Locale,')
+              text = re.sub(r'^\s{2}(?:zh|ur): .*\n', '', text, flags=re.M)
               p.write_text(text, encoding='utf-8')
 
-          # Canonicalize the catalog itself: remove legacy public keys and provide real ms/uk UI copy.
+          # The shared catalog is canonical 20-locale data.
           p = Path('src/lib/seo/tool-catalog.ts')
           text = p.read_text(encoding='utf-8')
-          text = re.sub(r'^  (?:zh|ur): \{.*?\},\n', '', text, flags=re.M)
-          core_ms = "  ms: { online: 'Alat dalam talian', intro: 'Gunakan {title} FLIXO terus dalam pelayar dengan aliran pantas yang mengutamakan privasi.', step1: 'Buka alat dan pilih input.', step2: 'Laraskan pilihan yang tersedia.', step3: 'Jalankan alat dan semak hasilnya.', step4: 'Muat turun atau salin hasil akhir.', features: ['Pemprosesan dalam pelayar', 'Tanpa akaun', 'Aliran tempatan pantas'], alt: 'Antara muka {title} dalam FLIXO' },\n"
-          core_uk = "  uk: { online: 'Онлайн-інструмент', intro: 'Використовуйте {title} FLIXO безпосередньо у браузері з робочим процесом, орієнтованим на приватність.', step1: 'Відкрийте інструмент і виберіть вхідні дані.', step2: 'Налаштуйте доступні параметри.', step3: 'Запустіть інструмент і перевірте результат.', step4: 'Завантажте або скопіюйте готовий результат.', features: ['Обробка в браузері', 'Без облікового запису', 'Швидкий локальний робочий процес'], alt: 'Інтерфейс {title} у FLIXO' },\n"
-          if not re.search(r'^  ms: \{', text, re.M):
-              anchor = re.search(r'^  sv: \{[^\n]*\},\n', text, re.M)
-              if not anchor: raise SystemExit('tool-catalog CORE sv anchor missing')
-              text = text[:anchor.end()] + core_ms + text[anchor.end():]
-          if not re.search(r'^  uk: \{', text, re.M):
-              anchor = re.search(r'^  ms: \{[^\n]*\},\n', text, re.M)
-              if not anchor: raise SystemExit('tool-catalog CORE ms anchor missing')
-              text = text[:anchor.end()] + core_uk + text[anchor.end():]
-          term_ms = "  ms: { Compressor: 'Pemampat', Converter: 'Penukar', Image: 'Imej', Video: 'Video', Audio: 'Audio', Text: 'Teks', AI: 'AI', Remover: 'Penyingkir', Generator: 'Penjana' },\n"
-          term_uk = "  uk: { Compressor: 'Компресор', Converter: 'Конвертер', Image: 'Зображення', Video: 'Відео', Audio: 'Аудіо', Text: 'Текст', AI: 'ШІ', Remover: 'Засіб видалення', Generator: 'Генератор' },\n"
-          term_anchor = re.search(r'^  sv: \{[^\n]*Compressor:', text, re.M)
-          if term_anchor and not re.search(r'^  ms: \{[^\n]*Compressor:', text, re.M):
-              end = text.find('\n', term_anchor.start()) + 1
-              text = text[:end] + term_ms + text[end:]
-          if term_anchor and not re.search(r'^  uk: \{[^\n]*Compressor:', text, re.M):
-              # anchor after ms was inserted
-              anchor = re.search(r'^  ms: \{[^\n]*Compressor:', text, re.M)
-              end = text.find('\n', anchor.start()) + 1
-              text = text[:end] + term_uk + text[end:]
+          core = {
+              'ms': "  ms: { online: 'Alat dalam talian', intro: 'Gunakan {title} FLIXO terus dalam pelayar dengan aliran pantas yang mengutamakan privasi.', step1: 'Buka alat dan pilih input.', step2: 'Laraskan pilihan yang tersedia.', step3: 'Jalankan alat dan semak hasilnya.', step4: 'Muat turun atau salin hasil akhir.', features: ['Pemprosesan dalam pelayar', 'Tanpa akaun', 'Aliran kerja pantas'], alt: 'Antara muka {title} dalam FLIXO' },\n",
+              'uk': "  uk: { online: 'Онлайн-інструмент', intro: 'Використовуйте {title} FLIXO безпосередньо у браузері з швидким робочим процесом, орієнтованим на приватність.', step1: 'Відкрийте інструмент і виберіть вхідні дані.', step2: 'Налаштуйте доступні параметри.', step3: 'Запустіть інструмент і перевірте результат.', step4: 'Завантажте або скопіюйте готовий результат.', features: ['Обробка у браузері', 'Без облікового запису', 'Швидкий робочий процес'], alt: 'Інтерфейс {title} у FLIXO' },\n",
+          }
+          for locale, value in core.items():
+              if not re.search(rf'^  {locale}: \{{ online:', text, re.M):
+                  anchor = re.search(r'^  sv: \{ online:', text, re.M) if locale == 'ms' else re.search(r'^  ms: \{ online:', text, re.M)
+                  if not anchor: raise SystemExit(f'tool-catalog anchor missing for {locale}')
+                  end = text.find('\n', anchor.start()) + 1
+                  text = text[:end] + value + text[end:]
+          terms = {
+              'ms': "  ms: { Compressor: 'Pemampat', Converter: 'Penukar', Image: 'Imej', Video: 'Video', Audio: 'Audio', Text: 'Teks', AI: 'AI', Remover: 'Penyingkir', Generator: 'Penjana' },\n",
+              'uk': "  uk: { Compressor: 'Компресор', Converter: 'Конвертер', Image: 'Зображення', Video: 'Відео', Audio: 'Аудіо', Text: 'Текст', AI: 'ШІ', Remover: 'Засіб видалення', Generator: 'Генератор' },\n",
+          }
+          for locale, value in terms.items():
+              if not re.search(rf'^  {locale}: \{{ Compressor:', text, re.M):
+                  anchor = re.search(r'^  sv: \{ Compressor:', text, re.M) if locale == 'ms' else re.search(r'^  ms: \{ Compressor:', text, re.M)
+                  if not anchor: raise SystemExit(f'tool-catalog term anchor missing for {locale}')
+                  end = text.find('\n', anchor.start()) + 1
+                  text = text[:end] + value + text[end:]
           p.write_text(text, encoding='utf-8')
 
-          # Complete every ready-tool manifest with exactly the 20 canonical locale entries.
-          manifests_changed = 0
-          generated_assets = 0
-          for manifest in sorted(Path('src/tools').glob('*/manifest.ts')):
+          # Complete ready tools consume the real translated assets from their dedicated SEO-20 branches.
+          changed = []
+          for tool, branch in sources.items():
+              manifest = Path('src/tools') / tool / 'manifest.ts'
+              if not manifest.exists():
+                  raise SystemExit(f'missing manifest: {manifest}')
               text = manifest.read_text(encoding='utf-8')
-              if "status: 'ready'" not in text:
+              if "status: 'ready'" not in text or "seoStatus: 'complete'" not in text:
                   continue
-              tool_dir = manifest.parent
-              generated_assets += int(write_locale_file(tool_dir, 'ms'))
-              generated_assets += int(write_locale_file(tool_dir, 'uk'))
+              for locale in ('ms', 'uk'):
+                  content = git_show(branch, f'src/tools/{tool}/seo/{locale}.ts')
+                  if not content.strip():
+                      raise SystemExit(f'empty translated asset: {branch}/{tool}/{locale}')
+                  seo = manifest.parent / 'seo'
+                  seo.mkdir(parents=True, exist_ok=True)
+                  (seo / f'{locale}.ts').write_text(content, encoding='utf-8')
               text = re.sub(r"^import \{ (?:zh|ur) \} from './seo/(?:zh|ur)';\n", '', text, flags=re.M)
               text = re.sub(r'\b(?:zh|ur),\s*', '', text)
-              if "import { ms } from './seo/ms';" not in text:
-                  anchor = re.search(r"import \{ sv \} from './seo/sv';\n", text)
-                  if not anchor: raise SystemExit(f'{manifest}: sv import anchor missing')
-                  text = text[:anchor.end()] + "import { ms } from './seo/ms';\n" + text[anchor.end():]
-              if "import { uk } from './seo/uk';" not in text:
-                  anchor = re.search(r"import \{ tr \} from './seo/tr';\n", text)
-                  if not anchor: raise SystemExit(f'{manifest}: tr import anchor missing')
-                  text = text[:anchor.end()] + "import { uk } from './seo/uk';\n" + text[anchor.end():]
-              locale_match = re.search(r'seoLocales: Object\.freeze\(\{[^\n]*\}\),', text)
-              if not locale_match:
-                  raise SystemExit(f'{manifest}: canonical seoLocales object not found')
-              locale_line = 'seoLocales: Object.freeze({ ' + ', '.join(CANONICAL) + ' }),'
-              text = text[:locale_match.start()] + locale_line + text[locale_match.end():]
-              # Convert every known locale identifier into imported bindings; order is cosmetic, exact keys are enforced above.
-              if text != manifest.read_text(encoding='utf-8'):
-                  manifest.write_text(text, encoding='utf-8')
-                  manifests_changed += 1
+              for locale in ('ms', 'uk'):
+                  if f"import {{ {locale} }} from './seo/{locale}';" not in text:
+                      anchor_locale = 'sv' if locale == 'ms' else 'tr'
+                      anchor = re.search(rf"import \{{ {anchor_locale} \}} from './seo/{anchor_locale}';\n", text)
+                      if not anchor:
+                          raise SystemExit(f'{manifest}: {anchor_locale} import not found')
+                      text = text[:anchor.end()] + f"import {{ {locale} }} from './seo/{locale}';\n" + text[anchor.end():]
+              match = re.search(r'seoLocales: Object\.freeze\(\{[^\n]*\}\),', text)
+              if not match:
+                  raise SystemExit(f'{manifest}: seoLocales binding not found')
+              text = text[:match.start()] + 'seoLocales: Object.freeze({ ' + ', '.join(locales) + ' }),' + text[match.end():]
+              manifest.write_text(text, encoding='utf-8')
+              changed.append(tool)
 
-          # The static validator must validate the same public matrix as the TypeScript source of truth.
           p = Path('scripts/validate-seo-manifest.mjs')
           text = p.read_text(encoding='utf-8')
-          text = re.sub(r"const expectedLocales = \[[^\]]+\];", "const expectedLocales = ['en','ar','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'];", text)
+          expected = "const expectedLocales = ['en','ar','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'];"
+          text = re.sub(r"const expectedLocales = \[[^\]]*\];?", expected, text, count=1)
           p.write_text(text, encoding='utf-8')
 
-          print(f'generated locale assets: {generated_assets}; manifests updated: {manifests_changed}')
+          print('updated complete tools:', ', '.join(changed))
 
       - name: TypeScript contract
         run: npx tsc --noEmit --pretty false
@@ -188,15 +146,15 @@ jobs:
       - name: SEO manifest contract
         run: node scripts/validate-seo-manifest.mjs
 
-      - name: Remove one-shot runner after verified repair
+      - name: Commit verified repair and remove one-shot runner
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git rm .github/workflows/_repair-locale-contract.yml
-          git add src/lib/i18n src/lib/privacy.ts src/data/home-locales.ts src/data/quickflow-locales.ts src/lib/seo/tool-catalog.ts src/tools scripts/validate-seo-manifest.mjs
+          git add src/lib/i18n/tool-localization.ts src/data/home-locales.ts src/data/quickflow-locales.ts src/lib/i18n/shared-tool-ui.ts src/lib/privacy.ts src/lib/seo/tool-catalog.ts src/tools scripts/validate-seo-manifest.mjs
           git diff --cached --check
-          git diff --cached --quiet && { echo 'No repair changes staged'; exit 1; }
-          git commit -m 'fix(i18n): align canonical locale matrix and SEO manifests'
+          git diff --cached --quiet && { echo 'No verified repair changes staged'; exit 1; }
+          git commit -m 'fix(i18n): reconcile canonical locale matrix and SEO coverage'
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
