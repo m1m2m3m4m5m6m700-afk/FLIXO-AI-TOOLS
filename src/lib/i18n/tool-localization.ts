@@ -25,7 +25,7 @@ const TERMS: Record<string, LocalizedTerms> = {
   object: { ar: 'عنصر', es: 'Objeto', fr: 'Objet', de: 'Objekt', ru: 'Объект', zh: '对象', hi: 'वस्तु', id: 'Objek', ur: 'آبجیکٹ', ja: 'オブジェクト', pt: 'Objeto', it: 'Oggetto', ko: '개체', nl: 'Object', pl: 'Obiekt', tr: 'Nesne', vi: 'Đối tượng', th: 'วัตถุ', sv: 'Objekt', ms: 'Objek', uk: 'Об’єкт' },
   text: { ar: 'النص', es: 'Texto', fr: 'Texte', de: 'Text', ru: 'Текст', zh: '文本', hi: 'टेक्स्ट', id: 'Teks', ur: 'متن', ja: 'テキスト', pt: 'Texto', it: 'Testo', ko: '텍스트', nl: 'Tekst', pl: 'Tekst', tr: 'Metin', vi: 'Văn bản', th: 'ข้อความ', sv: 'Text', ms: 'Teks', uk: 'Текст' },
   audio: { ar: 'الصوت', es: 'Audio', fr: 'Audio', de: 'Audio', ru: 'Аудио', zh: '音频', hi: 'ऑडियो', id: 'Audio', ur: 'آڈیو', ja: '音声', pt: 'Áudio', it: 'Audio', ko: '오디오', nl: 'Audio', pl: 'Audio', tr: 'Ses', vi: 'Âm thanh', th: 'เสียง', sv: 'Ljud', ms: 'Audio', uk: 'Аудіо' },
-  video: { ar: 'الفيديو', es: 'Vídeo', fr: 'Vidéo', de: 'Video', ru: 'Видео', zh: '视频', hi: 'वीडियो', id: 'Video', ur: 'ویڈیو', ja: '動画', pt: 'Vídeo', it: 'Video', ko: '비디오', nl: 'Video', pl: 'Wideo', tr: 'Video', vi: 'Video', th: 'วิดีโอ', sv: 'Video', ms: 'Video', uk: 'Відео' },
+  video: { ar: 'الفيديو', es: 'Vídeo', fr: 'Vidéo', de: 'Vidéo', ru: 'Видео', zh: '视频', hi: 'वीडियो', id: 'Video', ur: 'ویڈیو', ja: '動画', pt: 'Vídeo', it: 'Video', ko: '비디오', nl: 'Video', pl: 'Wideo', tr: 'Video', vi: 'Video', th: 'วิดีโอ', sv: 'Video', ms: 'Video', uk: 'Відео' },
   online: { ar: 'عبر الإنترنت', es: 'en línea', fr: 'en ligne', de: 'online', ru: 'онлайн', zh: '在线', hi: 'ऑनलाइन', id: 'online', ur: 'آن لائن', ja: 'オンライン', pt: 'online', it: 'online', ko: '온라인', nl: 'online', pl: 'online', tr: 'çevrimiçi', vi: 'trực tuyến', th: 'ออนไลน์', sv: 'online', ms: 'dalam talian', uk: 'онлайн' },
   to: { ar: 'إلى', es: 'a', fr: 'vers', de: 'zu', ru: 'в', zh: '到', hi: 'से', id: 'ke', ur: 'تک', ja: 'へ', pt: 'para', it: 'a', ko: '로', nl: 'naar', pl: 'do', tr: 'için', vi: 'sang', th: 'ไปยัง', sv: 'till', ms: 'ke', uk: 'до' },
   from: { ar: 'من', es: 'de', fr: 'de', de: 'aus', ru: 'из', zh: '从', hi: 'से', id: 'dari', ur: 'سے', ja: 'から', pt: 'de', it: 'da', ko: '에서', nl: 'van', pl: 'z', tr: 'dan', vi: 'từ', th: 'จาก', sv: 'från', ms: 'dari', uk: 'з' },
@@ -52,10 +52,10 @@ function tokenize(value: string): string[] {
 
 function fallbackTitle(locale: Locale, category: 'Images' | 'AI' | 'Other'): string {
   const label = CATEGORY_LABELS[locale][category];
-  const templates: Partial<Record<KnownLocale, string> = {
+  const templates: Partial<Record<KnownLocale, string>> = {
     ar: `أداة ${label}`, en: `Tool ${label}`, es: `Herramienta de ${label}`, fr: `Outil ${label}`, de: `${label}-Werkzeug`, ru: `Инструмент ${label}`, zh: `${label}工具`, hi: `${label} टूल`, id: `Alat ${label}`, ur: `${label} ٹول`, ja: `${label}ツール`, pt: `Ferramenta de ${label}`, it: `Strumento ${label}`, ko: `${label} 도구`, nl: `${label}-tool`, pl: `Narzędzie ${label}`, tr: `${label} aracı`, vi: `Công cụ ${label}`, th: `เครื่องมือ${label}`, sv: `${label}-verktyg`, ms: `Alat ${label}`, uk: `Інструмент ${label}`,
   };
-  return templates[locale];
+  return templates[locale] ?? templates.en ?? 'Tool';
 }
 
 export function localizeToolCategory(locale: Locale, category: 'Images' | 'AI' | 'Other'): string {
@@ -83,8 +83,8 @@ export function localizeToolTitle(locale: Locale, title: string, category: 'Imag
 
 export function localizeToolDescription(locale: Locale, title: string, category: 'Images' | 'AI' | 'Other'): string {
   const localizedTitle = localizeToolTitle(locale, title, category);
-  const templates: Partial<Record<KnownLocale, string> = {
+  const templates: Partial<Record<KnownLocale, string>> = {
     ar: `استخدم ${localizedTitle} من FLIXO مباشرة داخل المتصفح.`, en: `Use ${localizedTitle} in FLIXO directly in your browser.`, es: `Usa ${localizedTitle} de FLIXO directamente en tu navegador.`, fr: `Utilisez ${localizedTitle} de FLIXO directement dans votre navigateur.`, de: `Nutzen Sie ${localizedTitle} von FLIXO direkt im Browser.`, ru: `Используйте ${localizedTitle} от FLIXO прямо в браузере.`, zh: `直接在浏览器中使用 FLIXO 的${localizedTitle}。`, hi: `FLIXO के ${localizedTitle} का उपयोग सीधे ब्राउज़र में करें।`, id: `Gunakan ${localizedTitle} dari FLIXO langsung di browser.`, ur: `FLIXO کا ${localizedTitle} براہِ راست براؤزر میں استعمال کریں۔`, ja: `FLIXO の${localizedTitle}をブラウザで直接利用できます。`, pt: `Use ${localizedTitle} da FLIXO diretamente no navegador.`, it: `Usa ${localizedTitle} di FLIXO direttamente nel browser.`, ko: `브라우저에서 FLIXO의 ${localizedTitle}을(를) 바로 사용하세요.`, nl: `Gebruik ${localizedTitle} van FLIXO direct in je browser.`, pl: `Używaj ${localizedTitle} FLIXO bezpośrednio w przeglądarce.`, tr: `FLIXO ${localizedTitle} aracını doğrudan tarayıcıda kullanın.`, vi: `Sử dụng ${localizedTitle} của FLIXO ngay trong trình duyệt.`, th: `ใช้ ${localizedTitle} ของ FLIXO ได้โดยตรงในเบราว์เซอร์`, sv: `Använd FLIXO:s ${localizedTitle} direkt i webbläsaren.`, ms: `Gunakan ${localizedTitle} FLIXO terus dalam pelayar anda.`, uk: `Використовуйте ${localizedTitle} FLIXO безпосередньо у браузері.`,
   };
-  return templates[locale];
+  return templates[locale] ?? templates.en ?? `Use ${localizedTitle} in FLIXO directly in your browser.`;
 }
