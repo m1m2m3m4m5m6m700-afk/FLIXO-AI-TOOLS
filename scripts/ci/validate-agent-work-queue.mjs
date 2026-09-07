@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { replayAgentLedger, normalizePath, overlaps } from './replay-agent-ledger.mjs';
 
-const QUEUE = process.env.FLIXO_SWARM_WORK_QUEUE ?? '.ci/agent-coordination/work-queue.json';
+const QUEUE = process.env.FLIXO_SWARM_WORK_QUEUE ?? 'artifacts/ci/agent-coordination/work-queue.json';
 const LEDGER = process.env.FLIXO_SWARM_LEDGER ?? 'artifacts/ci/agent-coordination/events.ndjson';
 const HEAD = process.env.EXPECTED_HEAD_SHA ?? '';
 const fail = (message) => { throw new Error(`Agent work queue validation failed: ${message}`); };
