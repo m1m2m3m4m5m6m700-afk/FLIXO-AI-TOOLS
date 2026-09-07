@@ -45,7 +45,7 @@ findings.push(finding('RC-CI-LEGACY-SURFACE-001', 'ARCHITECTURE', legacyCandidat
 const configText = fileText.get('src/lib/i18n/config.ts') ?? '';
 const loaderText = fileText.get('src/lib/i18n/loader.ts') ?? '';
 const localeMatch = configText.match(/export const LOCALES\s*=\s*\[([\s\S]*?)\]\s*as\s+const/);
-const configuredLocales = localeMatch ? [...localeMatch[1].matchAll(/['\"]([a-z]{2})['\"]/g)].map((m) => m[1]) : [];
+const configuredLocales = localeMatch ? [...localeMatch[1].matchAll(/['"]([a-z]{2})['"]/g)].map((m) => m[1]) : [];
 const loaderLocales = [...loaderText.matchAll(/^\s*([a-z]{2}):\s*\(\)\s*=>/gm)].map((m) => m[1]);
 const localeFiles = files.filter((path) => /^.*src\/lib\/i18n\/locales\/[a-z]{2}\.ts$/u.test(normalize(path))).map((path) => normalize(path).split('/').pop().replace(/\.ts$/u, '')).sort();
 const sortedConfigured = [...configuredLocales].sort();
