@@ -16,6 +16,7 @@ const commands = [
   ['router-registry', 'npm', ['run', 'validate:router-registry']],
   ['ci-contract', 'npm', ['run', 'validate:ci-contract']],
   ['protocol-cooperation', 'node', ['--experimental-strip-types', 'scripts/ci/validate-protocol-cooperation.mjs']],
+  ['agent-coordination', 'node', ['scripts/ci/validate-agent-coordination.mjs']],
 ];
 
 const requested = [
