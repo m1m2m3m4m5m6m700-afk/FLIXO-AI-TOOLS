@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { createHash, createHmac } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 const historyPath = 'ci/test-duration-history.json';
 const history = JSON.parse(readFileSync(historyPath, 'utf8'));
@@ -37,9 +38,28 @@ const matrix = plan.flatMap((bin) => browsers.map((browser) => ({
   weight: bin.weight,
 })));
 
-const output = JSON.stringify(plan);
-console.log(JSON.stringify({ plan, matrix }, null, 2));
+const unsignedPlan = {
+  schema_version: 1,
+  source_sha: process.env.FLIXO_SOURCE_SHA || process.env.GITHUB_SHA || null,
+  browsers,
+  shard_count: plan.length,
+  suites: Object.keys(history.tests).sort(),
+  plan,
+  matrix,
+};
+const canonical = JSON.stringify(unsignedPlan);
+const planHash = createHash('sha256').update(canonical).digest('hex');
+const signingKey = process.env.FLIXO_MATRIX_PLAN_SIGNING_KEY;
+if (!signingKey) {
+  throw new Error('FLIXO_MATRIX_PLAN_SIGNING_KEY is required to sign the matrix plan.');
+}
+const signature = createHmac('sha256', signingKey).update(canonical).digest('hex');
+const artifact = { ...unsignedPlan, plan_hash: planHash, signature_algorithm: 'HMAC-SHA256', signature };
+writeFileSync('matrix-plan.json', JSON.stringify(artifact, null, 2) + '\n');
+
+const output = JSON.stringify(matrix);
+console.log(JSON.stringify({ plan, matrix, plan_hash: planHash }, null, 2));
 if (process.env.GITHUB_OUTPUT) {
   const fs = await import('node:fs');
-  fs.appendFileSync(process.env.GITHUB_OUTPUT, `plan=${output}\nshard_count=${plan.length}\nmatrix=${JSON.stringify(matrix)}\n`);
+  fs.appendFileSync(process.env.GITHUB_OUTPUT, `plan=${JSON.stringify(plan)}\nshard_count=${plan.length}\nmatrix=${output}\nplan_hash=${planHash}\n`);
 }
