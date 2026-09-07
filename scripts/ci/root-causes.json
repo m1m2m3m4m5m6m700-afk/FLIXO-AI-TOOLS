@@ -1,80 +1,24 @@
 {
-  "RC-DEPENDENCY-001": {
-    "category": "DEPENDENCY",
-    "description": "Committed dependency graph cannot be installed or resolved.",
-    "repairTargets": ["package.json", "package-lock.json"],
-    "verification": ["npm ci"]
-  },
-  "RC-TYPE-001": {
-    "category": "TYPE",
-    "description": "Canonical type graph and its consumers are inconsistent.",
-    "repairTargets": ["src/lib", "src/config", "src/routes"],
-    "verification": ["npm run test:static"]
-  },
-  "RC-ROUTER-001": {
-    "category": "ROUTER",
-    "description": "Public route or canonical route resolution is inconsistent.",
-    "repairTargets": ["src/routes", "src/lib/route"],
-    "verification": ["npm run test:static"]
-  },
-  "RC-I18N-001": {
-    "category": "I18N",
-    "description": "Locale, translation, or localized UI contract is inconsistent.",
-    "repairTargets": ["src/lib/i18n", "src/locales"],
-    "verification": ["npm run test:static"]
-  },
-  "RC-SEO-001": {
-    "category": "SEO",
-    "description": "Canonical, hreflang, robots, sitemap, or SEO metadata contract is inconsistent.",
-    "repairTargets": ["src/lib/seo", "src/routes"],
-    "verification": ["npm run test:static"]
-  },
-  "RC-A11Y-001": {
-    "category": "A11Y",
-    "description": "Accessibility contract is violated in rendered browser output.",
-    "repairTargets": ["src/routes", "src/components"],
-    "verification": ["npm run test:browser"]
-  },
-  "RC-RUNTIME-001": {
-    "category": "RUNTIME",
-    "description": "Browser runtime or console execution contract failed.",
-    "repairTargets": ["src"],
-    "verification": ["npm run test:browser"]
-  },
-  "RC-NETWORK-001": {
-    "category": "NETWORK",
-    "description": "Browser request or network contract failed.",
-    "repairTargets": ["src", "playwright.config.ts"],
-    "verification": ["npm run test:browser"]
-  },
-  "RC-BUILD-001": {
-    "category": "BUILD",
-    "description": "Production build or generated artifact contract failed.",
-    "repairTargets": ["vite.config.ts", "src", "scripts"],
-    "verification": ["npm run test:build"]
-  },
-  "RC-BROWSER-001": {
-    "category": "BROWSER",
-    "description": "Browser gate failed without a more specific classified root cause.",
-    "repairTargets": ["src", "tests"],
-    "verification": ["npm run test:browser"]
-  },
-  "RC-UNKNOWN-001": {
-    "category": "UNKNOWN",
-    "description": "Failure could not be assigned to a known root cause.",
-    "repairTargets": [],
-    "verification": ["npm test -- --mode=diagnose"]
-  },
-  "RC-DIAGNOSTIC-001": {
-    "category": "DIAGNOSTIC",
-    "description": "No gate report was produced; diagnostic evidence is incomplete.",
-    "repairTargets": ["scripts/test.mjs", ".github/workflows"],
-    "verification": ["npm run diagnose:cycle"]
-  },
-  "RC-DIAGNOSTIC-002": {
-    "category": "DIAGNOSTIC",
-    "description": "A gate report exists but cannot be parsed as valid JSON.",
-    "repairTargets": ["scripts/test.mjs", "scripts/ci/record-repair-cycle.mjs"],
-    "verification": ["npm run diagnose:cycle"]
-  }
+  "RC-DEPENDENCY-001": {"category":"DEPENDENCY","description":"Committed dependency graph cannot be installed or resolved.","repairTargets":["package.json","package-lock.json"],"verification":["npm ci"]},
+  "RC-TYPE-001": {"category":"TYPE","description":"Canonical type graph and its consumers are inconsistent.","repairTargets":["src/lib","src/config","src/routes"],"verification":["npm run test:static"]},
+  "RC-ROUTER-001": {"category":"ROUTER","description":"Public route or canonical route resolution is inconsistent.","repairTargets":["src/routes","src/lib/route"],"verification":["npm run test:static"]},
+  "RC-I18N-001": {"category":"I18N","description":"Locale, translation, or localized UI contract is inconsistent.","repairTargets":["src/lib/i18n","src/locales"],"verification":["npm run test:static"]},
+  "RC-SEO-001": {"category":"SEO","description":"Canonical, hreflang, robots, sitemap, or SEO metadata contract is inconsistent.","repairTargets":["src/lib/seo","src/routes"],"verification":["npm run test:static"]},
+  "RC-A11Y-001": {"category":"A11Y","description":"Accessibility contract is violated in rendered browser output.","repairTargets":["src/routes","src/components"],"verification":["npm run test:browser"]},
+  "RC-RUNTIME-001": {"category":"RUNTIME","description":"Browser runtime or console execution contract failed.","repairTargets":["src"],"verification":["npm run test:browser"]},
+  "RC-NETWORK-001": {"category":"NETWORK","description":"Browser request or network contract failed.","repairTargets":["src","playwright.config.ts"],"verification":["npm run test:browser"]},
+  "RC-BUILD-001": {"category":"BUILD","description":"Production build or generated artifact contract failed.","repairTargets":["vite.config.ts","src","scripts"],"verification":["npm run test:build"]},
+  "RC-BROWSER-001": {"category":"BROWSER","description":"Browser gate failed without a more specific classified root cause.","repairTargets":["src","tests"],"verification":["npm run test:browser"]},
+  "RC-UNKNOWN-001": {"category":"UNKNOWN","description":"Failure could not be assigned to a known root cause.","repairTargets":[],"verification":["npm run test:diagnose"]},
+  "RC-DIAGNOSTIC-001": {"category":"DIAGNOSTIC","description":"No gate report was produced; diagnostic evidence is incomplete.","repairTargets":["scripts/test.mjs",".github/workflows"],"verification":["npm run diagnose:cycle"]},
+  "RC-DIAGNOSTIC-002": {"category":"DIAGNOSTIC","description":"A gate report exists but cannot be parsed as valid JSON.","repairTargets":["scripts/test.mjs","scripts/ci/record-repair-cycle.mjs"],"verification":["npm run diagnose:cycle"]},
+  "RC-CI-CONTRACT-001": {"category":"CI_CONTRACT","description":"CI workflow and executable certification contract have drifted.","repairTargets":[".github/workflows/ci.yml","scripts/validate-ci-contract.mjs","package.json"],"verification":["npm run validate:ci-contract"]},
+  "RC-CI-TECHNICAL-DEBT-001": {"category":"CI_TECHNICAL_DEBT","description":"Blocking technical debt remains in the active CI execution graph.","repairTargets":["scripts/ci",".github/workflows","package.json"],"verification":["npm run audit:technical-debt"]},
+  "RC-CI-CONTEXT-001": {"category":"CI_EVIDENCE","description":"Execution context does not describe the installed dependency environment actually tested.","repairTargets":["scripts/ci/capture-execution-context.mjs","scripts/test.mjs",".github/workflows/ci.yml"],"verification":["npm run test:diagnose"]},
+  "RC-CI-EVIDENCE-001": {"category":"CI_EVIDENCE","description":"Evidence bundle is stale, incomplete, or not authoritative for the executed gates.","repairTargets":["scripts/ci/collect-failure-evidence.mjs","scripts/test.mjs"],"verification":["npm run test:diagnose"]},
+  "RC-BROWSER-RETRY-001": {"category":"BROWSER_DETERMINISM","description":"Browser retries can conceal deterministic or flaky failures.","repairTargets":["playwright.config.ts"],"verification":["npm run test:browser"]},
+  "RC-BROWSER-ARTIFACT-001": {"category":"BROWSER_ARTIFACT","description":"Browser certification does not use the same production build surface as the build gate.","repairTargets":["playwright.config.ts",".github/workflows/ci.yml"],"verification":["npm run test:browser"]},
+  "RC-BROWSER-ORIGIN-001": {"category":"BROWSER_ORIGIN","description":"Browser certification relies on an implicit test origin instead of an explicit contract.","repairTargets":["playwright.config.ts",".github/workflows/ci.yml"],"verification":["npm run test:browser"]},
+  "RC-LEGACY-MATRIX-001": {"category":"LEGACY_CI","description":"Retired full-matrix workflow remains referenced by active certification infrastructure.","repairTargets":[".github/workflows","scripts/ci"],"verification":["npm run validate:ci-contract"]},
+  "RC-CI-FINGERPRINT-001": {"category":"FAILURE_INTELLIGENCE","description":"Failure fingerprints are unstable because volatile dependency context participates in identity.","repairTargets":["scripts/test.mjs"],"verification":["npm run test:diagnose"]}
 }
