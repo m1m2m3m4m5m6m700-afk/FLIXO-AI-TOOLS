@@ -49,23 +49,14 @@ export function VideoGifMemeTool() {
     void resources.disposeAll();
   }, [resources]);
 
-  useEffect(() => {
-    if (!file) {
-      void resources.dispose('video-preview');
-      setPreviewUrl(null);
-      return;
-    }
-    const url = resources.objectUrl('video-preview', file);
-    setPreviewUrl(url);
-    return () => { void resources.dispose('video-preview'); };
-  }, [file, resources]);
-
   const choose = async (next?: File) => {
     if (!next) return;
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
     await resources.dispose('gif-output');
+    await resources.dispose('video-preview');
+    setPreviewUrl(null);
     if (!next.type.startsWith('video/')) {
       setError('Please choose a video file.');
       if (controllerRef.current === controller) controllerRef.current = null;
@@ -76,6 +67,8 @@ export function VideoGifMemeTool() {
     try {
       const m = await metadata(next, resources, controller.signal);
       throwIfAborted(controller.signal);
+      const nextPreviewUrl = resources.objectUrl('video-preview', next);
+      setPreviewUrl(nextPreviewUrl);
       setFile(next); setDuration(m.duration); setStart(0); setEnd(Math.min(5, m.duration)); setWidth(Math.min(720, Math.max(160, m.width))); setStatus(`${m.width}×${m.height} · ${m.duration.toFixed(2)}s`);
     } catch (e) {
       if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'Unable to read video');
