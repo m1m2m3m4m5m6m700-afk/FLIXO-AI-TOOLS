@@ -1,28 +1,41 @@
-name: G4 UI Supplement Contract
+name: G4 Document Locale Contract
 
 on:
   pull_request:
     branches: [main]
     paths:
       - 'src/main.tsx'
+      - 'src/routes/__root.tsx'
+      - 'src/routes/localized-tool.tsx'
       - 'src/lib/i18n/**'
-      - 'tests/tool-ui-runtime-supplement.mjs'
+      - 'index.html'
+      - 'src/components/RouteErrorBoundary.tsx'
+      - 'tests/document-locale-contract.mjs'
       - '.github/workflows/g4-ui-supplement-contract.yml'
   push:
     branches: [main]
     paths:
       - 'src/main.tsx'
+      - 'src/routes/__root.tsx'
+      - 'src/routes/localized-tool.tsx'
       - 'src/lib/i18n/**'
-      - 'tests/tool-ui-runtime-supplement.mjs'
+      - 'index.html'
+      - 'src/components/RouteErrorBoundary.tsx'
+      - 'tests/document-locale-contract.mjs'
       - '.github/workflows/g4-ui-supplement-contract.yml'
 
 permissions:
   contents: read
 
+env:
+  SITE_URL: https://flixoai.vercel.app
+  VITE_SITE_URL: https://flixoai.vercel.app
+
 jobs:
-  supplement-contract:
-    name: G4 Localization Architecture Contract
+  document-locale-contract:
+    name: G4 Document Locale Contract
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -31,5 +44,5 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Validate declarative localization architecture
-        run: node tests/tool-ui-runtime-supplement.mjs
+      - name: Validate canonical document locale ownership
+        run: node tests/document-locale-contract.mjs
