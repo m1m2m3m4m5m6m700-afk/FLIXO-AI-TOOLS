@@ -1,0 +1,52 @@
+name: FLIXO Remediation Diagnostic 20260907
+
+on:
+  push:
+    branches:
+      - repair/2026-09-07-session-001
+
+permissions:
+  contents: write
+
+env:
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  diagnose:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - name: Setup Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: TypeScript diagnostic
+        shell: bash
+        run: |
+          set +e
+          npx tsc --noEmit --pretty false > /tmp/tsc.log 2>&1
+          code=$?
+          {
+            echo "EXPECTED_HEAD_SHA=${EXPECTED_HEAD_SHA}"
+            echo "TSC_EXIT_CODE=${code}"
+            echo
+            cat /tmp/tsc.log
+          } > .remediation-tsc.log
+          exit 0
+      - name: Commit diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'openai-remediation-bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .remediation-tsc.log .github/workflows/_diagnose-20260907.yml
+          git commit -m "chore(remediation): capture current typecheck diagnostics"
+          git push origin HEAD:${GITHUB_REF_NAME}
