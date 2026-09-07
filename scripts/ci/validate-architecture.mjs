@@ -6,7 +6,13 @@ const text = workflows.map((file) => ({ file, text: readFileSync(`${workflowDir}
 const failures = [];
 const find = (file) => text.find((item) => item.file === file)?.text ?? '';
 
-const deprecated = new Set(['browser-smoke.yml', 'phase3-chain-compatibility.yml', 'parallel-diagnostics.yml', 'root-cause-diagnostics.yml']);
+const deprecated = new Set([
+  'browser-smoke.yml',
+  'phase3-chain-compatibility.yml',
+  'parallel-diagnostics.yml',
+  'root-cause-diagnostics.yml',
+  'flixo-ci-g3-shadow.yml',
+]);
 for (const item of text) {
   if (deprecated.has(item.file) && /(^|\n)\s*(pull_request|push):/.test(item.text)) failures.push(`${item.file}: legacy/diagnostic workflow must be manual-only.`);
 }
