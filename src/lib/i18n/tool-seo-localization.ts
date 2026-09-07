@@ -1,7 +1,7 @@
-import type { Locale } from './config';
+import type { KnownLocale, Locale } from './config';
 import { LOCALES } from './config';
 
-export type ToolSeoLocale = Readonly<Record<Locale, string>>;
+export type ToolSeoLocale = Readonly<Partial<Record<KnownLocale, string>>>;
 
 /** Human-reviewed SEO names. IDs and URLs stay stable. */
 export const TOOL_SEO_NAMES: Readonly<Record<string, ToolSeoLocale>> = Object.freeze({

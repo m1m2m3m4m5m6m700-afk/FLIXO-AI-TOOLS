@@ -1,4 +1,4 @@
-import type { Locale } from './config';
+import type { KnownLocale, Locale } from './config';
 
 type SharedCopy = Readonly<{
   processing: string;
@@ -23,7 +23,7 @@ type SharedCopy = Readonly<{
   compressAllZip: string;
 }>;
 
-export const SHARED_TOOL_UI_COPY: Record<Locale, SharedCopy> = {
+export const SHARED_TOOL_UI_COPY: Partial<Record<KnownLocale, SharedCopy> = {
   ar: { processing: 'معالجة محلية', inputs: 'المدخلات', browserSuffix: 'تُعالج في متصفحك عندما تدعم الأداة ذلك.', externalSuffix: 'تستخدم نقطة معالجة خارجية مُهيأة ولا تُقدَّم على أنها محلية فقط.', chooseFile: 'اختر ملفًا', optional: 'اختياري', originalText: 'النص الأصلي', modifiedText: 'النص المعدّل', regexPattern: 'نمط Regex', regexInput: 'إدخال Regex', topText: 'النص العلوي', bottomText: 'النص السفلي', watermarkText: 'نص العلامة المائية', foregroundColor: 'لون المقدمة', backgroundColor: 'لون الخلفية', generateQr: 'إنشاء QR', chooseQrImage: 'اختر صورة QR', exportClip: 'تصدير المقطع', compressImage: 'ضغط الصورة', compressAllZip: 'ضغط الكل إلى ZIP' },
   en: { processing: 'Local processing', inputs: 'Inputs', browserSuffix: 'are processed in your browser when supported by the tool.', externalSuffix: 'uses a configured external processing endpoint and is not presented as local-only.', chooseFile: 'Choose a file', optional: 'Optional', originalText: 'Original text', modifiedText: 'Modified text', regexPattern: 'Regex pattern', regexInput: 'Regex input', topText: 'Top text', bottomText: 'Bottom text', watermarkText: 'Watermark text', foregroundColor: 'Foreground color', backgroundColor: 'Background color', generateQr: 'Generate QR', chooseQrImage: 'Choose QR image', exportClip: 'Export clip', compressImage: 'Compress image', compressAllZip: 'Compress all to ZIP' },
   es: { processing: 'Procesamiento local', inputs: 'Entradas', browserSuffix: 'se procesan en tu navegador cuando la herramienta lo admite.', externalSuffix: 'usa un punto de procesamiento externo configurado y no se presenta como local.', chooseFile: 'Elige un archivo', optional: 'Opcional', originalText: 'Texto original', modifiedText: 'Texto modificado', regexPattern: 'Patrón Regex', regexInput: 'Entrada Regex', topText: 'Texto superior', bottomText: 'Texto inferior', watermarkText: 'Texto de marca de agua', foregroundColor: 'Color de primer plano', backgroundColor: 'Color de fondo', generateQr: 'Generar QR', chooseQrImage: 'Elige una imagen QR', exportClip: 'Exportar clip', compressImage: 'Comprimir imagen', compressAllZip: 'Comprimir todo en ZIP' },

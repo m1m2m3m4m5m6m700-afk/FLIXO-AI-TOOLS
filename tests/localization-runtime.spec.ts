@@ -82,6 +82,15 @@ for (const pathname of routes) {
     const runtimeErrors: string[] = [];
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
     page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
+    page.on('response', (response) => {
+      const status = response.status();
+      if (status >= 400) {
+        const entry = `response: ${status} ${response.url()}`;
+        console.log(`[G4 network] ${entry}`);
+        runtimeErrors.push(entry);
+      }
+    });
+
     page.on('requestfailed', (request) => {
       if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`);
     });

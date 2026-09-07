@@ -1,10 +1,10 @@
 import { useEffect, type ReactNode } from 'react';
-import type { Locale } from '@/lib/i18n';
+import type { KnownLocale, Locale } from '@/lib/i18n';
 import { LOCALE_METADATA } from '@/lib/i18n';
 import { getLocalizedToolTitle } from '@/lib/seo/tool-seo';
 
 type Props = Readonly<{ locale: Locale; toolId: string; children: ReactNode }>;
-type LocaleMap = Partial<Record<Locale, string>>;
+type LocaleMap = Partial<Record<KnownLocale, string>>;
 
 const P: Record<string, LocaleMap> = {
   'Choose an image': { ar: 'اختر صورة', es: 'Elige una imagen', fr: 'Choisissez une image', de: 'Bild auswählen', ru: 'Выберите изображение', zh: '选择图像', hi: 'एक छवि चुनें', id: 'Pilih gambar', ur: 'تصویر منتخب کریں', ja: '画像を選択', pt: 'Scegli un’immagine', it: 'Scegli un’immagine', ko: '이미지 선택', nl: 'Kies een afbeelding', pl: 'Wybierz obraz', tr: 'Bir görsel seçin', vi: 'Chọn hình ảnh', th: 'เลือกภาพ', sv: 'Välj en bild' },

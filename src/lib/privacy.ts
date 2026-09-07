@@ -1,3 +1,4 @@
+import type { KnownLocale } from './i18n/config';
 import { getToolConfig } from '../config/tools';
 
 export type ProcessingMode = 'local' | 'remote';
@@ -8,7 +9,7 @@ export function getToolProcessingMode(toolId: string): ProcessingMode {
   return REMOTE_TOOL_IDS.has(toolId) ? 'remote' : 'local';
 }
 
-export function getToolPrivacyCopy(toolId: string, locale: string): {
+export function getToolPrivacyCopy(toolId: string, locale: KnownLocale): {
   label: string;
   detail: string;
   mode: ProcessingMode;

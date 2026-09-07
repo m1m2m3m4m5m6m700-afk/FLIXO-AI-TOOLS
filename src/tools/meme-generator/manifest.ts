@@ -1,3 +1,5 @@
+import { uk } from './seo/uk';
+import { ms } from './seo/ms';
 import type { ToolManifest } from '@/lib/seo/tool-manifest';
 import { ar } from './seo/ar';
 import { de } from './seo/de';
@@ -16,9 +18,7 @@ import { ru } from './seo/ru';
 import { sv } from './seo/sv';
 import { th } from './seo/th';
 import { tr } from './seo/tr';
-import { ur } from './seo/ur';
 import { vi } from './seo/vi';
-import { zh } from './seo/zh';
 
 export type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';
 
@@ -28,5 +28,5 @@ export const MEME_GENERATOR_MANIFEST: ToolManifest = Object.freeze({
   status: 'ready',
   seoStatus: 'complete',
   capabilities: ['client-side', 'image-text', 'meme', 'download'],
-  seoLocales: Object.freeze({ en, ar, es, fr, de, ru, zh, hi, id, ur, ja, pt, it, ko, nl, pl, tr, vi, th, sv }),
+  seoLocales:Object.freeze({en, ar, es, fr, de, ru, hi, id, ja, pt, it, ko, nl, pl, tr, vi, th, sv, ms, uk}),
 });

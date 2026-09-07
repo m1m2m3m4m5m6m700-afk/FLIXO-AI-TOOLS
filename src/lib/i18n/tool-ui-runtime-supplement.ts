@@ -1,6 +1,6 @@
-import type { Locale } from './config';
+import type { KnownLocale, Locale } from './config';
 
-type LocaleMap = Readonly<Partial<Record<Locale, string>>>;
+type LocaleMap = Readonly<Partial<Record<KnownLocale, string>>>;
 
 const UI_SUPPLEMENT: Record<string, LocaleMap> = {
   'A cinematic sunset over Cairo...': {
