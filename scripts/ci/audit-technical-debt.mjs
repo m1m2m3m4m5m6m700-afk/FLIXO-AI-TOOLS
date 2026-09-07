@@ -49,7 +49,7 @@ findings.push(finding('RC-CI-LEGACY-SURFACE-001', 'ARCHITECTURE', legacyCandidat
 const configText = fileText.get('src/lib/i18n/config.ts') ?? '';
 const loaderText = fileText.get('src/lib/i18n/loader.ts') ?? '';
 const localeMatch = configText.match(/export const LOCALES\s*=\s*\[([\s\S]*?)\]\s*as\s+const/);
-const configuredLocales = localeMatch ? [...localeMatch[1].matchAll(/[\'"]([a-z]{2})[\'"]/g)].map((m) => m[1]) : [];
+const configuredLocales = localeMatch ? [...localeMatch[1].matchAll(/['"]([a-z]{2})['"]/g)].map((m) => m[1]) : [];
 const loaderLocales = [...loaderText.matchAll(/^\s*([a-z]{2}):\s*\(\)\s*=>/gm)].map((m) => m[1]);
 const localeMismatch = configuredLocales.length !== 20 || loaderLocales.length !== 20 || configuredLocales.some((locale) => !loaderLocales.includes(locale)) || loaderLocales.some((locale) => !configuredLocales.includes(locale));
 const localizationFiles = files.filter((path) => /(?:src|scripts)\/.*(?:i18n|locale|localization|seo)/i.test(normalize(path)) && /\.(?:mjs|mts|ts|tsx|json)$/.test(path));
