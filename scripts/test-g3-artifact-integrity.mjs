@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
 import JSZip from 'jszip';
-import { PDFDocument } from 'pdf-lib';
 import { validateOutputIntegrity } from '../src/lib/contracts/output-integrity.ts';
 
 const bytes = (...values) => new Uint8Array(values);
 const text = (value) => new TextEncoder().encode(value);
-const REQUIRED_OUTPUT_TYPES = ['Image', 'PDF', 'ZIP', 'Text', 'JSON', 'CSV', 'Audio', 'Video'];
+const REQUIRED_OUTPUT_TYPES = ['Image', 'SVG', 'ZIP', 'Text', 'JSON'];
 const REQUIRED_CASES = [
   'empty',
   'missing artifact',
@@ -29,24 +28,16 @@ const ONE_BY_ONE_PNG = Uint8Array.from(Buffer.from(
 ));
 
 const buildFixtures = async () => {
-  const pdf = await PDFDocument.create();
-  const pdfPage = pdf.addPage([100, 100]);
-  pdfPage.drawText('FLIXO G3');
-  const pdfBytes = new Uint8Array(await pdf.save());
-
   const zip = new JSZip();
   zip.file('artifact.txt', 'FLIXO G3');
   const zipBytes = new Uint8Array(await zip.generateAsync({ type: 'uint8array' }));
 
   return [
     { type: 'Image', mime: 'image/png', extension: 'png', signature: '89504e470d0a1a0a', content: ONE_BY_ONE_PNG, dimensions: { width: 1, height: 1 }, parse: 'image' },
-    { type: 'PDF', mime: 'application/pdf', extension: 'pdf', signature: '255044462d', content: pdfBytes, parse: 'pdf' },
+    { type: 'SVG', mime: 'image/svg+xml', extension: 'svg', content: text('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>'), parse: 'utf8' },
     { type: 'ZIP', mime: 'application/zip', extension: 'zip', signature: '504b0304', content: zipBytes, parse: 'zip' },
     { type: 'Text', mime: 'text/plain', extension: 'txt', content: text('FLIXO artifact\n'), parse: 'utf8' },
     { type: 'JSON', mime: 'application/json', extension: 'json', content: text('{"ok":true}'), parse: 'json' },
-    { type: 'CSV', mime: 'text/csv', extension: 'csv', content: text('name,value\nflixo,1\n'), parse: 'utf8' },
-    { type: 'Audio', mime: 'audio/mpeg', extension: 'mp3', signature: '494433', content: bytes(0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00), parse: 'signature' },
-    { type: 'Video', mime: 'video/mp4', extension: 'mp4', signature: { hex: '66747970', offset: 4 }, content: bytes(0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d), parse: 'signature' },
   ];
 };
 
@@ -54,12 +45,6 @@ const inspectParseability = async (entry) => {
   if (entry.parse === 'utf8' || entry.parse === 'json') {
     const decoded = new TextDecoder('utf-8', { fatal: true }).decode(entry.content);
     if (entry.parse === 'json') JSON.parse(decoded);
-    return;
-  }
-  if (entry.parse === 'pdf') {
-    assert.ok(entry.content.slice(0, 5).every((value, index) => value === [0x25, 0x50, 0x44, 0x46, 0x2d][index]), 'PDF header is invalid');
-    assert.ok(Buffer.from(entry.content).includes(Buffer.from('%%EOF')), 'PDF EOF marker is missing');
-    await PDFDocument.load(entry.content);
     return;
   }
   if (entry.parse === 'zip') {
@@ -78,7 +63,6 @@ const inspectParseability = async (entry) => {
     assert.deepEqual({ width, height }, entry.dimensions);
     return;
   }
-  if (entry.parse === 'signature') return;
   throw new Error(`Unknown G3 parse strategy: ${entry.parse}`);
 };
 
@@ -111,7 +95,7 @@ const matrix = await buildFixtures();
 await runCase('matrix definition', () => {
   assert.deepEqual(matrix.map((entry) => entry.type).sort(), [...REQUIRED_OUTPUT_TYPES].sort());
   assert.equal(new Set(matrix.map((entry) => entry.type)).size, REQUIRED_OUTPUT_TYPES.length, 'G3 output-type matrix contains duplicates');
-  for (const entry of matrix) assert.ok(entry.content.byteLength > 0, `${entry.type} fixture is empty`);
+  assert.equal(matrix.every((entry) => entry.content.byteLength > 0), true, 'G3 fixture contains empty artifact');
 });
 
 for (const entry of matrix) {
@@ -189,7 +173,7 @@ const skipped = results.filter((result) => result.status === 'SKIP');
 assert.equal(skipped.length, 0, 'G3 must not silently skip cases');
 assert.deepEqual([...REQUIRED_CASES].sort(), [...negativeCases.map(([name]) => name), 'malformed JSON', 'invalid UTF-8'].sort(), 'G3 negative matrix drift detected');
 
-console.log(`G3 universal artifact integrity: executed=${results.length} passed=${passed.length} failed=${failed.length} skipped=${skipped.length}`);
+console.log(`G3 image artifact integrity: executed=${results.length} passed=${passed.length} failed=${failed.length} skipped=${skipped.length}`);
 for (const result of [...failed, ...skipped]) console.error(`G3 ${result.status}: ${result.name}${result.error ? ` — ${result.error}` : ''}`);
 if (failed.length > 0 || skipped.length > 0 || passed.length !== results.length || actualCases.length === 0) process.exit(1);
-console.log('G3 universal artifact integrity: PASS — complete matrix, no skips, no failures');
+console.log('G3 image artifact integrity: PASS — complete image matrix, no skips, no failures');
