@@ -1,4 +1,5 @@
 import { PDFDocument } from 'pdf-lib';
+import type { DisposableResourceOwner } from '../_shared/disposable-resource-owner';
 
 export type ImageToPdfOrientation = 'portrait' | 'landscape';
 export type ImageToPdfMargin = 'none' | 'small' | 'large';
@@ -16,8 +17,8 @@ function arrayBufferFromBytes(bytes: Uint8Array): ArrayBuffer {
   return buffer;
 }
 
-async function loadImageDimensions(file: File) {
-  const objectUrl = URL.createObjectURL(file);
+async function loadImageDimensions(file: File, owner: DisposableResourceOwner) {
+  const objectUrl = owner.createObjectURL(file);
   try {
     const image = new Image();
     image.decoding = 'async';
@@ -25,11 +26,11 @@ async function loadImageDimensions(file: File) {
     await image.decode();
     return { width: image.naturalWidth, height: image.naturalHeight };
   } finally {
-    URL.revokeObjectURL(objectUrl);
+    owner.revokeObjectURL(objectUrl);
   }
 }
 
-async function embedImage(pdf: PDFDocument, file: File) {
+async function embedImage(pdf: PDFDocument, file: File, owner: DisposableResourceOwner) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const mime = file.type.toLowerCase();
   const name = file.name.toLowerCase();
@@ -43,7 +44,7 @@ async function embedImage(pdf: PDFDocument, file: File) {
   }
 
   if (mime === 'image/webp' || name.endsWith('.webp')) {
-    const objectUrl = URL.createObjectURL(file);
+    const objectUrl = owner.createObjectURL(file);
     try {
       const image = new Image();
       image.decoding = 'async';
@@ -60,14 +61,14 @@ async function embedImage(pdf: PDFDocument, file: File) {
       });
       return pdf.embedPng(arrayBufferFromBytes(new Uint8Array(await pngBlob.arrayBuffer())));
     } finally {
-      URL.revokeObjectURL(objectUrl);
+      owner.revokeObjectURL(objectUrl);
     }
   }
 
   throw new Error(`Unsupported image format: ${file.name}`);
 }
 
-export async function imagesToPdf(files: File[], options: ImageToPdfOptions): Promise<Blob> {
+export async function imagesToPdf(files: File[], options: ImageToPdfOptions, owner: DisposableResourceOwner): Promise<Blob> {
   if (!files.length) throw new Error('Select at least one image.');
   if (files.length > 50) throw new Error('A maximum of 50 images is supported.');
 
@@ -85,9 +86,9 @@ export async function imagesToPdf(files: File[], options: ImageToPdfOptions): Pr
     : { width: 612, height: 792 };
 
   for (const file of supported) {
-    const dimensions = await loadImageDimensions(file);
+    const dimensions = await loadImageDimensions(file, owner);
     const page = pdf.addPage([pageSize.width, pageSize.height]);
-    const image = await embedImage(pdf, file);
+    const image = await embedImage(pdf, file, owner);
     const availableWidth = Math.max(1, pageSize.width - margin * 2);
     const availableHeight = Math.max(1, pageSize.height - margin * 2);
     const scale = Math.min(availableWidth / Math.max(1, dimensions.width), availableHeight / Math.max(1, dimensions.height));
