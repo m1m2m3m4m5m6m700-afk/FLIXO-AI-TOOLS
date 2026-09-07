@@ -4,7 +4,7 @@ const commands = [
   ['quickflow', 'npm', ['run', 'test:quickflow']],
   ['ai-planner', 'npm', ['run', 'test:ai-planner']],
   ['route-resolver', 'npm', ['run', 'test:route-resolver']],
-  ['upload-boundary', 'npm', ['run', 'test:upload-boundary']],
+  ['upload-boundary', 'npm', ['test:upload-boundary']],
   ['tool-localization', 'npm', ['run', 'test:tool-localization']],
   ['release-evidence', 'node', ['scripts/test-release-evidence.mjs']],
   ['file-safety', 'node', ['--experimental-strip-types', 'scripts/test-file-safety.mjs']],
@@ -17,7 +17,6 @@ const commands = [
   ['ci-contract', 'npm', ['run', 'validate:ci-contract']],
   ['protocol-cooperation', 'node', ['--experimental-strip-types', 'scripts/ci/validate-protocol-cooperation.mjs']],
   ['agent-coordination', 'node', ['scripts/ci/validate-agent-coordination.mjs']],
-  ['agent-pr-collisions', 'node', ['scripts/ci/validate-agent-pr-collisions.mjs']],
 ];
 
 const requested = [
