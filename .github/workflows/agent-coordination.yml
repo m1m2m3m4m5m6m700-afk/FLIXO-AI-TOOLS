@@ -31,6 +31,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
+      - name: Validate agent session ledger
+        run: node scripts/ci/validate-agent-sessions.mjs
       - name: Validate local multi-agent coordination
         run: node scripts/ci/validate-agent-coordination.mjs
       - name: Validate cross-branch agent collisions
