@@ -6,14 +6,8 @@ const root = process.cwd();
 const read = (path) => readFileSync(join(root, path), 'utf8');
 
 const forbiddenPaths = [
-  'src/routes/admin.tsx',
-  'src/routes/admin-login.tsx',
-  'src/lib/admin/auth.ts',
-  'src/lib/admin/config.ts',
-  'src/lib/admin-surveys.ts',
-  'src/lib/contracts/pdf-output.ts',
-  'src/lib/ai-planner.ts',
-  '.github/workflows/s4-runtime-e2e.yml',
+  'src/routes/admin.tsx', 'src/routes/admin-login.tsx', 'src/lib/admin/auth.ts', 'src/lib/admin/config.ts', 'src/lib/admin-surveys.ts',
+  'src/lib/contracts/pdf-output.ts', 'src/lib/ai-planner.ts', '.github/workflows/s4-runtime-e2e.yml',
 ];
 for (const path of forbiddenPaths) assert.equal(existsSync(join(root, path)), false, `legacy path still exists: ${path}`);
 
@@ -32,25 +26,26 @@ assert.doesNotMatch(g3, /PDFDocument|application\/pdf|text\/csv|audio\/|video\//
 assert.match(g3, /g3-image-batch-package/, 'ZIP packaging coverage disappeared without an explicit contract decision');
 
 const localization = read('src/lib/i18n/tool-localization.ts');
-assert.doesNotMatch(localization, /\bzh\s*:/, 'unsupported zh locale remains in localization data');
-assert.doesNotMatch(localization, /\bur\s*:/, 'unsupported ur locale remains in localization data');
+assert.match(localization, /zh:\s*\{/u, 'canonical zh localization is missing');
+assert.match(localization, /ur:\s*\{/u, 'canonical ur localization is missing');
+assert.doesNotMatch(localization, /\bms\s*:/, 'retired ms locale remains in localization data');
+assert.doesNotMatch(localization, /\buk\s*:/, 'retired uk locale remains in localization data');
 
 const seo = read('src/lib/seo/tool-seo.ts');
 assert.match(seo, /export type ToolCategory = 'Images'/, 'SEO taxonomy is not Image-only');
 assert.doesNotMatch(seo, /'AI'|'Other'/, 'legacy SEO taxonomy remains');
+
+const config = read('src/lib/i18n/config.ts');
+const locales = config.match(/export const LOCALES = \[([^\]]+)\] as const;/u)?.[1]?.match(/'([a-z]{2})'/gu)?.map((value) => value.slice(1, -1)) ?? [];
+assert.deepEqual(locales, ['ar','en','es','fr','de','ru','zh','hi','id','ur','ja','pt','it','ko','nl','pl','tr','vi','th','sv'], 'canonical locale registry drifted');
 
 const env = read('.env.example');
 assert.doesNotMatch(env, /ADMIN_PASSWORD_HASH|ADMIN_SESSION_SECRET|DATABASE_URL|SMTP_HOST|SMTP_PORT|SMTP_USER|SMTP_PASS|NOTIFY_TO/, 'admin infrastructure environment surface remains');
 
 const packageJson = JSON.parse(read('package.json'));
 const directDependencies = new Set([...Object.keys(packageJson.dependencies ?? {}), ...Object.keys(packageJson.devDependencies ?? {})]);
-for (const dependency of [
-  '@ffmpeg/core', '@ffmpeg/ffmpeg', 'gif.js', 'gifuct-js', '@types/gif.js',
-  'jspdf', 'pdf-lib', 'pdfjs-dist', 'nodemailer', '@types/nodemailer',
-  'drizzle-orm', 'postgres', 'qrcode', '@types/qrcode',
-  '@hookform/resolvers', 'react-hook-form', '@tanstack/react-query',
-  'cmdk', 'date-fns', 'embla-carousel-react', 'input-otp', 'react-day-picker',
-  'react-resizable-panels', 'sonner', 'vaul',
-]) assert.equal(directDependencies.has(dependency), false, `legacy/unconsumed direct dependency remains: ${dependency}`);
+for (const dependency of ['@ffmpeg/core','@ffmpeg/ffmpeg','gif.js','gifuct-js','@types/gif.js','jspdf','pdf-lib','pdfjs-dist','nodemailer','@types/nodemailer','drizzle-orm','postgres','qrcode','@types/qrcode','@hookform/resolvers','react-hook-form','@tanstack/react-query','cmdk','date-fns','embla-carousel-react','input-otp','react-day-picker','react-resizable-panels','sonner','vaul']) {
+  assert.equal(directDependencies.has(dependency), false, `legacy/unconsumed direct dependency remains: ${dependency}`);
+}
 
-console.log('Image-only legacy closure contract passed.');
+console.log(`Image-only closure contract passed: ${locales.length} canonical locales, image-only outputs, no admin surface, no legacy media taxonomy.`);
