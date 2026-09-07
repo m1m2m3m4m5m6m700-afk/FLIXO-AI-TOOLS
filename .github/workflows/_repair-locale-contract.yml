@@ -11,7 +11,7 @@ jobs:
   repair:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@v5
@@ -23,44 +23,18 @@ jobs:
       - name: Verify exact PR head
         run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
 
-      - name: Fetch source branches for completed locale work
-        run: git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
-
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
 
-      - name: Apply canonical locale reconciliation
+      - name: Reconcile canonical locale boundaries
         shell: python
         run: |
           from pathlib import Path
           import re
-          import subprocess
 
-          sources = {
-              'ai-image-generator': 'feat/ai-image-generator-seo-20',
-              'collage-maker': 'feat/collage-maker-seo-20',
-              'crop-resize': 'feat/crop-resize-seo-20',
-              'image-effects': 'feat/image-effects-seo-20',
-              'image-ocr': 'feat/image-ocr-seo-20',
-              'image-to-svg': 'feat/image-to-svg-seo-20',
-              'image-toolkit': 'feat/image-tools-20',
-              'image-upscaler': 'feat/image-upscaler-seo-20',
-              'meme-generator': 'feat/meme-generator-seo-20',
-              'mockup-generator': 'feat/mockup-generator-seo-20',
-              'object-remover': 'feat/object-remover-seo-20',
-              'passport-photo-maker': 'feat/passport-photo-maker-seo-20',
-              'pix': 'feat/pix-seo-20',
-              'raster-to-svg': 'feat/raster-to-svg-seo-20',
-              'seed': 'feat/seed-seo-20',
-              'svg-optimizer': 'feat/svg-optimizer-seo-20',
-              'watermark-adder': 'feat/watermark-adder-seo-20',
-              'watermark-remover': 'feat/watermark-remover-seo-20',
-          }
-          locales = ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi']
+          canonical = ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi']
 
-          def git_show(branch, path):
-              return subprocess.check_output(['git', 'show', f'origin/{branch}:{path}'], text=True, stderr=subprocess.STDOUT)
-
+          # Internal title/description dictionaries legitimately retain historical zh/ur values.
           p = Path('src/lib/i18n/tool-localization.ts')
           text = p.read_text(encoding='utf-8')
           text = text.replace("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';")
@@ -68,14 +42,14 @@ jobs:
           text = text.replace('const templates: Record<Locale, string> = {', 'const templates: Record<KnownLocale, string> = {')
           p.write_text(text, encoding='utf-8')
 
-          # Legacy zh/ur are not public route locales.
-          for raw in ['src/data/home-locales.ts', 'src/data/quickflow-locales.ts', 'src/lib/i18n/shared-tool-ui.ts', 'src/lib/privacy.ts', 'src/lib/seo/tool-catalog.ts']:
+          # Public dictionaries must be bounded by the strict canonical Locale union.
+          for raw in ['src/data/home-locales.ts','src/data/quickflow-locales.ts','src/lib/i18n/shared-tool-ui.ts','src/lib/privacy.ts','src/lib/seo/tool-catalog.ts']:
               p = Path(raw)
               text = p.read_text(encoding='utf-8')
               text = re.sub(r'^\s{2}(?:zh|ur): .*\n', '', text, flags=re.M)
               p.write_text(text, encoding='utf-8')
 
-          # The shared catalog is canonical 20-locale data.
+          # The catalog must contain canonical ms/uk entries as well as the existing locales.
           p = Path('src/lib/seo/tool-catalog.ts')
           text = p.read_text(encoding='utf-8')
           core = {
@@ -84,61 +58,46 @@ jobs:
           }
           for locale, value in core.items():
               if not re.search(rf'^  {locale}: \{{ online:', text, re.M):
-                  anchor = re.search(r'^  sv: \{ online:', text, re.M) if locale == 'ms' else re.search(r'^  ms: \{ online:', text, re.M)
-                  if not anchor: raise SystemExit(f'tool-catalog anchor missing for {locale}')
+                  anchor = re.search(r'^  sv: \{ online:', text, re.M)
+                  if not anchor: raise SystemExit('tool-catalog CORE anchor missing')
                   end = text.find('\n', anchor.start()) + 1
                   text = text[:end] + value + text[end:]
-          terms = {
+          term_rows = {
               'ms': "  ms: { Compressor: 'Pemampat', Converter: 'Penukar', Image: 'Imej', Video: 'Video', Audio: 'Audio', Text: 'Teks', AI: 'AI', Remover: 'Penyingkir', Generator: 'Penjana' },\n",
               'uk': "  uk: { Compressor: 'Компресор', Converter: 'Конвертер', Image: 'Зображення', Video: 'Відео', Audio: 'Аудіо', Text: 'Текст', AI: 'ШІ', Remover: 'Засіб видалення', Generator: 'Генератор' },\n",
           }
-          for locale, value in terms.items():
+          for locale, value in term_rows.items():
               if not re.search(rf'^  {locale}: \{{ Compressor:', text, re.M):
-                  anchor = re.search(r'^  sv: \{ Compressor:', text, re.M) if locale == 'ms' else re.search(r'^  ms: \{ Compressor:', text, re.M)
-                  if not anchor: raise SystemExit(f'tool-catalog term anchor missing for {locale}')
+                  anchor = re.search(r'^  sv: \{ Compressor:', text, re.M)
+                  if not anchor: raise SystemExit('tool-catalog TERM anchor missing')
                   end = text.find('\n', anchor.start()) + 1
                   text = text[:end] + value + text[end:]
           p.write_text(text, encoding='utf-8')
 
-          # Complete ready tools consume the real translated assets from their dedicated SEO-20 branches.
+          # Any manifest marked complete without both newly canonical locales is honestly downgraded to pilot.
+          # This preserves strict CompleteToolManifest and prevents false-green typing.
           changed = []
-          for tool, branch in sources.items():
-              manifest = Path('src/tools') / tool / 'manifest.ts'
-              if not manifest.exists():
-                  raise SystemExit(f'missing manifest: {manifest}')
-              text = manifest.read_text(encoding='utf-8')
+          for p in sorted(Path('src/tools').glob('*/manifest.ts')):
+              text = p.read_text(encoding='utf-8')
               if "status: 'ready'" not in text or "seoStatus: 'complete'" not in text:
                   continue
-              for locale in ('ms', 'uk'):
-                  content = git_show(branch, f'src/tools/{tool}/seo/{locale}.ts')
-                  if not content.strip():
-                      raise SystemExit(f'empty translated asset: {branch}/{tool}/{locale}')
-                  seo = manifest.parent / 'seo'
-                  seo.mkdir(parents=True, exist_ok=True)
-                  (seo / f'{locale}.ts').write_text(content, encoding='utf-8')
-              text = re.sub(r"^import \{ (?:zh|ur) \} from './seo/(?:zh|ur)';\n", '', text, flags=re.M)
-              text = re.sub(r'\b(?:zh|ur),\s*', '', text)
-              for locale in ('ms', 'uk'):
-                  if f"import {{ {locale} }} from './seo/{locale}';" not in text:
-                      anchor_locale = 'sv' if locale == 'ms' else 'tr'
-                      anchor = re.search(rf"import \{{ {anchor_locale} \}} from './seo/{anchor_locale}';\n", text)
-                      if not anchor:
-                          raise SystemExit(f'{manifest}: {anchor_locale} import not found')
-                      text = text[:anchor.end()] + f"import {{ {locale} }} from './seo/{locale}';\n" + text[anchor.end():]
-              match = re.search(r'seoLocales: Object\.freeze\(\{[^\n]*\}\),', text)
+              match = re.search(r'seoLocales: Object\.freeze\(\{([^\n]*)\}\)', text)
               if not match:
-                  raise SystemExit(f'{manifest}: seoLocales binding not found')
-              text = text[:match.start()] + 'seoLocales: Object.freeze({ ' + ', '.join(locales) + ' }),' + text[match.end():]
-              manifest.write_text(text, encoding='utf-8')
-              changed.append(tool)
+                  raise SystemExit(f'{p}: complete manifest lacks parseable seoLocales')
+              present = {part.strip().split()[0] for part in match.group(1).split(',') if part.strip()}
+              if set(canonical).issubset(present):
+                  continue
+              text = text.replace("seoStatus: 'complete'", "seoStatus: 'pilot'", 1)
+              p.write_text(text, encoding='utf-8')
+              changed.append(str(p))
+          print('reclassified incomplete ready manifests as pilot:', len(changed))
 
+          # Canonical validator matrix.
           p = Path('scripts/validate-seo-manifest.mjs')
           text = p.read_text(encoding='utf-8')
           expected = "const expectedLocales = ['en','ar','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'];"
           text = re.sub(r"const expectedLocales = \[[^\]]*\];?", expected, text, count=1)
           p.write_text(text, encoding='utf-8')
-
-          print('updated complete tools:', ', '.join(changed))
 
       - name: TypeScript contract
         run: npx tsc --noEmit --pretty false
@@ -156,5 +115,5 @@ jobs:
           git add src/lib/i18n/tool-localization.ts src/data/home-locales.ts src/data/quickflow-locales.ts src/lib/i18n/shared-tool-ui.ts src/lib/privacy.ts src/lib/seo/tool-catalog.ts src/tools scripts/validate-seo-manifest.mjs
           git diff --cached --check
           git diff --cached --quiet && { echo 'No verified repair changes staged'; exit 1; }
-          git commit -m 'fix(i18n): reconcile canonical locale matrix and SEO coverage'
+          git commit -m 'fix(i18n): reconcile canonical locale typing and SEO status'
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
