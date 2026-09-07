@@ -1,161 +1,17 @@
-name: One-shot Locale Contract Repair
+name: One-shot Locale Contract Repair (Disabled)
 
+# This workflow is intentionally inert. Locale/schema repair must be performed
+# in normal development commits and verified by authoritative CI; CI must never
+# mutate, commit, or push back to a pull-request branch.
 on:
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  repair:
-    if: github.actor != 'github-actions[bot]'
+  disabled:
+    name: Disabled self-mutating repair placeholder
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - name: Checkout exact PR head
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Verify exact PR head
-        run: test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
-
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-
-      - name: Repair canonical locale typing and ready-tool SEO coverage
-        shell: python
-        run: |
-          from pathlib import Path
-          import re
-
-          canonical = ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi']
-
-          # Historical zh/ur entries remain valid internal data; only their container type is widened.
-          for raw, old, new in [
-              ('src/data/home-locales.ts', "import type { Locale } from '@/lib/i18n';", "import type { KnownLocale, Locale } from '@/lib/i18n';"),
-              ('src/data/quickflow-locales.ts', "import type { Locale } from '@/lib/i18n';", "import type { KnownLocale, Locale } from '@/lib/i18n';"),
-              ('src/lib/privacy.ts', "import type { Locale } from './i18n/config';", "import type { KnownLocale, Locale } from './i18n/config';"),
-          ]:
-              p = Path(raw)
-              text = p.read_text(encoding='utf-8').replace(old, new)
-              text = text.replace('Record<Locale, HomeCopy>', 'Record<KnownLocale, HomeCopy>')
-              text = text.replace('Record<Locale, QuickFlowCopy>', 'Record<KnownLocale, QuickFlowCopy>')
-              text = text.replace('Record<Locale, PrivacyCopy>', 'Record<KnownLocale, PrivacyCopy>')
-              p.write_text(text, encoding='utf-8')
-
-          p = Path('src/lib/i18n/tool-localization.ts')
-          text = p.read_text(encoding='utf-8').replace("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';")
-          text = re.sub(r'(?:Partial<)?Record<Locale, string>(?:>)?', lambda m: m.group(0).replace('Locale', 'KnownLocale'), text)
-          p.write_text(text, encoding='utf-8')
-
-          p = Path('src/lib/i18n/shared-tool-ui.ts')
-          text = p.read_text(encoding='utf-8').replace("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';")
-          if 'zh' in text:
-              text = text.replace('Record<Locale, SharedCopy>', 'Record<KnownLocale, SharedCopy>')
-          p.write_text(text, encoding='utf-8')
-
-          # Catalog needs real canonical ms/uk rows because it is a complete KnownLocale map.
-          p = Path('src/lib/seo/tool-catalog.ts')
-          text = p.read_text(encoding='utf-8').replace("import type { Locale } from '@/lib/i18n';", "import type { KnownLocale, Locale } from '@/lib/i18n';")
-          text = text.replace('Record<Locale, {', 'Record<KnownLocale, {').replace('Record<Locale, string>', 'Record<KnownLocale, string>')
-          core_ms = "  ms: { online: 'Alat dalam talian', intro: 'Gunakan {title} FLIXO terus dalam pelayar dengan aliran pantas yang mengutamakan privasi.', step1: 'Buka alat dan pilih input.', step2: 'Laraskan pilihan yang tersedia.', step3: 'Jalankan alat dan semak hasilnya.', step4: 'Muat turun hasil akhir.', features: ['Pemprosesan dalam pelayar', 'Tanpa akaun', 'Aliran kerja pantas'], alt: 'Antara muka {title} dalam FLIXO' },\n"
-          core_uk = "  uk: { online: 'Онлайн-інструмент', intro: 'Використовуйте {title} FLIXO безпосередньо у браузері з швидким робочим процесом, орієнтованим на приватність.', step1: 'Відкрийте інструмент і виберіть вхідні дані.', step2: 'Налаштуйте доступні параметри.', step3: 'Запустіть інструмент і перевірте результат.', step4: 'Завантажте готовий результат.', features: ['Обробка у браузері', 'Без облікового запису', 'Швидкий робочий процес'], alt: 'Інтерфейс {title} у FLIXO' },\n"
-          if not re.search(r'^  ms: \{ online:', text, re.M):
-              a = re.search(r'^  sv: \{ online:', text, re.M)
-              if not a: raise SystemExit('tool-catalog CORE sv row not found')
-              e = text.find('\n', a.start()) + 1
-              text = text[:e] + core_ms + text[e:]
-          if not re.search(r'^  uk: \{ online:', text, re.M):
-              a = re.search(r'^  ms: \{ online:', text, re.M)
-              e = text.find('\n', a.start()) + 1
-              text = text[:e] + core_uk + text[e:]
-          term_ms = "  ms: { Compressor: 'Pemampat', Converter: 'Penukar', Image: 'Imej', Video: 'Video', Audio: 'Audio', Text: 'Teks', AI: 'AI', Remover: 'Penyingkir', Generator: 'Penjana' },\n"
-          term_uk = "  uk: { Compressor: 'Компресор', Converter: 'Конвертер', Image: 'Зображення', Video: 'Відео', Audio: 'Аудіо', Text: 'Текст', AI: 'ШІ', Remover: 'Засіб видалення', Generator: 'Генератор' },\n"
-          if not re.search(r'^  ms: \{ Compressor:', text, re.M):
-              a = re.search(r'^  sv: \{ Compressor:', text, re.M)
-              if not a: raise SystemExit('tool-catalog TERM sv row not found')
-              e = text.find('\n', a.start()) + 1
-              text = text[:e] + term_ms + text[e:]
-          if not re.search(r'^  uk: \{ Compressor:', text, re.M):
-              a = re.search(r'^  ms: \{ Compressor:', text, re.M)
-              e = text.find('\n', a.start()) + 1
-              text = text[:e] + term_uk + text[e:]
-          p.write_text(text, encoding='utf-8')
-
-          # Every ready manifest must have actual ms/uk modules and bind them. Existing files are preserved.
-          def seo_module(tool: str, locale: str) -> str:
-              if locale == 'ms':
-                  title = f'{tool} Dalam Talian | FLIXO'
-                  description = f'Gunakan {tool} terus dalam pelayar FLIXO untuk pemprosesan pantas dan berfokuskan privasi.'
-                  intro = 'Pilih input, laraskan pilihan yang tersedia, semak hasil dan muat turun hasil akhir.'
-                  keys = [tool, 'alat dalam talian', 'FLIXO']
-                  how = ['Pilih input yang diperlukan.', 'Laraskan pilihan yang tersedia.', 'Jalankan pemprosesan dan semak hasil.', 'Muat turun hasil akhir.']
-                  features = ['Pemprosesan dalam pelayar', 'Aliran kerja ringkas', 'Hasil boleh dimuat turun']
-                  alt = [f'Ruang kerja {tool}', f'Pratonton hasil {tool}', f'Hasil {tool} yang siap']
-              else:
-                  title = f'{tool} онлайн | FLIXO'
-                  description = f'Використовуйте {tool} безпосередньо у браузері FLIXO для швидкої обробки з фокусом на приватність.'
-                  intro = 'Виберіть вхідні дані, налаштуйте параметри, перевірте результат і завантажте його.'
-                  keys = [tool, 'онлайн інструмент', 'FLIXO']
-                  how = ['Виберіть потрібні вхідні дані.', 'Налаштуйте доступні параметри.', 'Запустіть обробку та перевірте результат.', 'Завантажте готовий результат.']
-                  features = ['Обробка у браузері', 'Простий робочий процес', 'Завантаження результату']
-                  alt = [f'Робоча область {tool}', f'Попередній перегляд результату {tool}', f'Готовий результат {tool}']
-              return f"import type {{ LocalizedToolSeo }} from '../manifest'; export const {locale}: LocalizedToolSeo={{title:{title!r},description:{description!r},intro:{intro!r},keywords:{keys!r},howTo:{how!r},features:{features!r},altText:{alt!r}}};\n"
-
-          updated = 0
-          for manifest in sorted(Path('src/tools').glob('*/manifest.ts')):
-              text = manifest.read_text(encoding='utf-8')
-              if "status: 'ready'" not in text:
-                  continue
-              seo = manifest.parent / 'seo'
-              seo.mkdir(parents=True, exist_ok=True)
-              for locale in ('ms','uk'):
-                  path = seo / f'{locale}.ts'
-                  if not path.exists():
-                      path.write_text(seo_module(manifest.parent.name, locale), encoding='utf-8')
-                  if f"import {{ {locale} }} from './seo/{locale}';" not in text:
-                      anchor = 'sv' if locale == 'ms' else 'tr'
-                      m = re.search(rf"import \{{ {anchor} \}} from './seo/{anchor}';", text)
-                      if not m:
-                          raise SystemExit(f'{manifest}: {anchor} import missing')
-                      e = text.find('\n', m.start())
-                      if e < 0: e = len(text)
-                      text = text[:e+1] + f"import {{ {locale} }} from './seo/{locale}';\n" + text[e+1:]
-              # Replace only the binding list, preserving all actual localized modules.
-              m = re.search(r'seoLocales:\s*Object\.freeze\(\{([\s\S]*?)\}\)', text)
-              if not m:
-                  raise SystemExit(f'{manifest}: seoLocales object missing')
-              bindings = [x.strip().split()[0] for x in m.group(1).split(',') if x.strip()]
-              for loc in canonical:
-                  if loc not in bindings: bindings.append(loc)
-              text = text[:m.start(1)] + ' ' + ', '.join(bindings) + ' ' + text[m.end(1):]
-              manifest.write_text(text, encoding='utf-8')
-              updated += 1
-          print('ready manifests updated:', updated)
-
-          p = Path('scripts/validate-seo-manifest.mjs')
-          text = p.read_text(encoding='utf-8')
-          text = re.sub(r"const expectedLocales = \[[^\]]*\];?", "const expectedLocales = ['en','ar','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'];", text, count=1)
-          p.write_text(text, encoding='utf-8')
-
-      - name: TypeScript contract
-        run: npx tsc --noEmit --pretty false
-
-      - name: SEO manifest contract
-        run: node scripts/validate-seo-manifest.mjs
-
-      - name: Commit verified repair and remove runner
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git rm .github/workflows/_repair-locale-contract.yml
-          git add src/lib/i18n src/lib/privacy.ts src/data/home-locales.ts src/data/quickflow-locales.ts src/lib/seo/tool-catalog.ts src/lib/seo/tool-manifest.ts src/tools scripts/validate-seo-manifest.mjs
-          git diff --cached --check
-          git commit -m 'fix(i18n): complete canonical locale and SEO contracts'
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+      - run: echo 'Self-mutating locale repair is disabled; use repository CI diagnostics and normal commits.'
