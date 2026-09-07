@@ -20,18 +20,24 @@ function RouteContent() {
 
 export const rootRoute = createRootRoute({
   component: function RootLayout() {
-    const routeLocale = typeof window === 'undefined' ? 'ar' : localeFromPathname(window.location.pathname);
+    const validLocale = typeof window === 'undefined' ? 'ar' : localeFromPathname(window.location.pathname);
 
-    // React does not own the document <html> node in this client entrypoint. Keep the
-    // localized document contract established before bundle execution synchronized with
-    // the route during the initial render and again in the layout phase before paint.
-    applyDocumentLocale(routeLocale);
+    // The document <html> node is outside React's rendered subtree. Establish the
+    // localized language contract synchronously before returning any JSX so no React
+    // reconciliation step can introduce or reconcile a JSX-owned `lang` prop.
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('lang', validLocale);
+      applyDocumentLocale(validLocale);
+    }
+
     useLayoutEffect(() => {
-      applyDocumentLocale(localeFromPathname(window.location.pathname));
-    }, [routeLocale]);
+      const currentLocale = localeFromPathname(window.location.pathname);
+      document.documentElement.setAttribute('lang', currentLocale);
+      applyDocumentLocale(currentLocale);
+    }, [validLocale]);
 
     useEffect(() => installCoreWebVitalsDiagnostics(), []);
-    return <><HeadContent /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} /><FlixoGlobalLogo /><CommandPalette /><RouteContent /><Scripts /></>;
+    return <><HeadContent /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\u003c') }} /><FlixoGlobalLogo /><CommandPalette /><RouteContent /><Scripts /></>;
   },
   head: () => ({
     meta: [
