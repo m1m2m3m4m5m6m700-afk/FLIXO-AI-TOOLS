@@ -7,6 +7,51 @@ const allowedHosts = (process.env.VITE_ALLOWED_HOSTS ?? '')
   .map((host) => host.trim())
   .filter(Boolean);
 
+function telemetryPreviewPlugin() {
+  return {
+    name: 'flixo-telemetry-endpoint',
+    configureServer(server) {
+      installTelemetryMiddleware(server.middlewares);
+    },
+    configurePreviewServer(server) {
+      return () => installTelemetryMiddleware(server.middlewares);
+    },
+  };
+}
+
+function installTelemetryMiddleware(middlewares) {
+  middlewares.use('/api/telemetry', (req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.statusCode = 405;
+      res.setHeader('allow', 'POST');
+      res.end();
+      return;
+    }
+
+    let total = 0;
+    req.on('data', (chunk) => {
+      total += Buffer.byteLength(chunk);
+      if (total > 64 * 1024) req.destroy();
+    });
+    req.on('end', () => {
+      res.statusCode = 204;
+      res.setHeader('cache-control', 'no-store');
+      res.end();
+    });
+    req.on('error', () => {
+      if (!res.headersSent) {
+        res.statusCode = 400;
+        res.end();
+      }
+    });
+  });
+}
+
 function vendorChunk(id: string): string | undefined {
   if (!id.includes('node_modules')) return undefined;
 
@@ -22,7 +67,7 @@ function vendorChunk(id: string): string | undefined {
 }
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), telemetryPreviewPlugin()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
