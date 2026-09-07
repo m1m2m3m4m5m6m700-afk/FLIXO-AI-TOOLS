@@ -7,21 +7,21 @@ export const CATEGORY_LABELS: Record<Locale, { Images: string }> = {
   es: { Images: 'Imágenes' },
   fr: { Images: 'Images' },
   de: { Images: 'Bilder' },
+  ru: { Images: 'Изображения' },
+  zh: { Images: '图片' },
   hi: { Images: 'छवियाँ' },
   id: { Images: 'Gambar' },
-  it: { Images: 'Immagini' },
+  ur: { Images: 'تصاویر' },
   ja: { Images: '画像' },
+  pt: { Images: 'Imagens' },
+  it: { Images: 'Immagini' },
   ko: { Images: '이미지' },
-  ms: { Images: 'Imej' },
   nl: { Images: 'Afbeeldingen' },
   pl: { Images: 'Obrazy' },
-  pt: { Images: 'Imagens' },
-  ru: { Images: 'Изображения' },
-  sv: { Images: 'Bilder' },
-  th: { Images: 'รูปภาพ' },
   tr: { Images: 'Görseller' },
-  uk: { Images: 'Зображення' },
   vi: { Images: 'Hình ảnh' },
+  th: { Images: 'รูปภาพ' },
+  sv: { Images: 'Bilder' },
 };
 
 function canonicalSeo(locale: Locale, title: string) {
@@ -35,7 +35,8 @@ export function localizeToolCategory(locale: Locale, category: 'Images'): string
 export function localizeToolTitle(locale: Locale, title: string, category: 'Images'): string {
   if (locale === 'en') return title;
   const localized = canonicalSeo(locale, title).title.replace(/\s+\|\s+FLIXO$/u, '').trim();
-  return localized || `${CATEGORY_LABELS[locale][category]}`;
+  if (localized && localized !== title) return localized;
+  return `${CATEGORY_LABELS[locale][category]} — ${title}`;
 }
 
 export function localizeToolDescription(locale: Locale, title: string, category: 'Images'): string {
