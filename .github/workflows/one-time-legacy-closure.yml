@@ -1,0 +1,192 @@
+name: One-Time Legacy Closure
+
+on:
+  push:
+    branches:
+      - remediation/image-only-closure-execution-20260907
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply deterministic closure transforms
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+          import json
+          import re
+          import subprocess
+
+          root = Path('.')
+
+          def remove_simple_zh(text: str) -> str:
+              # Remove string-valued zh properties in TS/TSX object literals.
+              text = re.sub(r',\s*zh\s*:\s*([\'\"])(?:\\.|(?!\1).)*\1', '', text)
+              text = re.sub(r'zh\s*:\s*([\'\"])(?:\\.|(?!\1).)*\1\s*,', '', text)
+              return text
+
+          def remove_object_property(text: str, key: str) -> str:
+              # Remove one object property whose value is an object/array/string, preserving surrounding commas.
+              pat = re.compile(r'(?m)^([ \t]*)' + re.escape(key) + r'\s*:')
+              while True:
+                  m = pat.search(text)
+                  if not m:
+                      return text
+                  start = m.start()
+                  i = m.end()
+                  quote = None
+                  depth = 0
+                  while i < len(text):
+                      c = text[i]
+                      if quote:
+                          if c == '\\': i += 2; continue
+                          if c == quote: quote = None
+                          i += 1; continue
+                      if c in "'\"`": quote = c; i += 1; continue
+                      if c in '([{': depth += 1
+                      elif c in ')]}':
+                          if depth == 0:
+                              break
+                          depth -= 1
+                      elif c == ',' and depth == 0:
+                          break
+                      i += 1
+                  end = i + 1 if i < len(text) and text[i] == ',' else i
+                  if start > 0 and text[start - 1] == ',':
+                      start -= 1
+                  text = text[:start] + text[end:]
+
+          # Locale data contains unsupported legacy zh entries; remove only the extra locale data,
+          # while retaining the canonical Locale union (ms/uk included) and all canonical locales.
+          locale_files = [
+              'src/components/auto-localized-tool-surface.tsx',
+              'src/components/technical-tool-shell.tsx',
+              'src/data/home-locales.ts',
+              'src/data/quickflow-locales.ts',
+              'src/lib/i18n/shared-tool-ui.ts',
+              'src/lib/i18n/tool-localization.ts',
+              'src/lib/i18n/tool-ui-runtime-supplement.ts',
+              'src/lib/i18n/tool-ui-runtime.ts',
+              'src/lib/seo/tool-catalog.ts',
+          ]
+          for rel in locale_files:
+              p = root / rel
+              if not p.exists():
+                  continue
+              text = p.read_text(encoding='utf-8')
+              text = remove_object_property(text, 'zh')
+              text = remove_simple_zh(text)
+              # The zh-only external-processing branch is not part of the canonical locale set.
+              text = text.replace(" : locale === 'zh' ? '外部处理'", "")
+              p.write_text(text, encoding='utf-8')
+
+          # Product taxonomy: Images is the only category.
+          taxonomy_files = [
+              'src/routes/home-page.tsx',
+              'src/routes/ar-home-page.tsx',
+              'src/routes/ar-home-recommendation.tsx',
+              'src/routes/ar-home-tools-section.tsx',
+              'src/lib/i18n/ms-uk-category.ts',
+              'src/lib/seo/tool-catalog.ts',
+          ]
+          for rel in taxonomy_files:
+              p = root / rel
+              if not p.exists():
+                  continue
+              text = p.read_text(encoding='utf-8')
+              text = text.replace("'Images' | 'AI' | 'Other'", "'Images'")
+              text = text.replace('"Images" | "AI" | "Other"', '"Images"')
+              p.write_text(text, encoding='utf-8')
+
+          # Remove unsupported legacy taxonomy branches from tool catalog without touching image/OCR/ZIP.
+          p = root / 'src/lib/seo/tool-catalog.ts'
+          if p.exists():
+              text = p.read_text(encoding='utf-8')
+              text = re.sub(r"\n\s*if \(category === 'PDF'\)[^\n]*", '', text)
+              text = re.sub(r"\n\s*if \(category === '(?:Audio|Video|AI)'\)[^\n]*", '', text)
+              p.write_text(text, encoding='utf-8')
+
+          # Remove orphan per-tool static manifest/SEO inventories after consumer sweep.
+          manifest_paths = list(root.glob('src/tools/*/manifest.ts'))
+          for manifest in manifest_paths:
+              rel = manifest.as_posix()
+              result = subprocess.run(['git', 'grep', '-n', rel, '--', 'src', 'scripts', '.github', 'vite.config.ts'], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+              if result.returncode != 0:
+                  manifest.unlink()
+                  seo_dir = manifest.parent / 'seo'
+                  if seo_dir.exists() and seo_dir.is_dir():
+                      # Delete SEO files only when no other file in that tool directory references them.
+                      refs = subprocess.run(['git', 'grep', '-n', './seo/', '--', str(manifest.parent)], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                      if refs.returncode != 0:
+                          for child in seo_dir.rglob('*'):
+                              if child.is_file(): child.unlink()
+                          for child in sorted(seo_dir.rglob('*'), reverse=True):
+                              if child.is_dir(): child.rmdir()
+                          seo_dir.rmdir()
+
+          # Remove proven legacy packages only when source consumers are absent.
+          legacy_packages = [
+              '@ffmpeg/core', '@ffmpeg/ffmpeg', 'pdf-lib', 'pdfjs-dist', 'jspdf',
+              'gif.js', 'gifuct-js', 'qrcode', 'nodemailer', 'drizzle-orm', 'postgres',
+          ]
+          pkg = json.loads((root / 'package.json').read_text(encoding='utf-8'))
+          changed = False
+          for name in legacy_packages:
+              patterns = [f"from '{name}'", f'from "{name}"', f"require('{name}')", f'require("{name}")', f'import("{name}")', f'import(\'{name}\')']
+              consumer = any(subprocess.run(['git', 'grep', '-n', pattern, '--', 'src', 'scripts', 'vite.config.ts'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0 for pattern in patterns)
+              if not consumer:
+                  if name in pkg.get('dependencies', {}):
+                      del pkg['dependencies'][name]; changed = True
+                  if name in pkg.get('devDependencies', {}):
+                      del pkg['devDependencies'][name]; changed = True
+          for name in ['@types/gif.js', '@types/nodemailer', '@types/qrcode']:
+              module = name.replace('@types/', '')
+              consumer = subprocess.run(['git', 'grep', '-n', f"from '{module}'", '--', 'src', 'scripts'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+              if name in pkg.get('devDependencies', {}) and not consumer:
+                  del pkg['devDependencies'][name]; changed = True
+
+          if changed:
+              (root / 'package.json').write_text(json.dumps(pkg, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+              subprocess.run(['npm', 'install', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund'], check=True)
+
+          # Do not leave the transformer in the repository.
+          wf = root / '.github/workflows/one-time-legacy-closure.yml'
+          if wf.exists(): wf.unlink()
+          PY
+
+      - name: Validate transformed tree
+        env:
+          VITE_SITE_URL: https://flixoai.vercel.app
+        run: |
+          npm ci --prefer-offline --no-audit --no-fund
+          npx tsc --noEmit --pretty false
+          npm run validate:tool-registry
+          npm run validate:tool-manifest
+          npm run validate:router-registry
+      - name: Commit and push closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No closure changes to commit.'
+            exit 0
+          fi
+          git commit -m "purge: close legacy graph and regenerate lockfile"
+          git push origin HEAD:remediation/image-only-closure-execution-20260907
