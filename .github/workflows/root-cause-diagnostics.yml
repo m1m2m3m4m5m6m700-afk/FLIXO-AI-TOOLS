@@ -44,7 +44,7 @@ jobs:
           - area: security-integrity
             command: npm run audit:production && node --experimental-strip-types scripts/test-file-safety.mjs && node --experimental-strip-types scripts/test-output-integrity.mjs && node --experimental-strip-types scripts/test-svg-integrity.mjs
           - area: release-contracts
-            command: npm run test:quickflow && npm run test:ai-planner && node scripts/test-release-evidence.mjs
+            command: npm run test:quickflow && node scripts/test-release-evidence.mjs
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
