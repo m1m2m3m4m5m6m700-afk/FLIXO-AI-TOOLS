@@ -74,42 +74,16 @@ jobs:
           retention-days: 3
 
   matrix:
-    name: Matrix First — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    name: Matrix First — shard-${{ matrix.shardIndex }}/12
     needs: [static-and-build]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
       fail-fast: false
-      max-parallel: 9
+      max-parallel: 12
       matrix:
-        include:
-          - browser: chromium
-            shard: 1
-            total_shards: 3
-          - browser: chromium
-            shard: 2
-            total_shards: 3
-          - browser: chromium
-            shard: 3
-            total_shards: 3
-          - browser: firefox
-            shard: 1
-            total_shards: 3
-          - browser: firefox
-            shard: 2
-            total_shards: 3
-          - browser: firefox
-            shard: 3
-            total_shards: 3
-          - browser: webkit
-            shard: 1
-            total_shards: 3
-          - browser: webkit
-            shard: 2
-            total_shards: 3
-          - browser: webkit
-            shard: 3
-            total_shards: 3
+        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        totalShards: [12]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -134,31 +108,78 @@ jobs:
           test -f dist/index.html
       - name: Install Playwright system dependencies
         timeout-minutes: 8
-        run: npx playwright install-deps '${{ matrix.browser }}'
-      - name: Cache Playwright browser
+        run: |
+          set -euo pipefail
+          npx playwright install-deps chromium
+          npx playwright install-deps firefox
+          npx playwright install-deps webkit
+      - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: matrix-first-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          key: matrix-first-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: |
-            matrix-first-${{ runner.os }}-${{ matrix.browser }}-
-      - name: Install browser
-        timeout-minutes: 8
-        env:
-          BROWSER: ${{ matrix.browser }}
+            matrix-first-${{ runner.os }}-
+      - name: Install Playwright browsers
+        timeout-minutes: 12
         run: |
           set -euo pipefail
-          executable="$(node - <<'NODE'
-          const p = require('playwright');
-          const b = p[process.env.BROWSER];
-          process.stdout.write(b.executablePath());
+          for browser in chromium firefox webkit; do
+            executable="$(node -e "const p=require('playwright'); process.stdout.write(p[process.argv[1]].executablePath())" "$browser")"
+            if [[ -x "$executable" ]]; then
+              echo "Browser cache hit: $browser -> $executable"
+            else
+              timeout --preserve-status 420s npx playwright install "$browser"
+            fi
+          done
+      - name: Prepare isolated logical shard
+        id: shard
+        shell: bash
+        env:
+          SHARD_INDEX: ${{ matrix.shardIndex }}
+          TOTAL_SHARDS: ${{ matrix.totalShards }}
+        run: |
+          set -euo pipefail
+          node >tests/.matrix-localization-runtime-${SHARD_INDEX}.spec.ts <<'NODE'
+          const fs = require('node:fs');
+          const index = Number(process.env.SHARD_INDEX);
+          const total = Number(process.env.TOTAL_SHARDS);
+          if (!Number.isInteger(index) || index < 1 || index > total || total !== 12) throw new Error(`Invalid logical shard ${index}/${total}`);
+
+          const source = fs.readFileSync('tests/localization-runtime.spec.ts', 'utf8');
+          const sitemap = fs.readFileSync('dist/sitemap.xml', 'utf8');
+          const routes = [...new Set([...sitemap.matchAll(/<url>\s*<loc>([^<]+)<\/loc>[\s\S]*?<\/url>/gu)].map((match) => new URL(match[1]).pathname))].sort((a, b) => a.localeCompare(b));
+          const familyPath = (pathname) => pathname.replace(/^\/[^/]+(?=\/|$)/u, '') || '/';
+          const coreFamilies = new Set([
+            '/',
+            '/aspect-ratio-calculator',
+            '/image-compressor',
+            '/image-converter',
+            '/image-cropper',
+            '/image-to-svg',
+            '/image-ocr',
+            '/background-remover',
+            '/object-remover',
+            '/ai-image-generator',
+            '/seed',
+            '/pix',
+          ]);
+          const core = routes.filter((route) => coreFamilies.has(familyPath(route)));
+          const remainder = routes.filter((route) => !coreFamilies.has(familyPath(route)));
+          const buckets = Array.from({ length: total }, () => []);
+          buckets[0].push(...core);
+          remainder.forEach((route, offset) => buckets[(offset % (total - 1)) + 1].push(route));
+          const selected = buckets[index - 1].slice();
+          if (index % 2 === 0) selected.reverse();
+          const replacement = `const routes = ${JSON.stringify(selected, null, 2)};`;
+          const rewritten = source.replace(/const routes = .*?\.sort\(\);/su, replacement);
+          if (rewritten === source) throw new Error('Failed to materialize shard route list');
+          process.stdout.write(rewritten);
+          console.error(`logical shard ${index}/${total}: ${selected.length} routes; order=${index % 2 === 0 ? 'reverse' : 'forward'}`);
+          console.error(`first=${selected[0] ?? '<none>'}`);
+          console.error(`last=${selected.at(-1) ?? '<none>'}`);
           NODE
-          )"
-          if [[ -x "$executable" ]]; then
-            echo "Browser cache hit: $executable"
-            exit 0
-          fi
-          timeout --preserve-status 420s npx playwright install '${{ matrix.browser }}'
+          echo "MATRIX_SPEC=tests/.matrix-localization-runtime-${SHARD_INDEX}.spec.ts" >> "$GITHUB_OUTPUT"
       - name: Start isolated preview
         shell: bash
         run: |
@@ -176,21 +197,22 @@ jobs:
           test "$ready" = 1
           curl --fail --silent --show-error --http1.1 http://127.0.0.1:3000/ar/aspect-ratio-calculator >/tmp/matrix-first-readiness.html
           grep -qi '<html' /tmp/matrix-first-readiness.html
-      - name: Run browser shard — fail on first failure
-        timeout-minutes: 15
+      - name: Run three-browser logical shard — fail on first failure
+        timeout-minutes: 18
+        env:
+          MATRIX_SPEC: ${{ steps.shard.outputs.MATRIX_SPEC }}
         run: |
           set -euo pipefail
-          npx playwright test tests/localization-runtime.spec.ts \
-            --project=${{ matrix.browser }} \
+          npx playwright test "$MATRIX_SPEC" \
             --workers=6 \
             --retries=0 \
             --max-failures=1 \
-            --shard=${{ matrix.shard }}/${{ matrix.total_shards }}
+            --trace=retain-on-failure
       - name: Upload matrix diagnostics
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: matrix-first-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
+          name: matrix-first-shard-${{ matrix.shardIndex }}-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/
@@ -204,6 +226,7 @@ jobs:
         run: |
           set +e
           if [ -f /tmp/matrix-first-server.pid ]; then kill "$(cat /tmp/matrix-first-server.pid)" 2>/dev/null || true; fi
+          rm -f tests/.matrix-localization-runtime-${{ matrix.shardIndex }}.spec.ts
 
   certification:
     name: Matrix First Certification
@@ -219,4 +242,4 @@ jobs:
           matrix_result='${{ needs.matrix.result }}'
           test "$static_result" = success
           test "$matrix_result" = success
-          echo "Matrix First Certification PASS: exact source ${EXPECTED_HEAD_SHA} consumed by Chromium, Firefox, and WebKit shards."
+          echo "Matrix First Certification PASS: exact source ${EXPECTED_HEAD_SHA} consumed by Chromium, Firefox, and WebKit across 12 logical shards."

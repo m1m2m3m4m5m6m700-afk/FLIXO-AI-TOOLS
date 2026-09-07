@@ -80,23 +80,13 @@ test.setTimeout(60_000);
 for (const pathname of routes) {
   test(`G4 all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
     const runtimeErrors: string[] = [];
-    page.on('pageerror', (error) => {
-      runtimeErrors.push(`pageerror: ${error.message}`);
-      console.log(`[G4 PAGEERROR] ${error.stack || error.message}`);
-    });
-    page.on('console', (message) => {
-      console.log(`[G4 BROWSER ${message.type()}] ${message.text()}`);
-      if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`);
-    });
+    page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
+    page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
     page.on('requestfailed', (request) => {
-      const failure = `${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`;
-      console.log(`[G4 REQUESTFAILED] ${failure}`);
-      if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${failure}`);
+      if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`);
     });
 
     const response = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    console.log(`[G4 NAV] pathname=${pathname} url=${page.url()} status=${response?.status() ?? 'null'}`);
-    console.log(`[G4 HTML BEFORE ASSERT] lang=${await page.locator('html').getAttribute('lang')} dir=${await page.locator('html').getAttribute('dir')}`);
     expect(response?.status(), `${pathname} must return HTTP 200`).toBe(200);
     await page.waitForLoadState('networkidle').catch(() => undefined);
 

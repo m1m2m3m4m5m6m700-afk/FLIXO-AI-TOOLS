@@ -32,6 +32,8 @@
     </script>
     <script>
       (() => {
+        // This synchronous bootstrap is the pre-bundle locale boundary. It must match
+        // src/lib/i18n/config.ts exactly so every public locale is correct at time-zero.
         const localeMap = {
           ar: ['ar', 'rtl'], en: ['en', 'ltr'], es: ['es', 'ltr'], fr: ['fr', 'ltr'], de: ['de', 'ltr'],
           hi: ['hi', 'ltr'], id: ['id', 'ltr'], it: ['it', 'ltr'], ja: ['ja', 'ltr'], ko: ['ko', 'ltr'],
@@ -44,36 +46,6 @@
         html.setAttribute('lang', lang);
         html.setAttribute('dir', dir);
         html.setAttribute('data-flixo-locale', localeKey);
-
-        // CI-only forensic hook: capture every later native DOM mutation of html[lang].
-        if (window.location.hostname === '127.0.0.1') {
-          const report = (operation, value) => {
-            console.error(`[G4 LANG ${operation}] value=${JSON.stringify(value)}\n${new Error().stack || 'no stack'}`);
-          };
-          const nativeSetAttribute = Element.prototype.setAttribute;
-          Element.prototype.setAttribute = function(name, value) {
-            if (this === document.documentElement && name.toLowerCase() === 'lang') report('SETATTRIBUTE', String(value));
-            return nativeSetAttribute.call(this, name, value);
-          };
-          const nativeRemoveAttribute = Element.prototype.removeAttribute;
-          Element.prototype.removeAttribute = function(name) {
-            if (this === document.documentElement && name.toLowerCase() === 'lang') report('REMOVEATTRIBUTE', null);
-            return nativeRemoveAttribute.call(this, name);
-          };
-          const langDescriptor = Object.getOwnPropertyDescriptor(HTMLHtmlElement.prototype, 'lang');
-          if (langDescriptor?.set && langDescriptor.get) {
-            Object.defineProperty(HTMLHtmlElement.prototype, 'lang', {
-              configurable: langDescriptor.configurable,
-              enumerable: langDescriptor.enumerable,
-              get: langDescriptor.get,
-              set(value) {
-                if (this === document.documentElement) report('PROPERTY', String(value));
-                langDescriptor.set.call(this, value);
-              },
-            });
-          }
-          console.log(`[G4 LANG INITIAL] ${html.getAttribute('lang')}`);
-        }
       })();
     </script>
   </head>
