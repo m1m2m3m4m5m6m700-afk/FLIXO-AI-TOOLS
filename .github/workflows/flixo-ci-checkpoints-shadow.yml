@@ -30,9 +30,9 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit --pretty false
       - name: Checkpoint semantics
-        run: node --experimental-strip-types scripts/ci/checkpoints/checkpoint.test.mjs
+        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/checkpoints/checkpoint.test.mjs
       - name: Checkpoint self-test
-        run: node --experimental-strip-types scripts/ci/checkpoints/self-test.mjs
+        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/checkpoints/self-test.mjs
       - name: Verify checkpoint fingerprint shape
         shell: bash
         run: |
