@@ -131,7 +131,7 @@ jobs:
         run: |
           set -euo pipefail
           node -e 'const m=require("./dist/_flixo_build_manifest.json"); const expected=process.env.FLIXO_SOURCE_SHA; if(m.sha!==expected || m.commit_sha!==expected) { console.error({manifest:m.sha, expected}); process.exit(1); }'
-          node -e 'const crypto=require("node:crypto"),fs=require("node:fs"); const p=require("./matrix-plan/matrix-plan.json"); const {plan_hash,signature,signature_algorithm,...u}=p; const c=JSON.stringify(u); const h=crypto.createHash("sha256").update(c).digest("hex"); const s=crypto.createHmac("sha256",process.env.FLIXO_MATRIX_PLAN_SIGNING_KEY).update(c).digest("hex"); if(h!==plan_hash||s!==signature||signature_algorithm!=="HMAC-SHA256"||p.source_sha!==process.env.FLIXO_SOURCE_SHA) process.exit(1); fs.copyFileSync("matrix-plan/matrix-plan.json","matrix-plan/_flixo_matrix_plan.json");'
+          node -e 'const crypto=require("node:crypto"),fs=require("node:fs"); const p=require("./matrix-plan/matrix-plan.json"); const {plan_hash,signature,signature_algorithm,...u}=p; const c=JSON.stringify(u); const h=crypto.createHash("sha256").update(c).digest("hex"); const s=crypto.createHmac("sha256",process.env.FLIXO_MATRIX_PLAN_SIGNING_KEY).update(c).digest("hex"); if(h!==plan_hash||s!==signature||signature_algorithm!=="HMAC-SHA256"||p.source_sha!==process.env.FLIXO_SOURCE_SHA) process.exit(1);'
       - name: Install Playwright system dependencies
         timeout-minutes: 8
         run: npx playwright install-deps '${{ matrix.browser }}'
@@ -163,14 +163,15 @@ jobs:
             test -f "tests/${test_file}.spec.ts" || exit 2
             TEST_SPECS+=("tests/${test_file}.spec.ts")
           done
-          PLAYWRIGHT_JSON_OUTPUT_NAME=full-matrix-evidence/playwright-results.json npx playwright test "${TEST_SPECS[@]}" --project=${{ matrix.browser }} --workers=6 --retries=0 --reporter=json
+          RESULT_FILE="full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}-playwright-results.json"
+          PLAYWRIGHT_JSON_OUTPUT_NAME="$RESULT_FILE" npx playwright test "${TEST_SPECS[@]}" --project=${{ matrix.browser }} --workers=6 --retries=0 --reporter=json
           rc=$?
           set -e
-          MATRIX_PLAN_HASH="$(node -e 'process.stdout.write(require("./matrix-plan/_flixo_matrix_plan.json").plan_hash)')"
-          MATRIX_TEST_COUNT="$(node -e 'process.stdout.write(String(require("./matrix-plan/_flixo_matrix_plan.json").matrix.find((u)=>u.browser==="${{ matrix.browser }}"&&u.shard===${{ matrix.shard }}).test_count))')"
-          FLIXO_SOURCE_SHA="$FLIXO_SOURCE_SHA" MATRIX_PLAN_HASH="$MATRIX_PLAN_HASH" MATRIX_BROWSER='${{ matrix.browser }}' MATRIX_SHARD='${{ matrix.shard }}' MATRIX_TESTS="$TESTS" MATRIX_TEST_COUNT="$MATRIX_TEST_COUNT" PLAYWRIGHT_JSON_REPORT=full-matrix-evidence/playwright-results.json MATRIX_EVIDENCE_OUTPUT=full-matrix-evidence/evidence.json node scripts/ci/write-matrix-evidence.mjs
+          MATRIX_PLAN_HASH="$(node -e 'process.stdout.write(require("./matrix-plan/matrix-plan.json").plan_hash)')"
+          MATRIX_TEST_COUNT="$(node -e 'const p=require("./matrix-plan/matrix-plan.json"); const u=p.matrix.find((item)=>item.browser==="${{ matrix.browser }}"&&item.shard===${{ matrix.shard }}); if(!u) process.exit(2); process.stdout.write(String(u.test_count))')"
+          FLIXO_SOURCE_SHA="$FLIXO_SOURCE_SHA" MATRIX_PLAN_HASH="$MATRIX_PLAN_HASH" MATRIX_BROWSER='${{ matrix.browser }}' MATRIX_SHARD='${{ matrix.shard }}' MATRIX_TESTS="$TESTS" MATRIX_TEST_COUNT="$MATRIX_TEST_COUNT" PLAYWRIGHT_JSON_REPORT="$RESULT_FILE" MATRIX_EVIDENCE_OUTPUT="full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}.json" node scripts/ci/write-matrix-evidence.mjs
           evidence_rc=$?
-          echo "$rc" > full-matrix-evidence/process-exit-code.txt
+          echo "$rc" > "full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}-process-exit-code.txt"
           exit $(( rc != 0 ? rc : evidence_rc ))
       - name: Upload matrix evidence
         if: always()
