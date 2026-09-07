@@ -37,6 +37,7 @@
         "RC-MATRIX-006",
         "RC-MATRIX-007"
       ],
+      "workItemIds": [],
       "status": "released",
       "leasedAt": "2026-09-07T17:10:00Z",
       "leaseUntil": "2026-09-07T17:40:00Z"
@@ -93,6 +94,11 @@
         "RC-CI-003",
         "RC-G4-MATRIX-001",
         "RC-G4-ROUTER-001"
+      ],
+      "workItemIds": [
+        "WQ-MATRIX-001",
+        "WQ-MATRIX-002",
+        "WQ-CI-001"
       ],
       "status": "active",
       "leasedAt": "2026-09-07T18:00:00Z",
