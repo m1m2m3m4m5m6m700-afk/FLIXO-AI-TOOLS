@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "protocol": "FLIXO active agent sessions",
+  "source_of_truth": "artifacts/ci/agent-coordination/events.ndjson",
+  "generated_at": "2026-09-07T19:03:00.000Z",
+  "active_sessions": []
+}
