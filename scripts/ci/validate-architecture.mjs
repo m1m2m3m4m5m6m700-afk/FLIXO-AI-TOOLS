@@ -6,7 +6,6 @@ const workflows = readdirSync(workflowDir).filter((file) => /\.(ya?ml)$/u.test(f
 const contents = Object.fromEntries(workflows.map((file) => [file, readFileSync(join(workflowDir, file), 'utf8')]));
 const failures = [];
 const fail = (message) => failures.push(message);
-const has = (file, pattern) => pattern.test(contents[file] ?? '');
 
 const ci = contents['ci.yml'] ?? '';
 if (!ci) fail('ci.yml is missing.');
@@ -36,7 +35,7 @@ if (!/if:\s*\$\{\{\s*always\(\)\s*\}\}/u.test(fullMatrix)) fail('Full Matrix cer
 const forbiddenWorkflowResidue = /(^|[\s/'"`])(s4-runtime-e2e|ai-captioner-srt)(?:$|[\s/'"`])/iu;
 for (const [file, source] of Object.entries(contents)) {
   if (forbiddenWorkflowResidue.test(source)) fail(`${file}: forbidden legacy S4/tool residue detected.`);
-  if (/\b(if|continue-on-error):\s*(?:false|true)/u.test(source) && /continue-on-error:\s*true/u.test(source)) fail(`${file}: failure suppression detected.`);
+  if (/continue-on-error:\s*true/u.test(source)) fail(`${file}: failure suppression detected.`);
 }
 
 const requiredStaticFiles = [
@@ -45,7 +44,7 @@ const requiredStaticFiles = [
   'src/config/tools.ts',
   'src/config/tool-definitions/image.ts',
   'src/routes/route-tree.ts',
-  'src/routes/localized-tool.tsx',
+  'src/routes/localized-tool-page.tsx',
   'scripts/validate-seo.mjs',
   'scripts/validate-seo-manifest.mjs',
   'scripts/validate-canonical-locale-surface.mjs',
