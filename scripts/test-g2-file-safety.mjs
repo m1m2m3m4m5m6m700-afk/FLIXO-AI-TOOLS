@@ -13,8 +13,11 @@ const failContains = (result, fragment, message) => {
 const makeSignatureContent = (key) => {
   const signature = MAGIC_BYTE_SIGNATURES[key];
   assert.ok(signature, `missing signature for ${key}`);
-  const maxOffset = Math.max(signature.offset ?? 0, ...(signature.segments ?? []).map((segment) => segment.offset));
-  const length = Math.max((signature.offset ?? 0) + signature.bytes.length, ...((signature.segments ?? []).map((segment) => segment.offset + segment.bytes.length)), maxOffset + 1);
+  const length = Math.max(
+    (signature.offset ?? 0) + signature.bytes.length,
+    ...((signature.segments ?? []).map((segment) => segment.offset + segment.bytes.length)),
+    (signature.offset ?? 0) + signature.bytes.length,
+  );
   const content = new Uint8Array(length);
   content.set(signature.bytes, signature.offset ?? 0);
   for (const segment of signature.segments ?? []) content.set(segment.bytes, segment.offset);
@@ -26,15 +29,11 @@ const matrix = [
   ['jpg', 'image/jpeg', 'jpeg'],
   ['webp', 'image/webp', 'webp'],
   ['gif', 'image/gif', 'gif'],
-  ['pdf', 'application/pdf', 'pdf'],
+  ['bmp', 'image/bmp', 'bmp'],
+  ['avif', 'image/avif', 'avif'],
   ['zip', 'application/zip', 'zip'],
-  ['mp3', 'audio/mpeg', 'mp3'],
-  ['wav', 'audio/wav', 'wav'],
-  ['mp4', 'video/mp4', 'mp4'],
-  ['webm', 'video/webm', 'webm'],
   ['txt', 'text/plain', null],
   ['json', 'application/json', null],
-  ['csv', 'text/csv', null],
 ];
 
 const binaryKeys = new Set(matrix.filter(([, , key]) => key).map(([, , key]) => key));
@@ -57,8 +56,7 @@ for (const [extension, mime, signatureKey] of matrix) {
   );
 
   const corrupt = content.slice();
-  const corruptOffset = signature.offset ?? 0;
-  corrupt[corruptOffset] ^= 0xff;
+  corrupt[signature.offset ?? 0] ^= 0xff;
   failContains(
     validateFileSafety({ name: `corrupt.${extension}`, mime, bytes: corrupt.byteLength, content: corrupt }, policy),
     'input magic bytes do not match',
@@ -66,8 +64,8 @@ for (const [extension, mime, signatureKey] of matrix) {
   );
 }
 
-for (const [extension, mime] of [['txt', 'text/plain'], ['csv', 'text/csv']]) {
-  const content = text(extension === 'csv' ? 'name,value\nflixo,1\n' : 'FLIXO safe text');
+for (const [extension, mime] of [['txt', 'text/plain']]) {
+  const content = text('FLIXO safe text');
   const policy = { allowedMime: [mime], allowedExtensions: [extension], maxBytes: 64, contentValidation: 'utf8' };
   assert.equal(validateFileSafety({ name: `valid.${extension}`, mime, bytes: content.byteLength, content }, policy).safe, true);
 }
@@ -171,11 +169,7 @@ failContains(
   'Potential ZIP bomb detected',
   'archive compression ratio bypassed',
 );
-assert.equal(
-  validateArchiveEntries([{ name: 'safe.bin', compressedBytes: 10, uncompressedBytes: 400 }], archivePolicy).safe,
-  true,
-  'archive exactly at compression ratio boundary rejected',
-);
+assert.equal(validateArchiveEntries([{ name: 'safe.bin', compressedBytes: 10, uncompressedBytes: 400 }], archivePolicy).safe, true);
 
 failContains(
   validateArchiveEntries([
@@ -204,8 +198,11 @@ for (const name of ['/etc/passwd', 'C:\\Windows\\system.ini', '\\\\server\\share
 }
 failContains(validateArchiveEntries([{ name: 'link.txt', uncompressedBytes: 1, isSymlink: true }], archivePolicy), 'symlink entries are not allowed', 'archive symlink accepted');
 
-const categories = ['PNG', 'JPEG', 'WebP', 'GIF', 'PDF', 'ZIP', 'Audio', 'Video', 'Text', 'JSON', 'CSV'];
-assert.equal(binaryKeys.size >= 10, true);
-assert.equal(categories.length, 11);
+assert.deepEqual(
+  [...matrix.map(([extension]) => extension), 'txt', 'json'].sort(),
+  ['avif', 'bmp', 'gif', 'jpg', 'json', 'png', 'txt', 'webp', 'zip'].sort(),
+  'G2 Image product input matrix drift detected',
+);
+assert.equal(binaryKeys.size, 7, 'G2 binary signature matrix drift detected');
 
-console.log(`G2 UNIVERSAL FILE SAFETY PASSED: matrix=${matrix.length} formats, binary=${binaryKeys.size}, archive=nested-recursive+compression-ratio, upload=raw-bytes, dimensions=bounded`);
+console.log(`G2 IMAGE FILE SAFETY PASSED: matrix=${matrix.length} formats, binary=${binaryKeys.size}, archive=nested-recursive+compression-ratio, upload=raw-bytes, dimensions=bounded`);
