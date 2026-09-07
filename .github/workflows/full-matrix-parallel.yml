@@ -23,17 +23,63 @@ env:
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
 
 jobs:
+  source_build:
+    name: Full Matrix Source Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npm run build
+      - name: Write immutable build manifest
+        run: node scripts/ci/write-build-artifact-manifest.mjs
+      - name: Publish immutable source artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: full-matrix-source-${{ github.sha }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 14
+
+  weighted_plan:
+    name: Full Matrix Weighted Plan
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      shard_count: ${{ steps.plan.outputs.shard_count }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Build weighted shard plan
+        id: plan
+        env:
+          CI_SHARD_COUNT: 6
+          CI_MAX_SHARDS: 18
+          CI_RUNNER_BUDGET: 8
+          CI_RUNNER_RESERVE: 2
+          CI_BROWSERS: chromium,firefox,webkit
+        run: node scripts/ci/weighted-shard-plan.mjs
+
   matrix:
     name: Full Matrix — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    needs: [source_build, weighted_plan]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
-      # All matrix units are evidence producers. Do not cancel siblings: a
-      # certification job must see the complete browser × shard result set.
       fail-fast: false
       matrix:
-        browser: [chromium, firefox, webkit]
-        shard: [1, 2, 3, 4]
+        include: ${{ fromJSON(needs.weighted_plan.outputs.matrix) }}
     env:
       PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
       S4_EXTERNAL_SERVER: 'true'
@@ -48,60 +94,34 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Download immutable source artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: full-matrix-source-${{ github.sha }}
+          path: dist
       - name: Install Playwright system dependencies
         timeout-minutes: 8
-        run: |
-          set -euo pipefail
-          npx playwright install-deps '${{ matrix.browser }}'
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-full-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+        run: npx playwright install-deps '${{ matrix.browser }}'
       - name: Install browser
         timeout-minutes: 8
-        env:
-          BROWSER: ${{ matrix.browser }}
-        run: |
-          set -euo pipefail
-          executable="$(node - <<'NODE'
-          const p = require('playwright');
-          const b = p[process.env.BROWSER];
-          if (!b) process.exit(2);
-          process.stdout.write(b.executablePath());
-          NODE
-          )"
-          if [[ -x "$executable" ]]; then
-            echo "Playwright browser cache hit: $executable"
-            exit 0
-          fi
-          timeout --preserve-status 420s npx playwright install "$BROWSER"
-      - name: Build production preview
-        run: npm run build
-      - name: Start isolated preview
+        run: npx playwright install '${{ matrix.browser }}'
+      - name: Resolve and run shard
+        timeout-minutes: 15
         shell: bash
         run: |
           set -euo pipefail
-          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/full-matrix-server.log 2>&1 &
-          echo $! >/tmp/full-matrix-server.pid
-          for _ in $(seq 1 60); do
-            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
-            sleep 1
+          test -f dist/_flixo_build_manifest.json
+          for test_file in ${{ join(matrix.tests, ' ') }}; do
+            test -f "tests/${test_file}.spec.ts"
           done
-          cat /tmp/full-matrix-server.log || true
-          exit 1
-      - name: Run matrix shard
-        timeout-minutes: 15
-        run: |
-          set -euo pipefail
-          echo "Matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/4"
-          npx playwright test tests/localization-runtime.spec.ts \
+          specs=()
+          for test_file in ${{ join(matrix.tests, ' ') }}; do specs+=("tests/${test_file}.spec.ts"); done
+          npx playwright test "${specs[@]}" \
             --project=${{ matrix.browser }} \
             --workers=6 \
             --retries=0 \
-            --max-failures=1 \
-            --shard=${{ matrix.shard }}/4
-      - name: Upload matrix diagnostics
+            --max-failures=1
+      - name: Upload matrix evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -109,15 +129,9 @@ jobs:
           path: |
             playwright-report/
             test-results/
-            /tmp/full-matrix-server.log
+            dist/_flixo_build_manifest.json
           if-no-files-found: warn
           retention-days: 14
-      - name: Cleanup
-        if: always()
-        shell: bash
-        run: |
-          set +e
-          if [ -f /tmp/full-matrix-server.pid ]; then kill "$(cat /tmp/full-matrix-server.pid)" 2>/dev/null || true; fi
 
   certification:
     name: Full Matrix Certification
@@ -135,4 +149,4 @@ jobs:
             echo "Full Matrix certification failed: one or more browser/shard units did not pass."
             exit 1
           }
-          echo 'Full Matrix Certification PASS: all 12 browser/shard units passed.'
+          echo 'Full Matrix Certification PASS: all planned browser/shard units passed.'
