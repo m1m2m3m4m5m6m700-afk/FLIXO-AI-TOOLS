@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 2,
+  "protocol": "FLIXO multi-agent coordination",
+  "sourceOfTruth": "artifacts/ci/agent-coordination/events.ndjson",
+  "generatedAt": "2026-09-07T19:03:00.000Z",
+  "leaseMinutes": 30,
+  "heartbeatMinutes": 10,
+  "claims": []
+}
