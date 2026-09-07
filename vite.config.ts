@@ -23,6 +23,7 @@ function vendorChunk(id: string): string | undefined {
 
 export default defineConfig({
   plugins: [react()],
+  appType: 'mpa',
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
