@@ -22,4 +22,216 @@ env:
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
 
-authoring_placeholder: removed
+jobs:
+  source_build:
+    name: Matrix First Source Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FLIXO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npm run build
+      - name: Write immutable build manifest
+        run: node scripts/ci/write-build-artifact-manifest.mjs
+      - name: Publish immutable source artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: matrix-first-source-${{ github.event.pull_request.head.sha || github.sha }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 14
+
+  weighted_plan:
+    name: Matrix First Planner
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      FLIXO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      FLIXO_MATRIX_PLAN_SIGNING_KEY: ${{ secrets.FLIXO_MATRIX_PLAN_SIGNING_KEY }}
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      plan: ${{ steps.plan.outputs.plan }}
+      shard_count: ${{ steps.plan.outputs.shard_count }}
+      plan_hash: ${{ steps.plan.outputs.plan_hash }}
+      plan_file: ${{ steps.plan.outputs.plan_file }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Validate protocol cooperation
+        run: node --experimental-strip-types scripts/ci/validate-protocol-cooperation.mjs
+      - name: Validate contract coverage closure
+        env:
+          FLIXO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node --experimental-strip-types scripts/ci/validate-contract-coverage.mjs
+      - name: Build signed immutable matrix plan
+        id: plan
+        env:
+          CI_SHARD_COUNT: 6
+          CI_MAX_SHARDS: 18
+          CI_RUNNER_BUDGET: 8
+          CI_RUNNER_RESERVE: 2
+          CI_BROWSERS: chromium,firefox,webkit
+        run: node scripts/ci/weighted-shard-plan.mjs
+      - name: Publish signed matrix plan
+        uses: actions/upload-artifact@v6
+        with:
+          name: matrix-first-plan-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            _flixo_matrix_plan.json
+            artifacts/ci/protocol-cooperation/cooperation-map.json
+            artifacts/ci/protocol-cooperation/contract-coverage.json
+          if-no-files-found: error
+          retention-days: 14
+
+  matrix:
+    name: Matrix First — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    needs: [source_build, weighted_plan]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.weighted_plan.outputs.matrix) }}
+    env:
+      FLIXO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      FLIXO_MATRIX_PLAN_SIGNING_KEY: ${{ secrets.FLIXO_MATRIX_PLAN_SIGNING_KEY }}
+      PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+      S4_EXTERNAL_SERVER: 'true'
+      PLAYWRIGHT_SERVER: preview
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Download immutable source artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: matrix-first-source-${{ github.event.pull_request.head.sha || github.sha }}
+          path: dist
+      - name: Download authoritative matrix plan
+        uses: actions/download-artifact@v7
+        with:
+          name: matrix-first-plan-${{ github.event.pull_request.head.sha || github.sha }}
+          path: matrix-provenance
+      - name: Verify source and signed plan identity
+        run: |
+          set -euo pipefail
+          node -e 'const m=require("./dist/_flixo_build_manifest.json"); const expected=process.env.FLIXO_SOURCE_SHA; if(m.sha!==expected || m.commit_sha!==expected) { console.error({manifest:m.sha, expected}); process.exit(1); }'
+          node -e 'const crypto=require("node:crypto"); const p=require("./matrix-provenance/_flixo_matrix_plan.json"); const {plan_hash,signature,signature_algorithm,...u}=p; const c=JSON.stringify(u); const h=crypto.createHash("sha256").update(c).digest("hex"); const s=crypto.createHmac("sha256",process.env.FLIXO_MATRIX_PLAN_SIGNING_KEY).update(c).digest("hex"); if(h!==plan_hash||s!==signature||signature_algorithm!=="HMAC-SHA256"||p.source_sha!==process.env.FLIXO_SOURCE_SHA||p.schema_version!==4) { console.error({h,plan_hash,signatureAlgorithm:signature_algorithm}); process.exit(1); }'
+          node -e 'const p=require("./matrix-provenance/_flixo_matrix_plan.json"); const u=p.matrix.find((item)=>item.browser==="${{ matrix.browser }}"&&item.shard===${{ matrix.shard }}); if(!u) process.exit(1); if(!Array.isArray(u.test_ids)||u.test_ids.length!==Number(u.test_count)||new Set(u.test_ids).size!==u.test_ids.length) process.exit(1);'
+      - name: Install Playwright system dependencies
+        timeout-minutes: 8
+        run: npx playwright install-deps '${{ matrix.browser }}'
+      - name: Install browser
+        timeout-minutes: 8
+        run: npx playwright install '${{ matrix.browser }}'
+      - name: Start isolated preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/matrix-first-server.log 2>&1 &
+          echo $! >/tmp/matrix-first-server.pid
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/matrix-first-server.log || true
+          exit 1
+      - name: Run shard and produce native Playwright evidence
+        shell: bash
+        run: |
+          set +e
+          mkdir -p full-matrix-evidence
+          TESTS='${{ join(matrix.tests, ',') }}'
+          TEST_SPECS=()
+          IFS=',' read -ra SUITES <<< "$TESTS"
+          for test_file in "${SUITES[@]}"; do
+            test -f "tests/${test_file}.spec.ts" || exit 2
+            TEST_SPECS+=("tests/${test_file}.spec.ts")
+          done
+          RESULT_FILE="full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}-playwright-results.json"
+          PLAYWRIGHT_JSON_OUTPUT_NAME="$RESULT_FILE" npx playwright test "${TEST_SPECS[@]}" --project=${{ matrix.browser }} --workers=6 --retries=0 --fail-on-flaky-tests --reporter=json
+          rc=$?
+          set -e
+          MATRIX_PLAN_PATH="matrix-provenance/_flixo_matrix_plan.json" FLIXO_SOURCE_SHA="$FLIXO_SOURCE_SHA" MATRIX_BROWSER='${{ matrix.browser }}' MATRIX_SHARD='${{ matrix.shard }}' PLAYWRIGHT_JSON_REPORT="$RESULT_FILE" MATRIX_EVIDENCE_OUTPUT="full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}.json" FLIXO_MATRIX_PLAN_SIGNING_KEY="$FLIXO_MATRIX_PLAN_SIGNING_KEY" node scripts/ci/write-matrix-evidence.mjs
+          evidence_rc=$?
+          echo "$rc" > "full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}-process-exit-code.txt"
+          exit $(( rc != 0 ? rc : evidence_rc ))
+      - name: Upload matrix evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: matrix-first-evidence-${{ matrix.browser }}-${{ matrix.shard }}-${{ github.run_id }}
+          path: |
+            full-matrix-evidence/
+            playwright-report/
+            test-results/
+            dist/_flixo_build_manifest.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/matrix-first-server.pid ]; then kill "$(cat /tmp/matrix-first-server.pid)" 2>/dev/null || true; fi
+
+  certification:
+    name: Matrix First Certification
+    needs: [matrix]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      FLIXO_MATRIX_PLAN_SIGNING_KEY: ${{ secrets.FLIXO_MATRIX_PLAN_SIGNING_KEY }}
+    steps:
+      - name: Checkout exact certification SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Download authoritative matrix plan
+        uses: actions/download-artifact@v7
+        with:
+          name: matrix-first-plan-${{ github.event.pull_request.head.sha || github.sha }}
+          path: matrix-provenance
+      - name: Download all matrix evidence
+        uses: actions/download-artifact@v7
+        with:
+          pattern: matrix-first-evidence-*
+          path: full-matrix-evidence
+          merge-multiple: true
+      - name: Validate complete exact-SHA matrix evidence
+        env:
+          EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVIDENCE_ROOT: full-matrix-evidence
+          MATRIX_PLAN_PATH: matrix-provenance/_flixo_matrix_plan.json
+        run: node scripts/ci/validate-full-matrix-evidence.mjs
+      - name: Fail closed on matrix result
+        run: |
+          set -euo pipefail
+          result='${{ needs.matrix.result }}'
+          echo "matrix=$result"
+          test "$result" = success
+          echo 'Matrix First Certification PASS: all planned suites and immutable test IDs executed exactly once per browser across the signed weighted plan.'
