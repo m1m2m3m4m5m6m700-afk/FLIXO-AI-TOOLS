@@ -394,7 +394,135 @@ Any source, workflow, dependency, configuration, or contract change that can aff
 
 ---
 
-## 20. Release Gate Conjunction
+## 20. Single Source of Truth Lock
+
+Each foundational fact MUST have exactly one authoritative owner. Derived systems MUST consume that authority rather than redefine it.
+
+Examples for this repository include:
+
+```text
+TOOLS_REGISTRY → Router
+TOOLS_REGISTRY → Sitemap
+TOOLS_REGISTRY → SEO
+TOOLS_REGISTRY → E2E inventory
+LOCALES → locale types / metadata / supported-locale assertions
+canonical route resolver → localized public route
+```
+
+A duplicate representation is permitted only when it is demonstrably derived and mechanically checked for parity. Independent competing authorities are forbidden.
+
+---
+
+## 21. Fail-Closed Protocol
+
+For required contracts:
+
+```text
+UNKNOWN
+MISSING
+AMBIGUOUS
+UNPROVEN
+STALE
+```
+
+MUST NOT be interpreted as PASS.
+
+A verifier SHOULD fail closed when it cannot establish the required invariant. Warnings are non-certifying unless the governing contract explicitly defines them as acceptable outcomes.
+
+---
+
+## 22. Monotonic Repair Protocol
+
+A repair MUST restore the intended invariant without introducing a new regression in another required contract.
+
+```text
+valid state
+→ repair
+→ same or stronger contract state
+```
+
+A patch that improves one gate while weakening or bypassing another is not an acceptable remediation. Such a change MUST remain in recovery until the conflicting contract is restored.
+
+---
+
+## 23. Proof Before Closure Protocol
+
+Claims such as `RESOLVED`, `PASS`, `CERTIFIED`, or `RELEASE-SAFE` require attached proof appropriate to the claim.
+
+```text
+claim
+→ assertion
+→ verification result
+→ provenance
+→ evidence artifact
+→ exact SHA
+→ closure
+```
+
+A narrative statement, local-only result, screenshot, or historical result without matching provenance is non-certifying.
+
+---
+
+## 24. Contract Graph Closure Protocol
+
+For systemic or shared infrastructure changes, closure requires verification across the complete affected dependency graph, not only the edited file or direct test.
+
+```text
+changed invariant
+→ consumers
+→ derived contracts
+→ runtime surface
+→ CI gate
+→ release gate
+```
+
+A downstream failure that is causally attributable to the same root cause MUST be tracked as a cascade, not misclassified as an unrelated defect. Closure occurs only when the graph is coherent again.
+
+---
+
+## 25. RCA Anti-Fragmentation Protocol
+
+Related failures MUST be grouped under the smallest truthful set of root causes.
+
+```text
+one shared root cause
+→ one RCA
+→ many cascades
+```
+
+Do not create separate fixes merely because the same defect appears in multiple jobs, locales, routes, or generated artifacts. Each additional RCA requires independent causal evidence.
+
+---
+
+## 26. Change Budget Protocol
+
+Every patch MUST have a causal justification for each changed file or behavior.
+
+```text
+no causal reason
+→ no change
+```
+
+Cleanup, refactoring, renaming, opportunistic modernization, or unrelated formatting MUST NOT be mixed into a certification repair unless separately required and verified.
+
+---
+
+## 27. Certification Invalidation Protocol
+
+Any change that can affect a required certification gate invalidates certification evidence produced before that change.
+
+```text
+certified SHA
+→ certification-affecting change
+→ prior certification invalid
+→ new exact-SHA cycle required
+```
+
+This applies even when the change is described as small, documentation-only, workflow-only, dependency-only, or non-functional if the governing gate consumes the changed surface.
+
+---
+
+## 28. Release Gate Conjunction
 
 Release certification requires:
 
