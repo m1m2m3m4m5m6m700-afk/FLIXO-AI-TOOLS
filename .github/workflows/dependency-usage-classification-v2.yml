@@ -23,12 +23,14 @@ jobs:
       - run: npm ci
       - run: node scripts/test-dependency-usage-classification.mjs
       - name: Generate inventory
+        if: always()
         env:
           DEPENDENCY_USAGE_JSON: diagnostics/dependency-usage.json
         run: |
           mkdir -p diagnostics
-          node scripts/report-dependency-usage.mjs > diagnostics/dependency-usage.txt
+          node scripts/report-dependency-usage.mjs > diagnostics/dependency-usage.txt || true
       - uses: actions/upload-artifact@v6
+        if: always()
         with:
           name: dependency-usage-v2-${{ github.sha }}
           path: |
