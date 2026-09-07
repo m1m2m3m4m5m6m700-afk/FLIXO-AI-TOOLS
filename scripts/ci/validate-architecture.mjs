@@ -56,8 +56,13 @@ if (!fullMatrixParallel) {
 }
 if (!/weighted-shard-plan\.mjs/.test(fullMatrix)) failures.push('Full Matrix must use the weighted shard planner.');
 if (!/download-artifact@v7/.test(fullMatrix)) failures.push('Full Matrix must consume an immutable artifact.');
-if (!/23/.test(fullMatrix) || !/webkit/.test(fullMatrix) || !/chromium/.test(fullMatrix) || !/firefox/.test(fullMatrix)) {
-  failures.push('Full Matrix must retain the complete 23-suite × 3-browser surface.');
+const historyTests = Object.keys(JSON.parse(readFileSync('ci/test-duration-history.json', 'utf8')).tests);
+if (historyTests.length !== 23) failures.push(`Canonical matrix suite registry count=${historyTests.length}; expected 23.`);
+if (!/webkit/.test(fullMatrix) || !/chromium/.test(fullMatrix) || !/firefox/.test(fullMatrix)) {
+  failures.push('Full Matrix must retain the complete three-browser surface.');
+}
+if (!/full-matrix-evidence-/.test(fullMatrix) || !/validate-full-matrix-evidence\.mjs/.test(fullMatrix)) {
+  failures.push('Full Matrix must produce and validate exact-SHA evidence.');
 }
 
 const localization = find('localization-20.yml');
@@ -65,8 +70,6 @@ if (/['"]fix\/\*\*|['"]feat\/\*\*|['"]ci\/\*\*|['"]refactor\/\*\*|['"]seo\/\*\*/
   failures.push('Localization must not replay automatically on feature/fix/ci/seo/refactor branch pushes.');
 }
 
-// Canonical locale set is owned by src/lib/i18n/config.ts. The workflow must match it
-// exactly; a legacy hard-coded locale list is drift and must fail closed.
 const localeConfig = readFileSync('src/lib/i18n/config.ts', 'utf8').match(/export const LOCALES = \[([^\]]+)\] as const;/u)?.[1] ?? '';
 const canonicalLocales = localeConfig.match(/['"][A-Za-z-]+['"]/gu)?.map((value) => value.slice(1, -1)) ?? [];
 const workflowLocales = localization.match(/G4_LOCALES:\s*['"]([^'"]+)['"]/u)?.[1]?.split(',').map((value) => value.trim()).filter(Boolean) ?? [];

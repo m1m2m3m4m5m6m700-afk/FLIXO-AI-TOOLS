@@ -1,0 +1,44 @@
+name: Agent Coordination Guard
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: agent-coordination-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coordination:
+    name: Agent Coordination Guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      GITHUB_HEAD_REF: ${{ github.head_ref || '' }}
+      FLIXO_AGENT_COORDINATION_STRICT_SHA: 'true'
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Validate local multi-agent coordination
+        run: node scripts/ci/validate-agent-coordination.mjs
+      - name: Validate cross-branch agent collisions
+        run: node scripts/ci/validate-agent-pr-collisions.mjs
+      - name: Upload coordination evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: agent-coordination-${{ github.run_id }}
+          path: artifacts/ci/agent-coordination/
+          if-no-files-found: error
+          retention-days: 14
