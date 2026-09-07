@@ -9,11 +9,6 @@ const readJson = async (path) => JSON.parse(await readText(path));
 
 const TOOL_FAMILY_FILES = [
   'src/config/tool-definitions/image.ts',
-  'src/config/tool-definitions/pdf.ts',
-  'src/config/tool-definitions/audio.ts',
-  'src/config/tool-definitions/video.ts',
-  'src/config/tool-definitions/ai.ts',
-  'src/config/tool-definitions/other.ts',
 ];
 
 const [baseline, toolsSource, familySources, routerSource] = await Promise.all([
