@@ -62,9 +62,11 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    let active = true;
-    void loadHomeCopy(locale).then((nextCopy) => { if (active) setCopy(nextCopy); });
-    return () => { active = false; };
+    const controller = new AbortController();
+    void loadHomeCopy(locale).then((nextCopy) => {
+      if (!controller.signal.aborted) setCopy(nextCopy);
+    });
+    return () => controller.abort();
   }, [locale]);
 
   useEffect(() => {
