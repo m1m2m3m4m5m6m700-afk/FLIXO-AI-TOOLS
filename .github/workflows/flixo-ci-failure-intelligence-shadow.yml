@@ -1,8 +1,6 @@
 name: FLIXO CI — Failure Intelligence Shadow
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -20,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -40,7 +38,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-failure-intelligence-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ci-failure-intelligence-${{ github.sha }}
           path: artifacts/ci/failure/
           if-no-files-found: error
           retention-days: 14
