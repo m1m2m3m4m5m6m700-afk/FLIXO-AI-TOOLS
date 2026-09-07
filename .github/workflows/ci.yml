@@ -91,6 +91,10 @@ jobs:
         if: always()
         run: npm run diagnose:cycle
 
+      - name: Detect shared-root candidates
+        if: always()
+        run: node scripts/ci/detect-shared-root-candidates.mjs
+
       - name: Upload unified CI diagnostics
         if: always()
         uses: actions/upload-artifact@v6
@@ -110,6 +114,7 @@ jobs:
             diagnostics/ci/failure-clusters.json
             diagnostics/ci/root-cause-graph.json
             diagnostics/ci/repair-history.jsonl
+            diagnostics/ci/shared-root-candidates.json
           if-no-files-found: warn
           retention-days: 90
 
