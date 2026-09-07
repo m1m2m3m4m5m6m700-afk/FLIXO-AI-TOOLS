@@ -4,6 +4,7 @@ import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
 import { SITE_ORIGIN } from '../lib/i18n';
+import { serializeJsonLd } from '../lib/seo/json-ld';
 
 const GLOBAL_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
@@ -20,7 +21,8 @@ function RouteContent() {
 export const rootRoute = createRootRoute({
   component: function RootLayout() {
     useEffect(() => installCoreWebVitalsDiagnostics(), []);
-    return <><HeadContent /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\u003c') }} /><FlixoGlobalLogo /><CommandPalette /><RouteContent /><Scripts /></>;
+    const jsonLd = serializeJsonLd(GLOBAL_STRUCTURED_DATA);
+    return <><HeadContent /><script type="application/ld+json">{jsonLd}</script><FlixoGlobalLogo /><CommandPalette /><RouteContent /><Scripts /></>;
   },
   head: () => ({
     meta: [

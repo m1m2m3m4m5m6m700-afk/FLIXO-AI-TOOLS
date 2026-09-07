@@ -1,6 +1,6 @@
-import { Children, cloneElement, createElement, lazy, Suspense, useEffect, useRef, useState, isValidElement, type ComponentType, type ReactNode } from 'react';
+import { Children, cloneElement, createElement, lazy, Suspense, useEffect, useRef, useState, isValidElement, type ReactNode } from 'react';
 import { useParams } from '@tanstack/react-router';
-import { LOCALES, isLocale, type Locale, LOCALE_METADATA } from '../lib/i18n';
+import { LOCALES, isLocale, LOCALE_METADATA } from '../lib/i18n';
 import { assertToolCategory, getToolSeo } from '../lib/seo/tool-seo';
 import { getAuthoritativeToolSeoName } from '../config/tool-seo-name-resolver';
 import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
@@ -9,6 +9,7 @@ import { localizeToolCategory, localizeToolDescription } from '../lib/i18n/tool-
 import { AutoLocalizedToolSurface } from '../components/auto-localized-tool-surface';
 import { getToolPrivacyCopy } from '../lib/privacy';
 import { getFavorites, recordRecentTool, toggleFavorite } from '../lib/local-workspace';
+import { serializeJsonLd } from '../lib/seo/json-ld';
 import '../tool-page-modern.css';
 
 const LazyToolChainPanel = lazy(() => import('../components/tool-chain-panel').then((module) => ({ default: module.ToolChainPanel })));
@@ -38,10 +39,10 @@ function ToolSurfaceSemanticBoundary({ children }: { children: ReactNode }) {
 
 export function LocalizedToolPage() {
   const params = useParams({ strict: false });
-  const locale = (typeof params.locale === 'string' && isLocale(params.locale) ? params.locale : 'en') as Locale;
+  const locale = isLocale(params.locale) ? params.locale : 'en';
   const copy = TOOL_UI_I18N[locale];
   const direction = LOCALE_METADATA[locale].direction;
-  const toolId = typeof params.tool === 'string' && isLocale(locale) && LOCALES.includes(locale) ? params.tool : null;
+  const toolId = typeof params.tool === 'string' ? params.tool : null;
   const [favorite, setFavorite] = useState(() => (toolId ? getFavorites().includes(toolId) : false));
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -63,7 +64,7 @@ export function LocalizedToolPage() {
   const localizedTitle = getAuthoritativeToolSeoName(seo.tool, locale) ?? seo.tool.title;
   const localizedCategory = localizeMsUkCategory(locale, category) ?? localizeToolCategory(locale, category);
   const localizedDescription = locale === 'en' ? seo.tool.description : localizeMsUkDescription(locale, localizedTitle) ?? localizeToolDescription(locale, localizedTitle, category);
-  const ToolComponent = seo.tool.component as unknown as ComponentType<{ locale?: Locale }>;
+  const ToolComponent = seo.tool.component;
   const privacy = getToolPrivacyCopy(seo.tool.id, locale);
   const homeUrl = `/${locale}`;
   const alternateLocale = locale === 'en' ? 'ar' : 'en';
@@ -73,10 +74,11 @@ export function LocalizedToolPage() {
     const next = toggleFavorite(seo.tool.id);
     setFavorite(next.includes(seo.tool.id));
   };
+  const structuredDataJson = serializeJsonLd({ ...seo.structuredData, keywords: seo.keywords });
 
   return (
     <main lang={seo.languageTag} dir={direction} className="tool-page-modern">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ ...seo.structuredData, keywords: seo.keywords }).replace(/</g, '\\u003c') }} />
+      <script type="application/ld+json">{structuredDataJson}</script>
       <nav className="tool-page-modern__nav" aria-label={copy.navigation}>
         <div className="tool-page-modern__nav-inner">
           <a className="tool-page-modern__brand" href={homeUrl} aria-label={copy.home}><img className="tool-page-modern__brand-logo" src="/flixo-logo.svg" width="44" height="44" alt="FLIXO" decoding="async" /></a>

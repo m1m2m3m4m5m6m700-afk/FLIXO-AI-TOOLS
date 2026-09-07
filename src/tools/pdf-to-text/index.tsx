@@ -8,7 +8,7 @@ function download(content: string, filename: string, type: string) {
   link.href = url;
   link.download = filename;
   link.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  URL.revokeObjectURL(url);
 }
 
 export function PdfToTextTool() {

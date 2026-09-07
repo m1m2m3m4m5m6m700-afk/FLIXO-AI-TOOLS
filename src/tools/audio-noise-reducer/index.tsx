@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type WorkerResponse = { channels: Float32Array[] } | { error: string };
 
@@ -26,19 +26,33 @@ export function AudioNoiseReducerTool() {
   const [reduction, setReduction] = useState(0.65);
   const [status, setStatus] = useState('Ready');
   const [output, setOutput] = useState<Blob | null>(null);
+  const [outputUrl, setOutputUrl] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => () => workerRef.current?.terminate(), []);
-  const outputUrl = useMemo(() => output ? URL.createObjectURL(output) : '', [output]);
+  useEffect(() => {
+    if (!output) {
+      setOutputUrl((current) => { if (current) URL.revokeObjectURL(current); return ''; });
+      return undefined;
+    }
+    const url = URL.createObjectURL(output);
+    setOutputUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [output]);
+
+  useEffect(() => () => {
+    workerRef.current?.terminate();
+    workerRef.current = null;
+  }, []);
 
   async function process() {
     if (!file) return;
     setBusy(true); setStatus('Decoding audio…'); setOutput(null);
+    const context = new AudioContext();
     try {
-      const context = new AudioContext();
       const decoded = await context.decodeAudioData(await file.arrayBuffer());
+      workerRef.current?.terminate();
       const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-      workerRef.current?.terminate(); workerRef.current = worker;
+      workerRef.current = worker;
       const done = new Promise<WorkerResponse>((resolve) => {
         worker.onmessage = (event: MessageEvent<WorkerResponse>) => resolve(event.data);
         worker.onerror = () => resolve({ error: 'Noise reduction worker failed.' });
@@ -52,9 +66,11 @@ export function AudioNoiseReducerTool() {
       if ('error' in result) throw new Error(result.error);
       const blob = encodeWav(result.channels, decoded.sampleRate);
       setOutput(blob); setStatus(`Done • output ${Math.round(blob.size / 1024)} KB`);
-      await context.close();
     } catch (error) { setStatus(error instanceof Error ? error.message : 'Noise reduction failed.'); }
-    finally { setBusy(false); }
+    finally {
+      await context.close();
+      setBusy(false);
+    }
   }
 
   return <section className="mx-auto max-w-3xl space-y-6 p-6">

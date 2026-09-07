@@ -1,7 +1,7 @@
 import { TOOL_MANIFEST, getToolManifest, getToolManifestByPath } from './tool-manifest.ts';
 
 export type { ToolConfig } from './tool-definitions.ts';
-export type { ToolFamily, ToolComponent } from './tool-definitions/types.ts';
+export type { ToolFamily, ToolComponent, ReadyToolComponentProps, ReadyToolComponent } from './tool-definitions/types.ts';
 
 export const TOOLS_REGISTRY = TOOL_MANIFEST;
 export const TOOL_MANIFEST_ENTRIES = TOOL_MANIFEST;

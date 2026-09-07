@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { compressImage, MAX_FILES, MAX_INPUT_SIZE, type CompressionFormat } from './engine';
 import { imageCompressorOutputIntegrity } from './output-contract';
 import { validateOutputIntegrity } from '../../lib/contracts/output-integrity';
+import type { ReadyToolComponentProps } from '../../config/tools';
 
 const formatLabels: Record<CompressionFormat, string> = {
   'image/webp': 'WebP',
@@ -21,7 +22,7 @@ function extensionFor(format: CompressionFormat) {
   return format === 'image/webp' ? 'webp' : format === 'image/png' ? 'png' : 'jpg';
 }
 
-function label(locale: 'en' | 'ar', en: string, ar: string) {
+function label(locale: ReadyToolComponentProps['locale'], en: string, ar: string) {
   return locale === 'ar' ? ar : en;
 }
 
@@ -29,10 +30,11 @@ function nextAnimationFrame() {
   return new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 }
 
-export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
+export function ImageCompressor({ locale = 'en' }: ReadyToolComponentProps) {
   const isArabic = locale === 'ar';
   const inputRef = useRef<HTMLInputElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const mountedRef = useRef(true);
   const [files, setFiles] = useState<File[]>([]);
   const [quality, setQuality] = useState(0.82);
   const [format, setFormat] = useState<CompressionFormat>('image/webp');
@@ -54,17 +56,16 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     return Math.max(0, Math.round((1 - result.blob.size / file.size) * 100));
   }, [file, result]);
 
-  useEffect(() => () => {
-    if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
-  }, [sourcePreviewUrl]);
-
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
+      if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
       if (downloadUrl) URL.revokeObjectURL(downloadUrl);
       if (outputPreviewUrl) URL.revokeObjectURL(outputPreviewUrl);
       if (batchZipUrl) URL.revokeObjectURL(batchZipUrl);
     };
-  }, [downloadUrl, outputPreviewUrl, batchZipUrl]);
+  }, [sourcePreviewUrl, downloadUrl, outputPreviewUrl, batchZipUrl]);
 
   useEffect(() => {
     headingRef.current?.focus({ preventScroll: true });
@@ -106,14 +107,12 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
       { width: compressed.width, height: compressed.height },
       { filename: `flixo-compressed.${extension}`, bytes: outputBytes },
     );
-    if (!validation.valid) {
-      throw new Error(`Output integrity validation failed: ${validation.failures.join('; ')}`);
-    }
+    if (!validation.valid) throw new Error(`Output integrity validation failed: ${validation.failures.join('; ')}`);
     return compressed;
   };
 
   const beginProcessing = () => {
-    if (busy) return false;
+    if (busy || !mountedRef.current) return false;
     flushSync(() => {
       setBusy(true);
       setError('');
@@ -123,7 +122,7 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
   };
 
   const finishProcessing = () => {
-    setBusy(false);
+    if (mountedRef.current) setBusy(false);
   };
 
   const processCurrent = async () => {
@@ -131,18 +130,22 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     try {
       await nextAnimationFrame();
       const compressed = await validateCompressedOutput(await processOne(file));
+      if (!mountedRef.current) return;
       const nextDownload = URL.createObjectURL(compressed.blob);
+      if (!mountedRef.current) { URL.revokeObjectURL(nextDownload); return; }
       setDownloadUrl((current) => {
         if (current) URL.revokeObjectURL(current);
         return nextDownload;
       });
+      const nextPreview = URL.createObjectURL(compressed.blob);
+      if (!mountedRef.current) { URL.revokeObjectURL(nextPreview); return; }
       setOutputPreviewUrl((current) => {
         if (current) URL.revokeObjectURL(current);
-        return URL.createObjectURL(compressed.blob);
+        return nextPreview;
       });
       setResult(compressed);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : label(locale, 'Compression failed', 'فشل ضغط الصورة'));
+      if (mountedRef.current) setError(caught instanceof Error ? caught.message : label(locale, 'Compression failed', 'فشل ضغط الصورة'));
     } finally {
       finishProcessing();
     }
@@ -162,10 +165,12 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
         zip.file(`${baseName}-flixo.${extensionFor(format)}`, compressed.blob);
       }
       const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
-      setBatchZipUrl(URL.createObjectURL(zipBlob));
+      const nextZipUrl = URL.createObjectURL(zipBlob);
+      if (!mountedRef.current) { URL.revokeObjectURL(nextZipUrl); return; }
+      setBatchZipUrl(nextZipUrl);
       setBatchCount(files.length);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : label(locale, 'Batch compression failed', 'فشل ضغط الملفات دفعة واحدة'));
+      if (mountedRef.current) setError(caught instanceof Error ? caught.message : label(locale, 'Batch compression failed', 'فشل ضغط الملفات دفعة واحدة'));
     } finally {
       finishProcessing();
     }

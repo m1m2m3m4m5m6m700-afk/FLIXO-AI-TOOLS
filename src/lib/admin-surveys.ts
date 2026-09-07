@@ -93,7 +93,12 @@ function read<T>(key: string, fallback: T): T {
 }
 
 function write<T>(key: string, value: T) {
-  window.localStorage.setItem(key, JSON.stringify(value));
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Restricted storage must not break admin rendering or interactions.
+  }
 }
 
 export function getSurveys(): Survey[] {
@@ -149,5 +154,6 @@ export function downloadResponsesCsv(surveyMap: Map<string, Survey>, responses: 
   anchor.href = url;
   anchor.download = `flixo-survey-responses-${new Date().toISOString().slice(0, 10)}.csv`;
   anchor.click();
+  anchor.remove();
   URL.revokeObjectURL(url);
 }
