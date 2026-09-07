@@ -1,12 +1,11 @@
 import type { Locale } from './config';
 
-type Category = 'Images' | 'AI' | 'Other';
-
+type Category = 'Images';
 type TargetLocale = 'ms' | 'uk';
 
 const CATEGORY_LABELS: Record<TargetLocale, Record<Category, string>> = {
-  ms: { Images: 'Imej', AI: 'AI', Other: 'Lain-lain' },
-  uk: { Images: 'Зображення', AI: 'ШІ', Other: 'Інше' },
+  ms: { Images: 'Imej' },
+  uk: { Images: 'Зображення' },
 };
 
 export function localizeMsUkCategory(locale: Locale, category: Category): string | undefined {
