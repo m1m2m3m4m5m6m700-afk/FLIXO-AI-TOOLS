@@ -3,24 +3,16 @@ import { resolve } from 'node:path';
 
 const root = resolve(process.cwd());
 const failures = [];
-
 const readText = (path) => readFile(resolve(root, path), 'utf8');
 const readJson = async (path) => JSON.parse(await readText(path));
 
-const TOOL_FAMILY_FILES = [
-  'src/config/tool-definitions/image.ts',
-  'src/config/tool-definitions/pdf.ts',
-  'src/config/tool-definitions/audio.ts',
-  'src/config/tool-definitions/video.ts',
-  'src/config/tool-definitions/ai.ts',
-  'src/config/tool-definitions/other.ts',
-];
+const TOOL_REGISTRY = 'src/config/tool-definitions/image.ts';
 
-const [baseline, toolsSource, familySources, routerSource] = await Promise.all([
+const [baseline, toolsSource, routerSource, manifestSource] = await Promise.all([
   readJson('config/engineering-baseline.json'),
-  readText('src/config/tools.ts'),
-  Promise.all(TOOL_FAMILY_FILES.map(readText)),
+  readText(TOOL_REGISTRY),
   readText('src/router.tsx'),
+  readText('src/lib/seo/tool-manifests.ts'),
 ]);
 
 if (baseline.productionBranch !== 'main') failures.push('productionBranch must be main');
@@ -29,25 +21,20 @@ if (baseline.rules?.registryIsSourceOfTruth !== true) failures.push('registryIsS
 if (baseline.rules?.noNonReadyStaticRoutes !== true) failures.push('noNonReadyStaticRoutes must remain enabled');
 if (baseline.rules?.noDuplicateVerificationTruth !== true) failures.push('noDuplicateVerificationTruth must remain enabled');
 
-const toolPattern = /\{\s*id:\s*'([^']+)'[\s\S]*?isReady:\s*(true|false)[\s\S]*?component:\s*lazy\(/g;
-const familySource = familySources.join('\n');
-const source = toolPattern.test(familySource) ? familySource : toolsSource;
-toolPattern.lastIndex = 0;
-const tools = [...source.matchAll(toolPattern)].map((match) => ({ id: match[1], isReady: match[2] === 'true' }));
+const toolPattern = /\{\s*id:\s*'([^']+)'[\s\S]*?category:\s*'([^']+)'[\s\S]*?isReady:\s*(true|false)[\s\S]*?component:\s*lazy\(/g;
+const tools = [...toolsSource.matchAll(toolPattern)].map((match) => ({ id: match[1], category: match[2], isReady: match[3] === 'true' }));
+if (tools.length === 0) failures.push('could not parse Image Registry readiness entries');
+if (tools.some((tool) => tool.category !== 'Images')) failures.push('all registry tools must use category Images');
+if (tools.some((tool) => /^(AI|Other)$/.test(tool.category))) failures.push('legacy AI/Other product taxonomy detected');
 
-if (tools.length === 0) failures.push('could not parse tool registry readiness entries');
-
-const toPascal = (value) => value
-  .split('-')
-  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-  .join('');
-
+const toPascal = (value) => value.split('-').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join('');
 for (const tool of tools.filter(({ isReady }) => !isReady)) {
   const routeSymbol = `en${toPascal(tool.id)}Route`;
-  if (routerSource.includes(routeSymbol)) {
-    failures.push(`non-ready tool ${tool.id} is still statically registered in src/router.tsx (${routeSymbol})`);
-  }
+  if (routerSource.includes(routeSymbol)) failures.push(`non-ready image tool ${tool.id} is still statically registered in src/router.tsx (${routeSymbol})`);
 }
+
+if (!manifestSource.includes('getReadyToolConfigs()')) failures.push('SEO manifest must be derived from ready Image Registry tools');
+if (/pdf|audio|video|csv/i.test(manifestSource)) failures.push('legacy non-image artifact taxonomy detected in SEO manifest source');
 
 if (failures.length > 0) {
   console.error('FLIXO engineering baseline: FAIL');
@@ -58,6 +45,6 @@ if (failures.length > 0) {
 const ready = tools.filter(({ isReady }) => isReady).length;
 const nonReady = tools.length - ready;
 console.log('FLIXO engineering baseline: PASS');
-console.log(`registry tools: ${tools.length}`);
-console.log(`ready tools: ${ready}`);
-console.log(`non-ready tools: ${nonReady}`);
+console.log(`image registry tools: ${tools.length}`);
+console.log(`ready image tools: ${ready}`);
+console.log(`non-ready image tools: ${nonReady}`);
