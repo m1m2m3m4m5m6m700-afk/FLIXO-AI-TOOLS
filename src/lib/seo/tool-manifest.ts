@@ -18,5 +18,18 @@ export type ToolManifest = Readonly<{
   status: 'ready';
   seoStatus: ToolSeoStatus;
   capabilities: readonly string[];
-  seoLocales: Readonly<Record<Locale, LocalizedToolSeo>>;
+  seoLocales: Readonly<Record<string, LocalizedToolSeo>>;
 }>;
+
+export function assertCompleteToolSeoLocales(
+  seoLocales: Readonly<Record<string, LocalizedToolSeo>>,
+  locales: readonly Locale[],
+  toolId: string,
+): void {
+  for (const locale of locales) {
+    const entry = seoLocales[locale];
+    if (!entry?.title || !entry.description || !entry.intro || !entry.howTo.length || !entry.features.length || !entry.altText.length) {
+      throw new Error(`Incomplete SEO locale contract: ${toolId}:${locale}`);
+    }
+  }
+}
