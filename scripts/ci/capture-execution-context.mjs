@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
 
 const ROOT = process.cwd();
@@ -65,17 +65,8 @@ const context = {
   },
 };
 
-for (const path of ['tsconfig.json', 'vite.config.ts', 'playwright.config.ts', '.github/workflows/ci.yml', 'scripts/ci/root-causes.json']) {
-  context.configuration[path] = hashFile(resolve(ROOT, path));
-}
-
-context.identityHash = createHash('sha256').update(JSON.stringify({
-  execution: context.execution,
-  runtime: context.runtime,
-  dependencies: context.dependencies,
-  configuration: context.configuration,
-})).digest('hex');
-
+for (const path of ['tsconfig.json', 'vite.config.ts', 'playwright.config.ts', '.github/workflows/ci.yml', 'scripts/ci/root-causes.json']) context.configuration[path] = hashFile(resolve(ROOT, path));
+context.identityHash = createHash('sha256').update(JSON.stringify({ execution: context.execution, runtime: context.runtime, dependencies: context.dependencies, configuration: context.configuration })).digest('hex');
 writeFileSync(resolve(DIR, 'execution-context.json'), `${JSON.stringify(context, null, 2)}\n`);
 console.log(`EXECUTION_CONTEXT_SHA=${context.execution.sha}`);
 console.log(`EXECUTION_IDENTITY_HASH=${context.identityHash}`);
