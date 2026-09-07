@@ -31,6 +31,10 @@ export class DisposableResourceOwner {
     release();
   }
 
+  release(url: string): void {
+    this.revokeObjectURL(url);
+  }
+
   trackWorker(worker: Worker): Worker {
     this.track(() => worker.terminate());
     return worker;
