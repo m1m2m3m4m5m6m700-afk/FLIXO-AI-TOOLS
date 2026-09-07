@@ -1,4 +1,6 @@
 import { fileURLToPath, URL } from 'node:url';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { Plugin, PreviewServer, ViteDevServer } from 'vite';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -7,20 +9,24 @@ const allowedHosts = (process.env.VITE_ALLOWED_HOSTS ?? '')
   .map((host) => host.trim())
   .filter(Boolean);
 
-function telemetryPreviewPlugin() {
+type MiddlewareServer = Pick<ViteDevServer, 'middlewares'> | Pick<PreviewServer, 'middlewares'>;
+
+type MiddlewareRequest = IncomingMessage & { method?: string };
+
+function telemetryPreviewPlugin(): Plugin {
   return {
     name: 'flixo-telemetry-endpoint',
-    configureServer(server) {
-      installTelemetryMiddleware(server.middlewares);
+    configureServer(server: ViteDevServer) {
+      installTelemetryMiddleware(server);
     },
-    configurePreviewServer(server) {
-      return () => installTelemetryMiddleware(server.middlewares);
+    configurePreviewServer(server: PreviewServer) {
+      return () => installTelemetryMiddleware(server);
     },
   };
 }
 
-function installTelemetryMiddleware(middlewares) {
-  middlewares.use('/api/telemetry', (req, res, next) => {
+function installTelemetryMiddleware(server: MiddlewareServer): void {
+  server.middlewares.use('/api/telemetry', (req: MiddlewareRequest, res: ServerResponse, _next) => {
     if (req.method === 'OPTIONS') {
       res.statusCode = 204;
       res.end();
@@ -34,8 +40,8 @@ function installTelemetryMiddleware(middlewares) {
     }
 
     let total = 0;
-    req.on('data', (chunk) => {
-      total += Buffer.byteLength(chunk);
+    req.on('data', (chunk: Buffer) => {
+      total += chunk.byteLength;
       if (total > 64 * 1024) req.destroy();
     });
     req.on('end', () => {
