@@ -88,6 +88,22 @@ jobs:
           done
           cat /tmp/matrix-first-server.log || true
           exit 1
+      - name: Probe rendered localized HTML
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe() {
+            local path="$1" expected="$2" output
+            output="/tmp/probe-${expected}.html"
+            curl --fail --silent --show-error "http://127.0.0.1:3000${path}" -o "$output"
+            actual="$(sed -n 's/.*<html[^>]*lang="\([^"]*\)".*/\1/p' "$output" | head -n 1)"
+            echo "probe path=${path} expected=${expected} actual=${actual:-<empty>} bytes=$(wc -c < "$output")"
+            test "$actual" = "$expected"
+          }
+          probe /hi hi
+          probe /hi/ai-image-generator hi
+          probe /ms/ai-image-generator ms
+          probe /uk/ai-image-generator uk
       - name: Run owned shard — stop at first failure
         timeout-minutes: 15
         run: |
@@ -108,6 +124,7 @@ jobs:
             playwright-report/
             test-results/
             /tmp/matrix-first-server.log
+            /tmp/probe-*.html
           if-no-files-found: warn
           retention-days: 14
       - name: Cleanup
