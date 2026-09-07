@@ -54,5 +54,5 @@ jobs:
         with:
           name: ci-execution-engine-${{ github.sha }}
           path: artifacts/ci/plan/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
