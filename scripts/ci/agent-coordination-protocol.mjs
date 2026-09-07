@@ -51,6 +51,21 @@ const assertSafeScope = (candidate, existingClaims) => {
     if (pathConflict || contractConflict || rootCauseConflict) fail(`collision with ${current.agentId}: path=${pathConflict} contract=${contractConflict} rootCause=${rootCauseConflict}`);
   }
 };
+const isAncestor = (ancestor, descendant) => {
+  if (!HEX_SHA.test(ancestor) || !HEX_SHA.test(descendant)) return false;
+  if (ancestor === descendant) return true;
+  try {
+    execFileSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+};
+const assertAnchored = (claim, currentHead) => {
+  if (!isAncestor(claim.observedHeadSha, currentHead)) {
+    fail(`claim ${claim.agentId} is stale or diverged: anchor=${claim.observedHeadSha} current=${currentHead}; re-ingest and re-claim required`);
+  }
+};
 
 const state = validateState(await readState());
 const evidence = { schemaVersion: 2, protocol: 'FLIXO agent coordination runtime', repository: REPO, branch: BRANCH, headSha: HEAD_SHA || null, action: ACTION, generatedAt: now().toISOString() };
@@ -74,13 +89,13 @@ if (ACTION === 'status') {
     state.claims = state.claims.filter((item) => item.agentId !== AGENT_ID); state.claims.push(claim); evidence.claim = claim; evidence.result = 'checked-in';
   } else if (ACTION === 'heartbeat') {
     if (!existing || existing.status !== 'active') fail(`agent ${AGENT_ID} has no active claim`);
-    if (existing.branch !== BRANCH || existing.observedHeadSha !== HEAD_SHA) fail('heartbeat rejected: branch or SHA changed; re-ingest required');
+    assertAnchored(existing, HEAD_SHA);
     if (Date.parse(existing.leaseUntil) <= Date.now()) fail('heartbeat rejected: lease expired; re-check-in required');
-    const heartbeat = now(); existing.lastHeartbeatAt = heartbeat.toISOString(); existing.leaseUntil = new Date(heartbeat.getTime() + state.leaseMinutes * 60000).toISOString(); evidence.claim = existing; evidence.result = 'heartbeat-renewed';
+    const heartbeat = now(); existing.lastHeartbeatAt = heartbeat.toISOString(); existing.leaseUntil = new Date(heartbeat.getTime() + state.leaseMinutes * 60000).toISOString(); existing.lastReanchorSha = HEAD_SHA; evidence.claim = existing; evidence.result = 'heartbeat-renewed';
   } else if (ACTION === 'check-out' || ACTION === 'handoff') {
     if (!existing || !['active', 'handoff-pending'].includes(existing.status)) fail(`agent ${AGENT_ID} has no releasable claim`);
-    if (existing.branch !== BRANCH || existing.observedHeadSha !== HEAD_SHA) fail('release rejected: branch or SHA changed; re-ingest required');
-    existing.status = ACTION === 'handoff' ? 'handoff-pending' : 'released'; existing.releasedAt = now().toISOString(); if (ACTION === 'handoff') existing.handoffTo = process.env.FLIXO_AGENT_HANDOFF_TO ?? '';
+    assertAnchored(existing, HEAD_SHA);
+    existing.status = ACTION === 'handoff' ? 'handoff-pending' : 'released'; existing.releasedAt = now().toISOString(); existing.lastReanchorSha = HEAD_SHA; if (ACTION === 'handoff') existing.handoffTo = process.env.FLIXO_AGENT_HANDOFF_TO ?? '';
     evidence.claim = existing; evidence.result = ACTION === 'handoff' ? 'handoff-pending' : 'released';
   } else fail(`unsupported action ${ACTION}`);
   await writeState(state);
