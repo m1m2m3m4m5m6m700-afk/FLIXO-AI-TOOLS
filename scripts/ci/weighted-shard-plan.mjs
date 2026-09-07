@@ -29,18 +29,24 @@ const plan = bins.filter((bin) => bin.tests.length).map((bin) => ({
 const spread = Math.max(...plan.map((bin) => bin.weight)) - Math.min(...plan.map((bin) => bin.weight));
 if (spread > Math.max(2, Math.ceil(total / shardCount))) throw new Error(`Shard plan is too imbalanced: spread=${spread}, total=${total}, shards=${shardCount}`);
 
+const countListedTests = (value) => {
+  if (!value || typeof value !== 'object') return 0;
+  const specs = Array.isArray(value.specs) ? value.specs : [];
+  const direct = specs.reduce((sum, spec) => sum + (Array.isArray(spec.tests) ? spec.tests.length : 0), 0);
+  const children = Array.isArray(value.suites) ? value.suites.reduce((sum, suite) => sum + countListedTests(suite), 0) : 0;
+  return direct + children;
+};
+
 const suiteCount = new Map();
 for (const entry of entries) {
-  const output = execFileSync('npx', ['playwright', 'test', `tests/${entry.name}.spec.ts`, '--list', '--project=chromium', '--reporter=json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+  const output = execFileSync('npx', ['playwright', 'test', `tests/${entry.name}.spec.ts`, '--list', '--project=chromium', '--reporter=json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, CI: '1' } });
   const report = JSON.parse(output);
-  const count = Number(report.stats?.expected ?? report.stats?.total ?? 0);
+  const count = countListedTests({ suites: report.suites });
   if (!Number.isInteger(count) || count < 1) throw new Error(`Unable to determine Playwright test count for ${entry.name}`);
   suiteCount.set(entry.name, count);
 }
 
-for (const bin of plan) {
-  bin.test_count = bin.tests.reduce((sum, suite) => sum + suiteCount.get(suite), 0);
-}
+for (const bin of plan) bin.test_count = bin.tests.reduce((sum, suite) => sum + suiteCount.get(suite), 0);
 
 const matrix = plan.flatMap((bin) => browsers.map((browser) => ({
   browser,
