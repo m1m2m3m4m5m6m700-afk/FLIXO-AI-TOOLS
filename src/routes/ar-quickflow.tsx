@@ -30,13 +30,19 @@ export const arQuickFlowRoute = createRoute({
     useEffect(() => setPlan(planFromWorkflow(workflowId)), [workflowId]);
     useEffect(() => {
       if (!result) {
-        void resources.dispose('quickflow-result');
+        void resources.dispose('quickflow-result').catch((cause) => {
+          console.error('FLIXO QuickFlow result cleanup failed.', cause);
+        });
         setResultUrl('');
         return;
       }
       const url = resources.objectUrl('quickflow-result', result);
       setResultUrl(url);
-      return () => { void resources.dispose('quickflow-result'); };
+      return () => {
+        void resources.dispose('quickflow-result').catch((cause) => {
+          console.error('FLIXO QuickFlow result cleanup failed.', cause);
+        });
+      };
     }, [result, resources]);
     useEffect(() => () => processingControllerRef.current?.abort(), []);
 
@@ -45,7 +51,13 @@ export const arQuickFlowRoute = createRoute({
     const run = async () => {
       if (!file) { setError(copy.chooseError); return; }
       processingControllerRef.current?.abort();
-      await resources.disposeAll();
+      try {
+        await resources.disposeAll();
+      } catch (cause) {
+        setBusy(false);
+        setError(cause instanceof Error ? cause.message : copy.failure);
+        return;
+      }
       const controller = new AbortController();
       const jobId = crypto.randomUUID();
       processingControllerRef.current = controller;
