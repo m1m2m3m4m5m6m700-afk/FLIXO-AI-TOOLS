@@ -4,9 +4,9 @@ name: CI
 # Matrix First is the mandatory browser verification barrier for all official test jobs.
 on:
   pull_request:
-    branches: [main]
+    branches: [main, repair/protocol-cooperation]
   push:
-    branches: [main]
+    branches: [main, agent/ci-matrix/full-recovery]
   workflow_dispatch:
 
 concurrency:
