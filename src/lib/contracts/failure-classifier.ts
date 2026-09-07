@@ -54,16 +54,17 @@ const textOf = (result: ContractResult): string =>
     .toLowerCase();
 
 export function classifyContractFailure(result: ContractResult): FailureClassification {
-  if (result.status !== 'FAIL') {
-    throw new Error(`Failure classifier requires FAIL result: ${result.contract}`);
-  }
+  if (result.status !== 'FAIL') throw new Error(`Failure classifier requires FAIL result: ${result.contract}`);
 
   const text = textOf(result);
   let category: FailureCategory = 'UNKNOWN';
   let rootCauseId: RootCauseId = 'RC-UNKNOWN-001';
   let deterministic = true;
 
-  if (/type|typescript|tsc/.test(text)) {
+  if (/deployment|vercel|rate.?limit|quota|provider\s+outage|provider\s+limit/.test(text)) {
+    category = /rate.?limit|quota|provider\s+outage|provider\s+limit/.test(text) ? 'INFRASTRUCTURE_ERROR' : 'DEPLOYMENT_ERROR';
+    rootCauseId = 'RC-INFRA-001';
+  } else if (/type|typescript|tsc/.test(text)) {
     category = 'TYPE_ERROR'; rootCauseId = 'RC-TYPE-001';
   } else if (/build|vite|bundl/.test(text)) {
     category = 'BUILD_ERROR'; rootCauseId = 'RC-BUILD-001';
@@ -97,10 +98,6 @@ export function classifyContractFailure(result: ContractResult): FailureClassifi
     category = 'FILE_SIGNATURE_ERROR'; rootCauseId = 'RC-G2-SIGNATURE-001';
   } else if (/artifact|sha|integrity|corrupt/.test(text)) {
     category = 'ARTIFACT_INTEGRITY_ERROR'; rootCauseId = 'RC-G3-INTEGRITY-001';
-  } else if (/deployment|vercel|rate.?limit/.test(text)) {
-    category = /rate.?limit/.test(text) ? 'INFRASTRUCTURE_ERROR' : 'DEPLOYMENT_ERROR';
-    rootCauseId = 'RC-INFRA-001';
-    deterministic = /rate.?limit/.test(text);
   } else if (/flaky|intermittent|timeout/.test(text)) {
     category = 'FLAKY_TEST'; rootCauseId = 'RC-G4-RUNTIME-001'; deterministic = false;
   } else if (/runtime|exception|uncaught/.test(text)) {
