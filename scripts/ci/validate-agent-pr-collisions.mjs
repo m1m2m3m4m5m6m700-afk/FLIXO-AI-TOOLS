@@ -12,10 +12,7 @@ const CLAIMS_PATH = '.ci/agent-coordination/claims.json';
 const AGENT_BRANCH = /^agent\/[^/]+\/.+$/u;
 const HEX_SHA = /^[0-9a-f]{40}$/iu;
 
-const fail = (message) => {
-  throw new Error(`Cross-branch agent collision validation failed: ${message}`);
-};
-
+const fail = (message) => { throw new Error(`Cross-branch agent collision validation failed: ${message}`); };
 const normalizePath = (value) => value.replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
 const pathConflicts = (a, b) => {
   const left = normalizePath(a);
@@ -26,7 +23,7 @@ const pathConflicts = (a, b) => {
 
 const validateClaims = (state, branch) => {
   if (!state || typeof state !== 'object') fail(`claims state unreadable for ${branch}`);
-  if (state.schemaVersion !== 1 || state.protocol !== 'FLIXO multi-agent coordination') fail(`claims schema/protocol invalid for ${branch}`);
+  if (state.schemaVersion !== 2 || state.protocol !== 'FLIXO multi-agent coordination') fail(`claims schema/protocol invalid for ${branch}`);
   if (!Array.isArray(state.claims)) fail(`claims registry is not an array for ${branch}`);
   const now = Date.now();
   const active = [];
@@ -64,6 +61,13 @@ const getEventPullRequest = async () => {
   try { return JSON.parse(await readFile(EVENT_PATH, 'utf8'))?.pull_request ?? null; } catch { return null; }
 };
 
+const assertClaimShaAnchored = async (claim, headSha) => {
+  if (claim.observedHeadSha === headSha) return 'identical';
+  const comparison = await api(`/compare/${encodeURIComponent(claim.observedHeadSha)}...${encodeURIComponent(headSha)}`);
+  if (!['ahead', 'identical'].includes(comparison?.status)) fail(`active claim ${claim.agentId} is not anchored to an ancestor of PR head: ${claim.observedHeadSha} -> ${headSha}, status=${comparison?.status ?? '<unknown>'}`);
+  return comparison.status;
+};
+
 const currentClaims = await readLocalClaims();
 const currentPr = await getEventPullRequest();
 const currentBranch = currentPr?.head?.ref ?? process.env.GITHUB_HEAD_REF ?? process.env.GITHUB_REF_NAME ?? '';
@@ -89,9 +93,7 @@ if (EVENT_NAME === 'pull_request') {
     let state;
     try { state = JSON.parse(Buffer.from(payload.content.replace(/\s+/g, ''), 'base64').toString('utf8')); } catch { fail(`PR #${pr.number} (${pr.head.ref}) has invalid claims JSON`); }
     const claimSet = validateClaims(state, pr.head.ref);
-    for (const claim of claimSet.active) {
-      if (claim.observedHeadSha !== pr.head.sha) fail(`stale active claim ${claim.agentId}: ${claim.observedHeadSha} != PR head ${pr.head.sha}`);
-    }
+    for (const claim of claimSet.active) await assertClaimShaAnchored(claim, pr.head.sha);
     if (claimSet.active.length === 0) continue;
     peers.push({ prNumber: pr.number, branch: pr.head.ref, headSha: pr.head.sha, agents: claimSet.active });
   }
@@ -138,7 +140,7 @@ const report = {
   collisions,
   invariants: [
     'all open same-repository agent PRs are scanned from integration and agent PR contexts',
-    'every active peer claim must match its PR head SHA',
+    'every active peer claim must be anchored to its PR head SHA or an ancestor of it',
     'peer-to-peer path, contract, and root-cause overlap is fatal',
     'integration PR changed paths cannot overlap an active agent claim',
     'expired claims do not block work',
