@@ -32,7 +32,7 @@ const requiredToolUiKeys = ['notFound:', 'loading:', 'language:', 'about:', 'how
 
 const entryBody = (source, locale, marker) => new RegExp(`\\b${locale}:\\s*${marker}\\(\\{([\\s\\S]*?)\\}\\)`, 'u').exec(source)?.[1] ?? '';
 const objectBody = (source, locale) => new RegExp(`\\b${locale}:\\s*\\{([\\s\\S]*?)\\}`, 'u').exec(source)?.[1] ?? '';
-const extract = (entry, key) => entry.match(new RegExp(`${key}\\s*['\"]([^'\"\\n]*)['\"]`, 'u'))?.[1] ?? '';
+const extract = (entry, key) => entry.match(new RegExp(`${key}\\s*['"]([^'"\\n]*)['"]`, 'u'))?.[1] ?? '';
 
 for (const locale of locales) {
   const homeEntry = entryBody(home, locale, 'copy');
@@ -56,7 +56,7 @@ for (const locale of locales.filter((value) => value !== 'en')) {
 
 for (const locale of locales) {
   const metadata = new RegExp(`${locale}:\\s*\\{[^}]*direction:\\s*'([^']+)'`, 'u').exec(config)?.[1];
-  if ((metadata === 'rtl') !== (locale === 'ar' || locale === 'ur')) fail(`Direction mismatch for ${locale}: found ${metadata ?? '<missing>'}`);
+  if ((metadata === 'rtl') !== (locale === 'ar')) fail(`Direction mismatch for ${locale}: found ${metadata ?? '<missing>'}`);
 }
 
 if (!catalog.includes('Object.fromEntries(LOCALES.map((locale) => [locale, buildLocalizedToolSeo(tool, locale)]))')) fail('SEO catalog is not generated from the canonical locale set.');
