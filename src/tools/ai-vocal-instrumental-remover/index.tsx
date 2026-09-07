@@ -26,8 +26,9 @@ export function AiVocalInstrumentalRemoverTool() {
       setStatus('Please choose an audio file.');
       return;
     }
-    const context = resourceOwner.track(new AudioContext(audioContextOptions), (ownedContext) => {
-      void ownedContext.close();
+    const context = new AudioContext(audioContextOptions);
+    const releaseContext = resourceOwner.track(() => {
+      void context.close();
     });
     try {
       const buffer = await context.decodeAudioData(await nextFile.arrayBuffer());
@@ -41,7 +42,7 @@ export function AiVocalInstrumentalRemoverTool() {
       setDuration(0);
       setStatus(error instanceof Error ? error.message : 'Unable to decode this audio file.');
     } finally {
-      resourceOwner.release(context);
+      releaseContext();
     }
   };
 
@@ -50,10 +51,12 @@ export function AiVocalInstrumentalRemoverTool() {
     setBusy(true);
     setProgress(0);
     setStems({});
-    const context = resourceOwner.track(new AudioContext(audioContextOptions), (ownedContext) => {
-      void ownedContext.close();
+    const context = new AudioContext(audioContextOptions);
+    const releaseContext = resourceOwner.track(() => {
+      void context.close();
     });
-    const worker = resourceOwner.trackWorker(new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }));
+    const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+    const releaseWorker = resourceOwner.track(() => worker.terminate());
     workerRef.current = worker;
     const jobId = crypto.randomUUID();
     worker.onmessage = (event: MessageEvent<{ type: string; jobId: string; data?: { phase: string; progress: number }; result?: SeparationResult; message?: string }>) => {
@@ -70,15 +73,15 @@ export function AiVocalInstrumentalRemoverTool() {
         setProgress(100);
         setStatus('Separation complete.');
         setBusy(false);
-        void resourceOwner.release(worker);
-        void resourceOwner.release(context);
+        releaseWorker();
+        releaseContext();
         workerRef.current = null;
       }
       if (event.data.type === 'error') {
         setStatus(event.data.message ?? 'Local AI separation failed.');
         setBusy(false);
-        void resourceOwner.release(worker);
-        void resourceOwner.release(context);
+        releaseWorker();
+        releaseContext();
         workerRef.current = null;
       }
     };
@@ -93,8 +96,8 @@ export function AiVocalInstrumentalRemoverTool() {
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Unable to prepare audio.');
       setBusy(false);
-      resourceOwner.release(worker);
-      resourceOwner.release(context);
+      releaseWorker();
+      releaseContext();
       workerRef.current = null;
     }
   };
