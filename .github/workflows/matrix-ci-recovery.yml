@@ -11,6 +11,7 @@ concurrency:
 
 permissions:
   contents: read
+  checks: read
 
 env:
   EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -44,7 +45,7 @@ jobs:
       - name: External service circuit preflight
         env:
           FLIXO_EXTERNAL_SERVICE: vercel
-          FLIXO_EXTERNAL_CIRCUIT_STATE: ${{ vars.FLIXO_VERCEL_CIRCUIT_STATE || 'unknown' }}
+          FLIXO_EXTERNAL_CIRCUIT_STATE: ${{ vars.FLIXO_VERCEL_CIRCUIT_STATE || '' }}
         run: node scripts/ci/check-external-circuit.mjs
       - name: Sweep orphaned coordination claims
         run: node scripts/ci/sweep-orphaned-claims.mjs
