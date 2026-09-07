@@ -15,6 +15,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
   VITE_SITE_URL: https://flixoai.vercel.app
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
   VITE_TEST_ORIGIN: https://canonical.test
@@ -38,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -73,23 +74,41 @@ jobs:
           timeout --preserve-status 420s npx playwright install '${{ matrix.browser }}'
       - name: Build preview
         run: npm run build
+      - name: Generate static route entries
+        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-static-route-entries.mjs
       - name: Start isolated preview
         shell: bash
         run: |
           set -euo pipefail
           setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/matrix-first-server.log 2>&1 &
-          echo $! >/tmp/matrix-first-server.pid
+          echo $!>/tmp/matrix-first-server.pid
           for _ in $(seq 1 60); do
             if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
             sleep 1
           done
           cat /tmp/matrix-first-server.log || true
           exit 1
+      - name: Probe rendered localized HTML
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe() {
+            local path="$1" expected="$2" output
+            output="/tmp/probe-${expected}.html"
+            curl --fail --silent --show-error "http://127.0.0.1:3000${path}" -o "$output"
+            actual="$(sed -n 's/.*<html[^>]*lang="\([^"]*\)".*/\1/p' "$output" | head -n 1)"
+            echo "probe path=${path} expected=${expected} actual=${actual:-<empty>} bytes=$(wc -c < "$output")"
+            test "$actual" = "$expected"
+          }
+          probe /hi hi
+          probe /hi/ai-image-generator hi
+          probe /ms/ai-image-generator ms
+          probe /uk/ai-image-generator uk
       - name: Run owned shard — stop at first failure
         timeout-minutes: 15
         run: |
           set -euo pipefail
-          echo "Matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/4"
+          echo "Matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/4 sha=${EXPECTED_HEAD_SHA}"
           npx playwright test tests/localization-runtime.spec.ts \
             --project=${{ matrix.browser }} \
             --workers=6 \
@@ -105,6 +124,7 @@ jobs:
             playwright-report/
             test-results/
             /tmp/matrix-first-server.log
+            /tmp/probe-*.html
           if-no-files-found: warn
           retention-days: 14
       - name: Cleanup

@@ -1,8 +1,6 @@
 name: FLIXO CI — Checkpoint Shadow
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -12,6 +10,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+
 jobs:
   checkpoints-shadow:
     name: CI Checkpoint Shadow
@@ -20,6 +21,9 @@ jobs:
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
@@ -30,9 +34,9 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit --pretty false
       - name: Checkpoint semantics
-        run: node --experimental-strip-types scripts/ci/checkpoints/checkpoint.test.mjs
+        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/checkpoints/checkpoint.test.mjs
       - name: Checkpoint self-test
-        run: node --experimental-strip-types scripts/ci/checkpoints/self-test.mjs
+        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/checkpoints/self-test.mjs
       - name: Verify checkpoint fingerprint shape
         shell: bash
         run: |

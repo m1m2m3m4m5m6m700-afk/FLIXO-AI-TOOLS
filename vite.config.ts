@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { LOCALES } from './src/lib/i18n/config.ts';
 
 const allowedHosts = (process.env.VITE_ALLOWED_HOSTS ?? '')
   .split(',')
@@ -21,8 +22,28 @@ function vendorChunk(id: string): string | undefined {
   return 'vendor-common';
 }
 
+const localizedPreviewRoutes: Plugin = {
+  name: 'flixo-localized-preview-routes',
+  configurePreviewServer(server) {
+    server.middlewares.use((req, _res, next) => {
+      const requestUrl = req.url ?? '/';
+      const pathname = requestUrl.split(/[?#]/u, 1)[0] || '/';
+      const segments = pathname.split('/').filter(Boolean);
+      const locale = segments[0];
+
+      if (segments.length > 0 && LOCALES.includes(locale as (typeof LOCALES)[number]) && !pathname.endsWith('.html')) {
+        const localizedEntry = `${pathname.replace(/\/$/u, '')}/index.html`;
+        req.url = `${localizedEntry}${requestUrl.slice(pathname.length)}`;
+      }
+
+      next();
+    });
+  },
+};
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), localizedPreviewRoutes],
+  appType: 'mpa',
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

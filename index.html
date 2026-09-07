@@ -39,18 +39,12 @@
           pl: ['pl', 'ltr'], tr: ['tr', 'ltr'], vi: ['vi', 'ltr'], th: ['th', 'ltr'], sv: ['sv', 'ltr'],
           ms: ['ms', 'ltr'], uk: ['uk', 'ltr'],
         };
-        const resolveLocale = () => localeMap[window.location.pathname.split('/').filter(Boolean)[0] || 'en'] || localeMap.en;
-        const applyLocale = () => {
-          const [lang, dir] = resolveLocale();
-          const html = document.documentElement;
-          if (html.getAttribute('lang') !== lang) html.setAttribute('lang', lang);
-          if (html.getAttribute('dir') !== dir) html.setAttribute('dir', dir);
-        };
-        applyLocale();
-        new MutationObserver(applyLocale).observe(document.documentElement, {
-          attributes: true,
-          attributeFilter: ['lang', 'dir'],
-        });
+        const candidate = window.location.pathname.split('/').filter(Boolean)[0] || 'en';
+        const [lang, dir] = localeMap[candidate] || localeMap.en;
+        const html = document.documentElement;
+        html.setAttribute('lang', lang);
+        html.setAttribute('dir', dir);
+        html.setAttribute('data-flixo-locale', localeMap[candidate] ? candidate : 'en');
       })();
     </script>
   </head>
