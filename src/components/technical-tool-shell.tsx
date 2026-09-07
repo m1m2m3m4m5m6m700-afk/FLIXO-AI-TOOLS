@@ -22,7 +22,7 @@ type TechnicalToolShellProps = {
 
 const actionClass = 'inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.07] bg-white/[0.035] px-2.5 text-xs text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition duration-200 hover:-translate-y-px hover:border-violet-300/20 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/70';
 
-const EXTERNAL_PROCESSING: Partial<Record<KnownLocale, string> = {
+const EXTERNAL_PROCESSING: Partial<Record<KnownLocale, string>> = {
   ar: 'معالجة خارجية', en: 'External processing', es: 'Procesamiento externo', fr: 'Traitement externe', de: 'Externe Verarbeitung', ru: 'Внешняя обработка', zh: '外部处理', hi: 'बाहरी प्रोसेसिंग', id: 'Pemrosesan eksternal', ur: 'بیرونی پروسیسنگ', ja: '外部処理', pt: 'Processamento externo', it: 'Elaborazione esterna', ko: '외부 처리', nl: 'Externe verwerking', pl: 'Przetwarzanie zewnętrzne', tr: 'Harici işleme', vi: 'Xử lý bên ngoài', th: 'การประมวลผลภายนอก', sv: 'Extern bearbetning', ms: 'Pemprosesan luaran', uk: 'Зовнішня обробка',
 };
 
