@@ -32,8 +32,6 @@
     </script>
     <script>
       (() => {
-        // This synchronous bootstrap is the pre-bundle locale boundary. It must match
-        // src/lib/i18n/config.ts exactly so every public locale is correct at time-zero.
         const localeMap = {
           ar: ['ar', 'rtl'], en: ['en', 'ltr'], es: ['es', 'ltr'], fr: ['fr', 'ltr'], de: ['de', 'ltr'],
           hi: ['hi', 'ltr'], id: ['id', 'ltr'], it: ['it', 'ltr'], ja: ['ja', 'ltr'], ko: ['ko', 'ltr'],
@@ -46,6 +44,19 @@
         html.setAttribute('lang', lang);
         html.setAttribute('dir', dir);
         html.setAttribute('data-flixo-locale', localeKey);
+
+        // CI-only forensic hook: capture every later write to the native html lang
+        // attribute without changing the value being written.
+        if (window.location.hostname === '127.0.0.1') {
+          const nativeSetAttribute = Element.prototype.setAttribute;
+          Element.prototype.setAttribute = function(name, value) {
+            if (this === document.documentElement && name.toLowerCase() === 'lang') {
+              console.error(`[G4 LANG WRITE] value=${JSON.stringify(String(value))}\n${new Error().stack || 'no stack'}`);
+            }
+            return nativeSetAttribute.call(this, name, value);
+          };
+          console.log(`[G4 LANG INITIAL] ${html.getAttribute('lang')}`);
+        }
       })();
     </script>
   </head>
