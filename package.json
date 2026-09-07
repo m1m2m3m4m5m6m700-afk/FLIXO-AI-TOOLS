@@ -58,6 +58,7 @@
     "test:build": "node scripts/test.mjs --gate=build --mode=certification",
     "test:browser": "node scripts/test.mjs --gate=browser --mode=certification",
     "test:diagnose": "node scripts/test.mjs --mode=diagnose",
+    "diagnose:cycle": "node scripts/ci/record-repair-cycle.mjs",
     "test:e2e": "playwright test",
     "test": "node scripts/test.mjs --mode=certification"
   },
