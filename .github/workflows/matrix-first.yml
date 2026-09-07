@@ -74,6 +74,8 @@ jobs:
           timeout --preserve-status 420s npx playwright install '${{ matrix.browser }}'
       - name: Build preview
         run: npm run build
+      - name: Generate static route entries
+        run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-static-route-entries.mjs
       - name: Start isolated preview
         shell: bash
         run: |
