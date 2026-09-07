@@ -12,7 +12,6 @@ const required = [
   ['unified diagnostic runner', /name:\s*Unified diagnostic runner[\s\S]*npm run test:diagnose/u],
   ['technical debt audit', /name:\s*Technical-debt classification audit[\s\S]*npm run audit:technical-debt/u],
   ['diagnostic artifact', /upload-artifact@v6[\s\S]*diagnostics\/ci\//u],
-  ['failure-memory artifact', /Persist failure memory[\s\S]*failure-memory\.json/u],
   ['fail-closed certification', /name:\s*CERTIFY[\s\S]*needs:\s*\[test\][\s\S]*needs\.test\.result/u],
   ['authoritative evidence', /completeness\.authoritative\s*==\s*true/u],
 ];
@@ -21,5 +20,5 @@ if (packageJson.scripts?.test !== 'node scripts/test.mjs --mode=certification') 
 if (packageJson.scripts?.['diagnose:cycle'] !== 'node scripts/ci/record-repair-cycle.mjs') { console.error('CI contract failed: diagnose:cycle is not the cycle collector.'); process.exit(1); }
 if (packageJson.scripts?.['test:diagnose'] !== 'node scripts/test.mjs --mode=diagnose') { console.error('CI contract failed: test:diagnose is not the unified diagnostic runner.'); process.exit(1); }
 if (!/cancel-in-progress:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*\}\}/u.test(workflow)) { console.error('CI contract failed: PR cancellation is missing.'); process.exit(1); }
-if (/full-matrix-parallel|Matrix First Certification/u.test(workflow)) { console.error('CI contract failed: retired matrix certification reference remains.'); process.exit(1); }
-console.log('CI contract passed: exact-SHA bootstrap, one unified diagnostic runner, evidence artifacts, technical-debt audit, and fail-closed certification.');
+if (/full-matrix-parallel|Matrix First Certification|failure-memory\.json/u.test(workflow)) { console.error('CI contract failed: retired CI infrastructure reference remains.'); process.exit(1); }
+console.log('CI contract passed: exact-SHA bootstrap, one unified diagnostic runner, authoritative evidence, technical-debt audit, and fail-closed certification.');
