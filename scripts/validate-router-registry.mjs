@@ -11,11 +11,13 @@ const routesDir = path.resolve('src/routes');
 const routeTreePath = path.join(routesDir, 'route-tree.ts');
 const mainPath = path.resolve('src/main.tsx');
 const indexPath = path.resolve('index.html');
+const documentLocalePath = path.resolve('src/lib/i18n/runtime-document-locale.ts');
 const rootRouteSource = fs.readFileSync(rootRoutePath, 'utf8');
 const localizedToolRouteSource = fs.readFileSync(localizedToolRoutePath, 'utf8');
 const routeTreeSource = fs.readFileSync(routeTreePath, 'utf8');
 const mainSource = fs.readFileSync(mainPath, 'utf8');
 const indexSource = fs.readFileSync(indexPath, 'utf8');
+const documentLocaleSource = fs.readFileSync(documentLocalePath, 'utf8');
 
 function fail(stage, message, details = {}) { console.error(`ROUTER_REGISTRY_FAILURE stage=${stage}`); console.error(message); for (const [key, value] of Object.entries(details)) console.error(`${key}: ${JSON.stringify(value, null, 2)}`); process.exit(1); }
 function isPublicToolRoute(route) { const parts = route.split('/').filter(Boolean); return parts.length === 2 && parts[0].length === 2 && !parts[1].startsWith('$'); }
@@ -27,41 +29,9 @@ function extractPathProperties(source) { const routes = []; const routeFactoryPa
 function unwrapExpression(node) { let current = node; while (current && (ts.isParenthesizedExpression(current) || ts.isAsExpression(current) || ts.isTypeAssertionExpression(current))) current = current.expression; return current; }
 function propertyName(property) { if (!property.name) return null; if (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) return property.name.text; return null; }
 function findProperty(objectLiteral, name) { return objectLiteral.properties.find((property) => propertyName(property) === name) ?? null; }
-function isRouteHeadProperty(property) { const name = propertyName(property); return name === 'head' && !!property.initializer; }
-function getHeadResultObject(property) {
-  let initializer = unwrapExpression(property.initializer);
-  if (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)) initializer = unwrapExpression(initializer.body);
-  return initializer && ts.isObjectLiteralExpression(initializer) ? initializer : null;
-}
-function hasRouteSeoMetadata(source) {
-  const sourceFile = ts.createSourceFile('route.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  let valid = false;
-  function inspect(node) {
-    if (valid) return;
-    if (ts.isObjectLiteralExpression(node)) {
-      const head = node.properties.find(isRouteHeadProperty);
-      if (head) {
-        const headObject = getHeadResultObject(head);
-        const meta = headObject && findProperty(headObject, 'meta');
-        const metaArray = meta ? unwrapExpression(meta.initializer) : null;
-        if (metaArray && ts.isArrayLiteralExpression(metaArray)) {
-          let title = false;
-          let description = false;
-          for (const element of metaArray.elements) {
-            const item = unwrapExpression(element);
-            if (!item || !ts.isObjectLiteralExpression(item)) continue;
-            title ||= !!findProperty(item, 'title');
-            description ||= !!findProperty(item, 'description');
-          }
-          valid = title && description;
-        }
-      }
-    }
-    if (!valid) ts.forEachChild(node, inspect);
-  }
-  inspect(sourceFile);
-  return valid;
-}
+function isRouteHeadProperty(property) { return propertyName(property) === 'head' && !!property.initializer; }
+function getHeadResultObject(property) { let initializer = unwrapExpression(property.initializer); if (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)) initializer = unwrapExpression(initializer.body); return initializer && ts.isObjectLiteralExpression(initializer) ? initializer : null; }
+function hasRouteSeoMetadata(source) { const sourceFile = ts.createSourceFile('route.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX); let valid = false; function inspect(node) { if (valid) return; if (ts.isObjectLiteralExpression(node)) { const head = node.properties.find(isRouteHeadProperty); if (head) { const headObject = getHeadResultObject(head); const meta = headObject && findProperty(headObject, 'meta'); const metaArray = meta ? unwrapExpression(meta.initializer) : null; if (metaArray && ts.isArrayLiteralExpression(metaArray)) { let title = false; let description = false; for (const element of metaArray.elements) { const item = unwrapExpression(element); if (!item || !ts.isObjectLiteralExpression(item)) continue; title ||= !!findProperty(item, 'title'); description ||= !!findProperty(item, 'description'); } valid = title && description; } } } if (!valid) ts.forEachChild(node, inspect); } inspect(sourceFile); return valid; }
 
 if (!Array.isArray(TOOLS_REGISTRY) || TOOLS_REGISTRY.length === 0) fail('registry-load', 'TOOLS_REGISTRY is empty or invalid.');
 if (!routeTreeSource.includes('export const routeChildren')) fail('router-load', 'route-tree.ts does not expose routeChildren.');
@@ -73,26 +43,25 @@ if (!rootRouteSource.includes('notFoundComponent: NotFoundComponent')) fail('not
 if (!localizedToolRouteSource.includes('errorComponent: ErrorComponent')) fail('error-boundary', 'Dynamic localized tool route must install ErrorComponent.');
 if (!localizedToolRouteSource.includes('notFoundComponent: NotFoundComponent')) fail('not-found', 'Dynamic localized tool route must install NotFoundComponent.');
 
-if (!mainSource.includes('createRoot(document)')) fail('dom-owner', 'React must own the document root via createRoot(document).');
-if (!mainSource.includes('<html lang={metadata.languageTag}')) fail('dom-owner', 'Document locale attributes must be rendered declaratively by React.');
-if (!mainSource.includes('data-flixo-locale={locale}')) fail('dom-owner', 'data-flixo-locale must be rendered declaratively by React.');
-if (!mainSource.includes("router.subscribe('onResolved'")) fail('dom-owner', 'Document locale state must derive from TanStack Router navigation state.');
-if (/\b(?:lang|dir)\s*=|data-flixo-locale\s*=/u.test(indexSource)) fail('dom-owner', 'index.html must not own runtime locale attributes; React is the sole writer.');
+if (!mainSource.includes("applyDocumentLocale(localeFromPathname(window.location.pathname))")) fail('dom-owner', 'Application bootstrap must synchronously apply the canonical document locale.');
+if (!rootRouteSource.includes('applyDocumentLocale(localeFromPathname(location.pathname))')) fail('dom-owner', 'Route navigation must update document locale from canonical pathname state.');
+if (!documentLocaleSource.includes('export function localeFromPathname(')) fail('dom-owner', 'Canonical locale parser is missing.');
+if (!documentLocaleSource.includes('export function applyDocumentLocale(')) fail('dom-owner', 'Canonical document locale writer is missing.');
+if (/\bnew\s+MutationObserver\s*\(|\bsetInterval\s*\(|\brequestAnimationFrame\s*\(/u.test(documentLocaleSource)) fail('dom-ownership', 'Canonical document locale writer must not use observers, polling, or frame repair.');
+if (indexSource.includes('new MutationObserver')) fail('dom-observer', 'index.html must not repair locale with MutationObserver.');
+if (!indexSource.includes('localeMap') || !indexSource.includes('data-flixo-locale')) fail('dom-owner', 'index.html must retain synchronous locale bootstrap metadata.');
 
-const forbiddenRuntimeFiles = ['src/lib/i18n/runtime-document-locale.ts','src/lib/i18n/tool-ui-runtime.ts','src/lib/i18n/tool-ui-runtime-supplement.ts','src/lib/i18n/tool-ui-runtime-completeness.ts','src/lib/i18n/tool-ui-runtime-ms-uk.ts','src/lib/i18n/tool-ui-technical-values.ts','src/components/auto-localized-tool-surface.tsx'];
+const forbiddenRuntimeFiles = ['src/lib/i18n/tool-ui-runtime-supplement.ts','src/components/auto-localized-tool-surface.tsx'];
 const remainingLegacyRuntimeFiles = forbiddenRuntimeFiles.filter((relativePath) => fs.existsSync(path.resolve(relativePath)));
-if (remainingLegacyRuntimeFiles.length) fail('dom-ownership', 'Legacy post-render localization runtime files are still present.', { files: remainingLegacyRuntimeFiles });
+if (remainingLegacyRuntimeFiles.length) fail('dom-ownership', 'Obsolete localization runtime files are still present.', { files: remainingLegacyRuntimeFiles });
 
 const sourceFiles = listSourceFiles(path.resolve('src'));
 const sourceRecords = sourceFiles.map((file) => ({ file, relative: path.relative(process.cwd(), file).split(path.sep).join('/'), source: fs.readFileSync(file, 'utf8') }));
-const mutationObserverOwners = sourceRecords.filter(({ source }) => /\bnew\s+MutationObserver\s*\(/u.test(source)).map(({ relative }) => relative).sort();
-if (mutationObserverOwners.length) fail('dom-observer', 'MutationObserver is forbidden in production source for localization/attribute repair.', { files: mutationObserverOwners });
-const i18nFiles = sourceRecords.filter(({ file }) => file.startsWith(`${path.resolve('src/lib/i18n')}${path.sep}`));
-const forbiddenSchedulingOwners = i18nFiles.filter(({ source }) => /\b(?:setInterval|requestAnimationFrame)\s*\(/u.test(source)).map(({ relative }) => relative).sort();
-if (forbiddenSchedulingOwners.length) fail('dom-scheduling', 'Polling or animation-frame DOM enforcement is forbidden in i18n source.', { files: forbiddenSchedulingOwners });
 const localeMutationPattern = /document\.documentElement(?:\.setAttribute\(\s*['"](?:lang|dir|data-flixo-locale)['"]|\.(?:lang|dir)\s*=)/u;
-const localeMutationOwners = sourceRecords.filter(({ source }) => localeMutationPattern.test(source)).map(({ relative }) => relative).sort();
+const localeMutationOwners = sourceRecords.filter(({ relative, source }) => relative !== 'src/lib/i18n/runtime-document-locale.ts' && localeMutationPattern.test(source)).map(({ relative }) => relative).sort();
 if (localeMutationOwners.length) fail('dom-owner', 'Imperative document locale writers remain in production source.', { files: localeMutationOwners });
+const forbiddenLocaleObserverOwners = sourceRecords.filter(({ relative, source }) => relative.includes('/i18n/') && /\bnew\s+MutationObserver\s*\(/u.test(source)).map(({ relative }) => relative).sort();
+if (forbiddenLocaleObserverOwners.length) fail('dom-observer', 'Localization modules still perform DOM mutation-observer translation.', { files: forbiddenLocaleObserverOwners });
 
 const rawHtmlOwners = sourceRecords.filter(({ source }) => source.includes('dangerouslySetInnerHTML')).filter(({ source }) => !(source.includes('application/ld+json') && /JSON\.stringify\([^)]*\)\.replace\(\/</u.test(source) || source.includes('serializeJsonLd'))).map(({ relative }) => relative).sort();
 if (rawHtmlOwners.length) fail('dom-security', 'dangerouslySetInnerHTML is forbidden outside escaped JSON-LD rendering.', { files: rawHtmlOwners });
@@ -104,7 +73,6 @@ for (const prefix of requiredOwnedResourceTools) {
 }
 const activeFlagOwners = sourceRecords.filter(({ source }) => /\blet\s+(?:active|mounted|cancelled|canceled)\s*=\s*(?:true|false)\b/u.test(source)).map(({ relative }) => relative).sort();
 if (activeFlagOwners.length) fail('async-cancellation', 'Ad-hoc async lifecycle booleans are forbidden; use AbortController/AbortSignal.', { files: activeFlagOwners });
-
 const purityOwners = sourceRecords.filter(({ relative, source }) => /^src\/data\/.*(?:i18n|locale|dictionary).*\.ts$/u.test(relative) && /from ['"][^'"]*\/tools\//u.test(source)).map(({ relative }) => relative).sort();
 if (purityOwners.length) fail('dictionary-purity', 'Dictionary/data modules must not import tool implementation modules.', { files: purityOwners });
 
@@ -143,9 +111,7 @@ for (const tool of TOOLS_REGISTRY.filter((entry) => entry.isReady)) for (const l
 
 for (const relative of sourceRecords.filter(({ relative }) => relative.startsWith('src/routes/') && relative.endsWith('.tsx')).map(({ relative }) => relative)) {
   const source = fs.readFileSync(path.resolve(relative), 'utf8');
-  if (relative.includes('localized-tool') || relative.includes('index') || relative.includes('home-page') || relative.includes('quickflow')) {
-    if (!hasRouteSeoMetadata(source)) fail('route-seo', `Route is missing explicit SEO title/description metadata: ${relative}.`);
-  }
+  if (relative.includes('localized-tool') || relative.includes('index') || relative.includes('home-page') || relative.includes('quickflow')) if (!hasRouteSeoMetadata(source)) fail('route-seo', `Route is missing explicit SEO title/description metadata: ${relative}.`);
 }
 
 const swSource = fs.readFileSync(path.resolve('public/sw.js'), 'utf8');
@@ -171,8 +137,8 @@ console.log(`dynamic-owned ready routes: ${dynamicOwnedExpectedRoutes.length}`);
 console.log(`reachable route modules: ${reachableRouteModules.size}/${routeFiles.length}`);
 console.log('orphan route files: 0');
 console.log('localized SEO matrix: validated');
-console.log('DOM locale owner: React document root + TanStack Router state');
-console.log('post-render localization observers: forbidden');
+console.log('DOM locale owner: synchronous bootstrap + TanStack Router lifecycle');
+console.log('post-render localization observers for locale state: forbidden');
 console.log('lazy route Suspense: enabled');
 console.log('resource owner enforcement: enabled');
 console.log('async cancellation enforcement: enabled');
