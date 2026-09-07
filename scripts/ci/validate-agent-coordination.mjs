@@ -57,6 +57,20 @@ for (const claim of state.claims) {
 }
 
 const currentBranch = process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || null;
+const expectedSha = process.env.EXPECTED_HEAD_SHA;
+const strictSha = process.env.FLIXO_AGENT_COORDINATION_STRICT_SHA === 'true';
+if (expectedSha && !HEX_SHA.test(expectedSha)) fail('EXPECTED_HEAD_SHA must be a 40-hex SHA when supplied');
+
+if (strictSha && active.length > 0 && (!currentBranch || !AGENT_BRANCH.test(currentBranch))) {
+  fail(`active writer claims are only valid on agent branches; current branch is ${currentBranch ?? 'unknown'}`);
+}
+if (strictSha && active.length > 0 && expectedSha) {
+  const stale = active.filter((claim) => claim.branch === currentBranch && claim.observedHeadSha !== expectedSha);
+  if (stale.length > 0) {
+    fail(`stale active claim SHA on ${currentBranch}: ${stale.map((claim) => `${claim.agentId} observed ${claim.observedHeadSha}`).join(', ')}`);
+  }
+}
+
 if (currentBranch && !AGENT_BRANCH.test(currentBranch) && active.length > 0) {
   fail(`integration branch ${currentBranch} contains active writer claims; release claims before integration`);
 }
@@ -88,15 +102,13 @@ for (let i = 0; i < active.length; i += 1) {
   }
 }
 
-const expectedSha = process.env.EXPECTED_HEAD_SHA;
-if (expectedSha && !HEX_SHA.test(expectedSha)) fail('EXPECTED_HEAD_SHA must be a 40-hex SHA when supplied');
-
 const report = {
   schemaVersion: 1,
   protocol: state.protocol,
   generatedAt: new Date().toISOString(),
   expectedHeadSha: expectedSha ?? null,
   currentBranch,
+  strictSha,
   activeClaimCount: active.length,
   activeAgents: active.map(({ agentId, branch, observedHeadSha, scope, rootCauseIds, leaseUntil }) => ({
     agentId,
@@ -110,6 +122,7 @@ const report = {
     'one writable scope per active agent',
     'no active path/contract/root-cause collisions',
     'active writers use isolated agent branches',
+    'active claims match the exact CI head when strict SHA is enabled',
     'integration branches contain no active writer claims',
     'leases expire without permanent locks',
     'agent count is not fixed by protocol',
@@ -124,5 +137,5 @@ report.reportHash = reportHash;
 await mkdir('artifacts/ci/agent-coordination', { recursive: true });
 await writeFile(EVIDENCE_FILE, JSON.stringify(report, null, 2) + '\n');
 
-console.log(`Agent coordination PASS: activeAgents=${active.length}`);
+console.log(`Agent coordination PASS: activeAgents=${active.length} strictSha=${strictSha}`);
 console.log(`reportHash=${reportHash}`);
