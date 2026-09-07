@@ -92,7 +92,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: matrix-first-plan-${{ inputs.source_sha || github.sha }}
-          path:
+          path: |
             _flixo_matrix_plan.json
             artifacts/ci/protocol-cooperation/cooperation-map.json
             artifacts/ci/protocol-cooperation/contract-coverage.json
@@ -137,7 +137,7 @@ jobs:
         run: |
           set -euo pipefail
           node -e 'const m=require("./dist/_flixo_build_manifest.json"); const expected=process.env.FLIXO_SOURCE_SHA; if(m.sha!==expected || m.commit_sha!==expected) { console.error({manifest:m.sha, expected}); process.exit(1); }'
-          node -e 'const crypto=require("node:crypto"); const p=require("./matrix-provenance/_flixo_matrix_plan.json"); const {plan_hash,signature,signature_algorithm,...u}=p; const c=JSON.stringify(u); const h=crypto.createHash("sha256").update(c).digest("hex"); const s=crypto.createHmac("sha256",process.env.FLIXO_MATRIX_PLAN_SIGNING_KEY).update(c).digest("hex"); if(h!==plan_hash||s!==signature||signature_algorithm!=="HMAC-SHA256"||p.source_sha!==process.env.FLIXO_SOURCE_SHA||p.schema_version!==4) process.exit(1);'
+          node -e 'const crypto=require("node:crypto"); const p=require("./matrix-provenance/_flixo_matrix_plan.json"); const {plan_hash,signature,signature_algorithm,...u}=p; const c=JSON.stringify(u); const h=crypto.createHash("sha256").update(c).digest("hex"); const s=crypto.createHmac("sha256",process.env.FLIXO_MATRIX_PLAN_SIGNING_KEY).update(c).digest("hex"); if(h!==plan_hash||s!==signature||signature_algorithm!=="HMAC-SHA256"||p.source_sha!==process.env.FLIXO_SOURCE_SHA||p.schema_version!==4) { console.error({h,plan_hash,signatureAlgorithm:signature_algorithm}); process.exit(1); }'
           node -e 'const p=require("./matrix-provenance/_flixo_matrix_plan.json"); const u=p.matrix.find((item)=>item.browser==="${{ matrix.browser }}"&&item.shard===${{ matrix.shard }}); if(!u || !Array.isArray(u.test_ids) || u.test_ids.length!==Number(u.test_count) || new Set(u.test_ids).size!==u.test_ids.length) process.exit(1);'
       - name: Install Playwright system dependencies
         timeout-minutes: 8
