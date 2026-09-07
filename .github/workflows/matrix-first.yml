@@ -15,6 +15,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
   VITE_SITE_URL: https://flixoai.vercel.app
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
   VITE_TEST_ORIGIN: https://canonical.test
@@ -38,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -78,7 +79,7 @@ jobs:
         run: |
           set -euo pipefail
           setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/matrix-first-server.log 2>&1 &
-          echo $! >/tmp/matrix-first-server.pid
+          echo $!>/tmp/matrix-first-server.pid
           for _ in $(seq 1 60); do
             if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
             sleep 1
@@ -89,7 +90,7 @@ jobs:
         timeout-minutes: 15
         run: |
           set -euo pipefail
-          echo "Matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/4"
+          echo "Matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/4 sha=${EXPECTED_HEAD_SHA}"
           npx playwright test tests/localization-runtime.spec.ts \
             --project=${{ matrix.browser }} \
             --workers=6 \
