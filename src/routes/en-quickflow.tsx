@@ -1,9 +1,10 @@
 import { createRoute, Link, useParams } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getWorkflow } from '@/lib/workflows/registry';
 import { planFromWorkflow, type ExecutionPlan } from '@/lib/ai/planner';
 import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import { QUICKFLOW_I18N } from '@/data/quickflow-i18n';
+import { useDisposableResourceOwner, throwIfAborted } from '@/lib/resources/disposable-resource-owner';
 import { rootRoute } from './__root';
 
 function extensionForMime(mime: string) {
@@ -18,6 +19,9 @@ export const enQuickFlowRoute = createRoute({
   path: '/en/quickflow/$workflowId',
   head: () => ({ meta: [{ title: 'QuickFlow | FLIXO' }, { name: 'description', content: 'Run a deterministic FLIXO image workflow locally in your browser.' }, { name: 'robots', content: 'noindex,follow' }] }),
   component: function QuickFlowPage() {
+    const resources = useDisposableResourceOwner();
+    const processingControllerRef = useRef<AbortController | null>(null);
+    const jobIdRef = useRef<string | null>(null);
     const copy = QUICKFLOW_I18N.en;
     const { workflowId } = useParams({ from: '/en/quickflow/$workflowId' });
     const workflow = getWorkflow(workflowId);
@@ -25,26 +29,44 @@ export const enQuickFlowRoute = createRoute({
     const [plan, setPlan] = useState<ExecutionPlan | null>(() => planFromWorkflow(workflowId));
     const [progress, setProgress] = useState<PipelineProgress | null>(null);
     const [result, setResult] = useState<Blob | null>(null);
+    const [resultUrl, setResultUrl] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
 
     useEffect(() => setPlan(planFromWorkflow(workflowId)), [workflowId]);
-    const resultUrl = useMemo(() => result ? URL.createObjectURL(result) : '', [result]);
-    useEffect(() => () => { if (resultUrl) URL.revokeObjectURL(resultUrl); }, [resultUrl]);
+    useEffect(() => {
+      if (!result) { void resources.dispose('quickflow-result'); setResultUrl(''); return; }
+      const url = resources.objectUrl('quickflow-result', result);
+      setResultUrl(url);
+      return () => { void resources.dispose('quickflow-result'); };
+    }, [result, resources]);
+    useEffect(() => () => processingControllerRef.current?.abort(), []);
 
     if (!workflow || !plan) return <main lang="en" dir="ltr" className="image-tool-shell"><div className="image-tool-container"><h1>{copy.missing}</h1><Link className="primary-button" to="/">{copy.back}</Link></div></main>;
 
     const run = async () => {
       if (!file) { setError(copy.chooseError); return; }
+      processingControllerRef.current?.abort();
+      await resources.disposeAll();
+      const controller = new AbortController();
+      const jobId = crypto.randomUUID();
+      processingControllerRef.current = controller;
+      jobIdRef.current = jobId;
       setBusy(true); setError(''); setResult(null); setProgress(null);
-      try { setResult(await runWorkflowPipeline(file, plan, setProgress)); }
-      catch (cause) { setError(cause instanceof Error ? cause.message : copy.failure); }
-      finally { setBusy(false); }
+      try {
+        const nextResult = await runWorkflowPipeline(file, plan, setProgress, controller.signal);
+        throwIfAborted(controller.signal);
+        if (jobId !== jobIdRef.current) return;
+        setResult(nextResult);
+      } catch (cause) {
+        if (!controller.signal.aborted && jobId === jobIdRef.current) setError(cause instanceof Error ? cause.message : copy.failure);
+      } finally {
+        if (jobId === jobIdRef.current) { processingControllerRef.current = null; setBusy(false); }
+      }
     };
 
     const percent = progress ? Math.round((progress.currentStepIndex / progress.totalSteps) * 100) : result ? 100 : 0;
     const currentName = progress?.currentToolId ?? '';
-
     return (
       <main lang="en" dir="ltr" className="image-tool-shell"><div className="image-tool-container">
         <Link to="/" className="language-link">← FLIXO</Link>

@@ -1,5 +1,5 @@
 import { createRoute, useParams } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { isLocale } from '@/lib/i18n';
 import { LOCALE_METADATA } from '@/lib/i18n/config';
 import { getWorkflow } from '@/lib/workflows/registry';
@@ -7,6 +7,7 @@ import { planFromWorkflow, type ExecutionPlan } from '@/lib/ai/planner';
 import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import { QUICKFLOW_LOCALES } from '@/data/quickflow-locales';
 import { QUICKFLOW_COPY_OVERRIDES } from '@/lib/i18n/locale-quality-overrides';
+import { useDisposableResourceOwner, throwIfAborted } from '@/lib/resources/disposable-resource-owner';
 import { rootRoute } from './__root';
 
 function extensionForMime(mime: string) { if (mime === 'image/png') return 'png'; if (mime === 'image/jpeg') return 'jpg'; if (mime === 'image/webp') return 'webp'; return 'bin'; }
@@ -15,6 +16,9 @@ export const localizedQuickFlowRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/$locale/quickflow/$workflowId',
   component: function LocalizedQuickFlowPage() {
+    const resources = useDisposableResourceOwner();
+    const processingControllerRef = useRef<AbortController | null>(null);
+    const jobIdRef = useRef<string | null>(null);
     const { locale: rawLocale, workflowId } = useParams({ from: '/$locale/quickflow/$workflowId' });
     const locale = isLocale(rawLocale) ? rawLocale : 'en';
     const copy = { ...QUICKFLOW_LOCALES[locale], ...(QUICKFLOW_COPY_OVERRIDES[locale] ?? {}) };
@@ -23,12 +27,18 @@ export const localizedQuickFlowRoute = createRoute({
     const [plan, setPlan] = useState<ExecutionPlan | null>(() => planFromWorkflow(workflowId));
     const [progress, setProgress] = useState<PipelineProgress | null>(null);
     const [result, setResult] = useState<Blob | null>(null);
+    const [resultUrl, setResultUrl] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
 
     useEffect(() => setPlan(planFromWorkflow(workflowId)), [workflowId]);
-    const resultUrl = useMemo(() => result ? URL.createObjectURL(result) : '', [result]);
-    useEffect(() => () => { if (resultUrl) URL.revokeObjectURL(resultUrl); }, [resultUrl]);
+    useEffect(() => {
+      if (!result) { void resources.dispose('quickflow-result'); setResultUrl(''); return; }
+      const url = resources.objectUrl('quickflow-result', result);
+      setResultUrl(url);
+      return () => { void resources.dispose('quickflow-result'); };
+    }, [result, resources]);
+    useEffect(() => () => processingControllerRef.current?.abort(), []);
 
     const homeHref = `/${locale}`;
     const direction = LOCALE_METADATA[locale].direction;
@@ -37,10 +47,23 @@ export const localizedQuickFlowRoute = createRoute({
 
     const run = async () => {
       if (!file) { setError(copy.chooseError); return; }
+      processingControllerRef.current?.abort();
+      await resources.disposeAll();
+      const controller = new AbortController();
+      const jobId = crypto.randomUUID();
+      processingControllerRef.current = controller;
+      jobIdRef.current = jobId;
       setBusy(true); setError(''); setResult(null); setProgress(null);
-      try { setResult(await runWorkflowPipeline(file, plan, setProgress)); }
-      catch (cause) { setError(cause instanceof Error ? cause.message : copy.failure); }
-      finally { setBusy(false); }
+      try {
+        const nextResult = await runWorkflowPipeline(file, plan, setProgress, controller.signal);
+        throwIfAborted(controller.signal);
+        if (jobId !== jobIdRef.current) return;
+        setResult(nextResult);
+      } catch (cause) {
+        if (!controller.signal.aborted && jobId === jobIdRef.current) setError(cause instanceof Error ? cause.message : copy.failure);
+      } finally {
+        if (jobId === jobIdRef.current) { processingControllerRef.current = null; setBusy(false); }
+      }
     };
 
     const percent = progress ? Math.round((progress.currentStepIndex / progress.totalSteps) * 100) : result ? 100 : 0;

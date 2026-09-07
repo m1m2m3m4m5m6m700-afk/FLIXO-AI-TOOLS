@@ -2,7 +2,7 @@ import { Suspense, useEffect } from 'react';
 import { HeadContent, Scripts, Outlet, createRootRoute } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
-import { ErrorComponent, NotFoundComponent } from '../components/route-fallbacks';
+import { ErrorComponent, NotFoundComponent, RouteErrorBoundary } from '../components/route-fallbacks';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
 import { SITE_ORIGIN } from '../lib/i18n';
 import { serializeJsonLd } from '../lib/seo/json-ld';
@@ -14,11 +14,9 @@ const GLOBAL_STRUCTURED_DATA = {
     { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'FLIXO AI', url: SITE_ORIGIN, publisher: { '@id': `${SITE_ORIGIN}/#organization` } },
   ],
 } as const;
-
 function RouteContent() {
-  return <Suspense fallback={<div role="status" aria-live="polite">Loading…</div>}><Outlet /></Suspense>;
+  return <RouteErrorBoundary><Suspense fallback={<div role="status" aria-live="polite">Loading…</div>}><Outlet /></Suspense></RouteErrorBoundary>;
 }
-
 export const rootRoute = createRootRoute({
   errorComponent: ErrorComponent,
   notFoundComponent: NotFoundComponent,
@@ -29,26 +27,13 @@ export const rootRoute = createRootRoute({
   },
   head: () => ({
     meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { name: 'theme-color', content: '#090d12' },
+      { charSet: 'utf-8' }, { name: 'viewport', content: 'width=device-width, initial-scale=1' }, { name: 'theme-color', content: '#090d12' },
       { name: 'description', content: 'FLIXO AI — fast browser-first productivity tools with privacy-focused local processing.' },
       { name: 'robots', content: 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1' },
-      { property: 'og:site_name', content: 'FLIXO AI' },
-      { property: 'og:type', content: 'website' },
-      { property: 'og:title', content: 'FLIXO AI — Fast browser-first tools' },
-      { property: 'og:description', content: 'Fast browser-first tools for images, PDFs, audio, video, text, and everyday productivity.' },
-      { property: 'og:url', content: SITE_ORIGIN },
-      { property: 'og:image', content: `${SITE_ORIGIN}/flixo-logo.svg` },
-      { name: 'twitter:card', content: 'summary_large_image' },
-      { name: 'twitter:title', content: 'FLIXO AI — Fast browser-first tools' },
-      { name: 'twitter:description', content: 'Fast browser-first tools for images, PDFs, audio, video, text, and everyday productivity.' },
-      { name: 'twitter:image', content: `${SITE_ORIGIN}/flixo-logo.svg` },
+      { property: 'og:site_name', content: 'FLIXO AI' }, { property: 'og:type', content: 'website' }, { property: 'og:title', content: 'FLIXO AI — Fast browser-first tools' },
+      { property: 'og:description', content: 'Fast browser-first tools for images, PDFs, audio, video, text, and everyday productivity.' }, { property: 'og:url', content: SITE_ORIGIN }, { property: 'og:image', content: `${SITE_ORIGIN}/flixo-logo.svg` },
+      { name: 'twitter:card', content: 'summary_large_image' }, { name: 'twitter:title', content: 'FLIXO AI — Fast browser-first tools' }, { name: 'twitter:description', content: 'Fast browser-first tools for images, PDFs, audio, video, text, and everyday productivity.' }, { name: 'twitter:image', content: `${SITE_ORIGIN}/flixo-logo.svg` },
     ],
-    links: [
-      { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
-      { rel: 'alternate icon', href: '/logo.svg', type: 'image/svg+xml' },
-      { rel: 'apple-touch-icon', href: '/flixo-logo.svg' },
-    ],
+    links: [{ rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }, { rel: 'alternate icon', href: '/logo.svg', type: 'image/svg+xml' }, { rel: 'apple-touch-icon', href: '/flixo-logo.svg' }],
   }),
 });
