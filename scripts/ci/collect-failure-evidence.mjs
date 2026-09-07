@@ -21,74 +21,57 @@ const git = (args) => {
   const result = spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' });
   return (result.stdout ?? '').trim();
 };
-
-const EXPECTED_CHECKS = { STATIC: 8, BUILD: 3, BROWSER: 3 };
-const REQUIRED_GATES = Object.keys(EXPECTED_CHECKS);
 const context = readJson('execution-context.json');
-const reports = REQUIRED_GATES.map((gate) => ({ name: gate, report: readJson(`${gate.toLowerCase()}.json`) }));
+const overall = readJson('report.json');
+const expected = { STATIC: 27, BUILD: 3, BROWSER: 3 };
+const requiredGates = Object.keys(expected);
+const reports = requiredGates.map((gate) => ({ name: gate, report: readJson(`${gate.toLowerCase()}.json`) }));
 const missingReports = reports.filter(({ report }) => !report).map(({ name }) => name);
 const failures = reports.flatMap(({ name, report }) => (report?.checks ?? []).filter((check) => check.status === 'FAIL').map((check) => ({ gate: name, ...check })));
 const skipped = reports.flatMap(({ name, report }) => (report?.checks ?? []).filter((check) => check.status === 'SKIPPED').map((check) => ({ gate: name, label: check.label })));
-const incompleteReports = reports
-  .filter(({ report }) => report)
-  .filter(({ name, report }) => report.sha !== context?.execution?.sha || report.checksExpected !== EXPECTED_CHECKS[name] || report.checksExecuted !== EXPECTED_CHECKS[name] || report.status !== 'PASS');
+const blocked = reports.filter(({ report }) => report?.status === 'BLOCKED').map(({ name }) => name);
+const incompleteReports = reports.filter(({ name, report }) => !report
+  || report.sha !== context?.execution?.sha
+  || report.checksExpected !== expected[name]
+  || report.checksExecuted !== expected[name]
+  || report.status !== 'PASS');
 const masked = reports.some(({ report }) => report?.status === 'PASS' && Number(report.failures ?? 0) > 0)
   || reports.some(({ report }) => report?.status === 'PASS' && Number(report.checksExecuted ?? 0) < Number(report.checksExpected ?? 0));
+const exactSha = Boolean(context?.execution?.expectedSha && context.execution.expectedSha === context.execution.sha && context.execution.sha === git(['rev-parse', 'HEAD']));
+const overallCoherent = Boolean(overall?.sha === context?.execution?.sha && overall?.gatesExpected === requiredGates.length && overall?.gatesExecuted === requiredGates.length);
 const authoritative = missingReports.length === 0
   && incompleteReports.length === 0
+  && blocked.length === 0
   && failures.length === 0
   && skipped.length === 0
-  && !masked;
+  && !masked
+  && exactSha
+  && overallCoherent;
 
 const bundle = {
-  schema: 'flixo-failure-evidence/v2',
-  generatedAt: now,
-  sha: git(['rev-parse', 'HEAD']),
-  executionIdentityHash: context?.identityHash ?? null,
-  contextArtifact: 'execution-context.json',
+  schema: 'flixo-failure-evidence/v3', generatedAt: now, sha: git(['rev-parse', 'HEAD']), executionIdentityHash: context?.identityHash ?? null,
+  contextArtifact: 'execution-context.json', overallArtifact: 'report.json',
   reports: reports.map(({ name, report }) => ({
-    gate: name,
-    present: Boolean(report),
-    status: report?.status ?? 'MISSING',
-    sha: report?.sha ?? null,
-    mode: report?.mode ?? null,
-    checksExpected: report?.checksExpected ?? null,
-    checksExecuted: report?.checksExecuted ?? null,
-    expectedChecks: EXPECTED_CHECKS[name],
-    failures: report?.failures ?? null,
-    rootCauses: report?.rootCauses ?? [],
-    artifactSha256: fileHash(`${name.toLowerCase()}.json`),
+    gate: name, present: Boolean(report), status: report?.status ?? 'MISSING', sha: report?.sha ?? null, mode: report?.mode ?? null,
+    checksExpected: report?.checksExpected ?? null, checksExecuted: report?.checksExecuted ?? null, expectedChecks: expected[name],
+    failures: report?.failures ?? null, rootCauses: report?.rootCauses ?? [], artifactSha256: fileHash(`${name.toLowerCase()}.json`),
   })),
-  failures,
-  skipped,
+  failures, skipped, blocked,
   completeness: {
-    requiredGates: REQUIRED_GATES,
-    missingReports,
-    incompleteReports: incompleteReports.map(({ name }) => name),
-    allRequiredReportsPresent: missingReports.length === 0,
-    allExpectedChecksExecuted: incompleteReports.length === 0,
-    authoritative,
+    requiredGates, missingReports, incompleteReports: incompleteReports.map(({ name }) => name), blockedGates: blocked,
+    allRequiredReportsPresent: missingReports.length === 0, allExpectedChecksExecuted: incompleteReports.length === 0,
+    overallCoherent, authoritative,
   },
-  repository: {
-    head: git(['rev-parse', 'HEAD']),
-    statusPorcelain: git(['status', '--porcelain']),
-    diffStat: git(['diff', '--stat']),
-  },
+  repository: { head: git(['rev-parse', 'HEAD']), statusPorcelain: git(['status', '--porcelain']), diffStat: git(['diff', '--stat']) },
   integrity: {
-    contextSha256: fileHash('execution-context.json'),
-    staticReportSha256: fileHash('static.json'),
-    buildReportSha256: fileHash('build.json'),
-    browserReportSha256: fileHash('browser.json'),
+    contextSha256: fileHash('execution-context.json'), overallReportSha256: fileHash('report.json'),
+    staticReportSha256: fileHash('static.json'), buildReportSha256: fileHash('build.json'), browserReportSha256: fileHash('browser.json'),
   },
   invariants: {
-    exactShaMatch: Boolean(context?.execution?.expectedSha && context.execution.expectedSha === context.execution.sha),
-    cleanCheckout: context?.execution?.dirty === false,
-    requiredTestsSkipped: skipped.length > 0,
-    maskedFailures: masked,
-    staleEvidence: reports.some(({ report }) => report?.sha && report.sha !== context?.execution?.sha),
+    exactShaMatch: exactSha, cleanCheckout: context?.execution?.dirty === false, requiredTestsSkipped: skipped.length > 0,
+    maskedFailures: masked, staleEvidence: reports.some(({ report }) => report?.sha && report.sha !== context?.execution?.sha),
   },
 };
-
 bundle.evidenceId = `EVD-${sha256(JSON.stringify(bundle)).slice(0, 16).toUpperCase()}`;
 writeFileSync(resolve(DIR, 'failure-evidence.json'), `${JSON.stringify(bundle, null, 2)}\n`);
 console.log(`FAILURE_EVIDENCE_ID=${bundle.evidenceId}`);
@@ -98,5 +81,4 @@ console.log(`SKIPPED_REQUIRED=${skipped.length}`);
 console.log(`MASKED_FAILURES=${masked}`);
 console.log(`STALE_EVIDENCE=${bundle.invariants.staleEvidence}`);
 console.log(`EVIDENCE_AUTHORITATIVE=${authoritative}`);
-
 if (!authoritative) process.exitCode = 1;
