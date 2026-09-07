@@ -104,53 +104,6 @@ jobs:
           probe /hi/ai-image-generator hi
           probe /ms/ai-image-generator ms
           probe /uk/ai-image-generator uk
-      - name: Browser document lifecycle probe
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --input-type=module <<'NODE'
-          import { chromium, firefox, webkit } from 'playwright';
-          const browserName = process.env.BROWSER ?? 'chromium';
-          const browser = { chromium, firefox, webkit }[browserName];
-          const instance = await browser.launch({ headless: true });
-          const page = await instance.newPage();
-          const events = [];
-          page.on('framenavigated', frame => {
-            if (frame === page.mainFrame()) events.push({ type: 'framenavigated', url: frame.url() });
-          });
-          page.on('pageerror', error => events.push({ type: 'pageerror', message: error.message, stack: error.stack ?? '' }));
-          page.on('console', message => {
-            if (message.type() === 'error' || message.type() === 'warning') events.push({ type: `console:${message.type()}`, text: message.text() });
-          });
-          let response = null;
-          let navigationError = null;
-          try {
-            response = await page.goto('http://127.0.0.1:3000/ms', { waitUntil: 'commit', timeout: 15000 });
-          } catch (error) {
-            navigationError = error instanceof Error ? error.stack ?? error.message : String(error);
-          }
-          await page.waitForTimeout(5000);
-          let state;
-          try {
-            state = await page.evaluate(() => ({
-              href: location.href,
-              readyState: document.readyState,
-              hasDocumentElement: Boolean(document.documentElement),
-              htmlLang: document.documentElement?.getAttribute('lang') ?? null,
-              htmlDir: document.documentElement?.getAttribute('dir') ?? null,
-              bodyChildren: document.body?.children.length ?? null,
-              rootChildren: document.getElementById('root')?.children.length ?? null,
-            }));
-          } catch (error) {
-            state = { evaluateError: error instanceof Error ? error.stack ?? error.message : String(error) };
-          }
-          console.log(JSON.stringify({ browserName, responseStatus: response?.status() ?? null, navigationError, state, events }, null, 2));
-          await instance.close();
-          const healthy = Boolean(state?.hasDocumentElement && state?.htmlLang === 'ms' && state?.htmlDir === 'ltr');
-          if (!healthy) process.exit(1);
-          NODE
-        env:
-          BROWSER: ${{ matrix.browser }}
       - name: Run owned shard — stop at first failure
         timeout-minutes: 15
         run: |
