@@ -2,6 +2,7 @@ import { Suspense, useEffect } from 'react';
 import { HeadContent, Scripts, Outlet, createRootRoute } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 import { CommandPalette } from '../components/command-palette';
+import { ErrorComponent, NotFoundComponent } from '../components/route-fallbacks';
 import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
 import { SITE_ORIGIN } from '../lib/i18n';
 import { serializeJsonLd } from '../lib/seo/json-ld';
@@ -19,6 +20,8 @@ function RouteContent() {
 }
 
 export const rootRoute = createRootRoute({
+  errorComponent: ErrorComponent,
+  notFoundComponent: NotFoundComponent,
   component: function RootLayout() {
     useEffect(() => installCoreWebVitalsDiagnostics(), []);
     const jsonLd = serializeJsonLd(GLOBAL_STRUCTURED_DATA);
