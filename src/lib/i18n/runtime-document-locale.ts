@@ -10,30 +10,19 @@ export function localeFromPathname(pathname: string): Locale {
 
 /**
  * Canonical and only application-owned writer for document-level locale state.
- * Rejects invalid/empty runtime values before they can reach the DOM.
+ * Runtime locale values are validated and resolved through LOCALE_METADATA
+ * before any DOM mutation is allowed.
  */
-export function applyDocumentLocale(locale: string): void {
+export function applyDocumentLocale(locale: Locale): void {
   if (typeof document === 'undefined') return;
 
-  const normalized = locale.trim().toLowerCase();
-  if (!normalized || !isLocale(normalized)) {
-    console.warn(`[Flixo Locale Security] Blocked invalid document locale: ${JSON.stringify(locale)}`);
-    return;
-  }
-
-  const metadata = LOCALE_METADATA[normalized];
-  if (!metadata || !metadata.languageTag || !metadata.direction) {
-    console.warn(`[Flixo Locale Security] Blocked document locale without valid metadata: ${normalized}`);
-    return;
-  }
+  const metadata = LOCALE_METADATA[locale];
+  if (!metadata || !metadata.languageTag || !metadata.direction) return;
 
   const html = document.documentElement;
   const { languageTag, direction } = metadata;
 
-  if (!languageTag.trim()) {
-    console.warn(`[Flixo Locale Security] Blocked empty languageTag for locale: ${normalized}`);
-    return;
-  }
+  if (!languageTag.trim()) return;
 
   if (html.getAttribute('lang') !== languageTag) {
     html.setAttribute('lang', languageTag);
@@ -41,8 +30,8 @@ export function applyDocumentLocale(locale: string): void {
   if (html.getAttribute('dir') !== direction) {
     html.setAttribute('dir', direction);
   }
-  if (html.getAttribute('data-flixo-locale') !== normalized) {
-    html.setAttribute('data-flixo-locale', normalized);
+  if (html.getAttribute('data-flixo-locale') !== locale) {
+    html.setAttribute('data-flixo-locale', locale);
   }
 
   document.querySelectorAll<HTMLElement>('main').forEach((main) => {
@@ -56,47 +45,81 @@ export function applyDocumentLocale(locale: string): void {
 }
 
 /**
- * Installs the document-level locale contract around the router lifecycle.
- * This observer is defensive only: all actual locale writes go through
- * applyDocumentLocale(), so third-party/legacy DOM mutations are repaired
- * without introducing another writer.
+ * Installs the document-level locale integrity contract around the router
+ * lifecycle. The guards are registered before the first repair so a later
+ * synchronous DOM writer cannot create an unobserved locale drift window.
  */
-export function installDocumentLocaleContract(getPathname: () => string): () => void {
-  if (typeof document === 'undefined') return () => undefined;
+export function installDocumentLocaleContract(
+  getPathname: () => string,
+): () => void {
+  if (
+    typeof document === 'undefined' ||
+    typeof MutationObserver === 'undefined'
+  ) {
+    return () => undefined;
+  }
 
-  const apply = () => applyDocumentLocale(localeFromPathname(getPathname()));
-  apply();
-
+  let disposed = false;
   let scheduled = false;
+  let repairing = false;
+
+  const repair = () => {
+    if (disposed || repairing) return;
+
+    const locale = localeFromPathname(getPathname());
+    repairing = true;
+    try {
+      applyDocumentLocale(locale);
+    } finally {
+      repairing = false;
+    }
+  };
+
   const schedule = () => {
-    if (scheduled) return;
+    if (disposed || scheduled) return;
+
     scheduled = true;
     queueMicrotask(() => {
       scheduled = false;
-      apply();
+      repair();
     });
   };
 
   const htmlObserver = new MutationObserver((mutations) => {
-    if (mutations.some((mutation) =>
-      mutation.type === 'attributes' &&
-      (mutation.attributeName === 'lang' ||
-        mutation.attributeName === 'dir' ||
-        mutation.attributeName === 'data-flixo-locale')
-    )) {
+    if (disposed || repairing) return;
+
+    if (
+      mutations.some(
+        (mutation) =>
+          mutation.type === 'attributes' &&
+          (mutation.attributeName === 'lang' ||
+            mutation.attributeName === 'dir' ||
+            mutation.attributeName === 'data-flixo-locale'),
+      )
+    ) {
       schedule();
     }
   });
+
   htmlObserver.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ['lang', 'dir', 'data-flixo-locale'],
   });
 
   const bodyObserver = new MutationObserver((mutations) => {
-    if (mutations.some((mutation) => mutation.type === 'childList' && mutation.addedNodes.length > 0)) {
+    if (disposed || repairing) return;
+
+    if (
+      mutations.some(
+        (mutation) =>
+          mutation.type === 'childList' &&
+          mutation.addedNodes.length > 0,
+      )
+    ) {
       schedule();
     }
   });
+
   if (document.body) {
     bodyObserver.observe(document.body, {
       subtree: true,
@@ -104,7 +127,13 @@ export function installDocumentLocaleContract(getPathname: () => string): () => 
     });
   }
 
+  // Initial repair occurs only after both guards are active. This closes the
+  // apply-before-observe race identified by the G4 runtime failure.
+  repair();
+
   return () => {
+    disposed = true;
+    scheduled = false;
     htmlObserver.disconnect();
     bodyObserver.disconnect();
   };
