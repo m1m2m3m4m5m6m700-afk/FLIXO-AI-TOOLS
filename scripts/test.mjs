@@ -28,6 +28,10 @@ const CHECKS = Object.fromEntries(GATES.map((gate) => [gate, TEST_PLAN.gates?.[g
 const EXPECTED = Object.fromEntries(GATES.map((gate) => [gate, Number(TEST_PLAN.gates?.[gate]?.expected ?? CHECKS[gate].length)]));
 const allChecks = GATES.flatMap((gate) => CHECKS[gate].map((check) => ({ gate, ...check })));
 const allIds = new Set(allChecks.map((check) => check.id));
+const assertions = TEST_PLAN.assertions ?? {};
+const declaredAssertionIds = new Set(Object.keys(assertions));
+const COSTS = new Set(['cheap', 'medium', 'expensive']);
+const VALUES = new Set(['low', 'medium', 'high']);
 
 for (const gate of GATES) {
   if (CHECKS[gate].length !== EXPECTED[gate]) process.exit(1);
@@ -37,6 +41,21 @@ for (const gate of GATES) {
 for (const check of allChecks) {
   for (const dependency of check.dependencies ?? []) if (!allIds.has(dependency)) process.exit(1);
   if (!Array.isArray(check.coverage) || check.coverage.length === 0) process.exit(1);
+  if (!Array.isArray(check.assertions) || check.assertions.length === 0) process.exit(1);
+  if (!COSTS.has(check.cost) || !VALUES.has(check.value)) process.exit(1);
+  for (const assertionId of check.assertions) if (!declaredAssertionIds.has(assertionId)) process.exit(1);
+}
+for (const gate of GATES) {
+  for (const dependency of TEST_PLAN.gateDependencies?.[gate] ?? []) if (!GATES.includes(dependency)) process.exit(1);
+}
+for (const [assertionId, definition] of Object.entries(assertions)) {
+  const owners = definition.owner ? [{ check: definition.owner, mode: definition.mode ?? 'unspecified' }] : definition.owners;
+  if (!Array.isArray(owners) || owners.length === 0) process.exit(1);
+  for (const owner of owners) {
+    if (!allIds.has(owner.check)) process.exit(1);
+    const check = allChecks.find((candidate) => candidate.id === owner.check);
+    if (!check.assertions.includes(assertionId)) process.exit(1);
+  }
 }
 
 const coverageUsage = new Map();
@@ -44,6 +63,13 @@ for (const check of allChecks) for (const coverageId of check.coverage) coverage
 const duplicateCoverage = [...coverageUsage.entries()].filter(([, owners]) => owners.length > 1).map(([coverageId, owners]) => ({ coverageId, owners }));
 const declaredCoverage = Object.keys(TEST_PLAN.coverage ?? {});
 const uncoveredCoverage = declaredCoverage.filter((coverageId) => !coverageUsage.has(coverageId));
+
+const assertionUsage = new Map();
+for (const check of allChecks) for (const assertionId of check.assertions) assertionUsage.set(assertionId, [...(assertionUsage.get(assertionId) ?? []), check.id]);
+const reusedAssertions = [...assertionUsage.entries()].filter(([, owners]) => owners.length > 1).map(([assertionId, owners]) => ({ assertionId, owners, allowReuse: assertions[assertionId]?.allowReuse === true }));
+const duplicateAssertions = reusedAssertions.filter((item) => !item.allowReuse);
+const assertionReuse = reusedAssertions.filter((item) => item.allowReuse);
+const uncoveredAssertions = [...declaredAssertionIds].filter((assertionId) => !assertionUsage.has(assertionId));
 
 function normalize(output) {
   const ansi = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, 'g');
@@ -103,21 +129,26 @@ async function executeMatrix(gateName, checks, env = {}) {
   const pending = new Map(checks.map((check) => [check.id, check]));
   const active = new Set();
   while (pending.size || active.size) {
-    const runnable = [...pending.values()].filter((check) => (check.dependencies ?? []).every((dependency) => results.has(dependency))).slice(0, Math.max(0, MAX_CONCURRENCY - active.size));
+    const runnable = [...pending.values()].filter((check) => (check.dependencies ?? []).every((dependency) => results.has(dependency) && results.get(dependency)?.status === 'PASS')).slice(0, Math.max(0, MAX_CONCURRENCY - active.size));
+    const blocked = [...pending.values()].filter((check) => (check.dependencies ?? []).some((dependency) => results.has(dependency) && results.get(dependency)?.status !== 'PASS'));
+    for (const check of blocked) {
+      pending.delete(check.id);
+      results.set(check.id, enrich(gateName, { id: check.id, label: check.label, command: [check.command, ...(check.args ?? [])].join(' '), status: 'FAIL', exitCode: null, startedAt: now(), completedAt: now(), output: `Blocked by failed dependency: ${(check.dependencies ?? []).join(', ')}`, rootCause: check.rootCause, assertions: check.assertions, coverage: check.coverage, cost: check.cost, value: check.value, dependencies: check.dependencies ?? [] }));
+    }
     for (const check of runnable) {
       pending.delete(check.id);
-      const promise = execute(check, env).then((result) => { results.set(check.id, enrich(gateName, { ...result, rootCause: check.rootCause, coverage: check.coverage, cost: check.cost, dependencies: check.dependencies ?? [] })); active.delete(promise); });
+      const promise = execute(check, env).then((result) => { results.set(check.id, enrich(gateName, { ...result, rootCause: check.rootCause, assertions: check.assertions, coverage: check.coverage, cost: check.cost, value: check.value, dependencies: check.dependencies ?? [] })); active.delete(promise); });
       active.add(promise);
     }
     if (active.size === 0 && pending.size) { console.error(`TEST PLAN DEADLOCK: ${gateName}`); process.exit(1); }
-    await Promise.race(active);
+    if (active.size) await Promise.race(active);
   }
   return checks.map((check) => results.get(check.id));
 }
 
 function buildReport(gateName, checks) {
   const failures = checks.filter((check) => check.status === 'FAIL');
-  return { version: 6, schema: 'flixo-gate-report/v6', sha: sha(), gate: gateName.toUpperCase(), mode, status: failures.length === 0 && checks.length === EXPECTED[gateName] ? 'PASS' : 'FAIL', failures: failures.length, checksExpected: EXPECTED[gateName], checksExecuted: checks.length, rootCauses: [...new Set(failures.map((check) => check.rootCauseId).filter(Boolean))], coverage: [...new Set(checks.flatMap((check) => check.coverage ?? []))], completedAt: now(), checks };
+  return { version: 7, schema: 'flixo-gate-report/v7', sha: sha(), gate: gateName.toUpperCase(), mode, status: failures.length === 0 && checks.length === EXPECTED[gateName] ? 'PASS' : 'FAIL', failures: failures.length, checksExpected: EXPECTED[gateName], checksExecuted: checks.length, rootCauses: [...new Set(failures.map((check) => check.rootCauseId).filter(Boolean))], coverage: [...new Set(checks.flatMap((check) => check.coverage ?? []))], assertions: [...new Set(checks.flatMap((check) => check.assertions ?? []))], completedAt: now(), checks };
 }
 
 async function waitForServer(url) {
@@ -149,10 +180,12 @@ function overall(reports, target) {
   const failures = reports.flatMap((report) => (report.checks ?? []).filter((check) => check.status === 'FAIL'));
   const roots = [...new Set(failures.map((check) => check.rootCauseId).filter(Boolean))];
   const coverage = [...new Set(reports.flatMap((report) => report.coverage ?? []))];
+  const executedAssertions = [...new Set(reports.flatMap((report) => report.assertions ?? []))];
   const expectedChecks = target.reduce((sum, gateName) => sum + EXPECTED[gateName], 0);
   const executedChecks = reports.reduce((sum, report) => sum + report.checksExecuted, 0);
-  const pass = reports.length === target.length && reports.every((report) => report.status === 'PASS' && report.checksExpected === report.checksExecuted) && failures.length === 0;
-  const output = { version: 6, schema: 'flixo-ci-report/v5', mode, sha: sha(), testPlanSha256: PLAN_SHA256, status: pass ? 'PASS' : 'FAIL', gatesExpected: target.length, gatesExecuted: reports.length, checksExpected: expectedChecks, checksExecuted: executedChecks, rootCauses: roots, coverage, matrix: { declaredCoverage: declaredCoverage.length, coveredCoverage: coverage.length, duplicateCoverage, uncoveredCoverage }, firstFailure: failures[0] ? { rootCauseId: failures[0].rootCauseId, fingerprint: failures[0].fingerprint, repro: failures[0].repro } : null, completedAt: now(), reports };
+  const selectedAssertions = Object.fromEntries(Object.entries(assertions).filter(([id]) => executedAssertions.includes(id)));
+  const pass = reports.length === target.length && reports.every((report) => report.status === 'PASS' && report.checksExpected === report.checksExecuted) && failures.length === 0 && duplicateAssertions.length === 0 && uncoveredAssertions.filter((id) => selectedAssertions[id]).length === 0;
+  const output = { version: 7, schema: 'flixo-ci-report/v5', mode, sha: sha(), testPlanSha256: PLAN_SHA256, status: pass ? 'PASS' : 'FAIL', gatesExpected: target.length, gatesExecuted: reports.length, checksExpected: expectedChecks, checksExecuted: executedChecks, assertions: { declared: declaredAssertionIds.size, covered: executedAssertions.length, duplicateAssertions, uncoveredAssertions, assertionReuse }, coverage: { declared: declaredCoverage.length, covered: coverage.length, duplicateCoverage, uncoveredCoverage }, rootCauses: roots, matrix: { maxConcurrency: MAX_CONCURRENCY, gateDependencies: TEST_PLAN.gateDependencies ?? {} }, firstFailure: failures[0] ? { rootCauseId: failures[0].rootCauseId, fingerprint: failures[0].fingerprint, repro: failures[0].repro } : null, completedAt: now(), reports };
   writeFileSync(resolve(DIR, 'canonical-result.json'), `${JSON.stringify(output, null, 2)}\n`);
   writeFileSync(resolve(DIR, 'report.json'), `${JSON.stringify(output, null, 2)}\n`);
   writeFileSync(resolve(DIR, 'failures.json'), `${JSON.stringify(failures, null, 2)}\n`);
@@ -168,14 +201,17 @@ process.stderr.write(context.stderr ?? '');
 if ((context.status ?? 1) !== 0) process.exit(context.status ?? 1);
 
 const target = requestedGate ? [requestedGate] : GATES;
+for (const gateName of target) for (const dependency of TEST_PLAN.gateDependencies?.[gateName] ?? []) if (target.includes(dependency) && target.indexOf(dependency) > target.indexOf(gateName)) process.exit(1);
 const reports = [];
 for (const gateName of target) {
-  if (gateName === 'browser') {
-    const buildReport = reports.find((report) => report.gate === 'BUILD');
-    if (target.length > 1 && buildReport && buildReport.status !== 'PASS') {
-      reports.push({ version: 6, schema: 'flixo-gate-report/v6', sha: sha(), gate: 'BROWSER', mode, status: 'BLOCKED', failures: 0, checksExpected: EXPECTED.browser, checksExecuted: 0, rootCauses: ['RC-BUILD-001'], coverage: [], completedAt: now(), checks: [] });
-    } else reports.push(await browserGate());
-  } else reports.push(buildReport(gateName, await executeMatrix(gateName, CHECKS[gateName])));
+  const gateDependencies = TEST_PLAN.gateDependencies?.[gateName] ?? [];
+  const unmetGate = gateDependencies.find((dependency) => target.includes(dependency) && reports.find((report) => report.gate === dependency.toUpperCase())?.status !== 'PASS');
+  if (unmetGate) {
+    reports.push({ version: 7, schema: 'flixo-gate-report/v7', sha: sha(), gate: gateName.toUpperCase(), mode, status: 'BLOCKED', failures: 0, checksExpected: EXPECTED[gateName], checksExecuted: 0, rootCauses: [], coverage: [], assertions: [], completedAt: now(), checks: [] });
+    continue;
+  }
+  if (gateName === 'browser') reports.push(await browserGate());
+  else reports.push(buildReport(gateName, await executeMatrix(gateName, CHECKS[gateName])));
   if (mode === 'certification' && reports.at(-1).status !== 'PASS') break;
 }
 
