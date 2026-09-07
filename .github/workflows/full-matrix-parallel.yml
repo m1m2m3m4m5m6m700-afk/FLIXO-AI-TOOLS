@@ -27,6 +27,8 @@ jobs:
     name: Full Matrix Source Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      FLIXO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -74,12 +76,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
-      # Never cancel sibling units: every unit is an independent evidence
-      # producer and the certification gate requires the complete matrix.
+      # 23 suites × 3 browsers. Every unit is an independent evidence
+      # producer; sibling failures must never cancel evidence collection.
       fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.weighted_plan.outputs.matrix) }}
     env:
+      FLIXO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
       S4_EXTERNAL_SERVER: 'true'
       PLAYWRIGHT_SERVER: preview
@@ -98,6 +101,10 @@ jobs:
         with:
           name: full-matrix-source-${{ github.sha }}
           path: dist
+      - name: Verify artifact source identity
+        run: |
+          set -euo pipefail
+          node -e 'const m=require("./dist/_flixo_build_manifest.json"); const expected=process.env.FLIXO_SOURCE_SHA; if(m.sha!==expected || m.commit_sha!==expected) { console.error({manifest:m.sha, expected}); process.exit(1); }'
       - name: Install Playwright system dependencies
         timeout-minutes: 8
         run: npx playwright install-deps '${{ matrix.browser }}'
@@ -134,7 +141,7 @@ jobs:
           rc=$?
           set -e
           mkdir -p full-matrix-evidence
-          TEST_RC="$rc" MATRIX_SHA="${{ github.event.pull_request.head.sha || github.sha }}" MATRIX_BROWSER="${{ matrix.browser }}" MATRIX_SHARD="${{ matrix.shard }}" MATRIX_TESTS="${{ join(matrix.tests, ',') }}" node - <<'NODE'
+          TEST_RC="$rc" MATRIX_SHA="$FLIXO_SOURCE_SHA" MATRIX_BROWSER="${{ matrix.browser }}" MATRIX_SHARD="${{ matrix.shard }}" MATRIX_TESTS="${{ join(matrix.tests, ',') }}" node - <<'NODE'
           const { writeFileSync } = require('node:fs');
           const tests = process.env.MATRIX_TESTS.split(',').filter(Boolean);
           const failed = Number(process.env.TEST_RC) === 0 ? 0 : 1;
