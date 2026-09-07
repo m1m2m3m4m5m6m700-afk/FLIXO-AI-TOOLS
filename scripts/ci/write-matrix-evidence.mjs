@@ -15,33 +15,30 @@ if (!plannedSuites.length || !Number.isInteger(plannedTestCount) || plannedTestC
 
 const reportText = readFileSync(reportPath, 'utf8');
 const report = JSON.parse(reportText);
-
 const tests = [];
 const walk = (suite) => {
   for (const spec of suite.specs || []) {
-    for (const test of spec.tests || []) tests.push({
-      file: spec.file,
-      title: spec.title,
-      status: test.status,
-      results: test.results || [],
-    });
+    for (const test of spec.tests || []) tests.push({ file: spec.file, title: spec.title, status: test.status, results: test.results || [] });
   }
   for (const child of suite.suites || []) walk(child);
 };
 for (const suite of report.suites || []) walk(suite);
 
+const normalizeSuite = (file) => file.replace(/^.*[\\/]tests[\\/]/, '').replace(/\.spec\.ts$/, '');
 const observedTestCount = tests.length;
 const skipped = tests.filter((test) => test.status === 'skipped').length;
 const unexpected = tests.filter((test) => test.status === 'unexpected').length;
 const flaky = tests.filter((test) => test.status === 'flaky').length;
 const failed = unexpected;
-const expectedByFile = new Set(plannedSuites.map((suite) => `tests/${suite}.spec.ts`));
+const expectedSuites = [...plannedSuites].sort();
+const observedSuites = [...new Set(tests.map((test) => normalizeSuite(test.file)))].sort();
 const observedFiles = [...new Set(tests.map((test) => test.file))].sort();
-const expectedFiles = [...expectedByFile].sort();
-const executedSuites = [...new Set(observedFiles.map((file) => file.replace(/^tests\\//, '').replace(/\\.spec\\.ts$/, '')))].sort();
+const expectedFiles = expectedSuites.map((suite) => `tests/${suite}.spec.ts`).sort();
 
-const unknownFiles = observedFiles.filter((file) => !expectedByFile.has(file));
-if (unknownFiles.length) throw new Error(`Playwright executed unplanned suites: ${unknownFiles.join(', ')}`);
+if (JSON.stringify(expectedSuites) !== JSON.stringify(observedSuites)) throw new Error('Planned suite != executed suite.');
+if (JSON.stringify(expectedFiles) !== JSON.stringify(observedFiles)) throw new Error('Playwright executed an unplanned or missing suite.');
+if (observedTestCount !== plannedTestCount) throw new Error(`planned_test_count=${plannedTestCount} != observed_test_count=${observedTestCount}`);
+if (skipped !== 0 || unexpected !== 0 || failed !== 0) throw new Error(`Native Playwright result is not clean: failed=${failed}, skipped=${skipped}, unexpected=${unexpected}`);
 
 const result = {
   schema_version: 1,
@@ -49,14 +46,15 @@ const result = {
   plan_hash: planHash,
   browser,
   shard,
-  planned_suites: expectedFiles,
-  executed_suites: executedSuites,
+  planned_suites: expectedSuites,
+  executed_suites: observedSuites,
   planned_test_count: plannedTestCount,
   observed_test_count: observedTestCount,
   failed,
   skipped,
   unexpected,
   flaky,
+  native_report_sha256: createHash('sha256').update(reportText).digest('hex'),
   test_records: tests.map(({ file, title, status, results }) => ({ file, title, status, result_count: results.length })),
 };
 
@@ -64,5 +62,4 @@ const resultText = JSON.stringify(result, null, 2) + '\n';
 const resultSha = createHash('sha256').update(resultText).digest('hex');
 writeFileSync(outputPath, resultText);
 writeFileSync('full-matrix-evidence/evidence-artifact.sha256', `${resultSha}  ${outputPath}\n`);
-
 console.log(JSON.stringify({ ...result, result_sha256: resultSha }, null, 2));
