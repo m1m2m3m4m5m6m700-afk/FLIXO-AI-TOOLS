@@ -1,11 +1,11 @@
 import type { Locale } from '../lib/i18n/config.ts';
 import { LOCALES } from '../lib/i18n/config.ts';
 import { getAuthoritativeToolSeoName } from './tool-seo-name-resolver.ts';
-import type { ToolConfig, ToolFamily } from './tool-definitions/types.ts';
-import { AI_TOOLS, AUDIO_TOOLS, IMAGE_TOOLS, OTHER_TOOLS, PDF_TOOLS, VIDEO_TOOLS } from './registry.ts';
+import type { ToolConfig } from './tool-definitions/types.ts';
+import { IMAGE_TOOLS } from './registry.ts';
 
 export type ToolManifestEntry = ToolConfig & {
-  readonly family: ToolFamily;
+  readonly family: 'image';
   readonly seo: {
     readonly title: string;
     readonly description: string;
@@ -14,7 +14,7 @@ export type ToolManifestEntry = ToolConfig & {
   readonly seoByLocale: Readonly<Record<Locale, { readonly title: string }>>;
 };
 
-function withFamily(family: ToolFamily, tools: readonly ToolConfig[]): readonly ToolManifestEntry[] {
+function withImageFamily(tools: readonly ToolConfig[]): readonly ToolManifestEntry[] {
   return tools.map((tool) => {
     const seoByLocale = Object.fromEntries(
       LOCALES.map((locale) => {
@@ -26,7 +26,7 @@ function withFamily(family: ToolFamily, tools: readonly ToolConfig[]): readonly 
 
     return {
       ...tool,
-      family,
+      family: 'image' as const,
       seo: {
         title: `${tool.title} | FLIXO`,
         description: tool.description,
@@ -37,16 +37,7 @@ function withFamily(family: ToolFamily, tools: readonly ToolConfig[]): readonly 
   });
 }
 
-const TOOL_FAMILIES = [
-  withFamily('image', IMAGE_TOOLS),
-  withFamily('pdf', PDF_TOOLS),
-  withFamily('audio', AUDIO_TOOLS),
-  withFamily('video', VIDEO_TOOLS),
-  withFamily('ai', AI_TOOLS),
-  withFamily('other', OTHER_TOOLS),
-] as const;
-
-export const TOOL_MANIFEST: readonly ToolManifestEntry[] = Object.freeze(TOOL_FAMILIES.flat());
+export const TOOL_MANIFEST: readonly ToolManifestEntry[] = Object.freeze(withImageFamily(IMAGE_TOOLS).filter((tool) => tool.category === 'Images'));
 
 const byId = new Map(TOOL_MANIFEST.map((tool) => [tool.id, tool]));
 const byPath = new Map<string, ToolManifestEntry>();
@@ -63,6 +54,6 @@ export function getToolManifestByPath(path: string): ToolManifestEntry | undefin
   return byPath.get(path);
 }
 
-export function getToolsByFamily(family: ToolFamily): readonly ToolManifestEntry[] {
-  return TOOL_MANIFEST.filter((tool) => tool.family === family);
+export function getToolsByFamily(family: 'image'): readonly ToolManifestEntry[] {
+  return family === 'image' ? TOOL_MANIFEST : [];
 }

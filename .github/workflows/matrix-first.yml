@@ -27,14 +27,14 @@ env:
 
 jobs:
   matrix:
-    name: Matrix First — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    name: Image Matrix — ${{ matrix.browser }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
-        shard: [1, 2, 3, 4]
+        shard: [1]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -53,7 +53,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: matrix-first-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          key: image-matrix-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
       - name: Install browser
         timeout-minutes: 8
         env:
@@ -77,34 +77,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/matrix-first-server.log 2>&1 &
-          echo $! >/tmp/matrix-first-server.pid
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/image-matrix-server.log 2>&1 &
+          echo $! >/tmp/image-matrix-server.pid
           for _ in $(seq 1 60); do
             if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
             sleep 1
           done
-          cat /tmp/matrix-first-server.log || true
+          cat /tmp/image-matrix-server.log || true
           exit 1
-      - name: Run owned shard — stop at first failure
+      - name: Run image/localization contract
         timeout-minutes: 15
         run: |
           set -euo pipefail
-          echo "Matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/4"
+          echo "Image matrix unit: browser=${{ matrix.browser }}"
           npx playwright test tests/localization-runtime.spec.ts \
             --project=${{ matrix.browser }} \
             --workers=6 \
             --retries=0 \
             --max-failures=1 \
-            --shard=${{ matrix.shard }}/4
+            --shard=1/1
       - name: Upload independent diagnostics
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: matrix-first-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
+          name: image-matrix-${{ matrix.browser }}-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/
-            /tmp/matrix-first-server.log
+            /tmp/image-matrix-server.log
           if-no-files-found: warn
           retention-days: 14
       - name: Cleanup
@@ -112,19 +112,19 @@ jobs:
         shell: bash
         run: |
           set +e
-          if [ -f /tmp/matrix-first-server.pid ]; then kill "$(cat /tmp/matrix-first-server.pid)" 2>/dev/null || true; fi
+          if [ -f /tmp/image-matrix-server.pid ]; then kill "$(cat /tmp/image-matrix-server.pid)" 2>/dev/null || true; fi
 
   certification:
-    name: Matrix First Certification
+    name: Image Matrix Certification
     needs: [matrix]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Fail closed on any matrix unit
+      - name: Fail closed on any browser unit
         run: |
           set -euo pipefail
           result='${{ needs.matrix.result }}'
           echo "matrix=$result"
           test "$result" = success
-          echo 'Matrix First Certification PASS: all 12 browser/shard units passed independently.'
+          echo 'Image Matrix Certification PASS: all 3 browser units passed independently.'
