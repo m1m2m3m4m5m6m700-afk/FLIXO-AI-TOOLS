@@ -65,6 +65,8 @@ The canonical browser promotion barrier is `.github/workflows/full-matrix-parall
 
 The signed `_flixo_matrix_plan.json` is the single matrix execution source of truth for browser/shard assignment and immutable Playwright test identity. Its schema is version 4 and includes the exact planned test IDs for every browser/shard unit.
 
+CI execution and agent work are coordinated through isolated scopes, exact observed SHAs, lease-based claims, and collision guards; certification remains singular.
+
 ## Internationalization
 
 Locale identifiers and metadata live in `src/lib/i18n/config.ts`. Locale dictionaries live in `src/lib/i18n/locales/`, and runtime access is owned by `src/lib/i18n/loader.ts`.
