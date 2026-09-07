@@ -149,7 +149,7 @@ function run(command, args) {
 const lockfileDiff = run('git', ['status', '--porcelain=v1', '--', 'package-lock.json']);
 const lockfileDirty = Boolean(lockfileDiff.stdout.trim());
 const npmLs = run('npm', ['ls', '--all', '--json', '--omit=optional']);
-let npmLsJson = null;
+let npmLsJson;
 try {
   npmLsJson = JSON.parse(npmLs.stdout || '{}');
 } catch (error) {
