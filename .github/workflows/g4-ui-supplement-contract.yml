@@ -30,6 +30,7 @@ permissions:
 env:
   SITE_URL: https://flixoai.vercel.app
   VITE_SITE_URL: https://flixoai.vercel.app
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   document-locale-contract:
@@ -37,7 +38,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout exact PR head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Verify checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha=$(git rev-parse HEAD)
+          test "$actual_sha" = "$EXPECTED_HEAD_SHA"
       - uses: actions/setup-node@v7
         with:
           node-version: 22.x
