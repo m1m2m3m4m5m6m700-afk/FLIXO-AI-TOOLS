@@ -17,6 +17,7 @@
           "scripts/ci/validate-full-matrix-evidence.mjs",
           "src/lib/contracts/failure-classifier.ts",
           "scripts/ci/validate-architecture.mjs",
+          "scripts/ci/validate-contract-coverage.mjs",
           "README.md",
           "docs/RELEASE_POLICY.md"
         ],
@@ -36,7 +37,7 @@
         "RC-MATRIX-006",
         "RC-MATRIX-007"
       ],
-      "status": "active",
+      "status": "released",
       "leasedAt": "2026-09-07T17:10:00Z",
       "leaseUntil": "2026-09-07T17:40:00Z"
     }
