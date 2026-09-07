@@ -1,4 +1,4 @@
-import type { Locale } from '@/lib/i18n';
+import type { KnownLocale, Locale } from '@/lib/i18n';
 
 export type ToolSeoStatus = 'pilot' | 'complete';
 
@@ -19,11 +19,13 @@ type BaseToolManifest = Readonly<{
   capabilities: readonly string[];
 }>;
 
+/** Pilot manifests may retain historical locale assets internally, but they are never public route locales. */
 export type PilotToolManifest = BaseToolManifest & Readonly<{
   seoStatus: 'pilot';
-  seoLocales: Readonly<Partial<Record<Locale, LocalizedToolSeo>>>;
+  seoLocales: Readonly<Partial<Record<KnownLocale, LocalizedToolSeo>>>;
 }>;
 
+/** Complete manifests are production-ready and therefore require every canonical public locale. */
 export type CompleteToolManifest = BaseToolManifest & Readonly<{
   seoStatus: 'complete';
   seoLocales: Readonly<Record<Locale, LocalizedToolSeo>>;
