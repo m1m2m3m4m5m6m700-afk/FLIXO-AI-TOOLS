@@ -167,14 +167,16 @@ jobs:
           TEST_SPECS=()
           IFS=',' read -ra SUITES <<< "$TESTS"
           for test_file in "${SUITES[@]}"; do
-            test -f "tests/${test_file}.spec.ts" || exit 2
+            test -f "tests/${test_file}.spec.ts" || { exit 2; }
             TEST_SPECS+=("tests/${test_file}.spec.ts")
           done
-          RESULT_FILE="full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}-playwright-results.json"
-          PLAYWRIGHT_JSON_OUTPUT_NAME="$RESULT_FILE" npx playwright test "${TEST_SPECS[@]}" --project=${{ matrix.browser }} --workers=6 --retries=0 --fail-on-flaky-tests --reporter=json
+          npx playwright test "${TEST_SPECS[@]}" --project=${{ matrix.browser }} --workers=6 --retries=0 --fail-on-flaky-tests --reporter=github,json
           rc=$?
+          if [ -f playwright-report/results.json ]; then
+            cp playwright-report/results.json "full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}-playwright-results.json"
+          fi
           set -e
-          MATRIX_PLAN_PATH="matrix-provenance/_flixo_matrix_plan.json" FLIXO_SOURCE_SHA="$FLIXO_SOURCE_SHA" MATRIX_BROWSER='${{ matrix.browser }}' MATRIX_SHARD='${{ matrix.shard }}' PLAYWRIGHT_JSON_REPORT="$RESULT_FILE" MATRIX_EVIDENCE_OUTPUT="full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}.json" FLIXO_MATRIX_PLAN_SIGNING_KEY="$FLIXO_MATRIX_PLAN_SIGNING_KEY" node scripts/ci/write-matrix-evidence.mjs
+          MATRIX_PLAN_PATH="matrix-provenance/_flixo_matrix_plan.json" FLIXO_SOURCE_SHA="$FLIXO_SOURCE_SHA" MATRIX_BROWSER='${{ matrix.browser }}' MATRIX_SHARD='${{ matrix.shard }}' PLAYWRIGHT_JSON_REPORT="full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}-playwright-results.json" MATRIX_EVIDENCE_OUTPUT="full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}.json" FLIXO_MATRIX_PLAN_SIGNING_KEY="$FLIXO_MATRIX_PLAN_SIGNING_KEY" node scripts/ci/write-matrix-evidence.mjs
           evidence_rc=$?
           echo "$rc" > "full-matrix-evidence/${{ matrix.browser }}-shard-${{ matrix.shard }}-process-exit-code.txt"
           exit $(( rc != 0 ? rc : evidence_rc ))
