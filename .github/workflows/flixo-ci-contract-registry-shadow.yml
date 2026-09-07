@@ -1,25 +1,26 @@
 name: FLIXO CI — Contract Registry Shadow
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-contracts-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: flixo-ci-contracts-shadow-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
   contract-registry-shadow:
-    name: CI Contract Registry Shadow
+    name: CI Contract Registry Shadow (Diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
@@ -42,7 +43,7 @@ jobs:
           cp artifacts/ci/contracts/contract-hash.txt /tmp/contract-hash-1.txt
           node --experimental-strip-types scripts/ci/contracts/snapshot.mjs
           cmp /tmp/contract-hash-1.txt artifacts/ci/contracts/contract-hash.txt
-      - name: Upload contract evidence
+      - name: Upload contract diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
