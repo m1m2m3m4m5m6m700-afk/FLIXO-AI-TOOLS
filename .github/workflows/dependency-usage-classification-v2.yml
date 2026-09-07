@@ -20,7 +20,18 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - name: Reconcile lockfile in isolated workspace
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Preserve reconciled lockfile evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: dependency-lockfile-${{ github.sha }}
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Install exact reconciled graph
+        run: npm ci --prefer-offline --no-audit --no-fund
       - run: node scripts/test-dependency-usage-classification.mjs
       - name: Generate inventory
         if: always()
