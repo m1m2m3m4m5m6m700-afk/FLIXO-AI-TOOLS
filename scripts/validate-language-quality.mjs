@@ -56,7 +56,8 @@ for (const locale of locales.filter((value) => value !== 'en')) {
 
 for (const locale of locales) {
   const metadata = new RegExp(`${locale}:\\s*\\{[^}]*direction:\\s*'([^']+)'`, 'u').exec(config)?.[1];
-  if ((metadata === 'rtl') !== (locale === 'ar')) fail(`Direction mismatch for ${locale}: found ${metadata ?? '<missing>'}`);
+  const shouldBeRtl = locale === 'ar' || locale === 'ur';
+  if ((metadata === 'rtl') !== shouldBeRtl) fail(`Direction mismatch for ${locale}: found ${metadata ?? '<missing>'}`);
 }
 
 if (!catalog.includes('Object.fromEntries(LOCALES.map((locale) => [locale, buildLocalizedToolSeo(tool, locale)]))')) fail('SEO catalog is not generated from the canonical locale set.');
