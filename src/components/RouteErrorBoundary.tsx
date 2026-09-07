@@ -1,4 +1,4 @@
-import type { ErrorComponentProps, NotFoundComponentProps } from '@tanstack/react-router';
+import type { ErrorComponentProps } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { Component } from 'react';
 
@@ -45,7 +45,7 @@ export function ErrorComponent({ error }: ErrorComponentProps): ReactNode {
   );
 }
 
-export function NotFoundComponent(_props: NotFoundComponentProps): ReactNode {
+export function NotFoundComponent(): ReactNode {
   return (
     <main>
       <h1>Page not found</h1>
