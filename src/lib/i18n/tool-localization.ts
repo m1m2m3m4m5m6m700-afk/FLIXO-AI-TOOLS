@@ -8,20 +8,20 @@ export const CATEGORY_LABELS: Record<Locale, { Images: string }> = {
   fr: { Images: 'Images' },
   de: { Images: 'Bilder' },
   ru: { Images: 'Изображения' },
+  zh: { Images: '图片' },
   hi: { Images: 'छवियाँ' },
   id: { Images: 'Gambar' },
+  ur: { Images: 'تصاویر' },
   ja: { Images: '画像' },
   pt: { Images: 'Imagens' },
   it: { Images: 'Immagini' },
   ko: { Images: '이미지' },
-  ms: { Images: 'Imej' },
   nl: { Images: 'Afbeeldingen' },
   pl: { Images: 'Obrazy' },
   tr: { Images: 'Görseller' },
   vi: { Images: 'Hình ảnh' },
   th: { Images: 'รูปภาพ' },
   sv: { Images: 'Bilder' },
-  uk: { Images: 'Зображення' },
 };
 
 function canonicalSeo(locale: Locale, title: string) {
