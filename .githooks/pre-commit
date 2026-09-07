@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+set -eu
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+FLIXO_AGENT_ENFORCE_WORKTREE_SCOPE=1 \
+EXPECTED_HEAD_SHA="$(git rev-parse HEAD)" \
+node scripts/ci/validate-agent-sessions.mjs
