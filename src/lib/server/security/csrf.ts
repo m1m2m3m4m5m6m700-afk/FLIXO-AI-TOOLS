@@ -1,14 +1,13 @@
 /** CSRF + server-side rate limiting helpers. */
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { getAdminSessionSecret } from '../../admin/config';
 
 const CSRF_COOKIE_NAME = 'flixo_csrf';
 let fallbackKey: string | null = null;
 function getCsrfKey(): string {
-  try { return getAdminSessionSecret(); } catch {
-    if (!fallbackKey) fallbackKey = randomBytes(32).toString('hex');
-    return fallbackKey;
-  }
+  const configured = process.env.FLIXO_CSRF_SECRET?.trim();
+  if (configured && configured.length >= 32) return configured;
+  if (!fallbackKey) fallbackKey = randomBytes(32).toString('hex');
+  return fallbackKey;
 }
 function signToken(payload: string): string {
   return createHmac('sha256', getCsrfKey()).update(payload).digest('base64url');
