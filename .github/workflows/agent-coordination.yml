@@ -30,6 +30,8 @@ jobs:
         run: npm ci
       - name: Validate claims protocol
         run: node scripts/ci/validate-agent-coordination-protocol.mjs
+      - name: Validate coordination health
+        run: node scripts/ci/agent-coordination-healthcheck.mjs
       - name: Validate local agent sessions
         env:
           FLIXO_AGENT_COORDINATION_STRICT_SHA: 'true'
