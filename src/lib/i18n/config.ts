@@ -13,6 +13,7 @@ export type Locale = CanonicalLocale;
 /** Legacy translation keys are retained only for internal historical data and are never public route locales. */
 export const LEGACY_LOCALES = ['ur', 'zh'] as const;
 export type LegacyLocale = (typeof LEGACY_LOCALES)[number];
+/** Use KnownLocale only for legacy asset containers; routing, SEO, and runtime APIs use CanonicalLocale exclusively. */
 export type KnownLocale = CanonicalLocale | LegacyLocale;
 
 export const DEFAULT_LOCALE: CanonicalLocale = 'ar';
