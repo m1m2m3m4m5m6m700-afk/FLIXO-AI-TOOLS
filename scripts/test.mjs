@@ -13,6 +13,7 @@ const modeArg = args.find((arg) => arg.startsWith('--mode='));
 const gate = gateArg?.slice(7) || null;
 const mode = modeArg?.slice(7) || 'certification';
 const GATES = ['static', 'build', 'browser'];
+const EXPECTED_CHECKS = { static: 8, build: 3, browser: 3 };
 if (!['certification', 'diagnose'].includes(mode) || (gate && !GATES.includes(gate))) {
   console.error('Usage: node scripts/test.mjs [--mode=certification|diagnose] [--gate=static|build|browser]');
   process.exit(2);
@@ -23,6 +24,17 @@ const sha = () => {
   return r.status === 0 ? r.stdout.trim() : 'UNKNOWN';
 };
 const rootCauseRegistry = JSON.parse(readFileSync(resolve(ROOT, 'scripts/ci/root-causes.json'), 'utf8'));
+
+function runNodeScript(script, args = []) {
+  return spawnSync(process.execPath, [script, ...args], { cwd: ROOT, env: process.env, encoding: 'utf8' });
+}
+
+function captureContext() {
+  const result = runNodeScript('scripts/ci/capture-execution-context.mjs');
+  process.stdout.write(result.stdout ?? '');
+  process.stderr.write(result.stderr ?? '');
+  return result.status ?? 1;
+}
 
 const CHECKS = {
   static: [
@@ -48,8 +60,21 @@ function extractFiles(output) {
 }
 
 function extractDependencyContext(output) {
-  const lines = output.split(/\r?\n/).filter((line) => /cannot find module|import .* from|require\(|package|dependency|locale|route|canonical|hreflang/i.test(line));
-  return lines.slice(-20).join(' ').replace(/\s+/g, ' ').slice(0, 2500);
+  const tokens = [];
+  for (const line of output.split(/\r?\n/)) {
+    if (/cannot find module|npm err|eresolve|ts\d+|type .* is not assignable|locale|route|canonical|hreflang|sitemap|playwright|firefox|chromium|webkit/i.test(line)) {
+      tokens.push(line
+        .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '')
+        .replace(/https?:\/\/[^\s]+/g, '<URL>')
+        .replace(/[A-Za-z]:\\[^\s]+/g, '<PATH>')
+        .replace(/\/(?:[^\s/]+\/){2,}[^\s]+/g, '<PATH>')
+        .replace(/[0-9a-f]{7,40}/gi, '<SHA>')
+        .replace(/\d+(?:\.\d+)?/g, '#')
+        .replace(/\s+/g, ' ')
+        .trim());
+    }
+  }
+  return [...new Set(tokens)].sort().slice(0, 30).join(' ').slice(0, 1800);
 }
 
 function execute(label, command, commandArgs, env = {}) {
@@ -101,7 +126,6 @@ const FALLBACK_RULES = [
 function classify(gateName, check, declaredRootCause) {
   if (check.status === 'PASS') return null;
   if (declaredRootCause && declaredRootCause !== 'RC-UNKNOWN-001' && rootCauseRegistry[declaredRootCause]) return declaredRootCause;
-  if (check.label === 'npm-ci') return 'RC-DEPENDENCY-001';
   for (const [id, pattern] of FALLBACK_RULES) if (pattern.test(check.output)) return id;
   if (gateName === 'browser') return 'RC-BROWSER-001';
   return declaredRootCause && rootCauseRegistry[declaredRootCause] ? declaredRootCause : 'RC-UNKNOWN-001';
@@ -109,11 +133,12 @@ function classify(gateName, check, declaredRootCause) {
 
 function fingerprint(gateName, check, rootCauseId) {
   const normalizedError = normalizeError(check.output);
-  return `FPR-${createHash('sha256').update([rootCauseId, gateName, check.label, normalizedError, check.dependencyContext ?? ''].join('\n')).digest('hex').slice(0, 12).toUpperCase()}`;
+  const stableContext = check.dependencyContext ?? '';
+  return `FPR-${createHash('sha256').update([rootCauseId, gateName, check.label, normalizedError, stableContext].join('\n')).digest('hex').slice(0, 12).toUpperCase()}`;
 }
 
 function repro(gateName, check) {
-  if (gateName === 'browser') return `npm run test:browser -- --grep "${check.label}"`;
+  if (gateName === 'browser') return `npx playwright test --project=${check.label} tests/localization-runtime.spec.ts`;
   return `npm run test:${gateName}`;
 }
 
@@ -134,14 +159,14 @@ function writeGateReport(gateName, results, status) {
   const checks = results.map((item) => enrich(gateName, item.result, item.rootCauseId));
   const failures = checks.filter((item) => item.status === 'FAIL');
   const report = {
-    version: 3,
-    schema: 'flixo-gate-report/v3',
+    version: 4,
+    schema: 'flixo-gate-report/v4',
     sha: sha(),
     gate: gateName.toUpperCase(),
     mode,
     status,
     failures: failures.length,
-    checksExpected: checks.length,
+    checksExpected: EXPECTED_CHECKS[gateName],
     checksExecuted: checks.filter((item) => item.status !== 'BLOCKED').length,
     rootCauses: [...new Set(failures.map((item) => item.rootCauseId).filter(Boolean))],
     completedAt: now(),
@@ -158,39 +183,39 @@ function staticGate() {
     results.push({ result, rootCauseId });
     if (mode === 'certification' && result.status === 'FAIL') break;
   }
-  return writeGateReport('static', results, results.every((item) => item.result.status === 'PASS') ? 'PASS' : 'FAIL');
+  return writeGateReport('static', results, results.length === CHECKS.static.length && results.every((item) => item.result.status === 'PASS') ? 'PASS' : 'FAIL');
 }
 
 function buildGate() {
   const results = [];
-  if (process.env.FLIXO_DEPENDENCIES_READY !== 'true') {
-    const install = execute('npm-ci', 'npm', ['ci', '--prefer-offline', '--no-audit', '--no-fund']);
-    results.push({ result: install, rootCauseId: 'RC-DEPENDENCY-001' });
-    if (install.status === 'FAIL') return writeGateReport('build', results, 'FAIL');
-  }
   for (const [label, command, commandArgs, rootCauseId] of CHECKS.build) {
     const result = execute(label, command, commandArgs);
     results.push({ result, rootCauseId });
     if (mode === 'certification' && result.status === 'FAIL') break;
   }
-  return writeGateReport('build', results, results.every((item) => item.result.status === 'PASS') ? 'PASS' : 'FAIL');
+  return writeGateReport('build', results, results.length === CHECKS.build.length && results.every((item) => item.result.status === 'PASS') ? 'PASS' : 'FAIL');
 }
 
 function browserGate() {
-  const result = execute('playwright', 'npx', ['playwright', 'test', '--project=chromium', '--project=firefox', '--project=webkit'], { CI: 'true', PLAYWRIGHT_REUSE_SERVER: 'false' });
-  return writeGateReport('browser', [{ result, rootCauseId: 'RC-BROWSER-001' }], result.status);
+  const results = [];
+  for (const project of ['chromium', 'firefox', 'webkit']) {
+    const result = execute(project, 'npx', ['playwright', 'test', `--project=${project}`], { CI: 'true', PLAYWRIGHT_REUSE_SERVER: 'false' });
+    results.push({ result, rootCauseId: 'RC-BROWSER-001' });
+    if (mode === 'certification' && result.status === 'FAIL') break;
+  }
+  return writeGateReport('browser', results, results.length === 3 && results.every((item) => item.result.status === 'PASS') ? 'PASS' : 'FAIL');
 }
 
 function blockedReport(gateName, reason) {
   const report = {
-    version: 3,
-    schema: 'flixo-gate-report/v3',
+    version: 4,
+    schema: 'flixo-gate-report/v4',
     sha: sha(),
     gate: gateName.toUpperCase(),
     mode,
     status: 'BLOCKED',
     failures: 0,
-    checksExpected: 0,
+    checksExpected: EXPECTED_CHECKS[gateName],
     checksExecuted: 0,
     rootCauses: [],
     completedAt: now(),
@@ -221,17 +246,18 @@ function writeOverall(reports, targetGates) {
   const clusters = clusterFailures(reports);
   const overallStatus = reports.length === targetGates.length && reports.every((report) => report.status === 'PASS') ? 'PASS' : 'FAIL';
   const firstFailure = failures[0] ?? null;
+  const firstFailureReport = firstFailure ? reports.find((report) => report.checks?.some((check) => check.label === firstFailure.label && check.exitCode === firstFailure.exitCode)) : null;
   const overall = {
-    version: 3,
-    schema: 'flixo-ci-report/v3',
+    version: 4,
+    schema: 'flixo-ci-report/v4',
     mode,
     sha: sha(),
     status: overallStatus,
     gatesExpected: targetGates.length,
     gatesExecuted: reports.length,
     rootCauses: clusters.map((cluster) => cluster.rootCauseId),
-    firstFailure: firstFailure ? { gate: reports.find((report) => report.checks?.includes(firstFailure))?.gate, rootCauseId: firstFailure.rootCauseId, fingerprint: firstFailure.fingerprint, repro: firstFailure.repro } : null,
-    clusters: clusters.map((cluster) => ({ ...cluster, affectedChecks: cluster.affectedChecks })),
+    firstFailure: firstFailure ? { gate: firstFailureReport?.gate ?? null, rootCauseId: firstFailure.rootCauseId, fingerprint: firstFailure.fingerprint, repro: firstFailure.repro } : null,
+    clusters,
     completedAt: now(),
   };
   writeFileSync(resolve(DIAG_DIR, 'report.json'), `${JSON.stringify(overall, null, 2)}\n`);
@@ -249,17 +275,10 @@ function writeOverall(reports, targetGates) {
 }
 
 const targetGates = gate ? [gate] : GATES;
-const reports = [];
-if (!gate && process.env.FLIXO_DEPENDENCIES_READY !== 'true') {
-  const bootstrap = execute('npm-ci', 'npm', ['ci', '--prefer-offline', '--no-audit', '--no-fund']);
-  if (bootstrap.status === 'FAIL') {
-    reports.push(writeGateReport('build', [{ result: bootstrap, rootCauseId: 'RC-DEPENDENCY-001' }], 'FAIL'));
-    writeOverall(reports, targetGates);
-    process.exit(1);
-  }
-  process.env.FLIXO_DEPENDENCIES_READY = 'true';
-}
+const contextStatus = captureContext();
+if (contextStatus !== 0) console.error(`Execution context capture returned ${contextStatus}; continuing with test diagnostics.`);
 
+const reports = [];
 for (const name of targetGates) {
   let report;
   if (name === 'static') report = staticGate();
@@ -271,5 +290,19 @@ for (const name of targetGates) {
   reports.push(report);
   if (mode === 'certification' && report.status !== 'PASS') break;
 }
+
 const overall = writeOverall(reports, targetGates);
+
+for (const script of [
+  ['scripts/ci/normalize-reproduction.mjs', []],
+  ['scripts/ci/collect-failure-evidence.mjs', []],
+  ['scripts/ci/record-repair-cycle.mjs', []],
+  ['scripts/ci/detect-shared-root-candidates.mjs', []],
+]) {
+  const result = runNodeScript(script[0], script[1]);
+  process.stdout.write(result.stdout ?? '');
+  process.stderr.write(result.stderr ?? '');
+  if ((result.status ?? 1) !== 0) console.error(`Supporting diagnostic ${script[0]} returned ${result.status ?? 1}; product gate status remains authoritative.`);
+}
+
 process.exit(overall.status === 'PASS' ? 0 : 1);
