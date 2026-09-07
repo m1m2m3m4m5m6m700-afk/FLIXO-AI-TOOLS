@@ -42,6 +42,16 @@ const CHECKS = {
   ],
 };
 
+function extractFiles(output) {
+  const matches = output.match(/(?:^|\s)((?:src|scripts|tests|\.github)\/[A-Za-z0-9_./-]+\.(?:[cm]?[jt]sx?|json|yml|yaml|mjs|mts|css|md))/g) ?? [];
+  return [...new Set(matches.map((value) => value.trim()))].slice(-50);
+}
+
+function extractDependencyContext(output) {
+  const lines = output.split(/\r?\n/).filter((line) => /cannot find module|import .* from|require\(|package|dependency|locale|route|canonical|hreflang/i.test(line));
+  return lines.slice(-20).join(' ').replace(/\s+/g, ' ').slice(0, 2500);
+}
+
 function execute(label, command, commandArgs, env = {}) {
   const startedAt = now();
   const result = spawnSync(command, commandArgs, { cwd: ROOT, env: { ...process.env, ...env }, encoding: 'utf8', stdio: ['inherit', 'pipe', 'pipe'] });
@@ -49,6 +59,7 @@ function execute(label, command, commandArgs, env = {}) {
   const stderr = result.stderr ?? '';
   process.stdout.write(stdout);
   process.stderr.write(stderr);
+  const output = `${stdout}\n${stderr}`.slice(-16000);
   return {
     label,
     command: [command, ...commandArgs].join(' '),
@@ -56,7 +67,9 @@ function execute(label, command, commandArgs, env = {}) {
     exitCode: result.status ?? 1,
     startedAt,
     completedAt: now(),
-    output: `${stdout}\n${stderr}`.slice(-16000),
+    output,
+    files: extractFiles(output),
+    dependencyContext: extractDependencyContext(output),
   };
 }
 
@@ -96,7 +109,7 @@ function classify(gateName, check, declaredRootCause) {
 
 function fingerprint(gateName, check, rootCauseId) {
   const normalizedError = normalizeError(check.output);
-  return `FPR-${createHash('sha256').update([rootCauseId, gateName, check.label, normalizedError].join('\n')).digest('hex').slice(0, 12).toUpperCase()}`;
+  return `FPR-${createHash('sha256').update([rootCauseId, gateName, check.label, normalizedError, check.dependencyContext ?? ''].join('\n')).digest('hex').slice(0, 12).toUpperCase()}`;
 }
 
 function repro(gateName, check) {
