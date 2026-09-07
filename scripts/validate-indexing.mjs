@@ -13,16 +13,13 @@ const localizedToolRouteSource = readFileSync('src/routes/localized-tool.tsx', '
 const toolSeoSource = readFileSync('src/lib/seo/tool-seo.ts', 'utf8');
 
 const toolDefinitionDir = 'src/config/tool-definitions';
-const toolDefinitionSources = readdirSync(toolDefinitionDir)
-  .filter((name) => name.endsWith('.ts') && name !== 'types.ts')
-  .map((name) => readFileSync(`${toolDefinitionDir}/${name}`, 'utf8'));
-const toolIds = toolDefinitionSources.flatMap((source) => [
-  ...source.matchAll(/\bid:\s*'([^']+)'/g),
-].map((match) => match[1]));
+const toolDefinitionSources = readdirSync(toolDefinitionDir).filter((name) => name.endsWith('.ts') && name !== 'types.ts').map((name) => readFileSync(`${toolDefinitionDir}/${name}`, 'utf8'));
+const toolIds = toolDefinitionSources.flatMap((source) => [...source.matchAll(/\bid:\s*'([^']+)'/g)].map((match) => match[1]));
 if (toolIds.length === 0) throw new Error('No tool ids discovered in canonical tool definition modules.');
 
-const expectedLocales = ['en', 'ar', 'es', 'fr', 'de', 'ru', 'zh', 'hi', 'id', 'ur', 'ja', 'pt', 'it', 'ko', 'nl', 'pl', 'tr', 'vi', 'th', 'sv'];
+const expectedLocales = ['ar', 'en', 'es', 'fr', 'de', 'hi', 'id', 'it', 'ja', 'ko', 'ms', 'nl', 'pl', 'pt', 'ru', 'sv', 'th', 'tr', 'uk', 'vi'];
 if (expectedLocales.length !== 20) throw new Error('Indexing gate locale registry expectation must contain exactly 20 locales.');
+if (!i18nSource.includes(`['${expectedLocales.join("','")}']`)) throw new Error('Indexing locale expectation does not match the canonical locale source of truth.');
 
 if (!originSource.includes('export function getCanonicalSiteOrigin()')) throw new Error('Canonical origin contract is missing getCanonicalSiteOrigin().');
 if (!originSource.includes("if (origin.protocol !== 'https:')")) throw new Error('Canonical origin contract must enforce HTTPS.');
@@ -72,12 +69,8 @@ if (!indexSource.includes('<meta name="viewport"')) throw new Error('index.html 
 if (!indexSource.includes('<link rel="manifest" href="/manifest.webmanifest"')) throw new Error('index.html is missing the web manifest.');
 if (!indexSource.includes('<link rel="icon" type="image/svg+xml" href="/favicon.svg"')) throw new Error('index.html must use the canonical favicon.');
 if (indexSource.includes('/flixo-logo.jpg') || indexSource.includes('/logo.jpg')) throw new Error('index.html references stale JPG logo assets.');
-
 if (!rootSource.includes("{ name: 'description', content:")) throw new Error('Root route is missing the base description metadata.');
-
 if (!manifestSource.includes('"start_url": "/en"')) throw new Error('Manifest start_url must resolve to a localized public route.');
 if (!manifestSource.includes('"src": "/flixo-logo.svg"')) throw new Error('Manifest must use the canonical FLIXO logo asset.');
 
-console.log(
-  `Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical tool definitions, localized tool canonical/hreflang symmetry, canonical-only use-case routes, canonical HTTPS origin, and robots/sitemap contracts are aligned.`,
-);
+console.log(`Indexing validation passed: ${expectedLocales.length} canonical locales, ${toolIds.length} canonical tool definitions, localized tool canonical/hreflang symmetry, canonical-only use-case routes, canonical HTTPS origin, and robots/sitemap contracts are aligned.`);
