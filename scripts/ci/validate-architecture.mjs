@@ -18,6 +18,13 @@ for (const item of text) {
   }
 }
 
+// Shadow workflows are forensic migration/diagnostic surfaces, never certification owners.
+for (const item of text) {
+  if (/^flixo-ci-.*-shadow\.yml$/u.test(item.file) && /(^|\n)\s*(pull_request|push):/.test(item.text)) {
+    failures.push(`${item.file}: shadow workflow must be manual-only.`);
+  }
+}
+
 const ci = find('ci.yml');
 for (const marker of ['canonical-verify:', 'fast-contract:', 'build:', 'evidence-ledger:', 's4-runtime-e2e:']) {
   if (!ci.includes(marker)) failures.push(`ci.yml missing canonical owner: ${marker}`);
@@ -39,15 +46,15 @@ if (standaloneS4) {
 }
 
 const localization = find('localization-20.yml');
-if (/['"]fix\/\*\*|['"]feat\/\*\*|['"]ci\/\*\*|['"]refactor\/\*\*|['"]seo\/\*\*/.test(localization)) {
+if (/["']fix\/\*\*|["']feat\/\*\*|["']ci\/\*\*|["']refactor\/\*\*|["']seo\/\*\*/.test(localization)) {
   failures.push('Localization must not replay automatically on feature/fix/ci/seo/refactor branch pushes.');
 }
 
 // Canonical locale set is owned by src/lib/i18n/config.ts. The workflow must match it
 // exactly; a legacy hard-coded locale list is drift and must fail closed.
 const localeConfig = readFileSync('src/lib/i18n/config.ts', 'utf8').match(/export const LOCALES = \[([^\]]+)\] as const;/u)?.[1] ?? '';
-const canonicalLocales = localeConfig.match(/['"][A-Za-z-]+['"]/gu)?.map((value) => value.slice(1, -1)) ?? [];
-const workflowLocales = localization.match(/G4_LOCALES:\s*['"]([^'"]+)['"]/u)?.[1]?.split(',').map((value) => value.trim()).filter(Boolean) ?? [];
+const canonicalLocales = localeConfig.match(/["'][A-Za-z-]+["']/gu)?.map((value) => value.slice(1, -1)) ?? [];
+const workflowLocales = localization.match(/G4_LOCALES:\s*["']([^"']+)["']/u)?.[1]?.split(',').map((value) => value.trim()).filter(Boolean) ?? [];
 if (canonicalLocales.length !== 20) failures.push(`Canonical locale registry count=${canonicalLocales.length}; expected 20.`);
 if (canonicalLocales.length !== workflowLocales.length || canonicalLocales.some((locale, index) => locale !== workflowLocales[index])) {
   failures.push(`Localization workflow locale drift: registry=${canonicalLocales.join(',')} workflow=${workflowLocales.join(',')}`);
