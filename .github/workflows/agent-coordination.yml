@@ -40,16 +40,17 @@ jobs:
         run: node scripts/ci/rebuild-agent-projections.mjs
       - name: Validate claims protocol
         run: node scripts/ci/validate-agent-coordination-protocol.mjs
-      - name: Validate work queue
+      - name: Validate canonical artifact work queue
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           FLIXO_SWARM_LEDGER: artifacts/ci/agent-coordination/events.ndjson
+          FLIXO_SWARM_WORK_QUEUE: artifacts/ci/agent-coordination/work-queue.json
         run: node scripts/ci/validate-agent-work-queue.mjs
       - name: Validate swarm event-sourced state
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           FLIXO_SWARM_LEDGER: artifacts/ci/agent-coordination/events.ndjson
-          FLIXO_SWARM_WORK_QUEUE: .ci/agent-coordination/work-queue.json
+          FLIXO_SWARM_WORK_QUEUE: artifacts/ci/agent-coordination/work-queue.json
         run: node --experimental-strip-types scripts/ci/validate-swarm-state.mjs
       - name: Validate local agent sessions from ledger
         env:
@@ -78,7 +79,7 @@ jobs:
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           FLIXO_SWARM_LEDGER: artifacts/ci/agent-coordination/events.ndjson
-          FLIXO_SWARM_WORK_QUEUE: .ci/agent-coordination/work-queue.json
+          FLIXO_SWARM_WORK_QUEUE: artifacts/ci/agent-coordination/work-queue.json
         run: node --experimental-strip-types scripts/ci/validate-swarm-state.mjs
       - name: Build coordination dashboard
         run: node scripts/ci/agent-coordination-dashboard.mjs
