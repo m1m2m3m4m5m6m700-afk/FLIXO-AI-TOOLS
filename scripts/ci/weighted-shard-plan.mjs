@@ -1,6 +1,7 @@
 import { createHash, createHmac } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { collectNativeTests } from './matrix-test-identity.mjs';
 
 const historyPath = 'ci/test-duration-history.json';
 const history = JSON.parse(readFileSync(historyPath, 'utf8'));
@@ -17,27 +18,6 @@ if (!entries.length) throw new Error('No test weights configured.');
 if (!browsers.length) throw new Error('No browsers configured.');
 
 const hashFile = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
-const normalizeTestFile = (file) => {
-  const normalized = String(file).replace(/\\/g, '/');
-  const marker = '/tests/';
-  const index = normalized.lastIndexOf(marker);
-  if (index >= 0) return normalized.slice(index + 1);
-  return normalized.replace(/^\.\//, '');
-};
-const testId = (spec, test, ordinal) => `${normalizeTestFile(spec.file)}::${spec.title}::${ordinal}`;
-const collectListedTests = (value) => {
-  const tests = [];
-  const walk = (suite) => {
-    for (const spec of suite?.specs || []) {
-      for (const [ordinal, test] of (spec.tests || []).entries()) {
-        tests.push({ id: testId(spec, test, ordinal), file: normalizeTestFile(spec.file), title: spec.title, ordinal });
-      }
-    }
-    for (const child of suite?.suites || []) walk(child);
-  };
-  for (const suite of value?.suites || []) walk(suite);
-  return tests;
-};
 
 execFileSync('node', ['--experimental-strip-types', 'scripts/ci/validate-protocol-cooperation.mjs'], { stdio: 'inherit', env: { ...process.env, FLIXO_SOURCE_SHA: sourceSha, CI: '1' } });
 const cooperationMap = JSON.parse(readFileSync('artifacts/ci/protocol-cooperation/cooperation-map.json', 'utf8'));
@@ -69,9 +49,9 @@ for (const entry of entries) {
     env: { ...process.env, CI: '1' },
   });
   const report = JSON.parse(output);
-  const tests = collectListedTests(report);
+  const tests = collectNativeTests(report);
   if (!tests.length) throw new Error(`Unable to determine Playwright tests for ${entry.name}`);
-  const ids = tests.map((test) => test.id);
+  const ids = tests.map((test) => `${test.file}::${[...test.titlePath, test.title].filter(Boolean).join(' > ')}::${test.ordinal}`);
   if (new Set(ids).size !== ids.length) throw new Error(`Duplicate Playwright test IDs for ${entry.name}`);
   suiteInventory.set(entry.name, { count: tests.length, test_ids: ids });
 }
