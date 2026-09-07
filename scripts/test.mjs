@@ -107,8 +107,15 @@ function normalizeError(output) {
     .replace(/[0-9a-f]{7,40}/gi, '<SHA>')
     .replace(/\d+(?:\.\d+)?/g, '#')
     .replace(/\s+/g, ' ')
-    .trim()
-    .slice(-4000);
+    .trim();
+}
+
+function stableFailureSignature(check) {
+  const relevant = check.output.split(/\r?\n/)
+    .map((line) => normalizeError(line))
+    .filter((line) => /error|failed|failure|cannot|not assignable|not found|expected|received|timeout|exception|assert|locale|route|canonical|hreflang|playwright|chromium|firefox|webkit/i.test(line))
+    .filter(Boolean);
+  return [...new Set(relevant)].sort().slice(0, 40).join(' ').slice(0, 5000);
 }
 
 const FALLBACK_RULES = [
@@ -132,9 +139,9 @@ function classify(gateName, check, declaredRootCause) {
 }
 
 function fingerprint(gateName, check, rootCauseId) {
-  const normalizedError = normalizeError(check.output);
+  const signature = stableFailureSignature(check);
   const stableContext = check.dependencyContext ?? '';
-  return `FPR-${createHash('sha256').update([rootCauseId, gateName, check.label, normalizedError, stableContext].join('\n')).digest('hex').slice(0, 12).toUpperCase()}`;
+  return `FPR-${createHash('sha256').update([rootCauseId, gateName, check.label, signature, stableContext].join('\n')).digest('hex').slice(0, 12).toUpperCase()}`;
 }
 
 function repro(gateName, check) {
@@ -145,7 +152,7 @@ function repro(gateName, check) {
 function enrich(gateName, check, declaredRootCause) {
   const rootCauseId = classify(gateName, check, declaredRootCause);
   if (check.status === 'PASS') return { ...check, rootCauseId: null, fingerprint: null, repro: null, error: null };
-  const normalizedError = normalizeError(check.output);
+  const normalizedError = normalizeError(check.output).slice(-4000);
   return {
     ...check,
     rootCauseId,
