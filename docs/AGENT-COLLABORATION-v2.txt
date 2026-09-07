@@ -1,0 +1,1 @@
+Collaboration control plane: claims, exact SHA, disjoint path/contract/root-cause scopes, lease + heartbeat, explicit handoff, machine-readable evidence, dashboard, fail-closed validators, and a single certification authority. Use GitHub PRs/commits/evidence as the shared observable state.
