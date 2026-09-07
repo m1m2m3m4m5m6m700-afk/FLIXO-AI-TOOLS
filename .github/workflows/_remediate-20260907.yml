@@ -57,18 +57,17 @@ jobs:
               original = text
               for old, new in exact.items():
                   text = text.replace(old, new)
-              text = re.sub(r'Partial<Record<KnownLocale,\s*Record<([^\n;=]+string)>>\s*=', r'Partial<Record<KnownLocale, Record<\1>>> =', text)
               if text != original:
                   write(path, text)
 
-          # The category matrix is the canonical 20-locale contract, not a legacy compatibility map.
+          # Keep CATEGORY_LABELS strictly canonical even if its surrounding formatting changes.
           p = Path('src/lib/i18n/tool-localization.ts')
           text = read(p)
-          text = re.sub(
-              r"export const CATEGORY_LABELS:\s*[^=]+=") ,
-              "export const CATEGORY_LABELS: Record<Locale, Record<'Images' | 'AI' | 'Other', string>> =",
-              text,
-          )
+          start = text.find('export const CATEGORY_LABELS:')
+          if start >= 0:
+              eq = text.find(' = {', start)
+              if eq >= 0:
+                  text = text[:start] + "export const CATEGORY_LABELS: Record<Locale, Record<'Images' | 'AI' | 'Other', string>>" + text[eq:]
           write(p, text)
           PY
 
