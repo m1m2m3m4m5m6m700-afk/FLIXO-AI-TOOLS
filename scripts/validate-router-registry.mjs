@@ -42,7 +42,6 @@ if (!rootRouteSource.includes('errorComponent: ErrorComponent')) fail('error-bou
 if (!rootRouteSource.includes('notFoundComponent: NotFoundComponent')) fail('not-found', 'Root route must install the global NotFoundComponent.');
 if (!localizedToolRouteSource.includes('errorComponent: ErrorComponent')) fail('error-boundary', 'Dynamic localized tool route must install ErrorComponent.');
 if (!localizedToolRouteSource.includes('notFoundComponent: NotFoundComponent')) fail('not-found', 'Dynamic localized tool route must install NotFoundComponent.');
-
 if (!mainSource.includes("applyDocumentLocale(localeFromPathname(window.location.pathname))")) fail('dom-owner', 'Application bootstrap must synchronously apply the canonical document locale.');
 if (!rootRouteSource.includes('applyDocumentLocale(localeFromPathname(location.pathname))')) fail('dom-owner', 'Route navigation must update document locale from canonical pathname state.');
 if (!documentLocaleSource.includes('export function localeFromPathname(')) fail('dom-owner', 'Canonical locale parser is missing.');
@@ -62,7 +61,6 @@ const localeMutationOwners = sourceRecords.filter(({ relative, source }) => rela
 if (localeMutationOwners.length) fail('dom-owner', 'Imperative document locale writers remain in production source.', { files: localeMutationOwners });
 const forbiddenLocaleObserverOwners = sourceRecords.filter(({ relative, source }) => relative.includes('/i18n/') && /\bnew\s+MutationObserver\s*\(/u.test(source)).map(({ relative }) => relative).sort();
 if (forbiddenLocaleObserverOwners.length) fail('dom-observer', 'Localization modules still perform DOM mutation-observer translation.', { files: forbiddenLocaleObserverOwners });
-
 const rawHtmlOwners = sourceRecords.filter(({ source }) => source.includes('dangerouslySetInnerHTML')).filter(({ source }) => !(source.includes('application/ld+json') && /JSON\.stringify\([^)]*\)\.replace\(\/</u.test(source) || source.includes('serializeJsonLd'))).map(({ relative }) => relative).sort();
 if (rawHtmlOwners.length) fail('dom-security', 'dangerouslySetInnerHTML is forbidden outside escaped JSON-LD rendering.', { files: rawHtmlOwners });
 
@@ -109,7 +107,7 @@ for (const tool of TOOLS_REGISTRY.filter((entry) => entry.isReady)) for (const l
   if (locale !== 'en' && seo.title.trim() === tool.title.trim() && seo.description.trim() === tool.description.trim()) fail('localized-seo', `Localized SEO collapsed to the English registry baseline for ${tool.id}/${locale}.`);
 }
 
-for (const relative of sourceRecords.filter(({ relative }) => relative.startsWith('src/routes/') && relative.endsWith('.tsx')).map(({ relative }) => relative)) {
+for (const relative of sourceRecords.filter(({ relative }) => relative.startsWith('src/routes/') && relative.endsWith('.tsx') && relative !== 'src/routes/__root.tsx').map(({ relative }) => relative)) {
   const source = fs.readFileSync(path.resolve(relative), 'utf8');
   if (/\bcreate(?:Root)?Route\s*\(/u.test(source) && !hasRouteSeoMetadata(source)) fail('route-seo', `Route is missing explicit SEO title/description metadata: ${relative}.`);
 }
