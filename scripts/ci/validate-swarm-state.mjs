@@ -3,10 +3,11 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { replayAgentLedger } from './replay-agent-ledger.mjs';
 
-const LEDGER = process.env.FLIXO_SWARM_LEDGER ?? 'artifacts/ci/agent-coordination/events.ndjson';
-const QUEUE = 'artifacts/ci/agent-coordination/work-queue.json';
-const CLAIMS = process.env.FLIXO_AGENT_CLAIMS_FILE ?? '.ci/agent-coordination/claims.json';
-const SESSIONS = process.env.FLIXO_AGENT_SESSIONS_FILE ?? 'scripts/ci/active-sessions.json';
+const ROOT = 'artifacts/ci/agent-coordination';
+const LEDGER = process.env.FLIXO_SWARM_LEDGER ?? `${ROOT}/events.ndjson`;
+const QUEUE = `${ROOT}/work-queue.json`;
+const CLAIMS = process.env.FLIXO_AGENT_CLAIMS_FILE ?? `${ROOT}/claims.json`;
+const SESSIONS = process.env.FLIXO_AGENT_SESSIONS_FILE ?? `${ROOT}/active-sessions.json`;
 const fail = (message) => { throw new Error(`SWARM_STATE_INVALID: ${message}`); };
 const headSha = process.env.EXPECTED_HEAD_SHA ?? (() => { try { return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return ''; } })();
 if (!headSha) fail('current HEAD unavailable');
