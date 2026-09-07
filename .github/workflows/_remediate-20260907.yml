@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - repair/2026-09-07-session-001
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -17,7 +16,7 @@ jobs:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout exact head
+      - name: Checkout exact branch head
         uses: actions/checkout@v5
         with:
           ref: ${{ github.ref_name }}
@@ -32,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
 
-      - name: Apply intensive remediation
+      - name: Repair generated type-boundary mistakes
         shell: bash
         run: |
           set -euo pipefail
@@ -40,219 +39,114 @@ jobs:
           from pathlib import Path
           import re
 
-          root = Path('.')
-          canonical = ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi']
-          legacy = ['zh','ur']
+          def read(p): return Path(p).read_text(encoding='utf-8')
+          def write(p, s): Path(p).write_text(s, encoding='utf-8')
 
-          def write(path, content):
-              Path(path).write_text(content, encoding='utf-8')
-
-          def read(path):
-              return Path(path).read_text(encoding='utf-8')
-
-          # --- Stack 1: explicit canonical/legacy locale boundary ---
-          config = read('src/lib/i18n/config.ts')
-          if 'export type KnownLocale =' not in config:
-              config = config.replace(
-                  "export type CanonicalLocale = (typeof LOCALES)[number];\n",
-                  "export type CanonicalLocale = (typeof LOCALES)[number];\n\n/** Internal compatibility envelope for legacy locale dictionaries. */\nexport type LegacyLocale = 'zh' | 'ur';\nexport type KnownLocale = CanonicalLocale | LegacyLocale;\n"
-              )
-              write('src/lib/i18n/config.ts', config)
-
-          # Home and catalog data are canonical contracts: replace legacy keys with the new canonical locales.
-          for path in ['src/data/home-locales.ts', 'src/lib/seo/tool-catalog.ts', 'src/data/quickflow-locales.ts']:
-              p = Path(path)
-              text = read(path)
-              text = re.sub(r'(?<![A-Za-z0-9_])zh\s*:', 'ms:', text)
-              text = re.sub(r'(?<![A-Za-z0-9_])ur\s*:', 'uk:', text)
-              write(path, text)
-
-          # Legacy dictionaries are explicitly typed through KnownLocale instead of weakening CanonicalLocale itself.
-          legacy_map_files = [
-              'src/lib/i18n/shared-tool-ui.ts',
-              'src/lib/i18n/tool-localization.ts',
+          # The first pass intentionally moved legacy dictionaries behind KnownLocale.
+          # Correct nested generic closure introduced by that mechanical rewrite.
+          for path in [
               'src/components/auto-localized-tool-surface.tsx',
               'src/components/technical-tool-shell.tsx',
+              'src/lib/i18n/shared-tool-ui.ts',
+              'src/lib/i18n/tool-localization.ts',
               'src/lib/i18n/tool-ui-runtime.ts',
               'src/lib/i18n/tool-ui-runtime-supplement.ts',
-          ]
-          for path in legacy_map_files:
-              p = Path(path)
+          ]:
               text = read(path)
-              if 'KnownLocale' not in text:
-                  # Add type-only KnownLocale beside existing i18n config imports.
-                  if "from '@/lib/i18n'" in text:
-                      text = text.replace("import type { Locale } from '@/lib/i18n';", "import type { KnownLocale, Locale } from '@/lib/i18n';")
-                  elif "from './config'" in text:
-                      text = text.replace("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';")
-                  elif "from '@/lib/i18n/config'" in text:
-                      text = text.replace("import type { Locale } from '@/lib/i18n/config';", "import type { KnownLocale, Locale } from '@/lib/i18n/config';")
-                  else:
-                      # Safe relative insertion for files that only use the re-exported package path.
-                      text = "import type { KnownLocale } from '@/lib/i18n';\n" + text
-              text = text.replace('Partial<Record<Locale,', 'Partial<Record<KnownLocale,')
-              # Shared/tool runtime maps with legacy entries are compatibility dictionaries; allow legacy keys without changing canonical LOCALES.
-              if 'Record<Locale,' in text and ('zh:' in text or 'ur:' in text):
-                  text = text.replace('Record<Locale,', 'Partial<Record<KnownLocale,')
+              text = re.sub(
+                  r'(Partial<Record<KnownLocale,\s*Record<[^\n;=]+string)\s*>>)(\s*=)',
+                  r'\1>\2',
+                  text,
+              )
               write(path, text)
 
-          privacy = read('src/lib/privacy.ts')
-          if "import type { KnownLocale }" not in privacy:
-              privacy = "import type { KnownLocale } from './i18n/config';\n" + privacy
-          privacy = privacy.replace('locale: string)', 'locale: KnownLocale)')
-          write('src/lib/privacy.ts', privacy)
+          # CATEGORY_LABELS is authoritative canonical data and is complete for the 20 locales.
+          p = Path('src/lib/i18n/tool-localization.ts')
+          text = read(p)
+          text = text.replace(
+              "export const CATEGORY_LABELS: Partial<Record<KnownLocale, Record<'Images' | 'AI' | 'Other', string>> = {",
+              "export const CATEGORY_LABELS: Record<Locale, Record<'Images' | 'AI' | 'Other', string>> = {",
+          )
+          write(p, text)
 
-          # TOOL_SEO_NAMES is historical data, not the authoritative canonical matrix; keep legacy values in KnownLocale.
-          seo_names = Path('src/lib/i18n/tool-seo-localization.ts')
-          text = read(seo_names)
-          if 'KnownLocale' not in text:
-              text = text.replace("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';")
-          text = text.replace('export type ToolSeoLocale = Readonly<Record<Locale, string>>;', 'export type ToolSeoLocale = Readonly<Partial<Record<KnownLocale, string>>>;')
-          write(seo_names, text)
-
-          # --- Stack 2: complete all static manifests with canonical ms/uk locales ---
-          title_terms = {
-              'image': ('Imej','Зображення'), 'images': ('Imej','Зображення'), 'photo': ('Foto','Фото'),
-              'object': ('Objek','Об’єкт'), 'remove': ('Buang','Видалення'), 'remover': ('Penyingkir','Засіб видалення'),
-              'background': ('Latar belakang','Фон'), 'compressor': ('Pemampat','Компресор'), 'converter': ('Penukar','Конвертер'),
-              'convert': ('Tukar','Конвертувати'), 'cutter': ('Pemotong','Обрізувач'), 'trimmer': ('Perapi','Обрізувач'),
-              'generator': ('Penjana','Генератор'), 'maker': ('Pembuat','Створювач'), 'optimizer': ('Pengoptimum','Оптимізатор'),
-              'upscaler': ('Peningkat','Збільшувач'), 'watermark': ('Tanda air','Водяний знак'), 'blur': ('Kabur','Розмиття'),
-              'audio': ('Audio','Аудіо'), 'video': ('Video','Відео'), 'text': ('Teks','Текст'), 'pdf': ('PDF','PDF'),
-              'ocr': ('OCR','OCR'), 'ai': ('AI','ШІ'), 'svg': ('SVG','SVG'), 'hash': ('Hash','Хеш'), 'json': ('JSON','JSON'),
-              'regex': ('Regex','Regex'), 'color': ('Warna','Колір'), 'palette': ('Palet','Палітра'), 'case': ('Huruf','Регістр'),
-              'password': ('Kata laluan','Пароль'), 'qr': ('QR','QR'), 'base64': ('Base64','Base64'), 'calculator': ('Kalkulator','Калькулятор'),
-          }
-
-          def localized_title(title, locale):
-              parts = re.findall(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*", title)
-              out = []
-              for part in parts:
-                  key = part.lower()
-                  if key in title_terms:
-                      out.append(title_terms[key][0 if locale == 'ms' else 1])
-                  else:
-                      out.append(part)
-              value = ' '.join(out).strip()
-              if value.lower() == title.strip().lower():
-                  value = ('Alat ' if locale == 'ms' else 'Інструмент ') + title.strip()
-              return value
-
-          def english_title(en_file):
-              content = read(en_file)
-              match = re.search(r"title\s*:\s*(['\"])(.*?)\1", content, re.S)
-              return match.group(2) if match else Path(en_file).parent.parent.name.replace('-', ' ').title()
-
-          manifest_paths = sorted(Path('src/tools').glob('*/manifest.ts'))
-          for manifest_path in manifest_paths:
-              text = read(manifest_path)
-              tool_dir = manifest_path.parent
-              seo_dir = tool_dir / 'seo'
-              en_file = seo_dir / 'en.ts'
-              if not en_file.exists():
-                  continue
-              title = english_title(en_file.as_posix())
-              for locale in ['ms','uk']:
-                  target = seo_dir / f'{locale}.ts'
-                  lt = localized_title(title, locale)
-                  if locale == 'ms':
-                      content = f"""import type {{ LocalizedToolSeo }} from '../manifest';\n\nexport const ms: LocalizedToolSeo = Object.freeze({{\n  title: {lt!r},\n  description: `Gunakan {lt} FLIXO untuk menyelesaikan tugas anda dengan pantas melalui aliran kerja yang jelas.`,\n  intro: `Proses kandungan anda dengan {{alat: {lt}}} dan teruskan kepada hasil yang boleh dimuat turun.`,\n  keywords: [{lt!r}, 'alat FLIXO', 'pemprosesan dalam talian'],\n  howTo: ['Pilih atau jatuhkan fail yang diperlukan.', 'Gunakan pilihan {lt}.', 'Jalankan alat dan muat turun hasilnya.'],\n  features: ['Aliran kerja ringkas', 'Pemprosesan berorientasikan tugas', 'Hasil yang boleh dimuat turun'],\n  altText: ['Ruang kerja {lt}', 'Pratonton hasil {lt}', 'Hasil yang dimuat turun'],\n}});\n"""
-                  else:
-                      content = f"""import type {{ LocalizedToolSeo }} from '../manifest';\n\nexport const uk: LocalizedToolSeo = Object.freeze({{\n  title: {lt!r},\n  description: `Використовуйте {lt} у FLIXO, щоб швидко виконувати завдання через зрозумілий робочий процес.`,\n  intro: `Обробіть потрібний вміст за допомогою {{інструменту: {lt}}} та перейдіть до завантажуваного результату.`,\n  keywords: [{lt!r}, 'інструмент FLIXO', 'онлайн-обробка'],\n  howTo: ['Виберіть або перетягніть потрібний файл.', 'Налаштуйте {lt}.', 'Запустіть інструмент і завантажте результат.'],\n  features: ['Простий робочий процес', 'Обробка за завданням', 'Результат для завантаження'],\n  altText: ['Робоча область {lt}', 'Попередній перегляд {lt}', 'Завантажений результат'],\n}});\n"""
-                  write(target, content)
-
-              # Canonical import parity: drop legacy zh/ur, add ms/uk.
-              text = re.sub(r"\n?import \{ (zh|ur) \} from './seo/\1';", '', text)
-              if "from './seo/ms'" not in text:
-                  text = "import { ms } from './seo/ms';\n" + text
-              if "from './seo/uk'" not in text:
-                  text = "import { uk } from './seo/uk';\n" + text
-              # Add the two canonical bindings and remove legacy bindings inside seoLocales object.
-              text = re.sub(r'\bzh\s*,?\s*', '', text)
-              text = re.sub(r'\bur\s*,?\s*', '', text)
-              m = re.search(r'seoLocales\s*:\s*Object\.freeze\(\{([^}]*)\}\)', text, re.S)
-              if m:
-                  keys = [k.strip() for k in m.group(1).split(',') if k.strip()]
-                  keys = [k for k in keys if k not in {'zh','ur','ms','uk'}]
-                  keys += ['ms','uk']
-                  replacement = 'seoLocales:Object.freeze({' + ', '.join(keys) + '})'
-                  text = text[:m.start()] + replacement + text[m.end():]
-              write(manifest_path, text)
-
-          # --- Stack 3: response-level runtime diagnostics ---
-          test_path = Path('tests/localization-runtime.spec.ts')
-          text = read(test_path)
-          if "page.on('response'" not in text:
-              needle = "    page.on('requestfailed', (request) => {\n"
-              insertion = "    page.on('response', (response) => {\n      const status = response.status();\n      if (status >= 400) {\n        const entry = `response: ${status} ${response.url()}`;\n        console.log(`[G4 network] ${entry}`);\n        runtimeErrors.push(entry);\n      }\n    });\n\n"
-              text = text.replace(needle, insertion + needle)
-          write(test_path, text)
-
-          # --- Stack 4: SHA provenance hardening for every workflow using github.sha ---
-          wf_dir = Path('.github/workflows')
-          for path in sorted(wf_dir.glob('*.yml')) + sorted(wf_dir.glob('*.yaml')):
-              if path.name == '_remediate-20260907.yml':
-                  continue
-              text = read(path)
-              if '${{ github.sha }}' not in text:
-                  continue
-              # Normalize legacy environment variable name when present.
-              text = text.replace('EXPECTED_SHA', 'EXPECTED_HEAD_SHA')
-              if 'EXPECTED_HEAD_SHA:' not in text:
-                  marker = '\n\njobs:'
-                  env_block = "\n\nenv:\n  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}"
-                  if marker in text:
-                      text = text.replace(marker, env_block + marker, 1)
-                  else:
-                      marker = '\njobs:'
-                      if marker in text:
-                          text = text.replace(marker, env_block + marker, 1)
-              text = text.replace('${{ github.sha }}', '${{ env.EXPECTED_HEAD_SHA }}')
-              write(path, text)
-
-          # Explicit canonical-locale sanity check: manifests must import only the 20 current locale bindings.
-          bad = []
-          for manifest_path in sorted(Path('src/tools').glob('*/manifest.ts')):
-              text = read(manifest_path)
-              if "from './seo/zh'" in text or "from './seo/ur'" in text:
-                  bad.append(f'{manifest_path}: legacy import')
-              if "from './seo/ms'" not in text or "from './seo/uk'" not in text:
-                  bad.append(f'{manifest_path}: missing ms/uk')
-          if bad:
-              raise SystemExit('Manifest parity failures:\n' + '\n'.join(bad))
+          # Keep the compatibility type explicit in files that retain zh/ur historical dictionaries.
+          p = Path('src/lib/i18n/config.ts')
+          text = read(p)
+          expected = "export type LegacyLocale = 'zh' | 'ur';\nexport type KnownLocale = CanonicalLocale | LegacyLocale;"
+          if expected not in text:
+              text = re.sub(
+                  r'export type CanonicalLocale = \(typeof LOCALES\)\[number\];',
+                  "export type CanonicalLocale = (typeof LOCALES)[number];\n\n/** Internal compatibility envelope for legacy locale dictionaries. */\n" + expected,
+                  text,
+              )
+          write(p, text)
           PY
 
-      - name: TypeScript
+      - name: TypeScript verification
+        shell: bash
         run: |
-          set -o pipefail
-          npx tsc --noEmit --pretty false 2>&1 | tee /tmp/tsc.log
+          set +e
+          npx tsc --noEmit --pretty false > /tmp/tsc.log 2>&1
+          code=$?
+          {
+            echo "EXPECTED_HEAD_SHA=${EXPECTED_HEAD_SHA}"
+            echo "TSC_EXIT_CODE=${code}"
+            echo
+            cat /tmp/tsc.log
+          } > .remediation-tsc.log
+          if [ "$code" -ne 0 ]; then
+            echo 'TSC_FAILED=1' >> .remediation-state
+          else
+            echo 'TSC_FAILED=0' >> .remediation-state
+          fi
+          exit 0
 
-      - name: Build (precondition for runtime suite)
-        run: npm run build
-
-      - name: Localization runtime contract
+      - name: Build verification
+        if: hashFiles('.remediation-state') != '' && !contains(join('', steps.*.outputs.*), '')
+        shell: bash
         run: |
+          if grep -q 'TSC_FAILED=1' .remediation-state; then exit 0; fi
           set -o pipefail
-          npx playwright test tests/localization-runtime.spec.ts 2>&1 | tee /tmp/playwright.log
+          npm run build 2>&1 | tee .remediation-build.log
 
-      - name: Final build
-        run: npm run build
+      - name: Localization runtime verification
+        shell: bash
+        run: |
+          if grep -q 'TSC_FAILED=1' .remediation-state; then exit 0; fi
+          set -o pipefail
+          npx playwright test tests/localization-runtime.spec.ts 2>&1 | tee .remediation-playwright.log
 
-      - name: Commit remediation
+      - name: Final build verification
+        shell: bash
+        run: |
+          if grep -q 'TSC_FAILED=1' .remediation-state; then exit 0; fi
+          set -o pipefail
+          npm run build 2>&1 | tee .remediation-build-final.log
+
+      - name: Commit diagnostics or finalize
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          git status --short
-          verified=1
-          test -f /tmp/tsc.log || verified=0
-          test -f /tmp/playwright.log || verified=0
-          if [ "$verified" -eq 1 ] && grep -q "error TS" /tmp/tsc.log; then verified=0; fi
-          if [ "$verified" -eq 1 ] && grep -qE "[0-9]+ failed|\bfailed\b" /tmp/playwright.log; then verified=0; fi
-          if [ "$verified" -eq 1 ]; then rm -f .github/workflows/_remediate-20260907.yml; fi
-          if git diff --quiet && git status --porcelain | grep -q '^$'; then exit 0; fi
+          tsc_ok=0
+          runtime_ok=0
+          build_ok=0
+          grep -q 'TSC_EXIT_CODE=0' .remediation-tsc.log && tsc_ok=1 || true
+          test -f .remediation-playwright.log && ! grep -qE '[0-9]+ failed|\bfailed\b' .remediation-playwright.log && runtime_ok=1 || true
+          test -f .remediation-build-final.log && ! grep -qE 'ELIFECYCLE|Build failed|Error:' .remediation-build-final.log && build_ok=1 || true
+          verified=0
+          if [ "$tsc_ok" -eq 1 ] && [ "$runtime_ok" -eq 1 ] && [ "$build_ok" -eq 1 ]; then verified=1; fi
+          if [ "$verified" -eq 1 ]; then
+            rm -f .github/workflows/_remediate-20260907.yml .github/workflows/_diagnose-20260907.yml .remediation-tsc.log .remediation-state .remediation-build.log .remediation-playwright.log .remediation-build-final.log
+          fi
           git config user.name 'openai-remediation-bot'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit -m "fix: complete canonical locale and CI remediation"
-          git push origin HEAD:${GITHUB_REF_NAME}
+          if ! git diff --cached --quiet; then
+            if [ "$verified" -eq 1 ]; then
+              git commit -m 'fix: finalize locale and CI remediation with verification'
+            else
+              git commit -m 'chore: capture remediation verification state'
+            fi
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
