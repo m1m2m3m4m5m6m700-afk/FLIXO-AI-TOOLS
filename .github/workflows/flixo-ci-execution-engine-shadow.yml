@@ -1,26 +1,25 @@
 name: FLIXO CI — Execution Engine Shadow
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-execution-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: flixo-ci-execution-shadow-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
   execution-engine-shadow:
-    name: CI Execution Engine Shadow
+    name: CI Execution Engine Shadow (Diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout full history
         uses: actions/checkout@v5
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -48,7 +47,7 @@ jobs:
           cp artifacts/ci/plan/execution-plan.json /tmp/execution-plan-1.json
           node --experimental-strip-types scripts/ci/core/plan.mjs
           cmp /tmp/execution-plan-1.json artifacts/ci/plan/execution-plan.json
-      - name: Upload execution evidence
+      - name: Upload execution diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
