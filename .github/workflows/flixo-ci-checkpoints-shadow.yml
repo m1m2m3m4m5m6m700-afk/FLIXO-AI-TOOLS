@@ -12,6 +12,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  SITE_URL: https://flixoai.vercel.app
+  VITE_SITE_URL: https://flixoai.vercel.app
+
 jobs:
   checkpoints-shadow:
     name: CI Checkpoint Shadow
