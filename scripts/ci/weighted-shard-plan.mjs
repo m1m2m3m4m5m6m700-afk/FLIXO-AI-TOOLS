@@ -17,6 +17,27 @@ if (!entries.length) throw new Error('No test weights configured.');
 if (!browsers.length) throw new Error('No browsers configured.');
 
 const hashFile = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
+const normalizeTestFile = (file) => {
+  const normalized = String(file).replace(/\\/g, '/');
+  const marker = '/tests/';
+  const index = normalized.lastIndexOf(marker);
+  if (index >= 0) return normalized.slice(index + 1);
+  return normalized.replace(/^\.\//, '');
+};
+const testId = (spec, test, ordinal) => `${normalizeTestFile(spec.file)}::${spec.title}::${ordinal}`;
+const collectListedTests = (value) => {
+  const tests = [];
+  const walk = (suite) => {
+    for (const spec of suite?.specs || []) {
+      for (const [ordinal, test] of (spec.tests || []).entries()) {
+        tests.push({ id: testId(spec, test, ordinal), file: normalizeTestFile(spec.file), title: spec.title, ordinal });
+      }
+    }
+    for (const child of suite?.suites || []) walk(child);
+  };
+  for (const suite of value?.suites || []) walk(suite);
+  return tests;
+};
 
 execFileSync('node', ['--experimental-strip-types', 'scripts/ci/validate-protocol-cooperation.mjs'], { stdio: 'inherit', env: { ...process.env, FLIXO_SOURCE_SHA: sourceSha, CI: '1' } });
 const cooperationMap = JSON.parse(readFileSync('artifacts/ci/protocol-cooperation/cooperation-map.json', 'utf8'));
@@ -40,24 +61,31 @@ const plan = bins.filter((bin) => bin.tests.length).map((bin) => ({
 const spread = Math.max(...plan.map((bin) => bin.weight)) - Math.min(...plan.map((bin) => bin.weight));
 if (spread > Math.max(2, Math.ceil(total / shardCount))) throw new Error(`Shard plan is too imbalanced: spread=${spread}, total=${total}, shards=${shardCount}`);
 
-const countListedTests = (value) => {
-  if (!value || typeof value !== 'object') return 0;
-  const specs = Array.isArray(value.specs) ? value.specs : [];
-  const direct = specs.reduce((sum, spec) => sum + (Array.isArray(spec.tests) ? spec.tests.length : 0), 0);
-  const children = Array.isArray(value.suites) ? value.suites.reduce((sum, suite) => sum + countListedTests(suite), 0) : 0;
-  return direct + children;
-};
-
-const suiteCount = new Map();
+const suiteInventory = new Map();
 for (const entry of entries) {
-  const output = execFileSync('npx', ['playwright', 'test', `tests/${entry.name}.spec.ts`, '--list', '--project=chromium', '--reporter=json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, CI: '1' } });
+  const output = execFileSync('npx', ['playwright', 'test', `tests/${entry.name}.spec.ts`, '--list', '--project=chromium', '--reporter=json'], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'inherit'],
+    env: { ...process.env, CI: '1' },
+  });
   const report = JSON.parse(output);
-  const count = countListedTests({ suites: report.suites });
-  if (!Number.isInteger(count) || count < 1) throw new Error(`Unable to determine Playwright test count for ${entry.name}`);
-  suiteCount.set(entry.name, count);
+  const tests = collectListedTests(report);
+  if (!tests.length) throw new Error(`Unable to determine Playwright tests for ${entry.name}`);
+  const ids = tests.map((test) => test.id);
+  if (new Set(ids).size !== ids.length) throw new Error(`Duplicate Playwright test IDs for ${entry.name}`);
+  suiteInventory.set(entry.name, { count: tests.length, test_ids: ids });
 }
 
-for (const bin of plan) bin.test_count = bin.tests.reduce((sum, suite) => sum + suiteCount.get(suite), 0);
+for (const bin of plan) {
+  bin.test_count = bin.tests.reduce((sum, suite) => sum + suiteInventory.get(suite).count, 0);
+  bin.test_ids = bin.tests.flatMap((suite) => suiteInventory.get(suite).test_ids);
+  if (new Set(bin.test_ids).size !== bin.test_ids.length) throw new Error(`Duplicate planned test IDs in shard-${bin.shard}`);
+}
+
+const allSuites = plan.flatMap((bin) => bin.tests);
+if (JSON.stringify([...allSuites].sort()) !== JSON.stringify([...Object.keys(history.tests)].sort())) {
+  throw new Error('Weighted matrix plan does not cover every configured suite exactly once.');
+}
 
 const matrix = plan.flatMap((bin) => browsers.map((browser) => ({
   browser,
@@ -65,11 +93,12 @@ const matrix = plan.flatMap((bin) => browsers.map((browser) => ({
   total_shards: plan.length,
   tests: bin.tests,
   test_count: bin.test_count,
+  test_ids: [...bin.test_ids],
   weight: bin.weight,
 })));
 
 const unsignedPlan = {
-  schema_version: 3,
+  schema_version: 4,
   source_sha: sourceSha,
   registry_hash: registryHash,
   cooperation_map_hash: cooperationMapHash,
