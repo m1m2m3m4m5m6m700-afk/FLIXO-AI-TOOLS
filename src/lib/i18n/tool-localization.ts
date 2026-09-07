@@ -12,7 +12,6 @@ export const CATEGORY_LABELS: Record<Locale, { Images: string }> = {
   it: { Images: 'Immagini' },
   ja: { Images: '画像' },
   ko: { Images: '이미지' },
-  ms: { Images: 'Imej' },
   nl: { Images: 'Afbeeldingen' },
   pl: { Images: 'Obrazy' },
   pt: { Images: 'Imagens' },
@@ -20,8 +19,9 @@ export const CATEGORY_LABELS: Record<Locale, { Images: string }> = {
   sv: { Images: 'Bilder' },
   th: { Images: 'รูปภาพ' },
   tr: { Images: 'Görseller' },
-  uk: { Images: 'Зображення' },
   vi: { Images: 'Hình ảnh' },
+  zh: { Images: '图片' },
+  ur: { Images: 'تصاویر' },
 };
 
 function canonicalSeo(locale: Locale, title: string) {
