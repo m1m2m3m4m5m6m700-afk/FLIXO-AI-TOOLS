@@ -1,0 +1,83 @@
+name: FLIXO TypeScript Remediation 20260907
+
+on:
+  push:
+    branches: [repair/2026-09-07-session-001]
+
+permissions:
+  contents: write
+
+env:
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Apply verified TypeScript fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path): return Path(path).read_text(encoding='utf-8')
+          def write(path, text): Path(path).write_text(text, encoding='utf-8')
+
+          # KnownLocale is intentionally an internal compatibility type and must be imported from config, not the public barrel.
+          for path in ['src/components/auto-localized-tool-surface.tsx', 'src/components/technical-tool-shell.tsx']:
+              p=Path(path); text=read(p)
+              text=text.replace("import type { KnownLocale, Locale } from '@/lib/i18n';", "import type { Locale } from '@/lib/i18n';\nimport type { KnownLocale } from '@/lib/i18n/config';")
+              write(p,text)
+
+          # SHARED_TOOL_UI_COPY contains all canonical plus legacy compatibility entries.
+          p=Path('src/lib/i18n/shared-tool-ui.ts'); text=read(p)
+          text=text.replace('export const SHARED_TOOL_UI_COPY: Partial<Record<KnownLocale, SharedCopy>> = {', 'export const SHARED_TOOL_UI_COPY: Record<KnownLocale, SharedCopy> = {')
+          text=text.replace("    const externalLabel = locale === 'ar' ? 'معالجة خارجية' : locale === 'zh' ? '外部处理' : locale === 'uk' ? 'Зовнішня обробка' : 'External processing';", "    const externalLabel = locale === 'ar' ? 'معالجة خارجية' : locale === 'uk' ? 'Зовнішня обробка' : 'External processing';")
+          write(p,text)
+
+          # The shell map is consumed with canonical Locale, so legacy-only keys are excluded here.
+          p=Path('src/components/technical-tool-shell.tsx'); text=read(p)
+          text=text.replace('const EXTERNAL_PROCESSING: Partial<Record<KnownLocale, string>> = {', 'const EXTERNAL_PROCESSING: Record<Locale, string> = {')
+          text=re.sub(r"\s*zh:\s*'[^']*',", '', text)
+          text=re.sub(r"\s*ur:\s*'[^']*',", '', text)
+          write(p,text)
+
+          # SEO locale modules must import the contract type from its canonical defining module.
+          for path in Path('src/tools').glob('*/seo/ms.ts'):
+              p=path; text=read(p).replace("import type { LocalizedToolSeo } from '../manifest';", "import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';"); write(p,text)
+          for path in Path('src/tools').glob('*/seo/uk.ts'):
+              p=path; text=read(p).replace("import type { LocalizedToolSeo } from '../manifest';", "import type { LocalizedToolSeo } from '@/lib/seo/tool-manifest';"); write(p,text)
+          PY
+
+      - name: Verify exact SHA and TypeScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_HEAD_SHA"
+          npx tsc --noEmit --pretty false
+
+      - name: Commit and remove repair workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/_tsc-fix-20260907.yml
+          git config user.name 'openai-remediation-bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: resolve exact-head TypeScript diagnostics'
+          git push origin HEAD:${GITHUB_REF_NAME}
