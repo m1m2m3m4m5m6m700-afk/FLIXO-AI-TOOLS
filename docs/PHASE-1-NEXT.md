@@ -1,1 +1,0 @@
-Phase 1 implementation checkpoint: PWA shell, progressive offline cache, explicit local/external processing labels, and foundation contract verification are implemented on feat/phase1-foundation.
