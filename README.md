@@ -63,7 +63,7 @@ npm run test:e2e
 
 The canonical browser promotion barrier is `.github/workflows/full-matrix-parallel.yml`, whose workflow identity is **Matrix First** and whose sole aggregate certificate is **Matrix First Certification**.
 
-The signed `_flixo_matrix_plan.json` is the single matrix execution source of truth for browser/shard assignment and immutable Playwright test identity.
+The signed `_flixo_matrix_plan.json` is the single matrix execution source of truth for browser/shard assignment and immutable Playwright test identity. Its schema is version 4 and includes the exact planned test IDs for every browser/shard unit.
 
 ## Internationalization
 
