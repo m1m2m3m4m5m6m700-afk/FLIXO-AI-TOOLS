@@ -17,6 +17,11 @@ const expectedScript = Object.freeze({
   hi: /[\u0900-\u097f]/u,
   th: /[\u0e00-\u0e7f]/u,
 });
+const forbiddenScript = Object.freeze({
+  ms: /[\u3400-\u9fff\u3040-\u30ff\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/gu,
+  uk: /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\u3400-\u9fff\u3040-\u30ff]/gu,
+});
+const requiredScript = Object.freeze({ uk: /[\u0400-\u04ff]/u });
 
 const normalize = (value) => String(value ?? '').replace(/\s+/gu, ' ').trim();
 const leaves = (value, path = []) => {
@@ -74,6 +79,21 @@ const compareLeaves = (english, localized, context) => {
     if (en && enPlaceholders.join('|') !== locPlaceholders.join('|')) report(`${context}: placeholder structure mismatch at ${leaf.path}`);
   }
 };
+const checkLocaleScript = (locale, value, context) => {
+  const text = normalize(value);
+  if (!text) return;
+  if (forbiddenScript[locale]) {
+    forbiddenScript[locale].lastIndex = 0;
+    const forbidden = [...text.matchAll(forbiddenScript[locale])].length;
+    const letters = [...text].filter((char) => /\p{L}/u.test(char)).length;
+    if (letters >= 8 && forbidden / letters >= 0.15) report(`${context}: forbidden script leakage for ${locale} (${forbidden}/${letters} letters)`);
+  }
+  if (requiredScript[locale] && !requiredScript[locale].test(text)) {
+    const letters = [...text].filter((char) => /\p{L}/u.test(char)).length;
+    const latinLike = [...text].filter((char) => /[A-Za-z]/u.test(char)).length;
+    if (letters >= 8 && latinLike / letters >= 0.7) report(`${context}: expected native script missing for ${locale}`);
+  }
+};
 const importModule = async (relativePath) => import(pathToFileURL(`${root}/${relativePath}`).href);
 
 const configModule = await importModule('src/lib/i18n/config.ts');
@@ -110,6 +130,9 @@ for (const [name, resolve] of effectivePairs) {
     }
     compareShapeAndValues(english, localized, `${name}/${locale}`);
     compareLeaves(english, localized, `${name}/${locale}`);
+    for (const { path, value } of leaves(localized)) {
+      if (!isNonTranslatablePath(path)) checkLocaleScript(locale, value, `${name}/${locale}/${path}`);
+    }
   }
 }
 
@@ -179,8 +202,8 @@ for (const locale of locales) {
       report(`${tool.id}/seo/${locale}: invalid canonical URL ${seo.url}`);
     }
     if (locale === 'ms' || locale === 'uk') {
-      const sampleText = normalize([seo.title, seo.description, seo.intro, ...seo.howTo, ...seo.features, ...seo.altText].join(' '));
-      if (sampleText === normalize([tool.title, tool.description].join(' '))) report(`${tool.id}/seo/${locale}: locale-specific runtime copy collapsed to English baseline`);
+      const surfaceText = [seo.title, seo.description, seo.intro, ...(seo.howTo ?? []), ...(seo.features ?? []), ...(seo.altText ?? [])].join(' ');
+      checkLocaleScript(locale, surfaceText, `${tool.id}/seo/${locale}`);
     }
   }
 }
@@ -191,4 +214,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`STRICT LANGUAGE QUALITY GATE PASSED — ${locales.length} locales; effective Home/QuickFlow, core dictionaries, Tool UI, runtime SEO locale completeness, canonical URL provenance, fallback rejection, script/direction checks, and placeholder/HTML integrity are clean.`);
+console.log(`STRICT LANGUAGE QUALITY GATE PASSED — ${locales.length} locales; effective Home/QuickFlow, core dictionaries, Tool UI, runtime SEO locale completeness, canonical URL provenance, fallback rejection, semantic script guards, and placeholder/HTML integrity are clean.`);
