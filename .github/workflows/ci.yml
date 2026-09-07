@@ -28,7 +28,8 @@ jobs:
       PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      FLIXO_TEST_MODE: certification
+      FLIXO_TEST_MODE: diagnose
+      FLIXO_DEPENDENCIES_READY: 'true'
     steps:
       - name: Checkout exact SHA
         uses: actions/checkout@v5
@@ -53,19 +54,11 @@ jobs:
       - name: Install committed dependency graph
         run: npm ci --prefer-offline --no-audit --no-fund
 
-      - name: STATIC
-        run: npm run test:static
-
-      - name: BUILD
-        env:
-          FLIXO_DEPENDENCIES_READY: 'true'
-        run: npm run test:build
-
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit
 
-      - name: BROWSER
-        run: npm run test:browser
+      - name: Unified diagnostic runner
+        run: npm run test:diagnose
 
       - name: Record repair-cycle diagnostics
         if: always()
@@ -86,7 +79,7 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Fail closed unless test gate passed
+      - name: Fail closed unless unified runner passed
         shell: bash
         run: |
           set -euo pipefail
