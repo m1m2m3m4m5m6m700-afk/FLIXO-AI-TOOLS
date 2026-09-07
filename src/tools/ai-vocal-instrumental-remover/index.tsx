@@ -71,8 +71,6 @@ export function AiVocalInstrumentalRemoverTool() {
       const context = resources.audioContext('ai-vocal-context', new AudioContext(audioContextOptions));
       const audio = await context.decodeAudioData(await file.arrayBuffer());
       throwIfAborted(controller.signal);
-      const left = audio.getChannelData(0).slice();
-      const right = audio.numberOfChannels > 1 ? audio.getChannelData(1).slice() : left.slice();
       const effectiveBackend: SeparationBackend = backend === 'webgpu' && !('gpu' in navigator) ? 'wasm' : backend;
       if (effectiveBackend !== backend) setStatus('WebGPU is unavailable; using WASM CPU fallback.');
       const worker = resources.worker('ai-vocal-worker', new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }));

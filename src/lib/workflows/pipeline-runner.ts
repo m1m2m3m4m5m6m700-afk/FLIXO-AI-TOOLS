@@ -107,7 +107,7 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
       const step = plan.steps[i];
       if (!step || !isExecutablePipelineToolId(step.toolId)) throw new Error(`Tool '${step?.toolId ?? 'unknown'}' is not executable by the local pipeline.`);
       onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId });
-      currentBlob = await processToolStep(step.toolId, currentBlob, step.params, owner, signal);
+      currentBlob = await processToolStep(step.toolId, currentBlob, step.params ?? {}, owner, signal);
       throwIfAborted(signal);
       onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, outputBlob: currentBlob });
     }

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { imagesToPdf, type ImageToPdfMargin, type ImageToPdfOrientation } from './engine';
-import { DisposableResourceOwner, throwIfAborted } from '@/lib/resources/disposable-resource-owner';
+import { useDisposableResourceOwner, throwIfAborted } from '@/lib/resources/disposable-resource-owner';
 
 export function ImageToPdfTool() {
-  const resources = useRef(new DisposableResourceOwner()).current;
+  const resources = useDisposableResourceOwner();
   const controllerRef = useRef<AbortController | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [orientation, setOrientation] = useState<ImageToPdfOrientation>('portrait');

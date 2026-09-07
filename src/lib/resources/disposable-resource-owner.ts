@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
 type Disposer = () => void | Promise<void>;
 export type WorkerJobEvent<TResponse> =
@@ -48,9 +48,7 @@ export class DisposableResourceOwner {
   }
 }
 export function useDisposableResourceOwner(): DisposableResourceOwner {
-  const ownerRef = useRef<DisposableResourceOwner | null>(null);
-  if (!ownerRef.current) ownerRef.current = new DisposableResourceOwner();
-  const owner = ownerRef.current;
+  const [owner] = useState(() => new DisposableResourceOwner());
   useEffect(() => () => { void owner.disposeAll(); }, [owner]);
   return owner;
 }
