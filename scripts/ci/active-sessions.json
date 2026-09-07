@@ -2,31 +2,5 @@
   "schema_version": 1,
   "protocol": "FLIXO active agent sessions",
   "source_of_truth": ".ci/agent-coordination/claims.json",
-  "active_sessions": [
-    {
-      "agentId": "matrix-therapy-v2",
-      "branch": "agent/matrix-therapy/one-artifact-v2",
-      "observedHeadSha": "381de3abe4d4808b55f8e536033dcdb47d168c82",
-      "scope": {
-        "paths": [
-          ".github/workflows/full-matrix-parallel.yml",
-          "scripts/ci/weighted-shard-plan.mjs",
-          "scripts/ci/write-matrix-test-inventory.mjs",
-          "scripts/ci/write-matrix-evidence.mjs",
-          "scripts/ci/validate-full-matrix-evidence.mjs",
-          "src/lib/contracts/failure-classifier.ts",
-          "scripts/ci/validate-architecture.mjs",
-          "README.md",
-          "docs/RELEASE_POLICY.md"
-        ],
-        "contracts": [
-          "G4-RUNTIME-001",
-          "G4-CONSOLE-001",
-          "G4-NETWORK-001",
-          "G4-OUTPUT-001"
-        ]
-      },
-      "startedAt": "2026-09-07T17:10:00Z"
-    }
-  ]
+  "active_sessions": []
 }
