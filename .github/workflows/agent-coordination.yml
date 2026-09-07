@@ -35,10 +35,13 @@ jobs:
       - name: Self-heal agent projections from immutable ledger
         env:
           FLIXO_SWARM_LEDGER: artifacts/ci/agent-coordination/events.ndjson
-          FLIXO_AGENT_CLAIMS_FILE: .ci/agent-coordination/claims.json
-          FLIXO_AGENT_SESSIONS_FILE: scripts/ci/active-sessions.json
+          FLIXO_AGENT_CLAIMS_FILE: artifacts/ci/agent-coordination/claims.json
+          FLIXO_AGENT_SESSIONS_FILE: artifacts/ci/agent-coordination/active-sessions.json
         run: node scripts/ci/rebuild-agent-projections.mjs
       - name: Validate claims protocol
+        env:
+          FLIXO_SWARM_LEDGER: artifacts/ci/agent-coordination/events.ndjson
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/ci/validate-agent-coordination-protocol.mjs
       - name: Validate canonical artifact work queue
         env:
@@ -50,7 +53,8 @@ jobs:
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           FLIXO_SWARM_LEDGER: artifacts/ci/agent-coordination/events.ndjson
-          FLIXO_SWARM_WORK_QUEUE: artifacts/ci/agent-coordination/work-queue.json
+          FLIXO_AGENT_CLAIMS_FILE: artifacts/ci/agent-coordination/claims.json
+          FLIXO_AGENT_SESSIONS_FILE: artifacts/ci/agent-coordination/active-sessions.json
         run: node --experimental-strip-types scripts/ci/validate-swarm-state.mjs
       - name: Validate local agent sessions from ledger
         env:
@@ -79,11 +83,16 @@ jobs:
         env:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           FLIXO_SWARM_LEDGER: artifacts/ci/agent-coordination/events.ndjson
-          FLIXO_SWARM_WORK_QUEUE: artifacts/ci/agent-coordination/work-queue.json
+          FLIXO_AGENT_CLAIMS_FILE: artifacts/ci/agent-coordination/claims.json
+          FLIXO_AGENT_SESSIONS_FILE: artifacts/ci/agent-coordination/active-sessions.json
         run: node --experimental-strip-types scripts/ci/validate-swarm-state.mjs
       - name: Build coordination dashboard
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/ci/agent-coordination-dashboard.mjs
       - name: Audit coordination state
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/ci/agent-coordination-state.mjs
       - name: Upload coordination evidence
         uses: actions/upload-artifact@v4
