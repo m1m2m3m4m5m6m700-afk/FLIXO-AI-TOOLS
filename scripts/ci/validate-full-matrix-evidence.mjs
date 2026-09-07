@@ -1,6 +1,7 @@
 import { createHash, createHmac } from 'node:crypto';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { collectNativeTests, testId } from './matrix-test-identity.mjs';
 
 const root = process.env.EVIDENCE_ROOT || 'full-matrix-evidence';
 const planPath = process.env.MATRIX_PLAN_PATH || join(root, '_flixo_matrix_plan.json');
@@ -13,13 +14,6 @@ if (!statSync(root, { throwIfNoEntry: false })?.isDirectory()) throw new Error(`
 if (!statSync(planPath, { throwIfNoEntry: false })?.isFile()) throw new Error(`Missing immutable matrix plan: ${planPath}`);
 
 const sha256File = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
-const normalizeTestFile = (file) => {
-  const normalized = String(file).replace(/\\/g, '/');
-  const marker = '/tests/';
-  const index = normalized.lastIndexOf(marker);
-  if (index >= 0) return normalized.slice(index + 1);
-  return normalized.replace(/^\.\//, '');
-};
 
 const plan = JSON.parse(readFileSync(planPath, 'utf8'));
 const { plan_hash: planHash, signature, signature_algorithm: signatureAlgorithm, ...unsignedPlan } = plan;
@@ -69,20 +63,6 @@ const errors = [];
 const records = [];
 const seenUnits = new Set();
 
-const collectNativeTests = (report) => {
-  const tests = [];
-  const walk = (suite) => {
-    for (const spec of suite?.specs || []) {
-      for (const [ordinal, test] of (spec.tests || []).entries()) {
-        tests.push({ file: normalizeTestFile(spec.file), title: spec.title, ordinal, status: test.status, results: test.results || [] });
-      }
-    }
-    for (const child of suite?.suites || []) walk(child);
-  };
-  for (const suite of report?.suites || []) walk(suite);
-  return tests;
-};
-
 for (const fileName of files) {
   const file = join(root, fileName);
   const record = JSON.parse(readFileSync(file, 'utf8'));
@@ -122,7 +102,7 @@ for (const fileName of files) {
   if (record.native_report_sha256 !== nativeHash) errors.push(`${file} native report SHA mismatch`);
   const native = JSON.parse(nativeText);
   const nativeTests = collectNativeTests(native);
-  const nativeIds = nativeTests.map((test) => `${test.file}::${test.title}::${test.ordinal}`).sort();
+  const nativeIds = nativeTests.map(testId).sort();
   const nativeSuites = [...new Set(nativeTests.map((test) => test.file.replace(/^tests\//, '').replace(/\.spec\.ts$/, '')))].sort();
   const nativeObserved = nativeTests.length;
   const nativeSkipped = nativeTests.filter((test) => test.status === 'skipped').length;
