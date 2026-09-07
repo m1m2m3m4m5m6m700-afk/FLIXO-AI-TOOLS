@@ -22,34 +22,53 @@ const git = (args) => {
   return (result.stdout ?? '').trim();
 };
 
+const EXPECTED_CHECKS = { STATIC: 8, BUILD: 3, BROWSER: 3 };
+const REQUIRED_GATES = Object.keys(EXPECTED_CHECKS);
 const context = readJson('execution-context.json');
-const reports = ['static.json', 'build.json', 'browser.json'].map(readJson).filter(Boolean);
-const failures = reports.flatMap((report) => (report.checks ?? []).filter((check) => check.status === 'FAIL').map((check) => ({
-  gate: report.gate,
-  ...check,
-})));
-const skipped = reports.flatMap((report) => (report.checks ?? []).filter((check) => check.status === 'SKIPPED').map((check) => ({ gate: report.gate, label: check.label })));
-const masked = reports.some((report) => report.status === 'PASS' && Number(report.failures ?? 0) > 0)
-  || reports.some((report) => report.status === 'PASS' && Number(report.checksExecuted ?? 0) < Number(report.checksExpected ?? 0));
+const reports = REQUIRED_GATES.map((gate) => ({ name: gate, report: readJson(`${gate.toLowerCase()}.json`) }));
+const missingReports = reports.filter(({ report }) => !report).map(({ name }) => name);
+const failures = reports.flatMap(({ name, report }) => (report?.checks ?? []).filter((check) => check.status === 'FAIL').map((check) => ({ gate: name, ...check })));
+const skipped = reports.flatMap(({ name, report }) => (report?.checks ?? []).filter((check) => check.status === 'SKIPPED').map((check) => ({ gate: name, label: check.label })));
+const incompleteReports = reports
+  .filter(({ report }) => report)
+  .filter(({ name, report }) => report.sha !== context?.execution?.sha || report.checksExpected !== EXPECTED_CHECKS[name] || report.checksExecuted !== EXPECTED_CHECKS[name] || report.status !== 'PASS');
+const masked = reports.some(({ report }) => report?.status === 'PASS' && Number(report.failures ?? 0) > 0)
+  || reports.some(({ report }) => report?.status === 'PASS' && Number(report.checksExecuted ?? 0) < Number(report.checksExpected ?? 0));
+const authoritative = missingReports.length === 0
+  && incompleteReports.length === 0
+  && failures.length === 0
+  && skipped.length === 0
+  && !masked;
+
 const bundle = {
-  schema: 'flixo-failure-evidence/v1',
+  schema: 'flixo-failure-evidence/v2',
   generatedAt: now,
   sha: git(['rev-parse', 'HEAD']),
   executionIdentityHash: context?.identityHash ?? null,
   contextArtifact: 'execution-context.json',
-  reports: reports.map((report) => ({
-    gate: report.gate,
-    status: report.status,
-    sha: report.sha,
-    mode: report.mode,
-    checksExpected: report.checksExpected,
-    checksExecuted: report.checksExecuted,
-    failures: report.failures,
-    rootCauses: report.rootCauses ?? [],
-    artifactSha256: fileHash(`${String(report.gate).toLowerCase()}.json`),
+  reports: reports.map(({ name, report }) => ({
+    gate: name,
+    present: Boolean(report),
+    status: report?.status ?? 'MISSING',
+    sha: report?.sha ?? null,
+    mode: report?.mode ?? null,
+    checksExpected: report?.checksExpected ?? null,
+    checksExecuted: report?.checksExecuted ?? null,
+    expectedChecks: EXPECTED_CHECKS[name],
+    failures: report?.failures ?? null,
+    rootCauses: report?.rootCauses ?? [],
+    artifactSha256: fileHash(`${name.toLowerCase()}.json`),
   })),
   failures,
   skipped,
+  completeness: {
+    requiredGates: REQUIRED_GATES,
+    missingReports,
+    incompleteReports: incompleteReports.map(({ name }) => name),
+    allRequiredReportsPresent: missingReports.length === 0,
+    allExpectedChecksExecuted: incompleteReports.length === 0,
+    authoritative,
+  },
   repository: {
     head: git(['rev-parse', 'HEAD']),
     statusPorcelain: git(['status', '--porcelain']),
@@ -66,7 +85,7 @@ const bundle = {
     cleanCheckout: context?.execution?.dirty === false,
     requiredTestsSkipped: skipped.length > 0,
     maskedFailures: masked,
-    staleEvidence: reports.some((report) => report.sha && report.sha !== context?.execution?.sha),
+    staleEvidence: reports.some(({ report }) => report?.sha && report.sha !== context?.execution?.sha),
   },
 };
 
@@ -78,3 +97,6 @@ console.log(`FAILURE_COUNT=${failures.length}`);
 console.log(`SKIPPED_REQUIRED=${skipped.length}`);
 console.log(`MASKED_FAILURES=${masked}`);
 console.log(`STALE_EVIDENCE=${bundle.invariants.staleEvidence}`);
+console.log(`EVIDENCE_AUTHORITATIVE=${authoritative}`);
+
+if (!authoritative) process.exitCode = 1;
