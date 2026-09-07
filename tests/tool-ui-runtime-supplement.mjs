@@ -23,6 +23,8 @@ assert.match(mainSource, /document\.documentElement/u);
 assert.match(mainSource, /setAttribute\('lang', metadata\.languageTag\)/u);
 assert.match(mainSource, /setAttribute\('dir', metadata\.direction\)/u);
 assert.match(mainSource, /setAttribute\('data-flixo-locale', locale\)/u);
+assert.doesNotMatch(mainSource, /createRoot\(document\)/u, 'React must mount into the stable #root element, not the Document node');
+assert.match(mainSource, /createRoot\(document\.getElementById\('root'\)!\)/u);
 
 const indexSource = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 assert.match(indexSource, /<div id="root"><\/div>/u);
