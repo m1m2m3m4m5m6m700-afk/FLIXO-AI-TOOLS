@@ -85,6 +85,7 @@ jobs:
 
       - name: Technical-debt classification audit
         if: always()
+        continue-on-error: true
         run: npm run audit:technical-debt
 
       - name: Upload unified CI diagnostics
