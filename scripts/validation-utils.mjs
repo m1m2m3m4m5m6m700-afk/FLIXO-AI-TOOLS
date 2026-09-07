@@ -8,7 +8,7 @@ if (!localeList) {
   process.exit(1);
 }
 
-export const CANONICAL_LOCALES = localeList[1].match(/['\"]([a-z]{2})['\"]/gu)?.map((value) => value.slice(1, -1)) ?? [];
+export const CANONICAL_LOCALES = localeList[1].match(/['"]([a-z]{2})['"]/gu)?.map((value) => value.slice(1, -1)) ?? [];
 
 if (CANONICAL_LOCALES.length === 0) {
   console.error('Validation utilities failed: canonical LOCALES registry is empty');
