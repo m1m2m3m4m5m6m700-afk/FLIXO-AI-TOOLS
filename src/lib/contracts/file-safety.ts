@@ -53,17 +53,8 @@ export type ArchiveSafetyPolicy = {
 };
 
 export const EXTENSION_MIME_MAP: Readonly<Record<string, string>> = Object.freeze({
-  avif: 'image/avif',
-  bmp: 'image/bmp',
-  gif: 'image/gif',
-  jpeg: 'image/jpeg',
-  jpg: 'image/jpeg',
-  png: 'image/png',
-  svg: 'image/svg+xml',
-  webp: 'image/webp',
-  zip: 'application/zip',
-  txt: 'text/plain',
-  json: 'application/json',
+  avif: 'image/avif', bmp: 'image/bmp', gif: 'image/gif', jpeg: 'image/jpeg', jpg: 'image/jpeg',
+  png: 'image/png', svg: 'image/svg+xml', webp: 'image/webp', zip: 'application/zip', txt: 'text/plain', json: 'application/json',
 });
 
 const riffSignature = [0x52, 0x49, 0x46, 0x46];
@@ -79,23 +70,12 @@ export const MAGIC_BYTE_SIGNATURES: Readonly<Record<string, MagicByteSignature>>
   zip: { name: 'ZIP', bytes: [0x50, 0x4b, 0x03, 0x04] },
 });
 
-function normalizeExtension(name: string): string {
-  const lastDot = name.lastIndexOf('.');
-  return lastDot < 0 ? '' : name.slice(lastDot + 1).trim().toLowerCase();
-}
-
-function normalizeSignature(signature: string): string {
-  return signature.replace(/\s+/g, '').toLowerCase();
-}
-
+function normalizeExtension(name: string): string { const lastDot = name.lastIndexOf('.'); return lastDot < 0 ? '' : name.slice(lastDot + 1).trim().toLowerCase(); }
+function normalizeSignature(signature: string): string { return signature.replace(/\s+/g, '').toLowerCase(); }
 function isUnsafeName(name: string): boolean {
   if (!name.trim() || /^[A-Za-z]:($|[\\/])/.test(name) || /^[/\\]/.test(name)) return true;
-  if (Array.from(name).some((char) => {
-    const code = char.codePointAt(0) ?? 0;
-    return code <= 0x1f || code === 0x7f;
-  })) return true;
-  const normalized = name.replace(/\\/g, '/');
-  const segments = normalized.split('/');
+  if (Array.from(name).some((char) => { const code = char.codePointAt(0) ?? 0; return code <= 0x1f || code === 0x7f; })) return true;
+  const segments = name.replace(/\\/g, '/').split('/');
   return segments.length !== 1 || segments.some((segment) => segment === '..' || segment === '.');
 }
 
@@ -107,122 +87,68 @@ export function validateBoundaryConditions(name: string, bytes: number): string 
   return undefined;
 }
 
-export function detectZipBombRisk(
-  compressedSize: number,
-  uncompressedSize: number,
-  maxCompressionRatio: number = 40,
-): { isBomb: boolean; reason?: string } {
-  if (!Number.isFinite(compressedSize) || !Number.isFinite(uncompressedSize) || !Number.isFinite(maxCompressionRatio)) {
-    return { isBomb: true, reason: 'Invalid ZIP bomb detection input.' };
-  }
-  if (compressedSize <= 0 || uncompressedSize < 0 || maxCompressionRatio <= 0) {
-    return { isBomb: true, reason: 'Invalid ZIP bomb detection boundary values.' };
-  }
+export function detectZipBombRisk(compressedSize: number, uncompressedSize: number, maxCompressionRatio: number = 40): { isBomb: boolean; reason?: string } {
+  if (!Number.isFinite(compressedSize) || !Number.isFinite(uncompressedSize) || !Number.isFinite(maxCompressionRatio)) return { isBomb: true, reason: 'Invalid ZIP bomb detection input.' };
+  if (compressedSize <= 0 || uncompressedSize < 0 || maxCompressionRatio <= 0) return { isBomb: true, reason: 'Invalid ZIP bomb detection boundary values.' };
   const ratio = uncompressedSize / compressedSize;
-  return ratio > maxCompressionRatio
-    ? { isBomb: true, reason: `Potential ZIP bomb detected: Expansion ratio ${ratio.toFixed(1)}x exceeds ${maxCompressionRatio}x.` }
-    : { isBomb: false };
+  return ratio > maxCompressionRatio ? { isBomb: true, reason: `Potential ZIP bomb detected: Expansion ratio ${ratio.toFixed(1)}x exceeds ${maxCompressionRatio}x.` } : { isBomb: false };
 }
 
 function matchesSegment(content: Uint8Array, segment: MagicByteSegment): boolean {
   if (!Number.isInteger(segment.offset) || segment.offset < 0 || content.length < segment.offset + segment.bytes.length) return false;
   return segment.bytes.every((expected, index) => content[segment.offset + index] === expected);
 }
-
 function matchesMagicBytes(content: Uint8Array, signature: MagicByteSignature): boolean {
-  return matchesSegment(content, { bytes: signature.bytes, offset: signature.offset ?? 0 })
-    && (signature.segments ?? []).every((segment) => matchesSegment(content, segment));
+  return matchesSegment(content, { bytes: signature.bytes, offset: signature.offset ?? 0 }) && (signature.segments ?? []).every((segment) => matchesSegment(content, segment));
 }
-
 export function verifyMagicBytesMatch(headerBytes: Uint8Array, allowedSignatures?: readonly string[]): boolean {
   if (!allowedSignatures?.length) return true;
-  return allowedSignatures.some((name) => {
-    const signature = MAGIC_BYTE_SIGNATURES[normalizeSignature(name)];
-    return signature ? matchesMagicBytes(headerBytes, signature) : false;
-  });
+  return allowedSignatures.some((name) => { const signature = MAGIC_BYTE_SIGNATURES[normalizeSignature(name)]; return signature ? matchesMagicBytes(headerBytes, signature) : false; });
 }
-
 function validateContent(content: Uint8Array, validation: ContentValidation, failures: string[]): void {
-  try {
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(content).replace(/^\uFEFF/, '');
-    if (validation === 'json') JSON.parse(text);
-  } catch {
-    failures.push(validation === 'json' ? 'input JSON content is malformed' : 'input content is not valid UTF-8');
-  }
+  try { const value = new TextDecoder('utf-8', { fatal: true }).decode(content).replace(/^\uFEFF/, ''); if (validation === 'json') JSON.parse(value); }
+  catch { failures.push(validation === 'json' ? 'input JSON content is malformed' : 'input content is not valid UTF-8'); }
 }
 
 export function validateFileSafety(input: FileSafetyInput, policy: FileSafetyPolicy): FileSafetyResult {
-  const failures: string[] = [];
-  const name = input.name.trim();
-  const extension = normalizeExtension(name);
-
-  const boundaryError = validateBoundaryConditions(name, input.bytes);
-  if (boundaryError) failures.push(boundaryError);
+  const failures: string[] = []; const name = input.name.trim(); const extension = normalizeExtension(name);
+  const boundaryError = validateBoundaryConditions(name, input.bytes); if (boundaryError) failures.push(boundaryError);
   if (isUnsafeName(name)) failures.push('file name must be a single safe relative name');
   if (!Number.isInteger(input.bytes) || input.bytes < 1) failures.push('file size must be a positive integer');
   if (input.bytes > policy.maxBytes) failures.push('file exceeds the maximum size');
   if (!policy.allowedMime.includes(input.mime)) failures.push(`unsupported input MIME type: ${input.mime}`);
   if (input.content && input.content.byteLength !== input.bytes) failures.push('declared file size does not match input content length');
-
   if (policy.allowedExtensions) {
     if (!extension || !policy.allowedExtensions.includes(extension)) failures.push(`unsupported file extension: ${extension || '(none)'}`);
-    const expectedMime = EXTENSION_MIME_MAP[extension];
-    if (expectedMime && expectedMime !== input.mime) failures.push(`file extension does not match MIME type: .${extension} -> ${input.mime}`);
+    const expectedMime = EXTENSION_MIME_MAP[extension]; if (expectedMime && expectedMime !== input.mime) failures.push(`file extension does not match MIME type: .${extension} -> ${input.mime}`);
   }
-
   if (input.width !== undefined || input.height !== undefined) {
     if (!Number.isInteger(input.width) || !input.width || input.width < 1) failures.push('width must be a positive integer');
     if (!Number.isInteger(input.height) || !input.height || input.height < 1) failures.push('height must be a positive integer');
-    if (policy.maxPixels !== undefined && Number.isInteger(input.width) && Number.isInteger(input.height) && (input.width! * input.height!) > policy.maxPixels) {
-      failures.push('pixel count exceeds policy limit');
-    }
+    if (policy.maxPixels !== undefined && Number.isInteger(input.width) && Number.isInteger(input.height) && (input.width! * input.height!) > policy.maxPixels) failures.push('pixel count exceeds policy limit');
   }
-
-  if (policy.signatures?.length && input.signature) {
-    if (!policy.signatures.some((allowed) => normalizeSignature(allowed) === normalizeSignature(input.signature!))) {
-      failures.push('file signature is not permitted by policy');
-    }
-  }
-
-  if (policy.magicBytes?.length && input.content) {
-    const magicMatches = policy.magicBytes.some((signature) => matchesMagicBytes(input.content!, signature));
-    if (!magicMatches) failures.push('file magic bytes do not match an allowed signature');
-  }
-
+  if (policy.signatures?.length && input.signature && !policy.signatures.some((allowed) => normalizeSignature(allowed) === normalizeSignature(input.signature!))) failures.push('file signature is not permitted by policy');
+  if (policy.magicBytes?.length && input.content && !policy.magicBytes.some((signature) => matchesMagicBytes(input.content!, signature))) failures.push('file magic bytes do not match an allowed signature');
   if (policy.contentValidation && input.content) validateContent(input.content, policy.contentValidation, failures);
-
   return { safe: failures.length === 0, failures };
 }
 
 export function validateArchiveEntries(entries: readonly ArchiveEntry[], policy: ArchiveSafetyPolicy): FileSafetyResult {
-  const failures: string[] = [];
-  let totalBytes = 0;
-  let totalEntries = 0;
-
+  const failures: string[] = []; let totalBytes = 0; let totalEntries = 0;
   const visit = (items: readonly ArchiveEntry[], depth: number): void => {
-    if (depth > policy.maxDepth) {
-      failures.push(`archive nesting depth exceeds ${policy.maxDepth}`);
-      return;
-    }
+    if (depth > policy.maxDepth) { failures.push(`archive nesting depth exceeds ${policy.maxDepth}`); return; }
     for (const entry of items) {
       totalEntries += 1;
-      if (totalEntries > policy.maxEntries) return failures.push(`archive contains more than ${policy.maxEntries} entries`);
+      if (totalEntries > policy.maxEntries) { failures.push(`archive contains more than ${policy.maxEntries} entries`); return; }
       if (!entry.name || isUnsafeName(entry.name)) failures.push(`unsafe archive entry name: ${entry.name || '(empty)'}`);
       if (entry.isSymlink) failures.push(`symlink archive entry is not permitted: ${entry.name}`);
-      const compressed = entry.compressedBytes ?? 0;
-      const uncompressed = entry.uncompressedBytes ?? 0;
+      const compressed = entry.compressedBytes ?? 0; const uncompressed = entry.uncompressedBytes ?? 0;
       if (compressed < 0 || uncompressed < 0) failures.push(`invalid archive size metadata: ${entry.name}`);
-      totalBytes += uncompressed;
-      if (totalBytes > policy.maxUncompressedBytes) failures.push('archive exceeds maximum uncompressed size');
-      if (policy.maxCompressionRatio !== undefined && compressed > 0) {
-        const bomb = detectZipBombRisk(compressed, uncompressed, policy.maxCompressionRatio);
-        if (bomb.isBomb) failures.push(bomb.reason ?? 'archive compression ratio is unsafe');
-      }
+      totalBytes += uncompressed; if (totalBytes > policy.maxUncompressedBytes) failures.push('archive exceeds maximum uncompressed size');
+      if (policy.maxCompressionRatio !== undefined && compressed > 0) { const bomb = detectZipBombRisk(compressed, uncompressed, policy.maxCompressionRatio); if (bomb.isBomb) failures.push(bomb.reason ?? 'archive compression ratio is unsafe'); }
       if (entry.nestedEntries?.length) visit(entry.nestedEntries, depth + 1);
-      if (failures.length > policy.maxEntries) return;
     }
   };
-
   visit(entries, 0);
   return { safe: failures.length === 0, failures };
 }
