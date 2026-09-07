@@ -5,7 +5,6 @@ import { router } from './router';
 import { installRuntimeDiagnostics } from './lib/diagnostics/runtime';
 import { installPerformanceDiagnostics } from './lib/diagnostics/performance';
 import { installToolUiRuntimeLocalization } from './lib/i18n/tool-ui-runtime';
-import { installToolUiRuntimeSupplement } from './lib/i18n/tool-ui-runtime-supplement';
 import { installToolUiTechnicalValueNormalization } from './lib/i18n/tool-ui-technical-values';
 import { installToolUiRuntimeCompleteness } from './lib/i18n/tool-ui-runtime-completeness';
 import { applyDocumentLocale, localeFromPathname } from './lib/i18n/runtime-document-locale';
@@ -20,7 +19,6 @@ applyDocumentLocale(localeFromPathname(window.location.pathname));
 installRuntimeDiagnostics();
 installPerformanceDiagnostics();
 const disposeToolUiLocalization = installToolUiRuntimeLocalization();
-const disposeToolUiLocalizationSupplement = installToolUiRuntimeSupplement();
 const disposeToolUiTechnicalValues = installToolUiTechnicalValueNormalization();
 const disposeToolUiRuntimeCompleteness = installToolUiRuntimeCompleteness();
 
@@ -42,7 +40,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 
 if (import.meta.hot) import.meta.hot.dispose(() => {
   disposeToolUiLocalization();
-  disposeToolUiLocalizationSupplement();
   disposeToolUiTechnicalValues();
   disposeToolUiRuntimeCompleteness();
 });
