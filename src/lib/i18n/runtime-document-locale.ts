@@ -31,6 +31,15 @@ export function applyDocumentLocale(locale: Locale): void {
 }
 
 /**
+ * Bootstrap the document locale as soon as this browser module loads.
+ * index.html provides the earliest bootstrap; this closes the gap before the
+ * React root lifecycle is mounted and keeps the canonical pathname rule.
+ */
+if (typeof window !== 'undefined') {
+  applyDocumentLocale(localeFromPathname(window.location.pathname));
+}
+
+/**
  * Installs the document-level locale contract outside React's lifecycle.
  * The pathname is evaluated on every enforcement pass so the observer remains
  * correct across client-side navigation and DOM replacement.
