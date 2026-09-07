@@ -10,8 +10,8 @@ const config = readFileSync('src/lib/i18n/config.ts', 'utf8');
 
 const locales = config.match(/export const LOCALES = \[([^\]]+)\] as const;/u)?.[1]?.match(/'([a-z]{2})'/gu)?.map((value) => value.slice(1, -1)) ?? [];
 if (locales.length !== 20) { console.error(`Canonical locale registry mismatch: ${locales.join(',')}`); process.exit(1); }
-const legacyLocales = ['zh', 'ur'];
-if (locales.some((locale) => legacyLocales.includes(locale))) { console.error(`Retired locale remains canonical: ${locales.filter((locale) => legacyLocales.includes(locale)).join(',')}`); process.exit(1); }
+const retiredLocales = ['ms', 'uk'];
+if (locales.some((locale) => retiredLocales.includes(locale))) { console.error(`Retired locale remains canonical: ${locales.filter((locale) => retiredLocales.includes(locale)).join(',')}`); process.exit(1); }
 
 const readyToolIds = [...imageSource.matchAll(/\{ id: '([^']+)',[^\n]*?isReady: true,/gu)].map((match) => match[1]);
 if (!readyToolIds.length) { console.error('No ready image tools discovered.'); process.exit(1); }
