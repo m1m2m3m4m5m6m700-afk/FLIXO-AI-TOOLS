@@ -17,7 +17,7 @@ export const X_DEFAULT_LOCALE: CanonicalLocale = 'en';
 export const LOCALE_METADATA: Readonly<Record<CanonicalLocale, Readonly<{
   languageTag: string;
   direction: 'ltr' | 'rtl';
-}>> = {
+}>>> = {
   ar: { languageTag: 'ar', direction: 'rtl' },
   en: { languageTag: 'en', direction: 'ltr' },
   es: { languageTag: 'es', direction: 'ltr' },
