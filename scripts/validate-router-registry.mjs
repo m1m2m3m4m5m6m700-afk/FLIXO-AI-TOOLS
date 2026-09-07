@@ -111,7 +111,7 @@ for (const tool of TOOLS_REGISTRY.filter((entry) => entry.isReady)) for (const l
 
 for (const relative of sourceRecords.filter(({ relative }) => relative.startsWith('src/routes/') && relative.endsWith('.tsx')).map(({ relative }) => relative)) {
   const source = fs.readFileSync(path.resolve(relative), 'utf8');
-  if (relative.includes('localized-tool') || relative.includes('index') || relative.includes('home-page') || relative.includes('quickflow')) if (!hasRouteSeoMetadata(source)) fail('route-seo', `Route is missing explicit SEO title/description metadata: ${relative}.`);
+  if (/\bcreate(?:Root)?Route\s*\(/u.test(source) && !hasRouteSeoMetadata(source)) fail('route-seo', `Route is missing explicit SEO title/description metadata: ${relative}.`);
 }
 
 const swSource = fs.readFileSync(path.resolve('public/sw.js'), 'utf8');
