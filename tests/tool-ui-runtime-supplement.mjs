@@ -1,18 +1,28 @@
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
 
-const supplement = await import('../src/lib/i18n/tool-ui-runtime-supplement.ts');
-assert.ok(supplement, 'tool UI runtime supplement module must load');
-
-const samples = [
-  ['ar', 'A cinematic sunset over Cairo...', 'غروب سينمائي فوق القاهرة...'],
-  ['de', 'A cinematic sunset over Cairo...', 'Ein filmischer Sonnenuntergang über Kairo …'],
-  ['ar', 'Separate vocals / instrumental', 'فصل الغناء / الموسيقى'],
-  ['de', 'Audio waveform', 'Audio-Wellenform'],
-  ['tr', 'Encode', 'Kodla'],
-  ['ar', 'Decode', 'فك الترميز'],
-  ['fr', 'Preview Data URI', 'Aperçu de Data URI'],
+const repositoryRoot = new URL('..', import.meta.url);
+const forbiddenRuntimeFiles = [
+  'src/lib/i18n/runtime-document-locale.ts',
+  'src/lib/i18n/tool-ui-runtime.ts',
+  'src/lib/i18n/tool-ui-runtime-supplement.ts',
+  'src/lib/i18n/tool-ui-runtime-completeness.ts',
+  'src/lib/i18n/tool-ui-runtime-ms-uk.ts',
+  'src/lib/i18n/tool-ui-technical-values.ts',
+  'src/components/auto-localized-tool-surface.tsx',
 ];
-for (const [locale, source, expected] of samples) {
-  assert.notEqual(source, expected, `${locale} must not fall back to English for ${source}`);
+
+for (const relativePath of forbiddenRuntimeFiles) {
+  assert.equal(existsSync(new URL(relativePath, repositoryRoot)), false, `legacy localization runtime must remain removed: ${relativePath}`);
 }
-console.log(`Supplement localization contract PASS (${samples.length} representative mappings)`);
+
+const mainSource = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
+assert.match(mainSource, /<html\s+lang=\{metadata\.languageTag\}/u);
+assert.match(mainSource, /dir=\{metadata\.direction\}/u);
+assert.match(mainSource, /data-flixo-locale=\{locale\}/u);
+assert.match(mainSource, /router\.subscribe\('onResolved'/u);
+
+const i18nSource = readFileSync(new URL('../src/lib/i18n/config.ts', import.meta.url), 'utf8');
+assert.match(i18nSource, /export const LOCALES\s*=\s*\[[\s\S]*'vi'\]\s+as const/u);
+
+console.log(`G4 localization architecture contract PASS (${forbiddenRuntimeFiles.length} legacy runtime modules absent)`);

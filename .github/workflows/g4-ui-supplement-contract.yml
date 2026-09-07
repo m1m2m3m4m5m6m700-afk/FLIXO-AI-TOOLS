@@ -4,13 +4,15 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'src/lib/i18n/tool-ui-runtime-supplement.ts'
+      - 'src/main.tsx'
+      - 'src/lib/i18n/**'
       - 'tests/tool-ui-runtime-supplement.mjs'
       - '.github/workflows/g4-ui-supplement-contract.yml'
   push:
     branches: [main]
     paths:
-      - 'src/lib/i18n/tool-ui-runtime-supplement.ts'
+      - 'src/main.tsx'
+      - 'src/lib/i18n/**'
       - 'tests/tool-ui-runtime-supplement.mjs'
       - '.github/workflows/g4-ui-supplement-contract.yml'
 
@@ -19,6 +21,7 @@ permissions:
 
 jobs:
   supplement-contract:
+    name: G4 Localization Architecture Contract
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -27,6 +30,6 @@ jobs:
           node-version: 22.x
           cache: npm
       - name: Install
-        run: npm ci
-      - name: Validate representative mappings
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Validate declarative localization architecture
         run: node tests/tool-ui-runtime-supplement.mjs
