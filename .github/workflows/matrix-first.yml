@@ -122,8 +122,14 @@ jobs:
           page.on('console', message => {
             if (message.type() === 'error' || message.type() === 'warning') events.push({ type: `console:${message.type()}`, text: message.text() });
           });
-          const response = await page.goto('http://127.0.0.1:3000/ms', { waitUntil: 'domcontentloaded', timeout: 30000 });
-          await page.waitForTimeout(3000);
+          let response = null;
+          let navigationError = null;
+          try {
+            response = await page.goto('http://127.0.0.1:3000/ms', { waitUntil: 'commit', timeout: 15000 });
+          } catch (error) {
+            navigationError = error instanceof Error ? error.stack ?? error.message : String(error);
+          }
+          await page.waitForTimeout(5000);
           let state;
           try {
             state = await page.evaluate(() => ({
@@ -138,9 +144,10 @@ jobs:
           } catch (error) {
             state = { evaluateError: error instanceof Error ? error.stack ?? error.message : String(error) };
           }
-          console.log(JSON.stringify({ browserName, responseStatus: response?.status() ?? null, state, events }, null, 2));
+          console.log(JSON.stringify({ browserName, responseStatus: response?.status() ?? null, navigationError, state, events }, null, 2));
           await instance.close();
-          if (!state?.hasDocumentElement || state?.htmlLang !== 'ms' || state?.htmlDir !== 'ltr') process.exit(1);
+          const healthy = Boolean(state?.hasDocumentElement && state?.htmlLang === 'ms' && state?.htmlDir === 'ltr');
+          if (!healthy) process.exit(1);
           NODE
         env:
           BROWSER: ${{ matrix.browser }}
