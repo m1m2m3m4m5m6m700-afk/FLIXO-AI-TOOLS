@@ -39,5 +39,5 @@ jobs:
         with:
           name: ci-failure-intelligence-${{ github.sha }}
           path: artifacts/ci/failure/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
