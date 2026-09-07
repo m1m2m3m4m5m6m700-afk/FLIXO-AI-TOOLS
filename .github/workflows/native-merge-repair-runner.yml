@@ -30,10 +30,10 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$TARGET_SHA"
           git cat-file -e "$BASE_SHA^{commit}"
-          git merge-base --is-ancestor "$BASE_SHA" "$TARGET_SHA" && {
+          if git merge-base --is-ancestor "$BASE_SHA" "$TARGET_SHA"; then
             echo 'Unexpected fast-forward ancestry; this is not the requested divergent merge.'
             exit 1
-          } || true
+          fi
 
       - name: Execute native three-way merge
         shell: bash
@@ -46,12 +46,13 @@ jobs:
           else
             conflicted=$(git diff --name-only --diff-filter=U)
             echo "Conflicted paths: $conflicted"
-            unexpected=$(printf '%s\n' "$conflicted" | grep -Ev '^(\.github/workflows/ci\.yml|\.github/workflows/full-matrix-parallel\.yml)$' || true)
+            unexpected=$(printf '%s\n' "$conflicted" | grep -Ev '^(\.github/workflows/ci\.yml|\.github/workflows/full-matrix-parallel\.yml|scripts/ci/validate-agent-pr-collisions\.mjs)$' || true)
             test -z "$unexpected"
             git checkout --ours .github/workflows/ci.yml
             git checkout --theirs .github/workflows/full-matrix-parallel.yml
-            git add .github/workflows/ci.yml .github/workflows/full-matrix-parallel.yml
-            git -c core.mergeoptions=--no-edit commit -m "merge: forward repair/protocol-cooperation into matrix recovery"
+            git checkout --ours scripts/ci/validate-agent-pr-collisions.mjs
+            git add .github/workflows/ci.yml .github/workflows/full-matrix-parallel.yml scripts/ci/validate-agent-pr-collisions.mjs
+            git commit -m "merge: forward repair/protocol-cooperation into matrix recovery"
             echo 'NATIVE_MERGE=PASS_WITH_DESIGNATED_CONFLICT_RESOLUTION'
           fi
           parents=$(git rev-list --parents -n1 HEAD)
@@ -70,7 +71,6 @@ jobs:
 
           p = Path('.github/workflows/ci.yml')
           text = p.read_text()
-
           text = re.sub(
               r'  matrix-first-barrier:\n.*?\n  ultra-fast:',
               '''  matrix-first:\n    name: Matrix First\n    uses: ./.github/workflows/full-matrix-parallel.yml\n    with:\n      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}\n    secrets: inherit\n\n  ultra-fast:''',
@@ -78,33 +78,18 @@ jobs:
               flags=re.S,
           )
           text = text.replace('matrix-first-barrier', 'matrix-first')
-
           text = re.sub(r'(?ms)^  pull_request:\n(?:    branches: \[[^\n]+\]\n)?', '  pull_request:\n    branches: [main, repair/protocol-cooperation]\n', text, count=1)
           text = re.sub(r'(?ms)^  push:\n(?:    branches: \[[^\n]+\]\n)?', '  push:\n    branches: [main, agent/ci-matrix/full-recovery]\n', text, count=1)
-
-          if '  matrix-first:\n' not in text:
-              raise SystemExit('MATRIX_FIRST_JOB_MISSING')
-          if 'uses: ./.github/workflows/full-matrix-parallel.yml' not in text:
-              raise SystemExit('REUSABLE_DAG_REFERENCE_MISSING')
-          if 'source_sha: ${{ github.event.pull_request.head.sha || github.sha }}' not in text:
-              raise SystemExit('SOURCE_SHA_BINDING_MISSING')
-          if 'matrix-first-barrier' in text or 'for attempt in {1..60}' in text or 'gh api "repos/$REPOSITORY/commits/$HEAD_SHA/check-runs' in text:
-              raise SystemExit('LEGACY_MATRIX_POLLING_REMAINS')
+          if '  matrix-first:\n' not in text: raise SystemExit('MATRIX_FIRST_JOB_MISSING')
+          if 'uses: ./.github/workflows/full-matrix-parallel.yml' not in text: raise SystemExit('REUSABLE_DAG_REFERENCE_MISSING')
+          if 'source_sha: ${{ github.event.pull_request.head.sha || github.sha }}' not in text: raise SystemExit('SOURCE_SHA_BINDING_MISSING')
+          if 'matrix-first-barrier' in text or 'for attempt in {1..60}' in text or 'gh api "repos/$REPOSITORY/commits/$HEAD_SHA/check-runs' in text: raise SystemExit('LEGACY_MATRIX_POLLING_REMAINS')
           p.write_text(text)
-          
+
           wf = Path('.github/workflows/full-matrix-parallel.yml')
           wf_text = wf.read_text()
-          if 'workflow_call:' not in wf_text or 'source_sha:' not in wf_text or 'FLIXO_MATRIX_PLAN_SIGNING_KEY:' not in wf_text:
-              import subprocess
-              base = subprocess.check_output(['git', 'show', f'{"$BASE_SHA"}:.github/workflows/full-matrix-parallel.yml'], text=True)
-              wf.write_text(base)
-              wf_text = base
-          if 'workflow_call:' not in wf_text:
-              raise SystemExit('REUSABLE_WORKFLOW_CONTRACT_MISSING')
-          if 'source_sha:' not in wf_text:
-              raise SystemExit('REUSABLE_SOURCE_SHA_INPUT_MISSING')
-          if 'pull_request:' in wf_text or '\npush:' in wf_text:
-              raise SystemExit('DIRECT_TRIGGER_REMAINS_IN_REUSABLE_WORKFLOW')
+          if 'workflow_call:' not in wf_text or 'source_sha:' not in wf_text or 'FLIXO_MATRIX_PLAN_SIGNING_KEY:' not in wf_text: raise SystemExit('REUSABLE_WORKFLOW_CONTRACT_MISSING')
+          if '  pull_request:' in wf_text or '\npush:' in wf_text: raise SystemExit('DIRECT_TRIGGER_REMAINS_IN_REUSABLE_WORKFLOW')
           PY
 
       - name: Align swarm ledger hash canonicalization
@@ -114,28 +99,22 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
-
           replay = Path('scripts/ci/replay-agent-ledger.mjs')
           text = replay.read_text()
           old = 'const canonical = (value) => JSON.stringify(value, Object.keys(value).sort());'
           new = 'const canonical = (value) => JSON.stringify(Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))));'
-          if old in text:
-              text = text.replace(old, new, 1)
-          replay.write_text(text)
+          if old not in text: raise SystemExit('REPLAY_CANONICAL_PATTERN_NOT_FOUND')
+          replay.write_text(text.replace(old, new, 1))
 
           engine = Path('scripts/ci/swarm-engine.mjs')
           text = engine.read_text()
           pattern = r'function canonicalLegacy\(value\) \{ return JSON\.stringify\(value, Object\.keys\(value\)\.sort\(\)\); \}'
           replacement = 'function canonicalLegacy(value) { return JSON.stringify(Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)))); }'
           text, n = re.subn(pattern, replacement, text, count=1)
-          if n != 1:
-              raise SystemExit('SWARM_ENGINE_CANONICAL_PATTERN_NOT_FOUND')
+          if n != 1: raise SystemExit('SWARM_ENGINE_CANONICAL_PATTERN_NOT_FOUND')
           engine.write_text(text)
 
-          if 'JSON.stringify(value, Object.keys(value).sort())' in replay.read_text():
-              raise SystemExit('REPLAY_CANONICAL_OLD_IMPLEMENTATION_REMAINS')
-          if 'JSON.stringify(value, Object.keys(value).sort())' in engine.read_text():
-              raise SystemExit('ENGINE_CANONICAL_OLD_IMPLEMENTATION_REMAINS')
+          if old in replay.read_text() or 'JSON.stringify(value, Object.keys(value).sort())' in engine.read_text(): raise SystemExit('LEGACY_CANONICALIZATION_REMAINS')
           PY
 
       - name: Local replay verification
@@ -146,8 +125,10 @@ jobs:
           set -euo pipefail
           node --experimental-strip-types scripts/ci/rebuild-agent-projections.mjs
           node --experimental-strip-types scripts/ci/validate-swarm-state.mjs
-          test "$(node --experimental-strip-types -e "const fs=require('node:fs'); const x=JSON.parse(fs.readFileSync('artifacts/ci/agent-coordination/claims.json','utf8')); process.stdout.write(String(x.claims.length));")" = 0
-          test "$(node --experimental-strip-types -e "const fs=require('node:fs'); const x=JSON.parse(fs.readFileSync('artifacts/ci/agent-coordination/active-sessions.json','utf8')); process.stdout.write(String(x.active_sessions.length));")" = 0
+          claims_count="$(node --experimental-strip-types -e "const fs=require('node:fs'); const x=JSON.parse(fs.readFileSync('artifacts/ci/agent-coordination/claims.json','utf8')); process.stdout.write(String(x.claims.length));")"
+          sessions_count="$(node --experimental-strip-types -e "const fs=require('node:fs'); const x=JSON.parse(fs.readFileSync('artifacts/ci/agent-coordination/active-sessions.json','utf8')); process.stdout.write(String(x.active_sessions.length));")"
+          test "$claims_count" = 0
+          test "$sessions_count" = 0
           echo 'LOCAL_SWARM_REPLAY=PASS'
 
       - name: Check signing-key availability without revealing it
