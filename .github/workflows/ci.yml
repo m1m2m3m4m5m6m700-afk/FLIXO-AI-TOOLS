@@ -58,19 +58,25 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
+          set -u
           artifact_name="$FLIXO_MEMORY_ARTIFACT"
           api="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts?name=$artifact_name&per_page=1"
-          response="$(curl --fail-with-body -sS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api")"
-          artifact_id="$(printf '%s' "$response" | jq -r '.artifacts[0].id // empty')"
-          if [ -n "$artifact_id" ]; then
-            mkdir -p diagnostics/ci
-            curl --fail-with-body -sSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" -o /tmp/failure-memory.zip
-            unzip -o /tmp/failure-memory.zip -d diagnostics/ci >/dev/null
-            echo "FAILURE_MEMORY_RESTORED=$artifact_id"
+          if response="$(curl --fail-with-body -sS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$api" 2>/tmp/memory-restore.err)"; then
+            artifact_id="$(printf '%s' "$response" | jq -r '.artifacts[0].id // empty')"
+            if [ -n "$artifact_id" ] && curl --fail-with-body -sSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" -o /tmp/failure-memory.zip; then
+              mkdir -p diagnostics/ci
+              unzip -o /tmp/failure-memory.zip -d diagnostics/ci >/dev/null
+              echo "FAILURE_MEMORY_RESTORED=$artifact_id"
+            else
+              echo 'No usable prior failure-memory artifact; starting with local memory.'
+            fi
           else
-            echo 'No prior failure-memory artifact exists; starting a new memory.'
+            echo 'Failure-memory restore unavailable; continuing without historical memory.'
+            cat /tmp/memory-restore.err || true
           fi
+
+      - name: Capture pre-install execution context
+        run: node scripts/ci/capture-execution-context.mjs
 
       - name: Install committed dependency graph
         run: npm ci --prefer-offline --no-audit --no-fund
