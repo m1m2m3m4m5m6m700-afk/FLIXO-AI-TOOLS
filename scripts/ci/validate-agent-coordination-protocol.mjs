@@ -1,35 +1,28 @@
 import { readFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { replayAgentLedger } from './replay-agent-ledger.mjs';
 
-const claimsFile = process.env.FLIXO_AGENT_CLAIMS_FILE ?? '.ci/agent-coordination/claims.json';
-const state = JSON.parse(await readFile(claimsFile, 'utf8'));
+const LEDGER = process.env.FLIXO_SWARM_LEDGER ?? 'artifacts/ci/agent-coordination/events.ndjson';
+const HEAD = process.env.EXPECTED_HEAD_SHA ?? (() => { try { return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return ''; } })();
 const fail = (message) => { throw new Error(`Agent coordination protocol validation failed: ${message}`); };
-const sha = /^[0-9a-f]{40}$/iu;
 const branch = /^agent\/[^/]+\/.+$/u;
-const active = [];
-if (state.schemaVersion !== 2 || state.protocol !== 'FLIXO multi-agent coordination') fail('schemaVersion/protocol mismatch');
-if (!Number.isInteger(state.leaseMinutes) || state.leaseMinutes < 1) fail('invalid leaseMinutes');
-if (!Number.isInteger(state.heartbeatMinutes) || state.heartbeatMinutes < 1 || state.heartbeatMinutes >= state.leaseMinutes) fail('invalid heartbeatMinutes');
-if (!Array.isArray(state.claims)) fail('claims must be array');
-const ids = new Set();
-const normalize = (v) => String(v ?? '').replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+$/, '');
-const overlaps = (a, b) => a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
-for (const c of state.claims) {
-  if (!c || typeof c !== 'object') fail('claim must be object');
-  if (!c.agentId || ids.has(c.agentId)) fail(`duplicate/missing agentId: ${c.agentId ?? '<missing>'}`);
-  ids.add(c.agentId);
-  if (!branch.test(c.branch ?? '')) fail(`invalid branch for ${c.agentId}`);
-  if (!sha.test(c.observedHeadSha ?? '')) fail(`invalid observedHeadSha for ${c.agentId}`);
-  if (!Array.isArray(c.scope?.paths) || !Array.isArray(c.scope?.contracts) || !Array.isArray(c.rootCauseIds)) fail(`incomplete scope for ${c.agentId}`);
-  if (!['active', 'handoff-pending', 'released'].includes(c.status)) fail(`invalid status for ${c.agentId}`);
-  if (!Number.isFinite(Date.parse(c.leasedAt)) || !Number.isFinite(Date.parse(c.leaseUntil))) fail(`invalid lease timestamps for ${c.agentId}`);
-  if (c.lastHeartbeatAt && !Number.isFinite(Date.parse(c.lastHeartbeatAt))) fail(`invalid heartbeat timestamp for ${c.agentId}`);
-  if (c.status === 'active' && Date.parse(c.leaseUntil) > Date.now()) active.push(c);
+if (!HEAD) fail('current HEAD unavailable');
+const state = replayAgentLedger(await readFile(LEDGER, 'utf8'), { headSha: HEAD, signingKey: process.env.FLIXO_SWARM_EVENT_SIGNING_KEY ?? '' });
+const active = [...state.claims.values()].filter((claim) => claim.status === 'active');
+for (const claim of state.claims.values()) {
+  if (!claim.agentId) fail('claim missing agentId');
+  if (!branch.test(claim.branch ?? '')) fail(`invalid branch for ${claim.agentId}`);
+  if (!/^[0-9a-f]{40}$/iu.test(claim.observedHeadSha ?? '')) fail(`invalid observedHeadSha for ${claim.agentId}`);
+  if (!Array.isArray(claim.scope?.paths) || !Array.isArray(claim.scope?.contracts) || !Array.isArray(claim.rootCauseIds)) fail(`incomplete scope for ${claim.agentId}`);
+  if (!['active', 'handoff-pending', 'released'].includes(claim.status)) fail(`invalid status for ${claim.agentId}`);
+  if (!Number.isFinite(Date.parse(claim.leasedAt)) || !Number.isFinite(Date.parse(claim.leaseUntil))) fail(`invalid lease timestamps for ${claim.agentId}`);
+  if (claim.lastHeartbeatAt && !Number.isFinite(Date.parse(claim.lastHeartbeatAt))) fail(`invalid heartbeat timestamp for ${claim.agentId}`);
 }
 for (let i = 0; i < active.length; i += 1) for (let j = i + 1; j < active.length; j += 1) {
   const a = active[i]; const b = active[j];
-  const path = a.scope.paths.some((p) => b.scope.paths.some((q) => overlaps(normalize(p), normalize(q))));
-  const contract = a.scope.contracts.some((id) => b.scope.contracts.includes(id));
-  const rootCause = a.rootCauseIds.some((id) => b.rootCauseIds.includes(id));
-  if (path || contract || rootCause) fail(`active collision ${a.agentId}<->${b.agentId}: path=${path} contract=${contract} rootCause=${rootCause}`);
+  const path = (a.scope.paths ?? []).some((p) => (b.scope.paths ?? []).some((q) => String(p).replaceAll('\\', '/') === String(q).replaceAll('\\', '/') || String(p).replaceAll('\\', '/').startsWith(`${String(q).replaceAll('\\', '/')}/`) || String(q).replaceAll('\\', '/').startsWith(`${String(p).replaceAll('\\', '/')}/`)));
+  const contract = (a.scope.contracts ?? []).some((id) => (b.scope.contracts ?? []).includes(id));
+  const rootCause = (a.rootCauseIds ?? []).some((id) => (b.rootCauseIds ?? []).includes(id));
+  if (path || contract || rootCause) fail(`active collision ${a.agentId}<->${b.agentId}`);
 }
-console.log(`Agent coordination protocol PASS: claims=${state.claims.length} active=${active.length} collisions=0`);
+console.log(`Agent coordination protocol PASS: ledgerClaims=${state.claims.size} active=${active.length} collisions=0`);
