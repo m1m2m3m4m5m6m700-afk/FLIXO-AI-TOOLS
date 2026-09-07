@@ -1,26 +1,25 @@
 name: FLIXO CI — Impact Analysis Shadow
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-impact-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: flixo-ci-impact-shadow-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
   impact-shadow:
-    name: CI Change Impact Shadow
+    name: CI Change Impact Shadow (Diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout full history
         uses: actions/checkout@v5
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -41,7 +40,7 @@ jobs:
           set -euo pipefail
           grep -F '"escalation":' artifacts/ci/impact/impact-plan.json
           test -f artifacts/ci/impact/impact-plan.json
-      - name: Upload impact evidence
+      - name: Upload impact diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
