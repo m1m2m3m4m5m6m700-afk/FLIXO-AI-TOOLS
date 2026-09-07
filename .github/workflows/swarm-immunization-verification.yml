@@ -42,6 +42,9 @@ jobs:
       - name: Install repository Git hooks
         run: node scripts/ci/install-git-hooks.mjs
 
+      - name: Verify repository Git hooks
+        run: node scripts/ci/verify-git-hooks.mjs
+
       - name: TypeScript strict verification
         run: npx tsc --noEmit
 
@@ -65,9 +68,7 @@ jobs:
         run: npm run build
 
       - name: Record exact verified SHA
-        run: |
-          printf '%s\n' "$EXACT_SHA" > swarm-immunization-verified-sha.txt
-          git diff --exit-code -- swarm-immunization-verified-sha.txt || true
+        run: printf '%s\n' "$EXACT_SHA" > swarm-immunization-verified-sha.txt
 
       - name: Upload verification evidence
         uses: actions/upload-artifact@v6
