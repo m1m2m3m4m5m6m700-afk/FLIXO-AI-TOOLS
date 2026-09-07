@@ -12,11 +12,21 @@ export type LocalizedToolSeo = Readonly<{
   altText: readonly string[];
 }>;
 
-export type ToolManifest = Readonly<{
+type BaseToolManifest = Readonly<{
   toolId: string;
   slug: string;
   status: 'ready';
-  seoStatus: ToolSeoStatus;
   capabilities: readonly string[];
+}>;
+
+export type PilotToolManifest = BaseToolManifest & Readonly<{
+  seoStatus: 'pilot';
+  seoLocales: Readonly<Partial<Record<Locale, LocalizedToolSeo>>>;
+}>;
+
+export type CompleteToolManifest = BaseToolManifest & Readonly<{
+  seoStatus: 'complete';
   seoLocales: Readonly<Record<Locale, LocalizedToolSeo>>;
 }>;
+
+export type ToolManifest = PilotToolManifest | CompleteToolManifest;
