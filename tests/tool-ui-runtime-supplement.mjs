@@ -17,10 +17,15 @@ for (const relativePath of forbiddenRuntimeFiles) {
 }
 
 const mainSource = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
-assert.match(mainSource, /<html\s+lang=\{metadata\.languageTag\}/u);
-assert.match(mainSource, /dir=\{metadata\.direction\}/u);
-assert.match(mainSource, /data-flixo-locale=\{locale\}/u);
 assert.match(mainSource, /router\.subscribe\('onResolved'/u);
+assert.match(mainSource, /useSyncExternalStore\(subscribeToResolvedLocation, getRouterPathname, getServerPathname\)/u);
+assert.match(mainSource, /document\.documentElement/u);
+assert.match(mainSource, /setAttribute\('lang', metadata\.languageTag\)/u);
+assert.match(mainSource, /setAttribute\('dir', metadata\.direction\)/u);
+assert.match(mainSource, /setAttribute\('data-flixo-locale', locale\)/u);
+
+const indexSource = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+assert.match(indexSource, /<div id="root"><\/div>/u);
 
 const i18nSource = readFileSync(new URL('../src/lib/i18n/config.ts', import.meta.url), 'utf8');
 assert.match(i18nSource, /export const LOCALES\s*=\s*\[[\s\S]*'vi'\]\s+as const/u);
