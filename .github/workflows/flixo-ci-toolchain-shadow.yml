@@ -1,8 +1,6 @@
 name: FLIXO CI — Toolchain Build Shadow
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -23,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -46,7 +44,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-verified-build-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ci-verified-build-${{ github.sha }}
           path: |
             dist/
             artifacts/ci/build/
