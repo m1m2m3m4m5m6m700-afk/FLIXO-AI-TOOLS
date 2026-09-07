@@ -8,6 +8,9 @@ export const SITE_ORIGIN = getCanonicalSiteOrigin();
 export const LOCALES = ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'] as const;
 export type CanonicalLocale = (typeof LOCALES)[number];
 
+/** Explicitly isolated compatibility keys retained by legacy translation maps. */
+export type LegacyLocale = 'zh' | 'ur';
+
 /** Public locale type. Runtime strings must be narrowed with isLocale/normalizeLocale before use. */
 export type Locale = CanonicalLocale;
 
