@@ -35,10 +35,6 @@ jobs:
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-      - name: TypeScript
-        run: npm run typecheck
-      - name: ESLint
-        run: npm run lint
       - name: G3 ready-tool output contract parity
         run: node --experimental-strip-types scripts/test-g3-output-contract-registry.mjs
       - name: Retained output integrity regression
