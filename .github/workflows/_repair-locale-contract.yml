@@ -26,77 +26,71 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
 
-      - name: Reconcile canonical locale boundaries
+      - name: Reconcile strict canonical locale boundaries
         shell: python
         run: |
           from pathlib import Path
           import re
 
-          canonical = ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi']
+          canonical = {'ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'}
 
-          # Internal title/description dictionaries legitimately retain historical zh/ur values.
-          p = Path('src/lib/i18n/tool-localization.ts')
-          text = p.read_text(encoding='utf-8')
-          text = text.replace("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';")
-          text = text.replace('type LocalizedTerms = Partial<Record<Locale, string>>;', 'type LocalizedTerms = Partial<Record<KnownLocale, string>>;')
-          text = text.replace('const templates: Record<Locale, string> = {', 'const templates: Record<KnownLocale, string> = {')
-          p.write_text(text, encoding='utf-8')
-
-          # Public dictionaries must be bounded by the strict canonical Locale union.
-          for raw in ['src/data/home-locales.ts','src/data/quickflow-locales.ts','src/lib/i18n/shared-tool-ui.ts','src/lib/privacy.ts','src/lib/seo/tool-catalog.ts']:
-              p = Path(raw)
+          def replace_import_and_records(raw_path: str) -> None:
+              p = Path(raw_path)
               text = p.read_text(encoding='utf-8')
-              text = re.sub(r'^\s{2}(?:zh|ur): .*\n', '', text, flags=re.M)
+              text = text.replace("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';")
+              text = text.replace("import type { Locale } from './i18n/config';", "import type { KnownLocale, Locale } from './i18n/config';")
+              text = text.replace("import type { Locale } from '@/lib/i18n';", "import type { KnownLocale, Locale } from '@/lib/i18n';")
+              text = text.replace('Partial<Record<Locale, string>>', 'Partial<Record<KnownLocale, string>>')
+              text = text.replace('Record<KnownLocale, string>>', 'Record<KnownLocale, string>>')
               p.write_text(text, encoding='utf-8')
 
-          # The catalog must contain canonical ms/uk entries as well as the existing locales.
-          p = Path('src/lib/seo/tool-catalog.ts')
+          replace_import_and_records('src/lib/i18n/tool-localization.ts')
+          replace_import_and_records('src/lib/privacy.ts')
+          replace_import_and_records('src/data/home-locales.ts')
+          replace_import_and_records('src/data/quickflow-locales.ts')
+
+          p = Path('src/lib/i18n/shared-tool-ui.ts')
           text = p.read_text(encoding='utf-8')
-          core = {
-              'ms': "  ms: { online: 'Alat dalam talian', intro: 'Gunakan {title} FLIXO terus dalam pelayar dengan aliran pantas yang mengutamakan privasi.', step1: 'Buka alat dan pilih input.', step2: 'Laraskan pilihan yang tersedia.', step3: 'Jalankan alat dan semak hasilnya.', step4: 'Muat turun atau salin hasil akhir.', features: ['Pemprosesan dalam pelayar', 'Tanpa akaun', 'Aliran kerja pantas'], alt: 'Antara muka {title} dalam FLIXO' },\n",
-              'uk': "  uk: { online: 'Онлайн-інструмент', intro: 'Використовуйте {title} FLIXO безпосередньо у браузері з швидким робочим процесом, орієнтованим на приватність.', step1: 'Відкрийте інструмент і виберіть вхідні дані.', step2: 'Налаштуйте доступні параметри.', step3: 'Запустіть інструмент і перевірте результат.', step4: 'Завантажте або скопіюйте готовий результат.', features: ['Обробка у браузері', 'Без облікового запису', 'Швидкий робочий процес'], alt: 'Інтерфейс {title} у FLIXO' },\n",
-          }
-          for locale, value in core.items():
-              if not re.search(rf'^  {locale}: \{{ online:', text, re.M):
-                  anchor = re.search(r'^  sv: \{ online:', text, re.M)
-                  if not anchor: raise SystemExit('tool-catalog CORE anchor missing')
-                  end = text.find('\n', anchor.start()) + 1
-                  text = text[:end] + value + text[end:]
-          term_rows = {
-              'ms': "  ms: { Compressor: 'Pemampat', Converter: 'Penukar', Image: 'Imej', Video: 'Video', Audio: 'Audio', Text: 'Teks', AI: 'AI', Remover: 'Penyingkir', Generator: 'Penjana' },\n",
-              'uk': "  uk: { Compressor: 'Компресор', Converter: 'Конвертер', Image: 'Зображення', Video: 'Відео', Audio: 'Аудіо', Text: 'Текст', AI: 'ШІ', Remover: 'Засіб видалення', Generator: 'Генератор' },\n",
-          }
-          for locale, value in term_rows.items():
-              if not re.search(rf'^  {locale}: \{{ Compressor:', text, re.M):
-                  anchor = re.search(r'^  sv: \{ Compressor:', text, re.M)
-                  if not anchor: raise SystemExit('tool-catalog TERM anchor missing')
-                  end = text.find('\n', anchor.start()) + 1
-                  text = text[:end] + value + text[end:]
+          text = text.replace("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';")
+          text = text.replace('Record<Locale, SharedCopy>', 'Record<KnownLocale, SharedCopy>')
+          text = text.replace("locale === 'zh' ? '外部处理' : locale === 'uk' ? 'Зовнішня обробка' : 'External processing'", "locale === 'uk' ? 'Зовнішня обробка' : 'External processing'")
           p.write_text(text, encoding='utf-8')
 
-          # Any manifest marked complete without both newly canonical locales is honestly downgraded to pilot.
-          # This preserves strict CompleteToolManifest and prevents false-green typing.
+          p = Path('src/lib/seo/tool-catalog.ts')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace("import type { Locale } from '@/lib/i18n';", "import type { KnownLocale, Locale } from '@/lib/i18n';")
+          text = text.replace('Record<Locale, {', 'Record<KnownLocale, {')
+          text = text.replace('Record<Locale, string>', 'Record<KnownLocale, string>')
+          text = text.replace('Record<Locale,', 'Record<KnownLocale,')
+          p.write_text(text, encoding='utf-8')
+
+          # A pilot manifest is explicitly allowed to retain historical zh/ur assets; complete remains strict 20-locale.
+          p = Path('src/lib/seo/tool-manifest.ts')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace("import type { Locale } from '@/lib/i18n';", "import type { KnownLocale, Locale } from '@/lib/i18n';")
+          text = text.replace('Partial<Record<Locale, LocalizedToolSeo>>', 'Partial<Record<KnownLocale, LocalizedToolSeo>>')
+          p.write_text(text, encoding='utf-8')
+
+          # Existing manifests that claim complete but do not contain every canonical locale are truthfully pilot.
           changed = []
           for p in sorted(Path('src/tools').glob('*/manifest.ts')):
               text = p.read_text(encoding='utf-8')
               if "status: 'ready'" not in text or "seoStatus: 'complete'" not in text:
                   continue
-              match = re.search(r'seoLocales: Object\.freeze\(\{([^\n]*)\}\)', text)
-              if not match:
-                  raise SystemExit(f'{p}: complete manifest lacks parseable seoLocales')
-              present = {part.strip().split()[0] for part in match.group(1).split(',') if part.strip()}
-              if set(canonical).issubset(present):
-                  continue
-              text = text.replace("seoStatus: 'complete'", "seoStatus: 'pilot'", 1)
-              p.write_text(text, encoding='utf-8')
-              changed.append(str(p))
-          print('reclassified incomplete ready manifests as pilot:', len(changed))
+              m = re.search(r'seoLocales: Object\.freeze\(\{([^\n]*)\}\)', text)
+              if not m:
+                  raise SystemExit(f'{p}: cannot parse seoLocales contract')
+              present = {part.strip().split()[0] for part in m.group(1).split(',') if part.strip()}
+              if not canonical.issubset(present):
+                  text = text.replace("seoStatus: 'complete'", "seoStatus: 'pilot'", 1)
+                  p.write_text(text, encoding='utf-8')
+                  changed.append(str(p))
+          print('ready manifests reclassified to pilot:', len(changed))
 
-          # Canonical validator matrix.
+          # Static validator follows the source-of-truth public matrix.
           p = Path('scripts/validate-seo-manifest.mjs')
           text = p.read_text(encoding='utf-8')
-          expected = "const expectedLocales = ['en','ar','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'];"
-          text = re.sub(r"const expectedLocales = \[[^\]]*\];?", expected, text, count=1)
+          text = re.sub(r"const expectedLocales = \[[^\]]*\];?", "const expectedLocales = ['en','ar','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'];", text, count=1)
           p.write_text(text, encoding='utf-8')
 
       - name: TypeScript contract
@@ -112,8 +106,8 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git rm .github/workflows/_repair-locale-contract.yml
-          git add src/lib/i18n/tool-localization.ts src/data/home-locales.ts src/data/quickflow-locales.ts src/lib/i18n/shared-tool-ui.ts src/lib/privacy.ts src/lib/seo/tool-catalog.ts src/tools scripts/validate-seo-manifest.mjs
+          git add src/lib/i18n src/lib/privacy.ts src/data/home-locales.ts src/data/quickflow-locales.ts src/lib/seo/tool-catalog.ts src/lib/seo/tool-manifest.ts src/tools scripts/validate-seo-manifest.mjs
           git diff --cached --check
           git diff --cached --quiet && { echo 'No verified repair changes staged'; exit 1; }
-          git commit -m 'fix(i18n): reconcile canonical locale typing and SEO status'
+          git commit -m 'fix(i18n): reconcile canonical locale contracts'
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
