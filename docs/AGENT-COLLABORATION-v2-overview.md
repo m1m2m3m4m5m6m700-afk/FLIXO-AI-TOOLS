@@ -1,0 +1,3 @@
+# FLIXO Agent Collaboration v2 Overview
+
+GitHub is the shared coordination plane. Active writer ownership is represented by exact branch/SHA claims. Paths, contract IDs and Root Cause IDs are mutually exclusive while leases are active. Heartbeats renew unchanged sessions; SHA drift requires re-ingestion. Handoffs are explicit and two-phase. Diagnostics remain read-only. Full Matrix remains the sole release certification authority. PRs, commits, handoff packets, event records, dashboards and evidence artifacts make agent state observable and reproducible.
