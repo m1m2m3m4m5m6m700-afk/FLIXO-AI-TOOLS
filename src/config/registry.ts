@@ -19,10 +19,10 @@ const TOOL_FAMILIES: readonly (readonly ToolConfig[])[] = [
  * Build the authoritative route index shared by runtime and validation layers.
  * Every canonical path and alias must be globally unique; collisions fail closed.
  */
-export function createToolPathIndex(
-  tools: readonly ToolConfig[],
-): ReadonlyMap<string, ToolConfig> {
-  const byPath = new Map<string, ToolConfig>();
+export function createToolPathIndex<T extends ToolConfig>(
+  tools: readonly T[],
+): ReadonlyMap<string, T> {
+  const byPath = new Map<string, T>();
 
   for (const tool of tools) {
     const routes = [tool.path, ...(tool.aliases ?? [])];
