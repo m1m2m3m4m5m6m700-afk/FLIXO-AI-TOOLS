@@ -1,7 +1,7 @@
-import type { Locale } from './config';
+import type { CanonicalLocale } from './config';
 
 export type TranslationBundle = Readonly<{
-  locale: Locale;
+  locale: CanonicalLocale;
   languageTag: string;
   direction: 'ltr' | 'rtl';
   siteName: string;
