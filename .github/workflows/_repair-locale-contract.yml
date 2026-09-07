@@ -1,0 +1,98 @@
+name: One-shot Locale Contract Repair
+
+on:
+  push:
+    branches: [integration/consolidated-20260907]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v5
+        with:
+          ref: integration/consolidated-20260907
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Normalize legacy locale typing
+        shell: python
+        run: |
+          from pathlib import Path
+
+          replacements = {
+              'src/lib/i18n/tool-localization.ts': [
+                  ("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';"),
+                  ("type LocalizedTerms = Partial<Record<Locale, string>>;", "type LocalizedTerms = Partial<Record<KnownLocale, string>>;"),
+              ],
+              'src/lib/i18n/shared-tool-ui.ts': [
+                  ("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';"),
+                  ("export const SHARED_TOOL_UI_COPY: Record<Locale, SharedCopy>", "export const SHARED_TOOL_UI_COPY: Record<KnownLocale, SharedCopy>"),
+                  ("locale === 'zh' ? '外部处理' : locale === 'uk' ? 'Зовнішня обробка' : 'External processing'", "locale === 'uk' ? 'Зовнішня обробка' : 'External processing'"),
+              ],
+              'src/lib/seo/tool-seo-localization.ts': [
+                  ("import type { Locale } from './config';", "import type { KnownLocale, Locale } from './config';"),
+                  ("export type ToolSeoLocale = Readonly<Record<Locale, string>>;", "export type ToolSeoLocale = Readonly<Record<KnownLocale, string>>;"),
+              ],
+              'src/lib/seo/tool-catalog.ts': [
+                  ("import type { Locale } from '@/lib/i18n';", "import type { KnownLocale, Locale } from '@/lib/i18n';"),
+                  ("const CORE: Record<Locale, {", "const CORE: Record<KnownLocale, {"),
+                  ("const templates: Record<Locale, string> = {", "const templates: Record<KnownLocale, string> = {"),
+              ],
+              'src/lib/privacy.ts': [
+                  ("import type { Locale } from './i18n/config';", "import type { KnownLocale, Locale } from './i18n/config';"),
+                  ("const PRIVACY_COPY: Record<Locale, PrivacyCopy>", "const PRIVACY_COPY: Record<KnownLocale, PrivacyCopy>"),
+              ],
+              'src/data/home-locales.ts': [
+                  ("import type { Locale } from '@/lib/i18n';", "import type { KnownLocale, Locale } from '@/lib/i18n';"),
+                  ("export const HOME_I18N: Record<Locale, HomeCopy>", "export const HOME_I18N: Record<KnownLocale, HomeCopy>"),
+              ],
+              'src/data/quickflow-locales.ts': [
+                  ("import type { Locale } from '@/lib/i18n';", "import type { KnownLocale, Locale } from '@/lib/i18n';"),
+                  ("export const QUICKFLOW_LOCALES: Record<Locale, QuickFlowCopy>", "export const QUICKFLOW_LOCALES: Record<KnownLocale, QuickFlowCopy>"),
+              ],
+          }
+
+          for raw_path, pairs in replacements.items():
+              path = Path(raw_path)
+              text = path.read_text(encoding='utf-8')
+              original = text
+              for old, new in pairs:
+                  count = text.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{raw_path}: expected exactly one occurrence of {old!r}, found {count}')
+                  text = text.replace(old, new)
+              if text == original:
+                  raise SystemExit(f'{raw_path}: no change produced')
+              path.write_text(text, encoding='utf-8')
+
+      - name: Verify canonical locale boundary
+        run: |
+          set -euo pipefail
+          grep -n "export const LOCALES" src/lib/i18n/config.ts
+          ! grep -n "export const LOCALES.*zh\|export const LOCALES.*ur" src/lib/i18n/config.ts
+          grep -n "LEGACY_LOCALES" src/lib/i18n/config.ts
+
+      - name: TypeScript contract
+        run: npx tsc --noEmit --pretty false
+
+      - name: Commit repair and remove one-shot runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/_repair-locale-contract.yml
+          git add src/lib/i18n/tool-localization.ts src/lib/i18n/shared-tool-ui.ts src/lib/seo/tool-seo-localization.ts src/lib/seo/tool-catalog.ts src/lib/privacy.ts src/data/home-locales.ts src/data/quickflow-locales.ts
+          git diff --cached --check
+          git diff --cached --quiet && { echo 'No repair changes staged'; exit 1; }
+          git commit -m 'fix(i18n): reconcile canonical and legacy locale contracts'
+          git push origin HEAD:integration/consolidated-20260907
