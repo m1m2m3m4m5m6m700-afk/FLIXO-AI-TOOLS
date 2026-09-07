@@ -12,7 +12,7 @@ FLIXO AI is a browser-first toolbox built with React, Vite, TypeScript, and TanS
 - **QuickFlow** as the deterministic-first task planner.
 - **AI Planner** as an optional refinement layer with deterministic fallback.
 - Repository checks for type safety, lint, routing, localization, SEO, build, audit, and performance budgets.
-- Playwright browser smoke plus an independent full-browser promotion matrix.
+- Playwright browser smoke plus the canonical Matrix First browser certification.
 
 ## Engineering model
 
@@ -61,7 +61,9 @@ npm run verify
 npm run test:e2e
 ```
 
-The full 23-suite × 3-browser promotion matrix runs independently through `.github/workflows/full-matrix-promotion.yml`.
+The canonical browser promotion barrier is `.github/workflows/full-matrix-parallel.yml`, whose workflow identity is **Matrix First** and whose sole aggregate certificate is **Matrix First Certification**.
+
+The signed `_flixo_matrix_plan.json` is the single matrix execution source of truth for browser/shard assignment and immutable Playwright test identity.
 
 ## Internationalization
 
@@ -79,7 +81,9 @@ Future performance work will preserve **zero AI cost on the initial page** and l
 
 A local success is development evidence, not release certification. A change is considered green only when the canonical checks and relevant browser evidence pass for the **exact commit SHA** being promoted.
 
-Provider-side deployment limits, such as a Vercel quota error, are tracked as external deployment conditions. They are never converted into a fake application GREEN or a fake application failure without matching code evidence.
+Provider-side deployment limits, such as a Vercel quota or rate-limit error, are tracked as external infrastructure conditions. They are never converted into a fake application GREEN or misclassified as an application build failure without matching code evidence.
+
+Matrix evidence is derived from native Playwright JSON and is certified only when the signed plan's suites, test IDs, counts, and browser/shard bindings match exactly with zero failed, skipped, unexpected, or flaky tests.
 
 C4 evidence is produced only from a completed, exact-SHA runtime gate; an absent or cancelled runtime run cannot be promoted to a release certificate.
 
