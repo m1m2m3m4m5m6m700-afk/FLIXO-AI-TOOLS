@@ -1,24 +1,25 @@
 name: FLIXO CI — G2 File Safety Shadow
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-g2-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: flixo-ci-g2-shadow-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
   g2-shadow:
-    name: G2 File Safety Shadow
+    name: G2 File Safety Shadow (Diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
@@ -32,7 +33,7 @@ jobs:
         run: node --experimental-strip-types scripts/test-file-safety.mjs
       - name: Existing consolidated G2 contract
         run: node --experimental-strip-types scripts/test-g2-file-safety.mjs
-      - name: Upload G2 shadow evidence
+      - name: Upload G2 diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
