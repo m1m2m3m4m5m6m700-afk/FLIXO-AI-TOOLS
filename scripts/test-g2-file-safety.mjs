@@ -16,7 +16,6 @@ const makeSignatureContent = (key) => {
   const length = Math.max(
     (signature.offset ?? 0) + signature.bytes.length,
     ...((signature.segments ?? []).map((segment) => segment.offset + segment.bytes.length)),
-    (signature.offset ?? 0) + signature.bytes.length,
   );
   const content = new Uint8Array(length);
   content.set(signature.bytes, signature.offset ?? 0);
@@ -64,11 +63,14 @@ for (const [extension, mime, signatureKey] of matrix) {
   );
 }
 
-for (const [extension, mime] of [['txt', 'text/plain']]) {
-  const content = text('FLIXO safe text');
-  const policy = { allowedMime: [mime], allowedExtensions: [extension], maxBytes: 64, contentValidation: 'utf8' };
-  assert.equal(validateFileSafety({ name: `valid.${extension}`, mime, bytes: content.byteLength, content }, policy).safe, true);
-}
+const textContent = text('FLIXO safe text');
+assert.equal(
+  validateFileSafety(
+    { name: 'valid.txt', mime: 'text/plain', bytes: textContent.byteLength, content: textContent },
+    { allowedMime: ['text/plain'], allowedExtensions: ['txt'], maxBytes: 64, contentValidation: 'utf8' },
+  ).safe,
+  true,
+);
 
 const goodJson = text('{"ok":true}');
 assert.equal(
@@ -199,7 +201,7 @@ for (const name of ['/etc/passwd', 'C:\\Windows\\system.ini', '\\\\server\\share
 failContains(validateArchiveEntries([{ name: 'link.txt', uncompressedBytes: 1, isSymlink: true }], archivePolicy), 'symlink entries are not allowed', 'archive symlink accepted');
 
 assert.deepEqual(
-  [...matrix.map(([extension]) => extension), 'txt', 'json'].sort(),
+  matrix.map(([extension]) => extension).sort(),
   ['avif', 'bmp', 'gif', 'jpg', 'json', 'png', 'txt', 'webp', 'zip'].sort(),
   'G2 Image product input matrix drift detected',
 );
