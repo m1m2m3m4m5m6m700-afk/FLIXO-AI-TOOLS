@@ -41,6 +41,8 @@ jobs:
           test "$actual" = "$EXPECTED_HEAD_SHA"
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Validate swarm work queue
+        run: node scripts/ci/validate-agent-work-queue.mjs
       - name: Matrix identity regression
         run: node scripts/ci/test-matrix-test-identity.mjs
       - name: Agent coordination protocol
