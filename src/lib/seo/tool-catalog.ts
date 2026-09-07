@@ -59,7 +59,7 @@ const TERM_MAPS: Record<Locale, Record<string, string>> = {
   uk: { Compressor: 'Компресор', Converter: 'Конвертер', Image: 'Зображення', Video: 'Відео', Audio: 'Аудіо', Text: 'Текст', AI: 'ШІ', Remover: 'Видалення', Generator: 'Генератор' },
   ja: { Compressor: '圧縮', Converter: '変換', Image: '画像', Video: '動画', Audio: '音声', Text: 'テキスト', AI: 'AI', Remover: '削除', Generator: '生成' },
   pt: { Compressor: 'Compressor', Converter: 'Conversor', Image: 'Imagens', Video: 'Vídeo', Audio: 'Áudio', Text: 'Texto', AI: 'IA', Remover: 'Remoção', Generator: 'Gerador' },
-  it: { Compressor: 'Compressore', Converter: 'Convertitore', Image: 'Immagini', Video: 'Video', Audio: 'Testo', Text: 'Testo', AI: 'IA', Remover: 'Rimozione', Generator: 'Generatore' },
+  it: { Compressor: 'Compressore', Converter: 'Convertitore', Image: 'Immagini', Video: 'Video', Audio: 'Audio', Text: 'Testo', AI: 'IA', Remover: 'Rimozione', Generator: 'Generatore' },
   ko: { Compressor: '압축기', Converter: '변환기', Image: '이미지', Video: '비디오', Audio: '오디오', Text: '텍스트', AI: 'AI', Remover: '제거', Generator: '생성기' },
   nl: { Compressor: 'Compressor', Converter: 'Converter', Image: 'Afbeeldingen', Video: 'Video', Audio: 'Audio', Text: 'Tekst', AI: 'AI', Remover: 'Verwijdering', Generator: 'Generator' },
   pl: { Compressor: 'Kompresor', Converter: 'Konwerter', Image: 'Obrazy', Video: 'Wideo', Audio: 'Audio', Text: 'Tekst', AI: 'AI', Remover: 'Usuwanie', Generator: 'Generator' },
