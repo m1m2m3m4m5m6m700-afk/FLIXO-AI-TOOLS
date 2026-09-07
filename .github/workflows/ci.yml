@@ -102,10 +102,12 @@ jobs:
             .sha == $sha and
             .gatesExpected == 3 and
             .gatesExecuted == 3 and
-            (.rootCauses | length) == 0
+            (.rootCauses | length) == 0 and
+            (.assertions.duplicateAssertions | length) == 0 and
+            (.assertions.uncoveredAssertions | length) == 0
           ' diagnostics/ci/report.json >/dev/null
           jq -e --arg sha "$EXPECTED_SHA" '
-            .schema == "flixo-failure-evidence/v3" and
+            .schema == "flixo-failure-evidence/v4" and
             .sha == $sha and
             .invariants.exactShaMatch == true and
             .invariants.cleanCheckout == true and
