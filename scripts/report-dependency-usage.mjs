@@ -3,35 +3,13 @@ import { spawnSync } from 'node:child_process';
 import { join, relative } from 'node:path';
 
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
-const declared = {
-  ...(packageJson.dependencies ?? {}),
-  ...(packageJson.devDependencies ?? {}),
-};
+const declared = { ...(packageJson.dependencies ?? {}), ...(packageJson.devDependencies ?? {}) };
 const dependencyNames = Object.keys(declared).sort((a, b) => a.localeCompare(b));
-
 const ignored = new Set(['node_modules', 'dist', '.git', 'coverage', '.next', '.cache']);
 const sourceRoots = ['src', 'scripts', 'tests', '.github'];
-const rootConfigFiles = [
-  'vite.config.ts', 'vite.config.js', 'vite.config.mts', 'vite.config.mjs',
-  'eslint.config.js', 'eslint.config.mjs', 'eslint.config.ts',
-  'playwright.config.ts', 'playwright.config.js',
-  'tailwind.config.js', 'tailwind.config.ts', 'postcss.config.js', 'postcss.config.cjs',
-  'tsconfig.json', 'tsconfig.node.json', 'package.json',
-];
-
-const legacyNames = new Set([
-  '@ffmpeg/core', '@ffmpeg/ffmpeg', '@types/gif.js', 'gif.js', 'gifuct-js',
-  'pdf-lib', 'pdfjs-dist', 'jspdf', 'nodemailer', '@types/nodemailer',
-  'drizzle-orm', 'postgres', 'drizzle-kit', 'vite-tsconfig-paths',
-]);
-
-const commandToDependency = new Map([
-  ['vite', 'vite'],
-  ['eslint', 'eslint'],
-  ['prettier', 'prettier'],
-  ['tsc', 'typescript'],
-  ['playwright', 'playwright'],
-]);
+const rootConfigFiles = ['vite.config.ts', 'vite.config.js', 'vite.config.mts', 'vite.config.mjs', 'eslint.config.js', 'eslint.config.mjs', 'eslint.config.ts', 'playwright.config.ts', 'playwright.config.js', 'tailwind.config.js', 'tailwind.config.ts', 'postcss.config.js', 'postcss.config.cjs', 'tsconfig.json', 'tsconfig.node.json', 'package.json'];
+const legacyNames = new Set(['@ffmpeg/core', '@ffmpeg/ffmpeg', '@types/gif.js', 'gif.js', 'gifuct-js', 'pdf-lib', 'pdfjs-dist', 'jspdf', 'nodemailer', '@types/nodemailer', 'drizzle-orm', 'postgres', 'drizzle-kit', 'vite-tsconfig-paths']);
+const commandToDependency = new Map([['vite', 'vite'], ['eslint', 'eslint'], ['prettier', 'prettier'], ['tsc', 'typescript'], ['playwright', 'playwright']]);
 
 function walk(dir) {
   if (!statSync(dir, { throwIfNoEntry: false })?.isDirectory()) return [];
@@ -45,31 +23,14 @@ function walk(dir) {
   return files;
 }
 
-const files = [
-  ...sourceRoots.flatMap((root) => walk(root)),
-  ...rootConfigFiles.filter((file) => existsSync(file)),
-].filter((file, index, all) => all.indexOf(file) === index);
-
-const source = files.map((file) => ({
-  file: relative('.', file).replaceAll('\\', '/'),
-  content: readFileSync(file, 'utf8'),
-}));
-
-function escapeRegex(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
+const files = [...sourceRoots.flatMap((root) => walk(root)), ...rootConfigFiles.filter((file) => existsSync(file))]
+  .filter((file, index, all) => all.indexOf(file) === index);
+const source = files.map((file) => ({ file: relative('.', file).replaceAll('\\', '/'), content: readFileSync(file, 'utf8') }));
+function escapeRegex(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function usageFor(name) {
-  const pattern = new RegExp(
-    `(?:from\\s*|import\\s*\\(|require\\s*\\(|require\\.resolve\\s*\\()\\s*["']${escapeRegex(name)}(?:/[^"']*)?["']`,
-    'g',
-  );
-  return source.flatMap(({ file, content }) => {
-    const count = content.match(pattern)?.length ?? 0;
-    return count ? [{ file, count }] : [];
-  });
+  const pattern = new RegExp(`(?:from\\s*|import\\s*\\(|require\\s*\\(|require\\.resolve\\s*\\()\\s*[\"']${escapeRegex(name)}(?:/[^\"']*)?[\"']`, 'g');
+  return source.flatMap(({ file, content }) => { const count = content.match(pattern)?.length ?? 0; return count ? [{ file, count }] : []; });
 }
-
 function scriptUsageFor(name) {
   const hits = [];
   for (const [scriptName, command] of Object.entries(packageJson.scripts ?? {})) {
@@ -82,107 +43,50 @@ function scriptUsageFor(name) {
   }
   return hits;
 }
-
 function typeToolchainUsage(name) {
   if (!name.startsWith('@types/')) return [];
   if (!['typescript', 'tsx', 'ts-node'].some((tool) => Object.hasOwn(declared, tool))) return [];
   const runtimeName = name.replace(/^@types\//, '');
-  if (runtimeName === 'node' || runtimeName === 'react' || runtimeName === 'react-dom') {
-    return [{ file: 'tsconfig.json', count: 1, reason: 'TypeScript compiler type environment' }];
-  }
-  return [];
+  return ['node', 'react', 'react-dom'].includes(runtimeName) ? [{ file: 'tsconfig.json', count: 1, reason: 'TypeScript compiler type environment' }] : [];
 }
-
 function roleFor(file) {
   if (file.startsWith('tests/') || /(?:^|[/_.-])(?:test|tests|spec|e2e)(?:[/_.-]|$)/i.test(file)) return 'USED_TEST';
   if (file.startsWith('src/')) return 'USED_RUNTIME';
-  if (file.startsWith('scripts/') || file.startsWith('.github/') || rootConfigFiles.includes(file)) return 'USED_BUILD';
   return 'USED_BUILD';
 }
 
 const entries = dependencyNames.map((name) => {
-  const usage = [
-    ...usageFor(name).map((item) => ({ ...item, role: roleFor(item.file) })),
-    ...scriptUsageFor(name).map((item) => ({ ...item, role: 'USED_BUILD' })),
-    ...typeToolchainUsage(name).map((item) => ({ ...item, role: 'USED_BUILD' })),
-  ];
+  const usage = [...usageFor(name).map((item) => ({ ...item, role: roleFor(item.file) })), ...scriptUsageFor(name).map((item) => ({ ...item, role: 'USED_BUILD' })), ...typeToolchainUsage(name).map((item) => ({ ...item, role: 'USED_BUILD' }))];
   const roles = new Set(usage.map((item) => item.role));
   let classification = 'UNUSED';
   if (legacyNames.has(name)) classification = 'LEGACY';
   else if (roles.has('USED_RUNTIME')) classification = 'USED_RUNTIME';
   else if (roles.has('USED_TEST')) classification = 'USED_TEST';
   else if (roles.has('USED_BUILD')) classification = 'USED_BUILD';
-
-  return {
-    name,
-    declaredIn: packageJson.dependencies?.[name] ? 'dependencies' : 'devDependencies',
-    version: declared[name],
-    classification,
-    files: usage,
-    totalMatches: usage.reduce((sum, item) => sum + item.count, 0),
-  };
+  return { name, declaredIn: packageJson.dependencies?.[name] ? 'dependencies' : 'devDependencies', version: declared[name], classification, files: usage, totalMatches: usage.reduce((sum, item) => sum + item.count, 0) };
 });
 
 const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
 const lockRoot = lock.packages?.[''] ?? {};
-const lockDeclared = {
-  ...(lockRoot.dependencies ?? {}),
-  ...(lockRoot.devDependencies ?? {}),
-  ...(lockRoot.optionalDependencies ?? {}),
-};
-const packageDeclared = {
-  ...(packageJson.dependencies ?? {}),
-  ...(packageJson.devDependencies ?? {}),
-};
-const rootParity = JSON.stringify(Object.fromEntries(Object.entries(packageDeclared).sort(([a], [b]) => a.localeCompare(b))))
-  === JSON.stringify(Object.fromEntries(Object.entries(lockDeclared).sort(([a], [b]) => a.localeCompare(b))));
-const transitiveOnly = Object.keys(lock.packages ?? {})
-  .filter((path) => path !== '')
-  .map((path) => path.replace(/^node_modules\//, ''))
-  .filter((name, index, all) => all.indexOf(name) === index && !Object.hasOwn(packageDeclared, name))
-  .sort((a, b) => a.localeCompare(b));
-
-function run(command, args) {
-  return spawnSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-}
-
+const lockDeclared = { ...(lockRoot.dependencies ?? {}), ...(lockRoot.devDependencies ?? {}), ...(lockRoot.optionalDependencies ?? {}) };
+const packageDeclared = { ...(packageJson.dependencies ?? {}), ...(packageJson.devDependencies ?? {}) };
+const rootParity = JSON.stringify(Object.fromEntries(Object.entries(packageDeclared).sort(([a], [b]) => a.localeCompare(b)))) === JSON.stringify(Object.fromEntries(Object.entries(lockDeclared).sort(([a], [b]) => a.localeCompare(b))));
+const transitiveOnly = Object.keys(lock.packages ?? {}).filter((path) => path !== '').map((path) => path.replace(/^node_modules\//, '')).filter((name, index, all) => all.indexOf(name) === index && !Object.hasOwn(packageDeclared, name)).sort((a, b) => a.localeCompare(b));
+function run(command, args) { return spawnSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }); }
 const lockfileDiff = run('git', ['status', '--porcelain=v1', '--', 'package-lock.json']);
 const lockfileDirty = Boolean(lockfileDiff.stdout.trim());
 const npmLs = run('npm', ['ls', '--all', '--json', '--omit=optional']);
-let npmLsJson;
+let npmLsProblems = [];
 try {
-  npmLsJson = JSON.parse(npmLs.stdout || '{}');
+  const parsed = JSON.parse(npmLs.stdout || '{}');
+  npmLsProblems = Array.isArray(parsed?.problems) ? parsed.problems : [];
 } catch (error) {
   console.error(npmLs.stdout || npmLs.stderr);
   throw new Error(`npm ls JSON parse failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
 }
-const npmLsBroken = npmLs.status !== 0 || Boolean(npmLsJson?.problems?.length);
-
-const counts = entries.reduce((acc, entry) => {
-  acc.total += 1;
-  acc[entry.classification] = (acc[entry.classification] ?? 0) + 1;
-  return acc;
-}, { total: 0, USED_RUNTIME: 0, USED_BUILD: 0, USED_TEST: 0, TRANSITIVE_ONLY: transitiveOnly.length, UNUSED: 0, LEGACY: 0 });
-
-const report = {
-  generatedAt: new Date().toISOString(),
-  repository: process.env.GITHUB_REPOSITORY ?? null,
-  sha: process.env.GITHUB_SHA ?? null,
-  lockfileVersion: lock.lockfileVersion ?? null,
-  rootParity,
-  npm: {
-    reportingMode: 'READ_ONLY',
-    installAttempted: false,
-    lockfileDirty,
-    npmLsExit: npmLs.status,
-    npmLsBroken,
-  },
-  roots: [...sourceRoots, ...rootConfigFiles],
-  summary: counts,
-  transitiveOnly,
-  entries,
-};
-
+const npmLsBroken = npmLs.status !== 0 || npmLsProblems.length > 0;
+const counts = entries.reduce((acc, entry) => { acc.total += 1; acc[entry.classification] = (acc[entry.classification] ?? 0) + 1; return acc; }, { total: 0, USED_RUNTIME: 0, USED_BUILD: 0, USED_TEST: 0, TRANSITIVE_ONLY: transitiveOnly.length, UNUSED: 0, LEGACY: 0 });
+const report = { generatedAt: new Date().toISOString(), repository: process.env.GITHUB_REPOSITORY ?? null, sha: process.env.GITHUB_SHA ?? null, lockfileVersion: lock.lockfileVersion ?? null, rootParity, npm: { reportingMode: 'READ_ONLY', installAttempted: false, lockfileDirty, npmLsExit: npmLs.status, npmLsBroken }, roots: [...sourceRoots, ...rootConfigFiles], summary: counts, transitiveOnly, entries };
 console.log('Dependency Zero-Debt Classification');
 console.log(`SHA: ${report.sha ?? 'UNKNOWN'}`);
 console.log(`Direct dependencies inspected: ${counts.total}`);
@@ -196,16 +100,7 @@ console.log(`reporting mode: ${report.npm.reportingMode}`);
 console.log(`package.json ↔ package-lock root parity: ${rootParity ? 'PASS' : 'FAIL'}`);
 console.log(`package-lock working-tree mutation: ${lockfileDirty ? 'FAIL' : 'PASS'}`);
 console.log(`npm ls: ${npmLsBroken ? 'FAIL' : 'PASS'}`);
-
-for (const entry of entries) {
-  const files = entry.files.map((item) => `${item.file}:${item.count}${item.reason ? `:${item.reason}` : ''}`).join(', ');
-  console.log(`${entry.classification.padEnd(13)} ${entry.name} [${entry.declaredIn}] ${files || 'NO_USAGE'}`);
-}
-
+for (const entry of entries) { const files = entry.files.map((item) => `${item.file}:${item.count}${item.reason ? `:${item.reason}` : ''}`).join(', '); console.log(`${entry.classification.padEnd(13)} ${entry.name} [${entry.declaredIn}] ${files || 'NO_USAGE'}`); }
 const blockers = entries.filter((entry) => entry.classification === 'UNUSED' || entry.classification === 'LEGACY');
-if (!rootParity || lockfileDirty || npmLsBroken || blockers.length > 0) {
-  if (blockers.length) console.error(`Dependency zero-debt blockers: ${blockers.map((entry) => `${entry.name}=${entry.classification}`).join(', ')}`);
-  process.exit(1);
-}
-
+if (!rootParity || lockfileDirty || npmLsBroken || blockers.length > 0) { if (blockers.length) console.error(`Dependency zero-debt blockers: ${blockers.map((entry) => `${entry.name}=${entry.classification}`).join(', ')}`); process.exit(1); }
 console.log('Dependency Zero-Debt Gate: PASS');

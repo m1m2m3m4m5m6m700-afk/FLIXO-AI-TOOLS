@@ -43,6 +43,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
+      - name: Checkout exact release SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install committed dependency graph
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Verify exact release SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
       - name: Wait for canonical GitHub CI
         env:
           GH_TOKEN: ${{ github.token }}

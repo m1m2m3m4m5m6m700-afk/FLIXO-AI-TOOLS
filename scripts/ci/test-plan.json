@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "gates": {
+    "static": { "expected": 27 },
+    "build": { "expected": 3 },
+    "browser": { "expected": 3, "projects": ["chromium", "firefox", "webkit"] }
+  }
+}
