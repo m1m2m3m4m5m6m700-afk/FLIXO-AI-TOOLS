@@ -19,8 +19,6 @@ env:
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
   VITE_TEST_ORIGIN: https://canonical.test
   PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-  S4_EXTERNAL_SERVER: 'true'
-  PLAYWRIGHT_SERVER: preview
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
