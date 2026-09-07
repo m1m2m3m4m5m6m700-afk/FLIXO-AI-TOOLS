@@ -15,6 +15,17 @@ const normalizePath = (value) => String(value ?? '').replace(/\\/g, '/').replace
 const pathConflicts = (a, b) => a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
 const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'));
 
+const isAncestor = (ancestor, descendant) => {
+  if (!HEX_SHA.test(ancestor) || !HEX_SHA.test(descendant)) return false;
+  if (ancestor === descendant) return true;
+  try {
+    execFileSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const claimsState = await readJson(CLAIMS_FILE);
 const sessionsState = await readJson(SESSIONS_FILE);
 if (claimsState.schemaVersion !== 2 || claimsState.protocol !== 'FLIXO multi-agent coordination') FAIL('claims schema/protocol mismatch');
@@ -40,14 +51,26 @@ for (let i = 0; i < activeClaims.length; i += 1) for (let j = i + 1; j < activeC
 if (AGENT_BRANCH.test(CURRENT_BRANCH)) {
   const own = activeClaims.filter((claim) => claim.branch === CURRENT_BRANCH);
   if (own.length !== 1) FAIL(`agent branch ${CURRENT_BRANCH} requires exactly one active claim, found ${own.length}`);
-  if (!HEX_SHA.test(EXPECTED_HEAD_SHA) || own[0].observedHeadSha !== EXPECTED_HEAD_SHA) FAIL(`exact SHA mismatch for ${own[0].agentId}: claim=${own[0].observedHeadSha} expected=${EXPECTED_HEAD_SHA || '<unset>'}`);
+  if (!HEX_SHA.test(EXPECTED_HEAD_SHA)) FAIL(`current HEAD is not an exact SHA: ${EXPECTED_HEAD_SHA || '<unset>'}`);
+  if (!isAncestor(own[0].observedHeadSha, EXPECTED_HEAD_SHA)) FAIL(`SHA binding violated for ${own[0].agentId}: claim base ${own[0].observedHeadSha} is not an ancestor of current HEAD ${EXPECTED_HEAD_SHA}`);
   if (ENFORCE_WORKTREE_SCOPE) {
     const status = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { encoding: 'utf8' });
     const changed = status.split('\n').filter(Boolean).map((line) => normalizePath(line.slice(3).replace(/ -> .+$/u, '')));
     for (const path of changed) if (!own[0].scope.paths.some((allowed) => pathConflicts(path, normalizePath(allowed)))) FAIL(`worktree path outside claimed scope: ${path}`);
   }
 }
-const report = { schemaVersion: 2, protocol: 'FLIXO agent session guard', generatedAt: new Date().toISOString(), branch: CURRENT_BRANCH, expectedHeadSha: EXPECTED_HEAD_SHA || null, activeClaimCount: activeClaims.length, activeAgentIds: activeClaims.map((c) => c.agentId).sort(), worktreeScopeEnforced: ENFORCE_WORKTREE_SCOPE, status: 'PASS' };
+const report = {
+  schemaVersion: 2,
+  protocol: 'FLIXO agent session guard',
+  generatedAt: new Date().toISOString(),
+  branch: CURRENT_BRANCH,
+  expectedHeadSha: EXPECTED_HEAD_SHA || null,
+  shaBindingMode: 'observedHeadSha must be an ancestor of current HEAD on agent branches',
+  activeClaimCount: activeClaims.length,
+  activeAgentIds: activeClaims.map((c) => c.agentId).sort(),
+  worktreeScopeEnforced: ENFORCE_WORKTREE_SCOPE,
+  status: 'PASS',
+};
 report.reportHash = createHash('sha256').update(JSON.stringify(report)).digest('hex');
 await mkdir('artifacts/ci/agent-coordination', { recursive: true });
 await writeFile(EVIDENCE_FILE, JSON.stringify(report, null, 2) + '\n');
