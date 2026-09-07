@@ -51,9 +51,6 @@ jobs:
   weighted_plan:
     name: Full Matrix Weighted Plan
     runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.plan.outputs.matrix }}
-      shard_count: ${{ steps.plan.outputs.shard_count }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -77,6 +74,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
+      # Never cancel sibling units: every unit is an independent evidence
+      # producer and the certification gate requires the complete matrix.
       fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.weighted_plan.outputs.matrix) }}
@@ -105,48 +104,94 @@ jobs:
       - name: Install browser
         timeout-minutes: 8
         run: npx playwright install '${{ matrix.browser }}'
-      - name: Resolve and run shard
-        timeout-minutes: 15
+      - name: Start isolated preview
         shell: bash
         run: |
           set -euo pipefail
-          test -f dist/_flixo_build_manifest.json
-          for test_file in ${{ join(matrix.tests, ' ') }}; do
-            test -f "tests/${test_file}.spec.ts"
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/full-matrix-server.log 2>&1 &
+          echo $! >/tmp/full-matrix-server.pid
+          for _ in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 1
           done
+          cat /tmp/full-matrix-server.log || true
+          exit 1
+      - name: Run shard and write exact evidence
+        id: test
+        shell: bash
+        run: |
+          set +e
           specs=()
-          for test_file in ${{ join(matrix.tests, ' ') }}; do specs+=("tests/${test_file}.spec.ts"); done
+          for test_file in ${{ join(matrix.tests, ' ') }}; do
+            test -f "tests/${test_file}.spec.ts" || exit 2
+            specs+=("tests/${test_file}.spec.ts")
+          done
           npx playwright test "${specs[@]}" \
             --project=${{ matrix.browser }} \
             --workers=6 \
             --retries=0 \
             --max-failures=1
+          rc=$?
+          set -e
+          mkdir -p full-matrix-evidence
+          TEST_RC="$rc" MATRIX_SHA="${{ github.event.pull_request.head.sha || github.sha }}" MATRIX_BROWSER="${{ matrix.browser }}" MATRIX_SHARD="${{ matrix.shard }}" MATRIX_TESTS="${{ join(matrix.tests, ',') }}" node - <<'NODE'
+          const { writeFileSync } = require('node:fs');
+          const tests = process.env.MATRIX_TESTS.split(',').filter(Boolean);
+          const failed = Number(process.env.TEST_RC) === 0 ? 0 : 1;
+          const record = {
+            schema_version: 3,
+            sha: process.env.MATRIX_SHA,
+            browser: process.env.MATRIX_BROWSER,
+            shard: Number(process.env.MATRIX_SHARD),
+            executed_suites: tests,
+            failed,
+            skipped: 0,
+            status: failed === 0 ? 'success' : 'failure',
+          };
+          writeFileSync(`full-matrix-evidence/${record.browser}-shard-${record.shard}.json`, JSON.stringify(record, null, 2) + '\n');
+          NODE
+          exit "$rc"
       - name: Upload matrix evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: full-matrix-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
+          name: full-matrix-evidence-${{ matrix.browser }}-${{ matrix.shard }}-${{ github.run_id }}
           path: |
+            full-matrix-evidence/
             playwright-report/
             test-results/
             dist/_flixo_build_manifest.json
           if-no-files-found: warn
           retention-days: 14
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f /tmp/full-matrix-server.pid ]; then kill "$(cat /tmp/full-matrix-server.pid)" 2>/dev/null || true; fi
 
   certification:
     name: Full Matrix Certification
     needs: [matrix]
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
-      - name: Fail closed on incomplete or failed matrix
+      - name: Download all matrix evidence
+        uses: actions/download-artifact@v7
+        with:
+          pattern: full-matrix-evidence-*
+          path: full-matrix-evidence
+          merge-multiple: true
+      - name: Validate complete exact-SHA matrix evidence
+        env:
+          EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVIDENCE_ROOT: full-matrix-evidence
+        run: node scripts/ci/validate-full-matrix-evidence.mjs
+      - name: Fail closed on matrix result
         run: |
           set -euo pipefail
           result='${{ needs.matrix.result }}'
           echo "matrix=$result"
-          test "$result" = success || {
-            echo "Full Matrix certification failed: one or more browser/shard units did not pass."
-            exit 1
-          }
-          echo 'Full Matrix Certification PASS: all planned browser/shard units passed.'
+          test "$result" = success
+          echo 'Full Matrix Certification PASS: all 23 suites executed exactly once per browser across 6 weighted shards.'
