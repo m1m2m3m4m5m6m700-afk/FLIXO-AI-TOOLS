@@ -29,6 +29,7 @@
     "ASSERT-SITE-ORIGIN-001": {"owner":"STATIC-024","contract":"SEO","coverage":["COV-SEO"],"dependencies":[],"runtime_scope":"node","rootCauseClass":"CANONICAL_MISMATCH"},
     "ASSERT-DEPENDENCY-MANIFEST-001": {"owner":"STATIC-025","contract":"DEPENDENCY","coverage":["COV-DEPENDENCY-MANIFEST"],"dependencies":["ASSERT-DEPENDENCY-001"],"runtime_scope":"node","rootCauseClass":"DEPENDENCY"},
     "ASSERT-PLAYWRIGHT-SURFACE-001": {"owner":"STATIC-026","contract":"BROWSER","coverage":["COV-PLAYWRIGHT-SURFACE"],"dependencies":[],"runtime_scope":"node","rootCauseClass":"CI_CONTRACT"},
+    "ASSERT-ASSERTION-REGISTRY-001": {"owner":"STATIC-027","contract":"CI","coverage":["COV-ASSERTION-REGISTRY"],"dependencies":[],"runtime_scope":"node","rootCauseClass":"CI_CONTRACT"},
     "ASSERT-BUILD-001": {"owner":"BUILD-001","contract":"BUILD","coverage":["COV-BUILD"],"dependencies":["ASSERT-TYPEGRAPH-001","ASSERT-LINT-001"],"runtime_scope":"node","rootCauseClass":"BUILD_ERROR"},
     "ASSERT-PERFORMANCE-001": {"owner":"BUILD-003","contract":"BUILD","coverage":["COV-PERFORMANCE"],"dependencies":["ASSERT-BUILD-001"],"runtime_scope":"node","rootCauseClass":"PERFORMANCE"},
     "ASSERT-BROWSER-CHROMIUM-001": {"owner":"BROWSER-001","contract":"G4","coverage":["COV-BROWSER-CHROMIUM"],"dependencies":["ASSERT-BUILD-001"],"runtime_scope":"chromium","rootCauseClass":"RUNTIME_EXCEPTION"},
