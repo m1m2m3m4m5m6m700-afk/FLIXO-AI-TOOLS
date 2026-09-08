@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 
 test('shared image safety rejects a MIME-spoofed PNG before decoding', async ({ page }) => {
   await page.goto('/en/background-remover');
