@@ -2,6 +2,9 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
+const testEngine = readFileSync('scripts/test.mjs', 'utf8');
+const certifyEngine = readFileSync('scripts/ci/certify.mjs', 'utf8');
+const resultState = readFileSync('scripts/ci/result-state.mjs', 'utf8');
 
 const required = [
   ['pull_request trigger', /pull_request:\s*\n\s*branches:\s*\[main\]/],
@@ -13,11 +16,27 @@ const required = [
   ['PR cancellation', /cancel-in-progress:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*\}\}/],
   ['exact SHA', /EXPECTED_SHA/],
   ['immutable artifact identity', /flixo-head-sha\.txt[\s\S]*flixo-package-lock\.sha256/],
+  ['minimal checkout', /fetch-depth:\s*1/],
+  ['primary evidence class', /evidenceClass["']?\s*:\s*["']PRIMARY_EXECUTION["']/],
 ];
 
 for (const [label, pattern] of required) {
   if (!pattern.test(workflow)) {
     console.error(`CI contract failed: ${label} is missing from .github/workflows/ci.yml`);
+    process.exit(1);
+  }
+}
+
+for (const [label, source, pattern] of [
+  ['central result-state reducer', testEngine, /result-state\.mjs/],
+  ['central result-state reducer import in certification', certifyEngine, /result-state\.mjs/],
+  ['explicit cancellation state', resultState, /['"]CANCELLED['"]/],
+  ['explicit missing-evidence state', resultState, /['"]MISSING_EVIDENCE['"]/],
+  ['explicit malformed-evidence state', resultState, /['"]MALFORMED_EVIDENCE['"]/],
+  ['fail-closed state reduction', resultState, /counts\.CANCELLED === 0[\s\S]*counts\.NOT_EXECUTED === 0/],
+]) {
+  if (!pattern.test(source)) {
+    console.error(`CI contract failed: ${label} is missing.`);
     process.exit(1);
   }
 }
@@ -51,4 +70,4 @@ try {
   process.exit(1);
 }
 
-console.log('CI contract passed: one static+build engine, one FAST browser engine, one DEEP browser engine, exact SHA/artifact provenance, and one fail-closed certification gate.');
+console.log('CI contract passed: one execution graph, centralized result-state reduction, explicit evidence provenance, minimal SHA checkout, one FAST engine, one DEEP engine, and one fail-closed certification gate.');
