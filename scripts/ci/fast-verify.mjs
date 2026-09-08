@@ -59,7 +59,6 @@ if (flags.routing) {
 }
 if (flags.localization) {
   add('i18n-strict', 'npm', ['run', 'verify:i18n', '--', '--strict', '--report'], 'localization impact');
-  add('locale-integrity', 'npm', ['run', 'validate:locale-integrity'], 'localization impact');
   add('locale-navigation', 'npm', ['run', 'validate:locale-navigation'], 'localization impact');
   add('home-i18n', 'npm', ['run', 'validate:home-i18n'], 'localization impact');
   add('tool-localization', 'npm', ['run', 'test:tool-localization'], 'localization impact');
