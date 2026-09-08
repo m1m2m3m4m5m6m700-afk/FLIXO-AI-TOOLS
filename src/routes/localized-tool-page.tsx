@@ -3,7 +3,6 @@ import { useParams } from '@tanstack/react-router';
 import { LOCALES, isLocale, type Locale, LOCALE_METADATA } from '../lib/i18n';
 import { assertToolCategory, getToolSeo } from '../lib/seo/tool-seo';
 import { getAuthoritativeToolSeoName } from '../config/tool-seo-name-resolver';
-import { getToolUiTitle } from '../config/tool-ui-title-resolver';
 import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
 import { localizeMsUkCategory, localizeMsUkDescription } from '../lib/i18n/ms-uk-category';
 import { localizeToolCategory, localizeToolDescription } from '../lib/i18n/tool-localization';
@@ -61,10 +60,9 @@ export function LocalizedToolPage() {
   }
 
   const category = assertToolCategory(seo.tool.category);
-  const localizedTitle = getToolUiTitle(seo.tool, locale);
-  const localizedSeoTitle = getAuthoritativeToolSeoName(seo.tool, locale) ?? seo.tool.title;
+  const localizedTitle = getAuthoritativeToolSeoName(seo.tool, locale) ?? seo.tool.title;
   const localizedCategory = localizeMsUkCategory(locale, category) ?? localizeToolCategory(locale, category);
-  const localizedDescription = locale === 'en' ? seo.tool.description : localizeMsUkDescription(locale, localizedSeoTitle) ?? localizeToolDescription(locale, localizedSeoTitle, category);
+  const localizedDescription = locale === 'en' ? seo.tool.description : localizeMsUkDescription(locale, localizedTitle) ?? localizeToolDescription(locale, localizedTitle, category);
   const ToolComponent = seo.tool.component as unknown as ComponentType<{ locale?: Locale }>;
   const privacy = getToolPrivacyCopy(seo.tool.id, locale);
   const homeUrl = `/${locale}`;
