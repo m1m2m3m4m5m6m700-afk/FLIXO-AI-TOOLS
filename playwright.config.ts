@@ -44,15 +44,17 @@ export default defineConfig({
         },
       },
     },
-    { name: 'webkit', use: { ...devices['Desktop Safari'], actionTimeout: isS4RuntimeGate ? 12_000 : 20_000 } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ],
   ...(isS4ExternalServer
     ? {}
     : {
         webServer: {
-          command: useProductionServer
-            ? 'npm run build && npm run preview -- --host 127.0.0.1 --port 3000'
-            : 'npm run build:runtime && npm run preview -- --host 127.0.0.1 --port 3000',
+          command: isCi
+            ? 'npm run preview -- --host 127.0.0.1 --port 3000'
+            : useProductionServer
+              ? 'npm run build && npm run preview -- --host 127.0.0.1 --port 3000'
+              : 'npm run build:runtime && npm run preview -- --host 127.0.0.1 --port 3000',
           url: 'http://127.0.0.1:3000',
           timeout: 120_000,
           reuseExistingServer,
