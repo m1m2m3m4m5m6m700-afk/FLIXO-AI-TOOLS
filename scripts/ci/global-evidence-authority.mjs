@@ -81,10 +81,21 @@ for (const file of allEvidenceFiles) {
     if (item.status === 'FAIL' && item.rootCauseId) independentRootCauses.add(item.rootCauseId);
     if (item.status === 'FAIL' && Array.isArray(item.rootCauses)) for (const rc of item.rootCauses) if (rc) independentRootCauses.add(typeof rc === 'string' ? rc : rc.id ?? JSON.stringify(rc));
     if (Array.isArray(item.rootCauseGroups)) for (const group of item.rootCauseGroups) if (group?.rootCauseId || group?.id) independentRootCauses.add(group.rootCauseId ?? group.id);
-    if (Array.isArray(item.skipped) && item.skipped.length) unauthorizedSkips.push(`${location}: skipped=${JSON.stringify(item.skipped)}`);
     for (const [key, child] of Object.entries(item)) if (child && typeof child === 'object') collect(child, `${location}:${key}`);
   };
   collect(value);
+}
+
+for (const file of allEvidenceFiles.filter((entry) => entry.endsWith('results.json'))) {
+  let value;
+  try { value = JSON.parse(fs.readFileSync(file, 'utf8')); }
+  catch (error) { invalidEvidence.push(`${file}: invalid Playwright JSON (${String(error?.message ?? error)})`); continue; }
+  const visit = (item) => {
+    if (!item || typeof item !== 'object') return;
+    if ((item.status === 'skipped' || item.status === 'pending') && item.title) unauthorizedSkips.push(`${file}: unauthorized skipped test ${item.title}`);
+    for (const child of Object.values(item)) if (child && typeof child === 'object') visit(child);
+  };
+  visit(value);
 }
 
 const fastResultCandidates = allEvidenceFiles.filter((file) => file.endsWith('fast-ci-result.json'));
@@ -109,12 +120,11 @@ else {
 const registryAssertions = new Set(Object.keys(registry.assertions ?? {}));
 const planAssertionIds = new Set(Object.values(plan.gates ?? {}).flatMap((gate) => gate.checks ?? []).flatMap((check) => check.assertions ?? []));
 for (const assertionId of registryAssertions) if (!planAssertionIds.has(assertionId)) unknowns.push(`registry assertion not represented in plan: ${assertionId}`);
-
 for (const source of plan.sourceDependencyGraph ? Object.entries(plan.sourceDependencyGraph) : []) if (!source[0]) unknowns.push('invalid source dependency graph entry');
 for (const id of ['ASSERT-BROWSER-CHROMIUM-001','ASSERT-BROWSER-FIREFOX-001','ASSERT-BROWSER-WEBKIT-001']) if (!registryAssertions.has(id)) unknowns.push(`missing browser assertion ${id}`);
 
 const result = {
-  schema_version: 2,
+  schema_version: 3,
   authority: 'GLOBAL_EVIDENCE_AUTHORITY',
   certificationSha: sha,
   status: failures.length || unknowns.length || invalidEvidence.length || shaMismatches.length || unauthorizedSkips.length || independentRootCauses.size ? 'FAIL' : 'PASS',
