@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 
 test('shared upload boundary rejects a PNG with JPEG MIME metadata', async ({ page }) => {
   await page.goto('/en/image-converter');
