@@ -15,6 +15,7 @@
     "validate:s2d": "node scripts/validate-s2d.mjs",
     "validate:dependency-zero-debt": "node scripts/validate-dependency-zero-debt.mjs",
     "validate:lock-manifest": "node scripts/validate-lock-manifest-contract.mjs",
+    "validate:playwright-surface": "node scripts/ci/validate-playwright-surface.mjs",
     "validate:i18n": "node scripts/validate-i18n.mjs",
     "validate:language-quality": "node scripts/validate-language-quality.mjs",
     "validate:locale-integrity": "node scripts/validate-locale-integrity.mjs",
