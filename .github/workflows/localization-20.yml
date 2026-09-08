@@ -101,12 +101,12 @@ jobs:
           done
           cat /tmp/g4-server.log || true
           exit 1
-      - name: G4 all-public-route runtime matrix — 20 locales
+      - name: G4 localized visible UI matrix — six representative tools × 20 locales
         env:
           S4_EXTERNAL_SERVER: 'true'
           PLAYWRIGHT_SERVER: preview
           PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-        run: npx playwright test tests/localization-runtime.spec.ts --project=chromium --workers=6 --retries=0
+        run: npx playwright test tests/localization-visible.spec.ts --project=chromium --workers=6 --retries=0
       - name: Cleanup
         if: always()
         shell: bash
