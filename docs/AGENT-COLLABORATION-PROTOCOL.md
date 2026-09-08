@@ -1,4 +1,4 @@
-# 🔐 FLIXO Multi-Agent Collaboration Protocol v1
+# 🔐 FLIXO Multi-Agent Collaboration Protocol v2
 
 ## Mandatory entry contract
 
@@ -8,10 +8,11 @@ Before any repository action, every agent MUST read:
 
 1. `AGENTS.md`
 2. `docs/AGENT-COLLABORATION-PROTOCOL.md`
-3. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-4. `scripts/ci/test-plan.json`
-5. `scripts/ci/assertion-registry.json`
-6. the current exact `main` SHA and current workflow state
+3. `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`
+4. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+5. `scripts/ci/test-plan.json`
+6. `scripts/ci/assertion-registry.json`
+7. the current exact `main` SHA and current workflow state
 
 Reading is part of the execution contract.
 
@@ -21,11 +22,19 @@ Before changing repository state, an agent MUST register a unique session at:
 
 `diagnostics/agents/sessions/<sessionId>.json`
 
-Required fields:
+Required fields include:
 
-`schemaVersion, sessionId, agentId, role, entrySha, baseSha, startedAt, scope, readFiles, currentRca, status`
+`schemaVersion, sessionId, agentId, role, entrySha, baseSha, startedAt, scope, readFiles, currentRca, status`.
 
 Initial status: `RUNNING`.
+
+When a prior handoff exists, login MUST continue from a closed predecessor session:
+
+`node scripts/ci/agent-session.mjs login --session=<id> --agent=<id> --role=<role> --from-session=<previous-session> ...`
+
+The only exception is an explicit first-chain bootstrap using `--bootstrap=true`.
+
+A continuation login records the predecessor's `exitSha`, unresolved work, open RCAs, and next execution plan in the new session.
 
 ## Ownership lock
 
@@ -45,19 +54,45 @@ Meaningful work follows:
 
 The session record MUST retain the actual commands/actions and exact SHA lineage. It MUST NOT claim work that did not occur.
 
+## Mandatory session handoff report
+
+Every completed session MUST create:
+
+`diagnostics/agents/handoffs/<sessionId>.json`
+
+using the canonical handoff report schema in `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`.
+
+The report MUST state, explicitly and separately:
+
+`completedWork` — actually performed and verified.
+
+`failedWork` — attempted but not proven successful.
+
+`remainingWork` — unresolved execution work.
+
+`executionPlanNext` — ordered actions for the next session.
+
+`blockers` — blockers that prevented closure.
+
+`handoffToNextAgent` — explicit operational continuation instructions.
+
+The next agent MUST ingest that report into its new session before executing the inherited plan. It MUST treat inherited work as input state, never as proof of completion.
+
 ## Handoff
 
 Every completed session records:
 
-`sessionId, agentId, entrySha, exitSha, RCA status, changedFiles, commands, evidence, findings, rcaClosed, openRcas, handoff`.
+`sessionId, agentId, entrySha, exitSha, RCA status, changedFiles, commands, evidence, findings, rcaClosed, openRcas, remainingWork, executionPlanNext, blockers, handoff`.
 
-The next agent must be able to continue without guessing what the previous agent changed or verified.
+The next agent must be able to continue without guessing what the previous agent changed, verified, failed to verify, or intentionally left open.
 
 ## Evidence and provenance
 
 Primary evidence MUST be attributable to one exact SHA and one run.
 
 Agents MUST NOT reuse stale evidence, convert diagnostic evidence into primary evidence, mask malformed evidence, or declare PASS from a summary without supporting execution records.
+
+Handoff reports are continuity evidence only. They are not certification evidence.
 
 ## Failure and RCA
 
@@ -72,11 +107,12 @@ Persistent failures receive a Root Cause ID. Closure requires:
 When two agents overlap:
 
 1. Freeze the conflicting scope.
-2. Compare session IDs and base SHAs.
-3. Identify the newest authoritative state.
-4. Retain one active owner.
-5. Record the transfer in handoff.
-6. Re-run affected verification on the resulting exact SHA.
+2. Compare session IDs and base/exit SHAs.
+3. Compare inherited handoff reports.
+4. Identify the newest authoritative repository state.
+5. Retain one active owner.
+6. Record the transfer in handoff.
+7. Re-run affected verification on the resulting exact SHA.
 
 No silent conflict resolution.
 
@@ -86,10 +122,20 @@ Agents may produce evidence and diagnostics, but only the canonical certificatio
 
 ## Logout
 
-A session ends only as `VERIFIED` or `BLOCKED` and records `exitSha`, evidence, findings, RCA closure/open state, and handoff.
+A session ends only as `VERIFIED` or `BLOCKED` and MUST create the handoff report automatically through:
+
+`node scripts/ci/agent-session.mjs logout ...`
+
+`VERIFIED` is forbidden while failed work, remaining work, or open RCAs exist.
+
+`BLOCKED` requires an explicit unresolved item.
 
 ## Enforcement
 
-CI MUST verify that the mandatory entry gate, this protocol, and the session tool exist and retain their required contract markers. Removing or bypassing this collaboration protocol MUST fail the repository contract gate.
+CI MUST verify that the mandatory entry gate, this protocol, the handoff schema, and the session tool exist and retain their required contract markers.
+
+The session tool MUST enforce predecessor handoff continuity whenever a prior handoff exists, and MUST emit a machine-readable handoff report at logout.
+
+Removing, bypassing, or silently ignoring the handoff protocol MUST fail the repository contract gate.
 
 This protocol coordinates agents; it is not an authentication mechanism. Repository evidence remains authoritative.
