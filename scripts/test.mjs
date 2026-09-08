@@ -76,7 +76,7 @@ async function runGate(name){
         const done=await Promise.all(batch.map(c=>exec({...c,gate:name})));
         for(const r of done){
           r.rootCauseId=rootFor(name,r);
-          if(r.status==='FAIL')r.fingerprint=`FPR-${createHash('sha256').update([r.rootCauseId,r.gate,r.label,(r.output??'').replace(/\s+/g,' ').slice(-4000)].join('\n')).digest('hex').slice(0,12).toUpperCase())`;else r.fingerprint=null;
+          if(r.status==='FAIL')r.fingerprint=`FPR-${createHash('sha256').update([r.rootCauseId,r.gate,r.label,(r.output??'').replace(/\s+/g,' ').slice(-4000)].join('\n')).digest('hex').slice(0,12).toUpperCase()}`;else r.fingerprint=null;
           results.push(r); resultById.set(r.id,r); pending.delete(r.id);
         }
       }
