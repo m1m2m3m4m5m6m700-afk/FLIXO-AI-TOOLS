@@ -1,5 +1,6 @@
 import { expect, test } from './fixtures/universal-runtime-evidence';
-import { assertDownload, assertImageResult, uploadFixture } from './helpers/image-tool-fixture';
+
+const hugeSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="9000" height="9000" viewBox="0 0 9000 9000"><rect width="9000" height="9000" fill="#223344"/></svg>';
 
 test('Large pixel dimensions are rejected before expensive canvas work', async ({ page }) => {
   await page.goto('/en/image-compressor');
@@ -11,7 +12,7 @@ test('Large pixel dimensions are rejected before expensive canvas work', async (
 
 test('Arabic image compressor exposes localized SEO and output controls', async ({ page }) => {
   await page.goto('/ar/image-compressor');
-  await expect(page.getByRole('heading', { level: 1, name: 'ضاغط الصور' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'ضغط الصور أونلاين' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.locator('a[lang="en"]').filter({ hasText: 'English' })).toHaveAttribute('href', '/en/image-compressor');
   await expect(page.locator('meta[name="description"][content*="اضغط صور JPG وPNG وWebP أونلاين"]')).toHaveCount(1);
