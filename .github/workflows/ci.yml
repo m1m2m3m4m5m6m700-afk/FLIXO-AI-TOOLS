@@ -270,6 +270,11 @@ jobs:
             }
           }
           JSON
+      - name: Validate execution graph completeness
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXECUTION_EVIDENCE_ROOT: evidence
+        run: node scripts/ci/validate-execution-graph.mjs
       - name: Single certification engine
         env:
           CERTIFICATION_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
