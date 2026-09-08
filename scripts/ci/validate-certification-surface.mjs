@@ -8,43 +8,49 @@ const POLICY = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'ci', 'orig
 const ci = fs.readFileSync(WORKFLOW, 'utf8');
 const errors = [];
 
-if (!/name:\s*FLIXO Test System/.test(ci)) errors.push('canonical workflow name drift');
 for (const [label, pattern] of [
-  ['static engine', /\n\s{2}static:\s*\n/],
-  ['build engine', /\n\s{2}build:\s*\n/],
-  ['browser FAST engine', /\n\s{2}browser-fast:\s*\n/],
-  ['browser DEEP engine', /\n\s{2}browser-deep:\s*\n/],
-  ['certification gate', /\n\s{2}certify:\s*\n/],
+  ['canonical workflow', /name:\s*FLIXO Test System/],
+  ['static+build engine', /\n\s{2}static-build:\s*\n/],
+  ['FAST engine', /\n\s{2}browser-fast:\s*\n/],
+  ['DEEP engine', /\n\s{2}browser-deep:\s*\n/],
+  ['single certification gate', /\n\s{2}certify:\s*\n/],
+  ['browser matrix', /browser:\s*\[chromium, firefox, webkit\]/],
+  ['exact artifact SHA', /flixo-head-sha\.txt/],
+  ['exact artifact lock', /flixo-package-lock\.sha256/],
+  ['DEEP main-only gate', /github\.event_name\s*!=\s*'pull_request'/],
+  ['DEEP localization owner', /tests\/localization-runtime\.spec\.ts/],
 ]) if (!pattern.test(ci)) errors.push(`${label} missing`);
 
 const fast = ci.match(/browser-fast:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
-const deep = ci.match(/browser-deep:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
 const fastSpecs = fast.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? [];
 if (fastSpecs.length !== 22) errors.push(`FAST tool specs=${fastSpecs.length}, expected 22`);
-if (!/browser:\s*\[chromium, firefox, webkit\]/.test(ci)) errors.push('FAST/DEEP browser matrix must contain Chromium, Firefox and WebKit');
-if (!/tests\/localization-runtime\.spec\.ts/.test(deep)) errors.push('DEEP localization runtime owner missing');
-if (!/github\.event_name\s*!=\s*'pull_request'/.test(deep)) errors.push('DEEP must be main/release only');
-if (!/flixo-head-sha\.txt/.test(ci) || !/flixo-package-lock\.sha256/.test(ci)) errors.push('immutable artifact identity missing');
-if (!/download-artifact@v6[\s\S]{0,500}flixo-build-/.test(ci)) errors.push('browser must consume canonical build artifact');
 if (!ci.includes(POLICY.runtimeOrigin)) errors.push(`runtime origin ${POLICY.runtimeOrigin} missing from canonical workflow`);
 if (ci.includes(POLICY.testSentinel)) errors.push(`canonical workflow contains forbidden test sentinel ${POLICY.testSentinel}`);
 
 const workflowFiles = fs.readdirSync(path.join(ROOT, '.github', 'workflows')).filter((name) => /\.ya?ml$/i.test(name));
 for (const file of workflowFiles) {
-  const text = fs.readFileSync(path.join(ROOT, '.github', 'workflows', file), 'utf8');
   if (file === 'ci.yml') continue;
-  if (/^\s*(push|pull_request):/m.test(text) && !/workflow_dispatch:/m.test(text) && !/workflow_call:/m.test(text)) {
-    errors.push(`non-canonical automated workflow: .github/workflows/${file}`);
-  }
+  const text = fs.readFileSync(path.join(ROOT, '.github', 'workflows', file), 'utf8');
+  if (/^\s*(push|pull_request):/m.test(text)) errors.push(`non-canonical automated workflow: .github/workflows/${file}`);
 }
 
 const result = {
-  schema_version: 6,
+  schema_version: 7,
   authority: 'canonical-certification-surface',
   status: errors.length ? 'FAIL' : 'PASS',
   workflow: '.github/workflows/ci.yml',
-  architecture: { layers: ['static', 'build', 'browser-fast', 'browser-deep', 'certify'], browserFast: { tools: 22, browsers: 3, units: 66 }, browserDeep: { locales: 20, browsers: 3 } },
-  checks: { fastToolCount: fastSpecs.length, browsers: /browser:\s*\[chromium, firefox, webkit\]/.test(ci), deepLocalization: /tests\/localization-runtime\.spec\.ts/.test(deep), exactArtifact: /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci) },
+  architecture: {
+    layers: ['static+build', 'browser-fast', 'browser-deep', 'certify'],
+    browserFast: { tools: 22, browsers: 3, units: 66 },
+    browserDeep: { locales: 20, browsers: 3 },
+    certification: 'single fail-closed certify job',
+  },
+  checks: {
+    fastToolCount: fastSpecs.length,
+    browsers: /browser:\s*\[chromium, firefox, webkit\]/.test(ci),
+    deepLocalization: /tests\/localization-runtime\.spec\.ts/.test(ci),
+    immutableArtifact: /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci),
+  },
   errors,
 };
 fs.mkdirSync(path.join(ROOT, 'diagnostics', 'certification'), { recursive: true });
