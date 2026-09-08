@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8'));
 const declared = {
@@ -29,7 +29,7 @@ const diff=run('git',['diff','--exit-code','--','package-lock.json']);const lock
 const npmLs=run('npm',['ls','--all','--json','--omit=optional']);const npmLsBroken=npmLs.status!==0;
 const counts=entries.reduce((acc,entry)=>{acc.total+=1;acc[entry.classification]=(acc[entry.classification]??0)+1;return acc;},{total:0,USED_RUNTIME:0,USED_BUILD:0,USED_TEST:0,TRANSITIVE_ONLY:transitiveOnly.length,UNUSED:0,LEGACY:0});
 const report={generatedAt:new Date().toISOString(),repository:process.env.GITHUB_REPOSITORY??null,sha:process.env.GITHUB_SHA??null,lockfileVersion:lock.lockfileVersion??null,npm:{installPackageLockOnlyExit:install.status,lockfileDrift,npmLsExit:npmLs.status,npmLsBroken},roots:[...sourceRoots,...rootConfigFiles],summary:counts,transitiveOnly,entries};
-const output=process.env.DEPENDENCY_USAGE_JSON;if(output) writeFileSync(output,JSON.stringify(report,null,2)+'\n','utf8');
+const output=process.env.DEPENDENCY_USAGE_JSON;if(output){const outputDirectory=dirname(output);if(outputDirectory&&outputDirectory!=='.') mkdirSync(outputDirectory,{recursive:true});writeFileSync(output,JSON.stringify(report,null,2)+'\n','utf8');}
 console.log('Dependency Zero-Debt Classification');console.log(`SHA: ${report.sha??'UNKNOWN'}`);console.log(`Direct dependencies inspected: ${counts.total}`);console.log(`USED_RUNTIME: ${counts.USED_RUNTIME}`);console.log(`USED_BUILD: ${counts.USED_BUILD}`);console.log(`USED_TEST: ${counts.USED_TEST}`);console.log(`TRANSITIVE_ONLY (lockfile): ${counts.TRANSITIVE_ONLY}`);console.log(`UNUSED: ${counts.UNUSED}`);console.log(`LEGACY: ${counts.LEGACY}`);console.log(`npm install --package-lock-only: ${install.status===0?'PASS':'FAIL'}`);console.log(`package-lock drift: ${lockfileDrift?'FAIL':'PASS'}`);console.log(`npm ls: ${npmLsBroken?'FAIL':'PASS'}`);
 for(const entry of entries){const files=entry.files.map((item)=>`${item.file}:${item.count}${item.reason?`:${item.reason}`:''}`).join(', ');console.log(`${entry.classification.padEnd(13)} ${entry.name} [${entry.declaredIn}] ${files||'NO_USAGE'}`);}
 const blockers=entries.filter((entry)=>entry.classification==='UNUSED'||entry.classification==='LEGACY');if(lockfileDrift||npmLsBroken||blockers.length>0){if(blockers.length) console.error(`Dependency zero-debt blockers: ${blockers.map((entry)=>`${entry.name}=${entry.classification}`).join(', ')}`);process.exit(1);}
