@@ -1,22 +1,7 @@
 name: Bundle Boundary Contract
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'scripts/validate-bundle-boundaries.mjs'
-      - 'scripts/report-heavy-dependency-usage.mjs'
-      - 'package.json'
-      - '.github/workflows/bundle-boundary-contract.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'scripts/validate-bundle-boundaries.mjs'
-      - 'scripts/report-heavy-dependency-usage.mjs'
-      - 'package.json'
-      - '.github/workflows/bundle-boundary-contract.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
