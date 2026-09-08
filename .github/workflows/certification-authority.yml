@@ -1,133 +1,16 @@
-name: Global Certification Authority
+name: Global Certification Authority (retired)
 
+# Certification is now the single `certify` job in .github/workflows/ci.yml.
+# This stub is retained only for manual forensic history and never certifies a release.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
-    inputs:
-      expected_sha:
-        description: Exact commit SHA to certify; defaults to the dispatched commit.
-        required: false
-        type: string
-
-concurrency:
-  group: global-certification-${{ github.ref }}-${{ inputs.expected_sha || github.sha }}
-  cancel-in-progress: false
 
 permissions:
   contents: read
-  actions: read
-  checks: read
-
-env:
-  CERTIFICATION_SHA: ${{ inputs.expected_sha || github.sha }}
-  CERTIFICATION_RUNTIME_ORIGIN: http://127.0.0.1:3000
-  GH_TOKEN: ${{ github.token }}
 
 jobs:
-  certify:
-    name: Final Contract Certification
+  retired:
+    name: Retired — use canonical Certification gate
     runs-on: ubuntu-latest
-    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.expected_sha || github.sha }}
-          fetch-depth: 0
-
-      - name: Locate exact-sha canonical workflow runs
-        shell: bash
-        run: |
-          set -euo pipefail
-          sha="$CERTIFICATION_SHA"
-          find_run() {
-            local workflow="$1"
-            gh run list --workflow "$workflow" --commit "$sha" --limit 20 --json databaseId,createdAt --jq 'sort_by(.createdAt) | if length == 0 then "" else last.databaseId end'
-          }
-          for attempt in $(seq 1 90); do
-            ci_id="$(find_run ci.yml)"
-            matrix_id="$(find_run matrix-first.yml)"
-            full_id="$(find_run full-matrix-parallel.yml)"
-            if [[ -n "$ci_id" && -n "$matrix_id" && -n "$full_id" ]]; then
-              printf 'ci=%s\nmatrix_first=%s\nfull_matrix=%s\n' "$ci_id" "$matrix_id" "$full_id" > certification-run-ids.env
-              cat certification-run-ids.env
-              exit 0
-            fi
-            sleep 20
-          done
-          echo 'Exact-SHA canonical workflow runs were not all created.' >&2
-          exit 1
-
-      - name: Wait for exact-sha workflow completion
-        shell: bash
-        run: |
-          set -euo pipefail
-          source certification-run-ids.env
-          for attempt in $(seq 1 120); do
-            ci_status="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ci_id" --jq '.status')"
-            matrix_status="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$matrix_id" --jq '.status')"
-            full_status="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$full_id" --jq '.status')"
-            echo "attempt=$attempt ci=$ci_status matrix=$matrix_status full=$full_status"
-            if [[ "$ci_status" == completed && "$matrix_status" == completed && "$full_status" == completed ]]; then exit 0; fi
-            sleep 15
-          done
-          echo 'Canonical exact-SHA workflow runs did not reach completed state.' >&2
-          exit 1
-
-      - name: Materialize exact-run job and artifact manifests
-        shell: bash
-        run: |
-          set -euo pipefail
-          source certification-run-ids.env
-          mkdir -p certification-artifacts/ci certification-artifacts/matrix-first certification-artifacts/full-matrix
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ci_id" > certification-artifacts/ci/run.json
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$matrix_id" > certification-artifacts/matrix-first/run.json
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$full_id" > certification-artifacts/full-matrix/run.json
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ci_id/jobs?per_page=100" > certification-artifacts/ci/jobs.json
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$matrix_id/jobs?per_page=100" > certification-artifacts/matrix-first/jobs.json
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$full_id/jobs?per_page=100" > certification-artifacts/full-matrix/jobs.json
-          gh run download "$ci_id" --dir certification-artifacts/ci/evidence
-          gh run download "$matrix_id" --dir certification-artifacts/matrix-first/evidence
-          gh run download "$full_id" --dir certification-artifacts/full-matrix/evidence
-
-      - name: Build Global Evidence Authority manifest
-        shell: bash
-        run: |
-          set -euo pipefail
-          source certification-run-ids.env
-          jq -n \
-            --arg sha "$CERTIFICATION_SHA" \
-            --arg ci "$ci_id" \
-            --arg matrix "$matrix_id" \
-            --arg full "$full_id" \
-            --slurpfile ciRun certification-artifacts/ci/run.json \
-            --slurpfile matrixRun certification-artifacts/matrix-first/run.json \
-            --slurpfile fullRun certification-artifacts/full-matrix/run.json \
-            --slurpfile ciJobs certification-artifacts/ci/jobs.json \
-            --slurpfile matrixJobs certification-artifacts/matrix-first/jobs.json \
-            --slurpfile fullJobs certification-artifacts/full-matrix/jobs.json \
-            '{sha:$sha, workflows:{CI:($ciRun[0] + {run_id:($ci|tonumber),jobs:$ciJobs[0].jobs,artifacts_dir:"certification-artifacts/ci/evidence"}),"Matrix First Gate":($matrixRun[0] + {run_id:($matrix|tonumber),jobs:$matrixJobs[0].jobs,artifacts_dir:"certification-artifacts/matrix-first/evidence"}),"Full Matrix Parallel":($fullRun[0] + {run_id:($full|tonumber),jobs:$fullJobs[0].jobs,artifacts_dir:"certification-artifacts/full-matrix/evidence"})}}' > certification-run-manifest.json
-          test -s certification-run-manifest.json
-
-      - name: Validate complete Global Evidence Ledger
-        env:
-          CERTIFICATION_MANIFEST: certification-run-manifest.json
-        run: node scripts/ci/global-evidence-authority.mjs
-
-      - name: Require exact-sha zero-false-green certification
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s diagnostics/certification/global-evidence.json
-          node -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/certification/global-evidence.json','utf8')); if(r.certificationSha!==process.env.CERTIFICATION_SHA) throw new Error('certification SHA mismatch'); if(r.status!=='PASS') throw new Error(JSON.stringify(r.zeroFalseGreen)); if(r.zeroFalseGreen.independentRootCauses!==0||r.zeroFalseGreen.unknowns!==0||r.zeroFalseGreen.invalidEvidence!==0||r.zeroFalseGreen.shaMismatches!==0||r.zeroFalseGreen.unauthorizedSkips!==0) throw new Error('Zero False Green contract failed'); if(r.requiredMatrix.matrixFirstUnits!==66||r.requiredMatrix.fullMatrixLocales!==20||r.requiredMatrix.fullMatrixBrowsers!==3) throw new Error('Required coverage contract drift');"
-
-      - name: Upload Global Certification Authority evidence
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: global-certification-${{ inputs.expected_sha || github.sha }}
-          path: |
-            certification-run-manifest.json
-            diagnostics/certification/global-evidence.json
-          if-no-files-found: error
-          retention-days: 30
+      - run: echo 'Global Certification Authority is retired. Canonical certification is the certify job in FLIXO Test System.'
