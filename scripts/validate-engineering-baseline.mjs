@@ -7,9 +7,9 @@ const failures = [];
 const readText = (path) => readFile(resolve(root, path), 'utf8');
 const readJson = async (path) => JSON.parse(await readText(path));
 
-const [baseline, toolsSource, routerSource] = await Promise.all([
+const [baseline, toolSource, routerSource] = await Promise.all([
   readJson('config/engineering-baseline.json'),
-  readText('src/config/tools.ts'),
+  readText('src/config/tool-definitions/image.ts'),
   readText('src/router.tsx'),
 ]);
 
@@ -19,8 +19,8 @@ if (baseline.rules?.registryIsSourceOfTruth !== true) failures.push('registryIsS
 if (baseline.rules?.noNonReadyStaticRoutes !== true) failures.push('noNonReadyStaticRoutes must remain enabled');
 if (baseline.rules?.noDuplicateVerificationTruth !== true) failures.push('noDuplicateVerificationTruth must remain enabled');
 
-const toolPattern = /\{\s*id:\s*'([^']+)'[\s\S]*?isReady:\s*(true|false)[\s\S]*?component:\s*lazy\(/g;
-const tools = [...toolsSource.matchAll(toolPattern)].map((match) => ({ id: match[1], isReady: match[2] === 'true' }));
+const toolPattern = /\{\s*id:\s*'([^']+)'[\s\S]*?isReady:\s*(true|false)\b[\s\S]*?component:\s*lazy\(/g;
+const tools = [...toolSource.matchAll(toolPattern)].map((match) => ({ id: match[1], isReady: match[2] === 'true' }));
 if (tools.length === 0) failures.push('could not parse tool registry readiness entries');
 
 const toPascal = (value) => value
