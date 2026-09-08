@@ -21,7 +21,6 @@ function executionGraph(name){
   for(const check of checks){for(const assertion of check.assertions??[]){byAssertion.set(assertion,check.id);}}
   const registryPath=plan.assertionRegistry ? resolve(ROOT,plan.assertionRegistry) : null;
   const registry=registryPath ? JSON.parse(readFileSync(registryPath,'utf8')) : {assertions:{}};
-  const byId=new Map(checks.map(c=>[c.id,c]));
   const deps=new Map();
   const graphErrors=[];
   for(const check of checks){
@@ -35,23 +34,18 @@ function executionGraph(name){
     }
     deps.set(check.id,[...dependencies]);
   }
-  const state=new Map(checks.map(c=>[c.id,'PENDING']));
-  const levels=[];
-  while([...state.values()].some(v=>v==='PENDING')){
-    const ready=checks.filter(c=>state.get(c.id)==='PENDING' && deps.get(c.id).every(d=>state.get(d)==='PASS'));
-    if(!ready.length){
-      const unresolved=checks.filter(c=>state.get(c.id)==='PENDING').map(c=>c.id);
-      graphErrors.push(`DEPENDENCY_CYCLE_OR_BLOCKED_GRAPH: ${unresolved.join(',')}`);
-      for(const id of unresolved)state.set(id,'BLOCKED');
-      break;
-    }
-    levels.push(ready);
-    for(const check of ready)state.set(check.id,'READY');
-    for(const check of ready)state.set(check.id,'PENDING_EXECUTION');
-    for(const check of ready)state.set(check.id,'READY');
-    break;
-  }
-  return {checks,byId,deps,graphErrors};
+  const state=new Map(checks.map(c=>[c.id,0]));
+  const stack=[];
+  const visit=(id)=>{
+    const current=state.get(id);
+    if(current===1){const start=stack.indexOf(id);graphErrors.push(`DEPENDENCY_CYCLE: ${[...stack.slice(start),id].join(' -> ')}`);return;}
+    if(current===2)return;
+    state.set(id,1);stack.push(id);
+    for(const dependency of deps.get(id)??[]){if(state.has(dependency))visit(dependency);}
+    stack.pop();state.set(id,2);
+  };
+  for(const check of checks)visit(check.id);
+  return {checks,deps,graphErrors};
 }
 async function runGate(name){
   const checks=(plan.gates?.[name]?.checks??[]);
@@ -68,13 +62,13 @@ async function runGate(name){
     }
   } else {
     while(pending.size){
-      const ready=[...pending.values()].filter(check=>graph.deps.get(check.id).every(dep=>resultById.get(dep)?.status==='PASS'));
       const blocked=[...pending.values()].filter(check=>graph.deps.get(check.id).some(dep=>['FAIL','BLOCKED'].includes(resultById.get(dep)?.status)));
       for(const check of blocked){
         const blockers=graph.deps.get(check.id).filter(dep=>['FAIL','BLOCKED'].includes(resultById.get(dep)?.status));
         const r={...check,gate:name,status:'BLOCKED',exitCode:null,startedAt:now(),completedAt:now(),blockedBy:blockers,rootCauseId:null,output:`BLOCKED_BY=${blockers.join(',')}`};
-        r.fingerprint=null; results.push(r); resultById.set(check.id,r); pending.delete(check.id);
+        results.push(r); resultById.set(check.id,r); pending.delete(check.id);
       }
+      const ready=[...pending.values()].filter(check=>graph.deps.get(check.id).every(dep=>resultById.get(dep)?.status==='PASS'));
       if(!ready.length){if(pending.size)throw new Error(`Execution graph stalled in ${name}: ${[...pending.keys()].join(',')}`);break;}
       for(let i=0;i<ready.length;i+=max){
         const batch=ready.slice(i,i+max).filter(c=>pending.has(c.id));
