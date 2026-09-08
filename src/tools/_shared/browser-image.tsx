@@ -203,7 +203,7 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
   }
 
   return <main dir={dir} lang={resolvedLocale} className="mx-auto max-w-3xl px-6 py-10">
-    <div className="text-3xl font-bold">{title}</div>
+    <h1 className="text-3xl font-bold">{title}</h1>
     <p className="mt-2 text-sm opacity-70">{copy.description}</p>
     <input className="mt-6 block w-full" type="file" aria-label={copy.choose} accept={accept} multiple={multi} onChange={(event) => setFiles(Array.from(event.target.files ?? []))} />
     {mode === 'watermark-adder' && <input className="mt-4 w-full rounded border p-2" value={text} onChange={(e) => setText(e.target.value)} placeholder={copy.watermark} />}
