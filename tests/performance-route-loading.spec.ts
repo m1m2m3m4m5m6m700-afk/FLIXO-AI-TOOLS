@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 
 const isProductionPreview = process.env.PLAYWRIGHT_SERVER === 'preview';
 
