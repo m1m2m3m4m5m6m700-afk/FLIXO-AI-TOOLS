@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { test as base, expect, type Page } from '@playwright/test';
+import { test as base, expect, type Page, type TestInfo } from '@playwright/test';
 
 type ConsoleLocation = { url?: string; lineNumber?: number; columnNumber?: number };
 type RuntimeEvidence = {
@@ -103,4 +103,4 @@ export const test = base.extend<{ runtimeEvidence: void }>({
   }, { auto: true }],
 });
 
-export { expect, type Page };
+export { expect, type Page, type TestInfo };
