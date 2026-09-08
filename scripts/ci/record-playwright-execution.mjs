@@ -35,9 +35,10 @@ const expectedFastSpecs = [
   'tests/seed.spec.ts','tests/pix.spec.ts',
 ];
 const expectedDeepSpec = 'tests/localization-runtime.spec.ts';
+const fastShardCount = 2;
+const deepShardCount = 3;
 const localeSource = fs.readFileSync('src/lib/i18n/config.ts', 'utf8');
 const localeArray = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '';
-// Keep this parser intentionally simple: only quoted locale literals are valid registry members.
 const localeCodes = [...localeArray.matchAll(/["']([a-z]{2,3})["']/giu)].map((match) => match[1].toLowerCase());
 const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
 const normalize = (value) => String(value ?? '').replaceAll('\\', '/').replace(/^\.\//, '');
@@ -120,8 +121,9 @@ const coverageIds = [...new Set(units.map((unit) => unit.coverageId))];
 const expectedDeepLocales = localeCodes.length;
 const unexpectedDeepLocales = mode === 'DEEP' ? [...localeSet].filter((locale) => !localeCodes.includes(locale)) : [];
 const expectedSemanticUnits = mode === 'FAST' ? expectedFastSpecs.length : null;
+const observedFastSpecsValid = mode === 'FAST' && specSet.size > 0 && [...specSet].every((spec) => expectedFastSpecs.includes(spec));
 const semanticUnitStatus = mode === 'FAST'
-  ? semanticUnitSet.size === expectedSemanticUnits && units.every((unit) => Boolean(unit.semanticUnitId))
+  ? observedFastSpecsValid && semanticUnitSet.size > 0 && units.every((unit) => Boolean(unit.semanticUnitId) && expectedFastSpecs.includes(unit.spec))
   : semanticUnitSet.size > 0 && unexpectedDeepLocales.length === 0 && units.every((unit) => Boolean(unit.semanticUnitId) && Boolean(unit.semanticLocale));
 
 const output = {
@@ -137,7 +139,7 @@ const output = {
   status: units.length > 0 && units.every((unit) => unit.status === 'PASS') && unexpectedSpecs.length === 0 && semanticUnitStatus ? 'PASS' : 'FAIL',
   toolSpecs: mode === 'FAST' ? expectedFastSpecs.length : undefined,
   locales: mode === 'DEEP' ? expectedDeepLocales : undefined,
-  expectedSpecCount: mode === 'FAST' ? 22 : 1,
+  expectedSpecCount: mode === 'FAST' ? expectedFastSpecs.length : 1,
   executedSpecCount: specSet.size,
   unexpectedSpecs,
   executionUnitCount: units.length,
@@ -149,16 +151,19 @@ const output = {
     uniqueCoverageIds: coverageIds,
   },
   semanticCoverage: {
-    model: mode === 'FAST' ? '22 specs × 3 browsers = 66 semantic spec-browser units, partitioned by shard' : `${expectedDeepLocales} locales × 3 browsers = ${expectedDeepLocales * 3} semantic locale-browser units, partitioned by shard`,
+    model: mode === 'FAST' ? '22 specs × 3 browsers = 66 semantic spec-browser units, partitioned by shard' : `${expectedDeepLocales} locales × 3 browsers = ${expectedDeepLocales * 3} semantic locale-browser units, partitioned by shards`,
+    plannedSemanticUnitCount: mode === 'FAST' ? expectedSemanticUnits : expectedDeepLocales,
     semanticUnitCount: semanticUnitSet.size,
     semanticUnitIds: [...semanticUnitSet].sort(),
     localeRegistryCount: expectedDeepLocales,
     observedLocaleCount: localeSet.size,
     observedLocales: [...localeSet].sort(),
     unexpectedLocales: unexpectedDeepLocales,
-    partition: mode === 'DEEP',
+    partition: true,
+    partitionCount: mode === 'FAST' ? fastShardCount : deepShardCount,
+    partitionIndex: shard,
   },
-  complete: unexpectedSpecs.length === 0 && units.length > 0 && statusCounts.NOT_EXECUTED === 0 && semanticUnitStatus,
+  complete: unexpectedSpecs.length === 0 && units.length > 0 && statusCounts.NOT_EXECUTED === 0 && statusCounts.FAIL === 0 && semanticUnitStatus,
   units,
 };
 if (output.mode === 'FAST') delete output.locales;
