@@ -1,38 +1,105 @@
-import { test as base, expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import { test as base, expect, type Page } from '@playwright/test';
 
 type RuntimeEvidence = {
-  schema: 'flixo-runtime-evidence/v1';
-  test: { title: string; file: string; project: string; retry: number; expectedStatus: string; status: string };
+  schema: 'flixo-runtime-evidence/v2';
+  source: { exactSha: string | null; ci: boolean };
+  test: { id: string; title: string; file: string; project: string; retry: number; expectedStatus: string; status: string };
   timing: { startedAt: string; completedAt: string; durationMs: number };
   url: string;
-  consoleErrors: Array<{ type: string; text: string }>;
-  pageErrors: string[];
-  requestFailures: Array<{ url: string; method: string; failure: string | null }>;
-  failedResponses: Array<{ url: string; status: number; method: string }>;
+  navigations: Array<{ url: string; timestamp: string }>;
+  consoleErrors: Array<{ type: string; text: string; location: ReturnType<Parameters<Page['on']>[1]> extends never ? unknown : { url?: string; lineNumber?: number; columnNumber?: number } }>;
+  pageErrors: Array<{ message: string; name?: string; stack?: string }>;
+  requestFailures: Array<{ url: string; method: string; resourceType: string; failure: string | null }>;
+  failedResponses: Array<{ url: string; status: number; statusText: string; method: string; resourceType: string }>;
+  runtimeState: 'clean' | 'degraded' | 'failed';
 };
 
-async function install(page: Page, state: RuntimeEvidence['consoleErrors'], pageErrors: string[], requestFailures: RuntimeEvidence['requestFailures'], failedResponses: RuntimeEvidence['failedResponses']) {
-  page.on('console', msg => { if (msg.type() === 'error') state.push({ type: msg.type(), text: msg.text() }); });
-  page.on('pageerror', error => pageErrors.push(error.message));
-  page.on('requestfailed', request => requestFailures.push({ url: request.url(), method: request.method(), failure: request.failure()?.errorText ?? null }));
-  page.on('response', response => { if (response.status() >= 400) failedResponses.push({ url: response.url(), status: response.status(), method: response.request().method() }); });
+function exactSha(): string | null {
+  try {
+    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    return sha || process.env.GITHUB_SHA || null;
+  } catch {
+    return process.env.GITHUB_SHA || null;
+  }
 }
 
 export const test = base.extend<{ runtimeEvidence: void }>({
-  runtimeEvidence: async ({ page }, use, testInfo) => {
+  runtimeEvidence: [async ({ page }, use, testInfo) => {
     const startedAt = new Date();
     const consoleErrors: RuntimeEvidence['consoleErrors'] = [];
-    const pageErrors: string[] = [];
+    const pageErrors: RuntimeEvidence['pageErrors'] = [];
     const requestFailures: RuntimeEvidence['requestFailures'] = [];
     const failedResponses: RuntimeEvidence['failedResponses'] = [];
-    await install(page, consoleErrors, pageErrors, requestFailures, failedResponses);
-    await use();
-    const completedAt = new Date();
-    const evidence: RuntimeEvidence = { schema:'flixo-runtime-evidence/v1', test:{title:testInfo.title,file:testInfo.file,project:testInfo.project.name,retry:testInfo.retry,expectedStatus:testInfo.expectedStatus,status:testInfo.status}, timing:{startedAt:startedAt.toISOString(),completedAt:completedAt.toISOString(),durationMs:completedAt.getTime()-startedAt.getTime()}, url:page.url(), consoleErrors, pageErrors, requestFailures, failedResponses };
-    await testInfo.attach('runtime-evidence.json',{body:JSON.stringify(evidence,null,2),contentType:'application/json'});
-    process.stdout.write(`RUNTIME_EVIDENCE=${JSON.stringify(evidence)}\n`);
-  },
+    const navigations: RuntimeEvidence['navigations'] = [];
+
+    const onNavigation = (frame: { url: () => string }) => {
+      navigations.push({ url: frame.url(), timestamp: new Date().toISOString() });
+    };
+    const onConsole = (message: { type: () => string; text: () => string; location: () => { url?: string; lineNumber?: number; columnNumber?: number } }) => {
+      if (message.type() === 'error') consoleErrors.push({ type: message.type(), text: message.text(), location: message.location() });
+    };
+    const onPageError = (error: Error) => pageErrors.push({ message: error.message, name: error.name, stack: error.stack });
+    const onRequestFailed = (request: { url: () => string; method: () => string; resourceType: () => string; failure: () => { errorText?: string } | null }) => {
+      requestFailures.push({ url: request.url(), method: request.method(), resourceType: request.resourceType(), failure: request.failure()?.errorText ?? null });
+    };
+    const onResponse = (response: { url: () => string; status: () => number; statusText: () => string; request: () => { method: () => string; resourceType: () => string } }) => {
+      const status = response.status();
+      if (status >= 400) {
+        const request = response.request();
+        failedResponses.push({ url: response.url(), status, statusText: response.statusText(), method: request.method(), resourceType: request.resourceType() });
+      }
+    };
+
+    page.on('framenavigated', onNavigation);
+    page.on('console', onConsole);
+    page.on('pageerror', onPageError);
+    page.on('requestfailed', onRequestFailed);
+    page.on('response', onResponse);
+
+    try {
+      await use();
+    } finally {
+      page.off('framenavigated', onNavigation);
+      page.off('console', onConsole);
+      page.off('pageerror', onPageError);
+      page.off('requestfailed', onRequestFailed);
+      page.off('response', onResponse);
+
+      const completedAt = new Date();
+      const status = testInfo.status;
+      const runtimeState: RuntimeEvidence['runtimeState'] = status !== 'passed'
+        ? 'failed'
+        : consoleErrors.length || pageErrors.length || requestFailures.length || failedResponses.length
+          ? 'degraded'
+          : 'clean';
+
+      const evidence: RuntimeEvidence = {
+        schema: 'flixo-runtime-evidence/v2',
+        source: { exactSha: exactSha(), ci: Boolean(process.env.CI || process.env.GITHUB_ACTIONS) },
+        test: {
+          id: testInfo.testId,
+          title: testInfo.title,
+          file: testInfo.file,
+          project: testInfo.project.name,
+          retry: testInfo.retry,
+          expectedStatus: testInfo.expectedStatus,
+          status,
+        },
+        timing: { startedAt: startedAt.toISOString(), completedAt: completedAt.toISOString(), durationMs: completedAt.getTime() - startedAt.getTime() },
+        url: page.url(),
+        navigations,
+        consoleErrors,
+        pageErrors,
+        requestFailures,
+        failedResponses,
+        runtimeState,
+      };
+
+      await testInfo.attach('runtime-evidence.json', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
+      process.stdout.write(`RUNTIME_EVIDENCE=${JSON.stringify(evidence)}\n`);
+    }
+  }, { auto: true }],
 });
 
-export { expect };
+export { expect, type Page };
