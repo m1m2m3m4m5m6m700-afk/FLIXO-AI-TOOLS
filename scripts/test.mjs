@@ -88,6 +88,15 @@ function signature(check) {
   return [...new Set(String(check.output ?? '').split(/\r?\n/).map(normalize).filter((line) => /error|failed|failure|cannot|not assignable|not found|expected|received|timeout|exception|assert|locale|route|canonical|hreflang|playwright|chromium|firefox|webkit/i.test(line)).filter(Boolean))].sort().slice(0, 40).join(' ').slice(0, 5000);
 }
 
+function runtimeEvidenceFromOutput(output) {
+  const marker = 'RUNTIME_EVIDENCE=';
+  const matches = String(output ?? '').split(/\r?\n/).filter((line) => line.includes(marker));
+  if (matches.length === 0) return null;
+  const raw = matches.at(-1)?.slice(matches.at(-1).indexOf(marker) + marker.length);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
 const fallback = [
   ['RC-DEPENDENCY-001', /cannot find module|npm err|npm ci|lockfile|package-lock|ERESOLVE/i],
   ['RC-TYPE-001', /TS\d+|Type error|not assignable|cannot find name/i],
@@ -99,6 +108,13 @@ const fallback = [
 
 function classify(gateName, check, declared) {
   if (check.status === 'PASS') return null;
+  const evidence = runtimeEvidenceFromOutput(check.output);
+  if (evidence) {
+    const runtimeFailure = evidence.pageErrors?.length > 0 || evidence.consoleErrors?.length > 0;
+    const networkFailure = evidence.requestFailures?.length > 0 || evidence.failedJsRequests?.length > 0 || evidence.failedJsResponses?.length > 0;
+    if (runtimeFailure) return 'RC-RUNTIME-001';
+    if (networkFailure) return 'RC-NETWORK-001';
+  }
   if (declared && rootCauses[declared]) return declared;
   for (const [id, pattern] of fallback) if (pattern.test(check.output)) return id;
   return gateName === 'browser' ? 'RC-BROWSER-001' : 'RC-UNKNOWN-001';
