@@ -39,9 +39,9 @@ function bytesToHex(bytes: Uint8Array): string {
 function signatureMatches(content: Uint8Array, signature: ArtifactSignature): boolean {
   const expected = typeof signature === 'string' ? normalizeSignature(signature) : normalizeSignature(signature.hex);
   const offset = typeof signature === 'string' ? 0 : signature.offset ?? 0;
-  if (!Number.isInteger(offset) || offset < 0) return false;
+  if (!Number.isInteger(offset) || offset < 0 || expected.length === 0 || expected.length % 2 !== 0) return false;
   const actual = bytesToHex(content.slice(offset, offset + expected.length / 2));
-  return actual === expected;
+  return actual.length === expected.length && actual === expected;
 }
 
 function hasSafeFilename(filename?: string): boolean {
