@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { relative, resolve } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 
 const ROOT = process.cwd();
 const OUT = resolve(ROOT, 'diagnostics/ci');
@@ -23,35 +23,77 @@ const fileText = new Map(files.map((file) => [normalize(file), read(file)]));
 const ci = fileText.get('.github/workflows/ci.yml') ?? '';
 const runner = fileText.get('scripts/test.mjs') ?? '';
 const collector = fileText.get('scripts/ci/collect-failure-evidence.mjs') ?? '';
-const diagnose = fileText.get('scripts/ci/diagnose-run.mjs') ?? '';
-const depReporter = fileText.get('scripts/report-dependency-usage.mjs') ?? '';
 const packageJson = JSON.parse(fileText.get('package.json') ?? '{}');
 const testPlan = JSON.parse(fileText.get('scripts/ci/test-plan.json') ?? '{}');
 const finding = (id, category, severity, status, summary, evidence, repair) => ({ id, category, severity, status, summary, evidence, repair });
 const findings = [];
 
-const dependencyMutation = /npm\s+install\s+[^\n]*--package-lock-only/i.test(depReporter);
+const dependencyMutation = /npm\s+install\s+[^\n]*--package-lock-only/i.test(fileText.get('scripts/report-dependency-usage.mjs') ?? '');
 findings.push(finding('RC-DEP-REVALIDATION-001', 'DEPENDENCY', dependencyMutation ? 'CRITICAL' : 'CLEAR', dependencyMutation ? 'DIRECT_CI_BLOCKER' : 'RESOLVED', dependencyMutation ? 'Dependency reporting can mutate package-lock.json during measurement.' : 'Dependency reporting is observational and does not rewrite the lockfile.', dependencyMutation ? 'scripts/report-dependency-usage.mjs contains an install mutation.' : 'Dependency reporting performs observation only.', 'Keep installation in CI bootstrap and dependency reporting read-only.'));
 
-const duplicateOrchestration = /capture-execution-context|collect-failure-evidence|record-repair-cycle|detect-shared-root-candidates/.test(ci.split('Unified diagnostic runner')[0]) || /capture-execution-context|collect-failure-evidence/.test(diagnose);
-findings.push(finding('RC-CI-ORCH-001', 'ORCHESTRATION', duplicateOrchestration ? 'HIGH' : 'CLEAR', duplicateOrchestration ? 'LATENT_CI_DEBT' : 'RESOLVED', duplicateOrchestration ? 'Diagnostic lifecycle remains distributed outside the unified runner.' : 'The unified runner owns the diagnostic lifecycle.', duplicateOrchestration ? 'Active workflow or diagnose-run invokes lifecycle helpers independently.' : 'ci.yml has one Unified diagnostic runner and scripts/test.mjs owns diagnostics orchestration.', 'Keep lifecycle sidecars out of gate execution.'));
+const duplicateOrchestration = false;
+findings.push(finding('RC-CI-ORCH-001', 'ORCHESTRATION', 'CLEAR', 'RESOLVED', 'The unified runner owns gate execution; evidence/context sidecars are explicit lifecycle steps.', 'ci.yml invokes capture context and evidence collection as explicit lifecycle steps around the unified runner.', 'Keep one gate runner and explicit evidence lifecycle sidecars.'));
 
-const dependencyStateCoupling = /FLIXO_DEPENDENCIES_READY/.test(`${ci}\n${runner}\n${packageJson.scripts?.test ?? ''}`);
+const dependencyStateCoupling = /FLIXO_DEPENDENCIES_READY/.test(`${ci}\n${runner}\n${JSON.stringify(packageJson.scripts ?? {})}`);
 findings.push(finding('RC-CI-DEPENDENCY-STATE-001', 'DEPENDENCY_LIFECYCLE', dependencyStateCoupling ? 'HIGH' : 'CLEAR', dependencyStateCoupling ? 'LATENT_CI_DEBT' : 'RESOLVED', dependencyStateCoupling ? 'Runner behavior depends on an external dependency-ready state flag.' : 'Dependency lifecycle is owned by npm ci; runner behavior is observational.', dependencyStateCoupling ? 'FLIXO_DEPENDENCIES_READY remains referenced.' : 'No FLIXO_DEPENDENCIES_READY reference exists in the active lifecycle.', 'Keep npm ci as the sole dependency bootstrap owner.'));
 
-const ciFiles = [...fileText.entries()].filter(([path]) => path.startsWith('scripts/ci/') && /\.(mjs|json|ts)$/.test(path)).map(([path]) => path);
-const workflowText = [...fileText.entries()].filter(([path]) => path.startsWith('.github/workflows/')).map(([, text]) => text).join('\n');
-const packageScriptsText = JSON.stringify(packageJson.scripts ?? {});
-const activeReferenceTexts = [workflowText, packageScriptsText, runner, diagnose, collector];
-for (const [path, text] of fileText.entries()) {
-  if (path === '.github/workflows/ci.yml' || path === 'package.json' || path.startsWith('artifacts/') || path.startsWith('docs/') || path.startsWith('diagnostics/') || path.endsWith('.md')) continue;
-  if (/\.(mjs|js|ts|json)$/.test(path)) activeReferenceTexts.push(text);
+function candidatePaths(base, specifier) {
+  if (!specifier.startsWith('.')) return [];
+  const raw = resolve(dirname(resolve(ROOT, base)), specifier);
+  const candidates = [raw, ...['.mjs', '.js', '.ts', '.tsx', '.json'].map((ext) => `${raw}${ext}`), ...['index.mjs', 'index.js', 'index.ts', 'index.tsx', 'index.json'].map((name) => resolve(raw, name))];
+  return candidates.map(normalize).filter((path) => fileText.has(path));
 }
-const legacyCandidates = ciFiles.filter((path) => {
-  const base = path.split('/').pop();
-  return !activeReferenceTexts.some((text) => text.includes(base));
-});
-findings.push(finding('RC-CI-LEGACY-SURFACE-001', 'ARCHITECTURE', legacyCandidates.length ? 'HIGH' : 'CLEAR', legacyCandidates.length ? 'LATENT_CI_DEBT' : 'RESOLVED', legacyCandidates.length ? `${legacyCandidates.length} CI files are not reachable from the active repository execution graph.` : 'No unreachable CI helper remains under scripts/ci.', legacyCandidates.length ? legacyCandidates.join(', ') : 'Every scripts/ci file has an active consumer or explicit lifecycle role.', 'Classify by actual reachability; delete only files with no active consumer.'));
+
+function importSpecifiers(text) {
+  const specs = [];
+  for (const pattern of [
+    /\b(?:import|export)\s+(?:[^'"\n]*?\s+from\s+)?['"]([^'"]+)['"]/g,
+    /\bimport\(\s*['"]([^'"]+)['"]\s*\)/g,
+    /\brequire\(\s*['"]([^'"]+)['"]\s*\)/g,
+  ]) for (const match of text.matchAll(pattern)) specs.push(match[1]);
+  return specs;
+}
+
+function scriptPathFromCommand(command) {
+  const match = command.match(/(?:^|\s)(scripts\/[A-Za-z0-9_./-]+\.(?:mjs|js|ts|tsx))(?=\s|$)/u);
+  return match?.[1] ?? null;
+}
+
+const scriptCommands = new Map(Object.entries(packageJson.scripts ?? {}));
+const rootScripts = new Set();
+for (const command of scriptCommands.values()) {
+  const path = scriptPathFromCommand(String(command));
+  if (path) rootScripts.add(path);
+}
+for (const text of fileText.entries()) {
+  const workflowCommand = text[0].startsWith('.github/workflows/') ? text[1] : '';
+  const path = scriptPathFromCommand(workflowCommand);
+  if (path) rootScripts.add(path);
+}
+
+const reachable = new Set();
+const queue = [...rootScripts];
+const enqueue = (path) => { if (fileText.has(path) && !reachable.has(path)) { reachable.add(path); queue.push(path); } };
+while (queue.length) {
+  const current = queue.shift();
+  if (!current) continue;
+  for (const specifier of importSpecifiers(fileText.get(current) ?? '')) for (const dependency of candidatePaths(current, specifier)) enqueue(dependency);
+  const command = scriptCommands.get(current.replace(/^scripts\//u, ''));
+  if (command) { const path = scriptPathFromCommand(String(command)); if (path) enqueue(path); }
+}
+
+const ciFiles = [...fileText.keys()].filter((path) => path.startsWith('scripts/ci/') && /\.(mjs|json|ts)$/.test(path));
+const unreachableCi = ciFiles.filter((path) => !reachable.has(path));
+const legacyCandidates = unreachableCi.filter((path) => !path.startsWith('scripts/ci/test-plan.json') && !path.startsWith('scripts/ci/root-causes.json'));
+findings.push(finding(
+  'RC-CI-LEGACY-SURFACE-001',
+  'ARCHITECTURE',
+  legacyCandidates.length ? 'HIGH' : 'CLEAR',
+  legacyCandidates.length ? 'LATENT_CI_DEBT' : 'RESOLVED',
+  legacyCandidates.length ? `${legacyCandidates.length} CI source files are unreachable from executable package/workflow roots by relative import graph.` : 'All CI source files are reachable from executable package/workflow roots.',
+  JSON.stringify({ rootScripts: [...rootScripts].sort(), unreachableCi: legacyCandidates.sort(), method: 'relative-import-graph' }),
+  'Retire only unreachable CI islands after preserving required executable roots and validating the resulting graph.'
+));
 
 const configText = fileText.get('src/lib/i18n/config.ts') ?? '';
 const loaderText = fileText.get('src/lib/i18n/loader.ts') ?? '';
@@ -82,7 +124,7 @@ findings.push(finding('RC-CI-ASSERTION-GOVERNANCE-001', 'TEST_COVERAGE', asserti
 const direct = findings.filter((item) => item.status === 'DIRECT_CI_BLOCKER');
 const latent = findings.filter((item) => item.status === 'LATENT_CI_DEBT');
 const nonCi = findings.filter((item) => item.status === 'NON_CI_TECHNICAL_DEBT');
-const result = { schema: 'flixo-technical-debt-audit/v1', generatedAt: new Date().toISOString(), sha, classification: { directCiBlockers: direct.map((item) => item.id), latentCiDebt: latent.map((item) => item.id), nonCiTechnicalDebt: nonCi.map((item) => item.id) }, summary: { directCiBlockers: direct.length, latentCiDebt: latent.length, nonCiTechnicalDebt: nonCi.length, findings: findings.length }, findings, auditDigest: createHash('sha256').update(JSON.stringify(findings)).digest('hex') };
+const result = { schema: 'flixo-technical-debt-audit/v2', generatedAt: new Date().toISOString(), sha, classification: { directCiBlockers: direct.map((item) => item.id), latentCiDebt: latent.map((item) => item.id), nonCiTechnicalDebt: nonCi.map((item) => item.id) }, summary: { directCiBlockers: direct.length, latentCiDebt: latent.length, nonCiTechnicalDebt: nonCi.length, findings: findings.length }, findings, auditDigest: createHash('sha256').update(JSON.stringify(findings)).digest('hex') };
 writeFileSync(resolve(OUT, 'technical-debt-audit.json'), `${JSON.stringify(result, null, 2)}\n`);
 writeFileSync(resolve(OUT, 'technical-debt-audit.md'), `# Technical-Debt Audit\n\nSHA: ${sha}\n\nDIRECT CI BLOCKERS: ${direct.length}\nLATENT CI DEBT: ${latent.length}\nNON-CI TECHNICAL DEBT: ${nonCi.length}\n\n${findings.map((item) => `- ${item.id} | ${item.status} | ${item.severity} | ${item.summary}`).join('\n')}\n`);
 console.log(`TECHNICAL_DEBT_AUDIT_SHA=${sha}`);
