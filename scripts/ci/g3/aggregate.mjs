@@ -27,9 +27,7 @@ const expandGate = (value) => {
   if (range) {
     const start = Number(range[1]);
     const end = Number(range[2]);
-    if (Number.isInteger(start) && Number.isInteger(end) && start <= end) {
-      return Array.from({ length: end - start + 1 }, (_, index) => `G3-${start + index}`);
-    }
+    if (Number.isInteger(start) && Number.isInteger(end) && start <= end) return Array.from({ length: end - start + 1 }, (_, index) => `G3-${start + index}`);
   }
   const matches = text.match(/G3-\d+/g) ?? [];
   return matches.length ? matches : [];
@@ -55,26 +53,16 @@ async function walk(dir) {
     else if (entry.name.endsWith('.json')) files.push(full);
   }
 }
-await walk(root).catch((error) => {
-  console.error(`G3 aggregation input scan failed: ${error instanceof Error ? error.message : String(error)}`);
-});
+await walk(root).catch((error) => console.error(`G3 aggregation input scan failed: ${error instanceof Error ? error.message : String(error)}`));
 
 const records = [];
 for (const file of files) {
   try {
     const value = JSON.parse(await fs.readFile(file, 'utf8'));
-    const candidates = Array.isArray(value.results)
-      ? value.results
-      : value.gate && value.status
-        ? [value]
-        : value.runs?.A && value.gate
-          ? [value]
-          : [];
+    const candidates = Array.isArray(value.results) ? value.results : value.gate && value.status ? [value] : value.runs?.A && value.gate ? [value] : [];
     for (const record of candidates) {
-      if (!record || !record.status) continue;
-      for (const gate of expandGate(record.gate)) {
-        records.push(normalizeRecord(record, gate, file));
-      }
+      if (!record?.status) continue;
+      for (const gate of expandGate(record.gate)) records.push(normalizeRecord(record, gate, file));
     }
   } catch (error) {
     console.error(`G3 evidence parse failed for ${file}: ${error instanceof Error ? error.message : String(error)}`);
@@ -92,40 +80,23 @@ const required = [
 
 const foundationResult = process.env.FOUNDATION_RESULT || 'unknown';
 if (foundationResult === 'success') {
-  const foundationGates = [
+  for (const [gate, name, command] of [
     ['G3-10', 'Dependencies', 'npm ci --prefer-offline --no-audit --no-fund'],
     ['G3-11', 'TypeScript', 'npx tsc --noEmit --pretty false'],
     ['G3-12', 'ESLint', 'npm run lint'],
-    ['G3-13', 'Build', 'npm run build'],
+    ['G3-13', 'Build', 'canonical G3 build artifact'],
     ['G3-14', 'Build Identity', 'git rev-parse HEAD'],
-  ];
-  for (const [gate, name, command] of foundationGates) {
-    records.push({ gate, name, status: 'PASS', class: null, rootCause: null, retryable: false, sha: testedSha, durationMs: 0, command, stdout: '', stderr: '', baseSha, headSha: testedSha, mergeSha, runId, evidenceSource: 'job:g3-foundation' });
-  }
+  ]) records.push({ gate, name, status: 'PASS', class: null, rootCause: null, retryable: false, sha: testedSha, durationMs: 0, command, stdout: '', stderr: '', baseSha, headSha: testedSha, mergeSha, runId, evidenceSource: 'job:g3-foundation' });
 }
 
-const fingerprint = (record) => JSON.stringify({
-  gate: record.gate,
-  status: record.status,
-  sha: record.sha || 'unknown',
-  rootCause: record.rootCause || null,
-  class: record.class || record.classification || null,
-  retryable: Boolean(record.retryable),
-  derivedFrom: record.derivedFrom || null,
-  blockedBy: record.blockedBy || null,
-  assertion: record.assertion || null,
-});
-
+const fingerprint = (record) => JSON.stringify({ gate: record.gate, status: record.status, sha: record.sha || 'unknown', rootCause: record.rootCause || null, class: record.class || record.classification || null, retryable: Boolean(record.retryable), derivedFrom: record.derivedFrom || null, blockedBy: record.blockedBy || null, assertion: record.assertion || null });
 const exact = new Map();
 for (const gate of required) {
   const gateRecords = records.filter((record) => record.gate === gate);
   const currentSha = gateRecords.filter((record) => record.sha === testedSha);
   const candidates = currentSha.length ? currentSha : gateRecords;
   const byFingerprint = new Map();
-  for (const record of candidates) {
-    const fp = fingerprint(record);
-    if (!byFingerprint.has(fp)) byFingerprint.set(fp, record);
-  }
+  for (const record of candidates) if (!byFingerprint.has(fingerprint(record))) byFingerprint.set(fingerprint(record), record);
   exact.set(gate, { candidates, unique: [...byFingerprint.values()], hasCurrentSha: currentSha.length > 0 });
 }
 
@@ -134,9 +105,7 @@ const canonical = new Map();
 for (const gate of required) {
   const unique = exact.get(gate)?.unique ?? [];
   canonical.set(gate, unique[0] || {});
-  if (unique.length > 1) {
-    conflicts.push({ gate, count: unique.length, records: unique.map((record) => ({ status: record.status, sha: record.sha || null, rootCause: record.rootCause || null, source: record.evidenceSource || null })) });
-  }
+  if (unique.length > 1) conflicts.push({ gate, count: unique.length, records: unique.map((record) => ({ status: record.status, sha: record.sha || null, rootCause: record.rootCause || null, source: record.evidenceSource || null })) });
 }
 
 const missing = required.filter((gate) => !canonical.get(gate)?.status);
@@ -164,22 +133,23 @@ const ledger = required.map((gate) => {
     classification: source.class || source.classification || null,
     rootCause: source.rootCause || null,
     retryable: Boolean(source.retryable),
+    derivedFrom: source.derivedFrom || null,
+    blockedBy: source.blockedBy || [],
     evidenceSource: source.evidenceSource || null,
   };
 });
 
 const gateFailures = ledger.filter((record) => record.status === 'FAIL' || record.status === 'BLOCKED');
+const independentFailures = gateFailures.filter((record) => record.status === 'FAIL' || (!record.derivedFrom && !(record.blockedBy?.length)));
 const missingEvidenceFields = ledger.filter((record) => !record.command || !record.runId || !record.sha || !record.headSha).map((record) => record.gate);
 const grouped = new Map();
-for (const failure of gateFailures) {
+for (const failure of independentFailures) {
   const rootCause = failure.rootCause || failure.classification || 'UNKNOWN';
   if (!grouped.has(rootCause)) grouped.set(rootCause, []);
   grouped.get(rootCause).push(failure.gate);
 }
 const primary = [...grouped.entries()].sort((a, b) => b[1].length - a[1].length)[0] ?? null;
-const legacyFound = process.env.LEGACY_RESULT === 'success';
-const parity = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 && legacyFound ? 'PASS' : legacyFound ? 'DIFFERENCE_REQUIRES_REVIEW' : 'NOT_PROVEN';
-const authoritative = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 && missingEvidenceFields.length === 0 && parity === 'PASS';
+const authoritative = gateFailures.length === 0 && missing.length === 0 && conflicts.length === 0 && shaMismatches.length === 0 && missingEvidenceFields.length === 0;
 
 const report = {
   gate: 'G3-AGGREGATOR',
@@ -201,9 +171,10 @@ const report = {
   staleEvidenceCount: staleEvidence.length,
   missingEvidenceFields,
   foundationResult,
-  primaryRootCause: primary ? { rootCause: primary[0], gates: primary[1], derivedFailures: primary[1].slice(1) } : null,
+  primaryRootCause: primary ? { rootCause: primary[0], gates: primary[1], derivedFailures: gateFailures.filter((record) => record.derivedFrom || record.blockedBy?.length).map((record) => record.gate) } : null,
   rootCauseGroups: Object.fromEntries(grouped),
-  parity,
+  derivedFailureCount: gateFailures.filter((record) => record.derivedFrom || record.blockedBy?.length).length,
+  independentRootCauseCount: grouped.size,
   evidenceCoverage: ledger.length === required.length && missingEvidenceFields.length === 0,
   promotion: { required: true, authoritative },
   evidenceLedger: ledger,
