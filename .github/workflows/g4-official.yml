@@ -1,0 +1,91 @@
+name: FLIXO G4 Official
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: flixo-g4-official-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: http://127.0.0.1:3000
+  PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+
+jobs:
+  official-g4:
+    name: G4 Official — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npm run build
+      - name: Verify exact SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Install browser
+        run: |
+          npx playwright install-deps '${{ matrix.browser }}'
+          npx playwright install '${{ matrix.browser }}'
+      - name: Run official G4 localization suite
+        env:
+          BROWSER: ${{ matrix.browser }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          npx playwright test tests/official/g4-localization-runtime.spec.ts --project="$BROWSER" --workers=6 --retries=0 --max-failures=0 --shard="$SHARD/3"
+      - name: Write official evidence
+        if: always()
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BROWSER: ${{ matrix.browser }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          mkdir -p diagnostics/g4-official
+          cat > "diagnostics/g4-official/${BROWSER}-${SHARD}.json" <<JSON
+          {
+            "evidenceClass": "PRIMARY_EXECUTION",
+            "contract": "G4-OFFICIAL-001",
+            "suite": "tests/official/g4-localization-runtime.spec.ts",
+            "browser": "$BROWSER",
+            "shard": $SHARD,
+            "sha": "$EXPECTED_SHA",
+            "run_id": "${GITHUB_RUN_ID}",
+            "status": "$([ -f playwright-report/results.json ] && echo PRESENT || echo MISSING)"
+          }
+          JSON
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: flixo-g4-official-${{ matrix.browser }}-${{ matrix.shard }}-${{ github.run_id }}
+          path: |
+            diagnostics/g4-official/
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 30
