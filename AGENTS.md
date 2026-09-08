@@ -1,21 +1,58 @@
-# Agent Contract
+# 🚨 AGENT ENTRY GATE — FLIXO-AI-TOOLS
 
-The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
+This file is the mandatory entry point for every autonomous coding, debugging, CI, audit, or recovery agent operating in this repository.
 
-## Minimal execution model
+## READ-BEFORE-ACTION
 
-- `verify` is the single non-browser engine. It installs dependencies once, executes the canonical static contracts, performs the canonical production build, and publishes one immutable artifact identified by exact commit SHA and package-lock digest.
-- `browser_fast` is the only fast browser engine: 22 canonical tools × Chromium/Firefox/WebKit = 66 execution units.
-- `browser_deep` is the same browser engine in deep mode: canonical public-route localization/runtime coverage across 20 locales and Chromium/Firefox/WebKit. It runs on main/release paths, not the PR fast path.
-- `certify` is the only automatic certification authority. It is fail-closed and consumes evidence from the same workflow run.
+Before any repository action, every agent MUST read:
 
-## Safety invariants
+1. `AGENTS.md` (this file)
+2. `docs/AGENT-COLLABORATION-PROTOCOL.md`
+3. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+4. `scripts/ci/test-plan.json`
+5. `scripts/ci/assertion-registry.json`
+6. the current exact `main` SHA and current workflow state
 
-- Do not delete coverage to obtain Green. Consolidate duplicate execution only.
-- Preserve G2, G3, G4, Exact SHA, immutable artifact identity, negative readiness, localization, accessibility, console/network, artifact integrity and determinism coverage.
-- Fast Verify and Ultra may select/classify work, but must not create a second browser execution owner.
-- One assertion has exactly one canonical execution owner.
-- One automatic workflow must own routine certification. Retired/shadow workflows are not certification authorities.
-- `https://canonical.test` is a restricted unit/contract sentinel and is forbidden from certification provenance.
-- GREEN is valid only when every required engine passes, evidence is valid and complete, Exact SHA matches, and independent root causes are zero. Skips, masked failures, stale evidence and partial passes are not Green.
-- Never claim a green release without fresh exact-SHA CI evidence.
+Reading these contracts is part of execution. It is not optional documentation.
+
+## AGENT LOGIN
+
+Before changing repository state, the agent MUST create a session record under:
+
+`diagnostics/agents/sessions/<session-id>.json`
+
+The record MUST contain:
+
+`schemaVersion, sessionId, agentId, role, entrySha, baseSha, startedAt, scope, readFiles, currentRca, status`.
+
+No session record means unauthorized execution.
+
+## OWNERSHIP
+
+Each active session MUST declare its RCA and file/contract scope. One active owner per RCA and one active owner per mutable file scope, unless a recorded handoff transfers ownership.
+
+If `main` moves, the agent MUST refresh its exact-SHA state before continuing.
+
+## EXECUTION LEDGER
+
+Meaningful actions follow:
+
+`READ → PLAN → LOCK → CHANGE → VERIFY → HANDOFF`
+
+A completed session MUST record:
+
+`exitSha, changedFiles, commands, evidence, findings, rcaClosed, openRcas, handoff`.
+
+The ledger MUST never claim work that did not occur.
+
+## ZERO-FALSE-GREEN
+
+Agents MUST NOT weaken assertions, disable tests, add silent skips, relabel failures without evidence, reuse stale evidence, or declare GREEN from a partial run.
+
+`FAIL`, `CANCELLED`, `BLOCKED`, `NOT_EXECUTED`, `MISSING_EVIDENCE`, and `MALFORMED_EVIDENCE` are recovery states, not success states.
+
+## HANDOFF
+
+Every completed session MUST leave an auditable handoff so another agent can identify the exact SHA, scope, changes, evidence, findings, and remaining work without guessing.
+
+**MANDATORY ENTRY TITLE: READ FIRST → LOGIN → LOCK SCOPE → EXECUTE → VERIFY → HANDOFF.**
