@@ -33,9 +33,13 @@ Canonical login:
 
 `node scripts/ci/agent-session.mjs login --session=<id> --agent=<id> --role=<role> --rca=<RCA-ID> --scope=<scope>`
 
-When a predecessor handoff exists, the agent MUST continue it:
+When a predecessor handoff exists, the agent MUST continue it. The canonical continuation login flag is exactly:
 
-`node scripts/ci/agent-session.mjs login --session=<new-id> --agent=<id> --role=<role> --from-session=<previous-id> ...`
+`--from-session=<previous-session>`
+
+Canonical continuation login:
+
+`node scripts/ci/agent-session.mjs login --session=<new-id> --agent=<id> --role=<role> --from-session=<previous-session> ...`
 
 The first chain may use explicit `--bootstrap=true` only when no predecessor exists.
 
