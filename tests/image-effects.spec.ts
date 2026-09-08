@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 import { assertDownload, assertImageResult, uploadFixture } from './helpers/image-tool-fixture';
 
 test('image-effects: applies effects and keeps a valid image result', async ({ page }) => {
