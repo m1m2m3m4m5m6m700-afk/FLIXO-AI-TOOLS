@@ -35,13 +35,15 @@ const expectedFastSpecs = [
   'tests/seed.spec.ts','tests/pix.spec.ts',
 ];
 const expectedDeepSpec = 'tests/localization-runtime.spec.ts';
-const fastShardCount = 2;
-const deepShardCount = 3;
 const localeSource = fs.readFileSync('src/lib/i18n/config.ts', 'utf8');
 const localeArray = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '';
 const localeCodes = [...localeArray.matchAll(/["']([a-z]{2,3})["']/giu)].map((match) => match[1].toLowerCase());
 const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-const normalize = (value) => String(value ?? '').replaceAll('\\', '/').replace(/^\.\//, '');
+const normalize = (value) => {
+  const normalized = String(value ?? '').replaceAll('\\', '/').replace(/^\.\//, '');
+  const marker = normalized.lastIndexOf('/tests/');
+  return marker >= 0 ? normalized.slice(marker + 1) : normalized.startsWith('tests/') ? normalized : `tests/${normalized}`;
+};
 const reportBytes = fs.readFileSync(reportPath);
 const report = JSON.parse(reportBytes);
 if (!report || typeof report !== 'object' || !Array.isArray(report.suites)) throw new Error('Invalid Playwright JSON report');
@@ -56,53 +58,54 @@ for (const [assertionId, entry] of Object.entries(registry.assertions ?? {})) {
 }
 
 const units = [];
-const walkSuite = (suite, file = null, titlePath = []) => {
-  const suiteFile = typeof suite.file === 'string' ? normalize(suite.file) : file;
+const walkSuite = (suite, inheritedFile = null, titlePath = []) => {
+  const suiteFile = typeof suite.file === 'string' ? suite.file : inheritedFile;
   const nextTitlePath = [...titlePath, ...(typeof suite.title === 'string' && suite.title ? [suite.title] : [])];
   for (const spec of suite.specs ?? []) {
-    const specFile = typeof spec.file === 'string' ? normalize(spec.file) : suiteFile;
-    for (const test of spec.tests ?? []) {
-      const results = Array.isArray(test.results) ? test.results : [];
-      const status = test.outcome === 'skipped'
-        ? 'NOT_EXECUTED'
-        : results.some((result) => result.status === 'failed' || result.status === 'timedOut')
-          ? 'FAIL'
-          : results.length > 0 && results.every((result) => result.status === 'passed')
-            ? 'PASS'
-            : 'NOT_EXECUTED';
-      const specName = specFile ?? '<unknown>';
-      const testName = test.title ?? null;
-      const key = `${specName}\u0000${testName ?? ''}`;
-      const canonicalAssertionId = implementationIndex.get(key) ?? null;
-      const normalizedTitlePath = [...nextTitlePath, testName].filter(Boolean);
-      const pathFromTitle = mode === 'DEEP' ? String(testName ?? '').match(/—\s+(\/[^\s]+)$/u)?.[1] ?? null : null;
-      const locale = pathFromTitle?.match(/^\/([a-z]{2,3})(?:\/|$)/iu)?.[1]?.toLowerCase() ?? null;
-      const semanticUnitId = mode === 'FAST'
-        ? `FAST:${browser}:${specName}`
-        : locale
-          ? `DEEP:${browser}:${locale}`
-          : null;
-      units.push({
-        executionUnitId: `${mode}:${browser}:${shard}:${specName}:${testName ?? '<untitled>'}`,
-        semanticUnitId,
-        assertionId: canonicalAssertionId,
-        attribution: canonicalAssertionId ? 'CANONICAL_IMPLEMENTATION_MATCH' : 'SURFACE_COVERAGE_ONLY',
-        coverageId: `${mode}:${specName}`,
-        mode,
-        browser,
-        locale,
-        shard,
-        spec: specFile,
-        test: testName,
-        titlePath: normalizedTitlePath,
-        semanticLocale: locale,
-        attempt: results.length,
-        attempts: results.map((result, index) => ({ attempt: index + 1, status: result.status, durationMs: result.duration ?? 0, errorCount: Array.isArray(result.errors) ? result.errors.length : 0 })),
-        status,
-        runId,
-        exactSha,
-      });
-    }
+    const specFile = normalize(typeof spec.file === 'string' ? spec.file : suiteFile);
+    const testName = typeof spec.title === 'string' && spec.title.trim() ? spec.title.trim() : null;
+    const results = (spec.tests ?? []).flatMap((test) => Array.isArray(test.results) ? test.results : []);
+    const status = results.some((result) => result.status === 'failed' || result.status === 'timedOut')
+      ? 'FAIL'
+      : results.length > 0 && results.every((result) => result.status === 'passed')
+        ? 'PASS'
+        : 'NOT_EXECUTED';
+    const key = `${specFile}\u0000${testName ?? ''}`;
+    const canonicalAssertionId = implementationIndex.get(key) ?? null;
+    const semanticLocale = mode === 'DEEP'
+      ? testName?.match(/(?:^|\s)\/([a-z]{2,3})(?:\/|$)/iu)?.[1]?.toLowerCase() ?? null
+      : null;
+    const semanticUnitId = mode === 'FAST'
+      ? `FAST:${browser}:${specFile}`
+      : semanticLocale
+        ? `DEEP:${browser}:${semanticLocale}`
+        : null;
+    const attempts = results.map((result, index) => ({
+      attempt: index + 1,
+      status: result.status,
+      durationMs: result.duration ?? 0,
+      errorCount: Array.isArray(result.errors) ? result.errors.length : 0,
+    }));
+    units.push({
+      executionUnitId: `${mode}:${browser}:${shard}:${specFile}:${testName ?? '<untitled>'}`,
+      semanticUnitId,
+      assertionId: canonicalAssertionId,
+      attribution: canonicalAssertionId ? 'CANONICAL_IMPLEMENTATION_MATCH' : 'SURFACE_COVERAGE_ONLY',
+      coverageId: `${mode}:${specFile}`,
+      mode,
+      browser,
+      locale: semanticLocale,
+      shard,
+      spec: specFile,
+      test: testName,
+      titlePath: [...nextTitlePath, ...(testName ? [testName] : [])],
+      semanticLocale,
+      attempt: results.length,
+      attempts,
+      status,
+      runId,
+      exactSha,
+    });
   }
   for (const child of suite.suites ?? []) walkSuite(child, suiteFile, nextTitlePath);
 };
@@ -113,18 +116,20 @@ const localeSet = new Set(units.map((unit) => unit.semanticLocale).filter(Boolea
 const semanticUnitSet = new Set(units.map((unit) => unit.semanticUnitId).filter(Boolean));
 const expectedSpecs = mode === 'FAST' ? expectedFastSpecs : [expectedDeepSpec];
 const unexpectedSpecs = [...specSet].filter((spec) => !expectedSpecs.includes(spec));
-const statusNames = ['PASS', 'FAIL', 'CANCELLED', 'BLOCKED', 'NOT_EXECUTED', 'MISSING_EVIDENCE', 'MALFORMED_EVIDENCE'];
+const statusNames = ['PASS','FAIL','CANCELLED','BLOCKED','NOT_EXECUTED','MISSING_EVIDENCE','MALFORMED_EVIDENCE'];
 const statusCounts = Object.fromEntries(statusNames.map((state) => [state, 0]));
 for (const unit of units) statusCounts[unit.status] = (statusCounts[unit.status] ?? 0) + 1;
 const canonicalAssertionIds = [...new Set(units.map((unit) => unit.assertionId).filter(Boolean))];
 const coverageIds = [...new Set(units.map((unit) => unit.coverageId))];
-const expectedDeepLocales = localeCodes.length;
-const unexpectedDeepLocales = mode === 'DEEP' ? [...localeSet].filter((locale) => !localeCodes.includes(locale)) : [];
-const expectedSemanticUnits = mode === 'FAST' ? expectedFastSpecs.length : null;
-const observedFastSpecsValid = mode === 'FAST' && specSet.size > 0 && [...specSet].every((spec) => expectedFastSpecs.includes(spec));
-const semanticUnitStatus = mode === 'FAST'
-  ? observedFastSpecsValid && semanticUnitSet.size > 0 && units.every((unit) => Boolean(unit.semanticUnitId) && expectedFastSpecs.includes(unit.spec))
-  : semanticUnitSet.size > 0 && unexpectedDeepLocales.length === 0 && units.every((unit) => Boolean(unit.semanticUnitId) && Boolean(unit.semanticLocale));
+
+let semanticUnitStatus = false;
+if (mode === 'FAST') {
+  semanticUnitStatus = semanticUnitSet.size > 0 && units.every((unit) => Boolean(unit.semanticUnitId) && expectedFastSpecs.includes(unit.spec));
+} else {
+  semanticUnitStatus = semanticUnitSet.size > 0
+    && unexpectedSpecs.length === 0
+    && units.every((unit) => Boolean(unit.semanticUnitId) && Boolean(unit.semanticLocale) && localeCodes.includes(unit.semanticLocale));
+}
 
 const output = {
   schema_version: 4,
@@ -137,9 +142,8 @@ const output = {
   reportPath,
   sourceReportSha256: createHash('sha256').update(reportBytes).digest('hex'),
   status: units.length > 0 && units.every((unit) => unit.status === 'PASS') && unexpectedSpecs.length === 0 && semanticUnitStatus ? 'PASS' : 'FAIL',
-  toolSpecs: mode === 'FAST' ? expectedFastSpecs.length : undefined,
-  locales: mode === 'DEEP' ? expectedDeepLocales : undefined,
-  expectedSpecCount: mode === 'FAST' ? expectedFastSpecs.length : 1,
+  ...(mode === 'FAST' ? { toolSpecs: expectedFastSpecs.length } : { locales: localeCodes.length }),
+  expectedSpecCount: expectedSpecs.length,
   executedSpecCount: specSet.size,
   unexpectedSpecs,
   executionUnitCount: units.length,
@@ -151,23 +155,22 @@ const output = {
     uniqueCoverageIds: coverageIds,
   },
   semanticCoverage: {
-    model: mode === 'FAST' ? '22 specs × 3 browsers = 66 semantic spec-browser units, partitioned by shard' : `${expectedDeepLocales} locales × 3 browsers = ${expectedDeepLocales * 3} semantic locale-browser units, partitioned by shards`,
-    plannedSemanticUnitCount: mode === 'FAST' ? expectedSemanticUnits : expectedDeepLocales,
+    model: mode === 'FAST' ? '22 specs × 3 browsers = 66 semantic spec-browser units, partitioned by shard' : `${localeCodes.length} locales × 3 browsers = ${localeCodes.length * 3} semantic locale-browser units, partitioned by shard`,
+    plannedSemanticUnitCount: mode === 'FAST' ? expectedFastSpecs.length : localeCodes.length,
     semanticUnitCount: semanticUnitSet.size,
     semanticUnitIds: [...semanticUnitSet].sort(),
-    localeRegistryCount: expectedDeepLocales,
+    localeRegistryCount: localeCodes.length,
     observedLocaleCount: localeSet.size,
     observedLocales: [...localeSet].sort(),
-    unexpectedLocales: unexpectedDeepLocales,
+    unexpectedLocales: [...localeSet].filter((locale) => !localeCodes.includes(locale)),
     partition: true,
-    partitionCount: mode === 'FAST' ? fastShardCount : deepShardCount,
+    partitionCount: mode === 'FAST' ? 2 : 3,
     partitionIndex: shard,
   },
-  complete: unexpectedSpecs.length === 0 && units.length > 0 && statusCounts.NOT_EXECUTED === 0 && statusCounts.FAIL === 0 && semanticUnitStatus,
+  complete: unexpectedSpecs.length === 0 && units.length > 0 && statusCounts.NOT_EXECUTED === 0 && semanticUnitStatus,
   units,
 };
-if (output.mode === 'FAST') delete output.locales;
-if (output.mode === 'DEEP') delete output.toolSpecs;
+
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
 console.log(JSON.stringify(output, null, 2));
