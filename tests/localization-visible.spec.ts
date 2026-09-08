@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/universal-runtime-evidence';
 
 const locales = ['en', 'ar', 'es', 'fr', 'de', 'ru', 'zh', 'hi', 'id', 'ur', 'ja', 'pt', 'it', 'ko', 'nl', 'pl', 'tr', 'vi', 'th', 'sv'] as const;
 const tools = ['background-remover', 'image-compressor', 'image-converter', 'image-cropper', 'exif-cleaner', 'background-blur'] as const;
