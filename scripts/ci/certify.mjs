@@ -188,15 +188,22 @@ if (process.env.GITHUB_EVENT_NAME !== 'pull_request') {
   for (const locale of deepLocaleUnion) if (!expectedLocales.includes(locale)) failures.push(`DEEP unexpected semantic locale ${locale}`);
 }
 
-const graphCandidates = readEvidence(/^execution-graph\.json$/);
-if (graphCandidates.length !== 1) failures.push(`execution graph evidence count=${graphCandidates.length}; expected=1`);
-else {
-  const graph = graphCandidates[0];
-  if (graph.status !== 'PASS') failures.push(`execution graph status=${graph.status}`);
-  if (graph.exactSha !== expectedSha) shaMismatches.push(`execution-graph.exactSha=${graph.exactSha}`);
-  if (graph.runId !== process.env.GITHUB_RUN_ID) shaMismatches.push(`execution-graph.runId=${graph.runId}`);
-  if (graph.fast?.observedSpecBrowserUnits !== 66) failures.push(`execution graph FAST observed=${graph.fast?.observedSpecBrowserUnits}`);
-  if (process.env.GITHUB_EVENT_NAME !== 'pull_request' && graph.deep?.semanticLocaleCount !== expectedLocales.length) failures.push(`execution graph DEEP locale count=${graph.deep?.semanticLocaleCount}; expected=${expectedLocales.length}`);
+const executionGraphPath = path.join(root, 'diagnostics', 'certification', 'execution-graph.json');
+if (!fs.existsSync(executionGraphPath)) {
+  addState('execution-graph', 'MISSING_EVIDENCE', 'validator output was not generated in certification workspace');
+  failures.push('execution graph evidence missing');
+} else {
+  try {
+    const graph = JSON.parse(fs.readFileSync(executionGraphPath, 'utf8'));
+    if (graph.status !== 'PASS') failures.push(`execution graph status=${graph.status}`);
+    if (graph.exactSha !== expectedSha) shaMismatches.push(`execution-graph.exactSha=${graph.exactSha}`);
+    if (graph.runId !== process.env.GITHUB_RUN_ID) shaMismatches.push(`execution-graph.runId=${graph.runId}`);
+    if (graph.fast?.observedSpecBrowserUnits !== 66) failures.push(`execution graph FAST observed=${graph.fast?.observedSpecBrowserUnits}`);
+    if (process.env.GITHUB_EVENT_NAME !== 'pull_request' && graph.deep?.semanticLocaleCount !== expectedLocales.length) failures.push(`execution graph DEEP locale count=${graph.deep?.semanticLocaleCount}; expected=${expectedLocales.length}`);
+  } catch (error) {
+    addState('execution-graph', 'MALFORMED_EVIDENCE', error.message);
+    invalidEvidence.push(`execution-graph.json: ${error.message}`);
+  }
 }
 
 const staticEvidence = [...parsedJson.entries()].find(([file, value]) => value && path.basename(file) === 'static.json')?.[1] ?? null;
