@@ -6,8 +6,10 @@ import { promisify } from 'node:util';
 const exec = promisify(execFile);
 const PLAN_PATH = 'scripts/ci/test-plan.json';
 const REGISTRY_PATH = 'scripts/ci/assertion-registry.json';
+const GRAPH_PATH = 'scripts/ci/impact-dependency-graph.json';
 const plan = JSON.parse(readFileSync(PLAN_PATH, 'utf8'));
 const registry = JSON.parse(readFileSync(REGISTRY_PATH, 'utf8'));
+const graph = JSON.parse(readFileSync(GRAPH_PATH, 'utf8'));
 const base = process.env.CHANGE_BASE ?? 'origin/main';
 const sha = process.env.EXPECTED_HEAD_SHA ?? execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 
@@ -23,52 +25,98 @@ try {
   throw new Error(`Cannot resolve change base ${base}; refusing to guess impact. ${String(error?.message ?? error)}`);
 }
 
-const flags = {
-  workflow: files.some((file) => file.startsWith('.github/workflows/')),
-  dependency: files.some((file) => /^(package\.json|package-lock\.json|npm-shrinkwrap\.json|\.nvmrc|vite\.config\.|playwright\.config\.|tsconfig(?:\.|$))/.test(file)),
-  registry: files.some((file) => /^(src\/config\/tools|src\/config\/tool-definitions|src\/config\/tool-manifest|scripts\/validate-tool-(registry|manifest)|scripts\/ci\/validate-architecture)/.test(file)),
-  routing: files.some((file) => /^(src\/lib\/routing|src\/routes\/|scripts\/validate-router-registry)/.test(file)),
-  localization: files.some((file) => /^(src\/.*(?:i18n|locale|localization)|tests\/localization|scripts\/validate-(locale|language|localization)|scripts\/test-(i18n|tool-localization))/.test(file)),
-  seo: files.some((file) => /^(src\/.*seo|scripts\/(validate|generate)-(seo|robots|sitemap)|public\/(robots|sitemap))/.test(file)),
-  security: files.some((file) => /^(src\/.*(?:security|upload|file-safety)|scripts\/.*(?:security|file-safety)|\.gitleaks\.toml)/.test(file)) || files.includes('package-lock.json'),
-  artifact: files.some((file) => /^(src\/lib\/contracts|scripts\/.*(?:artifact|output-integrity)|tests\/.*(?:artifact|output-integrity|svg-integrity))/.test(file)),
-};
+function matchesPath(file, candidate) {
+  if (candidate.endsWith('/')) return file.startsWith(candidate);
+  if (candidate.endsWith('.')) return file.startsWith(candidate);
+  return file === candidate;
+}
+
+const matchedSources = [];
+const selectedAssertionSet = new Set();
+let requiresBuild = false;
+for (const source of graph.sources ?? []) {
+  const matched = files.some((file) => (source.paths ?? []).some((candidate) => matchesPath(file, candidate)));
+  if (!matched) continue;
+  matchedSources.push(source.id);
+  requiresBuild ||= Boolean(source.requiresBuild);
+  for (const assertionId of source.assertions ?? []) selectedAssertionSet.add(assertionId);
+}
+
+const allStaticChecks = plan.gates?.static?.checks ?? [];
+const allBuildChecks = plan.gates?.build?.checks ?? [];
+const allStaticBuildAssertionIds = [
+  ...allStaticChecks.flatMap((check) => check.assertions ?? []),
+  ...allBuildChecks.flatMap((check) => check.assertions ?? []),
+];
+
+const unmappedFiles = files.filter((file) => !matchedSources.some((sourceId) => {
+  const source = (graph.sources ?? []).find((entry) => entry.id === sourceId);
+  return source?.paths?.some((candidate) => matchesPath(file, candidate));
+}));
 
 const docsOnly = files.length > 0 && files.every((file) => /^(docs\/|README|CHANGELOG|LICENSE|\.github\/ISSUE_TEMPLATE\/)/i.test(file));
-const impactChecks = new Set(['STATIC-011']);
-const addIds = (...ids) => ids.forEach((id) => impactChecks.add(id));
-
-if (flags.dependency) addIds('STATIC-001','STATIC-002','STATIC-013','STATIC-025');
-if (flags.registry) addIds('STATIC-005','STATIC-006','STATIC-007');
-if (flags.routing) addIds('STATIC-008');
-if (flags.localization) addIds('STATIC-004','STATIC-009','STATIC-018','STATIC-019','STATIC-020','STATIC-022');
-if (flags.seo) addIds('STATIC-010','STATIC-021','STATIC-023','STATIC-024');
-if (flags.security) addIds('STATIC-014','STATIC-003');
-if (flags.artifact) addIds('STATIC-015','STATIC-016');
-if (flags.workflow) addIds('STATIC-011','STATIC-026');
-
-const needBuild = flags.workflow || flags.dependency || flags.registry || flags.routing || flags.localization || flags.seo || flags.security || flags.artifact;
-if (needBuild) addIds('BUILD-001','BUILD-003');
-if (docsOnly) {
-  impactChecks.clear();
-  addIds('STATIC-011');
+if (!docsOnly && unmappedFiles.length) {
+  for (const assertionId of allStaticBuildAssertionIds) selectedAssertionSet.add(assertionId);
+  requiresBuild = true;
 }
+if (docsOnly) {
+  selectedAssertionSet.clear();
+  selectedAssertionSet.add('ASSERT-CI-CONTRACT-001');
+}
+
+function addDependencyClosure(assertionIds) {
+  const pending = [...assertionIds];
+  const seen = new Set(assertionIds);
+  while (pending.length) {
+    const current = pending.pop();
+    for (const dependency of registry.assertions[current]?.dependencies ?? []) {
+      if (seen.has(dependency)) continue;
+      seen.add(dependency);
+      pending.push(dependency);
+    }
+  }
+  return seen;
+}
+
+const selectedAssertions = [...addDependencyClosure(selectedAssertionSet)];
+const ownerByAssertion = new Map(Object.entries(registry.assertions ?? {}).map(([id, entry]) => [id, entry.owner]));
+const gateChecks = new Map([
+  ...allStaticChecks.map((check) => [check.id, { ...check, gate: 'static' }]),
+  ...allBuildChecks.map((check) => [check.id, { ...check, gate: 'build' }]),
+  ...(plan.gates?.browser?.checks ?? []).map((check) => [check.id, { ...check, gate: 'browser' }]),
+]);
+
+for (const assertionId of selectedAssertions) {
+  if (!registry.assertions[assertionId]) throw new Error(`Unknown assertion in impact graph: ${assertionId}`);
+  const owner = ownerByAssertion.get(assertionId);
+  if (!gateChecks.has(owner)) throw new Error(`Assertion ${assertionId} resolves to unknown owner ${owner}`);
+}
+
+const commands = [];
+const reusedBrowserAssertions = [];
+for (const assertionId of selectedAssertions) {
+  const owner = ownerByAssertion.get(assertionId);
+  const check = gateChecks.get(owner);
+  if (check.gate === 'browser') {
+    reusedBrowserAssertions.push({ assertionId, owner, certificationOwner: 'Matrix First Certification' });
+    continue;
+  }
+  if (check.gate === 'build') requiresBuild = true;
+  commands.push(check);
+}
+
+const dependencyEdges = selectedAssertions.flatMap((assertionId) => (registry.assertions[assertionId].dependencies ?? []).map((dependsOn) => ({ assertionId, dependsOn })));
+const sourceEdges = matchedSources.flatMap((sourceId) => {
+  const source = graph.sources.find((entry) => entry.id === sourceId);
+  return (source?.assertions ?? []).map((assertionId) => ({ sourceId, assertionId, owner: ownerByAssertion.get(assertionId), gate: gateChecks.get(ownerByAssertion.get(assertionId))?.gate ?? 'unknown' }));
+});
+
+const uniqueCommands = [...new Map(commands.map((check) => [check.id, check])).values()];
 
 function checkById(id) {
-  for (const gate of ['static', 'build', 'browser']) {
-    const check = (plan.gates?.[gate]?.checks ?? []).find((entry) => entry.id === id);
-    if (check) return { ...check, gate };
-  }
-  throw new Error(`Unknown canonical check: ${id}`);
-}
-
-const commands = [...impactChecks].map((id) => checkById(id));
-const registryKeys = new Set(Object.keys(registry.assertions ?? {}));
-for (const check of commands) {
-  for (const assertionId of check.assertions ?? []) {
-    if (!registryKeys.has(assertionId)) throw new Error(`Canonical assertion missing from registry: ${assertionId}`);
-    if (registry.assertions[assertionId].owner !== check.id) throw new Error(`Assertion ownership drift: ${assertionId}`);
-  }
+  const check = gateChecks.get(id);
+  if (!check) throw new Error(`Unknown canonical check: ${id}`);
+  return check;
 }
 
 const results = [];
@@ -102,43 +150,44 @@ async function runOne(check) {
 }
 
 mkdirSync('diagnostics', { recursive: true });
-const selectedAssertions = [...new Set(commands.flatMap((check) => check.assertions ?? []))];
-const dependencyEdges = selectedAssertions.flatMap((assertionId) => {
-  const entry = registry.assertions[assertionId];
-  return (entry.dependencies ?? []).map((dependsOn) => ({ assertionId, dependsOn }));
-});
 const planOutput = {
-  schema_version: 3,
+  schema_version: 4,
   sha,
   base,
-  mode: docsOnly ? 'FAST-MINIMAL' : needBuild ? 'DEEP-ESCALATED' : 'FAST-TARGETED',
+  mode: docsOnly ? 'FAST-MINIMAL' : unmappedFiles.length ? 'DEEP-UNMAPPED' : requiresBuild ? 'DEEP-GRAPH' : 'FAST-GRAPH',
   files,
-  flags,
-  commands: commands.map((check) => ({ id: check.id, gate: check.gate, assertions: check.assertions, coverage: check.coverage })),
+  matchedSources,
+  unmappedFiles,
+  commands: uniqueCommands.map((check) => ({ id: check.id, gate: check.gate, assertions: check.assertions, coverage: check.coverage })),
   assertions: selectedAssertions,
+  sourceEdges,
   dependencyEdges,
+  reusedBrowserAssertions,
+  graphAuthority: GRAPH_PATH,
+  assertionRegistry: REGISTRY_PATH,
   browserCoverageOwner: 'Matrix First Certification',
-  needBuild,
+  needBuild: requiresBuild,
 };
 writeFileSync('diagnostics/fast-ci-plan.json', `${JSON.stringify(planOutput, null, 2)}\n`);
 console.log(JSON.stringify(planOutput, null, 2));
 
-const independentResults = await Promise.all(commands.map(runOne));
+const executionResults = await Promise.all(uniqueCommands.map(runOne));
 const summary = {
-  schema_version: 3,
+  schema_version: 4,
   sha,
   base,
   status: results.every((item) => item.status === 'PASS') ? 'PASS' : 'FAIL',
   durationMs: Date.now() - start,
   executed: results,
   selectedAssertions,
+  sourceEdges,
   dependencyEdges,
-  reused: flags.workflow || flags.registry || flags.routing || flags.localization || flags.seo || flags.artifact
-    ? [{ owner: 'Matrix First Certification', policy: 'browser assertions are never rerun by Fast CI' }]
-    : [],
+  reused: reusedBrowserAssertions,
   skipped: [],
   testPlanSha256: createHash('sha256').update(readFileSync(PLAN_PATH)).digest('hex'),
+  assertionRegistrySha256: createHash('sha256').update(readFileSync(REGISTRY_PATH)).digest('hex'),
+  impactGraphSha256: createHash('sha256').update(readFileSync(GRAPH_PATH)).digest('hex'),
 };
 writeFileSync('diagnostics/fast-ci-result.json', `${JSON.stringify(summary, null, 2)}\n`);
 console.log(JSON.stringify(summary, null, 2));
-if (independentResults.some((value) => !value)) process.exit(1);
+if (executionResults.some((value) => !value)) process.exit(1);
