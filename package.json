@@ -17,6 +17,7 @@
     "validate:lock-manifest": "node scripts/validate-lock-manifest-contract.mjs",
     "validate:playwright-surface": "node scripts/ci/validate-playwright-surface.mjs",
     "validate:assertion-registry": "node scripts/ci/validate-assertion-registry.mjs",
+    "validate:agent-protocol": "node scripts/ci/validate-agent-protocol.mjs",
     "validate:i18n": "node scripts/validate-i18n.mjs",
     "validate:language-quality": "node scripts/validate-language-quality.mjs",
     "validate:locale-navigation": "node scripts/validate-locale-navigation.mjs",
