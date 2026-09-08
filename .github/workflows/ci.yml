@@ -109,18 +109,6 @@ jobs:
         run: |
           npx playwright install-deps '${{ matrix.browser }}'
           npx playwright install '${{ matrix.browser }}'
-      - name: Start runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/flixo-browser-fast.log 2>&1 &
-          echo $! >/tmp/flixo-browser-fast.pid
-          for _ in $(seq 1 30); do
-            curl --fail --silent http://127.0.0.1:3000/ >/dev/null && exit 0
-            sleep 1
-          done
-          cat /tmp/flixo-browser-fast.log
-          exit 1
       - name: Run Browser FAST engine
         shell: bash
         env:
@@ -185,18 +173,6 @@ jobs:
         run: |
           npx playwright install-deps '${{ matrix.browser }}'
           npx playwright install '${{ matrix.browser }}'
-      - name: Start runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/flixo-browser-deep.log 2>&1 &
-          echo $! >/tmp/flixo-browser-deep.pid
-          for _ in $(seq 1 30); do
-            curl --fail --silent http://127.0.0.1:3000/ >/dev/null && exit 0
-            sleep 1
-          done
-          cat /tmp/flixo-browser-deep.log
-          exit 1
       - name: Run Browser DEEP engine
         shell: bash
         env:
