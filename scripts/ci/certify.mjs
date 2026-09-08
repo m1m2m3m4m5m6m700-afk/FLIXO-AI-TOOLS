@@ -83,7 +83,9 @@ for (const file of jsonFiles) {
     parsedJson.set(file, value);
     addState(`evidence:${location}`, 'PASS');
     if (typeof value.sha === 'string' && value.sha && value.sha !== expectedSha) shaMismatches.push(`${location}.sha=${value.sha}`);
+    if (typeof value.exactSha === 'string' && value.exactSha && value.exactSha !== expectedSha) shaMismatches.push(`${location}.exactSha=${value.exactSha}`);
     if (typeof value.run_id === 'string' && value.run_id && value.run_id !== process.env.GITHUB_RUN_ID) shaMismatches.push(`${location}.run_id=${value.run_id}`);
+    if (typeof value.runId === 'string' && value.runId && value.runId !== process.env.GITHUB_RUN_ID) shaMismatches.push(`${location}.runId=${value.runId}`);
     if (Array.isArray(value.skipped) && value.skipped.length) unauthorizedSkips.push(`${location}.skipped`);
     if (Array.isArray(value.unauthorizedSkips) && value.unauthorizedSkips.length) unauthorizedSkips.push(`${location}.unauthorizedSkips`);
     if (value.evidenceClass === 'PRIMARY_EXECUTION' && Array.isArray(value.rootCauses)) for (const rc of value.rootCauses) if (typeof rc === 'string' && rc) independentRootCauses.add(rc);
@@ -154,6 +156,49 @@ if (process.env.GITHUB_EVENT_NAME !== 'pull_request') {
   requireEvidence('browser-deep-count', deepEvidence, 9);
 }
 
+const executionFast = readEvidence(/^browser-fast-(chromium|firefox|webkit)-([12])\.execution\.json$/);
+const executionDeep = readEvidence(/^browser-deep-(chromium|firefox|webkit)-([123])\.execution\.json$/);
+if (!requireEvidence('browser-fast-execution-count', executionFast, 6)) failures.push('FAST execution ledger count is incomplete');
+if (process.env.GITHUB_EVENT_NAME !== 'pull_request' && !requireEvidence('browser-deep-execution-count', executionDeep, 9)) failures.push('DEEP execution ledger count is incomplete');
+
+const expectedFastSpecBrowserUnits = new Set();
+for (const entry of executionFast) {
+  if (entry.evidenceClass !== 'PRIMARY_EXECUTION' || entry.complete !== true) failures.push(`incomplete FAST execution ledger ${entry.browser}:${entry.shard}`);
+  for (const unit of entry.units ?? []) {
+    if (unit.status !== 'PASS') failures.push(`FAST execution unit non-PASS ${unit.executionUnitId}`);
+    expectedFastSpecBrowserUnits.add(`${entry.browser}:${unit.spec}`);
+  }
+}
+if (expectedFastSpecBrowserUnits.size !== 66) failures.push(`FAST conservation observed=${expectedFastSpecBrowserUnits.size}; expected=66`);
+
+const localeSource = fs.readFileSync(path.join(root, 'src/lib/i18n/config.ts'), 'utf8');
+const localeArray = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '';
+const expectedLocales = [...localeArray.matchAll(/['"]([a-z]{2,3})['"]/giu)].map((match) => match[1]);
+const deepLocaleUnion = new Set();
+if (process.env.GITHUB_EVENT_NAME !== 'pull_request') {
+  for (const entry of executionDeep) {
+    if (entry.evidenceClass !== 'PRIMARY_EXECUTION' || entry.complete !== true) failures.push(`incomplete DEEP execution ledger ${entry.browser}:${entry.shard}`);
+    for (const unit of entry.units ?? []) {
+      if (unit.status !== 'PASS') failures.push(`DEEP execution unit non-PASS ${unit.executionUnitId}`);
+      if (unit.semanticLocale) deepLocaleUnion.add(unit.semanticLocale);
+    }
+  }
+  if (deepLocaleUnion.size !== expectedLocales.length) failures.push(`DEEP semantic locale conservation observed=${deepLocaleUnion.size}; expected=${expectedLocales.length}`);
+  for (const locale of expectedLocales) if (!deepLocaleUnion.has(locale)) failures.push(`DEEP missing semantic locale ${locale}`);
+  for (const locale of deepLocaleUnion) if (!expectedLocales.includes(locale)) failures.push(`DEEP unexpected semantic locale ${locale}`);
+}
+
+const graphCandidates = readEvidence(/^execution-graph\.json$/);
+if (graphCandidates.length !== 1) failures.push(`execution graph evidence count=${graphCandidates.length}; expected=1`);
+else {
+  const graph = graphCandidates[0];
+  if (graph.status !== 'PASS') failures.push(`execution graph status=${graph.status}`);
+  if (graph.exactSha !== expectedSha) shaMismatches.push(`execution-graph.exactSha=${graph.exactSha}`);
+  if (graph.runId !== process.env.GITHUB_RUN_ID) shaMismatches.push(`execution-graph.runId=${graph.runId}`);
+  if (graph.fast?.observedSpecBrowserUnits !== 66) failures.push(`execution graph FAST observed=${graph.fast?.observedSpecBrowserUnits}`);
+  if (process.env.GITHUB_EVENT_NAME !== 'pull_request' && graph.deep?.semanticLocaleCount !== expectedLocales.length) failures.push(`execution graph DEEP locale count=${graph.deep?.semanticLocaleCount}; expected=${expectedLocales.length}`);
+}
+
 const staticEvidence = [...parsedJson.entries()].find(([file, value]) => value && path.basename(file) === 'static.json')?.[1] ?? null;
 const buildEvidence = [...parsedJson.entries()].find(([file, value]) => value && path.basename(file) === 'build.json')?.[1] ?? null;
 if (!staticEvidence || staticEvidence.evidenceClass !== 'PRIMARY_EXECUTION' || staticEvidence.status !== 'PASS') failures.push('static gate evidence is not PASS');
@@ -174,16 +219,16 @@ const stateCounts = Object.fromEntries(EXECUTION_STATES.map((state) => [state, p
 const provenanceFailure = provenanceStates.some((entry) => isEvidenceFailure(entry.state) || ['FAIL','BLOCKED','CANCELLED','NOT_EXECUTED'].includes(entry.state));
 const status = failures.length || unknowns.length || invalidEvidence.length || shaMismatches.length || unauthorizedSkips.length || provenanceFailure ? 'FAIL' : 'PASS';
 const result = {
-  schema_version: 6,
+  schema_version: 7,
   authority: 'CANONICAL_CERTIFY_ENGINE',
   evidenceClass: 'PRIMARY_EXECUTION',
   status,
   certificationSha: expectedSha,
   identity: { schemaVersion: 2, expected: currentIdentity, verified: identities.length === 1 },
   zeroFalseGreen: { independentRootCauses: independentRootCauses.size, unknowns: unknowns.length, invalidEvidence: invalidEvidence.length, shaMismatches: shaMismatches.length, unauthorizedSkips: unauthorizedSkips.length },
-  coverage: { matrixFirstUnits: 66, fullMatrixLocales: 20, browsers: 3, fastEvidenceFiles: fastEvidence.length, deepEvidenceFiles: deepEvidence.length },
-  execution: { requiredJobs: jobStates, provenanceStates, stateCounts },
-  lineage: 'Assertion → Execution State → SHA → Identity → Environment → Artifact → Result → Root Cause',
+  coverage: { matrixFirstUnits: 66, fullMatrixLocales: expectedLocales.length, browsers: 3, fastEvidenceFiles: fastEvidence.length, deepEvidenceFiles: deepEvidence.length, fastExecutionLedgers: executionFast.length, deepExecutionLedgers: executionDeep.length, deepObservedLocales: deepLocaleUnion.size },
+  execution: { requiredJobs: jobStates, provenanceStates, stateCounts, fastSpecBrowserUnits: expectedFastSpecBrowserUnits.size, deepSemanticLocales: deepLocaleUnion.size },
+  lineage: 'Assertion → Surface Coverage → Execution Unit → Execution State → SHA → Identity → Environment → Artifact → Result → Root Cause',
   failures,
   unknowns,
   invalidEvidence,
