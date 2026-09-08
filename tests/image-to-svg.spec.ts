@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/runtime-evidence';
 import { assertToolOutputContract } from '../src/lib/contracts/tool-output';
 import { imageToSvgOutputContract } from '../src/tools/image-to-svg/output-contract';
 import { uploadFixture } from './helpers/image-tool-fixture';
