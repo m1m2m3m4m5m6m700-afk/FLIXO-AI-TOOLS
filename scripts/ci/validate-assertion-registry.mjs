@@ -46,8 +46,33 @@ const localSourcesFromScript = (scriptName, seen = new Set()) => {
 };
 
 const sourceText = (source) => fs.existsSync(source) ? read(source) : '';
-const hasExecutableAssertion = (source) => /\b(?:assert|expect|test|it|throw new Error|process\.exit\s*\(|strictEqual|deepStrictEqual)\b/.test(source);
+const hasExecutableAssertion = (source) => /\b(?:assert|expect|throw new Error|process\.exit\s*\(|strictEqual|deepStrictEqual)\b/.test(source);
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const exactTestBody = (source, testTitle) => {
+  const titlePattern = new RegExp(`(?:test|it)\\s*\\(\\s*(['"])${escapeRegExp(testTitle)}\\1\\s*,\\s*async\\s*\\([^)]*\\)\\s*=>\\s*\\{`, 'm');
+  const match = titlePattern.exec(source);
+  if (!match) return null;
+  let depth = 1;
+  let quote = null;
+  let escaped = false;
+  for (let index = match.index + match[0].length; index < source.length; index += 1) {
+    const char = source[index];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '\'' || char === '"' || char === '`') { quote = char; continue; }
+    if (char === '{') depth += 1;
+    else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) return source.slice(match.index, index + 1);
+    }
+  }
+  return null;
+};
 
 for (const [assertionId, entry] of registryAssertions) {
   if (!entry || typeof entry !== 'object') { errors.push(`${assertionId}: invalid registry entry`); continue; }
@@ -109,9 +134,9 @@ for (const [gate, gatePlan] of Object.entries(plan.gates ?? {})) {
         if (!fs.existsSync(spec)) errors.push(`${assertionId}: implementation spec missing ${spec}`);
         else {
           const text = sourceText(spec);
-          const testPattern = new RegExp(`(?:test|it)\\s*\\(\\s*['"]${escapeRegExp(implementation.test)}['"]`);
-          if (!testPattern.test(text)) errors.push(`${assertionId}: implementation test not found in ${spec}`);
-          if (!hasExecutableAssertion(text)) errors.push(`${assertionId}: implementation spec ${spec} contains no executable assertion construct`);
+          const exactBody = exactTestBody(text, implementation.test);
+          if (!exactBody) errors.push(`${assertionId}: exact implementation test body not found in ${spec}`);
+          else if (!hasExecutableAssertion(exactBody)) errors.push(`${assertionId}: exact implementation test body contains no executable assertion construct`);
         }
       }
     } else {
@@ -170,7 +195,7 @@ const architectureChecks = [
 for (const [label, pass] of architectureChecks) if (!pass) errors.push(`ARCHITECTURE: ${label}`);
 
 const result = {
-  schema_version: 7,
+  schema_version: 8,
   status: errors.length ? 'FAIL' : 'PASS',
   assertionCount: registryAssertions.size,
   testPlanAssertionCount: planAssertions.size,
