@@ -1,8 +1,10 @@
 export const EXECUTION_STATES = Object.freeze([
+  'NOT_STARTED',
+  'RUNNING',
   'PASS',
   'FAIL',
-  'BLOCKED',
   'CANCELLED',
+  'BLOCKED',
   'NOT_EXECUTED',
   'MISSING_EVIDENCE',
   'MALFORMED_EVIDENCE',
