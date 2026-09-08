@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
@@ -25,4 +26,11 @@ if (/npm\s+run\s+verify(?![:\w-])/.test(canonicalSection) || /npm\s+test(?![\w-]
   process.exit(1);
 }
 
-console.log('CI contract passed: fast PR path, exact required check names, cancellation, and no duplicate repository-wide verification are enforced.');
+try {
+  execFileSync(process.execPath, ['scripts/ci/validate-playwright-surface.mjs'], { stdio: 'inherit' });
+} catch {
+  console.error('CI contract failed: Playwright specs must use the universal runtime evidence fixture.');
+  process.exit(1);
+}
+
+console.log('CI contract passed: fast PR path, exact required check names, cancellation, no duplicate repository-wide verification, and universal Playwright runtime ownership are enforced.');
