@@ -1,5 +1,6 @@
 {
   "RC-DEPENDENCY-001":{"category":"DEPENDENCY","description":"Committed dependency graph cannot be installed or resolved.","repairTargets":["package.json","package-lock.json"],"verification":["npm ci"]},
+  "RC-DEPENDENCY-ZERO-DEBT-001":{"category":"DEPENDENCY_ZERO_DEBT","description":"Direct dependency declarations are not aligned with actual source/build/test usage, or the committed lockfile drifts from the declared dependency graph.","repairTargets":["package.json","package-lock.json","scripts/report-dependency-usage.mjs"],"verification":["npm run validate:dependency-zero-debt"]},
   "RC-TYPE-001":{"category":"TYPE","description":"TypeScript/static contract failure.","repairTargets":["src","scripts"],"verification":["npm run typecheck"]},
   "RC-I18N-001":{"category":"I18N","description":"Locale or localized UI contract failure.","repairTargets":["src/lib/i18n","src/locales"],"verification":["npm run validate:i18n"]},
   "RC-SEO-001":{"category":"SEO","description":"SEO/canonical/indexing contract failure.","repairTargets":["src","scripts"],"verification":["npm run validate:seo"]},
