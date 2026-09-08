@@ -26,7 +26,7 @@ function exactSha(): string | null {
 }
 
 export const test = base.extend<{ runtimeEvidence: void }>({
-  runtimeEvidence: [async ({ page }, use, testInfo) => {
+  runtimeEvidence: [async ({ page }, runTest, testInfo) => {
     const startedAt = new Date();
     const consoleErrors: RuntimeEvidence['consoleErrors'] = [];
     const pageErrors: RuntimeEvidence['pageErrors'] = [];
@@ -59,7 +59,7 @@ export const test = base.extend<{ runtimeEvidence: void }>({
     page.on('response', onResponse);
 
     try {
-      await use();
+      await runTest();
     } finally {
       page.off('framenavigated', onNavigation);
       page.off('console', onConsole);
