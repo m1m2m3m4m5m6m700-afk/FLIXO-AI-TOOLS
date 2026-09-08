@@ -26,8 +26,8 @@ const imageSpec = {
 };
 
 assertValid(validateOutputIntegrity(PNG.byteLength, 'image/png', imageSpec, { width: 1, height: 1 }, { filename: 'result.png', bytes: PNG }));
-assertInvalid(validateOutputIntegrity(PNG.byteLength, 'application/pdf', imageSpec, { width: 1, height: 1 }, { filename: 'result.png', bytes: PNG }));
-assertInvalid(validateOutputIntegrity(PNG.byteLength, 'image/png', imageSpec, { width: 1, height: 1 }, { filename: 'result.pdf', bytes: PNG }));
+assertInvalid(validateOutputIntegrity(PNG.byteLength, 'application/octet-stream', imageSpec, { width: 1, height: 1 }, { filename: 'result.png', bytes: PNG }));
+assertInvalid(validateOutputIntegrity(PNG.byteLength, 'image/png', imageSpec, { width: 1, height: 1 }, { filename: 'result.txt', bytes: PNG }));
 assertInvalid(validateOutputIntegrity(PNG.byteLength, 'image/png', imageSpec, { width: 7000, height: 7000 }, { filename: 'result.png', bytes: PNG }));
 
 const svgSpec = {
