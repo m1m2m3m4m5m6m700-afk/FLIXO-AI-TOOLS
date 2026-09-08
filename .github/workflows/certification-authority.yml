@@ -19,14 +19,16 @@ permissions:
   actions: read
   checks: read
 
+env:
+  CERTIFICATION_SHA: ${{ inputs.expected_sha || github.sha }}
+  CERTIFICATION_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
   certify:
     name: Final Contract Certification
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      CERTIFICATION_SHA: ${{ inputs.expected_sha || github.sha }}
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v5
         with:
