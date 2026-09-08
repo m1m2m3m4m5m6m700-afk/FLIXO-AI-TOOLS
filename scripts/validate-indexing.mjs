@@ -8,12 +8,12 @@ const i18nSource = readFileSync('src/lib/i18n/config.ts', 'utf8');
 const rootSource = readFileSync('src/routes/__root.tsx', 'utf8');
 const indexSource = readFileSync('index.html', 'utf8');
 const manifestSource = readFileSync('public/manifest.webmanifest', 'utf8');
-const useCaseRouteSource = readFileSync('src/routes/use-case.tsx', 'utf8');
 const localizedToolRouteSource = readFileSync('src/routes/localized-tool.tsx', 'utf8');
 const toolSeoSource = readFileSync('src/lib/seo/tool-seo.ts', 'utf8');
 const toolsSource = readFileSync('src/config/tools.ts', 'utf8');
 
-const expectedLocales = i18nSource.match(/export const LOCALES = \[([\s\S]*?)\] as const/)?.[1]
+const expectedLocales = i18nSource.match(/export const LOCALES = \[([\s\S]*?)\] as const/)
+  ?.[1]
   ?.match(/'([a-z]{2})'/g)
   ?.map((value) => value.slice(1, -1)) ?? [];
 if (expectedLocales.length !== 20) throw new Error(`Indexing gate locale registry expectation must contain exactly 20 locales, found ${expectedLocales.length}.`);
@@ -60,10 +60,6 @@ if (alternateCount !== 1) throw new Error('Tool SEO must derive alternates from 
 if (!toolSeoSource.includes('LOCALES.map((alternateLocale)')) throw new Error('Tool SEO alternates must be generated from LOCALES.');
 if (!toolSeoSource.includes('getLocalizedToolUrl(alternateLocale, tool.id)')) throw new Error('Tool SEO alternates must use the canonical localized URL resolver.');
 
-if (!useCaseRouteSource.includes("path: '/use-cases/$slug'")) throw new Error('Use-case route is not registered.');
-if (useCaseRouteSource.includes('hrefLang')) throw new Error('Use-case route must not claim hreflang symmetry until localized use-case routes exist.');
-if (!useCaseRouteSource.includes("rel: 'canonical'")) throw new Error('Use-case route must emit a canonical URL.');
-
 if (!indexSource.includes('<html lang="en" dir="ltr">')) throw new Error('index.html must declare the default language and direction.');
 if (!indexSource.includes('<meta name="viewport"')) throw new Error('index.html is missing the viewport declaration.');
 if (!indexSource.includes('<link rel="manifest" href="/manifest.webmanifest"')) throw new Error('index.html is missing the web manifest.');
@@ -74,4 +70,4 @@ if (!rootSource.includes("{ name: 'description', content:")) throw new Error('Ro
 if (!manifestSource.includes('"start_url": "/en"')) throw new Error('Manifest start_url must resolve to a localized public route.');
 if (!manifestSource.includes('"src": "/flixo-logo.svg"')) throw new Error('Manifest must use the canonical FLIXO logo asset.');
 
-console.log(`Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical tools, localized tool canonical/hreflang symmetry, canonical-only use-case routes, canonical HTTPS origin, and robots/sitemap contracts are aligned.`);
+console.log(`Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical tools, localized tool canonical/hreflang symmetry, canonical HTTPS origin, and robots/sitemap contracts are aligned.`);
