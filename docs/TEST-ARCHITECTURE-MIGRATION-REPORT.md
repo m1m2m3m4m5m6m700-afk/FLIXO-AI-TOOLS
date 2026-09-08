@@ -2,7 +2,7 @@
 
 ## Certification reference
 
-Current `main` Exact-SHA: `64a5929ba2c00fbc8aea19a28df0ddcd6258fee5`.
+Current `main` Exact-SHA: `b8830ebdec73edc35cfe8b1088dcf8340b5accd3`.
 
 This report records the architecture migration requested for the canonical test system. A green CI certification is **not** claimed by this report.
 
