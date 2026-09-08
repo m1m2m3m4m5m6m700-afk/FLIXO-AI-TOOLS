@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 
 test('Arabic QuickFlow product-ready page renders RTL deterministic plan', async ({ page }) => {
   await page.goto('/ar/quickflow/product-ready');
