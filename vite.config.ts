@@ -8,6 +8,7 @@ const allowedHosts = (process.env.VITE_ALLOWED_HOSTS ?? '')
   .filter(Boolean);
 
 function vendorChunk(id: string): string | undefined {
+  if (id.includes('/src/lib/contracts/file-safety')) return 'contract-file-safety';
   if (!id.includes('node_modules')) return undefined;
 
   if (id.includes('@tanstack/')) return 'vendor-tanstack';

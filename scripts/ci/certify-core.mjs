@@ -175,7 +175,7 @@ if (event !== 'pull_request') {
   }
   const localeSource = fs.readFileSync(path.join(root, 'src/lib/i18n/config.ts'), 'utf8');
   const localeBody = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '';
-  const locales = [...new Set([...localeBody.matchAll(/['\"]([a-z]{2,3})['\"]/giu)].map((match) => match[1].toLowerCase()))];
+  const locales = [...new Set([...localeBody.matchAll(/["']([a-z]{2,3})["']/giu)].map((match) => match[1].toLowerCase()))];
   for (const browser of expectedBrowsers) for (const locale of locales) {
     const key = `DEEP:${browser}:${locale}`;
     if (!deepSemantic.has(key)) invalidEvidence.push(`DEEP_MISSING_SEMANTIC=${key}`);
@@ -183,7 +183,7 @@ if (event !== 'pull_request') {
   if (deepSemantic.size !== locales.length * 3) invalidEvidence.push(`DEEP_CONSERVATION=${deepSemantic.size}; expected=${locales.length * 3}`);
 }
 
-const graphPath = path.join(root, 'diagnostics', 'certification', 'execution-graph.json');
+const graphPath = path.join(root, 'diagnostics','certification','execution-graph.json');
 if (!fs.existsSync(graphPath)) invalidEvidence.push('EXECUTION_GRAPH_MISSING');
 else {
   try {

@@ -15,7 +15,7 @@ test('Arabic image compressor exposes localized SEO and output controls', async 
   await expect(page.getByRole('heading', { level: 1, name: 'ضغط الصور أونلاين' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.locator('a[lang="en"]').filter({ hasText: 'English' })).toHaveAttribute('href', '/en/image-compressor');
-  await expect(page.locator('meta[name="description"][content*="اضغط صور JPG وPNG وWebP أونلاين"]')).toHaveCount(1);
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', expect.stringContaining('قلّل حجم صور JPG وPNG وWebP'));
 });
 
 test('runtime diagnostics capture an application error without breaking the page', async ({ page }) => {
