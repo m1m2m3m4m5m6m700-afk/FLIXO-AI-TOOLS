@@ -88,7 +88,6 @@ for (const pathname of routes) {
 
     const response = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     expect(response?.status(), `${pathname} must return HTTP 200`).toBe(200);
-    await page.waitForLoadState('networkidle').catch(() => undefined);
 
     const locale = pathname.match(new RegExp(`^/(${localeCodes.join('|')})(?:/|$)`, 'u'))?.[1];
     expect(locale, `${pathname} must have a canonical locale prefix`).toBeTruthy();
@@ -152,12 +151,12 @@ for (const pathname of routes) {
     if (localeCode !== 'en') {
       const baselineResponse = await page.goto(localizedPath('en', family), { waitUntil: 'domcontentloaded', timeout: 30_000 });
       expect(baselineResponse?.status(), `${pathname} English baseline ${family} must return HTTP 200`).toBe(200);
-      await page.waitForLoadState('networkidle').catch(() => undefined);
+      await expect(page.locator('main').first()).toBeVisible();
       const baseline = await snapshot(page);
 
       const localizedResponse = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
       expect(localizedResponse?.status(), `${pathname} must return HTTP 200 after baseline comparison`).toBe(200);
-      await page.waitForLoadState('networkidle').catch(() => undefined);
+      await expect(page.locator('main').first()).toBeVisible();
       const current = await snapshot(page);
 
       expect(current.title, `${pathname} must not reuse English document title`).not.toBe(baseline.title);
