@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 
 const sitemapSource = readFileSync('scripts/generate-sitemap.mjs', 'utf8');
 const robotsGeneratorSource = readFileSync('scripts/generate-robots.mjs', 'utf8');
@@ -11,18 +11,15 @@ const manifestSource = readFileSync('public/manifest.webmanifest', 'utf8');
 const useCaseRouteSource = readFileSync('src/routes/use-case.tsx', 'utf8');
 const localizedToolRouteSource = readFileSync('src/routes/localized-tool.tsx', 'utf8');
 const toolSeoSource = readFileSync('src/lib/seo/tool-seo.ts', 'utf8');
+const toolsSource = readFileSync('src/config/tools.ts', 'utf8');
 
-const toolDefinitionDir = 'src/config/tool-definitions';
-const toolDefinitionSources = readdirSync(toolDefinitionDir)
-  .filter((name) => name.endsWith('.ts') && name !== 'types.ts')
-  .map((name) => readFileSync(`${toolDefinitionDir}/${name}`, 'utf8'));
-const toolIds = toolDefinitionSources.flatMap((source) => [
-  ...source.matchAll(/\bid:\s*'([^']+)'/g),
-].map((match) => match[1]));
-if (toolIds.length === 0) throw new Error('No tool ids discovered in canonical tool definition modules.');
+const expectedLocales = i18nSource.match(/export const LOCALES = \[([\s\S]*?)\] as const/)?.[1]
+  ?.match(/'([a-z]{2})'/g)
+  ?.map((value) => value.slice(1, -1)) ?? [];
+if (expectedLocales.length !== 20) throw new Error(`Indexing gate locale registry expectation must contain exactly 20 locales, found ${expectedLocales.length}.`);
 
-const expectedLocales = ['en', 'ar', 'es', 'fr', 'de', 'ru', 'zh', 'hi', 'id', 'ur', 'ja', 'pt', 'it', 'ko', 'nl', 'pl', 'tr', 'vi', 'th', 'sv'];
-if (expectedLocales.length !== 20) throw new Error('Indexing gate locale registry expectation must contain exactly 20 locales.');
+const toolIds = [...toolsSource.matchAll(/\bid:\s*'([^']+)'/g)].map((match) => match[1]);
+if (toolIds.length === 0) throw new Error('No tool ids discovered in canonical tool registry.');
 
 if (!originSource.includes('export function getCanonicalSiteOrigin()')) throw new Error('Canonical origin contract is missing getCanonicalSiteOrigin().');
 if (!originSource.includes("if (origin.protocol !== 'https:')")) throw new Error('Canonical origin contract must enforce HTTPS.');
@@ -74,10 +71,7 @@ if (!indexSource.includes('<link rel="icon" type="image/svg+xml" href="/favicon.
 if (indexSource.includes('/flixo-logo.jpg') || indexSource.includes('/logo.jpg')) throw new Error('index.html references stale JPG logo assets.');
 
 if (!rootSource.includes("{ name: 'description', content:")) throw new Error('Root route is missing the base description metadata.');
-
 if (!manifestSource.includes('"start_url": "/en"')) throw new Error('Manifest start_url must resolve to a localized public route.');
 if (!manifestSource.includes('"src": "/flixo-logo.svg"')) throw new Error('Manifest must use the canonical FLIXO logo asset.');
 
-console.log(
-  `Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical tool definitions, localized tool canonical/hreflang symmetry, canonical-only use-case routes, canonical HTTPS origin, and robots/sitemap contracts are aligned.`,
-);
+console.log(`Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical tools, localized tool canonical/hreflang symmetry, canonical-only use-case routes, canonical HTTPS origin, and robots/sitemap contracts are aligned.`);
