@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 import { assertToolOutputContract } from '../src/lib/contracts/tool-output';
 import { imageCropperOutputContract } from '../src/tools/image-cropper/output-contract';
 import { assertDownload, assertImageResult, uploadFixture } from './helpers/image-tool-fixture';
