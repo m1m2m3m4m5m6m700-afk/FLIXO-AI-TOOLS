@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 import { assertDownload, assertImageResult, PNG } from './helpers/image-tool-fixture';
 
 test('collage-maker: combines multiple images into a downloadable result', async ({ page }) => {
