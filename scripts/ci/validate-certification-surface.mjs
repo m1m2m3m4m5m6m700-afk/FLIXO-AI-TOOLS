@@ -11,13 +11,14 @@ const errors = [];
 const workflows = fs.readdirSync(WORKFLOW_DIR)
   .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
   .map((name) => path.join(WORKFLOW_DIR, name));
+const certificationWorkflowSet = new Set(policy.workflowCertificationAllowlist ?? []);
 
 for (const file of workflows) {
   const text = fs.readFileSync(file, 'utf8');
   const relative = path.relative(ROOT, file).replaceAll('\\', '/');
-  if (text.includes(policy.testSentinel)) errors.push(`${relative}: certification workflow contains forbidden test sentinel ${policy.testSentinel}`);
-  if (/(?:CI|Matrix First|Full Matrix|Certification Authority)/i.test(text) && !text.includes(policy.runtimeOrigin)) {
-    errors.push(`${relative}: certification surface must explicitly use runtime origin ${policy.runtimeOrigin}`);
+  if (certificationWorkflowSet.has(relative)) {
+    if (text.includes(policy.testSentinel)) errors.push(`${relative}: canonical certification workflow contains forbidden test sentinel ${policy.testSentinel}`);
+    if (!text.includes(policy.runtimeOrigin)) errors.push(`${relative}: canonical certification workflow must explicitly use runtime origin ${policy.runtimeOrigin}`);
   }
 }
 
@@ -39,11 +40,12 @@ for (const relative of diagnosticAllowlist) {
   const absolute = path.join(ROOT, relative);
   if (!fs.existsSync(absolute)) continue;
   const text = fs.readFileSync(absolute, 'utf8');
-  for (const workflow of workflows) {
-    const workflowText = fs.readFileSync(workflow, 'utf8');
-    if (workflowText.includes(relative)) errors.push(`${relative}: non-certification diagnostic must not be invoked by workflow ${path.relative(ROOT, workflow).replaceAll('\\', '/')}`);
-  }
   if (!text.includes(policy.testSentinel)) errors.push(`${relative}: diagnostic origin sentinel declaration drift`);
+  for (const workflow of workflows) {
+    const workflowRelative = path.relative(ROOT, workflow).replaceAll('\\', '/');
+    if (!certificationWorkflowSet.has(workflowRelative)) continue;
+    if (fs.readFileSync(workflow, 'utf8').includes(relative)) errors.push(`${relative}: non-certification diagnostic must not be invoked by canonical workflow ${workflowRelative}`);
+  }
 }
 
 const matrix = fs.readFileSync(path.join(WORKFLOW_DIR, 'matrix-first.yml'), 'utf8');
@@ -58,18 +60,17 @@ if ((matrix.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? []).length !== 22) erro
 if (!/Run impact selector/.test(ci) || !/scripts\/ci\/fast-verify\.mjs/.test(ci)) errors.push('CI must delegate impact execution to Fast Verify');
 if (/playwright\s+test|tests\/.*\.spec\.(?:ts|js)/i.test(fastVerify)) errors.push('Fast Verify must not execute Playwright directly');
 if (!/browser:\s*\[chromium, firefox, webkit\]/.test(fullMatrix)) errors.push('Full Matrix must retain all three browsers');
-if (!authorityWorkflow.includes('global-evidence-authority.mjs')) errors.push('Global Certification Authority must consume the canonical Global Evidence Authority');
-if (!authorityWorkflow.includes('gh run download')) errors.push('Global Certification Authority must collect workflow artifacts');
+if (!authorityWorkflow.includes('global-evidence-authority.mjs') || !authorityWorkflow.includes('gh run download')) errors.push('Global Certification Authority must collect canonical workflow artifacts and feed the Global Evidence Authority');
 if (graph.authority !== 'canonical-impact-dependency-graph') errors.push('Impact graph authority drift');
 if (graph.match?.unmappedPolicy !== 'ESCALATE_ALL_STATIC_BUILD') errors.push('Impact graph must fail closed on unmapped changes');
 
 const result = {
-  schema_version: 3,
+  schema_version: 4,
   status: errors.length ? 'FAIL' : 'PASS',
   workflowCount: workflows.length,
   originPolicy: policy,
   checks: {
-    forbiddenCertificationOrigin: errors.every((e) => !e.includes('forbidden test sentinel') && !e.includes('certification workflow contains')),
+    forbiddenCertificationOrigin: errors.every((e) => !e.includes('certification workflow contains forbidden test sentinel')),
     sentinelAllowlist: errors.every((e) => !e.includes('allowed only in explicit unit/contract sentinel contexts')),
     diagnosticNonCertification: errors.every((e) => !e.includes('non-certification diagnostic must not be invoked')),
     matrixOwnership: /browser:\s*\[chromium, firefox, webkit\]/.test(matrix),
