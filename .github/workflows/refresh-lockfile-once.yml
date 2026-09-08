@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   refresh:
-    if: contains(github.event.head_commit.message, 'fix(deps): remove unreferenced direct dependencies')
+    if: hashFiles('diagnostics/.lock-refresh-trigger') != ''
     runs-on: ubuntu-latest
     steps:
       - name: Checkout exact main commit
@@ -24,14 +24,20 @@ jobs:
           cache: npm
       - name: Regenerate package lock
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Commit regenerated lockfile
+      - name: Commit regenerated lockfile and remove one-shot helper
         run: |
-          if git diff --quiet -- package-lock.json; then
-            echo 'package-lock.json already synchronized.'
-            exit 0
-          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add package-lock.json
+          if git diff --quiet -- package-lock.json; then
+            echo 'package-lock.json already synchronized.'
+          else
+            git add package-lock.json
+          fi
+          rm -f diagnostics/.lock-refresh-trigger .github/workflows/refresh-lockfile-once.yml
+          git add -u .github/workflows/refresh-lockfile-once.yml diagnostics/.lock-refresh-trigger
+          if git diff --cached --quiet; then
+            echo 'No lockfile or cleanup changes required.'
+            exit 0
+          fi
           git commit -m 'fix(deps): synchronize lockfile after dependency cleanup'
           git push origin HEAD:main
