@@ -31,8 +31,8 @@ for (const [assertionId, entry] of Object.entries(registry.assertions ?? {})) {
 }
 const registeredAssertionIds = new Set(Object.keys(registry.assertions ?? {}));
 
-const fastFiles = find(/^browser-fast-(chromium|firefox|webkit)-([12])\.execution\.json$/);
-const deepFiles = find(/^browser-deep-(chromium|firefox|webkit)-([123])\.execution\.json$/);
+const fastFiles = find(/^browser-fast-(chromium|firefox|webkit)-([12])\.json$/);
+const deepFiles = find(/^browser-deep-(chromium|firefox|webkit)-([123])\.json$/);
 if (fastFiles.length !== 6) errors.push(`FAST_EXECUTION_FILE_COUNT=${fastFiles.length}; expected=6`);
 if (process.env.GITHUB_EVENT_NAME !== 'pull_request' && deepFiles.length !== 9) errors.push(`DEEP_EXECUTION_FILE_COUNT=${deepFiles.length}; expected=9`);
 
@@ -52,6 +52,7 @@ for (const entry of included) {
   if (expectedSha && value.exactSha !== expectedSha) errors.push(`${relative}: exactSha mismatch`);
   if (expectedRunId && value.runId !== expectedRunId) errors.push(`${relative}: runId mismatch`);
   if (value.executionUnitCount !== (value.units ?? []).length) errors.push(`${relative}: executionUnitCount mismatch`);
+  if (value.status !== 'PASS') errors.push(`${relative}: execution status=${value.status}`);
   if (value.complete !== true) errors.push(`${relative}: execution ledger is not complete`);
   const unitIds = new Set();
   for (const unit of value.units ?? []) {
@@ -87,23 +88,20 @@ const expectedFastSpecs = [
 const fastSemanticOwners = new Map();
 for (const entry of fast) {
   if (!entry.value) continue;
-  const browser = entry.value.browser;
   for (const unit of entry.value.units ?? []) {
     const semanticId = unit.semanticUnitId;
-    if (!semanticId) { errors.push(`FAST_SEMANTIC_UNIT_MISSING=${browser}:${unit.spec}`); continue; }
-    const key = `${browser}:${semanticId}`;
+    if (!semanticId) { errors.push(`FAST_SEMANTIC_UNIT_MISSING=${entry.value.browser}:${unit.spec}`); continue; }
+    const key = `${entry.value.browser}:${semanticId}`;
     const previous = fastSemanticOwners.get(key);
     if (previous && previous !== entry.value.shard) errors.push(`FAST_SEMANTIC_DUPLICATE_OWNER=${key}; shards=${previous},${entry.value.shard}`);
     fastSemanticOwners.set(key, entry.value.shard);
   }
 }
 for (const browser of ['chromium','firefox','webkit']) for (const spec of expectedFastSpecs) {
-  const semanticId = `FAST:${browser}:${spec}`;
-  const key = `${browser}:${semanticId}`;
+  const key = `${browser}:FAST:${browser}:${spec}`;
   if (!fastSemanticOwners.has(key)) errors.push(`FAST_SEMANTIC_MISSING=${key}`);
 }
 if (fastSemanticOwners.size !== 66) errors.push(`FAST_CONSERVATION=${fastSemanticOwners.size}; expected=66 semantic spec-browser units`);
-for (const entry of fast) if (entry.value && (entry.value.units ?? []).some((unit) => unit.status !== 'PASS')) errors.push(`${path.relative(root, entry.file)}: non-PASS execution unit`);
 
 const deepSemanticOwners = new Map();
 const deepExecutionKeys = new Set();
@@ -140,7 +138,7 @@ if (process.env.GITHUB_EVENT_NAME !== 'pull_request') {
 }
 
 const result = {
-  schema_version: 3,
+  schema_version: 4,
   status: errors.length ? 'FAIL' : 'PASS',
   exactSha: expectedSha,
   runId: expectedRunId,
