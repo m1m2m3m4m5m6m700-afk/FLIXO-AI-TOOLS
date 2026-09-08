@@ -127,7 +127,13 @@ export function validateFileSafety(input: FileSafetyInput, policy: FileSafetyPol
     if (!Number.isInteger(input.height) || !input.height || input.height < 1) failures.push('height must be a positive integer');
     if (policy.maxPixels !== undefined && Number.isInteger(input.width) && Number.isInteger(input.height) && (input.width! * input.height!) > policy.maxPixels) failures.push('pixel count exceeds policy limit');
   }
-  if (policy.signatures?.length && input.signature && !policy.signatures.some((allowed) => normalizeSignature(allowed) === normalizeSignature(input.signature!))) failures.push('file signature is not permitted by policy');
+  if (policy.signatures?.length && input.signature) {
+    const normalizedInput = normalizeSignature(input.signature);
+    if (!policy.signatures.some((allowed) => {
+      const normalizedAllowed = normalizeSignature(allowed);
+      return normalizedInput.startsWith(normalizedAllowed);
+    })) failures.push('file signature is not permitted by policy');
+  }
   if (policy.magicBytes?.length && input.content && !policy.magicBytes.some((signature) => matchesMagicBytes(input.content!, signature))) failures.push('file magic bytes do not match an allowed signature');
   if (policy.contentValidation && input.content) validateContent(input.content, policy.contentValidation, failures);
   return { safe: failures.length === 0, failures };
