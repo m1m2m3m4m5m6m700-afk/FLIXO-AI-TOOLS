@@ -1,7 +1,7 @@
 name: CI — Universal Diagnostic
 
-# Manual forensic diagnostic only. Canonical automated coverage lives in ci.yml,
-# Matrix First, G3, and the release Full Matrix workflow.
+# Manual forensic diagnostic only. Canonical automated coverage lives exclusively in ci.yml:
+# static, build, browser (FAST/DEEP), and the single certify gate.
 on:
   workflow_dispatch:
 
