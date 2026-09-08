@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 import { planWithOptionalAI } from '@/lib/ai/optional-planner';
 
 test.describe('optional AI planner', () => {
