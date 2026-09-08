@@ -60,7 +60,7 @@ async function snapshot(page: Page): Promise<Snapshot> {
       .map((element) => {
         const node = element as HTMLElement;
         const input = node as HTMLInputElement;
-        return [node.innerText, node.getAttribute('aria-label'), node.getAttribute('title'), input.placeholder, node.getAttribute('alt')]
+        return [node.getAttribute('aria-label'), node.getAttribute('title'), input.placeholder, node.getAttribute('alt'), node.innerText]
           .map((value) => (value ?? '').replace(/\s+/gu, ' ').trim())
           .find(Boolean) ?? '';
       })
@@ -152,11 +152,15 @@ for (const pathname of routes) {
       const baselineResponse = await page.goto(localizedPath('en', family), { waitUntil: 'domcontentloaded', timeout: 30_000 });
       expect(baselineResponse?.status(), `${pathname} English baseline ${family} must return HTTP 200`).toBe(200);
       await expect(page.locator('main').first()).toBeVisible();
+      await expect(page.locator('h1')).toHaveCount(1);
+      await expect(page.locator('h1').first()).toHaveText(/\S+/);
       const baseline = await snapshot(page);
 
       const localizedResponse = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
       expect(localizedResponse?.status(), `${pathname} must return HTTP 200 after baseline comparison`).toBe(200);
       await expect(page.locator('main').first()).toBeVisible();
+      await expect(page.locator('h1')).toHaveCount(1);
+      await expect(page.locator('h1').first()).toHaveText(/\S+/);
       const current = await snapshot(page);
 
       expect(current.title, `${pathname} must not reuse English document title`).not.toBe(baseline.title);

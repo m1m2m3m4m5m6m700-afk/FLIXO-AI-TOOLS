@@ -8,7 +8,7 @@ test('image-ocr: extracts text and downloads TXT', async ({ page }) => {
     };
   });
   await page.goto('/en/image-ocr');
-  await expect(page.getByRole('heading', { level: 1, name: 'Image to Text OCR' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Image OCR' })).toBeVisible();
   await uploadFixture(page);
   await page.getByRole('button', { name: 'Run tool' }).click();
   await expect(page.getByText('FLIXO OCR OK')).toBeVisible();

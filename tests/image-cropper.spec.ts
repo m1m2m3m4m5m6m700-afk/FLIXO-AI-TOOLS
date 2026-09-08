@@ -25,7 +25,7 @@ async function inspectPngOutput(page: Parameters<typeof test>[0]['page']) {
 
 test('image-cropper: creates a contract-valid PNG crop', async ({ page }) => {
   await page.goto('/en/image-cropper');
-  await expect(page.getByRole('heading', { level: 1, name: 'Crop & Resize' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Image Cropper' })).toBeVisible();
   await uploadFixture(page);
   await page.getByRole('button', { name: 'Run tool' }).click();
 
