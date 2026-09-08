@@ -10,10 +10,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: matrix-first-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 env:
   VITE_SITE_URL: https://flixoai.vercel.app
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
@@ -26,59 +22,10 @@ env:
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
 
 jobs:
-  matrix:
-    name: E2E — ${{ matrix.tool }} — ${{ matrix.browser }}
+  prepare:
+    name: Prepare Matrix Artifact
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        browser: [chromium, firefox, webkit]
-        include:
-          - tool: image-compressor
-            spec: tests/image-compressor.spec.ts
-          - tool: background-remover
-            spec: tests/background-remover.spec.ts
-          - tool: image-upscaler
-            spec: tests/image-upscaler.spec.ts
-          - tool: image-converter
-            spec: tests/image-converter.spec.ts
-          - tool: ai-image-generator
-            spec: tests/ai-image-generator.spec.ts
-          - tool: object-remover
-            spec: tests/object-remover.spec.ts
-          - tool: watermark-remover
-            spec: tests/watermark-remover.spec.ts
-          - tool: image-cropper
-            spec: tests/image-cropper.spec.ts
-          - tool: image-to-svg
-            spec: tests/image-to-svg.spec.ts
-          - tool: image-ocr
-            spec: tests/image-ocr.spec.ts
-          - tool: photo-colorizer
-            spec: tests/photo-colorizer.spec.ts
-          - tool: background-blur
-            spec: tests/background-blur.spec.ts
-          - tool: passport-photo-maker
-            spec: tests/passport-photo-maker.spec.ts
-          - tool: watermark-adder
-            spec: tests/watermark-adder.spec.ts
-          - tool: meme-generator
-            spec: tests/meme-generator.spec.ts
-          - tool: collage-maker
-            spec: tests/collage-maker.spec.ts
-          - tool: image-effects
-            spec: tests/image-effects.spec.ts
-          - tool: exif-cleaner
-            spec: tests/exif-cleaner.spec.ts
-          - tool: svg-optimizer
-            spec: tests/svg-optimizer.spec.ts
-          - tool: mockup-generator
-            spec: tests/mockup-generator.spec.ts
-          - tool: seed
-            spec: tests/seed.spec.ts
-          - tool: pix
-            spec: tests/pix.spec.ts
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v5
         with:
@@ -88,8 +35,59 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Install dependencies
+      - name: Install committed dependency graph
         run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Build canonical preview once
+        run: npm run build
+      - name: Record artifact identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f dist/index.html
+          git rev-parse HEAD > dist/.matrix-head-sha
+          sha256sum package-lock.json > dist/.matrix-package-lock.sha256
+      - name: Upload canonical preview artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: matrix-preview-${{ github.event.pull_request.head.sha || github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 2
+
+  matrix:
+    name: E2E — ${{ matrix.browser }} — shard-${{ matrix.shard }}
+    needs: [prepare]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install committed dependency graph
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Download canonical preview artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: matrix-preview-${{ github.event.pull_request.head.sha || github.sha }}
+          path: dist
+      - name: Verify artifact identity
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(cat dist/.matrix-head-sha)" = "$EXPECTED_SHA"
+          sha256sum -c dist/.matrix-package-lock.sha256
       - name: Install browser system dependencies
         timeout-minutes: 8
         run: npx playwright install-deps '${{ matrix.browser }}'
@@ -115,35 +113,59 @@ jobs:
             exit 0
           fi
           timeout --preserve-status 420s npx playwright install '${{ matrix.browser }}'
-      - name: Build preview
-        run: npm run build
       - name: Start isolated preview
         shell: bash
         run: |
           set -euo pipefail
           setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/e2e-matrix-server.log 2>&1 &
           echo $! >/tmp/e2e-matrix-server.pid
-          for _ in $(seq 1 60); do
+          for _ in $(seq 1 30); do
             if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
             sleep 1
           done
           cat /tmp/e2e-matrix-server.log || true
           exit 1
-      - name: Run E2E test
+      - name: Run complete tool matrix
         timeout-minutes: 15
+        shell: bash
         run: |
           set -euo pipefail
-          echo "E2E matrix unit: tool=${{ matrix.tool }} browser=${{ matrix.browser }}"
-          npx playwright test "${{ matrix.spec }}" \
+          specs=(
+            tests/image-compressor.spec.ts
+            tests/background-remover.spec.ts
+            tests/image-upscaler.spec.ts
+            tests/image-converter.spec.ts
+            tests/ai-image-generator.spec.ts
+            tests/object-remover.spec.ts
+            tests/watermark-remover.spec.ts
+            tests/image-cropper.spec.ts
+            tests/image-to-svg.spec.ts
+            tests/image-ocr.spec.ts
+            tests/photo-colorizer.spec.ts
+            tests/background-blur.spec.ts
+            tests/passport-photo-maker.spec.ts
+            tests/watermark-adder.spec.ts
+            tests/meme-generator.spec.ts
+            tests/collage-maker.spec.ts
+            tests/image-effects.spec.ts
+            tests/exif-cleaner.spec.ts
+            tests/svg-optimizer.spec.ts
+            tests/mockup-generator.spec.ts
+            tests/seed.spec.ts
+            tests/pix.spec.ts
+          )
+          echo "E2E matrix unit: browser=${{ matrix.browser }} shard=${{ matrix.shard }}/2 tools=${#specs[@]}"
+          npx playwright test "${specs[@]}" \
             --project="${{ matrix.browser }}" \
             --workers=6 \
             --retries=0 \
-            --max-failures=1
+            --max-failures=1 \
+            --shard=${{ matrix.shard }}/2
       - name: Upload independent diagnostics
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: e2e-matrix-${{ matrix.tool }}-${{ matrix.browser }}-${{ github.run_id }}
+          name: e2e-matrix-${{ matrix.browser }}-shard-${{ matrix.shard }}-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/
@@ -164,10 +186,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Fail closed on any E2E unit
+      - name: Fail closed on any E2E shard
         run: |
           set -euo pipefail
           result='${{ needs.matrix.result }}'
           echo "matrix=$result"
           test "$result" = success
-          echo 'Matrix First Certification PASS: all 22×3 browser units passed independently.'
+          echo 'Matrix First Certification PASS: all 22 tools × 3 browsers covered across deterministic shards.'
