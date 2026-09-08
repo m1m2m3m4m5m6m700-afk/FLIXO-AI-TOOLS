@@ -1,6 +1,6 @@
 import type { Locale } from './config';
 
-type LocaleMap = Readonly<Partial<Record<Locale, string>>>;
+type LocaleMap = Readonly<Partial<Record<string, string>>>;
 
 const UI: Readonly<Record<string, LocaleMap>> = {
   'Tool Chain': { ar: 'سلسلة الأدوات', de: 'Werkzeugkette', es: 'Cadena de herramientas', fr: 'Chaîne d’outils', ru: 'Цепочка инструментов', zh: '工具链', hi: 'टूल चेन', id: 'Rangkaian alat', ur: 'ٹول چین', ja: 'ツールチェーン', pt: 'Cadeia de ferramentas', it: 'Catena di strumenti', ko: '도구 체인', nl: 'Toolketen', pl: 'Łańcuch narzędzi', tr: 'Araç zinciri', vi: 'Chuỗi công cụ', th: 'สายเครื่องมือ', sv: 'Verktygskedja' },
@@ -43,7 +43,7 @@ function translateText(locale: Locale, value: string): string {
     const [, completed, total] = toolChain;
     const open = UI.Open?.[locale] ?? 'Open';
     const chain = UI['Tool Chain']?.[locale] ?? 'Tool Chain';
-    const steps: Partial<Record<Locale, string>> = { ar: 'خطوات', de: 'Schritte', es: 'pasos', fr: 'étapes', ru: 'шагов', zh: '步骤', hi: 'चरण', ja: 'ステップ', ko: '단계', pt: 'etapas', it: 'passaggi', nl: 'stappen', pl: 'kroków', tr: 'adım', vi: 'bước', th: 'ขั้นตอน', sv: 'steg', id: 'langkah', ur: 'مراحل' };
+    const steps: Partial<Record<string, string>> = { ar: 'خطوات', de: 'Schritte', es: 'pasos', fr: 'étapes', ru: 'шагов', zh: '步骤', hi: 'चरण', ja: 'ステップ', ko: '단계', pt: 'etapas', it: 'passaggi', nl: 'stappen', pl: 'kroków', tr: 'adım', vi: 'bước', th: 'ขั้นตอน', sv: 'steg', id: 'langkah', ur: 'مراحل' };
     return `${chain} ${completed}/${total} ${steps[locale] ?? 'steps'} ${open}`;
   }
   for (const [prefix, map] of PREFIXES) if (value.startsWith(prefix)) return `${map[locale] ?? prefix}${value.slice(prefix.length)}`;

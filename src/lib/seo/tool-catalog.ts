@@ -11,7 +11,7 @@ type ToolSeoInput = Readonly<{
   isReady: boolean;
 }>;
 
-const CORE: Record<Locale, {
+const CORE: Record<string, {
   online: string;
   intro: string;
   step1: string;
