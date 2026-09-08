@@ -173,6 +173,8 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
   test('enters and exits fullscreen on the actual Seed stage when the browser exposes the API', async ({ page }) => {
     const fullscreenEnabled = await page.evaluate(() => Boolean(document.fullscreenEnabled && document.documentElement.requestFullscreen));
     test.skip(!fullscreenEnabled, 'Fullscreen API is unavailable in this browser environment.');
+    await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
+    await expect(canvasLocator(page)).toBeVisible();
     const fullscreenBtn = page.getByTestId('button-canvas-fullscreen');
     const seedStage = seedStageLocator(page);
     await fullscreenBtn.click();
