@@ -1,12 +1,12 @@
 name: FLIXO CI — Impact Analysis Shadow
 
+# Shadow validation is retained for manual forensic comparison only.
+# Canonical CI owns automated PR/main impact classification.
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-impact-${{ github.event.pull_request.number || github.ref }}
+  group: flixo-ci-impact-manual
   cancel-in-progress: true
 
 permissions:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   impact-shadow:
-    name: CI Change Impact Shadow
+    name: CI Change Impact Shadow (manual diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
