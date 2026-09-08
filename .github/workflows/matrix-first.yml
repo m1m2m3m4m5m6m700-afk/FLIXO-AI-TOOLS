@@ -27,14 +27,58 @@ env:
 
 jobs:
   matrix:
-    name: Image Matrix — ${{ matrix.browser }}
+    name: E2E — ${{ matrix.tool }} — ${{ matrix.browser }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
-        shard: [1]
+        include:
+          - tool: image-compressor
+            spec: tests/image-compressor.spec.ts
+          - tool: background-remover
+            spec: tests/background-remover.spec.ts
+          - tool: image-upscaler
+            spec: tests/image-upscaler.spec.ts
+          - tool: image-converter
+            spec: tests/image-converter.spec.ts
+          - tool: ai-image-generator
+            spec: tests/ai-image-generator.spec.ts
+          - tool: object-remover
+            spec: tests/object-remover.spec.ts
+          - tool: watermark-remover
+            spec: tests/watermark-remover.spec.ts
+          - tool: image-cropper
+            spec: tests/image-cropper.spec.ts
+          - tool: image-to-svg
+            spec: tests/image-to-svg.spec.ts
+          - tool: image-ocr
+            spec: tests/image-ocr.spec.ts
+          - tool: photo-colorizer
+            spec: tests/photo-colorizer.spec.ts
+          - tool: background-blur
+            spec: tests/background-blur.spec.ts
+          - tool: passport-photo-maker
+            spec: tests/passport-photo-maker.spec.ts
+          - tool: watermark-adder
+            spec: tests/watermark-adder.spec.ts
+          - tool: meme-generator
+            spec: tests/meme-generator.spec.ts
+          - tool: collage-maker
+            spec: tests/collage-maker.spec.ts
+          - tool: image-effects
+            spec: tests/image-effects.spec.ts
+          - tool: exif-cleaner
+            spec: tests/exif-cleaner.spec.ts
+          - tool: svg-optimizer
+            spec: tests/svg-optimizer.spec.ts
+          - tool: mockup-generator
+            spec: tests/mockup-generator.spec.ts
+          - tool: seed
+            spec: tests/seed.spec.ts
+          - tool: pix
+            spec: tests/pix.spec.ts
     steps:
       - uses: actions/checkout@v5
         with:
@@ -53,7 +97,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: image-matrix-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
+          key: e2e-matrix-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
       - name: Install browser
         timeout-minutes: 8
         env:
@@ -77,34 +121,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/image-matrix-server.log 2>&1 &
-          echo $! >/tmp/image-matrix-server.pid
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/e2e-matrix-server.log 2>&1 &
+          echo $! >/tmp/e2e-matrix-server.pid
           for _ in $(seq 1 60); do
             if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
             sleep 1
           done
-          cat /tmp/image-matrix-server.log || true
+          cat /tmp/e2e-matrix-server.log || true
           exit 1
-      - name: Run image/localization contract
+      - name: Run E2E test
         timeout-minutes: 15
         run: |
           set -euo pipefail
-          echo "Image matrix unit: browser=${{ matrix.browser }}"
-          npx playwright test tests/localization-runtime.spec.ts \
-            --project=${{ matrix.browser }} \
+          echo "E2E matrix unit: tool=${{ matrix.tool }} browser=${{ matrix.browser }}"
+          npx playwright test "${{ matrix.spec }}" \
+            --project="${{ matrix.browser }}" \
             --workers=6 \
             --retries=0 \
-            --max-failures=1 \
-            --shard=1/1
+            --max-failures=1
       - name: Upload independent diagnostics
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: image-matrix-${{ matrix.browser }}-${{ github.run_id }}
+          name: e2e-matrix-${{ matrix.tool }}-${{ matrix.browser }}-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/
-            /tmp/image-matrix-server.log
+            /tmp/e2e-matrix-server.log
           if-no-files-found: warn
           retention-days: 14
       - name: Cleanup
@@ -112,19 +155,19 @@ jobs:
         shell: bash
         run: |
           set +e
-          if [ -f /tmp/image-matrix-server.pid ]; then kill "$(cat /tmp/image-matrix-server.pid)" 2>/dev/null || true; fi
+          if [ -f /tmp/e2e-matrix-server.pid ]; then kill "$(cat /tmp/e2e-matrix-server.pid)" 2>/dev/null || true; fi
 
   certification:
-    name: Image Matrix Certification
+    name: Matrix First Certification
     needs: [matrix]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Fail closed on any browser unit
+      - name: Fail closed on any E2E unit
         run: |
           set -euo pipefail
           result='${{ needs.matrix.result }}'
           echo "matrix=$result"
           test "$result" = success
-          echo 'Image Matrix Certification PASS: all 3 browser units passed independently.'
+          echo 'Matrix First Certification PASS: all 22×3 browser units passed independently.'
