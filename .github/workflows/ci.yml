@@ -1,7 +1,7 @@
 name: CI
 
 # PR and main use the same impact-aware verification engine.
-# Matrix First is the mandatory browser verification barrier for all official test jobs.
+# Verification lanes run independently; only final-contract-gate waits for the complete result set.
 on:
   pull_request:
     branches: [main]
@@ -63,8 +63,6 @@ jobs:
 
   ultra-fast:
     name: Ultra — Fast Triage
-    needs: [matrix-first-barrier]
-    if: needs.matrix-first-barrier.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -119,8 +117,6 @@ jobs:
 
   ci:
     name: CI
-    needs: [matrix-first-barrier, ultra-fast]
-    if: always() && needs.matrix-first-barrier.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -150,8 +146,8 @@ jobs:
 
   fast-contract:
     name: Fast Contract Diagnostics
-    needs: [matrix-first-barrier, ultra-fast, ci]
-    if: always() && needs.matrix-first-barrier.result == 'success'
+    needs: [ultra-fast, ci]
+    if: always() && (needs.ultra-fast.result == 'success' || needs.ultra-fast.result == 'failure') && needs.ci.result != 'cancelled'
     runs-on: ubuntu-latest
     env:
       EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -185,8 +181,8 @@ jobs:
 
   canonical-verify:
     name: Canonical Verification Gate
-    needs: [matrix-first-barrier, ci, fast-contract]
-    if: always() && needs.matrix-first-barrier.result == 'success'
+    needs: [ci, fast-contract]
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
@@ -206,8 +202,6 @@ jobs:
 
   g3-foundation:
     name: G3 / Foundation
-    needs: [matrix-first-barrier]
-    if: needs.matrix-first-barrier.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -259,8 +253,6 @@ jobs:
 
   g3-contracts:
     name: G3 / Contracts
-    needs: [matrix-first-barrier]
-    if: needs.matrix-first-barrier.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
@@ -304,8 +296,6 @@ jobs:
 
   g3-browser:
     name: G3 / Browser
-    needs: [matrix-first-barrier]
-    if: needs.matrix-first-barrier.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -380,8 +370,8 @@ jobs:
 
   g3-aggregator:
     name: G3 / Aggregator
-    needs: [matrix-first-barrier, g3-foundation, g3-contracts, g3-browser]
-    if: always() && needs.matrix-first-barrier.result == 'success'
+    needs: [g3-foundation, g3-contracts, g3-browser]
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
