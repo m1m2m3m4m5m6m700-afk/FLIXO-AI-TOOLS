@@ -171,11 +171,11 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
     }
   };
 
-  const title = label(locale, 'Compress Images Online', 'ضغط الصور أونلاين');
+  const title = label(locale, 'Image Compressor', 'ضغط الصور أونلاين');
   const description = label(locale, 'Compress JPG, PNG, and WebP images locally in your browser with smart quality, target size, resizing, preview, and batch ZIP export.', 'قلّل حجم صور JPG وPNG وWebP داخل المتصفح مع جودة ذكية، وحجم مستهدف، وتغيير المقاس، ومعاينة، وضغط جماعي في ملف ZIP.');
 
   return (
-    <main lang={locale} dir={isArabic ? 'rtl' : 'ltr'} className="image-tool-shell">
+    <div lang={locale} dir={isArabic ? 'rtl' : 'ltr'} className="image-tool-shell">
       <div className="image-tool-container">
         <header className="image-tool-header"><div><p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p><h1 ref={headingRef} tabIndex={-1}>{title}</h1><p className="image-tool-lead">{description}</p></div><a className="language-link" href={isArabic ? '/en/image-compressor' : '/ar/image-compressor'}>{label(locale, 'العربية', 'English')}</a></header>
         <section className="compressor-grid" aria-label={label(locale, 'Image compression tool', 'أداة ضغط الصور')} aria-busy={busy}>
@@ -196,6 +196,6 @@ export function ImageCompressor({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
           <aside className="result-card" aria-live="polite"><p className="image-tool-eyebrow">{label(locale, 'RESULT', 'النتيجة')}</p>{result && file ? <><div className="result-number">{savings}%</div><p className="result-caption">{label(locale, 'smaller file size', 'تقليل في الحجم')}</p><dl className="stats-list"><div><dt>{label(locale, 'Before', 'قبل')}</dt><dd>{formatBytes(file.size)}</dd></div><div><dt>{label(locale, 'After', 'بعد')}</dt><dd>{formatBytes(result.blob.size)}</dd></div><div><dt>{label(locale, 'Dimensions', 'الأبعاد')}</dt><dd>{result.width} × {result.height}</dd></div><div><dt>{label(locale, 'Format', 'الصيغة')}</dt><dd>{formatLabels[format]}</dd></div><div><dt>{label(locale, 'Quality used', 'الجودة المستخدمة')}</dt><dd>{Math.round(result.qualityUsed * 100)}%</dd></div></dl><a className="download-button" href={downloadUrl} download={`flixo-compressed.${extensionFor(format)}`}>{label(locale, 'Download image', 'تنزيل الصورة')}</a></> : batchZipUrl ? <><div className="result-number">{batchCount}</div><p className="result-caption">{label(locale, 'images optimized', 'صور تم تحسينها')}</p><a className="download-button" href={batchZipUrl} download="flixo-compressed-images.zip">{label(locale, 'Download ZIP', 'تنزيل ZIP')}</a></> : <div className="empty-result">{label(locale, 'Verified output statistics and previews appear here after processing.', 'ستظهر هنا إحصاءات النتيجة والمعاينة بعد المعالجة.')}</div>}</aside>
         </section>
       </div>
-    </main>
+    </div>
   );
 }
