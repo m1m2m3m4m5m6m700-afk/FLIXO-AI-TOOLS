@@ -18,6 +18,13 @@ function changedFiles() {
   return output.split('\n').map((value) => value.trim()).filter(Boolean);
 }
 
+let files;
+try {
+  files = changedFiles();
+} catch (error) {
+  throw new Error(`Cannot resolve change base ${base}; refusing to guess impact. ${String(error?.message ?? error)}`, { cause: error });
+}
+
 function matchesPath(file, candidate) {
   if (candidate.endsWith('/')) return file.startsWith(candidate);
   if (candidate.endsWith('.')) return file.startsWith(candidate);
@@ -41,13 +48,6 @@ const allStaticBuildAssertionIds = [
   ...allStaticChecks.flatMap((check) => check.assertions ?? []),
   ...allBuildChecks.flatMap((check) => check.assertions ?? []),
 ];
-
-let files;
-try {
-  files = changedFiles();
-} catch (error) {
-  throw new Error(`Cannot resolve change base ${base}; refusing to guess impact. ${String(error?.message ?? error)}`, { cause: error });
-}
 
 const unmappedFiles = files.filter((file) => !matchedSources.some((sourceId) => {
   const source = (graph.sources ?? []).find((entry) => entry.id === sourceId);
