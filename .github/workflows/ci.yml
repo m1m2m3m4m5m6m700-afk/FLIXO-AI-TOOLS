@@ -27,7 +27,7 @@ env:
   EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
-  static-build:
+  verify:
     name: Static + Build
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -57,7 +57,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -s diagnostics/ci/canonical-result.json || true
           test -s dist/flixo-head-sha.txt
           test "$(cat dist/flixo-head-sha.txt)" = "$EXPECTED_SHA"
           sha256sum -c dist/flixo-package-lock.sha256
@@ -75,10 +74,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  browser-fast:
+  browser_fast:
     name: Browser FAST — ${{ matrix.browser }} / shard-${{ matrix.shard }}
-    needs: [static-build]
-    if: needs.static-build.result == 'success'
+    needs: [verify]
+    if: needs.verify.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -131,6 +130,7 @@ jobs:
           set -euo pipefail
           specs=(
             tests/image-compressor.spec.ts tests/background-remover.spec.ts tests/image-upscaler.spec.ts tests/image-converter.spec.ts tests/ai-image-generator.spec.ts tests/object-remover.spec.ts tests/watermark-remover.spec.ts tests/image-cropper.spec.ts tests/image-to-svg.spec.ts tests/image-ocr.spec.ts tests/photo-colorizer.spec.ts tests/background-blur.spec.ts tests/passport-photo-maker.spec.ts tests/watermark-adder.spec.ts tests/meme-generator.spec.ts tests/collage-maker.spec.ts tests/image-effects.spec.ts tests/exif-cleaner.spec.ts tests/svg-optimizer.spec.ts tests/mockup-generator.spec.ts tests/seed.spec.ts tests/pix.spec.ts
+          )
           test "${#specs[@]}" -eq 22
           npx playwright test "${specs[@]}" --project="$BROWSER" --workers=6 --retries=0 --max-failures=1 --shard="$SHARD/2"
           mkdir -p diagnostics/certification
@@ -150,10 +150,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  browser-deep:
+  browser_deep:
     name: Browser DEEP — ${{ matrix.browser }} / shard-${{ matrix.shard }}
-    needs: [static-build]
-    if: github.event_name != 'pull_request' && needs.static-build.result == 'success'
+    needs: [verify]
+    if: github.event_name != 'pull_request' && needs.verify.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -224,7 +224,7 @@ jobs:
 
   certify:
     name: Certification
-    needs: [static-build, browser-fast, browser-deep]
+    needs: [verify, browser_fast, browser_deep]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -262,10 +262,10 @@ jobs:
             "workflow_run_id": "${{ github.run_id }}",
             "workflow": "FLIXO Test System",
             "jobs": {
-              "static": "${{ needs.static-build.result }}",
-              "build": "${{ needs.static-build.result }}",
-              "browserFast": "${{ needs.browser-fast.result }}",
-              "browserDeep": "${{ needs.browser-deep.result }}"
+              "static": "${{ needs.verify.result }}",
+              "build": "${{ needs.verify.result }}",
+              "browserFast": "${{ needs.browser_fast.result }}",
+              "browserDeep": "${{ needs.browser_deep.result }}"
             },
             "required": {
               "matrixFirstUnits": 66,
