@@ -47,7 +47,7 @@ function splitTitle(title: string): string[] {
   return title.replace(/[&/]/g, ' ').split(/\s+/).filter(Boolean);
 }
 
-const TERM_MAPS: Record<Locale, Record<string, string>> = {
+const TERM_MAPS: Record<string, Record<string, string>> = {
   en: {}, ar: { Compressor: 'ضاغط الصور', Converter: 'محول', Image: 'الصور', Video: 'الفيديو', Audio: 'الصوت', Text: 'النص', AI: 'ذكاء اصطناعي', Remover: 'إزالة', Generator: 'مولد' },
   es: { Compressor: 'Compresor', Converter: 'Convertidor', Image: 'Imágenes', Video: 'Vídeo', Audio: 'Audio', Text: 'Texto', AI: 'IA', Remover: 'Eliminación', Generator: 'Generador' },
   fr: { Compressor: 'Compresseur', Converter: 'Convertisseur', Image: 'Images', Video: 'Vidéo', Audio: 'Audio', Text: 'Texte', AI: 'IA', Remover: 'Suppression', Generator: 'Générateur' },
