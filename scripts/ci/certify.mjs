@@ -81,7 +81,9 @@ for (const file of staticBuildEvidence) {
     if (Array.isArray(value.failures) && value.failures.length) failures.push(`${path.relative(root, file)} has failures`);
     if (Array.isArray(value.unknowns) && value.unknowns.length) unknowns.push(`${path.relative(root, file)} has unknowns`);
     if (Number(value.independentRootCauseCount ?? 0) !== 0) failures.push(`${path.relative(root, file)} has independent root causes`);
-  } catch {}
+  } catch (error) {
+    invalidEvidence.push(`${path.relative(root, file)}: ${error.message}`);
+  }
 }
 
 if (fastEvidence.length !== 6) unknowns.push(`FAST evidence count=${fastEvidence.length}, expected 6`);
