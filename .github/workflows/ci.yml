@@ -231,13 +231,38 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+      - name: Download static evidence
+        uses: actions/download-artifact@v6
+        with:
+          pattern: flixo-static-*
+          path: evidence/static
+          merge-multiple: true
+      - name: Download build evidence
+        uses: actions/download-artifact@v6
+        with:
+          pattern: flixo-build-evidence-*
+          path: evidence/build
+          merge-multiple: true
+      - name: Download FAST browser evidence
+        uses: actions/download-artifact@v6
+        with:
+          pattern: flixo-browser-fast-*
+          path: evidence/browser-fast
+          merge-multiple: true
+      - name: Download DEEP browser evidence
+        if: github.event_name != 'pull_request'
+        uses: actions/download-artifact@v6
+        with:
+          pattern: flixo-browser-deep-*
+          path: evidence/browser-deep
+          merge-multiple: true
       - name: Write exact-run manifest
         shell: bash
         run: |
           set -euo pipefail
           cat > certification-run-manifest.json <<'JSON'
           {
-            "schema_version": 1,
+            "schema_version": 2,
             "sha": "${{ github.event.pull_request.head.sha || github.sha }}",
             "workflow_run_id": "${{ github.run_id }}",
             "workflow": "FLIXO Test System",
@@ -254,38 +279,28 @@ jobs:
             }
           }
           JSON
-      - name: Enforce single certification decision
+      - name: Run the single certification engine
+        env:
+          CERTIFICATION_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CERTIFICATION_MANIFEST: certification-run-manifest.json
+        run: node scripts/ci/certify.mjs
+      - name: Enforce fail-closed decision
         shell: bash
         run: |
           set -euo pipefail
-          test '${{ needs.static.result }}' = success
-          test '${{ needs.build.result }}' = success
-          test '${{ needs.browser-fast.result }}' = success
-          if [[ '${{ github.event_name }}' != 'pull_request' ]]; then test '${{ needs.browser-deep.result }}' = success; fi
-          test "$(node -e "process.stdout.write(require('./certification-run-manifest.json').sha)")" = "$EXPECTED_SHA"
-      - name: Validate zero-false-green evidence
-        env:
-          CERTIFICATION_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$CERTIFICATION_SHA"
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const registry = JSON.parse(fs.readFileSync('scripts/ci/assertion-registry.json','utf8'));
-          const plan = JSON.parse(fs.readFileSync('scripts/ci/test-plan.json','utf8'));
-          const jobs = JSON.parse(fs.readFileSync('certification-run-manifest.json','utf8')).jobs;
-          const assertionIds = Object.keys(registry.assertions ?? {});
-          const owners = new Set(Object.values(registry.assertions ?? {}).map(x => x.owner));
-          const planOwners = new Set(Object.values(plan.gates ?? {}).flatMap(g => g.checks ?? []).map(c => c.id));
-          if (!assertionIds.length) throw new Error('no assertions');
-          for (const owner of owners) if (!planOwners.has(owner) && !/^BUILD-003$/.test(owner)) throw new Error(`unowned canonical execution owner: ${owner}`);
-          if (Object.values(jobs).some(v => v === 'cancelled')) throw new Error('unauthorized cancellation');
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const r = JSON.parse(fs.readFileSync('diagnostics/certification/global-evidence.json','utf8'));
+          if (r.status !== 'PASS') throw new Error(JSON.stringify(r));
+          for (const [key, value] of Object.entries(r.zeroFalseGreen)) if (value !== 0) throw new Error(`${key}=${value}`);
           NODE
-          echo 'GREEN = all required engines passed, exact SHA verified, evidence contract valid, and no unresolved root cause is tolerated.'
+          echo 'GREEN = static + build + browser + exact SHA + valid evidence + zero unresolved root causes.'
       - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: flixo-certification-${{ github.run_id }}
-          path: certification-run-manifest.json
+          path: |
+            certification-run-manifest.json
+            diagnostics/certification/global-evidence.json
           if-no-files-found: error
           retention-days: 30
