@@ -1,12 +1,12 @@
 name: FLIXO CI — Evidence Ledger Shadow
 
+# Shadow ledger validation is retained for manual forensic comparison only.
+# Canonical CI/evidence pipeline owns automated PR/main execution.
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-evidence-${{ github.event.pull_request.number || github.ref }}
+  group: flixo-ci-evidence-manual
   cancel-in-progress: true
 
 permissions:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   evidence-shadow:
-    name: CI Evidence Ledger Shadow
+    name: CI Evidence Ledger Shadow (manual diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
