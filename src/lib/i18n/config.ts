@@ -4,10 +4,9 @@ export { getCanonicalSiteOrigin };
 
 export const SITE_ORIGIN = getCanonicalSiteOrigin();
 
-/** Runtime-supported public image-platform locale set. */
-export const LOCALES = ['ar','en','es','fr','de','hi','id','it','ja','ko','ms','nl','pl','pt','ru','sv','th','tr','uk','vi'] as const;
+/** Canonical public locale set shared by runtime, routing, SEO, manifests and tests. */
+export const LOCALES = ['ar','en','es','fr','de','ru','zh','hi','id','ur','ja','pt','it','ko','nl','pl','tr','vi','th','sv'] as const;
 export type CanonicalLocale = (typeof LOCALES)[number];
-
 export type Locale = CanonicalLocale;
 
 export const DEFAULT_LOCALE: CanonicalLocale = 'ar';
@@ -15,28 +14,28 @@ export const X_DEFAULT_LOCALE: CanonicalLocale = 'en';
 
 export const LOCALE_METADATA: Readonly<Record<CanonicalLocale, Readonly<{
   languageTag: string;
-  direction: 'ltr' | 'rtl';
+  direction: 'rtl' | 'ltr';
 }>>> = {
   ar: { languageTag: 'ar', direction: 'rtl' },
   en: { languageTag: 'en', direction: 'ltr' },
   es: { languageTag: 'es', direction: 'ltr' },
   fr: { languageTag: 'fr', direction: 'ltr' },
   de: { languageTag: 'de', direction: 'ltr' },
+  ru: { languageTag: 'ru', direction: 'ltr' },
+  zh: { languageTag: 'zh-CN', direction: 'ltr' },
   hi: { languageTag: 'hi', direction: 'ltr' },
   id: { languageTag: 'id', direction: 'ltr' },
-  it: { languageTag: 'it', direction: 'ltr' },
+  ur: { languageTag: 'ur', direction: 'rtl' },
   ja: { languageTag: 'ja', direction: 'ltr' },
+  pt: { languageTag: 'pt', direction: 'ltr' },
+  it: { languageTag: 'it', direction: 'ltr' },
   ko: { languageTag: 'ko', direction: 'ltr' },
-  ms: { languageTag: 'ms', direction: 'ltr' },
   nl: { languageTag: 'nl', direction: 'ltr' },
   pl: { languageTag: 'pl', direction: 'ltr' },
-  pt: { languageTag: 'pt', direction: 'ltr' },
-  ru: { languageTag: 'ru', direction: 'ltr' },
-  sv: { languageTag: 'sv', direction: 'ltr' },
-  th: { languageTag: 'th', direction: 'ltr' },
   tr: { languageTag: 'tr', direction: 'ltr' },
-  uk: { languageTag: 'uk', direction: 'ltr' },
   vi: { languageTag: 'vi', direction: 'ltr' },
+  th: { languageTag: 'th', direction: 'ltr' },
+  sv: { languageTag: 'sv', direction: 'ltr' },
 };
 
 export function isLocale(value: string): value is CanonicalLocale {

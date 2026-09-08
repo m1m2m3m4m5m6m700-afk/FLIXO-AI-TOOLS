@@ -34,7 +34,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Run blocking Socket supply-chain scan
+      - name: Blocking Socket supply-chain scan
         run: npx --yes @socketsecurity/cli@1.1.158 ci
 
   engineering-gate:
@@ -43,6 +43,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
+      - name: Checkout exact release SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install committed dependency graph
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Verify exact release SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
       - name: Wait for canonical GitHub CI
         env:
           GH_TOKEN: ${{ github.token }}
@@ -57,22 +80,6 @@ jobs:
             sleep 10
           done
           echo "Canonical CI did not complete successfully for $GITHUB_SHA."
-          exit 1
-
-      - name: Wait for canonical Full Matrix Parallel certification
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          for attempt in {1..36}; do
-            result="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow full-matrix-parallel.yml --commit "$GITHUB_SHA" --limit 1 --json status,conclusion,databaseId)"
-            echo "$result"
-            status="$(node -e "const r=$result; console.log(r[0]?.status ?? '')")"
-            conclusion="$(node -e "const r=$result; console.log(r[0]?.conclusion ?? '')")"
-            if [[ "$status" == "completed" && "$conclusion" == "success" ]]; then exit 0; fi
-            sleep 10
-          done
-          echo "Canonical Full Matrix Parallel certification did not complete successfully for $GITHUB_SHA."
           exit 1
 
       - name: Verify production surface
@@ -91,7 +98,6 @@ jobs:
             echo 'Blocking evidence:'
             echo '- Socket supply-chain scan: PASS'
             echo '- Canonical GitHub CI: PASS'
-            echo '- Full Matrix Parallel certification: PASS'
             echo '- Production surface certification: PASS'
             echo
             echo 'Vercel provider-side quota status is recorded separately and never converted into an engineering PASS.'

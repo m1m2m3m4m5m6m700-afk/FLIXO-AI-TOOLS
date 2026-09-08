@@ -20,11 +20,17 @@ function bytesToHex(bytes: Uint8Array, limit = 16): string {
   return Array.from(bytes.slice(0, limit), (value) => value.toString(16).padStart(2, '0')).join('');
 }
 
+function signatureAllowed(signature: string, allowedSignatures: readonly string[]): boolean {
+  const normalized = signature.replace(/\s+/g, '').toLowerCase();
+  return allowedSignatures.some((allowed) => normalized.startsWith(allowed.replace(/\s+/g, '').toLowerCase()));
+}
+
 export function validateUploadBoundary(
   input: UploadBoundaryInput,
   policy: UploadBoundaryPolicy,
 ): UploadBoundaryResult {
   const signature = bytesToHex(input.bytes);
+  const safetyPolicy: FileSafetyPolicy = { ...policy, signatures: undefined };
   const safety = validateFileSafety(
     {
       name: input.name,
@@ -35,8 +41,11 @@ export function validateUploadBoundary(
       signature,
       content: input.bytes,
     },
-    policy,
+    safetyPolicy,
   );
 
-  return { ...safety, signature };
+  const failures = [...safety.failures];
+  if (policy.signatures.length && !signatureAllowed(signature, policy.signatures)) failures.push('file signature is not permitted by policy');
+
+  return { safe: failures.length === 0, failures, signature };
 }
