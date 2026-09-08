@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "authority": "canonical-origin-policy",
+  "productionOrigin": "https://flixoai.vercel.app",
+  "runtimeOrigin": "http://127.0.0.1:3000",
+  "testSentinel": "https://canonical.test",
+  "testSentinelPolicy": "UNIT_OR_CONTRACT_ONLY",
+  "certificationProvenanceForbidden": ["https://canonical.test"],
+  "sentinelAllowlist": [
+    "scripts/test-route-resolver.mjs",
+    "scripts/test-i18n-contract.mjs"
+  ],
+  "workflowCertificationAllowlist": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/matrix-first.yml",
+    ".github/workflows/full-matrix-parallel.yml"
+  ]
+}
