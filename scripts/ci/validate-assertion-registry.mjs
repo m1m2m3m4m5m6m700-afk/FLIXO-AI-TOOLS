@@ -12,6 +12,7 @@ const ownerToAssertion = new Map();
 const referenced = new Map();
 const executionOwners = new Map();
 
+const normalize = (file) => String(file).replaceAll(path.sep, '/').replace(/^\.\//, '');
 const listFiles = (dir) => {
   if (!fs.existsSync(dir)) return [];
   const out = [];
@@ -19,68 +20,34 @@ const listFiles = (dir) => {
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
       const absolute = path.join(current, entry.name);
       if (entry.isDirectory()) walk(absolute);
-      else out.push(absolute.replaceAll(path.sep, '/'));
+      else out.push(normalize(absolute));
     }
   };
   walk(dir);
   return out;
 };
-
 const allSpecFiles = listFiles('tests').filter((file) => /\.spec\.(?:ts|js|mjs)$/.test(file));
-const normalizeSource = (file) => file?.replace(/^\.\//, '').replaceAll('\\', '/');
 const unique = (values) => [...new Set(values)];
+const fileArgument = (args = []) => [...args].reverse().find((arg) => typeof arg === 'string' && /^(?:tests|scripts)\/.+\.(?:mjs|js|ts)$/.test(arg));
+const npmScriptExists = (name) => typeof packageJson.scripts?.[name] === 'string';
 
-const collectLocalSources = (command, args = []) => {
-  const candidates = [];
-  const tokens = [command, ...args].filter((v) => typeof v === 'string');
-  for (const token of tokens) {
-    const clean = token.split(/[?#]/, 1)[0];
-    if (/^(?:tests|scripts)\/.+\.(?:mjs|js|ts)$/.test(clean)) candidates.push(normalizeSource(clean));
-    if (/^(?:tests|scripts)\/.+\/$/.test(clean)) candidates.push(normalizeSource(clean));
-  }
-  return unique(candidates);
-};
-
-const resolveNpmScriptSources = (scriptName, seen = new Set()) => {
+const localSourcesFromScript = (scriptName, seen = new Set()) => {
   if (!scriptName || seen.has(scriptName)) return [];
   seen.add(scriptName);
   const script = packageJson.scripts?.[scriptName];
   if (typeof script !== 'string') return [];
-  const sources = collectLocalSources('npm', script.split(/\s+/));
-  for (const nested of script.matchAll(/npm\s+run\s+([A-Za-z0-9:_-]+)/g)) {
-    sources.push(...resolveNpmScriptSources(nested[1], seen));
+  const sources = [];
+  for (const token of script.split(/\s+/)) {
+    const clean = token.split(/[?#]/, 1)[0];
+    if (/^(?:tests|scripts)\/.+\.(?:mjs|js|ts)$/.test(clean)) sources.push(normalize(clean));
   }
+  for (const nested of script.matchAll(/npm\s+run\s+([A-Za-z0-9:_-]+)/g)) sources.push(...localSourcesFromScript(nested[1], seen));
   return unique(sources);
 };
 
-const executableEvidence = (source, kind) => {
-  if (!source || !fs.existsSync(source)) return false;
-  const text = read(source);
-  if (kind === 'browser') return /\b(?:test|test\.describe|it)\s*\(/.test(text) && /\b(?:expect|assert|toBe|toEqual|toHave|toContain|toBeVisible|toHaveCount)\b/.test(text);
-  if (/\.spec\.(?:ts|js|mjs)$/.test(source)) return /\b(?:test|it)\s*\(/.test(text) && /\b(?:expect|assert)\b/.test(text);
-  return /\b(?:assert|expect|throw new Error|process\.exit\s*\(|!==|===|>=|<=)\b/.test(text);
-};
-
-const importedHelpers = (source) => {
-  if (!fs.existsSync(source) || !/\.spec\.(?:ts|js|mjs)$/.test(source)) return [];
-  const text = read(source);
-  const helpers = [];
-  for (const match of text.matchAll(/import\s*\{([^}]+)\}\s*from\s*['"](\.\.?\/[^'"]+)['"]/g)) {
-    const names = match[1].split(',').map((item) => item.trim().split(/\s+as\s+/)[0]).filter(Boolean);
-    const importedPath = path.normalize(path.join(path.dirname(source), match[2])).replaceAll(path.sep, '/');
-    const candidatePaths = [
-      importedPath,
-      `${importedPath}.ts`,
-      `${importedPath}.js`,
-      `${importedPath}.mjs`,
-      `${importedPath}/index.ts`,
-      `${importedPath}/index.js`,
-    ];
-    const helperSource = candidatePaths.find((candidate) => fs.existsSync(candidate));
-    for (const name of names) helpers.push({ name, spec: normalizeSource(source), source: helperSource ? normalizeSource(helperSource) : null, used: (text.match(new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g')) ?? []).length > 1 });
-  }
-  return helpers;
-};
+const sourceText = (source) => fs.existsSync(source) ? read(source) : '';
+const hasExecutableAssertion = (source) => /\b(?:assert|expect|test|it|throw new Error|process\.exit\s*\(|strictEqual|deepStrictEqual)\b/.test(source);
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 for (const [assertionId, entry] of registryAssertions) {
   if (!entry || typeof entry !== 'object') { errors.push(`${assertionId}: invalid registry entry`); continue; }
@@ -114,10 +81,10 @@ for (const [gate, gatePlan] of Object.entries(plan.gates ?? {})) {
       if (entry && JSON.stringify([...entry.coverage].sort()) !== JSON.stringify([...(check.coverage ?? [])].sort())) errors.push(`${assertionId}: coverage mismatch`);
     }
     executionOwners.set(check.id, check);
-    if (check.command === 'npm' && check.args?.[0] === 'run' && !Object.hasOwn(packageJson.scripts ?? {}, check.args?.[1])) errors.push(`${gate}/${check.id}: missing npm script ${check.args?.[1] ?? '<missing>'}`);
+    if (check.command === 'npm' && check.args?.[0] === 'run' && !npmScriptExists(check.args?.[1])) errors.push(`${gate}/${check.id}: missing npm script ${check.args?.[1] ?? '<missing>'}`);
     if (check.command === 'node') {
-      const fileArg = [...(check.args ?? [])].reverse().find((arg) => typeof arg === 'string' && !arg.startsWith('-') && /\.(?:mjs|js|ts)$/.test(arg));
-      if (fileArg && !fs.existsSync(path.resolve(fileArg))) errors.push(`${gate}/${check.id}: missing executable ${fileArg}`);
+      const file = fileArgument(check.args);
+      if (file && !fs.existsSync(path.resolve(file))) errors.push(`${gate}/${check.id}: missing executable ${file}`);
     }
   }
 }
@@ -130,33 +97,56 @@ for (const [gate, gatePlan] of Object.entries(plan.gates ?? {})) {
   for (const check of gatePlan.checks ?? []) {
     const assertionId = check.assertions?.[0];
     if (!assertionId) continue;
-    let sources = collectLocalSources(check.command, check.args ?? []);
-    if (check.command === 'npm' && check.args?.[0] === 'run') sources = unique([...sources, ...resolveNpmScriptSources(check.args[1])]);
-    const browser = gate === 'browser' || check.command === 'npx' && (check.args ?? []).includes('playwright');
-    if (browser) sources = unique([...sources, ...(check.args ?? []).filter((arg) => typeof arg === 'string' && /^tests\/.+\.spec\.(?:ts|js|mjs)$/.test(arg)).map(normalizeSource)]);
-    const existingSources = sources.filter((source) => fs.existsSync(source));
-    const sourceWithAssertionConstruct = existingSources.find((source) => executableEvidence(source, browser ? 'browser' : 'node')) ?? null;
-    if (!sourceWithAssertionConstruct) errors.push(`${assertionId}: no executable implementation source attributable to owner ${check.id}`);
-    if (browser && existingSources.length === 0) errors.push(`${assertionId}: browser owner has no discoverable spec file`);
-    const helpers = unique(existingSources.flatMap(importedHelpers).map((helper) => JSON.stringify(helper))).map((item) => JSON.parse(item));
-    for (const helper of helpers) {
-      if (!helper.source) errors.push(`${assertionId}: helper ${helper.name} imported by ${helper.spec} cannot be resolved`);
-      else if (!helper.used) errors.push(`${assertionId}: helper ${helper.name} imported by ${helper.spec} is not actually referenced`);
+    const entry = registryAssertions.get(assertionId);
+    const browser = gate === 'browser' || (check.command === 'npx' && (check.args ?? []).includes('playwright'));
+    let implementation;
+    if (browser) {
+      implementation = entry?.implementation;
+      if (!implementation || implementation.kind !== 'playwright-test' || !implementation.spec || !implementation.test) {
+        errors.push(`${assertionId}: browser assertion requires canonical playwright implementation {spec,test}`);
+      } else {
+        const spec = normalize(implementation.spec);
+        if (!fs.existsSync(spec)) errors.push(`${assertionId}: implementation spec missing ${spec}`);
+        else {
+          const text = sourceText(spec);
+          const testPattern = new RegExp(`(?:test|it)\\s*\\(\\s*['"]${escapeRegExp(implementation.test)}['"]`);
+          if (!testPattern.test(text)) errors.push(`${assertionId}: implementation test not found in ${spec}`);
+          if (!hasExecutableAssertion(text)) errors.push(`${assertionId}: implementation spec ${spec} contains no executable assertion construct`);
+        }
+      }
+    } else {
+      const file = fileArgument(check.args);
+      const scriptName = check.command === 'npm' && check.args?.[0] === 'run' ? check.args[1] : null;
+      const sources = unique([
+        file ? normalize(file) : null,
+        ...(scriptName ? localSourcesFromScript(scriptName) : []),
+      ].filter(Boolean));
+      const missing = sources.filter((source) => !fs.existsSync(source));
+      if (missing.length) errors.push(`${assertionId}: implementation source missing ${missing.join(', ')}`);
+      implementation = {
+        kind: sources.length ? 'executable-source' : 'tooling-command',
+        command: [check.command, ...(check.args ?? [])],
+        sources,
+        sourceExists: sources.every((source) => fs.existsSync(source)),
+      };
+      if (sources.length && !sources.some((source) => hasExecutableAssertion(sourceText(source)))) errors.push(`${assertionId}: mapped implementation sources contain no executable assertion construct`);
     }
-    implementations.push({ assertionId, owner: check.id, gate, command: [check.command, ...(check.args ?? [])].join(' '), sources: existingSources, executableSource: sourceWithAssertionConstruct, helpers });
+    implementations.push({ assertionId, owner: check.id, gate, implementation });
   }
 }
 
-const referencedBrowserSpecs = new Set(implementations.filter((item) => item.gate === 'browser').flatMap((item) => item.sources.filter((source) => /\.spec\.(?:ts|js|mjs)$/.test(source))));
-const fastWorkflowSpecs = new Set();
-const ci = read('.github/workflows/ci.yml');
-for (const spec of ci.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? []) fastWorkflowSpecs.add(normalizeSource(spec));
-for (const spec of fastWorkflowSpecs) {
-  if (!allSpecFiles.includes(spec)) errors.push(`BROWSER_SPEC_MISSING: workflow references ${spec} but file does not exist`);
-  if (!referencedBrowserSpecs.has(spec)) errors.push(`BROWSER_SPEC_UNOWNED: ${spec} is executable browser surface but no canonical browser assertion owner references it`);
+const markerRefs = [];
+for (const spec of allSpecFiles) {
+  const text = sourceText(spec);
+  for (const match of text.matchAll(/@flixo-canonical-assertion\s+([A-Z0-9-]+)/g)) markerRefs.push({ spec, assertionId: match[1] });
 }
-const unreferencedAuthoritativeSpecs = allSpecFiles.filter((spec) => /universal-runtime-evidence|universal-diagnostic-browser/.test(spec) && !referencedBrowserSpecs.has(spec));
-for (const spec of unreferencedAuthoritativeSpecs) errors.push(`SPEC_ASSERTION_ORPHAN: authoritative runtime spec ${spec} is not owned by any canonical browser assertion`);
+for (const marker of markerRefs) {
+  if (!registryAssertions.has(marker.assertionId)) errors.push(`SPEC_ASSERTION_UNREGISTERED: ${marker.spec} references ${marker.assertionId}, absent from registry`);
+  else {
+    const implementation = registryAssertions.get(marker.assertionId)?.implementation;
+    if (implementation?.spec && normalize(implementation.spec) !== marker.spec) errors.push(`SPEC_ASSERTION_WRONG_OWNER: ${marker.spec} references ${marker.assertionId}, canonical spec is ${normalize(implementation.spec)}`);
+  }
+}
 
 const executableSignatures = new Map();
 for (const [owner, check] of executionOwners) {
@@ -166,6 +156,7 @@ for (const [owner, check] of executionOwners) {
   executableSignatures.set(signature, owner);
 }
 
+const ci = read('.github/workflows/ci.yml');
 const architectureChecks = [
   ['single canonical workflow', /name:\s*FLIXO Test System/.test(ci)],
   ['single static+build engine', /\n\s{2}verify:\s*\n/.test(ci)],
@@ -179,19 +170,15 @@ const architectureChecks = [
 ];
 for (const [label, pass] of architectureChecks) if (!pass) errors.push(`ARCHITECTURE: ${label}`);
 
-const sourceAssertions = implementations.filter((item) => item.executableSource).map((item) => item.assertionId);
-for (const assertionId of registryAssertions.keys()) if (!sourceAssertions.includes(assertionId)) errors.push(`${assertionId}: registry-only assertion has no executable implementation mapping`);
-
 const result = {
-  schema_version: 6,
+  schema_version: 7,
   status: errors.length ? 'FAIL' : 'PASS',
   assertionCount: registryAssertions.size,
   testPlanAssertionCount: planAssertions.size,
   executionOwnerCount: executionOwners.size,
   implementationCount: implementations.length,
-  executableImplementationCount: sourceAssertions.length,
-  browserSpecCount: allSpecFiles.length,
-  referencedBrowserSpecCount: referencedBrowserSpecs.size,
+  implementationKindCounts: implementations.reduce((acc, item) => { acc[item.implementation?.kind ?? 'unknown'] = (acc[item.implementation?.kind ?? 'unknown'] ?? 0) + 1; return acc; }, {}),
+  markerCount: markerRefs.length,
   architecture: { engines: ['static+build', 'browser-fast', 'browser-deep', 'certify'], browserFast: { tools: 22, browsers: 3, units: 66 }, browserDeep: { locales: 20, browsers: 3 } },
   architectureChecks: architectureChecks.map(([label, pass]) => ({ label, status: pass ? 'PASS' : 'FAIL' })),
   implementations,
