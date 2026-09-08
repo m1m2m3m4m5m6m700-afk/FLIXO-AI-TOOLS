@@ -78,19 +78,20 @@ if (flags.artifact) {
   add('svg-integrity', 'node', ['--experimental-strip-types', 'scripts/test-svg-integrity.mjs'], 'artifact impact');
 }
 
-const toolTestCandidates = [];
+// Browser execution has one canonical owner: Matrix First Certification (22 tools × 3 browsers).
+// fast-verify may report changed tool identities, but it must not rerun the same E2E specs.
+const changedToolSpecs = [];
 for (const tool of flags.tools) {
   const candidate = `tests/${tool}.spec.ts`;
-  if (existsSync(candidate)) toolTestCandidates.push(candidate);
-}
-if (toolTestCandidates.length) {
-  add('playwright-install', 'npx', ['playwright', 'install', 'chromium'], 'affected browser checks');
-  add('affected-e2e', 'npx', ['playwright', 'test', ...toolTestCandidates, '--project=chromium', '--workers=2', '--retries=0'], 'changed tool surfaces');
+  if (existsSync(candidate)) changedToolSpecs.push(candidate);
 }
 
 const needBuild = flags.workflow || flags.dependency || flags.registry || flags.routing || flags.localization || flags.seo;
 const sensitiveChange = flags.workflow || flags.dependency || files.some((file) => file.startsWith('src/lib/contracts/'));
 if (needBuild) add('build', 'npm', ['run', 'build'], 'affected application/build graph');
+if (changedToolSpecs.length) {
+  add('matrix-coverage-owner', 'node', ['scripts/ci/test-matrix-test-identity.mjs'], `browser execution owned exclusively by Matrix First; changed tool specs=${changedToolSpecs.join(',')}`);
+}
 if (testFiles.length === 1 && !sensitiveChange && !sourceFiles.includes(testFiles[0])) {
   add('changed-test', 'node', ['--experimental-strip-types', testFiles[0]], 'single changed test');
 }
@@ -133,6 +134,8 @@ const plan = {
   sourceFiles,
   typedSourceFiles,
   testFiles,
+  changedToolSpecs,
+  browserCoverageOwner: 'Matrix First Certification',
   commands: commands.map(({ id, reason }) => ({ id, reason })),
   needBuild,
   sensitiveChange,
@@ -140,20 +143,7 @@ const plan = {
 writeFileSync('diagnostics/fast-ci-plan.json', `${JSON.stringify(plan, null, 2)}\n`);
 console.log(JSON.stringify(plan, null, 2));
 
-const playwrightInstall = commands.find((item) => item.id === 'playwright-install');
-const affectedE2e = commands.find((item) => item.id === 'affected-e2e');
-const independentCommands = commands.filter((item) => item.id !== 'affected-e2e' && item.id !== 'playwright-install');
-const independentResults = await Promise.all(independentCommands.map(runOne));
-let playwrightReady = true;
-if (playwrightInstall) playwrightReady = await runOne(playwrightInstall);
-if (affectedE2e) {
-  if (playwrightReady) await runOne(affectedE2e);
-  else {
-    console.error('BLOCK affected-e2e: Playwright installation failed; browser tests were not started.');
-    results.push({ id: 'affected-e2e', status: 'BLOCKED', durationMs: 0, reason: 'Playwright prerequisite failed' });
-  }
-}
-
+const independentResults = await Promise.all(commands.map(runOne));
 const summary = {
   schema_version: 2,
   sha,
@@ -162,7 +152,7 @@ const summary = {
   status: results.every((item) => item.status === 'PASS') ? 'PASS' : 'FAIL',
   durationMs: Date.now() - start,
   executed: results,
-  reused: [],
+  reused: changedToolSpecs.length ? changedToolSpecs.map((spec) => ({ spec, owner: 'Matrix First Certification' })) : [],
   skipped: [],
 };
 writeFileSync('diagnostics/fast-ci-result.json', `${JSON.stringify(summary, null, 2)}\n`);
