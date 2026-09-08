@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 
 const root = process.cwd();
 const evidenceRoot = path.resolve(root, process.env.EXECUTION_EVIDENCE_ROOT ?? 'evidence');
 const expectedSha = process.env.EXPECTED_SHA ?? process.env.CERTIFICATION_SHA ?? null;
 const expectedRunId = process.env.GITHUB_RUN_ID ?? null;
 const errors = [];
+const registry = JSON.parse(fs.readFileSync(path.resolve(root, 'scripts/ci/assertion-registry.json'), 'utf8'));
+const registryAssertions = registry.assertions ?? {};
 
 const walk = (dir) => {
   if (!fs.existsSync(dir)) return [];
@@ -30,26 +31,40 @@ const load = (files) => files.map((file) => {
 });
 const fast = load(fastFiles);
 const deep = load(deepFiles);
-for (const entry of [...fast, ...(process.env.GITHUB_EVENT_NAME !== 'pull_request' ? deep : [])]) {
+const allEntries = [...fast, ...(process.env.GITHUB_EVENT_NAME !== 'pull_request' ? deep : [])];
+
+for (const entry of allEntries) {
   const relative = path.relative(root, entry.file);
   if (entry.parseError) { errors.push(`${relative}: MALFORMED_EVIDENCE ${entry.parseError}`); continue; }
   const value = entry.value;
   if (value.evidenceClass !== 'PRIMARY_EXECUTION') errors.push(`${relative}: evidenceClass must be PRIMARY_EXECUTION`);
   if (expectedSha && value.exactSha !== expectedSha) errors.push(`${relative}: exactSha mismatch`);
   if (expectedRunId && value.runId !== expectedRunId) errors.push(`${relative}: runId mismatch`);
-  const reported = value.sourceReportSha256;
-  if (typeof reported !== 'string' || !/^[0-9a-f]{64}$/i.test(reported)) errors.push(`${relative}: invalid sourceReportSha256`);
+  if (typeof value.sourceReportSha256 !== 'string' || !/^[0-9a-f]{64}$/i.test(value.sourceReportSha256)) errors.push(`${relative}: invalid sourceReportSha256`);
   const unitIds = new Set();
   for (const unit of value.units ?? []) {
+    if (!unit.executionUnitId) errors.push(`${relative}: unit missing executionUnitId`);
     if (unitIds.has(unit.executionUnitId)) errors.push(`${relative}: duplicate executionUnitId=${unit.executionUnitId}`);
     unitIds.add(unit.executionUnitId);
     if (unit.exactSha !== expectedSha) errors.push(`${relative}: unit exactSha mismatch`);
     if (unit.runId !== expectedRunId) errors.push(`${relative}: unit runId mismatch`);
-    if (!unit.assertionId) errors.push(`${relative}: unit missing assertionId`);
     if (!unit.spec || !unit.test) errors.push(`${relative}: unit missing spec/test`);
+    if (!['CANONICAL_ASSERTION','SPEC_SURFACE'].includes(unit.executionKind)) errors.push(`${relative}: invalid executionKind=${unit.executionKind}`);
     if (!['PASS','FAIL','CANCELLED','BLOCKED','NOT_EXECUTED','MISSING_EVIDENCE','MALFORMED_EVIDENCE'].includes(unit.status)) errors.push(`${relative}: invalid unit state ${unit.status}`);
+
+    if (unit.assertionId) {
+      const canonical = registryAssertions[unit.assertionId];
+      if (!canonical) errors.push(`${relative}: unknown assertionId=${unit.assertionId}`);
+      else if (canonical.implementation?.kind === 'playwright-test') {
+        if (canonical.implementation.spec !== unit.spec) errors.push(`${relative}: assertion/spec mismatch for ${unit.assertionId}`);
+        if (canonical.implementation.test !== unit.test) errors.push(`${relative}: assertion/test mismatch for ${unit.assertionId}`);
+      }
+      if (unit.executionKind !== 'CANONICAL_ASSERTION') errors.push(`${relative}: assertionId requires CANONICAL_ASSERTION executionKind`);
+    } else if (unit.executionKind !== 'SPEC_SURFACE') {
+      errors.push(`${relative}: missing assertionId must be SPEC_SURFACE`);
+    }
   }
-});
+}
 
 const fastSpecOwners = new Map();
 for (const entry of fast) {
@@ -77,37 +92,34 @@ for (const entry of fast) {
   if ((entry.value.units ?? []).some((unit) => unit.status !== 'PASS')) errors.push(`${path.relative(root, entry.file)}: non-PASS execution unit`);
 }
 
-const deepSpecExecutions = [];
+const deepLocaleSet = new Set();
+const deepExecutionKeys = new Set();
 for (const entry of deep) {
   if (!entry.value) continue;
   if ((entry.value.units ?? []).length === 0) errors.push(`${path.relative(root, entry.file)}: empty DEEP execution ledger`);
-  if ((entry.value.units ?? []).some((unit) => unit.status !== 'PASS')) errors.push(`${path.relative(root, entry.file)}: non-PASS execution unit`);
-  deepSpecExecutions.push(...(entry.value.units ?? []).map((unit) => `${entry.value.browser}:${unit.spec}:${unit.test}`));
+  for (const unit of entry.value.units ?? []) {
+    const key = `${entry.value.browser}:${unit.spec}:${unit.test}`;
+    if (deepExecutionKeys.has(key)) errors.push(`DEEP_DUPLICATE_EXECUTION=${key}`);
+    deepExecutionKeys.add(key);
+    if (unit.locale) deepLocaleSet.add(unit.locale);
+    if (unit.spec !== 'tests/localization-runtime.spec.ts') errors.push(`${path.relative(root, entry.file)}: unexpected DEEP spec ${unit.spec}`);
+    if (unit.status !== 'PASS') errors.push(`${path.relative(root, entry.file)}: non-PASS execution unit`);
+  }
 }
-const duplicateDeepExecutions = deepSpecExecutions.filter((value, index) => deepSpecExecutions.indexOf(value) !== index);
-if (duplicateDeepExecutions.length) errors.push(`DEEP_DUPLICATE_EXECUTION=${duplicateDeepExecutions.slice(0, 10).join('|')}`);
+if (process.env.GITHUB_EVENT_NAME !== 'pull_request') {
+  const expectedLocales = new Set(['en','ar','de','es','fr','it','pt','tr','ru','zh','ja','ko','nl','pl','sv','da','no','fi','cs','uk']);
+  for (const locale of expectedLocales) if (!deepLocaleSet.has(locale)) errors.push(`DEEP_LOCALE_MISSING=${locale}`);
+  for (const locale of deepLocaleSet) if (!expectedLocales.has(locale)) errors.push(`DEEP_UNEXPECTED_LOCALE=${locale}`);
+}
 
 const result = {
-  schema_version: 1,
+  schema_version: 2,
   status: errors.length ? 'FAIL' : 'PASS',
   exactSha: expectedSha,
   runId: expectedRunId,
-  fast: {
-    shardFiles: fastFiles.length,
-    expectedBrowsers: 3,
-    expectedSpecsPerBrowser: 22,
-    certifiedSpecBrowserUnits: fastSpecOwners.size,
-  },
-  deep: {
-    shardFiles: deepFiles.length,
-    executionRecords: deepSpecExecutions.length,
-    uniqueExecutionRecords: new Set(deepSpecExecutions).size,
-  },
-  conservation: {
-    fastRequiredSpecBrowserUnits: 66,
-    fastObservedSpecBrowserUnits: fastSpecOwners.size,
-    deepShardExecutions: deepFiles.length,
-  },
+  fast: { shardFiles: fastFiles.length, expectedBrowsers: 3, expectedSpecsPerBrowser: 22, certifiedSpecBrowserUnits: fastSpecOwners.size },
+  deep: { shardFiles: deepFiles.length, executionRecords: deep.reduce((n, entry) => n + (entry.value?.units?.length ?? 0), 0), uniqueExecutionRecords: deepExecutionKeys.size, observedLocales: [...deepLocaleSet].sort() },
+  conservation: { fastRequiredSpecBrowserUnits: 66, fastObservedSpecBrowserUnits: fastSpecOwners.size, deepShardFiles: 9, deepObservedSemanticExecutions: deepExecutionKeys.size, deepObservedLocales: deepLocaleSet.size },
   errors,
 };
 fs.mkdirSync(path.resolve(root, 'diagnostics', 'certification'), { recursive: true });
