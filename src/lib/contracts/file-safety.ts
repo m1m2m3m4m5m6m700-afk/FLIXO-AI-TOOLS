@@ -132,7 +132,7 @@ export function validateFileSafety(input: FileSafetyInput, policy: FileSafetyPol
     if (!policy.signatures.some((allowed) => {
       const normalizedAllowed = normalizeSignature(allowed);
       return normalizedInput.startsWith(normalizedAllowed);
-    })) failures.push('file signature is not permitted by policy');
+    })) failures.push('input signature does not match the allowed file signatures');
   }
   if (policy.magicBytes?.length && input.content && !policy.magicBytes.some((signature) => matchesMagicBytes(input.content!, signature))) failures.push('file magic bytes do not match an allowed signature');
   if (policy.contentValidation && input.content) validateContent(input.content, policy.contentValidation, failures);
