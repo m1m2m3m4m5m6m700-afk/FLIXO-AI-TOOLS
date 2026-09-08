@@ -1,12 +1,12 @@
 name: FLIXO CI — Checkpoint Shadow
 
+# Shadow checkpoint validation is retained for manual forensic comparison only.
+# Canonical CI owns automated PR/main checkpoint verification.
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-checkpoints-${{ github.event.pull_request.number || github.ref }}
+  group: flixo-ci-checkpoints-manual
   cancel-in-progress: true
 
 permissions:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   checkpoints-shadow:
-    name: CI Checkpoint Shadow
+    name: CI Checkpoint Shadow (manual diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
