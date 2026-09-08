@@ -1,12 +1,11 @@
-name: G3 Universal Artifact Integrity Gate
+name: G3 Universal Artifact Integrity Diagnostic
 
+# Canonical G3 execution lives in ci.yml. This workflow is forensic/manual only.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: g3-artifact-integrity-${{ github.workflow }}-${{ github.ref }}
+  group: g3-artifact-integrity-manual
   cancel-in-progress: true
 
 permissions:
@@ -16,16 +15,15 @@ env:
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+  VITE_SITE_URL: https://flixoai.vercel.app
+  VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
+  VITE_TEST_ORIGIN: http://127.0.0.1:3000
 
 jobs:
   g3:
-    name: G3 Universal Artifact Integrity
+    name: G3 Universal Artifact Integrity (manual diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      VITE_SITE_URL: https://flixoai.vercel.app
-      VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
-      VITE_TEST_ORIGIN: https://canonical.test
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -35,10 +33,6 @@ jobs:
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-      - name: TypeScript
-        run: npm run typecheck
-      - name: ESLint
-        run: npm run lint
       - name: G3 ready-tool output contract parity
         run: node --experimental-strip-types scripts/test-g3-output-contract-registry.mjs
       - name: Retained output integrity regression
