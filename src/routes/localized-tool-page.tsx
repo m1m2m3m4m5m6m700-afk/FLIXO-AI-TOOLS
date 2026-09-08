@@ -19,7 +19,7 @@ function demoteNestedPageLandmarks(node: ReactNode): ReactNode {
     if (!isValidElement(child)) return child;
     const props = child.props as Record<string, unknown> & { children?: ReactNode };
     const normalizedChildren = props.children === undefined ? undefined : demoteNestedPageLandmarks(props.children);
-    const replacement = child.type === 'main' ? 'div' : child.type === 'h1' ? 'h2' : null;
+    const replacement = child.type === 'main' ? 'div' : null;
 
     if (replacement) {
       const safeProps = { ...props };
