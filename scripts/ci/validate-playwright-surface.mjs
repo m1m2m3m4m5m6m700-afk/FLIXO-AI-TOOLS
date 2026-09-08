@@ -37,10 +37,15 @@ if (!/tests\/universal-diagnostic-browser\.spec\.ts/u.test(plan)) {
   failures.push('scripts/ci/test-plan.json: browser diagnostic gate must own the dedicated universal diagnostic suite');
 }
 
+const ci = readFileSync(join(process.cwd(), '.github/workflows/ci.yml'), 'utf8');
+if (/setsid\s+npm\s+run\s+preview/u.test(ci) || /name:\s*Start runtime/u.test(ci)) {
+  failures.push('.github/workflows/ci.yml: workflow must not start a second runtime server; Playwright webServer is the sole runtime owner');
+}
+
 if (failures.length) {
   console.error('Playwright surface contract FAILED');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log(`Playwright surface contract PASS: ${playwrightSpecs.length} Playwright spec files use the universal runtime fixture.`);
+console.log(`Playwright surface contract PASS: ${playwrightSpecs.length} Playwright spec files use the universal runtime fixture and CI has a single runtime owner.`);
