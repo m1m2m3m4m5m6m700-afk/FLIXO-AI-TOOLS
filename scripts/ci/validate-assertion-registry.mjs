@@ -64,6 +64,7 @@ for (const [owner, check] of executionOwners) {
 }
 
 const ci = read('.github/workflows/ci.yml');
+const fastSection = ci.match(/browser_fast:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
 const architectureChecks = [
   ['single canonical workflow', /name:\s*FLIXO Test System/.test(ci)],
   ['single static+build engine', /\n\s{2}verify:\s*\n/.test(ci)],
@@ -71,7 +72,7 @@ const architectureChecks = [
   ['DEEP browser engine', /\n\s{2}browser_deep:\s*\n/.test(ci)],
   ['single certify gate', /\n\s{2}certify:\s*\n/.test(ci)],
   ['three browsers', /browser:\s*\[chromium, firefox, webkit\]/.test(ci)],
-  ['22 FAST tool specs', (ci.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? []).length === 22],
+  ['22 FAST tool specs', new Set(fastSection.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? []).size === 22],
   ['DEEP localization runtime', /tests\/localization-runtime\.spec\.ts/.test(ci)],
   ['immutable artifact', /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci)],
 ];
