@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures/universal-runtime-evidence';
 import { imageCompressorOutputContract } from '../src/tools/image-compressor/output-contract';
 
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#223344"/><circle cx="300" cy="220" r="180" fill="#67e8f9"/><circle cx="850" cy="560" r="260" fill="#164e63"/><text x="600" y="430" text-anchor="middle" fill="white" font-size="110" font-family="sans-serif">FLIXO</text></svg>`;
