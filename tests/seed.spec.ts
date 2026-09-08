@@ -5,6 +5,7 @@ type Canvas2DContext = CanvasRenderingContext2D | null;
 type CanvasContextId = '2d' | 'webgl' | 'webgl2' | 'bitmaprenderer' | string;
 
 const canvasLocator = (page: Page) => page.locator('canvas[aria-label="Seed preview"]');
+const seedStageLocator = (page: Page) => canvasLocator(page).locator('xpath=ancestor::section[1]');
 
 async function hasWebGl(page: Page) {
   return canvasLocator(page).evaluate((element) => Boolean((element as HTMLCanvasElement).getContext('webgl')));
@@ -173,9 +174,10 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
     const fullscreenEnabled = await page.evaluate(() => Boolean(document.fullscreenEnabled && document.documentElement.requestFullscreen));
     test.skip(!fullscreenEnabled, 'Fullscreen API is unavailable in this browser environment.');
     const fullscreenBtn = page.getByTestId('button-canvas-fullscreen');
+    const seedStage = seedStageLocator(page);
     await fullscreenBtn.click();
     await expect(fullscreenBtn).toHaveAttribute('aria-label', 'Exit Fullscreen');
-    await expect(page.locator('.tool-page-modern__tool-host > div > section').first()).toHaveJSProperty('tagName', 'SECTION');
+    await expect(seedStage).toHaveJSProperty('tagName', 'SECTION');
     await fullscreenBtn.click();
     await expect(fullscreenBtn).toHaveAttribute('aria-label', 'Enter Fullscreen');
   });
