@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 
 test('application boots with image-first homepage', async ({ page }) => {
   await page.goto('/');
