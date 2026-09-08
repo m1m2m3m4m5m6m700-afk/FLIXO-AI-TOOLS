@@ -3,7 +3,7 @@
   "execution": {"maxConcurrency":6,"failFast":false,"certification":"complete-gate-results","identityFields":["sha","packageLockSha256","testPlanSha256"]},
   "gateDependencies": {"static":[],"build":["static"],"browser":["build"]},
   "coverage": {
-    "COV-TYPEGRAPH":"TypeScript type graph","COV-LINT":"Static lint correctness","COV-UNIT":"Core unit behavior","COV-TOOL-LOCALIZATION":"Tool localization contract","COV-BASELINE":"Engineering baseline","COV-REGISTRY":"Tool registry contract","COV-MANIFEST":"Tool manifest contract","COV-ROUTER":"Router/registry parity","COV-I18N":"Locale contracts","COV-SEO":"SEO/indexing contracts","COV-CI-CONTRACT":"CI contract","COV-DEPENDENCY":"Dependency graph","COV-DEPENDENCY-MANIFEST":"Manifest/lock dependency parity","COV-FILE-SAFETY":"File safety","COV-OUTPUT-INTEGRITY":"Output integrity","COV-SVG-INTEGRITY":"SVG integrity","COV-RELEASE-EVIDENCE":"Release evidence","COV-BUILD":"Production build","COV-PERFORMANCE":"Performance budget","COV-BROWSER-CHROMIUM":"Chromium universal diagnostic runtime","COV-BROWSER-FIREFOX":"Firefox universal diagnostic runtime","COV-BROWSER-WEBKIT":"WebKit universal diagnostic runtime"
+    "COV-TYPEGRAPH":"TypeScript type graph","COV-LINT":"Static lint correctness","COV-UNIT":"Core unit behavior","COV-TOOL-LOCALIZATION":"Tool localization contract","COV-BASELINE":"Engineering baseline","COV-REGISTRY":"Tool registry contract","COV-MANIFEST":"Tool manifest contract","COV-ROUTER":"Router/registry parity","COV-I18N":"Locale contracts","COV-SEO":"SEO/indexing contracts","COV-CI-CONTRACT":"CI contract","COV-DEPENDENCY":"Dependency graph","COV-DEPENDENCY-MANIFEST":"Manifest/lock dependency parity","COV-PLAYWRIGHT-SURFACE":"Playwright test surface contract","COV-FILE-SAFETY":"File safety","COV-OUTPUT-INTEGRITY":"Output integrity","COV-SVG-INTEGRITY":"SVG integrity","COV-RELEASE-EVIDENCE":"Release evidence","COV-BROWSER-CHROMIUM":"Chromium universal diagnostic runtime","COV-BROWSER-FIREFOX":"Firefox universal diagnostic runtime","COV-BROWSER-WEBKIT":"WebKit universal diagnostic runtime"
   },
   "assertions": {
     "ASSERT-TYPEGRAPH-001":{"owner":"STATIC-001","description":"TypeScript type graph compiles"},
@@ -32,6 +32,7 @@
     "ASSERT-INDEXING-001":{"owner":"STATIC-024","description":"Indexing passes"},
     "ASSERT-SITE-ORIGIN-001":{"owner":"STATIC-025","description":"Site origin passes"},
     "ASSERT-DEPENDENCY-MANIFEST-001":{"owner":"STATIC-026","description":"package.json and package-lock.json root dependency contracts match"},
+    "ASSERT-PLAYWRIGHT-SURFACE-001":{"owner":"STATIC-027","description":"All Playwright specs use the universal runtime evidence fixture and the universal browser suite owns browser diagnostics"},
     "ASSERT-BUILD-001":{"owner":"BUILD-001","description":"Production build succeeds"},
     "ASSERT-DIST-001":{"owner":"BUILD-002","description":"Distribution exists"},
     "ASSERT-PERFORMANCE-001":{"owner":"BUILD-003","description":"Performance budget passes"},
@@ -40,7 +41,7 @@
     "ASSERT-BROWSER-WEBKIT-001":{"owner":"BROWSER-003","description":"WebKit universal diagnostic suite passes"}
   },
   "gates": {
-    "static":{"expected":26,"checks":[
+    "static":{"expected":27,"checks":[
       {"id":"STATIC-001","label":"typescript","command":"npm","args":["run","typecheck"],"rootCause":"RC-TYPE-001","assertions":["ASSERT-TYPEGRAPH-001"],"coverage":["COV-TYPEGRAPH"]},
       {"id":"STATIC-002","label":"lint","command":"npm","args":["run","lint"],"rootCause":"RC-TYPE-001","assertions":["ASSERT-LINT-001"],"coverage":["COV-LINT"]},
       {"id":"STATIC-003","label":"unit","command":"npm","args":["run","test:unit"],"rootCause":"RC-UNKNOWN-001","assertions":["ASSERT-UNIT-001"],"coverage":["COV-UNIT"]},
@@ -66,7 +67,8 @@
       {"id":"STATIC-023","label":"language-quality","command":"npm","args":["run","validate:language-quality"],"rootCause":"RC-I18N-001","assertions":["ASSERT-LANGUAGE-QUALITY-001"],"coverage":["COV-I18N"]},
       {"id":"STATIC-024","label":"indexing","command":"npm","args":["run","validate:indexing"],"rootCause":"RC-SEO-001","assertions":["ASSERT-INDEXING-001"],"coverage":["COV-SEO"]},
       {"id":"STATIC-025","label":"site-origin","command":"npm","args":["run","validate:site-origin"],"rootCause":"RC-SEO-001","assertions":["ASSERT-SITE-ORIGIN-001"],"coverage":["COV-SEO"]},
-      {"id":"STATIC-026","label":"lock-manifest","command":"npm","args":["run","validate:lock-manifest"],"rootCause":"RC-DEPENDENCY-001","assertions":["ASSERT-DEPENDENCY-MANIFEST-001"],"coverage":["COV-DEPENDENCY-MANIFEST"]}
+      {"id":"STATIC-026","label":"lock-manifest","command":"npm","args":["run","validate:lock-manifest"],"rootCause":"RC-DEPENDENCY-001","assertions":["ASSERT-DEPENDENCY-MANIFEST-001"],"coverage":["COV-DEPENDENCY-MANIFEST"]},
+      {"id":"STATIC-027","label":"playwright-surface","command":"npm","args":["run","validate:playwright-surface"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-PLAYWRIGHT-SURFACE-001"],"coverage":["COV-PLAYWRIGHT-SURFACE"]}
     ]},
     "build":{"expected":3,"checks":[
       {"id":"BUILD-001","label":"build","command":"npm","args":["run","build"],"rootCause":"RC-BUILD-001","assertions":["ASSERT-BUILD-001"],"coverage":["COV-BUILD"]},
