@@ -255,7 +255,7 @@ export default function SeedTool() {
 
   return (
     <div className="mx-auto flex min-h-[760px] w-full max-w-[1500px] flex-col gap-3 p-2 sm:p-3 lg:p-4">
-      <input ref={imageInputRef} id="seed-main-image-input" type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) openImage(file); event.currentTarget.value = ''; }} />
+      <input ref={imageInputRef} id="seed-main-image-input" type="file" accept="image/*" aria-label="Choose a file" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) openImage(file); event.currentTarget.value = ''; }} />
 
       <header className="flex flex-col gap-3 rounded-2xl border border-white/[0.07] bg-zinc-950/85 px-3 py-3 shadow-[0_18px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-4">
         <div className="flex min-w-0 items-center gap-3">
