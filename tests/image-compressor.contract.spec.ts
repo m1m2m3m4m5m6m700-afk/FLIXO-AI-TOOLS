@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 
 test('image-compressor: rejects corrupt image payload before producing output', async ({ page }) => {
   await page.goto('/en/image-compressor');
