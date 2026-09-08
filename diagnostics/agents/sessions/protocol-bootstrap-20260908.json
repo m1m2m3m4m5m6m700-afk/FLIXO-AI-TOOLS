@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "sessionType": "RETROACTIVE_BOOTSTRAP",
+  "sessionId": "protocol-bootstrap-20260908",
+  "agentId": "chatgpt-executor",
+  "role": "implementation",
+  "entrySha": "1990f53269633ad199039d21aac4bde6855c3d63",
+  "exitSha": "07cc3bc8424573456320b9626d3cca6b70ffd49e",
+  "startedAt": "2026-09-08T20:03:00Z",
+  "finishedAt": "2026-09-08T20:13:00Z",
+  "scope": [
+    "AGENTS.md",
+    "docs/AGENT-COLLABORATION-PROTOCOL.md",
+    "scripts/ci/agent-session.mjs",
+    "scripts/ci/validate-agent-protocol.mjs",
+    "scripts/validate-ci-contract.mjs",
+    "package.json"
+  ],
+  "currentRca": "RC-CI-COLLAB-PROTOCOL-001",
+  "readFiles": [
+    "AGENTS.md",
+    "docs/AGENT-COLLABORATION-PROTOCOL.md",
+    "docs/MINIMAL-CI-FINAL-ARCHITECTURE.md",
+    "scripts/ci/test-plan.json",
+    "scripts/ci/assertion-registry.json",
+    "scripts/ci/validate-execution-graph.mjs",
+    "scripts/ci/certify.mjs",
+    ".github/workflows/ci.yml",
+    "package.json"
+  ],
+  "status": "VERIFIED",
+  "retroactive": true,
+  "actions": [
+    "Verified current main SHA before protocol integration.",
+    "Established mandatory AGENTS.md entry gate and multi-agent collaboration contract.",
+    "Added canonical login/logout session tool with exact-SHA lineage and handoff fields.",
+    "Added protocol validator and wired it through validate-ci-contract, which is a canonical static gate.",
+    "Registered validate:agent-protocol in package.json.",
+    "Verified final main SHA after protocol changes."
+  ],
+  "evidence": [
+    "main:07cc3bc8424573456320b9626d3cca6b70ffd49e",
+    "AGENTS.md",
+    "docs/AGENT-COLLABORATION-PROTOCOL.md",
+    "scripts/ci/agent-session.mjs",
+    "scripts/ci/validate-agent-protocol.mjs",
+    "scripts/validate-ci-contract.mjs"
+  ],
+  "rcaClosed": ["RC-CI-COLLAB-PROTOCOL-001"],
+  "openRcas": ["Fresh exact-SHA certification remains required; deployment status is external Vercel rate-limit state."],
+  "handoff": "Future agents MUST use AGENTS.md → login → scope ownership → execute → verify → logout/handoff. This bootstrap record is historical and MUST NOT be treated as an active lock."
+}
