@@ -14,14 +14,7 @@ Any value below 100% means execution continues.
 
 ## 2. Zero-stop law
 
-The execution agent MUST NOT stop because:
-- the first failure was fixed;
-- one workflow became green;
-- a subset of tests passed;
-- a preview deployment is Ready;
-- failures are numerous;
-- a failure is inconvenient to diagnose;
-- historical evidence is green.
+The execution agent MUST NOT stop because the first failure was fixed, one workflow became green, a subset of tests passed, a preview deployment is Ready, failures are numerous, a failure is inconvenient to diagnose, or historical evidence is green.
 
 The only terminal state is verified 100% completion. A genuinely external blocker may be recorded, but it is never counted as success and execution must resume when the blocker clears.
 
@@ -29,19 +22,7 @@ The only terminal state is verified 100% completion. A genuinely external blocke
 
 All repairs MUST be root-cause repairs at the authoritative owner.
 
-Forbidden as a means of hiding or bypassing a failure:
-- weakening or deleting assertions;
-- skip/only/quarantine workarounds;
-- arbitrary allowlists;
-- browser- or route-specific hacks;
-- artificial waits or timing padding;
-- unexplained retries used to obtain green;
-- fallback coercion that converts missing/invalid state into success;
-- hard-coded success counters;
-- `?? 0`, silent defaults, empty catches, suppressed errors;
-- reducing routes, locales, tools, browsers, or assertions;
-- duplicate certification paths;
-- replacing a broken invariant with a downstream exception.
+Forbidden as a means of hiding or bypassing a failure: weakening or deleting assertions; skip/only/quarantine workarounds; arbitrary allowlists; browser- or route-specific hacks; artificial waits or timing padding; unexplained retries used to obtain green; fallback coercion that converts missing/invalid state into success; hard-coded success counters; `?? 0`; silent defaults; empty catches; suppressed errors; reducing routes/locales/tools/browsers/assertions; duplicate certification paths; replacing a broken invariant with a downstream exception.
 
 A legitimate optimization or resilience mechanism is allowed only when its correctness is independently proven and it does not reduce coverage or hide failures.
 
@@ -53,16 +34,7 @@ After every repository-changing commit, all previous certification evidence is c
 
 ## 5. Complete repository diagnostics
 
-The agent MUST inspect the entire repository, including:
-- source, tests, scripts, public assets, configs, docs, workflows, fixtures and generated outputs;
-- npm scripts and every referenced command/file;
-- imports/dependencies and dependency cycles;
-- build graph and artifact producers/consumers;
-- duplicated, orphaned, unreachable, dead or conflicting code;
-- runtime exceptions, console errors, network failures, race conditions, nondeterminism and resource leaks;
-- data/schema/config/environment mismatches;
-- security and supply-chain risks;
-- documentation drift.
+The agent MUST inspect the entire repository, including source, tests, scripts, public assets, configs, docs, workflows, fixtures and generated outputs; npm scripts and every referenced command/file; imports/dependencies and dependency cycles; build graph and artifact producers/consumers; duplicated, orphaned, unreachable, dead or conflicting code; runtime exceptions, console errors, network failures, race conditions, nondeterminism and resource leaks; data/schema/config/environment mismatches; security and supply-chain risks; documentation drift.
 
 No diagnosis may be limited to files mentioned by the latest failure.
 
@@ -70,14 +42,7 @@ No diagnosis may be limited to files mentioned by the latest failure.
 
 `TOOLS_REGISTRY` remains authoritative for tool identity and readiness.
 
-Prove exact parity for all required surfaces:
-- Registry ↔ Router
-- Registry ↔ Route Resolver
-- Registry ↔ Sitemap
-- Registry ↔ SEO
-- Registry ↔ E2E
-
-Find duplicate/manual/stale lists, dead aliases, readiness drift, route drift and metadata drift.
+Prove exact parity for Registry ↔ Router, Registry ↔ Route Resolver, Registry ↔ Sitemap, Registry ↔ SEO, Registry ↔ E2E. Find duplicate/manual/stale lists, dead aliases, readiness drift, route drift and metadata drift.
 
 ## 7. Mandatory contracts
 
@@ -93,9 +58,7 @@ G4: public browser contract including route/HTTP/document/lang/dir/title/descrip
 
 ## 8. Localization and SEO
 
-All 20 supported locales MUST be explicitly covered.
-
-No English fallback may be counted as a passing translation.
+All 20 supported locales MUST be explicitly covered. No English fallback may be counted as a passing translation.
 
 Validate localized title, description, H1, visible UI, alt text, category, how-to, features, SEO metadata, route, language, direction, canonical, hreflang, x-default and indexability.
 
@@ -103,8 +66,7 @@ Production canonical must use the authoritative real production origin. Sentinel
 
 ## 9. Browser coverage
 
-FAST coverage MUST equal exactly:
-`22 tools × Chromium × Firefox × WebKit = 66 execution units`.
+FAST coverage MUST equal exactly `22 tools × Chromium × Firefox × WebKit = 66 execution units`.
 
 DEEP coverage MUST equal the complete required public-route set across all 20 locales and all 3 browsers.
 
@@ -114,12 +76,7 @@ The expected set and actual set MUST be machine-compared. Missing execution is F
 
 Use the canonical assertion registry and test plan as machine-readable authorities.
 
-Every assertion must be:
-- uniquely identified;
-- owned by exactly one authoritative check;
-- reachable/executable;
-- linked to its contract and dependencies;
-- represented in expected and actual execution sets.
+Every assertion must be uniquely identified, owned by exactly one authoritative check, reachable/executable, linked to its contract and dependencies, and represented in expected and actual execution sets.
 
 Orphaned, duplicated, missing or unreachable assertions are defects.
 
@@ -129,48 +86,21 @@ Mutation/negative verification MUST prove critical assertions fail when their in
 
 Every persistent failure receives a deterministic Root Cause ID.
 
-A root cause is closed only with:
-`reproduction → root cause → owner repair → regression proof → affected graph proof → evidence`
+A root cause is closed only with `reproduction → root cause → owner repair → regression proof → affected graph proof → evidence`.
 
 Derived failures may be grouped for analysis, but no real failure may be hidden.
 
-Final state requires:
-`independent root causes = 0`
-`derived failures = 0`
-`unknowns = 0`
+Final state requires `independent root causes = 0`, `derived failures = 0`, `unknowns = 0`.
 
 ## 12. Evidence and provenance
 
-Certification evidence MUST bind:
-- exact repository SHA;
-- contract version;
-- test-plan hash;
-- assertion-registry hash;
-- package-lock hash;
-- runtime identity;
-- browser/project identity;
-- artifact identity/hash;
-- execution scope;
-- expected assertions;
-- actual assertions;
-- root-cause state;
-- timestamps and provenance.
+Certification evidence MUST bind exact repository SHA, contract version, test-plan hash, assertion-registry hash, package-lock hash, runtime identity, browser/project identity, artifact identity/hash, execution scope, expected assertions, actual assertions, root-cause state, timestamps and provenance.
 
 Any mismatch, missing field, stale input or unverifiable provenance is FAIL.
 
 ## 13. Fail-closed certification
 
-The certifier MUST reject:
-- missing evidence;
-- undefined/null/NaN/invalid counters;
-- missing execution units;
-- missing assertions;
-- partial coverage;
-- stale evidence;
-- SHA or artifact mismatch;
-- unknown state;
-- unauthorized skip;
-- unresolved root cause.
+The certifier MUST reject missing evidence; undefined/null/NaN/invalid counters; missing execution units; missing assertions; partial coverage; stale evidence; SHA or artifact mismatch; unknown state; unauthorized skip; unresolved root cause.
 
 No default value may transform absence into success. In particular, hard-coded zero counters and permissive null-coalescing in certification logic are forbidden unless the existence and semantic validity of the source value has already been proven.
 
@@ -186,25 +116,13 @@ Every workflow must be classified as authoritative, diagnostic or advisory. Diag
 
 ## 15. Speed without loss of correctness
 
-Use:
-- impact-analysis DAG;
-- dependency-aware parallelism;
-- one immutable build per verification scope;
-- artifact reuse only when SHA/input identities match;
-- controlled concurrency;
-- fail-fast for diagnostic isolation without terminating the overall mission;
-- deterministic retry only for proven transient infrastructure conditions;
-- bisection and minimal reproductions for diagnosis;
-- cached dependencies/builds with identity validation.
+Use impact-analysis DAG; dependency-aware parallelism; one immutable build per verification scope; artifact reuse only when SHA/input identities match; controlled concurrency; fail-fast for diagnostic isolation without terminating the overall mission; deterministic retry only for proven transient infrastructure conditions; bisection and minimal reproductions for diagnosis; cached dependencies/builds with identity validation.
 
-Speed optimizations MUST NEVER remove expected coverage or evidence.
-
-Target fast-path critical time may be optimized, but release correctness has priority over timing.
+Speed optimizations MUST NEVER remove expected coverage or evidence. Release correctness has priority over timing.
 
 ## 16. Anti-patch and anti-regression enforcement
 
-Continuously scan for:
-`skip`, `only`, `todo-pass`, `flaky`, `quarantine`, artificial waits, retry inflation, forced success, suppressed exceptions, empty catches, allowlists, browser/route exceptions, `?? 0`, stale manifests and duplicate sources.
+Continuously scan for `skip`, `only`, `todo-pass`, `flaky`, `quarantine`, artificial waits, retry inflation, forced success, suppressed exceptions, empty catches, allowlists, browser/route exceptions, `?? 0`, stale manifests and duplicate sources.
 
 Every suspicious construct must be classified and justified by architecture; otherwise it is a defect.
 
@@ -212,8 +130,7 @@ Enforce invariants continuously so repaired conditions cannot drift back.
 
 ## 17. Proof-carrying repair
 
-Every repair commit must be traceable to:
-`RC-ID + violated invariant + owner + regression assertion + affected validation + evidence identity`.
+Every repair commit must be traceable to `RC-ID + violated invariant + owner + regression assertion + affected validation + evidence identity`.
 
 A green result without this chain is insufficient for certification.
 
@@ -225,36 +142,17 @@ Security-relevant failures are first-class root causes.
 
 ## 19. Final 100% gate
 
-Certification is PASS only if every required count is exactly zero and completion is exactly 100%, including:
+Certification is PASS only if every required count is exactly zero and completion is exactly 100%, including root causes; derived failures; unknowns; unauthorized patches/workarounds; unauthorized skips; invalid evidence; stale evidence; SHA mismatches; artifact mismatches; missing assertions; orphaned assertions; duplicate unintended assertions; missing tools/routes/locales/browser units; readiness violations; registry/router/sitemap/SEO/E2E drift; G1/G2/G3/G4 failures; runtime/console/network failures; i18n/SEO/a11y failures; certification failures; unresolved contract failures.
 
-- root causes;
-- derived failures;
-- unknowns;
-- unauthorized patches/workarounds;
-- unauthorized skips;
-- invalid evidence;
-- stale evidence;
-- SHA mismatches;
-- artifact mismatches;
-- missing assertions;
-- orphaned assertions;
-- duplicate unintended assertions;
-- missing tools/routes/locales/browser units;
-- readiness violations;
-- registry/router/sitemap/SEO/E2E drift;
-- G1/G2/G3/G4 failures;
-- runtime/console/network failures;
-- i18n/SEO/a11y failures;
-- certification failures;
-- unresolved contract failures.
+## 20. Persistence and precedence
 
-## 20. Persistence rule
+This document is repository-tracked and MUST persist across sessions, agents and future work. It is the canonical persistent engineering protocol for this repository.
 
-This document is a repository-tracked protocol. It MUST remain in version control and MUST be treated as the canonical persistent engineering protocol across future sessions.
+Every future agent MUST read it before changing the testing/certification architecture or declaring completion.
 
-Any future agent or session MUST read and obey this protocol before making certification claims or changing the testing architecture.
+This protocol takes precedence over ad-hoc conversational instructions that conflict with it, except for an explicitly versioned superseding repository protocol that is itself verified and committed under the same evidence discipline.
 
-If a future change modifies the protocol, the change itself requires the same root-cause/evidence discipline and must preserve the Zero-Stop, Zero-Patching, Exact-SHA and 100% completion laws unless an explicit superseding protocol is versioned and verified.
+Deleting, bypassing, disabling, or silently weakening this protocol is a protocol violation and must be treated as a root-cause failure.
 
 ## 21. Non-negotiable final state
 
