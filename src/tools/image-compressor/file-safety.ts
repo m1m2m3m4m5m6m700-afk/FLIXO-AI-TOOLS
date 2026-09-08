@@ -17,7 +17,7 @@ function safetyError(failures: string[]) {
     return new Error('Unsupported image format');
   }
   if (failures.includes('file exceeds the maximum size')) return new Error('File is larger than the 10 MB browser limit');
-  if (failures.includes('input exceeds the maximum pixel count')) {
+  if (failures.includes('pixel count exceeds policy limit') || failures.includes('input exceeds the maximum pixel count')) {
     return new Error('The source image is too large for safe browser processing. Reduce the dimensions and try again.');
   }
   if (failures.some((failure) => failure.includes('width') || failure.includes('height'))) {

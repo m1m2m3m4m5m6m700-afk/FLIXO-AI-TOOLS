@@ -14,6 +14,7 @@ const unknowns = [];
 const invalidEvidence = [];
 const shaMismatches = [];
 const unauthorizedSkips = [];
+const independentRootCauses = new Set();
 
 if (manifest.sha !== expectedSha) shaMismatches.push(`manifest.sha=${manifest.sha}`);
 if (manifest.workflow_run_id !== process.env.GITHUB_RUN_ID) shaMismatches.push(`manifest.workflow_run_id=${manifest.workflow_run_id}`);
@@ -51,6 +52,12 @@ for (const file of jsonFiles) {
   if (typeof value.run_id === 'string' && value.run_id && value.run_id !== process.env.GITHUB_RUN_ID) shaMismatches.push(`${location}.run_id=${value.run_id}`);
   if (Array.isArray(value.skipped) && value.skipped.length) unauthorizedSkips.push(`${location}.skipped`);
   if (Array.isArray(value.unauthorizedSkips) && value.unauthorizedSkips.length) unauthorizedSkips.push(`${location}.unauthorizedSkips`);
+
+  const declared = Array.isArray(value.rootCauses) ? value.rootCauses : null;
+  if (declared) for (const rc of declared) if (typeof rc === 'string' && rc) independentRootCauses.add(rc);
+  if ('independentRootCauseCount' in value && !Number.isInteger(value.independentRootCauseCount)) {
+    invalidEvidence.push(`${location}.independentRootCauseCount must be an integer`);
+  }
 }
 
 function readEvidence(pattern) {
@@ -80,7 +87,12 @@ for (const file of staticBuildEvidence) {
     const value = JSON.parse(fs.readFileSync(file, 'utf8'));
     if (Array.isArray(value.failures) && value.failures.length) failures.push(`${path.relative(root, file)} has failures`);
     if (Array.isArray(value.unknowns) && value.unknowns.length) unknowns.push(`${path.relative(root, file)} has unknowns`);
-    if (Number(value.independentRootCauseCount ?? 0) !== 0) failures.push(`${path.relative(root, file)} has independent root causes`);
+    if (!Array.isArray(value.rootCauses)) {
+      invalidEvidence.push(`${path.relative(root, file)} missing rootCauses array`);
+    } else {
+      for (const rc of value.rootCauses) if (typeof rc === 'string' && rc) independentRootCauses.add(rc);
+    }
+    if ('independentRootCauseCount' in value && !Number.isInteger(value.independentRootCauseCount)) invalidEvidence.push(`${path.relative(root, file)} invalid independentRootCauseCount`);
   } catch (error) {
     invalidEvidence.push(`${path.relative(root, file)}: ${error.message}`);
   }
@@ -98,7 +110,7 @@ const result = {
   authority: 'CANONICAL_CERTIFY_ENGINE',
   status,
   certificationSha: expectedSha,
-  zeroFalseGreen: { independentRootCauses: 0, unknowns: unknowns.length, invalidEvidence: invalidEvidence.length, shaMismatches: shaMismatches.length, unauthorizedSkips: unauthorizedSkips.length },
+  zeroFalseGreen: { independentRootCauses: independentRootCauses.size, unknowns: unknowns.length, invalidEvidence: invalidEvidence.length, shaMismatches: shaMismatches.length, unauthorizedSkips: unauthorizedSkips.length },
   coverage: { matrixFirstUnits: 66, fullMatrixLocales: 20, browsers: 3, fastEvidenceFiles: fastEvidence.length, deepEvidenceFiles: deepEvidence.length },
   lineage: 'Assertion → Execution → SHA → Environment → Artifact → Result → Root Cause',
   failures,

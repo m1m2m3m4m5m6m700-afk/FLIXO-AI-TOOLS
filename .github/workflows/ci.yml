@@ -109,18 +109,6 @@ jobs:
         run: |
           npx playwright install-deps '${{ matrix.browser }}'
           npx playwright install '${{ matrix.browser }}'
-      - name: Start runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/flixo-browser-fast.log 2>&1 &
-          echo $! >/tmp/flixo-browser-fast.pid
-          for _ in $(seq 1 30); do
-            curl --fail --silent http://127.0.0.1:3000/ >/dev/null && exit 0
-            sleep 1
-          done
-          cat /tmp/flixo-browser-fast.log
-          exit 1
       - name: Run Browser FAST engine
         shell: bash
         env:
@@ -132,7 +120,7 @@ jobs:
             tests/image-compressor.spec.ts tests/background-remover.spec.ts tests/image-upscaler.spec.ts tests/image-converter.spec.ts tests/ai-image-generator.spec.ts tests/object-remover.spec.ts tests/watermark-remover.spec.ts tests/image-cropper.spec.ts tests/image-to-svg.spec.ts tests/image-ocr.spec.ts tests/photo-colorizer.spec.ts tests/background-blur.spec.ts tests/passport-photo-maker.spec.ts tests/watermark-adder.spec.ts tests/meme-generator.spec.ts tests/collage-maker.spec.ts tests/image-effects.spec.ts tests/exif-cleaner.spec.ts tests/svg-optimizer.spec.ts tests/mockup-generator.spec.ts tests/seed.spec.ts tests/pix.spec.ts
           )
           test "${#specs[@]}" -eq 22
-          npx playwright test "${specs[@]}" --project="$BROWSER" --workers=6 --retries=0 --max-failures=1 --shard="$SHARD/2"
+          npx playwright test "${specs[@]}" --project="$BROWSER" --workers=6 --retries=0 --max-failures=0 --shard="$SHARD/2"
           mkdir -p diagnostics/certification
           cat > "diagnostics/certification/browser-fast-${BROWSER}-${SHARD}.json" <<JSON
           {"mode":"FAST","browser":"$BROWSER","shard":$SHARD,"sha":"$EXPECTED_SHA","run_id":"${GITHUB_RUN_ID}","toolSpecs":22,"status":"PASS"}
@@ -157,7 +145,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
         shard: [1, 2, 3]
@@ -185,18 +173,6 @@ jobs:
         run: |
           npx playwright install-deps '${{ matrix.browser }}'
           npx playwright install '${{ matrix.browser }}'
-      - name: Start runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/flixo-browser-deep.log 2>&1 &
-          echo $! >/tmp/flixo-browser-deep.pid
-          for _ in $(seq 1 30); do
-            curl --fail --silent http://127.0.0.1:3000/ >/dev/null && exit 0
-            sleep 1
-          done
-          cat /tmp/flixo-browser-deep.log
-          exit 1
       - name: Run Browser DEEP engine
         shell: bash
         env:
@@ -204,7 +180,7 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: |
           set -euo pipefail
-          npx playwright test tests/localization-runtime.spec.ts --project="$BROWSER" --workers=6 --retries=0 --max-failures=1 --shard="$SHARD/3"
+          npx playwright test tests/localization-runtime.spec.ts --project="$BROWSER" --workers=6 --retries=0 --max-failures=0 --shard="$SHARD/3"
           mkdir -p diagnostics/certification
           cat > "diagnostics/certification/browser-deep-${BROWSER}-${SHARD}.json" <<JSON
           {"mode":"DEEP","browser":"$BROWSER","shard":$SHARD,"sha":"$EXPECTED_SHA","run_id":"${GITHUB_RUN_ID}","locales":20,"status":"PASS"}
