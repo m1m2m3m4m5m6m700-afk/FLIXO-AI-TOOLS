@@ -44,8 +44,8 @@ jobs:
         run: |
           set -euo pipefail
           test -f dist/index.html
-          git rev-parse HEAD > dist/.matrix-head-sha
-          sha256sum package-lock.json > dist/.matrix-package-lock.sha256
+          git rev-parse HEAD > dist/matrix-head-sha.txt
+          sha256sum package-lock.json > dist/matrix-package-lock.sha256
       - name: Upload canonical preview artifact
         uses: actions/upload-artifact@v6
         with:
@@ -86,8 +86,8 @@ jobs:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          test "$(cat dist/.matrix-head-sha)" = "$EXPECTED_SHA"
-          sha256sum -c dist/.matrix-package-lock.sha256
+          test "$(cat dist/matrix-head-sha.txt)" = "$EXPECTED_SHA"
+          sha256sum -c dist/matrix-package-lock.sha256
       - name: Install browser system dependencies
         timeout-minutes: 8
         run: npx playwright install-deps '${{ matrix.browser }}'
