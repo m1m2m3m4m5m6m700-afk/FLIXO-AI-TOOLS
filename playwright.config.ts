@@ -44,7 +44,7 @@ export default defineConfig({
         },
       },
     },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'], actionTimeout: isS4RuntimeGate ? 12_000 : 20_000 } },
   ],
   ...(isS4ExternalServer
     ? {}
