@@ -50,7 +50,9 @@ export type RuntimeEvidence = {
   response_failures: ResponseFailureEntry[];
   artifacts: {
     attachments: Array<{ name: string; content_type?: string; path?: string }>;
-    screenshot: 'fixture-captured';
+    screenshot: 'captured' | 'unavailable';
+    trace_policy: 'on-first-retry';
+    video_policy: 'retain-on-failure';
   };
 };
 
@@ -174,7 +176,9 @@ export const test = base.extend<{ runtimeEvidence: void }>({
         response_failures: responseFailures,
         artifacts: {
           attachments,
-          screenshot: 'fixture-captured',
+          screenshot: screenshotPath ? 'captured' : 'unavailable',
+          trace_policy: 'on-first-retry',
+          video_policy: 'retain-on-failure',
         },
       };
 
