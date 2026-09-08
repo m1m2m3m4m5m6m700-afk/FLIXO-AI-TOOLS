@@ -130,6 +130,12 @@ jobs:
       - name: Validate Playwright evidence serialization
         if: always()
         run: node scripts/ci/validate-playwright-evidence.mjs playwright-report/results.json
+      - name: Record Playwright execution units
+        if: always()
+        env:
+          BROWSER: ${{ matrix.browser }}
+          SHARD: ${{ matrix.shard }}
+        run: node scripts/ci/record-playwright-execution.mjs --mode=FAST --browser="$BROWSER" --shard="$SHARD"
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v6
@@ -193,6 +199,12 @@ jobs:
       - name: Validate Playwright evidence serialization
         if: always()
         run: node scripts/ci/validate-playwright-evidence.mjs playwright-report/results.json
+      - name: Record Playwright execution units
+        if: always()
+        env:
+          BROWSER: ${{ matrix.browser }}
+          SHARD: ${{ matrix.shard }}
+        run: node scripts/ci/record-playwright-execution.mjs --mode=DEEP --browser="$BROWSER" --shard="$SHARD"
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v6
