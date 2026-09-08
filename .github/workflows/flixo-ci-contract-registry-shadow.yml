@@ -1,12 +1,12 @@
 name: FLIXO CI — Contract Registry Shadow
 
+# Shadow validation is retained for manual forensic comparison only.
+# Canonical G1/contract verification owns automated PR/main execution.
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-contracts-${{ github.event.pull_request.number || github.ref }}
+  group: flixo-ci-contracts-manual
   cancel-in-progress: true
 
 permissions:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   contract-registry-shadow:
-    name: CI Contract Registry Shadow
+    name: CI Contract Registry Shadow (manual diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
