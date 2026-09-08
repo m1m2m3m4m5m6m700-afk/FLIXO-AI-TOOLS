@@ -30,7 +30,7 @@
     "validate:localization-full": "node scripts/validate-localization-full.mjs",
     "validate:localization-complete": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-localization-complete.mjs",
     "verify:i18n": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-localization-complete.mjs --strict --report",
-    "validate:tool-registry": "node scripts/validate-tool-registry-contract.mjs",
+    "validate:tool-registry": "npm run validate:tool-registry-contract",
     "validate:tool-manifest": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-tool-manifest.mjs",
     "validate:baseline": "node scripts/validate-engineering-baseline.mjs",
     "validate:router-registry": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-router-registry.mjs",
@@ -81,12 +81,12 @@
     "@radix-ui/react-scroll-area": "^1.2.11",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-separator": "^1.1.7",
-    "@radix-ui/react-slider": "^1.3.2",
+    "@radix-ui/react-slider": "^1.3.3",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-toggle": "^1.1.10",
-    "@radix-ui/react-toggle-group": "^1.3.0",
+    "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-router": "1.170.32",
@@ -117,9 +117,7 @@
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^15.15.0",
     "playwright": "^1.62.1",
-    "prettier": "^3.6.2",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.56.1",
-    "vite": "^7.0.0"
+    "typescript-eslint": "^8.56.1"
   }
 }
