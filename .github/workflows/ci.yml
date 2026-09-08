@@ -157,7 +157,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
         shard: [1, 2, 3]
