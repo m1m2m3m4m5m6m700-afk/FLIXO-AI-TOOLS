@@ -65,9 +65,10 @@ if (!/github\.event_name\s*!=\s*'pull_request'/.test(deep)) {
 try {
   execFileSync(process.execPath, ['scripts/ci/validate-playwright-surface.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/validate-certification-surface.mjs'], { stdio: 'inherit' });
+  execFileSync(process.execPath, ['scripts/ci/validate-agent-protocol.mjs'], { stdio: 'inherit' });
 } catch {
-  console.error('CI contract failed: browser/certification surface validation failed.');
+  console.error('CI contract failed: browser/certification/agent-protocol surface validation failed.');
   process.exit(1);
 }
 
-console.log('CI contract passed: one execution graph, centralized result-state reduction, explicit evidence provenance, minimal SHA checkout, one FAST engine, one DEEP engine, and one fail-closed certification gate.');
+console.log('CI contract passed: one execution graph, centralized result-state reduction, explicit evidence provenance, minimal SHA checkout, one FAST engine, one DEEP engine, one fail-closed certification gate, and mandatory multi-agent protocol.');
