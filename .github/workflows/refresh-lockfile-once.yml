@@ -9,7 +9,6 @@ permissions:
 
 jobs:
   refresh:
-    if: hashFiles('diagnostics/.lock-refresh-trigger') != ''
     runs-on: ubuntu-latest
     steps:
       - name: Checkout exact main commit
@@ -23,14 +22,14 @@ jobs:
           node-version: 22
           cache: npm
       - name: Regenerate package lock
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+        run: |
+          test -f diagnostics/.lock-refresh-trigger
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Commit regenerated lockfile and remove one-shot helper
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          if git diff --quiet -- package-lock.json; then
-            echo 'package-lock.json already synchronized.'
-          else
+          if ! git diff --quiet -- package-lock.json; then
             git add package-lock.json
           fi
           rm -f diagnostics/.lock-refresh-trigger .github/workflows/refresh-lockfile-once.yml
