@@ -133,9 +133,9 @@ export function ImageToolPage({ toolId }: Props) {
   };
 
   return (
-    <main lang={localeMetadata.languageTag} dir={localeMetadata.direction} className="image-tool-shell">
+    <div lang={localeMetadata.languageTag} dir={localeMetadata.direction} className="image-tool-shell">
       <div className="image-tool-container">
-        <header className="image-tool-header"><div><p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p><h1>{definition.title}</h1><p className="image-tool-lead">{definition.description}</p></div></header>
+        <header className="image-tool-header"><div><p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p><h2>{definition.title}</h2><p className="image-tool-lead">{definition.description}</p></div></header>
         <section className="compressor-grid" aria-label={definition.title}>
           <div className="compressor-card">
             {isGenerator ? <label><span>Prompt</span><textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="A cinematic sunset over Cairo..." rows={6} /></label> : <><label className="upload-zone" htmlFor="image-tool-file"><span className="upload-title">{file ? file.name : 'Choose an image'}</span><span className="upload-subtitle">{definition.accept.replaceAll('image/', '').toUpperCase() || 'IMAGE INPUT'}</span></label><input id="image-tool-file" className="sr-only" type="file" accept={definition.accept} onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></>}
@@ -151,6 +151,6 @@ export function ImageToolPage({ toolId }: Props) {
           <aside className="result-card" aria-live="polite"><p className="image-tool-eyebrow">RESULT</p>{result ? <>{result.text !== undefined ? <pre style={{ whiteSpace: 'pre-wrap' }}>{result.text || 'No text detected.'}</pre> : result.objectUrl && <img src={result.objectUrl} alt="Tool result" style={{ maxWidth: '100%', borderRadius: 12 }} />}{result.info && <p className="privacy-note">Output: {result.info.width} × {result.info.height}px · {Math.round(result.blob.size / 1024)} KB · {result.blob.type || 'application/octet-stream'}</p>}<div className="button-row"><a className="primary-button" href={result.objectUrl} download={result.fileName}>Download {result.fileName}</a><button className="primary-button" type="button" onClick={() => downloadBlob(result.blob, result.fileName)}>Download now</button></div></> : <p>No result yet.</p>}</aside>
         </section>
       </div>
-    </main>
+    </div>
   );
 }
