@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 import { LOCALES, LOCALE_METADATA } from '../src/lib/i18n/config';
 
 test.describe('20-locale navigation', () => {
