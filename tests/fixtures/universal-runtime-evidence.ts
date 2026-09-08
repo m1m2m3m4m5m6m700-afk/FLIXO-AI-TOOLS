@@ -51,16 +51,24 @@ export const test = base.extend<{ runtimeEvidence: void }>({
         failedResponses.push({ url: response.url(), status, statusText: response.statusText(), method: request.method(), resourceType: request.resourceType() });
       }
     };
+    const onRoute = async (route: { request: () => { headers: () => Record<string, string> }; continue: (options?: { headers?: Record<string, string> }) => Promise<void> }) => {
+      const headers = { ...route.request().headers() };
+      delete headers['if-none-match'];
+      delete headers['if-modified-since'];
+      await route.continue({ headers });
+    };
 
     page.on('framenavigated', onNavigation);
     page.on('console', onConsole);
     page.on('pageerror', onPageError);
     page.on('requestfailed', onRequestFailed);
     page.on('response', onResponse);
+    await page.route('**/*', onRoute);
 
     try {
       await runTest();
     } finally {
+      await page.unroute('**/*', onRoute);
       page.off('framenavigated', onNavigation);
       page.off('console', onConsole);
       page.off('pageerror', onPageError);
