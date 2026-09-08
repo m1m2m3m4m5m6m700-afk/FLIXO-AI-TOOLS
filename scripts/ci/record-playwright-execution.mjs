@@ -17,7 +17,7 @@ const shard = Number(args.get('shard') ?? process.env.SHARD ?? 0);
 const runId = process.env.GITHUB_RUN_ID ?? null;
 const exactSha = process.env.EXPECTED_SHA ?? null;
 const reportPath = String(args.get('report') ?? 'playwright-report/results.json');
-const outputPath = String(args.get('output') ?? `diagnostics/certification/${mode === 'DEEP' ? 'browser-deep' : 'browser-fast'}-${browser}-${shard}.execution.json`);
+const outputPath = String(args.get('output') ?? `diagnostics/certification/${mode === 'DEEP' ? 'browser-deep' : 'browser-fast'}-${browser}-${shard}.json`);
 const registryPath = 'scripts/ci/assertion-registry.json';
 
 if (!['FAST', 'DEEP'].includes(mode)) throw new Error(`Invalid --mode: ${mode}`);
@@ -42,7 +42,8 @@ const localeCodes = [...localeArray.matchAll(/['\"]([a-z]{2,3})['\"]/giu)].map((
 const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
 
 const normalize = (value) => String(value ?? '').replaceAll('\\', '/').replace(/^\.\//, '');
-const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+const reportBytes = fs.readFileSync(reportPath);
+const report = JSON.parse(reportBytes);
 if (!report || typeof report !== 'object' || !Array.isArray(report.suites)) throw new Error('Invalid Playwright JSON report');
 if (!localeCodes.length) throw new Error('Locale registry could not be parsed');
 
@@ -120,9 +121,10 @@ const missingDeepLocales = mode === 'DEEP' ? localeCodes.filter((locale) => !loc
 const unexpectedDeepLocales = mode === 'DEEP' ? [...localeSet].filter((locale) => !localeCodes.includes(locale)) : [];
 const expectedSemanticUnits = mode === 'FAST' ? expectedFastSpecs.length : expectedDeepLocales;
 const semanticUnitStatus = semanticUnitSet.size === expectedSemanticUnits && (mode === 'FAST' ? units.every((unit) => unit.semanticUnitId) : missingDeepLocales.length === 0 && unexpectedDeepLocales.length === 0);
+const overallStatus = units.length && units.every((unit) => unit.status === 'PASS') && unexpectedSpecs.length === 0 && semanticUnitStatus ? 'PASS' : 'FAIL';
 
 const output = {
-  schema_version: 3,
+  schema_version: 4,
   evidenceClass: 'PRIMARY_EXECUTION',
   mode,
   browser,
@@ -130,7 +132,10 @@ const output = {
   runId,
   exactSha,
   reportPath,
-  sourceReportSha256: createHash('sha256').update(fs.readFileSync(reportPath)).digest('hex'),
+  sourceReportSha256: createHash('sha256').update(reportBytes).digest('hex'),
+  status: overallStatus,
+  toolSpecs: mode === 'FAST' ? expectedFastSpecs.length : undefined,
+  locales: mode === 'DEEP' ? expectedDeepLocales : undefined,
   expectedSpecCount: mode === 'FAST' ? 22 : 1,
   executedSpecCount: specSet.size,
   unexpectedSpecs,
@@ -153,9 +158,11 @@ const output = {
     missingLocales: missingDeepLocales,
     unexpectedLocales: unexpectedDeepLocales,
   },
-  complete: unexpectedSpecs.length === 0 && units.length > 0 && statusCounts.NOT_EXECUTED === 0 && semanticUnitStatus,
+  complete: overallStatus === 'PASS' && unexpectedSpecs.length === 0 && units.length > 0 && statusCounts.NOT_EXECUTED === 0 && semanticUnitStatus,
   units,
 };
+if (output.mode === 'FAST') delete output.locales;
+if (output.mode === 'DEEP') delete output.toolSpecs;
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
 console.log(JSON.stringify(output, null, 2));
