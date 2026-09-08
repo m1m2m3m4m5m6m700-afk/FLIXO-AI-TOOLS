@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
 const certifyEngine = readFileSync('scripts/ci/certify.mjs', 'utf8');
+const certifyCore = readFileSync('scripts/ci/certify-core.mjs', 'utf8');
 const resultState = readFileSync('scripts/ci/result-state.mjs', 'utf8');
 
 const required = [
@@ -29,7 +30,8 @@ for (const [label, pattern] of required) {
 
 for (const [label, source, pattern] of [
   ['central result-state reducer', testEngine, /result-state\.mjs/],
-  ['central result-state reducer import in certification', certifyEngine, /result-state\.mjs/],
+  ['central result-state reducer import in certification core', certifyCore, /result-state\.mjs/],
+  ['certification wrapper delegates to canonical core', certifyEngine, /certify-core\.mjs/],
   ['explicit cancellation state', resultState, /['"]CANCELLED['"]/],
   ['explicit missing-evidence state', resultState, /['"]MISSING_EVIDENCE['"]/],
   ['explicit malformed-evidence state', resultState, /['"]MALFORMED_EVIDENCE['"]/],
