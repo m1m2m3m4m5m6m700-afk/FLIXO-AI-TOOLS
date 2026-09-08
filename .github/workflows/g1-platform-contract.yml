@@ -1,22 +1,20 @@
-name: G1 Platform Contract Gate
+name: G1 Platform Contract Diagnostic
 
+# Canonical G1 execution is owned by the main CI contract graph.
+# This workflow is manual forensic execution only.
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: g1-platform-${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: g1-platform-manual
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
   g1-platform-contract:
-    name: G1 Platform Contract
+    name: G1 Platform Contract (manual diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
