@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/runtime-evidence';
 import { assertDownload, assertImageResult, uploadFixture } from './helpers/image-tool-fixture';
 
 test('background-blur: produces a valid processed image', async ({ page }) => {
