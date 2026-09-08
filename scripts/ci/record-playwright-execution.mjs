@@ -37,7 +37,7 @@ const expectedFastSpecs = [
 const expectedDeepSpec = 'tests/localization-runtime.spec.ts';
 const localeSource = fs.readFileSync('src/lib/i18n/config.ts', 'utf8');
 const localeArray = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '';
-const localeCodes = [...localeArray.matchAll(/["']([a-z]{2,3})["']/giu)].map((match) => match[1].toLowerCase());
+const localeCodes = [...localeArray.matchAll(/[\"']([a-z]{2,3})[\"']/giu)].map((match) => match[1].toLowerCase());
 const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
 const normalize = (value) => {
   const normalized = String(value ?? '').replaceAll('\\', '/').replace(/^\.\//, '');
@@ -64,8 +64,11 @@ const walkSuite = (suite, inheritedFile = null) => {
     const specFile = normalize(typeof spec.file === 'string' ? spec.file : suiteFile);
     if (!specFile) continue;
     const record = specRecords.get(specFile) ?? { spec: specFile, tests: [] };
+    const specTitle = typeof spec.title === 'string' && spec.title.trim() ? spec.title.trim() : null;
     for (const test of spec.tests ?? []) {
-      const testName = typeof test.title === 'string' && test.title.trim() ? test.title.trim() : null;
+      const testName = typeof test.title === 'string' && test.title.trim()
+        ? test.title.trim()
+        : specTitle;
       const results = Array.isArray(test.results) ? test.results : [];
       const failed = results.some((result) => result.status === 'failed' || result.status === 'timedOut');
       const passed = results.some((result) => result.status === 'passed');
