@@ -1,15 +1,9 @@
 name: CI — Universal Diagnostic
 
+# Manual forensic diagnostic only. Canonical automated coverage lives in ci.yml,
+# Matrix First, G3, and the release Full Matrix workflow.
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: ci-universal-diagnostic-${{ github.head_ref || github.ref }}
-  cancel-in-progress: false
 
 permissions:
   contents: read
