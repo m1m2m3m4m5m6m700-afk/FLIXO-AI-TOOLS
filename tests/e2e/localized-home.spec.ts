@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/universal-runtime-evidence';
 
 test.describe('localized home coverage', () => {
   const cases = [
