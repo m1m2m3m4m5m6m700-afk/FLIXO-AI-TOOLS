@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "rootCauseId": "RC-G4-H1-OWNERSHIP-001",
+  "classification": "G4_H1_SOURCE_OF_TRUTH_DRIFT",
+  "status": "RECOVERY_IN_PROGRESS",
+  "scope": "Canonical localized tool page primary H1 across Browser FAST",
+  "firstObserved": {
+    "sha": "6bad7d4a333a81c8eeb8edc34c862196546f65d8",
+    "run": "FLIXO Test System #5909",
+    "evidence": "Browser FAST failed the same four tool H1 assertions on Chromium, Firefox, and WebKit"
+  },
+  "expected": "The canonical page H1, breadcrumbs, workspace label, and SEO metadata must derive the reviewed tool name from one authoritative resolver.",
+  "actual": "The canonical page rendered getToolUiTitle(), while getToolSeo() and the localization runtime contract used getAuthoritativeToolSeoName(). The split produced missing/wrong H1 assertions for exif-cleaner, image-cropper, image-ocr, and Arabic image-compressor.",
+  "repair": {
+    "branch": "agent/h1-contract-repair-20260908",
+    "baseSha": "e4f2519516e66a78aa92e355818c029bcbe41310",
+    "changeSha": "94dfe5bb2d62b15b2f30d2421d28b1892e858d60",
+    "files": [
+      "src/routes/localized-tool-page.tsx",
+      "src/config/tool-ui-title-resolver.ts"
+    ],
+    "changes": [
+      "Render canonical visible tool labels from getAuthoritativeToolSeoName().",
+      "Remove the only runtime consumer of the parallel UI title resolver.",
+      "Delete the obsolete parallel UI title resolver to prevent a second title authority."
+    ]
+  },
+  "safety": {
+    "assertionsWeakened": false,
+    "coverageReduced": false,
+    "fallbacksAdded": false,
+    "testsDisabled": false,
+    "browserSpecificBranchesAdded": false
+  },
+  "verificationRequired": [
+    "Static + Build",
+    "Browser FAST 22 specs × Chromium/Firefox/WebKit",
+    "Browser DEEP locale/browser conservation",
+    "Execution graph validation",
+    "Final certification on fresh exact SHA"
+  ],
+  "artifact": "artifacts/ci/g4-root-causes/RC-G4-H1-OWNERSHIP-001.json",
+  "recordedAt": "2026-09-08"
+}
