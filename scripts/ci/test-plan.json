@@ -1,9 +1,9 @@
 {
-  "version": 4,
+  "version": 5,
   "execution": {"maxConcurrency":6,"failFast":false,"certification":"complete-gate-results","identityFields":["sha","packageLockSha256","testPlanSha256"]},
   "gateDependencies": {"static":[],"build":["static"],"browser":["build"]},
   "coverage": {
-    "COV-TYPEGRAPH":"TypeScript type graph","COV-LINT":"Static lint correctness","COV-UNIT":"Core unit behavior","COV-TOOL-LOCALIZATION":"Tool localization contract","COV-BASELINE":"Engineering baseline","COV-REGISTRY":"Tool registry contract","COV-MANIFEST":"Tool manifest contract","COV-ROUTER":"Router/registry parity","COV-I18N":"Locale contracts","COV-SEO":"SEO/indexing contracts","COV-CI-CONTRACT":"CI contract","COV-DEPENDENCY":"Dependency graph","COV-DEPENDENCY-MANIFEST":"Manifest/lock dependency parity","COV-FILE-SAFETY":"File safety","COV-OUTPUT-INTEGRITY":"Output integrity","COV-SVG-INTEGRITY":"SVG integrity","COV-RELEASE-EVIDENCE":"Release evidence","COV-BUILD":"Production build","COV-PERFORMANCE":"Performance budget","COV-BROWSER-CHROMIUM":"Chromium runtime","COV-BROWSER-FIREFOX":"Firefox runtime","COV-BROWSER-WEBKIT":"WebKit runtime"
+    "COV-TYPEGRAPH":"TypeScript type graph","COV-LINT":"Static lint correctness","COV-UNIT":"Core unit behavior","COV-TOOL-LOCALIZATION":"Tool localization contract","COV-BASELINE":"Engineering baseline","COV-REGISTRY":"Tool registry contract","COV-MANIFEST":"Tool manifest contract","COV-ROUTER":"Router/registry parity","COV-I18N":"Locale contracts","COV-SEO":"SEO/indexing contracts","COV-CI-CONTRACT":"CI contract","COV-DEPENDENCY":"Dependency graph","COV-DEPENDENCY-MANIFEST":"Manifest/lock dependency parity","COV-FILE-SAFETY":"File safety","COV-OUTPUT-INTEGRITY":"Output integrity","COV-SVG-INTEGRITY":"SVG integrity","COV-RELEASE-EVIDENCE":"Release evidence","COV-BUILD":"Production build","COV-PERFORMANCE":"Performance budget","COV-BROWSER-CHROMIUM":"Chromium universal diagnostic runtime","COV-BROWSER-FIREFOX":"Firefox universal diagnostic runtime","COV-BROWSER-WEBKIT":"WebKit universal diagnostic runtime"
   },
   "assertions": {
     "ASSERT-TYPEGRAPH-001":{"owner":"STATIC-001","description":"TypeScript type graph compiles"},
@@ -35,9 +35,9 @@
     "ASSERT-BUILD-001":{"owner":"BUILD-001","description":"Production build succeeds"},
     "ASSERT-DIST-001":{"owner":"BUILD-002","description":"Distribution exists"},
     "ASSERT-PERFORMANCE-001":{"owner":"BUILD-003","description":"Performance budget passes"},
-    "ASSERT-BROWSER-CHROMIUM-001":{"owner":"BROWSER-001","description":"Chromium runtime tests pass"},
-    "ASSERT-BROWSER-FIREFOX-001":{"owner":"BROWSER-002","description":"Firefox runtime tests pass"},
-    "ASSERT-BROWSER-WEBKIT-001":{"owner":"BROWSER-003","description":"WebKit runtime tests pass"}
+    "ASSERT-BROWSER-CHROMIUM-001":{"owner":"BROWSER-001","description":"Chromium universal diagnostic suite passes"},
+    "ASSERT-BROWSER-FIREFOX-001":{"owner":"BROWSER-002","description":"Firefox universal diagnostic suite passes"},
+    "ASSERT-BROWSER-WEBKIT-001":{"owner":"BROWSER-003","description":"WebKit universal diagnostic suite passes"}
   },
   "gates": {
     "static":{"expected":26,"checks":[
@@ -74,9 +74,9 @@
       {"id":"BUILD-003","label":"performance","command":"npm","args":["run","validate:performance-budget"],"rootCause":"RC-BUILD-001","assertions":["ASSERT-PERFORMANCE-001"],"coverage":["COV-PERFORMANCE"]}
     ]},
     "browser":{"expected":3,"projects":["chromium","firefox","webkit"],"checks":[
-      {"id":"BROWSER-001","label":"chromium","command":"npx","args":["playwright","test","--project=chromium","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-CHROMIUM-001"],"coverage":["COV-BROWSER-CHROMIUM"]},
-      {"id":"BROWSER-002","label":"firefox","command":"npx","args":["playwright","test","--project=firefox","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-FIREFOX-001"],"coverage":["COV-BROWSER-FIREFOX"]},
-      {"id":"BROWSER-003","label":"webkit","command":"npx","args":["playwright","test","--project=webkit","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-WEBKIT-001"],"coverage":["COV-BROWSER-WEBKIT"]}
+      {"id":"BROWSER-001","label":"chromium","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=chromium","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-CHROMIUM-001"],"coverage":["COV-BROWSER-CHROMIUM"]},
+      {"id":"BROWSER-002","label":"firefox","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=firefox","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-FIREFOX-001"],"coverage":["COV-BROWSER-FIREFOX"]},
+      {"id":"BROWSER-003","label":"webkit","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=webkit","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-WEBKIT-001"],"coverage":["COV-BROWSER-WEBKIT"]}
     ]}
   }
 }
