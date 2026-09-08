@@ -12,7 +12,9 @@ function walk(dir) {
     if (entry.isDirectory()) walk(path);
     else if (/\.spec\.(?:ts|tsx|js|jsx|mjs|cjs)$/u.test(entry.name)) {
       const source = readFileSync(path, 'utf8');
-      if (/@playwright\/test/u.test(source)) playwrightSpecs.push(path);
+      const direct = /@playwright\/test/u.test(source);
+      const universalFixture = /fixtures\/universal-runtime-evidence(?:\.ts)?["']/u.test(source);
+      if (direct || universalFixture) playwrightSpecs.push(path);
     }
   }
 }
