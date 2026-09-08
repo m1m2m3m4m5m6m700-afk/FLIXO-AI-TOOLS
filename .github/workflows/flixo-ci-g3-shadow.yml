@@ -1,14 +1,12 @@
 name: FLIXO CI — G3 Artifact Integrity Shadow
 
+# Shadow regression suite is retained for manual forensic comparison only.
+# Canonical G3 certification owns automated PR/main execution.
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-g3-${{ github.event.pull_request.number || github.ref }}
+  group: flixo-ci-g3-manual
   cancel-in-progress: true
 
 permissions:
@@ -18,26 +16,23 @@ env:
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
   VITE_TEST_ORIGIN: https://canonical.test
   VITE_SITE_URL: https://flixoai.vercel.app
-  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  EXPECTED_HEAD_SHA: ${{ github.sha }}
 
 jobs:
   g3-shadow:
-    name: G3 Artifact Integrity Shadow
+    name: G3 Artifact Integrity Shadow (manual diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - name: Verify checked-out identity
         shell: bash
         run: |
           set -euo pipefail
           actual="$(git rev-parse HEAD)"
-          expected="${EXPECTED_HEAD_SHA}"
-          test "$actual" = "$expected" || { echo "G3 exact-head identity mismatch: expected=$expected actual=$actual"; exit 1; }
-          echo "G3 exact-head identity PASS: $actual"
+          test "$actual" = "$EXPECTED_HEAD_SHA" || { echo "G3 exact-head identity mismatch: expected=$EXPECTED_HEAD_SHA actual=$actual"; exit 1; }
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
@@ -60,13 +55,12 @@ jobs:
         run: |
           set -euo pipefail
           actual="$(git rev-parse HEAD)"
-          expected="${EXPECTED_HEAD_SHA}"
-          test "$actual" = "$expected" || { echo "G3 evidence identity mismatch: expected=$expected actual=$actual"; exit 1; }
+          test "$actual" = "$EXPECTED_HEAD_SHA"
       - name: Upload G3 shadow evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-g3-shadow-${{ github.event.pull_request.head.sha || github.sha }}
+          name: ci-g3-shadow-${{ github.sha }}
           path: |
             playwright-report/
             test-results/
