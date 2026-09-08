@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 import { assertDownload, assertImageResult, uploadFixture } from './helpers/image-tool-fixture';
 
 test('background-remover: produces a valid PNG and downloads it', async ({ page }) => {
