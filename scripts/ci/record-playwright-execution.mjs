@@ -36,12 +36,15 @@ const expectedFastSpecs = [
   'tests/svg-optimizer.spec.ts', 'tests/mockup-generator.spec.ts', 'tests/seed.spec.ts', 'tests/pix.spec.ts',
 ];
 const expectedDeepSpec = 'tests/localization-runtime.spec.ts';
-const localeCodes = JSON.parse(fs.readFileSync('src/lib/i18n/config.ts', 'utf8').match(/LOCALES\s*=\s*\[([\s\S]*?)\]/)?.[1] ?? '[]').map((value) => String(value).replace(/['"\s]/g, '')).filter(Boolean);
+const localeSource = fs.readFileSync('src/lib/i18n/config.ts', 'utf8');
+const localeArray = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '';
+const localeCodes = [...localeArray.matchAll(/['"]([a-z]{2,3})['"]/giu)].map((match) => match[1]);
 const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
 
 const normalize = (value) => String(value ?? '').replaceAll('\\', '/').replace(/^\.\//, '');
 const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
 if (!report || typeof report !== 'object' || !Array.isArray(report.suites)) throw new Error('Invalid Playwright JSON report');
+if (!localeCodes.length) throw new Error('Locale registry could not be parsed');
 
 const implementationIndex = new Map();
 for (const [assertionId, entry] of Object.entries(registry.assertions ?? {})) {
@@ -71,8 +74,8 @@ const walkSuite = (suite, file = null, titlePath = []) => {
       const key = `${specName}\u0000${testName ?? ''}`;
       const canonicalAssertionId = implementationIndex.get(key) ?? null;
       const normalizedTitlePath = [...nextTitlePath, testName].filter(Boolean);
-      const pathFromTitle = String(testName ?? '').match(/—\s+(\/[^\s]+)$/)?.[1] ?? null;
-      const locale = pathFromTitle?.match(/^\/([a-z]{2,3})(?:\/|$)/i)?.[1] ?? null;
+      const pathFromTitle = String(testName ?? '').match(/—\s+(\/[^\s]+)$/u)?.[1] ?? null;
+      const locale = pathFromTitle?.match(/^\/([a-z]{2,3})(?:\/|$)/iu)?.[1]?.toLowerCase() ?? null;
       units.push({
         executionUnitId: `${mode}:${browser}:${shard}:${specName}:${testName ?? '<untitled>'}`,
         assertionId: canonicalAssertionId,
