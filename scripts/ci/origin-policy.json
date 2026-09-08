@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "authority": "canonical-origin-policy",
   "productionOrigin": "https://flixoai.vercel.app",
   "runtimeOrigin": "http://127.0.0.1:3000",
@@ -10,9 +10,13 @@
     "scripts/test-route-resolver.mjs",
     "scripts/test-i18n-contract.mjs"
   ],
+  "nonCertificationDiagnosticAllowlist": [
+    "scripts/validate-s3-static-gate.mjs"
+  ],
   "workflowCertificationAllowlist": [
     ".github/workflows/ci.yml",
     ".github/workflows/matrix-first.yml",
-    ".github/workflows/full-matrix-parallel.yml"
+    ".github/workflows/full-matrix-parallel.yml",
+    ".github/workflows/certification-authority.yml"
   ]
 }
