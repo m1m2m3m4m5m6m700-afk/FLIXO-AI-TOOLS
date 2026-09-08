@@ -175,7 +175,7 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
     const fullscreenBtn = page.getByTestId('button-canvas-fullscreen');
     await fullscreenBtn.click();
     await expect(fullscreenBtn).toHaveAttribute('aria-label', 'Exit Fullscreen');
-    await expect(page.locator('main > section')).toHaveJSProperty('tagName', 'SECTION');
+    await expect(page.locator('.tool-page-modern__tool-host > div > section').first()).toHaveJSProperty('tagName', 'SECTION');
     await fullscreenBtn.click();
     await expect(fullscreenBtn).toHaveAttribute('aria-label', 'Enter Fullscreen');
   });
