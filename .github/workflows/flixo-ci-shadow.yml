@@ -1,12 +1,12 @@
 name: FLIXO CI — Foundation Shadow
 
+# Shadow validation is retained for manual forensic comparison only.
+# Canonical CI owns automated PR/main foundation verification.
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-foundation-${{ github.event.pull_request.number || github.ref }}
+  group: flixo-ci-foundation-manual
   cancel-in-progress: true
 
 permissions:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   foundation-shadow:
-    name: CI Foundation Shadow
+    name: CI Foundation Shadow (manual diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
