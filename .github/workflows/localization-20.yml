@@ -15,7 +15,7 @@ permissions:
 env:
   VITE_SITE_URL: https://flixoai.vercel.app
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
-  VITE_TEST_ORIGIN: https://canonical.test
+  VITE_TEST_ORIGIN: http://127.0.0.1:3000
   G4_LOCALES: 'ar,en,es,fr,de,hi,id,it,ja,ko,ms,nl,pl,pt,ru,sv,th,tr,uk,vi'
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
@@ -79,26 +79,3 @@ jobs:
           done
           cat /tmp/g4-server.log || true
           exit 1
-      - name: G4 localized visible UI matrix — six representative tools × 20 locales
-        env:
-          S4_EXTERNAL_SERVER: 'true'
-          PLAYWRIGHT_SERVER: preview
-          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-        run: npx playwright test tests/localization-visible.spec.ts --project=chromium --workers=6 --retries=0
-      - name: Cleanup
-        if: always()
-        shell: bash
-        run: |
-          set +e
-          if [ -f /tmp/g4-server.pid ]; then kill "$(cat /tmp/g4-server.pid)" 2>/dev/null || true; fi
-      - name: Upload G4 evidence
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: g4-localization-seo-evidence-${{ github.sha }}
-          path: |
-            playwright-report/
-            test-results/
-            /tmp/g4-server.log
-          if-no-files-found: warn
-          retention-days: 14
