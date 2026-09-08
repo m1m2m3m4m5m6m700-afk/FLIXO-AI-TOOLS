@@ -5,7 +5,7 @@ import { assertDownload, assertImageResult, uploadFixture } from './helpers/imag
 
 test('exif-cleaner: produces a contract-valid PNG without EXIF metadata', async ({ page }) => {
   await page.goto('/en/exif-cleaner');
-  await expect(page.getByRole('heading', { level: 1, name: 'EXIF Metadata Remover' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'EXIF Cleaner' })).toBeVisible();
   await uploadFixture(page);
   await page.getByRole('button', { name: 'Run tool' }).click();
 
