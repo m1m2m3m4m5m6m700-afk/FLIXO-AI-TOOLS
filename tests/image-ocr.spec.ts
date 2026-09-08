@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 import { uploadFixture } from './helpers/image-tool-fixture';
 
 test('image-ocr: extracts text and downloads TXT', async ({ page }) => {
