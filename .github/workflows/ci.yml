@@ -41,6 +41,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Create immutable run identity
+        run: node scripts/ci/create-run-identity.mjs
       - name: Static contracts
         run: npm run test:static
       - name: Build contracts
