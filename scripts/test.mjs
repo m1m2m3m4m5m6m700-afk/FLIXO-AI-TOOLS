@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const ROOT=process.cwd(), OUT=resolve(ROOT,'diagnostics/ci'); mkdirSync(OUT,{recursive:true});
 const args=process.argv.slice(2), requested=args.find(a=>a.startsWith('--gate='))?.slice(7)??null, mode=args.find(a=>a.startsWith('--mode='))?.slice(7)??'certification';
 const PLAN_PATH=resolve(ROOT,'scripts/ci/test-plan.json'), plan=JSON.parse(readFileSync(PLAN_PATH,'utf8'));
-const roots=JSON.parse(readFileSync(resolve(ROOT,'scripts/ci/root-causes.json'),'utf8')); const gates=['static','build','browser'];
+const roots=JSON.parse(readFileSync(resolve(ROOT,'scripts/ci/root-causes.json','utf8'))); const gates=['static','build','browser'];
 if(!['certification','diagnose'].includes(mode)||(requested&&!gates.includes(requested)))process.exit(2);
 const planSha=createHash('sha256').update(readFileSync(PLAN_PATH)).digest('hex'); const max=Number(plan.execution?.maxConcurrency??1);
 if(!Number.isInteger(max)||max<1||max>32)process.exit(2);
