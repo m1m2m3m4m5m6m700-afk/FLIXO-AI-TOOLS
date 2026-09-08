@@ -1,6 +1,30 @@
 import { expect, test, type Page, type TestInfo } from './fixtures/universal-runtime-evidence';
 import { PNG } from './helpers/image-tool-fixture';
 
+type Canvas2DContext = CanvasRenderingContext2D | null;
+type CanvasContextId = '2d' | 'webgl' | 'webgl2' | 'bitmaprenderer' | string;
+
+const canvasLocator = (page: Page) => page.locator('canvas[aria-label="Seed preview"]');
+
+async function hasWebGl(page: Page) {
+  return canvasLocator(page).evaluate((element) => Boolean((element as HTMLCanvasElement).getContext('webgl')));
+}
+
+async function canvasScreenshot(page: Page) {
+  return canvasLocator(page).screenshot({ animations: 'disabled' });
+}
+
+async function loadSeed(page: Page, testInfo: TestInfo, requireWebGL = true) {
+  await page.goto('/en/seed');
+  await expect(page.getByRole('heading', { level: 1, name: 'Seed' })).toBeVisible();
+  await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
+  await expect(canvasLocator(page)).toBeVisible();
+  if (requireWebGL && !(await hasWebGl(page))) {
+    testInfo.skip(true, 'Seed GPU assertions require WebGL, which is unavailable in this browser environment.');
+  }
+  await page.waitForTimeout(150);
+}
+
 test('Seed: WebGL preview changes pixels and exports a non-empty PNG', async ({ page }, testInfo) => {
   await loadSeed(page, testInfo);
   const baseline = await canvasScreenshot(page);
@@ -68,9 +92,9 @@ test('Seed: accepts a second image for Double Exposure', async ({ page }, testIn
 test('Seed: shows a clear error when GPU rendering is unavailable', async ({ page }) => {
   await page.addInitScript(() => {
     const originalGetContext = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function (contextId: string, ...args: unknown[]) {
+    HTMLCanvasElement.prototype.getContext = function (contextId: CanvasContextId, ...args: unknown[]) {
       if (contextId === 'webgl') return null;
-      return originalGetContext.call(this, contextId as never, ...args) as RenderingContext | null;
+      return originalGetContext.call(this, contextId as never, ...args) as Canvas2DContext;
     };
   });
 
@@ -156,24 +180,3 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
     await expect(fullscreenBtn).toHaveAttribute('aria-label', 'Enter Fullscreen');
   });
 });
-
-async function hasWebGl(page: Page) {
-  return canvasLocator(page).evaluate((element) => Boolean((element as HTMLCanvasElement).getContext('webgl')));
-}
-
-async function canvasScreenshot(page: Page) {
-  return canvasLocator(page).screenshot({ animations: 'disabled' });
-}
-
-const canvasLocator = (page: Page) => page.locator('canvas[aria-label="Seed preview"]');
-
-async function loadSeed(page: Page, testInfo: TestInfo, requireWebGL = true) {
-  await page.goto('/en/seed');
-  await expect(page.getByRole('heading', { level: 1, name: 'Seed' })).toBeVisible();
-  await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
-  await expect(canvasLocator(page)).toBeVisible();
-  if (requireWebGL && !(await hasWebGl(page))) {
-    testInfo.skip(true, 'Seed GPU assertions require WebGL, which is unavailable in this browser environment.');
-  }
-  await page.waitForTimeout(150);
-}
