@@ -1,5 +1,5 @@
 const DEFAULT_RUNTIME_ORIGIN = 'http://127.0.0.1:3000';
-const DEFAULT_TEST_ORIGIN = 'https://canonical.test';
+const DEFAULT_TEST_ORIGIN = DEFAULT_RUNTIME_ORIGIN;
 const OFFICIAL_PRODUCTION_ORIGIN = 'https://flixoai.vercel.app';
 
 type OriginEnvName = 'SITE_URL' | 'VITE_SITE_URL' | 'VITE_RUNTIME_ORIGIN' | 'VITE_TEST_ORIGIN';
