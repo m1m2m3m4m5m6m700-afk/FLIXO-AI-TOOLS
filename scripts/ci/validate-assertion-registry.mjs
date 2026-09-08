@@ -1,13 +1,16 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
-const read = (path) => fs.readFileSync(path, 'utf8');
+const read = (filePath) => fs.readFileSync(filePath, 'utf8');
 const plan = JSON.parse(read('scripts/ci/test-plan.json'));
 const registry = JSON.parse(read('scripts/ci/assertion-registry.json'));
+const packageJson = JSON.parse(read('package.json'));
 const planAssertions = new Map(Object.entries(plan.assertions ?? {}));
 const registryAssertions = new Map(Object.entries(registry.assertions ?? {}));
 const errors = [];
 const ownerToAssertion = new Map();
 const referenced = new Map();
+const executionOwners = new Map();
 
 for (const [assertionId, entry] of registryAssertions) {
   if (!entry || typeof entry !== 'object') {
@@ -21,9 +24,28 @@ for (const [assertionId, entry] of registryAssertions) {
   for (const dependency of entry.dependencies) if (!registryAssertions.has(dependency)) errors.push(`${assertionId}: unknown dependency ${dependency}`);
 }
 
+const visitState = new Map([...registryAssertions.keys()].map((id) => [id, 0]));
+const visit = (id, stack = []) => {
+  const state = visitState.get(id);
+  if (state === 1) {
+    const start = stack.indexOf(id);
+    errors.push(`DEPENDENCY_CYCLE: ${[...stack.slice(start), id].join(' -> ')}`);
+    return;
+  }
+  if (state === 2) return;
+  visitState.set(id, 1);
+  for (const dependency of registryAssertions.get(id)?.dependencies ?? []) {
+    if (registryAssertions.has(dependency)) visit(dependency, [...stack, id]);
+  }
+  visitState.set(id, 2);
+};
+for (const id of registryAssertions.keys()) visit(id);
+
 for (const [gate, gatePlan] of Object.entries(plan.gates ?? {})) {
   for (const check of gatePlan.checks ?? []) {
-    for (const assertionId of check.assertions ?? []) {
+    const assertions = check.assertions ?? [];
+    if (assertions.length !== 1) errors.push(`${gate}/${check.id}: expected exactly one assertion owner, found ${assertions.length}`);
+    for (const assertionId of assertions) {
       if (!registryAssertions.has(assertionId)) errors.push(`${gate}/${check.id}: assertion ${assertionId} missing from canonical registry`);
       const refs = referenced.get(assertionId) ?? [];
       refs.push(check.id);
@@ -31,6 +53,15 @@ for (const [gate, gatePlan] of Object.entries(plan.gates ?? {})) {
       const registryEntry = registryAssertions.get(assertionId);
       if (registryEntry && registryEntry.owner !== check.id) errors.push(`${assertionId}: registry owner ${registryEntry.owner} != plan owner ${check.id}`);
       if (registryEntry && JSON.stringify(registryEntry.coverage.slice().sort()) !== JSON.stringify((check.coverage ?? []).slice().sort())) errors.push(`${assertionId}: coverage mismatch between registry and test-plan`);
+    }
+    executionOwners.set(check.id, check);
+    if (check.command === 'npm' && check.args?.[0] === 'run') {
+      const script = check.args?.[1];
+      if (!script || !Object.hasOwn(packageJson.scripts ?? {}, script)) errors.push(`${gate}/${check.id}: missing npm script ${script ?? '<missing>'}`);
+    }
+    if (check.command === 'node') {
+      const fileArg = [...(check.args ?? [])].reverse().find((arg) => typeof arg === 'string' && !arg.startsWith('-') && arg.endsWith(('.mjs', '.js', '.ts')));
+      if (fileArg && !fs.existsSync(path.resolve(fileArg))) errors.push(`${gate}/${check.id}: executable path does not exist: ${fileArg}`);
     }
   }
 }
@@ -42,6 +73,14 @@ for (const [assertionId, planEntry] of planAssertions) {
 for (const assertionId of registryAssertions.keys()) {
   const refs = referenced.get(assertionId) ?? [];
   if (refs.length !== 1) errors.push(`${assertionId}: expected exactly one execution owner reference, found ${refs.length}`);
+}
+
+const executableSignatures = new Map();
+for (const [owner, check] of executionOwners) {
+  const signature = JSON.stringify([check.command, ...(check.args ?? [])]);
+  const prior = executableSignatures.get(signature);
+  if (prior && prior !== owner) errors.push(`EXECUTION_DUPLICATE: ${prior} and ${owner} execute identical command signatures`);
+  executableSignatures.set(signature, owner);
 }
 
 const ci = read('.github/workflows/ci.yml');
@@ -61,10 +100,11 @@ const architectureChecks = [
 for (const [label, pass] of architectureChecks) if (!pass) errors.push(`ARCHITECTURE: ${label}`);
 
 const result = {
-  schema_version: 2,
+  schema_version: 3,
   status: errors.length ? 'FAIL' : 'PASS',
   assertionCount: registryAssertions.size,
   testPlanAssertionCount: planAssertions.size,
+  executionOwnerCount: executionOwners.size,
   ownershipRule: registry.ownershipRule,
   architectureChecks: architectureChecks.map(([label, pass]) => ({ label, status: pass ? 'PASS' : 'FAIL' })),
   errors,
