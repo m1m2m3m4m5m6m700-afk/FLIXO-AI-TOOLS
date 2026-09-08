@@ -1,11 +1,15 @@
 import { expect, test } from './fixtures/universal-runtime-evidence';
+import { getAuthoritativeToolSeoName } from '../src/config/tool-seo-name-resolver';
+import { getToolConfig } from '../src/config/tools';
 import { assertToolOutputContract } from '../src/lib/contracts/tool-output';
 import { exifCleanerOutputContract } from '../src/tools/exif-cleaner/output-contract';
 import { assertDownload, assertImageResult, uploadFixture } from './helpers/image-tool-fixture';
 
 test('exif-cleaner: produces a contract-valid PNG without EXIF metadata', async ({ page }) => {
   await page.goto('/en/exif-cleaner');
-  await expect(page.getByRole('heading', { level: 1, name: 'EXIF Cleaner' })).toBeVisible();
+  const tool = getToolConfig('exif-cleaner');
+  const canonicalH1 = getAuthoritativeToolSeoName(tool, 'en');
+  await expect(page.getByRole('heading', { level: 1, name: canonicalH1 })).toBeVisible();
   await uploadFixture(page);
   await page.getByRole('button', { name: 'Run tool' }).click();
 
