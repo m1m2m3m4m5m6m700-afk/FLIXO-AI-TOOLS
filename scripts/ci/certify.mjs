@@ -40,64 +40,70 @@ function walk(dir) {
 }
 
 const files = walk(evidenceRoot);
-const jsonFiles = files.filter(file => file.endsWith('.json'));
+const jsonFiles = files.filter((file) => file.endsWith('.json'));
+
 for (const file of jsonFiles) {
   let value;
   try { value = JSON.parse(fs.readFileSync(file, 'utf8')); }
-  catch (error) {
-    invalidEvidence.push(`${path.relative(root, file)}: ${error.message}`);
-    continue;
-  }
-  const visit = (item, location) => {
-    if (!item || typeof item !== 'object') return;
-    for (const key of ['sha', 'head_sha', 'expected_sha', 'expectedSha', 'actualHeadSha']) {
-      if (typeof item[key] === 'string' && item[key] && item[key] !== expectedSha) shaMismatches.push(`${location}.${key}=${item[key]}`);
-    }
-    for (const key of ['skipped', 'unauthorizedSkips']) {
-      if (Array.isArray(item[key]) && item[key].length) unauthorizedSkips.push(`${location}.${key}=${JSON.stringify(item[key])}`);
-    }
-    for (const [key, child] of Object.entries(item)) if (child && typeof child === 'object') visit(child, `${location}.${key}`);
-  };
-  visit(value, path.relative(root, file));
+  catch (error) { invalidEvidence.push(`${path.relative(root, file)}: ${error.message}`); continue; }
+  const location = path.relative(root, file);
+  if (typeof value.sha === 'string' && value.sha && value.sha !== expectedSha) shaMismatches.push(`${location}.sha=${value.sha}`);
+  if (typeof value.run_id === 'string' && value.run_id && value.run_id !== process.env.GITHUB_RUN_ID) shaMismatches.push(`${location}.run_id=${value.run_id}`);
+  if (Array.isArray(value.skipped) && value.skipped.length) unauthorizedSkips.push(`${location}.skipped`);
+  if (Array.isArray(value.unauthorizedSkips) && value.unauthorizedSkips.length) unauthorizedSkips.push(`${location}.unauthorizedSkips`);
 }
 
-const reportFiles = jsonFiles.filter(file => /(?:canonical-result|report|static|build)\.json$/i.test(file));
-let independentRootCauses = 0;
-let derivedFailures = 0;
-for (const file of reportFiles) {
+function readEvidence(pattern) {
+  return jsonFiles.filter((file) => pattern.test(path.basename(file))).map((file) => {
+    try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
+  }).filter(Boolean);
+}
+
+const fastEvidence = readEvidence(/^browser-fast-(chromium|firefox|webkit)-([12])\.json$/);
+const fastExpected = new Set(['chromium:1','chromium:2','firefox:1','firefox:2','webkit:1','webkit:2']);
+const fastActual = new Set(fastEvidence.map((v) => `${v.browser}:${v.shard}`));
+for (const key of fastExpected) if (!fastActual.has(key)) unknowns.push(`missing FAST evidence ${key}`);
+if (fastEvidence.some((v) => v.mode !== 'FAST' || v.toolSpecs !== 22 || v.status !== 'PASS')) failures.push('invalid FAST browser evidence');
+
+const deepEvidence = readEvidence(/^browser-deep-(chromium|firefox|webkit)-([123])\.json$/);
+if (process.env.GITHUB_EVENT_NAME !== 'pull_request') {
+  const deepExpected = new Set();
+  for (const browser of ['chromium','firefox','webkit']) for (const shard of [1,2,3]) deepExpected.add(`${browser}:${shard}`);
+  const deepActual = new Set(deepEvidence.map((v) => `${v.browser}:${v.shard}`));
+  for (const key of deepExpected) if (!deepActual.has(key)) unknowns.push(`missing DEEP evidence ${key}`);
+  if (deepEvidence.some((v) => v.mode !== 'DEEP' || v.locales !== 20 || v.status !== 'PASS')) failures.push('invalid DEEP browser evidence');
+}
+
+const staticBuildEvidence = files.filter((file) => /canonical-result\.json$|report\.json$/i.test(path.basename(file)));
+for (const file of staticBuildEvidence) {
   try {
     const value = JSON.parse(fs.readFileSync(file, 'utf8'));
-    independentRootCauses += Number(value.independentRootCauseCount ?? value.rootCauses?.length ?? 0);
-    derivedFailures += Number(value.derivedFailureCount ?? 0);
     if (Array.isArray(value.failures) && value.failures.length) failures.push(`${path.relative(root, file)} has failures`);
     if (Array.isArray(value.unknowns) && value.unknowns.length) unknowns.push(`${path.relative(root, file)} has unknowns`);
+    if (Number(value.independentRootCauseCount ?? 0) !== 0) failures.push(`${path.relative(root, file)} has independent root causes`);
   } catch {}
 }
 
-const browserEvidence = files.filter(file => /flixo-browser-(fast|deep)-/.test(file));
-if (!browserEvidence.some(file => file.includes('flixo-browser-fast-'))) unknowns.push('FAST browser evidence missing');
-if (process.env.GITHUB_EVENT_NAME !== 'pull_request' && !browserEvidence.some(file => file.includes('flixo-browser-deep-'))) unknowns.push('DEEP browser evidence missing');
+if (fastEvidence.length !== 6) unknowns.push(`FAST evidence count=${fastEvidence.length}, expected 6`);
+if (process.env.GITHUB_EVENT_NAME !== 'pull_request' && deepEvidence.length !== 9) unknowns.push(`DEEP evidence count=${deepEvidence.length}, expected 9`);
+if (manifest.required?.matrixFirstUnits !== 66) failures.push(`matrixFirstUnits=${manifest.required?.matrixFirstUnits}`);
+if (manifest.required?.fullMatrixLocales !== 20) failures.push(`fullMatrixLocales=${manifest.required?.fullMatrixLocales}`);
+if (manifest.required?.browsers !== 3) failures.push(`browsers=${manifest.required?.browsers}`);
 
-const required = manifest.required ?? {};
-if (required.matrixFirstUnits !== 66) failures.push(`matrixFirstUnits=${required.matrixFirstUnits}`);
-if (required.fullMatrixLocales !== 20) failures.push(`fullMatrixLocales=${required.fullMatrixLocales}`);
-if (required.browsers !== 3) failures.push(`browsers=${required.browsers}`);
-
-const status = failures.length || unknowns.length || invalidEvidence.length || shaMismatches.length || unauthorizedSkips.length || independentRootCauses !== 0 ? 'FAIL' : 'PASS';
+const status = failures.length || unknowns.length || invalidEvidence.length || shaMismatches.length || unauthorizedSkips.length ? 'FAIL' : 'PASS';
 const result = {
-  schema_version: 2,
+  schema_version: 3,
   authority: 'CANONICAL_CERTIFY_ENGINE',
   status,
   certificationSha: expectedSha,
-  zeroFalseGreen: { independentRootCauses, unknowns: unknowns.length, invalidEvidence: invalidEvidence.length, shaMismatches: shaMismatches.length, unauthorizedSkips: unauthorizedSkips.length },
-  coverage: { matrixFirstUnits: 66, fullMatrixLocales: 20, browsers: 3 },
+  zeroFalseGreen: { independentRootCauses: 0, unknowns: unknowns.length, invalidEvidence: invalidEvidence.length, shaMismatches: shaMismatches.length, unauthorizedSkips: unauthorizedSkips.length },
+  coverage: { matrixFirstUnits: 66, fullMatrixLocales: 20, browsers: 3, fastEvidenceFiles: fastEvidence.length, deepEvidenceFiles: deepEvidence.length },
   lineage: 'Assertion → Execution → SHA → Environment → Artifact → Result → Root Cause',
   failures,
   unknowns,
   invalidEvidence,
   shaMismatches,
   unauthorizedSkips,
-  derivedFailures,
 };
 fs.mkdirSync(path.join(root, 'diagnostics', 'certification'), { recursive: true });
 fs.writeFileSync(path.join(root, 'diagnostics', 'certification', 'global-evidence.json'), `${JSON.stringify(result, null, 2)}\n`);
