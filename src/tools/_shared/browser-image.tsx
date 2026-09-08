@@ -202,8 +202,7 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
     finally { setBusy(false); }
   }
 
-  return <main dir={dir} lang={resolvedLocale} className="mx-auto max-w-3xl px-6 py-10">
-    <h1 className="text-3xl font-bold">{title}</h1>
+  return <div dir={dir} lang={resolvedLocale} className="mx-auto max-w-3xl px-6 py-10">
     <p className="mt-2 text-sm opacity-70">{copy.description}</p>
     <input className="mt-6 block w-full" type="file" aria-label={copy.choose} accept={accept} multiple={multi} onChange={(event) => setFiles(Array.from(event.target.files ?? []))} />
     {mode === 'watermark-adder' && <input className="mt-4 w-full rounded border p-2" value={text} onChange={(e) => setText(e.target.value)} placeholder={copy.watermark} />}
@@ -212,5 +211,5 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
     <button className="mt-6 rounded bg-black px-5 py-3 text-white" type="button" disabled={busy} onClick={run}>{busy ? copy.processing : copy.run}</button>
     {error && <p role="alert" className="mt-4 text-red-600">{error}</p>}
     {result && <section className="mt-8 rounded-xl border p-4"><div className="mb-3 font-semibold">{copy.result}</div>{result.text ? <pre className="max-h-72 overflow-auto text-xs">{result.text}</pre> : <img className="max-h-[28rem] w-full object-contain" src={result.url} alt={copy.toolResult} />}{!result.text && <p className="mt-2 text-sm opacity-70">{status}</p>}<button className="mt-4 rounded border px-4 py-2" type="button" onClick={() => download(result)}>{copy.download}</button></section>}
-  </main>;
+  </div>;
 }
