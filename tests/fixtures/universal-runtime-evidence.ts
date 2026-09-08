@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { test as base, expect, type Page } from '@playwright/test';
 
+type ConsoleLocation = { url?: string; lineNumber?: number; columnNumber?: number };
 type RuntimeEvidence = {
   schema: 'flixo-runtime-evidence/v2';
   source: { exactSha: string | null; ci: boolean };
@@ -8,7 +9,7 @@ type RuntimeEvidence = {
   timing: { startedAt: string; completedAt: string; durationMs: number };
   url: string;
   navigations: Array<{ url: string; timestamp: string }>;
-  consoleErrors: Array<{ type: string; text: string; location: ReturnType<Parameters<Page['on']>[1]> extends never ? unknown : { url?: string; lineNumber?: number; columnNumber?: number } }>;
+  consoleErrors: Array<{ type: string; text: string; location: ConsoleLocation }>;
   pageErrors: Array<{ message: string; name?: string; stack?: string }>;
   requestFailures: Array<{ url: string; method: string; resourceType: string; failure: string | null }>;
   failedResponses: Array<{ url: string; status: number; statusText: string; method: string; resourceType: string }>;
@@ -36,7 +37,7 @@ export const test = base.extend<{ runtimeEvidence: void }>({
     const onNavigation = (frame: { url: () => string }) => {
       navigations.push({ url: frame.url(), timestamp: new Date().toISOString() });
     };
-    const onConsole = (message: { type: () => string; text: () => string; location: () => { url?: string; lineNumber?: number; columnNumber?: number } }) => {
+    const onConsole = (message: { type: () => string; text: () => string; location: () => ConsoleLocation }) => {
       if (message.type() === 'error') consoleErrors.push({ type: message.type(), text: message.text(), location: message.location() });
     };
     const onPageError = (error: Error) => pageErrors.push({ message: error.message, name: error.name, stack: error.stack });
