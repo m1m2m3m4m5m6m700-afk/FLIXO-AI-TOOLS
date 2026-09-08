@@ -50,9 +50,9 @@
       {"id":"BUILD-003","label":"performance","command":"npm","args":["run","validate:performance-budget"],"rootCause":"RC-BUILD-001","assertions":["ASSERT-PERFORMANCE-001"],"coverage":["COV-PERFORMANCE"]}
     ]},
     "browser":{"expected":3,"projects":["chromium","firefox","webkit"],"checks":[
-      {"id":"BROWSER-001","label":"chromium","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=chromium","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-CHROMIUM-001"],"coverage":["COV-BROWSER-CHROMIUM"]},
-      {"id":"BROWSER-002","label":"firefox","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=firefox","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-FIREFOX-001"],"coverage":["COV-BROWSER-FIREFOX"]},
-      {"id":"BROWSER-003","label":"webkit","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=webkit","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-WEBKIT-001"],"coverage":["COV-BROWSER-WEBKIT"]}
+      {"id":"BROWSER-001","label":"chromium","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=chromium","--workers=6","--retries=0","--max-failures=0"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-CHROMIUM-001"],"coverage":["COV-BROWSER-CHROMIUM"]},
+      {"id":"BROWSER-002","label":"firefox","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=firefox","--workers=6","--retries=0","--max-failures=0"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-FIREFOX-001"],"coverage":["COV-BROWSER-FIREFOX"]},
+      {"id":"BROWSER-003","label":"webkit","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=webkit","--workers=6","--retries=0","--max-failures=0"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-WEBKIT-001"],"coverage":["COV-BROWSER-WEBKIT"]}
     ]}
   }
 }
