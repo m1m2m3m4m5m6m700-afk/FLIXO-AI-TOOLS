@@ -1,0 +1,82 @@
+{
+  "version": 4,
+  "execution": {"maxConcurrency":6,"failFast":false,"certification":"complete-gate-results","identityFields":["sha","packageLockSha256","testPlanSha256"]},
+  "gateDependencies": {"static":[],"build":["static"],"browser":["build"]},
+  "coverage": {
+    "COV-TYPEGRAPH":"TypeScript type graph","COV-LINT":"Static lint correctness","COV-UNIT":"Core unit behavior","COV-TOOL-LOCALIZATION":"Tool localization contract","COV-BASELINE":"Engineering baseline","COV-REGISTRY":"Tool registry contract","COV-MANIFEST":"Tool manifest contract","COV-ROUTER":"Router/registry parity","COV-I18N":"Locale contracts","COV-SEO":"SEO/indexing contracts","COV-CI-CONTRACT":"CI contract","COV-DEPENDENCY":"Dependency graph","COV-FILE-SAFETY":"File safety","COV-OUTPUT-INTEGRITY":"Output integrity","COV-SVG-INTEGRITY":"SVG integrity","COV-RELEASE-EVIDENCE":"Release evidence","COV-BUILD":"Production build","COV-PERFORMANCE":"Performance budget","COV-BROWSER-CHROMIUM":"Chromium runtime","COV-BROWSER-FIREFOX":"Firefox runtime","COV-BROWSER-WEBKIT":"WebKit runtime"
+  },
+  "assertions": {
+    "ASSERT-TYPEGRAPH-001":{"owner":"STATIC-001","description":"TypeScript type graph compiles"},
+    "ASSERT-LINT-001":{"owner":"STATIC-002","description":"Lint passes"},
+    "ASSERT-UNIT-001":{"owner":"STATIC-003","description":"Unit contracts pass"},
+    "ASSERT-I18N-001":{"owner":"STATIC-004","description":"Tool localization passes"},
+    "ASSERT-BASELINE-001":{"owner":"STATIC-005","description":"Engineering baseline passes"},
+    "ASSERT-REGISTRY-001":{"owner":"STATIC-006","description":"Registry contract passes"},
+    "ASSERT-MANIFEST-001":{"owner":"STATIC-007","description":"Tool manifest passes"},
+    "ASSERT-ROUTER-001":{"owner":"STATIC-008","description":"Router/registry parity passes"},
+    "ASSERT-I18N2-001":{"owner":"STATIC-009","description":"I18n validation passes"},
+    "ASSERT-SEO-001":{"owner":"STATIC-010","description":"SEO validation passes"},
+    "ASSERT-CI-CONTRACT-001":{"owner":"STATIC-011","description":"CI contract passes"},
+    "ASSERT-IMAGE-CLOSURE-001":{"owner":"STATIC-012","description":"Image-only closure passes"},
+    "ASSERT-DEPENDENCY-001":{"owner":"STATIC-013","description":"Dependency zero-debt validation passes"},
+    "ASSERT-FILE-SAFETY-001":{"owner":"STATIC-014","description":"File safety contract passes"},
+    "ASSERT-OUTPUT-001":{"owner":"STATIC-015","description":"Output integrity passes"},
+    "ASSERT-SVG-001":{"owner":"STATIC-016","description":"SVG integrity passes"},
+    "ASSERT-RELEASE-EVIDENCE-001":{"owner":"STATIC-017","description":"Release evidence passes"},
+    "ASSERT-LOCALE-INTEGRITY-001":{"owner":"STATIC-018","description":"Locale integrity passes"},
+    "ASSERT-LOCALE-NAV-001":{"owner":"STATIC-019","description":"Locale navigation passes"},
+    "ASSERT-HOME-I18N-001":{"owner":"STATIC-020","description":"Home localization passes"},
+    "ASSERT-LOCALIZATION-COMPLETE-001":{"owner":"STATIC-021","description":"Localization completeness passes"},
+    "ASSERT-BREADCRUMB-SEO-001":{"owner":"STATIC-022","description":"Breadcrumb SEO passes"},
+    "ASSERT-LANGUAGE-QUALITY-001":{"owner":"STATIC-023","description":"Language quality passes"},
+    "ASSERT-INDEXING-001":{"owner":"STATIC-024","description":"Indexing passes"},
+    "ASSERT-SITE-ORIGIN-001":{"owner":"STATIC-025","description":"Site origin passes"},
+    "ASSERT-TECH-DEBT-001":{"owner":"STATIC-026","description":"Technical-debt audit passes"},
+    "ASSERT-BUILD-001":{"owner":"BUILD-001","description":"Production build succeeds"},
+    "ASSERT-DIST-001":{"owner":"BUILD-002","description":"Distribution exists"},
+    "ASSERT-PERFORMANCE-001":{"owner":"BUILD-003","description":"Performance budget passes"},
+    "ASSERT-BROWSER-CHROMIUM-001":{"owner":"BROWSER-001","description":"Chromium runtime tests pass"},
+    "ASSERT-BROWSER-FIREFOX-001":{"owner":"BROWSER-002","description":"Firefox runtime tests pass"},
+    "ASSERT-BROWSER-WEBKIT-001":{"owner":"BROWSER-003","description":"WebKit runtime tests pass"}
+  },
+  "gates": {
+    "static":{"expected":26,"checks":[
+      {"id":"STATIC-001","label":"typescript","command":"npm","args":["run","typecheck"],"rootCause":"RC-TYPE-001","assertions":["ASSERT-TYPEGRAPH-001"],"coverage":["COV-TYPEGRAPH"]},
+      {"id":"STATIC-002","label":"lint","command":"npm","args":["run","lint"],"rootCause":"RC-TYPE-001","assertions":["ASSERT-LINT-001"],"coverage":["COV-LINT"]},
+      {"id":"STATIC-003","label":"unit","command":"npm","args":["run","test:unit"],"rootCause":"RC-UNKNOWN-001","assertions":["ASSERT-UNIT-001"],"coverage":["COV-UNIT"]},
+      {"id":"STATIC-004","label":"tool-localization","command":"npm","args":["run","test:tool-localization"],"rootCause":"RC-I18N-001","assertions":["ASSERT-I18N-001"],"coverage":["COV-TOOL-LOCALIZATION"]},
+      {"id":"STATIC-005","label":"baseline","command":"npm","args":["run","validate:baseline"],"rootCause":"RC-UNKNOWN-001","assertions":["ASSERT-BASELINE-001"],"coverage":["COV-BASELINE"]},
+      {"id":"STATIC-006","label":"tool-registry","command":"npm","args":["run","validate:tool-registry"],"rootCause":"RC-UNKNOWN-001","assertions":["ASSERT-REGISTRY-001"],"coverage":["COV-REGISTRY"]},
+      {"id":"STATIC-007","label":"tool-manifest","command":"npm","args":["run","validate:tool-manifest"],"rootCause":"RC-UNKNOWN-001","assertions":["ASSERT-MANIFEST-001"],"coverage":["COV-MANIFEST"]},
+      {"id":"STATIC-008","label":"router","command":"npm","args":["run","validate:router-registry"],"rootCause":"RC-ROUTER-001","assertions":["ASSERT-ROUTER-001"],"coverage":["COV-ROUTER"]},
+      {"id":"STATIC-009","label":"i18n","command":"npm","args":["run","validate:i18n"],"rootCause":"RC-I18N-001","assertions":["ASSERT-I18N2-001"],"coverage":["COV-I18N"]},
+      {"id":"STATIC-010","label":"seo","command":"npm","args":["run","validate:seo"],"rootCause":"RC-SEO-001","assertions":["ASSERT-SEO-001"],"coverage":["COV-SEO"]},
+      {"id":"STATIC-011","label":"ci-contract","command":"npm","args":["run","validate:ci-contract"],"rootCause":"RC-CI-CONTRACT-001","assertions":["ASSERT-CI-CONTRACT-001"],"coverage":["COV-CI-CONTRACT"]},
+      {"id":"STATIC-012","label":"image-only","command":"npm","args":["run","validate:image-only-closure"],"rootCause":"RC-UNKNOWN-001","assertions":["ASSERT-IMAGE-CLOSURE-001"],"coverage":["COV-DEPENDENCY"]},
+      {"id":"STATIC-013","label":"dependency-zero-debt","command":"npm","args":["run","validate:dependency-zero-debt"],"rootCause":"RC-DEPENDENCY-001","assertions":["ASSERT-DEPENDENCY-001"],"coverage":["COV-DEPENDENCY"]},
+      {"id":"STATIC-014","label":"file-safety","command":"node","args":["--experimental-strip-types","scripts/test-file-safety.mjs"],"rootCause":"RC-G2-SIGNATURE-001","assertions":["ASSERT-FILE-SAFETY-001"],"coverage":["COV-FILE-SAFETY"]},
+      {"id":"STATIC-015","label":"output-integrity","command":"node","args":["--experimental-strip-types","scripts/test-output-integrity.mjs"],"rootCause":"RC-G3-INTEGRITY-001","assertions":["ASSERT-OUTPUT-001"],"coverage":["COV-OUTPUT-INTEGRITY"]},
+      {"id":"STATIC-016","label":"svg-integrity","command":"node","args":["--experimental-strip-types","scripts/test-svg-integrity.mjs"],"rootCause":"RC-G3-INTEGRITY-001","assertions":["ASSERT-SVG-001"],"coverage":["COV-SVG-INTEGRITY"]},
+      {"id":"STATIC-017","label":"release-evidence","command":"node","args":["scripts/test-release-evidence.mjs"],"rootCause":"RC-CI-EVIDENCE-001","assertions":["ASSERT-RELEASE-EVIDENCE-001"],"coverage":["COV-RELEASE-EVIDENCE"]},
+      {"id":"STATIC-018","label":"locale-integrity","command":"npm","args":["run","validate:locale-integrity"],"rootCause":"RC-I18N-001","assertions":["ASSERT-LOCALE-INTEGRITY-001"],"coverage":["COV-I18N"]},
+      {"id":"STATIC-019","label":"locale-navigation","command":"npm","args":["run","validate:locale-navigation"],"rootCause":"RC-I18N-001","assertions":["ASSERT-LOCALE-NAV-001"],"coverage":["COV-I18N"]},
+      {"id":"STATIC-020","label":"home-i18n","command":"npm","args":["run","validate:home-i18n"],"rootCause":"RC-I18N-001","assertions":["ASSERT-HOME-I18N-001"],"coverage":["COV-I18N"]},
+      {"id":"STATIC-021","label":"localization-complete","command":"npm","args":["run","validate:localization-complete"],"rootCause":"RC-I18N-001","assertions":["ASSERT-LOCALIZATION-COMPLETE-001"],"coverage":["COV-I18N"]},
+      {"id":"STATIC-022","label":"breadcrumb-seo","command":"npm","args":["run","validate:breadcrumb-seo"],"rootCause":"RC-SEO-001","assertions":["ASSERT-BREADCRUMB-SEO-001"],"coverage":["COV-SEO"]},
+      {"id":"STATIC-023","label":"language-quality","command":"npm","args":["run","validate:language-quality"],"rootCause":"RC-I18N-001","assertions":["ASSERT-LANGUAGE-QUALITY-001"],"coverage":["COV-I18N"]},
+      {"id":"STATIC-024","label":"indexing","command":"npm","args":["run","validate:indexing"],"rootCause":"RC-SEO-001","assertions":["ASSERT-INDEXING-001"],"coverage":["COV-SEO"]},
+      {"id":"STATIC-025","label":"site-origin","command":"npm","args":["run","validate:site-origin"],"rootCause":"RC-SEO-001","assertions":["ASSERT-SITE-ORIGIN-001"],"coverage":["COV-SEO"]},
+      {"id":"STATIC-026","label":"technical-debt","command":"npm","args":["run","audit:technical-debt"],"rootCause":"RC-CI-TECHNICAL-DEBT-001","assertions":["ASSERT-TECH-DEBT-001"],"coverage":["COV-CI-CONTRACT"]}
+    ]},
+    "build":{"expected":3,"checks":[
+      {"id":"BUILD-001","label":"build","command":"npm","args":["run","build"],"rootCause":"RC-BUILD-001","assertions":["ASSERT-BUILD-001"],"coverage":["COV-BUILD"]},
+      {"id":"BUILD-002","label":"dist","command":"node","args":["-e","const fs=require('node:fs'); if(!fs.existsSync('dist')||!fs.readdirSync('dist').length) process.exit(1);"],"rootCause":"RC-BUILD-001","assertions":["ASSERT-DIST-001"],"coverage":["COV-BUILD"]},
+      {"id":"BUILD-003","label":"performance","command":"npm","args":["run","validate:performance-budget"],"rootCause":"RC-BUILD-001","assertions":["ASSERT-PERFORMANCE-001"],"coverage":["COV-PERFORMANCE"]}
+    ]},
+    "browser":{"expected":3,"projects":["chromium","firefox","webkit"],"checks":[
+      {"id":"BROWSER-001","label":"chromium","command":"npx","args":["playwright","test","--project=chromium","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-CHROMIUM-001"],"coverage":["COV-BROWSER-CHROMIUM"]},
+      {"id":"BROWSER-002","label":"firefox","command":"npx","args":["playwright","test","--project=firefox","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-FIREFOX-001"],"coverage":["COV-BROWSER-FIREFOX"]},
+      {"id":"BROWSER-003","label":"webkit","command":"npx","args":["playwright","test","--project=webkit","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-WEBKIT-001"],"coverage":["COV-BROWSER-WEBKIT"]}
+    ]}
+  }
+}

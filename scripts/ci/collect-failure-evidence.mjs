@@ -1,0 +1,27 @@
+#!/usr/bin/env node
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
+const ROOT=process.cwd(), DIR=resolve(ROOT,'diagnostics/ci');
+const readJson=(name)=>{const p=resolve(DIR,name);if(!existsSync(p))return null;try{return JSON.parse(readFileSync(p,'utf8'));}catch{return null;}};
+const hash=(name)=>{const p=resolve(DIR,name);return existsSync(p)?createHash('sha256').update(readFileSync(p)).digest('hex'):null;};
+const git=(args)=>{try{return execFileSync('git',args,{cwd:ROOT,encoding:'utf8'}).trim();}catch{return 'UNKNOWN';}};
+const context=readJson('execution-context.json'), canonical=readJson('canonical-result.json'), fallback=readJson('report.json'), overall=canonical??fallback;
+const plan=JSON.parse(readFileSync(resolve(ROOT,'scripts/ci/test-plan.json'),'utf8'));
+const requiredGates=Object.keys(plan.gates??{});
+const reports=requiredGates.map(g=>({name:g.toUpperCase(),report:overall?.reports?.find(r=>r.gate===g.toUpperCase())??readJson(`${g}.json`)}));
+const missing=reports.filter(r=>!r.report).map(r=>r.name);
+const failures=reports.flatMap(({name,report})=>(report?.checks??[]).filter(c=>c.status==='FAIL').map(c=>({gate:name,...c})));
+const skipped=reports.flatMap(({name,report})=>(report?.checks??[]).filter(c=>c.status==='SKIPPED').map(c=>({gate:name,label:c.label})));
+const incomplete=reports.filter(({name,report})=>!report||report.sha!==context?.execution?.sha||report.checksExpected!==plan.gates[name.toLowerCase()]?.expected||report.checksExecuted!==plan.gates[name.toLowerCase()]?.expected||report.status!=='PASS');
+const expectedSha=context?.runtime?.expectedSha??null;
+const exactSha=Boolean(expectedSha&&expectedSha===context?.execution?.sha&&context.execution.sha===git(['rev-parse','HEAD']));
+const coherent=Boolean(overall?.sha===context?.execution?.sha&&overall?.gatesExpected===requiredGates.length&&overall?.gatesExecuted===requiredGates.length&&overall?.checksExpected===overall?.checksExecuted);
+const masked=reports.some(({report})=>report?.status==='PASS'&&Number(report.failures??0)>0)||reports.some(({report})=>report?.status==='PASS'&&Number(report.checksExecuted??0)<Number(report.checksExpected??0));
+const authoritative=missing.length===0&&incomplete.length===0&&failures.length===0&&skipped.length===0&&!masked&&exactSha&&coherent;
+const bundle={schema:'flixo-failure-evidence/v4',generatedAt:new Date().toISOString(),sha:git(['rev-parse','HEAD']),executionIdentityHash:context?.identityHash??null,reports:reports.map(({name,report})=>({gate:name,present:Boolean(report),status:report?.status??'MISSING',sha:report?.sha??null,checksExpected:report?.checksExpected??null,checksExecuted:report?.checksExecuted??null,failures:report?.failures??null,rootCauses:report?.rootCauses??[],artifactSha256:hash(`${name.toLowerCase()}.json`)})),failures,skipped,completeness:{requiredGates,missingReports:missing,incompleteReports:incomplete.map(r=>r.name),allRequiredReportsPresent:missing.length===0,allExpectedChecksExecuted:incomplete.length===0,overallCoherent,authoritative},invariants:{exactShaMatch:exactSha,cleanCheckout:context?.execution?.dirty===false,requiredTestsSkipped:skipped.length>0,maskedFailures:masked,staleEvidence:reports.some(({report})=>report?.sha&&report.sha!==context?.execution?.sha)}};
+bundle.evidenceId=`EVD-${createHash('sha256').update(JSON.stringify(bundle)).digest('hex').slice(0,16).toUpperCase()}`;
+writeFileSync(resolve(DIR,'failure-evidence.json'),`${JSON.stringify(bundle,null,2)}\n`);
+console.log(`FAILURE_EVIDENCE_ID=${bundle.evidenceId}`);console.log(`FAILURE_EVIDENCE_SHA256=${hash('failure-evidence.json')}`);console.log(`FAILURE_COUNT=${failures.length}`);console.log(`SKIPPED_REQUIRED=${skipped.length}`);console.log(`MASKED_FAILURES=${masked}`);console.log(`STALE_EVIDENCE=${bundle.invariants.staleEvidence}`);console.log(`EVIDENCE_AUTHORITATIVE=${authoritative}`);
+if(!authoritative)process.exitCode=1;

@@ -1,0 +1,14 @@
+{
+  "RC-DEPENDENCY-001":{"category":"DEPENDENCY","description":"Committed dependency graph cannot be installed or resolved.","repairTargets":["package.json","package-lock.json"],"verification":["npm ci"]},
+  "RC-TYPE-001":{"category":"TYPE","description":"TypeScript/static contract failure.","repairTargets":["src","scripts"],"verification":["npm run typecheck"]},
+  "RC-I18N-001":{"category":"I18N","description":"Locale or localized UI contract failure.","repairTargets":["src/lib/i18n","src/locales"],"verification":["npm run validate:i18n"]},
+  "RC-SEO-001":{"category":"SEO","description":"SEO/canonical/indexing contract failure.","repairTargets":["src","scripts"],"verification":["npm run validate:seo"]},
+  "RC-ROUTER-001":{"category":"ROUTER","description":"Route resolution or registry parity failure.","repairTargets":["src/routes","src/lib"],"verification":["npm run validate:router-registry"]},
+  "RC-BUILD-001":{"category":"BUILD","description":"Production build or generated artifact failure.","repairTargets":["vite.config.ts","src","scripts"],"verification":["npm run build"]},
+  "RC-RUNTIME-001":{"category":"RUNTIME","description":"Browser runtime, page error, or console execution failure.","repairTargets":["src","tests"],"verification":["npm run test:browser"]},
+  "RC-NETWORK-001":{"category":"NETWORK","description":"Browser request or response failure.","repairTargets":["src","playwright.config.ts"],"verification":["npm run test:browser"]},
+  "RC-BROWSER-001":{"category":"BROWSER","description":"Browser gate failed without a more specific root cause.","repairTargets":["src","tests"],"verification":["npm run test:browser"]},
+  "RC-CI-EVIDENCE-001":{"category":"CI_EVIDENCE","description":"Evidence is stale, incomplete, or not authoritative for the executed gates.","repairTargets":["scripts/test.mjs","scripts/ci"],"verification":["npm run test:diagnose"]},
+  "RC-CI-CONTRACT-001":{"category":"CI_CONTRACT","description":"Workflow and executable certification contract drifted.","repairTargets":[".github/workflows","scripts/ci","package.json"],"verification":["npm run validate:ci-contract"]},
+  "RC-UNKNOWN-001":{"category":"UNKNOWN","description":"Failure could not be assigned to a known root cause.","repairTargets":[],"verification":["npm run test:diagnose"]}
+}

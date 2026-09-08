@@ -1,0 +1,103 @@
+name: CI — Universal Diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-universal-diagnostic-${{ github.head_ref || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  test:
+    name: Test — Static / Build / Browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CI: 'true'
+      NPM_CONFIG_AUDIT: 'false'
+      NPM_CONFIG_FUND: 'false'
+      NPM_CONFIG_UPDATE_NOTIFIER: 'false'
+      VITE_SITE_URL: https://flixoai.vercel.app
+      PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      FLIXO_TEST_MODE: diagnose
+    steps:
+      - name: Checkout exact SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Verify exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_SHA"
+          echo "EXACT_SHA=$actual"
+      - name: Setup Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install committed dependency graph
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Capture exact execution context
+        if: always()
+        run: node scripts/ci/capture-execution-context.mjs
+      - name: Unified diagnostic runner
+        run: npm run test:diagnose
+      - name: Collect authoritative failure evidence
+        if: always()
+        run: node scripts/ci/collect-failure-evidence.mjs
+      - name: Technical-debt classification audit
+        if: always()
+        run: npm run audit:technical-debt
+      - name: Upload unified CI diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-diagnostics-${{ github.run_id }}
+          path: diagnostics/ci/
+          if-no-files-found: error
+          retention-days: 30
+
+  certify:
+    name: CERTIFY
+    needs: [test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download exact-run diagnostics
+        uses: actions/download-artifact@v6
+        with:
+          name: ci-diagnostics-${{ github.run_id }}
+          path: diagnostics/ci
+      - name: Verify evidence-bound certification
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TEST_RESULT: ${{ needs.test.result }}
+        run: |
+          set -euo pipefail
+          test "$TEST_RESULT" = success
+          test -s diagnostics/ci/report.json
+          test -s diagnostics/ci/execution-context.json
+          test -s diagnostics/ci/failure-evidence.json
+          test -s diagnostics/ci/technical-debt-audit.json
+          jq -e --arg sha "$EXPECTED_SHA" '.schema == "flixo-ci-report/v5" and .status == "PASS" and .sha == $sha and .gatesExpected == 3 and .gatesExecuted == 3 and (.rootCauses | length) == 0' diagnostics/ci/report.json >/dev/null
+          jq -e --arg sha "$EXPECTED_SHA" '.schema == "flixo-execution-context/v1" and .execution.sha == $sha and .execution.dirty == false' diagnostics/ci/execution-context.json >/dev/null
+          jq -e --arg sha "$EXPECTED_SHA" '.schema == "flixo-failure-evidence/v4" and .sha == $sha and .invariants.exactShaMatch == true and .invariants.cleanCheckout == true and .invariants.requiredTestsSkipped == false and .invariants.maskedFailures == false and .invariants.staleEvidence == false and .completeness.authoritative == true' diagnostics/ci/failure-evidence.json >/dev/null
+          jq -e '.summary.directCiBlockers == 0 and .summary.latentCiDebt == 0 and .summary.nonCiTechnicalDebt == 0' diagnostics/ci/technical-debt-audit.json >/dev/null
+          echo "CERTIFICATION: PASS"
+          echo "CERTIFIED_SHA=$EXPECTED_SHA"
