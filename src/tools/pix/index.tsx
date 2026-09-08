@@ -284,7 +284,7 @@ export default function PixTool() {
   };
 
   return <div className="mx-auto flex min-h-[650px] max-w-7xl flex-col gap-6 p-4 lg:flex-row" dir="rtl">
-    <h1 className="sr-only">Pix Studio</h1>
+    <h2 className="sr-only">Pix Studio</h2>
     <div className="relative flex min-h-[520px] flex-1 items-center justify-center overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
       {image ? <canvas ref={canvasRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={finishInteraction} onPointerCancel={finishInteraction} className="max-h-[75vh] max-w-full rounded-lg object-contain shadow-2xl touch-none cursor-crosshair" aria-label="Pix Studio preview" /> : <label className="cursor-pointer rounded-xl border-2 border-dashed border-zinc-800 p-12 text-center transition hover:border-zinc-700"><span className="mb-2 block font-bold text-zinc-300">افتح صورة للبدء في Pix Studio</span><span className="block text-xs text-zinc-600">JPG, PNG, WebP — معالجة محلية وتصدير PNG عالي الدقة</span><input id="pix-image-file" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} /></label>}
     </div>
