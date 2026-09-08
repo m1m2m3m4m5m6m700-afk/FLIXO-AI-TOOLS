@@ -1,4 +1,6 @@
 import { expect, test } from './fixtures/universal-runtime-evidence';
+import { getAuthoritativeToolSeoName } from '../src/config/tool-seo-name-resolver';
+import { getToolConfig } from '../src/config/tools';
 import { uploadFixture } from './helpers/image-tool-fixture';
 
 test('image-ocr: extracts text and downloads TXT', async ({ page }) => {
@@ -8,7 +10,9 @@ test('image-ocr: extracts text and downloads TXT', async ({ page }) => {
     };
   });
   await page.goto('/en/image-ocr');
-  await expect(page.getByRole('heading', { level: 1, name: 'Image OCR' })).toBeVisible();
+  const tool = getToolConfig('image-ocr');
+  const canonicalH1 = getAuthoritativeToolSeoName(tool, 'en');
+  await expect(page.getByRole('heading', { level: 1, name: canonicalH1 })).toBeVisible();
   await uploadFixture(page);
   await page.getByRole('button', { name: 'Run tool' }).click();
   await expect(page.getByText('FLIXO OCR OK')).toBeVisible();
