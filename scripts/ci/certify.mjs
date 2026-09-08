@@ -74,7 +74,9 @@ for (const file of jsonFiles) {
     if (typeof value.run_id === 'string' && value.run_id && value.run_id !== process.env.GITHUB_RUN_ID) shaMismatches.push(`${location}.run_id=${value.run_id}`);
     if (Array.isArray(value.skipped) && value.skipped.length) unauthorizedSkips.push(`${location}.skipped`);
     if (Array.isArray(value.unauthorizedSkips) && value.unauthorizedSkips.length) unauthorizedSkips.push(`${location}.unauthorizedSkips`);
-    if (Array.isArray(value.rootCauses)) for (const rc of value.rootCauses) if (typeof rc === 'string' && rc) independentRootCauses.add(rc);
+    if (value.evidenceClass === 'PRIMARY_EXECUTION' && Array.isArray(value.rootCauses)) {
+      for (const rc of value.rootCauses) if (typeof rc === 'string' && rc) independentRootCauses.add(rc);
+    }
     if ('independentRootCauseCount' in value && !Number.isInteger(value.independentRootCauseCount)) invalidEvidence.push(`${location}.independentRootCauseCount must be an integer`);
   } catch (error) {
     parsedJson.set(file, null);
@@ -102,6 +104,7 @@ for (const v of fastEvidence) {
   const key = `${v.browser}:${v.shard}`;
   if (!fastExpected.has(key)) unknowns.push(`unexpected FAST evidence ${key}`);
   fastActual.add(key);
+  if (v.evidenceClass !== 'PRIMARY_EXECUTION') invalidEvidence.push(`browser-fast:${key} missing PRIMARY_EXECUTION evidenceClass`);
   if (v.mode !== 'FAST' || v.toolSpecs !== 22 || v.status !== 'PASS') failures.push(`invalid FAST browser evidence ${key}`);
 }
 for (const key of fastExpected) if (!fastActual.has(key)) addState(`evidence:browser-fast:${key}`, 'MISSING_EVIDENCE');
@@ -116,6 +119,7 @@ if (process.env.GITHUB_EVENT_NAME !== 'pull_request') {
     const key = `${v.browser}:${v.shard}`;
     if (!deepExpected.has(key)) unknowns.push(`unexpected DEEP evidence ${key}`);
     deepActual.add(key);
+    if (v.evidenceClass !== 'PRIMARY_EXECUTION') invalidEvidence.push(`browser-deep:${key} missing PRIMARY_EXECUTION evidenceClass`);
     if (v.mode !== 'DEEP' || v.locales !== 20 || v.status !== 'PASS') failures.push(`invalid DEEP browser evidence ${key}`);
   }
   for (const key of deepExpected) if (!deepActual.has(key)) addState(`evidence:browser-deep:${key}`, 'MISSING_EVIDENCE');
@@ -127,10 +131,11 @@ for (const file of staticBuildEvidence) {
   const value = parsedJson.get(file);
   if (!value) continue;
   const location = path.relative(root, file);
+  if (value.evidenceClass !== 'PRIMARY_EXECUTION') invalidEvidence.push(`${location} missing PRIMARY_EXECUTION evidenceClass`);
   if (Array.isArray(value.failures) && value.failures.length) failures.push(`${location} has failures`);
   if (Array.isArray(value.unknowns) && value.unknowns.length) unknowns.push(`${location} has unknowns`);
   if (!Array.isArray(value.rootCauses)) invalidEvidence.push(`${location} missing rootCauses array`);
-  else for (const rc of value.rootCauses) if (typeof rc === 'string' && rc) independentRootCauses.add(rc);
+  else if (value.evidenceClass === 'PRIMARY_EXECUTION') for (const rc of value.rootCauses) if (typeof rc === 'string' && rc) independentRootCauses.add(rc);
   if ('independentRootCauseCount' in value && !Number.isInteger(value.independentRootCauseCount)) invalidEvidence.push(`${location} invalid independentRootCauseCount`);
 }
 
@@ -138,7 +143,7 @@ if (manifest.required?.matrixFirstUnits !== 66) failures.push(`matrixFirstUnits=
 if (manifest.required?.fullMatrixLocales !== 20) failures.push(`fullMatrixLocales=${manifest.required?.fullMatrixLocales}`);
 if (manifest.required?.browsers !== 3) failures.push(`browsers=${manifest.required?.browsers}`);
 
-const stateCounts = Object.fromEntries(EXECUTION_STATES.map((state) => [state, provenanceStates.filter((entry) => entry.state === state).length]));
+const stateCounts = Object.fromEntries(EXECUTION_STATES.map((state) => [state, provenanceStates.filter((entry) => entry.state === state).length));
 const provenanceFailure = provenanceStates.some((entry) => isEvidenceFailure(entry.state) || ['FAIL','BLOCKED','CANCELLED','NOT_EXECUTED'].includes(entry.state));
 const status = failures.length || unknowns.length || invalidEvidence.length || shaMismatches.length || unauthorizedSkips.length || provenanceFailure ? 'FAIL' : 'PASS';
 const result = {
