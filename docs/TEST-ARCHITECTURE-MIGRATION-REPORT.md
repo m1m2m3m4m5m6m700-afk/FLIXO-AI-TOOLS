@@ -2,68 +2,66 @@
 
 ## Certification reference
 
-Current `main` Exact-SHA: `b8830ebdec73edc35cfe8b1088dcf8340b5accd3`.
+Architecture baseline for this migration: `2f1353b1417fe76d75bb43ebd8ef11fc770641e3`.
 
-This report records the architecture migration requested for the canonical test system. A green CI certification is **not** claimed by this report.
+The report is not itself a certification artifact. The exact certification SHA and runtime verdict are owned by `Global Certification Authority`, which consumes the exact-SHA GitHub Actions runs and their artifacts.
 
 ## Implemented
 
-1. Added `scripts/ci/assertion-registry.json` as the canonical assertion ownership registry. Each assertion now carries an owner, contract, coverage, dependencies, runtime scope, and root-cause class.
+1. Added `scripts/ci/assertion-registry.json` as the canonical assertion ownership registry. Each assertion carries an owner, contract, coverage, dependencies, runtime scope, and root-cause class.
 
-2. Added `scripts/ci/validate-assertion-registry.mjs` and wired it into CI. It rejects owner collisions, missing assertions, coverage drift, dependency references to unknown assertions, and architecture regressions. It also enforces that Fast Verify does not directly run Playwright specs, Matrix First retains 22 tool specs across Chromium/Firefox/WebKit, Full Matrix remains deep-only, and Ultra declares an orchestrator-only role.
+2. Added `scripts/ci/validate-assertion-registry.mjs` and wired it into CI. It rejects owner collisions, missing assertions, coverage drift, dependency references to unknown assertions, and architecture regressions. It also enforces Matrix First ownership, Full Matrix preservation, and Ultra orchestrator-only behavior.
 
-3. Updated `scripts/ci/test-plan.json` to reference the canonical assertion registry and to declare the source dependency graph. The plan still owns the 26 static checks, 2 build checks, and 3 browser dimensions.
+3. Updated `scripts/ci/test-plan.json` to reference the canonical assertion registry and to declare gate dependencies and source dependencies.
 
-4. Refactored `scripts/ci/fast-verify.mjs` into an impact selector over canonical test-plan owners. It no longer invents a separate browser execution path. Browser execution remains owned by Matrix First.
+4. Replaced Fast Verify path-pattern impact heuristics with `scripts/ci/impact-dependency-graph.json`. The flow is now deterministic: `changed file → source node → assertion → canonical owner → gate`. Unmapped files fail closed by escalating to all static/build owners; browser assertions remain reused from Matrix First rather than rerun by Fast Verify.
 
-5. Refactored `scripts/ci/ultra-fast.mjs` into an orchestrator-only triage stage. Ultra now performs bounded diff inspection and evidence generation instead of re-running TypeScript, registry, router, or CI contract tests.
+5. Refactored `scripts/ci/ultra-fast.mjs` into an orchestrator-only triage stage. Ultra performs bounded change/evidence classification instead of duplicating canonical contract execution.
 
-6. Restructured `.github/workflows/ci.yml` so Matrix First is no longer an early execution barrier. The final certification stage checks the exact-head Matrix First Certification result only after the other canonical lanes finish.
+6. Restructured `.github/workflows/ci.yml` so Matrix First is not an early execution barrier. Certification consumes its exact-head result only after the other canonical lanes finish.
 
-7. G3 now has one canonical build in `g3-foundation`; the produced `dist/` artifact is retained with exact SHA and package-lock identity and is consumed by `g3-browser`. The browser path no longer invokes a second build.
+7. G3 now has one canonical production build in `g3-foundation`; the immutable `dist/` artifact carries exact SHA and package-lock identity and is consumed by browser verification without rebuilding.
 
-8. Fixed the G3 preview bootstrap path so a dead or non-ready preview fails as a runtime boot failure rather than being converted into downstream browser errors.
+8. Removed legacy G3 Shadow participation from authoritative aggregation and separated primary failures from blocked/derived failures.
 
-9. Removed the legacy G3 Shadow dependency from authoritative aggregation. G3 aggregation now classifies primary failures separately from derived/blocked failures and does not count dependency-propagated failures as independent root causes.
+9. Updated `scripts/test.mjs` to report independent root causes separately from derived/blocked failures.
 
-10. Updated `scripts/test.mjs` so the canonical report distinguishes `rootCauses`, `rootCauseGroups`, `independentRootCauseCount`, and `derivedFailureCount`.
+10. Moved duplicate G1/G2/G3 workflows to manual diagnostic mode and retained Full Matrix as a deep regression surface across public routes, 20 canonical locales, and Chromium/Firefox/WebKit.
 
-11. Moved standalone G1, G2, and G3 duplicate gates to `workflow_dispatch` manual diagnostic mode. They no longer participate in the normal push/PR path.
+11. Removed `STATIC-018 / locale-integrity` and its wrapper; effective localization coverage remains owned by surviving canonical validators.
 
-12. Kept Full Matrix as a separate deep regression surface: public routes × canonical locales × Chromium/Firefox/WebKit. It was not deleted or replaced by Matrix First.
+12. Added `scripts/ci/origin-policy.json` and strengthened `validate-certification-surface.mjs`. `https://flixoai.vercel.app` is the sole production origin, `http://127.0.0.1:3000` is the canonical runtime origin, and `https://canonical.test` is a restricted unit/contract sentinel rather than certification provenance. It is explicitly forbidden in canonical certification workflows and runtime defaults.
 
-13. Standardized `VITE_TEST_ORIGIN` for Matrix First, Full Matrix, the canonical CI workflow, G1/G2/G3 manual diagnostics, and the localization deep diagnostic to `http://127.0.0.1:3000`. Production origin remains `https://flixoai.vercel.app`.
+13. Added `scripts/ci/global-evidence-authority.mjs` and `.github/workflows/certification-authority.yml`. The authority locates the newest `CI`, `Matrix First Gate`, and `Full Matrix Parallel` runs for one exact SHA, waits for completion, downloads their artifacts, validates lineage and evidence identity, and emits one repository-wide verdict:
 
-14. The previously completed removal of `STATIC-018 / locale-integrity` and its wrapper remains intact; its effective localization coverage is represented by the surviving canonical validators.
+    `Assertion → Execution → SHA → Environment → Artifact → Result → Root Cause`.
+
+14. The Global Certification Authority fails closed on workflow/job failure, missing evidence, SHA mismatch, invalid JSON evidence, unauthorized Playwright skips, or independent root causes. It also asserts the required `22 × 3 = 66` Matrix First units and `20 locales × 3 browsers` Full Matrix contract.
 
 ## Coverage intentionally preserved
 
 - Matrix First: 22 tool specs × 3 browsers = 66 browser execution units across deterministic shards.
-- Full Matrix: route/locale runtime regression across the supported 20 locales and 3 browsers.
+- Full Matrix: public-route runtime regression across the supported 20 locales and 3 browsers.
 - G1/G2/G3/G4 canonical contract layers.
 - Artifact/file integrity and determinism.
-- Browser runtime, visible localization, accessibility, console/network, and interaction assertions already owned by the canonical suites.
+- Browser runtime, visible localization, accessibility, console/network, and interaction assertions owned by canonical suites.
 
-No test was removed solely to reduce the count. Removal/consolidation was limited to wrappers, duplicate execution paths, legacy shadow participation, and orchestration duplication.
+No test was removed solely to make CI faster or greener. Consolidation is limited to wrappers, duplicate ownership, redundant execution, and orchestration duplication.
 
-## Remaining work
+## Runtime certification state
 
-1. **Runtime certification is still pending.** The available GitHub status for the current SHA reports a Vercel failure with target reason `build-rate-limit`. This prevents a truthful Green certification for the current head.
-
-2. **GitHub Actions execution evidence must be collected on the current SHA.** The architecture has been committed, but this report does not substitute for an actual successful run of the canonical CI, Matrix First, and deep Full Matrix gates.
-
-3. **Full evidence-ledger consolidation is not yet complete across every lane.** G3 has an authoritative ledger and Fast/Ultra have exact-SHA evidence, but a single repository-wide evidence authority that consumes every gate artifact is still a remaining architectural step.
-
-4. **Impact analysis remains partly pattern-based.** The explicit assertion registry/dependency metadata is now authoritative for ownership, but the file-to-assertion impact mapping in Fast Verify is still rule-based and should be upgraded to a first-class dependency graph for higher precision.
-
-5. **The canonical environment contract can be strengthened further.** Application code still contains `https://canonical.test` as a non-CI fallback/test sentinel. It is not used by the canonical CI workflow after the changes above, but a future environment-contract validator should distinguish intentional local fallback from forbidden certification provenance.
+The final runtime verdict must be read from the GitHub Actions `Global Certification Authority` run for the exact head SHA. A queued run is not PASS, and a Vercel status failure caused by external `build-rate-limit` is not silently converted into internal certification evidence.
 
 ## Architectural end state
 
 `Requirement → Invariant → Assertion → Canonical Owner → Routine Execution Owner → N Evidence Consumers → Certification Authority`.
 
-Root-cause reporting follows:
+Impact analysis:
+
+`Changed File → Source Dependency Node → Assertion → Owner → Gate`.
+
+Failure model:
 
 `Primary Failure → blocked/derived assertions`,
 
-with blocked/derived failures excluded from the independent root-cause count.
+with blocked/derived assertions excluded from the independent root-cause count.
