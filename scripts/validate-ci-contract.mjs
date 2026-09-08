@@ -6,9 +6,9 @@ const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
 const required = [
   ['pull_request trigger', /pull_request:\s*\n\s*branches:\s*\[main\]/],
   ['push trigger', /push:\s*\n\s*branches:\s*\[main\]/],
-  ['single static-build engine', /\n\s{2}static-build:\s*\n/],
-  ['Browser FAST engine', /\n\s{2}browser-fast:\s*\n/],
-  ['Browser DEEP engine', /\n\s{2}browser-deep:\s*\n/],
+  ['single static-build engine', /\n\s{2}verify:\s*\n/],
+  ['Browser FAST engine', /\n\s{2}browser_fast:\s*\n/],
+  ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
   ['single certification gate', /\n\s{2}certify:\s*\n/],
   ['PR cancellation', /cancel-in-progress:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*\}\}/],
   ['exact SHA', /EXPECTED_SHA/],
@@ -27,11 +27,11 @@ if (!/browser:\s*\[chromium, firefox, webkit\]/.test(workflow)) {
   process.exit(1);
 }
 
-const fast = workflow.match(/browser-fast:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
-const deep = workflow.match(/browser-deep:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
-const fastSpecs = fast.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? [];
+const fast = workflow.match(/browser_fast:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
+const deep = workflow.match(/browser_deep:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
+const fastSpecs = [...new Set(fast.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? [])];
 if (fastSpecs.length !== 22) {
-  console.error(`CI contract failed: FAST browser ownership must contain exactly 22 canonical tool specs; found ${fastSpecs.length}.`);
+  console.error(`CI contract failed: FAST browser ownership must contain exactly 22 unique canonical tool specs; found ${fastSpecs.length}.`);
   process.exit(1);
 }
 if (!/tests\/localization-runtime\.spec\.ts/.test(deep)) {
