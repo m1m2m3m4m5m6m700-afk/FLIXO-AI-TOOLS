@@ -26,11 +26,13 @@ if (/npm\s+run\s+verify(?![:\w-])/.test(canonicalSection) || /npm\s+test(?![\w-]
   process.exit(1);
 }
 
-try {
-  execFileSync(process.execPath, ['scripts/ci/validate-playwright-surface.mjs'], { stdio: 'inherit' });
-} catch {
-  console.error('CI contract failed: Playwright specs must use the universal runtime evidence fixture.');
-  process.exit(1);
+for (const script of ['scripts/ci/validate-playwright-surface.mjs', 'scripts/ci/validate-certification-surface.mjs']) {
+  try {
+    execFileSync(process.execPath, [script], { stdio: 'inherit' });
+  } catch {
+    console.error(`CI contract failed: ${script} reported a certification-surface violation.`);
+    process.exit(1);
+  }
 }
 
-console.log('CI contract passed: fast PR path, exact required check names, cancellation, no duplicate repository-wide verification, and universal Playwright runtime ownership are enforced.');
+console.log('CI contract passed: fast PR path, exact required check names, cancellation, no duplicate repository-wide verification, universal Playwright runtime ownership, and certification provenance are enforced.');
