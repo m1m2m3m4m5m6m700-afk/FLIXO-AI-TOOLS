@@ -434,3 +434,50 @@ jobs:
           EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          LEGACY_RESULT: ${{ steps.legacy-g3.outputs.legacy_result }}
+          FOUNDATION_RESULT: ${{ needs.g3-foundation.result }}
+        run: node scripts/ci/g3/aggregate.mjs
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: g3-aggregator-${{ github.run_id }}
+          path: artifacts/ci/g3/aggregator.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  final-contract-gate:
+    name: Final Contract Decision
+    needs: [matrix-first-barrier, ultra-fast, ultra-deep-recovery, ci, fast-contract, canonical-verify, g3-aggregator]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Enforce final decision graph
+        shell: bash
+        env:
+          MATRIX_FIRST_RESULT: ${{ needs.matrix-first-barrier.result }}
+          ULTRA_FAST_RESULT: ${{ needs.ultra-fast.result }}
+          ULTRA_DEEP_RESULT: ${{ needs.ultra-deep-recovery.result }}
+          CI_RESULT: ${{ needs.ci.result }}
+          FAST_CONTRACT_RESULT: ${{ needs.fast-contract.result }}
+          CANONICAL_RESULT: ${{ needs.canonical-verify.result }}
+          G3_RESULT: ${{ needs.g3-aggregator.result }}
+        run: |
+          set -euo pipefail
+          echo "matrix-first=$MATRIX_FIRST_RESULT"
+          echo "ultra-fast=$ULTRA_FAST_RESULT"
+          echo "ultra-deep=$ULTRA_DEEP_RESULT"
+          echo "ci=$CI_RESULT"
+          echo "fast-contract=$FAST_CONTRACT_RESULT"
+          echo "canonical=$CANONICAL_RESULT"
+          echo "g3=$G3_RESULT"
+          test "$MATRIX_FIRST_RESULT" = success
+          test "$CI_RESULT" = success
+          test "$FAST_CONTRACT_RESULT" = success
+          test "$CANONICAL_RESULT" = success
+          test "$G3_RESULT" = success
+          if [[ "$ULTRA_FAST_RESULT" == "failure" ]]; then
+            test "$ULTRA_DEEP_RESULT" = success
+          fi
+          echo 'FINAL CONTRACT DECISION PASS: Matrix First and official downstream contracts passed.'
