@@ -1,8 +1,11 @@
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 const repository = process.env.GITHUB_REPOSITORY;
 const token = process.env.GITHUB_TOKEN;
 if (!repository || !token) throw new Error('GITHUB_REPOSITORY and GITHUB_TOKEN are required.');
+
+const outputPath = 'diagnostics/ci-slo.json';
 
 async function fetchRuns(workflow) {
   const url = `https://api.github.com/repos/${repository}/actions/workflows/${workflow}/runs?branch=main&status=completed&per_page=20`;
@@ -18,20 +21,22 @@ const quantile = (values, q) => {
   const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil((sorted.length - 1) * q)));
   return Number(sorted[index].toFixed(2));
 };
+const newestFirst = (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
 
 const [ciRuns, fullRuns] = await Promise.all([
   fetchRuns('ci.yml'),
   fetchRuns('full-matrix-parallel.yml'),
 ]);
-const ciSuccess = ciRuns.filter((run) => run.conclusion === 'success');
-const fullSuccess = fullRuns.filter((run) => run.conclusion === 'success');
+const ciSuccess = ciRuns.filter((run) => run.conclusion === 'success').sort(newestFirst);
+const fullSuccess = fullRuns.filter((run) => run.conclusion === 'success').sort(newestFirst);
 const ciDurations = ciSuccess.map(durationMinutes);
 const fullDurations = fullSuccess.map(durationMinutes);
+const checkedOutSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 
 const report = {
   schema_version: 1,
   generated_at: new Date().toISOString(),
-  main_sha: process.env.GITHUB_SHA ?? null,
+  main_sha: checkedOutSha,
   samples: { ci_success: ciDurations.length, full_matrix_success: fullDurations.length },
   ci: {
     median_minutes: quantile(ciDurations, 0.5),
@@ -49,5 +54,5 @@ const report = {
 };
 
 mkdirSync('diagnostics', { recursive: true });
-writeFileSync('diagnostics/ci-slo.json', `${JSON.stringify(report, null, 2)}\n`);
+writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify(report, null, 2));
