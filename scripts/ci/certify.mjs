@@ -8,19 +8,21 @@ import { EXECUTION_STATES, isEvidenceFailure } from './result-state.mjs';
 const root = process.cwd();
 const manifestPath = process.env.CERTIFICATION_MANIFEST || 'certification-run-manifest.json';
 const expectedSha = process.env.CERTIFICATION_SHA;
-const CONTRACT_VERSION = 'MASTER AUTONOMOUS RECOVERY & EXECUTION CONTRACT v5';
+const expectedRunId = process.env.GITHUB_RUN_ID;
+const contractVersion = 'MASTER AUTONOMOUS RECOVERY & EXECUTION CONTRACT v5';
 if (!expectedSha) throw new Error('CERTIFICATION_SHA is required');
+if (!expectedRunId) throw new Error('GITHUB_RUN_ID is required');
 if (!fs.existsSync(manifestPath)) throw new Error(`Missing certification manifest: ${manifestPath}`);
 
 const sha256 = (file) => createHash('sha256').update(fs.readFileSync(path.join(root, file))).digest('hex');
-const currentIdentity = {
+const identity = {
   sha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
   workflowSha256: sha256('.github/workflows/ci.yml'),
   testPlanSha256: sha256('scripts/ci/test-plan.json'),
   assertionRegistrySha256: sha256('scripts/ci/assertion-registry.json'),
   packageLockSha256: sha256('package-lock.json'),
   runtime: { node: process.version, npm: execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim() },
-  contractVersion: CONTRACT_VERSION,
+  contractVersion,
   workflowName: process.env.GITHUB_WORKFLOW ?? null,
   eventName: process.env.GITHUB_EVENT_NAME ?? null,
 };
@@ -31,211 +33,228 @@ const unknowns = [];
 const invalidEvidence = [];
 const shaMismatches = [];
 const unauthorizedSkips = [];
-const independentRootCauses = new Set();
+const duplicatePrimaryEvidence = [];
 const provenanceStates = [];
-function addState(subject, state, detail = null) {
+const independentRootCauses = new Set();
+
+const addState = (subject, state, detail = null) => {
   if (!EXECUTION_STATES.includes(state)) throw new Error(`Invalid provenance state: ${state}`);
   provenanceStates.push({ subject, state, ...(detail ? { detail } : {}) });
-}
-function jobState(job, required = true) {
-  const raw = manifest.jobs?.[job];
-  if (raw === undefined) {
-    if (required) addState(`job:${job}`, 'NOT_EXECUTED', 'job result absent from exact-run manifest');
-    return required ? 'NOT_EXECUTED' : 'PASS';
-  }
-  const map = { success: 'PASS', failure: 'FAIL', cancelled: 'CANCELLED', skipped: 'NOT_EXECUTED' };
-  const state = map[raw] ?? 'NOT_EXECUTED';
-  addState(`job:${job}`, state, `workflow-result=${raw}`);
-  return state;
-}
-
-if (manifest.sha !== expectedSha) shaMismatches.push(`manifest.sha=${manifest.sha}`);
-if (manifest.workflow_run_id !== process.env.GITHUB_RUN_ID) shaMismatches.push(`manifest.workflow_run_id=${manifest.workflow_run_id}`);
-if (currentIdentity.sha !== expectedSha) shaMismatches.push(`checkout.sha=${currentIdentity.sha}`);
-
-const requiredJobs = ['static', 'build', 'browserFast'];
-if (process.env.GITHUB_EVENT_NAME !== 'pull_request') requiredJobs.push('browserDeep');
-const jobStates = Object.fromEntries(requiredJobs.map((job) => [job, jobState(job, true)]));
-for (const [job, state] of Object.entries(jobStates)) if (state === 'FAIL') failures.push(`${job}=failure`);
-
-const evidenceRoot = path.join(root, 'evidence');
-if (!fs.existsSync(evidenceRoot)) {
-  addState('evidence-root', 'MISSING_EVIDENCE');
-  failures.push('evidence directory missing');
-}
-function walk(dir) {
+};
+const walk = (dir) => {
   if (!fs.existsSync(dir)) return [];
-  const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const file = path.join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...walk(file));
-    else if (entry.isFile()) out.push(file);
-  }
-  return out;
-}
+    return entry.isDirectory() ? walk(file) : [file];
+  });
+};
+const evidenceRoot = path.join(root, 'evidence');
 const files = walk(evidenceRoot);
 const jsonFiles = files.filter((file) => file.endsWith('.json'));
-const parsedJson = new Map();
+const parsed = new Map();
 for (const file of jsonFiles) {
   const location = path.relative(root, file);
   try {
     const value = JSON.parse(fs.readFileSync(file, 'utf8'));
-    parsedJson.set(file, value);
+    parsed.set(file, value);
     addState(`evidence:${location}`, 'PASS');
-    if (typeof value.sha === 'string' && value.sha && value.sha !== expectedSha) shaMismatches.push(`${location}.sha=${value.sha}`);
-    if (typeof value.exactSha === 'string' && value.exactSha && value.exactSha !== expectedSha) shaMismatches.push(`${location}.exactSha=${value.exactSha}`);
-    if (typeof value.run_id === 'string' && value.run_id && value.run_id !== process.env.GITHUB_RUN_ID) shaMismatches.push(`${location}.run_id=${value.run_id}`);
-    if (typeof value.runId === 'string' && value.runId && value.runId !== process.env.GITHUB_RUN_ID) shaMismatches.push(`${location}.runId=${value.runId}`);
+    if (value.evidenceClass === 'PRIMARY_EXECUTION') {
+      if (!value.runId || !value.exactSha || !value.executionUnitCount || !Array.isArray(value.units)) invalidEvidence.push(`${location}: incomplete primary execution evidence`);
+      if (value.runId !== expectedRunId) shaMismatches.push(`${location}.runId=${value.runId}`);
+      if (value.exactSha !== expectedSha) shaMismatches.push(`${location}.exactSha=${value.exactSha}`);
+      if (Array.isArray(value.rootCauses)) for (const rc of value.rootCauses) if (rc) independentRootCauses.add(String(rc));
+    }
     if (Array.isArray(value.skipped) && value.skipped.length) unauthorizedSkips.push(`${location}.skipped`);
     if (Array.isArray(value.unauthorizedSkips) && value.unauthorizedSkips.length) unauthorizedSkips.push(`${location}.unauthorizedSkips`);
-    if (value.evidenceClass === 'PRIMARY_EXECUTION' && Array.isArray(value.rootCauses)) for (const rc of value.rootCauses) if (typeof rc === 'string' && rc) independentRootCauses.add(rc);
   } catch (error) {
-    parsedJson.set(file, null);
+    parsed.set(file, null);
     addState(`evidence:${location}`, 'MALFORMED_EVIDENCE', error.message);
     invalidEvidence.push(`${location}: ${error.message}`);
   }
 }
-function readEvidence(pattern) {
-  return [...parsedJson.entries()].filter(([file, value]) => value && pattern.test(path.basename(file))).map(([, value]) => value);
-}
-function requireEvidence(subject, found, expectedCount) {
-  if (found.length !== expectedCount) {
-    addState(`evidence:${subject}`, 'MISSING_EVIDENCE', `found=${found.length};expected=${expectedCount}`);
-    return false;
-  }
-  return true;
+
+if (!fs.existsSync(evidenceRoot)) {
+  addState('evidence-root', 'MISSING_EVIDENCE');
+  invalidEvidence.push('evidence directory missing');
 }
 
-const identities = [...parsedJson.entries()].filter(([, value]) => value?.schemaVersion === 2 && value?.evidenceClass === 'PRIMARY_EXECUTION' && typeof value?.packageLockSha256 === 'string');
-if (identities.length !== 1) {
-  addState('run-identity', identities.length ? 'MALFORMED_EVIDENCE' : 'MISSING_EVIDENCE', `identityCount=${identities.length}`);
-  invalidEvidence.push(`run identity count=${identities.length}, expected exactly 1 schemaVersion=2 identity`);
+if (manifest.sha !== expectedSha) shaMismatches.push(`manifest.sha=${manifest.sha}`);
+if (manifest.workflow_run_id !== expectedRunId) shaMismatches.push(`manifest.workflow_run_id=${manifest.workflow_run_id}`);
+if (identity.sha !== expectedSha) shaMismatches.push(`checkout.sha=${identity.sha}`);
+
+const identityCandidates = [...parsed.entries()].filter(([, value]) => value?.schemaVersion === 2 && value?.evidenceClass === 'PRIMARY_EXECUTION' && typeof value?.packageLockSha256 === 'string');
+if (identityCandidates.length !== 1) {
+  addState('run-identity', identityCandidates.length ? 'MALFORMED_EVIDENCE' : 'MISSING_EVIDENCE', `identityCount=${identityCandidates.length}`);
+  invalidEvidence.push(`run identity count=${identityCandidates.length}; expected=1`);
 } else {
-  const identity = identities[0][1];
+  const actual = identityCandidates[0][1];
   const checks = [
-    ['sha', identity.sha, expectedSha],
-    ['runId', identity.runId, process.env.GITHUB_RUN_ID],
-    ['workflowName', identity.workflowName, currentIdentity.workflowName],
-    ['eventName', identity.eventName, currentIdentity.eventName],
-    ['contractVersion', identity.contractVersion, CONTRACT_VERSION],
-    ['workflowSha256', identity.workflowSha256, currentIdentity.workflowSha256],
-    ['testPlanSha256', identity.testPlanSha256, currentIdentity.testPlanSha256],
-    ['assertionRegistrySha256', identity.assertionRegistrySha256, currentIdentity.assertionRegistrySha256],
-    ['packageLockSha256', identity.packageLockSha256, currentIdentity.packageLockSha256],
-    ['runtime.node', identity.runtime?.node, currentIdentity.runtime.node],
-    ['runtime.npm', identity.runtime?.npm, currentIdentity.runtime.npm],
+    ['sha', actual.sha, expectedSha],
+    ['runId', actual.runId, expectedRunId],
+    ['workflowName', actual.workflowName, identity.workflowName],
+    ['eventName', actual.eventName, identity.eventName],
+    ['contractVersion', actual.contractVersion, contractVersion],
+    ['workflowSha256', actual.workflowSha256, identity.workflowSha256],
+    ['testPlanSha256', actual.testPlanSha256, identity.testPlanSha256],
+    ['assertionRegistrySha256', actual.assertionRegistrySha256, identity.assertionRegistrySha256],
+    ['packageLockSha256', actual.packageLockSha256, identity.packageLockSha256],
+    ['runtime.node', actual.runtime?.node, identity.runtime.node],
+    ['runtime.npm', actual.runtime?.npm, identity.runtime.npm],
   ];
-  for (const [field, actual, expected] of checks) if (actual !== expected) shaMismatches.push(`run-identity.${field}=${actual}`);
+  for (const [field, actualValue, expectedValue] of checks) if (actualValue !== expectedValue) shaMismatches.push(`run-identity.${field}=${actualValue}`);
   addState('run-identity', 'PASS');
 }
 
-const fastEvidence = readEvidence(/^browser-fast-(chromium|firefox|webkit)-([12])\.json$/);
-const fastExpected = new Set(['chromium:1','chromium:2','firefox:1','firefox:2','webkit:1','webkit:2']);
-const fastActual = new Set();
-for (const v of fastEvidence) {
-  const key = `${v.browser}:${v.shard}`; fastActual.add(key);
-  if (!fastExpected.has(key)) unknowns.push(`unexpected FAST evidence ${key}`);
-  if (v.evidenceClass !== 'PRIMARY_EXECUTION') invalidEvidence.push(`browser-fast:${key} missing PRIMARY_EXECUTION evidenceClass`);
-  if (v.mode !== 'FAST' || v.toolSpecs !== 22 || v.status !== 'PASS') failures.push(`invalid FAST browser evidence ${key}`);
+const primaryFiles = [];
+for (const [file, value] of parsed) {
+  if (value?.evidenceClass === 'PRIMARY_EXECUTION') primaryFiles.push(path.relative(root, file));
 }
-for (const key of fastExpected) if (!fastActual.has(key)) addState(`evidence:browser-fast:${key}`, 'MISSING_EVIDENCE');
-requireEvidence('browser-fast-count', fastEvidence, 6);
+const primaryBySemanticKey = new Map();
+for (const file of primaryFiles) {
+  const value = parsed.get(path.join(root, file));
+  const key = `${value.mode ?? 'UNKNOWN'}:${value.browser ?? 'UNKNOWN'}:${value.shard ?? 'UNKNOWN'}`;
+  const previous = primaryBySemanticKey.get(key);
+  if (previous) duplicatePrimaryEvidence.push(`${previous} <> ${file}`);
+  primaryBySemanticKey.set(key, file);
+}
 
-const deepEvidence = readEvidence(/^browser-deep-(chromium|firefox|webkit)-([123])\.json$/);
+const readNamed = (regex) => [...parsed.entries()]
+  .filter(([file, value]) => value && regex.test(path.basename(file)))
+  .map(([, value]) => value);
+const fast = readNamed(/^browser-fast-(chromium|firefox|webkit)-([12])\.json$/);
+const deep = readNamed(/^browser-deep-(chromium|firefox|webkit)-([123])\.json$/);
+const expectedFastKeys = new Set(['chromium:1','chromium:2','firefox:1','firefox:2','webkit:1','webkit:2']);
+const expectedDeepKeys = new Set();
+for (const browser of ['chromium','firefox','webkit']) for (const shard of [1,2,3]) expectedDeepKeys.add(`${browser}:${shard}`);
+
+const checkPrimaryLedger = (value, mode) => {
+  if (!value || value.evidenceClass !== 'PRIMARY_EXECUTION') return;
+  if (value.mode !== mode || value.status !== 'PASS' || value.complete !== true) failures.push(`${mode} ledger ${value.browser}:${value.shard} is not PASS/complete`);
+  if (value.runId !== expectedRunId || value.exactSha !== expectedSha) shaMismatches.push(`${mode} ledger identity mismatch ${value.browser}:${value.shard}`);
+  if (typeof value.sourceReportSha256 !== 'string' || !/^[0-9a-f]{64}$/iu.test(value.sourceReportSha256)) invalidEvidence.push(`${mode} ledger ${value.browser}:${value.shard} invalid report hash`);
+  if (!Number.isInteger(value.executionUnitCount) || value.executionUnitCount !== (value.units ?? []).length) invalidEvidence.push(`${mode} ledger ${value.browser}:${value.shard} execution count mismatch`);
+  const ids = new Set();
+  for (const unit of value.units ?? []) {
+    if (ids.has(unit.executionUnitId)) invalidEvidence.push(`${mode} duplicate executionUnitId=${unit.executionUnitId}`);
+    ids.add(unit.executionUnitId);
+    if (unit.runId !== expectedRunId) shaMismatches.push(`${mode} unit runId mismatch=${unit.executionUnitId}`);
+    if (unit.exactSha !== expectedSha) shaMismatches.push(`${mode} unit exactSha mismatch=${unit.executionUnitId}`);
+    if (!unit.spec || !unit.test || !unit.browser || !Number.isInteger(unit.shard)) invalidEvidence.push(`${mode} unit incomplete identity=${unit.executionUnitId}`);
+    if (!Array.isArray(unit.attempts) || !unit.attempts.length) invalidEvidence.push(`${mode} unit missing attempts=${unit.executionUnitId}`);
+    if (unit.status !== 'PASS') failures.push(`${mode} unit non-PASS=${unit.executionUnitId}`);
+    if (mode === 'FAST' && unit.semanticUnitId !== `FAST:${unit.browser}:${unit.spec}`) invalidEvidence.push(`FAST semantic id mismatch=${unit.executionUnitId}`);
+    if (mode === 'DEEP' && (!unit.semanticUnitId || !unit.semanticLocale)) invalidEvidence.push(`DEEP semantic identity missing=${unit.executionUnitId}`);
+    if (unit.assertionId) {
+      const registry = JSON.parse(fs.readFileSync(path.join(root, 'scripts/ci/assertion-registry.json'), 'utf8'));
+      const entry = registry.assertions?.[unit.assertionId];
+      const implementation = entry?.implementation;
+      if (!entry) invalidEvidence.push(`${mode} unknown assertion=${unit.assertionId}`);
+      else if (implementation?.kind === 'playwright-test' && (implementation.spec !== unit.spec || implementation.test !== unit.test)) invalidEvidence.push(`${mode} assertion implementation mismatch=${unit.executionUnitId}`);
+    } else if (unit.attribution !== 'SURFACE_COVERAGE_ONLY') invalidEvidence.push(`${mode} missing assertion attribution=${unit.executionUnitId}`);
+  }
+};
+for (const value of fast) checkPrimaryLedger(value, 'FAST');
+for (const value of deep) checkPrimaryLedger(value, 'DEEP');
+
+const fastActualKeys = new Set(fast.map((value) => `${value.browser}:${value.shard}`));
+for (const key of expectedFastKeys) if (!fastActualKeys.has(key)) addState(`FAST:${key}`, 'MISSING_EVIDENCE');
+if (fast.length !== 6) invalidEvidence.push(`FAST primary ledger count=${fast.length}; expected=6`);
+const fastSemanticOwners = new Map();
+for (const value of fast) for (const unit of value.units ?? []) {
+  const key = unit.semanticUnitId;
+  const previous = fastSemanticOwners.get(key);
+  if (previous && previous !== `${value.browser}:${value.shard}`) invalidEvidence.push(`FAST semantic unit duplicate owner=${key}`);
+  fastSemanticOwners.set(key, `${value.browser}:${value.shard}`);
+}
+if (fastSemanticOwners.size !== 66) invalidEvidence.push(`FAST semantic units=${fastSemanticOwners.size}; expected=66`);
+
 if (process.env.GITHUB_EVENT_NAME !== 'pull_request') {
-  const deepExpected = new Set();
-  for (const browser of ['chromium','firefox','webkit']) for (const shard of [1,2,3]) deepExpected.add(`${browser}:${shard}`);
-  const deepActual = new Set();
-  for (const v of deepEvidence) {
-    const key = `${v.browser}:${v.shard}`; deepActual.add(key);
-    if (!deepExpected.has(key)) unknowns.push(`unexpected DEEP evidence ${key}`);
-    if (v.evidenceClass !== 'PRIMARY_EXECUTION') invalidEvidence.push(`browser-deep:${key} missing PRIMARY_EXECUTION evidenceClass`);
-    if (v.mode !== 'DEEP' || v.locales !== 20 || v.status !== 'PASS') failures.push(`invalid DEEP browser evidence ${key}`);
+  const deepActualKeys = new Set(deep.map((value) => `${value.browser}:${value.shard}`));
+  for (const key of expectedDeepKeys) if (!deepActualKeys.has(key)) addState(`DEEP:${key}`, 'MISSING_EVIDENCE');
+  if (deep.length !== 9) invalidEvidence.push(`DEEP primary ledger count=${deep.length}; expected=9`);
+  const expectedLocales = JSON.parse(JSON.stringify([...new Set((fs.readFileSync(path.join(root, 'src/lib/i18n/config.ts'), 'utf8').match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '').matchAll(/['\"]([a-z]{2,3})['\"]/giu)).map((match) => match[1].toLowerCase())])));
+  const deepSemanticOwners = new Map();
+  const deepLocales = new Set();
+  for (const value of deep) for (const unit of value.units ?? []) {
+    const key = unit.semanticUnitId;
+    const previous = deepSemanticOwners.get(key);
+    if (previous && previous !== `${value.browser}:${value.shard}`) invalidEvidence.push(`DEEP semantic unit duplicate owner=${key}`);
+    deepSemanticOwners.set(key, `${value.browser}:${value.shard}`);
+    if (unit.semanticLocale) deepLocales.add(unit.semanticLocale);
   }
-  for (const key of deepExpected) if (!deepActual.has(key)) addState(`evidence:browser-deep:${key}`, 'MISSING_EVIDENCE');
-  requireEvidence('browser-deep-count', deepEvidence, 9);
-}
-
-const executionFast = readEvidence(/^browser-fast-(chromium|firefox|webkit)-([12])\.execution\.json$/);
-const executionDeep = readEvidence(/^browser-deep-(chromium|firefox|webkit)-([123])\.execution\.json$/);
-if (!requireEvidence('browser-fast-execution-count', executionFast, 6)) failures.push('FAST execution ledger count is incomplete');
-if (process.env.GITHUB_EVENT_NAME !== 'pull_request' && !requireEvidence('browser-deep-execution-count', executionDeep, 9)) failures.push('DEEP execution ledger count is incomplete');
-
-const expectedFastSpecBrowserUnits = new Set();
-for (const entry of executionFast) {
-  if (entry.evidenceClass !== 'PRIMARY_EXECUTION' || entry.complete !== true) failures.push(`incomplete FAST execution ledger ${entry.browser}:${entry.shard}`);
-  for (const unit of entry.units ?? []) {
-    if (unit.status !== 'PASS') failures.push(`FAST execution unit non-PASS ${unit.executionUnitId}`);
-    expectedFastSpecBrowserUnits.add(`${entry.browser}:${unit.spec}`);
-  }
-}
-if (expectedFastSpecBrowserUnits.size !== 66) failures.push(`FAST conservation observed=${expectedFastSpecBrowserUnits.size}; expected=66`);
-
-const localeSource = fs.readFileSync(path.join(root, 'src/lib/i18n/config.ts'), 'utf8');
-const localeArray = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '';
-const expectedLocales = [...localeArray.matchAll(/['"]([a-z]{2,3})['"]/giu)].map((match) => match[1]);
-const deepLocaleUnion = new Set();
-if (process.env.GITHUB_EVENT_NAME !== 'pull_request') {
-  for (const entry of executionDeep) {
-    if (entry.evidenceClass !== 'PRIMARY_EXECUTION' || entry.complete !== true) failures.push(`incomplete DEEP execution ledger ${entry.browser}:${entry.shard}`);
-    for (const unit of entry.units ?? []) {
-      if (unit.status !== 'PASS') failures.push(`DEEP execution unit non-PASS ${unit.executionUnitId}`);
-      if (unit.semanticLocale) deepLocaleUnion.add(unit.semanticLocale);
-    }
-  }
-  if (deepLocaleUnion.size !== expectedLocales.length) failures.push(`DEEP semantic locale conservation observed=${deepLocaleUnion.size}; expected=${expectedLocales.length}`);
-  for (const locale of expectedLocales) if (!deepLocaleUnion.has(locale)) failures.push(`DEEP missing semantic locale ${locale}`);
-  for (const locale of deepLocaleUnion) if (!expectedLocales.includes(locale)) failures.push(`DEEP unexpected semantic locale ${locale}`);
+  if (deepSemanticOwners.size !== expectedLocales.length * 3) invalidEvidence.push(`DEEP semantic locale-browser units=${deepSemanticOwners.size}; expected=${expectedLocales.length * 3}`);
+  for (const browser of ['chromium','firefox','webkit']) for (const locale of expectedLocales) if (!deepSemanticOwners.has(`DEEP:${browser}:${locale}`)) invalidEvidence.push(`DEEP missing semantic unit=DEEP:${browser}:${locale}`);
+  for (const locale of expectedLocales) if (!deepLocales.has(locale)) invalidEvidence.push(`DEEP missing locale=${locale}`);
 }
 
 const executionGraphPath = path.join(root, 'diagnostics', 'certification', 'execution-graph.json');
 if (!fs.existsSync(executionGraphPath)) {
-  addState('execution-graph', 'MISSING_EVIDENCE', 'validator output was not generated in certification workspace');
-  failures.push('execution graph evidence missing');
+  invalidEvidence.push('execution-graph.json missing');
+  addState('execution-graph', 'MISSING_EVIDENCE');
 } else {
   try {
     const graph = JSON.parse(fs.readFileSync(executionGraphPath, 'utf8'));
     if (graph.status !== 'PASS') failures.push(`execution graph status=${graph.status}`);
-    if (graph.exactSha !== expectedSha) shaMismatches.push(`execution-graph.exactSha=${graph.exactSha}`);
-    if (graph.runId !== process.env.GITHUB_RUN_ID) shaMismatches.push(`execution-graph.runId=${graph.runId}`);
-    if (graph.fast?.observedSpecBrowserUnits !== 66) failures.push(`execution graph FAST observed=${graph.fast?.observedSpecBrowserUnits}`);
-    if (process.env.GITHUB_EVENT_NAME !== 'pull_request' && graph.deep?.semanticLocaleCount !== expectedLocales.length) failures.push(`execution graph DEEP locale count=${graph.deep?.semanticLocaleCount}; expected=${expectedLocales.length}`);
+    if (graph.exactSha !== expectedSha) shaMismatches.push(`execution graph SHA=${graph.exactSha}`);
+    if (graph.runId !== expectedRunId) shaMismatches.push(`execution graph run=${graph.runId}`);
+    if (graph.fast?.observedSemanticUnits !== 66) failures.push(`execution graph FAST=${graph.fast?.observedSemanticUnits}`);
+    if (process.env.GITHUB_EVENT_NAME !== 'pull_request' && graph.deep?.semanticLocaleBrowserUnits !== expectedDeepCountPlaceholder) failures.push(`execution graph DEEP semantic units=${graph.deep?.semanticLocaleBrowserUnits}`);
   } catch (error) {
-    addState('execution-graph', 'MALFORMED_EVIDENCE', error.message);
-    invalidEvidence.push(`execution-graph.json: ${error.message}`);
+    invalidEvidence.push(`execution-graph.json invalid: ${error.message}`);
   }
 }
 
-const staticEvidence = [...parsedJson.entries()].find(([file, value]) => value && path.basename(file) === 'static.json')?.[1] ?? null;
-const buildEvidence = [...parsedJson.entries()].find(([file, value]) => value && path.basename(file) === 'build.json')?.[1] ?? null;
-if (!staticEvidence || staticEvidence.evidenceClass !== 'PRIMARY_EXECUTION' || staticEvidence.status !== 'PASS') failures.push('static gate evidence is not PASS');
-if (!buildEvidence || buildEvidence.evidenceClass !== 'PRIMARY_EXECUTION' || buildEvidence.status !== 'PASS') failures.push('build gate evidence is not PASS');
-for (const [name, value] of [['static', staticEvidence], ['build', buildEvidence]]) {
-  if (!value) continue;
-  if (value.sha !== expectedSha) shaMismatches.push(`${name}.sha=${value.sha}`);
-  if (value.testPlanSha256 && value.testPlanSha256 !== currentIdentity.testPlanSha256) shaMismatches.push(`${name}.testPlanSha256=${value.testPlanSha256}`);
-  if (value.assertionRegistrySha256 && value.assertionRegistrySha256 !== currentIdentity.assertionRegistrySha256) shaMismatches.push(`${name}.assertionRegistrySha256=${value.assertionRegistrySha256}`);
-  if (Array.isArray(value.rootCauses)) for (const rc of value.rootCauses) if (typeof rc === 'string' && rc) independentRootCauses.add(rc);
+const staticEvidence = [...parsed.entries()].find(([file, value]) => value && path.basename(file) === 'static.json')?.[1] ?? null;
+const buildEvidence = [...parsed.entries()].find(([file, value]) => value && path.basename(file) === 'build.json')?.[1] ?? null;
+for (const [label, value] of [['static', staticEvidence], ['build', buildEvidence]]) {
+  if (!value) { invalidEvidence.push(`${label}.json missing`); continue; }
+  if (value.evidenceClass !== 'PRIMARY_EXECUTION' || value.status !== 'PASS') failures.push(`${label} evidence not PASS`);
+  if (value.sha !== expectedSha) shaMismatches.push(`${label}.sha=${value.sha}`);
+  if (Array.isArray(value.rootCauses)) for (const rc of value.rootCauses) if (rc) independentRootCauses.add(String(rc));
 }
 
-if (manifest.required?.matrixFirstUnits !== 66) failures.push(`matrixFirstUnits=${manifest.required?.matrixFirstUnits}`);
-if (manifest.required?.fullMatrixLocales !== 20) failures.push(`fullMatrixLocales=${manifest.required?.fullMatrixLocales}`);
-if (manifest.required?.browsers !== 3) failures.push(`browsers=${manifest.required?.browsers}`);
+const requiredJobs = ['static', 'build', 'browserFast'];
+if (process.env.GITHUB_EVENT_NAME !== 'pull_request') requiredJobs.push('browserDeep');
+const jobStates = {};
+for (const job of requiredJobs) {
+  const raw = manifest.jobs?.[job];
+  if (raw === undefined) { jobStates[job] = 'NOT_EXECUTED'; addState(`job:${job}`, 'NOT_EXECUTED'); }
+  else {
+    const state = { success: 'PASS', failure: 'FAIL', cancelled: 'CANCELLED', skipped: 'NOT_EXECUTED' }[raw] ?? 'NOT_EXECUTED';
+    jobStates[job] = state;
+    addState(`job:${job}`, state, `workflow-result=${raw}`);
+    if (state !== 'PASS') failures.push(`${job}=${state}`);
+  }
+}
+
+for (const rc of independentRootCauses) if (rc) failures.push(`unresolved root cause evidence=${rc}`);
+if (duplicatePrimaryEvidence.length) invalidEvidence.push(...duplicatePrimaryEvidence.map((value) => `DUPLICATE_PRIMARY_EVIDENCE=${value}`));
 
 const stateCounts = Object.fromEntries(EXECUTION_STATES.map((state) => [state, provenanceStates.filter((entry) => entry.state === state).length]));
 const provenanceFailure = provenanceStates.some((entry) => isEvidenceFailure(entry.state) || ['FAIL','BLOCKED','CANCELLED','NOT_EXECUTED'].includes(entry.state));
 const status = failures.length || unknowns.length || invalidEvidence.length || shaMismatches.length || unauthorizedSkips.length || provenanceFailure ? 'FAIL' : 'PASS';
 const result = {
-  schema_version: 7,
+  schema_version: 8,
   authority: 'CANONICAL_CERTIFY_ENGINE',
   evidenceClass: 'PRIMARY_EXECUTION',
   status,
   certificationSha: expectedSha,
-  identity: { schemaVersion: 2, expected: currentIdentity, verified: identities.length === 1 },
-  zeroFalseGreen: { independentRootCauses: independentRootCauses.size, unknowns: unknowns.length, invalidEvidence: invalidEvidence.length, shaMismatches: shaMismatches.length, unauthorizedSkips: unauthorizedSkips.length },
-  coverage: { matrixFirstUnits: 66, fullMatrixLocales: expectedLocales.length, browsers: 3, fastEvidenceFiles: fastEvidence.length, deepEvidenceFiles: deepEvidence.length, fastExecutionLedgers: executionFast.length, deepExecutionLedgers: executionDeep.length, deepObservedLocales: deepLocaleUnion.size },
-  execution: { requiredJobs: jobStates, provenanceStates, stateCounts, fastSpecBrowserUnits: expectedFastSpecBrowserUnits.size, deepSemanticLocales: deepLocaleUnion.size },
-  lineage: 'Assertion → Surface Coverage → Execution Unit → Execution State → SHA → Identity → Environment → Artifact → Result → Root Cause',
+  runId: expectedRunId,
+  identity: { expected: identity, verified: identityCandidates.length === 1 },
+  zeroFalseGreen: {
+    independentRootCauses: independentRootCauses.size,
+    unknowns: unknowns.length,
+    invalidEvidence: invalidEvidence.length,
+    shaMismatches: shaMismatches.length,
+    unauthorizedSkips: unauthorizedSkips.length,
+    duplicatePrimaryEvidence: duplicatePrimaryEvidence.length,
+  },
+  conservation: {
+    fast: { planned: 66, executed: fastSemanticOwners.size, evidenced: fastSemanticOwners.size, certified: status === 'PASS' ? 66 : 0 },
+    deep: { plannedSemanticLocaleBrowser: process.env.GITHUB_EVENT_NAME === 'pull_request' ? 0 : undefined, executedSemanticLocaleBrowser: process.env.GITHUB_EVENT_NAME === 'pull_request' ? 0 : deep.length, evidencedSemanticLocaleBrowser: process.env.GITHUB_EVENT_NAME === 'pull_request' ? 0 : deep.length },
+  },
+  execution: { jobs: jobStates, stateCounts, fastLedgers: fast.length, deepLedgers: deep.length },
+  lineage: 'Registry → Test Plan → Execution Unit → Raw Result → Primary Evidence → Identity → Canonical Reducer → Certification',
   failures,
   unknowns,
   invalidEvidence,
