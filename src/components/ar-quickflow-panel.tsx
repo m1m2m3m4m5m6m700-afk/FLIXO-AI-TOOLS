@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { QUICKFLOW_I18N, QUICKFLOW_NAMES_AR, QUICKFLOW_TOOL_LABELS_AR } from '../data/quickflow-i18n';
+import { QUICKFLOW_I18N, QUICKFLOW_TOOL_LABELS_AR } from '../data/quickflow-i18n';
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import type { Workflow } from '@/lib/workflows/types';
 
