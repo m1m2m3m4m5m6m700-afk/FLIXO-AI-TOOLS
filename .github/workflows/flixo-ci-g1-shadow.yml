@@ -1,12 +1,12 @@
 name: FLIXO CI — G1 Contract Shadow
 
+# Shadow evaluator is retained for manual forensic comparison only.
+# Canonical G1 certification owns automated PR/main execution.
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-g1-${{ github.event.pull_request.number || github.ref }}
+  group: flixo-ci-g1-manual
   cancel-in-progress: true
 
 permissions:
@@ -19,7 +19,7 @@ env:
 
 jobs:
   g1-shadow:
-    name: G1 Contract Shadow
+    name: G1 Contract Shadow (manual diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -33,7 +33,7 @@ jobs:
         run: node --experimental-strip-types scripts/ci/contracts/validate-registry.mjs
       - name: TypeScript
         run: npx tsc --noEmit --pretty false
-      - name: Legacy G1 evaluator in shadow mode
+      - name: Legacy G1 evaluator in diagnostic shadow mode
         run: node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-platform-contract.mjs
       - name: Upload G1 shadow evidence
         if: always()
