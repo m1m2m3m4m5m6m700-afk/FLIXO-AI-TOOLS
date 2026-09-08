@@ -16,7 +16,7 @@ const git = (args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 function safeGitDiffFiles() {
   try {
     if (BASE_SHA) return git(['diff', '--name-only', `${BASE_SHA}...HEAD`]).split('\n').filter(Boolean);
-  } catch {}
+  } catch { /* Fall through to the repository-local HEAD diff. */ }
   try { return git(['diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD']).split('\n').filter(Boolean); } catch { return []; }
 }
 
@@ -38,8 +38,8 @@ function classifyRisk(files) {
 
 function killChild(child) {
   if (!child.pid) return;
-  try { child.kill('SIGTERM'); } catch {}
-  const hardKill = setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, 2_000);
+  try { child.kill('SIGTERM'); } catch { /* The process may have exited before termination. */ }
+  const hardKill = setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* The process is already gone. */ } }, 2_000);
   hardKill.unref();
 }
 
