@@ -1,33 +1,12 @@
 name: G4 — Localization + SEO Matrix
 
-# Deep G4 certification runs on main only when the pushed change can affect G4.
-# PR development uses the canonical fast/impact-aware CI path.
+# Retained as a manual forensic/deep diagnostic workflow only.
+# Canonical automated coverage is owned by CI, full-matrix, and the G4 gates.
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/localization-20.yml'
-      - 'src/lib/i18n/config.ts'
-      - 'src/**/i18n/**'
-      - 'src/**/locale/**'
-      - 'src/**/localization/**'
-      - 'src/**/seo/**'
-      - 'src/routes/**'
-      - 'scripts/ci/validate-architecture.mjs'
-      - 'scripts/validate-locale-*.mjs'
-      - 'scripts/validate-language*.mjs'
-      - 'scripts/validate-localization*.mjs'
-      - 'scripts/validate-home-localization.mjs'
-      - 'scripts/validate-seo*.mjs'
-      - 'scripts/validate-use-case-seo.mjs'
-      - 'scripts/validate-indexing.mjs'
-      - 'scripts/validate-breadcrumb-seo.mjs'
-      - 'scripts/validate-google-multilingual-seo.mjs'
-      - 'tests/localization/**'
   workflow_dispatch:
 
 concurrency:
-  group: g4-localization-seo-${{ github.workflow }}-${{ github.ref }}
+  group: g4-localization-seo-manual
   cancel-in-progress: true
 
 permissions:
@@ -44,7 +23,7 @@ env:
 
 jobs:
   g4:
-    name: G4 Universal Localization & SEO
+    name: G4 Universal Localization & SEO (manual diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -70,7 +49,7 @@ jobs:
           IFS=',' read -r -a locales <<< "$G4_LOCALES"
           test "${#locales[@]}" -eq 20
           for locale in "${locales[@]}"; do test -n "$locale"; done
-      - name: Static G4 locale + SEO certification
+      - name: Static G4 locale + SEO diagnostic
         run: |
           set -euo pipefail
           npm run verify:i18n -- --strict --report
