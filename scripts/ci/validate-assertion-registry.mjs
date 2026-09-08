@@ -48,14 +48,11 @@ const localSourcesFromScript = (scriptName, seen = new Set()) => {
 const sourceText = (source) => fs.existsSync(source) ? read(source) : '';
 const hasExecutableAssertion = (source) => /\b(?:assert|expect|throw new Error|process\.exit\s*\(|strictEqual|deepStrictEqual)\b/.test(source);
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 const exactTestBody = (source, testTitle) => {
   const titlePattern = new RegExp(`(?:test|it)\\s*\\(\\s*(['"])${escapeRegExp(testTitle)}\\1\\s*,\\s*async\\s*\\([^)]*\\)\\s*=>\\s*\\{`, 'm');
   const match = titlePattern.exec(source);
   if (!match) return null;
-  let depth = 1;
-  let quote = null;
-  let escaped = false;
+  let depth = 1; let quote = null; let escaped = false;
   for (let index = match.index + match[0].length; index < source.length; index += 1) {
     const char = source[index];
     if (quote) {
@@ -66,10 +63,7 @@ const exactTestBody = (source, testTitle) => {
     }
     if (char === '\'' || char === '"' || char === '`') { quote = char; continue; }
     if (char === '{') depth += 1;
-    else if (char === '}') {
-      depth -= 1;
-      if (depth === 0) return source.slice(match.index, index + 1);
-    }
+    else if (char === '}') { depth -= 1; if (depth === 0) return source.slice(match.index, index + 1); }
   }
   return null;
 };
@@ -142,18 +136,10 @@ for (const [gate, gatePlan] of Object.entries(plan.gates ?? {})) {
     } else {
       const file = fileArgument(check.args);
       const scriptName = check.command === 'npm' && check.args?.[0] === 'run' ? check.args[1] : null;
-      const sources = unique([
-        file ? normalize(file) : null,
-        ...(scriptName ? localSourcesFromScript(scriptName) : []),
-      ].filter(Boolean));
+      const sources = unique([file ? normalize(file) : null, ...(scriptName ? localSourcesFromScript(scriptName) : [])].filter(Boolean));
       const missing = sources.filter((source) => !fs.existsSync(source));
       if (missing.length) errors.push(`${assertionId}: implementation source missing ${missing.join(', ')}`);
-      implementation = {
-        kind: sources.length ? 'executable-source' : 'tooling-command',
-        command: [check.command, ...(check.args ?? [])],
-        sources,
-        sourceExists: sources.every((source) => fs.existsSync(source)),
-      };
+      implementation = { kind: sources.length ? 'executable-source' : 'tooling-command', command: [check.command, ...(check.args ?? [])], sources, sourceExists: sources.every((source) => fs.existsSync(source)) };
     }
     implementations.push({ assertionId, owner: check.id, gate, implementation });
   }
@@ -162,13 +148,30 @@ for (const [gate, gatePlan] of Object.entries(plan.gates ?? {})) {
 const markerRefs = [];
 for (const spec of allSpecFiles) {
   const text = sourceText(spec);
-  for (const match of text.matchAll(/@flixo-canonical-assertion\s+([A-Z0-9-]+)/g)) markerRefs.push({ spec, assertionId: match[1] });
+  for (const match of text.matchAll(/@flixo-canonical-assertion\s+([A-Z0-9-]+)/g)) {
+    const markerStart = match.index + match[0].length;
+    const following = text.slice(markerStart, markerStart + 1200);
+    const testMatch = following.match(/\n\s*test(?:\.skip|\.only)?\s*\(\s*(['"])([\s\S]*?)\1\s*,/);
+    markerRefs.push({ spec, assertionId: match[1], test: testMatch?.[2] ?? null });
+  }
 }
+const markerByAssertion = new Map();
 for (const marker of markerRefs) {
-  if (!registryAssertions.has(marker.assertionId)) errors.push(`SPEC_ASSERTION_UNREGISTERED: ${marker.spec} references ${marker.assertionId}, absent from registry`);
-  else {
-    const implementation = registryAssertions.get(marker.assertionId)?.implementation;
-    if (implementation?.spec && normalize(implementation.spec) !== marker.spec) errors.push(`SPEC_ASSERTION_WRONG_OWNER: ${marker.spec} references ${marker.assertionId}, canonical spec is ${normalize(implementation.spec)}`);
+  if (!registryAssertions.has(marker.assertionId)) {
+    errors.push(`ORPHAN_SPEC_ASSERTION: ${marker.spec} references ${marker.assertionId}`);
+    continue;
+  }
+  const refs = markerByAssertion.get(marker.assertionId) ?? [];
+  refs.push(marker); markerByAssertion.set(marker.assertionId, refs);
+  const implementation = registryAssertions.get(marker.assertionId)?.implementation;
+  if (implementation?.spec && normalize(implementation.spec) !== marker.spec) errors.push(`WRONG_IMPLEMENTATION: ${marker.spec} references ${marker.assertionId}, canonical spec is ${normalize(implementation.spec)}`);
+  if (implementation?.test && marker.test !== implementation.test) errors.push(`WRONG_TEST: ${marker.spec} marker ${marker.assertionId} targets ${marker.test ?? '<unresolved>'}, canonical test is ${implementation.test}`);
+}
+for (const [assertionId, entry] of registryAssertions) {
+  const implementation = entry?.implementation;
+  if (implementation?.kind === 'playwright-test') {
+    const refs = markerByAssertion.get(assertionId) ?? [];
+    if (refs.length !== 1) errors.push(`STALE_MARKER: ${assertionId} requires exactly one canonical spec marker, found ${refs.length}`);
   }
 }
 
@@ -176,7 +179,7 @@ const executableSignatures = new Map();
 for (const [owner, check] of executionOwners) {
   const signature = JSON.stringify([check.command, ...(check.args ?? [])]);
   const prior = executableSignatures.get(signature);
-  if (prior && prior !== owner) errors.push(`EXECUTION_DUPLICATE: ${prior} and ${owner}`);
+  if (prior && prior !== owner) errors.push(`DUPLICATE_EXECUTION_OWNER: ${prior} and ${owner}`);
   executableSignatures.set(signature, owner);
 }
 
@@ -195,13 +198,12 @@ const architectureChecks = [
 for (const [label, pass] of architectureChecks) if (!pass) errors.push(`ARCHITECTURE: ${label}`);
 
 const result = {
-  schema_version: 8,
+  schema_version: 9,
   status: errors.length ? 'FAIL' : 'PASS',
   assertionCount: registryAssertions.size,
   testPlanAssertionCount: planAssertions.size,
   executionOwnerCount: executionOwners.size,
   implementationCount: implementations.length,
-  implementationKindCounts: implementations.reduce((acc, item) => { acc[item.implementation?.kind ?? 'unknown'] = (acc[item.implementation?.kind ?? 'unknown'] ?? 0) + 1; return acc; }, {}),
   markerCount: markerRefs.length,
   architecture: { engines: ['static+build', 'browser-fast', 'browser-deep', 'certify'], browserFast: { tools: 22, browsers: 3, units: 66 }, browserDeep: { locales: 20, browsers: 3 } },
   architectureChecks: architectureChecks.map(([label, pass]) => ({ label, status: pass ? 'PASS' : 'FAIL' })),
