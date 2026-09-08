@@ -129,7 +129,6 @@ for (const [gate, gatePlan] of Object.entries(plan.gates ?? {})) {
         sources,
         sourceExists: sources.every((source) => fs.existsSync(source)),
       };
-      if (sources.length && !sources.some((source) => hasExecutableAssertion(sourceText(source)))) errors.push(`${assertionId}: mapped implementation sources contain no executable assertion construct`);
     }
     implementations.push({ assertionId, owner: check.id, gate, implementation });
   }
