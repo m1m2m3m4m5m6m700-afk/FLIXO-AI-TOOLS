@@ -60,6 +60,7 @@ for (const entry of included) {
     if (unit.exactSha !== expectedSha) errors.push(`${relative}: unit exactSha mismatch`);
     if (unit.runId !== expectedRunId) errors.push(`${relative}: unit runId mismatch`);
     if (!unit.spec || !unit.test) errors.push(`${relative}: unit missing spec/test`);
+    if (!Array.isArray(unit.attempts) || unit.attempts.length === 0) errors.push(`${relative}: unit missing attempt evidence`);
     if (!['PASS','FAIL','CANCELLED','BLOCKED','NOT_EXECUTED','MISSING_EVIDENCE','MALFORMED_EVIDENCE'].includes(unit.status)) errors.push(`${relative}: invalid unit state ${unit.status}`);
     if (unit.assertionId !== null && unit.assertionId !== undefined) {
       if (!registeredAssertionIds.has(unit.assertionId)) errors.push(`${relative}: unknown assertionId=${unit.assertionId}`);
@@ -69,6 +70,8 @@ for (const entry of included) {
     } else if (unit.attribution !== 'SURFACE_COVERAGE_ONLY') {
       errors.push(`${relative}: unattributed unit must be marked SURFACE_COVERAGE_ONLY`);
     }
+    if (unit.mode === 'FAST' && unit.semanticUnitId !== `FAST:${unit.browser}:${normalize(unit.spec)}`) errors.push(`${relative}: invalid FAST semanticUnitId for ${unit.spec}`);
+    if (unit.mode === 'DEEP' && !unit.semanticUnitId) errors.push(`${relative}: DEEP unit missing semanticUnitId`);
   }
 }
 
@@ -81,27 +84,29 @@ const expectedFastSpecs = [
   'tests/collage-maker.spec.ts', 'tests/image-effects.spec.ts', 'tests/exif-cleaner.spec.ts',
   'tests/svg-optimizer.spec.ts', 'tests/mockup-generator.spec.ts', 'tests/seed.spec.ts', 'tests/pix.spec.ts',
 ];
-const fastSpecOwners = new Map();
+const fastSemanticOwners = new Map();
 for (const entry of fast) {
   if (!entry.value) continue;
   const browser = entry.value.browser;
-  for (const spec of new Set((entry.value.units ?? []).map((unit) => unit.spec).filter(Boolean))) {
-    const key = `${browser}:${spec}`;
-    const previous = fastSpecOwners.get(key);
-    if (previous && previous !== entry.value.shard) errors.push(`FAST_SPEC_DUPLICATE_OWNER=${key}; shards=${previous},${entry.value.shard}`);
-    fastSpecOwners.set(key, entry.value.shard);
+  for (const unit of entry.value.units ?? []) {
+    const semanticId = unit.semanticUnitId;
+    if (!semanticId) { errors.push(`FAST_SEMANTIC_UNIT_MISSING=${browser}:${unit.spec}`); continue; }
+    const key = `${browser}:${semanticId}`;
+    const previous = fastSemanticOwners.get(key);
+    if (previous && previous !== entry.value.shard) errors.push(`FAST_SEMANTIC_DUPLICATE_OWNER=${key}; shards=${previous},${entry.value.shard}`);
+    fastSemanticOwners.set(key, entry.value.shard);
   }
 }
-for (const browser of ['chromium','firefox','webkit']) {
-  for (const spec of expectedFastSpecs) {
-    const key = `${browser}:${spec}`;
-    if (!fastSpecOwners.has(key)) errors.push(`FAST_SPEC_MISSING=${key}`);
-  }
+for (const browser of ['chromium','firefox','webkit']) for (const spec of expectedFastSpecs) {
+  const semanticId = `FAST:${browser}:${spec}`;
+  const key = `${browser}:${semanticId}`;
+  if (!fastSemanticOwners.has(key)) errors.push(`FAST_SEMANTIC_MISSING=${key}`);
 }
-if (fastSpecOwners.size !== 66) errors.push(`FAST_CONSERVATION=${fastSpecOwners.size}; expected=66 unique browser/spec owners`);
+if (fastSemanticOwners.size !== 66) errors.push(`FAST_CONSERVATION=${fastSemanticOwners.size}; expected=66 semantic spec-browser units`);
 for (const entry of fast) if (entry.value && (entry.value.units ?? []).some((unit) => unit.status !== 'PASS')) errors.push(`${path.relative(root, entry.file)}: non-PASS execution unit`);
 
-const deepUnits = [];
+const deepSemanticOwners = new Map();
+const deepExecutionKeys = new Set();
 const deepLocales = new Set();
 for (const entry of deep) {
   if (!entry.value) continue;
@@ -110,22 +115,32 @@ for (const entry of deep) {
   for (const unit of units) {
     if (unit.status !== 'PASS') errors.push(`${path.relative(root, entry.file)}: non-PASS execution unit`);
     if (unit.semanticLocale) deepLocales.add(unit.semanticLocale);
-    deepUnits.push(`${entry.value.browser}:${unit.spec}:${unit.test}:${unit.semanticLocale ?? '<no-locale>'}`);
+    if (unit.semanticUnitId) {
+      const key = `${entry.value.browser}:${unit.semanticUnitId}`;
+      const previous = deepSemanticOwners.get(key);
+      if (previous && previous !== entry.value.shard) errors.push(`DEEP_SEMANTIC_DUPLICATE_OWNER=${key}; shards=${previous},${entry.value.shard}`);
+      deepSemanticOwners.set(key, entry.value.shard);
+    }
+    const executionKey = `${entry.value.browser}:${unit.spec}:${unit.test}:${unit.semanticLocale ?? '<no-locale>'}`;
+    if (deepExecutionKeys.has(executionKey)) errors.push(`DEEP_DUPLICATE_EXECUTION=${executionKey}`);
+    deepExecutionKeys.add(executionKey);
   }
 }
-const duplicateDeepExecutions = deepUnits.filter((value, index) => deepUnits.indexOf(value) !== index);
-if (duplicateDeepExecutions.length) errors.push(`DEEP_DUPLICATE_EXECUTION=${duplicateDeepExecutions.slice(0, 10).join('|')}`);
 const localeSource = fs.readFileSync(path.resolve(root, 'src/lib/i18n/config.ts'), 'utf8');
 const localeArray = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '';
-const expectedLocales = [...localeArray.matchAll(/['"]([a-z]{2,3})['"]/giu)].map((match) => match[1]);
+const expectedLocales = [...localeArray.matchAll(/['"]([a-z]{2,3})['"]/giu)].map((match) => match[1].toLowerCase());
 if (process.env.GITHUB_EVENT_NAME !== 'pull_request') {
-  if (deepLocales.size !== expectedLocales.length) errors.push(`DEEP_LOCALE_CONSERVATION=${deepLocales.size}; expected=${expectedLocales.length}`);
+  for (const browser of ['chromium','firefox','webkit']) for (const locale of expectedLocales) {
+    const key = `${browser}:DEEP:${locale}`;
+    if (!deepSemanticOwners.has(key)) errors.push(`DEEP_SEMANTIC_MISSING=${key}`);
+  }
+  if (deepSemanticOwners.size !== expectedLocales.length * 3) errors.push(`DEEP_SEMANTIC_CONSERVATION=${deepSemanticOwners.size}; expected=${expectedLocales.length * 3} locale-browser units`);
   for (const locale of expectedLocales) if (!deepLocales.has(locale)) errors.push(`DEEP_LOCALE_MISSING=${locale}`);
   for (const locale of deepLocales) if (!expectedLocales.includes(locale)) errors.push(`DEEP_LOCALE_UNEXPECTED=${locale}`);
 }
 
 const result = {
-  schema_version: 2,
+  schema_version: 3,
   status: errors.length ? 'FAIL' : 'PASS',
   exactSha: expectedSha,
   runId: expectedRunId,
@@ -134,20 +149,21 @@ const result = {
     shardFiles: fastFiles.length,
     expectedBrowsers: 3,
     expectedSpecsPerBrowser: 22,
-    requiredSpecBrowserUnits: 66,
-    observedSpecBrowserUnits: fastSpecOwners.size,
+    requiredSemanticUnits: 66,
+    observedSemanticUnits: fastSemanticOwners.size,
   },
   deep: {
     shardFiles: deepFiles.length,
-    executionRecords: deepUnits.length,
-    uniqueExecutionRecords: new Set(deepUnits).size,
+    executionRecords: deepExecutionKeys.size,
+    semanticLocaleBrowserUnits: deepSemanticOwners.size,
+    expectedSemanticLocaleBrowserUnits: expectedLocales.length * 3,
     semanticLocaleCount: deepLocales.size,
     expectedLocaleCount: expectedLocales.length,
     observedLocales: [...deepLocales].sort(),
   },
   conservation: {
-    fast: { required: 66, observed: fastSpecOwners.size, status: fastSpecOwners.size === 66 ? 'PASS' : 'FAIL' },
-    deepLocales: { required: expectedLocales.length, observed: deepLocales.size, status: deepLocales.size === expectedLocales.length ? 'PASS' : 'FAIL' },
+    fast: { required: 66, observed: fastSemanticOwners.size, status: fastSemanticOwners.size === 66 ? 'PASS' : 'FAIL' },
+    deepSemanticLocaleBrowser: { required: expectedLocales.length * 3, observed: deepSemanticOwners.size, status: deepSemanticOwners.size === expectedLocales.length * 3 ? 'PASS' : 'FAIL' },
   },
   attribution: {
     canonicalExecutionUnits: included.flatMap((entry) => entry.value?.units ?? []).filter((unit) => unit.assertionId).length,
