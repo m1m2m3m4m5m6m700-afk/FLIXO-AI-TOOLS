@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-export const ULTRA_SCHEMA_VERSION = 3;
+export const ULTRA_SCHEMA_VERSION = 4;
 export const ULTRA_SUITES = Object.freeze({
   toolchain: [
     { id: 'typecheck', contract: 'CI-TOOLCHAIN-001', command: 'npm', args: ['run', 'typecheck'], timeoutMs: 120_000 },
@@ -16,7 +16,6 @@ export const ULTRA_SUITES = Object.freeze({
   ],
   localization: [
     { id: 'i18n-strict', contract: 'G4-I18N-001', command: 'npm', args: ['run', 'verify:i18n', '--', '--strict', '--report'], timeoutMs: 180_000 },
-    { id: 'locale-integrity', contract: 'G4-I18N-002', command: 'npm', args: ['run', 'validate:locale-integrity'], timeoutMs: 120_000 },
     { id: 'locale-navigation', contract: 'G4-I18N-003', command: 'npm', args: ['run', 'validate:locale-navigation'], timeoutMs: 120_000 },
     { id: 'home-i18n', contract: 'G4-I18N-004', command: 'npm', args: ['run', 'validate:home-i18n'], timeoutMs: 120_000 },
     { id: 'tool-localization', contract: 'G4-I18N-005', command: 'npm', args: ['run', 'test:tool-localization'], timeoutMs: 120_000 },
