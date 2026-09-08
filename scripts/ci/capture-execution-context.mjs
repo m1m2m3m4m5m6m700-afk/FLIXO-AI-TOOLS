@@ -15,7 +15,7 @@ const context = {
   capturedAt: new Date().toISOString(),
   execution: { sha: git(['rev-parse','HEAD']), branch: git(['branch','--show-current']), commitTimestamp: git(['show','-s','--format=%cI','HEAD']), dirty: git(['status','--porcelain']) !== '' },
   runtime: { node: process.version, npm: run('npm',['--version']).stdout, platform: process.platform, arch: process.arch, ci: process.env.CI === 'true', expectedSha: process.env.EXPECTED_SHA ?? null, testMode: process.env.FLIXO_TEST_MODE ?? null },
-  dependencies: { packageJsonSha256: hashFile(resolve(ROOT,'package.json')), packageLockSha256: hashFile(resolve(ROOT,'package-lock.json')), nvmrcSha256: hashFile(resolve(ROOT,'.nvmrc')), lockfileVersion: existsSync(resolve(ROOT,'package-lock.json')) ? JSON.parse(readFileSync(resolve(ROOT,'package-lock.json','utf8'))).lockfileVersion ?? null : null, npmLs: run('npm',['ls','--all','--json','--depth=0']) },
+  dependencies: { packageJsonSha256: hashFile(resolve(ROOT,'package.json')), packageLockSha256: hashFile(resolve(ROOT,'package-lock.json')), nvmrcSha256: hashFile(resolve(ROOT,'.nvmrc')), lockfileVersion: existsSync(resolve(ROOT,'package-lock.json')) ? JSON.parse(readFileSync(resolve(ROOT,'package-lock.json'),'utf8')).lockfileVersion ?? null : null, npmLs: run('npm',['ls','--all','--json','--depth=0']) },
   configuration: Object.fromEntries(['tsconfig.json','vite.config.ts','playwright.config.ts','.github/workflows/ci.yml','scripts/ci/test-plan.json','scripts/ci/root-causes.json'].map((p) => [p, hashFile(resolve(ROOT,p))])),
   inputs: { trackedFiles: run('git',['ls-files']).stdout.split(/\r?\n/).filter(Boolean), relevantFiles: [] },
 };
