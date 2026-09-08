@@ -1,18 +1,19 @@
-# 🔐 FLIXO Multi-Agent Collaboration Protocol v2
+# 🔐 FLIXO Multi-Agent Collaboration Protocol v3
 
 ## Mandatory entry contract
 
-`AGENTS.md` is the repository-wide entry title for every autonomous agent performing coding, debugging, testing, CI, auditing, recovery, or release work.
+`AGENTS.md` is the repository-wide entry title for every autonomous agent performing coding, debugging, CI, auditing, recovery, or release work.
 
 Before any repository action, every agent MUST read:
 
 1. `AGENTS.md`
 2. `docs/AGENT-COLLABORATION-PROTOCOL.md`
 3. `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`
-4. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-5. `scripts/ci/test-plan.json`
-6. `scripts/ci/assertion-registry.json`
-7. the current exact `main` SHA and current workflow state
+4. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
+5. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+6. `scripts/ci/test-plan.json`
+7. `scripts/ci/assertion-registry.json`
+8. the current exact `main` SHA and current workflow state
 
 Reading is part of the execution contract.
 
@@ -36,6 +37,22 @@ The only exception is an explicit first-chain bootstrap using `--bootstrap=true`
 
 A continuation login records the predecessor's `exitSha`, unresolved work, open RCAs, and next execution plan in the new session.
 
+## Central coordination control plane
+
+All multi-agent execution MUST use the canonical control plane:
+
+`diagnostics/agents/coordination-state.json`
+
+`diagnostics/agents/coordination-locks.json`
+
+`diagnostics/agents/task-packets/<TASK_ID>.json`
+
+The canonical coordinator is `scripts/ci/agent-coordination.mjs`.
+
+Tasks are claimed before implementation. Task dependencies must be complete before a dependent task is claimable. One active owner is allowed for each RCA and each overlapping mutable scope. Conflicting claims MUST fail closed.
+
+A task cannot become `DONE` while `remainingWork` or `openRcas` exist.
+
 ## Ownership lock
 
 Every active session declares:
@@ -50,7 +67,7 @@ If `main` moves, the agent MUST refresh the current exact SHA before continuing.
 
 Meaningful work follows:
 
-`READ → PLAN → LOCK → CHANGE → VERIFY → HANDOFF`
+`READ → INGEST HANDOFF → PLAN → LOCK → CLAIM TASK → CHANGE → VERIFY → HANDOFF`
 
 The session record MUST retain the actual commands/actions and exact SHA lineage. It MUST NOT claim work that did not occur.
 
@@ -109,10 +126,11 @@ When two agents overlap:
 1. Freeze the conflicting scope.
 2. Compare session IDs and base/exit SHAs.
 3. Compare inherited handoff reports.
-4. Identify the newest authoritative repository state.
-5. Retain one active owner.
-6. Record the transfer in handoff.
-7. Re-run affected verification on the resulting exact SHA.
+4. Query the coordination lock ledger.
+5. Identify the newest authoritative repository state.
+6. Retain one active owner.
+7. Record the transfer in handoff.
+8. Re-run affected verification on the resulting exact SHA.
 
 No silent conflict resolution.
 
@@ -132,10 +150,12 @@ A session ends only as `VERIFIED` or `BLOCKED` and MUST create the handoff repor
 
 ## Enforcement
 
-CI MUST verify that the mandatory entry gate, this protocol, the handoff schema, and the session tool exist and retain their required contract markers.
+CI MUST verify that the mandatory entry gate, this protocol, the handoff schema, the coordination control plane, and the session tool exist and retain their required contract markers.
 
 The session tool MUST enforce predecessor handoff continuity whenever a prior handoff exists, and MUST emit a machine-readable handoff report at logout.
 
-Removing, bypassing, or silently ignoring the handoff protocol MUST fail the repository contract gate.
+The coordination tool MUST reject overlapping active ownership and incomplete dependencies.
+
+Removing, bypassing, or silently ignoring the collaboration or coordination protocol MUST fail the repository contract gate.
 
 This protocol coordinates agents; it is not an authentication mechanism. Repository evidence remains authoritative.
