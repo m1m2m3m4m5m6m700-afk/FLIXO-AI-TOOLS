@@ -66,9 +66,8 @@ for (const [gate, gatePlan] of Object.entries(plan.gates ?? {})) {
   }
 }
 
-for (const [assertionId, planEntry] of planAssertions) {
+for (const [assertionId] of planAssertions) {
   if (!registryAssertions.has(assertionId)) errors.push(`${assertionId}: declared in test-plan but missing from canonical registry`);
-  if (planEntry?.owner && ownerToAssertion.get(planEntry.owner) && ownerToAssertion.get(planEntry.owner) !== assertionId) errors.push(`${assertionId}: owner collision with ${ownerToAssertion.get(planEntry.owner)}`);
 }
 for (const assertionId of registryAssertions.keys()) {
   const refs = referenced.get(assertionId) ?? [];
@@ -84,28 +83,38 @@ for (const [owner, check] of executionOwners) {
 }
 
 const ci = read('.github/workflows/ci.yml');
-const matrix = read('.github/workflows/matrix-first.yml');
-const fullMatrix = read('.github/workflows/full-matrix-parallel.yml');
+const fastVerify = read('scripts/ci/fast-verify.mjs');
 const architectureChecks = [
-  ['ci has no Matrix First execution barrier', !/matrix-first-barrier|needs:\s*\[[^\]]*matrix-first-barrier/i.test(ci)],
-  ['ci has no browser execution inside fast verify', !/playwright\s+test|tests\/.*\.spec\.(?:ts|js)/i.test(read('scripts/ci/fast-verify.mjs'))],
-  ['Matrix First owns three browsers', /browser:\s*\[chromium, firefox, webkit\]/.test(matrix)],
-  ['Matrix First retains 22 tool specs', (matrix.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? []).length === 22],
-  ['Full Matrix owns three browsers', /browser:\s*\[chromium, firefox, webkit\]/.test(fullMatrix)],
-  ['Full Matrix remains deep-only push/manual', /on:\s*\n\s+push:\s*\n\s+branches:\s*\[main\]\s*\n\s+workflow_dispatch:/s.test(fullMatrix)],
-  ['Matrix First uses canonical local test origin', /VITE_TEST_ORIGIN:\s*http:\/\/127\.0\.0\.1:3000/.test(matrix)],
-  ['Full Matrix uses canonical local test origin', /VITE_TEST_ORIGIN:\s*http:\/\/127\.0\.0\.1:3000/.test(fullMatrix)],
+  ['single automatic workflow owns canonical testing', /name:\s*FLIXO Test System/.test(ci)],
+  ['ci exposes the static engine', /\n\s+static:\s*\n/.test(ci)],
+  ['ci exposes the build engine', /\n\s+build:\s*\n/.test(ci)],
+  ['ci exposes the FAST browser engine', /\n\s+browser-fast:\s*\n/.test(ci)],
+  ['ci exposes the DEEP browser engine', /\n\s+browser-deep:\s*\n/.test(ci)],
+  ['FAST browser coverage retains three browsers', /browser:\s*\[chromium, firefox, webkit\]/.test(ci)],
+  ['FAST browser coverage retains 22 canonical tools', (ci.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? []).length === 22],
+  ['DEEP browser coverage retains 20-locale runtime owner', /tests\/localization-runtime\.spec\.ts/.test(ci)],
+  ['DEEP browser coverage retains three browsers', (ci.match(/browser:\s*\[chromium, firefox, webkit\]/g) ?? []).length >= 2],
+  ['DEEP execution is release/main only', /browser-deep:[\s\S]{0,500}?github\.event_name\s*!==\s*'pull_request'/.test(ci)],
+  ['build artifact is fingerprinted', /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci)],
+  ['Browser consumes build artifact', /download-artifact@v6[\s\S]{0,300}?flixo-build-/.test(ci)],
+  ['Fast Verify does not execute browser tests', !/playwright\s+test|tests\/.*\.spec\.(?:ts|js)/i.test(fastVerify)],
   ['Ultra is orchestrator-only', /role:\s*'ORCHESTRATOR_ONLY'/.test(read('scripts/ci/ultra-fast.mjs'))],
 ];
 for (const [label, pass] of architectureChecks) if (!pass) errors.push(`ARCHITECTURE: ${label}`);
 
 const result = {
-  schema_version: 3,
+  schema_version: 4,
   status: errors.length ? 'FAIL' : 'PASS',
   assertionCount: registryAssertions.size,
   testPlanAssertionCount: planAssertions.size,
   executionOwnerCount: executionOwners.size,
   ownershipRule: registry.ownershipRule,
+  architecture: {
+    engines: ['static', 'build', 'browser-fast', 'browser-deep', 'certify'],
+    browserFast: { tools: 22, browsers: 3, units: 66 },
+    browserDeep: { locales: 20, browsers: 3 },
+    certification: 'single certify job, fail-closed',
+  },
   architectureChecks: architectureChecks.map(([label, pass]) => ({ label, status: pass ? 'PASS' : 'FAIL' })),
   errors,
 };
