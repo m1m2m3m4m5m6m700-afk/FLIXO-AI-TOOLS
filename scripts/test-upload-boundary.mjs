@@ -33,7 +33,7 @@ const spoofedBytes = validateUploadBoundary(
   policy,
 );
 assert.equal(spoofedBytes.safe, false);
-assert.ok(spoofedBytes.failures.includes('input signature does not match the allowed file signatures'));
+assert.ok(spoofedBytes.failures.includes('file signature is not permitted by policy'));
 
 const wrongExtension = validateUploadBoundary(
   { name: 'payload.jpg', mime: 'image/png', bytes: pngBytes },

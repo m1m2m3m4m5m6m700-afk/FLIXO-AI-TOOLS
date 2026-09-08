@@ -1,93 +1,33 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
-const toolFamilyFiles = [
-  'src/config/tool-definitions/image.ts',
-  'src/config/tool-definitions/pdf.ts',
-  'src/config/tool-definitions/audio.ts',
-  'src/config/tool-definitions/video.ts',
-  'src/config/tool-definitions/ai.ts',
-  'src/config/tool-definitions/other.ts',
-];
-
-const toolsSource = toolFamilyFiles.map((path) => readFileSync(path, 'utf8')).join('\n');
+const imageSource = readFileSync('src/config/tool-definitions/image.ts', 'utf8');
 const seoSource = readFileSync('src/lib/seo/tool-seo.ts', 'utf8');
+const catalogSource = readFileSync('src/lib/seo/tool-catalog.ts', 'utf8');
 const routerSource = readFileSync('src/routes/localized-tool.tsx', 'utf8');
 const localizedPageSource = readFileSync('src/routes/localized-tool-page.tsx', 'utf8');
 const rootSource = readFileSync('src/routes/__root.tsx', 'utf8');
-const i18nConfigSource = readFileSync('src/lib/i18n/config.ts', 'utf8');
+const config = readFileSync('src/lib/i18n/config.ts', 'utf8');
 
-const expectedLocales = i18nConfigSource.match(/export const LOCALES = \[([\s\S]*?)\] as const/)?.[1]
-  ?.match(/'([a-z]{2})'/g)
-  ?.map((value) => value.slice(1, -1)) ?? [];
+const locales = config.match(/export const LOCALES = \[([^\]]+)\] as const;/u)?.[1]?.match(/'([a-z]{2})'/gu)?.map((value) => value.slice(1, -1)) ?? [];
+if (locales.length !== 20) { console.error(`Canonical locale registry mismatch: ${locales.join(',')}`); process.exit(1); }
+const retiredLocales = ['ms', 'uk'];
+if (locales.some((locale) => retiredLocales.includes(locale))) { console.error(`Retired locale remains canonical: ${locales.filter((locale) => retiredLocales.includes(locale)).join(',')}`); process.exit(1); }
 
-if (expectedLocales.length !== 20) {
-  console.error(`Canonical locale registry must contain exactly 20 locales, found ${expectedLocales.length}.`);
-  process.exit(1);
-}
+const readyToolIds = [...imageSource.matchAll(/\{ id: '([^']+)',[^\n]*?isReady: true,/gu)].map((match) => match[1]);
+if (!readyToolIds.length) { console.error('No ready image tools discovered.'); process.exit(1); }
+if (new Set(readyToolIds).size !== readyToolIds.length) { console.error('Duplicate ready image tool ids detected.'); process.exit(1); }
 
-const readyToolIds = [...toolsSource.matchAll(/\{ id: '([^']+)',[^\n]*?isReady: true,/g)].map((match) => match[1]);
+const labels = seoSource.match(/const LOCALE_LABELS: Record<[^>]+, string> = \{([\s\S]*?)\n\};/u)?.[1] ?? '';
+for (const locale of locales) if (!new RegExp(`\\b${locale}:\\s*'`, 'u').test(labels)) { console.error(`SEO locale label missing: ${locale}`); process.exit(1); }
+if (!seoSource.includes("export type ToolCategory = 'Images'")) { console.error('SEO taxonomy is not Image-only.'); process.exit(1); }
+if (/'AI'|'Other'|'PDF'|'CSV'|'audio'|'video'/u.test(seoSource)) { console.error('Legacy SEO taxonomy/media surface remains.'); process.exit(1); }
+if (!catalogSource.includes('Object.fromEntries(LOCALES.map((locale) => [locale, buildLocalizedToolSeo(tool, locale)]))')) { console.error('SEO catalog does not generate all canonical locales.'); process.exit(1); }
+if (!catalogSource.includes("seoStatus: 'complete'")) { console.error('SEO catalog completeness marker is missing.'); process.exit(1); }
+if (!routerSource.includes("path: '/$locale/$tool'")) { console.error('Localized tool route is not registered.'); process.exit(1); }
+if (!routerSource.includes("rel: 'canonical'")) { console.error('Canonical link generation is missing.'); process.exit(1); }
+if (!routerSource.includes("hrefLang: 'x-default'")) { console.error('x-default hreflang is missing.'); process.exit(1); }
+if (!/<script\s+type=["']application\/ld\+json["']/u.test(localizedPageSource) || !localizedPageSource.includes('seo.structuredData')) { console.error('Localized tool JSON-LD rendering is missing.'); process.exit(1); }
+if (!/<script\s+type=["']application\/ld\+json["']/u.test(rootSource) || !rootSource.includes("'@type': 'Organization'") || !rootSource.includes("'@type': 'WebSite'")) { console.error('Global Organization/WebSite structured data is missing.'); process.exit(1); }
+for (const legacy of ['src/config/tool-definitions/pdf.ts','src/config/tool-definitions/audio.ts','src/config/tool-definitions/video.ts','src/config/tool-definitions/ai.ts','src/config/tool-definitions/other.ts']) if (existsSync(legacy)) { console.error(`Legacy tool family remains: ${legacy}`); process.exit(1); }
 
-if (readyToolIds.length === 0) {
-  console.error('No ready tools discovered in split registry family files.');
-  process.exit(1);
-}
-
-const uniqueReadyTools = new Set(readyToolIds);
-if (uniqueReadyTools.size !== readyToolIds.length) {
-  console.error('Duplicate ready tool ids detected.');
-  process.exit(1);
-}
-
-const labelsBlockMatch = seoSource.match(/const LOCALE_LABELS: Record<(?:Locale|string), string> = \{([\s\S]*?)\n\};/);
-if (!labelsBlockMatch) {
-  console.error('LOCALE_LABELS registry is missing or malformed.');
-  process.exit(1);
-}
-
-let previousIndex = -1;
-for (const locale of expectedLocales) {
-  const marker = `${locale}: '`;
-  const index = labelsBlockMatch[1].indexOf(marker);
-  if (index === -1) {
-    console.error(`SEO locale label is missing: ${locale}`);
-    process.exit(1);
-  }
-  if (index <= previousIndex) {
-    console.error(`SEO locale labels are out of canonical order at: ${locale}`);
-    process.exit(1);
-  }
-  previousIndex = index;
-}
-
-if (!routerSource.includes("path: '/$locale/$tool'")) {
-  console.error('Multilingual tool route is not registered.');
-  process.exit(1);
-}
-
-if (!routerSource.includes("rel: 'canonical'")) {
-  console.error('Canonical link generation is missing.');
-  process.exit(1);
-}
-
-if (!routerSource.includes("hrefLang: 'x-default'")) {
-  console.error('x-default hreflang is missing.');
-  process.exit(1);
-}
-
-const jsonLdScriptPattern = /<script\s+type=["']application\/ld\+json["']/;
-if (!jsonLdScriptPattern.test(localizedPageSource)) {
-  console.error('Structured data JSON-LD is missing from the rendered localized tool page.');
-  process.exit(1);
-}
-
-if (!localizedPageSource.includes('seo.structuredData')) {
-  console.error('Localized tool page does not render the SEO structured-data payload.');
-  process.exit(1);
-}
-
-if (!jsonLdScriptPattern.test(rootSource) || !rootSource.includes("'@type': 'Organization'") || !rootSource.includes("'@type': 'WebSite'")) {
-  console.error('Global Organization/WebSite structured data is missing from the root route.');
-  process.exit(1);
-}
-
-console.log(`SEO validation passed: ${expectedLocales.length} locales, ${readyToolIds.length} ready tools, dynamic localized routing, canonical, hreflang, tool JSON-LD, and global WebSite/Organization JSON-LD present.`);
+console.log(`SEO validation passed: ${locales.length} canonical locales, ${readyToolIds.length} ready image tools, localized routing, canonical/hreflang, JSON-LD, and Image-only taxonomy.`);

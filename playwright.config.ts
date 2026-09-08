@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 const isCi = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 const isS4RuntimeGate = process.env.S4_RUNTIME_GATE === 'true';
 const isS4ExternalServer = process.env.S4_EXTERNAL_SERVER === 'true';
-const useProductionServer = !isCi && process.env.PLAYWRIGHT_SERVER === 'production';
+const useProductionServer = !isCi && process.env.PLAYWRIGHT_SERVER === 'production' || isCi;
 const testOrigin = process.env.VITE_TEST_ORIGIN || 'https://canonical.test';
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === 'true';
 
@@ -12,7 +12,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: isCi,
   workers: isS4RuntimeGate ? 4 : isCi ? 3 : undefined,
-  retries: isS4RuntimeGate ? 0 : isCi ? 2 : 0,
+  retries: 0,
   timeout: isS4RuntimeGate ? 30_000 : 45_000,
   expect: { timeout: isS4RuntimeGate ? 7_000 : 10_000 },
   preserveOutput: isS4RuntimeGate ? 'failures-only' : 'always',
@@ -24,7 +24,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://127.0.0.1:3000',
     serviceWorkers: 'block',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     actionTimeout: isS4RuntimeGate ? 10_000 : 15_000,

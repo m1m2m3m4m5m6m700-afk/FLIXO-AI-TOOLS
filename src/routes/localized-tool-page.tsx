@@ -4,7 +4,6 @@ import { LOCALES, isLocale, type Locale, LOCALE_METADATA } from '../lib/i18n';
 import { assertToolCategory, getToolSeo } from '../lib/seo/tool-seo';
 import { getAuthoritativeToolSeoName } from '../config/tool-seo-name-resolver';
 import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
-import { localizeMsUkCategory, localizeMsUkDescription } from '../lib/i18n/ms-uk-category';
 import { localizeToolCategory, localizeToolDescription } from '../lib/i18n/tool-localization';
 import { AutoLocalizedToolSurface } from '../components/auto-localized-tool-surface';
 import { getToolPrivacyCopy } from '../lib/privacy';
@@ -19,22 +18,15 @@ function demoteNestedPageLandmarks(node: ReactNode): ReactNode {
     const props = child.props as Record<string, unknown> & { children?: ReactNode };
     const normalizedChildren = props.children === undefined ? undefined : demoteNestedPageLandmarks(props.children);
     const replacement = child.type === 'main' ? 'div' : child.type === 'h1' ? 'h2' : null;
-
     if (replacement) {
-      const safeProps = { ...props };
-      delete safeProps.children;
-      delete safeProps.ref;
+      const safeProps = { ...props }; delete safeProps.children; delete safeProps.ref;
       return createElement(replacement, { ...safeProps, 'data-flixo-semantic-boundary': 'demoted', key: child.key ?? undefined }, normalizedChildren);
     }
-
     if (normalizedChildren === props.children) return child;
     return cloneElement(child, undefined, normalizedChildren);
   });
 }
-
-function ToolSurfaceSemanticBoundary({ children }: { children: ReactNode }) {
-  return <>{demoteNestedPageLandmarks(children)}</>;
-}
+function ToolSurfaceSemanticBoundary({ children }: { children: ReactNode }) { return <>{demoteNestedPageLandmarks(children)}</>; }
 
 export function LocalizedToolPage() {
   const params = useParams({ strict: false });
@@ -44,49 +36,31 @@ export function LocalizedToolPage() {
   const toolId = typeof params.tool === 'string' && isLocale(locale) && LOCALES.includes(locale) ? params.tool : null;
   const [favorite, setFavorite] = useState(() => (toolId ? getFavorites().includes(toolId) : false));
   const headingRef = useRef<HTMLHeadingElement>(null);
-
-  useEffect(() => {
-    if (toolId) recordRecentTool(toolId);
-    headingRef.current?.focus({ preventScroll: true });
-  }, [toolId, locale]);
+  useEffect(() => { if (toolId) recordRecentTool(toolId); headingRef.current?.focus({ preventScroll: true }); }, [toolId, locale]);
 
   if (typeof params.locale !== 'string' || typeof params.tool !== 'string' || !isLocale(params.locale) || !LOCALES.includes(params.locale)) {
     return <main lang={locale} dir={direction} className="tool-page-modern"><div className="tool-page-modern__body"><section className="tool-page-modern__hero"><p className="tool-page-modern__eyebrow">FLIXO · {copy.navigation}</p><h1 ref={headingRef} tabIndex={-1} className="tool-page-modern__title">{copy.notFound}</h1></section></div></main>;
   }
-
   const seo = getToolSeo(params.locale, params.tool);
   if (!seo) {
     return <main lang={locale} dir={direction} className="tool-page-modern"><div className="tool-page-modern__body"><section className="tool-page-modern__hero"><p className="tool-page-modern__eyebrow">FLIXO · {copy.navigation}</p><h1 ref={headingRef} tabIndex={-1} className="tool-page-modern__title">{copy.notFound}</h1></section></div></main>;
   }
-
   const category = assertToolCategory(seo.tool.category);
   const localizedTitle = getAuthoritativeToolSeoName(seo.tool, locale) ?? seo.tool.title;
-  const localizedCategory = localizeMsUkCategory(locale, category) ?? localizeToolCategory(locale, category);
-  const localizedDescription = locale === 'en' ? seo.tool.description : localizeMsUkDescription(locale, localizedTitle) ?? localizeToolDescription(locale, localizedTitle, category);
+  const localizedCategory = localizeToolCategory(locale, category);
+  const localizedDescription = locale === 'en' ? seo.tool.description : localizeToolDescription(locale, localizedTitle, category);
   const ToolComponent = seo.tool.component as unknown as ComponentType<{ locale?: Locale }>;
   const privacy = getToolPrivacyCopy(seo.tool.id, locale);
   const homeUrl = `/${locale}`;
   const alternateLocale = locale === 'en' ? 'ar' : 'en';
   const alternateUrl = `/${alternateLocale}/${seo.tool.id}`;
   const alternateLabel = alternateLocale === 'ar' ? copy.arabic : copy.english;
-  const onToggleFavorite = () => {
-    const next = toggleFavorite(seo.tool.id);
-    setFavorite(next.includes(seo.tool.id));
-  };
+  const onToggleFavorite = () => { const next = toggleFavorite(seo.tool.id); setFavorite(next.includes(seo.tool.id)); };
 
   return (
     <main lang={seo.languageTag} dir={direction} className="tool-page-modern">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ ...seo.structuredData, keywords: seo.keywords }).replace(/</g, '\\u003c') }} />
-      <nav className="tool-page-modern__nav" aria-label={copy.navigation}>
-        <div className="tool-page-modern__nav-inner">
-          <a className="tool-page-modern__brand" href={homeUrl} aria-label={copy.home}><img className="tool-page-modern__brand-logo" src="/flixo-logo.svg" width="44" height="44" alt="FLIXO" decoding="async" /></a>
-          <div className="tool-page-modern__nav-actions">
-            <button className={`tool-page-modern__favorite ${favorite ? 'is-active' : ''}`} type="button" onClick={onToggleFavorite} aria-pressed={favorite} title={copy.favorite}><span aria-hidden="true">{favorite ? '★' : '☆'}</span> {copy.favorite}</button>
-            <a className="tool-page-modern__nav-link" href={homeUrl}>← {copy.home}</a>
-            <a className="tool-page-modern__lang" href={alternateUrl} lang={alternateLocale}>{alternateLabel}</a>
-          </div>
-        </div>
-      </nav>
+      <nav className="tool-page-modern__nav" aria-label={copy.navigation}><div className="tool-page-modern__nav-inner"><a className="tool-page-modern__brand" href={homeUrl} aria-label={copy.home}><img className="tool-page-modern__brand-logo" src="/flixo-logo.svg" width="44" height="44" alt="FLIXO" decoding="async" /></a><div className="tool-page-modern__nav-actions"><button className={`tool-page-modern__favorite ${favorite ? 'is-active' : ''}`} type="button" onClick={onToggleFavorite} aria-pressed={favorite} title={copy.favorite}><span aria-hidden="true">{favorite ? '★' : '☆'}</span> {copy.favorite}</button><a className="tool-page-modern__nav-link" href={homeUrl}>← {copy.home}</a><a className="tool-page-modern__lang" href={alternateUrl} lang={alternateLocale}>{alternateLabel}</a></div></div></nav>
       <div className="tool-page-modern__body">
         <Suspense fallback={<div className="tool-page-modern__loading" role="status" aria-live="polite">{copy.loading}</div>}><LazyToolChainPanel currentToolId={seo.tool.id} /></Suspense>
         <div className="tool-page-modern__breadcrumbs" aria-label={copy.about}><a className="tool-page-modern__crumb" href={homeUrl}>FLIXO</a><span className="tool-page-modern__crumb-sep">/</span><span className="tool-page-modern__crumb">{localizedCategory}</span><span className="tool-page-modern__crumb-sep">/</span><span className="tool-page-modern__crumb" aria-current="page">{localizedTitle}</span></div>

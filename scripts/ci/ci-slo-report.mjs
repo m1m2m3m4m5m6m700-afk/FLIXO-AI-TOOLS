@@ -19,32 +19,22 @@ const quantile = (values, q) => {
   return Number(sorted[index].toFixed(2));
 };
 
-const [ciRuns, fullRuns] = await Promise.all([
-  fetchRuns('ci.yml'),
-  fetchRuns('full-matrix-parallel.yml'),
-]);
+const ciRuns = await fetchRuns('ci.yml');
 const ciSuccess = ciRuns.filter((run) => run.conclusion === 'success');
-const fullSuccess = fullRuns.filter((run) => run.conclusion === 'success');
 const ciDurations = ciSuccess.map(durationMinutes);
-const fullDurations = fullSuccess.map(durationMinutes);
 
 const report = {
-  schema_version: 1,
+  schema_version: 2,
   generated_at: new Date().toISOString(),
   main_sha: process.env.GITHUB_SHA ?? null,
-  samples: { ci_success: ciDurations.length, full_matrix_success: fullDurations.length },
+  samples: { ci_success: ciDurations.length },
   ci: {
     median_minutes: quantile(ciDurations, 0.5),
     p95_minutes: quantile(ciDurations, 0.95),
     latest_minutes: ciDurations.length ? Number(ciDurations[0].toFixed(2)) : null,
   },
-  full_matrix: {
-    median_minutes: quantile(fullDurations, 0.5),
-    p95_minutes: quantile(fullDurations, 0.95),
-    latest_minutes: fullDurations.length ? Number(fullDurations[0].toFixed(2)) : null,
-  },
   policy: {
-    note: 'Advisory baseline: SLO values are measured from completed main runs; this report does not weaken blocking gates.',
+    note: 'Advisory baseline: SLO values are measured from completed main CI runs; no retired matrix workflow is part of the contract.',
   },
 };
 
