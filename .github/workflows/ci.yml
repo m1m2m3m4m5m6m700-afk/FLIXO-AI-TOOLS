@@ -57,8 +57,16 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium firefox webkit
 
+      - name: Capture exact execution context
+        if: always()
+        run: node scripts/ci/capture-execution-context.mjs
+
       - name: Unified diagnostic runner
         run: npm run test:diagnose
+
+      - name: Collect authoritative failure evidence
+        if: always()
+        run: node scripts/ci/collect-failure-evidence.mjs
 
       - name: Technical-debt classification audit
         if: always()
@@ -94,6 +102,7 @@ jobs:
           set -euo pipefail
           test "$TEST_RESULT" = "success"
           test -s diagnostics/ci/report.json
+          test -s diagnostics/ci/execution-context.json
           test -s diagnostics/ci/failure-evidence.json
           test -s diagnostics/ci/technical-debt-audit.json
           jq -e --arg sha "$EXPECTED_SHA" '
@@ -106,6 +115,13 @@ jobs:
             (.assertions.duplicateAssertions | length) == 0 and
             (.assertions.uncoveredAssertions | length) == 0
           ' diagnostics/ci/report.json >/dev/null
+          jq -e --arg sha "$EXPECTED_SHA" '
+            .schema == "flixo-execution-context/v1" and
+            .execution.sha == $sha and
+            .execution.dirty == false and
+            .dependencies.packageJsonSha256 != null and
+            .dependencies.packageLockSha256 != null
+          ' diagnostics/ci/execution-context.json >/dev/null
           jq -e --arg sha "$EXPECTED_SHA" '
             .schema == "flixo-failure-evidence/v4" and
             .sha == $sha and
