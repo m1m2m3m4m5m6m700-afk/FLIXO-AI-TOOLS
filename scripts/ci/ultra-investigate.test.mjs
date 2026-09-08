@@ -5,7 +5,7 @@ import { suiteContract, ultraContractHash, ULTRA_SCHEMA_VERSION, ULTRA_SUITE_NAM
 import { classifyFailure } from './failure/taxonomy.ts';
 
 test('Ultra contract is deterministic and complete', () => {
-  assert.equal(ULTRA_SCHEMA_VERSION, 3);
+  assert.equal(ULTRA_SCHEMA_VERSION, 4);
   assert.deepEqual(ULTRA_SUITE_NAMES, ['toolchain', 'architecture', 'localization', 'seo', 'security', 'artifact', 'runtime', 'browser', 'build']);
   assert.equal(typeof ultraContractHash(), 'string');
   assert.equal(ultraContractHash().length, 64);
