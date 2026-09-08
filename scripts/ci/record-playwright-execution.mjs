@@ -122,14 +122,11 @@ for (const unit of units) statusCounts[unit.status] = (statusCounts[unit.status]
 const canonicalAssertionIds = [...new Set(units.map((unit) => unit.assertionId).filter(Boolean))];
 const coverageIds = [...new Set(units.map((unit) => unit.coverageId))];
 
-let semanticUnitStatus = false;
-if (mode === 'FAST') {
-  semanticUnitStatus = semanticUnitSet.size > 0 && units.every((unit) => Boolean(unit.semanticUnitId) && expectedFastSpecs.includes(unit.spec));
-} else {
-  semanticUnitStatus = semanticUnitSet.size > 0
+const semanticUnitStatus = mode === 'FAST'
+  ? semanticUnitSet.size > 0 && units.every((unit) => Boolean(unit.semanticUnitId) && expectedFastSpecs.includes(unit.spec))
+  : semanticUnitSet.size > 0
     && unexpectedSpecs.length === 0
     && units.every((unit) => Boolean(unit.semanticUnitId) && Boolean(unit.semanticLocale) && localeCodes.includes(unit.semanticLocale));
-}
 
 const output = {
   schema_version: 4,
