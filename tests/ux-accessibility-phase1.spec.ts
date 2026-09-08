@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 
 test.describe('UX + Accessibility phase 1', () => {
   test('moves focus to the tool heading after navigation', async ({ page }) => {
