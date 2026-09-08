@@ -1,8 +1,8 @@
 # FLIXO ZERO-ERROR ENGINEERING PROTOCOL
 
 **Status:** OFFICIAL / PERSISTENT / REPOSITORY-GOVERNING
-**Version:** 1.0.0
-**Purpose:** Preserve the complete engineering operating contract across sessions, agents, and future repairs.
+**Version:** 1.1.0
+**Purpose:** Preserve the complete engineering operating contract across sessions, agents, and future repairs, while maximizing useful work inside every execution window.
 
 ## 1. Absolute objective
 
@@ -17,6 +17,8 @@ Any value below 100% means execution continues.
 The execution agent MUST NOT stop because the first failure was fixed, one workflow became green, a subset of tests passed, a preview deployment is Ready, failures are numerous, a failure is inconvenient to diagnose, or historical evidence is green.
 
 The only terminal state is verified 100% completion. A genuinely external blocker may be recorded, but it is never counted as success and execution must resume when the blocker clears.
+
+A session/window ending is NOT task completion. Before any execution window ends, the agent MUST persist an exact checkpoint containing current SHA, completed stages, open Root Cause IDs, evidence hashes, expected/actual coverage, next executable action, and the reason for any remaining work.
 
 ## 3. Zero-patching law
 
@@ -166,3 +168,101 @@ Deleting, bypassing, disabling, or silently weakening this protocol is a protoco
 `0 SHA/ARTIFACT MISMATCH`
 `0 MISSING COVERAGE`
 `ZERO FALSE GREEN`
+
+## 22. Session-yield diagnostic playbook
+
+To maximize useful work before any session/window boundary, run diagnostics in the following order and repair immediately when a deterministic root cause is found. Do not wait for a later phase if a current blocker can be removed safely.
+
+### 22.1 Toolchain and parser triage
+
+Check Node/npm versions, lockfile integrity, package-manager behavior, TypeScript parsing/type errors, syntax errors in every executable script, malformed JSON/YAML, missing imports, missing files, broken npm script targets, and incompatible package versions.
+
+### 22.2 Test runner integrity
+
+Verify that every test command can load, discover, execute and report results correctly. Detect runner crashes, empty test discovery, incorrect globs, broken fixtures, fixture ownership gaps, swallowed exceptions, false PASS paths and mismatched exit codes.
+
+### 22.3 Failure fan-out analysis
+
+When many checks fail, classify the first causal failure and its descendants before repairing individual symptoms. Prefer fixing the shared owner that can collapse multiple derived failures at once.
+
+### 22.4 Source-of-truth drift scan
+
+Compare every authoritative dataset with all consumers. Search for hard-coded tool lists, locale lists, route lists, browser lists, SEO manifests, sitemap entries, E2E inventories, generated metadata and duplicate registries.
+
+### 22.5 Runtime contract triage
+
+For each failing route, inspect HTTP status, final URL, document state, language/direction, title/description/H1, canonical, hreflang, robots, structured data, console, network and runtime exceptions before modifying test code.
+
+### 22.6 Data and environment triage
+
+Check environment variables, public/private configuration boundaries, timezone, locale, filesystem assumptions, ports, base URLs, browser installation, external service availability, fixture files, generated assets and test data consistency.
+
+### 22.7 Determinism triage
+
+Repeat suspicious failures under identical inputs and under isolated clean environments. Check ordering, randomness, time dependence, retries, race conditions, shared state, cache contamination, process residue and filesystem/network timing.
+
+### 22.8 Browser triage
+
+When browser tests fail, compare browser-independent versus browser-specific behavior. Validate selectors, navigation, redirects, console/page/request failures, browser permissions, download behavior and environment parity. Do not fix a browser symptom with a browser-specific bypass unless the product contract itself is intentionally browser-specific and proven.
+
+### 22.9 Negative-path triage
+
+For every important contract, execute invalid-input and failure-path checks: malformed files, wrong signatures, wrong MIME, wrong extension, unsafe paths, missing output, corrupted output, wrong locale, wrong canonical, missing hreflang, unavailable route, readiness=false exposure, missing evidence and altered SHA.
+
+### 22.10 Artifact and provenance triage
+
+Verify that every consumer uses the artifact produced by the intended immutable build, with SHA and input identities matching. Detect stale artifacts, mixed builds, cross-run contamination and evidence generated from different code revisions.
+
+### 22.11 CI topology triage
+
+Enumerate all workflows and jobs. Detect duplicate certification, duplicate builds, duplicate browser matrices, hidden dependencies, skipped-needs behavior, incorrect `if:` gates, continue-on-error misuse, cache key collisions, artifact overwrites, retry loops and status reporting that can hide failure.
+
+### 22.12 Certification adversarial triage
+
+Actively mutate certification inputs and confirm FAIL: remove evidence; remove one browser unit; remove one locale; change SHA; change artifact hash; omit an assertion; use null/undefined/NaN; inject an unknown state; mark a deterministic failure flaky; alter expected counts. The certifier MUST reject all such cases.
+
+### 22.13 Security triage
+
+Check dependency integrity, lockfile drift, install scripts, unsafe file processing, path traversal, archive extraction boundaries, workflow permissions, untrusted input into commands, artifact authenticity and accidental secret exposure.
+
+### 22.14 Quality and maintainability triage
+
+Search for duplicated business logic, dead code, unreachable branches, broad catches, implicit coercion, unsafe casts, brittle selectors, magic constants, hidden global state and comments that contradict actual behavior.
+
+### 22.15 Documentation/config coherence triage
+
+Compare docs, test plans, registries, workflow names, protocol versions and scripts against actual repository behavior. Metadata that contradicts executable reality is a defect.
+
+### 22.16 Session checkpoint protocol
+
+Before a session/window ends, persist:
+- exact HEAD SHA;
+- last verified artifact identity;
+- protocol version;
+- test-plan/assertion-registry hashes;
+- completed diagnostic stages;
+- all open RC-IDs and statuses;
+- expected versus actual coverage;
+- known blockers and their classification;
+- next single executable action;
+- affected dependency graph not yet revalidated.
+
+The next execution MUST read this checkpoint first and continue from it. It MUST NOT claim completion from the checkpoint.
+
+## 23. Execution principle
+
+The fastest safe path is not to run everything blindly. It is to identify the highest-fan-out root cause, repair the authoritative owner, collapse derived failures, reuse only valid immutable results, and continuously re-prove coverage and provenance.
+
+The agent must optimize for **maximum verified progress per execution window**, never for maximum number of commands.
+
+## 24. Final commandment
+
+`DO NOT STOP AT GREEN.`
+`DO NOT STOP AT FIRST FIX.`
+`DO NOT STOP AT 99%.`
+`DO NOT PATCH.`
+`DO NOT HIDE.`
+`DO NOT GUESS.`
+`DO NOT COUNT MISSING AS ZERO.`
+`DO NOT TRUST STALE EVIDENCE.`
+`CONTINUE UNTIL 100% PROVEN.`
