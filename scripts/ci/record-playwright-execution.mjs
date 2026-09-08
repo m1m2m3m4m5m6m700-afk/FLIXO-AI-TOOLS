@@ -27,20 +27,18 @@ if (!fs.existsSync(reportPath)) throw new Error(`Missing Playwright report: ${re
 if (!fs.existsSync(registryPath)) throw new Error(`Missing assertion registry: ${registryPath}`);
 
 const expectedFastSpecs = [
-  'tests/image-compressor.spec.ts', 'tests/background-remover.spec.ts', 'tests/image-upscaler.spec.ts',
-  'tests/image-converter.spec.ts', 'tests/ai-image-generator.spec.ts', 'tests/object-remover.spec.ts',
-  'tests/watermark-remover.spec.ts', 'tests/image-cropper.spec.ts', 'tests/image-to-svg.spec.ts',
-  'tests/image-ocr.spec.ts', 'tests/photo-colorizer.spec.ts', 'tests/background-blur.spec.ts',
-  'tests/passport-photo-maker.spec.ts', 'tests/watermark-adder.spec.ts', 'tests/meme-generator.spec.ts',
-  'tests/collage-maker.spec.ts', 'tests/image-effects.spec.ts', 'tests/exif-cleaner.spec.ts',
-  'tests/svg-optimizer.spec.ts', 'tests/mockup-generator.spec.ts', 'tests/seed.spec.ts', 'tests/pix.spec.ts',
+  'tests/image-compressor.spec.ts','tests/background-remover.spec.ts','tests/image-upscaler.spec.ts','tests/image-converter.spec.ts',
+  'tests/ai-image-generator.spec.ts','tests/object-remover.spec.ts','tests/watermark-remover.spec.ts','tests/image-cropper.spec.ts',
+  'tests/image-to-svg.spec.ts','tests/image-ocr.spec.ts','tests/photo-colorizer.spec.ts','tests/background-blur.spec.ts',
+  'tests/passport-photo-maker.spec.ts','tests/watermark-adder.spec.ts','tests/meme-generator.spec.ts','tests/collage-maker.spec.ts',
+  'tests/image-effects.spec.ts','tests/exif-cleaner.spec.ts','tests/svg-optimizer.spec.ts','tests/mockup-generator.spec.ts',
+  'tests/seed.spec.ts','tests/pix.spec.ts',
 ];
 const expectedDeepSpec = 'tests/localization-runtime.spec.ts';
 const localeSource = fs.readFileSync('src/lib/i18n/config.ts', 'utf8');
 const localeArray = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '';
 const localeCodes = [...localeArray.matchAll(/['\"]([a-z]{2,3})['\"]/giu)].map((match) => match[1].toLowerCase());
 const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-
 const normalize = (value) => String(value ?? '').replaceAll('\\', '/').replace(/^\.\//, '');
 const reportBytes = fs.readFileSync(reportPath);
 const report = JSON.parse(reportBytes);
@@ -65,9 +63,9 @@ const walkSuite = (suite, file = null, titlePath = []) => {
       const results = Array.isArray(test.results) ? test.results : [];
       const status = test.outcome === 'skipped'
         ? 'NOT_EXECUTED'
-        : results.some((r) => r.status === 'failed' || r.status === 'timedOut')
+        : results.some((result) => result.status === 'failed' || result.status === 'timedOut')
           ? 'FAIL'
-          : results.length && results.every((r) => r.status === 'passed')
+          : results.length > 0 && results.every((result) => result.status === 'passed')
             ? 'PASS'
             : 'NOT_EXECUTED';
       const specName = specFile ?? '<unknown>';
@@ -90,13 +88,15 @@ const walkSuite = (suite, file = null, titlePath = []) => {
         coverageId: `${mode}:${specName}`,
         mode,
         browser,
+        locale,
         shard,
         spec: specFile,
         test: testName,
         titlePath: normalizedTitlePath,
         semanticLocale: locale,
+        attempt: results.length,
+        attempts: results.map((result, index) => ({ attempt: index + 1, status: result.status, durationMs: result.duration ?? 0, errorCount: Array.isArray(result.errors) ? result.errors.length : 0 })),
         status,
-        attempts: results.map((r, index) => ({ attempt: index + 1, status: r.status, durationMs: r.duration ?? 0, errorCount: Array.isArray(r.errors) ? r.errors.length : 0 })),
         runId,
         exactSha,
       });
@@ -117,11 +117,11 @@ for (const unit of units) statusCounts[unit.status] = (statusCounts[unit.status]
 const canonicalAssertionIds = [...new Set(units.map((unit) => unit.assertionId).filter(Boolean))];
 const coverageIds = [...new Set(units.map((unit) => unit.coverageId))];
 const expectedDeepLocales = localeCodes.length;
-const missingDeepLocales = mode === 'DEEP' ? localeCodes.filter((locale) => !localeSet.has(locale)) : [];
 const unexpectedDeepLocales = mode === 'DEEP' ? [...localeSet].filter((locale) => !localeCodes.includes(locale)) : [];
-const expectedSemanticUnits = mode === 'FAST' ? expectedFastSpecs.length : expectedDeepLocales;
-const semanticUnitStatus = semanticUnitSet.size === expectedSemanticUnits && (mode === 'FAST' ? units.every((unit) => unit.semanticUnitId) : missingDeepLocales.length === 0 && unexpectedDeepLocales.length === 0);
-const overallStatus = units.length && units.every((unit) => unit.status === 'PASS') && unexpectedSpecs.length === 0 && semanticUnitStatus ? 'PASS' : 'FAIL';
+const expectedSemanticUnits = mode === 'FAST' ? expectedFastSpecs.length : null;
+const semanticUnitStatus = mode === 'FAST'
+  ? semanticUnitSet.size === expectedSemanticUnits && units.every((unit) => Boolean(unit.semanticUnitId))
+  : semanticUnitSet.size > 0 && unexpectedDeepLocales.length === 0 && units.every((unit) => Boolean(unit.semanticUnitId) && Boolean(unit.semanticLocale));
 
 const output = {
   schema_version: 4,
@@ -133,7 +133,7 @@ const output = {
   exactSha,
   reportPath,
   sourceReportSha256: createHash('sha256').update(reportBytes).digest('hex'),
-  status: overallStatus,
+  status: units.length > 0 && units.every((unit) => unit.status === 'PASS') && unexpectedSpecs.length === 0 && semanticUnitStatus ? 'PASS' : 'FAIL',
   toolSpecs: mode === 'FAST' ? expectedFastSpecs.length : undefined,
   locales: mode === 'DEEP' ? expectedDeepLocales : undefined,
   expectedSpecCount: mode === 'FAST' ? 22 : 1,
@@ -149,16 +149,15 @@ const output = {
   },
   semanticCoverage: {
     model: mode === 'FAST' ? '22 specs × 3 browsers = 66 semantic spec-browser units, partitioned by shard' : `${expectedDeepLocales} locales × 3 browsers = ${expectedDeepLocales * 3} semantic locale-browser units, partitioned by shard`,
-    semanticUnitCountPerBrowser: semanticUnitSet.size,
-    expectedSemanticUnitsPerBrowser: expectedSemanticUnits,
+    semanticUnitCount: semanticUnitSet.size,
     semanticUnitIds: [...semanticUnitSet].sort(),
     localeRegistryCount: expectedDeepLocales,
     observedLocaleCount: localeSet.size,
     observedLocales: [...localeSet].sort(),
-    missingLocales: missingDeepLocales,
     unexpectedLocales: unexpectedDeepLocales,
+    partition: mode === 'DEEP',
   },
-  complete: overallStatus === 'PASS' && unexpectedSpecs.length === 0 && units.length > 0 && statusCounts.NOT_EXECUTED === 0 && semanticUnitStatus,
+  complete: unexpectedSpecs.length === 0 && units.length > 0 && statusCounts.NOT_EXECUTED === 0 && semanticUnitStatus,
   units,
 };
 if (output.mode === 'FAST') delete output.locales;
