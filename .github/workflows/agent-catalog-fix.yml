@@ -1,0 +1,38 @@
+name: Agent Catalog Fix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: ${{ !contains(github.event.head_commit.message, 'agent-catalog-fix:') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Apply exact catalog repair
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/lib/seo/tool-catalog.ts')
+          s = p.read_text()
+          old = 'const TERM_MAPS: Record<Locale, Record<string, string>> = {'
+          new = 'const TERM_MAPS: Record<string, Record<string, string>> = {'
+          if old not in s:
+              raise SystemExit('expected TERM_MAPS locale type not found')
+          p.write_text(s.replace(old, new, 1))
+          wf = Path('.github/workflows/agent-catalog-fix.yml')
+          wf.unlink()
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "agent-catalog-fix: repair locale map typing"
+          git push origin HEAD:main
