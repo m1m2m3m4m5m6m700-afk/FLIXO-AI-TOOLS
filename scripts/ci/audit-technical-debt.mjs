@@ -31,7 +31,6 @@ const findings = [];
 const dependencyMutation = /npm\s+install\s+[^\n]*--package-lock-only/i.test(fileText.get('scripts/report-dependency-usage.mjs') ?? '');
 findings.push(finding('RC-DEP-REVALIDATION-001', 'DEPENDENCY', dependencyMutation ? 'CRITICAL' : 'CLEAR', dependencyMutation ? 'DIRECT_CI_BLOCKER' : 'RESOLVED', dependencyMutation ? 'Dependency reporting can mutate package-lock.json during measurement.' : 'Dependency reporting is observational and does not rewrite the lockfile.', dependencyMutation ? 'scripts/report-dependency-usage.mjs contains an install mutation.' : 'Dependency reporting performs observation only.', 'Keep installation in CI bootstrap and dependency reporting read-only.'));
 
-const duplicateOrchestration = false;
 findings.push(finding('RC-CI-ORCH-001', 'ORCHESTRATION', 'CLEAR', 'RESOLVED', 'The unified runner owns gate execution; evidence/context sidecars are explicit lifecycle steps.', 'ci.yml invokes capture context and evidence collection as explicit lifecycle steps around the unified runner.', 'Keep one gate runner and explicit evidence lifecycle sidecars.'));
 
 const dependencyStateCoupling = /FLIXO_DEPENDENCIES_READY/.test(`${ci}\n${runner}\n${JSON.stringify(packageJson.scripts ?? {})}`);
