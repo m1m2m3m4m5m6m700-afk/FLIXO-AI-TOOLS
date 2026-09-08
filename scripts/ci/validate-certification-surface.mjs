@@ -10,9 +10,9 @@ const errors = [];
 
 for (const [label, pattern] of [
   ['canonical workflow', /name:\s*FLIXO Test System/],
-  ['static+build engine', /\n\s{2}static-build:\s*\n/],
-  ['FAST engine', /\n\s{2}browser-fast:\s*\n/],
-  ['DEEP engine', /\n\s{2}browser-deep:\s*\n/],
+  ['verify engine', /\n\s{2}verify:\s*\n/],
+  ['FAST engine', /\n\s{2}browser_fast:\s*\n/],
+  ['DEEP engine', /\n\s{2}browser_deep:\s*\n/],
   ['single certification gate', /\n\s{2}certify:\s*\n/],
   ['browser matrix', /browser:\s*\[chromium, firefox, webkit\]/],
   ['exact artifact SHA', /flixo-head-sha\.txt/],
@@ -21,36 +21,28 @@ for (const [label, pattern] of [
   ['DEEP localization owner', /tests\/localization-runtime\.spec\.ts/],
 ]) if (!pattern.test(ci)) errors.push(`${label} missing`);
 
-const fast = ci.match(/browser-fast:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
-const fastSpecs = fast.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? [];
-if (fastSpecs.length !== 22) errors.push(`FAST tool specs=${fastSpecs.length}, expected 22`);
+const fast = ci.match(/browser_fast:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
+const fastSpecs = [...new Set(fast.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? [])];
+if (fastSpecs.length !== 22) errors.push(`FAST unique tool specs=${fastSpecs.length}, expected 22`);
 if (!ci.includes(POLICY.runtimeOrigin)) errors.push(`runtime origin ${POLICY.runtimeOrigin} missing from canonical workflow`);
 if (ci.includes(POLICY.testSentinel)) errors.push(`canonical workflow contains forbidden test sentinel ${POLICY.testSentinel}`);
 
 const workflowFiles = fs.readdirSync(path.join(ROOT, '.github', 'workflows')).filter((name) => /\.ya?ml$/i.test(name));
+const automatedNonCanonical = [];
 for (const file of workflowFiles) {
   if (file === 'ci.yml') continue;
   const text = fs.readFileSync(path.join(ROOT, '.github', 'workflows', file), 'utf8');
-  if (/^\s*(push|pull_request):/m.test(text)) errors.push(`non-canonical automated workflow: .github/workflows/${file}`);
+  if (/^\s*(push|pull_request):/m.test(text)) automatedNonCanonical.push(`.github/workflows/${file}`);
 }
+if (automatedNonCanonical.length) errors.push(...automatedNonCanonical.map((file) => `non-canonical automated workflow: ${file}`));
 
 const result = {
-  schema_version: 7,
+  schema_version: 8,
   authority: 'canonical-certification-surface',
   status: errors.length ? 'FAIL' : 'PASS',
   workflow: '.github/workflows/ci.yml',
-  architecture: {
-    layers: ['static+build', 'browser-fast', 'browser-deep', 'certify'],
-    browserFast: { tools: 22, browsers: 3, units: 66 },
-    browserDeep: { locales: 20, browsers: 3 },
-    certification: 'single fail-closed certify job',
-  },
-  checks: {
-    fastToolCount: fastSpecs.length,
-    browsers: /browser:\s*\[chromium, firefox, webkit\]/.test(ci),
-    deepLocalization: /tests\/localization-runtime\.spec\.ts/.test(ci),
-    immutableArtifact: /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci),
-  },
+  architecture: { layers: ['static+build', 'browser-fast', 'browser-deep', 'certify'], browserFast: { tools: 22, browsers: 3, units: 66 }, browserDeep: { locales: 20, browsers: 3 }, certification: 'single fail-closed certify job' },
+  checks: { fastToolCount: fastSpecs.length, browsers: /browser:\s*\[chromium, firefox, webkit\]/.test(ci), deepLocalization: /tests\/localization-runtime\.spec\.ts/.test(ci), immutableArtifact: /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci), nonCanonicalAutomatedWorkflows: automatedNonCanonical },
   errors,
 };
 fs.mkdirSync(path.join(ROOT, 'diagnostics', 'certification'), { recursive: true });
