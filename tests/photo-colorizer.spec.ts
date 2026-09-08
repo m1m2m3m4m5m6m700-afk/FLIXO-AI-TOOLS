@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/runtime-evidence';
 
 test('photo-colorizer is not publicly available while the tool is not ready', async ({ page }) => {
   await page.goto('/en/photo-colorizer');
