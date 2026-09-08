@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getReadyToolConfigs } from '../config/tools';
 import { addToolToChain, clearToolChain, getToolChain, moveToolInChain, removeToolFromChain } from '../lib/tool-chain';
+import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
 import './tool-chain-panel.css';
 
 export function ToolChainPanel({ currentToolId }: { currentToolId?: string | null }) {
@@ -15,6 +16,8 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
   const [resultUrl, setResultUrl] = useState('');
   const tools = useMemo(() => getReadyToolConfigs(), []);
   const selected = chain.map((step) => ({ step, tool: tools.find((tool) => tool.id === step.id) })).filter((item): item is { step: typeof chain[number]; tool: (typeof tools)[number] } => Boolean(item.tool));
+  const locale = (typeof document !== 'undefined' ? document.documentElement.lang.split('-')[0] : 'en') as keyof typeof TOOL_UI_I18N;
+  const copy = TOOL_UI_I18N[locale] ?? TOOL_UI_I18N.en;
 
   useEffect(() => () => { if (resultUrl) URL.revokeObjectURL(resultUrl); }, [resultUrl]);
 
@@ -58,10 +61,10 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
   };
 
   return (
-    <aside className="flixo-chain-panel" aria-label="Tool chaining workspace">
+    <aside className="flixo-chain-panel" aria-label={copy.workspace}>
       <div className="flixo-chain-panel__bar">
         <div>
-          <strong>Tool Chain</strong>
+          <strong>{copy.workspace}</strong>
           <span>{selected.length}/8 steps</span>
         </div>
         <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
@@ -97,7 +100,7 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
           <div className="flixo-chain-panel__runner">
             <label className="flixo-chain-panel__file">
               <span>Input file</span>
-              <input type="file" accept="image/*" disabled={running} onChange={(event) => { setInputFile(event.target.files?.[0] ?? null); setError(''); setResult(null); }} />
+              <input type="file" accept="image/*" aria-label={copy.upload} disabled={running} onChange={(event) => { setInputFile(event.target.files?.[0] ?? null); setError(''); setResult(null); }} />
             </label>
             <button type="button" className="flixo-chain-panel__run" onClick={() => void runChain()} disabled={!inputFile || selected.length === 0 || running}>
               {running ? `Processing… ${progress}%` : 'Run chain locally'}
