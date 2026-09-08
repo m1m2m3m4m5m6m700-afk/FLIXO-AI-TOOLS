@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/runtime-evidence';
 import { PNG } from './helpers/image-tool-fixture';
 
 test('ai-image-generator: consumes an image endpoint response and downloads it', async ({ page }) => {
