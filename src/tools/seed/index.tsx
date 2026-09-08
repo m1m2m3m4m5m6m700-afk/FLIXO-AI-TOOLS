@@ -261,7 +261,7 @@ export default function SeedTool() {
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-indigo-300/10 bg-gradient-to-br from-indigo-500/20 via-violet-500/10 to-cyan-400/10 text-indigo-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"><WandSparkles className="size-5" /></div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2"><h1 className="text-sm font-semibold tracking-tight text-white">Seed</h1><span className="hidden rounded border border-white/[0.06] bg-white/[0.025] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-zinc-500 sm:inline">GPU COLOR ENGINE</span></div>
+            <div className="flex items-center gap-2"><h2 className="text-sm font-semibold tracking-tight text-white">Seed</h2><span className="hidden rounded border border-white/[0.06] bg-white/[0.025] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-zinc-500 sm:inline">GPU COLOR ENGINE</span></div>
             <div className="mt-1 flex min-w-0 items-center gap-2 text-[10px] text-zinc-500"><Activity className={`size-3 ${gpuReady ? 'text-emerald-400' : 'text-zinc-600'}`} /><span>{image ? imageName : 'No asset loaded'}</span>{image ? <span className="font-mono text-zinc-700">{image.naturalWidth}×{image.naturalHeight}</span> : null}</div>
           </div>
         </div>
@@ -274,7 +274,7 @@ export default function SeedTool() {
         </div>
       </header>
 
-      <main className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_380px]">
         <section ref={stageRef} className={`relative flex min-h-[560px] min-w-0 items-center justify-center overflow-hidden rounded-2xl border bg-zinc-950 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.24)] transition ${isDragging ? 'border-indigo-400/70 bg-indigo-950/10' : 'border-white/[0.07]'}`} onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }} onDragLeave={handleDragLeave} onDrop={handleDrop}>
           <div className="pointer-events-none absolute inset-0 opacity-70" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
           <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/[0.035] to-transparent" />
@@ -356,7 +356,7 @@ export default function SeedTool() {
           </div>
           {error ? <div role="alert" className="shrink-0 border-t border-red-400/10 bg-red-950/30 px-3.5 py-3 text-xs text-red-300">{error}</div> : null}
         </aside>
-      </main>
+      </div>
     </div>
   );
 }
