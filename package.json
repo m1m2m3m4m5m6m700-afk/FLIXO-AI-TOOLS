@@ -18,6 +18,8 @@
     "validate:playwright-surface": "node scripts/ci/validate-playwright-surface.mjs",
     "validate:assertion-registry": "node scripts/ci/validate-assertion-registry.mjs",
     "validate:agent-protocol": "node scripts/ci/validate-agent-protocol.mjs",
+    "validate:agent-coordination": "node scripts/ci/validate-agent-coordination.mjs",
+    "agent:coordination": "node scripts/ci/agent-coordination.mjs",
     "validate:i18n": "node scripts/validate-i18n.mjs",
     "validate:language-quality": "node scripts/validate-language-quality.mjs",
     "validate:locale-navigation": "node scripts/validate-locale-navigation.mjs",

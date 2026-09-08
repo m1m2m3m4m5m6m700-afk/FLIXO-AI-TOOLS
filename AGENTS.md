@@ -8,10 +8,12 @@ Before any repository action, every agent MUST read:
 
 1. `AGENTS.md`
 2. `docs/AGENT-COLLABORATION-PROTOCOL.md`
-3. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-4. `scripts/ci/test-plan.json`
-5. `scripts/ci/assertion-registry.json`
-6. the current exact `main` SHA and current workflow state
+3. `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`
+4. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
+5. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+6. `scripts/ci/test-plan.json`
+7. `scripts/ci/assertion-registry.json`
+8. the current exact `main` SHA and current workflow state
 
 Reading is part of execution and is not optional documentation.
 
@@ -31,17 +33,39 @@ Canonical login:
 
 `node scripts/ci/agent-session.mjs login --session=<id> --agent=<id> --role=<role> --rca=<RCA-ID> --scope=<scope>`
 
+When a predecessor handoff exists, the agent MUST continue it. The canonical continuation login flag is exactly:
+
+`--from-session=<previous-session>`
+
+Canonical continuation login:
+
+`node scripts/ci/agent-session.mjs login --session=<new-id> --agent=<id> --role=<role> --from-session=<previous-session> ...`
+
+The first chain may use explicit `--bootstrap=true` only when no predecessor exists.
+
+## COORDINATION CONTROL PLANE
+
+Before implementation work, create or claim a task through the shared control plane:
+
+`node scripts/ci/agent-coordination.mjs task-create ...`
+
+`node scripts/ci/agent-coordination.mjs task-claim --task=<id> --session=<id> --agent=<id>`
+
+The control plane rejects overlapping active RCA or mutable scope ownership. Dependencies must be complete before a task is claimable.
+
+A claimed task is not complete until its exact exit SHA, evidence, findings, remaining work, and RCA state are recorded.
+
 ## OWNERSHIP
 
 Each active agent MUST declare its RCA and file/contract scope. One active owner per RCA and one active owner per mutable scope unless an explicit handoff transfers ownership.
 
-If `main` moves, refresh the exact SHA before continuing.
+If `main` moves, refresh the exact SHA before continuing. Stale task packets or sessions must not be used as current repository state.
 
 ## EXECUTION LEDGER
 
 Meaningful actions follow:
 
-`READ → PLAN → LOCK → CHANGE → VERIFY → HANDOFF`
+`READ → INGEST HANDOFF → PLAN → LOCK → CHANGE → VERIFY → HANDOFF`
 
 The session record MUST preserve actual commands, scope, SHA lineage, evidence, and findings.
 
@@ -57,9 +81,17 @@ Every completed session MUST logout using:
 
 `node scripts/ci/agent-session.mjs logout --session=<id> --agent=<id> --status=VERIFIED|BLOCKED`
 
-and record:
+Logout automatically writes:
 
-`exitSha, changedFiles, commands, evidence, findings, rcaClosed, openRcas, handoff`.
+`diagnostics/agents/handoffs/<session-id>.json`
+
+The report MUST preserve:
+
+`completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent`
+
+along with `exitSha`, changed files, commands, evidence, findings, RCA closure/open state.
+
+The next agent MUST ingest the predecessor report before executing inherited work. Handoff reports are continuity input, not certification evidence.
 
 ## Repository test contract
 
@@ -81,4 +113,4 @@ The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 - GREEN is valid only when every required engine passes, evidence is valid and complete, Exact SHA matches, and independent root causes are zero. Skips, masked failures, stale evidence and partial passes are not Green.
 - Never claim a green release without fresh exact-SHA CI evidence.
 
-**MANDATORY ENTRY TITLE: READ FIRST → LOGIN → LOCK SCOPE → EXECUTE → VERIFY → HANDOFF.**
+**MANDATORY ENTRY TITLE: READ FIRST → INGEST HANDOFF → PLAN → LOCK SCOPE → EXECUTE → VERIFY → HANDOFF.**

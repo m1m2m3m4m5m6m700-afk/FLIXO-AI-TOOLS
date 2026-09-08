@@ -68,9 +68,10 @@ try {
   execFileSync(process.execPath, ['scripts/ci/validate-playwright-surface.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/validate-certification-surface.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/validate-agent-protocol.mjs'], { stdio: 'inherit' });
+  execFileSync(process.execPath, ['scripts/ci/validate-agent-coordination.mjs'], { stdio: 'inherit' });
 } catch {
-  console.error('CI contract failed: browser/certification/agent-protocol surface validation failed.');
+  console.error('CI contract failed: browser/certification/agent-protocol/coordination surface validation failed.');
   process.exit(1);
 }
 
-console.log('CI contract passed: one execution graph, centralized result-state reduction, explicit evidence provenance, minimal SHA checkout, one FAST engine, one DEEP engine, one fail-closed certification gate, and mandatory multi-agent protocol.');
+console.log('CI contract passed: one execution graph, centralized result-state reduction, explicit evidence provenance, minimal SHA checkout, one FAST engine, one DEEP engine, one fail-closed certification gate, and mandatory multi-agent coordination protocol.');
