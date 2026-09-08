@@ -10,7 +10,7 @@ const indexSource = readFileSync('index.html', 'utf8');
 const manifestSource = readFileSync('public/manifest.webmanifest', 'utf8');
 const localizedToolRouteSource = readFileSync('src/routes/localized-tool.tsx', 'utf8');
 const toolSeoSource = readFileSync('src/lib/seo/tool-seo.ts', 'utf8');
-const toolsSource = readFileSync('src/config/tools.ts', 'utf8');
+const toolRegistrySource = readFileSync('src/config/tool-definitions/image.ts', 'utf8');
 
 const expectedLocales = i18nSource.match(/export const LOCALES = \[([\s\S]*?)\] as const/)
   ?.[1]
@@ -18,8 +18,8 @@ const expectedLocales = i18nSource.match(/export const LOCALES = \[([\s\S]*?)\] 
   ?.map((value) => value.slice(1, -1)) ?? [];
 if (expectedLocales.length !== 20) throw new Error(`Indexing gate locale registry expectation must contain exactly 20 locales, found ${expectedLocales.length}.`);
 
-const toolIds = [...toolsSource.matchAll(/\bid:\s*'([^']+)'/g)].map((match) => match[1]);
-if (toolIds.length === 0) throw new Error('No tool ids discovered in canonical tool registry.');
+const toolIds = [...toolRegistrySource.matchAll(/\bid:\s*'([^']+)'/g)].map((match) => match[1]);
+if (toolIds.length !== 22) throw new Error(`Canonical image tool registry must contain exactly 22 tools, found ${toolIds.length}.`);
 
 if (!originSource.includes('export function getCanonicalSiteOrigin()')) throw new Error('Canonical origin contract is missing getCanonicalSiteOrigin().');
 if (!originSource.includes("if (origin.protocol !== 'https:')")) throw new Error('Canonical origin contract must enforce HTTPS.');
@@ -70,4 +70,4 @@ if (!rootSource.includes("{ name: 'description', content:")) throw new Error('Ro
 if (!manifestSource.includes('"start_url": "/en"')) throw new Error('Manifest start_url must resolve to a localized public route.');
 if (!manifestSource.includes('"src": "/flixo-logo.svg"')) throw new Error('Manifest must use the canonical FLIXO logo asset.');
 
-console.log(`Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical tools, localized tool canonical/hreflang symmetry, canonical HTTPS origin, and robots/sitemap contracts are aligned.`);
+console.log(`Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical image tools, localized tool canonical/hreflang symmetry, canonical HTTPS origin, and robots/sitemap contracts are aligned.`);
