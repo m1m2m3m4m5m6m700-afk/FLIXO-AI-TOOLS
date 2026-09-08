@@ -1,12 +1,12 @@
 name: FLIXO CI — Failure Intelligence Shadow
 
+# Shadow failure-classification validation is retained for manual forensic comparison only.
+# Canonical CI/failure-intelligence pipeline owns automated PR/main execution.
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-ci-failure-${{ github.event.pull_request.number || github.ref }}
+  group: flixo-ci-failure-manual
   cancel-in-progress: true
 
 permissions:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   failure-intelligence-shadow:
-    name: CI Failure Intelligence Shadow
+    name: CI Failure Intelligence Shadow (manual diagnostic)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
