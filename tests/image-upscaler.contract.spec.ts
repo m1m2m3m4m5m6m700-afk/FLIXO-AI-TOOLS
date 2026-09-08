@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 
 test('image-upscaler: rejects corrupt image payload before producing a result', async ({ page }) => {
   await page.goto('/en/image-upscaler');
