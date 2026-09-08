@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/runtime-evidence';
 import { PNG, uploadFixture } from './helpers/image-tool-fixture';
 
 test.describe('Pix Studio', () => {
