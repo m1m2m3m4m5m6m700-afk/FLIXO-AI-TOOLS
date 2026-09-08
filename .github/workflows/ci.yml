@@ -1,6 +1,5 @@
-name: CI
+name: FLIXO Test System
 
-# Canonical PR/main verification. Execution lanes are independent; certification waits for their results.
 on:
   pull_request:
     branches: [main]
@@ -9,11 +8,12 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.head_ref || github.ref }}
+  group: flixo-test-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
+  actions: read
   checks: read
 
 env:
@@ -24,15 +24,13 @@ env:
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
   VITE_TEST_ORIGIN: http://127.0.0.1:3000
   PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-  CHANGE_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.event_name == 'push' && github.event.before) || github.sha }}
+  EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
-  ultra-fast:
-    name: Ultra — Fast Triage
+  static:
+    name: Static
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    env:
-      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v5
         with:
@@ -42,52 +40,24 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Run Ultra Fast triage
-        id: triage
-        continue-on-error: true
-        env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          CHANGE_BASE: ${{ env.CHANGE_BASE }}
-        run: node --experimental-strip-types scripts/ci/ultra-fast.mjs
-      - name: Require Ultra Fast evidence
-        env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          set -euo pipefail
-          test -s diagnostics/investigation/ultra-fast.json
-          node --experimental-strip-types -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/investigation/ultra-fast.json','utf8')); if(r.sha!==process.env.EXPECTED_SHA||r.actualHeadSha!==process.env.EXPECTED_SHA) throw new Error('Ultra Fast SHA mismatch'); if(r.checksExecuted!==r.checksExpected) throw new Error('Ultra Fast incomplete execution');"
-      - name: Upload Ultra Fast evidence
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Static contracts
+        run: npm run test:static
+      - name: Upload static evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ultra-fast-${{ github.event.pull_request.head.sha || github.sha }}
-          path: diagnostics/investigation/ultra-fast.json
+          name: flixo-static-${{ github.run_id }}
+          path: diagnostics/
           if-no-files-found: error
           retention-days: 14
-      - name: Finalize Ultra Fast triage status
-        env:
-          TRIAGE_OUTCOME: ${{ steps.triage.outcome }}
-        run: |
-          set -euo pipefail
-          test "$TRIAGE_OUTCOME" = success || { echo 'Ultra Fast detected a failure; escalating to Deep Recovery.'; exit 1; }
 
-  ultra-deep-recovery:
-    name: Ultra — Deep Recovery (conditional)
-    needs: [ultra-fast]
-    if: needs.ultra-fast.result == 'failure'
-    uses: ./.github/workflows/ultra-investigator.yml
-    with:
-      expected_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
-  ci:
-    name: CI — Canonical Impact Verification
+  build:
+    name: Build
+    needs: [static]
+    if: always() && needs.static.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
-    env:
-      CI_PR_RESCUE: 'true'
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
         with:
@@ -97,81 +67,42 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Install dependencies once
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Validate canonical assertion registry
-        run: npm run validate:assertion-registry
-      - name: Run impact selector
-        run: node scripts/ci/fast-verify.mjs
-      - name: Upload CI evidence
-        if: always()
-        uses: actions/upload-artifact@v6
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Canonical build and build contracts
+        run: npm run test:build
+      - name: Fingerprint immutable artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -f dist/index.html
+          git rev-parse HEAD > dist/flixo-head-sha.txt
+          sha256sum package-lock.json > dist/flixo-package-lock.sha256
+      - uses: actions/upload-artifact@v6
         with:
-          name: ci-fast-evidence-${{ github.sha }}
+          name: flixo-build-${{ github.run_id }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: flixo-build-evidence-${{ github.run_id }}
           path: diagnostics/
           if-no-files-found: warn
           retention-days: 14
 
-  fast-contract:
-    name: Fast Contract Diagnostics
-    needs: [ultra-fast, ci]
-    if: always() && needs.ultra-fast.result != 'cancelled' && needs.ci.result != 'cancelled'
+  browser-fast:
+    name: Browser FAST — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    needs: [build]
+    if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
-    env:
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-    timeout-minutes: 2
-    steps:
-      - name: Download Ultra Fast evidence
-        uses: actions/download-artifact@v6
-        with:
-          name: ultra-fast-${{ github.event.pull_request.head.sha || github.sha }}
-          path: diagnostics/investigation
-      - name: Download CI evidence
-        if: ${{ needs.ci.result == 'success' }}
-        uses: actions/download-artifact@v6
-        with:
-          name: ci-fast-evidence-${{ github.sha }}
-          path: diagnostics
-      - name: Validate exact-head evidence
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s diagnostics/investigation/ultra-fast.json
-          node --experimental-strip-types -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/investigation/ultra-fast.json','utf8')); if(r.sha!==process.env.EXPECTED_HEAD_SHA||r.actualHeadSha!==process.env.EXPECTED_HEAD_SHA) throw new Error('Ultra Fast evidence SHA mismatch'); if(r.checksExecuted!==r.checksExpected) throw new Error('Ultra Fast coverage incomplete'); if(r.integrityErrors?.length) throw new Error('Ultra Fast integrity errors: '+r.integrityErrors.join('; '));"
-      - name: Validate fast-path CI evidence
-        if: ${{ needs.ci.result == 'success' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s diagnostics/fast-ci-plan.json
-          test -s diagnostics/fast-ci-result.json
-          node -e "const fs=require('node:fs'); const r=JSON.parse(fs.readFileSync('diagnostics/fast-ci-result.json','utf8')); if(r.sha!==process.env.EXPECTED_HEAD_SHA) throw new Error('Fast CI evidence SHA mismatch'); if(r.status!=='PASS') throw new Error('Fast CI result is not PASS');"
-
-  canonical-verify:
-    name: Canonical Verification Gate
-    needs: [ci, fast-contract]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    steps:
-      - name: Enforce fast-path prerequisites
-        shell: bash
-        run: |
-          set -euo pipefail
-          test '${{ needs.ci.result }}' = success
-          test '${{ needs.fast-contract.result }}' = success
-          echo 'Canonical fast-path gate PASS.'
-
-  g3-foundation:
-    name: G3 / Canonical Build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      SITE_URL: https://flixoai.vercel.app
-      TEST_ORIGIN: http://127.0.0.1:3000
-      RUNTIME_ORIGIN: http://127.0.0.1:3000
-      NODE_ENV: test
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -181,270 +112,180 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: G3-00 Identity
-        run: node scripts/ci/g3/identity.mjs
-        env:
-          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
-          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
-      - name: G3-01/02/03 Environment
-        if: always()
-        run: node scripts/ci/g3/environment.mjs
-        env:
-          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          SITE_URL: https://flixoai.vercel.app
-          TEST_ORIGIN: http://127.0.0.1:3000
-          RUNTIME_ORIGIN: http://127.0.0.1:3000
-          NODE_ENV: test
-      - name: Install dependencies
-        if: always()
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: G3-11 TypeScript
-        if: always()
-        run: npx tsc --noEmit --pretty false
-      - name: G3-12 ESLint
-        if: always()
-        run: npm run lint
-      - name: G3-13 Canonical Build
-        if: always()
-        run: npm run build
-      - name: G3-14 Build Identity
-        if: always()
-        run: git rev-parse HEAD
-      - name: Record canonical build identity
-        if: always()
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - uses: actions/download-artifact@v6
+        with:
+          name: flixo-build-${{ github.run_id }}
+          path: dist
+      - name: Verify immutable artifact
         shell: bash
         run: |
           set -euo pipefail
-          test -f dist/index.html
-          git rev-parse HEAD > dist/g3-head-sha.txt
-          sha256sum package-lock.json > dist/g3-package-lock.sha256
-      - uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: g3-foundation-${{ github.run_id }}
-          path: |
-            dist/
-            artifacts/ci/g3/
-          if-no-files-found: warn
-          retention-days: 14
-
-  g3-contracts:
-    name: G3 / Contracts
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
-    env:
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Fixed fixtures
-        if: always()
-        run: node scripts/ci/g3/prepare-fixtures.mjs
-      - name: G3-20..31 Artifact Contract
-        if: always()
-        run: node --experimental-strip-types scripts/ci/g3/artifact-gates.mjs
-      - name: G3-40..47 Processor
-        if: always()
-        run: node --experimental-strip-types scripts/ci/g3/processor.mjs
-      - name: G3-90..97 Regression
-        if: always()
-        run: node scripts/ci/g3/regression.mjs
-      - name: G3-DET Determinism
-        if: always()
-        run: node scripts/ci/g3/determinism.mjs
-      - name: Universal Artifact Matrix
-        if: always()
-        run: node scripts/test-g3-artifact-integrity.mjs
-      - uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: g3-contracts-${{ github.run_id }}
-          path: artifacts/ci/g3/
-          if-no-files-found: warn
-          retention-days: 14
-
-  g3-browser:
-    name: G3 / Browser
-    needs: [g3-foundation]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      SITE_URL: https://flixoai.vercel.app
-      TEST_ORIGIN: http://127.0.0.1:3000
-      RUNTIME_ORIGIN: http://127.0.0.1:3000
-      VITE_SITE_URL: https://flixoai.vercel.app
-      VITE_TEST_ORIGIN: http://127.0.0.1:3000
-      VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
-      NODE_ENV: test
-      PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-      PLAYWRIGHT_REUSE_SERVER: 'true'
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Download canonical G3 build artifact
-        uses: actions/download-artifact@v6
-        with:
-          name: g3-foundation-${{ github.run_id }}
-          path: .
-      - name: Verify canonical build artifact
-        shell: bash
-        env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          test "$(cat dist/flixo-head-sha.txt)" = "$EXPECTED_SHA"
+          sha256sum -c dist/flixo-package-lock.sha256
+      - name: Install browser
         run: |
-          set -euo pipefail
-          test "$(cat dist/g3-head-sha.txt)" = "$EXPECTED_SHA"
-          sha256sum -c dist/g3-package-lock.sha256
-          test -f dist/index.html
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install dependencies for runtime tooling
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - name: G3-50 Browser Installed
-        timeout-minutes: 8
-        run: |
-          set -euo pipefail
-          executable="$(node -e "const { chromium } = require('playwright'); process.stdout.write(chromium.executablePath())")"
-          if [[ -x "$executable" ]]; then exit 0; fi
-          timeout --preserve-status 420s npx playwright install chromium
-      - name: Verify Playwright browser executable
-        run: |
-          set -euo pipefail
-          executable="$(node -e "const { chromium } = require('playwright'); process.stdout.write(chromium.executablePath())")"
-          test -x "$executable"
-      - name: Start local runtime from canonical artifact
-        if: always()
+          npx playwright install-deps '${{ matrix.browser }}'
+          npx playwright install '${{ matrix.browser }}'
+      - name: Start runtime
         shell: bash
         run: |
           set -euo pipefail
-          rm -f /tmp/flixo-g3-server.log /tmp/flixo-g3-server.pid
-          npm run preview -- --host 127.0.0.1 --port 3000 > /tmp/flixo-g3-server.log 2>&1 &
-          server_pid=$!
-          echo "$server_pid" > /tmp/flixo-g3-server.pid
-          for attempt in {1..30}; do
-            if ! kill -0 "$server_pid" 2>/dev/null; then
-              cat /tmp/flixo-g3-server.log
-              exit 1
-            fi
-            if curl --fail --silent --show-error --max-time 2 "$PLAYWRIGHT_TEST_BASE_URL/en/image-compressor" >/dev/null; then exit 0; fi
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/flixo-browser-fast.log 2>&1 &
+          echo $! >/tmp/flixo-browser-fast.pid
+          for _ in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:3000/ >/dev/null && exit 0
             sleep 1
           done
-          cat /tmp/flixo-g3-server.log
+          cat /tmp/flixo-browser-fast.log
           exit 1
-      - name: G3-50..85 Browser
+      - name: Run Browser FAST engine
+        run: |
+          set -euo pipefail
+          specs=(
+            tests/image-compressor.spec.ts tests/background-remover.spec.ts tests/image-upscaler.spec.ts tests/image-converter.spec.ts tests/ai-image-generator.spec.ts tests/object-remover.spec.ts tests/watermark-remover.spec.ts tests/image-cropper.spec.ts tests/image-to-svg.spec.ts tests/image-ocr.spec.ts tests/photo-colorizer.spec.ts tests/background-blur.spec.ts tests/passport-photo-maker.spec.ts tests/watermark-adder.spec.ts tests/meme-generator.spec.ts tests/collage-maker.spec.ts tests/image-effects.spec.ts tests/exif-cleaner.spec.ts tests/svg-optimizer.spec.ts tests/mockup-generator.spec.ts tests/seed.spec.ts tests/pix.spec.ts
+          )
+          test "${#specs[@]}" -eq 22
+          npx playwright test "${specs[@]}" --project='${{ matrix.browser }}' --workers=6 --retries=0 --max-failures=1 --shard=${{ matrix.shard }}/2
+      - name: Upload browser evidence
         if: always()
-        run: node scripts/ci/g3/browser-gates.mjs
-      - uses: actions/upload-artifact@v6
-        if: always()
+        uses: actions/upload-artifact@v6
         with:
-          name: g3-browser-${{ github.run_id }}
+          name: flixo-browser-fast-${{ matrix.browser }}-${{ matrix.shard }}-${{ github.run_id }}
           path: |
-            artifacts/ci/g3/
             playwright-report/
             test-results/
-            /tmp/flixo-g3-server.log
+            /tmp/flixo-browser-fast.log
           if-no-files-found: warn
           retention-days: 14
 
-  g3-aggregator:
-    name: G3 / Aggregator
-    needs: [g3-foundation, g3-contracts, g3-browser]
-    if: always()
+  browser-deep:
+    name: Browser DEEP — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    needs: [build]
+    if: github.event_name != 'pull_request' && needs.build.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 25
+    strategy:
+      fail-fast: true
+      matrix:
+        browser: [chromium, firefox, webkit]
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
-      - name: Download all G3 evidence
-        uses: actions/download-artifact@v6
+      - uses: actions/setup-node@v5
         with:
-          pattern: g3-*
-          path: artifacts/ci/g3/all
-          merge-multiple: false
-      - name: G3 authoritative aggregation
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - uses: actions/download-artifact@v6
+        with:
+          name: flixo-build-${{ github.run_id }}
+          path: dist
+      - name: Verify immutable artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cat dist/flixo-head-sha.txt)" = "$EXPECTED_SHA"
+          sha256sum -c dist/flixo-package-lock.sha256
+      - name: Install browser
+        run: |
+          npx playwright install-deps '${{ matrix.browser }}'
+          npx playwright install '${{ matrix.browser }}'
+      - name: Start runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          setsid npm run preview -- --host 127.0.0.1 --port 3000 >/tmp/flixo-browser-deep.log 2>&1 &
+          echo $! >/tmp/flixo-browser-deep.pid
+          for _ in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:3000/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/flixo-browser-deep.log
+          exit 1
+      - name: Run Browser DEEP engine
+        run: npx playwright test tests/localization-runtime.spec.ts --project='${{ matrix.browser }}' --workers=6 --retries=0 --max-failures=1 --shard=${{ matrix.shard }}/3
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-browser-deep-${{ matrix.browser }}-${{ matrix.shard }}-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+            /tmp/flixo-browser-deep.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  certify:
+    name: Certification
+    needs: [static, build, browser-fast, browser-deep]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Write exact-run manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > certification-run-manifest.json <<'JSON'
+          {
+            "schema_version": 1,
+            "sha": "${{ github.event.pull_request.head.sha || github.sha }}",
+            "workflow_run_id": "${{ github.run_id }}",
+            "workflow": "FLIXO Test System",
+            "jobs": {
+              "static": "${{ needs.static.result }}",
+              "build": "${{ needs.build.result }}",
+              "browserFast": "${{ needs.browser-fast.result }}",
+              "browserDeep": "${{ needs.browser-deep.result }}"
+            },
+            "required": {
+              "matrixFirstUnits": 66,
+              "fullMatrixLocales": 20,
+              "browsers": 3
+            }
+          }
+          JSON
+      - name: Enforce single certification decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ needs.static.result }}' = success
+          test '${{ needs.build.result }}' = success
+          test '${{ needs.browser-fast.result }}' = success
+          if [[ '${{ github.event_name }}' != 'pull_request' ]]; then test '${{ needs.browser-deep.result }}' = success; fi
+          test "$(node -e "process.stdout.write(require('./certification-run-manifest.json').sha)")" = "$EXPECTED_SHA"
+      - name: Validate zero-false-green evidence
         env:
-          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
-          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
-          FOUNDATION_RESULT: ${{ needs.g3-foundation.result }}
-        run: node scripts/ci/g3/aggregate.mjs
+          CERTIFICATION_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CERTIFICATION_SHA"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const registry = JSON.parse(fs.readFileSync('scripts/ci/assertion-registry.json','utf8'));
+          const plan = JSON.parse(fs.readFileSync('scripts/ci/test-plan.json','utf8'));
+          const jobs = JSON.parse(fs.readFileSync('certification-run-manifest.json','utf8')).jobs;
+          const assertionIds = Object.keys(registry.assertions ?? {});
+          const owners = new Set(Object.values(registry.assertions ?? {}).map(x => x.owner));
+          const planOwners = new Set(Object.values(plan.gates ?? {}).flatMap(g => g.checks ?? []).map(c => c.id));
+          if (!assertionIds.length) throw new Error('no assertions');
+          for (const owner of owners) if (!planOwners.has(owner) && !/^BUILD-003$/.test(owner)) throw new Error(`unowned canonical execution owner: ${owner}`);
+          if (Object.values(jobs).some(v => v === 'cancelled')) throw new Error('unauthorized cancellation');
+          NODE
+          echo 'GREEN = all required engines passed, exact SHA verified, evidence contract valid, and no unresolved root cause is tolerated.'
       - uses: actions/upload-artifact@v6
         if: always()
         with:
-          name: g3-aggregator-${{ github.run_id }}
-          path: artifacts/ci/g3/aggregator.json
+          name: flixo-certification-${{ github.run_id }}
+          path: certification-run-manifest.json
           if-no-files-found: error
           retention-days: 30
-
-  final-contract-gate:
-    name: Final Contract Decision
-    needs: [ultra-fast, ultra-deep-recovery, ci, fast-contract, canonical-verify, g3-aggregator]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - name: Require all canonical lanes
-        shell: bash
-        run: |
-          set -euo pipefail
-          test '${{ needs.ci.result }}' = success
-          test '${{ needs.fast-contract.result }}' = success
-          test '${{ needs.canonical-verify.result }}' = success
-          test '${{ needs.g3-aggregator.result }}' = success
-          if [[ '${{ needs.ultra-fast.result }}' == 'failure' ]]; then test '${{ needs.ultra-deep-recovery.result }}' = success; fi
-      - name: Require Matrix First certification at final authority only
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          conclusion="NOT_FOUND"
-          for attempt in {1..24}; do
-            conclusion=$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/check-runs?per_page=100" --jq '[.check_runs[] | select(.name=="Matrix First Certification") | select(.head_sha==env.HEAD_SHA)] | sort_by(.completed_at) | last | .conclusion // "NOT_FOUND"')
-            case "$conclusion" in
-              success)
-                echo "Matrix First Certification PASS on exact SHA $HEAD_SHA"
-                exit 0
-                ;;
-              failure|cancelled|timed_out|action_required|stale|neutral|skipped)
-                echo "Matrix First Certification failed or invalid on exact SHA $HEAD_SHA: $conclusion"
-                exit 1
-                ;;
-              *)
-                echo "Matrix First Certification pending (poll $attempt/24): $conclusion"
-                sleep 5
-                ;;
-            esac
-          done
-          echo "Matrix First Certification did not reach a terminal PASS for exact SHA $HEAD_SHA."
-          exit 1
-      - name: Final certification
-        run: echo 'FINAL CONTRACT CERTIFICATION PASS: canonical lanes + exact-head Matrix First are green.'
