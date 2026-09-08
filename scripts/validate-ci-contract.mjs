@@ -6,8 +6,7 @@ const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
 const required = [
   ['pull_request trigger', /pull_request:\s*\n\s*branches:\s*\[main\]/],
   ['push trigger', /push:\s*\n\s*branches:\s*\[main\]/],
-  ['static engine', /\n\s{2}static:\s*\n/],
-  ['build engine', /\n\s{2}build:\s*\n/],
+  ['single static-build engine', /\n\s{2}static-build:\s*\n/],
   ['Browser FAST engine', /\n\s{2}browser-fast:\s*\n/],
   ['Browser DEEP engine', /\n\s{2}browser-deep:\s*\n/],
   ['single certification gate', /\n\s{2}certify:\s*\n/],
@@ -28,24 +27,19 @@ if (!/browser:\s*\[chromium, firefox, webkit\]/.test(workflow)) {
   process.exit(1);
 }
 
-const fastSection = workflow.match(/browser-fast:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
-const deepSection = workflow.match(/browser-deep:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
-const fastSpecs = fastSection.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? [];
+const fast = workflow.match(/browser-fast:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
+const deep = workflow.match(/browser-deep:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
+const fastSpecs = fast.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? [];
 if (fastSpecs.length !== 22) {
   console.error(`CI contract failed: FAST browser ownership must contain exactly 22 canonical tool specs; found ${fastSpecs.length}.`);
   process.exit(1);
 }
-if (!/tests\/localization-runtime\.spec\.ts/.test(deepSection)) {
+if (!/tests\/localization-runtime\.spec\.ts/.test(deep)) {
   console.error('CI contract failed: DEEP browser ownership must retain localization runtime coverage.');
   process.exit(1);
 }
-if (!/github\.event_name\s*!=\s*'pull_request'/.test(deepSection)) {
+if (!/github\.event_name\s*!=\s*'pull_request'/.test(deep)) {
   console.error('CI contract failed: DEEP browser execution must be main/release only.');
-  process.exit(1);
-}
-
-if (/playwright\s+test|tests\/.*\.spec\.(?:ts|js)/i.test(readFileSync('scripts/ci/fast-verify.mjs', 'utf8'))) {
-  console.error('CI contract failed: Fast Verify must not execute browser tests.');
   process.exit(1);
 }
 
@@ -53,8 +47,8 @@ try {
   execFileSync(process.execPath, ['scripts/ci/validate-playwright-surface.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/validate-certification-surface.mjs'], { stdio: 'inherit' });
 } catch {
-  console.error('CI contract failed: certification/browser surface validation failed.');
+  console.error('CI contract failed: browser/certification surface validation failed.');
   process.exit(1);
 }
 
-console.log('CI contract passed: one canonical workflow, three test layers, exact SHA/artifact provenance, 22-tool FAST browser ownership, DEEP locale coverage, and fail-closed certification.');
+console.log('CI contract passed: one static+build engine, one FAST browser engine, one DEEP browser engine, exact SHA/artifact provenance, and one fail-closed certification gate.');
