@@ -48,38 +48,59 @@ for (const relative of diagnosticAllowlist) {
   }
 }
 
-const matrix = fs.readFileSync(path.join(WORKFLOW_DIR, 'matrix-first.yml'), 'utf8');
 const ci = fs.readFileSync(path.join(WORKFLOW_DIR, 'ci.yml'), 'utf8');
+const matrix = fs.readFileSync(path.join(WORKFLOW_DIR, 'matrix-first.yml'), 'utf8');
 const fullMatrix = fs.readFileSync(path.join(WORKFLOW_DIR, 'full-matrix-parallel.yml'), 'utf8');
 const authorityWorkflow = fs.readFileSync(path.join(WORKFLOW_DIR, 'certification-authority.yml'), 'utf8');
 const fastVerify = fs.readFileSync(path.join(ROOT, 'scripts', 'ci', 'fast-verify.mjs'), 'utf8');
 const graph = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'ci', 'impact-dependency-graph.json'), 'utf8'));
 
-if (!/browser:\s*\[chromium, firefox, webkit\]/.test(matrix)) errors.push('Matrix First must own chromium/firefox/webkit');
-if ((matrix.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? []).length !== 22) errors.push('Matrix First must retain exactly 22 canonical tool specs');
-if (!/Run impact selector/.test(ci) || !/scripts\/ci\/fast-verify\.mjs/.test(ci)) errors.push('CI must delegate impact execution to Fast Verify');
-if (/playwright\s+test|tests\/.*\.spec\.(?:ts|js)/i.test(fastVerify)) errors.push('Fast Verify must not execute Playwright directly');
-if (!/browser:\s*\[chromium, firefox, webkit\]/.test(fullMatrix)) errors.push('Full Matrix must retain all three browsers');
-if (!authorityWorkflow.includes('global-evidence-authority.mjs') || !authorityWorkflow.includes('gh run download')) errors.push('Global Certification Authority must collect canonical workflow artifacts and feed the Global Evidence Authority');
+if (!/name:\s*FLIXO Test System/.test(ci)) errors.push('canonical workflow name drift');
+if (!/\n\s+static:\s*\n/.test(ci)) errors.push('static engine missing');
+if (!/\n\s+build:\s*\n/.test(ci)) errors.push('build engine missing');
+if (!/\n\s+browser-fast:\s*\n/.test(ci)) errors.push('browser FAST engine missing');
+if (!/\n\s+browser-deep:\s*\n/.test(ci)) errors.push('browser DEEP engine missing');
+if (!/\n\s+certify:\s*\n/.test(ci)) errors.push('single certification gate missing');
+if (!/browser:\s*\[chromium, firefox, webkit\]/.test(ci)) errors.push('browser engine must own chromium/firefox/webkit');
+if ((ci.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? []).length !== 22) errors.push('FAST browser engine must retain exactly 22 canonical tool specs');
+if (!/tests\/localization-runtime\.spec\.ts/.test(ci)) errors.push('DEEP browser engine must retain localization runtime coverage');
+if (!/github\.event_name\s*!==\s*'pull_request'/.test(ci)) errors.push('DEEP browser engine must be main/release only');
+if (!/flixo-head-sha\.txt/.test(ci) || !/flixo-package-lock\.sha256/.test(ci)) errors.push('immutable build identity missing');
+if (!/download-artifact@v6[\s\S]{0,400}flixo-build-/.test(ci)) errors.push('browser must consume canonical build artifact');
+if (/playwright\s+test|tests\/.*\.spec\.(?:ts|js)/i.test(fastVerify)) errors.push('Fast Verify must not execute browser tests');
+if (!/role:\s*'ORCHESTRATOR_ONLY'/.test(fs.readFileSync(path.join(ROOT, 'scripts', 'ci', 'ultra-fast.mjs'), 'utf8'))) errors.push('Ultra must remain orchestrator-only');
 if (graph.authority !== 'canonical-impact-dependency-graph') errors.push('Impact graph authority drift');
 if (graph.match?.unmappedPolicy !== 'ESCALATE_ALL_STATIC_BUILD') errors.push('Impact graph must fail closed on unmapped changes');
 
+if (/on:\s*\n\s+push:|on:\s*\n\s+pull_request:/s.test(matrix)) errors.push('retired Matrix First workflow must not auto-trigger');
+if (/on:\s*\n\s+push:|on:\s*\n\s+pull_request:/s.test(fullMatrix)) errors.push('retired Full Matrix workflow must not auto-trigger');
+if (/on:\s*\n\s+push:|on:\s*\n\s+pull_request:/s.test(authorityWorkflow)) errors.push('retired Certification Authority must not auto-trigger');
+
 const result = {
-  schema_version: 4,
+  schema_version: 5,
   status: errors.length ? 'FAIL' : 'PASS',
   workflowCount: workflows.length,
   originPolicy: policy,
+  architecture: {
+    automaticWorkflow: '.github/workflows/ci.yml',
+    engines: ['static', 'build', 'browser-fast', 'browser-deep', 'certify'],
+    browserFast: { tools: 22, browsers: 3, units: 66 },
+    browserDeep: { locales: 20, browsers: 3 },
+    certification: 'single fail-closed certify job',
+  },
   checks: {
-    forbiddenCertificationOrigin: errors.every((e) => !e.includes('certification workflow contains forbidden test sentinel')),
-    sentinelAllowlist: errors.every((e) => !e.includes('allowed only in explicit unit/contract sentinel contexts')),
-    diagnosticNonCertification: errors.every((e) => !e.includes('non-certification diagnostic must not be invoked')),
-    matrixOwnership: /browser:\s*\[chromium, firefox, webkit\]/.test(matrix),
-    matrixToolCount: (matrix.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? []).length,
+    automaticWorkflow: certificationWorkflowSet.has('.github/workflows/ci.yml'),
+    staticEngine: /\n\s+static:\s*\n/.test(ci),
+    buildEngine: /\n\s+build:\s*\n/.test(ci),
+    browserFastEngine: /\n\s+browser-fast:\s*\n/.test(ci),
+    browserDeepEngine: /\n\s+browser-deep:\s*\n/.test(ci),
+    certificationGate: /\n\s+certify:\s*\n/.test(ci),
+    fastToolCount: (ci.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? []).length,
+    fastBrowserCount: /browser:\s*\[chromium, firefox, webkit\]/.test(ci),
+    deepLocaleOwner: /tests\/localization-runtime\.spec\.ts/.test(ci),
+    immutableArtifact: /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci),
     fastVerifyNoBrowserExecution: !/playwright\s+test|tests\/.*\.spec\.(?:ts|js)/i.test(fastVerify),
-    fullMatrixOwnership: /browser:\s*\[chromium, firefox, webkit\]/.test(fullMatrix),
-    globalEvidenceAuthority: authorityWorkflow.includes('global-evidence-authority.mjs') && authorityWorkflow.includes('gh run download'),
     impactGraphAuthority: graph.authority,
-    impactGraphUnmappedPolicy: graph.match?.unmappedPolicy,
   },
   errors,
 };
