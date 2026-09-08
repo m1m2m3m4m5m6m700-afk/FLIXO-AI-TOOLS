@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "authority": "canonical-impact-dependency-graph",
+  "description": "Deterministic changed-file -> source dependency -> assertion -> owner -> gate mapping. Unmapped changes fail closed by escalating to all static/build owners; browser coverage remains owned by Matrix First.",
+  "match": {
+    "mode": "prefix-or-exact",
+    "unmappedPolicy": "ESCALATE_ALL_STATIC_BUILD",
+    "dependencyClosure": "TRANSITIVE"
+  },
+  "sources": [
+    {"id":"SRC-CI","paths":[".github/workflows/","scripts/ci/"],"assertions":["ASSERT-CI-CONTRACT-001","ASSERT-ASSERTION-REGISTRY-001","ASSERT-PLAYWRIGHT-SURFACE-001"],"requiresBuild":false},
+    {"id":"SRC-DEPENDENCY","paths":["package.json","package-lock.json","npm-shrinkwrap.json",".nvmrc","vite.config.","playwright.config.","tsconfig"],"assertions":["ASSERT-TYPEGRAPH-001","ASSERT-LINT-001","ASSERT-DEPENDENCY-001","ASSERT-DEPENDENCY-MANIFEST-001","ASSERT-BUILD-001","ASSERT-PERFORMANCE-001","ASSERT-BROWSER-CHROMIUM-001","ASSERT-BROWSER-FIREFOX-001","ASSERT-BROWSER-WEBKIT-001"],"requiresBuild":true},
+    {"id":"SRC-REGISTRY","paths":["src/config/tools","src/config/tool-definitions","src/config/tool-manifest","scripts/validate-tool-registry.mjs","scripts/validate-tool-manifest.mjs","scripts/ci/validate-architecture.mjs"],"assertions":["ASSERT-BASELINE-001","ASSERT-REGISTRY-001","ASSERT-MANIFEST-001","ASSERT-IMAGE-CLOSURE-001","ASSERT-BUILD-001","ASSERT-BROWSER-CHROMIUM-001","ASSERT-BROWSER-FIREFOX-001","ASSERT-BROWSER-WEBKIT-001"],"requiresBuild":true},
+    {"id":"SRC-ROUTING","paths":["src/lib/routing/","src/routes/","scripts/validate-router-registry.mjs","scripts/test-route-resolver.mjs"],"assertions":["ASSERT-ROUTER-001","ASSERT-BASELINE-001","ASSERT-UNIT-001","ASSERT-BUILD-001","ASSERT-BROWSER-CHROMIUM-001","ASSERT-BROWSER-FIREFOX-001","ASSERT-BROWSER-WEBKIT-001"],"requiresBuild":true},
+    {"id":"SRC-I18N","paths":["src/lib/i18n/","src/data/tool-ui-i18n.ts","src/data/quickflow-locales.ts","src/routes/home-page.tsx","src/routes/localized-tool-page.tsx","scripts/validate-i18n.mjs","scripts/validate-localization-core.mjs","scripts/validate-locale-contract.mjs","scripts/validate-home-localization.mjs","scripts/validate-effective-localization.mjs","scripts/validate-language-quality.mjs","scripts/validate-localization-complete.mjs","scripts/validate-locale-navigation.mjs"],"assertions":["ASSERT-I18N-001","ASSERT-I18N2-001","ASSERT-LOCALE-NAV-001","ASSERT-HOME-I18N-001","ASSERT-LOCALIZATION-COMPLETE-001","ASSERT-LANGUAGE-QUALITY-001","ASSERT-BUILD-001","ASSERT-BROWSER-CHROMIUM-001","ASSERT-BROWSER-FIREFOX-001","ASSERT-BROWSER-WEBKIT-001"],"requiresBuild":true},
+    {"id":"SRC-SEO","paths":["src/lib/seo/","src/lib/i18n/tool-seo-localization.ts","scripts/validate-seo.mjs","scripts/validate-indexing.mjs","scripts/validate-breadcrumb-seo.mjs","scripts/validate-site-origin.mjs","scripts/generate-seo.mjs","scripts/generate-sitemap.mjs","scripts/generate-robots.mjs","public/robots.txt","public/sitemap"],"assertions":["ASSERT-SEO-001","ASSERT-BREADCRUMB-SEO-001","ASSERT-INDEXING-001","ASSERT-SITE-ORIGIN-001","ASSERT-BUILD-001","ASSERT-BROWSER-CHROMIUM-001","ASSERT-BROWSER-FIREFOX-001","ASSERT-BROWSER-WEBKIT-001"],"requiresBuild":true},
+    {"id":"SRC-ARTIFACT","paths":["src/lib/contracts/","src/tools/","scripts/test-file-safety.mjs","scripts/test-output-integrity.mjs","scripts/test-svg-integrity.mjs","scripts/ci/g3/"],"assertions":["ASSERT-FILE-SAFETY-001","ASSERT-OUTPUT-001","ASSERT-SVG-001","ASSERT-BUILD-001","ASSERT-PERFORMANCE-001","ASSERT-BROWSER-CHROMIUM-001","ASSERT-BROWSER-FIREFOX-001","ASSERT-BROWSER-WEBKIT-001"],"requiresBuild":true},
+    {"id":"SRC-RELEASE","paths":["scripts/test-release-evidence.mjs","docs/","README.md","CHANGELOG.md","LICENSE"],"assertions":["ASSERT-RELEASE-EVIDENCE-001"],"requiresBuild":false},
+    {"id":"SRC-BASELINE","paths":["scripts/validate-baseline.mjs","scripts/validate-image-only-closure.mjs"],"assertions":["ASSERT-BASELINE-001","ASSERT-IMAGE-CLOSURE-001"],"requiresBuild":true},
+    {"id":"SRC-TESTS","paths":["tests/"],"assertions":["ASSERT-UNIT-001","ASSERT-I18N-001","ASSERT-I18N2-001","ASSERT-PLAYWRIGHT-SURFACE-001","ASSERT-FILE-SAFETY-001","ASSERT-OUTPUT-001","ASSERT-SVG-001","ASSERT-BROWSER-CHROMIUM-001","ASSERT-BROWSER-FIREFOX-001","ASSERT-BROWSER-WEBKIT-001"],"requiresBuild":true},
+    {"id":"SRC-PUBLIC-RUNTIME","paths":["src/","public/"],"assertions":["ASSERT-BROWSER-CHROMIUM-001","ASSERT-BROWSER-FIREFOX-001","ASSERT-BROWSER-WEBKIT-001","ASSERT-BUILD-001"],"requiresBuild":true}
+  ]
+}
