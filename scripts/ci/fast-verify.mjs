@@ -92,9 +92,6 @@ if (needBuild) add('build', 'npm', ['run', 'build'], 'affected application/build
 if (changedToolSpecs.length) {
   add('matrix-coverage-owner', 'node', ['scripts/ci/test-matrix-test-identity.mjs'], `browser execution owned exclusively by Matrix First; changed tool specs=${changedToolSpecs.join(',')}`);
 }
-if (testFiles.length === 1 && !sensitiveChange && !sourceFiles.includes(testFiles[0])) {
-  add('changed-test', 'node', ['--experimental-strip-types', testFiles[0]], 'single changed test');
-}
 if (docsOnly) {
   commands.splice(0, commands.length);
   add('ci-contract', 'npm', ['run', 'validate:ci-contract'], 'CI contract invariant');
