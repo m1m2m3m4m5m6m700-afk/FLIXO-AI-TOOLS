@@ -30,7 +30,7 @@
     "validate:localization-full": "node scripts/validate-localization-full.mjs",
     "validate:localization-complete": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-localization-complete.mjs",
     "verify:i18n": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-localization-complete.mjs --strict --report",
-    "validate:tool-registry": "npm run validate:tool-registry-contract",
+    "validate:tool-registry": "node scripts/validate-tool-registry-contract.mjs",
     "validate:tool-manifest": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-tool-manifest.mjs",
     "validate:baseline": "node scripts/validate-engineering-baseline.mjs",
     "validate:router-registry": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/validate-router-registry.mjs",
