@@ -24,6 +24,13 @@ if (!browser) throw new Error('Browser is required');
 if (!Number.isInteger(shard) || shard < 1) throw new Error(`Invalid shard: ${shard}`);
 if (!fs.existsSync(reportPath)) throw new Error(`Missing Playwright report: ${reportPath}`);
 
+const registry = JSON.parse(fs.readFileSync('scripts/ci/assertion-registry.json', 'utf8'));
+const canonicalBrowserImplementations = new Map();
+for (const [assertionId, entry] of Object.entries(registry.assertions ?? {})) {
+  if (entry?.implementation?.kind !== 'playwright-test') continue;
+  canonicalBrowserImplementations.set(`${entry.implementation.spec}::${entry.implementation.test}`, assertionId);
+}
+
 const expectedFastSpecs = [
   'tests/image-compressor.spec.ts', 'tests/background-remover.spec.ts', 'tests/image-upscaler.spec.ts',
   'tests/image-converter.spec.ts', 'tests/ai-image-generator.spec.ts', 'tests/object-remover.spec.ts',
@@ -34,7 +41,6 @@ const expectedFastSpecs = [
   'tests/svg-optimizer.spec.ts', 'tests/mockup-generator.spec.ts', 'tests/seed.spec.ts', 'tests/pix.spec.ts',
 ];
 const expectedDeepSpec = 'tests/localization-runtime.spec.ts';
-
 const normalize = (value) => String(value ?? '').replaceAll('\\', '/').replace(/^\.\//, '');
 const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
 if (!report || typeof report !== 'object' || !Array.isArray(report.suites)) throw new Error('Invalid Playwright JSON report');
@@ -54,15 +60,21 @@ const walkSuite = (suite, file = null, titlePath = []) => {
           : results.length && results.every((r) => r.status === 'passed')
             ? 'PASS'
             : 'NOT_EXECUTED';
+      const testTitle = test.title ?? null;
+      const assertionId = canonicalBrowserImplementations.get(`${specFile}::${testTitle}`) ?? null;
+      const executionKind = assertionId ? 'CANONICAL_ASSERTION' : 'SPEC_SURFACE';
+      const localeMatch = typeof testTitle === 'string' ? testTitle.match(/(?:—|-)\s+\/(?:([a-z]{2,3})(?:\/|$))/iu) : null;
       units.push({
-        executionUnitId: `${mode}:${browser}:${shard}:${specFile ?? '<unknown>'}:${test.testId ?? test.title}`,
-        assertionId: `ASSERT-BROWSER-${browser.toUpperCase()}-001`,
+        executionUnitId: `${mode}:${browser}:${shard}:${specFile ?? '<unknown>'}:${test.testId ?? testTitle}`,
+        assertionId,
+        executionKind,
         mode,
         browser,
         shard,
         spec: specFile,
-        test: test.title ?? null,
-        titlePath: [...nextTitlePath, test.title ?? null].filter(Boolean),
+        test: testTitle,
+        locale: localeMatch?.[1] ?? null,
+        titlePath: [...nextTitlePath, testTitle].filter(Boolean),
         status,
         attempts: results.map((r, index) => ({ attempt: index + 1, status: r.status, durationMs: r.duration ?? 0, errorCount: Array.isArray(r.errors) ? r.errors.length : 0 })),
         runId,
@@ -82,7 +94,7 @@ const statusCounts = Object.fromEntries(statusNames.map((state) => [state, 0]));
 for (const unit of units) statusCounts[unit.status] = (statusCounts[unit.status] ?? 0) + 1;
 
 const output = {
-  schema_version: 1,
+  schema_version: 2,
   evidenceClass: 'PRIMARY_EXECUTION',
   mode,
   browser,
@@ -96,7 +108,12 @@ const output = {
   unexpectedSpecs,
   executionUnitCount: units.length,
   statusCounts,
-  complete: unexpectedSpecs.length === 0 && units.length > 0 && statusCounts.NOT_EXECUTED === 0,
+  executionKinds: {
+    canonicalAssertions: units.filter((unit) => unit.executionKind === 'CANONICAL_ASSERTION').length,
+    specSurfaceUnits: units.filter((unit) => unit.executionKind === 'SPEC_SURFACE').length,
+  },
+  locales: [...new Set(units.map((unit) => unit.locale).filter(Boolean))].sort(),
+  complete: unexpectedSpecs.length === 0 && units.length > 0 && statusCounts.NOT_EXECUTED === 0 && statusCounts.FAIL === 0,
   units,
 };
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
