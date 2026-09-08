@@ -1,4 +1,4 @@
-import { expect, test } from '../fixtures/universal-runtime-evidence';
+import { expect, test } from './fixtures/universal-runtime-evidence';
 
 test('image-to-svg: rejects corrupt image payload before producing SVG', async ({ page }) => {
   await page.goto('/en/image-to-svg');
