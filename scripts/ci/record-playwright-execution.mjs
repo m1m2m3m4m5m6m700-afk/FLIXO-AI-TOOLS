@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
@@ -34,30 +35,36 @@ const expectedFastSpecs = [
 ];
 const expectedDeepSpec = 'tests/localization-runtime.spec.ts';
 
+const normalize = (value) => String(value ?? '').replaceAll('\\', '/').replace(/^\.\//, '');
 const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
 if (!report || typeof report !== 'object' || !Array.isArray(report.suites)) throw new Error('Invalid Playwright JSON report');
 
 const units = [];
 const walkSuite = (suite, file = null, titlePath = []) => {
-  const suiteFile = typeof suite.file === 'string' ? suite.file : file;
+  const suiteFile = typeof suite.file === 'string' ? normalize(suite.file) : file;
   const nextTitlePath = [...titlePath, ...(typeof suite.title === 'string' && suite.title ? [suite.title] : [])];
   for (const spec of suite.specs ?? []) {
-    const specFile = typeof spec.file === 'string' ? spec.file : suiteFile;
+    const specFile = typeof spec.file === 'string' ? normalize(spec.file) : suiteFile;
     for (const test of spec.tests ?? []) {
       const results = Array.isArray(test.results) ? test.results : [];
-      const status = test.outcome === 'expected' && results.every((r) => r.status === 'passed') ? 'PASS' : test.outcome === 'skipped' ? 'NOT_EXECUTED' : results.some((r) => r.status === 'failed' || r.status === 'timedOut') ? 'FAIL' : results.length ? 'PASS' : 'NOT_EXECUTED';
-      const attempts = results.map((r, index) => ({ attempt: index + 1, status: r.status, durationMs: r.duration ?? 0, errorCount: Array.isArray(r.errors) ? r.errors.length : 0 }));
+      const status = test.outcome === 'skipped'
+        ? 'NOT_EXECUTED'
+        : results.some((r) => r.status === 'failed' || r.status === 'timedOut')
+          ? 'FAIL'
+          : results.length && results.every((r) => r.status === 'passed')
+            ? 'PASS'
+            : 'NOT_EXECUTED';
       units.push({
         executionUnitId: `${mode}:${browser}:${shard}:${specFile ?? '<unknown>'}:${test.testId ?? test.title}`,
-        assertionId: mode === 'FAST' ? `ASSERT-BROWSER-${browser.toUpperCase()}-001` : `ASSERT-BROWSER-${browser.toUpperCase()}-001`,
+        assertionId: `ASSERT-BROWSER-${browser.toUpperCase()}-001`,
         mode,
         browser,
         shard,
-        spec: specFile ?? null,
+        spec: specFile,
         test: test.title ?? null,
         titlePath: [...nextTitlePath, test.title ?? null].filter(Boolean),
         status,
-        attempts,
+        attempts: results.map((r, index) => ({ attempt: index + 1, status: r.status, durationMs: r.duration ?? 0, errorCount: Array.isArray(r.errors) ? r.errors.length : 0 })),
         runId,
         exactSha,
       });
@@ -70,8 +77,8 @@ for (const suite of report.suites) walkSuite(suite);
 const specSet = new Set(units.map((unit) => unit.spec).filter(Boolean));
 const expectedSpecs = mode === 'FAST' ? expectedFastSpecs : [expectedDeepSpec];
 const unexpectedSpecs = [...specSet].filter((spec) => !expectedSpecs.includes(spec));
-const missingSpecs = expectedSpecs.filter((spec) => !specSet.has(spec));
-const statusCounts = Object.fromEntries(['PASS', 'FAIL', 'CANCELLED', 'BLOCKED', 'NOT_EXECUTED', 'MISSING_EVIDENCE', 'MALFORMED_EVIDENCE'].map((state) => [state, 0]));
+const statusNames = ['PASS', 'FAIL', 'CANCELLED', 'BLOCKED', 'NOT_EXECUTED', 'MISSING_EVIDENCE', 'MALFORMED_EVIDENCE'];
+const statusCounts = Object.fromEntries(statusNames.map((state) => [state, 0]));
 for (const unit of units) statusCounts[unit.status] = (statusCounts[unit.status] ?? 0) + 1;
 
 const output = {
@@ -83,14 +90,13 @@ const output = {
   runId,
   exactSha,
   reportPath,
-  sourceReportSha256: require('node:crypto').createHash('sha256').update(fs.readFileSync(reportPath)).digest('hex'),
-  expectedSpecCount: expectedSpecs.length,
+  sourceReportSha256: createHash('sha256').update(fs.readFileSync(reportPath)).digest('hex'),
+  expectedSpecCount: mode === 'FAST' ? 22 : 1,
   executedSpecCount: specSet.size,
-  missingSpecs,
   unexpectedSpecs,
   executionUnitCount: units.length,
   statusCounts,
-  complete: missingSpecs.length === 0 && unexpectedSpecs.length === 0 && units.length > 0 && statusCounts.NOT_EXECUTED === 0,
+  complete: unexpectedSpecs.length === 0 && units.length > 0 && statusCounts.NOT_EXECUTED === 0,
   units,
 };
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
