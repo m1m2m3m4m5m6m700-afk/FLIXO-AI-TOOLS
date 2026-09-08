@@ -10,7 +10,7 @@ const P: Record<string, LocaleMap> = {
   'Choose an image': { ar: 'اختر صورة', es: 'Elige una imagen', fr: 'Choisissez une image', de: 'Bild auswählen', ru: 'Выберите изображение', zh: '选择图像', hi: 'एक छवि चुनें', id: 'Pilih gambar', ur: 'تصویر منتخب کریں', ja: '画像を選択', pt: 'Scegli un’immagine', it: 'Scegli un’immagine', ko: '이미지 선택', nl: 'Kies een afbeelding', pl: 'Wybierz obraz', tr: 'Bir görsel seçin', vi: 'Chọn hình ảnh', th: 'เลือกภาพ', sv: 'Välj en bild' },
   'Choose images to start': { ar: 'اختر الصور للبدء', es: 'Elige imágenes para comenzar', fr: 'Choisissez des images pour commencer', de: 'Bilder zum Start auswählen', ru: 'Выберите изображения для начала', zh: '选择图像开始', hi: 'शुरू करने के लिए छवियाँ चुनें', id: 'Pilih gambar untuk memulai', ur: 'شروع کرنے کے لیے تصاویر منتخب کریں', ja: '開始する画像を選択', pt: 'Escolha imagens para iniciar', it: 'Scegli immagini per iniziare', ko: '시작할 이미지 선택', nl: 'Kies afbeeldingen om te beginnen', pl: 'Wybierz obrazy, aby rozpocząć', tr: 'Başlamak için görselleri seçin', vi: 'Chọn hình ảnh để bắt đầu', th: 'เลือกภาพเพื่อเริ่มต้น', sv: 'Välj bilder för att börja' },
   'Choose audio': { ar: 'اختر ملفًا صوتيًا', es: 'Elige audio', fr: 'Choisissez un fichier audio', de: 'Audio auswählen', ru: 'Выберите аудио', zh: '选择音频', hi: 'ऑडियो चुनें', id: 'Pilih audio', ur: 'آڈیو منتخب کریں', ja: '音声を選択', pt: 'Escolha um áudio', it: 'Scegli audio', ko: '오디오 선택', nl: 'Kies audio', pl: 'Wybierz audio', tr: 'Ses seçin', vi: 'Chọn âm thanh', th: 'เลือกเสียง', sv: 'Välj ljud' },
-  Upload: { ar: 'رفع', es: 'Subir', fr: 'Importer', de: 'Hochladen', ru: 'Загрузить', zh: '上传', hi: 'अपलोड', id: 'Unggah', ur: 'اپ لوڈ', ja: 'アップロード', pt: 'Enviar', it: 'Carica', ko: '업로드', nl: 'Uploaden', pl: 'Prześlij', tr: 'Yükle', vi: 'Tải lên', th: 'อัปโหลด', sv: 'Ladda upp' },
+  Upload: { ar: 'رفع', es: 'Subir', fr: 'Importer', de: 'Hochladen', ru: 'Загрузить', zh: '上传', hi: 'अपलोड', id: 'Unggah', ur: 'اپ لوڈ', ja: 'アップロード', pt: 'Enviar', it: 'Carica', ko: '업로드', nl: 'Prześlij', pl: 'Prześlij', tr: 'Yükle', vi: 'Tải lên', th: 'อัปโหลด', sv: 'Ladda upp' },
   Download: { ar: 'تنزيل', es: 'Descargar', fr: 'Télécharger', de: 'Herunterladen', ru: 'Скачать', zh: '下载', hi: 'डाउनलोड', id: 'Unduh', ur: 'ڈاؤن لوڈ', ja: 'ダウンロード', pt: 'Baixar', it: 'Scarica', ko: '다운로드', nl: 'Downloaden', pl: 'Pobierz', tr: 'İndir', vi: 'Tải xuống', th: 'ดาวน์โหลด', sv: 'Ladda ner' },
   'Download now': { ar: 'تنزيل الآن', es: 'Descargar ahora', fr: 'Télécharger maintenant', de: 'Jetzt herunterladen', ru: 'Скачать сейчас', zh: '立即下载', hi: 'अभी डाउनलोड करें', id: 'Unduh sekarang', ur: 'اب ڈاؤن لوڈ کریں', ja: '今すぐダウンロード', pt: 'Baixar agora', it: 'Scarica ora', ko: '지금 다운로드', nl: 'Nu downloaden', pl: 'Pobierz teraz', tr: 'Şimdi indir', vi: 'Tải xuống ngay', th: 'ดาวน์โหลดตอนนี้', sv: 'Ladda ner nu' },
   'Download compressed WAV': { ar: 'تنزيل WAV المضغوط', es: 'Descargar WAV comprimido', fr: 'Télécharger le WAV compressé', de: 'Komprimiertes WAV herunterladen', ru: 'Скачать сжатый WAV', zh: '下载压缩 WAV', hi: 'संपीड़ित WAV डाउनलोड करें', id: 'Unduh WAV terkompresi', ur: 'کمپریس شدہ WAV ڈاؤن لوڈ کریں', ja: '圧縮 WAV をダウンロード', pt: 'Baixar WAV compactado', it: 'Scarica WAV compresso', ko: '압축 WAV 다운로드', nl: 'Gecomprimeerde WAV downloaden', pl: 'Pobierz skompresowany WAV', tr: 'Sıkıştırılmış WAV indir', vi: 'Tải WAV nén xuống', th: 'ดาวน์โหลด WAV ที่บีบอัด', sv: 'Ladda ner komprimerad WAV' },
@@ -30,9 +30,9 @@ const P: Record<string, LocaleMap> = {
   'Compression quality': { ar: 'جودة الضغط', es: 'Calidad de compresión', fr: 'Qualité de compression', de: 'Komprimierungsqualität', ru: 'Качество сжатия', zh: '压缩质量', hi: 'कंप्रेशन गुणवत्ता', id: 'Kualitas kompresi', ur: 'کمپریشن معیار', ja: '圧縮品質', pt: 'Qualidade de compressão', it: 'Qualità di compressione', ko: '압축 품질', nl: 'Compressiekwaliteit', pl: 'Jakość kompresji', tr: 'Sıkıştırma kalitesi', vi: 'Chất lượng nén', th: 'คุณภาพการบีบอัด', sv: 'Komprimeringskvalitet' },
   RESULT: { ar: 'النتيجة', es: 'RESULTADO', fr: 'RÉSULTAT', de: 'ERGEBNIS', ru: 'РЕЗУЛЬТАТ', zh: '结果', hi: 'परिणाम', id: 'HASIL', ur: 'نتیجہ', ja: '結果', pt: 'RESULTADO', it: 'RISULTATO', ko: '결과', nl: 'RESULTAAT', pl: 'WYNIK', tr: 'SONUÇ', vi: 'KẾT QUẢ', th: 'ผลลัพธ์', sv: 'RESULTAT' },
   'No result yet.': { ar: 'لا توجد نتيجة بعد.', es: 'Aún no hay resultado.', fr: 'Aucun résultat pour le moment.', de: 'Noch kein Ergebnis.', ru: 'Результата пока нет.', zh: '暂无结果。', hi: 'अभी कोई परिणाम नहीं है।', id: 'Belum ada hasil.', ur: 'ابھی کوئی نتیجہ نہیں۔', ja: 'まだ結果はありません。', pt: 'Ainda não há resultado.', it: 'Nessun risultato.', ko: '아직 결과가 없습니다.', nl: 'Nog geen resultaat.', pl: 'Brak wyniku.', tr: 'Henüz sonuç yok.', vi: 'Chưa có kết quả.', th: 'ยังไม่มีผลลัพธ์', sv: 'Inget resultat ännu.' },
-  'No text detected.': { ar: 'لم يتم اكتشاف أي نص.', es: 'No se detectó texto.', fr: 'Aucun texte détecté.', de: 'Kein Text erkannt.', ru: 'Текст не обнаружен.', zh: '未检测到文本。', hi: 'कोई टेक्स्ट नहीं मिला।', id: 'Tidak ada teks terdeteksi.', ur: 'کوئی متن نہیں ملا۔', ja: 'テキストが検出されませんでした。', pt: 'Nenhum texto detectado.', it: 'Nessun testo rilevato.', ko: '텍스트가 감지되지 않았습니다.', nl: 'Geen tekst gedetecteerd.', pl: 'Nie wykryto tekstu.', tr: 'Metin algılanmadı.', vi: 'Không phát hiện văn bản.', th: 'ไม่พบข้อความ', sv: 'Ingen text upptäcktes.' },
+  'No text detected.': { ar: 'لم يتم اكتشاف أي نص.', es: 'No se detectó texto.', fr: 'Aucun texte détecté.', de: 'Kein Text erkannt.', ru: 'Текст не обнаружен.', zh: '未检测到文本。', hi: 'कोई टेक्स्ट नहीं मिला.', id: 'Tidak ada teks terdeteksi.', ur: 'کوئی متن نہیں ملا.', ja: 'テキストが検出されませんでした.', pt: 'Nenhum texto detectado.', it: 'Nessun testo rilevato.', ko: '텍스트가 감지되지 않았습니다.', nl: 'Geen tekst gedetecteerd.', pl: 'Nie wykryto tekstu.', tr: 'Metin algılanmadı.', vi: 'Không phát hiện văn bản.', th: 'ไม่พบข้อความ', sv: 'Ingen text upptäcktes.' },
   Save: { ar: 'حفظ', es: 'Guardar', fr: 'Enregistrer', de: 'Speichern', ru: 'Сохранить', zh: '保存', hi: 'सहेजें', id: 'Simpan', ur: 'محفوظ کریں', ja: '保存', pt: 'Salvar', it: 'Salva', ko: '저장', nl: 'Opslaan', pl: 'Zapisz', tr: 'Kaydet', vi: 'Lưu', th: 'บันทึก', sv: 'Spara' },
-  Reset: { ar: 'إعادة ضبط', es: 'Restablecer', fr: 'Réinitialiser', de: 'Zurücksetzen', ru: 'Сбросить', zh: '重置', hi: 'रीसेट', id: 'Atur ulang', ur: 'ری سیٹ', ja: 'リセット', pt: 'Redefinir', it: 'Reimposta', ko: '재설정', nl: 'Resetten', pl: 'Resetuj', tr: 'Sıfırla', vi: 'Đặt lại', th: 'รีเซ็ต', sv: 'Återställ' },
+  Reset: { ar: 'إعادة ضبط', es: 'Restablecer', fr: 'Réinitialiser', de: 'Zurücksetzen', ru: 'Сбросить', zh: '重置', hi: 'रीसेट', id: 'Atur ulang', ur: 'ری سیٹ', ja: 'リセット', pt: 'Redefinir', it: 'Reimposta', ko: '초기화', nl: 'Resetten', pl: 'Resetuj', tr: 'Sıfırla', vi: 'Đặt lại', th: 'รีเซ็ต', sv: 'Återställ' },
 };
 
 const PREFIXES: Array<[string, LocaleMap]> = [
@@ -103,17 +103,41 @@ function localize(root: HTMLElement, locale: Locale, toolId: string) {
 
 export function AutoLocalizedToolSurface({ locale, toolId, children }: Props) {
   useEffect(() => {
-    // English is already the canonical source locale. Avoid DOM rewriting and
-    // MutationObserver churn altogether so browser interaction targets remain stable.
     if (locale === 'en') return;
 
     const root = document.querySelector<HTMLElement>('.tool-page-modern');
     if (!root) return;
     root.lang = LOCALE_METADATA[locale].languageTag;
     root.dir = LOCALE_METADATA[locale].direction;
+
+    let observing = false;
+    const observer = new MutationObserver(() => {
+      if (observing || !root.isConnected) return;
+      observing = true;
+      observer.disconnect();
+      try {
+        localize(root, locale, toolId);
+      } finally {
+        observing = false;
+        if (root.isConnected) observer.observe(root, {
+          subtree: true,
+          childList: true,
+          characterData: true,
+          attributes: true,
+          attributeFilter: ['aria-label', 'title', 'placeholder'],
+        });
+      }
+    });
+
     localize(root, locale, toolId);
-    const observer = new MutationObserver(() => localize(root, locale, toolId));
-    observer.observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['aria-label', 'title', 'placeholder'] });
+    observer.observe(root, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['aria-label', 'title', 'placeholder'],
+    });
+
     return () => observer.disconnect();
   }, [locale, toolId]);
 
