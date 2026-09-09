@@ -1,6 +1,6 @@
 # FLIXO Protocol Hierarchy & Anti-Bloat Contract v1
 
-This document is the normative hierarchy for repository execution protocols. It does not create independent duplicate procedures; it defines precedence and the four cross-cutting controls that existing protocols must use.
+This document is the normative hierarchy for repository execution protocols. The machine-readable approved inventory is `docs/PROTOCOL-REGISTRY.json`. The hierarchy defines precedence and cross-cutting controls; it does not create duplicate procedures.
 
 ## Objective
 
@@ -21,6 +21,12 @@ When rules appear to conflict, precedence is:
 7. CI performance and operational optimization.
 
 A lower-level rule MUST NOT weaken or override a higher-level invariant. Speed, convenience, retries, sharding, or ownership changes are never valid reasons to reduce required correctness or evidence.
+
+## Canonical Protocol Families
+
+The registry contains exactly 20 approved mandatory protocols grouped into these families: GOVERNANCE, INTEGRITY, ROOT_CAUSE, TESTING, BROWSER, PRODUCT_CONTRACT, EVIDENCE, CI, and EXECUTION. Individual requirements SHOULD be implemented inside the owning family/protocol rather than by creating parallel protocols.
+
+The approved registry is the sole inventory for protocol identity, status, invariant, and enforcement boundary. Any protocol not present in the registry is non-authoritative.
 
 ## Change-Scope Integrity
 
