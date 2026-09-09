@@ -43,7 +43,7 @@ assert.deepEqual(arabic.payload?.operations, [
 
 const oversize = extractParameters('resize to 5000x5000');
 assert.equal(oversize.success, false);
-assert.match(oversize.errors.join(' '), /pixel limit|invalid/i);
+assert.match(oversize.errors.join(' '), /maximum 4000|pixel limit|invalid/i);
 assert.equal(planFromIntent('resize to 5000x5000'), null);
 
 const missingFormat = extractParameters('convert this image');
