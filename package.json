@@ -53,13 +53,14 @@
     "test:agent-capability": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-capability-registry.mjs",
     "test:ai-planner": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-ai-planner.mjs",
     "test:agent-self-correction": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-self-correction.mjs",
+    "test:llm-provider": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-llm-provider.mjs",
     "test:i18n": "node --experimental-strip-types scripts/test-i18n-contract.mjs",
     "test:route-resolver": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-route-resolver.mjs",
     "test:upload-boundary": "node --experimental-strip-types scripts/test-upload-boundary.mjs",
     "test:tool-localization": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-tool-localization-contract.mjs",
     "test:image-core": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-image-core-contract.mjs",
     "test:tool-platform": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-tool-platform-catalog.mjs",
-    "test:unit": "npm run test:quickflow && npm run test:agent-capability && npm run test:ai-planner && npm run test:agent-self-correction && npm run test:i18n && npm run test:route-resolver && npm run test:upload-boundary && npm run test:image-core && npm run test:tool-platform",
+    "test:unit": "npm run test:quickflow && npm run test:agent-capability && npm run test:ai-planner && npm run test:agent-self-correction && npm run test:llm-provider && npm run test:i18n && npm run test:route-resolver && npm run test:upload-boundary && npm run test:image-core && npm run test:tool-platform",
     "test:diagnose": "node scripts/test.mjs --mode=diagnose",
     "test:static": "node scripts/test.mjs --mode=diagnose --gate=static",
     "test:build": "node scripts/test.mjs --mode=diagnose --gate=build",
@@ -96,6 +97,7 @@
     "globals": "^15.15.0",
     "playwright": "^1.62.1",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.56.1"
+    "typescript-eslint": "^8.56.1",
+    "vite": "^8.2.1"
   }
 }
