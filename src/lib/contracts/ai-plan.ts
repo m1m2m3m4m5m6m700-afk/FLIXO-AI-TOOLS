@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { EXECUTABLE_PIPELINE_TOOL_IDS } from '@/lib/workflows/executable-tools';
+import { getCapability, validateCapabilityParameters } from '@/lib/agent/capability-registry';
 
 export const MAX_PLAN_STEPS = 4;
 const scalar = z.union([z.string(), z.number().finite(), z.boolean()]);
@@ -20,5 +21,32 @@ export const ExecutionPlanSchema = z.object({
 }).strict();
 
 export type ExecutionPlanContract = z.infer<typeof ExecutionPlanSchema>;
-export function parseExecutionPlan(value: unknown): ExecutionPlanContract { return ExecutionPlanSchema.parse(value); }
-export function safeParseExecutionPlan(value: unknown) { return ExecutionPlanSchema.safeParse(value); }
+
+export function parseExecutionPlan(value: unknown): ExecutionPlanContract {
+  const plan = ExecutionPlanSchema.parse(value);
+  for (const step of plan.steps) {
+    const capability = getCapability(step.toolId);
+    if (!capability || capability.state !== 'EXECUTABLE') {
+      throw new Error(`Execution plan references non-executable capability: ${step.toolId}`);
+    }
+    validateCapabilityParameters(step.toolId, step.params ?? {});
+  }
+  return plan;
+}
+
+export function safeParseExecutionPlan(value: unknown) {
+  const parsed = ExecutionPlanSchema.safeParse(value);
+  if (!parsed.success) return parsed;
+  try {
+    return { success: true as const, data: parseExecutionPlan(parsed.data) };
+  } catch (error) {
+    return {
+      success: false as const,
+      error: new z.ZodError([{
+        code: z.ZodIssueCode.custom,
+        path: ['steps'],
+        message: error instanceof Error ? error.message : 'Execution plan failed capability validation.',
+      }]),
+    };
+  }
+}

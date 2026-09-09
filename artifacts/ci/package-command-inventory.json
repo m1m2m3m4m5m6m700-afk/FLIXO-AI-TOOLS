@@ -40,6 +40,7 @@
     "generate:robots": {"class":"GENERATOR","scope":"seo","legacy":false},
     "generate:sitemap": {"class":"GENERATOR","scope":"seo","legacy":false},
     "test:quickflow": {"class":"TEST","scope":"quickflow","legacy":false},
+    "test:agent-capability": {"class":"TEST","scope":"agent-capability","legacy":false},
     "test:ai-planner": {"class":"TEST","scope":"ai-planner","legacy":false},
     "test:i18n": {"class":"TEST","scope":"i18n","legacy":false},
     "test:route-resolver": {"class":"TEST","scope":"routing","legacy":false},
