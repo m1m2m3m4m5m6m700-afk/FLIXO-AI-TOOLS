@@ -3,7 +3,6 @@ import { LOCALES } from '../lib/i18n/config.ts';
 import { getAuthoritativeToolSeoName } from './tool-seo-name-resolver.ts';
 import { TOOL_DEFINITIONS } from './canonical-tool-definition.ts';
 import type { ToolDefinition } from './canonical-tool-definition.ts';
-import { IMAGE_TOOLS } from './tool-definitions/image.ts';
 
 export type ToolManifestEntry = ToolDefinition & {
   readonly seoByLocale: Readonly<Record<Locale, { readonly title: string }>>;
@@ -11,11 +10,9 @@ export type ToolManifestEntry = ToolDefinition & {
 
 function withLocalizedSeo(tools: readonly ToolDefinition[]): readonly ToolManifestEntry[] {
   return tools.map((tool) => {
-    const sourceTool = IMAGE_TOOLS.find((entry) => entry.id === tool.id);
-    if (!sourceTool) throw new Error(`Missing source tool for canonical definition: ${tool.id}`);
     const seoByLocale = Object.fromEntries(
       LOCALES.map((locale) => {
-        const name = getAuthoritativeToolSeoName(sourceTool, locale);
+        const name = getAuthoritativeToolSeoName(tool, locale);
         if (!name) throw new Error(`Missing reviewed SEO name: ${tool.id}:${locale}`);
         return [locale, { title: `${name} | FLIXO` }];
       }),
