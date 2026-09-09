@@ -11,6 +11,9 @@ test('image-upscaler: scales dimensions and downloads PNG', async ({ page }) => 
   expect(result.type).toBe('image/png');
   expect(result.width).toBe(8);
   expect(result.height).toBe(8);
+  const downloadControl = page.getByRole('button', { name: 'Download now' });
+  await expect(downloadControl).toHaveAttribute('download', 'fixture-upscaled-2x.png');
+  await expect(downloadControl).toHaveAttribute('href', /^blob:/);
   await assertDownload(page, /\.png$/);
 });
 
