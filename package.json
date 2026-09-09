@@ -54,7 +54,6 @@
     "test:route-resolver": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-route-resolver.mjs",
     "test:upload-boundary": "node --experimental-strip-types scripts/test-upload-boundary.mjs",
     "test:tool-localization": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-tool-localization-contract.mjs",
-    "test:image-core": "node scripts/ci/test-image-core-foundation.mjs",
     "test:unit": "npm run test:quickflow && npm run test:i18n && npm run test:route-resolver && npm run test:upload-boundary",
     "test:diagnose": "node scripts/test.mjs --mode=diagnose",
     "test:static": "node scripts/test.mjs --mode=diagnose --gate=static",
@@ -90,7 +89,6 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^15.15.0",
-    "prettier": "^3.6.2",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1"
   }
