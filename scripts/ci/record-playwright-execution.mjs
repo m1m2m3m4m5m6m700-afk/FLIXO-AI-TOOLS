@@ -34,7 +34,7 @@ const expectedFastSpecs = [
   'tests/image-effects.spec.ts','tests/exif-cleaner.spec.ts','tests/svg-optimizer.spec.ts','tests/mockup-generator.spec.ts',
   'tests/seed.spec.ts','tests/pix.spec.ts',
 ];
-const expectedDeepSpec = 'tests/localization-runtime.spec.ts';
+const expectedDeepSpec = 'tests/official/g4-localization-runtime.spec.ts';
 const localeSource = fs.readFileSync('src/lib/i18n/config.ts', 'utf8');
 const localeArray = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '';
 const localeCodes = [...localeArray.matchAll(/["']([a-z]{2,3})["']/giu)].map((match) => match[1].toLowerCase());
