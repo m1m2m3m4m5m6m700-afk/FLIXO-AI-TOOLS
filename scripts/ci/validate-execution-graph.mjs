@@ -72,7 +72,7 @@ for (const entry of included) {
       errors.push(`${relative}: unattributed unit must be marked SURFACE_COVERAGE_ONLY`);
     }
     if (unit.mode === 'FAST' && unit.semanticUnitId !== `FAST:${unit.browser}:${normalize(unit.spec)}`) errors.push(`${relative}: invalid FAST semanticUnitId for ${unit.spec}`);
-    if (unit.mode === 'DEEP' && !unit.semanticUnitId) errors.push(`${relative}: DEEP unit missing semanticUnitId`);
+    if (unit.mode === 'DEEP' && unit.semanticUnitId !== `DEEP:${unit.browser}:${unit.semanticLocale}`) errors.push(`${relative}: invalid DEEP semanticUnitId for ${unit.browser}:${unit.semanticLocale ?? '<no-locale>'}`);
   }
 }
 
@@ -129,7 +129,7 @@ const localeArray = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? 
 const expectedLocales = [...localeArray.matchAll(/['"]([a-z]{2,3})['"]/giu)].map((match) => match[1].toLowerCase());
 if (process.env.GITHUB_EVENT_NAME !== 'pull_request') {
   for (const browser of ['chromium','firefox','webkit']) for (const locale of expectedLocales) {
-    const key = `${browser}:DEEP:${locale}`;
+    const key = `${browser}:DEEP:${browser}:${locale}`;
     if (!deepSemanticOwners.has(key)) errors.push(`DEEP_SEMANTIC_MISSING=${key}`);
   }
   if (deepSemanticOwners.size !== expectedLocales.length * 3) errors.push(`DEEP_SEMANTIC_CONSERVATION=${deepSemanticOwners.size}; expected=${expectedLocales.length * 3} locale-browser units`);
@@ -143,22 +143,8 @@ const result = {
   exactSha: expectedSha,
   runId: expectedRunId,
   registryAssertionCount: registeredAssertionIds.size,
-  fast: {
-    shardFiles: fastFiles.length,
-    expectedBrowsers: 3,
-    expectedSpecsPerBrowser: 22,
-    requiredSemanticUnits: 66,
-    observedSemanticUnits: fastSemanticOwners.size,
-  },
-  deep: {
-    shardFiles: deepFiles.length,
-    executionRecords: deepExecutionKeys.size,
-    semanticLocaleBrowserUnits: deepSemanticOwners.size,
-    expectedSemanticLocaleBrowserUnits: expectedLocales.length * 3,
-    semanticLocaleCount: deepLocales.size,
-    expectedLocaleCount: expectedLocales.length,
-    observedLocales: [...deepLocales].sort(),
-  },
+  fast: { shardFiles: fastFiles.length, expectedBrowsers: 3, expectedSpecsPerBrowser: 22, requiredSemanticUnits: 66, observedSemanticUnits: fastSemanticOwners.size },
+  deep: { shardFiles: deepFiles.length, executionRecords: deepExecutionKeys.size, semanticLocaleBrowserUnits: deepSemanticOwners.size, expectedSemanticLocaleBrowserUnits: expectedLocales.length * 3, semanticLocaleCount: deepLocales.size, expectedLocaleCount: expectedLocales.length, observedLocales: [...deepLocales].sort() },
   conservation: {
     fast: { required: 66, observed: fastSemanticOwners.size, status: fastSemanticOwners.size === 66 ? 'PASS' : 'FAIL' },
     deepSemanticLocaleBrowser: { required: expectedLocales.length * 3, observed: deepSemanticOwners.size, status: deepSemanticOwners.size === expectedLocales.length * 3 ? 'PASS' : 'FAIL' },
