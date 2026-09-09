@@ -115,11 +115,15 @@ export function ImageToolPage({ toolId }: Props) {
         const blob = await response.blob(); if (!blob.type.startsWith('image/')) throw new Error('AI endpoint did not return an image.');
         const info = await imageInfo(blob); replaceResult(await createResult(blob, `flixo-ai-${info.width}x${info.height}.png`, info)); return;
       }
+      if (toolId === 'image-upscaler') {
+        const factor = Number(scale);
+        if (!Number.isFinite(factor) || factor < 0.25 || factor > 4) throw new Error('Scale must be between 0.25 and 4.');
+      }
       if (!file) throw new Error('Choose an image first.');
       await validateSharedImageInput(file, toolId);
       let blob: Blob; let fileName = baseName(file.name); let info: Result['info'];
       if (toolId === 'background-remover') { blob = await removeBackground(file, Number(tolerance) || 42); fileName += '-no-background.png'; }
-      else if (toolId === 'image-upscaler') { const factor = Number(scale); if (!Number.isFinite(factor) || factor < 0.25 || factor > 4) throw new Error('Scale must be between 0.25 and 4.'); blob = await resizeImage(file, factor); fileName += `-upscaled-${factor}x.png`; }
+      else if (toolId === 'image-upscaler') { const factor = Number(scale); blob = await resizeImage(file, factor); fileName += `-upscaled-${factor}x.png`; }
       else if (toolId === 'image-converter') { blob = await convertImage(file, outputFormat); info = await imageInfo(blob); assertImageConverterOutputIntegrity(blob, info); fileName += outputFormat === 'image/jpeg' ? '.jpg' : outputFormat === 'image/png' ? '.png' : '.webp'; }
       else if (toolId === 'image-to-text') { const prepared = await preprocessForOcr(file); const ocr = await recognizeWithOcrWorker(prepared, 'eng+ara'); replaceResult(await createResult(new Blob([ocr.text], { type: 'text/plain;charset=utf-8' }), `${baseName(file.name)}.txt`, undefined, ocr.text)); return; }
       else if (toolId === 'object-remover') { blob = await fillRemoveRegion(file, { x: Number(cropX), y: Number(cropY), width: Number(cropW), height: Number(cropH) }); fileName += '-object-removed.png'; }
