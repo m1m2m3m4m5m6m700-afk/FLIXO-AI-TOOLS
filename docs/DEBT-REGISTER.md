@@ -5,8 +5,9 @@
 - Main SHA: `9cd646ae58ae2563e1513103ac5a9c96ba034fe7`
 - Production source of truth: `main`
 - Current baseline capability: P3 production LLM provider boundary is merged and release-certified on the merge SHA.
-- Current hardening PR: `#627` (`chore: unify audit hardening baseline`) — open and unmerged.
-- PR #627 head is currently unverified; its application changes must not inherit certification from `main`.
+- Current hardening PR: `#627` (`refactor(i18n): remove global runtime translation from startup`) — open and unmerged.
+- PR #627 head: `329c86077ac6c3795651c318d036dd29f2f437a7` — exact-SHA CI currently in progress; `Static + Build` has passed on this SHA.
+- PR #627 is not release-certified and must not inherit certification from `main`.
 - Vercel status on current `main` SHA: `success` (deployment-provider evidence).
 - Vercel status on PR #627 head may be externally rate-limited; this is classified as deployment infrastructure, not application-code failure, unless matching code evidence exists.
 - Release certification is always required on the exact merge SHA; PR/FAST evidence alone is not release certification.
@@ -23,13 +24,13 @@ This register is the active engineering debt inventory. Historical notes remain 
 
 | ID | Area | Priority | Evidence | Risk | Action | Exit criterion | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| D-001 | Current-state documentation | P0 | Historical baseline references were stale relative to `main @ 9cd646ae…` | Engineers can act on stale state | Synchronize governance documents with current exact SHA and evidence state | Current state is unambiguous and evidence-backed | **In progress** |
+| D-001 | Current-state documentation | P0 | Governance references are synchronized with `main @ 9cd646ae…` and PR #627 `329c860…` | Engineers can still act on stale state if current SHA is omitted | Keep current SHA and verification state synchronized | Current state is unambiguous and evidence-backed | **Maintained** |
 | D-002 | Release evidence observability | P0 | `main @ 9cd646ae…` has exact-SHA certification; unmerged changes require independent evidence | Release state can be misclassified | Keep CODE / DEPLOYMENT / MISSING-EVIDENCE states explicit | Every promotion decision is tied to exact-SHA evidence | Open |
 | D-003 | Verification surface | P1 | Many public `validate:*`, `report:*`, and `test:*` commands coexist with `check`, `verify`, and E2E | Hidden coupling and duplicated checks increase CI complexity | Group checks by stable contract domain and retain small public entry points | One owner and one canonical entry point per check | Open |
 | D-004 | Tool contract cohesion | P0 | Registry, manifest, router, SEO, sitemap, localization, QuickFlow, and E2E share tool metadata | Drift can reappear | Converge on one canonical `ToolDefinition` and derive consumers | A new tool is represented once | Planned |
 | D-005 | Canonical origin | P1 | Production origin is centrally validated; deployment remains tied to the official origin contract | Domain migration requires architectural/configuration change | Keep one validated runtime/build source for production origin | No conflicting canonical deployment origin | Planned |
 | D-006 | Heavy dependency governance | P1 | Optional/heavy capability dependencies exist alongside lightweight browser tools | Initial-load and maintenance costs can grow | Inventory and classify core, lazy, server-only, removable, experimental | Optional heavy packages do not enter initial route without evidence | Open |
-| D-007 | i18n ownership fragmentation | P1 | Multiple historical localized data surfaces coexist with canonical config/types/loader and runtime compatibility layers | Translation ownership can drift | Replace legacy DOM rewriting with React-owned localized data and one generated source | One clear owner per translation concern | Open |
+| D-007 | i18n ownership fragmentation | P1 | Historical localized data surfaces coexist with canonical config/types/loader and compatibility modules; startup no longer installs global DOM translation | Translation ownership can drift | Replace remaining legacy DOM rewrite modules with React-owned localized data and one generated source | One clear owner per translation concern | **In progress** |
 | D-008 | Artifact contract cohesion | P1 | Output integrity exists but is distributed across validators/tests | UI can pass while output contract is wrong | Standardize MIME/signature/binary/download/semantic contracts | Every file-producing tool declares and proves its artifact contract | Planned |
 | D-009 | Shared browser harness | P1 | Full matrix and tool contracts carry repeated lifecycle checks | Test logic multiplies as tools grow | Introduce reusable lifecycle/input/output/error/a11y harness | Common checks are reused across tools | Planned |
 | D-010 | Branch hygiene | P2 | Historical repair/audit branches remain | Historical noise can be mistaken for release truth | Triage and archive/delete only after evidence review | Active branches are few and intentional | Open |
@@ -49,7 +50,7 @@ A2 Repository hygiene
       ↓
 A3 Governance synchronization
       ↓
-B1/B2/B3 i18n runtime remediation
+B1/B2/B3 i18n runtime remediation @ PR #627 / 329c860…
       ↓
 D-004 ToolDefinition + Registry SSOT
       ↓
