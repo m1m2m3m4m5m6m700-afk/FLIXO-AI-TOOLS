@@ -40,7 +40,7 @@ function addOperation(operations: ExtractedOperation[], capabilityId: string, pa
 }
 
 function parseTargetSize(text: string): number | undefined {
-  const match = text.match(/(?:under|below|less than|maximum|max|at most|أقل من|اقل من|تحت|بحد أقصى|حد أقصى)\s*(\d+(?:\.\d+)?)\s*(kb|kib|mb|mib|كيلوبايت|ميجابايت)\b/i);
+  const match = text.match(/(?:under|below|less than|maximum|max|at most|أقل من|اقل من|تحت|بحد أقصى|حد أقصى)\s*(\d+(?:\.\d+)?)\s*(kb|kib|mb|mib|كيلوبايت|ميجابايت)/i);
   if (!match) return undefined;
   const value = Number(match[1]);
   const unit = match[2].toLocaleLowerCase();
@@ -117,7 +117,7 @@ export function extractParameters(input: string): ExtractionResult {
   const aspectRatio = parseAspectRatio(text);
   const brightness = parseBrightness(text);
   const hasCompressionIntent = /(?:compress|compression|ضغط|تصغير)/i.test(text);
-  const hasConversionIntent = /(?:convert|conversion|تحويل)/i.test(text);
+  const hasConversionIntent = /(?:convert|conversion|تحويل|حول|حوّل)/i.test(text);
 
   if (hasCompressionIntent) addOperation(operations, 'image-compressor', {
     ...(targetSizeKB === undefined ? {} : { targetSizeKB }),
@@ -137,7 +137,7 @@ export function extractParameters(input: string): ExtractionResult {
 
   for (const operation of operations) validateOperation(operation, errors);
 
-  const knownSignal = /(?:compress|ضغط|convert|تحويل|webp|png|jpe?g|resize|dimensions|size|أبعاد|حجم|aspect\s+ratio|نسبة|brightness|سطوع|\d+\s*[x×]\s*\d+|\d+(?:\.\d+)?\s*(?:kb|kib|mb|mib|كيلوبايت|ميجابايت))/i;
+  const knownSignal = /(?:compress|ضغط|convert|تحويل|حول|حوّل|webp|png|jpe?g|resize|dimensions|size|أبعاد|حجم|aspect\s+ratio|نسبة|brightness|سطوع|\d+\s*[x×]\s*\d+|\d+(?:\.\d+)?\s*(?:kb|kib|mb|mib|كيلوبايت|ميجابايت))/i;
   if (!knownSignal.test(text)) unrecognizedFragments.push(input.trim());
   if (operations.length === 0 && errors.length === 0) errors.push('No executable operation could be safely extracted.');
   if (unrecognizedFragments.length > 0) errors.push('Unrecognized instruction content requires explicit handling before execution.');
