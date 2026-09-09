@@ -54,7 +54,6 @@ export const buildQuickFlowPlan = (intent: string, tools: readonly ToolConfig[])
     return { version: 2, intent: normalizedIntent, steps: steps as QuickFlowStep[] };
   }
 
-  if (!extracted.success && extracted.errors.some((error) => /unrecognized/i.test(error))) return null;
   const match = getBestToolIntent(normalizedIntent, tools);
   if (!match || match.score < 60 || !match.tool.isReady) return null;
   return { version: 2, intent: normalizedIntent, steps: [{ toolId: match.tool.id, path: match.tool.path }] };
