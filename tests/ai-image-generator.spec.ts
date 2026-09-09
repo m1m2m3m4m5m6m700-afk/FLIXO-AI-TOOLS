@@ -9,7 +9,7 @@ test('ai-image-generator: consumes an image endpoint response and downloads it',
 
   await page.goto('/en/ai-image-generator');
   await expect(page.getByRole('heading', { level: 1, name: 'AI Image Generator' })).toBeVisible();
-  await page.getByPlaceholder('A cinematic sunset over Cairo...').fill('FLIXO test image');
+  await page.getByTestId('ai-image-prompt').fill('FLIXO test image');
   await page.getByRole('button', { name: 'Generate image' }).click();
   await expect(page.getByText('RESULT', { exact: true })).toBeVisible();
   const image = page.locator('img[alt="Tool result"]');

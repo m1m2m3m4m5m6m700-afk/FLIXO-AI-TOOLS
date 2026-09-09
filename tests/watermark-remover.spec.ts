@@ -7,8 +7,8 @@ test('watermark-remover: produces a valid cleaned PNG', async ({ page }) => {
   await page.goto('/en/watermark-remover');
   await expect(page.getByRole('heading', { level: 1, name: 'Watermark Remover' })).toBeVisible();
   await uploadFixture(page);
-  for (const [name, value] of [['X', '1'], ['Y', '1'], ['Width', '2'], ['Height', '2']] as const) {
-    await page.getByRole('textbox', { name, exact: true }).fill(value);
+  for (const [testId, value] of [['object-x', '1'], ['object-y', '1'], ['object-width', '2'], ['object-height', '2']] as const) {
+    await page.getByTestId(testId).fill(value);
   }
   await page.getByRole('button', { name: 'Run tool' }).click();
   const result = await assertImageResult(page);
