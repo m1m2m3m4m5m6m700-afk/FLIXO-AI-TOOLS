@@ -23,6 +23,11 @@ dist-ssr
 
 # CI / diagnostics generated output
 .artifacts/
+diagnostics/
+evidence/
+release/finalization/
+test-results/
+__tmp_placeholder__/
 
 # flixo-agent.mjs generated output
 reports/

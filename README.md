@@ -39,6 +39,8 @@ main
 npm run verify:fast
 ```
 
+For a clean local checkout, copy `.env.example` to `.env` first. `VITE_SITE_URL` is required by canonical SEO contracts and is pre-populated in the example with the official production origin. Do not put provider API secrets into any `VITE_*` variable.
+
 ### Repository/build gate
 
 ```bash
