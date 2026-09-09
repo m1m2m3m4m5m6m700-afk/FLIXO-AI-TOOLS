@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
-import { IMAGE_TOOLS } from '../src/config/tool-definitions/image.ts';
+import { TOOL_DEFINITIONS } from '../src/config/canonical-tool-definition.ts';
 import { CAPABILITY_REGISTRY, getCapability, getExecutableCapabilityIds, validateCapabilityParameters } from '../src/lib/agent/capability-registry.ts';
 import { EXECUTABLE_PIPELINE_TOOL_IDS } from '../src/lib/workflows/executable-tools.ts';
 import { safeParseExecutionPlan } from '../src/lib/contracts/ai-plan.ts';
 
-assert.equal(CAPABILITY_REGISTRY.length, IMAGE_TOOLS.length, 'Every configured image tool must have a capability contract.');
-assert.equal(CAPABILITY_REGISTRY.length, IMAGE_TOOLS.length, `Capability inventory must match current image tool inventory (${IMAGE_TOOLS.length}).`);
-assert.equal(IMAGE_TOOLS.filter((tool) => tool.isReady).length, 21, 'Current image registry must contain 21 ready tools.');
-assert.equal(IMAGE_TOOLS.filter((tool) => !tool.isReady).length, 1, 'Current image registry must contain 1 non-ready tool.');
+assert.equal(CAPABILITY_REGISTRY.length, TOOL_DEFINITIONS.length, 'Every canonical tool definition must have a capability contract.');
+assert.equal(CAPABILITY_REGISTRY.length, 22, `Canonical capability inventory must contain 22 tools, found ${CAPABILITY_REGISTRY.length}.`);
+assert.equal(TOOL_DEFINITIONS.filter((tool) => tool.isReady).length, 21, 'Canonical tool definitions must contain 21 ready tools.');
+assert.equal(TOOL_DEFINITIONS.filter((tool) => !tool.isReady).length, 1, 'Canonical tool definitions must contain 1 non-ready tool.');
 
-for (const tool of IMAGE_TOOLS) {
+for (const tool of TOOL_DEFINITIONS) {
   const capability = getCapability(tool.id);
   assert.ok(capability, `Missing capability contract: ${tool.id}`);
   assert.equal(capability?.state === 'UNAVAILABLE', !tool.isReady, `Readiness/state drift: ${tool.id}`);
@@ -39,4 +39,4 @@ const invalidParameters = safeParseExecutionPlan({
 });
 assert.equal(invalidParameters.success, false);
 
-console.log(`Agent capability contract tests passed: ${CAPABILITY_REGISTRY.length} capabilities mapped (${IMAGE_TOOLS.filter((tool) => tool.isReady).length} ready, ${IMAGE_TOOLS.filter((tool) => !tool.isReady).length} unavailable).`);
+console.log(`Agent capability contract tests passed: ${CAPABILITY_REGISTRY.length} capabilities mapped (${TOOL_DEFINITIONS.filter((tool) => tool.isReady).length} ready, ${TOOL_DEFINITIONS.filter((tool) => !tool.isReady).length} unavailable).`);
