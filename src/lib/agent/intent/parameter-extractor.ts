@@ -64,7 +64,7 @@ function parseDimensions(text: string): { width: number; height: number } | unde
 }
 
 function parseAspectRatio(text: string): string | undefined {
-  const match = text.match(/(?:aspect\s+ratio|ratio|نسبة\s*(?:الأبعاد|ابعاد)?)\s*(?:is|of|=|هي|:)?\s*(\d{1,3})\s*[:\/]\s*(\d{1,3})/i);
+  const match = text.match(/(?:aspect\s+ratio|ratio|نسبة\s*(?:الأبعاد|ابعاد)?)\s*(?:is|of|=|هي|:)?\s*(\d{1,3})\s*[:/]\s*(\d{1,3})/i);
   if (!match) return undefined;
   const left = Number(match[1]);
   const right = Number(match[2]);
@@ -105,7 +105,7 @@ function validateOperation(operation: ExtractedOperation, errors: string[]): voi
 }
 
 export function extractParameters(input: string): ExtractionResult {
-  if (typeof input !== 'string' || input.trim().length === 0) return { success: false, errors: ['Input text is empty.'] };
+  if (typeof input !== 'string' || input.trim().length === 0) return { success: false, errors: ['Input text is empty.'], payload: { operations: [], unrecognizedFragments: [] } };
 
   const text = normalizeText(input);
   const operations: ExtractedOperation[] = [];
@@ -143,5 +143,5 @@ export function extractParameters(input: string): ExtractionResult {
   if (unrecognizedFragments.length > 0) errors.push('Unrecognized instruction content requires explicit handling before execution.');
 
   if (errors.length > 0) return { success: false, errors, payload: { operations: [], unrecognizedFragments } };
-  return { success: true, payload: { operations, unrecognizedFragments } };
+  return { success: true, errors: [], payload: { operations, unrecognizedFragments } };
 }
