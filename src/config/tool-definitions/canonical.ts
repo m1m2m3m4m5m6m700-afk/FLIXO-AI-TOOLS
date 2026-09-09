@@ -98,7 +98,6 @@ function localizedRoute(path: string, locale: Locale): string {
 }
 
 export function toToolDefinition(tool: ToolConfig): ToolDefinition {
-  const basePath = tool.path.replace(/^\/en(?=\/|$)/, '');
   const routes = Object.fromEntries(LOCALES.map((locale) => [locale, localizedRoute(tool.path, locale)])) as Record<Locale, string>;
   const state = stateFor(tool);
   return Object.freeze({
@@ -129,7 +128,6 @@ export function toToolDefinition(tool: ToolConfig): ToolDefinition {
       description: tool.description,
       robots: 'index,follow,max-image-preview:large' as const,
     }),
-    basePath,
   });
 }
 
