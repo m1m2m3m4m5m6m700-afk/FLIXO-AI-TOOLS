@@ -21,23 +21,13 @@ export type ToolDefinition = Readonly<{
   routes: Readonly<Record<Locale, string>>;
   aliases: readonly string[];
   component: LazyExoticComponent<ComponentType>;
-  capability: Readonly<{
-    state: CapabilityState;
-    executionMode: ExecutionMode;
-    intents: readonly string[];
-    parameterSchema: ZodType;
-    safetyLimits: CapabilityLimits;
-    verifier: CapabilityVerifier;
-  }>;
-  localization: Readonly<{
-    titleKey: string;
-    descriptionKey: string;
-  }>;
-  seo: Readonly<{
-    title: string;
-    description: string;
-    robots: 'index,follow,max-image-preview:large';
-  }>;
+  capability: Readonly<{ state: CapabilityState; intents: readonly string[] }>;
+  executionMode: ExecutionMode;
+  parameterSchema: ZodType;
+  safetyLimits: CapabilityLimits;
+  verifier: CapabilityVerifier;
+  localization: Readonly<{ titleKey: string; descriptionKey: string }>;
+  seo: Readonly<{ title: string; description: string; robots: 'index,follow,max-image-preview:large' }>;
 }>;
 
 const DEFAULT_MAX_PIXELS = 16_000_000;
@@ -99,7 +89,12 @@ function localizedRoute(path: string, locale: Locale): string {
 
 export function toToolDefinition(tool: ToolConfig): ToolDefinition {
   const routes = Object.fromEntries(LOCALES.map((locale) => [locale, localizedRoute(tool.path, locale)])) as Record<Locale, string>;
-  const state = stateFor(tool);
+  const capabilityState = stateFor(tool);
+  const executionMode: ExecutionMode = tool.id === 'ai-image-generator' || tool.id === 'photo-colorizer' ? 'CLOUD' : 'LOCAL';
+  const parameterSchema = PARAMETER_SCHEMAS[tool.id] ?? COMMON_PARAMETERS;
+  const safetyLimits = Object.freeze({ maxPixels: DEFAULT_MAX_PIXELS, maxFileSizeBytes: DEFAULT_MAX_FILE_SIZE_BYTES, timeoutMs: DEFAULT_TIMEOUT_MS });
+  const verifier = verifierFor(tool.id);
+  const intents = Object.freeze(TOOL_INTENTS[tool.id] ?? []);
   return Object.freeze({
     id: tool.id,
     family: 'image',
@@ -111,14 +106,11 @@ export function toToolDefinition(tool: ToolConfig): ToolDefinition {
     routes: Object.freeze(routes),
     aliases: Object.freeze([...(tool.aliases ?? [])]),
     component: tool.component,
-    capability: Object.freeze({
-      state,
-      executionMode: tool.id === 'ai-image-generator' || tool.id === 'photo-colorizer' ? 'CLOUD' : 'LOCAL',
-      intents: Object.freeze(TOOL_INTENTS[tool.id] ?? []),
-      parameterSchema: PARAMETER_SCHEMAS[tool.id] ?? COMMON_PARAMETERS,
-      safetyLimits: Object.freeze({ maxPixels: DEFAULT_MAX_PIXELS, maxFileSizeBytes: DEFAULT_MAX_FILE_SIZE_BYTES, timeoutMs: DEFAULT_TIMEOUT_MS }),
-      verifier: verifierFor(tool.id),
-    }),
+    capability: Object.freeze({ state: capabilityState, intents }),
+    executionMode,
+    parameterSchema,
+    safetyLimits,
+    verifier,
     localization: Object.freeze({
       titleKey: `tool.${tool.id}.title`,
       descriptionKey: `tool.${tool.id}.description`,
