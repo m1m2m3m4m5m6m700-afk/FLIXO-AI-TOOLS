@@ -10,7 +10,7 @@ type TelemetryPayload = {
   properties: TelemetryProperties;
 };
 
-const DEFAULT_ENDPOINT = '/api/telemetry';
+const CONFIGURED_ENDPOINT = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_TELEMETRY_ENDPOINT : undefined;
 
 function getRuntimeContext() {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
@@ -23,16 +23,16 @@ function getRuntimeContext() {
 }
 
 /**
- * Fire-and-forget browser telemetry. sendBeacon is preferred because it is
- * asynchronous and designed for low-priority delivery during page activity.
- * fetch(keepalive) is used only when Beacon is unavailable or rejects the payload.
+ * Fire-and-forget browser telemetry. Telemetry is opt-in: without a configured
+ * endpoint we do nothing, so the application never emits requests to a route
+ * that the deployment does not provide.
  */
 export function trackUserMovement(
   event: TelemetryEvent,
   properties: TelemetryProperties = {},
-  endpoint = DEFAULT_ENDPOINT,
+  endpoint = CONFIGURED_ENDPOINT,
 ): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || !endpoint) return;
 
   const context = getRuntimeContext();
   const payload: TelemetryPayload = {
