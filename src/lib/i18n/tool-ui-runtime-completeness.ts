@@ -8,7 +8,7 @@ const UI: Readonly<Record<string, LocaleMap>> = {
   'Choose a file': { ar: 'اختر ملفًا', es: 'Elige un archivo', fr: 'Choisissez un fichier', de: 'Datei auswählen', hi: 'फ़ाइल चुनें', id: 'Pilih file', it: 'Scegli un file', ja: 'ファイルを選択', ko: '파일 선택', ms: 'Pilih fail', nl: 'Kies een bestand', pl: 'Wybierz plik', pt: 'Escolha um ficheiro', ru: 'Выберите файл', sv: 'Välj en fil', th: 'เลือกไฟล์', tr: 'Bir dosya seçin', uk: 'Виберіть файл', vi: 'Chọn tệp' },
   'Select PDF': { ar: 'اختر ملف PDF', es: 'Selecciona un PDF', fr: 'Sélectionnez un PDF', de: 'PDF auswählen', hi: 'PDF चुनें', id: 'Pilih PDF', it: 'Seleziona PDF', ja: 'PDFを選択', ko: 'PDF 선택', ms: 'Pilih PDF', nl: 'Selecteer PDF', pl: 'Wybierz PDF', pt: 'Selecione PDF', ru: 'Выберите PDF', sv: 'Välj PDF', th: 'เลือก PDF', tr: 'PDF seçin', uk: 'Виберіть PDF', vi: 'Chọn PDF' },
   Optional: { ar: 'اختياري', es: 'Opcional', fr: 'Facultatif', de: 'Optional', hi: 'वैकल्पिक', id: 'Opsional', it: 'Opzionale', ja: '任意', ko: '선택 사항', ms: 'Pilihan', nl: 'Optioneel', pl: 'Opcjonalne', pt: 'Opcional', ru: 'Необязательно', sv: 'Valfritt', th: 'ไม่บังคับ', tr: 'İsteğe bağlı', uk: 'Необов’язково', vi: 'Tùy chọn' },
-  'Run tool': { ar: 'تشغيل الأداة', es: 'Ejecutar herramienta', fr: 'Exécuter l’outil', de: 'Tool ausführen', hi: 'टूल चलाएँ', id: 'Jalankan alat', it: 'Esegui lo strumento', ja: 'ツールを実行', ko: '도구 실행', ms: 'Jalankan alat', nl: 'Tool uitvoeren', pl: 'Uruchom narzędzie', pt: 'Executar ferramenta', ru: 'Запустить инструмент', sv: 'Kör verktyget', th: 'เรียกใช้เครื่องมือ', tr: 'Aracı çalıştır', uk: 'Запустити інструмент', vi: 'Chạy công cụ' },
+  'Run tool': { ar: 'تشغيل الأداة', es: 'Ejecutar herramienta', fr: 'Exécuter l’outil', de: 'Tool ausführen', hi: 'टूल चलाएँ', id: 'Jalankan alat', it: 'Esegui lo strumento', ja: 'ツールを実行', ko: '도구를 실행', ms: 'Jalankan alat', nl: 'Tool uitvoeren', pl: 'Uruchom narzędzie', pt: 'Executar ferramenta', ru: 'Запустить инструмент', sv: 'Kör verktyget', th: 'เรียกใช้เครื่องมือ', tr: 'Aracı çalıştır', uk: 'Запустити інструмент', vi: 'Chạy công cụ' },
   'Compress image': { ar: 'ضغط الصورة', es: 'Comprimir imagen', fr: 'Compresser l’image', de: 'Bild komprimieren', hi: 'छवि संपीड़ित करें', id: 'Kompres gambar', it: 'Comprimi immagine', ja: '画像を圧縮', ko: '이미지 압축', ms: 'Mampatkan imej', nl: 'Afbeelding comprimeren', pl: 'Kompresuj obraz', pt: 'Comprimir imagem', ru: 'Сжать изображение', sv: 'Komprimera bilden', th: 'บีบอัดรูปภาพ', tr: 'Görseli sıkıştır', uk: 'Стиснути зображення', vi: 'Nén hình ảnh' },
   'Compress all to ZIP': { ar: 'ضغط الكل إلى ZIP', es: 'Comprimir todo en ZIP', fr: 'Tout compresser en ZIP', de: 'Alles als ZIP komprimieren', hi: 'सबको ZIP में संपीड़ित करें', id: 'Kompres semua ke ZIP', it: 'Comprimi tutto in ZIP', ja: 'すべてをZIPに圧縮', ko: '모두 ZIP으로 압축', ms: 'Mampatkan semua ke ZIP', nl: 'Alles naar ZIP comprimeren', pl: 'Skompresuj wszystko do ZIP', pt: 'Comprimir tudo em ZIP', ru: 'Сжать всё в ZIP', sv: 'Komprimera allt till ZIP', th: 'บีบอัดทั้งหมดเป็น ZIP', tr: 'Tümünü ZIP olarak sıkıştır', uk: 'Стиснути все в ZIP', vi: 'Nén tất cả thành ZIP' },
   'Original text': { ar: 'النص الأصلي', es: 'Texto original', fr: 'Texte original', de: 'Originaltext', hi: 'मूल टेक्स्ट', id: 'Teks asli', it: 'Testo originale', ja: '元のテキスト', ko: '원본 텍스트', ms: 'Teks asal', nl: 'Originele tekst', pl: 'Tekst oryginalny', pt: 'Texto original', ru: 'Исходный текст', sv: 'Originaltext', th: 'ข้อความต้นฉบับ', tr: 'Özgün metin', uk: 'Оригінальний текст', vi: 'Văn bản gốc' },
@@ -29,6 +29,7 @@ const UI: Readonly<Record<string, LocaleMap>> = {
   Grayscale: { ar: 'تدرج رمادي', es: 'Escala de grises', fr: 'Niveaux de gris', de: 'Graustufen', hi: 'ग्रेस्केल', id: 'Skala abu-abu', it: 'Scala di grigi', ja: 'グレースケール', ko: '그레이스케일', ms: 'Skala kelabu', nl: 'Grijstinten', pl: 'Skala szarości', pt: 'Escala de cinza', ru: 'Оттенки серого', sv: 'Gråskala', th: 'โทนสีเทา', tr: 'Gri tonlama', uk: 'Відтінки сірого', vi: 'Thang độ xám' },
   'Image compression tool': { ar: 'أداة ضغط الصور', es: 'Herramienta de compresión de imágenes', fr: 'Outil de compression d’images', de: 'Bildkomprimierungstool', hi: 'छवि संपीड़न टूल', id: 'Alat kompresi gambar', it: 'Strumento di compressione immagini', ja: '画像圧縮ツール', ko: '이미지 압축 도구', ms: 'Alat pemampatan imej', nl: 'Hulpmiddel voor beeldcompressie', pl: 'Narzędzie do kompresji obrazów', pt: 'Ferramenta de compressão de imagens', ru: 'Инструмент сжатия изображений', sv: 'Verktyg för bildkomprimering', th: 'เครื่องมือบีบอัดรูปภาพ', tr: 'Görüntü sıkıştırma aracı', uk: 'Інструмент стиснення зображень', vi: 'Công cụ nén ảnh' },
   Quality: { ar: 'الجودة', es: 'Calidad', fr: 'Qualité', de: 'Qualität', hi: 'गुणवत्ता', id: 'Kualitas', it: 'Qualità', ja: '品質', ko: '품질', ms: 'Kualiti', nl: 'Kwaliteit', pl: 'Jakość', pt: 'Qualidade', ru: 'Качество', sv: 'Kvalitet', th: 'คุณภาพ', tr: 'Kalite', uk: 'Якість', vi: 'Chất lượng' },
+  'A cinematic sunset over Cairo...': { ar: 'غروب سينمائي فوق القاهرة...', es: 'Una puesta de sol cinematográfica sobre El Cairo...', fr: 'Un coucher de soleil cinématographique sur Le Caire...', de: 'Ein filmischer Sonnenuntergang über Kairo...', hi: 'काहिरा के ऊपर एक सिनेमाई सूर्यास्त...', id: 'Matahari terbenam sinematik di atas Kairo...', it: 'Un tramonto cinematografico sul Cairo...', ja: 'カイロの上空に広がる映画のような夕焼け...', ko: '카이로 위의 영화 같은 노을...', ms: 'Matahari terbenam sinematik di atas Kaherah...', nl: 'Een filmische zonsondergang boven Caïro...', pl: 'Filmowy zachód słońca nad Kairem...', pt: 'Um pôr do sol cinematográfico sobre o Cairo...', ru: 'Кинематографичный закат над Каиром...', sv: 'En filmisk solnedgång över Kairo...', th: 'พระอาทิตย์ตกเหนือกรุงไคโรในบรรยากาศแบบภาพยนตร์...', tr: 'Kahire üzerinde sinematik bir gün batımı...', uk: 'Кінематографічний захід сонця над Каїром...', vi: 'Hoàng hôn điện ảnh trên Cairo...' },
 };
 
 const PREFIXES: ReadonlyArray<readonly [string, LocaleMap]> = [
@@ -52,6 +53,20 @@ function translateValue(locale: CanonicalLocale, value: string, toolId: string):
     if (value.startsWith(prefix)) return `${map[locale] ?? prefix}${value.slice(prefix.length)}`;
   }
   return value;
+}
+
+export function isAuthoritativeLocalizedUiValue(locale: CanonicalLocale, value: string, toolId = ''): boolean {
+  if (locale === 'en') return true;
+  const trimmed = value.trim();
+  const exactMap = UI[trimmed];
+  if (exactMap && Object.prototype.hasOwnProperty.call(exactMap, locale)) return exactMap[locale] === trimmed;
+  if (TOOL_TITLE_KEYS.has(trimmed) && toolId) {
+    return getLocalizedToolTitle(locale, toolId, trimmed) === trimmed;
+  }
+  for (const [prefix, map] of PREFIXES) {
+    if (value.startsWith(prefix) && Object.prototype.hasOwnProperty.call(map, locale)) return map[locale] === prefix;
+  }
+  return false;
 }
 
 function shouldSkip(node: Text): boolean {
