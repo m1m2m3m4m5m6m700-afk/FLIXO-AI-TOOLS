@@ -70,11 +70,11 @@
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
     "@tanstack/react-router": "1.170.32",
-    "jszip": "^3.10.1",
+    "jszip": "^3.10.0",
     "lucide-react": "^0.575.0",
     "motion": "^12.43.0",
     "react": "^19.2.0",
-    "react-dom": "^19.1.7",
+    "react-dom": "^19.2.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -89,7 +89,6 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^15.15.0",
-    "playwright": "^1.62.1",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1"
   }
