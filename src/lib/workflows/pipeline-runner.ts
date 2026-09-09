@@ -1,6 +1,7 @@
 import { compressImage } from '@/tools/image-compressor/engine';
 import { convertImage, cropResizeImage, imageInfo, removeBackground, resizeImage } from '@/tools/image-toolkit/engine';
 import type { ExecutionPlan } from '@/lib/ai/planner';
+import { assertExecutionResourceBudget, getCapability, validateCapabilityParameters } from '@/lib/agent/capability-registry';
 import { EXECUTABLE_PIPELINE_TOOL_ID_SET, type ExecutablePipelineToolId } from '@/lib/workflows/executable-tools';
 
 export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; outputBlob?: Blob; }
@@ -23,13 +24,17 @@ async function effects(blob: Blob, params?: PipelineParams) {
   finally { if ('close' in image && typeof image.close === 'function') image.close(); }
 }
 async function processToolStep(toolId: ExecutablePipelineToolId, inputBlob: Blob, params: PipelineParams = {}) {
+  const capability = getCapability(toolId);
+  if (!capability || capability.state !== 'EXECUTABLE') throw new Error(`Capability '${toolId}' is not executable.`);
+  const validatedParams = validateCapabilityParameters(toolId, params) as PipelineParams;
+  assertExecutionResourceBudget(toolId, inputBlob);
   switch (toolId) {
-    case 'background-remover': return removeBackground(inputBlob, Number(params.tolerance ?? 42));
-    case 'image-upscaler': { const info = await imageInfo(inputBlob); const scale = Number(params.scale ?? 2); if (!Number.isFinite(scale) || scale <= 0) throw new Error('Upscale scale must be positive.'); const pixels = Math.round(info.width * scale) * Math.round(info.height * scale); if (pixels > MAX_OUTPUT_PIXELS) throw new Error('The requested upscale is too large for safe browser processing.'); return resizeImage(inputBlob, scale); }
-    case 'image-cropper': { const info = await imageInfo(inputBlob); const [rw, rh] = String(params.aspectRatio ?? '1:1').split(':').map(Number); const targetRatio = rh > 0 ? rw / rh : 1; const sourceRatio = info.width / info.height; let cropWidth = info.width; let cropHeight = info.height; if (sourceRatio > targetRatio) cropWidth = Math.max(1, Math.round(info.height * targetRatio)); else cropHeight = Math.max(1, Math.round(info.width / targetRatio)); const x = Math.round((info.width - cropWidth) / 2); const y = Math.round((info.height - cropHeight) / 2); const outWidth = Number(params.width ?? cropWidth); const outHeight = Number(params.height ?? cropHeight); if (!Number.isFinite(outWidth) || !Number.isFinite(outHeight) || outWidth <= 0 || outHeight <= 0 || outWidth * outHeight > MAX_OUTPUT_PIXELS) throw new Error('The requested crop output is invalid or too large.'); return cropResizeImage(inputBlob, { x, y, width: cropWidth, height: cropHeight }, { width: outWidth, height: outHeight }); }
-    case 'image-compressor': return (await compressImage(asFile(inputBlob), { quality: Number(params.quality ?? 0.82), format: String(params.format ?? 'image/webp') as 'image/webp' | 'image/jpeg' | 'image/png', targetSizeKB: Number(params.targetSizeKB ?? 0) || undefined })).blob;
-    case 'image-converter': return convertImage(inputBlob, String(params.format ?? 'image/webp') as 'image/webp' | 'image/jpeg' | 'image/png');
-    case 'image-effects': return effects(inputBlob, params);
+    case 'background-remover': return removeBackground(inputBlob, Number(validatedParams.tolerance ?? 42));
+    case 'image-upscaler': { const info = await imageInfo(inputBlob); const scale = Number(validatedParams.scale ?? 2); if (!Number.isFinite(scale) || scale <= 0) throw new Error('Upscale scale must be positive.'); const pixels = Math.round(info.width * scale) * Math.round(info.height * scale); if (pixels > capability.safetyLimits.maxPixels || pixels > MAX_OUTPUT_PIXELS) throw new Error('The requested upscale is too large for safe browser processing.'); return resizeImage(inputBlob, scale); }
+    case 'image-cropper': { const info = await imageInfo(inputBlob); const [rw, rh] = String(validatedParams.aspectRatio ?? '1:1').split(':').map(Number); const targetRatio = rh > 0 ? rw / rh : 1; const sourceRatio = info.width / info.height; let cropWidth = info.width; let cropHeight = info.height; if (sourceRatio > targetRatio) cropWidth = Math.max(1, Math.round(info.height * targetRatio)); else cropHeight = Math.max(1, Math.round(info.width / targetRatio)); const x = Math.round((info.width - cropWidth) / 2); const y = Math.round((info.height - cropHeight) / 2); const outWidth = Number(validatedParams.width ?? cropWidth); const outHeight = Number(validatedParams.height ?? cropHeight); if (!Number.isFinite(outWidth) || !Number.isFinite(outHeight) || outWidth <= 0 || outHeight <= 0 || outWidth * outHeight > capability.safetyLimits.maxPixels || outWidth * outHeight > MAX_OUTPUT_PIXELS) throw new Error('The requested crop output is invalid or too large.'); return cropResizeImage(inputBlob, { x, y, width: cropWidth, height: cropHeight }, { width: outWidth, height: outHeight }); }
+    case 'image-compressor': return (await compressImage(asFile(inputBlob), { quality: Number(validatedParams.quality ?? 0.82), format: String(validatedParams.format ?? 'image/webp') as 'image/webp' | 'image/jpeg' | 'image/png', targetSizeKB: Number(validatedParams.targetSizeKB ?? 0) || undefined })).blob;
+    case 'image-converter': return convertImage(inputBlob, String(validatedParams.format ?? 'image/webp') as 'image/webp' | 'image/jpeg' | 'image/png');
+    case 'image-effects': return effects(inputBlob, validatedParams);
     default: { const neverTool: never = toolId; throw new Error(`Unsupported pipeline tool: ${neverTool}`); }
   }
 }
