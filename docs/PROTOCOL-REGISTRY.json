@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "authority": "FLIXO_PROTOCOL_REGISTRY",
+  "policy": "No standalone protocol may be added unless the Protocol Addition Gate passes. Existing protocols must absorb compatible requirements instead of creating duplicates.",
+  "precedence": [
+    "MASTER_EXECUTION_AND_SAFETY",
+    "ZERO_FALSE_GREEN_AND_EVIDENCE",
+    "ROOT_CAUSE_FIRST_REPAIR",
+    "PRODUCT_CONTRACT_GRAPH",
+    "CHANGE_SCOPE_AND_DEPENDENCY_CLOSURE",
+    "TESTING_CERTIFICATION_COLLABORATION_COORDINATION_RECOVERY",
+    "CI_PERFORMANCE_AND_OPERATIONS"
+  ],
+  "protocols": [
+    {"id":"P01","name":"Master Execution Contract","class":"GOVERNANCE","status":"MANDATORY","enforcement":"AGENTS.md + CI contract","invariant":"Execution remains non-terminal until required work, evidence, tests and root causes are closed."},
+    {"id":"P02","name":"Zero False Green","class":"INTEGRITY","status":"MANDATORY","enforcement":"certification + evidence validators","invariant":"PASS requires complete fresh evidence on the exact tested SHA with no masking or partial execution."},
+    {"id":"P03","name":"Protocol Hierarchy & Conflict Resolution","class":"GOVERNANCE","status":"MANDATORY","enforcement":"validate-agent-protocol.mjs","invariant":"Lower-level rules cannot weaken higher-level safety or product invariants."},
+    {"id":"P04","name":"Root-Cause-First Repair","class":"ROOT_CAUSE","status":"MANDATORY","enforcement":"AGENTS.md + collaboration protocol","invariant":"Every persistent failure is repaired at its causal source and closed with five proofs."},
+    {"id":"P05","name":"Change-Scope Integrity","class":"ROOT_CAUSE","status":"MANDATORY","enforcement":"protocol registry + session/task evidence","invariant":"Declared affected scope is complete and cannot be shrunk or expanded to evade failure."},
+    {"id":"P06","name":"Dependency-Graph Closure","class":"ROOT_CAUSE","status":"MANDATORY","enforcement":"contract graph + certification","invariant":"Local regression cannot close a repair while downstream contract nodes remain unverified."},
+    {"id":"P07","name":"Regression-First","class":"TESTING","status":"MANDATORY","enforcement":"root-cause repair protocol","invariant":"A causal repair has a targeted regression proving pre-repair failure and post-repair correctness."},
+    {"id":"P08","name":"Canonical Test Ownership","class":"TESTING","status":"MANDATORY","enforcement":"assertion registry + certification","invariant":"Each canonical assertion has exactly one execution owner."},
+    {"id":"P09","name":"Test Deduplication & Value","class":"TESTING","status":"MANDATORY","enforcement":"assertion registry + test-plan","invariant":"Duplicate execution is consolidated without deleting required contract coverage."},
+    {"id":"P10","name":"Determinism & Flake Classification","class":"TESTING","status":"MANDATORY","enforcement":"failure classification + retry policy","invariant":"Deterministic failures are repaired; retries cannot convert defects into PASS."},
+    {"id":"P11","name":"Cross-Browser Parity","class":"BROWSER","status":"MANDATORY","enforcement":"browser matrix + certification","invariant":"Required browser engines execute equivalent required contract surfaces."},
+    {"id":"P12","name":"Route × Locale × Browser Matrix","class":"BROWSER","status":"MANDATORY","enforcement":"deep execution graph + certification","invariant":"Required public route/locale/browser units are complete, disjointly owned and evidenced."},
+    {"id":"P13","name":"Browser Runtime Failure Attribution","class":"BROWSER","status":"MANDATORY","enforcement":"G4 runtime evidence","invariant":"Application, console, network, navigation, browser and infrastructure failures remain distinguishable."},
+    {"id":"P14","name":"Single Source of Truth & Parity","class":"PRODUCT_CONTRACT","status":"MANDATORY","enforcement":"registry/router/sitemap/SEO/E2E validators","invariant":"Authoritative registry and all dependent surfaces remain 100% coherent."},
+    {"id":"P15","name":"Ready-State Integrity","class":"PRODUCT_CONTRACT","status":"MANDATORY","enforcement":"G1 readiness contract","invariant":"Not-ready tools cannot be exposed as production-ready routes."},
+    {"id":"P16","name":"Localization & SEO Runtime Integrity","class":"PRODUCT_CONTRACT","status":"MANDATORY","enforcement":"i18n + G4 + SEO validators","invariant":"Runtime localized UI, SEO metadata, canonical routes and hreflang remain authoritative and consistent."},
+    {"id":"P17","name":"Evidence Freshness & Provenance","class":"EVIDENCE","status":"MANDATORY","enforcement":"evidence ledger + certification","invariant":"Primary evidence is bound to exact SHA, run, contract/version, inputs, runtime and artifact identity."},
+    {"id":"P18","name":"Evidence-to-Assertion Traceability","class":"EVIDENCE","status":"MANDATORY","enforcement":"assertion registry + execution graph","invariant":"Every certified PASS traces from assertion through execution and artifact to the certified SHA."},
+    {"id":"P19","name":"Immutable Artifact & CI Critical Path","class":"CI","status":"MANDATORY","enforcement":"minimal CI architecture + workflow","invariant":"Build/install work is reused safely and duplicate execution does not inflate the critical path."},
+    {"id":"P20","name":"Agent Ownership, Continuity & Handoff","class":"EXECUTION","status":"MANDATORY","enforcement":"session + coordination control plane","invariant":"Mutable scopes have one owner and successors continue from fresh exact-SHA handoff state."}
+  ]
+}
