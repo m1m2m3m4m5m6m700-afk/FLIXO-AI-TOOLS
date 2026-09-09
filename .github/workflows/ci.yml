@@ -108,9 +108,18 @@ jobs:
           test "$(cat dist/flixo-head-sha.txt)" = "$EXPECTED_SHA"
           sha256sum -c dist/flixo-package-lock.sha256
       - name: Install browser
+        shell: bash
         run: |
-          npx playwright install-deps '${{ matrix.browser }}'
-          npx playwright install '${{ matrix.browser }}'
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if npx playwright install-deps '${{ matrix.browser }}' && npx playwright install '${{ matrix.browser }}'; then
+              exit 0
+            fi
+            echo "Playwright browser installation attempt $attempt failed; retrying..." >&2
+            sleep $((attempt * 5))
+          done
+          echo "Playwright browser installation failed after 3 attempts." >&2
+          exit 1
       - name: Run Browser FAST engine
         shell: bash
         env:
@@ -178,9 +187,18 @@ jobs:
           test "$(cat dist/flixo-head-sha.txt)" = "$EXPECTED_SHA"
           sha256sum -c dist/flixo-package-lock.sha256
       - name: Install browser
+        shell: bash
         run: |
-          npx playwright install-deps '${{ matrix.browser }}'
-          npx playwright install '${{ matrix.browser }}'
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if npx playwright install-deps '${{ matrix.browser }}' && npx playwright install '${{ matrix.browser }}'; then
+              exit 0
+            fi
+            echo "Playwright browser installation attempt $attempt failed; retrying..." >&2
+            sleep $((attempt * 5))
+          done
+          echo "Playwright browser installation failed after 3 attempts." >&2
+          exit 1
       - name: Run Browser DEEP engine
         shell: bash
         env:
