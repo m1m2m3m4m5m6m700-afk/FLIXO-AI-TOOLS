@@ -35,6 +35,10 @@ const expectedFastSpecs = [
   'tests/seed.spec.ts','tests/pix.spec.ts',
 ];
 const expectedDeepSpec = 'tests/localization-runtime.spec.ts';
+const deepSpecAliases = new Set([
+  expectedDeepSpec,
+  'tests/official/g4-localization-runtime.spec.ts',
+]);
 const localeSource = fs.readFileSync('src/lib/i18n/config.ts', 'utf8');
 const localeArray = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '';
 const localeCodes = [...localeArray.matchAll(/["']([a-z]{2,3})["']/giu)].map((match) => match[1].toLowerCase());
@@ -95,7 +99,7 @@ const walkSuite = (suite, inheritedFile = null) => {
 for (const suite of report.suites) walkSuite(suite);
 
 const expectedSpecs = mode === 'FAST' ? expectedFastSpecs : [expectedDeepSpec];
-const unexpectedSpecs = [...specRecords.keys()].filter((spec) => !expectedSpecs.includes(spec));
+const unexpectedSpecs = [...specRecords.keys()].filter((spec) => mode === 'DEEP' ? !deepSpecAliases.has(spec) : !expectedSpecs.includes(spec));
 
 const executionRecords = mode === 'DEEP'
   ? [...specRecords.values()].flatMap((record) => {
