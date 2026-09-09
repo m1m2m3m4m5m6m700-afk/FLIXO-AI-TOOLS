@@ -119,10 +119,7 @@ export function extractParameters(input: string): ExtractionResult {
   const hasCompressionIntent = /(?:compress|compression|ضغط|تصغير)/i.test(text);
   const hasConversionIntent = /(?:convert|conversion|تحويل|حول|حوّل)/i.test(text);
 
-  if (hasCompressionIntent) addOperation(operations, 'image-compressor', {
-    ...(targetSizeKB === undefined ? {} : { targetSizeKB }),
-    ...(format === undefined ? {} : { format }),
-  });
+  if (hasCompressionIntent) addOperation(operations, 'image-compressor', targetSizeKB === undefined ? {} : { targetSizeKB });
   else if (targetSizeKB !== undefined) addOperation(operations, 'image-compressor', { targetSizeKB });
 
   if (hasConversionIntent && format !== undefined) addOperation(operations, 'image-converter', { format });
@@ -143,5 +140,5 @@ export function extractParameters(input: string): ExtractionResult {
   if (unrecognizedFragments.length > 0) errors.push('Unrecognized instruction content requires explicit handling before execution.');
 
   if (errors.length > 0) return { success: false, errors, payload: { operations: [], unrecognizedFragments } };
-  return { success: true, errors: [], payload: { operations, unrecognizedFragments } };
+  return { success: true, errors: [], payload: { operations, unrecognizedFragments };
 }
