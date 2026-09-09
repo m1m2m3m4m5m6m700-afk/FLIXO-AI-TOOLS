@@ -2,6 +2,26 @@
 
 This file is the mandatory entry point for every autonomous coding, debugging, CI, audit, recovery, or release agent.
 
+## MAIN-ONLY EXECUTION
+
+The repository's canonical development branch is `main`.
+
+All routine implementation, repair, refactoring, testing, CI repair, cleanup, and verification work MUST be executed directly against the current exact `main` SHA.
+
+Do NOT create or switch to feature, repair, diagnostic, agent, or workaround branches for routine repository work. Do NOT use pull requests as an intermediate execution layer for ordinary changes.
+
+Every meaningful change MUST:
+
+1. read the current exact `main` SHA,
+2. apply the change to `main`,
+3. verify the resulting exact `main` SHA,
+4. run the affected contract graph and required CI verification,
+5. continue recovery directly from the resulting `main` SHA if a failure appears.
+
+Historical branch state, stale PR state, or branch-local evidence MUST NOT be treated as current repository state.
+
+PRs may be inspected as historical evidence or for externally supplied review context, but they are not the execution path for new work. A task that exists only on another branch is not current until its semantics are reconstructed and implemented on the current `main`.
+
 ## READ-BEFORE-ACTION
 
 Before any repository action, every agent MUST read:
@@ -139,4 +159,4 @@ The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 - GREEN is valid only when every required engine passes, evidence is valid and complete, Exact SHA matches, and independent root causes are zero. Skips, masked failures, stale evidence and partial passes are not Green.
 - Never claim a green release without fresh exact-SHA CI evidence.
 
-**MANDATORY ENTRY TITLE: READ FIRST → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTE → TARGETED REGRESSION → VERIFY → EXACT-SHA PROOF → HANDOFF.**
+**MANDATORY ENTRY TITLE: READ FIRST → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTE ON MAIN → TARGETED REGRESSION → VERIFY → EXACT-SHA PROOF → HANDOFF.**
