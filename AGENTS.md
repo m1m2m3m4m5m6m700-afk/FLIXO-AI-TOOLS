@@ -10,10 +10,11 @@ Before any repository action, every agent MUST read:
 2. `docs/AGENT-COLLABORATION-PROTOCOL.md`
 3. `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`
 4. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
-5. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-6. `scripts/ci/test-plan.json`
-7. `scripts/ci/assertion-registry.json`
-8. the current exact `main` SHA and current workflow state
+5. `docs/PROTOCOL-HIERARCHY.md`
+6. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+7. `scripts/ci/test-plan.json`
+8. `scripts/ci/assertion-registry.json`
+9. the current exact `main` SHA and current workflow state
 
 Reading is part of execution and is not optional documentation.
 
@@ -70,6 +71,14 @@ RCA closure requires all five proofs: `mechanism proven → causal source repair
 A repair that creates a new failure is not closed. The new failure receives its own RCA-ID and recovery continues from the new exact SHA.
 
 `VERIFIED` is forbidden while the RCA remains open, a symptom workaround remains, required coverage was removed, or an independent root cause remains unresolved.
+
+## PROTOCOL HIERARCHY
+
+The normative hierarchy and anti-bloat gate are defined in `docs/PROTOCOL-HIERARCHY.md`. It is mandatory reading and enforcement input.
+
+When protocol rules conflict, precedence is: Master execution and safety contract → Zero-False-Green/evidence integrity → Root-Cause-First Repair → G1/G2/G3/G4 and release contracts → Change-Scope Integrity/Dependency-Graph Closure → testing/certification/collaboration/coordination/recovery → CI optimization.
+
+No new standalone protocol may be introduced unless a recurring failure class is proven, existing controls are insufficient, the invariant and authoritative enforcement boundary are named, a regression/enforcement test is defined, and duplication/conflict analysis passes. Extend an existing protocol when it can absorb the requirement without ambiguity.
 
 ## OWNERSHIP
 
