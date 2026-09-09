@@ -15,6 +15,20 @@ const UI: Readonly<Record<string, LocaleMap>> = {
   'Modified text': { ar: 'النص المعدّل', es: 'Texto modificado', fr: 'Texte modifié', de: 'Geänderter Text', hi: 'संशोधित टेक्स्ट', id: 'Teks yang diubah', it: 'Testo modificato', ja: '変更後のテキスト', ko: '수정된 텍스트', ms: 'Teks diubah suai', nl: 'Aangepaste tekst', pl: 'Zmodyfikowany tekst', pt: 'Texto modificado', ru: 'Изменённый текст', sv: 'Ändrad text', th: 'ข้อความที่แก้ไข', tr: 'Değiştirilmiş metin', uk: 'Змінений текст', vi: 'Văn bản đã sửa' },
   Compare: { ar: 'مقارنة', es: 'Comparar', fr: 'Comparer', de: 'Vergleichen', hi: 'तुलना करें', id: 'Bandingkan', it: 'Confronta', ja: '比較', ko: '비교', ms: 'Bandingkan', nl: 'Vergelijken', pl: 'Porównaj', pt: 'Comparar', ru: 'Сравнить', sv: 'Jämför', th: 'เปรียบเทียบ', tr: 'Karşılaştır', uk: 'Порівняти', vi: 'So sánh' },
   'Copy text': { ar: 'نسخ النص', es: 'Copiar texto', fr: 'Copier le texte', de: 'Text kopieren', hi: 'टेक्स्ट कॉपी करें', id: 'Salin teks', it: 'Copia testo', ja: 'テキストをコピー', ko: '텍스트 복사', ms: 'Salin teks', nl: 'Tekst kopiëren', pl: 'Kopiuj tekst', pt: 'Copiar texto', ru: 'Копировать текст', sv: 'Kopiera text', th: 'คัดลอกข้อความ', tr: 'Metni kopyala', uk: 'Копіювати текст', vi: 'Sao chép văn bản' },
+  Open: { ar: 'فتح', es: 'Abrir', fr: 'Ouvrir', de: 'Öffnen', hi: 'खोलें', id: 'Buka', it: 'Apri', ja: '開く', ko: '열기', ms: 'Buka', nl: 'Openen', pl: 'Otwórz', pt: 'Abrir', ru: 'Открыть', sv: 'Öppna', th: 'เปิด', tr: 'Aç', uk: 'Відкрити', vi: 'Mở' },
+  Images: { ar: 'الصور', es: 'Imágenes', fr: 'Images', de: 'Bilder', hi: 'छवियाँ', id: 'Gambar', it: 'Immagini', ja: '画像', ko: '이미지', ms: 'Imej', nl: 'Afbeeldingen', pl: 'Obrazy', pt: 'Imagens', ru: 'Изображения', sv: 'Bilder', th: 'รูปภาพ', tr: 'Görseller', uk: 'Зображення', vi: 'Hình ảnh' },
+  Privacy: { ar: 'الخصوصية', es: 'Privacidad', fr: 'Confidentialité', de: 'Datenschutz', hi: 'गोपनीयता', id: 'Privasi', it: 'Privacy', ja: 'プライバシー', ko: '개인정보 보호', ms: 'Privasi', nl: 'Privacy', pl: 'Prywatność', pt: 'Privacidade', ru: 'Конфиденциальность', sv: 'Integritet', th: 'ความเป็นส่วนตัว', tr: 'Gizlilik', uk: 'Конфіденційність', vi: 'Quyền riêng tư' },
+  Auto: { ar: 'تلقائي', es: 'Automático', fr: 'Automatique', de: 'Automatisch', hi: 'स्वचालित', id: 'Otomatis', it: 'Automatico', ja: '自動', ko: '자동', ms: 'Automatik', nl: 'Automatisch', pl: 'Automatycznie', pt: 'Automático', ru: 'Авто', sv: 'Automatiskt', th: 'อัตโนมัติ', tr: 'Otomatik', uk: 'Автоматично', vi: 'Tự động' },
+  'Generate image': { ar: 'إنشاء صورة', es: 'Generar imagen', fr: 'Générer une image', de: 'Bild generieren', hi: 'छवि बनाएं', id: 'Buat gambar', it: 'Genera immagine', ja: '画像を生成', ko: '이미지 생성', ms: 'Jana imej', nl: 'Afbeelding genereren', pl: 'Wygeneruj obraz', pt: 'Gerar imagem', ru: 'Сгенерировать изображение', sv: 'Skapa bild', th: 'สร้างภาพ', tr: 'Görsel oluştur', uk: 'Створити зображення', vi: 'Tạo hình ảnh' },
+  'Watermark text': { ar: 'نص العلامة المائية', es: 'Texto de marca de agua', fr: 'Texte du filigrane', de: 'Wasserzeichentext', hi: 'वॉटरमार्क टेक्स्ट', id: 'Teks tanda air', it: 'Testo filigrana', ja: '透かしテキスト', ko: '워터마크 텍스트', ms: 'Teks tanda air', nl: 'Watermerktekst', pl: 'Tekst znaku wodnego', pt: 'Texto da marca d’água', ru: 'Текст водяного знака', sv: 'Vattenstämpeltext', th: 'ข้อความลายน้ำ', tr: 'Filigran metni', uk: 'Текст водяного знака', vi: 'Văn bản hình mờ' },
+  'Top text': { ar: 'النص العلوي', es: 'Texto superior', fr: 'Texte supérieur', de: 'Oberer Text', hi: 'ऊपरी टेक्स्ट', id: 'Teks atas', it: 'Testo superiore', ja: '上部テキスト', ko: '상단 텍스트', ms: 'Teks atas', nl: 'Bovenste tekst', pl: 'Górny tekst', pt: 'Texto superior', ru: 'Верхний текст', sv: 'Övre text', th: 'ข้อความด้านบน', tr: 'Üst metin', uk: 'Верхній текст', vi: 'Văn bản trên' },
+  'Bottom text': { ar: 'النص السفلي', es: 'Texto السفلي', fr: 'Texte inférieur', de: 'Unterer Text', hi: 'निचला टेक्स्ट', id: 'Teks bawah', it: 'Testo inferiore', ja: '下部テキスト', ko: '하단 텍스트', ms: 'Teks bawah', nl: 'Onderste tekst', pl: 'Dolny tekst', pt: 'Texto inferior', ru: 'Нижний текст', sv: 'Nedre text', th: 'ข้อความด้านล่าง', tr: 'Alt metin', uk: 'Нижній текст', vi: 'Văn bản dưới' },
+  Brightness: { ar: 'السطوع', es: 'Brillo', fr: 'Luminosité', de: 'Helligkeit', hi: 'चमक', id: 'Kecerahan', it: 'Luminosità', ja: '明るさ', ko: '밝기', ms: 'Kecerahan', nl: 'Helderheid', pl: 'Jasność', pt: 'Brilho', ru: 'Яркость', sv: 'Ljusstyrka', th: 'ความสว่าง', tr: 'Parlaklık', uk: 'Яскравість', vi: 'Độ sáng' },
+  Contrast: { ar: 'التباين', es: 'Contraste', fr: 'Contraste', de: 'Kontrast', hi: 'कंट्रास्ट', id: 'Kontras', it: 'Contrasto', ja: 'コントラスト', ko: '대비', ms: 'Kontras', nl: 'Contrast', pl: 'Kontrast', pt: 'Contraste', ru: 'Контраст', sv: 'Kontrast', th: 'คอนทราสต์', tr: 'Kontrast', uk: 'Контраст', vi: 'Độ tương phản' },
+  Saturation: { ar: 'التشبع', es: 'Saturación', fr: 'Saturation', de: 'Sättigung', hi: 'संतृप्ति', id: 'Saturasi', it: 'Saturazione', ja: '彩度', ko: '채도', ms: 'Ketepuan', nl: 'Verzadiging', pl: 'Nasycenie', pt: 'Saturação', ru: 'Насыщенность', sv: 'Mättnad', th: 'ความอิ่มตัว', tr: 'Doygunluk', uk: 'Насиченість', vi: 'Độ bão hòa' },
+  Grayscale: { ar: 'تدرج رمادي', es: 'Escala de grises', fr: 'Niveaux de gris', de: 'Graustufen', hi: 'ग्रेस्केल', id: 'Skala abu-abu', it: 'Scala di grigi', ja: 'グレースケール', ko: '그레이스케일', ms: 'Skala kelabu', nl: 'Grijstinten', pl: 'Skala szarości', pt: 'Escala de cinza', ru: 'Оттенки серого', sv: 'Gråskala', th: 'โทนสีเทา', tr: 'Gri tonlama', uk: 'Відтінки сірого', vi: 'Thang độ xám' },
+  'Image compression tool': { ar: 'أداة ضغط الصور', es: 'Herramienta de compresión de imágenes', fr: 'Outil de compression d’images', de: 'Bildkomprimierungstool', hi: 'छवि संपीड़न टूल', id: 'Alat kompresi gambar', it: 'Strumento di compressione immagini', ja: '画像圧縮ツール', ko: '이미지 압축 도구', ms: 'Alat pemampatan imej', nl: 'Hulpmiddel voor beeldcompressie', pl: 'Narzędzie do kompresji obrazów', pt: 'Ferramenta de compressão de imagens', ru: 'Инструмент сжатия изображений', sv: 'Verktyg för bildkomprimering', th: 'เครื่องมือบีบอัดรูปภาพ', tr: 'Görüntü sıkıştırma aracı', uk: 'Інструмент стиснення зображень', vi: 'Công cụ nén ảnh' },
+  Quality: { ar: 'الجودة', es: 'Calidad', fr: 'Qualité', de: 'Qualität', hi: 'गुणवत्ता', id: 'Kualitas', it: 'Qualità', ja: '品質', ko: '품질', ms: 'Kualiti', nl: 'Kwaliteit', pl: 'Jakość', pt: 'Qualidade', ru: 'Качество', sv: 'Kvalitet', th: 'คุณภาพ', tr: 'Kalite', uk: 'Якість', vi: 'Chất lượng' },
 };
 
 const PREFIXES: ReadonlyArray<readonly [string, LocaleMap]> = [
@@ -23,11 +37,17 @@ const PREFIXES: ReadonlyArray<readonly [string, LocaleMap]> = [
   ['Output: ', { ar: 'الإخراج: ', es: 'Salida: ', fr: 'Sortie : ', de: 'Ausgabe: ', hi: 'आउटपुट: ', id: 'Keluaran: ', it: 'Output: ', ja: '出力: ', ko: '출력: ', ms: 'Keluaran: ', nl: 'Uitvoer: ', pl: 'Wyjście: ', pt: 'Saída: ', ru: 'Результат: ', sv: 'Utdata: ', th: 'เอาต์พุต: ', tr: 'Çıktı: ', uk: 'Вихід: ', vi: 'Đầu ra: ' }],
 ];
 
-function translateValue(locale: CanonicalLocale, value: string): string {
+const TOOL_TITLE_KEYS = new Set(['AI Image Generator', 'Background Remover', 'Image Upscaler', 'Image Converter', 'Image to Text OCR', 'Object Remover', 'Crop & Resize', 'Watermark Remover', 'Image Compressor', 'Meme Generator', 'Image Effects', 'Watermark Adder']);
+
+function translateValue(locale: CanonicalLocale, value: string, toolId: string): string {
   if (locale === 'en') return value;
   const trimmed = value.trim();
   const exact = UI[trimmed]?.[locale];
   if (exact) return value.replace(trimmed, exact);
+  if (TOOL_TITLE_KEYS.has(trimmed) && toolId) {
+    const localizedTitle = getLocalizedToolTitle(locale, toolId, trimmed);
+    if (localizedTitle && localizedTitle !== trimmed) return value.replace(trimmed, localizedTitle);
+  }
   for (const [prefix, map] of PREFIXES) {
     if (value.startsWith(prefix)) return `${map[locale] ?? prefix}${value.slice(prefix.length)}`;
   }
@@ -48,7 +68,7 @@ function localizeRoot(root: HTMLElement, locale: CanonicalLocale, toolId: string
   }
   for (const node of texts) {
     const current = node.nodeValue ?? '';
-    const next = translateValue(locale, current);
+    const next = translateValue(locale, current, toolId);
     if (next !== current) node.nodeValue = next;
   }
   root.querySelectorAll<HTMLElement>('[aria-label],[title],[placeholder]').forEach((element) => {
@@ -56,7 +76,7 @@ function localizeRoot(root: HTMLElement, locale: CanonicalLocale, toolId: string
     for (const attribute of ['aria-label', 'title', 'placeholder'] as const) {
       const current = element.getAttribute(attribute);
       if (!current) continue;
-      const next = translateValue(locale, current);
+      const next = translateValue(locale, current, toolId);
       if (next !== current) element.setAttribute(attribute, next);
     }
   });
