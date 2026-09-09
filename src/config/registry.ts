@@ -1,5 +1,7 @@
 import { IMAGE_TOOLS } from './tool-definitions/image.ts';
 import type { ToolConfig } from './tool-definitions/types.ts';
+import { createToolCatalog } from './tool-platform/catalog.ts';
+import type { ToolCatalog } from './tool-platform/types.ts';
 
 const TOOL_FAMILIES: readonly (readonly ToolConfig[])[] = [IMAGE_TOOLS];
 
@@ -24,5 +26,14 @@ const ALL_TOOLS = TOOL_FAMILIES.flat();
 assertToolRegistryContract(ALL_TOOLS);
 
 export const TOOL_REGISTRY: readonly ToolConfig[] = Object.freeze(ALL_TOOLS);
+export const TOOL_CATALOG: ToolCatalog = createToolCatalog(TOOL_REGISTRY);
 export const TOOL_DEFINITIONS = TOOL_REGISTRY;
 export { IMAGE_TOOLS };
+
+export function getToolById(id: string) {
+  return TOOL_CATALOG.byId.get(id);
+}
+
+export function getToolByRoute(path: string) {
+  return TOOL_CATALOG.byPath.get(path) ?? TOOL_CATALOG.byAlias.get(path);
+}
