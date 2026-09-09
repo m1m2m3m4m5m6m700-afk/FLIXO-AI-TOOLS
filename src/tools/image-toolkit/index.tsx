@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from '@tanstack/react-router';
-import { convertImage, cropResizeImage, downloadBlob, imageInfo, removeBackground, rasterToSvg, resizeImage, watermarkRemove, fillRemoveRegion } from './engine';
+import { convertImage, cropResizeImage, imageInfo, removeBackground, rasterToSvg, resizeImage, watermarkRemove, fillRemoveRegion } from './engine';
 import { recognizeWithOcrWorker } from './ocr-worker-client';
 import { assertImageCropperOutputIntegrity } from '../image-cropper/output-integrity';
 import { assertImageConverterOutputIntegrity } from '../image-converter/output-integrity';
@@ -75,7 +75,7 @@ async function preprocessForOcr(file: File): Promise<Blob> {
 }
 
 async function createResult(blob: Blob, fileName: string, info?: Result['info'], text?: string): Promise<Result> {
-  const objectUrl = blob.type.startsWith('image/') ? URL.createObjectURL(blob) : undefined;
+  const objectUrl = URL.createObjectURL(blob);
   return { blob, fileName, info, text, objectUrl };
 }
 
@@ -152,7 +152,7 @@ export function ImageToolPage({ toolId }: Props) {
             {error && <p role="alert" className="error-box">{error}</p>}
             {toolId === 'image-to-text' && <p className="privacy-note">OCR preprocesses the selected image locally, then runs Tesseract.js recognition in a dedicated Web Worker.</p>}
           </div>
-          <aside className="result-card" aria-live="polite"><p className="image-tool-eyebrow">RESULT</p>{result ? <>{result.text !== undefined ? <pre style={{ whiteSpace: 'pre-wrap' }}>{result.text || 'No text detected.'}</pre> : result.objectUrl && <img src={result.objectUrl} alt="Tool result" style={{ maxWidth: '100%', borderRadius: 12 }} />}{result.info && <p className="privacy-note">Output: {result.info.width} × {result.info.height}px · {Math.round(result.blob.size / 1024)} KB · {result.blob.type || 'application/octet-stream'}</p>}<div className="button-row"><a className="primary-button" href={result.objectUrl} download={result.fileName}>Download {result.fileName}</a><button className="primary-button" type="button" onClick={() => downloadBlob(result.blob, result.fileName)}>Download now</button></div></> : <p>No result yet.</p>}</aside>
+          <aside className="result-card" aria-live="polite"><p className="image-tool-eyebrow">RESULT</p>{result ? <>{result.text !== undefined ? <pre style={{ whiteSpace: 'pre-wrap' }}>{result.text || 'No text detected.'}</pre> : result.objectUrl && <img src={result.objectUrl} alt="Tool result" style={{ maxWidth: '100%', borderRadius: 12 }} />}{result.info && <p className="privacy-note">Output: {result.info.width} × {result.info.height}px · {Math.round(result.blob.size / 1024)} KB · {result.blob.type || 'application/octet-stream'}</p>}<div className="button-row"><a className="primary-button" href={result.objectUrl} download={result.fileName}>Download {result.fileName}</a><a className="primary-button" role="button" href={result.objectUrl} download={result.fileName}>Download now</a></div></> : <p>No result yet.</p>}</aside>
         </section>
       </div>
     </div>
