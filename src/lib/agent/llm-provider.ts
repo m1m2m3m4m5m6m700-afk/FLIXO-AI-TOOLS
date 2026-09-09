@@ -49,13 +49,15 @@ export class LLMProviderError extends Error {
   readonly code: ProviderFailureCode;
   readonly cause?: unknown;
   readonly status?: number;
+  readonly attempts?: number;
 
-  constructor(code: ProviderFailureCode, message: string, cause?: unknown, status?: number) {
+  constructor(code: ProviderFailureCode, message: string, cause?: unknown, status?: number, attempts?: number) {
     super(message);
     this.name = 'LLMProviderError';
     this.code = code;
     this.cause = cause;
     this.status = status;
+    this.attempts = attempts;
   }
 }
 
@@ -184,15 +186,15 @@ export async function planFromProvider(
         });
       } catch (error) {
         if (controller.signal.aborted) {
-          throw new LLMProviderError('TIMEOUT', `LLM provider timed out after ${timeoutMs}ms.`, error);
+          throw new LLMProviderError('TIMEOUT', `LLM provider timed out after ${timeoutMs}ms.`, error, undefined, attempts);
         }
         if (error instanceof LLMProviderError && !['HTTP_ERROR', 'RATE_LIMITED'].includes(error.code)) {
           throw error;
         }
         if (attempts > maxRetries) {
           throw error instanceof LLMProviderError
-            ? new LLMProviderError('RETRY_EXHAUSTED', `LLM provider failed after ${attempts} attempts.`, error, error.status)
-            : new LLMProviderError('RETRY_EXHAUSTED', `LLM provider failed after ${attempts} attempts.`, error);
+            ? new LLMProviderError('RETRY_EXHAUSTED', `LLM provider failed after ${attempts} attempts.`, error, error.status, attempts)
+            : new LLMProviderError('RETRY_EXHAUSTED', `LLM provider failed after ${attempts} attempts.`, error, undefined, attempts);
         }
         const delay = Math.min(maxRetryDelayMs, retryBaseDelayMs * 2 ** (attempts - 1));
         await abortableDelay(delay, controller.signal);
@@ -241,7 +243,7 @@ export async function planWithProviderOrLocal(
       plan: planLocally(input),
       source: 'local',
       latencyMs: Math.max(0, Math.round(performance.now() - started)),
-      attempts: providerFailure.code === 'TIMEOUT' ? 1 : undefined,
+      attempts: providerFailure.attempts ?? 1,
       providerFailure,
     });
   }
