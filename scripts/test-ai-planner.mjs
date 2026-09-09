@@ -38,6 +38,7 @@ const arabic = extractParameters('اضغط الصورة إلى أقل من 200 �
 assert.equal(arabic.success, true);
 assert.deepEqual(arabic.payload?.operations, [
   { capability: 'image-compressor', params: { targetSizeKB: 200, format: 'image/webp' } },
+  { capability: 'image-converter', params: { format: 'image/webp' } },
 ]);
 
 const oversize = extractParameters('resize to 5000x5000');
