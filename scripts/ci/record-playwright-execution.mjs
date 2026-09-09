@@ -76,6 +76,7 @@ const walkSuite = (suite, inheritedFile = null) => {
       const status = failed ? 'FAIL' : passed ? 'PASS' : skipped ? 'SKIPPED' : 'NOT_EXECUTED';
       record.tests.push({
         name: testName,
+        locale: testName?.match(/(?:^|\s)\/([a-z]{2,3})(?:\/|$)/iu)?.[1]?.toLowerCase() ?? null,
         status,
         attempt: results.length,
         attempts: results.map((result, index) => ({
@@ -95,7 +96,22 @@ for (const suite of report.suites) walkSuite(suite);
 
 const expectedSpecs = mode === 'FAST' ? expectedFastSpecs : [expectedDeepSpec];
 const unexpectedSpecs = [...specRecords.keys()].filter((spec) => !expectedSpecs.includes(spec));
-const units = [...specRecords.values()].map((record) => {
+
+const executionRecords = mode === 'DEEP'
+  ? [...specRecords.values()].flatMap((record) => {
+      const localeGroups = new Map();
+      for (const test of record.tests) {
+        const locale = test.locale;
+        const key = locale ?? '__missing_locale__';
+        const group = localeGroups.get(key) ?? { spec: record.spec, locale, tests: [] };
+        group.tests.push(test);
+        localeGroups.set(key, group);
+      }
+      return [...localeGroups.values()];
+    })
+  : [...specRecords.values()].map((record) => ({ ...record, locale: null }));
+
+const units = executionRecords.map((record) => {
   const tests = record.tests;
   const failedTestCount = tests.filter((test) => test.status === 'FAIL').length;
   const passedTestCount = tests.filter((test) => test.status === 'PASS').length;
@@ -104,11 +120,9 @@ const units = [...specRecords.values()].map((record) => {
   const status = failedTestCount > 0 ? 'FAIL' : passedTestCount > 0 ? 'PASS' : skippedTestCount === tests.length && tests.length > 0 ? 'SKIPPED' : 'NOT_EXECUTED';
   const canonicalAssertionIds = [...new Set(tests.map((test) => test.assertionId).filter(Boolean))];
   const testName = tests.length === 1 ? tests[0].name : tests.length > 1 ? `${tests.length} tests` : '<untitled>';
-  const semanticLocale = mode === 'DEEP'
-    ? tests.map((test) => test.name ?? '').map((name) => name.match(/(?:^|\s)\/([a-z]{2,3})(?:\/|$)/iu)?.[1]?.toLowerCase() ?? null).find(Boolean) ?? null
-    : null;
+  const semanticLocale = mode === 'DEEP' ? record.locale : null;
   return {
-    executionUnitId: `${mode}:${browser}:${shard}:${record.spec}`,
+    executionUnitId: `${mode}:${browser}:${shard}:${record.spec}${semanticLocale ? `:${semanticLocale}` : ''}`,
     semanticUnitId: mode === 'FAST'
       ? `FAST:${browser}:${record.spec}`
       : semanticLocale
@@ -116,7 +130,7 @@ const units = [...specRecords.values()].map((record) => {
         : null,
     assertionId: canonicalAssertionIds.length === 1 && tests.length === 1 ? canonicalAssertionIds[0] : null,
     attribution: canonicalAssertionIds.length === 1 && tests.length === 1 ? 'CANONICAL_IMPLEMENTATION_MATCH' : 'SURFACE_COVERAGE_ONLY',
-    coverageId: `${mode}:${record.spec}`,
+    coverageId: `${mode}:${record.spec}${semanticLocale ? `:${semanticLocale}` : ''}`,
     mode,
     browser,
     locale: semanticLocale,
@@ -152,9 +166,13 @@ const coverageIds = [...new Set(units.map((unit) => unit.coverageId))];
 const skippedTestCount = units.reduce((sum, unit) => sum + unit.testStatusCounts.SKIPPED, 0);
 const failedTestCount = units.reduce((sum, unit) => sum + unit.testStatusCounts.FAIL, 0);
 const notExecutedTestCount = units.reduce((sum, unit) => sum + unit.testStatusCounts.NOT_EXECUTED, 0);
+const missingLocaleTestCount = mode === 'DEEP' ? units.reduce((sum, unit) => sum + unit.tests.filter((test) => !test.locale).length, 0) : 0;
 const semanticUnitStatus = mode === 'FAST'
   ? semanticUnitSet.size > 0 && units.every((unit) => Boolean(unit.semanticUnitId) && expectedFastSpecs.includes(unit.spec))
-  : semanticUnitSet.size > 0 && unexpectedSpecs.length === 0 && units.every((unit) => Boolean(unit.semanticUnitId) && Boolean(unit.semanticLocale) && localeCodes.includes(unit.semanticLocale));
+  : semanticUnitSet.size > 0
+    && unexpectedSpecs.length === 0
+    && missingLocaleTestCount === 0
+    && units.every((unit) => Boolean(unit.semanticUnitId) && Boolean(unit.semanticLocale) && localeCodes.includes(unit.semanticLocale));
 const outputStatus = units.length > 0
   && units.every((unit) => unit.status === 'PASS')
   && failedTestCount === 0
