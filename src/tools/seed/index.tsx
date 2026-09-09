@@ -55,6 +55,7 @@ export default function SeedTool() {
   const renderFrameRef = useRef<number | null>(null);
   const renderRevisionRef = useRef(0);
   const activeParamsRef = useRef<SeedState>(DEFAULT_STATE);
+  const renderSettingsRef = useRef<SeedRenderSettings>(DEFAULT_STATE);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [imageName, setImageName] = useState('');
   const [settings, setSettings] = useState<SeedState>(DEFAULT_STATE);
@@ -107,11 +108,11 @@ export default function SeedTool() {
     setIsRendering(true);
     renderFrameRef.current = requestAnimationFrame(() => {
       renderFrameRef.current = null;
-      try { renderGpu(settings); }
+      try { renderGpu(renderSettingsRef.current); }
       catch (cause) { setError(cause instanceof Error ? cause.message : 'GPU rendering failed.'); }
       finally { setIsRendering(false); }
     });
-  }, [image, renderGpu, settings]);
+  }, [image, renderGpu]);
 
   useEffect(() => {
     if (!canvasRef.current || !image) return;
@@ -146,6 +147,7 @@ export default function SeedTool() {
   const commit = (nextBasic: SeedState, nextAdvanced: AdvancedSeedSettings) => {
     const next = { basic: nextBasic, advanced: nextAdvanced };
     const result = pushHistory(next, history, historyIndex);
+    renderSettingsRef.current = nextBasic;
     setSettings(nextBasic); setAdvanced(nextAdvanced); setHistory(result.history); setHistoryIndex(result.index);
   };
   const updateSetting = <K extends keyof SeedState>(key: K, value: SeedState[K]) => commit({ ...settings, [key]: value }, advanced);
@@ -153,11 +155,13 @@ export default function SeedTool() {
   const undo = () => {
     if (historyIndex === 0) return;
     const next = cloneSnapshot(history[historyIndex - 1]);
+    renderSettingsRef.current = next.basic;
     setHistoryIndex(historyIndex - 1); setSettings(next.basic); setAdvanced(next.advanced);
   };
   const redo = () => {
     if (historyIndex >= history.length - 1) return;
     const next = cloneSnapshot(history[historyIndex + 1]);
+    renderSettingsRef.current = next.basic;
     setHistoryIndex(historyIndex + 1); setSettings(next.basic); setAdvanced(next.advanced);
   };
 
@@ -168,6 +172,7 @@ export default function SeedTool() {
     imageUrlRef.current = url;
     const img = new Image();
     img.onload = () => {
+      renderSettingsRef.current = DEFAULT_STATE;
       setImage(img); setImageName(file.name); setSettings(DEFAULT_STATE); setAdvanced(cloneAdvanced(DEFAULT_ADVANCED));
       setHistory([{ basic: DEFAULT_STATE, advanced: cloneAdvanced(DEFAULT_ADVANCED) }]); setHistoryIndex(0); setZoomLevel(1); setError('');
     };
