@@ -1,8 +1,9 @@
 import { resolveIntent } from '@/lib/intent/resolver';
 import { EXECUTABLE_PIPELINE_TOOL_ID_SET } from '@/lib/workflows/executable-tools';
-import { extractParameters } from '@/lib/agent/intent/parameter-extractor';
 import { parseExecutionPlan, MAX_PLAN_STEPS } from '@/lib/contracts/ai-plan';
+import { buildQuickFlowPlan } from '@/lib/quickflow';
 import type { ToolConfig } from '@/config/tools';
+import { TOOLS_REGISTRY } from '@/config/tools';
 import { getWorkflow } from '@/lib/workflows/registry';
 
 export type ExecutionPlan = {
@@ -22,16 +23,15 @@ export function planFromWorkflow(workflowId: string): ExecutionPlan | null {
 }
 
 export function planFromIntent(input: string): ExecutionPlan | null {
-  const extracted = extractParameters(input);
-  if (extracted.success && extracted.payload?.operations.length) {
-    const steps = extracted.payload.operations.map((operation) => ({ toolId: operation.capability as ToolConfig['id'], params: operation.params }));
-    if (steps.length > MAX_STEPS || !steps.every((step) => EXECUTABLE_PIPELINE_TOOL_ID_SET.has(step.toolId))) return null;
-
+  const quickFlow = buildQuickFlowPlan(input, TOOLS_REGISTRY);
+  if (quickFlow) {
     const intent = resolveIntent(input);
+    const steps = quickFlow.steps.map((step) => ({ toolId: step.toolId as ToolConfig['id'], params: step.params }));
+    if (steps.length > MAX_STEPS || !steps.every((step) => EXECUTABLE_PIPELINE_TOOL_ID_SET.has(step.toolId))) return null;
     if (intent.kind === 'tool' && intent.id && !steps.some((step) => step.toolId === intent.id)) return null;
     return validateExecutionPlan({
-      workflowName: intent.kind === 'tool' ? 'Direct Tool' : 'Natural Language Image Operation',
-      confidence: intent.kind === 'tool' ? intent.confidence : 0.9,
+      workflowName: steps.length > 1 ? 'Dynamic QuickFlow' : 'Direct Tool',
+      confidence: steps.length > 1 ? 0.95 : intent.confidence,
       steps,
     });
   }

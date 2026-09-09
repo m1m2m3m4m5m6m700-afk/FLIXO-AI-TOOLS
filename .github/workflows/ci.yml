@@ -123,10 +123,11 @@ jobs:
           )
           test "${#specs[@]}" -eq 22
           npx playwright test "${specs[@]}" --project="$BROWSER" --workers=6 --retries=0 --max-failures=0 --shard="$SHARD/2"
-          mkdir -p diagnostics/certification
+          mkdir -p diagnostics/certification/playwright-results
           cat > "diagnostics/certification/browser-fast-${BROWSER}-${SHARD}.json" <<JSON
           {"evidenceClass":"PRIMARY_EXECUTION","mode":"FAST","browser":"$BROWSER","shard":$SHARD,"sha":"$EXPECTED_SHA","run_id":"${GITHUB_RUN_ID}","toolSpecs":22,"status":"PASS"}
           JSON
+          cp playwright-report/results.json "diagnostics/certification/playwright-results/browser-fast-${BROWSER}-${SHARD}-results.json"
       - name: Validate Playwright evidence serialization
         if: always()
         run: node scripts/ci/validate-playwright-evidence.mjs playwright-report/results.json
@@ -141,11 +142,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: flixo-browser-fast-${{ matrix.browser }}-${{ matrix.shard }}-${{ github.run_id }}
-          path: |
-            diagnostics/certification/
-            playwright-report/
-            test-results/
-            /tmp/flixo-browser-fast.log
+          path: diagnostics/certification/
           if-no-files-found: warn
           retention-days: 14
 
@@ -198,10 +195,11 @@ jobs:
             *) echo "Unsupported DEEP shard: $SHARD" >&2; exit 2 ;;
           esac
           npx playwright test tests/localization-runtime.spec.ts --project="$BROWSER" --workers=6 --retries=0 --max-failures=0 --grep="$DEEP_LOCALE_GREP"
-          mkdir -p diagnostics/certification
+          mkdir -p diagnostics/certification/playwright-results
           cat > "diagnostics/certification/browser-deep-${BROWSER}-${SHARD}.json" <<JSON
           {"evidenceClass":"PRIMARY_EXECUTION","mode":"DEEP","browser":"$BROWSER","shard":$SHARD,"sha":"$EXPECTED_SHA","run_id":"${GITHUB_RUN_ID}","locales":20,"status":"PASS"}
           JSON
+          cp playwright-report/results.json "diagnostics/certification/playwright-results/browser-deep-${BROWSER}-${SHARD}-results.json"
       - name: Validate Playwright evidence serialization
         if: always()
         run: node scripts/ci/validate-playwright-evidence.mjs playwright-report/results.json
@@ -216,11 +214,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: flixo-browser-deep-${{ matrix.browser }}-${{ matrix.shard }}-${{ github.run_id }}
-          path: |
-            diagnostics/certification/
-            playwright-report/
-            test-results/
-            /tmp/flixo-browser-deep.log
+          path: diagnostics/certification/
           if-no-files-found: warn
           retention-days: 14
 
