@@ -24,23 +24,19 @@ const MIME_BY_FORMAT = Object.freeze({
   jpeg: 'image/jpeg',
 });
 
-const normalizeText = (input: string): string =>
-  input
-    .toLocaleLowerCase()
-    .replace(/\u00a0/g, ' ')
-    .replace(/[،،]/g, ',')
-    .replace(/\s+/g, ' ')
-    .trim();
+const normalizeText = (input: string): string => input
+  .toLocaleLowerCase()
+  .replace(/\u00a0/g, ' ')
+  .replace(/[،،]/g, ',')
+  .replace(/\s+/g, ' ')
+  .trim();
 
 function addOperation(operations: ExtractedOperation[], capabilityId: string, params: Record<string, string | number | boolean>): void {
   const capability = getCapability(capabilityId);
   if (!capability || !EXECUTABLE_STATES.includes(capability.state)) return;
   const previous = operations.find((operation) => operation.capability === capabilityId);
-  if (previous) {
-    previous.params = { ...previous.params, ...params };
-    return;
-  }
-  operations.push({ capability: capabilityId, params });
+  if (previous) previous.params = { ...previous.params, ...params };
+  else operations.push({ capability: capabilityId, params });
 }
 
 function parseTargetSize(text: string): number | undefined {
@@ -49,8 +45,7 @@ function parseTargetSize(text: string): number | undefined {
   const value = Number(match[1]);
   const unit = match[2].toLocaleLowerCase();
   if (!Number.isFinite(value) || value <= 0) return undefined;
-  if (unit === 'mb' || unit === 'mib' || unit === 'ميجابايت') return Math.round(value * 1024);
-  return Math.round(value);
+  return unit === 'mb' || unit === 'mib' || unit === 'ميجابايت' ? Math.round(value * 1024) : Math.round(value);
 }
 
 function parseFormat(text: string): string | undefined {
@@ -82,8 +77,7 @@ function parseBrightness(text: string): number | undefined {
   if (!match) return undefined;
   const amount = Number(match[1]);
   if (!Number.isFinite(amount) || amount > 100) return undefined;
-  const decreasing = /(?:decrease|lower|خفض|تقليل)/i.test(match[0]);
-  return decreasing ? Math.max(0, 100 - amount) : Math.min(200, 100 + amount);
+  return /(?:decrease|lower|خفض|تقليل)/i.test(match[0]) ? Math.max(0, 100 - amount) : Math.min(200, 100 + amount);
 }
 
 function validateOperation(operation: ExtractedOperation, errors: string[]): void {
@@ -111,48 +105,41 @@ function validateOperation(operation: ExtractedOperation, errors: string[]): voi
 }
 
 export function extractParameters(input: string): ExtractionResult {
-  if (typeof input !== 'string' || input.trim().length === 0) {
-    return { success: false, errors: ['Input text is empty.'] };
-  }
+  if (typeof input !== 'string' || input.trim().length === 0) return { success: false, errors: ['Input text is empty.'] };
 
   const text = normalizeText(input);
   const operations: ExtractedOperation[] = [];
   const errors: string[] = [];
   const unrecognizedFragments: string[] = [];
-
   const targetSizeKB = parseTargetSize(text);
   const format = parseFormat(text);
   const dimensions = parseDimensions(text);
   const aspectRatio = parseAspectRatio(text);
   const brightness = parseBrightness(text);
+  const hasCompressionIntent = /(?:compress|compression|ضغط|تصغير)/i.test(text);
+  const hasConversionIntent = /(?:convert|conversion|تحويل)/i.test(text);
 
-  if (targetSizeKB !== undefined) addOperation(operations, 'image-compressor', { targetSizeKB });
-  if (format !== undefined) {
-    addOperation(operations, 'image-converter', { format });
-    addOperation(operations, 'image-compressor', { format });
-  }
+  if (hasCompressionIntent) addOperation(operations, 'image-compressor', {
+    ...(targetSizeKB === undefined ? {} : { targetSizeKB }),
+    ...(format === undefined ? {} : { format }),
+  });
+  else if (targetSizeKB !== undefined) addOperation(operations, 'image-compressor', { targetSizeKB });
+
+  if (hasConversionIntent && format !== undefined) addOperation(operations, 'image-converter', { format });
+  if (format !== undefined && !hasCompressionIntent && !hasConversionIntent) addOperation(operations, 'image-converter', { format });
   if (dimensions) addOperation(operations, 'image-cropper', { width: dimensions.width, height: dimensions.height, mode: 'exact' });
   if (aspectRatio) addOperation(operations, 'image-cropper', { aspectRatio });
   if (brightness !== undefined) addOperation(operations, 'image-effects', { brightness });
 
-  if (/\b(?:compress|ضغط|تصغير)\b/i.test(text) && targetSizeKB === undefined) {
-    addOperation(operations, 'image-compressor', {});
-  }
-  if (/\b(?:convert|تحويل)\b/i.test(text) && format === undefined) {
-    errors.push('A target output format is required for image conversion.');
-  }
-  if (/\b(?:crop|قص)\b/i.test(text) && dimensions === undefined && aspectRatio === undefined) {
-    errors.push('Crop requests require explicit dimensions or an aspect ratio.');
-  }
+  if (hasCompressionIntent && targetSizeKB === undefined) addOperation(operations, 'image-compressor', {});
+  if (hasConversionIntent && format === undefined) errors.push('A target output format is required for image conversion.');
+  if (/\b(?:crop|قص)\b/i.test(text) && dimensions === undefined && aspectRatio === undefined) errors.push('Crop requests require explicit dimensions or an aspect ratio.');
 
   for (const operation of operations) validateOperation(operation, errors);
 
   const knownSignal = /(?:compress|ضغط|convert|تحويل|webp|png|jpe?g|resize|dimensions|size|أبعاد|حجم|aspect\s+ratio|نسبة|brightness|سطوع|\d+\s*[x×]\s*\d+|\d+(?:\.\d+)?\s*(?:kb|kib|mb|mib|كيلوبايت|ميجابايت))/i;
   if (!knownSignal.test(text)) unrecognizedFragments.push(input.trim());
-
-  if (operations.length === 0 && errors.length === 0) {
-    errors.push('No executable operation could be safely extracted.');
-  }
+  if (operations.length === 0 && errors.length === 0) errors.push('No executable operation could be safely extracted.');
   if (unrecognizedFragments.length > 0) errors.push('Unrecognized instruction content requires explicit handling before execution.');
 
   if (errors.length > 0) return { success: false, errors, payload: { operations: [], unrecognizedFragments } };
