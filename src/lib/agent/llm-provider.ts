@@ -33,26 +33,29 @@ export const LLMProviderResponseSchema = z.object({
 }).strict();
 
 export type LLMProviderResponse = z.infer<typeof LLMProviderResponseSchema>;
-
 export type LLMProvider = (request: LLMProviderRequest, signal: AbortSignal) => Promise<LLMProviderResponse>;
 
 export type ProviderFailureCode =
   | 'INVALID_REQUEST'
   | 'TIMEOUT'
   | 'HTTP_ERROR'
+  | 'RATE_LIMITED'
   | 'MALFORMED_RESPONSE'
   | 'UNSUPPORTED_FUNCTION'
-  | 'INVALID_PLAN';
+  | 'INVALID_PLAN'
+  | 'RETRY_EXHAUSTED';
 
 export class LLMProviderError extends Error {
   readonly code: ProviderFailureCode;
   readonly cause?: unknown;
+  readonly status?: number;
 
-  constructor(code: ProviderFailureCode, message: string, cause?: unknown) {
+  constructor(code: ProviderFailureCode, message: string, cause?: unknown, status?: number) {
     super(message);
     this.name = 'LLMProviderError';
     this.code = code;
     this.cause = cause;
+    this.status = status;
   }
 }
 
@@ -100,44 +103,101 @@ function planLocally(input: string): ExecutionPlanContract | null {
 export type ProviderExecutionResult = Readonly<{
   plan: ExecutionPlanContract;
   latencyMs: number;
+  attempts: number;
   model?: string;
   usage?: z.infer<typeof LLMUsageSchema>;
 }>;
 
+export type ProviderOrLocalResult = Readonly<{
+  plan: ExecutionPlanContract | null;
+  source: 'provider' | 'local';
+  latencyMs: number;
+  attempts: number;
+  model?: string;
+  usage?: z.infer<typeof LLMUsageSchema>;
+  providerFailure?: LLMProviderError;
+}>;
+
+function validateRetryOptions(maxRetries: number, retryBaseDelayMs: number, maxRetryDelayMs: number): void {
+  if (!Number.isInteger(maxRetries) || maxRetries < 0 || maxRetries > 3) {
+    throw new LLMProviderError('INVALID_REQUEST', 'Provider maxRetries must be an integer between 0 and 3.');
+  }
+  if (!Number.isInteger(retryBaseDelayMs) || retryBaseDelayMs < 0 || retryBaseDelayMs > 5_000) {
+    throw new LLMProviderError('INVALID_REQUEST', 'Provider retryBaseDelayMs must be an integer between 0ms and 5000ms.');
+  }
+  if (!Number.isInteger(maxRetryDelayMs) || maxRetryDelayMs < 0 || maxRetryDelayMs > 30_000) {
+    throw new LLMProviderError('INVALID_REQUEST', 'Provider maxRetryDelayMs must be an integer between 0ms and 30000ms.');
+  }
+}
+
+async function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {
+  if (ms <= 0) return;
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener('abort', () => {
+      clearTimeout(timer);
+      reject(new DOMException('The operation was aborted.', 'AbortError'));
+    }, { once: true });
+  });
+}
+
 export async function planFromProvider(
   provider: LLMProvider,
   input: string,
-  options: { timeoutMs?: number; maxTokens?: number } = {},
+  options: {
+    timeoutMs?: number;
+    maxTokens?: number;
+    maxRetries?: number;
+    retryBaseDelayMs?: number;
+    maxRetryDelayMs?: number;
+  } = {},
 ): Promise<ProviderExecutionResult> {
   const request = LLMProviderRequestSchema.parse({
     messages: [{ role: 'user', content: input }],
     maxTokens: options.maxTokens,
   });
   const timeoutMs = options.timeoutMs ?? 15_000;
+  const maxRetries = options.maxRetries ?? 2;
+  const retryBaseDelayMs = options.retryBaseDelayMs ?? 100;
+  const maxRetryDelayMs = options.maxRetryDelayMs ?? 2_000;
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120_000) {
     throw new LLMProviderError('INVALID_REQUEST', 'Provider timeout must be an integer between 1ms and 120000ms.');
   }
+  validateRetryOptions(maxRetries, retryBaseDelayMs, maxRetryDelayMs);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const started = performance.now();
+  let attempts = 0;
   try {
-    let response: LLMProviderResponse;
-    try {
-      response = await provider(request, controller.signal);
-    } catch (error) {
-      if (controller.signal.aborted) {
-        throw new LLMProviderError('TIMEOUT', `LLM provider timed out after ${timeoutMs}ms.`, error);
+    for (;;) {
+      attempts += 1;
+      try {
+        const response = await provider(request, controller.signal);
+        const plan = parseProviderExecutionPlan(response);
+        return Object.freeze({
+          plan,
+          latencyMs: Math.max(0, Math.round(performance.now() - started)),
+          attempts,
+          model: response.model,
+          usage: response.usage,
+        });
+      } catch (error) {
+        if (controller.signal.aborted) {
+          throw new LLMProviderError('TIMEOUT', `LLM provider timed out after ${timeoutMs}ms.`, error);
+        }
+        if (error instanceof LLMProviderError && !['HTTP_ERROR', 'RATE_LIMITED'].includes(error.code)) {
+          throw error;
+        }
+        if (attempts > maxRetries) {
+          throw error instanceof LLMProviderError
+            ? new LLMProviderError('RETRY_EXHAUSTED', `LLM provider failed after ${attempts} attempts.`, error, error.status)
+            : new LLMProviderError('RETRY_EXHAUSTED', `LLM provider failed after ${attempts} attempts.`, error);
+        }
+        const delay = Math.min(maxRetryDelayMs, retryBaseDelayMs * 2 ** (attempts - 1));
+        await abortableDelay(delay, controller.signal);
       }
-      throw new LLMProviderError('HTTP_ERROR', 'LLM provider request failed.', error);
     }
-    const plan = parseProviderExecutionPlan(response);
-    return Object.freeze({
-      plan,
-      latencyMs: Math.max(0, Math.round(performance.now() - started)),
-      model: response.model,
-      usage: response.usage,
-    });
   } finally {
     clearTimeout(timeout);
   }
@@ -146,17 +206,44 @@ export async function planFromProvider(
 export async function planWithProviderOrLocal(
   provider: LLMProvider | undefined,
   input: string,
-  options: { timeoutMs?: number; maxTokens?: number } = {},
-): Promise<Readonly<{ plan: ExecutionPlanContract | null; source: 'provider' | 'local'; providerFailure?: LLMProviderError }>> {
-  if (!provider) return Object.freeze({ plan: planLocally(input), source: 'local' });
+  options: {
+    timeoutMs?: number;
+    maxTokens?: number;
+    maxRetries?: number;
+    retryBaseDelayMs?: number;
+    maxRetryDelayMs?: number;
+  } = {},
+): Promise<ProviderOrLocalResult> {
+  if (!provider) {
+    return Object.freeze({
+      plan: planLocally(input),
+      source: 'local',
+      latencyMs: 0,
+      attempts: 0,
+    });
+  }
+  const started = performance.now();
   try {
     const result = await planFromProvider(provider, input, options);
-    return Object.freeze({ plan: result.plan, source: 'provider' });
+    return Object.freeze({
+      plan: result.plan,
+      source: 'provider',
+      latencyMs: result.latencyMs,
+      attempts: result.attempts,
+      model: result.model,
+      usage: result.usage,
+    });
   } catch (error) {
     const providerFailure = error instanceof LLMProviderError
       ? error
       : new LLMProviderError('HTTP_ERROR', 'Unexpected LLM provider failure.', error);
-    return Object.freeze({ plan: planLocally(input), source: 'local', providerFailure });
+    return Object.freeze({
+      plan: planLocally(input),
+      source: 'local',
+      latencyMs: Math.max(0, Math.round(performance.now() - started)),
+      attempts: providerFailure.code === 'TIMEOUT' ? 1 : undefined,
+      providerFailure,
+    });
   }
 }
 
@@ -164,6 +251,9 @@ export type GatewayLLMProviderOptions = Readonly<{
   endpoint: string;
   fetchImpl?: typeof fetch;
   headers?: Readonly<Record<string, string>>;
+  maxRetries?: number;
+  retryBaseDelayMs?: number;
+  maxRetryDelayMs?: number;
 }>;
 
 export function createGatewayLLMProvider(options: GatewayLLMProviderOptions): LLMProvider {
@@ -172,6 +262,10 @@ export function createGatewayLLMProvider(options: GatewayLLMProviderOptions): LL
     throw new LLMProviderError('INVALID_REQUEST', 'LLM gateway endpoint must use HTTPS.');
   }
   const fetchImpl = options.fetchImpl ?? fetch;
+  const maxRetries = options.maxRetries ?? 2;
+  const retryBaseDelayMs = options.retryBaseDelayMs ?? 100;
+  const maxRetryDelayMs = options.maxRetryDelayMs ?? 2_000;
+  validateRetryOptions(maxRetries, retryBaseDelayMs, maxRetryDelayMs);
 
   return async (request, signal) => {
     const response = await fetchImpl(endpoint, {
@@ -184,7 +278,10 @@ export function createGatewayLLMProvider(options: GatewayLLMProviderOptions): LL
       signal,
     });
     if (!response.ok) {
-      throw new LLMProviderError('HTTP_ERROR', `LLM gateway returned HTTP ${response.status}.`);
+      if (response.status === 429) {
+        throw new LLMProviderError('RATE_LIMITED', 'LLM gateway rate limit exceeded.', undefined, response.status);
+      }
+      throw new LLMProviderError('HTTP_ERROR', `LLM gateway returned HTTP ${response.status}.`, undefined, response.status);
     }
     const raw: unknown = await response.json();
     const parsed = LLMProviderResponseSchema.safeParse(raw);
