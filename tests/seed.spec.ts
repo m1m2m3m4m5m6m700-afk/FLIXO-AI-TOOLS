@@ -121,6 +121,7 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
 
   test('exposes the frozen canvas overlay contract on the real Seed route', async ({ page }) => {
     await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
+    await expect(canvasLocator(page)).toBeVisible();
     await expect(page.getByTestId('button-canvas-zoom-reset')).toHaveText('100%');
     await expect(page.getByTestId('button-canvas-compare')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByTestId('button-canvas-fullscreen')).toBeVisible();
@@ -128,6 +129,7 @@ test.describe('SeedTool Real WebGL Engine & Overlay Integration', () => {
 
   test('applies 0.25x zoom steps and resets to 1x on the actual canvas stage', async ({ page }) => {
     await page.locator('input[type="file"]').first().setInputFiles({ name: 'seed-fixture.png', mimeType: 'image/png', buffer: PNG });
+    await expect(canvasLocator(page)).toBeVisible();
     const zoomReset = page.getByTestId('button-canvas-zoom-reset');
     const zoomIn = page.getByTestId('button-canvas-zoom-in');
     const zoomOut = page.getByTestId('button-canvas-zoom-out');
