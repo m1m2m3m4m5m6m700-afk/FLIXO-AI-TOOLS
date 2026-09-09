@@ -5,10 +5,10 @@ test('object-remover: produces a valid reconstructed PNG', async ({ page }) => {
   await page.goto('/en/object-remover');
   await expect(page.getByRole('heading', { level: 1, name: 'Object Remover' })).toBeVisible();
   await uploadFixture(page);
-  await page.getByRole('textbox', { name: 'X', exact: true }).fill('1');
-  await page.getByRole('textbox', { name: 'Y', exact: true }).fill('1');
-  await page.getByRole('textbox', { name: 'Width', exact: true }).fill('2');
-  await page.getByRole('textbox', { name: 'Height', exact: true }).fill('2');
+  await page.getByTestId('object-x').fill('1');
+  await page.getByTestId('object-y').fill('1');
+  await page.getByTestId('object-width').fill('2');
+  await page.getByTestId('object-height').fill('2');
   await page.getByRole('button', { name: 'Run tool' }).click();
   const result = await assertImageResult(page);
   expect(result.type).toBe('image/png');
