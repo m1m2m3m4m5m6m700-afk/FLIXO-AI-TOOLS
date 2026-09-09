@@ -55,7 +55,8 @@ async function snapshot(page: Page): Promise<Snapshot> {
       .map((element) => {
         const node = element as HTMLElement;
         const input = node as HTMLInputElement;
-        return [node.getAttribute('aria-label'), node.getAttribute('title'), input.placeholder, node.getAttribute('alt'), node.innerText]
+        const nativeFileInput = input.tagName === 'INPUT' && input.type === 'file';
+        return [node.getAttribute('aria-label'), node.getAttribute('title'), input.placeholder, node.getAttribute('alt'), nativeFileInput ? '' : node.innerText]
           .map((value) => (value ?? '').replace(/\s+/gu, ' ').trim())
           .find(Boolean) ?? '';
       })

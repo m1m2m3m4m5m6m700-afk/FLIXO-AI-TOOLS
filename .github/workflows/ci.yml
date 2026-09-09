@@ -17,6 +17,7 @@ permissions:
   checks: read
 
 env:
+  HOME: /tmp
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
   NPM_CONFIG_UPDATE_NOTIFIER: 'false'
@@ -81,6 +82,8 @@ jobs:
     needs: [verify]
     if: needs.verify.result == 'success'
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -107,10 +110,12 @@ jobs:
           set -euo pipefail
           test "$(cat dist/flixo-head-sha.txt)" = "$EXPECTED_SHA"
           sha256sum -c dist/flixo-package-lock.sha256
-      - name: Install browser
+      - name: Verify Playwright runtime image
+        shell: bash
         run: |
-          npx playwright install-deps '${{ matrix.browser }}'
-          npx playwright install '${{ matrix.browser }}'
+          set -euo pipefail
+          npx playwright --version
+          test -d /ms-playwright
       - name: Run Browser FAST engine
         shell: bash
         env:
@@ -151,6 +156,8 @@ jobs:
     needs: [verify]
     if: github.event_name != 'pull_request' && needs.verify.result == 'success'
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -177,10 +184,12 @@ jobs:
           set -euo pipefail
           test "$(cat dist/flixo-head-sha.txt)" = "$EXPECTED_SHA"
           sha256sum -c dist/flixo-package-lock.sha256
-      - name: Install browser
+      - name: Verify Playwright runtime image
+        shell: bash
         run: |
-          npx playwright install-deps '${{ matrix.browser }}'
-          npx playwright install '${{ matrix.browser }}'
+          set -euo pipefail
+          npx playwright --version
+          test -d /ms-playwright
       - name: Run Browser DEEP engine
         shell: bash
         env:
