@@ -19,7 +19,12 @@ export type CapabilityContract = Readonly<{
 export const CAPABILITY_REGISTRY: readonly CapabilityContract[] = Object.freeze(
   TOOL_DEFINITIONS.map((tool) => ({
     id: tool.id,
-    ...tool.capability,
+    state: tool.capability.state,
+    executionMode: tool.executionMode,
+    intents: tool.capability.intents,
+    parameterSchema: tool.parameterSchema,
+    safetyLimits: tool.safetyLimits,
+    verifier: tool.verifier,
   })),
 );
 
