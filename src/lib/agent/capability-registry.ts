@@ -1,5 +1,5 @@
 import type { ZodType } from 'zod';
-import { TOOL_DEFINITIONS } from '@/config/tool-definitions/canonical';
+import { TOOL_DEFINITIONS } from '@/config/canonical-tool-definition';
 
 export type CapabilityState = 'RECOGNIZED' | 'PLANNABLE' | 'EXECUTABLE' | 'UNAVAILABLE';
 export type ExecutionMode = 'LOCAL' | 'HYBRID' | 'CLOUD';
