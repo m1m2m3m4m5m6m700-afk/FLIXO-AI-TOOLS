@@ -22,7 +22,7 @@ const UI: Readonly<Record<string, LocaleMap>> = {
   'Generate image': { ar: 'إنشاء صورة', es: 'Generar imagen', fr: 'Générer une image', de: 'Bild generieren', hi: 'छवि बनाएं', id: 'Buat gambar', it: 'Genera immagine', ja: '画像を生成', ko: '이미지 생성', ms: 'Jana imej', nl: 'Afbeelding genereren', pl: 'Wygeneruj obraz', pt: 'Gerar imagem', ru: 'Сгенерировать изображение', sv: 'Skapa bild', th: 'สร้างภาพ', tr: 'Görsel oluştur', uk: 'Створити зображення', vi: 'Tạo hình ảnh' },
   'Watermark text': { ar: 'نص العلامة المائية', es: 'Texto de marca de agua', fr: 'Texte du filigrane', de: 'Wasserzeichentext', hi: 'वॉटरमार्क टेक्स्ट', id: 'Teks tanda air', it: 'Testo filigrana', ja: '透かしテキスト', ko: '워터마크 텍스트', ms: 'Teks tanda air', nl: 'Watermerktekst', pl: 'Tekst znaku wodnego', pt: 'Texto da marca d’água', ru: 'Текст водяного знака', sv: 'Vattenstämpeltext', th: 'ข้อความลายน้ำ', tr: 'Filigran metni', uk: 'Текст водяного знака', vi: 'Văn bản hình mờ' },
   'Top text': { ar: 'النص العلوي', es: 'Texto superior', fr: 'Texte supérieur', de: 'Oberer Text', hi: 'ऊपरी टेक्स्ट', id: 'Teks atas', it: 'Testo superiore', ja: '上部テキスト', ko: '상단 텍스트', ms: 'Teks atas', nl: 'Bovenste tekst', pl: 'Górny tekst', pt: 'Texto superior', ru: 'Верхний текст', sv: 'Övre text', th: 'ข้อความด้านบน', tr: 'Üst metin', uk: 'Верхній текст', vi: 'Văn bản trên' },
-  'Bottom text': { ar: 'النص السفلي', es: 'Texto السفلي', fr: 'Texte inférieur', de: 'Unterer Text', hi: 'निचला टेक्स्ट', id: 'Teks bawah', it: 'Testo inferiore', ja: '下部テキスト', ko: '하단 텍스트', ms: 'Teks bawah', nl: 'Onderste tekst', pl: 'Dolny tekst', pt: 'Texto inferior', ru: 'Нижний текст', sv: 'Nedre text', th: 'ข้อความด้านล่าง', tr: 'Alt metin', uk: 'Нижній текст', vi: 'Văn bản dưới' },
+  'Bottom text': { ar: 'النص السفلي', es: 'Texto inferior', fr: 'Texte inférieur', de: 'Unterer Text', hi: 'निचला टेक्स्ट', id: 'Teks bawah', it: 'Testo inferiore', ja: '下部テキスト', ko: '하단 텍스트', ms: 'Teks bawah', nl: 'Onderste tekst', pl: 'Dolny tekst', pt: 'Texto inferior', ru: 'Нижний текст', sv: 'Nedre text', th: 'ข้อความด้านล่าง', tr: 'Alt metin', uk: 'Нижній текст', vi: 'Văn bản dưới' },
   Brightness: { ar: 'السطوع', es: 'Brillo', fr: 'Luminosité', de: 'Helligkeit', hi: 'चमक', id: 'Kecerahan', it: 'Luminosità', ja: '明るさ', ko: '밝기', ms: 'Kecerahan', nl: 'Helderheid', pl: 'Jasność', pt: 'Brilho', ru: 'Яркость', sv: 'Ljusstyrka', th: 'ความสว่าง', tr: 'Parlaklık', uk: 'Яскравість', vi: 'Độ sáng' },
   Contrast: { ar: 'التباين', es: 'Contraste', fr: 'Contraste', de: 'Kontrast', hi: 'कंट्रास्ट', id: 'Kontras', it: 'Contrasto', ja: 'コントラスト', ko: '대비', ms: 'Kontras', nl: 'Contrast', pl: 'Kontrast', pt: 'Contraste', ru: 'Контраст', sv: 'Kontrast', th: 'คอนทราสต์', tr: 'Kontrast', uk: 'Контраст', vi: 'Độ tương phản' },
   Saturation: { ar: 'التشبع', es: 'Saturación', fr: 'Saturation', de: 'Sättigung', hi: 'संतृप्ति', id: 'Saturasi', it: 'Saturazione', ja: '彩度', ko: '채도', ms: 'Ketepuan', nl: 'Verzadiging', pl: 'Nasycenie', pt: 'Saturação', ru: 'Насыщенность', sv: 'Mättnad', th: 'ความอิ่มตัว', tr: 'Doygunluk', uk: 'Насиченість', vi: 'Độ bão hòa' },
@@ -57,6 +57,13 @@ function translateValue(locale: CanonicalLocale, value: string, toolId: string):
 function shouldSkip(node: Text): boolean {
   const parent = node.parentElement;
   return !parent || Boolean(parent.closest('script,style,pre,textarea,[contenteditable="true"],[data-no-auto-i18n]'));
+}
+
+function getToolId(root: HTMLElement): string {
+  const fromRoot = root.getAttribute('data-tool-id') ?? document.body.getAttribute('data-tool-id');
+  if (fromRoot) return fromRoot;
+  const segments = window.location.pathname.split('/').filter(Boolean);
+  return segments.length >= 2 && LOCALES.includes(normalizeLocale(segments[0])) ? segments[1] : '';
 }
 
 function localizeRoot(root: HTMLElement, locale: CanonicalLocale, toolId: string): void {
@@ -95,7 +102,7 @@ export function installToolUiRuntimeCompleteness(): () => void {
     if (!LOCALES.includes(locale) || locale === 'en') return;
     const root = document.querySelector<HTMLElement>('.tool-page-modern, .tool-shell, main');
     if (!root) return;
-    const toolId = root.getAttribute('data-tool-id') ?? document.body.getAttribute('data-tool-id') ?? '';
+    const toolId = getToolId(root);
     if (root.lang !== locale) root.lang = locale;
     localizeRoot(root, locale, toolId);
   };
