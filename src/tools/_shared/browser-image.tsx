@@ -3,9 +3,11 @@ import { recordToolPerformance } from '../../lib/diagnostics/performance';
 import { validateFileSafety } from '../../lib/contracts/file-safety';
 import { assertExifCleanerOutputIntegrity } from '../exif-cleaner/output-integrity';
 import { validateSvgOutput } from '../image-to-svg/output-integrity';
+import { normalizeLocale, type Locale } from '../../lib/i18n/config';
+import { translateSharedToolText } from '../../lib/i18n/shared-tool-ui';
 
 type Mode = 'photo-colorizer' | 'background-blur' | 'passport-photo-maker' | 'watermark-adder' | 'meme-generator' | 'collage-maker' | 'image-effects' | 'exif-cleaner' | 'svg-optimizer' | 'mockup-generator' | 'image-to-svg';
-type Props = { mode: Mode; title: string; accept?: string; multi?: boolean; locale?: 'en' | 'ar' };
+type Props = { mode: Mode; title: string; accept?: string; multi?: boolean; locale?: Locale };
 type Result = { blob: Blob; url: string; name: string; width?: number; height?: number; text?: string };
 type EffectsWorkerResponse = { ok: boolean; blob?: Blob; error?: string };
 
@@ -120,9 +122,22 @@ async function runImageEffectsWorker(blob: Blob, effect: { brightness: number; c
 
 export function BrowserImageTool({ mode, title, accept = 'image/*', multi = false, locale }: Props) {
   void title;
-  const resolvedLocale: 'en' | 'ar' = locale ?? (typeof document !== 'undefined' && document.documentElement.lang.toLowerCase().startsWith('ar') ? 'ar' : 'en');
-  const copy = UI_COPY[resolvedLocale];
-  const dir = resolvedLocale === 'ar' ? 'rtl' : 'ltr';
+  const resolvedLocale: Locale = locale ?? normalizeLocale(typeof document !== 'undefined' ? document.documentElement.lang : 'en');
+  const baseCopy = resolvedLocale === 'ar' ? UI_COPY.ar : UI_COPY.en;
+  const copy: UiCopy = resolvedLocale === 'en' || resolvedLocale === 'ar' ? baseCopy : {
+    ...baseCopy,
+    choose: translateSharedToolText(resolvedLocale, baseCopy.choose),
+    watermark: translateSharedToolText(resolvedLocale, baseCopy.watermark),
+    top: translateSharedToolText(resolvedLocale, baseCopy.top),
+    bottom: translateSharedToolText(resolvedLocale, baseCopy.bottom),
+    brightness: translateSharedToolText(resolvedLocale, baseCopy.brightness),
+    contrast: translateSharedToolText(resolvedLocale, baseCopy.contrast),
+    saturation: translateSharedToolText(resolvedLocale, baseCopy.saturation),
+    grayscale: translateSharedToolText(resolvedLocale, baseCopy.grayscale),
+    processing: translateSharedToolText(resolvedLocale, baseCopy.processing),
+    run: translateSharedToolText(resolvedLocale, baseCopy.run),
+  };
+  const dir = typeof document !== 'undefined' && document.documentElement.dir ? document.documentElement.dir : (resolvedLocale === 'ar' ? 'rtl' : 'ltr');
   const [files, setFiles] = useState<File[]>([]);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState('');
@@ -208,7 +223,7 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
     <input className="mt-6 block w-full" type="file" aria-label={copy.choose} accept={accept} multiple={multi} onChange={(event) => setFiles(Array.from(event.target.files ?? []))} />
     {mode === 'watermark-adder' && <input className="mt-4 w-full rounded border p-2" value={text} onChange={(e) => setText(e.target.value)} placeholder={copy.watermark} />}
     {mode === 'meme-generator' && <div className="mt-4 grid gap-2"><input className="rounded border p-2" aria-label={copy.top} value={top} onChange={(e) => setTop(e.target.value)} placeholder={copy.top} /><input className="rounded border p-2" aria-label={copy.bottom} value={bottom} onChange={(e) => setBottom(e.target.value)} placeholder={copy.bottom} /></div>}
-    {mode === 'image-effects' && <div className="mt-4 grid gap-2 sm:grid-cols-2"><label>{copy.brightness} <input aria-label={copy.brightness} type="range" min="50" max="150" value={effect.brightness} onChange={(e) => setEffect({ ...effect, brightness: Number(e.target.value) })} /></label><label>{copy.contrast} <input aria-label={copy.contrast} type="range" min="50" max="150" value={effect.contrast} onChange={(e) => setEffect({ ...effect, contrast: Number(e.target.value) })} /></label><label>{copy.saturation} <input aria-label={copy.saturation} type="range" min="0" max="200" value={effect.saturate} onChange={(e) => setEffect({ ...effect, saturate: Number(e.target.value) })} /></label><label>{copy.grayscale} <input aria-label={copy.grayscale} type="range" min="0" max="100" value={effect.grayscale} onChange={(e) => setEffect({ ...effect, grayscale: Number(e.target.value) })} /></label></div>}
+    {mode === 'image-effects' && <div className="mt-4 grid gap-2 sm:grid-cols-2"><label>{copy.brightness} <input aria-label={copy.brightness} type="range" min="50" max="150" value={effect.brightness} onChange={(e) => setEffect({ ...effect, brightness: Number(e.target.value) })} /></label><label>{copy.contrast} <input aria-label={copy.contrast} type="range" min="50" max="150" value={effect.contrast} onChange={(e) => setEffect({ ...effect, contrast: Number(e.target.value) })} /></label><label>{copy.saturation} <input aria-label={copy.saturation} type="range" min="0" max="200" value={effect.saturate} onChange={(e) => setEffect({ ...effect, saturation: Number(e.target.value) })} /></label><label>{copy.grayscale} <input aria-label={copy.grayscale} type="range" min="0" max="100" value={effect.grayscale} onChange={(e) => setEffect({ ...effect, grayscale: Number(e.target.value) })} /></label></div>}
     <button className="mt-6 rounded bg-black px-5 py-3 text-white" type="button" disabled={busy} onClick={run}>{busy ? copy.processing : copy.run}</button>
     {error && <p role="alert" className="mt-4 text-red-600">{error}</p>}
     {result && <section className="mt-8 rounded-xl border p-4"><div className="mb-3 font-semibold">{copy.result}</div>{result.text ? <pre className="max-h-72 overflow-auto text-xs">{result.text}</pre> : <img className="max-h-[28rem] w-full object-contain" src={result.url} alt={copy.toolResult} />}{!result.text && <p className="mt-2 text-sm opacity-70">{status}</p>}<button className="mt-4 rounded border px-4 py-2" type="button" onClick={() => download(result)}>{copy.download}</button></section>}
