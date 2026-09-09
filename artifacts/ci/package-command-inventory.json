@@ -42,6 +42,7 @@
     "test:quickflow": {"class":"TEST","scope":"quickflow","legacy":false},
     "test:agent-capability": {"class":"TEST","scope":"agent-capability","legacy":false},
     "test:ai-planner": {"class":"TEST","scope":"ai-planner","legacy":false},
+    "test:agent-self-correction": {"class":"TEST","scope":"agent-self-correction","legacy":false},
     "test:i18n": {"class":"TEST","scope":"i18n","legacy":false},
     "test:route-resolver": {"class":"TEST","scope":"routing","legacy":false},
     "test:upload-boundary": {"class":"TEST","scope":"file-safety","legacy":false},
