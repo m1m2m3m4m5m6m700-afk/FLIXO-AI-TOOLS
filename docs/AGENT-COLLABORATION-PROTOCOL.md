@@ -10,10 +10,12 @@ Before any repository action, every agent MUST read:
 2. `docs/AGENT-COLLABORATION-PROTOCOL.md`
 3. `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`
 4. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
-5. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-6. `scripts/ci/test-plan.json`
-7. `scripts/ci/assertion-registry.json`
-8. the current exact `main` SHA and current workflow state
+5. `docs/PROTOCOL-HIERARCHY.md`
+6. `docs/PROTOCOL-REGISTRY.json`
+7. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+8. `scripts/ci/test-plan.json`
+9. `scripts/ci/assertion-registry.json`
+10. the current exact `main` SHA and current workflow state
 
 Reading is part of the execution contract.
 
@@ -93,6 +95,12 @@ A repair that causes a new deterministic failure is not closed. The new defect r
 
 A session MUST NOT report `VERIFIED` while an RCA is open, a symptom-only workaround remains, required coverage was removed, or an independent root cause remains unresolved.
 
+## Canonical protocol registry
+
+`docs/PROTOCOL-REGISTRY.json` is the single machine-readable inventory of approved execution protocols. It currently contains exactly 20 mandatory protocols grouped by family. Protocol identity, status, invariant, and authoritative enforcement boundary MUST be maintained there.
+
+Agents MUST NOT create a parallel protocol inventory in another file. Requirements that belong to an existing registry protocol MUST extend that protocol rather than create a duplicate.
+
 ## Mandatory session handoff report
 
 Every completed session MUST create:
@@ -109,13 +117,11 @@ The report MUST state, explicitly and separately:
 
 `remainingWork` — unresolved execution work.
 
-`executionPlanNext` — ordered actions for the next session.
+`executionPlanNext` — ordered continuation plan. The next agent MUST ingest it as input state and MUST NOT treat it as proof of completion.
 
 `blockers` — blockers that prevented closure.
 
 `handoffToNextAgent` — explicit operational continuation instructions.
-
-The next agent MUST ingest that report into its new session before executing the inherited plan. It MUST treat inherited work as input state, never as proof of completion.
 
 ## Handoff
 
@@ -170,12 +176,12 @@ A session ends only as `VERIFIED` or `BLOCKED` and MUST create the handoff repor
 
 ## Enforcement
 
-CI MUST verify that the mandatory entry gate, this protocol, the handoff schema, the coordination control plane, the session tool, and the Root-Cause-First Repair Protocol exist and retain their required contract markers.
+CI MUST verify that the mandatory entry gate, this protocol, the protocol hierarchy, the canonical protocol registry, the handoff schema, the coordination control plane, the session tool, and the Root-Cause-First Repair Protocol exist and retain their required contract markers.
 
 The session tool MUST enforce predecessor handoff continuity whenever a prior handoff exists, and MUST emit a machine-readable handoff report at logout.
 
 The coordination tool MUST reject overlapping active ownership and incomplete dependencies.
 
-Removing, bypassing, weakening, or silently ignoring the collaboration, coordination, or root-cause repair protocol MUST fail the repository contract gate.
+Removing, bypassing, weakening, duplicating, or silently ignoring the collaboration, coordination, protocol hierarchy, protocol registry, or root-cause repair controls MUST fail the repository contract gate.
 
 This protocol coordinates agents; it is not an authentication mechanism. Repository evidence remains authoritative.
