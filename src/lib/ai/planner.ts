@@ -1,5 +1,6 @@
 import { resolveIntent } from '@/lib/intent/resolver';
 import { EXECUTABLE_PIPELINE_TOOL_ID_SET } from '@/lib/workflows/executable-tools';
+import { extractParameters } from '@/lib/agent/intent/parameter-extractor';
 import { parseExecutionPlan, MAX_PLAN_STEPS } from '@/lib/contracts/ai-plan';
 import type { ToolConfig } from '@/config/tools';
 import { getWorkflow } from '@/lib/workflows/registry';
@@ -24,9 +25,19 @@ export function planFromIntent(input: string): ExecutionPlan | null {
   const intent = resolveIntent(input);
   if (intent.kind === 'workflow' && intent.id) return planFromWorkflow(intent.id);
   if (intent.kind === 'tool' && intent.id && EXECUTABLE_PIPELINE_TOOL_ID_SET.has(intent.id)) {
-    return validateExecutionPlan({ workflowName: 'Direct Tool', confidence: intent.confidence, steps: [{ toolId: intent.id }] });
+    const extracted = extractParameters(input);
+    if (!extracted.success || !extracted.payload?.operations.length) {
+      return validateExecutionPlan({ workflowName: 'Direct Tool', confidence: intent.confidence, steps: [{ toolId: intent.id }] });
+    }
+    const steps = extracted.payload.operations.slice(0, MAX_STEPS).map((operation) => ({ toolId: operation.capability as ToolConfig['id'], params: operation.params }));
+    if (steps.length !== extracted.payload.operations.length) return null;
+    return validateExecutionPlan({ workflowName: 'Direct Tool', confidence: intent.confidence, steps });
   }
-  return null;
+  const extracted = extractParameters(input);
+  if (!extracted.success || !extracted.payload?.operations.length) return null;
+  const steps = extracted.payload.operations.map((operation) => ({ toolId: operation.capability as ToolConfig['id'], params: operation.params }));
+  if (steps.length > MAX_STEPS || !steps.every((step) => EXECUTABLE_PIPELINE_TOOL_ID_SET.has(step.toolId))) return null;
+  return validateExecutionPlan({ workflowName: 'Natural Language Image Operation', confidence: 0.9, steps });
 }
 
 export function validateExecutionPlan(plan: unknown): ExecutionPlan { return parseExecutionPlan(plan) as ExecutionPlan; }
