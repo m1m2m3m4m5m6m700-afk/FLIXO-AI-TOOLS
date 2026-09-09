@@ -1,4 +1,5 @@
 import { planFromIntent, type ExecutionPlan } from './planner';
+import { planWithProviderOrLocal, type LLMProvider } from '@/lib/agent/llm-provider';
 
 export type AIPlanProvider = (input: string) => Promise<unknown>;
 
@@ -7,9 +8,16 @@ export type OptionalPlanResult = {
   source: 'ai' | 'deterministic';
 };
 
+export type ProductionAIPlanResult = OptionalPlanResult & {
+  latencyMs: number;
+  attempts: number;
+  model?: string;
+  usage?: ReturnType<typeof planWithProviderOrLocal> extends Promise<infer T> ? T extends { usage?: infer U } ? U : never : never;
+  providerFailure?: Error;
+};
+
 /**
- * AI is an enhancement, never a dependency. Any provider error or invalid
- * response falls back to the existing deterministic planner.
+ * Legacy optional AI adapter. AI is an enhancement, never a dependency.
  */
 export async function planWithOptionalAI(
   input: string,
@@ -27,4 +35,31 @@ export async function planWithOptionalAI(
   } catch {
     return { plan: deterministic, source: 'deterministic' };
   }
+}
+
+/**
+ * Production LLM integration point. The provider only proposes a plan;
+ * canonical capability validation and deterministic fallback remain authoritative.
+ */
+export async function planWithProductionAI(
+  input: string,
+  provider?: LLMProvider,
+  options: {
+    timeoutMs?: number;
+    maxTokens?: number;
+    maxRetries?: number;
+    retryBaseDelayMs?: number;
+    maxRetryDelayMs?: number;
+  } = {},
+): Promise<ProductionAIPlanResult> {
+  const result = await planWithProviderOrLocal(provider, input, options);
+  return Object.freeze({
+    plan: result.plan as ExecutionPlan | null,
+    source: result.source === 'provider' ? 'ai' : 'deterministic',
+    latencyMs: result.latencyMs,
+    attempts: result.attempts,
+    model: result.model,
+    usage: result.usage,
+    providerFailure: result.providerFailure,
+  });
 }
