@@ -1,4 +1,5 @@
 import { TOOLS_REGISTRY, type ToolConfig } from '../../config/tools';
+import { CAPABILITY_REGISTRY } from '@/lib/agent/capability-registry';
 import { WORKFLOW_REGISTRY } from '../workflows/registry';
 import type { IntentMatch } from '../workflows/types';
 import { includesTerm, normalizeIntent } from './normalize';
@@ -8,18 +9,11 @@ type KeywordRule = {
   readonly terms: readonly string[];
 };
 
-const TOOL_RULES: readonly KeywordRule[] = Object.freeze([
-  { id: 'image-compressor', terms: ['compress', 'smaller', 'reduce size', 'file size', 'lighter', 'ضغط الصور', 'تصغير حجم الصورة'] },
-  { id: 'background-remover', terms: ['remove background', 'transparent background', 'cut out background', 'background removal', 'إزالة الخلفية', 'خلفية شفافة'] },
-  { id: 'image-upscaler', terms: ['upscale', 'sharper', 'higher quality', 'increase resolution', 'make it clearer', 'رفع الجودة', 'زيادة الدقة'] },
-  { id: 'image-converter', terms: ['convert format', 'jpg to png', 'png to jpg', 'webp', 'change format', 'تحويل الصيغة', 'تحويل الصورة'] },
-  { id: 'image-ocr', terms: ['ocr', 'extract text', 'text from image', 'read text', 'استخراج النص', 'قراءة النص'] },
-  { id: 'image-cropper', terms: ['crop', 'resize', 'dimensions', 'aspect ratio', 'قص الصورة', 'تغيير الحجم'] },
-  { id: 'image-effects', terms: ['brightness', 'contrast', 'saturation', 'grayscale', 'adjust image', 'سطوع', 'تباين', 'تشبع'] },
-  { id: 'watermark-remover', terms: ['remove watermark', 'erase watermark', 'إزالة العلامة المائية'] },
-  { id: 'object-remover', terms: ['remove object', 'erase object', 'delete object', 'إزالة عنصر', 'حذف عنصر'] },
-  { id: 'ai-image-generator', terms: ['generate image', 'create image with ai', 'text to image', 'make an image', 'إنشاء صورة بالذكاء الاصطناعي'] },
-]);
+const TOOL_RULES: readonly KeywordRule[] = Object.freeze(
+  CAPABILITY_REGISTRY
+    .filter((capability) => capability.intents.length > 0 && capability.state !== 'UNAVAILABLE')
+    .map((capability) => ({ id: capability.id, terms: capability.intents })),
+);
 
 const score = (normalized: string, terms: readonly string[]) => {
   const matchedTerms = terms.filter((term) => includesTerm(normalized, term));
