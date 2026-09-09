@@ -13,19 +13,9 @@ const capability = readFileSync(capabilityPath, 'utf8');
 const image = readFileSync(imagePath, 'utf8');
 
 const requiredFields = [
-  'id',
-  'family',
-  'title',
-  'description',
-  'category',
-  'isReady',
-  'path',
-  'routes',
-  'aliases',
-  'component',
-  'capability',
-  'localization',
-  'seo',
+  'id', 'family', 'title', 'description', 'category', 'isReady', 'path', 'routes',
+  'aliases', 'component', 'capability', 'executionMode', 'parameterSchema',
+  'safetyLimits', 'verifier', 'localization', 'seo',
 ];
 
 const failures = [];
@@ -38,7 +28,7 @@ if (!registry.includes("import { TOOL_DEFINITIONS } from './tool-definitions/can
 if (!manifest.includes("import { TOOL_DEFINITIONS } from './tool-definitions/canonical.ts'")) failures.push('Manifest is not sourced from canonical definitions.');
 if (!capability.includes("import { TOOL_DEFINITIONS } from '@/config/tool-definitions/canonical'")) failures.push('Capability registry is not sourced from canonical definitions.');
 if ((image.match(/\{ id:/g) ?? []).length !== 22) failures.push(`Expected 22 legacy image entries, found ${(image.match(/\{ id:/g) ?? []).length}.`);
-if (canonical.includes("const EXECUTABLE_IDS = new Set") === false) failures.push('Canonical capability state rules are missing.');
+if (!canonical.includes("const EXECUTABLE_IDS = new Set")) failures.push('Canonical capability state rules are missing.');
 if (!canonical.includes("executionMode: tool.id === 'ai-image-generator' || tool.id === 'photo-colorizer' ? 'CLOUD' : 'LOCAL'")) failures.push('Canonical execution mode rule is missing.');
 if (!canonical.includes('titleKey: `tool.${tool.id}.title`')) failures.push('Canonical localization title key derivation is missing.');
 if (!canonical.includes('descriptionKey: `tool.${tool.id}.description`')) failures.push('Canonical localization description key derivation is missing.');
