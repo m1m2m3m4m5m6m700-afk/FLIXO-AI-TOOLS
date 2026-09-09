@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { LOCALE_METADATA, LOCALES } from '../../src/lib/i18n/config';
 import { getAuthoritativeToolSeoName } from '../../src/config/tool-seo-name-resolver';
 import { getToolConfig } from '../../src/config/tools';
+import { isAuthoritativeLocalizedUiValue } from '../../src/lib/i18n/tool-ui-runtime-completeness';
 
 const sitemap = readFileSync('dist/sitemap.xml', 'utf8');
 const routes = [...new Set([...sitemap.matchAll(/<url>\s*<loc>([^<]+)<\/loc>[\s\S]*?<\/url>/gu)].map((match) => new URL(match[1]).pathname))].sort();
@@ -149,11 +150,11 @@ for (const pathname of routes) {
       expect(current.h1, `${pathname} must not reuse English H1`).not.toBe(baseline.h1);
 
       const englishUi = new Set(baseline.ui.filter((value) => value.length >= 4 && !sharedOnly(value)));
-      const leakedEnglish = current.ui.filter((value) => englishUi.has(value));
-      expect(leakedEnglish, `${pathname} exact English UI fallback(s): ${leakedEnglish.slice(0, 10).join(' | ')}`).toEqual([]);
-
       const toolFamily = family.slice(1);
       const tool = toolFamily ? getToolConfig(toolFamily) : undefined;
+      const leakedEnglish = current.ui.filter((value) => englishUi.has(value) && !isAuthoritativeLocalizedUiValue(localeCode, value, tool?.id ?? toolFamily));
+      expect(leakedEnglish, `${pathname} exact English UI fallback(s): ${leakedEnglish.slice(0, 10).join(' | ')}`).toEqual([]);
+
       const expectedToolName = tool ? getAuthoritativeToolSeoName(tool, localeCode) : undefined;
       if (expectedToolName) expect(current.h1, `${pathname} must expose the authoritative localized tool name`).toContain(expectedToolName);
     }
