@@ -25,14 +25,20 @@ export function createToolCatalog(source: readonly ToolConfig[]): ToolCatalog {
   const byId = new Map<string, ManagedTool>();
   const byPath = new Map<string, ManagedTool>();
   const byAlias = new Map<string, ManagedTool>();
+  const claimedRoutes = new Set<string>();
 
   for (const tool of all) {
     if (byId.has(tool.id)) throw new Error(`Duplicate managed tool id: ${tool.id}`);
-    if (byPath.has(tool.path)) throw new Error(`Duplicate managed tool path: ${tool.path}`);
+    if (claimedRoutes.has(tool.path)) throw new Error(`Duplicate managed tool path: ${tool.path}`);
     byId.set(tool.id, tool);
     byPath.set(tool.path, tool);
+    claimedRoutes.add(tool.path);
+  }
+
+  for (const tool of all) {
     for (const alias of tool.aliases ?? []) {
-      if (byAlias.has(alias) || byPath.has(alias)) throw new Error(`Duplicate managed tool route: ${alias}`);
+      if (claimedRoutes.has(alias)) throw new Error(`Duplicate managed tool route: ${alias}`);
+      claimedRoutes.add(alias);
       byAlias.set(alias, tool);
     }
   }
