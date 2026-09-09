@@ -14,14 +14,14 @@ if (existsSync(legacyPath)) {
 }
 
 const source = readFileSync(canonicalPath, 'utf8');
-const inventoryMatch = source.match(/const IMAGE_TOOL_CONFIGS:[\\s\\S]*?Object\\.freeze\\(\\[(?<entries>[\\s\\S]*?)\\]\\);/);
+const inventoryMatch = source.match(/const IMAGE_TOOL_CONFIGS:[\s\S]*?Object\.freeze\(\[(?<entries>[\s\S]*?)\]\);/);
 if (!inventoryMatch?.groups?.entries) {
   console.error('Tool registry contract failed: canonical image inventory block not found.');
   process.exit(1);
 }
 
 const entries = [];
-for (const match of inventoryMatch.groups.entries.matchAll(/\\{ id: '([^']+)', title: '([^']+)', path: '([^']+)', description: '([^']+)', category: '([^']+)', isReady: (true|false),/g)) {
+for (const match of inventoryMatch.groups.entries.matchAll(/\{ id: '([^']+)', title: '([^']+)', path: '([^']+)', description: '([^']+)', category: '([^']+)', isReady: (true|false),/g)) {
   entries.push({ id: match[1], title: match[2], path: match[3], description: match[4], category: match[5], isReady: match[6] === 'true' });
 }
 
