@@ -11,10 +11,11 @@ Before any repository action, every agent MUST read:
 3. `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`
 4. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
 5. `docs/PROTOCOL-HIERARCHY.md`
-6. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-7. `scripts/ci/test-plan.json`
-8. `scripts/ci/assertion-registry.json`
-9. the current exact `main` SHA and current workflow state
+6. `docs/PROTOCOL-REGISTRY.json`
+7. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+8. `scripts/ci/test-plan.json`
+9. `scripts/ci/assertion-registry.json`
+10. the current exact `main` SHA and current workflow state
 
 Reading is part of execution and is not optional documentation.
 
@@ -74,7 +75,7 @@ A repair that creates a new failure is not closed. The new failure receives its 
 
 ## PROTOCOL HIERARCHY
 
-The normative hierarchy and anti-bloat gate are defined in `docs/PROTOCOL-HIERARCHY.md`. It is mandatory reading and enforcement input.
+The normative hierarchy and anti-bloat gate are defined in `docs/PROTOCOL-HIERARCHY.md`, while `docs/PROTOCOL-REGISTRY.json` is the canonical machine-readable inventory of approved protocols.
 
 When protocol rules conflict, precedence is: Master execution and safety contract → Zero-False-Green/evidence integrity → Root-Cause-First Repair → G1/G2/G3/G4 and release contracts → Change-Scope Integrity/Dependency-Graph Closure → testing/certification/collaboration/coordination/recovery → CI optimization.
 
@@ -116,7 +117,7 @@ The report MUST preserve:
 
 along with `exitSha`, changed files, commands, evidence, findings, RCA closure/open state.
 
-The next agent MUST ingest the predecessor report before executing inherited work. Handoff reports are continuity input, not certification evidence.
+The next agent MUST ingest the predecessor report before executing inherited work. Handoff reports are continuity evidence, not certification evidence.
 
 ## Repository test contract
 
