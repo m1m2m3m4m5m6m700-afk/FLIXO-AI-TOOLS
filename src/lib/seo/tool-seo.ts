@@ -1,5 +1,6 @@
 import { getReadyToolConfigs, getToolConfig, type ToolConfig } from '../../config/tools';
 import { IMAGE_COMPRESSOR_MANIFEST } from '../../tools/image-compressor/manifest';
+import { PIX_MANIFEST } from '../../tools/pix/manifest';
 import { getAuthoritativeToolSeoName } from '../../config/tool-seo-name-resolver';
 import { LOCALES, LOCALE_METADATA, SITE_ORIGIN, type Locale, normalizeLocale } from '../i18n';
 import { getLocalizedToolUrl as resolveLocalizedToolUrl } from '../routing/route-resolver';
@@ -18,7 +19,7 @@ const FALLBACK_COPY: Record<string, Readonly<{ open: string; configure: string; 
   en: { open: 'Open the tool.', configure: 'Configure the available options.', run: 'Run the tool.', download: 'Download the result.', browser: 'Browser-first processing', interface: 'interface' },
   ar: { open: 'افتح الأداة.', configure: 'اضبط الخيارات المتاحة.', run: 'شغّل الأداة.', download: 'نزّل النتيجة.', browser: 'معالجة محلية أولًا داخل المتصفح', interface: 'الواجهة' },
   es: { open: 'Abre la herramienta.', configure: 'Configura las opciones disponibles.', run: 'Ejecuta la herramienta.', download: 'Descarga el resultado.', browser: 'Procesamiento prioritario en el navegador', interface: 'interfaz' },
-  fr: { open: 'Ouvrez l’outil.', configure: 'Configurez les options disponibles.', run: 'Exécutez l’outil.', download: 'Téléchargez le résultat.', browser: 'Traitement prioritaire dans le navigateur', interface: 'interface' },
+  fr: { open: 'Ouvrez l’outil.', configurez: 'Configurez les options disponibles.', run: 'Exécutez l’outil.', download: 'Téléchargez le résultat.', browser: 'Traitement prioritaire dans le navigateur', interface: 'interface' },
   de: { open: 'Öffnen Sie das Tool.', configure: 'Konfigurieren Sie die verfügbaren Optionen.', run: 'Führen Sie das Tool aus.', download: 'Laden Sie das Ergebnis herunter.', browser: 'Browserbasierte Verarbeitung', interface: 'Oberfläche' },
   hi: { open: 'टूल खोलें।', configure: 'उपलब्ध विकल्प कॉन्फ़िगर करें।', run: 'टूल चलाएँ।', download: 'परिणाम डाउनलोड करें।', browser: 'ब्राउज़र-प्राथमिक प्रोसेसिंग', interface: 'इंटरफ़ेस' },
   id: { open: 'Buka alat.', configure: 'Atur opsi yang tersedia.', run: 'Jalankan alat.', download: 'Unduh hasilnya.', browser: 'Pemrosesan berbasis browser', interface: 'antarmuka' },
@@ -48,9 +49,14 @@ export function getToolSeo(localeInput: string, toolId: string) {
   const category = assertToolCategory(tool.category); const label = LOCALE_LABELS[locale]; if (!label) throw new Error(`Missing locale SEO label: ${locale}`);
   const url = getLocalizedToolUrl(locale, tool.id); const xDefaultUrl = getLocalizedToolUrl('en', tool.id); const localizedTitle = getAuthoritativeToolSeoName(tool, locale) ?? tool.title;
   const localizedCategory = localizeMsUkCategory(locale, category) ?? localizeToolCategory(locale, category);
-  const canonicalToolSeo = tool.id === IMAGE_COMPRESSOR_MANIFEST.toolId ? IMAGE_COMPRESSOR_MANIFEST.seoLocales[locale] : undefined;
+  const canonicalToolSeo = tool.id === IMAGE_COMPRESSOR_MANIFEST.toolId
+    ? IMAGE_COMPRESSOR_MANIFEST.seoLocales[locale]
+    : tool.id === PIX_MANIFEST.toolId
+      ? PIX_MANIFEST.seoLocales[locale]
+      : undefined;
   const localizedDescription = canonicalToolSeo?.description ?? (locale === 'en' ? tool.description : localizeMsUkDescription(locale, localizedTitle) ?? localizeToolDescription(locale, localizedTitle, category));
-  const title = `${localizedTitle} | FLIXO`; const description = localizedDescription; const fallback = FALLBACK_COPY[locale]; if (!fallback) throw new Error(`Missing locale SEO fallback copy: ${locale}`);
+  const title = canonicalToolSeo?.title ?? `${localizedTitle} | FLIXO`;
+  const description = localizedDescription; const fallback = FALLBACK_COPY[locale]; if (!fallback) throw new Error(`Missing locale SEO fallback copy: ${locale}`);
   const localizedPayload = {
     title,
     description,
