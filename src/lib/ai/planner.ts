@@ -24,20 +24,19 @@ export function planFromWorkflow(workflowId: string): ExecutionPlan | null {
 export function planFromIntent(input: string): ExecutionPlan | null {
   const intent = resolveIntent(input);
   if (intent.kind === 'workflow' && intent.id) return planFromWorkflow(intent.id);
-  if (intent.kind === 'tool' && intent.id && EXECUTABLE_PIPELINE_TOOL_ID_SET.has(intent.id)) {
-    const extracted = extractParameters(input);
-    if (!extracted.success || !extracted.payload?.operations.length) {
-      return validateExecutionPlan({ workflowName: 'Direct Tool', confidence: intent.confidence, steps: [{ toolId: intent.id }] });
-    }
-    const steps = extracted.payload.operations.slice(0, MAX_STEPS).map((operation) => ({ toolId: operation.capability as ToolConfig['id'], params: operation.params }));
-    if (steps.length !== extracted.payload.operations.length) return null;
-    return validateExecutionPlan({ workflowName: 'Direct Tool', confidence: intent.confidence, steps });
-  }
+
   const extracted = extractParameters(input);
   if (!extracted.success || !extracted.payload?.operations.length) return null;
+
   const steps = extracted.payload.operations.map((operation) => ({ toolId: operation.capability as ToolConfig['id'], params: operation.params }));
   if (steps.length > MAX_STEPS || !steps.every((step) => EXECUTABLE_PIPELINE_TOOL_ID_SET.has(step.toolId))) return null;
-  return validateExecutionPlan({ workflowName: 'Natural Language Image Operation', confidence: 0.9, steps });
+
+  if (intent.kind === 'tool' && intent.id && !steps.some((step) => step.toolId === intent.id)) return null;
+  return validateExecutionPlan({
+    workflowName: intent.kind === 'tool' ? 'Direct Tool' : 'Natural Language Image Operation',
+    confidence: intent.kind === 'tool' ? intent.confidence : 0.9,
+    steps,
+  });
 }
 
 export function validateExecutionPlan(plan: unknown): ExecutionPlan { return parseExecutionPlan(plan) as ExecutionPlan; }
