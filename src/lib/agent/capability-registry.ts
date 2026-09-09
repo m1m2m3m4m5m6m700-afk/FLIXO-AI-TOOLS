@@ -23,7 +23,31 @@ export type CapabilityContract = Readonly<{
 const DEFAULT_MAX_PIXELS = 16_000_000;
 const DEFAULT_MAX_FILE_SIZE_BYTES = 64 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 30_000;
+const MIME_TYPES = ['image/webp', 'image/jpeg', 'image/png'] as const;
+
 const COMMON_PARAMETERS = z.record(z.string().max(64), z.union([z.string(), z.number().finite(), z.boolean()]));
+const PARAMETER_SCHEMAS: Readonly<Record<string, ZodType>> = {
+  'background-remover': z.object({ tolerance: z.number().finite().min(0).max(255).optional() }).strict(),
+  'image-upscaler': z.object({ scale: z.number().finite().positive().max(8).optional() }).strict(),
+  'image-cropper': z.object({
+    width: z.number().int().positive().max(4000).optional(),
+    height: z.number().int().positive().max(4000).optional(),
+    aspectRatio: z.string().regex(/^\d{1,3}:\d{1,3}$/).optional(),
+    mode: z.literal('exact').optional(),
+  }).strict(),
+  'image-compressor': z.object({
+    quality: z.number().finite().min(0.01).max(1).optional(),
+    format: z.enum(MIME_TYPES).optional(),
+    targetSizeKB: z.number().finite().int().positive().max(64 * 1024).optional(),
+  }).strict(),
+  'image-converter': z.object({ format: z.enum(MIME_TYPES) }).strict(),
+  'image-effects': z.object({
+    brightness: z.number().finite().min(0).max(200).optional(),
+    contrast: z.number().finite().min(0).max(200).optional(),
+    saturate: z.number().finite().min(0).max(200).optional(),
+    grayscale: z.number().finite().min(0).max(100).optional(),
+  }).strict(),
+};
 
 const TOOL_INTENTS: Readonly<Record<string, readonly string[]>> = {
   'image-compressor': ['compress', 'smaller', 'reduce size', 'file size', 'lighter', 'ضغط الصور', 'تصغير حجم الصورة'],
@@ -66,7 +90,7 @@ const entries = IMAGE_TOOLS.map((tool) => ({
   state: stateFor(tool.id, tool.isReady),
   executionMode: executionModeFor(tool.id),
   intents: TOOL_INTENTS[tool.id] ?? [],
-  parameterSchema: COMMON_PARAMETERS,
+  parameterSchema: PARAMETER_SCHEMAS[tool.id] ?? COMMON_PARAMETERS,
   safetyLimits: {
     maxPixels: DEFAULT_MAX_PIXELS,
     maxFileSizeBytes: DEFAULT_MAX_FILE_SIZE_BYTES,
