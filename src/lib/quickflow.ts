@@ -37,11 +37,9 @@ export const buildQuickFlowPlan = (intent: string, tools: readonly ToolConfig[])
   const isProductPreparation = PRODUCT_PREP.test(normalizedIntent);
   const hasBlockingExtractionError = !extracted.success && extracted.errors.some((error) => /required|invalid|exceeds/i.test(error));
   if (hasBlockingExtractionError) return null;
+  const extractedOperations: readonly ExtractedOperation[] = extracted.success && extracted.payload ? extracted.payload.operations : [];
+  const operations = [...(isProductPreparation ? productPreparationOperations() : []), ...extractedOperations];
 
-  const operations = [
-    ...(isProductPreparation ? productPreparationOperations() : []),
-    ...(extracted.success ? extracted.payload.operations : []),
-  ];
   if (operations.length > 0) {
     const unique = new Map<string, ExtractedOperation>();
     for (const operation of operations) unique.set(operation.capability, operation);
