@@ -9,19 +9,13 @@ assert.deepEqual(compress?.steps.map((step) => step.toolId), ['image-compressor'
 const arabic = buildQuickFlowPlan('إزالة الخلفية', TOOLS_REGISTRY);
 assert.deepEqual(arabic?.steps.map((step) => step.toolId), ['background-remover']);
 
+const productPreset = buildQuickFlowPlan('prepare product image for store', TOOLS_REGISTRY);
+assert.deepEqual(productPreset?.steps.map((step) => step.toolId), ['background-remover', 'image-cropper']);
+assert.deepEqual(productPreset?.steps.map((step) => step.params), [{}, { aspectRatio: '1:1' }]);
+
 const composite = buildQuickFlowPlan('جهز صورة المنتج للمتجر بأقل من 200KB وصيغة WebP', TOOLS_REGISTRY);
-assert.deepEqual(composite?.steps.map((step) => step.toolId), [
-  'background-remover',
-  'image-cropper',
-  'image-converter',
-  'image-compressor',
-]);
-assert.deepEqual(composite?.steps.map((step) => step.params), [
-  {},
-  { aspectRatio: '1:1' },
-  { format: 'image/webp' },
-  { targetSizeKB: 200 },
-]);
+assert.deepEqual(composite?.steps.map((step) => step.toolId), ['background-remover', 'image-cropper', 'image-converter', 'image-compressor']);
+assert.deepEqual(composite?.steps.map((step) => step.params), [{}, { aspectRatio: '1:1' }, { format: 'image/webp' }, { targetSizeKB: 200 }]);
 
 const unknown = buildQuickFlowPlan('do something unrelated', TOOLS_REGISTRY);
 assert.equal(unknown, null);
