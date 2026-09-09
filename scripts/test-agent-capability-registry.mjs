@@ -5,7 +5,9 @@ import { EXECUTABLE_PIPELINE_TOOL_IDS } from '../src/lib/workflows/executable-to
 import { safeParseExecutionPlan } from '../src/lib/contracts/ai-plan.ts';
 
 assert.equal(CAPABILITY_REGISTRY.length, IMAGE_TOOLS.length, 'Every configured image tool must have a capability contract.');
-assert.equal(CAPABILITY_REGISTRY.length, 21, 'Current image capability inventory must contain 21 mapped tools.');
+assert.equal(CAPABILITY_REGISTRY.length, IMAGE_TOOLS.length, `Capability inventory must match current image tool inventory (${IMAGE_TOOLS.length}).`);
+assert.equal(IMAGE_TOOLS.filter((tool) => tool.isReady).length, 21, 'Current image registry must contain 21 ready tools.');
+assert.equal(IMAGE_TOOLS.filter((tool) => !tool.isReady).length, 1, 'Current image registry must contain 1 non-ready tool.');
 
 for (const tool of IMAGE_TOOLS) {
   const capability = getCapability(tool.id);
@@ -30,11 +32,11 @@ const valid = safeParseExecutionPlan({
 });
 assert.equal(valid.success, true);
 
-const unavailable = safeParseExecutionPlan({
-  workflowName: 'Unavailable',
+const invalidParameters = safeParseExecutionPlan({
+  workflowName: 'Invalid Parameters',
   confidence: 0.9,
   steps: [{ toolId: 'image-compressor', params: { unsupportedObject: {} } }],
 });
-assert.equal(unavailable.success, false);
+assert.equal(invalidParameters.success, false);
 
-console.log(`Agent capability contract tests passed: ${CAPABILITY_REGISTRY.length} capabilities mapped.`);
+console.log(`Agent capability contract tests passed: ${CAPABILITY_REGISTRY.length} capabilities mapped (${IMAGE_TOOLS.filter((tool) => tool.isReady).length} ready, ${IMAGE_TOOLS.filter((tool) => !tool.isReady).length} unavailable).`);
