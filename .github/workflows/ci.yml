@@ -191,7 +191,13 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: |
           set -euo pipefail
-          npx playwright test tests/localization-runtime.spec.ts --project="$BROWSER" --workers=6 --retries=0 --max-failures=0 --shard="$SHARD/3"
+          case "$SHARD" in
+            1) DEEP_LOCALE_GREP='/(?:ar|en|es|fr|de)(?:/|$)' ;;
+            2) DEEP_LOCALE_GREP='/(?:hi|id|it|ja|ko|ms|nl)(?:/|$)' ;;
+            3) DEEP_LOCALE_GREP='/(?:pl|pt|ru|sv|th|tr|uk|vi)(?:/|$)' ;;
+            *) echo "Unsupported DEEP shard: $SHARD" >&2; exit 2 ;;
+          esac
+          npx playwright test tests/localization-runtime.spec.ts --project="$BROWSER" --workers=6 --retries=0 --max-failures=0 --grep="$DEEP_LOCALE_GREP"
           mkdir -p diagnostics/certification
           cat > "diagnostics/certification/browser-deep-${BROWSER}-${SHARD}.json" <<JSON
           {"evidenceClass":"PRIMARY_EXECUTION","mode":"DEEP","browser":"$BROWSER","shard":$SHARD,"sha":"$EXPECTED_SHA","run_id":"${GITHUB_RUN_ID}","locales":20,"status":"PASS"}
