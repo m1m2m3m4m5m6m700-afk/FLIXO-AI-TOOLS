@@ -73,7 +73,7 @@
     "@radix-ui/react-accordion": "^1.2.12",
     "@tanstack/react-router": "1.170.32",
     "jszip": "^3.10.1",
-    "lucide-react": "^0.575.0",
+    "lucide-react": "^1.41.0",
     "motion": "^12.43.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
