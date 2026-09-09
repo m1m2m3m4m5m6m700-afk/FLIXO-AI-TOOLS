@@ -75,7 +75,7 @@ async function preprocessForOcr(file: File): Promise<Blob> {
 }
 
 async function createResult(blob: Blob, fileName: string, info?: Result['info'], text?: string): Promise<Result> {
-  const objectUrl = blob.type.startsWith('image/') ? URL.createObjectURL(blob) : undefined;
+  const objectUrl = URL.createObjectURL(blob);
   return { blob, fileName, info, text, objectUrl };
 }
 
