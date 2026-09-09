@@ -31,6 +31,16 @@ const sharedOnly = (value: string) => {
 type Snapshot = { title: string; description: string; h1: string; ui: string[] };
 const familyPath = (pathname: string) => pathname.replace(new RegExp(`^/(?:${localeCodes.join('|')})(?=/|$)`, 'u'), '') || '/';
 const localizedPath = (locale: string, family: string) => `/${locale}${family === '/' ? '' : family}`;
+const isExpectedNavigationAbort = (request: { url(): string; failure(): { errorText?: string } | null }) => {
+  const failure = request.failure();
+  if (failure?.errorText !== 'NS_BINDING_ABORTED') return false;
+  try {
+    const pathname = new URL(request.url()).pathname;
+    return pathname === '/logo.svg' || pathname === '/flixo-logo.svg';
+  } catch {
+    return false;
+  }
+};
 
 async function snapshot(page: Page): Promise<Snapshot> {
   return page.evaluate(() => {
@@ -68,6 +78,7 @@ for (const pathname of routes) {
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
     page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
     page.on('requestfailed', (request) => {
+      if (isExpectedNavigationAbort(request)) return;
       if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`);
     });
 
