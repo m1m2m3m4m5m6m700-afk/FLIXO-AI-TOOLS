@@ -20,8 +20,11 @@ for (const file of requiredFiles) if (!exists(file)) failures.push(`MISSING_PROT
 
 const requiredAgentsMarkers = [
   'READ-BEFORE-ACTION', 'AGENT LOGIN', 'OWNERSHIP', 'EXECUTION LEDGER',
+  'ROOT-CAUSE-FIRST REPAIR PROTOCOL', 'ROOT-CAUSE ANALYSIS', 'TARGETED REGRESSION',
   'ZERO-FALSE-GREEN', 'COORDINATION CONTROL PLANE', 'HANDOFF / LOGOUT',
   'diagnostics/agents/handoffs/<session-id>.json', 'MANDATORY ENTRY TITLE',
+  'trigger → propagation path → violated invariant → responsible source → observable symptom',
+  'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
 ];
 if (exists('AGENTS.md')) {
   const text = read('AGENTS.md');
@@ -34,6 +37,11 @@ const requiredProtocolMarkers = [
   'Ownership lock', 'Action ledger', 'Mandatory session handoff report', 'Handoff',
   'Evidence and provenance', 'Failure and RCA', 'Conflict protocol',
   'Certification separation', 'Logout', 'Enforcement', '--from-session=<previous-session>',
+  'Root-Cause-First Repair Protocol', 'causal defect',
+  'trigger → propagation path → violated invariant → responsible source → observable symptom',
+  'targeted regression', 'affected dependency/contract graph',
+  'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
+  'symptom-only workaround', 'new deterministic failure',
 ];
 if (exists('docs/AGENT-COLLABORATION-PROTOCOL.md')) {
   const text = read('docs/AGENT-COLLABORATION-PROTOCOL.md');
@@ -75,18 +83,19 @@ if (exists(lockFile)) {
 }
 
 const result = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   authority: 'CI_PROTOCOL_GUARD',
   status: failures.length ? 'FAIL' : 'PASS',
   entryGate: 'AGENTS.md',
   protocol: 'docs/AGENT-COLLABORATION-PROTOCOL.md',
+  rootCauseRepairProtocol: 'ROOT-CAUSE-FIRST REPAIR PROTOCOL',
   handoffSchema: 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md',
   coordinationControlPlane: 'scripts/ci/agent-coordination.mjs',
   sessionTool: 'scripts/ci/agent-session.mjs',
   handoffPath: 'diagnostics/agents/handoffs/<sessionId>.json',
   statePath: stateFile,
   lockPath: lockFile,
-  enforcement: 'scripts/validate-ci-contract.mjs → protocol + coordination validators',
+  enforcement: 'scripts/validate-ci-contract.mjs → protocol + coordination + root-cause-first repair validators',
   failures,
 };
 fs.mkdirSync(path.resolve(root, 'diagnostics/agents'), { recursive: true });
