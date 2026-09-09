@@ -11,7 +11,7 @@ import { localizeToolCategory, localizeToolDescription } from '@/lib/i18n/tool-l
 import { IMAGE_BROWSER_FILE_POLICY, validateBrowserFile } from '@/lib/contracts/browser-file-safety';
 import type { HomeCopy } from '../data/home-locales';
 import type { Locale } from '@/lib/i18n';
-import type { ToolDefinition } from '../config/canonical-tool-definition';
+import type { ToolConfig } from '../config/tools';
 
 type ToolCardProps = { readonly id: string; readonly title: string; readonly description: string; readonly category: 'Images'; readonly categoryLabel: string; readonly path: string };
 const READY_TOOLS = TOOLS_REGISTRY.filter((tool) => tool.isReady);
@@ -21,7 +21,7 @@ const LANGUAGE_LABELS: Record<string, string> = {
   ru: 'Русский', sv: 'Svenska', th: 'ไทย', tr: 'Türkçe', uk: 'Українська', vi: 'Tiếng Việt',
 };
 
-function toLocalizedTool(tool: ToolDefinition, locale: Locale): ToolCardProps {
+function toLocalizedTool(tool: ToolConfig, locale: Locale): ToolCardProps {
   const localizedTitle = getAuthoritativeToolSeoName(tool, locale) ?? tool.title;
   const localizedCategory = localizeMsUkCategory(locale, 'Images') ?? localizeToolCategory(locale, 'Images');
   const localizedDescription = localizeMsUkDescription(locale, localizedTitle) ?? localizeToolDescription(locale, localizedTitle, 'Images');
