@@ -1,6 +1,5 @@
 import { TOOL_DEFINITIONS } from './canonical-tool-definition.ts';
 import type { ToolDefinition } from './canonical-tool-definition.ts';
-import { IMAGE_TOOLS } from './tool-definitions/image.ts';
 import { createToolCatalog } from './tool-platform/catalog.ts';
 import type { ToolCatalog } from './tool-platform/types.ts';
 
@@ -28,7 +27,7 @@ assertToolRegistryContract(TOOL_DEFINITIONS);
 
 export const TOOL_REGISTRY: readonly ToolDefinition[] = Object.freeze(TOOL_DEFINITIONS);
 export const TOOL_CATALOG: ToolCatalog = createToolCatalog(TOOL_REGISTRY);
-export { TOOL_DEFINITIONS, IMAGE_TOOLS };
+export { TOOL_DEFINITIONS };
 
 export function getToolById(id: string) {
   return TOOL_CATALOG.byId.get(id);
