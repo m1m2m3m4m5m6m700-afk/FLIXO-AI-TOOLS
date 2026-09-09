@@ -17,7 +17,7 @@
     "validate:seo": {"class":"CONTRACT_VALIDATOR","scope":"seo","legacy":false},
     "validate:seo-manifest": {"class":"CONTRACT_VALIDATOR","scope":"seo","legacy":false},
     "validate:use-case-seo": {"class":"CONTRACT_VALIDATOR","scope":"seo","legacy":false},
-    "validate:indexing": {"class":"CONTRACT_VALIDATOR","scope":"indexing","legacy":false},
+    "validate:indexing": {"class":"CONTRACT_VALIDATOR","scope":"seo","legacy":false},
     "validate:breadcrumb-seo": {"class":"CONTRACT_VALIDATOR","scope":"seo","legacy":false},
     "validate:ci-contract": {"class":"CI_VALIDATOR","scope":"ci","legacy":false},
     "validate:contracts": {"class":"CONTRACT_VALIDATOR","scope":"all-contracts","legacy":false},
