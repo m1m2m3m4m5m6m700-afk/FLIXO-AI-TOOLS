@@ -67,9 +67,31 @@ If `main` moves, the agent MUST refresh the current exact SHA before continuing.
 
 Meaningful work follows:
 
-`READ → INGEST HANDOFF → PLAN → LOCK → CLAIM TASK → CHANGE → VERIFY → HANDOFF`
+`READ → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK → CLAIM TASK → CHANGE → TARGETED REGRESSION → AFFECTED CONTRACT VERIFICATION → EXACT-SHA PROOF → HANDOFF`
 
 The session record MUST retain the actual commands/actions and exact SHA lineage. It MUST NOT claim work that did not occur.
+
+## Root-Cause-First Repair Protocol
+
+Every repair MUST eliminate the causal defect, not merely hide its observable symptom.
+
+Before code changes, the active owner MUST assign a unique RCA-ID and record the causal chain:
+
+`trigger → propagation path → violated invariant → responsible source → observable symptom`.
+
+The fix MUST correct or remove the responsible source. The following are explicitly non-repairs: weakening assertions, suppressing errors, silent skips, broad allowlists, expected-value changes that accommodate broken behavior, retries of deterministic failures, deleting coverage, changing test ownership to evade failure, or moving the same defect to another layer.
+
+Every repair MUST include a targeted regression that fails against the pre-repair behavior and passes because the causal defect is corrected. The regression belongs at the affected contract boundary or the nearest authoritative boundary.
+
+Every repair MUST also verify the affected dependency/contract graph, because a local green test does not prove system-level correctness.
+
+RCA closure is valid only when all five proof obligations are satisfied:
+
+`mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure`.
+
+A repair that causes a new deterministic failure is not closed. The new defect receives its own RCA-ID and recovery resumes from the new exact SHA.
+
+A session MUST NOT report `VERIFIED` while an RCA is open, a symptom-only workaround remains, required coverage was removed, or an independent root cause remains unresolved.
 
 ## Mandatory session handoff report
 
@@ -115,9 +137,7 @@ Handoff reports are continuity evidence only. They are not certification evidenc
 
 `FAIL`, `CANCELLED`, `BLOCKED`, `NOT_EXECUTED`, `MISSING_EVIDENCE`, and `MALFORMED_EVIDENCE` are non-success states.
 
-Persistent failures receive a Root Cause ID. Closure requires:
-
-`mechanism identified → repair → targeted regression → affected contract verification → fresh exact-SHA proof → CLOSED`.
+Persistent failures receive a Root Cause ID. Closure requires the full Root-Cause-First Repair Protocol; a green symptom without causal closure is not success.
 
 ## Conflict protocol
 
@@ -150,12 +170,12 @@ A session ends only as `VERIFIED` or `BLOCKED` and MUST create the handoff repor
 
 ## Enforcement
 
-CI MUST verify that the mandatory entry gate, this protocol, the handoff schema, the coordination control plane, and the session tool exist and retain their required contract markers.
+CI MUST verify that the mandatory entry gate, this protocol, the handoff schema, the coordination control plane, the session tool, and the Root-Cause-First Repair Protocol exist and retain their required contract markers.
 
 The session tool MUST enforce predecessor handoff continuity whenever a prior handoff exists, and MUST emit a machine-readable handoff report at logout.
 
 The coordination tool MUST reject overlapping active ownership and incomplete dependencies.
 
-Removing, bypassing, or silently ignoring the collaboration or coordination protocol MUST fail the repository contract gate.
+Removing, bypassing, weakening, or silently ignoring the collaboration, coordination, or root-cause repair protocol MUST fail the repository contract gate.
 
 This protocol coordinates agents; it is not an authentication mechanism. Repository evidence remains authoritative.
