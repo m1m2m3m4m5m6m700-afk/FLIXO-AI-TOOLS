@@ -24,11 +24,25 @@ assert.throws(
   /Duplicate managed tool id/,
 );
 assert.throws(
-  () => createToolCatalog([{ ...source[0], id: 'c' }, { ...source[0], id: 'd', path: '/en/c' }]),
+  () => createToolCatalog([{ ...source[0], id: 'c' }, { ...source[0], id: 'd', path: '/en/a' }]),
   /Duplicate managed tool path/,
 );
 assert.throws(
   () => createToolCatalog([{ ...source[0], id: 'c', aliases: ['/en/a'] }]),
+  /Duplicate managed tool route/,
+);
+assert.throws(
+  () => createToolCatalog([
+    { ...source[0], id: 'c', path: '/en/c', aliases: ['/en/d'] },
+    { ...source[0], id: 'd', path: '/en/d' },
+  ]),
+  /Duplicate managed tool route/,
+);
+assert.throws(
+  () => createToolCatalog([
+    { ...source[0], id: 'c', path: '/en/c' },
+    { ...source[0], id: 'd', path: '/en/d', aliases: ['/en/c'] },
+  ]),
   /Duplicate managed tool route/,
 );
 
