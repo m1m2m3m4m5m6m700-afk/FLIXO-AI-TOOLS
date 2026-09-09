@@ -54,7 +54,7 @@
     "test:route-resolver": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-route-resolver.mjs",
     "test:upload-boundary": "node --experimental-strip-types scripts/test-upload-boundary.mjs",
     "test:tool-localization": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-tool-localization-contract.mjs",
-    "test:image-core": "node --experimental-strip-types scripts/test-image-core-contract.mjs",
+    "test:image-core": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-image-core-contract.mjs",
     "test:unit": "npm run test:quickflow && npm run test:i18n && npm run test:route-resolver && npm run test:upload-boundary && npm run test:image-core",
     "test:diagnose": "node scripts/test.mjs --mode=diagnose",
     "test:static": "node scripts/test.mjs --mode=diagnose --gate=static",
