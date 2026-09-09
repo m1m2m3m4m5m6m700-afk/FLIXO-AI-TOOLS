@@ -7,6 +7,7 @@ import {
   planFromProvider,
   planWithProviderOrLocal,
 } from '../src/lib/agent/llm-provider.ts';
+import { planWithProductionAI } from '../src/lib/ai/optional-planner.ts';
 
 const validResponse = {
   functionCall: {
@@ -59,6 +60,7 @@ const result = await planFromProvider(provider, 'compress this image and convert
 assert.equal(result.plan.steps.length, 2);
 assert.equal(result.model, 'gateway-test');
 assert.equal(result.usage?.totalTokens, 50);
+assert.equal(result.attempts, 1);
 assert.equal(typeof result.latencyMs, 'number');
 
 const timeoutProvider = async (_request, signal) => await new Promise((_, reject) => {
@@ -69,14 +71,60 @@ await assert.rejects(
   (error) => error instanceof LLMProviderError && error.code === 'TIMEOUT',
 );
 
-const fallback = await planWithProviderOrLocal(async () => { throw new Error('gateway unavailable'); }, 'compress this image under 200KB and convert to WebP');
+let retryCalls = 0;
+const retryProvider = createGatewayLLMProvider({
+  endpoint: 'https://gateway.example.test/v1/plan',
+  maxRetries: 2,
+  retryBaseDelayMs: 0,
+  maxRetryDelayMs: 0,
+  fetchImpl: async () => {
+    retryCalls += 1;
+    if (retryCalls === 1) return new Response('', { status: 429, headers: { 'retry-after': '0' } });
+    return new Response(JSON.stringify(validResponse), { status: 200, headers: { 'content-type': 'application/json' } });
+  },
+});
+const retryResult = await planFromProvider(retryProvider, 'retry rate limit', { timeoutMs: 1_000, maxRetries: 2, retryBaseDelayMs: 0, maxRetryDelayMs: 0 });
+assert.equal(retryCalls, 2);
+assert.equal(retryResult.attempts, 2);
+
+let serverErrorCalls = 0;
+const serverErrorProvider = createGatewayLLMProvider({
+  endpoint: 'https://gateway.example.test/v1/plan',
+  maxRetries: 1,
+  retryBaseDelayMs: 0,
+  maxRetryDelayMs: 0,
+  fetchImpl: async () => {
+    serverErrorCalls += 1;
+    return new Response('', { status: 503 });
+  },
+});
+await assert.rejects(
+  () => planFromProvider(serverErrorProvider, 'test 503', { timeoutMs: 1_000, maxRetries: 1, retryBaseDelayMs: 0, maxRetryDelayMs: 0 }),
+  (error) => error instanceof LLMProviderError && error.code === 'RETRY_EXHAUSTED' && error.attempts === 2 && error.status === 503,
+);
+assert.equal(serverErrorCalls, 2);
+
+const fallback = await planWithProviderOrLocal(async () => { throw new Error('gateway unavailable'); }, 'compress this image under 200KB and convert to WebP', { maxRetries: 0 });
 assert.equal(fallback.source, 'local');
 assert.ok(fallback.plan);
-assert.equal(fallback.providerFailure?.code, 'HTTP_ERROR');
+assert.equal(fallback.providerFailure?.code, 'RETRY_EXHAUSTED');
+assert.equal(fallback.attempts, 1);
 
 const noProvider = await planWithProviderOrLocal(undefined, 'compress this image under 200KB and convert to WebP');
 assert.equal(noProvider.source, 'local');
 assert.ok(noProvider.plan);
+assert.equal(noProvider.attempts, 0);
+
+const production = await planWithProductionAI('compress this image under 200KB and convert to WebP', provider, { timeoutMs: 1_000 });
+assert.equal(production.source, 'ai');
+assert.equal(production.attempts, 1);
+assert.equal(production.model, 'gateway-test');
+assert.equal(production.usage?.totalTokens, 50);
+
+const productionFallback = await planWithProductionAI('compress this image under 200KB and convert to WebP', async () => { throw new Error('down'); }, { maxRetries: 0 });
+assert.equal(productionFallback.source, 'deterministic');
+assert.ok(productionFallback.plan);
+assert.equal(productionFallback.providerFailure?.code, 'RETRY_EXHAUSTED');
 
 assert.throws(
   () => createGatewayLLMProvider({ endpoint: 'http://gateway.example.test/v1/plan' }),
