@@ -55,6 +55,22 @@ The control plane rejects overlapping active RCA or mutable scope ownership. Dep
 
 A claimed task is not complete until its exact exit SHA, evidence, findings, remaining work, and RCA state are recorded.
 
+## ROOT-CAUSE-FIRST REPAIR PROTOCOL
+
+Every repair MUST be treated as root-cause elimination, never symptom suppression.
+
+Before code changes, the agent MUST assign a unique RCA-ID and record the failure mechanism: `trigger → propagation path → violated invariant → responsible source → observable symptom`.
+
+The repair MUST correct or remove the responsible source. These are explicitly invalid as root-cause repairs: weakening assertions, suppressing errors, adding silent skips, broadening allowlists, changing expected values to match broken behavior, retrying deterministic failures, deleting coverage, or moving the failure to another layer.
+
+Every repair MUST add or strengthen a targeted regression that fails on the pre-repair behavior and passes because the causal defect is fixed. The regression MUST exercise the affected contract or its nearest authoritative boundary.
+
+RCA closure requires all five proofs: `mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure`.
+
+A repair that creates a new failure is not closed. The new failure receives its own RCA-ID and recovery continues from the new exact SHA.
+
+`VERIFIED` is forbidden while the RCA remains open, a symptom workaround remains, required coverage was removed, or an independent root cause remains unresolved.
+
 ## OWNERSHIP
 
 Each active agent MUST declare its RCA and file/contract scope. One active owner per RCA and one active owner per mutable scope unless an explicit handoff transfers ownership.
@@ -63,9 +79,9 @@ If `main` moves, refresh the exact SHA before continuing. Stale task packets or 
 
 ## EXECUTION LEDGER
 
-Meaningful actions follow:
+Meaningful work follows:
 
-`READ → INGEST HANDOFF → PLAN → LOCK → CHANGE → VERIFY → HANDOFF`
+`READ → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK → CHANGE → TARGETED REGRESSION → AFFECTED CONTRACT VERIFICATION → EXACT-SHA PROOF → HANDOFF`
 
 The session record MUST preserve actual commands, scope, SHA lineage, evidence, and findings.
 
@@ -113,4 +129,4 @@ The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 - GREEN is valid only when every required engine passes, evidence is valid and complete, Exact SHA matches, and independent root causes are zero. Skips, masked failures, stale evidence and partial passes are not Green.
 - Never claim a green release without fresh exact-SHA CI evidence.
 
-**MANDATORY ENTRY TITLE: READ FIRST → INGEST HANDOFF → PLAN → LOCK SCOPE → EXECUTE → VERIFY → HANDOFF.**
+**MANDATORY ENTRY TITLE: READ FIRST → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTE → TARGETED REGRESSION → VERIFY → EXACT-SHA PROOF → HANDOFF.**
