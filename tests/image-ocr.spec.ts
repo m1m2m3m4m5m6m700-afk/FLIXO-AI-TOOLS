@@ -16,8 +16,11 @@ test('image-ocr: extracts text and downloads TXT', async ({ page }) => {
   await uploadFixture(page);
   await page.getByRole('button', { name: 'Run tool' }).click();
   await expect(page.getByText('FLIXO OCR OK')).toBeVisible();
+  const downloadControl = page.getByRole('button', { name: 'Download now' });
+  await expect(downloadControl).toHaveAttribute('download', 'fixture.txt');
+  await expect(downloadControl).toHaveAttribute('href', /^blob:/);
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download now' }).click();
+  await downloadControl.click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.txt$/);
 });
