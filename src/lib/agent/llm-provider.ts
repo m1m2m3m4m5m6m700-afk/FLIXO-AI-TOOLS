@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { planFromIntent } from '@/lib/ai/planner';
-import { parseExecutionPlan, type ExecutionPlanContract } from '@/lib/contracts/ai-plan';
+import { parseExecutionPlan, safeParseExecutionPlan, type ExecutionPlanContract } from '@/lib/contracts/ai-plan';
 
 const ProviderMessageSchema = z.object({
   role: z.enum(['system', 'user', 'assistant']),
@@ -90,6 +90,13 @@ export function parseProviderExecutionPlan(response: unknown): ExecutionPlanCont
   }
 }
 
+function planLocally(input: string): ExecutionPlanContract | null {
+  const candidate = planFromIntent(input);
+  if (!candidate) return null;
+  const parsed = safeParseExecutionPlan(candidate);
+  return parsed.success ? parsed.data : null;
+}
+
 export type ProviderExecutionResult = Readonly<{
   plan: ExecutionPlanContract;
   latencyMs: number;
@@ -141,7 +148,7 @@ export async function planWithProviderOrLocal(
   input: string,
   options: { timeoutMs?: number; maxTokens?: number } = {},
 ): Promise<Readonly<{ plan: ExecutionPlanContract | null; source: 'provider' | 'local'; providerFailure?: LLMProviderError }>> {
-  if (!provider) return Object.freeze({ plan: planFromIntent(input), source: 'local' });
+  if (!provider) return Object.freeze({ plan: planLocally(input), source: 'local' });
   try {
     const result = await planFromProvider(provider, input, options);
     return Object.freeze({ plan: result.plan, source: 'provider' });
@@ -149,7 +156,7 @@ export async function planWithProviderOrLocal(
     const providerFailure = error instanceof LLMProviderError
       ? error
       : new LLMProviderError('HTTP_ERROR', 'Unexpected LLM provider failure.', error);
-    return Object.freeze({ plan: planFromIntent(input), source: 'local', providerFailure });
+    return Object.freeze({ plan: planLocally(input), source: 'local', providerFailure });
   }
 }
 
