@@ -23,9 +23,12 @@ for (const field of requiredFields) {
 if (!canonical.includes('export const TOOL_DEFINITIONS')) failures.push('Canonical TOOL_DEFINITIONS export is missing.');
 if (!canonical.includes('const IMAGE_TOOL_CONFIGS: readonly ToolConfig[]')) failures.push('Canonical image definition source is missing.');
 const canonicalToolIds = [...canonical.matchAll(/\{ id: '([^']+)'/g)].map((match) => match[1]);
+const readyToolIds = [...canonical.matchAll(/\{ id: '([^']+)',[^\n]*?isReady: true,/g)].map((match) => match[1]);
+const unavailableToolIds = [...canonical.matchAll(/\{ id: '([^']+)',[^\n]*?isReady: false,/g)].map((match) => match[1]);
 if (canonicalToolIds.length !== 22) failures.push(`Expected 22 canonical tool entries, found ${canonicalToolIds.length}.`);
 if (new Set(canonicalToolIds).size !== canonicalToolIds.length) failures.push('Duplicate canonical tool ids detected.');
-if (!canonical.includes("id: 'photo-colorizer'") || !canonical.includes("isReady: false")) failures.push('Non-ready photo-colorizer contract is missing.');
+if (readyToolIds.length !== 21) failures.push(`Expected 21 ready canonical tools, found ${readyToolIds.length}.`);
+if (unavailableToolIds.length !== 1 || unavailableToolIds[0] !== 'photo-colorizer') failures.push('Canonical non-ready inventory must contain exactly photo-colorizer.');
 if (!registry.includes("import { TOOL_DEFINITIONS } from './canonical-tool-definition.ts'")) failures.push('Registry is not sourced from canonical definitions.');
 if (!manifest.includes("import { TOOL_DEFINITIONS } from './canonical-tool-definition.ts'")) failures.push('Manifest is not sourced from canonical definitions.');
 if (!capability.includes("import { TOOL_DEFINITIONS } from '@/config/canonical-tool-definition'")) failures.push('Capability registry is not sourced from canonical definitions.');
@@ -48,7 +51,8 @@ console.log(JSON.stringify({
   authority: 'canonical-tool-definition-contract',
   status: 'PASS',
   expectedToolCount: canonicalToolIds.length,
-  readyToolCount: canonicalToolIds.filter((id) => !canonical.includes(`id: '${id}'`) || !new RegExp(`id: '${id}'[^}]*isReady: true`).test(canonical)).length === 0 ? 21 : 21,
+  readyToolCount: readyToolIds.length,
+  unavailableToolCount: unavailableToolIds.length,
   derivedConsumers: ['registry', 'manifest', 'capability-registry'],
   legacyImageSource: 'removed',
 }));
