@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  createGatewayLLMProvider,
   EXECUTION_PLAN_FUNCTION_NAME,
   LLMProviderError,
   parseProviderExecutionPlan,
@@ -24,7 +25,16 @@ const validResponse = {
 };
 
 const plan = parseProviderExecutionPlan(validResponse);
-assert.deepEqual(plan.steps, validResponse.functionCall && JSON.parse(validResponse.functionCall.arguments).steps);
+assert.deepEqual(plan.steps, JSON.parse(validResponse.functionCall.arguments).steps);
+
+const objectArgumentPlan = parseProviderExecutionPlan({
+  ...validResponse,
+  functionCall: {
+    ...validResponse.functionCall,
+    arguments: JSON.parse(validResponse.functionCall.arguments),
+  },
+});
+assert.deepEqual(objectArgumentPlan.steps, plan.steps);
 
 assert.throws(
   () => parseProviderExecutionPlan({ ...validResponse, functionCall: { ...validResponse.functionCall, name: 'execute_anything' } }),
@@ -67,5 +77,26 @@ assert.equal(fallback.providerFailure?.code, 'HTTP_ERROR');
 const noProvider = await planWithProviderOrLocal(undefined, 'compress this image under 200KB and convert to WebP');
 assert.equal(noProvider.source, 'local');
 assert.ok(noProvider.plan);
+
+assert.throws(
+  () => createGatewayLLMProvider({ endpoint: 'http://gateway.example.test/v1/plan' }),
+  (error) => error instanceof LLMProviderError && error.code === 'INVALID_REQUEST',
+);
+
+const gatewayCalls = [];
+const gatewayProvider = createGatewayLLMProvider({
+  endpoint: 'https://gateway.example.test/v1/plan',
+  fetchImpl: async (input, init) => {
+    gatewayCalls.push({ input: String(input), init });
+    return new Response(JSON.stringify(validResponse), { status: 200, headers: { 'content-type': 'application/json' } });
+  },
+  headers: { authorization: 'Bearer test-token' },
+});
+const gatewayResult = await planFromProvider(gatewayProvider, 'compress this image', { timeoutMs: 1_000 });
+assert.equal(gatewayResult.plan.steps.length, 2);
+assert.equal(gatewayCalls.length, 1);
+assert.equal(gatewayCalls[0].init.method, 'POST');
+assert.equal(gatewayCalls[0].init.headers.authorization, 'Bearer test-token');
+assert.equal(JSON.parse(gatewayCalls[0].init.body).contract.name, EXECUTION_PLAN_FUNCTION_NAME);
 
 console.log('P3 LLM provider boundary contract tests passed.');
