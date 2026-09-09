@@ -10,7 +10,7 @@ const indexSource = readFileSync('index.html', 'utf8');
 const manifestSource = readFileSync('public/manifest.webmanifest', 'utf8');
 const localizedToolRouteSource = readFileSync('src/routes/localized-tool.tsx', 'utf8');
 const toolSeoSource = readFileSync('src/lib/seo/tool-seo.ts', 'utf8');
-const toolRegistrySource = readFileSync('src/config/tool-definitions/image.ts', 'utf8');
+const toolRegistrySource = readFileSync('src/config/canonical-tool-definition.ts', 'utf8');
 
 const expectedLocales = i18nSource.match(/export const LOCALES = \[([\s\S]*?)\] as const/)
   ?.[1]

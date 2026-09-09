@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { LOCALES } from '../src/lib/i18n/config.ts';
 
-const familySource = readFileSync('src/config/tool-definitions/image.ts', 'utf8');
+const familySource = readFileSync('src/config/canonical-tool-definition.ts', 'utf8');
 const manifestSource = readFileSync('src/lib/seo/tool-manifests.ts', 'utf8');
 const catalogSource = readFileSync('src/lib/seo/tool-catalog.ts', 'utf8');
 const typeSource = readFileSync('src/lib/seo/tool-manifest.ts', 'utf8');
@@ -15,7 +15,7 @@ function fail(message) {
   process.exit(1);
 }
 
-if (readyToolIds.length === 0) fail('No ready image tools discovered in image registry family');
+if (readyToolIds.length === 0) fail('No ready image tools discovered in canonical tool definitions');
 if (new Set(readyToolIds).size !== readyToolIds.length) fail('Duplicate ready image tool ids detected.');
 if (!manifestSource.includes('buildAllToolSeoManifests(getReadyToolConfigs())')) fail('all ready image tools are not connected to the SEO manifest generator.');
 if (!catalogSource.includes("seoStatus: 'complete'")) fail('complete SEO status is not present in the manifest generator.');
