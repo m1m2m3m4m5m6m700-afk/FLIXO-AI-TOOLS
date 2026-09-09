@@ -9,7 +9,7 @@ test.describe('Pix Studio', () => {
 
   test('opens an image and exposes all editor modes', async ({ page }) => {
     await page.locator('#pix-image-file').setInputFiles({ name: 'pix-fixture.png', mimeType: 'image/png', buffer: PNG });
-    await expect(page.locator('header').getByRole('heading', { name: 'Pix Studio', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Pix Studio', exact: true })).toBeVisible();
     await expect(page.getByLabel('Pix Studio preview')).toBeVisible();
     await expect(page.getByRole('button', { name: 'tune' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'liquify' })).toBeVisible();
