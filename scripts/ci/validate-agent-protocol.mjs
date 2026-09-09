@@ -12,6 +12,7 @@ const requiredFiles = [
   'docs/AGENT-COLLABORATION-PROTOCOL.md',
   'docs/AGENT-HANDOFF-REPORT-SCHEMA.md',
   'docs/AGENT-COORDINATION-CONTROL-PLANE.md',
+  'docs/PROTOCOL-HIERARCHY.md',
   'scripts/ci/agent-session.mjs',
   'scripts/ci/agent-coordination.mjs',
   'scripts/validate-ci-contract.mjs',
@@ -46,6 +47,21 @@ const requiredProtocolMarkers = [
 if (exists('docs/AGENT-COLLABORATION-PROTOCOL.md')) {
   const text = read('docs/AGENT-COLLABORATION-PROTOCOL.md');
   for (const marker of requiredProtocolMarkers) if (!text.includes(marker)) failures.push(`PROTOCOL_MISSING=${marker}`);
+}
+
+const hierarchyMarkers = [
+  'FLIXO Protocol Hierarchy & Anti-Bloat Contract v1',
+  '## Precedence',
+  '## Change-Scope Integrity',
+  '## Dependency-Graph Closure',
+  '## Evidence Freshness & Provenance',
+  '## Protocol Conflict Resolution',
+  '## Protocol Addition Gate',
+  'recurring failure class proven → existing controls insufficient → invariant named → authoritative enforcement boundary named → regression/enforcement test defined → duplication/conflict analysis passed',
+];
+if (exists('docs/PROTOCOL-HIERARCHY.md')) {
+  const text = read('docs/PROTOCOL-HIERARCHY.md');
+  for (const marker of hierarchyMarkers) if (!text.includes(marker)) failures.push(`HIERARCHY_MISSING=${marker}`);
 }
 
 const requiredHandoffMarkers = ['Canonical path', 'Required fields', 'Continuation', 'completedWork', 'failedWork', 'remainingWork', 'executionPlanNext', 'blockers', 'handoffToNextAgent', 'inheritedExitSha'];
@@ -83,11 +99,12 @@ if (exists(lockFile)) {
 }
 
 const result = {
-  schemaVersion: 4,
+  schemaVersion: 5,
   authority: 'CI_PROTOCOL_GUARD',
   status: failures.length ? 'FAIL' : 'PASS',
   entryGate: 'AGENTS.md',
   protocol: 'docs/AGENT-COLLABORATION-PROTOCOL.md',
+  protocolHierarchy: 'docs/PROTOCOL-HIERARCHY.md',
   rootCauseRepairProtocol: 'ROOT-CAUSE-FIRST REPAIR PROTOCOL',
   handoffSchema: 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md',
   coordinationControlPlane: 'scripts/ci/agent-coordination.mjs',
@@ -95,7 +112,7 @@ const result = {
   handoffPath: 'diagnostics/agents/handoffs/<sessionId>.json',
   statePath: stateFile,
   lockPath: lockFile,
-  enforcement: 'scripts/validate-ci-contract.mjs → protocol + coordination + root-cause-first repair validators',
+  enforcement: 'scripts/validate-ci-contract.mjs → protocol hierarchy + collaboration + coordination + root-cause-first repair validators',
   failures,
 };
 fs.mkdirSync(path.resolve(root, 'diagnostics/agents'), { recursive: true });
