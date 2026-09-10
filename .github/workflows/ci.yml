@@ -310,3 +310,22 @@ jobs:
             diagnostics/certification/
           if-no-files-found: error
           retention-days: 30
+
+  trust:
+    name: CI/CD Trust Layer
+    needs: [certify]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Run CI/CD Trust controls
+        run: npm run verify:ci-cd-trust
