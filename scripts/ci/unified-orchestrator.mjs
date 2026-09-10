@@ -1,8 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 
-const sha256 = (v) => createHash('sha256').update(String(v), 'utf8').digest('hex');
 const git = (args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 const expectedSha = process.env.EXPECTED_SHA ?? process.env.GITHUB_SHA ?? git(['rev-parse', 'HEAD']);
 const baseSha = process.env.CHANGE_BASE ?? '';
@@ -65,7 +63,7 @@ const plan = {
   policy: [
     'No duplicate canonical validators are executed by this planner.',
     'Browser execution is selected by impact, not by default.',
-    'Release certification requires Exact-SHA and clean worktree evidence.',
+    'Release certification requires Exact-SHA and clean-worktree evidence.',
     'CI failure remains failure; no continue-on-error is introduced.',
   ],
 };
