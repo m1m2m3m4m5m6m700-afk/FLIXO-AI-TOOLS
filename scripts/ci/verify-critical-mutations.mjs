@@ -35,7 +35,6 @@ for (const mutation of mutations) {
   if (!fs.existsSync(target)) throw new Error(`${mutation.id}: mutation target does not exist: ${mutation.target_file}`);
   const original = fs.readFileSync(target, 'utf8');
   const [needle, replacement] = mutation.replacement;
-  let restored = false;
 
   try {
     if (!original.includes(needle)) throw new Error(`${mutation.id}: mutation target not found`);
@@ -68,10 +67,11 @@ for (const mutation of mutations) {
     if (!killed) throw new Error(`${mutation.id}: critical mutation SURVIVED`);
   } finally {
     fs.writeFileSync(target, original);
-    restored = fs.readFileSync(target, 'utf8') === original;
   }
 
-  if (!restored) throw new Error(`${mutation.id}: mutation harness failed to restore ${mutation.target_file}`);
+  if (fs.readFileSync(target, 'utf8') !== original) {
+    throw new Error(`${mutation.id}: mutation harness failed to restore ${mutation.target_file}`);
+  }
 }
 
 const killed = results.filter((result) => result.status === 'KILLED').length;
