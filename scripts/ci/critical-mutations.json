@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "authority": "critical-mutation-registry",
+  "policy": {
+    "critical_mutations_must_be_killed": true,
+    "unknown_mutation_status_is_failure": true,
+    "unmapped_kill_is_failure": true
+  },
+  "mutations": [
+    {"id":"MUT-CI-001","contract":"CI","target":"certification-result","failure_mode":"PASS result must be rejected when a zeroFalseGreen counter is non-zero","owner":"ASSERT-CI-CONTRACT-001"},
+    {"id":"MUT-CI-002","contract":"CI","target":"execution-cardinality","failure_mode":"missing execution unit must be rejected","owner":"ASSERT-CI-CONTRACT-001"},
+    {"id":"MUT-CI-003","contract":"CI","target":"execution-identity","failure_mode":"duplicate execution identity must be rejected","owner":"ASSERT-ASSERTION-REGISTRY-001"},
+    {"id":"MUT-BUILD-001","contract":"BUILD","target":"build-identity","failure_mode":"artifact SHA different from promotion SHA must be rejected","owner":"ASSERT-BUILD-001"},
+    {"id":"MUT-I18N-001","contract":"I18N","target":"locale-contract","failure_mode":"missing locale contract must be rejected","owner":"ASSERT-I18N2-001"},
+    {"id":"MUT-SEO-001","contract":"SEO","target":"canonical-origin","failure_mode":"canonical origin mismatch must be rejected","owner":"ASSERT-SITE-ORIGIN-001"},
+    {"id":"MUT-BROWSER-001","contract":"G4","target":"primary-landmark","failure_mode":"missing primary landmark must be rejected","owner":"ASSERT-BROWSER-CHROMIUM-001"},
+    {"id":"MUT-BROWSER-002","contract":"G4","target":"locale-navigation","failure_mode":"HTTP failure during locale navigation must be rejected","owner":"ASSERT-BROWSER-WEBKIT-001"},
+    {"id":"MUT-BROWSER-003","contract":"G4","target":"language-direction","failure_mode":"localized page violating language/direction contract must be rejected","owner":"ASSERT-BROWSER-FIREFOX-001"}
+  ]
+}
