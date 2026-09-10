@@ -5,7 +5,6 @@ import { router } from './router';
 import { installRuntimeDiagnostics } from './lib/diagnostics/runtime';
 import { installPerformanceDiagnostics } from './lib/diagnostics/performance';
 import { applyDocumentLocale, localeFromPathname } from './lib/i18n/runtime-document-locale';
-import { installToolUiRuntimeCompleteness } from './lib/i18n/tool-ui-runtime-completeness';
 import { FlixoUxShell } from './components/flixo-ux-shell';
 import './styles.css';
 import './home-motion.css';
@@ -15,7 +14,6 @@ import './tools/seed/seed-premium.css';
 
 if (typeof window !== 'undefined') {
   applyDocumentLocale(localeFromPathname(window.location.pathname));
-  installToolUiRuntimeCompleteness();
 }
 
 installRuntimeDiagnostics();
