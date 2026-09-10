@@ -11,7 +11,7 @@ function changedFiles() {
     if (baseSha) return git(['diff', '--name-only', `${baseSha}...HEAD`]).split('\n').filter(Boolean);
     return git(['diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD']).split('\n').filter(Boolean);
   } catch (error) {
-    throw new Error(`Unable to determine changed files: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Unable to determine changed files: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
 }
 
