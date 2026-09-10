@@ -12,11 +12,11 @@
       "contract": "G4",
       "target_file": "src/routes/home-page.tsx",
       "target": "primary-landmark",
-      "failure_mode": "missing primary landmark must be rejected",
+      "failure_mode": "multiple primary landmarks must be rejected",
       "owner": "ASSERT-BROWSER-CHROMIUM-001",
       "replacement": [
         "<main className=\"home-shell\" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>",
-        "<div className=\"home-shell\" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>"
+        "<main className=\"home-shell\" lang={localeMetadata.languageTag} dir={localeMetadata.direction} />\n    <main className=\"home-shell\" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>"
       ],
       "project": "chromium",
       "grep": "production-like home boots with a single primary landmark"
