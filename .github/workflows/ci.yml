@@ -100,7 +100,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           name: flixo-build-${{ github.run_id }}
           path: dist
@@ -174,7 +174,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           name: flixo-build-${{ github.run_id }}
           path: dist
@@ -239,19 +239,19 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
       - name: Download static/build evidence
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: flixo-static-build-evidence-${{ github.run_id }}
           path: evidence/static-build
       - name: Download FAST evidence
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: flixo-browser-fast-*
           path: evidence/browser-fast
           merge-multiple: true
       - name: Download DEEP evidence
         if: github.event_name != 'pull_request'
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: flixo-browser-deep-*
           path: evidence/browser-deep
