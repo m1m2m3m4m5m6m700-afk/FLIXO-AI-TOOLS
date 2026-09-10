@@ -71,6 +71,7 @@
     "audit:technical-debt": "node scripts/ci/audit-technical-debt.mjs",
     "verify:contracts": "npm run test:static",
     "verify:fast": "npm run test:static",
+    "orchestrate": "node scripts/ci/unified-orchestrator.mjs",
     "check": "npm run test:static && npm run test:build",
     "verify": "npm run check && npm run audit:production",
     "test:e2e": "playwright test",
@@ -89,18 +90,18 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
-    "@types/node": "^22.16.5",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.1.7",
-    "@vitejs/plugin-react": "^5.2.0",
+    "playwright": "^1.62.1",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.56.1",
     "eslint": "^10.8.0",
+    "@eslint/js": "^10.0.1",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^15.15.0",
-    "playwright": "^1.62.1",
-    "typescript": "^5.8.3",
-    "typescript-eslint": "^8.56.1",
+    "@types/node": "^22.16.5",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.1.7",
     "vite": "^8.2.1"
   }
 }
