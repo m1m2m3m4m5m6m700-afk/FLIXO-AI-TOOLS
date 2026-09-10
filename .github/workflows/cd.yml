@@ -1,0 +1,140 @@
+name: FLIXO Continuous Delivery
+
+on:
+  workflow_run:
+    workflows: ["FLIXO Test System"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Exact main commit SHA to promote"
+        required: true
+        type: string
+
+concurrency:
+  group: flixo-cd-${{ github.event.workflow_run.head_branch || 'manual' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+  deployments: write
+
+jobs:
+  promote:
+    name: Promote exact certified SHA
+    if: >-
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://flixoai.vercel.app
+    steps:
+      - name: Resolve promotion SHA
+        id: sha
+        shell: bash
+        env:
+          EVENT_SHA: ${{ github.event.workflow_run.head_sha }}
+          MANUAL_SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          sha="${MANUAL_SHA:-$EVENT_SHA}"
+          test -n "$sha"
+          printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.sha.outputs.sha }}
+          fetch-depth: 1
+
+      - name: Prove exact main SHA
+        shell: bash
+        env:
+          PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$PROMOTION_SHA"
+          test "$(git branch --show-current)" = "" || true
+          test "$(git merge-base --is-ancestor "$PROMOTION_SHA" origin/main)"
+
+      - name: Verify canonical CI conclusion
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          set -euo pipefail
+          run_json="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            "/repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${PROMOTION_SHA}&event=push&per_page=20")"
+          count="$(jq '[.workflow_runs[] | select(.head_sha == env.PROMOTION_SHA and .head_branch == "main" and .conclusion == "success")] | length' <<<"$run_json")"
+          test "$count" -ge 1
+
+      - name: Download certified build artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$SOURCE_RUN_ID"
+          if [ -z "$run_id" ]; then
+            run_id="$(gh api \
+              -H 'Accept: application/vnd.github+json' \
+              "/repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${PROMOTION_SHA}&event=push&per_page=20" \
+              | jq -r '[.workflow_runs[] | select(.head_sha == env.PROMOTION_SHA and .head_branch == "main" and .conclusion == "success")] | sort_by(.id) | last.id')"
+          fi
+          test -n "$run_id" && test "$run_id" != "null"
+          mkdir -p /tmp/artifact
+          gh run download "$run_id" -n "flixo-build-${run_id}" -D /tmp/artifact
+          test "$(cat /tmp/artifact/flixo-head-sha.txt)" = "$PROMOTION_SHA"
+
+      - name: Deploy immutable build to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$VERCEL_TOKEN"
+          test -n "$VERCEL_ORG_ID"
+          test -n "$VERCEL_PROJECT_ID"
+          npx --yes vercel@latest deploy /tmp/artifact --prod \
+            --token="$VERCEL_TOKEN" \
+            --scope="$VERCEL_ORG_ID" \
+            --yes
+          printf '%s\n' "$PROMOTION_SHA" > /tmp/artifact/flixo-promoted-sha.txt
+
+      - name: Production smoke proof
+        env:
+          PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
+          PRODUCTION_ORIGIN: https://flixoai.vercel.app
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            --retry 5 --retry-delay 3 --retry-all-errors \
+            --max-time 30 \
+            -o /tmp/production.html \
+            "$PRODUCTION_ORIGIN/"
+          test -s /tmp/production.html
+          grep -qi '<html' /tmp/production.html
+          printf '%s\n' '{"status":"PASS","sha":"'"$PROMOTION_SHA"'","origin":"'"$PRODUCTION_ORIGIN"'"}' \
+            > production-deployment-evidence.json
+
+      - name: Upload deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-cd-evidence-${{ steps.sha.outputs.sha }}
+          path: production-deployment-evidence.json
+          if-no-files-found: error
+          retention-days: 30
