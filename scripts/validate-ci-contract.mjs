@@ -59,8 +59,8 @@ if (!/tests\/localization-runtime\.spec\.ts/.test(deep)) {
   console.error('CI contract failed: DEEP browser ownership must retain localization runtime coverage.');
   process.exit(1);
 }
-if (!/github\.event_name\s*!=\s*'pull_request'/.test(deep)) {
-  console.error('CI contract failed: DEEP browser execution must be main/release only.');
+if (/github\.event_name\s*!=\s*'pull_request'/.test(deep)) {
+  console.error('CI contract failed: DEEP browser execution must not be main/release only.');
   process.exit(1);
 }
 
