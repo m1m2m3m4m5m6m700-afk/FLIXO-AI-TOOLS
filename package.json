@@ -71,6 +71,8 @@
     "audit:technical-debt": "node scripts/ci/audit-technical-debt.mjs",
     "verify:contracts": "npm run test:static",
     "verify:fast": "npm run test:static",
+    "orchestrate": "node scripts/ci/unified-orchestrator.mjs",
+    "verify:ci-cd-trust": "node scripts/ci/validate-ci-cd-trust.mjs",
     "check": "npm run test:static && npm run test:build",
     "verify": "npm run check && npm run audit:production",
     "test:e2e": "playwright test",

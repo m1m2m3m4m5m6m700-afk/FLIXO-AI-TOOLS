@@ -111,7 +111,7 @@ jobs:
             --scope="$VERCEL_ORG_ID" \
             --yes
 
-      - name: Production smoke proof
+      - name: Production identity proof
         env:
           PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
           PRODUCTION_ORIGIN: https://flixoai.vercel.app
@@ -125,7 +125,12 @@ jobs:
             "$PRODUCTION_ORIGIN/"
           test -s /tmp/production.html
           grep -qi '<html' /tmp/production.html
-          printf '%s\n' '{"status":"PASS","sha":"'"$PROMOTION_SHA"'","origin":"'"$PRODUCTION_ORIGIN"'"}' \
+          deployed_sha="$(curl --fail --silent --show-error --location \
+            --retry 5 --retry-delay 3 --retry-all-errors \
+            --max-time 30 \
+            "$PRODUCTION_ORIGIN/flixo-head-sha.txt")"
+          test "$deployed_sha" = "$PROMOTION_SHA"
+          printf '%s\n' '{"status":"PASS","sha":"'"$PROMOTION_SHA"'","deployedSha":"'"$deployed_sha"'","origin":"'"$PRODUCTION_ORIGIN"'"}' \
             > production-deployment-evidence.json
 
       - name: Upload deployment evidence
