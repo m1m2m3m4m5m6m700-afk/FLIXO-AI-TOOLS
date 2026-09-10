@@ -11,9 +11,7 @@ function changedFiles() {
     if (baseSha) return git(['diff', '--name-only', `${baseSha}...HEAD`]).split('\n').filter(Boolean);
     return git(['diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD']).split('\n').filter(Boolean);
   } catch (error) {
-    console.error(`❌ Unable to determine changed files: ${error instanceof Error ? error.message : String(error)}`);
-    process.exitCode = 1;
-    return [];
+    throw new Error(`Unable to determine changed files: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -34,7 +32,14 @@ function impact(files) {
   return [...areas].sort();
 }
 
-const files = changedFiles();
+let files;
+try {
+  files = changedFiles();
+} catch (error) {
+  console.error(`❌ ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
+}
+
 const actualSha = git(['rev-parse', 'HEAD']);
 const treeSha = git(['rev-parse', 'HEAD^{tree}']);
 const worktree = git(['status', '--porcelain']);
