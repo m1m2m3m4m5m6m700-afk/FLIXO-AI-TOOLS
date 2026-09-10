@@ -60,8 +60,9 @@ try {
   }
 } finally {
   fs.writeFileSync(target, original);
-  if (fs.readFileSync(target, 'utf8') !== original) throw new Error('mutation harness failed to restore the target source');
 }
+
+if (fs.readFileSync(target, 'utf8') !== original) throw new Error('mutation harness failed to restore the target source');
 
 console.log(JSON.stringify({
   schema_version: 1,
