@@ -4,35 +4,22 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const root = process.cwd();
-const target = path.join(root, 'src/routes/home-page.tsx');
 const registry = JSON.parse(fs.readFileSync(path.join(root, 'scripts/ci/critical-mutations.json'), 'utf8'));
-const original = fs.readFileSync(target, 'utf8');
-const mutations = [
-  {
-    id: 'MUT-BROWSER-001',
-    replacement: ['<main className="home-shell" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>', '<div className="home-shell" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>'],
-    project: 'chromium',
-    grep: 'production-like home boots with a single primary landmark',
-  },
-  {
-    id: 'MUT-BROWSER-002',
-    replacement: ['<main className="home-shell" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>', '<main className="home-shell" lang={localeMetadata.languageTag} dir="ltr">'],
-    project: 'firefox',
-    grep: 'localized home preserves language and direction contracts',
-  },
-  {
-    id: 'MUT-BROWSER-003',
-    replacement: ['id="home-title"', 'id="home-title-mutated"'],
-    project: 'chromium',
-    grep: 'production-like home boots with a single primary landmark',
-  },
-];
 
-if (!Array.isArray(registry.mutations)) throw new Error('critical mutation registry is malformed');
-const registryIds = registry.mutations.map((mutation) => mutation.id);
-const runnerIds = mutations.map((mutation) => mutation.id);
-if (registryIds.length !== runnerIds.length || registryIds.some((id, index) => id !== runnerIds[index])) {
-  throw new Error(`mutation registry/runner mismatch: registry=${registryIds.join(',')} runner=${runnerIds.join(',')}`);
+if (!Array.isArray(registry.mutations) || registry.mutations.length === 0) {
+  throw new Error('critical mutation registry is malformed or empty');
+}
+
+const mutations = registry.mutations;
+const ids = mutations.map((mutation) => mutation.id);
+if (ids.some((id) => typeof id !== 'string' || !id)) throw new Error('critical mutation registry contains an invalid id');
+if (new Set(ids).size !== ids.length) throw new Error('critical mutation registry contains duplicate ids');
+
+for (const mutation of mutations) {
+  if (!mutation.target_file || !mutation.project || !mutation.grep || !Array.isArray(mutation.replacement) || mutation.replacement.length !== 2) {
+    throw new Error(`${mutation.id}: executable mutation definition is incomplete`);
+  }
+  if (!/^src\//.test(mutation.target_file)) throw new Error(`${mutation.id}: mutation target must be inside src/`);
 }
 
 const run = (command, args, env = {}) => spawnSync(command, args, {
@@ -43,33 +30,64 @@ const run = (command, args, env = {}) => spawnSync(command, args, {
 });
 
 const results = [];
-try {
-  for (const mutation of mutations) {
-    fs.writeFileSync(target, original);
-    const [needle, replacement] = mutation.replacement;
-    if (!fs.readFileSync(target, 'utf8').includes(needle)) throw new Error(`${mutation.id}: mutation target not found`);
-    fs.writeFileSync(target, fs.readFileSync(target, 'utf8').replace(needle, replacement));
+for (const mutation of mutations) {
+  const target = path.join(root, mutation.target_file);
+  if (!fs.existsSync(target)) throw new Error(`${mutation.id}: mutation target does not exist: ${mutation.target_file}`);
+  const original = fs.readFileSync(target, 'utf8');
+  const [needle, replacement] = mutation.replacement;
+  let restored = false;
+
+  try {
+    if (!original.includes(needle)) throw new Error(`${mutation.id}: mutation target not found`);
+    fs.writeFileSync(target, original.replace(needle, replacement));
+
+    const mutated = fs.readFileSync(target, 'utf8');
+    if (mutated === original) throw new Error(`${mutation.id}: mutation produced no source change`);
 
     const build = run('npm', ['run', 'build:runtime']);
     if (build.status !== 0) throw new Error(`${mutation.id}: mutated build failed before the test could execute`);
 
-    const test = run('npx', ['playwright', 'test', 'tests/universal-diagnostic-browser.spec.ts', '--project=' + mutation.project, '--grep=' + mutation.grep, '--workers=1', '--retries=0', '--max-failures=1']);
+    const test = run('npx', [
+      'playwright',
+      'test',
+      'tests/universal-diagnostic-browser.spec.ts',
+      '--project=' + mutation.project,
+      '--grep=' + mutation.grep,
+      '--workers=1',
+      '--retries=0',
+      '--max-failures=1',
+    ]);
     const killed = test.status !== 0;
-    results.push({ id: mutation.id, project: mutation.project, status: killed ? 'KILLED' : 'SURVIVED' });
+    results.push({
+      id: mutation.id,
+      owner: mutation.owner,
+      target: mutation.target,
+      project: mutation.project,
+      status: killed ? 'KILLED' : 'SURVIVED',
+    });
     if (!killed) throw new Error(`${mutation.id}: critical mutation SURVIVED`);
+  } finally {
+    fs.writeFileSync(target, original);
+    restored = fs.readFileSync(target, 'utf8') === original;
   }
-} finally {
-  fs.writeFileSync(target, original);
+
+  if (!restored) throw new Error(`${mutation.id}: mutation harness failed to restore ${mutation.target_file}`);
 }
 
-if (fs.readFileSync(target, 'utf8') !== original) throw new Error('mutation harness failed to restore the target source');
-
-console.log(JSON.stringify({
-  schema_version: 1,
+const killed = results.filter((result) => result.status === 'KILLED').length;
+const survived = results.filter((result) => result.status === 'SURVIVED').length;
+const evidence = {
+  schema_version: 2,
   authority: 'CRITICAL_MUTATION_EFFECTIVENESS',
-  status: 'PASS',
+  status: survived === 0 && killed === mutations.length ? 'PASS' : 'FAIL',
   total: results.length,
-  killed: results.filter((r) => r.status === 'KILLED').length,
-  survived: results.filter((r) => r.status === 'SURVIVED').length,
+  killed,
+  survived,
   results,
-}, null, 2));
+};
+
+const evidencePath = path.join(root, 'diagnostics', 'certification', 'critical-mutation-effectiveness.json');
+fs.mkdirSync(path.dirname(evidencePath), { recursive: true });
+fs.writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
+console.log(JSON.stringify(evidence, null, 2));
+if (evidence.status !== 'PASS') process.exit(1);
