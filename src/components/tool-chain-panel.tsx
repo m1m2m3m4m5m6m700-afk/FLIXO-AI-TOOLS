@@ -4,6 +4,10 @@ import { addToolToChain, clearToolChain, getToolChain, moveToolInChain, removeTo
 import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
 import './tool-chain-panel.css';
 
+const TOGGLE_LABELS: Record<string, { open: string; hide: string }> = {
+  en: { open: 'Open', hide: 'Hide' }, ar: { open: 'فتح', hide: 'إخفاء' }, es: { open: 'Abrir', hide: 'Ocultar' }, fr: { open: 'Ouvrir', hide: 'Masquer' }, de: { open: 'Öffnen', hide: 'Ausblenden' }, hi: { open: 'खोलें', hide: 'छिपाएँ' }, id: { open: 'Buka', hide: 'Sembunyikan' }, it: { open: 'Apri', hide: 'Nascondi' }, ja: { open: '開く', hide: '閉じる' }, ko: { open: '열기', hide: '숨기기' }, ms: { open: 'Buka', hide: 'Sembunyikan' }, nl: { open: 'Openen', hide: 'Verbergen' }, pl: { open: 'Otwórz', hide: 'Ukryj' }, pt: { open: 'Abrir', hide: 'Ocultar' }, ru: { open: 'Открыть', hide: 'Скрыть' }, sv: { open: 'Öppna', hide: 'Dölj' }, th: { open: 'เปิด', hide: 'ซ่อน' }, tr: { open: 'Aç', hide: 'Gizle' }, uk: { open: 'Відкрити', hide: 'Сховати' }, vi: { open: 'Mở', hide: 'Ẩn' }, zh: { open: '打开', hide: '隐藏' }, ur: { open: 'کھولیں', hide: 'چھپائیں' },
+};
+
 export function ToolChainPanel({ currentToolId }: { currentToolId?: string | null }) {
   const [open, setOpen] = useState(false);
   const [chain, setChain] = useState(() => getToolChain());
@@ -18,70 +22,38 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
   const selected = chain.map((step) => ({ step, tool: tools.find((tool) => tool.id === step.id) })).filter((item): item is { step: typeof chain[number]; tool: (typeof tools)[number] } => Boolean(item.tool));
   const locale = (typeof document !== 'undefined' ? document.documentElement.lang.split('-')[0] : 'en') as keyof typeof TOOL_UI_I18N;
   const copy = TOOL_UI_I18N[locale] ?? TOOL_UI_I18N.en;
+  const toggleCopy = TOGGLE_LABELS[locale] ?? TOGGLE_LABELS.en;
 
   useEffect(() => () => { if (resultUrl) URL.revokeObjectURL(resultUrl); }, [resultUrl]);
 
   const refresh = () => setChain(getToolChain());
-  const addCurrent = () => {
-    if (!currentToolId) return;
-    addToolToChain(currentToolId);
-    refresh();
-  };
+  const addCurrent = () => { if (!currentToolId) return; addToolToChain(currentToolId); refresh(); };
 
   const runChain = async () => {
     if (!inputFile || selected.length === 0 || running) return;
-    setRunning(true);
-    setProgress(0);
-    setActiveTool('');
-    setError('');
-    setResult(null);
-    if (resultUrl) {
-      URL.revokeObjectURL(resultUrl);
-      setResultUrl('');
-    }
+    setRunning(true); setProgress(0); setActiveTool(''); setError(''); setResult(null);
+    if (resultUrl) { URL.revokeObjectURL(resultUrl); setResultUrl(''); }
     try {
       const { runStoredToolChain } = await import('../lib/tool-chain-runner');
-      const output = await runStoredToolChain(
-        selected.map(({ step }) => step.id),
-        { blob: inputFile, fileName: inputFile.name },
-        (completed, total, toolId) => {
-          setProgress(Math.round((completed / total) * 100));
-          setActiveTool(toolId);
-        },
-      );
-      setProgress(100);
-      setActiveTool(selected[selected.length - 1]?.tool.title ?? '');
-      setResult(output);
-      setResultUrl(URL.createObjectURL(output.blob));
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Tool chain failed.');
-    } finally {
-      setRunning(false);
-    }
+      const output = await runStoredToolChain(selected.map(({ step }) => step.id), { blob: inputFile, fileName: inputFile.name }, (completed, total, toolId) => { setProgress(Math.round((completed / total) * 100)); setActiveTool(toolId); });
+      setProgress(100); setActiveTool(selected[selected.length - 1]?.tool.title ?? ''); setResult(output); setResultUrl(URL.createObjectURL(output.blob));
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Tool chain failed.'); }
+    finally { setRunning(false); }
   };
 
   return (
     <aside className="flixo-chain-panel" aria-label={copy.workspace}>
       <div className="flixo-chain-panel__bar">
-        <div>
-          <strong>{copy.workspace}</strong>
-          <span>{selected.length}/8 steps</span>
-        </div>
-        <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
-          {open ? 'Hide' : 'Open'}
-        </button>
+        <div><strong>{copy.workspace}</strong><span>{selected.length}/8 steps</span></div>
+        <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>{open ? toggleCopy.hide : toggleCopy.open}</button>
       </div>
       {open && (
         <div className="flixo-chain-panel__body">
           <div className="flixo-chain-panel__actions">
-            <button type="button" onClick={addCurrent} disabled={!currentToolId || chain.some((step) => step.id === currentToolId) || selected.length >= 8}>
-              + Add current tool
-            </button>
+            <button type="button" onClick={addCurrent} disabled={!currentToolId || chain.some((step) => step.id === currentToolId) || selected.length >= 8}>+ Add current tool</button>
             <button type="button" onClick={() => { clearToolChain(); refresh(); }} disabled={selected.length === 0}>Clear</button>
           </div>
-          {selected.length === 0 ? (
-            <p className="flixo-chain-panel__empty">Add tools in the order you want to process them. The chain is stored only in this browser.</p>
-          ) : (
+          {selected.length === 0 ? <p className="flixo-chain-panel__empty">Add tools in the order you want to process them. The chain is stored only in this browser.</p> : (
             <ol className="flixo-chain-panel__list">
               {selected.map(({ tool }, index) => (
                 <li key={tool.id}>
@@ -98,25 +70,13 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
             </ol>
           )}
           <div className="flixo-chain-panel__runner">
-            <label className="flixo-chain-panel__file">
-              <span>Input file</span>
-              <input type="file" accept="image/*" aria-label={copy.upload} disabled={running} onChange={(event) => { setInputFile(event.target.files?.[0] ?? null); setError(''); setResult(null); }} />
-            </label>
-            <button type="button" className="flixo-chain-panel__run" onClick={() => void runChain()} disabled={!inputFile || selected.length === 0 || running}>
-              {running ? `Processing… ${progress}%` : 'Run chain locally'}
-            </button>
+            <label className="flixo-chain-panel__file"><span>Input file</span><input type="file" accept="image/*" aria-label={copy.upload} disabled={running} onChange={(event) => { setInputFile(event.target.files?.[0] ?? null); setError(''); setResult(null); }} /></label>
+            <button type="button" className="flixo-chain-panel__run" onClick={() => void runChain()} disabled={!inputFile || selected.length === 0 || running}>{running ? `Processing… ${progress}%` : 'Run chain locally'}</button>
             {activeTool && <div className="flixo-chain-panel__progress" role="status">Current step: {activeTool}</div>}
             {error && <div className="flixo-chain-panel__error" role="alert">{error}</div>}
-            {result && resultUrl && (
-              <div className="flixo-chain-panel__result">
-                <span>Output ready: {result.fileName}</span>
-                <a href={resultUrl} download={result.fileName}>Download result</a>
-              </div>
-            )}
+            {result && resultUrl && <div className="flixo-chain-panel__result"><span>Output ready: {result.fileName}</span><a href={resultUrl} download={result.fileName}>Download result</a></div>}
           </div>
-          <div className="flixo-chain-panel__status" role="status">
-            <strong>Execution contract:</strong> local adapters only. Unsupported steps fail explicitly; no file is uploaded by the chain runner.
-          </div>
+          <div className="flixo-chain-panel__status" role="status"><strong>Execution contract:</strong> local adapters only. Unsupported steps fail explicitly; no file is uploaded by the chain runner.</div>
         </div>
       )}
     </aside>

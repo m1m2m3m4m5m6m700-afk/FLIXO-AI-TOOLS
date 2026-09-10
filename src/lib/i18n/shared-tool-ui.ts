@@ -48,23 +48,30 @@ export const SHARED_TOOL_UI_COPY: Record<string, SharedCopy> = {
   uk: { processing: 'Локальна обробка', inputs: 'Вхідні дані', browserSuffix: 'обробляються у вашому браузері, коли інструмент це підтримує.', externalSuffix: 'використовує налаштовану зовнішню точку обробки й не подається як лише локальний.', chooseFile: 'Виберіть файл', optional: 'Необов’язково', originalText: 'Оригінальний текст', modifiedText: 'Змінений текст', regexPattern: 'Шаблон Regex', regexInput: 'Ввід Regex', topText: 'Верхній текст', bottomText: 'Нижній текст', watermarkText: 'Текст водяного знака', foregroundColor: 'Колір переднього плану', backgroundColor: 'Колір фону', generateQr: 'Створити QR', chooseQrImage: 'Виберіть зображення QR', exportClip: 'Експортувати кліп', compressImage: 'Стиснути зображення', compressAllZip: 'Стиснути все в ZIP' },
 };
 
+const SHARED_RUNTIME_UI: Readonly<Record<string, Partial<Record<Locale, string>>>> = {
+  'Run tool': { ar: 'تشغيل الأداة', es: 'Ejecutar herramienta', fr: 'Exécuter l’outil', de: 'Tool ausführen', hi: 'टूल चलाएँ', id: 'Jalankan alat', it: 'Esegui lo strumento', ja: 'ツールを実行', ko: '도구를 실행', ms: 'Jalankan alat', nl: 'Tool uitvoeren', pl: 'Uruchom narzędzie', pt: 'Executar ferramenta', ru: 'Запустить инструмент', sv: 'Kör verktyget', th: 'เรียกใช้เครื่องมือ', tr: 'Aracı çalıştır', uk: 'Запустити інструмент', vi: 'Chạy công cụ' },
+  Brightness: { ar: 'السطوع', es: 'Brillo', fr: 'Luminosité', de: 'Helligkeit', hi: 'चमक', id: 'Kecerahan', it: 'Luminosità', ja: '明るさ', ko: '밝기', ms: 'Kecerahan', nl: 'Helderheid', pl: 'Jasność', pt: 'Brilho', ru: 'Яркость', sv: 'Ljusstyrka', th: 'ความสว่าง', tr: 'Parlaklık', uk: 'Яскравість', vi: 'Độ sáng' },
+  Contrast: { ar: 'التباين', es: 'Contraste', fr: 'Contraste', de: 'Kontrast', hi: 'कंट्रास्ट', id: 'Kontras', it: 'Contrasto', ja: 'コントラスト', ko: '대비', ms: 'Kontras', nl: 'Contrast', pl: 'Kontrast', pt: 'Contraste', ru: 'Контраст', sv: 'Kontrast', th: 'คอนทราสต์', tr: 'Kontrast', uk: 'Контраст', vi: 'Độ tương phản' },
+  Saturation: { ar: 'التشبع', es: 'Saturación', fr: 'Saturation', de: 'Sättigung', hi: 'संतृप्ति', id: 'Saturasi', it: 'Saturazione', ja: '彩度', ko: '채도', ms: 'Ketepuan', nl: 'Verzadiging', pl: 'Nasycenie', pt: 'Saturação', ru: 'Насыщенность', sv: 'Mättnad', th: 'ความอิ่มสี', tr: 'Doygunluk', uk: 'Насиченість', vi: 'Độ bão hòa' },
+  Grayscale: { ar: 'تدرج رمادي', es: 'Escala de grises', fr: 'Niveaux de gris', de: 'Graustufen', hi: 'ग्रेस्केल', id: 'Skala abu-abu', it: 'Scala di grigi', ja: 'グレースケール', ko: '그레이스케일', ms: 'Skala kelabu', nl: 'Grijswaarden', pl: 'Skala szarości', pt: 'Escala de cinza', ru: 'Оттенки серого', sv: 'Gråskala', th: 'โทนสีเทา', tr: 'Gri tonlama', uk: 'Відтінки сірого', vi: 'Thang độ xám' },
+};
+
 export function translateSharedToolText(locale: Locale, value: string): string {
   if (locale === 'en') return value;
   const copy = SHARED_TOOL_UI_COPY[locale] ?? SHARED_TOOL_UI_COPY.en;
   const compact = value.trim();
-
+  const runtime = SHARED_RUNTIME_UI[compact]?.[locale];
+  if (runtime) return value.replace(compact, runtime);
   const localMatch = compact.match(/^●\s*Local processing Inputs for (.+?) are processed in your browser when supported by the tool\.$/);
   if (localMatch) {
     const title = localMatch[1].trim();
     return `● ${copy.processing}: ${copy.inputs} — ${title} ${copy.browserSuffix}`;
   }
-
   const externalMatch = compact.match(/^↗\s*External processing (.+?) uses a configured external processing endpoint and is not presented as local-only\.$/);
   if (externalMatch) {
     const title = externalMatch[1].trim();
     return `↗ ${copy.processing === 'معالجة محلية' ? 'معالجة خارجية' : copy.processing.replace(/محلية|local|Lokal|locale|Локальная|ローカル|स्थानीय|Yerel|Lokal|Pemprosesan tempatan|Локальна|本地|Xử lý cục bộ|การประมวลผลภายในเครื่อง/, locale === 'ar' ? 'معالجة خارجية' : String(locale) === 'zh' ? '外部处理' : locale === 'uk' ? 'Зовнішня обробка' : 'External processing')} ${title} ${copy.externalSuffix}`;
   }
-
   const exact = new Map<string, string>([
     ['Choose a file', copy.chooseFile], ['Optional', copy.optional], ['Original text', copy.originalText], ['Modified text', copy.modifiedText], ['Regex pattern', copy.regexPattern], ['Regex input', copy.regexInput], ['Top text', copy.topText], ['Bottom text', copy.bottomText], ['Watermark text', copy.watermarkText], ['Foreground color', copy.foregroundColor], ['Background color', copy.backgroundColor], ['Generate QR', copy.generateQr], ['Choose QR image', copy.chooseQrImage], ['Export clip', copy.exportClip], ['Compress image', copy.compressImage], ['Compress all to ZIP', copy.compressAllZip],
   ]);
