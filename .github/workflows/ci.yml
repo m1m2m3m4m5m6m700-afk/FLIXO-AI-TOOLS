@@ -316,7 +316,7 @@ jobs:
     needs: [certify]
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
         with:
@@ -329,3 +329,5 @@ jobs:
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Run CI/CD Trust controls
         run: npm run verify:ci-cd-trust
+      - name: Run critical mutation effectiveness
+        run: npm run verify:critical-mutations
