@@ -230,9 +230,7 @@ jobs:
   certify:
     name: Certification
     needs: [verify, browser_fast, browser_deep]
-    if: >-
-      (github.event_name == 'pull_request' && needs.verify.result == 'success' && needs.browser_fast.result == 'success') ||
-      (github.event_name != 'pull_request' && needs.verify.result == 'success' && needs.browser_fast.result == 'success' && needs.browser_deep.result == 'success')
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
