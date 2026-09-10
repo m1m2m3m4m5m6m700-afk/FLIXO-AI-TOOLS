@@ -5,30 +5,35 @@ import { spawnSync } from 'node:child_process';
 
 const root = process.cwd();
 const target = path.join(root, 'src/routes/home-page.tsx');
+const registry = JSON.parse(fs.readFileSync(path.join(root, 'scripts/ci/critical-mutations.json'), 'utf8'));
 const original = fs.readFileSync(target, 'utf8');
 const mutations = [
   {
     id: 'MUT-BROWSER-001',
-    description: 'remove the primary landmark',
     replacement: ['<main className="home-shell" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>', '<div className="home-shell" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>'],
     project: 'chromium',
     grep: 'production-like home boots with a single primary landmark',
   },
   {
     id: 'MUT-BROWSER-002',
-    description: 'break localized direction',
     replacement: ['<main className="home-shell" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>', '<main className="home-shell" lang={localeMetadata.languageTag} dir="ltr">'],
     project: 'firefox',
     grep: 'localized home preserves language and direction contracts',
   },
   {
     id: 'MUT-BROWSER-003',
-    description: 'remove the canonical home title identity',
     replacement: ['id="home-title"', 'id="home-title-mutated"'],
     project: 'chromium',
     grep: 'production-like home boots with a single primary landmark',
   },
 ];
+
+if (!Array.isArray(registry.mutations)) throw new Error('critical mutation registry is malformed');
+const registryIds = registry.mutations.map((mutation) => mutation.id);
+const runnerIds = mutations.map((mutation) => mutation.id);
+if (registryIds.length !== runnerIds.length || registryIds.some((id, index) => id !== runnerIds[index])) {
+  throw new Error(`mutation registry/runner mismatch: registry=${registryIds.join(',')} runner=${runnerIds.join(',')}`);
+}
 
 const run = (command, args, env = {}) => spawnSync(command, args, {
   cwd: root,
@@ -50,13 +55,12 @@ try {
 
     const test = run('npx', ['playwright', 'test', 'tests/universal-diagnostic-browser.spec.ts', '--project=' + mutation.project, '--grep=' + mutation.grep, '--workers=1', '--retries=0', '--max-failures=1']);
     const killed = test.status !== 0;
-    results.push({ id: mutation.id, description: mutation.description, project: mutation.project, status: killed ? 'KILLED' : 'SURVIVED' });
+    results.push({ id: mutation.id, project: mutation.project, status: killed ? 'KILLED' : 'SURVIVED' });
     if (!killed) throw new Error(`${mutation.id}: critical mutation SURVIVED`);
   }
 } finally {
   fs.writeFileSync(target, original);
-  const clean = fs.readFileSync(target, 'utf8') === original;
-  if (!clean) throw new Error('mutation harness failed to restore the target source');
+  if (fs.readFileSync(target, 'utf8') !== original) throw new Error('mutation harness failed to restore the target source');
 }
 
 console.log(JSON.stringify({
