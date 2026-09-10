@@ -118,7 +118,7 @@ jobs:
           ref: ${{ inputs.expected_sha || github.sha }}
           fetch-depth: 0
       - name: Download exact-run suite evidence
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: ultra-investigation-*-${{ inputs.expected_sha || github.sha }}
           path: diagnostics/investigation
@@ -159,7 +159,7 @@ jobs:
           ref: ${{ inputs.expected_sha || github.sha }}
           fetch-depth: 0
       - name: Download official aggregate and ledger
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: ultra-investigation-aggregate-${{ inputs.expected_sha || github.sha }}
           path: .
