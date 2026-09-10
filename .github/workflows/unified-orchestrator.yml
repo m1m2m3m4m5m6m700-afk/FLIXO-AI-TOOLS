@@ -1,0 +1,43 @@
+name: Unified Orchestrator
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  orchestrate:
+    name: Generate deterministic orchestration plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Generate orchestration plan
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CHANGE_BASE: ${{ github.event.pull_request.base.sha || '' }}
+        run: npm run orchestrate
+
+      - name: Upload orchestration plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: unified-orchestrator-${{ github.run_id }}
+          path: diagnostics/orchestrator/plan.json
+          if-no-files-found: error
