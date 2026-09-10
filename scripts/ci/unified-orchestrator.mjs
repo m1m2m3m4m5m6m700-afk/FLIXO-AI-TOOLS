@@ -7,8 +7,14 @@ const baseSha = process.env.CHANGE_BASE ?? '';
 const out = process.env.ORCHESTRATOR_OUTPUT ?? 'diagnostics/orchestrator';
 
 function changedFiles() {
-  if (baseSha) return git(['diff', '--name-only', `${baseSha}...HEAD`]).split('\n').filter(Boolean);
-  try { return git(['diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD']).split('\n').filter(Boolean); } catch { return []; }
+  try {
+    if (baseSha) return git(['diff', '--name-only', `${baseSha}...HEAD`]).split('\n').filter(Boolean);
+    return git(['diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD']).split('\n').filter(Boolean);
+  } catch (error) {
+    console.error(`❌ Unable to determine changed files: ${error instanceof Error ? error.message : String(error)}`);
+    process.exitCode = 1;
+    return [];
+  }
 }
 
 function impact(files) {
@@ -70,5 +76,11 @@ const plan = {
 mkdirSync(out, { recursive: true });
 writeFileSync(`${out}/plan.json`, JSON.stringify(plan, null, 2) + '\n');
 console.log(JSON.stringify(plan, null, 2));
-if (actualSha !== expectedSha) process.exitCode = 1;
-if (worktree) process.exitCode = 1;
+if (actualSha !== expectedSha) {
+  console.error(`❌ Exact-SHA mismatch: expected ${expectedSha}, got ${actualSha}`);
+  process.exitCode = 1;
+}
+if (worktree) {
+  console.error('❌ Working tree is dirty; orchestration requires a clean checkout.');
+  process.exitCode = 1;
+}
