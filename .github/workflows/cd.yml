@@ -12,7 +12,7 @@ on:
         type: string
 
 concurrency:
-  group: flixo-cd-${{ github.event.workflow_run.head_branch || 'manual' }}
+  group: flixo-cd-${{ github.event.workflow_run.head_sha || inputs.sha || github.run_id }}
   cancel-in-progress: false
 
 permissions:
@@ -51,15 +51,15 @@ jobs:
           ref: ${{ steps.sha.outputs.sha }}
           fetch-depth: 1
 
-      - name: Prove exact main SHA
+      - name: Prove promotion SHA is current main
         shell: bash
         env:
           PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
         run: |
           set -euo pipefail
+          git fetch --no-tags --depth=1 origin main
           test "$(git rev-parse HEAD)" = "$PROMOTION_SHA"
-          test "$(git branch --show-current)" = "" || true
-          test "$(git merge-base --is-ancestor "$PROMOTION_SHA" origin/main)"
+          test "$(git rev-parse origin/main)" = "$PROMOTION_SHA"
 
       - name: Verify canonical CI conclusion
         if: github.event_name == 'workflow_dispatch'
@@ -100,7 +100,6 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -111,7 +110,6 @@ jobs:
             --token="$VERCEL_TOKEN" \
             --scope="$VERCEL_ORG_ID" \
             --yes
-          printf '%s\n' "$PROMOTION_SHA" > /tmp/artifact/flixo-promoted-sha.txt
 
       - name: Production smoke proof
         env:
