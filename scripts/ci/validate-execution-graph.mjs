@@ -34,7 +34,7 @@ const registeredAssertionIds = new Set(Object.keys(registry.assertions ?? {}));
 const fastFiles = find(/^browser-fast-(chromium|firefox|webkit)-([12])\.json$/);
 const deepFiles = find(/^browser-deep-(chromium|firefox|webkit)-([123])\.json$/);
 if (fastFiles.length !== 6) errors.push(`FAST_EXECUTION_FILE_COUNT=${fastFiles.length}; expected=6`);
-if (process.env.GITHUB_EVENT_NAME !== 'pull_request' && deepFiles.length !== 9) errors.push(`DEEP_EXECUTION_FILE_COUNT=${deepFiles.length}; expected=9`);
+if (deepFiles.length !== 9) errors.push(`DEEP_EXECUTION_FILE_COUNT=${deepFiles.length}; expected=9`);
 
 const load = (files) => files.map((file) => {
   try { return { file, value: readJson(file), parseError: null }; }
@@ -42,7 +42,7 @@ const load = (files) => files.map((file) => {
 });
 const fast = load(fastFiles);
 const deep = load(deepFiles);
-const included = [...fast, ...(process.env.GITHUB_EVENT_NAME !== 'pull_request' ? deep : [])];
+const included = [...fast, ...deep];
 
 for (const entry of included) {
   const relative = path.relative(root, entry.file);
@@ -127,15 +127,13 @@ for (const entry of deep) {
 const localeSource = fs.readFileSync(path.resolve(root, 'src/lib/i18n/config.ts'), 'utf8');
 const localeArray = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '';
 const expectedLocales = [...localeArray.matchAll(/['"]([a-z]{2,3})['"]/giu)].map((match) => match[1].toLowerCase());
-if (process.env.GITHUB_EVENT_NAME !== 'pull_request') {
-  for (const browser of ['chromium','firefox','webkit']) for (const locale of expectedLocales) {
-    const key = `${browser}:DEEP:${browser}:${locale}`;
-    if (!deepSemanticOwners.has(key)) errors.push(`DEEP_SEMANTIC_MISSING=${key}`);
-  }
-  if (deepSemanticOwners.size !== expectedLocales.length * 3) errors.push(`DEEP_SEMANTIC_CONSERVATION=${deepSemanticOwners.size}; expected=${expectedLocales.length * 3} locale-browser units`);
-  for (const locale of expectedLocales) if (!deepLocales.has(locale)) errors.push(`DEEP_LOCALE_MISSING=${locale}`);
-  for (const locale of deepLocales) if (!expectedLocales.includes(locale)) errors.push(`DEEP_LOCALE_UNEXPECTED=${locale}`);
+for (const browser of ['chromium','firefox','webkit']) for (const locale of expectedLocales) {
+  const key = `${browser}:DEEP:${browser}:${locale}`;
+  if (!deepSemanticOwners.has(key)) errors.push(`DEEP_SEMANTIC_MISSING=${key}`);
 }
+if (deepSemanticOwners.size !== expectedLocales.length * 3) errors.push(`DEEP_SEMANTIC_CONSERVATION=${deepSemanticOwners.size}; expected=${expectedLocales.length * 3}`);
+for (const locale of expectedLocales) if (!deepLocales.has(locale)) errors.push(`DEEP_LOCALE_MISSING=${locale}`);
+for (const locale of deepLocales) if (!expectedLocales.includes(locale)) errors.push(`DEEP_LOCALE_UNEXPECTED=${locale}`);
 
 const result = {
   schema_version: 4,
