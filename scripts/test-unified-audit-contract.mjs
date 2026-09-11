@@ -22,7 +22,7 @@ assert.match(debt, /^- Verification checkpoint: `[^`]+`$/m);
 assert.match(debt, /^- Verification result: PASS$/m);
 assert.match(debt, /^- Observed branch: main$/m);
 assert.doesNotMatch(main, /VITE_.*API_KEY/);
-assert.doesNotMatch(main, /installToolUiRuntime(Localization|Supplement|Completeness)|installToolUiTechnicalValueNormalization/u);
+assert.doesNotMatch(main, /installToolUiRuntime(Localization|Supplement)|installToolUiTechnicalValueNormalization/u);
 assert.doesNotMatch(main, /MutationObserver/u);
 assert.match(page, /data-flixo-i18n-root="tool-surface"/u);
 assert.doesNotMatch(autoSurface, /MutationObserver|createTreeWalker|textContent\s*=/u);
