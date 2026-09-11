@@ -1,5 +1,6 @@
-import { cloneElement, isValidElement, type ReactNode } from 'react';
+import { cloneElement, isValidElement, useEffect, type ReactNode } from 'react';
 import { translateValue } from '../lib/i18n/tool-ui-runtime-completeness';
+import { installScopedRuntimeObserver, localizeScopedRoot } from '../lib/i18n/scoped-runtime-observer';
 import type { Locale } from '../lib/i18n';
 
 type Props = Readonly<{ locale: Locale; toolId: string; children: ReactNode }>;
@@ -27,11 +28,18 @@ function localizeNode(node: ReactNode, locale: Locale, toolId: string): ReactNod
 }
 
 /**
- * React-owned tool surfaces remain declarative. Localization is applied while
- * the React tree is constructed; no post-render DOM mutation or body observer
- * is used. Tool-specific copy remains authoritative and unmapped values pass
- * through unchanged.
+ * Tool surfaces use declarative localization for reachable React nodes and a
+ * scoped compatibility observer for legacy/lazy tool components whose rendered
+ * DOM cannot be traversed before React resolves the component. The observer is
+ * confined to declared tool roots and never observes document.body.
  */
 export function AutoLocalizedToolSurface({ locale, toolId, children }: Props) {
+  useEffect(() => {
+    const stop = installScopedRuntimeObserver((root, currentLocale) => {
+      localizeScopedRoot(root, currentLocale, toolId);
+    });
+    return stop;
+  }, [toolId]);
+
   return <>{localizeNode(children, locale, toolId)}</>;
 }
