@@ -1,11 +1,12 @@
 import { cloneElement, isValidElement, type ReactNode } from 'react';
 import { translateValue } from '../lib/i18n/tool-ui-runtime-completeness';
+import type { Locale } from '../lib/i18n';
 
-type Props = Readonly<{ locale: string; toolId: string; children: ReactNode }>;
+type Props = Readonly<{ locale: Locale; toolId: string; children: ReactNode }>;
 
 const LOCALIZED_ATTRIBUTES = ['aria-label', 'title', 'placeholder'] as const;
 
-function localizeNode(node: ReactNode, locale: string, toolId: string): ReactNode {
+function localizeNode(node: ReactNode, locale: Locale, toolId: string): ReactNode {
   if (typeof node === 'string') return translateValue(locale, node, toolId);
   if (Array.isArray(node)) return node.map((child) => localizeNode(child, locale, toolId));
   if (!isValidElement(node)) return node;
