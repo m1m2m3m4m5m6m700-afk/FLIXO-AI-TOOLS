@@ -1,20 +1,23 @@
 # FLIXO Consolidation Log
 
-## Current State — 2026-09-12
+## Verification Baseline — 2026-09-12
 
-### CURRENT MAIN SHA
-`b79a86d2d258fdbe7e936c4c32f277d72a00260e`
+### Verification Baseline
 
-This section is the authoritative current-state snapshot for consolidation work. Older sections below are historical evidence only.
+- Last verified SHA: `b79a86d2d258fdbe7e936c4c32f277d72a00260e`
+- Verification checkpoint: `PR #633 merge checkpoint — b79a86d2d258fdbe7e936c4c32f277d72a00260e`
+- Verification result: PASS
+- Observed branch: main
+- Current execution SHA is derived from CI runtime identity and is not stored as a self-referential documentation invariant.
+- The verification baseline is a historical checkpoint and may differ from the commit containing this document.
+
+This section records the last verified baseline for consolidation work. The current `main` branch head is runtime-derived and must not be copied into this versioned document as an exact self-reference.
 
 ### Current Repository State
 
 - Production source of truth: `main`.
-- Latest inspected `main` commit: `b79a86d2d258fdbe7e936c4c32f277d72a00260e` — `Merge CI/CD Trust Layer` (PR #633).
-- Latest merged PR: `#633 — test(ci): harden CI/CD with trust controls`.
-- Current open pull request: `#636 — fix(evidence): bind exactSha to EXPECTED_SHA (RC-EVIDENCE-001)`; head `3199f733e789e768893f42368029ea22583bb2c6`; it is not merged and is not part of `main`.
-- PR #633 is merged into `main`.
-- Vercel status for the exact `main` SHA is tracked as deployment-provider evidence only.
+- Latest verification baseline: `b79a86d2d258fdbe7e936c4c32f277d72a00260e` — `Merge CI/CD Trust Layer` (PR #633).
+- Vercel status for the current `main` SHA is tracked as deployment-provider evidence only.
 - Canonical GitHub CI certification is not asserted here without completed exact-SHA canonical evidence for the current `main` SHA.
 - Current consolidation issues: `#127`, `#133`, `#73`.
 - This synchronization changes documentation only; it does not modify application runtime behavior.
@@ -22,7 +25,7 @@ This section is the authoritative current-state snapshot for consolidation work.
 ### Current Consolidation Direction
 
 ```text
-Current main evidence
+Verification baseline
       ↓
 Debt register
       ↓
@@ -49,7 +52,7 @@ Final exact-SHA release certification
 
 ### Evidence Classification
 
-Deployment status and engineering evidence are tracked separately. Vercel success is deployment-provider evidence only. Full Matrix success is browser evidence for the exact `main` SHA. Release certification still requires the repository's canonical verification path plus any other required release evidence on the same SHA.
+Deployment status and engineering evidence are tracked separately. Vercel success is deployment-provider evidence only. Full Matrix success is browser evidence for the exact execution SHA. Release certification still requires the repository's canonical verification path plus any other required release evidence on the same SHA.
 
 ### Active Debt Register
 
@@ -145,6 +148,8 @@ Freeze a known rollback point before subsequent consolidation work.
 6. Vercel quota/deployment-provider failures remain external deployment conditions.
 7. Merge is allowed only after fresh evidence exists for the exact PR head SHA.
 8. The current-state section at the top of this file supersedes all historical baselines below it.
+9. The top verification baseline is historical verification evidence, not the SHA of this document's commit.
+10. The current `main` head is derived at execution time and is not a static documentation invariant.
 
 ## Rollback Contract
 
