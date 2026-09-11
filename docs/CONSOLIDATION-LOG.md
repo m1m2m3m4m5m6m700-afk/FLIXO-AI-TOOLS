@@ -1,21 +1,21 @@
 # FLIXO Consolidation Log
 
-## Current State — 2026-08-28
+## Current State — 2026-09-12
 
 ### CURRENT MAIN SHA
-`c81d6da7fcb8bf02334d11e3ce8254f19ef3e793`
+`b79a86d2d258fdbe7e936c4c32f277d72a00260e`
 
 This section is the authoritative current-state snapshot for consolidation work. Older sections below are historical evidence only.
 
 ### Current Repository State
 
 - Production source of truth: `main`.
-- Latest inspected `main` commit: `c81d6da7fcb8bf02334d11e3ce8254f19ef3e793` — `feat(brand): unify FLIXO logo identity (#436)`.
-- Open pull requests at inspection time: `1` (`#435 — feat(i18n): strict localization quality gate`).
-- PR #436 is merged into `main`.
-- Vercel status for the exact `main` SHA: `success` (deployment-provider evidence).
-- Full Matrix Promotion for the exact `main` SHA: Run `33173614731` = `success` (23 suites × 3 browsers).
-- Canonical GitHub CI certification is not asserted without completed exact-SHA canonical evidence.
+- Latest inspected `main` commit: `b79a86d2d258fdbe7e936c4c32f277d72a00260e` — `Merge CI/CD Trust Layer` (PR #633).
+- Latest merged PR: `#633 — test(ci): harden CI/CD with trust controls`.
+- Current open pull request: `#636 — fix(evidence): bind exactSha to EXPECTED_SHA (RC-EVIDENCE-001)`; head `3199f733e789e768893f42368029ea22583bb2c6`; it is not merged and is not part of `main`.
+- PR #633 is merged into `main`.
+- Vercel status for the exact `main` SHA is tracked as deployment-provider evidence only.
+- Canonical GitHub CI certification is not asserted here without completed exact-SHA canonical evidence for the current `main` SHA.
 - Current consolidation issues: `#127`, `#133`, `#73`.
 - This synchronization changes documentation only; it does not modify application runtime behavior.
 
