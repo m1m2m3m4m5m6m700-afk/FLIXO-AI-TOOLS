@@ -16,13 +16,24 @@ type RuntimeEvidence = {
   runtimeState: 'clean' | 'degraded' | 'failed';
 };
 
-function exactSha(): string | null {
-  try {
-    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-    return sha || process.env.GITHUB_SHA || null;
-  } catch {
-    return process.env.GITHUB_SHA || null;
+function exactSha(): string {
+  const expectedSha = process.env.EXPECTED_SHA?.trim();
+  if (!expectedSha || expectedSha === 'unknown') {
+    throw new Error('EXPECTED_SHA is required and cannot be unknown');
   }
+
+  try {
+    const gitSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    if (gitSha && gitSha !== expectedSha) {
+      throw new Error(`Exact-SHA mismatch: git HEAD ${gitSha} !== EXPECTED_SHA ${expectedSha}`);
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Exact-SHA mismatch:')) {
+      throw error;
+    }
+  }
+
+  return expectedSha;
 }
 
 export const test = base.extend<{ runtimeEvidence: void }>({
