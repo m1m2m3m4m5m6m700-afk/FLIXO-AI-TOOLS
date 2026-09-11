@@ -15,7 +15,7 @@ assert.match(env, /^VITE_SITE_URL=/m);
 assert.match(gitignore, /diagnostics\//);
 assert.match(gitignore, /evidence\//);
 assert.match(gitignore, /release\/finalization\//);
-assert.match(debt, /^## Verification Baseline$/m);
+assert.match(debt, /^## Verification Baseline(?:\s+—\s+\d{4}-\d{2}-\d{2})?$/m);
 const verifiedSha = debt.match(/^- Last verified SHA: `([0-9a-f]{40})`$/mu)?.[1];
 assert.ok(verifiedSha, 'Last verified SHA must be a valid 40-character Git SHA');
 assert.match(debt, /^- Verification checkpoint: `[^`]+`$/m);
