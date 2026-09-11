@@ -12,6 +12,16 @@
 - Vercel status on PR #627 head may be externally rate-limited; this is classified as deployment infrastructure, not application-code failure, unless matching code evidence exists.
 - Release certification is always required on the exact merge SHA; PR/FAST evidence alone is not release certification.
 
+## BLOCKED_EXTERNAL: FIX-001 (Branch Protection)
+
+**RC-ID:** RC-INFRA-001
+**Status:** BLOCKED_EXTERNAL / OPEN
+**Reason:** GitHub connector does not allow write/modify Branch Protection.
+**API Attempt:** `403 Resource not accessible by integration`
+**Required Action:** Enable branch protection via GitHub UI or a connector with admin permissions.
+**Verification:** `main` protection = `protected: true`, `required_status_checks` includes `check`, `verify`, `test:static`, `test:build`.
+**Resolution:** Pending GitHub permission availability.
+
 This register is the active engineering debt inventory. Historical notes remain evidence only and must not be treated as current state.
 
 ## Priority model
