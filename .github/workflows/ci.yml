@@ -25,7 +25,7 @@ env:
   VITE_RUNTIME_ORIGIN: http://127.0.0.1:3000
   VITE_TEST_ORIGIN: http://127.0.0.1:3000
   PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
-  EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  EXPECTED_SHA: ${{ github.sha }}
 
 jobs:
   verify:
@@ -35,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 1
       - uses: actions/setup-node@v5
         with:
@@ -93,7 +93,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 1
       - uses: actions/setup-node@v5
         with:
@@ -154,7 +154,7 @@ jobs:
   browser_deep:
     name: Browser DEEP — ${{ matrix.browser }} / shard-${{ matrix.shard }}
     needs: [verify]
-    if: github.event_name != 'pull_request' && needs.verify.result == 'success'
+    if: needs.verify.result == 'success'
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
@@ -167,7 +167,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 1
       - uses: actions/setup-node@v5
         with:
@@ -236,7 +236,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 1
       - name: Download static/build evidence
         uses: actions/download-artifact@v7
@@ -250,7 +250,6 @@ jobs:
           path: evidence/browser-fast
           merge-multiple: true
       - name: Download DEEP evidence
-        if: github.event_name != 'pull_request'
         uses: actions/download-artifact@v7
         with:
           pattern: flixo-browser-deep-*
@@ -263,7 +262,7 @@ jobs:
           cat > certification-run-manifest.json <<'JSON'
           {
             "schema_version": 4,
-            "sha": "${{ github.event.pull_request.head.sha || github.sha }}",
+            "sha": "${{ github.sha }}",
             "workflow_run_id": "${{ github.run_id }}",
             "workflow": "FLIXO Test System",
             "jobs": {
@@ -281,12 +280,12 @@ jobs:
           JSON
       - name: Validate execution graph completeness
         env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_SHA: ${{ github.sha }}
           EXECUTION_EVIDENCE_ROOT: evidence
         run: node scripts/ci/validate-execution-graph.mjs
       - name: Single certification engine
         env:
-          CERTIFICATION_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CERTIFICATION_SHA: ${{ github.sha }}
           CERTIFICATION_MANIFEST: certification-run-manifest.json
         run: node scripts/ci/certify.mjs
       - name: Enforce fail-closed decision
@@ -316,11 +315,11 @@ jobs:
     needs: [certify]
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 1
       - uses: actions/setup-node@v5
         with:
@@ -329,3 +328,5 @@ jobs:
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Run CI/CD Trust controls
         run: npm run verify:ci-cd-trust
+      - name: Run critical mutation effectiveness
+        run: npm run verify:critical-mutations

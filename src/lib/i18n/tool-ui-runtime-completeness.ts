@@ -21,7 +21,7 @@ const UI: Readonly<Record<string, LocaleMap>> = {
   Auto: { ar: 'تلقائي', es: 'Automático', fr: 'Automatique', de: 'Automatisch', hi: 'स्वचालित', id: 'Otomatis', it: 'Automatico', ja: '自動', ko: '자동', ms: 'Automatik', nl: 'Automatisch', pl: 'Automatycznie', pt: 'Automático', ru: 'Авто', sv: 'Automatiskt', th: 'อัตโนมัติ', tr: 'Otomatik', uk: 'Автоматично', vi: 'Tự động' },
   'Generate image': { ar: 'إنشاء صورة', es: 'Generar imagen', fr: 'Générer une image', de: 'Bild generieren', hi: 'छवि बनाएं', id: 'Buat gambar', it: 'Genera immagine', ja: '画像を生成', ko: '이미지 생성', ms: 'Jana imej', nl: 'Afbeelding genereren', pl: 'Wygeneruj obraz', pt: 'Gerar imagem', ru: 'Сгенерировать изображение', sv: 'Skapa bild', th: 'สร้างภาพ', tr: 'Görsel oluştur', uk: 'Створити зображення', vi: 'Tạo hình ảnh' },
   'Watermark text': { ar: 'نص العلامة المائية', es: 'Texto de marca de agua', fr: 'Texte du filigrane', de: 'Wasserzeichentext', hi: 'वॉटरमार्क टेक्स्ट', id: 'Teks tanda air', it: 'Testo filigrana', ja: '透かしテキスト', ko: '워터마크 텍스트', ms: 'Teks tanda air', nl: 'Watermerktekst', pl: 'Tekst znaku wodnego', pt: 'Texto da marca d’água', ru: 'Текст водяного знака', sv: 'Vattenstämpeltext', th: 'ข้อความลายน้ำ', tr: 'Filigran metni', uk: 'Текст водяного знака', vi: 'Văn bản hình mờ' },
-  'Top text': { ar: 'النص العلوي', es: 'Texto superior', fr: 'Texte supérieur', de: 'Oberer Text', hi: 'ऊपरी टेक्स्ट', id: 'Teks atas', it: 'Testo superiore', ja: '上部テキスト', ko: '상단 텍스트', ms: 'Teks atas', nl: 'Bovenste tekst', pl: 'Górny tekst', pt: 'Texto superior', ru: 'Верхний текст', sv: 'Övre text', th: 'ข้อความด้านบน', tr: 'Üst metin', uk: 'Верхній текст', vi: 'Văn bản trên' },
+  'Top text': { ar: 'النص العلوي', es: 'Texto superior', fr: 'Texte supérieur', de: 'Oberer Text', hi: 'ऊपरी टेक्स्ट', id: 'Teks atas', it: 'Testo superiore', ja: '上部テキスト', ko: '상단 텍스트', ms: 'Teks atas', nl: 'Bovenste text', pl: 'Górny tekst', pt: 'Texto superior', ru: 'Верхний текст', sv: 'Övre text', th: 'ข้อความด้านบน', tr: 'Üst metin', uk: 'Верхній текст', vi: 'Văn bản trên' },
   'Bottom text': { ar: 'النص السفلي', es: 'Texto inferior', fr: 'Texte inférieur', de: 'Unterer Text', hi: 'निचला टेक्स्ट', id: 'Teks bawah', it: 'Testo inferiore', ja: '下部テキスト', ko: '하단 텍스트', ms: 'Teks bawah', nl: 'Onderste tekst', pl: 'Dolny tekst', pt: 'Texto inferior', ru: 'Нижний текст', sv: 'Nedre text', th: 'ข้อความด้านล่าง', tr: 'Alt metin', uk: 'Нижній текст', vi: 'Văn bản dưới' },
   Brightness: { ar: 'السطوع', es: 'Brillo', fr: 'Luminosité', de: 'Helligkeit', hi: 'चमक', id: 'Kecerahan', it: 'Luminosità', ja: '明るさ', ko: '밝기', ms: 'Kecerahan', nl: 'Helderheid', pl: 'Jasność', pt: 'Brilho', ru: 'Яркость', sv: 'Ljusstyrka', th: 'ความสว่าง', tr: 'Parlaklık', uk: 'Яскравість', vi: 'Độ sáng' },
   Contrast: { ar: 'التباين', es: 'Contraste', fr: 'Contraste', de: 'Kontrast', hi: 'कंट्रास्ट', id: 'Kontras', it: 'Contrasto', ja: 'コントラスト', ko: '대비', ms: 'Kontras', nl: 'Contrast', pl: 'Kontrast', pt: 'Contraste', ru: 'Контраст', sv: 'Kontrast', th: 'คอนทราสต์', tr: 'Kontrast', uk: 'Контраст', vi: 'Độ tương phản' },
@@ -40,7 +40,7 @@ const PREFIXES: ReadonlyArray<readonly [string, LocaleMap]> = [
 
 const TOOL_TITLE_KEYS = new Set(['AI Image Generator', 'Background Remover', 'Image Upscaler', 'Image Converter', 'Image to Text OCR', 'Object Remover', 'Crop & Resize', 'Watermark Remover', 'Image Compressor', 'Meme Generator', 'Image Effects', 'Watermark Adder']);
 
-function translateValue(locale: CanonicalLocale, value: string, toolId: string): string {
+export function translateValue(locale: CanonicalLocale, value: string, toolId: string): string {
   if (locale === 'en') return value;
   const trimmed = value.trim();
   const exact = UI[trimmed]?.[locale];
@@ -121,7 +121,6 @@ export function installToolUiRuntimeCompleteness(): () => void {
     if (root.lang !== locale) root.lang = locale;
     localizeRoot(root, locale, toolId);
   };
-
   let scheduled = false;
   const schedule = () => {
     if (scheduled) return;
@@ -131,7 +130,6 @@ export function installToolUiRuntimeCompleteness(): () => void {
       apply();
     });
   };
-
   apply();
   const observer = typeof MutationObserver === 'undefined' ? null : new MutationObserver(schedule);
   const root = typeof document !== 'undefined' ? document.body : null;

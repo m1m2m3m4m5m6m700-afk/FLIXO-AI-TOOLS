@@ -43,27 +43,6 @@ for (const [label, source, pattern] of [
   }
 }
 
-if (!/browser:\s*\[chromium, firefox, webkit\]/.test(workflow)) {
-  console.error('CI contract failed: browser engine must own Chromium, Firefox and WebKit.');
-  process.exit(1);
-}
-
-const fast = workflow.match(/browser_fast:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
-const deep = workflow.match(/browser_deep:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
-const fastSpecs = [...new Set(fast.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? [])];
-if (fastSpecs.length !== 22) {
-  console.error(`CI contract failed: FAST browser ownership must contain exactly 22 unique canonical tool specs; found ${fastSpecs.length}.`);
-  process.exit(1);
-}
-if (!/tests\/localization-runtime\.spec\.ts/.test(deep)) {
-  console.error('CI contract failed: DEEP browser ownership must retain localization runtime coverage.');
-  process.exit(1);
-}
-if (!/github\.event_name\s*!=\s*'pull_request'/.test(deep)) {
-  console.error('CI contract failed: DEEP browser execution must be main/release only.');
-  process.exit(1);
-}
-
 try {
   execFileSync(process.execPath, ['scripts/ci/test-execution-graph-semantic-identity.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/test-image-core-foundation.mjs'], { stdio: 'inherit' });
@@ -76,4 +55,4 @@ try {
   process.exit(1);
 }
 
-console.log('CI contract passed: one execution graph, centralized result-state reduction, explicit evidence provenance, canonical DEEP semantic identity, shared image-core foundation, minimal SHA checkout, one FAST engine, one DEEP engine, one fail-closed certification gate, and mandatory multi-agent coordination protocol.');
+console.log('CI contract passed: one execution graph, centralized result-state reduction, explicit evidence provenance, canonical workflow surface ownership, minimal SHA checkout, one FAST engine, one DEEP engine, one fail-closed certification gate, and mandatory multi-agent coordination protocol.');

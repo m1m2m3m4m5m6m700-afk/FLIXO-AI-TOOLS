@@ -17,9 +17,11 @@ for (const [label, pattern] of [
   ['browser matrix', /browser:\s*\[chromium, firefox, webkit\]/],
   ['exact artifact SHA', /flixo-head-sha\.txt/],
   ['exact artifact lock', /flixo-package-lock\.sha256/],
-  ['DEEP main-only gate', /github\.event_name\s*!=\s*'pull_request'/],
   ['DEEP localization owner', /tests\/localization-runtime\.spec\.ts/],
 ]) if (!pattern.test(ci)) errors.push(`${label} missing`);
+
+const deepPullRequestGate = /github\.event_name\s*!=\s*'pull_request'/;
+if (deepPullRequestGate.test(ci)) errors.push('DEEP browser execution must not be main/release only');
 
 const fast = ci.match(/browser_fast:[\s\S]*?(?=\n\s{2}[A-Za-z0-9_-]+:\n|$)/)?.[0] ?? '';
 const fastSpecs = [...new Set(fast.match(/tests\/[A-Za-z0-9_-]+\.spec\.ts/g) ?? [])];
