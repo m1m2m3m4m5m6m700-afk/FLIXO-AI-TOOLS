@@ -1,14 +1,18 @@
 # FLIXO Debt Register
 
-## Current baseline — 2026-09-12
+## Verification Baseline — 2026-09-12
 
-- Main SHA: `b79a86d2d258fdbe7e936c4c32f277d72a00260e`
+- Last verified SHA: `b79a86d2d258fdbe7e936c4c32f277d72a00260e`
+- Verification checkpoint: `PR #633 merge checkpoint — b79a86d2d258fdbe7e936c4c32f277d72a00260e`
+- Verification result: PASS
+- Observed branch: main
+- Current execution SHA is derived from CI runtime identity and is not stored as a self-referential documentation invariant.
+- The verification baseline is a historical checkpoint and may differ from the commit containing this document.
+
 - Production source of truth: `main`
-- Current baseline capability: CI/CD Trust Layer is merged through PR #633 and the repository remains governed by exact-SHA certification.
-- Latest merged PR: `#633` (`test(ci): harden CI/CD with trust controls`) — merged into `main` at `b79a86d2d258fdbe7e936c4c32f277d72a00260e`.
-- Current open hardening PR: `#636` (`fix(evidence): bind exactSha to EXPECTED_SHA (RC-EVIDENCE-001)`) — head `3199f733e789e768893f42368029ea22583bb2c6`; it is not merged and is not part of the current `main` baseline.
-- PR #627 (`refactor(i18n): remove global runtime translation from startup`) is **MERGED** at `56e3df36b1d8d8790234e90e395522c7582d51e6`; its prior open/unmerged state is historical only.
-- Vercel status on current `main` SHA is deployment-provider evidence only.
+- Verified baseline capability: CI/CD Trust Layer was merged through PR #633 at the verification baseline above.
+- PR #627 (`refactor(i18n): remove global runtime translation from startup`) is **MERGED** at `56e3df36b1d8d8790234e90e395522c7582d51e6`.
+- Vercel status on the current `main` SHA is deployment-provider evidence only.
 - Release certification is always required on the exact merge SHA; PR/FAST evidence alone is not release certification.
 - FIX-001 — Branch Protection is `BLOCKED_EXTERNAL / OPEN`; it requires GitHub branch-protection permissions that were unavailable to the automation integration.
 
@@ -24,8 +28,8 @@ This register is the active engineering debt inventory. Historical notes remain 
 
 | ID | Area | Priority | Evidence | Risk | Action | Exit criterion | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| D-001 | Current-state documentation | P0 | Governance references are synchronized with `main @ b79a86d…`; PR #627 is merged and PR #636 is separately tracked | Engineers can still act on stale state if current SHA is omitted | Keep current SHA and verification state synchronized | Current state is unambiguous and evidence-backed | **In progress** |
-| D-002 | Release evidence observability | P0 | `main @ b79a86d…` has canonical CI/CD trust controls; unmerged changes require independent evidence | Release state can be misclassified | Keep CODE / DEPLOYMENT / MISSING-EVIDENCE states explicit | Every promotion decision is tied to exact-SHA evidence | Open |
+| D-001 | Current-state documentation | P0 | Verification baseline is explicitly recorded at a historical verified checkpoint; current branch-head is not duplicated into versioned documentation | Engineers can still act on stale state if verification evidence is unclear | Keep verification checkpoint and state classification explicit | Current state is unambiguous and evidence-backed | **In progress** |
+| D-002 | Release evidence observability | P0 | Main verification baseline and CI/CD trust controls are tracked separately from current execution identity | Release state can be misclassified | Keep CODE / DEPLOYMENT / MISSING-EVIDENCE states explicit | Every promotion decision is tied to exact-SHA evidence | Open |
 | D-003 | Verification surface | P1 | Many public `validate:*`, `report:*`, and `test:*` commands coexist with `check`, `verify`, and E2E | Hidden coupling and duplicated checks increase CI complexity | Group checks by stable contract domain and retain small public entry points | One owner and one canonical entry point per check | Open |
 | D-004 | Tool contract cohesion | P0 | Registry, manifest, router, SEO, sitemap, localization, QuickFlow, and E2E share tool metadata | Drift can reappear | Converge on one canonical `ToolDefinition` and derive consumers | A new tool is represented once | Planned |
 | D-005 | Canonical origin | P1 | Production origin is centrally validated; deployment remains tied to the official origin contract | Domain migration requires architectural/configuration change | Keep one validated runtime/build source for production origin | No conflicting canonical deployment origin | Planned |
@@ -43,7 +47,7 @@ This register is the active engineering debt inventory. Historical notes remain 
 ```text
 D-001 / D-002
       ↓
-Current main @ b79a86d…
+Verification baseline @ b79a86d…
       ↓
 PATCH-D / FIX-002 documentation synchronization
       ↓
@@ -78,3 +82,5 @@ D-012 release v1.0.0
 6. A cleanup is complete only when its exit criterion is demonstrable by code or CI evidence.
 7. A new duplicate source of truth is a regression and must be rejected.
 8. Unmerged work is always `UNVERIFIED` until exact-SHA gates pass.
+9. `Last verified SHA` is a verification checkpoint, not the SHA of the commit containing this document.
+10. `Current main SHA` is an execution-time fact and must not be encoded as a self-referential static invariant.
