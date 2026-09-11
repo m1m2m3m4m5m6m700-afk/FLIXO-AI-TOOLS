@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { getToolUiCopy } from '../../data/tool-ui-i18n';
 
 export type ToolMode = 'tune' | 'liquify' | 'dispersion' | 'text';
 export interface FilterSettings { brightness: number; contrast: number; saturation: number; hue: number; blur: number; }
@@ -62,6 +63,7 @@ function buildFilter(value: FilterSettings) {
 }
 
 export default function PixTool() {
+  const copy = getToolUiCopy();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const workingCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const imageUrlRef = useRef<string | null>(null);
@@ -235,14 +237,7 @@ export default function PixTool() {
     const canvas = workingCanvasRef.current;
     const text = newText.trim();
     if (!canvas || !text) return;
-    const nextLayers = [...textLayers, {
-      id: crypto.randomUUID(),
-      text,
-      x: Math.max(20, canvas.width / 2 - 80),
-      y: Math.max(48, canvas.height / 2),
-      color: textColor,
-      fontSize: Math.max(18, Math.min(96, Math.round(canvas.width / 16))),
-    }];
+    const nextLayers = [...textLayers, { id: crypto.randomUUID(), text, x: Math.max(20, canvas.width / 2 - 80), y: Math.max(48, canvas.height / 2), color: textColor, fontSize: Math.max(18, Math.min(96, Math.round(canvas.width / 16))) }];
     setTextLayers(nextLayers);
     saveState(nextLayers, filters);
   };
@@ -291,7 +286,7 @@ export default function PixTool() {
     {image && <aside className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 p-6 lg:w-96">
       <div className="mb-5 flex items-center justify-between border-b border-zinc-800 pb-4"><div><p className="text-lg font-bold text-white" aria-hidden="true">Pix Studio</p><p className="text-xs text-zinc-500">Liquify · Dispersion · Tune · Text · History · Export</p></div><label className="cursor-pointer rounded-lg bg-zinc-800 px-3 py-2 text-xs text-white">فتح صورة<input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} /></label></div>
       <div className="mb-5 grid grid-cols-4 gap-1 rounded-xl bg-zinc-950 p-1">{(['tune', 'liquify', 'dispersion', 'text'] as ToolMode[]).map((tool) => <button key={tool} type="button" onClick={() => setActiveTool(tool)} className={`rounded-lg py-2 text-xs font-bold capitalize transition ${activeTool === tool ? 'bg-indigo-600 text-white' : 'text-zinc-400 hover:text-white'}`}>{tool}</button>)}</div>
-      {activeTool === 'tune' && <div className="space-y-4">{([['Brightness', 'brightness', -100, 100], ['Contrast', 'contrast', -100, 100], ['Saturation', 'saturation', -100, 100], ['Hue', 'hue', 0, 360], ['Blur', 'blur', 0, 20]] as const).map(([label, key, min, max]) => <label key={key} className="block text-xs text-zinc-400"><span className="mb-1 block">{label}: {filters[key]}</span><input aria-label={label} type="range" min={min} max={max} value={filters[key]} onChange={(event) => updateFilter(key, Number(event.target.value))} className="w-full accent-indigo-500" /></label>)}</div>}
+      {activeTool === 'tune' && <div className="space-y-4">{([[copy.brightness, 'brightness', -100, 100], [copy.contrast, 'contrast', -100, 100], [copy.saturation, 'saturation', -100, 100], ['Hue', 'hue', 0, 360], ['Blur', 'blur', 0, 20]] as const).map(([label, key, min, max]) => <label key={key} className="block text-xs text-zinc-400"><span className="mb-1 block">{label}: {filters[key]}</span><input aria-label={label} type="range" min={min} max={max} value={filters[key]} onChange={(event) => updateFilter(key, Number(event.target.value))} className="w-full accent-indigo-500" /></label>)}</div>}
       {activeTool === 'liquify' && <div className="space-y-4"><p className="text-xs text-zinc-500">اسحب على الصورة لتشكيل البكسلات محليًا.</p><label className="block text-xs text-zinc-400">Brush radius: {liquifyRadius}<input aria-label="Liquify radius" type="range" min="10" max="120" value={liquifyRadius} onChange={(event) => setLiquifyRadius(Number(event.target.value))} className="mt-2 w-full accent-indigo-500" /></label><label className="block text-xs text-zinc-400">Strength: {Math.round(liquifyStrength * 100)}%<input aria-label="Liquify strength" type="range" min="0.1" max="1" step="0.05" value={liquifyStrength} onChange={(event) => setLiquifyStrength(Number(event.target.value))} className="mt-2 w-full accent-indigo-500" /></label></div>}
       {activeTool === 'dispersion' && <div className="space-y-4"><p className="text-xs text-zinc-500">انقر على الصورة لاستخراج الجسيمات من المنطقة المحددة.</p><label className="block text-xs text-zinc-400">Particle radius: {liquifyRadius}<input aria-label="Dispersion radius" type="range" min="10" max="120" value={liquifyRadius} onChange={(event) => setLiquifyRadius(Number(event.target.value))} className="mt-2 w-full accent-indigo-500" /></label></div>}
       {activeTool === 'text' && <div className="space-y-4"><input aria-label="Text layer" value={newText} onChange={(event) => setNewText(event.target.value)} placeholder="أدخل النص هنا..." className="w-full rounded-lg border border-zinc-800 bg-zinc-950 p-2 text-sm text-white focus:border-indigo-500 focus:outline-none" /><div className="flex gap-2"><input aria-label="Text color" type="color" value={textColor} onChange={(event) => setTextColor(event.target.value)} className="h-9 w-12 cursor-pointer rounded-md bg-transparent" /><button type="button" onClick={addTextLayer} className="flex-1 rounded-lg bg-zinc-800 text-xs font-bold text-white hover:bg-zinc-700">إضافة نص</button></div></div>}
