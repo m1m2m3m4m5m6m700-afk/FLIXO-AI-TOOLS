@@ -26,6 +26,7 @@ env:
   VITE_TEST_ORIGIN: http://127.0.0.1:3000
   PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
   EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
 
 jobs:
   verify:
