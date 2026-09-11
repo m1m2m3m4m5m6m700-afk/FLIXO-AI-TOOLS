@@ -59,8 +59,12 @@ if (!/tests\/localization-runtime\.spec\.ts/.test(deep)) {
   console.error('CI contract failed: DEEP browser ownership must retain localization runtime coverage.');
   process.exit(1);
 }
-if (!/github\.event_name\s*!=\s*'pull_request'/.test(deep)) {
-  console.error('CI contract failed: DEEP browser execution must be main/release only.');
+if (!/if:\s*needs\.verify\.result\s*==\s*'success'/.test(deep)) {
+  console.error('CI contract failed: DEEP browser execution must require successful static/build verification.');
+  process.exit(1);
+}
+if (/github\.event_name\s*!=\s*'pull_request'/.test(deep)) {
+  console.error('CI contract failed: DEEP browser execution must not exclude pull_request events.');
   process.exit(1);
 }
 
@@ -76,4 +80,4 @@ try {
   process.exit(1);
 }
 
-console.log('CI contract passed: one execution graph, centralized result-state reduction, explicit evidence provenance, canonical DEEP semantic identity, shared image-core foundation, minimal SHA checkout, one FAST engine, one DEEP engine, one fail-closed certification gate, and mandatory multi-agent coordination protocol.');
+console.log('CI contract passed: one execution graph, centralized result-state reduction, explicit evidence provenance, canonical DEEP semantic identity, shared image-core foundation, minimal SHA checkout, one FAST engine, one DEEP engine, PR+push DEEP coverage, one fail-closed certification gate, and mandatory multi-agent coordination protocol.');
