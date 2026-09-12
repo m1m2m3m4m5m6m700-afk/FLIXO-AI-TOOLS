@@ -150,6 +150,7 @@ jobs:
           path: diagnostics/certification/
           if-no-files-found: warn
           retention-days: 14
+          overwrite: true
 
   browser_deep:
     name: Browser DEEP — ${{ matrix.browser }} / shard-${{ matrix.shard }}
@@ -226,6 +227,7 @@ jobs:
           path: diagnostics/certification/
           if-no-files-found: warn
           retention-days: 14
+          overwrite: true
 
   certify:
     name: Certification
@@ -309,6 +311,7 @@ jobs:
             diagnostics/certification/
           if-no-files-found: error
           retention-days: 30
+          overwrite: true
 
   trust:
     name: CI/CD Trust Layer
