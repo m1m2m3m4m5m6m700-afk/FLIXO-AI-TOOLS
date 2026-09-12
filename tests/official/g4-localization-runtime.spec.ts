@@ -1,5 +1,4 @@
 import { expect, test, type Page } from '../fixtures/universal-runtime-evidence';
-import type { ConsoleMessage } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { LOCALE_METADATA, LOCALES } from '../../src/lib/i18n/config';
 import { getAuthoritativeToolSeoName } from '../../src/config/tool-seo-name-resolver';
@@ -83,7 +82,13 @@ async function snapshot(page: Page): Promise<Snapshot> {
   });
 }
 
-async function serializeConsoleError(message: ConsoleMessage): Promise<string> {
+type ConsoleMessageLike = {
+  type(): string;
+  text(): string;
+  args(): Array<{ jsonValue(): Promise<unknown> }>;
+};
+
+async function serializeConsoleError(message: ConsoleMessageLike): Promise<string> {
   const parts: string[] = [];
   for (const arg of message.args()) {
     try {
