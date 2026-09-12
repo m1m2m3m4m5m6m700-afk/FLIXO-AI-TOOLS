@@ -1,5 +1,6 @@
 import type { Locale } from './config';
 import type { TranslationBundle } from './types';
+import { SEED_UI_TRANSLATIONS } from './seed-ui-translations';
 
 /** Lazy locale dictionary loaders. Each locale remains in its own file. */
 const LOCALE_LOADERS: Record<Locale, () => Promise<TranslationBundle>> = {
@@ -30,7 +31,10 @@ const cache = new Map<Locale, Promise<TranslationBundle>>();
 export function loadTranslationDictionary(locale: Locale): Promise<TranslationBundle> {
   const cached = cache.get(locale);
   if (cached) return cached;
-  const pending = LOCALE_LOADERS[locale]();
+  const pending = LOCALE_LOADERS[locale]().then((bundle) => ({
+    ...bundle,
+    seedUi: { ...SEED_UI_TRANSLATIONS[locale], ...(bundle.seedUi ?? {}) },
+  }));
   cache.set(locale, pending);
   return pending;
 }
