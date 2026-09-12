@@ -1,5 +1,7 @@
 import type { Locale } from './config';
 
+export type SeedUiTranslations = Readonly<Record<string, string>>;
+
 export type TranslationBundle = Readonly<{
   locale: Locale;
   languageTag: string;
@@ -7,4 +9,5 @@ export type TranslationBundle = Readonly<{
   siteName: string;
   homeTitle: string;
   homeDescription: string;
+  seedUi?: SeedUiTranslations;
 }>;
