@@ -17,7 +17,7 @@ for (const [label, pattern] of [
   ['browser matrix', /browser:\s*\[chromium, firefox, webkit\]/],
   ['exact artifact SHA', /flixo-head-sha\.txt/],
   ['exact artifact lock', /flixo-package-lock\.sha256/],
-  ['DEEP main-only gate', /github\.event_name\s*!=\s*'pull_request'/],
+  ['DEEP required on PR and push', /if:\s*needs\.verify\.result\s*==\s*'success'/],
   ['DEEP localization owner', /tests\/localization-runtime\.spec\.ts/],
 ]) if (!pattern.test(ci)) errors.push(`${label} missing`);
 

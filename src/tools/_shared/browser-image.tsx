@@ -3,6 +3,7 @@ import { recordToolPerformance } from '../../lib/diagnostics/performance';
 import { validateFileSafety } from '../../lib/contracts/file-safety';
 import { assertExifCleanerOutputIntegrity } from '../exif-cleaner/output-integrity';
 import { validateSvgOutput } from '../image-to-svg/output-integrity';
+import { getToolUiCopy } from '../../data/tool-ui-i18n';
 import { normalizeLocale, type Locale } from '../../lib/i18n/config';
 import { translateSharedToolText } from '../../lib/i18n/shared-tool-ui';
 
@@ -33,7 +34,20 @@ export function BrowserImageTool({ mode, title, accept = 'image/*', multi = fals
   void title;
   const resolvedLocale: Locale = locale ?? normalizeLocale(typeof document !== 'undefined' ? document.documentElement.lang : 'en');
   const baseCopy = resolvedLocale === 'ar' ? UI_COPY.ar : UI_COPY.en;
-  const copy: UiCopy = resolvedLocale === 'en' || resolvedLocale === 'ar' ? baseCopy : { ...baseCopy, choose: translateSharedToolText(resolvedLocale, baseCopy.choose), watermark: translateSharedToolText(resolvedLocale, baseCopy.watermark), top: translateSharedToolText(resolvedLocale, baseCopy.top), bottom: translateSharedToolText(resolvedLocale, baseCopy.bottom), brightness: translateSharedToolText(resolvedLocale, baseCopy.brightness), contrast: translateSharedToolText(resolvedLocale, baseCopy.contrast), saturation: translateSharedToolText(resolvedLocale, baseCopy.saturation), grayscale: translateSharedToolText(resolvedLocale, baseCopy.grayscale), processing: translateSharedToolText(resolvedLocale, baseCopy.processing), run: translateSharedToolText(resolvedLocale, baseCopy.run) };
+  const canonical = getToolUiCopy(resolvedLocale);
+  const copy: UiCopy = {
+    ...baseCopy,
+    choose: resolvedLocale === 'en' ? canonical.chooseFile : translateSharedToolText(resolvedLocale, canonical.chooseFile),
+    watermark: translateSharedToolText(resolvedLocale, baseCopy.watermark),
+    top: translateSharedToolText(resolvedLocale, baseCopy.top),
+    bottom: translateSharedToolText(resolvedLocale, baseCopy.bottom),
+    brightness: canonical.brightness,
+    contrast: canonical.contrast,
+    saturation: canonical.saturation,
+    grayscale: canonical.grayscale,
+    processing: resolvedLocale === 'en' ? canonical.processing : translateSharedToolText(resolvedLocale, baseCopy.processing),
+    run: canonical.runTool,
+  };
   const dir = typeof document !== 'undefined' && document.documentElement.dir ? document.documentElement.dir : (resolvedLocale === 'ar' ? 'rtl' : 'ltr');
   const [files, setFiles] = useState<File[]>([]); const [result, setResult] = useState<Result | null>(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [text, setText] = useState('FLIXO'); const [top, setTop] = useState('TOP TEXT'); const [bottom, setBottom] = useState('BOTTOM TEXT'); const [effect, setEffect] = useState({ brightness: 100, contrast: 100, saturate: 100, grayscale: 0 });
   const status = useMemo(() => result ? `${result.width ?? ''}×${result.height ?? ''} · ${Math.max(1, Math.round(result.blob.size / 1024))} KB` : copy.noResult, [result, copy.noResult]);

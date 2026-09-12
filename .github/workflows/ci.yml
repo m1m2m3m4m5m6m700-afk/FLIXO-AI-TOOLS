@@ -154,7 +154,7 @@ jobs:
   browser_deep:
     name: Browser DEEP — ${{ matrix.browser }} / shard-${{ matrix.shard }}
     needs: [verify]
-    if: github.event_name != 'pull_request' && needs.verify.result == 'success'
+    if: needs.verify.result == 'success'
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
@@ -250,7 +250,6 @@ jobs:
           path: evidence/browser-fast
           merge-multiple: true
       - name: Download DEEP evidence
-        if: github.event_name != 'pull_request'
         uses: actions/download-artifact@v7
         with:
           pattern: flixo-browser-deep-*

@@ -42,7 +42,7 @@ export const READY_TOOL_IDS = Object.freeze(getReadyToolConfigs().map((tool) => 
 export type ToolCategory = 'Images';
 const TOOL_CATEGORIES = new Set<ToolCategory>(['Images']);
 export function assertToolCategory(value: string): ToolCategory { if (!TOOL_CATEGORIES.has(value as ToolCategory)) throw new Error(`Unsupported tool category: ${value}`); return value as ToolCategory; }
-export function getLocalizedToolTitle(localeInput: string, toolId: string, fallbackTitle: string): string { const locale = normalizeLocale(localeInput); const tool = getToolConfig(toolId); return tool ? getAuthoritativeToolSeoName(tool, locale) ?? fallbackTitle : fallbackTitle; }
+export function getLocalizedToolTitle(localeInput: string, toolId: string, fallbackTitle: string): string { const locale = normalizeLocale(localeInput); const canonicalToolId = toolId === 'image-cropper' ? 'crop-resize' : toolId; const tool = getToolConfig(canonicalToolId); return tool ? getAuthoritativeToolSeoName(tool, locale) ?? fallbackTitle : fallbackTitle; }
 export function getLocalizedToolUrl(locale: Locale, toolId: string): string { const tool = getToolConfig(toolId); if (!tool) throw new Error(`Unknown tool id: ${toolId}`); return resolveLocalizedToolUrl(SITE_ORIGIN, tool, locale); }
 export function getToolSeo(localeInput: string, toolId: string) {
   const locale = normalizeLocale(localeInput); const tool = getToolConfig(toolId); if (!tool || !tool.isReady) return null;

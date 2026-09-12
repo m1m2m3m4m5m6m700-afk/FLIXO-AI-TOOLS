@@ -48,7 +48,7 @@ if (manifest.sha !== sha) shaMismatches.push(`manifest.sha=${manifest.sha}`);
 if (String(manifest.workflow_run_id) !== String(runId)) shaMismatches.push(`manifest.workflow_run_id=${manifest.workflow_run_id}`);
 if (manifest.jobs?.static !== 'success') errors.push(`static=${manifest.jobs?.static ?? 'missing'}`);
 if (manifest.jobs?.build !== 'success') errors.push(`build=${manifest.jobs?.build ?? 'missing'}`);
-if (event !== 'pull_request' && manifest.jobs?.browserDeep !== 'success') errors.push(`browserDeep=${manifest.jobs?.browserDeep ?? 'missing'}`);
+if (manifest.jobs?.browserDeep !== 'success') errors.push(`browserDeep=${manifest.jobs?.browserDeep ?? 'missing'}`);
 if (manifest.jobs?.browserFast !== 'success') errors.push(`browserFast=${manifest.jobs?.browserFast ?? 'missing'}`);
 
 const identityCandidates = [];
@@ -111,7 +111,7 @@ for (const [file, value] of parsed) {
 const fast = [...primary.entries()].filter(([key]) => key.startsWith('FAST:')).map(([,file]) => parsed.get(file));
 const deep = [...primary.entries()].filter(([key]) => key.startsWith('DEEP:')).map(([,file]) => parsed.get(file));
 if (fast.length !== expectedFastKeys.size) invalidEvidence.push(`FAST_PRIMARY_LEDGER_COUNT=${fast.length}; expected=${expectedFastKeys.size}`);
-if (event !== 'pull_request' && deep.length !== expectedDeepKeys.size) invalidEvidence.push(`DEEP_PRIMARY_LEDGER_COUNT=${deep.length}; expected=${expectedDeepKeys.size}`);
+if (deep.length !== expectedDeepKeys.size) invalidEvidence.push(`DEEP_PRIMARY_LEDGER_COUNT=${deep.length}; expected=${expectedDeepKeys.size}`);
 
 const registry = readJson(path.join(root, 'scripts/ci/assertion-registry.json'));
 const registryByImplementation = new Map();
@@ -165,23 +165,21 @@ for (const browser of expectedBrowsers) for (const spec of expectedFastSpecs) {
 }
 if (fastSemantic.size !== 66) invalidEvidence.push(`FAST_CONSERVATION=${fastSemantic.size}; expected=66`);
 
-if (event !== 'pull_request') {
-  const deepSemantic = new Map();
-  for (const value of deep) for (const unit of value.units ?? []) {
-    const key = unit.semanticUnitId;
-    if (!key) continue;
-    if (deepSemantic.has(key)) invalidEvidence.push(`DEEP_DUPLICATE_SEMANTIC=${key}`);
-    deepSemantic.set(key, unit.status);
-  }
-  const localeSource = fs.readFileSync(path.join(root, 'src/lib/i18n/config.ts'), 'utf8');
-  const localeBody = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '';
-  const locales = [...new Set([...localeBody.matchAll(/["']([a-z]{2,3})["']/giu)].map((match) => match[1].toLowerCase()))];
-  for (const browser of expectedBrowsers) for (const locale of locales) {
-    const key = `DEEP:${browser}:${locale}`;
-    if (!deepSemantic.has(key)) invalidEvidence.push(`DEEP_MISSING_SEMANTIC=${key}`);
-  }
-  if (deepSemantic.size !== locales.length * 3) invalidEvidence.push(`DEEP_CONSERVATION=${deepSemantic.size}; expected=${locales.length * 3}`);
+const deepSemantic = new Map();
+for (const value of deep) for (const unit of value.units ?? []) {
+  const key = unit.semanticUnitId;
+  if (!key) continue;
+  if (deepSemantic.has(key)) invalidEvidence.push(`DEEP_DUPLICATE_SEMANTIC=${key}`);
+  deepSemantic.set(key, unit.status);
 }
+const localeSource = fs.readFileSync(path.join(root, 'src/lib/i18n/config.ts'), 'utf8');
+const localeBody = localeSource.match(/LOCALES\s*=\s*\[([\s\S]*?)\]/u)?.[1] ?? '';
+const locales = [...new Set([...localeBody.matchAll(/["']([a-z]{2,3})["']/giu)].map((match) => match[1].toLowerCase()))];
+for (const browser of expectedBrowsers) for (const locale of locales) {
+  const key = `DEEP:${browser}:${locale}`;
+  if (!deepSemantic.has(key)) invalidEvidence.push(`DEEP_MISSING_SEMANTIC=${key}`);
+}
+if (deepSemantic.size !== locales.length * 3) invalidEvidence.push(`DEEP_CONSERVATION=${deepSemantic.size}; expected=${locales.length * 3}`);
 
 const graphPath = path.join(root, 'diagnostics','certification','execution-graph.json');
 if (!fs.existsSync(graphPath)) invalidEvidence.push('EXECUTION_GRAPH_MISSING');
@@ -192,7 +190,7 @@ else {
     if (graph.exactSha !== sha) shaMismatches.push(`EXECUTION_GRAPH_SHA=${graph.exactSha}`);
     if (graph.runId !== runId) shaMismatches.push(`EXECUTION_GRAPH_RUN=${graph.runId}`);
     if (graph.fast?.observedSemanticUnits !== 66) invalidEvidence.push(`EXECUTION_GRAPH_FAST=${graph.fast?.observedSemanticUnits}`);
-    if (event !== 'pull_request' && graph.deep?.semanticLocaleBrowserUnits !== 60) invalidEvidence.push(`EXECUTION_GRAPH_DEEP=${graph.deep?.semanticLocaleBrowserUnits}`);
+    if (graph.deep?.semanticLocaleBrowserUnits !== 60) invalidEvidence.push(`EXECUTION_GRAPH_DEEP=${graph.deep?.semanticLocaleBrowserUnits}`);
   } catch (error) { invalidEvidence.push(`EXECUTION_GRAPH_INVALID=${error.message}`); }
 }
 
@@ -206,7 +204,7 @@ for (const [name,value] of [['static',staticEvidence],['build',buildEvidence]]) 
 
 const reducerChecks = [
   ...fast.flatMap((value) => (value.units ?? []).map((unit) => ({ id: unit.executionUnitId, status: unit.status }))),
-  ...(event === 'pull_request' ? [] : deep.flatMap((value) => (value.units ?? []).map((unit) => ({ id: unit.executionUnitId, status: unit.status })))),
+  ...deep.flatMap((value) => (value.units ?? []).map((unit) => ({ id: unit.executionUnitId, status: unit.status }))),
   { id: 'STATIC', status: staticEvidence?.status === 'PASS' ? 'PASS' : 'FAIL' },
   { id: 'BUILD', status: buildEvidence?.status === 'PASS' ? 'PASS' : 'FAIL' },
 ];
@@ -225,7 +223,7 @@ const result = {
   reducer: reduced,
   conservation: {
     fast: { planned: 66, executed: fastSemantic.size, evidenced: fastSemantic.size, certified: status === 'PASS' ? 66 : 0 },
-    deep: event === 'pull_request' ? null : { planned: 60, executed: deep.length ? 60 : 0, evidenced: deep.length ? 60 : 0, certified: status === 'PASS' ? 60 : 0 },
+    deep: { planned: 60, executed: deepSemantic.size, evidenced: deepSemantic.size, certified: status === 'PASS' ? 60 : 0 },
   },
   zeroFalseGreen: {
     independentRootCauses: rootCauses.size,

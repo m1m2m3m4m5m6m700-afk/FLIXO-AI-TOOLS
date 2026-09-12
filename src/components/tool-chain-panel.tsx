@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getReadyToolConfigs } from '../config/tools';
 import { addToolToChain, clearToolChain, getToolChain, moveToolInChain, removeToolFromChain } from '../lib/tool-chain';
-import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
+import { getToolUiCopy } from '../data/tool-ui-i18n';
 import './tool-chain-panel.css';
 
 export function ToolChainPanel({ currentToolId }: { currentToolId?: string | null }) {
@@ -16,8 +16,7 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
   const [resultUrl, setResultUrl] = useState('');
   const tools = useMemo(() => getReadyToolConfigs(), []);
   const selected = chain.map((step) => ({ step, tool: tools.find((tool) => tool.id === step.id) })).filter((item): item is { step: typeof chain[number]; tool: (typeof tools)[number] } => Boolean(item.tool));
-  const locale = (typeof document !== 'undefined' ? document.documentElement.lang.split('-')[0] : 'en') as keyof typeof TOOL_UI_I18N;
-  const copy = TOOL_UI_I18N[locale] ?? TOOL_UI_I18N.en;
+  const copy = getToolUiCopy();
 
   useEffect(() => () => { if (resultUrl) URL.revokeObjectURL(resultUrl); }, [resultUrl]);
 
@@ -68,19 +67,19 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
           <span>{selected.length}/8 steps</span>
         </div>
         <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
-          {open ? 'Hide' : 'Open'}
+          {open ? copy.hide : copy.open}
         </button>
       </div>
       {open && (
         <div className="flixo-chain-panel__body">
           <div className="flixo-chain-panel__actions">
             <button type="button" onClick={addCurrent} disabled={!currentToolId || chain.some((step) => step.id === currentToolId) || selected.length >= 8}>
-              + Add current tool
+              {copy.addCurrentTool}
             </button>
-            <button type="button" onClick={() => { clearToolChain(); refresh(); }} disabled={selected.length === 0}>Clear</button>
+            <button type="button" onClick={() => { clearToolChain(); refresh(); }} disabled={selected.length === 0}>{copy.clear}</button>
           </div>
           {selected.length === 0 ? (
-            <p className="flixo-chain-panel__empty">Add tools in the order you want to process them. The chain is stored only in this browser.</p>
+            <p className="flixo-chain-panel__empty">{copy.chainEmpty}</p>
           ) : (
             <ol className="flixo-chain-panel__list">
               {selected.map(({ tool }, index) => (
@@ -99,23 +98,23 @@ export function ToolChainPanel({ currentToolId }: { currentToolId?: string | nul
           )}
           <div className="flixo-chain-panel__runner">
             <label className="flixo-chain-panel__file">
-              <span>Input file</span>
-              <input type="file" accept="image/*" aria-label={copy.upload} disabled={running} onChange={(event) => { setInputFile(event.target.files?.[0] ?? null); setError(''); setResult(null); }} />
+              <span>{copy.inputFile}</span>
+              <input type="file" accept="image/*" aria-label={copy.chooseFile} disabled={running} onChange={(event) => { setInputFile(event.target.files?.[0] ?? null); setError(''); setResult(null); }} />
             </label>
             <button type="button" className="flixo-chain-panel__run" onClick={() => void runChain()} disabled={!inputFile || selected.length === 0 || running}>
-              {running ? `Processing… ${progress}%` : 'Run chain locally'}
+              {running ? `${copy.processing}… ${progress}%` : copy.runChainLocally}
             </button>
-            {activeTool && <div className="flixo-chain-panel__progress" role="status">Current step: {activeTool}</div>}
+            {activeTool && <div className="flixo-chain-panel__progress" role="status">{copy.currentStep}: {activeTool}</div>}
             {error && <div className="flixo-chain-panel__error" role="alert">{error}</div>}
             {result && resultUrl && (
               <div className="flixo-chain-panel__result">
-                <span>Output ready: {result.fileName}</span>
-                <a href={resultUrl} download={result.fileName}>Download result</a>
+                <span>{copy.outputReady}: {result.fileName}</span>
+                <a href={resultUrl} download={result.fileName}>{copy.downloadResult}</a>
               </div>
             )}
           </div>
           <div className="flixo-chain-panel__status" role="status">
-            <strong>Execution contract:</strong> local adapters only. Unsupported steps fail explicitly; no file is uploaded by the chain runner.
+            <strong>{copy.executionContract}:</strong> local adapters only. Unsupported steps fail explicitly; no file is uploaded by the chain runner.
           </div>
         </div>
       )}

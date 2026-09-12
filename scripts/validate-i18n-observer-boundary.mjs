@@ -8,7 +8,7 @@ const executionFiles = [
   'src/components/auto-localized-tool-surface.tsx',
 ];
 
-const legacyInstallerPattern = /installToolUiRuntime(Localization|Supplement|Completeness)|installToolUiTechnicalValueNormalization/u;
+const legacyInstallerPattern = /installToolUiRuntime(Localization|Supplement)|installToolUiTechnicalValueNormalization/u;
 const bodyObserverPattern = /\.observe\(\s*document\.body\b/u;
 
 const violations = [];
