@@ -15,7 +15,7 @@ export function readExecutionSha({ cwd = process.cwd() } = {}) {
     ).trim();
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`Unable to resolve repository HEAD for execution provenance: ${detail}`);
+    throw new Error(`Unable to resolve repository HEAD for execution provenance: ${detail}`, { cause: error });
   }
   if (!SHA_RE.test(sha)) throw new Error(`Repository HEAD is not a valid Git SHA: ${sha || '<empty>'}`);
   return sha;
