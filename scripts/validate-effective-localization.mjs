@@ -64,8 +64,8 @@ for (const locale of targets) {
   else {
     if (dictionary.locale !== locale) issue.push(`${locale} | structural | dictionary | locale identity is ${dictionary.locale}`);
     if (dictionary.direction !== metadata?.direction) issue.push(`${locale} | direction | dictionary | dictionary/runtime direction mismatch`);
-    const { seedUi: _seedUiReference, ...coreReferenceDictionary } = EN_DICTIONARY;
-    const { seedUi: _seedUi, ...coreDictionary } = dictionary;
+    const coreReferenceDictionary = Object.fromEntries(Object.entries(EN_DICTIONARY).filter(([key]) => key !== 'seedUi'));
+    const coreDictionary = Object.fromEntries(Object.entries(dictionary).filter(([key]) => key !== 'seedUi'));
     compare(coreReferenceDictionary, coreDictionary, locale, 'core dictionary');
   }
 
