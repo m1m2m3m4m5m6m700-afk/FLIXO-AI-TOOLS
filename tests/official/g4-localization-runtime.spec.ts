@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '../fixtures/universal-runtime-evidence';
+import { expect, test, type ConsoleMessage, type Page } from '../fixtures/universal-runtime-evidence';
 import { readFileSync } from 'node:fs';
 import { LOCALE_METADATA, LOCALES } from '../../src/lib/i18n/config';
 import { getAuthoritativeToolSeoName } from '../../src/config/tool-seo-name-resolver';
@@ -82,7 +82,7 @@ async function snapshot(page: Page): Promise<Snapshot> {
   });
 }
 
-async function serializeConsoleError(message: Parameters<NonNullable<Parameters<Page['on']>[1]>>[0]): Promise<string> {
+async function serializeConsoleError(message: ConsoleMessage): Promise<string> {
   const parts: string[] = [];
   for (const arg of message.args()) {
     try {
@@ -183,6 +183,7 @@ for (const pathname of routes) {
 
     if (localeCode !== 'en') {
       const baselineResponse = await page.goto(localizedPath('en', family), { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await Promise.all(consoleErrorPromises.splice(0));
       expect(baselineResponse?.status(), `${pathname} English baseline ${family} must return HTTP 200`).toBe(200);
       await expect(page.locator('main').first()).toBeVisible();
       await expect(page.locator('h1')).toHaveCount(1);
@@ -190,6 +191,7 @@ for (const pathname of routes) {
       const baseline = await snapshot(page);
 
       const localizedResponse = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await Promise.all(consoleErrorPromises.splice(0));
       expect(localizedResponse?.status(), `${pathname} must return HTTP 200 after baseline comparison`).toBe(200);
       await expect(page.locator('main').first()).toBeVisible();
       await expect(page.locator('h1')).toHaveCount(1);
@@ -237,7 +239,7 @@ for (const pathname of routes) {
       });
     });
     expect(a11yIssues, `${pathname} accessibility naming failures`).toEqual([]);
-    await Promise.all(consoleErrorPromises);
+    await Promise.all(consoleErrorPromises.splice(0));
     expect(runtimeErrors, `${pathname} runtime/console/request failures`).toEqual([]);
   });
 }
