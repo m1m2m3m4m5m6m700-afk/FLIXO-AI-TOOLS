@@ -8,8 +8,8 @@
 - Mode: `EXECUTE → PROVE → DECIDE`
 - Scope: main-branch governance enforcement only
 
-## Current State — FRESH SNAPSHOT
-Latest repository evidence confirms:
+## Current State — VERIFIED SNAPSHOT
+The authoritative repository read confirms:
 - `main` SHA = `d51ebd53cef3a43a47271492571bcfc40ba606aa`
 - `main.protected = false`
 - `main.protection.enabled = false`
@@ -24,15 +24,16 @@ Therefore:
 - `Zero-Error = NOT ACHIEVED`
 - `Production-GO = HOLD`
 
-## PR #646 Evidence
-- PR #646 remains `OPEN`
-- PR #646 is `mergeable = true`
-- PR HEAD = `71b69953b9b1ae0d58db0e0bacc29679e486faed`
-- `FLIXO Test System` run `34671391379` = `success`
-- `Claude Security Review` run `34671391346` = `success`
-- Vercel preview status = ready
+## PR #646 Current-HEAD Evidence
+- PR #646 = `OPEN`
+- PR #646 = `mergeable: true`
+- Current PR HEAD = `bf171129ee59730329d1aad1ee09e0a9653c0e45`
+- `FLIXO Test System` run `34672415256` = `failure`
+- `Claude Security Review` run `34672415282` = `success`
 
-PR CI success does not prove Branch Protection and does not close E-006.
+The previous CI success records `34671391379` / `34671391346` belong to the older PR HEAD `71b69953b9b1ae0d58db0e0bacc29679e486faed` and are retained only as historical evidence, not current-HEAD proof.
+
+Current PR CI failure is a release/merge-readiness blocker for PR #646 and must be diagnosed before the PR is considered merge-ready.
 
 ## Proven Required Checks
 The authoritative check-runs on baseline `d51ebd53cef3a43a47271492571bcfc40ba606aa` establish the exact 18 required CI check names:
