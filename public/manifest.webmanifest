@@ -8,10 +8,10 @@
   "theme_color": "#071116",
   "icons": [
     {
-      "src": "/flixo-logo.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/flixo-logo.jpg",
+      "sizes": "1254x1254",
+      "type": "image/jpeg",
+      "purpose": "any"
     }
   ]
 }
