@@ -23,7 +23,7 @@ Primary principles:
 
 ## 1. Non-negotiable architectural boundary
 
-Current FLIXO is a Vite + React + TypeScript + TanStack Router application. The current route tree contains public/localized routes and no Admin route. The current package has no server/auth/database framework suitable for blindly restoring the historical Admin.
+Current FLIXO is a Vite + React + TypeScript + TanStack Router application. The production baseline has no Admin route. The Foundation branch introduces a new private `/admin` Control Plane surface, explicitly separated from the retired legacy Admin route/files. The current package has no server/auth/database framework suitable for blindly restoring the historical Admin.
 
 Therefore:
 - Do NOT restore legacy Admin routes wholesale.
@@ -201,15 +201,16 @@ Chat -> Intent -> Deterministic Planner -> Authorized Capability -> Policy -> Pr
 
 ## 9. Delivery phases
 
-### Phase 0 — Foundation [DONE in PR #658]
+### Phase 0 — Foundation [IMPLEMENTED / VERIFICATION PENDING]
 - typed capability model
 - truth/evidence model
 - fail-closed unavailable state
 - private/noindex Admin surface foundation
 - module map
 - architecture contract
+- closure-conflict repair: new Control Plane route separated from retired legacy Admin filename/symbol
 
-Exit: foundation code exists, but no Production Admin claim.
+Exit: foundation code exists and legacy closure contract remains intact, but no Production Admin claim until fresh exact-SHA CI proof passes.
 
 ### Phase 1 — Server Boundary [NEXT / BLOCKING]
 Build the minimum real server-side boundary compatible with the current deployment architecture.
@@ -444,9 +445,10 @@ No phase is considered complete because code exists. Completion means behavior i
 Current checkpoint:
 - main: fcf5f7be198f4b6b480c555deaf1253968a05fd1
 - foundation PR: #658
-- foundation HEAD: b9854f89b3bc97a5d81119ea58e7e2b9e8ff9261
-- Phase 0: IMPLEMENTED / awaiting required verification
-- Phase 1: LOCKED until foundation is verified and server-boundary target is confirmed
+- foundation HEAD: a0c82aed51ef484a5817bc6e122af7ad3494b711
+- Phase 0: IMPLEMENTED / verification pending after closure-conflict repair
+- Phase 1: LOCKED until Phase 0 exact-SHA verification passes
 - Production Admin: NOT COMPLETE
+- RCA: `validate-image-only-closure.mjs` rejected `src/routes/admin.tsx` as a retired legacy path; repaired by separating the new Control Plane route into `src/routes/admin-control-plane.tsx` and registering `adminControlPlaneRoute`, without weakening the closure validator.
 
 This document is the persistent execution roadmap. Update it after each material Admin phase, preserving exact SHA and evidence references. Never mark a phase complete without proof.
