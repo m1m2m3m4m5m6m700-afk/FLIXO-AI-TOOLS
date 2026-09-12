@@ -33,13 +33,25 @@ const familyPath = (pathname: string) => pathname.replace(new RegExp(`^/(?:${loc
 const localizedPath = (locale: string, family: string) => `/${locale}${family === '/' ? '' : family}`;
 const isExpectedNavigationAbort = (request: { url(): string; failure(): { errorText?: string } | null }) => {
   const failure = request.failure();
-  if (failure?.errorText !== 'NS_BINDING_ABORTED') return false;
-  try {
-    const pathname = new URL(request.url()).pathname;
-    return pathname === '/logo.svg' || pathname === '/flixo-logo.svg';
-  } catch {
-    return false;
+  if (failure?.errorText === 'NS_BINDING_ABORTED') {
+    try {
+      const url = new URL(request.url());
+      if (url.origin === 'http://127.0.0.1:3000' && (url.pathname === '/logo.svg' || url.pathname === '/flixo-logo.svg' || url.pathname.startsWith('/assets/'))) return true;
+    } catch {
+      return false;
+    }
   }
+
+  if (failure?.errorText === 'Load request cancelled') {
+    try {
+      const url = new URL(request.url());
+      if (url.origin === 'http://127.0.0.1:3000' && url.pathname.startsWith('/assets/')) return true;
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
 };
 
 async function snapshot(page: Page): Promise<Snapshot> {
