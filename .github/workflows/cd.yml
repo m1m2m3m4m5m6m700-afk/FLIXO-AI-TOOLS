@@ -32,7 +32,7 @@ jobs:
     timeout-minutes: 20
     environment:
       name: production
-      url: https://flixoai.vercel.app
+      url: https://flixo-ai-tools.vercel.app
     steps:
       - name: Resolve promotion SHA
         id: sha
@@ -98,14 +98,14 @@ jobs:
       - name: Deploy immutable build to Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: team_LgeIYyf9ERfG3gNswQO4MiPX
+          VERCEL_PROJECT_ID: prj_FdFbUWMAZepEfvwhttAiLcYJqY0d
         shell: bash
         run: |
           set -euo pipefail
           test -n "$VERCEL_TOKEN"
-          test -n "$VERCEL_ORG_ID"
-          test -n "$VERCEL_PROJECT_ID"
+          test "$VERCEL_ORG_ID" = "team_LgeIYyf9ERfG3gNswQO4MiPX"
+          test "$VERCEL_PROJECT_ID" = "prj_FdFbUWMAZepEfvwhttAiLcYJqY0d"
           npx --yes vercel@latest deploy /tmp/artifact --prod \
             --token="$VERCEL_TOKEN" \
             --scope="$VERCEL_ORG_ID" \
@@ -114,7 +114,7 @@ jobs:
       - name: Production identity proof
         env:
           PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
-          PRODUCTION_ORIGIN: https://flixoai.vercel.app
+          PRODUCTION_ORIGIN: https://flixo-ai-tools.vercel.app
         shell: bash
         run: |
           set -euo pipefail
