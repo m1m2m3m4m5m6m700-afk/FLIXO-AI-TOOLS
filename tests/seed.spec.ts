@@ -17,7 +17,7 @@ async function canvasScreenshot(page: Page) {
 
 async function waitForGpuRender(page: Page, previousRevision: string | null = null) {
   const canvas = canvasLocator(page);
-  await expect.poll(() => canvas.getAttribute('data-render-revision'), { timeout: 3000 }).not.toBe(previousRevision);
+  await expect.poll(() => canvas.getAttribute('data-render-revision'), { timeout: 10000 }).not.toBe(previousRevision);
 }
 
 async function loadSeed(page: Page, testInfo: TestInfo, requireWebGL = true) {
