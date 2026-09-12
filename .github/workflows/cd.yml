@@ -20,6 +20,9 @@ permissions:
   actions: read
   deployments: write
 
+env:
+  FLIXO_PRODUCTION_ORIGIN: https://flixoai.vercel.app
+
 jobs:
   promote:
     name: Promote exact certified SHA
@@ -32,7 +35,7 @@ jobs:
     timeout-minutes: 20
     environment:
       name: production
-      url: https://flixo-ai-tools.vercel.app
+      url: ${{ env.FLIXO_PRODUCTION_ORIGIN }}
     steps:
       - name: Resolve promotion SHA
         id: sha
@@ -114,7 +117,7 @@ jobs:
       - name: Production identity proof
         env:
           PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
-          PRODUCTION_ORIGIN: https://flixo-ai-tools.vercel.app
+          PRODUCTION_ORIGIN: ${{ env.FLIXO_PRODUCTION_ORIGIN }}
         shell: bash
         run: |
           set -euo pipefail
