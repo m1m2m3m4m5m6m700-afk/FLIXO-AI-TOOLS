@@ -150,11 +150,7 @@ export function ToolSection({ value, title, subtitle, icon: Icon, activeCount, c
 
   return (
     <>
-      {value === 'basic' ? <style>{`
-        input[aria-label="Double Exposure file"] { position: absolute !important; width: 1px !important; height: 1px !important; opacity: 0.01 !important; clip: auto !important; clip-path: none !important; }
-        aside > div:last-child > div.grid > button:first-child { display: none !important; }
-        aside > div:last-child > div.grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-      `}</style> : null}
+      {value === 'basic' ? <style>{`input[aria-label="Double Exposure file"] { position: absolute !important; width: 1px !important; height: 1px !important; opacity: 0.01 !important; clip: auto !important; clip-path: none !important; } aside > div:last-child > div.grid > button:first-child { display: none !important; } aside > div:last-child > div.grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }`}</style> : null}
       <Accordion.Item value={value} className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-900/45 shadow-[0_14px_34px_rgba(0,0,0,0.12)]">
         <Accordion.Header>
           <Accordion.Trigger ref={triggerRef} className="group flex w-full items-center gap-3 px-3.5 py-3.5 text-left outline-none transition hover:bg-white/[0.025] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400/60">
@@ -186,12 +182,12 @@ export function SectionReset({ onClick, label = 'Reset section' }: { onClick: ()
   );
 }
 
-type CurveMiniPreviewProps = { y: number };
-export function CurveMiniPreview({ y }: CurveMiniPreviewProps) {
+type CurveMiniPreviewProps = { y: number; ariaLabel?: string };
+export function CurveMiniPreview({ y, ariaLabel = 'Curves preview' }: CurveMiniPreviewProps) {
   const controlY = Math.max(8, Math.min(92, 50 - y * 42));
   return (
     <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-zinc-950/90 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-      <svg viewBox="0 0 160 96" className="h-24 w-full" role="img" aria-label="Curves preview">
+      <svg viewBox="0 0 160 96" className="h-24 w-full" role="img" aria-label={ariaLabel}>
         <defs><pattern id="seed-grid" width="16" height="16" patternUnits="userSpaceOnUse"><path d="M 16 0 L 0 0 0 16" fill="none" stroke="rgba(255,255,255,0.045)" strokeWidth="1" /></pattern></defs>
         <rect width="160" height="96" fill="url(#seed-grid)" />
         <line x1="0" y1="96" x2="160" y2="0" stroke="rgba(255,255,255,0.2)" strokeWidth="1" strokeDasharray="3 3" />
