@@ -8,8 +8,9 @@
 - Mode: `EXECUTE → PROVE → DECIDE`
 - Scope: main-branch governance enforcement only
 
-## Current Evidence
-As of the latest GitHub API read on the baseline SHA:
+## Current State — FRESH SNAPSHOT
+Latest repository evidence confirms:
+- `main` SHA = `d51ebd53cef3a43a47271492571bcfc40ba606aa`
 - `main.protected = false`
 - `main.protection.enabled = false`
 - `required_status_checks.enforcement_level = off`
@@ -18,11 +19,23 @@ As of the latest GitHub API read on the baseline SHA:
 - repository rulesets = `[]`
 
 Therefore:
-- E-006 = `EXTERNAL_EXECUTION_REQUIRED`
-- Zero-Error State = `NOT ACHIEVED`
+- `E-006 = OPEN`
+- `Governance = NOT PROVEN`
+- `Zero-Error = NOT ACHIEVED`
+- `Production-GO = HOLD`
+
+## PR #646 Evidence
+- PR #646 remains `OPEN`
+- PR #646 is `mergeable = true`
+- PR HEAD = `71b69953b9b1ae0d58db0e0bacc29679e486faed`
+- `FLIXO Test System` run `34671391379` = `success`
+- `Claude Security Review` run `34671391346` = `success`
+- Vercel preview status = ready
+
+PR CI success does not prove Branch Protection and does not close E-006.
 
 ## Proven Required Checks
-The current authoritative check-runs on `d51ebd53cef3a43a47271492571bcfc40ba606aa` establish 18 required CI checks:
+The authoritative check-runs on baseline `d51ebd53cef3a43a47271492571bcfc40ba606aa` establish the exact 18 required CI check names:
 
 1. `Static + Build`
 2. `Browser FAST — chromium / shard-1`
@@ -43,60 +56,71 @@ The current authoritative check-runs on `d51ebd53cef3a43a47271492571bcfc40ba606a
 17. `Certification`
 18. `CI/CD Trust Layer`
 
-Excluded from PR required-check set by current decision:
+Excluded from required-check set:
+- `Claude Security Review` — advisory only / not a merge gate
 - `Promote exact certified SHA`
 - `Dependency Health Inventory`
 - `Dependency usage classification`
 - `Vercel` commit status
 
-## Required Change
-Apply GitHub branch protection to `main` externally. No CI/CD workflow modification is in scope.
-
-Target configuration:
-- strict required status checks = `true`
-- exact required-check contexts = the 18 names above
-- enforce admins = `true`
-- required approving reviews >= `1`
-- dismiss stale reviews = `true`
-- force pushes = `false`
-- deletions = `false`
-- conversation resolution = `true`
+## Canonical Governance Contract
+- target = `main` only
+- enforcement = `active`
+- required status checks = exact 18 names above
+- `strict_required_status_checks_policy = true`
+- required approving reviews >= 1
+- dismiss stale reviews on push = true
+- required review thread resolution = true
+- non-fast-forward rule = enabled
+- deletion rule = enabled
+- bypass actors = NONE initially
+- PAT = NONE
+- `.github/workflows/ci.yml` = unchanged
+- `.github/workflows/cd.yml` = unchanged
 
 ## Closure Criteria
-E-006 may be marked `CLOSED` only when fresh GitHub evidence proves all of the following:
+E-006 may be marked `CLOSED` only after fresh evidence proves:
 
-1. `main.protected = true`
-2. `protection.enabled = true`
-3. `required_status_checks.strict = true`
-4. required contexts are an exact match to the 18 proven check names
-5. `enforce_admins.enabled = true`
-6. `required_pull_request_reviews.required_approving_review_count >= 1`
-7. `dismiss_stale_reviews = true`
-8. `allow_force_pushes.enabled = false`
-9. `allow_deletions.enabled = false`
-10. `required_conversation_resolution.enabled = true`
-11. evidence is fresh and tied to the authoritative current repository state
-12. no SHA drift or contradiction invalidates the evidence
+1. Governance rule is active on `main`.
+2. The exact 18 required contexts match the authoritative job names without abbreviation.
+3. Strict/up-to-date requirement is active.
+4. Pull-request approval requirement is active (>= 1).
+5. Stale-review dismissal is active.
+6. Conversation/review-thread resolution is required.
+7. Force pushes are blocked.
+8. Branch deletion is blocked.
+9. No unapproved bypass actor exists.
+10. No PAT has been introduced for governance enforcement.
+11. Behavioral enforcement is demonstrated on a real test PR.
+12. Evidence is fresh, SHA-bound, timestamped, and internally consistent.
+
+GET-only existence of a Ruleset is insufficient; behavioral enforcement evidence is mandatory.
 
 ## Decision Rule
 - All closure criteria pass → `E-006 = CLOSED`
 - Any missing, stale, contradictory, or failed criterion → `E-006 = HOLD/REOPEN`
 
-## Zero-Error Release Rule
-No `Zero-Error` declaration is permitted merely because defects were not observed. Every dimension must have current valid evidence proving `PROVEN ZERO`.
-
-Operating principle:
+## Zero-Error Rule
+`ZERO-ERROR OPERATING STATE` is not declared from absence of observed defects alone. Each required dimension needs current valid evidence supporting `PROVEN ZERO`.
 
 `ABSENCE OF PROOF ≠ PROOF OF ABSENCE`
 
-## Next Action
-External execution of Branch Protection for `main`, followed by fresh evidence from:
+## External Execution Boundary
+The current GitHub integration can read repository state but does not expose Administration write operations for Branch Protection / Rulesets. Repository collaborator permission is independently verified as `admin`; the limitation is the execution channel, not the repository role.
 
-`GET /repos/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/branches/main/protection`
+Required external operation:
+1. Create/activate the canonical Ruleset on `main`.
+2. Retrieve the Ruleset definition.
+3. Execute behavioral enforcement test PR.
+4. Return Ruleset ID + exact JSON + PR number + head SHA + timestamp + enforcement outcome.
 
-After evidence arrival:
-
-`DELTA VERIFICATION → VETO CHECK → E-006 CLOSE/HOLD → BUILD MEMORY → P2 DECISION`
+## Post-Evidence Path
+`FRESH ADMIN-WRITE EVIDENCE`
+→ `DELTA VERIFICATION`
+→ `VETO CHECK`
+→ `E-006 CLOSE / HOLD`
+→ `BUILD MEMORY`
+→ `P2 DECISION`
 
 ## Scope Guard
 This cycle does not modify:
@@ -105,3 +129,4 @@ This cycle does not modify:
 - test architecture
 - deployment logic
 - required-check definitions
+- PAT/credential configuration
