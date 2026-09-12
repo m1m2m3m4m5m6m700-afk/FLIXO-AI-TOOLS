@@ -1,4 +1,5 @@
-import { expect, test, type ConsoleMessage, type Page } from '../fixtures/universal-runtime-evidence';
+import { expect, test, type Page } from '../fixtures/universal-runtime-evidence';
+import type { ConsoleMessage } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { LOCALE_METADATA, LOCALES } from '../../src/lib/i18n/config';
 import { getAuthoritativeToolSeoName } from '../../src/config/tool-seo-name-resolver';
