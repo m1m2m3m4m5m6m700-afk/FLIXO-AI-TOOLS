@@ -119,7 +119,7 @@ export const test = base.extend<{ runtimeEvidence: void }>({
 
       await testInfo.attach('runtime-evidence.json', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
       process.stdout.write(`RUNTIME_EVIDENCE=${JSON.stringify(evidence)}\n`);
-      if (provenanceFailure) throw new Error(`Runtime evidence rejected: ${provenanceFailure.message}`);
+      expect(provenanceFailure, provenanceFailure?.message ?? 'Execution SHA provenance is valid').toBeNull();
     }
   }, { auto: true }],
 });
