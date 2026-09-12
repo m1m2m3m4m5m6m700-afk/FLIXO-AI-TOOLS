@@ -33,6 +33,7 @@ export function loadTranslationDictionary(locale: Locale): Promise<TranslationBu
   if (cached) return cached;
   const pending = LOCALE_LOADERS[locale]().then((bundle) => ({
     ...bundle,
+    // Seed is a shared runtime surface; locale-specific source data still wins over the canonical fallback map.
     seedUi: { ...SEED_UI_TRANSLATIONS[locale], ...(bundle.seedUi ?? {}) },
   }));
   cache.set(locale, pending);
