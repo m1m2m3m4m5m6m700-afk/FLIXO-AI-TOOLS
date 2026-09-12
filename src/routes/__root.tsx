@@ -9,7 +9,7 @@ import { SITE_ORIGIN } from '../lib/i18n';
 const GLOBAL_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
   '@graph': [
-    { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: 'FLIXO AI', url: SITE_ORIGIN, logo: `${SITE_ORIGIN}/flixo-logo.svg` },
+    { '@type': 'Organization', '@id': `${SITE_ORIGIN}/#organization`, name: 'FLIXO AI', url: SITE_ORIGIN, logo: `${SITE_ORIGIN}/flixo-logo.jpg` },
     { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, name: 'FLIXO AI', url: SITE_ORIGIN, publisher: { '@id': `${SITE_ORIGIN}/#organization` } },
   ],
 } as const;
@@ -47,16 +47,16 @@ export const rootRoute = createRootRoute({
       { property: 'og:title', content: 'FLIXO AI — Fast browser-first tools' },
       { property: 'og:description', content: 'Fast browser-first tools for images, PDFs, audio, video, text, and everyday productivity.' },
       { property: 'og:url', content: SITE_ORIGIN },
-      { property: 'og:image', content: `${SITE_ORIGIN}/flixo-logo.svg` },
+      { property: 'og:image', content: `${SITE_ORIGIN}/flixo-logo.jpg` },
       { name: 'twitter:card', content: 'summary_large_image' },
       { name: 'twitter:title', content: 'FLIXO AI — Fast browser-first tools' },
       { name: 'twitter:description', content: 'Fast browser-first tools for images, PDFs, audio, video, text, and everyday productivity.' },
-      { name: 'twitter:image', content: `${SITE_ORIGIN}/flixo-logo.svg` },
+      { name: 'twitter:image', content: `${SITE_ORIGIN}/flixo-logo.jpg` },
     ],
     links: [
-      { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
-      { rel: 'alternate icon', href: '/logo.svg', type: 'image/svg+xml' },
-      { rel: 'apple-touch-icon', href: '/flixo-logo.svg' },
+      { rel: 'icon', href: '/flixo-logo.jpg', type: 'image/jpeg' },
+      { rel: 'alternate icon', href: '/flixo-logo.jpg', type: 'image/jpeg' },
+      { rel: 'apple-touch-icon', href: '/flixo-logo.jpg' },
     ],
   }),
 });
