@@ -1,5 +1,5 @@
-import { execFileSync } from 'node:child_process';
 import { test as base, expect, type Locator, type Page, type TestInfo } from '@playwright/test';
+import { assertExpectedExecutionSha, readExecutionSha } from '../../scripts/ci/execution-sha-provenance.mjs';
 
 type ConsoleLocation = { url?: string; lineNumber?: number; columnNumber?: number };
 type RuntimeEvidence = {
@@ -18,10 +18,9 @@ type RuntimeEvidence = {
 
 function exactSha(): string | null {
   try {
-    const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-    return sha || process.env.GITHUB_SHA || null;
+    return readExecutionSha({ cwd: process.env.GITHUB_WORKSPACE || process.cwd() });
   } catch {
-    return process.env.GITHUB_SHA || null;
+    return null;
   }
 }
 
@@ -77,7 +76,20 @@ export const test = base.extend<{ runtimeEvidence: void }>({
 
       const completedAt = new Date();
       const status = testInfo.status;
-      const runtimeState: RuntimeEvidence['runtimeState'] = status !== 'passed'
+      const ci = Boolean(process.env.CI || process.env.GITHUB_ACTIONS);
+      const sourceSha = exactSha();
+      let provenanceFailure: Error | null = null;
+      if (ci) {
+        try {
+          assertExpectedExecutionSha({
+            actualSha: sourceSha,
+            expectedSha: process.env.EXPECTED_SHA,
+          });
+        } catch (error) {
+          provenanceFailure = error instanceof Error ? error : new Error(String(error));
+        }
+      }
+      const runtimeState: RuntimeEvidence['runtimeState'] = provenanceFailure || status !== 'passed'
         ? 'failed'
         : consoleErrors.length || pageErrors.length || requestFailures.length || failedResponses.length
           ? 'degraded'
@@ -85,7 +97,7 @@ export const test = base.extend<{ runtimeEvidence: void }>({
 
       const evidence: RuntimeEvidence = {
         schema: 'flixo-runtime-evidence/v2',
-        source: { exactSha: exactSha(), ci: Boolean(process.env.CI || process.env.GITHUB_ACTIONS) },
+        source: { exactSha: sourceSha, ci },
         test: {
           id: testInfo.testId,
           title: testInfo.title,
@@ -107,6 +119,7 @@ export const test = base.extend<{ runtimeEvidence: void }>({
 
       await testInfo.attach('runtime-evidence.json', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
       process.stdout.write(`RUNTIME_EVIDENCE=${JSON.stringify(evidence)}\n`);
+      expect(provenanceFailure, provenanceFailure?.message ?? 'Execution SHA provenance is valid').toBeNull();
     }
   }, { auto: true }],
 });
