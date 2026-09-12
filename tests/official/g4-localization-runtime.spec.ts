@@ -82,20 +82,53 @@ async function snapshot(page: Page): Promise<Snapshot> {
   });
 }
 
+type ConsoleMessageLike = {
+  type(): string;
+  text(): string;
+  args(): Array<{ jsonValue(): Promise<unknown> }>;
+};
+
+async function serializeConsoleError(message: ConsoleMessageLike): Promise<string> {
+  const parts: string[] = [];
+  for (const arg of message.args()) {
+    try {
+      const value = await arg.jsonValue();
+      if (typeof value === 'string') {
+        parts.push(value);
+      } else if (value !== undefined) {
+        try {
+          parts.push(JSON.stringify(value));
+        } catch {
+          parts.push(String(value));
+        }
+      }
+    } catch {
+      parts.push(String(arg));
+    }
+  }
+  return parts.join(' ') || message.text();
+}
+
 test.describe.configure({ mode: 'parallel' });
 test.setTimeout(60_000);
 
 for (const pathname of routes) {
   test(`G4 official all-public-route localization/SEO contract — ${pathname}`, async ({ page }) => {
     const runtimeErrors: string[] = [];
+    const consoleErrorPromises: Promise<void>[] = [];
     page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
-    page.on('console', (message) => { if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`); });
+    page.on('console', (message) => {
+      if (message.type() === 'error') {
+        consoleErrorPromises.push(serializeConsoleError(message).then((text) => runtimeErrors.push(`console: ${text}`)));
+      }
+    });
     page.on('requestfailed', (request) => {
       if (isExpectedNavigationAbort(request)) return;
       if (request.url().startsWith('http://127.0.0.1:3000/')) runtimeErrors.push(`requestfailed: ${request.url()} — ${request.failure()?.errorText ?? 'unknown'}`);
     });
 
     const response = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    await Promise.all(consoleErrorPromises);
     expect(response?.status(), `${pathname} must return HTTP 200`).toBe(200);
 
     const locale = pathname.match(new RegExp(`^/(${localeCodes.join('|')})(?:/|$)`, 'u'))?.[1];
@@ -156,6 +189,7 @@ for (const pathname of routes) {
 
     if (localeCode !== 'en') {
       const baselineResponse = await page.goto(localizedPath('en', family), { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await Promise.all(consoleErrorPromises.splice(0));
       expect(baselineResponse?.status(), `${pathname} English baseline ${family} must return HTTP 200`).toBe(200);
       await expect(page.locator('main').first()).toBeVisible();
       await expect(page.locator('h1')).toHaveCount(1);
@@ -163,6 +197,7 @@ for (const pathname of routes) {
       const baseline = await snapshot(page);
 
       const localizedResponse = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await Promise.all(consoleErrorPromises.splice(0));
       expect(localizedResponse?.status(), `${pathname} must return HTTP 200 after baseline comparison`).toBe(200);
       await expect(page.locator('main').first()).toBeVisible();
       await expect(page.locator('h1')).toHaveCount(1);
@@ -210,6 +245,7 @@ for (const pathname of routes) {
       });
     });
     expect(a11yIssues, `${pathname} accessibility naming failures`).toEqual([]);
+    await Promise.all(consoleErrorPromises.splice(0));
     expect(runtimeErrors, `${pathname} runtime/console/request failures`).toEqual([]);
   });
 }

@@ -2,6 +2,12 @@ import { test as base, expect, type Locator, type Page, type TestInfo } from '@p
 import { assertExpectedExecutionSha, readExecutionSha } from '../../scripts/ci/execution-sha-provenance.mjs';
 
 type ConsoleLocation = { url?: string; lineNumber?: number; columnNumber?: number };
+type ConsoleMessageLike = {
+  type: () => string;
+  text: () => string;
+  location: () => ConsoleLocation;
+  args: () => Array<{ jsonValue: () => Promise<unknown> }>;
+};
 type RuntimeEvidence = {
   schema: 'flixo-runtime-evidence/v2';
   source: { exactSha: string | null; ci: boolean };
@@ -24,10 +30,32 @@ function exactSha(): string | null {
   }
 }
 
+async function serializeConsoleMessage(message: ConsoleMessageLike): Promise<string> {
+  const parts: string[] = [];
+  for (const arg of message.args()) {
+    try {
+      const value = await arg.jsonValue();
+      if (typeof value === 'string') {
+        parts.push(value);
+      } else if (value !== undefined) {
+        try {
+          parts.push(JSON.stringify(value));
+        } catch {
+          parts.push(String(value));
+        }
+      }
+    } catch {
+      // Ignore individual argument serialization failures and fall back to the browser-rendered text below.
+    }
+  }
+  return parts.join(' ') || message.text();
+}
+
 export const test = base.extend<{ runtimeEvidence: void }>({
   runtimeEvidence: [async ({ page }, runTest, testInfo) => {
     const startedAt = new Date();
     const consoleErrors: RuntimeEvidence['consoleErrors'] = [];
+    const consoleErrorPromises: Promise<void>[] = [];
     const pageErrors: RuntimeEvidence['pageErrors'] = [];
     const requestFailures: RuntimeEvidence['requestFailures'] = [];
     const failedResponses: RuntimeEvidence['failedResponses'] = [];
@@ -36,8 +64,12 @@ export const test = base.extend<{ runtimeEvidence: void }>({
     const onNavigation = (frame: { url: () => string }) => {
       navigations.push({ url: frame.url(), timestamp: new Date().toISOString() });
     };
-    const onConsole = (message: { type: () => string; text: () => string; location: () => ConsoleLocation }) => {
-      if (message.type() === 'error') consoleErrors.push({ type: message.type(), text: message.text(), location: message.location() });
+    const onConsole = (message: ConsoleMessageLike) => {
+      if (message.type() === 'error') {
+        consoleErrorPromises.push(serializeConsoleMessage(message).then((text) => {
+          consoleErrors.push({ type: message.type(), text, location: message.location() });
+        }));
+      }
     };
     const onPageError = (error: Error) => pageErrors.push({ message: error.message, name: error.name, stack: error.stack });
     const onRequestFailed = (request: { url: () => string; method: () => string; resourceType: () => string; failure: () => { errorText?: string } | null }) => {
@@ -73,6 +105,7 @@ export const test = base.extend<{ runtimeEvidence: void }>({
       page.off('pageerror', onPageError);
       page.off('requestfailed', onRequestFailed);
       page.off('response', onResponse);
+      await Promise.all(consoleErrorPromises);
 
       const completedAt = new Date();
       const status = testInfo.status;
