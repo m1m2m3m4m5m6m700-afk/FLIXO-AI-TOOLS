@@ -6,7 +6,7 @@
 
 ```text
 BRANCH                 = main
-ACTUAL MAIN SHA        = bfe8f95affffd4a400af9699b490347999f5a5cd
+ACTUAL MAIN SHA        = 81e121faad872426ad55aba1237423e8a5e8d923
 LAST PROVEN CI SHA     = b089bd0a4056b04a1376a979c726f33e47944189
 LAST PROVEN CI         = 34771149429
 LAST PROVEN RESULT     = SUCCESS
@@ -124,7 +124,7 @@ ADMIN-002 closes on the repository proof lane when all are true on the exact cur
 
 `CANONICAL ADAPTER PRESENT ∧ REAL WRITE/READ-BACK PROVEN ∧ TARGETED ADAPTER REGRESSION PASS ∧ REQUIRED CI PASS ∧ EXACT MAIN SHA EVIDENCE ∧ NO OPEN ADMIN-002 RCA`
 
-The Vercel deployed-SHA proof is **not** an ADMIN-002 dependency anymore. It is a separate production-certification input owned by ADMIN-008. This is a sequencing change, not a reduction in test rigor: no assertion is removed, weakened, skipped, or relabeled.
+The Vercel deployed-SHA proof is **not an ADMIN-002 dependency anymore**. It is a separate production-certification input owned by ADMIN-008. This is a sequencing change, not a reduction in test rigor: no assertion is removed, weakened, skipped, or relabeled.
 
 ### Immediate execution sequence
 
@@ -142,13 +142,13 @@ Do not perform unrelated cleanup before ADMIN-002 closes. Do not wait for Vercel
 
 ## 7. CD / deployment evidence repair
 
-The latest CD run `34781321580` reached a successful Vercel deployment, but the production-origin identity probe failed because the canonical alias did not report the promoted SHA during that verification window; the subsequent evidence upload also failed because the evidence file was created only after a successful identity assertion. 
+The latest CD run `34781321580` reached a successful Vercel deployment, but the production-origin identity probe failed because the canonical alias did not report the promoted SHA during that verification window; the subsequent evidence upload also failed because the evidence file was created only after a successful identity assertion.
 
 Repair rule:
 
 `DEPLOY SUCCESS/FAIL → ALWAYS WRITE EVIDENCE → UPLOAD EVIDENCE → FAIL-CLOSED ON IDENTITY MISMATCH`
 
-`cd.yml` was repaired on `main` at `bfe8f95affffd4a400af9699b490347999f5a5cd` to capture the direct Vercel deployment URL, prove its immutable `flixo-head-sha.txt`, retry the canonical alias within bounded limits, preserve observed SHA/reason in `production-deployment-evidence.json`, and keep the identity assertion fail-closed. The repair does not bypass canonical production identity.
+`cd.yml` was repaired on `main` at `81e121faad872426ad55aba1237423e8a5e8d923` to make deployment URL capture fail-safe, preserve observed deployment identity fields, retry the canonical alias within bounded limits, preserve the resulting evidence artifact, and keep the identity assertion fail-closed. The repair does not bypass canonical production identity.
 
 The current `main` SHA has no fresh workflow run visible yet; therefore this repair is not certified until canonical CI/CD evidence is produced for the exact SHA.
 
@@ -182,10 +182,10 @@ LAST SESSION:
   task         = ADMIN-002
   status       = ACTIVE / REPO-CLOSURE LANE
   entrySha     = b089bd0a4056b04a1376a979c726f33e47944189
-  exitSha      = bfe8f95affffd4a400af9699b490347999f5a5cd
-  ciRun        = no fresh workflow evidence visible yet for bfe8f95…; prior proven certification remains 34771149429
+  exitSha      = 81e121faad872426ad55aba1237423e8a5e8d923
+  ciRun        = no fresh workflow evidence visible yet for 81e121fa…; prior proven certification remains 34771149429
   blocker      = none for repository closure; live deployment identity is deferred to ADMIN-008
-  nextAction   = obtain fresh canonical CI proof for bfe8f95…, then close ADMIN-002 on exact-main evidence and activate ADMIN-003
+  nextAction   = obtain fresh canonical CI proof for 81e121fa…, then close ADMIN-002 on exact-main evidence and activate ADMIN-003
 ```
 
 ## 11. Agent start protocol
