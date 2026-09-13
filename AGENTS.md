@@ -44,6 +44,12 @@ Historical branch state, stale PR state, or branch-local evidence MUST NOT be tr
 
 PRs may be inspected as historical evidence or for externally supplied review context, but they are not the execution path for new work. A task that exists only on another branch is not current until its semantics are reconstructed and implemented on the current `main`.
 
+### EXTERNAL PROVIDER NON-BLOCKING RULE
+
+An external deployment-provider failure such as a Vercel quota, rate-limit, outage, unavailable deployment, or provider API error MUST NOT stop independent repository execution. Agents MUST continue any code, test, documentation, analysis, cleanup, and verification work whose prerequisites are satisfied.
+
+The provider failure remains a blocker only for assertions or closure claims that explicitly require live provider/deployment evidence. Agents MUST preserve the failure as an external infrastructure condition and MUST NOT relabel it as application failure, application GREEN, or successful deployment evidence.
+
 ## PROJECT MAP DISCIPLINE
 
 `PROJECTS.md` MUST preserve, for every material task:
