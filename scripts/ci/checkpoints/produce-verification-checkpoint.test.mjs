@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { produceVerificationCheckpoint } from './produce-verification-checkpoint.mjs';
 
-const sha = 'f9db9a4a14080a2cfe7853b7c20c2d4d15351607';
+const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+assert.match(sha, /^[0-9a-f]{40}$/iu);
+
 const identity = {
   commitSha: sha,
   contractId: 'CI-VERIFICATION-CHECKPOINT-001',
@@ -14,16 +17,16 @@ const identity = {
   dependencyHash: 'dependency-hash',
   lockfileHash: 'lockfile-hash',
   toolchainHash: 'node22-npm11',
-  configHash: 'config-hash',
+  configHash: 'ci-config-hash',
   ciConfigHash: 'ci-config-hash',
-  branch: 'phase-b/p1-checkpoint-producer-clean',
-  event: 'pull_request',
+  branch: 'repair/merge-green-tests-2026-09-13',
+  event: process.env.GITHUB_EVENT_NAME ?? 'test',
   repository: 'm1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS',
 };
 const certification = {
   status: 'PASS',
   certificationSha: sha,
-  runId: '34654891798',
+  runId: process.env.GITHUB_RUN_ID ?? 'local-test',
   identityVerified: true,
 };
 
