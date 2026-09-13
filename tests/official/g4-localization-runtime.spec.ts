@@ -208,6 +208,13 @@ for (const pathname of routes) {
       await expect(page.locator('main').first()).toBeVisible();
       await expect(page.locator('h1')).toHaveCount(1);
       await expect(page.locator('h1').first()).toHaveText(/\S+/);
+
+      if (family === '/seed') {
+        const seedFileInput = page.locator('#seed-main-image-input');
+        await expect(seedFileInput, `${pathname} must render the Seed file input`).toHaveCount(1);
+        await expect(seedFileInput, `${pathname} Seed UI must finish locale synchronization`).not.toHaveAttribute('aria-label', 'Browse files');
+      }
+
       const current = await snapshot(page);
 
       expect(current.title, `${pathname} must not reuse English document title`).not.toBe(baseline.title);
