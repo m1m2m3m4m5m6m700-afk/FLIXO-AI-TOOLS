@@ -130,6 +130,8 @@ jobs:
           PRODUCTION_ORIGIN: ${{ env.FLIXO_PRODUCTION_ORIGIN }}
           DEPLOYMENT_ATTEMPT: ${{ steps.deploy.outputs.deployment_attempt }}
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_LgeIYyf9ERfG3gNswQO4MiPX
         shell: bash
         run: |
           set -u
@@ -140,17 +142,32 @@ jobs:
           status=FAIL
           reason=UNKNOWN
 
-          if [ -z "$DEPLOYMENT_URL" ]; then
-            reason=DEPLOYMENT_URL_MISSING
-          else
+          probe_sha() {
+            local url="$1"
             direct_sha="$(curl --fail --silent --show-error --location \
               --retry 5 --retry-delay 3 --retry-all-errors \
               --max-time 30 \
               -H 'Cache-Control: no-cache' \
-              "$DEPLOYMENT_URL/flixo-head-sha.txt?__flixo_sha=$PROMOTION_SHA" \
-              | tr -d '\r\n')" || true
+              "$url" | tr -d '\r\n')" || true
 
             if [ "$direct_sha" = "$PROMOTION_SHA" ]; then
+              return 0
+            fi
+
+            if [ -n "$VERCEL_TOKEN" ]; then
+              direct_sha="$(npx --yes vercel@59.16.0 curl "$url" \
+                --token="$VERCEL_TOKEN" \
+                --scope="$VERCEL_ORG_ID" \
+                2>/dev/null | tr -d '\r\n')" || true
+            fi
+
+            [ "$direct_sha" = "$PROMOTION_SHA" ]
+          }
+
+          if [ -z "$DEPLOYMENT_URL" ]; then
+            reason=DEPLOYMENT_URL_MISSING
+          else
+            if probe_sha "$DEPLOYMENT_URL/flixo-head-sha.txt?__flixo_sha=$PROMOTION_SHA"; then
               if curl --fail --silent --show-error --location \
                 --retry 10 --retry-delay 5 --retry-all-errors \
                 --max-time 30 \
@@ -160,6 +177,12 @@ jobs:
                  test -s /tmp/production.html &&
                  grep -qi '<html' /tmp/production.html; then
                 canonical_html=PASS
+              elif [ -n "$VERCEL_TOKEN" ] && \
+                   npx --yes vercel@59.16.0 curl "$PRODUCTION_ORIGIN/?__flixo_sha=$PROMOTION_SHA" \
+                     --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID" > /tmp/production.html 2>/dev/null &&
+                   test -s /tmp/production.html &&
+                   grep -qi '<html' /tmp/production.html; then
+                canonical_html=PASS
               fi
 
               canonical_sha="$(curl --fail --silent --show-error --location \
@@ -168,6 +191,13 @@ jobs:
                 -H 'Cache-Control: no-cache' \
                 "$PRODUCTION_ORIGIN/flixo-head-sha.txt?__flixo_sha=$PROMOTION_SHA" \
                 | tr -d '\r\n')" || true
+
+              if [ "$canonical_sha" != "$PROMOTION_SHA" ] && [ -n "$VERCEL_TOKEN" ]; then
+                canonical_sha="$(npx --yes vercel@59.16.0 curl \
+                  "$PRODUCTION_ORIGIN/flixo-head-sha.txt?__flixo_sha=$PROMOTION_SHA" \
+                  --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID" \
+                  2>/dev/null | tr -d '\r\n')" || true
+              fi
 
               if [ "$canonical_sha" = "$PROMOTION_SHA" ] && [ "$canonical_html" = PASS ]; then
                 status=PASS
