@@ -3,9 +3,9 @@
 **This file is the first work gate for every agent.** Read it before implementation. It is the persistent memory of remaining work across sessions.
 
 Current execution branch: `main`
-Current exact main SHA: `f46b45cff8e9aa91fdeaa052e173711890b5067b`
-Latest previously certified main candidate before this session: `1c2b7e3df7cd28ff5491550ad02502019ea51007` (PR #675 build/lazy-chunk repair)
-Current verification run: GitHub Actions `34768321551` — `FLIXO Continuous Delivery` — `in_progress` at last observation.
+Current exact main SHA after latest repair: `0c7ab9bdca8f2460862758d1cef8aa95773e3da3`
+Latest failed verification run: `34768345917` on `c35c8617e5399fb205c247c2260e47d2e640163d`
+Failure RCA: `RC-AGENT-MARKER-001` — `validate-agent-protocol.mjs` required literal marker `MANDATORY ENTRY TITLE`, while `AGENTS.md` exposed only `MANDATORY ENTRY`.
 
 ## 1. Operating contract
 
@@ -24,12 +24,12 @@ Rules:
 
 | ID | Project | Status | Authority / contract | Exact state | Next deterministic action |
 |---|---|---|---|---|---|
-| ARCH-001 | Shared Build Boundary Contract — eliminate recurring lazy/shared chunk cycles | IMPLEMENTED / VERIFICATION PENDING | Existing build gate + `package.json` | Validator added as post-build enforcement in `BUILD-001`; current main `f46b45c…` | Consume run `34768321551`; inspect `BUILD-001` result and browser evidence; close only on exact-SHA proof |
-| AGENT-001 | Persistent Agent Project Gateway | IMPLEMENTED / VERIFICATION PENDING | `AGENTS.md` + `PROJECTS.md` | `AGENTS.md` now directs agents to this file first; task/session continuity fields defined | Verify exact-SHA CI; keep this file as first agent entry |
-| ADMIN-001 | Admin Control Plane Phase 0/1 verification | ACTIVE | `docs/ADMIN-CONTROL-PLANE-MASTER-PLAN.md` | Foundation/server boundary exist; production certification remains unproven | Verify exact SHA for auth/session/capability/fail-closed/server-secret/HTTP-method contracts; update Admin plan with evidence |
+| ARCH-001 | Shared Build Boundary Contract — eliminate recurring lazy/shared chunk cycles | ACTIVE | Existing build gate + `package.json` | Build-boundary validator exists; verification blocked by prior static governance marker failure before BUILD-001 | Verify fresh exact-SHA static/build/browser/certification path; then close only after evidence |
+| AGENT-001 | Persistent Agent Project Gateway | IMPLEMENTED / VERIFICATION PENDING | `AGENTS.md` + `PROJECTS.md` | Gateway exists; marker mismatch repaired on `0c7ab9b…` | Verify fresh exact-SHA CI and preserve `PROJECTS.md` as first agent entry |
+| ADMIN-001 | Admin Control Plane Phase 0/1 verification | ACTIVE | `docs/ADMIN-CONTROL-PLANE-MASTER-PLAN.md` | Foundation/server boundary exist; certification remains unproven | Verify auth/session/capability/fail-closed/server-secret/HTTP-method contracts on current exact SHA |
 | ADMIN-002 | Admin real persistence + evidence ledger | LOCKED | Admin master plan Phase 2 | Not proven connected to canonical production persistence | Execute only after ADMIN-001 exit proof; use one proven persistence path |
 | ADMIN-003 | Admin Truth/Command/Security/Contract/Operations/Incident centers | LOCKED | Admin master plan Phases 3–4 | Product modules defined; implementation not certified | Activate phase-by-phase only after persistence/evidence foundation is proven |
-| ADMIN-004 | Admin controlled execution + rollback | LOCKED | Admin master plan Phase 5 | Execution intentionally locked | Activate only after authorization, policy, evidence, audit, and rollback proofs exist |
+| ADMIN-004 | Admin controlled execution + rollback | LOCKED | Admin master plan Phase 5 | Execution intentionally locked | Activate only after authorization, policy, evidence, audit, and rollback proofs |
 | ADMIN-005 | Admin Change/Approval/Incident consolidation | LOCKED | Admin master plan Phase 6 | Not started | Activate after controlled execution is proven |
 | ADMIN-006 | Admin Truth Graph | LOCKED | Admin master plan Phase 7 | Not started | Activate only after underlying provenance graph is real |
 | ADMIN-007 | Controlled AI Assistant | LOCKED | Admin master plan Phase 8 | Not started | Activate only after deterministic authorization/evidence/execution is stable |
@@ -83,11 +83,11 @@ Shared → Pure Contract/Utility
 
 ### Enforcement decision
 
-No second CI gate was created. The existing production build assertion remains the owner. `scripts/ci/validate-build-chunk-boundaries.mjs` executes immediately after `vite build` and fails `BUILD-001` when the emitted chunk graph contains a dependency cycle containing a static edge.
+Do not create a second CI gate. The existing production build assertion remains the owner. `scripts/ci/validate-build-chunk-boundaries.mjs` executes after the production build as part of the existing `BUILD-001` assertion.
 
 ### Exit proof
 
-`mechanism proven → validator fails on forbidden graph shape → current build passes → browser regression passes → canonical exact-SHA CI passes`.
+`mechanism proven → validator fails on the forbidden graph shape → current build passes → browser regression passes → canonical exact-SHA CI passes`.
 
 ## 4. ADMIN-001..008 — Admin Control Plane map
 
@@ -116,6 +116,7 @@ These historical classes remain part of repository memory and may be reactivated
 - Playwright evidence serialization loss — recently repaired; preserve object-level runtime evidence.
 - Admin route closure conflict — repaired by separating current Control Plane route from retired legacy filename/symbol; do not weaken the legacy closure validator.
 - Dependency/technical-debt drift — use inventory-backed audit, not mass speculative cleanup.
+- Agent governance marker drift — `RC-AGENT-MARKER-001` repaired by restoring the literal marker expected by the existing validator; do not weaken the validator.
 
 ## 6. Session handoff block
 
@@ -130,10 +131,10 @@ LAST SESSION:
   task           = <fill>
   status         = <fill>
   RCA            = <fill>
-  evidence      = <fill>
-  blocker       = <fill>
-  nextAction    = <fill>
-  remainingWork = <fill>
+  evidence       = <fill>
+  blocker        = <fill>
+  nextAction     = <fill>
+  remainingWork  = <fill>
 ```
 
 ## 7. Agent start command
