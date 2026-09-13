@@ -6,11 +6,11 @@
 
 ```text
 BRANCH                 = main
-ACTUAL MAIN SHA        = 81e121faad872426ad55aba1237423e8a5e8d923
-LAST PROVEN CI SHA     = b089bd0a4056b04a1376a979c726f33e47944189
-LAST PROVEN CI         = 34771149429
+ACTUAL MAIN SHA        = 13da1202f44c6d314120d260ef65acf2fc69a7e9
+LAST PROVEN CI SHA     = 13da1202f44c6d314120d260ef65acf2fc69a7e9
+LAST PROVEN CI         = 34783338419
 LAST PROVEN RESULT     = SUCCESS
-CURRENT CODE NOTE      = main contains the Admin persistence adapter / overview probe, hardened ADMIN-002 payload/read-back assertions, Admin execution fast-track rules, package/CI trust repairs, and repaired CD production-identity evidence ordering; latest CD repair is not yet CI-certified
+CURRENT CODE NOTE      = ADMIN-002 repository proof is closed on 13da1202…; Vercel deployment remains an external certification blocker carried to ADMIN-008; ADMIN-003 is now execution-authorized
 CURRENT MAP COMMIT     = this file's commit; it is documentation only
 ```
 
@@ -43,12 +43,12 @@ A green branch/PR, local pass, code existence, queued job, historical run, or pr
 
 | ID | Project | Status | Current truth | Next deterministic action |
 |---|---|---|---|---|
-| **ARCH-001** | Shared Build Boundary Contract | **CLOSED / VERIFIED** | Exact-SHA proof on `b089bd0…`; existing `BUILD-001` boundary validator passed in full CI certification `34771149429` | Preserve invariant; no new gate |
-| **AGENT-001** | Persistent Agent Project Gateway | **CLOSED / VERIFIED** | Gateway/marker protections remained valid on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve single gateway owner; no duplicate validator |
-| **ADMIN-001** | Admin Control Plane Phase 0/1 | **CLOSED / VERIFIED** | Existing fail-closed server-boundary contract remains verified on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve canonical server boundary; no duplicate tests |
-| **ADMIN-002** | Real persistence + evidence ledger | **ACTIVE / REPO-CLOSURE LANE** | Canonical Supabase server-side adapter and Admin overview probe are on `main`; production write/read-back is already proven; deterministic adapter test verifies write payload, auth headers, operational fields, and metadata preservation | Fast-track: fresh exact-main CI proof → record evidence → close ADMIN-002; do not wait on live deployment identity |
-| ADMIN-003 | Admin Truth / Command / Security / Contract / Operations / Incident Centers | LOCKED | Depends on ADMIN-002 repository proof, not deployment-provider availability | Activate immediately after ADMIN-002 repository closure |
-| ADMIN-004 | Admin controlled execution + rollback | LOCKED | Execution intentionally disabled | Activate after authorization/policy/evidence/audit/rollback proof |
+| ARCH-001 | Shared Build Boundary Contract | CLOSED / VERIFIED | Exact-SHA proof on `b089bd0…`; existing `BUILD-001` boundary validator passed in full CI certification `34771149429` | Preserve invariant; no new gate |
+| AGENT-001 | Persistent Agent Project Gateway | CLOSED / VERIFIED | Gateway/marker protections remained valid on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve single gateway owner; no duplicate validator |
+| ADMIN-001 | Admin Control Plane Phase 0/1 | CLOSED / VERIFIED | Existing fail-closed server-boundary contract remains verified on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve canonical server boundary; no duplicate tests |
+| **ADMIN-002** | Real persistence + evidence ledger | **CLOSED / VERIFIED** | Repository closure contract satisfied on `13da1202…`: canonical adapter present; real production write/read-back already proven; hardened adapter assertions pass; full CI certification `34783338419` passed; no open ADMIN-002 RCA | Preserve persistence invariant; carry live deployment proof to ADMIN-008 |
+| **ADMIN-003** | Admin Truth / Command / Security / Contract / Operations / Incident Centers | **ACTIVE** | Dependency ADMIN-002 repository proof is closed on exact SHA `13da1202…`; deployment provider availability is not a prerequisite | Trace existing Admin surfaces and consolidate one canonical truth/command/security/operations ownership without new parallel engines |
+| ADMIN-004 | Admin controlled execution + rollback | LOCKED | Depends on ADMIN-003 | Activate after authorization/policy/evidence/audit/rollback proof |
 | ADMIN-005 | Admin Change / Approval / Incident consolidation | LOCKED | Not started | Activate after ADMIN-004 |
 | ADMIN-006 | Admin Truth Graph | LOCKED | Not started | Activate after real provenance graph |
 | ADMIN-007 | Controlled AI Assistant | LOCKED | Not started | Activate after deterministic authorization/evidence/execution stability |
@@ -118,31 +118,21 @@ Provider provenance has been established operationally:
 - No new database, ORM, migration, parallel store, or client-side secret exposure was introduced.
 - A real production write/read-back proof exists in `public.flix_events` for the repository lineage, and the deterministic adapter test preserves the full evidence payload through write/read-back.
 
-### Fastest valid closure contract
+### Closure record
 
-ADMIN-002 closes on the repository proof lane when all are true on the exact current `main` SHA:
+`ADMIN-002 = CLOSED / VERIFIED`
+
+Closure basis on exact `main` SHA `13da1202f44c6d314120d260ef65acf2fc69a7e9`:
 
 `CANONICAL ADAPTER PRESENT ∧ REAL WRITE/READ-BACK PROVEN ∧ TARGETED ADAPTER REGRESSION PASS ∧ REQUIRED CI PASS ∧ EXACT MAIN SHA EVIDENCE ∧ NO OPEN ADMIN-002 RCA`
 
-The Vercel deployed-SHA proof is **not an ADMIN-002 dependency anymore**. It is a separate production-certification input owned by ADMIN-008. This is a sequencing change, not a reduction in test rigor: no assertion is removed, weakened, skipped, or relabeled.
+Canonical CI run: `34783338419`.
 
-### Immediate execution sequence
+The CI run completed successfully for Static + Build, all required Browser FAST/DEEP shards, Certification, and CI/CD Trust. The immutable build and certification artifacts are preserved for this exact SHA.
 
-```text
-1. Resolve exact current main SHA
-2. Run the canonical targeted ADMIN-002 adapter proof
-3. Run the required canonical CI / affected contract graph
-4. Record exact SHA + CI + persistence evidence
-5. Close ADMIN-002
-6. Activate ADMIN-003 immediately
-7. Carry live deployment proof forward to ADMIN-008
-```
-
-Do not perform unrelated cleanup before ADMIN-002 closes. Do not wait for Vercel when repository proof is independently complete.
+The Vercel deployment attempt for this SHA was blocked by the external provider daily deployment quota (`api-deployments-free-per-day`). The CD workflow still produced and uploaded fail-closed deployment evidence. This does not reopen or block the ADMIN-002 repository closure; live deployed-SHA proof remains owned by ADMIN-008.
 
 ## 7. CD / deployment evidence repair
-
-The latest CD run `34781321580` reached a successful Vercel deployment, but the production-origin identity probe failed because the canonical alias did not report the promoted SHA during that verification window; the subsequent evidence upload also failed because the evidence file was created only after a successful identity assertion.
 
 Repair rule:
 
@@ -150,7 +140,7 @@ Repair rule:
 
 `cd.yml` was repaired on `main` at `81e121faad872426ad55aba1237423e8a5e8d923` to make deployment URL capture fail-safe, preserve observed deployment identity fields, retry the canonical alias within bounded limits, preserve the resulting evidence artifact, and keep the identity assertion fail-closed. The repair does not bypass canonical production identity.
 
-The current `main` SHA has no fresh workflow run visible yet; therefore this repair is not certified until canonical CI/CD evidence is produced for the exact SHA.
+The subsequent run `34783861373` verified the repaired evidence ordering: deployment was attempted, Vercel rejected it due to its daily deployment quota, the production identity check failed closed with `DEPLOYMENT_URL_MISSING`, and the evidence artifact was nevertheless successfully uploaded.
 
 ## 8. Historical repair memory
 
@@ -165,7 +155,7 @@ The current `main` SHA has no fresh workflow run visible yet; therefore this rep
 - Agent marker drift → repaired by `e19c494f…`; do not weaken validator.
 - Vercel duplicate deployment path → repaired by disabling `main` Git auto-deployment while retaining canonical artifact promotion in `.github/workflows/cd.yml`.
 - ADMIN-002 persistence proof → hardened by asserting exact write payload, server-to-Supabase auth boundary, operational fields, and metadata preservation in the canonical adapter test.
-- CD production identity → latest failure isolated to production identity verification/evidence ordering after a successful Vercel deployment attempt; bounded direct-deployment identity + evidence-preservation repair applied.
+- CD production identity → deployment URL/evidence ordering repaired; remaining live proof depends on provider availability.
 
 ## 9. Closed History
 
@@ -173,19 +163,21 @@ The current `main` SHA has no fresh workflow run visible yet; therefore this rep
 ARCH-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | BUILD-001 shared build boundary | Static+Build + Certification PASS | CLOSED
 AGENT-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | Persistent project gateway / marker protection | Static+Build + Certification PASS | CLOSED
 ADMIN-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | Fail-closed Admin server boundary | Full CI certification PASS | CLOSED
+ADMIN-002 | 2026-09-13 | 13da1202f44c6d314120d260ef65acf2fc69a7e9 | 34783338419 | Real persistence + evidence ledger | Full CI certification PASS; production write/read-back proven; Vercel deployment provider blocked only | CLOSED
 ```
 
 ## 10. Session handoff
 
 ```text
 LAST SESSION:
-  task         = ADMIN-002
-  status       = ACTIVE / REPO-CLOSURE LANE
-  entrySha     = b089bd0a4056b04a1376a979c726f33e47944189
-  exitSha      = 81e121faad872426ad55aba1237423e8a5e8d923
-  ciRun        = no fresh workflow evidence visible yet for 81e121fa…; prior proven certification remains 34771149429
-  blocker      = none for repository closure; live deployment identity is deferred to ADMIN-008
-  nextAction   = obtain fresh canonical CI proof for 81e121fa…, then close ADMIN-002 on exact-main evidence and activate ADMIN-003
+  task         = ADMIN-003
+  status       = ACTIVE
+  entrySha     = 13da1202f44c6d314120d260ef65acf2fc69a7e9
+  closureTask  = ADMIN-002
+  closureSha   = 13da1202f44c6d314120d260ef65acf2fc69a7e9
+  ciRun        = 34783338419
+  blocker      = none for ADMIN-003 repository execution; live deployment proof remains deferred to ADMIN-008
+  nextAction   = discovery-first inspection of existing Admin Truth / Command / Security / Contract / Operations / Incident surfaces; consolidate canonical ownership without creating duplicate engines
 ```
 
 ## 11. Agent start protocol
