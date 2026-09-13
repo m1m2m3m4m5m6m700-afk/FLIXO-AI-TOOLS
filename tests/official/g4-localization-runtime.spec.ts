@@ -93,7 +93,13 @@ async function serializeConsoleError(message: ConsoleMessageLike): Promise<strin
   for (const arg of message.args()) {
     try {
       const value = await arg.jsonValue();
-      if (typeof value === 'string') {
+      if (value && typeof value === 'object' && 'name' in value) {
+        const errorValue = value as { name?: unknown; message?: unknown; stack?: unknown };
+        const name = typeof errorValue.name === 'string' ? errorValue.name : 'Error';
+        const detail = typeof errorValue.message === 'string' ? errorValue.message : '';
+        const stack = typeof errorValue.stack === 'string' ? errorValue.stack : '';
+        parts.push([name, detail, stack].filter(Boolean).join(': '));
+      } else if (typeof value === 'string') {
         parts.push(value);
       } else if (value !== undefined) {
         try {
