@@ -1,11 +1,38 @@
 # Phase 2 Provenance Refresh
 
-Baseline: `main @ 7364956a4fee1d8a509bff9ed30ba1098e620e01`
+Status: BLOCKED / PROVENANCE RECHECKED
 
-The canonical FLIXO production deployment is `flixoai.vercel.app` with Vercel project `prj_FdFbUWMAZepEfvwhttAiLcYJqY0d` and production branch `main`.
+Exact repository state reviewed: `main @ a8b4153aa78c9deee9fd52625d9bf2dc16010f18`
 
-Production environment configuration now establishes the presence of the canonical database connection binding. The credential value is not recorded in source control or evidence.
+## Current proof
 
-Therefore the previous provider-provenance blocker is resolved. Phase 2 implementation remains open pending schema discovery, minimal persistence implementation, server-side read/write proof, fail-closed verification, and exact-SHA certification.
+The repository does not contain a proven production persistence implementation.
 
-The inactive connected Supabase project is not treated as production persistence.
+Observed repository facts:
+- No database/ORM dependency is present in `package.json`.
+- No canonical Supabase/Postgres/Drizzle connection path is established in repository code.
+- `.vercel/project.json` is absent.
+- `.env.example` exposes no production database binding variable.
+- The Admin server boundary remains fail-closed and does not invent a persistence provider.
+
+## Production control-plane recheck
+
+The connected Vercel team is `flexo1`. The available Vercel project listing returns no projects, and direct lookup of the historically documented project id `prj_FdFbUWMAZepEfvwhttAiLcYJqY0d` returns `404 Not Found`.
+
+The connected Supabase control plane exposes project `zrpsmgdrtwzrhkjwwujo`, but its status is `INACTIVE`. It is therefore not treated as FLIXO production persistence and no schema/write path is inferred from it.
+
+## Correction of prior record
+
+The earlier wording that production environment configuration "establishes the presence of the canonical database connection binding" is historical and is not currently re-provable from the connected production control plane. It must not be used as implementation authority.
+
+Current authority is the live control-plane result plus the repository state above.
+
+## Phase 2 execution state
+
+`ADMIN-002` remains blocked at provider provenance. No database, ORM, migration, parallel store, guessed binding, fake/in-memory production persistence, or Admin production write path is being created.
+
+## Required unblock proof
+
+`canonical production provider → production ownership → server binding (secret hidden) → schema discovery → minimal write → read-back → evidence/audit provenance → exact-SHA certification`
+
+Until that chain is proven, Phase 2 cannot advance to persistence implementation or GREEN certification.
