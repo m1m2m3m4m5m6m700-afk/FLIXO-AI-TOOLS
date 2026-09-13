@@ -3,8 +3,9 @@
 **This file is the first work gate for every agent.** Read it before implementation. It is the persistent memory of remaining work across sessions.
 
 Current execution branch: `main`
-Entry SHA after agent-gateway change: `992947a2ffcdb8f1faf66d4ae5edeacc39e365f3`
-Latest previously certified main candidate: `1c2b7e3df7cd28ff5491550ad02502019ea51007` (PR #675 build/lazy-chunk repair)
+Current exact main SHA: `f46b45cff8e9aa91fdeaa052e173711890b5067b`
+Latest previously certified main candidate before this session: `1c2b7e3df7cd28ff5491550ad02502019ea51007` (PR #675 build/lazy-chunk repair)
+Current verification run: GitHub Actions `34768321551` — `FLIXO Continuous Delivery` — `in_progress` at last observation.
 
 ## 1. Operating contract
 
@@ -23,8 +24,8 @@ Rules:
 
 | ID | Project | Status | Authority / contract | Exact state | Next deterministic action |
 |---|---|---|---|---|---|
-| ARCH-001 | Shared Build Boundary Contract — eliminate recurring lazy/shared chunk cycles | ACTIVE | Existing build gate + `package.json` | Main entry advanced to `992947a…`; implementation pending | Add post-build chunk-cycle/boundary validator inside existing `BUILD-001`; prove negative regression against the historical cycle shape; run canonical CI |
-| AGENT-001 | Persistent Agent Project Gateway | IMPLEMENTED / VERIFICATION PENDING | `AGENTS.md` + this file | `AGENTS.md` now directs agents to this file first | Verify exact-SHA CI; preserve this file as the first entry point |
+| ARCH-001 | Shared Build Boundary Contract — eliminate recurring lazy/shared chunk cycles | IMPLEMENTED / VERIFICATION PENDING | Existing build gate + `package.json` | Validator added as post-build enforcement in `BUILD-001`; current main `f46b45c…` | Consume run `34768321551`; inspect `BUILD-001` result and browser evidence; close only on exact-SHA proof |
+| AGENT-001 | Persistent Agent Project Gateway | IMPLEMENTED / VERIFICATION PENDING | `AGENTS.md` + `PROJECTS.md` | `AGENTS.md` now directs agents to this file first; task/session continuity fields defined | Verify exact-SHA CI; keep this file as first agent entry |
 | ADMIN-001 | Admin Control Plane Phase 0/1 verification | ACTIVE | `docs/ADMIN-CONTROL-PLANE-MASTER-PLAN.md` | Foundation/server boundary exist; production certification remains unproven | Verify exact SHA for auth/session/capability/fail-closed/server-secret/HTTP-method contracts; update Admin plan with evidence |
 | ADMIN-002 | Admin real persistence + evidence ledger | LOCKED | Admin master plan Phase 2 | Not proven connected to canonical production persistence | Execute only after ADMIN-001 exit proof; use one proven persistence path |
 | ADMIN-003 | Admin Truth/Command/Security/Contract/Operations/Incident centers | LOCKED | Admin master plan Phases 3–4 | Product modules defined; implementation not certified | Activate phase-by-phase only after persistence/evidence foundation is proven |
@@ -82,11 +83,11 @@ Shared → Pure Contract/Utility
 
 ### Enforcement decision
 
-Do not create a second CI gate. The existing production build assertion remains the owner. The boundary validator executes immediately after the build and fails `BUILD-001` when the emitted chunk graph contains a cycle involving a static edge or a lazy/shared chunk that resolves back into an entry path.
+No second CI gate was created. The existing production build assertion remains the owner. `scripts/ci/validate-build-chunk-boundaries.mjs` executes immediately after `vite build` and fails `BUILD-001` when the emitted chunk graph contains a dependency cycle containing a static edge.
 
 ### Exit proof
 
-`mechanism proven → validator fails on the forbidden graph shape → current build passes → browser regression passes → canonical exact-SHA CI passes`.
+`mechanism proven → validator fails on forbidden graph shape → current build passes → browser regression passes → canonical exact-SHA CI passes`.
 
 ## 4. ADMIN-001..008 — Admin Control Plane map
 
