@@ -16,13 +16,15 @@ const invoke = async ({ secret = SECRET, cookie = '', method = 'GET', query = {}
     end(value) { body = value; },
   };
 
-  await (await import('../api/admin/boundary.ts')).default(
-    { method, query, headers: { cookie, 'x-request-id': requestId } },
-    res,
-  );
-
-  if (previous === undefined) delete process.env.ADMIN_SESSION_SECRET;
-  else process.env.ADMIN_SESSION_SECRET = previous;
+  try {
+    await (await import('../api/admin/boundary.ts')).default(
+      { method, query, headers: { cookie, 'x-request-id': requestId } },
+      res,
+    );
+  } finally {
+    if (previous === undefined) delete process.env.ADMIN_SESSION_SECRET;
+    else process.env.ADMIN_SESSION_SECRET = previous;
+  }
 
   return { status: res.statusCode, headers, body: JSON.parse(body) };
 };
@@ -42,6 +44,16 @@ const invalid = await invoke({ cookie: `${sessionCookieName}=invalid.token` });
 assert.equal(invalid.status, 401);
 assert.equal(invalid.body.error.code, 'authentication_required');
 
+const tampered = `${session.slice(0, -1)}${session.endsWith('a') ? 'b' : 'a'}`;
+const tamperedResponse = await invoke({ cookie: `${sessionCookieName}=${tampered}` });
+assert.equal(tamperedResponse.status, 401);
+assert.equal(tamperedResponse.body.error.code, 'authentication_required');
+
+const expired = signAdminSession({ subject: 'expired-owner', capabilities: ['admin.read'], ttlSeconds: -1 }, SECRET);
+const expiredResponse = await invoke({ cookie: `${sessionCookieName}=${expired}` });
+assert.equal(expiredResponse.status, 401);
+assert.equal(expiredResponse.body.error.code, 'authentication_required');
+
 const unauthorized = await invoke({ cookie, query: { capability: 'users.manage' } });
 assert.equal(unauthorized.status, 403);
 assert.equal(unauthorized.body.error.code, 'capability_denied');
@@ -53,9 +65,14 @@ assert.equal(allowed.body.identity.subject, 'test-owner');
 assert.equal(allowed.body.authorization.decision, 'ALLOW');
 assert.equal(allowed.headers['X-Request-Id'], 'test-request-001');
 
+const generatedRequestId = await invoke({ cookie, requestId: '' });
+assert.equal(generatedRequestId.status, 200);
+assert.match(generatedRequestId.headers['X-Request-Id'], /^[0-9a-f-]{36}$/iu);
+assert.equal(generatedRequestId.body.correlationId, generatedRequestId.headers['X-Request-Id']);
+
 const wrongMethod = await invoke({ cookie, method: 'POST' });
 assert.equal(wrongMethod.status, 405);
 assert.equal(wrongMethod.body.error.code, 'method_not_allowed');
 assert.equal(wrongMethod.headers.Allow, 'GET');
 
-console.log('Admin server boundary contract tests passed: 6 fail-closed/authorization cases.');
+console.log('Admin server boundary contract tests passed: 9 fail-closed/authorization/correlation cases.');
