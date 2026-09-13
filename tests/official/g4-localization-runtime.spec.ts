@@ -82,37 +82,60 @@ async function snapshot(page: Page): Promise<Snapshot> {
   });
 }
 
+type ConsoleArgLike = {
+  jsonValue(): Promise<unknown>;
+  evaluate<R>(pageFunction: (value: unknown) => R): Promise<R>;
+};
+
 type ConsoleMessageLike = {
   type(): string;
   text(): string;
-  args(): Array<{ jsonValue(): Promise<unknown> }>;
+  args(): ConsoleArgLike[];
 };
 
-async function serializeConsoleError(message: ConsoleMessageLike): Promise<string> {
-  const parts: string[] = [];
-  for (const arg of message.args()) {
-    try {
-      const value = await arg.jsonValue();
-      if (value && typeof value === 'object' && 'name' in value) {
-        const errorValue = value as { name?: unknown; message?: unknown; stack?: unknown };
-        const name = typeof errorValue.name === 'string' ? errorValue.name : 'Error';
-        const detail = typeof errorValue.message === 'string' ? errorValue.message : '';
-        const stack = typeof errorValue.stack === 'string' ? errorValue.stack : '';
-        parts.push([name, detail, stack].filter(Boolean).join(': '));
-      } else if (typeof value === 'string') {
-        parts.push(value);
-      } else if (value !== undefined) {
-        try {
-          parts.push(JSON.stringify(value));
-        } catch {
-          parts.push(String(value));
-        }
-      }
-    } catch {
-      parts.push(String(arg));
+async function serializeConsoleArg(arg: ConsoleArgLike): Promise<string> {
+  try {
+    const value = await arg.jsonValue();
+    if (value && typeof value === 'object' && 'name' in value) {
+      const errorValue = value as { name?: unknown; message?: unknown; stack?: unknown };
+      const name = typeof errorValue.name === 'string' ? errorValue.name : 'Error';
+      const detail = typeof errorValue.message === 'string' ? errorValue.message : '';
+      const stack = typeof errorValue.stack === 'string' ? errorValue.stack : '';
+      return [name, detail, stack].filter(Boolean).join(': ');
     }
+    if (typeof value === 'string') return value;
+    if (value !== undefined) {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+  } catch {
+    // Firefox can fail to JSON-serialize some ConsoleMessage handles. Preserve the underlying value instead of emitting JSHandle@object.
   }
-  return parts.join(' ') || message.text();
+
+  try {
+    return await arg.evaluate((value) => {
+      if (value instanceof Error) {
+        return [value.name, value.message, value.stack].filter(Boolean).join(': ');
+      }
+      if (typeof value === 'string') return value;
+      if (value === undefined) return 'undefined';
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    });
+  } catch {
+    return 'unserializable console argument';
+  }
+}
+
+async function serializeConsoleError(message: ConsoleMessageLike): Promise<string> {
+  const parts = await Promise.all(message.args().map((arg) => serializeConsoleArg(arg)));
+  return parts.filter(Boolean).join(' ') || message.text();
 }
 
 test.describe.configure({ mode: 'parallel' });
