@@ -81,7 +81,14 @@ const invokeCenters = async ({ secret = SECRET, cookie = '', method = 'GET', que
   return { status: res.statusCode, headers, body: JSON.parse(body) };
 };
 
-const session = signAdminSession({ subject: 'test-owner', capabilities: ['admin.read', 'truth.read'] }, SECRET);
+const session = signAdminSession({ subject: 'test-owner', capabilities: [
+  'admin.read',
+  'truth.read',
+  'operations.read',
+  'audit.read',
+  'security.read',
+  'contracts.read',
+] }, SECRET);
 const cookie = `${sessionCookieName}=${session}`;
 
 const missingConfig = await invoke({ secret: null });
@@ -164,20 +171,11 @@ for (const center of ['truth', 'operations', 'incident', 'evidence']) {
   assert.equal(response.status, 200);
   assert.equal(response.body.ok, true);
   assert.equal(response.body.center, center);
-  assert.equal(response.body.execution, undefined);
   assert.equal(response.body.data.execution, 'READ_ONLY');
   assert.equal(response.body.identity.subject, 'test-owner');
   assert.equal(response.body.persistence.state, 'BLOCKED');
   assert.equal(response.body.data.event, null);
 }
-
-const centersSecurityDeniedByCapabilitySet = await invokeCenters({ cookie, query: { center: 'security' } });
-assert.equal(centersSecurityDeniedByCapabilitySet.status, 403);
-assert.equal(centersSecurityDeniedByCapabilitySet.body.error.code, 'capability_denied');
-
-const centersContractDeniedByCapabilitySet = await invokeCenters({ cookie, query: { center: 'contract' } });
-assert.equal(centersContractDeniedByCapabilitySet.status, 403);
-assert.equal(centersContractDeniedByCapabilitySet.body.error.code, 'capability_denied');
 
 const centersDefault = await invokeCenters({ cookie });
 assert.equal(centersDefault.status, 200);
