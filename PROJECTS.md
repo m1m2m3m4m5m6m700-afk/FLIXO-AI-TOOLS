@@ -6,11 +6,11 @@
 
 ```text
 BRANCH                 = main
-ACTUAL MAIN SHA        = 1a88d9b1f361d66c6f6034c7e8cfed41eb6de1a7
+ACTUAL MAIN SHA        = 2b6b704fc0daf238706b0a04b355c14f067c6716
 LAST PROVEN CI SHA     = b089bd0a4056b04a1376a979c726f33e47944189
 LAST PROVEN CI         = 34771149429
 LAST PROVEN RESULT     = SUCCESS
-CURRENT CODE NOTE      = main contains the Admin persistence adapter / overview probe and package/CI trust repairs; repository execution is not blocked by external Vercel deployment rate-limit failure, but production certification remains dependent on exact deployed-SHA evidence
+CURRENT CODE NOTE      = main contains the Admin persistence adapter / overview probe and package/CI trust repairs; Vercel main-branch Git auto-deployment is now disabled so production promotion has one canonical CD path; external Vercel rate-limit failure remains non-blocking for repository execution but blocks live deployed-SHA certification
 CURRENT MAP COMMIT     = this file's commit; it is documentation only
 ```
 
@@ -123,6 +123,7 @@ The Vercel provider condition does **not** stop independent engineering executio
 - Playwright evidence serialization → repaired; preserve object-level evidence.
 - Admin route closure conflict → repaired; do not weaken closure validator.
 - Agent marker drift → repaired by `e19c494f…`; do not weaken validator.
+- Vercel duplicate deployment path → repaired by disabling `main` Git auto-deployment while retaining canonical artifact promotion in `.github/workflows/cd.yml`.
 
 ## 8. Closed History
 
@@ -139,8 +140,8 @@ LAST SESSION:
   task         = ADMIN-002
   status       = ACTIVE / PROOF PENDING
   entrySha     = b089bd0a4056b04a1376a979c726f33e47944189
-  exitSha      = 1a88d9b1f361d66c6f6034c7e8cfed41eb6de1a7
-  ciRun        = current main includes fresh dependency/code repairs; provider status remains external
+  exitSha      = 2b6b704fc0daf238706b0a04b355c14f067c6716
+  ciRun        = current main includes fresh dependency/code and deployment-path repairs; provider status remains external
   blocker      = Vercel deployment rate limit (external; non-blocking for independent execution)
   nextAction   = continue independent tasks with satisfied prerequisites; close ADMIN-002 only when exact deployed-SHA evidence is available
 ```
