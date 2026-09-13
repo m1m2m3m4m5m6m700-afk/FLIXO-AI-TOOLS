@@ -110,7 +110,7 @@ jobs:
           test -n "$VERCEL_TOKEN"
           test "$VERCEL_ORG_ID" = "team_LgeIYyf9ERfG3gNswQO4MiPX"
           test "$VERCEL_PROJECT_ID" = "prj_FdFbUWMAZepEfvwhttAiLcYJqY0d"
-          if npx --yes vercel@latest deploy /tmp/artifact --prod \
+          if npx --yes vercel@59.16.0 deploy /tmp/artifact --prod \
             --token="$VERCEL_TOKEN" \
             --scope="$VERCEL_ORG_ID" \
             --yes; then
