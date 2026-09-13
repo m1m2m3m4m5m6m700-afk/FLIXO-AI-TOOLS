@@ -29,7 +29,33 @@ const invoke = async ({ secret = SECRET, cookie = '', method = 'GET', query = {}
   return { status: res.statusCode, headers, body: JSON.parse(body) };
 };
 
-const session = signAdminSession({ subject: 'test-owner', capabilities: ['admin.read'] }, SECRET);
+const invokeOverview = async ({ secret = SECRET, cookie = '', method = 'GET', requestId = 'overview-request-001' } = {}) => {
+  const previous = process.env.ADMIN_SESSION_SECRET;
+  if (secret === null) delete process.env.ADMIN_SESSION_SECRET;
+  else process.env.ADMIN_SESSION_SECRET = secret;
+
+  const headers = {};
+  let body;
+  const res = {
+    statusCode: 200,
+    setHeader(name, value) { headers[name] = value; },
+    end(value) { body = value; },
+  };
+
+  try {
+    await (await import('../api/admin/overview.ts')).default(
+      { method, headers: { cookie, 'x-request-id': requestId } },
+      res,
+    );
+  } finally {
+    if (previous === undefined) delete process.env.ADMIN_SESSION_SECRET;
+    else process.env.ADMIN_SESSION_SECRET = previous;
+  }
+
+  return { status: res.statusCode, headers, body: JSON.parse(body) };
+};
+
+const session = signAdminSession({ subject: 'test-owner', capabilities: ['admin.read', 'truth.read'] }, SECRET);
 const cookie = `${sessionCookieName}=${session}`;
 
 const missingConfig = await invoke({ secret: null });
@@ -77,4 +103,23 @@ assert.equal(wrongMethod.status, 405);
 assert.equal(wrongMethod.body.error.code, 'method_not_allowed');
 assert.equal(wrongMethod.headers.Allow, 'GET');
 
-console.log('Admin server boundary contract tests passed: 9 fail-closed/authorization/correlation cases.');
+const overviewUnauthenticated = await invokeOverview();
+assert.equal(overviewUnauthenticated.status, 401);
+assert.equal(overviewUnauthenticated.body.error.code, 'authentication_required');
+
+const overviewDenied = await invokeOverview({ cookie: `${sessionCookieName}=${signAdminSession({ subject: 'analyst', capabilities: ['admin.read'] }, SECRET)}` });
+assert.equal(overviewDenied.status, 403);
+assert.equal(overviewDenied.body.error.code, 'capability_denied');
+
+const overviewAllowed = await invokeOverview({ cookie });
+assert.equal(overviewAllowed.status, 200);
+assert.equal(overviewAllowed.body.ok, true);
+assert.equal(overviewAllowed.body.source, 'admin-control-plane-foundation');
+assert.equal(overviewAllowed.body.truth.state, 'UNAVAILABLE');
+assert.equal(overviewAllowed.body.persistence.state, 'BLOCKED');
+assert.equal(overviewAllowed.body.identity.subject, 'test-owner');
+assert.equal(overviewAllowed.body.modules.length, 10);
+assert.equal(overviewAllowed.body.capabilities.length, 8);
+assert.equal(overviewAllowed.headers['X-Request-Id'], 'overview-request-001');
+
+console.log('Admin server boundary contract tests passed: 12 fail-closed/authorization/correlation/overview cases.');
