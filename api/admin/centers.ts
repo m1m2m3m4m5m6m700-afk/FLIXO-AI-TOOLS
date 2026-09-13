@@ -1,0 +1,84 @@
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import { authorizeAdminRequest } from './boundary.ts';
+import { getEvent, isPersistenceConfigured, probePersistence } from './persistence.ts';
+
+const CENTER_CAPABILITY = {
+  truth: 'truth.read',
+  operations: 'operations.read',
+  incident: 'operations.read',
+  evidence: 'audit.read',
+  security: 'security.read',
+  contract: 'contracts.read',
+} as const;
+
+type Center = keyof typeof CENTER_CAPABILITY;
+
+type AdminRequest = IncomingMessage & { method?: string; query?: Record<string, string | string[] | undefined> };
+
+const json = (res: ServerResponse, status: number, body: unknown, correlationId: string) => {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Request-Id', correlationId);
+  res.end(JSON.stringify(body));
+};
+
+const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
+
+export default async function adminCenters(req: AdminRequest, res: ServerResponse) {
+  const centerValue = first(req.query?.center)?.trim().toLowerCase() as Center | undefined;
+  const center = centerValue && centerValue in CENTER_CAPABILITY ? centerValue : 'truth';
+  const authorization = authorizeAdminRequest(req, CENTER_CAPABILITY[center]);
+
+  if ('status' in authorization) {
+    if (authorization.status === 405) res.setHeader('Allow', 'GET');
+    return json(res, authorization.status, { ok: false, error: { code: authorization.code, correlationId: authorization.correlationId } }, authorization.correlationId);
+  }
+
+  let persistence: { state: 'CONNECTED' | 'BLOCKED'; reason: string; table?: string };
+  if (!isPersistenceConfigured()) {
+    persistence = { state: 'BLOCKED', reason: 'supabase_server_binding_missing' };
+  } else {
+    try {
+      const probe = await probePersistence();
+      persistence = { state: 'CONNECTED', reason: 'canonical_persistence_reachable', table: probe.table };
+    } catch {
+      persistence = { state: 'BLOCKED', reason: 'canonical_persistence_unreachable' };
+    }
+  }
+
+  const eventId = first(req.query?.eventId);
+  let event: Awaited<ReturnType<typeof getEvent>> | undefined;
+  if (eventId && (center === 'truth' || center === 'incident' || center === 'evidence')) {
+    try {
+      event = await getEvent(eventId);
+    } catch {
+      return json(res, 503, { ok: false, error: { code: 'evidence_source_unavailable', correlationId: authorization.correlationId } }, authorization.correlationId);
+    }
+  }
+
+  const sourceState = persistence.state === 'CONNECTED' ? 'AVAILABLE' : 'UNAVAILABLE';
+  return json(res, 200, {
+    ok: true,
+    source: 'admin-control-plane-read-model',
+    center,
+    capability: authorization.capability,
+    identity: { subject: authorization.subject },
+    truth: {
+      state: sourceState,
+      productionConnected: persistence.state === 'CONNECTED',
+      reason: persistence.reason,
+    },
+    persistence,
+    data: {
+      event: event ?? null,
+      eventLookup: eventId ? (event === null ? 'NOT_FOUND' : 'READ_BACK') : 'NOT_REQUESTED',
+      execution: 'READ_ONLY',
+    },
+    provenance: {
+      exactSha: process.env.VERCEL_GIT_COMMIT_SHA ?? 'unavailable',
+      environment: process.env.VERCEL_ENV ?? 'unknown',
+    },
+    correlationId: authorization.correlationId,
+  }, authorization.correlationId);
+}
