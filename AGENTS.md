@@ -2,6 +2,8 @@
 
 **FIRST READ: `PROJECTS.md`**
 
+**MANDATORY ENTRY TITLE:** `PROJECTS.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTE ON MAIN → TARGETED REGRESSION → VERIFY → EXACT-SHA PROOF → HANDOFF.
+
 `PROJECTS.md` is the persistent task gateway and session-to-session work map. It MUST be read before the protocol files below so an agent enters through the current authorized work scope rather than inventing a new task.
 
 ## READ-BEFORE-ACTION
