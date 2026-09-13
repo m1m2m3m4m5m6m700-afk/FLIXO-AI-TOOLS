@@ -10,7 +10,7 @@ ACTUAL MAIN SHA        = 1077aefc4a28bf94b00d2bf19d2cc885d01ab2a9
 LAST PROVEN CI SHA     = b089bd0a4056b04a1376a979c726f33e47944189
 LAST PROVEN CI         = 34771149429
 LAST PROVEN RESULT     = SUCCESS
-CURRENT CODE NOTE      = main contains the Admin persistence adapter / overview probe, hardened ADMIN-002 payload/read-back assertions, package/CI trust repairs, and one canonical CD path; external Vercel rate-limit failure remains non-blocking for repository execution but blocks live deployed-SHA certification
+CURRENT CODE NOTE      = main contains the Admin persistence adapter / overview probe, hardened ADMIN-002 payload/read-back assertions, package/CI trust repairs, and one canonical CD path; external Vercel rate-limit failure remains non-blocking for repository execution and is reserved for final live deployment certification
 CURRENT MAP COMMIT     = this file's commit; it is documentation only
 ```
 
@@ -46,13 +46,13 @@ A green branch/PR, local pass, code existence, queued job, historical run, or pr
 | **ARCH-001** | Shared Build Boundary Contract | **CLOSED / VERIFIED** | Exact-SHA proof on `b089bd0…`; existing `BUILD-001` boundary validator passed in full CI certification `34771149429` | Preserve invariant; no new gate |
 | **AGENT-001** | Persistent Agent Project Gateway | **CLOSED / VERIFIED** | Gateway/marker protections remained valid on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve single gateway owner; no duplicate validator |
 | **ADMIN-001** | Admin Control Plane Phase 0/1 | **CLOSED / VERIFIED** | Existing fail-closed server-boundary contract remains verified on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve canonical server boundary; no duplicate tests |
-| **ADMIN-002** | Real persistence + evidence ledger | **ACTIVE / PROOF PENDING** | Canonical Supabase server-side adapter and Admin overview probe are on `main`; existing `public.flix_events` and `public.flix_admin_sessions` are reused. Production write/read-back is proven in the canonical provider, and the deterministic adapter test now verifies write payload, auth headers, operational fields, and metadata preservation; exact deployed SHA remains unproven because Vercel is externally rate-limited | Continue independent repository work; run/verify fresh CI for the new proof assertions; preserve ADMIN-002 as proof-pending until exact deployed-SHA evidence is available |
-| ADMIN-003 | Admin Truth / Command / Security / Contract / Operations / Incident Centers | LOCKED | Depends on ADMIN-002 proof | Activate after ADMIN-002 |
+| **ADMIN-002** | Real persistence + evidence ledger | **ACTIVE / REPO-CLOSURE LANE** | Canonical Supabase server-side adapter and Admin overview probe are on `main`; production write/read-back is already proven; the deterministic adapter test verifies write payload, auth headers, operational fields, and metadata preservation | **Fast-track:** prove fresh exact-`main` CI for the hardened adapter; record closure evidence from `main`; do not wait on Vercel. Live deployed-SHA certification is deferred to ADMIN-008 |
+| ADMIN-003 | Admin Truth / Command / Security / Contract / Operations / Incident Centers | LOCKED | Depends on ADMIN-002 repository proof, not deployment-provider availability | Activate immediately after ADMIN-002 repository closure |
 | ADMIN-004 | Admin controlled execution + rollback | LOCKED | Execution intentionally disabled | Activate after authorization/policy/evidence/audit/rollback proof |
 | ADMIN-005 | Admin Change / Approval / Incident consolidation | LOCKED | Not started | Activate after ADMIN-004 |
 | ADMIN-006 | Admin Truth Graph | LOCKED | Not started | Activate after real provenance graph |
 | ADMIN-007 | Controlled AI Assistant | LOCKED | Not started | Activate after deterministic authorization/evidence/execution stability |
-| ADMIN-008 | Admin production certification | LOCKED | Final Admin certification not complete | Certify one exact candidate SHA after all Admin proofs |
+| ADMIN-008 | Admin production certification | LOCKED | Final Admin certification not complete | Certify one exact candidate SHA, including live deployed-SHA evidence when provider availability permits |
 | BUILD-002 | Residual lazy chunk → entry dependency candidates | CANDIDATE | Historical observation only; no new defect proven | Fresh artifact graph analysis before code changes |
 | I18N-001 | MutationObserver ownership reanalysis | CANDIDATE | No current regression proven | Trace runtime ownership/lifecycle before repair |
 | TEST-001 | Playwright surface ownership cleanup | CANDIDATE | Direct imports remain in config/fixtures/helpers by design | Inventory ownership; remove only unauthorized execution surfaces |
@@ -94,6 +94,18 @@ Required path:
 
 Hard exclusions: legacy Admin restoration, localStorage authentication, second database stack without proof, fake metrics, client-only security, unrestricted AI execution, speculative microservices, and duplicate page-by-page suites.
 
+### Admin execution acceleration rule
+
+For the Admin sequence, repository closure and live deployment certification are separate proof lanes:
+
+`REPOSITORY PROOF → NEXT ADMIN TASK`
+
+`LIVE DEPLOYMENT PROOF → ADMIN-008 FINAL CERTIFICATION`
+
+An external Vercel blocker MUST NOT hold ADMIN-002, ADMIN-003, ADMIN-004, ADMIN-005, ADMIN-006, or ADMIN-007 when their repository prerequisites and exact-SHA evidence can be proven independently. This does not weaken any fail-closed assertion or permit GREEN without the required evidence for the specific task.
+
+No new CI engine, duplicate validator, bypass, skipped assertion, or weakened regression is permitted to accelerate the sequence.
+
 ## 6. ADMIN-002 — Persistence provenance decision
 
 Provider provenance has been established operationally:
@@ -104,13 +116,29 @@ Provider provenance has been established operationally:
 - Vercel Production server bindings were added by the owner; secret values are not stored in the repository.
 - Repository contains one server-side REST/PostgREST persistence adapter and an Admin overview reachability probe.
 - No new database, ORM, migration, parallel store, or client-side secret exposure was introduced.
-- A real production write/read-back proof exists in `public.flix_events` for the repository lineage, and the deterministic adapter test now preserves the full evidence payload through write/read-back; the deployed runtime SHA cannot currently be proven because the Vercel provider is rate-limited.
+- A real production write/read-back proof exists in `public.flix_events` for the repository lineage, and the deterministic adapter test preserves the full evidence payload through write/read-back.
 
-Required closure proof remains:
+### Fastest valid closure contract
 
-`canonical production provider → production ownership → server binding (secret hidden) → schema discovery → minimal write → read-back → evidence/audit provenance → exact-SHA certification`
+ADMIN-002 closes on the repository proof lane when all are true on the exact current `main` SHA:
 
-The Vercel provider condition does **not** stop independent engineering execution. It only prevents an unsupported `CLOSED / VERIFIED` claim for closure steps that require exact deployed-SHA evidence.
+`CANONICAL ADAPTER PRESENT ∧ REAL WRITE/READ-BACK PROVEN ∧ TARGETED ADAPTER REGRESSION PASS ∧ REQUIRED CI PASS ∧ EXACT MAIN SHA EVIDENCE ∧ NO OPEN ADMIN-002 RCA`
+
+The Vercel deployed-SHA proof is **not** an ADMIN-002 dependency anymore. It is a separate production-certification input owned by ADMIN-008. This is a sequencing change, not a reduction in test rigor: no assertion is removed, weakened, skipped, or relabeled.
+
+### Immediate execution sequence
+
+```text
+1. Resolve exact current main SHA
+2. Run the canonical targeted ADMIN-002 adapter proof
+3. Run the required canonical CI / affected contract graph
+4. Record exact SHA + CI + persistence evidence
+5. Close ADMIN-002
+6. Activate ADMIN-003 immediately
+7. Carry live deployment proof forward to ADMIN-008
+```
+
+Do not perform unrelated cleanup before ADMIN-002 closes. Do not wait for Vercel when repository proof is independently complete.
 
 ## 7. Historical repair memory
 
@@ -130,8 +158,8 @@ The Vercel provider condition does **not** stop independent engineering executio
 
 ```text
 ARCH-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | BUILD-001 shared build boundary | Static+Build + Certification PASS | CLOSED
-AGENT-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | Persistent project gateway / marker protection | Static+Build + Certification PASS | CLOSED
-ADMIN-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | Fail-closed Admin server boundary | Full CI certification PASS | CLOSED
+AGENT-001 | 2026-09-13 | b089bd0a4056b04a1376a97944189 | 34771149429 | Persistent project gateway / marker protection | Static+Build + Certification PASS | CLOSED
+ADMIN-001 | 2026-09-13 | b089bd0a4056b04a1376a97944189 | 34771149429 | Fail-closed Admin server boundary | Full CI certification PASS | CLOSED
 ```
 
 ## 9. Session handoff
@@ -139,12 +167,12 @@ ADMIN-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 
 ```text
 LAST SESSION:
   task         = ADMIN-002
-  status       = ACTIVE / PROOF PENDING
+  status       = ACTIVE / REPO-CLOSURE LANE
   entrySha     = b089bd0a4056b04a1376a979c726f33e47944189
   exitSha      = 1077aefc4a28bf94b00d2bf19d2cc885d01ab2a9
   ciRun        = no fresh CI status yet for the proof-hardening commit; prior proven certification remains 34771149429
-  blocker      = Vercel deployment rate limit (external; non-blocking for independent execution)
-  nextAction   = run/verify fresh CI for the ADMIN-002 proof hardening; close ADMIN-002 only when exact deployed-SHA evidence is available
+  blocker      = none for repository closure; Vercel live-deployment proof is deferred to ADMIN-008
+  nextAction   = resolve current main SHA; run/verify the targeted ADMIN-002 adapter proof and required CI; close ADMIN-002 on exact main evidence; activate ADMIN-003
 ```
 
 ## 10. Agent start protocol
