@@ -24,15 +24,15 @@ if (jsFiles.length === 0) {
 
 const files = new Set(jsFiles);
 const graph = new Map(jsFiles.map((file) => [file, []]));
-const internalRef = /(?:\bfrom\s*|\bimport\s*\(\s*)["']([^"']+)["']/g;
+const staticFromRef = /\bfrom\s*["']([^"']+)["']/g;
+const staticImportRef = /\bimport\s*["']([^"']+)["']/g;
 const dynamicRef = /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g;
 
 function resolveInternal(fromFile, reference) {
   if (!reference.startsWith('.')) return null;
   const path = posix.normalize(posix.join(posix.dirname(fromFile), reference));
   const normalized = path.startsWith('./') ? path.slice(2) : path;
-  if (files.has(normalized)) return normalized;
-  return null;
+  return files.has(normalized) ? normalized : null;
 }
 
 for (const file of jsFiles) {
@@ -40,36 +40,30 @@ for (const file of jsFiles) {
   const edges = [];
   const seen = new Set();
 
-  for (const match of source.matchAll(internalRef)) {
-    const target = resolveInternal(file, match[1]);
-    if (!target) continue;
-    const key = `static:${target}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    edges.push({ target, kind: 'static' });
-  }
+  const addEdges = (matches, kind) => {
+    for (const match of matches) {
+      const target = resolveInternal(file, match[1]);
+      if (!target) continue;
+      const key = `${kind}:${target}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edges.push({ target, kind });
+    }
+  };
 
-  for (const match of source.matchAll(dynamicRef)) {
-    const target = resolveInternal(file, match[1]);
-    if (!target) continue;
-    const key = `dynamic:${target}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    edges.push({ target, kind: 'dynamic' });
-  }
+  addEdges(source.matchAll(staticFromRef), 'static');
+  addEdges(source.matchAll(staticImportRef), 'static');
+  addEdges(source.matchAll(dynamicRef), 'dynamic');
 
   graph.set(file, edges);
 }
 
 const state = new Map(jsFiles.map((file) => [file, 0]));
 const stack = [];
-const edgeStack = [];
 const cycles = [];
 
 function visit(node) {
-  const current = state.get(node);
-  if (current === 2) return;
-  if (current === 1) return;
+  if (state.get(node) === 2) return;
 
   state.set(node, 1);
   stack.push(node);
@@ -100,8 +94,7 @@ for (const file of jsFiles) visit(file);
 const uniqueCycles = [];
 const cycleKeys = new Set();
 for (const cycle of cycles) {
-  const hasStatic = cycle.edges.some((edge) => edge.kind === 'static');
-  if (!hasStatic) continue;
+  if (!cycle.edges.some((edge) => edge.kind === 'static')) continue;
   const key = [...cycle.nodes].sort().join('|');
   if (cycleKeys.has(key)) continue;
   cycleKeys.add(key);
