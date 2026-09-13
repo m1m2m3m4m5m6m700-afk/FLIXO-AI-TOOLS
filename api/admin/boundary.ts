@@ -20,6 +20,18 @@ type Session = {
   capabilities: Set<string>;
 };
 
+export type AdminAuthorization = {
+  subject: string;
+  capability: string;
+  correlationId: string;
+};
+
+export type AdminAuthorizationFailure = {
+  status: 401 | 403 | 405 | 503;
+  code: string;
+  correlationId: string;
+};
+
 const json = (res: ServerResponse, status: number, body: unknown, correlationId: string) => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -80,37 +92,50 @@ const readCookie = (cookieHeader: string | undefined, name: string) => {
   return null;
 };
 
-export default async function adminBoundary(req: AdminRequest, res: ServerResponse) {
+export const authorizeAdminRequest = (req: AdminRequest, requiredCapability = 'admin.read'): AdminAuthorization | AdminAuthorizationFailure => {
   const suppliedRequestId = req.headers['x-request-id'];
   const correlationId = typeof suppliedRequestId === 'string' && suppliedRequestId.trim().length <= 128 && suppliedRequestId.trim().length > 0 ? suppliedRequestId : randomUUID();
   const method = String(req.method ?? 'GET').toUpperCase();
 
-  console.info(JSON.stringify({ event: 'admin_boundary_request', correlationId, method }));
-
-  if (method !== 'GET') {
-    res.setHeader('Allow', 'GET');
-    return errorResponse(res, 405, 'method_not_allowed', correlationId);
-  }
+  if (method !== 'GET') return { status: 405, code: 'method_not_allowed', correlationId };
 
   const secret = sessionSecret();
-  if (!secret) return errorResponse(res, 503, 'server_configuration_unavailable', correlationId);
+  if (!secret) return { status: 503, code: 'server_configuration_unavailable', correlationId };
 
   const token = readCookie(req.headers.cookie, SESSION_COOKIE);
   const session = verifyAdminSession(token, secret);
-  if (!session) return errorResponse(res, 401, 'authentication_required', correlationId);
+  if (!session) return { status: 401, code: 'authentication_required', correlationId };
 
-  const requestedCapabilityValue = req.query?.capability;
-  const requestedCapability = Array.isArray(requestedCapabilityValue) ? requestedCapabilityValue[0] : requestedCapabilityValue ?? 'admin.read';
-  if (!requestedCapability || !session.capabilities.has(requestedCapability)) {
-    return errorResponse(res, 403, 'capability_denied', correlationId);
+  if (!requiredCapability || !session.capabilities.has(requiredCapability)) {
+    return { status: 403, code: 'capability_denied', correlationId };
+  }
+
+  return {
+    subject: session.subject,
+    capability: requiredCapability,
+    correlationId,
+  };
+};
+
+export default async function adminBoundary(req: AdminRequest, res: ServerResponse) {
+  const authorization = authorizeAdminRequest(req, (() => {
+    const requestedCapabilityValue = req.query?.capability;
+    return Array.isArray(requestedCapabilityValue) ? requestedCapabilityValue[0] : requestedCapabilityValue ?? 'admin.read';
+  })());
+
+  console.info(JSON.stringify({ event: 'admin_boundary_request', correlationId: authorization.correlationId, method: String(req.method ?? 'GET').toUpperCase() }));
+
+  if ('status' in authorization) {
+    if (authorization.status === 405) res.setHeader('Allow', 'GET');
+    return errorResponse(res, authorization.status, authorization.code, authorization.correlationId);
   }
 
   return json(res, 200, {
     ok: true,
-    identity: { subject: session.subject },
-    authorization: { capability: requestedCapability, decision: 'ALLOW' },
-    correlationId,
-  }, correlationId);
+    identity: { subject: authorization.subject },
+    authorization: { capability: authorization.capability, decision: 'ALLOW' },
+    correlationId: authorization.correlationId,
+  }, authorization.correlationId);
 }
 
 export const sessionCookieName = SESSION_COOKIE;
