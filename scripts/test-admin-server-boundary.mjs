@@ -55,6 +55,32 @@ const invokeOverview = async ({ secret = SECRET, cookie = '', method = 'GET', re
   return { status: res.statusCode, headers, body: JSON.parse(body) };
 };
 
+const invokeCenters = async ({ secret = SECRET, cookie = '', method = 'GET', query = {}, requestId = 'centers-request-001' } = {}) => {
+  const previous = process.env.ADMIN_SESSION_SECRET;
+  if (secret === null) delete process.env.ADMIN_SESSION_SECRET;
+  else process.env.ADMIN_SESSION_SECRET = secret;
+
+  const headers = {};
+  let body;
+  const res = {
+    statusCode: 200,
+    setHeader(name, value) { headers[name] = value; },
+    end(value) { body = value; },
+  };
+
+  try {
+    await (await import('../api/admin/centers.ts')).default(
+      { method, query, headers: { cookie, 'x-request-id': requestId } },
+      res,
+    );
+  } finally {
+    if (previous === undefined) delete process.env.ADMIN_SESSION_SECRET;
+    else process.env.ADMIN_SESSION_SECRET = previous;
+  }
+
+  return { status: res.statusCode, headers, body: JSON.parse(body) };
+};
+
 const session = signAdminSession({ subject: 'test-owner', capabilities: ['admin.read', 'truth.read'] }, SECRET);
 const cookie = `${sessionCookieName}=${session}`;
 
@@ -122,4 +148,55 @@ assert.equal(overviewAllowed.body.modules.length, 10);
 assert.equal(overviewAllowed.body.capabilities.length, 8);
 assert.equal(overviewAllowed.headers['X-Request-Id'], 'overview-request-001');
 
-console.log('Admin server boundary contract tests passed: 12 fail-closed/authorization/correlation/overview cases.');
+const centersUnauthenticated = await invokeCenters({ query: { center: 'truth' } });
+assert.equal(centersUnauthenticated.status, 401);
+assert.equal(centersUnauthenticated.body.error.code, 'authentication_required');
+
+const centersDenied = await invokeCenters({
+  cookie: `${sessionCookieName}=${signAdminSession({ subject: 'analyst', capabilities: ['admin.read'] }, SECRET)}`,
+  query: { center: 'security' },
+});
+assert.equal(centersDenied.status, 403);
+assert.equal(centersDenied.body.error.code, 'capability_denied');
+
+for (const center of ['truth', 'operations', 'incident', 'evidence']) {
+  const response = await invokeCenters({ cookie, query: { center } });
+  assert.equal(response.status, 200);
+  assert.equal(response.body.ok, true);
+  assert.equal(response.body.center, center);
+  assert.equal(response.body.execution, undefined);
+  assert.equal(response.body.data.execution, 'READ_ONLY');
+  assert.equal(response.body.identity.subject, 'test-owner');
+  assert.equal(response.body.persistence.state, 'BLOCKED');
+  assert.equal(response.body.data.event, null);
+}
+
+const centersSecurityDeniedByCapabilitySet = await invokeCenters({ cookie, query: { center: 'security' } });
+assert.equal(centersSecurityDeniedByCapabilitySet.status, 403);
+assert.equal(centersSecurityDeniedByCapabilitySet.body.error.code, 'capability_denied');
+
+const centersContractDeniedByCapabilitySet = await invokeCenters({ cookie, query: { center: 'contract' } });
+assert.equal(centersContractDeniedByCapabilitySet.status, 403);
+assert.equal(centersContractDeniedByCapabilitySet.body.error.code, 'capability_denied');
+
+const centersDefault = await invokeCenters({ cookie });
+assert.equal(centersDefault.status, 200);
+assert.equal(centersDefault.body.center, 'truth');
+assert.equal(centersDefault.body.data.execution, 'READ_ONLY');
+assert.equal(centersDefault.headers['X-Request-Id'], 'centers-request-001');
+
+const securitySession = signAdminSession({ subject: 'security-owner', capabilities: ['security.read'] }, SECRET);
+const securityResponse = await invokeCenters({ cookie: `${sessionCookieName}=${securitySession}`, query: { center: 'security' } });
+assert.equal(securityResponse.status, 200);
+assert.equal(securityResponse.body.center, 'security');
+assert.equal(securityResponse.body.capability, 'security.read');
+assert.equal(securityResponse.body.data.execution, 'READ_ONLY');
+
+const contractSession = signAdminSession({ subject: 'contract-owner', capabilities: ['contracts.read'] }, SECRET);
+const contractResponse = await invokeCenters({ cookie: `${sessionCookieName}=${contractSession}`, query: { center: 'contract' } });
+assert.equal(contractResponse.status, 200);
+assert.equal(contractResponse.body.center, 'contract');
+assert.equal(contractResponse.body.capability, 'contracts.read');
+assert.equal(contractResponse.body.data.execution, 'READ_ONLY');
+
+console.log('Admin server boundary contract tests passed: 25 fail-closed/authorization/correlation/overview/read-model cases.');
