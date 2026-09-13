@@ -15,7 +15,6 @@ concurrency:
   group: flixo-cd-${{ github.event.workflow_run.head_sha || inputs.sha || github.run_id }}
   cancel-in-progress: false
 
-authorizations: {}
 permissions:
   contents: read
   actions: read
