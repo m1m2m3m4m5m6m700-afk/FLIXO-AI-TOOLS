@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import * as Accordion from '@radix-ui/react-accordion';
 import { ChevronDown, Minus, Plus, RotateCcw } from 'lucide-react';
+import { getToolUiCopy } from '../../data/tool-ui-i18n';
 import { signedValue } from './studio-utils';
 
 type Icon = ComponentType<{ className?: string }>;
@@ -40,6 +41,7 @@ export function StudioSlider({ label, code, icon: Icon, value, defaultValue, min
   const zeroPercentage = min < 0 && max > 0 ? ((0 - min) / range) * 100 : null;
   const dirty = value !== defaultValue;
   const accessibleLabel = getAccessibleSliderLabel(label);
+  const copy = getToolUiCopy();
 
   return (
     <div className="group rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.035] to-white/[0.012] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] transition duration-200 hover:border-indigo-300/10 hover:from-white/[0.05] hover:to-white/[0.018]">
@@ -58,10 +60,10 @@ export function StudioSlider({ label, code, icon: Icon, value, defaultValue, min
               {description ? <p className="mt-1 max-w-[28rem] text-[10px] leading-4 text-zinc-500">{description}</p> : null}
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              <span className={`min-w-16 rounded-lg border px-2 py-1.5 text-center font-mono text-[11px] font-semibold tabular-nums ${dirty ? 'border-indigo-400/25 bg-indigo-500/10 text-indigo-100' : 'border-white/[0.06] bg-zinc-950/90 text-zinc-400'}`} aria-label={`${accessibleLabel} value`}>
+              <span className={`min-w-16 rounded-lg border px-2 py-1.5 text-center font-mono text-[11px] font-semibold tabular-nums ${dirty ? 'border-indigo-400/25 bg-indigo-500/10 text-indigo-100' : 'border-white/[0.06] bg-zinc-950/90 text-zinc-400'}`} aria-label={accessibleLabel}>
                 {signedValue(value, unit)}
               </span>
-              <button type="button" onClick={() => onChange(defaultValue)} disabled={!dirty || disabled} aria-label={`Reset ${label}`} className="flex size-8 items-center justify-center rounded-lg text-zinc-700 transition hover:bg-white/[0.06] hover:text-zinc-200 disabled:pointer-events-none disabled:opacity-0">
+              <button type="button" onClick={() => onChange(defaultValue)} disabled={!dirty || disabled} aria-label={`${copy.reset} ${label}`} className="flex size-8 items-center justify-center rounded-lg text-zinc-700 transition hover:bg-white/[0.06] hover:text-zinc-200 disabled:pointer-events-none disabled:opacity-0">
                 <RotateCcw className="size-3" />
               </button>
             </div>
@@ -72,7 +74,7 @@ export function StudioSlider({ label, code, icon: Icon, value, defaultValue, min
                 <span className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500/80 via-violet-400/75 to-cyan-300/90" style={{ width: `${percentage}%` }} />
               </div>
               {zeroPercentage !== null ? <span aria-hidden="true" className="pointer-events-none absolute top-1/2 z-10 h-4 w-px -translate-y-1/2 bg-white/30" style={{ left: `${zeroPercentage}%` }} /> : null}
-              <input type="range" value={value} min={min} max={max} step={step} onChange={(event) => onChange(Number(event.target.value))} disabled={disabled} aria-label={accessibleLabel} className="relative z-20 h-6 w-full cursor-pointer appearance-none bg-transparent accent-indigo-400 outline-none disabled:cursor-not-allowed disabled:opacity-50 [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:mt-[-6px] [&::-webkit-slider-thumb]:h-[18px] [&::-webkit-slider-thumb]:w-[18px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-white/80 [&::-webkit-slider-thumb]:bg-zinc-950 [&::-webkit-slider-thumb]:shadow-[0_0_0_3px_rgba(99,102,241,0.12),0_4px_14px_rgba(0,0,0,0.6)] [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:h-[18px] [&::-moz-range-thumb]:w-[18px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-white/80 [&::-moz-range-thumb]:bg-zinc-950 [&::-moz-range-thumb]:shadow-[0_0_0_3px_rgba(99,102,241,0.12),0_4px_14px_rgba(0,0,0,0.6)] focus-visible:ring-2 focus-visible:ring-indigo-400/70" />
+              <input type="range" value={value} min={min} max={max} step={step} onChange={(event) => onChange(Number(event.target.value))} disabled={disabled} aria-label={accessibleLabel} className="relative z-20 h-6 w-full cursor-pointer appearance-none bg-transparent accent-indigo-400 outline-none disabled:cursor-not-allowed disabled:opacity-50 [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:mt-[-6px] [&::-webkit-slider-thumb]:h-[18px] [&::-webkit-slider-thumb]:w-[18px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-white/80 [&::-webkit-slider-thumb]:bg-zinc-950 [&::-webkit-slider-thumb]:shadow-[0_0_0_3px_rgba(99,102,241,0.12),0_4px_14px_rgba(0,0,0,0.6)] [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:h-[18px] [&::-moz-range-thumb]:w-[18px] [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-white/80 [&::-moz-range-thumb]:bg-zinc-950 [&::-moz-range-thumb]:shadow-[0_0_0_3px_rgba(99,102,241,0.12),0_4px_14px_rgba(0,0,0,0.6)] focus-visible:ring-2 focus-visible:ring-indigo-400/70" />
             </div>
             <div className="mt-1 flex items-center justify-between font-mono text-[8px] uppercase tracking-[0.14em] text-zinc-600"><span>{signedValue(min, unit)}</span><span>{zeroPercentage !== null ? '0 baseline' : `${Math.round(percentage)}% position`}</span><span>{signedValue(max, unit)}</span></div>
             <div className="mt-2.5 grid grid-cols-[auto_1fr_auto] items-center gap-2 text-[8px] font-medium uppercase tracking-[0.16em] text-zinc-700"><span>Signal</span><span className="h-1 overflow-hidden rounded-full bg-zinc-900"><span className="block h-full rounded-full bg-gradient-to-r from-indigo-500/40 to-cyan-300/60" style={{ width: `${percentage}%` }} /></span><span>{dirty ? 'MOD' : 'IDLE'}</span></div>
@@ -86,11 +88,12 @@ export function StudioSlider({ label, code, icon: Icon, value, defaultValue, min
 type NumericFieldProps = { label: string; value: number; defaultValue: number; min?: number; max?: number; step?: number; onChange: (value: number) => void; description?: string };
 
 export function NumericField({ label, value, defaultValue, min = -Infinity, max = Infinity, step = 1, onChange, description }: NumericFieldProps) {
+  const copy = getToolUiCopy();
   const clamp = (next: number) => Math.min(max, Math.max(min, Number.isFinite(next) ? next : defaultValue));
   const dirty = value !== defaultValue;
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-3.5">
-      <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="text-[12px] font-semibold text-zinc-200">{label}</div>{description ? <div className="mt-1 text-[10px] leading-4 text-zinc-500">{description}</div> : null}</div><button type="button" onClick={() => onChange(defaultValue)} disabled={!dirty} className="flex size-7 items-center justify-center rounded-md text-zinc-700 transition hover:bg-white/[0.05] hover:text-zinc-300 disabled:pointer-events-none disabled:opacity-0" aria-label={`Reset ${label}`}><RotateCcw className="size-3" /></button></div>
+      <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="text-[12px] font-semibold text-zinc-200">{label}</div>{description ? <div className="mt-1 text-[10px] leading-4 text-zinc-500">{description}</div> : null}</div><button type="button" onClick={() => onChange(defaultValue)} disabled={!dirty} className="flex size-7 items-center justify-center rounded-md text-zinc-700 transition hover:bg-white/[0.05] hover:text-zinc-300 disabled:pointer-events-none disabled:opacity-0" aria-label={`${copy.reset} ${label}`}><RotateCcw className="size-3" /></button></div>
       <div className="mt-3 flex items-center rounded-xl border border-white/[0.07] bg-zinc-950/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"><button type="button" onClick={() => onChange(clamp(value - step))} className="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-white/[0.06] hover:text-zinc-100" aria-label={`Decrease ${label}`}><Minus className="size-3.5" /></button><input type="number" value={Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)))} min={Number.isFinite(min) ? min : undefined} max={Number.isFinite(max) ? max : undefined} step={step} onChange={(event) => onChange(clamp(Number(event.target.value)))} inputMode="decimal" aria-label={label} className="min-w-0 flex-1 bg-transparent px-2 text-center font-mono text-sm font-semibold text-zinc-100 outline-none" /><button type="button" onClick={() => onChange(clamp(value + step))} className="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-white/[0.06] hover:text-zinc-100" aria-label={`Increase ${label}`}><Plus className="size-3.5" /></button></div>
     </div>
   );
@@ -110,7 +113,7 @@ export function ToolSection({ value, title, subtitle, icon: Icon, activeCount, c
 }
 
 export function SectionReset({ onClick, label = 'Reset section' }: { onClick: () => void; label?: string }) {
-  return <button type="button" onClick={onClick} className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-950/70 px-2.5 py-1.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-zinc-600 transition hover:border-white/[0.11] hover:text-zinc-300"><RotateCcw className="size-3" />{label}</button>;
+  return <button type="button" onClick={onClick} className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-950/70 px-2.5 py-1.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-zinc-600 transition hover:border-white/[0.11] hover:text-zinc-300 disabled:opacity-0"><RotateCcw className="size-3" />{label}</button>;
 }
 
 type CurveMiniPreviewProps = { y: number; ariaLabel?: string };
