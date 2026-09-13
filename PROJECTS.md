@@ -6,15 +6,15 @@
 
 ```text
 BRANCH                 = main
-ACTUAL MAIN SHA        = d0c1679d2a15411014fcc35421876acd29f8da2e
+ACTUAL MAIN SHA        = c0c37134200d247cf5a363995f52a416e7afc6d3
 LAST PROVEN CI SHA     = b089bd0a4056b04a1376a979c726f33e47944189
 LAST PROVEN CI         = 34771149429
 LAST PROVEN RESULT     = SUCCESS
-CURRENT CODE NOTE      = d0c1679… contains cache-safe production SHA proof repair; production certification remains blocked by Vercel deployment rate limit
+CURRENT CODE NOTE      = main contains the Admin persistence adapter / overview probe and package/CI trust repairs; production certification remains blocked by external Vercel deployment rate limit
 CURRENT MAP COMMIT     = this file's commit; it is documentation only
 ```
 
-`main` is authoritative. Because this file creates a new commit when updated, agents must always resolve the actual `main` SHA before acting. The recorded code proof above is the last fully proven CI SHA; the current code SHA is `d0c1679…` and is not yet production-certified.
+`main` is authoritative. The current code SHA above is not production-certified until required CI and production evidence are fresh and exact.
 
 ## 1. Operating contract
 
@@ -43,8 +43,8 @@ A green branch/PR, local pass, code existence, queued job, or historical run nev
 | **ARCH-001** | Shared Build Boundary Contract | **CLOSED / VERIFIED** | Exact-SHA proof on `b089bd0…`; existing `BUILD-001` boundary validator passed in full CI certification `34771149429` | Preserve invariant; no new gate |
 | **AGENT-001** | Persistent Agent Project Gateway | **CLOSED / VERIFIED** | Gateway/marker protections remained valid on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve single gateway owner; no duplicate validator |
 | **ADMIN-001** | Admin Control Plane Phase 0/1 | **CLOSED / VERIFIED** | Existing fail-closed server-boundary contract remains verified on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve canonical server boundary; no duplicate tests |
-| **ADMIN-002** | Real persistence + evidence ledger | **BLOCKED** | Production provider remains unproven from connected controls. Historical Vercel project lookup returns `404`; connected team lists no projects; connected Supabase project `zrpsmgdrtwzrhkjwwujo` is `INACTIVE`; repository has no DB/ORM/client path | Establish production provider + binding provenance; inspect schema; only then implement one canonical write/read-back path |
-| ADMIN-003 | Admin Truth / Command / Security / Contract / Operations / Incident Centers | LOCKED | Depends on proven persistence/evidence foundation | Activate after ADMIN-002 |
+| **ADMIN-002** | Real persistence + evidence ledger | **ACTIVE / PROOF PENDING** | Canonical Supabase server-side adapter and Admin overview probe are now on `main`; existing `public.flix_events` and `public.flix_admin_sessions` are reused. Production write/read-back and exact deployed SHA are not yet proven | Run required CI on exact main SHA, then production write/read-back and evidence certification |
+| ADMIN-003 | Admin Truth / Command / Security / Contract / Operations / Incident Centers | LOCKED | Depends on ADMIN-002 proof | Activate after ADMIN-002 |
 | ADMIN-004 | Admin controlled execution + rollback | LOCKED | Execution intentionally disabled | Activate after authorization/policy/evidence/audit/rollback proof |
 | ADMIN-005 | Admin Change / Approval / Incident consolidation | LOCKED | Not started | Activate after ADMIN-004 |
 | ADMIN-006 | Admin Truth Graph | LOCKED | Not started | Activate after real provenance graph |
@@ -93,19 +93,16 @@ Hard exclusions: legacy Admin restoration, localStorage authentication, second d
 
 ## 6. ADMIN-002 — Persistence provenance decision
 
-Current repository/provider discovery proves a blocker, not a persistence implementation:
+Provider provenance has been established operationally:
 
-- No database/ORM dependency exists in `package.json`.
-- No canonical Supabase/Postgres/Drizzle connection path is established in repository code.
-- `.vercel/project.json` is absent.
-- Connected Vercel team `flexo1` exposes no projects through the available control plane.
-- Historical project id `prj_FdFbUWMAZepEfvwhttAiLcYJqY0d` now returns `404 Not Found` through the connected Vercel control plane.
-- Connected Supabase project `zrpsmgdrtwzrhkjwwujo` is `INACTIVE`; it is not treated as production.
-- `.env.example` exposes no database binding variable.
+- Canonical Supabase project: `zrpsmgdrtwzrhkjwwujo`.
+- Provider state: `ACTIVE_HEALTHY`.
+- Existing tables discovered: `public.flix_events`, `public.flix_admin_sessions`.
+- Vercel Production server bindings were added by the owner; secret values are not stored in the repository.
+- Repository now contains one server-side REST/PostgREST persistence adapter and an Admin overview reachability probe.
+- No new database, ORM, migration, parallel store, or client-side secret exposure was introduced.
 
-Therefore **do not** create a database, ORM, migration, parallel store, guessed binding, or fake/in-memory production persistence.
-
-Required unblock proof:
+Required closure proof remains:
 
 `canonical production provider → production ownership → server binding (secret hidden) → schema discovery → minimal write → read-back → evidence/audit provenance → exact-SHA certification`
 
@@ -134,13 +131,12 @@ ADMIN-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 
 ```text
 LAST SESSION:
   task         = ADMIN-002
-  status       = BLOCKED / PROVENANCE REQUIRED
+  status       = ACTIVE / PROOF PENDING
   entrySha     = b089bd0a4056b04a1376a979c726f33e47944189
-  exitSha      = d0c1679d2a15411014fcc35421876acd29f8da2e
-  ciRun        = 34771149429 (last fully proven code SHA)
-  ciResult     = SUCCESS for b089bd0…; current d0c1679… production certification remains blocked
-  blocker      = Vercel deployment rate limit + production provider ownership/binding proof
-  nextAction   = after deployment quota recovery, promote d0c1679… exactly, prove production SHA, then establish provider/server binding and inspect schema before implementation
+  exitSha      = c0c37134200d247cf5a363995f52a416e7afc6d3
+  ciRun        = no fresh completed certification yet
+  blocker      = Vercel deployment rate limit (external)
+  nextAction   = complete exact-main CI proof, then production write/read-back and exact-SHA certification
 ```
 
 ## 10. Agent start protocol
@@ -162,4 +158,4 @@ READ PROJECTS.md
 
 `EXACT SHA ∧ CLEAN WORKTREE ∧ REQUIRED TEST PASS ∧ FRESH CURRENT EVIDENCE`
 
-No `GREEN` claim outside those conditions.
+No `GREEN` claim outside these conditions.
