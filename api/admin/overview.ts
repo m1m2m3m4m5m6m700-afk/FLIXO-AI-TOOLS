@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { authorizeAdminRequest } from './boundary.ts';
+import { probePersistence, isPersistenceConfigured } from './persistence.ts';
 import { ADMIN_EXECUTION_CLASSES, ADMIN_MODULES, ADMIN_ROLE_CAPABILITY_MATRIX } from '../../src/lib/admin/module-registry.ts';
 import { ADMIN_CAPABILITIES } from '../../src/lib/admin/control-plane.ts';
 
@@ -23,13 +24,25 @@ export default async function adminOverview(req: AdminRequest, res: ServerRespon
     return json(res, authorization.status, { ok: false, error: { code: authorization.code, correlationId: authorization.correlationId } }, authorization.correlationId);
   }
 
+  let persistence: { state: 'CONNECTED' | 'BLOCKED'; reason: string; table?: string };
+  if (!isPersistenceConfigured()) {
+    persistence = { state: 'BLOCKED', reason: 'supabase_server_binding_missing' };
+  } else {
+    try {
+      const probe = await probePersistence();
+      persistence = { state: 'CONNECTED', reason: 'canonical_persistence_reachable', table: probe.table };
+    } catch {
+      persistence = { state: 'BLOCKED', reason: 'canonical_persistence_unreachable' };
+    }
+  }
+
   return json(res, 200, {
     ok: true,
     source: 'admin-control-plane-foundation',
     truth: {
-      state: 'UNAVAILABLE',
-      productionConnected: false,
-      reason: 'live_production_truth_sources_not_connected',
+      state: persistence.state === 'CONNECTED' ? 'CONNECTED' : 'UNAVAILABLE',
+      productionConnected: persistence.state === 'CONNECTED',
+      reason: persistence.reason,
     },
     identity: {
       subject: authorization.subject,
@@ -39,10 +52,7 @@ export default async function adminOverview(req: AdminRequest, res: ServerRespon
     capabilities: ADMIN_CAPABILITIES,
     roles: ADMIN_ROLE_CAPABILITY_MATRIX,
     executionClasses: ADMIN_EXECUTION_CLASSES,
-    persistence: {
-      state: 'BLOCKED',
-      reason: 'canonical_production_persistence_provider_not_proven',
-    },
+    persistence,
     provenance: {
       exactSha: process.env.VERCEL_GIT_COMMIT_SHA ?? 'unavailable',
       environment: process.env.VERCEL_ENV ?? 'unknown',
