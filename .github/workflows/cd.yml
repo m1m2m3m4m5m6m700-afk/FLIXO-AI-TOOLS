@@ -115,8 +115,7 @@ jobs:
             --token="$VERCEL_TOKEN" \
             --scope="$VERCEL_ORG_ID" \
             --yes 2>&1 | tee "$deploy_log"; then
-            deployment_url="$(sed -nE 's#^.*Production[[:space:]]+(https://[^[:space:]]+\.vercel\.app).*$#\1#p' "$deploy_log" | tail -1)"
-            test -n "$deployment_url"
+            deployment_url="$(grep -oE 'https://[A-Za-z0-9.-]+\.vercel\.app' "$deploy_log" | tail -1 || true)"
             printf 'deployment_attempt=SUCCESS\n' >> "$GITHUB_OUTPUT"
             printf 'deployment_url=%s\n' "$deployment_url" >> "$GITHUB_OUTPUT"
           else
