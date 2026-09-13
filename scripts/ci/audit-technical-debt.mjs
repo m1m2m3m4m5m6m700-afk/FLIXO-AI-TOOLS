@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { resolve, relative } from 'node:path';
+import { resolve } from 'node:path';
 
 const ROOT = process.cwd();
 const OUT = resolve(ROOT, 'diagnostics/ci');
@@ -11,7 +11,6 @@ mkdirSync(OUT, { recursive: true });
 const run = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' });
 const sha = run(['rev-parse', 'HEAD']).trim();
 const tracked = run(['ls-files', '-z']).split('\0').filter(Boolean);
-const trackedSet = new Set(tracked);
 const read = (path) => {
   const file = resolve(ROOT, path);
   return existsSync(file) ? readFileSync(file, 'utf8') : '';
@@ -23,9 +22,6 @@ const grep = (pattern) => {
     return '';
   }
 };
-
-const findings = [];
-const add = (finding) => findings.push(finding);
 
 const packageJson = JSON.parse(read('package.json') || '{}');
 const packageScripts = JSON.stringify(packageJson.scripts ?? {});
@@ -39,7 +35,6 @@ const testFiles = tracked.filter((p) => /(?:^|\/)(?:test|tests|spec|specs)[^/]*\
 const localeFiles = tracked.filter((p) => /(?:locale|locales|i18n|translations?)\//i.test(p) && /\.json$/.test(p));
 const assetFiles = tracked.filter((p) => /(?:^|\/)(?:assets?|public|static)\//i.test(p));
 
-// Contract exclusions: these are not eligible for automatic deletion.
 const contractProtected = [
   'scripts/ci/certify.mjs',
   'scripts/ci/certify-core.mjs',
@@ -48,15 +43,14 @@ const contractProtected = [
   'scripts/ci/assertion-registry.json',
 ];
 
-// Orphaned test detection is intentionally conservative: only flag a test file when
-// there is no package script and no textual reference anywhere in the tracked tree.
 for (const file of testFiles) {
   if (contractProtected.includes(file)) continue;
   const basename = file.split('/').pop();
-  const referenced = grep(`(^|[/"' ])${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+  const escaped = basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const referenced = grep(`(^|[/"' ])${escaped}$`);
   const packageReferenced = packageScripts.includes(file);
   if (!referenced && !packageReferenced) {
-    add({
+    findings.push({
       id: 'RC-DEBT-ORPHAN-TEST-CANDIDATE',
       category: 'DEAD_CODE',
       severity: 'MEDIUM',
@@ -69,13 +63,13 @@ for (const file of testFiles) {
   }
 }
 
-// Legacy/deprecated files are candidates, never automatic deletions.
 for (const file of tracked) {
   if (!/(?:legacy|deprecated|obsolete|old)[^/]*\./i.test(file)) continue;
   if (contractProtected.includes(file)) continue;
   const basename = file.split('/').pop();
-  const referenced = grep(`(^|[/"' ])${basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
-  add({
+  const escaped = basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const referenced = grep(`(^|[/"' ])${escaped}$`);
+  findings.push({
     id: 'RC-DEBT-LEGACY-CANDIDATE',
     category: 'LEGACY',
     severity: referenced ? 'LOW' : 'MEDIUM',
@@ -89,12 +83,11 @@ for (const file of tracked) {
   });
 }
 
-// Dependency usage audit: never declare a package unused without an explicit import/reference check.
 for (const dep of packageNames) {
   const escaped = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const usage = grep(`(?:from|require\\(|import\\(|['"])${escaped}(?:['"/])`);
   if (!usage) {
-    add({
+    findings.push({
       id: 'RC-DEBT-UNREFERENCED-DEPENDENCY-CANDIDATE',
       category: 'DEPENDENCY',
       severity: 'LOW',
@@ -107,11 +100,9 @@ for (const dep of packageNames) {
   }
 }
 
-// Hardcoded UI/i18n debt is reported as candidate evidence only; the scanner does not
-// infer that a string is an invalid fallback without runtime proof.
 const seed = read('src/tools/seed/index.tsx');
 if (/DEFAULT_SEED_UI\s*=/.test(seed) && /getTranslationBundle\(/.test(seed)) {
-  add({
+  findings.push({
     id: 'RC-DEBT-I18N-FALLBACK-UNPROVEN',
     category: 'I18N',
     severity: 'LOW',
@@ -123,7 +114,6 @@ if (/DEFAULT_SEED_UI\s*=/.test(seed) && /getTranslationBundle\(/.test(seed)) {
   });
 }
 
-// Repository-surface inventory is part of the audit output and prevents false "0 debt" claims.
 const result = {
   schema: 'flixo-technical-debt-audit/v3',
   generatedAt: new Date().toISOString(),
