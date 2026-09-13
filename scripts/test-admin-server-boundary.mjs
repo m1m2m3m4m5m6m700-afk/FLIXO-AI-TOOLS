@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { signAdminSession, sessionCookieName } from '../api/admin/boundary.ts';
 
-const SECRET = '01234567890123456789012345678901';
+const SECRET = 'phase1-admin-test-secret'.padEnd(32, '0');
 
 const invoke = async ({ secret = SECRET, cookie = '', method = 'GET', query = {}, requestId = 'test-request-001' } = {}) => {
   const previous = process.env.ADMIN_SESSION_SECRET;
@@ -44,7 +44,9 @@ const invalid = await invoke({ cookie: `${sessionCookieName}=invalid.token` });
 assert.equal(invalid.status, 401);
 assert.equal(invalid.body.error.code, 'authentication_required');
 
-const tampered = `${session.slice(0, -1)}${session.endsWith('a') ? 'b' : 'a'}`;
+const [sessionPayload, sessionSignature] = session.split('.');
+const tamperedSignature = `${sessionSignature[0] === 'a' ? 'b' : 'a'}${sessionSignature.slice(1)}`;
+const tampered = `${sessionPayload}.${tamperedSignature}`;
 const tamperedResponse = await invoke({ cookie: `${sessionCookieName}=${tampered}` });
 assert.equal(tamperedResponse.status, 401);
 assert.equal(tamperedResponse.body.error.code, 'authentication_required');
