@@ -2,7 +2,7 @@
 
 Status: BLOCKED / PROVENANCE REQUIRED
 
-Exact repository state reviewed: `main @ fc1d41a6030c87484be593a62949b85cd0a87253`
+Exact repository state reviewed: `main @ 12d2c166bd895570ffe5c44a69c437b1c5925cfa`
 
 ## Current proof
 
@@ -27,7 +27,12 @@ The connected Supabase control plane exposes one project:
 
 A direct schema/type discovery attempt against this project was rejected because the project is not active and healthy. Therefore this project is NOT treated as FLIXO Production Persistence.
 
-The connected Vercel control plane exposes the team `flexo1`, but the FLIXO project lookup returns no projects. Therefore the available Vercel control plane does not currently prove a production project binding or server environment binding for FLIXO.
+The repository's canonical CD contract independently records the intended production Vercel identity:
+- Production origin: `https://flixoai.vercel.app`
+- Vercel team id: `team_LgeIYyf9ERfG3gNswQO4MiPX`
+- Vercel project id: `prj_FdFbUWMAZepEfvwhttAiLcYJqY0d`
+
+These identifiers establish the repository's intended deployment contract, but they do not by themselves prove control-plane ownership or server environment access. The connected Vercel team `flexo1` is confirmed as `team_LgeIYyf9ERfG3gNswQO4MiPX`, but its project listing currently returns zero projects. A direct deployment lookup for the documented project/team binding is denied with `403 Forbidden`. Therefore the currently connected Vercel credentials do not prove access to the documented production project or its server environment binding.
 
 ## Phase 2 execution result
 
@@ -52,7 +57,7 @@ Accordingly:
 
 ## Current execution blocker
 
-Phase 2 cannot truthfully advance to persistence implementation until provider provenance is established. No database, migration, ORM dependency, or production write path is being created on the basis of an unproven provider.
+Phase 2 cannot truthfully advance to persistence implementation until provider provenance and server binding are established. The repository contains a canonical deployment contract, but the connected hosting control plane cannot currently authorize access to that documented project. No database, migration, ORM dependency, or production write path is being created on the basis of an unproven provider.
 
 ## Forbidden shortcuts
 
