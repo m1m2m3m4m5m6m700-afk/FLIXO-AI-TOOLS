@@ -1,7 +1,7 @@
 # FLIXO Admin Control Plane — Master Execution Plan
 
 Status: ACTIVE PLAN / execution-tracked
-Baseline: main @ fcf5f7be198f4b6b480c555deaf1253968a05fd1
+Baseline: main @ ae7ceea716296706b2d17f4e8c3e2b8baddacacf
 Foundation branch: feature/admin-control-plane-foundation
 Foundation PR: #658
 
@@ -23,7 +23,7 @@ Primary principles:
 
 ## 1. Non-negotiable architectural boundary
 
-Current FLIXO is a Vite + React + TypeScript + TanStack Router application. The production baseline has no Admin route. The Foundation branch introduces a new private `/admin` Control Plane surface, explicitly separated from the retired legacy Admin route/files. The current package has no server/auth/database framework suitable for blindly restoring the historical Admin.
+Current FLIXO is a Vite + React + TypeScript + TanStack Router application. The production baseline now contains a private `/admin` Control Plane surface separated from the retired legacy Admin route/files. The current application uses an explicit server/Admin API boundary; production persistence and live truth sources remain unproven.
 
 Therefore:
 - Do NOT restore legacy Admin routes wholesale.
@@ -133,6 +133,8 @@ Required before any real write/execution capability:
 9. Fail-closed behavior on missing configuration or identity.
 10. Explicit session expiry/revocation behavior.
 
+Current implementation status: the server boundary provides HMAC-signed session verification, expiry checking, capability checks, method restriction, fail-closed missing-secret handling, and request correlation IDs. Full Phase 1 exit criteria are not certified by this document without fresh exact-SHA verification evidence.
+
 ## 6. Truth and evidence contract
 
 Every production-facing Admin claim must carry:
@@ -156,6 +158,8 @@ Allowed truth states:
 
 Never convert UNKNOWN, STALE, or UNAVAILABLE into GREEN.
 
+Current runtime posture: Admin overview reports `truth.state = UNAVAILABLE` and `persistence.state = BLOCKED` because live production truth and canonical production persistence are not proven connected.
+
 ## 7. Execution safety model
 
 Operations are classified:
@@ -177,6 +181,8 @@ Every execution must have:
 - evidence
 - audit
 - rollback metadata
+
+Current runtime posture: execution remains LOCKED. Declared execution classes are cataloged, but no production mutation is enabled by the foundation.
 
 ## 8. AI safety contract
 
@@ -212,20 +218,17 @@ Chat -> Intent -> Deterministic Planner -> Authorized Capability -> Policy -> Pr
 
 Exit: foundation code exists and legacy closure contract remains intact, but no Production Admin claim until fresh exact-SHA CI proof passes.
 
-### Phase 1 — Server Boundary [NEXT / BLOCKING]
-Build the minimum real server-side boundary compatible with the current deployment architecture.
-
-Deliverables:
+### Phase 1 — Server Boundary [IMPLEMENTED / VERIFICATION PENDING]
+Current implementation includes:
 - Admin API boundary
 - server-only secret handling
-- identity contract
-- session contract
-- authorization middleware/policy boundary
-- standard error contract
+- signed session verification
+- capability authorization boundary
+- standard JSON error contract
 - request correlation IDs
-- safe logging
+- method restriction
 
-Exit criteria:
+Exit criteria remain blocking until exact-SHA proof establishes:
 - unauthenticated access denied
 - invalid session denied
 - unauthorized capability denied
@@ -233,7 +236,7 @@ Exit criteria:
 - no server secrets shipped to browser
 - exact-SHA test evidence
 
-### Phase 2 — Real Persistence and Evidence
+### Phase 2 — Real Persistence and Evidence [LOCKED]
 Use one proven persistence path. Do not create parallel stores without evidence.
 
 Deliverables:
@@ -250,7 +253,7 @@ Exit criteria:
 - audit completeness
 - no fake metrics
 
-### Phase 3 — Truth Center + Command Center
+### Phase 3 — Truth Center + Command Center [LOCKED]
 Deliver verified operational visibility.
 
 Deliverables:
@@ -267,7 +270,7 @@ Exit criteria:
 - stale/missing evidence visibly blocked
 - no false green
 
-### Phase 4 — Security + Contract + Operations Centers
+### Phase 4 — Security + Contract + Operations Centers [LOCKED]
 Deliver governance and operational control surfaces.
 
 Exit criteria:
@@ -277,7 +280,7 @@ Exit criteria:
 - incidents linked to root causes
 - privileged actions audited
 
-### Phase 5 — Controlled Execution
+### Phase 5 — Controlled Execution [LOCKED]
 Introduce carefully bounded writes.
 
 First operations should be low-risk and reversible. Then expand only from proven need.
@@ -292,16 +295,16 @@ Exit criteria:
 - evidence
 - rollback
 
-### Phase 6 — Change + Approval + Incident Centers
+### Phase 6 — Change + Approval + Incident Centers [LOCKED]
 Unify change management, approvals, and incident response around the same provenance/evidence model.
 
-### Phase 7 — Truth Graph
+### Phase 7 — Truth Graph [LOCKED]
 Build the visual provenance/dependency graph only after the underlying data contracts are proven.
 
-### Phase 8 — Controlled AI Assistant
+### Phase 8 — Controlled AI Assistant [LOCKED]
 Add AI only after Truth, authorization, policy, evidence, and deterministic execution are stable.
 
-### Phase 9 — Certification
+### Phase 9 — Certification [LOCKED]
 Production Admin certification requires exact SHA, clean worktree, all required checks passing, fresh current evidence, security proof, authorization proof, persistence/read-back proof, browser proof, and post-change verification.
 
 ## 10. Test strategy
@@ -334,6 +337,8 @@ Required negative tests include:
 - attempted unauthorized write
 - attempted destructive action without approval
 - attempted AI direct execution
+
+Current targeted Admin server-boundary regression covers missing configuration, unauthenticated access, invalid/tampered/expired sessions, unauthorized capabilities, allowed authorization, correlation ID behavior, wrong method, and protected overview access. The test source is `scripts/test-admin-server-boundary.mjs`.
 
 ## 11. UX contract
 
@@ -443,12 +448,17 @@ No phase is considered complete because code exists. Completion means behavior i
 ## 17. Persistent checkpoint
 
 Current checkpoint:
-- main: fcf5f7be198f4b6b480c555deaf1253968a05fd1
+- main: ae7ceea716296706b2d17f4e8c3e2b8baddacacf
 - foundation PR: #658
 - foundation HEAD: a0c82aed51ef484a5817bc6e122af7ad3494b711
-- Phase 0: IMPLEMENTED / verification pending after closure-conflict repair
-- Phase 1: LOCKED until Phase 0 exact-SHA verification passes
+- Phase 0: IMPLEMENTED / verification pending
+- Phase 1: IMPLEMENTED / verification pending
+- Phase 2: LOCKED
+- Controlled Execution: LOCKED
 - Production Admin: NOT COMPLETE
-- RCA: `validate-image-only-closure.mjs` rejected `src/routes/admin.tsx` as a retired legacy path; repaired by separating the new Control Plane route into `src/routes/admin-control-plane.tsx` and registering `adminControlPlaneRoute`, without weakening the closure validator.
+- Admin runtime truth: UNAVAILABLE
+- Admin persistence: BLOCKED
+- Latest main change incorporated: PR #671 merge `ae7ceea716296706b2d17f4e8c3e2b8baddacacf`
+- RCA for prior Admin route closure conflict: `validate-image-only-closure.mjs` rejected `src/routes/admin.tsx` as a retired legacy path; the Control Plane route was separated into `src/routes/admin-control-plane.tsx` and registered as `adminControlPlaneRoute`, without weakening the closure validator.
 
 This document is the persistent execution roadmap. Update it after each material Admin phase, preserving exact SHA and evidence references. Never mark a phase complete without proof.
