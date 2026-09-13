@@ -78,7 +78,7 @@
     "verify:contracts": "npm run test:static",
     "verify:fast": "npm run test:static",
     "orchestrate": "node scripts/ci/unified-orchestrator.mjs",
-    "verify:ci-cd-trust": "node scripts/ci/validate-ci-cd-trust.mjs",
+    "verify:ci-cd-trust": "npm run verify:ci-cd-trust",
     "check": "npm run test:static && npm run test:build",
     "verify": "npm run check && npm run audit:production",
     "test:e2e": "playwright test",
@@ -86,6 +86,7 @@
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
+    "@tanstack/react-router": "1.170.32",
     "jszip": "^3.10.1",
     "lucide-react": "^0.575.0",
     "motion": "^12.43.0",
