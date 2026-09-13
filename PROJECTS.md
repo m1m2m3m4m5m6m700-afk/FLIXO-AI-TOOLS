@@ -6,11 +6,11 @@
 
 ```text
 BRANCH                 = main
-ACTUAL MAIN SHA        = 723f6176f9fed3feb556ba0bbd1bd44c1b651251
+ACTUAL MAIN SHA        = bfe8f95affffd4a400af9699b490347999f5a5cd
 LAST PROVEN CI SHA     = b089bd0a4056b04a1376a979c726f33e47944189
 LAST PROVEN CI         = 34771149429
 LAST PROVEN RESULT     = SUCCESS
-CURRENT CODE NOTE      = main contains the Admin persistence adapter / overview probe, hardened ADMIN-002 payload/read-back assertions, Admin execution fast-track rules, package/CI trust repairs, and one canonical CD path; latest CD identity failure is being repaired without weakening fail-closed proof
+CURRENT CODE NOTE      = main contains the Admin persistence adapter / overview probe, hardened ADMIN-002 payload/read-back assertions, Admin execution fast-track rules, package/CI trust repairs, and repaired CD production-identity evidence ordering; latest CD repair is not yet CI-certified
 CURRENT MAP COMMIT     = this file's commit; it is documentation only
 ```
 
@@ -142,13 +142,15 @@ Do not perform unrelated cleanup before ADMIN-002 closes. Do not wait for Vercel
 
 ## 7. CD / deployment evidence repair
 
-The latest CD run `34781321580` reached a successful Vercel deployment, but the fixed production-origin identity probe failed; the subsequent artifact upload also failed because the evidence file was created only after a successful identity assertion. fileciteturn42file0
+The latest CD run `34781321580` reached a successful Vercel deployment, but the production-origin identity probe failed because the canonical alias did not report the promoted SHA during that verification window; the subsequent evidence upload also failed because the evidence file was created only after a successful identity assertion. 
 
 Repair rule:
 
 `DEPLOY SUCCESS/FAIL → ALWAYS WRITE EVIDENCE → UPLOAD EVIDENCE → FAIL-CLOSED ON IDENTITY MISMATCH`
 
-The identity probe must tolerate normal alias/cache propagation with bounded retries, preserve the observed SHA/reason on failure, and still exit non-zero for an invalid deployment identity. This fixes observability and propagation fragility without converting a mismatch into GREEN.
+`cd.yml` was repaired on `main` at `bfe8f95affffd4a400af9699b490347999f5a5cd` to capture the direct Vercel deployment URL, prove its immutable `flixo-head-sha.txt`, retry the canonical alias within bounded limits, preserve observed SHA/reason in `production-deployment-evidence.json`, and keep the identity assertion fail-closed. The repair does not bypass canonical production identity.
+
+The current `main` SHA has no fresh workflow run visible yet; therefore this repair is not certified until canonical CI/CD evidence is produced for the exact SHA.
 
 ## 8. Historical repair memory
 
@@ -163,14 +165,14 @@ The identity probe must tolerate normal alias/cache propagation with bounded ret
 - Agent marker drift → repaired by `e19c494f…`; do not weaken validator.
 - Vercel duplicate deployment path → repaired by disabling `main` Git auto-deployment while retaining canonical artifact promotion in `.github/workflows/cd.yml`.
 - ADMIN-002 persistence proof → hardened by asserting exact write payload, server-to-Supabase auth boundary, operational fields, and metadata preservation in the canonical adapter test.
-- CD production identity → latest failure isolated to production identity verification/evidence ordering after a successful Vercel deployment attempt.
+- CD production identity → latest failure isolated to production identity verification/evidence ordering after a successful Vercel deployment attempt; bounded direct-deployment identity + evidence-preservation repair applied.
 
 ## 9. Closed History
 
 ```text
 ARCH-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | BUILD-001 shared build boundary | Static+Build + Certification PASS | CLOSED
-AGENT-001 | 2026-09-13 | b089bd0a4056b04a1376a97944189 | 34771149429 | Persistent project gateway / marker protection | Static+Build + Certification PASS | CLOSED
-ADMIN-001 | 2026-09-13 | b089bd0a4056b04a1376a97944189 | 34771149429 | Fail-closed Admin server boundary | Full CI certification PASS | CLOSED
+AGENT-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | Persistent project gateway / marker protection | Static+Build + Certification PASS | CLOSED
+ADMIN-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | Fail-closed Admin server boundary | Full CI certification PASS | CLOSED
 ```
 
 ## 10. Session handoff
@@ -180,10 +182,10 @@ LAST SESSION:
   task         = ADMIN-002
   status       = ACTIVE / REPO-CLOSURE LANE
   entrySha     = b089bd0a4056b04a1376a979c726f33e47944189
-  exitSha      = 723f6176f9fed3feb556ba0bbd1bd44c1b651251
-  ciRun        = CD 34781321580 observed successful Vercel deploy followed by production identity failure; fresh CI proof for current main must remain authoritative for ADMIN-002 closure
+  exitSha      = bfe8f95affffd4a400af9699b490347999f5a5cd
+  ciRun        = no fresh workflow evidence visible yet for bfe8f95…; prior proven certification remains 34771149429
   blocker      = none for repository closure; live deployment identity is deferred to ADMIN-008
-  nextAction   = run/verify fresh canonical CI for ADMIN-002, record exact-SHA proof, close ADMIN-002, activate ADMIN-003
+  nextAction   = obtain fresh canonical CI proof for bfe8f95…, then close ADMIN-002 on exact-main evidence and activate ADMIN-003
 ```
 
 ## 11. Agent start protocol
