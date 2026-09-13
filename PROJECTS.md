@@ -6,14 +6,15 @@
 
 ```text
 BRANCH                 = main
-EXACT MAIN SHA         = b089bd0a4056b04a1376a979c726f33e47944189
+ACTUAL MAIN SHA        = d0c1679d2a15411014fcc35421876acd29f8da2e
+LAST PROVEN CI SHA     = b089bd0a4056b04a1376a979c726f33e47944189
 LAST PROVEN CI         = 34771149429
-LAST PROVEN SHA        = b089bd0a4056b04a1376a979c726f33e47944189
 LAST PROVEN RESULT     = SUCCESS
+CURRENT CODE NOTE      = d0c1679… contains cache-safe production SHA proof repair; production certification remains blocked by Vercel deployment rate limit
 CURRENT MAP COMMIT     = this file's commit; it is documentation only
 ```
 
-`main` is authoritative. Because this file creates a new commit when updated, agents must always resolve the actual `main` SHA before acting. The recorded code proof above is the exact SHA proven by CI run `34771149429`; the map commit itself is documentation-only.
+`main` is authoritative. Because this file creates a new commit when updated, agents must always resolve the actual `main` SHA before acting. The recorded code proof above is the last fully proven CI SHA; the current code SHA is `d0c1679…` and is not yet production-certified.
 
 ## 1. Operating contract
 
@@ -135,11 +136,11 @@ LAST SESSION:
   task         = ADMIN-002
   status       = BLOCKED / PROVENANCE REQUIRED
   entrySha     = b089bd0a4056b04a1376a979c726f33e47944189
-  exitSha      = b089bd0a4056b04a1376a979c726f33e47944189
-  ciRun        = 34771149429
-  ciResult     = SUCCESS
-  blocker      = production provider ownership/binding proof
-  nextAction   = establish canonical provider and server binding, then inspect schema before implementation
+  exitSha      = d0c1679d2a15411014fcc35421876acd29f8da2e
+  ciRun        = 34771149429 (last fully proven code SHA)
+  ciResult     = SUCCESS for b089bd0…; current d0c1679… production certification remains blocked
+  blocker      = Vercel deployment rate limit + production provider ownership/binding proof
+  nextAction   = after deployment quota recovery, promote d0c1679… exactly, prove production SHA, then establish provider/server binding and inspect schema before implementation
 ```
 
 ## 10. Agent start protocol
