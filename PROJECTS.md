@@ -6,11 +6,11 @@
 
 ```text
 BRANCH                 = main
-ACTUAL MAIN SHA        = 1077aefc4a28bf94b00d2bf19d2cc885d01ab2a9
+ACTUAL MAIN SHA        = 723f6176f9fed3feb556ba0bbd1bd44c1b651251
 LAST PROVEN CI SHA     = b089bd0a4056b04a1376a979c726f33e47944189
 LAST PROVEN CI         = 34771149429
 LAST PROVEN RESULT     = SUCCESS
-CURRENT CODE NOTE      = main contains the Admin persistence adapter / overview probe, hardened ADMIN-002 payload/read-back assertions, package/CI trust repairs, and one canonical CD path; external Vercel rate-limit failure remains non-blocking for repository execution and is reserved for final live deployment certification
+CURRENT CODE NOTE      = main contains the Admin persistence adapter / overview probe, hardened ADMIN-002 payload/read-back assertions, Admin execution fast-track rules, package/CI trust repairs, and one canonical CD path; latest CD identity failure is being repaired without weakening fail-closed proof
 CURRENT MAP COMMIT     = this file's commit; it is documentation only
 ```
 
@@ -46,7 +46,7 @@ A green branch/PR, local pass, code existence, queued job, historical run, or pr
 | **ARCH-001** | Shared Build Boundary Contract | **CLOSED / VERIFIED** | Exact-SHA proof on `b089bd0…`; existing `BUILD-001` boundary validator passed in full CI certification `34771149429` | Preserve invariant; no new gate |
 | **AGENT-001** | Persistent Agent Project Gateway | **CLOSED / VERIFIED** | Gateway/marker protections remained valid on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve single gateway owner; no duplicate validator |
 | **ADMIN-001** | Admin Control Plane Phase 0/1 | **CLOSED / VERIFIED** | Existing fail-closed server-boundary contract remains verified on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve canonical server boundary; no duplicate tests |
-| **ADMIN-002** | Real persistence + evidence ledger | **ACTIVE / REPO-CLOSURE LANE** | Canonical Supabase server-side adapter and Admin overview probe are on `main`; production write/read-back is already proven; the deterministic adapter test verifies write payload, auth headers, operational fields, and metadata preservation | **Fast-track:** prove fresh exact-`main` CI for the hardened adapter; record closure evidence from `main`; do not wait on Vercel. Live deployed-SHA certification is deferred to ADMIN-008 |
+| **ADMIN-002** | Real persistence + evidence ledger | **ACTIVE / REPO-CLOSURE LANE** | Canonical Supabase server-side adapter and Admin overview probe are on `main`; production write/read-back is already proven; deterministic adapter test verifies write payload, auth headers, operational fields, and metadata preservation | Fast-track: fresh exact-main CI proof → record evidence → close ADMIN-002; do not wait on live deployment identity |
 | ADMIN-003 | Admin Truth / Command / Security / Contract / Operations / Incident Centers | LOCKED | Depends on ADMIN-002 repository proof, not deployment-provider availability | Activate immediately after ADMIN-002 repository closure |
 | ADMIN-004 | Admin controlled execution + rollback | LOCKED | Execution intentionally disabled | Activate after authorization/policy/evidence/audit/rollback proof |
 | ADMIN-005 | Admin Change / Approval / Incident consolidation | LOCKED | Not started | Activate after ADMIN-004 |
@@ -140,7 +140,17 @@ The Vercel deployed-SHA proof is **not** an ADMIN-002 dependency anymore. It is 
 
 Do not perform unrelated cleanup before ADMIN-002 closes. Do not wait for Vercel when repository proof is independently complete.
 
-## 7. Historical repair memory
+## 7. CD / deployment evidence repair
+
+The latest CD run `34781321580` reached a successful Vercel deployment, but the fixed production-origin identity probe failed; the subsequent artifact upload also failed because the evidence file was created only after a successful identity assertion. fileciteturn42file0
+
+Repair rule:
+
+`DEPLOY SUCCESS/FAIL → ALWAYS WRITE EVIDENCE → UPLOAD EVIDENCE → FAIL-CLOSED ON IDENTITY MISMATCH`
+
+The identity probe must tolerate normal alias/cache propagation with bounded retries, preserve the observed SHA/reason on failure, and still exit non-zero for an invalid deployment identity. This fixes observability and propagation fragility without converting a mismatch into GREEN.
+
+## 8. Historical repair memory
 
 - Shared lazy-chunk topology → ARCH-001.
 - I18n observer storms / multiple writers → historically repaired; I18N-001 remains CANDIDATE.
@@ -153,8 +163,9 @@ Do not perform unrelated cleanup before ADMIN-002 closes. Do not wait for Vercel
 - Agent marker drift → repaired by `e19c494f…`; do not weaken validator.
 - Vercel duplicate deployment path → repaired by disabling `main` Git auto-deployment while retaining canonical artifact promotion in `.github/workflows/cd.yml`.
 - ADMIN-002 persistence proof → hardened by asserting exact write payload, server-to-Supabase auth boundary, operational fields, and metadata preservation in the canonical adapter test.
+- CD production identity → latest failure isolated to production identity verification/evidence ordering after a successful Vercel deployment attempt.
 
-## 8. Closed History
+## 9. Closed History
 
 ```text
 ARCH-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | BUILD-001 shared build boundary | Static+Build + Certification PASS | CLOSED
@@ -162,20 +173,20 @@ AGENT-001 | 2026-09-13 | b089bd0a4056b04a1376a97944189 | 34771149429 | Persisten
 ADMIN-001 | 2026-09-13 | b089bd0a4056b04a1376a97944189 | 34771149429 | Fail-closed Admin server boundary | Full CI certification PASS | CLOSED
 ```
 
-## 9. Session handoff
+## 10. Session handoff
 
 ```text
 LAST SESSION:
   task         = ADMIN-002
   status       = ACTIVE / REPO-CLOSURE LANE
   entrySha     = b089bd0a4056b04a1376a979c726f33e47944189
-  exitSha      = 1077aefc4a28bf94b00d2bf19d2cc885d01ab2a9
-  ciRun        = no fresh CI status yet for the proof-hardening commit; prior proven certification remains 34771149429
-  blocker      = none for repository closure; Vercel live-deployment proof is deferred to ADMIN-008
-  nextAction   = resolve current main SHA; run/verify the targeted ADMIN-002 adapter proof and required CI; close ADMIN-002 on exact main evidence; activate ADMIN-003
+  exitSha      = 723f6176f9fed3feb556ba0bbd1bd44c1b651251
+  ciRun        = CD 34781321580 observed successful Vercel deploy followed by production identity failure; fresh CI proof for current main must remain authoritative for ADMIN-002 closure
+  blocker      = none for repository closure; live deployment identity is deferred to ADMIN-008
+  nextAction   = run/verify fresh canonical CI for ADMIN-002, record exact-SHA proof, close ADMIN-002, activate ADMIN-003
 ```
 
-## 10. Agent start protocol
+## 11. Agent start protocol
 
 ```text
 READ PROJECTS.md
@@ -190,7 +201,7 @@ READ PROJECTS.md
 → RETIRE ONLY AFTER MAIN PROOF
 ```
 
-## 11. Evidence rule
+## 12. Evidence rule
 
 `EXACT SHA ∧ CLEAN WORKTREE ∧ REQUIRED TEST PASS ∧ FRESH CURRENT EVIDENCE`
 
