@@ -65,9 +65,10 @@
     "test:checkpoint-producer": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/checkpoints/produce-verification-checkpoint.test.mjs",
     "test:execution-sha-provenance": "node scripts/ci/test-execution-sha-provenance.mjs",
     "test:admin-server-boundary": "node --experimental-strip-types scripts/test-admin-server-boundary.mjs",
+    "test:admin-persistence": "node --experimental-strip-types scripts/test-admin-persistence.mjs",
     "test:negative-control-integration": "node scripts/ci/test-negative-control-integration.mjs",
     "validate:i18n-observer-boundary": "node scripts/validate-i18n-observer-boundary.mjs",
-    "test:unit": "npm run test:quickflow && npm run test:agent-capability && npm run test:ai-planner && npm run test:agent-self-correction && npm run test:llm-provider && npm run test:i18n && npm run test:route-resolver && npm run test:upload-boundary && npm run test:image-core && npm run test:tool-platform && npm run validate:i18n-observer-boundary && npm run validate:tool-definition && npm run test:unified-audit && npm run test:checkpoint-producer && npm run test:execution-sha-provenance && npm run test:admin-server-boundary && npm run test:negative-control-integration",
+    "test:unit": "npm run test:quickflow && npm run test:agent-capability && npm run test:ai-planner && npm run test:agent-self-correction && npm run test:llm-provider && npm run test:i18n && npm run test:route-resolver && npm run test:upload-boundary && npm run test:image-core && npm run test:tool-platform && npm run validate:i18n-observer-boundary && npm run validate:tool-definition && npm run test:unified-audit && npm run test:checkpoint-producer && npm run test:execution-sha-provenance && npm run test:admin-server-boundary && npm run test:admin-persistence && npm run test:negative-control-integration",
     "test:diagnose": "node scripts/test.mjs --mode=diagnose",
     "test:static": "node scripts/test.mjs --mode=diagnose --gate=static",
     "test:build": "node scripts/test.mjs --mode=diagnose --gate=build",
@@ -76,7 +77,7 @@
     "verify:contracts": "npm run test:static",
     "verify:fast": "npm run test:static",
     "orchestrate": "node scripts/ci/unified-orchestrator.mjs",
-    "verify:ci-cd-trust": "node scripts/ci/validate-ci-cd-trust.mjs",
+    "verify:ci-cd-trust": "npm run verify:ci-cd-trust",
     "check": "npm run test:static && npm run test:build",
     "verify": "npm run check && npm run audit:production",
     "test:e2e": "playwright test",
@@ -106,7 +107,6 @@
     "globals": "^15.15.0",
     "playwright": "^1.62.1",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.56.1",
-    "vite": "^8.2.1"
+    "typescript-eslint": "^8.56.1"
   }
 }
