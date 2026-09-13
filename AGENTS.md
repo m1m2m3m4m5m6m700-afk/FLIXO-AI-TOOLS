@@ -1,6 +1,26 @@
 # 🚨 AGENT ENTRY GATE — FLIXO-AI-TOOLS
 
-This file is the mandatory entry point for every autonomous coding, debugging, CI, audit, recovery, or release agent.
+**FIRST READ: `PROJECTS.md`**
+
+`PROJECTS.md` is the persistent task gateway and session-to-session work map. It MUST be read before the protocol files below so an agent enters through the current authorized work scope rather than inventing a new task.
+
+## READ-BEFORE-ACTION
+
+Before any repository action, every agent MUST read, in this order:
+
+1. `PROJECTS.md`
+2. `AGENTS.md`
+3. `docs/AGENT-COLLABORATION-PROTOCOL.md`
+4. `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`
+5. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
+6. `docs/PROTOCOL-HIERARCHY.md`
+7. `docs/PROTOCOL-REGISTRY.json`
+8. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+9. `scripts/ci/test-plan.json`
+10. `scripts/ci/assertion-registry.json`
+11. the current exact `main` SHA and current workflow state
+
+`PROJECTS.md` is the navigation/control layer; the linked contract/plan remains authoritative for implementation semantics, and CI/evidence remains authoritative for completion.
 
 ## MAIN-ONLY EXECUTION
 
@@ -22,22 +42,26 @@ Historical branch state, stale PR state, or branch-local evidence MUST NOT be tr
 
 PRs may be inspected as historical evidence or for externally supplied review context, but they are not the execution path for new work. A task that exists only on another branch is not current until its semantics are reconstructed and implemented on the current `main`.
 
-## READ-BEFORE-ACTION
+## PROJECT MAP DISCIPLINE
 
-Before any repository action, every agent MUST read:
+`PROJECTS.md` MUST preserve, for every material task:
 
-1. `AGENTS.md`
-2. `docs/AGENT-COLLABORATION-PROTOCOL.md`
-3. `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`
-4. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
-5. `docs/PROTOCOL-HIERARCHY.md`
-6. `docs/PROTOCOL-REGISTRY.json`
-7. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-8. `scripts/ci/test-plan.json`
-9. `scripts/ci/assertion-registry.json`
-10. the current exact `main` SHA and current workflow state
+- stable task ID
+- title and purpose
+- status
+- exact base/head SHA when implementation begins or ends
+- linked contract/plan
+- owner/agent scope
+- evidence reference when available
+- first blocker when blocked
+- next deterministic action
+- remaining child work
 
-Reading is part of execution and is not optional documentation.
+Status meanings are strict: `ACTIVE`, `CANDIDATE`, `NEEDS DEVELOPMENT`, `DEFER`, `CANCELLED`, `BLOCKED`, `IMPLEMENTED / VERIFICATION PENDING`, `CLOSED / STABLE`.
+
+`CANDIDATE ≠ ACTIVE`. `DEFER ≠ forgotten`.
+
+Every session MUST update `PROJECTS.md` before leaving material unfinished work. Chat memory is not a project ledger.
 
 ## AGENT LOGIN
 
@@ -145,7 +169,7 @@ The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 
 - `verify` is the single non-browser engine. It installs dependencies once, executes the canonical static contracts, performs the canonical production build, and publishes one immutable artifact identified by exact commit SHA and package-lock digest.
 - `browser_fast` is the only fast browser engine: 22 canonical tools × Chromium/Firefox/WebKit = 66 execution units.
-- `browser_deep` is the same browser engine in deep mode: canonical public-route localization/runtime coverage across 20 locales and Chromium/Firefox/WebKit. It runs on main/release paths, not the PR fast path.
+- `browser_deep` is the same browser engine in deep mode: canonical public-route localization/runtime coverage across 20 locales and Chromium/WebKit/Firefox. It runs on main/release paths, not the PR fast path.
 - `certify` is the only automatic certification authority. It is fail-closed and consumes evidence from the same workflow run.
 
 ## Safety invariants
@@ -159,4 +183,4 @@ The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 - GREEN is valid only when every required engine passes, evidence is valid and complete, Exact SHA matches, and independent root causes are zero. Skips, masked failures, stale evidence and partial passes are not Green.
 - Never claim a green release without fresh exact-SHA CI evidence.
 
-**MANDATORY ENTRY TITLE: READ FIRST → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTE ON MAIN → TARGETED REGRESSION → VERIFY → EXACT-SHA PROOF → HANDOFF.**
+**MANDATORY ENTRY: `PROJECTS.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTE ON MAIN → TARGETED REGRESSION → VERIFY → EXACT-SHA PROOF → HANDOFF.**
