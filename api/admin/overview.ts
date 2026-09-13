@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { authorizeAdminRequest } from './boundary.ts';
-import { ADMIN_EXECUTION_CLASSES, ADMIN_MODULES, ADMIN_ROLE_CAPABILITY_MATRIX } from '../../src/lib/admin/module-registry';
-import { ADMIN_CAPABILITIES } from '../../src/lib/admin/control-plane';
+import { ADMIN_EXECUTION_CLASSES, ADMIN_MODULES, ADMIN_ROLE_CAPABILITY_MATRIX } from '../../src/lib/admin/module-registry.ts';
+import { ADMIN_CAPABILITIES } from '../../src/lib/admin/control-plane.ts';
 
 type AdminRequest = IncomingMessage & {
   method?: string;
