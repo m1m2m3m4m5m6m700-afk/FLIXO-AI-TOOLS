@@ -131,14 +131,17 @@ jobs:
           curl --fail --silent --show-error --location \
             --retry 5 --retry-delay 3 --retry-all-errors \
             --max-time 30 \
+            -H 'Cache-Control: no-cache' \
             -o /tmp/production.html \
-            "$PRODUCTION_ORIGIN/"
+            "$PRODUCTION_ORIGIN/?__flixo_sha=$PROMOTION_SHA"
           test -s /tmp/production.html
           grep -qi '<html' /tmp/production.html
           deployed_sha="$(curl --fail --silent --show-error --location \
             --retry 5 --retry-delay 3 --retry-all-errors \
             --max-time 30 \
-            "$PRODUCTION_ORIGIN/flixo-head-sha.txt")"
+            -H 'Cache-Control: no-cache' \
+            "$PRODUCTION_ORIGIN/flixo-head-sha.txt?__flixo_sha=$PROMOTION_SHA" \
+            | tr -d '\r\n')"
           test "$deployed_sha" = "$PROMOTION_SHA"
           printf '%s\n' '{"status":"PASS","sha":"'"$PROMOTION_SHA"'","deployedSha":"'"$deployed_sha"'","origin":"'"$PRODUCTION_ORIGIN"'","deploymentAttempt":"'"$DEPLOYMENT_ATTEMPT"'"}' \
             > production-deployment-evidence.json
