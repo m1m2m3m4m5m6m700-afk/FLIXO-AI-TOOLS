@@ -22,6 +22,7 @@ const grep = (pattern) => {
     return '';
   }
 };
+const findings = [];
 
 const packageJson = JSON.parse(read('package.json') || '{}');
 const packageScripts = JSON.stringify(packageJson.scripts ?? {});
