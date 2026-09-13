@@ -6,14 +6,14 @@
 
 ```text
 BRANCH                 = main
-EXACT MAIN SHA         = f5b6452e9b2178df50cd64a1cc9535f92120f978
-LAST PROVEN CI         = 34769659236
-LAST PROVEN SHA        = a8b4153aa78c9deee9fd52625d9bf2dc16010f18
+EXACT MAIN SHA         = b089bd0a4056b04a1376a979c726f33e47944189
+LAST PROVEN CI         = 34771149429
+LAST PROVEN SHA        = b089bd0a4056b04a1376a979c726f33e47944189
 LAST PROVEN RESULT     = SUCCESS
 CURRENT MAP COMMIT     = this file's commit; it is documentation only
 ```
 
-`main` is authoritative. Because this file creates a new commit when updated, agents must always resolve the actual `main` SHA before acting.
+`main` is authoritative. Because this file creates a new commit when updated, agents must always resolve the actual `main` SHA before acting. The recorded code proof above is the exact SHA proven by CI run `34771149429`; the map commit itself is documentation-only.
 
 ## 1. Operating contract
 
@@ -39,10 +39,10 @@ A green branch/PR, local pass, code existence, queued job, or historical run nev
 
 | ID | Project | Status | Current truth | Next deterministic action |
 |---|---|---|---|---|
-| **ARCH-001** | Shared Build Boundary Contract | **IMPLEMENTED / VERIFICATION PENDING** | Proven on `e19c494f…`; build-boundary validator is inside existing `BUILD-001`; CI `34768609927` passed completely on that SHA | Re-certify on the current `main` SHA, then retire |
-| **AGENT-001** | Persistent Agent Project Gateway | **IMPLEMENTED / VERIFICATION PENDING** | `PROJECTS.md` + `AGENTS.md` gateway and marker repair proven on `e19c494f…`; CI `34768609927` passed | Re-certify on the current `main` SHA, then retire |
-| **ADMIN-001** | Admin Control Plane Phase 0/1 | **IMPLEMENTED / VERIFICATION PENDING** | Server boundary has exact test proof: 12 fail-closed/auth/correlation/overview cases passed on `e19c494f…` | Re-certify on current `main`; no duplicate tests |
-| **ADMIN-002** | Real persistence + evidence ledger | **BLOCKED** | Production provider is not currently provable from the connected controls. Historical Vercel project lookup now returns `404`; connected team lists no projects; connected Supabase project `zrpsmgdrtwzrhkjwwujo` is `INACTIVE`; repository has no DB/ORM/client path | Establish production provider + binding provenance; inspect schema; only then implement one canonical write/read-back path |
+| **ARCH-001** | Shared Build Boundary Contract | **CLOSED / VERIFIED** | Exact-SHA proof on `b089bd0…`; existing `BUILD-001` boundary validator passed in full CI certification `34771149429` | Preserve invariant; no new gate |
+| **AGENT-001** | Persistent Agent Project Gateway | **CLOSED / VERIFIED** | Gateway/marker protections remained valid on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve single gateway owner; no duplicate validator |
+| **ADMIN-001** | Admin Control Plane Phase 0/1 | **CLOSED / VERIFIED** | Existing fail-closed server-boundary contract remains verified on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve canonical server boundary; no duplicate tests |
+| **ADMIN-002** | Real persistence + evidence ledger | **BLOCKED** | Production provider remains unproven from connected controls. Historical Vercel project lookup returns `404`; connected team lists no projects; connected Supabase project `zrpsmgdrtwzrhkjwwujo` is `INACTIVE`; repository has no DB/ORM/client path | Establish production provider + binding provenance; inspect schema; only then implement one canonical write/read-back path |
 | ADMIN-003 | Admin Truth / Command / Security / Contract / Operations / Incident Centers | LOCKED | Depends on proven persistence/evidence foundation | Activate after ADMIN-002 |
 | ADMIN-004 | Admin controlled execution + rollback | LOCKED | Execution intentionally disabled | Activate after authorization/policy/evidence/audit/rollback proof |
 | ADMIN-005 | Admin Change / Approval / Incident consolidation | LOCKED | Not started | Activate after ADMIN-004 |
@@ -123,29 +123,23 @@ Required unblock proof:
 ## 8. Closed History
 
 ```text
-No task is retired by this documentation refresh.
-Reason: current main SHA differs from the last proven SHA.
+ARCH-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | BUILD-001 shared build boundary | Static+Build + Certification PASS | CLOSED
+AGENT-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | Persistent project gateway / marker protection | Static+Build + Certification PASS | CLOSED
+ADMIN-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | Fail-closed Admin server boundary | Full CI certification PASS | CLOSED
 ```
-
-Format:
-
-`ID | closedAt | mainSha | ciRun | invariant | evidence | result`
 
 ## 9. Session handoff
 
 ```text
 LAST SESSION:
-  sessionId      = <fill>
-  agentId        = <fill>
-  entrySha       = <fill>
-  exitSha        = <fill>
-  task           = ADMIN-002
-  status         = BLOCKED / PROVENANCE REQUIRED
-  RCA            = canonical production persistence provider cannot currently be established from connected controls
-  evidence       = Vercel team has no projects; historical project lookup returns 404; Supabase connected project is INACTIVE; repo has no DB/ORM/client path
-  blocker        = production provider ownership/binding proof
-  nextAction     = establish canonical provider and server binding, then inspect schema before implementation
-  remainingWork  = persistence write/read-back + evidence/audit + exact-SHA certification
+  task         = ADMIN-002
+  status       = BLOCKED / PROVENANCE REQUIRED
+  entrySha     = b089bd0a4056b04a1376a979c726f33e47944189
+  exitSha      = b089bd0a4056b04a1376a979c726f33e47944189
+  ciRun        = 34771149429
+  ciResult     = SUCCESS
+  blocker      = production provider ownership/binding proof
+  nextAction   = establish canonical provider and server binding, then inspect schema before implementation
 ```
 
 ## 10. Agent start protocol
