@@ -82,7 +82,7 @@ const readCookie = (cookieHeader: string | undefined, name: string) => {
 
 export default async function adminBoundary(req: AdminRequest, res: ServerResponse) {
   const suppliedRequestId = req.headers['x-request-id'];
-  const correlationId = typeof suppliedRequestId === 'string' && suppliedRequestId.length <= 128 ? suppliedRequestId : randomUUID();
+  const correlationId = typeof suppliedRequestId === 'string' && suppliedRequestId.trim().length <= 128 && suppliedRequestId.trim().length > 0 ? suppliedRequestId : randomUUID();
   const method = String(req.method ?? 'GET').toUpperCase();
 
   console.info(JSON.stringify({ event: 'admin_boundary_request', correlationId, method }));
