@@ -1,12 +1,14 @@
 import type { Locale } from '../config';
+import type { SeedUiTranslations } from '../types';
 
-export type Dictionary = Record<string, string | readonly string[]> & {
+export type Dictionary = {
   locale: Locale;
   languageTag: string;
   direction: 'ltr' | 'rtl';
   siteName: string;
   homeTitle: string;
   homeDescription: string;
+  seedUi?: SeedUiTranslations;
 };
 
 export const en: Dictionary = {
