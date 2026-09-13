@@ -90,6 +90,7 @@ type ConsoleMessageLike = {
 
 async function serializeConsoleError(message: ConsoleMessageLike): Promise<string> {
   const parts: string[] = [];
+  let serializationFailed = false;
   for (const arg of message.args()) {
     try {
       const value = await arg.jsonValue();
@@ -105,13 +106,14 @@ async function serializeConsoleError(message: ConsoleMessageLike): Promise<strin
         try {
           parts.push(JSON.stringify(value));
         } catch {
-          parts.push(String(value));
+          serializationFailed = true;
         }
       }
     } catch {
-      parts.push(String(arg));
+      serializationFailed = true;
     }
   }
+  if (serializationFailed) return message.text();
   return parts.join(' ') || message.text();
 }
 
