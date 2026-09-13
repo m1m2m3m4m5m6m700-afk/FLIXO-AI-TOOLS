@@ -99,7 +99,9 @@ export const test = base.extend<{ runtimeEvidence: void }>({
     try {
       await runTest();
     } finally {
-      await page.unroute('**/*', onRoute);
+      if (!page.isClosed()) {
+        await page.unroute('**/*', onRoute);
+      }
       page.off('framenavigated', onNavigation);
       page.off('console', onConsole);
       page.off('pageerror', onPageError);
