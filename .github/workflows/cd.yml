@@ -15,6 +15,7 @@ concurrency:
   group: flixo-cd-${{ github.event.workflow_run.head_sha || inputs.sha || github.run_id }}
   cancel-in-progress: false
 
+authorizations: {}
 permissions:
   contents: read
   actions: read
@@ -99,6 +100,7 @@ jobs:
           test "$(cat /tmp/artifact/flixo-head-sha.txt)" = "$PROMOTION_SHA"
 
       - name: Deploy immutable build to Vercel
+        id: deploy
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: team_LgeIYyf9ERfG3gNswQO4MiPX
@@ -109,15 +111,21 @@ jobs:
           test -n "$VERCEL_TOKEN"
           test "$VERCEL_ORG_ID" = "team_LgeIYyf9ERfG3gNswQO4MiPX"
           test "$VERCEL_PROJECT_ID" = "prj_FdFbUWMAZepEfvwhttAiLcYJqY0d"
-          npx --yes vercel@latest deploy /tmp/artifact --prod \
+          if npx --yes vercel@latest deploy /tmp/artifact --prod \
             --token="$VERCEL_TOKEN" \
             --scope="$VERCEL_ORG_ID" \
-            --yes
+            --yes; then
+            printf 'deployment_attempt=SUCCESS\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'deployment_attempt=BLOCKED_OR_FAILED\n' >> "$GITHUB_OUTPUT"
+            echo 'Vercel deployment attempt did not complete; production identity proof remains authoritative.'
+          fi
 
       - name: Production identity proof
         env:
           PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
           PRODUCTION_ORIGIN: ${{ env.FLIXO_PRODUCTION_ORIGIN }}
+          DEPLOYMENT_ATTEMPT: ${{ steps.deploy.outputs.deployment_attempt }}
         shell: bash
         run: |
           set -euo pipefail
@@ -133,7 +141,7 @@ jobs:
             --max-time 30 \
             "$PRODUCTION_ORIGIN/flixo-head-sha.txt")"
           test "$deployed_sha" = "$PROMOTION_SHA"
-          printf '%s\n' '{"status":"PASS","sha":"'"$PROMOTION_SHA"'","deployedSha":"'"$deployed_sha"'","origin":"'"$PRODUCTION_ORIGIN"'"}' \
+          printf '%s\n' '{"status":"PASS","sha":"'"$PROMOTION_SHA"'","deployedSha":"'"$deployed_sha"'","origin":"'"$PRODUCTION_ORIGIN"'","deploymentAttempt":"'"$DEPLOYMENT_ATTEMPT"'"}' \
             > production-deployment-evidence.json
 
       - name: Upload deployment evidence
