@@ -81,6 +81,32 @@ const invokeCenters = async ({ secret = SECRET, cookie = '', method = 'GET', que
   return { status: res.statusCode, headers, body: JSON.parse(body) };
 };
 
+const invokeExecutionPreview = async ({ secret = SECRET, cookie = '', method = 'GET', query = {}, requestId = 'execution-preview-request-001' } = {}) => {
+  const previous = process.env.ADMIN_SESSION_SECRET;
+  if (secret === null) delete process.env.ADMIN_SESSION_SECRET;
+  else process.env.ADMIN_SESSION_SECRET = secret;
+
+  const headers = {};
+  let body;
+  const res = {
+    statusCode: 200,
+    setHeader(name, value) { headers[name] = value; },
+    end(value) { body = value; },
+  };
+
+  try {
+    await (await import('../api/admin/execution-preview.ts')).default(
+      { method, query, headers: { cookie, 'x-request-id': requestId } },
+      res,
+    );
+  } finally {
+    if (previous === undefined) delete process.env.ADMIN_SESSION_SECRET;
+    else process.env.ADMIN_SESSION_SECRET = previous;
+  }
+
+  return { status: res.statusCode, headers, body: JSON.parse(body) };
+};
+
 const session = signAdminSession({ subject: 'test-owner', capabilities: ['admin.read', 'truth.read'] }, SECRET);
 const cookie = `${sessionCookieName}=${session}`;
 const readModelSession = signAdminSession({
@@ -204,4 +230,57 @@ assert.equal(contractResponse.body.center, 'contract');
 assert.equal(contractResponse.body.capability, 'contracts.read');
 assert.equal(contractResponse.body.data.execution, 'READ_ONLY');
 
-console.log('Admin server boundary contract tests passed: 25 fail-closed/authorization/correlation/overview/read-model cases.');
+const previewUnauthenticated = await invokeExecutionPreview({ query: {
+  executionClass: 'READ',
+  command: 'inspect',
+  target: 'system',
+} });
+assert.equal(previewUnauthenticated.status, 401);
+assert.equal(previewUnauthenticated.body.error.code, 'authentication_required');
+
+const previewDenied = await invokeExecutionPreview({
+  cookie: `${sessionCookieName}=${session}`,
+  query: { executionClass: 'READ', command: 'inspect', target: 'system' },
+});
+assert.equal(previewDenied.status, 403);
+assert.equal(previewDenied.body.error.code, 'capability_denied');
+
+const executionSession = signAdminSession({ subject: 'execution-owner', capabilities: ['system.read'] }, SECRET);
+const executionCookie = `${sessionCookieName}=${executionSession}`;
+
+const previewInvalidClass = await invokeExecutionPreview({
+  cookie: executionCookie,
+  query: { executionClass: 'UNKNOWN', command: 'restart', target: 'service' },
+});
+assert.equal(previewInvalidClass.status, 400);
+assert.equal(previewInvalidClass.body.error.code, 'invalid_execution_class');
+
+const preview = await invokeExecutionPreview({
+  cookie: executionCookie,
+  query: { executionClass: 'HIGH_RISK_WRITE', command: 'restart', target: 'service' },
+});
+assert.equal(preview.status, 200);
+assert.equal(preview.body.ok, true);
+assert.equal(preview.body.source, 'admin-control-plane-execution-preview');
+assert.equal(preview.body.plan.execution.mode, 'PREVIEW_ONLY');
+assert.equal(preview.body.plan.execution.enabled, false);
+assert.equal(preview.body.plan.policy.decision, 'ALLOW_PREVIEW');
+assert.equal(preview.body.plan.policy.reason, 'preview_only');
+assert.equal(preview.body.plan.rollback.required, true);
+assert.equal(preview.body.plan.approval.required, true);
+assert.equal(preview.body.plan.audit.eventType, 'ADMIN_EXECUTION_PREVIEW');
+assert.equal(preview.body.plan.audit.subject, 'execution-owner');
+assert.equal(preview.body.plan.execution.command, 'restart');
+assert.equal(preview.body.plan.execution.target, 'service');
+assert.equal(preview.headers['X-Request-Id'], 'execution-preview-request-001');
+
+const previewMissingTarget = await invokeExecutionPreview({
+  cookie: executionCookie,
+  query: { executionClass: 'LOW_RISK_WRITE', command: 'restart', target: '' },
+});
+assert.equal(previewMissingTarget.status, 200);
+assert.equal(previewMissingTarget.body.plan.policy.decision, 'DENY');
+assert.equal(previewMissingTarget.body.plan.policy.reason, 'missing_target');
+assert.equal(previewMissingTarget.body.plan.execution.enabled, false);
+
+console.log('Admin server boundary contract tests passed: 35 fail-closed/authorization/correlation/overview/read-model/execution-preview cases.');
