@@ -14,7 +14,7 @@ ADMIN-004 = CLOSED / VERIFIED
 ADMIN-004 CLOSURE SHA = b036327855222f4c11db0cfc8a1657167e4231be
 ADMIN-004 CANONICAL TEST RUN = 34798018758
 ADMIN-004 VERCEL DEPLOYMENT = EXTERNAL / RATE-LIMIT BLOCKED
-CURRENT MAIN SHA = resolve from git ref at session entry
+CURRENT MAIN SHA = 5bbd68172680b4629c7d4cf8e652832910b6fdcc
 ```
 
 ## TASK QUEUE
@@ -23,7 +23,7 @@ CURRENT MAIN SHA = resolve from git ref at session entry
 |---|---|---|
 | ADMIN-003 | CLOSED / VERIFIED | Preserve canonical read-only centers |
 | ADMIN-004 | CLOSED / VERIFIED | Preserve fail-closed execution boundary |
-| ADMIN-005 | ACTIVE | Discovery and exact contract provenance before implementation |
+| ADMIN-005 | IMPLEMENTED / VERIFICATION PENDING | Fresh exact-SHA CI/certification proof of the server boundary and browser-bundle security invariant |
 | ADMIN-006 | LOCKED | Activate after ADMIN-005 proof |
 | ADMIN-007 | LOCKED | Activate after ADMIN-006 |
 | ADMIN-008 | LOCKED | Final production certification |
@@ -90,14 +90,26 @@ The Vercel status for this SHA is an external build-rate-limit condition and is 
 ## ADMIN-005
 
 ```text
-ACTIVE
-Purpose = not yet independently specified in the task gate.
-First action = Discovery → Contract Provenance → exact target → implementation decision.
-Rule = do not invent a new contract before authoritative repository evidence identifies it.
+IMPLEMENTED / VERIFICATION PENDING
+implementation SHA = 5bbd68172680b4629c7d4cf8e652832910b6fdcc
+base SHA = de07ac765159a4ba328b4d33d971b8d13db9d4c4
+RCA = ADMIN-005-CLIENT-BUNDLE-BOUNDARY-001
 ```
 
 Authoritative roadmap evidence:
 `docs/ADMIN-CONTROL-PLANE-MASTER-PLAN.md`
+
+Implemented causal repair:
+`build -> dist/assets/*.js -> security boundary validator`
+
+The production build now fails closed when browser JavaScript contains server-side Admin secret/boundary markers such as `ADMIN_SESSION_SECRET`, `/api/admin/`, `authorizeAdminRequest`, `createHmac`, or `signAdminSession`.
+
+The validator remains part of the existing production `build` script, immediately after `vite build`.
+
+Current verification:
+`CI run 34800176880 = in progress`
+
+Closure remains blocked until fresh exact-SHA CI/certification evidence proves the invariant on `main @ 5bbd68172680b4629c7d4cf8e652832910b6fdcc`.
 
 Current roadmap execution posture:
 `Controlled Execution = LOCKED`
