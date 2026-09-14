@@ -7,7 +7,7 @@
   "cleanUrls": true,
   "git": {
     "deploymentEnabled": {
-      "main": false,
+      "main": true,
       "deps/cleanup-367-v2": false
     }
   },
