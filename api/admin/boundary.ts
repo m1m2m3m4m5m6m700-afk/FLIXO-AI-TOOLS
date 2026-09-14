@@ -4,6 +4,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 const SESSION_COOKIE = 'flixo_admin_session';
 const DEFAULT_TTL_SECONDS = 60 * 60;
 
+const BOUNDARY_CAPABILITY = 'admin.read' as const;
+
 type AdminRequest = IncomingMessage & {
   method?: string;
   query?: Record<string, string | string[] | undefined>;
@@ -119,10 +121,8 @@ export const authorizeAdminRequest = (req: AdminRequest, requiredCapability = 'a
 };
 
 export default async function adminBoundary(req: AdminRequest, res: ServerResponse) {
-  const authorization = authorizeAdminRequest(req, (() => {
-    const requestedCapabilityValue = req.query?.capability;
-    return Array.isArray(requestedCapabilityValue) ? requestedCapabilityValue[0] : requestedCapabilityValue ?? 'admin.read';
-  })());
+  // The boundary endpoint has one fixed capability. Callers cannot select a stronger capability via query parameters.
+  const authorization = authorizeAdminRequest(req, BOUNDARY_CAPABILITY);
 
   console.info(JSON.stringify({ event: 'admin_boundary_request', correlationId: authorization.correlationId, method: String(req.method ?? 'GET').toUpperCase() }));
 
