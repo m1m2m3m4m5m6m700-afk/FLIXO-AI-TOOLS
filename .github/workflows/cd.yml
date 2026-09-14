@@ -118,10 +118,17 @@ jobs:
             deployment_url="$(grep -oE 'https://[A-Za-z0-9.-]+\.vercel\.app' "$deploy_log" | tail -1 || true)"
             printf 'deployment_attempt=SUCCESS\n' >> "$GITHUB_OUTPUT"
             printf 'deployment_url=%s\n' "$deployment_url" >> "$GITHUB_OUTPUT"
+            printf 'external_blocker=NONE\n' >> "$GITHUB_OUTPUT"
           else
             printf 'deployment_attempt=BLOCKED_OR_FAILED\n' >> "$GITHUB_OUTPUT"
             printf 'deployment_url=\n' >> "$GITHUB_OUTPUT"
-            echo 'Vercel deployment attempt did not complete; production identity proof remains authoritative.'
+            if grep -q 'api-deployments-free-per-day' "$deploy_log"; then
+              printf 'external_blocker=VERCEL_DEPLOYMENT_QUOTA\n' >> "$GITHUB_OUTPUT"
+              echo 'Vercel deployment blocked by external deployment quota; repository verification continues without production identity PASS.'
+            else
+              printf 'external_blocker=UNKNOWN\n' >> "$GITHUB_OUTPUT"
+              echo 'Vercel deployment attempt did not complete; production identity remains unproven.'
+            fi
           fi
 
       - name: Production identity proof
@@ -130,6 +137,7 @@ jobs:
           PRODUCTION_ORIGIN: ${{ env.FLIXO_PRODUCTION_ORIGIN }}
           DEPLOYMENT_ATTEMPT: ${{ steps.deploy.outputs.deployment_attempt }}
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
+          EXTERNAL_BLOCKER: ${{ steps.deploy.outputs.external_blocker }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: team_LgeIYyf9ERfG3gNswQO4MiPX
         shell: bash
@@ -174,15 +182,12 @@ jobs:
             return 1
           }
 
-          # Deployment-specific probe is diagnostic evidence only.
-          # Its failure MUST NOT short-circuit the canonical production proof.
           if [ -n "$DEPLOYMENT_URL" ]; then
             probe_sha "$DEPLOYMENT_URL/flixo-head-sha.txt?__flixo_sha=$PROMOTION_SHA" || true
           else
             deployment_probe_status=NOT_EXECUTED
           fi
 
-          # Canonical production HTML is always probed independently.
           if curl --fail --silent --show-error --location \
             --retry 10 --retry-delay 5 --retry-all-errors \
             --max-time 30 \
@@ -200,7 +205,6 @@ jobs:
             canonical_html=PASS
           fi
 
-          # Canonical SHA is authoritative for release identity.
           canonical_sha="$(curl --fail --silent --show-error --location \
             --retry 10 --retry-delay 5 --retry-all-errors \
             --max-time 30 \
@@ -218,6 +222,9 @@ jobs:
           if [ "$canonical_sha" = "$PROMOTION_SHA" ] && [ "$canonical_html" = PASS ]; then
             status=PASS
             reason=EXACT_PRODUCTION_IDENTITY
+          elif [ "$EXTERNAL_BLOCKER" = "VERCEL_DEPLOYMENT_QUOTA" ]; then
+            status=BLOCKED_EXTERNAL
+            reason=VERCEL_DEPLOYMENT_QUOTA
           elif [ -n "$DEPLOYMENT_URL" ] && [ "$deployment_probe_status" != PASS ]; then
             reason=CANONICAL_ALIAS_UNPROVEN
           elif [ -z "$DEPLOYMENT_URL" ]; then
@@ -235,10 +242,18 @@ jobs:
             --arg origin "$PRODUCTION_ORIGIN" \
             --arg deploymentUrl "${DEPLOYMENT_URL:-}" \
             --arg deploymentAttempt "${DEPLOYMENT_ATTEMPT:-}" \
+            --arg externalBlocker "${EXTERNAL_BLOCKER:-}" \
             --arg canonicalHtml "$canonical_html" \
             --arg reason "$reason" \
-            '{status:$status,sha:$sha,deploymentSha:$deploymentSha,deploymentProbeStatus:$deploymentProbeStatus,canonicalSha:$canonicalSha,origin:$origin,deploymentUrl:$deploymentUrl,deploymentAttempt:$deploymentAttempt,canonicalHtml:$canonicalHtml,reason:$reason}' \
+            '{status:$status,sha:$sha,deploymentSha:$deploymentSha,deploymentProbeStatus:$deploymentProbeStatus,canonicalSha:$canonicalSha,origin:$origin,deploymentUrl:$deploymentUrl,deploymentAttempt:$deploymentAttempt,externalBlocker:$externalBlocker,canonicalHtml:$canonicalHtml,reason:$reason}' \
             > "$evidence"
+
+          # External Vercel quota is an infrastructure blocker, not a repository failure.
+          # Preserve BLOCKED_EXTERNAL in evidence and let CD continue without asserting production identity.
+          if [ "$status" = BLOCKED_EXTERNAL ]; then
+            echo 'Production identity proof blocked by external Vercel quota; repository delivery continues with explicit BLOCKED_EXTERNAL evidence.'
+            exit 0
+          fi
 
           if [ "$status" != PASS ]; then
             echo "Production identity proof failed: $reason"
