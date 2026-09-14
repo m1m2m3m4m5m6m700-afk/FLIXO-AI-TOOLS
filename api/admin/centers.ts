@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { authorizeAdminRequest } from './boundary.ts';
 import { getEvent, isPersistenceConfigured, probePersistence } from './persistence.ts';
@@ -27,7 +28,7 @@ const first = (value: string | string[] | undefined) => Array.isArray(value) ? v
 export default async function adminCenters(req: AdminRequest, res: ServerResponse) {
   const rawCenter = first(req.query?.center)?.trim().toLowerCase();
   if (!rawCenter || !(rawCenter in CENTER_CAPABILITY)) {
-    const correlationId = first(req.headers['x-request-id'])?.trim() || crypto.randomUUID();
+    const correlationId = first(req.headers['x-request-id'])?.trim() || randomUUID();
     return json(res, 400, { ok: false, error: { code: 'invalid_admin_center', correlationId } }, correlationId);
   }
 
