@@ -248,6 +248,15 @@ assert.equal(previewDenied.body.error.code, 'capability_denied');
 const executionSession = signAdminSession({ subject: 'execution-owner', capabilities: ['system.read'] }, SECRET);
 const executionCookie = `${sessionCookieName}=${executionSession}`;
 
+const previewWrongMethod = await invokeExecutionPreview({
+  cookie: executionCookie,
+  method: 'POST',
+  query: { executionClass: 'READ', command: 'inspect', target: 'system' },
+});
+assert.equal(previewWrongMethod.status, 405);
+assert.equal(previewWrongMethod.body.error.code, 'method_not_allowed');
+assert.equal(previewWrongMethod.headers.Allow, 'GET');
+
 const previewInvalidClass = await invokeExecutionPreview({
   cookie: executionCookie,
   query: { executionClass: 'UNKNOWN', command: 'restart', target: 'service' },
@@ -283,4 +292,4 @@ assert.equal(previewMissingTarget.body.plan.policy.decision, 'DENY');
 assert.equal(previewMissingTarget.body.plan.policy.reason, 'missing_target');
 assert.equal(previewMissingTarget.body.plan.execution.enabled, false);
 
-console.log('Admin server boundary contract tests passed: 35 fail-closed/authorization/correlation/overview/read-model/execution-preview cases.');
+console.log('Admin server boundary contract tests passed: 36 fail-closed/authorization/correlation/overview/read-model/execution-preview cases.');
