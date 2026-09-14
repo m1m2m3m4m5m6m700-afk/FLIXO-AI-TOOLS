@@ -1,30 +1,67 @@
-# FLIXO-AI-TOOLS — EXECUTION BRANCH PROTOCOL
+# FLIXO-AI-TOOLS — EXECUTION PROTOCOL
 
-**Protocol:** EXECUTION-BRANCH v1.0
-**Canonical work branch:** `execution`
+**Protocol:** MAIN-FIRST v2.0
 **Canonical stable branch:** `main`
+**Synchronization branch:** `execution`
 **Default batch size:** 20 successful changes
 
 ## 1. Purpose
 
-This protocol establishes one shared integration path for routine repository execution. It is designed for a single active maintainer/agent and explicitly prevents branch proliferation, duplicate CI cycles, and parallel mutable work paths.
+This protocol minimizes routine integration overhead for a single active maintainer/agent. Routine low-risk work may be executed directly on `main` when it has a bounded scope and can be proven immediately. `execution` remains available as the synchronization/recovery branch and must not become a mandatory PR hop for every small change.
 
 ## 2. Branch roles
 
 `main` is the stable source of truth, production/release baseline, and final certification target.
 
-`execution` is the sole routine integration and implementation branch. All normal implementation, repair, cleanup, refactoring, documentation, tool expansion, and test-contract work is performed on `execution`.
+`execution` is the synchronization and exceptional integration branch. It is used when a change is too large, risky, conflict-prone, multi-step, or otherwise benefits from isolation before reaching `main`.
 
-Feature, repair, diagnostic, workaround, agent, temporary, and per-task branches are prohibited for routine work.
+Routine feature, repair, diagnostic, workaround, agent, temporary, and per-task branches remain prohibited unless an exceptional recovery or external-provider requirement explicitly requires one.
 
-Exception: a branch may exist only when required by an external provider, GitHub operation, historical recovery, or an explicitly approved migration/incident boundary. Such a branch is not a second execution path and must return its validated result to `execution`.
+## 3. Main-first execution
 
-## 3. Single-path execution
-
-The normal route is:
+The normal route for a bounded routine change is:
 
 ```text
 main
+  ↓
+inspect exact SHA
+  ↓
+change
+  ↓
+targeted regression
+  ↓
+Exact-SHA verification
+  ↓
+continue next bounded change
+```
+
+Direct `main` execution is authorized only when all of the following are true:
+
+```text
+single active owner
+∧ bounded change scope
+∧ no unresolved RCA dependency
+∧ targeted regression is available
+∧ change does not require long-lived isolation
+∧ no production mutation is enabled without its own contract
+```
+
+## 4. When isolation is mandatory
+
+Use `execution` before `main` when any of the following applies:
+
+- security/authentication/authorization changes with broad impact;
+- persistence or destructive/production-sensitive mutation;
+- major architectural or contract changes;
+- rollback scope is materially large;
+- multiple interdependent changes must be developed together;
+- canonical evidence must be frozen only after a controlled integration boundary;
+- direct `main` work would make RCA attribution ambiguous.
+
+The isolation route is:
+
+```text
+main baseline
   ↓
 execution
   ↓
@@ -32,110 +69,90 @@ change
   ↓
 targeted regression
   ↓
-next change
-  ↓
-...
-  ↓
-20 successful changes OR end-of-day boundary
-  ↓
-canonical CI / certification
+canonical CI / certification when required
   ↓
 Exact-SHA proof
   ↓
-execution → main merge
+execution → main
   ↓
-main Exact-SHA confirmation
+verify main
   ↓
-execution synchronized to new main
+synchronize execution
 ```
 
-A change is counted only after its targeted regression passes and its intended repository state is present on `execution`.
+## 5. Batch rule
 
-## 4. Batch rule
+The default maximum batch is **20 successful changes**, but batching is optional for small direct-to-main changes. Do not accumulate changes merely to reach 20.
 
-The default merge boundary is **20 successful changes**.
-
-A merge must also occur at an earlier boundary when any of the following is true:
+An earlier certification/integration boundary is mandatory for:
 
 - end of the working day;
-- a security, authorization, persistence, deployment, or production-sensitive boundary is reached;
-- a large architectural/contract boundary is completed;
-- continuing would materially increase rollback scope;
-- required evidence must be frozen on `main`.
+- security, authorization, persistence, deployment, or production-sensitive boundaries;
+- major architectural/contract boundaries;
+- materially increasing rollback scope;
+- any requirement to freeze final evidence on `main`.
 
-A batch may contain fewer than 20 changes. Twenty is a maximum integration batch, not a requirement to accumulate unnecessary work.
+## 6. Testing rule
 
-## 5. Testing rule
+Use the smallest targeted regression capable of proving the affected behavior.
 
-Do not run full canonical CI for every routine change.
+Full canonical CI is not required for every low-risk routine change. It is required whenever the governing contract, affected graph, release boundary, or task closure requires it.
 
-During execution, use the smallest targeted regression that can prove the affected behavior. Existing fast/local/static checks may be reused.
+No branch-local, historical, partial, stale, or inferred evidence may be used to claim final `main` GREEN.
 
-Canonical CI and certification run at the batch-to-main boundary. Evidence from `execution` is not final release evidence until the batch is merged and the resulting exact `main` SHA is verified.
-
-A high-risk change may trigger earlier canonical CI; the batch rule never overrides a safety or evidence requirement.
-
-## 6. No path saturation
-
-The repository MUST NOT accumulate parallel routine branches or long-lived task branches.
-
-The following are prohibited as normal workflow patterns:
+After every direct `main` change:
 
 ```text
-one task → one branch
-one tool → one branch
-one fix → one PR
-one day → many feature branches
-branch chains / stacked routine PRs
+resolve exact main SHA
+→ inspect targeted checks
+→ run required verification
+→ record resulting SHA/evidence
 ```
 
-The intended shape is:
+## 7. Zero-False-Green / safety invariants
+
+Direct `main` execution is a speed optimization, not a permission to weaken controls.
+
+Never:
 
 ```text
-ONE execution branch
-ONE active mutable path
-ONE batch integration boundary
-ONE main certification target
+skip a required assertion
+weaken expected behavior to fit a defect
+suppress a failure
+remove coverage
+bypass authorization
+bypass approval
+invent evidence
+enable production mutation without a proven contract
 ```
 
-## 7. Conflict and failure handling
+`FAIL`, `BLOCKED`, `UNKNOWN`, `MISSING_EVIDENCE`, `STALE`, and `NOT_EXECUTED` remain non-GREEN states.
 
-If a change fails targeted regression, repair it on `execution` and continue from the resulting exact SHA.
+## 8. Conflict and failure handling
 
-If the batch fails canonical CI, do not split into speculative branches. Perform RCA on `execution`, repair the causal defect, rerun the affected regression, then rerun the required canonical verification for the batch.
-
-If `main` moves for any reason, immediately re-resolve the exact `main` SHA and synchronize `execution` before adding more work.
-
-## 8. Merge contract
-
-A batch may merge only when:
+If a direct `main` change fails targeted regression:
 
 ```text
-execution batch identified
-∧ targeted regressions pass
-∧ required canonical CI PASS
-∧ certification PASS where required
-∧ Exact-SHA evidence matches execution HEAD
-∧ no unresolved RCA blocks the batch
+stop follow-on changes
+→ RCA
+→ repair causal source
+→ targeted regression
+→ fresh exact main SHA
 ```
 
-After merge:
+Move to `execution` when the repair becomes materially complex, requires multiple coordinated changes, or risks destabilizing `main`.
 
-```text
-main HEAD = merge result SHA
-∧ main is freshly verified
-∧ execution base is reset/synchronized to main
-```
-
-No branch-local evidence may be used to claim `main` is GREEN.
+If `main` moves, immediately re-resolve its exact SHA before continuing. `execution` must be synchronized to the resulting `main` state before being used for further work.
 
 ## 9. Governance integration
 
-This protocol is subordinate to the repository's Zero-False-Green, Exact-SHA, Root-Cause-First, contract, security, and release-certification rules.
+This protocol remains subordinate to:
 
-The task gate remains authoritative for what may be executed. `CANDIDATE` and `LOCKED` work remains non-executable until promoted by `المهام.md`.
+`Zero-False-Green → Exact-SHA → Root-Cause-First → contract/security/release requirements → task gate`
 
-The protocol does not authorize bypassing required tests, coverage, security checks, approvals, evidence, or production gates.
+`المهام.md` remains authoritative for task status and dependencies. `CANDIDATE` and `LOCKED` work is not executable until promoted.
+
+This protocol does not authorize bypassing required tests, certification, approvals, evidence, or production controls.
 
 ## 10. Session route
 
@@ -145,16 +162,17 @@ Every session uses:
 READ PROJECTS.md
 → READ المهام.md
 → READ AGENTS.md
-→ RESOLVE main SHA
-→ RESOLVE execution SHA
-→ CLAIM ACTIVE TASK
-→ CHANGE ON execution ONLY
+→ RESOLVE exact main SHA
+→ IDENTIFY ACTIVE TASK
+→ READ authoritative contract
+→ RCA / scope lock
+→ MAIN-FIRST CHANGE when eligible
+   OR
+   execution isolation when required
 → TARGETED REGRESSION
-→ RECORD BATCH COUNT
-→ BATCH CI AT 20 / EOD / SAFETY BOUNDARY
+→ REQUIRED CI / CERTIFICATION
 → EXACT-SHA PROOF
-→ MERGE execution → main
-→ VERIFY main SHA
-→ SYNC execution
+→ UPDATE PROJECT MAPS
+→ SYNC execution to main when main moved
 → HANDOFF / LOGOUT
 ```
