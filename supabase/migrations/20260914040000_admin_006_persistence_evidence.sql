@@ -10,13 +10,19 @@ create table if not exists public.flix_admin_evidence (
   source text not null,
   evaluator text not null,
   environment text not null,
-  status text not null,
+  status text not null check (status in ('VERIFIED','FAILED','BLOCKED','UNAVAILABLE','STALE','UNKNOWN')),
   freshness_at timestamptz not null,
   recorded_at timestamptz not null default now(),
   payload jsonb not null default '{}'::jsonb,
   integrity_sha256 text not null,
   expires_at timestamptz,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  check (length(trim(assertion_id)) > 0),
+  check (length(trim(exact_sha)) >= 40),
+  check (length(trim(source)) > 0),
+  check (length(trim(evaluator)) > 0),
+  check (length(trim(environment)) > 0),
+  check (length(integrity_sha256) = 64)
 );
 
 create index if not exists flix_admin_evidence_assertion_sha_idx
@@ -38,11 +44,19 @@ create table if not exists public.flix_admin_audit_events (
   environment text not null,
   outcome text not null,
   correlation_id text,
-  evidence_id uuid,
+  evidence_id uuid references public.flix_admin_evidence(evidence_id),
   occurred_at timestamptz not null default now(),
   metadata jsonb not null default '{}'::jsonb,
   integrity_sha256 text not null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  check (length(trim(actor_subject)) > 0),
+  check (length(trim(action)) > 0),
+  check (length(trim(target_type)) > 0),
+  check (length(trim(target_id)) > 0),
+  check (length(trim(exact_sha)) >= 40),
+  check (length(trim(environment)) > 0),
+  check (length(trim(outcome)) > 0),
+  check (length(integrity_sha256) = 64)
 );
 
 create index if not exists flix_admin_audit_actor_time_idx
@@ -59,3 +73,6 @@ revoke all on table public.flix_admin_evidence from anon, authenticated;
 revoke all on table public.flix_admin_audit_events from anon, authenticated;
 grant select, insert, update, delete on table public.flix_admin_evidence to service_role;
 grant select, insert, update, delete on table public.flix_admin_audit_events to service_role;
+
+-- Retention is explicit and fail-safe: expired evidence remains queryable until a controlled
+-- maintenance operation removes it; no implicit destructive trigger is introduced.
