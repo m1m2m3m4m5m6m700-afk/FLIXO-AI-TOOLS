@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 
 process.env.SUPABASE_SECRET_KEY = 'test-secret';
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 
 const module = await import('../api/admin/persistence.ts');
 assert.equal(module.isPersistenceConfigured(), true);
+
+const sha256 = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
 const eventId = '11111111-1111-4111-8111-111111111111';
 const evidenceId = '22222222-2222-4222-8222-222222222222';
@@ -41,10 +44,21 @@ const storedEvidence = {
   freshness_at: '2026-09-14T03:50:00.000Z',
   recorded_at: '2026-09-14T03:50:00.000Z',
   payload: { proof: 'ADMIN-006', marker: 'evidence-round-trip' },
-  integrity_sha256: 'a'.repeat(64),
   expires_at: null,
   created_at: '2026-09-14T03:50:00.000Z',
 };
+storedEvidence.integrity_sha256 = sha256({
+  assertion_id: storedEvidence.assertion_id,
+  claim_id: storedEvidence.claim_id,
+  exact_sha: storedEvidence.exact_sha,
+  source: storedEvidence.source,
+  evaluator: storedEvidence.evaluator,
+  environment: storedEvidence.environment,
+  status: storedEvidence.status,
+  freshness_at: storedEvidence.freshness_at,
+  payload: storedEvidence.payload,
+  expires_at: storedEvidence.expires_at,
+});
 
 const storedAudit = {
   event_id: auditId,
@@ -61,9 +75,22 @@ const storedAudit = {
   evidence_id: evidenceId,
   occurred_at: '2026-09-14T03:50:00.000Z',
   metadata: { proof: 'ADMIN-006', marker: 'audit-round-trip' },
-  integrity_sha256: 'b'.repeat(64),
   created_at: '2026-09-14T03:50:00.000Z',
 };
+storedAudit.integrity_sha256 = sha256({
+  actor_subject: storedAudit.actor_subject,
+  actor_role: storedAudit.actor_role,
+  action: storedAudit.action,
+  capability: storedAudit.capability,
+  target_type: storedAudit.target_type,
+  target_id: storedAudit.target_id,
+  exact_sha: storedAudit.exact_sha,
+  environment: storedAudit.environment,
+  outcome: storedAudit.outcome,
+  correlation_id: storedAudit.correlation_id,
+  evidence_id: storedAudit.evidence_id,
+  metadata: storedAudit.metadata,
+});
 
 globalThis.fetch = async (input, init = {}) => {
   calls += 1;
@@ -179,11 +206,13 @@ const adminResult = await module.assertAdminEvidenceRoundTrip(evidenceInput, aud
 assert.equal(adminResult.evidence.evidence_id, evidenceId);
 assert.equal(adminResult.evidenceReadBack.evidence_id, evidenceId);
 assert.equal(adminResult.evidenceReadBack.exact_sha, evidenceInput.exact_sha);
-assert.match(adminResult.evidenceReadBack.integrity_sha256, /^[0-9a-f]{64}$/);
+assert.equal(adminResult.evidenceReadBack.integrity_sha256, storedEvidence.integrity_sha256);
 assert.equal(adminResult.auditEvent.event_id, auditId);
 assert.equal(adminResult.auditReadBack.event_id, auditId);
 assert.equal(adminResult.auditReadBack.evidence_id, evidenceId);
-assert.equal(postedAudit.evidence_id, evidenceId);
+assert.equal(adminResult.auditReadBack.integrity_sha256, storedAudit.integrity_sha256);
+assert.equal(postedEvidence.integrity_sha256, storedEvidence.integrity_sha256);
+assert.equal(postedAudit.integrity_sha256, storedAudit.integrity_sha256);
 assert.equal(calls, 6);
 
 const originalUrl = process.env.SUPABASE_URL;
