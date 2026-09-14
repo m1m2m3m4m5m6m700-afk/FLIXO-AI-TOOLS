@@ -2,7 +2,7 @@
 
 **FIRST READ: `PROJECTS.md` → `المهام.md`**
 
-**MANDATORY ENTRY TITLE:** `PROJECTS.md` → `المهام.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTE ON MAIN → TARGETED REGRESSION → VERIFY → EXACT-SHA PROOF → HANDOFF.
+**MANDATORY ENTRY TITLE:** `PROJECTS.md` → `المهام.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTE ON `execution` → TARGETED REGRESSION → BATCH VERIFICATION → EXACT-SHA PROOF → MERGE `execution` → `main` → HANDOFF.
 
 `PROJECTS.md` is the persistent project map. `المهام.md` is the mandatory open-task gateway and execution-scope contract. Both MUST be read before protocol files so an agent enters through the current authorized work scope rather than inventing a new task.
 
@@ -13,15 +13,16 @@ Before any repository action, every agent MUST read, in this order:
 1. `PROJECTS.md`
 2. `المهام.md`
 3. `AGENTS.md`
-4. `docs/AGENT-COLLABORATION-PROTOCOL.md`
-5. `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`
-6. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
-7. `docs/PROTOCOL-HIERARCHY.md`
-8. `docs/PROTOCOL-REGISTRY.json`
-9. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-10. `scripts/ci/test-plan.json`
-11. `scripts/ci/assertion-registry.json`
-12. the current exact `main` SHA and current workflow state
+4. `docs/EXECUTION-BRANCH-PROTOCOL.md`
+5. `docs/AGENT-COLLABORATION-PROTOCOL.md`
+6. `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`
+7. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
+8. `docs/PROTOCOL-HIERARCHY.md`
+9. `docs/PROTOCOL-REGISTRY.json`
+10. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+11. `scripts/ci/test-plan.json`
+12. `scripts/ci/assertion-registry.json`
+13. the current exact `main` SHA, current exact `execution` SHA, and current workflow state
 
 `PROJECTS.md` is the navigation/control layer; `المهام.md` is the open-task scope gate; the linked contract/plan remains authoritative for implementation semantics, and CI/evidence remains authoritative for completion.
 
@@ -39,25 +40,66 @@ The agent MUST NOT:
 
 The active queue in `المهام.md` is the only default execution scope. Any addition, status transition, or retirement of a material task MUST be reflected in `المهام.md` and `PROJECTS.md`.
 
-## MAIN-ONLY EXECUTION
+## EXECUTION-BRANCH POLICY
 
-The repository's canonical development branch is `main`.
+The repository has exactly two normal branches in the active execution model:
 
-All routine implementation, repair, refactoring, testing, CI repair, cleanup, and verification work MUST be executed directly against the current exact `main` SHA.
+- `main` = stable source of truth, release/production baseline, and final certification target.
+- `execution` = sole routine integration and implementation branch.
 
-Do NOT create or switch to feature, repair, diagnostic, agent, or workaround branches for routine repository work. Do NOT use pull requests as an intermediate execution layer for ordinary changes.
+All normal implementation, repair, refactoring, cleanup, documentation, tool expansion, testing, and CI-repair work MUST be executed on `execution`.
 
-Every meaningful change MUST:
+Routine feature, repair, diagnostic, agent, workaround, temporary, per-tool, or per-task branches MUST NOT be created. Stacked routine PRs and branch chains are prohibited.
 
-1. read the current exact `main` SHA,
-2. apply the change to `main`,
-3. verify the resulting exact `main` SHA,
-4. run the affected contract graph and required CI verification,
-5. continue recovery directly from the resulting `main` SHA if a failure appears.
+A temporary branch is allowed only when an external system or exceptional recovery requires it. Such a branch is not an execution path and its validated result MUST return to `execution` before normal work continues.
 
-Historical branch state, stale PR state, or branch-local evidence MUST NOT be treated as current repository state.
+### SINGLE EXECUTION PATH
 
-PRs may be inspected as historical evidence or for externally supplied review context, but they are not the execution path for new work. A task that exists only on another branch is not current until its semantics are reconstructed and implemented on the current `main`.
+Normal work follows:
+
+`main → execution → change → targeted regression → next change → ... → batch boundary → canonical CI/certification → Exact-SHA proof → execution → main → main verification → execution synchronization`
+
+All mutable routine work MUST have exactly one active owner and one active branch: `execution`.
+
+### BATCH-20 RULE
+
+The default integration boundary is **20 successful changes**.
+
+A change counts only when:
+
+`change present on execution ∧ targeted regression PASS`
+
+At 20 successful changes, the batch MUST enter canonical CI/certification and, when all required gates pass, merge to `main`.
+
+An earlier merge boundary is mandatory for:
+- end of the working day;
+- security/authentication/authorization boundary;
+- persistence or production-sensitive boundary;
+- major contract or architectural boundary;
+- rollback scope becoming materially large;
+- any requirement that final evidence be frozen on `main`.
+
+Twenty is a maximum batch size, not a requirement to accumulate unnecessary changes.
+
+### TESTING ECONOMY
+
+Routine changes use targeted regression first. Full canonical CI is NOT required for every individual routine change.
+
+Canonical CI/certification is the batch gate for `execution → main`. High-risk changes may trigger earlier canonical verification; safety and evidence requirements always override batching.
+
+Branch-local evidence MUST NOT be used as final `main` certification evidence. Final proof requires the resulting exact `main` SHA.
+
+### MAIN SAFETY
+
+`main` MUST remain the stable truth layer. Direct routine implementation on `main` is prohibited.
+
+`main` may change only through the approved integration boundary from `execution`, except explicit repository-provider/recovery operations that are independently governed.
+
+After every `main` movement, agents MUST re-resolve the exact `main` SHA and synchronize `execution` before adding further routine work.
+
+Historical branch state, stale PR state, old SHA, old CI, and stale deployment evidence MUST NOT be treated as current state.
+
+PRs are integration boundaries, not routine development paths. The normal integration PR is `execution → main`; task-specific PR chains are prohibited unless an explicit exception is recorded.
 
 ### EXTERNAL PROVIDER NON-BLOCKING RULE
 
@@ -152,15 +194,15 @@ No new standalone protocol may be introduced unless a recurring failure class is
 
 Each active agent MUST declare its RCA and file/contract scope. One active owner per RCA and one active owner per mutable scope unless an explicit handoff transfers ownership.
 
-If `main` moves, refresh the exact SHA before continuing. Stale task packets or sessions must not be used as current repository state.
+If `main` moves, refresh the exact `main` SHA and synchronize `execution` before continuing. Stale task packets or sessions must not be used as current repository state.
 
 ## EXECUTION LEDGER
 
 Meaningful work follows:
 
-`READ → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK → CHANGE → TARGETED REGRESSION → AFFECTED CONTRACT VERIFICATION → EXACT-SHA PROOF → HANDOFF`
+`READ → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK → CHANGE ON execution → TARGETED REGRESSION → RECORD BATCH COUNT → BATCH CI → EXACT-SHA PROOF → MERGE execution → main → VERIFY main → SYNC execution → HANDOFF`
 
-The session record MUST preserve actual commands, scope, SHA lineage, evidence, and findings.
+The session record MUST preserve actual commands, scope, SHA lineage, evidence, findings, and batch membership.
 
 ## ZERO-FALSE-GREEN
 
@@ -182,7 +224,7 @@ The report MUST preserve:
 
 `completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent`
 
-along with `exitSha`, changed files, commands, evidence, findings, RCA closure/open state.
+along with `exitSha`, changed files, commands, evidence, findings, RCA closure/open state, and current batch count.
 
 The next agent MUST ingest the predecessor report before executing inherited work. Handoff reports are continuity evidence, not certification evidence.
 
@@ -192,7 +234,7 @@ The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 
 - `verify` is the single non-browser engine. It installs dependencies once, executes the canonical static contracts, performs the canonical production build, and publishes one immutable artifact identified by exact commit SHA and package-lock digest.
 - `browser_fast` is the only fast browser engine: 22 canonical tools × Chromium/Firefox/WebKit = 66 execution units.
-- `browser_deep` is the same browser engine in deep mode: canonical public-route localization/runtime coverage across 20 locales and Chromium/WebKit/Firefox. It runs on main/release paths, not the PR fast path.
+- `browser_deep` is the same browser engine in deep mode: canonical public-route localization/runtime coverage across 20 locales and Chromium/WebKit/Firefox. It runs on main/release paths, not the routine execution path.
 - `certify` is the only automatic certification authority. It is fail-closed and consumes evidence from the same workflow run.
 
 ## Safety invariants
@@ -206,4 +248,4 @@ The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 - GREEN is valid only when every required engine passes, evidence is valid and complete, Exact SHA matches, and independent root causes are zero. Skips, masked failures, stale evidence and partial passes are not Green.
 - Never claim a green release without fresh exact-SHA CI evidence.
 
-**MANDATORY ENTRY: `PROJECTS.md` → `المهام.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTE ON MAIN → TARGETED REGRESSION → VERIFY → EXACT-SHA PROOF → HANDOFF.**
+**MANDATORY ENTRY: `PROJECTS.md` → `المهام.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTE ON `execution` → TARGETED REGRESSION → BATCH VERIFICATION → EXACT-SHA PROOF → MERGE `execution` → `main` → HANDOFF.**
