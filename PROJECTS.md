@@ -8,7 +8,7 @@
 
 ```text
 BRANCH = main
-ACTIVE TASK = ADMIN-006 → ACTIVE / BLOCKED BY PRODUCTION BINDING PROVENANCE
+ACTIVE TASK = ADMIN-006 → ACTIVE / BLOCKED BY EXTERNAL PRODUCTION VERIFICATION
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = CLOSED / VERIFIED
 ADMIN-005 = CLOSED / VERIFIED
@@ -17,7 +17,7 @@ ADMIN-005 CANONICAL CI RUN = 34800432764 (attempt 2)
 ADMIN-006 CONTRACT = docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md
 ADMIN-006 PROVENANCE = docs/ADMIN-PERSISTENCE-PROVENANCE.md
 SUPABASE PROJECT = zrpsmgdrtwzrhkjwwujo / ACTIVE_HEALTHY
-VERCEL PRODUCTION BINDING = NOT PROVEN
+VERCEL PRODUCTION BINDING = NOT PROVEN / EXTERNAL ACCESS OR QUOTA BLOCKED
 PRODUCTION MUTATION = DISABLED
 ```
 
@@ -28,7 +28,7 @@ PRODUCTION MUTATION = DISABLED
 | ADMIN-003 | CLOSED / VERIFIED | Preserve canonical read-only centers |
 | ADMIN-004 | CLOSED / VERIFIED | Preserve fail-closed execution boundary |
 | ADMIN-005 | CLOSED / VERIFIED | Preserve verified server boundary and browser-bundle security invariant |
-| ADMIN-006 | ACTIVE / BLOCKED | Prove documented Vercel production project ↔ Supabase provider server-side binding; then implement only the approved Phase 2 persistence/evidence minimum |
+| ADMIN-006 | ACTIVE / BLOCKED | Complete production exact-SHA identity and server write → read-back proof when canonical Vercel access is available; never weaken proof requirements |
 | ADMIN-007 | LOCKED | Activate after ADMIN-006 |
 | ADMIN-008 | LOCKED | Final production certification |
 | BUILD-002 | CANDIDATE | Fresh artifact graph analysis |
@@ -115,18 +115,25 @@ Current roadmap execution posture:
 ## ADMIN-006
 
 ```text
-ACTIVE / BLOCKED BY PRODUCTION BINDING PROVENANCE
+ACTIVE / BLOCKED BY EXTERNAL PRODUCTION VERIFICATION
 Contract = docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md
 Contract version = v1.0
 Provenance = docs/ADMIN-PERSISTENCE-PROVENANCE.md
 Supabase project ref = zrpsmgdrtwzrhkjwwujo
 Supabase status = ACTIVE_HEALTHY
 Existing tables = public.flix_events, public.flix_admin_sessions
+Admin substrate = public.flix_admin_evidence, public.flix_admin_audit_events
+Migration = supabase/migrations/20260914040000_admin_006_persistence_evidence.sql
+Server adapter = api/admin/persistence.ts
+Targeted regression = scripts/test-admin-persistence.mjs
 Vercel documented project = prj_FdFbUWMAZepEfvwhttAiLcYJqY0d
-Vercel project lookup = 404 / team project listing empty
+Vercel project access = NOT PROVEN / EXTERNAL BLOCKER
+Latest certified CI = 34805708774 SUCCESS on c187d60e9d7f90d7e46815aab9c470e01bab56d6
 ```
 
-The canonical provider candidate and schema are discovered. Execution is blocked only until the production Vercel-to-Supabase server-side binding is proven. No guessed credentials, parallel database, migration, or production mutation is permitted.
+Repository implementation for the Phase 2 persistence/evidence substrate is complete. The remaining closure gate is authoritative production verification through the documented Vercel deployment: exact production identity and server write → read-back proof. External provider quota/access failures are blockers and must not be converted into GREEN.
+
+A direct substrate round-trip was also verified against Supabase using the current main SHA `4096d6681643c4da3bcf8ca47c5f2b26381be2c9`; test rows were removed after verification. This is not a substitute for production deployment proof.
 
 ## GOVERNANCE
 
