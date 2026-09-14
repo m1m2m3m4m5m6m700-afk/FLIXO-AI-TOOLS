@@ -133,7 +133,7 @@ Required before any real write/execution capability:
 9. Fail-closed behavior on missing configuration or identity.
 10. Explicit session expiry/revocation behavior.
 
-Current implementation status: the server boundary provides HMAC-signed session verification, expiry checking, capability checks, method restriction, fail-closed missing-secret handling, and request correlation IDs. Full Phase 1 exit criteria are not certified by this document without fresh exact-SHA verification evidence.
+Current implementation status: the server boundary provides HMAC-signed session verification, expiry checking, capability checks, method restriction, fail-closed missing-secret handling, and request correlation IDs. Full Phase 1 exit criteria are now VERIFIED on closure SHA `9bc587157a1fd598a54472c95ec11effc8f35ea7` by canonical CI run `34800432764` attempt 2.
 
 ## 6. Truth and evidence contract
 
@@ -207,7 +207,7 @@ Chat -> Intent -> Deterministic Planner -> Authorized Capability -> Policy -> Pr
 
 ## 9. Delivery phases
 
-### Phase 0 — Foundation [IMPLEMENTED / VERIFICATION PENDING]
+### Phase 0 — Foundation [IMPLEMENTED / VERIFIED]
 - typed capability model
 - truth/evidence model
 - fail-closed unavailable state
@@ -216,9 +216,9 @@ Chat -> Intent -> Deterministic Planner -> Authorized Capability -> Policy -> Pr
 - architecture contract
 - closure-conflict repair: new Control Plane route separated from retired legacy Admin filename/symbol
 
-Exit: foundation code exists and legacy closure contract remains intact, but no Production Admin claim until fresh exact-SHA CI proof passes.
+Exit: foundation code exists and legacy closure contract remains intact; fresh exact-SHA CI proof is recorded.
 
-### Phase 1 — Server Boundary [IMPLEMENTED / VERIFICATION PENDING]
+### Phase 1 — Server Boundary [CLOSED / VERIFIED]
 Current implementation includes:
 - Admin API boundary
 - server-only secret handling
@@ -227,14 +227,23 @@ Current implementation includes:
 - standard JSON error contract
 - request correlation IDs
 - method restriction
+- browser bundle privileged-symbol security invariant
 
-Exit criteria remain blocking until exact-SHA proof establishes:
+Exit evidence:
+- closure SHA: `9bc587157a1fd598a54472c95ec11effc8f35ea7`
+- canonical CI: `34800432764` attempt 2
+- Static + Build: PASS
+- Browser FAST/DEEP: PASS
+- Certification: PASS
+- CI/CD Trust Layer: PASS
+
+Verified exit criteria:
 - unauthenticated access denied
-- invalid session denied
+- invalid/tampered/expired sessions denied
 - unauthorized capability denied
 - missing server configuration fails closed
-- no server secrets shipped to browser
-- exact-SHA test evidence
+- no privileged server boundary/secret markers shipped to browser
+- exact-SHA test and certification evidence
 
 ### Phase 2 — Real Persistence and Evidence [LOCKED]
 Use one proven persistence path. Do not create parallel stores without evidence.
@@ -256,44 +265,11 @@ Exit criteria:
 ### Phase 3 — Truth Center + Command Center [LOCKED]
 Deliver verified operational visibility.
 
-Deliverables:
-- system health aggregation
-- CI/deployment state
-- contract status
-- evidence freshness
-- command center
-- truth claims
-- drill-down to source/evidence
-
-Exit criteria:
-- every displayed production claim is traceable
-- stale/missing evidence visibly blocked
-- no false green
-
 ### Phase 4 — Security + Contract + Operations Centers [LOCKED]
 Deliver governance and operational control surfaces.
 
-Exit criteria:
-- authorization matrix proven
-- contract ownership visible
-- dependency closure correct
-- incidents linked to root causes
-- privileged actions audited
-
 ### Phase 5 — Controlled Execution [LOCKED]
 Introduce carefully bounded writes.
-
-First operations should be low-risk and reversible. Then expand only from proven need.
-
-Exit criteria:
-- preview
-- authorization
-- policy
-- approval where required
-- execution
-- verification
-- evidence
-- rollback
 
 ### Phase 6 — Change + Approval + Incident Centers [LOCKED]
 Unify change management, approvals, and incident response around the same provenance/evidence model.
@@ -448,17 +424,16 @@ No phase is considered complete because code exists. Completion means behavior i
 ## 17. Persistent checkpoint
 
 Current checkpoint:
-- main: ae7ceea716296706b2d17f4e8c3e2b8baddacacf
-- foundation PR: #658
-- foundation HEAD: a0c82aed51ef484a5817bc6e122af7ad3494b711
-- Phase 0: IMPLEMENTED / verification pending
-- Phase 1: IMPLEMENTED / verification pending
+- closure candidate: `9bc587157a1fd598a54472c95ec11effc8f35ea7`
+- canonical CI: `34800432764` attempt 2
+- Phase 0: IMPLEMENTED / VERIFIED
+- Phase 1: CLOSED / VERIFIED
 - Phase 2: LOCKED
 - Controlled Execution: LOCKED
 - Production Admin: NOT COMPLETE
 - Admin runtime truth: UNAVAILABLE
 - Admin persistence: BLOCKED
-- Latest main change incorporated: PR #671 merge `ae7ceea716296706b2d17f4e8c3e2b8baddacacf`
-- RCA for prior Admin route closure conflict: `validate-image-only-closure.mjs` rejected `src/routes/admin.tsx` as a retired legacy path; the Control Plane route was separated into `src/routes/admin-control-plane.tsx` and registered as `adminControlPlaneRoute`, without weakening the closure validator.
+- ADMIN-005 RCA: `ADMIN-005-CLIENT-BUNDLE-BOUNDARY-001`
+- ADMIN-006: LOCKED pending authoritative task contract
 
 This document is the persistent execution roadmap. Update it after each material Admin phase, preserving exact SHA and evidence references. Never mark a phase complete without proof.

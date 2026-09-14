@@ -8,13 +8,14 @@
 
 ```text
 BRANCH = main
-ACTIVE TASK = ADMIN-005
+ACTIVE TASK = ADMIN-005 → CLOSED / VERIFIED
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = CLOSED / VERIFIED
-ADMIN-004 CLOSURE SHA = b036327855222f4c11db0cfc8a1657167e4231be
-ADMIN-004 CANONICAL TEST RUN = 34798018758
-ADMIN-004 VERCEL DEPLOYMENT = EXTERNAL / RATE-LIMIT BLOCKED
-CURRENT MAIN SHA = edc043f8223a0d7ee2aa138c94ec928a4ab90b0f
+ADMIN-005 = CLOSED / VERIFIED
+ADMIN-005 CLOSURE SHA = 9bc587157a1fd598a54472c95ec11effc8f35ea7
+ADMIN-005 CANONICAL CI RUN = 34800432764 (attempt 2)
+ADMIN-006 = LOCKED / CONTRACT NOT YET DEFINED
+PRODUCTION MUTATION = DISABLED
 ```
 
 ## TASK QUEUE
@@ -23,8 +24,8 @@ CURRENT MAIN SHA = edc043f8223a0d7ee2aa138c94ec928a4ab90b0f
 |---|---|---|
 | ADMIN-003 | CLOSED / VERIFIED | Preserve canonical read-only centers |
 | ADMIN-004 | CLOSED / VERIFIED | Preserve fail-closed execution boundary |
-| ADMIN-005 | IMPLEMENTED / VERIFICATION PENDING | Fresh exact-SHA CI/certification proof of server boundary and browser-bundle security invariant |
-| ADMIN-006 | LOCKED | Activate after ADMIN-005 proof |
+| ADMIN-005 | CLOSED / VERIFIED | Preserve verified server boundary and browser-bundle security invariant |
+| ADMIN-006 | LOCKED | Define/locate authoritative contract before activation; no execution without scope |
 | ADMIN-007 | LOCKED | Activate after ADMIN-006 |
 | ADMIN-008 | LOCKED | Final production certification |
 | BUILD-002 | CANDIDATE | Fresh artifact graph analysis |
@@ -75,24 +76,14 @@ execution-plan.ts    = PREVIEW_ONLY / enabled=false
 execution-preview.ts = GET-only / no mutation
 ```
 
-Verified targeted proof:
-
-```text
-execution-policy regression
-+ server-boundary regression
-+ POST / execution-preview → 405 method_not_allowed
-+ rollback proof requirement
-+ verification/evidence requirement in execution plan
-```
-
-The Vercel status for this SHA is an external build-rate-limit condition and is not treated as application GREEN or application failure.
-
 ## ADMIN-005
 
 ```text
-IMPLEMENTED / VERIFICATION PENDING
-implementation SHA = edc043f8223a0d7ee2aa138c94ec928a4ab90b0f
+CLOSED / VERIFIED
 base SHA = de07ac765159a4ba328b4d33d971b8d13db9d4c4
+implementation SHA = 9bc587157a1fd598a54472c95ec11effc8f35ea7
+closure SHA = 9bc587157a1fd598a54472c95ec11effc8f35ea7
+canonical CI run = 34800432764 (attempt 2)
 RCA = ADMIN-005-CLIENT-BUNDLE-BOUNDARY-001
 ```
 
@@ -100,17 +91,31 @@ Authoritative roadmap evidence:
 `docs/ADMIN-CONTROL-PLANE-MASTER-PLAN.md`
 
 Implemented causal repair:
-`vite build -> dist/assets/*.js -> validate-build-chunk-boundaries.mjs -> browser bundle security boundary`
+`vite build → dist/assets/*.js → validate-build-chunk-boundaries.mjs → browser bundle security boundary`
 
-The build validator now fails closed when emitted browser JavaScript contains server-side Admin secret/boundary markers including `ADMIN_SESSION_SECRET`, `/api/admin/`, `authorizeAdminRequest`, `createHmac`, or `signAdminSession`.
+The validator now rejects emitted browser JavaScript containing privileged server-side Admin markers (`ADMIN_SESSION_SECRET`, `authorizeAdminRequest`, `createHmac`, `signAdminSession`) while permitting ordinary browser API paths such as `/api/admin/centers`.
 
-Verification history:
-`34800176880` proved the existing test suite passed through all Admin regressions but exposed one validator lint defect; that defect was corrected in `edc043f8223a0d7ee2aa138c94ec928a4ab90b0f`.
+Fresh exact-SHA proof:
+`34800432764` completed successfully on `main @ 9bc587157a1fd598a54472c95ec11effc8f35ea7`, including Static + Build, Browser FAST/DEEP evidence, Certification, and CI/CD Trust Layer. The previous Firefox DEEP evidence-upload failure was retried as the affected job only and then passed.
 
-Fresh canonical proof is therefore required against the current main SHA before closure.
+Phase 1 exit conditions proven on the closure SHA:
+- unauthenticated access denied
+- invalid/tampered/expired sessions denied
+- unauthorized capability denied
+- missing server configuration fails closed
+- no privileged server boundary/secret markers shipped to browser bundle
+- exact-SHA CI/certification evidence present
 
 Current roadmap execution posture:
 `Controlled Execution = LOCKED`
+
+## ADMIN-006 GATE
+
+```text
+LOCKED
+No authoritative task contract/body is currently defined outside the task queue.
+Activation is prohibited until the authoritative scope, invariant, and exit criteria are recorded.
+```
 
 ## GOVERNANCE
 
