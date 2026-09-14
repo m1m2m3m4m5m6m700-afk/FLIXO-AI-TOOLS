@@ -10,6 +10,8 @@ const fail = (code, detail = '') => failures.push(detail ? `${code}=${detail}` :
 
 const requiredFiles = [
   'AGENTS.md',
+  'المهام.md',
+  'PROJECTS.md',
   'docs/AGENT-COLLABORATION-PROTOCOL.md',
   'docs/AGENT-HANDOFF-REPORT-SCHEMA.md',
   'docs/AGENT-COORDINATION-CONTROL-PLANE.md',
@@ -29,11 +31,36 @@ const requiredAgentsMarkers = [
   'trigger → propagation path → violated invariant → responsible source → observable symptom',
   'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
   'docs/PROTOCOL-REGISTRY.json',
+  '`PROJECTS.md` → `المهام.md` → `AGENTS.md`',
+  'TASK GATE',
 ];
 if (exists('AGENTS.md')) {
   const text = read('AGENTS.md');
   for (const marker of requiredAgentsMarkers) if (!text.includes(marker)) fail('AGENTS_MISSING', marker);
   if (!text.includes('--from-session=<previous-session>')) fail('AGENTS_MISSING', 'continuation-login');
+}
+
+const taskGatewayMarkers = [
+  '# FLIXO-AI-TOOLS — بوابة المهام التنفيذية',
+  'ACTIVE / REQUIRED AGENT GATE',
+  'PROJECTS.md',
+  'ADMIN-003',
+  'ADMIN-004',
+  'ADMIN-008',
+  'BUILD-002',
+  'I18N-001',
+  'TEST-001',
+  'DEBT-001',
+  'CANDIDATE ≠ ACTIVE',
+  'MERGED TO MAIN',
+  'EXACT MAIN SHA CONFIRMED',
+  'REQUIRED CI / CERTIFICATION PASS',
+  'PROJECTS.md CLOSED HISTORY UPDATED',
+  'حذف المهمة قبل اكتمال أي شرط = PROTOCOL VIOLATION',
+];
+if (exists('المهام.md')) {
+  const text = read('المهام.md');
+  for (const marker of taskGatewayMarkers) if (!text.includes(marker)) fail('TASK_GATE_MISSING', marker);
 }
 
 const requiredProtocolMarkers = [
@@ -135,10 +162,11 @@ if (exists(lockFile)) {
 }
 
 const result = {
-  schemaVersion: 6,
+  schemaVersion: 7,
   authority: 'CI_PROTOCOL_GUARD',
   status: failures.length ? 'FAIL' : 'PASS',
-  entryGate: 'AGENTS.md',
+  entryGate: 'PROJECTS.md → المهام.md → AGENTS.md',
+  taskGateway: 'المهام.md',
   protocol: 'docs/AGENT-COLLABORATION-PROTOCOL.md',
   protocolHierarchy: 'docs/PROTOCOL-HIERARCHY.md',
   protocolRegistry: 'docs/PROTOCOL-REGISTRY.json',
@@ -150,7 +178,7 @@ const result = {
   handoffPath: 'diagnostics/agents/handoffs/<sessionId>.json',
   statePath: stateFile,
   lockPath: lockFile,
-  enforcement: 'scripts/validate-ci-contract.mjs → protocol registry + hierarchy + collaboration + coordination + root-cause-first validators',
+  enforcement: 'scripts/validate-ci-contract.mjs → task gateway + protocol registry + hierarchy + collaboration + coordination + root-cause-first validators',
   failures,
 };
 fs.mkdirSync(path.resolve(root, 'diagnostics/agents'), { recursive: true });
