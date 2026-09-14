@@ -76,6 +76,7 @@ const verifyAdminSession = (token: string | null, secret: string): Session | nul
 
   try {
     const payload = JSON.parse(fromBase64url(encoded)) as { sub?: string; cap?: unknown; exp?: number };
+    // Narrow exp before arithmetic so TypeScript and runtime share the same fail-closed invariant.
     if (!payload.sub || !Array.isArray(payload.cap) || typeof payload.exp !== 'number' || !Number.isInteger(payload.exp)) return null;
     if (payload.exp <= Math.floor(Date.now() / 1000)) return null;
     return { subject: payload.sub, capabilities: new Set(payload.cap.filter((value): value is string => typeof value === 'string')) };
