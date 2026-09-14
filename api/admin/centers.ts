@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { authorizeAdminRequest } from './boundary.ts';
 import { getEvent, isPersistenceConfigured, probePersistence } from './persistence.ts';
@@ -12,7 +13,6 @@ const CENTER_CAPABILITY = {
 } as const;
 
 type Center = keyof typeof CENTER_CAPABILITY;
-
 type AdminRequest = IncomingMessage & { method?: string; query?: Record<string, string | string[] | undefined> };
 
 const json = (res: ServerResponse, status: number, body: unknown, correlationId: string) => {
@@ -26,8 +26,13 @@ const json = (res: ServerResponse, status: number, body: unknown, correlationId:
 const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
 
 export default async function adminCenters(req: AdminRequest, res: ServerResponse) {
-  const centerValue = first(req.query?.center)?.trim().toLowerCase() as Center | undefined;
-  const center = centerValue && centerValue in CENTER_CAPABILITY ? centerValue : 'truth';
+  const rawCenter = first(req.query?.center)?.trim().toLowerCase();
+  if (!rawCenter || !(rawCenter in CENTER_CAPABILITY)) {
+    const correlationId = first(req.headers['x-request-id'])?.trim() || randomUUID();
+    return json(res, 400, { ok: false, error: { code: 'invalid_admin_center', correlationId } }, correlationId);
+  }
+
+  const center = rawCenter as Center;
   const authorization = authorizeAdminRequest(req, CENTER_CAPABILITY[center]);
 
   if ('status' in authorization) {
@@ -64,11 +69,7 @@ export default async function adminCenters(req: AdminRequest, res: ServerRespons
     center,
     capability: authorization.capability,
     identity: { subject: authorization.subject },
-    truth: {
-      state: sourceState,
-      productionConnected: persistence.state === 'CONNECTED',
-      reason: persistence.reason,
-    },
+    truth: { state: sourceState, productionConnected: persistence.state === 'CONNECTED', reason: persistence.reason },
     persistence,
     data: {
       event: event ?? null,

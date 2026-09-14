@@ -113,6 +113,40 @@ const assertSingleObject = (body: unknown, errorCode: string) => {
   return body[0] as Record<string, unknown>;
 };
 
+const assertIntegrity = (actual: unknown, expected: unknown, errorCode: string) => {
+  if (typeof actual !== 'string' || !/^[0-9a-f]{64}$/.test(actual) || actual !== integritySha256(expected)) {
+    throw new Error(errorCode);
+  }
+};
+
+const evidenceIntegrityPayload = (evidence: AdminEvidence) => ({
+  assertion_id: evidence.assertion_id,
+  claim_id: evidence.claim_id ?? null,
+  exact_sha: evidence.exact_sha,
+  source: evidence.source,
+  evaluator: evidence.evaluator,
+  environment: evidence.environment,
+  status: evidence.status,
+  freshness_at: evidence.freshness_at,
+  payload: evidence.payload ?? {},
+  expires_at: evidence.expires_at ?? null,
+});
+
+const auditIntegrityPayload = (audit: AdminAuditEvent) => ({
+  actor_subject: audit.actor_subject,
+  actor_role: audit.actor_role ?? null,
+  action: audit.action,
+  capability: audit.capability ?? null,
+  target_type: audit.target_type,
+  target_id: audit.target_id,
+  exact_sha: audit.exact_sha,
+  environment: audit.environment,
+  outcome: audit.outcome,
+  correlation_id: audit.correlation_id ?? null,
+  evidence_id: audit.evidence_id ?? null,
+  metadata: audit.metadata ?? {},
+});
+
 export const isPersistenceConfigured = () => getConfig() !== null;
 
 export const probePersistence = async () => {
@@ -193,7 +227,9 @@ export const getEvidence = async (id: string): Promise<AdminEvidence | null> => 
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
   const body = await request(`/rest/v1/flix_admin_evidence?evidence_id=eq.${encodeURIComponent(id)}&select=*`, { method: 'GET' });
   if (!Array.isArray(body) || body.length === 0) return null;
-  return assertSingleObject(body, 'supabase_invalid_evidence_readback') as unknown as AdminEvidence;
+  const evidence = assertSingleObject(body, 'supabase_invalid_evidence_readback') as unknown as AdminEvidence;
+  assertIntegrity(evidence.integrity_sha256, evidenceIntegrityPayload(evidence), 'supabase_evidence_integrity_failed');
+  return evidence;
 };
 
 export const createAuditEvent = async (input: AdminAuditInput): Promise<AdminAuditEvent> => {
@@ -237,7 +273,9 @@ export const getAuditEvent = async (id: string): Promise<AdminAuditEvent | null>
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
   const body = await request(`/rest/v1/flix_admin_audit_events?event_id=eq.${encodeURIComponent(id)}&select=*`, { method: 'GET' });
   if (!Array.isArray(body) || body.length === 0) return null;
-  return assertSingleObject(body, 'supabase_invalid_audit_readback') as unknown as AdminAuditEvent;
+  const audit = assertSingleObject(body, 'supabase_invalid_audit_readback') as unknown as AdminAuditEvent;
+  assertIntegrity(audit.integrity_sha256, auditIntegrityPayload(audit), 'supabase_audit_integrity_failed');
+  return audit;
 };
 
 export const assertAdminEvidenceRoundTrip = async (input: AdminEvidenceInput, audit: Omit<AdminAuditInput, 'evidence_id'>) => {
