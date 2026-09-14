@@ -16,10 +16,17 @@ export type AdminExecutionPlan = {
   rollback: {
     required: boolean;
     supplied: boolean;
+    proofRequired: boolean;
   };
   approval: {
     required: boolean;
     supplied: boolean;
+  };
+  verification: {
+    required: true;
+  };
+  evidence: {
+    required: true;
   };
   audit: {
     required: true;
@@ -53,10 +60,17 @@ export const createAdminExecutionPlan = (
     rollback: {
       required: write,
       supplied: Boolean(request.rollbackPlan?.trim()),
+      proofRequired: write,
     },
     approval: {
       required: approvalRequired,
       supplied: Boolean(request.approvalId?.trim()),
+    },
+    verification: {
+      required: true,
+    },
+    evidence: {
+      required: true,
     },
     audit: {
       required: true,
