@@ -8,11 +8,11 @@
 
 ```text
 BRANCH                 = main
-ACTUAL MAIN SHA        = 4278d8f03d5d58d6768226f4d84e9e56a78e4e4f
-LAST PROVEN CI SHA     = 13da1202f44c6d314120d260ef65acf2fc69a7e9
-LAST PROVEN CI         = 34783338419
+ACTUAL MAIN SHA        = 7d6b709a725c1b0fc494b6fd760688a77842551d
+LAST PROVEN CI SHA     = 80ae6d8501a77fefa2915946782038355e5be3ac
+LAST PROVEN CI         = 34796825957
 LAST PROVEN RESULT     = SUCCESS
-CURRENT CODE NOTE      = ADMIN-002 repository proof remains closed on 13da1202…; ADMIN-003 canonical centers read-model coverage is corrected; mandatory task gateway `المهام.md` is enforced by AGENTS.md and validate-agent-protocol; CD production identity RCA is repaired in `.github/workflows/cd.yml` at 156660655… but requires fresh CI/CD verification
+CURRENT CODE NOTE      = ADMIN-004 fail-closed execution boundary hardening is active; execution-preview remains PREVIEW_ONLY and execution_enabled=false; latest targeted regression adds explicit POST rejection; fresh canonical CI for 7d6b709… has not yet materialized
 CURRENT MAP COMMIT     = this file's resulting commit; documentation only
 ```
 
@@ -52,9 +52,9 @@ A green branch/PR, local pass, code existence, queued job, historical run, or pr
 | AGENT-001 | Persistent Agent Project Gateway | CLOSED / VERIFIED | Gateway/marker protections remained valid on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve single gateway owner; no duplicate validator |
 | ADMIN-001 | Admin Control Plane Phase 0/1 | CLOSED / VERIFIED | Existing fail-closed server-boundary contract remains verified on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve canonical server boundary; no duplicate tests |
 | **ADMIN-002** | Real persistence + evidence ledger | **CLOSED / VERIFIED** | Repository closure contract satisfied on `13da1202…`: canonical adapter present; real production write/read-back already proven; hardened adapter assertions pass; full CI certification `34783338419` passed; no open ADMIN-002 RCA | Preserve persistence invariant; carry live deployment proof to ADMIN-008 |
-| **ADMIN-003** | Admin Truth / Command / Security / Contract / Operations / Incident Centers | **ACTIVE** | Canonical read-only centers adapter is implemented; module posture is aligned; existing Admin boundary regression covers center authorization/read-only behavior with corrected capability fixtures; current main `4278d8f…` has no fresh certification yet | Run affected canonical CI on current main; continue ADMIN-003 only from fresh exact-SHA evidence |
-| ADMIN-004 | Admin controlled execution + rollback | LOCKED | Depends on ADMIN-003 | Activate after authorization/policy/evidence/audit/rollback proof |
-| ADMIN-005 | Admin Change / Approval / Incident consolidation | LOCKED | Not started | Activate after ADMIN-004 |
+| **ADMIN-003** | Admin Truth / Command / Security / Contract / Operations / Incident Centers | **CLOSED / VERIFIED** | Canonical read-only centers adapter + center authorization/read-only regression proven on `80ae6d8501a77fefa2915946782038355e5be3ac`; CD run `34796825957` succeeded including production identity proof | Preserve canonical read-only centers; no new gate |
+| **ADMIN-004** | Admin Controlled Execution + Rollback | **ACTIVE** | Fail-closed policy and execution-preview boundary are hardened; current targeted regression includes explicit POST rejection; production mutation remains disabled | Fresh canonical CI on `7d6b709…`, then extend deterministic rollback/evidence proof without enabling production writes |
+| ADMIN-005 | Admin Change / Approval / Incident consolidation | LOCKED | Depends on ADMIN-004 | Activate after controlled execution is proven |
 | ADMIN-006 | Admin Truth Graph | LOCKED | Not started | Activate after real provenance graph |
 | ADMIN-007 | Controlled AI Assistant | LOCKED | Not started | Activate after deterministic authorization/evidence/execution stability |
 | ADMIN-008 | Admin production certification | LOCKED | Final Admin certification not complete | Certify one exact candidate SHA, including live deployed-SHA evidence when provider availability permits |
@@ -139,37 +139,71 @@ The CI run completed successfully for Static + Build, all required Browser FAST/
 
 The Vercel deployment attempt for this SHA was blocked by the external provider daily deployment quota (`api-deployments-free-per-day`). The CD workflow still produced and uploaded fail-closed deployment evidence. This does not reopen or block the ADMIN-002 repository closure; live deployed-SHA proof remains owned by ADMIN-008.
 
-## 7. CD / deployment evidence repair
+## 7. CD / deployment evidence
 
-Repair rule:
+The canonical CD repair for production identity has now been proven on `main@80ae6d8501a77fefa2915946782038355e5be3ac` by run `34796825957`.
 
-`DEPLOY SUCCESS/FAIL → ALWAYS WRITE EVIDENCE → UPLOAD EVIDENCE → FAIL-CLOSED ON IDENTITY MISMATCH`
+`Promote exact certified SHA = SUCCESS`
+`Deploy immutable build to Vercel = SUCCESS`
+`Production identity proof = SUCCESS`
+`Upload deployment evidence = SUCCESS`
 
-### RCA-CD-PROD-IDENTITY-001
+The remaining deployment provider status may still expose a standalone Vercel quota check, but the canonical CD workflow is the authoritative evidence path.
 
-The previous CD proof incorrectly gated the canonical production checks behind the deployment-specific URL probe:
+## 8. ADMIN-003 — Read-only center closure
+
+`ADMIN-003 = CLOSED / VERIFIED`
+
+Closure SHA:
+`80ae6d8501a77fefa2915946782038355e5be3ac`
+
+Closure evidence:
+- canonical centers adapter present;
+- center-specific authorization verified;
+- read-only behavior verified;
+- production identity proof passed in canonical CD run `34796825957`.
+
+## 9. ADMIN-004 — Controlled execution + rollback
+
+### Current invariant
 
 ```text
-deployment URL probe FAIL
-→ canonical production probe NOT EXECUTED
-→ identity job FAIL
+authenticated request
+→ deterministic command/target
+→ policy evaluation
+→ preview
+→ rollback requirement
+→ approval when required
+→ execution boundary
+→ verification
+→ evidence
+→ audit
+→ rollback proof
 ```
 
-Run `34791437240` on SHA `6a93798e232b43ba539ba1dfbe7fa1dcfedb560c` proved the deployment itself succeeded and was aliased to `https://flixoai.vercel.app`, while the deployment-specific SHA probe returned empty and caused `DEPLOYMENT_IDENTITY_MISMATCH`.
+### Current implementation
 
-The causal fix is to treat deployment-specific probing as diagnostic evidence and always execute the authoritative canonical production HTML/SHA checks independently. The release invariant remains:
+`api/admin/execution-policy.ts` remains fail-closed: non-preview writes are denied even when rollback and approval are supplied.
 
-`PASS ⇔ canonical SHA == promotion SHA ∧ canonical HTML == PASS`
+`api/admin/execution-plan.ts` returns `PREVIEW_ONLY` with `enabled=false` and records rollback/approval/audit requirements.
 
-The fix is committed on `main` at:
+`api/admin/execution-preview.ts` accepts `GET` only, authenticates through the existing Admin boundary, and exposes preview data only.
 
-`156660655b01d2924161815c1e85acdfe120a04d`
+### Current regression
 
-The durable task gateway and project map were then synchronized at `311c3ed…` and `4278d8f…` respectively.
+`scripts/test-admin-execution-policy.mjs` proves READ behavior, required rollback, required approval, and `execution_disabled`.
 
-Verification status: `PENDING FRESH CI/CD RUN`.
+`scripts/test-admin-server-boundary.mjs` now additionally proves `POST → 405 method_not_allowed` for the execution-preview boundary, alongside authorization, correlation, read-only center, and preview cases.
 
-## 8. Historical repair memory
+Current main SHA:
+`7d6b709a725c1b0fc494b6fd760688a77842551d`
+
+Fresh canonical CI:
+`PENDING`
+
+No production mutation is enabled by this task.
+
+## 10. Historical repair memory
 
 - Shared lazy-chunk topology → ARCH-001.
 - I18n observer storms / multiple writers → historically repaired; I18N-001 remains CANDIDATE.
@@ -182,35 +216,37 @@ Verification status: `PENDING FRESH CI/CD RUN`.
 - Agent marker drift → repaired by `e19c494f…`; do not weaken validator.
 - Vercel duplicate deployment path → repaired by disabling `main` Git auto-deployment while retaining canonical artifact promotion in `.github/workflows/cd.yml`.
 - ADMIN-002 persistence proof → hardened by asserting exact write payload, server-to-Supabase auth boundary, operational fields, and metadata preservation in the canonical adapter test.
-- CD production identity → deployment URL/evidence ordering repaired; remaining live proof requires fresh execution of the independent canonical proof path.
-- ADMIN-003 centers read model → consolidated into `api/admin/centers.ts`; existing boundary regression covers read-only center authorization and now uses separate capability fixtures so each tested center is exercised under its required authorization.
+- CD production identity → repaired and fresh proven at `80ae6d8501a77fefa2915946782038355e5be3ac` / `34796825957`.
+- ADMIN-003 centers read model → consolidated into `api/admin/centers.ts`; existing boundary regression covers read-only center authorization and separate capability fixtures.
 - Agent task gateway → `المهام.md` is the open execution queue; `AGENTS.md` requires it before action; `validate-agent-protocol.mjs` enforces its presence and required gateway markers.
+- MAIN-FIRST execution → adopted for this single-maintainer workflow; direct bounded changes may land on `main`, while materially risky or broad changes use `execution` isolation.
 
-## 9. Closed History
+## 11. Closed History
 
 ```text
 ARCH-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | BUILD-001 shared build boundary | Static+Build + Certification PASS | CLOSED
 AGENT-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | Persistent project gateway / marker protection | Static+Build + Certification PASS | CLOSED
 ADMIN-001 | 2026-09-13 | b089bd0a4056b04a1376a979c726f33e47944189 | 34771149429 | Fail-closed Admin server boundary | Full CI certification PASS | CLOSED
 ADMIN-002 | 2026-09-13 | 13da1202f44c6d314120d260ef65acf2fc69a7e9 | 34783338419 | Real persistence + evidence ledger | Full CI certification PASS; production write/read-back proven; Vercel deployment provider blocked only | CLOSED
+ADMIN-003 | 2026-09-14 | 80ae6d8501a77fefa2915946782038355e5be3ac | 34796825957 | Canonical Admin read-only centers | Canonical CD production identity PASS; read-only/auth proof preserved | CLOSED
 ```
 
-## 10. Session handoff
+## 12. Session handoff
 
 ```text
-LAST SESSION:
-  task         = ADMIN-003
+CURRENT SESSION:
+  task         = ADMIN-004
   status       = ACTIVE
-  entrySha     = 13da1202f44c6d314120d260ef65acf2fc69a7e9
-  exitSha      = 4278d8f03d5d58d6768226f4d84e9e56a78e4e4f
-  closureTask  = ADMIN-002
-  closureSha   = 13da1202f44c6d314120d260ef65acf2fc69a7e9
-  ciRun        = 34783338419
-  blocker      = fresh CI evidence for the current ADMIN-003 main SHA is missing; CD production identity repair also needs fresh CD verification
-  nextAction   = run affected canonical CI/CD on current main and continue only from fresh exact-SHA evidence
+  entrySha     = 80ae6d8501a77fefa2915946782038355e5be3ac
+  currentSha   = 7d6b709a725c1b0fc494b6fd760688a77842551d
+  closureTask  = ADMIN-003
+  closureSha   = 80ae6d8501a77fefa2915946782038355e5be3ac
+  ciRun        = 34796825957
+  blocker      = fresh canonical CI for 7d6b709… is not yet available
+  nextAction   = inspect fresh CI result on 7d6b709…; if green, continue reversible execution/evidence hardening without enabling production writes
 ```
 
-## 11. Agent start protocol
+## 13. Agent start protocol
 
 ```text
 READ PROJECTS.md
@@ -226,7 +262,7 @@ READ PROJECTS.md
 → RETIRE ONLY AFTER MAIN PROOF
 ```
 
-## 12. Evidence rule
+## 14. Evidence rule
 
 `EXACT SHA ∧ CLEAN WORKTREE ∧ REQUIRED TEST PASS ∧ FRESH CURRENT EVIDENCE`
 
