@@ -104,6 +104,33 @@ for (const cycle of cycles) {
 const staticEdgeCount = [...graph.values()].reduce((total, edges) => total + edges.filter((edge) => edge.kind === 'static').length, 0);
 const dynamicEdgeCount = [...graph.values()].reduce((total, edges) => total + edges.filter((edge) => edge.kind === 'dynamic').length, 0);
 
+const forbiddenAdminBundlePatterns = [
+  /ADMIN_SESSION_SECRET/,
+  /(?:^|[\"'`])(?:\/)?api\/admin\//,
+  /authorizeAdminRequest/,
+  /createHmac/,
+  /signAdminSession/
+];
+
+const forbiddenMatches = [];
+for (const file of jsFiles) {
+  const source = readFileSync(join(ASSETS, file), 'utf8');
+  for (const pattern of forbiddenAdminBundlePatterns) {
+    if (pattern.test(source)) {
+      forbiddenMatches.push({ file, pattern: pattern.toString() });
+    }
+  }
+}
+
+if (forbiddenMatches.length > 0) {
+  console.error('ADMIN SECURITY BUNDLE BOUNDARY: FAIL');
+  for (const match of forbiddenMatches) {
+    console.error(`FORBIDDEN=${match.file} pattern=${match.pattern}`);
+  }
+  console.error('Server-side admin secrets and privileged boundary implementation must not be emitted into browser JavaScript.');
+  process.exit(1);
+}
+
 if (uniqueCycles.length > 0) {
   console.error('BUILD CHUNK BOUNDARY: FAIL');
   console.error(`chunks=${jsFiles.length} staticEdges=${staticEdgeCount} dynamicEdges=${dynamicEdgeCount}`);
@@ -120,3 +147,5 @@ console.log(`chunks=${jsFiles.length}`);
 console.log(`staticEdges=${staticEdgeCount}`);
 console.log(`dynamicEdges=${dynamicEdgeCount}`);
 console.log('No emitted chunk dependency cycle containing a static edge was found.');
+console.log('ADMIN SECURITY BUNDLE BOUNDARY: PASS');
+console.log('No server-side admin secret or privileged boundary implementation was emitted into browser JavaScript.');
