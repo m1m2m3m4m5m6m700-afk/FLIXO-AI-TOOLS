@@ -1,63 +1,68 @@
 # Admin Persistence Provenance
 
-Status: BLOCKED / PROVENANCE REQUIRED
+Status: BLOCKED / PRODUCTION BINDING REQUIRED
 
-Exact repository state reviewed: `main @ 12d2c166bd895570ffe5c44a69c437b1c5925cfa`
+Exact repository state reviewed: `main @ f83ca490f68f43923cfd225adfc6ae976ff23638`
+Contract: `docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md` v1.0
 
-## Current proof
+## Current repository proof
 
-The current FLIXO repository does not contain a proven production persistence implementation.
+The repository already contains a server-side Supabase REST persistence adapter at `api/admin/persistence.ts` and a targeted round-trip contract test at `scripts/test-admin-persistence.mjs`.
 
 Observed repository facts:
 - No database/ORM dependency is present in `package.json`.
-- The lockfile root dependency set contains no database/ORM package.
-- Repository code search does not establish a canonical Supabase/Postgres/Drizzle connection or client path.
-- `.env.example` contains no production database binding. The canonical production origin is `https://flixoai.vercel.app`, but no database binding is declared there.
-- The current Admin server boundary is fail-closed and does not invent a persistence provider.
+- Persistence is currently implemented through server-side REST access using `SUPABASE_URL` plus `SUPABASE_SECRET_KEY`/`SUPABASE_SERVICE_ROLE_KEY`.
+- The adapter fails closed when persistence configuration is absent.
+- The adapter supports create + exact UUID read-back for `public.flix_events`.
+- No production Admin mutation path is enabled.
 
-## External provider discovery
+## Canonical provider discovery
 
-The connected Supabase control plane exposes one project:
+The connected Supabase control plane currently exposes one project:
 - Project: `m1m2m3m4m5m6m700-afk's Project`
 - Project ref: `zrpsmgdrtwzrhkjwwujo`
 - Region: `eu-west-1`
 - Postgres engine: `17`
-- Status: `INACTIVE`
-- Created: `2026-09-04`
+- Status: `ACTIVE_HEALTHY`
 
-A direct schema/type discovery attempt against this project was rejected because the project is not active and healthy. Therefore this project is NOT treated as FLIXO Production Persistence.
+Direct schema discovery is now available and confirms the existing public tables:
+- `public.flix_events`
+- `public.flix_admin_sessions`
 
-The repository's canonical CD contract independently records the intended production Vercel identity:
+`public.flix_events` contains UUID identity, timestamps, event classification, actor/visitor context, optional tool and outcome fields, and JSONB metadata. `public.flix_admin_sessions` contains hashed session token, creation/expiry, and last-seen timestamps.
+
+This establishes that the connected Supabase project is a viable persistence candidate and that a parallel database must not be created.
+
+## Production binding proof
+
+The repository's canonical deployment contract records:
 - Production origin: `https://flixoai.vercel.app`
 - Vercel team id: `team_LgeIYyf9ERfG3gNswQO4MiPX`
 - Vercel project id: `prj_FdFbUWMAZepEfvwhttAiLcYJqY0d`
 
-These identifiers establish the repository's intended deployment contract, but they do not by themselves prove control-plane ownership or server environment access. The connected Vercel team `flexo1` is confirmed as `team_LgeIYyf9ERfG3gNswQO4MiPX`, but its project listing currently returns zero projects. A direct deployment lookup for the documented project/team binding is denied with `403 Forbidden`. Therefore the currently connected Vercel credentials do not prove access to the documented production project or its server environment binding.
+The connected Vercel control plane currently lists zero projects for the documented team, and a direct lookup of the documented project/team binding returns `404 Not Found`.
+
+Therefore the server-side production environment binding between the documented Vercel project and the Supabase project is NOT PROVEN. The Supabase project is not to be treated as production persistence until that binding is independently verified.
 
 ## Phase 2 execution result
 
-Provider provenance discovery was executed against the current repository and connected hosting/database control planes. The required production provider could not be established without guessing.
+Provider/schema discovery is no longer blocked by the Supabase project being inactive. The remaining blocker is production binding provenance.
 
 Accordingly:
-- No database, ORM, migration, or parallel store was created.
-- No production credentials were exposed or inferred.
-- No Admin write path was enabled.
-- Fail-closed persistence posture is preserved.
+- Do not create a second database, ORM, migration set, or guessed provider binding.
+- Do not expose or infer production credentials.
+- Do not enable production Admin writes.
+- Preserve fail-closed behavior until the production binding is proven.
 
-## Required proof before implementation
+## Required unblock proof
 
-1. Identify the canonical production persistence provider.
-2. Prove that the provider belongs to the FLIXO production environment.
-3. Prove the server-side environment binding without exposing credentials.
-4. Inspect the existing schema before adding any tables.
-5. Reuse the canonical provider; do not create a second store.
-6. Add Admin principals/roles/capabilities, audit events, and evidence records only after provenance is proven.
-7. Prove server write -> read-back on the exact tested SHA.
-8. Preserve fail-closed behavior for absent/unavailable persistence.
-
-## Current execution blocker
-
-Phase 2 cannot truthfully advance to persistence implementation until provider provenance and server binding are established. The repository contains a canonical deployment contract, but the connected hosting control plane cannot currently authorize access to that documented project. No database, migration, ORM dependency, or production write path is being created on the basis of an unproven provider.
+1. Prove that `zrpsmgdrtwzrhkjwwujo` is the persistence provider for the production Vercel deployment.
+2. Prove the server-side environment binding without exposing secret values.
+3. Reuse the existing `public.flix_events` / `public.flix_admin_sessions` provider if the binding is confirmed.
+4. Extend the existing persistence path only as required by ADMIN-006's approved v1.0 contract.
+5. Prove server write -> read-back on the exact tested SHA.
+6. Prove actor and exact-target provenance and audit completeness.
+7. Preserve fail-closed behavior for absent/unavailable persistence.
 
 ## Forbidden shortcuts
 
@@ -65,4 +70,5 @@ Phase 2 cannot truthfully advance to persistence implementation until provider p
 - No second database stack.
 - No guessed Supabase project binding.
 - No client-side database credentials.
+- No production mutation before binding and authorization proof.
 - No GREEN/COMPLETE claim without exact-SHA write/read-back evidence.
