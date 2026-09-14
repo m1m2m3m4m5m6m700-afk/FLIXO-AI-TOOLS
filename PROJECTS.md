@@ -2,15 +2,17 @@
 
 **First work gate for every agent.** Read this file before implementation. It is the persistent cross-session task map.
 
+`المهام.md` is the mandatory open-task gateway and must be read immediately after this file.
+
 ## 0. Current state
 
 ```text
 BRANCH                 = main
-ACTUAL MAIN SHA        = ed2402fac16956d6a6954740ac1ed6d8a8d59b87
+ACTUAL MAIN SHA        = ab1e46faf5a71f4aef64543329a6ef8547e31ebc
 LAST PROVEN CI SHA     = 13da1202f44c6d314120d260ef65acf2fc69a7e9
 LAST PROVEN CI         = 34783338419
 LAST PROVEN RESULT     = SUCCESS
-CURRENT CODE NOTE      = ADMIN-002 repository proof remains closed on 13da1202…; ADMIN-003 canonical centers read-model coverage is now corrected so each tested center uses its required capability set; the corrected code is not yet CI-certified; Vercel deployment remains an external certification blocker carried to ADMIN-008
+CURRENT CODE NOTE      = ADMIN-002 repository proof remains closed on 13da1202…; ADMIN-003 canonical centers read-model coverage is corrected; mandatory task gateway `المهام.md` is now enforced by AGENTS.md and validate-agent-protocol; current main has no fresh full certification yet
 CURRENT MAP COMMIT     = this file's resulting commit; documentation only
 ```
 
@@ -28,6 +30,7 @@ CURRENT MAP COMMIT     = this file's resulting commit; documentation only
 - **External deployment-provider failure is non-blocking for repository execution.** A Vercel quota, rate-limit, provider outage, or similar infrastructure error must not stop independent code, test, documentation, analysis, or task execution.
 - **Provider failure remains a certification blocker only where the task's closure contract explicitly requires live deployment evidence.** It must not be converted into application failure, application GREEN, or a fabricated deployment proof.
 - When a provider blocker affects one task, continue all independent work whose prerequisites are satisfied and preserve the blocked task's exact proof status.
+- `المهام.md` owns the open execution queue; `PROJECTS.md` owns project state and closed history. The two must remain consistent.
 
 ## 2. Task retirement / deletion protocol
 
@@ -36,6 +39,8 @@ Remove a task from the open queue only when:
 `MERGED TO MAIN ∧ EXACT MAIN SHA PROVEN ∧ REQUIRED CI/CERTIFICATION PASS ∧ INVARIANT PROVEN ∧ NO DEPENDENT REPAIR ∧ CLOSED HISTORY RECORDED ∧ NEXT TASK UPDATED`
 
 Removal means removal from the active queue, not deletion of engineering memory. RCA, invariant, proof, closure SHA, CI run, and evidence remain in `Closed History`.
+
+The same deletion contract is defined in `المهام.md`; deletion from that file is forbidden until every condition is proven.
 
 A green branch/PR, local pass, code existence, queued job, historical run, or provider bypass never retires a task.
 
@@ -47,7 +52,7 @@ A green branch/PR, local pass, code existence, queued job, historical run, or pr
 | AGENT-001 | Persistent Agent Project Gateway | CLOSED / VERIFIED | Gateway/marker protections remained valid on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve single gateway owner; no duplicate validator |
 | ADMIN-001 | Admin Control Plane Phase 0/1 | CLOSED / VERIFIED | Existing fail-closed server-boundary contract remains verified on exact SHA `b089bd0…`; full CI certification `34771149429` passed | Preserve canonical server boundary; no duplicate tests |
 | **ADMIN-002** | Real persistence + evidence ledger | **CLOSED / VERIFIED** | Repository closure contract satisfied on `13da1202…`: canonical adapter present; real production write/read-back already proven; hardened adapter assertions pass; full CI certification `34783338419` passed; no open ADMIN-002 RCA | Preserve persistence invariant; carry live deployment proof to ADMIN-008 |
-| **ADMIN-003** | Admin Truth / Command / Security / Contract / Operations / Incident Centers | **ACTIVE** | Canonical read-only centers adapter is implemented; module posture is aligned; existing Admin boundary regression now covers center authorization/read-only behavior with a corrected capability fixture; current main `ed2402fac…` has no fresh CI certification yet | Run the affected canonical CI on current main; continue ADMIN-003 only from fresh exact-SHA evidence |
+| **ADMIN-003** | Admin Truth / Command / Security / Contract / Operations / Incident Centers | **ACTIVE** | Canonical read-only centers adapter is implemented; module posture is aligned; existing Admin boundary regression covers center authorization/read-only behavior with corrected capability fixtures; current main `ab1e46fa…` has no fresh full CI certification yet | Run affected canonical CI on current main; continue ADMIN-003 only from fresh exact-SHA evidence |
 | ADMIN-004 | Admin controlled execution + rollback | LOCKED | Depends on ADMIN-003 | Activate after authorization/policy/evidence/audit/rollback proof |
 | ADMIN-005 | Admin Change / Approval / Incident consolidation | LOCKED | Not started | Activate after ADMIN-004 |
 | ADMIN-006 | Admin Truth Graph | LOCKED | Not started | Activate after real provenance graph |
@@ -57,6 +62,8 @@ A green branch/PR, local pass, code existence, queued job, historical run, or pr
 | I18N-001 | MutationObserver ownership reanalysis | CANDIDATE | No current regression proven | Trace runtime ownership/lifecycle before repair |
 | TEST-001 | Playwright surface ownership cleanup | CANDIDATE | Direct imports remain in config/fixtures/helpers by design | Inventory ownership; remove only unauthorized execution surfaces |
 | DEBT-001 | Technical-debt audit candidates | CANDIDATE | Inventory-backed only | Review only fresh-failure/zero-value candidates |
+
+The authoritative open-task list is `المهام.md` and must match the open items above.
 
 ## 4. ARCH-001 — Shared Build Boundary Contract
 
@@ -157,6 +164,7 @@ The subsequent run `34783861373` verified the repaired evidence ordering: deploy
 - ADMIN-002 persistence proof → hardened by asserting exact write payload, server-to-Supabase auth boundary, operational fields, and metadata preservation in the canonical adapter test.
 - CD production identity → deployment URL/evidence ordering repaired; remaining live proof depends on provider availability.
 - ADMIN-003 centers read model → consolidated into `api/admin/centers.ts`; existing boundary regression covers read-only center authorization and now uses separate capability fixtures so each tested center is exercised under its required authorization.
+- Agent task gateway → `المهام.md` created as the open execution queue; `AGENTS.md` requires it before action; `validate-agent-protocol.mjs` now fails closed if the gateway or its required closure markers are missing.
 
 ## 9. Closed History
 
@@ -186,6 +194,7 @@ LAST SESSION:
 
 ```text
 READ PROJECTS.md
+→ READ المهام.md
 → READ AGENTS.md
 → RESOLVE ACTUAL main SHA
 → IDENTIFY ACTIVE TASK
