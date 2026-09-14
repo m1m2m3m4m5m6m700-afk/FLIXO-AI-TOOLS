@@ -8,11 +8,12 @@
 
 ```text
 BRANCH = main
-ACTUAL MAIN SHA = fb6c302a612c4b9e5fcbeac3fdcbd0d2183d61bb
 ACTIVE TASK = ADMIN-004
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = ACTIVE / FAIL-CLOSED HARDENING
-FRESH CI FOR CURRENT SHA = PENDING
+LAST RESOLVED MAIN SHA = 53dbacdb78b8ae68e45bc491653b702093bf8bbe
+CURRENT MAP UPDATE = documentation follows repository ref; re-resolve main SHA at every session entry
+FRESH CI FOR LAST RESOLVED SHA = PENDING
 ```
 
 ## PRIORITY QUEUE
@@ -27,7 +28,7 @@ FRESH CI FOR CURRENT SHA = PENDING
 | ADMIN-008 | LOCKED | Final production certification |
 | BUILD-002 | CANDIDATE | Fresh artifact graph analysis |
 | I18N-001 | CANDIDATE | Runtime ownership trace |
-| TEST-001 | CANDIDATE | Inventory ownership |
+| TEST-001 | CANDIDATE | Ownership inventory |
 | DEBT-001 | CANDIDATE | Fresh-failure/value review |
 | TOOL-EXPANSION | CANDIDATE | Select smallest proven candidate |
 
@@ -40,8 +41,6 @@ canonical CD run = 34796825957
 ```
 
 ## ADMIN-004
-
-Invariant:
 
 ```text
 authentication
@@ -57,19 +56,18 @@ authentication
 → rollback proof
 ```
 
-Current implementation remains fail-closed:
-`execution-policy.ts` denies non-preview writes;
-`execution-plan.ts` is `PREVIEW_ONLY` with `enabled=false`;
-`execution-preview.ts` is GET-only and does not mutate production.
-
-Targeted regression now also proves:
+Current implementation is fail-closed:
 
 ```text
-POST / execution-preview → 405 method_not_allowed
+execution-policy.ts  = non-preview writes DENY
+execution-plan.ts    = PREVIEW_ONLY / enabled=false
+execution-preview.ts = GET-only / no mutation
 ```
 
-Current SHA:
-`fb6c302a612c4b9e5fcbeac3fdcbd0d2183d61bb`
+Current targeted proof includes explicit `POST / execution-preview → 405 method_not_allowed`.
+
+Last resolved candidate SHA:
+`53dbacdb78b8ae68e45bc491653b702093bf8bbe`
 
 Fresh canonical CI:
 `PENDING`
@@ -77,7 +75,15 @@ Fresh canonical CI:
 Production mutation:
 `DISABLED`
 
-## EVIDENCE RULE
+## GOVERNANCE
+
+Bounded single-owner work may execute directly on `main`. `execution` is used only for materially risky, broad, conflict-prone, architectural, or production-sensitive isolation. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements are unchanged.
+
+## DELETION
+
+No task leaves the open queue until merged-to-main, exact-SHA proof, targeted tests, required CI/certification, invariant proof, no dependent repair, closure evidence, history update, and next-task update are all satisfied.
+
+## EVIDENCE
 
 `EXACT SHA ∧ CLEAN WORKTREE ∧ REQUIRED TEST PASS ∧ FRESH CURRENT EVIDENCE`
 
