@@ -63,7 +63,7 @@ npm run verify
 npm run test:e2e
 ```
 
-The full 23-suite × 3-browser promotion matrix runs independently through `.github/workflows/full-matrix-promotion.yml`.
+The full **22-suite × 3-browser** promotion matrix runs independently through `.github/workflows/full-matrix-promotion.yml`.
 
 ## Internationalization
 
@@ -81,7 +81,7 @@ Future performance work will preserve **zero AI cost on the initial page** and l
 
 A local success is development evidence, not release certification. A change is considered green only when the canonical checks and relevant browser evidence pass for the **exact commit SHA** being promoted.
 
-Provider-side deployment limits, such as a Vercel quota error, are tracked as external deployment conditions. They are never converted into a fake application GREEN or a fake application failure without matching code evidence.
+Provider-side deployment limits or access failures are tracked as external deployment conditions. They are never converted into a fake application GREEN or a fake application failure without matching code evidence.
 
 C4 evidence is produced only from a completed, exact-SHA runtime gate; an absent or cancelled runtime run cannot be promoted to a release certificate.
 
