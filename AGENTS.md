@@ -1,28 +1,43 @@
 # 🚨 AGENT ENTRY GATE — FLIXO-AI-TOOLS
 
-**FIRST READ: `PROJECTS.md`**
+**FIRST READ: `PROJECTS.md` → `المهام.md`**
 
-**MANDATORY ENTRY TITLE:** `PROJECTS.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTE ON MAIN → TARGETED REGRESSION → VERIFY → EXACT-SHA PROOF → HANDOFF.
+**MANDATORY ENTRY TITLE:** `PROJECTS.md` → `المهام.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTE ON MAIN → TARGETED REGRESSION → VERIFY → EXACT-SHA PROOF → HANDOFF.
 
-`PROJECTS.md` is the persistent task gateway and session-to-session work map. It MUST be read before the protocol files below so an agent enters through the current authorized work scope rather than inventing a new task.
+`PROJECTS.md` is the persistent project map. `المهام.md` is the mandatory open-task gateway and execution-scope contract. Both MUST be read before protocol files so an agent enters through the current authorized work scope rather than inventing a new task.
 
 ## READ-BEFORE-ACTION
 
 Before any repository action, every agent MUST read, in this order:
 
 1. `PROJECTS.md`
-2. `AGENTS.md`
-3. `docs/AGENT-COLLABORATION-PROTOCOL.md`
-4. `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`
-5. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
-6. `docs/PROTOCOL-HIERARCHY.md`
-7. `docs/PROTOCOL-REGISTRY.json`
-8. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-9. `scripts/ci/test-plan.json`
-10. `scripts/ci/assertion-registry.json`
-11. the current exact `main` SHA and current workflow state
+2. `المهام.md`
+3. `AGENTS.md`
+4. `docs/AGENT-COLLABORATION-PROTOCOL.md`
+5. `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`
+6. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
+7. `docs/PROTOCOL-HIERARCHY.md`
+8. `docs/PROTOCOL-REGISTRY.json`
+9. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+10. `scripts/ci/test-plan.json`
+11. `scripts/ci/assertion-registry.json`
+12. the current exact `main` SHA and current workflow state
 
-`PROJECTS.md` is the navigation/control layer; the linked contract/plan remains authoritative for implementation semantics, and CI/evidence remains authoritative for completion.
+`PROJECTS.md` is the navigation/control layer; `المهام.md` is the open-task scope gate; the linked contract/plan remains authoritative for implementation semantics, and CI/evidence remains authoritative for completion.
+
+## TASK GATE
+
+`المهام.md` is mandatory for every agent session.
+
+The agent MUST NOT:
+- begin implementation before reading it;
+- invent a new task that is not authorized by the task gate;
+- treat `CANDIDATE` as executable;
+- treat `LOCKED` as executable before dependencies are complete;
+- delete an open task before the deletion protocol is satisfied;
+- reuse a closed task as current proof without a new RCA and current evidence.
+
+The active queue in `المهام.md` is the only default execution scope. Any addition, status transition, or retirement of a material task MUST be reflected in `المهام.md` and `PROJECTS.md`.
 
 ## MAIN-ONLY EXECUTION
 
@@ -191,4 +206,4 @@ The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 - GREEN is valid only when every required engine passes, evidence is valid and complete, Exact SHA matches, and independent root causes are zero. Skips, masked failures, stale evidence and partial passes are not Green.
 - Never claim a green release without fresh exact-SHA CI evidence.
 
-**MANDATORY ENTRY: `PROJECTS.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTE ON MAIN → TARGETED REGRESSION → VERIFY → EXACT-SHA PROOF → HANDOFF.**
+**MANDATORY ENTRY: `PROJECTS.md` → `المهام.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTE ON MAIN → TARGETED REGRESSION → VERIFY → EXACT-SHA PROOF → HANDOFF.**
