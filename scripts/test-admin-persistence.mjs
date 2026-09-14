@@ -7,8 +7,13 @@ const module = await import('../api/admin/persistence.ts');
 assert.equal(module.isPersistenceConfigured(), true);
 
 const eventId = '11111111-1111-4111-8111-111111111111';
+const evidenceId = '22222222-2222-4222-8222-222222222222';
+const auditId = '33333333-3333-4333-8333-333333333333';
 let calls = 0;
-let postedBody = null;
+let postedEvent = null;
+let postedEvidence = null;
+let postedAudit = null;
+
 const storedEvent = {
   id: eventId,
   event_type: 'unmet_request',
@@ -24,6 +29,42 @@ const storedEvent = {
   created_at: '2026-09-13T00:00:00.000Z',
 };
 
+const storedEvidence = {
+  evidence_id: evidenceId,
+  assertion_id: 'ADMIN-006-ROUNDTRIP',
+  claim_id: 'ADMIN-006-PROOF',
+  exact_sha: '6a5d1f52615e72113dda5ee7bfe3095cebfb8378',
+  source: 'production-server',
+  evaluator: 'admin-persistence-test',
+  environment: 'production',
+  status: 'VERIFIED',
+  freshness_at: '2026-09-14T03:50:00.000Z',
+  recorded_at: '2026-09-14T03:50:00.000Z',
+  payload: { proof: 'ADMIN-006', marker: 'evidence-round-trip' },
+  integrity_sha256: 'a'.repeat(64),
+  expires_at: null,
+  created_at: '2026-09-14T03:50:00.000Z',
+};
+
+const storedAudit = {
+  event_id: auditId,
+  actor_subject: 'admin-user-1',
+  actor_role: 'admin',
+  action: 'evidence.recorded',
+  capability: 'admin.evidence.write',
+  target_type: 'evidence',
+  target_id: evidenceId,
+  exact_sha: storedEvidence.exact_sha,
+  environment: 'production',
+  outcome: 'ALLOW',
+  correlation_id: 'corr-123',
+  evidence_id: evidenceId,
+  occurred_at: '2026-09-14T03:50:00.000Z',
+  metadata: { proof: 'ADMIN-006', marker: 'audit-round-trip' },
+  integrity_sha256: 'b'.repeat(64),
+  created_at: '2026-09-14T03:50:00.000Z',
+};
+
 globalThis.fetch = async (input, init = {}) => {
   calls += 1;
   const url = String(input);
@@ -31,25 +72,65 @@ globalThis.fetch = async (input, init = {}) => {
   assert.equal(headers.get('apikey'), 'test-secret');
   assert.equal(headers.get('authorization'), null);
 
-  if (String(init.method ?? 'GET') === 'POST') {
-    assert.equal(url, 'https://example.supabase.co/rest/v1/flix_events');
+  const method = String(init.method ?? 'GET');
+  if (method === 'POST' && url.endsWith('/rest/v1/flix_events')) {
     assert.equal(headers.get('content-type'), 'application/json');
     assert.equal(headers.get('prefer'), 'return=representation');
-    postedBody = JSON.parse(String(init.body));
-    return new Response(JSON.stringify([{ ...postedBody, ...storedEvent, metadata: postedBody.metadata }]), {
+    postedEvent = JSON.parse(String(init.body));
+    return new Response(JSON.stringify([{ ...postedEvent, ...storedEvent, metadata: postedEvent.metadata }]), {
       status: 201,
       headers: { 'content-type': 'application/json' },
     });
   }
 
-  assert.match(url, /\/rest\/v1\/flix_events\?id=eq\.11111111-1111-4111-8111-111111111111&select=\*$/);
-  return new Response(JSON.stringify([{ ...storedEvent, metadata: postedBody?.metadata ?? storedEvent.metadata }]), {
-    status: 200,
-    headers: { 'content-type': 'application/json' },
-  });
+  if (method === 'GET' && /\/rest\/v1\/flix_events\?id=eq\./.test(url)) {
+    return new Response(JSON.stringify([{ ...storedEvent, metadata: postedEvent?.metadata ?? storedEvent.metadata }]), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  if (method === 'POST' && url.endsWith('/rest/v1/flix_admin_evidence')) {
+    assert.equal(headers.get('content-type'), 'application/json');
+    assert.equal(headers.get('prefer'), 'return=representation');
+    postedEvidence = JSON.parse(String(init.body));
+    assert.match(postedEvidence.integrity_sha256, /^[0-9a-f]{64}$/);
+    return new Response(JSON.stringify([{ ...postedEvidence, evidence_id: evidenceId, ...storedEvidence }]), {
+      status: 201,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  if (method === 'GET' && /\/rest\/v1\/flix_admin_evidence\?evidence_id=eq\./.test(url)) {
+    return new Response(JSON.stringify([{ ...storedEvidence }]), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  if (method === 'POST' && url.endsWith('/rest/v1/flix_admin_audit_events')) {
+    assert.equal(headers.get('content-type'), 'application/json');
+    assert.equal(headers.get('prefer'), 'return=representation');
+    postedAudit = JSON.parse(String(init.body));
+    assert.equal(postedAudit.evidence_id, evidenceId);
+    assert.match(postedAudit.integrity_sha256, /^[0-9a-f]{64}$/);
+    return new Response(JSON.stringify([{ ...postedAudit, event_id: auditId, ...storedAudit }]), {
+      status: 201,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  if (method === 'GET' && /\/rest\/v1\/flix_admin_audit_events\?event_id=eq\./.test(url)) {
+    return new Response(JSON.stringify([{ ...storedAudit }]), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  throw new Error(`unexpected request: ${method} ${url}`);
 };
 
-const input = {
+const eventInput = {
   event_type: 'unmet_request',
   visitor_id: 'visitor-1234',
   path: '/admin',
@@ -61,19 +142,58 @@ const input = {
   metadata: { proof: 'ADMIN-002', marker: 'round-trip' },
 };
 
-const result = await module.assertEventRoundTrip(input);
+const eventResult = await module.assertEventRoundTrip(eventInput);
+assert.deepEqual(postedEvent, eventInput);
+assert.equal(eventResult.created.id, eventId);
+assert.equal(eventResult.readBack.id, eventId);
+assert.deepEqual(eventResult.readBack.metadata, eventInput.metadata);
 
-assert.deepEqual(postedBody, input);
-assert.equal(result.created.id, eventId);
-assert.equal(result.readBack.id, eventId);
-assert.equal(result.readBack.event_type, input.event_type);
-assert.equal(result.readBack.visitor_id, input.visitor_id);
-assert.equal(result.readBack.path, input.path);
-assert.equal(result.readBack.locale, input.locale);
-assert.equal(result.readBack.tool_id, input.tool_id);
-assert.equal(result.readBack.success, input.success);
-assert.equal(result.readBack.duration_ms, input.duration_ms);
-assert.equal(result.readBack.context, input.context);
-assert.deepEqual(result.readBack.metadata, input.metadata);
-assert.equal(calls, 2);
+const evidenceInput = {
+  assertion_id: 'ADMIN-006-ROUNDTRIP',
+  claim_id: 'ADMIN-006-PROOF',
+  exact_sha: storedEvidence.exact_sha,
+  source: 'production-server',
+  evaluator: 'admin-persistence-test',
+  environment: 'production',
+  status: 'VERIFIED',
+  freshness_at: storedEvidence.freshness_at,
+  payload: { proof: 'ADMIN-006', marker: 'evidence-round-trip' },
+  expires_at: null,
+};
+
+const auditInput = {
+  actor_subject: 'admin-user-1',
+  actor_role: 'admin',
+  action: 'evidence.recorded',
+  capability: 'admin.evidence.write',
+  target_type: 'evidence',
+  target_id: evidenceId,
+  exact_sha: storedEvidence.exact_sha,
+  environment: 'production',
+  outcome: 'ALLOW',
+  correlation_id: 'corr-123',
+  metadata: { proof: 'ADMIN-006', marker: 'audit-round-trip' },
+};
+
+const adminResult = await module.assertAdminEvidenceRoundTrip(evidenceInput, auditInput);
+assert.equal(adminResult.evidence.evidence_id, evidenceId);
+assert.equal(adminResult.evidenceReadBack.evidence_id, evidenceId);
+assert.equal(adminResult.evidenceReadBack.exact_sha, evidenceInput.exact_sha);
+assert.match(adminResult.evidenceReadBack.integrity_sha256, /^[0-9a-f]{64}$/);
+assert.equal(adminResult.auditEvent.event_id, auditId);
+assert.equal(adminResult.auditReadBack.event_id, auditId);
+assert.equal(adminResult.auditReadBack.evidence_id, evidenceId);
+assert.equal(postedAudit.evidence_id, evidenceId);
+assert.equal(calls, 6);
+
+const originalUrl = process.env.SUPABASE_URL;
+const originalSecret = process.env.SUPABASE_SECRET_KEY;
+delete process.env.SUPABASE_URL;
+delete process.env.SUPABASE_SECRET_KEY;
+delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+assert.equal(module.isPersistenceConfigured(), false);
+await assert.rejects(() => module.probePersistence(), /supabase_persistence_not_configured/);
+process.env.SUPABASE_URL = originalUrl;
+process.env.SUPABASE_SECRET_KEY = originalSecret;
+
 console.log('ADMIN persistence adapter test: PASS');
