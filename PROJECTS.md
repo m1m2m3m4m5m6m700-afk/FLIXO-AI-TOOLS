@@ -21,7 +21,7 @@ FRESH CI FOR CURRENT MAIN = PENDING
 | ID | Status | Next deterministic action |
 |---|---|---|
 | ADMIN-003 | CLOSED / VERIFIED | Preserve canonical read-only centers |
-| ADMIN-004 | ACTIVE | Fresh canonical CI on current main, then reversible execution/evidence hardening without production mutation |
+| ADMIN-004 | ACTIVE | Fresh canonical CI on current main; then reversible execution/evidence hardening without production mutation |
 | ADMIN-005 | LOCKED | Activate after ADMIN-004 proof |
 | ADMIN-006 | LOCKED | Activate after ADMIN-005 |
 | ADMIN-007 | LOCKED | Activate after ADMIN-006 |
