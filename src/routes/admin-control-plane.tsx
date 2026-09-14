@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { createRoute } from '@tanstack/react-router';
 import { rootRoute } from './__root';
 import {
@@ -16,11 +17,101 @@ const statusText = {
   BLOCKED: 'Blocked',
 } as const;
 
+const CENTER_OPTIONS = [
+  'truth',
+  'operations',
+  'incident',
+  'evidence',
+  'security',
+  'contract',
+] as const;
+type Center = (typeof CENTER_OPTIONS)[number];
+
+type CenterResponse = {
+  ok: true;
+  center: Center;
+  capability: string;
+  identity: { subject: string };
+  truth: {
+    state: 'AVAILABLE' | 'UNAVAILABLE';
+    productionConnected: boolean;
+    reason: string;
+  };
+  persistence: {
+    state: 'CONNECTED' | 'BLOCKED';
+    reason: string;
+    table?: string;
+  };
+  data: {
+    event: Record<string, unknown> | null;
+    eventLookup: string;
+    execution: 'READ_ONLY';
+  };
+  provenance: {
+    exactSha: string;
+    environment: string;
+  };
+  correlationId: string;
+};
+
+type CenterError = {
+  ok: false;
+  error?: {
+    code?: string;
+    correlationId?: string;
+  };
+};
+
 function AdminControlPlanePage() {
   const state = INITIAL_CONTROL_PLANE_STATE;
+  const [center, setCenter] = useState<Center>('truth');
+  const [centerState, setCenterState] = useState<
+    { status: 'IDLE' } |
+    { status: 'LOADING' } |
+    { status: 'READY'; data: CenterResponse } |
+    { status: 'BLOCKED'; code: string; correlationId?: string }
+  >({ status: 'IDLE' });
   const foundationCount = ADMIN_MODULES.filter((module) => module.status === 'FOUNDATION').length;
   const partialCount = ADMIN_MODULES.filter((module) => module.status === 'PARTIAL').length;
   const blockedCount = ADMIN_MODULES.filter((module) => module.status === 'BLOCKED').length;
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setCenterState({ status: 'LOADING' });
+      try {
+        const response = await fetch(`/api/admin/centers?center=${encodeURIComponent(center)}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        });
+        const body = (await response.json()) as CenterResponse | CenterError;
+        if (cancelled) return;
+
+        if (!response.ok || body.ok !== true) {
+          const error = 'error' in body ? body.error : undefined;
+          setCenterState({
+            status: 'BLOCKED',
+            code: error?.code ?? `http_${response.status}`,
+            correlationId: error?.correlationId,
+          });
+          return;
+        }
+
+        setCenterState({ status: 'READY', data: body });
+      } catch {
+        if (!cancelled) setCenterState({ status: 'BLOCKED', code: 'center_read_unavailable' });
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [center]);
+
+  const activeCenter = centerState.status === 'READY' ? centerState.data : null;
 
   return (
     <main
@@ -49,6 +140,58 @@ function AdminControlPlanePage() {
         <StatusCard label="Verdict" value={state.verdict} detail="No production claim is asserted by this foundation." />
         <StatusCard label="Modules" value={`${ADMIN_MODULES.length}`} detail={`${foundationCount} foundation · ${partialCount} partial · ${blockedCount} blocked`} />
         <StatusCard label="Execution" value="LOCKED" detail="Production mutation is unavailable until policy, approval and persistence are proven." />
+      </section>
+
+      <section style={{ marginTop: 28, padding: 24, border: '1px solid currentColor', borderRadius: 16 }} aria-labelledby="admin-read-model-title">
+        <SectionTitle id="admin-read-model-title" title="Canonical read model" subtitle="The page reads the authenticated server boundary directly. Authentication or source failures remain visibly blocked." />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }} role="tablist" aria-label="Admin centers">
+          {CENTER_OPTIONS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="tab"
+              aria-selected={center === option}
+              onClick={() => setCenter(option)}
+              style={{ padding: '8px 12px', border: '1px solid currentColor', borderRadius: 999, background: 'transparent', cursor: 'pointer', textTransform: 'capitalize' }}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+
+        <div aria-live="polite">
+          {centerState.status === 'LOADING' && <p>Reading authenticated center state…</p>}
+          {centerState.status === 'IDLE' && <p>Waiting for read-model initialization.</p>}
+          {centerState.status === 'BLOCKED' && (
+            <article style={{ padding: 16, border: '1px solid currentColor', borderRadius: 12 }}>
+              <strong>BLOCKED</strong>
+              <p style={{ margin: '8px 0 0', lineHeight: 1.5 }}>
+                The canonical read model did not produce an authenticated result. No production state is inferred.
+              </p>
+              <p style={{ margin: '8px 0 0', fontSize: 12 }}>
+                Error: <code>{centerState.code}</code>{centerState.correlationId ? ` · request ${centerState.correlationId}` : ''}
+              </p>
+            </article>
+          )}
+          {activeCenter && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <StatusCard label="Center" value={activeCenter.center.toUpperCase()} detail={`Capability ${activeCenter.capability}`} />
+              <StatusCard label="Truth" value={activeCenter.truth.state} detail={activeCenter.truth.reason} />
+              <StatusCard label="Persistence" value={activeCenter.persistence.state} detail={activeCenter.persistence.reason} />
+              <StatusCard label="Execution" value={activeCenter.data.execution} detail="This read model exposes observation only." />
+              <article style={{ padding: 16, border: '1px solid currentColor', borderRadius: 12 }}>
+                <div style={{ fontSize: 11, opacity: 0.62, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Identity</div>
+                <strong style={{ display: 'block', marginTop: 7 }}>{activeCenter.identity.subject}</strong>
+                <div style={{ marginTop: 8, fontSize: 12, opacity: 0.72 }}>Correlation: <code>{activeCenter.correlationId}</code></div>
+              </article>
+              <article style={{ padding: 16, border: '1px solid currentColor', borderRadius: 12 }}>
+                <div style={{ fontSize: 11, opacity: 0.62, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Provenance</div>
+                <strong style={{ display: 'block', marginTop: 7, wordBreak: 'break-all' }}>{activeCenter.provenance.exactSha}</strong>
+                <div style={{ marginTop: 8, fontSize: 12, opacity: 0.72 }}>Environment: {activeCenter.provenance.environment}</div>
+              </article>
+            </div>
+          )}
+        </div>
       </section>
 
       <section style={{ marginTop: 28, padding: 24, border: '1px solid currentColor', borderRadius: 16 }}>
