@@ -17,13 +17,9 @@ ADMIN-005 CANONICAL CI RUN = 34800432764 (attempt 2)
 ADMIN-006 CONTRACT = docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md
 ADMIN-006 PROVENANCE = docs/ADMIN-PERSISTENCE-PROVENANCE.md
 SUPABASE PROJECT = zrpsmgdrtwzrhkjwwujo / ACTIVE_HEALTHY
-VERCEL PRODUCTION BINDING = NOT PROVEN / EXTERNAL VERIFICATION IN PROGRESS
+VERCEL PRODUCTION BINDING = DEPLOYMENT COMPLETED ON CURRENT MAIN / PERSISTENCE READ-BACK NOT YET PROVEN
 PRODUCTION MUTATION = DISABLED
-CURRENT MAIN SHA = 51048366abb4edf84bfa3a2be0162b11736ce4f2
-CURRENT MAIN CI = SUCCESS (fresh push checks)
-LATEST VERIFIED VERCEL DEPLOYMENT = AMe8LsopcLo2pETk9yrBVa9VSwsS
-LATEST VERIFIED VERCEL SOURCE = c19c04a86a20599fced011a246fee6e39a8d437b (STALE)
-LATEST VERCEL RESULT = READY WITH BUILD ERROR LINE FROM STALE SHA; NOT CLOSURE PROOF
+CURRENT MAIN IDENTITY = RESOLVE FROM main AT EXECUTION TIME; DO NOT STORE A SELF-REFERENTIAL SHA HERE
 ```
 
 ## TASK QUEUE
@@ -33,7 +29,7 @@ LATEST VERCEL RESULT = READY WITH BUILD ERROR LINE FROM STALE SHA; NOT CLOSURE P
 | ADMIN-003 | CLOSED / VERIFIED | Preserve canonical read-only centers |
 | ADMIN-004 | CLOSED / VERIFIED | Preserve fail-closed execution boundary |
 | ADMIN-005 | CLOSED / VERIFIED | Preserve verified server boundary and browser-bundle security invariant |
-| ADMIN-006 | ACTIVE / BLOCKED | Complete production exact-SHA identity and server write → read-back proof when canonical Vercel access is available; never weaken proof requirements |
+| ADMIN-006 | ACTIVE / BLOCKED | Complete exact-SHA production identity and server write → read-back proof; deployment is now confirmed on current main |
 | ADMIN-007 | LOCKED | Activate after ADMIN-006 |
 | ADMIN-008 | LOCKED | Final production certification |
 | BUILD-002 | CANDIDATE | Fresh artifact graph analysis |
@@ -101,10 +97,10 @@ Authoritative roadmap evidence:
 Implemented causal repair:
 `vite build → validate-build-chunk-boundaries.mjs → browser bundle security boundary`
 
-The validator now rejects emitted browser JavaScript containing privileged server-side Admin markers (`ADMIN_SESSION_SECRET`, `authorizeAdminRequest`, `createHmac`, `signAdminSession`) while permitting ordinary browser API paths such as `/api/admin/centers`.
+The validator rejects emitted browser JavaScript containing privileged server-side Admin markers (`ADMIN_SESSION_SECRET`, `authorizeAdminRequest`, `createHmac`, `signAdminSession`) while permitting ordinary browser API paths such as `/api/admin/centers`.
 
 Fresh exact-SHA proof:
-`34800432764` completed successfully on `main @ 9bc587157a1fd598a54472c95ec11effc8f35ea7`, including Static + Build, Browser FAST/DEEP evidence, Certification, and CI/CD Trust Layer. The previous Firefox DEEP evidence-upload failure was retried as the affected job only and then passed.
+`34800432764` completed successfully on the ADMIN-005 closure SHA, including Static + Build, Browser FAST/DEEP evidence, Certification, and CI/CD Trust Layer. The previous Firefox DEEP evidence-upload failure was retried as the affected job only and then passed.
 
 Phase 1 exit conditions proven on the closure SHA:
 - unauthenticated access denied
@@ -120,7 +116,7 @@ Current roadmap execution posture:
 ## ADMIN-006
 
 ```text
-ACTIVE / BLOCKED BY EXTERNAL PRODUCTION VERIFICATION
+ACTIVE / BLOCKED BY PRODUCTION READ-BACK PROOF
 Contract = docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md
 Contract version = v1.0
 Provenance = docs/ADMIN-PERSISTENCE-PROVENANCE.md
@@ -132,17 +128,15 @@ Migration = supabase/migrations/20260914040000_admin_006_persistence_evidence.sq
 Server adapter = api/admin/persistence.ts
 Targeted regression = scripts/test-admin-persistence.mjs
 Vercel documented project = prj_FdFbUWMAZepEfvwhttAiLcYJqY0d
-Vercel project access = NOT PROVEN / EXTERNAL BLOCKER
-Latest certified CI = 34810495439 SUCCESS on 51048366abb4edf84bfa3a2be0162b11736ce4f2
-Latest Vercel deployment evidence = AMe8LsopcLo2pETk9yrBVa9VSwsS
-Latest Vercel deployment source = c19c04a86a20599fced011a246fee6e39a8d437b (STALE)
+Vercel deployment status = CURRENT MAIN DEPLOYMENT COMPLETED
+Production exact-SHA read-back = NOT PROVEN
 ```
 
-Repository implementation for the Phase 2 persistence/evidence substrate is complete. The remaining closure gate is authoritative production verification through the documented Vercel deployment: exact production identity and server write → read-back proof. External provider quota/access failures are blockers and must not be converted into GREEN.
+Repository implementation for the Phase 2 persistence/evidence substrate is complete. The current main commit has a successful Vercel deployment status, but deployment completion alone is not persistence closure. The remaining gate is authoritative production verification: exact production identity followed by server write → read-back proof. External provider access/quota failures must remain external blockers and must not be converted into GREEN.
 
-The latest manual Vercel deployment is Ready but was built from stale `main @ c19c04a86a20599fced011a246fee6e39a8d437b`, not the current `main @ 51048366abb4edf84bfa3a2be0162b11736ce4f2`. Its deploy log reports `api/admin/boundary.ts(80,9): error TS18048: 'payload.exp' is possibly 'undefined'`, which is absent from the current main source after the narrowing repair. Therefore this deployment is explicitly non-closure evidence.
+The previous stale deployment evidence and its old TypeScript error are historical only and must not be used as current-main evidence.
 
-A direct substrate round-trip was also verified against Supabase using the current main SHA `4096d6681643c4da3bcf8ca47c5f2b26381be2c9`; test rows were removed after verification. This is not a substitute for production deployment proof.
+Direct Supabase substrate round-trip remains supporting evidence only; it is not a substitute for production deployment proof.
 
 ## GOVERNANCE
 
