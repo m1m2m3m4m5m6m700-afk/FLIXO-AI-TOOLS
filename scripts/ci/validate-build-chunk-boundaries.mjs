@@ -106,7 +106,7 @@ const dynamicEdgeCount = [...graph.values()].reduce((total, edges) => total + ed
 
 const forbiddenAdminBundlePatterns = [
   /ADMIN_SESSION_SECRET/,
-  /(?:^|[\"'`])(?:\/)?api\/admin\//,
+  /(?:^|["'`])(?:\/)?api\/admin\//,
   /authorizeAdminRequest/,
   /createHmac/,
   /signAdminSession/
