@@ -14,7 +14,7 @@ ADMIN-004 = CLOSED / VERIFIED
 ADMIN-004 CLOSURE SHA = b036327855222f4c11db0cfc8a1657167e4231be
 ADMIN-004 CANONICAL TEST RUN = 34798018758
 ADMIN-004 VERCEL DEPLOYMENT = EXTERNAL / RATE-LIMIT BLOCKED
-CURRENT MAIN SHA = 5bbd68172680b4629c7d4cf8e652832910b6fdcc
+CURRENT MAIN SHA = edc043f8223a0d7ee2aa138c94ec928a4ab90b0f
 ```
 
 ## TASK QUEUE
@@ -23,7 +23,7 @@ CURRENT MAIN SHA = 5bbd68172680b4629c7d4cf8e652832910b6fdcc
 |---|---|---|
 | ADMIN-003 | CLOSED / VERIFIED | Preserve canonical read-only centers |
 | ADMIN-004 | CLOSED / VERIFIED | Preserve fail-closed execution boundary |
-| ADMIN-005 | IMPLEMENTED / VERIFICATION PENDING | Fresh exact-SHA CI/certification proof of the server boundary and browser-bundle security invariant |
+| ADMIN-005 | IMPLEMENTED / VERIFICATION PENDING | Fresh exact-SHA CI/certification proof of server boundary and browser-bundle security invariant |
 | ADMIN-006 | LOCKED | Activate after ADMIN-005 proof |
 | ADMIN-007 | LOCKED | Activate after ADMIN-006 |
 | ADMIN-008 | LOCKED | Final production certification |
@@ -91,7 +91,7 @@ The Vercel status for this SHA is an external build-rate-limit condition and is 
 
 ```text
 IMPLEMENTED / VERIFICATION PENDING
-implementation SHA = 5bbd68172680b4629c7d4cf8e652832910b6fdcc
+implementation SHA = edc043f8223a0d7ee2aa138c94ec928a4ab90b0f
 base SHA = de07ac765159a4ba328b4d33d971b8d13db9d4c4
 RCA = ADMIN-005-CLIENT-BUNDLE-BOUNDARY-001
 ```
@@ -100,16 +100,14 @@ Authoritative roadmap evidence:
 `docs/ADMIN-CONTROL-PLANE-MASTER-PLAN.md`
 
 Implemented causal repair:
-`build -> dist/assets/*.js -> security boundary validator`
+`vite build -> dist/assets/*.js -> validate-build-chunk-boundaries.mjs -> browser bundle security boundary`
 
-The production build now fails closed when browser JavaScript contains server-side Admin secret/boundary markers such as `ADMIN_SESSION_SECRET`, `/api/admin/`, `authorizeAdminRequest`, `createHmac`, or `signAdminSession`.
+The build validator now fails closed when emitted browser JavaScript contains server-side Admin secret/boundary markers including `ADMIN_SESSION_SECRET`, `/api/admin/`, `authorizeAdminRequest`, `createHmac`, or `signAdminSession`.
 
-The validator remains part of the existing production `build` script, immediately after `vite build`.
+Verification history:
+`34800176880` proved the existing test suite passed through all Admin regressions but exposed one validator lint defect; that defect was corrected in `edc043f8223a0d7ee2aa138c94ec928a4ab90b0f`.
 
-Current verification:
-`CI run 34800176880 = in progress`
-
-Closure remains blocked until fresh exact-SHA CI/certification evidence proves the invariant on `main @ 5bbd68172680b4629c7d4cf8e652832910b6fdcc`.
+Fresh canonical proof is therefore required against the current main SHA before closure.
 
 Current roadmap execution posture:
 `Controlled Execution = LOCKED`
