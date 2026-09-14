@@ -8,13 +8,16 @@
 
 ```text
 BRANCH = main
-ACTIVE TASK = ADMIN-006 → ACTIVE
+ACTIVE TASK = ADMIN-006 → ACTIVE / BLOCKED BY PRODUCTION BINDING PROVENANCE
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = CLOSED / VERIFIED
 ADMIN-005 = CLOSED / VERIFIED
 ADMIN-005 CLOSURE SHA = 9bc587157a1fd598a54472c95ec11effc8f35ea7
 ADMIN-005 CANONICAL CI RUN = 34800432764 (attempt 2)
 ADMIN-006 CONTRACT = docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md
+ADMIN-006 PROVENANCE = docs/ADMIN-PERSISTENCE-PROVENANCE.md
+SUPABASE PROJECT = zrpsmgdrtwzrhkjwwujo / ACTIVE_HEALTHY
+VERCEL PRODUCTION BINDING = NOT PROVEN
 PRODUCTION MUTATION = DISABLED
 ```
 
@@ -25,7 +28,7 @@ PRODUCTION MUTATION = DISABLED
 | ADMIN-003 | CLOSED / VERIFIED | Preserve canonical read-only centers |
 | ADMIN-004 | CLOSED / VERIFIED | Preserve fail-closed execution boundary |
 | ADMIN-005 | CLOSED / VERIFIED | Preserve verified server boundary and browser-bundle security invariant |
-| ADMIN-006 | ACTIVE | Implement Phase 2 real persistence/evidence minimum against the approved v1.0 contract; prove write/read-back, provenance, audit completeness, and no fake metrics |
+| ADMIN-006 | ACTIVE / BLOCKED | Prove documented Vercel production project ↔ Supabase provider server-side binding; then implement only the approved Phase 2 persistence/evidence minimum |
 | ADMIN-007 | LOCKED | Activate after ADMIN-006 |
 | ADMIN-008 | LOCKED | Final production certification |
 | BUILD-002 | CANDIDATE | Fresh artifact graph analysis |
@@ -91,7 +94,7 @@ Authoritative roadmap evidence:
 `docs/ADMIN-CONTROL-PLANE-MASTER-PLAN.md`
 
 Implemented causal repair:
-`vite build → dist/assets/*.js → validate-build-chunk-boundaries.mjs → browser bundle security boundary`
+`vite build → validate-build-chunk-boundaries.mjs → browser bundle security boundary`
 
 The validator now rejects emitted browser JavaScript containing privileged server-side Admin markers (`ADMIN_SESSION_SECRET`, `authorizeAdminRequest`, `createHmac`, `signAdminSession`) while permitting ordinary browser API paths such as `/api/admin/centers`.
 
@@ -104,7 +107,7 @@ Phase 1 exit conditions proven on the closure SHA:
 - unauthorized capability denied
 - missing server configuration fails closed
 - no privileged server boundary/secret markers shipped to browser bundle
-- exact-SHA CI/certification evidence present
+- exact-SHA certification evidence present
 
 Current roadmap execution posture:
 `Controlled Execution = LOCKED`
@@ -112,14 +115,18 @@ Current roadmap execution posture:
 ## ADMIN-006
 
 ```text
-ACTIVE
+ACTIVE / BLOCKED BY PRODUCTION BINDING PROVENANCE
 Contract = docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md
 Contract version = v1.0
-Scope = Phase 2 — Real Persistence and Evidence
-Production mutation = DISABLED
+Provenance = docs/ADMIN-PERSISTENCE-PROVENANCE.md
+Supabase project ref = zrpsmgdrtwzrhkjwwujo
+Supabase status = ACTIVE_HEALTHY
+Existing tables = public.flix_events, public.flix_admin_sessions
+Vercel documented project = prj_FdFbUWMAZepEfvwhttAiLcYJqY0d
+Vercel project lookup = 404 / team project listing empty
 ```
 
-Execution must remain limited to the approved contract. No additional production-write capability, approval workflow, Truth Graph, or AI execution is activated by ADMIN-006.
+The canonical provider candidate and schema are discovered. Execution is blocked only until the production Vercel-to-Supabase server-side binding is proven. No guessed credentials, parallel database, migration, or production mutation is permitted.
 
 ## GOVERNANCE
 
