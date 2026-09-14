@@ -11,8 +11,9 @@ BRANCH = main
 ACTIVE TASK = ADMIN-004
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = ACTIVE / FAIL-CLOSED HARDENING
-RESOLVED MAIN SHA = 4faed01f5d7bd63b276a5a54bdb4fe898a506e2d
-FRESH CI = PENDING
+CURRENT MAIN SHA = resolve from git ref at session entry
+LAST VERIFIED CI SHA = 80ae6d8501a77fefa2915946782038355e5be3ac
+FRESH CI FOR CURRENT MAIN = PENDING
 ```
 
 ## TASK QUEUE
@@ -20,7 +21,7 @@ FRESH CI = PENDING
 | ID | Status | Next deterministic action |
 |---|---|---|
 | ADMIN-003 | CLOSED / VERIFIED | Preserve canonical read-only centers |
-| ADMIN-004 | ACTIVE | Fresh canonical CI on current main; then continue reversible execution/evidence hardening without production mutation |
+| ADMIN-004 | ACTIVE | Fresh canonical CI on current main, then reversible execution/evidence hardening without production mutation |
 | ADMIN-005 | LOCKED | Activate after ADMIN-004 proof |
 | ADMIN-006 | LOCKED | Activate after ADMIN-005 |
 | ADMIN-007 | LOCKED | Activate after ADMIN-006 |
@@ -31,9 +32,15 @@ FRESH CI = PENDING
 | DEBT-001 | CANDIDATE | Fresh-failure/value review |
 | TOOL-EXPANSION | CANDIDATE | Select smallest proven candidate |
 
-## ADMIN-004
+## ADMIN-003
 
-Invariant:
+```text
+CLOSED / VERIFIED
+closure SHA = 80ae6d8501a77fefa2915946782038355e5be3ac
+canonical CD run = 34796825957
+```
+
+## ADMIN-004
 
 ```text
 authentication
@@ -57,16 +64,18 @@ execution-plan.ts    = PREVIEW_ONLY / enabled=false
 execution-preview.ts = GET-only / no mutation
 ```
 
-Targeted regression includes explicit:
+Current targeted proof includes explicit:
 
 ```text
 POST / execution-preview → 405 method_not_allowed
 ```
 
-Current SHA:
-`4faed01f5d7bd63b276a5a54bdb4fe898a506e2d`
+Last functional candidate SHA:
+`7d6b709a725c1b0fc494b6fd760688a77842551d`
 
-Fresh canonical CI:
+The current repository main SHA must always be resolved from the Git ref before execution; it is not duplicated as a self-referential field here.
+
+Fresh canonical CI for current main:
 `PENDING`
 
 Production mutation:
