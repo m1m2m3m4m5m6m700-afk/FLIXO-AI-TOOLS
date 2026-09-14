@@ -136,7 +136,8 @@ jobs:
         run: |
           set -u
           evidence=production-deployment-evidence.json
-          direct_sha=''
+          deployment_probe_sha=''
+          deployment_probe_status=NOT_EXECUTED
           canonical_sha=''
           canonical_html=FAIL
           status=FAIL
@@ -144,74 +145,99 @@ jobs:
 
           probe_sha() {
             local url="$1"
-            direct_sha="$(curl --fail --silent --show-error --location \
+            local observed=''
+            deployment_probe_status=FAIL
+            observed="$(curl --fail --silent --show-error --location \
               --retry 5 --retry-delay 3 --retry-all-errors \
               --max-time 30 \
               -H 'Cache-Control: no-cache' \
               "$url" | tr -d '\r\n')" || true
 
-            if [ "$direct_sha" = "$PROMOTION_SHA" ]; then
+            if [ "$observed" = "$PROMOTION_SHA" ]; then
+              deployment_probe_sha="$observed"
+              deployment_probe_status=PASS
               return 0
             fi
 
             if [ -n "$VERCEL_TOKEN" ]; then
-              direct_sha="$(npx --yes vercel@59.16.0 curl "$url" \
+              observed="$(npx --yes vercel@59.16.0 curl "$url" \
                 --token="$VERCEL_TOKEN" \
                 --scope="$VERCEL_ORG_ID" \
                 2>/dev/null | tr -d '\r\n')" || true
             fi
 
-            [ "$direct_sha" = "$PROMOTION_SHA" ]
+            deployment_probe_sha="$observed"
+            if [ "$observed" = "$PROMOTION_SHA" ]; then
+              deployment_probe_status=PASS
+              return 0
+            fi
+            return 1
           }
 
-          if [ -z "$DEPLOYMENT_URL" ]; then
-            reason=DEPLOYMENT_URL_MISSING
+          # Deployment-specific probe is diagnostic evidence only.
+          # Its failure MUST NOT short-circuit the canonical production proof.
+          if [ -n "$DEPLOYMENT_URL" ]; then
+            probe_sha "$DEPLOYMENT_URL/flixo-head-sha.txt?__flixo_sha=$PROMOTION_SHA" || true
           else
-            if probe_sha "$DEPLOYMENT_URL/flixo-head-sha.txt?__flixo_sha=$PROMOTION_SHA"; then
-              if curl --fail --silent --show-error --location \
-                --retry 10 --retry-delay 5 --retry-all-errors \
-                --max-time 30 \
-                -H 'Cache-Control: no-cache' \
-                -o /tmp/production.html \
-                "$PRODUCTION_ORIGIN/?__flixo_sha=$PROMOTION_SHA" &&
-                 test -s /tmp/production.html &&
-                 grep -qi '<html' /tmp/production.html; then
-                canonical_html=PASS
-              elif [ -n "$VERCEL_TOKEN" ] && \
-                   npx --yes vercel@59.16.0 curl "$PRODUCTION_ORIGIN/?__flixo_sha=$PROMOTION_SHA" \
-                     --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID" > /tmp/production.html 2>/dev/null &&
-                   test -s /tmp/production.html &&
-                   grep -qi '<html' /tmp/production.html; then
-                canonical_html=PASS
-              fi
-
-              canonical_sha="$(curl --fail --silent --show-error --location \
-                --retry 10 --retry-delay 5 --retry-all-errors \
-                --max-time 30 \
-                -H 'Cache-Control: no-cache' \
-                "$PRODUCTION_ORIGIN/flixo-head-sha.txt?__flixo_sha=$PROMOTION_SHA" \
-                | tr -d '\r\n')" || true
-
-              if [ "$canonical_sha" != "$PROMOTION_SHA" ] && [ -n "$VERCEL_TOKEN" ]; then
-                canonical_sha="$(npx --yes vercel@59.16.0 curl \
-                  "$PRODUCTION_ORIGIN/flixo-head-sha.txt?__flixo_sha=$PROMOTION_SHA" \
-                  --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID" \
-                  2>/dev/null | tr -d '\r\n')" || true
-              fi
-
-              if [ "$canonical_sha" = "$PROMOTION_SHA" ] && [ "$canonical_html" = PASS ]; then
-                status=PASS
-                reason=EXACT_PRODUCTION_IDENTITY
-              else
-                reason=CANONICAL_ALIAS_MISMATCH
-              fi
-            else
-              reason=DEPLOYMENT_IDENTITY_MISMATCH
-            fi
+            deployment_probe_status=NOT_EXECUTED
           fi
 
-          printf '%s\n' \
-            '{"status":"'"$status"'","sha":"'"$PROMOTION_SHA"'","deploymentSha":"'"$direct_sha"'","canonicalSha":"'"$canonical_sha"'","origin":"'"$PRODUCTION_ORIGIN"'","deploymentUrl":"'"$DEPLOYMENT_URL"'","deploymentAttempt":"'"$DEPLOYMENT_ATTEMPT"'","canonicalHtml":"'"$canonical_html"'","reason":"'"$reason"'"}' \
+          # Canonical production HTML is always probed independently.
+          if curl --fail --silent --show-error --location \
+            --retry 10 --retry-delay 5 --retry-all-errors \
+            --max-time 30 \
+            -H 'Cache-Control: no-cache' \
+            -o /tmp/production.html \
+            "$PRODUCTION_ORIGIN/?__flixo_sha=$PROMOTION_SHA" &&
+             test -s /tmp/production.html &&
+             grep -qi '<html' /tmp/production.html; then
+            canonical_html=PASS
+          elif [ -n "$VERCEL_TOKEN" ] && \
+               npx --yes vercel@59.16.0 curl "$PRODUCTION_ORIGIN/?__flixo_sha=$PROMOTION_SHA" \
+                 --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID" > /tmp/production.html 2>/dev/null &&
+               test -s /tmp/production.html &&
+               grep -qi '<html' /tmp/production.html; then
+            canonical_html=PASS
+          fi
+
+          # Canonical SHA is authoritative for release identity.
+          canonical_sha="$(curl --fail --silent --show-error --location \
+            --retry 10 --retry-delay 5 --retry-all-errors \
+            --max-time 30 \
+            -H 'Cache-Control: no-cache' \
+            "$PRODUCTION_ORIGIN/flixo-head-sha.txt?__flixo_sha=$PROMOTION_SHA" \
+            | tr -d '\r\n')" || true
+
+          if [ "$canonical_sha" != "$PROMOTION_SHA" ] && [ -n "$VERCEL_TOKEN" ]; then
+            canonical_sha="$(npx --yes vercel@59.16.0 curl \
+              "$PRODUCTION_ORIGIN/flixo-head-sha.txt?__flixo_sha=$PROMOTION_SHA" \
+              --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID" \
+              2>/dev/null | tr -d '\r\n')" || true
+          fi
+
+          if [ "$canonical_sha" = "$PROMOTION_SHA" ] && [ "$canonical_html" = PASS ]; then
+            status=PASS
+            reason=EXACT_PRODUCTION_IDENTITY
+          elif [ -n "$DEPLOYMENT_URL" ] && [ "$deployment_probe_status" != PASS ]; then
+            reason=CANONICAL_ALIAS_UNPROVEN
+          elif [ -z "$DEPLOYMENT_URL" ]; then
+            reason=DEPLOYMENT_URL_MISSING
+          else
+            reason=CANONICAL_ALIAS_MISMATCH
+          fi
+
+          jq -n \
+            --arg status "$status" \
+            --arg sha "$PROMOTION_SHA" \
+            --arg deploymentSha "$deployment_probe_sha" \
+            --arg deploymentProbeStatus "$deployment_probe_status" \
+            --arg canonicalSha "$canonical_sha" \
+            --arg origin "$PRODUCTION_ORIGIN" \
+            --arg deploymentUrl "${DEPLOYMENT_URL:-}" \
+            --arg deploymentAttempt "${DEPLOYMENT_ATTEMPT:-}" \
+            --arg canonicalHtml "$canonical_html" \
+            --arg reason "$reason" \
+            '{status:$status,sha:$sha,deploymentSha:$deploymentSha,deploymentProbeStatus:$deploymentProbeStatus,canonicalSha:$canonicalSha,origin:$origin,deploymentUrl:$deploymentUrl,deploymentAttempt:$deploymentAttempt,canonicalHtml:$canonicalHtml,reason:$reason}' \
             > "$evidence"
 
           if [ "$status" != PASS ]; then
