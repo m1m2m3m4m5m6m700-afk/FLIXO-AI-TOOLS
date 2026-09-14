@@ -105,7 +105,10 @@ assert.equal(previewPlan.execution.enabled, false);
 assert.equal(previewPlan.policy.decision, 'ALLOW_PREVIEW');
 assert.equal(previewPlan.rollback.required, true);
 assert.equal(previewPlan.rollback.supplied, false);
+assert.equal(previewPlan.rollback.proofRequired, true);
 assert.equal(previewPlan.approval.required, false);
+assert.equal(previewPlan.verification.required, true);
+assert.equal(previewPlan.evidence.required, true);
 assert.equal(previewPlan.audit.required, true);
 assert.equal(previewPlan.audit.eventType, 'ADMIN_EXECUTION_PREVIEW');
 assert.equal(previewPlan.audit.target, base.target);
@@ -118,7 +121,19 @@ const highRiskPreview = createAdminExecutionPlan({
 });
 assert.equal(highRiskPreview.approval.required, true);
 assert.equal(highRiskPreview.approval.supplied, true);
+assert.equal(highRiskPreview.rollback.proofRequired, true);
+assert.equal(highRiskPreview.verification.required, true);
+assert.equal(highRiskPreview.evidence.required, true);
 assert.equal(highRiskPreview.execution.enabled, false);
 assert.equal(highRiskPreview.policy.decision, 'ALLOW_PREVIEW');
+
+const readPlan = createAdminExecutionPlan({
+  ...base,
+  executionClass: 'READ',
+});
+assert.equal(readPlan.rollback.required, false);
+assert.equal(readPlan.rollback.proofRequired, false);
+assert.equal(readPlan.verification.required, true);
+assert.equal(readPlan.evidence.required, true);
 
 console.log('Admin execution policy and deterministic preview plan contracts: PASS');
