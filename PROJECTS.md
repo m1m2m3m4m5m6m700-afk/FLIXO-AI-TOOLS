@@ -17,8 +17,13 @@ ADMIN-005 CANONICAL CI RUN = 34800432764 (attempt 2)
 ADMIN-006 CONTRACT = docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md
 ADMIN-006 PROVENANCE = docs/ADMIN-PERSISTENCE-PROVENANCE.md
 SUPABASE PROJECT = zrpsmgdrtwzrhkjwwujo / ACTIVE_HEALTHY
-VERCEL PRODUCTION BINDING = NOT PROVEN / EXTERNAL ACCESS OR QUOTA BLOCKED
+VERCEL PRODUCTION BINDING = NOT PROVEN / EXTERNAL VERIFICATION IN PROGRESS
 PRODUCTION MUTATION = DISABLED
+CURRENT MAIN SHA = 51048366abb4edf84bfa3a2be0162b11736ce4f2
+CURRENT MAIN CI = SUCCESS (fresh push checks)
+LATEST VERIFIED VERCEL DEPLOYMENT = AMe8LsopcLo2pETk9yrBVa9VSwsS
+LATEST VERIFIED VERCEL SOURCE = c19c04a86a20599fced011a246fee6e39a8d437b (STALE)
+LATEST VERCEL RESULT = READY WITH BUILD ERROR LINE FROM STALE SHA; NOT CLOSURE PROOF
 ```
 
 ## TASK QUEUE
@@ -128,10 +133,14 @@ Server adapter = api/admin/persistence.ts
 Targeted regression = scripts/test-admin-persistence.mjs
 Vercel documented project = prj_FdFbUWMAZepEfvwhttAiLcYJqY0d
 Vercel project access = NOT PROVEN / EXTERNAL BLOCKER
-Latest certified CI = 34805708774 SUCCESS on c187d60e9d7f90d7e46815aab9c470e01bab56d6
+Latest certified CI = 34810495439 SUCCESS on 51048366abb4edf84bfa3a2be0162b11736ce4f2
+Latest Vercel deployment evidence = AMe8LsopcLo2pETk9yrBVa9VSwsS
+Latest Vercel deployment source = c19c04a86a20599fced011a246fee6e39a8d437b (STALE)
 ```
 
 Repository implementation for the Phase 2 persistence/evidence substrate is complete. The remaining closure gate is authoritative production verification through the documented Vercel deployment: exact production identity and server write → read-back proof. External provider quota/access failures are blockers and must not be converted into GREEN.
+
+The latest manual Vercel deployment is Ready but was built from stale `main @ c19c04a86a20599fced011a246fee6e39a8d437b`, not the current `main @ 51048366abb4edf84bfa3a2be0162b11736ce4f2`. Its deploy log reports `api/admin/boundary.ts(80,9): error TS18048: 'payload.exp' is possibly 'undefined'`, which is absent from the current main source after the narrowing repair. Therefore this deployment is explicitly non-closure evidence.
 
 A direct substrate round-trip was also verified against Supabase using the current main SHA `4096d6681643c4da3bcf8ca47c5f2b26381be2c9`; test rows were removed after verification. This is not a substitute for production deployment proof.
 
