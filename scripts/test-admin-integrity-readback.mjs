@@ -7,7 +7,15 @@ process.env.SUPABASE_URL = 'https://example.supabase.co';
 
 const module = await import('../api/admin/persistence.ts');
 
-const sha256 = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const canonicalize = (value) => {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => [key, canonicalize(entry)]));
+  }
+  return value;
+};
+const canonicalTimestamp = (value) => value == null ? null : new Date(value).toISOString();
+const sha256 = (value) => createHash('sha256').update(JSON.stringify(canonicalize(value))).digest('hex');
 const expectedSha = process.env.EXPECTED_SHA?.trim() || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 assert.match(expectedSha, /^[0-9a-f]{40}$/);
 const freshnessAt = new Date().toISOString();
@@ -37,9 +45,9 @@ evidence.integrity_sha256 = sha256({
   evaluator: evidence.evaluator,
   environment: evidence.environment,
   status: evidence.status,
-  freshness_at: evidence.freshness_at,
+  freshness_at: canonicalTimestamp(evidence.freshness_at),
   payload: evidence.payload,
-  expires_at: evidence.expires_at,
+  expires_at: canonicalTimestamp(evidence.expires_at),
 });
 
 const audit = {
@@ -78,22 +86,16 @@ let evidenceReadCount = 0;
 let auditReadCount = 0;
 globalThis.fetch = async (input) => {
   const url = String(input);
-  if (url.includes('flixo_admin_evidence?')) {
+  if (url.includes('/rest/v1/flix_admin_evidence?')) {
     evidenceReadCount += 1;
-    if (evidenceReadCount === 1) {
-      return new Response(JSON.stringify([{ ...evidence }]), { status: 200 });
-    }
+    if (evidenceReadCount === 1) return new Response(JSON.stringify([{ ...evidence }]), { status: 200 });
     return new Response(JSON.stringify([{ ...evidence, payload: { ...evidence.payload, marker: 'tampered' } }]), { status: 200 });
   }
-
-  if (url.includes('flixo_admin_audit_events?')) {
+  if (url.includes('/rest/v1/flix_admin_audit_events?')) {
     auditReadCount += 1;
-    if (auditReadCount === 1) {
-      return new Response(JSON.stringify([{ ...audit }]), { status: 200 });
-    }
+    if (auditReadCount === 1) return new Response(JSON.stringify([{ ...audit }]), { status: 200 });
     return new Response(JSON.stringify([{ ...audit, outcome: 'DENY' }]), { status: 200 });
   }
-
   throw new Error(`unexpected request: ${url}`);
 };
 
