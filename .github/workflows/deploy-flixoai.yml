@@ -15,13 +15,17 @@ concurrency:
   group: flixoai-cloudflare-${{ github.event.workflow_run.head_sha || inputs.sha || github.run_id }}
   cancel-in-progress: false
 
+actions_permissions:
+  contents: read
+  actions: read
+
 permissions:
   contents: read
   actions: read
 
 env:
   FLIXOAI_PRODUCTION_ORIGIN: https://flixoai.m1m2m3m4m5m6m700.workers.dev
-  FLIXOAI_WORKER_NAME: flixoai
+  WRANGLER_WORKER_NAME: flixoai
 
 jobs:
   deploy:
@@ -90,13 +94,48 @@ jobs:
           test "$(git rev-parse HEAD)" = "$DEPLOYMENT_SHA"
           test -s dist/index.html
 
-      - name: Guard deployment target
+      - name: 🛡️ Safety Guard — strict allowlist (flixoai only)
+        id: safety
         shell: bash
         run: |
           set -euo pipefail
-          test "$FLIXOAI_WORKER_NAME" = "flixoai"
-          test "$FLIXOAI_PRODUCTION_ORIGIN" = "https://flixoai.m1m2m3m4m5m6m700.workers.dev"
-          ! grep -R -E 'flixotoolscom|flixotools\b' wrangler.jsonc .github/workflows/deploy-flixoai.yml
+
+          ALLOWED_WORKER="flixoai"
+          ALLOWED_ORIGIN="https://flixoai.m1m2m3m4m5m6m700.workers.dev"
+
+          echo "=== Guard 1/4: wrangler.jsonc name == $ALLOWED_WORKER ==="
+          CONFIG_NAME=$(grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' wrangler.jsonc | head -1 | sed -E 's/.*"name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+          echo "wrangler.jsonc name = '$CONFIG_NAME'"
+          if [ "$CONFIG_NAME" != "$ALLOWED_WORKER" ]; then
+            echo "❌ FAIL: wrangler.jsonc targets '$CONFIG_NAME' — expected '$ALLOWED_WORKER'"
+            exit 1
+          fi
+          echo "✅ OK"
+
+          echo "=== Guard 2/4: WRANGLER_WORKER_NAME == $ALLOWED_WORKER ==="
+          echo "WRANGLER_WORKER_NAME = '${WRANGLER_WORKER_NAME:-UNSET}'"
+          if [ "${WRANGLER_WORKER_NAME:-}" != "$ALLOWED_WORKER" ]; then
+            echo "❌ FAIL: WRANGLER_WORKER_NAME must be '$ALLOWED_WORKER'"
+            exit 1
+          fi
+          echo "✅ OK"
+
+          echo "=== Guard 3/4: production origin is exact ==="
+          if [ "${FLIXOAI_PRODUCTION_ORIGIN:-}" != "$ALLOWED_ORIGIN" ]; then
+            echo "❌ FAIL: production origin is not the approved flixoai workers.dev origin"
+            exit 1
+          fi
+          echo "✅ OK"
+
+          echo "=== Guard 4/4: no forbidden worker references in deployment config ==="
+          if grep -qE 'flixotoolscom|flixotools\b' wrangler.jsonc; then
+            echo "❌ FAIL: wrangler.jsonc references a forbidden worker (flixotools/flixotoolscom)"
+            exit 1
+          fi
+          echo "✅ OK — no forbidden references"
+
+          echo ""
+          echo "🛡️ ALL GUARDS PASSED — deployment target locked to '$ALLOWED_WORKER'"
 
       - name: Install Wrangler
         run: npm install --global wrangler@4
@@ -109,15 +148,15 @@ jobs:
           set -euo pipefail
           test -n "$CLOUDFLARE_API_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
-          wrangler deploy --dry-run --config wrangler.jsonc
+          wrangler deploy --dry-run --config wrangler.jsonc --name "$WRANGLER_WORKER_NAME"
 
-      - name: Deploy to Cloudflare flixoai
+      - name: Deploy to Cloudflare (flixoai)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          wrangler deploy --config wrangler.jsonc
+          wrangler deploy --config wrangler.jsonc --name "$WRANGLER_WORKER_NAME"
 
       - name: Verify production identity
         env:
