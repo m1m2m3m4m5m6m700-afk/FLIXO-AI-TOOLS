@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import { RouterProvider } from '@tanstack/react-router';
 import { router } from './router';
 import { installRuntimeDiagnostics } from './lib/diagnostics/runtime';
-import { installPerformanceDiagnostics } from './lib/diagnostics/performance';
 import { applyDocumentLocale, localeFromPathname } from './lib/i18n/runtime-document-locale';
 import { installToolUiRuntimeCompleteness } from './lib/i18n/tool-ui-runtime-completeness';
 import { FlixoUxShell } from './components/flixo-ux-shell';
@@ -18,8 +17,23 @@ if (typeof window !== 'undefined') {
 }
 
 installRuntimeDiagnostics();
-installPerformanceDiagnostics();
 installToolUiRuntimeCompleteness();
+
+if (typeof window !== 'undefined') {
+  const loadPerformanceDiagnostics = () => {
+    void import('./lib/diagnostics/performance')
+      .then(({ installPerformanceDiagnostics }) => installPerformanceDiagnostics())
+      .catch(() => {
+        // Diagnostics are non-critical; application startup must remain independent of them.
+      });
+  };
+
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(loadPerformanceDiagnostics, { timeout: 2000 });
+  } else {
+    window.setTimeout(loadPerformanceDiagnostics, 0);
+  }
+}
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
