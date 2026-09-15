@@ -2,6 +2,7 @@ name: FLIXO Test System
 
 # Canonical CI entrypoint: push/PR on main plus explicit manual dispatch.
 # Keep this workflow enabled so CD can promote only a certified exact SHA.
+# Persistence auth contract repaired on main; next push must certify the exact SHA.
 on:
   pull_request:
     branches: [main]
