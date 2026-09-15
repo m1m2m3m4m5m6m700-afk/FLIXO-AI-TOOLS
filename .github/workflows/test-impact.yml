@@ -27,13 +27,15 @@ jobs:
         run: node scripts/ci/test-impact.mjs --base="$BASE_SHA"
       - name: Verify impact evidence identity
         shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           test -s diagnostics/ci/test-impact.json
           node - <<'NODE'
           const fs = require('node:fs');
           const p = JSON.parse(fs.readFileSync('diagnostics/ci/test-impact.json', 'utf8'));
-          const expected = process.env.GITHUB_EVENT_NAME === 'pull_request' ? process.env.GITHUB_SHA : process.env.GITHUB_SHA;
+          const expected = process.env.EXPECTED_SHA;
           if (p.sha !== expected) throw new Error(`Impact SHA mismatch: ${p.sha} != ${expected}`);
           if (p.evidenceClass !== 'PRIMARY_EXECUTION') throw new Error('Impact evidence must be PRIMARY_EXECUTION');
           NODE
