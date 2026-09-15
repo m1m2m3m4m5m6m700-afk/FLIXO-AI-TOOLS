@@ -31,22 +31,53 @@ const KEYWORDS: Readonly<Record<Locale, readonly string[]>> = {
   vi: ['hình ảnh', 'ảnh', 'nền', 'nén', 'chuyển đổi', 'đổi kích thước', 'xóa', 'thực hiện'],
 };
 
-const latinLocales = new Set<Locale>(LOCALES.filter((locale) => !SCRIPT_RULES.some(([candidate]) => candidate === locale)));
+const LOCALE_PRIORITY: readonly Locale[] = [...LOCALES];
+
+const normalizeForMatch = (text: string): string =>
+  text
+    .trim()
+    .toLocaleLowerCase()
+    .normalize('NFKC')
+    .replace(/[’‘`´]/g, "'")
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const normalizedKeywords = Object.fromEntries(
+  Object.entries(KEYWORDS).map(([locale, words]) => [
+    locale,
+    words.map((word) => normalizeForMatch(word)),
+  ]),
+) as Record<Locale, readonly string[]>;
+
+const scoreLocale = (text: string, locale: Locale): number => {
+  const words = normalizedKeywords[locale] ?? [];
+  let score = 0;
+
+  for (const word of words) {
+    if (!word) continue;
+    if (text.includes(word)) score += word.includes(' ') ? 3 : 2;
+  }
+
+  return score;
+};
 
 export function detectAgentLocale(text: string, fallback: Locale): Locale {
-  const normalized = text.trim().toLocaleLowerCase();
+  const normalized = normalizeForMatch(text);
   if (!normalized) return fallback;
 
   for (const [locale, pattern] of SCRIPT_RULES) {
-    if (pattern.test(normalized)) return locale;
+    if (pattern.test(text)) return locale;
   }
 
   let best: Locale = fallback;
   let bestScore = 0;
-  for (const locale of latinLocales) {
-    const words = KEYWORDS[locale] ?? [];
-    const score = words.reduce((total, word) => total + (normalized.includes(word.toLocaleLowerCase()) ? 1 : 0), 0);
-    if (score > bestScore) {
+
+  for (const locale of LOCALE_PRIORITY) {
+    const score = scoreLocale(normalized, locale);
+    if (score > bestScore || (score === bestScore && score > 0 && locale === fallback)) {
       best = locale;
       bestScore = score;
     }
