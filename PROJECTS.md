@@ -9,11 +9,11 @@
 ```text
 BRANCH = main
 CURRENT MAIN SHA = RESOLVE FROM main AT EXECUTION TIME (never store a self-referential SHA here)
-ACTIVE TASK = NONE → ADMIN-006 CLOSED / EXTERNAL BLOCKED / NOT VERIFIED
+ACTIVE TASK = ADMIN-006 → ACTIVE / BLOCKED PENDING AUTHORITATIVE REMOTE VERIFICATION
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = CLOSED / VERIFIED
 ADMIN-005 = CLOSED / VERIFIED
-ADMIN-006 = CLOSED / EXTERNAL BLOCKED / NOT VERIFIED
+ADMIN-006 = ACTIVE / BLOCKED / NOT VERIFIED
 ADMIN-007 = LOCKED
 ADMIN-008 = LOCKED
 ADMIN-006 CONTRACT = docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md
@@ -30,8 +30,8 @@ PRODUCTION MUTATION = DISABLED
 | ADMIN-003 | CLOSED / VERIFIED | Preserve canonical read-only centers |
 | ADMIN-004 | CLOSED / VERIFIED | Preserve fail-closed execution boundary |
 | ADMIN-005 | CLOSED / VERIFIED | Preserve verified server boundary and browser-bundle security invariant |
-| ADMIN-006 | CLOSED / EXTERNAL BLOCKED | Historical closure; reopen only for authoritative remote persistence verification when external credentials/access are available |
-| ADMIN-007 | LOCKED | Activate only after a future ADMIN-006 VERIFIED closure |
+| ADMIN-006 | ACTIVE / BLOCKED | Execute authoritative non-production Supabase write → read-back with required credentials; verify exact SHA, audit linkage, integrity and required CI/certification; then close as VERIFIED |
+| ADMIN-007 | LOCKED | Activate only after ADMIN-006 VERIFIED closure |
 | ADMIN-008 | LOCKED | Final production certification |
 | BUILD-002 | CANDIDATE | Fresh artifact graph analysis |
 | I18N-001 | CANDIDATE | Runtime ownership trace |
@@ -42,7 +42,7 @@ PRODUCTION MUTATION = DISABLED
 ## ADMIN-006
 
 ```text
-CLOSED / EXTERNAL BLOCKED / NOT VERIFIED
+ACTIVE / BLOCKED / NOT VERIFIED
 Contract = docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md
 Contract version = v1.0
 Provenance = docs/ADMIN-PERSISTENCE-PROVENANCE.md
@@ -56,15 +56,19 @@ Targeted regression = scripts/test-admin-persistence.mjs
 Integrity regression = scripts/test-admin-integrity-readback.mjs
 Production verifier = scripts/verify-admin-production-readback.mjs
 Production verifier command = verify:admin-production-readback
+Remote persistence verifier = scripts/verify-admin-persistence-roundtrip.mjs
+Remote persistence verifier command = verify:admin-persistence-roundtrip
+Remote execution workflow = .github/workflows/admin-006-persistence-roundtrip.yml
 Vercel documented project = prj_FdFbUWMAZepEfvwhttAiLcYJqY0d
 CURRENT MAIN = RESOLVE FROM main AT EXECUTION TIME
-Production exact-SHA identity = VERIFIED / dedicated non-mutating verifier implemented
+Production exact-SHA identity = supporting non-mutating proof only
 Production server write → read-back = NOT PROVEN
+Remote non-production write → read-back = PENDING AUTHORITATIVE EXECUTION
 ```
 
-The Phase 2 persistence/evidence substrate and deterministic production identity verifier are implemented. The verifier is non-mutating and checks the production origin against an exact expected SHA plus HTML response. This is supporting deployment evidence only; it does not substitute for the contract's authoritative production server write → read-back proof.
+The Phase 2 persistence/evidence substrate and deterministic production identity verifier are implemented. The production verifier is non-mutating and checks the production origin against an exact expected SHA plus HTML response. This is supporting deployment evidence only; it does not substitute for the contract's authoritative persistence write → read-back proof.
 
-ADMIN-006 is intentionally removed from active execution to prevent indefinite looping on an external dependency. The remaining proof is preserved as a reopenable verification-only follow-up. External Vercel quota/access failures and unavailable runtime credentials remain explicit blockers and must never be converted into GREEN. Production mutation remains disabled.
+ADMIN-006 remains an active verification task because the authoritative remote persistence proof has not been established. External Vercel quota/access failures and unavailable runtime credentials are explicit blockers and must never be converted into GREEN. Production mutation remains disabled.
 
 ## GOVERNANCE
 
@@ -72,7 +76,7 @@ Bounded single-owner work may execute directly on `main`. Use `execution` only f
 
 ## DELETION
 
-A task may leave the open queue only after merge-to-main, exact-SHA proof, targeted tests, required CI/certification, invariant proof, no dependent repair, closure evidence, history update, and next-task update. An externally blocked historical closure is not a VERIFIED closure and cannot unlock dependent production certification tasks.
+A task may leave the open queue only after merge-to-main, exact-SHA proof, targeted tests, required CI/certification, invariant proof, no dependent repair, closure evidence, history update, and next-task update. An externally blocked state is not a VERIFIED closure and cannot unlock dependent production certification tasks.
 
 ## EVIDENCE
 
