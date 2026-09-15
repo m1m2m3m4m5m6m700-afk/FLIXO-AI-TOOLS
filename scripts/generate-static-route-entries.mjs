@@ -17,10 +17,20 @@ const copyEntry = (route) => {
   copyFileSync(INDEX_FILE, join(routeDir, 'index.html'));
 };
 
-// Non-localized operational entry points must also exist as physical static
-// entries because the production deployment is an immutable Vercel static
-// artifact rather than a source-tree deployment.
+// The production deployment is an immutable Vercel artifact. Materialize
+// operational routes as physical entries so direct navigation cannot become
+// a Vercel static 404.
 copyEntry('/admin');
+
+// Materialize the authenticated admin read boundary alongside the immutable
+// artifact. Vercel detects the /api tree as serverless functions during deploy;
+// these files stay isolated from the browser bundle.
+const adminApiSourceDir = join('api', 'admin');
+const adminApiDistDir = join(DIST_DIR, 'api', 'admin');
+mkdirSync(adminApiDistDir, { recursive: true });
+for (const file of ['boundary.ts', 'canonical.ts', 'persistence.ts', 'centers.ts']) {
+  copyFileSync(join(adminApiSourceDir, file), join(adminApiDistDir, file));
+}
 
 for (const locale of LOCALES) {
   copyEntry(`/${locale}`);
@@ -30,4 +40,4 @@ for (const locale of LOCALES) {
   }
 }
 
-console.log(`G1 static route entries generated: ready=${readyTools.length}, locales=${LOCALES.length}, routes=${readyTools.length * LOCALES.length + LOCALES.length + 1}`);
+console.log(`G1 static route entries generated: ready=${readyTools.length}, locales=${LOCALES.length}, routes=${readyTools.length * LOCALES.length + LOCALES.length + 1}, adminApi=4`);
