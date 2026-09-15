@@ -19,22 +19,6 @@ if (typeof window !== 'undefined') {
 installRuntimeDiagnostics();
 installToolUiRuntimeCompleteness();
 
-if (typeof window !== 'undefined') {
-  const loadPerformanceDiagnostics = () => {
-    void import('./lib/diagnostics/performance')
-      .then(({ installPerformanceDiagnostics }) => installPerformanceDiagnostics())
-      .catch(() => {
-        // Diagnostics are non-critical; application startup must remain independent of them.
-      });
-  };
-
-  if ('requestIdleCallback' in window) {
-    window.requestIdleCallback(loadPerformanceDiagnostics, { timeout: 2000 });
-  } else {
-    globalThis.setTimeout(loadPerformanceDiagnostics, 0);
-  }
-}
-
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {
