@@ -25,9 +25,12 @@ const fastBlock = workflow.match(/Run Browser FAST engine[\s\S]*?Validate Playwr
 if (!fastBlock) fail('CI Browser FAST execution block is missing.');
 const fastSource = fastBlock?.[0] ?? '';
 
+if (!workflow.includes('browser: [chromium, firefox, webkit]')) {
+  fail('FAST browser matrix must declare Chromium, Firefox, and WebKit.');
+}
 for (const browser of browsers) {
-  if (!workflow.includes('browser: [chromium, firefox, webkit]')) fail('FAST browser matrix must declare Chromium, Firefox, and WebKit.');
-  if (!testPlan.includes(`"BROWSER-${String(browsers.indexOf(browser) + 1).padStart(3, '0')}"`)) fail(`test-plan browser assertion missing for ${browser}.`);
+  const id = `BROWSER-${String(browsers.indexOf(browser) + 1).padStart(3, '0')}`;
+  if (!testPlan.includes(`"${id}"`)) fail(`test-plan browser assertion missing for ${browser}.`);
 }
 
 const declaredSpecs = [...fastSource.matchAll(/tests\/([a-z0-9-]+)\.spec\.ts/g)].map((m) => m[1]);
@@ -47,8 +50,20 @@ for (const tool of tools) {
     continue;
   }
 
-  const hasResultProof = /assertToolOutputContract|assertImageResult|toHaveJSProperty\(['"]naturalWidth|toContainText\(|RESULT['"]?\s*\,|Tool result/s.test(source);
-  const hasDownloadProof = /assertDownload|waitForEvent\(['"]download['"]\)|suggestedFilename\(\)|toHaveAttribute\(['"]download['"]|toHaveAttribute\(['"]href['"],\s*\/\^?blob/s.test(source);
+  // Output proof accepts the canonical output-contract helpers, direct image/text
+  // assertions, or the stronger canvas/export evidence used by editor tools.
+  const hasResultProof =
+    /assertToolOutputContract|assertImageResult/.test(source) ||
+    /toHaveJSProperty\(['"]naturalWidth|toContainText\(|RESULT['"]?\s*\,|Tool result/i.test(source) ||
+    (/canvasScreenshot\(|toBeVisible\(\).*preview|preview['"][^\n]*toBeVisible/.test(source) &&
+      /equals\(|createReadStream\(\)|waitForEvent\(['"]download['"]\)/.test(source));
+
+  // Delivery proof is intentionally separate: it must observe a browser download
+  // or an explicit reusable download assertion, not merely click an export button.
+  const hasDownloadProof =
+    /assertDownload|waitForEvent\(['"]download['"]\)|suggestedFilename\(\)|createReadStream\(\)/.test(source) ||
+    /toHaveAttribute\(['"]download['"]|toHaveAttribute\(['"]href['"],\s*\/\^?blob/.test(source);
+
   if (!hasResultProof) fail(`${tool}: no explicit output/result assertion found.`); else outputProofCount += 1;
   if (!hasDownloadProof) fail(`${tool}: no explicit download/output-delivery assertion found.`); else deliveryProofCount += 1;
 }
