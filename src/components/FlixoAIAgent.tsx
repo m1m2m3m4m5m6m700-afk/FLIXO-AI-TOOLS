@@ -5,6 +5,7 @@ import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipe
 import { getReadyToolConfigs } from '@/config/tools';
 import { findToolIntent } from '@/lib/intent-router';
 import { extractParameters } from '@/lib/agent/intent/parameter-extractor';
+import { detectAgentLocale } from '@/lib/agent/language-detector';
 import { AGENT_I18N } from '@/data/agent-locales';
 import type { Locale } from '@/lib/i18n';
 import './FlixoAIAgent.css';
@@ -31,42 +32,46 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const planned = useMemo(() => query.trim() ? planFromIntent(query) : null, [query]);
   const pushMessage = (role: Message['role'], text: string) => { setMessages((current) => [...current, { id: messageId, role, text }]); setMessageId((value) => value + 1); };
 
-  const buildPlan = (command: string): ExecutionPlan | null => {
+  const buildPlan = (command: string, responseCopy = copy): ExecutionPlan | null => {
     setError(null); setResult(null); setProgress(null);
     const extracted = extractParameters(command);
     if (!extracted.success) { setPlan(null); setState('error'); setError(extracted.errors.join(' ')); return null; }
     const nextPlan = planFromIntent(command);
-    if (!nextPlan) { setPlan(null); setState('error'); setError(copy.noSafePlan); return null; }
+    if (!nextPlan) { setPlan(null); setState('error'); setError(responseCopy.noSafePlan); return null; }
     setPlan(nextPlan); setState('ready'); return nextPlan;
   };
 
-  const execute = async (nextPlan = plan) => {
+  const execute = async (nextPlan = plan, responseCopy = copy) => {
     if (!file || !nextPlan) return;
     setState('running'); setError(null);
-    pushMessage('agent', `${copy.success} ${nextPlan.steps.length} ${nextPlan.steps.length === 1 ? copy.step : copy.step}.`);
-    try { const output = await runWorkflowPipeline(file, nextPlan, setProgress); setResult(output); setState('success'); pushMessage('agent', copy.success); }
-    catch (cause) { const message = cause instanceof Error ? cause.message : 'Execution failed.'; setError(message); setState('error'); pushMessage('agent', `${copy.stopped} ${message}`); }
+    pushMessage('agent', `${responseCopy.success} ${nextPlan.steps.length} ${responseCopy.step}.`);
+    try { const output = await runWorkflowPipeline(file, nextPlan, setProgress); setResult(output); setState('success'); pushMessage('agent', responseCopy.success); }
+    catch (cause) { const message = cause instanceof Error ? cause.message : 'Execution failed.'; setError(message); setState('error'); pushMessage('agent', `${responseCopy.stopped} ${message}`); }
   };
 
   const sendMessage = async () => {
     const command = query.trim(); if (!command || state === 'running') return;
+    const detectedLocale = detectAgentLocale(command, locale);
+    const responseCopy = AGENT_I18N[detectedLocale] ?? copy;
     pushMessage('user', command); setQuery('');
     if (CONFIRMATIONS.test(command) && plan) {
-      if (!file) { setError(copy.needImage); pushMessage('agent', copy.planReadyNoFile); setState('error'); return; }
-      await execute(plan); return;
+      if (!file) { setError(responseCopy.needImage); pushMessage('agent', responseCopy.planReadyNoFile); setState('error'); return; }
+      await execute(plan, responseCopy); return;
     }
-    if (CANCELLATIONS.test(command)) { setPlan(null); setState('idle'); setError(null); pushMessage('agent', copy.cancelled); return; }
-    const nextPlan = buildPlan(command);
-    if (!nextPlan) { pushMessage('agent', copy.clarification); return; }
-    if (!file) { pushMessage('agent', copy.planReadyNoFile); return; }
-    pushMessage('agent', copy.understood);
+    if (CANCELLATIONS.test(command)) { setPlan(null); setState('idle'); setError(null); pushMessage('agent', responseCopy.cancelled); return; }
+    const nextPlan = buildPlan(command, responseCopy);
+    if (!nextPlan) { pushMessage('agent', responseCopy.clarification); return; }
+    if (!file) { pushMessage('agent', responseCopy.planReadyNoFile); return; }
+    pushMessage('agent', responseCopy.understood);
   };
 
   const prepare = () => {
     const command = query.trim(); if (!command) return;
+    const detectedLocale = detectAgentLocale(command, locale);
+    const responseCopy = AGENT_I18N[detectedLocale] ?? copy;
     pushMessage('user', command); setQuery('');
-    const nextPlan = buildPlan(command);
-    if (nextPlan) pushMessage('agent', file ? `${copy.planReady} ${copy.execute}` : `${copy.planReady} ${copy.uploadThenExecute}`);
+    const nextPlan = buildPlan(command, responseCopy);
+    if (nextPlan) pushMessage('agent', file ? `${responseCopy.planReady} ${responseCopy.execute}` : `${responseCopy.planReady} ${responseCopy.uploadThenExecute}`);
   };
 
   const download = () => {
