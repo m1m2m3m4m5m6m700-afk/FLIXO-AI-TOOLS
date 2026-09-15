@@ -78,3 +78,5 @@ jobs:
         run: |
           echo 'ADMIN-006 remains ACTIVE/BLOCKED unless the real non-production Supabase round-trip produces VERIFIED evidence.'
           echo 'No production mutation is permitted.'
+
+# Trigger ADMIN-006 verification against the latest persistence implementation.
