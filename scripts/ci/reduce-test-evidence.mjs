@@ -59,7 +59,7 @@ const evidence = {
   generatedAt: new Date().toISOString(),
 };
 
-mkdirSync(resolve(ROOT, 'diagnostics/ci'), { recursive: true });
+mkdirSync(OUT, { recursive: true });
 writeFileSync(outputPath, `${JSON.stringify(evidence, null, 2)}\n`);
 console.log(`EVIDENCE_STATE=${state}`);
 console.log(`EVIDENCE_SHA=${input.sha}`);
