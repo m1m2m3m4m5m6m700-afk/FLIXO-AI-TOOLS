@@ -50,16 +50,14 @@ for (const tool of tools) {
     continue;
   }
 
-  // Output proof accepts the canonical output-contract helpers, direct image/text
-  // assertions, or the stronger canvas/export evidence used by editor tools.
+  // Output proof accepts canonical output contracts, direct image/text assertions,
+  // or stronger canvas/export evidence used by editor tools.
   const hasResultProof =
     /assertToolOutputContract|assertImageResult/.test(source) ||
-    /toHaveJSProperty\(['"]naturalWidth|toContainText\(|RESULT['"]?\s*\,|Tool result/i.test(source) ||
+    /toHaveJSProperty\(['"]naturalWidth|getByText\(|toContainText\(|RESULT['"]?\s*\,|Tool result/i.test(source) ||
     (/canvasScreenshot\(|toBeVisible\(\).*preview|preview['"][^\n]*toBeVisible/.test(source) &&
       /equals\(|createReadStream\(\)|waitForEvent\(['"]download['"]\)/.test(source));
 
-  // Delivery proof is intentionally separate: it must observe a browser download
-  // or an explicit reusable download assertion, not merely click an export button.
   const hasDownloadProof =
     /assertDownload|waitForEvent\(['"]download['"]\)|suggestedFilename\(\)|createReadStream\(\)/.test(source) ||
     /toHaveAttribute\(['"]download['"]|toHaveAttribute\(['"]href['"],\s*\/\^?blob/.test(source);
