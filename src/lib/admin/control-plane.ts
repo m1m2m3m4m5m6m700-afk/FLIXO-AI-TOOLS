@@ -35,11 +35,6 @@ export type ControlPlaneState = {
   evidence: readonly EvidenceRecord[];
 };
 
-/**
- * Capabilities currently exposed by the verified foundation UI.
- * Declared-but-locked capabilities remain in the type contract but are not
- * presented as active runtime authorization.
- */
 export const ADMIN_CAPABILITIES: readonly AdminCapability[] = [
   'admin.read',
   'truth.read',
