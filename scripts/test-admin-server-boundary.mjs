@@ -211,10 +211,8 @@ assert.equal(centersContractDeniedByCapabilitySet.status, 403);
 assert.equal(centersContractDeniedByCapabilitySet.body.error.code, 'capability_denied');
 
 const centersDefault = await invokeCenters({ cookie: readModelCookie });
-assert.equal(centersDefault.status, 200);
-assert.equal(centersDefault.body.center, 'truth');
-assert.equal(centersDefault.body.data.execution, 'READ_ONLY');
-assert.equal(centersDefault.headers['X-Request-Id'], 'centers-request-001');
+assert.equal(centersDefault.status, 400);
+assert.equal(centersDefault.body.error.code, 'invalid_admin_center');
 
 const securitySession = signAdminSession({ subject: 'security-owner', capabilities: ['security.read'] }, SECRET);
 const securityResponse = await invokeCenters({ cookie: `${sessionCookieName}=${securitySession}`, query: { center: 'security' } });
