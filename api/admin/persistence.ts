@@ -103,8 +103,20 @@ const request = async (path: string, init: RequestInit = {}) => {
   return body;
 };
 
+const canonicalize = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, entry]) => [key, canonicalize(entry)]),
+    );
+  }
+  return value;
+};
+
 const integritySha256 = (value: unknown) =>
-  createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  createHash('sha256').update(JSON.stringify(canonicalize(value))).digest('hex');
 
 const assertSingleObject = (body: unknown, errorCode: string) => {
   if (!Array.isArray(body) || body.length !== 1 || typeof body[0] !== 'object' || body[0] === null) {
