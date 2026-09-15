@@ -8,7 +8,7 @@
 
 ```text
 BRANCH = main
-CURRENT MAIN SHA = 5dafdb447e59d92c4e4cda2485c23f465b7ea639
+CURRENT MAIN SHA = RESOLVE FROM main AT EXECUTION TIME (never store a self-referential SHA here)
 ACTIVE TASK = ADMIN-006 → ACTIVE / BLOCKED BY PRODUCTION WRITE → READ-BACK PROOF
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = CLOSED / VERIFIED
@@ -54,7 +54,7 @@ Integrity regression = scripts/test-admin-integrity-readback.mjs
 Production verifier = scripts/verify-admin-production-readback.mjs
 Production verifier command = verify:admin-production-readback
 Vercel documented project = prj_FdFbUWMAZepEfvwhttAiLcYJqY0d
-CURRENT MAIN = 5dafdb447e59d92c4e4cda2485c23f465b7ea639
+CURRENT MAIN = RESOLVE FROM main AT EXECUTION TIME
 Production exact-SHA identity = VERIFIED / dedicated non-mutating verifier implemented
 Production server write → read-back = NOT PROVEN
 ```
