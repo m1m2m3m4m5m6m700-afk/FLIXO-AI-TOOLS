@@ -2,8 +2,6 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const workflowSource = readFileSync('.github/workflows/ci.yml', 'utf8');
-// Workflow evidence is serialized through YAML -> shell -> JSON. Normalize the
-// transport escaping once so contract checks validate semantics, not encoding.
 const workflow = workflowSource.replace(/\\"/g, '"');
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
 const certifyEngine = readFileSync('scripts/ci/certify.mjs', 'utf8');
@@ -30,9 +28,8 @@ for (const [label, pattern] of required) {
   }
 }
 
-// Evidence provenance is a semantic invariant. Do not make this check depend
-// on whether the YAML author used quoted JSON, escaped JSON, or shell printf.
-if (!workflow.includes('evidenceClass') || !workflow.includes('PRIMARY_EXECUTION')) {
+const evidenceClassPresent = workflow.includes('evidenceClass') && workflow.includes('PRIMARY_EXECUTION');
+if (!evidenceClassPresent) {
   console.error('CI contract failed: PRIMARY_EXECUTION evidence class is missing from .github/workflows/ci.yml');
   process.exit(1);
 }
