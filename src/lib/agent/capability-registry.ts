@@ -1,11 +1,8 @@
+import { TOOL_DEFINITIONS, type CapabilityParameters, type CapabilityState, type CapabilityVerifier, type CapabilityLimits, type ExecutionMode } from '@/config/canonical-tool-definition';
 import type { ZodType } from 'zod';
-import { TOOL_DEFINITIONS } from '@/config/canonical-tool-definition';
 
-export type CapabilityState = 'RECOGNIZED' | 'PLANNABLE' | 'EXECUTABLE' | 'UNAVAILABLE';
-export type ExecutionMode = 'LOCAL' | 'HYBRID' | 'CLOUD';
-export type CapabilityParameters = Record<string, string | number | boolean>;
-export type CapabilityVerifier = (inputBlob: Blob, outputBlob: Blob, parameters: CapabilityParameters) => Promise<boolean>;
-export type CapabilityLimits = Readonly<{ maxPixels: number; maxFileSizeBytes: number; timeoutMs: number }>;
+export type { CapabilityParameters, CapabilityState, CapabilityVerifier, CapabilityLimits, ExecutionMode } from '@/config/canonical-tool-definition';
+
 export type CapabilityContract = Readonly<{
   id: string;
   state: CapabilityState;
@@ -16,6 +13,11 @@ export type CapabilityContract = Readonly<{
   verifier: CapabilityVerifier;
 }>;
 
+/**
+ * Single derived capability registry.
+ * The canonical tool definition is the source of truth; this registry only
+ * projects the execution-facing contract consumed by planner/executor code.
+ */
 export const CAPABILITY_REGISTRY: readonly CapabilityContract[] = Object.freeze(
   TOOL_DEFINITIONS.map((tool) => ({
     id: tool.id,
@@ -29,19 +31,26 @@ export const CAPABILITY_REGISTRY: readonly CapabilityContract[] = Object.freeze(
 );
 
 const byId = new Map(CAPABILITY_REGISTRY.map((capability) => [capability.id, capability]));
-export function getCapability(id: string): CapabilityContract | undefined { return byId.get(id); }
+
+export function getCapability(id: string): CapabilityContract | undefined {
+  return byId.get(id);
+}
+
 export function getCapabilitiesByState(state: CapabilityState): readonly CapabilityContract[] {
   return CAPABILITY_REGISTRY.filter((capability) => capability.state === state);
 }
+
 export function getExecutableCapabilityIds(): readonly string[] {
   return CAPABILITY_REGISTRY.filter((capability) => capability.state === 'EXECUTABLE').map((capability) => capability.id);
 }
+
 export function validateCapabilityParameters(id: string, parameters: unknown = {}): CapabilityParameters {
   const capability = getCapability(id);
   if (!capability) throw new Error(`Unknown capability: ${id}`);
   if (capability.state !== 'EXECUTABLE') throw new Error(`Capability '${id}' is not executable.`);
   return capability.parameterSchema.parse(parameters) as CapabilityParameters;
 }
+
 export function assertExecutionResourceBudget(id: string, inputBlob: Blob, requestedPixels?: number): void {
   const capability = getCapability(id);
   if (!capability) throw new Error(`Unknown capability: ${id}`);
