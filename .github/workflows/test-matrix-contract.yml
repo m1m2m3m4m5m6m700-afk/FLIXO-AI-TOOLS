@@ -1,14 +1,10 @@
 name: FLIXO Test Matrix Contract
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: flixo-test-matrix-contract-${{ github.head_ref || github.ref }}
+  group: flixo-test-matrix-contract-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -22,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 1
       - name: Validate test matrix contract
         run: node scripts/ci/validate-test-matrix-contract.mjs
