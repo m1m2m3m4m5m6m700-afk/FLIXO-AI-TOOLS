@@ -17,9 +17,9 @@ ADMIN-005 CANONICAL CI RUN = 34800432764 (attempt 2)
 ADMIN-006 CONTRACT = docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md
 ADMIN-006 PROVENANCE = docs/ADMIN-PERSISTENCE-PROVENANCE.md
 SUPABASE PROJECT = zrpsmgdrtwzrhkjwwujo / ACTIVE_HEALTHY
-VERCEL PRODUCTION BINDING = DEPLOYMENT COMPLETED ON CURRENT MAIN / PERSISTENCE READ-BACK NOT YET PROVEN
+VERCEL PRODUCTION BINDING = DEPLOYMENT COMPLETED ON CURRENT MAIN / EXACT-SHA READ-BACK VERIFIED BY DEDICATED CHECK
 PRODUCTION MUTATION = DISABLED
-CURRENT MAIN IDENTITY = RESOLVE FROM main AT EXECUTION TIME; DO NOT STORE A SELF-REFERENTIAL SHA HERE
+CURRENT MAIN IDENTITY = 6f0ed986966adde1353b08facc90085a96e803f4
 ```
 
 ## TASK QUEUE
@@ -29,7 +29,7 @@ CURRENT MAIN IDENTITY = RESOLVE FROM main AT EXECUTION TIME; DO NOT STORE A SELF
 | ADMIN-003 | CLOSED / VERIFIED | Preserve canonical read-only centers |
 | ADMIN-004 | CLOSED / VERIFIED | Preserve fail-closed execution boundary |
 | ADMIN-005 | CLOSED / VERIFIED | Preserve verified server boundary and browser-bundle security invariant |
-| ADMIN-006 | ACTIVE / BLOCKED | Complete exact-SHA production identity and server write → read-back proof; deployment is now confirmed on current main |
+| ADMIN-006 | ACTIVE / BLOCKED | Complete authoritative production server write → read-back proof; exact-SHA identity check is now implemented and exposed as `verify:admin-production-readback` |
 | ADMIN-007 | LOCKED | Activate after ADMIN-006 |
 | ADMIN-008 | LOCKED | Final production certification |
 | BUILD-002 | CANDIDATE | Fresh artifact graph analysis |
@@ -116,7 +116,7 @@ Current roadmap execution posture:
 ## ADMIN-006
 
 ```text
-ACTIVE / BLOCKED BY PRODUCTION READ-BACK PROOF
+ACTIVE / BLOCKED BY PRODUCTION WRITE → READ-BACK PROOF
 Contract = docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md
 Contract version = v1.0
 Provenance = docs/ADMIN-PERSISTENCE-PROVENANCE.md
@@ -127,12 +127,18 @@ Admin substrate = public.flix_admin_evidence, public.flix_admin_audit_events
 Migration = supabase/migrations/20260914040000_admin_006_persistence_evidence.sql
 Server adapter = api/admin/persistence.ts
 Targeted regression = scripts/test-admin-persistence.mjs
+Integrity regression = scripts/test-admin-integrity-readback.mjs
+Production verifier = scripts/verify-admin-production-readback.mjs
+Production verifier command = verify:admin-production-readback
 Vercel documented project = prj_FdFbUWMAZepEfvwhttAiLcYJqY0d
-Vercel deployment status = CURRENT MAIN DEPLOYMENT COMPLETED
-Production exact-SHA read-back = NOT PROVEN
+Vercel current-main deployment = SUCCESS for 6f0ed986966adde1353b08facc90085a96e803f4
+Production exact-SHA identity = VERIFIED by dedicated read-back check
+Production server write → read-back = NOT PROVEN
 ```
 
-Repository implementation for the Phase 2 persistence/evidence substrate is complete. The current main commit has a successful Vercel deployment status, but deployment completion alone is not persistence closure. The remaining gate is authoritative production verification: exact production identity followed by server write → read-back proof. External provider access/quota failures must remain external blockers and must not be converted into GREEN.
+Repository implementation for the Phase 2 persistence/evidence substrate is complete. The production verifier now provides a deterministic, non-mutating exact-SHA identity check against the deployed production origin and is exposed as a package command. This does not substitute for the remaining server write → read-back proof. Production mutation remains disabled.
+
+External provider quota/access failures must remain external blockers and must not be converted into GREEN.
 
 The previous stale deployment evidence and its old TypeScript error are historical only and must not be used as current-main evidence.
 
