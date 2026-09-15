@@ -71,6 +71,7 @@ const DISTINCTIVE_KEYWORDS: Readonly<Record<Locale, readonly string[]>> = {
   vi: ['nén', 'chuyển đổi', 'đổi kích thước', 'xóa', 'thực hiện'],
 };
 
+const MIN_CONFIDENT_SCORE = 4;
 const LOCALE_PRIORITY: readonly Locale[] = [...LOCALES];
 
 const normalizeForMatch = (text: string): string =>
@@ -133,5 +134,5 @@ export function detectAgentLocale(text: string, fallback: Locale): Locale {
     }
   }
 
-  return best;
+  return bestScore >= MIN_CONFIDENT_SCORE ? best : fallback;
 }
