@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, MouseEvent } from 'react';
 
 const ADMIN_ENTRY_PATH = '/admin-control-plane';
 const ADMIN_CLICK_WINDOW_MS = 2000;
@@ -36,7 +36,7 @@ export function FlixoGlobalLogo() {
   const clickCountRef = useRef(0);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleAdminGesture = (event: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleAdminGesture = (event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
 
     clickCountRef.current += 1;
