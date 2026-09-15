@@ -26,7 +26,7 @@ const storedEvent = {
   tool_id: 'ADMIN-002-PROOF',
   success: true,
   duration_ms: 7,
-  context: 'ADMIN-002 test round-trip',
+  context: 'ADMIN-002 adapter contract test',
   metadata: { proof: 'ADMIN-002', marker: 'round-trip' },
   occurred_at: '2026-09-13T00:00:00.000Z',
   created_at: '2026-09-13T00:00:00.000Z',
@@ -37,9 +37,9 @@ const storedEvidence = {
   assertion_id: 'ADMIN-006-ROUNDTRIP',
   claim_id: 'ADMIN-006-PROOF',
   exact_sha: '6a5d1f52615e72113dda5ee7bfe3095cebfb8378',
-  source: 'production-server',
-  evaluator: 'admin-persistence-test',
-  environment: 'production',
+  source: 'non-production-test-server',
+  evaluator: 'admin-persistence-adapter-test',
+  environment: 'test',
   status: 'VERIFIED',
   freshness_at: '2026-09-14T03:50:00.000Z',
   recorded_at: '2026-09-14T03:50:00.000Z',
@@ -69,7 +69,7 @@ const storedAudit = {
   target_type: 'evidence',
   target_id: evidenceId,
   exact_sha: storedEvidence.exact_sha,
-  environment: 'production',
+  environment: 'test',
   outcome: 'ALLOW',
   correlation_id: 'corr-123',
   evidence_id: evidenceId,
@@ -165,7 +165,7 @@ const eventInput = {
   tool_id: 'ADMIN-002-PROOF',
   success: true,
   duration_ms: 7,
-  context: 'ADMIN-002 test round-trip',
+  context: 'ADMIN-002 adapter contract test',
   metadata: { proof: 'ADMIN-002', marker: 'round-trip' },
 };
 
@@ -179,9 +179,9 @@ const evidenceInput = {
   assertion_id: 'ADMIN-006-ROUNDTRIP',
   claim_id: 'ADMIN-006-PROOF',
   exact_sha: storedEvidence.exact_sha,
-  source: 'production-server',
-  evaluator: 'admin-persistence-test',
-  environment: 'production',
+  source: 'non-production-test-server',
+  evaluator: 'admin-persistence-adapter-test',
+  environment: 'test',
   status: 'VERIFIED',
   freshness_at: storedEvidence.freshness_at,
   payload: { proof: 'ADMIN-006', marker: 'evidence-round-trip' },
@@ -196,7 +196,7 @@ const auditInput = {
   target_type: 'evidence',
   target_id: evidenceId,
   exact_sha: storedEvidence.exact_sha,
-  environment: 'production',
+  environment: 'test',
   outcome: 'ALLOW',
   correlation_id: 'corr-123',
   metadata: { proof: 'ADMIN-006', marker: 'audit-round-trip' },
@@ -225,4 +225,4 @@ await assert.rejects(() => module.probePersistence(), /supabase_persistence_not_
 process.env.SUPABASE_URL = originalUrl;
 process.env.SUPABASE_SECRET_KEY = originalSecret;
 
-console.log('ADMIN persistence adapter test: PASS');
+console.log('ADMIN persistence adapter contract test: PASS (non-production)');
