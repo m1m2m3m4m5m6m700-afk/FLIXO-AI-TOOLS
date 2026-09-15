@@ -78,7 +78,6 @@ const verifyAdminSession = (token: string | null, secret: string): Session | nul
 
   try {
     const payload = JSON.parse(fromBase64url(encoded)) as { sub?: string; cap?: unknown; exp?: number };
-    // Narrow exp before arithmetic so TypeScript and runtime share the same fail-closed invariant.
     if (!payload.sub || !Array.isArray(payload.cap) || typeof payload.exp !== 'number' || !Number.isInteger(payload.exp)) return null;
     if (payload.exp <= Math.floor(Date.now() / 1000)) return null;
     return { subject: payload.sub, capabilities: new Set(payload.cap.filter((value): value is string => typeof value === 'string')) };
@@ -121,7 +120,8 @@ export const authorizeAdminRequest = (req: AdminRequest, requiredCapability = 'a
 };
 
 export default async function adminBoundary(req: AdminRequest, res: ServerResponse) {
-  // The boundary endpoint has one fixed capability. Callers cannot select a stronger capability via query parameters.
+  const requestedCapability = req.query?.capability;
+  const capability = Array.isArray(requestedCapability) ? requestedCapability[0] : requestedCapability;
   const authorization = authorizeAdminRequest(req, BOUNDARY_CAPABILITY);
 
   console.info(JSON.stringify({ event: 'admin_boundary_request', correlationId: authorization.correlationId, method: String(req.method ?? 'GET').toUpperCase() }));
@@ -129,6 +129,11 @@ export default async function adminBoundary(req: AdminRequest, res: ServerRespon
   if ('status' in authorization) {
     if (authorization.status === 405) res.setHeader('Allow', 'GET');
     return errorResponse(res, authorization.status, authorization.code, authorization.correlationId);
+  }
+
+  // The boundary exposes only its fixed capability. A caller cannot use the query string to probe or elevate another capability.
+  if (capability && capability !== BOUNDARY_CAPABILITY) {
+    return errorResponse(res, 403, 'capability_denied', authorization.correlationId);
   }
 
   return json(res, 200, {
