@@ -33,7 +33,9 @@ jobs:
           mkdir -p diagnostics
           npm run report:dependency-health > diagnostics/dependency-health.txt
       - name: Upload dependency health report
+        id: upload-report
         uses: actions/upload-artifact@v6
+        continue-on-error: true
         with:
           name: dependency-health-${{ github.sha }}
           path: |
@@ -41,3 +43,9 @@ jobs:
             diagnostics/dependency-health.json
           if-no-files-found: error
           retention-days: 14
+      - name: Report artifact-service status
+        if: always()
+        run: |
+          if [ "${{ steps.upload-report.outcome }}" != "success" ]; then
+            echo "Dependency health artifact upload unavailable; diagnostic artifact delivery is non-gating." >&2
+          fi
