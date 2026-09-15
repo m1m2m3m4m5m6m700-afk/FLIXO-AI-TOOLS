@@ -10,6 +10,8 @@ Purpose: preserve verified failures, their root causes, evidence, fixes, and pre
 - Prefer fixing the production code over weakening an assertion.
 - Do not store secrets, API keys, user images, or personal data here.
 - Add the next incident to this file after diagnosis, not before.
+- Historical status is immutable evidence: `Superseded` is not an active failure, while `Fixed in code; CI revalidation pending` remains unresolved until fresh proof exists.
+- Root-cause extraction must be deterministic and derived from this ledger; it must not silently invent incidents or promote symptoms to causes.
 
 ## Incident Index
 
@@ -22,6 +24,22 @@ Purpose: preserve verified failures, their root causes, evidence, fixes, and pre
 | F-005 | E2E timing | Medium | Superseded | Test waited for presentation text before verifying output |
 | F-006 | Image engine / SVG | High | Fixed in code; CI revalidation pending | `createImageBitmap()` failed to decode SVG in Chromium CI |
 | F-007 | Routing / Registry | High | Fixed; CI verified | Validator used source-text route discovery and initially treated non-ready routes as expected public routes |
+
+---
+
+## Historical Root-Cause Extraction
+
+The canonical machine-readable extraction contract is `scripts/ci/extract-error-root-causes.mjs`, with regression coverage in `scripts/test-error-root-cause-extractor.mjs` and CI enforcement in `.github/workflows/error-memory-root-cause.yml`.
+
+The extractor preserves, per incident:
+
+- incident ID, title, area, severity, and historical status;
+- root-cause text and a deterministic normalized root-cause key;
+- symptom, evidence, fix, and prevention fields when present;
+- grouping of incidents that share the same normalized root cause;
+- an explicit unresolved count containing only active failure states such as `pending`, `blocked`, `unknown`, or `failed`.
+
+Current historical ledger state: **7 incidents**, **6 historical fixed/superseded**, **1 unresolved validation item (F-006)**. `F-005` is superseded and is not counted as an active failure. No historical incident is silently converted to `VERIFIED` by extraction.
 
 ---
 
