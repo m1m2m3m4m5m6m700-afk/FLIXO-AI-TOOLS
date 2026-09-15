@@ -68,12 +68,13 @@ for (const incident of incidents) {
   rootCauseGroups.set(incident.rootCauseKey, group);
 }
 
+const unresolved = incidents.filter((incident) => /pending|blocked|unknown|failed/i.test(incident.status));
 const report = {
   schemaVersion: 1,
   source: sourcePath,
   generatedAt: new Date().toISOString(),
   incidentCount: incidents.length,
-  unresolvedCount: incidents.filter((incident) => !/^fixed$/i.test(incident.status) && !/^fixed; ci verified$/i.test(incident.status)).length,
+  unresolvedCount: unresolved.length,
   incidents,
   rootCauseGroups: [...rootCauseGroups.entries()].map(([rootCauseKey, incidentIds]) => ({ rootCauseKey, incidentIds })),
 };
