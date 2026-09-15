@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { canonicalTimestamp, integritySha256, assertIntegrityHash } from './canonical.ts';
 
 type PersistenceConfig = {
   url: string;
@@ -53,15 +53,8 @@ const request = async (path: string, init: RequestInit = {}) => {
   return body;
 };
 
-const canonicalize = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(canonicalize);
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => [key, canonicalize(entry)]));
-  return value;
-};
-const canonicalTimestamp = (value: string | null | undefined) => value == null ? null : new Date(value).toISOString();
-const integritySha256 = (value: unknown) => createHash('sha256').update(JSON.stringify(canonicalize(value))).digest('hex');
 const assertSingleObject = (body: unknown, errorCode: string) => { if (!Array.isArray(body) || body.length !== 1 || typeof body[0] !== 'object' || body[0] === null) throw new Error(errorCode); return body[0] as Record<string, unknown>; };
-const assertIntegrity = (actual: unknown, expected: unknown, errorCode: string) => { if (typeof actual !== 'string' || !/^[0-9a-f]{64}$/.test(actual) || actual !== integritySha256(expected)) throw new Error(errorCode); };
+const assertIntegrity = assertIntegrityHash;
 
 const evidenceIntegrityPayload = (evidence: AdminEvidence) => ({ assertion_id: evidence.assertion_id, claim_id: evidence.claim_id ?? null, exact_sha: evidence.exact_sha, source: evidence.source, evaluator: evidence.evaluator, environment: evidence.environment, status: evidence.status, freshness_at: canonicalTimestamp(evidence.freshness_at), payload: evidence.payload ?? {}, expires_at: canonicalTimestamp(evidence.expires_at) });
 const auditIntegrityPayload = (audit: AdminAuditEvent) => ({ actor_subject: audit.actor_subject, actor_role: audit.actor_role ?? null, action: audit.action, capability: audit.capability ?? null, target_type: audit.target_type, target_id: audit.target_id, exact_sha: audit.exact_sha, environment: audit.environment, outcome: audit.outcome, correlation_id: audit.correlation_id ?? null, evidence_id: audit.evidence_id ?? null, metadata: audit.metadata ?? {} });
