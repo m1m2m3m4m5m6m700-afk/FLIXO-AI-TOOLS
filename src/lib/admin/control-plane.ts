@@ -1,12 +1,20 @@
 export type AdminVerdict = 'VERIFIED' | 'BLOCKED' | 'UNAVAILABLE';
 
 export type AdminCapability =
-  | 'system.read'
+  | 'admin.read'
   | 'truth.read'
+  | 'evidence.read'
+  | 'security.read'
   | 'contracts.read'
   | 'operations.read'
-  | 'security.read'
+  | 'incidents.manage'
   | 'changes.read'
+  | 'approvals.review'
+  | 'users.manage'
+  | 'deployments.preview'
+  | 'deployments.execute'
+  | 'system.rollback'
+  | 'system.read'
   | 'audit.read'
   | 'production.write';
 
@@ -28,13 +36,23 @@ export type ControlPlaneState = {
 };
 
 export const ADMIN_CAPABILITIES: readonly AdminCapability[] = [
-  'system.read',
+  'admin.read',
   'truth.read',
+  'security.read',
   'contracts.read',
   'operations.read',
-  'security.read',
   'changes.read',
   'audit.read',
+  'system.read',
+] as const;
+
+export const ADMIN_LOCKED_MUTATION_CAPABILITIES: readonly AdminCapability[] = [
+  'incidents.manage',
+  'approvals.review',
+  'users.manage',
+  'deployments.preview',
+  'deployments.execute',
+  'system.rollback',
   'production.write',
 ] as const;
 
