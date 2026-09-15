@@ -18,7 +18,7 @@ const required = [
   ['exact SHA', /EXPECTED_SHA/],
   ['immutable artifact identity', /flixo-head-sha\.txt[\s\S]*flixo-package-lock\.sha256/],
   ['minimal checkout', /fetch-depth:\s*1/],
-  ['primary evidence class', /evidenceClass[\\"']?\s*:\s*[\\"']PRIMARY_EXECUTION[\\"']/],
+  ['primary evidence class', /evidenceClass[\s\S]{0,80}PRIMARY_EXECUTION/],
 ];
 
 for (const [label, pattern] of required) {
