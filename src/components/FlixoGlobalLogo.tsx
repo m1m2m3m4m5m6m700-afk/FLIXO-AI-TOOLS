@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
 
-const ADMIN_ENTRY_PATH = '/admin-control-plane';
+const ADMIN_ENTRY_PATH = '/admin';
 const ADMIN_CLICK_WINDOW_MS = 2000;
 const ADMIN_CLICK_COUNT = 5;
 
