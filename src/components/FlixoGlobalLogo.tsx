@@ -1,4 +1,9 @@
+import { useRef } from 'react';
 import type { CSSProperties } from 'react';
+
+const ADMIN_ENTRY_PATH = '/admin-control-plane';
+const ADMIN_CLICK_WINDOW_MS = 2000;
+const ADMIN_CLICK_COUNT = 5;
 
 const shellStyle: CSSProperties = {
   position: 'fixed',
@@ -28,12 +33,35 @@ const imageStyle: CSSProperties = {
 };
 
 export function FlixoGlobalLogo() {
+  const clickCountRef = useRef(0);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleAdminGesture = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+
+    clickCountRef.current += 1;
+
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    resetTimerRef.current = setTimeout(() => {
+      clickCountRef.current = 0;
+      resetTimerRef.current = null;
+    }, ADMIN_CLICK_WINDOW_MS);
+
+    if (clickCountRef.current === ADMIN_CLICK_COUNT) {
+      clickCountRef.current = 0;
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+      window.location.assign(ADMIN_ENTRY_PATH);
+    }
+  };
+
   return (
     <a
       href="/"
       aria-label="FLIXO AI Tools"
       title="FLIXO AI Tools"
       style={shellStyle}
+      onClick={handleAdminGesture}
       onMouseEnter={(event) => {
         event.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
         event.currentTarget.style.borderColor = 'rgba(103, 232, 249, 0.8)';
