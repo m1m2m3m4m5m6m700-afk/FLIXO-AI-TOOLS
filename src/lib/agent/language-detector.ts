@@ -6,8 +6,6 @@ const SCRIPT_RULES: readonly [Locale, RegExp][] = [
   ['th', /[\u0E00-\u0E7F]/],
   ['ja', /[\u3040-\u30FF]/],
   ['ko', /[\uAC00-\uD7AF]/],
-  ['ru', /[\u0400-\u04FF]/],
-  ['uk', /[\u0400-\u04FF]/],
 ];
 
 const KEYWORDS: Readonly<Record<Locale, readonly string[]>> = {
@@ -25,11 +23,11 @@ const KEYWORDS: Readonly<Record<Locale, readonly string[]>> = {
   nl: ['afbeelding', 'foto', 'achtergrond', 'comprimeren', 'converteren', 'verwijderen', 'uitvoeren'],
   pl: ['obraz', 'zdjęcie', 'tło', 'kompresuj', 'konwertuj', 'usuń', 'wykonaj'],
   pt: ['imagem', 'foto', 'fundo', 'comprimir', 'converter', 'redimensionar', 'remover', 'executar'],
-  ru: ['изображение', 'фото', 'фон', 'сжать', 'конвертировать', 'изменить размер', 'удалить', 'выполнить'],
+  ru: ['изображение', 'изображения', 'фото', 'фон', 'сжать', 'конвертировать', 'изменить размер', 'удалить', 'выполнить'],
   sv: ['bild', 'foto', 'bakgrund', 'komprimera', 'konvertera', 'ändra storlek', 'ta bort', 'kör'],
   th: ['รูปภาพ', 'ภาพ', 'พื้นหลัง', 'บีบอัด', 'แปลง', 'ลบ', 'เรียกใช้'],
   tr: ['resim', 'fotoğraf', 'arka plan', 'sıkıştır', 'dönüştür', 'yeniden boyutlandır', 'kaldır', 'çalıştır'],
-  uk: ['зображення', 'фото', 'фон', 'стиснути', 'конвертувати', 'змінити розмір', 'видалити', 'виконати'],
+  uk: ['зображення', 'зображенням', 'фото', 'фон', 'стиснути', 'конвертувати', 'змінити розмір', 'видалити', 'виконати'],
   vi: ['hình ảnh', 'ảnh', 'nền', 'nén', 'chuyển đổi', 'đổi kích thước', 'xóa', 'thực hiện'],
 };
 
