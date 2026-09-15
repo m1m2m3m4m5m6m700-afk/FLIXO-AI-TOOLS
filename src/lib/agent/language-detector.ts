@@ -45,20 +45,22 @@ const normalizeForMatch = (text: string): string =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const normalizedKeywords = Object.fromEntries(
-  Object.entries(KEYWORDS).map(([locale, words]) => [
-    locale,
-    words.map((word) => normalizeForMatch(word)),
-  ]),
-) as Record<Locale, readonly string[]>;
+const normalizedKeywords = new Map<Locale, readonly string[]>(
+  LOCALES.map((locale) => [locale, KEYWORDS[locale].map(normalizeForMatch)]),
+);
 
 const scoreLocale = (text: string, locale: Locale): number => {
-  const words = normalizedKeywords[locale] ?? [];
+  const keywords = normalizedKeywords.get(locale) ?? [];
+  const tokens = new Set(text.split(' ').filter(Boolean));
   let score = 0;
 
-  for (const word of words) {
-    if (!word) continue;
-    if (text.includes(word)) score += word.includes(' ') ? 3 : 2;
+  for (const keyword of keywords) {
+    if (!keyword) continue;
+    if (keyword.includes(' ')) {
+      if (` ${text} `.includes(` ${keyword} `)) score += 3;
+      continue;
+    }
+    if (tokens.has(keyword)) score += 2;
   }
 
   return score;
