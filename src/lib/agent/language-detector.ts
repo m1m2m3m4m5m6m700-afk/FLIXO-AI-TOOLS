@@ -31,6 +31,29 @@ const KEYWORDS: Readonly<Record<Locale, readonly string[]>> = {
   vi: ['hình ảnh', 'ảnh', 'nền', 'nén', 'chuyển đổi', 'đổi kích thước', 'xóa', 'thực hiện'],
 };
 
+const DISTINCTIVE_KEYWORDS: Readonly<Record<Locale, readonly string[]>> = {
+  ar: ['اضغط', 'أزل', 'اجعل', 'نفذ', 'نفّذ'],
+  en: ['compress', 'background', 'resize', 'remove', 'execute'],
+  es: ['comprimir', 'cambiar', 'quitar', 'ejecutar'],
+  fr: ['compresser', 'redimensionner', 'supprimer', 'exécuter'],
+  de: ['komprimieren', 'konvertieren', 'skalieren', 'entfernen', 'ausführen'],
+  hi: ['संपीड़ित', 'बदलें', 'हटाएं', 'चलाएं'],
+  id: ['kompres', 'ubah', 'hapus', 'jalankan'],
+  it: ['comprimere', 'convertire', 'ridimensionare', 'rimuovere', 'eseguire'],
+  ja: ['圧縮', '変換', 'リサイズ', '削除', '実行'],
+  ko: ['압축', '변환', '제거', '실행'],
+  ms: ['mampat', 'tukar', 'buang', 'jalankan'],
+  nl: ['comprimeren', 'converteren', 'verwijderen', 'uitvoeren'],
+  pl: ['kompresuj', 'konwertuj', 'usuń', 'wykonaj'],
+  pt: ['comprimir', 'converter', 'redimensionar', 'remover', 'executar'],
+  ru: ['сжать', 'конвертировать', 'удалить', 'выполнить'],
+  sv: ['komprimera', 'konvertera', 'ta bort', 'kör'],
+  th: ['บีบอัด', 'แปลง', 'ลบ', 'เรียกใช้'],
+  tr: ['sıkıştır', 'dönüştür', 'yeniden boyutlandır', 'kaldır', 'çalıştır'],
+  uk: ['стиснути', 'конвертувати', 'видалити', 'виконати'],
+  vi: ['nén', 'chuyển đổi', 'đổi kích thước', 'xóa', 'thực hiện'],
+};
+
 const LOCALE_PRIORITY: readonly Locale[] = [...LOCALES];
 
 const normalizeForMatch = (text: string): string =>
@@ -48,14 +71,23 @@ const normalizeForMatch = (text: string): string =>
 const normalizedKeywords = new Map<Locale, readonly string[]>(
   LOCALES.map((locale) => [locale, KEYWORDS[locale].map(normalizeForMatch)]),
 );
+const normalizedDistinctiveKeywords = new Map<Locale, readonly string[]>(
+  LOCALES.map((locale) => [locale, DISTINCTIVE_KEYWORDS[locale].map(normalizeForMatch)]),
+);
 
 const scoreLocale = (text: string, locale: Locale): number => {
   const keywords = normalizedKeywords.get(locale) ?? [];
+  const distinctive = normalizedDistinctiveKeywords.get(locale) ?? [];
   let score = 0;
 
   for (const keyword of keywords) {
     if (!keyword) continue;
     if (text.includes(keyword)) score += keyword.includes(' ') ? 3 : 2;
+  }
+
+  for (const keyword of distinctive) {
+    if (!keyword) continue;
+    if (text.includes(keyword)) score += 8;
   }
 
   return score;
