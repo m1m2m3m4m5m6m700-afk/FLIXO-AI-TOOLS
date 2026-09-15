@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 
 process.env.SUPABASE_SECRET_KEY = 'test-secret';
 process.env.SUPABASE_URL = 'https://example.supabase.co';
@@ -7,6 +8,9 @@ process.env.SUPABASE_URL = 'https://example.supabase.co';
 const module = await import('../api/admin/persistence.ts');
 
 const sha256 = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const expectedSha = process.env.EXPECTED_SHA?.trim() || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+assert.match(expectedSha, /^[0-9a-f]{40}$/);
+const freshnessAt = new Date().toISOString();
 const evidenceId = '22222222-2222-4222-8222-222222222222';
 const auditId = '33333333-3333-4333-8333-333333333333';
 
@@ -14,16 +18,16 @@ const evidence = {
   evidence_id: evidenceId,
   assertion_id: 'ADMIN-006-ROUNDTRIP',
   claim_id: 'ADMIN-006-PROOF',
-  exact_sha: '6a5d1f52615e72113dda5ee7bfe3095cebfb8378',
+  exact_sha: expectedSha,
   source: 'production-server',
   evaluator: 'admin-integrity-test',
   environment: 'production',
   status: 'VERIFIED',
-  freshness_at: '2026-09-15T00:00:00.000Z',
-  recorded_at: '2026-09-15T00:00:00.000Z',
+  freshness_at: freshnessAt,
+  recorded_at: freshnessAt,
   payload: { proof: 'ADMIN-006', marker: 'integrity' },
   expires_at: null,
-  created_at: '2026-09-15T00:00:00.000Z',
+  created_at: freshnessAt,
 };
 evidence.integrity_sha256 = sha256({
   assertion_id: evidence.assertion_id,
@@ -51,9 +55,9 @@ const audit = {
   outcome: 'ALLOW',
   correlation_id: 'corr-integrity',
   evidence_id: evidenceId,
-  occurred_at: '2026-09-15T00:00:00.000Z',
+  occurred_at: freshnessAt,
   metadata: { proof: 'ADMIN-006', marker: 'integrity' },
-  created_at: '2026-09-15T00:00:00.000Z',
+  created_at: freshnessAt,
 };
 audit.integrity_sha256 = sha256({
   actor_subject: audit.actor_subject,
@@ -103,4 +107,4 @@ assert.equal(auditReadBack?.event_id, auditId);
 assert.equal(auditReadBack?.integrity_sha256, audit.integrity_sha256);
 await assert.rejects(() => module.getAuditEvent(auditId), /supabase_audit_integrity_failed/);
 
-console.log('ADMIN integrity read-back test: PASS');
+console.log(`ADMIN integrity read-back test: PASS (${expectedSha})`);
