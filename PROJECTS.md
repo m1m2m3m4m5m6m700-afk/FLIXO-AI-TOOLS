@@ -8,7 +8,7 @@
 
 ```text
 BRANCH = main
-CURRENT MAIN SHA = 3cd0981ef509b6ebbbf53296f642dfd1f32761e9
+CURRENT MAIN SHA = 462e11dc638f8ceb463a15996574abc4f1151528
 ACTIVE TASK = RELEASE-001 → ACTIVE
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = CLOSED / VERIFIED
@@ -39,6 +39,15 @@ PRODUCTION MUTATION = DISABLED
 | DEBT-001 | CANDIDATE | Fresh-failure/value review |
 | TOOL-EXPANSION | CANDIDATE | Select smallest proven candidate |
 
+## ADMIN ENTRY — FIVE-CLICK LOGO
+
+```text
+IMPLEMENTED ON MAIN
+ACTION = five consecutive clicks on the FLIXO logo within the gesture window
+TARGET ROUTE = /admin
+AUTHENTICATION = unchanged; the gesture is navigation only and does not bypass admin authorization
+```
+
 ## ADMIN-008
 
 ```text
@@ -53,17 +62,6 @@ CERTIFIED BUILD ARTIFACT = PASS
 IMMUTABLE VERCEL DEPLOYMENT = PASS
 PRODUCTION IDENTITY READ-BACK = PASS
 DEPLOYMENT EVIDENCE UPLOAD = PASS
-```
-
-### Closure evidence
-
-```text
-ADMIN-008 closure conditions satisfied by exact-SHA production deployment.
-SHA = d4a16b2a04df9688c5833a5b15c9277d4f16c005
-CD RUN = 35020415643
-DEPLOYMENT = SUCCESS
-PRODUCTION IDENTITY PROOF = SUCCESS
-EVIDENCE UPLOAD = SUCCESS
 ```
 
 ## RELEASE-001
