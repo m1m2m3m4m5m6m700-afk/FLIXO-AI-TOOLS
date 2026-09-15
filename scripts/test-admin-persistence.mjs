@@ -7,7 +7,18 @@ process.env.SUPABASE_URL = 'https://example.supabase.co';
 const module = await import('../api/admin/persistence.ts');
 assert.equal(module.isPersistenceConfigured(), true);
 
-const sha256 = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const canonicalize = (value) => {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, entry]) => [key, canonicalize(entry)]),
+    );
+  }
+  return value;
+};
+const sha256 = (value) => createHash('sha256').update(JSON.stringify(canonicalize(value))).digest('hex');
 
 const eventId = '11111111-1111-4111-8111-111111111111';
 const evidenceId = '22222222-2222-4222-8222-222222222222';
