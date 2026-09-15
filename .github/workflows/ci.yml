@@ -1,8 +1,5 @@
 name: FLIXO Test System
 
-# Canonical CI entrypoint: push/PR on main plus explicit manual dispatch.
-# Keep this workflow enabled so CD can promote only a certified exact SHA.
-# Persistence auth contract repaired on main; next push must certify the exact SHA.
 on:
   pull_request:
     branches: [main]
@@ -126,14 +123,11 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: |
           set -euo pipefail
-          specs=(
-            tests/image-compressor.spec.ts tests/background-remover.spec.ts tests/image-upscaler.spec.ts tests/image-converter.spec.ts tests/ai-image-generator.spec.ts tests/object-remover.spec.ts tests/watermark-remover.spec.ts tests/image-cropper.spec.ts tests/image-to-svg.spec.ts tests/image-ocr.spec.ts tests/photo-colorizer.spec.ts tests/background-blur.spec.ts tests/passport-photo-maker.spec.ts tests/watermark-adder.spec.ts tests/meme-generator.spec.ts tests/collage-maker.spec.ts tests/image-effects.spec.ts tests/exif-cleaner.spec.ts tests/svg-optimizer.spec.ts tests/mockup-generator.spec.ts tests/seed.spec.ts tests/pix.spec.ts
+          specs=(tests/image-compressor.spec.ts tests/background-remover.spec.ts tests/image-upscaler.spec.ts tests/image-converter.spec.ts tests/ai-image-generator.spec.ts tests/object-remover.spec.ts tests/watermark-remover.spec.ts tests/image-cropper.spec.ts tests/image-to-svg.spec.ts tests/image-ocr.spec.ts tests/photo-colorizer.spec.ts tests/background-blur.spec.ts tests/passport-photo-maker.spec.ts tests/watermark-adder.spec.ts tests/meme-generator.spec.ts tests/collage-maker.spec.ts tests/image-effects.spec.ts tests/exif-cleaner.spec.ts tests/svg-optimizer.spec.ts tests/mockup-generator.spec.ts tests/seed.spec.ts tests/pix.spec.ts)
           test "${#specs[@]}" -eq 22
           npx playwright test "${specs[@]}" --project="$BROWSER" --workers=6 --retries=0 --max-failures=0 --shard="$SHARD/2"
           mkdir -p diagnostics/certification/playwright-results
-          cat > "diagnostics/certification/browser-fast-${BROWSER}-${SHARD}.json" <<JSON
-          {"evidenceClass":"PRIMARY_EXECUTION","mode":"FAST","browser":"$BROWSER","shard":$SHARD,"sha":"$EXPECTED_SHA","run_id":"${GITHUB_RUN_ID}","toolSpecs":22,"status":"PASS"}
-          JSON
+          printf '%s\n' "{\"evidenceClass\":\"PRIMARY_EXECUTION\",\"mode\":\"FAST\",\"browser\":\"$BROWSER\",\"shard\":$SHARD,\"sha\":\"$EXPECTED_SHA\",\"run_id\":\"${GITHUB_RUN_ID}\",\"toolSpecs\":22,\"status\":\"PASS\"}" > "diagnostics/certification/browser-fast-${BROWSER}-${SHARD}.json"
           cp playwright-report/results.json "diagnostics/certification/playwright-results/browser-fast-${BROWSER}-${SHARD}-results.json"
       - name: Validate Playwright evidence serialization
         if: always()
@@ -208,9 +202,7 @@ jobs:
           esac
           npx playwright test tests/localization-runtime.spec.ts --project="$BROWSER" --workers=6 --retries=0 --max-failures=0 --grep="$DEEP_LOCALE_GREP"
           mkdir -p diagnostics/certification/playwright-results
-          cat > "diagnostics/certification/browser-deep-${BROWSER}-${SHARD}.json" <<JSON
-          {"evidenceClass":"PRIMARY_EXECUTION","mode":"DEEP","browser":"$BROWSER","shard":$SHARD,"sha":"$EXPECTED_SHA","run_id":"${GITHUB_RUN_ID}","locales":20,"status":"PASS"}
-          JSON
+          printf '%s\n' "{\"evidenceClass\":\"PRIMARY_EXECUTION\",\"mode\":\"DEEP\",\"browser\":\"$BROWSER\",\"shard\":$SHARD,\"sha\":\"$EXPECTED_SHA\",\"run_id\":\"${GITHUB_RUN_ID}\",\"locales\":20,\"status\":\"PASS\"}" > "diagnostics/certification/browser-deep-${BROWSER}-${SHARD}.json"
           cp playwright-report/results.json "diagnostics/certification/playwright-results/browser-deep-${BROWSER}-${SHARD}-results.json"
       - name: Validate Playwright evidence serialization
         if: always()
@@ -263,25 +255,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat > certification-run-manifest.json <<'JSON'
-          {
-            "schema_version": 4,
-            "sha": "${{ github.event.pull_request.head.sha || github.sha }}",
-            "workflow_run_id": "${{ github.run_id }}",
-            "workflow": "FLIXO Test System",
-            "jobs": {
-              "static": "${{ needs.verify.result }}",
-              "build": "${{ needs.verify.result }}",
-              "browserFast": "${{ needs.browser_fast.result }}",
-              "browserDeep": "${{ needs.browser_deep.result }}"
-            },
-            "required": {
-              "matrixFirstUnits": 66,
-              "fullMatrixLocales": 20,
-              "browsers": 3
-            }
-          }
-          JSON
+          printf '%s\n' '{' '  "schema_version": 4,' '  "sha": "${{ github.event.pull_request.head.sha || github.sha }}",' '  "workflow_run_id": "${{ github.run_id }}",' '  "workflow": "FLIXO Test System",' '  "jobs": {' '    "static": "${{ needs.verify.result }}",' '    "build": "${{ needs.verify.result }}",' '    "browserFast": "${{ needs.browser_fast.result }}",' '    "browserDeep": "${{ needs.browser_deep.result }}"' '  },' '  "required": {' '    "matrixFirstUnits": 66,' '    "fullMatrixLocales": 20,' '    "browsers": 3' '  }' '}' > certification-run-manifest.json
       - name: Validate execution graph completeness
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
