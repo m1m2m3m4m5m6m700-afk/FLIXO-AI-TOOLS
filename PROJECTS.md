@@ -8,18 +8,16 @@
 
 ```text
 BRANCH = main
-ACTIVE TASK = ADMIN-006 → ACTIVE / BLOCKED BY EXTERNAL PRODUCTION VERIFICATION
+CURRENT MAIN SHA = 5dafdb447e59d92c4e4cda2485c23f465b7ea639
+ACTIVE TASK = ADMIN-006 → ACTIVE / BLOCKED BY PRODUCTION WRITE → READ-BACK PROOF
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = CLOSED / VERIFIED
 ADMIN-005 = CLOSED / VERIFIED
-ADMIN-005 CLOSURE SHA = 9bc587157a1fd598a54472c95ec11effc8f35ea7
-ADMIN-005 CANONICAL CI RUN = 34800432764 (attempt 2)
 ADMIN-006 CONTRACT = docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md
 ADMIN-006 PROVENANCE = docs/ADMIN-PERSISTENCE-PROVENANCE.md
 SUPABASE PROJECT = zrpsmgdrtwzrhkjwwujo / ACTIVE_HEALTHY
-VERCEL PRODUCTION BINDING = DEPLOYMENT COMPLETED ON CURRENT MAIN / EXACT-SHA READ-BACK VERIFIED BY DEDICATED CHECK
+VERCEL PRODUCTION BINDING = EXACT-SHA IDENTITY CHECK IMPLEMENTED / WRITE → READ-BACK NOT PROVEN
 PRODUCTION MUTATION = DISABLED
-CURRENT MAIN IDENTITY = 6f0ed986966adde1353b08facc90085a96e803f4
 ```
 
 ## TASK QUEUE
@@ -29,7 +27,7 @@ CURRENT MAIN IDENTITY = 6f0ed986966adde1353b08facc90085a96e803f4
 | ADMIN-003 | CLOSED / VERIFIED | Preserve canonical read-only centers |
 | ADMIN-004 | CLOSED / VERIFIED | Preserve fail-closed execution boundary |
 | ADMIN-005 | CLOSED / VERIFIED | Preserve verified server boundary and browser-bundle security invariant |
-| ADMIN-006 | ACTIVE / BLOCKED | Complete authoritative production server write → read-back proof; exact-SHA identity check is now implemented and exposed as `verify:admin-production-readback` |
+| ADMIN-006 | ACTIVE / BLOCKED | Complete authoritative production server write → read-back proof without enabling uncontrolled production mutation |
 | ADMIN-007 | LOCKED | Activate after ADMIN-006 |
 | ADMIN-008 | LOCKED | Final production certification |
 | BUILD-002 | CANDIDATE | Fresh artifact graph analysis |
@@ -37,81 +35,6 @@ CURRENT MAIN IDENTITY = 6f0ed986966adde1353b08facc90085a96e803f4
 | TEST-001 | CANDIDATE | Ownership inventory |
 | DEBT-001 | CANDIDATE | Fresh-failure/value review |
 | TOOL-EXPANSION | CANDIDATE | Select smallest proven candidate |
-
-## ADMIN-003
-
-```text
-CLOSED / VERIFIED
-closure SHA = 80ae6d8501a77fefa2915946782038355e5be3ac
-canonical CD run = 34796825957
-```
-
-## ADMIN-004
-
-```text
-CLOSED / VERIFIED
-closure SHA = b036327855222f4c11db0cfc8a1657167e4231be
-canonical test/certification run = 34798018758
-execution remains fail-closed
-production mutation = DISABLED
-```
-
-Contract:
-
-```text
-authentication
-→ deterministic command/target
-→ policy
-→ preview
-→ rollback requirement
-→ approval when required
-→ execution boundary
-→ verification
-→ evidence
-→ audit
-→ rollback proof
-```
-
-Verified implementation:
-
-```text
-execution-policy.ts  = non-preview writes DENY
-execution-plan.ts    = PREVIEW_ONLY / enabled=false
-execution-preview.ts = GET-only / no mutation
-```
-
-## ADMIN-005
-
-```text
-CLOSED / VERIFIED
-base SHA = de07ac765159a4ba328b4d33d971b8d13db9d4c4
-implementation SHA = 9bc587157a1fd598a54472c95ec11effc8f35ea7
-closure SHA = 9bc587157a1fd598a54472c95ec11effc8f35ea7
-canonical CI run = 34800432764 (attempt 2)
-RCA = ADMIN-005-CLIENT-BUNDLE-BOUNDARY-001
-```
-
-Authoritative roadmap evidence:
-`docs/ADMIN-CONTROL-PLANE-MASTER-PLAN.md`
-
-Implemented causal repair:
-`vite build → validate-build-chunk-boundaries.mjs → browser bundle security boundary`
-
-The validator rejects emitted browser JavaScript containing privileged server-side Admin markers (`ADMIN_SESSION_SECRET`, `authorizeAdminRequest`, `createHmac`, `signAdminSession`) while permitting ordinary browser API paths such as `/api/admin/centers`.
-
-Fresh exact-SHA proof:
-`34800432764` completed successfully on the ADMIN-005 closure SHA, including Static + Build, Browser FAST/DEEP evidence, Certification, and CI/CD Trust Layer. The previous Firefox DEEP evidence-upload failure was retried as the affected job only and then passed.
-
-Phase 1 exit conditions proven on the closure SHA:
-- unauthenticated access denied
-- invalid/tampered/expired sessions denied
-- unauthorized capability denied
-- missing server configuration fails closed
-- no privileged server boundary/secret markers shipped to browser bundle
-- exact-SHA certification evidence present
-
-Current roadmap execution posture:
-`Controlled Execution = LOCKED`
 
 ## ADMIN-006
 
@@ -131,18 +54,14 @@ Integrity regression = scripts/test-admin-integrity-readback.mjs
 Production verifier = scripts/verify-admin-production-readback.mjs
 Production verifier command = verify:admin-production-readback
 Vercel documented project = prj_FdFbUWMAZepEfvwhttAiLcYJqY0d
-Vercel current-main deployment = SUCCESS for 6f0ed986966adde1353b08facc90085a96e803f4
-Production exact-SHA identity = VERIFIED by dedicated read-back check
+CURRENT MAIN = 5dafdb447e59d92c4e4cda2485c23f465b7ea639
+Production exact-SHA identity = VERIFIED / dedicated non-mutating verifier implemented
 Production server write → read-back = NOT PROVEN
 ```
 
-Repository implementation for the Phase 2 persistence/evidence substrate is complete. The production verifier now provides a deterministic, non-mutating exact-SHA identity check against the deployed production origin and is exposed as a package command. This does not substitute for the remaining server write → read-back proof. Production mutation remains disabled.
+The Phase 2 persistence/evidence substrate and deterministic production identity verifier are implemented. The verifier is non-mutating and checks the production origin against an exact expected SHA plus HTML response. This is supporting deployment evidence only; it does not substitute for the contract's authoritative production server write → read-back proof.
 
-External provider quota/access failures must remain external blockers and must not be converted into GREEN.
-
-The previous stale deployment evidence and its old TypeScript error are historical only and must not be used as current-main evidence.
-
-Direct Supabase substrate round-trip remains supporting evidence only; it is not a substitute for production deployment proof.
+Production mutation remains disabled. External provider quota/access failures must remain explicit blockers and must never be converted into GREEN.
 
 ## GOVERNANCE
 
