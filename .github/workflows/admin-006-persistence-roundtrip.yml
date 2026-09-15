@@ -2,15 +2,6 @@ name: ADMIN-006 Persistence Round-Trip
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'api/admin/persistence.ts'
-      - 'scripts/verify-admin-persistence-roundtrip.mjs'
-      - 'supabase/migrations/**'
-      - '.github/workflows/admin-006-persistence-roundtrip.yml'
-      - 'package.json'
-      - 'package-lock.json'
 
 permissions:
   contents: read
@@ -79,4 +70,4 @@ jobs:
           echo 'ADMIN-006 remains ACTIVE/BLOCKED unless the real non-production Supabase round-trip produces VERIFIED evidence.'
           echo 'No production mutation is permitted.'
 
-# Trigger ADMIN-006 verification against the latest persistence implementation.
+# ADMIN-006 is intentionally manual-only so the canonical FLIXO Test System remains the sole automated certification surface.
