@@ -67,6 +67,7 @@
     "test:admin-server-boundary": "node --experimental-strip-types scripts/test-admin-server-boundary.mjs",
     "test:admin-persistence": "node --experimental-strip-types scripts/test-admin-persistence.mjs",
     "test:admin-integrity-readback": "node --experimental-strip-types scripts/test-admin-integrity-readback.mjs",
+    "verify:admin-production-readback": "node scripts/verify-admin-production-readback.mjs",
     "test:admin-execution-policy": "node --experimental-strip-types scripts/test-admin-execution-policy.mjs",
     "test:negative-control-integration": "node scripts/ci/test-negative-control-integration.mjs",
     "validate:i18n-observer-boundary": "node scripts/validate-i18n-observer-boundary.mjs",
