@@ -13,32 +13,16 @@ export type LocalToolId =
 
 export type ImageInfo = { width: number; height: number };
 
-async function decodeImage(image: HTMLImageElement): Promise<void> {
-  if (typeof image.decode === 'function') await image.decode();
-}
-
 export function imageInfo(blob: Blob): Promise<ImageInfo> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob);
     const image = new Image();
-    const cleanup = () => URL.revokeObjectURL(url);
     image.onload = () => {
-      void decodeImage(image).then(() => {
-        const width = image.naturalWidth;
-        const height = image.naturalHeight;
-        cleanup();
-        if (width <= 0 || height <= 0) {
-          reject(new Error('Image decoded with invalid dimensions.'));
-          return;
-        }
-        resolve({ width, height });
-      }).catch((error) => {
-        cleanup();
-        reject(error instanceof Error ? error : new Error(String(error)));
-      });
+      URL.revokeObjectURL(url);
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
     };
     image.onerror = () => {
-      cleanup();
+      URL.revokeObjectURL(url);
       reject(new Error('Image could not be decoded.'));
     };
     image.src = url;
@@ -49,18 +33,12 @@ export function loadImage(blob: Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob);
     const image = new Image();
-    const cleanup = () => URL.revokeObjectURL(url);
     image.onload = () => {
-      void decodeImage(image).then(() => {
-        cleanup();
-        resolve(image);
-      }).catch((error) => {
-        cleanup();
-        reject(error instanceof Error ? error : new Error(String(error)));
-      });
+      URL.revokeObjectURL(url);
+      resolve(image);
     };
     image.onerror = () => {
-      cleanup();
+      URL.revokeObjectURL(url);
       reject(new Error('Image could not be decoded.'));
     };
     image.src = url;
@@ -175,4 +153,160 @@ export async function cropResizeImage(blob: Blob, crop: { x: number; y: number; 
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
   return canvasBlob(canvas, 'image/png');
+}
+
+export async function removeBackground(blob: Blob, tolerance = 42): Promise<Blob> {
+  const image = await loadImage(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('Canvas is unavailable.');
+  ctx.drawImage(image, 0, 0);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const { data } = imageData;
+  const corners = [getPixel(data, canvas.width, 0, 0), getPixel(data, canvas.width, canvas.width - 1, 0), getPixel(data, canvas.width, 0, canvas.height - 1), getPixel(data, canvas.width, canvas.width - 1, canvas.height - 1)];
+  const background = corners.reduce((sum, pixel) => [sum[0] + pixel[0], sum[1] + pixel[1], sum[2] + pixel[2]], [0, 0, 0]).map((value) => value / corners.length);
+  const matchesBackground = (x: number, y: number) => {
+    const pixel = getPixel(data, canvas.width, x, y);
+    return Math.hypot(pixel[0] - background[0], pixel[1] - background[1], pixel[2] - background[2]) <= tolerance;
+  };
+  const total = canvas.width * canvas.height;
+  const visited = new Uint8Array(total);
+  const queue = new Int32Array(total);
+  let head = 0;
+  let tail = 0;
+  const enqueue = (x: number, y: number) => {
+    const index = y * canvas.width + x;
+    if (visited[index] || !matchesBackground(x, y)) return;
+    visited[index] = 1;
+    queue[tail] = index;
+    tail += 1;
+  };
+  for (let x = 0; x < canvas.width; x += 1) {
+    enqueue(x, 0);
+    enqueue(x, canvas.height - 1);
+  }
+  for (let y = 0; y < canvas.height; y += 1) {
+    enqueue(0, y);
+    enqueue(canvas.width - 1, y);
+  }
+  while (head < tail) {
+    const index = queue[head];
+    head += 1;
+    const x = index % canvas.width;
+    const y = Math.floor(index / canvas.width);
+    if (x > 0) enqueue(x - 1, y);
+    if (x + 1 < canvas.width) enqueue(x + 1, y);
+    if (y > 0) enqueue(x, y - 1);
+    if (y + 1 < canvas.height) enqueue(x, y + 1);
+  }
+  for (let index = 0; index < total; index += 1) {
+    if (visited[index]) data[index * 4 + 3] = 0;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  return canvasBlob(canvas, 'image/png');
+}
+
+function reconstructRegion(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, region: { x: number; y: number; width: number; height: number }): void {
+  const x = clamp(Math.round(region.x), 0, canvas.width - 1);
+  const y = clamp(Math.round(region.y), 0, canvas.height - 1);
+  const width = clamp(Math.round(region.width), 1, canvas.width - x);
+  const height = clamp(Math.round(region.height), 1, canvas.height - y);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const source = new Uint8ClampedArray(imageData.data);
+  const blend = (a: number, b: number, t: number) => a * (1 - t) + b * t;
+  for (let yy = 0; yy < height; yy += 1) {
+    for (let xx = 0; xx < width; xx += 1) {
+      const px = x + xx;
+      const py = y + yy;
+      const u = (xx + 0.5) / width;
+      const v = (yy + 0.5) / height;
+      const left = getPixel(source, canvas.width, Math.max(0, x - 1), py);
+      const right = getPixel(source, canvas.width, Math.min(canvas.width - 1, x + width), py);
+      const top = getPixel(source, canvas.width, px, Math.max(0, y - 1));
+      const bottom = getPixel(source, canvas.width, px, Math.min(canvas.height - 1, y + height));
+      const target = (py * canvas.width + px) * 4;
+      imageData.data[target] = (blend(left[0], right[0], u) + blend(top[0], bottom[0], v)) / 2;
+      imageData.data[target + 1] = (blend(left[1], right[1], u) + blend(top[1], bottom[1], v)) / 2;
+      imageData.data[target + 2] = (blend(left[2], right[2], u) + blend(top[2], bottom[2], v)) / 2;
+      imageData.data[target + 3] = (blend(left[3], right[3], u) + blend(top[3], bottom[3], v)) / 2;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+export async function fillRemoveRegion(blob: Blob, region: { x: number; y: number; width: number; height: number }): Promise<Blob> {
+  const image = await loadImage(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas is unavailable.');
+  ctx.drawImage(image, 0, 0);
+  reconstructRegion(ctx, canvas, region);
+  return canvasBlob(canvas, 'image/png');
+}
+
+export async function watermarkRemove(blob: Blob, region: { x: number; y: number; width: number; height: number }): Promise<Blob> {
+  return fillRemoveRegion(blob, region);
+}
+
+function escapeXml(value: string) {
+  return value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
+export async function rasterToSvg(blob: Blob, columns = 48): Promise<Blob> {
+  const image = await loadImage(blob);
+  const scale = Math.min(1, Math.max(1, columns) / image.naturalWidth);
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('Canvas is unavailable.');
+  ctx.drawImage(image, 0, 0, width, height);
+  const { data } = ctx.getImageData(0, 0, width, height);
+  const rects: string[] = [];
+  for (let y = 0; y < height; y += 1) {
+    let x = 0;
+    while (x < width) {
+      const index = (y * width + x) * 4;
+      const alpha = data[index + 3];
+      if (alpha < 16) {
+        x += 1;
+        continue;
+      }
+      const r = data[index];
+      const g = data[index + 1];
+      const b = data[index + 2];
+      let run = 1;
+      while (x + run < width) {
+        const next = (y * width + x + run) * 4;
+        if (data[next] !== r || data[next + 1] !== g || data[next + 2] !== b || data[next + 3] !== alpha) break;
+        run += 1;
+      }
+      rects.push(`<rect x="${x}" y="${y}" width="${run}" height="1" fill="rgb(${r},${g},${b})" fill-opacity="${(alpha / 255).toFixed(2)}"/>`);
+      x += run;
+    }
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges"><title>${escapeXml('FLIXO Raster to SVG')}</title>${rects.join('')}</svg>`;
+  return new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+}
+
+export function downloadBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.rel = 'noopener';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function fileChange(event: ChangeEvent<HTMLInputElement>): File | null {
+  return event.target.files?.[0] ?? null;
 }
