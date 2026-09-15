@@ -39,7 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          test "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
           printf 'ADMIN-006 exact SHA: %s\n' "$EXPECTED_SHA"
 
       - uses: actions/setup-node@v5
