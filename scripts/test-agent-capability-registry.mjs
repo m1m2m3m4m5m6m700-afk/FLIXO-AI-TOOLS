@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { TOOL_DEFINITIONS } from '../src/config/canonical-tool-definition.ts';
 import { CAPABILITY_REGISTRY, getCapability, getExecutableCapabilityIds, validateCapabilityParameters } from '../src/lib/agent/capability-registry.ts';
+import { planFromIntent } from '../src/lib/ai/planner.ts';
 import { EXECUTABLE_PIPELINE_TOOL_IDS } from '../src/lib/workflows/executable-tools.ts';
 import { safeParseExecutionPlan } from '../src/lib/contracts/ai-plan.ts';
 
@@ -38,5 +39,16 @@ const invalidParameters = safeParseExecutionPlan({
   steps: [{ toolId: 'image-compressor', params: { unsupportedObject: {} } }],
 });
 assert.equal(invalidParameters.success, false);
+
+const directPlan = planFromIntent('compress this image');
+assert.ok(directPlan, 'Planner must produce a plan for an executable local capability.');
+assert.ok(directPlan?.steps.every((step) => getCapability(step.toolId)?.state === 'EXECUTABLE'), 'Planner emitted a non-executable capability.');
+
+const unavailablePlan = planFromIntent('colorize this photo');
+assert.equal(unavailablePlan, null, 'Planner must not route unavailable capabilities to execution.');
+
+const conversionPlan = planFromIntent('convert this image to WebP');
+assert.ok(conversionPlan, 'Planner must resolve a supported conversion request.');
+assert.ok(conversionPlan?.steps.every((step) => getCapability(step.toolId)?.state === 'EXECUTABLE'), 'Planner boundary allowed an invalid tool id.');
 
 console.log(`Agent capability contract tests passed: ${CAPABILITY_REGISTRY.length} capabilities mapped (${TOOL_DEFINITIONS.filter((tool) => tool.isReady).length} ready, ${TOOL_DEFINITIONS.filter((tool) => !tool.isReady).length} unavailable).`);
