@@ -1,12 +1,11 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { integritySha256 } from '../api/admin/canonical.ts';
 
 process.env.SUPABASE_SECRET_KEY = 'contract-test-secret';
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 
 const persistence = await import('../api/admin/persistence.ts');
 
-const sha256 = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const evidenceId = '22222222-2222-4222-8222-222222222222';
 const auditId = '33333333-3333-4333-8333-333333333333';
 const exactSha = '0123456789abcdef0123456789abcdef01234567';
@@ -26,7 +25,7 @@ const evidence = {
   expires_at: null,
   created_at: '2026-09-15T00:00:00.000Z',
 };
-evidence.integrity_sha256 = sha256({
+evidence.integrity_sha256 = integritySha256({
   assertion_id: evidence.assertion_id,
   claim_id: evidence.claim_id,
   exact_sha: evidence.exact_sha,
@@ -56,7 +55,7 @@ const audit = {
   metadata: { marker: 'admin-006-audit' },
   created_at: '2026-09-15T00:00:00.000Z',
 };
-audit.integrity_sha256 = sha256({
+audit.integrity_sha256 = integritySha256({
   actor_subject: audit.actor_subject,
   actor_role: audit.actor_role,
   action: audit.action,
