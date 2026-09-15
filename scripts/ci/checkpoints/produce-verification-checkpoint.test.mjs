@@ -4,7 +4,11 @@ import { execFileSync } from 'node:child_process';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { produceVerificationCheckpoint } from './produce-verification-checkpoint.mjs';
+
+// This test is also executed directly by Node in CI. Bootstrap the repository's
+// TS/ESM resolver before loading the producer, which imports TS modules.
+await import('../../register-node-resolver.mjs');
+const { produceVerificationCheckpoint } = await import('./produce-verification-checkpoint.mjs');
 
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 assert.match(sha, /^[0-9a-f]{40}$/iu);
