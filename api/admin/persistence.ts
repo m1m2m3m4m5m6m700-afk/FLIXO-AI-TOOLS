@@ -115,6 +115,9 @@ const canonicalize = (value: unknown): unknown => {
   return value;
 };
 
+const canonicalTimestamp = (value: string | null | undefined) =>
+  value == null ? null : new Date(value).toISOString();
+
 const integritySha256 = (value: unknown) =>
   createHash('sha256').update(JSON.stringify(canonicalize(value))).digest('hex');
 
@@ -139,9 +142,9 @@ const evidenceIntegrityPayload = (evidence: AdminEvidence) => ({
   evaluator: evidence.evaluator,
   environment: evidence.environment,
   status: evidence.status,
-  freshness_at: evidence.freshness_at,
+  freshness_at: canonicalTimestamp(evidence.freshness_at),
   payload: evidence.payload ?? {},
-  expires_at: evidence.expires_at ?? null,
+  expires_at: canonicalTimestamp(evidence.expires_at),
 });
 
 const auditIntegrityPayload = (audit: AdminAuditEvent) => ({
@@ -204,18 +207,16 @@ export const assertEventRoundTrip = async (input: FlixEventInput) => {
 
 export const createEvidence = async (input: AdminEvidenceInput): Promise<AdminEvidence> => {
   const payload = input.payload ?? {};
-  const integrity_sha256 = integritySha256({
-    assertion_id: input.assertion_id,
-    claim_id: input.claim_id ?? null,
-    exact_sha: input.exact_sha,
-    source: input.source,
-    evaluator: input.evaluator,
-    environment: input.environment,
-    status: input.status,
-    freshness_at: input.freshness_at,
+  const integrity_sha256 = integritySha256(evidenceIntegrityPayload({
+    ...input,
     payload,
+    claim_id: input.claim_id ?? null,
     expires_at: input.expires_at ?? null,
-  });
+    evidence_id: '',
+    recorded_at: '',
+    created_at: '',
+    integrity_sha256: '',
+  }));
 
   const body = await request('/rest/v1/flix_admin_evidence', {
     method: 'POST',
