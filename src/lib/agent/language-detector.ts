@@ -8,6 +8,23 @@ const SCRIPT_RULES: readonly [Locale, RegExp][] = [
   ['ko', /[\uAC00-\uD7AF]/],
 ];
 
+const LANGUAGE_SIGNATURES: readonly [Locale, RegExp][] = [
+  ['fr', /\b(?:compresser|redimensionner|supprimer|exécuter)\b/i],
+  ['es', /\b(?:comprimir|convertirla|cambiar|quitar|ejecutar)\b/i],
+  ['de', /\b(?:komprimieren|konvertieren|skalieren|entfernen|ausführen|umwandeln)\b/i],
+  ['it', /\b(?:comprimere|convertire|ridimensionare|rimuovere|eseguire)\b/i],
+  ['pt', /\b(?:comprimir|converter|redimensionar|remover|executar)\b/i],
+  ['nl', /\b(?:comprimeren|converteren|verwijderen|uitvoeren)\b/i],
+  ['pl', /\b(?:kompresuj|konwertuj|usuń|wykonaj)\b/i],
+  ['sv', /\b(?:komprimera|konvertera|kör)\b/i],
+  ['tr', /\b(?:sıkıştır|dönüştür|kaldır|çalıştır)\b/i],
+  ['id', /\b(?:kompres|ubah|hapus|jalankan)\b/i],
+  ['ms', /\b(?:mampat|tukar|buang|jalankan)\b/i],
+  ['vi', /\b(?:nén|chuyển đổi|xóa|thực hiện)\b/i],
+  ['ru', /\b(?:сжать|конвертировать|удалить|выполнить)\b/i],
+  ['uk', /\b(?:стиснути|конвертувати|видалити|виконати)\b/i],
+];
+
 const KEYWORDS: Readonly<Record<Locale, readonly string[]>> = {
   ar: ['الصورة', 'صورة', 'خلفية', 'اضغط', 'ضغط', 'حجم', 'حول', 'تحويل', 'أزل', 'اجعل', 'نفذ', 'نفّذ'],
   en: ['image', 'photo', 'background', 'compress', 'convert', 'resize', 'remove', 'make', 'execute', 'run'],
@@ -98,6 +115,10 @@ export function detectAgentLocale(text: string, fallback: Locale): Locale {
   if (!normalized) return fallback;
 
   for (const [locale, pattern] of SCRIPT_RULES) {
+    if (pattern.test(text)) return locale;
+  }
+
+  for (const [locale, pattern] of LANGUAGE_SIGNATURES) {
     if (pattern.test(text)) return locale;
   }
 
