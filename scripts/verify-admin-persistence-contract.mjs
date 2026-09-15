@@ -77,7 +77,7 @@ globalThis.fetch = async (input, init = {}) => {
   const method = String(init.method ?? 'GET');
   const headers = new Headers(init.headers);
   assert.equal(headers.get('apikey'), 'contract-test-secret');
-  assert.equal(headers.get('authorization'), null);
+  assert.equal(headers.get('authorization'), 'Bearer contract-test-secret');
 
   if (method === 'POST' && url.endsWith('/rest/v1/flix_admin_evidence')) {
     posted.evidence = JSON.parse(String(init.body));
