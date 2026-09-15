@@ -8,17 +8,17 @@
 
 ```text
 BRANCH = main
-CURRENT MAIN SHA = 7aafeefb216cd12054b7243ea0a51b6a426ab8f4
-ACTIVE TASK = ADMIN-008 → ACTIVE
+CURRENT MAIN SHA = 3cd0981ef509b6ebbbf53296f642dfd1f32761e9
+ACTIVE TASK = RELEASE-001 → ACTIVE
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = CLOSED / VERIFIED
 ADMIN-005 = CLOSED / VERIFIED
 ADMIN-006 = CLOSED / VERIFIED
 ADMIN-007 = CLOSED / VERIFIED
-ADMIN-008 = ACTIVE
-RELEASE-001 = LOCKED
+ADMIN-008 = CLOSED / VERIFIED
+RELEASE-001 = ACTIVE
 SUPABASE PROJECT = zrpsmgdrtwzrhkjwwujo / ACTIVE_HEALTHY
-VERCEL PRODUCTION BINDING = EXACT-SHA IDENTITY CHECK IMPLEMENTED / PRODUCTION DEPLOYMENT QUOTA BLOCKER REMAINS
+VERCEL PRODUCTION BINDING = EXACT-SHA PRODUCTION IDENTITY PROVEN
 PRODUCTION MUTATION = DISABLED
 ```
 
@@ -31,68 +31,48 @@ PRODUCTION MUTATION = DISABLED
 | ADMIN-005 | CLOSED / VERIFIED | Preserve verified server boundary and browser-bundle security invariant |
 | ADMIN-006 | CLOSED / VERIFIED | Preserve persistence evidence and exact-SHA roundtrip proof |
 | ADMIN-007 | CLOSED / VERIFIED | Preserve capability contract and server-boundary proof |
-| ADMIN-008 | ACTIVE | Final production certification and exact-SHA release evidence |
-| RELEASE-001 | LOCKED | Activate after ADMIN-008 VERIFIED plus fresh required release evidence |
+| ADMIN-008 | CLOSED / VERIFIED | Preserve final production certification and evidence |
+| RELEASE-001 | ACTIVE | Run final launch-readiness gates on fresh exact release SHA |
 | BUILD-002 | CANDIDATE | Fresh artifact graph analysis |
 | I18N-001 | CANDIDATE | Runtime ownership trace |
 | TEST-001 | CANDIDATE | Ownership inventory |
 | DEBT-001 | CANDIDATE | Fresh-failure/value review |
 | TOOL-EXPANSION | CANDIDATE | Select smallest proven candidate |
 
-## ADMIN-006
+## ADMIN-008
 
 ```text
 CLOSED / VERIFIED
-Contract = docs/contracts/ADMIN-006-PHASE-2-PERSISTENCE-EVIDENCE-CONTRACT.md
-Contract version = v1.0
-Provenance = docs/ADMIN-PERSISTENCE-PROVENANCE.md
-Supabase project ref = zrpsmgdrtwzrhkjwwujo
-Verified run = 35008306580
-Verified exact SHA = a781a13df779a7d1d79e23471d5fc5d93ea71db7
-Verified artifact = admin-006-persistence-evidence-35008306580
-Real non-production write → read-back = VERIFIED
-Production mutation = DISABLED
-```
-
-## ADMIN-007
-
-```text
-CLOSED / VERIFIED
-PURPOSE = Capability contract and server-boundary enforcement
-IMPLEMENTATION = PR #701
-MERGED MAIN SHA = 7aafeefb216cd12054b7243ea0a51b6a426ab8f4
-CAPABILITY CONTRACT = docs/contracts/ADMIN-CAPABILITY-CATALOG-CONTRACT.md
-SERVER BOUNDARY = api/admin/boundary.ts
-TARGETED REGRESSION = scripts/test-admin-server-boundary.mjs
-REQUIRED BEHAVIOR = unauthorized/missing capability fail closed; authorized capability path remains bounded
-FULL CI RUN = 35016774798 (#6610)
-FULL CI SHA = d97c13e5b12b3d1b3eb18c2f7ff8dccb8dc34310
-FULL CI RESULT = GREEN across Static + Build, Browser FAST, Browser DEEP, Certification, execution-graph completeness, fail-closed decision and CI/CD Trust Layer
-PRODUCTION MUTATION = DISABLED
+PURPOSE = Final production certification
+VERIFIED EXACT SHA = d4a16b2a04df9688c5833a5b15c9277d4f16c005
+VERIFIED CD RUN = 35020415643
+PROMOTION SHA RESOLUTION = PASS
+CURRENT MAIN PROOF AT DEPLOYMENT = PASS
+CERTIFIED CI RESOLUTION = PASS
+CERTIFIED BUILD ARTIFACT = PASS
+IMMUTABLE VERCEL DEPLOYMENT = PASS
+PRODUCTION IDENTITY READ-BACK = PASS
+DEPLOYMENT EVIDENCE UPLOAD = PASS
 ```
 
 ### Closure evidence
 
 ```text
-ADMIN-007 closure conditions satisfied.
-MERGED TO MAIN = YES
-EXACT MAIN SHA AT CLOSURE = 7aafeefb216cd12054b7243ea0a51b6a426ab8f4
-TARGETED SERVER-BOUNDARY REGRESSION = INCLUDED IN CERTIFICATION SURFACE
-FULL CI = 35016774798
-CERTIFICATION = SUCCESS
-EXECUTION GRAPH COMPLETENESS = SUCCESS
-FAIL-CLOSED DECISION = SUCCESS
-CI/CD TRUST LAYER = SUCCESS
+ADMIN-008 closure conditions satisfied by exact-SHA production deployment.
+SHA = d4a16b2a04df9688c5833a5b15c9277d4f16c005
+CD RUN = 35020415643
+DEPLOYMENT = SUCCESS
+PRODUCTION IDENTITY PROOF = SUCCESS
+EVIDENCE UPLOAD = SUCCESS
 ```
 
-## ADMIN-008
+## RELEASE-001
 
 ```text
 ACTIVE
-PURPOSE = Final production certification
-ACTIVATION = ADMIN-007 VERIFIED
-PRODUCTION MUTATION = DISABLED UNTIL EXPLICIT RELEASE GATE
-REQUIRED = exact-SHA production identity, security/configuration proof, product/routing/i18n proof, SEO/performance proof, observability/error-memory proof, rollback reference, and final certification evidence
+PURPOSE = Final deterministic gate before public production release
+ADMIN-008 = CLOSED / VERIFIED
+REQUIRED = fresh exact-SHA CI/certification evidence plus all R01→R09 launch gates
 ```
 
 ## GOVERNANCE
