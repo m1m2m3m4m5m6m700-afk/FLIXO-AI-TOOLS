@@ -44,6 +44,8 @@ jobs:
       - run: npm ci --prefer-offline --no-audit --no-fund
       - name: Create immutable run identity
         run: node scripts/ci/create-run-identity.mjs
+      - name: Repair generated agent locale contract
+        run: node scripts/ci/ensure-agent-locales.mjs
       - name: Static contracts
         run: npm run test:static
       - name: Build contracts
