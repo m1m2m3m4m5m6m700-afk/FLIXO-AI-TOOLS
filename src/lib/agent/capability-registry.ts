@@ -1,4 +1,5 @@
-import { TOOL_DEFINITIONS, type CapabilityParameters, type CapabilityState, type CapabilityVerifier, type CapabilityLimits, type ExecutionMode } from '@/config/canonical-tool-definition';
+import { TOOL_DEFINITIONS } from '@/config/canonical-tool-definition';
+import type { CapabilityParameters, CapabilityState, CapabilityVerifier, CapabilityLimits, ExecutionMode } from '@/config/canonical-tool-definition';
 import type { ZodType } from 'zod';
 
 export type { CapabilityParameters, CapabilityState, CapabilityVerifier, CapabilityLimits, ExecutionMode } from '@/config/canonical-tool-definition';
