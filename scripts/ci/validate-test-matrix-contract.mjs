@@ -60,7 +60,7 @@ for (const tool of tools) {
 
   const hasDownloadProof =
     /assertDownload|waitForEvent\(['"]download['"]\)|suggestedFilename\(\)|createReadStream\(\)/.test(source) ||
-    /toHaveAttribute\(['"]download['"]|toHaveAttribute\(['"]href['"],\s*\/\^?blob/.test(source);
+    /toHaveAttribute\(['"]download['"]|toHaveAttribute\(['"]href['"],\s*\/(?:\x5e)?blob/.test(source);
 
   if (!hasResultProof) fail(`${tool}: no explicit output/result assertion found.`); else outputProofCount += 1;
   if (!hasDownloadProof) fail(`${tool}: no explicit download/output-delivery assertion found.`); else deliveryProofCount += 1;
