@@ -19,7 +19,7 @@ const identity = {
   toolchainHash: 'node22-npm11',
   configHash: 'ci-config-hash',
   ciConfigHash: 'ci-config-hash',
-  branch: 'repair/merge-green-tests-2026-09-13',
+  branch: 'main',
   event: process.env.GITHUB_EVENT_NAME ?? 'test',
   repository: 'm1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS',
 };
