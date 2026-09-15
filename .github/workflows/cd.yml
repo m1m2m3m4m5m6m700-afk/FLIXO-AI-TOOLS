@@ -137,6 +137,7 @@ jobs:
           deployment_probe_status=NOT_EXECUTED
           canonical_sha=''
           canonical_html=FAIL
+          admin_html=FAIL
           status=FAIL
           reason=UNKNOWN
 
@@ -166,15 +167,23 @@ jobs:
             canonical_html=PASS
           fi
 
+          if curl --fail --silent --show-error --location --retry 10 --retry-delay 5 --retry-all-errors --max-time 30 -H 'Cache-Control: no-cache' -o /tmp/admin.html "$PRODUCTION_ORIGIN/admin?__flixo_sha=$PROMOTION_SHA" && test -s /tmp/admin.html && grep -qi '<html' /tmp/admin.html; then
+            admin_html=PASS
+          elif [ -n "$VERCEL_TOKEN" ] && npx --yes vercel@59.16.0 curl "$PRODUCTION_ORIGIN/admin?__flixo_sha=$PROMOTION_SHA" --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID" > /tmp/admin.html 2>/dev/null && test -s /tmp/admin.html && grep -qi '<html' /tmp/admin.html; then
+            admin_html=PASS
+          fi
+
           canonical_sha="$(curl --fail --silent --show-error --location --retry 10 --retry-delay 5 --retry-all-errors --max-time 30 -H 'Cache-Control: no-cache' "$PRODUCTION_ORIGIN/flixo-head-sha.txt?__flixo_sha=$PROMOTION_SHA" | tr -d '\r\n')" || true
           if [ "$canonical_sha" != "$PROMOTION_SHA" ] && [ -n "$VERCEL_TOKEN" ]; then
             canonical_sha="$(npx --yes vercel@59.16.0 curl "$PRODUCTION_ORIGIN/flixo-head-sha.txt?__flixo_sha=$PROMOTION_SHA" --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID" 2>/dev/null | tr -d '\r\n')" || true
           fi
 
-          if [ "$canonical_sha" = "$PROMOTION_SHA" ] && [ "$canonical_html" = PASS ]; then
-            status=PASS; reason=EXACT_PRODUCTION_IDENTITY
+          if [ "$canonical_sha" = "$PROMOTION_SHA" ] && [ "$canonical_html" = PASS ] && [ "$admin_html" = PASS ]; then
+            status=PASS; reason=EXACT_PRODUCTION_IDENTITY_AND_ADMIN_ROUTE
           elif [ "$EXTERNAL_BLOCKER" = "VERCEL_DEPLOYMENT_QUOTA" ]; then
             status=BLOCKED_EXTERNAL; reason=VERCEL_DEPLOYMENT_QUOTA
+          elif [ "$admin_html" != PASS ]; then
+            reason=ADMIN_ROUTE_UNPROVEN
           elif [ -n "$DEPLOYMENT_URL" ] && [ "$deployment_probe_status" != PASS ]; then
             reason=CANONICAL_ALIAS_UNPROVEN
           elif [ -z "$DEPLOYMENT_URL" ]; then
@@ -183,7 +192,7 @@ jobs:
             reason=CANONICAL_ALIAS_MISMATCH
           fi
 
-          jq -n --arg status "$status" --arg sha "$PROMOTION_SHA" --arg deploymentSha "$deployment_probe_sha" --arg deploymentProbeStatus "$deployment_probe_status" --arg canonicalSha "$canonical_sha" --arg origin "$PRODUCTION_ORIGIN" --arg deploymentUrl "${DEPLOYMENT_URL:-}" --arg deploymentAttempt "${DEPLOYMENT_ATTEMPT:-}" --arg externalBlocker "${EXTERNAL_BLOCKER:-}" --arg canonicalHtml "$canonical_html" --arg reason "$reason" '{status:$status,sha:$sha,deploymentSha:$deploymentSha,deploymentProbeStatus:$deploymentProbeStatus,canonicalSha:$canonicalSha,origin:$origin,deploymentUrl:$deploymentUrl,deploymentAttempt:$deploymentAttempt,externalBlocker:$externalBlocker,canonicalHtml:$canonicalHtml,reason:$reason}' > "$evidence"
+          jq -n --arg status "$status" --arg sha "$PROMOTION_SHA" --arg deploymentSha "$deployment_probe_sha" --arg deploymentProbeStatus "$deployment_probe_status" --arg canonicalSha "$canonical_sha" --arg origin "$PRODUCTION_ORIGIN" --arg deploymentUrl "${DEPLOYMENT_URL:-}" --arg deploymentAttempt "${DEPLOYMENT_ATTEMPT:-}" --arg externalBlocker "${EXTERNAL_BLOCKER:-}" --arg canonicalHtml "$canonical_html" --arg adminHtml "$admin_html" --arg reason "$reason" '{status:$status,sha:$sha,deploymentSha:$deploymentSha,deploymentProbeStatus:$deploymentProbeStatus,canonicalSha:$canonicalSha,origin:$origin,deploymentUrl:$deploymentUrl,deploymentAttempt:$deploymentAttempt,externalBlocker:$externalBlocker,canonicalHtml:$canonicalHtml,adminHtml:$adminHtml,reason:$reason}' > "$evidence"
 
           if [ "$status" = BLOCKED_EXTERNAL ]; then exit 0; fi
           if [ "$status" != PASS ]; then echo "Production identity proof failed: $reason"; exit 1; fi
