@@ -36,32 +36,21 @@ export type ControlPlaneState = {
 };
 
 /**
- * Canonical capability vocabulary. Declaring a capability here never grants
- * runtime access; the server boundary and policy engine remain authoritative.
+ * Capabilities currently exposed by the verified foundation UI.
+ * Declared-but-locked capabilities remain in the type contract but are not
+ * presented as active runtime authorization.
  */
 export const ADMIN_CAPABILITIES: readonly AdminCapability[] = [
   'admin.read',
   'truth.read',
-  'evidence.read',
   'security.read',
   'contracts.read',
   'operations.read',
-  'incidents.manage',
   'changes.read',
-  'approvals.review',
-  'users.manage',
-  'deployments.preview',
-  'deployments.execute',
-  'system.rollback',
-  'system.read',
   'audit.read',
-  'production.write',
+  'system.read',
 ] as const;
 
-/**
- * Production mutation capabilities are declared but remain locked until their
- * server-side authorization, policy, evidence, and production proofs exist.
- */
 export const ADMIN_LOCKED_MUTATION_CAPABILITIES: readonly AdminCapability[] = [
   'incidents.manage',
   'approvals.review',
