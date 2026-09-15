@@ -4,6 +4,7 @@ import { planFromIntent, type ExecutionPlan } from '@/lib/ai/planner';
 import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import { getReadyToolConfigs } from '@/config/tools';
 import { findToolIntent } from '@/lib/intent-router';
+import './FlixoAIAgent.css';
 
 type AgentState = 'idle' | 'ready' | 'running' | 'success' | 'error';
 
