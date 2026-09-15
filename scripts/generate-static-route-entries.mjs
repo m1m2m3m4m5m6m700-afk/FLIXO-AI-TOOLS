@@ -10,17 +10,24 @@ const INDEX_FILE = join(DIST_DIR, 'index.html');
 const readyTools = TOOL_MANIFEST.filter((tool) => tool.isReady);
 if (!readyTools.length) throw new Error('Static route generation requires at least one ready tool.');
 
+const copyEntry = (route) => {
+  const normalizedRoute = route.replace(/^\//u, '').replace(/\/$/u, '');
+  const routeDir = normalizedRoute ? join(DIST_DIR, normalizedRoute) : DIST_DIR;
+  mkdirSync(routeDir, { recursive: true });
+  copyFileSync(INDEX_FILE, join(routeDir, 'index.html'));
+};
+
+// Non-localized operational entry points must also exist as physical static
+// entries because the production deployment is an immutable Vercel static
+// artifact rather than a source-tree deployment.
+copyEntry('/admin');
+
 for (const locale of LOCALES) {
-  const homeDir = join(DIST_DIR, locale);
-  mkdirSync(homeDir, { recursive: true });
-  copyFileSync(INDEX_FILE, join(homeDir, 'index.html'));
+  copyEntry(`/${locale}`);
 
   for (const tool of readyTools) {
-    const route = getLocalizedToolPath(tool, locale).replace(/^\//u, '');
-    const routeDir = join(DIST_DIR, route);
-    mkdirSync(routeDir, { recursive: true });
-    copyFileSync(INDEX_FILE, join(routeDir, 'index.html'));
+    copyEntry(getLocalizedToolPath(tool, locale));
   }
 }
 
-console.log(`G1 static route entries generated: ready=${readyTools.length}, locales=${LOCALES.length}, routes=${readyTools.length * LOCALES.length}`);
+console.log(`G1 static route entries generated: ready=${readyTools.length}, locales=${LOCALES.length}, routes=${readyTools.length * LOCALES.length + LOCALES.length + 1}`);
