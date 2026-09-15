@@ -1,0 +1,193 @@
+name: FLIXOAI Cloudflare Deployment
+
+on:
+  workflow_run:
+    workflows: ["FLIXO Test System"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Exact main commit SHA to deploy"
+        required: true
+        type: string
+
+concurrency:
+  group: flixoai-cloudflare-${{ github.event.workflow_run.head_sha || inputs.sha || github.run_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FLIXOAI_PRODUCTION_ORIGIN: https://flixoai.m1m2m3m4m5m6m700.workers.dev
+  WRANGLER_WORKER_NAME: flixoai
+
+jobs:
+  deploy:
+    name: Deploy exact SHA to Cloudflare flixoai
+    if: >-
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Resolve deployment SHA
+        id: sha
+        shell: bash
+        env:
+          EVENT_SHA: ${{ github.event.workflow_run.head_sha }}
+          MANUAL_SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          sha="${MANUAL_SHA:-$EVENT_SHA}"
+          test -n "$sha"
+          printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.sha.outputs.sha }}
+          fetch-depth: 1
+
+      - name: Prove deployment SHA is current main
+        shell: bash
+        env:
+          DEPLOYMENT_SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin main
+          test "$(git rev-parse HEAD)" = "$DEPLOYMENT_SHA"
+          test "$(git rev-parse origin/main)" = "$DEPLOYMENT_SHA"
+
+      - name: Download certified build artifact
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          DEPLOYMENT_SHA: ${{ steps.sha.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh run download "$SOURCE_RUN_ID" -n "flixo-build-${SOURCE_RUN_ID}" -D dist
+          test "$(cat dist/flixo-head-sha.txt)" = "$DEPLOYMENT_SHA"
+          test -s dist/index.html
+
+      - name: Build and fingerprint exact SHA for manual deployment
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          DEPLOYMENT_SHA: ${{ steps.sha.outputs.sha }}
+          VITE_SITE_URL: ${{ env.FLIXOAI_PRODUCTION_ORIGIN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefer-offline --no-audit --no-fund
+          npm run build
+          printf '%s\n' "$DEPLOYMENT_SHA" > dist/flixo-head-sha.txt
+          sha256sum package-lock.json > dist/flixo-package-lock.sha256
+          test "$(git rev-parse HEAD)" = "$DEPLOYMENT_SHA"
+          test -s dist/index.html
+
+      - name: 🛡️ Safety Guard — strict allowlist (flixoai only)
+        id: safety
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ALLOWED_WORKER="flixoai"
+          ALLOWED_ORIGIN="https://flixoai.m1m2m3m4m5m6m700.workers.dev"
+
+          echo "=== Guard 1/4: wrangler.jsonc name == $ALLOWED_WORKER ==="
+          CONFIG_NAME=$(grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' wrangler.jsonc | head -1 | sed -E 's/.*"name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+          echo "wrangler.jsonc name = '$CONFIG_NAME'"
+          if [ "$CONFIG_NAME" != "$ALLOWED_WORKER" ]; then
+            echo "❌ FAIL: wrangler.jsonc targets '$CONFIG_NAME' — expected '$ALLOWED_WORKER'"
+            exit 1
+          fi
+          echo "✅ OK"
+
+          echo "=== Guard 2/4: WRANGLER_WORKER_NAME == $ALLOWED_WORKER ==="
+          echo "WRANGLER_WORKER_NAME = '${WRANGLER_WORKER_NAME:-UNSET}'"
+          if [ "${WRANGLER_WORKER_NAME:-}" != "$ALLOWED_WORKER" ]; then
+            echo "❌ FAIL: WRANGLER_WORKER_NAME must be '$ALLOWED_WORKER'"
+            exit 1
+          fi
+          echo "✅ OK"
+
+          echo "=== Guard 3/4: production origin is exact ==="
+          if [ "${FLIXOAI_PRODUCTION_ORIGIN:-}" != "$ALLOWED_ORIGIN" ]; then
+            echo "❌ FAIL: production origin is not the approved flixoai workers.dev origin"
+            exit 1
+          fi
+          echo "✅ OK"
+
+          echo "=== Guard 4/4: no forbidden worker references in deployment config ==="
+          if grep -qE 'flixotoolscom|flixotools\b' wrangler.jsonc; then
+            echo "❌ FAIL: wrangler.jsonc references a forbidden worker (flixotools/flixotoolscom)"
+            exit 1
+          fi
+          echo "✅ OK — no forbidden references"
+
+          echo ""
+          echo "🛡️ ALL GUARDS PASSED — deployment target locked to '$ALLOWED_WORKER'"
+
+      - name: Install Wrangler
+        run: npm install --global wrangler@4
+
+      - name: Dry-run Cloudflare deployment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          wrangler deploy --dry-run --config wrangler.jsonc --name "$WRANGLER_WORKER_NAME"
+
+      - name: Deploy to Cloudflare (flixoai)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          wrangler deploy --config wrangler.jsonc --name "$WRANGLER_WORKER_NAME"
+
+      - name: Verify production identity
+        env:
+          DEPLOYMENT_SHA: ${{ steps.sha.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(curl --fail --silent --show-error --location \
+            --retry 10 --retry-delay 3 --retry-all-errors --max-time 30 \
+            -H 'Cache-Control: no-cache' \
+            "$FLIXOAI_PRODUCTION_ORIGIN/flixo-head-sha.txt?__flixo_sha=$DEPLOYMENT_SHA" \
+            | tr -d '\r\n')"
+          test "$sha" = "$DEPLOYMENT_SHA"
+          curl --fail --silent --show-error --location \
+            --retry 10 --retry-delay 3 --retry-all-errors --max-time 30 \
+            -H 'Cache-Control: no-cache' \
+            "$FLIXOAI_PRODUCTION_ORIGIN/?__flixo_sha=$DEPLOYMENT_SHA" \
+            | grep -qi '<html'
+
+      - name: Write deployment evidence
+        if: always()
+        env:
+          DEPLOYMENT_SHA: ${{ steps.sha.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > flixoai-cloudflare-deployment-evidence.json <<JSON
+          {"worker":"flixoai","origin":"$FLIXOAI_PRODUCTION_ORIGIN","sha":"$DEPLOYMENT_SHA","status":"PASS"}
+          JSON
+
+      - name: Upload deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixoai-cloudflare-evidence-${{ steps.sha.outputs.sha }}
+          path: flixoai-cloudflare-deployment-evidence.json
+          if-no-files-found: error
+          retention-days: 30
