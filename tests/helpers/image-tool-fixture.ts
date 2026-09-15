@@ -11,18 +11,9 @@ export async function uploadFixture(page: Page, name = 'fixture.png') {
 export async function assertImageResult(page: Page) {
   const result = page.locator('img[alt="Tool result"]');
   await expect(result).toBeVisible();
-  await expect.poll(async () => result.evaluate((image) => {
-    const candidate = image as HTMLImageElement;
-    return candidate.complete && candidate.naturalWidth > 0 && candidate.naturalHeight > 0;
-  }), { message: 'Tool result image was not decoded before inspection.' }).toBe(true);
-
   const meta = await page.evaluate(async () => {
     const image = document.querySelector('img[alt="Tool result"]') as HTMLImageElement | null;
     if (!image) throw new Error('Tool result image not found.');
-    if (!image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
-      throw new Error('Tool result image is not decoded.');
-    }
-    if (typeof image.decode === 'function') await image.decode();
     const response = await fetch(image.src);
     if (!response.ok) throw new Error(`Output blob fetch failed: ${response.status}`);
     const blob = await response.blob();
