@@ -72,3 +72,9 @@ jobs:
           path: admin-006-verification.json
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Emit blocked guidance
+        if: failure()
+        run: |
+          echo 'ADMIN-006 remains ACTIVE/BLOCKED unless the real non-production Supabase round-trip produces VERIFIED evidence.'
+          echo 'No production mutation is permitted.'
