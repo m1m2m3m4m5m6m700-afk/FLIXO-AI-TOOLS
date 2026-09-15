@@ -31,7 +31,7 @@ if (typeof window !== 'undefined') {
   if ('requestIdleCallback' in window) {
     window.requestIdleCallback(loadPerformanceDiagnostics, { timeout: 2000 });
   } else {
-    window.setTimeout(loadPerformanceDiagnostics, 0);
+    globalThis.setTimeout(loadPerformanceDiagnostics, 0);
   }
 }
 
