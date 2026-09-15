@@ -2,13 +2,6 @@ name: Historical Error Root Cause
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'docs/ERROR_MEMORY.md'
-      - 'scripts/ci/extract-error-root-causes.mjs'
-      - 'scripts/test-error-root-cause-extractor.mjs'
-      - '.github/workflows/error-memory-root-cause.yml'
 
 permissions:
   contents: read
@@ -47,3 +40,5 @@ jobs:
           path: error-root-causes.json
           if-no-files-found: error
           retention-days: 30
+
+# Historical root-cause extraction is intentionally manual-only; FLIXO Test System owns automated certification.
