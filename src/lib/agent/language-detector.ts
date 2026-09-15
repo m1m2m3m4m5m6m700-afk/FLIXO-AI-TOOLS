@@ -51,16 +51,11 @@ const normalizedKeywords = new Map<Locale, readonly string[]>(
 
 const scoreLocale = (text: string, locale: Locale): number => {
   const keywords = normalizedKeywords.get(locale) ?? [];
-  const tokens = new Set(text.split(' ').filter(Boolean));
   let score = 0;
 
   for (const keyword of keywords) {
     if (!keyword) continue;
-    if (keyword.includes(' ')) {
-      if (` ${text} `.includes(` ${keyword} `)) score += 3;
-      continue;
-    }
-    if (tokens.has(keyword)) score += 2;
+    if (text.includes(keyword)) score += keyword.includes(' ') ? 3 : 2;
   }
 
   return score;
