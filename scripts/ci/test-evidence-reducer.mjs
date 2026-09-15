@@ -37,7 +37,7 @@ const base = {
 };
 
 runCase('pass', { ...base, status: 'PASS', results: base.commands.map((command) => ({ command, status: 'PASS' })) }, 0, 'PASS');
-runCase('fail', { ...base, status: 'FAIL', results: [{ command: base.commands[0], status: 'FAIL' }] }, 1, 'FAIL');
+runCase('fail', { ...base, status: 'FAIL', results: [{ command: base.commands[0], status: 'FAIL' }, { command: base.commands[1], status: 'PASS' }] }, 1, 'FAIL');
 runCase('incomplete', { ...base, status: 'PASS', results: [{ command: base.commands[0], status: 'PASS' }] }, 1, 'BLOCKED');
 runCase('blocked', { ...base, status: 'FAIL', results: base.commands.map((command) => ({ command, status: 'BLOCKED' })) }, 1, 'BLOCKED');
 runCase('duplicate', { ...base, status: 'PASS', results: [{ command: base.commands[0], status: 'PASS' }, { command: base.commands[0], status: 'PASS' }, { command: base.commands[1], status: 'PASS' }] }, 1, null);
