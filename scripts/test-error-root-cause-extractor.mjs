@@ -12,7 +12,7 @@ assert.equal(report.incidents.find((incident) => incident.id === 'F-006')?.statu
 assert.equal(report.incidents.find((incident) => incident.id === 'F-005')?.status, 'Superseded');
 assert.equal(report.incidents.find((incident) => incident.id === 'F-007')?.rootCauseKey, 'validator-used-source-text-route-discovery-and-initially-treated-non-ready-routes-as-expected-public-routes');
 assert.ok(report.rootCauseGroups.every((group) => group.incidentIds.length >= 1));
-assert.equal(report.unresolvedCount, 2);
+assert.equal(report.unresolvedCount, 1);
 
 for (const incident of report.incidents) {
   assert.ok(incident.id.match(/^F-\d+$/));
