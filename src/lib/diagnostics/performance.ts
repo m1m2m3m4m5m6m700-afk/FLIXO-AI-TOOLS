@@ -18,21 +18,10 @@ export type ToolPerformanceMetric = {
   timestamp: string;
 };
 
-export type RuntimePerformanceDiagnostic = {
-  kind: 'navigation' | 'longtask' | 'memory';
-  route: string;
-  timestamp: string;
-  durationMs?: number;
-  domContentLoadedMs?: number;
-  loadEventMs?: number;
-  jsHeapUsedBytes?: number;
-  jsHeapLimitBytes?: number;
-};
+type PerformanceEntryRecord = CoreWebVitalsSnapshot | ToolPerformanceMetric;
 
 const STORAGE_KEY = 'flixo:performance-diagnostics';
 const MAX_ENTRIES = 50;
-
-type PerformanceEntryRecord = CoreWebVitalsSnapshot | ToolPerformanceMetric | RuntimePerformanceDiagnostic;
 
 function save(entry: PerformanceEntryRecord): void {
   try {
@@ -58,135 +47,63 @@ export function installCoreWebVitalsDiagnostics(): () => void {
   let inp: number | undefined;
   let cls = 0;
   let clsSources = 0;
-
   const observers: PerformanceObserver[] = [];
 
   if (typeof PerformanceObserver === 'undefined') return () => undefined;
 
   try {
-    const lcpObserver = new PerformanceObserver((list) => {
-      const entries = list.getEntries();
-      const last = entries.at(-1) as PerformanceEntry | undefined;
+    const observer = new PerformanceObserver((list) => {
+      const last = list.getEntries().at(-1);
       if (last) lcp = last.startTime;
     });
-    lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
-    observers.push(lcpObserver);
+    observer.observe({ type: 'largest-contentful-paint', buffered: true });
+    observers.push(observer);
   } catch {
-    // Browser does not expose LCP observer.
+    // LCP is optional when unsupported.
   }
 
   try {
-    const inpObserver = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        const duration = entry.duration;
-        if (duration > (inp ?? 0)) inp = duration;
-      }
+    const observer = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) if (entry.duration > (inp ?? 0)) inp = entry.duration;
     });
-    inpObserver.observe({ type: 'event', buffered: true, durationThreshold: 40 } as PerformanceObserverInit);
-    observers.push(inpObserver);
+    observer.observe({ type: 'event', buffered: true, durationThreshold: 40 } as PerformanceObserverInit);
+    observers.push(observer);
   } catch {
-    // Browser does not expose Event Timing.
+    // Event Timing is optional when unsupported.
   }
 
   try {
-    const clsObserver = new PerformanceObserver((list) => {
+    const observer = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        const layoutShift = entry as PerformanceEntry & { value?: number; hadRecentInput?: boolean };
-        if (layoutShift.hadRecentInput) continue;
-        cls += layoutShift.value ?? 0;
-        clsSources += 1;
+        const shift = entry as PerformanceEntry & { value?: number; hadRecentInput?: boolean };
+        if (!shift.hadRecentInput) {
+          cls += shift.value ?? 0;
+          clsSources += 1;
+        }
       }
     });
-    clsObserver.observe({ type: 'layout-shift', buffered: true });
-    observers.push(clsObserver);
+    observer.observe({ type: 'layout-shift', buffered: true });
+    observers.push(observer);
   } catch {
-    // Browser does not expose Layout Shift.
+    // Layout Shift is optional when unsupported.
   }
 
   const flush = () => {
     if (lcp === undefined && inp === undefined && clsSources === 0) return;
-    const locale = document.documentElement.lang || undefined;
     save({
       lcp,
       inp,
       cls,
       route: `${window.location.pathname}${window.location.search}`,
-      locale,
+      locale: document.documentElement.lang || undefined,
       timestamp: new Date().toISOString(),
     });
   };
 
   window.addEventListener('pagehide', flush, { once: true });
-
   return () => {
     for (const observer of observers) observer.disconnect();
     window.removeEventListener('pagehide', flush);
-  };
-}
-
-function route(): string {
-  return `${window.location.pathname}${window.location.search}`;
-}
-
-function recordNavigation(): void {
-  const navigation = performance.getEntriesByType('navigation')[0];
-  if (!navigation) return;
-
-  const entry = navigation as PerformanceNavigationTiming;
-  save({
-    kind: 'navigation',
-    route: route(),
-    timestamp: new Date().toISOString(),
-    domContentLoadedMs: Math.round(entry.domContentLoadedEventEnd),
-    loadEventMs: Math.round(entry.loadEventEnd),
-  });
-}
-
-function recordMemory(): void {
-  const memory = (performance as Performance & {
-    memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
-  }).memory;
-
-  if (!memory) return;
-
-  save({
-    kind: 'memory',
-    route: route(),
-    timestamp: new Date().toISOString(),
-    jsHeapUsedBytes: memory.usedJSHeapSize,
-    jsHeapLimitBytes: memory.jsHeapSizeLimit,
-  });
-}
-
-export function installPerformanceDiagnostics(): () => void {
-  const observers: PerformanceObserver[] = [];
-
-  if (typeof PerformanceObserver !== 'undefined') {
-    try {
-      const longTaskObserver = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          save({
-            kind: 'longtask',
-            route: route(),
-            timestamp: new Date().toISOString(),
-            durationMs: Math.round(entry.duration),
-          });
-        }
-      });
-      longTaskObserver.observe({ type: 'longtask', buffered: true });
-      observers.push(longTaskObserver);
-    } catch {
-      // The Long Tasks API is not available in every browser.
-    }
-  }
-
-  window.addEventListener('load', recordNavigation, { once: true });
-  const memoryTimer = window.setTimeout(recordMemory, 0);
-
-  return () => {
-    window.removeEventListener('load', recordNavigation);
-    window.clearTimeout(memoryTimer);
-    for (const observer of observers) observer.disconnect();
   };
 }
 
