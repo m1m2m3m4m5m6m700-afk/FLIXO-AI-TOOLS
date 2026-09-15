@@ -97,7 +97,7 @@ globalThis.fetch = async (input, init = {}) => {
   const url = String(input);
   const headers = new Headers(init.headers);
   assert.equal(headers.get('apikey'), 'test-secret');
-  assert.equal(headers.get('authorization'), null);
+  assert.equal(headers.get('authorization'), 'Bearer test-secret');
 
   const method = String(init.method ?? 'GET');
   if (method === 'POST' && url.endsWith('/rest/v1/flix_events')) {
