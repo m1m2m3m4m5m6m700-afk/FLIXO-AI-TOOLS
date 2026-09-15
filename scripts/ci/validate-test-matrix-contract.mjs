@@ -54,7 +54,7 @@ for (const tool of tools) {
   // or stronger canvas/export evidence used by editor tools.
   const hasResultProof =
     /assertToolOutputContract|assertImageResult/.test(source) ||
-    /toHaveJSProperty\(['"]naturalWidth|getByText\(|toContainText\(|RESULT['"]?\s*\,|Tool result/i.test(source) ||
+    /toHaveJSProperty\(['"]naturalWidth|getByText\(|toContainText\(|RESULT['"]?\s*,|Tool result/i.test(source) ||
     (/canvasScreenshot\(|toBeVisible\(\).*preview|preview['"][^\n]*toBeVisible/.test(source) &&
       /equals\(|createReadStream\(\)|waitForEvent\(['"]download['"]\)/.test(source));
 
