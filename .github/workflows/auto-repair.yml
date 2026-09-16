@@ -52,8 +52,17 @@ jobs:
           cache: npm
 
       - name: Install target dependencies
+        id: install_target
+        continue-on-error: true
         working-directory: /tmp/flixo-repair-target
         run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Record target dependency-install failure
+        if: steps.install_target.outcome != 'success'
+        run: |
+          printf '%s\n' 'target-dependency-install-failed' > /tmp/flixo-engine-outcome
+          printf '%s\n' 'unrepaired' > /tmp/flixo-learning-outcome
+          printf '%s\n' '{"rootCause":"target_dependency_install_failure"}' > /tmp/flixo-root-cause.json
 
       - name: Capture failed CI logs
         env:
@@ -71,9 +80,11 @@ jobs:
           } > /tmp/flixo-repair-summary.txt
 
       - name: Classify root cause
+        if: steps.install_target.outcome == 'success'
         run: node scripts/ci/auto-repair-classifier.mjs
 
       - name: Run bounded repair engine against isolated target
+        if: steps.install_target.outcome == 'success'
         env:
           FLIXO_TARGET_DIR: /tmp/flixo-repair-target
         run: node scripts/ci/auto-repair-engine.mjs
@@ -84,6 +95,11 @@ jobs:
         working-directory: /tmp/flixo-repair-target
         run: |
           set -euo pipefail
+          if [ "${{ steps.install_target.outcome }}" != "success" ]; then
+            echo 'verified=false' >> "$GITHUB_OUTPUT"
+            echo 'Target dependencies could not be installed; repair is not certifiable.'
+            exit 0
+          fi
           test -f /tmp/flixo-repair-evidence.json || {
             echo 'verified=false' >> "$GITHUB_OUTPUT"
             echo 'No repair evidence was produced; nothing is certified.'
@@ -121,7 +137,7 @@ jobs:
             ENGINE_OUTCOME=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.outcome||'unknown')")
           else
             RULE=''
-            ENGINE_OUTCOME='engine-error'
+            ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome 2>/dev/null || printf '%s' 'engine-error')"
           fi
           if [ "$VERIFY_OUTCOME" = "success" ] && [ "$ENGINE_OUTCOME" = "verified-repair" ]; then
             LEARNING_OUTCOME='success'
@@ -141,8 +157,6 @@ jobs:
 
       - name: Publish verified repair branch
         if: steps.verify.outputs.verified == 'true' && !cancelled()
-        env:
-          FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
           cd /tmp/flixo-repair-target
@@ -198,7 +212,7 @@ jobs:
           git switch -c "$BRANCH"
           git config user.name 'flixo-auto-repair[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add diagnostics/auto-repair/memory.json
+          git add -f diagnostics/auto-repair/memory.json
           git commit -m "chore(ci): persist learned failure outcome from run $RUN_ID"
           git push --set-upstream origin "$BRANCH"
           gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --draft \
