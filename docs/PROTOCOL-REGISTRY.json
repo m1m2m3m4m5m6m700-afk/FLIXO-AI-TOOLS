@@ -2,15 +2,7 @@
   "schemaVersion": 1,
   "authority": "FLIXO_PROTOCOL_REGISTRY",
   "policy": "No standalone protocol may be added unless the Protocol Addition Gate passes. Existing protocols must absorb compatible requirements instead of creating duplicates.",
-  "precedence": [
-    "MASTER_EXECUTION_AND_SAFETY",
-    "ZERO_FALSE_GREEN_AND_EVIDENCE",
-    "ROOT_CAUSE_FIRST_REPAIR",
-    "PRODUCT_CONTRACT_GRAPH",
-    "CHANGE_SCOPE_AND_DEPENDENCY_CLOSURE",
-    "TESTING_CERTIFICATION_COLLABORATION_COORDINATION_RECOVERY",
-    "CI_PERFORMANCE_AND_OPERATIONS"
-  ],
+  "precedence": ["MASTER_EXECUTION_AND_SAFETY","ZERO_FALSE_GREEN_AND_EVIDENCE","ROOT_CAUSE_FIRST_REPAIR","PRODUCT_CONTRACT_GRAPH","CHANGE_SCOPE_AND_DEPENDENCY_CLOSURE","TESTING_CERTIFICATION_COLLABORATION_COORDINATION_RECOVERY","CI_PERFORMANCE_AND_OPERATIONS"],
   "protocols": [
     {"id":"P01","name":"Master Execution Contract","class":"GOVERNANCE","status":"MANDATORY","enforcement":"AGENTS.md + CI contract","invariant":"Execution remains non-terminal until required work, evidence, tests and root causes are closed."},
     {"id":"P02","name":"Zero False Green","class":"INTEGRITY","status":"MANDATORY","enforcement":"certification + evidence validators","invariant":"PASS requires complete fresh evidence on the exact tested SHA with no masking or partial execution."},
@@ -31,6 +23,6 @@
     {"id":"P17","name":"Evidence Freshness & Provenance","class":"EVIDENCE","status":"MANDATORY","enforcement":"evidence ledger + certification","invariant":"Primary evidence is bound to exact SHA, run, contract/version, inputs, runtime and artifact identity."},
     {"id":"P18","name":"Evidence-to-Assertion Traceability","class":"EVIDENCE","status":"MANDATORY","enforcement":"assertion registry + execution graph","invariant":"Every certified PASS traces from assertion through execution and artifact to the certified SHA."},
     {"id":"P19","name":"Immutable Artifact & CI Critical Path","class":"CI","status":"MANDATORY","enforcement":"minimal CI architecture + workflow","invariant":"Build/install work is reused safely and duplicate execution does not inflate the critical path."},
-    {"id":"P20","name":"Agent Ownership, Continuity & Handoff","class":"EXECUTION","status":"MANDATORY","enforcement":"session + coordination control plane","invariant":"Mutable scopes have one owner and successors continue from fresh exact-SHA handoff state."}
+    {"id":"P20","name":"Agent Ownership, Continuity & Handoff","class":"EXECUTION","status":"MANDATORY","enforcement":"session + coordination control plane + assistant-agent cooperation contract","invariant":"Mutable scopes have one owner; successors continue from fresh exact-SHA handoff state; ambiguous or high-risk instructions are challenged, decision provenance is recorded, and independent verification is required at the appropriate risk tier."}
   ]
 }
