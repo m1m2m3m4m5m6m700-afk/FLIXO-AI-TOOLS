@@ -10,6 +10,7 @@ import { reproduce, impactedTests } from './auto-repair/reproduction.mjs';
 import { runRegression } from './auto-repair/regression.mjs';
 import { summarizeDiff, writeEvidence } from './auto-repair/evidence.mjs';
 import { snapshot, rollback } from './auto-repair/rollback.mjs';
+import { validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
@@ -39,9 +40,23 @@ const historicalRules = [
 const historicalCandidate = plan.candidates.find((candidate) => historicalRules.includes(candidate.id) && candidate.mutate && candidate.confidence >= 90);
 if (historicalCandidate && (!selected || scorePlaybook(memory, specialist?.id ?? 'unknown', historicalCandidate.id) >= scorePlaybook(memory, specialist?.id ?? 'unknown', selected.id))) selected = historicalCandidate;
 const targetSha = git(['rev-parse', 'HEAD']).trim();
-const evidence = { schemaVersion: 4, fingerprint, targetSha, features, specialist, candidates: plan.candidates, selected: selected?.id ?? null, historical: { exact: Boolean(known), similar: similar.map(({ case: item, score }) => ({ fingerprint: item.fingerprint, score, rules: item.rules ?? [] })) }, outcome: 'diagnostic-only', changedPaths: [], updatedAt: new Date().toISOString() };
+const evidence = {
+  schemaVersion: 5,
+  protocol: 'AUTONOMOUS-REPAIR-PROTOCOL-v3',
+  fingerprint,
+  targetSha,
+  features,
+  specialist,
+  candidates: plan.candidates,
+  selected: selected?.id ?? null,
+  historical: { exact: Boolean(known), similar: similar.map(({ case: item, score }) => ({ fingerprint: item.fingerprint, score, rules: item.rules ?? [] })) },
+  outcome: 'diagnostic-only',
+  changedPaths: [],
+  updatedAt: new Date().toISOString(),
+};
 
 if (!selected) {
+  evidence.escalation = { required: true, reason: 'no-safe-mutation-candidate' };
   writeEvidence(evidencePath, evidence);
   recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', outcome: 'proposed', verification: 'none', preventionRule: 'No safe mutation candidate; escalate with evidence.' });
   writeMemory(memory);
@@ -53,6 +68,7 @@ const gate = confidenceGate({ selected, features: plan.features, maxFiles: repai
 evidence.confidenceGate = gate;
 if (!gate.allowed) {
   evidence.outcome = 'proposal-only';
+  evidence.escalation = { required: true, reason: 'confidence-gate-blocked' };
   writeEvidence(evidencePath, evidence);
   recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'proposed', verification: 'confidence-gate-blocked', preventionRule: 'Require guarded or human-gated repair for this class.' });
   writeMemory(memory);
@@ -72,6 +88,7 @@ try {
   evidence.changedPaths = diffSummary.files;
   if (!diffSummary.files.length || diffSummary.files.length > repairPolicy.maxChangedFiles || diffSummary.lines > repairPolicy.maxChangedLines || diffSummary.files.some((path) => !isPathAllowed(path))) {
     evidence.outcome = 'blocked';
+    evidence.escalation = { required: true, reason: 'scope-policy' };
     rollback(targetDir, before);
     recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'blocked', verification: 'scope-policy', provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: 'Reject repairs outside the bounded change policy.' });
     writeMemory(memory);
@@ -95,19 +112,23 @@ try {
       evidence.recurrenceProof.secondPass = secondReproduction.ok;
       evidence.recurrenceProof.secondRun = secondReproduction;
     }
-    const verified = rootCauseProof.reproductionWasFailing && rootCauseProof.reproductionRecovered && rootCauseProof.regressionPassed && rootCauseProof.commandsPresent && evidence.recurrenceProof.firstPass && evidence.recurrenceProof.secondPass;
+    const proof = validateRepairProof({ rootCauseProof, recurrenceProof: evidence.recurrenceProof, evidence });
+    evidence.repairProof = proof;
+    const verified = proof.ok;
     if (!verified) {
       // Canonical fail-closed terminal marker: root-cause-proof-failed.
       rollback(targetDir, before);
       evidence.outcome = 'rolled-back';
       evidence.rollback = true;
-      recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'failure', verification: 'root-cause-or-recurrence-proof-failed', provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: 'A repair is not successful until the original failure is reproduced before repair, passes after repair twice, and regression passes.' });
+      evidence.escalation = { required: true, reason: escalationReason(proof) };
+      recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'failure', verification: 'root-cause-or-recurrence-proof-failed', provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: preventionRuleFor({ fingerprint, rule: selected.id }) });
       writeMemory(memory);
       writeEvidence(evidencePath, evidence);
       process.exitCode = 3;
     } else {
       evidence.outcome = 'verified-repair';
-      recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'success', verification: 'root-cause-proof+recurrence-proof+typecheck+static+build', provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: `Prevent recurrence of ${fingerprint} by retaining verified rule ${selected.id}.` });
+      evidence.preventionRule = preventionRuleFor({ fingerprint, rule: selected.id });
+      recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'success', verification: 'root-cause-proof+recurrence-proof+typecheck+static+build', provenance: { targetSha, changedPaths: diffSummary.files, proof }, preventionRule: evidence.preventionRule });
       writeMemory(memory);
       writeEvidence(evidencePath, evidence);
     }
@@ -117,6 +138,7 @@ try {
   evidence.outcome = 'rolled-back';
   evidence.error = String(error?.message ?? error);
   evidence.rollback = true;
+  evidence.escalation = { required: true, reason: 'repair-exception' };
   recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'failure', verification: 'exception', provenance: { targetSha }, preventionRule: 'Do not repeat an exception-producing repair without new evidence.' });
   writeMemory(memory);
   writeEvidence(evidencePath, evidence);
