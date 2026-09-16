@@ -18,10 +18,11 @@ concurrency:
 
 env:
   FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
+  FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
 
 jobs:
   repair:
-    name: Diagnose and safely repair main CI failures
+    name: Diagnose, learn and safely repair main CI failures
     if: >-
       github.event.workflow_run.conclusion == 'failure' &&
       github.event.workflow_run.head_branch == 'main' &&
@@ -59,7 +60,10 @@ jobs:
             grep -E -i 'error|failed|failure|timeout|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
           } > /tmp/flixo-repair-summary.txt
 
-      - name: Run bounded auto-repair engine
+      - name: Classify root cause
+        run: node scripts/ci/auto-repair-classifier.mjs
+
+      - name: Run bounded learning-aware repair engine
         run: node scripts/ci/auto-repair-engine.mjs
 
       - name: Verify repair before publishing
@@ -100,15 +104,17 @@ jobs:
             --head "$REPAIR_BRANCH" \
             --draft \
             --title "fix(ci): automatic repair for failed run $RUN_ID" \
-            --body "## FLIXO Auto Repair Bot\n\nFailed canonical CI run: $RUN_ID\n\nFailed SHA: $FAILED_SHA\n\nThe bot applies only bounded deterministic repairs and verifies typecheck + static + build before opening a draft PR.\n\nFailure summary:\n\n$(cat /tmp/flixo-repair-summary.txt)\n\nNo direct push to main is performed by the repair bot."
+            --body "## FLIXO Auto Repair Bot\n\nFailed canonical CI run: $RUN_ID\n\nFailed SHA: $FAILED_SHA\n\nThe bot uses deterministic classification plus bounded repair memory. It verifies typecheck + static + build before opening a draft PR.\n\nFailure summary:\n\n$(cat /tmp/flixo-repair-summary.txt)\n\nNo direct push to main is performed by the repair bot."
 
-      - name: Publish diagnostic artifact
+      - name: Publish diagnostic and learning artifacts
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: flixo-auto-repair-${{ github.event.workflow_run.id }}
           path: |
-            "$FLIXO_FAILURE_LOG"
+            /tmp/flixo-failure.log
             /tmp/flixo-repair-summary.txt
+            /tmp/flixo-root-cause.json
+            diagnostics/auto-repair/memory.json
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 30
