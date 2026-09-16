@@ -39,3 +39,6 @@ Implementation commit: `1d549e3df3228e16a418258ce4108447c390e931`.
 ## Safety decision
 
 The historical pipeline verifier is considered already integrated on `main`; restoring it again would create duplicate behavior and increase drift risk. The next work should therefore focus on the missing interactive layer: explicit task state, missing-information questions, plan presentation, confirmation/cancellation, and continuation state, while keeping Tool/Capability Registry as the execution authority.
+
+## DO-NOT-RESTORE
+Historical implementations must not be copied wholesale into `main`. Recovery is limited to evidence-backed RESTORE/ADAPT or MERGE decisions after exact comparison, contract review, and verification planning.
