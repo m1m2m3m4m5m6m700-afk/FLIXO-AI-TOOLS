@@ -17,7 +17,7 @@ const read = (path) => {
 };
 const grep = (pattern) => {
   try {
-    return run(['grep', '-n', '-I', '-E', pattern, '--', ...tracked]).trim();
+    return run(['grep', '-n', '-I', '-E', '--', ...tracked.filter((p) => existsSync(resolve(ROOT, p))), '-e', pattern]).trim();
   } catch {
     return '';
   }
@@ -51,16 +51,7 @@ for (const file of testFiles) {
   const referenced = grep(`(^|[/"' ])${escaped}$`);
   const packageReferenced = packageScripts.includes(file);
   if (!referenced && !packageReferenced) {
-    findings.push({
-      id: 'RC-DEBT-ORPHAN-TEST-CANDIDATE',
-      category: 'DEAD_CODE',
-      severity: 'MEDIUM',
-      status: 'CANDIDATE',
-      target: file,
-      summary: 'Tracked test file has no package-script ownership and no tracked textual consumer.',
-      evidence: { tracked: true, packageReferenced: false, textualReferences: 0 },
-      action: 'REVIEW_THEN_DELETE',
-    });
+    findings.push({ id: 'RC-DEBT-ORPHAN-TEST-CANDIDATE', category: 'DEAD_CODE', severity: 'MEDIUM', status: 'CANDIDATE', target: file, summary: 'Tracked test file has no package-script ownership and no tracked textual consumer.', evidence: { tracked: true, packageReferenced: false, textualReferences: 0 }, action: 'REVIEW_THEN_DELETE' });
   }
 }
 
@@ -70,64 +61,25 @@ for (const file of tracked) {
   const basename = file.split('/').pop();
   const escaped = basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const referenced = grep(`(^|[/"' ])${escaped}$`);
-  findings.push({
-    id: 'RC-DEBT-LEGACY-CANDIDATE',
-    category: 'LEGACY',
-    severity: referenced ? 'LOW' : 'MEDIUM',
-    status: referenced ? 'KEEP_UNTIL_MIGRATION' : 'CANDIDATE',
-    target: file,
-    summary: referenced
-      ? 'Legacy-labelled file still has tracked references.'
-      : 'Legacy-labelled file has no tracked textual consumers.',
-    evidence: { textualReferences: referenced ? referenced.split('\n').length : 0 },
-    action: referenced ? 'KEEP' : 'REVIEW_THEN_DELETE',
-  });
+  findings.push({ id: 'RC-DEBT-LEGACY-CANDIDATE', category: 'LEGACY', severity: referenced ? 'LOW' : 'MEDIUM', status: referenced ? 'KEEP_UNTIL_MIGRATION' : 'CANDIDATE', target: file, summary: referenced ? 'Legacy-labelled file still has tracked references.' : 'Legacy-labelled file has no tracked textual consumers.', evidence: { textualReferences: referenced ? referenced.split('\n').length : 0 }, action: referenced ? 'KEEP' : 'REVIEW_THEN_DELETE' });
 }
 
 for (const dep of packageNames) {
   const escaped = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const usage = grep(`(?:from|require\\(|import\\(|['"])${escaped}(?:['"/])`);
   if (!usage) {
-    findings.push({
-      id: 'RC-DEBT-UNREFERENCED-DEPENDENCY-CANDIDATE',
-      category: 'DEPENDENCY',
-      severity: 'LOW',
-      status: 'CANDIDATE',
-      target: dep,
-      summary: 'Package manifest entry has no obvious tracked source import/reference.',
-      evidence: { sourceReferences: 0 },
-      action: 'REVIEW_THEN_REMOVE',
-    });
+    findings.push({ id: 'RC-DEBT-UNREFERENCED-DEPENDENCY-CANDIDATE', category: 'DEPENDENCY', severity: 'LOW', status: 'CANDIDATE', target: dep, summary: 'Package manifest entry has no obvious tracked source import/reference.', evidence: { sourceReferences: 0 }, action: 'REVIEW_THEN_REMOVE' });
   }
 }
 
 const seed = read('src/tools/seed/index.tsx');
 if (/DEFAULT_SEED_UI\s*=/.test(seed) && /getTranslationBundle\(/.test(seed)) {
-  findings.push({
-    id: 'RC-DEBT-I18N-FALLBACK-UNPROVEN',
-    category: 'I18N',
-    severity: 'LOW',
-    status: 'UNPROVEN',
-    target: 'src/tools/seed/index.tsx',
-    summary: 'English fallback literals coexist with runtime locale loading; static presence is not proof of bypass.',
-    evidence: { defaultFallbackDetected: true, runtimeBundleLoadDetected: true },
-    action: 'KEEP_PENDING_BEHAVIORAL_PROOF',
-  });
+  findings.push({ id: 'RC-DEBT-I18N-FALLBACK-UNPROVEN', category: 'I18N', severity: 'LOW', status: 'UNPROVEN', target: 'src/tools/seed/index.tsx', summary: 'English fallback literals coexist with runtime locale loading; static presence is not proof of bypass.', evidence: { defaultFallbackDetected: true, runtimeBundleLoadDetected: true }, action: 'KEEP_PENDING_BEHAVIORAL_PROOF' });
 }
 
 const result = {
-  schema: 'flixo-technical-debt-audit/v3',
-  generatedAt: new Date().toISOString(),
-  sha,
-  inventory: {
-    trackedFiles: tracked.length,
-    sourceFiles: sourceFiles.length,
-    testFiles: testFiles.length,
-    localeJsonFiles: localeFiles.length,
-    assetFiles: assetFiles.length,
-    packageDependencies: packageNames.length,
-    contractProtected,
-  },
+  schema: 'flixo-technical-debt-audit/v3', generatedAt: new Date().toISOString(), sha,
+  inventory: { trackedFiles: tracked.length, sourceFiles: sourceFiles.length, testFiles: testFiles.length, localeJsonFiles: localeFiles.length, assetFiles: assetFiles.length, packageDependencies: packageNames.length, contractProtected },
   classification: {
     directCiBlockers: findings.filter((x) => x.category === 'CI' && /HIGH|CRITICAL/.test(x.severity)).map((x) => x.id),
     latentCiDebt: findings.filter((x) => x.category === 'CI').map((x) => x.id),
@@ -137,21 +89,13 @@ const result = {
     directCiBlockers: findings.filter((x) => x.category === 'CI' && /HIGH|CRITICAL/.test(x.severity)).length,
     latentCiDebt: findings.filter((x) => x.category === 'CI').length,
     nonCiTechnicalDebt: findings.filter((x) => x.category !== 'CI').length,
-    findings: findings.length,
-    deletionCandidates: findings.filter((x) => /DELETE|REMOVE/.test(x.action)).length,
-    modificationCandidates: findings.filter((x) => x.action?.startsWith('MODIFY')).length,
-    unproven: findings.filter((x) => x.status === 'UNPROVEN').length,
-  },
-  findings,
+    findings: findings.length, deletionCandidates: findings.filter((x) => /DELETE|REMOVE/.test(x.action)).length,
+    modificationCandidates: findings.filter((x) => x.action?.startsWith('MODIFY')).length, unproven: findings.filter((x) => x.status === 'UNPROVEN').length,
+  }, findings,
 };
-
 result.auditDigest = createHash('sha256').update(JSON.stringify(result)).digest('hex');
 writeFileSync(resolve(OUT, 'technical-debt-audit.json'), `${JSON.stringify(result, null, 2)}\n`);
-writeFileSync(
-  resolve(OUT, 'technical-debt-audit.md'),
-  `# Technical-Debt Audit\n\nSHA: ${sha}\n\nTracked files: ${result.inventory.trackedFiles}\nSource files: ${result.inventory.sourceFiles}\nTest files: ${result.inventory.testFiles}\nLocale JSON files: ${result.inventory.localeJsonFiles}\nAsset files: ${result.inventory.assetFiles}\nDependencies: ${result.inventory.packageDependencies}\n\nDIRECT CI BLOCKERS: ${result.summary.directCiBlockers}\nLATENT CI DEBT: ${result.summary.latentCiDebt}\nNON-CI TECHNICAL DEBT: ${result.summary.nonCiTechnicalDebt}\nDELETION CANDIDATES: ${result.summary.deletionCandidates}\nUNPROVEN: ${result.summary.unproven}\n\nNo zero-debt claim is emitted without inventory-backed findings.\n`,
-);
-
+writeFileSync(resolve(OUT, 'technical-debt-audit.md'), `# Technical-Debt Audit\n\nSHA: ${sha}\n\nTracked files: ${result.inventory.trackedFiles}\nSource files: ${result.inventory.sourceFiles}\nTest files: ${result.inventory.testFiles}\nLocale JSON files: ${result.inventory.localeJsonFiles}\nAsset files: ${result.inventory.assetFiles}\nDependencies: ${result.inventory.packageDependencies}\n\nDIRECT CI BLOCKERS: ${result.summary.directCiBlockers}\nLATENT CI DEBT: ${result.summary.latentCiDebt}\nNON-CI TECHNICAL DEBT: ${result.summary.nonCiTechnicalDebt}\nDELETION CANDIDATES: ${result.summary.deletionCandidates}\nUNPROVEN: ${result.summary.unproven}\n\nNo zero-debt claim is emitted without inventory-backed findings.\n`);
 console.log(`TECHNICAL_DEBT_AUDIT_SHA=${sha}`);
 console.log(`TRACKED_FILES=${result.inventory.trackedFiles}`);
 console.log(`DIRECT_CI_BLOCKERS=${result.summary.directCiBlockers}`);
