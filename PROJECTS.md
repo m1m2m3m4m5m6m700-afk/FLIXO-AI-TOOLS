@@ -17,10 +17,11 @@ ADMIN-006 = CLOSED / VERIFIED
 ADMIN-007 = CLOSED / VERIFIED
 ADMIN-008 = CLOSED / VERIFIED
 RELEASE-001 = CLOSED / VERIFIED
+I18N-001 = CLOSED / VERIFIED
 SUPABASE PROJECT = zrpsmgdrtwzrhkjwwujo / ACTIVE_HEALTHY
 VERCEL PRODUCTION BINDING = EXACT-SHA PRODUCTION IDENTITY PROVEN
 PRODUCTION MUTATION = DISABLED
-I18N-001 REPAIR = IMPLEMENTED ON MAIN / FRESH CI EVIDENCE REQUIRED
+I18N-001 REPAIR = VERIFIED ON MAIN / FRESH CANONICAL CI PASS
 ```
 
 ## TASK QUEUE
@@ -34,8 +35,8 @@ I18N-001 REPAIR = IMPLEMENTED ON MAIN / FRESH CI EVIDENCE REQUIRED
 | ADMIN-007 | CLOSED / VERIFIED | Preserve capability contract and server-boundary proof |
 | ADMIN-008 | CLOSED / VERIFIED | Preserve final production certification and evidence |
 | RELEASE-001 | CLOSED / VERIFIED | Preserve exact release evidence and do not reopen without a new deterministic blocker |
+| I18N-001 | CLOSED / VERIFIED | Preserve canonical Seed UI ownership and regression proof |
 | BUILD-002 | ACTIVE | Verify canonical build-identity producer/consumer regression on fresh exact SHA; then close only with full evidence |
-| I18N-001 | CANDIDATE | Runtime ownership trace |
 | TEST-001 | CANDIDATE | Ownership inventory |
 | DEBT-001 | CANDIDATE | Fresh-failure/value review |
 | TOOL-EXPANSION | CANDIDATE | Select smallest proven candidate |
@@ -82,6 +83,20 @@ INVARIANT PROOF = PASS via immutable artifact verification, exact-SHA identity c
 CLOSURE EVIDENCE = RECORDED
 ```
 
+## I18N-001
+
+```text
+CLOSED / VERIFIED
+PURPOSE = Runtime locale ownership and UI-string ownership hardening
+VERIFIED EXACT MAIN SHA = 92862289b4fab234a8eea1595ca4bb8f644d7a4c
+VERIFIED CI RUN = 35113721226
+REPAIR SHA = 40786637552d8c0268fd4b9de579c104f58726ab
+REPAIR = removed local DEFAULT_SEED_UI fallback ownership and consumed canonical EN_SEED_UI from src/lib/i18n/locales/en.ts
+TARGETED REGRESSION = PASS via fresh canonical FLIXO Test System run
+INVARIANT PROOF = PASS: Seed UI ownership is canonical and the local duplicate fallback is absent on main
+CLOSURE EVIDENCE = RECORDED
+```
+
 ## BUILD-002
 
 ```text
@@ -105,17 +120,6 @@ STATUS = IMPLEMENTED / AWAITING FRESH CANONICAL CI EVIDENCE
 CURRENT IMPLEMENTATION SHA = e927e76f814bb364eb3381c7bac37c7be73bb143
 CI RUN = 35107013374 (pending at last observation)
 CLOSURE RULE = do not mark BUILD-002 CLOSED until fresh exact-SHA Static + Build, Browser FAST/DEEP, Certification, and invariant evidence all pass.
-```
-
-## I18N-001 REPAIR EVIDENCE
-
-```text
-SCOPE = Seed tool runtime UI string ownership
-REPAIR = remove local DEFAULT_SEED_UI fallback ownership and consume canonical EN_SEED_UI from src/lib/i18n/locales/en.ts
-REPAIR SHA = 40786637552d8c0268fd4b9de579c104f58726ab
-CURRENT MAIN CONTAINS REPAIR = YES
-FRESH CI = REQUIRED; bot-authored push did not create the canonical test-system run
-STATUS = EVIDENCE PENDING
 ```
 
 ## GOVERNANCE
