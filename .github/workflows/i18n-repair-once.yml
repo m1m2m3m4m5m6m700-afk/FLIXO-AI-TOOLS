@@ -1,0 +1,40 @@
+name: I18N Repair Once
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Repair Seed UI ownership
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'src/tools/seed/index.tsx';
+          let s = fs.readFileSync(path, 'utf8');
+          const before = s;
+          s = s.replace("import { getTranslationBundle, type Locale } from '../../lib/i18n';\n", "import { getTranslationBundle, type Locale } from '../../lib/i18n';\nimport { EN_SEED_UI } from '../../lib/i18n/locales/en';\n");
+          s = s.replace(/const DEFAULT_SEED_UI: SeedUiTranslations = \{[\s\S]*?\n\};\n\n/, '');
+          s = s.replace('useState<SeedUiTranslations>(DEFAULT_SEED_UI)', 'useState<SeedUiTranslations>(EN_SEED_UI)');
+          s = s.replaceAll('setSeedUi({ ...DEFAULT_SEED_UI, ...(bundle.seedUi ?? {}) })', 'setSeedUi({ ...EN_SEED_UI, ...(bundle.seedUi ?? {}) })');
+          s = s.replaceAll('setSeedUi(DEFAULT_SEED_UI)', 'setSeedUi(EN_SEED_UI)');
+          if (s === before) {
+            if (s.includes('DEFAULT_SEED_UI')) throw new Error('Seed UI fallback still exists but no patch was applied');
+            console.log('No repair needed');
+            process.exit(0);
+          }
+          if (s.includes('DEFAULT_SEED_UI')) throw new Error('DEFAULT_SEED_UI remains after repair');
+          if (!s.includes("import { EN_SEED_UI } from '../../lib/i18n/locales/en';")) throw new Error('Canonical EN_SEED_UI import missing');
+          fs.writeFileSync(path, s);
+          NODE
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/tools/seed/index.tsx
+          if git diff --cached --quiet; then echo 'No changes'; exit 0; fi
+          git commit -m 'fix(i18n): remove local Seed UI fallback ownership'
+          git push
