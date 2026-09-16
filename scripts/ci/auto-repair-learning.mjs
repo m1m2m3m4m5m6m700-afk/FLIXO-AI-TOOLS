@@ -6,32 +6,59 @@ export function normalizeFailure(text) {
   return text
     .replace(/\b\d{8,}\b/g, '<RUN>')
     .replace(/[0-9a-f]{40}/gi, '<SHA>')
+    .replace(/\b(?:chromium|firefox|webkit)\b/gi, '<BROWSER>')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 1600);
 }
 
+export function fingerprintFailure(text) {
+  return normalizeFailure(text);
+}
+
 export function loadMemory() {
-  if (!fs.existsSync(memoryPath)) return { version: 2, cases: [], playbooks: [] };
+  if (!fs.existsSync(memoryPath)) return { version: 3, cases: [], playbooks: [] };
   try {
     const value = JSON.parse(fs.readFileSync(memoryPath, 'utf8'));
-    return { version: 2, cases: [], playbooks: [], ...value };
+    return { version: 3, cases: [], playbooks: [], ...value };
   } catch {
-    return { version: 2, cases: [], playbooks: [] };
+    return { version: 3, cases: [], playbooks: [] };
   }
 }
 
-export function recordOutcome(memory, { fingerprint, rule, outcome, verification }) {
-  const entry = memory.cases.find((item) => item.fingerprint === fingerprint) ?? {
-    fingerprint, attempts: 0, successes: 0, failures: 0, rules: [], outcomes: [],
+export function findCase(memory, fingerprint) {
+  return memory.cases.find((item) => item.fingerprint === fingerprint);
+}
+
+export function scorePlaybook(memory, rootCause, rule) {
+  const records = memory.playbooks.filter((item) => item.rootCause === rootCause && item.rule === rule);
+  const attempts = records.reduce((sum, item) => sum + item.attempts, 0);
+  const successes = records.reduce((sum, item) => sum + item.successes, 0);
+  return attempts ? successes / attempts : 0;
+}
+
+export function recordOutcome(memory, { fingerprint, rootCause, rule, outcome, verification }) {
+  const entry = findCase(memory, fingerprint) ?? {
+    fingerprint, rootCause, attempts: 0, successes: 0, failures: 0, rules: [], outcomes: [],
   };
+  entry.rootCause = rootCause ?? entry.rootCause ?? 'unknown';
   entry.attempts += 1;
   if (outcome === 'success') entry.successes += 1;
   else entry.failures += 1;
   if (rule) entry.rules = [...new Set([...entry.rules, rule])];
-  entry.outcomes.push({ outcome, verification, at: new Date().toISOString() });
+  entry.outcomes.push({ outcome, verification, rule, at: new Date().toISOString() });
   entry.outcomes = entry.outcomes.slice(-10);
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
+
+  if (rule) {
+    const playbook = memory.playbooks.find((item) => item.rootCause === entry.rootCause && item.rule === rule)
+      ?? { rootCause: entry.rootCause, rule, attempts: 0, successes: 0, failures: 0 };
+    playbook.attempts += 1;
+    if (outcome === 'success') playbook.successes += 1;
+    else playbook.failures += 1;
+    playbook.successRate = playbook.successes / playbook.attempts;
+    if (!memory.playbooks.includes(playbook)) memory.playbooks.push(playbook);
+  }
   return memory;
 }
 
