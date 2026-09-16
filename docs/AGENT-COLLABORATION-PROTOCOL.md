@@ -1,219 +1,117 @@
-# 🔐 FLIXO Multi-Agent Collaboration Protocol v4
+# 🔐 FLIXO Multi-Agent Collaboration Protocol v5
 
 ## Mandatory entry contract
+`AGENTS.md` is the MANDATORY ENTRY TITLE for autonomous coding, debugging, CI, auditing, recovery, and release work.
 
-`AGENTS.md` is the repository-wide entry title for every autonomous agent performing coding, debugging, CI, auditing, recovery, or release work.
-
-Before any repository action, every agent MUST read:
-
-1. `AGENTS.md`
-2. `docs/AGENT-COLLABORATION-PROTOCOL.md`
-3. `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`
-4. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
-5. `docs/PROTOCOL-HIERARCHY.md`
-6. `docs/PROTOCOL-REGISTRY.json`
-7. `docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json`
-8. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-9. `scripts/ci/test-plan.json`
-10. `scripts/ci/assertion-registry.json`
-11. the current exact `main` SHA and current workflow state
+Before repository action, the agent MUST read `AGENTS.md`, this protocol, `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`, `docs/AGENT-COORDINATION-CONTROL-PLANE.md`, `docs/PROTOCOL-HIERARCHY.md`, `docs/PROTOCOL-REGISTRY.json`, `docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json`, the CI architecture, test plan, assertion registry, and the current exact `main` SHA/workflow state.
 
 Reading is part of the execution contract.
 
 ## Assistant ↔ execution-agent cooperation contract
+Three roles exist:
+- **Assistant/controller:** interprets user intent, plans, prioritizes, reviews evidence, challenges ambiguity, and decides continue/narrow/escalate/close.
+- **Execution agent:** investigates, performs bounded mutations, verifies, records provenance, challenges unsafe instructions, and returns machine-readable evidence.
+- **Certification authority:** independently certifies repository state; neither controller nor execution agent may self-certify.
 
-The repository distinguishes three roles:
+Every material delegation uses:
+`messageId + actor + intent + taskId + scope + entrySha + risk + expectedEvidence + stopConditions + proofObligations`.
 
-- **Assistant/controller:** interprets the user's objective, decomposes work, prioritizes tasks, reviews evidence, and decides whether to continue, narrow, escalate, or close.
-- **Execution agent:** performs repository investigation and bounded mutations, executes verification, records provenance, and returns machine-readable evidence.
-- **Certification authority:** independently certifies repository state. The controller and execution agent cannot self-certify.
+Every completion returns:
+`status + exitSha + changedFiles + commands + evidenceRefs + remainingWork + openRcas + nextAction + decisionTrace + verificationState`.
 
-Every material delegation MUST carry this minimum envelope:
-
-`messageId + actor + intent + taskId + scope + entrySha + risk + expectedEvidence + stopConditions`.
-
-Every completion MUST return:
-
-`status + exitSha + changedFiles + commands + evidenceRefs + remainingWork + openRcas + nextAction`.
-
-### Cooperation laws
-
-1. **Explicit intent:** the execution agent acts on an explicit objective; it must not invent a broader objective.
-2. **Bounded authority:** user intent does not bypass repository policy, protected paths, security gates, ownership locks, or certification rules.
-3. **Evidence over assertion:** neither side may claim PASS, VERIFIED, FIXED, DEPLOYED, or CLOSED without exact-SHA evidence.
-4. **Fresh-state rule:** before material work, refresh the exact repository SHA and workflow state; stale handoffs are input, not proof.
-5. **Checkpoint before risk:** before high-risk mutation, record RCA, scope, risk class, rollback plan, expected regression, and stop conditions.
-6. **No silent scope expansion:** newly discovered work becomes a new task/RCA or an explicit approved scope extension with refreshed evidence.
-7. **Stop-and-escalate:** protected-path, destructive, security-sensitive, ambiguous, conflicting, malformed-evidence, or authority-boundary events stop execution rather than being guessed through.
-8. **Independent certification:** execution evidence and coordination state never substitute for canonical certification.
-9. **Structured feedback:** failures return evidence, RCA, failed strategy, attempted commands, remaining work, and the next safest action.
-10. **Learning without authority:** memory, confidence, prior success, and anti-lessons can guide strategy selection but never grant new permissions or weaken gates.
-11. **Handoff integrity:** ownership transfers only through a closed session handoff containing exact SHA, changed files, open RCAs, remaining work, blockers, evidence, and next plan.
-12. **User-agency preservation:** when multiple technically valid paths remain, the controller presents the material trade-offs and does not silently convert an unresolved preference into an irreversible product decision.
+## Cooperation laws
+1. **Explicit intent:** no invented broader objective.
+2. **Bounded authority:** user intent cannot bypass policy, protected paths, security gates, locks, or certification.
+3. **Evidence over assertion:** no PASS/VERIFIED/FIXED/DEPLOYED/CLOSED without exact-SHA evidence.
+4. **Fresh-state rule:** stale handoffs are input, never proof; repository movement invalidates stale assumptions.
+5. **Checkpoint before risk:** high-risk mutation requires RCA, scope, risk, rollback, regression and stop conditions.
+6. **Challenge-before-mutation:** ambiguous, contradictory, stale, causally weak, or insufficient instructions MUST be challenged before mutation.
+7. **No silent scope expansion:** new work becomes a new task/RCA or an explicitly approved scope extension with refreshed evidence.
+8. **Stop-and-escalate:** protected-path, destructive, security-sensitive, ambiguous, conflicting, malformed-evidence, or authority-boundary events stop execution.
+9. **Independent review:** HIGH and CRITICAL changes require a verification pass distinct from the mutation author.
+10. **Independent certification:** coordination state never substitutes for canonical certification.
+11. **Structured feedback:** failures return evidence, RCA, failed strategy, commands, remaining work, and safest next action.
+12. **Learning without authority:** memory, confidence, prior success and anti-lessons guide strategy but never grant permissions or weaken gates.
+13. **Decision trace:** material decisions record rationale, rejected alternatives, evidence basis, risk class, and reviewer/verification state.
+14. **Handoff integrity:** ownership transfers only through a closed session handoff with exact SHA, RCA state, evidence and next plan.
+15. **User-agency preservation:** unresolved product choices remain explicit decisions rather than hidden irreversible assumptions.
 
 ## Agent login
+Before changing repository state, register `diagnostics/agents/sessions/<sessionId>.json` through `scripts/ci/agent-session.mjs`.
 
-Before changing repository state, an agent MUST register a unique session at:
+Required session fields include `schemaVersion, sessionId, agentId, role, entrySha, baseSha, startedAt, scope, readFiles, currentRca, status`.
 
-`diagnostics/agents/sessions/<sessionId>.json`
-
-Required fields include:
-
-`schemaVersion, sessionId, agentId, role, entrySha, baseSha, startedAt, scope, readFiles, currentRca, status`.
-
-Initial status: `RUNNING`.
-
-When a prior handoff exists, login MUST continue from a closed predecessor session:
-
+When a prior handoff exists, continuation requires:
 `node scripts/ci/agent-session.mjs login --session=<id> --agent=<id> --role=<role> --from-session=<previous-session> ...`
 
-The only exception is an explicit first-chain bootstrap using `--bootstrap=true`.
-
-A continuation login records the predecessor's `exitSha`, unresolved work, open RCAs, and next execution plan in the new session.
+Only the first chain may use `--bootstrap=true`.
 
 ## Central coordination control plane
+Canonical control plane:
+- `diagnostics/agents/coordination-state.json`
+- `diagnostics/agents/coordination-locks.json`
+- `diagnostics/agents/task-packets/<TASK_ID>.json`
+- `scripts/ci/agent-coordination.mjs`
 
-All multi-agent execution MUST use the canonical control plane:
-
-`diagnostics/agents/coordination-state.json`
-
-`diagnostics/agents/coordination-locks.json`
-
-`diagnostics/agents/task-packets/<TASK_ID>.json`
-
-The canonical coordinator is `scripts/ci/agent-coordination.mjs`.
-
-Tasks are claimed before implementation. Task dependencies must be complete before a dependent task is claimable. One active owner is allowed for each RCA and each overlapping mutable scope. Conflicting claims MUST fail closed.
-
-A task cannot become `DONE` while `remainingWork` or `openRcas` exist.
+Tasks are claimed before implementation. Dependencies must be DONE before dependent claims. Overlapping RCA/file scopes have one active owner. Conflicts MUST fail closed.
 
 ## Ownership lock
-
-Every active session declares:
-
-`RCA + file scope + contract scope + execution surface`.
-
-There is one active owner per RCA and one active owner per mutable file scope unless ownership is explicitly transferred through a handoff.
-
-If `main` moves, the agent MUST refresh the current exact SHA before continuing.
+Every active session declares `RCA + file scope + contract scope + execution surface`. If `main` moves, refresh the exact SHA before continuing.
 
 ## Action ledger
-
-Meaningful work follows:
-
-`READ → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK → CLAIM TASK → CHANGE → TARGETED REGRESSION → AFFECTED CONTRACT VERIFICATION → EXACT-SHA PROOF → HANDOFF`
-
-The session record MUST retain the actual commands/actions and exact SHA lineage. It MUST NOT claim work that did not occur.
+`READ → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK → CLAIM TASK → CHANGE → TARGETED REGRESSION → AFFECTED CONTRACT VERIFICATION → INDEPENDENT REVIEW (when required) → EXACT-SHA PROOF → HANDOFF`
 
 ## Root-Cause-First Repair Protocol
-
-Every repair MUST eliminate the causal defect, not merely hide its observable symptom.
-
-Before code changes, the active owner MUST assign a unique RCA-ID and record the causal chain:
-
+Every persistent repair records:
 `trigger → propagation path → violated invariant → responsible source → observable symptom`.
 
-The fix MUST correct or remove the responsible source. The following are explicitly non-repairs: weakening assertions, suppressing errors, silent skips, broad allowlists, expected-value changes that accommodate broken behavior, retries of deterministic failures, deleting coverage, changing test ownership to evade failure, or moving the same defect to another layer.
+The causal source must be corrected. Weakening assertions, suppressing errors, silent skips, broad allowlists, accommodating expected values, deterministic retries, deleting coverage, changing test ownership to evade failure, or moving the defect to another layer are not repairs.
 
-Every repair MUST include a targeted regression that fails against the pre-repair behavior and passes because the causal defect is corrected. The regression belongs at the affected contract boundary or the nearest authoritative boundary.
+Every repair needs a targeted regression that fails before the repair and passes because the causal defect is corrected, plus affected dependency/contract graph verification.
 
-Every repair MUST also verify the affected dependency/contract graph, because a local green test does not prove system-level correctness.
-
-RCA closure is valid only when all five proof obligations are satisfied:
-
+RCA closure requires:
 `mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure`.
 
-A repair that causes a new deterministic failure is not closed. The new defect receives its own RCA-ID and recovery resumes from the new exact SHA.
-
-A session MUST NOT report `VERIFIED` while an RCA is open, a symptom-only workaround remains, required coverage was removed, or an independent root cause remains unresolved.
+A new deterministic failure gets a new RCA-ID. A session MUST NOT report VERIFIED with an open RCA, symptom-only workaround, removed required coverage, or unresolved independent root cause.
 
 ## Canonical protocol registry
-
-`docs/PROTOCOL-REGISTRY.json` is the single machine-readable inventory of approved execution protocols. It currently contains exactly 20 mandatory protocols grouped by family. Protocol identity, status, invariant, and authoritative enforcement boundary MUST be maintained there.
-
-Agents MUST NOT create a parallel protocol inventory in another file. Requirements that belong to an existing registry protocol MUST extend that protocol rather than create a duplicate.
+`docs/PROTOCOL-REGISTRY.json` is the single protocol inventory. It contains exactly 20 mandatory protocols. Compatible requirements MUST extend an existing protocol rather than create a duplicate. P20 now governs agent ownership, continuity, handoff, challenge-before-mutation, decision provenance, and risk-tiered independent review.
 
 ## Mandatory session handoff report
+Every completed session creates `diagnostics/agents/handoffs/<sessionId>.json` through `scripts/ci/agent-session.mjs logout`.
 
-Every completed session MUST create:
+The report separates `completedWork`, `failedWork`, `remainingWork`, `executionPlanNext`, `blockers`, and `handoffToNextAgent`, and records exact entry/exit SHA, RCA state, changed files, commands and evidence.
 
-`diagnostics/agents/handoffs/<sessionId>.json`
-
-using the canonical handoff report schema in `docs/AGENT-HANDOFF-REPORT-SCHEMA.md`.
-
-The report MUST state, explicitly and separately:
-
-`completedWork` — actually performed and verified.
-
-`failedWork` — attempted but not proven successful.
-
-`remainingWork` — unresolved execution work.
-
-`executionPlanNext` — ordered continuation plan. The next agent MUST ingest it as input state and MUST NOT treat it as proof of completion.
-
-`blockers` — blockers that prevented closure.
-
-`handoffToNextAgent` — explicit operational continuation instructions.
-
-## Handoff
-
-Every completed session records:
-
-`sessionId, agentId, entrySha, exitSha, RCA status, changedFiles, commands, evidence, findings, rcaClosed, openRcas, remainingWork, executionPlanNext, blockers, handoff`.
-
-The next agent must be able to continue without guessing what the previous agent changed, verified, failed to verify, or intentionally left open.
+Handoff is continuity evidence only, never certification evidence.
 
 ## Evidence and provenance
-
-Primary evidence MUST be attributable to one exact SHA and one run.
-
-Agents MUST NOT reuse stale evidence, convert diagnostic evidence into primary evidence, mask malformed evidence, or declare PASS from a summary without supporting execution records.
-
-Handoff reports are continuity evidence only. They are not certification evidence.
+Primary evidence MUST be attributable to one exact SHA and one run. Diagnostic evidence cannot be promoted into primary certification evidence. Malformed or stale evidence is non-success.
 
 ## Failure and RCA
-
 `FAIL`, `CANCELLED`, `BLOCKED`, `NOT_EXECUTED`, `MISSING_EVIDENCE`, and `MALFORMED_EVIDENCE` are non-success states.
 
-Persistent failures receive a Root Cause ID. Closure requires the full Root-Cause-First Repair Protocol; a green symptom without causal closure is not success.
-
 ## Conflict protocol
-
-When two agents overlap:
-
-1. Freeze the conflicting scope.
+1. Freeze conflicting scope.
 2. Compare session IDs and base/exit SHAs.
-3. Compare inherited handoff reports.
-4. Query the coordination lock ledger.
-5. Identify the newest authoritative repository state.
-6. Retain one active owner.
-7. Record the transfer in handoff.
-8. Re-run affected verification on the resulting exact SHA.
+3. Compare handoffs.
+4. Query coordination locks.
+5. Select newest authoritative repository state.
+6. Retain one owner.
+7. Record transfer.
+8. Re-run affected verification on resulting exact SHA.
 
 No silent conflict resolution.
 
 ## Certification separation
-
-Agents may produce evidence and diagnostics, but only the canonical certification authority may issue the repository's final certification result.
+Agents produce evidence; only canonical certification may issue final repository certification.
 
 ## Logout
-
-A session ends only as `VERIFIED` or `BLOCKED` and MUST create the handoff report automatically through:
-
-`node scripts/ci/agent-session.mjs logout ...`
-
-`VERIFIED` is forbidden while failed work, remaining work, or open RCAs exist.
-
-`BLOCKED` requires an explicit unresolved item.
+A session ends only as VERIFIED or BLOCKED through `scripts/ci/agent-session.mjs logout`.
+VERIFIED is forbidden while failed work, remaining work, or open RCAs exist. BLOCKED requires an explicit unresolved item.
 
 ## Enforcement
+CI MUST verify the mandatory entry gate, collaboration protocol, protocol hierarchy, canonical protocol registry, handoff schema, coordination control plane, session tool, Root-Cause-First Repair Protocol, assistant-agent cooperation contract, and centralized repair-proof controls.
 
-CI MUST verify that the mandatory entry gate, this protocol, the protocol hierarchy, the canonical protocol registry, the handoff schema, the coordination control plane, the session tool, the Root-Cause-First Repair Protocol, and the assistant-agent cooperation contract exist and retain their required contract markers.
-
-The session tool MUST enforce predecessor handoff continuity whenever a prior handoff exists, and MUST emit a machine-readable handoff report at logout.
-
-The coordination tool MUST reject overlapping active ownership and incomplete dependencies.
-
-Removing, bypassing, weakening, duplicating, or silently ignoring the collaboration, coordination, protocol hierarchy, protocol registry, or root-cause repair controls MUST fail the repository contract gate.
+Removing, bypassing, weakening, duplicating, or silently ignoring these controls MUST fail the repository contract gate.
 
 This protocol coordinates agents; it is not an authentication mechanism. Repository evidence remains authoritative.
