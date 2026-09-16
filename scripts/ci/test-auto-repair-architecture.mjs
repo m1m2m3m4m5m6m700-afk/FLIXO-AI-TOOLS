@@ -9,6 +9,7 @@ import { summarizeDiff } from './auto-repair/evidence.mjs';
 import { runRegression } from './auto-repair/regression.mjs';
 import { snapshot } from './auto-repair/rollback.mjs';
 import { runAstRepair } from './auto-repair/ast-repair.mjs';
+import { validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
 
 const sample = 'Run 35012345678 failed: abcdefabcdefabcdefabcdefabcdefabcdefabcd no-unused-vars';
 const normalized = normalizeFailure(sample);
@@ -32,5 +33,29 @@ assert.equal(repairPolicy.maxChangedLines, 300);
 assert.equal(planRepair('webkit waitForGpuRender timeout').selected, null);
 assert.equal(planRepair('typescript TS2322 type error').selected, null);
 assert.equal(planRepair('certification FAST 66 DEEP 60').selected, null);
+
+const proofInput = {
+  targetSha: 'a'.repeat(40),
+  changedPaths: ['src/example.ts'],
+  diff: { files: ['src/example.ts'], lines: 2 },
+  regression: { ok: true },
+};
+const goodProof = validateRepairProof({
+  evidence: proofInput,
+  rootCauseProof: { reproductionWasFailing: true, reproductionRecovered: true, regressionPassed: true, commandsPresent: true },
+  recurrenceProof: { required: true, firstPass: true, secondPass: true },
+});
+assert.equal(goodProof.ok, true);
+assert.deepEqual(goodProof.failures, []);
+const badProof = validateRepairProof({
+  evidence: proofInput,
+  rootCauseProof: { reproductionWasFailing: true, reproductionRecovered: false, regressionPassed: true, commandsPresent: true },
+  recurrenceProof: { required: true, firstPass: true, secondPass: false },
+});
+assert.equal(badProof.ok, false);
+assert(badProof.failures.includes('root-cause-proof-reproductionRecovered'));
+assert(badProof.failures.includes('recurrence-proof-second-pass'));
+assert.match(preventionRuleFor({ fingerprint: 'abc', rule: 'eslint-unused' }), /abc/);
+assert.match(escalationReason(badProof), /^repair-proof-incomplete:/);
 
 console.log('AUTO_REPAIR_ARCHITECTURE_SELF_TEST=PASS');
