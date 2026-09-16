@@ -1,0 +1,41 @@
+name: temporary-seed-repair
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: startsWith(github.event.head_commit.message, 'chore(ci): bootstrap seed repair')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Apply Seed GPU history repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/tools/seed/index.tsx')
+          s = p.read_text()
+          old = """  const undo = () => {\n    if (historyIndex === 0) return;\n    const next = cloneSnapshot(history[historyIndex - 1]);\n    renderSettingsRef.current = next.basic;\n    setHistoryIndex(historyIndex - 1); setSettings(next.basic); setAdvanced(next.advanced);\n  };\n  const redo = () => {\n    if (historyIndex >= history.length - 1) return;\n    const next = cloneSnapshot(history[historyIndex + 1]);\n    renderSettingsRef.current = next.basic;\n    setHistoryIndex(historyIndex + 1); setSettings(next.basic); setAdvanced(next.advanced);\n  };"""
+          new = """  const undo = () => {\n    if (historyIndex === 0) return;\n    const next = cloneSnapshot(history[historyIndex - 1]);\n    renderSettingsRef.current = next.basic;\n    setHistoryIndex(historyIndex - 1); setSettings(next.basic); setAdvanced(next.advanced);\n    try { renderGpu(next.basic); } catch (cause) {\n      const message = cause instanceof Error ? cause.message : 'GPU rendering failed.';\n      queueMicrotask(() => setError(message));\n    }\n  };\n  const redo = () => {\n    if (historyIndex >= history.length - 1) return;\n    const next = cloneSnapshot(history[historyIndex + 1]);\n    renderSettingsRef.current = next.basic;\n    setHistoryIndex(historyIndex + 1); setSettings(next.basic); setAdvanced(next.advanced);\n    try { renderGpu(next.basic); } catch (cause) {\n      const message = cause instanceof Error ? cause.message : 'GPU rendering failed.';\n      queueMicrotask(() => setError(message));\n    }\n  };"""
+          if old not in s:
+              raise SystemExit('undo/redo block not found')
+          s = s.replace(old, new, 1)
+          old2 = "onChange={(value) => updateSetting('shadows', value)} /><StudioSlider label={seedUi.shadows}"
+          new2 = "onChange={(value) => updateSetting('highlights', value)} /><StudioSlider label={seedUi.shadows}"
+          if old2 not in s:
+              raise SystemExit('highlight handler repair target not found')
+          s = s.replace(old2, new2, 1)
+          p.write_text(s)
+          PY
+          git rm .github/workflows/repair-seed.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/tools/seed/index.tsx
+          git commit -m 'fix(seed): render undo redo directly in GPU path'
+          git push origin HEAD:main
