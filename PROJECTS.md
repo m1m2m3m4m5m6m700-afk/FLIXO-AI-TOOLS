@@ -9,14 +9,14 @@
 ```text
 BRANCH = main
 CURRENT MAIN SHA = AUTHORITATIVE BRANCH REF
-ACTIVE TASK = RELEASE-001 → ACTIVE
+ACTIVE TASK = BUILD-002 → ACTIVE
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = CLOSED / VERIFIED
 ADMIN-005 = CLOSED / VERIFIED
 ADMIN-006 = CLOSED / VERIFIED
 ADMIN-007 = CLOSED / VERIFIED
 ADMIN-008 = CLOSED / VERIFIED
-RELEASE-001 = ACTIVE
+RELEASE-001 = CLOSED / VERIFIED
 SUPABASE PROJECT = zrpsmgdrtwzrhkjwwujo / ACTIVE_HEALTHY
 VERCEL PRODUCTION BINDING = EXACT-SHA PRODUCTION IDENTITY PROVEN
 PRODUCTION MUTATION = DISABLED
@@ -32,8 +32,8 @@ PRODUCTION MUTATION = DISABLED
 | ADMIN-006 | CLOSED / VERIFIED | Preserve persistence evidence and exact-SHA roundtrip proof |
 | ADMIN-007 | CLOSED / VERIFIED | Preserve capability contract and server-boundary proof |
 | ADMIN-008 | CLOSED / VERIFIED | Preserve final production certification and evidence |
-| RELEASE-001 | ACTIVE | Run final launch-readiness gates on fresh exact release SHA |
-| BUILD-002 | CANDIDATE | Fresh artifact graph analysis |
+| RELEASE-001 | CLOSED / VERIFIED | Preserve exact release evidence and do not reopen without a new deterministic blocker |
+| BUILD-002 | ACTIVE | Fresh artifact-graph analysis; identify build artifact ownership, identity, and regression boundaries |
 | I18N-001 | CANDIDATE | Runtime ownership trace |
 | TEST-001 | CANDIDATE | Ownership inventory |
 | DEBT-001 | CANDIDATE | Fresh-failure/value review |
@@ -67,11 +67,28 @@ DEPLOYMENT EVIDENCE UPLOAD = PASS
 ## RELEASE-001
 
 ```text
-ACTIVE
+CLOSED / VERIFIED
 PURPOSE = Final deterministic gate before public production release
-ADMIN-008 = CLOSED / VERIFIED
-REQUIRED = fresh exact-SHA CI/certification evidence plus all R01→R09 launch gates
-EXECUTION CHECKPOINT = 2026-09-16; canonical main SHA refreshed through this ledger change; fresh CI evidence required before closure
+VERIFIED EXACT SHA = 6e338cb3c1f35abe458c3316b5ff036ad8dcc7cb
+VERIFIED CI RUN = 35065020358
+STATIC + BUILD = PASS
+BROWSER FAST = PASS (Chromium / Firefox / WebKit)
+BROWSER DEEP = PASS (Chromium / Firefox / WebKit)
+CERTIFICATION = PASS
+CERTIFICATION EVIDENCE = flixo-certification-evidence-35065020358
+TARGETED REGRESSION = PASS via complete static/build + FAST/DEEP browser matrix and certification execution graph
+INVARIANT PROOF = PASS via immutable artifact verification, exact-SHA identity checks, execution-graph completeness, and CI/CD trust validation
+CLOSURE EVIDENCE = RECORDED
+```
+
+## BUILD-002
+
+```text
+ACTIVE
+PURPOSE = Deterministic artifact-graph analysis after release certification
+ENTRY BASIS = RELEASE-001 closure evidence confirmed on exact SHA 6e338cb3c1f35abe458c3316b5ff036ad8dcc7cb
+SCOPE = map build artifacts → producers → consumers → immutable identity checks → deployment/certification evidence
+GUARDRAIL = no production mutation; analysis and bounded fixes only
 ```
 
 ## GOVERNANCE
