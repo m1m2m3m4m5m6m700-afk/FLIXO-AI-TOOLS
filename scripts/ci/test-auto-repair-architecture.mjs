@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { fingerprintFailure, normalizeFailure } from './auto-repair-learning.mjs';
+import { fingerprintFailure, normalizeFailure, rankLessons } from './auto-repair-learning.mjs';
 import { planRepair } from './auto-repair/planner.mjs';
 import { isPathAllowed, isProtectedPath, repairPolicy } from './auto-repair-policy.mjs';
 import { confidenceGate } from './auto-repair/confidence.mjs';
@@ -57,5 +57,17 @@ assert(badProof.failures.includes('root-cause-proof-reproductionRecovered'));
 assert(badProof.failures.includes('recurrence-proof-second-pass'));
 assert.match(preventionRuleFor({ fingerprint: 'abc', rule: 'eslint-unused' }), /abc/);
 assert.match(escalationReason(badProof), /^repair-proof-incomplete:/);
+
+const learnedFingerprint = fingerprintFailure('eslint no-unused-vars');
+const ranked = rankLessons({
+  version: 6,
+  cases: [],
+  playbooks: [],
+  lessons: [{ id: 'good', fingerprint: learnedFingerprint, rootCause: 'eslint-specialist', rule: 'eslint-unused', confidence: 1 }],
+  antiLessons: [{ id: 'bad', fingerprint: learnedFingerprint, rootCause: 'eslint-specialist', rule: 'eslint-unused', confidence: 1 }],
+}, { fingerprint: learnedFingerprint });
+assert.equal(ranked[0].anti, undefined);
+assert.equal(ranked[0].rule, 'eslint-unused');
+assert.equal(ranked.at(-1).anti, true);
 
 console.log('AUTO_REPAIR_ARCHITECTURE_SELF_TEST=PASS');
