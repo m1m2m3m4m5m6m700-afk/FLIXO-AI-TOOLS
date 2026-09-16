@@ -1,4 +1,4 @@
-# 🔐 FLIXO Multi-Agent Collaboration Protocol v3
+# 🔐 FLIXO Multi-Agent Collaboration Protocol v4
 
 ## Mandatory entry contract
 
@@ -12,12 +12,44 @@ Before any repository action, every agent MUST read:
 4. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
 5. `docs/PROTOCOL-HIERARCHY.md`
 6. `docs/PROTOCOL-REGISTRY.json`
-7. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-8. `scripts/ci/test-plan.json`
-9. `scripts/ci/assertion-registry.json`
-10. the current exact `main` SHA and current workflow state
+7. `docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json`
+8. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+9. `scripts/ci/test-plan.json`
+10. `scripts/ci/assertion-registry.json`
+11. the current exact `main` SHA and current workflow state
 
 Reading is part of the execution contract.
+
+## Assistant ↔ execution-agent cooperation contract
+
+The repository distinguishes three roles:
+
+- **Assistant/controller:** interprets the user's objective, decomposes work, prioritizes tasks, reviews evidence, and decides whether to continue, narrow, escalate, or close.
+- **Execution agent:** performs repository investigation and bounded mutations, executes verification, records provenance, and returns machine-readable evidence.
+- **Certification authority:** independently certifies repository state. The controller and execution agent cannot self-certify.
+
+Every material delegation MUST carry this minimum envelope:
+
+`messageId + actor + intent + taskId + scope + entrySha + risk + expectedEvidence + stopConditions`.
+
+Every completion MUST return:
+
+`status + exitSha + changedFiles + commands + evidenceRefs + remainingWork + openRcas + nextAction`.
+
+### Cooperation laws
+
+1. **Explicit intent:** the execution agent acts on an explicit objective; it must not invent a broader objective.
+2. **Bounded authority:** user intent does not bypass repository policy, protected paths, security gates, ownership locks, or certification rules.
+3. **Evidence over assertion:** neither side may claim PASS, VERIFIED, FIXED, DEPLOYED, or CLOSED without exact-SHA evidence.
+4. **Fresh-state rule:** before material work, refresh the exact repository SHA and workflow state; stale handoffs are input, not proof.
+5. **Checkpoint before risk:** before high-risk mutation, record RCA, scope, risk class, rollback plan, expected regression, and stop conditions.
+6. **No silent scope expansion:** newly discovered work becomes a new task/RCA or an explicit approved scope extension with refreshed evidence.
+7. **Stop-and-escalate:** protected-path, destructive, security-sensitive, ambiguous, conflicting, malformed-evidence, or authority-boundary events stop execution rather than being guessed through.
+8. **Independent certification:** execution evidence and coordination state never substitute for canonical certification.
+9. **Structured feedback:** failures return evidence, RCA, failed strategy, attempted commands, remaining work, and the next safest action.
+10. **Learning without authority:** memory, confidence, prior success, and anti-lessons can guide strategy selection but never grant new permissions or weaken gates.
+11. **Handoff integrity:** ownership transfers only through a closed session handoff containing exact SHA, changed files, open RCAs, remaining work, blockers, evidence, and next plan.
+12. **User-agency preservation:** when multiple technically valid paths remain, the controller presents the material trade-offs and does not silently convert an unresolved preference into an irreversible product decision.
 
 ## Agent login
 
@@ -176,7 +208,7 @@ A session ends only as `VERIFIED` or `BLOCKED` and MUST create the handoff repor
 
 ## Enforcement
 
-CI MUST verify that the mandatory entry gate, this protocol, the protocol hierarchy, the canonical protocol registry, the handoff schema, the coordination control plane, the session tool, and the Root-Cause-First Repair Protocol exist and retain their required contract markers.
+CI MUST verify that the mandatory entry gate, this protocol, the protocol hierarchy, the canonical protocol registry, the handoff schema, the coordination control plane, the session tool, the Root-Cause-First Repair Protocol, and the assistant-agent cooperation contract exist and retain their required contract markers.
 
 The session tool MUST enforce predecessor handoff continuity whenever a prior handoff exists, and MUST emit a machine-readable handoff report at logout.
 
