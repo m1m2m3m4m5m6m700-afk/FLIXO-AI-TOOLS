@@ -8,7 +8,7 @@ const agent = fs.readFileSync('scripts/ci/task-agent.mjs', 'utf8');
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 
 assert.ok(taskFile.length > 0, 'مهام.md must exist and be non-empty');
-assert.match(contract, /PREPARATION_ONLY/);
+assert.match(contract, /preparation-only agent/i);
 assert.match(contract, /NO_SOURCE_MUTATION_NO_COMMIT_NO_PUSH/);
 assert.match(contract, /CODE_ONLY/);
 assert.match(agent, /preparedOnly: true/);
