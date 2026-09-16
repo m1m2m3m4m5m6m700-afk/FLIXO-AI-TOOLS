@@ -55,17 +55,53 @@ jobs:
           fetch-depth: 1
 
       - name: Prove promotion SHA is current main
+        id: guard
         shell: bash
         env:
           PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          set -euo pipefail
+          set -u
           git fetch --no-tags --depth=1 origin main
-          test "$(git rev-parse HEAD)" = "$PROMOTION_SHA"
-          test "$(git rev-parse origin/main)" = "$PROMOTION_SHA"
+          head_sha="$(git rev-parse HEAD)"
+          main_sha="$(git rev-parse origin/main)"
+
+          if [ "$head_sha" = "$PROMOTION_SHA" ] && [ "$main_sha" = "$PROMOTION_SHA" ]; then
+            echo "Exact promotion SHA is current main: $PROMOTION_SHA"
+            printf 'skip_deploy=false\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          reason="PROMOTION_SHA_NOT_CURRENT_MAIN"
+          if [ "$head_sha" != "$PROMOTION_SHA" ]; then
+            reason="CHECKOUT_SHA_MISMATCH"
+          elif [ "$main_sha" != "$PROMOTION_SHA" ]; then
+            reason="STALE_PROMOTION_SHA"
+          fi
+
+          jq -n \
+            --arg status "SKIPPED_STALE_SHA" \
+            --arg sha "$PROMOTION_SHA" \
+            --arg currentMain "$main_sha" \
+            --arg checkedOut "$head_sha" \
+            --arg reason "$reason" \
+            --arg origin "$FLIXO_PRODUCTION_ORIGIN" \
+            '{status:$status,sha:$sha,currentMain:$currentMain,checkedOut:$checkedOut,reason:$reason,origin:$origin,stage:"CURRENT_MAIN_GUARD"}' \
+            > production-deployment-evidence.json
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "Manual promotion rejected: $reason"
+            printf 'skip_deploy=false\n' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          echo "Automatic promotion skipped safely: $reason"
+          printf 'skip_deploy=true\n' >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: Resolve certified CI run by exact SHA
         id: ci
+        if: steps.guard.outputs.skip_deploy != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
@@ -126,6 +162,7 @@ jobs:
           exit 1
 
       - name: Download certified build artifact
+        if: steps.guard.outputs.skip_deploy != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
@@ -139,6 +176,7 @@ jobs:
 
       - name: Deploy immutable build to Vercel
         id: deploy
+        if: steps.guard.outputs.skip_deploy != 'true'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: team_LgeIYyf9ERfG3gNswQO4MiPX
@@ -166,6 +204,7 @@ jobs:
           fi
 
       - name: Production identity proof
+        if: steps.guard.outputs.skip_deploy != 'true'
         env:
           PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
           PRODUCTION_ORIGIN: ${{ env.FLIXO_PRODUCTION_ORIGIN }}
@@ -241,6 +280,12 @@ jobs:
 
           if [ "$status" = BLOCKED_EXTERNAL ]; then exit 0; fi
           if [ "$status" != PASS ]; then echo "Production identity proof failed: $reason"; exit 1; fi
+
+      - name: Write skipped deployment evidence
+        if: always() && steps.guard.outputs.skip_deploy == 'true'
+        shell: bash
+        run: |
+          test -s production-deployment-evidence.json
 
       - name: Upload deployment evidence
         if: always()
