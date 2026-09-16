@@ -62,7 +62,6 @@ export default function SeedTool({ locale = 'en' as Locale }: { locale?: Locale 
   const engineRef = useRef<SeedGLEngine | null>(null);
   const imageUrlRef = useRef<string | null>(null);
   const doubleExposureUrlRef = useRef<string | null>(null);
-  const renderFrameRef = useRef<number | null>(null);
   const renderRevisionRef = useRef(0);
   const activeParamsRef = useRef<SeedState>(DEFAULT_STATE);
   const renderSettingsRef = useRef<SeedRenderSettings>(DEFAULT_STATE);
@@ -116,9 +115,10 @@ export default function SeedTool({ locale = 'en' as Locale }: { locale?: Locale 
   }, []);
 
   const renderGpu = useCallback((nextSettings: SeedRenderSettings) => {
-    if (!engineRef.current) return;
+    if (!engineRef.current) return false;
     engineRef.current.render(nextSettings);
     markRenderComplete();
+    return true;
   }, [markRenderComplete]);
 
   const handleZoomIn = useCallback(() => setZoomLevel((previous) => Math.min(3, Number((previous + 0.25).toFixed(2)))), []);
@@ -133,18 +133,6 @@ export default function SeedTool({ locale = 'en' as Locale }: { locale?: Locale 
   const handleCompareEnd = useCallback(() => {
     if (!engineRef.current || !image) return;
     renderGpu(activeParamsRef.current);
-  }, [image, renderGpu]);
-
-  const scheduleRender = useCallback(() => {
-    if (!engineRef.current || !image) return;
-    if (renderFrameRef.current !== null) cancelAnimationFrame(renderFrameRef.current);
-    setIsRendering(true);
-    renderFrameRef.current = requestAnimationFrame(() => {
-      renderFrameRef.current = null;
-      try { renderGpu(renderSettingsRef.current); }
-      catch (cause) { setError(cause instanceof Error ? cause.message : 'GPU rendering failed.'); }
-      finally { setIsRendering(false); }
-    });
   }, [image, renderGpu]);
 
   useEffect(() => {
@@ -163,16 +151,22 @@ export default function SeedTool({ locale = 'en' as Locale }: { locale?: Locale 
       const message = cause instanceof Error ? cause.message : 'Unable to start GPU rendering.';
       queueMicrotask(() => setError(message));
     }
-    return () => {
-      if (renderFrameRef.current !== null) cancelAnimationFrame(renderFrameRef.current);
-      engineRef.current?.destroy(); engineRef.current = null;
-    };
+    return () => { engineRef.current?.destroy(); engineRef.current = null; };
   }, [image]);
 
-  useEffect(() => { scheduleRender(); }, [scheduleRender, settings]);
+  useEffect(() => {
+    if (!engineRef.current || !image) return;
+    setIsRendering(true);
+    try {
+      renderGpu(renderSettingsRef.current);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'GPU rendering failed.');
+    } finally {
+      setIsRendering(false);
+    }
+  }, [image, renderGpu, settings]);
 
   useEffect(() => () => {
-    if (renderFrameRef.current !== null) cancelAnimationFrame(renderFrameRef.current);
     if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
     if (doubleExposureUrlRef.current) URL.revokeObjectURL(doubleExposureUrlRef.current);
   }, []);
@@ -278,7 +272,7 @@ export default function SeedTool({ locale = 'en' as Locale }: { locale?: Locale 
         <div className="flex flex-wrap items-center gap-1.5 sm:justify-end"><div className="mr-1 flex items-center gap-2 rounded-lg border border-white/[0.06] bg-zinc-900/80 px-2.5 py-2 text-[9px] font-medium uppercase tracking-[0.12em] text-zinc-500"><span className={`size-1.5 rounded-full ${gpuReady ? 'bg-emerald-400 shadow-[0_0_9px_rgba(52,211,153,0.8)]' : 'bg-zinc-700'}`} /><span>{isRendering ? 'Rendering' : gpuReady ? 'WebGL Ready' : 'Waiting'}</span></div><button type="button" onClick={() => undo()} disabled={historyIndex === 0} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/80 px-2.5 text-xs text-zinc-400 transition hover:border-white/[0.1] hover:text-white disabled:opacity-30" aria-label={seedUi.undo}><Undo2 className="size-3.5" /><span className="hidden md:inline">{seedUi.undo}</span></button><button type="button" onClick={() => redo()} disabled={historyIndex >= history.length - 1} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/80 px-2.5 text-xs text-zinc-400 transition hover:border-white/[0.1] hover:text-white disabled:opacity-30" aria-label={seedUi.redo}><Redo2 className="size-3.5" /><span className="hidden md:inline">{seedUi.redo}</span></button><button type="button" onClick={resetAll} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/80 px-2.5 text-xs text-zinc-400 transition hover:border-white/[0.1] hover:text-white" aria-label={seedUi.resetAll}><RotateCcw className="size-3.5" /><span className="hidden md:inline">Reset</span></button><button type="button" onClick={exportImage} disabled={!image} className="inline-flex h-9 items-center gap-2 rounded-lg border border-indigo-300/20 bg-indigo-500 px-3 text-xs font-semibold text-white shadow-[0_8px_24px_rgba(99,102,241,0.28)] transition hover:bg-indigo-400 disabled:opacity-40" aria-label={seedUi.exportPng}><Download className="size-3.5" />{seedUi.exportPng}</button></div>
       </header>
       <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_380px]"><section ref={stageRef} className={`relative flex min-h-[560px] min-w-0 items-center justify-center overflow-hidden rounded-2xl border bg-zinc-950 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.24)] transition ${isDragging ? 'border-indigo-400/70 bg-indigo-950/10' : 'border-white/[0.07]'}`} onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }} onDragLeave={handleDragLeave} onDrop={handleDrop}>
-          <div className="pointer-events-none absolute inset-0 opacity-70" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px)', backgroundSize: '32px 32px' }} /><div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/[0.035] to-transparent" /><div className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-black/40 px-2.5 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-500 backdrop-blur-md"><Scan className="size-3 text-zinc-600" />Canvas / Linear Preview</div>
+          <div className="pointer-events-none absolute inset-0 opacity-70" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.028) 1px, transparent 0), linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 0)', backgroundSize: '32px 32px' }} /><div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-white/[0.035] to-transparent" /><div className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-black/40 px-2.5 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-500 backdrop-blur-md"><Scan className="size-3 text-zinc-600" />Canvas / Linear Preview</div>
           {image ? (<div className="relative z-10 max-h-[78vh] max-w-full origin-center transform-gpu transition-transform duration-150 ease-out" style={{ transform: `scale(${zoomLevel})` }}><canvas ref={canvasRef} data-render-revision="0" onPointerDown={addBrushPoint} className={`block max-h-[78vh] max-w-full touch-none object-contain rounded-md shadow-[0_25px_80px_rgba(0,0,0,0.55)] ${advanced.brushStrength !== 0 ? 'cursor-crosshair' : 'cursor-default'}`} aria-label={seedUi.seedPreview} /></div>) : (
             <div onClick={() => imageInputRef.current?.click()} className={`relative z-10 flex w-full max-w-lg cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed p-10 text-center transition ${isDragging ? 'border-indigo-400/70 bg-indigo-500/10' : 'border-white/[0.1] bg-black/20 hover:border-white/[0.16] hover:bg-white/[0.025]'}`}><span className="mb-4 flex size-16 items-center justify-center rounded-2xl border border-indigo-300/10 bg-gradient-to-br from-indigo-500/15 to-cyan-400/5 text-indigo-200"><ImagePlus className="size-7" /></span><span className="text-sm font-semibold text-zinc-100">{seedUi.dropImage}</span><span className="mt-2 max-w-sm text-xs leading-5 text-zinc-500">GPU preview, non-destructive history, technical controls and PNG export.</span><span className="mt-5 inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-zinc-900 px-3 py-2 text-xs text-zinc-300"><Upload className="size-3.5" />{seedUi.browseFiles}</span></div>) }
           {image && <div className="absolute bottom-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-black/40 px-2.5 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-zinc-500 backdrop-blur-md"><Gauge className="size-3 text-zinc-600" /><span>{Math.round(zoomLevel * 100)}%</span><span className="text-zinc-700">•</span><span>{image.naturalWidth}×{image.naturalHeight}</span></div>{advanced.brushStrength !== 0 ? <div className="flex items-center gap-2 rounded-lg border border-cyan-300/10 bg-cyan-400/5 px-2.5 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-cyan-200 backdrop-blur-md"><Sparkles className="size-3" />{seedUi.brushActive}</div> : null}</div>}
