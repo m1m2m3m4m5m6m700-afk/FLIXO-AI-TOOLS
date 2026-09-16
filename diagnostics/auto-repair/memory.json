@@ -1,4 +1,7 @@
 {
-  "version": 1,
-  "cases": []
+  "version": 6,
+  "cases": [],
+  "playbooks": [],
+  "lessons": [],
+  "antiLessons": []
 }
