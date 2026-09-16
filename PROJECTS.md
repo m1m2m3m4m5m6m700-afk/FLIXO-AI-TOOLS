@@ -20,6 +20,7 @@ RELEASE-001 = CLOSED / VERIFIED
 SUPABASE PROJECT = zrpsmgdrtwzrhkjwwujo / ACTIVE_HEALTHY
 VERCEL PRODUCTION BINDING = EXACT-SHA PRODUCTION IDENTITY PROVEN
 PRODUCTION MUTATION = DISABLED
+I18N-001 REPAIR = IMPLEMENTED ON MAIN / FRESH CI EVIDENCE REQUIRED
 ```
 
 ## TASK QUEUE
@@ -104,6 +105,17 @@ STATUS = IMPLEMENTED / AWAITING FRESH CANONICAL CI EVIDENCE
 CURRENT IMPLEMENTATION SHA = e927e76f814bb364eb3381c7bac37c7be73bb143
 CI RUN = 35107013374 (pending at last observation)
 CLOSURE RULE = do not mark BUILD-002 CLOSED until fresh exact-SHA Static + Build, Browser FAST/DEEP, Certification, and invariant evidence all pass.
+```
+
+## I18N-001 REPAIR EVIDENCE
+
+```text
+SCOPE = Seed tool runtime UI string ownership
+REPAIR = remove local DEFAULT_SEED_UI fallback ownership and consume canonical EN_SEED_UI from src/lib/i18n/locales/en.ts
+REPAIR SHA = 40786637552d8c0268fd4b9de579c104f58726ab
+CURRENT MAIN CONTAINS REPAIR = YES
+FRESH CI = REQUIRED; bot-authored push did not create the canonical test-system run
+STATUS = EVIDENCE PENDING
 ```
 
 ## GOVERNANCE
