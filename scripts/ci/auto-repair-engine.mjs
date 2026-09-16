@@ -1,63 +1,45 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { repairPolicy, isPathAllowed } from './auto-repair-policy.mjs';
-import {
-  fingerprintFailure,
-  findCase,
-  loadMemory,
-  recordOutcome,
-  scorePlaybook,
-  writeMemory,
-} from './auto-repair-learning.mjs';
+import { fingerprintFailure } from './auto-repair-learning.mjs';
+import { planRepair } from './auto-repair/planner.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
-const memory = loadMemory();
 const fingerprint = fingerprintFailure(log);
 const evidencePath = '/tmp/flixo-repair-evidence.json';
+const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 
-let classification = { rootCause: 'unknown', matches: [] };
-if (fs.existsSync('/tmp/flixo-root-cause.json')) {
-  try { classification = JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json', 'utf8')); } catch {}
-}
-
-const known = findCase(memory, fingerprint);
+const memory = fs.existsSync(memoryPath) ? JSON.parse(fs.readFileSync(memoryPath, 'utf8')) : { version: 3, cases: [] };
+const known = memory.cases.find((entry) => entry.fingerprint === fingerprint);
 if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint) {
   console.log('AUTO_REPAIR_RESULT=LEARNING_MEMORY_BLOCK');
   process.exit(0);
 }
 
-const clean = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim();
-if (repairPolicy.requireCleanGitBeforeRepair && clean) {
-  throw new Error(`AUTO_REPAIR_DIRTY_WORKTREE=${clean}`);
+if (repairPolicy.requireCleanGitBeforeRepair && execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim()) {
+  throw new Error('AUTO_REPAIR_DIRTY_WORKTREE');
 }
 
-const rules = [
-  { id: 'eslint-unused', rootCause: 'lint', pattern: /no-unused-vars|unused .* is defined|defined but never used|@typescript-eslint\/no-unused-vars/i, command: ['npx', ['eslint', '.', '--fix']] },
-  { id: 'prettier', rootCause: 'format', pattern: /prettier|formatting|code style/i, command: ['npx', ['prettier', '--write', '.']] },
-];
-
-const matched = rules.filter((rule) => rule.pattern.test(log));
-const compatible = matched.filter((rule) => rule.rootCause === classification.rootCause || classification.rootCause === 'unknown');
-const ranked = [...compatible].sort((a, b) => scorePlaybook(memory, classification.rootCause, b.id) - scorePlaybook(memory, classification.rootCause, a.id));
-const selected = repairPolicy.requireDeterministicMatch ? ranked[0] : ranked[0];
-
+const plan = planRepair(log);
+const selected = plan.selected;
 const evidence = {
   fingerprint,
-  rootCause: classification.rootCause,
-  matches: classification.matches,
-  candidateRules: ranked.map((rule) => ({ id: rule.id, historicalSuccessRate: scorePlaybook(memory, classification.rootCause, rule.id) })),
-  selectedRule: selected?.id ?? null,
-  protectedPaths: repairPolicy.protectedAreas,
+  features: plan.features,
+  candidates: plan.candidates,
+  selected: selected?.id ?? null,
   outcome: 'diagnostic-only',
+  changedPaths: [],
+  updatedAt: new Date().toISOString(),
 };
 
-if (!selected) {
-  console.log('AUTO_REPAIR_RESULT=NO_SAFE_RULE');
-} else {
-  console.log(`AUTO_REPAIR_RULE=${selected.id}`);
-  execFileSync(selected.command[0], selected.command[1], { stdio: 'inherit' });
+if (selected?.mutate && selected.confidence >= 90) {
+  console.log(`AUTO_REPAIR_PLAN=${selected.id}`);
+  for (const [command, args] of selected.commands) execFileSync(command, args, { stdio: 'inherit' });
   evidence.outcome = 'repair-applied';
+} else {
+  console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
+  console.log(`AUTO_REPAIR_PLAN=${selected?.id ?? 'none'}`);
 }
 
 const changed = execFileSync('git', ['status', '--short'], { encoding: 'utf8' }).trim();
@@ -69,31 +51,17 @@ if (blocked.length) {
   execFileSync('git', ['restore', '--staged', '--worktree', '--', ...blocked], { stdio: 'inherit' });
 }
 
-const diffStat = execFileSync('git', ['diff', '--stat'], { encoding: 'utf8' });
-const additions = Number((diffStat.match(/(\d+) insertion/) ?? [])[1] ?? 0);
-const deletions = Number((diffStat.match(/(\d+) deletion/) ?? [])[1] ?? 0);
-if (changedPaths.length > repairPolicy.maxChangedFiles || additions + deletions > repairPolicy.maxChangedLines) {
-  evidence.outcome = 'bounded-change-block';
-  evidence.changedFiles = changedPaths.length;
-  evidence.changedLines = additions + deletions;
-  if (changedPaths.length) execFileSync('git', ['restore', '--staged', '--worktree', '--', ...changedPaths], { stdio: 'inherit' });
-}
-
 evidence.changedPaths = changedPaths;
-evidence.updatedAt = new Date().toISOString();
 fs.writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`);
-
-recordOutcome(memory, {
-  fingerprint,
-  rootCause: classification.rootCause,
-  rule: selected?.id,
-  outcome: evidence.outcome === 'repair-applied' ? 'proposed' : evidence.outcome,
-  verification: 'pending',
-});
-writeMemory(memory);
+fs.mkdirSync(memoryPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
+const entry = known ?? { fingerprint, attempts: 0, successes: 0, failures: 0, rules: [], outcomes: [] };
+entry.attempts += 1;
+entry.rules = [...new Set([...entry.rules, ...(selected ? [selected.id] : [])])];
+entry.outcomes.push({ outcome: evidence.outcome, rule: selected?.id ?? null, at: new Date().toISOString() });
+entry.outcomes = entry.outcomes.slice(-10);
+if (!known) memory.cases.push(entry);
+fs.writeFileSync(memoryPath, `${JSON.stringify(memory, null, 2)}\n`);
 
 if (blocked.length) process.exitCode = 2;
 console.log(`AUTO_REPAIR_FINGERPRINT=${fingerprint}`);
-console.log(`AUTO_REPAIR_ROOT_CAUSE=${classification.rootCause}`);
-console.log(`AUTO_REPAIR_SELECTED=${selected?.id ?? 'none'}`);
 console.log(`AUTO_REPAIR_CHANGED=${changedPaths.join(',') || 'none'}`);
