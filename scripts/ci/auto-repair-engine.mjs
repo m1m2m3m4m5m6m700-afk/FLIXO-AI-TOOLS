@@ -39,7 +39,7 @@ const historicalRules = [
 const historicalCandidate = plan.candidates.find((candidate) => historicalRules.includes(candidate.id) && candidate.mutate && candidate.confidence >= 90);
 if (historicalCandidate && (!selected || scorePlaybook(memory, specialist?.id ?? 'unknown', historicalCandidate.id) >= scorePlaybook(memory, specialist?.id ?? 'unknown', selected.id))) selected = historicalCandidate;
 const targetSha = git(['rev-parse', 'HEAD']).trim();
-const evidence = { schemaVersion: 3, fingerprint, targetSha, features, specialist, candidates: plan.candidates, selected: selected?.id ?? null, historical: { exact: Boolean(known), similar: similar.map(({ case: item, score }) => ({ fingerprint: item.fingerprint, score, rules: item.rules ?? [] })) }, outcome: 'diagnostic-only', changedPaths: [], updatedAt: new Date().toISOString() };
+const evidence = { schemaVersion: 4, fingerprint, targetSha, features, specialist, candidates: plan.candidates, selected: selected?.id ?? null, historical: { exact: Boolean(known), similar: similar.map(({ case: item, score }) => ({ fingerprint: item.fingerprint, score, rules: item.rules ?? [] })) }, outcome: 'diagnostic-only', changedPaths: [], updatedAt: new Date().toISOString() };
 
 if (!selected) {
   writeEvidence(evidencePath, evidence);
@@ -61,7 +61,8 @@ if (!gate.allowed) {
 }
 
 const before = snapshot(targetDir);
-evidence.reproductionBefore = reproduce(targetDir, impactedTests(plan.features));
+evidence.reproductionCommands = impactedTests(plan.features);
+evidence.reproductionBefore = reproduce(targetDir, evidence.reproductionCommands);
 
 try {
   evidence.repair = runAstRepair(targetDir, selected);
@@ -77,19 +78,35 @@ try {
     writeEvidence(evidencePath, evidence);
     process.exitCode = 2;
   } else {
-    evidence.reproductionAfter = reproduce(targetDir, impactedTests(plan.features));
+    evidence.reproductionAfter = reproduce(targetDir, evidence.reproductionCommands);
     evidence.regression = runRegression(targetDir, [['npm', ['run', 'typecheck']], ['npm', ['run', 'test:static']], ['npm', ['run', 'test:build']]]);
-    if (!evidence.reproductionAfter.ok || !evidence.regression.ok) {
+    const rootCauseProof = {
+      required: true,
+      reproductionWasFailing: evidence.reproductionBefore.results.length > 0 && !evidence.reproductionBefore.ok,
+      reproductionRecovered: evidence.reproductionAfter.results.length > 0 && evidence.reproductionAfter.ok,
+      regressionPassed: evidence.regression.ok,
+      commandsPresent: evidence.reproductionCommands.length > 0,
+    };
+    evidence.rootCauseProof = rootCauseProof;
+    evidence.recurrenceProof = { required: true, firstPass: false, secondPass: false };
+    if (rootCauseProof.commandsPresent && rootCauseProof.reproductionWasFailing && rootCauseProof.reproductionRecovered) {
+      const secondReproduction = reproduce(targetDir, evidence.reproductionCommands);
+      evidence.recurrenceProof.firstPass = true;
+      evidence.recurrenceProof.secondPass = secondReproduction.ok;
+      evidence.recurrenceProof.secondRun = secondReproduction;
+    }
+    const verified = rootCauseProof.reproductionWasFailing && rootCauseProof.reproductionRecovered && rootCauseProof.regressionPassed && rootCauseProof.commandsPresent && evidence.recurrenceProof.firstPass && evidence.recurrenceProof.secondPass;
+    if (!verified) {
       rollback(targetDir, before);
       evidence.outcome = 'rolled-back';
       evidence.rollback = true;
-      recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'failure', verification: 'reproduction/regression-failed', provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: 'Do not reuse this rule until a later verified success supersedes the failed attempt.' });
+      recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'failure', verification: 'root-cause-or-recurrence-proof-failed', provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: 'A repair is not successful until the original failure is reproduced before repair, passes after repair twice, and regression passes.' });
       writeMemory(memory);
       writeEvidence(evidencePath, evidence);
       process.exitCode = 3;
     } else {
       evidence.outcome = 'verified-repair';
-      recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'success', verification: 'typecheck+static+build+reproduction', provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: `Prevent recurrence of ${fingerprint} by retaining verified rule ${selected.id}.` });
+      recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'success', verification: 'root-cause-proof+recurrence-proof+typecheck+static+build', provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: `Prevent recurrence of ${fingerprint} by retaining verified rule ${selected.id}.` });
       writeMemory(memory);
       writeEvidence(evidencePath, evidence);
     }
