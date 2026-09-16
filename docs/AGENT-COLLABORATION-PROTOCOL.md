@@ -84,6 +84,26 @@ Every completion MUST return:
 
 Diagnosis-to-preparation handoffs additionally require the exact `failureFingerprint`, RCA evidence and falsification tests.
 
+## Canonical v6 compatibility aliases
+The following are machine-readable aliases retained for compatibility; they do not create additional protocols:
+- **Agent login**
+- **Central coordination control plane**
+- **Ownership lock**
+- **Action ledger**
+- **Mandatory session handoff report**
+- **Handoff**
+- **Evidence and provenance**
+- **Failure and RCA**
+- **Conflict protocol**
+- **Logout**
+- `--from-session=<previous-session>`
+- **Root-Cause-First Repair Protocol**
+- **causal defect**
+- **affected dependency/contract graph**
+- **mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure**
+- **symptom-only workaround**
+- **new deterministic failure**
+
 ## Risk gates
 ### LOW
 Bounded, reversible, non-protected change with deterministic verification.
