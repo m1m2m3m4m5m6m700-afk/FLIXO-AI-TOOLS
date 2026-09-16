@@ -10,6 +10,7 @@ const TASK_AGENT = path.resolve(ROOT, 'scripts/ci/task-agent.mjs');
 const TASK_FILE = path.resolve(ROOT, 'مهام.md');
 const MAX_STAGES = 10;
 const MAX_REPAIR_CYCLES = 12;
+const MAX_STALLED_REPAIR_CYCLES = 3;
 const MAX_PREPARED_FILES = 12;
 const MAX_INSPECTED_FILES = 40;
 
@@ -61,7 +62,7 @@ function buildPlan({ index, packet }) {
   ];
   const taskFingerprint = packet.errorFingerprint ?? fingerprint(`${packet.task.taskId}|${packet.task.title}`);
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     authority: 'LEAN_AGENT_EXECUTION_CONTROL',
     generatedAt: now(),
     baselineSha: sha,
@@ -104,7 +105,16 @@ function buildPlan({ index, packet }) {
       sameCycleMayContainMultipleIndependentRedChecks: true,
       newFailuresBecomeNewRepairTargets: true,
       neverCloseOnTargetedFixAlone: true,
-      stopConditions: ['CANONICAL_GREEN', 'PROOF_FAILED', 'MAX_REPAIR_CYCLES', 'BLOCKED', 'STALE_BASELINE'],
+      circuitBreaker: {
+        enabled: true,
+        maxStalledCycles: MAX_STALLED_REPAIR_CYCLES,
+        definition: 'SAME_FAILURE_FINGERPRINT_WITHOUT_VERIFIABLE_PROGRESS',
+        fingerprintScope: 'RED_CHECKS_AND_REPAIR_TARGETS',
+        progressEvidence: 'CHECK_STATE_OR_ERROR_FINGERPRINT_CHANGED',
+        action: 'REQUIRES_REVIEW',
+        failClosed: true,
+      },
+      stopConditions: ['CANONICAL_GREEN', 'PROOF_FAILED', 'MAX_REPAIR_CYCLES', 'CIRCUIT_BREAKER_OPEN', 'BLOCKED', 'STALE_BASELINE'],
     },
     stages: stages.map(([stage, owner], index) => ({
       order: index + 1,
