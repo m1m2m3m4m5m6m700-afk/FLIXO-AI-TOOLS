@@ -110,6 +110,8 @@ jobs:
         if: always()
         env:
           VERIFY_OUTCOME: ${{ steps.verify.outputs.verified == 'true' && 'success' || 'failure' }}
+          FLIXO_FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
+          FLIXO_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           set -euo pipefail
           test -f /tmp/flixo-root-cause.json || printf '%s\n' '{"rootCause":"unknown"}' > /tmp/flixo-root-cause.json
