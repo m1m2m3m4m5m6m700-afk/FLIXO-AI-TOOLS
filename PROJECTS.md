@@ -9,7 +9,7 @@
 ```text
 BRANCH = main
 CURRENT MAIN SHA = AUTHORITATIVE BRANCH REF
-ACTIVE TASK = NEXT-CANDIDATE REVIEW
+ACTIVE TASK = DEBT-001
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = CLOSED / VERIFIED
 ADMIN-005 = CLOSED / VERIFIED
@@ -28,6 +28,7 @@ I18N-001 REPAIR = VERIFIED ON MAIN / FRESH CANONICAL CI PASS
 BUILD-002 = VERIFIED ON MAIN / FRESH CANONICAL CI PASS
 TEST-001 = VERIFIED ON MAIN / FRESH CANONICAL CI PASS
 AGENT-PROTOCOL-003 = VERIFIED ON MAIN / FRESH CANONICAL CI PASS
+LATEST CANONICAL CI = SHA 594766c220864fcd55fd8cbbcf491fb2a8778dc2 / CI RUN 35124571456 / STATIC+BUILD+FAST+DEEP+CERTIFICATION+TRUST PASS
 ```
 
 ## TASK QUEUE
@@ -45,9 +46,23 @@ AGENT-PROTOCOL-003 = VERIFIED ON MAIN / FRESH CANONICAL CI PASS
 | BUILD-002 | CLOSED / VERIFIED | Preserve canonical artifact identity producer/consumer contract |
 | TEST-001 | CLOSED / VERIFIED | Preserve deterministic ownership registry and validator |
 | AGENT-PROTOCOL-003 | CLOSED / VERIFIED | Preserve proof-driven fail-closed repair lifecycle and learning/prevention contracts |
-| NEXT-CANDIDATE REVIEW | ACTIVE | Review DEBT-001 and TOOL-EXPANSION against fresh evidence; activate only the smallest proven deterministic scope |
-| DEBT-001 | CANDIDATE | Fresh-failure/value review |
-| TOOL-EXPANSION | CANDIDATE | Select smallest proven candidate |
+| DEBT-001 | ACTIVE | Harden technical-debt audit evidence; first deliverable is a deterministic validator/regression contract, with no broad deletion |
+| TOOL-EXPANSION | CANDIDATE | Activate only after a fresh deterministic scope is proven |
+
+## DEBT-001
+
+```text
+ACTIVE
+PURPOSE = Harden technical-debt detection into a deterministic, evidence-backed maintenance contract.
+ACTIVATED FROM = NEXT-CANDIDATE REVIEW after fresh canonical CI RUN 35124571456 passed on main SHA 594766c220864fcd55fd8cbbcf491fb2a8778dc2.
+AUDIT PRODUCER = scripts/ci/audit-technical-debt.mjs
+PACKAGE ENTRYPOINT = audit:technical-debt
+CURRENT DETECTION SURFACES = orphan tests, legacy-labelled files, unreferenced dependencies, and unproven i18n fallback ownership.
+GUARDRAIL = inventory first; no broad deletion, no CI weakening, no certification bypass, no production mutation.
+FIRST BOUNDED DELIVERABLE = deterministic validator/regression contract proving audit output schema, SHA binding, finding fingerprints, and evidence completeness.
+SUCCESS GATE = targeted regression + Static/Build + FAST/DEEP + Certification + CI/CD trust + invariant proof + closure evidence.
+NEXT GATE = review findings after the validator is proven and activate only one bounded repair candidate.
+```
 
 ## ADMIN ENTRY — FIVE-CLICK LOGO
 
