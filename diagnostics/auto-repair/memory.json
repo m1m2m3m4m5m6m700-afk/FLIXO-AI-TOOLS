@@ -1,7 +1,57 @@
 {
   "version": 6,
-  "cases": [],
+  "cases": [
+    {
+      "fingerprint": "08523246fc193002f12b4fa15891c5c77102cf67a341a97373a45e7392866c43",
+      "rootCause": "target_dependency_install_failure",
+      "attempts": 1,
+      "successes": 0,
+      "failures": 1,
+      "rules": [],
+      "outcomes": [
+        {
+          "outcome": "unrepaired",
+          "verification": "target-dependency-install-failed",
+          "provenance": {
+            "source": "FLIXO Auto Repair",
+            "failedSha": "8d4300370238133714ae4decdacdaaf9202dbbb4",
+            "runId": "35134137053"
+          },
+          "at": "2026-09-16T18:24:41.918Z"
+        }
+      ],
+      "normalizedFailure": "Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> ##[group]Run npm ci --prefer-offline --no-audit --no-fund Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> ^[[36;1mnpm ci --prefer-offline --no-audit --no-fund^[[0m Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> shell: /usr/bin/bash -e {0} Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> env: Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> HOME: /tmp Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> NPM_CONFIG_AUDIT: false Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> NPM_CONFIG_FUND: false Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> NPM_CONFIG_UPDATE_NOTIFIER: false Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> VITE_SITE_URL: https://flixoai.vercel.app Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> VITE_RUNTIME_ORIGIN: http://<VERSION>.1:3000 Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> VITE_TEST_ORIGIN: http://<VERSION>.1:3000 Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> PLAYWRIGHT_TEST_BASE_URL: http://<VERSION>.1:3000 Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> EXPECTED_SHA: <SHA> Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> ##[endgroup] Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error code EUSAGE Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error `npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing. Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error Missing: prettier@<VERSION> from lock file Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error Clean install a project Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error Usage: Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error npm ci Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error Options: Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error [--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling] Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]] Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error [--strict-peer-deps] [--foreground-scripts] [--ignore-scripts] [--no-audit] Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error [--no-bin-links] [--no-fund] [--dry-run] Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]] Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error [-ws|--workspaces] [--include-workspace-root] [--install-links] Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error Static + Build Run npm ci --prefer-offline --no-audit --no-fund <TIME> npm error aliases: clean-install, ic, install-clean, isntall-clean Static + Build Run npm ci -",
+      "features": [
+        "playwright",
+        "certification"
+      ],
+      "confidence": 0
+    }
+  ],
   "playbooks": [],
   "lessons": [],
-  "antiLessons": []
+  "antiLessons": [
+    {
+      "id": "3c13533d871c58cecbf2",
+      "fingerprint": "08523246fc193002f12b4fa15891c5c77102cf67a341a97373a45e7392866c43",
+      "rootCause": "target_dependency_install_failure",
+      "rule": null,
+      "attempts": 1,
+      "successes": 0,
+      "failures": 1,
+      "confidence": 0,
+      "evidence": [
+        {
+          "verification": "target-dependency-install-failed",
+          "provenance": {
+            "source": "FLIXO Auto Repair",
+            "failedSha": "8d4300370238133714ae4decdacdaaf9202dbbb4",
+            "runId": "35134137053"
+          }
+        }
+      ],
+      "preventionRules": [],
+      "lastSeenAt": "2026-09-16T18:24:41.918Z"
+    }
+  ]
 }
