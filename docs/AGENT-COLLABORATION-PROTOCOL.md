@@ -123,6 +123,8 @@ Before mutation, register an agent session. Every active session declares:
 
 One mutable scope has one active owner. **Shared contracts, package manifests, CI workflows, protocol registries and certification surfaces have one owner by default: the Executive Controller.** If `main` moves, all downstream packets become stale until revalidated.
 
+**LOCK_SCOPE** is the explicit lifecycle checkpoint that establishes this ownership before any mutation or execution packet is applied.
+
 ## Integration gate
 The Executive Controller MUST reject a Task Agent packet when:
 - baseline SHA is stale;
@@ -135,7 +137,7 @@ The Executive Controller MUST reject a Task Agent packet when:
 When Task Agent and Error Agent disagree, neither wins by priority. The controller freezes mutation, compares exact evidence/SHAs, requests a falsification check or fresh inspection, records the decision trace, then issues one authoritative execution packet.
 
 ## Standard lifecycle
-`DISCOVER → ERROR_DETECT/DIAGNOSE → TASK_UNDERSTAND → RCA/INSPECT → PLAN → RISK_GATE → PREPARE → INTEGRATION_REVIEW → APPLY → TARGETED_VERIFY → AFFECTED_CONTRACT_VERIFY → INDEPENDENT_REVIEW → REGRESSION → RECURRENCE_CHECK → LEARN → PREVENT → CERTIFY → HANDOFF_OR_CLOSE`
+`DISCOVER → LOCK_SCOPE → ERROR_DETECT/DIAGNOSE → TASK_UNDERSTAND → RCA/INSPECT → PLAN → RISK_GATE → PREPARE → INTEGRATION_REVIEW → EXECUTE → APPLY → TARGETED_VERIFY → AFFECTED_CONTRACT_VERIFY → INDEPENDENT_REVIEW → REGRESSION → RECURRENCE_CHECK → LEARN → PREVENT → CERTIFY → HANDOFF_OR_CLOSE`
 
 Stages not applicable must be explicitly recorded as `NOT_APPLICABLE` with rationale. Required gates may never be silently skipped.
 
