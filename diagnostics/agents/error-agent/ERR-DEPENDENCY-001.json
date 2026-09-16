@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "failureFingerprint": "DEPENDENCY-NPM-CI-MANIFEST-LOCK-MISMATCH-PRETTIER-001",
+  "trigger": "Dependency Health run 35135091196 on main SHA 37a030c8eb457014aababd0e34348e022c4a37c9",
+  "exactFailureEvidence": {
+    "jobId": 104925356305,
+    "step": "Run npm ci",
+    "error": "npm ci can only install packages when your package.json and package-lock.json are in sync. Missing: prettier@3.9.7 from lock file",
+    "exitCode": 1
+  },
+  "entrySha": "37a030c8eb457014aababd0e34348e022c4a37c9",
+  "runIdentity": { "workflow": "Dependency Health", "runId": 35135091196, "jobId": 104925356305 },
+  "environment": { "node": "22.23.2", "npm": "10.9.8", "runner": "ubuntu-24.04" },
+  "reproductionState": "CI_REPRODUCED",
+  "propagationPath": ["package.json devDependencies", "package-lock.json root/package entries", "npm ci", "Dependency Health"],
+  "violatedInvariant": "package.json and package-lock.json must be synchronized for deterministic npm ci",
+  "causalSource": "package.json declares prettier but the current package-lock.json has no node_modules/prettier entry; package dependency ranges also drift from lock root for eslint-config-prettier and react eslint plugins",
+  "affectedScope": ["package.json", "package-lock.json", "Dependency Health workflow"],
+  "dependencyGraph": { "direct": ["prettier", "eslint-config-prettier", "eslint-plugin-react-hooks", "eslint-plugin-react-refresh"], "gate": "npm ci" },
+  "recurrenceSignals": ["Any push to main can fail npm ci until manifest/lock synchronization is restored"],
+  "confidence": "HIGH",
+  "stopConditions": ["Do not mark fixed until npm ci succeeds on a fresh exact SHA"],
+  "nextAction": "Task Agent prepares a minimal manifest/lock synchronization change; Executive Controller applies only after reviewing the generated diff, then canonical CI verifies the exact SHA."
+}
