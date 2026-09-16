@@ -20,6 +20,7 @@ const requiredFiles = [
   'scripts/ci/agent-session.mjs',
   'scripts/ci/agent-coordination.mjs',
   'scripts/ci/auto-repair-engine.mjs',
+  'scripts/ci/auto-repair-proof.mjs',
   'scripts/validate-ci-contract.mjs',
 ];
 for (const file of requiredFiles) if (!exists(file)) fail('MISSING_PROTOCOL_FILE', file);
@@ -69,8 +70,10 @@ if (exists('docs/AGENT-COLLABORATION-PROTOCOL.md')) {
 }
 
 const repairEngine = exists('scripts/ci/auto-repair-engine.mjs') ? read('scripts/ci/auto-repair-engine.mjs') : '';
+const proofContract = exists('scripts/ci/auto-repair-proof.mjs') ? read('scripts/ci/auto-repair-proof.mjs') : '';
 const repairMarkers = [
-  "schemaVersion: 4",
+  "schemaVersion: 5",
+  "protocol: 'AUTONOMOUS-REPAIR-PROTOCOL-v3'",
   'evidence.reproductionCommands = impactedTests(plan.features)',
   'reproductionWasFailing',
   'reproductionRecovered',
@@ -78,12 +81,16 @@ const repairMarkers = [
   'recurrenceProof',
   'firstPass',
   'secondPass',
+  'evidence.repairProof = proof',
   'root-cause-proof-failed',
   'root-cause-proof+recurrence-proof+typecheck+static+build',
+  'evidence.preventionRule',
+  'evidence.escalation',
 ];
 for (const marker of repairMarkers) if (repairEngine && !repairEngine.includes(marker)) fail('REPAIR_PROTOCOL_MISSING', marker);
+for (const marker of ['validateRepairProof', 'preventionRuleFor', 'escalationReason', 'target-sha-missing', 'recurrence-proof-second-pass']) if (proofContract && !proofContract.includes(marker)) fail('REPAIR_PROOF_CONTRACT_MISSING', marker);
 if (repairEngine && !repairEngine.includes('if (!verified)')) fail('REPAIR_PROTOCOL_MISSING', 'fail-closed-verification');
-if (repairEngine && repairEngine.includes("evidence.outcome = 'verified-repair';") && !repairEngine.includes('const verified =')) fail('REPAIR_PROTOCOL_MISSING', 'verified-repair-gate');
+if (repairEngine && repairEngine.includes("evidence.outcome = 'verified-repair';") && !repairEngine.includes('const verified = proof.ok')) fail('REPAIR_PROTOCOL_MISSING', 'verified-repair-gate');
 
 const hierarchyMarkers = [
   'FLIXO Protocol Hierarchy & Anti-Bloat Contract v1', '## Precedence', '## Canonical Protocol Families',
@@ -157,7 +164,7 @@ if (exists(lockFile)) {
 }
 
 const result = {
-  schemaVersion: 8,
+  schemaVersion: 9,
   authority: 'CI_PROTOCOL_GUARD',
   status: failures.length ? 'FAIL' : 'PASS',
   entryGate: 'PROJECTS.md → المهام.md → AGENTS.md',
@@ -167,14 +174,14 @@ const result = {
   protocolRegistry: 'docs/PROTOCOL-REGISTRY.json',
   approvedProtocolCount: registry?.protocols?.length ?? 0,
   rootCauseRepairProtocol: 'ROOT-CAUSE-FIRST REPAIR PROTOCOL',
-  repairProof: 'root-cause-proof + recurrence-proof',
+  repairProof: 'centralized auto-repair-proof + root-cause-proof + recurrence-proof',
   handoffSchema: 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md',
   coordinationControlPlane: 'scripts/ci/agent-coordination.mjs',
   sessionTool: 'scripts/ci/agent-session.mjs',
   handoffPath: 'diagnostics/agents/handoffs/<sessionId>.json',
   statePath: stateFile,
   lockPath: lockFile,
-  enforcement: 'scripts/validate-ci-contract.mjs → task gateway + protocol registry + hierarchy + collaboration + coordination + root-cause-first + repair-proof validators',
+  enforcement: 'scripts/validate-ci-contract.mjs → task gateway + protocol registry + hierarchy + collaboration + coordination + root-cause-first + centralized repair-proof validators',
   failures,
 };
 fs.mkdirSync(path.resolve(root, 'diagnostics/agents'), { recursive: true });
