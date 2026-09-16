@@ -15,6 +15,30 @@ async function canvasScreenshot(page: Page) {
   return canvasLocator(page).screenshot({ animations: 'disabled' });
 }
 
+async function gpuPixels(page: Page) {
+  return Buffer.from(await canvasLocator(page).evaluate((element) => {
+    const canvas = element as HTMLCanvasElement;
+    const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
+    if (!gl) throw new Error('WebGL framebuffer is unavailable.');
+    gl.finish();
+    const pixels = new Uint8Array(canvas.width * canvas.height * 4);
+    gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    const error = gl.getError();
+    if (error !== gl.NO_ERROR) throw new Error(`GPU pixel readback failed (WebGL error ${error}).`);
+    return Array.from(pixels);
+  }));
+}
+
+async function expectGpuPixelsEqual(page: Page, expected: Buffer) {
+  const actual = await gpuPixels(page);
+  expect(actual.equals(expected)).toBe(true);
+}
+
+async function expectGpuPixelsDifferent(page: Page, expected: Buffer) {
+  const actual = await gpuPixels(page);
+  expect(actual.equals(expected)).toBe(false);
+}
+
 async function waitForGpuRender(page: Page, previousRevision: string | null = null) {
   const canvas = canvasLocator(page);
   await expect.poll(() => canvas.getAttribute('data-render-revision'), { timeout: 10000 }).not.toBe(previousRevision);
@@ -33,12 +57,11 @@ async function loadSeed(page: Page, testInfo: TestInfo, requireWebGL = true) {
 
 test('Seed: WebGL preview changes pixels and exports a non-empty PNG', async ({ page }, testInfo) => {
   await loadSeed(page, testInfo);
-  const baseline = await canvasScreenshot(page);
+  const baseline = await gpuPixels(page);
   const revision = await canvasLocator(page).getAttribute('data-render-revision');
   await page.getByRole('slider', { name: 'brightness' }).fill('50');
   await waitForGpuRender(page, revision);
-  const adjusted = await canvasScreenshot(page);
-  expect(adjusted.equals(baseline)).toBe(false);
+  await expectGpuPixelsDifferent(page, baseline);
 
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export PNG' }).click();
@@ -68,24 +91,24 @@ test('Seed: advanced pipeline controls alter non-destructive state and export', 
 
 test('Seed: Undo and Redo restore and reapply a GPU color change', async ({ page }, testInfo) => {
   await loadSeed(page, testInfo);
-  const baseline = await canvasScreenshot(page);
+  const baseline = await gpuPixels(page);
   const baselineRevision = await canvasLocator(page).getAttribute('data-render-revision');
   await page.getByRole('slider', { name: 'brightness' }).fill('35');
   await waitForGpuRender(page, baselineRevision);
-  const edited = await canvasScreenshot(page);
+  const edited = await gpuPixels(page);
   expect(edited.equals(baseline)).toBe(false);
 
   const editedRevision = await canvasLocator(page).getAttribute('data-render-revision');
   await page.getByTestId('button-canvas-undo').click();
   await waitForGpuRender(page, editedRevision);
-  expect((await canvasScreenshot(page)).equals(baseline)).toBe(true);
+  await expectGpuPixelsEqual(page, baseline);
 
   const undoRevision = await canvasLocator(page).getAttribute('data-render-revision');
   const redoButton = page.getByTestId('button-canvas-redo');
   if (await redoButton.count()) await redoButton.click();
   else await page.getByRole('button', { name: 'Redo', exact: true }).click();
   await waitForGpuRender(page, undoRevision);
-  expect((await canvasScreenshot(page)).equals(edited)).toBe(true);
+  await expectGpuPixelsEqual(page, edited);
 });
 
 test('Seed: accepts a second image for Double Exposure', async ({ page }, testInfo) => {
