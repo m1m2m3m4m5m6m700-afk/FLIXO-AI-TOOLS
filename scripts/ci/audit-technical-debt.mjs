@@ -17,7 +17,8 @@ const read = (path) => {
 };
 const grep = (pattern) => {
   try {
-    return run(['grep', '-n', '-I', '-E', '--', ...tracked.filter((p) => existsSync(resolve(ROOT, p))), '-e', pattern]).trim();
+    return run(['grep', '-n', '-I', '-E', '-e', pattern, '--', ...tracked.filter((p) => existsSync(resolve(ROOT, p)))])
+      .trim();
   } catch {
     return '';
   }
