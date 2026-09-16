@@ -23,7 +23,21 @@ const texts = new Map();
 const imports = new Map();
 const contractTerms = ['contract', 'invariant', 'gate', 'certif', 'scout', 'error', 'task', 'diagnostic'];
 
-for (const file of sourceFiles) {
+const scopePath = process.env.SCOUT_SCOPE_FILE;
+let scopedFiles = null;
+if (scopePath) {
+  try {
+    const scope = JSON.parse(readFileSync(path.resolve(ROOT, scopePath), 'utf8'));
+    if (Array.isArray(scope.changedFiles)) scopedFiles = new Set(scope.changedFiles);
+  } catch {
+    scopedFiles = null;
+  }
+}
+const incremental = scopedFiles !== null && scopedFiles.size > 0;
+const analysisFiles = incremental ? sourceFiles.filter((file) => scopedFiles.has(file)) : sourceFiles;
+const scopeFallback = incremental ? [] : ['No valid impact scope was available; full static scan used.'];
+
+for (const file of analysisFiles) {
   let text;
   try { text = readFileSync(path.join(ROOT, file), 'utf8'); } catch { continue; }
   texts.set(file, text);
@@ -44,15 +58,15 @@ for (const file of sourceFiles) {
     if (/TODO|FIXME|HACK/.test(line)) { counters.todoFixme++; add('maintenance', 'low', n, 'Maintenance marker requires ownership or closure.', line.trim(), { violatedInvariants: ['maintenance closure'] }); }
     if (/catch\s*(?:\([^)]*\))?\s*\{\s*\}/.test(line)) { counters.broadCatch++; add('error-handling', 'high', n, 'Empty catch block may hide root causes.', line.trim(), { violatedInvariants: ['observable failure propagation'], suggestedVerification: ['trace producer-to-handler path and verify error evidence is preserved'] }); }
     if (/process\.exit\(0\)/.test(line)) { counters.directProcessExit++; add('control-flow', 'medium', n, 'Direct process exit may bypass structured evidence; review contract ownership.', line.trim(), { violatedInvariants: ['structured lifecycle completion'] }); }
-    if (/\b(?:import|export)\s+(?:type\s+)?(?:[^'"]+from\s*)?['"]([^'"]+)['"]/.test(line)) counters.importEdges++;
+    if (/\b(?:import|export)\s+(?:type\s+)?(?:[^'\"]+from\s*)?['\"]([^'\"]+)['\"]/.test(line)) counters.importEdges++;
     if (contractTerms.some((term) => line.toLowerCase().includes(term))) counters.contractMentions++;
   });
-  const refs = [...text.matchAll(/(?:from\s+|import\s*\(|require\s*\()['"]([^'"]+)['"]/g)].map((m) => m[1]);
+  const refs = [...text.matchAll(/(?:from\s+|import\s*\(|require\s*\()['\"]([^'\"]+)['\"]/g)].map((m) => m[1]);
   imports.set(file, refs);
 }
 
 const basenameCounts = new Map();
-for (const file of sourceFiles) { const base = path.basename(file); basenameCounts.set(base, [...(basenameCounts.get(base) ?? []), file]); }
+for (const file of analysisFiles) { const base = path.basename(file); basenameCounts.set(base, [...(basenameCounts.get(base) ?? []), file]); }
 for (const [base, files] of basenameCounts) {
   if (files.length > 1 && /^(index|utils|helpers|constants)\.(mjs|js|ts|tsx)$/.test(base)) {
     counters.duplicatedGenericFiles++;
@@ -80,22 +94,22 @@ for (const finding of findings) {
 const base = {
   schemaVersion: contract.schemaVersion,
   authority: 'READ_ONLY_CODE_SCOUT',
-  mode: 'READ_ONLY_ANALYSIS',
+  mode: incremental ? 'READ_ONLY_INCREMENTAL_ANALYSIS' : 'READ_ONLY_ANALYSIS',
   scannerMode: 'READ_ONLY',
   mutationPolicy: 'NO_SOURCE_MUTATION',
   reportWriteScope: OUTPUT,
   scannedSha: sha,
   generatedAt: new Date().toISOString(),
-  filesScanned: sourceFiles.length,
-  scan: { trackedFiles: tracked.length, analyzedFiles: sourceFiles.length },
+  filesScanned: analysisFiles.length,
+  scan: { trackedFiles: tracked.length, candidateFiles: sourceFiles.length, analyzedFiles: analysisFiles.length, incremental, scopePath: scopePath ?? null, scopeFallback },
   counters,
   findings,
   historicalMatches,
-  graphSummary: { sourceFiles: sourceFiles.length, historicalSources: knowledge.sources.length, findings: findings.length, importEdges: counters.importEdges, contractMentions: counters.contractMentions },
-  unknowns: ['Static scout cannot prove runtime causality or complete dependency propagation without executing affected contracts.'],
+  graphSummary: { sourceFiles: sourceFiles.length, analyzedFiles: analysisFiles.length, historicalSources: knowledge.sources.length, findings: findings.length, importEdges: counters.importEdges, contractMentions: counters.contractMentions },
+  unknowns: [incremental ? 'Incremental scout analyzes the changed-file scope only; dependency propagation outside the supplied impact scope requires independent verification.' : 'Static scout cannot prove runtime causality or complete dependency propagation without executing affected contracts.'],
   decisionPolicy: 'Findings are evidence-backed hypotheses for execution agents. The scout never selects, approves, or performs a repair. Root-cause candidates require independent verification.',
 };
 const report = { ...base, digest: hash(JSON.stringify(base)) };
 mkdirSync(OUTPUT_DIR, { recursive: true });
 writeFileSync(OUTPUT, JSON.stringify(report, null, 2) + '\n');
-console.log(JSON.stringify({ status: 'PASS', authority: report.authority, mode: report.mode, scannedSha: sha, output: OUTPUT, findings: findings.length, historicalMatches: historicalMatches.length }, null, 2));
+console.log(JSON.stringify({ status: 'PASS', authority: report.authority, mode: report.mode, scannedSha: sha, output: OUTPUT, findings: findings.length, historicalMatches: historicalMatches.length, filesScanned: analysisFiles.length, incremental }, null, 2));
