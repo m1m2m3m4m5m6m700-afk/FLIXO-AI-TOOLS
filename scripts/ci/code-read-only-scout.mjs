@@ -44,10 +44,10 @@ for (const file of sourceFiles) {
     if (/TODO|FIXME|HACK/.test(line)) { counters.todoFixme++; add('maintenance', 'low', n, 'Maintenance marker requires ownership or closure.', line.trim(), { violatedInvariants: ['maintenance closure'] }); }
     if (/catch\s*(?:\([^)]*\))?\s*\{\s*\}/.test(line)) { counters.broadCatch++; add('error-handling', 'high', n, 'Empty catch block may hide root causes.', line.trim(), { violatedInvariants: ['observable failure propagation'], suggestedVerification: ['trace producer-to-handler path and verify error evidence is preserved'] }); }
     if (/process\.exit\(0\)/.test(line)) { counters.directProcessExit++; add('control-flow', 'medium', n, 'Direct process exit may bypass structured evidence; review contract ownership.', line.trim(), { violatedInvariants: ['structured lifecycle completion'] }); }
-    if (/\b(?:import|export)\s+(?:type\s+)?(?:[^'\"]+from\s*)?['\"]([^'\"]+)['\"]/.test(line)) counters.importEdges++;
+    if (/\b(?:import|export)\s+(?:type\s+)?(?:[^'"]+from\s*)?['"]([^'"]+)['"]/.test(line)) counters.importEdges++;
     if (contractTerms.some((term) => line.toLowerCase().includes(term))) counters.contractMentions++;
   });
-  const refs = [...text.matchAll(/(?:from\s+|import\s*\(|require\s*\()['\"]([^'\"]+)['\"]/g)].map((m) => m[1]);
+  const refs = [...text.matchAll(/(?:from\s+|import\s*\(|require\s*\()['"]([^'"]+)['"]/g)].map((m) => m[1]);
   imports.set(file, refs);
 }
 
