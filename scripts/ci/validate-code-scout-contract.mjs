@@ -26,8 +26,13 @@ const required = [
 ];
 for (const marker of required) if (!text.includes(marker)) failures.push(`MISSING_MARKER=${marker}`);
 
-const usesGitLsFiles = /execFileSync\(\s*['"]git['"]\s*,\s*[['"]ls-files['"]\s*,\s*['"]-z['"]\]/u.test(text);
+// Validate the actual argv structure used by the scout instead of requiring
+// one fragile literal source-text marker.
+const usesGitLsFiles = /execFileSync\(\s*['"]git['"]\s*,\s*\[\s*['"]ls-files['"]\s*,\s*['"]-z['"]\s*\]/u.test(text);
 if (!usesGitLsFiles) failures.push('GIT_TRACKED_FILE_DISCOVERY_CONTRACT_MISSING');
+
+// The scout is permitted to write its investigation report only. Repository
+// mutation commands and GitHub write APIs are forbidden in the scout source.
 if (/git\s+add|git\s+commit|git\s+push|update_file|create_file|delete_file|update_ref/u.test(text)) failures.push('FORBIDDEN_MUTATION_OPERATION_DETECTED');
 if (!text.includes('writeFileSync(OUTPUT')) failures.push('REPORT_OUTPUT_MISSING');
 if (knowledge.readOnly !== true) failures.push('HISTORICAL_KNOWLEDGE_MUST_BE_READ_ONLY');
@@ -36,6 +41,8 @@ if (knowledge.authorityBoundary?.historicalKnowledgeIsAuthority !== false) failu
 if (reportContract.exactShaRequired !== true) failures.push('REPORT_CONTRACT_MUST_REQUIRE_EXACT_SHA');
 if (reportContract.decisionProtocol?.rule !== 'A report never authorizes a change.') failures.push('REPORT_DECISION_BOUNDARY_INVALID');
 
+// Runtime proof that the committed repository supports the same read-only
+// tracked-file discovery operation required by the scout.
 try {
   const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' });
   if (!tracked.includes('scripts/ci/code-read-only-scout.mjs')) failures.push('SCOUT_NOT_TRACKED_BY_GIT');
@@ -44,7 +51,17 @@ try {
 }
 
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
-const result = { schemaVersion: 3, authority: 'READ_ONLY_CODE_SCOUT_CONTRACT', status: failures.length ? 'FAIL' : 'PASS', checkedSha: sha, scout: 'scripts/ci/code-read-only-scout.mjs', historicalKnowledge: 'docs/ci/investigation/HISTORICAL-KNOWLEDGE-BASE.json', reportContract: 'docs/ci/investigation/INVESTIGATION-REPORT-CONTRACT.json', historicalSources: knowledge.sources.length, findings: failures };
+const result = {
+  schemaVersion: 3,
+  authority: 'READ_ONLY_CODE_SCOUT_CONTRACT',
+  status: failures.length ? 'FAIL' : 'PASS',
+  checkedSha: sha,
+  scout: 'scripts/ci/code-read-only-scout.mjs',
+  historicalKnowledge: 'docs/ci/investigation/HISTORICAL-KNOWLEDGE-BASE.json',
+  reportContract: 'docs/ci/investigation/INVESTIGATION-REPORT-CONTRACT.json',
+  historicalSources: knowledge.sources.length,
+  findings: failures,
+};
 fs.mkdirSync(path.resolve(root, 'diagnostics/investigation'), { recursive: true });
 fs.writeFileSync(path.resolve(root, 'diagnostics/investigation/code-scout-contract.json'), `${JSON.stringify(result, null, 2)}\n`);
 console.log(JSON.stringify(result, null, 2));
