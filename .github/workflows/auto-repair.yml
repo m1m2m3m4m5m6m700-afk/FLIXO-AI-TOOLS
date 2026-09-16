@@ -68,9 +68,10 @@ jobs:
 
       - name: Verify repair before publishing
         id: verify
-        if: hashFiles('/tmp/flixo-repair-evidence.json') != ''
+        if: always()
         run: |
           set -euo pipefail
+          test -f /tmp/flixo-repair-evidence.json || exit 0
           if git diff --quiet; then
             echo 'No source changes were produced; no repair PR will be created.'
             exit 0
@@ -80,13 +81,13 @@ jobs:
           npm run test:build
 
       - name: Record verified learning outcome
-        if: always() && hashFiles('/tmp/flixo-repair-evidence.json') != ''
+        if: always()
         env:
           FLIXO_LEARNING_OUTCOME: ${{ steps.verify.outcome == 'success' && 'success' || 'failure' }}
           FLIXO_VERIFICATION: ${{ steps.verify.outcome }}
-          FLIXO_ROOT_CAUSE: ${{ '' }}
         run: |
           set -euo pipefail
+          test -f /tmp/flixo-root-cause.json || exit 0
           ROOT_CAUSE=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8'));process.stdout.write(x.rootCause||'unknown')")
           RULE=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.selectedRule||'')")
           FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" node scripts/ci/auto-repair-learning.mjs
