@@ -12,17 +12,21 @@ permissions:
   actions: read
   checks: read
 
+# One repair lane only. Failures are diagnosed/learned in one run and, when
+# certifiable, accumulated into the single repair branch/PR. Learning-only
+# outcomes never create a second branch, PR, or repair workflow.
 concurrency:
   group: flixo-auto-repair-main
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
   FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
+  FLIXO_REPAIR_BRANCH: bot/auto-repair
 
 jobs:
   repair:
-    name: Diagnose, learn and safely repair main CI failures
+    name: Single-lane diagnose, repair and learn
     if: >-
       github.event.workflow_run.conclusion == 'failure' &&
       github.event.workflow_run.head_branch == 'main' &&
@@ -109,7 +113,7 @@ jobs:
           echo "REPAIR_OUTCOME=$OUTCOME"
           if [ "$OUTCOME" != "verified-repair" ]; then
             echo 'verified=false' >> "$GITHUB_OUTPUT"
-            echo "Repair outcome '$OUTCOME' is not a verified repair; no PR will be created from source changes."
+            echo "Repair outcome '$OUTCOME' is not a verified repair; no source repair will be published."
             exit 0
           fi
           git diff --quiet && {
@@ -155,33 +159,54 @@ jobs:
           mkdir -p /tmp/flixo-repair-target/diagnostics/auto-repair
           cp diagnostics/auto-repair/memory.json /tmp/flixo-repair-target/diagnostics/auto-repair/memory.json
 
-      - name: Publish verified repair branch
+      - name: Publish verified repair to the single repair branch
         if: steps.verify.outputs.verified == 'true' && !cancelled()
         run: |
           set -euo pipefail
           cd /tmp/flixo-repair-target
-          BRANCH="bot/auto-repair-${{ github.event.workflow_run.id }}"
-          git switch -c "$BRANCH"
           git config user.name 'flixo-auto-repair[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin "$FLIXO_REPAIR_BRANCH" || true
+          if git ls-remote --exit-code --heads origin "$FLIXO_REPAIR_BRANCH" >/dev/null 2>&1; then
+            git fetch origin "$FLIXO_REPAIR_BRANCH"
+            git switch -C "$FLIXO_REPAIR_BRANCH" "origin/$FLIXO_REPAIR_BRANCH"
+            git merge --no-edit --no-ff "${{ github.event.workflow_run.head_sha }}" || {
+              echo 'Single repair branch has diverged from the failed SHA; refusing unsafe accumulation.'
+              exit 1
+            }
+            git checkout --theirs .
+            git add -A
+          else
+            git switch -c "$FLIXO_REPAIR_BRANCH"
+          fi
           git add -A
-          git commit -m "fix(ci): apply safe automatic repair from run ${{ github.event.workflow_run.id }}"
-          git push --set-upstream origin "$BRANCH"
-          echo "REPAIR_BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          git diff --cached --quiet && {
+            echo 'No new verified repair changes to publish.'
+            exit 0
+          }
+          git commit -m "fix(ci): accumulate verified repair from run ${{ github.event.workflow_run.id }}"
+          git push --set-upstream origin "$FLIXO_REPAIR_BRANCH"
 
-      - name: Open draft repair PR
-        if: steps.verify.outputs.verified == 'true' && env.REPAIR_BRANCH != ''
+      - name: Open or reuse the single draft repair PR
+        if: steps.verify.outputs.verified == 'true' && !cancelled()
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$REPAIR_BRANCH" --draft \
-            --title "fix(ci): automatic repair for failed run $RUN_ID" \
-            --body "## FLIXO Auto Repair Bot\n\nFailed canonical CI run: $RUN_ID\nFailed SHA: $FAILED_SHA\n\nThe bot uses an isolated failed-SHA worktree, deterministic classification, bounded playbooks, learning memory and post-repair verification.\n\nNo direct push to main is performed by the repair bot."
+          EXISTING=$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --head "$FLIXO_REPAIR_BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh pr edit "$EXISTING" --repo "$GITHUB_REPOSITORY" \
+              --title "fix(ci): consolidated automatic repairs" \
+              --body "## FLIXO Auto Repair Bot\n\nSingle repair lane. Verified repairs are accumulated in one branch and one draft PR.\n\nLatest failed run: $RUN_ID\nLatest failed SHA: $FAILED_SHA\n\nUnverified failures remain diagnostics/learning only and never create a second repair PR."
+          else
+            gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$FLIXO_REPAIR_BRANCH" --draft \
+              --title "fix(ci): consolidated automatic repairs" \
+              --body "## FLIXO Auto Repair Bot\n\nThis is the single repair lane for verified automatic CI repairs.\n\nLatest failed run: $RUN_ID\nLatest failed SHA: $FAILED_SHA\n\nOnly independently verified source repairs are accumulated here."
+          fi
 
-      - name: Publish learning and diagnostic artifacts
+      - name: Publish learning and diagnostic artifacts only
         if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -196,25 +221,3 @@ jobs:
             diagnostics/auto-repair/memory.json
           if-no-files-found: warn
           retention-days: 30
-
-      - name: Persist learning memory when no repair PR was created
-        if: steps.verify.outputs.verified != 'true' && !cancelled()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- diagnostics/auto-repair/memory.json; then
-            echo 'No new persistent learning record was produced.'
-            exit 0
-          fi
-          BRANCH="bot/error-learning-${RUN_ID}"
-          git switch -c "$BRANCH"
-          git config user.name 'flixo-auto-repair[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -f diagnostics/auto-repair/memory.json
-          git commit -m "chore(ci): persist learned failure outcome from run $RUN_ID"
-          git push --set-upstream origin "$BRANCH"
-          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --draft \
-            --title "chore(ci): persist error-learning outcome for run $RUN_ID" \
-            --body "## FLIXO Error Learning\n\nPersists the structured learning record produced from failed canonical CI run $RUN_ID.\n\nThis PR contains learning memory only; it does not certify or apply an unverified source repair."
