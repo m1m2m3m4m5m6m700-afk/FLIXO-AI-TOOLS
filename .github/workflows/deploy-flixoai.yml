@@ -82,6 +82,7 @@ jobs:
           mkdir -p dist
           gh run download "$SOURCE_RUN_ID" -n "flixo-build-${SOURCE_RUN_ID}" -D dist
           test "$(cat dist/flixo-head-sha.txt)" = "$DEPLOYMENT_SHA"
+          test "$(cat "dist/__flixo-identity-$DEPLOYMENT_SHA.txt")" = "$DEPLOYMENT_SHA"
           test "$(cat "dist/__flixo/identity/$DEPLOYMENT_SHA/index.txt")" = "$DEPLOYMENT_SHA"
           test -s dist/index.html
 
@@ -96,6 +97,7 @@ jobs:
           npm ci --prefer-offline --no-audit --no-fund
           npm run build
           printf '%s\n' "$DEPLOYMENT_SHA" > dist/flixo-head-sha.txt
+          printf '%s\n' "$DEPLOYMENT_SHA" > "dist/__flixo-identity-$DEPLOYMENT_SHA.txt"
           mkdir -p "dist/__flixo/identity/$DEPLOYMENT_SHA"
           printf '%s\n' "$DEPLOYMENT_SHA" > "dist/__flixo/identity/$DEPLOYMENT_SHA/index.txt"
           sha256sum package-lock.json > dist/flixo-package-lock.sha256
@@ -148,10 +150,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Cloudflare's SPA fallback can rewrite extensionless/nested identity paths.
-          # flixo-head-sha.txt is explicitly written at the asset root and is the
-          # immutable artifact identity already consumed by the deployment step.
-          identity_url="$FLIXOAI_PRODUCTION_ORIGIN/flixo-head-sha.txt"
+          # Use a SHA-specific root-level .txt asset. This avoids both SPA fallback
+          # and stale/colliding cache keys while keeping the identity immutable.
+          identity_url="$FLIXOAI_PRODUCTION_ORIGIN/__flixo-identity-$DEPLOYMENT_SHA.txt"
+          legacy_identity_url="$FLIXOAI_PRODUCTION_ORIGIN/flixo-head-sha.txt"
           root_url="$FLIXOAI_PRODUCTION_ORIGIN/?__flixo_sha=$DEPLOYMENT_SHA&__flixo_verify=1"
 
           identity_status="$(curl --silent --show-error --location --compressed \
@@ -159,15 +161,30 @@ jobs:
             -H 'Cache-Control: no-cache, no-store' \
             -o /tmp/flixo-production-identity.txt -w '%{http_code}' "$identity_url")"
           identity_body="$(tr -d '\r\n\ufeff' < /tmp/flixo-production-identity.txt)"
-          echo "Identity endpoint HTTP status: $identity_status"
-          echo "Identity endpoint body length: ${#identity_body}"
+          echo "Unique identity endpoint HTTP status: $identity_status"
+          echo "Unique identity endpoint body length: ${#identity_body}"
           if [ "$identity_status" != "200" ] || [ "$identity_body" != "$DEPLOYMENT_SHA" ]; then
             echo "Production immutable identity verification failed"
             echo "Expected SHA: $DEPLOYMENT_SHA"
             echo "Observed SHA: ${identity_body:-<empty>}"
             exit 1
           fi
-          echo "Production immutable identity matches exact deployment SHA"
+          echo "Production unique immutable identity matches exact deployment SHA"
+
+          legacy_status="$(curl --silent --show-error --location --compressed \
+            --retry 10 --retry-delay 3 --retry-all-errors --max-time 30 \
+            -H 'Cache-Control: no-cache, no-store' \
+            -o /tmp/flixo-production-legacy-identity.txt -w '%{http_code}' "$legacy_identity_url")"
+          legacy_body="$(tr -d '\r\n\ufeff' < /tmp/flixo-production-legacy-identity.txt)"
+          echo "Legacy identity endpoint HTTP status: $legacy_status"
+          echo "Legacy identity endpoint body length: ${#legacy_body}"
+          if [ "$legacy_status" != "200" ] || [ "$legacy_body" != "$DEPLOYMENT_SHA" ]; then
+            echo "Legacy root SHA asset verification failed"
+            echo "Expected SHA: $DEPLOYMENT_SHA"
+            echo "Observed SHA: ${legacy_body:-<empty>}"
+            exit 1
+          fi
+          echo "Legacy root SHA asset also matches exact deployment SHA"
 
           root_status="$(curl --silent --show-error --location --compressed \
             --retry 10 --retry-delay 3 --retry-all-errors --max-time 30 \
