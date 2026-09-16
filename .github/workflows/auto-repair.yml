@@ -26,15 +26,24 @@ jobs:
     if: >-
       github.event.workflow_run.conclusion == 'failure' &&
       github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.event != 'workflow_run'
+      github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout exact failed SHA
+      - name: Checkout trusted repair engine from current main
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          fetch-depth: 1
+          ref: main
+          fetch-depth: 0
+
+      - name: Materialize failed SHA as isolated repair target
+        env:
+          FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$FAILED_SHA"
+          git worktree add --detach /tmp/flixo-repair-target "$FAILED_SHA"
+          printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -42,7 +51,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Install dependencies
+      - name: Install target dependencies
+        working-directory: /tmp/flixo-repair-target
         run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Capture failed CI logs
@@ -56,22 +66,24 @@ jobs:
           {
             echo '### Failed CI classification input'
             echo "run_id=$RUN_ID"
-            echo 'head_sha=${{ github.event.workflow_run.head_sha }}'
+            echo "head_sha=${{ github.event.workflow_run.head_sha }}"
             grep -E -i 'error|failed|failure|timeout|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
           } > /tmp/flixo-repair-summary.txt
 
       - name: Classify root cause
         run: node scripts/ci/auto-repair-classifier.mjs
 
-      - name: Run bounded learning-aware repair engine
+      - name: Run bounded repair engine against isolated target
+        env:
+          FLIXO_TARGET_DIR: /tmp/flixo-repair-target
         run: node scripts/ci/auto-repair-engine.mjs
 
-      - name: Verify repair before publishing
+      - name: Verify isolated repair
         id: verify
         if: always()
+        working-directory: /tmp/flixo-repair-target
         run: |
           set -euo pipefail
-          test -f /tmp/flixo-repair-evidence.json || exit 0
           if git diff --quiet; then
             echo 'No source changes were produced; no repair PR will be created.'
             exit 0
@@ -89,13 +101,16 @@ jobs:
           set -euo pipefail
           test -f /tmp/flixo-root-cause.json || exit 0
           ROOT_CAUSE=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8'));process.stdout.write(x.rootCause||'unknown')")
-          RULE=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.selectedRule||'')")
+          RULE=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.selected||'')")
           FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" node scripts/ci/auto-repair-learning.mjs
 
-      - name: Create repair branch
+      - name: Publish verified repair branch
         if: steps.verify.outcome == 'success' && !cancelled()
+        env:
+          FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
+          cd /tmp/flixo-repair-target
           if git diff --quiet; then exit 0; fi
           BRANCH="bot/auto-repair-${{ github.event.workflow_run.id }}"
           git switch -c "$BRANCH"
@@ -106,20 +121,16 @@ jobs:
           git push --set-upstream origin "$BRANCH"
           echo "REPAIR_BRANCH=$BRANCH" >> "$GITHUB_ENV"
 
-      - name: Open repair PR
+      - name: Open draft repair PR
         if: steps.verify.outcome == 'success' && env.REPAIR_BRANCH != ''
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          gh pr create \
-            --repo "$GITHUB_REPOSITORY" \
-            --base main \
-            --head "$REPAIR_BRANCH" \
-            --draft \
+          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$REPAIR_BRANCH" --draft \
             --title "fix(ci): automatic repair for failed run $RUN_ID" \
-            --body "## FLIXO Auto Repair Bot\n\nFailed canonical CI run: $RUN_ID\n\nFailed SHA: $FAILED_SHA\n\nThe bot uses deterministic classification, bounded playbooks, historical scoring and post-repair verification.\n\nNo direct push to main is performed by the repair bot."
+            --body "## FLIXO Auto Repair Bot\n\nFailed canonical CI run: $RUN_ID\nFailed SHA: $FAILED_SHA\n\nThe bot uses an isolated failed-SHA worktree, deterministic classification, bounded playbooks, learning memory and post-repair verification.\n\nNo direct push to main is performed by the repair bot."
 
       - name: Publish diagnostic and learning artifacts
         if: always()
