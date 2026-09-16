@@ -16,29 +16,108 @@ permissions:
 
 jobs:
   wp0:
-    name: WP0 Trust Baseline
+    name: WP0 Trust Baseline — Single Verification Path
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Checkout exact execution SHA
+      - name: 01 — Checkout exact execution SHA
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
-      - name: Verify exact checkout identity
+
+      - name: 02 — Verify exact checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          test "$ACTUAL_SHA" = "$EXPECTED_SHA"
+          printf '%s\n' "$ACTUAL_SHA" > flixo-wp0-head-sha.txt
+
+      - name: 03 — Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: 04 — Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: 05 — Task state, confirmation and cancellation contract
+        run: |
+          set -euo pipefail
+          npm run test:agent-execution-gate
+          npm run test:agent-execution-control
+          npm run test:agent-capability
+
+      - name: 06 — Task identity and provenance contracts
+        run: |
+          set -euo pipefail
+          npm run test:checkpoint-producer
+          npm run test:execution-sha-provenance
+
+      - name: 07 — Canonical CI/CD trust and exact-SHA gate
+        run: npm run verify:ci-cd-trust
+
+      - name: 08 — WP0 static trust and readiness alignment gate
+        run: node scripts/ci/validate-wp0-trust-baseline.mjs
+
+      - name: 09 — Engineering baseline
+        run: npm run validate:baseline
+
+      - name: 10 — Typecheck
+        run: npm run typecheck
+
+      - name: 11 — Canonical static verification
+        run: npm run test:static
+
+      - name: 12 — Canonical build verification
+        run: npm run test:build
+
+      - name: 13 — Emit exact-SHA WP0 evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(git rev-parse HEAD)"
+          mkdir -p dist/wp0-evidence
+          printf '%s\n' "$SHA" > dist/wp0-evidence/flixo-head-sha.txt
+          cat > dist/wp0-evidence/wp0-verdict.json <<EOF
+          {
+            "schema_version": 1,
+            "authority": "WP0_TRUST_BASELINE_SINGLE_PATH",
+            "status": "PASS",
+            "exactSha": "$SHA",
+            "controls": {
+              "taskState": true,
+              "confirmationCancellation": true,
+              "taskTraceIdentity": true,
+              "canonicalVerification": true,
+              "exactShaEvidence": true,
+              "readinessAlignment": true,
+              "ciCdTrustBoundary": true,
+              "staticVerification": true,
+              "buildVerification": true
+            }
+          }
+          EOF
+
+      - name: 14 — Upload WP0 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flixo-wp0-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+          path: dist/wp0-evidence/
+          if-no-files-found: error
+
+      - name: 15 — Final WP0 decision
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Validate WP0 trust baseline
-        run: node scripts/ci/validate-wp0-trust-baseline.mjs
-      - name: Validate engineering baseline
-        run: npm run validate:baseline
+          test -f dist/wp0-evidence/flixo-head-sha.txt
+          test "$(cat dist/wp0-evidence/flixo-head-sha.txt)" = "$EXPECTED_SHA"
+          grep -q '"status": "PASS"' dist/wp0-evidence/wp0-verdict.json
+          echo "WP0 TRUST BASELINE: PASS"
+          echo "EXACT SHA: $EXPECTED_SHA"
