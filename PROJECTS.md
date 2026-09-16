@@ -8,7 +8,7 @@
 
 ```text
 BRANCH = main
-CURRENT MAIN SHA = c31798688872578294edab984731f0596fc6b6ad
+CURRENT MAIN SHA = AUTHORITATIVE BRANCH REF
 ACTIVE TASK = RELEASE-001 → ACTIVE
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = CLOSED / VERIFIED
@@ -71,6 +71,7 @@ ACTIVE
 PURPOSE = Final deterministic gate before public production release
 ADMIN-008 = CLOSED / VERIFIED
 REQUIRED = fresh exact-SHA CI/certification evidence plus all R01→R09 launch gates
+EXECUTION CHECKPOINT = 2026-09-16; canonical main SHA refreshed through this ledger change; fresh CI evidence required before closure
 ```
 
 ## GOVERNANCE
