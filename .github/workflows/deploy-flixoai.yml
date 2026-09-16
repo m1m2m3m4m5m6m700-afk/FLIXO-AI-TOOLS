@@ -82,6 +82,7 @@ jobs:
           mkdir -p dist
           gh run download "$SOURCE_RUN_ID" -n "flixo-build-${SOURCE_RUN_ID}" -D dist
           test "$(cat dist/flixo-head-sha.txt)" = "$DEPLOYMENT_SHA"
+          test "$(cat "dist/__flixo/identity/$DEPLOYMENT_SHA/index.txt")" = "$DEPLOYMENT_SHA"
           test -s dist/index.html
 
       - name: Build and fingerprint exact SHA for manual deployment
@@ -95,6 +96,8 @@ jobs:
           npm ci --prefer-offline --no-audit --no-fund
           npm run build
           printf '%s\n' "$DEPLOYMENT_SHA" > dist/flixo-head-sha.txt
+          mkdir -p "dist/__flixo/identity/$DEPLOYMENT_SHA"
+          printf '%s\n' "$DEPLOYMENT_SHA" > "dist/__flixo/identity/$DEPLOYMENT_SHA/index.txt"
           sha256sum package-lock.json > dist/flixo-package-lock.sha256
           test "$(git rev-parse HEAD)" = "$DEPLOYMENT_SHA"
           test -s dist/index.html
@@ -173,30 +176,24 @@ jobs:
         run: |
           set -euo pipefail
 
-          sha_url="$FLIXOAI_PRODUCTION_ORIGIN/flixo-head-sha.txt?__flixo_sha=$DEPLOYMENT_SHA&__flixo_verify=1"
+          identity_url="$FLIXOAI_PRODUCTION_ORIGIN/__flixo/identity/$DEPLOYMENT_SHA/index.txt"
           root_url="$FLIXOAI_PRODUCTION_ORIGIN/?__flixo_sha=$DEPLOYMENT_SHA&__flixo_verify=1"
 
-          echo "=== Production identity: SHA endpoint ==="
-          sha_status="$(curl --silent --show-error --location --compressed \
+          echo "=== Production identity: immutable SHA path ==="
+          identity_status="$(curl --silent --show-error --location --compressed \
             --retry 10 --retry-delay 3 --retry-all-errors --max-time 30 \
             -H 'Cache-Control: no-cache, no-store' \
-            -o /tmp/flixo-production-sha.txt -w '%{http_code}' "$sha_url")"
-          sha_body="$(tr -d '\r\n\ufeff' < /tmp/flixo-production-sha.txt)"
-          echo "SHA endpoint HTTP status: $sha_status"
-          echo "SHA endpoint body length: ${#sha_body}"
-          if [ "$sha_status" != "200" ] || [ "$sha_body" != "$DEPLOYMENT_SHA" ]; then
-            echo "❌ Production SHA verification failed"
+            -o /tmp/flixo-production-identity.txt -w '%{http_code}' "$identity_url")"
+          identity_body="$(tr -d '\r\n\ufeff' < /tmp/flixo-production-identity.txt)"
+          echo "Identity endpoint HTTP status: $identity_status"
+          echo "Identity endpoint body length: ${#identity_body}"
+          if [ "$identity_status" != "200" ] || [ "$identity_body" != "$DEPLOYMENT_SHA" ]; then
+            echo "❌ Production immutable identity verification failed"
             echo "Expected SHA: $DEPLOYMENT_SHA"
-            echo "Observed SHA: ${sha_body:-<empty>}"
-            echo "Response headers/body diagnostics:"
-            curl --silent --show-error --location --compressed --max-time 30 \
-              -H 'Cache-Control: no-cache, no-store' \
-              -D /tmp/flixo-production-sha.headers -o /tmp/flixo-production-sha.body "$sha_url" || true
-            sed -n '1,40p' /tmp/flixo-production-sha.headers || true
-            sed -n '1,5p' /tmp/flixo-production-sha.body || true
+            echo "Observed SHA: ${identity_body:-<empty>}"
             exit 1
           fi
-          echo "✅ Production SHA matches exact deployment SHA"
+          echo "✅ Production immutable identity matches exact deployment SHA"
 
           echo "=== Production identity: root HTML ==="
           root_status="$(curl --silent --show-error --location --compressed \
