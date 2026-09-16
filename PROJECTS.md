@@ -9,7 +9,7 @@
 ```text
 BRANCH = main
 CURRENT MAIN SHA = AUTHORITATIVE BRANCH REF
-ACTIVE TASK = BUILD-002 → ACTIVE
+ACTIVE TASK = TEST-001 → ACTIVE
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = CLOSED / VERIFIED
 ADMIN-005 = CLOSED / VERIFIED
@@ -18,10 +18,12 @@ ADMIN-007 = CLOSED / VERIFIED
 ADMIN-008 = CLOSED / VERIFIED
 RELEASE-001 = CLOSED / VERIFIED
 I18N-001 = CLOSED / VERIFIED
+BUILD-002 = CLOSED / VERIFIED
 SUPABASE PROJECT = zrpsmgdrtwzrhkjwwujo / ACTIVE_HEALTHY
 VERCEL PRODUCTION BINDING = EXACT-SHA PRODUCTION IDENTITY PROVEN
 PRODUCTION MUTATION = DISABLED
 I18N-001 REPAIR = VERIFIED ON MAIN / FRESH CANONICAL CI PASS
+BUILD-002 = VERIFIED ON MAIN / FRESH CANONICAL CI PASS
 ```
 
 ## TASK QUEUE
@@ -36,8 +38,8 @@ I18N-001 REPAIR = VERIFIED ON MAIN / FRESH CANONICAL CI PASS
 | ADMIN-008 | CLOSED / VERIFIED | Preserve final production certification and evidence |
 | RELEASE-001 | CLOSED / VERIFIED | Preserve exact release evidence and do not reopen without a new deterministic blocker |
 | I18N-001 | CLOSED / VERIFIED | Preserve canonical Seed UI ownership and regression proof |
-| BUILD-002 | ACTIVE | Verify canonical build-identity producer/consumer regression on fresh exact SHA; then close only with full evidence |
-| TEST-001 | CANDIDATE | Ownership inventory |
+| BUILD-002 | CLOSED / VERIFIED | Preserve canonical artifact identity producer/consumer contract |
+| TEST-001 | ACTIVE | Ownership inventory; bounded deterministic scope only |
 | DEBT-001 | CANDIDATE | Fresh-failure/value review |
 | TOOL-EXPANSION | CANDIDATE | Select smallest proven candidate |
 
@@ -100,26 +102,22 @@ CLOSURE EVIDENCE = RECORDED
 ## BUILD-002
 
 ```text
-ACTIVE
+CLOSED / VERIFIED
 PURPOSE = Deterministic artifact-graph ownership and identity-contract hardening
-ENTRY BASIS = RELEASE-001 closure evidence confirmed on exact SHA 6e338cb3c1f35abe458c3316b5ff036ad8dcc7cb
-SCOPE = map build artifacts → producers → consumers → immutable identity checks → deployment/certification evidence
-GUARDRAIL = no production deployment behavior bypass; identity guard is fail-closed and must be proven by fresh CI
-
-ARTIFACT OWNERSHIP MAP
-PRODUCER = npm run build → vite build + generated robots/sitemap/static route entries → dist/
-CANONICAL IDENTITY PRODUCER = scripts/ci/runtime/build-identity.mjs → dist/__flixo/build-identity.json + dist/__flixo/artifact-hash.txt
-PRIMARY CI CONSUMER = FLIXO Test System Static + Build → invokes canonical producer and verifies its manifest against EXPECTED_SHA
-BROWSER CONSUMERS = Browser FAST/DEEP download flixo-build-${RUN_ID} and re-verify canonical identity + SHA + package-lock hash
-CERTIFICATION CONSUMER = execution-graph.json + primary browser evidence files → canonical certification engine
-DEPLOYMENT CONSUMER = FLIXO Continuous Delivery downloads flixo-build-${CI_RUN_ID} and fail-closes unless canonical identity commitSha == promotion SHA
-
-IMPLEMENTED CHANGE = canonical producer is now executed after build; its identity manifest is embedded in the immutable dist artifact; CI and CD consume the same producer-owned manifest.
-REGRESSION = scripts/ci/test-build-identity-contract.mjs is wired into npm test:static and proves producer invocation, producer-owned manifest, immutable artifact publication, and CD consumption.
-STATUS = IMPLEMENTED / AWAITING FRESH CANONICAL CI EVIDENCE
-CURRENT IMPLEMENTATION SHA = e927e76f814bb364eb3381c7bac37c7be73bb143
-CI RUN = 35107013374 (pending at last observation)
-CLOSURE RULE = do not mark BUILD-002 CLOSED until fresh exact-SHA Static + Build, Browser FAST/DEEP, Certification, and invariant evidence all pass.
+VERIFIED EXACT MAIN SHA = 92862289b4fab234a8eea1595ca4bb8f644d7a4c
+VERIFIED CI RUN = 35113721226
+IMPLEMENTATION SHA = e927e76f814bb364eb3381c7bac37c7be73bb143
+CANONICAL IDENTITY PRODUCER = scripts/ci/runtime/build-identity.mjs
+STATIC + BUILD = PASS
+BROWSER FAST = PASS (Chromium / Firefox / WebKit)
+BROWSER DEEP = PASS (Chromium / Firefox / WebKit)
+CERTIFICATION = PASS
+CI/CD TRUST CONTRACT = PASS
+IMMUTABLE BUILD ARTIFACT = PASS (flixo-build-35113721226)
+CERTIFICATION EVIDENCE = flixo-certification-evidence-35113721226
+TARGETED REGRESSION = PASS: canonical producer invocation, producer-owned identity manifest, immutable artifact publication, browser re-verification, and certification graph completeness
+INVARIANT PROOF = PASS: execution SHA, canonical build identity, package-lock checksum, browser artifact verification, and certification trust checks all passed on main
+CLOSURE EVIDENCE = RECORDED
 ```
 
 ## GOVERNANCE
