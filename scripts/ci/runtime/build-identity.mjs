@@ -21,7 +21,8 @@ const fileHashes = [];
 for (const path of files) fileHashes.push(`${path}:${hash(await readFile(path))}:${(await stat(path)).size}`);
 const artifactHash = hash(fileHashes.join('\n'));
 const identity = {
-  schemaVersion: 1,
+  schemaVersion: 2,
+  producer: 'scripts/ci/runtime/build-identity.mjs',
   commitSha,
   lockfileHash,
   nvmrc,
@@ -29,7 +30,9 @@ const identity = {
   artifactHash,
   files,
 };
-await mkdir('artifacts/ci/build', { recursive: true });
-await writeFile('artifacts/ci/build/identity.json', JSON.stringify(identity, null, 2) + '\n');
-await writeFile('artifacts/ci/build/artifact-hash.txt', `${artifactHash}\n`);
+
+const outputDir = 'dist/__flixo';
+await mkdir(outputDir, { recursive: true });
+await writeFile(`${outputDir}/build-identity.json`, JSON.stringify(identity, null, 2) + '\n');
+await writeFile(`${outputDir}/artifact-hash.txt`, `${artifactHash}\n`);
 console.log(`Verified build identity PASS: ${artifactHash}`);
