@@ -16,6 +16,9 @@ concurrency:
   group: flixo-auto-repair-main
   cancel-in-progress: true
 
+env:
+  FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
+
 jobs:
   repair:
     name: Diagnose and safely repair main CI failures
@@ -24,7 +27,7 @@ jobs:
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.event != 'workflow_run'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout exact failed SHA
         uses: actions/checkout@v5
@@ -46,28 +49,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
-          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > /tmp/flixo-failure.log 2>&1 || true
-          test -s /tmp/flixo-failure.log || printf '%s\n' 'No failed log payload was available.' > /tmp/flixo-failure.log
+          set -euo pipefail
+          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > "$FLIXO_FAILURE_LOG" 2>&1 || true
+          test -s "$FLIXO_FAILURE_LOG" || printf '%s\n' 'No failed log payload was available.' > "$FLIXO_FAILURE_LOG"
           {
             echo '### Failed CI classification input'
-            echo 'run_id='"$RUN_ID"
-            echo 'head_sha='"${{ github.event.workflow_run.head_sha }}"
-            grep -E -i 'error|failed|failure|timeout|unused|no-unused|type error|TS[0-9]+|prettier' /tmp/flixo-failure.log | tail -n 200 || true
+            echo "run_id=$RUN_ID"
+            echo 'head_sha=${{ github.event.workflow_run.head_sha }}'
+            grep -E -i 'error|failed|failure|timeout|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
           } > /tmp/flixo-repair-summary.txt
 
       - name: Run bounded auto-repair engine
-        run: |
-          set -euo pipefail
-          if grep -Eiq 'no-unused-vars|unused .* is defined|defined but never used|@typescript-eslint/no-unused-vars' /tmp/flixo-failure.log; then
-            npx eslint . --fix
-          elif grep -Eiq 'prettier|code style|formatting' /tmp/flixo-failure.log; then
-            npx prettier --write .
-          else
-            echo 'No deterministic safe repair rule matched this failure.'
-          fi
+        run: node scripts/ci/auto-repair-engine.mjs
 
       - name: Verify repair before publishing
-        if: success()
         run: |
           set -euo pipefail
           if git diff --quiet; then
@@ -105,7 +100,7 @@ jobs:
             --head "$REPAIR_BRANCH" \
             --draft \
             --title "fix(ci): automatic repair for failed run $RUN_ID" \
-            --body "## FLIXO Auto Repair Bot\n\nFailed canonical CI run: $RUN_ID\n\nFailed SHA: $FAILED_SHA\n\nThe bot applied only a bounded deterministic repair rule, then verified typecheck + static contracts + build contracts before opening this draft PR.\n\nFailure summary:\n\n$(cat /tmp/flixo-repair-summary.txt)\n\nNo direct push to main is performed by the repair bot."
+            --body "## FLIXO Auto Repair Bot\n\nFailed canonical CI run: $RUN_ID\n\nFailed SHA: $FAILED_SHA\n\nThe bot applies only bounded deterministic repairs and verifies typecheck + static + build before opening a draft PR.\n\nFailure summary:\n\n$(cat /tmp/flixo-repair-summary.txt)\n\nNo direct push to main is performed by the repair bot."
 
       - name: Publish diagnostic artifact
         if: always()
@@ -113,7 +108,7 @@ jobs:
         with:
           name: flixo-auto-repair-${{ github.event.workflow_run.id }}
           path: |
-            /tmp/flixo-failure.log
+            "$FLIXO_FAILURE_LOG"
             /tmp/flixo-repair-summary.txt
           if-no-files-found: warn
           retention-days: 14
