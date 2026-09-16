@@ -89,6 +89,20 @@ PURPOSE = Deterministic artifact-graph analysis after release certification
 ENTRY BASIS = RELEASE-001 closure evidence confirmed on exact SHA 6e338cb3c1f35abe458c3316b5ff036ad8dcc7cb
 SCOPE = map build artifacts → producers → consumers → immutable identity checks → deployment/certification evidence
 GUARDRAIL = no production mutation; analysis and bounded fixes only
+
+ARTIFACT OWNERSHIP MAP
+PRODUCER = npm run build → vite build + generated robots/sitemap/static route entries → dist/
+PRIMARY CI CONSUMER = FLIXO Test System Static + Build → verifies dist/index.html and immutable SHA markers
+BROWSER CONSUMERS = Browser FAST/DEEP download flixo-build-${RUN_ID} and re-verify SHA + package-lock hash
+CERTIFICATION CONSUMER = execution-graph.json + 15 primary browser evidence files → canonical certification engine
+DEPLOYMENT CONSUMER = FLIXO Continuous Delivery downloads flixo-build-${CI_RUN_ID}, checks flixo-head-sha.txt, then promotes exact SHA
+IDENTITY CHECKS = git HEAD == EXPECTED_SHA; dist/flixo-head-sha.txt == EXPECTED_SHA; nested identity path == EXPECTED_SHA; package-lock checksum matches
+
+FINDING = scripts/ci/runtime/build-identity.mjs is an orphaned identity producer: it computes a stronger SHA-256 artifact identity and writes artifacts/ci/build/identity.json, but the canonical CI workflow does not invoke it and CD does not consume it.
+SECONDARY FINDING = canonical CI currently performs equivalent identity assertions directly in ci.yml, creating two identity mechanisms with no enforced linkage.
+RISK = identity drift can become silent if the orphaned producer and inline CI assertions evolve independently.
+BOUNDED NEXT ACTION = add one deterministic regression proving the canonical build artifact identity has a single authoritative producer/consumer contract; do not alter production deployment behavior until that regression passes.
+STATUS = ANALYSIS COMPLETE / MUTATION NOT YET AUTHORIZED
 ```
 
 ## GOVERNANCE
