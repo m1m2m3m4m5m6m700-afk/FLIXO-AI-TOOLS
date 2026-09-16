@@ -49,6 +49,7 @@ For every claimed task, the agent produces a **Task Preparation Packet** contain
 10. blockers, uncertainty and falsification requirements;
 11. `preparedOnly: true`.
 
+### PREPARED CHANGES
 Prepared source changes are artifacts for the Executive Controller. They are not authoritative until independently reviewed, adapted, applied and verified.
 
 ## Code-only rule
