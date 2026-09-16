@@ -14,16 +14,27 @@ const patterns = [
 ];
 
 const matches = patterns.filter(([, pattern]) => pattern.test(log)).map(([id]) => id);
+const priority = ['webkit-render', 'certification', 'typescript', 'playwright', 'lint', 'format', 'build'];
+const rootCause = priority.find((id) => matches.includes(id)) ?? 'unknown';
 
-let rootCause = 'unknown';
-if (matches.includes('webkit-render')) rootCause = 'webkit-render';
-else if (matches.includes('certification')) rootCause = 'certification';
-else if (matches.includes('typescript')) rootCause = 'typescript';
-else if (matches.includes('playwright')) rootCause = 'playwright';
-else if (matches.includes('lint')) rootCause = 'lint';
-else if (matches.includes('format')) rootCause = 'format';
-else if (matches.includes('build')) rootCause = 'build';
+const fileLine = log.match(/(?:^|\s)([^\s:]+\.(?:ts|tsx|js|mjs|jsx)):(\d+)(?::(\d+))?/i);
+const errorCode = log.match(/\b(?:TS\d+|[A-Z_]+_ERROR)\b/gi)?.[0] ?? null;
+const testTitle = log.match(/(?:›|test:|Test:)\s*([^\n]{5,180})/)?.[1]?.trim() ?? null;
+const signature = [rootCause, errorCode, fileLine?.[1], fileLine?.[2], testTitle]
+  .filter(Boolean)
+  .join('|') || rootCause;
+
+const evidence = {
+  rootCause,
+  matches,
+  signature,
+  location: fileLine ? { file: fileLine[1], line: Number(fileLine[2]), column: fileLine[3] ? Number(fileLine[3]) : null } : null,
+  errorCode,
+  testTitle,
+  generatedAt: new Date().toISOString(),
+};
 
 console.log(`FLIXO_ROOT_CAUSE=${rootCause}`);
 console.log(`FLIXO_FAILURE_CLASSES=${matches.join(',') || 'unknown'}`);
-fs.writeFileSync('/tmp/flixo-root-cause.json', JSON.stringify({ rootCause, matches }, null, 2));
+console.log(`FLIXO_FAILURE_SIGNATURE=${signature}`);
+fs.writeFileSync('/tmp/flixo-root-cause.json', `${JSON.stringify(evidence, null, 2)}\n`);
