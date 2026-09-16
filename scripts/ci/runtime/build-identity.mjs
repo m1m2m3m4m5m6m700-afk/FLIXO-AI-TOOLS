@@ -3,7 +3,7 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
 
 const hash = (value) => createHash('sha256').update(value).digest('hex');
-const commitSha = process.env.GITHUB_SHA ?? 'LOCAL';
+const commitSha = process.env.EXPECTED_SHA ?? process.env.GITHUB_SHA ?? 'LOCAL';
 const lockfileHash = hash(await readFile('package-lock.json'));
 const nvmrc = (await readFile('.nvmrc', 'utf8')).trim();
 const files = [];
