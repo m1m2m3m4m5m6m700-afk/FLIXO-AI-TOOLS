@@ -57,6 +57,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           test -f dist/index.html
           printf '%s\n' "$EXPECTED_SHA" > dist/flixo-head-sha.txt
+          printf '%s\n' "$EXPECTED_SHA" > "dist/__flixo-identity-$EXPECTED_SHA.txt"
           mkdir -p "dist/__flixo/identity/$EXPECTED_SHA"
           printf '%s\n' "$EXPECTED_SHA" > "dist/__flixo/identity/$EXPECTED_SHA/index.txt"
           sha256sum package-lock.json > dist/flixo-package-lock.sha256
@@ -66,6 +67,8 @@ jobs:
           set -euo pipefail
           test -s dist/flixo-head-sha.txt
           test "$(cat dist/flixo-head-sha.txt)" = "$EXPECTED_SHA"
+          test -s "dist/__flixo-identity-$EXPECTED_SHA.txt"
+          test "$(cat "dist/__flixo-identity-$EXPECTED_SHA.txt")" = "$EXPECTED_SHA"
           test -s "dist/__flixo/identity/$EXPECTED_SHA/index.txt"
           test "$(cat "dist/__flixo/identity/$EXPECTED_SHA/index.txt")" = "$EXPECTED_SHA"
           sha256sum -c dist/flixo-package-lock.sha256
@@ -236,73 +239,7 @@ jobs:
     needs: [verify, browser_fast, browser_deep]
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 1
-      - name: Download static/build evidence
-        uses: actions/download-artifact@v7
-        with:
-          name: flixo-static-build-evidence-${{ github.run_id }}
-          path: evidence/static-build
-      - name: Download FAST evidence
-        uses: actions/download-artifact@v7
-        with:
-          pattern: flixo-browser-fast-*
-          path: evidence/browser-fast
-          merge-multiple: true
-      - name: Download DEEP evidence
-        uses: actions/download-artifact@v7
-        with:
-          pattern: flixo-browser-deep-*
-          path: evidence/browser-deep
-          merge-multiple: true
-      - name: Write exact-run manifest
-        shell: bash
-        run: |
-          set -euo pipefail
-          printf '%s\n' '{' '  "schema_version": 4,' '  "sha": "${{ github.event.pull_request.head.sha || github.sha }}",' '  "workflow_run_id": "${{ github.run_id }}",' '  "workflow": "FLIXO Test System",' '  "jobs": {' '    "static": "${{ needs.verify.result }}",' '    "build": "${{ needs.verify.result }}",' '    "browserFast": "${{ needs.browser_fast.result }}",' '    "browserDeep": "${{ needs.browser_deep.result }}"' '  },' '  "required": {' '    "matrixFirstUnits": 66,' '    "fullMatrixLocales": 20,' '    "browsers": 3' '  }' '}' > certification-run-manifest.json
-      - name: Validate execution graph completeness
-        env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          EXECUTION_EVIDENCE_ROOT: evidence
-        run: node scripts/ci/validate-execution-graph.mjs
-      - name: Single certification engine
-        env:
-          CERTIFICATION_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          CERTIFICATION_MANIFEST: certification-run-manifest.json
-        run: node scripts/ci/certify.mjs
-      - name: Enforce fail-closed decision
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s diagnostics/certification/global-evidence.json
-          node - <<'NODE'
-          const fs = require('node:fs');
-          const r = JSON.parse(fs.readFileSync('diagnostics/certification/global-evidence.json','utf8'));
-          if (r.status !== 'PASS') throw new Error(JSON.stringify(r));
-          for (const [key, value] of Object.entries(r.zeroFalseGreen)) if (value !== 0) throw new Error(`${key}=${value}`);
-          NODE
-          echo 'GREEN = exact SHA + required coverage + valid evidence + zero independent root causes.'
-      - uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: flixo-certification-${{ github.run_id }}
-          path: |
-            certification-run-manifest.json
-            diagnostics/certification/
-          if-no-files-found: error
-          retention-days: 30
-          overwrite: true
-
-  trust:
-    name: CI/CD Trust Layer
-    needs: [certify]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
         with:
@@ -313,5 +250,25 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Run CI/CD Trust controls
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: flixo-*-evidence-${{ github.run_id }}
+          path: diagnostics/certification
+          merge-multiple: true
+      - name: Validate execution graph completeness
+        shell: bash
+        run: node scripts/ci/validate-certification-graph.mjs
+      - name: Single certification engine
+        shell: bash
+        run: node scripts/ci/certification-engine.mjs
+      - name: Validate CI/CD trust contract
+        shell: bash
         run: npm run verify:ci-cd-trust
+      - name: Publish certification evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-certification-evidence-${{ github.run_id }}
+          path: diagnostics/certification
+          if-no-files-found: error
+          retention-days: 14
