@@ -62,8 +62,9 @@ const generatedAt = new Date().toISOString();
 const outputs = [];
 
 for (const task of selected) {
+  const fingerprint = hash(`${task.taskId}|${task.title}|${task.section}`).slice(0, 16);
   const packet = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     authority: 'FLIXO_TASK_AGENT',
     role: 'TASK_OWNER_AND_CODE_PREPARER',
     mode: 'PREPARATION_ONLY',
@@ -73,6 +74,16 @@ for (const task of selected) {
     task,
     baselineSha: sha,
     generatedAt,
+    errorFingerprint: fingerprint,
+    repairSummary: {
+      status: 'PENDING',
+      taskId: task.taskId,
+      fingerprint,
+      error: 'UNOBSERVED',
+      rootCause: 'UNOBSERVED',
+      repair: 'NOT_APPLIED_BY_PREPARATION_AGENT',
+      verification: 'PENDING',
+    },
     instructions: {
       objective: 'Understand this task, inspect its contracts, prepare exact source-code changes for a supervising agent, and stop before applying/committing/pushing them.',
       sourcePayload: 'CODE_ONLY',
@@ -114,19 +125,26 @@ for (const task of selected) {
   };
   const output = path.join(OUTPUT_DIR, `${task.taskId}.json`);
   fs.writeFileSync(output, `${JSON.stringify(packet, null, 2)}\n`);
-  outputs.push({ taskId: task.taskId, output });
+  outputs.push({ taskId: task.taskId, output, fingerprint });
 }
 
 const index = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   authority: 'FLIXO_TASK_AGENT',
   mode: 'PREPARATION_ONLY',
   preparedOnly: true,
   baselineSha: sha,
   generatedAt,
   selected: outputs,
+  selectedCount: outputs.length,
   lifecycle: 'ACTIVE_UNTIL_CANONICAL_GREEN',
   repairLoop: { enabled: true, mode: 'RED_TO_GREEN', maxCycles: 12, rescanAfterEveryRepair: true },
+  greenGate: {
+    required: ['CANONICAL_GREEN', 'ZERO_RED_CHECKS', 'FRESH_EXACT_SHA_EVIDENCE', 'REGRESSION_PROOF'],
+    closureAllowedOnlyWhenAllRequired: true,
+  },
+  changeBudget: { maxPreparedFiles: 12, maxInspectedFiles: 40, onExceed: 'REQUIRES_REVIEW' },
+  memory: { fingerprinted: true, summaryPerRepair: true, reuseKnownFingerprint: true },
   digest: hash(JSON.stringify(outputs)),
 };
 fs.writeFileSync(path.join(OUTPUT_DIR, 'latest.json'), `${JSON.stringify(index, null, 2)}\n`);
