@@ -1,0 +1,85 @@
+name: FLIXO Agent Repair Handoff Gate
+
+on:
+  workflow_run:
+    workflows: ["FLIXO Auto Repair Bot"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: flixo-repair-handoff-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+env:
+  REPAIR_RUN_ID: ${{ github.event.workflow_run.id }}
+  REPAIR_SHA: ${{ github.event.workflow_run.head_sha }}
+
+jobs:
+  validate-handoff:
+    name: Validate repair handoff boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted validators from main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Download repair handoff artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/repair-handoff
+          gh run download "$REPAIR_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            -n "flixo-auto-repair-${REPAIR_RUN_ID}" \
+            -D /tmp/repair-handoff
+
+      - name: Validate handoff contract and publication boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/repair-handoff
+
+          test -f flixo-prepared-repair-handoff.json
+          test -f flixo-engine-outcome
+          test -f flixo-learning-outcome
+          test -f flixo-root-cause.json
+
+          node <<'NODE'
+          const fs = require('fs');
+          const handoff = JSON.parse(fs.readFileSync('flixo-prepared-repair-handoff.json', 'utf8'));
+          const outcome = fs.readFileSync('flixo-engine-outcome', 'utf8').trim();
+          const learning = fs.readFileSync('flixo-learning-outcome', 'utf8').trim();
+
+          if (handoff.mode !== 'PREPARATION_ONLY') throw new Error(`Invalid mode: ${handoff.mode}`);
+          if (handoff.applyBy !== 'SUPERVISING_EXECUTION_AGENT') throw new Error(`Invalid owner: ${handoff.applyBy}`);
+          if (handoff.sourcePublishByBot !== false) throw new Error('Bot source publication boundary violated');
+          if (outcome === 'verified-repair' && learning !== 'success') throw new Error('Verified repair without successful learning outcome');
+          if (outcome !== 'verified-repair' && learning === 'success') throw new Error('Learning marked success for unverified repair');
+          NODE
+
+      - name: Record machine-readable handoff decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/repair-handoff
+          outcome="$(cat flixo-engine-outcome)"
+          learning="$(cat flixo-learning-outcome)"
+          node -e 'const fs=require("fs"); const crypto=require("crypto"); const f="flixo-prepared-repair-handoff.json"; const h=JSON.parse(fs.readFileSync(f,"utf8")); const o=process.env.OUTCOME; const l=process.env.LEARNING; const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v1",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,mode:h.mode,applyBy:h.applyBy,sourcePublishByBot:h.sourcePublishByBot,engineOutcome:o,learningOutcome:l,decision:o==="verified-repair"&&l==="success"?"READY_FOR_EXECUTIVE_REVIEW":"ESCALATION_ONLY",handoffSha256:crypto.createHash("sha256").update(fs.readFileSync(f)).digest("hex"),generatedAt:new Date().toISOString()}; fs.writeFileSync("repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");' \
+            OUTCOME="$outcome" LEARNING="$learning"
+
+      - name: Upload handoff gate evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-repair-handoff-gate-${{ github.event.workflow_run.id }}
+          path: /tmp/repair-handoff/repair-handoff-gate.json
+          if-no-files-found: error
+          retention-days: 30
