@@ -16,7 +16,6 @@ const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
 const fingerprint = fingerprintFailure(log);
 const evidencePath = '/tmp/flixo-repair-evidence.json';
-const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? `${targetDir}/diagnostics/auto-repair/memory.json`;
 const git = (args, options = {}) => execFileSync('git', ['-C', targetDir, ...args], { encoding: 'utf8', ...options });
 const memory = loadMemory();
 const known = findCase(memory, fingerprint);
@@ -49,12 +48,10 @@ if (!gate.allowed) {
 }
 
 const before = snapshot(targetDir);
-const reproduction = reproduce(targetDir, impactedTests(plan.features));
-evidence.reproductionBefore = reproduction;
+evidence.reproductionBefore = reproduce(targetDir, impactedTests(plan.features));
 
 try {
-  const repair = runAstRepair(targetDir, selected);
-  evidence.repair = repair;
+  evidence.repair = runAstRepair(targetDir, selected);
   const changed = git(['diff', '--binary']);
   const diffSummary = summarizeDiff(changed);
   evidence.diff = diffSummary;
@@ -64,25 +61,22 @@ try {
     rollback(targetDir, before);
     writeEvidence(evidencePath, evidence);
     process.exitCode = 2;
-    return;
+  } else {
+    evidence.reproductionAfter = reproduce(targetDir, impactedTests(plan.features));
+    evidence.regression = runRegression(targetDir, [['npm', ['run', 'typecheck']], ['npm', ['run', 'test:static']], ['npm', ['run', 'test:build']]]);
+    if (!evidence.reproductionAfter.ok || !evidence.regression.ok) {
+      rollback(targetDir, before);
+      evidence.outcome = 'rolled-back';
+      evidence.rollback = true;
+      writeEvidence(evidencePath, evidence);
+      process.exitCode = 3;
+    } else {
+      evidence.outcome = 'verified-repair';
+      writeEvidence(evidencePath, evidence);
+      recordOutcome(memory, { fingerprint, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'success', verification: 'typecheck+static+build+reproduction' });
+      writeMemory(memory);
+    }
   }
-
-  const afterReproduction = reproduce(targetDir, impactedTests(plan.features));
-  evidence.reproductionAfter = afterReproduction;
-  const regression = runRegression(targetDir, [['npm', ['run', 'typecheck']], ['npm', ['run', 'test:static']], ['npm', ['run', 'test:build']]]);
-  evidence.regression = regression;
-  if (!afterReproduction.ok || !regression.ok) {
-    rollback(targetDir, before);
-    evidence.outcome = 'rolled-back';
-    evidence.rollback = true;
-    writeEvidence(evidencePath, evidence);
-    process.exitCode = 3;
-    return;
-  }
-  evidence.outcome = 'verified-repair';
-  writeEvidence(evidencePath, evidence);
-  recordOutcome(memory, { fingerprint, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'success', verification: 'typecheck+static+build+reproduction' });
-  writeMemory(memory);
 } catch (error) {
   rollback(targetDir, before);
   evidence.outcome = 'rolled-back';
