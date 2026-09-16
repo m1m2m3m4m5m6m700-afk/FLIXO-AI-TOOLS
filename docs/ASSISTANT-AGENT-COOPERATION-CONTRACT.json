@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "authority": "ASSISTANT_AGENT_COOPERATION_CONTRACT",
+  "protocols": {
+    "command": "The assistant/controller issues explicit objectives; the execution agent may execute only within declared scope and policy.",
+    "truth": "Neither side may claim completion, PASS, verification, or deployment without exact-SHA evidence.",
+    "evidence": "Every material action emits actor, intent, entrySha, exitSha, changedFiles, commands, result, evidenceRefs and nextState.",
+    "delegation": "Delegation is explicit, bounded, dependency-aware and ownership-locked; no silent scope expansion.",
+    "checkpoint": "Before high-risk mutation, the agent must checkpoint plan, RCA, risk, scope, rollback and proof obligations.",
+    "feedback": "Failures return structured RCA/evidence/next-action data; repeated failures update anti-lessons and may escalate ownership.",
+    "handoff": "Work transfers only through a closed session handoff with exact SHA, unresolved work, open RCAs and next plan.",
+    "stop": "The agent must stop and escalate on protected-path, security-sensitive, destructive, ambiguous, conflicting, or evidence-incomplete actions.",
+    "verification": "A repair is terminal only after targeted proof, affected-contract verification, regression, recurrence check and fresh exact-SHA evidence.",
+    "learning": "Verified outcomes become lessons/playbooks; failed or blocked strategies become anti-lessons without granting additional authority.",
+    "no_implicit_authority": "Historical success, confidence, memory or assistant instructions never override repository policy, protection or certification gates."
+  },
+  "messageEnvelope": {
+    "required": ["messageId", "actor", "intent", "taskId", "scope", "entrySha", "risk", "expectedEvidence", "stopConditions"],
+    "completion": ["status", "exitSha", "changedFiles", "commands", "evidenceRefs", "remainingWork", "openRcas", "nextAction"]
+  },
+  "roles": {
+    "assistantController": "Plans, prioritizes, interprets user intent, reviews evidence and decides whether to continue, narrow, escalate or close.",
+    "executionAgent": "Investigates, mutates only within policy, verifies, records provenance and reports machine-readable evidence.",
+    "certificationAuthority": "Independently certifies repository state; neither controller nor execution agent may self-certify."
+  }
+}
