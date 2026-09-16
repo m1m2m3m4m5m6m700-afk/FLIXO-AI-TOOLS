@@ -10,7 +10,6 @@ const OUTPUT = path.join(OUTPUT_DIR, 'code-scout-latest.json');
 const KNOWLEDGE_PATH = path.join(ROOT, 'docs/ci/investigation/HISTORICAL-KNOWLEDGE-BASE.json');
 const CONTRACT_PATH = path.join(ROOT, 'docs/ci/investigation/INVESTIGATION-REPORT-CONTRACT.json');
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
-// Canonical read-only discovery operation: git ls-files. No source mutation is permitted.
 const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT, encoding: 'utf8' }).split('\0').filter(Boolean);
 const hash = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex');
 const ignored = /(^|\/)(node_modules|dist|coverage|\.git)(\/|$)|(^|\/)(\.env(?:\.|$)|.*\.(?:pem|key))$/u;
@@ -18,8 +17,10 @@ const sourceFiles = tracked.filter((file) => !ignored.test(file) && /\.(mjs|cjs|
 const knowledge = JSON.parse(readFileSync(KNOWLEDGE_PATH, 'utf8'));
 const contract = JSON.parse(readFileSync(CONTRACT_PATH, 'utf8'));
 const findings = [];
-const counters = { filesScanned: 0, suspiciousAny: 0, todoFixme: 0, broadCatch: 0, duplicatedGenericFiles: 0, directProcessExit: 0 };
+const counters = { filesScanned: 0, suspiciousAny: 0, todoFixme: 0, broadCatch: 0, duplicatedGenericFiles: 0, directProcessExit: 0, importEdges: 0, contractMentions: 0 };
 const texts = new Map();
+const imports = new Map();
+const contractTerms = ['contract', 'invariant', 'gate', 'certif', 'scout', 'error', 'task', 'diagnostic'];
 
 for (const file of sourceFiles) {
   let text;
@@ -27,14 +28,26 @@ for (const file of sourceFiles) {
   texts.set(file, text);
   counters.filesScanned++;
   const lines = text.split(/\r?\n/);
-  const add = (category, severity, line, summary, evidence) => findings.push({ findingId: hash(`${sha}:${file}:${line}:${category}`).slice(0, 16), category, severity, confidence: 0.65, target: file, line, summary, evidence: [evidence], historicalMatches: [], rootCauseHypotheses: ['pattern requires causal verification; scout does not assert root cause'], affectedContracts: [], suggestedVerification: ['inspect exact occurrence and owning contract'], decisionRequired: 'INVESTIGATE' });
+  const add = (category, severity, line, summary, evidence, extra = {}) => findings.push({
+    findingId: hash(`${sha}:${file}:${line}:${category}`).slice(0, 16),
+    category, severity, confidence: extra.confidence ?? 0.65, target: file, line,
+    summary, evidence: [evidence], historicalMatches: [], rootCauseHypotheses: extra.rootCauseHypotheses ?? ['pattern requires causal verification; scout does not assert root cause'],
+    propagation: extra.propagation ?? ['local occurrence; propagation not proven by static scout'],
+    violatedInvariants: extra.violatedInvariants ?? [], affectedContracts: extra.affectedContracts ?? [],
+    suggestedVerification: extra.suggestedVerification ?? ['inspect exact occurrence, dependency path, and owning contract'],
+    decisionRequired: 'INVESTIGATE'
+  });
   lines.forEach((line, index) => {
     const n = index + 1;
-    if (/\bany\b/.test(line) && /:\s*any\b|<any>|\bas any\b/.test(line)) { counters.suspiciousAny++; add('type-safety', 'medium', n, 'Explicit any usage requires review.', line.trim()); }
-    if (/TODO|FIXME|HACK/.test(line)) { counters.todoFixme++; add('maintenance', 'low', n, 'Maintenance marker requires ownership or closure.', line.trim()); }
-    if (/catch\s*(?:\([^)]*\))?\s*\{\s*\}/.test(line)) { counters.broadCatch++; add('error-handling', 'high', n, 'Empty catch block may hide root causes.', line.trim()); }
-    if (/process\.exit\(0\)/.test(line)) { counters.directProcessExit++; add('control-flow', 'medium', n, 'Direct process exit may bypass structured evidence; review contract ownership.', line.trim()); }
+    if (/\bany\b/.test(line) && /:\s*any\b|<any>|\bas any\b/.test(line)) { counters.suspiciousAny++; add('type-safety', 'medium', n, 'Explicit any usage requires review.', line.trim(), { violatedInvariants: ['type safety'], suggestedVerification: ['inspect type boundary and downstream consumers'] }); }
+    if (/TODO|FIXME|HACK/.test(line)) { counters.todoFixme++; add('maintenance', 'low', n, 'Maintenance marker requires ownership or closure.', line.trim(), { violatedInvariants: ['maintenance closure'] }); }
+    if (/catch\s*(?:\([^)]*\))?\s*\{\s*\}/.test(line)) { counters.broadCatch++; add('error-handling', 'high', n, 'Empty catch block may hide root causes.', line.trim(), { violatedInvariants: ['observable failure propagation'], suggestedVerification: ['trace producer-to-handler path and verify error evidence is preserved'] }); }
+    if (/process\.exit\(0\)/.test(line)) { counters.directProcessExit++; add('control-flow', 'medium', n, 'Direct process exit may bypass structured evidence; review contract ownership.', line.trim(), { violatedInvariants: ['structured lifecycle completion'] }); }
+    if (/\b(?:import|export)\s+(?:type\s+)?(?:[^'\"]+from\s*)?['\"]([^'\"]+)['\"]/.test(line)) counters.importEdges++;
+    if (contractTerms.some((term) => line.toLowerCase().includes(term))) counters.contractMentions++;
   });
+  const refs = [...text.matchAll(/(?:from\s+|import\s*\(|require\s*\()['\"]([^'\"]+)['\"]/g)].map((m) => m[1]);
+  imports.set(file, refs);
 }
 
 const basenameCounts = new Map();
@@ -42,7 +55,7 @@ for (const file of sourceFiles) { const base = path.basename(file); basenameCoun
 for (const [base, files] of basenameCounts) {
   if (files.length > 1 && /^(index|utils|helpers|constants)\.(mjs|js|ts|tsx)$/.test(base)) {
     counters.duplicatedGenericFiles++;
-    findings.push({ findingId: hash(`${sha}:duplicate:${base}`).slice(0, 16), category: 'structure', severity: 'low', confidence: 0.55, target: files.join(', '), line: null, summary: `Repeated generic filename may indicate ambiguous ownership: ${base}.`, evidence: files, historicalMatches: [], rootCauseHypotheses: ['possible ownership ambiguity'], affectedContracts: [], suggestedVerification: ['inspect import graph and authoritative owner'], decisionRequired: 'INVESTIGATE' });
+    findings.push({ findingId: hash(`${sha}:duplicate:${base}`).slice(0, 16), category: 'structure', severity: 'low', confidence: 0.55, target: files.join(', '), line: null, summary: `Repeated generic filename may indicate ambiguous ownership: ${base}.`, evidence: files, historicalMatches: [], rootCauseHypotheses: ['possible ownership ambiguity'], propagation: ['ambiguous ownership can propagate to import/contract selection'], violatedInvariants: ['single authoritative owner'], affectedContracts: [], suggestedVerification: ['inspect import graph and authoritative owner'], decisionRequired: 'INVESTIGATE' });
   }
 }
 
@@ -55,23 +68,31 @@ const historicalMatches = knowledge.sources.map((source) => {
 for (const finding of findings) {
   const related = historicalMatches.filter((entry) => entry.matchedPatterns.some((p) => finding.summary.toLowerCase().includes(String(p).toLowerCase().slice(0, 24))));
   finding.historicalMatches = related.slice(0, 4).map((entry) => ({ sourceId: entry.id, matchedPatterns: entry.matchedPatterns.slice(0, 3) }));
+  const targetText = texts.get(finding.target.split(', ')[0]) ?? '';
+  const nearby = targetText.split(/\r?\n/).slice(Math.max(0, (finding.line ?? 1) - 3), (finding.line ?? 1) + 2).join(' ').trim();
+  if (nearby) finding.evidenceContext = nearby;
+  const importsForTarget = imports.get(finding.target.split(', ')[0]) ?? [];
+  finding.dependencyEvidence = importsForTarget.slice(0, 12);
+  if (finding.historicalMatches.length) finding.rootCauseHypotheses.push('historical pattern overlap is a prioritization signal, not proof of causality');
 }
 
 const base = {
   schemaVersion: contract.schemaVersion,
   authority: 'READ_ONLY_CODE_SCOUT',
   mode: 'READ_ONLY_ANALYSIS',
+  scannerMode: 'READ_ONLY',
   mutationPolicy: 'NO_SOURCE_MUTATION',
   reportWriteScope: OUTPUT,
   scannedSha: sha,
   generatedAt: new Date().toISOString(),
+  filesScanned: sourceFiles.length,
   scan: { trackedFiles: tracked.length, analyzedFiles: sourceFiles.length },
   counters,
   findings,
   historicalMatches,
-  graphSummary: { sourceFiles: sourceFiles.length, historicalSources: knowledge.sources.length, findings: findings.length },
-  unknowns: [],
-  decisionPolicy: 'Findings are evidence-backed hypotheses for execution agents. The scout never selects, approves, or performs a repair.',
+  graphSummary: { sourceFiles: sourceFiles.length, historicalSources: knowledge.sources.length, findings: findings.length, importEdges: counters.importEdges, contractMentions: counters.contractMentions },
+  unknowns: ['Static scout cannot prove runtime causality or complete dependency propagation without executing affected contracts.'],
+  decisionPolicy: 'Findings are evidence-backed hypotheses for execution agents. The scout never selects, approves, or performs a repair. Root-cause candidates require independent verification.',
 };
 const report = { ...base, digest: hash(JSON.stringify(base)) };
 mkdirSync(OUTPUT_DIR, { recursive: true });
