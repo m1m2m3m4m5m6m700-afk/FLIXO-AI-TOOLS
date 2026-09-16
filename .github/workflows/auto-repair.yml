@@ -2,7 +2,7 @@ name: FLIXO Auto Repair Bot
 
 on:
   workflow_run:
-    workflows: ["FLIXO Test System", "FLIXO WP0 Trust Baseline"]
+    workflows: ["FLIXO Test System", "FLIXO WP0 Trust Baseline", "FLIXO Continuous Delivery"]
     types: [completed]
     branches: [main]
 
@@ -11,9 +11,10 @@ permissions:
   actions: read
   checks: read
 
-# One repair lane only. The bot diagnoses every canonical verification failure,
-# prepares and verifies a bounded repair in an isolated failed-SHA worktree.
-# It never publishes source changes; the executive agent reviews/applies the handoff.
+# Single authoritative repair lane for canonical main-branch Actions.
+# The bot diagnoses every failure, prepares a bounded repair, verifies it,
+# learns from the result, and emits an explicit handoff when it cannot safely repair.
+# It never publishes source changes.
 concurrency:
   group: flixo-auto-repair-main
   cancel-in-progress: false
@@ -53,20 +54,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Install target dependencies
-        id: install_target
-        continue-on-error: true
-        working-directory: /tmp/flixo-repair-target
-        run: npm ci --prefer-offline --no-audit --no-fund
-
-      - name: Record target dependency-install failure
-        if: steps.install_target.outcome != 'success'
-        run: |
-          printf '%s\n' 'target-dependency-install-failed' > /tmp/flixo-engine-outcome
-          printf '%s\n' 'unrepaired' > /tmp/flixo-learning-outcome
-          printf '%s\n' '{"rootCause":"target_dependency_install_failure"}' > /tmp/flixo-root-cause.json
-
-      - name: Capture failed CI logs
+      - name: Capture failed CI logs before dependency installation
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
@@ -82,9 +70,21 @@ jobs:
             grep -E -i 'error|failed|failure|timeout|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
           } > /tmp/flixo-repair-summary.txt
 
-      - name: Classify root cause
-        if: steps.install_target.outcome == 'success'
+      - name: Classify root cause before repair dependencies
         run: node scripts/ci/auto-repair-classifier.mjs
+
+      - name: Install target dependencies
+        id: install_target
+        continue-on-error: true
+        working-directory: /tmp/flixo-repair-target
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Record target dependency-install failure
+        if: steps.install_target.outcome != 'success'
+        run: |
+          printf '%s\n' 'target-dependency-install-failed' > /tmp/flixo-engine-outcome
+          printf '%s\n' 'unrepaired' > /tmp/flixo-learning-outcome
+          printf '%s\n' '{"rootCause":"target_dependency_install_failure"}' > /tmp/flixo-root-cause.json
 
       - name: Run bounded repair engine as preparation only
         if: steps.install_target.outcome == 'success'
