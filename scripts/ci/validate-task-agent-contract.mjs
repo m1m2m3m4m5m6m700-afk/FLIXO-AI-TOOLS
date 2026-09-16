@@ -14,7 +14,7 @@ for (const file of required) {
 const task = fs.readFileSync('المهام.md', 'utf8');
 for (const marker of [
   'TASK AGENT — OWNER OF THIS FILE',
-  'PREPARED CHANGES',
+  'Prepared Changes / Patch Plan',
   'ممنوع `git commit`',
   'ممنوع `git push`',
   'الوكيل التنفيذي',
