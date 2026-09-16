@@ -12,9 +12,7 @@ export function normalizeFailure(text) {
     .slice(0, 1600);
 }
 
-export function fingerprintFailure(text) {
-  return normalizeFailure(text);
-}
+export function fingerprintFailure(text) { return normalizeFailure(text); }
 
 export function loadMemory() {
   if (!fs.existsSync(memoryPath)) return { version: 3, cases: [], playbooks: [] };
@@ -44,7 +42,7 @@ export function recordOutcome(memory, { fingerprint, rootCause, rule, outcome, v
   entry.rootCause = rootCause ?? entry.rootCause ?? 'unknown';
   entry.attempts += 1;
   if (outcome === 'success') entry.successes += 1;
-  else entry.failures += 1;
+  else if (outcome !== 'proposed') entry.failures += 1;
   if (rule) entry.rules = [...new Set([...entry.rules, rule])];
   entry.outcomes.push({ outcome, verification, rule, at: new Date().toISOString() });
   entry.outcomes = entry.outcomes.slice(-10);
@@ -53,10 +51,12 @@ export function recordOutcome(memory, { fingerprint, rootCause, rule, outcome, v
   if (rule) {
     const playbook = memory.playbooks.find((item) => item.rootCause === entry.rootCause && item.rule === rule)
       ?? { rootCause: entry.rootCause, rule, attempts: 0, successes: 0, failures: 0 };
-    playbook.attempts += 1;
-    if (outcome === 'success') playbook.successes += 1;
-    else playbook.failures += 1;
-    playbook.successRate = playbook.successes / playbook.attempts;
+    if (outcome !== 'proposed') {
+      playbook.attempts += 1;
+      if (outcome === 'success') playbook.successes += 1;
+      else playbook.failures += 1;
+      playbook.successRate = playbook.successes / playbook.attempts;
+    }
     if (!memory.playbooks.includes(playbook)) memory.playbooks.push(playbook);
   }
   return memory;
@@ -65,4 +65,21 @@ export function recordOutcome(memory, { fingerprint, rootCause, rule, outcome, v
 export function writeMemory(memory) {
   fs.mkdirSync(memoryPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
   fs.writeFileSync(memoryPath, `${JSON.stringify(memory, null, 2)}\n`);
+}
+
+if (process.argv[1] && process.argv[1].endsWith('auto-repair-learning.mjs') && process.env.FLIXO_LEARNING_OUTCOME) {
+  const memory = loadMemory();
+  const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
+  const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
+  const fingerprint = fingerprintFailure(log);
+  const rootCause = process.env.FLIXO_ROOT_CAUSE ?? 'unknown';
+  const rule = process.env.FLIXO_REPAIR_RULE || undefined;
+  recordOutcome(memory, {
+    fingerprint,
+    rootCause,
+    rule,
+    outcome: process.env.FLIXO_LEARNING_OUTCOME,
+    verification: process.env.FLIXO_VERIFICATION ?? 'unknown',
+  });
+  writeMemory(memory);
 }
