@@ -1,13 +1,20 @@
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-repair/fingerprint.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 export { normalizeFailure, fingerprintFailure, extractFeatures };
 
+const emptyMemory = () => ({ version: 6, cases: [], playbooks: [], lessons: [], antiLessons: [] });
+
 export function loadMemory() {
-  if (!fs.existsSync(memoryPath)) return { version: 5, cases: [], playbooks: [] };
-  try { return { version: 5, cases: [], playbooks: [], ...JSON.parse(fs.readFileSync(memoryPath, 'utf8')) }; }
-  catch { return { version: 5, cases: [], playbooks: [] }; }
+  if (!fs.existsSync(memoryPath)) return emptyMemory();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(memoryPath, 'utf8'));
+    return { ...emptyMemory(), ...parsed, version: 6 };
+  } catch {
+    return emptyMemory();
+  }
 }
 
 export function findCase(memory, fingerprint) {
@@ -28,14 +35,16 @@ function similarity(a, b) {
 }
 
 export function findSimilarCases(memory, { fingerprint, normalized, features = [] } = {}) {
+  const featureSet = new Set(features);
   return memory.cases
     .filter((item) => item.fingerprint !== fingerprint && (item.normalizedFailure || item.features?.length))
     .map((item) => {
       const textScore = similarity(normalized, item.normalizedFailure ?? '');
-      const featureSet = new Set(features);
       const sharedFeatures = (item.features ?? []).filter((feature) => featureSet.has(feature)).length;
       const featureScore = Math.min(1, sharedFeatures / Math.max(1, new Set([...features, ...(item.features ?? [])]).size));
-      return { case: item, score: Number((textScore * 0.75 + featureScore * 0.25).toFixed(4)) };
+      const successScore = item.attempts ? item.successes / item.attempts : 0;
+      const score = textScore * 0.55 + featureScore * 0.25 + successScore * 0.20;
+      return { case: item, score: Number(score.toFixed(4)) };
     })
     .filter((item) => item.score >= 0.45)
     .sort((a, b) => b.score - a.score)
@@ -49,6 +58,31 @@ export function scorePlaybook(memory, rootCause, rule) {
   return attempts ? successes / attempts : 0;
 }
 
+function stableLessonId({ fingerprint, rootCause, rule }) {
+  return createHash('sha256').update(`${fingerprint}|${rootCause}|${rule ?? 'none'}`).digest('hex').slice(0, 20);
+}
+
+function confidenceFor(entry) {
+  const attempts = entry.attempts ?? 0;
+  if (!attempts) return 0;
+  return Number((entry.successes / attempts).toFixed(4));
+}
+
+function upsertLesson(memory, { fingerprint, rootCause, rule, outcome, verification, provenance, preventionRule }) {
+  const id = stableLessonId({ fingerprint, rootCause, rule });
+  const collection = outcome === 'success' ? memory.lessons : memory.antiLessons;
+  const lesson = collection.find((item) => item.id === id) ?? {
+    id, fingerprint, rootCause, rule: rule ?? null, attempts: 0, successes: 0, failures: 0, confidence: 0, evidence: [], preventionRules: [], lastSeenAt: null,
+  };
+  lesson.attempts += 1;
+  if (outcome === 'success') lesson.successes += 1; else lesson.failures += 1;
+  lesson.confidence = confidenceFor(lesson);
+  lesson.lastSeenAt = new Date().toISOString();
+  lesson.evidence = [...lesson.evidence, { verification, provenance }].slice(-8);
+  if (preventionRule) lesson.preventionRules = [...new Set([...lesson.preventionRules, preventionRule])].slice(-8);
+  if (!collection.includes(lesson)) collection.push(lesson);
+}
+
 export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule } = {}) {
   const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, rules: [], outcomes: [] };
   entry.rootCause = rootCause ?? entry.rootCause ?? 'unknown';
@@ -56,6 +90,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   if (features.length) entry.features = [...new Set(features)];
   if (outcome !== 'proposed') entry.attempts += 1;
   if (outcome === 'success') entry.successes += 1; else if (outcome !== 'proposed') entry.failures += 1;
+  entry.confidence = confidenceFor(entry);
   if (rule) entry.rules = [...new Set([...entry.rules, rule])];
   entry.outcomes.push({ outcome, verification, rule, provenance, preventionRule, at: new Date().toISOString() });
   entry.outcomes = entry.outcomes.slice(-10);
@@ -67,18 +102,22 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     playbook.successRate = Number((playbook.successes / playbook.attempts).toFixed(4));
     if (!memory.playbooks.includes(playbook)) memory.playbooks.push(playbook);
   }
+  if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked') {
+    upsertLesson(memory, { fingerprint, rootCause: entry.rootCause, rule, outcome, verification, provenance, preventionRule });
+  }
   return memory;
 }
 
 export function writeMemory(memory) {
   fs.mkdirSync(memoryPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
-  fs.writeFileSync(memoryPath, `${JSON.stringify(memory, null, 2)}\n`);
+  const normalized = { ...emptyMemory(), ...memory, version: 6 };
+  fs.writeFileSync(memoryPath, `${JSON.stringify(normalized, null, 2)}\n`);
 }
 
 if (process.argv[1]?.endsWith('auto-repair-learning.mjs') && process.env.FLIXO_LEARNING_OUTCOME) {
   const memory = loadMemory();
   const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
   const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
-  recordOutcome(memory, { fingerprint: fingerprintFailure(log), normalizedFailure: log, features: extractFeatures(log), rootCause: process.env.FLIXO_ROOT_CAUSE ?? 'unknown', rule: process.env.FLIXO_REPAIR_RULE || undefined, outcome: process.env.FLIXO_LEARNING_OUTCOME, verification: process.env.FLIXO_VERIFICATION ?? 'unknown' });
+  recordOutcome(memory, { fingerprint: fingerprintFailure(log), normalizedFailure: log, features: extractFeatures(log), rootCause: process.env.FLIXO_ROOT_CAUSE ?? 'unknown', rule: process.env.FLIXO_REPAIR_RULE || undefined, outcome: process.env.FLIXO_LEARNING_OUTCOME, verification: process.env.FLIXO_VERIFICATION ?? 'unknown', provenance: { source: 'FLIXO Auto Repair', failedSha: process.env.FLIXO_FAILED_SHA ?? null, runId: process.env.FLIXO_RUN_ID ?? null } });
   writeMemory(memory);
 }
