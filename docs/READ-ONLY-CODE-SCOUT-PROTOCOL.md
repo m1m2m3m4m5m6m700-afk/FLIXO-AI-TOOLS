@@ -43,4 +43,7 @@ The Scout is fail-closed. If repository identity, evidence provenance, or report
 
 ## Collaboration
 
-Execution agents and repair agents consume the report before planning mutation. They must independently verify important findings against the current exact SHA and existing contracts. The report cannot authorize a change or override any higher-level protocol.
+Execution agents and repair agents consume the report before planning mutation. **Execution agents** must independently verify important findings against the current exact SHA and existing contracts. The report cannot authorize a change or override any higher-level protocol.
+
+## Explicit machine-readable collaboration marker
+**execution agents** are downstream consumers of Scout evidence and remain subject to independent exact-SHA verification before mutation.
