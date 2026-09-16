@@ -12,6 +12,7 @@ import { CurveMiniPreview, NumericField, SectionReset, StudioSlider, ToolSection
 import { FloatingCanvasOverlay, type FloatingCanvasOverlayLabels } from '../../components/floating-canvas-overlay';
 import { useFullscreenSync } from '../../components/useFullscreenSync';
 import { getTranslationBundle, type Locale } from '../../lib/i18n';
+import { EN_SEED_UI } from '../../lib/i18n/locales/en';
 import type { SeedUiTranslations } from '../../lib/i18n/types';
 
 export interface SeedState extends SeedRenderSettings {
@@ -24,20 +25,6 @@ type Snapshot = { basic: SeedState; advanced: AdvancedSeedSettings };
 const DEFAULT_STATE: SeedState = {
   brightness: 0, contrast: 0, saturation: 0, warmth: 0,
   ambiance: 0, highlights: 0, shadows: 0, blurRadius: 0, crop: null,
-};
-
-const DEFAULT_SEED_UI: SeedUiTranslations = {
-  zoomIn: 'Zoom In Canvas', zoomOut: 'Zoom Out Canvas', zoomReset: 'Reset Canvas Zoom',
-  undo: 'Undo Action', redo: 'Redo Action', compareHold: 'Hold to Compare Original', compareLabel: 'Compare',
-  fullscreenEnter: 'Enter Fullscreen', fullscreenExit: 'Exit Fullscreen', resetAll: 'Reset all controls', exportPng: 'Export PNG',
-  replaceImage: 'Replace image', lightColor: 'Light & Color', lightColorSubtitle: 'Core tonal response and chromatic balance',
-  brightness: 'Brightness', contrast: 'Contrast', saturation: 'Saturation', warmth: 'Warmth', ambiance: 'Ambiance', highlights: 'Highlights', shadows: 'Shadows',
-  fxFocus: 'FX & Focus', fxFocusSubtitle: 'Blur, bokeh, curves and exposure compositing', globalBlur: 'Global Blur', lensBlur: 'Lens Blur',
-  bokehFocusShift: 'Bokeh / Focus Shift', curves: 'Curves', curvesPreview: 'Curves preview', curvesStrength: 'Curves Strength',
-  doubleExposure: 'Double Exposure', doubleExposureFile: 'Double Exposure file', exposureOpacity: 'Exposure Opacity', exposureBlendMode: 'Exposure blend mode',
-  geometry: 'Geometry', geometrySubtitle: 'Perspective and crop preparation', perspectiveX: 'Perspective X', perspectiveY: 'Perspective Y', cropX: 'Crop X', cropY: 'Crop Y',
-  retouch: 'Retouch', retouchSubtitle: 'Selective brush and healing controls', brushStrength: 'Selective / Brush Strength', healingX: 'Healing X', healingY: 'Healing Y',
-  resetSection: 'Reset section', seedPreview: 'Seed preview', dropImage: 'Drop an image into Seed', browseFiles: 'Browse files', brushActive: 'Brush active · click preview',
 };
 
 const cloneAdvanced = (value: AdvancedSeedSettings): AdvancedSeedSettings => ({
@@ -76,14 +63,14 @@ export default function SeedTool({ locale = 'en' as Locale }: { locale?: Locale 
   const [isDragging, setIsDragging] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [openSections, setOpenSections] = useState<string[]>(['basic', 'fx', 'geometry', 'retouch']);
-  const [seedUi, setSeedUi] = useState<SeedUiTranslations>(DEFAULT_SEED_UI);
+  const [seedUi, setSeedUi] = useState<SeedUiTranslations>(EN_SEED_UI);
 
   useEffect(() => {
     let active = true;
     void getTranslationBundle(locale).then((bundle) => {
-      if (active) setSeedUi({ ...DEFAULT_SEED_UI, ...(bundle.seedUi ?? {}) });
+      if (active) setSeedUi({ ...EN_SEED_UI, ...(bundle.seedUi ?? {}) });
     }).catch(() => {
-      if (active) setSeedUi(DEFAULT_SEED_UI);
+      if (active) setSeedUi(EN_SEED_UI);
     });
     return () => { active = false; };
   }, [locale]);
