@@ -9,6 +9,6 @@ export function writeEvidence(path, value) {
 export function summarizeDiff(diff) {
   const files = [...diff.matchAll(/^diff --git a\/(.+?) b\/(.+)$/gm)].map((m) => m[2]);
   const added = [...diff.matchAll(/^\+(?!\+\+)/gm)].length;
-  const removed = [...diff.matchAll(/^-(?!- -)/gm)].length;
+  const removed = [...diff.matchAll(/^-(?!-)/gm)].length;
   return { files: [...new Set(files)], added, removed, lines: added + removed, diffSha256: sha256(diff) };
 }
