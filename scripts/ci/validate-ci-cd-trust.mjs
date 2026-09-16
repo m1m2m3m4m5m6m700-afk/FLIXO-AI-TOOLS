@@ -12,6 +12,7 @@ const fail = (message) => { throw new Error(`CI/CD TRUST FAILURE: ${message}`); 
 
 const ci = read('.github/workflows/ci.yml');
 const cd = read('.github/workflows/cd.yml');
+const certifyCore = read('scripts/ci/certify-core.mjs');
 
 for (const token of [
   'EXPECTED_SHA:',
@@ -20,10 +21,12 @@ for (const token of [
   'name: Certification',
   'name: Validate execution graph completeness',
   'name: Single certification engine',
-  'r.status !== \'PASS\'',
   'value !== 0',
 ]) {
   if (!ci.includes(token)) fail(`missing canonical CI invariant: ${token}`);
+}
+if (!certifyCore.includes("r.status !== 'PASS'")) {
+  fail("canonical certification engine is missing reducer PASS guard: r.status !== 'PASS'");
 }
 if (/continue-on-error\s*:\s*true/i.test(ci)) fail('canonical CI contains continue-on-error=true');
 if (!/if:\s*always\(\)/.test(ci)) fail('Certification must execute with if: always()');
@@ -60,9 +63,6 @@ for (const token of [
   if (!cd.includes(token)) fail(`missing canonical CD invariant: ${token}`);
 }
 
-// The current-main guard has two intentionally different policies:
-// automatic workflow_run promotions skip stale event SHAs safely; manual
-// promotions remain fail-closed. Never weaken the exact-SHA checks.
 if (!cd.includes('if [ "$head_sha" = "$PROMOTION_SHA" ] && [ "$main_sha" = "$PROMOTION_SHA" ]; then')) {
   fail('CD does not require exact checkout SHA and current main SHA for promotion');
 }
@@ -75,7 +75,6 @@ if (!/if:\s*always\(\)/.test(cd)) fail('CD evidence upload must execute with if:
 if (!cd.includes('if-no-files-found: error')) fail('CD evidence upload must fail if evidence is unexpectedly missing');
 if (/continue-on-error\s*:\s*true/i.test(cd)) fail('CD contains continue-on-error=true');
 
-// Negative controls for the canonical reducer: every known bad state must be rejected.
 assert.equal(reduceCheckResults([{ id: 'A', status: 'PASS' }, { id: 'B', status: 'PASS' }], 2).decision, true);
 for (const state of ['FAIL', 'BLOCKED', 'CANCELLED', 'NOT_EXECUTED', 'MISSING_EVIDENCE', 'MALFORMED_EVIDENCE']) {
   const result = reduceCheckResults([{ id: 'A', status: 'PASS' }, { id: 'B', status: state }], 2);
