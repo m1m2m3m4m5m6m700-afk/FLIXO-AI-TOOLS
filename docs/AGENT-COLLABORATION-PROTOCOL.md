@@ -18,6 +18,16 @@ The following terms are normative coordination controls and are intentionally ex
 - **Conflict arbitration** — conflicting findings are preserved and resolved against exact-SHA evidence by explicit authority; no last-writer-wins behavior.
 - **Quality dimensions** — correctness, security, maintainability, performance, accessibility, localization, observability and operability are evaluated according to affected scope.
 
+## Scout evidence consumption invariant
+**MANDATORY FOR EVERY MUTATION:** before the Executive Controller or any authorized Execution Agent changes a repository file, it MUST consume the latest applicable Code Scout report for the current investigation scope and exact baseline SHA, when a Scout report is required by the lifecycle/risk gate. The report must be treated as evidence, not as authorization.
+
+For every mutation decision, the controller MUST record:
+`scoutReportRef + scoutEntrySha + scoutFreshness + findingsConsumed + findingsRejected(with reason) + affectedScope + decisionTrace`.
+
+The mutation gate MUST stop when a required Scout report is missing, stale, malformed, scope-incompatible, or based on a different authoritative SHA. The agent must re-scout or explicitly record `SCOUT_NOT_APPLICABLE` with rationale when the lifecycle/risk rules permit skipping the Scout stage. A Scout finding that is contradicted by fresh exact-SHA evidence must be preserved, challenged and resolved; it may not be silently ignored.
+
+This rule applies to fixes, refactors, workflow/configuration changes, dependency changes, generated-contract changes and certification-surface changes. It does not require a redundant scan for a purely mechanical follow-up mutation when the controller records why the existing Scout evidence remains valid for the unchanged scope and baseline.
+
 ## Command structure
 ```text
 USER INTENT
@@ -26,6 +36,7 @@ EXECUTIVE CONTROLLER (ChatGPT)
     ├─ owns orchestration and final execution decisions
     ├─ resolves conflicts and stale state
     ├─ reviews evidence
+    ├─ consumes Scout evidence before mutation
     ├─ may adapt/apply/test authorized changes
     └─ commits/pushes only when explicitly requested
           │
@@ -145,7 +156,8 @@ The Executive Controller MUST reject a Task Agent packet when:
 - Error Agent RCA conflicts with repository evidence;
 - prepared changes exceed declared scope;
 - proof obligations are missing;
-- a required contract owner was bypassed.
+- a required contract owner was bypassed;
+- required Scout evidence has not been consumed and recorded.
 
 When Task Agent and Error Agent disagree, neither wins by priority. The controller freezes mutation, compares exact evidence/SHAs, requests a falsification check or fresh inspection, records the decision trace, then issues one authoritative execution packet.
 
@@ -186,6 +198,6 @@ Agents produce evidence. Only the canonical certification system can issue final
 `docs/PROTOCOL-REGISTRY.json` remains the single protocol inventory. This v7 orchestration is an extension of P20; it does not create a competing protocol.
 
 ## Enforcement
-CI MUST verify the cooperation contract, Task Agent preparation-only boundary, Error Agent diagnosis-only boundary, coordination control plane, session/handoff schema, protocol hierarchy, repair-proof controls and exact-SHA evidence rules.
+CI MUST verify the cooperation contract, Task Agent preparation-only boundary, Error Agent diagnosis-only boundary, coordination control plane, session/handoff schema, repair-proof controls and exact-SHA evidence rules.
 
 Removing, bypassing, weakening, duplicating or silently ignoring these controls MUST fail the repository contract gate.
