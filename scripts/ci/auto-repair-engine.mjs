@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { repairPolicy, isPathAllowed } from './auto-repair-policy.mjs';
-import { fingerprintFailure, normalizeFailure, extractFeatures, loadMemory, findCase, findSimilarCases, scorePlaybook, writeMemory, recordOutcome } from './auto-repair-learning.mjs';
+import { fingerprintFailure, normalizeFailure, extractFeatures, loadMemory, findCase, findSimilarCases, rankLessons, scorePlaybook, writeMemory, recordOutcome } from './auto-repair-learning.mjs';
 import { planRepair } from './auto-repair/planner.mjs';
 import { selectSpecialist } from './auto-repair/specialists.mjs';
 import { confidenceGate } from './auto-repair/confidence.mjs';
@@ -23,6 +23,9 @@ const git = (args, options = {}) => execFileSync('git', ['-C', targetDir, ...arg
 const memory = loadMemory();
 const known = findCase(memory, fingerprint);
 const similar = findSimilarCases(memory, { fingerprint, normalized: normalizedFailure, features });
+const lessons = rankLessons(memory, { fingerprint });
+const trustedLessons = lessons.filter((item) => !item.anti && item.confidence >= 0.75);
+const blockedLessons = lessons.filter((item) => item.anti && item.confidence >= 0.5);
 
 if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint) {
   console.log('AUTO_REPAIR_RESULT=LEARNING_MEMORY_BLOCK');
@@ -36,9 +39,12 @@ let selected = plan.selected;
 const historicalRules = [
   ...(known?.rules ?? []),
   ...similar.flatMap(({ case: item }) => item.rules ?? []),
+  ...trustedLessons.map((item) => item.rule).filter(Boolean),
 ];
 const historicalCandidate = plan.candidates.find((candidate) => historicalRules.includes(candidate.id) && candidate.mutate && candidate.confidence >= 90);
-if (historicalCandidate && (!selected || scorePlaybook(memory, specialist?.id ?? 'unknown', historicalCandidate.id) >= scorePlaybook(memory, specialist?.id ?? 'unknown', selected.id))) selected = historicalCandidate;
+const blockedRuleIds = new Set(blockedLessons.map((item) => item.rule).filter(Boolean));
+if (selected?.id && blockedRuleIds.has(selected.id) && !trustedLessons.some((item) => item.rule === selected.id && item.confidence >= 0.85)) selected = null;
+if (historicalCandidate && !blockedRuleIds.has(historicalCandidate.id) && (!selected || scorePlaybook(memory, specialist?.id ?? 'unknown', historicalCandidate.id) >= scorePlaybook(memory, specialist?.id ?? 'unknown', selected.id))) selected = historicalCandidate;
 const targetSha = git(['rev-parse', 'HEAD']).trim();
 const evidence = {
   schemaVersion: 5,
@@ -49,7 +55,14 @@ const evidence = {
   specialist,
   candidates: plan.candidates,
   selected: selected?.id ?? null,
-  historical: { exact: Boolean(known), similar: similar.map(({ case: item, score }) => ({ fingerprint: item.fingerprint, score, rules: item.rules ?? [] })) },
+  learning: {
+    memoryVersion: memory.version,
+    exactCase: Boolean(known),
+    similarCases: similar.map(({ case: item, score }) => ({ fingerprint: item.fingerprint, score, rules: item.rules ?? [] })),
+    trustedLessons: trustedLessons.map(({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence }) => ({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence })),
+    blockedLessons: blockedLessons.map(({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence }) => ({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence })),
+    decision: selected?.id ? 'historical-learning-assisted' : 'no-trusted-learned-repair',
+  },
   outcome: 'diagnostic-only',
   changedPaths: [],
   updatedAt: new Date().toISOString(),
@@ -58,7 +71,7 @@ const evidence = {
 if (!selected) {
   evidence.escalation = { required: true, reason: 'no-safe-mutation-candidate' };
   writeEvidence(evidencePath, evidence);
-  recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', outcome: 'proposed', verification: 'none', preventionRule: 'No safe mutation candidate; escalate with evidence.' });
+  recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', outcome: 'proposed', verification: 'none', provenance: { targetSha }, preventionRule: 'No safe mutation candidate; escalate with evidence.' });
   writeMemory(memory);
   console.log(`AUTO_REPAIR_RESULT=PROPOSAL_ONLY\nAUTO_REPAIR_PLAN=none\nAUTO_REPAIR_FINGERPRINT=${fingerprint}`);
   process.exit(0);
@@ -70,7 +83,7 @@ if (!gate.allowed) {
   evidence.outcome = 'proposal-only';
   evidence.escalation = { required: true, reason: 'confidence-gate-blocked' };
   writeEvidence(evidencePath, evidence);
-  recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'proposed', verification: 'confidence-gate-blocked', preventionRule: 'Require guarded or human-gated repair for this class.' });
+  recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'proposed', verification: 'confidence-gate-blocked', provenance: { targetSha }, preventionRule: 'Require guarded or human-gated repair for this class.' });
   writeMemory(memory);
   console.log(`AUTO_REPAIR_RESULT=PROPOSAL_ONLY\nAUTO_REPAIR_PLAN=${selected.id}`);
   process.exit(0);
