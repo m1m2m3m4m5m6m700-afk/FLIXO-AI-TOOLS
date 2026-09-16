@@ -172,17 +172,46 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sha="$(curl --fail --silent --show-error --location \
+
+          sha_url="$FLIXOAI_PRODUCTION_ORIGIN/flixo-head-sha.txt?__flixo_sha=$DEPLOYMENT_SHA&__flixo_verify=1"
+          root_url="$FLIXOAI_PRODUCTION_ORIGIN/?__flixo_sha=$DEPLOYMENT_SHA&__flixo_verify=1"
+
+          echo "=== Production identity: SHA endpoint ==="
+          sha_status="$(curl --silent --show-error --location --compressed \
             --retry 10 --retry-delay 3 --retry-all-errors --max-time 30 \
-            -H 'Cache-Control: no-cache' \
-            "$FLIXOAI_PRODUCTION_ORIGIN/flixo-head-sha.txt?__flixo_sha=$DEPLOYMENT_SHA" \
-            | tr -d '\r\n')"
-          test "$sha" = "$DEPLOYMENT_SHA"
-          curl --fail --silent --show-error --location \
+            -H 'Cache-Control: no-cache, no-store' \
+            -o /tmp/flixo-production-sha.txt -w '%{http_code}' "$sha_url")"
+          sha_body="$(tr -d '\r\n\ufeff' < /tmp/flixo-production-sha.txt)"
+          echo "SHA endpoint HTTP status: $sha_status"
+          echo "SHA endpoint body length: ${#sha_body}"
+          if [ "$sha_status" != "200" ] || [ "$sha_body" != "$DEPLOYMENT_SHA" ]; then
+            echo "❌ Production SHA verification failed"
+            echo "Expected SHA: $DEPLOYMENT_SHA"
+            echo "Observed SHA: ${sha_body:-<empty>}"
+            echo "Response headers/body diagnostics:"
+            curl --silent --show-error --location --compressed --max-time 30 \
+              -H 'Cache-Control: no-cache, no-store' \
+              -D /tmp/flixo-production-sha.headers -o /tmp/flixo-production-sha.body "$sha_url" || true
+            sed -n '1,40p' /tmp/flixo-production-sha.headers || true
+            sed -n '1,5p' /tmp/flixo-production-sha.body || true
+            exit 1
+          fi
+          echo "✅ Production SHA matches exact deployment SHA"
+
+          echo "=== Production identity: root HTML ==="
+          root_status="$(curl --silent --show-error --location --compressed \
             --retry 10 --retry-delay 3 --retry-all-errors --max-time 30 \
-            -H 'Cache-Control: no-cache' \
-            "$FLIXOAI_PRODUCTION_ORIGIN/?__flixo_sha=$DEPLOYMENT_SHA" \
-            | grep -qi '<html'
+            -H 'Cache-Control: no-cache, no-store' \
+            -o /tmp/flixo-production.html -w '%{http_code}' "$root_url")"
+          echo "Root endpoint HTTP status: $root_status"
+          if [ "$root_status" != "200" ] || ! grep -Eiq '<html[[:space:]>]' /tmp/flixo-production.html; then
+            echo "❌ Production root HTML verification failed"
+            echo "Root response diagnostics:"
+            sed -n '1,40p' /tmp/flixo-production.html || true
+            exit 1
+          fi
+          echo "✅ Production root returned HTML"
+          echo "PRODUCTION_IDENTITY=PASS"
 
       - name: Write deployment evidence
         if: always()
