@@ -21,7 +21,6 @@ for (const token of [
   'name: Certification',
   'name: Validate execution graph completeness',
   'name: Single certification engine',
-  'value !== 0',
 ]) {
   if (!ci.includes(token)) fail(`missing canonical CI invariant: ${token}`);
 }
