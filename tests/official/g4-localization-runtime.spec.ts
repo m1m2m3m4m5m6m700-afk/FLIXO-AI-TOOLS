@@ -54,6 +54,21 @@ const isExpectedNavigationAbort = (request: { url(): string; failure(): { errorT
   return false;
 };
 
+async function waitForNavigationSettled(page: Page): Promise<void> {
+  await page.waitForLoadState('load', { timeout: 30_000 });
+  await page.waitForLoadState('networkidle', { timeout: 10_000 });
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+    if ('requestIdleCallback' in window) {
+      await new Promise<void>((resolve) => window.requestIdleCallback(() => resolve(), { timeout: 250 }));
+    } else {
+      await new Promise<void>((resolve) => setTimeout(resolve, 50));
+    }
+  });
+}
+
 async function snapshot(page: Page): Promise<Snapshot> {
   return page.evaluate(() => {
     const visible = (element: Element) => {
@@ -136,7 +151,8 @@ for (const pathname of routes) {
     });
 
     const response = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await Promise.all(consoleErrorPromises);
+    await waitForNavigationSettled(page);
+    await Promise.all(consoleErrorPromises.splice(0));
     expect(response?.status(), `${pathname} must return HTTP 200`).toBe(200);
 
     const locale = pathname.match(new RegExp(`^/(${localeCodes.join('|')})(?:/|$)`, 'u'))?.[1];
@@ -197,6 +213,7 @@ for (const pathname of routes) {
 
     if (localeCode !== 'en') {
       const baselineResponse = await page.goto(localizedPath('en', family), { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await waitForNavigationSettled(page);
       await Promise.all(consoleErrorPromises.splice(0));
       expect(baselineResponse?.status(), `${pathname} English baseline ${family} must return HTTP 200`).toBe(200);
       await expect(page.locator('main').first()).toBeVisible();
@@ -205,6 +222,7 @@ for (const pathname of routes) {
       const baseline = await snapshot(page);
 
       const localizedResponse = await page.goto(pathname, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await waitForNavigationSettled(page);
       await Promise.all(consoleErrorPromises.splice(0));
       expect(localizedResponse?.status(), `${pathname} must return HTTP 200 after baseline comparison`).toBe(200);
       await expect(page.locator('main').first()).toBeVisible();
