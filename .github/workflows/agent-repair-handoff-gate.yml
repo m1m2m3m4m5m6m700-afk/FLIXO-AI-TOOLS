@@ -66,14 +66,16 @@ jobs:
           NODE
 
       - name: Record machine-readable handoff decision
+        env:
+          OUTCOME: "${{ '' }}"
+          LEARNING: "${{ '' }}"
         shell: bash
         run: |
           set -euo pipefail
           cd /tmp/repair-handoff
           outcome="$(cat flixo-engine-outcome)"
           learning="$(cat flixo-learning-outcome)"
-          node -e 'const fs=require("fs"); const crypto=require("crypto"); const f="flixo-prepared-repair-handoff.json"; const h=JSON.parse(fs.readFileSync(f,"utf8")); const o=process.env.OUTCOME; const l=process.env.LEARNING; const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v1",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,mode:h.mode,applyBy:h.applyBy,sourcePublishByBot:h.sourcePublishByBot,engineOutcome:o,learningOutcome:l,decision:o==="verified-repair"&&l==="success"?"READY_FOR_EXECUTIVE_REVIEW":"ESCALATION_ONLY",handoffSha256:crypto.createHash("sha256").update(fs.readFileSync(f)).digest("hex"),generatedAt:new Date().toISOString()}; fs.writeFileSync("repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");' \
-            OUTCOME="$outcome" LEARNING="$learning"
+          OUTCOME="$outcome" LEARNING="$learning" node -e 'const fs=require("fs"); const crypto=require("crypto"); const f="flixo-prepared-repair-handoff.json"; const h=JSON.parse(fs.readFileSync(f,"utf8")); const o=process.env.OUTCOME; const l=process.env.LEARNING; const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v1",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,mode:h.mode,applyBy:h.applyBy,sourcePublishByBot:h.sourcePublishByBot,engineOutcome:o,learningOutcome:l,decision:o==="verified-repair"&&l==="success"?"READY_FOR_EXECUTIVE_REVIEW":"ESCALATION_ONLY",handoffSha256:crypto.createHash("sha256").update(fs.readFileSync(f)).digest("hex"),generatedAt:new Date().toISOString()}; fs.writeFileSync("repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");'
 
       - name: Upload handoff gate evidence
         if: always()
