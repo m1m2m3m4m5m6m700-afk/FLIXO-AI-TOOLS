@@ -1,3 +1,4 @@
+# temporary one-shot repair runner
 name: I18N Repair Once
 on:
   push:
