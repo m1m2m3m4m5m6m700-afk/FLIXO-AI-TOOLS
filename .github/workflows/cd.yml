@@ -173,6 +173,12 @@ jobs:
           mkdir -p /tmp/artifact
           gh run download "$SOURCE_RUN_ID" -n "flixo-build-${SOURCE_RUN_ID}" -D /tmp/artifact
           test "$(cat /tmp/artifact/flixo-head-sha.txt)" = "$PROMOTION_SHA"
+          test -s /tmp/artifact/__flixo/build-identity.json
+          test -s /tmp/artifact/__flixo/artifact-hash.txt
+          test "$(jq -r '.schemaVersion' /tmp/artifact/__flixo/build-identity.json)" = "2"
+          test "$(jq -r '.producer' /tmp/artifact/__flixo/build-identity.json)" = "scripts/ci/runtime/build-identity.mjs"
+          test "$(jq -r '.commitSha' /tmp/artifact/__flixo/build-identity.json)" = "$PROMOTION_SHA"
+          test "$(jq -r '.artifactHash' /tmp/artifact/__flixo/build-identity.json)" = "$(cat /tmp/artifact/__flixo/artifact-hash.txt)"
 
       - name: Deploy immutable build to Vercel
         id: deploy
