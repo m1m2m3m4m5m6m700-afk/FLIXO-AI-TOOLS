@@ -21,6 +21,8 @@ jobs:
     timeout-minutes: 20
     env:
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      VITE_SITE_URL: https://flixoai.vercel.app
+      SITE_URL: https://flixoai.vercel.app
     steps:
       - name: 01 — Checkout exact execution SHA
         uses: actions/checkout@v5
