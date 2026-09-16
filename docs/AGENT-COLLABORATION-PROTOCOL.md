@@ -154,6 +154,9 @@ Agents produce evidence. Only the canonical certification system can issue final
 ## Protocol hierarchy
 `docs/PROTOCOL-REGISTRY.json` remains the single protocol inventory. Compatible requirements extend P20 rather than creating duplicate protocols.
 
+## Canonical validator vocabulary
+The following terms are canonical aliases for the v6 controls and are intentionally retained for machine-readable contract compatibility: **Agent login**, **Central coordination control plane**, **Ownership lock**, **Action ledger**, **Mandatory session handoff report**, **Evidence and provenance**, **Failure and RCA**, **Conflict protocol**, **Logout**, `--from-session=<previous-session>`, **Root-Cause-First Repair Protocol**, **causal defect**, **affected dependency/contract graph**, **mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure**, **symptom-only workaround**, and **new deterministic failure**. These aliases do not create additional protocols; they map directly to the v6 session, coordination, evidence, RCA, handoff and conflict controls above.
+
 ## Enforcement
 CI MUST verify the cooperation contract, coordination control plane, session tool, handoff schema, protocol hierarchy, canonical registry, read-only Scout boundary, repair-proof controls and exact-SHA evidence rules.
 
