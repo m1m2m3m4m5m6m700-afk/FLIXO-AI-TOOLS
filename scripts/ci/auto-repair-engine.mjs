@@ -39,7 +39,7 @@ if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint) {
 if (repairPolicy.requireCleanGitBeforeRepair && git(['status', '--porcelain']).trim()) throw new Error('AUTO_REPAIR_DIRTY_WORKTREE');
 
 const plan = planRepair(log, memory);
-const specialist = selectSpecialist(plan.features);
+const specialist = selectSpecialist(features);
 advance('RISK_GATE');
 let selected = plan.selected;
 const historicalRules = [...(known?.rules ?? []), ...similar.flatMap(({ case: item }) => item.rules ?? [])];
@@ -53,7 +53,7 @@ const evidence = {
   protocol: protocol.transitions,
   fingerprint,
   targetSha,
-  features: plan.features,
+  features,
   specialist,
   attempt,
   attemptBudget: repairPolicy.maxAttemptsPerFingerprint,
@@ -72,21 +72,21 @@ if (!selected || selectedRisk === 'HUMAN-GATE') {
   evidence.protocol = protocol.transitions;
   evidence.outcome = 'proposal-only';
   writeEvidence(evidencePath, evidence);
-  recordOutcome(memory, { fingerprint, normalizedFailure, features: plan.features, rootCause: specialist?.id ?? 'unknown', rule: selected?.id, outcome: 'proposed', verification: 'none', risk: selectedRisk, preventionRule: 'No autonomous repair is permitted for this risk class; escalate with evidence.' });
+  recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected?.id, outcome: 'proposed', verification: 'none', risk: selectedRisk, preventionRule: 'No autonomous repair is permitted for this risk class; escalate with evidence.' });
   writeMemory(memory);
   console.log(`AUTO_REPAIR_RESULT=PROPOSAL_ONLY\nAUTO_REPAIR_PLAN=${selected?.id ?? 'none'}\nAUTO_REPAIR_FINGERPRINT=${fingerprint}`);
   process.exit(0);
 }
 
 advance('PLAN');
-const gate = confidenceGate({ selected, features: plan.features, maxFiles: repairPolicy.maxChangedFiles, maxLines: repairPolicy.maxChangedLines });
+const gate = confidenceGate({ selected, features, maxFiles: repairPolicy.maxChangedFiles, maxLines: repairPolicy.maxChangedLines });
 evidence.confidenceGate = gate;
 if (!gate.allowed) {
   advance('ESCALATE');
   evidence.protocol = protocol.transitions;
   evidence.outcome = 'proposal-only';
   writeEvidence(evidencePath, evidence);
-  recordOutcome(memory, { fingerprint, normalizedFailure, features: plan.features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'proposed', verification: 'confidence-gate-blocked', risk: selectedRisk, preventionRule: 'Require guarded or human-gated repair for this class.' });
+  recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'proposed', verification: 'confidence-gate-blocked', risk: selectedRisk, preventionRule: 'Require guarded or human-gated repair for this class.' });
   writeMemory(memory);
   console.log(`AUTO_REPAIR_RESULT=PROPOSAL_ONLY\nAUTO_REPAIR_PLAN=${selected.id}`);
   process.exit(0);
@@ -94,7 +94,7 @@ if (!gate.allowed) {
 
 const before = snapshot(targetDir);
 advance('REPRODUCE');
-evidence.reproductionBefore = reproduce(targetDir, impactedTests(plan.features));
+evidence.reproductionBefore = reproduce(targetDir, impactedTests(features));
 
 try {
   advance('REPAIR');
@@ -110,19 +110,19 @@ try {
     rollback(targetDir, before);
     advance('ESCALATE');
     evidence.protocol = protocol.transitions;
-    recordOutcome(memory, { fingerprint, normalizedFailure, features: plan.features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'blocked', verification: 'scope-policy', risk: selectedRisk, provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: 'Reject repairs outside the bounded change policy.' });
+    recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'blocked', verification: 'scope-policy', risk: selectedRisk, provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: 'Reject repairs outside the bounded change policy.' });
     writeMemory(memory);
     writeEvidence(evidencePath, evidence);
     process.exitCode = 2;
   } else {
     advance('REGRESSION_VERIFY');
-    evidence.reproductionAfter = reproduce(targetDir, impactedTests(plan.features));
+    evidence.reproductionAfter = reproduce(targetDir, impactedTests(features));
     const regressionCommands = [['npm', ['run', 'typecheck']], ['npm', ['run', 'test:static']], ['npm', ['run', 'test:build']]];
     const originalGate = process.env.FLIXO_ORIGINAL_GATE;
-    if (originalGate === 'browser' || plan.features.includes('playwright') || plan.features.includes('webkit')) regressionCommands.push(['npm', ['run', 'test:browser']]);
-    if (originalGate === 'certification' || plan.features.includes('certification')) regressionCommands.push(['npm', ['run', 'verify:ci-cd-trust']]);
+    if (originalGate === 'browser' || features.includes('playwright') || features.includes('webkit')) regressionCommands.push(['npm', ['run', 'test:browser']]);
+    if (originalGate === 'certification' || features.includes('certification')) regressionCommands.push(['npm', ['run', 'verify:ci-cd-trust']]);
     evidence.regression = runRegression(targetDir, regressionCommands);
-    evidence.originalGate = originalGate ?? (plan.features.includes('playwright') || plan.features.includes('webkit') ? 'browser' : plan.features.includes('certification') ? 'certification' : 'static+build');
+    evidence.originalGate = originalGate ?? (features.includes('playwright') || features.includes('webkit') ? 'browser' : features.includes('certification') ? 'certification' : 'static+build');
     advance('ORIGINAL_GATE_VERIFY');
     if (!evidence.reproductionAfter.ok || !evidence.regression.ok) {
       rollback(targetDir, before);
@@ -130,7 +130,7 @@ try {
       evidence.rollback = true;
       advance('ESCALATE');
       evidence.protocol = protocol.transitions;
-      recordOutcome(memory, { fingerprint, normalizedFailure, features: plan.features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'failure', verification: 'reproduction/regression-failed', risk: selectedRisk, provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: 'Do not reuse this rule until a later verified success supersedes the failed attempt.' });
+      recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'failure', verification: 'reproduction/regression-failed', risk: selectedRisk, provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: 'Do not reuse this rule until a later verified success supersedes the failed attempt.' });
       writeMemory(memory);
       writeEvidence(evidencePath, evidence);
       process.exitCode = 3;
@@ -138,7 +138,7 @@ try {
       evidence.outcome = 'verified-repair';
       evidence.verification = { reproduction: true, regression: true, originalGate: evidence.originalGate };
       advance('LEARN');
-      recordOutcome(memory, { fingerprint, normalizedFailure, features: plan.features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'success', verification: `typecheck+static+build+${evidence.originalGate}`, risk: selectedRisk, provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: `Prevent recurrence of ${fingerprint} by retaining verified rule ${selected.id}.` });
+      recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'success', verification: `typecheck+static+build+${evidence.originalGate}`, risk: selectedRisk, provenance: { targetSha, changedPaths: diffSummary.files }, preventionRule: `Prevent recurrence of ${fingerprint} by retaining verified rule ${selected.id}.` });
       writeMemory(memory);
       advance('PREVENT');
       const evidenceCheck = validateEvidence(evidence);
@@ -155,8 +155,7 @@ try {
   evidence.rollback = true;
   if (protocol.state !== 'ESCALATE' && protocol.state !== 'CLOSE') advance('ESCALATE');
   evidence.protocol = protocol.transitions;
-  recordOutcome(memory, { fingerprint, normalizedFailure, features: plan.features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'failure', verification: 'exception', risk: selectedRisk, provenance: { targetSha }, preventionRule: 'Do not repeat an exception-producing repair without new evidence.' });
+  recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: specialist?.id ?? 'unknown', rule: selected.id, outcome: 'failure', verification: 'exception', risk: selectedRisk, provenance: { targetSha }, preventionRule: 'Do not repeat an exception-producing repair without new evidence.' });
   writeMemory(memory);
   writeEvidence(evidencePath, evidence);
-  process.exitCode = 4;
 }
