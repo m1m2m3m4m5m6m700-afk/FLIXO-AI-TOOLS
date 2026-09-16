@@ -63,11 +63,12 @@ if (staticOwner?.executionSurface !== 'static') errors.push('OWNER_DRIFT: test:s
 if (buildOwner?.executionSurface !== 'build') errors.push('OWNER_DRIFT: test:build must be owned by build execution surface');
 if (typecheckOwner?.executionSurface !== 'static') errors.push('OWNER_DRIFT: typecheck must be owned by static execution surface');
 
+const infrastructureCommands = new Set(['test:static', 'test:build']);
 for (const [name, entry] of entries) {
   const command = entry.command?.join(' ');
-  if (command?.startsWith('npm run ') && impactCommands.has(command) === false) {
-    // Critical CI/repair commands are allowed to be shared infrastructure commands and need not be impact-routed.
-    if (name !== 'typecheck') errors.push(`IMPACT_ORPHAN: ${name} (${command}) is not represented in test-impact-map.json`);
+  const script = npmScript(entry.command);
+  if (script && !impactCommands.has(command) && !infrastructureCommands.has(script)) {
+    errors.push(`IMPACT_ORPHAN: ${name} (${command}) is not represented in test-impact-map.json`);
   }
 }
 
