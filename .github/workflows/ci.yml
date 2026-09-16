@@ -252,7 +252,7 @@ jobs:
       - run: npm ci --prefer-offline --no-audit --no-fund
       - uses: actions/download-artifact@v7
         with:
-          pattern: flixo-*-evidence-${{ github.run_id }}
+          pattern: flixo-browser-*-*-${{ github.run_id }}
           path: diagnostics/certification
           merge-multiple: true
       - name: Validate execution graph completeness
