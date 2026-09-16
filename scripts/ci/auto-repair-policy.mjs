@@ -1,5 +1,7 @@
 export const repairPolicy = Object.freeze({
-  maxAttemptsPerRun: 2,
+  maxAttemptsPerFingerprint: 2,
+  maxChangedFiles: 8,
+  maxChangedLines: 300,
   requireCleanGitBeforeRepair: true,
   requireDeterministicMatch: true,
   neverModify: [
@@ -20,8 +22,15 @@ export const repairPolicy = Object.freeze({
   openDraftPrOnly: true,
 });
 
+function matches(path, rule) {
+  return rule.endsWith('/') ? path.startsWith(rule) : path === rule;
+}
+
 export function isPathAllowed(path) {
-  return !repairPolicy.neverModify.some((blocked) =>
-    blocked.endsWith('/') ? path.startsWith(blocked) : path === blocked,
-  );
+  return !repairPolicy.neverModify.some((rule) => matches(path, rule))
+    && !repairPolicy.protectedAreas.some((rule) => matches(path, rule));
+}
+
+export function isProtectedPath(path) {
+  return repairPolicy.protectedAreas.some((rule) => matches(path, rule));
 }
