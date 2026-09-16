@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { createProtocolState, transitionProtocol, assertProtocolClosed, classifyRisk, validateEvidence } from './auto-repair-protocol.mjs';
+
+const state = createProtocolState({ fingerprint: 'abc', targetSha: 'def', maxAttempts: 2 });
+assert.throws(() => transitionProtocol(state, 'REPAIR'), /PROTOCOL_ILLEGAL_TRANSITION/);
+transitionProtocol(state, 'EVIDENCE_LOCK', { complete: true });
+transitionProtocol(state, 'RCA');
+transitionProtocol(state, 'RISK_GATE');
+transitionProtocol(state, 'PLAN');
+transitionProtocol(state, 'REPRODUCE');
+transitionProtocol(state, 'REPAIR');
+transitionProtocol(state, 'SCOPE_VERIFY');
+transitionProtocol(state, 'REGRESSION_VERIFY');
+transitionProtocol(state, 'ORIGINAL_GATE_VERIFY');
+transitionProtocol(state, 'LEARN');
+transitionProtocol(state, 'PREVENT');
+transitionProtocol(state, 'CLOSE', { proven: true });
+assert.equal(assertProtocolClosed(state), true);
+assert.equal(classifyRisk({ confidence: 95 }), 'AUTO-FIX');
+assert.equal(classifyRisk({ confidence: 75 }), 'GUARDED-FIX');
+assert.equal(classifyRisk({ workflowPath: true, confidence: 99 }), 'HUMAN-GATE');
+assert.equal(validateEvidence({ fingerprint: 'x', targetSha: 'y', outcome: 'proposal-only', changedPaths: [] }).ok, true);
+assert.equal(validateEvidence({ fingerprint: 'x', targetSha: 'y', outcome: 'verified-repair', changedPaths: [] }).ok, false);
+console.log('AUTO_REPAIR_PROTOCOL_SELF_TEST=PASS');
