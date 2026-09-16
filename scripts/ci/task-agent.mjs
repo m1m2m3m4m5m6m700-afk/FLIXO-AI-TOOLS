@@ -64,7 +64,7 @@ const outputs = [];
 for (const task of selected) {
   const fingerprint = hash(`${task.taskId}|${task.title}|${task.section}`).slice(0, 16);
   const packet = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     authority: 'FLIXO_TASK_AGENT',
     role: 'TASK_OWNER_AND_CODE_PREPARER',
     mode: 'PREPARATION_ONLY',
@@ -108,6 +108,15 @@ for (const task of selected) {
       maxCycles: 12,
       rescanAfterEveryRepair: true,
       rescanScope: 'ALL_REQUIRED_CHECKS',
+      circuitBreaker: {
+        enabled: true,
+        maxStalledCycles: 3,
+        definition: 'SAME_FAILURE_FINGERPRINT_WITHOUT_VERIFIABLE_PROGRESS',
+        fingerprintScope: 'RED_CHECKS_AND_REPAIR_TARGETS',
+        progressEvidence: 'CHECK_STATE_OR_ERROR_FINGERPRINT_CHANGED',
+        action: 'REQUIRES_REVIEW',
+        failClosed: true,
+      },
       closureGate: ['canonical-ci-green', 'zero-red-checks', 'fresh-exact-sha-evidence', 'required-regression-proof'],
     },
     preparedChanges: [],
@@ -129,7 +138,7 @@ for (const task of selected) {
 }
 
 const index = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   authority: 'FLIXO_TASK_AGENT',
   mode: 'PREPARATION_ONLY',
   preparedOnly: true,
@@ -138,7 +147,13 @@ const index = {
   selected: outputs,
   selectedCount: outputs.length,
   lifecycle: 'ACTIVE_UNTIL_CANONICAL_GREEN',
-  repairLoop: { enabled: true, mode: 'RED_TO_GREEN', maxCycles: 12, rescanAfterEveryRepair: true },
+  repairLoop: {
+    enabled: true,
+    mode: 'RED_TO_GREEN',
+    maxCycles: 12,
+    rescanAfterEveryRepair: true,
+    circuitBreaker: { enabled: true, maxStalledCycles: 3, action: 'REQUIRES_REVIEW', failClosed: true },
+  },
   greenGate: {
     required: ['CANONICAL_GREEN', 'ZERO_RED_CHECKS', 'FRESH_EXACT_SHA_EVIDENCE', 'REGRESSION_PROOF'],
     closureAllowedOnlyWhenAllRequired: true,
