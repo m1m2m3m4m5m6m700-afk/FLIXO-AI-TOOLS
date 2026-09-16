@@ -198,3 +198,11 @@ A task may leave the open queue only after merge-to-main, exact-SHA proof, targe
 `EXACT SHA ∧ CLEAN WORKTREE ∧ REQUIRED TEST PASS ∧ FRESH CURRENT EVIDENCE`
 
 No GREEN outside these conditions.
+
+## FRESH CI EVIDENCE RECHECK
+
+```text
+REQUEST = validate main-state i18n repair through the canonical FLIXO Test System on a pull-request event
+TARGET = Seed UI ownership repair at 40786637552d8c0268fd4b9de579c104f58726ab
+NO GATE BYPASS = required
+```
