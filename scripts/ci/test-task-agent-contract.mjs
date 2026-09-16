@@ -9,7 +9,7 @@ const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 
 assert.ok(taskFile.length > 0, 'مهام.md must exist and be non-empty');
 assert.match(contract, /preparation-only agent/i);
-assert.match(contract, /NO_SOURCE_MUTATION_NO_COMMIT_NO_PUSH/);
+assert.match(contract, /MUST NOT:\s*[\s\S]*commit source changes[\s\S]*push to GitHub/i);
 assert.match(contract, /CODE_ONLY/);
 assert.match(agent, /preparedOnly: true/);
 assert.match(agent, /NO_SOURCE_MUTATION_NO_COMMIT_NO_PUSH/);
