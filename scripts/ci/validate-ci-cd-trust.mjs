@@ -29,7 +29,6 @@ if (/continue-on-error\s*:\s*true/i.test(ci)) fail('canonical CI contains contin
 if (!/if:\s*always\(\)/.test(ci)) fail('Certification must execute with if: always()');
 if (!ci.includes('flixo-head-sha.txt')) fail('CI does not stamp the immutable build SHA');
 
-// Invoke the repository's actual canonical surface validator instead of duplicating its policy here.
 const surface = spawnSync(process.execPath, ['scripts/ci/validate-certification-surface.mjs'], {
   cwd: root,
   encoding: 'utf8',
@@ -47,7 +46,12 @@ for (const token of [
   "github.event.workflow_run.conclusion == 'success'",
   "github.event.workflow_run.head_branch == 'main'",
   "github.event.workflow_run.event == 'push'",
-  'test "$(git rev-parse origin/main)" = "$PROMOTION_SHA"',
+  'git fetch --no-tags --depth=1 origin main',
+  'skip_deploy=false',
+  'skip_deploy=true',
+  'SKIPPED_STALE_SHA',
+  'Automatic promotion skipped safely',
+  'Manual promotion rejected',
   'gh run download',
   'test "$(cat /tmp/artifact/flixo-head-sha.txt)" = "$PROMOTION_SHA"',
   'production.html',
@@ -55,6 +59,20 @@ for (const token of [
 ]) {
   if (!cd.includes(token)) fail(`missing canonical CD invariant: ${token}`);
 }
+
+// The current-main guard has two intentionally different policies:
+// automatic workflow_run promotions skip stale event SHAs safely; manual
+// promotions remain fail-closed. Never weaken the exact-SHA checks.
+if (!cd.includes('if [ "$head_sha" = "$PROMOTION_SHA" ] && [ "$main_sha" = "$PROMOTION_SHA" ]; then')) {
+  fail('CD does not require exact checkout SHA and current main SHA for promotion');
+}
+if (!cd.includes('if [ "$EVENT_NAME" = "workflow_dispatch" ]; then')) {
+  fail('CD manual promotion guard is missing');
+}
+if (!cd.includes('exit 1')) fail('CD must fail closed for rejected manual promotion/certification');
+if (!cd.includes('exit 0')) fail('CD must safely skip stale automatic promotion');
+if (!/if:\s*always\(\)/.test(cd)) fail('CD evidence upload must execute with if: always()');
+if (!cd.includes('if-no-files-found: error')) fail('CD evidence upload must fail if evidence is unexpectedly missing');
 if (/continue-on-error\s*:\s*true/i.test(cd)) fail('CD contains continue-on-error=true');
 
 // Negative controls for the canonical reducer: every known bad state must be rejected.
@@ -66,19 +84,16 @@ for (const state of ['FAIL', 'BLOCKED', 'CANCELLED', 'NOT_EXECUTED', 'MISSING_EV
 if (reduceCheckResults([{ id: 'A', status: 'PASS' }], 2).decision) fail('missing execution unit incorrectly certified');
 if (reduceCheckResults([{ id: 'A', status: 'PASS' }, { id: 'A', status: 'PASS' }], 1).decision) fail('unexpected execution cardinality incorrectly certified');
 
-// Coverage mutation control: one missing semantic unit must be detected.
 const expectedSemantic = new Set(Array.from({ length: 66 }, (_, index) => `FAST:${index}`));
 const tamperedSemantic = new Set(expectedSemantic);
 tamperedSemantic.delete('FAST:65');
 if (tamperedSemantic.size === expectedSemantic.size) fail('coverage mutation was not detected');
 if (tamperedSemantic.size !== 65) fail('coverage mutation cardinality control failed');
 
-// Evidence tamper control: a changed payload must produce a different digest.
 const digestA = createHash('sha256').update('IMMUTABLE-CI-CD-TRUST').digest('hex');
 const digestB = createHash('sha256').update('TAMPERED-CI-CD-TRUST').digest('hex');
 if (digestA === digestB) fail('artifact tamper mutation produced identical digest');
 
-// Role-separation control: certification cannot silently absorb deployment, and CD cannot certify the app.
 if (ci.includes('npx --yes vercel@latest deploy')) fail('CI unexpectedly owns deployment');
 if (cd.includes('npm run test:static')) fail('CD unexpectedly owns application certification');
 
@@ -92,6 +107,8 @@ const result = {
     coverageMutationDetection: true,
     evidenceTamperDetection: true,
     exactShaBinding: true,
+    staleAutomaticPromotionSafeSkip: true,
+    manualPromotionFailClosed: true,
     canonicalAuthoritySingle: true,
     productionIdentityExpected: true,
     roleSeparation: true,
