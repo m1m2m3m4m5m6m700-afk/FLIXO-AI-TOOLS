@@ -98,10 +98,43 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  browser_fast:
-    name: Browser FAST — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+  browser_dependencies:
+    name: Browser Dependencies
     needs: [verify]
     if: needs.verify.result == 'success'
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Restore browser dependency cache
+        id: browser-deps-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: flixo-browser-node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('.nvmrc') }}
+      - name: Install browser dependencies on cache miss
+        if: steps.browser-deps-cache.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Verify browser dependency identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x node_modules/.bin/playwright
+          node --version
+          npx playwright --version
+
+  browser_fast:
+    name: Browser FAST — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    needs: [verify, browser_dependencies]
+    if: needs.verify.result == 'success' && needs.browser_dependencies.result == 'success'
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
@@ -119,8 +152,17 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Restore browser dependency cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: flixo-browser-node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('.nvmrc') }}
+      - name: Verify browser dependency identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x node_modules/.bin/playwright
+          sha256sum package-lock.json
       - uses: actions/download-artifact@v7
         with:
           name: flixo-build-${{ github.run_id }}
@@ -167,15 +209,17 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: flixo-browser-fast-${{ matrix.browser }}-${{ matrix.shard }}-${{ github.run_id }}
-          path: diagnostics/certification/
+          path: |
+            diagnostics/certification/browser-fast-${{ matrix.browser }}-${{ matrix.shard }}.json
+            diagnostics/certification/playwright-results/browser-fast-${{ matrix.browser }}-${{ matrix.shard }}-results.json
           if-no-files-found: warn
           retention-days: 14
           overwrite: true
 
   browser_deep:
     name: Browser DEEP — ${{ matrix.browser }} / shard-${{ matrix.shard }}
-    needs: [verify]
-    if: needs.verify.result == 'success'
+    needs: [verify, browser_dependencies]
+    if: needs.verify.result == 'success' && needs.browser_dependencies.result == 'success'
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
@@ -193,8 +237,17 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Restore browser dependency cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: flixo-browser-node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('.nvmrc') }}
+      - name: Verify browser dependency identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x node_modules/.bin/playwright
+          sha256sum package-lock.json
       - uses: actions/download-artifact@v7
         with:
           name: flixo-build-${{ github.run_id }}
@@ -245,7 +298,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: flixo-browser-deep-${{ matrix.browser }}-${{ matrix.shard }}-${{ github.run_id }}
-          path: diagnostics/certification/
+          path: |
+            diagnostics/certification/browser-deep-${{ matrix.browser }}-${{ matrix.shard }}.json
+            diagnostics/certification/playwright-results/browser-deep-${{ matrix.browser }}-${{ matrix.shard }}-results.json
           if-no-files-found: warn
           retention-days: 14
           overwrite: true
@@ -264,8 +319,6 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
       - uses: actions/download-artifact@v7
         with:
           pattern: flixo-browser-*-*-${{ github.run_id }}
