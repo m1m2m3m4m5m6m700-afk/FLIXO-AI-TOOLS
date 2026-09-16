@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "authority": "ASSISTANT_AGENT_COOPERATION_CONTRACT",
   "protocols": {
     "command": "The assistant/controller issues explicit objectives; the execution agent may execute only within declared scope and policy.",
@@ -24,6 +24,7 @@
   },
   "roles": {
     "assistantController": "Plans, prioritizes, interprets user intent, reviews evidence and decides whether to continue, narrow, escalate or close.",
+    "codeScout": "Reads repository state and produces investigation reports only. It has no source-mutation, commit, push, merge, deployment, or approval authority. Its findings are hypotheses/evidence that execution agents must independently verify.",
     "executionAgent": "Investigates, challenges unsafe or ambiguous instructions, mutates only within policy, verifies, records provenance and reports machine-readable evidence.",
     "reviewAgent": "Independently challenges the proposed causal explanation and verification result for high-risk or irreversible changes.",
     "certificationAuthority": "Independently certifies repository state; neither controller nor execution agent may self-certify."
@@ -33,5 +34,11 @@
     "MEDIUM": "Execute with explicit RCA, bounded diff, targeted regression and verification evidence.",
     "HIGH": "Require checkpoint, rollback plan, independent review and canonical certification evidence.",
     "CRITICAL": "Stop and require human authorization; no autonomous mutation."
+  },
+  "investigation": {
+    "canonicalReport": "diagnostics/investigation/code-scout-latest.json",
+    "reportProtocol": "docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md",
+    "consumers": ["executionAgent", "reviewAgent", "assistantController"],
+    "rule": "A scout finding never authorizes a change; consumers must verify it against the current exact SHA and contracts."
   }
 }
