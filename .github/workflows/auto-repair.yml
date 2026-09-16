@@ -67,6 +67,8 @@ jobs:
         run: node scripts/ci/auto-repair-engine.mjs
 
       - name: Verify repair before publishing
+        id: verify
+        if: hashFiles('/tmp/flixo-repair-evidence.json') != ''
         run: |
           set -euo pipefail
           if git diff --quiet; then
@@ -77,8 +79,20 @@ jobs:
           npm run test:static
           npm run test:build
 
+      - name: Record verified learning outcome
+        if: always() && hashFiles('/tmp/flixo-repair-evidence.json') != ''
+        env:
+          FLIXO_LEARNING_OUTCOME: ${{ steps.verify.outcome == 'success' && 'success' || 'failure' }}
+          FLIXO_VERIFICATION: ${{ steps.verify.outcome }}
+          FLIXO_ROOT_CAUSE: ${{ '' }}
+        run: |
+          set -euo pipefail
+          ROOT_CAUSE=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8'));process.stdout.write(x.rootCause||'unknown')")
+          RULE=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.selectedRule||'')")
+          FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" node scripts/ci/auto-repair-learning.mjs
+
       - name: Create repair branch
-        if: success()
+        if: steps.verify.outcome == 'success' && !cancelled()
         run: |
           set -euo pipefail
           if git diff --quiet; then exit 0; fi
@@ -92,7 +106,7 @@ jobs:
           echo "REPAIR_BRANCH=$BRANCH" >> "$GITHUB_ENV"
 
       - name: Open repair PR
-        if: success() && env.REPAIR_BRANCH != ''
+        if: steps.verify.outcome == 'success' && env.REPAIR_BRANCH != ''
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
@@ -104,7 +118,7 @@ jobs:
             --head "$REPAIR_BRANCH" \
             --draft \
             --title "fix(ci): automatic repair for failed run $RUN_ID" \
-            --body "## FLIXO Auto Repair Bot\n\nFailed canonical CI run: $RUN_ID\n\nFailed SHA: $FAILED_SHA\n\nThe bot uses deterministic classification plus bounded repair memory. It verifies typecheck + static + build before opening a draft PR.\n\nFailure summary:\n\n$(cat /tmp/flixo-repair-summary.txt)\n\nNo direct push to main is performed by the repair bot."
+            --body "## FLIXO Auto Repair Bot\n\nFailed canonical CI run: $RUN_ID\n\nFailed SHA: $FAILED_SHA\n\nThe bot uses deterministic classification, bounded playbooks, historical scoring and post-repair verification.\n\nNo direct push to main is performed by the repair bot."
 
       - name: Publish diagnostic and learning artifacts
         if: always()
@@ -115,6 +129,7 @@ jobs:
             /tmp/flixo-failure.log
             /tmp/flixo-repair-summary.txt
             /tmp/flixo-root-cause.json
+            /tmp/flixo-repair-evidence.json
             diagnostics/auto-repair/memory.json
           if-no-files-found: warn
           retention-days: 30
