@@ -51,6 +51,17 @@ export function findSimilarCases(memory, { fingerprint, normalized, features = [
     .slice(0, 5);
 }
 
+export function rankLessons(memory, { fingerprint, rootCause, rule } = {}) {
+  const all = [...memory.lessons, ...memory.antiLessons.map((item) => ({ ...item, anti: true }))];
+  return all
+    .filter((item) => (!rootCause || item.rootCause === rootCause) && (!rule || item.rule === rule) || item.fingerprint === fingerprint)
+    .map((item) => ({
+      ...item,
+      score: Number(((item.confidence ?? 0) * (item.anti ? -1 : 1)).toFixed(4)),
+    }))
+    .sort((a, b) => b.score - a.score);
+}
+
 export function scorePlaybook(memory, rootCause, rule) {
   const records = memory.playbooks.filter((item) => item.rootCause === rootCause && item.rule === rule);
   const attempts = records.reduce((sum, item) => sum + item.attempts, 0);
