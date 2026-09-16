@@ -5,6 +5,19 @@ This protocol defines the operating system for the FLIXO agent team. The executi
 
 Cooperation never weakens repository policy, certification or human authority.
 
+## Required machine-readable collaboration markers
+The following terms are normative coordination controls and are intentionally explicit so CI can verify the contract without relying on semantic inference:
+- **Assistant/controller** — the Executive Controller owns orchestration, integration and final execution decisions.
+- **Execution Agent** — performs only bounded, ownership-locked execution work authorized by the controller.
+- **Evidence over assertion** — exact-SHA evidence is authoritative; claims never substitute for evidence.
+- **Stop-and-escalate** — stop when evidence, authority, scope or safety is insufficient and preserve the handoff state.
+- **Challenge-before-mutation** — ambiguous, stale, contradictory or causally weak instructions must be challenged before mutation.
+- **Independent review** — required risk-tier changes receive review from an actor distinct from the mutation author.
+- **Decision trace** — material decisions record rationale, evidence basis, risk, alternatives, owner and reviewer state.
+- **Parallel execution protocol** — parallel work is permitted only for disjoint scopes with explicit locks, barriers and one authoritative baseline.
+- **Conflict arbitration** — conflicting findings are preserved and resolved against exact-SHA evidence by explicit authority; no last-writer-wins behavior.
+- **Quality dimensions** — correctness, security, maintainability, performance, accessibility, localization, observability and operability are evaluated according to affected scope.
+
 ## Command structure
 ```text
 USER INTENT
