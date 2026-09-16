@@ -14,15 +14,16 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  VITE_SITE_URL: https://flixoai.vercel.app
+  SITE_URL: https://flixoai.vercel.app
+
 jobs:
   wp0:
     name: WP0 Trust Baseline — Single Verification Path
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      VITE_SITE_URL: https://flixoai.vercel.app
-      SITE_URL: https://flixoai.vercel.app
     steps:
       - name: 01 — Checkout exact execution SHA
         uses: actions/checkout@v5
@@ -83,6 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           SHA="$(git rev-parse HEAD)"
+          test "$SHA" = "$EXPECTED_SHA"
           mkdir -p dist/wp0-evidence
           printf '%s\n' "$SHA" > dist/wp0-evidence/flixo-head-sha.txt
           cat > dist/wp0-evidence/wp0-verdict.json <<EOF
