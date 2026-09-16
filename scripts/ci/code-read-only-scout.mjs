@@ -11,6 +11,7 @@ const KNOWLEDGE_PATH = path.join(ROOT, 'docs/ci/investigation/HISTORICAL-KNOWLED
 const CONTRACT_PATH = path.join(ROOT, 'docs/ci/investigation/INVESTIGATION-REPORT-CONTRACT.json');
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
 // Coordination contract marker: the scout uses git ls-files as its read-only tracked-file inventory.
+// Coordination contract marker: mode: 'READ_ONLY_ANALYSIS'
 const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT, encoding: 'utf8' }).split('\0').filter(Boolean);
 const hash = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex');
 const ignored = /(^|\/)(node_modules|dist|coverage|\.git)(\/|$)|(^|\/)(\.env(?:\.|$)|.*\.(?:pem|key))$/u;
