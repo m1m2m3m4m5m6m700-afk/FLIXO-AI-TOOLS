@@ -108,41 +108,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           ALLOWED_WORKER="flixoai"
           ALLOWED_ORIGIN="https://flixoai.m1m2m3m4m5m6m700.workers.dev"
-
-          echo "=== Guard 1/4: wrangler.jsonc name == $ALLOWED_WORKER ==="
           CONFIG_NAME=$(grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' wrangler.jsonc | head -1 | sed -E 's/.*"name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
-          echo "wrangler.jsonc name = '$CONFIG_NAME'"
-          if [ "$CONFIG_NAME" != "$ALLOWED_WORKER" ]; then
-            echo "❌ FAIL: wrangler.jsonc targets '$CONFIG_NAME' — expected '$ALLOWED_WORKER'"
-            exit 1
-          fi
-          echo "✅ OK"
-
-          echo "=== Guard 2/4: WRANGLER_WORKER_NAME == $ALLOWED_WORKER ==="
-          echo "WRANGLER_WORKER_NAME = '${WRANGLER_WORKER_NAME:-UNSET}'"
-          if [ "${WRANGLER_WORKER_NAME:-}" != "$ALLOWED_WORKER" ]; then
-            echo "❌ FAIL: WRANGLER_WORKER_NAME must be '$ALLOWED_WORKER'"
-            exit 1
-          fi
-          echo "✅ OK"
-
-          echo "=== Guard 3/4: production origin is exact ==="
-          if [ "${FLIXOAI_PRODUCTION_ORIGIN:-}" != "$ALLOWED_ORIGIN" ]; then
-            echo "❌ FAIL: production origin is not the approved flixoai workers.dev origin"
-            exit 1
-          fi
-          echo "✅ OK"
-
-          echo "=== Guard 4/4: no forbidden worker references in deployment config ==="
-          if grep -qE 'flixotoolscom|flixotools\b' wrangler.jsonc; then
-            echo "❌ FAIL: wrangler.jsonc references a forbidden worker (flixotools/flixotoolscom)"
-            exit 1
-          fi
-          echo "✅ OK — no forbidden references"
-          echo "🛡️ ALL GUARDS PASSED — deployment target locked to '$ALLOWED_WORKER'"
+          test "$CONFIG_NAME" = "$ALLOWED_WORKER"
+          test "${WRANGLER_WORKER_NAME:-}" = "$ALLOWED_WORKER"
+          test "${FLIXOAI_PRODUCTION_ORIGIN:-}" = "$ALLOWED_ORIGIN"
+          if grep -qE 'flixotoolscom|flixotools\b' wrangler.jsonc; then exit 1; fi
+          echo "ALL GUARDS PASSED — deployment target locked to '$ALLOWED_WORKER'"
 
       - name: Install Wrangler
         if: steps.freshness.outputs.is_current == 'true'
@@ -175,11 +148,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
-          identity_url="$FLIXOAI_PRODUCTION_ORIGIN/__flixo/identity/$DEPLOYMENT_SHA/index.txt"
+          # Cloudflare's SPA fallback can rewrite extensionless/nested identity paths.
+          # flixo-head-sha.txt is explicitly written at the asset root and is the
+          # immutable artifact identity already consumed by the deployment step.
+          identity_url="$FLIXOAI_PRODUCTION_ORIGIN/flixo-head-sha.txt"
           root_url="$FLIXOAI_PRODUCTION_ORIGIN/?__flixo_sha=$DEPLOYMENT_SHA&__flixo_verify=1"
 
-          echo "=== Production identity: immutable SHA path ==="
           identity_status="$(curl --silent --show-error --location --compressed \
             --retry 10 --retry-delay 3 --retry-all-errors --max-time 30 \
             -H 'Cache-Control: no-cache, no-store' \
@@ -188,26 +162,24 @@ jobs:
           echo "Identity endpoint HTTP status: $identity_status"
           echo "Identity endpoint body length: ${#identity_body}"
           if [ "$identity_status" != "200" ] || [ "$identity_body" != "$DEPLOYMENT_SHA" ]; then
-            echo "❌ Production immutable identity verification failed"
+            echo "Production immutable identity verification failed"
             echo "Expected SHA: $DEPLOYMENT_SHA"
             echo "Observed SHA: ${identity_body:-<empty>}"
             exit 1
           fi
-          echo "✅ Production immutable identity matches exact deployment SHA"
+          echo "Production immutable identity matches exact deployment SHA"
 
-          echo "=== Production identity: root HTML ==="
           root_status="$(curl --silent --show-error --location --compressed \
             --retry 10 --retry-delay 3 --retry-all-errors --max-time 30 \
             -H 'Cache-Control: no-cache, no-store' \
             -o /tmp/flixo-production.html -w '%{http_code}' "$root_url")"
           echo "Root endpoint HTTP status: $root_status"
           if [ "$root_status" != "200" ] || ! grep -Eiq '<html[[:space:]>]' /tmp/flixo-production.html; then
-            echo "❌ Production root HTML verification failed"
-            echo "Root response diagnostics:"
+            echo "Production root HTML verification failed"
             sed -n '1,40p' /tmp/flixo-production.html || true
             exit 1
           fi
-          echo "✅ Production root returned HTML"
+          echo "Production root returned HTML"
           echo "PRODUCTION_IDENTITY=PASS"
 
       - name: Write deployment evidence
@@ -218,11 +190,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$IS_CURRENT" = "true" ]; then
-            status="PASS"
-          else
-            status="SKIPPED_STALE_SHA"
-          fi
+          if [ "$IS_CURRENT" = "true" ]; then status="PASS"; else status="SKIPPED_STALE_SHA"; fi
           cat > flixoai-cloudflare-deployment-evidence.json <<JSON
           {"worker":"flixoai","origin":"$FLIXOAI_PRODUCTION_ORIGIN","sha":"$DEPLOYMENT_SHA","status":"$status"}
           JSON
