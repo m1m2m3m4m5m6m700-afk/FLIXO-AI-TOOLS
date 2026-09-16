@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "authority": "ASSISTANT_AGENT_COOPERATION_CONTRACT",
   "protocols": {
     "command": "The assistant/controller issues explicit objectives; the execution agent may execute only within declared scope and policy.",
@@ -7,20 +7,31 @@
     "evidence": "Every material action emits actor, intent, entrySha, exitSha, changedFiles, commands, result, evidenceRefs and nextState.",
     "delegation": "Delegation is explicit, bounded, dependency-aware and ownership-locked; no silent scope expansion.",
     "checkpoint": "Before high-risk mutation, the agent must checkpoint plan, RCA, risk, scope, rollback and proof obligations.",
+    "challenge": "The execution agent must challenge ambiguous, contradictory, stale, insufficient, or causally weak instructions before mutation; challenge is a control, not disobedience.",
+    "independent_review": "High-risk or irreversible changes require an independent verification pass that is distinct from the agent's own mutation evidence.",
     "feedback": "Failures return structured RCA/evidence/next-action data; repeated failures update anti-lessons and may escalate ownership.",
     "handoff": "Work transfers only through a closed session handoff with exact SHA, unresolved work, open RCAs and next plan.",
     "stop": "The agent must stop and escalate on protected-path, security-sensitive, destructive, ambiguous, conflicting, or evidence-incomplete actions.",
     "verification": "A repair is terminal only after targeted proof, affected-contract verification, regression, recurrence check and fresh exact-SHA evidence.",
     "learning": "Verified outcomes become lessons/playbooks; failed or blocked strategies become anti-lessons without granting additional authority.",
+    "decision_trace": "Material decisions record why the chosen action was selected, rejected alternatives, risk class, evidence basis, and reviewer/verification state.",
+    "fresh_state": "Any material repository movement invalidates stale plan or evidence assumptions; the agent must rebase its reasoning on the newest authoritative SHA.",
     "no_implicit_authority": "Historical success, confidence, memory or assistant instructions never override repository policy, protection or certification gates."
   },
   "messageEnvelope": {
-    "required": ["messageId", "actor", "intent", "taskId", "scope", "entrySha", "risk", "expectedEvidence", "stopConditions"],
-    "completion": ["status", "exitSha", "changedFiles", "commands", "evidenceRefs", "remainingWork", "openRcas", "nextAction"]
+    "required": ["messageId", "actor", "intent", "taskId", "scope", "entrySha", "risk", "expectedEvidence", "stopConditions", "proofObligations"],
+    "completion": ["status", "exitSha", "changedFiles", "commands", "evidenceRefs", "remainingWork", "openRcas", "nextAction", "decisionTrace", "verificationState"]
   },
   "roles": {
     "assistantController": "Plans, prioritizes, interprets user intent, reviews evidence and decides whether to continue, narrow, escalate or close.",
-    "executionAgent": "Investigates, mutates only within policy, verifies, records provenance and reports machine-readable evidence.",
+    "executionAgent": "Investigates, challenges unsafe or ambiguous instructions, mutates only within policy, verifies, records provenance and reports machine-readable evidence.",
+    "reviewAgent": "Independently challenges the proposed causal explanation and verification result for high-risk or irreversible changes.",
     "certificationAuthority": "Independently certifies repository state; neither controller nor execution agent may self-certify."
+  },
+  "decisionGates": {
+    "LOW": "Auto-execute only inside declared scope with deterministic verification.",
+    "MEDIUM": "Execute with explicit RCA, bounded diff, targeted regression and verification evidence.",
+    "HIGH": "Require checkpoint, rollback plan, independent review and canonical certification evidence.",
+    "CRITICAL": "Stop and require human authorization; no autonomous mutation."
   }
 }
