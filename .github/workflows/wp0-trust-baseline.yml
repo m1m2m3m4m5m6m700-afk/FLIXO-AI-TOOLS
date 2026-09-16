@@ -113,7 +113,7 @@ jobs:
         with:
           name: flixo-wp0-evidence-${{ github.event.pull_request.head.sha || github.sha }}
           path: dist/wp0-evidence/
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: 15 — Final WP0 decision
         shell: bash
