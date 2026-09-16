@@ -33,7 +33,7 @@ PRODUCTION MUTATION = DISABLED
 | ADMIN-007 | CLOSED / VERIFIED | Preserve capability contract and server-boundary proof |
 | ADMIN-008 | CLOSED / VERIFIED | Preserve final production certification and evidence |
 | RELEASE-001 | CLOSED / VERIFIED | Preserve exact release evidence and do not reopen without a new deterministic blocker |
-| BUILD-002 | ACTIVE | Fresh artifact-graph analysis; identify build artifact ownership, identity, and regression boundaries |
+| BUILD-002 | ACTIVE | Verify canonical build-identity producer/consumer regression on fresh exact SHA; then close only with full evidence |
 | I18N-001 | CANDIDATE | Runtime ownership trace |
 | TEST-001 | CANDIDATE | Ownership inventory |
 | DEBT-001 | CANDIDATE | Fresh-failure/value review |
@@ -85,24 +85,25 @@ CLOSURE EVIDENCE = RECORDED
 
 ```text
 ACTIVE
-PURPOSE = Deterministic artifact-graph analysis after release certification
+PURPOSE = Deterministic artifact-graph ownership and identity-contract hardening
 ENTRY BASIS = RELEASE-001 closure evidence confirmed on exact SHA 6e338cb3c1f35abe458c3316b5ff036ad8dcc7cb
 SCOPE = map build artifacts → producers → consumers → immutable identity checks → deployment/certification evidence
-GUARDRAIL = no production mutation; analysis and bounded fixes only
+GUARDRAIL = no production deployment behavior bypass; identity guard is fail-closed and must be proven by fresh CI
 
 ARTIFACT OWNERSHIP MAP
 PRODUCER = npm run build → vite build + generated robots/sitemap/static route entries → dist/
-PRIMARY CI CONSUMER = FLIXO Test System Static + Build → verifies dist/index.html and immutable SHA markers
-BROWSER CONSUMERS = Browser FAST/DEEP download flixo-build-${RUN_ID} and re-verify SHA + package-lock hash
-CERTIFICATION CONSUMER = execution-graph.json + 15 primary browser evidence files → canonical certification engine
-DEPLOYMENT CONSUMER = FLIXO Continuous Delivery downloads flixo-build-${CI_RUN_ID}, checks flixo-head-sha.txt, then promotes exact SHA
-IDENTITY CHECKS = git HEAD == EXPECTED_SHA; dist/flixo-head-sha.txt == EXPECTED_SHA; nested identity path == EXPECTED_SHA; package-lock checksum matches
+CANONICAL IDENTITY PRODUCER = scripts/ci/runtime/build-identity.mjs → dist/__flixo/build-identity.json + dist/__flixo/artifact-hash.txt
+PRIMARY CI CONSUMER = FLIXO Test System Static + Build → invokes canonical producer and verifies its manifest against EXPECTED_SHA
+BROWSER CONSUMERS = Browser FAST/DEEP download flixo-build-${RUN_ID} and re-verify canonical identity + SHA + package-lock hash
+CERTIFICATION CONSUMER = execution-graph.json + primary browser evidence files → canonical certification engine
+DEPLOYMENT CONSUMER = FLIXO Continuous Delivery downloads flixo-build-${CI_RUN_ID} and fail-closes unless canonical identity commitSha == promotion SHA
 
-FINDING = scripts/ci/runtime/build-identity.mjs is an orphaned identity producer: it computes a stronger SHA-256 artifact identity and writes artifacts/ci/build/identity.json, but the canonical CI workflow does not invoke it and CD does not consume it.
-SECONDARY FINDING = canonical CI currently performs equivalent identity assertions directly in ci.yml, creating two identity mechanisms with no enforced linkage.
-RISK = identity drift can become silent if the orphaned producer and inline CI assertions evolve independently.
-BOUNDED NEXT ACTION = add one deterministic regression proving the canonical build artifact identity has a single authoritative producer/consumer contract; do not alter production deployment behavior until that regression passes.
-STATUS = ANALYSIS COMPLETE / MUTATION NOT YET AUTHORIZED
+IMPLEMENTED CHANGE = canonical producer is now executed after build; its identity manifest is embedded in the immutable dist artifact; CI and CD consume the same producer-owned manifest.
+REGRESSION = scripts/ci/test-build-identity-contract.mjs is wired into npm test:static and proves producer invocation, producer-owned manifest, immutable artifact publication, and CD consumption.
+STATUS = IMPLEMENTED / AWAITING FRESH CANONICAL CI EVIDENCE
+CURRENT IMPLEMENTATION SHA = e927e76f814bb364eb3381c7bac37c7be73bb143
+CI RUN = 35107013374 (pending at last observation)
+CLOSURE RULE = do not mark BUILD-002 CLOSED until fresh exact-SHA Static + Build, Browser FAST/DEEP, Certification, and invariant evidence all pass.
 ```
 
 ## GOVERNANCE
