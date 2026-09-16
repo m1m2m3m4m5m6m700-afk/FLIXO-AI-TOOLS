@@ -11,10 +11,6 @@ async function hasWebGl(page: Page) {
   return canvasLocator(page).evaluate((element) => Boolean((element as HTMLCanvasElement).getContext('webgl')));
 }
 
-async function canvasScreenshot(page: Page) {
-  return canvasLocator(page).screenshot({ animations: 'disabled' });
-}
-
 async function gpuPixels(page: Page) {
   return Buffer.from(await canvasLocator(page).evaluate((element) => {
     const canvas = element as HTMLCanvasElement;
