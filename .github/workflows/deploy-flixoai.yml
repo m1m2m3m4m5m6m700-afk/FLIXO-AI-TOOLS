@@ -15,6 +15,11 @@ concurrency:
   group: flixoai-cloudflare-${{ github.event.workflow_run.head_sha || inputs.sha || github.run_id }}
   cancel-in-progress: false
 
+actions:
+  permissions:
+    contents: read
+    actions: read
+
 permissions:
   contents: read
   actions: read
@@ -150,8 +155,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Use a SHA-specific root-level .txt asset. This avoids both SPA fallback
-          # and stale/colliding cache keys while keeping the identity immutable.
+          # Use a SHA-specific root-level .txt asset. This avoids SPA fallback
+          # and gives every deployment a unique cache key.
           identity_url="$FLIXOAI_PRODUCTION_ORIGIN/__flixo-identity-$DEPLOYMENT_SHA.txt"
           legacy_identity_url="$FLIXOAI_PRODUCTION_ORIGIN/flixo-head-sha.txt"
           root_url="$FLIXOAI_PRODUCTION_ORIGIN/?__flixo_sha=$DEPLOYMENT_SHA&__flixo_verify=1"
@@ -171,20 +176,22 @@ jobs:
           fi
           echo "Production unique immutable identity matches exact deployment SHA"
 
+          # Legacy root asset is retained for compatibility, but it is not a
+          # deployment gate because Cloudflare may serve a stale/colliding asset.
           legacy_status="$(curl --silent --show-error --location --compressed \
-            --retry 10 --retry-delay 3 --retry-all-errors --max-time 30 \
+            --retry 3 --retry-delay 2 --retry-all-errors --max-time 20 \
             -H 'Cache-Control: no-cache, no-store' \
             -o /tmp/flixo-production-legacy-identity.txt -w '%{http_code}' "$legacy_identity_url")"
           legacy_body="$(tr -d '\r\n\ufeff' < /tmp/flixo-production-legacy-identity.txt)"
           echo "Legacy identity endpoint HTTP status: $legacy_status"
           echo "Legacy identity endpoint body length: ${#legacy_body}"
-          if [ "$legacy_status" != "200" ] || [ "$legacy_body" != "$DEPLOYMENT_SHA" ]; then
-            echo "Legacy root SHA asset verification failed"
+          if [ "$legacy_status" = "200" ] && [ "$legacy_body" = "$DEPLOYMENT_SHA" ]; then
+            echo "Legacy root SHA asset matches exact deployment SHA"
+          else
+            echo "WARNING: legacy root SHA asset is not the authoritative deployment identity"
             echo "Expected SHA: $DEPLOYMENT_SHA"
             echo "Observed SHA: ${legacy_body:-<empty>}"
-            exit 1
           fi
-          echo "Legacy root SHA asset also matches exact deployment SHA"
 
           root_status="$(curl --silent --show-error --location --compressed \
             --retry 10 --retry-delay 3 --retry-all-errors --max-time 30 \
