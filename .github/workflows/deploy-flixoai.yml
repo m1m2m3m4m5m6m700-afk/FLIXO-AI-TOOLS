@@ -51,18 +51,27 @@ jobs:
           ref: ${{ steps.sha.outputs.sha }}
           fetch-depth: 1
 
-      - name: Prove deployment SHA is current main
+      - name: Check deployment SHA is still current main
+        id: freshness
         shell: bash
         env:
           DEPLOYMENT_SHA: ${{ steps.sha.outputs.sha }}
         run: |
           set -euo pipefail
           git fetch --no-tags --depth=1 origin main
+          current_main="$(git rev-parse origin/main)"
+          if [ "$current_main" != "$DEPLOYMENT_SHA" ]; then
+            echo "Stale workflow-run SHA: $DEPLOYMENT_SHA"
+            echo "Current main SHA: $current_main"
+            echo "Automatic deployment is safely skipped; use workflow_dispatch with the exact current main SHA after certification."
+            printf 'is_current=false\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf 'is_current=true\n' >> "$GITHUB_OUTPUT"
           test "$(git rev-parse HEAD)" = "$DEPLOYMENT_SHA"
-          test "$(git rev-parse origin/main)" = "$DEPLOYMENT_SHA"
 
       - name: Download certified build artifact
-        if: github.event_name == 'workflow_run'
+        if: github.event_name == 'workflow_run' && steps.freshness.outputs.is_current == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
@@ -76,7 +85,7 @@ jobs:
           test -s dist/index.html
 
       - name: Build and fingerprint exact SHA for manual deployment
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && steps.freshness.outputs.is_current == 'true'
         env:
           DEPLOYMENT_SHA: ${{ steps.sha.outputs.sha }}
           VITE_SITE_URL: ${{ env.FLIXOAI_PRODUCTION_ORIGIN }}
@@ -92,6 +101,7 @@ jobs:
 
       - name: 🛡️ Safety Guard — strict allowlist (flixoai only)
         id: safety
+        if: steps.freshness.outputs.is_current == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -129,14 +139,14 @@ jobs:
             exit 1
           fi
           echo "✅ OK — no forbidden references"
-
-          echo ""
           echo "🛡️ ALL GUARDS PASSED — deployment target locked to '$ALLOWED_WORKER'"
 
       - name: Install Wrangler
+        if: steps.freshness.outputs.is_current == 'true'
         run: npm install --global wrangler@4
 
       - name: Dry-run Cloudflare deployment
+        if: steps.freshness.outputs.is_current == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -147,6 +157,7 @@ jobs:
           wrangler deploy --dry-run --config wrangler.jsonc --name "$WRANGLER_WORKER_NAME"
 
       - name: Deploy to Cloudflare (flixoai)
+        if: steps.freshness.outputs.is_current == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -155,6 +166,7 @@ jobs:
           wrangler deploy --config wrangler.jsonc --name "$WRANGLER_WORKER_NAME"
 
       - name: Verify production identity
+        if: steps.freshness.outputs.is_current == 'true'
         env:
           DEPLOYMENT_SHA: ${{ steps.sha.outputs.sha }}
         shell: bash
@@ -176,11 +188,17 @@ jobs:
         if: always()
         env:
           DEPLOYMENT_SHA: ${{ steps.sha.outputs.sha }}
+          IS_CURRENT: ${{ steps.freshness.outputs.is_current }}
         shell: bash
         run: |
           set -euo pipefail
+          if [ "$IS_CURRENT" = "true" ]; then
+            status="PASS"
+          else
+            status="SKIPPED_STALE_SHA"
+          fi
           cat > flixoai-cloudflare-deployment-evidence.json <<JSON
-          {"worker":"flixoai","origin":"$FLIXOAI_PRODUCTION_ORIGIN","sha":"$DEPLOYMENT_SHA","status":"PASS"}
+          {"worker":"flixoai","origin":"$FLIXOAI_PRODUCTION_ORIGIN","sha":"$DEPLOYMENT_SHA","status":"$status"}
           JSON
 
       - name: Upload deployment evidence
