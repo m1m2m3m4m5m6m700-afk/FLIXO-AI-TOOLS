@@ -2,7 +2,7 @@ name: FLIXO Auto Repair Bot
 
 on:
   workflow_run:
-    workflows: ["FLIXO Test System"]
+    workflows: ["FLIXO Test System", "FLIXO WP0 Trust Baseline"]
     types: [completed]
     branches: [main]
 
@@ -11,9 +11,9 @@ permissions:
   actions: read
   checks: read
 
-# One repair lane only. The bot diagnoses, prepares and verifies a bounded
-# repair in an isolated failed-SHA worktree. It never publishes source changes.
-# The executive agent reviews/applies the prepared repair.
+# One repair lane only. The bot diagnoses every canonical verification failure,
+# prepares and verifies a bounded repair in an isolated failed-SHA worktree.
+# It never publishes source changes; the executive agent reviews/applies the handoff.
 concurrency:
   group: flixo-auto-repair-main
   cancel-in-progress: false
@@ -78,6 +78,7 @@ jobs:
           {
             echo '### Failed CI classification input'
             echo "run_id=$RUN_ID"
+            echo "workflow=${{ github.event.workflow_run.name }}"
             echo "head_sha=${{ github.event.workflow_run.head_sha }}"
             grep -E -i 'error|failed|failure|timeout|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
           } > /tmp/flixo-repair-summary.txt
