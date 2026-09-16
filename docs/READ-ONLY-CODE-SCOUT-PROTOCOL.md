@@ -9,6 +9,7 @@ The Code Scout is an analysis-only execution role. It continuously reads the rep
 - **READ:** repository source, configuration, tests, contracts, history, CI definitions, dependency metadata and available evidence.
 - **WRITE:** investigation reports only, through the dedicated investigation-report output channel.
 - **FORBIDDEN:** source edits, configuration edits, dependency changes, generated-production mutations, commits, pushes, merges, deployments, permission changes, or repair approval.
+- **NO_SOURCE_MUTATION:** the Scout must never mutate repository source, configuration, dependencies, workflows, tests, or certification surfaces.
 - Historical lessons and confidence never grant mutation authority.
 
 ## Investigation output
@@ -34,12 +35,12 @@ The report is advisory. **Execution agents decide whether a finding is actionabl
 
 `Repository Read → Evidence Collection → Structure/Dependency Analysis → Failure Correlation → Root-Cause Hypothesis → Verification Proposal → Report`
 
-The scout must not skip from observation directly to a repair.
+The Scout must not skip from observation directly to a repair.
 
 ## Safety
 
-The scout is fail-closed. If repository identity, evidence provenance, or report integrity cannot be established, it reports the investigation as incomplete instead of inventing conclusions.
+The Scout is fail-closed. If repository identity, evidence provenance, or report integrity cannot be established, it reports the investigation as incomplete instead of inventing conclusions.
 
 ## Collaboration
 
-Repair agents consume the report before planning mutation. They must independently verify important findings against the current exact SHA and existing contracts. The report cannot authorize a change or override any higher-level protocol.
+Execution agents and repair agents consume the report before planning mutation. They must independently verify important findings against the current exact SHA and existing contracts. The report cannot authorize a change or override any higher-level protocol.
