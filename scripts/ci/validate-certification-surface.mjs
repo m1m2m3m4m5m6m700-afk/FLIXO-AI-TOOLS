@@ -34,9 +34,11 @@ const nonTestAutomation = new Set([
   'dependency-usage-classification-v2.yml',
 ]);
 const auxiliaryEvidenceAutomation = new Set(['test-impact.yml']);
+// WP0 is a fail-closed trust/governance baseline, not a second application-certification authority.
+const trustBaselineAutomation = new Set(['wp0-trust-baseline.yml']);
 const automatedNonCanonical = [];
 for (const file of workflowFiles) {
-  if (file === 'ci.yml' || nonTestAutomation.has(file) || auxiliaryEvidenceAutomation.has(file)) continue;
+  if (file === 'ci.yml' || nonTestAutomation.has(file) || auxiliaryEvidenceAutomation.has(file) || trustBaselineAutomation.has(file)) continue;
   const text = fs.readFileSync(path.join(ROOT, '.github', 'workflows', file), 'utf8');
   if (/^\s*(push|pull_request):/m.test(text)) automatedNonCanonical.push(`.github/workflows/${file}`);
 }
@@ -60,7 +62,7 @@ const result = {
   status: errors.length ? 'FAIL' : 'PASS',
   workflow: '.github/workflows/ci.yml',
   architecture: { layers: ['impact-plan', 'static+build', 'browser-fast', 'browser-deep', 'certify'], browserFast: { tools: 22, browsers: 3, units: 66 }, browserDeep: { locales: 20, browsers: 3 }, certification: 'single fail-closed certify job' },
-  checks: { fastToolCount: fastSpecs.length, browsers: /browser:\s*\[chromium, firefox, webkit\]/.test(ci), deepLocalization: /tests\/localization-runtime\.spec\.ts/.test(ci), immutableArtifact: /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci), auxiliaryEvidenceAutomation: [...auxiliaryEvidenceAutomation], nonCanonicalAutomatedWorkflows: automatedNonCanonical, nonTestAutomation: [...nonTestAutomation] },
+  checks: { fastToolCount: fastSpecs.length, browsers: /browser:\s*\[chromium, firefox, webkit\]/.test(ci), deepLocalization: /tests\/localization-runtime\.spec\.ts/.test(ci), immutableArtifact: /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci), auxiliaryEvidenceAutomation: [...auxiliaryEvidenceAutomation], trustBaselineAutomation: [...trustBaselineAutomation], nonCanonicalAutomatedWorkflows: automatedNonCanonical, nonTestAutomation: [...nonTestAutomation] },
   errors,
 };
 fs.mkdirSync(path.join(ROOT, 'diagnostics', 'certification'), { recursive: true });
