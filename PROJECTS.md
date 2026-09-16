@@ -9,7 +9,7 @@
 ```text
 BRANCH = main
 CURRENT MAIN SHA = AUTHORITATIVE BRANCH REF
-ACTIVE TASK = TEST-001 → ACTIVE
+ACTIVE TASK = NEXT-CANDIDATE REVIEW
 ADMIN-003 = CLOSED / VERIFIED
 ADMIN-004 = CLOSED / VERIFIED
 ADMIN-005 = CLOSED / VERIFIED
@@ -19,11 +19,15 @@ ADMIN-008 = CLOSED / VERIFIED
 RELEASE-001 = CLOSED / VERIFIED
 I18N-001 = CLOSED / VERIFIED
 BUILD-002 = CLOSED / VERIFIED
+TEST-001 = CLOSED / VERIFIED
+AGENT-PROTOCOL-003 = CLOSED / VERIFIED
 SUPABASE PROJECT = zrpsmgdrtwzrhkjwwujo / ACTIVE_HEALTHY
 VERCEL PRODUCTION BINDING = EXACT-SHA PRODUCTION IDENTITY PROVEN
 PRODUCTION MUTATION = DISABLED
 I18N-001 REPAIR = VERIFIED ON MAIN / FRESH CANONICAL CI PASS
 BUILD-002 = VERIFIED ON MAIN / FRESH CANONICAL CI PASS
+TEST-001 = VERIFIED ON MAIN / FRESH CANONICAL CI PASS
+AGENT-PROTOCOL-003 = VERIFIED ON MAIN / FRESH CANONICAL CI PASS
 ```
 
 ## TASK QUEUE
@@ -39,7 +43,9 @@ BUILD-002 = VERIFIED ON MAIN / FRESH CANONICAL CI PASS
 | RELEASE-001 | CLOSED / VERIFIED | Preserve exact release evidence and do not reopen without a new deterministic blocker |
 | I18N-001 | CLOSED / VERIFIED | Preserve canonical Seed UI ownership and regression proof |
 | BUILD-002 | CLOSED / VERIFIED | Preserve canonical artifact identity producer/consumer contract |
-| TEST-001 | ACTIVE | Ownership inventory; bounded deterministic scope only |
+| TEST-001 | CLOSED / VERIFIED | Preserve deterministic ownership registry and validator |
+| AGENT-PROTOCOL-003 | CLOSED / VERIFIED | Preserve proof-driven fail-closed repair lifecycle and learning/prevention contracts |
+| NEXT-CANDIDATE REVIEW | ACTIVE | Review DEBT-001 and TOOL-EXPANSION against fresh evidence; activate only the smallest proven deterministic scope |
 | DEBT-001 | CANDIDATE | Fresh-failure/value review |
 | TOOL-EXPANSION | CANDIDATE | Select smallest proven candidate |
 
@@ -117,6 +123,50 @@ IMMUTABLE BUILD ARTIFACT = PASS (flixo-build-35113721226)
 CERTIFICATION EVIDENCE = flixo-certification-evidence-35113721226
 TARGETED REGRESSION = PASS: canonical producer invocation, producer-owned identity manifest, immutable artifact publication, browser re-verification, and certification graph completeness
 INVARIANT PROOF = PASS: execution SHA, canonical build identity, package-lock checksum, browser artifact verification, and certification trust checks all passed on main
+CLOSURE EVIDENCE = RECORDED
+```
+
+## TEST-001
+
+```text
+CLOSED / VERIFIED
+PURPOSE = Deterministic ownership inventory across executable test/verification surfaces
+VERIFIED IMPLEMENTATION SHA = 9b41e01e8d7e806b6aebaab14de1255a5e7bc35b
+VERIFIED FINAL MAIN SHA = 29ec4d0bb3dcf6b8e430c087597040cc6cac1c28
+VERIFIED CI RUN = 35121180929
+OWNERSHIP REGISTRY = scripts/ci/test-ownership-map.json
+VALIDATOR = scripts/ci/validate-test-ownership.mjs
+STATIC + BUILD = PASS
+BROWSER FAST = PASS (Chromium / Firefox / WebKit)
+BROWSER DEEP = PASS (Chromium / Firefox / WebKit)
+CERTIFICATION = PASS
+TARGETED REGRESSION = PASS: critical CI/repair verification commands have explicit ownership and infrastructure surfaces are excluded from file-impact routing requirements
+INVARIANT PROOF = PASS: ownership registry is unique/non-empty, required npm scripts exist, CI and auto-repair consumers are present, and execution-surface classifications are valid
+CLOSURE EVIDENCE = RECORDED
+```
+
+## AGENT-PROTOCOL-003
+
+```text
+CLOSED / VERIFIED
+PURPOSE = Autonomous Repair Protocol v3 with proof-driven, fail-closed lifecycle
+VERIFIED IMPLEMENTATION SHA = 6d90158d0dc759517254935e6f45cc82bd70f50f
+VERIFIED FINAL MAIN SHA = 29ec4d0bb3dcf6b8e430c087597040cc6cac1c28
+VERIFIED CI RUN = 35121180929
+LIFECYCLE = FAILURE → EVIDENCE LOCK → FINGERPRINT → RCA → MEMORY RETRIEVAL → RISK GATE → REPAIR PLAN → BOUNDED EXECUTION → TARGETED TEST → FULL REGRESSION → ROOT-CAUSE PROOF → RECURRENCE CHECK → LEARN → PREVENTION RULE → CERTIFY → CLOSE
+ROOT-CAUSE PROOF = REQUIRED: failing reproduction + recovered reproduction + regression + required commands
+RECURRENCE PROOF = REQUIRED: two post-fix recurrence checks
+FAIL-CLOSED = REQUIRED: failed proof triggers rollback and terminal failure evidence
+PREVENTION = REQUIRED: successful repair records a prevention rule
+BOUNDED EXECUTION = PRESERVED: protected paths, confidence gates, bounded diffs, reproduction, rollback, and evidence remain mandatory
+STATIC + BUILD = PASS
+BROWSER FAST = PASS (Chromium / Firefox / WebKit)
+BROWSER DEEP = PASS (Chromium / Firefox / WebKit)
+CERTIFICATION = PASS
+CI/CD TRUST CONTRACT = PASS
+CERTIFICATION EVIDENCE = flixo-certification-evidence-35121180929
+TARGETED REGRESSION = PASS: validator/engine proof contract aligned and canonical CI certification completed
+INVARIANT PROOF = PASS: fail-closed proof markers, rollback path, recurrence requirements, and canonical evidence gates were exercised by the certified run
 CLOSURE EVIDENCE = RECORDED
 ```
 
