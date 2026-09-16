@@ -19,7 +19,7 @@ const plan = planRepair(sample);
 assert.equal(plan.selected?.id, 'eslint-unused');
 assert.equal(confidenceGate({ selected: plan.selected, features: plan.features }).allowed, true);
 assert.equal(selectSpecialist(plan.features).id, 'eslint-specialist');
-assert.equal(impactedTests(['lint'])[0][1][1], 'lint');
+assert.deepEqual(impactedTests(['lint']), [['npm', ['run', 'lint']]]);
 assert.equal(summarizeDiff('diff --git a/src/a.ts b/src/a.ts\n+new\n-old\n').files.length, 1);
 assert.equal(typeof runRegression, 'function');
 assert.equal(typeof snapshot, 'function');
