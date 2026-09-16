@@ -19,6 +19,7 @@ const requiredFiles = [
   'docs/PROTOCOL-REGISTRY.json',
   'scripts/ci/agent-session.mjs',
   'scripts/ci/agent-coordination.mjs',
+  'scripts/ci/auto-repair-engine.mjs',
   'scripts/validate-ci-contract.mjs',
 ];
 for (const file of requiredFiles) if (!exists(file)) fail('MISSING_PROTOCOL_FILE', file);
@@ -42,21 +43,10 @@ if (exists('AGENTS.md')) {
 
 const taskGatewayMarkers = [
   '# FLIXO-AI-TOOLS — بوابة المهام التنفيذية',
-  'ACTIVE / REQUIRED AGENT GATE',
-  'PROJECTS.md',
-  'ADMIN-003',
-  'ADMIN-004',
-  'ADMIN-008',
-  'BUILD-002',
-  'I18N-001',
-  'TEST-001',
-  'DEBT-001',
-  'CANDIDATE ≠ ACTIVE',
-  'MERGED TO MAIN',
-  'EXACT MAIN SHA CONFIRMED',
-  'REQUIRED CI / CERTIFICATION PASS',
-  'PROJECTS.md CLOSED HISTORY UPDATED',
-  'حذف المهمة قبل اكتمال أي شرط = PROTOCOL VIOLATION',
+  'ACTIVE / REQUIRED AGENT GATE', 'PROJECTS.md', 'ADMIN-003', 'ADMIN-004', 'ADMIN-008',
+  'BUILD-002', 'I18N-001', 'TEST-001', 'DEBT-001', 'CANDIDATE ≠ ACTIVE',
+  'MERGED TO MAIN', 'EXACT MAIN SHA CONFIRMED', 'REQUIRED CI / CERTIFICATION PASS',
+  'PROJECTS.md CLOSED HISTORY UPDATED', 'حذف المهمة قبل اكتمال أي شرط = PROTOCOL VIOLATION',
 ];
 if (exists('المهام.md')) {
   const text = read('المهام.md');
@@ -66,10 +56,9 @@ if (exists('المهام.md')) {
 const requiredProtocolMarkers = [
   'Mandatory entry contract', 'Agent login', 'Central coordination control plane',
   'Ownership lock', 'Action ledger', 'Mandatory session handoff report', 'Handoff',
-  'Evidence and provenance', 'Failure and RCA', 'Conflict protocol',
-  'Certification separation', 'Logout', 'Enforcement', '--from-session=<previous-session>',
-  'Root-Cause-First Repair Protocol', 'causal defect',
-  'trigger → propagation path → violated invariant → responsible source → observable symptom',
+  'Evidence and provenance', 'Failure and RCA', 'Conflict protocol', 'Certification separation',
+  'Logout', 'Enforcement', '--from-session=<previous-session>', 'Root-Cause-First Repair Protocol',
+  'causal defect', 'trigger → propagation path → violated invariant → responsible source → observable symptom',
   'targeted regression', 'affected dependency/contract graph',
   'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
   'symptom-only workaround', 'new deterministic failure',
@@ -79,15 +68,27 @@ if (exists('docs/AGENT-COLLABORATION-PROTOCOL.md')) {
   for (const marker of requiredProtocolMarkers) if (!text.includes(marker)) fail('PROTOCOL_MISSING', marker);
 }
 
+const repairEngine = exists('scripts/ci/auto-repair-engine.mjs') ? read('scripts/ci/auto-repair-engine.mjs') : '';
+const repairMarkers = [
+  "schemaVersion: 4",
+  'evidence.reproductionCommands = impactedTests(plan.features)',
+  'reproductionWasFailing',
+  'reproductionRecovered',
+  'rootCauseProof',
+  'recurrenceProof',
+  'firstPass',
+  'secondPass',
+  'root-cause-proof-failed',
+  'root-cause-proof+recurrence-proof+typecheck+static+build',
+];
+for (const marker of repairMarkers) if (repairEngine && !repairEngine.includes(marker)) fail('REPAIR_PROTOCOL_MISSING', marker);
+if (repairEngine && !repairEngine.includes('if (!verified)')) fail('REPAIR_PROTOCOL_MISSING', 'fail-closed-verification');
+if (repairEngine && repairEngine.includes("evidence.outcome = 'verified-repair';") && !repairEngine.includes('const verified =')) fail('REPAIR_PROTOCOL_MISSING', 'verified-repair-gate');
+
 const hierarchyMarkers = [
-  'FLIXO Protocol Hierarchy & Anti-Bloat Contract v1',
-  '## Precedence',
-  '## Canonical Protocol Families',
-  '## Change-Scope Integrity',
-  '## Dependency-Graph Closure',
-  '## Evidence Freshness & Provenance',
-  '## Protocol Conflict Resolution',
-  '## Protocol Addition Gate',
+  'FLIXO Protocol Hierarchy & Anti-Bloat Contract v1', '## Precedence', '## Canonical Protocol Families',
+  '## Change-Scope Integrity', '## Dependency-Graph Closure', '## Evidence Freshness & Provenance',
+  '## Protocol Conflict Resolution', '## Protocol Addition Gate',
   'recurring failure class proven → existing controls insufficient → invariant named → authoritative enforcement boundary named → regression/enforcement test defined → duplication/conflict analysis passed',
   'docs/PROTOCOL-REGISTRY.json',
 ];
@@ -99,27 +100,21 @@ if (exists('docs/PROTOCOL-HIERARCHY.md')) {
 const registryPath = 'docs/PROTOCOL-REGISTRY.json';
 let registry = null;
 if (exists(registryPath)) {
-  try {
-    registry = JSON.parse(read(registryPath));
-  } catch (error) {
-    fail('PROTOCOL_REGISTRY_INVALID_JSON', error instanceof Error ? error.message : String(error));
-  }
+  try { registry = JSON.parse(read(registryPath)); }
+  catch (error) { fail('PROTOCOL_REGISTRY_INVALID_JSON', error instanceof Error ? error.message : String(error)); }
 }
 if (registry) {
   if (registry.schemaVersion !== 1 || registry.authority !== 'FLIXO_PROTOCOL_REGISTRY') fail('PROTOCOL_REGISTRY_HEADER_INVALID');
   if (!Array.isArray(registry.precedence) || registry.precedence.length < 2) fail('PROTOCOL_REGISTRY_PRECEDENCE_INVALID');
-  if (!Array.isArray(registry.protocols)) {
-    fail('PROTOCOL_REGISTRY_PROTOCOLS_INVALID');
-  } else {
+  if (!Array.isArray(registry.protocols)) fail('PROTOCOL_REGISTRY_PROTOCOLS_INVALID');
+  else {
     if (registry.protocols.length !== 20) fail('PROTOCOL_REGISTRY_COUNT', String(registry.protocols.length));
     const ids = registry.protocols.map((p) => p?.id);
     const names = registry.protocols.map((p) => p?.name);
     if (new Set(ids).size !== ids.length) fail('PROTOCOL_REGISTRY_DUPLICATE_IDS');
     if (new Set(names).size !== names.length) fail('PROTOCOL_REGISTRY_DUPLICATE_NAMES');
     for (const protocol of registry.protocols) {
-      for (const field of ['id', 'name', 'class', 'status', 'enforcement', 'invariant']) {
-        if (typeof protocol?.[field] !== 'string' || !protocol[field].trim()) fail('PROTOCOL_REGISTRY_FIELD_MISSING', `${protocol?.id ?? 'unknown'}.${field}`);
-      }
+      for (const field of ['id', 'name', 'class', 'status', 'enforcement', 'invariant']) if (typeof protocol?.[field] !== 'string' || !protocol[field].trim()) fail('PROTOCOL_REGISTRY_FIELD_MISSING', `${protocol?.id ?? 'unknown'}.${field}`);
       if (protocol?.status !== 'MANDATORY') fail('PROTOCOL_REGISTRY_NON_MANDATORY', protocol?.id ?? 'unknown');
     }
     const expectedIds = Array.from({ length: 20 }, (_, index) => `P${String(index + 1).padStart(2, '0')}`);
@@ -162,7 +157,7 @@ if (exists(lockFile)) {
 }
 
 const result = {
-  schemaVersion: 7,
+  schemaVersion: 8,
   authority: 'CI_PROTOCOL_GUARD',
   status: failures.length ? 'FAIL' : 'PASS',
   entryGate: 'PROJECTS.md → المهام.md → AGENTS.md',
@@ -172,13 +167,14 @@ const result = {
   protocolRegistry: 'docs/PROTOCOL-REGISTRY.json',
   approvedProtocolCount: registry?.protocols?.length ?? 0,
   rootCauseRepairProtocol: 'ROOT-CAUSE-FIRST REPAIR PROTOCOL',
+  repairProof: 'root-cause-proof + recurrence-proof',
   handoffSchema: 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md',
   coordinationControlPlane: 'scripts/ci/agent-coordination.mjs',
   sessionTool: 'scripts/ci/agent-session.mjs',
   handoffPath: 'diagnostics/agents/handoffs/<sessionId>.json',
   statePath: stateFile,
   lockPath: lockFile,
-  enforcement: 'scripts/validate-ci-contract.mjs → task gateway + protocol registry + hierarchy + collaboration + coordination + root-cause-first validators',
+  enforcement: 'scripts/validate-ci-contract.mjs → task gateway + protocol registry + hierarchy + collaboration + coordination + root-cause-first + repair-proof validators',
   failures,
 };
 fs.mkdirSync(path.resolve(root, 'diagnostics/agents'), { recursive: true });
