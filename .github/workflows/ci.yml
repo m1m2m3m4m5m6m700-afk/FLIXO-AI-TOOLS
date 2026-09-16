@@ -57,6 +57,8 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           test -f dist/index.html
           printf '%s\n' "$EXPECTED_SHA" > dist/flixo-head-sha.txt
+          mkdir -p "dist/__flixo/identity/$EXPECTED_SHA"
+          printf '%s\n' "$EXPECTED_SHA" > "dist/__flixo/identity/$EXPECTED_SHA/index.txt"
           sha256sum package-lock.json > dist/flixo-package-lock.sha256
       - name: Verify static/build identity
         shell: bash
@@ -64,6 +66,8 @@ jobs:
           set -euo pipefail
           test -s dist/flixo-head-sha.txt
           test "$(cat dist/flixo-head-sha.txt)" = "$EXPECTED_SHA"
+          test -s "dist/__flixo/identity/$EXPECTED_SHA/index.txt"
+          test "$(cat "dist/__flixo/identity/$EXPECTED_SHA/index.txt")" = "$EXPECTED_SHA"
           sha256sum -c dist/flixo-package-lock.sha256
       - uses: actions/upload-artifact@v6
         with:
@@ -111,6 +115,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(cat dist/flixo-head-sha.txt)" = "$EXPECTED_SHA"
+          test "$(cat "dist/__flixo/identity/$EXPECTED_SHA/index.txt")" = "$EXPECTED_SHA"
           sha256sum -c dist/flixo-package-lock.sha256
       - name: Verify Playwright runtime image
         shell: bash
@@ -182,6 +187,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(cat dist/flixo-head-sha.txt)" = "$EXPECTED_SHA"
+          test "$(cat "dist/__flixo/identity/$EXPECTED_SHA/index.txt")" = "$EXPECTED_SHA"
           sha256sum -c dist/flixo-package-lock.sha256
       - name: Verify Playwright runtime image
         shell: bash
