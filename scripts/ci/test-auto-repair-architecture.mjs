@@ -1,20 +1,36 @@
 import assert from 'node:assert/strict';
 import { fingerprintFailure, normalizeFailure } from './auto-repair-learning.mjs';
 import { planRepair } from './auto-repair/planner.mjs';
-import { isPathAllowed, isProtectedPath } from './auto-repair-policy.mjs';
+import { isPathAllowed, isProtectedPath, repairPolicy } from './auto-repair-policy.mjs';
+import { confidenceGate } from './auto-repair/confidence.mjs';
+import { selectSpecialist } from './auto-repair/specialists.mjs';
+import { impactedTests } from './auto-repair/reproduction.mjs';
+import { summarizeDiff } from './auto-repair/evidence.mjs';
+import { runRegression } from './auto-repair/regression.mjs';
+import { snapshot } from './auto-repair/rollback.mjs';
+import { runAstRepair } from './auto-repair/ast-repair.mjs';
 
-const sample = 'Run 35012345678 failed: no-unused-vars';
+const sample = 'Run 35012345678 failed: abcdefabcdefabcdefabcdefabcdefabcdefabcd no-unused-vars';
 const normalized = normalizeFailure(sample);
 assert(!normalized.includes('35012345678'));
+assert(!normalized.includes('abcdefabcdefabcdefabcdefabcdefabcdefabcd'));
 assert.equal(fingerprintFailure(sample), fingerprintFailure(sample));
-
 const plan = planRepair(sample);
 assert.equal(plan.selected?.id, 'eslint-unused');
-assert(plan.selected.confidence >= 90);
+assert.equal(confidenceGate({ selected: plan.selected, features: plan.features }).allowed, true);
+assert.equal(selectSpecialist(plan.features).id, 'eslint-specialist');
+assert.equal(impactedTests(['lint'])[0][1][1], 'lint');
+assert.equal(summarizeDiff('diff --git a/src/a.ts b/src/a.ts\n+new\n-old\n').files.length, 1);
+assert.equal(typeof runRegression, 'function');
+assert.equal(typeof snapshot, 'function');
+assert.equal(runAstRepair(null, { id: 'unsupported' }).applied, false);
 assert.equal(isPathAllowed('.github/workflows/ci.yml'), false);
 assert.equal(isProtectedPath('tests/seed.spec.ts'), true);
 assert.equal(isPathAllowed('src/example.ts'), true);
+assert.equal(repairPolicy.maxChangedFiles, 8);
+assert.equal(repairPolicy.maxChangedLines, 300);
 assert.equal(planRepair('webkit waitForGpuRender timeout').selected, null);
 assert.equal(planRepair('typescript TS2322 type error').selected, null);
+assert.equal(planRepair('certification FAST 66 DEEP 60').selected, null);
 
 console.log('AUTO_REPAIR_ARCHITECTURE_SELF_TEST=PASS');
