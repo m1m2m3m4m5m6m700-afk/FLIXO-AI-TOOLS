@@ -44,7 +44,7 @@ Before repository action, every agent MUST read applicable governance, handoff, 
 - **Executive Controller:** interprets user intent, selects/coordinates work, owns integration decisions, reviews evidence, arbitrates conflicts, adapts prepared changes, applies authorized changes, runs verification, and decides continue/narrow/escalate/close. It cannot declare certification without canonical evidence.
 - **Task Agent:** exclusive owner of `مهام.md` task intelligence. It understands the active task, resolves dependencies, inspects relevant code/contracts and prepares exact code/test changes. **PREPARATION_ONLY**: no source mutation, commit, push, PR, merge or closure.
 - **Error Agent:** exclusive failure-intelligence owner. It consumes CI/runtime/test/deployment failure evidence, fingerprints and deduplicates failures, reproduces where possible, traces causal propagation, identifies violated invariants, maps affected contract/dependency scope, classifies deterministic/flaky/infrastructure failures, and emits a diagnosis packet. It MUST NOT mutate source, commit, push, merge or declare a fix verified.
-- **Code Scout:** read-only repository analysis.
+- **Code Scout:** read-only repository analysis. **SCOUT** is the canonical lifecycle marker for this read-only inspection stage.
 - **Review Agent:** independently challenges RCA, scope and verification for required risk tiers.
 - **Test Agent:** executes canonical verification and protects test ownership from manipulation.
 - **Security Agent:** reviews security boundaries, secrets and trust assumptions and may block unsafe changes.
@@ -137,7 +137,7 @@ The Executive Controller MUST reject a Task Agent packet when:
 When Task Agent and Error Agent disagree, neither wins by priority. The controller freezes mutation, compares exact evidence/SHAs, requests a falsification check or fresh inspection, records the decision trace, then issues one authoritative execution packet.
 
 ## Standard lifecycle
-`DISCOVER → LOCK_SCOPE → ERROR_DETECT/DIAGNOSE → TASK_UNDERSTAND → RCA/INSPECT → PLAN → RISK_GATE → PREPARE → INTEGRATION_REVIEW → EXECUTE → APPLY → TARGETED_VERIFY → AFFECTED_CONTRACT_VERIFY → INDEPENDENT_REVIEW → REGRESSION → RECURRENCE_CHECK → LEARN → PREVENT → CERTIFY → HANDOFF_OR_CLOSE`
+`DISCOVER → LOCK_SCOPE → SCOUT → ERROR_DETECT/DIAGNOSE → TASK_UNDERSTAND → RCA/INSPECT → PLAN → RISK_GATE → PREPARE → INTEGRATION_REVIEW → EXECUTE → APPLY → TARGETED_VERIFY → AFFECTED_CONTRACT_VERIFY → INDEPENDENT_REVIEW → REGRESSION → RECURRENCE_CHECK → LEARN → PREVENT → CERTIFY → HANDOFF_OR_CLOSE`
 
 Stages not applicable must be explicitly recorded as `NOT_APPLICABLE` with rationale. Required gates may never be silently skipped.
 
