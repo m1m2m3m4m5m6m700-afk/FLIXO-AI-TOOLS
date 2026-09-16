@@ -1,4 +1,4 @@
-# FLIXO Agent Coordination Control Plane v1
+# FLIXO Agent Coordination Control Plane v2
 
 The repository uses one shared control plane for multi-agent execution.
 
@@ -14,7 +14,7 @@ Each task has a packet at `diagnostics/agents/task-packets/<TASK_ID>.json` conta
 
 ## Scheduling
 
-Tasks may be `READY`, `QUEUED`, `RUNNING`, `DONE` or returned to `READY`. Dependencies must be `DONE` before a task can be claimed. Higher priority should be scheduled first by the coordinating agent. Independent scopes may run concurrently; overlapping scopes are rejected.
+Tasks may be `READY`, `QUEUED`, `RUNNING`, `DONE`, or `STALE` when their baseline or ownership evidence is no longer current. `STALE` tasks must be revalidated before execution. Dependencies must be `DONE` before a task can be claimed. Higher priority should be scheduled first by the coordinating agent. Independent scopes may run concurrently; overlapping scopes are rejected.
 
 ## Session continuity
 
