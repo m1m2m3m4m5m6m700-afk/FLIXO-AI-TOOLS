@@ -36,14 +36,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          conclusion="$(gh run view "$REPAIR_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion')"
-          echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
-          if [ "$conclusion" = "skipped" ]; then
-            echo "Repair workflow was skipped; no handoff artifact is expected. Gate records SKIPPED rather than failing on a missing artifact."
+          repair_job_conclusion="$(gh run view "$REPAIR_RUN_ID" --repo "$GITHUB_REPOSITORY" --json jobs --jq '[.jobs[] | select(.name == "Single-lane diagnose, prepare, verify and learn") | .conclusion] | first // "skipped"')"
+          echo "repair_job_conclusion=$repair_job_conclusion" >> "$GITHUB_OUTPUT"
+          if [ "$repair_job_conclusion" = "skipped" ]; then
+            echo "Repair job was skipped; no handoff artifact is expected. Gate records SKIPPED rather than failing on a missing artifact."
           fi
 
       - name: Download repair handoff artifact
-        if: steps.repair-state.outputs.conclusion != 'skipped'
+        if: steps.repair-state.outputs.repair_job_conclusion != 'skipped'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -55,7 +55,7 @@ jobs:
             -D /tmp/repair-handoff
 
       - name: Validate handoff contract and publication boundary
-        if: steps.repair-state.outputs.conclusion != 'skipped'
+        if: steps.repair-state.outputs.repair_job_conclusion != 'skipped'
         shell: bash
         run: |
           set -euo pipefail
@@ -71,7 +71,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/repair-handoff
-          if [ "${{ steps.repair-state.outputs.conclusion }}" = "skipped" ]; then
+          if [ "${{ steps.repair-state.outputs.repair_job_conclusion }}" = "skipped" ]; then
             REPAIR_RUN_ID="$REPAIR_RUN_ID" REPAIR_SHA="$REPAIR_SHA" node -e 'const fs=require("fs"); const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v1",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,gateState:"SKIPPED_SOURCE_RUN",decision:"NO_HANDOFF_TO_APPLY",generatedAt:new Date().toISOString()}; fs.writeFileSync("/tmp/repair-handoff/repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");'
           else
             cd /tmp/repair-handoff
