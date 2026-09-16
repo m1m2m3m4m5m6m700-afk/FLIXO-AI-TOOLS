@@ -7,11 +7,11 @@ const failures = [];
 
 const requiredRecorder = 'DEEP:${browser}:${semanticLocale}';
 const requiredValidatorUnit = 'DEEP:${unit.browser}:${unit.semanticLocale}';
-const requiredValidatorOwner = 'DEEP:${browser}:${locale}';
+const requiredValidatorOwner = 'const key = `${entry.value.browser}:${unit.semanticUnitId}`;';
 
 if (!recorder.includes(requiredRecorder)) failures.push(`RECORDER_CANONICAL_SEMANTIC_ID_MISSING=${requiredRecorder}`);
 if (!validator.includes(requiredValidatorUnit)) failures.push(`VALIDATOR_UNIT_ID_ENFORCEMENT_MISSING=${requiredValidatorUnit}`);
-if (!validator.includes('const key = `${browser}:DEEP:${browser}:${locale}`;')) failures.push(`VALIDATOR_OWNER_KEY_MISSING=${requiredValidatorOwner}`);
+if (!validator.includes(requiredValidatorOwner)) failures.push(`VALIDATOR_OWNER_KEY_MISSING=${requiredValidatorOwner}`);
 
 const semanticUnitId = 'DEEP:chromium:ar';
 const ownerKey = `chromium:${semanticUnitId}`;
@@ -27,7 +27,7 @@ console.log(JSON.stringify({
   rcaId: 'RC-CI-DEEP-SEMANTIC-IDENTITY-001',
   recorderCanonicalSemanticId: requiredRecorder,
   validatorCanonicalUnitId: requiredValidatorUnit,
-  validatorCanonicalOwnerKey: 'chromium:DEEP:chromium:ar',
+  validatorCanonicalOwnerKey: canonicalExpectedKey,
   failures,
 }, null, 2));
 
