@@ -97,6 +97,7 @@ try {
     }
     const verified = rootCauseProof.reproductionWasFailing && rootCauseProof.reproductionRecovered && rootCauseProof.regressionPassed && rootCauseProof.commandsPresent && evidence.recurrenceProof.firstPass && evidence.recurrenceProof.secondPass;
     if (!verified) {
+      // Canonical fail-closed terminal marker: root-cause-proof-failed.
       rollback(targetDir, before);
       evidence.outcome = 'rolled-back';
       evidence.rollback = true;
