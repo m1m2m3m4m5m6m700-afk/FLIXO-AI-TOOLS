@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "authority": "FLIXO_READ_ONLY_INVESTIGATION_REPORT",
+  "purpose": "Canonical handoff from read-only Code Scout to execution agents.",
+  "readOnlyProducer": true,
+  "exactShaRequired": true,
+  "historicalKnowledge": "docs/ci/investigation/HISTORICAL-KNOWLEDGE-BASE.json",
+  "requiredReport": {
+    "scannedSha": "exact 40-hex Git SHA",
+    "generatedAt": "ISO timestamp",
+    "scannerMode": "READ_ONLY",
+    "filesScanned": "integer",
+    "findings": "array",
+    "historicalMatches": "array",
+    "graphSummary": "object",
+    "unknowns": "array",
+    "digest": "sha256 of report without digest"
+  },
+  "finding": {
+    "required": [
+      "findingId",
+      "category",
+      "severity",
+      "confidence",
+      "target",
+      "evidence",
+      "historicalMatches",
+      "rootCauseHypotheses",
+      "affectedContracts",
+      "suggestedVerification",
+      "decisionRequired"
+    ],
+    "decisionRequiredValues": ["NO_ACTION", "INVESTIGATE", "REPAIR_CANDIDATE", "ESCALATE"]
+  },
+  "decisionProtocol": {
+    "rule": "A report never authorizes a change.",
+    "executionAgent": "must independently verify evidence against the current exact SHA",
+    "historicalMatch": "may prioritize investigation but cannot prove current causality",
+    "unknown": "must remain explicit and cannot be silently converted to PASS"
+  }
+}
