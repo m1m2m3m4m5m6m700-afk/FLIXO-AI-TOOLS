@@ -32,6 +32,7 @@ const nonTestAutomation = new Set([
   'claude-security-review.yml',
   'dependency-health.yml',
   'dependency-usage-classification-v2.yml',
+  'repository-security-baseline.yml',
 ]);
 const auxiliaryEvidenceAutomation = new Set(['test-impact.yml', 'test-impact-execution.yml']);
 const trustBaselineAutomation = new Set(['wp0-trust-baseline.yml']);
