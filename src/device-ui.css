@@ -1,0 +1,84 @@
+/* Device-specific presentation layer. Shared logic, distinct desktop/mobile interaction shells. */
+.home-mobile-nav { display:none; }
+
+/* Desktop: denser catalog and larger command surface. */
+@media (min-width:1101px) {
+  .home-content { padding-bottom:96px !important; }
+  .home-tools-grid { grid-template-columns:repeat(4,minmax(0,1fr)) !important; gap:12px !important; }
+  .home-tool-card { min-height:176px !important; }
+  .home-search-panel { box-shadow:0 24px 70px rgba(0,0,0,.28) !important; }
+}
+
+/* Tablet/mobile: touch-first layout with fixed bottom navigation. */
+@media (max-width:840px) {
+  .home-nav-links { display:none !important; }
+  .home-nav-inner { min-height:58px !important; }
+  .home-search-panel { position:static !important; }
+  .home-trust-grid,
+  .home-quick-drop,
+  .home-tools-grid { grid-template-columns:1fr !important; }
+  .home-hero { padding-top:58px !important; }
+  .home-content { padding-bottom:104px !important; }
+  .home-final-cta { flex-direction:column; align-items:flex-start !important; }
+
+  .home-mobile-nav {
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    position:fixed;
+    left:10px;
+    right:10px;
+    bottom:10px;
+    z-index:60;
+    min-height:66px;
+    padding:6px;
+    gap:4px;
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:18px;
+    background:rgba(10,13,18,.94);
+    box-shadow:0 16px 50px rgba(0,0,0,.38);
+    backdrop-filter:blur(18px);
+  }
+  .home-mobile-nav a,
+  .home-mobile-nav button {
+    display:flex;
+    min-width:0;
+    min-height:54px;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:3px;
+    border:0;
+    border-radius:13px;
+    background:transparent;
+    color:#8995a2;
+    text-decoration:none;
+    font:inherit;
+    font-size:.68rem;
+    cursor:pointer;
+  }
+  .home-mobile-nav a:hover,
+  .home-mobile-nav a:focus-visible,
+  .home-mobile-nav button:hover,
+  .home-mobile-nav button:focus-visible {
+    background:rgba(103,232,249,.07);
+    color:#d9fafd;
+    outline:none;
+  }
+  .home-mobile-nav span:first-child { font-size:1.1rem; line-height:1; }
+  .home-mobile-nav button span:first-child { color:#67e8f9; }
+}
+
+@media (max-width:520px) {
+  .home-content,
+  .home-nav-inner { width:min(100% - 20px,1180px) !important; }
+  .home-hero h1 { font-size:clamp(2.5rem,15vw,4rem) !important; }
+  .home-nav-language { max-width:116px; overflow:hidden; text-overflow:ellipsis; }
+  .home-search-wrap { min-height:52px !important; }
+  .home-drop-zone { min-height:132px !important; }
+  .home-tool-card { min-height:145px !important; padding:15px !important; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .home-tool-card,
+  .home-mobile-nav * { transition:none !important; scroll-behavior:auto !important; }
+}
