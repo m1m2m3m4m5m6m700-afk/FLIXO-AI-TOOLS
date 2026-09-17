@@ -16,8 +16,8 @@ const plan = JSON.parse(readFileSync(PLAN_PATH, 'utf8'));
 const gates = ['static', 'build', 'browser'];
 if (!['certification', 'diagnose'].includes(mode) || (requested && !gates.includes(requested))) process.exit(2);
 const planSha = createHash('sha256').update(readFileSync(PLAN_PATH)).digest('hex');
-const max = Number(plan.execution?.maxConcurrency ?? 1);
-if (!Number.isInteger(max) || max < 1 || max > 32) process.exit(2);
+const globalMax = Number(plan.execution?.maxConcurrency ?? 1);
+if (!Number.isInteger(globalMax) || globalMax < 1 || globalMax > 32) process.exit(2);
 const now = () => new Date().toISOString();
 const git = (a) => {
   const r = spawnSync('git', a, { encoding: 'utf8' });
@@ -122,6 +122,8 @@ async function runGate(name) {
   const checks = plan.gates?.[name]?.checks ?? [];
   const expected = Number(plan.gates?.[name]?.expected ?? checks.length);
   const graph = executionGraph(name);
+  const gateMax = Number(plan.gates?.[name]?.maxConcurrency ?? globalMax);
+  if (!Number.isInteger(gateMax) || gateMax < 1 || gateMax > globalMax) throw new Error(`Invalid ${name} maxConcurrency: ${gateMax}`);
   const results = [];
   const resultById = new Map();
   const pending = new Map(checks.map((c) => [c.id, c]));
@@ -144,8 +146,8 @@ async function runGate(name) {
         if (pending.size) throw new Error(`Execution graph stalled in ${name}: ${[...pending.keys()].join(',')}`);
         break;
       }
-      for (let i = 0; i < ready.length; i += max) {
-        const batch = ready.slice(i, i + max).filter((c) => pending.has(c.id));
+      for (let i = 0; i < ready.length; i += gateMax) {
+        const batch = ready.slice(i, i + gateMax).filter((c) => pending.has(c.id));
         if (!batch.length) continue;
         const done = await Promise.all(batch.map((c) => exec({ ...c, gate: name })));
         for (const r of done) {
@@ -173,6 +175,7 @@ async function runGate(name) {
     blocked: blocked.length,
     checksExpected: expected,
     checksExecuted: reduced.executed,
+    maxConcurrency: gateMax,
     rootCauses: [...new Set(failed.map((r) => r.rootCauseId).filter(Boolean))],
     coverage: [...new Set(results.flatMap((r) => r.coverage ?? []))],
     assertions: [...new Set(results.flatMap((r) => r.assertions ?? []))],
@@ -218,13 +221,9 @@ const canonical = {
   rootCauseGroups,
   independentRootCauseCount: rootCauses.length,
   derivedFailureCount: derivedFailures.length,
-  assertions: integrity,
-  coverage: {},
-  matrix: { maxConcurrency: max, gateDependencies: plan.gateDependencies ?? {}, assertionRegistry: plan.assertionRegistry ?? null },
-  reports,
+  integrity,
+  completedAt: now(),
+  reports: reports.map((r) => ({ gate: r.gate, status: r.status, checksExpected: r.checksExpected, checksExecuted: r.checksExecuted, maxConcurrency: r.maxConcurrency, failures: r.failures, blocked: r.blocked })),
 };
-writeFileSync(resolve(OUT, 'canonical-result.json'), `${JSON.stringify(canonical, null, 2)}\n`);
-writeFileSync(resolve(OUT, 'report.json'), `${JSON.stringify(canonical, null, 2)}\n`);
-console.log(`CANONICAL_STATUS=${canonical.status}`);
-console.log(`CANONICAL_SHA=${sha}`);
-if (canonical.status !== 'PASS') process.exitCode = 1;
+writeFileSync(resolve(OUT, 'test-results.json'), `${JSON.stringify(canonical, null, 2)}\n`);
+process.exit(canonical.status === 'PASS' ? 0 : 1);

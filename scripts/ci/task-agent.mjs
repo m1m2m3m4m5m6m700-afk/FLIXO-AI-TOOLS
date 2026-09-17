@@ -19,6 +19,7 @@ for (let i = 2; i < process.argv.length; i += 1) {
 
 const arg = (name, fallback = '') => String(args.get(name) ?? fallback).trim();
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
+const branch = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const hash = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex');
 
 if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=مهام.md');
@@ -49,6 +50,11 @@ function slug(value) {
 const tasks = parseTasks(source);
 const requested = arg('task-id');
 const allReady = process.argv.includes('--all-ready');
+const failureRunId = arg('failure-run-id');
+const failureSha = arg('failure-sha');
+const failureFingerprint = arg('failure-fingerprint');
+const failureEvidencePath = arg('failure-evidence');
+const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION' : 'DIRECT_EXECUTION';
 const selected = requested
   ? tasks.filter((task) => task.taskId === requested || task.title.includes(requested))
   : allReady
@@ -56,58 +62,86 @@ const selected = requested
     : tasks.filter((task) => !task.completed).slice(0, 1);
 
 if (!selected.length) throw new Error(requested ? `TASK_NOT_FOUND=${requested}` : 'NO_READY_TASKS');
+if (!branch || branch === 'main') throw new Error('DIRECT_EXECUTION_REQUIRES_ISOLATED_BRANCH');
+
+const scopePolicy = 'SELF_HEALING_REPAIR_ONLY';
+const scopeEnforcement = 'FAIL_CLOSED';
+if (scopePolicy !== 'SELF_HEALING_REPAIR_ONLY' || scopeEnforcement !== 'FAIL_CLOSED') throw new Error('SELF_HEALING_SCOPE_CONTRACT_VIOLATION');
 
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 const generatedAt = new Date().toISOString();
 const outputs = [];
 
 for (const task of selected) {
-  const fingerprint = hash(`${task.taskId}|${task.title}|${task.section}`).slice(0, 16);
+  const fingerprint = failureFingerprint || hash(`${task.taskId}|${task.title}|${task.section}`).slice(0, 16);
   const packet = {
-    schemaVersion: 4,
+    schemaVersion: 7,
     authority: 'FLIXO_TASK_AGENT',
-    role: 'TASK_OWNER_AND_CODE_PREPARER',
-    mode: 'PREPARATION_ONLY',
-    preparedOnly: true,
-    mutationPolicy: 'NO_SOURCE_MUTATION_NO_COMMIT_NO_PUSH',
+    role: 'TASK_OWNER_AND_DIRECT_REPAIR_AGENT',
+    mode: repairMode,
+    preparedOnly: false,
+    executionMode: 'DIRECT_ON_ISOLATED_REPAIR_BRANCH',
+    mutationPolicy: 'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_REPAIR_BRANCH',
+    scopePolicy,
+    scopeEnforcement,
+    allowedWork: 'ACTIVE_SELF_HEALING_REPAIR_CYCLE_OR_EXPLICIT_INCOMPLETE_REPAIR_TASK_ONLY',
+    forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','GATE_WEAKENING','MAIN_MUTATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],
     taskFile: 'مهام.md',
     task,
+    failureContext: {
+      active: Boolean(failureRunId || failureSha || failureFingerprint),
+      runId: failureRunId || null,
+      failedSha: failureSha || null,
+      fingerprint,
+      evidencePath: failureEvidencePath || null,
+      scopeRule: 'ASSIST_CURRENT_FAILURE_BEFORE_CREATING_NEW_TESTS',
+      testCreationPolicy: 'NO_NEW_TEST_AS_A_SUBSTITUTE_FOR_SOURCE_REPAIR',
+    },
     baselineSha: sha,
+    executionBranch: branch,
+    mainBranchMutation: false,
     generatedAt,
     errorFingerprint: fingerprint,
     repairSummary: {
-      status: 'PENDING',
+      status: repairMode.includes('ACTIVE') ? 'ACTIVE_FAILURE_TARGET' : 'DIRECT_TASK_TARGET',
       taskId: task.taskId,
       fingerprint,
-      error: 'UNOBSERVED',
-      rootCause: 'UNOBSERVED',
-      repair: 'NOT_APPLIED_BY_PREPARATION_AGENT',
-      verification: 'PENDING',
+      error: repairMode.includes('ACTIVE') ? 'SEE_FAILURE_EVIDENCE' : 'UNOBSERVED',
+      rootCause: 'REQUIRES_EVIDENCE',
+      repair: 'EXECUTE_SOURCE_FIX_ON_ISOLATED_REPAIR_BRANCH',
+      verification: 'REQUIRED_AFTER_SOURCE_REPAIR',
     },
     instructions: {
-      objective: 'Understand this task, inspect its contracts, prepare exact source-code changes for a supervising agent, and stop before applying/committing/pushing them.',
-      sourcePayload: 'CODE_ONLY',
-      requiredChangeShape: ['path', 'operation', 'content', 'baselineSha'],
+      objective: repairMode.includes('ACTIVE')
+        ? 'Execute only the smallest safe source correction plus proportional hardening for the currently failing repair cycle; do not replace source repair with a newly added test or unrelated work.'
+        : 'Execute only the selected repair task directly on the isolated repair branch, verify the result, and leave main untouched.',
+      sourcePayload: 'CODE_AND_EXECUTION',
+      requiredChangeShape: ['path', 'operation', 'content', 'baselineSha', 'repairRationale'],
       verificationRequired: true,
       unresolvedWorkMustBeReported: true,
+      currentCycleFirst: true,
+      scopeMustRemainSelfHealingOnly: true,
+      newTestMayOnlyBeAddedWhen: 'IT_PROVES_REGRESSION_OR_HARDENING_AFTER_THE_SOURCE_FIX_AND_IS_NOT_THE_FIX_ITSELF',
     },
     completionPolicy: {
-      stateAfterPreparation: 'PREPARED',
+      stateAfterPreparation: 'NOT_APPLICABLE_DIRECT_EXECUTION',
       stateAfterRepair: 'REPAIR_PENDING_VERIFICATION',
       stateAfterAnyRedCheck: 'REPAIR_PENDING',
       stateAfterGreenCheck: 'REVERIFY_ALL',
       terminalState: 'CLOSED_VERIFIED_ONLY_AFTER_CANONICAL_GREEN',
-      codeGeneratedOrAppliedIsNotCompletion: true,
+      codeAppliedIsNotCompletion: true,
       everyRepairOpensAnotherVerificationCycle: true,
       everyRedCheckMustBecomeARepairTarget: true,
       newlyIntroducedFailuresMustOpenNewCycles: true,
       taskCannotBeClosedFromTargetedRegressionAlone: true,
+      sourceRepairPrecedesRegressionTest: true,
     },
     repairLoop: {
-      mode: 'RED_TO_GREEN',
+      mode: 'RED_TO_GREEN_IN_SAME_CYCLE',
       maxCycles: 12,
       rescanAfterEveryRepair: true,
       rescanScope: 'ALL_REQUIRED_CHECKS',
+      repairOrder: ['capture-failure', 'root-cause', 'source-fix', 'proportional-hardening', 'targeted-regression', 'canonical-ci'],
       circuitBreaker: {
         enabled: true,
         maxStalledCycles: 3,
@@ -125,11 +159,12 @@ for (const task of selected) {
     verification: [],
     blockers: [],
     handoff: {
-      consumer: 'SUPERVISING_EXECUTION_AGENT',
-      applyAuthority: 'SUPERVISING_AGENT_ONLY',
-      commitAuthority: 'SUPERVISING_AGENT_ONLY',
-      pushAuthority: 'SUPERVISING_AGENT_ONLY',
+      consumer: 'CANONICAL_CI_AND_REPAIR_ORCHESTRATOR',
+      applyAuthority: 'TASK_AGENT_DIRECT_EXECUTION',
+      commitAuthority: 'TASK_AGENT_ON_REPAIR_BRANCH_ONLY',
+      pushAuthority: 'TASK_AGENT_ON_REPAIR_BRANCH_ONLY',
       completionAuthority: 'VERIFIER_AFTER_CANONICAL_GREEN_ONLY',
+      scopeAuthority: 'SELF_HEALING_REPAIR_ONLY',
     },
   };
   const output = path.join(OUTPUT_DIR, `${task.taskId}.json`);
@@ -138,18 +173,24 @@ for (const task of selected) {
 }
 
 const index = {
-  schemaVersion: 4,
+  schemaVersion: 7,
   authority: 'FLIXO_TASK_AGENT',
-  mode: 'PREPARATION_ONLY',
-  preparedOnly: true,
+  mode: repairMode,
+  preparedOnly: false,
+  executionMode: 'DIRECT_ON_ISOLATED_REPAIR_BRANCH',
+  scopePolicy,
+  scopeEnforcement,
   baselineSha: sha,
+  executionBranch: branch,
+  mainBranchMutation: false,
   generatedAt,
   selected: outputs,
   selectedCount: outputs.length,
   lifecycle: 'ACTIVE_UNTIL_CANONICAL_GREEN',
+  failureContext: { runId: failureRunId || null, failedSha: failureSha || null, fingerprint: failureFingerprint || null },
   repairLoop: {
     enabled: true,
-    mode: 'RED_TO_GREEN',
+    mode: 'RED_TO_GREEN_IN_SAME_CYCLE',
     maxCycles: 12,
     rescanAfterEveryRepair: true,
     circuitBreaker: { enabled: true, maxStalledCycles: 3, action: 'REQUIRES_REVIEW', failClosed: true },

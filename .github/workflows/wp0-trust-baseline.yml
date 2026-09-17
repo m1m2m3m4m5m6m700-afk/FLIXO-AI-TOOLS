@@ -31,12 +31,16 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
 
-      - name: 02 — Verify exact checkout identity
+      - name: 02 — Verify exact checkout identity and create isolated execution branch
         shell: bash
         run: |
           set -euo pipefail
           ACTUAL_SHA="$(git rev-parse HEAD)"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
+          BRANCH="flixo-wp0-verify-${ACTUAL_SHA:0:12}"
+          git switch -c "$BRANCH" "$EXPECTED_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(git branch --show-current)" = "$BRANCH"
           printf '%s\n' "$ACTUAL_SHA" > flixo-wp0-head-sha.txt
 
       - name: 03 — Setup Node
