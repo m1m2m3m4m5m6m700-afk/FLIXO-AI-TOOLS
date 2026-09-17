@@ -72,9 +72,11 @@ if (exists('docs/AGENT-COLLABORATION-PROTOCOL.md')) {
 const repairEngine = exists('scripts/ci/auto-repair-engine.mjs') ? read('scripts/ci/auto-repair-engine.mjs') : '';
 const proofContract = exists('scripts/ci/auto-repair-proof.mjs') ? read('scripts/ci/auto-repair-proof.mjs') : '';
 const repairMarkers = [
-  "schemaVersion: 5",
-  "protocol: 'AUTONOMOUS-REPAIR-PROTOCOL-v3'",
+  'schemaVersion: 6',
+  "protocol: 'AUTONOMOUS-REPAIR-PROTOCOL-v4'",
   'evidence.reproductionCommands = impactedTests(plan.features)',
+  'diagnosisGate',
+  "evidence.outcome = 'proposal-only'",
   'reproductionWasFailing',
   'reproductionRecovered',
   'rootCauseProof',
@@ -82,8 +84,8 @@ const repairMarkers = [
   'firstPass',
   'secondPass',
   'evidence.repairProof = proof',
-  'root-cause-proof-failed',
-  'root-cause-proof+recurrence-proof+typecheck+static+build',
+  'root-cause-proof-reproductionRecovered',
+  'diagnosis-proof+root-cause-proof+recurrence-proof+typecheck+static+build',
   'evidence.preventionRule',
   'evidence.escalation',
 ];
