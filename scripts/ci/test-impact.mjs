@@ -73,6 +73,7 @@ if (!Number.isInteger(maxConcurrency) || maxConcurrency < 1 || maxConcurrency > 
 }
 
 const isInstall = (command) => /^npm\s+(ci|install)(?:\s|$)/.test(command);
+const isBrowser = (command) => /^npm\s+run\s+test:browser(?:\s|$)/.test(command);
 const run = (command) => new Promise((resolveResult) => {
   const [program, ...parts] = command.split(/\s+/);
   const startedAt = new Date().toISOString();
@@ -86,10 +87,12 @@ const run = (command) => new Promise((resolveResult) => {
 
 const results = [];
 const installations = commands.filter(isInstall);
-const verification = commands.filter((command) => !isInstall(command));
+const browserVerification = commands.filter(isBrowser);
+const verification = commands.filter((command) => !isInstall(command) && !isBrowser(command));
 
 // Package installation mutates node_modules, so it is deliberately serialized before
-// any verification. Independent verification commands then run in bounded parallelism.
+// verification. Browser verification is a separate exclusive phase: Playwright's
+// webServer owns a fixed local port and must not race with build/static verification.
 for (const command of installations) {
   const result = await run(command);
   results.push(result);
@@ -105,10 +108,18 @@ if (!results.some((r) => r.status === 'FAIL')) {
   }
 }
 
+if (!results.some((r) => r.status === 'FAIL')) {
+  for (const command of browserVerification) {
+    const result = await run(command);
+    results.push(result);
+    if (result.status !== 'PASS') break;
+  }
+}
+
 const execution = {
   ...plan,
   executionMaxConcurrency: maxConcurrency,
-  executionStrategy: installations.length ? 'install-then-bounded-parallel-verification' : 'bounded-parallel-verification',
+  executionStrategy: installations.length ? 'install-then-bounded-parallel-non-browser-then-exclusive-browser' : 'bounded-parallel-non-browser-then-exclusive-browser',
   status: results.every((r) => r.status === 'PASS') && results.length === commands.length ? 'PASS' : 'FAIL',
   results,
   completedAt: new Date().toISOString(),
