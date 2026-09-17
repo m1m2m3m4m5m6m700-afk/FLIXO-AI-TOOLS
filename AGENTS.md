@@ -2,7 +2,7 @@
 
 **FIRST READ: `PROJECTS.md` → `المهام.md`**
 
-**MANDATORY ENTRY TITLE:** `PROJECTS.md` → `المهام.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → MAIN-FIRST CHANGE WHEN ELIGIBLE → TARGETED REGRESSION → EXACT-SHA PROOF → UPDATE MAPS → HANDOFF.
+**MANDATORY ENTRY TITLE:** `PROJECTS.md` → `المهام.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTION-ONLY CHANGE → TARGETED REGRESSION → EXACT-SHA PROOF → UPDATE MAPS → HANDOFF.
 
 `PROJECTS.md` is the persistent project map. `المهام.md` is the mandatory open-task gateway and execution-scope contract. Both MUST be read before protocol files so an agent enters through the current authorized work scope rather than inventing a new task.
 
@@ -40,63 +40,55 @@ The agent MUST NOT:
 
 The active queue in `المهام.md` is the only default execution scope. Any addition, status transition, or retirement of a material task MUST be reflected in `المهام.md` and `PROJECTS.md`.
 
-## MAIN-FIRST EXECUTION POLICY
+## TWO-BRANCH EXECUTION POLICY
 
-The repository uses `main` as the primary routine execution branch for this single-maintainer workflow. `execution` is the synchronization and exceptional isolation branch.
+The repository has exactly two active branch paths:
 
-Routine bounded work MAY be implemented directly on `main` when:
+```text
+execution → main
+```
 
-`single owner ∧ bounded scope ∧ targeted regression available ∧ no unresolved RCA dependency ∧ no unauthorized production mutation`
+- `execution` is the sole base/working/repair/integration branch.
+- `main` is the sole primary/production/source-of-truth branch.
+- No feature, fix, chore, repair, bot, agent, test, diagnostic, temporary, experimental, preview, backup, per-run, per-error, or per-task branch may be created or used as an active work path.
+- Historical branches may remain as archived Git history, but they are not valid execution paths.
 
-Routine feature, repair, diagnostic, workaround, agent, temporary, per-tool, or per-task branches remain prohibited.
-
-Use `execution` only when the change is materially risky, broad, conflict-prone, multi-step, production-sensitive, architectural, or otherwise requires isolation before integration into `main`.
+Routine work, repairs, diagnostics, agent execution, testing fixes, and integration preparation all occur on `execution`. Promotion occurs only through `execution → main` after required verification.
 
 ### NORMAL ROUTE
 
-For eligible routine work:
+```text
+main → synchronize execution → change/repair on execution → targeted regression → required verification → exact-SHA proof → execution → main
+```
 
-`main → exact SHA → change → targeted regression → required verification → Exact-SHA proof → continue`
+There is exactly one integration PR at a time: `execution → main`.
 
-For isolated work:
+## BRANCH SAFETY
 
-`main → execution → change → targeted regression → canonical verification when required → Exact-SHA proof → main → verify → synchronize execution`
+The agent MUST:
+- verify `git branch --show-current == execution` before mutation;
+- keep `main` immutable during work and repair;
+- fail closed if `execution` is not safely synchronized with the current `main` baseline;
+- never create a third branch to resolve a conflict, new RED, task, or repair attempt;
+- never force-push or rewrite `main`.
 
-Direct `main` work is a speed optimization only. It never authorizes weaker tests, evidence, security, authorization, policy, approval, rollback, or certification requirements.
-
-## BATCH / INTEGRATION RULE
-
-The default maximum batch size is **20 successful changes**, but direct low-risk `main` changes need not be accumulated merely to reach 20.
-
-An earlier certification or isolation boundary is mandatory for:
-- end of the working day;
-- security/authentication/authorization changes with broad impact;
-- persistence or destructive/production-sensitive mutation;
-- major contract or architectural changes;
-- materially increasing rollback scope;
-- any requirement to freeze final evidence on `main`.
-
-Twenty is a maximum, not a target.
+Any workflow, script, task packet, or agent that attempts to create, push, or merge a third branch is non-compliant and must fail closed.
 
 ## TESTING ECONOMY
 
 Routine changes use targeted regression first. Full canonical CI is required whenever the governing contract, affected graph, release boundary, or task closure requires it.
 
-After every direct `main` change:
-
-`resolve exact main SHA → inspect required checks → run required verification → record SHA/evidence`
-
 Branch-local, stale, partial, inferred, or provider-bypassed evidence MUST NOT be used as final `main` certification.
+
+After every execution change:
+
+`resolve exact execution SHA → inspect required checks → run required verification → record SHA/evidence`
 
 ## MAIN SAFETY
 
-`main` MUST remain the stable truth layer. Direct routine implementation is allowed only under the MAIN-FIRST criteria above.
+`main` MUST remain the stable truth layer and is never an agent working branch.
 
-A change that fails targeted regression MUST NOT be followed by unrelated changes. Perform RCA, repair the causal source, rerun the regression, and continue from the new exact SHA.
-
-Move to `execution` when direct work would make RCA attribution ambiguous or rollback materially large.
-
-Historical branch state, stale PR state, old SHA, old CI, and stale deployment evidence MUST NOT be treated as current state.
+A change that fails targeted regression MUST NOT be followed by unrelated changes. Perform RCA, repair the causal source on `execution`, rerun the regression, and continue from the new exact SHA.
 
 ## EXTERNAL PROVIDER NON-BLOCKING RULE
 
@@ -168,7 +160,7 @@ Every repair MUST add or strengthen a targeted regression that fails on the pre-
 RCA closure requires:
 `mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure`
 
-A repair that creates a new failure receives its own RCA-ID and recovery continues from the new exact SHA.
+A repair that creates a new failure remains on `execution` with its own RCA-ID and recovery continues from the new exact SHA. It never creates a new branch.
 
 ## PROTOCOL HIERARCHY
 
@@ -182,13 +174,13 @@ No new standalone protocol may be introduced unless a recurring failure class is
 
 Each active agent MUST declare its RCA and file/contract scope. One active owner per RCA and one active owner per mutable scope unless an explicit handoff transfers ownership.
 
-If `main` moves, refresh the exact `main` SHA. Synchronize `execution` before using it for further isolated work. Stale task packets or sessions must not be used as current repository state.
+If `main` moves, refresh the exact `main` SHA and synchronize `execution` before new work. Stale task packets or sessions must not be used as current repository state.
 
 ## EXECUTION LEDGER
 
 Meaningful work follows:
 
-`READ → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK → MAIN-FIRST CHANGE WHEN ELIGIBLE → TARGETED REGRESSION → REQUIRED CI/CERTIFICATION → EXACT-SHA PROOF → UPDATE PROJECT MAPS → SYNC execution WHEN NEEDED → HANDOFF`
+`READ → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK → EXECUTION-ONLY CHANGE → TARGETED REGRESSION → REQUIRED CI/CERTIFICATION → EXACT-SHA PROOF → UPDATE PROJECT MAPS → execution → main → HANDOFF`
 
 The session record MUST preserve actual commands, scope, SHA lineage, evidence, findings, and batch membership.
 
@@ -234,4 +226,4 @@ The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 - GREEN is valid only when every required engine passes, evidence is valid and complete, Exact SHA matches, and independent root causes are zero. Skips, masked failures, stale evidence and partial passes are not Green.
 - Never claim a green release without fresh exact-SHA CI evidence.
 
-**MANDATORY ENTRY: `PROJECTS.md` → `المهام.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → MAIN-FIRST CHANGE WHEN ELIGIBLE → TARGETED REGRESSION → EXACT-SHA PROOF → UPDATE PROJECT MAPS → HANDOFF.**
+**MANDATORY ENTRY: `PROJECTS.md` → `المهام.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTION-ONLY CHANGE → TARGETED REGRESSION → EXACT-SHA PROOF → UPDATE PROJECT MAPS → HANDOFF.**
