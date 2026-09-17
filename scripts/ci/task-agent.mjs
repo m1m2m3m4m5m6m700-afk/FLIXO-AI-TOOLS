@@ -62,7 +62,7 @@ const selected = requested
     : tasks.filter((task) => !task.completed).slice(0, 1);
 
 if (!selected.length) throw new Error(requested ? `TASK_NOT_FOUND=${requested}` : 'NO_READY_TASKS');
-if (!branch || branch === 'main') throw new Error('DIRECT_EXECUTION_REQUIRES_ISOLATED_BRANCH');
+if (branch !== 'execution') throw new Error('DIRECT_EXECUTION_REQUIRES_EXECUTION_BRANCH');
 
 const scopePolicy = 'SELF_HEALING_REPAIR_ONLY';
 const scopeEnforcement = 'FAIL_CLOSED';
@@ -75,17 +75,17 @@ const outputs = [];
 for (const task of selected) {
   const fingerprint = failureFingerprint || hash(`${task.taskId}|${task.title}|${task.section}`).slice(0, 16);
   const packet = {
-    schemaVersion: 7,
+    schemaVersion: 8,
     authority: 'FLIXO_TASK_AGENT',
     role: 'TASK_OWNER_AND_DIRECT_REPAIR_AGENT',
     mode: repairMode,
     preparedOnly: false,
-    executionMode: 'DIRECT_ON_ISOLATED_REPAIR_BRANCH',
-    mutationPolicy: 'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_REPAIR_BRANCH',
+    executionMode: 'DIRECT_ON_EXECUTION_BRANCH',
+    mutationPolicy: 'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH',
     scopePolicy,
     scopeEnforcement,
     allowedWork: 'ACTIVE_SELF_HEALING_REPAIR_CYCLE_OR_EXPLICIT_INCOMPLETE_REPAIR_TASK_ONLY',
-    forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','GATE_WEAKENING','MAIN_MUTATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],
+    forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','GATE_WEAKENING','MAIN_MUTATION','THIRD_BRANCH_CREATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],
     taskFile: 'مهام.md',
     task,
     failureContext: {
@@ -100,6 +100,7 @@ for (const task of selected) {
     baselineSha: sha,
     executionBranch: branch,
     mainBranchMutation: false,
+    branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN',
     generatedAt,
     errorFingerprint: fingerprint,
     repairSummary: {
@@ -108,13 +109,13 @@ for (const task of selected) {
       fingerprint,
       error: repairMode.includes('ACTIVE') ? 'SEE_FAILURE_EVIDENCE' : 'UNOBSERVED',
       rootCause: 'REQUIRES_EVIDENCE',
-      repair: 'EXECUTE_SOURCE_FIX_ON_ISOLATED_REPAIR_BRANCH',
+      repair: 'EXECUTE_SOURCE_FIX_ON_EXECUTION_BRANCH',
       verification: 'REQUIRED_AFTER_SOURCE_REPAIR',
     },
     instructions: {
       objective: repairMode.includes('ACTIVE')
         ? 'Execute only the smallest safe source correction plus proportional hardening for the currently failing repair cycle; do not replace source repair with a newly added test or unrelated work.'
-        : 'Execute only the selected repair task directly on the isolated repair branch, verify the result, and leave main untouched.',
+        : 'Execute only the selected repair task directly on execution, verify the result, and leave main untouched.',
       sourcePayload: 'CODE_AND_EXECUTION',
       requiredChangeShape: ['path', 'operation', 'content', 'baselineSha', 'repairRationale'],
       verificationRequired: true,
@@ -161,8 +162,8 @@ for (const task of selected) {
     handoff: {
       consumer: 'CANONICAL_CI_AND_REPAIR_ORCHESTRATOR',
       applyAuthority: 'TASK_AGENT_DIRECT_EXECUTION',
-      commitAuthority: 'TASK_AGENT_ON_REPAIR_BRANCH_ONLY',
-      pushAuthority: 'TASK_AGENT_ON_REPAIR_BRANCH_ONLY',
+      commitAuthority: 'TASK_AGENT_ON_EXECUTION_BRANCH_ONLY',
+      pushAuthority: 'TASK_AGENT_ON_EXECUTION_BRANCH_ONLY',
       completionAuthority: 'VERIFIER_AFTER_CANONICAL_GREEN_ONLY',
       scopeAuthority: 'SELF_HEALING_REPAIR_ONLY',
     },
@@ -173,16 +174,17 @@ for (const task of selected) {
 }
 
 const index = {
-  schemaVersion: 7,
+  schemaVersion: 8,
   authority: 'FLIXO_TASK_AGENT',
   mode: repairMode,
   preparedOnly: false,
-  executionMode: 'DIRECT_ON_ISOLATED_REPAIR_BRANCH',
+  executionMode: 'DIRECT_ON_EXECUTION_BRANCH',
   scopePolicy,
   scopeEnforcement,
   baselineSha: sha,
   executionBranch: branch,
   mainBranchMutation: false,
+  branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN',
   generatedAt,
   selected: outputs,
   selectedCount: outputs.length,
