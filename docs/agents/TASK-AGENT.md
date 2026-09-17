@@ -1,100 +1,73 @@
-# FLIXO Task Agent — Action Ownership Contract
+# FLIXO Task Agent — Safe Action Ownership Contract
 
 ## Purpose
-The **Task Agent** is the owner of `مهام.md` task intelligence and the execution agent for GitHub Actions repair. Its responsibility is to understand failures, identify root causes, modify the repository and workflows when required, run verification, commit, push, and keep the repair cycle open until canonical CI is GREEN.
+The Task Agent owns `مهام.md` task intelligence and the bounded execution of GitHub Actions repairs. It diagnoses failures, modifies source/tests/workflows, verifies the repair, commits, and pushes only to a dedicated repair branch. Canonical CI and the merge gate decide whether the repair reaches `main`.
 
-The former `PREPARATION_ONLY` boundary is removed. The Task Agent is execution-enabled.
+`PREPARATION_ONLY` is forbidden. Direct mutation of `main` is also forbidden.
 
 ## Team position
 ```text
-USER
- ↓
-TASK AGENT — ACTION OWNER
- ├── ERROR/RCA: detect → classify → prove cause
- ├── IMPLEMENT: source + tests + workflows
- ├── VERIFY: reproduce → regression → canonical CI
- ├── COMMIT / PUSH
- └── REPAIR LOOP until GREEN
+FAILURE → TASK AGENT → RCA → PROVE → REPAIR → REGRESSION
+                              ↓
+                    COMMIT / PUSH REPAIR BRANCH
+                              ↓
+                       CANONICAL CI
+                              ↓
+                    EXACT-SHA GREEN GATE
+                              ↓
+                         AUTO-MERGE
+                              ↓
+                             MAIN
 ```
-
-The Task Agent must not invent RCA. Missing or conflicting evidence requires another diagnostic pass.
 
 ## Action Ownership
 The Task Agent MAY and MUST, within the bounded repair contract:
-- modify source, tests, scripts and `.github/workflows/*` when needed to repair Actions;
-- modify its own repair/orchestration contracts when they are the proven root cause;
-- run required checks and inspect GitHub Actions logs;
+- modify source, tests, scripts and `.github/workflows/*` when required by the proven root cause;
+- modify repair/orchestration contracts when they are the proven root cause;
+- inspect Actions logs and reproduce failures;
+- run required verification and regression checks;
 - commit verified changes;
-- push verified changes to the configured repair branch or `main` when the workflow contract explicitly authorizes direct repair;
-- re-run or re-trigger the repair workflow;
-- create/update repair PRs when direct `main` mutation is not appropriate;
-- continue repair cycles after any red, cancelled, timed-out, stale, or otherwise unresolved required check;
-- record RCA, repair, regression, recurrence and final exact-SHA evidence.
+- push only to a dedicated `flixo-auto-repair/*` repair branch;
+- create/update the repair PR;
+- re-run/re-trigger bounded repair cycles;
+- record RCA, repair, regression, recurrence and exact-SHA evidence.
 
 It MUST NOT:
-- disable required security or verification gates merely to obtain GREEN;
-- treat a skipped/cancelled check as success;
+- push directly to `main`;
+- disable required security or verification gates;
+- treat skipped/cancelled/timeout/stale checks as success;
 - publish a repair without reproduction and regression evidence;
-- use unrelated scope without recording why it is required by the proven root cause;
-- declare GREEN before canonical CI is green on the exact pushed SHA.
+- declare GREEN before canonical CI is green on the exact PR head SHA.
 
-## Full repair lifecycle
-
+## Repair lifecycle
 ```text
 FAILURE
-  ↓
-CAPTURE LOGS
-  ↓
-CLASSIFY + RCA
-  ↓
-PROVE CAUSE
-  ↓
-MODIFY SOURCE / ACTIONS
-  ↓
-REPRODUCE FAILURE / VERIFY FIX
-  ↓
+ ↓
+CAPTURE LOGS → CLASSIFY → PROVE RCA
+ ↓
+MODIFY SOURCE / ACTIONS / TESTS
+ ↓
+REPRODUCE + REGRESSION
+ ↓
 TYPECHECK + STATIC + BUILD + REQUIRED TESTS
-  ↓
-COMMIT
-  ↓
-PUSH
-  ↓
+ ↓
+COMMIT → PUSH REPAIR BRANCH
+ ↓
 CANONICAL CI
-  ↓
-ANY RED? ── YES → OPEN NEXT REPAIR CYCLE
-  │
-  └─ NO
-      ↓
+ ↓
+RED? YES → NEXT REPAIR CYCLE
+ ↓ NO
 EXACT-SHA GREEN PROOF
-      ↓
-LEARN + PREVENT RECURRENCE
-      ↓
-CLOSED / VERIFIED
+ ↓
+AUTO-MERGE GATE
+ ↓
+MAIN
 ```
 
-Every repair opens a fresh verification cycle. The loop remains active until canonical CI is GREEN with zero required red checks and fresh exact-SHA evidence.
+Every repair opens another verification cycle. Closure is allowed only after canonical GREEN, zero required red checks, fresh exact-SHA evidence, and regression proof.
 
-## Required evidence
-Every repair packet must bind:
-`taskId + failureFingerprint + baselineSha + contractVersion + scope + dependencies + proofObligations`.
-
-Every successful repair must record:
-- root cause and causal evidence;
-- changed files and exact commit SHA;
-- reproduction/recovery proof;
-- recurrence proof;
-- typecheck/static/build results;
-- canonical CI result for the pushed SHA;
-- learning/prevention outcome.
-
-## Bounded execution and rollback
-- Maximum repair cycles: 12 per failure chain.
-- Maximum stalled cycles: 3 with the same fingerprint and no verifiable progress.
-- If proof fails, revert/rollback the attempted mutation when safe and continue diagnosis.
-- A circuit-breaker escalates only after the bounded evidence-based limit; it never fabricates GREEN.
-
-## Action permissions
-The repair workflow must declare the minimum required GitHub permissions explicitly:
+## Permissions
+The repair workflow must declare only the capabilities needed for this flow:
 ```yaml
 permissions:
   contents: write
@@ -103,16 +76,18 @@ permissions:
   pull-requests: write
 ```
 
-`GITHUB_TOKEN` is used only for the repository's repair operations. Secrets are never printed or copied into source changes.
+`contents: write` is used for the repair branch, never for direct `main` mutation. Auto-merge is delegated to the exact-SHA merge gate after all required checks pass.
+
+## Bounds and rollback
+- Maximum repair cycles: 12.
+- Maximum stalled cycles: 3 with unchanged failure fingerprint and no verifiable progress.
+- Failed proof triggers rollback when safe and another diagnostic cycle.
+- The circuit breaker fails closed and never fabricates GREEN.
 
 ## Invocation
 ```bash
 npm run agent:task -- --task-id=<id>
-```
-
-or:
-```bash
 npm run agent:task -- --all-ready
 ```
 
-The command is now execution-capable. Its output is evidence and coordination state, not a publication barrier.
+The Task Agent is execution-enabled, but its execution surface is intentionally limited to the repair branch. `main` remains a canonical-CI-controlled merge target.
