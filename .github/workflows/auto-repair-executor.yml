@@ -81,12 +81,13 @@ jobs:
           test -s /tmp/flixo-executor/flixo-prepared-repair.patch
           echo 'ready=true' >> "$GITHUB_OUTPUT"
 
-      - name: Validate patch against latest main without publication
+      - name: Validate patch against latest main without publication (detached; no third branch)
         if: steps.handoff.outputs.ready == 'true'
         run: |
           set -euo pipefail
           git fetch origin main
-          git checkout -B flixo-auto-repair-validation origin/main
+          git checkout --detach origin/main
+          test -z "$(git branch --show-current)" || { echo 'FAIL CLOSED: validation must run detached; no third branch allowed.'; exit 1; }
           git apply --check /tmp/flixo-executor/flixo-prepared-repair.patch
           git apply --index /tmp/flixo-executor/flixo-prepared-repair.patch
           changed="$(git diff --cached --name-only)"
