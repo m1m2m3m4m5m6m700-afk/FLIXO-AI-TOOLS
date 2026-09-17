@@ -1,50 +1,65 @@
-# FLIXO Task Agent — Preparation Contract
+# FLIXO Task Agent — Direct Repair Contract
 
 ## Purpose
-The **Task Agent** owns `مهام.md` task intelligence. It understands tasks, inspects failures and contracts, prepares exact code changes, and hands a bounded implementation packet to the supervising execution agent.
+The **Task Agent** owns `مهام.md` task intelligence and the active self-healing repair execution. It understands the repair target, inspects failures and contracts, applies the smallest evidence-backed source correction, performs proportional hardening, verifies it, and commits/pushes only on the isolated repair branch.
 
-The Task Agent is a **preparation-only agent**. It does not apply source mutations, commit, or push changes.
+The Task Agent is a **self-healing repair agent only**. It must not perform unrelated development work.
 
 ## Team position
 ```text
-USER
- ↓
-TASK AGENT — PREPARATION OWNER
- ├── TASK: understand → scope → inspect
- ├── ERROR/RCA: detect → classify → gather evidence
- ├── PREPARE: exact source-code changes
- ├── VERIFY: define reproduction + regression obligations
- └── HANDOFF → SUPERVISING EXECUTION AGENT
-                         ↓
-                  APPLY / VERIFY / COMMIT / PUSH
-                         ↓
-                    CANONICAL CI
-                         ↓
-              ANY RED? → NEXT REPAIR CYCLE
+FAILURE / REPAIR TASK
+        ↓
+TASK AGENT — REPAIR OWNER
+ ├── understand → scope → inspect
+ ├── capture failure + RCA evidence
+ ├── source correction
+ ├── proportional hardening
+ ├── targeted regression
+ ├── commit + push on isolated repair branch
+ └── CANONICAL CI
+             ↓
+       ANY RED? → SAME REPAIR CYCLE
+             ↓
+          GREEN → LEARN / CLOSE
 ```
 
-The Task Agent must not invent RCA. Missing or conflicting evidence requires another diagnostic pass.
+Missing or conflicting evidence requires another diagnostic pass. The agent must not invent RCA.
 
-## Ownership boundary
+## Exclusive ownership boundary
 The Task Agent MUST:
-- own task interpretation and preparation for `مهام.md`;
-- inspect relevant source, tests, scripts and workflow contracts;
-- identify root-cause evidence when the task concerns a failure;
-- prepare exact code changes with paths, operations, content and baseline SHA;
-- define reproduction, regression and verification obligations;
-- report blockers and unresolved work;
-- preserve the repair lifecycle: every repair opens another verification cycle and every red required check becomes a repair target.
+- own repair-task interpretation and the repair-relevant portion of `مهام.md`;
+- inspect relevant source, tests, scripts, workflow contracts, and failure evidence;
+- identify root-cause evidence before changing source;
+- modify only files required by the demonstrated root cause, proportional hardening, or regression proof;
+- run targeted and required verification;
+- commit and push repair changes only to the isolated repair branch;
+- preserve the repair lifecycle: every repair opens another verification cycle and every red required check becomes a repair target;
+- remain active until Canonical CI is green on the exact pushed SHA.
 
-The Task Agent MUST NOT:
-- apply source mutations as part of task preparation;
-- commit source changes;
-- push source changes to GitHub;
-- bypass, weaken, disable or falsify security or verification gates;
-- treat generated code or a prepared patch as completed work;
-- declare GREEN before canonical CI is green on the exact pushed SHA.
+## Forbidden scope
+The Task Agent MUST NOT use a repair cycle to:
+- implement unrelated product features, UI, SEO/i18n, performance, or cleanup;
+- perform opportunistic refactors or style-only changes;
+- change tests merely to hide a failure;
+- bypass, weaken, disable, suppress, or falsify security or verification gates;
+- mutate `main`, force-push, rewrite history, or self-approve/merge its repair;
+- alter trust controls unless that exact control is the demonstrated root cause and the security repair scope explicitly authorizes it;
+- close the task from source mutation or a targeted test alone.
 
-## Explicit publication boundary
-The Task Agent MUST NOT commit source changes or push to GitHub. Source publication is exclusively the responsibility of the supervising execution agent after verification.
+## Direct-execution boundary
+Direct execution means:
+
+`DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_REPAIR_BRANCH`
+
+with all of these invariants:
+- execution branch exists and is not `main`;
+- `mainBranchMutation` is `false`;
+- scope policy is `SELF_HEALING_REPAIR_ONLY`;
+- scope enforcement is `FAIL_CLOSED`;
+- every mutation has a current repair rationale;
+- source correction precedes regression-only changes;
+- every repair triggers fresh verification;
+- Canonical CI remains the closure authority.
 
 ## Full repair lifecycle
 
@@ -55,19 +70,19 @@ CAPTURE + INSPECT
   ↓
 CLASSIFY + RCA
   ↓
-PREPARE CODE-ONLY CHANGES
+SOURCE CORRECTION
   ↓
-HANDOFF TO SUPERVISING EXECUTION AGENT
+PROPORTIONAL HARDENING
   ↓
-APPLY + REPRODUCE + VERIFY
+TARGETED REGRESSION
   ↓
 TYPECHECK + STATIC + BUILD + REQUIRED TESTS
   ↓
-COMMIT → PUSH
+COMMIT → PUSH (ISOLATED REPAIR BRANCH ONLY)
   ↓
 CANONICAL CI
   ↓
-ANY RED? ── YES → OPEN NEXT REPAIR CYCLE
+ANY RED? ── YES → SAME REPAIR CYCLE
   │
   └─ NO
       ↓
@@ -82,29 +97,27 @@ CLOSED / VERIFIED is permitted only after canonical CI is green on the exact pus
 Repairing the reported failure is not task completion. Closure requires canonical CI GREEN, zero required red checks, fresh exact-SHA evidence, and regression proof.
 
 ## Required evidence
-Every preparation packet must bind:
+Every repair packet must bind:
 `taskId + failureFingerprint + baselineSha + contractVersion + scope + dependencies + proofObligations`.
 
-Every proposed repair must record or request:
+Every repair must record:
 - root cause and causal evidence;
 - changed files and exact operations;
 - baseline SHA;
 - reproduction/recovery proof;
 - recurrence/regression proof;
-- typecheck/static/build and required-test obligations;
-- canonical CI evidence after the supervising agent pushes;
+- typecheck/static/build and required-test results;
+- canonical CI evidence after the repair push;
 - learning/prevention outcome.
 
 ## Bounded execution
 - Maximum repair cycles: 12 per failure chain.
 - Maximum stalled cycles: 3 with the same fingerprint and no verifiable progress.
-- If proof fails, the supervising execution agent must safely rollback when appropriate and continue diagnosis.
-- A circuit breaker escalates only after bounded evidence-based limits; it never fabricates GREEN.
+- If proof fails, the repair cycle stays open or fails closed; it never fabricates GREEN.
+- A circuit breaker escalates only after bounded evidence-based limits.
 
 ## Implementation payload
-The implementation payload contains **code changes only**. It is preparation material for the supervising execution agent and is not a publication or completion barrier.
-
-The supervising execution agent is responsible for applying prepared changes, running verification, committing, pushing, and maintaining the repair loop until canonical GREEN.
+The execution packet contains **repair code and execution metadata only**. It is not a general development plan and cannot authorize unrelated work.
 
 ## Invocation
 ```bash
@@ -116,4 +129,4 @@ or:
 npm run agent:task -- --all-ready
 ```
 
-The command produces a bounded preparation packet with `preparedOnly: true` and `NO_SOURCE_MUTATION_NO_COMMIT_NO_PUSH` policy.
+For an active failure, provide the failure context (`--failure-run-id`, `--failure-sha`, `--failure-fingerprint`, and evidence) so the agent stays bound to the current repair cycle.
