@@ -33,9 +33,11 @@ function latestPacket() {
   const latest = path.join(ROOT, 'diagnostics/agents/task-agent/latest.json');
   if (!fs.existsSync(latest)) throw new Error('TASK_AGENT_OUTPUT_MISSING');
   const index = readJson(latest);
-  if (index.preparedOnly !== false || !String(index.executionMode).includes('DIRECT_ON_ISOLATED_REPAIR_BRANCH')) throw new Error('TASK_AGENT_DIRECT_EXECUTION_CONTRACT_VIOLATION');
+  if (index.preparedOnly !== false || index.executionMode !== 'DIRECT_ON_EXECUTION_BRANCH') throw new Error('TASK_AGENT_DIRECT_EXECUTION_CONTRACT_VIOLATION');
   if (index.scopePolicy !== SCOPE_POLICY || index.scopeEnforcement !== SCOPE_ENFORCEMENT) throw new Error('SELF_HEALING_SCOPE_CONTRACT_VIOLATION');
   if (index.mainBranchMutation !== false) throw new Error('MAIN_BRANCH_MUTATION_POLICY_VIOLATION');
+  if (index.branchPolicy !== 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN') throw new Error('TWO_BRANCH_POLICY_VIOLATION');
+  if (branch !== 'execution' || index.executionBranch !== 'execution') throw new Error('EXECUTION_BRANCH_VIOLATION');
   if (!index.selected?.length) throw new Error('TASK_AGENT_SELECTED_TASK_MISSING');
   const first = index.selected[0];
   if (!first.output) throw new Error('TASK_AGENT_SELECTED_TASK_MISSING');
@@ -43,8 +45,9 @@ function latestPacket() {
   if (packet.baselineSha !== sha) throw new Error('STALE_BASELINE');
   if (packet.scopePolicy !== SCOPE_POLICY || packet.scopeEnforcement !== SCOPE_ENFORCEMENT) throw new Error('SELF_HEALING_PACKET_SCOPE_VIOLATION');
   if (packet.mainBranchMutation !== false) throw new Error('MAIN_BRANCH_MUTATION_POLICY_VIOLATION');
-  if (packet.mutationPolicy !== 'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_REPAIR_BRANCH') throw new Error('DIRECT_MUTATION_POLICY_VIOLATION');
-  if (!packet.executionBranch || packet.executionBranch === 'main' || packet.executionBranch !== branch) throw new Error('DIRECT_EXECUTION_BRANCH_VIOLATION');
+  if (packet.branchPolicy !== 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN') throw new Error('TWO_BRANCH_POLICY_VIOLATION');
+  if (packet.mutationPolicy !== 'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH') throw new Error('DIRECT_MUTATION_POLICY_VIOLATION');
+  if (packet.executionBranch !== 'execution') throw new Error('DIRECT_EXECUTION_BRANCH_VIOLATION');
   if (packet.handoff?.scopeAuthority !== SCOPE_POLICY) throw new Error('SELF_HEALING_HANDOFF_SCOPE_VIOLATION');
   return { index, packet };
 }
@@ -62,23 +65,24 @@ function buildPlan({ index, packet }) {
   ];
   const taskFingerprint = packet.errorFingerprint ?? fingerprint(`${packet.task.taskId}|${packet.task.title}`);
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     authority: 'LEAN_AGENT_EXECUTION_CONTROL',
     generatedAt: now(),
     baselineSha: sha,
-    executionBranch: branch,
+    executionBranch: 'execution',
     taskId: packet.task.taskId,
     selectedTaskCount: index.selectedCount ?? index.selected.length,
     status: 'ACTIVE_UNTIL_GREEN',
-    executionMode: 'DIRECT_ON_ISOLATED_REPAIR_BRANCH',
+    executionMode: 'DIRECT_ON_EXECUTION_BRANCH',
     scopePolicy: SCOPE_POLICY,
     scopeEnforcement: SCOPE_ENFORCEMENT,
+    branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN',
     allowedWork: 'ACTIVE_SELF_HEALING_REPAIR_CYCLE_OR_EXPLICIT_INCOMPLETE_REPAIR_TASK_ONLY',
-    forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','GATE_WEAKENING','MAIN_MUTATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],
+    forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','GATE_WEAKENING','MAIN_MUTATION','THIRD_BRANCH_CREATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],
     complexityBudget: { maxStages: MAX_STAGES, maxPreparedFiles: MAX_PREPARED_FILES, maxInspectedFiles: MAX_INSPECTED_FILES, onExceed: 'REQUIRES_REVIEW' },
     singleOrchestrator: true,
     specializedRolesAreStages: true,
-    parallelism: 'ONLY_FOR_INDEPENDENT_ISOLATED_WORK',
+    parallelism: 'ONLY_FOR_INDEPENDENT_ISOLATED_WORK_WITHIN_EXECUTION',
     failClosed: true,
     mainBranchMutation: false,
     memory: { errorFingerprint: taskFingerprint, fingerprintStable: true, reuseKnownFingerprint: true, repairSummary: packet.repairSummary },
@@ -93,7 +97,7 @@ function buildPlan({ index, packet }) {
 }
 
 if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=مهام.md');
-if (!branch || branch === 'main') throw new Error('DIRECT_EXECUTION_REQUIRES_ISOLATED_BRANCH');
+if (branch !== 'execution') throw new Error('DIRECT_EXECUTION_REQUIRES_EXECUTION_BRANCH');
 fs.mkdirSync(OUT, { recursive: true });
 const taskId = process.argv.find((arg) => arg.startsWith('--task-id='))?.slice('--task-id='.length) ?? '';
 runTaskAgent(taskId);
