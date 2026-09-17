@@ -25,12 +25,12 @@ if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=مهام.md'
 if (!branch || branch === 'main' || branch === 'master') throw new Error('TASK_AGENT_REPAIR_BRANCH_REQUIRED');
 
 const source = fs.readFileSync(TASK_FILE, 'utf8');
-function slug(value) { return String(value).normalize('NFKC').toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') || 'task'; }
+function slug(value) { return String(value).normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') || 'task'; }
 function parseTasks(markdown) {
-  const lines = markdown.split(/\\r?\\n/); const tasks = []; let section = 'UNSCOPED';
+  const lines = markdown.split(/\r?\n/); const tasks = []; let section = 'UNSCOPED';
   for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i]; const heading = line.match(/^#{1,3}\\s+(.+)$/u); if (heading) section = heading[1].trim();
-    const item = line.match(/^\\s*-\\s+\\[([ xX])\\]\\s+(.+)$/u); if (!item) continue;
+    const line = lines[i]; const heading = line.match(/^#{1,3}\s+(.+)$/u); if (heading) section = heading[1].trim();
+    const item = line.match(/^\s*-\s+\[([ xX])\]\s+(.+)$/u); if (!item) continue;
     const completed = item[1].toLowerCase() === 'x'; const title = item[2].trim();
     tasks.push({ taskId: `${slug(section)}-${slug(title)}`.slice(0, 160), section, title, completed, sourceLine: i + 1, sourceText: line });
   }
@@ -54,7 +54,7 @@ for (const task of selected) {
     inspectedFiles: [], dependencies: [], verification: [], blockers: [],
     handoff: { consumer: 'CANONICAL_CI', applyAuthority: 'TASK_AGENT_ON_REPAIR_BRANCH', commitAuthority: 'TASK_AGENT_ON_REPAIR_BRANCH', pushAuthority: 'TASK_AGENT_ON_REPAIR_BRANCH', completionAuthority: 'CANONICAL_CI_AND_MERGE_GATE', directMainMutation: 'FORBIDDEN' },
   };
-  const output = path.join(OUTPUT_DIR, `${task.taskId}.json`); fs.writeFileSync(output, `${JSON.stringify(packet, null, 2)}\\n`); outputs.push({ taskId: task.taskId, output, fingerprint });
+  const output = path.join(OUTPUT_DIR, `${task.taskId}.json`); fs.writeFileSync(output, `${JSON.stringify(packet, null, 2)}\n`); outputs.push({ taskId: task.taskId, output, fingerprint });
 }
 const index = { schemaVersion: 5, authority: 'FLIXO_TASK_AGENT', mode: 'REPAIR_BRANCH_EXECUTION', preparedOnly: false, mutationPolicy: 'REPAIR_BRANCH_ONLY_NO_DIRECT_MAIN_MUTATION', repairBranch: branch, baselineSha: sha, generatedAt, selected: outputs, selectedCount: outputs.length, lifecycle: 'ACTIVE_UNTIL_CANONICAL_GREEN', repairLoop: { enabled: true, mode: 'RED_TO_GREEN', maxCycles: 12, rescanAfterEveryRepair: true, circuitBreaker: { enabled: true, maxStalledCycles: 3, action: 'REQUIRES_REVIEW', failClosed: true } }, greenGate: { required: ['CANONICAL_GREEN', 'ZERO_RED_CHECKS', 'FRESH_EXACT_SHA_EVIDENCE', 'REGRESSION_PROOF'], closureAllowedOnlyWhenAllRequired: true }, memory: { fingerprinted: true, summaryPerRepair: true, reuseKnownFingerprint: true }, digest: hash(JSON.stringify(outputs)) };
-fs.writeFileSync(path.join(OUTPUT_DIR, 'latest.json'), `${JSON.stringify(index, null, 2)}\\n`); console.log(JSON.stringify(index, null, 2));
+fs.writeFileSync(path.join(OUTPUT_DIR, 'latest.json'), `${JSON.stringify(index, null, 2)}\n`); console.log(JSON.stringify(index, null, 2));
