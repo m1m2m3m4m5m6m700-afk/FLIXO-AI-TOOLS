@@ -78,7 +78,7 @@ LEARN + PREVENT RECURRENCE
 CLOSED / VERIFIED
 ```
 
-Repairing the reported failure is not task completion. Closure requires canonical CI GREEN, zero required red checks, fresh exact-SHA evidence, and regression proof.
+**CLOSED / VERIFIED is permitted only after canonical CI is green on the exact pushed SHA.** Repairing the reported failure is not task completion. Closure requires canonical CI GREEN, zero required red checks, fresh exact-SHA evidence, and regression proof.
 
 ## Required evidence
 Every preparation packet must bind:
