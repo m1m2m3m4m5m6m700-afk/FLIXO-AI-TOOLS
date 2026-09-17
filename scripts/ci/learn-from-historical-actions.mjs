@@ -2,7 +2,6 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fingerprintFailure, extractFeatures, loadMemory, writeMemory, findCase } from './auto-repair-learning.mjs';
 
-const repo = process.env.GITHUB_REPOSITORY;
 const limit = Math.min(50, Math.max(1, Number(process.env.FLIXO_HISTORY_LIMIT ?? 30)));
 const workflows = (process.env.FLIXO_HISTORY_WORKFLOWS ?? 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery').split(',').map((x) => x.trim()).filter(Boolean);
 const memory = loadMemory();
@@ -52,7 +51,7 @@ function addHistoricalCase(log, run) {
 }
 
 for (const workflow of workflows) {
-  let runs = [];
+  let runs;
   try {
     runs = JSON.parse(runGh(['run', 'list', '--workflow', workflow, '--limit', String(limit), '--json', 'databaseId,name,conclusion,headSha,updatedAt']));
   } catch (error) {
@@ -88,7 +87,9 @@ if (fs.existsSync(historyPath)) {
           at: repair.recordedAt ?? new Date().toISOString(),
         }].slice(-20);
       }
-    } catch {}
+    } catch (error) {
+      void error;
+    }
   }
 }
 
