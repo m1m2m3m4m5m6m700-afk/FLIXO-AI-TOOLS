@@ -35,7 +35,8 @@ jobs:
     name: Single-lane diagnose, prepare, verify and learn
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion != 'success' && github.event.workflow_run.head_branch == 'main')
+      github.event.workflow_run.conclusion == 'failure' ||
+      github.event.workflow_run.conclusion == 'timed_out'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -52,8 +53,15 @@ jobs:
           set -euo pipefail
           CONCLUSION="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion')"
           case "$CONCLUSION" in
-            failure|cancelled|timed_out|action_required|stale) ;;
-            *) echo "Target run is resolved successfully or has no repairable conclusion: $CONCLUSION"; exit 0 ;;
+            failure|timed_out) ;;
+            skipped|cancelled|action_required|stale|success|neutral|in_progress|queued)
+              echo "Target run $TARGET_RUN_ID has non-diagnosable conclusion: $CONCLUSION"
+              exit 1
+              ;;
+            *)
+              echo "Target run $TARGET_RUN_ID has unsupported conclusion: $CONCLUSION"
+              exit 1
+              ;;
           esac
           gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,conclusion,headSha,headBranch,name
           printf '%s\n' "$TARGET_RUN_ID" > /tmp/flixo-target-run-id
@@ -65,6 +73,7 @@ jobs:
         run: |
           set -euo pipefail
           FAILED_SHA="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha --jq '.headSha')"
+          test -n "$FAILED_SHA" && test "$FAILED_SHA" != "null"
           git fetch --no-tags origin "$FAILED_SHA"
           git worktree add --detach /tmp/flixo-repair-target "$FAILED_SHA"
           printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
