@@ -50,11 +50,13 @@ function publishIntractableRecord(record) {
   const baseSha = switchResult.stdout.trim();
   if (!baseSha) return;
   if (run(['api', `repos/${process.env.GITHUB_REPOSITORY}/git/refs`, '-f', `ref=refs/heads/${branch}`, '-f', `sha=${baseSha}`]).status !== 0) return;
+  if (run(['fetch', '--no-tags', 'origin', branch]).status !== 0) return;
+  if (run(['switch', '--create', branch, '--track', `origin/${branch}`]).status !== 0) return;
   if (run(['add', intractablePath]).status !== 0) return;
   if (run(['config', 'user.name', 'github-actions[bot]']).status !== 0) return;
-  run(['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com']);
+  if (run(['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com']).status !== 0) return;
   if (run(['commit', '-m', `chore(auto-repair): record intractable error ${record.fingerprint.slice(0, 12)}`]).status !== 0) return;
-  if (run(['push', 'origin', `HEAD:${branch}`]).status !== 0) return;
+  if (run(['push', '--set-upstream', 'origin', branch]).status !== 0) return;
   run(['pr', 'create', '--repo', process.env.GITHUB_REPOSITORY, '--base', 'main', '--head', branch, '--title', `chore(auto-repair): escalate intractable error ${record.fingerprint.slice(0, 12)}`, '--body', `This escalation was opened automatically after ${record.attempts} non-verified repair attempts for fingerprint ${record.fingerprint}.\n\nProtocol: SUPERVISING-REPAIR-TEACHING-v1\n\nThis PR contains diagnostic state only. It does not bypass verified-repair or canonical CI. The supervising agent must provide a new evidence-backed hypothesis, diagnostic change, repair strategy, verification plan, rejected approaches, and exit criteria before the case can leave INTRACTABLE.`]);
 }
 
@@ -155,6 +157,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     upsertLesson(memory, { fingerprint, rootCause: entry.rootCause, rule, outcome, verification, provenance, preventionRule });
   }
   if (entry.attempts >= INTRACTABLE_THRESHOLD && entry.successes === 0) {
+    fs.writeFileSync('/tmp/flixo-intractable-state', 'true\n');
     const data = loadIntractable();
     const existing = data.cases.find((item) => item.fingerprint === entry.fingerprint);
     const record = existing ?? {
