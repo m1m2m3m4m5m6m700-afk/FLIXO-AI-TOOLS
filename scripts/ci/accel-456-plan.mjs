@@ -32,7 +32,7 @@ if (mode === 'pr') {
     try {
       git(['fetch', '--no-tags', '--depth=1', 'origin', base]);
     } catch (error) {
-      throw new Error(`Unable to fetch PR base ${base}; refusing selective execution: ${error.message}`);
+      throw new Error(`Unable to fetch PR base ${base}; refusing selective execution: ${error.message}`, { cause: error });
     }
   }
   changedFiles = git(['diff', '--name-only', `${base}...${head}`]).split(/\r?\n/).filter(Boolean);
