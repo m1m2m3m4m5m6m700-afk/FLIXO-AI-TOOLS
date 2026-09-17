@@ -67,6 +67,12 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
         <section id="tools" className="home-tools-section" aria-labelledby="tools-title"><div className="section-heading"><div><span className="image-tool-eyebrow">{copy.toolbox}</span><h2 id="tools-title">{copy.toolboxTitle}</h2></div><span className="tool-count">{filteredTools.length} {copy.ready}</span></div><div id="categories" className="category-pills" aria-label={copy.ariaCategories}>{categories.map((category) => <button key={category} type="button" className={selectedCategory === category ? 'is-active' : ''} onClick={() => setSelectedCategory(category)}>{category === 'All' ? copy.all : localizeMsUkCategory(locale, 'Images') ?? localizeToolCategory(locale, 'Images')}</button>)}</div><div className="home-tools-grid">{filteredTools.map((tool) => <Link key={tool.id} to={tool.path} className="home-tool-card" aria-label={`${copy.openTool}: ${tool.title}`}><div className="tool-card-topline"><span className="tool-card-category">{tool.categoryLabel}</span><span className="tool-card-arrow" aria-hidden="true">↗</span></div><h3>{tool.title}</h3><p>{tool.description}</p><span className="tool-card-meta">{copy.browserMeta}</span></Link>)}</div>{filteredTools.length === 0 && <div className="home-empty">{copy.empty}</div>}</section>
         <section className="home-final-cta"><div><span className="image-tool-eyebrow">{copy.builtForFocus}</span><h2>{copy.finalTitle}</h2><p>{copy.finalLead}</p></div><button type="button" className="primary-button" onClick={() => setPaletteOpen(true)}>{copy.trySmart}</button></section>
       </div>
+      <nav className="home-mobile-nav" aria-label={copy.ariaPrimary}>
+        <a href="#tools" aria-label={copy.nav.tools}><span aria-hidden="true">▦</span><span>{copy.nav.tools}</span></a>
+        <button type="button" onClick={() => setPaletteOpen(true)} aria-label={copy.smartPalette}><span aria-hidden="true">✦</span><span>{copy.smartPalette}</span></button>
+        <a href="#categories" aria-label={copy.nav.categories}><span aria-hidden="true">◌</span><span>{copy.nav.categories}</span></a>
+        <a href="#privacy" aria-label={copy.nav.privacy}><span aria-hidden="true">◇</span><span>{copy.nav.privacy}</span></a>
+      </nav>
     </main>
   );
 }
