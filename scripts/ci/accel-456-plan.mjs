@@ -20,16 +20,28 @@ const shardCount = 2;
 
 const git = (gitArgs) => execFileSync('git', gitArgs, { cwd: root, encoding: 'utf8' }).trim();
 const head = git(['rev-parse', 'HEAD']);
-const base = explicitBase
-  ?? (mode === 'main' ? `${head}^` : process.env.GITHUB_BASE_SHA ?? `${head}^`);
-const changedFiles = mode === 'main'
-  ? ['<main>']
-  : git(['diff', '--name-only', `${base}...${head}`]).split(/\r?\n/).filter(Boolean);
+const eventBase = process.env.GITHUB_BASE_SHA || process.env.GITHUB_EVENT_PULL_REQUEST_BASE_SHA || null;
+const base = explicitBase ?? eventBase ?? null;
+
+let changedFiles = ['<main>'];
+if (mode === 'pr') {
+  if (!base) throw new Error('ACCEL-5 requires an explicit PR base SHA; refusing unsafe selective execution.');
+  try {
+    git(['cat-file', '-e', `${base}^{commit}`]);
+  } catch {
+    try {
+      git(['fetch', '--no-tags', '--depth=1', 'origin', base]);
+    } catch (error) {
+      throw new Error(`Unable to fetch PR base ${base}; refusing selective execution: ${error.message}`);
+    }
+  }
+  changedFiles = git(['diff', '--name-only', `${base}...${head}`]).split(/\r?\n/).filter(Boolean);
+}
 
 const directTestChanges = changedFiles.filter(
   (file) => /^tests\/[^/]+\.spec\.ts$/u.test(file) && fastSpecs.includes(file),
 );
-const unsafeForSelectiveBrowser = mode === 'main' || changedFiles.some((file) => (
+const unsafeForSelectiveBrowser = mode !== 'pr' || changedFiles.some((file) => (
   file === '<main>'
   || !/^tests\/[^/]+\.spec\.ts$/u.test(file)
   || file.startsWith('.github/workflows/')
@@ -39,7 +51,6 @@ const unsafeForSelectiveBrowser = mode === 'main' || changedFiles.some((file) =>
   || file === '.nvmrc'
 ));
 
-// Fail closed: selective browser execution is allowed only for direct FAST spec edits.
 const selectedFastSpecs = mode === 'pr' && !unsafeForSelectiveBrowser && directTestChanges.length > 0
   ? directTestChanges
   : fastSpecs;
@@ -55,16 +66,14 @@ for (const spec of [...selectedFastSpecs].sort(
   bins[0].specs.push(spec);
   bins[0].weight += weights[spec] ?? 1;
 }
-const plan = bins
-  .map((bin) => ({ ...bin, specs: [...bin.specs].sort() }))
-  .filter((bin) => bin.specs.length);
+const plan = bins.map((bin) => ({ ...bin, specs: [...bin.specs].sort() }));
 const totalWeight = plan.reduce((sum, bin) => sum + bin.weight, 0);
 const spread = plan.length > 1
   ? Math.max(...plan.map((bin) => bin.weight)) - Math.min(...plan.map((bin) => bin.weight))
   : 0;
 
 const output = {
-  schema: 'flixo-accel-456/v1',
+  schema: 'flixo-accel-456/v2',
   mode,
   head,
   base,
@@ -77,11 +86,11 @@ const output = {
     totalCanonicalFastSpecs: fastSpecs.length,
   },
   balancedFastShards: {
-    shardCount: plan.length,
+    shardCount,
     plan,
     totalWeight,
     spread,
-    balanced: spread <= Math.max(2, Math.ceil(totalWeight / Math.max(1, plan.length))),
+    balanced: spread <= Math.max(2, Math.ceil(totalWeight / shardCount)),
   },
   deep: {
     strategy: 'FULL_20_LOCALE_MATRIX',
