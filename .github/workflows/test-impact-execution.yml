@@ -15,7 +15,7 @@ permissions:
   checks: read
 
 env:
-  IMPACT_MAX_CONCURRENCY: '12'
+  IMPACT_MAX_CONCURRENCY: '10'
 
 jobs:
   impact-execution:
@@ -55,7 +55,7 @@ jobs:
           if (execution.sha !== expected) throw new Error(`Execution SHA mismatch: ${execution.sha} != ${expected}`);
           if (plan.evidenceClass !== 'PRIMARY_EXECUTION') throw new Error('Impact evidence must be PRIMARY_EXECUTION');
           if (execution.status !== 'PASS') throw new Error(`Impact execution status: ${execution.status}`);
-          if (execution.executionMaxConcurrency !== 12) throw new Error('Unexpected impact concurrency');
+          if (execution.executionMaxConcurrency !== 10) throw new Error('Unexpected impact concurrency');
           if (!Array.isArray(execution.results) || execution.results.length !== execution.commands.length) {
             throw new Error('Impact execution result coverage mismatch');
           }
