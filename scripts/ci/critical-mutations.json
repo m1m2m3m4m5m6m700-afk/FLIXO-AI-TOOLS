@@ -1,0 +1,53 @@
+{
+  "schema_version": 2,
+  "authority": "critical-mutation-registry",
+  "policy": {
+    "critical_mutations_must_be_killed": true,
+    "unknown_mutation_status_is_failure": true,
+    "unmapped_kill_is_failure": true
+  },
+  "mutations": [
+    {
+      "id": "MUT-BROWSER-001",
+      "contract": "G4",
+      "target_file": "src/routes/home-page.tsx",
+      "target": "primary-landmark",
+      "failure_mode": "hidden primary landmark must be rejected",
+      "owner": "ASSERT-BROWSER-CHROMIUM-001",
+      "replacement": [
+        "<main className=\"home-shell\" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>",
+        "<main className=\"home-shell\" lang={localeMetadata.languageTag} dir={localeMetadata.direction} style={{ display: 'none' }}>"
+      ],
+      "project": "chromium",
+      "grep": "production-like home boots with a single primary landmark"
+    },
+    {
+      "id": "MUT-BROWSER-002",
+      "contract": "G4",
+      "target_file": "src/routes/home-page.tsx",
+      "target": "language-direction",
+      "failure_mode": "localized page violating language/direction contract must be rejected",
+      "owner": "ASSERT-BROWSER-FIREFOX-001",
+      "replacement": [
+        "<main className=\"home-shell\" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>",
+        "<main className=\"home-shell\" lang={localeMetadata.languageTag} dir=\"ltr\">"
+      ],
+      "project": "firefox",
+      "grep": "localized home preserves language and direction contracts"
+    },
+    {
+      "id": "MUT-BROWSER-003",
+      "contract": "G4",
+      "target_file": "src/routes/home-page.tsx",
+      "target": "home-title",
+      "failure_mode": "missing canonical home title landmark must be rejected",
+      "owner": "ASSERT-BROWSER-CHROMIUM-001",
+      "replacement": [
+        "id=\"home-title\"",
+        "id=\"home-title-mutated\""
+      ],
+      "project": "chromium",
+      "grep": "production-like home boots with a single primary landmark"
+    }
+  ]
+}
