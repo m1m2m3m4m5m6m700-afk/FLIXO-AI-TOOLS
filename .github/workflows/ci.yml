@@ -114,6 +114,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
+          cache: npm
       - name: Restore browser dependency cache
         id: browser-deps-cache
         uses: actions/cache@v6
@@ -152,6 +153,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
+          cache: npm
       - name: Restore browser dependency cache
         uses: actions/cache@v6
         with:
@@ -237,6 +239,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
+          cache: npm
       - name: Restore browser dependency cache
         uses: actions/cache@v6
         with:
@@ -319,6 +322,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
+          cache: npm
       - uses: actions/download-artifact@v7
         with:
           pattern: flixo-browser-*-*-${{ github.run_id }}
