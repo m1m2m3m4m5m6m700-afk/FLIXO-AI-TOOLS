@@ -58,7 +58,7 @@ if (fs.existsSync(impactExecutionWorkflow)) {
   const executionSource = fs.readFileSync(impactExecutionWorkflow, 'utf8');
   for (const [label, pattern] of [
     ['execution workflow identity', /name:\s*FLIXO Test Impact Execution/],
-    ['canonical impact execution', /node scripts\/ci\/test-impact\.mjs --mode=pr --base=\"\$BASE_SHA\" --execute/],
+    ['canonical impact execution', /node scripts\/ci\/test-impact\.mjs --mode=pr --base="\$BASE_SHA" --execute/],
     ['bounded concurrency', /IMPACT_MAX_CONCURRENCY:\s*['"]10['"]/],
     ['immutable execution SHA', /execution\.sha\s*!==\s*expected/],
     ['execution PASS reducer', /execution\.status\s*!==\s*'PASS'/],
