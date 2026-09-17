@@ -24,10 +24,13 @@ for (const marker of ['Safe Action Ownership Contract', 'REPAIR BRANCH', 'Direct
 for (const marker of ['Execution System Prompt', 'REPAIR BRANCH', 'canonical exact-SHA GREEN']) {
   if (!prompt.includes(marker)) throw new Error(`TASK_AGENT_PROMPT_MARKER_MISSING=${marker}`);
 }
-for (const forbidden of ['mode: \'PREPARATION_ONLY\'', 'preparedOnly: true', 'NO_SOURCE_MUTATION_NO_COMMIT_NO_PUSH', 'SUPERVISING_AGENT_ONLY', 'push directly to `main`']) {
+for (const forbidden of ['mode: \'PREPARATION_ONLY\'', 'preparedOnly: true', 'NO_SOURCE_MUTATION_NO_COMMIT_NO_PUSH', 'SUPERVISING_AGENT_ONLY']) {
   if (implementation.includes(forbidden) || contract.includes(forbidden) || prompt.includes(forbidden)) {
     throw new Error(`TASK_AGENT_LEGACY_PREPARATION_MARKER=${forbidden}`);
   }
+}
+if (contract.includes('push directly to `main`') || prompt.includes('push directly to `main`')) {
+  throw new Error('TASK_AGENT_DIRECT_MAIN_PUSH_CONTRACT');
 }
 for (const requiredMode of ['REPAIR_BRANCH_EXECUTION', 'REPAIR_BRANCH_ONLY_NO_DIRECT_MAIN_MUTATION']) {
   if (!implementation.includes(requiredMode)) throw new Error(`TASK_AGENT_EXECUTION_MARKER_MISSING=${requiredMode}`);
