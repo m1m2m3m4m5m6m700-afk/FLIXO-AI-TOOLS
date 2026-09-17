@@ -24,6 +24,8 @@ concurrency:
 env:
   TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
   TARGET_RUN_ID: ${{ github.event.workflow_run.id }}
+  FLIXO_HISTORY_LIMIT: '30'
+  FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
 
 jobs:
   diagnose:
@@ -46,6 +48,11 @@ jobs:
 
       - name: Install committed graph
         run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Learn from historical GitHub Actions failures and repair history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/ci/learn-from-historical-actions.mjs
 
       - name: Run read-only code scout
         env:
@@ -76,17 +83,12 @@ jobs:
           OUTCOME="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.outcome||'unknown')")"
           test "$OUTCOME" = verified-repair
           test -n "$(git status --porcelain --untracked-files=no)"
-          # test:static already contains the canonical TypeScript gate, so do
-          # not execute the same typecheck twice in one repair cycle.
           npm run test:static
           npm run test:build
 
-          # Capture the exact source paths before checking the evidence claim.
           git diff --name-only --diff-filter=ACMRTUXB > /tmp/flixo-verified-files.txt
           test -s /tmp/flixo-verified-files.txt
 
-          # Fail closed if the repair engine changed anything outside the
-          # exact evidence paths it declared, or touched a protected path.
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const evidence = JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json', 'utf8'));
@@ -116,8 +118,6 @@ jobs:
 
           git diff --binary -- . ':!diagnostics' > /tmp/flixo-verified.patch
           test -s /tmp/flixo-verified.patch
-          # Persist the machine-learning memory separately; diagnostics are
-          # intentionally excluded from the source repair patch below.
           test -f diagnostics/auto-repair/memory.json
           cp diagnostics/auto-repair/memory.json /tmp/flixo-repair-memory.json
           echo "outcome=$OUTCOME" >> "$GITHUB_OUTPUT"
@@ -133,15 +133,9 @@ jobs:
           git fetch origin main
           git checkout -B flixo-auto-repair origin/main
           git apply --index /tmp/flixo-verified.patch
-
-          # Persist the learning memory that was produced while repairing the
-          # exact failed SHA. This makes future repair decisions reproducible.
           mkdir -p diagnostics/auto-repair
           cp /tmp/flixo-repair-memory.json diagnostics/auto-repair/memory.json
 
-          # Append one immutable, machine-readable audit record for every
-          # verified repair. Only evidence fields are recorded; failure logs,
-          # secrets and user data are intentionally excluded.
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const evidence = JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json', 'utf8'));
@@ -185,5 +179,6 @@ jobs:
             /tmp/flixo-repair-evidence.json
             /tmp/flixo-verified-files.txt
             /tmp/flixo-repair-memory.json
+            diagnostics/auto-repair/historical-learning.json
           if-no-files-found: warn
           retention-days: 30
