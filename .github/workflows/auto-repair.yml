@@ -106,24 +106,42 @@ jobs:
       - name: Classify root cause with evidence gate
         run: node scripts/ci/auto-repair-classifier.mjs
 
+      - name: Select bounded repair strategy and detect intractable cases
+        id: strategy
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-strategy.mjs
+          cat /tmp/flixo-repair-strategy.json
+          if [ "$(cat /tmp/flixo-intractable-state)" = "true" ]; then
+            echo 'intractable=true' >> "$GITHUB_OUTPUT"
+            printf '%s\n' 'intractable' > /tmp/flixo-engine-outcome
+            printf '%s\n' 'blocked' > /tmp/flixo-learning-outcome
+          else
+            echo 'intractable=false' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install target dependencies
         id: install_target
+        if: steps.strategy.outputs.intractable != 'true'
         continue-on-error: true
         working-directory: /tmp/flixo-repair-target
         run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Record target dependency-install failure
-        if: steps.install_target.outcome != 'success'
+        if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome != 'success'
         run: |
           printf '%s\n' 'target-dependency-install-failed' > /tmp/flixo-engine-outcome
           printf '%s\n' 'unrepaired' > /tmp/flixo-learning-outcome
           printf '%s\n' '{"rootCause":"target_dependency_install_failure","diagnosisQuality":"weak"}' > /tmp/flixo-root-cause.json
 
       - name: Run bounded repair engine as preparation only
-        if: steps.install_target.outcome == 'success'
+        if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome == 'success'
         env:
           FLIXO_TARGET_DIR: /tmp/flixo-repair-target
-        run: node scripts/ci/auto-repair-engine.mjs
+        run: |
+          set -euo pipefail
+          export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
+          node scripts/ci/auto-repair-engine.mjs
 
       - name: Verify prepared repair without publishing it
         id: verify
@@ -131,6 +149,11 @@ jobs:
         working-directory: /tmp/flixo-repair-target
         run: |
           set -euo pipefail
+          if [ "${{ steps.strategy.outputs.intractable }}" = "true" ]; then
+            echo 'verified=false' >> "$GITHUB_OUTPUT"
+            echo 'Case is INTRACTABLE; repair execution is paused for supervising-agent teaching.'
+            exit 0
+          fi
           if [ "${{ steps.install_target.outcome }}" != "success" ]; then
             echo 'verified=false' >> "$GITHUB_OUTPUT"
             echo 'Target dependencies could not be installed; preparation is not certifiable.'
@@ -180,7 +203,7 @@ jobs:
           echo "Created verified repair PR: $PR_URL"
 
       - name: Record learning outcome for every diagnosed failure
-        if: always()
+        if: always() && steps.strategy.outputs.intractable != 'true'
         env:
           VERIFY_OUTCOME: ${{ steps.verify.outputs.verified == 'true' && 'success' || 'failure' }}
           FLIXO_FAILED_SHA: ${{ github.event.workflow_run.head_sha || '' }}
@@ -214,10 +237,13 @@ jobs:
             /tmp/flixo-engine-outcome
             /tmp/flixo-learning-outcome
             /tmp/flixo-repair-evidence.json
+            /tmp/flixo-repair-strategy.json
+            /tmp/flixo-intractable-state
             /tmp/flixo-prepared-repair.patch
             /tmp/flixo-prepared-repair-handoff.json
             diagnostics/auto-repair/memory.json
             diagnostics/auto-repair/historical-learning.json
+            diagnostics/auto-repair/intractable-errors.json
           if-no-files-found: warn
           retention-days: 30
 
@@ -227,6 +253,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          if [ "$(cat /tmp/flixo-intractable-state 2>/dev/null || printf '%s' false)" = "true" ]; then
+            echo 'INTRACTABLE case reached: recursive repair is intentionally stopped.'
+            echo 'The supervising agent must provide the SUPERVISING-REPAIR-TEACHING-v1 teaching packet before a new cycle is allowed.'
+            exit 1
+          fi
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
           CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
           if [ "$FAILED_SHA" != "$CURRENT_MAIN_SHA" ]; then
