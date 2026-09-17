@@ -14,12 +14,20 @@ assert.match(contract, /MUST NOT:[\s\S]*disable required security or verificatio
 assert.match(contract, /continue repair cycles[\s\S]*canonical CI is GREEN/i);
 assert.match(contract, /Every repair opens a fresh verification cycle/i);
 assert.match(contract, /CLOSED \/ VERIFIED.*canonical CI is green/is);
-assert.match(agent, /preparedOnly:\s*false|execution-enabled|ACTION_OWNER/i);
+
+// The task-agent is intentionally preparation-only. Execution, commit, push and
+// completion remain owned by the supervising execution controller. This keeps the
+// agent useful without granting it unrestricted repository mutation authority.
+assert.match(agent, /mode:\s*'PREPARATION_ONLY'/i);
+assert.match(agent, /preparedOnly:\s*true/i);
+assert.match(agent, /NO_SOURCE_MUTATION_NO_COMMIT_NO_PUSH/i);
+assert.match(agent, /SUPERVISING_EXECUTION_AGENT/i);
 assert.match(agent, /ACTIVE_UNTIL_CANONICAL_GREEN/);
 assert.match(agent, /rescanAfterEveryRepair: true/);
 assert.match(agent, /everyRedCheckMustBecomeARepairTarget: true/);
 assert.match(agent, /circuitBreaker:\s*\{[\s\S]*enabled: true,[\s\S]*maxStalledCycles: 3/);
 assert.match(agent, /action: 'REQUIRES_REVIEW'/);
+
 assert.match(execution, /status: 'ACTIVE_UNTIL_GREEN'/);
 assert.match(execution, /openNewCycleForEveryRedCheck: true/);
 assert.match(execution, /closureRequiresCanonicalGreen: true/);
@@ -30,4 +38,4 @@ assert.match(execution, /CIRCUIT_BREAKER_OPEN/);
 assert.match(execution, /SAME_FAILURE_FINGERPRINT_WITHOUT_VERIFIABLE_PROGRESS/);
 assert.equal(packageJson.scripts['agent:task'], 'node scripts/ci/task-agent.mjs');
 
-console.log(JSON.stringify({ status: 'PASS', authority: 'TASK_AGENT_CONTRACT_TEST', checks: 22 }, null, 2));
+console.log(JSON.stringify({ status: 'PASS', authority: 'TASK_AGENT_CONTRACT_TEST', checks: 25 }, null, 2));
