@@ -108,6 +108,8 @@ jobs:
 
       - name: Select bounded repair strategy and detect intractable cases
         id: strategy
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           node scripts/ci/repair-strategy.mjs
@@ -203,7 +205,7 @@ jobs:
           echo "Created verified repair PR: $PR_URL"
 
       - name: Record learning outcome for every diagnosed failure
-        if: always() && steps.strategy.outputs.intractable != 'true'
+        if: always()
         env:
           VERIFY_OUTCOME: ${{ steps.verify.outputs.verified == 'true' && 'success' || 'failure' }}
           FLIXO_FAILED_SHA: ${{ github.event.workflow_run.head_sha || '' }}
