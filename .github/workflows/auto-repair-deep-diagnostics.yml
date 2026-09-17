@@ -80,6 +80,10 @@ jobs:
           npm run test:static
           npm run test:build
 
+          # Capture the exact source paths before checking the evidence claim.
+          git diff --name-only --diff-filter=ACMRTUXB > /tmp/flixo-verified-files.txt
+          test -s /tmp/flixo-verified-files.txt
+
           # Fail closed if the repair engine changed anything outside the
           # exact evidence paths it declared, or touched a protected path.
           node --input-type=module <<'NODE'
@@ -109,8 +113,6 @@ jobs:
           }
           NODE
 
-          git diff --name-only --diff-filter=ACMRTUXB > /tmp/flixo-verified-files.txt
-          test -s /tmp/flixo-verified-files.txt
           git diff --binary -- . ':!diagnostics' > /tmp/flixo-verified.patch
           test -s /tmp/flixo-verified.patch
           echo "outcome=$OUTCOME" >> "$GITHUB_OUTPUT"
