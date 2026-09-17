@@ -35,7 +35,7 @@
   "lessons": [],
   "antiLessons": [
     {
-      "id": "historical-debt-001-static-lint-blocker",
+      "id": "a1b2c3d4e5f60718293a",
       "fingerprint": "7ee9ce7b111189a636df0f2155d6f0be9192276595365dc1c054e1071b1b2ff2",
       "rootCause": "static-lint-no-useless-escape",
       "rule": "remove only unnecessary regex escapes in scripts/ci/code-read-only-scout.mjs",
