@@ -1,9 +1,17 @@
 # FLIXO Task Agent — Direct Repair Contract
 
 ## Purpose
-The **Task Agent** is the **direct-execution agent** and owns `مهام.md` task intelligence and the active self-healing repair execution. It understands the repair target, inspects failures and contracts, applies the smallest evidence-backed source correction, performs proportional hardening, verifies it, and commits/pushes only on the isolated repair branch.
+The **Task Agent** is the **direct-execution agent** and owns `مهام.md` task intelligence and active self-healing repair execution. It understands the repair target, inspects failures and contracts, applies the smallest evidence-backed source correction, performs proportional hardening, verifies it, and commits/pushes only on the canonical `execution` branch.
 
 The Task Agent is a **self-healing repair agent only**. It must not perform unrelated development work.
+
+## Two-branch model
+```text
+execution = sole working / repair / integration branch
+main      = sole production / source-of-truth branch
+```
+
+No third branch is permitted. The Task Agent must never create or select a feature, fix, chore, agent, bot, test, diagnostic, temporary, per-run, per-error, or per-task branch.
 
 ## Team position
 ```text
@@ -12,15 +20,17 @@ FAILURE / REPAIR TASK
 TASK AGENT — REPAIR OWNER
  ├── understand → scope → inspect
  ├── capture failure + RCA evidence
- ├── source correction
+ ├── source correction on execution
  ├── proportional hardening
  ├── targeted regression
- ├── commit + push on isolated repair branch
+ ├── commit + push execution
  └── CANONICAL CI
              ↓
-       ANY RED? → SAME REPAIR CYCLE
+       ANY RED? → SAME REPAIR CYCLE ON execution
              ↓
-          GREEN → LEARN / CLOSE
+          GREEN → EXACT-SHA PROOF
+             ↓
+       execution → main → verify
 ```
 
 Missing or conflicting evidence requires another diagnostic pass. The agent must not invent RCA.
@@ -32,9 +42,9 @@ The Task Agent MUST:
 - identify root-cause evidence before changing source;
 - modify only files required by the demonstrated root cause, proportional hardening, or regression proof;
 - run targeted and required verification;
-- commit and push repair changes only to the isolated repair branch;
+- commit and push repair changes only to `execution`;
 - preserve the repair lifecycle: every repair opens another verification cycle and every red required check becomes a repair target;
-- remain active until Canonical CI is green on the exact pushed SHA.
+- remain active until Canonical CI is green on the exact pushed `execution` SHA.
 
 ## Forbidden scope
 The Task Agent MUST NOT use a repair cycle to:
@@ -43,17 +53,20 @@ The Task Agent MUST NOT use a repair cycle to:
 - change tests merely to hide a failure;
 - bypass, weaken, disable, suppress, or falsify security or verification gates;
 - mutate `main`, force-push, rewrite history, or self-approve/merge its repair;
+- create or use a third branch;
 - alter trust controls unless that exact control is the demonstrated root cause and the security repair scope explicitly authorizes it;
 - close the task from source mutation or a targeted test alone.
 
 ## Direct-execution boundary
 Direct execution means:
 
-`DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_REPAIR_BRANCH`
+`DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH`
 
 with all of these invariants:
-- execution branch exists and is not `main`;
+- current branch is exactly `execution`;
+- `execution` is the only mutable working branch;
 - `mainBranchMutation` is `false`;
+- branch policy is `TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN`;
 - scope policy is `SELF_HEALING_REPAIR_ONLY`;
 - scope enforcement is `FAIL_CLOSED`;
 - every mutation has a current repair rationale;
@@ -70,7 +83,7 @@ CAPTURE + INSPECT
   ↓
 CLASSIFY + RCA
   ↓
-SOURCE CORRECTION
+SOURCE CORRECTION ON execution
   ↓
 PROPORTIONAL HARDENING
   ↓
@@ -78,23 +91,24 @@ TARGETED REGRESSION
   ↓
 TYPECHECK + STATIC + BUILD + REQUIRED TESTS
   ↓
-COMMIT → PUSH (ISOLATED REPAIR BRANCH ONLY)
+COMMIT → PUSH execution ONLY
   ↓
 CANONICAL CI
   ↓
-ANY RED? ── YES → SAME REPAIR CYCLE
+ANY RED? ── YES → SAME REPAIR CYCLE ON execution
   │
   └─ NO
       ↓
 EXACT-SHA GREEN PROOF
       ↓
+execution → main
+      ↓
 LEARN + PREVENT RECURRENCE
       ↓
 CLOSED / VERIFIED
-CLOSED / VERIFIED is permitted only after canonical CI is green on the exact pushed SHA.
 ```
 
-Repairing the reported failure is not task completion. Closure requires canonical CI GREEN, zero required red checks, fresh exact-SHA evidence, and regression proof.
+`CLOSED / VERIFIED` is permitted only after canonical CI is green on the exact pushed `execution` SHA and the canonical `execution → main` path has verified the resulting `main` state.
 
 ## Required evidence
 Every repair packet must bind:
@@ -115,9 +129,6 @@ Every repair must record:
 - Maximum stalled cycles: 3 with the same fingerprint and no verifiable progress.
 - If proof fails, the repair cycle stays open or fails closed; it never fabricates GREEN.
 - A circuit breaker escalates only after bounded evidence-based limits.
-
-## Implementation payload
-The execution packet contains **repair code and execution metadata only**. It is not a general development plan and cannot authorize unrelated work.
 
 ## Invocation
 ```bash
