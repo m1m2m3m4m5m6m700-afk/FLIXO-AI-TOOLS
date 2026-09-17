@@ -36,7 +36,7 @@ jobs:
       - name: Build impact plan and execute selected verification
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
-          SITE_URL: 'https://flixoai.vercel.app'
+          VITE_SITE_URL: 'https://flixoai.vercel.app'
         run: node scripts/ci/test-impact.mjs --mode=pr --base="$BASE_SHA" --execute
       - name: Verify impact execution evidence
         shell: bash
