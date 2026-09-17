@@ -120,13 +120,31 @@ jobs:
           cp diagnostics/agents/task-agent/latest.json /tmp/flixo-task-agent-latest.json
           test -s /tmp/flixo-task-agent-latest.json
 
+      - name: Select bounded repair strategy and detect intractable cases
+        id: strategy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-strategy.mjs
+          cat /tmp/flixo-repair-strategy.json
+          if [ "$(cat /tmp/flixo-intractable-state)" = "true" ]; then
+            echo 'intractable=true' >> "$GITHUB_OUTPUT"
+            printf '%s\n' 'intractable' > /tmp/flixo-engine-outcome
+            printf '%s\n' 'unrepaired' > /tmp/flixo-learning-outcome
+          else
+            echo 'intractable=false' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install target dependencies
         id: install_target
+        if: steps.strategy.outputs.intractable != 'true'
         working-directory: /tmp/flixo-repair-target
         run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Execute bounded root-cause repair under Task Agent authority
         id: execute_repair
+        if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome == 'success'
         working-directory: /tmp/flixo-repair-target
         env:
           FLIXO_TARGET_DIR: /tmp/flixo-repair-target
@@ -141,7 +159,7 @@ jobs:
         working-directory: /tmp/flixo-repair-target
         run: |
           set -euo pipefail
-          if [ -f /tmp/flixo-intractable-state ] && [ "$(cat /tmp/flixo-intractable-state)" = "true" ]; then
+          if [ "${{ steps.strategy.outputs.intractable }}" = "true" ]; then
             echo 'verified=false' >> "$GITHUB_OUTPUT"
             echo 'Case is INTRACTABLE; fail-closed escalation is required.'
             exit 0
