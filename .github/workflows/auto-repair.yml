@@ -13,9 +13,10 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
   actions: write
   checks: read
+  pull-requests: write
 
 concurrency:
   group: flixo-auto-repair-main
@@ -36,7 +37,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout trusted repair engine from current main
         uses: actions/checkout@v5
@@ -88,7 +89,7 @@ jobs:
             grep -E -i 'error|failed|failure|timeout|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
           } > /tmp/flixo-repair-summary.txt
 
-      - name: Classify root cause before repair dependencies
+      - name: Classify root cause with evidence gate
         run: node scripts/ci/auto-repair-classifier.mjs
 
       - name: Install target dependencies
@@ -102,7 +103,7 @@ jobs:
         run: |
           printf '%s\n' 'target-dependency-install-failed' > /tmp/flixo-engine-outcome
           printf '%s\n' 'unrepaired' > /tmp/flixo-learning-outcome
-          printf '%s\n' '{"rootCause":"target_dependency_install_failure"}' > /tmp/flixo-root-cause.json
+          printf '%s\n' '{"rootCause":"target_dependency_install_failure","diagnosisQuality":"weak"}' > /tmp/flixo-root-cause.json
 
       - name: Run bounded repair engine as preparation only
         if: steps.install_target.outcome == 'success'
@@ -130,7 +131,7 @@ jobs:
           echo "REPAIR_OUTCOME=$OUTCOME"
           if [ "$OUTCOME" != "verified-repair" ]; then
             echo 'verified=false' >> "$GITHUB_OUTPUT"
-            echo "Repair outcome '$OUTCOME' is not a verified prepared repair; escalation only."
+            echo "Repair outcome '$OUTCOME' is not a verified repair; escalation only."
             exit 0
           fi
           git diff --quiet && {
@@ -142,8 +143,27 @@ jobs:
           npm run test:static
           npm run test:build
           git diff --binary > /tmp/flixo-prepared-repair.patch
-          printf '%s\n' '{"mode":"PREPARATION_ONLY","applyBy":"SUPERVISING_EXECUTION_AGENT","sourcePublishByBot":false}' > /tmp/flixo-prepared-repair-handoff.json
+          printf '%s\n' '{"mode":"VERIFIED_REPAIR","applyBy":"AUTO_REPAIR_BOT","requiresCanonicalCI":true}' > /tmp/flixo-prepared-repair-handoff.json
           echo 'verified=true' >> "$GITHUB_OUTPUT"
+
+      - name: Publish verified repair as isolated PR
+        if: steps.verify.outputs.verified == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          BRANCH="flixo-auto-repair/${TARGET_RUN_ID}-${GITHUB_RUN_ID}"
+          git fetch --no-tags origin main
+          git switch --create "$BRANCH" origin/main
+          git apply --3way /tmp/flixo-prepared-repair.patch
+          git diff --check
+          git add -A
+          git diff --cached --quiet && { echo 'No applicable repair diff on current main; refusing empty PR.'; exit 1; }
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}"
+          git push --set-upstream origin "$BRANCH"
+          PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --title "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}" --body "Automated repair for failed run ${TARGET_RUN_ID}.\n\nThis PR was created only after diagnosis evidence, bounded mutation, reproduction recovery, recurrence proof, typecheck, static checks, and production build passed on the repair target. Canonical CI remains the final merge gate.\n\nFailed SHA: ${FAILED_SHA}\nRepair run: ${GITHUB_RUN_ID}")"
+          echo "Created verified repair PR: $PR_URL"
 
       - name: Record learning outcome for every diagnosed failure
         if: always()
@@ -163,16 +183,12 @@ jobs:
             RULE=''
             ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome 2>/dev/null || printf '%s' 'engine-error')"
           fi
-          if [ "$VERIFY_OUTCOME" = "success" ] && [ "$ENGINE_OUTCOME" = "verified-repair" ]; then
-            LEARNING_OUTCOME='success'
-          else
-            LEARNING_OUTCOME='unrepaired'
-          fi
+          if [ "$VERIFY_OUTCOME" = "success" ] && [ "$ENGINE_OUTCOME" = "verified-repair" ]; then LEARNING_OUTCOME='success'; else LEARNING_OUTCOME='unrepaired'; fi
           FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" FLIXO_LEARNING_OUTCOME="$LEARNING_OUTCOME" FLIXO_VERIFICATION="$ENGINE_OUTCOME" node scripts/ci/auto-repair-learning.mjs
           printf '%s\n' "$ENGINE_OUTCOME" > /tmp/flixo-engine-outcome
           printf '%s\n' "$LEARNING_OUTCOME" > /tmp/flixo-learning-outcome
 
-      - name: Publish one prepared repair bundle for executive review
+      - name: Publish repair evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -197,5 +213,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          echo "Repair remains open: target run $TARGET_RUN_ID is not verified. Starting another repair pass."
+          echo "Repair remains open: target run $TARGET_RUN_ID is not verified. Starting another bounded repair pass."
           gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref main -f target_run_id="$TARGET_RUN_ID"
+          exit 1
