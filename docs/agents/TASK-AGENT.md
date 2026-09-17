@@ -1,63 +1,66 @@
-# FLIXO Task Agent — Action Ownership Contract
+# FLIXO Task Agent — Preparation Contract
 
 ## Purpose
-The **Task Agent** is the owner of `مهام.md` task intelligence and the execution agent for GitHub Actions repair. Its responsibility is to understand failures, identify root causes, modify the repository and workflows when required, run verification, commit, push, and keep the repair cycle open until canonical CI is GREEN.
+The **Task Agent** owns `مهام.md` task intelligence. It understands tasks, inspects failures and contracts, prepares exact code changes, and hands a bounded implementation packet to the supervising execution agent.
 
-The former `PREPARATION_ONLY` boundary is removed. The Task Agent is execution-enabled.
+The Task Agent is a **preparation-only agent**. It does not apply source mutations, commit, or push changes.
 
 ## Team position
 ```text
 USER
  ↓
-TASK AGENT — ACTION OWNER
- ├── ERROR/RCA: detect → classify → prove cause
- ├── IMPLEMENT: source + tests + workflows
- ├── VERIFY: reproduce → regression → canonical CI
- ├── COMMIT / PUSH
- └── REPAIR LOOP until GREEN
+TASK AGENT — PREPARATION OWNER
+ ├── TASK: understand → scope → inspect
+ ├── ERROR/RCA: detect → classify → gather evidence
+ ├── PREPARE: exact source-code changes
+ ├── VERIFY: define reproduction + regression obligations
+ └── HANDOFF → SUPERVISING EXECUTION AGENT
+                         ↓
+                  APPLY / VERIFY / COMMIT / PUSH
+                         ↓
+                    CANONICAL CI
+                         ↓
+              ANY RED? → NEXT REPAIR CYCLE
 ```
 
 The Task Agent must not invent RCA. Missing or conflicting evidence requires another diagnostic pass.
 
-## Action Ownership
-The Task Agent MAY and MUST, within the bounded repair contract:
-- modify source, tests, scripts and `.github/workflows/*` when needed to repair Actions;
-- modify its own repair/orchestration contracts when they are the proven root cause;
-- run required checks and inspect GitHub Actions logs;
-- commit verified changes;
-- push verified changes to the configured repair branch or `main` when the workflow contract explicitly authorizes direct repair;
-- re-run or re-trigger the repair workflow;
-- create/update repair PRs when direct `main` mutation is not appropriate;
-- continue repair cycles after any red, cancelled, timed-out, stale, or otherwise unresolved required check;
-- record RCA, repair, regression, recurrence and final exact-SHA evidence.
+## Ownership boundary
+The Task Agent MUST:
+- own task interpretation and preparation for `مهام.md`;
+- inspect relevant source, tests, scripts and workflow contracts;
+- identify root-cause evidence when the task concerns a failure;
+- prepare exact code changes with paths, operations, content and baseline SHA;
+- define reproduction, regression and verification obligations;
+- report blockers and unresolved work;
+- preserve the repair lifecycle: every repair opens another verification cycle and every red required check becomes a repair target.
 
-It MUST NOT:
-- disable required security or verification gates merely to obtain GREEN;
-- treat a skipped/cancelled check as success;
-- publish a repair without reproduction and regression evidence;
-- use unrelated scope without recording why it is required by the proven root cause;
+The Task Agent MUST NOT:
+- apply source mutations as part of task preparation;
+- commit source changes;
+- push source changes to GitHub;
+- bypass, weaken, disable or falsify security or verification gates;
+- treat generated code or a prepared patch as completed work;
 - declare GREEN before canonical CI is green on the exact pushed SHA.
 
 ## Full repair lifecycle
 
 ```text
-FAILURE
+FAILURE / TASK
   ↓
-CAPTURE LOGS
+CAPTURE + INSPECT
   ↓
 CLASSIFY + RCA
   ↓
-PROVE CAUSE
+PREPARE CODE-ONLY CHANGES
   ↓
-MODIFY SOURCE / ACTIONS
+HANDOFF TO SUPERVISING EXECUTION AGENT
   ↓
-REPRODUCE FAILURE / VERIFY FIX
+APPLY + REPRODUCE + VERIFY
   ↓
 TYPECHECK + STATIC + BUILD + REQUIRED TESTS
   ↓
-COMMIT
-  ↓
-PUSH
+COMMIT → PUSH
   ↓
 CANONICAL CI
   ↓
@@ -72,38 +75,32 @@ LEARN + PREVENT RECURRENCE
 CLOSED / VERIFIED
 ```
 
-Every repair opens a fresh verification cycle. The loop remains active until canonical CI is GREEN with zero required red checks and fresh exact-SHA evidence.
+Repairing the reported failure is not task completion. Closure requires canonical CI GREEN, zero required red checks, fresh exact-SHA evidence, and regression proof.
 
 ## Required evidence
-Every repair packet must bind:
+Every preparation packet must bind:
 `taskId + failureFingerprint + baselineSha + contractVersion + scope + dependencies + proofObligations`.
 
-Every successful repair must record:
+Every proposed repair must record or request:
 - root cause and causal evidence;
-- changed files and exact commit SHA;
+- changed files and exact operations;
+- baseline SHA;
 - reproduction/recovery proof;
-- recurrence proof;
-- typecheck/static/build results;
-- canonical CI result for the pushed SHA;
+- recurrence/regression proof;
+- typecheck/static/build and required-test obligations;
+- canonical CI evidence after the supervising agent pushes;
 - learning/prevention outcome.
 
-## Bounded execution and rollback
+## Bounded execution
 - Maximum repair cycles: 12 per failure chain.
 - Maximum stalled cycles: 3 with the same fingerprint and no verifiable progress.
-- If proof fails, revert/rollback the attempted mutation when safe and continue diagnosis.
-- A circuit-breaker escalates only after the bounded evidence-based limit; it never fabricates GREEN.
+- If proof fails, the supervising execution agent must safely rollback when appropriate and continue diagnosis.
+- A circuit breaker escalates only after bounded evidence-based limits; it never fabricates GREEN.
 
-## Action permissions
-The repair workflow must declare the minimum required GitHub permissions explicitly:
-```yaml
-permissions:
-  contents: write
-  actions: write
-  checks: read
-  pull-requests: write
-```
+## Implementation payload
+The implementation payload contains **code changes only**. It is preparation material for the supervising execution agent and is not a publication or completion barrier.
 
-`GITHUB_TOKEN` is used only for the repository's repair operations. Secrets are never printed or copied into source changes.
+The supervising execution agent is responsible for applying prepared changes, running verification, committing, pushing, and maintaining the repair loop until canonical GREEN.
 
 ## Invocation
 ```bash
@@ -115,4 +112,4 @@ or:
 npm run agent:task -- --all-ready
 ```
 
-The command is now execution-capable. Its output is evidence and coordination state, not a publication barrier.
+The command produces a bounded preparation packet with `preparedOnly: true` and `NO_SOURCE_MUTATION_NO_COMMIT_NO_PUSH` policy.
