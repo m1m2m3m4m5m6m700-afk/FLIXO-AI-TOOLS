@@ -32,12 +32,12 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - name: Restore dependency cache
+      - name: Restore shared dependency cache
         id: impact-deps-cache
         uses: actions/cache@v6
         with:
           path: node_modules
-          key: flixo-impact-node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('.nvmrc') }}
+          key: flixo-browser-node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('.nvmrc') }}
       - name: Install dependencies on cache miss
         if: steps.impact-deps-cache.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline --no-audit --no-fund
