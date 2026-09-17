@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { fingerprintFailure, normalizeFailure, rankLessons } from './auto-repair-learning.mjs';
 import { planRepair } from './auto-repair/planner.mjs';
 import { isPathAllowed, isProtectedPath, repairPolicy } from './auto-repair-policy.mjs';
@@ -10,6 +11,13 @@ import { runRegression } from './auto-repair/regression.mjs';
 import { snapshot } from './auto-repair/rollback.mjs';
 import { runAstRepair } from './auto-repair/ast-repair.mjs';
 import { validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
+
+const workflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
+assert.match(workflow, /conclusion != 'success'/);
+assert.match(workflow, /failure\|cancelled\|timed_out\|action_required\|stale/);
+assert.match(workflow, /Repair remains open/);
+assert.match(workflow, /gh workflow run auto-repair\.yml/);
+assert.match(workflow, /cancel-in-progress: false/);
 
 const sample = 'Run 35012345678 failed: abcdefabcdefabcdefabcdefabcdefabcdefabcd no-unused-vars';
 const normalized = normalizeFailure(sample);
