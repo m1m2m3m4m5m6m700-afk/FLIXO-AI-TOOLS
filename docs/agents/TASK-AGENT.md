@@ -43,6 +43,9 @@ The Task Agent MUST NOT:
 - treat generated code or a prepared patch as completed work;
 - declare GREEN before canonical CI is green on the exact pushed SHA.
 
+## Explicit publication boundary
+The Task Agent MUST NOT commit source changes or push to GitHub. Source publication is exclusively the responsibility of the supervising execution agent after verification.
+
 ## Full repair lifecycle
 
 ```text
