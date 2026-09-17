@@ -11,12 +11,13 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: flixo-auto-repair-merge-${{ github.event.pull_request.number }}
+  group: flixo-two-branch-merge-gate
   cancel-in-progress: false
 
 jobs:
   gate:
-    if: startsWith(github.event.pull_request.head.ref, 'flixo-auto-repair/') && github.event.pull_request.head.repo.full_name == github.repository
+    # The only legal integration path is execution -> main.
+    if: github.event.pull_request.head.ref == 'execution' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -43,11 +44,26 @@ jobs:
             exit 1
           fi
 
-      - name: Enable automatic merge only after green proof
+      - name: Execute canonical merge only after exact-SHA GREEN proof
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --auto --match-head-commit "$EXPECTED_SHA" --delete-branch
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --match-head-commit "$EXPECTED_SHA"
+
+      - name: Verify merged main identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          state="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,mergedAt --jq '.state+"|"+(.mergedAt//"")')"
+          case "$state" in
+            MERGED\|*) ;;
+            *) echo "Canonical execution -> main merge was not completed: $state"; exit 1 ;;
+          esac
+          main_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
+          test -n "$main_sha" && test "$main_sha" != "null"
+          echo "Canonical main after merge: $main_sha"
