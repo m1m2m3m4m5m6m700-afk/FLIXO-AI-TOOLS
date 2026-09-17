@@ -76,7 +76,8 @@ jobs:
           OUTCOME="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.outcome||'unknown')")"
           test "$OUTCOME" = verified-repair
           test -n "$(git status --porcelain --untracked-files=no)"
-          npm run typecheck
+          # test:static already contains the canonical TypeScript gate, so do
+          # not execute the same typecheck twice in one repair cycle.
           npm run test:static
           npm run test:build
 
