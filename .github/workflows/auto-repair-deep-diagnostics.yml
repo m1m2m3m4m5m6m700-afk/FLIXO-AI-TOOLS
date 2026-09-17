@@ -21,9 +21,6 @@ on:
       - "FLIXO WP0 Trust Baseline"
       - "FLIXO Continuous Delivery"
     types: [completed]
-    branches:
-      - main
-      - 'flixo-auto-repair/**'
 
 permissions:
   contents: write
@@ -115,11 +112,9 @@ jobs:
           const evidence = JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json', 'utf8'));
           const changed = fs.readFileSync('/tmp/flixo-verified-files.txt', 'utf8').trim().split('\n').filter(Boolean);
           const allowed = new Set(evidence.changedPaths ?? []);
-          const neverModify = ['.github/workflows/ci.yml', '.github/workflows/deploy-flixoai.yml', '.github/workflows/auto-repair.yml', '.github/workflows/repair-seed.yml', 'package-lock.json', '.env'];
-          const protectedAreas = ['scripts/ci/certification-engine.mjs', 'scripts/ci/validate-execution-graph.mjs', 'tests/seed.spec.ts'];
-          const forbidden = (p) => neverModify.includes(p) || neverModify.some((r) => r.endsWith('.*') && p.startsWith(r.slice(0, -2))) || protectedAreas.includes(p);
+          const protectedPaths = ['.github/workflows/ci.yml', '.github/workflows/deploy-flixoai.yml', '.github/workflows/auto-repair.yml', '.github/workflows/repair-seed.yml', 'package-lock.json', '.env', 'scripts/ci/certification-engine.mjs', 'scripts/ci/validate-execution-graph.mjs', 'tests/seed.spec.ts'];
           const unexpected = changed.filter((p) => !allowed.has(p));
-          const blocked = changed.filter(forbidden);
+          const blocked = changed.filter((p) => protectedPaths.includes(p));
           if (unexpected.length || blocked.length) process.exit(1);
           NODE
           git diff --binary -- . ':!diagnostics' > /tmp/flixo-verified.patch
@@ -129,13 +124,16 @@ jobs:
 
       - name: Revalidate current main before integration
         if: steps.verify.outputs.outcome == 'verified-repair'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
           if [ "$TARGET_BRANCH" = "main" ]; then
             test "$(git rev-parse origin/main)" = "$TARGET_SHA"
           else
-            test "$(git rev-parse origin/main)" != "$TARGET_SHA"
+            PR_BASE_SHA="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$TARGET_BRANCH" --state open --json baseRefOid --jq '.[0].baseRefOid // empty')"
+            if [ -n "$PR_BASE_SHA" ]; then test "$PR_BASE_SHA" = "$(git rev-parse origin/main)"; fi
           fi
 
       - name: Prepare isolated repair branch
