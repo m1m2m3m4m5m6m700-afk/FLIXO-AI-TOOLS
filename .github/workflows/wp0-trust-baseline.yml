@@ -23,7 +23,7 @@ jobs:
   wp0:
     name: WP0 Trust Baseline — Single Verification Path
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - name: 01 — Checkout exact execution SHA
         uses: actions/checkout@v5
@@ -64,6 +64,15 @@ jobs:
       - name: 07 — Canonical CI/CD trust and exact-SHA gate
         run: npm run verify:ci-cd-trust
 
+      - name: 07A — Critical mutation effectiveness gate
+        shell: bash
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: /home/runner/.cache/ms-playwright
+        run: |
+          set -euo pipefail
+          npx playwright install --with-deps chromium firefox webkit
+          node scripts/ci/verify-critical-mutations.mjs
+
       - name: 08 — WP0 static trust and readiness alignment gate
         run: node scripts/ci/validate-wp0-trust-baseline.mjs
 
@@ -98,6 +107,7 @@ jobs:
               "confirmationCancellation": true,
               "taskTraceIdentity": true,
               "canonicalVerification": true,
+              "criticalMutationEffectiveness": true,
               "exactShaEvidence": true,
               "readinessAlignment": true,
               "ciCdTrustBoundary": true,
