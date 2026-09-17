@@ -1,8 +1,8 @@
 name: FLIXO Auto Repair Deep Diagnostics
 
 # Automatically diagnoses failures and, only after the repair engine certifies
-a verified repair, applies a bounded patch to main. Canonical CI remains
-the final gate; failed verification never publishes source.
+# a verified repair, applies a bounded patch to main. Canonical CI remains
+# the final gate; failed verification never publishes source.
 on:
   workflow_run:
     workflows:
