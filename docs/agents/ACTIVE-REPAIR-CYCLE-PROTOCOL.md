@@ -1,132 +1,98 @@
 # Active Repair Cycle Protocol
 
 ## Purpose
-When Canonical CI reports a real failure, the agents must work on the **current failure inside the same repair cycle**. A new test is not a substitute for correcting the demonstrated source/configuration/workflow defect.
+When Canonical CI reports a real failure, the agents must repair the demonstrated root cause inside the single canonical working branch: `execution`. `main` remains the production/source-of-truth branch.
 
-## Required order
+## Canonical route
 ```text
-FAILURE / ACTIVE TEST STATE
-  ↓
-CONTINUOUS TEST-STATE AWARENESS
+RED on main / active CI state
   ↓
 CAPTURE exact SHA + run + job + step + evidence
   ↓
-TASK AGENT sees the active failure context
+TASK AGENT binds the active failure
   ↓
 ROOT-CAUSE / causal evidence
   ↓
-SOURCE / CONFIG / WORKFLOW CORRECTION
+SOURCE / CONFIG / WORKFLOW CORRECTION on execution
   ↓
 PROPORTIONAL HARDENING
   ↓
-TARGETED REGRESSION (only as proof)
+TARGETED REGRESSION
   ↓
 STATIC + BUILD + REQUIRED CHECKS
   ↓
-COMMIT + PUSH on isolated repair branch
+PUSH execution
   ↓
-CANONICAL CI on exact pushed SHA
+CANONICAL CI on exact execution SHA
   ↓
-NEW RED? → SAME REPAIR CYCLE, SAME FAILURE CHAIN
+NEW RED? → SAME REPAIR CYCLE ON execution
   ↓
-GREEN → learn / close
+GREEN → exact-SHA proof → execution → main → verify
 ```
 
+## Two-branch invariant
+The repository has exactly two active branch paths:
+- `execution`: the only working/repair/integration branch;
+- `main`: the only production/source-of-truth branch.
+
+The repair system MUST NOT create or use any third branch. In particular, it must never create `flixo-auto-repair/*`, `fix/*`, `feature/*`, `agent/*`, `bot/*`, per-run, per-error, per-task, temporary, test, or diagnostic branches.
+
+Historical branches are not active execution paths and must not be selected for new work.
+
 ## Task Agent is the execution authority
-The Task Agent is not a preparation-only planner. For an active failure it is the **single repair owner** and the repair workflow must bind the failure context to a named isolated repair branch before execution.
+The Task Agent is the single repair owner. It may mutate source/configuration/workflow files only on `execution`, under `SELF_HEALING_REPAIR_ONLY` and `FAIL_CLOSED`.
 
-The bounded repair engine is an **execution backend under Task Agent authority**, not a competing repair owner. It may perform only the evidence-gated mutation selected for the active failure. The Task Agent contract owns:
-- failure binding;
-- scope and mutation authorization;
-- root-cause evidence requirements;
-- execution ordering;
-- regression and proof requirements;
-- commit/push on the isolated repair branch;
-- re-opening the same repair chain for every new RED;
-- closure only after Canonical CI GREEN on the exact pushed SHA.
-
-A detached worktree is not a valid Task Agent execution target because it has no named repair branch. The active repair workflow must create and validate a named branch before invoking the Task Agent.
+The bounded repair engine is an execution backend under Task Agent authority, not a competing repair owner.
 
 ## Immediate repair rule
-For every actionable RED in an active cycle:
-1. capture the exact failed SHA and failure evidence;
+For every actionable RED:
+1. capture the exact failed SHA and evidence;
 2. bind the Task Agent to that failure context;
 3. require strong causal evidence before mutation;
-4. execute the smallest safe root-cause correction through the bounded repair backend under Task Agent authority;
-5. verify the repair and commit/push it on the isolated repair branch;
-6. run Canonical CI on the pushed SHA;
-7. attach every new RED to the same repair chain and immediately open the next bounded repair attempt.
+4. execute the smallest safe root-cause correction on `execution`;
+5. apply proportional hardening when justified;
+6. run targeted regression and required verification;
+7. push the exact repaired `execution` SHA;
+8. run Canonical CI;
+9. attach every new RED to the same repair cycle and continue on `execution`.
 
-The workflow must not stop at a generated proposal when the evidence gate authorizes a safe mutation. If evidence is insufficient or the repair is unsafe, it must fail closed with an explicit escalation packet rather than fabricate a repair.
-
-## Test-state awareness
-The repair agent must maintain an **active view of the test system** throughout the repair cycle, not inspect tests only after a failure is reported.
-
-At each cycle checkpoint it must inspect, when available:
-- current required-check state;
-- in-progress, queued, failed, cancelled, and timed-out runs relevant to the target SHA;
-- workflow/job/step conclusions and failure evidence;
-- the exact SHA under repair;
-- newly appearing failures introduced by the repair;
-- previously known failure fingerprints and their prevention status.
-
-The agent should refresh this view before diagnosis, after applying a correction, after targeted regression, and before closure. Monitoring is observational and must not weaken, skip, cancel, or falsify required verification.
+If `execution` is not safely synchronized with the current `main` baseline, the cycle fails closed. It must not create a third branch to escape the conflict.
 
 ## Automatic same-cycle interception
-If a new error appears while the current repair cycle is active:
-1. bind it to the current repair-chain ID and target SHA;
-2. capture its run/job/step and evidence;
-3. fingerprint and classify it;
-4. determine whether it is the original failure, a recurrence, or a newly introduced failure;
-5. if it is actionable, open a **new repair attempt inside the same repair chain**;
-6. correct the demonstrated root cause and apply proportional hardening;
-7. re-run the affected proof and then rescan all required checks;
-8. continue until the chain reaches canonical GREEN or a bounded fail-closed escalation.
+A new error while the cycle is active:
+- keeps the same repair-chain identity;
+- is captured with run/job/step/evidence;
+- is fingerprinted and classified;
+- becomes a new repair target on `execution` when actionable;
+- receives root-cause correction, proportional hardening, regression, and full rescan.
 
-A new error does **not** create an unrelated task, PR, repair-chain ID, or closure opportunity. A separate isolated repair branch may still be used for safe source publication, but it remains attached to the same active repair chain and exact target context.
+A new error does not create a new branch, PR lane, or independent repair path.
 
-## Same-cycle repair state machine
+## Same-cycle state machine
 ```text
 ACTIVE_CYCLE
   ├─ OBSERVE_TEST_STATE
   ├─ RED_DETECTED → CAPTURE → RCA → CORRECT → HARDEN → VERIFY
   ├─ NEW_RED_DETECTED → ATTACH_TO_SAME_CYCLE → RCA → CORRECT → HARDEN → VERIFY
   ├─ RECURRENCE → USE_MEMORY → NEW_EVIDENCE_REQUIRED → CORRECT/HARDEN
-  └─ ALL_REQUIRED_GREEN → EXACT-SHA PROOF → LEARN → CLOSE
+  └─ ALL_REQUIRED_GREEN → EXACT-SHA PROOF → LEARN → PROMOTE execution→main
 ```
 
-The cycle ID and target SHA are immutable for the active chain. A child repair attempt may have its own attempt number and fingerprint, but it must retain the parent cycle identity.
-
 ## Correction rule
-The first corrective action must address the demonstrated root cause. Adding a test, changing a timeout, suppressing a warning, skipping a check, or weakening a gate is not considered a root repair unless the evidence proves that behavior is the actual defect.
-
-A regression test is allowed only when it proves the source correction or hardening. It must not be used to make an existing failure appear green without correcting its cause.
-
-## Same-cycle continuity
-A repair attempt remains open until:
-1. the original failure is reproduced or its causal evidence is otherwise established;
-2. the source/configuration/workflow root cause is corrected;
-3. proportional hardening is applied when the failure exposed a reusable weakness;
-4. targeted regression proves the correction where appropriate;
-5. all required checks are rescanned;
-6. Canonical CI is green on the exact pushed SHA.
-
-Any red result becomes a repair target in the **same repair chain**. The system must not close the task merely because a new test was added or a targeted command passed.
+The first corrective action must address the demonstrated root cause. Adding a test, changing a timeout, suppressing a warning, skipping a check, or weakening a gate is not a root repair unless evidence proves that behavior is the actual defect.
 
 ## Safety boundaries
-- Task Agent is the **direct self-healing repair owner**; it may mutate source, commit, and push only on the isolated repair branch.
-- Direct execution is strictly bounded by `SELF_HEALING_REPAIR_ONLY` and `FAIL_CLOSED`.
-- `mainBranchMutation` is always `false`; the repair agent must never mutate `main`, force-push, rewrite history, or self-approve/merge.
-- Every mutation must be tied to the active failure/task and its demonstrated root cause, proportional hardening, or required regression proof.
-- The repair agent must not perform unrelated product, UI, SEO/i18n, performance, cleanup, or opportunistic refactor work.
-- Canonical CI remains the final authority.
+- `mainBranchMutation` is always `false` during repair.
+- The Task Agent may commit and push only to `execution`.
+- No force-push or history rewrite on `main`.
+- No third branch may be created by the repair system.
 - No gate may be skipped, weakened, falsified, or converted into a non-test merely to obtain GREEN.
-- If the evidence is insufficient, the cycle stays open for diagnosis rather than inventing a root cause.
-- Continuous observation must not become unbounded polling: use bounded checkpoints and fail-closed circuit breakers.
+- Canonical CI remains the final authority.
+- Unresolved or unsafe cases fail closed rather than creating another path.
 
 ## Evidence contract
 Each active repair packet should retain:
 `repairChainId`, `repairAttempt`, `failureRunId`, `failedSha`, `failureFingerprint`, `testStateSnapshot`, `causalEvidence`, `rootCause`, `sourceCorrection`, `hardeningControl`, `regressionProof`, `canonicalExactShaEvidence`, and `preventionOutcome`.
 
 ## Closure
-`CLOSED / VERIFIED` is permitted only after Canonical CI is green on the exact pushed SHA with zero required red checks, fresh evidence, and no unprocessed active test failure.
+`CLOSED / VERIFIED` is permitted only after Canonical CI is green on the exact `execution` SHA, with zero required red checks, fresh evidence, and no unprocessed active failure. Promotion to `main` must then use only the canonical `execution → main` path.
