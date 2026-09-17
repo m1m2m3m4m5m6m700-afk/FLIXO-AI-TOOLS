@@ -106,13 +106,12 @@ jobs:
       - name: Classify root cause with evidence gate
         run: node scripts/ci/auto-repair-classifier.mjs
 
-      - name: Bind Task Agent to the active repair cycle
-        env:
-          FAILURE_SIGNATURE: ${{ '' }}
+      - name: Bind Task Agent to the active repair cycle on the failed SHA
         run: |
           set -euo pipefail
           SIGNATURE="$(node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8')); process.stdout.write(x.signature||'unknown')")"
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          cd /tmp/flixo-repair-target
           node scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$SIGNATURE" --failure-evidence=/tmp/flixo-repair-summary.txt
           cp diagnostics/agents/task-agent/latest.json /tmp/flixo-task-agent-latest.json
           test -s /tmp/flixo-task-agent-latest.json
@@ -255,6 +254,7 @@ jobs:
             /tmp/flixo-prepared-repair.patch
             /tmp/flixo-prepared-repair-handoff.json
             /tmp/flixo-task-agent-latest.json
+            /tmp/flixo-repair-target/diagnostics/agents/task-agent/*.json
             diagnostics/auto-repair/memory.json
             diagnostics/auto-repair/historical-learning.json
             diagnostics/auto-repair/intractable-errors.json
