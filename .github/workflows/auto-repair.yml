@@ -211,9 +211,9 @@ jobs:
             /tmp/flixo-failure.log
             /tmp/flixo-repair-summary.txt
             /tmp/flixo-root-cause.json
-            /tmp/flixo-repair-evidence.json
             /tmp/flixo-engine-outcome
             /tmp/flixo-learning-outcome
+            /tmp/flixo-repair-evidence.json
             /tmp/flixo-prepared-repair.patch
             /tmp/flixo-prepared-repair-handoff.json
             diagnostics/auto-repair/memory.json
@@ -227,6 +227,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          echo "Repair remains open: target run $TARGET_RUN_ID is not verified. Starting another bounded repair pass."
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
+          if [ "$FAILED_SHA" != "$CURRENT_MAIN_SHA" ]; then
+            echo "Repair target $TARGET_RUN_ID is superseded: failed SHA $FAILED_SHA != current main $CURRENT_MAIN_SHA."
+            echo "Failing closed without recursive retry; current-main failures will open a fresh repair cycle from workflow_run."
+            exit 1
+          fi
+          echo "Repair remains open: target run $TARGET_RUN_ID is not verified on current main. Starting another bounded repair pass."
           gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref main -f target_run_id="$TARGET_RUN_ID"
           exit 1
