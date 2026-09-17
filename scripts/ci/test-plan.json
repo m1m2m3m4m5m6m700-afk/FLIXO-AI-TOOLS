@@ -1,7 +1,7 @@
 {
   "version": 7,
   "assertionRegistry": "scripts/ci/assertion-registry.json",
-  "execution": {"maxConcurrency":6,"failFast":false,"certification":"complete-gate-results","identityFields":["sha","packageLockSha256","testPlanSha256","assertionRegistrySha256"]},
+  "execution": {"maxConcurrency":10,"failFast":false,"certification":"complete-gate-results","identityFields":["sha","packageLockSha256","testPlanSha256","assertionRegistrySha256"]},
   "gateDependencies": {"static":[],"build":["static"],"browser":["build"]},
   "sourceDependencyGraph": {
     "registry": ["router", "sitemap", "seo", "e2e-inventory"],
