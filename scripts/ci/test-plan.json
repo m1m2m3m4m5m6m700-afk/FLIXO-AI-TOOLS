@@ -19,7 +19,7 @@
     "static":{"expected":27,"checks":[
       {"id":"STATIC-001","label":"typescript","command":"npm","args":["run","typecheck"],"rootCause":"RC-TYPE-001","assertions":["ASSERT-TYPEGRAPH-001"],"coverage":["COV-TYPEGRAPH"]},
       {"id":"STATIC-002","label":"lint","command":"npm","args":["run","lint"],"rootCause":"RC-TYPE-001","assertions":["ASSERT-LINT-001"],"coverage":["COV-LINT"]},
-      {"id":"STATIC-003","label":"unit","command":"npm","args":["run","test:unit"],"rootCause":"RC-UNKNOWN-001","assertions":["ASSERT-UNIT-001"],"coverage":["COV-UNIT"]},
+      {"id":"STATIC-003","label":"unit","command":"node","args":["scripts/ci/run-unit-suite.mjs"],"rootCause":"RC-UNKNOWN-001","assertions":["ASSERT-UNIT-001"],"coverage":["COV-UNIT"]},
       {"id":"STATIC-004","label":"tool-localization","command":"npm","args":["run","test:tool-localization"],"rootCause":"RC-I18N-001","assertions":["ASSERT-I18N-001"],"coverage":["COV-TOOL-LOCALIZATION"]},
       {"id":"STATIC-005","label":"baseline","command":"npm","args":["run","validate:baseline"],"rootCause":"RC-UNKNOWN-001","assertions":["ASSERT-BASELINE-001"],"coverage":["COV-BASELINE"]},
       {"id":"STATIC-006","label":"tool-registry","command":"npm","args":["run","validate:tool-registry"],"rootCause":"RC-UNKNOWN-001","assertions":["ASSERT-REGISTRY-001"],"coverage":["COV-REGISTRY"]},
@@ -52,7 +52,7 @@
     "browser":{"expected":3,"projects":["chromium","firefox","webkit"],"checks":[
       {"id":"BROWSER-001","label":"chromium","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=chromium","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-CHROMIUM-001"],"coverage":["COV-BROWSER-CHROMIUM"]},
       {"id":"BROWSER-002","label":"firefox","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=firefox","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-FIREFOX-001"],"coverage":["COV-BROWSER-FIREFOX"]},
-      {"id":"BROWSER-003","label":"webkit","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=webkit","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-WEBKIT-001"],"coverage":["COV-BROWSER-WEBKIT"]}
+      {"id":"BROWSER-003","label":"webkit","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=webkit","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-WEBKIT-001"],"coverage":["COV-BROWSER-WEBKIT"]
     ]}
   }
 }
