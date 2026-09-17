@@ -49,10 +49,22 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/repair-handoff
-          gh run download "$REPAIR_RUN_ID" \
-            --repo "$GITHUB_REPOSITORY" \
-            -n "flixo-auto-repair-${REPAIR_RUN_ID}" \
-            -D /tmp/repair-handoff
+          artifact_id="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            "/repos/$GITHUB_REPOSITORY/actions/runs/$REPAIR_RUN_ID/artifacts" \
+            --jq '[.artifacts[] | select(.expired == false) | select(.name | startswith("flixo-auto-repair-"))] | first | .id // empty')"
+          test -n "$artifact_id"
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > /tmp/repair-handoff/artifact.zip
+          unzip -q /tmp/repair-handoff/artifact.zip -d /tmp/repair-handoff/extracted
+          rm -f /tmp/repair-handoff/artifact.zip
+          find /tmp/repair-handoff/extracted -type f -maxdepth 3 -print
+          for required in flixo-prepared-repair-handoff.json flixo-engine-outcome flixo-learning-outcome flixo-root-cause.json; do
+            source="$(find /tmp/repair-handoff/extracted -type f -name "$required" -print -quit)"
+            test -n "$source"
+            cp "$source" "/tmp/repair-handoff/$required"
+          done
 
       - name: Validate handoff contract and publication boundary
         if: steps.repair-state.outputs.repair_job_conclusion != 'skipped'
