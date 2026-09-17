@@ -24,9 +24,21 @@ const git = (a) => {
   if (r.status !== 0) throw new Error(String(r.stderr || 'git command failed').trim());
   return r;
 };
-const exec = (check) => new Promise((resolveResult) => {
+const executionEnvFor = (check, gate) => {
+  const env = { ...process.env };
+  if (gate === 'browser') {
+    const browserPorts = { chromium: 3101, firefox: 3102, webkit: 3103 };
+    const port = browserPorts[check.label];
+    if (!port) throw new Error(`Unknown browser impact check: ${check.label}`);
+    env.PLAYWRIGHT_TEST_PORT = String(port);
+    env.VITE_TEST_ORIGIN = `http://127.0.0.1:${port}`;
+    env.VITE_RUNTIME_ORIGIN = `http://127.0.0.1:${port}`;
+  }
+  return env;
+};
+const exec = (check, gate) => new Promise((resolveResult) => {
   const started = now();
-  const child = spawn(check.command, check.args ?? [], { cwd: ROOT, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(check.command, check.args ?? [], { cwd: ROOT, env: executionEnvFor(check, gate), stdio: ['ignore', 'pipe', 'pipe'] });
   let out = '', err = '';
   child.stdout.on('data', (d) => { const s = d.toString(); out += s; process.stdout.write(s); });
   child.stderr.on('data', (d) => { const s = d.toString(); err += s; process.stderr.write(s); });
@@ -147,7 +159,7 @@ async function runGate(name) {
       for (let i = 0; i < ready.length; i += max) {
         const batch = ready.slice(i, i + max).filter((c) => pending.has(c.id));
         if (!batch.length) continue;
-        const done = await Promise.all(batch.map((c) => exec({ ...c, gate: name })));
+        const done = await Promise.all(batch.map((c) => exec({ ...c, gate: name }, name)));
         for (const r of done) {
           r.rootCauseId = rootFor(name, r);
           if (r.status === 'FAIL') r.fingerprint = `FPR-${createHash('sha256').update([r.rootCauseId, r.gate, r.label, (r.output ?? '').replace(/\s+/g, ' ').slice(-4000)].join('\n')).digest('hex').slice(0, 12).toUpperCase()}`;
