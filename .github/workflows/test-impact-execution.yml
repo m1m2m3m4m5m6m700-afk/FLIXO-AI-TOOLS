@@ -14,6 +14,9 @@ permissions:
   actions: read
   checks: read
 
+env:
+  IMPACT_MAX_CONCURRENCY: '12'
+
 jobs:
   impact-execution:
     name: Impact Verification Execution
@@ -33,7 +36,6 @@ jobs:
       - name: Build impact plan and execute selected verification
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
-          IMPACT_MAX_CONCURRENCY: '10'
           SITE_URL: 'https://flixoai.vercel.app'
         run: node scripts/ci/test-impact.mjs --mode=pr --base="$BASE_SHA" --execute
       - name: Verify impact execution evidence
@@ -53,7 +55,7 @@ jobs:
           if (execution.sha !== expected) throw new Error(`Execution SHA mismatch: ${execution.sha} != ${expected}`);
           if (plan.evidenceClass !== 'PRIMARY_EXECUTION') throw new Error('Impact evidence must be PRIMARY_EXECUTION');
           if (execution.status !== 'PASS') throw new Error(`Impact execution status: ${execution.status}`);
-          if (execution.executionMaxConcurrency !== 10) throw new Error('Unexpected impact concurrency');
+          if (execution.executionMaxConcurrency !== 12) throw new Error('Unexpected impact concurrency');
           if (!Array.isArray(execution.results) || execution.results.length !== execution.commands.length) {
             throw new Error('Impact execution result coverage mismatch');
           }
