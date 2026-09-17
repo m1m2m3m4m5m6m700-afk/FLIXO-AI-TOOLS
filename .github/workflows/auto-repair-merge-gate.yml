@@ -20,13 +20,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Wait for every PR check to finish
+      - name: Wait for every other PR check to finish
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --watch --interval 20
+          deadline=$((SECONDS + 3300))
+          while true; do
+            ACTUAL_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+            EXPECTED_SHA="${{ github.event.pull_request.head.sha }}"
+            test "$ACTUAL_SHA" = "$EXPECTED_SHA" || {
+              echo "HEAD_CHANGED=$ACTUAL_SHA expected=$EXPECTED_SHA"
+              exit 1
+            }
+
+            gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json name,state,bucket > /tmp/pr-checks.json
+            if jq -e '.[] | select(.name != "FLIXO Auto Repair Merge Gate" and .bucket != "pass")' /tmp/pr-checks.json >/tmp/non-green-checks.json; then
+              if [ "$SECONDS" -ge "$deadline" ]; then
+                cat /tmp/non-green-checks.json
+                echo 'Timed out waiting for non-green checks.'
+                exit 1
+              fi
+              sleep 20
+              continue
+            fi
+            break
+          done
 
       - name: Require exact-head green evidence
         env:
@@ -37,17 +57,34 @@ jobs:
           set -euo pipefail
           ACTUAL_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA" || { echo "HEAD_CHANGED=$ACTUAL_SHA expected=$EXPECTED_SHA"; exit 1; }
-          gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json name,state,bucket --jq '.[] | select(.bucket != "pass") | [.name,.state,.bucket] | @tsv' > /tmp/non-green-checks
+          gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json name,state,bucket --jq '.[] | select(.name != "FLIXO Auto Repair Merge Gate" and .bucket != "pass") | [.name,.state,.bucket] | @tsv' > /tmp/non-green-checks
           if [ -s /tmp/non-green-checks ]; then
             cat /tmp/non-green-checks
             exit 1
           fi
 
-      - name: Enable automatic merge only after green proof
+      - name: Agent executes merge only after exact-SHA GREEN proof
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --auto --match-head-commit "$EXPECTED_SHA" --delete-branch
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --match-head-commit "$EXPECTED_SHA" --delete-branch
+
+      - name: Verify merged main identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          MERGE_STATE="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,mergedAt --jq '.state+"|"+(.mergedAt//"")')"
+          case "$MERGE_STATE" in
+            MERGED\|*) ;;
+            *) echo "PR was not merged: $MERGE_STATE"; exit 1 ;;
+          esac
+          MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
+          test -n "$MAIN_SHA" && test "$MAIN_SHA" != "null"
+          echo "Merged repair head: $EXPECTED_SHA"
+          echo "Current main: $MAIN_SHA"
