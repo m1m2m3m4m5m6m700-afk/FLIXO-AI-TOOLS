@@ -19,6 +19,7 @@ env:
   IMPACT_DEPENDENCIES_READY: 'true'
   PLAYWRIGHT_TEST_PORT: '3100'
   PLAYWRIGHT_BROWSERS_PATH: '0'
+  EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   impact-execution:
