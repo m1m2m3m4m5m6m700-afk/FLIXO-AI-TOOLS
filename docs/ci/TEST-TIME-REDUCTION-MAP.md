@@ -4,8 +4,6 @@
 
 Reduce feedback time as aggressively as possible **without weakening correctness, security, evidence, or the self-healing contract**.
 
-The optimization rule is:
-
 > Fast path for feedback, full path for trust.
 
 A test may be skipped from an early lane only when the impact planner proves it is out of scope. Canonical full verification remains mandatory at the protected merge/release boundary.
@@ -51,8 +49,6 @@ GREEN only when every required gate is proven
 
 The existing `scripts/ci/test-impact.mjs` remains the selector of record. Its map is `scripts/ci/test-impact-map.json`.
 
-Selection rules:
-
 - Known domain + known risk: run only the affected contract/unit/e2e commands.
 - Multiple domains: union commands and de-duplicate them.
 - Unknown files: force the full lane.
@@ -64,13 +60,13 @@ Selection rules:
 
 Use the largest **bounded** parallelism that the runner can sustain without resource contention.
 
-- Impact verification: maximum 10 concurrent commands today.
+- Impact verification: maximum **12** concurrent commands.
 - Browser FAST: 3 browsers × 2 shards.
 - Browser DEEP: 3 browsers × 3 shards.
 - Playwright workers: 6 per browser job.
 - Matrix `fail-fast: false` preserves independent evidence from every shard.
 
-Do not increase concurrency blindly. If runner CPU, memory, I/O, browser startup, or external rate limits become the bottleneck, higher concurrency can make total wall time worse.
+The impact executor still enforces an absolute ceiling of 16; the CI policy uses 12 as the safer operating point. If CPU, memory, I/O, browser startup, or external rate limits become the bottleneck, higher concurrency can make total wall time worse.
 
 ## Phase 4 — Full trust lane
 
@@ -91,8 +87,6 @@ Speed optimization must never remove these gates from the canonical trust bounda
 ## Phase 5 — Self-healing interaction
 
 Any `failure`, `cancelled`, `timed_out`, `action_required`, or `stale` result is unresolved.
-
-The repair cycle is:
 
 ```text
 failure
@@ -118,8 +112,8 @@ Every optimization must report:
 - total wall-clock duration
 - queue/wait duration when available
 - install/cache duration
-- number of selected commands
-- number of skipped commands and the reason
+- selected command count
+- skipped command count and reason
 - concurrency used
 - pass/fail/cancelled counts
 - SHA and artifact identity
@@ -130,16 +124,17 @@ Track p50/p95 duration over time. Optimize the slowest critical path rather than
 
 ## Safe optimization backlog
 
-### Tier A — implement first
+### Tier A — implemented
 
-- Keep dependency caches immutable and lockfile keyed.
-- Reuse the build artifact instead of rebuilding for browser jobs.
-- Keep impact selection before expensive browser execution.
-- Parallelize only independent verification commands.
-- Preserve browser matrix parallelism.
-- Keep full verification on `main`/release.
+- Lockfile + Node keyed npm/browser caches.
+- Single immutable build artifact reused by browser jobs.
+- Impact selection before expensive browser execution.
+- Bounded parallel verification with mutations/installations serialized.
+- Browser matrix parallelism.
+- Full verification retained for the canonical trust boundary.
+- Impact concurrency raised from 10 to 12 with an explicit evidence assertion.
 
-### Tier B — after measurements
+### Tier B — next optimization cycle
 
 - Split large contract suites into independent shards.
 - Add duration-aware shard balancing instead of equal-count shards.
