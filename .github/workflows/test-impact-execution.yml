@@ -17,12 +17,14 @@ permissions:
 env:
   IMPACT_MAX_CONCURRENCY: '12'
   IMPACT_DEPENDENCIES_READY: 'true'
+  PLAYWRIGHT_TEST_PORT: '3100'
+  PLAYWRIGHT_BROWSERS_PATH: '0'
 
 jobs:
   impact-execution:
     name: Impact Verification Execution
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
         with:
@@ -37,16 +39,25 @@ jobs:
         uses: actions/cache@v6
         with:
           path: node_modules
-          key: flixo-browser-node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('.nvmrc') }}
+          key: flixo-browser-node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('.nvmrc') }}-playwright-local
       - name: Install dependencies on cache miss
         if: steps.impact-deps-cache.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Verify dependency identity
+      - name: Ensure Playwright browsers are available
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium firefox webkit
+      - name: Verify dependency and browser identity
         shell: bash
         run: |
           set -euo pipefail
           test -x node_modules/.bin/tsc
           test -x node_modules/.bin/playwright
+          test -x node_modules/playwright-core/.local-browsers/chromium-*/chrome-linux/chrome
+          test -x node_modules/playwright-core/.local-browsers/firefox-*/firefox/firefox
+          test -x node_modules/playwright-core/.local-browsers/webkit-*/pw_run.sh
+          npx playwright --version
           sha256sum package-lock.json
       - name: Build impact plan and execute selected verification
         env:
