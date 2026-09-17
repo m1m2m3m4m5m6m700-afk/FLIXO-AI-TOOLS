@@ -1,8 +1,7 @@
 name: FLIXO Auto Repair Deep Diagnostics
 
-# Automatically diagnoses failures and, only after the repair engine certifies
-# a verified repair, applies a bounded patch to main. Canonical CI remains
-# the final gate; failed verification never publishes source.
+# Closed-loop repair lane. Repairs are always isolated on a repair branch and
+# integrated only through a PR whose canonical CI/certification gates are green.
 on:
   workflow_run:
     workflows:
@@ -10,29 +9,34 @@ on:
       - "FLIXO WP0 Trust Baseline"
       - "FLIXO Continuous Delivery"
     types: [completed]
-    branches: [main]
+    branches:
+      - main
+      - 'flixo-auto-repair/**'
 
 permissions:
   contents: write
   actions: read
   checks: read
+  pull-requests: write
 
 concurrency:
-  group: flixo-auto-repair-deep-${{ github.event.workflow_run.head_sha }}
+  group: flixo-auto-repair-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 
 env:
   TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
   TARGET_RUN_ID: ${{ github.event.workflow_run.id }}
+  TARGET_BRANCH: ${{ github.event.workflow_run.head_branch }}
   FLIXO_HISTORY_LIMIT: '30'
   FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
+  FLIXO_REPAIR_LANE: single
 
 jobs:
   diagnose:
-    name: Deep diagnostics and autonomous repair
+    name: Closed-loop diagnose, repair, verify and handoff
     if: github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout failed exact SHA
         uses: actions/checkout@v5
@@ -54,28 +58,34 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/ci/learn-from-historical-actions.mjs
 
-      - name: Run read-only code scout
+      - name: Capture exact failed logs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > /tmp/flixo-failure.log 2>&1 || true
+          test -s /tmp/flixo-failure.log || printf '%s\n' 'No failed log payload was available.' > /tmp/flixo-failure.log
+
+      - name: Run read-only code scout and root-cause analysis
         env:
           EXPECTED_SHA: ${{ env.TARGET_SHA }}
           INVESTIGATION_DIR: diagnostics/investigation
-        run: npm run validate:code-scout && npm run agent:code-scout
-
-      - name: Run historical root-cause analysis
         run: |
+          set -euo pipefail
+          npm run validate:code-scout
+          npm run agent:code-scout
           node scripts/test-error-root-cause-extractor.mjs
           node scripts/ci/extract-error-root-causes.mjs docs/ERROR_MEMORY.md error-root-causes.json
 
       - name: Run bounded repair engine
         env:
+          FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
           FLIXO_TARGET_DIR: ${{ github.workspace }}
           TARGET_RUN_ID: ${{ env.TARGET_RUN_ID }}
           GH_TOKEN: ${{ github.token }}
-        run: |
-          gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > /tmp/flixo-failure.log 2>&1 || true
-          node scripts/ci/auto-repair-classifier.mjs
-          node scripts/ci/auto-repair-engine.mjs
+        run: node scripts/ci/auto-repair-engine.mjs
 
-      - name: Verify repair before publication
+      - name: Verify repair proof and required local gates
         id: verify
         run: |
           set -euo pipefail
@@ -85,6 +95,7 @@ jobs:
           test -n "$(git status --porcelain --untracked-files=no)"
           npm run test:static
           npm run test:build
+          npm run verify:ci-cd-trust
 
           git diff --name-only --diff-filter=ACMRTUXB > /tmp/flixo-verified-files.txt
           test -s /tmp/flixo-verified-files.txt
@@ -92,60 +103,69 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const evidence = JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json', 'utf8'));
-          const allowed = new Set(evidence.changedPaths ?? []);
-          const neverModify = [
-            '.github/workflows/ci.yml',
-            '.github/workflows/deploy-flixoai.yml',
-            '.github/workflows/auto-repair.yml',
-            '.github/workflows/repair-seed.yml',
-            'package-lock.json',
-            '.env',
-          ];
-          const protectedAreas = [
-            'scripts/ci/certification-engine.mjs',
-            'scripts/ci/validate-execution-graph.mjs',
-            'tests/seed.spec.ts',
-          ];
           const changed = fs.readFileSync('/tmp/flixo-verified-files.txt', 'utf8').trim().split('\n').filter(Boolean);
+          const allowed = new Set(evidence.changedPaths ?? []);
+          const neverModify = ['.github/workflows/ci.yml', '.github/workflows/deploy-flixoai.yml', '.github/workflows/auto-repair.yml', '.github/workflows/repair-seed.yml', 'package-lock.json', '.env'];
+          const protectedAreas = ['scripts/ci/certification-engine.mjs', 'scripts/ci/validate-execution-graph.mjs', 'tests/seed.spec.ts'];
           const forbidden = (p) => neverModify.includes(p) || neverModify.some((r) => r.endsWith('.*') && p.startsWith(r.slice(0, -2))) || protectedAreas.includes(p);
           const unexpected = changed.filter((p) => !allowed.has(p));
           const blocked = changed.filter(forbidden);
-          if (unexpected.length || blocked.length) {
-            console.error(JSON.stringify({ unexpected, blocked }, null, 2));
-            process.exit(1);
-          }
+          if (unexpected.length || blocked.length) process.exit(1);
           NODE
 
           git diff --binary -- . ':!diagnostics' > /tmp/flixo-verified.patch
           test -s /tmp/flixo-verified.patch
-          test -f diagnostics/auto-repair/memory.json
           cp diagnostics/auto-repair/memory.json /tmp/flixo-repair-memory.json
           echo "outcome=$OUTCOME" >> "$GITHUB_OUTPUT"
 
-      - name: Apply verified repair and persist repair history
+      - name: Revalidate current main before integration
         if: steps.verify.outputs.outcome == 'verified-repair'
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git config user.name "FLIXO Auto Repair Bot"
-          git config user.email "actions@users.noreply.github.com"
-          git fetch origin main
-          git checkout -B flixo-auto-repair origin/main
+          git fetch --no-tags origin main
+          if [ "$TARGET_BRANCH" = "main" ]; then
+            test "$(git rev-parse origin/main)" = "$TARGET_SHA"
+          else
+            git merge-base --is-ancestor "$TARGET_SHA" origin/main || true
+          fi
+
+      - name: Prepare isolated repair branch
+        if: steps.verify.outputs.outcome == 'verified-repair'
+        id: branch
+        run: |
+          set -euo pipefail
+          if [[ "$TARGET_BRANCH" == flixo-auto-repair/* ]]; then
+            REPAIR_BRANCH="$TARGET_BRANCH"
+          else
+            REPAIR_BRANCH="flixo-auto-repair/run-$TARGET_RUN_ID"
+          fi
+          echo "repair_branch=$REPAIR_BRANCH" >> "$GITHUB_OUTPUT"
+          git fetch --no-tags origin main
+          if [[ "$TARGET_BRANCH" == flixo-auto-repair/* ]]; then
+            git checkout -B "$REPAIR_BRANCH" "$TARGET_SHA"
+          else
+            git checkout -B "$REPAIR_BRANCH" origin/main
+          fi
           git apply --index /tmp/flixo-verified.patch
           mkdir -p diagnostics/auto-repair
           cp /tmp/flixo-repair-memory.json diagnostics/auto-repair/memory.json
 
+      - name: Persist immutable repair-cycle evidence on repair branch
+        if: steps.verify.outputs.outcome == 'verified-repair'
+        run: |
+          set -euo pipefail
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const evidence = JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json', 'utf8'));
           const historyPath = 'docs/AUTO_REPAIR_HISTORY.jsonl';
           const record = {
-            schemaVersion: 1,
+            schemaVersion: 2,
             recordedAt: new Date().toISOString(),
+            cycleId: `RC-${process.env.TARGET_RUN_ID}-${evidence.fingerprint ?? 'unknown'}`,
             repairWorkflowRunId: process.env.GITHUB_RUN_ID,
             failedRunId: process.env.TARGET_RUN_ID,
             failedSha: process.env.TARGET_SHA,
+            targetBranch: process.env.TARGET_BRANCH,
             fingerprint: evidence.fingerprint ?? null,
             rootCause: evidence.specialist?.id ?? null,
             selectedRule: evidence.selected ?? null,
@@ -161,13 +181,29 @@ jobs:
           fs.appendFileSync(historyPath, `${JSON.stringify(record)}\n`);
           NODE
 
+          git config user.name "FLIXO Auto Repair Bot"
+          git config user.email "actions@users.noreply.github.com"
           git add diagnostics/auto-repair/memory.json docs/AUTO_REPAIR_HISTORY.jsonl
           git status --short
-          test -n "$(git diff --cached --name-only)"
-          git commit -m "fix(auto-repair): apply verified repair for failed run $TARGET_RUN_ID"
-          git push origin HEAD:main
+          git commit -m "fix(auto-repair): verified repair cycle for run $TARGET_RUN_ID"
+          git push --force-with-lease origin "HEAD:${{ steps.branch.outputs.repair_branch }}"
 
-      - name: Upload diagnostics and repair evidence
+      - name: Create or update repair PR without touching main
+        if: steps.verify.outputs.outcome == 'verified-repair'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPAIR_BRANCH: ${{ steps.branch.outputs.repair_branch }}
+        run: |
+          set -euo pipefail
+          PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$REPAIR_BRANCH" --state open --json url --jq '.[0].url // empty')"
+          if [ -z "$PR_URL" ]; then
+            PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$REPAIR_BRANCH" --draft --title "fix(auto-repair): closed-loop repair cycle $TARGET_RUN_ID" --body "Automated repair cycle for failed run $TARGET_RUN_ID. The repair is isolated on this branch. Canonical CI, browser gates, certification, and exact-SHA evidence are required before integration. A new failure opens the next repair cycle; no direct main push is permitted.")"
+          fi
+          echo "REPAIR_PR=$PR_URL"
+          gh pr ready "$PR_URL"
+          gh pr merge "$PR_URL" --auto --squash --delete-branch
+
+      - name: Upload repair evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
