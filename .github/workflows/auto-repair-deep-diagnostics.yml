@@ -1,8 +1,8 @@
 name: FLIXO Auto Repair Deep Diagnostics
 
 # Automatically diagnoses failures and, only after the repair engine certifies
-# a verified repair, applies a bounded patch to main. Canonical CI remains
-# the final gate; failed verification never publishes source.
+a verified repair, applies a bounded patch to main. Canonical CI remains
+the final gate; failed verification never publishes source.
 on:
   workflow_run:
     workflows:
@@ -64,6 +64,14 @@ jobs:
         run: |
           node scripts/test-error-root-cause-extractor.mjs
           node scripts/ci/extract-error-root-causes.mjs docs/ERROR_MEMORY.md error-root-causes.json
+
+      - name: Reset generated diagnostics before mutation
+        run: |
+          set -euo pipefail
+          git restore --worktree --staged --source=HEAD -- diagnostics/investigation diagnostics/auto-repair 2>/dev/null || true
+          git clean -fd -- diagnostics/investigation diagnostics/auto-repair 2>/dev/null || true
+          rm -f error-root-causes.json
+          test -z "$(git status --porcelain)"
 
       - name: Run bounded repair engine
         env:
