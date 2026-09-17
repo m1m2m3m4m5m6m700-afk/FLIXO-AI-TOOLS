@@ -16,9 +16,9 @@ for (const marker of [
   'TASK AGENT — OWNER OF THIS FILE',
   'Prepared Changes / Patch Plan',
   'الوكيل التنفيذي',
-  'Action Ownership',
+  'MULTI-AGENT EXECUTION SYSTEM — v1',
   'git push',
 ]) {
   if (!task.includes(marker)) throw new Error(`TASK_AGENT_TASK_GATE_MARKER_MISSING=${marker}`);
 }
-console.log(JSON.stringify({ status: 'PASS', authority: 'TASK_AGENT_ACTION_OWNER', requiredFiles: required.length }, null, 2));
+console.log(JSON.stringify({ status: 'PASS', authority: 'TASK_AGENT_PREPARATION_OWNER', requiredFiles: required.length }, null, 2));
