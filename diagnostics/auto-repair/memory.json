@@ -1,7 +1,62 @@
 {
   "version": 6,
-  "cases": [],
+  "cases": [
+    {
+      "fingerprint": "7ee9ce7b111189a636df0f2155d6f0be9192276595365dc1c054e1071b1b2ff2",
+      "rootCause": "static-lint-no-useless-escape",
+      "attempts": 1,
+      "successes": 0,
+      "failures": 1,
+      "rules": [
+        "remove only unnecessary regex escapes in scripts/ci/code-read-only-scout.mjs"
+      ],
+      "outcomes": [
+        {
+          "outcome": "blocked",
+          "verification": "historical failure evidence; repair PR #715 exists but is not yet merged/certified",
+          "rule": "remove only unnecessary regex escapes in scripts/ci/code-read-only-scout.mjs",
+          "provenance": {
+            "source": "historical GitHub Actions / repair-cycle evidence",
+            "failedSha": "a489918fbdc666c7f1cae2c7db0dc17b3b9a8ca7",
+            "runId": "35152740859",
+            "repairPr": 715
+          },
+          "preventionRule": "do not mark DEBT-001 closed until targeted verification, regression, canonical CI, certification and exact-SHA evidence are green"
+        }
+      ],
+      "normalizedFailure": "Run <RUN> failed on the static lint gate with fingerprint FPR-ECA7132F12B9: seven no-useless-escape errors in scripts/ci/code-read-only-scout.mjs.",
+      "features": [
+        "lint"
+      ],
+      "confidence": 0
+    }
+  ],
   "playbooks": [],
   "lessons": [],
-  "antiLessons": []
+  "antiLessons": [
+    {
+      "id": "a1b2c3d4e5f60718293a",
+      "fingerprint": "7ee9ce7b111189a636df0f2155d6f0be9192276595365dc1c054e1071b1b2ff2",
+      "rootCause": "static-lint-no-useless-escape",
+      "rule": "remove only unnecessary regex escapes in scripts/ci/code-read-only-scout.mjs",
+      "attempts": 1,
+      "successes": 0,
+      "failures": 1,
+      "confidence": 0,
+      "evidence": [
+        {
+          "verification": "historical failure evidence; repair PR #715 remains unmerged",
+          "provenance": {
+            "runId": "35152740859",
+            "failedSha": "a489918fbdc666c7f1cae2c7db0dc17b3b9a8ca7",
+            "repairPr": 715
+          }
+        }
+      ],
+      "preventionRules": [
+        "never convert a failed historical repair into a success lesson without exact-SHA verification"
+      ],
+      "lastSeenAt": "2026-09-17T00:38:20Z"
+    }
+  ]
 }
