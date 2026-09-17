@@ -64,7 +64,7 @@ for (const marker of [
   'execution`',
   '`main`',
   'exactly **two active branch paths**',
-  'No third branch',
+  'There is no third branch',
   'execution → main',
   'MUST fail closed',
 ]) {
