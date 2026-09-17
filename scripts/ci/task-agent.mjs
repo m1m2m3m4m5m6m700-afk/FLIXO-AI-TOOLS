@@ -64,6 +64,10 @@ const selected = requested
 if (!selected.length) throw new Error(requested ? `TASK_NOT_FOUND=${requested}` : 'NO_READY_TASKS');
 if (!branch || branch === 'main') throw new Error('DIRECT_EXECUTION_REQUIRES_ISOLATED_BRANCH');
 
+const scopePolicy = 'SELF_HEALING_REPAIR_ONLY';
+const scopeEnforcement = 'FAIL_CLOSED';
+if (scopePolicy !== 'SELF_HEALING_REPAIR_ONLY' || scopeEnforcement !== 'FAIL_CLOSED') throw new Error('SELF_HEALING_SCOPE_CONTRACT_VIOLATION');
+
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 const generatedAt = new Date().toISOString();
 const outputs = [];
@@ -71,13 +75,17 @@ const outputs = [];
 for (const task of selected) {
   const fingerprint = failureFingerprint || hash(`${task.taskId}|${task.title}|${task.section}`).slice(0, 16);
   const packet = {
-    schemaVersion: 6,
+    schemaVersion: 7,
     authority: 'FLIXO_TASK_AGENT',
     role: 'TASK_OWNER_AND_DIRECT_REPAIR_AGENT',
     mode: repairMode,
     preparedOnly: false,
     executionMode: 'DIRECT_ON_ISOLATED_REPAIR_BRANCH',
     mutationPolicy: 'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_REPAIR_BRANCH',
+    scopePolicy,
+    scopeEnforcement,
+    allowedWork: 'ACTIVE_SELF_HEALING_REPAIR_CYCLE_OR_EXPLICIT_INCOMPLETE_REPAIR_TASK_ONLY',
+    forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','GATE_WEAKENING','MAIN_MUTATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],
     taskFile: 'مهام.md',
     task,
     failureContext: {
@@ -91,6 +99,7 @@ for (const task of selected) {
     },
     baselineSha: sha,
     executionBranch: branch,
+    mainBranchMutation: false,
     generatedAt,
     errorFingerprint: fingerprint,
     repairSummary: {
@@ -104,13 +113,14 @@ for (const task of selected) {
     },
     instructions: {
       objective: repairMode.includes('ACTIVE')
-        ? 'Execute the smallest safe source correction plus proportional hardening for the currently failing repair cycle; do not replace source repair with a newly added test.'
-        : 'Execute the selected task directly on the isolated repair branch, verify the result, and leave main untouched.',
+        ? 'Execute only the smallest safe source correction plus proportional hardening for the currently failing repair cycle; do not replace source repair with a newly added test or unrelated work.'
+        : 'Execute only the selected repair task directly on the isolated repair branch, verify the result, and leave main untouched.',
       sourcePayload: 'CODE_AND_EXECUTION',
-      requiredChangeShape: ['path', 'operation', 'content', 'baselineSha'],
+      requiredChangeShape: ['path', 'operation', 'content', 'baselineSha', 'repairRationale'],
       verificationRequired: true,
       unresolvedWorkMustBeReported: true,
       currentCycleFirst: true,
+      scopeMustRemainSelfHealingOnly: true,
       newTestMayOnlyBeAddedWhen: 'IT_PROVES_REGRESSION_OR_HARDENING_AFTER_THE_SOURCE_FIX_AND_IS_NOT_THE_FIX_ITSELF',
     },
     completionPolicy: {
@@ -154,6 +164,7 @@ for (const task of selected) {
       commitAuthority: 'TASK_AGENT_ON_REPAIR_BRANCH_ONLY',
       pushAuthority: 'TASK_AGENT_ON_REPAIR_BRANCH_ONLY',
       completionAuthority: 'VERIFIER_AFTER_CANONICAL_GREEN_ONLY',
+      scopeAuthority: 'SELF_HEALING_REPAIR_ONLY',
     },
   };
   const output = path.join(OUTPUT_DIR, `${task.taskId}.json`);
@@ -162,13 +173,16 @@ for (const task of selected) {
 }
 
 const index = {
-  schemaVersion: 6,
+  schemaVersion: 7,
   authority: 'FLIXO_TASK_AGENT',
   mode: repairMode,
   preparedOnly: false,
   executionMode: 'DIRECT_ON_ISOLATED_REPAIR_BRANCH',
+  scopePolicy,
+  scopeEnforcement,
   baselineSha: sha,
   executionBranch: branch,
+  mainBranchMutation: false,
   generatedAt,
   selected: outputs,
   selectedCount: outputs.length,
