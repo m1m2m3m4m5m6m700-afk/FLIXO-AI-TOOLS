@@ -4,8 +4,10 @@ const isCi = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 const isS4RuntimeGate = process.env.S4_RUNTIME_GATE === 'true';
 const isS4ExternalServer = process.env.S4_EXTERNAL_SERVER === 'true';
 const useProductionServer = !isCi && process.env.PLAYWRIGHT_SERVER === 'production';
-const testOrigin = process.env.VITE_TEST_ORIGIN || 'http://127.0.0.1:3000';
+const testPort = Number(process.env.PLAYWRIGHT_TEST_PORT || '3000');
+const testOrigin = process.env.VITE_TEST_ORIGIN || `http://127.0.0.1:${testPort}`;
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === 'true';
+const testUrl = `http://127.0.0.1:${testPort}`;
 
 export default defineConfig({
   testDir: './tests',
@@ -22,7 +24,7 @@ export default defineConfig({
       ? [['github'], ['json', { outputFile: 'playwright-report/results.json' }]]
       : [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]],
   use: {
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://127.0.0.1:3000',
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || testUrl,
     serviceWorkers: 'block',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
@@ -51,11 +53,11 @@ export default defineConfig({
     : {
         webServer: {
           command: isCi
-            ? 'npm run preview -- --host 127.0.0.1 --port 3000'
+            ? `npm run preview -- --host 127.0.0.1 --port ${testPort}`
             : useProductionServer
-              ? 'npm run build && npm run preview -- --host 127.0.0.1 --port 3000'
-              : 'npm run build:runtime && npm run preview -- --host 127.0.0.1 --port 3000',
-          url: 'http://127.0.0.1:3000',
+              ? `npm run build && npm run preview -- --host 127.0.0.1 --port ${testPort}`
+              : `npm run build:runtime && npm run preview -- --host 127.0.0.1 --port ${testPort}`,
+          url: testUrl,
           timeout: 120_000,
           reuseExistingServer,
           env: {
