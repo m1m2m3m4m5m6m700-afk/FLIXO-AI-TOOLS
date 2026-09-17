@@ -23,6 +23,17 @@ const grep = (pattern) => {
     return '';
   }
 };
+const stableJson = (value) => JSON.stringify(value, Object.keys(value).sort());
+const fingerprintFor = (finding) => createHash('sha256').update(stableJson({
+  id: finding.id,
+  category: finding.category,
+  severity: finding.severity,
+  status: finding.status,
+  target: finding.target,
+  summary: finding.summary,
+  evidence: finding.evidence,
+  action: finding.action,
+})).digest('hex').slice(0, 16).toUpperCase();
 const findings = [];
 
 const packageJson = JSON.parse(read('package.json') || '{}');
@@ -78,25 +89,27 @@ if (/DEFAULT_SEED_UI\s*=/.test(seed) && /getTranslationBundle\(/.test(seed)) {
   findings.push({ id: 'RC-DEBT-I18N-FALLBACK-UNPROVEN', category: 'I18N', severity: 'LOW', status: 'UNPROVEN', target: 'src/tools/seed/index.tsx', summary: 'English fallback literals coexist with runtime locale loading; static presence is not proof of bypass.', evidence: { defaultFallbackDetected: true, runtimeBundleLoadDetected: true }, action: 'KEEP_PENDING_BEHAVIORAL_PROOF' });
 }
 
+const findingsWithFingerprints = findings.map((finding) => ({ ...finding, fingerprint: fingerprintFor(finding) }));
 const result = {
-  schema: 'flixo-technical-debt-audit/v3', generatedAt: new Date().toISOString(), sha,
+  schema: 'flixo-technical-debt-audit/v4', generatedAt: new Date().toISOString(), sha,
   inventory: { trackedFiles: tracked.length, sourceFiles: sourceFiles.length, testFiles: testFiles.length, localeJsonFiles: localeFiles.length, assetFiles: assetFiles.length, packageDependencies: packageNames.length, contractProtected },
   classification: {
-    directCiBlockers: findings.filter((x) => x.category === 'CI' && /HIGH|CRITICAL/.test(x.severity)).map((x) => x.id),
-    latentCiDebt: findings.filter((x) => x.category === 'CI').map((x) => x.id),
-    nonCiTechnicalDebt: findings.filter((x) => x.category !== 'CI').map((x) => x.id),
+    directCiBlockers: findingsWithFingerprints.filter((x) => x.category === 'CI' && /HIGH|CRITICAL/.test(x.severity)).map((x) => x.id),
+    latentCiDebt: findingsWithFingerprints.filter((x) => x.category === 'CI').map((x) => x.id),
+    nonCiTechnicalDebt: findingsWithFingerprints.filter((x) => x.category !== 'CI').map((x) => x.id),
   },
   summary: {
-    directCiBlockers: findings.filter((x) => x.category === 'CI' && /HIGH|CRITICAL/.test(x.severity)).length,
-    latentCiDebt: findings.filter((x) => x.category === 'CI').length,
-    nonCiTechnicalDebt: findings.filter((x) => x.category !== 'CI').length,
-    findings: findings.length, deletionCandidates: findings.filter((x) => /DELETE|REMOVE/.test(x.action)).length,
-    modificationCandidates: findings.filter((x) => x.action?.startsWith('MODIFY')).length, unproven: findings.filter((x) => x.status === 'UNPROVEN').length,
-  }, findings,
+    directCiBlockers: findingsWithFingerprints.filter((x) => x.category === 'CI' && /HIGH|CRITICAL/.test(x.severity)).length,
+    latentCiDebt: findingsWithFingerprints.filter((x) => x.category === 'CI').length,
+    nonCiTechnicalDebt: findingsWithFingerprints.filter((x) => x.category !== 'CI').length,
+    findings: findingsWithFingerprints.length, deletionCandidates: findingsWithFingerprints.filter((x) => /DELETE|REMOVE/.test(x.action)).length,
+    modificationCandidates: findingsWithFingerprints.filter((x) => x.action?.startsWith('MODIFY')).length, unproven: findingsWithFingerprints.filter((x) => x.status === 'UNPROVEN').length,
+  }, findings: findingsWithFingerprints,
 };
-result.auditDigest = createHash('sha256').update(JSON.stringify(result)).digest('hex');
+const digestPayload = { ...result, generatedAt: undefined };
+result.auditDigest = createHash('sha256').update(JSON.stringify(digestPayload)).digest('hex');
 writeFileSync(resolve(OUT, 'technical-debt-audit.json'), `${JSON.stringify(result, null, 2)}\n`);
-writeFileSync(resolve(OUT, 'technical-debt-audit.md'), `# Technical-Debt Audit\n\nSHA: ${sha}\n\nTracked files: ${result.inventory.trackedFiles}\nSource files: ${result.inventory.sourceFiles}\nTest files: ${result.inventory.testFiles}\nLocale JSON files: ${result.inventory.localeJsonFiles}\nAsset files: ${result.inventory.assetFiles}\nDependencies: ${result.inventory.packageDependencies}\n\nDIRECT CI BLOCKERS: ${result.summary.directCiBlockers}\nLATENT CI DEBT: ${result.summary.latentCiDebt}\nNON-CI TECHNICAL DEBT: ${result.summary.nonCiTechnicalDebt}\nDELETION CANDIDATES: ${result.summary.deletionCandidates}\nUNPROVEN: ${result.summary.unproven}\n\nNo zero-debt claim is emitted without inventory-backed findings.\n`);
+writeFileSync(resolve(OUT, 'technical-debt-audit.md'), `# Technical-Debt Audit\n\nSHA: ${sha}\n\nTracked files: ${result.inventory.trackedFiles}\nSource files: ${result.inventory.sourceFiles}\nTest files: ${result.inventory.testFiles}\nLocale JSON files: ${result.inventory.localeJsonFiles}\nAsset files: ${result.inventory.assetFiles}\nDependencies: ${result.inventory.packageDependencies}\n\nDIRECT CI BLOCKERS: ${result.summary.directCiBlockers}\nLATENT CI DEBT: ${result.summary.latentCiDebt}\nNON-CI TECHNICAL DEBT: ${result.summary.nonCiTechnicalDebt}\nDELETION CANDIDATES: ${result.summary.deletionCandidates}\nUNPROVEN: ${result.summary.unproven}\n\nFinding fingerprints are deterministic for the same audited repository state.\nNo zero-debt claim is emitted without inventory-backed findings.\n`);
 console.log(`TECHNICAL_DEBT_AUDIT_SHA=${sha}`);
 console.log(`TRACKED_FILES=${result.inventory.trackedFiles}`);
 console.log(`DIRECT_CI_BLOCKERS=${result.summary.directCiBlockers}`);
