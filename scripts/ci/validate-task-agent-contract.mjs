@@ -29,10 +29,10 @@ for (const marker of [
 }
 
 for (const marker of [
-  'Exact-SHA Evidence',
-  'Canonical CI GREEN',
-  'No execution before confirmation',
-  'auto-merge',
+  'main` هو مصدر الحقيقة للإنتاج.',
+  'لا `GREEN` دون دليل مرتبط بالـSHA نفسه.',
+  'auto-merge مسموح فقط بعد GREEN',
+  'الإصلاحات الآلية تمر عبر repair branch/isolated change ثم canonical CI.',
 ]) {
   if (!task.includes(marker)) throw new Error(`TASK_AGENT_TASK_GATE_MARKER_MISSING=${marker}`);
 }
