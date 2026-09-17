@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-repair/fingerprint.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
+const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
+const INTRACTABLE_THRESHOLD = 10;
 export { normalizeFailure, fingerprintFailure, extractFeatures };
 
 const emptyMemory = () => ({ version: 6, cases: [], playbooks: [], lessons: [], antiLessons: [] });
@@ -15,6 +17,65 @@ export function loadMemory() {
   } catch {
     return emptyMemory();
   }
+}
+
+function emptyIntractable() {
+  return {
+    version: 1,
+    threshold: INTRACTABLE_THRESHOLD,
+    protocol: 'SUPERVISING-REPAIR-TEACHING-v1',
+    cases: [],
+  };
+}
+
+function loadIntractable() {
+  if (!fs.existsSync(intractablePath)) return emptyIntractable();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(intractablePath, 'utf8'));
+    return { ...emptyIntractable(), ...parsed, threshold: INTRACTABLE_THRESHOLD, protocol: 'SUPERVISING-REPAIR-TEACHING-v1' };
+  } catch {
+    return emptyIntractable();
+  }
+}
+
+function writeIntractable(data) {
+  fs.mkdirSync(intractablePath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
+  fs.writeFileSync(intractablePath, `${JSON.stringify(data, null, 2)}\n`);
+}
+
+function updateIntractable({ entry, rule, verification, provenance, rootCause }) {
+  if (!entry || entry.attempts < INTRACTABLE_THRESHOLD || entry.successes > 0) return;
+  const data = loadIntractable();
+  const existing = data.cases.find((item) => item.fingerprint === entry.fingerprint);
+  const record = existing ?? {
+    fingerprint: entry.fingerprint,
+    status: 'INTRACTABLE',
+    rootCause: rootCause ?? entry.rootCause ?? 'unknown',
+    attemptsAtEscalation: entry.attempts,
+    attempts: entry.attempts,
+    successes: entry.successes,
+    failures: entry.failures,
+    firstSeenAt: new Date().toISOString(),
+    lastSeenAt: null,
+    evidence: [],
+    rejectedApproaches: [],
+    teachingRequest: {
+      required: true,
+      protocol: 'SUPERVISING-REPAIR-TEACHING-v1',
+      state: 'AWAITING_SUPERVISING_AGENT',
+      requiredResponse: ['newHypothesis', 'diagnosticChange', 'repairStrategy', 'verificationPlan', 'doNotRepeat', 'exitCriteria'],
+    },
+    exitCriteria: 'A new evidence-backed strategy produces verified-repair on the exact target SHA and passes canonical CI.',
+  };
+  record.rootCause = rootCause ?? record.rootCause;
+  record.attempts = entry.attempts;
+  record.successes = entry.successes;
+  record.failures = entry.failures;
+  record.lastSeenAt = new Date().toISOString();
+  record.evidence = [...record.evidence, { at: record.lastSeenAt, verification, provenance, rule: rule ?? null }].slice(-20);
+  if (rule) record.rejectedApproaches = [...new Set([...record.rejectedApproaches, rule])].slice(-20);
+  if (!existing) data.cases.push(record);
+  writeIntractable(data);
 }
 
 export function findCase(memory, fingerprint) {
@@ -116,6 +177,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked') {
     upsertLesson(memory, { fingerprint, rootCause: entry.rootCause, rule, outcome, verification, provenance, preventionRule });
   }
+  updateIntractable({ entry, rule, verification, provenance, rootCause: entry.rootCause });
   return memory;
 }
 
