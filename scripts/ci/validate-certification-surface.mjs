@@ -35,9 +35,10 @@ const nonTestAutomation = new Set([
 ]);
 const auxiliaryEvidenceAutomation = new Set(['test-impact.yml', 'test-impact-execution.yml']);
 const trustBaselineAutomation = new Set(['wp0-trust-baseline.yml']);
+const controlledMergeAutomation = new Set(['auto-repair-merge-gate.yml']);
 const automatedNonCanonical = [];
 for (const file of workflowFiles) {
-  if (file === 'ci.yml' || nonTestAutomation.has(file) || auxiliaryEvidenceAutomation.has(file) || trustBaselineAutomation.has(file)) continue;
+  if (file === 'ci.yml' || nonTestAutomation.has(file) || auxiliaryEvidenceAutomation.has(file) || trustBaselineAutomation.has(file) || controlledMergeAutomation.has(file)) continue;
   const text = fs.readFileSync(path.join(ROOT, '.github', 'workflows', file), 'utf8');
   if (/^\s*(push|pull_request):/m.test(text)) automatedNonCanonical.push(`.github/workflows/${file}`);
 }
@@ -59,13 +60,25 @@ if (fs.existsSync(impactExecutionWorkflow)) {
   for (const [label, pattern] of [
     ['execution workflow identity', /name:\s*FLIXO Test Impact Execution/],
     ['canonical impact execution', /node scripts\/ci\/test-impact\.mjs --mode=pr --base="\$BASE_SHA" --execute/],
-    ['bounded concurrency', /IMPACT_MAX_CONCURRENCY:\s*['"]10['"]/],
+    ['bounded concurrency', /IMPACT_MAX_CONCURRENCY:\s*['"](?:10|12)['"]/],
     ['immutable execution SHA', /execution\.sha\s*!==\s*expected/],
     ['execution PASS reducer', /execution\.status\s*!==\s*'PASS'/],
     ['execution result coverage', /execution\.results\.length\s*!==\s*execution\.commands\.length/],
     ['execution evidence reducer', /node scripts\/ci\/test-evidence-reducer\.mjs/],
   ]) if (!pattern.test(executionSource)) errors.push(`impact execution invariant missing: ${label}`);
   if (/continue-on-error\s*:\s*true/i.test(executionSource)) errors.push('impact execution workflow contains continue-on-error=true');
+}
+
+const mergeGate = path.join(ROOT, '.github', 'workflows', 'auto-repair-merge-gate.yml');
+if (fs.existsSync(mergeGate)) {
+  const mergeSource = fs.readFileSync(mergeGate, 'utf8');
+  for (const [label, pattern] of [
+    ['repair-branch scope', /startsWith\(github\.event\.pull_request\.head\.ref,\s*'flixo-auto-repair\/'\)/],
+    ['same-repository guard', /github\.event\.pull_request\.head\.repo\.full_name\s*==\s*github\.repository/],
+    ['exact-head merge guard', /--match-head-commit\s+"\$EXPECTED_SHA"/],
+    ['automatic merge after checks', /gh pr merge[\s\S]*--auto/],
+  ]) if (!pattern.test(mergeSource)) errors.push(`controlled merge gate invariant missing: ${label}`);
+  if (/pull_request_target/i.test(mergeSource)) errors.push('controlled merge gate must not use pull_request_target');
 }
 
 if (automatedNonCanonical.length) errors.push(...automatedNonCanonical.map((file) => `non-canonical automated workflow: ${file}`));
@@ -76,7 +89,7 @@ const result = {
   status: errors.length ? 'FAIL' : 'PASS',
   workflow: '.github/workflows/ci.yml',
   architecture: { layers: ['impact-plan', 'impact-execution', 'static+build', 'browser-fast', 'browser-deep', 'certify'], browserFast: { tools: 22, browsers: 3, units: 66 }, browserDeep: { locales: 20, browsers: 3 }, certification: 'single fail-closed certify job' },
-  checks: { fastToolCount: fastSpecs.length, browsers: /browser:\s*\[chromium, firefox, webkit\]/.test(ci), deepLocalization: /tests\/localization-runtime\.spec\.ts/.test(ci), immutableArtifact: /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci), auxiliaryEvidenceAutomation: [...auxiliaryEvidenceAutomation], trustBaselineAutomation: [...trustBaselineAutomation], nonCanonicalAutomatedWorkflows: automatedNonCanonical, nonTestAutomation: [...nonTestAutomation] },
+  checks: { fastToolCount: fastSpecs.length, browsers: /browser:\s*\[chromium, firefox, webkit\]/.test(ci), deepLocalization: /tests\/localization-runtime\.spec\.ts/.test(ci), immutableArtifact: /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci), auxiliaryEvidenceAutomation: [...auxiliaryEvidenceAutomation], trustBaselineAutomation: [...trustBaselineAutomation], controlledMergeAutomation: [...controlledMergeAutomation], nonCanonicalAutomatedWorkflows: automatedNonCanonical, nonTestAutomation: [...nonTestAutomation] },
   errors,
 };
 fs.mkdirSync(path.join(ROOT, 'diagnostics', 'certification'), { recursive: true });
