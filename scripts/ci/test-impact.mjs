@@ -67,6 +67,12 @@ console.log(`IMPACT_COMMANDS=${commands.length}`);
 
 if (!execute) process.exit(0);
 
+const maxConcurrency = Number(process.env.IMPACT_MAX_CONCURRENCY ?? 6);
+if (!Number.isInteger(maxConcurrency) || maxConcurrency < 1 || maxConcurrency > 16) {
+  throw new Error(`Invalid IMPACT_MAX_CONCURRENCY: ${maxConcurrency}`);
+}
+
+const isInstall = (command) => /^npm\s+(ci|install)(?:\s|$)/.test(command);
 const run = (command) => new Promise((resolveResult) => {
   const [program, ...parts] = command.split(/\s+/);
   const startedAt = new Date().toISOString();
@@ -79,13 +85,30 @@ const run = (command) => new Promise((resolveResult) => {
 });
 
 const results = [];
-for (const command of commands) {
+const installations = commands.filter(isInstall);
+const verification = commands.filter((command) => !isInstall(command));
+
+// Package installation mutates node_modules, so it is deliberately serialized before
+// any verification. Independent verification commands then run in bounded parallelism.
+for (const command of installations) {
   const result = await run(command);
   results.push(result);
   if (result.status !== 'PASS') break;
 }
+
+if (!results.some((r) => r.status === 'FAIL')) {
+  for (let i = 0; i < verification.length; i += maxConcurrency) {
+    const batch = verification.slice(i, i + maxConcurrency);
+    const batchResults = await Promise.all(batch.map(run));
+    results.push(...batchResults);
+    if (batchResults.some((r) => r.status !== 'PASS')) break;
+  }
+}
+
 const execution = {
   ...plan,
+  executionMaxConcurrency: maxConcurrency,
+  executionStrategy: installations.length ? 'install-then-bounded-parallel-verification' : 'bounded-parallel-verification',
   status: results.every((r) => r.status === 'PASS') && results.length === commands.length ? 'PASS' : 'FAIL',
   results,
   completedAt: new Date().toISOString(),
