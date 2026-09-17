@@ -15,16 +15,23 @@ FLIXO uses a layered security baseline without adding a second application archi
 
 ## Repository protection contract
 
-`main` is the canonical branch. The intended protection model is:
+`main` is the canonical production branch and `execution` is the only working branch. The repository uses exactly two active branch paths:
+
+```text
+execution → main
+```
 
 1. No direct pushes to `main`.
 2. No force-push or branch deletion on `main`.
-3. Changes enter through pull requests.
-4. Canonical CI checks are required before merge.
-5. Security-sensitive paths require owner review through CODEOWNERS.
-6. Auto-merge is allowed only when every required check is green on the exact PR head SHA.
-7. Repair agents operate on isolated `fix/*` branches and must not receive unrestricted `main` mutation authority.
-8. Diagnostic, Vercel, partial, or advisory checks cannot independently certify `GREEN`.
+3. All active work is performed on `execution`.
+4. The only integration PR is `execution → main`.
+5. Canonical CI checks are required before merge.
+6. Security-sensitive paths require owner review through CODEOWNERS.
+7. Auto-merge is allowed only when every required check is green on the exact `execution` PR head SHA.
+8. Repair agents must not create or use any third branch.
+9. Diagnostic, Vercel, partial, or advisory checks cannot independently certify `GREEN`.
+
+Historical branches may remain as archived Git history, but they are not valid execution paths. Any automation that attempts to create, push, or merge a third branch must fail closed.
 
 The repository-level Ruleset/branch-protection settings are platform controls and must remain enabled in GitHub. The source tree cannot safely self-grant those administrative protections.
 
@@ -60,3 +67,4 @@ Untrusted persisted state, API responses, checkpoints, and file inputs are valid
 4. Never weaken existing CI checks just to make a run green.
 5. Treat browser-reported MIME as advisory; file safety must include extension, MIME, magic bytes, and decoder validation where applicable.
 6. Every security repair must record root cause, hardening control, exact-SHA evidence, and regression proof.
+7. Branch topology is fixed: `execution` is the sole working branch and `main` is the sole production branch.

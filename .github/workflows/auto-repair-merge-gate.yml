@@ -11,24 +11,44 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: flixo-auto-repair-merge-${{ github.event.pull_request.number }}
+  group: flixo-two-branch-merge-gate
   cancel-in-progress: false
 
 jobs:
   gate:
-    if: startsWith(github.event.pull_request.head.ref, 'flixo-auto-repair/') && github.event.pull_request.head.repo.full_name == github.repository
+    # The only legal integration path is execution -> main.
+    if: github.event.pull_request.head.ref == 'execution' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Wait for every PR check to finish
+      - name: Wait for repository checks; isolate external deployment-provider status
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --watch --interval 20
+          deadline=$((SECONDS + 3300))
+          while true; do
+            gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json name,state,bucket > /tmp/pr-checks.json
+            jq '[.[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment")]' /tmp/pr-checks.json > /tmp/repository-checks.json
+            jq '[.[] | select((.name | ascii_downcase) == "vercel" or (.name | ascii_downcase) == "vercel deployment")]' /tmp/pr-checks.json > /tmp/external-vercel.json
 
-      - name: Require exact-head green evidence
+            if jq -e '.[] | select(.bucket != "pass")' /tmp/repository-checks.json >/tmp/non-green-checks.json; then
+              if [ "$SECONDS" -ge "$deadline" ]; then
+                cat /tmp/non-green-checks.json
+                echo 'Timed out waiting for repository checks.'
+                exit 1
+              fi
+              sleep 20
+              continue
+            fi
+            break
+          done
+          echo 'Repository checks are GREEN.'
+          echo 'Vercel status is recorded separately as external deployment-provider evidence:'
+          cat /tmp/external-vercel.json
+
+      - name: Require exact-head repository GREEN evidence
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -37,17 +57,32 @@ jobs:
           set -euo pipefail
           ACTUAL_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA" || { echo "HEAD_CHANGED=$ACTUAL_SHA expected=$EXPECTED_SHA"; exit 1; }
-          gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json name,state,bucket --jq '.[] | select(.bucket != "pass") | [.name,.state,.bucket] | @tsv' > /tmp/non-green-checks
+          gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json name,state,bucket --jq '.[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and .bucket != "pass") | [.name,.state,.bucket] | @tsv' > /tmp/non-green-checks
           if [ -s /tmp/non-green-checks ]; then
             cat /tmp/non-green-checks
             exit 1
           fi
 
-      - name: Enable automatic merge only after green proof
+      - name: Execute canonical merge only after exact-SHA repository GREEN proof
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --auto --match-head-commit "$EXPECTED_SHA" --delete-branch
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --match-head-commit "$EXPECTED_SHA"
+
+      - name: Verify merged main identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          state="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,mergedAt --jq '.state+"|"+(.mergedAt//"")')"
+          case "$state" in
+            MERGED\|*) ;;
+            *) echo "Canonical execution -> main merge was not completed: $state"; exit 1 ;;
+          esac
+          main_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
+          test -n "$main_sha" && test "$main_sha" != "null"
+          echo "Canonical main after merge: $main_sha"

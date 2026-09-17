@@ -1,5 +1,9 @@
 name: FLIXO Auto Repair Bot
 
+# TWO-BRANCH MODEL:
+# execution = sole working/repair branch
+# main      = sole production/source-of-truth branch
+# No workflow in this file may create another branch.
 on:
   workflow_dispatch:
     inputs:
@@ -19,7 +23,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: flixo-auto-repair-main
+  group: flixo-auto-repair-execution
   cancel-in-progress: false
 
 env:
@@ -32,7 +36,7 @@ env:
 
 jobs:
   repair:
-    name: Single-lane diagnose, execute, verify and learn
+    name: Single-lane diagnose, execute, verify and learn on execution
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'failure' ||
@@ -40,10 +44,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Checkout trusted repair engine from current main
+      - name: Checkout canonical execution branch
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: execution
           fetch-depth: 0
 
       - name: Resolve target workflow run
@@ -54,31 +58,35 @@ jobs:
           CONCLUSION="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion')"
           case "$CONCLUSION" in
             failure|timed_out) ;;
-            skipped|cancelled|action_required|stale|success|neutral|in_progress|queued)
-              echo "Target run $TARGET_RUN_ID has non-diagnosable conclusion: $CONCLUSION"
-              exit 1
-              ;;
-            *)
-              echo "Target run $TARGET_RUN_ID has unsupported conclusion: $CONCLUSION"
-              exit 1
-              ;;
+            *) echo "Target run $TARGET_RUN_ID is not a diagnosable failure: $CONCLUSION"; exit 1 ;;
           esac
           gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,conclusion,headSha,headBranch,name
-          printf '%s\n' "$TARGET_RUN_ID" > /tmp/flixo-target-run-id
-          printf '%s\n' "$CONCLUSION" > /tmp/flixo-target-conclusion
+          FAILED_SHA="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha --jq '.headSha')"
+          test -n "$FAILED_SHA" && test "$FAILED_SHA" != "null"
+          printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
 
-      - name: Materialize failed SHA as named isolated repair branch
+      - name: Synchronize execution with the failed main SHA without creating a branch
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          FAILED_SHA="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha --jq '.headSha')"
-          test -n "$FAILED_SHA" && test "$FAILED_SHA" != "null"
-          BRANCH="flixo-auto-repair/${TARGET_RUN_ID}-${GITHUB_RUN_ID}"
-          git fetch --no-tags origin "$FAILED_SHA"
-          git worktree add -b "$BRANCH" /tmp/flixo-repair-target "$FAILED_SHA"
-          printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
-          printf '%s\n' "$BRANCH" > /tmp/flixo-repair-branch
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          git fetch --no-tags origin main execution "$FAILED_SHA"
+          git checkout execution
+          git reset --hard origin/execution
+          # execution may advance to the failed main SHA only by fast-forward.
+          # If it contains unrelated/unmerged work, fail closed rather than branching.
+          if git merge-base --is-ancestor "$FAILED_SHA" HEAD; then
+            echo "execution already contains failed SHA $FAILED_SHA"
+          elif git merge-base --is-ancestor HEAD "$FAILED_SHA"; then
+            git merge --ff-only "$FAILED_SHA"
+            git push origin execution
+          else
+            echo "execution and failed main SHA have diverged; refusing a third branch or destructive reset."
+            exit 1
+          fi
+          test "$(git branch --show-current)" = execution
+          printf '%s\n' execution > /tmp/flixo-repair-branch
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -108,17 +116,14 @@ jobs:
       - name: Classify root cause with evidence gate
         run: node scripts/ci/auto-repair-classifier.mjs
 
-      - name: Bind Task Agent to the active repair cycle on the isolated branch
+      - name: Bind Task Agent to the active repair cycle on execution
         run: |
           set -euo pipefail
           SIGNATURE="$(node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8')); process.stdout.write(x.signature||'unknown')")"
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
-          BRANCH="$(cat /tmp/flixo-repair-branch)"
-          cd /tmp/flixo-repair-target
-          test "$(git branch --show-current)" = "$BRANCH"
+          test "$(git branch --show-current)" = execution
           node scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$SIGNATURE" --failure-evidence=/tmp/flixo-repair-summary.txt
-          cp diagnostics/agents/task-agent/latest.json /tmp/flixo-task-agent-latest.json
-          test -s /tmp/flixo-task-agent-latest.json
+          test -s diagnostics/agents/task-agent/latest.json
 
       - name: Select bounded repair strategy and detect intractable cases
         id: strategy
@@ -139,15 +144,13 @@ jobs:
       - name: Install target dependencies
         id: install_target
         if: steps.strategy.outputs.intractable != 'true'
-        working-directory: /tmp/flixo-repair-target
         run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Execute bounded root-cause repair under Task Agent authority
         id: execute_repair
         if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome == 'success'
-        working-directory: /tmp/flixo-repair-target
         env:
-          FLIXO_TARGET_DIR: /tmp/flixo-repair-target
+          FLIXO_TARGET_DIR: ${{ github.workspace }}
         run: |
           set -euo pipefail
           export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
@@ -156,7 +159,6 @@ jobs:
       - name: Verify Task Agent repair before publication
         id: verify
         if: always()
-        working-directory: /tmp/flixo-repair-target
         run: |
           set -euo pipefail
           if [ "${{ steps.strategy.outputs.intractable }}" = "true" ]; then
@@ -164,43 +166,34 @@ jobs:
             echo 'Case is INTRACTABLE; fail-closed escalation is required.'
             exit 0
           fi
-          test -f /tmp/flixo-repair-evidence.json || {
-            echo 'verified=false' >> "$GITHUB_OUTPUT"
-            echo 'No repair evidence was produced.'
-            exit 0
-          }
+          test -f /tmp/flixo-repair-evidence.json || { echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; }
           OUTCOME=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.outcome||'unknown')")
           echo "REPAIR_OUTCOME=$OUTCOME"
-          if [ "$OUTCOME" != "verified-repair" ]; then
-            echo 'verified=false' >> "$GITHUB_OUTPUT"
-            echo "Repair outcome '$OUTCOME' is not a verified repair; fail closed."
-            exit 0
-          fi
-          git diff --quiet && {
-            echo 'verified=false' >> "$GITHUB_OUTPUT"
-            echo 'Verified repair produced no source diff; refusing publication.'
-            exit 1
-          }
+          if [ "$OUTCOME" != "verified-repair" ]; then echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; fi
+          git diff --quiet && { echo 'verified=false' >> "$GITHUB_OUTPUT"; echo 'Verified repair produced no source diff; refusing publication.'; exit 1; }
           npm run typecheck
           npm run test:static
           npm run test:build
           git diff --check
+          test "$(git branch --show-current)" = execution
           echo 'verified=true' >> "$GITHUB_OUTPUT"
 
-      - name: Commit and push verified repair from Task Agent branch
+      - name: Commit and push verified repair on the single working branch
         if: steps.verify.outputs.verified == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        working-directory: /tmp/flixo-repair-target
         run: |
           set -euo pipefail
-          BRANCH="$(cat /tmp/flixo-repair-branch)"
+          test "$(git branch --show-current)" = execution
           git add -A
           git diff --cached --quiet && { echo 'No applicable repair diff; refusing empty repair.'; exit 1; }
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}"
-          git push --set-upstream origin "$BRANCH"
-          PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --title "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}" --body "Automated repair for unresolved run ${TARGET_RUN_ID}.\n\nThe Task Agent owns the isolated repair branch. The bounded repair engine is an execution backend under that authority. Canonical CI remains the final merge gate.\n\nFailed SHA: $(cat /tmp/flixo-failed-sha)\nRepair run: ${GITHUB_RUN_ID}")"
-          echo "Created verified repair PR: $PR_URL"
+          git push origin execution
+          PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
+          if [ -z "$PR_URL" ]; then
+            PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head execution --title "fix(auto-repair): canonical execution repair" --body "Canonical two-branch repair path.\n\nAll repairs are applied only on execution and promoted only after exact-SHA Canonical CI GREEN.")"
+          fi
+          echo "Canonical execution -> main PR: $PR_URL"
 
       - name: Record learning outcome for every diagnosed failure
         if: always()
@@ -239,7 +232,6 @@ jobs:
             /tmp/flixo-repair-evidence.json
             /tmp/flixo-repair-strategy.json
             /tmp/flixo-intractable-state
-            /tmp/flixo-task-agent-latest.json
             /tmp/flixo-repair-target/diagnostics/agents/task-agent/*.json
             diagnostics/auto-repair/memory.json
             diagnostics/auto-repair/historical-learning.json
@@ -247,7 +239,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Re-open repair cycle when the current attempt is not verified
+      - name: Keep the same repair cycle open when verification is not green
         if: always() && steps.verify.outputs.verified != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -255,16 +247,8 @@ jobs:
           set -euo pipefail
           if [ "$(cat /tmp/flixo-intractable-state 2>/dev/null || printf '%s' false)" = "true" ]; then
             echo 'INTRACTABLE case reached: recursive repair is intentionally stopped.'
-            echo 'Fail-closed teaching/escalation packet is required before a new cycle is allowed.'
             exit 1
           fi
-          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
-          CURRENT_MAIN_SHA="$(git rev-parse origin/main)"
-          if [ "$FAILED_SHA" != "$CURRENT_MAIN_SHA" ]; then
-            echo "Repair target $TARGET_RUN_ID is superseded: failed SHA $FAILED_SHA != current main $CURRENT_MAIN_SHA."
-            echo 'Failing closed; a fresh cycle must start from the current main SHA.'
-            exit 1
-          fi
-          echo "Repair remains open: target run $TARGET_RUN_ID is not verified on current main. Starting another bounded repair pass."
+          echo "Repair remains open on execution for target run $TARGET_RUN_ID."
           gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref main -f target_run_id="$TARGET_RUN_ID"
           exit 1

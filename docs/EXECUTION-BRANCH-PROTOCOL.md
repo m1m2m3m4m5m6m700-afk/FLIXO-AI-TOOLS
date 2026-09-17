@@ -1,178 +1,157 @@
-# FLIXO-AI-TOOLS — EXECUTION PROTOCOL
+# FLIXO-AI-TOOLS — TWO-BRANCH EXECUTION PROTOCOL
 
-**Protocol:** MAIN-FIRST v2.0
-**Canonical stable branch:** `main`
-**Synchronization branch:** `execution`
-**Default batch size:** 20 successful changes
+**Protocol:** TWO-BRANCH / FAIL-CLOSED v1.0  
+**Base / working branch:** `execution`  
+**Primary / production branch:** `main`
 
-## 1. Purpose
+## 1. Canonical branch model
 
-This protocol minimizes routine integration overhead for a single active maintainer/agent. Routine low-risk work may be executed directly on `main` when it has a bounded scope and can be proven immediately. `execution` remains available as the synchronization/recovery branch and must not become a mandatory PR hop for every small change.
+The repository has exactly **two active branch paths**:
 
-## 2. Branch roles
+```text
+execution → main
+```
 
-`main` is the stable source of truth, production/release baseline, and final certification target.
+- `execution` is the only branch where routine development, repair, testing fixes, agent work, and integration preparation may occur.
+- `main` is the only production/source-of-truth branch.
+- No feature, fix, chore, repair, bot, agent, test, diagnostic, temporary, experimental, preview, backup, or per-task branch may be created or used as an active work path.
+- Historical branches may remain as archived Git history, but they are not valid execution paths.
 
-`execution` is the synchronization and exceptional integration branch. It is used when a change is too large, risky, conflict-prone, multi-step, or otherwise benefits from isolation before reaching `main`.
+## 2. Mandatory route
 
-Routine feature, repair, diagnostic, workaround, agent, temporary, and per-task branches remain prohibited unless an exceptional recovery or external-provider requirement explicitly requires one.
-
-## 3. Main-first execution
-
-The normal route for a bounded routine change is:
+Every change follows exactly this route:
 
 ```text
 main
-  ↓
-inspect exact SHA
-  ↓
-change
-  ↓
-targeted regression
-  ↓
-Exact-SHA verification
-  ↓
-continue next bounded change
-```
-
-Direct `main` execution is authorized only when all of the following are true:
-
-```text
-single active owner
-∧ bounded change scope
-∧ no unresolved RCA dependency
-∧ targeted regression is available
-∧ change does not require long-lived isolation
-∧ no production mutation is enabled without its own contract
-```
-
-## 4. When isolation is mandatory
-
-Use `execution` before `main` when any of the following applies:
-
-- security/authentication/authorization changes with broad impact;
-- persistence or destructive/production-sensitive mutation;
-- major architectural or contract changes;
-- rollback scope is materially large;
-- multiple interdependent changes must be developed together;
-- canonical evidence must be frozen only after a controlled integration boundary;
-- direct `main` work would make RCA attribution ambiguous.
-
-The isolation route is:
-
-```text
-main baseline
-  ↓
+  ↓ synchronize execution
 execution
-  ↓
-change
-  ↓
-targeted regression
-  ↓
-canonical CI / certification when required
-  ↓
-Exact-SHA proof
-  ↓
+  ↓ understand / RCA / change / test
+execution
+  ↓ exact-SHA + canonical CI
 execution → main
-  ↓
-verify main
-  ↓
-synchronize execution
+  ↓ verify exact main SHA
+main
+  ↓ synchronize execution
+execution
 ```
 
-## 5. Batch rule
+There is no third branch, alternate repair lane, or parallel PR lane.
 
-The default maximum batch is **20 successful changes**, but batching is optional for small direct-to-main changes. Do not accumulate changes merely to reach 20.
+## 3. Repair model
 
-An earlier certification/integration boundary is mandatory for:
+Self-healing repair is performed directly on `execution` under the Task Agent contract.
 
-- end of the working day;
-- security, authorization, persistence, deployment, or production-sensitive boundaries;
-- major architectural/contract boundaries;
-- materially increasing rollback scope;
-- any requirement to freeze final evidence on `main`.
+The repair agent MUST:
+- bind the failure to the exact failed SHA and evidence;
+- require root-cause evidence;
+- mutate only `execution`;
+- keep `main` immutable during repair;
+- run targeted regression and required checks;
+- push only to `execution`;
+- use the single canonical `execution → main` integration path;
+- keep the repair cycle open until Canonical CI is GREEN on the exact `execution` SHA.
 
-## 6. Testing rule
+A failed repair never creates another branch. A new RED remains inside the same execution path and repair cycle.
 
-Use the smallest targeted regression capable of proving the affected behavior.
+## 4. Main protection
 
-Full canonical CI is not required for every low-risk routine change. It is required whenever the governing contract, affected graph, release boundary, or task closure requires it.
+`main` is never a working branch for agents.
 
-No branch-local, historical, partial, stale, or inferred evidence may be used to claim final `main` GREEN.
+Agents MUST NOT:
+- push directly to `main`;
+- force-push `main`;
+- create a repair/feature branch from `main`;
+- merge a non-canonical branch into `main`;
+- bypass required checks or security gates.
 
-After every direct `main` change:
+Promotion to `main` is permitted only from `execution` after exact-SHA evidence and all required Canonical CI gates are GREEN.
+
+## 5. Execution branch invariants
+
+Before mutation:
 
 ```text
-resolve exact main SHA
-→ inspect targeted checks
-→ run required verification
-→ record resulting SHA/evidence
+current branch == execution
+AND
+execution is synchronized with the current main baseline
+AND
+one active workstream owns execution
+AND
+no competing execution PR exists
 ```
 
-## 7. Zero-False-Green / safety invariants
+If `execution` contains unresolved work or has diverged from the current `main` baseline in a way that cannot be safely reconciled, the agent MUST fail closed rather than create another branch.
 
-Direct `main` execution is a speed optimization, not a permission to weaken controls.
+## 6. Single integration path
 
-Never:
+There is exactly one integration PR at a time:
 
 ```text
-skip a required assertion
-weaken expected behavior to fit a defect
-suppress a failure
-remove coverage
-bypass authorization
-bypass approval
-invent evidence
-enable production mutation without a proven contract
+execution → main
 ```
 
-`FAIL`, `BLOCKED`, `UNKNOWN`, `MISSING_EVIDENCE`, `STALE`, and `NOT_EXECUTED` remain non-GREEN states.
+The merge gate must reject every other head branch. The repair system must reuse this same PR/path rather than opening a new PR for every failure.
 
-## 8. Conflict and failure handling
+## 7. Zero-complexity rule
 
-If a direct `main` change fails targeted regression:
+The following are prohibited:
 
 ```text
-stop follow-on changes
-→ RCA
-→ repair causal source
-→ targeted regression
-→ fresh exact main SHA
+feature/*
+fix/*
+chore/*
+agent/*
+bot/*
+auto-fix/*
+flixo-auto-repair/*
+test/*
+preview/*
+experiment/*
+per-task branches
+per-error branches
+per-run branches
 ```
 
-Move to `execution` when the repair becomes materially complex, requires multiple coordinated changes, or risks destabilizing `main`.
+No workflow may derive a branch name from a run ID, PR number, timestamp, task ID, error fingerprint, or agent ID.
 
-If `main` moves, immediately re-resolve its exact SHA before continuing. `execution` must be synchronized to the resulting `main` state before being used for further work.
+## 8. Failure handling
 
-## 9. Governance integration
-
-This protocol remains subordinate to:
-
-`Zero-False-Green → Exact-SHA → Root-Cause-First → contract/security/release requirements → task gate`
-
-`المهام.md` remains authoritative for task status and dependencies. `CANDIDATE` and `LOCKED` work is not executable until promoted.
-
-This protocol does not authorize bypassing required tests, certification, approvals, evidence, or production controls.
-
-## 10. Session route
-
-Every session uses:
+A RED result follows:
 
 ```text
-READ PROJECTS.md
-→ READ المهام.md
-→ READ AGENTS.md
-→ RESOLVE exact main SHA
-→ IDENTIFY ACTIVE TASK
-→ READ authoritative contract
-→ RCA / scope lock
-→ MAIN-FIRST CHANGE when eligible
-   OR
-   execution isolation when required
-→ TARGETED REGRESSION
-→ REQUIRED CI / CERTIFICATION
-→ EXACT-SHA PROOF
-→ UPDATE PROJECT MAPS
-→ SYNC execution to main when main moved
-→ HANDOFF / LOGOUT
+RED
+ ↓
+capture exact evidence
+ ↓
+RCA
+ ↓
+repair on execution
+ ↓
+regression
+ ↓
+required CI
+ ↓
+new RED? → same execution cycle
+ ↓
+GREEN
+ ↓
+exact-SHA proof
+ ↓
+execution → main
 ```
+
+Tests, timeouts, skips, allowlists, retries, or gate changes must never be used to manufacture GREEN.
+
+## 9. Synchronization
+
+After `main` changes, `execution` must be synchronized before new work begins. The synchronization must preserve the current authoritative `main` SHA and must not create a new branch.
+
+## 10. Enforcement
+
+Any automation that attempts to create, push, or merge a branch other than `execution` or `main` MUST fail closed.
+
+Any workflow, script, task packet, or agent contract that references a third active branch is non-compliant and must be corrected before the change can be considered verified.
+
+`main` = production truth.  
+`execution` = single working truth.  
+**No third path.**

@@ -1,8 +1,6 @@
 name: FLIXO WP0 Trust Baseline
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -28,19 +26,22 @@ jobs:
       - name: 01 — Checkout exact execution SHA
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: execution
           fetch-depth: 1
 
-      - name: 02 — Verify exact checkout identity and create isolated execution branch
+      - name: 02 — Verify exact execution checkout identity and bind agent to execution
         shell: bash
         run: |
           set -euo pipefail
+          test "${{ github.event_name }}" = "pull_request"
+          test "${{ github.event.pull_request.head.ref }}" = "execution"
+          test "${{ github.event.pull_request.base.ref }}" = "main"
+          test "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}"
           ACTUAL_SHA="$(git rev-parse HEAD)"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
-          BRANCH="flixo-wp0-verify-${ACTUAL_SHA:0:12}"
-          git switch -c "$BRANCH" "$EXPECTED_SHA"
+          git switch -C execution "$EXPECTED_SHA"
+          test "$(git branch --show-current)" = "execution"
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          test "$(git branch --show-current)" = "$BRANCH"
           printf '%s\n' "$ACTUAL_SHA" > flixo-wp0-head-sha.txt
 
       - name: 03 — Setup Node
