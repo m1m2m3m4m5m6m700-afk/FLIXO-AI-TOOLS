@@ -1,0 +1,47 @@
+name: FLIXO Auto Repair Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+
+permissions:
+  contents: read
+  actions: write
+  pull-requests: read
+
+concurrency:
+  group: flixo-auto-repair-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watchdog:
+    name: Detect stalled repair cycles
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Inspect open repair lanes and recover missing cycles
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+          prs="$(gh pr list --repo "$repo" --state open --json headRefName,headRefOid,url --jq '.[] | select(.headRefName | startswith("flixo-auto-repair/")) | [.headRefName,.headRefOid,.url] | @tsv')"
+          [ -z "$prs" ] && exit 0
+          while IFS=$'\t' read -r branch sha pr_url; do
+            [ -z "$branch" ] && continue
+            failed="$(gh run list --repo "$repo" --workflow "FLIXO Test System" --branch "$branch" --limit 20 --json databaseId,headSha,conclusion,createdAt --jq 'map(select(.conclusion == "failure")) | .[0] // empty')"
+            [ -z "$failed" ] && continue
+            run_id="$(jq -r '.databaseId' <<<"$failed")"
+            failed_sha="$(jq -r '.headSha' <<<"$failed")"
+            [ "$failed_sha" = "$sha" ] || continue
+            repair="$(gh run list --repo "$repo" --workflow "FLIXO Auto Repair Deep Diagnostics" --branch "$branch" --limit 20 --json databaseId,headSha,status,conclusion,createdAt --jq --arg sha "$sha" 'map(select(.headSha == $sha)) | .[0] // empty')"
+            if [ -n "$repair" ]; then
+              status="$(jq -r '.status' <<<"$repair")"
+              conclusion="$(jq -r '.conclusion // ""' <<<"$repair")"
+              if [ "$status" = "in_progress" ] || [ "$status" = "queued" ] || [ "$status" = "requested" ]; then continue; fi
+              if [ "$conclusion" = "success" ]; then continue; fi
+            fi
+            echo "WATCHDOG_REOPEN branch=$branch run=$run_id sha=$sha"
+            gh workflow run auto-repair-deep-diagnostics.yml --repo "$repo" --ref main -f target_run_id="$run_id" -f target_sha="$sha" -f target_branch="$branch"
+          done <<< "$prs"
