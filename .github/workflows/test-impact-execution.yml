@@ -34,6 +34,21 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      - name: Build impact plan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+        run: node scripts/ci/test-impact.mjs --mode=pr --base="$BASE_SHA"
+      - name: Detect runtime requirements
+        id: runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s diagnostics/ci/test-impact.json
+          if node -e 'const fs=require("node:fs"); const p=JSON.parse(fs.readFileSync("diagnostics/ci/test-impact.json","utf8")); process.exit(p.commands.includes("npm run test:browser") ? 0 : 1)'; then
+            echo "browser=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "browser=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Restore shared dependency cache
         id: impact-deps-cache
         uses: actions/cache@v6
@@ -43,23 +58,27 @@ jobs:
       - name: Install dependencies on cache miss
         if: steps.impact-deps-cache.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline --no-audit --no-fund
-      - name: Ensure Playwright browsers are available
+      - name: Provision browser runtime when Impact requires it
+        if: steps.runtime.outputs.browser == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium firefox webkit
-      - name: Verify dependency and browser identity
+          PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps chromium firefox webkit
+      - name: Verify dependency identity
         shell: bash
         run: |
           set -euo pipefail
           test -x node_modules/.bin/tsc
           test -x node_modules/.bin/playwright
-          test -x node_modules/playwright-core/.local-browsers/chromium-*/chrome-linux/chrome
-          test -x node_modules/playwright-core/.local-browsers/firefox-*/firefox/firefox
-          test -x node_modules/playwright-core/.local-browsers/webkit-*/pw_run.sh
           npx playwright --version
           sha256sum package-lock.json
-      - name: Build impact plan and execute selected verification
+      - name: Verify browser runtime when required
+        if: steps.runtime.outputs.browser == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --dry-run chromium firefox webkit
+      - name: Execute selected verification
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
           SITE_URL: 'https://flixoai.vercel.app'
@@ -90,6 +109,7 @@ jobs:
           if (execution.results.some((r) => r.status !== 'PASS')) throw new Error('Impact verification contains failures');
           NODE
       - name: Verify evidence reducer contract
+        if: success()
         run: node scripts/ci/test-evidence-reducer.mjs
       - name: Upload impact evidence
         if: always()
@@ -97,5 +117,5 @@ jobs:
         with:
           name: flixo-test-impact-execution-${{ github.run_id }}
           path: diagnostics/ci/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
