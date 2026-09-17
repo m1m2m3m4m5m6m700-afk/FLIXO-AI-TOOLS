@@ -1,7 +1,7 @@
 {
   "version": 7,
   "assertionRegistry": "scripts/ci/assertion-registry.json",
-  "execution": {"maxConcurrency":12,"failFast":false,"certification":"complete-gate-results","identityFields":["sha","packageLockSha256","testPlanSha256","assertionRegistrySha256"]},
+  "execution": {"maxConcurrency":16,"failFast":false,"certification":"complete-gate-results","identityFields":["sha","packageLockSha256","testPlanSha256","assertionRegistrySha256"]},
   "gateDependencies": {"static":[],"build":["static"],"browser":["build"]},
   "sourceDependencyGraph": {
     "registry": ["router", "sitemap", "seo", "e2e-inventory"],
@@ -52,7 +52,7 @@
     "browser":{"expected":3,"projects":["chromium","firefox","webkit"],"checks":[
       {"id":"BROWSER-001","label":"chromium","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=chromium","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-CHROMIUM-001"],"coverage":["COV-BROWSER-CHROMIUM"]},
       {"id":"BROWSER-002","label":"firefox","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=firefox","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-FIREFOX-001"],"coverage":["COV-BROWSER-FIREFOX"]},
-      {"id":"BROWSER-003","label":"webkit","command":"npx","args":["playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=webkit","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-WEBKIT-001"],"coverage":["COV-BROWSER-WEBKIT"]}
+      {"id":"BROWSER-003","label":"webkit","command":"npx","playwright","test","tests/universal-diagnostic-browser.spec.ts","--project=webkit","--workers=6","--retries=0","--max-failures=1"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-BROWSER-WEBKIT-001"],"coverage":["COV-BROWSER-WEBKIT"]}
     ]}
   }
 }
