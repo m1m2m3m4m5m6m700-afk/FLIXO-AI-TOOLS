@@ -5,8 +5,12 @@ const root = process.cwd();
 const workflowDir = path.join(root, '.github', 'workflows');
 const failures = [];
 
+// The only workflows permitted to request write authority are the two halves
+// of the bounded repair lane: one creates an isolated repair PR, the other
+// merges only after exact-head canonical CI is green. Direct-main repair is
+// intentionally forbidden.
 const writeWorkflowAllowlist = new Set([
-  '.github/workflows/auto-repair-executor.yml',
+  '.github/workflows/auto-repair.yml',
   '.github/workflows/auto-repair-merge-gate.yml',
 ]);
 
@@ -57,4 +61,4 @@ if (failures.length) {
 }
 
 console.log(`Repository security baseline PASS: ${workflowFiles().length} workflow files inspected.`);
-console.log('Controls: no pull_request_target, no write-all, allowlisted write workflows, explicit permissions, lockfile, security documentation.');
+console.log('Controls: no pull_request_target, no write-all, only isolated-repair/green-merge workflows may request contents:write, explicit permissions, lockfile, security documentation.');
