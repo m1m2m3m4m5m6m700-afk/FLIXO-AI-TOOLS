@@ -39,8 +39,8 @@ if (missing.length) {
   process.exit(2);
 }
 
-const requested = Number(process.env.FLIXO_UNIT_MAX_CONCURRENCY ?? 8);
-const maxConcurrency = Number.isInteger(requested) && requested >= 1 && requested <= 16 ? requested : 8;
+const requested = Number(process.env.FLIXO_UNIT_MAX_CONCURRENCY ?? 12);
+const maxConcurrency = Number.isInteger(requested) && requested >= 1 && requested <= 16 ? requested : 12;
 
 const run = (name) => new Promise((resolve) => {
   const started = Date.now();
