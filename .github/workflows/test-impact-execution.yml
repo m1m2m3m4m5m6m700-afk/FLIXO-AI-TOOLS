@@ -16,6 +16,7 @@ permissions:
 
 env:
   IMPACT_MAX_CONCURRENCY: '12'
+  IMPACT_DEPENDENCIES_READY: 'true'
 
 jobs:
   impact-execution:
@@ -57,6 +58,7 @@ jobs:
           if (plan.evidenceClass !== 'PRIMARY_EXECUTION') throw new Error('Impact evidence must be PRIMARY_EXECUTION');
           if (execution.status !== 'PASS') throw new Error(`Impact execution status: ${execution.status}`);
           if (execution.executionMaxConcurrency !== 12) throw new Error('Unexpected impact concurrency');
+          if (execution.dependenciesPreinstalled !== true) throw new Error('Impact execution must use workflow-installed dependencies');
           if (!Array.isArray(execution.results) || execution.results.length !== execution.commands.length) {
             throw new Error('Impact execution result coverage mismatch');
           }
