@@ -12,11 +12,11 @@ USER
 TASK AGENT — PREPARATION OWNER
  ├── TASK: understand → scope → inspect
  ├── ERROR/RCA: detect → classify → gather evidence
- ├── PREPARE: exact source-code changes
- ├── VERIFY: define reproduction + regression obligations
+ ├── PREPARE: exact source-code changes + proportional hardening
+ ├── VERIFY: define reproduction + regression + hardening obligations
  └── HANDOFF → SUPERVISING EXECUTION AGENT
                          ↓
-                  APPLY / VERIFY / COMMIT / PUSH
+                  APPLY / VERIFY / HARDEN / COMMIT / PUSH
                          ↓
                     CANONICAL CI
                          ↓
@@ -31,7 +31,8 @@ The Task Agent MUST:
 - inspect relevant source, tests, scripts and workflow contracts;
 - identify root-cause evidence when the task concerns a failure;
 - prepare exact code changes with paths, operations, content and baseline SHA;
-- define reproduction, regression and verification obligations;
+- identify demonstrated weaknesses exposed by the failure and prepare proportional prevention/hardening controls;
+- define reproduction, regression, hardening and verification obligations;
 - report blockers and unresolved work;
 - preserve the repair lifecycle: every repair opens another verification cycle and every red required check becomes a repair target.
 
@@ -46,6 +47,17 @@ The Task Agent MUST NOT:
 ## Explicit publication boundary
 The Task Agent MUST NOT commit source changes or push to GitHub. Source publication is exclusively the responsibility of the supervising execution agent after verification.
 
+## Mandatory repair hardening
+Every repair follows `docs/agents/REPAIR-HARDENING-PROTOCOL.md`.
+
+A repair packet MUST distinguish:
+- `rootCause`: the causal defect supported by evidence;
+- `hardeningWeakness`: the reusable/systemic weakness exposed by the incident;
+- `hardeningControl`: the concrete prevention or detection control to be added when technically applicable;
+- `hardeningProof`: the exact verification required to prove the control works.
+
+Patch-only closure is forbidden when the failure exposes a demonstrated reusable weakness. Hardening must be proportional and must never weaken an existing gate. If evidence is insufficient to justify hardening, the packet must record that limitation and require review rather than inventing a control.
+
 ## Full repair lifecycle
 
 ```text
@@ -55,11 +67,13 @@ CAPTURE + INSPECT
   ↓
 CLASSIFY + RCA
   ↓
-PREPARE CODE-ONLY CHANGES
+IDENTIFY WEAKNESS
+  ↓
+PREPARE CODE-ONLY REPAIR + HARDENING
   ↓
 HANDOFF TO SUPERVISING EXECUTION AGENT
   ↓
-APPLY + REPRODUCE + VERIFY
+APPLY + REPRODUCE + VERIFY + HARDENING PROOF
   ↓
 TYPECHECK + STATIC + BUILD + REQUIRED TESTS
   ↓
@@ -78,7 +92,7 @@ LEARN + PREVENT RECURRENCE
 CLOSED / VERIFIED
 ```
 
-**CLOSED / VERIFIED is permitted only after canonical CI is green on the exact pushed SHA.** Repairing the reported failure is not task completion. Closure requires canonical CI GREEN, zero required red checks, fresh exact-SHA evidence, and regression proof.
+**CLOSED / VERIFIED is permitted only after canonical CI is green on the exact pushed SHA.** Repairing the reported failure is not task completion. Closure requires canonical CI GREEN, zero required red checks, fresh exact-SHA evidence, regression proof, and applicable hardening proof.
 
 ## Required evidence
 Every preparation packet must bind:
@@ -86,10 +100,11 @@ Every preparation packet must bind:
 
 Every proposed repair must record or request:
 - root cause and causal evidence;
+- demonstrated weakness exposed by the failure;
 - changed files and exact operations;
 - baseline SHA;
 - reproduction/recovery proof;
-- recurrence/regression proof;
+- regression and hardening proof;
 - typecheck/static/build and required-test obligations;
 - canonical CI evidence after the supervising agent pushes;
 - learning/prevention outcome.
@@ -101,9 +116,9 @@ Every proposed repair must record or request:
 - A circuit breaker escalates only after bounded evidence-based limits; it never fabricates GREEN.
 
 ## Implementation payload
-The implementation payload contains **code changes only**. It is preparation material for the supervising execution agent and is not a publication or completion barrier.
+The implementation payload contains **code changes only**, including applicable hardening changes. It is preparation material for the supervising execution agent and is not a publication or completion barrier.
 
-The supervising execution agent is responsible for applying prepared changes, running verification, committing, pushing, and maintaining the repair loop until canonical GREEN.
+The supervising execution agent is responsible for applying prepared changes, running verification, proving applicable hardening, committing, pushing, and maintaining the repair loop until canonical GREEN.
 
 ## Invocation
 ```bash
