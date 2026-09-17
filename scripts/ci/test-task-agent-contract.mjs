@@ -9,14 +9,17 @@ const execution = fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 
 assert.ok(taskFile.length > 0, 'مهام.md must exist and be non-empty');
-assert.match(contract, /preparation-only agent/i);
-assert.match(contract, /MUST NOT:\s*[\s\S]*commit source changes[\s\S]*push to GitHub/i);
-assert.match(contract, /implementation payload contains \*\*code changes only\*\*/i);
+assert.match(contract, /direct-execution agent/i);
+assert.match(contract, /MUST NOT:\s*[\s\S]*mutate main[\s\S]*self-approve|MUST NOT:\s*[\s\S]*push source changes to GitHub/i);
+assert.match(contract, /SELF_HEALING_REPAIR_ONLY/);
 assert.match(contract, /Repairing the reported failure is not task completion/i);
 assert.match(contract, /Every red required check becomes a repair target/i);
 assert.match(contract, /CLOSED \/ VERIFIED.*canonical CI is green/is);
-assert.match(agent, /preparedOnly: true/);
-assert.match(agent, /NO_SOURCE_MUTATION_NO_COMMIT_NO_PUSH/);
+assert.match(agent, /preparedOnly: false/);
+assert.match(agent, /DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_REPAIR_BRANCH/);
+assert.match(agent, /DIRECT_ON_ISOLATED_REPAIR_BRANCH/);
+assert.match(agent, /SELF_HEALING_REPAIR_ONLY/);
+assert.match(agent, /mainBranchMutation: false/);
 assert.match(agent, /ACTIVE_UNTIL_CANONICAL_GREEN/);
 assert.match(agent, /rescanAfterEveryRepair: true/);
 assert.match(agent, /everyRedCheckMustBecomeARepairTarget: true/);
@@ -32,4 +35,4 @@ assert.match(execution, /CIRCUIT_BREAKER_OPEN/);
 assert.match(execution, /SAME_FAILURE_FINGERPRINT_WITHOUT_VERIFIABLE_PROGRESS/);
 assert.equal(packageJson.scripts['agent:task'], 'node scripts/ci/task-agent.mjs');
 
-console.log(JSON.stringify({ status: 'PASS', authority: 'TASK_AGENT_CONTRACT_TEST', checks: 22 }, null, 2));
+console.log(JSON.stringify({ status: 'PASS', authority: 'TASK_AGENT_CONTRACT_TEST', checks: 24 }, null, 2));
