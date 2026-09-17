@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-repair/fingerprint.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
@@ -20,12 +21,7 @@ export function loadMemory() {
 }
 
 function emptyIntractable() {
-  return {
-    version: 1,
-    threshold: INTRACTABLE_THRESHOLD,
-    protocol: 'SUPERVISING-REPAIR-TEACHING-v1',
-    cases: [],
-  };
+  return { version: 1, threshold: INTRACTABLE_THRESHOLD, protocol: 'SUPERVISING-REPAIR-TEACHING-v1', cases: [] };
 }
 
 function loadIntractable() {
@@ -43,39 +39,23 @@ function writeIntractable(data) {
   fs.writeFileSync(intractablePath, `${JSON.stringify(data, null, 2)}\n`);
 }
 
-function updateIntractable({ entry, rule, verification, provenance, rootCause }) {
-  if (!entry || entry.attempts < INTRACTABLE_THRESHOLD || entry.successes > 0) return;
-  const data = loadIntractable();
-  const existing = data.cases.find((item) => item.fingerprint === entry.fingerprint);
-  const record = existing ?? {
-    fingerprint: entry.fingerprint,
-    status: 'INTRACTABLE',
-    rootCause: rootCause ?? entry.rootCause ?? 'unknown',
-    attemptsAtEscalation: entry.attempts,
-    attempts: entry.attempts,
-    successes: entry.successes,
-    failures: entry.failures,
-    firstSeenAt: new Date().toISOString(),
-    lastSeenAt: null,
-    evidence: [],
-    rejectedApproaches: [],
-    teachingRequest: {
-      required: true,
-      protocol: 'SUPERVISING-REPAIR-TEACHING-v1',
-      state: 'AWAITING_SUPERVISING_AGENT',
-      requiredResponse: ['newHypothesis', 'diagnosticChange', 'repairStrategy', 'verificationPlan', 'doNotRepeat', 'exitCriteria'],
-    },
-    exitCriteria: 'A new evidence-backed strategy produces verified-repair on the exact target SHA and passes canonical CI.',
-  };
-  record.rootCause = rootCause ?? record.rootCause;
-  record.attempts = entry.attempts;
-  record.successes = entry.successes;
-  record.failures = entry.failures;
-  record.lastSeenAt = new Date().toISOString();
-  record.evidence = [...record.evidence, { at: record.lastSeenAt, verification, provenance, rule: rule ?? null }].slice(-20);
-  if (rule) record.rejectedApproaches = [...new Set([...record.rejectedApproaches, rule])].slice(-20);
-  if (!existing) data.cases.push(record);
-  writeIntractable(data);
+function publishIntractableRecord(record) {
+  if (!process.env.GH_TOKEN || !process.env.GITHUB_REPOSITORY) return;
+  const branch = `flixo-intractable/${record.fingerprint.slice(0, 12)}-${process.env.GITHUB_RUN_ID ?? Date.now()}`;
+  const run = (args) => spawnSync('gh', args, { encoding: 'utf8', env: process.env });
+  const branchResult = run(['pr', 'list', '--repo', process.env.GITHUB_REPOSITORY, '--head', branch, '--state', 'open', '--json', 'number']);
+  if (branchResult.status === 0 && JSON.parse(branchResult.stdout || '[]').length > 0) return;
+  const switchResult = run(['api', `repos/${process.env.GITHUB_REPOSITORY}/git/refs/heads/main`, '--jq', '.object.sha']);
+  if (switchResult.status !== 0) return;
+  const baseSha = switchResult.stdout.trim();
+  if (!baseSha) return;
+  if (run(['api', `repos/${process.env.GITHUB_REPOSITORY}/git/refs`, '-f', `ref=refs/heads/${branch}`, '-f', `sha=${baseSha}`]).status !== 0) return;
+  if (run(['add', intractablePath]).status !== 0) return;
+  if (run(['config', 'user.name', 'github-actions[bot]']).status !== 0) return;
+  run(['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com']);
+  if (run(['commit', '-m', `chore(auto-repair): record intractable error ${record.fingerprint.slice(0, 12)}`]).status !== 0) return;
+  if (run(['push', 'origin', `HEAD:${branch}`]).status !== 0) return;
+  run(['pr', 'create', '--repo', process.env.GITHUB_REPOSITORY, '--base', 'main', '--head', branch, '--title', `chore(auto-repair): escalate intractable error ${record.fingerprint.slice(0, 12)}`, '--body', `This escalation was opened automatically after ${record.attempts} non-verified repair attempts for fingerprint ${record.fingerprint}.\n\nProtocol: SUPERVISING-REPAIR-TEACHING-v1\n\nThis PR contains diagnostic state only. It does not bypass verified-repair or canonical CI. The supervising agent must provide a new evidence-backed hypothesis, diagnostic change, repair strategy, verification plan, rejected approaches, and exit criteria before the case can leave INTRACTABLE.`]);
 }
 
 export function findCase(memory, fingerprint) {
@@ -116,10 +96,7 @@ export function rankLessons(memory, { fingerprint, rootCause, rule } = {}) {
   const all = [...memory.lessons, ...memory.antiLessons.map((item) => ({ ...item, anti: true }))];
   return all
     .filter((item) => (!rootCause || item.rootCause === rootCause) && (!rule || item.rule === rule) || item.fingerprint === fingerprint)
-    .map((item) => ({
-      ...item,
-      score: Number(((item.confidence ?? 0) * (item.anti ? -1 : 1)).toFixed(4)),
-    }))
+    .map((item) => ({ ...item, score: Number(((item.confidence ?? 0) * (item.anti ? -1 : 1)).toFixed(4)) }))
     .sort((a, b) => b.score - a.score);
 }
 
@@ -177,7 +154,40 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked') {
     upsertLesson(memory, { fingerprint, rootCause: entry.rootCause, rule, outcome, verification, provenance, preventionRule });
   }
-  updateIntractable({ entry, rule, verification, provenance, rootCause: entry.rootCause });
+  if (entry.attempts >= INTRACTABLE_THRESHOLD && entry.successes === 0) {
+    const data = loadIntractable();
+    const existing = data.cases.find((item) => item.fingerprint === entry.fingerprint);
+    const record = existing ?? {
+      fingerprint: entry.fingerprint,
+      status: 'INTRACTABLE',
+      rootCause: entry.rootCause,
+      attemptsAtEscalation: entry.attempts,
+      attempts: entry.attempts,
+      successes: entry.successes,
+      failures: entry.failures,
+      firstSeenAt: new Date().toISOString(),
+      lastSeenAt: null,
+      evidence: [],
+      rejectedApproaches: [],
+      teachingRequest: {
+        required: true,
+        protocol: 'SUPERVISING-REPAIR-TEACHING-v1',
+        state: 'AWAITING_SUPERVISING_AGENT',
+        requiredResponse: ['newHypothesis', 'diagnosticChange', 'repairStrategy', 'verificationPlan', 'doNotRepeat', 'exitCriteria'],
+      },
+      exitCriteria: 'A new evidence-backed strategy produces verified-repair on the exact target SHA and passes canonical CI.',
+    };
+    record.rootCause = entry.rootCause;
+    record.attempts = entry.attempts;
+    record.successes = entry.successes;
+    record.failures = entry.failures;
+    record.lastSeenAt = new Date().toISOString();
+    record.evidence = [...record.evidence, { at: record.lastSeenAt, verification, provenance, rule: rule ?? null }].slice(-20);
+    if (rule) record.rejectedApproaches = [...new Set([...record.rejectedApproaches, rule])].slice(-20);
+    if (!existing) data.cases.push(record);
+    writeIntractable(data);
+    if (!existing) publishIntractableRecord(record);
+  }
   return memory;
 }
 
