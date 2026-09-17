@@ -19,6 +19,7 @@ for (let i = 2; i < process.argv.length; i += 1) {
 
 const arg = (name, fallback = '') => String(args.get(name) ?? fallback).trim();
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
+const branch = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const hash = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex');
 
 if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=مهام.md');
@@ -53,7 +54,7 @@ const failureRunId = arg('failure-run-id');
 const failureSha = arg('failure-sha');
 const failureFingerprint = arg('failure-fingerprint');
 const failureEvidencePath = arg('failure-evidence');
-const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE' : 'PREPARATION_ONLY';
+const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION' : 'DIRECT_EXECUTION';
 const selected = requested
   ? tasks.filter((task) => task.taskId === requested || task.title.includes(requested))
   : allReady
@@ -61,6 +62,7 @@ const selected = requested
     : tasks.filter((task) => !task.completed).slice(0, 1);
 
 if (!selected.length) throw new Error(requested ? `TASK_NOT_FOUND=${requested}` : 'NO_READY_TASKS');
+if (!branch || branch === 'main') throw new Error('DIRECT_EXECUTION_REQUIRES_ISOLATED_BRANCH');
 
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 const generatedAt = new Date().toISOString();
@@ -69,16 +71,17 @@ const outputs = [];
 for (const task of selected) {
   const fingerprint = failureFingerprint || hash(`${task.taskId}|${task.title}|${task.section}`).slice(0, 16);
   const packet = {
-    schemaVersion: 5,
+    schemaVersion: 6,
     authority: 'FLIXO_TASK_AGENT',
-    role: 'TASK_OWNER_AND_REPAIR_CYCLE_ASSISTANT',
+    role: 'TASK_OWNER_AND_DIRECT_REPAIR_AGENT',
     mode: repairMode,
-    preparedOnly: true,
-    mutationPolicy: 'NO_SOURCE_MUTATION_NO_COMMIT_NO_PUSH',
+    preparedOnly: false,
+    executionMode: 'DIRECT_ON_ISOLATED_REPAIR_BRANCH',
+    mutationPolicy: 'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_REPAIR_BRANCH',
     taskFile: 'مهام.md',
     task,
     failureContext: {
-      active: repairMode === 'ACTIVE_REPAIR_CYCLE',
+      active: Boolean(failureRunId || failureSha || failureFingerprint),
       runId: failureRunId || null,
       failedSha: failureSha || null,
       fingerprint,
@@ -87,22 +90,23 @@ for (const task of selected) {
       testCreationPolicy: 'NO_NEW_TEST_AS_A_SUBSTITUTE_FOR_SOURCE_REPAIR',
     },
     baselineSha: sha,
+    executionBranch: branch,
     generatedAt,
     errorFingerprint: fingerprint,
     repairSummary: {
-      status: repairMode === 'ACTIVE_REPAIR_CYCLE' ? 'ACTIVE_FAILURE_TARGET' : 'PENDING',
+      status: repairMode.includes('ACTIVE') ? 'ACTIVE_FAILURE_TARGET' : 'DIRECT_TASK_TARGET',
       taskId: task.taskId,
       fingerprint,
-      error: repairMode === 'ACTIVE_REPAIR_CYCLE' ? 'SEE_FAILURE_EVIDENCE' : 'UNOBSERVED',
+      error: repairMode.includes('ACTIVE') ? 'SEE_FAILURE_EVIDENCE' : 'UNOBSERVED',
       rootCause: 'REQUIRES_EVIDENCE',
-      repair: 'PREPARE_SOURCE_FIX_IN_CURRENT_REPAIR_CYCLE',
+      repair: 'EXECUTE_SOURCE_FIX_ON_ISOLATED_REPAIR_BRANCH',
       verification: 'REQUIRED_AFTER_SOURCE_REPAIR',
     },
     instructions: {
-      objective: repairMode === 'ACTIVE_REPAIR_CYCLE'
-        ? 'Assist the supervising agent with the currently failing repair cycle: inspect evidence, identify root cause, prepare the smallest safe source correction plus proportional hardening, and do not replace source repair with a newly added test.'
-        : 'Understand this task, inspect its contracts, prepare exact source-code changes for a supervising agent, and stop before applying/committing/pushing them.',
-      sourcePayload: 'CODE_ONLY',
+      objective: repairMode.includes('ACTIVE')
+        ? 'Execute the smallest safe source correction plus proportional hardening for the currently failing repair cycle; do not replace source repair with a newly added test.'
+        : 'Execute the selected task directly on the isolated repair branch, verify the result, and leave main untouched.',
+      sourcePayload: 'CODE_AND_EXECUTION',
       requiredChangeShape: ['path', 'operation', 'content', 'baselineSha'],
       verificationRequired: true,
       unresolvedWorkMustBeReported: true,
@@ -110,12 +114,12 @@ for (const task of selected) {
       newTestMayOnlyBeAddedWhen: 'IT_PROVES_REGRESSION_OR_HARDENING_AFTER_THE_SOURCE_FIX_AND_IS_NOT_THE_FIX_ITSELF',
     },
     completionPolicy: {
-      stateAfterPreparation: 'PREPARED',
+      stateAfterPreparation: 'NOT_APPLICABLE_DIRECT_EXECUTION',
       stateAfterRepair: 'REPAIR_PENDING_VERIFICATION',
       stateAfterAnyRedCheck: 'REPAIR_PENDING',
       stateAfterGreenCheck: 'REVERIFY_ALL',
       terminalState: 'CLOSED_VERIFIED_ONLY_AFTER_CANONICAL_GREEN',
-      codeGeneratedOrAppliedIsNotCompletion: true,
+      codeAppliedIsNotCompletion: true,
       everyRepairOpensAnotherVerificationCycle: true,
       everyRedCheckMustBecomeARepairTarget: true,
       newlyIntroducedFailuresMustOpenNewCycles: true,
@@ -145,10 +149,10 @@ for (const task of selected) {
     verification: [],
     blockers: [],
     handoff: {
-      consumer: 'SUPERVISING_EXECUTION_AGENT',
-      applyAuthority: 'SUPERVISING_AGENT_ONLY',
-      commitAuthority: 'SUPERVISING_AGENT_ONLY',
-      pushAuthority: 'SUPERVISING_AGENT_ONLY',
+      consumer: 'CANONICAL_CI_AND_REPAIR_ORCHESTRATOR',
+      applyAuthority: 'TASK_AGENT_DIRECT_EXECUTION',
+      commitAuthority: 'TASK_AGENT_ON_REPAIR_BRANCH_ONLY',
+      pushAuthority: 'TASK_AGENT_ON_REPAIR_BRANCH_ONLY',
       completionAuthority: 'VERIFIER_AFTER_CANONICAL_GREEN_ONLY',
     },
   };
@@ -158,11 +162,13 @@ for (const task of selected) {
 }
 
 const index = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   authority: 'FLIXO_TASK_AGENT',
   mode: repairMode,
-  preparedOnly: true,
+  preparedOnly: false,
+  executionMode: 'DIRECT_ON_ISOLATED_REPAIR_BRANCH',
   baselineSha: sha,
+  executionBranch: branch,
   generatedAt,
   selected: outputs,
   selectedCount: outputs.length,
