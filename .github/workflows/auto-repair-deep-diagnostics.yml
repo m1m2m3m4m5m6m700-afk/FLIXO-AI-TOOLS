@@ -1,7 +1,7 @@
 name: FLIXO Auto Repair Deep Diagnostics
 
 # Automatically diagnoses failures and, only after the repair engine certifies
-# a verified repair, applies the prepared patch to main. Canonical CI remains
+# a verified repair, applies a bounded patch to main. Canonical CI remains
 # the final gate; failed verification never publishes source.
 on:
   workflow_run:
@@ -14,7 +14,7 @@ on:
 
 permissions:
   contents: write
-  actions: write
+  actions: read
   checks: read
 
 concurrency:
@@ -79,6 +79,38 @@ jobs:
           npm run typecheck
           npm run test:static
           npm run test:build
+
+          # Fail closed if the repair engine changed anything outside the
+          # exact evidence paths it declared, or touched a protected path.
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const evidence = JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json', 'utf8'));
+          const allowed = new Set(evidence.changedPaths ?? []);
+          const neverModify = [
+            '.github/workflows/ci.yml',
+            '.github/workflows/deploy-flixoai.yml',
+            '.github/workflows/auto-repair.yml',
+            '.github/workflows/repair-seed.yml',
+            'package-lock.json',
+            '.env',
+          ];
+          const protectedAreas = [
+            'scripts/ci/certification-engine.mjs',
+            'scripts/ci/validate-execution-graph.mjs',
+            'tests/seed.spec.ts',
+          ];
+          const changed = fs.readFileSync('/tmp/flixo-verified-files.txt', 'utf8').trim().split('\n').filter(Boolean);
+          const forbidden = (p) => neverModify.includes(p) || neverModify.some((r) => r.endsWith('.*') && p.startsWith(r.slice(0, -2))) || protectedAreas.includes(p);
+          const unexpected = changed.filter((p) => !allowed.has(p));
+          const blocked = changed.filter(forbidden);
+          if (unexpected.length || blocked.length) {
+            console.error(JSON.stringify({ unexpected, blocked }, null, 2));
+            process.exit(1);
+          }
+          NODE
+
+          git diff --name-only --diff-filter=ACMRTUXB > /tmp/flixo-verified-files.txt
+          test -s /tmp/flixo-verified-files.txt
           git diff --binary -- . ':!diagnostics' > /tmp/flixo-verified.patch
           test -s /tmp/flixo-verified.patch
           echo "outcome=$OUTCOME" >> "$GITHUB_OUTPUT"
@@ -99,12 +131,6 @@ jobs:
           git commit -m "fix(auto-repair): apply verified repair for failed run $TARGET_RUN_ID"
           git push origin HEAD:main
 
-      - name: Re-run canonical verification after autonomous repair
-        if: steps.verify.outputs.outcome == 'verified-repair'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref main
-
       - name: Upload diagnostics and repair evidence
         if: always()
         uses: actions/upload-artifact@v6
@@ -115,5 +141,6 @@ jobs:
             error-root-causes.json
             /tmp/flixo-failure.log
             /tmp/flixo-repair-evidence.json
+            /tmp/flixo-verified-files.txt
           if-no-files-found: warn
           retention-days: 30
