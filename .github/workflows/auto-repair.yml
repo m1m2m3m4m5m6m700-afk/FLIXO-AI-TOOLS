@@ -1,8 +1,14 @@
 name: FLIXO Auto Repair Bot
 
 on:
+  workflow_dispatch:
+    inputs:
+      target_run_id:
+        description: 'Failed workflow run ID to diagnose and repair'
+        required: true
+        type: string
   workflow_run:
-    workflows: ["FLIXO Test System", "FLIXO WP0 Trust Baseline", "FLIXO Continuous Delivery"]
+    workflows: ["FLIXO Test System", "FLIXO WP0 Trust Baseline", "FLIXO Continuous Delivery", "FLIXO Agent Repair Handoff Gate"]
     types: [completed]
     branches: [main]
 
@@ -23,13 +29,14 @@ env:
   FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
   FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
   FLIXO_REPAIR_LANE: single
+  TARGET_RUN_ID: ${{ inputs.target_run_id || github.event.workflow_run.id }}
 
 jobs:
   repair:
     name: Single-lane diagnose, prepare, verify and learn
     if: >-
-      github.event.workflow_run.conclusion == 'failure' &&
-      github.event.workflow_run.head_branch == 'main'
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -39,11 +46,21 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Materialize failed SHA as isolated repair target
+      - name: Resolve target workflow run
         env:
-          FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,conclusion,headSha,headBranch,name
+          gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion' | grep -qx 'failure'
+          printf '%s\n' "$TARGET_RUN_ID" > /tmp/flixo-target-run-id
+
+      - name: Materialize failed SHA as isolated repair target
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FAILED_SHA="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha --jq '.headSha')"
           git fetch --no-tags origin "$FAILED_SHA"
           git worktree add --detach /tmp/flixo-repair-target "$FAILED_SHA"
           printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
@@ -57,16 +74,14 @@ jobs:
       - name: Capture failed CI logs before dependency installation
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           set -euo pipefail
-          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > "$FLIXO_FAILURE_LOG" 2>&1 || true
+          gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > "$FLIXO_FAILURE_LOG" 2>&1 || true
           test -s "$FLIXO_FAILURE_LOG" || printf '%s\n' 'No failed log payload was available.' > "$FLIXO_FAILURE_LOG"
           {
             echo '### Failed CI classification input'
-            echo "run_id=$RUN_ID"
-            echo "workflow=${{ github.event.workflow_run.name }}"
-            echo "head_sha=${{ github.event.workflow_run.head_sha }}"
+            echo "run_id=$TARGET_RUN_ID"
+            gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json name,headSha,headBranch
             grep -E -i 'error|failed|failure|timeout|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
           } > /tmp/flixo-repair-summary.txt
 
@@ -131,10 +146,11 @@ jobs:
         if: always()
         env:
           VERIFY_OUTCOME: ${{ steps.verify.outputs.verified == 'true' && 'success' || 'failure' }}
-          FLIXO_FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
-          FLIXO_RUN_ID: ${{ github.event.workflow_run.id }}
+          FLIXO_FAILED_SHA: ${{ github.event.workflow_run.head_sha || '' }}
+          FLIXO_RUN_ID: ${{ env.TARGET_RUN_ID }}
         run: |
           set -euo pipefail
+          if [ -f /tmp/flixo-failed-sha ]; then FLIXO_FAILED_SHA="$(cat /tmp/flixo-failed-sha)"; fi
           test -f /tmp/flixo-root-cause.json || printf '%s\n' '{"rootCause":"unknown"}' > /tmp/flixo-root-cause.json
           ROOT_CAUSE=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8'));process.stdout.write(x.rootCause||'unknown')")
           if [ -f /tmp/flixo-repair-evidence.json ]; then
@@ -157,7 +173,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: flixo-auto-repair-${{ github.event.workflow_run.id }}
+          name: flixo-auto-repair-${{ env.TARGET_RUN_ID }}
           path: |
             /tmp/flixo-failure.log
             /tmp/flixo-repair-summary.txt
