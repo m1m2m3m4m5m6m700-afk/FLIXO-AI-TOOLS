@@ -1,0 +1,65 @@
+name: FLIXO Repair Cycle Cancellation Recovery
+
+on:
+  workflow_run:
+    workflows: ["FLIXO Auto Repair Bot"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: flixo-repair-cancellation-recovery-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    name: Recover cancelled Auto Repair Bot run
+    if: github.event.workflow_run.conclusion == 'cancelled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Find the failed source run on the same main SHA
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          TARGET_RUN_ID=''
+          for workflow in 'FLIXO Test System' 'FLIXO WP0 Trust Baseline' 'FLIXO Continuous Delivery'; do
+            candidate="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "$workflow" --branch main --limit 20 --json databaseId,headSha,conclusion,createdAt --jq '[.[] | select(.headSha == env.HEAD_SHA and (.conclusion == "failure" or .conclusion == "timed_out"))] | sort_by(.createdAt) | last | .databaseId // empty')"
+            if [ -n "$candidate" ]; then TARGET_RUN_ID="$candidate"; break; fi
+          done
+          if [ -z "$TARGET_RUN_ID" ]; then
+            echo 'No diagnosable failed source run exists on the cancelled repair run SHA; fail closed.'
+            exit 0
+          fi
+          echo "target_run_id=$TARGET_RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "Recovered target run: $TARGET_RUN_ID"
+
+      - name: Prevent unbounded cancellation retry loops
+        if: steps.source.outputs.target_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          cancelled_count="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow 'FLIXO Auto Repair Bot' --branch main --limit 30 --json headSha,conclusion --jq '[.[] | select(.headSha == env.HEAD_SHA and .conclusion == "cancelled")] | length')"
+          echo "cancelled Auto Repair Bot runs on SHA $HEAD_SHA: $cancelled_count"
+          if [ "$cancelled_count" -gt 2 ]; then
+            echo 'More than two cancelled repair runs detected for this SHA; stopping recursion and preserving fail-closed behavior.'
+            exit 0
+          fi
+
+      - name: Re-open the same repair cycle through workflow_dispatch
+        if: steps.source.outputs.target_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_RUN_ID: ${{ steps.source.outputs.target_run_id }}
+        run: |
+          set -euo pipefail
+          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref main -f target_run_id="$TARGET_RUN_ID"
+          echo "Dispatched Auto Repair Bot recovery for target run $TARGET_RUN_ID"
