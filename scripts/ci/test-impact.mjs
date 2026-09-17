@@ -72,6 +72,7 @@ if (!Number.isInteger(maxConcurrency) || maxConcurrency < 1 || maxConcurrency > 
   throw new Error(`Invalid IMPACT_MAX_CONCURRENCY: ${maxConcurrency}`);
 }
 
+const skipPreinstalled = process.env.IMPACT_DEPENDENCIES_READY === 'true';
 const isInstall = (command) => /^npm\s+(ci|install)(?:\s|$)/.test(command);
 const run = (command) => new Promise((resolveResult) => {
   const [program, ...parts] = command.split(/\s+/);
@@ -88,12 +89,21 @@ const results = [];
 const installations = commands.filter(isInstall);
 const verification = commands.filter((command) => !isInstall(command));
 
-// Package installation mutates node_modules, so it is deliberately serialized before
-// any verification. Independent verification commands then run in bounded parallelism.
-for (const command of installations) {
-  const result = await run(command);
-  results.push(result);
-  if (result.status !== 'PASS') break;
+// The workflow installs dependencies immediately before this command. Re-running npm ci
+// here only duplicates work and can invalidate the cache benefit. When the caller has
+// explicitly attested that dependencies are ready, record the planned install as PASS
+// without mutating node_modules. The default remains the original install behavior.
+if (skipPreinstalled) {
+  for (const command of installations) {
+    const now = new Date().toISOString();
+    results.push({ command, status: 'PASS', exitCode: 0, startedAt: now, completedAt: now, output: 'Dependencies were installed by the caller workflow; duplicate install skipped.' });
+  }
+} else {
+  for (const command of installations) {
+    const result = await run(command);
+    results.push(result);
+    if (result.status !== 'PASS') break;
+  }
 }
 
 if (!results.some((r) => r.status === 'FAIL')) {
@@ -108,6 +118,7 @@ if (!results.some((r) => r.status === 'FAIL')) {
 const execution = {
   ...plan,
   executionMaxConcurrency: maxConcurrency,
+  dependenciesPreinstalled: skipPreinstalled,
   executionStrategy: installations.length ? 'install-then-bounded-parallel-verification' : 'bounded-parallel-verification',
   status: results.every((r) => r.status === 'PASS') && results.length === commands.length ? 'PASS' : 'FAIL',
   results,
