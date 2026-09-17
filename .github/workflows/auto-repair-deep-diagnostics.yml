@@ -116,9 +116,13 @@ jobs:
 
           git diff --binary -- . ':!diagnostics' > /tmp/flixo-verified.patch
           test -s /tmp/flixo-verified.patch
+          # Persist the machine-learning memory separately; diagnostics are
+          # intentionally excluded from the source repair patch below.
+          test -f diagnostics/auto-repair/memory.json
+          cp diagnostics/auto-repair/memory.json /tmp/flixo-repair-memory.json
           echo "outcome=$OUTCOME" >> "$GITHUB_OUTPUT"
 
-      - name: Apply verified repair to current main
+      - name: Apply verified repair and persist repair history
         if: steps.verify.outputs.outcome == 'verified-repair'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -129,6 +133,41 @@ jobs:
           git fetch origin main
           git checkout -B flixo-auto-repair origin/main
           git apply --index /tmp/flixo-verified.patch
+
+          # Persist the learning memory that was produced while repairing the
+          # exact failed SHA. This makes future repair decisions reproducible.
+          mkdir -p diagnostics/auto-repair
+          cp /tmp/flixo-repair-memory.json diagnostics/auto-repair/memory.json
+
+          # Append one immutable, machine-readable audit record for every
+          # verified repair. Only evidence fields are recorded; failure logs,
+          # secrets and user data are intentionally excluded.
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const evidence = JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json', 'utf8'));
+          const historyPath = 'docs/AUTO_REPAIR_HISTORY.jsonl';
+          const record = {
+            schemaVersion: 1,
+            recordedAt: new Date().toISOString(),
+            repairWorkflowRunId: process.env.GITHUB_RUN_ID,
+            failedRunId: process.env.TARGET_RUN_ID,
+            failedSha: process.env.TARGET_SHA,
+            fingerprint: evidence.fingerprint ?? null,
+            rootCause: evidence.specialist?.id ?? null,
+            selectedRule: evidence.selected ?? null,
+            outcome: evidence.outcome,
+            changedPaths: evidence.changedPaths ?? [],
+            rootCauseProof: evidence.rootCauseProof ?? null,
+            repairProof: evidence.repairProof ?? null,
+            recurrenceProof: evidence.recurrenceProof ?? null,
+            preventionRule: evidence.preventionRule ?? null,
+            learning: evidence.learning ?? null,
+          };
+          fs.mkdirSync('docs', { recursive: true });
+          fs.appendFileSync(historyPath, `${JSON.stringify(record)}\n`);
+          NODE
+
+          git add diagnostics/auto-repair/memory.json docs/AUTO_REPAIR_HISTORY.jsonl
           git status --short
           test -n "$(git diff --cached --name-only)"
           git commit -m "fix(auto-repair): apply verified repair for failed run $TARGET_RUN_ID"
@@ -145,5 +184,6 @@ jobs:
             /tmp/flixo-failure.log
             /tmp/flixo-repair-evidence.json
             /tmp/flixo-verified-files.txt
+            /tmp/flixo-repair-memory.json
           if-no-files-found: warn
           retention-days: 30
