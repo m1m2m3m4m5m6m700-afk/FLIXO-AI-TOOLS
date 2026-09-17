@@ -34,6 +34,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
           IMPACT_MAX_CONCURRENCY: '10'
+          SITE_URL: 'https://flixoai.vercel.app'
         run: node scripts/ci/test-impact.mjs --mode=pr --base="$BASE_SHA" --execute
       - name: Verify impact execution evidence
         shell: bash
