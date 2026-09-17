@@ -1,0 +1,120 @@
+name: FLIXO Auto Repair Executor
+
+# Supervising execution lane: consumes only a verified, bounded repair handoff
+# produced by FLIXO Auto Repair Bot, validates it against current main, runs
+# the canonical static/build gates, then publishes the repair. Canonical CI
+# remains the final authority and automatically re-opens repair on regression.
+on:
+  workflow_run:
+    workflows: ["FLIXO Auto Repair Bot"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: read
+  checks: read
+
+concurrency:
+  group: flixo-auto-repair-executor-main
+  cancel-in-progress: false
+
+env:
+  REPAIR_RUN_ID: ${{ github.event.workflow_run.id }}
+  REPAIR_SHA: ${{ github.event.workflow_run.head_sha }}
+
+jobs:
+  execute:
+    name: Validate, apply and publish verified repair
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Inspect repair source job
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          conclusion="$(gh run view "$REPAIR_RUN_ID" --repo "$GITHUB_REPOSITORY" --json jobs --jq '[.jobs[] | select(.name == "Single-lane diagnose, prepare, verify and learn") | .conclusion] | first // "skipped"')"
+          test "$conclusion" = success
+
+      - name: Download verified repair bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-executor
+          artifact_id="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            "/repos/$GITHUB_REPOSITORY/actions/runs/$REPAIR_RUN_ID/artifacts" \
+            --jq '[.artifacts[] | select(.expired == false) | select(.name | startswith("flixo-auto-repair-"))] | first | .id // empty')"
+          test -n "$artifact_id"
+          gh api -H 'Accept: application/vnd.github+json' \
+            "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > /tmp/flixo-executor/bundle.zip
+          unzip -q /tmp/flixo-executor/bundle.zip -d /tmp/flixo-executor/extracted
+          for required in flixo-engine-outcome flixo-learning-outcome flixo-prepared-repair-handoff.json flixo-prepared-repair.patch; do
+            source="$(find /tmp/flixo-executor/extracted -type f -name "$required" -print -quit)"
+            test -n "$source"
+            cp "$source" "/tmp/flixo-executor/$required"
+          done
+
+      - name: Validate verified handoff
+        run: |
+          set -euo pipefail
+          cd /tmp/flixo-executor
+          test "$(cat flixo-engine-outcome)" = verified-repair
+          test "$(cat flixo-learning-outcome)" = success
+          node -e 'const fs=require("fs"); const h=JSON.parse(fs.readFileSync("flixo-prepared-repair-handoff.json","utf8")); if(h.mode!=="PREPARATION_ONLY") throw new Error(`Invalid mode: ${h.mode}`); if(h.applyBy!=="SUPERVISING_EXECUTION_AGENT") throw new Error(`Invalid owner: ${h.applyBy}`); if(h.sourcePublishByBot!==false) throw new Error("Publication boundary violated");'
+          test -s flixo-prepared-repair.patch
+
+      - name: Apply patch to latest main in an isolated branch
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout -B flixo-auto-repair-executor origin/main
+          git apply --check /tmp/flixo-executor/flixo-prepared-repair.patch
+          git apply --index /tmp/flixo-executor/flixo-prepared-repair.patch
+          changed="$(git diff --cached --name-only)"
+          test -n "$changed"
+          printf '%s\n' "$changed" > /tmp/flixo-executor/changed-files.txt
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const changed=fs.readFileSync('/tmp/flixo-executor/changed-files.txt','utf8').trim().split('\n').filter(Boolean);
+          const neverModify=['.github/workflows/ci.yml','.github/workflows/deploy-flixoai.yml','.github/workflows/auto-repair.yml','.github/workflows/repair-seed.yml','package-lock.json','.env'];
+          const protectedAreas=['scripts/ci/certification-engine.mjs','scripts/ci/validate-execution-graph.mjs','tests/seed.spec.ts'];
+          const blocked=changed.filter(p=>neverModify.includes(p)||protectedAreas.includes(p));
+          if(blocked.length){console.error(JSON.stringify({blocked},null,2));process.exit(1)}
+          NODE
+
+      - name: Verify patched source before publication
+        run: |
+          set -euo pipefail
+          npm ci --prefer-offline --no-audit --no-fund
+          npm run test:static
+          npm run test:build
+
+      - name: Publish verified repair to main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "FLIXO Auto Repair Executor"
+          git config user.email "actions@users.noreply.github.com"
+          git diff --cached --check
+          git commit -m "fix(auto-repair): apply verified repair from run $REPAIR_RUN_ID"
+          git push origin HEAD:main
+
+      - name: Record execution evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-auto-repair-execution-${{ github.run_id }}
+          path: /tmp/flixo-executor/
+          if-no-files-found: warn
+          retention-days: 30
