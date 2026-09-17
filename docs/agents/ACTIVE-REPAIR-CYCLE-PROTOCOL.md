@@ -85,9 +85,11 @@ A repair attempt remains open until:
 Any red result becomes a repair target in the **same repair chain**. The system must not close the task merely because a new test was added or a targeted command passed.
 
 ## Safety boundaries
-- Task Agent remains preparation-only: no source mutation, commit, or push.
-- Supervising execution agent applies the prepared correction.
-- Repair work stays on an isolated repair branch.
+- Task Agent is the **direct self-healing repair owner**; it may mutate source, commit, and push only on the isolated repair branch.
+- Direct execution is strictly bounded by `SELF_HEALING_REPAIR_ONLY` and `FAIL_CLOSED`.
+- `mainBranchMutation` is always `false`; the repair agent must never mutate `main`, force-push, rewrite history, or self-approve/merge.
+- Every mutation must be tied to the active failure/task and its demonstrated root cause, proportional hardening, or required regression proof.
+- The repair agent must not perform unrelated product, UI, SEO/i18n, performance, cleanup, or opportunistic refactor work.
 - Canonical CI remains the final authority.
 - No gate may be skipped, weakened, falsified, or converted into a non-test merely to obtain GREEN.
 - If the evidence is insufficient, the cycle stays open for diagnosis rather than inventing a root cause.
