@@ -11,14 +11,34 @@ const required = [
 for (const file of required) {
   if (!fs.existsSync(file)) throw new Error(`TASK_AGENT_REQUIRED_FILE_MISSING=${file}`);
 }
+
 const task = fs.readFileSync('المهام.md', 'utf8');
+const ownershipContract = fs.readFileSync('docs/agents/TASK-AGENT.md', 'utf8');
+
+// `المهام.md` remains the task-intelligence source of truth. Execution ownership
+// is deliberately authoritative in TASK-AGENT.md so the task ledger can remain
+// a plan/state document without duplicating mutable execution permissions.
 for (const marker of [
   'TASK AGENT — OWNER OF THIS FILE',
   'Prepared Changes / Patch Plan',
   'الوكيل التنفيذي',
-  'Action Ownership',
-  'git push',
 ]) {
   if (!task.includes(marker)) throw new Error(`TASK_AGENT_TASK_GATE_MARKER_MISSING=${marker}`);
 }
-console.log(JSON.stringify({ status: 'PASS', authority: 'TASK_AGENT_ACTION_OWNER', requiredFiles: required.length }, null, 2));
+
+for (const marker of [
+  'Action Ownership',
+  'git push',
+  'continue repair cycles',
+  'declare GREEN before canonical CI',
+]) {
+  if (!ownershipContract.includes(marker)) throw new Error(`TASK_AGENT_OWNERSHIP_CONTRACT_MARKER_MISSING=${marker}`);
+}
+
+console.log(JSON.stringify({
+  status: 'PASS',
+  authority: 'TASK_AGENT_ACTION_OWNER',
+  taskSourceOfTruth: 'المهام.md',
+  executionOwnershipSource: 'docs/agents/TASK-AGENT.md',
+  requiredFiles: required.length,
+}, null, 2));
