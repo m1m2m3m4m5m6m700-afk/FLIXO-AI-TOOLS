@@ -10,10 +10,10 @@ const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 
 assert.ok(taskFile.length > 0, 'مهام.md must exist and be non-empty');
 assert.match(contract, /direct-execution agent/i);
-assert.match(contract, /MUST NOT:\s*[\s\S]*mutate main[\s\S]*self-approve|MUST NOT:\s*[\s\S]*push source changes to GitHub/i);
+assert.match(contract, /MUST NOT use a repair cycle to:[\s\S]*mutate `main`[\s\S]*self-approve\/merge/i);
 assert.match(contract, /SELF_HEALING_REPAIR_ONLY/);
 assert.match(contract, /Repairing the reported failure is not task completion/i);
-assert.match(contract, /Every red required check becomes a repair target/i);
+assert.match(contract, /every red required check becomes a repair target/i);
 assert.match(contract, /CLOSED \/ VERIFIED.*canonical CI is green/is);
 assert.match(agent, /preparedOnly: false/);
 assert.match(agent, /DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_REPAIR_BRANCH/);
