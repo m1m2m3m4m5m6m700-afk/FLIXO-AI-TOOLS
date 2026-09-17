@@ -10,6 +10,7 @@ import './styles.css';
 import './home-motion.css';
 import './command-palette.css';
 import './home-modern.css';
+import './device-ui.css';
 import './tools/seed/seed-premium.css';
 
 if (typeof window !== 'undefined') {
