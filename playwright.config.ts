@@ -19,12 +19,12 @@ export default defineConfig({
   reporter: isS4RuntimeGate
     ? [['github'], ['json', { outputFile: 'playwright-report/results.json' }]]
     : isCi
-      ? [['github'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]]
+      ? [['github'], ['json', { outputFile: 'playwright-report/results.json' }]]
       : [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'playwright-report/results.json' }]],
   use: {
     baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://127.0.0.1:3000',
     serviceWorkers: 'block',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     actionTimeout: isS4RuntimeGate ? 10_000 : 15_000,
