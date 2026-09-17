@@ -1,0 +1,65 @@
+name: ACCEL 4-6 Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: ACCEL 4-6 — Plan + Safety Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Generate balanced shard / impact plan
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+        run: node scripts/ci/accel-456-plan.mjs --mode=${{ github.event_name == 'pull_request' && 'pr' || 'main' }}
+
+      - name: Validate Playwright runtime optimization contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "trace: 'on-first-retry'" playwright.config.ts
+          grep -q "screenshot: 'only-on-failure'" playwright.config.ts
+          grep -q "video: 'retain-on-failure'" playwright.config.ts
+          grep -q "retries: isS4RuntimeGate ? 0 : isCi ? 2 : 0" playwright.config.ts
+
+      - name: Validate ACCEL plan invariants
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const p = JSON.parse(fs.readFileSync('diagnostics/ci/accel-456-plan.json', 'utf8'));
+          if (p.schema !== 'flixo-accel-456/v2') throw new Error('Invalid ACCEL schema');
+          if (p.balancedFastShards.shardCount !== 2) throw new Error('FAST must use 2 balanced shards');
+          if (!p.balancedFastShards.balanced) throw new Error('FAST shard plan is not balanced');
+          if (p.deep.strategy !== 'FULL_20_LOCALE_MATRIX') throw new Error('DEEP coverage was reduced');
+          if (p.deep.shardCount !== 3) throw new Error('DEEP shard count changed');
+          if (p.runtime.trace !== 'on-first-retry') throw new Error('Trace policy regressed');
+          if (p.runtime.screenshot !== 'only-on-failure') throw new Error('Screenshot policy regressed');
+          if (p.runtime.video !== 'retain-on-failure') throw new Error('Video policy regressed');
+          if (p.evidence.exactSha !== process.env.GITHUB_SHA) throw new Error('Evidence SHA mismatch');
+          NODE
+
+      - name: Upload ACCEL evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-accel-456-plan-${{ github.run_id }}
+          path: diagnostics/ci/accel-456-plan.json
+          if-no-files-found: error
+          retention-days: 14
