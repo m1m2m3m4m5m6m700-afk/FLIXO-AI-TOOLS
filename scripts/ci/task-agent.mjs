@@ -53,7 +53,7 @@ const failureRunId = arg('failure-run-id');
 const failureSha = arg('failure-sha');
 const failureFingerprint = arg('failure-fingerprint');
 const failureEvidencePath = arg('failure-evidence');
-const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE' : 'TASK_PLANNING';
+const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE' : 'PREPARATION_ONLY';
 const selected = requested
   ? tasks.filter((task) => task.taskId === requested || task.title.includes(requested))
   : allReady
