@@ -17,10 +17,6 @@ permissions:
   actions: write
   checks: read
 
-# Single authoritative repair lane for canonical main-branch Actions.
-# The bot diagnoses every failure, prepares a bounded repair, verifies it,
-# learns from the result, and emits an explicit handoff when it cannot safely repair.
-# It never publishes source changes.
 concurrency:
   group: flixo-auto-repair-main
   cancel-in-progress: false
@@ -30,6 +26,8 @@ env:
   FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
   FLIXO_REPAIR_LANE: single
   TARGET_RUN_ID: ${{ inputs.target_run_id || github.event.workflow_run.id }}
+  FLIXO_HISTORY_LIMIT: '30'
+  FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
 
 jobs:
   repair:
@@ -70,6 +68,11 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+
+      - name: Learn from historical GitHub Actions failures and repair history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/ci/learn-from-historical-actions.mjs
 
       - name: Capture failed CI logs before dependency installation
         env:
@@ -184,6 +187,7 @@ jobs:
             /tmp/flixo-prepared-repair.patch
             /tmp/flixo-prepared-repair-handoff.json
             diagnostics/auto-repair/memory.json
+            diagnostics/auto-repair/historical-learning.json
           if-no-files-found: warn
           retention-days: 30
 
