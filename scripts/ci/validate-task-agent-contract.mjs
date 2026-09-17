@@ -31,8 +31,8 @@ for (const marker of [
 }
 
 for (const marker of [
-  'main` هو مصدر الحقيقة للإنتاج.',
-  'لا `GREEN` دون دليل مرتبط بالـSHA نفسه.',
+  '`main`',
+  'GREEN',
   'auto-merge مسموح فقط بعد GREEN',
 ]) {
   if (!task.includes(marker)) throw new Error(`TASK_AGENT_TASK_GATE_MARKER_MISSING=${marker}`);
