@@ -29,7 +29,7 @@ jobs:
           ref: execution
           fetch-depth: 1
 
-      - name: 02 — Verify exact execution checkout identity without creating a branch
+      - name: 02 — Verify exact execution checkout identity and bind agent to execution
         shell: bash
         run: |
           set -euo pipefail
@@ -39,7 +39,9 @@ jobs:
           test "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}"
           ACTUAL_SHA="$(git rev-parse HEAD)"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
+          git switch -C execution "$EXPECTED_SHA"
           test "$(git branch --show-current)" = "execution"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           printf '%s\n' "$ACTUAL_SHA" > flixo-wp0-head-sha.txt
 
       - name: 03 — Setup Node
