@@ -1,7 +1,7 @@
 {
   "version": 7,
   "assertionRegistry": "scripts/ci/assertion-registry.json",
-  "execution": {"maxConcurrency":16,"failFast":false,"certification":"complete-gate-results","identityFields":["sha","packageLockSha256","testPlanSha256","assertionRegistrySha256"]},
+  "execution": {"maxConcurrency":1,"failFast":false,"certification":"complete-gate-results","identityFields":["sha","packageLockSha256","testPlanSha256","assertionRegistrySha256"]},
   "gateDependencies": {"static":[],"build":["static"],"browser":["build"]},
   "sourceDependencyGraph": {
     "registry": ["router", "sitemap", "seo", "e2e-inventory"],
@@ -29,7 +29,7 @@
       {"id":"STATIC-010","label":"seo","command":"npm","args":["run","validate:seo"],"rootCause":"RC-SEO-001","assertions":["ASSERT-SEO-001"],"coverage":["COV-SEO"]},
       {"id":"STATIC-011","label":"ci-contract","command":"npm","args":["run","validate:ci-contract"],"rootCause":"RC-CI-CONTRACT-001","assertions":["ASSERT-CI-CONTRACT-001"],"coverage":["COV-CI-CONTRACT"]},
       {"id":"STATIC-012","label":"image-only","command":"npm","args":["run","validate:image-only-closure"],"rootCause":"RC-UNKNOWN-001","assertions":["ASSERT-IMAGE-CLOSURE-001"],"coverage":["COV-IMAGE-CLOSURE"]},
-      {"id":"STATIC-013","label":"dependency-zero-debt","command":"npm","args":["run","validate:dependency-zero-debt"],"rootCause":"RC-DEPENDENCY-001","assertions":["ASSERT-DEPENDENCY-001"],"coverage":["COV-DEPENDENCY"]},
+      {"id":"STATIC-013","label":"dependency-zero-debt","command":"npm","args":["run","validate:dependency-zero-debt"],"rootCause":"RC-DEPENDENCY-001","assertions":["COV-DEPENDENCY"]},
       {"id":"STATIC-014","label":"file-safety","command":"node","args":["--experimental-strip-types","scripts/test-file-safety.mjs"],"rootCause":"RC-G2-SIGNATURE-001","assertions":["ASSERT-FILE-SAFETY-001"],"coverage":["COV-FILE-SAFETY"]},
       {"id":"STATIC-015","label":"output-integrity","command":"node","args":["--experimental-strip-types","scripts/test-output-integrity.mjs"],"rootCause":"RC-G3-INTEGRITY-001","assertions":["ASSERT-OUTPUT-001"],"coverage":["COV-OUTPUT-INTEGRITY"]},
       {"id":"STATIC-016","label":"svg-integrity","command":"node","args":["--experimental-strip-types","scripts/test-svg-integrity.mjs"],"rootCause":"RC-G3-INTEGRITY-001","assertions":["ASSERT-SVG-001"],"coverage":["COV-SVG-INTEGRITY"]},
