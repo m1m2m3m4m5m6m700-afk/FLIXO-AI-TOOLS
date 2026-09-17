@@ -1,7 +1,7 @@
 {
   "version": 7,
   "assertionRegistry": "scripts/ci/assertion-registry.json",
-  "execution": {"maxConcurrency":16,"failFast":false,"certification":"complete-gate-results","identityFields":["sha","packageLockSha256","testPlanSha256","assertionRegistrySha256"]},
+  "execution": {"maxConcurrency":1,"failFast":false,"certification":"complete-gate-results","identityFields":["sha","packageLockSha256","testPlanSha256","assertionRegistrySha256"]},
   "gateDependencies": {"static":[],"build":["static"],"browser":["build"]},
   "sourceDependencyGraph": {
     "registry": ["router", "sitemap", "seo", "e2e-inventory"],
@@ -39,7 +39,7 @@
       {"id":"STATIC-020","label":"localization-complete","command":"npm","args":["run","validate:localization-complete"],"rootCause":"RC-I18N-001","assertions":["ASSERT-LOCALIZATION-COMPLETE-001"],"coverage":["COV-I18N"]},
       {"id":"STATIC-021","label":"breadcrumb-seo","command":"npm","args":["run","validate:breadcrumb-seo"],"rootCause":"RC-SEO-001","assertions":["ASSERT-BREADCRUMB-SEO-001"],"coverage":["COV-SEO"]},
       {"id":"STATIC-022","label":"language-quality","command":"npm","args":["run","validate:language-quality"],"rootCause":"RC-I18N-001","assertions":["ASSERT-LANGUAGE-QUALITY-001"],"coverage":["COV-I18N"]},
-      {"id":"STATIC-023","label":"indexing","command":"npm","args":["run","validate:indexing"],"rootCause":"RC-SEO-001","assertions":["ASSERT-INDEXING-001"],"coverage":["COV-SEO"]},
+      {"id":"STATIC-023","label":"indexing","command":"npm","args":["run","validate:indexing"],"rootCause":"RC-SEO-001","assertions":["ASSERT-SEO-001"],"coverage":["COV-SEO"]},
       {"id":"STATIC-024","label":"site-origin","command":"npm","args":["run","validate:site-origin"],"rootCause":"RC-SEO-001","assertions":["ASSERT-SITE-ORIGIN-001"],"coverage":["COV-SEO"]},
       {"id":"STATIC-025","label":"lock-manifest","command":"npm","args":["run","validate:lock-manifest"],"rootCause":"RC-DEPENDENCY-001","assertions":["ASSERT-DEPENDENCY-MANIFEST-001"],"coverage":["COV-DEPENDENCY-MANIFEST"]},
       {"id":"STATIC-026","label":"playwright-surface","command":"npm","args":["run","validate:playwright-surface"],"rootCause":"RC-BROWSER-001","assertions":["ASSERT-PLAYWRIGHT-SURFACE-001"],"coverage":["COV-PLAYWRIGHT-SURFACE"]},
