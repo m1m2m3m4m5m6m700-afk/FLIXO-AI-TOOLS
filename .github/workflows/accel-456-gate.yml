@@ -15,6 +15,8 @@ jobs:
     name: ACCEL 4-6 — Plan + Safety Gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -53,7 +55,7 @@ jobs:
           if (p.runtime.trace !== 'on-first-retry') throw new Error('Trace policy regressed');
           if (p.runtime.screenshot !== 'only-on-failure') throw new Error('Screenshot policy regressed');
           if (p.runtime.video !== 'retain-on-failure') throw new Error('Video policy regressed');
-          if (p.evidence.exactSha !== process.env.GITHUB_SHA) throw new Error('Evidence SHA mismatch');
+          if (p.evidence.exactSha !== process.env.EXPECTED_SHA) throw new Error('Evidence SHA mismatch');
           NODE
 
       - name: Upload ACCEL evidence
