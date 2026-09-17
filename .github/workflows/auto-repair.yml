@@ -8,13 +8,13 @@ on:
         required: true
         type: string
   workflow_run:
-    workflows: ["FLIXO Test System", "FLIXO WP0 Trust Baseline", "FLIXO Continuous Delivery", "FLIXO Agent Repair Handoff Gate"]
+    workflows: ["FLIXO Test System", "FLIXO WP0 Trust Baseline", "FLIXO Continuous Delivery"]
     types: [completed]
     branches: [main]
 
 permissions:
   contents: read
-  actions: read
+  actions: write
   checks: read
 
 # Single authoritative repair lane for canonical main-branch Actions.
@@ -173,7 +173,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: flixo-auto-repair-${{ env.TARGET_RUN_ID }}
+          name: flixo-auto-repair-${{ env.TARGET_RUN_ID }}-${{ github.run_id }}
           path: |
             /tmp/flixo-failure.log
             /tmp/flixo-repair-summary.txt
@@ -186,3 +186,12 @@ jobs:
             diagnostics/auto-repair/memory.json
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Re-open repair cycle when the current attempt is not verified
+        if: always() && steps.verify.outputs.verified != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo "Repair remains open: target run $TARGET_RUN_ID is not verified. Starting another repair pass."
+          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref main -f target_run_id="$TARGET_RUN_ID"
