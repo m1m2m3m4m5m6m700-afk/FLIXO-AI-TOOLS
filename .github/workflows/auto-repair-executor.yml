@@ -1,9 +1,8 @@
 name: FLIXO Auto Repair Executor
 
-# Supervising execution lane: consumes only a verified, bounded repair handoff
-# produced by FLIXO Auto Repair Bot, validates it against current main, runs
-# the canonical static/build gates, then publishes the repair. Canonical CI
-# remains the final authority and automatically re-opens repair on regression.
+# Supervising validation lane: consumes only a verified, bounded repair handoff
+# produced by FLIXO Auto Repair Bot, validates it against current main, and
+# never bypasses the PR/canonical merge gate.
 on:
   workflow_run:
     workflows: ["FLIXO Auto Repair Bot"]
@@ -11,9 +10,10 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
   actions: read
   checks: read
+  pull-requests: read
 
 concurrency:
   group: flixo-auto-repair-executor-main
@@ -25,7 +25,7 @@ env:
 
 jobs:
   execute:
-    name: Validate, apply and publish verified repair
+    name: Validate verified repair handoff
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -62,45 +62,31 @@ jobs:
           gh api -H 'Accept: application/vnd.github+json' \
             "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > /tmp/flixo-executor/bundle.zip
           unzip -q /tmp/flixo-executor/bundle.zip -d /tmp/flixo-executor/extracted
-          for required in flixo-engine-outcome flixo-learning-outcome; do
+          for required in flixo-engine-outcome flixo-learning-outcome flixo-prepared-repair-handoff.json flixo-prepared-repair.patch; do
             source="$(find /tmp/flixo-executor/extracted -type f -name "$required" -print -quit)"
             test -n "$source"
             cp "$source" "/tmp/flixo-executor/$required"
           done
 
-      - name: Decide whether an execution handoff exists
+      - name: Require verified repair handoff
         id: handoff
         if: steps.bundle.outcome == 'success'
         run: |
           set -euo pipefail
           outcome="$(cat /tmp/flixo-executor/flixo-engine-outcome)"
           learning="$(cat /tmp/flixo-executor/flixo-learning-outcome)"
-          if [ "$outcome" != "verified-repair" ] || [ "$learning" != "success" ]; then
-            echo 'ready=false' >> "$GITHUB_OUTPUT"
-            echo "No executable repair handoff: outcome=$outcome learning=$learning"
-            exit 0
-          fi
-          for required in flixo-prepared-repair-handoff.json flixo-prepared-repair.patch; do
-            source="$(find /tmp/flixo-executor/extracted -type f -name "$required" -print -quit)"
-            test -n "$source"
-            cp "$source" "/tmp/flixo-executor/$required"
-          done
+          test "$outcome" = "verified-repair"
+          test "$learning" = "success"
+          node -e 'const fs=require("fs"); const h=JSON.parse(fs.readFileSync("/tmp/flixo-executor/flixo-prepared-repair-handoff.json","utf8")); if(h.mode!=="VERIFIED_REPAIR") throw new Error(`Invalid mode: ${h.mode}`); if(h.applyBy!=="AUTO_REPAIR_BOT") throw new Error(`Invalid owner: ${h.applyBy}`); if(h.requiresCanonicalCI!==true) throw new Error("Canonical CI requirement missing");'
+          test -s /tmp/flixo-executor/flixo-prepared-repair.patch
           echo 'ready=true' >> "$GITHUB_OUTPUT"
 
-      - name: Validate verified handoff
-        if: steps.handoff.outputs.ready == 'true'
-        run: |
-          set -euo pipefail
-          cd /tmp/flixo-executor
-          node -e 'const fs=require("fs"); const h=JSON.parse(fs.readFileSync("flixo-prepared-repair-handoff.json","utf8")); if(h.mode!=="PREPARATION_ONLY") throw new Error(`Invalid mode: ${h.mode}`); if(h.applyBy!=="SUPERVISING_EXECUTION_AGENT") throw new Error(`Invalid owner: ${h.applyBy}`); if(h.sourcePublishByBot!==false) throw new Error("Publication boundary violated");'
-          test -s flixo-prepared-repair.patch
-
-      - name: Apply patch to latest main in an isolated branch
+      - name: Validate patch against latest main without publication
         if: steps.handoff.outputs.ready == 'true'
         run: |
           set -euo pipefail
           git fetch origin main
-          git checkout -B flixo-auto-repair-executor origin/main
+          git checkout -B flixo-auto-repair-validation origin/main
           git apply --check /tmp/flixo-executor/flixo-prepared-repair.patch
           git apply --index /tmp/flixo-executor/flixo-prepared-repair.patch
           changed="$(git diff --cached --name-only)"
@@ -114,8 +100,9 @@ jobs:
           const blocked=changed.filter(p=>neverModify.includes(p)||protectedAreas.includes(p));
           if(blocked.length){console.error(JSON.stringify({blocked},null,2));process.exit(1)}
           NODE
+          git diff --cached --check
 
-      - name: Verify patched source before publication
+      - name: Run independent validation of prepared repair
         if: steps.handoff.outputs.ready == 'true'
         run: |
           set -euo pipefail
@@ -123,15 +110,15 @@ jobs:
           npm run test:static
           npm run test:build
 
-      - name: Publish verified repair to main
+      - name: Confirm repair remains PR/canonical-CI gated
         if: steps.handoff.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git config user.name "FLIXO Auto Repair Executor"
-          git config user.email "actions@users.noreply.github.com"
-          git diff --cached --check
-          git commit -m "fix(auto-repair): apply verified repair from run $REPAIR_RUN_ID"
-          git push origin HEAD:main
+          echo 'The executor never pushes directly to main.'
+          echo 'The Auto Repair Bot owns the isolated PR; canonical CI and the merge gate own publication.'
+          gh pr list --repo "$GITHUB_REPOSITORY" --base main --state open --json number,headRefName,statusCheckRollup --jq '.[] | select(.headRefName | startswith("flixo-auto-repair/")) | [.number,.headRefName] | @tsv' | tee /tmp/flixo-executor/open-repair-prs.txt
 
       - name: Record execution evidence
         if: always()
