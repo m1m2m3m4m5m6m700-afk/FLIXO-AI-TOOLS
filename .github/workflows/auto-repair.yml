@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       target_run_id:
-        description: 'Failed workflow run ID to diagnose and repair'
+        description: 'Workflow run ID to diagnose and repair'
         required: true
         type: string
   workflow_run:
@@ -35,7 +35,7 @@ jobs:
     name: Single-lane diagnose, prepare, verify and learn
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch == 'main')
+      (github.event.workflow_run.conclusion != 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -50,9 +50,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          CONCLUSION="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion')"
+          case "$CONCLUSION" in
+            failure|cancelled|timed_out|action_required|stale) ;;
+            *) echo "Target run is resolved successfully or has no repairable conclusion: $CONCLUSION"; exit 0 ;;
+          esac
           gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,conclusion,headSha,headBranch,name
-          gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion' | grep -qx 'failure'
           printf '%s\n' "$TARGET_RUN_ID" > /tmp/flixo-target-run-id
+          printf '%s\n' "$CONCLUSION" > /tmp/flixo-target-conclusion
 
       - name: Materialize failed SHA as isolated repair target
         env:
@@ -85,8 +90,8 @@ jobs:
           {
             echo '### Failed CI classification input'
             echo "run_id=$TARGET_RUN_ID"
-            gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json name,headSha,headBranch
-            grep -E -i 'error|failed|failure|timeout|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
+            gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json name,headSha,headBranch,conclusion
+            grep -E -i 'error|failed|failure|timeout|cancelled|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
           } > /tmp/flixo-repair-summary.txt
 
       - name: Classify root cause with evidence gate
@@ -162,7 +167,7 @@ jobs:
           git diff --cached --quiet && { echo 'No applicable repair diff on current main; refusing empty PR.'; exit 1; }
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}"
           git push --set-upstream origin "$BRANCH"
-          PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --title "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}" --body "Automated repair for failed run ${TARGET_RUN_ID}.\n\nThis PR was created only after diagnosis evidence, bounded mutation, reproduction recovery, recurrence proof, typecheck, static checks, and production build passed on the repair target. Canonical CI remains the final merge gate.\n\nFailed SHA: ${FAILED_SHA}\nRepair run: ${GITHUB_RUN_ID}")"
+          PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --title "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}" --body "Automated repair for unresolved run ${TARGET_RUN_ID}.\n\nThis PR was created only after diagnosis evidence, bounded mutation, reproduction recovery, recurrence proof, typecheck, static checks, and production build passed on the repair target. Canonical CI remains the final merge gate.\n\nFailed SHA: ${FAILED_SHA}\nRepair run: ${GITHUB_RUN_ID}")"
           echo "Created verified repair PR: $PR_URL"
 
       - name: Record learning outcome for every diagnosed failure
