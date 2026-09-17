@@ -20,11 +20,14 @@ assert.match(output, /TECHNICAL_DEBT_AUDIT_DIGEST=[a-f0-9]{64}/);
 assert.equal(existsSync(auditPath), true, 'technical-debt audit artifact must exist');
 
 const audit = JSON.parse(readFileSync(auditPath, 'utf8'));
-assert.equal(audit.schema, 'flixo-technical-debt-audit/v3');
+assert.equal(audit.schema, 'flixo-technical-debt-audit/v4');
 assert.equal(audit.sha, run(['rev-parse', 'HEAD']));
 assert.equal(audit.findings.length, audit.summary.findings);
 assert.equal(typeof audit.auditDigest, 'string');
 assert.match(audit.auditDigest, /^[a-f0-9]{64}$/);
+assert.ok(audit.findings.every((finding) => /^[A-F0-9]{16}$/.test(finding.fingerprint)), 'every finding must have a deterministic fingerprint');
+assert.equal(new Set(audit.findings.map((finding) => finding.fingerprint)).size, audit.findings.length, 'finding fingerprints must be unique');
 
 console.log('TECHNICAL_DEBT_AUDIT_REGRESSION=PASS');
 console.log(`TECHNICAL_DEBT_AUDIT_REGRESSION_SHA=${audit.sha}`);
+console.log(`TECHNICAL_DEBT_AUDIT_FINGERPRINTS=${audit.findings.length}`);
