@@ -61,6 +61,20 @@ function publishIntractableRecord(record) {
   run(['pr', 'create', '--repo', process.env.GITHUB_REPOSITORY, '--base', 'main', '--head', branch, '--title', `chore(auto-repair): escalate intractable error ${record.fingerprint.slice(0, 12)}`, '--body', `This escalation was opened automatically after ${record.attempts} non-verified repair attempts for fingerprint ${record.fingerprint}.\n\nProtocol: SUPERVISING-REPAIR-TEACHING-v1\n\nThis PR contains diagnostic state only. It does not bypass verified-repair or canonical CI. The supervising agent must provide a new evidence-backed hypothesis, diagnostic change, repair strategy, verification plan, rejected approaches, and exit criteria before the case can leave INTRACTABLE.`]);
 }
 
+function priorRepairArtifactCount() {
+  const token = process.env.GH_TOKEN;
+  const repo = process.env.GITHUB_REPOSITORY;
+  const targetRunId = process.env.FLIXO_RUN_ID;
+  if (!token || !repo || !targetRunId) return 0;
+  const result = spawnSync('gh', ['api', `repos/${repo}/actions/artifacts`, '--paginate', '--slurp', '--jq', '.[].artifacts[].name'], {
+    encoding: 'utf8',
+    env: process.env,
+  });
+  if (result.status !== 0) return 0;
+  const prefix = `flixo-auto-repair-${targetRunId}-`;
+  return result.stdout.split('\n').filter((name) => name.startsWith(prefix)).length;
+}
+
 export function findCase(memory, fingerprint) {
   return memory.cases.find((item) => item.fingerprint === fingerprint);
 }
@@ -140,7 +154,11 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   entry.rootCause = rootCause ?? entry.rootCause ?? 'unknown';
   if (normalizedFailure) entry.normalizedFailure = normalizeFailure(normalizedFailure);
   if (features.length) entry.features = [...new Set(features)];
-  if (outcome !== 'proposed') entry.attempts += 1;
+  if (outcome !== 'proposed') {
+    entry.attempts += 1;
+    const persistedAttempts = priorRepairArtifactCount() + 1;
+    if (persistedAttempts > entry.attempts) entry.attempts = persistedAttempts;
+  }
   if (outcome === 'success') entry.successes += 1; else if (outcome !== 'proposed') entry.failures += 1;
   entry.confidence = confidenceFor(entry);
   if (rule) entry.rules = [...new Set([...entry.rules, rule])];
