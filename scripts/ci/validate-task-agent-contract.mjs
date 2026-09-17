@@ -28,11 +28,17 @@ for (const marker of [
 
 for (const marker of [
   'Action Ownership',
-  'git push',
   'continue repair cycles',
   'declare GREEN before canonical CI',
+  'pushAuthority',
 ]) {
   if (!ownershipContract.includes(marker)) throw new Error(`TASK_AGENT_OWNERSHIP_CONTRACT_MARKER_MISSING=${marker}`);
+}
+
+// The preparation agent is intentionally forbidden from pushing; push authority
+// belongs to the supervising execution agent. Validate both sides explicitly.
+if (!/ممنوع\s+`git push`/.test(ownershipContract) && !ownershipContract.includes('ممنوع `git push`')) {
+  throw new Error('TASK_AGENT_OWNERSHIP_CONTRACT_MISSING_PREPARATION_PUSH_RESTRICTION');
 }
 
 console.log(JSON.stringify({
