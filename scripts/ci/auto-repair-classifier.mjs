@@ -25,7 +25,7 @@ const hypotheses = definitions.map(([id, pattern]) => {
     id,
     signalCount: matches.length,
     evidenceLines: lines,
-    score: Math.min(1, (matches.length * 0.12) + (lines.length ? 0.2 : 0)),
+    score: Math.min(1, (matches.length * 0.2) + (lines.length * 0.15)),
   };
 }).filter((item) => item.signalCount > 0).sort((a, b) => b.score - a.score);
 
