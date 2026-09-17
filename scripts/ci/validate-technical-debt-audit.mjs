@@ -13,6 +13,17 @@ const fail = (message) => {
 };
 
 const run = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
+const stableJson = (value) => JSON.stringify(value, Object.keys(value).sort());
+const fingerprintFor = (finding) => createHash('sha256').update(stableJson({
+  id: finding.id,
+  category: finding.category,
+  severity: finding.severity,
+  status: finding.status,
+  target: finding.target,
+  summary: finding.summary,
+  evidence: finding.evidence,
+  action: finding.action,
+})).digest('hex').slice(0, 16).toUpperCase();
 
 try {
   execFileSync(process.execPath, ['scripts/ci/audit-technical-debt.mjs'], {
@@ -32,7 +43,7 @@ try {
   fail('audit-output-invalid-json');
 }
 
-if (audit?.schema !== 'flixo-technical-debt-audit/v3') fail('schema-mismatch');
+if (audit?.schema !== 'flixo-technical-debt-audit/v4') fail('schema-mismatch');
 if (!/^\d{4}-\d{2}-\d{2}T/.test(String(audit?.generatedAt ?? ''))) fail('generatedAt-missing');
 
 const headSha = run(['rev-parse', 'HEAD']);
@@ -43,15 +54,20 @@ if (!audit?.summary || typeof audit.summary !== 'object') fail('summary-missing'
 if (!Array.isArray(audit?.findings)) fail('findings-not-array');
 if (!audit?.auditDigest || !/^[a-f0-9]{64}$/.test(audit.auditDigest)) fail('auditDigest-invalid');
 
-const requiredFindingKeys = ['id', 'category', 'severity', 'status', 'target', 'summary', 'evidence', 'action'];
+const requiredFindingKeys = ['id', 'category', 'severity', 'status', 'target', 'summary', 'evidence', 'action', 'fingerprint'];
+const fingerprints = new Set();
 for (const [index, finding] of audit.findings.entries()) {
   if (!finding || typeof finding !== 'object') fail(`finding-${index}-not-object`);
   for (const key of requiredFindingKeys) {
     if (!(key in finding)) fail(`finding-${index}-missing-${key}`);
   }
+  if (!/^[A-F0-9]{16}$/.test(finding.fingerprint)) fail(`finding-${index}-fingerprint-invalid`);
+  if (fingerprints.has(finding.fingerprint)) fail(`finding-${index}-duplicate-fingerprint`);
+  fingerprints.add(finding.fingerprint);
+  if (finding.fingerprint !== fingerprintFor(finding)) fail(`finding-${index}-fingerprint-mismatch`);
 }
 
-const recomputed = { ...audit };
+const recomputed = { ...audit, generatedAt: undefined };
 delete recomputed.auditDigest;
 const expectedDigest = createHash('sha256').update(JSON.stringify(recomputed)).digest('hex');
 if (audit.auditDigest !== expectedDigest) fail('auditDigest-mismatch');
