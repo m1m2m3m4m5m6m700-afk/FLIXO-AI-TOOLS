@@ -72,12 +72,19 @@ jobs:
           test -x node_modules/.bin/playwright
           npx playwright --version
           sha256sum package-lock.json
-      - name: Verify browser runtime when required
+      - name: Verify browser engines when required
         if: steps.runtime.outputs.browser == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --dry-run chromium firefox webkit
+          node --input-type=module <<'NODE'
+          import { chromium, firefox, webkit } from '@playwright/test';
+          for (const [name, browserType] of [['chromium', chromium], ['firefox', firefox], ['webkit', webkit]]) {
+            const browser = await browserType.launch({ headless: true });
+            await browser.close();
+            console.log(`PLAYWRIGHT_${name.toUpperCase()}_LAUNCH=PASS`);
+          }
+          NODE
       - name: Execute selected verification
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
