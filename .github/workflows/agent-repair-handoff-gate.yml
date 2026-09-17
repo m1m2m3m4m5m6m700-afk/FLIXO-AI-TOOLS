@@ -39,7 +39,7 @@ jobs:
           repair_job_conclusion="$(gh run view "$REPAIR_RUN_ID" --repo "$GITHUB_REPOSITORY" --json jobs --jq '[.jobs[] | select(.name == "Single-lane diagnose, prepare, verify and learn") | .conclusion] | first // "skipped"')"
           echo "repair_job_conclusion=$repair_job_conclusion" >> "$GITHUB_OUTPUT"
           if [ "$repair_job_conclusion" = "skipped" ]; then
-            echo "Repair job was skipped; no handoff artifact is expected. Gate records SKIPPED rather than failing on a missing artifact."
+            echo "Repair job was skipped; no handoff artifact is expected."
           fi
 
       - name: Download repair handoff artifact
@@ -54,16 +54,19 @@ jobs:
             "/repos/$GITHUB_REPOSITORY/actions/runs/$REPAIR_RUN_ID/artifacts" \
             --jq '[.artifacts[] | select(.expired == false) | select(.name | startswith("flixo-auto-repair-"))] | first | .id // empty')"
           test -n "$artifact_id"
-          gh api \
-            -H 'Accept: application/vnd.github+json' \
+          gh api -H 'Accept: application/vnd.github+json' \
             "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > /tmp/repair-handoff/artifact.zip
           unzip -q /tmp/repair-handoff/artifact.zip -d /tmp/repair-handoff/extracted
           rm -f /tmp/repair-handoff/artifact.zip
-          find /tmp/repair-handoff/extracted -type f -maxdepth 3 -print
-          for required in flixo-prepared-repair-handoff.json flixo-engine-outcome flixo-learning-outcome flixo-root-cause.json; do
+          for required in flixo-engine-outcome flixo-learning-outcome flixo-root-cause.json; do
             source="$(find /tmp/repair-handoff/extracted -type f -name "$required" -print -quit)"
             test -n "$source"
             cp "$source" "/tmp/repair-handoff/$required"
+          done
+          optional="flixo-prepared-repair-handoff.json flixo-prepared-repair.patch flixo-repair-evidence.json"
+          for file in $optional; do
+            source="$(find /tmp/repair-handoff/extracted -type f -name "$file" -print -quit || true)"
+            if [ -n "$source" ]; then cp "$source" "/tmp/repair-handoff/$file"; fi
           done
 
       - name: Validate handoff contract and publication boundary
@@ -72,11 +75,17 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/repair-handoff
-          test -f flixo-prepared-repair-handoff.json
-          test -f flixo-engine-outcome
-          test -f flixo-learning-outcome
-          test -f flixo-root-cause.json
-          node -e 'const fs=require("fs"); const h=JSON.parse(fs.readFileSync("flixo-prepared-repair-handoff.json","utf8")); const o=fs.readFileSync("flixo-engine-outcome","utf8").trim(); const l=fs.readFileSync("flixo-learning-outcome","utf8").trim(); if(h.mode!=="PREPARATION_ONLY") throw new Error(`Invalid mode: ${h.mode}`); if(h.applyBy!=="SUPERVISING_EXECUTION_AGENT") throw new Error(`Invalid owner: ${h.applyBy}`); if(h.sourcePublishByBot!==false) throw new Error("Bot source publication boundary violated"); if(o==="verified-repair"&&l!=="success") throw new Error("Verified repair without successful learning outcome"); if(o!=="verified-repair"&&l==="success") throw new Error("Learning marked success for unverified repair");'
+          outcome="$(cat flixo-engine-outcome)"
+          learning="$(cat flixo-learning-outcome)"
+          if [ "$outcome" = "verified-repair" ]; then
+            test -f flixo-prepared-repair-handoff.json
+            test -f flixo-prepared-repair.patch
+            node -e 'const fs=require("fs"); const h=JSON.parse(fs.readFileSync("flixo-prepared-repair-handoff.json","utf8")); if(h.mode!=="PREPARATION_ONLY") throw new Error(`Invalid mode: ${h.mode}`); if(h.applyBy!=="SUPERVISING_EXECUTION_AGENT") throw new Error(`Invalid owner: ${h.applyBy}`); if(h.sourcePublishByBot!==false) throw new Error("Bot source publication boundary violated");'
+            test "$learning" = "success"
+          else
+            test "$learning" != "success"
+            echo "No verified repair was produced; recording escalation-only outcome."
+          fi
 
       - name: Record machine-readable handoff decision
         shell: bash
@@ -84,12 +93,12 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/repair-handoff
           if [ "${{ steps.repair-state.outputs.repair_job_conclusion }}" = "skipped" ]; then
-            REPAIR_RUN_ID="$REPAIR_RUN_ID" REPAIR_SHA="$REPAIR_SHA" node -e 'const fs=require("fs"); const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v1",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,gateState:"SKIPPED_SOURCE_RUN",decision:"NO_HANDOFF_TO_APPLY",generatedAt:new Date().toISOString()}; fs.writeFileSync("/tmp/repair-handoff/repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");'
+            REPAIR_RUN_ID="$REPAIR_RUN_ID" REPAIR_SHA="$REPAIR_SHA" node -e 'const fs=require("fs"); const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v2",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,gateState:"SKIPPED_SOURCE_RUN",decision:"NO_HANDOFF_TO_APPLY",generatedAt:new Date().toISOString()}; fs.writeFileSync("/tmp/repair-handoff/repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");'
           else
             cd /tmp/repair-handoff
             outcome="$(cat flixo-engine-outcome)"
             learning="$(cat flixo-learning-outcome)"
-            OUTCOME="$outcome" LEARNING="$learning" REPAIR_RUN_ID="$REPAIR_RUN_ID" REPAIR_SHA="$REPAIR_SHA" node -e 'const fs=require("fs"); const crypto=require("crypto"); const f="flixo-prepared-repair-handoff.json"; const h=JSON.parse(fs.readFileSync(f,"utf8")); const o=process.env.OUTCOME; const l=process.env.LEARNING; const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v1",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,mode:h.mode,applyBy:h.applyBy,sourcePublishByBot:h.sourcePublishByBot,engineOutcome:o,learningOutcome:l,decision:o==="verified-repair"&&l==="success"?"READY_FOR_EXECUTIVE_REVIEW":"ESCALATION_ONLY",handoffSha256:crypto.createHash("sha256").update(fs.readFileSync(f)).digest("hex"),generatedAt:new Date().toISOString()}; fs.writeFileSync("repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");'
+            OUTCOME="$outcome" LEARNING="$learning" REPAIR_RUN_ID="$REPAIR_RUN_ID" REPAIR_SHA="$REPAIR_SHA" node -e 'const fs=require("fs"); const crypto=require("crypto"); const hFile="flixo-prepared-repair-handoff.json"; const hasH=fs.existsSync(hFile); const h=hasH?JSON.parse(fs.readFileSync(hFile,"utf8")):{}; const o=process.env.OUTCOME; const l=process.env.LEARNING; const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v2",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,mode:h.mode??null,applyBy:h.applyBy??null,sourcePublishByBot:h.sourcePublishByBot??null,engineOutcome:o,learningOutcome:l,decision:o==="verified-repair"&&l==="success"?"READY_FOR_EXECUTION":"ESCALATION_ONLY",handoffSha256:hasH?crypto.createHash("sha256").update(fs.readFileSync(hFile)).digest("hex"):null,generatedAt:new Date().toISOString()}; fs.writeFileSync("repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");'
           fi
 
       - name: Upload handoff gate evidence
