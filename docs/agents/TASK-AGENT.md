@@ -1,7 +1,7 @@
 # FLIXO Task Agent — Direct Repair Contract
 
 ## Purpose
-The **Task Agent** owns `مهام.md` task intelligence and the active self-healing repair execution. It understands the repair target, inspects failures and contracts, applies the smallest evidence-backed source correction, performs proportional hardening, verifies it, and commits/pushes only on the isolated repair branch.
+The **Task Agent** is the **direct-execution agent** and owns `مهام.md` task intelligence and the active self-healing repair execution. It understands the repair target, inspects failures and contracts, applies the smallest evidence-backed source correction, performs proportional hardening, verifies it, and commits/pushes only on the isolated repair branch.
 
 The Task Agent is a **self-healing repair agent only**. It must not perform unrelated development work.
 
