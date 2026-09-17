@@ -37,14 +37,18 @@ jobs:
           fetch-depth: 0
 
       - name: Inspect repair source job
+        id: source
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           conclusion="$(gh run view "$REPAIR_RUN_ID" --repo "$GITHUB_REPOSITORY" --json jobs --jq '[.jobs[] | select(.name == "Single-lane diagnose, prepare, verify and learn") | .conclusion] | first // "skipped"')"
+          echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
           test "$conclusion" = success
 
-      - name: Download verified repair bundle
+      - name: Download repair bundle
+        id: bundle
+        if: steps.source.outputs.conclusion == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -58,22 +62,41 @@ jobs:
           gh api -H 'Accept: application/vnd.github+json' \
             "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > /tmp/flixo-executor/bundle.zip
           unzip -q /tmp/flixo-executor/bundle.zip -d /tmp/flixo-executor/extracted
-          for required in flixo-engine-outcome flixo-learning-outcome flixo-prepared-repair-handoff.json flixo-prepared-repair.patch; do
+          for required in flixo-engine-outcome flixo-learning-outcome; do
             source="$(find /tmp/flixo-executor/extracted -type f -name "$required" -print -quit)"
             test -n "$source"
             cp "$source" "/tmp/flixo-executor/$required"
           done
 
+      - name: Decide whether an execution handoff exists
+        id: handoff
+        if: steps.bundle.outcome == 'success'
+        run: |
+          set -euo pipefail
+          outcome="$(cat /tmp/flixo-executor/flixo-engine-outcome)"
+          learning="$(cat /tmp/flixo-executor/flixo-learning-outcome)"
+          if [ "$outcome" != "verified-repair" ] || [ "$learning" != "success" ]; then
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo "No executable repair handoff: outcome=$outcome learning=$learning"
+            exit 0
+          fi
+          for required in flixo-prepared-repair-handoff.json flixo-prepared-repair.patch; do
+            source="$(find /tmp/flixo-executor/extracted -type f -name "$required" -print -quit)"
+            test -n "$source"
+            cp "$source" "/tmp/flixo-executor/$required"
+          done
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+
       - name: Validate verified handoff
+        if: steps.handoff.outputs.ready == 'true'
         run: |
           set -euo pipefail
           cd /tmp/flixo-executor
-          test "$(cat flixo-engine-outcome)" = verified-repair
-          test "$(cat flixo-learning-outcome)" = success
           node -e 'const fs=require("fs"); const h=JSON.parse(fs.readFileSync("flixo-prepared-repair-handoff.json","utf8")); if(h.mode!=="PREPARATION_ONLY") throw new Error(`Invalid mode: ${h.mode}`); if(h.applyBy!=="SUPERVISING_EXECUTION_AGENT") throw new Error(`Invalid owner: ${h.applyBy}`); if(h.sourcePublishByBot!==false) throw new Error("Publication boundary violated");'
           test -s flixo-prepared-repair.patch
 
       - name: Apply patch to latest main in an isolated branch
+        if: steps.handoff.outputs.ready == 'true'
         run: |
           set -euo pipefail
           git fetch origin main
@@ -93,6 +116,7 @@ jobs:
           NODE
 
       - name: Verify patched source before publication
+        if: steps.handoff.outputs.ready == 'true'
         run: |
           set -euo pipefail
           npm ci --prefer-offline --no-audit --no-fund
@@ -100,8 +124,7 @@ jobs:
           npm run test:build
 
       - name: Publish verified repair to main
-        env:
-          GH_TOKEN: ${{ github.token }}
+        if: steps.handoff.outputs.ready == 'true'
         run: |
           set -euo pipefail
           git config user.name "FLIXO Auto Repair Executor"
