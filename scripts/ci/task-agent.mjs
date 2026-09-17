@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 const ROOT = process.cwd();
 const TASK_FILE = path.join(ROOT, 'مهام.md');
 const OUTPUT_DIR = path.join(ROOT, 'diagnostics/agents/task-agent');
+const HARDENING_PROTOCOL = 'docs/agents/REPAIR-HARDENING-PROTOCOL.md';
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
@@ -22,6 +23,7 @@ const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'u
 const hash = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex');
 
 if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=مهام.md');
+if (!fs.existsSync(path.join(ROOT, HARDENING_PROTOCOL))) throw new Error(`HARDENING_PROTOCOL_NOT_FOUND=${HARDENING_PROTOCOL}`);
 const source = fs.readFileSync(TASK_FILE, 'utf8');
 
 function parseTasks(markdown) {
@@ -64,12 +66,13 @@ const outputs = [];
 for (const task of selected) {
   const fingerprint = hash(`${task.taskId}|${task.title}|${task.section}`).slice(0, 16);
   const packet = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     authority: 'FLIXO_TASK_AGENT',
     role: 'TASK_OWNER_AND_CODE_PREPARER',
     mode: 'PREPARATION_ONLY',
     preparedOnly: true,
     mutationPolicy: 'NO_SOURCE_MUTATION_NO_COMMIT_NO_PUSH',
+    hardeningProtocol: HARDENING_PROTOCOL,
     taskFile: 'مهام.md',
     task,
     baselineSha: sha,
@@ -81,13 +84,19 @@ for (const task of selected) {
       fingerprint,
       error: 'UNOBSERVED',
       rootCause: 'UNOBSERVED',
+      hardeningWeakness: 'UNASSESSED',
+      hardeningControl: 'UNPREPARED',
+      hardeningProof: 'PENDING',
       repair: 'NOT_APPLIED_BY_PREPARATION_AGENT',
       verification: 'PENDING',
     },
     instructions: {
-      objective: 'Understand this task, inspect its contracts, prepare exact source-code changes for a supervising agent, and stop before applying/committing/pushing them.',
+      objective: 'Understand this task, inspect its contracts, prepare exact source-code changes and proportional hardening for a supervising agent, and stop before applying/committing/pushing them.',
       sourcePayload: 'CODE_ONLY',
       requiredChangeShape: ['path', 'operation', 'content', 'baselineSha'],
+      hardeningRequiredWhenApplicable: true,
+      hardeningRule: 'PATCH_ONLY_CLOSURE_FORBIDDEN_WHEN_A_DEMONSTRATED_REUSABLE_WEAKNESS_EXISTS',
+      hardeningMustNot: ['disable-gates', 'skip-verification', 'weaken-security', 'falsify-evidence'],
       verificationRequired: true,
       unresolvedWorkMustBeReported: true,
     },
@@ -101,6 +110,7 @@ for (const task of selected) {
       everyRepairOpensAnotherVerificationCycle: true,
       everyRedCheckMustBecomeARepairTarget: true,
       newlyIntroducedFailuresMustOpenNewCycles: true,
+      applicableHardeningMustBeProven: true,
       taskCannotBeClosedFromTargetedRegressionAlone: true,
     },
     repairLoop: {
@@ -117,7 +127,7 @@ for (const task of selected) {
         action: 'REQUIRES_REVIEW',
         failClosed: true,
       },
-      closureGate: ['canonical-ci-green', 'zero-red-checks', 'fresh-exact-sha-evidence', 'required-regression-proof'],
+      closureGate: ['canonical-ci-green', 'zero-red-checks', 'fresh-exact-sha-evidence', 'required-regression-proof', 'applicable-hardening-proof'],
     },
     preparedChanges: [],
     inspectedFiles: [],
@@ -138,10 +148,11 @@ for (const task of selected) {
 }
 
 const index = {
-  schemaVersion: 4,
+  schemaVersion: 5,
   authority: 'FLIXO_TASK_AGENT',
   mode: 'PREPARATION_ONLY',
   preparedOnly: true,
+  hardeningProtocol: HARDENING_PROTOCOL,
   baselineSha: sha,
   generatedAt,
   selected: outputs,
@@ -152,14 +163,15 @@ const index = {
     mode: 'RED_TO_GREEN',
     maxCycles: 12,
     rescanAfterEveryRepair: true,
+    hardeningRequiredWhenApplicable: true,
     circuitBreaker: { enabled: true, maxStalledCycles: 3, action: 'REQUIRES_REVIEW', failClosed: true },
   },
   greenGate: {
-    required: ['CANONICAL_GREEN', 'ZERO_RED_CHECKS', 'FRESH_EXACT_SHA_EVIDENCE', 'REGRESSION_PROOF'],
+    required: ['CANONICAL_GREEN', 'ZERO_RED_CHECKS', 'FRESH_EXACT_SHA_EVIDENCE', 'REGRESSION_PROOF', 'APPLICABLE_HARDENING_PROOF'],
     closureAllowedOnlyWhenAllRequired: true,
   },
   changeBudget: { maxPreparedFiles: 12, maxInspectedFiles: 40, onExceed: 'REQUIRES_REVIEW' },
-  memory: { fingerprinted: true, summaryPerRepair: true, reuseKnownFingerprint: true },
+  memory: { fingerprinted: true, summaryPerRepair: true, reuseKnownFingerprint: true, preservePreventionOutcome: true },
   digest: hash(JSON.stringify(outputs)),
 };
 fs.writeFileSync(path.join(OUTPUT_DIR, 'latest.json'), `${JSON.stringify(index, null, 2)}\n`);
