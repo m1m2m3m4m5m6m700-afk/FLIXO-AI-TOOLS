@@ -1,8 +1,20 @@
 name: FLIXO Auto Repair Deep Diagnostics
 
-# Closed-loop repair lane. Repairs are always isolated on a repair branch and
-# integrated only through a PR whose canonical CI/certification gates are green.
 on:
+  workflow_dispatch:
+    inputs:
+      target_run_id:
+        description: 'Failed canonical workflow run ID'
+        required: true
+        type: string
+      target_sha:
+        description: 'Exact failed SHA'
+        required: true
+        type: string
+      target_branch:
+        description: 'Exact failed branch'
+        required: true
+        type: string
   workflow_run:
     workflows:
       - "FLIXO Test System"
@@ -20,13 +32,13 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: flixo-auto-repair-${{ github.event.workflow_run.head_branch }}
+  group: flixo-auto-repair-${{ inputs.target_branch || github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 
 env:
-  TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
-  TARGET_RUN_ID: ${{ github.event.workflow_run.id }}
-  TARGET_BRANCH: ${{ github.event.workflow_run.head_branch }}
+  TARGET_SHA: ${{ inputs.target_sha || github.event.workflow_run.head_sha }}
+  TARGET_RUN_ID: ${{ inputs.target_run_id || github.event.workflow_run.id }}
+  TARGET_BRANCH: ${{ inputs.target_branch || github.event.workflow_run.head_branch }}
   FLIXO_HISTORY_LIMIT: '30'
   FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
   FLIXO_REPAIR_LANE: single
@@ -34,7 +46,7 @@ env:
 jobs:
   diagnose:
     name: Closed-loop diagnose, repair, verify and handoff
-    if: github.event.workflow_run.conclusion == 'failure'
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -96,10 +108,8 @@ jobs:
           npm run test:static
           npm run test:build
           npm run verify:ci-cd-trust
-
           git diff --name-only --diff-filter=ACMRTUXB > /tmp/flixo-verified-files.txt
           test -s /tmp/flixo-verified-files.txt
-
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const evidence = JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json', 'utf8'));
@@ -112,7 +122,6 @@ jobs:
           const blocked = changed.filter(forbidden);
           if (unexpected.length || blocked.length) process.exit(1);
           NODE
-
           git diff --binary -- . ':!diagnostics' > /tmp/flixo-verified.patch
           test -s /tmp/flixo-verified.patch
           cp diagnostics/auto-repair/memory.json /tmp/flixo-repair-memory.json
@@ -126,7 +135,7 @@ jobs:
           if [ "$TARGET_BRANCH" = "main" ]; then
             test "$(git rev-parse origin/main)" = "$TARGET_SHA"
           else
-            git merge-base --is-ancestor "$TARGET_SHA" origin/main || true
+            test "$(git rev-parse origin/main)" != "$TARGET_SHA"
           fi
 
       - name: Prepare isolated repair branch
@@ -136,21 +145,17 @@ jobs:
           set -euo pipefail
           if [[ "$TARGET_BRANCH" == flixo-auto-repair/* ]]; then
             REPAIR_BRANCH="$TARGET_BRANCH"
-          else
-            REPAIR_BRANCH="flixo-auto-repair/run-$TARGET_RUN_ID"
-          fi
-          echo "repair_branch=$REPAIR_BRANCH" >> "$GITHUB_OUTPUT"
-          git fetch --no-tags origin main
-          if [[ "$TARGET_BRANCH" == flixo-auto-repair/* ]]; then
             git checkout -B "$REPAIR_BRANCH" "$TARGET_SHA"
           else
+            REPAIR_BRANCH="flixo-auto-repair/run-$TARGET_RUN_ID"
             git checkout -B "$REPAIR_BRANCH" origin/main
           fi
+          echo "repair_branch=$REPAIR_BRANCH" >> "$GITHUB_OUTPUT"
           git apply --index /tmp/flixo-verified.patch
           mkdir -p diagnostics/auto-repair
           cp /tmp/flixo-repair-memory.json diagnostics/auto-repair/memory.json
 
-      - name: Persist immutable repair-cycle evidence on repair branch
+      - name: Persist immutable repair-cycle evidence
         if: steps.verify.outputs.outcome == 'verified-repair'
         run: |
           set -euo pipefail
@@ -180,11 +185,9 @@ jobs:
           fs.mkdirSync('docs', { recursive: true });
           fs.appendFileSync(historyPath, `${JSON.stringify(record)}\n`);
           NODE
-
           git config user.name "FLIXO Auto Repair Bot"
           git config user.email "actions@users.noreply.github.com"
           git add diagnostics/auto-repair/memory.json docs/AUTO_REPAIR_HISTORY.jsonl
-          git status --short
           git commit -m "fix(auto-repair): verified repair cycle for run $TARGET_RUN_ID"
           git push --force-with-lease origin "HEAD:${{ steps.branch.outputs.repair_branch }}"
 
