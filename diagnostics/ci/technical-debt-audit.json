@@ -1,5 +1,0 @@
-{
-  "schema": "flixo-technical-debt-audit/v3",
-  "status": "PENDING_FRESH_EXECUTION",
-  "note": "This placeholder is intentionally not an audit result. Generate with npm run audit:technical-debt on the exact baseline before selecting any repair candidate."
-}
