@@ -98,10 +98,17 @@ jobs:
       - name: Run exact-SHA read-only source scout
         env:
           INVESTIGATION_DIR: /tmp/flixo-investigation
+          FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
         run: |
           set -euo pipefail
           node scripts/ci/code-read-only-scout.mjs
           test -s "$FLIXO_SCOUT_REPORT"
+          SCOUT_SHA="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync(process.env.FLIXO_SCOUT_REPORT,'utf8'));process.stdout.write(x.scannedSha||'')")"
+          CURRENT_SHA="$(git rev-parse HEAD)"
+          test "$SCOUT_SHA" = "$CURRENT_SHA"
+          cp "$FLIXO_SCOUT_REPORT" /tmp/flixo-scout-report.json
+          test -s /tmp/flixo-scout-report.json
+          printf '%s\n' /tmp/flixo-scout-report.json > /tmp/flixo-scout-path
 
       - name: Self-test repair system before mutation
         run: |
@@ -128,10 +135,12 @@ jobs:
             echo '### Failed CI classification input'
             echo "run_id=$TARGET_RUN_ID"
             gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json name,headSha,headBranch,conclusion
-            grep -E -i 'error|failed|failure|timeout|cancelled|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
+            grep -E -i 'error|failed|failure|timeout|cancelled|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(|DEEP_[A-Z_]+_MISSING|execution graph completeness' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
           } > /tmp/flixo-repair-summary.txt
 
       - name: Classify root cause with evidence gate
+        env:
+          FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
         run: node scripts/ci/auto-repair-classifier.mjs
 
       - name: Bind Task Agent to the active repair cycle on execution
@@ -169,6 +178,7 @@ jobs:
         if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome == 'success'
         env:
           FLIXO_TARGET_DIR: ${{ github.workspace }}
+          FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
         run: |
           set -euo pipefail
           export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
@@ -220,6 +230,8 @@ jobs:
             LEARNING_OUTCOME='success'
           elif [ "$ENGINE_OUTCOME" = "blocked-external" ]; then
             LEARNING_OUTCOME='blocked-external'
+          elif [ "$ENGINE_OUTCOME" = "proposal-only" ]; then
+            LEARNING_OUTCOME='proposed'
           else
             LEARNING_OUTCOME='unrepaired'
           fi
@@ -262,6 +274,8 @@ jobs:
           path: |
             /tmp/flixo-failure.log
             /tmp/flixo-repair-summary.txt
+            /tmp/flixo-scout-report.json
+            /tmp/flixo-scout-path
             /tmp/flixo-root-cause.json
             /tmp/flixo-engine-outcome
             /tmp/flixo-learning-outcome
