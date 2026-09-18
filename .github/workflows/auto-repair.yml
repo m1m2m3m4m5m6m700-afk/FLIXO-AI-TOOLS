@@ -94,6 +94,12 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Self-test repair system before mutation
+        run: |
+          set -euo pipefail
+          npm run test:auto-repair
+          npm run validate:auto-repair-memory
+
       - name: Learn from historical GitHub Actions failures and repair history
         env:
           GH_TOKEN: ${{ github.token }}
