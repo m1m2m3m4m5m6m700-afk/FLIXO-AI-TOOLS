@@ -1,5 +1,6 @@
 import { extractFeatures } from './fingerprint.mjs';
 import { reasonFailure } from './reasoning.mjs';
+import { deriveReusableKnowledge } from '../auto-repair-learning.mjs';
 
 const plans = [
   { id: 'external-tooling', features: ['external-tooling'], confidence: 99, mutate: false, commands: [] },
@@ -12,9 +13,10 @@ const plans = [
   { id: 'build-diagnostic', features: ['build'], confidence: 82, mutate: false, commands: [['npm', ['run', 'test:build']]] },
 ];
 
-export function planRepair(log, { historical = [] } = {}) {
+export function planRepair(log, { historical = [], memory } = {}) {
   const features = extractFeatures(log);
   const reasoning = reasonFailure(log, { historical });
+  const reusableKnowledge = memory ? deriveReusableKnowledge(memory, { rootCause: reasoning.rootCause, features }) : null;
   const candidates = plans
     .filter((plan) => plan.features.some((feature) => features.includes(feature)))
     .map((plan) => ({ ...plan, evidence: features }))
@@ -23,7 +25,7 @@ export function planRepair(log, { historical = [] } = {}) {
   const selectedRule = reasoning.rootCause === 'format' ? 'prettier-file' : reasoning.rootCause === 'lint' ? 'eslint-unused' : reasoning.rootCause;
   const requiresSourceLocation = selectedRule === 'prettier-file' || selectedRule === 'eslint-unused';
   const selected = reasoning.decision === 'ALLOW_BOUNDED_MUTATION' && safe.length === 1 && safe[0].id === selectedRule && (!requiresSourceLocation || Boolean(reasoning.location?.file))
-    ? { ...safe[0], file: reasoning.location?.file ?? null }
+    ? { ...safe[0], file: reasoning.location?.file ?? null, learning: reusableKnowledge }
     : null;
   return {
     features,
@@ -31,5 +33,6 @@ export function planRepair(log, { historical = [] } = {}) {
     selected,
     blockedReason: reasoning.decision === 'BLOCK_EXTERNAL' ? 'external-tooling' : selected ? null : reasoning.ambiguity ? 'ambiguous-causality' : null,
     reasoning,
+    reusableKnowledge,
   };
 }
