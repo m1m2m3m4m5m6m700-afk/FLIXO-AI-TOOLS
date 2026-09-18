@@ -23,6 +23,9 @@ const audit = JSON.parse(readFileSync(auditPath, 'utf8'));
 assert.equal(audit.schema, 'flixo-technical-debt-audit/v3');
 assert.equal(audit.sha, run(['rev-parse', 'HEAD']));
 assert.equal(audit.findings.length, audit.summary.findings);
+const fingerprints = audit.findings.map((finding) => finding.fingerprint);
+assert.equal(new Set(fingerprints).size, fingerprints.length, 'finding fingerprints must be unique');
+for (const fingerprint of fingerprints) assert.match(fingerprint, /^[a-f0-9]{64}$/);
 assert.equal(typeof audit.auditDigest, 'string');
 assert.match(audit.auditDigest, /^[a-f0-9]{64}$/);
 
