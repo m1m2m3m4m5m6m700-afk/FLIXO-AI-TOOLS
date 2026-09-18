@@ -3,7 +3,7 @@ import { reasonFailure } from './reasoning.mjs';
 
 const plans = [
   { id: 'external-tooling', features: ['external-tooling'], confidence: 99, mutate: false, commands: [] },
-  { id: 'eslint-file', features: ['lint'], confidence: 92, mutate: true, commands: [] },
+  { id: 'eslint-unused', features: ['lint'], confidence: 92, mutate: true, targetScope: 'exact-file', commands: [] },
   { id: 'prettier-file', features: ['format'], confidence: 90, mutate: true, commands: [] },
   { id: 'typescript-diagnostic', features: ['typescript'], confidence: 88, mutate: false, commands: [['npm', ['run', 'typecheck']]] },
   { id: 'playwright-diagnostic', features: ['playwright'], confidence: 72, mutate: false, commands: [] },
@@ -20,8 +20,8 @@ export function planRepair(log, { historical = [] } = {}) {
     .map((plan) => ({ ...plan, evidence: features }))
     .sort((a, b) => b.confidence - a.confidence);
   const safe = candidates.filter((plan) => plan.mutate && plan.confidence >= 90);
-  const selectedRule = reasoning.rootCause === 'format' ? 'prettier-file' : reasoning.rootCause === 'lint' ? 'eslint-file' : reasoning.rootCause;
-  const requiresSourceLocation = selectedRule === 'prettier-file' || selectedRule === 'eslint-file';
+  const selectedRule = reasoning.rootCause === 'format' ? 'prettier-file' : reasoning.rootCause;
+  const requiresSourceLocation = selectedRule === 'prettier-file' || selectedRule === 'eslint-unused';
   const selected = reasoning.decision === 'ALLOW_BOUNDED_MUTATION' && safe.length === 1 && safe[0].id === selectedRule && (!requiresSourceLocation || Boolean(reasoning.location?.file))
     ? { ...safe[0], file: reasoning.location?.file ?? null }
     : null;
