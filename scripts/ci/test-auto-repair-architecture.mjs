@@ -22,6 +22,12 @@ assert.match(workflow, /gh workflow run auto-repair\.yml/);
 assert.match(workflow, /cancel-in-progress: false/);
 assert.match(workflow, /Run exact-SHA read-only source scout/);
 assert.match(workflow, /FLIXO_SCOUT_REPORT/);
+assert.match(workflow, /SCOUT_SHA/);
+assert.match(workflow, /test "\\$SCOUT_SHA" = "\\$CURRENT_SHA"/);
+assert.match(workflow, /\\/tmp\\/flixo-scout-report\\.json/);
+assert.match(workflow, /DEEP_\\[A-Z_\\]\\+_MISSING/);
+assert.match(workflow, /ENGINE_OUTCOME.*proposal-only/);
+assert.match(workflow, /LEARNING_OUTCOME='proposed'/);
 
 const sample = 'Run 35012345678 failed: scripts/ci/test-auto-repair-architecture.mjs:10:3 no-unused-vars';
 const normalized = normalizeFailure(sample);
