@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { reasonFailure, verificationStrategy } from './auto-repair/reasoning.mjs';
+import { loadMemory, deriveReusableKnowledge } from './auto-repair-learning.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
@@ -32,7 +33,9 @@ function ensureFreshScout(target) {
 }
 
 const scoutPath = ensureFreshScout(targetDir);
-const reasoning = reasonFailure(log, { targetDir, scoutPath });
+const memory = loadMemory();
+const reasoning = reasonFailure(log, { targetDir, scoutPath, historical: memory.lessons.map((item) => ({ rootCause: item.rootCause, confidence: item.confidence })) });
+const reusableKnowledge = deriveReusableKnowledge(memory, { rootCause: reasoning.rootCause, features: reasoning.features });
 
 const fileLine = log.match(/(?:^|\s)([^\s:]+\.(?:ts|tsx|js|mjs|jsx)):(\d+)(?::(\d+))?/i);
 const errorCodes = [...new Set(log.match(/\b(?:TS\d+|[A-Z][A-Z0-9_]*_ERROR)\b/gi) ?? [])];
@@ -61,6 +64,7 @@ const evidence = {
   errorCodes,
   testTitles,
   verificationStrategy: verificationStrategy(reasoning.features),
+  reusableKnowledge,
   generatedAt: new Date().toISOString(),
 };
 
