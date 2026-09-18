@@ -138,17 +138,19 @@ function upsertLesson(memory, { fingerprint, rootCause, rule, outcome, verificat
 }
 
 export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule } = {}) {
-  const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, rules: [], outcomes: [] };
+  const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, externalBlocks: 0, rules: [], outcomes: [] };
   entry.rootCause = rootCause ?? entry.rootCause ?? 'unknown';
   if (normalizedFailure) entry.normalizedFailure = normalizeFailure(normalizedFailure);
   if (features.length) entry.features = [...new Set(features)];
+  const isExternalBlock = outcome === 'blocked-external';
+  if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
   const countsAsRepairAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
   if (countsAsRepairAttempt) {
     entry.attempts += 1;
     const persistedAttempts = priorRepairArtifactCount() + 1;
     if (persistedAttempts > entry.attempts) entry.attempts = persistedAttempts;
   }
-  if (outcome === 'success') entry.successes += 1; else if (outcome !== 'proposed') entry.failures += 1;
+  if (outcome === 'success') entry.successes += 1; else if (countsAsRepairAttempt) entry.failures += 1;
   entry.confidence = confidenceFor(entry);
   if (rule) entry.rules = [...new Set([...entry.rules, rule])];
   entry.outcomes.push({ outcome, verification, rule, provenance, preventionRule, at: new Date().toISOString() });
