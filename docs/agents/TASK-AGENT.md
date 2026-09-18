@@ -74,6 +74,16 @@ with all of these invariants:
 - every repair triggers fresh verification;
 - Canonical CI remains the closure authority.
 
+## Cognition contract
+
+For every active failure repair cycle, the Task Agent must receive the AUTO_REPAIR_REASONING_KERNEL context produced by the evidence-first reasoning layer.
+
+The cognition packet binds:
+rootCause + decision + causalConfidence + ambiguity + sourceMutationAllowed + top/second hypothesis + verificationStrategy + evidenceDigest.
+
+The execution controller fails closed when cognition is missing or internally contradictory. Source mutation is permitted only when the reasoning decision is exactly ALLOW_BOUNDED_MUTATION and the engine diagnosis gate independently agrees.
+
+Historical learning, scout findings, and source-context matches are supporting evidence only. They never become causal proof by themselves. A stale or missing exact-SHA scout report is non-actionable.
 ## Full repair lifecycle
 
 ```text
@@ -125,8 +135,8 @@ Every repair must record:
 - learning/prevention outcome.
 
 ## Bounded execution
-- Maximum repair cycles: 12 per failure chain.
-- Maximum stalled cycles: 3 with the same fingerprint and no verifiable progress.
+- Maximum repair cycles: 3 per failure chain.
+- Maximum stalled cycles: 2 with the same fingerprint and no verifiable progress.
 - If proof fails, the repair cycle stays open or fails closed; it never fabricates GREEN.
 - A circuit breaker escalates only after bounded evidence-based limits.
 
