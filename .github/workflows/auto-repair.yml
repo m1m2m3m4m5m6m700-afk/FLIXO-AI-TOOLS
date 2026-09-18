@@ -256,6 +256,15 @@ jobs:
           if [ -s /tmp/flixo-intractable-errors.json ]; then
             cp /tmp/flixo-intractable-errors.json diagnostics/auto-repair/intractable-errors.json
           fi
+      - name: Persist learning state after a non-green cycle
+        if: always() && steps.verify.outputs.verified != 'true' && steps.strategy.outputs.intractable != 'true'
+        run: |
+          set -euo pipefail
+          test -s /tmp/flixo-repair-memory.json
+          cp /tmp/flixo-repair-memory.json diagnostics/auto-repair/memory.json
+          if [ -s /tmp/flixo-intractable-errors.json ]; then
+            cp /tmp/flixo-intractable-errors.json diagnostics/auto-repair/intractable-errors.json
+          fi
 
       - name: Commit and push verified repair on the single working branch
         if: steps.verify.outputs.verified == 'true'
@@ -319,14 +328,33 @@ baseSha=$BASE_SHA"
           if-no-files-found: warn
           retention-days: 30
 
+      - name: Commit learning state for the next repair cycle
+        if: always() && steps.verify.outputs.verified != 'true' && steps.strategy.outputs.intractable != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = execution
+          git add diagnostics/auto-repair/memory.json diagnostics/auto-repair/intractable-errors.json
+          if git diff --cached --quiet; then
+            echo 'No new learning state to persist.'
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "chore(auto-repair): persist learning cycle ${TARGET_RUN_ID}"
+          git push origin execution
       - name: Keep the same repair cycle open when verification is not green
         if: always() && steps.verify.outputs.verified != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [ "$(cat /tmp/flixo-intractable-state 2>/dev/null || printf '%s' false)" = "true" ]; then
-            echo 'INTRACTABLE case reached: recursive repair is intentionally stopped.'
+          ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome 2>/dev/null || printf '%s' engine-error)"
+          if [ "$ENGINE_OUTCOME" = "blocked-external" ]; then
+            echo 'External tooling failure is not a source-repair target; stopping fail-closed.'
+            exit 1
+          fi
+          if [ "$ENGINE_OUTCOME" = "engine-error" ]; then
+            echo 'Repair engine error; stopping fail-closed.'
             exit 1
           fi
           CURRENT_MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
@@ -340,5 +368,5 @@ baseSha=$BASE_SHA"
             exit 0
           fi
           echo "Repair remains open on current canonical failure run $CURRENT_FAILURE_ID."
-          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref main -f target_run_id="$CURRENT_FAILURE_ID"
+          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution -f target_run_id="$CURRENT_FAILURE_ID"
           exit 1
