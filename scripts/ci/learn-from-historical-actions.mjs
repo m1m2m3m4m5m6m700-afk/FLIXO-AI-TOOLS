@@ -95,6 +95,7 @@ if (fs.existsSync(historyPath)) {
 
 report.similarCases = memory.cases.filter((x) => (x.outcomes ?? []).some((o) => o.outcome === 'historical')).length;
 writeMemory(memory);
-fs.mkdirSync('diagnostics/auto-repair', { recursive: true });
-fs.writeFileSync('diagnostics/auto-repair/historical-learning.json', `${JSON.stringify(report, null, 2)}\n`);
+const learningReportPath = process.env.FLIXO_HISTORICAL_LEARNING_OUTPUT ?? 'diagnostics/auto-repair/historical-learning.json';
+fs.mkdirSync(learningReportPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
+fs.writeFileSync(learningReportPath, `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify(report, null, 2));
