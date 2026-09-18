@@ -111,17 +111,66 @@ export function rankLessons(memory, { fingerprint, rootCause, rule } = {}) {
 }
 
 export function deriveReusableKnowledge(memory, { rootCause, features = [], fingerprint } = {}) {
-  const relevantPlaybooks = (memory.playbooks ?? [])
+  const aggregate = new Map();
+
+  const ensure = (rc, rule) => {
+    const key = `${rc}|${rule}`;
+    const item = aggregate.get(key) ?? {
+      rootCause: rc,
+      rule,
+      attempts: 0,
+      successes: 0,
+      failures: 0,
+      fingerprints: new Set(),
+      successfulFingerprints: new Set(),
+      failedFingerprints: new Set(),
+      revertedFingerprints: new Set(),
+    };
+    aggregate.set(key, item);
+    return item;
+  };
+
+  for (const playbook of memory.playbooks ?? []) {
+    const item = ensure(playbook.rootCause, playbook.rule);
+    item.attempts += Number(playbook.attempts ?? 0);
+    item.successes += Number(playbook.successes ?? 0);
+    item.failures += Number(playbook.failures ?? 0);
+    for (const value of playbook.fingerprints ?? []) item.fingerprints.add(value);
+    for (const value of playbook.successfulFingerprints ?? []) item.successfulFingerprints.add(value);
+    for (const value of playbook.failedFingerprints ?? []) item.failedFingerprints.add(value);
+    item.generalized = playbook.generalized === true;
+  }
+
+  for (const entry of memory.cases ?? []) {
+    for (const outcome of entry.outcomes ?? []) {
+      if (!outcome?.rule) continue;
+      const item = ensure(entry.rootCause ?? 'unknown', outcome.rule);
+      item.fingerprints.add(entry.fingerprint);
+      if (outcome.outcome === 'success') {
+        item.attempts += 1;
+        item.successes += 1;
+        item.successfulFingerprints.add(entry.fingerprint);
+      } else if (['failure', 'blocked', 'unrepaired'].includes(outcome.outcome)) {
+        item.attempts += 1;
+        item.failures += 1;
+        item.failedFingerprints.add(entry.fingerprint);
+      }
+    }
+    for (const rule of entry.revertedRules ?? []) {
+      const item = ensure(entry.rootCause ?? 'unknown', rule);
+      item.revertedFingerprints.add(entry.fingerprint);
+    }
+  }
+
+  const relevantPlaybooks = [...aggregate.values()]
     .filter((item) => !rootCause || item.rootCause === rootCause)
     .map((item) => {
-      const distinctFingerprints = new Set(item.fingerprints ?? []);
-      const successFingerprints = new Set(item.successfulFingerprints ?? []);
-      const failureFingerprints = new Set(item.failedFingerprints ?? []);
       const attempts = Number(item.attempts ?? 0);
       const successes = Number(item.successes ?? 0);
       const successRate = attempts ? successes / attempts : 0;
-      const multiCaseSupport = successFingerprints.size >= 2;
-      const generalized = multiCaseSupport && successes >= 2 && successRate >= 0.8;
+      const fingerprintSupport = item.fingerprints.size;
+      const successfulFingerprintSupport = item.successfulFingerprints.size;
+      const generalized = successfulFingerprintSupport >= 2 && successes >= 2 && successRate >= 0.8;
       return {
         rootCause: item.rootCause,
         rule: item.rule,
@@ -129,26 +178,31 @@ export function deriveReusableKnowledge(memory, { rootCause, features = [], fing
         successes,
         failures: Number(item.failures ?? 0),
         successRate: Number(successRate.toFixed(4)),
-        fingerprintSupport: distinctFingerprints.size,
-        successfulFingerprintSupport: successFingerprints.size,
-        failedFingerprintSupport: failureFingerprints.size,
+        fingerprintSupport,
+        successfulFingerprintSupport,
+        failedFingerprintSupport: item.failedFingerprints.size,
+        revertedFingerprintSupport: item.revertedFingerprints.size,
         generalized,
       };
     });
+
   const blockedRules = new Set(
     (memory.cases ?? [])
       .filter((item) => !rootCause || item.rootCause === rootCause)
       .flatMap((item) => item.revertedRules ?? [])
       .filter(Boolean),
   );
+
   const generalizedRules = relevantPlaybooks
     .filter((item) => item.generalized && !blockedRules.has(item.rule))
     .sort((a, b) => (b.successRate - a.successRate) || (b.successfulFingerprintSupport - a.successfulFingerprintSupport));
+
   const rejectedRules = relevantPlaybooks
     .filter((item) => blockedRules.has(item.rule) || (item.failures >= 2 && item.successRate <= 0.25))
     .map((item) => ({ ...item, reason: blockedRules.has(item.rule) ? 'historical-revert' : 'low-success-rate' }));
+
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     fingerprint: fingerprint ?? null,
     rootCause: rootCause ?? null,
     features: [...new Set(features)],
