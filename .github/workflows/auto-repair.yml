@@ -197,7 +197,7 @@ jobs:
           test -f /tmp/flixo-repair-evidence.json || { echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; }
           OUTCOME=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.outcome||'unknown')")
           echo "REPAIR_OUTCOME=$OUTCOME"
-          if [ "$OUTCOME" != "verified-repair" ]; then echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$OUTCOME" != "verified-repair" ] && [ "$OUTCOME" != "verified-historical-revert" ]; then echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; fi
           git diff --quiet && { echo 'verified=false' >> "$GITHUB_OUTPUT"; echo 'Verified repair produced no source diff; refusing publication.'; exit 1; }
           npm run typecheck
           npm run test:static
@@ -226,7 +226,9 @@ jobs:
             RULE=''
             ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome 2>/dev/null || printf '%s' 'engine-error')"
           fi
-          if [ "$VERIFY_OUTCOME" = "success" ] && [ "$ENGINE_OUTCOME" = "verified-repair" ]; then
+          if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
+            LEARNING_OUTCOME='reverted-repair'
+          elif [ "$VERIFY_OUTCOME" = "success" ] && [ "$ENGINE_OUTCOME" = "verified-repair" ]; then
             LEARNING_OUTCOME='success'
           elif [ "$ENGINE_OUTCOME" = "blocked-external" ]; then
             LEARNING_OUTCOME='blocked-external'
@@ -258,7 +260,27 @@ jobs:
           test "$(git branch --show-current)" = execution
           git add -A
           git diff --cached --quiet && { echo 'No applicable repair diff; refusing empty repair.'; exit 1; }
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}"
+          ENGINE_OUTCOME="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.outcome||'unknown')")"
+          FINGERPRINT="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.fingerprint||'unknown')")"
+          RULE="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.selected||x.historicalRollback?.rule||'unknown')")"
+          BASE_SHA="$(git rev-parse HEAD)"
+          if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
+            REVERTED_SHA="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.historicalRollback?.revertedSha||'')")"
+            test "$REVERTED_SHA" != ""
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "revert(auto-repair): historical rollback for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-ROLLBACK-v1
+kind=historical-revert
+revertedSha=$REVERTED_SHA
+fingerprint=$FINGERPRINT
+rule=$RULE"
+          else
+            FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-MARKER-v1
+kind=verified-source-repair
+fingerprint=$FINGERPRINT
+rule=$RULE
+failedSha=$FAILED_SHA
+baseSha=$BASE_SHA"
+          fi
           git push origin execution
           PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
           if [ -z "$PR_URL" ]; then
