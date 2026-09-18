@@ -10,6 +10,7 @@ import { reproduce, impactedTests } from './auto-repair/reproduction.mjs';
 import { runRegression } from './auto-repair/regression.mjs';
 import { summarizeDiff, writeEvidence } from './auto-repair/evidence.mjs';
 import { snapshot, rollback } from './auto-repair/rollback.mjs';
+import { findHistoricalRepairCandidate, applyHistoricalRepair, historicalRollbackRecord } from './auto-repair/historical-rollback.mjs';
 import { validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
 
 // Static protocol contract marker: root-cause-proof-reproductionRecovered.
@@ -22,6 +23,7 @@ const features = extractFeatures(log);
 const evidencePath = process.env.FLIXO_REPAIR_EVIDENCE_PATH ?? '/tmp/flixo-repair-evidence.json';
 const diagnosisPath = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
 const git = (args, options = {}) => execFileSync('git', ['-C', targetDir, ...args], { encoding: 'utf8', ...options });
+const targetSha = git(['rev-parse', 'HEAD']).trim();
 const memory = loadMemory();
 const known = findCase(memory, fingerprint);
 const similar = findSimilarCases(memory, { fingerprint, normalized: normalizedFailure, features });
@@ -29,8 +31,14 @@ const lessons = rankLessons(memory, { fingerprint });
 const trustedLessons = lessons.filter((item) => !item.anti && item.confidence >= 0.75);
 const blockedLessons = lessons.filter((item) => item.anti && item.confidence >= 0.5);
 const diagnosis = fs.existsSync(diagnosisPath) ? JSON.parse(fs.readFileSync(diagnosisPath, 'utf8')) : null;
+const historicalRollbackCandidate = findHistoricalRepairCandidate(targetDir, {
+  fingerprint,
+  currentSha: targetSha,
+  memoryCase: known,
+  historyLimit: Number(process.env.FLIXO_HISTORY_LIMIT ?? 30),
+});
 
-if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint) {
+if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint && !historicalRollbackCandidate) {
   console.log('AUTO_REPAIR_RESULT=LEARNING_MEMORY_BLOCK');
   process.exit(0);
 }
@@ -57,7 +65,6 @@ if (historicalCandidate && !blockedRuleIds.has(historicalCandidate.id) && (!sele
     file: selected?.file ?? plan.reasoning?.location?.file ?? null,
   };
 }
-const targetSha = git(['rev-parse', 'HEAD']).trim();
 const evidence = {
   schemaVersion: 6,
   protocol: 'AUTONOMOUS-REPAIR-PROTOCOL-v4',
@@ -69,6 +76,7 @@ const evidence = {
   candidates: plan.candidates,
   reasoning: plan.reasoning,
   selected: selected?.id ?? null,
+  historicalRollbackCandidate: historicalRollbackCandidate ? historicalRollbackRecord(historicalRollbackCandidate) : null,
   learning: {
     memoryVersion: memory.version,
     exactCase: Boolean(known),
@@ -94,6 +102,126 @@ const diagnosisGate = {
   allowed: Boolean(diagnosis) && diagnosis.diagnosisQuality === 'strong' && diagnosis.causalConfidence >= 0.75 && !diagnosis.ambiguity && diagnosis.directFailureSignal && reasoningDecision === 'ALLOW_BOUNDED_MUTATION',
 };
 evidence.diagnosisGate = diagnosisGate;
+
+if (historicalRollbackCandidate && diagnosisGate.allowed) {
+  const before = snapshot(targetDir);
+  evidence.reproductionCommands = impactedTests(plan.features);
+  evidence.reproductionBefore = reproduce(targetDir, evidence.reproductionCommands);
+  evidence.historicalRollback = historicalRollbackRecord(historicalRollbackCandidate);
+  try {
+    evidence.repair = {
+      ...(applyHistoricalRepair(targetDir, historicalRollbackCandidate)),
+      kind: 'historical-revert',
+    };
+    const changed = git(['diff', '--binary']);
+    const diffSummary = summarizeDiff(changed);
+    evidence.diff = diffSummary;
+    evidence.changedPaths = diffSummary.files;
+    if (
+      !diffSummary.files.length ||
+      diffSummary.files.length > repairPolicy.maxChangedFiles ||
+      diffSummary.lines > repairPolicy.maxChangedLines ||
+      diffSummary.files.some((path) => !isPathAllowed(path))
+    ) {
+      rollback(targetDir, before);
+      evidence.outcome = 'blocked';
+      evidence.rollback = true;
+      evidence.escalation = { required: true, reason: 'historical-rollback-scope-policy' };
+      recordOutcome(memory, {
+        fingerprint,
+        normalizedFailure,
+        features,
+        rootCause: diagnosis?.rootCause ?? 'unknown',
+        rule: historicalRollbackCandidate.rule ?? undefined,
+        outcome: 'revert-failure',
+        verification: 'historical-rollback-scope-policy',
+        provenance: { targetSha, revertedCommit: historicalRollbackCandidate.commitSha },
+        preventionRule: 'Reject historical reverts that exceed the bounded rollback scope.',
+      });
+      writeMemory(memory);
+      writeEvidence(evidencePath, evidence);
+      process.exit(6);
+    }
+
+    evidence.reproductionAfter = reproduce(targetDir, evidence.reproductionCommands);
+    evidence.regression = runRegression(targetDir, [['npm', ['run', 'typecheck']], ['npm', ['run', 'test:static']], ['npm', ['run', 'test:build']]]);
+    const rootCauseProof = {
+      required: true,
+      reproductionWasFailing: evidence.reproductionBefore.results.length > 0 && !evidence.reproductionBefore.ok,
+      reproductionRecovered: evidence.reproductionAfter.results.length > 0 && evidence.reproductionAfter.ok,
+      regressionPassed: evidence.regression.ok,
+      commandsPresent: evidence.reproductionCommands.length > 0,
+    };
+    evidence.rootCauseProof = rootCauseProof;
+    evidence.recurrenceProof = { required: true, firstPass: false, secondPass: false };
+    if (rootCauseProof.commandsPresent && rootCauseProof.reproductionWasFailing && rootCauseProof.reproductionRecovered) {
+      const secondReproduction = reproduce(targetDir, evidence.reproductionCommands);
+      evidence.recurrenceProof.firstPass = true;
+      evidence.recurrenceProof.secondPass = secondReproduction.ok;
+      evidence.recurrenceProof.secondRun = secondReproduction;
+    }
+    const proof = validateRepairProof({ rootCauseProof, recurrenceProof: evidence.recurrenceProof, evidence });
+    evidence.repairProof = proof;
+    if (!proof.ok) {
+      rollback(targetDir, before);
+      evidence.outcome = 'revert-failure';
+      evidence.rollback = true;
+      evidence.escalation = { required: true, reason: escalationReason(proof) };
+      recordOutcome(memory, {
+        fingerprint,
+        normalizedFailure,
+        features,
+        rootCause: diagnosis?.rootCause ?? 'unknown',
+        rule: historicalRollbackCandidate.rule ?? undefined,
+        outcome: 'revert-failure',
+        verification: 'historical-revert-proof-incomplete',
+        provenance: { targetSha, revertedCommit: historicalRollbackCandidate.commitSha },
+        preventionRule: preventionRuleFor({ fingerprint, rule: historicalRollbackCandidate.rule ?? 'historical-revert' }),
+      });
+      writeMemory(memory);
+      writeEvidence(evidencePath, evidence);
+      process.exit(7);
+    }
+
+    evidence.outcome = 'verified-historical-revert';
+    evidence.preventionRule = preventionRuleFor({ fingerprint, rule: historicalRollbackCandidate.rule ?? 'historical-revert' });
+    recordOutcome(memory, {
+      fingerprint,
+      normalizedFailure,
+      features,
+      rootCause: diagnosis?.rootCause ?? 'unknown',
+      rule: historicalRollbackCandidate.rule ?? undefined,
+      outcome: 'reverted-repair',
+      verification: 'historical-revert-proof+root-cause-proof+recurrence-proof+typecheck+static+build',
+      provenance: { targetSha, revertedCommit: historicalRollbackCandidate.commitSha, proof },
+      preventionRule: evidence.preventionRule,
+    });
+    writeMemory(memory);
+    writeEvidence(evidencePath, evidence);
+    console.log(`AUTO_REPAIR_RESULT=VERIFIED_HISTORICAL_REVERT\\nAUTO_REPAIR_REVERTED_COMMIT=${historicalRollbackCandidate.commitSha}\\nAUTO_REPAIR_FINGERPRINT=${fingerprint}`);
+    process.exit(0);
+  } catch (error) {
+    rollback(targetDir, before);
+    evidence.outcome = 'revert-failure';
+    evidence.error = String(error?.message ?? error);
+    evidence.rollback = true;
+    evidence.escalation = { required: true, reason: 'historical-revert-exception' };
+    recordOutcome(memory, {
+      fingerprint,
+      normalizedFailure,
+      features,
+      rootCause: diagnosis?.rootCause ?? 'unknown',
+      rule: historicalRollbackCandidate.rule ?? undefined,
+      outcome: 'revert-failure',
+      verification: 'historical-revert-exception',
+      provenance: { targetSha, revertedCommit: historicalRollbackCandidate.commitSha },
+      preventionRule: 'Do not repeat a conflicting historical revert without new evidence.',
+    });
+    writeMemory(memory);
+    writeEvidence(evidencePath, evidence);
+    process.exit(8);
+  }
+}
 
 const externalToolingFailure = features.includes('external-tooling') || diagnosis?.rootCause === 'external-tooling';
 if (externalToolingFailure) {
