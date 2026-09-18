@@ -142,7 +142,8 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   entry.rootCause = rootCause ?? entry.rootCause ?? 'unknown';
   if (normalizedFailure) entry.normalizedFailure = normalizeFailure(normalizedFailure);
   if (features.length) entry.features = [...new Set(features)];
-  if (outcome !== 'proposed') {
+  const countsAsRepairAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
+  if (countsAsRepairAttempt) {
     entry.attempts += 1;
     const persistedAttempts = priorRepairArtifactCount() + 1;
     if (persistedAttempts > entry.attempts) entry.attempts = persistedAttempts;
@@ -160,7 +161,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     playbook.successRate = Number((playbook.successes / playbook.attempts).toFixed(4));
     if (!memory.playbooks.includes(playbook)) memory.playbooks.push(playbook);
   }
-  if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked') {
+  if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked' || outcome === 'blocked-external') {
     upsertLesson(memory, { fingerprint, rootCause: entry.rootCause, rule, outcome, verification, provenance, preventionRule });
   }
   if (entry.attempts >= INTRACTABLE_THRESHOLD && entry.successes === 0) {
