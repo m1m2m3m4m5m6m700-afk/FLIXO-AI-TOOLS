@@ -11,7 +11,7 @@ assert(!fingerprint.includes('35012345678'));
 assert(!fingerprint.includes('abcdefabcdefabcdefabcdefabcdefabcdefabcd'));
 
 const memory = loadMemory();
-assert.equal(memory.version, 8);
+assert.equal(memory.version, 9);
 const before = memory.cases.length;
 recordOutcome(memory, {
   fingerprint: '__self_test__',
