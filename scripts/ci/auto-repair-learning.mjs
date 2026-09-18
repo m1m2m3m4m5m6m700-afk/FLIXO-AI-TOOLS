@@ -5,7 +5,7 @@ import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-re
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
-export const MEMORY_VERSION = 8;
+export const MEMORY_VERSION = 9;
 export const INTRACTABLE_THRESHOLD = 3;
 export { normalizeFailure, fingerprintFailure, extractFeatures };
 
@@ -110,6 +110,60 @@ export function rankLessons(memory, { fingerprint, rootCause, rule } = {}) {
     .sort((a, b) => b.score - a.score);
 }
 
+export function deriveReusableKnowledge(memory, { rootCause, features = [], fingerprint } = {}) {
+  const relevantPlaybooks = (memory.playbooks ?? [])
+    .filter((item) => !rootCause || item.rootCause === rootCause)
+    .map((item) => {
+      const distinctFingerprints = new Set(item.fingerprints ?? []);
+      const successFingerprints = new Set(item.successfulFingerprints ?? []);
+      const failureFingerprints = new Set(item.failedFingerprints ?? []);
+      const attempts = Number(item.attempts ?? 0);
+      const successes = Number(item.successes ?? 0);
+      const successRate = attempts ? successes / attempts : 0;
+      const multiCaseSupport = successFingerprints.size >= 2;
+      const generalized = multiCaseSupport && successes >= 2 && successRate >= 0.8;
+      return {
+        rootCause: item.rootCause,
+        rule: item.rule,
+        attempts,
+        successes,
+        failures: Number(item.failures ?? 0),
+        successRate: Number(successRate.toFixed(4)),
+        fingerprintSupport: distinctFingerprints.size,
+        successfulFingerprintSupport: successFingerprints.size,
+        failedFingerprintSupport: failureFingerprints.size,
+        generalized,
+      };
+    });
+  const blockedRules = new Set(
+    (memory.cases ?? [])
+      .filter((item) => !rootCause || item.rootCause === rootCause)
+      .flatMap((item) => item.revertedRules ?? [])
+      .filter(Boolean),
+  );
+  const generalizedRules = relevantPlaybooks
+    .filter((item) => item.generalized && !blockedRules.has(item.rule))
+    .sort((a, b) => (b.successRate - a.successRate) || (b.successfulFingerprintSupport - a.successfulFingerprintSupport));
+  const rejectedRules = relevantPlaybooks
+    .filter((item) => blockedRules.has(item.rule) || (item.failures >= 2 && item.successRate <= 0.25))
+    .map((item) => ({ ...item, reason: blockedRules.has(item.rule) ? 'historical-revert' : 'low-success-rate' }));
+  return {
+    schemaVersion: 1,
+    fingerprint: fingerprint ?? null,
+    rootCause: rootCause ?? null,
+    features: [...new Set(features)],
+    generalizedRules,
+    rejectedRules,
+    policy: {
+      promotionRequiresDistinctFingerprints: 2,
+      promotionRequiresSuccessfulRepairs: 2,
+      promotionRequiresSuccessRate: 0.8,
+      rejectedRulesAreNonReusable: true,
+      exactShaProofStillRequired: true,
+    },
+  };
+}
+
 export function scorePlaybook(memory, rootCause, rule) {
   const records = memory.playbooks.filter((item) => item.rootCause === rootCause && item.rule === rule);
   const attempts = records.reduce((sum, item) => sum + item.attempts, 0);
@@ -171,10 +225,18 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
   const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
   if (rule && countsAsPlaybookAttempt) {
-    const playbook = memory.playbooks.find((item) => item.rootCause === entry.rootCause && item.rule === rule) ?? { rootCause: entry.rootCause, rule, attempts: 0, successes: 0, failures: 0 };
+    const playbook = memory.playbooks.find((item) => item.rootCause === entry.rootCause && item.rule === rule) ?? { rootCause: entry.rootCause, rule, attempts: 0, successes: 0, failures: 0, fingerprints: [], successfulFingerprints: [], failedFingerprints: [] };
     playbook.attempts += 1;
-    if (outcome === 'success') playbook.successes += 1; else playbook.failures += 1;
+    playbook.fingerprints = [...new Set([...(playbook.fingerprints ?? []), fingerprint])];
+    if (outcome === 'success') {
+      playbook.successes += 1;
+      playbook.successfulFingerprints = [...new Set([...(playbook.successfulFingerprints ?? []), fingerprint])];
+    } else {
+      playbook.failures += 1;
+      playbook.failedFingerprints = [...new Set([...(playbook.failedFingerprints ?? []), fingerprint])];
+    }
     playbook.successRate = Number((playbook.successes / playbook.attempts).toFixed(4));
+    playbook.generalized = new Set(playbook.successfulFingerprints ?? []).size >= 2 && playbook.successes >= 2 && playbook.successRate >= 0.8;
     if (!memory.playbooks.includes(playbook)) memory.playbooks.push(playbook);
   }
   if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked' || outcome === 'blocked-external') {
