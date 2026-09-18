@@ -33,6 +33,19 @@ recordOutcome(memory, {
 });
 assert(memory.antiLessons.some((item) => item.fingerprint === '__negative_test__'));
 
+const proposedBefore = memory.cases.find((item) => item.fingerprint === '__proposal_test__')?.attempts ?? 0;
+recordOutcome(memory, {
+  fingerprint: '__proposal_test__',
+  normalizedFailure: 'webkit DEEP_SEMANTIC_MISSING=webkit:DEEP:webkit:ja',
+  features: ['playwright', 'webkit', 'certification'],
+  rootCause: 'webkit-render',
+  outcome: 'proposed',
+  verification: 'root-cause-evidence-insufficient',
+});
+const proposedCase = memory.cases.find((item) => item.fingerprint === '__proposal_test__');
+assert.equal(proposedCase?.attempts ?? 0, proposedBefore);
+assert(!memory.antiLessons.some((item) => item.fingerprint === '__proposal_test__'));
+
 const similar = findSimilarCases(memory, {
   fingerprint: '__different_test__',
   normalized: 'lint no-unused-vars src/example.ts',
