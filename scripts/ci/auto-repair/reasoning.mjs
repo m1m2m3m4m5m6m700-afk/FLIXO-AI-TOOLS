@@ -35,6 +35,31 @@ function readFreshScout(targetDir, scoutPath) {
   }
 }
 
+function locationFromLog(log) {
+  const match = log.match(/(?:^|\\s)([^\\s:]+\\.(?:ts|tsx|js|mjs|jsx)):(\\d+)(?::(\\d+))?/i);
+  return match ? { file: match[1], line: Number(match[2]), column: match[3] ? Number(match[3]) : null } : null;
+}
+
+function readCodeContext(targetDir, location) {
+  if (!location) return { available: false, reason: 'no-location' };
+  const file = location.file.replace(/^[/\\]+/u, '');
+  const fullPath = `${targetDir}/${file}`;
+  if (!fs.existsSync(fullPath)) return { available: false, reason: 'file-not-found', file: location.file };
+  try {
+    const lines = fs.readFileSync(fullPath, 'utf8').split(/\\r?\\n/);
+    const start = Math.max(0, location.line - 4);
+    const end = Math.min(lines.length, location.line + 3);
+    return {
+      available: true,
+      file: location.file,
+      line: location.line,
+      excerpt: lines.slice(start, end).map((line, index) => ({ line: start + index + 1, text: line.slice(0, 500) })),
+    };
+  } catch {
+    return { available: false, reason: 'read-failed', file: location.file };
+  }
+}
+
 function evidenceLines(log, profile) {
   return log.split(/\r?\n/)
     .filter((line) => profile.patterns.some((pattern) => pattern.test(line)))
@@ -42,7 +67,7 @@ function evidenceLines(log, profile) {
     .map((line) => line.trim().slice(0, 500));
 }
 
-function buildHypotheses(log, features, scout, historical = []) {
+function buildHypotheses(log, features, scout, historical = [], codeContext = null) {
   const candidates = PROFILES
     .filter((profile) => features.includes(profile.feature))
     .map((profile) => {
@@ -52,13 +77,17 @@ function buildHypotheses(log, features, scout, historical = []) {
         ? (scout.report.findings ?? []).filter((finding) => finding.rootCauseHypotheses?.some((item) => String(item).toLowerCase().includes(profile.id.replace('-', ' ')))).length
         : 0;
       const learned = historical.filter((item) => item.rootCause === profile.id && item.confidence >= 0.75).length;
+      const codeMatches = codeContext?.available
+        ? codeContext.excerpt.filter(({ text }) => profile.patterns.some((pattern) => pattern.test(text))).length
+        : 0;
       const score = Math.min(1, Number((
         0.20 +
         profile.specificity * 0.30 +
         Math.min(0.32, directMatches * 0.13) +
         Math.min(0.10, lines.length * 0.025) +
         Math.min(0.06, scoutFindings * 0.02) +
-        Math.min(0.06, learned * 0.02)
+        Math.min(0.06, learned * 0.02) +
+        Math.min(0.08, codeMatches * 0.02)
       ).toFixed(4)));
       return {
         id: profile.id,
@@ -68,6 +97,7 @@ function buildHypotheses(log, features, scout, historical = []) {
         evidenceLines: lines,
         scoutFindings,
         learnedSupport: learned,
+        codeMatches,
         specificity: profile.specificity,
         dominates: profile.dominates ?? [],
       };
@@ -94,8 +124,10 @@ export function reasonFailure(log, {
 } = {}) {
   const text = String(log ?? '');
   const features = extractFeatures(text);
+  const location = locationFromLog(text);
+  const codeContext = readCodeContext(targetDir, location);
   const scout = readFreshScout(targetDir, scoutPath);
-  const hypotheses = buildHypotheses(text, features, scout, historical);
+  const hypotheses = buildHypotheses(text, features, scout, historical, codeContext);
   const top = selectTop(hypotheses);
   const second = hypotheses.find((item) => item.id !== top.id && !item.suppressedBy);
   const separation = second ? Number((top.score - second.score).toFixed(4)) : top.score;
@@ -132,6 +164,8 @@ export function reasonFailure(log, {
     scout: scout.fresh
       ? { fresh: true, scannedSha: scout.report.scannedSha, findings: scout.report.findings?.length ?? 0 }
       : { fresh: false, reason: scout.reason, currentSha: scout.currentSha ?? null, scannedSha: scout.scannedSha ?? null },
+    location,
+    codeContext,
     normalizedFailure: normalizeFailure(text),
   };
 }
