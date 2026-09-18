@@ -216,6 +216,11 @@ if (process.argv[1]?.endsWith('auto-repair-learning.mjs') && process.env.FLIXO_L
   const memory = loadMemory();
   const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
   const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
-  recordOutcome(memory, { fingerprint: fingerprintFailure(log), normalizedFailure: log, features: extractFeatures(log), rootCause: process.env.FLIXO_ROOT_CAUSE ?? 'unknown', rule: process.env.FLIXO_REPAIR_RULE || undefined, outcome: process.env.FLIXO_LEARNING_OUTCOME, verification: process.env.FLIXO_VERIFICATION ?? 'unknown', provenance: { source: 'FLIXO Auto Repair', failedSha: process.env.FLIXO_FAILED_SHA ?? null, runId: process.env.FLIXO_RUN_ID ?? null } });
+  const rawOutcome = process.env.FLIXO_LEARNING_OUTCOME;
+  const verification = process.env.FLIXO_VERIFICATION ?? 'unknown';
+  const normalizedOutcome = rawOutcome === 'unrepaired' && verification === 'proposal-only'
+    ? 'proposed'
+    : rawOutcome;
+  recordOutcome(memory, { fingerprint: fingerprintFailure(log), normalizedFailure: log, features: extractFeatures(log), rootCause: process.env.FLIXO_ROOT_CAUSE ?? 'unknown', rule: process.env.FLIXO_REPAIR_RULE || undefined, outcome: normalizedOutcome, verification, provenance: { source: 'FLIXO Auto Repair', failedSha: process.env.FLIXO_FAILED_SHA ?? null, runId: process.env.FLIXO_RUN_ID ?? null, rawOutcome } });
   writeMemory(memory);
 }
