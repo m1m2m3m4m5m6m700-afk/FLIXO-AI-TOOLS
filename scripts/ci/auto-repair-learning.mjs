@@ -44,27 +44,11 @@ function writeIntractable(data) {
 }
 
 function publishIntractableRecord(record) {
-  if (!process.env.GH_TOKEN || !process.env.GITHUB_REPOSITORY) return;
-  const branch = `flixo-intractable/${record.fingerprint.slice(0, 12)}-${process.env.GITHUB_RUN_ID ?? Date.now()}`;
-  const run = (args) => spawnSync('gh', args, { encoding: 'utf8', env: process.env });
-  const git = (args) => spawnSync('git', args, { encoding: 'utf8', env: process.env });
-  const branchResult = run(['pr', 'list', '--repo', process.env.GITHUB_REPOSITORY, '--head', branch, '--state', 'open', '--json', 'number']);
-  if (branchResult.status === 0 && JSON.parse(branchResult.stdout || '[]').length > 0) return;
-  const switchResult = run(['api', `repos/${process.env.GITHUB_REPOSITORY}/git/refs/heads/main`, '--jq', '.object.sha']);
-  if (switchResult.status !== 0) return;
-  const baseSha = switchResult.stdout.trim();
-  if (!baseSha) return;
-  if (run(['api', `repos/${process.env.GITHUB_REPOSITORY}/git/refs`, '-f', `ref=refs/heads/${branch}`, '-f', `sha=${baseSha}`]).status !== 0) return;
-  if (git(['fetch', '--no-tags', 'origin', branch]).status !== 0) return;
-  if (git(['switch', '--create', branch, '--track', `origin/${branch}`]).status !== 0) return;
-  if (git(['add', intractablePath]).status !== 0) return;
-  if (git(['config', 'user.name', 'github-actions[bot]']).status !== 0) return;
-  if (git(['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com']).status !== 0) return;
-  if (git(['commit', '-m', `chore(auto-repair): record intractable error ${record.fingerprint.slice(0, 12)}`]).status !== 0) return;
-  if (git(['push', '--set-upstream', 'origin', branch]).status !== 0) return;
-  run(['pr', 'create', '--repo', process.env.GITHUB_REPOSITORY, '--base', 'main', '--head', branch, '--title', `chore(auto-repair): escalate intractable error ${record.fingerprint.slice(0, 12)}`, '--body', `This escalation was opened automatically after ${record.attempts} non-verified repair attempts for fingerprint ${record.fingerprint}.\n\nProtocol: SUPERVISING-REPAIR-TEACHING-v1\n\nThis PR contains diagnostic state only. It does not bypass verified-repair or canonical CI. The supervising agent must provide a new evidence-backed hypothesis, diagnostic change, repair strategy, verification plan, rejected approaches, and exit criteria before the case can leave INTRACTABLE.`]);
+  // The repair protocol is intentionally two-branch only. Intractable state is
+  // retained in the repair artifact/memory path and escalated without creating
+  // a third Git branch or mutating main.
+  console.warn('INTRACTABLE_ESCALATION_RECORDED=' + record.fingerprint);
 }
-
 function priorRepairArtifactCount() {
   const token = process.env.GH_TOKEN;
   const repo = process.env.GITHUB_REPOSITORY;
