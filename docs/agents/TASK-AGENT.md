@@ -155,3 +155,5 @@ npm run agent:task -- --all-ready
 ```
 
 For an active failure, provide the failure context (`--failure-run-id`, `--failure-sha`, `--failure-fingerprint`, and evidence) so the agent stays bound to the current repair cycle.
+## Historical rollback recovery
+- A previously verified auto-repair is reversible on `execution` without rewriting Git history.\n- Historical rollback requires the exact failure fingerprint, a prior successful repair record, a signed-in-history repair marker, single-parent ancestry, allowed change scope, and the same proof contract.\n- The bot applies `git revert --no-commit`; on proof failure it restores the pre-revert state. A successful rollback is committed with `FLIXO-REPAIR-ROLLBACK-v1`.\n- Rollback is learned as `reverted-repair`, never as a successful source-repair attempt, so it does not inflate the repair-attempt budget.\n
