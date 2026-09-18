@@ -68,6 +68,32 @@
         "deterministic-evidence"
       ],
       "confidence": 1
+    },
+    {
+      "fingerprint": "f6125d993dad9c70842879c4858e4c3dbaaf6d3739a821b098ffdab46e5bb185",
+      "rootCause": "external-tooling",
+      "attempts": 1,
+      "successes": 0,
+      "failures": 1,
+      "normalizedFailure": "Error creating PR review request: SessionModelError: Execution failed: CAPIError: 400 The requested model is not supported. (Request ID: <PROVIDER_REQUEST>)",
+      "features": [
+        "external-tooling"
+      ],
+      "rules": [],
+      "outcomes": [
+        {
+          "outcome": "blocked",
+          "verification": "external-tooling-classification",
+          "rule": null,
+          "preventionRule": "Never mutate source to remediate an external model/provider/tooling failure; classify it as blocked external infrastructure and require provider-side recovery.",
+          "provenance": {
+            "source": "GitHub Advanced Security code-scanning AI",
+            "failedSha": "5454a40ce113920a6462fc003e482a0a90ffcd24",
+            "runId": "35341945411"
+          }
+        }
+      ],
+      "confidence": 0
     }
   ],
   "playbooks": [],
@@ -126,6 +152,28 @@
         "require unique deterministic finding fingerprints before marking DEBT-001 validator contract verified"
       ],
       "lastSeenAt": "2026-09-18T03:29:17Z"
+    },
+    {
+      "id": "external-tooling-no-source-mutation",
+      "fingerprint": "f6125d993dad9c70842879c4858e4c3dbaaf6d3739a821b098ffdab46e5bb185",
+      "rootCause": "external-tooling",
+      "attempts": 1,
+      "successes": 0,
+      "failures": 1,
+      "confidence": 0,
+      "evidence": [
+        {
+          "verification": "external-tooling-classification",
+          "provenance": {
+            "runId": "35341945411",
+            "executionSha": "5454a40ce113920a6462fc003e482a0a90ffcd24"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Never mutate source to remediate an external model/provider/tooling failure; classify it as blocked external infrastructure and require provider-side recovery."
+      ],
+      "lastSeenAt": "2026-09-18T11:55:03Z"
     }
   ]
 }
