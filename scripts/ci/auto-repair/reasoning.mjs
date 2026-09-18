@@ -36,7 +36,7 @@ function readFreshScout(targetDir, scoutPath) {
 }
 
 function locationFromLog(log) {
-  const match = log.match(/(?:^|\\s)([^\\s:]+\\.(?:ts|tsx|js|mjs|jsx)):(\\d+)(?::(\\d+))?/i);
+  const match = log.match(/(?:^|\s)([^\s:]+\.(?:ts|tsx|js|mjs|jsx)):(\d+)(?::(\d+))?/i);
   return match ? { file: match[1], line: Number(match[2]), column: match[3] ? Number(match[3]) : null } : null;
 }
 
@@ -46,7 +46,7 @@ function readCodeContext(targetDir, location) {
   const fullPath = `${targetDir}/${file}`;
   if (!fs.existsSync(fullPath)) return { available: false, reason: 'file-not-found', file: location.file };
   try {
-    const lines = fs.readFileSync(fullPath, 'utf8').split(/\\r?\\n/);
+    const lines = fs.readFileSync(fullPath, 'utf8').split(/\r?\n/);
     const start = Math.max(0, location.line - 4);
     const end = Math.min(lines.length, location.line + 3);
     return {
