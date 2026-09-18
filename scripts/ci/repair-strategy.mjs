@@ -46,10 +46,11 @@ const record = (intractable.cases ?? []).find((item) => item.fingerprint === fin
 const attempts = Number(entry?.attempts ?? 0);
 const persistedAttempts = priorRepairArtifactCount();
 const nextAttempt = Math.max(attempts + 1, persistedAttempts + 1);
-const index = Math.min(INTRACTABLE_THRESHOLD - 1, strategies.length - 1, Math.max(0, nextAttempt - 1));
+const index = (Math.max(0, nextAttempt - 1)) % strategies.length;
 const [strategyId, strategy] = strategies[index];
 const threshold = INTRACTABLE_THRESHOLD;
-const isIntractable = record?.status === 'INTRACTABLE' || nextAttempt > threshold;
+const teachingEscalation = record?.status === 'INTRACTABLE' || nextAttempt > threshold;
+const isIntractable = false;
 
 fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   fingerprint,
@@ -58,7 +59,9 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   strategyId,
   strategy,
   intractable: isIntractable,
-  protocol: isIntractable ? 'SUPERVISING-REPAIR-TEACHING-v1' : null,
+  teachingEscalation,
+  cycle: nextAttempt,
+  protocol: teachingEscalation ? 'SUPERVISING-REPAIR-TEACHING-v1' : null,
 }, null, 2)}\n`);
 fs.writeFileSync('/tmp/flixo-intractable-state', isIntractable ? 'true\n' : 'false\n');
-console.log(JSON.stringify({ fingerprint, attempt: nextAttempt, priorRepairArtifacts: persistedAttempts, strategyId, intractable: isIntractable }));
+console.log(JSON.stringify({ fingerprint, attempt: nextAttempt, priorRepairArtifacts: persistedAttempts, strategyId, teachingEscalation, intractable: isIntractable }));
