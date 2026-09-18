@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome } from './auto-repair-learning.mjs';
+import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge } from './auto-repair-learning.mjs';
 
 const sample = 'Run 35012345678 failed on webkit at abcdefabcdefabcdefabcdefabcdefabcdefabcd: Seed waitForGpuRender';
 const fingerprint = fingerprintFailure(sample);
@@ -24,6 +24,29 @@ recordOutcome(memory, {
 });
 assert.equal(memory.cases.length, before + (memory.cases.some((item) => item.fingerprint === '__self_test__') ? 0 : 1));
 assert.equal(scorePlaybook(memory, 'lint', 'eslint-unused'), 1);
+
+recordOutcome(memory, {
+  fingerprint: '__general_case_a__',
+  normalizedFailure: 'eslint no-unused-vars src/a.ts',
+  features: ['lint'],
+  rootCause: 'lint',
+  rule: 'eslint-unused',
+  outcome: 'success',
+  verification: 'exact-sha-proof',
+});
+recordOutcome(memory, {
+  fingerprint: '__general_case_b__',
+  normalizedFailure: 'eslint no-unused-vars src/b.ts',
+  features: ['lint'],
+  rootCause: 'lint',
+  rule: 'eslint-unused',
+  outcome: 'success',
+  verification: 'exact-sha-proof',
+});
+const reusable = deriveReusableKnowledge(memory, { rootCause: 'lint', features: ['lint'], fingerprint: '__new_lint_case__' });
+assert.equal(reusable.schemaVersion, 2);
+assert(reusable.generalizedRules.some((item) => item.rule === 'eslint-unused' && item.successfulFingerprintSupport >= 2));
+assert.equal(reusable.rejectedRules.some((item) => item.rule === 'eslint-unused'), false);
 assert(memory.lessons.some((item) => item.fingerprint === '__self_test__'));
 
 recordOutcome(memory, {
