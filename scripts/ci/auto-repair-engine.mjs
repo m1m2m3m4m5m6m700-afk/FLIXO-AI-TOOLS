@@ -83,6 +83,36 @@ const diagnosisGate = {
 };
 evidence.diagnosisGate = diagnosisGate;
 
+const externalToolingFailure = features.includes('external-tooling') || diagnosis?.rootCause === 'external-tooling';
+if (externalToolingFailure) {
+  evidence.outcome = 'blocked-external';
+  evidence.externalTooling = {
+    sourceMutationAllowed: false,
+    reason: 'External security/agent tooling failed before producing a repository finding.',
+    policy: 'Do not mutate source code to repair an infrastructure/model capability failure.',
+  };
+  evidence.escalation = {
+    required: true,
+    reason: 'external-tooling-failure',
+    action: 'Repair or rerun the external provider configuration; keep repository state unchanged.',
+  };
+  recordOutcome(memory, {
+    fingerprint,
+    normalizedFailure,
+    features,
+    rootCause: 'external-tooling',
+    outcome: 'blocked',
+    verification: 'external-tooling-classification',
+    provenance: { targetSha },
+    preventionRule: 'Never mutate source to remediate an external model/provider/tooling failure; classify it as blocked external infrastructure and require provider-side recovery.',
+  });
+  writeMemory(memory);
+  writeEvidence(evidencePath, evidence);
+  console.log('AUTO_REPAIR_RESULT=BLOCKED_EXTERNAL');
+  console.log('AUTO_REPAIR_REASON=external-tooling-failure');
+  process.exit(0);
+}
+
 if (!diagnosisGate.allowed) {
   evidence.outcome = 'proposal-only';
   evidence.escalation = { required: true, reason: 'root-cause-evidence-insufficient' };
