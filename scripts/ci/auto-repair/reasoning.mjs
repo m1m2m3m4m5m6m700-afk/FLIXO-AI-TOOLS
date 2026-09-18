@@ -53,10 +53,10 @@ function buildHypotheses(log, features, scout, historical = []) {
         : 0;
       const learned = historical.filter((item) => item.rootCause === profile.id && item.confidence >= 0.75).length;
       const score = Math.min(1, Number((
-        0.24 +
-        profile.specificity * 0.24 +
-        Math.min(0.28, directMatches * 0.07) +
-        Math.min(0.12, lines.length * 0.02) +
+        0.20 +
+        profile.specificity * 0.30 +
+        Math.min(0.32, directMatches * 0.13) +
+        Math.min(0.10, lines.length * 0.025) +
         Math.min(0.06, scoutFindings * 0.02) +
         Math.min(0.06, learned * 0.02)
       ).toFixed(4)));
