@@ -90,7 +90,7 @@ assert.match(escalationReason(badProof), /^repair-proof-incomplete:/);
 
 const learnedFingerprint = fingerprintFailure('eslint no-unused-vars');
 const ranked = rankLessons({
-  version: 7,
+  version: 9,
   cases: [],
   playbooks: [],
   lessons: [{ id: 'good', fingerprint: learnedFingerprint, rootCause: 'eslint-specialist', rule: 'eslint-unused', confidence: 1 }],
