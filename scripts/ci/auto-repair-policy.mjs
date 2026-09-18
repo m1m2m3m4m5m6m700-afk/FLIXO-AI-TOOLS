@@ -1,5 +1,5 @@
 export const repairPolicy = Object.freeze({
-  maxAttemptsPerFingerprint: 3,
+  maxAttemptsPerFingerprint: Number.POSITIVE_INFINITY, // No global cycle ceiling; per-cycle mutation budgets remain bounded.
   maxChangedFiles: 8,
   maxChangedLines: 300,
   requireCleanGitBeforeRepair: true,
