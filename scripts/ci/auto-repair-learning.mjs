@@ -112,6 +112,7 @@ export function rankLessons(memory, { fingerprint, rootCause, rule } = {}) {
 
 export function deriveReusableKnowledge(memory, { rootCause, features = [], fingerprint } = {}) {
   const aggregate = new Map();
+  const caseBackedKeys = new Set();
 
   const ensure = (rc, rule) => {
     const key = `${rc}|${rule}`;
@@ -130,21 +131,12 @@ export function deriveReusableKnowledge(memory, { rootCause, features = [], fing
     return item;
   };
 
-  for (const playbook of memory.playbooks ?? []) {
-    const item = ensure(playbook.rootCause, playbook.rule);
-    item.attempts += Number(playbook.attempts ?? 0);
-    item.successes += Number(playbook.successes ?? 0);
-    item.failures += Number(playbook.failures ?? 0);
-    for (const value of playbook.fingerprints ?? []) item.fingerprints.add(value);
-    for (const value of playbook.successfulFingerprints ?? []) item.successfulFingerprints.add(value);
-    for (const value of playbook.failedFingerprints ?? []) item.failedFingerprints.add(value);
-    item.generalized = playbook.generalized === true;
-  }
-
   for (const entry of memory.cases ?? []) {
     for (const outcome of entry.outcomes ?? []) {
       if (!outcome?.rule) continue;
       const item = ensure(entry.rootCause ?? 'unknown', outcome.rule);
+      const key = `${item.rootCause}|${item.rule}`;
+      caseBackedKeys.add(key);
       item.fingerprints.add(entry.fingerprint);
       if (outcome.outcome === 'success') {
         item.attempts += 1;
@@ -159,6 +151,19 @@ export function deriveReusableKnowledge(memory, { rootCause, features = [], fing
     for (const rule of entry.revertedRules ?? []) {
       const item = ensure(entry.rootCause ?? 'unknown', rule);
       item.revertedFingerprints.add(entry.fingerprint);
+    }
+  }
+
+  for (const playbook of memory.playbooks ?? []) {
+    const item = ensure(playbook.rootCause, playbook.rule);
+    const key = `${item.rootCause}|${item.rule}`;
+    for (const value of playbook.fingerprints ?? []) item.fingerprints.add(value);
+    for (const value of playbook.successfulFingerprints ?? []) item.successfulFingerprints.add(value);
+    for (const value of playbook.failedFingerprints ?? []) item.failedFingerprints.add(value);
+    if (!caseBackedKeys.has(key)) {
+      item.attempts += Number(playbook.attempts ?? 0);
+      item.successes += Number(playbook.successes ?? 0);
+      item.failures += Number(playbook.failures ?? 0);
     }
   }
 
