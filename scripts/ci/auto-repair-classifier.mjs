@@ -4,6 +4,7 @@ const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
 
 const definitions = [
+  ['external-tooling', /SessionModelError|CAPIError|requested model is not supported|github-advanced-security\[bot\]|code scanning AI findings/i],
   ['lint', /eslint|no-unused-vars|defined but never used|no-empty/i],
   ['format', /prettier|formatting|code style/i],
   ['typescript', /TS\d+|Type error|typescript/i],
@@ -33,12 +34,16 @@ const fileLine = log.match(/(?:^|\s)([^\s:]+\.(?:ts|tsx|js|mjs|jsx)):(\d+)(?::(\
 const errorCodes = [...new Set(log.match(/\b(?:TS\d+|[A-Z][A-Z0-9_]*_ERROR)\b/gi) ?? [])];
 const testTitles = [...new Set([...log.matchAll(/(?:›|test:|Test:)\s*([^\n]{5,180})/g)].map((m) => m[1].trim()))].slice(-10);
 
-const top = hypotheses[0] ?? { id: 'unknown', score: 0, signalCount: 0, evidenceLines: [] };
+const externalTooling = definitions.find(([id]) => id === 'external-tooling');
+const externalSignal = externalTooling?.[1].test(log) === true;
+const top = externalSignal
+  ? hypotheses.find((item) => item.id === 'external-tooling') ?? { id: 'external-tooling', score: 1, signalCount: 1, evidenceLines: [] }
+  : (hypotheses[0] ?? { id: 'unknown', score: 0, signalCount: 0, evidenceLines: [] });
 const second = hypotheses[1];
 const separation = second ? Math.max(0, top.score - second.score) : top.score;
-const directFailureSignal = top.evidenceLines.some((line) => /error|failed|failure|exception|expected|received/i.test(line));
-const causalConfidence = Math.min(1, top.score + separation * 0.5 + (directFailureSignal ? 0.15 : 0));
-const rootCause = top.id;
+const directFailureSignal = externalSignal || top.evidenceLines.some((line) => /error|failed|failure|exception|expected|received/i.test(line));
+const causalConfidence = externalSignal ? 0.99 : Math.min(1, top.score + separation * 0.5 + (directFailureSignal ? 0.15 : 0));
+const rootCause = externalSignal ? 'external-tooling' : top.id;
 const signature = [rootCause, errorCodes[0], fileLine?.[1], fileLine?.[2], testTitles[0]]
   .filter(Boolean)
   .join('|') || rootCause;
@@ -49,6 +54,8 @@ const evidence = {
   hypotheses,
   causalConfidence: Number(causalConfidence.toFixed(3)),
   diagnosisQuality: causalConfidence >= 0.75 && directFailureSignal ? 'strong' : causalConfidence >= 0.5 ? 'provisional' : 'weak',
+  sourceMutationAllowed: !externalSignal,
+  externalTooling: externalSignal,
   directFailureSignal,
   ambiguity: Boolean(second && separation < 0.12),
   signature,
