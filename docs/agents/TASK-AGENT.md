@@ -78,6 +78,8 @@ with all of these invariants:
 
 For every active failure repair cycle, the Task Agent must receive the AUTO_REPAIR_REASONING_KERNEL context produced by the evidence-first reasoning layer.
 
+Contract version: TASK-AGENT-DIRECT-REPAIR-v2.
+
 The cognition packet binds:
 rootCause + decision + causalConfidence + ambiguity + sourceMutationAllowed + top/second hypothesis + verificationStrategy + evidenceDigest.
 
@@ -123,6 +125,8 @@ CLOSED / VERIFIED
 ## Required evidence
 Every repair packet must bind:
 `taskId + failureFingerprint + baselineSha + contractVersion + scope + dependencies + proofObligations`.
+
+The execution controller rejects packets whose `contractVersion` does not exactly match the canonical Task Agent contract.
 
 Every repair must record:
 - root cause and causal evidence;
