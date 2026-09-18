@@ -106,4 +106,7 @@ assert.match(learningSource, /Math\.max\(parsed\.version, MEMORY_VERSION\)/);
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /MAX_REPAIR_CYCLES = 3/);
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /MAX_STALLED_REPAIR_CYCLES = 2/);
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /MAX_PREPARED_FILES = 8/);
+const strategySource = fs.readFileSync('scripts/ci/repair-strategy.mjs', 'utf8');
+assert.match(strategySource, /INTRACTABLE_THRESHOLD/);
+assert.match(strategySource, /nextAttempt > threshold/);
 console.log('AUTO_REPAIR_ARCHITECTURE_SELF_TEST=PASS');
