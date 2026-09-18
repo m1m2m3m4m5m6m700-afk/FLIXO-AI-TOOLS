@@ -20,7 +20,7 @@ export function planRepair(log, { historical = [] } = {}) {
     .map((plan) => ({ ...plan, evidence: features }))
     .sort((a, b) => b.confidence - a.confidence);
   const safe = candidates.filter((plan) => plan.mutate && plan.confidence >= 90);
-  const selectedRule = reasoning.rootCause === 'format' ? 'prettier-file' : reasoning.rootCause;
+  const selectedRule = reasoning.rootCause === 'format' ? 'prettier-file' : reasoning.rootCause === 'lint' ? 'eslint-unused' : reasoning.rootCause;
   const requiresSourceLocation = selectedRule === 'prettier-file' || selectedRule === 'eslint-unused';
   const selected = reasoning.decision === 'ALLOW_BOUNDED_MUTATION' && safe.length === 1 && safe[0].id === selectedRule && (!requiresSourceLocation || Boolean(reasoning.location?.file))
     ? { ...safe[0], file: reasoning.location?.file ?? null }
