@@ -16,6 +16,7 @@ const MAX_PREPARED_FILES = 8;
 const MAX_INSPECTED_FILES = 40;
 const SCOPE_POLICY = 'SELF_HEALING_REPAIR_ONLY';
 const SCOPE_ENFORCEMENT = 'FAIL_CLOSED';
+const TASK_AGENT_CONTRACT_VERSION = 'TASK-AGENT-DIRECT-REPAIR-v2';
 
 const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
 const now = () => new Date().toISOString();
@@ -46,6 +47,7 @@ function latestPacket() {
   if (!first.output) throw new Error('TASK_AGENT_SELECTED_TASK_MISSING');
   const packet = readJson(first.output);
   if (packet.baselineSha !== sha) throw new Error('STALE_BASELINE');
+  if (packet.contractVersion !== TASK_AGENT_CONTRACT_VERSION) throw new Error('TASK_AGENT_CONTRACT_VERSION_MISMATCH');
   if (packet.scopePolicy !== SCOPE_POLICY || packet.scopeEnforcement !== SCOPE_ENFORCEMENT) throw new Error('SELF_HEALING_PACKET_SCOPE_VIOLATION');
   if (packet.mainBranchMutation !== false) throw new Error('MAIN_BRANCH_MUTATION_POLICY_VIOLATION');
   if (packet.branchPolicy !== 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN') throw new Error('TWO_BRANCH_POLICY_VIOLATION');
