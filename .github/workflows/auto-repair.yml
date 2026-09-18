@@ -122,8 +122,8 @@ jobs:
           SIGNATURE="$(node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8')); process.stdout.write(x.signature||'unknown')")"
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
           test "$(git branch --show-current)" = execution
-          node scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$SIGNATURE" --failure-evidence=/tmp/flixo-repair-summary.txt
-          test -s diagnostics/agents/task-agent/latest.json
+          FLIXO_TASK_AGENT_OUTPUT_DIR=/tmp/flixo-task-agent node scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$SIGNATURE" --failure-evidence=/tmp/flixo-repair-summary.txt
+          test -s /tmp/flixo-task-agent/latest.json
 
       - name: Select bounded repair strategy and detect intractable cases
         id: strategy
@@ -232,7 +232,7 @@ jobs:
             /tmp/flixo-repair-evidence.json
             /tmp/flixo-repair-strategy.json
             /tmp/flixo-intractable-state
-            /tmp/flixo-repair-target/diagnostics/agents/task-agent/*.json
+            /tmp/flixo-task-agent/*.json
             diagnostics/auto-repair/memory.json
             diagnostics/auto-repair/historical-learning.json
             diagnostics/auto-repair/intractable-errors.json
