@@ -39,7 +39,7 @@ const historicalRollbackCandidate = findHistoricalRepairCandidate(targetDir, {
   historyLimit: Number(process.env.FLIXO_HISTORY_LIMIT ?? 30),
 });
 
-if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint && !historicalRollbackCandidate) {
+if (known?.attempts != null && repairPolicy.maxAttemptsPerFingerprint !== Number.POSITIVE_INFINITY && (known.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint && !historicalRollbackCandidate) {
   console.log('AUTO_REPAIR_RESULT=LEARNING_MEMORY_BLOCK');
   process.exit(0);
 }
