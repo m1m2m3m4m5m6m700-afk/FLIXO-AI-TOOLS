@@ -57,7 +57,7 @@ jobs:
           set -euo pipefail
           ACTUAL_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA" || { echo "HEAD_CHANGED=$ACTUAL_SHA expected=$EXPECTED_SHA"; exit 1; }
-          gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json name,state,bucket --jq '.[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and .bucket != "pass") | [.name,.state,.bucket] | @tsv' > /tmp/non-green-checks
+          gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json name,state,bucket --jq '.[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and .bucket != "pass") | [.name,.state,.bucket] | @tsv' > /tmp/non-green-checks
           if [ -s /tmp/non-green-checks ]; then
             cat /tmp/non-green-checks
             exit 1
