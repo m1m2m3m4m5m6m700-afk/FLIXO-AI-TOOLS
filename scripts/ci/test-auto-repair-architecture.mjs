@@ -88,12 +88,16 @@ assert.equal(ranked.at(-1).anti, true);
 
 const fingerprintSource = fs.readFileSync('scripts/ci/auto-repair/fingerprint.mjs', 'utf8');
 assert.match(fingerprintSource, /external-tooling/);
+assert.match(fingerprintSource, /format/);
 const taskAgentSource = fs.readFileSync('scripts/ci/task-agent.mjs', 'utf8');
 assert.match(taskAgentSource, /maxCycles: 3/);
 assert.match(taskAgentSource, /maxPreparedFiles: 8/);
+const learningSource = fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8');
 assert(!learningSource.includes('git/refs/heads/flixo-intractable/'));
 assert(!learningSource.includes('flixo-intractable/'));
-const learningSource = fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8');
 assert.match(learningSource, /MEMORY_VERSION = 7/);
 assert.match(learningSource, /Math\.max\(parsed\.version, MEMORY_VERSION\)/);
+assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /MAX_REPAIR_CYCLES = 3/);
+assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /MAX_STALLED_REPAIR_CYCLES = 2/);
+assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /MAX_PREPARED_FILES = 8/);
 console.log('AUTO_REPAIR_ARCHITECTURE_SELF_TEST=PASS');
