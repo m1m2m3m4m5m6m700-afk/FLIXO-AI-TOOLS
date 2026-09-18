@@ -9,6 +9,8 @@ const webkit = reasonFailure([
 ].join('\n'));
 
 assert.equal(webkit.rootCause, 'webkit-render');
+assert.equal(webkit.location?.file, 'tests/render.spec.ts');
+assert.equal(webkit.location?.line, 42);
 assert.equal(webkit.ambiguity, false);
 assert(webkit.causalConfidence >= 0.75);
 assert.equal(webkit.sourceMutationAllowed, true);
