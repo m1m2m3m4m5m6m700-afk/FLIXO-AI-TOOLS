@@ -51,7 +51,12 @@ const historicalRules = [
 const historicalCandidate = plan.candidates.find((candidate) => historicalRules.includes(candidate.id) && candidate.mutate && candidate.confidence >= 90);
 const blockedRuleIds = new Set(blockedLessons.map((item) => item.rule).filter(Boolean));
 if (selected?.id && blockedRuleIds.has(selected.id) && !trustedLessons.some((item) => item.rule === selected.id && item.confidence >= 0.85)) selected = null;
-if (historicalCandidate && !blockedRuleIds.has(historicalCandidate.id) && (!selected || scorePlaybook(memory, specialist?.id ?? 'unknown', historicalCandidate.id) >= scorePlaybook(memory, specialist?.id ?? 'unknown', selected.id))) selected = historicalCandidate;
+if (historicalCandidate && !blockedRuleIds.has(historicalCandidate.id) && (!selected || scorePlaybook(memory, specialist?.id ?? 'unknown', historicalCandidate.id) >= scorePlaybook(memory, specialist?.id ?? 'unknown', selected.id))) {
+  selected = {
+    ...historicalCandidate,
+    file: selected?.file ?? plan.reasoning?.location?.file ?? null,
+  };
+}
 const targetSha = git(['rev-parse', 'HEAD']).trim();
 const evidence = {
   schemaVersion: 6,
