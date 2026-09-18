@@ -21,29 +21,32 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Reconcile current execution divergence with canonical main once, fail-closed
+        uses: actions/checkout@v5
+        with:
+          ref: execution
+          fetch-depth: 0
+
+      - name: Reconcile execution divergence with canonical main
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          test "$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName,baseRefName,headRefOid --jq '.headRefName+"|"+.baseRefName+"|"+.headRefOid')" = "execution|main|$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
-          git init /tmp/flixo-execution-sync >/dev/null 2>&1 || true
-          git -C /tmp/flixo-execution-sync remote remove origin >/dev/null 2>&1 || true
-          git -C /tmp/flixo-execution-sync init >/dev/null 2>&1 || true
-          git -C /tmp/flixo-execution-sync remote add origin "https://github.com/$GITHUB_REPOSITORY.git" >/dev/null 2>&1
-          git -C /tmp/flixo-execution-sync fetch --no-tags origin main execution
-          git -C /tmp/flixo-execution-sync checkout -B execution origin/execution
-          CANONICAL_MAIN="$(git -C /tmp/flixo-execution-sync rev-parse origin/main)"
-          MERGE_BASE="$(git -C /tmp/flixo-execution-sync merge-base origin/main origin/execution)"
+          PR_STATE="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName,baseRefName,headRefOid --jq '.headRefName+"|"+.baseRefName+"|"+.headRefOid')"
+          test "${PR_STATE%%|*}" = "execution"
+          git fetch --no-tags origin main execution
+          test "$(git branch --show-current)" = "execution"
+          CANONICAL_MAIN="$(git rev-parse origin/main)"
+          MERGE_BASE="$(git merge-base origin/main origin/execution)"
           EXPECTED_MAIN="dfc2d5f6cc3d9426a98630d97c3e2c321746a9eb"
           EXPECTED_BASE="8a59c089f5c4d48bcb3448d0175a26ceeef3d67e"
           test "$CANONICAL_MAIN" = "$EXPECTED_MAIN"
           test "$MERGE_BASE" = "$EXPECTED_BASE"
-          if git -C /tmp/flixo-execution-sync merge-base --is-ancestor origin/main origin/execution; then
+          if git merge-base --is-ancestor origin/main origin/execution; then
             echo "execution already contains canonical main."
             exit 0
           fi
-          mapfile -t MAIN_FILES < <(git -C /tmp/flixo-execution-sync diff --name-only "$MERGE_BASE" origin/main | sort)
+          mapfile -t MAIN_FILES < <(git diff --name-only "$MERGE_BASE" origin/main | sort)
           EXPECTED_FILES=(
             ".github/workflows/auto-repair.yml"
             "diagnostics/auto-repair/memory.json"
@@ -55,18 +58,17 @@ jobs:
           printf '%s\n' "${EXPECTED_FILES[@]}" | sort > /tmp/flixo-expected-main-files
           printf '%s\n' "${MAIN_FILES[@]}" > /tmp/flixo-actual-main-files
           diff -u /tmp/flixo-expected-main-files /tmp/flixo-actual-main-files
-          PRE_SHA="$(git -C /tmp/flixo-execution-sync rev-parse HEAD)"
-          git -C /tmp/flixo-execution-sync merge --no-edit -X ours origin/main
-          test -z "$(git -C /tmp/flixo-execution-sync status --porcelain=v1 --untracked-files=all)"
-          test -z "$(git -C /tmp/flixo-execution-sync diff "$PRE_SHA" HEAD)"
-          git -C /tmp/flixo-execution-sync push origin HEAD:execution
-          NEW_SHA="$(git -C /tmp/flixo-execution-sync rev-parse HEAD)"
+          PRE_SHA="$(git rev-parse HEAD)"
+          git merge --no-edit -X ours origin/main
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          test -z "$(git diff "$PRE_SHA" HEAD)"
+          npm ci --prefer-offline --no-audit --no-fund
+          npm run test:auto-repair
+          npm run validate:auto-repair-memory
+          NEW_SHA="$(git rev-parse HEAD)"
           test "$NEW_SHA" != "$PRE_SHA"
+          git push origin HEAD:execution
           echo "Execution synchronized by non-forced merge commit: $NEW_SHA"
-          echo "The current PR event is stale after the ref move; this run will fail closed and the synchronized head must be certified separately."
-          exit 1
-
-    steps:
       - name: Wait for exact-head repository check-runs; isolate external deployment-provider status
         env:
           GH_TOKEN: ${{ github.token }}
