@@ -66,6 +66,7 @@ const revertedCase = memory.cases.find((item) => item.fingerprint === '__revert_
 assert.equal(revertedCase?.attempts ?? 0, attemptBeforeRevert);
 assert.equal(revertedCase?.reversions ?? 0, revertBefore + 1);
 assert.equal(revertedCase?.failures ?? 0, 0);
+assert.equal(scorePlaybook(memory, 'lint', 'eslint-unused'), 1);
 
 const fallbackOutcome = process.env.FLIXO_LEARNING_OUTCOME;
 const fallbackVerification = process.env.FLIXO_VERIFICATION;
