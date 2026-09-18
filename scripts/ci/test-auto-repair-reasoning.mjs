@@ -18,8 +18,10 @@ assert.equal(webkit.decision, 'ALLOW_BOUNDED_MUTATION');
 assert(webkit.hypotheses.some((item) => item.id === 'playwright' && item.suppressedBy === 'webkit-render'));
 assert.deepEqual(verificationStrategy(['webkit', 'playwright']), [['npm', ['run', 'test:browser']], ['npm', ['run', 'test:static']]);
 
-const lint = reasonFailure('ERROR eslint: no-unused-vars in src/example.ts');
+const lint = reasonFailure('ERROR eslint: no-unused-vars at src/example.ts:10:3');
 assert.equal(lint.rootCause, 'lint');
+assert.equal(lint.location?.file, 'src/example.ts');
+assert.equal(lint.location?.line, 10);
 assert.equal(lint.decision, 'ALLOW_BOUNDED_MUTATION');
 
 const external = reasonFailure('Code scanning AI findings: SessionModelError CAPIError: 400 The requested model is not supported.');
