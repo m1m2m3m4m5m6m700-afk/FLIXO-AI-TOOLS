@@ -27,7 +27,7 @@ assert(!normalized.includes('35012345678'));
 assert(!normalized.includes('abcdefabcdefabcdefabcdefabcdefabcdefabcd'));
 assert.equal(fingerprintFailure(sample), fingerprintFailure(sample));
 const plan = planRepair(sample);
-assert.equal(plan.selected?.id, 'eslint-file');
+assert.equal(plan.selected?.id, 'eslint-unused');
 assert.equal(confidenceGate({ selected: plan.selected, features: plan.features }).allowed, true);
 assert.equal(plan.selected?.file, 'src/example.ts');
 assert.equal(selectSpecialist(plan.features).id, 'eslint-specialist');
