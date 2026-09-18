@@ -34,4 +34,19 @@ const weakEvidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
 assert.equal(weakEvidence.rootCause, 'typescript');
 assert.notEqual(weakEvidence.diagnosisQuality, 'strong');
 
+fs.writeFileSync(logPath, [
+  'Code scanning AI findings on PR #745',
+  'Error creating PR review request: SessionModelError: Execution failed: CAPIError: 400 The requested model is not supported.',
+].join('\n'));
+
+execFileSync(process.execPath, ['scripts/ci/auto-repair-classifier.mjs'], {
+  env: { ...process.env, FLIXO_FAILURE_LOG: logPath },
+  stdio: 'pipe',
+});
+const externalEvidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
+assert.equal(externalEvidence.rootCause, 'external-tooling');
+assert.equal(externalEvidence.diagnosisQuality, 'strong');
+assert.equal(externalEvidence.sourceMutationAllowed, false);
+assert.equal(externalEvidence.externalTooling, true);
+
 console.log('auto-repair diagnosis evidence gate: PASS');
