@@ -266,6 +266,16 @@ jobs:
             echo 'INTRACTABLE case reached: recursive repair is intentionally stopped.'
             exit 1
           fi
-          echo "Repair remains open on execution for target run $TARGET_RUN_ID."
-          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref main -f target_run_id="$TARGET_RUN_ID"
+          CURRENT_MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          CURRENT_FAILURE_ID="$(
+            gh run list --repo "$GITHUB_REPOSITORY" --branch main --limit 50 \
+              --json databaseId,name,headSha,conclusion,createdAt \
+              --jq 'map(select((.name == "FLIXO Test System" or .name == "FLIXO WP0 Trust Baseline" or .name == "FLIXO Continuous Delivery") and .headSha == "'$CURRENT_MAIN_SHA'" and (.conclusion == "failure" or .conclusion == "timed_out"))) | sort_by(.createdAt) | last.databaseId // empty'
+          )"
+          if [ -z "$CURRENT_FAILURE_ID" ]; then
+            echo "No current canonical failure remains on main $CURRENT_MAIN_SHA; stale target $TARGET_RUN_ID is closed."
+            exit 0
+          fi
+          echo "Repair remains open on current canonical failure run $CURRENT_FAILURE_ID."
+          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref main -f target_run_id="$CURRENT_FAILURE_ID"
           exit 1
