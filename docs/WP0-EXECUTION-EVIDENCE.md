@@ -32,3 +32,10 @@ Proceed to the remaining WP0 canonical-verification/exact-SHA evidence gaps, the
 - Test Impact Graph: PASS on the exact SHA.
 - GitHub Advanced Security AI review failed before producing a repository finding because its configured model request returned HTTP 400: The requested model is not supported. This is external tooling infrastructure evidence, not a source-code finding.
 - Canonical browser/certification checks were still in progress at capture time; this record does not close the final release gate by itself.
+
+## 2026-09-18 — Auto-Repair hardening cycle
+
+- Repair hardening target: `external-tooling`, stale intractable branching, memory schema drift, and pre-mutation self-test coverage.
+- Execution branch remains the only mutation branch; `main` is unchanged by this cycle.
+- External GitHub Advanced Security AI model failure is classified as provider/tooling infrastructure and is not repaired by source mutation.
+- Fresh exact-head verification is required after this evidence commit; no release or GREEN claim is implied by this record.
