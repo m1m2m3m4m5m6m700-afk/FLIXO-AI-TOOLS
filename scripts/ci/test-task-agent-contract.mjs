@@ -25,6 +25,7 @@ assert.match(agent, /branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN'/);
 assert.match(agent, /ACTIVE_UNTIL_CANONICAL_GREEN/);
 assert.match(agent, /cognitionRequired: Boolean/);
 assert.match(agent, /AUTO_REPAIR_REASONING_KERNEL/);
+assert.match(agent, /CONTRACT_VERSION = 'TASK-AGENT-DIRECT-REPAIR-v2'/);
 assert.match(agent, /rescanAfterEveryRepair: true/);
 assert.match(agent, /everyRedCheckMustBecomeARepairTarget: true/);
 assert.match(agent, /circuitBreaker:\s*\{[\s\S]*enabled: true,[\s\S]*maxStalledCycles: 3/);
