@@ -1,5 +1,5 @@
 export const repairPolicy = Object.freeze({
-  maxAttemptsPerFingerprint: 2,
+  maxAttemptsPerFingerprint: 3,
   maxChangedFiles: 8,
   maxChangedLines: 300,
   requireCleanGitBeforeRepair: true,
