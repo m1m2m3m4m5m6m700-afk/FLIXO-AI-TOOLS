@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { reasonFailure, reasoningPolicy, verificationStrategy } from './auto-repair/reasoning.mjs';
 
 const webkit = reasonFailure([
@@ -38,6 +42,24 @@ assert.equal(external.causalConfidence, 0.99);
 const ambiguous = reasonFailure('playwright page expect(locator) failed Type error TS2322');
 assert.equal(ambiguous.decision, 'PROPOSE_ONLY');
 assert.equal(ambiguous.ambiguity, true);
+
+const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-reasoning-'));
+execFileSync('git', ['init', '-q'], { cwd: tempDir });
+execFileSync('git', ['config', 'user.name', 'reasoning-test'], { cwd: tempDir });
+execFileSync('git', ['config', 'user.email', 'reasoning-test@example.invalid'], { cwd: tempDir });
+fs.writeFileSync(path.join(tempDir, 'a.ts'), 'export const value = 1;\n');
+execFileSync('git', ['add', '.'], { cwd: tempDir });
+execFileSync('git', ['commit', '-q', '-m', 'baseline'], { cwd: tempDir });
+const tempSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: tempDir, encoding: 'utf8' }).trim();
+const scoutPath = path.join(tempDir, 'scout.json');
+fs.writeFileSync(scoutPath, JSON.stringify({ scannedSha: tempSha, findings: [] }));
+const freshScout = reasonFailure('ERROR eslint: no-unused-vars at a.ts:1:1', { targetDir: tempDir, scoutPath });
+assert.equal(freshScout.scout.fresh, true);
+assert.equal(freshScout.scout.scannedSha, tempSha);
+fs.writeFileSync(scoutPath, JSON.stringify({ scannedSha: 'a'.repeat(40), findings: [] }));
+const staleScout = reasonFailure('ERROR eslint: no-unused-vars at a.ts:1:1', { targetDir: tempDir, scoutPath });
+assert.equal(staleScout.scout.fresh, false);
+assert.equal(staleScout.scout.reason, 'stale');
 
 assert.equal(reasoningPolicy().principle, 'EVIDENCE_FIRST_CAUSAL_REASONING');
 
