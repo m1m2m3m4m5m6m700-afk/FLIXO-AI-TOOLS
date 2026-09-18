@@ -134,10 +134,11 @@ export function reasonFailure(log, {
   const scout = readFreshScout(targetDir, scoutPath);
   const hypotheses = buildHypotheses(text, features, scout, historical, codeContext);
   const top = selectTop(hypotheses);
-  const second = hypotheses.find((item) => item.id !== top.id && !item.suppressedBy);
+  const alternatives = hypotheses.filter((item) => item.id !== top.id);
+  const second = alternatives.find((item) => !item.suppressedBy);
   const separation = second ? Number((top.score - second.score).toFixed(4)) : top.score;
   const directFailureSignal = top.directMatches > 0 && top.evidenceLines.some((line) => /error|failed|failure|exception|expected|received|unsupported/i.test(line));
-  const causalDominance = Boolean(second && (top.dominates.includes(second.id) || second.dominates?.includes(top.id)));
+  const causalDominance = alternatives.some((item) => top.dominates.includes(item.id) || item.dominates?.includes(top.id));
   const contradiction = Boolean(second && !causalDominance && second.score >= top.score * 0.9);
   const multiCauseAmbiguity = features.length > 1 && !causalDominance;
   const causalConfidence = top.id === 'external-tooling'
