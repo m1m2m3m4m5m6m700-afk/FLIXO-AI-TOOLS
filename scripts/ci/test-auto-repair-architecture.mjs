@@ -90,6 +90,8 @@ assert.equal(ranked[0].anti, undefined);
 assert.equal(ranked[0].rule, 'eslint-unused');
 assert.equal(ranked.at(-1).anti, true);
 
+const engineSource = fs.readFileSync('scripts/ci/auto-repair-engine.mjs', 'utf8');
+assert.match(engineSource, /file: selected\?\.file \?\? plan\.reasoning\?\.location\?\.file/);
 const fingerprintSource = fs.readFileSync('scripts/ci/auto-repair/fingerprint.mjs', 'utf8');
 assert.match(fingerprintSource, /external-tooling/);
 assert.match(fingerprintSource, /format/);
