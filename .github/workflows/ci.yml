@@ -4,8 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    # Validate production plus the sole working repair branch on exact pushes.
-    branches: [main, execution]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
