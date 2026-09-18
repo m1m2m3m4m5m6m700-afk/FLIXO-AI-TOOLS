@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { repairPolicy, isPathAllowed } from './auto-repair-policy.mjs';
-import { fingerprintFailure, normalizeFailure, extractFeatures, loadMemory, findCase, findSimilarCases, rankLessons, scorePlaybook, writeMemory, recordOutcome } from './auto-repair-learning.mjs';
+import { fingerprintFailure, normalizeFailure, extractFeatures, loadMemory, findCase, findSimilarCases, rankLessons, scorePlaybook, deriveReusableKnowledge, writeMemory, recordOutcome } from './auto-repair-learning.mjs';
 import { planRepair } from './auto-repair/planner.mjs';
 import { selectSpecialist } from './auto-repair/specialists.mjs';
 import { confidenceGate } from './auto-repair/confidence.mjs';
@@ -49,7 +49,8 @@ const historicalReasoningSupport = [
   ...memory.cases.map(({ rootCause, successes, attempts }) => ({ rootCause, confidence: attempts ? successes / attempts : 0 })),
   ...memory.lessons.map(({ rootCause, confidence }) => ({ rootCause, confidence })),
 ];
-const plan = planRepair(log, { historical: historicalReasoningSupport });
+const reusableKnowledge = deriveReusableKnowledge(memory, { rootCause: diagnosis?.rootCause ?? 'unknown', features, fingerprint });
+const plan = planRepair(log, { historical: historicalReasoningSupport, memory });
 const specialist = selectSpecialist(plan.features);
 let selected = plan.selected;
 const historicalRules = [
@@ -77,6 +78,7 @@ const evidence = {
   specialist,
   candidates: plan.candidates,
   reasoning: plan.reasoning,
+  reusableKnowledge,
   selected: selected?.id ?? null,
   historicalRollbackCandidate: historicalRollbackCandidate ? historicalRollbackRecord(historicalRollbackCandidate) : null,
   learning: {
