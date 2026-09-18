@@ -12,9 +12,9 @@ const plans = [
   { id: 'build-diagnostic', features: ['build'], confidence: 82, mutate: false, commands: [['npm', ['run', 'test:build']]] },
 ];
 
-export function planRepair(log) {
+export function planRepair(log, { historical = [] } = {}) {
   const features = extractFeatures(log);
-  const reasoning = reasonFailure(log);
+  const reasoning = reasonFailure(log, { historical });
   const candidates = plans
     .filter((plan) => plan.features.some((feature) => features.includes(feature)))
     .map((plan) => ({ ...plan, evidence: features }))
