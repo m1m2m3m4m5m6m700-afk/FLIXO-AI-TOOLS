@@ -54,6 +54,7 @@ const plan = planRepair(log, { historical: historicalReasoningSupport, memory })
 const specialist = selectSpecialist(plan.features);
 let selected = plan.selected;
 const historicalRules = [
+  ...(reusableKnowledge.generalizedRules ?? []).map((item) => item.rule).filter(Boolean),
   ...(known?.rules ?? []),
   ...similar.flatMap(({ case: item }) => item.rules ?? []),
   ...trustedLessons.map((item) => item.rule).filter(Boolean),
