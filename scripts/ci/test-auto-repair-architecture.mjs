@@ -20,6 +20,8 @@ assert.match(workflow, /CURRENT_FAILURE_ID/);
 assert.match(workflow, /Repair remains open/);
 assert.match(workflow, /gh workflow run auto-repair\.yml/);
 assert.match(workflow, /cancel-in-progress: false/);
+assert.match(workflow, /Run exact-SHA read-only source scout/);
+assert.match(workflow, /FLIXO_SCOUT_REPORT/);
 
 const sample = 'Run 35012345678 failed: scripts/ci/test-auto-repair-architecture.mjs:10:3 no-unused-vars';
 const normalized = normalizeFailure(sample);
@@ -43,6 +45,7 @@ assert.equal(repairPolicy.maxChangedFiles, 8);
 assert.equal(repairPolicy.maxChangedLines, 300);
 assert.equal(repairPolicy.maxAttemptsPerFingerprint, INTRACTABLE_THRESHOLD);
 assert.equal(MEMORY_VERSION, 7);
+assert.match(fs.readFileSync('scripts/ci/auto-repair/reasoning.mjs', 'utf8'), /ONLY_FRESH_EXACT_SHA_SCOUT_EVIDENCE_IS_ACTIONABLE/);
 assert.equal(INTRACTABLE_THRESHOLD, 3);
 assert.equal(planRepair('webkit waitForGpuRender timeout').selected, null);
 assert.equal(planRepair('typescript TS2322 type error').selected, null);
