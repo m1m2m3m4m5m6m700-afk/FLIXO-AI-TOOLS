@@ -13,7 +13,7 @@ const fail = (message) => {
 if (!existsSync(memoryPath)) fail('memory-missing');
 let memory;
 try { memory = JSON.parse(readFileSync(memoryPath, 'utf8')); } catch { fail('invalid-json'); }
-if (!Number.isInteger(memory?.version) || memory.version < 7) fail('version-mismatch');
+if (!Number.isInteger(memory?.version) || memory.version < 8) fail('version-mismatch');
 for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(memory[key])) fail(`invalid-${key}`);
 
 const idPattern = /^[a-f0-9]{20}$/u;
@@ -41,6 +41,7 @@ const canonical = JSON.stringify({ ...memory, integrityDigest: undefined });
 const digest = createHash('sha256').update(canonical).digest('hex');
 console.log('AUTO_REPAIR_MEMORY_CONTRACT=PASS');
 console.log(`AUTO_REPAIR_MEMORY_VERSION=${memory.version}`);
+console.log(`AUTO_REPAIR_HISTORICAL_REVERTS=${memory.cases.reduce((sum, item) => sum + Number(item.reversions ?? 0), 0)}`);
 console.log(`AUTO_REPAIR_CASES=${memory.cases.length}`);
 console.log(`AUTO_REPAIR_LESSONS=${memory.lessons.length}`);
 console.log(`AUTO_REPAIR_ANTILESSONS=${memory.antiLessons.length}`);
