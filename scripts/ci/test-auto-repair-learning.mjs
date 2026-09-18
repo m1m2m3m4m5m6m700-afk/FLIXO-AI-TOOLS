@@ -23,7 +23,7 @@ recordOutcome(memory, {
   verification: 'passed',
 });
 assert.equal(memory.cases.length, before + (memory.cases.some((item) => item.fingerprint === '__self_test__') ? 0 : 1));
-assert.equal(scorePlaybook(memory, 'lint', 'eslint-unused'), 1);
+assert.equal(scorePlaybook(memory, 'lint', 'eslint-unused'), 0.75);
 
 recordOutcome(memory, {
   fingerprint: '__general_case_a__',
@@ -76,6 +76,9 @@ recordOutcome(memory, {
   verification: 'failed',
 });
 assert(memory.antiLessons.some((item) => item.fingerprint === '__negative_test__'));
+const afterFailureKnowledge = deriveReusableKnowledge(memory, { rootCause: 'lint', features: ['lint'] });
+assert.equal(afterFailureKnowledge.generalizedRules.some((item) => item.rule === 'eslint-unused'), false);
+assert(afterFailureKnowledge.rejectedRules.some((item) => item.rule === 'eslint-unused' && item.reason === 'low-success-rate'));
 
 const proposedBefore = memory.cases.find((item) => item.fingerprint === '__proposal_test__')?.attempts ?? 0;
 recordOutcome(memory, {
