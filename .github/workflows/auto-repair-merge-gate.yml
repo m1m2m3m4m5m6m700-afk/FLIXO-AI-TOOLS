@@ -30,7 +30,7 @@ jobs:
           deadline=$((SECONDS + 3300))
           while true; do
             gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json name,state,bucket > /tmp/pr-checks.json
-            jq '[.[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment")]' /tmp/pr-checks.json > /tmp/repository-checks.json
+            jq '[.[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate")]' /tmp/pr-checks.json > /tmp/repository-checks.json
             jq '[.[] | select((.name | ascii_downcase) == "vercel" or (.name | ascii_downcase) == "vercel deployment")]' /tmp/pr-checks.json > /tmp/external-vercel.json
 
             if jq -e '.[] | select(.bucket != "pass")' /tmp/repository-checks.json >/tmp/non-green-checks.json; then
