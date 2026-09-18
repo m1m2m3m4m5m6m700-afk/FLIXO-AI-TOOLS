@@ -26,7 +26,7 @@ jobs:
       - name: 01 — Checkout exact execution SHA
         uses: actions/checkout@v5
         with:
-          ref: execution
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
 
       - name: 02 — Verify exact execution checkout identity and bind agent to execution
