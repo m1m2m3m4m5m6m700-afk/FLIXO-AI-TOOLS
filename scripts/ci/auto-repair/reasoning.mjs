@@ -42,8 +42,13 @@ function locationFromLog(log) {
 
 function readCodeContext(targetDir, location) {
   if (!location) return { available: false, reason: 'no-location' };
-  const file = location.file.replace(/^[/\\]+/u, '');
-  const fullPath = `${targetDir}/${file}`;
+  const file = location.file.replace(/\\/g, '/').replace(/^\.\//, '');
+  if (!file || file.startsWith('/') || file.split('/').includes('..')) return { available: false, reason: 'unsafe-path', file: location.file };
+  const root = fs.realpathSync(targetDir);
+  const fullPath = fs.realpathSync.native ? (() => {
+    try { return fs.realpathSync(`${root}/${file}`); } catch { return `${root}/${file}`; }
+  })() : `${root}/${file}`;
+  if (fullPath !== root && !fullPath.startsWith(root + '/')) return { available: false, reason: 'path-escape', file: location.file };
   if (!fs.existsSync(fullPath)) return { available: false, reason: 'file-not-found', file: location.file };
   try {
     const lines = fs.readFileSync(fullPath, 'utf8').split(/\r?\n/);
@@ -140,7 +145,9 @@ export function reasonFailure(log, {
     : Number(Math.min(0.995, top.score + (directFailureSignal ? 0.12 : 0) + Math.min(0.08, Math.max(0, separation))).toFixed(3));
   const ambiguity = contradiction || multiCauseAmbiguity;
   const hardBlock = profileFor(top.id)?.hardBlock === true;
-  const sourceMutationAllowed = !hardBlock && !ambiguity && directFailureSignal && causalConfidence >= 0.75;
+  const requiresVerifiedLocation = top.id === 'lint' || top.id === 'format';
+  const locationVerified = !requiresVerifiedLocation || (location !== null && codeContext.available);
+  const sourceMutationAllowed = !hardBlock && !ambiguity && directFailureSignal && causalConfidence >= 0.75 && locationVerified;
   const decision = hardBlock
     ? 'BLOCK_EXTERNAL'
     : sourceMutationAllowed
@@ -160,6 +167,7 @@ export function reasonFailure(log, {
     directFailureSignal,
     ambiguity,
     sourceMutationAllowed,
+    locationVerified,
     decision,
     scout: scout.fresh
       ? { fresh: true, scannedSha: scout.report.scannedSha, findings: scout.report.findings?.length ?? 0 }
