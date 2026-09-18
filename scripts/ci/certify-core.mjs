@@ -34,7 +34,7 @@ const expectedFastSpecs = [
   'tests/seed.spec.ts','tests/pix.spec.ts',
 ];
 const expectedFastKeys = new Set(expectedBrowsers.flatMap((browser) => [1,2].map((shard) => `${browser}:${shard}`)));
-const expectedDeepKeys = new Set(expectedBrowsers.flatMap((browser) => [1,2,3].map((shard) => `${browser}:${shard}`)));
+const expectedDeepKeys = new Set(expectedBrowsers.flatMap((browser) => [1,2,3,4,5,6,7].map((shard) => `${browser}:${shard}`)));
 const errors = [];
 const unknowns = [];
 const invalidEvidence = [];
