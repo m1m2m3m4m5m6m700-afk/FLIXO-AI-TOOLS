@@ -24,6 +24,10 @@ const grep = (pattern) => {
   }
 };
 const findings = [];
+const findingFingerprint = (finding) => createHash('sha256').update(JSON.stringify({
+  id: finding.id, category: finding.category, severity: finding.severity, target: finding.target,
+  summary: finding.summary, action: finding.action,
+}), 'utf8').digest('hex');
 
 const packageJson = JSON.parse(read('package.json') || '{}');
 const packageScripts = JSON.stringify(packageJson.scripts ?? {});
@@ -77,6 +81,8 @@ const seed = read('src/tools/seed/index.tsx');
 if (/DEFAULT_SEED_UI\s*=/.test(seed) && /getTranslationBundle\(/.test(seed)) {
   findings.push({ id: 'RC-DEBT-I18N-FALLBACK-UNPROVEN', category: 'I18N', severity: 'LOW', status: 'UNPROVEN', target: 'src/tools/seed/index.tsx', summary: 'English fallback literals coexist with runtime locale loading; static presence is not proof of bypass.', evidence: { defaultFallbackDetected: true, runtimeBundleLoadDetected: true }, action: 'KEEP_PENDING_BEHAVIORAL_PROOF' });
 }
+
+for (const finding of findings) finding.fingerprint = findingFingerprint(finding);
 
 const result = {
   schema: 'flixo-technical-debt-audit/v3', generatedAt: new Date().toISOString(), sha,
