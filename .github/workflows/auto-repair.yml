@@ -214,17 +214,23 @@ jobs:
           VERIFY_OUTCOME: ${{ steps.verify.outputs.verified == 'true' && 'success' || 'failure' }}
           FLIXO_FAILED_SHA: ${{ github.event.workflow_run.head_sha || '' }}
           FLIXO_RUN_ID: ${{ env.TARGET_RUN_ID }}
+          FLIXO_TARGET_SHA: ''
+          FLIXO_REVERTED_COMMIT: ''
         run: |
           set -euo pipefail
           if [ -f /tmp/flixo-failed-sha ]; then FLIXO_FAILED_SHA="$(cat /tmp/flixo-failed-sha)"; fi
           test -f /tmp/flixo-root-cause.json || printf '%s\n' '{"rootCause":"unknown"}' > /tmp/flixo-root-cause.json
           ROOT_CAUSE=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8'));process.stdout.write(x.rootCause||'unknown')")
           if [ -f /tmp/flixo-repair-evidence.json ]; then
-            RULE=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.selected||'')")
+            RULE=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.selected||x.historicalRollback?.rule||'')")
             ENGINE_OUTCOME=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.outcome||'unknown')")
+            TARGET_SHA=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.targetSha||'')")
+            REVERTED_COMMIT=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.historicalRollback?.revertedSha||'')")
           else
             RULE=''
             ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome 2>/dev/null || printf '%s' 'engine-error')"
+            TARGET_SHA=''
+            REVERTED_COMMIT=''
           fi
           if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
             LEARNING_OUTCOME='reverted-repair'
@@ -237,7 +243,7 @@ jobs:
           else
             LEARNING_OUTCOME='unrepaired'
           fi
-          FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" FLIXO_LEARNING_OUTCOME="$LEARNING_OUTCOME" FLIXO_VERIFICATION="$ENGINE_OUTCOME" node scripts/ci/auto-repair-learning.mjs
+          FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" FLIXO_LEARNING_OUTCOME="$LEARNING_OUTCOME" FLIXO_VERIFICATION="$ENGINE_OUTCOME" FLIXO_TARGET_SHA="$TARGET_SHA" FLIXO_REVERTED_COMMIT="$REVERTED_COMMIT" node scripts/ci/auto-repair-learning.mjs
           printf '%s\n' "$ENGINE_OUTCOME" > /tmp/flixo-engine-outcome
           printf '%s\n' "$LEARNING_OUTCOME" > /tmp/flixo-learning-outcome
 
