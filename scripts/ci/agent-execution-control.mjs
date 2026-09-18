@@ -37,6 +37,8 @@ function latestPacket() {
   if (index.preparedOnly !== false || index.executionMode !== 'DIRECT_ON_EXECUTION_BRANCH') throw new Error('TASK_AGENT_DIRECT_EXECUTION_CONTRACT_VIOLATION');
   if (index.scopePolicy !== SCOPE_POLICY || index.scopeEnforcement !== SCOPE_ENFORCEMENT) throw new Error('SELF_HEALING_SCOPE_CONTRACT_VIOLATION');
   if (index.mainBranchMutation !== false) throw new Error('MAIN_BRANCH_MUTATION_POLICY_VIOLATION');
+  if (index.repairLoop?.maxCycles !== MAX_REPAIR_CYCLES || index.repairLoop?.circuitBreaker?.maxStalledCycles !== MAX_STALLED_REPAIR_CYCLES) throw new Error('REPAIR_LOOP_BUDGET_DRIFT');
+  if (index.changeBudget?.maxPreparedFiles !== MAX_PREPARED_FILES || index.changeBudget?.maxInspectedFiles !== MAX_INSPECTED_FILES) throw new Error('CHANGE_BUDGET_DRIFT');
   if (index.branchPolicy !== 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN') throw new Error('TWO_BRANCH_POLICY_VIOLATION');
   if (branch !== 'execution' || index.executionBranch !== 'execution') throw new Error('EXECUTION_BRANCH_VIOLATION');
   if (!index.selected?.length) throw new Error('TASK_AGENT_SELECTED_TASK_MISSING');
