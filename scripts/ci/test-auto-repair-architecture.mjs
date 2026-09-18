@@ -130,4 +130,8 @@ assert.match(workflow, /verified-historical-revert/);
 assert.match(workflow, /reverted-repair/);
 assert.match(workflow, /FLIXO-REPAIR-MARKER-v1/);
 assert.match(workflow, /FLIXO-REPAIR-ROLLBACK-v1/);
+assert.match(workflow, /FLIXO_TARGET_SHA/);
+assert.match(workflow, /FLIXO_REVERTED_COMMIT/);
+assert.match(learningSource, /reversions/);
+assert.match(learningSource, /countsAsPlaybookAttempt/);
 console.log('AUTO_REPAIR_ARCHITECTURE_SELF_TEST=PASS');
