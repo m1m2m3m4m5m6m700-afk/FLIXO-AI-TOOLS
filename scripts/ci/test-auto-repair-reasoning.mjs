@@ -16,7 +16,7 @@ assert.equal(webkit.decision, 'ALLOW_BOUNDED_MUTATION');
 assert(webkit.hypotheses.some((item) => item.id === 'playwright' && item.suppressedBy === 'webkit-render'));
 assert.deepEqual(verificationStrategy(['webkit', 'playwright']), [['npm', ['run', 'test:browser']], ['npm', ['run', 'test:static']]);
 
-const lint = reasonFailure('FAIL lint: no-unused-vars in src/example.ts');
+const lint = reasonFailure('ERROR eslint: no-unused-vars in src/example.ts');
 assert.equal(lint.rootCause, 'lint');
 assert.equal(lint.decision, 'ALLOW_BOUNDED_MUTATION');
 
