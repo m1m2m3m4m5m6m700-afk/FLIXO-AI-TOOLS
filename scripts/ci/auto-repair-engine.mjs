@@ -30,6 +30,7 @@ const similar = findSimilarCases(memory, { fingerprint, normalized: normalizedFa
 const lessons = rankLessons(memory, { fingerprint });
 const trustedLessons = lessons.filter((item) => !item.anti && item.confidence >= 0.75);
 const blockedLessons = lessons.filter((item) => item.anti && item.confidence >= 0.5);
+const revertedRuleIds = new Set(known?.revertedRules ?? []);
 const diagnosis = fs.existsSync(diagnosisPath) ? JSON.parse(fs.readFileSync(diagnosisPath, 'utf8')) : null;
 const historicalRollbackCandidate = findHistoricalRepairCandidate(targetDir, {
   fingerprint,
@@ -56,9 +57,10 @@ const historicalRules = [
   ...similar.flatMap(({ case: item }) => item.rules ?? []),
   ...trustedLessons.map((item) => item.rule).filter(Boolean),
 ];
-const historicalCandidate = plan.candidates.find((candidate) => historicalRules.includes(candidate.id) && candidate.mutate && candidate.confidence >= 90);
+const historicalCandidate = plan.candidates.find((candidate) => historicalRules.includes(candidate.id) && candidate.mutate && candidate.confidence >= 90 && !revertedRuleIds.has(candidate.id));
 const blockedRuleIds = new Set(blockedLessons.map((item) => item.rule).filter(Boolean));
 if (selected?.id && blockedRuleIds.has(selected.id) && !trustedLessons.some((item) => item.rule === selected.id && item.confidence >= 0.85)) selected = null;
+if (selected?.id && revertedRuleIds.has(selected.id)) selected = null;
 if (historicalCandidate && !blockedRuleIds.has(historicalCandidate.id) && (!selected || scorePlaybook(memory, specialist?.id ?? 'unknown', historicalCandidate.id) >= scorePlaybook(memory, specialist?.id ?? 'unknown', selected.id))) {
   selected = {
     ...historicalCandidate,
