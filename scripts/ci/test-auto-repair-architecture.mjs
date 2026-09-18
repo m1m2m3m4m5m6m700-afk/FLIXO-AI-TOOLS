@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { fingerprintFailure, normalizeFailure, rankLessons } from './auto-repair-learning.mjs';
+import { INTRACTABLE_THRESHOLD, MEMORY_VERSION, fingerprintFailure, normalizeFailure, rankLessons } from './auto-repair-learning.mjs';
 import { planRepair } from './auto-repair/planner.mjs';
 import { isPathAllowed, isProtectedPath, repairPolicy } from './auto-repair-policy.mjs';
 import { confidenceGate } from './auto-repair/confidence.mjs';
@@ -38,9 +38,14 @@ assert.equal(isProtectedPath('tests/seed.spec.ts'), true);
 assert.equal(isPathAllowed('src/example.ts'), true);
 assert.equal(repairPolicy.maxChangedFiles, 8);
 assert.equal(repairPolicy.maxChangedLines, 300);
+assert.equal(repairPolicy.maxAttemptsPerFingerprint, INTRACTABLE_THRESHOLD);
+assert.equal(MEMORY_VERSION, 7);
 assert.equal(planRepair('webkit waitForGpuRender timeout').selected, null);
 assert.equal(planRepair('typescript TS2322 type error').selected, null);
 assert.equal(planRepair('certification FAST 66 DEEP 60').selected, null);
+const externalPlan = planRepair('SessionModelError: CAPIError: 400 The requested model is not supported');
+assert.equal(externalPlan.selected, null);
+assert(externalPlan.features.includes('external-tooling'));
 
 const proofInput = {
   targetSha: 'a'.repeat(40),
@@ -78,4 +83,9 @@ assert.equal(ranked[0].anti, undefined);
 assert.equal(ranked[0].rule, 'eslint-unused');
 assert.equal(ranked.at(-1).anti, true);
 
+const fingerprintSource = fs.readFileSync('scripts/ci/auto-repair/fingerprint.mjs', 'utf8');
+assert.match(fingerprintSource, /external-tooling/);
+const learningSource = fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8');
+assert.match(learningSource, /MEMORY_VERSION = 7/);
+assert.match(learningSource, /Math\.max\(parsed\.version, MEMORY_VERSION\)/);
 console.log('AUTO_REPAIR_ARCHITECTURE_SELF_TEST=PASS');
