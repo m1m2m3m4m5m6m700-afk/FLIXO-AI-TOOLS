@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons } from './auto-repair-learning.mjs';
+import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome } from './auto-repair-learning.mjs';
 
 const sample = 'Run 35012345678 failed on webkit at abcdefabcdefabcdefabcdefabcdefabcdefabcd: Seed waitForGpuRender';
 const fingerprint = fingerprintFailure(sample);
@@ -68,5 +68,8 @@ assert(similar[0].score >= 0.45);
 
 const ranked = rankLessons(memory, { fingerprint: '__self_test__' });
 assert(ranked.some((item) => item.fingerprint === '__self_test__' && !item.anti));
+assert.equal(normalizeLearningOutcome('unrepaired', 'proposal-only'), 'proposed');
+assert.equal(normalizeLearningOutcome('unrepaired', 'diagnostic-only'), 'proposed');
+assert.equal(normalizeLearningOutcome('unrepaired', 'exception'), 'unrepaired');
 
 console.log('AUTO_REPAIR_LEARNING_SELF_TEST=PASS');
