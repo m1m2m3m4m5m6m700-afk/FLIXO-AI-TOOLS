@@ -1,63 +1,33 @@
 import fs from 'node:fs';
+import { reasonFailure } from './auto-repair/reasoning.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
-
-const definitions = [
-  ['external-tooling', /SessionModelError|CAPIError|requested model is not supported|github-advanced-security\[bot\]|code scanning AI findings/i],
-  ['lint', /eslint|no-unused-vars|defined but never used|no-empty/i],
-  ['format', /prettier|formatting|code style/i],
-  ['typescript', /TS\d+|Type error|typescript/i],
-  ['playwright', /playwright|expect\(|page\.|locator\(|timeout.*expect/i],
-  ['webkit-render', /webkit|data-render-revision|GPU rendering|waitForGpuRender/i],
-  ['certification', /certification|execution graph|FAST.*66|DEEP.*60|certification-engine/i],
-  ['build', /production build|vite build|build failed/i],
-];
-
-const snippets = (pattern) => log.split(/\r?\n/)
-  .filter((line) => pattern.test(line))
-  .slice(-8)
-  .map((line) => line.trim().slice(0, 500));
-
-const hypotheses = definitions.map(([id, pattern]) => {
-  const matches = log.match(new RegExp(pattern.source, `${pattern.flags.includes('i') ? 'i' : ''}g`)) ?? [];
-  const lines = snippets(pattern);
-  return {
-    id,
-    signalCount: matches.length,
-    evidenceLines: lines,
-    score: Math.min(1, (matches.length * 0.2) + (lines.length * 0.15)),
-  };
-}).filter((item) => item.signalCount > 0).sort((a, b) => b.score - a.score);
+const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
+const reasoning = reasonFailure(log, { targetDir });
 
 const fileLine = log.match(/(?:^|\s)([^\s:]+\.(?:ts|tsx|js|mjs|jsx)):(\d+)(?::(\d+))?/i);
 const errorCodes = [...new Set(log.match(/\b(?:TS\d+|[A-Z][A-Z0-9_]*_ERROR)\b/gi) ?? [])];
 const testTitles = [...new Set([...log.matchAll(/(?:›|test:|Test:)\s*([^\n]{5,180})/g)].map((m) => m[1].trim()))].slice(-10);
-
-const externalTooling = definitions.find(([id]) => id === 'external-tooling');
-const externalSignal = externalTooling?.[1].test(log) === true;
-const top = externalSignal
-  ? hypotheses.find((item) => item.id === 'external-tooling') ?? { id: 'external-tooling', score: 1, signalCount: 1, evidenceLines: [] }
-  : (hypotheses[0] ?? { id: 'unknown', score: 0, signalCount: 0, evidenceLines: [] });
-const second = hypotheses[1];
-const separation = second ? Math.max(0, top.score - second.score) : top.score;
-const directFailureSignal = externalSignal || top.evidenceLines.some((line) => /error|failed|failure|exception|expected|received/i.test(line));
-const causalConfidence = externalSignal ? 0.99 : Math.min(1, top.score + separation * 0.5 + (directFailureSignal ? 0.15 : 0));
-const rootCause = externalSignal ? 'external-tooling' : top.id;
-const signature = [rootCause, errorCodes[0], fileLine?.[1], fileLine?.[2], testTitles[0]]
-  .filter(Boolean)
-  .join('|') || rootCause;
+const signature = [
+  reasoning.rootCause,
+  errorCodes[0],
+  fileLine?.[1],
+  fileLine?.[2],
+  testTitles[0],
+].filter(Boolean).join('|') || reasoning.rootCause;
 
 const evidence = {
-  schemaVersion: 2,
-  rootCause,
-  hypotheses,
-  causalConfidence: Number(causalConfidence.toFixed(3)),
-  diagnosisQuality: causalConfidence >= 0.75 && directFailureSignal ? 'strong' : causalConfidence >= 0.5 ? 'provisional' : 'weak',
-  sourceMutationAllowed: !externalSignal,
-  externalTooling: externalSignal,
-  directFailureSignal,
-  ambiguity: Boolean(second && separation < 0.12),
+  ...reasoning,
+  schemaVersion: 3,
+  hypotheses: reasoning.hypotheses.map((item) => ({
+    id: item.id,
+    signalCount: item.directMatches,
+    evidenceLines: item.evidenceLines,
+    score: item.score,
+    specificity: item.specificity,
+    suppressedBy: item.suppressedBy ?? null,
+  })),
   signature,
   location: fileLine ? { file: fileLine[1], line: Number(fileLine[2]), column: fileLine[3] ? Number(fileLine[3]) : null } : null,
   errorCodes,
@@ -65,8 +35,9 @@ const evidence = {
   generatedAt: new Date().toISOString(),
 };
 
-console.log(`FLIXO_ROOT_CAUSE=${rootCause}`);
+console.log(`FLIXO_ROOT_CAUSE=${evidence.rootCause}`);
 console.log(`FLIXO_DIAGNOSIS_QUALITY=${evidence.diagnosisQuality}`);
 console.log(`FLIXO_CAUSAL_CONFIDENCE=${evidence.causalConfidence}`);
+console.log(`FLIXO_REASONING_DECISION=${evidence.decision}`);
 console.log(`FLIXO_FAILURE_SIGNATURE=${signature}`);
-fs.writeFileSync('/tmp/flixo-root-cause.json', `${JSON.stringify(evidence, null, 2)}\n`);
+fs.writeFileSync(process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json', `${JSON.stringify(evidence, null, 2)}\n`);
