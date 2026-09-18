@@ -46,6 +46,23 @@ recordOutcome(memory, {
 const reusable = deriveReusableKnowledge(memory, { rootCause: 'lint', features: ['lint'], fingerprint: '__new_lint_case__' });
 assert.equal(reusable.schemaVersion, 2);
 assert(reusable.generalizedRules.some((item) => item.rule === 'eslint-unused' && item.successfulFingerprintSupport >= 2));
+const mirroredMemory = {
+  ...memory,
+  playbooks: [{
+    rootCause: 'lint',
+    rule: 'eslint-unused',
+    attempts: 2,
+    successes: 2,
+    failures: 0,
+    fingerprints: ['__general_case_a__', '__general_case_b__'],
+    successfulFingerprints: ['__general_case_a__', '__general_case_b__'],
+    failedFingerprints: [],
+  }],
+};
+const mirroredKnowledge = deriveReusableKnowledge(mirroredMemory, { rootCause: 'lint', features: ['lint'] });
+const mirroredRule = mirroredKnowledge.generalizedRules.find((item) => item.rule === 'eslint-unused');
+assert(mirroredRule);
+assert.equal(mirroredRule.attempts, reusable.generalizedRules.find((item) => item.rule === 'eslint-unused').attempts);
 assert.equal(reusable.rejectedRules.some((item) => item.rule === 'eslint-unused'), false);
 assert(memory.lessons.some((item) => item.fingerprint === '__self_test__'));
 
