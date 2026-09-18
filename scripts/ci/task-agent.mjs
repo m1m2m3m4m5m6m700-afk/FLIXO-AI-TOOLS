@@ -151,13 +151,13 @@ for (const task of selected) {
     },
     repairLoop: {
       mode: 'RED_TO_GREEN_IN_SAME_CYCLE',
-      maxCycles: 12,
+      maxCycles: 3,
       rescanAfterEveryRepair: true,
       rescanScope: 'ALL_REQUIRED_CHECKS',
       repairOrder: ['capture-failure', 'root-cause', 'source-fix', 'proportional-hardening', 'targeted-regression', 'canonical-ci'],
       circuitBreaker: {
         enabled: true,
-        maxStalledCycles: 3,
+        maxStalledCycles: 2,
         definition: 'SAME_FAILURE_FINGERPRINT_WITHOUT_VERIFIABLE_PROGRESS',
         fingerprintScope: 'RED_CHECKS_AND_REPAIR_TARGETS',
         progressEvidence: 'CHECK_STATE_OR_ERROR_FINGERPRINT_CHANGED',
@@ -213,7 +213,7 @@ const index = {
     required: ['CANONICAL_GREEN', 'ZERO_RED_CHECKS', 'FRESH_EXACT_SHA_EVIDENCE', 'REGRESSION_PROOF'],
     closureAllowedOnlyWhenAllRequired: true,
   },
-  changeBudget: { maxPreparedFiles: 12, maxInspectedFiles: 40, onExceed: 'REQUIRES_REVIEW' },
+  changeBudget: { maxPreparedFiles: 8, maxInspectedFiles: 40, onExceed: 'REQUIRES_REVIEW' },
   memory: { fingerprinted: true, summaryPerRepair: true, reuseKnownFingerprint: true },
   digest: hash(JSON.stringify(outputs)),
 };
