@@ -43,12 +43,16 @@ if (!audit?.summary || typeof audit.summary !== 'object') fail('summary-missing'
 if (!Array.isArray(audit?.findings)) fail('findings-not-array');
 if (!audit?.auditDigest || !/^[a-f0-9]{64}$/.test(audit.auditDigest)) fail('auditDigest-invalid');
 
-const requiredFindingKeys = ['id', 'category', 'severity', 'status', 'target', 'summary', 'evidence', 'action'];
+const requiredFindingKeys = ['id', 'fingerprint', 'category', 'severity', 'status', 'target', 'summary', 'evidence', 'action'];
+const fingerprints = new Set();
 for (const [index, finding] of audit.findings.entries()) {
   if (!finding || typeof finding !== 'object') fail(`finding-${index}-not-object`);
   for (const key of requiredFindingKeys) {
     if (!(key in finding)) fail(`finding-${index}-missing-${key}`);
   }
+  if (!/^[a-f0-9]{64}$/.test(finding.fingerprint)) fail(`finding-${index}-fingerprint-invalid`);
+  if (fingerprints.has(finding.fingerprint)) fail(`finding-${index}-fingerprint-duplicate`);
+  fingerprints.add(finding.fingerprint);
 }
 
 const recomputed = { ...audit };
