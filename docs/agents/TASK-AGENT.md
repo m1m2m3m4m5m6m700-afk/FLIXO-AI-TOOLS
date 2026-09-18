@@ -139,10 +139,11 @@ Every repair must record:
 - learning/prevention outcome.
 
 ## Bounded execution
-- Maximum repair cycles: 3 per failure chain.
-- Maximum stalled cycles: 2 with the same fingerprint and no verifiable progress.
-- If proof fails, the repair cycle stays open or fails closed; it never fabricates GREEN.
-- A circuit breaker escalates only after bounded evidence-based limits.
+- Maximum repair cycles: 3 inside one workflow execution only; this is not a global failure-chain ceiling.
+- Outer repair cycles are unbounded and continue on execution until canonical GREEN, an external provider failure, or a fail-closed branch/scope violation.
+- Each outer cycle rotates the repair strategy and persists learning before the next cycle.
+- A repeated rule cannot be reapplied after it has been rejected or historically reverted without materially new evidence.
+- If proof fails, the current cycle fails closed, learning is persisted, and the next supervised cycle may continue; GREEN is never fabricated.
 
 ## Invocation
 ```bash
