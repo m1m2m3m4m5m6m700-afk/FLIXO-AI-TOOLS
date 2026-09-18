@@ -9,6 +9,11 @@ export const MEMORY_VERSION = 7;
 export const INTRACTABLE_THRESHOLD = 3;
 export { normalizeFailure, fingerprintFailure, extractFeatures };
 
+export function normalizeLearningOutcome(outcome, verification) {
+  if (outcome === 'unrepaired' && (verification === 'proposal-only' || verification === 'diagnostic-only')) return 'proposed';
+  return outcome;
+}
+
 const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });
 
 export function loadMemory() {
@@ -218,9 +223,7 @@ if (process.argv[1]?.endsWith('auto-repair-learning.mjs') && process.env.FLIXO_L
   const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
   const rawOutcome = process.env.FLIXO_LEARNING_OUTCOME;
   const verification = process.env.FLIXO_VERIFICATION ?? 'unknown';
-  const normalizedOutcome = rawOutcome === 'unrepaired' && verification === 'proposal-only'
-    ? 'proposed'
-    : rawOutcome;
+  const normalizedOutcome = normalizeLearningOutcome(rawOutcome, verification);
   recordOutcome(memory, { fingerprint: fingerprintFailure(log), normalizedFailure: log, features: extractFeatures(log), rootCause: process.env.FLIXO_ROOT_CAUSE ?? 'unknown', rule: process.env.FLIXO_REPAIR_RULE || undefined, outcome: normalizedOutcome, verification, provenance: { source: 'FLIXO Auto Repair', failedSha: process.env.FLIXO_FAILED_SHA ?? null, runId: process.env.FLIXO_RUN_ID ?? null, rawOutcome } });
   writeMemory(memory);
 }
