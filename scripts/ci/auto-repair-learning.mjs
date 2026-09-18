@@ -143,7 +143,7 @@ function upsertLesson(memory, { fingerprint, rootCause, rule, outcome, verificat
 }
 
 export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule } = {}) {
-  const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, externalBlocks: 0, reversions: 0, revertFailures: 0, rules: [], outcomes: [] };
+  const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, externalBlocks: 0, reversions: 0, revertFailures: 0, revertedRules: [], revertedCommits: [], rules: [], outcomes: [] };
   entry.rootCause = rootCause ?? entry.rootCause ?? 'unknown';
   if (normalizedFailure) entry.normalizedFailure = normalizeFailure(normalizedFailure);
   if (features.length) entry.features = [...new Set(features)];
@@ -151,7 +151,11 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   const isHistoricalRevert = outcome === 'reverted-repair';
   const isHistoricalRevertFailure = outcome === 'revert-failure';
   if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
-  if (isHistoricalRevert) entry.reversions = (entry.reversions ?? 0) + 1;
+  if (isHistoricalRevert) {
+    entry.reversions = (entry.reversions ?? 0) + 1;
+    if (rule) entry.revertedRules = [...new Set([...(entry.revertedRules ?? []), rule])];
+    if (/^[a-f0-9]{40}$/u.test(String(provenance?.revertedCommit ?? ''))) entry.revertedCommits = [...new Set([...(entry.revertedCommits ?? []), provenance.revertedCommit])];
+  }
   if (isHistoricalRevertFailure) entry.revertFailures = (entry.revertFailures ?? 0) + 1;
   const countsAsRepairAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
   if (countsAsRepairAttempt) {
