@@ -49,8 +49,8 @@ if (graph.conservation?.deepSemanticLocaleBrowser?.status !== 'PASS') errors.pus
 if (Array.isArray(graph.errors) && graph.errors.length > 0) errors.push(`executionGraph.errors=${graph.errors.length}`);
 
 const evidenceDir = path.dirname(graphPath);
-const primaryBrowserEvidence = fs.readdirSync(evidenceDir).filter((name) => /^browser-(?:fast|deep)-(?:chromium|firefox|webkit)-[123]\.json$/u.test(name));
-if (primaryBrowserEvidence.length !== 15) errors.push(`primaryBrowserEvidence=${primaryBrowserEvidence.length}; expected=15`);
+const primaryBrowserEvidence = fs.readdirSync(evidenceDir).filter((name) => /^browser-(?:fast|deep)-(?:chromium|firefox|webkit)-[1-7]\.json$/u.test(name));
+if (primaryBrowserEvidence.length !== 27) errors.push(`primaryBrowserEvidence=${primaryBrowserEvidence.length}; expected=27`);
 
 const result = {
   schema_version: 1,
