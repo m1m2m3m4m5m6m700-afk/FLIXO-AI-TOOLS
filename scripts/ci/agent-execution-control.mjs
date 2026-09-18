@@ -55,7 +55,12 @@ function latestPacket() {
   if (packet.executionBranch !== 'execution') throw new Error('DIRECT_EXECUTION_BRANCH_VIOLATION');
   if (packet.handoff?.scopeAuthority !== SCOPE_POLICY) throw new Error('SELF_HEALING_HANDOFF_SCOPE_VIOLATION');
   if (packet.failureContext?.active && (!packet.cognition || packet.cognition.decision === 'MISSING')) throw new Error('COGNITION_CONTEXT_MISSING');
-  if (packet.failureContext?.active && packet.cognition?.sourceMutationAllowed !== true && packet.cognition?.decision === 'ALLOW_BOUNDED_MUTATION') throw new Error('COGNITION_DECISION_CONFLICT');
+  if (packet.failureContext?.active) {
+    const confidence = packet.cognition?.causalConfidence;
+    if (typeof confidence !== 'number' || confidence < 0 || confidence > 1) throw new Error('COGNITION_CONFIDENCE_INVALID');
+    if (packet.cognition?.decision === 'ALLOW_BOUNDED_MUTATION' && (confidence < 0.75 || packet.cognition?.ambiguity === true || packet.cognition?.sourceMutationAllowed !== true)) throw new Error('COGNITION_DECISION_CONFLICT');
+    if (packet.cognition?.decision === 'BLOCK_EXTERNAL' && packet.cognition?.sourceMutationAllowed !== false) throw new Error('COGNITION_EXTERNAL_CONFLICT');
+  }
   return { index, packet };
 }
 function complexityGuard(packet) {
