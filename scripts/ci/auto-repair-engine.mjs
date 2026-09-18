@@ -58,6 +58,7 @@ const evidence = {
   diagnosis,
   specialist,
   candidates: plan.candidates,
+  reasoning: plan.reasoning,
   selected: selected?.id ?? null,
   learning: {
     memoryVersion: memory.version,
@@ -72,6 +73,7 @@ const evidence = {
   updatedAt: new Date().toISOString(),
 };
 
+const reasoningDecision = diagnosis?.decision ?? null;
 const diagnosisGate = {
   required: true,
   present: Boolean(diagnosis),
@@ -79,7 +81,8 @@ const diagnosisGate = {
   confidence: diagnosis?.causalConfidence ?? 0,
   ambiguous: diagnosis?.ambiguity ?? true,
   directFailureSignal: diagnosis?.directFailureSignal ?? false,
-  allowed: Boolean(diagnosis) && diagnosis.diagnosisQuality === 'strong' && diagnosis.causalConfidence >= 0.75 && !diagnosis.ambiguity && diagnosis.directFailureSignal,
+  reasoningDecision,
+  allowed: Boolean(diagnosis) && diagnosis.diagnosisQuality === 'strong' && diagnosis.causalConfidence >= 0.75 && !diagnosis.ambiguity && diagnosis.directFailureSignal && reasoningDecision === 'ALLOW_BOUNDED_MUTATION',
 };
 evidence.diagnosisGate = diagnosisGate;
 
