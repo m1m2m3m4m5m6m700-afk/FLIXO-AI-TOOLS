@@ -23,15 +23,23 @@ function countMatches(text, patterns) {
 }
 
 function readFreshScout(targetDir, scoutPath) {
-  const resolved = scoutPath ?? 'diagnostics/investigation/code-scout-latest.json';
-  if (!fs.existsSync(resolved)) return { fresh: false, reason: 'missing' };
+  const candidates = [
+    scoutPath,
+    process.env.FLIXO_SCOUT_REPORT,
+    '/tmp/flixo-scout-report.json',
+    '/tmp/flixo-investigation/code-scout-latest.json',
+    'diagnostics/investigation/code-scout-latest.json',
+  ].filter(Boolean).map((value) => String(value));
+  const uniqueCandidates = [...new Set(candidates)];
+  const existing = uniqueCandidates.find((candidate) => fs.existsSync(candidate));
+  if (!existing) return { fresh: false, reason: 'missing', checkedPaths: uniqueCandidates };
   try {
-    const report = JSON.parse(fs.readFileSync(resolved, 'utf8'));
+    const report = JSON.parse(fs.readFileSync(existing, 'utf8'));
     const currentSha = execFileSync('git', ['-C', targetDir, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-    if (report.scannedSha !== currentSha) return { fresh: false, reason: 'stale', scannedSha: report.scannedSha, currentSha };
-    return { fresh: true, report };
+    if (report.scannedSha !== currentSha) return { fresh: false, reason: 'stale', path: existing, scannedSha: report.scannedSha, currentSha };
+    return { fresh: true, path: existing, report };
   } catch {
-    return { fresh: false, reason: 'malformed' };
+    return { fresh: false, reason: 'malformed', path: existing };
   }
 }
 
@@ -137,7 +145,7 @@ export function reasonFailure(log, {
   const alternatives = hypotheses.filter((item) => item.id !== top.id);
   const second = alternatives.find((item) => !item.suppressedBy);
   const separation = second ? Number((top.score - second.score).toFixed(4)) : top.score;
-  const directFailureSignal = top.directMatches > 0 && top.evidenceLines.some((line) => /error|failed|failure|exception|expected|received|unsupported/i.test(line));
+  const directFailureSignal = top.directMatches > 0 && top.evidenceLines.some((line) => /error|failed|failure|exception|expected|received|unsupported|missing|incomplete/i.test(line));
   const causalDominance = alternatives.some((item) => top.dominates.includes(item.id) || item.dominates?.includes(top.id));
   const contradiction = Boolean(second && !causalDominance && second.score >= top.score * 0.9);
   const multiCauseAmbiguity = features.length > 1 && !causalDominance;
@@ -171,7 +179,7 @@ export function reasonFailure(log, {
     locationVerified,
     decision,
     scout: scout.fresh
-      ? { fresh: true, scannedSha: scout.report.scannedSha, findings: scout.report.findings?.length ?? 0 }
+      ? { fresh: true, path: scout.path ?? null, scannedSha: scout.report.scannedSha, findings: scout.report.findings?.length ?? 0 }
       : { fresh: false, reason: scout.reason, currentSha: scout.currentSha ?? null, scannedSha: scout.scannedSha ?? null },
     location,
     codeContext,
