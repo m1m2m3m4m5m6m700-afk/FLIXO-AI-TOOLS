@@ -13,8 +13,10 @@ import { runAstRepair } from './auto-repair/ast-repair.mjs';
 import { validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
 
 const workflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
-assert.match(workflow, /conclusion != 'success'/);
-assert.match(workflow, /failure\|cancelled\|timed_out\|action_required\|stale/);
+assert.match(workflow, /workflow_run:\s*\n\s*workflows:/);
+assert.match(workflow, /github\.event\.workflow_run\.conclusion == 'failure'/);
+assert.match(workflow, /CURRENT_MAIN_SHA/);
+assert.match(workflow, /CURRENT_FAILURE_ID/);
 assert.match(workflow, /Repair remains open/);
 assert.match(workflow, /gh workflow run auto-repair\.yml/);
 assert.match(workflow, /cancel-in-progress: false/);
@@ -74,7 +76,7 @@ assert.match(escalationReason(badProof), /^repair-proof-incomplete:/);
 
 const learnedFingerprint = fingerprintFailure('eslint no-unused-vars');
 const ranked = rankLessons({
-  version: 6,
+  version: 7,
   cases: [],
   playbooks: [],
   lessons: [{ id: 'good', fingerprint: learnedFingerprint, rootCause: 'eslint-specialist', rule: 'eslint-unused', confidence: 1 }],
