@@ -1,10 +1,38 @@
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
 import { reasonFailure, verificationStrategy } from './auto-repair/reasoning.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
-const reasoning = reasonFailure(log, { targetDir });
+
+function ensureFreshScout(target) {
+  const preferred = [
+    process.env.FLIXO_SCOUT_REPORT,
+    '/tmp/flixo-scout-report.json',
+    '/tmp/flixo-investigation/code-scout-latest.json',
+  ].filter(Boolean).map(String);
+  const existing = preferred.find((candidate) => fs.existsSync(candidate));
+  if (existing) return existing;
+  const investigationDir = '/tmp/flixo-investigation';
+  try {
+    fs.mkdirSync(investigationDir, { recursive: true });
+    execFileSync('node', ['scripts/ci/code-read-only-scout.mjs'], {
+      cwd: target,
+      env: { ...process.env, INVESTIGATION_DIR: investigationDir },
+      stdio: 'pipe',
+    });
+    const generated = path.join(investigationDir, 'code-scout-latest.json');
+    if (fs.existsSync(generated)) return generated;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+const scoutPath = ensureFreshScout(targetDir);
+const reasoning = reasonFailure(log, { targetDir, scoutPath });
 
 const fileLine = log.match(/(?:^|\s)([^\s:]+\.(?:ts|tsx|js|mjs|jsx)):(\d+)(?::(\d+))?/i);
 const errorCodes = [...new Set(log.match(/\b(?:TS\d+|[A-Z][A-Z0-9_]*_ERROR)\b/gi) ?? [])];
