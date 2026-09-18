@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome } from './auto-repair-learning.mjs';
 
 const sample = 'Run 35012345678 failed on webkit at abcdefabcdefabcdefabcdefabcdefabcdefabcd: Seed waitForGpuRender';
@@ -71,5 +75,34 @@ assert(ranked.some((item) => item.fingerprint === '__self_test__' && !item.anti)
 assert.equal(normalizeLearningOutcome('unrepaired', 'proposal-only'), 'proposed');
 assert.equal(normalizeLearningOutcome('unrepaired', 'diagnostic-only'), 'proposed');
 assert.equal(normalizeLearningOutcome('unrepaired', 'exception'), 'unrepaired');
+
+const cliDir = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-learning-cli-'));
+const cliMemory = path.join(cliDir, 'memory.json');
+const cliIntractable = path.join(cliDir, 'intractable.json');
+const cliLog = path.join(cliDir, 'failure.log');
+fs.writeFileSync(cliLog, 'Certification execution graph incomplete DEEP_SEMANTIC_MISSING=webkit:DEEP:webkit:ja\n');
+const cliRun = spawnSync(process.execPath, ['scripts/ci/auto-repair-learning.mjs'], {
+  cwd: process.cwd(),
+  env: {
+    ...process.env,
+    FLIXO_REPAIR_MEMORY: cliMemory,
+    FLIXO_INTRACTABLE_ERRORS: cliIntractable,
+    FLIXO_FAILURE_LOG: cliLog,
+    FLIXO_LEARNING_OUTCOME: 'unrepaired',
+    FLIXO_VERIFICATION: 'diagnostic-only',
+    FLIXO_ROOT_CAUSE: 'webkit-render',
+    FLIXO_REPAIR_RULE: '',
+    FLIXO_FAILED_SHA: 'a'.repeat(40),
+    FLIXO_RUN_ID: 'test-run',
+  },
+  encoding: 'utf8',
+});
+assert.equal(cliRun.status, 0);
+const cliMemoryData = JSON.parse(fs.readFileSync(cliMemory, 'utf8'));
+const cliCase = cliMemoryData.cases.find((item) => item.rootCause === 'webkit-render');
+assert(cliCase);
+assert.equal(cliCase.attempts, 0);
+assert.equal(cliCase.failures, 0);
+assert(cliCase.outcomes.some((item) => item.outcome === 'proposed'));
 
 console.log('AUTO_REPAIR_LEARNING_SELF_TEST=PASS');
