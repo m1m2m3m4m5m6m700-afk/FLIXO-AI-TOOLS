@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 
 const ROOT = process.cwd();
 const TASK_FILE = path.join(ROOT, 'مهام.md');
-const OUTPUT_DIR = path.join(ROOT, 'diagnostics/agents/task-agent');
+const OUTPUT_DIR = process.env.FLIXO_TASK_AGENT_OUTPUT_DIR ?? '/tmp/flixo-task-agent';
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
