@@ -22,7 +22,12 @@ const lint = reasonFailure('ERROR eslint: no-unused-vars at src/example.ts:10:3'
 assert.equal(lint.rootCause, 'lint');
 assert.equal(lint.location?.file, 'src/example.ts');
 assert.equal(lint.location?.line, 10);
+assert.equal(lint.locationVerified, false);
 assert.equal(lint.decision, 'ALLOW_BOUNDED_MUTATION');
+
+const missingSource = reasonFailure('ERROR eslint: no-unused-vars at does/not/exist.ts:10:3');
+assert.equal(missingSource.locationVerified, false);
+assert.equal(missingSource.decision, 'PROPOSE_ONLY');
 
 const external = reasonFailure('Code scanning AI findings: SessionModelError CAPIError: 400 The requested model is not supported.');
 assert.equal(external.rootCause, 'external-tooling');
