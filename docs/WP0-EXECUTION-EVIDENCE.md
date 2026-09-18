@@ -39,3 +39,6 @@ Proceed to the remaining WP0 canonical-verification/exact-SHA evidence gaps, the
 - Execution branch remains the only mutation branch; `main` is unchanged by this cycle.
 - External GitHub Advanced Security AI model failure is classified as provider/tooling infrastructure and is not repaired by source mutation.
 - Fresh exact-head verification is required after this evidence commit; no release or GREEN claim is implied by this record.
+
+## Historical rollback recovery
+The repair system now treats a previously verified repair as reversible state rather than immutable state. A later recurrence with the same exact fingerprint may select that historical repair for rollback only when the repair is present in Git history, its prior success is recorded in learning memory, its parent/base SHA is verified, the changed paths remain within policy, and the current diagnosis passes the normal causal proof gate. The bot uses `git revert --no-commit`, verifies root-cause recovery and regression twice, then publishes a dedicated `revert(auto-repair)` commit carrying `FLIXO-REPAIR-ROLLBACK-v1`. The original audit history is preserved, while learning records `reverted-repair` separately from source-repair attempts.
