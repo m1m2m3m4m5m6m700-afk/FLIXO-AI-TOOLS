@@ -114,7 +114,7 @@ for (const browser of browsers) {
 }
 
 for (const browser of browsers) {
-  const parts = [locales.slice(0, 5), locales.slice(5, 12), locales.slice(12)];
+  const parts = [locales.slice(0, 3), locales.slice(3, 6), locales.slice(6, 9), locales.slice(9, 12), locales.slice(12, 15), locales.slice(15, 18), locales.slice(18)];
   parts.forEach((group, index) => {
     const shard = index + 1;
     writeJson(`evidence/browser-deep/browser-deep-${browser}-${shard}.json`, {
@@ -124,7 +124,7 @@ for (const browser of browsers) {
       skippedTestCount: 0, failedTestCount: 0, notExecutedTestCount: 0,
       statusCounts: { PASS: group.length, FAIL: 0, SKIPPED: 0, CANCELLED: 0, BLOCKED: 0, NOT_EXECUTED: 0 },
       attribution: { canonicalAssertionIds: [], canonicalAssertionExecutionCount: 0, surfaceCoverageExecutionCount: group.length, uniqueCoverageIds: group.map((locale) => `DEEP:${locale}`) },
-      semanticCoverage: { model: '20 locales × 3 browsers = 60 semantic locale-browser units', plannedSemanticUnitCount: 20, semanticUnitCount: group.length, semanticUnitIds: group.map((locale) => `DEEP:${browser}:${locale}`), localeRegistryCount: 20, observedLocaleCount: group.length, observedLocales: group, unexpectedLocales: [], partition: true, partitionCount: 3, partitionIndex: shard },
+      semanticCoverage: { model: '20 locales × 3 browsers = 60 semantic locale-browser units', plannedSemanticUnitCount: 20, semanticUnitCount: group.length, semanticUnitIds: group.map((locale) => `DEEP:${browser}:${locale}`), localeRegistryCount: 20, observedLocaleCount: group.length, observedLocales: group, unexpectedLocales: [], partition: true, partitionCount: 7, partitionIndex: shard },
       complete: true,
       units: group.map((locale) => deepUnit(browser, shard, locale)),
     });
