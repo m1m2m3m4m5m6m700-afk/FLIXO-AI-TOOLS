@@ -146,15 +146,41 @@ async function runGate(name) {
         if (pending.size) throw new Error(`Execution graph stalled in ${name}: ${[...pending.keys()].join(',')}`);
         break;
       }
-      for (let i = 0; i < ready.length; i += gateMax) {
-        const batch = ready.slice(i, i + gateMax).filter((c) => pending.has(c.id));
-        if (!batch.length) continue;
-        const done = await Promise.all(batch.map((c) => exec({ ...c, gate: name })));
-        for (const r of done) {
-          r.rootCauseId = rootFor(name, r);
-          if (r.status === 'FAIL') r.fingerprint = `FPR-${createHash('sha256').update([r.rootCauseId, r.gate, r.label, (r.output ?? '').replace(/\s+/g, ' ').slice(-4000)].join('\n')).digest('hex').slice(0, 12).toUpperCase()}`;
-          else r.fingerprint = null;
+      // Event-driven scheduler: keep up to gateMax checks in flight and refill slots
+      // immediately as dependencies complete. Dependency edges and fail-closed states remain unchanged.
+      const running = new Map();
+      while (running.size || pending.size) {
+        const blockedNow = [...pending.values()].filter((check) => graph.deps.get(check.id).some((dep) => ['FAIL', 'BLOCKED', 'CANCELLED', 'NOT_EXECUTED'].includes(resultById.get(dep)?.status)));
+        for (const check of blockedNow) {
+          const blockers = graph.deps.get(check.id).filter((dep) => ['FAIL', 'BLOCKED', 'CANCELLED', 'NOT_EXECUTED'].includes(resultById.get(dep)?.status));
+          const r = { ...check, gate: name, status: 'BLOCKED', exitCode: null, startedAt: now(), completedAt: now(), blockedBy: blockers, rootCauseId: null, output: `BLOCKED_BY=${blockers.join(',')}` };
           results.push(r); resultById.set(r.id, r); pending.delete(r.id);
+        }
+
+        const readyNow = [...pending.values()]
+          .filter((check) => graph.deps.get(check.id).every((dep) => resultById.get(dep)?.status === 'PASS'))
+          .slice(0, Math.max(0, gateMax - running.size));
+
+        for (const check of readyNow) {
+          pending.delete(check.id);
+          const promise = exec({ ...check, gate: name }).then((r) => {
+            r.rootCauseId = rootFor(name, r);
+            if (r.status === 'FAIL') r.fingerprint = `FPR-${createHash('sha256').update([r.rootCauseId, r.gate, r.label, (r.output ?? '').replace(/\\s+/g, ' ').slice(-4000)].join('\\n')).digest('hex').slice(0, 12).toUpperCase()}`;
+            else r.fingerprint = null;
+            return r;
+          });
+          running.set(check.id, promise);
+        }
+
+        if (running.size) {
+          const settled = await Promise.race(
+            [...running.entries()].map(async ([id, promise]) => ({ id, result: await promise }))
+          );
+          running.delete(settled.id);
+          results.push(settled.result);
+          resultById.set(settled.result.id, settled.result);
+        } else if (pending.size) {
+          throw new Error(`Execution graph stalled in ${name}: ${[...pending.keys()].join(',')}`);
         }
       }
     }
