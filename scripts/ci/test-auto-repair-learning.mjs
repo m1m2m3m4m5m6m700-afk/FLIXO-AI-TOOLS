@@ -78,7 +78,7 @@ recordOutcome(memory, {
 assert(memory.antiLessons.some((item) => item.fingerprint === '__negative_test__'));
 const afterFailureKnowledge = deriveReusableKnowledge(memory, { rootCause: 'lint', features: ['lint'] });
 assert.equal(afterFailureKnowledge.generalizedRules.some((item) => item.rule === 'eslint-unused'), false);
-assert(afterFailureKnowledge.rejectedRules.some((item) => item.rule === 'eslint-unused' && item.reason === 'low-success-rate'));
+assert.equal(afterFailureKnowledge.rejectedRules.some((item) => item.rule === 'eslint-unused' && item.reason === 'low-success-rate'), false);
 
 const proposedBefore = memory.cases.find((item) => item.fingerprint === '__proposal_test__')?.attempts ?? 0;
 recordOutcome(memory, {
