@@ -58,6 +58,7 @@ const failureFingerprint = arg('failure-fingerprint');
 const failureEvidencePath = arg('failure-evidence');
 const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION' : 'DIRECT_EXECUTION';
 const diagnosis = fs.existsSync(DIAGNOSIS_PATH) ? JSON.parse(fs.readFileSync(DIAGNOSIS_PATH, 'utf8')) : null;
+const reusableKnowledge = diagnosis?.reusableKnowledge ?? null;
 const activeRepairTask = failureRunId || failureSha || failureFingerprint
   ? [{
       taskId: `repair-${slug(failureFingerprint || 'active-failure').slice(0, 80)}`,
@@ -140,6 +141,7 @@ for (const task of selected) {
       secondHypothesis: diagnosis.secondHypothesis?.id ?? null,
       verificationStrategy: diagnosis.verificationStrategy ?? [],
       evidenceDigest: diagnosis.signature ?? null,
+      reusableKnowledge,
     } : (failureRunId || failureSha || failureFingerprint ? { authority: 'AUTO_REPAIR_REASONING_KERNEL', required: true, decision: 'MISSING' } : null),
     instructions: {
       cognitionRequired: Boolean(failureRunId || failureSha || failureFingerprint),
