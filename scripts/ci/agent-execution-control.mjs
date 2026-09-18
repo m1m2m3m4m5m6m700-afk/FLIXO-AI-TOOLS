@@ -52,6 +52,8 @@ function latestPacket() {
   if (packet.mutationPolicy !== 'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH') throw new Error('DIRECT_MUTATION_POLICY_VIOLATION');
   if (packet.executionBranch !== 'execution') throw new Error('DIRECT_EXECUTION_BRANCH_VIOLATION');
   if (packet.handoff?.scopeAuthority !== SCOPE_POLICY) throw new Error('SELF_HEALING_HANDOFF_SCOPE_VIOLATION');
+  if (packet.failureContext?.active && (!packet.cognition || packet.cognition.decision === 'MISSING')) throw new Error('COGNITION_CONTEXT_MISSING');
+  if (packet.failureContext?.active && packet.cognition?.sourceMutationAllowed !== true && packet.cognition?.decision === 'ALLOW_BOUNDED_MUTATION') throw new Error('COGNITION_DECISION_CONFLICT');
   return { index, packet };
 }
 function complexityGuard(packet) {
