@@ -38,7 +38,7 @@ function priorRepairArtifactCount() {
 }
 
 const memory = readJson(memoryPath, { cases: [] });
-const intractable = readJson(intractablePath, { threshold: 10, cases: [] });
+const intractable = readJson(intractablePath, { cases: [] });
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
 const fingerprint = fingerprintFailure(log);
 const entry = (memory.cases ?? []).find((item) => item.fingerprint === fingerprint);
