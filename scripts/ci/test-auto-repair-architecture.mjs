@@ -91,6 +91,8 @@ assert.match(fingerprintSource, /external-tooling/);
 const taskAgentSource = fs.readFileSync('scripts/ci/task-agent.mjs', 'utf8');
 assert.match(taskAgentSource, /maxCycles: 3/);
 assert.match(taskAgentSource, /maxPreparedFiles: 8/);
+assert(!learningSource.includes('git/refs/heads/flixo-intractable/'));
+assert(!learningSource.includes('flixo-intractable/'));
 const learningSource = fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8');
 assert.match(learningSource, /MEMORY_VERSION = 7/);
 assert.match(learningSource, /Math\.max\(parsed\.version, MEMORY_VERSION\)/);
