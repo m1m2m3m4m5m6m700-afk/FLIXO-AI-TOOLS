@@ -44,10 +44,13 @@ assert.equal(result.status, 0, result.stderr || result.stdout);
 const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
 assert.equal(evidence.outcome, 'blocked-external');
 assert.equal(evidence.externalTooling.sourceMutationAllowed, false);
+assert.equal(evidence.externalTooling.sourceMutationAllowed, false);
 assert.equal(evidence.escalation.reason, 'external-tooling-failure');
 assert.equal(execFileSync('git', ['-C', tempDir, 'status', '--porcelain'], { encoding: 'utf8' }), '');
 
 const memory = JSON.parse(fs.readFileSync(memoryPath, 'utf8'));
 assert(memory.antiLessons.some((item) => item.fingerprint === evidence.fingerprint && item.rootCause === 'external-tooling'));
+const externalCase = memory.cases.find((item) => item.fingerprint === evidence.fingerprint);
+assert.equal(externalCase?.attempts, 0);
 
 console.log('AUTO_REPAIR_EXTERNAL_GUARD_SELF_TEST=PASS');
