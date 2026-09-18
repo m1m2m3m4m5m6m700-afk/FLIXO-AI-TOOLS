@@ -100,8 +100,6 @@ jobs:
 
   browser_dependencies:
     name: Browser Dependencies
-    needs: [verify]
-    if: needs.verify.result == 'success'
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
@@ -275,9 +273,9 @@ jobs:
         run: |
           set -euo pipefail
           case "$SHARD" in
-            1) DEEP_LOCALE_GREP='/(?:ar|en|es|fr|de)(?:/|$)' ;;
-            2) DEEP_LOCALE_GREP='/(?:hi|id|it|ja|ko|ms|nl)(?:/|$)' ;;
-            3) DEEP_LOCALE_GREP='/(?:pl|pt|ru|sv|th|tr|uk|vi)(?:/|$)' ;;
+            1) DEEP_LOCALE_GREP='/(?:ar|en|es|fr|de|hi)(?:/|$)' ;;
+            2) DEEP_LOCALE_GREP='/(?:id|it|ja|ko|ms|nl|pl)(?:/|$)' ;;
+            3) DEEP_LOCALE_GREP='/(?:pt|ru|sv|th|tr|uk|vi)(?:/|$)' ;;
             *) echo "Unsupported DEEP shard: $SHARD" >&2; exit 2 ;;
           esac
           npx playwright test tests/localization-runtime.spec.ts --project="$BROWSER" --workers=6 --retries=0 --max-failures=0 --grep="$DEEP_LOCALE_GREP"
