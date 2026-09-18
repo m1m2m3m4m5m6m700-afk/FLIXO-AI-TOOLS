@@ -5,16 +5,20 @@ import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-re
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
-const INTRACTABLE_THRESHOLD = 10;
+export const MEMORY_VERSION = 7;
+export const INTRACTABLE_THRESHOLD = 3;
 export { normalizeFailure, fingerprintFailure, extractFeatures };
 
-const emptyMemory = () => ({ version: 6, cases: [], playbooks: [], lessons: [], antiLessons: [] });
+const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });
 
 export function loadMemory() {
   if (!fs.existsSync(memoryPath)) return emptyMemory();
   try {
     const parsed = JSON.parse(fs.readFileSync(memoryPath, 'utf8'));
-    return { ...emptyMemory(), ...parsed, version: 6 };
+    const memory = { ...emptyMemory(), ...parsed };
+    memory.version = Number.isInteger(parsed?.version) ? Math.max(parsed.version, MEMORY_VERSION) : MEMORY_VERSION;
+    for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(memory[key])) memory[key] = [];
+    return memory;
   } catch {
     return emptyMemory();
   }
@@ -215,7 +219,9 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
 
 export function writeMemory(memory) {
   fs.mkdirSync(memoryPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
-  const normalized = { ...emptyMemory(), ...memory, version: 6 };
+  const normalized = { ...emptyMemory(), ...memory };
+  normalized.version = Number.isInteger(memory?.version) ? Math.max(memory.version, MEMORY_VERSION) : MEMORY_VERSION;
+  for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(normalized[key])) normalized[key] = [];
   fs.writeFileSync(memoryPath, `${JSON.stringify(normalized, null, 2)}\n`);
 }
 
