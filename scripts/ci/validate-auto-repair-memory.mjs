@@ -13,7 +13,7 @@ const fail = (message) => {
 if (!existsSync(memoryPath)) fail('memory-missing');
 let memory;
 try { memory = JSON.parse(readFileSync(memoryPath, 'utf8')); } catch { fail('invalid-json'); }
-if (!Number.isInteger(memory?.version) || memory.version < 8) fail('version-mismatch');
+if (!Number.isInteger(memory?.version) || memory.version < 9) fail('version-mismatch');
 for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(memory[key])) fail(`invalid-${key}`);
 
 const idPattern = /^[a-f0-9]{20}$/u;
@@ -28,6 +28,15 @@ for (const collection of ['lessons', 'antiLessons']) {
     if (typeof lesson.rootCause !== 'string' || !lesson.rootCause) fail(`${collection}-missing-root-cause`);
     if (typeof lesson.confidence !== 'number' || lesson.confidence < 0 || lesson.confidence > 1) fail(`${collection}-invalid-confidence`);
     if (!Array.isArray(lesson.evidence) || !Array.isArray(lesson.preventionRules)) fail(`${collection}-evidence-shape`);
+  }
+}
+
+for (const playbook of memory.playbooks) {
+  if (!playbook?.rootCause || !playbook?.rule) fail('playbook-missing-identity');
+  if ((playbook.attempts ?? 0) < 0 || (playbook.successes ?? 0) < 0 || (playbook.failures ?? 0) < 0) fail('playbook-negative-count');
+  if ((playbook.successes ?? 0) + (playbook.failures ?? 0) > (playbook.attempts ?? 0)) fail(`playbook-count-invariant:${playbook.rootCause}:${playbook.rule}`);
+  for (const key of ['fingerprints', 'successfulFingerprints', 'failedFingerprints']) {
+    if (playbook[key] !== undefined && !Array.isArray(playbook[key])) fail(`playbook-invalid-${key}`);
   }
 }
 
