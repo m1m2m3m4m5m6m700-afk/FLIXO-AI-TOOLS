@@ -165,7 +165,8 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   entry.outcomes.push({ outcome, verification, rule, provenance, preventionRule, at: new Date().toISOString() });
   entry.outcomes = entry.outcomes.slice(-10);
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
-  if (rule && outcome !== 'proposed') {
+  const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
+  if (rule && countsAsPlaybookAttempt) {
     const playbook = memory.playbooks.find((item) => item.rootCause === entry.rootCause && item.rule === rule) ?? { rootCause: entry.rootCause, rule, attempts: 0, successes: 0, failures: 0 };
     playbook.attempts += 1;
     if (outcome === 'success') playbook.successes += 1; else playbook.failures += 1;
