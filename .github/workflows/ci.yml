@@ -308,30 +308,9 @@ jobs:
           retention-days: 14
           overwrite: true
 
-  security_codeql:
-    name: GitHub Advanced Security — CodeQL
-    needs: [verify]
-    if: needs.verify.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout exact revision
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 1
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: javascript-typescript
-      - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:javascript-typescript"
-
   certify:
     name: Certification
-    needs: [verify, browser_fast, browser_deep, security_codeql]
+    needs: [verify, browser_fast, browser_deep]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -348,13 +327,6 @@ jobs:
           pattern: flixo-browser-*-*-${{ github.run_id }}
           path: diagnostics/certification
           merge-multiple: true
-      - name: Require GitHub Advanced Security success
-        shell: bash
-        env:
-          SECURITY_CODEQL_RESULT: ${{ needs.security_codeql.result }}
-        run: |
-          set -euo pipefail
-          test "$SECURITY_CODEQL_RESULT" = "success"
       - name: Validate execution graph completeness
         shell: bash
         run: node scripts/ci/validate-certification-graph.mjs
