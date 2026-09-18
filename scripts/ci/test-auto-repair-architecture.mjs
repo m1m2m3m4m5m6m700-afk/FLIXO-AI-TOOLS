@@ -21,14 +21,15 @@ assert.match(workflow, /Repair remains open/);
 assert.match(workflow, /gh workflow run auto-repair\.yml/);
 assert.match(workflow, /cancel-in-progress: false/);
 
-const sample = 'Run 35012345678 failed: abcdefabcdefabcdefabcdefabcdefabcdefabcd no-unused-vars';
+const sample = 'Run 35012345678 failed: src/example.ts:10:3 no-unused-vars';
 const normalized = normalizeFailure(sample);
 assert(!normalized.includes('35012345678'));
 assert(!normalized.includes('abcdefabcdefabcdefabcdefabcdefabcdefabcd'));
 assert.equal(fingerprintFailure(sample), fingerprintFailure(sample));
 const plan = planRepair(sample);
-assert.equal(plan.selected?.id, 'eslint-unused');
+assert.equal(plan.selected?.id, 'eslint-file');
 assert.equal(confidenceGate({ selected: plan.selected, features: plan.features }).allowed, true);
+assert.equal(plan.selected?.file, 'src/example.ts');
 assert.equal(selectSpecialist(plan.features).id, 'eslint-specialist');
 assert.deepEqual(impactedTests(['lint']), [['npm', ['run', 'lint']]]);
 assert.equal(summarizeDiff('diff --git a/src/a.ts b/src/a.ts\n+new\n-old\n').files.length, 1);
