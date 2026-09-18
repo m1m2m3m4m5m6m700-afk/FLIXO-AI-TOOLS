@@ -72,5 +72,53 @@ jobs:
           test "$NEW_SHA" != "$PRE_SHA"
           git push origin HEAD:execution
           gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution
-          echo "execution reconciled to canonical main with non-forced merge commit $NEW_SHA"
-          echo "FLIXO Test System dispatched for the reconciled execution SHA."
+
+          PR_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json number --jq 'length == 1 ? .[0].number : empty')"
+          test -n "$PR_NUMBER"
+
+          deadline=$((SECONDS + 1500))
+          EXPECTED_SHA="$NEW_SHA"
+          while true; do
+            gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/check-runs?per_page=100" > /tmp/flixo-sync-check-runs.json
+            jq -s '[
+              .[].check_runs[]
+              | select(
+                  (.name | ascii_downcase) != "vercel"
+                  and (.name | ascii_downcase) != "vercel deployment"
+                  and (.name | ascii_downcase) != "flixo auto repair merge gate"
+                  and (.name | ascii_downcase) != "flixo execution canonical sync"
+                  and (.name | ascii_downcase) != "gate"
+                  and (.name | ascii_downcase) != "github-advanced-security"
+                  and (.name | ascii_downcase) != "github advanced security"
+                  and (.name | ascii_downcase) != "code scanning ai findings"
+                )
+            ] | group_by(.name) | map(max_by((.completed_at // .started_at // "")))'               /tmp/flixo-sync-check-runs.json > /tmp/flixo-sync-repository-check-runs.json
+
+            COUNT="$(jq 'length' /tmp/flixo-sync-repository-check-runs.json)"
+            BAD="$(jq '[.[] | select(.status != "completed" or .conclusion != "success")] | length' /tmp/flixo-sync-repository-check-runs.json)"
+            echo "EXACT_HEAD=$EXPECTED_SHA repositoryChecks=$COUNT nonGreen=$BAD"
+            if [ "$COUNT" -gt 0 ] && [ "$BAD" -eq 0 ]; then
+              break
+            fi
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "Timed out waiting for exact-head repository GREEN."
+              jq '.[] | {name,status,conclusion}' /tmp/flixo-sync-repository-check-runs.json
+              exit 1
+            fi
+            sleep 20
+          done
+
+          ACTUAL_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+          test "$ACTUAL_SHA" = "$EXPECTED_SHA"
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --match-head-commit "$EXPECTED_SHA"
+
+          state="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,mergedAt --jq '.state+"|"+(.mergedAt//"")')"
+          case "$state" in
+            MERGED\|*) ;;
+            *) echo "Canonical execution -> main merge was not completed: $state"; exit 1 ;;
+          esac
+
+          MAIN_AFTER="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
+          test -n "$MAIN_AFTER" && test "$MAIN_AFTER" != "null"
+          echo "execution reconciled and PR #$PR_NUMBER merged after exact-head repository GREEN."
+          echo "Canonical main after merge: $MAIN_AFTER"
