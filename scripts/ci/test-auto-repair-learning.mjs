@@ -11,7 +11,7 @@ assert(!fingerprint.includes('35012345678'));
 assert(!fingerprint.includes('abcdefabcdefabcdefabcdefabcdefabcdefabcd'));
 
 const memory = loadMemory();
-assert.equal(memory.version, 7);
+assert.equal(memory.version, 8);
 const before = memory.cases.length;
 recordOutcome(memory, {
   fingerprint: '__self_test__',
@@ -49,6 +49,23 @@ recordOutcome(memory, {
 const proposedCase = memory.cases.find((item) => item.fingerprint === '__proposal_test__');
 assert.equal(proposedCase?.attempts ?? 0, proposedBefore);
 assert(!memory.antiLessons.some((item) => item.fingerprint === '__proposal_test__'));
+
+const revertBefore = memory.cases.find((item) => item.fingerprint === '__revert_test__')?.reversions ?? 0;
+const attemptBeforeRevert = memory.cases.find((item) => item.fingerprint === '__revert_test__')?.attempts ?? 0;
+recordOutcome(memory, {
+  fingerprint: '__revert_test__',
+  normalizedFailure: 'lint repair later regressed',
+  features: ['lint'],
+  rootCause: 'lint',
+  rule: 'eslint-unused',
+  outcome: 'reverted-repair',
+  verification: 'historical-revert-proof',
+  provenance: { targetSha: 'a'.repeat(40), revertedCommit: 'b'.repeat(40) },
+});
+const revertedCase = memory.cases.find((item) => item.fingerprint === '__revert_test__');
+assert.equal(revertedCase?.attempts ?? 0, attemptBeforeRevert);
+assert.equal(revertedCase?.reversions ?? 0, revertBefore + 1);
+assert.equal(revertedCase?.failures ?? 0, 0);
 
 const fallbackOutcome = process.env.FLIXO_LEARNING_OUTCOME;
 const fallbackVerification = process.env.FLIXO_VERIFICATION;
