@@ -33,6 +33,7 @@ env:
   TARGET_RUN_ID: ${{ inputs.target_run_id || github.event.workflow_run.id }}
   FLIXO_HISTORY_LIMIT: '30'
   FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
+  FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
 
 jobs:
   repair:
@@ -93,6 +94,14 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+
+      - name: Run exact-SHA read-only source scout
+        env:
+          INVESTIGATION_DIR: /tmp/flixo-investigation
+        run: |
+          set -euo pipefail
+          node scripts/ci/code-read-only-scout.mjs
+          test -s "$FLIXO_SCOUT_REPORT"
 
       - name: Self-test repair system before mutation
         run: |
