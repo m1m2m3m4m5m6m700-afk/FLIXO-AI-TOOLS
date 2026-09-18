@@ -28,6 +28,10 @@ assert.match(workflow, /\\/tmp\\/flixo-scout-report\\.json/);
 assert.match(workflow, /DEEP_\\[A-Z_\\]\\+_MISSING/);
 assert.match(workflow, /ENGINE_OUTCOME.*proposal-only/);
 assert.match(workflow, /LEARNING_OUTCOME='proposed'/);
+const classifierSource = fs.readFileSync('scripts/ci/auto-repair-classifier.mjs', 'utf8');
+assert.match(classifierSource, /ensureFreshScout/);
+assert.match(classifierSource, /code-read-only-scout\.mjs/);
+assert.match(classifierSource, /INVESTIGATION_DIR: investigationDir/);
 
 const sample = 'Run 35012345678 failed: scripts/ci/test-auto-repair-architecture.mjs:10:3 no-unused-vars';
 const normalized = normalizeFailure(sample);
