@@ -36,7 +36,11 @@ if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint) {
 }
 if (repairPolicy.requireCleanGitBeforeRepair && git(['status', '--porcelain']).trim()) throw new Error('AUTO_REPAIR_DIRTY_WORKTREE');
 
-const plan = planRepair(log);
+const historicalReasoningSupport = [
+  ...memory.cases.map(({ rootCause, successes, attempts }) => ({ rootCause, confidence: attempts ? successes / attempts : 0 })),
+  ...memory.lessons.map(({ rootCause, confidence }) => ({ rootCause, confidence })),
+];
+const plan = planRepair(log, { historical: historicalReasoningSupport });
 const specialist = selectSpecialist(plan.features);
 let selected = plan.selected;
 const historicalRules = [
