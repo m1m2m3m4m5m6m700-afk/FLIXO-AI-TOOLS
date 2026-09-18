@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "cases": [
     {
       "fingerprint": "7ee9ce7b111189a636df0f2155d6f0be9192276595365dc1c054e1071b1b2ff2",
@@ -29,10 +29,56 @@
         "lint"
       ],
       "confidence": 0
+    },
+    {
+      "fingerprint": "ff97e0be10dce2886a9c93bfe4440102e143e41e19a08d726da0c0b0a289e3b8",
+      "rootCause": "technical-debt-audit-missing-deterministic-finding-fingerprint-contract",
+      "attempts": 1,
+      "successes": 1,
+      "failures": 0,
+      "rules": [
+        "technical-debt audit findings must expose deterministic SHA-256 fingerprints; validator must reject missing, malformed, or duplicate fingerprints"
+      ],
+      "outcomes": [
+        {
+          "outcome": "success",
+          "verification": "FLIXO Test System canonical CI passed with Static+Build, FAST/DEEP browser matrix, Certification and CI/CD trust on exact execution SHA",
+          "rootCause": "audit findings had id/evidence but no explicit deterministic fingerprint contract",
+          "successfulRepair": [
+            "scripts/ci/audit-technical-debt.mjs",
+            "scripts/ci/validate-technical-debt-audit.mjs",
+            "scripts/ci/test-technical-debt-audit.mjs"
+          ],
+          "provenance": {
+            "source": "fresh GitHub Actions canonical evidence",
+            "executionSha": "9ec7995f6c419b6c1b3868631cad6adde1f6a4d9",
+            "runId": "35302931325",
+            "certification": "PASS",
+            "mergedMainSha": "02bdabe6fa56327558bd8db7d0cae35130203bf1"
+          },
+          "regressionTest": "scripts/ci/test-technical-debt-audit.mjs",
+          "canonicalResult": "PASS",
+          "preventionRule": "never accept technical-debt audit output as deterministic evidence unless every finding has a unique 64-hex fingerprint and the fingerprint contract is regression-tested"
+        }
+      ],
+      "normalizedFailure": "Technical-debt audit findings lacked an explicit deterministic fingerprint field despite DEBT-001 requiring fingerprint-backed evidence.",
+      "features": [
+        "technical-debt",
+        "audit-contract",
+        "deterministic-evidence"
+      ],
+      "confidence": 1
     }
   ],
   "playbooks": [],
-  "lessons": [],
+  "lessons": [
+    {
+      "fingerprint": "ff97e0be10dce2886a9c93bfe4440102e143e41e19a08d726da0c0b0a289e3b8",
+      "lesson": "Deterministic technical-debt evidence requires explicit finding fingerprints, validator enforcement, and a regression assertion before downstream repair selection.",
+      "verifiedSha": "9ec7995f6c419b6c1b3868631cad6adde1f6a4d9",
+      "canonicalRunId": "35302931325"
+    }
+  ],
   "antiLessons": [
     {
       "id": "a1b2c3d4e5f60718293a",
@@ -57,6 +103,29 @@
         "never convert a failed historical repair into a success lesson without exact-SHA verification"
       ],
       "lastSeenAt": "2026-09-17T00:38:20Z"
+    },
+    {
+      "id": "debt-fingerprint-no-unproven-closure",
+      "fingerprint": "ff97e0be10dce2886a9c93bfe4440102e143e41e19a08d726da0c0b0a289e3b8",
+      "rootCause": "technical-debt-audit-missing-deterministic-finding-fingerprint-contract",
+      "attempts": 1,
+      "successes": 1,
+      "failures": 0,
+      "confidence": 1,
+      "evidence": [
+        {
+          "verification": "fresh canonical CI and certification",
+          "provenance": {
+            "runId": "35302931325",
+            "executionSha": "9ec7995f6c419b6c1b3868631cad6adde1f6a4d9",
+            "mergedMainSha": "02bdabe6fa56327558bd8db7d0cae35130203bf1"
+          }
+        }
+      ],
+      "preventionRules": [
+        "require unique deterministic finding fingerprints before marking DEBT-001 validator contract verified"
+      ],
+      "lastSeenAt": "2026-09-18T03:29:17Z"
     }
   ]
 }
