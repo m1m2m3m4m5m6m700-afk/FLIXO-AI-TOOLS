@@ -9,6 +9,7 @@ const checks = [
   ['technical-debt-contract', 'npm', ['run', 'validate:technical-debt-audit']],
   ['technical-debt-audit', 'node', ['scripts/ci/test-technical-debt-audit.mjs']],
   ['auto-repair-memory', 'npm', ['run', 'validate:auto-repair-memory']],
+  ['auto-repair', 'npm', ['run', 'test:auto-repair']],
   ['build-identity', 'npm', ['run', 'test:build-identity']],
   ['agent-execution-control', 'npm', ['run', 'test:agent-execution-control']],
 ];
