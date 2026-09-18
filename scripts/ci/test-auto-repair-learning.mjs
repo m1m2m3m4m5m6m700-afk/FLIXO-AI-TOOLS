@@ -46,6 +46,18 @@ const proposedCase = memory.cases.find((item) => item.fingerprint === '__proposa
 assert.equal(proposedCase?.attempts ?? 0, proposedBefore);
 assert(!memory.antiLessons.some((item) => item.fingerprint === '__proposal_test__'));
 
+const fallbackOutcome = process.env.FLIXO_LEARNING_OUTCOME;
+const fallbackVerification = process.env.FLIXO_VERIFICATION;
+process.env.FLIXO_LEARNING_OUTCOME = 'unrepaired';
+process.env.FLIXO_VERIFICATION = 'proposal-only';
+assert.equal(
+  process.env.FLIXO_LEARNING_OUTCOME === 'unrepaired' && process.env.FLIXO_VERIFICATION === 'proposal-only',
+  true
+);
+if (fallbackOutcome === undefined) delete process.env.FLIXO_LEARNING_OUTCOME; else process.env.FLIXO_LEARNING_OUTCOME = fallbackOutcome;
+if (fallbackVerification === undefined) delete process.env.FLIXO_VERIFICATION; else process.env.FLIXO_VERIFICATION = fallbackVerification;
+
+
 const similar = findSimilarCases(memory, {
   fingerprint: '__different_test__',
   normalized: 'lint no-unused-vars src/example.ts',
