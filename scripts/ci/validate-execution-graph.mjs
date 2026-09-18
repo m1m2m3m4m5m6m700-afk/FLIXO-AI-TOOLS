@@ -29,9 +29,9 @@ for (const [assertionId, entry] of Object.entries(registry.assertions ?? {})) {
 }
 const registeredAssertionIds = new Set(Object.keys(registry.assertions ?? {}));
 const fastFiles = find(/^browser-fast-(chromium|firefox|webkit)-([12])\.json$/);
-const deepFiles = find(/^browser-deep-(chromium|firefox|webkit)-([1-7])\.json$/);
+const deepFiles = find(/^browser-deep-(chromium|firefox|webkit)-([123])\.json$/);
 if (fastFiles.length !== 6) errors.push(`FAST_EXECUTION_FILE_COUNT=${fastFiles.length}; expected=6`);
-if (deepFiles.length !== 21) errors.push(`DEEP_EXECUTION_FILE_COUNT=${deepFiles.length}; expected=21`);
+if (deepFiles.length !== 9) errors.push(`DEEP_EXECUTION_FILE_COUNT=${deepFiles.length}; expected=21`);
 const load = (files) => files.map((file) => { try { return { file, value: readJson(file), parseError: null }; } catch (error) { return { file, value: null, parseError: error.message }; } });
 const fast = load(fastFiles), deep = load(deepFiles), included = [...fast, ...deep];
 for (const entry of included) {
