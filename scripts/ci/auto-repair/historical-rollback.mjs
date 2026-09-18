@@ -94,6 +94,7 @@ export function findHistoricalRepairCandidate(targetDir, { fingerprint, currentS
   if (!/^[a-f0-9]{64}$/u.test(String(fingerprint ?? ''))) return null;
   assertSha(currentSha, 'CURRENT');
   const successfulTargets = priorSuccessfulRepairTargets(memoryCase);
+  const revertedRules = new Set(memoryCase?.revertedRules ?? []);
   if (!successfulTargets.size) return null;
 
   const commits = listRepairHistory(targetDir, historyLimit);
@@ -103,6 +104,7 @@ export function findHistoricalRepairCandidate(targetDir, { fingerprint, currentS
     const candidate = parseRepairCommit(commit);
     if (!candidate || candidate.fingerprint !== fingerprint) continue;
     if (reverted.has(candidate.commitSha)) continue;
+    if (candidate.rule && revertedRules.has(candidate.rule)) continue;
     if (!successfulTargets.has(candidate.baseSha) && !successfulTargets.has(candidate.failedSha)) continue;
     if (!isAncestor(targetDir, candidate.commitSha, currentSha)) continue;
     if (candidate.baseSha !== candidate.parentSha) continue;
