@@ -5,7 +5,8 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
 const ROOT = process.cwd();
-const OUT = path.resolve(ROOT, 'diagnostics/agents/execution-control');
+const OUT = process.env.FLIXO_AGENT_EXECUTION_CONTROL_OUTPUT_DIR ?? path.resolve(ROOT, 'diagnostics/agents/execution-control');
+const TASK_AGENT_OUTPUT_DIR = process.env.FLIXO_TASK_AGENT_OUTPUT_DIR ?? '/tmp/flixo-task-agent';
 const TASK_AGENT = path.resolve(ROOT, 'scripts/ci/task-agent.mjs');
 const TASK_FILE = path.resolve(ROOT, 'مهام.md');
 const MAX_STAGES = 10;
@@ -27,10 +28,10 @@ function runTaskAgent(taskId = '') {
   const args = [TASK_AGENT];
   if (taskId) args.push(`--task-id=${taskId}`);
   else args.push('--all-ready');
-  execFileSync(process.execPath, args, { cwd: ROOT, stdio: 'inherit' });
+  execFileSync(process.execPath, args, { cwd: ROOT, stdio: 'inherit', env: { ...process.env, FLIXO_TASK_AGENT_OUTPUT_DIR: TASK_AGENT_OUTPUT_DIR } });
 }
 function latestPacket() {
-  const latest = path.join(ROOT, 'diagnostics/agents/task-agent/latest.json');
+  const latest = path.join(TASK_AGENT_OUTPUT_DIR, 'latest.json');
   if (!fs.existsSync(latest)) throw new Error('TASK_AGENT_OUTPUT_MISSING');
   const index = readJson(latest);
   if (index.preparedOnly !== false || index.executionMode !== 'DIRECT_ON_EXECUTION_BRANCH') throw new Error('TASK_AGENT_DIRECT_EXECUTION_CONTRACT_VIOLATION');
