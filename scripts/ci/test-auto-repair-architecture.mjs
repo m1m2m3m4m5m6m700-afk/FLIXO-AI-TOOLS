@@ -146,6 +146,7 @@ assert.match(learningSource, /revertedRules/);
 assert.match(engineSource, /revertedRuleIds/);
 assert.match(classifierSource, /deriveReusableKnowledge/);
 assert.match(engineSource, /deriveReusableKnowledge/);
+assert.match(engineSource, /reusableKnowledge\.generalizedRules/);
 assert.match(taskAgentSource, /reusableKnowledge/);
 assert.match(learningSource, /promotionRequiresDistinctFingerprints: 2/);
 assert.match(learningSource, /successfulFingerprintSupport >= 2/);
