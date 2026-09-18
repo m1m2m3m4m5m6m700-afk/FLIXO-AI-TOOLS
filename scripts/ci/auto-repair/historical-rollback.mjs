@@ -81,6 +81,15 @@ function priorSuccessfulRepairTargets(memoryCase) {
   );
 }
 
+function isAncestor(targetDir, ancestorSha, descendantSha) {
+  try {
+    git(targetDir, ['merge-base', '--is-ancestor', ancestorSha, descendantSha], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function findHistoricalRepairCandidate(targetDir, { fingerprint, currentSha, memoryCase, historyLimit = HISTORY_LIMIT } = {}) {
   if (!/^[a-f0-9]{64}$/u.test(String(fingerprint ?? ''))) return null;
   assertSha(currentSha, 'CURRENT');
@@ -95,7 +104,7 @@ export function findHistoricalRepairCandidate(targetDir, { fingerprint, currentS
     if (!candidate || candidate.fingerprint !== fingerprint) continue;
     if (reverted.has(candidate.commitSha)) continue;
     if (!successfulTargets.has(candidate.baseSha) && !successfulTargets.has(candidate.failedSha)) continue;
-    if (!git(targetDir, ['merge-base', '--is-ancestor', candidate.commitSha, currentSha], { stdio: 'ignore' })) continue;
+    if (!isAncestor(targetDir, candidate.commitSha, currentSha)) continue;
     if (candidate.baseSha !== candidate.parentSha) continue;
     const changedPaths = git(targetDir, ['diff-tree', '--no-commit-id', '--name-only', '-r', candidate.commitSha]).split('\n').map((item) => item.trim()).filter(Boolean);
     if (!changedPaths.length) continue;
@@ -110,7 +119,7 @@ export function applyHistoricalRepair(targetDir, candidate) {
   const head = git(targetDir, ['rev-parse', 'HEAD']).trim();
   assertSha(head, 'HEAD');
   assertSha(candidate.commitSha, 'REPAIR_COMMIT');
-  if (!git(targetDir, ['merge-base', '--is-ancestor', candidate.commitSha, head], { stdio: 'ignore' })) throw new Error('HISTORICAL_REPAIR_NOT_ANCESTOR');
+  if (!isAncestor(targetDir, candidate.commitSha, head)) throw new Error('HISTORICAL_REPAIR_NOT_ANCESTOR');
   if (candidate.parentSha === head) throw new Error('HISTORICAL_REPAIR_IS_HEAD');
   const changedPaths = git(targetDir, ['diff-tree', '--no-commit-id', '--name-only', '-r', candidate.commitSha]).split('\n').map((item) => item.trim()).filter(Boolean);
   if (!changedPaths.length) throw new Error('HISTORICAL_REPAIR_EMPTY_DIFF');
@@ -164,8 +173,7 @@ if (process.argv[1]?.endsWith('historical-rollback.mjs') && process.env.FLIXO_HI
   applyHistoricalRepair(dir, candidate);
   if (fs.readFileSync(`${dir}/target.txt`, 'utf8') !== 'before\n') throw new Error('SELF_TEST_REVERT_FAILED');
   run(['reset', '--hard', repairSha]);
-  fs.writeFileSync(`${dir}/target.txt`, 'after\n');
-  run(['add', 'target.txt']);
+  run(['revert', '--no-commit', '--no-edit', repairSha]);
   run(['commit', '-q', '-m', 'revert(auto-repair): historical rollback', '-m', [
     HISTORICAL_ROLLBACK_PROTOCOL,
     'kind=historical-revert',
