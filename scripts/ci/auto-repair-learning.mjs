@@ -5,7 +5,7 @@ import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-re
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
-export const MEMORY_VERSION = 7;
+export const MEMORY_VERSION = 8;
 export const INTRACTABLE_THRESHOLD = 3;
 export { normalizeFailure, fingerprintFailure, extractFeatures };
 
@@ -143,12 +143,16 @@ function upsertLesson(memory, { fingerprint, rootCause, rule, outcome, verificat
 }
 
 export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule } = {}) {
-  const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, externalBlocks: 0, rules: [], outcomes: [] };
+  const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, externalBlocks: 0, reversions: 0, revertFailures: 0, rules: [], outcomes: [] };
   entry.rootCause = rootCause ?? entry.rootCause ?? 'unknown';
   if (normalizedFailure) entry.normalizedFailure = normalizeFailure(normalizedFailure);
   if (features.length) entry.features = [...new Set(features)];
   const isExternalBlock = outcome === 'blocked-external';
+  const isHistoricalRevert = outcome === 'reverted-repair';
+  const isHistoricalRevertFailure = outcome === 'revert-failure';
   if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
+  if (isHistoricalRevert) entry.reversions = (entry.reversions ?? 0) + 1;
+  if (isHistoricalRevertFailure) entry.revertFailures = (entry.revertFailures ?? 0) + 1;
   const countsAsRepairAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
   if (countsAsRepairAttempt) {
     entry.attempts += 1;
