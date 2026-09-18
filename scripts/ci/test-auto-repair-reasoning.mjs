@@ -18,11 +18,11 @@ assert.equal(webkit.decision, 'ALLOW_BOUNDED_MUTATION');
 assert(webkit.hypotheses.some((item) => item.id === 'playwright' && item.suppressedBy === 'webkit-render'));
 assert.deepEqual(verificationStrategy(['webkit', 'playwright']), [['npm', ['run', 'test:browser']], ['npm', ['run', 'test:static']]);
 
-const lint = reasonFailure('ERROR eslint: no-unused-vars at src/example.ts:10:3');
+const lint = reasonFailure('ERROR eslint: no-unused-vars at scripts/ci/test-auto-repair-reasoning.mjs:10:3');
 assert.equal(lint.rootCause, 'lint');
-assert.equal(lint.location?.file, 'src/example.ts');
+assert.equal(lint.location?.file, 'scripts/ci/test-auto-repair-reasoning.mjs');
 assert.equal(lint.location?.line, 10);
-assert.equal(lint.locationVerified, false);
+assert.equal(lint.locationVerified, true);
 assert.equal(lint.decision, 'ALLOW_BOUNDED_MUTATION');
 
 const missingSource = reasonFailure('ERROR eslint: no-unused-vars at does/not/exist.ts:10:3');
