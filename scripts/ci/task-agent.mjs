@@ -57,7 +57,7 @@ const failureEvidencePath = arg('failure-evidence');
 const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION' : 'DIRECT_EXECUTION';
 const activeRepairTask = failureRunId || failureSha || failureFingerprint
   ? [{
-      taskId: `repair-${(failureFingerprint || 'active-failure').slice(0, 16)}`,
+      taskId: `repair-${slug(failureFingerprint || 'active-failure').slice(0, 80)}`,
       section: 'ACTIVE REPAIR CYCLE',
       title: `Repair active failure ${failureFingerprint || 'unknown'}`,
       completed: false,
