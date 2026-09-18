@@ -61,6 +61,19 @@ const staleScout = reasonFailure('ERROR eslint: no-unused-vars at a.ts:1:1', { t
 assert.equal(staleScout.scout.fresh, false);
 assert.equal(staleScout.scout.reason, 'stale');
 
+const fallbackScoutPath = path.join(tempDir, 'fallback-scout.json');
+fs.writeFileSync(fallbackScoutPath, JSON.stringify({ scannedSha: tempSha, findings: [] }));
+const originalScoutEnv = process.env.FLIXO_SCOUT_REPORT;
+process.env.FLIXO_SCOUT_REPORT = fallbackScoutPath;
+const fallbackScout = reasonFailure('ERROR eslint: no-unused-vars at a.ts:1:1', { targetDir: tempDir, scoutPath: undefined });
+assert.equal(fallbackScout.scout.fresh, true);
+assert.equal(fallbackScout.scout.path, fallbackScoutPath);
+if (originalScoutEnv === undefined) delete process.env.FLIXO_SCOUT_REPORT; else process.env.FLIXO_SCOUT_REPORT = originalScoutEnv;
+
+const missingSignal = reasonFailure('Certification execution graph incomplete DEEP_SEMANTIC_MISSING=webkit:DEEP:webkit:ja');
+assert.equal(missingSignal.directFailureSignal, true);
+
+
 assert.equal(reasoningPolicy().principle, 'EVIDENCE_FIRST_CAUSAL_REASONING');
 
 console.log('AUTO_REPAIR_REASONING_SELF_TEST=PASS');
