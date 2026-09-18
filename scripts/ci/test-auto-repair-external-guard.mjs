@@ -44,7 +44,6 @@ assert.equal(result.status, 0, result.stderr || result.stdout);
 const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
 assert.equal(evidence.outcome, 'blocked-external');
 assert.equal(evidence.externalTooling.sourceMutationAllowed, false);
-assert.equal(evidence.externalTooling.sourceMutationAllowed, false);
 assert.equal(evidence.escalation.reason, 'external-tooling-failure');
 assert.equal(execFileSync('git', ['-C', tempDir, 'status', '--porcelain'], { encoding: 'utf8' }), '');
 
