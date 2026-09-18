@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { reasonFailure } from './auto-repair/reasoning.mjs';
+import { reasonFailure, verificationStrategy } from './auto-repair/reasoning.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
@@ -32,6 +32,7 @@ const evidence = {
   location: fileLine ? { file: fileLine[1], line: Number(fileLine[2]), column: fileLine[3] ? Number(fileLine[3]) : null } : null,
   errorCodes,
   testTitles,
+  verificationStrategy: verificationStrategy(reasoning.features),
   generatedAt: new Date().toISOString(),
 };
 
