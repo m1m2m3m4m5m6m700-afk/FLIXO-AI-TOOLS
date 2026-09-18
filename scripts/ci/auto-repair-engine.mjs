@@ -113,7 +113,7 @@ if (externalToolingFailure) {
     normalizedFailure,
     features,
     rootCause: 'external-tooling',
-    outcome: 'blocked',
+    outcome: 'blocked-external',
     verification: 'external-tooling-classification',
     provenance: { targetSha },
     preventionRule: 'Never mutate source to remediate an external model/provider/tooling failure; classify it as blocked external infrastructure and require provider-side recovery.',
