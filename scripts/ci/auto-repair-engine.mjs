@@ -110,6 +110,8 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
   evidence.reproductionCommands = impactedTests(plan.features);
   evidence.reproductionBefore = reproduce(targetDir, evidence.reproductionCommands);
   evidence.historicalRollback = historicalRollbackRecord(historicalRollbackCandidate);
+  evidence.selected = historicalRollbackCandidate.rule ?? null;
+  evidence.learning.decision = 'historical-rollback';
   try {
     evidence.repair = {
       ...(applyHistoricalRepair(targetDir, historicalRollbackCandidate)),
