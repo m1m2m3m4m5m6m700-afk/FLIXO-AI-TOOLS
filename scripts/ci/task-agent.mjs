@@ -55,11 +55,23 @@ const failureSha = arg('failure-sha');
 const failureFingerprint = arg('failure-fingerprint');
 const failureEvidencePath = arg('failure-evidence');
 const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION' : 'DIRECT_EXECUTION';
+const activeRepairTask = failureRunId || failureSha || failureFingerprint
+  ? [{
+      taskId: `repair-${(failureFingerprint || 'active-failure').slice(0, 16)}`,
+      section: 'ACTIVE REPAIR CYCLE',
+      title: `Repair active failure ${failureFingerprint || 'unknown'}`,
+      completed: false,
+      sourceLine: null,
+      sourceText: 'Generated from the current failure context; do not replace with unrelated task backlog work.',
+    }]
+  : [];
 const selected = requested
   ? tasks.filter((task) => task.taskId === requested || task.title.includes(requested))
-  : allReady
-    ? tasks.filter((task) => !task.completed)
-    : tasks.filter((task) => !task.completed).slice(0, 1);
+  : activeRepairTask.length
+    ? activeRepairTask
+    : allReady
+      ? tasks.filter((task) => !task.completed)
+      : tasks.filter((task) => !task.completed).slice(0, 1);
 
 if (!selected.length) throw new Error(requested ? `TASK_NOT_FOUND=${requested}` : 'NO_READY_TASKS');
 if (branch !== 'execution') throw new Error('DIRECT_EXECUTION_REQUIRES_EXECUTION_BRANCH');

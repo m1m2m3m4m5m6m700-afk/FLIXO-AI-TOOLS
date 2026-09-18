@@ -97,6 +97,9 @@ jobs:
       - name: Learn from historical GitHub Actions failures and repair history
         env:
           GH_TOKEN: ${{ github.token }}
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+          FLIXO_INTRACTABLE_ERRORS: /tmp/flixo-intractable-errors.json
+          FLIXO_HISTORICAL_LEARNING_OUTPUT: /tmp/flixo-historical-learning.json
         run: node scripts/ci/learn-from-historical-actions.mjs
 
       - name: Capture failed CI logs before dependency installation
@@ -178,26 +181,11 @@ jobs:
           test "$(git branch --show-current)" = execution
           echo 'verified=true' >> "$GITHUB_OUTPUT"
 
-      - name: Commit and push verified repair on the single working branch
-        if: steps.verify.outputs.verified == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          test "$(git branch --show-current)" = execution
-          git add -A
-          git diff --cached --quiet && { echo 'No applicable repair diff; refusing empty repair.'; exit 1; }
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}"
-          git push origin execution
-          PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
-          if [ -z "$PR_URL" ]; then
-            PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head execution --title "fix(auto-repair): canonical execution repair" --body "Canonical two-branch repair path.\n\nAll repairs are applied only on execution and promoted only after exact-SHA Canonical CI GREEN.")"
-          fi
-          echo "Canonical execution -> main PR: $PR_URL"
-
       - name: Record learning outcome for every diagnosed failure
         if: always()
         env:
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+          FLIXO_INTRACTABLE_ERRORS: /tmp/flixo-intractable-errors.json
           VERIFY_OUTCOME: ${{ steps.verify.outputs.verified == 'true' && 'success' || 'failure' }}
           FLIXO_FAILED_SHA: ${{ github.event.workflow_run.head_sha || '' }}
           FLIXO_RUN_ID: ${{ env.TARGET_RUN_ID }}
@@ -218,6 +206,33 @@ jobs:
           printf '%s\n' "$ENGINE_OUTCOME" > /tmp/flixo-engine-outcome
           printf '%s\n' "$LEARNING_OUTCOME" > /tmp/flixo-learning-outcome
 
+      - name: Promote verified repair learning state
+        if: steps.verify.outputs.verified == 'true'
+        run: |
+          set -euo pipefail
+          test -s /tmp/flixo-repair-memory.json
+          cp /tmp/flixo-repair-memory.json diagnostics/auto-repair/memory.json
+          if [ -s /tmp/flixo-intractable-errors.json ]; then
+            cp /tmp/flixo-intractable-errors.json diagnostics/auto-repair/intractable-errors.json
+          fi
+
+      - name: Commit and push verified repair on the single working branch
+        if: steps.verify.outputs.verified == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = execution
+          git add -A
+          git diff --cached --quiet && { echo 'No applicable repair diff; refusing empty repair.'; exit 1; }
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}"
+          git push origin execution
+          PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
+          if [ -z "$PR_URL" ]; then
+            PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head execution --title "fix(auto-repair): canonical execution repair" --body "Canonical two-branch repair path.\n\nAll repairs are applied only on execution and promoted only after exact-SHA Canonical CI GREEN.")"
+          fi
+          echo "Canonical execution -> main PR: $PR_URL"
+
       - name: Publish repair evidence
         if: always()
         uses: actions/upload-artifact@v6
@@ -233,8 +248,10 @@ jobs:
             /tmp/flixo-repair-strategy.json
             /tmp/flixo-intractable-state
             /tmp/flixo-task-agent/*.json
+            /tmp/flixo-repair-memory.json
+            /tmp/flixo-historical-learning.json
+            /tmp/flixo-intractable-errors.json
             diagnostics/auto-repair/memory.json
-            diagnostics/auto-repair/historical-learning.json
             diagnostics/auto-repair/intractable-errors.json
           if-no-files-found: warn
           retention-days: 30
