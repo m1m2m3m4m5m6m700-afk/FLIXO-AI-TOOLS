@@ -13,7 +13,7 @@ const fail = (message) => {
 if (!existsSync(memoryPath)) fail('memory-missing');
 let memory;
 try { memory = JSON.parse(readFileSync(memoryPath, 'utf8')); } catch { fail('invalid-json'); }
-if (memory?.version !== 6) fail('version-mismatch');
+if (memory?.version !== 7) fail('version-mismatch');
 for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(memory[key])) fail(`invalid-${key}`);
 
 const idPattern = /^[a-f0-9]{20}$/u;
