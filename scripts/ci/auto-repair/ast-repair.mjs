@@ -13,9 +13,10 @@ function safeRelativeFile(targetDir, candidate) {
 }
 
 export function runAstRepair(targetDir, plan) {
-  if (plan?.id === 'eslint-unused') {
-    execFileSync('npx', ['eslint', '.', '--fix'], { cwd: targetDir, stdio: 'inherit' });
-    return { applied: true, engine: 'eslint-ast', target: 'repository' };
+  if (plan?.id === 'eslint-file') {
+    const file = safeRelativeFile(targetDir, plan.file);
+    execFileSync('npx', ['eslint', '--fix', '--', file], { cwd: targetDir, stdio: 'inherit' });
+    return { applied: true, engine: 'eslint-ast', target: file };
   }
   if (plan?.id === 'prettier-file') {
     const file = safeRelativeFile(targetDir, plan.file);
