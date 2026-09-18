@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { fingerprintFailure } from './auto-repair-learning.mjs';
+import { INTRACTABLE_THRESHOLD, fingerprintFailure } from './auto-repair-learning.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
@@ -46,10 +46,10 @@ const record = (intractable.cases ?? []).find((item) => item.fingerprint === fin
 const attempts = Number(entry?.attempts ?? 0);
 const persistedAttempts = priorRepairArtifactCount();
 const nextAttempt = Math.max(attempts + 1, persistedAttempts + 1);
-const index = Math.min(strategies.length - 1, Math.max(0, nextAttempt - 1));
+const index = Math.min(INTRACTABLE_THRESHOLD - 1, strategies.length - 1, Math.max(0, nextAttempt - 1));
 const [strategyId, strategy] = strategies[index];
-const threshold = Number(intractable.threshold ?? 10);
-const isIntractable = record?.status === 'INTRACTABLE' || nextAttempt >= threshold;
+const threshold = INTRACTABLE_THRESHOLD;
+const isIntractable = record?.status === 'INTRACTABLE' || nextAttempt > threshold;
 
 fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   fingerprint,
