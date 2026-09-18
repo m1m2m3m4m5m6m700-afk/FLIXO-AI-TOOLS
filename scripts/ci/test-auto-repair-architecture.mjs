@@ -134,4 +134,7 @@ assert.match(workflow, /FLIXO_TARGET_SHA/);
 assert.match(workflow, /FLIXO_REVERTED_COMMIT/);
 assert.match(learningSource, /reversions/);
 assert.match(learningSource, /countsAsPlaybookAttempt/);
+assert.match(learningSource, /revertedRules/);
+assert.match(engineSource, /revertedRuleIds/);
+assert.match(fs.readFileSync('scripts/ci/auto-repair/historical-rollback.mjs', 'utf8'), /revertedRules/);
 console.log('AUTO_REPAIR_ARCHITECTURE_SELF_TEST=PASS');
