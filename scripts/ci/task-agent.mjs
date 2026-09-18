@@ -8,6 +8,7 @@ const ROOT = process.cwd();
 const TASK_FILE = path.join(ROOT, 'مهام.md');
 const OUTPUT_DIR = process.env.FLIXO_TASK_AGENT_OUTPUT_DIR ?? '/tmp/flixo-task-agent';
 const DIAGNOSIS_PATH = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
+const CONTRACT_VERSION = 'TASK-AGENT-DIRECT-REPAIR-v2';
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
@@ -91,6 +92,7 @@ for (const task of selected) {
   const packet = {
     schemaVersion: 8,
     authority: 'FLIXO_TASK_AGENT',
+    contractVersion: CONTRACT_VERSION,
     role: 'TASK_OWNER_AND_DIRECT_REPAIR_AGENT',
     mode: repairMode,
     preparedOnly: false,
@@ -147,6 +149,7 @@ for (const task of selected) {
         : 'Execute only the selected repair task directly on execution, verify the result, and leave main untouched.',
       sourcePayload: 'CODE_AND_EXECUTION',
       requiredChangeShape: ['path', 'operation', 'content', 'baselineSha', 'repairRationale'],
+    contractVersion: CONTRACT_VERSION,
       verificationRequired: true,
       unresolvedWorkMustBeReported: true,
       currentCycleFirst: true,
@@ -205,6 +208,7 @@ for (const task of selected) {
 const index = {
   schemaVersion: 8,
   authority: 'FLIXO_TASK_AGENT',
+  contractVersion: CONTRACT_VERSION,
   mode: repairMode,
   preparedOnly: false,
   executionMode: 'DIRECT_ON_EXECUTION_BRANCH',
