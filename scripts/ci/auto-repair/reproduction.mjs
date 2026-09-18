@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 
 export function impactedTests(features) {
+  if (features.includes('format')) return [['npm', ['run', 'format:check']]];
   if (features.includes('webkit') || features.includes('playwright')) return [['npm', ['run', 'test:browser']]];
   if (features.includes('typescript')) return [['npm', ['run', 'typecheck']]];
   if (features.includes('lint')) return [['npm', ['run', 'lint']]];
