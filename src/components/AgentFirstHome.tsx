@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import type { Locale } from '@/lib/i18n';
 import { getHomeCopy } from '../data/home-locales';
 import { LOCALES } from '../lib/i18n';
@@ -38,7 +38,6 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
   const copy = COPY[locale === 'ar' ? 'ar' : 'en'];
   const home = getHomeCopy(locale);
   const localizedTitle = home.heroTitle.replace(/<[^>]+>/g, '');
-  const brandHome = locale === 'en' ? '/' : `/${locale}`;
 
   useEffect(() => {
     document.documentElement.lang = home.language;
@@ -48,13 +47,19 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
   return (
     <main className="agent-first-home" lang={locale} dir={home.dir}>
       <header className="agent-first-nav">
-        <a className="agent-first-brand" href={brandHome} aria-label={copy.title}>
-          <img src="/flixo-logo.svg" alt="FLIXO AI Tools" width={40} height={40} />
-        </a>
+        {locale === 'en' ? (
+          <Link className="agent-first-brand" to="/" aria-label={copy.title}>
+            <img src="/flixo-logo.svg" alt="FLIXO AI Tools" width={40} height={40} />
+          </Link>
+        ) : (
+          <Link className="agent-first-brand" to="/$locale" params={{ locale }} aria-label={copy.title}>
+            <img src="/flixo-logo.svg" alt="FLIXO AI Tools" width={40} height={40} />
+          </Link>
+        )}
         <nav className="agent-first-nav-actions" aria-label={home.ariaPrimary}>
-          <a className="agent-first-tools-button" href={`/${locale}/image-compressor`}>{IMAGE_TOOLS_LABELS[locale]}</a>
-          <a className="agent-first-tools-button" href={`/${locale}/pix`}>{FILTER_LABELS[locale]}</a>
-          <label className="sr-only" htmlFor="agent-first-language">{home.nav.switch}</label>
+          <Link className="agent-first-tools-button" to="/$locale/$tool" params={{ locale, tool: 'image-compressor' }}>{IMAGE_TOOLS_LABELS[locale]}</Link>
+          <Link className="agent-first-tools-button" to="/$locale/$tool" params={{ locale, tool: 'pix' }}>{FILTER_LABELS[locale]}</Link>
+          <label className="sr-only" htmlFor="home-language">{home.nav.switch}</label>
           <select
             id="home-language"
             className="agent-first-language"
