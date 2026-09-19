@@ -864,6 +864,19 @@
             "rawOutcome": "unrepaired"
           },
           "at": "2026-09-19T06:31:40.118Z"
+        },
+        {
+          "outcome": "unrepaired",
+          "verification": "engine-error",
+          "provenance": {
+            "source": "FLIXO Auto Repair",
+            "failedSha": "c471b15907cf55b4aaa42412aa9e57c48817ec05",
+            "targetSha": "",
+            "revertedCommit": "",
+            "runId": "35426112796",
+            "rawOutcome": "unrepaired"
+          },
+          "at": "2026-09-19T06:32:18.211Z"
         }
       ],
       "confidence": 0,
@@ -883,17 +896,6 @@
       "failures": 1,
       "confidence": 0,
       "evidence": [
-        {
-          "verification": "engine-error",
-          "provenance": {
-            "source": "FLIXO Auto Repair",
-            "failedSha": "8c9f3e3ab4010d26447f54871133894159180090",
-            "targetSha": "",
-            "revertedCommit": "",
-            "runId": "35424444043",
-            "rawOutcome": "unrepaired"
-          }
-        },
         {
           "verification": "engine-error",
           "provenance": {
@@ -970,10 +972,21 @@
             "runId": "35425840483",
             "rawOutcome": "unrepaired"
           }
+        },
+        {
+          "verification": "engine-error",
+          "provenance": {
+            "source": "FLIXO Auto Repair",
+            "failedSha": "c471b15907cf55b4aaa42412aa9e57c48817ec05",
+            "targetSha": "",
+            "revertedCommit": "",
+            "runId": "35426112796",
+            "rawOutcome": "unrepaired"
+          }
         }
       ],
       "preventionRules": [],
-      "lastSeenAt": "2026-09-19T06:31:40.118Z"
+      "lastSeenAt": "2026-09-19T06:32:18.211Z"
     }
   ]
 }
