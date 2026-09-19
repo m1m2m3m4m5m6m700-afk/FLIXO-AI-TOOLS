@@ -21,6 +21,7 @@ permissions:
   actions: write
   checks: read
   pull-requests: write
+  issues: write
 
 concurrency:
   group: flixo-auto-repair-execution
