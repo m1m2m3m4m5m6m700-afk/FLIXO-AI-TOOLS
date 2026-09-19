@@ -1,4 +1,4 @@
-import { WRITE_CAPABLE_WORKFLOWS, SECURITY_CRITICAL_WORKFLOWS } from './control-plane-registry.mjs';
+import { REPAIR_GATE_AUTOMATION, WRITE_CAPABLE_WORKFLOWS, SECURITY_CRITICAL_WORKFLOWS } from './control-plane-registry.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
