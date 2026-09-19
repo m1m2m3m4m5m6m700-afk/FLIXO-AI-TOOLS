@@ -281,6 +281,8 @@ jobs:
           set -euo pipefail
           test "$(git branch --show-current)" = execution
           git add -A
+          git add -f diagnostics/auto-repair/memory.json
+          if [ -f diagnostics/auto-repair/intractable-errors.json ]; then git add -f diagnostics/auto-repair/intractable-errors.json; fi
           git diff --cached --quiet && { echo 'No applicable repair diff; refusing empty repair.'; exit 1; }
           ENGINE_OUTCOME="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.outcome||'unknown')")"
           FINGERPRINT="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.fingerprint||'unknown')")"
