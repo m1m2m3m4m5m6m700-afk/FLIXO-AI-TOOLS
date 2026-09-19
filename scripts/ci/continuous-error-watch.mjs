@@ -48,6 +48,35 @@ const latestCheck = (checks, patterns) => latestBy(checks, (check) => patterns.s
 const stateOf = (item) => !item ? 'MISSING' : item.status === 'completed' ? (item.conclusion ?? 'unknown') : (item.status ?? 'unknown');
 const providerFailure = (log) => PROVIDER_FAILURE_PATTERNS.some((pattern) => pattern.test(String(log ?? '')));
 
+export function classifyCancelledRun(run, runs = []) {
+  if (!run || run.status !== 'completed' || run.conclusion !== 'cancelled') return null;
+  const successor = latestBy(runs, (candidate) =>
+    candidate !== run &&
+    candidate.workflowName === run.workflowName &&
+    candidate.headSha === run.headSha &&
+    String(candidate.updatedAt ?? candidate.completed_at ?? candidate.started_at ?? '') >
+      String(run.updatedAt ?? run.completed_at ?? run.started_at ?? '') &&
+    (candidate.status !== 'completed' || candidate.conclusion !== 'cancelled')
+  );
+  return successor
+    ? { state: 'CANCELLED_SUPERSEDED', successorRunId: successor.databaseId ?? null }
+    : { state: 'CANCELLED_UNSUPERSEDED', successorRunId: null };
+}
+
+export function validateRepairTarget({ run, executionSha, workflowRuns = [], logs = {}, branch = 'execution' } = {}) {
+  const errors = [];
+  if (!run?.databaseId) errors.push('TARGET_MISSING');
+  if (!run || run.status !== 'completed' || !['failure', 'timed_out', 'cancelled'].includes(run.conclusion)) errors.push('TARGET_NOT_FAILED_COMPLETED');
+  if (run?.headSha !== executionSha) errors.push('TARGET_SHA_MISMATCH');
+  if ((run?.headBranch ?? null) !== branch) errors.push('TARGET_BRANCH_MISMATCH');
+  if (!REQUIRED_WORKFLOWS.includes(String(run?.workflowName ?? ''))) errors.push('TARGET_WORKFLOW_NOT_ALLOWED');
+  if (/auto repair/i.test(String(run?.workflowName ?? ''))) errors.push('TARGET_SELF_REPAIR');
+  if (classifyCancelledRun(run, workflowRuns)?.state === 'CANCELLED_SUPERSEDED') errors.push('TARGET_SUPERSEDED');
+  const evidence = String(logs[String(run?.databaseId ?? '')] ?? '').trim();
+  if (!evidence || /EVIDENCE_CAPTURE=FAILED/i.test(evidence)) errors.push('EVIDENCE_CAPTURE_FAILED');
+  return { valid: errors.length === 0, errors };
+}
+
 const logForCheck = (check, logs) => {
   const detailsUrl = String(check?.details_url ?? '');
   const match = detailsUrl.match(/\/actions\/runs\/(\d+)/);
