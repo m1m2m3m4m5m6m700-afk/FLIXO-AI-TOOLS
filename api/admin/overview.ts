@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { authorizeAdminRequest } from './boundary.ts';
+import { authorizeAdminRequestWithDurableSession } from './boundary.ts';
 import { probePersistence, isPersistenceConfigured } from './persistence.ts';
 import { ADMIN_EXECUTION_CLASSES, ADMIN_MODULES, ADMIN_ROLE_CAPABILITY_MATRIX } from '../../src/lib/admin/module-registry.ts';
 import { ADMIN_CAPABILITIES } from '../../src/lib/admin/control-plane.ts';
