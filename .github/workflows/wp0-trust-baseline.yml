@@ -58,6 +58,7 @@ jobs:
           set -euo pipefail
           npm run test:agent-execution-gate
           npm run test:agent-execution-control
+          FLIXO_AGENT_EXECUTION_CONTROL_MODE=CONTRACT_CHECK npm run agent:execution-control
           npm run test:agent-capability
 
       - name: 06 — Task identity and provenance contracts
