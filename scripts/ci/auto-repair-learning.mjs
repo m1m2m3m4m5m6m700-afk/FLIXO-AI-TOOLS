@@ -461,10 +461,18 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   const isHistoricalRevert = outcome === 'reverted-repair';
   const effectiveProviderSignature = provenance?.providerSignature ?? (isExternalBlock ? externalProviderSignature(normalizedFailure) : null);
   const strategyId = String(process.env.FLIXO_REPAIR_STRATEGY_ID ?? provenance?.strategyId ?? '').trim() || null;
+  const promptId = String(process.env.FLIXO_PROMPT_ID ?? provenance?.promptId ?? '').trim() || null;
+  const promptVersion = String(process.env.FLIXO_PROMPT_VERSION ?? provenance?.promptVersion ?? '').trim() || null;
+  const masterPromptId = String(process.env.FLIXO_MASTER_PROMPT_ID ?? provenance?.masterPromptId ?? '').trim() || null;
+  const promptDecision = String(process.env.FLIXO_PROMPT_DECISION ?? provenance?.promptDecision ?? '').trim() || null;
   const effectiveProvenance = {
     ...(provenance ?? {}),
     ...(strategyId ? { strategyId } : {}),
     ...(effectiveProviderSignature ? { providerSignature: effectiveProviderSignature } : {}),
+    ...(promptId ? { promptId } : {}),
+    ...(promptVersion ? { promptVersion } : {}),
+    ...(masterPromptId ? { masterPromptId } : {}),
+    ...(promptDecision ? { promptDecision } : {}),
   };
   const isHistoricalRevertFailure = outcome === 'revert-failure';
   if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
