@@ -48,3 +48,49 @@
 @media (max-width:1100px){.home-tools-grid{grid-template-columns:repeat(3,minmax(0,1fr)) !important;}}
 @media (max-width:840px){.home-nav-links{display:none;}.home-search-panel{position:static;}.home-trust-grid,.home-quick-drop,.home-tools-grid{grid-template-columns:1fr !important;}.home-hero{padding-top:58px !important;}.home-final-cta{flex-direction:column;align-items:flex-start !important;}}
 @media (max-width:520px){.home-content,.home-nav-inner{width:min(100% - 20px,1180px) !important;}.home-hero h1{font-size:clamp(2.5rem,15vw,4rem) !important;}}
+
+/* Arabic visual parity: preserve the same component hierarchy while applying only
+   direction-aware typography and alignment. Layout dimensions remain shared. */
+html[dir="rtl"] .home-shell {
+  font-family: "Noto Sans Arabic", "Noto Kufi Arabic", "Segoe UI", Tahoma, Arial, sans-serif;
+}
+html[dir="rtl"] .home-shell,
+html[dir="rtl"] .home-content {
+  text-align: start;
+}
+html[dir="rtl"] .home-nav-inner {
+  flex-direction: row-reverse;
+}
+html[dir="rtl"] .home-nav-links {
+  flex-direction: row-reverse;
+}
+html[dir="rtl"] .home-hero,
+html[dir="rtl"] .home-lead,
+html[dir="rtl"] .home-search-wrap,
+html[dir="rtl"] .home-trust-grid,
+html[dir="rtl"] .home-quick-drop,
+html[dir="rtl"] .home-tools-section,
+html[dir="rtl"] .home-final-cta {
+  direction: rtl;
+}
+html[dir="rtl"] .home-hero h1 {
+  letter-spacing: -0.035em !important;
+  line-height: 1.08 !important;
+}
+html[dir="rtl"] .home-hero h1 span {
+  display: inline;
+}
+html[dir="rtl"] .home-hero-command,
+html[dir="rtl"] .quick-tags,
+html[dir="rtl"] .category-pills {
+  direction: rtl;
+}
+html[dir="rtl"] .home-search-wrap input {
+  text-align: start;
+}
+html[dir="rtl"] .home-drop-zone {
+  direction: rtl;
+}
+html[dir="rtl"] .home-final-cta {
+  text-align: start;
+}
