@@ -47,6 +47,27 @@ jobs:
             git merge --abort || true
             exit 1
           fi
+
+          # The Actions GITHUB_TOKEN cannot authorize pushes that modify workflow files.
+          # Preserve the pre-merge execution versions of .github/workflows/* so this
+          # reconciliation commit contains only non-workflow changes from main.
+          WORKFLOW_CHANGES="$(git diff --name-only "$EXEC_SHA" HEAD -- .github/workflows || true)"
+          if [ -n "$WORKFLOW_CHANGES" ]; then
+            echo "Restoring execution-owned workflow files before publication:"
+            printf '%s
+' "$WORKFLOW_CHANGES"
+            while IFS= read -r path; do
+              [ -z "$path" ] && continue
+              if git cat-file -e "$EXEC_SHA:$path" 2>/dev/null; then
+                git restore --source="$EXEC_SHA" -- "$path"
+              else
+                git rm -f -- "$path"
+              fi
+            done <<< "$WORKFLOW_CHANGES"
+            git add -A .github/workflows
+            git commit --amend --no-edit
+          fi
+
           test -z "$(git status --porcelain=v1 --untracked-files=all)"
           git diff --check
 
