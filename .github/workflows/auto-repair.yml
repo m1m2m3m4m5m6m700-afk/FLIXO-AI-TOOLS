@@ -368,6 +368,7 @@ jobs:
               exit 0
             fi
             echo "Repair remains open on execution failure run $CURRENT_FAILURE_ID."
+            echo "Execution repair remains open on execution failure run $CURRENT_FAILURE_ID."
             gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution -f target_run_id="$CURRENT_FAILURE_ID"
             exit 1
           fi
