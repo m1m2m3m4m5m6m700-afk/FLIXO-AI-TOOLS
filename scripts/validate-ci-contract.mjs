@@ -9,6 +9,8 @@ const workflowTexts = workflowFiles.map((file) => ({
 }));
 
 const workflowSource = readFileSync('.github/workflows/ci.yml', 'utf8');
+const wp0Workflow = readFileSync('.github/workflows/wp0-trust-baseline.yml', 'utf8');
+const impactExecutionWorkflow = readFileSync('.github/workflows/test-impact-execution.yml', 'utf8');
 const workflow = workflowSource.replace(/\\\"/g, '"');
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
 const certifyEngine = readFileSync('scripts/ci/certify.mjs', 'utf8');
@@ -17,7 +19,7 @@ const resultState = readFileSync('scripts/ci/result-state.mjs', 'utf8');
 
 const required = [
   ['pull_request trigger', /pull_request:\s*\n\s*branches:\s*\[main\]/],
-  ['push trigger', /push:\s*\n\s*branches:\s*\[main,\s*execution\]/],
+  ['push trigger', /push:\s*\n\s*branches:\s*\[main\]/],
   ['single static-build engine', /\n\s{2}verify:\s*\n/],
   ['Browser FAST engine', /\n\s{2}browser_fast:\s*\n/],
   ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
@@ -32,6 +34,18 @@ const required = [
 for (const [label, pattern] of required) {
   if (!pattern.test(workflow)) {
     console.error(`CI contract failed: ${label} is missing from .github/workflows/ci.yml`);
+    process.exit(1);
+  }
+}
+
+const executionPushDuplicate = /push:\s*\n\s*branches:\s*\[execution\]/;
+for (const [label, source] of [
+  ['ci.yml', workflow],
+  ['wp0-trust-baseline.yml', wp0Workflow],
+  ['test-impact-execution.yml', impactExecutionWorkflow],
+]) {
+  if (executionPushDuplicate.test(source)) {
+    console.error(`CI contract failed: ${label} must not duplicate pull_request verification with an execution-branch push trigger.`);
     process.exit(1);
   }
 }

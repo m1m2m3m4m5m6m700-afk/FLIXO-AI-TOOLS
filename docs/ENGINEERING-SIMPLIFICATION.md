@@ -193,3 +193,7 @@ Two redundant entrypoints were removed only after repository-wide caller inspect
 - `build:runtime` was retained because `playwright.config.ts` explicitly uses it for the lightweight local preview path.
 
 No test, security, deployment, registry, or production boundary was removed.
+
+## Trigger de-duplication — 2026-09-19
+
+Additional simplification proof: the Canonical CI, WP0 Trust Baseline, and Test Impact Execution workflows no longer declare an `execution` push trigger. Pull-request verification remains the pre-merge authority; `main` push remains the post-merge verification surface. This removes duplicate runs without removing required coverage.

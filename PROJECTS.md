@@ -270,7 +270,7 @@ Every material workflow/project must map to one task ID in `المهام.md`. No
 STATUS = VERIFYING / BLOCKING
 BASE = 50e6a19f8faaabf958d0bdc5309ab3c8e4019fb7
 COMPLETED = canonical task-ledger selection, command facade, CI ownership consolidation, single certification authority enforcement, dead-code proof, and bounded boundary cleanup.
-REMOVED = validate-certification-graph.mjs alias; verify:contracts duplicate package command.
+REMOVED = validate-certification-graph.mjs alias; verify:contracts duplicate package command; redundant execution-branch push triggers from canonical verification workflows.
 PRESERVED = security, coverage, artifact identity, exact-SHA, WP0 trust, browser FAST/DEEP, certification, and frozen ACCEL constraints.
 NEXT = fresh Canonical CI → WP0/Security → FAST/DEEP → Certification → exact-SHA verification → main merge.
 CONSTRAINTS = ACCEL FROZEN; zero coverage/security reduction; execution → main only.
