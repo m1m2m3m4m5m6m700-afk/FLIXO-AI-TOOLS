@@ -79,14 +79,6 @@ if (historicalCandidate && !blockedRuleIds.has(historicalCandidate.id) && (!sele
     file: selected?.file ?? plan.reasoning?.location?.file ?? null,
   };
 }
-const mutationAttributionRecord = mutationAttribution({
-  beforeSha: targetSha,
-  afterSha: null,
-  changedFiles: [],
-  rule: selected?.id ?? null,
-  outcome: 'diagnostic-only',
-});
-
 const evidence = {
   schemaVersion: 6,
   protocol: 'AUTONOMOUS-REPAIR-PROTOCOL-v4',
