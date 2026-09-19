@@ -280,6 +280,15 @@ jobs:
           FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
         run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --postflight
 
+      - name: Run Phase 2 AI strategy, set-cover and security guard
+        id: ai_phase2
+        if: always()
+        env:
+          FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
+          FLIXO_REPAIR_STRATEGY_PATH: /tmp/flixo-repair-strategy.json
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+        run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase2.mjs --guard
+
       - name: Validate repair diff boundary before publication
         id: boundary
         if: always()
@@ -486,6 +495,14 @@ jobs:
           node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/flixo-prepared-repair-handoff.json','utf8'));for(const k of ['repairRunId','targetFailureRunId','chainId','failedSha','sourceSha','controllerSha','executionSha','parentSha','fingerprint','selectedRule','patchSha256']) if(h[k]===undefined||h[k]===null||h[k]==='') throw new Error('missing handoff field '+k);"
           test "${GITHUB_RUN_ID}" = "$(node -e "const h=require('/tmp/flixo-prepared-repair-handoff.json');process.stdout.write(h.repairRunId)")"
           test "$TARGET_RUN_ID" = "$(node -e "const h=require('/tmp/flixo-prepared-repair-handoff.json');process.stdout.write(h.targetFailureRunId)")"
+      - name: Validate Phase 2 release integrity handoff
+        if: steps.verify.outputs.verified == 'true'
+        env:
+          FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
+          FLIXO_REPAIR_EVIDENCE_PATH: /tmp/flixo-repair-evidence.json
+          FLIXO_EXECUTION_SHA: ${{ github.sha }}
+        run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase2.mjs --release-handoff
+
       - name: Publish repair evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -501,6 +518,7 @@ jobs:
             /tmp/flixo-learning-outcome
             /tmp/flixo-repair-evidence.json
             /tmp/flixo-ai-phase1.json
+            /tmp/flixo-ai-phase2.json
             /tmp/flixo-repair-strategy.json
             /tmp/flixo-intractable-state
             /tmp/flixo-task-agent/*.json
