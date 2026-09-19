@@ -150,9 +150,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Use a SHA-specific root-level .txt asset. This avoids SPA fallback
-          # and gives every deployment a unique cache key.
-          identity_url="$FLIXOAI_PRODUCTION_ORIGIN/__flixo-identity-$DEPLOYMENT_SHA.txt?__flixo_sha=$DEPLOYMENT_SHA&__flixo_verify=$GITHUB_RUN_ID"
+          # Use the canonical versioned identity asset already validated in the
+          # certified build artifact. Its path is unique per deployment SHA.
+          identity_url="$FLIXOAI_PRODUCTION_ORIGIN/__flixo/identity/$DEPLOYMENT_SHA/index.txt?__flixo_sha=$DEPLOYMENT_SHA&__flixo_verify=$GITHUB_RUN_ID"
           legacy_identity_url="$FLIXOAI_PRODUCTION_ORIGIN/flixo-head-sha.txt"
           root_url="$FLIXOAI_PRODUCTION_ORIGIN/?__flixo_sha=$DEPLOYMENT_SHA&__flixo_verify=1"
 
@@ -169,7 +169,7 @@ jobs:
             echo "Observed SHA: ${identity_body:-<empty>}"
             exit 1
           fi
-          echo "Production unique immutable identity matches exact deployment SHA"
+          echo "Production canonical immutable identity matches exact deployment SHA"
 
           # Legacy root asset is retained for compatibility, but it is not a
           # deployment gate because Cloudflare may serve a stale/colliding asset.
