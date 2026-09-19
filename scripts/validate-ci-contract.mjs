@@ -84,7 +84,10 @@ for (const [file, source] of [
 
 const evidenceClassPresent = workflow.includes('evidenceClass') && workflow.includes('PRIMARY_EXECUTION');
 
-if (/gh run view[\s\S]*--log-failed[\s\S]*\|\|\s*true/u.test(greenGateWorkflow)) {
+const evidenceCaptureSwallowsFailure = greenGateWorkflow
+  .split(/\r?\n/u)
+  .some((line) => /gh run view.*--log-failed.*\|\|\s*true/u.test(line));
+if (evidenceCaptureSwallowsFailure) {
   console.error('CI contract failed: evidence capture must not swallow gh run view failures.');
   process.exit(1);
 }
