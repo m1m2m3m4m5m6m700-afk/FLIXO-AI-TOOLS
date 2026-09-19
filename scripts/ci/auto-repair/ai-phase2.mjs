@@ -27,17 +27,10 @@ export function globMatch(file, pattern) {
     if (ch === '*' && source[index + 1] === '*') { regex += '.*'; index += 1; continue; }
     if (ch === '*') { regex += '[^/]*'; continue; }
     if (ch === '?') { regex += '.'; continue; }
-    regex += '\\\\^$+?.()|[]{}'.includes(ch) ? '\\\\' + ch : ch;
+    regex += '\\^$+?.()|[]{}'.includes(ch) ? '\\' + ch : ch;
   }
-  return new RegExp(regex + '(strategy={},memory={},context={}){
- const ids=['reproduce-exact','minimize-failure','diff-forensics','environment-audit','workflow-forensics','observability-trace','historical-analogy','synthetic-reproduction','alternate-hypothesis','supervising-escalation'];
- const attempt=Number(strategy.attempt??0);const selected=String(strategy.strategyId??'');
- const next=attempt>0?ids[(attempt-1)%ids.length]:(selected||ids[0]);
- const failedHistory=(memory.cases??[]).flatMap(x=>x.outcomes??[]).filter(x=>x.outcome!=='success').slice(-8);
- const repeatPenalty=failedHistory.filter(x=>x.strategyId===selected).length;
- return Object.freeze({schemaVersion:1,inputStrategy:selected||null,attempt,deterministicNext:next,repeatPenalty,teachingEscalation:strategy.teachingEscalation===true,repairAttemptRequired:true,sourceSha:context.sourceSha||null,failureFingerprint:context.failure?.fingerprint||null,impactEscalation:context.impact?.escalation||null});
+  return new RegExp(regex + '$').test(file);
 }
-
 export function minimizeTestSet(changedFiles=[],impactMap={}){
  const files=uniq(changedFiles.map(norm));const rules=Array.isArray(impactMap.rules)?impactMap.rules:[];const matched=[];const unknown=[];
  for(const file of files){const hits=rules.filter(r=>(r.patterns??[]).some(p=>globMatch(file,p)));if(!hits.length)unknown.push(file);else matched.push(...hits.map(r=>({...r,file})));}
