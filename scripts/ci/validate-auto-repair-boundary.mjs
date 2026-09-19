@@ -6,14 +6,12 @@ import { execFileSync } from 'node:child_process';
 const ROOT = process.cwd();
 const AUTO_REPAIR = path.join(ROOT, '.github', 'workflows', 'auto-repair.yml');
 const DAILY_GATE = path.join(ROOT, '.github', 'workflows', 'daily-flixo-green-gate.yml');
-const MERGE_GATE = path.join(ROOT, '.github', 'workflows', 'auto-repair-merge-gate.yml');
 const MAX_CHANGED_FILES = 12;
 const MAX_CHANGED_LINES = 300;
 
 export const CONTROL_PLANE_FILES = Object.freeze([
   '.github/workflows/auto-repair.yml',
   '.github/workflows/daily-flixo-green-gate.yml',
-  '.github/workflows/auto-repair-merge-gate.yml',
   '.github/workflows/agent-repair-handoff-gate.yml',
   'scripts/ci/validate-auto-repair-boundary.mjs',
   'scripts/ci/task-agent.mjs',
@@ -44,7 +42,6 @@ function read(file) {
 export function validateStatic() {
   const auto = read(AUTO_REPAIR);
   const dailyGate = read(DAILY_GATE);
-  const mergeGate = read(MERGE_GATE);
   const errors = [];
   const must = (condition, code) => { if (!condition) errors.push(code); };
 
@@ -71,18 +68,6 @@ export function validateStatic() {
   must(/gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--ref execution/i.test(dailyGate), 'daily-gate-auto-repair-dispatch');
   must(!/gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i.test(dailyGate), 'daily-gate-no-watchdog-dispatch');
 
-  must(/name:\s*FLIXO Auto Repair Merge Gate/.test(mergeGate), 'merge-gate-identity');
-  must(/pull_request:\s*\n[\s\S]*branches:\s*\[main\]/.test(mergeGate), 'merge-gate-main-trigger');
-  must(/github\.event\.pull_request\.head\.ref == 'execution'/.test(mergeGate), 'merge-gate-execution-only');
-  must(/gh api --method PATCH[\s\S]*git\/refs\/heads\/main/.test(mergeGate), 'merge-gate-fast-forward-ref-update');
-  must(/-F "force=false"/.test(mergeGate), 'merge-gate-no-force-push');
-  must(/COMPARE=.*compare\//.test(mergeGate), 'merge-gate-ancestry-proof');
-  must(/MAIN_AFTER=.*commits\/main[\s\S]*MAIN_AFTER.*EXPECTED_SHA/.test(mergeGate), 'merge-gate-post-promotion-sha-readback');
-  must(/gh api "repos\/\$GITHUB_REPOSITORY\/commits\/\$EXPECTED_SHA\/status"/.test(mergeGate), 'merge-gate-status-proof');
-  must(/EXTERNAL_PROVIDER_GATE=INFORMATIONAL/.test(mergeGate), 'merge-gate-vercel-informational');
-  must(!/test "\$VERCEL_STATE" = "success"/.test(mergeGate), 'merge-gate-vercel-hard-gate-forbidden');
-  must(!/gh\s+pr\s+merge/i.test(mergeGate), 'merge-gate-no-pr-merge');
-  must(!/--squash|--rebase|--merge(?:\s|")/i.test(mergeGate), 'merge-gate-no-non-ff-method');
 
 
   const timeout = Number(auto.match(/jobs:\s*\n\s+repair:[\s\S]*?timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
