@@ -261,6 +261,14 @@ for (const task of selected) {
       candidates: promptMemory,
       decision: promptMemory.some((item) => item.promptId === 'RPR-ERROR-RCA-001') ? 'REUSE_OR_SPECIALIZE' : 'MASTER_FALLBACK',
     },
+    promptIntelligence: {
+      registryPath: 'docs/agents/PROMPT-REGISTRY.json',
+      masterPromptId: 'RPR-CORE-MASTER-001',
+      selectedPromptId: promptMemory[0]?.promptId ?? 'RPR-CORE-MASTER-001',
+      selectedPromptVersion: promptMemory[0]?.version ?? 1,
+      candidates: promptMemory,
+      decision: promptMemory.length > 1 ? 'REUSE_OR_SPECIALIZE' : 'MASTER_FALLBACK',
+    },
     cognition: diagnosis ? {
       authority: 'AUTO_REPAIR_REASONING_KERNEL',
       schemaVersion: diagnosis.schemaVersion ?? null,
