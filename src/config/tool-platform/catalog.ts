@@ -44,3 +44,8 @@ export function createToolCatalog(source: readonly ToolCatalogSource[]): ToolCat
     byAlias: freezeMap(byAlias),
   });
 }
+
+
+export function loadToolCatalog(source: readonly ToolCatalogSource[]): ToolCatalog {
+  return createToolCatalog(source);
+}
