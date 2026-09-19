@@ -2,13 +2,13 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const taskFile = fs.readFileSync('مهام.md', 'utf8');
+const taskFile = fs.readFileSync('المهام.md', 'utf8');
 const contract = fs.readFileSync('docs/agents/TASK-AGENT.md', 'utf8');
 const agent = fs.readFileSync('scripts/ci/task-agent.mjs', 'utf8');
 const execution = fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8');
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 
-assert.ok(taskFile.length > 0, 'مهام.md must exist and be non-empty');
+assert.ok(taskFile.length > 0, 'المهام.md must exist and be non-empty');
 assert.match(contract, /direct-execution agent/i);
 assert.match(contract, /MUST NOT use a repair cycle to:[\s\S]*mutate `main`[\s\S]*self-approve\/merge/i);
 assert.match(contract, /SELF_HEALING_REPAIR_ONLY/);
