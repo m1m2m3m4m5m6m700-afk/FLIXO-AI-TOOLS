@@ -36,7 +36,7 @@ assert.match(workflow, /EVIDENCE_CAPTURE=FAILED/);
 assert.doesNotMatch(workflow, /github\.event\.workflow_run/);
 assert.match(workflow, /gh workflow run auto-repair\.yml/);
 assert.match(workflow, /DISPATCH AUTHORITY: Daily·FLIXO Green Gate/);
-assert.match(workflow, /--branch=\"\$FLIXO_REPAIR_TARGET_BRANCH\"/);
+assert.match(workflow, /--branch="\$FLIXO_REPAIR_TARGET_BRANCH"/);
 const supervisor = fs.readFileSync('.github/workflows/agent-repair-supervisor.yml', 'utf8');
 assert.match(supervisor, /push:/);
 assert.match(supervisor, /branches: \[execution, main\]/);
