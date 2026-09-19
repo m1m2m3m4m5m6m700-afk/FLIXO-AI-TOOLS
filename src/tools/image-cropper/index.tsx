@@ -52,7 +52,7 @@ const copy = {
   },
 } as const;
 
-export function ImageCropperTool({ locale }: { locale?: string }) {
+function ImageCropperTool({ locale }: { locale?: string }) {
   const resolvedLocale = locale ?? (typeof document !== 'undefined' ? document.documentElement.lang : 'en');
   const lang = resolvedLocale.toLowerCase().startsWith('ar') ? 'ar' : 'en';
   const [parameters, setParameters] = useState<Parameters>({ x: 0, y: 0, cropWidth: 500, cropHeight: 500, width: 500, height: 500 });
@@ -105,3 +105,5 @@ export function ImageCropperTool({ locale }: { locale?: string }) {
     />
   );
 }
+export { ImageCropperTool };
+export default ImageCropperTool;
