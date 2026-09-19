@@ -15,12 +15,12 @@ const read = (path) => {
   const file = resolve(ROOT, path);
   return existsSync(file) ? readFileSync(file, 'utf8') : '';
 };
-const grep = (pattern) => {
+const grep = (pattern, files = tracked.filter((p) => existsSync(resolve(ROOT, p)))) => {
   try {
-    return run(['grep', '-n', '-I', '-E', '-e', pattern, '--', ...tracked.filter((p) => existsSync(resolve(ROOT, p)))])
-      .trim();
-  } catch {
-    return '';
+    return run(['grep', '-n', '-I', '-E', '-e', pattern, '--', ...files]).trim();
+  } catch (error) {
+    if (error?.status === 1) return '';
+    throw error;
   }
 };
 const findings = [];
@@ -79,7 +79,7 @@ for (const file of tracked) {
 
 for (const dep of packageNames) {
   const escaped = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const usage = grep(`(?:from|require\\(|import\\(|['"])${escaped}(?:['"/])`);
+  const usage = grep(`(from|require\\(|import\\()[[:space:]]*['"]${escaped}['"/]`, sourceFiles);
   if (!usage) {
     findings.push({ id: 'RC-DEBT-UNREFERENCED-DEPENDENCY-CANDIDATE', category: 'DEPENDENCY', severity: 'LOW', status: 'CANDIDATE', target: dep, summary: 'Package manifest entry has no obvious tracked source import/reference.', evidence: { sourceReferences: 0 }, action: 'REVIEW_THEN_REMOVE' });
   }

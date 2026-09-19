@@ -1,12 +1,19 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 const ROOT = process.cwd();
 const auditPath = resolve(ROOT, 'diagnostics/ci/technical-debt-audit.json');
 const run = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
+
+const producer = spawnSync(process.execPath, ['scripts/ci/audit-technical-debt.mjs'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+});
+assert.equal(producer.status, 0, `technical-debt audit producer must exit cleanly: ${producer.stderr}`);
+assert.equal(producer.stderr, '', 'technical-debt audit producer must not emit diagnostic errors');
 
 const output = execFileSync(process.execPath, ['scripts/ci/validate-technical-debt-audit.mjs'], {
   cwd: ROOT,
@@ -26,6 +33,13 @@ assert.equal(audit.findings.length, audit.summary.findings);
 assert.equal(audit.inventory.genericPlaywrightHarness, true, 'generic Playwright harness must be recognized for test ownership');
 assert.equal(audit.findings.some((finding) => finding.target === 'tests/foundation.spec.ts' && finding.id === 'RC-DEBT-ORPHAN-TEST-CANDIDATE'), false, 'Playwright-owned spec must not be classified as orphaned');
 assert.equal(audit.findings.some((finding) => finding.target === 'artifacts/ci/legacy-inventory.json'), false, 'historical evidence must not be classified as legacy deletion debt');
+for (const dependency of ['react', 'react-dom', '@playwright/test', 'vite']) {
+  assert.equal(
+    audit.findings.some((finding) => finding.id === 'RC-DEBT-UNREFERENCED-DEPENDENCY-CANDIDATE' && finding.target === dependency),
+    false,
+    `used dependency ${dependency} must not be classified as unreferenced`,
+  );
+}
 const fingerprints = audit.findings.map((finding) => finding.fingerprint);
 assert.equal(new Set(fingerprints).size, fingerprints.length, 'finding fingerprints must be unique');
 for (const fingerprint of fingerprints) assert.match(fingerprint, /^[a-f0-9]{64}$/);
