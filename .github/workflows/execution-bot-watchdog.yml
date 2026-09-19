@@ -8,8 +8,6 @@ run-name: FLIXO Execution Bot Watchdog ${{ github.run_id }}
 # state and dispatches the canonical repair chain for actionable failures.
 
 on:
-  push:
-    branches: [execution]
   workflow_dispatch:
   workflow_run:
     workflows:
