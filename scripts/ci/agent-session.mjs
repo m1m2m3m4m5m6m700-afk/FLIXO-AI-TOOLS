@@ -15,12 +15,18 @@ for (let i = 2; i < process.argv.length; i += 1) {
 }
 
 const command = String(process.argv[2] ?? '').toLowerCase();
-const sessionId = String(args.get('session') ?? process.env.FLIXO_AGENT_SESSION ?? '').trim();
+const rawSessionId = String(args.get('session') ?? process.env.FLIXO_AGENT_SESSION ?? '').trim();
+const rawFromSession = String(args.get('from-session') ?? process.env.FLIXO_AGENT_FROM_SESSION ?? '').trim() || null;
+const safeSessionId = (value, label) => {
+  if (!value || value.length > 128 || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value)) throw new Error(`INVALID_${label.toUpperCase()}_ID`);
+  return value;
+};
+const sessionId = safeSessionId(rawSessionId, 'session');
 const agentId = String(args.get('agent') ?? process.env.FLIXO_AGENT_ID ?? '').trim();
 const role = String(args.get('role') ?? process.env.FLIXO_AGENT_ROLE ?? 'implementation').trim();
 const rca = String(args.get('rca') ?? process.env.FLIXO_AGENT_RCA ?? '').trim() || null;
 const scope = String(args.get('scope') ?? process.env.FLIXO_AGENT_SCOPE ?? '').split(',').map((v) => v.trim()).filter(Boolean);
-const fromSession = String(args.get('from-session') ?? process.env.FLIXO_AGENT_FROM_SESSION ?? '').trim() || null;
+const fromSession = rawFromSession ? safeSessionId(rawFromSession, 'previous_session') : null;
 const taskId = String(args.get('task') ?? process.env.FLIXO_AGENT_TASK ?? '').trim();
 const sessionDir = path.resolve(ROOT, 'diagnostics/agents/sessions');
 const visibilityDir = path.resolve(ROOT, 'docs/agents/ledger');
