@@ -210,14 +210,30 @@ export function evaluateGreen({
       report.errors.push({ type: 'REQUIRED_CHECK_PENDING', workflow: name, status: run.status });
     } else if (run.conclusion === 'action_required') {
       report.errors.push({ type: 'REQUIRED_CHECK_ACTION_REQUIRED', workflow: name, runId: run.databaseId, action: 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED' });
+    } else if (run.conclusion === 'cancelled') {
+      const cancelled = classifyCancelledRun(run, workflowRuns);
+      if (cancelled?.state === 'CANCELLED_SUPERSEDED') {
+        report.ci.requiredWorkflows[name].status = 'CANCELLED_SUPERSEDED';
+        report.ci.requiredWorkflows[name].successorRunId = cancelled.successorRunId;
+      } else {
+        report.errors.push({ type: 'CANCELLED_UNSUPERSEDED', workflow: name, runId: run.databaseId });
+      }
     } else if (run.conclusion !== 'success') {
       const failureLog = logs[String(run.databaseId)] ?? '';
-      if (providerFailure(failureLog)) {
+      const target = validateRepairTarget({ run, executionSha, workflowRuns, logs });
+      if (!target.valid) {
+        const evidenceOnly = target.errors.every((type) => type === 'EVIDENCE_CAPTURE_FAILED');
+        if (!evidenceOnly) report.errors.push(...target.errors.map((type) => ({ type, workflow: name, runId: run.databaseId })));
+        if (target.errors.includes('EVIDENCE_CAPTURE_FAILED')) {
+          report.errors.push({ type: 'EVIDENCE_CAPTURE_FAILED', workflow: name, runId: run.databaseId });
+        }
+      } else if (providerFailure(failureLog)) {
         report.externalBlockers.push({
           kind: 'BLOCKED_EXTERNAL',
           workflow: name,
           state: run.conclusion,
           rootCause: 'EXTERNAL_PROVIDER_FAILURE',
+          fingerprint: fingerprintFailure(failureLog),
         });
       } else {
         report.errors.push({
@@ -227,12 +243,11 @@ export function evaluateGreen({
           runId: run.databaseId,
         });
 
-        if (!report.repair.required && !['FLIXO Test System', 'FLIXO WP0 Trust Baseline'].includes(name)) {
-          const failureLog = logs[String(run.databaseId)] ?? '';
-          const failureFingerprint = fingerprintFailure(failureLog || (name + ':' + run.conclusion));
+        if (!report.repair.required) {
+          const failureFingerprint = fingerprintFailure(failureLog);
           report.repair = {
             required: true,
-            targetRunId: run.databaseId ?? null,
+            targetRunId: run.databaseId,
             failureFingerprint,
             repairKey: executionSha + ':' + failureFingerprint,
             action: 'PENDING_DISPATCH',
@@ -352,6 +367,7 @@ export function evaluateGreen({
     'STALE_WORKFLOW_EVIDENCE',
     'MAIN_DIVERGENCE',
     'POST_MERGE_MAIN_IDENTITY_MISMATCH',
+    'CANCELLED_UNSUPERSEDED',
   ].includes(error.type));
 
   const actionRequired = report.errors.some((error) => error.type === 'REQUIRED_CHECK_ACTION_REQUIRED');
@@ -361,6 +377,7 @@ export function evaluateGreen({
     'REQUIRED_CHECK_MISSING',
     'SECURITY_EVIDENCE_MISSING',
     'CERTIFICATION_EVIDENCE_MISSING',
+    'EVIDENCE_CAPTURE_FAILED',
   ].includes(error.type));
 
   const pending = report.errors.some((error) => [
