@@ -113,7 +113,7 @@ assert.match(taskAgentSource, /maxPreparedFiles: 12/);
 const learningSource = fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8');
 assert(!learningSource.includes('git/refs/heads/flixo-intractable/'));
 assert(!learningSource.includes('flixo-intractable/'));
-assert.match(learningSource, /MEMORY_VERSION = 9/);
+assert.match(learningSource, /MEMORY_VERSION = 10/);
 assert.match(learningSource, /Math\.max\(parsed\.version, MEMORY_VERSION\)/);
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /MAX_REPAIR_CYCLES = 12/);
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /MAX_STALLED_REPAIR_CYCLES = 3/);
