@@ -262,6 +262,14 @@ FIX = replace the browser-dependent networkidle wait with deterministic load + d
 VERIFICATION = fresh canonical Browser FAST/DEEP execution on the exact SHA across all three engines.
 PREVENTION = do not use networkidle as the synchronization primitive for this local static contract unless the application explicitly requires network quiescence.
 
+
+RC-038 = Auto Repair Phase 1 previously failed with EXPECTED_SHA_MISSING despite target-file evidence existing.
+FIX = propagate FLIXO_EXPECTED_TARGET_SHA through the job environment and retain file checks.
+VERIFICATION = exact failed-SHA Phase 1 preflight and verified-repair handoff.
+
+RC-039 = Auto Repair downstream postflight could mask the primary RED with a missing strategy artifact error.
+FIX = gate dependent phases on upstream success and fail closed on missing strategy data.
+VERIFICATION = next real Auto Repair failure/repair cycle.
 ## GOVERNANCE
 
 Bounded single-owner work may execute directly on `main`. Use `execution` only for materially risky, broad, conflict-prone, architectural, or production-sensitive isolation. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements remain mandatory.

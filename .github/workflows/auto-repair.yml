@@ -79,9 +79,12 @@ jobs:
             exit 1
           }
           printf '%s\n' "$CURRENT_TARGET_SHA" > /tmp/flixo-current-target-sha
+          printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
+          test -s /tmp/flixo-failed-sha
+          test "$(cat /tmp/flixo-failed-sha)" = "$FAILED_SHA"
+          echo "FLIXO_EXPECTED_TARGET_SHA=$FAILED_SHA" >> "$GITHUB_ENV"
           test "$FAILED_NAME" != "FLIXO Auto Repair Bot" || { echo 'FAIL CLOSED: auto-repair cannot repair itself.'; exit 1; }
           test "$FAILED_NAME" != "FLIXO Auto Repair Chain" || { echo 'FAIL CLOSED: auto-repair cannot repair itself.'; exit 1; }
-          printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
           printf '%s\n' "$FAILED_BRANCH" > /tmp/flixo-failed-branch
           printf '%s\n' "$FAILED_NAME" > /tmp/flixo-failed-workflow
 
@@ -220,6 +223,7 @@ jobs:
       - name: Run Phase 1 AI failure intelligence and exact-target preflight
         env:
           FLIXO_CURRENT_TARGET_SHA_FILE: /tmp/flixo-failed-sha
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
           FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
         run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --preflight
 
@@ -287,15 +291,16 @@ jobs:
 
       - name: Build Phase 1 AI impact and CI orchestration plan
         id: ai_phase1
-        if: always()
+        if: always() && steps.strategy.outcome == 'success'
         env:
           FLIXO_CURRENT_TARGET_SHA_FILE: /tmp/flixo-failed-sha
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
           FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
         run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --postflight
 
       - name: Run Phase 2 AI strategy, set-cover and security guard from Phase 1 canonical context
         id: ai_phase2
-        if: always()
+        if: always() && steps.ai_phase1.outcome == 'success'
         env:
           FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
           FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
@@ -305,7 +310,7 @@ jobs:
 
       - name: Run Phase 3 AI decision-intelligence postflight
         id: ai_phase3
-        if: always()
+        if: always() && steps.ai_phase2.outcome == 'success'
         env:
           FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
           FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
@@ -384,6 +389,12 @@ jobs:
             LEARNING_OUTCOME='proposed'
           else
             LEARNING_OUTCOME='unrepaired'
+          fi
+          if [ ! -s /tmp/flixo-repair-strategy.json ]; then
+            printf '%s\n' 'engine-error' > /tmp/flixo-engine-outcome
+            printf '%s\n' 'unrepaired' > /tmp/flixo-learning-outcome
+            echo 'FAIL CLOSED: repair strategy evidence is missing; no handoff or learning promotion is permitted.'
+            exit 1
           fi
           STRATEGY_ID="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId||'')")"
           FLIXO_REPAIR_STRATEGY_ID="$STRATEGY_ID" FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" FLIXO_LEARNING_OUTCOME="$LEARNING_OUTCOME" FLIXO_VERIFICATION="$ENGINE_OUTCOME" FLIXO_TARGET_SHA="$TARGET_SHA" FLIXO_REVERTED_COMMIT="$REVERTED_COMMIT" FLIXO_TRUSTED_MEMORY_SHA="${FLIXO_TRUSTED_MEMORY_SHA:-}" node scripts/ci/auto-repair-learning.mjs

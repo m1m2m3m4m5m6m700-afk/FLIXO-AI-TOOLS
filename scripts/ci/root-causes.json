@@ -442,5 +442,29 @@
       "FLIXO Test System Browser DEEP on exact SHA across Firefox/Chromium/WebKit"
     ],
     "prevention": "Use deterministic document readiness, font readiness, animation-frame, and idle-callback settling for this local static/runtime contract instead of browser-dependent networkidle quiescence."
+  },
+  "RC-AUTOREPAIR-EXPECTED-SHA-001": {
+    "category": "AUTO_REPAIR",
+    "description": "Auto Repair Phase 1 previously failed with EXPECTED_SHA_MISSING even though the target resolver wrote the failed SHA file.",
+    "repairTargets": [
+      ".github/workflows/auto-repair.yml"
+    ],
+    "verification": [
+      "Phase 1 preflight on exact failed SHA with FLIXO_EXPECTED_TARGET_SHA",
+      "verified-repair handoff gate"
+    ],
+    "prevention": "Propagate the exact target SHA through GITHUB_ENV and retain independent file proof."
+  },
+  "RC-AUTOREPAIR-STRATEGY-CASCADE-001": {
+    "category": "AUTO_REPAIR",
+    "description": "Downstream postflight/learning steps could emit a secondary missing strategy artifact error after an upstream strategy/preflight failure.",
+    "repairTargets": [
+      ".github/workflows/auto-repair.yml"
+    ],
+    "verification": [
+      "Auto Repair failure-path execution",
+      "no secondary strategy artifact exception"
+    ],
+    "prevention": "Gate dependent AI phases on upstream success and explicitly fail closed when strategy evidence is absent."
   }
 }
