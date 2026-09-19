@@ -56,7 +56,7 @@ assert.equal(isPathAllowed('src/example.ts'), true);
 assert.equal(repairPolicy.maxChangedFiles, 8);
 assert.equal(repairPolicy.maxChangedLines, 300);
 assert.equal(repairPolicy.maxAttemptsPerFingerprint, 3);
-assert.equal(MEMORY_VERSION, 9);
+assert.equal(MEMORY_VERSION, 10);
 assert.match(fs.readFileSync('scripts/ci/auto-repair/reasoning.mjs', 'utf8'), /ONLY_FRESH_EXACT_SHA_SCOUT_EVIDENCE_IS_ACTIONABLE/);
 assert.equal(INTRACTABLE_THRESHOLD, 3);
 assert.equal(planRepair('webkit waitForGpuRender timeout').selected, null);
@@ -92,7 +92,7 @@ assert.match(escalationReason(badProof), /^repair-proof-incomplete:/);
 
 const learnedFingerprint = fingerprintFailure('eslint no-unused-vars');
 const ranked = rankLessons({
-  version: 9,
+  version: 10,
   cases: [],
   playbooks: [],
   lessons: [{ id: 'good', fingerprint: learnedFingerprint, rootCause: 'eslint-specialist', rule: 'eslint-unused', confidence: 1 }],
@@ -121,7 +121,7 @@ assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), 
 const strategySource = fs.readFileSync('scripts/ci/repair-strategy.mjs', 'utf8');
 assert.match(strategySource, /% strategies\.length/);
 assert.match(strategySource, /teachingEscalation/);
-assert.match(strategySource, /const isIntractable = false/);
+assert.match(strategySource, /const isIntractable = teachingEscalation/);
 assert.match(strategySource, /INTRACTABLE_THRESHOLD/);
 assert.match(strategySource, /nextAttempt > threshold/);
 const rollbackSource = fs.readFileSync('scripts/ci/auto-repair/historical-rollback.mjs', 'utf8');
