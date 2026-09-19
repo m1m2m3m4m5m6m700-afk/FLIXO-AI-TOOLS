@@ -50,7 +50,9 @@ const index = (Math.max(0, nextAttempt - 1)) % strategies.length;
 const [strategyId, strategy] = strategies[index];
 const threshold = INTRACTABLE_THRESHOLD;
 const teachingEscalation = record?.status === 'INTRACTABLE' || nextAttempt > threshold;
-const isIntractable = teachingEscalation;
+// Learning may escalate the case for supervision, but it must never suppress the next
+// evidence-backed repair attempt for an actionable RED. The selected strategy rotates.
+const isIntractable = false;
 
 fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   fingerprint,
@@ -61,7 +63,7 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   intractable: isIntractable,
   teachingEscalation,
   cycle: nextAttempt,
-  protocol: teachingEscalation ? 'SUPERVISING-REPAIR-TEACHING-v1' : null,
+  protocol: teachingEscalation ? 'SUPERVISING-REPAIR-TEACHING-v1-CONTINUE-REPAIR' : null,
 }, null, 2)}\n`);
 fs.writeFileSync('/tmp/flixo-intractable-state', isIntractable ? 'true\n' : 'false\n');
-console.log(JSON.stringify({ fingerprint, attempt: nextAttempt, priorRepairArtifacts: persistedAttempts, strategyId, teachingEscalation, intractable: isIntractable }));
+console.log(JSON.stringify({ fingerprint, attempt: nextAttempt, priorRepairArtifacts: persistedAttempts, strategyId, teachingEscalation, intractable: isIntractable, policy: 'EVERY_ACTIONABLE_RED_REQUIRES_REPAIR_ATTEMPT' }));
