@@ -1,6 +1,6 @@
 # FLIXO Agent Coordination Control Plane v2
 
-The repository uses one shared control plane for multi-agent execution.
+The repository uses one shared control plane for multi-agent execution and one durable per-session visibility ledger. Runtime locks/state protect active ownership; the visibility ledger makes each agent's task and final outcome readable by the other agents.
 
 ## State
 
@@ -41,3 +41,16 @@ Task completion records exact exit SHA, evidence and findings. Primary certifica
 `node scripts/ci/agent-coordination.mjs ingest-handoff ...`
 
 `node scripts/ci/agent-coordination.mjs state`
+
+## Durable cross-agent visibility
+
+Runtime files under `diagnostics/agents/` remain generated coordination state and may be absent from Git. The tracked cross-agent reading surface is:
+
+`docs/agents/ledger/<sessionId>.json`
+
+Every agent MUST login with `--task=<task-id>`. Login creates an OPEN/RUNNING record. Logout MUST write the final status and final summary. `task-complete` accepts only a VERIFIED closed record with a matching handoff and exact exit SHA; `task-release` accepts only a VERIFIED or BLOCKED closed record.
+
+To inspect all visible agent records:
+`node scripts/ci/agent-coordination.mjs visible`
+
+Visibility never transfers authority and never replaces CI/certification evidence.

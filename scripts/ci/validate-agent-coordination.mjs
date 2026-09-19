@@ -9,10 +9,11 @@ const read = (file) => fs.readFileSync(path.resolve(root, file), 'utf8');
 const exists = (file) => fs.existsSync(path.resolve(root, file));
 
 const expected = {
-  'scripts/ci/agent-coordination.mjs': ['task-create', 'task-claim', 'task-release', 'task-complete', 'ingest-handoff', 'COORDINATION_CONFLICT'],
-  'scripts/ci/agent-session.mjs': ['login', 'logout', '--from-session=<previous-session>', 'VERIFIED', 'BLOCKED'],
+  'scripts/ci/agent-coordination.mjs': ['task-create', 'task-claim', 'task-release', 'task-complete', 'visible', 'ingest-handoff', 'COORDINATION_CONFLICT', 'AGENT_VISIBILITY', 'TASK_COMPLETION_REQUIRES_VERIFIED_AGENT_STATUS'],
+  'scripts/ci/agent-session.mjs': ['login', 'logout', '--from-session=<previous-session>', '--task=<task-id>', 'VERIFIED', 'BLOCKED', 'FINAL_SUMMARY_REQUIRED_BEFORE_SESSION_CLOSE', 'docs/agents/ledger'],
   'docs/AGENT-HANDOFF-REPORT-SCHEMA.md': ['completedWork', 'failedWork', 'remainingWork', 'executionPlanNext', 'handoffToNextAgent'],
   'docs/AGENT-COLLABORATION-PROTOCOL.md': ['Multi-Agent', 'handoff', 'scope', 'RCA', 'Assistant/controller', 'Execution Agent', 'Evidence over assertion', 'Stop-and-escalate', 'Challenge-before-mutation', 'Independent review', 'Decision trace', 'Parallel execution protocol', 'Conflict arbitration', 'Quality dimensions'],
+  'docs/agents/ledger/README.md': ['Agent Visibility Ledger', 'docs/agents/ledger/<sessionId>.json', 'taskId', 'finalStatus', 'finalSummary', 'visibilityState'],
   'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json': ['ASSISTANT_AGENT_COOPERATION_CONTRACT', 'assistantController', 'codeScout', 'executionAgent', 'reviewAgent', 'testAgent', 'securityAgent', 'performanceAgent', 'certificationAuthority', 'messageEnvelope', 'no_implicit_authority', 'parallelism', 'arbitration', 'architecture', 'quality', 'efficiency', 'recovery', 'security', 'release'],
   'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md': ['READ', 'WRITE', 'FORBIDDEN', 'NO_SOURCE_MUTATION', 'code-scout-latest.json', 'execution agents'],
 };
@@ -45,6 +46,21 @@ if (!scout) failures.push('SCOUT_SCRIPT_MISSING');
 else {
   for (const marker of ["authority: 'READ_ONLY_CODE_SCOUT'", "mode: 'READ_ONLY_ANALYSIS'", "mutationPolicy: 'NO_SOURCE_MUTATION'", 'git ls-files', 'writeFileSync(OUTPUT']) if (!scout.includes(marker)) failures.push(`SCOUT_MARKER_MISSING=${marker}`);
   if (/git\s+add|git\s+commit|git\s+push|update_file|create_file|delete_file/.test(scout)) failures.push('SCOUT_FORBIDDEN_MUTATION_OPERATION_DETECTED');
+}
+
+const ledgerDir = path.resolve(root, 'docs/agents/ledger');
+if (exists('docs/agents/ledger/README.md')) {
+  for (const entry of fs.readdirSync(ledgerDir).filter((name) => name.endsWith('.json'))) {
+    try {
+      const item = JSON.parse(fs.readFileSync(path.join(ledgerDir, entry), 'utf8'));
+      for (const key of ['taskId','sessionId','agentId','role','entrySha','status','visibilityState','updatedAt']) if (!(key in item)) failures.push(`VISIBILITY_LEDGER_FIELD_MISSING=${entry}:${key}`);
+      if (!['OPEN','CLOSED'].includes(item.visibilityState)) failures.push(`VISIBILITY_LEDGER_STATE_INVALID=${entry}`);
+      if (item.visibilityState === 'CLOSED') {
+        for (const key of ['exitSha','finalStatus','finalSummary']) if (!(key in item) || !String(item[key] ?? '').trim()) failures.push(`VISIBILITY_LEDGER_FINAL_FIELD_MISSING=${entry}:${key}`);
+        if (!['VERIFIED','BLOCKED'].includes(item.finalStatus)) failures.push(`VISIBILITY_LEDGER_FINAL_STATUS_INVALID=${entry}`);
+      }
+    } catch { failures.push(`VISIBILITY_LEDGER_INVALID_JSON=${entry}`); }
+  }
 }
 
 const packageJson = exists('package.json') ? JSON.parse(read('package.json')) : { scripts: {} };

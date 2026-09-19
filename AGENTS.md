@@ -129,7 +129,12 @@ with:
 No session record means unauthorized repository execution.
 
 Canonical login:
-`node scripts/ci/agent-session.mjs login --session=<id> --agent=<id> --role=<role> --rca=<RCA-ID> --scope=<scope>`
+`node scripts/ci/agent-session.mjs login --session=<id> --agent=<id> --task=<task-id> --role=<role> --rca=<RCA-ID> --scope=<scope>`
+
+`--task=<task-id>` is mandatory. Login also creates the durable cross-agent visibility record:
+`docs/agents/ledger/<session-id>.json`
+
+Other agents MUST read this tracked ledger before accepting overlapping work.
 
 When a predecessor handoff exists, the canonical continuation login flag is exactly:
 `--from-session=<previous-session>`
@@ -194,17 +199,22 @@ Agents MUST NOT weaken assertions, disable tests, add silent skips, relabel fail
 
 Every completed session MUST logout using:
 
-`node scripts/ci/agent-session.mjs logout --session=<id> --agent=<id> --status=VERIFIED|BLOCKED`
+`node scripts/ci/agent-session.mjs logout --session=<id> --agent=<id> --status=VERIFIED|BLOCKED --final-summary=<final-outcome>`
 
-Logout automatically writes:
+A final summary is mandatory. Logout automatically writes:
 `diagnostics/agents/handoffs/<session-id>.json`
+
+and the durable cross-agent ledger:
+`docs/agents/ledger/<session-id>.json`
 
 The report MUST preserve:
 `completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent`
 
 along with `exitSha`, changed files, commands, evidence, findings, RCA closure/open state, and current batch count.
 
-The next agent MUST ingest the predecessor report before executing inherited work. Handoff reports are continuity evidence, not certification evidence.
+The next agent MUST ingest the predecessor report before executing inherited work. The next agent also reads the durable visibility ledger before accepting overlapping work. Handoff reports and visibility records are continuity evidence, not certification evidence.
+
+A task may be closed only after logout has recorded the final task status and `agent-coordination.mjs task-complete` verifies the closed visibility record plus the exact exit SHA.
 
 ## Repository test contract
 
