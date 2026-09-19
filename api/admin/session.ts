@@ -120,14 +120,13 @@ export default async function adminSession(req: AdminRequest, res: ServerRespons
     const session = verifyAdminSessionToken(readAdminSessionToken(req.headers.cookie));
     if (!session) return fail(res, 401, 'authentication_required', correlationId);
     if (!session.sessionId) return fail(res, 401, 'authentication_required', correlationId);
-    {
-      if (!isAdminSessionStoreConfigured()) return fail(res, 503, 'session_store_unavailable', correlationId);
-      try {
-        const record = await getAdminSessionRecord(session.sessionId);
-        if (!record || record.revoked_at || Date.parse(record.expires_at) <= Date.now()) return fail(res, 401, 'authentication_required', correlationId);
-      } catch {
-        return fail(res, 503, 'session_store_unavailable', correlationId);
-      }
+    if (!isAdminSessionStoreConfigured()) return fail(res, 503, 'session_store_unavailable', correlationId);
+    let record: Awaited<ReturnType<typeof getAdminSessionRecord>>;
+    try {
+      record = await getAdminSessionRecord(session.sessionId);
+      if (!record || record.revoked_at || Date.parse(record.expires_at) <= Date.now()) return fail(res, 401, 'authentication_required', correlationId);
+    } catch {
+      return fail(res, 503, 'session_store_unavailable', correlationId);
     }
 
     return json(res, 200, {
@@ -138,7 +137,7 @@ export default async function adminSession(req: AdminRequest, res: ServerRespons
       expiresAt: session.expiresAt,
       provenance: {
         sessionId: session.sessionId,
-        environment: (await getAdminSessionRecord(session.sessionId))?.environment ?? 'unknown',
+        environment: record?.environment ?? 'unknown',
       },
       correlationId,
     }, correlationId);
