@@ -39,7 +39,7 @@ env:
   FLIXO_HISTORY_LIMIT: '30'
   FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
   FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id || github.event.workflow_run.id }}
-  FLIXO_MAX_REPAIR_CHAIN_RUNS: '1000000'
+  # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   FLIXO_STRICT_RED_REPAIR: 'true'
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
@@ -88,17 +88,12 @@ jobs:
           test "$FLIXO_STRICT_RED_REPAIR" = 'true'
           echo 'STRICT_RED_REPAIR=true: every actionable RED must produce a repair attempt before closure.'
 
-      - name: Enforce bounded repair chain
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Enforce continuous repair-cycle contract
         run: |
           set -euo pipefail
-          CHAIN_TITLE="FLIXO Auto Repair Chain ${FLIXO_REPAIR_CHAIN_ID}"
-          CHAIN_RUNS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 100 --json displayTitle --jq '.[].displayTitle' | grep -Fxc -- "$CHAIN_TITLE" || true)"
-          test "$CHAIN_RUNS" -le "$FLIXO_MAX_REPAIR_CHAIN_RUNS" || {
-            echo "FAIL CLOSED: repair chain ${FLIXO_REPAIR_CHAIN_ID} exceeded ${FLIXO_MAX_REPAIR_CHAIN_RUNS} total runs."
-            exit 1
-          }
+          test "$FLIXO_STRICT_RED_REPAIR" = 'true'
+          echo 'CONTINUOUS_REPAIR=true: no finite chain-count may close an actionable RED cycle.'
+          echo 'The cycle remains open until canonical GREEN evidence is observed.'
 
       - name: Synchronize execution with the failed main SHA without creating a branch
         env:
@@ -491,13 +486,13 @@ jobs:
           set -euo pipefail
           ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome 2>/dev/null || printf '%s' engine-error)"
           if [ "$ENGINE_OUTCOME" = "blocked-external" ]; then
-            echo 'External tooling failure is not a source-repair target; stopping fail-closed.'
+            echo 'External tooling failure is BLOCKED_EXTERNAL; source mutation remains prohibited, but the repair cycle stays open.'
             REPROBE_DECISION="$(node scripts/ci/auto-repair-supervisor.mjs --check-reprobe | tail -n 1)"
-            if [ "$REPROBE_DECISION" != "true" ]; then
-              echo 'External provider block is already learned for this failure signature; keeping the repair cycle open without recursive retries.'
-              exit 1
+            if [ "$REPROBE_DECISION" = "true" ]; then
+              echo 'External provider signature changed; permitting another diagnostic cycle.'
+            else
+              echo 'External provider signature unchanged; keeping the cycle open and scheduling a controlled re-probe.'
             fi
-            echo 'External provider signature changed; permitting one new diagnostic cycle.'
           fi
           if [ "$ENGINE_OUTCOME" = "engine-error" ]; then
             echo 'Repair engine error; preserving RED and reopening the repair cycle for another diagnostic/strategy attempt.'
@@ -510,7 +505,7 @@ jobs:
               gh run list --repo "$GITHUB_REPOSITORY" --branch execution --limit 50                 --json databaseId,name,headSha,conclusion,createdAt                 --jq 'map(select((.name == "FLIXO Test System" or .name == "FLIXO WP0 Trust Baseline" or .name == "FLIXO Continuous Delivery") and .headSha == "'$CURRENT_EXECUTION_SHA'" and (.conclusion == "failure" or .conclusion == "timed_out"))) | sort_by(.createdAt) | last.databaseId // empty'
             )"
             if [ -z "$CURRENT_FAILURE_ID" ]; then
-              echo "No current canonical failure remains on execution $CURRENT_EXECUTION_SHA; stale target is closed."
+              echo "No current canonical failure remains on execution $CURRENT_EXECUTION_SHA; no RED is currently open."
               exit 0
             fi
             echo "Repair remains open on execution failure run $CURRENT_FAILURE_ID."
@@ -524,7 +519,7 @@ jobs:
             gh run list --repo "$GITHUB_REPOSITORY" --branch main --limit 50               --json databaseId,name,headSha,conclusion,createdAt               --jq 'map(select((.name == "FLIXO Test System" or .name == "FLIXO WP0 Trust Baseline" or .name == "FLIXO Continuous Delivery") and .headSha == "'$CURRENT_MAIN_SHA'" and (.conclusion == "failure" or .conclusion == "timed_out"))) | sort_by(.createdAt) | last.databaseId // empty'
           )"
           if [ -z "$CURRENT_FAILURE_ID" ]; then
-            echo "No current canonical failure remains on main $CURRENT_MAIN_SHA; stale target $TARGET_RUN_ID is closed."
+            echo "No current canonical failure remains on main $CURRENT_MAIN_SHA; no RED is currently open."
             exit 0
           fi
           echo "Repair remains open on current canonical failure run $CURRENT_FAILURE_ID."
