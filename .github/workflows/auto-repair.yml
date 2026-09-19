@@ -1,5 +1,5 @@
 name: FLIXO Auto Repair Bot
-run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id }}
+run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id || github.run_id }}
 
 # TWO-BRANCH MODEL:
 # execution = sole working/repair branch
@@ -9,8 +9,8 @@ on:
   workflow_dispatch:
     inputs:
       target_run_id:
-        description: 'Workflow run ID to diagnose and repair'
-        required: true
+        description: 'Workflow run ID to diagnose and repair; optional for autonomous/scheduled discovery'
+        required: false
         type: string
       chain_id:
         description: 'Stable repair-chain identifier; recursive runs must reuse it'
@@ -20,6 +20,18 @@ on:
         description: 'Watcher-provided exact failure fingerprint for Control Plane identity'
         required: false
         type: string
+  workflow_run:
+    workflows:
+      - FLIXO Test System
+      - FLIXO WP0 Trust Baseline
+      - FLIXO Test Impact
+      - FLIXO Test Impact Execution
+      - Repository Security Baseline
+      - Claude Security Review
+    types:
+      - completed
+  schedule:
+    - cron: '*/10 * * * *'
 
 permissions:
   contents: write
@@ -35,13 +47,16 @@ env:
   FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
   FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
   FLIXO_REPAIR_LANE: single
-  TARGET_RUN_ID: ${{ inputs.target_run_id }}
+  TARGET_RUN_ID: ${{ inputs.target_run_id || github.event.workflow_run.id || '' }}
   FLIXO_HISTORY_LIMIT: '30'
-  FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
+  FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id || github.event.workflow_run.id || github.run_id }}
   FLIXO_FAILURE_FINGERPRINT: ${{ inputs.failure_fingerprint || '' }}
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
-  # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
-  # This workflow is executor-only and must never self-dispatch.
+  # AUTONOMOUS AUTHORITY:
+  # 1) workflow_run wakes the repair agent directly when a canonical repairable workflow fails.
+  # 2) schedule provides a periodic liveness/recovery heartbeat independent of Green Gate health.
+  # 3) the agent may self-dispatch a continuation after an internal engine/unrepaired failure.
+  # Safety boundary remains unchanged: mutations are execution-only and canonical CI remains the final GREEN authority.
   FLIXO_STRICT_RED_REPAIR: 'true'
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
@@ -50,7 +65,11 @@ jobs:
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
     if: >-
-      github.event_name == 'workflow_dispatch'
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_run' &&
+       (github.event.workflow_run.conclusion == 'failure' ||
+        github.event.workflow_run.conclusion == 'timed_out'))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -61,17 +80,58 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Resolve target workflow run
+      - name: Acquire autonomous repair target
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          CONCLUSION="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion')"
+
+          TARGET="${TARGET_RUN_ID:-}"
+
+          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
+            TARGET="${{ github.event.workflow_run.id }}"
+          elif [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ -z "$TARGET" ]; then
+            echo "AUTONOMOUS_HEARTBEAT=ACTIVE"
+
+            for BRANCH in execution main; do
+              CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+              CANDIDATE="$(gh run list --repo "$GITHUB_REPOSITORY" --branch "$BRANCH" --limit 100                 --json databaseId,name,headSha,conclusion,createdAt                 --jq 'map(select(
+                  (.name == "FLIXO Test Impact" or
+                   .name == "FLIXO Test Impact Execution" or
+                   .name == "Repository Security Baseline" or
+                   .name == "Claude Security Review" or
+                   .name == "FLIXO Test System" or
+                   .name == "FLIXO WP0 Trust Baseline")
+                  and .headSha == "'"'$CURRENT_SHA'"'" 
+                  and (.conclusion == "failure" or .conclusion == "timed_out")
+                )) | sort_by(.createdAt) | last.databaseId // empty')"
+
+              if [ -n "$CANDIDATE" ]; then
+                TARGET="$CANDIDATE"
+                echo "AUTONOMOUS_TARGET_DISCOVERED=$TARGET branch=$BRANCH sha=$CURRENT_SHA"
+                break
+              fi
+            done
+          fi
+
+          if [ -z "$TARGET" ]; then
+            echo 'AUTONOMOUS_REPAIR=NO_CURRENT_CANONICAL_FAILURE'
+            exit 0
+          fi
+
+          echo "$TARGET" > /tmp/flixo-target-run-id
+          echo "FLIXO_TARGET_RUN_ID=$TARGET" >> "$GITHUB_ENV"
+
+          CONCLUSION="$(gh run view "$TARGET" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion')"
           case "$CONCLUSION" in
             failure|timed_out) ;;
-            *) echo "Target run $TARGET_RUN_ID is not a diagnosable failure: $CONCLUSION"; exit 1 ;;
+            *) echo "Target run $TARGET is no longer a diagnosable failure: $CONCLUSION"; exit 0 ;;
           esac
+
+          gh run view "$TARGET" --repo "$GITHUB_REPOSITORY" --json databaseId,conclusion,headSha,headBranch,name
           gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,conclusion,headSha,headBranch,name
+          TARGET_RUN_ID="$(cat /tmp/flixo-target-run-id)"
+          echo "TARGET_RUN_ID=$TARGET_RUN_ID" >> "$GITHUB_ENV"
           RUN_META="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha,headBranch,name,conclusion)"
           FAILED_SHA="$(printf '%s' "$RUN_META" | jq -r '.headSha')"
           FAILED_BRANCH="$(printf '%s' "$RUN_META" | jq -r '.headBranch')"
@@ -660,6 +720,58 @@ jobs:
           set -euo pipefail
           echo 'NON_GREEN_LEARNING_PUBLISH=DISABLED'
           echo 'Learning remains workflow-local/artifact-only until a verified source repair exists.'
+      - name: Autonomous self-recovery continuation
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome 2>/dev/null || printf '%s' engine-error)"
+
+          case "$ENGINE_OUTCOME" in
+            engine-error|unrepaired)
+              ;;
+            *)
+              echo "SELF_RECOVERY_NOT_REQUIRED outcome=$ENGINE_OUTCOME"
+              exit 0
+              ;;
+          esac
+
+          CURRENT_TARGET_RUN_ID="$(cat /tmp/flixo-target-run-id 2>/dev/null || printf '%s' "$TARGET_RUN_ID")"
+          test -n "$CURRENT_TARGET_RUN_ID"
+
+          CURRENT_REPAIR_RUN="${GITHUB_RUN_ID}"
+          ACTIVE_OTHER="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 20             --json databaseId,status             --jq 'map(select((.databaseId | tostring) != "'"'$CURRENT_REPAIR_RUN'"'"' and (.status == "queued" or .status == "in_progress"))) | length')"
+
+          if [ "$ACTIVE_OTHER" -gt 0 ]; then
+            echo "SELF_RECOVERY_ALREADY_ACTIVE=$ACTIVE_OTHER"
+            exit 0
+          fi
+
+          gh run view "$CURRENT_TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha,headBranch,conclusion,name >/tmp/flixo-current-target.json
+
+          TARGET_BRANCH="$(jq -r '.headBranch' /tmp/flixo-current-target.json)"
+          TARGET_SHA="$(jq -r '.headSha' /tmp/flixo-current-target.json)"
+          TARGET_CONCLUSION="$(jq -r '.conclusion' /tmp/flixo-current-target.json)"
+
+          case "$TARGET_CONCLUSION" in
+            failure|timed_out) ;;
+            *)
+              echo "SELF_RECOVERY_TARGET_NO_LONGER_RED=$TARGET_CONCLUSION"
+              exit 0
+              ;;
+          esac
+
+          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_BRANCH" --jq '.object.sha')"
+          test "$LIVE_SHA" = "$TARGET_SHA" || {
+            echo "SELF_RECOVERY_TARGET_SUPERSEDED target=$TARGET_SHA live=$LIVE_SHA"
+            exit 0
+          }
+
+          echo "SELF_RECOVERY_DISPATCH=ACTIVE"
+          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution             -f "target_run_id=$CURRENT_TARGET_RUN_ID"             -f "chain_id=${FLIXO_REPAIR_CHAIN_ID}"             -f "failure_fingerprint=${FLIXO_FAILURE_FINGERPRINT:-}"
+          echo "SELF_RECOVERY_NEXT_CYCLE=$CURRENT_TARGET_RUN_ID"
+
       - name: Keep the same repair cycle open when verification is not green
         if: always() && steps.verify.outputs.verified != 'true'
         env:
