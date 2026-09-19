@@ -41,25 +41,20 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout execution supervisor contracts
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          ref: execution
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Setup Node
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version-file: .nvmrc
-
-      - name: Validate repair control surface
+      - name: Validate dispatch target without executing execution code
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           set -euo pipefail
-          test -f scripts/ci/task-agent.mjs
-          test -f scripts/ci/agent-execution-control.mjs
-          test -f .github/workflows/auto-repair.yml
-          node scripts/ci/test-agent-execution-control.mjs
+          TARGET_WORKFLOW="$(gh api "repos/$GITHUB_REPOSITORY/contents/.github/workflows/auto-repair.yml?ref=execution" --jq '.content' | base64 --decode)"
+          printf '%s\n' "$TARGET_WORKFLOW" > /tmp/auto-repair-execution.yml
+          grep -Eq '^on:' /tmp/auto-repair-execution.yml
+          grep -Eq '^  workflow_dispatch:' /tmp/auto-repair-execution.yml
+          ! grep -Eq '^  workflow_run:' /tmp/auto-repair-execution.yml
+          grep -Eq 'ref: execution' /tmp/auto-repair-execution.yml
+          echo 'WATCHDOG_TARGET_VALIDATION=PASS'
+          echo 'WATCHDOG_EXECUTION_CODE_EXECUTED=false'
 
       - name: Inspect exact execution SHA
         id: observe
