@@ -195,7 +195,7 @@ jobs:
           import { execFileSync } from 'node:child_process';
           const evidence = JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));
           const patch = fs.readFileSync('/tmp/flixo-prepared-repair.patch');
-          const changedPaths = String(require('node:child_process').execFileSync('git',['diff','--name-only'],{encoding:'utf8'})).trim().split('\\n').filter(Boolean);
+          const changedPaths = execFileSync('git',['diff','--name-only'],{encoding:'utf8'}).trim().split('\\n').filter(Boolean);
           const handoff = {
             schemaVersion: 3,
             protocol: 'AGENT-REPAIR-HANDOFF-GATE-v3',
