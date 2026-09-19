@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { planFromIntent, type ExecutionPlan } from '@/lib/ai/planner';
 import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipeline-runner';
@@ -6,6 +6,16 @@ import { getReadyToolConfigs } from '@/config/tools';
 import { findToolIntent } from '@/lib/intent-router';
 import { extractParameters } from '@/lib/agent/intent/parameter-extractor';
 import { detectAgentLocale } from '@/lib/agent/language-detector';
+import {
+  classifyConversation,
+  contextualizeCommand,
+  conversationalReply,
+  loadConversationMemory,
+  rememberTurn,
+  setConversationTask,
+  clearConversationTask,
+  type ConversationMemory,
+} from '@/lib/agent/conversation';
 import { AGENT_I18N } from '@/data/agent-locales';
 import type { Locale } from '@/lib/i18n';
 import './FlixoAIAgent.css';
@@ -15,36 +25,7 @@ type Message = { id: number; role: 'user' | 'agent'; text: string };
 
 const CONFIRMATIONS = /^(نعم|أيوه|ايوه|نفذ|نفّذ|ابدأ|ابدئي|موافق|تمام|yes|y|ok|okay|go|execute|run|ejecutar|exécuter|ausführen|실행|実行|jalankan|esegui|uitvoeren|wykonaj|executar|kör|ดำเนินการ|çalıştır|виконати|thực hiện)$/i;
 const CANCELLATIONS = /^(لا|لأ|الغاء|إلغاء|cancel|no|n|stop)$/i;
-const CAPABILITY_QUESTIONS = /(?:\b(?:ما|ماذا|ما هي|ما الذي|ايه|إيه|اذكر|أذكر)\b.*\b(?:أدوات|ادوات)\b)|(?:\b(?:ما|ماذا)\b.*\b(?:تستطيع|تسطيع|تقدر|يمكنك)\b.*\b(?:تنفيذ|تعمل|تفعل)\b)|(?:what\s+(?:can\s+you\s+do|tools\s+can\s+you\s+use)|capabilities)/i;
-const GENERIC_CROP_REQUEST = /(?:^|\s)(?:(?:أريد|اريد|ممكن|هل\s+تستطيع|please)\s+)?(?:قص|اقت(?:ص|طع)|crop)(?:\s+(?:صورة|الصور|الصورة|image|photo))?\s*$/i;
-const EXECUTABLE_TOOL_NAMES: Record<Locale, readonly string[]> = {
-  en: ['background removal', 'image upscaling', 'image cropping/resizing', 'image compression', 'image format conversion', 'image effects'],
-  ar: ['إزالة الخلفية', 'تكبير وتحسين الصورة', 'قص وتغيير أبعاد الصورة', 'ضغط الصورة', 'تحويل صيغة الصورة', 'تأثيرات وتحسينات الصورة'],
-  es: ['eliminar fondo', 'mejorar resolución', 'recortar/redimensionar', 'comprimir', 'convertir formato', 'efectos de imagen'],
-  fr: ['suppression de fond', 'amélioration de résolution', 'recadrage/redimensionnement', 'compression', 'conversion de format', 'effets d’image'],
-  de: ['Hintergrund entfernen', 'Bild hochskalieren', 'Zuschneiden/Größe ändern', 'Komprimieren', 'Format konvertieren', 'Bildeffekte'],
-  hi: ['background removal', 'image upscaling', 'cropping/resizing', 'compression', 'format conversion', 'image effects'],
-  id: ['menghapus latar', 'meningkatkan resolusi', 'memotong/mengubah ukuran', 'kompresi', 'konversi format', 'efek gambar'],
-  it: ['rimozione sfondo', 'aumento risoluzione', 'ritaglio/ridimensionamento', 'compressione', 'conversione formato', 'effetti immagine'],
-  ja: ['背景削除', '画像拡大', '切り抜き/リサイズ', '圧縮', '形式変換', '画像効果'],
-  ko: ['배경 제거', '이미지 확대', '자르기/크기 조정', '압축', '형식 변환', '이미지 효과'],
-  ms: ['buang latar belakang', 'tingkatkan resolusi', 'pangkas/ubah saiz', 'mampatkan', 'tukar format', 'kesan imej'],
-  nl: ['achtergrond verwijderen', 'opschalen', 'bijsnijden/resize', 'comprimeren', 'formaat converteren', 'afbeeldingseffecten'],
-  pl: ['usuwanie tła', 'zwiększanie rozdzielczości', 'przycinanie/zmiana rozmiaru', 'kompresja', 'konwersja formatu', 'efekty obrazu'],
-  pt: ['remoção de fundo', 'aumento de resolução', 'recorte/redimensionamento', 'compressão', 'conversão de formato', 'efeitos de imagem'],
-  ru: ['удаление фона', 'увеличение изображения', 'кадрирование/изменение размера', 'сжатие', 'конвертация формата', 'эффекты изображения'],
-  sv: ['ta bort bakgrund', 'skala upp', 'beskära/ändra storlek', 'komprimera', 'konvertera format', 'bild effekter'],
-  th: ['ลบพื้นหลัง', 'ขยายภาพ', 'ครอป/ปรับขนาด', 'บีบอัด', 'แปลงรูปแบบ', 'เอฟเฟกต์ภาพ'],
-  tr: ['arka plan kaldırma', 'görüntü büyütme', 'kırpma/boyutlandırma', 'sıkıştırma', 'format dönüştürme', 'görüntü efektleri'],
-  uk: ['видалення фону', 'збільшення зображення', 'обрізання/зміна розміру', 'стиснення', 'конвертація формату', 'ефекти зображення'],
-  vi: ['xóa nền', 'tăng độ phân giải', 'cắt/chỉnh kích thước', 'nén ảnh', 'chuyển đổi định dạng', 'hiệu ứng ảnh'],
-};
-const capabilityReply = (responseCopy: typeof AGENT_I18N.en, detectedLocale: Locale) => {
-  const names = EXECUTABLE_TOOL_NAMES[detectedLocale] ?? EXECUTABLE_TOOL_NAMES.en;
-  return detectedLocale === 'ar'
-    ? `أستطيع تنفيذ ${names.length} عمليات محلية مباشرة: ${names.join('، ')}. أرسل الصورة واذكر النتيجة المطلوبة.`
-    : `${responseCopy.understood} Available local operations: ${names.join(', ')}.`;
-};
+const GENERIC_CROP_REQUEST = /(?:^|\\s)(?:(?:أريد|اريد|ممكن|هل\\s+تستطيع|please)\\s+)?(?:قص|اقت(?:ص|طع)|crop)(?:\\s+(?:صورة|الصور|الصورة|image|photo))?\\s*$/i;
 
 export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const copy = AGENT_I18N[locale] ?? AGENT_I18N.en;
@@ -55,55 +36,124 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const [progress, setProgress] = useState<PipelineProgress | null>(null);
   const [result, setResult] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([{ id: 1, role: 'agent', text: copy.greeting }]);
-  const [messageId, setMessageId] = useState(2);
+  const initialMemoryRef = useRef<ConversationMemory>(loadConversationMemory());
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const turns = initialMemoryRef.current.turns;
+    if (turns.length === 0) return [{ id: 1, role: 'agent', text: copy.greeting }];
+    return turns.map((turn, index) => ({ id: index + 1, role: turn.role, text: turn.text }));
+  });
+  const [messageId, setMessageId] = useState(() => initialMemoryRef.current.turns.length + 1);
+  const memoryRef = initialMemoryRef;
 
-  const intent = useMemo(() => query.trim() ? findToolIntent(query, getReadyToolConfigs())[0] : null, [query]);
-  const planned = useMemo(() => query.trim() ? planFromIntent(query) : null, [query]);
-  const pushMessage = (role: Message['role'], text: string) => { setMessages((current) => [...current, { id: messageId, role, text }]); setMessageId((value) => value + 1); };
+  const contextualQuery = useMemo(() => contextualizeCommand(query, memoryRef.current), [query]);
+  const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, getReadyToolConfigs())[0] : null, [contextualQuery]);
+  const planned = useMemo(() => contextualQuery.trim() ? planFromIntent(contextualQuery) : null, [contextualQuery]);
+  const pushMessage = (role: Message['role'], text: string) => {
+    setMessages((current) => [...current, { id: messageId, role, text }]);
+    setMessageId((value) => value + 1);
+    memoryRef.current = rememberTurn(memoryRef.current, { role, text });
+  };
 
   const buildPlan = (command: string, responseCopy = copy): ExecutionPlan | null => {
     setError(null); setResult(null); setProgress(null);
-    const extracted = extractParameters(command);
-    if (!extracted.success) { setPlan(null); setState('error'); setError(extracted.errors.join(' ')); return null; }
-    const nextPlan = planFromIntent(command);
+    const contextualCommand = contextualizeCommand(command, memoryRef.current);
+    const extracted = extractParameters(contextualCommand);
+    if (!extracted.success) {
+      setPlan(null); setState('error'); setError(extracted.errors.join(' '));
+      return null;
+    }
+    const nextPlan = planFromIntent(contextualCommand);
     if (!nextPlan) { setPlan(null); setState('error'); setError(responseCopy.noSafePlan); return null; }
+    const firstStep = nextPlan.steps[0];
+    memoryRef.current = setConversationTask(memoryRef.current, {
+      command: contextualCommand,
+      toolId: firstStep?.toolId ?? null,
+      planReady: true,
+    });
     setPlan(nextPlan); setState('ready'); return nextPlan;
   };
 
   const execute = async (nextPlan = plan, responseCopy = copy) => {
     if (!file || !nextPlan) return;
     setState('running'); setError(null);
+    memoryRef.current = setConversationTask(memoryRef.current, { command: memoryRef.current.activeCommand ?? '', planReady: false });
     pushMessage('agent', `${responseCopy.success} ${nextPlan.steps.length} ${responseCopy.step}.`);
     try { const output = await runWorkflowPipeline(file, nextPlan, setProgress); setResult(output); setState('success'); pushMessage('agent', responseCopy.success); }
     catch (cause) { const message = cause instanceof Error ? cause.message : 'Execution failed.'; setError(message); setState('error'); pushMessage('agent', `${responseCopy.stopped} ${message}`); }
   };
 
   const sendMessage = async () => {
-    const command = query.trim(); if (!command || state === 'running') return;
+    const command = query.trim();
+    if (!command || state === 'running') return;
+
     const detectedLocale = detectAgentLocale(command, locale);
     const responseCopy = AGENT_I18N[detectedLocale] ?? copy;
-    pushMessage('user', command); setQuery('');
-    if (CAPABILITY_QUESTIONS.test(command)) {
-      setPlan(null); setState('idle'); setError(null);
-      pushMessage('agent', capabilityReply(responseCopy, detectedLocale));
-      return;
-    }
-    if (GENERIC_CROP_REQUEST.test(command)) {
-      setPlan(null); setState('idle'); setError(null);
-      pushMessage('agent', detectedLocale === 'ar'
-        ? 'نعم. أستطيع قص الصورة. ارفع الصورة وحدد النسبة مثل 1:1 أو الأبعاد مثل 1200×800، وسأجهز خطة القص قبل التنفيذ.'
-        : 'Yes. I can crop images. Upload the image and give an aspect ratio such as 1:1 or dimensions such as 1200×800; I will prepare the crop plan before execution.');
-      return;
-    }
+    pushMessage('user', command);
+    setQuery('');
+
     if (CONFIRMATIONS.test(command) && plan) {
-      if (!file) { setError(responseCopy.needImage); pushMessage('agent', responseCopy.planReadyNoFile); setState('error'); return; }
-      await execute(plan, responseCopy); return;
+      if (!file) {
+        setError(responseCopy.needImage);
+        pushMessage('agent', responseCopy.planReadyNoFile);
+        setState('error');
+        return;
+      }
+      await execute(plan, responseCopy);
+      return;
     }
-    if (CANCELLATIONS.test(command)) { setPlan(null); setState('idle'); setError(null); pushMessage('agent', responseCopy.cancelled); return; }
+
+    if (CANCELLATIONS.test(command)) {
+      setPlan(null);
+      setState('idle');
+      setError(null);
+      memoryRef.current = clearConversationTask(memoryRef.current);
+      pushMessage('agent', responseCopy.cancelled);
+      return;
+    }
+
+    const conversationKind = classifyConversation(command);
+    const naturalReply = conversationalReply(conversationKind, detectedLocale);
+    if (naturalReply) {
+      setPlan(null);
+      setState('idle');
+      setError(null);
+      pushMessage('agent', naturalReply);
+      return;
+    }
+
+    if (GENERIC_CROP_REQUEST.test(command)) {
+      memoryRef.current = setConversationTask(memoryRef.current, {
+        command,
+        toolId: 'image-cropper',
+        pendingToolId: 'image-cropper',
+        pendingQuestion: detectedLocale === 'ar'
+          ? 'ما النسبة أو الأبعاد التي تريدها؟ مثال: 1:1 أو 1200×800.'
+          : 'What aspect ratio or dimensions do you want? For example: 1:1 or 1200×800.',
+        planReady: false,
+      });
+      setPlan(null);
+      setState('idle');
+      setError(null);
+      pushMessage('agent', detectedLocale === 'ar'
+        ? 'مفهوم. سنقص الصورة. ما النسبة أو الأبعاد؟ يمكنك الرد فقط بـ «مربع» أو «1:1» أو «1200×800».'
+        : 'Got it. We will crop the image. What ratio or dimensions do you want? You can simply reply “square”, “1:1”, or “1200×800”.');
+      return;
+    }
+
     const nextPlan = buildPlan(command, responseCopy);
-    if (!nextPlan) { pushMessage('agent', responseCopy.clarification); return; }
-    if (!file) { pushMessage('agent', responseCopy.planReadyNoFile); return; }
+    if (!nextPlan) {
+      const hasPending = Boolean(memoryRef.current.pendingQuestion);
+      pushMessage('agent', hasPending
+        ? memoryRef.current.pendingQuestion ?? responseCopy.clarification
+        : responseCopy.clarification);
+      return;
+    }
+
+    if (!file) {
+      pushMessage('agent', responseCopy.planReadyNoFile);
+      return;
+    }
+
     pushMessage('agent', responseCopy.understood);
   };
 
@@ -112,6 +162,13 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     const detectedLocale = detectAgentLocale(command, locale);
     const responseCopy = AGENT_I18N[detectedLocale] ?? copy;
     pushMessage('user', command); setQuery('');
+    const naturalReply = conversationalReply(classifyConversation(command), detectedLocale);
+    if (naturalReply) { pushMessage('agent', naturalReply); return; }
+    if (GENERIC_CROP_REQUEST.test(command)) {
+      memoryRef.current = setConversationTask(memoryRef.current, { command, toolId: 'image-cropper', pendingToolId: 'image-cropper', pendingQuestion: responseCopy.clarification, planReady: false });
+      pushMessage('agent', detectedLocale === 'ar' ? 'مفهوم. أعطني النسبة أو الأبعاد وسأجهز خطة القص.' : 'Understood. Give me the ratio or dimensions and I will prepare the crop plan.');
+      return;
+    }
     const nextPlan = buildPlan(command, responseCopy);
     if (nextPlan) pushMessage('agent', file ? `${responseCopy.planReady} ${responseCopy.execute}` : `${responseCopy.planReady} ${responseCopy.uploadThenExecute}`);
   };
