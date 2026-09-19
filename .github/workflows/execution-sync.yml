@@ -82,6 +82,12 @@ jobs:
           git fetch origin execution
           NEW_SHA="$(git rev-parse origin/execution)"
           test "$NEW_SHA" != "$EXEC_SHA"
-          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution
+          PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
+          if [ -n "$PR_URL" ]; then
+            echo "Open execution → main PR detected: $PR_URL"
+            echo "Skipping duplicate workflow_dispatch; pull_request CI will verify the exact execution SHA."
+          else
+            gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution
+            echo "Canonical FLIXO Test System dispatched for reconciled execution head."
+          fi
           echo "Execution reconciled with canonical main: $NEW_SHA"
-          echo "Canonical FLIXO Test System dispatched for reconciled execution head."
