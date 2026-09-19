@@ -214,26 +214,45 @@ EOF
             exit 1
           fi
 
-      - name: Execute canonical merge only after exact-SHA GREEN proof
+      - name: Execute canonical fast-forward promotion only after exact-SHA GREEN proof
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           EXPECTED_SHA="$(cat /tmp/flixo-verified-head-sha)"
-          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --match-head-commit "$EXPECTED_SHA"
+          ACTUAL_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+          test "$ACTUAL_SHA" = "$EXPECTED_SHA"
 
-      - name: Verify merged main identity
+          MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
+          test -n "$MAIN_SHA" && test "$MAIN_SHA" != "null"
+          COMPARE="$(gh api "repos/$GITHUB_REPOSITORY/compare/$MAIN_SHA...$EXPECTED_SHA")"
+          STATUS="$(printf '%s' "$COMPARE" | jq -r '.status')"
+          AHEAD_BY="$(printf '%s' "$COMPARE" | jq -r '.ahead_by')"
+          BEHIND_BY="$(printf '%s' "$COMPARE" | jq -r '.behind_by')"
+          test "$STATUS" = "ahead"
+          test "$AHEAD_BY" -gt 0
+          test "$BEHIND_BY" -eq 0
+
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/main"             -f "sha=$EXPECTED_SHA"             -F "force=false"
+
+          MAIN_AFTER="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
+          test "$MAIN_AFTER" = "$EXPECTED_SHA"
+          echo "FAST_FORWARD_PROMOTION=true"
+          echo "CERTIFIED_SHA=$EXPECTED_SHA"
+          echo "MAIN_SHA=$MAIN_AFTER"
+
+      - name: Verify post-promotion main identity
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          state="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json state,mergedAt --jq '.state+"|"+(.mergedAt//"")')"
-          case "$state" in
-            MERGED\|*) ;;
-            *) echo "Canonical execution -> main merge was not completed: $state"; exit 1 ;;
-          esac
-          main_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
-          test -n "$main_sha" && test "$main_sha" != "null"
-          echo "Canonical main after merge: $main_sha"
+          EXPECTED_SHA="$(cat /tmp/flixo-verified-head-sha)"
+          MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
+          test "$MAIN_SHA" = "$EXPECTED_SHA"
+          PR_HEAD="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+          test "$PR_HEAD" = "$EXPECTED_SHA"
+          echo "POST_PROMOTION_EXACT_SHA_PROOF=true"
+          echo "MAIN_EQUALS_CERTIFIED=true"
+          echo "PR_HEAD_EQUALS_CERTIFIED=true"
