@@ -9,7 +9,6 @@ import { detectAgentLocale } from '@/lib/agent/language-detector';
 import {
   classifyConversation,
   contextualizeCommand,
-  conversationalReply,
   loadConversationMemory,
   rememberTurn,
   setConversationTask,
@@ -111,7 +110,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     }
 
     const conversationKind = classifyConversation(command);
-    const naturalReply = conversationalReply(conversationKind, detectedLocale);
+    const naturalReply = conversationalReply(conversationKind, responseCopy);
     if (naturalReply) {
       setPlan(null);
       setState('idle');
@@ -161,7 +160,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     const detectedLocale = detectAgentLocale(command, locale);
     const responseCopy = AGENT_I18N[detectedLocale] ?? copy;
     pushMessage('user', command); setQuery('');
-    const naturalReply = conversationalReply(classifyConversation(command), detectedLocale);
+    const naturalReply = conversationalReply(classifyConversation(command), responseCopy);
     if (naturalReply) { pushMessage('agent', naturalReply); return; }
     if (GENERIC_CROP_REQUEST.test(command)) {
       setMemory((current) => setConversationTask(current, { command, toolId: 'image-cropper', pendingToolId: 'image-cropper', pendingQuestion: responseCopy.clarification, planReady: false }));
