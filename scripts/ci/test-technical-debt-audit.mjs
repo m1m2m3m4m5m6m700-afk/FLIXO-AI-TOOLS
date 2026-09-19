@@ -26,6 +26,9 @@ assert.equal(audit.findings.length, audit.summary.findings);
 const fingerprints = audit.findings.map((finding) => finding.fingerprint);
 assert.equal(new Set(fingerprints).size, fingerprints.length, 'finding fingerprints must be unique');
 for (const fingerprint of fingerprints) assert.match(fingerprint, /^[a-f0-9]{64}$/);
+for (const finding of audit.findings) {
+  assert.ok(finding.evidence && typeof finding.evidence === 'object' && !Array.isArray(finding.evidence) && Object.keys(finding.evidence).length > 0, `finding ${finding.target} must carry evidence`);
+}
 assert.equal(typeof audit.auditDigest, 'string');
 assert.match(audit.auditDigest, /^[a-f0-9]{64}$/);
 
