@@ -85,6 +85,22 @@ const failureEvidencePath = arg('failure-evidence');
 const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION' : 'DIRECT_EXECUTION';
 const diagnosis = fs.existsSync(DIAGNOSIS_PATH) ? JSON.parse(fs.readFileSync(DIAGNOSIS_PATH, 'utf8')) : null;
 const memory = loadMemory();
+const recentActionHistory = (memory.actionHistory ?? [])
+  .slice(-12)
+  .map((item) => ({
+    outcome: item.outcome,
+    rootCause: item.rootCause,
+    rules: item.rules ?? [],
+    workflows: item.workflows ?? [],
+    successes: item.successes ?? 0,
+    failures: item.failures ?? 0,
+    evidence: (item.evidence ?? []).slice(-3).map((evidence) => ({
+      runId: evidence.runId,
+      workflow: evidence.workflow,
+      conclusion: evidence.conclusion,
+      headSha: evidence.headSha,
+    })),
+  }));
 const currentOriginExecutionSha = (() => {
   try { return execFileSync('git', ['rev-parse', 'origin/execution'], { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { return null; }
 })();
@@ -169,7 +185,7 @@ for (const task of selected) {
     botEvolution: {
       source: 'مهام.md',
       extractedCount: botEvolutionLedger.length,
-      priorities: ['ERROR_INTELLIGENCE','SELF_HEALING_REPAIR_LOOP','EXACT_SHA_AND_PROVENANCE','REGRESSION_AND_BLAST_RADIUS','WATCHDOG_AND_HANDOFF','MEMORY_AND_HISTORICAL_LEARNING'],
+      priorities: ['ERROR_INTELLIGENCE','SELF_HEALING_REPAIR_LOOP','ACTION_LOG_LEARNING_SUCCESS_AND_FAILURE','EXACT_SHA_AND_PROVENANCE','REGRESSION_AND_BLAST_RADIUS','WATCHDOG_AND_HANDOFF','MEMORY_AND_HISTORICAL_LEARNING'],
       ledgerItems: botEvolutionLedger,
       policy: 'ADVISORY_ONLY_NO_SCOPE_EXPANSION',
     },
