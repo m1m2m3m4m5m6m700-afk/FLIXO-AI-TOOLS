@@ -50,6 +50,9 @@ function latestPacket() {
   if (packet.baselineSha !== sha) throw new Error('STALE_BASELINE');
   if (packet.contractVersion !== TASK_AGENT_CONTRACT_VERSION) throw new Error('TASK_AGENT_CONTRACT_VERSION_MISMATCH');
   if (packet.scopePolicy !== SCOPE_POLICY || packet.scopeEnforcement !== SCOPE_ENFORCEMENT) throw new Error('SELF_HEALING_PACKET_SCOPE_VIOLATION');
+  if (packet.executionAuthority !== 'BOUND_ADMIN_ON_EXECUTION_WITH_ERROR_SCOPE') throw new Error('EXECUTION_AUTHORITY_VIOLATION');
+  if (packet.mutationScope !== 'CURRENT_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING_ONLY') throw new Error('MUTATION_SCOPE_VIOLATION');
+  if (packet.humanCommandRequired !== false) throw new Error('HUMAN_COMMAND_DEPENDENCY_VIOLATION');
   if (packet.mainBranchMutation !== false) throw new Error('MAIN_BRANCH_MUTATION_POLICY_VIOLATION');
   if (packet.branchPolicy !== 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN') throw new Error('TWO_BRANCH_POLICY_VIOLATION');
   if (packet.controlPlaneMutationPolicy !== CONTROL_PLANE_MUTATION_POLICY) throw new Error('CONTROL_PLANE_MUTATION_POLICY_VIOLATION');
@@ -90,6 +93,9 @@ function buildPlan({ index, packet }) {
     executionMode: 'DIRECT_ON_EXECUTION_BRANCH',
     scopePolicy: SCOPE_POLICY,
     scopeEnforcement: SCOPE_ENFORCEMENT,
+    executionAuthority: 'BOUND_ADMIN_ON_EXECUTION_WITH_ERROR_SCOPE',
+    mutationScope: 'CURRENT_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING_ONLY',
+    humanCommandRequired: false,
     branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN',
     controlPlaneMutationPolicy: CONTROL_PLANE_MUTATION_POLICY,
     controlPlaneMutationScope: 'AUTO_REPAIR_CONTROLLER_FILES_MUST_NOT_BE_MUTATED_BY_AUTO_REPAIR',
