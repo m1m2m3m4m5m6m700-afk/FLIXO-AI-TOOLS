@@ -39,7 +39,7 @@ assert.match(mergeGateWorkflow, /gh api --method PATCH[\s\S]*git\/refs\/heads\/m
 assert.match(mergeGateWorkflow, /-F "force=false"/);
 assert.match(mergeGateWorkflow, /MAIN_AFTER=.*EXPECTED_SHA/);
 assert.match(mergeGateWorkflow, /POST_PROMOTION_EXACT_SHA_PROOF=true/);
-assert.match(mergeGateWorkflow, /commits\\/\\$EXPECTED_SHA\\/status/);
+assert.match(mergeGateWorkflow, /commits\/$EXPECTED_SHA\/status/);
 assert.match(mergeGateWorkflow, /VERCEL_STATE=/);
 assert.match(mergeGateWorkflow, /test "\\$VERCEL_STATE" = "success"/);
 
