@@ -4,6 +4,7 @@ import { createToolCatalog } from '../src/config/tool-platform/catalog.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 import { getToolDefinition, TOOL_DEFINITIONS } from '../src/config/canonical-tool-definition.ts';
 import { assertExecutorCoverage } from '../src/lib/workflows/executor-registry.ts';
+import { assertReadyToolsHaveOutputContracts } from '../src/lib/contracts/tool-output-contracts.ts';
 
 const component = {};
 const profile = (lifecycle, execution, executorId, outputContractId) => ({ lifecycle, execution, contracts: ['structural', 'runtime', 'artifact'], executorId, outputContractId });
@@ -69,6 +70,7 @@ console.log('Tool Platform catalog: PASS');
 
 
 assertExecutorCoverage(TOOL_DEFINITIONS);
+assertReadyToolsHaveOutputContracts();
 const canonicalCatalog = createToolCatalog(TOOL_DEFINITIONS);
 assert.equal(canonicalCatalog.byId.size, TOOL_DEFINITIONS.length);
 assert.equal(canonicalCatalog.byPath.size, TOOL_DEFINITIONS.length);
