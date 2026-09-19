@@ -10,7 +10,7 @@ const resultState = readFileSync('scripts/ci/result-state.mjs', 'utf8');
 
 const required = [
   ['pull_request trigger', /pull_request:\s*\n\s*branches:\s*\[main\]/],
-  ['push trigger', /push:\s*\n\s*branches:\s*\[main\]/],
+  ['push trigger', /push:\s*\n\s*branches:\s*\[main,\s*execution\]/],
   ['single static-build engine', /\n\s{2}verify:\s*\n/],
   ['Browser FAST engine', /\n\s{2}browser_fast:\s*\n/],
   ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
