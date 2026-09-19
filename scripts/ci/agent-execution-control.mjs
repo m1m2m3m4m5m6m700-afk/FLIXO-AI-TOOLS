@@ -11,10 +11,17 @@ const TASK_AGENT_OUTPUT_DIR = process.env.FLIXO_TASK_AGENT_OUTPUT_DIR ?? '/tmp/f
 const TASK_AGENT = path.resolve(ROOT, 'scripts/ci/task-agent.mjs');
 const TASK_FILE = fs.existsSync(path.resolve(ROOT, 'المهام.md')) ? path.resolve(ROOT, 'المهام.md') : path.resolve(ROOT, 'مهام.md');
 const MAX_STAGES = 10;
-const MAX_REPAIR_CYCLES = 12;
+const NORMAL_MAX_REPAIR_CYCLES = 12;
+const MAJOR_MAX_REPAIR_CYCLES = 30;
 const MAX_STALLED_REPAIR_CYCLES = 3;
-const MAX_PREPARED_FILES = 12;
-const MAX_INSPECTED_FILES = 40;
+const NORMAL_MAX_PREPARED_FILES = 12;
+const MAJOR_MAX_PREPARED_FILES = 60;
+const NORMAL_MAX_INSPECTED_FILES = 40;
+const MAJOR_MAX_INSPECTED_FILES = 240;
+const MAJOR_REPAIR_WAVE = /^(1|true|yes|on)$/iu.test(process.env.FLIXO_MAJOR_REPAIR_WAVE ?? '');
+const MAX_REPAIR_CYCLES = MAJOR_REPAIR_WAVE ? MAJOR_MAX_REPAIR_CYCLES : NORMAL_MAX_REPAIR_CYCLES;
+const MAX_PREPARED_FILES = MAJOR_REPAIR_WAVE ? MAJOR_MAX_PREPARED_FILES : NORMAL_MAX_PREPARED_FILES;
+const MAX_INSPECTED_FILES = MAJOR_REPAIR_WAVE ? MAJOR_MAX_INSPECTED_FILES : NORMAL_MAX_INSPECTED_FILES;
 const SCOPE_POLICY = 'SELF_HEALING_REPAIR_ONLY';
 const SCOPE_ENFORCEMENT = 'FAIL_CLOSED';
 const TASK_AGENT_CONTRACT_VERSION = 'TASK-AGENT-DIRECT-REPAIR-v2';
@@ -104,13 +111,17 @@ function buildPlan({ index, packet }) {
     controlPlaneMutationScope: 'AUTO_REPAIR_CONTROLLER_FILES_MUST_NOT_BE_MUTATED_BY_AUTO_REPAIR',
     allowedWork: 'ACTIVE_SELF_HEALING_REPAIR_CYCLE_OR_EXPLICIT_INCOMPLETE_REPAIR_TASK_ONLY',
     forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','GATE_WEAKENING','MAIN_MUTATION','THIRD_BRANCH_CREATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],
-    complexityBudget: { maxStages: MAX_STAGES, maxPreparedFiles: MAX_PREPARED_FILES, maxInspectedFiles: MAX_INSPECTED_FILES, onExceed: 'REQUIRES_REVIEW' },
+    complexityBudget: { maxStages: MAX_STAGES, maxPreparedFiles: MAX_PREPARED_FILES, maxInspectedFiles: MAX_INSPECTED_FILES, onExceed: 'REQUIRES_REVIEW', profile: MAJOR_REPAIR_WAVE ? 'MAJOR' : 'NORMAL' },
     singleOrchestrator: true,
     specializedRolesAreStages: true,
+    majorRepairWave: MAJOR_REPAIR_WAVE,
     parallelism: 'ONLY_FOR_INDEPENDENT_ISOLATED_WORK_WITHIN_EXECUTION',
     failClosed: true,
     mainBranchMutation: false,
     memory: { errorFingerprint: taskFingerprint, fingerprintStable: true, reuseKnownFingerprint: true, repairSummary: packet.repairSummary },
+    majorChangePolicy: MAJOR_REPAIR_WAVE
+      ? 'LARGE_SOURCE_CHANGESET_ALLOWED_WITHIN_ACTIVE_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING;ALL_CANONICAL_GATES_REMAIN_MANDATORY'
+      : 'NORMAL_BOUNDED_REPAIR',
     greenGate: { canonicalGreen: false, zeroRedChecks: false, freshExactShaEvidence: false, regressionProof: false, closureAllowedOnlyWhenAllRequired: true, required: ['CANONICAL_GREEN','ZERO_RED_CHECKS','FRESH_EXACT_SHA_EVIDENCE','REGRESSION_PROOF','NO_UNPROCESSED_ACTIONABLE_RED'] },
     completionPolicy: { taskRemainsOpenAfterRepair: true, codeAppliedIsNotTaskCompletion: true, repairMustTriggerFreshVerification: true, closureRequiresCanonicalGreen: true, closureRequiresNoRedChecks: true, closureRequiresFreshExactShaEvidence: true, closureRequiresZeroUnprocessedActionableRed: true, redPolicy: 'EVERY_ACTIONABLE_RED_REQUIRES_REPAIR_ATTEMPT' },
     repairLoop: { enabled: true, maxCycles: MAX_REPAIR_CYCLES, mode: 'RED_TO_GREEN', cycleRule: 'AFTER_EVERY_REPAIR_RESCAN_ALL_REQUIRED_CHECKS', openNewCycleForEveryRedCheck: true, sameCycleMayContainMultipleIndependentRedChecks: true, newFailuresBecomeNewRepairTargets: true, neverCloseOnTargetedFixAlone: true, circuitBreaker: { enabled: true, maxStalledCycles: MAX_STALLED_REPAIR_CYCLES, definition: 'SAME_FAILURE_FINGERPRINT_WITHOUT_VERIFIABLE_PROGRESS', fingerprintScope: 'RED_CHECKS_AND_REPAIR_TARGETS', progressEvidence: 'CHECK_STATE_OR_ERROR_FINGERPRINT_CHANGED', action: 'REQUIRES_REVIEW_AND_REDISPATCH', failClosed: true }, stopConditions: ['CANONICAL_GREEN','PROOF_FAILED','MAX_REPAIR_CYCLES','CIRCUIT_BREAKER_OPEN','BLOCKED','STALE_BASELINE'] },
