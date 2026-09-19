@@ -189,15 +189,33 @@ jobs:
             exit 1
           }
 
+          CONTROL_PLANE_FILE="/tmp/flixo-watch/repair-control-plane.json"
           CHAIN_ID="watch-$REPAIR_KEY"
           EXISTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 100 --json displayTitle \
             --jq '.[].displayTitle' | grep -Fxc "FLIXO Auto Repair Chain $CHAIN_ID" || true)"
 
           if [ "$EXISTS" -eq 0 ]; then
+            node scripts/ci/repair-control-plane.mjs claim \
+              --fingerprint="$FAILURE_FINGERPRINT" \
+              --failedSha="$(cat /tmp/flixo-watch/execution-sha)" \
+              --targetRunId="$TARGET_RUN_ID" \
+              --executionSha="$(cat /tmp/flixo-watch/execution-sha)" \
+              --mainSha="$(cat /tmp/flixo-watch/main-sha)" \
+              --owner="DAILY_FLIXO_GREEN_GATE" \
+              --branch="execution" > "$CONTROL_PLANE_FILE"
+
+            CLAIMED_CHAIN_ID="$(jq -r '.repairChainId' "$CONTROL_PLANE_FILE")"
+            CLAIMED_STATE="$(jq -r '.state' "$CONTROL_PLANE_FILE")"
+            test "$CLAIMED_STATE" = "CLAIMED" || {
+              echo "FAIL CLOSED: Control Plane did not produce CLAIMED state."
+              exit 1
+            }
+
             gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution \
               -f "target_run_id=$TARGET_RUN_ID" \
               -f "chain_id=$CHAIN_ID"
             echo "REPAIR_DISPATCHED=$TARGET_RUN_ID"
+            echo "CONTROL_PLANE_CHAIN_ID=$CLAIMED_CHAIN_ID"
           else
             echo "REPAIR_ALREADY_TRACKED=$TARGET_RUN_ID"
           fi
@@ -219,6 +237,7 @@ jobs:
             /tmp/flixo-watch/statuses.json
             /tmp/flixo-watch/compare.json
             /tmp/flixo-watch/logs/
+            /tmp/flixo-watch/repair-control-plane.json
           if-no-files-found: warn
           retention-days: 14
 
