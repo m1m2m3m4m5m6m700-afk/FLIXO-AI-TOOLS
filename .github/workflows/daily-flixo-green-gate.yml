@@ -71,6 +71,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/compare/main...execution" > /tmp/flixo-watch/compare.json
           printf '%s\n' "$EXECUTION_SHA" > /tmp/flixo-watch/execution-sha
           printf '%s\n' "$MAIN_SHA" > /tmp/flixo-watch/main-sha
+          printf '%s\n' "$WATCH_BRANCH" > /tmp/flixo-watch/observed-branch
 
       - name: Capture failed CI evidence for classification
         env:
@@ -194,6 +195,7 @@ jobs:
             /tmp/flixo-watch/report.json
             /tmp/flixo-watch/execution-sha
             /tmp/flixo-watch/main-sha
+            /tmp/flixo-watch/observed-branch
             /tmp/flixo-watch/open-prs.json
             /tmp/flixo-watch/all-prs.json
             /tmp/flixo-watch/workflow-runs.json

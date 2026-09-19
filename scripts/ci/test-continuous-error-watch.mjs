@@ -251,4 +251,19 @@ const postMerge = evaluateGreen({
 });
 assert.equal(postMerge.status, 'GREEN');
 
+const mainObservedFailure = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_A,
+  observedBranch: 'main',
+  openPr: null,
+  latestMergedPr: null,
+  workflowRuns: requiredRuns.map((item) =>
+    item.workflowName === 'FLIXO Test System' ? { ...item, conclusion: 'failure', headBranch: 'main', databaseId: 1100 } : { ...item, headBranch: 'main' }),
+  checkRuns: securityAndCertification,
+  logs: { 1100: 'EVIDENCE_CAPTURE=AVAILABLE\nmain internal failure' },
+  compare: { ahead_by: 0, behind_by: 0 },
+});
+assert.equal(mainObservedFailure.status, 'RED_INTERNAL');
+assert.equal(mainObservedFailure.repair.required, false);
+
 console.log('CONTINUOUS_ERROR_WATCH_CONTRACT=PASS');
