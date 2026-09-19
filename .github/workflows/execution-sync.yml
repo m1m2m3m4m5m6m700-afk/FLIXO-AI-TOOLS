@@ -70,9 +70,27 @@ jobs:
           npm run test:auto-repair
           npm run validate:auto-repair-memory
 
-          NEW_SHA="$(git rev-parse HEAD)"
-          test "$NEW_SHA" != "$PRE_SHA"
-          git push origin HEAD:execution
+          # Reconcile any concurrent agent write before publishing the verified execution state.
+          PUSHED=false
+          for attempt in 1 2 3 4 5; do
+            git fetch origin execution
+            if git merge-base --is-ancestor HEAD origin/execution; then
+              git merge --ff-only origin/execution
+            elif git merge-base --is-ancestor origin/execution HEAD; then
+              :
+            else
+              git merge --no-edit origin/execution
+            fi
+            test -z "$(git status --porcelain=v1 --untracked-files=all)"
+            if git push origin HEAD:execution; then
+              PUSHED=true
+              break
+            fi
+            sleep $((attempt * 2))
+          done
+          test "$PUSHED" = true
+          git fetch origin execution
+          NEW_SHA="$(git rev-parse origin/execution)"
           gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution
 
           PR_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json number --jq 'length == 1 ? .[0].number : empty')"
