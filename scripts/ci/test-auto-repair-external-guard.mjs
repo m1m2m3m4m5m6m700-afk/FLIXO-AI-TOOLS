@@ -6,11 +6,13 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 
 const root = process.cwd();
-const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-auto-repair-external-'));
-const logPath = path.join(tempDir, 'failure.log');
-const memoryPath = path.join(tempDir, 'memory.json');
-const intractablePath = path.join(tempDir, 'intractable.json');
-const evidencePath = path.join(tempDir, 'evidence.json');
+const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-auto-repair-external-worktree-'));
+const controlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-auto-repair-external-control-'));
+const logPath = path.join(controlDir, 'failure.log');
+const memoryPath = path.join(controlDir, 'memory.json');
+const intractablePath = path.join(controlDir, 'intractable.json');
+const evidencePath = path.join(controlDir, 'evidence.json');
+const diagnosisPath = path.join(controlDir, 'diagnosis.json');
 
 fs.writeFileSync(logPath, [
   'Code scanning AI findings on PR #745',
@@ -34,7 +36,7 @@ const result = spawnSync(process.execPath, ['scripts/ci/auto-repair-engine.mjs']
     FLIXO_REPAIR_MEMORY: memoryPath,
     FLIXO_INTRACTABLE_ERRORS: intractablePath,
     FLIXO_REPAIR_EVIDENCE_PATH: evidencePath,
-    FLIXO_REPAIR_DIAGNOSIS_PATH: path.join(tempDir, 'diagnosis.json'),
+    FLIXO_REPAIR_DIAGNOSIS_PATH: diagnosisPath,
     FLIXO_TARGET_DIR: tempDir,
   },
   encoding: 'utf8',
