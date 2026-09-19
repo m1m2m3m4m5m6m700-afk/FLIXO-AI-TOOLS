@@ -32,7 +32,7 @@ assert.match(agent, /generalizedAcrossFingerprints: true/);
 assert.match(agent, /CONTRACT_VERSION = 'TASK-AGENT-DIRECT-REPAIR-v2'/);
 assert.match(agent, /rescanAfterEveryRepair: true/);
 assert.match(agent, /everyRedCheckMustBecomeARepairTarget: true/);
-assert.match(agent, /circuitBreaker:\s*\{[\s\S]*enabled: true,[\s\S]*maxStalledCycles: 1000000/);
+assert.match(agent, /circuitBreaker:\s*\{[\s\S]*enabled: true,[\s\S]*maxStalledCycles: 3/);
 assert.match(agent, /action: 'REQUIRES_REVIEW_AND_REDISPATCH'/);
 assert.match(execution, /status: 'ACTIVE_UNTIL_GREEN'/);
 assert.match(execution, /openNewCycleForEveryRedCheck: true/);
