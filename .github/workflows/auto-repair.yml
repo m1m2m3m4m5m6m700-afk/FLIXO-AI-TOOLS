@@ -166,6 +166,7 @@ jobs:
         env:
           FLIXO_TRUSTED_REPAIR_MEMORY: ''
           FLIXO_TRUSTED_MEMORY_SHA: ''
+          FLIXO_SKIP_GIT_MEMORY_HISTORY: 'true'
         run: |
           set -euo pipefail
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-diagnosis.mjs
