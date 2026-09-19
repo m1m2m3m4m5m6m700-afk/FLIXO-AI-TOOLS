@@ -71,6 +71,7 @@ assert.equal(changedProvider.reopen, true);
 for (const path of REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`).concat([
   '.github/workflows/execution-sync.yml',
   '.github/workflows/wp0-trust-baseline.yml',
+  'scripts/ci/control-plane-registry.mjs',
   'scripts/ci/auto-repair-policy.mjs',
   'scripts/ci/auto-repair-engine.mjs',
   'scripts/ci/auto-repair-learning.mjs',
