@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   gate:
-    if: github.event.pull_request.head.ref == 'execution' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository
+    if: ${{ github.event.pull_request.head.ref == 'execution' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
