@@ -14,6 +14,19 @@ import { findHistoricalRepairCandidate, applyHistoricalRepair, historicalRollbac
 import { validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
 
 // Static protocol contract marker: root-cause-proof-reproductionRecovered.
+function mutationAttribution({ beforeSha, afterSha, changedFiles = [], rule = null, outcome = 'unknown' } = {}) {
+  return {
+    schemaVersion: 1,
+    beforeSha: beforeSha ?? null,
+    afterSha: afterSha ?? null,
+    changedFiles: [...new Set(changedFiles)],
+    rule,
+    outcome,
+    exactShaBound: Boolean(beforeSha && afterSha),
+    recordedAt: new Date().toISOString(),
+  };
+}
+
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
