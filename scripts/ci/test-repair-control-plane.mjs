@@ -72,13 +72,20 @@ assert.throws(() => createRepairCycle({
   executionSha: SHA_A,
 }), /CONTROL_PLANE_FAILED_SHA_INVALID/);
 
-assert.throws(() => createRepairCycle({
+const mainTarget = createRepairCycle({
   failureFingerprint: FAILURE,
   failedSha: SHA_A,
-  targetRunId: '1',
+  targetRunId: '2',
   executionSha: SHA_B,
   observedBranch: 'main',
-}), /CONTROL_PLANE_REPAIR_BRANCH_BLOCKED/);
+});
+assert.equal(mainTarget.observedBranch, 'main');
+const mainClaimed = claimRepairCycle(mainTarget, { owner: 'AUTO_REPAIR_BOT' });
+const mainEvidence = transitionRepairCycle(mainClaimed, 'EVIDENCE_LOCKED');
+const mainRca = transitionRepairCycle(mainEvidence, 'RCA');
+const mainPlanned = transitionRepairCycle(mainRca, 'REPAIR_PLANNED');
+const mainMutating = transitionRepairCycle(mainPlanned, 'MUTATING', { reason: 'DIRECT_MAIN_REPAIR' });
+assert.equal(mainMutating.observedBranch, 'main');
 
 assert.equal(CIRCUIT_BREAKER.failClosed, true);
 const advanced = transitionRepairCycle(claimed, 'EVIDENCE_LOCKED', { actor: 'WATCHER', reason: 'CLI_ADVANCE_TEST' });
