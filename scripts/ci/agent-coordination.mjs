@@ -29,8 +29,9 @@ const sha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encodi
 const ensure = () => { fs.mkdirSync(COORD_DIR, { recursive: true }); fs.mkdirSync(PACKET_DIR, { recursive: true }); fs.mkdirSync(HANDOFF_DIR, { recursive: true }); };
 const readJson = (file, fallback) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : fallback;
 const writeJson = (file, value) => fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
-const storageKey = (sessionId) => createHash('sha256').update(sessionId).digest('hex');
+const storageKey = (value) => createHash('sha256').update(value).digest('hex');
 const visibilityPath = (sessionId) => path.join(VISIBILITY_DIR, `${storageKey(sessionId)}.json`);
+const packetPath = (taskId) => path.join(PACKET_DIR, `${storageKey(taskId)}.json`);
 const readVisibility = (sessionId) => { const file = visibilityPath(sessionId); if (!fs.existsSync(file)) throw new Error(`AGENT_VISIBILITY_RECORD_MISSING=${sessionId}`); return JSON.parse(fs.readFileSync(file, 'utf8')); };
 const assertOpenVisibility = (task, sessionId, agentId) => { const record = readVisibility(sessionId); if (record.visibilityState !== 'OPEN' || record.status !== 'RUNNING') throw new Error(`AGENT_VISIBILITY_NOT_OPEN=${sessionId}`); if (record.taskId !== task.taskId) throw new Error('AGENT_VISIBILITY_TASK_MISMATCH'); if (record.agentId !== agentId) throw new Error('AGENT_VISIBILITY_AGENT_MISMATCH'); return record; };
 const visibleAgents = () => { if (!fs.existsSync(VISIBILITY_DIR)) return []; return fs.readdirSync(VISIBILITY_DIR).filter((entry) => entry.endsWith('.json')).sort().map((entry) => { try { const item = JSON.parse(fs.readFileSync(path.join(VISIBILITY_DIR, entry), 'utf8')); return { taskId: item.taskId ?? null, sessionId: item.sessionId ?? entry.slice(0,-5), agentId: item.agentId ?? null, role: item.role ?? null, status: item.status ?? null, finalStatus: item.finalStatus ?? null, entrySha: item.entrySha ?? null, exitSha: item.exitSha ?? null, finalSummary: item.finalSummary ?? null, remainingWork: item.remainingWork ?? [], openRcas: item.openRcas ?? [], updatedAt: item.updatedAt ?? null }; } catch { return { sessionId: entry.slice(0,-5), status: 'MALFORMED_EVIDENCE' }; } }); };
@@ -57,7 +58,7 @@ if (command === 'task-create') {
   const task = { taskId, title: requireArg('title'), priority: Number(optional('priority', '50')), lane: optional('lane', 'fast-path'), rca: optional('rca') || null, scope: list('scope'), objective: optional('objective'), knownFailure: optional('known-failure'), evidenceRequired: list('evidence-required'), dependsOn: list('depends-on'), status: 'READY', createdAt: now() };
   for (const dep of task.dependsOn) if (!state.tasks[dep]) throw new Error(`Unknown dependency: ${dep}`);
   state.tasks[taskId] = task;
-  writeJson(path.join(PACKET_DIR, `${taskId}.json`), { schemaVersion: 1, ...task, entrySha: sha(), createdAt: now(), nextActions: [], continuation: null });
+  writeJson(packetPath(taskId), { schemaVersion: 1, ...task, entrySha: sha(), createdAt: now(), nextActions: [], continuation: null });
   save();
   console.log(JSON.stringify(task, null, 2));
 }
@@ -69,7 +70,7 @@ if (command === 'task-claim') {
   assertOpenVisibility(task, sessionId, agentId);
   const lockId = lock(sessionId, agentId, task.rca, task.scope); task.status = 'RUNNING'; task.claimedBy = agentId; task.sessionId = sessionId; task.claimedAt = now(); task.entrySha = sha(); task.lockId = lockId;
   state.activeSessions[sessionId] = { sessionId, agentId, taskId, lockId, entrySha: sha(), updatedAt: now() };
-  const packetFile = path.join(PACKET_DIR, `${taskId}.json`); const packet = readJson(packetFile, task); packet.claim = { sessionId, agentId, lockId, claimedAt: now(), entrySha: sha() }; writeJson(packetFile, packet); save(); console.log(JSON.stringify(task, null, 2));
+  const packetFile = packetPath(taskId); const packet = readJson(packetFile, task); packet.claim = { sessionId, agentId, lockId, claimedAt: now(), entrySha: sha() }; writeJson(packetFile, packet); save(); console.log(JSON.stringify(task, null, 2));
 }
 
 if (command === 'task-release') {
