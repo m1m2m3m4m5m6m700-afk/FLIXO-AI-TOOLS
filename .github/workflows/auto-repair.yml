@@ -307,31 +307,32 @@ jobs:
           FLIXO_TASK_AGENT_OUTPUT_DIR=/tmp/flixo-task-agent node /tmp/flixo-repair-controller/scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$SIGNATURE" --failure-evidence=/tmp/flixo-repair-summary.txt
           test -s /tmp/flixo-task-agent/latest.json
 
-      - name: Bind shared Prompt Intelligence context
+      - name: Record selected Prompt Intelligence context
         env:
           FLIXO_PROMPT_REGISTRY: /tmp/flixo-repair-controller/docs/agents/PROMPT-REGISTRY.json
           FLIXO_PROMPT_CONTEXT: /tmp/flixo-prompt-context.json
         run: |
           set -euo pipefail
+          test -s /tmp/flixo-task-agent/latest.json
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import { createHash } from 'node:crypto';
-          const { loadPromptRegistry, validatePromptRegistry, selectPromptCandidates, promptQualityGate } = await import('/tmp/flixo-repair-controller/scripts/ci/prompt-intelligence.mjs');
-          const registry = loadPromptRegistry(process.env.FLIXO_PROMPT_REGISTRY);
-          const validation = validatePromptRegistry(registry);
-          if (!validation.valid) throw new Error('PROMPT_REGISTRY_INVALID=' + validation.errors.join('|'));
-          const diagnosis = JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json', 'utf8'));
-          const failureClasses = [diagnosis.failureClass, diagnosis.classification, ...(Array.isArray(diagnosis.features) ? diagnosis.features : [])].filter(Boolean).map((item) => String(item).toUpperCase());
-          const rootCauses = diagnosis.rootCause ? [String(diagnosis.rootCause)] : [];
-          const candidates = selectPromptCandidates(registry, { failureClasses, rootCauses, domain: diagnosis.domain ?? 'error-intelligence' });
-          const master = registry.prompts.find((item) => item.promptId === 'RPR-CORE-MASTER-001');
-          if (!master) throw new Error('MASTER_PROMPT_MISSING');
-          const selected = candidates.find((item) => item.prompt.promptId !== master.promptId)?.prompt ?? master;
-          const gate = promptQualityGate(registry, selected.promptId);
-          if (gate.status !== 'PASS') throw new Error('PROMPT_REVIEW_REQUIRED=' + selected.promptId + ':' + gate.reasons.join('|'));
+          const packet = JSON.parse(fs.readFileSync('/tmp/flixo-task-agent/latest.json', 'utf8'));
+          const context = packet.promptIntelligence ?? null;
+          if (!context?.selectedPromptId) throw new Error('PROMPT_SELECTION_MISSING');
           const registrySha = createHash('sha256').update(fs.readFileSync(process.env.FLIXO_PROMPT_REGISTRY)).digest('hex');
-          const context = { schemaVersion: 1, exactSha: fs.readFileSync('/tmp/flixo-failed-sha', 'utf8').trim(), registrySha, masterPromptId: master.promptId, selectedPromptId: selected.promptId, selectedPromptVersion: selected.version, decision: candidates.length > 1 ? 'REUSE_OR_SPECIALIZE' : 'MASTER_FALLBACK', candidates: candidates.map(({ prompt, score }) => ({ promptId: prompt.promptId, version: prompt.version, score, status: prompt.status })), failureFingerprint: diagnosis.fingerprint ?? null, rootCause: diagnosis.rootCause ?? 'unknown', qualityGate: gate, provenance: { source: process.env.FLIXO_PROMPT_REGISTRY, governingAuthority: 'REPAIR_PROTOCOL_AND_CANONICAL_CI' } };
-          fs.writeFileSync(process.env.FLIXO_PROMPT_CONTEXT, JSON.stringify(context, null, 2) + '\n');
+          const output = {
+            schemaVersion: 1,
+            exactSha: fs.readFileSync('/tmp/flixo-failed-sha', 'utf8').trim(),
+            registrySha,
+            masterPromptId: context.masterPromptId ?? 'RPR-CORE-MASTER-001',
+            selectedPromptId: context.selectedPromptId,
+            selectedPromptVersion: context.selectedPromptVersion ?? 1,
+            decision: context.decision ?? 'UNKNOWN',
+            candidates: context.candidates ?? [],
+            source: 'FLIXO_TASK_AGENT',
+          };
+          fs.writeFileSync(process.env.FLIXO_PROMPT_CONTEXT, JSON.stringify(output, null, 2) + '\n');
           NODE
           PROMPT_ID="$(node -e "const x=require('/tmp/flixo-prompt-context.json');process.stdout.write(x.selectedPromptId)")"
           PROMPT_VERSION="$(node -e "const x=require('/tmp/flixo-prompt-context.json');process.stdout.write(String(x.selectedPromptVersion))")"
@@ -343,6 +344,7 @@ jobs:
           echo "FLIXO_PROMPT_REGISTRY_SHA=$REGISTRY_SHA" >> "$GITHUB_ENV"
           echo "FLIXO_PROMPT_DECISION=$PROMPT_DECISION" >> "$GITHUB_ENV"
           test -s /tmp/flixo-prompt-context.json
+
       - name: Select repair strategy and continue strict RED repair
         id: strategy
         env:
