@@ -43,6 +43,7 @@ ADMIN PROVENANCE = production Vercel→Supabase binding not proven
 
 | ID | Status | Next deterministic action |
 |---|---|---|
+| ADMIN-CONTROL-PLANE-REAL-001 | IN_PROGRESS / PARTIAL | Real login/session boundary now implemented on execution; continue production identity, revocation, adapters, evidence, approval, controlled execution, and certification |
 | ADMIN-003 | CLOSED / VERIFIED | Preserve canonical read-only centers |
 | ADMIN-004 | CLOSED / VERIFIED | Preserve fail-closed execution boundary |
 | ADMIN-005 | CLOSED / VERIFIED | Preserve verified server boundary and browser-bundle security invariant |
@@ -77,6 +78,17 @@ REGRESSION = `tests/foundation.spec.ts` must not be orphaned; `artifacts/ci/lega
 NEXT EXIT = fresh canonical static/build/browser/certification evidence on this exact head.
 SUCCESS GATE = targeted regression + Static/Build + FAST/DEEP + Certification + CI/CD trust + invariant proof + closure evidence.
 NEXT GATE = review audit findings after the validator is proven and activate only one bounded repair candidate.
+```
+
+## ADMIN-CONTROL-PLANE-REAL-001
+
+```text
+STATUS = IN_PROGRESS / PARTIAL
+CURRENT IMPLEMENTATION = execution branch only
+IMPLEMENTED = server credential verification, signed HttpOnly session, login/logout/session API, protected /admin login surface, session-aware Control Plane, auth regression contract
+NOT CERTIFIED = current execution head has no fresh exact-SHA certification for this follow-on change
+REMAINING = production identity provenance, durable session revocation, authoritative adapters/evidence, approval + controlled execution, rollback proof, browser/security/certification
+LEGACY RULE = retired Admin graph is not restored; control-plane login uses a new route filename while retaining /admin/login URL
 ```
 
 ## ADMIN ENTRY — FIVE-CLICK LOGO
