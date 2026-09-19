@@ -181,6 +181,40 @@ jobs:
           test "$(git branch --show-current)" = execution
           echo 'verified=true' >> "$GITHUB_OUTPUT"
 
+      - name: Prepare verified repair handoff
+        if: steps.verify.outputs.verified == 'true'
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = execution
+          test -s /tmp/flixo-repair-evidence.json
+          git diff --binary > /tmp/flixo-prepared-repair.patch
+          test -s /tmp/flixo-prepared-repair.patch
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const evidence = JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));
+          const patch = fs.readFileSync('/tmp/flixo-prepared-repair.patch');
+          const changedPaths = String(require('node:child_process').execFileSync('git',['diff','--name-only'],{encoding:'utf8'})).trim().split('\\n').filter(Boolean);
+          const handoff = {
+            schemaVersion: 3,
+            protocol: 'AGENT-REPAIR-HANDOFF-GATE-v3',
+            mode: 'VERIFIED_REPAIR',
+            applyBy: 'AUTO_REPAIR_BOT',
+            requiresCanonicalCI: true,
+            repairRunId: process.env.TARGET_RUN_ID,
+            failedSha: fs.existsSync('/tmp/flixo-failed-sha') ? fs.readFileSync('/tmp/flixo-failed-sha','utf8').trim() : null,
+            sourceSha: evidence.targetSha,
+            fingerprint: evidence.fingerprint,
+            selectedRule: evidence.selected,
+            changedPaths,
+            patchSha256: crypto.createHash('sha256').update(patch).digest('hex'),
+            evidenceFile: 'flixo-repair-evidence.json',
+            generatedAt: new Date().toISOString()
+          };
+          fs.writeFileSync('/tmp/flixo-prepared-repair-handoff.json', JSON.stringify(handoff,null,2)+'\\n');
+          NODE
+          test -s /tmp/flixo-prepared-repair-handoff.json
+
       - name: Record learning outcome for every diagnosed failure
         if: always()
         env:
@@ -245,6 +279,8 @@ jobs:
             /tmp/flixo-engine-outcome
             /tmp/flixo-learning-outcome
             /tmp/flixo-repair-evidence.json
+            /tmp/flixo-prepared-repair-handoff.json
+            /tmp/flixo-prepared-repair.patch
             /tmp/flixo-repair-strategy.json
             /tmp/flixo-intractable-state
             /tmp/flixo-task-agent/*.json
