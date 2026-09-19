@@ -40,6 +40,8 @@ assert.match(workflow, /NON_GREEN_LEARNING_PERSISTENCE=ARTIFACT_ONLY/);
 assert.match(workflow, /NON_GREEN_REPAIR_MAY_NOT_ADVANCE_EXECUTION_SHA/);
 assert.match(workflow, /NON_GREEN_LEARNING_PUBLISH=DISABLED/);
 assert.match(dispatcher, /schedule:/);
+assert.match(dispatcher, /group: flixo-continuous-error-watch-\$\{\{ github\.run_id \}\}/);
+assert.match(dispatcher, /cancel-in-progress: false/);
 assert.match(dispatcher, /gh workflow run auto-repair\.yml/);
 assert.match(dispatcher, /FLIXO Continuous Delivery/);
 assert.match(dispatcher, /Repository Security Baseline/);
