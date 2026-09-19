@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useLayoutEffect } from 'react';
 import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
-import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
 import { applyDocumentLocale, installDocumentLocaleContract, localeFromPathname } from '../lib/i18n/runtime-document-locale';
 import { SITE_ORIGIN } from '../lib/i18n';
 
@@ -36,7 +35,13 @@ function RouteContent() {
 
 export const rootRoute = createRootRoute({
   component: function RootLayout() {
-    useEffect(() => installCoreWebVitalsDiagnostics(), []);
+    useEffect(() => {
+      let dispose = () => undefined;
+      void import('../lib/diagnostics/performance').then(({ installCoreWebVitalsDiagnostics }) => {
+        dispose = installCoreWebVitalsDiagnostics();
+      });
+      return () => dispose();
+    }, []);
     return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} /><FlixoGlobalLogo /><Suspense fallback={null}><CommandPalette /></Suspense><RouteContent /><Scripts /></>;
   },
   head: () => ({
