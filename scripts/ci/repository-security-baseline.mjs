@@ -1,4 +1,5 @@
-import { REPAIR_GATE_AUTOMATION, WRITE_CAPABLE_WORKFLOWS, SECURITY_CRITICAL_WORKFLOWS } from './control-plane-registry.mjs';
+import { REPAIR_GATE_AUTOMATION, WRITE_CAPABLE_WORKFLOWS, SECURITY_CRITICAL_WORKFLOWS, TRUST_PERIMETER_PATHS } from './control-plane-registry.mjs';
+import { isProtectedPath } from './auto-repair-policy.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -15,24 +16,6 @@ const writeWorkflowAllowlist = new Set(WRITE_CAPABLE_WORKFLOWS.map((name) => `.g
 const securityCriticalWorkflows = new Set(SECURITY_CRITICAL_WORKFLOWS.map((name) => `.github/workflows/${name}`));
 
 const dynamicRepairWorkflowPaths = new Set(REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`));
-const trustPerimeter = [
-  '.github/workflows/auto-repair.yml',
-  '.github/workflows/execution-sync.yml',
-  '.github/workflows/wp0-trust-baseline.yml',
-  'scripts/ci/control-plane-registry.mjs',
-  'scripts/ci/auto-repair-policy.mjs',
-  'scripts/ci/auto-repair-engine.mjs',
-  'scripts/ci/auto-repair-learning.mjs',
-  'scripts/ci/auto-repair-proof.mjs',
-  'scripts/ci/auto-repair/',
-  'scripts/ci/task-agent.mjs',
-  'scripts/ci/agent-execution-control.mjs',
-  'scripts/ci/repository-security-baseline.mjs',
-  'scripts/ci/validate-auto-repair-memory.mjs',
-  'scripts/ci/validate-certification-surface.mjs',
-  'scripts/ci/validate-ci-cd-trust.mjs',
-  'scripts/ci/validate-wp0-trust-baseline.mjs',
-];
 
 function walk(dir) {
   if (!fs.existsSync(dir)) return [];
