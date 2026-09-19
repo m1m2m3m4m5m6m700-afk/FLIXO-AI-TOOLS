@@ -166,6 +166,32 @@ jobs:
           echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Generate comprehensive execution prompts from this visit
+        if: always()
+        env:
+          FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/ci/generate-repair-execution-prompts.mjs             /tmp/flixo-watch/input.json             /tmp/flixo-watch/report.json             /tmp/flixo-watch/execution-prompts.json             /tmp/flixo-watch/execution-prompts.md
+          test -s /tmp/flixo-watch/execution-prompts.json
+          test -s /tmp/flixo-watch/execution-prompts.md
+          PROMPT_COUNT="$(jq -r '.promptCount' /tmp/flixo-watch/execution-prompts.json)"
+          PROMPT_DIGEST="$(jq -r '.digest' /tmp/flixo-watch/execution-prompts.json)"
+          echo "REPAIR_PROMPT_COUNT=$PROMPT_COUNT"
+          echo "REPAIR_PROMPT_DIGEST=$PROMPT_DIGEST"
+          echo "REPAIR_PROMPT_SOURCE_RUN_ID=$GITHUB_RUN_ID"
+
+      - name: Publish execution prompt bundle
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-repair-execution-prompts-${{ github.run_id }}
+          path: |
+            /tmp/flixo-watch/execution-prompts.json
+            /tmp/flixo-watch/execution-prompts.md
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Dispatch internal repair target under Task Agent authority
         if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.capture.outputs.branch == 'execution'
         env:
@@ -214,7 +240,8 @@ jobs:
             gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution \
               -f "target_run_id=$TARGET_RUN_ID" \
               -f "chain_id=$CHAIN_ID" \
-              -f "failure_fingerprint=$FAILURE_FINGERPRINT"
+              -f "failure_fingerprint=$FAILURE_FINGERPRINT" \
+              -f "prompt_source_run_id=$GITHUB_RUN_ID"
             echo "REPAIR_DISPATCHED=$TARGET_RUN_ID"
             echo "CONTROL_PLANE_CHAIN_ID=$CLAIMED_CHAIN_ID"
           else
