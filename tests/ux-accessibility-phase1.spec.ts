@@ -26,7 +26,7 @@ test.describe('UX + Accessibility phase 1', () => {
     await page.goto('/ar/image-compressor');
     const heading = page.getByRole('heading', { name: 'ضغط الصور أونلاين' });
     await expect(heading).toBeVisible();
-    await expect(page.locator('main.image-tool-shell')).toHaveAttribute('dir', 'rtl');
+    await expect(page.locator('.image-tool-shell')).toHaveAttribute('dir', 'rtl');
     await expect(heading).toHaveAttribute('tabindex', '-1');
     await expect.poll(() => page.evaluate(() => (document.activeElement as HTMLElement | null)?.textContent)).toContain('ضغط الصور أونلاين');
   });
