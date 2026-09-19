@@ -16,73 +16,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  wake-repair-agent:
-    name: Wake autonomous repair agent when RED persists
+  wake-supervisor:
+    name: Restore continuous supervisor when RED or unfinished
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Find current repairable RED
-        id: target
+      - name: Check supervisor liveness and current GREEN state
+        id: state
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-
-          ACTIVE_REPAIRS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 20             --json databaseId,status             --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
-
-          if [ "$ACTIVE_REPAIRS" -gt 0 ]; then
-            echo "REPAIR_ALREADY_ACTIVE=$ACTIVE_REPAIRS"
-            echo "found=false" >> "$GITHUB_OUTPUT"
+          ACTIVE_SUPERVISORS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-supervisor.yml --limit 20 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
+          if [ "$ACTIVE_SUPERVISORS" -gt 0 ]; then
+            echo "SUPERVISOR_ALREADY_ACTIVE=$ACTIVE_SUPERVISORS"
+            echo "wake=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          TARGET=""
-          for BRANCH in execution main; do
-            CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
-
-            CANDIDATE="$(gh run list --repo "$GITHUB_REPOSITORY" --branch "$BRANCH" --limit 100               --json databaseId,name,headSha,conclusion,createdAt               --jq --arg sha "$CURRENT_SHA" '
-                map(select(
-                  (.name == "FLIXO Test Impact" or
-                   .name == "FLIXO Test Impact Execution" or
-                   .name == "Repository Security Baseline" or
-                   .name == "Claude Security Review" or
-                   .name == "Daily·FLIXO Green Gate")
-                  and .headSha == $sha
-                  and (.conclusion == "failure" or .conclusion == "timed_out")
-                ))
-                | sort_by(.createdAt)
-                | last.databaseId // empty
-              ')"
-
-            if [ -n "$CANDIDATE" ]; then
-              TARGET="$CANDIDATE"
-              echo "HEARTBEAT_TARGET=$TARGET"
-              echo "HEARTBEAT_BRANCH=$BRANCH"
-              break
+          NEED_WAKE=false
+          REQUIRED='FLIXO Test System|FLIXO WP0 Trust Baseline|FLIXO Test Impact|FLIXO Test Impact Execution|FLIXO Continuous Delivery|Repository Security Baseline|Claude Security Review|Daily·FLIXO Green Gate'
+          for BRANCH in main execution; do
+            SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+            RUNS="$(gh run list --repo "$GITHUB_REPOSITORY" --branch "$BRANCH" --commit "$SHA" --limit 100 --json databaseId,name,status,conclusion,headSha,createdAt)"
+            GREEN="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" 'map(select(.headSha == $sha and .name == "Daily·FLIXO Green Gate" and .conclusion == "success")) | last.databaseId // empty')"
+            FAILED="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" --arg names "$REQUIRED" 'map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null)))) | map(select(.conclusion == "failure" or .conclusion == "timed_out")) | last.databaseId // empty')"
+            if [ -z "$GREEN" ] || [ -n "$FAILED" ]; then
+              NEED_WAKE=true
+              echo "SUPERVISOR_NEEDED branch=$BRANCH sha=$SHA green=${GREEN:-none} failed=${FAILED:-none}"
+            else
+              echo "BRANCH_GREEN branch=$BRANCH sha=$SHA run=$GREEN"
             fi
           done
+          echo "wake=$NEED_WAKE" >> "$GITHUB_OUTPUT"
 
-          if [ -z "$TARGET" ]; then
-            echo 'HEARTBEAT=NO_REPAIRABLE_RED'
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "target_run_id=$TARGET" >> "$GITHUB_OUTPUT"
-          echo "found=true" >> "$GITHUB_OUTPUT"
-
-      - name: Dispatch autonomous repair cycle
-        if: steps.target.outputs.found == 'true'
+      - name: Wake supervisor only when GREEN is not proven
+        if: steps.state.outputs.wake == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-
-          TARGET="${{ steps.target.outputs.target_run_id }}"
-          echo "AUTONOMOUS_DISPATCH target=$TARGET"
-
-          gh workflow run auto-repair.yml             --repo "$GITHUB_REPOSITORY"             --ref main             -f "target_run_id=$TARGET"             -f "chain_id=heartbeat-$TARGET"
-
-          echo "AUTONOMOUS_REPAIR_DISPATCHED=$TARGET"
+          gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo 'SUPERVISOR_WAKE_DISPATCHED=true'
