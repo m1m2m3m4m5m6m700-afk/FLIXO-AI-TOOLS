@@ -36,7 +36,7 @@ const nonTestAutomation = new Set([
 ]);
 const auxiliaryEvidenceAutomation = new Set(['test-impact.yml', 'test-impact-execution.yml']);
 const trustBaselineAutomation = new Set(['wp0-trust-baseline.yml']);
-const repairGateAutomation = new Set(['auto-repair-merge-gate.yml', 'execution-sync.yml']);
+const repairGateAutomation = new Set(['auto-repair-merge-gate.yml', 'execution-sync.yml', 'execution-bot-watchdog.yml']);
 const automatedNonCanonical = [];
 for (const file of workflowFiles) {
   if (file === 'ci.yml' || nonTestAutomation.has(file) || auxiliaryEvidenceAutomation.has(file) || trustBaselineAutomation.has(file) || repairGateAutomation.has(file)) continue;
