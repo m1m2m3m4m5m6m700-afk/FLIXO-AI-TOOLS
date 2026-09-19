@@ -5,6 +5,28 @@ This protocol defines the operating system for the FLIXO agent team. The executi
 
 Cooperation never weakens repository policy, certification or human authority.
 
+
+## Central Repair Protocol Invariant
+
+```text
+REPAIR_SESSION
+  → PROTOCOL_VALIDATION
+  → FAILURE_CAPTURE
+  → MUTATION
+  → TARGETED_RETEST
+  → RESUME_REMAINING_TESTS
+  → FINAL_VERIFICATION
+  → COMMIT_BOUNDARY
+```
+
+The machine-readable authority is `scripts/ci/repair-protocol.mjs`. Prompt text and agent-local interpretations are non-authoritative. Every agent entering the control plane is admitted against the same protocol version and hash.
+
+A new failure discovered inside an active repair session is an **In-Flight Failure**. The allowed sequence is repair, targeted retest, then resume of remaining required verification. A new session or new commit is not created merely because another failure appears in the same causal repair boundary.
+
+**ONE COMMIT IS THE RESULT OF A COMPLETED REPAIR SESSION, NOT THE RESPONSE TO EACH INDIVIDUAL FAILURE.** An additional commit requires a separately proven independent boundary.
+
+No agent may bypass, weaken, reinterpret, or locally redefine the Repair Protocol. Mutation of its protected control-plane source during ordinary repair is blocked.
+
 ## Required machine-readable collaboration markers
 The following terms are normative coordination controls and are intentionally explicit so CI can verify the contract without relying on semantic inference:
 - **Assistant/controller** — the Executive Controller owns orchestration, integration and final execution decisions.
