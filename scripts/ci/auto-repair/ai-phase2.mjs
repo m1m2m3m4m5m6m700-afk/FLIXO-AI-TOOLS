@@ -55,7 +55,7 @@ export function minimizeTestSet(changedFiles=[],impactMap={}){
 
 export function securityGuardian({changedFiles=[],branch='execution'}={}){
  const files=uniq(changedFiles.map(norm));const violations=[];if(branch!=='execution')violations.push('BRANCH_NOT_EXECUTION');
- for(const f of files){if(/(^|\/)\.env(?:\.|$)/iu.test(f)||/\.(pem|key|p12|pfx)$/iu.test(f)||/(^|\/)secrets?\//iu.test(f))violations.push('SENSITIVE_PATH:'+f);if(f.startsWith('.github/workflows/'))violations.push('WORKFLOW_MUTATION:'+f);if(f==='scripts/ci/control-plane-registry.mjs'||f==='scripts/ci/auto-repair-policy.mjs'||f==='scripts/ci/auto-repair-engine.mjs'||f.startsWith('scripts/ci/auto-repair/'))violations.push('CONTROL_PLANE_MUTATION:'+f);}
+ for(const f of files){if(/(^|\/)\.env(?:\.|$)/iu.test(f)||/\.(pem|key|p12|pfx)$/iu.test(f)||/(^|\/)secrets?\//iu.test(f))violations.push('SENSITIVE_PATH:'+f);if(f.startsWith('.github/workflows/'))violations.push('WORKFLOW_MUTATION:'+f);if(f==='scripts/ci/control-plane-registry.mjs'||f==='scripts/ci/auto-repair-policy.mjs'||f==='scripts/ci/repair-protocol.mjs'||f==='scripts/ci/auto-repair-engine.mjs'||f.startsWith('scripts/ci/auto-repair/'))violations.push('CONTROL_PLANE_MUTATION:'+f);}
  const baseline=spawnSync(process.execPath,['scripts/ci/repository-security-baseline.mjs'],{cwd:ROOT,encoding:'utf8',stdio:['ignore','pipe','pipe']});if(baseline.status!==0)violations.push('REPOSITORY_SECURITY_BASELINE_FAILED');
  return Object.freeze({schemaVersion:1,status:violations.length?'BLOCK':'PASS',violations,checkedFiles:files,baselineExit:baseline.status??1});
 }

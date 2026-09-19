@@ -24,9 +24,9 @@ const safeSessionId = (value, label) => {
   return value;
 };
 const sessionId = safeSessionId(rawSessionId, 'session');
-const protocolAdmission = assertAgentAdmission({ actor: role, branch: gitBranch(), mutation: false });
 const agentId = String(args.get('agent') ?? process.env.FLIXO_AGENT_ID ?? '').trim();
 const role = String(args.get('role') ?? process.env.FLIXO_AGENT_ROLE ?? 'implementation').trim();
+const protocolAdmission = assertAgentAdmission({ actor: role, branch: gitBranch(), mutation: false });
 const rca = String(args.get('rca') ?? process.env.FLIXO_AGENT_RCA ?? '').trim() || null;
 const scope = String(args.get('scope') ?? process.env.FLIXO_AGENT_SCOPE ?? '').split(',').map((v) => v.trim()).filter(Boolean);
 const fromSession = rawFromSession ? safeSessionId(rawFromSession, 'previous_session') : null;
