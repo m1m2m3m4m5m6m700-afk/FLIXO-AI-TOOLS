@@ -230,7 +230,12 @@ export function reasonFailure(log, {
     sourceMutationAllowed: sourceMutationAllowed && (!falsificationChecks.some((item) => item.status === 'REQUIRED_BEFORE_NONTRIVIAL_MUTATION') || directFailureSignal),
     externalTooling: hardBlock,
     locationVerified,
-    falsificationChecks,\n    blastRadius: blastRadius(features, top.id),\n    causalGraph: causalGraph({ trigger: process.env.FLIXO_FAILURE_TRIGGER ?? null, rootCause: top.id, violatedInvariant: process.env.FLIXO_VIOLATED_INVARIANT ?? null, responsibleSource: location?.file ?? null, symptom: normalizeFailure(text) }),\n    crossWorkflowCorrelation: crossWorkflowCorrelation({ workflow: process.env.GITHUB_WORKFLOW ?? null, failures: (() => { try { const p = process.env.FLIXO_WORKFLOW_FAILURES; return p && fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : []; } catch { return []; } })() }),\n    adaptiveBudget: adaptiveBudget({ attempts: Number(process.env.FLIXO_REPAIR_ATTEMPTS ?? 0), ambiguity, alternatives: alternatives.length, features }),\n    decision,
+    falsificationChecks,
+    blastRadius: blastRadius(features, top.id),
+    causalGraph: causalGraph({ trigger: process.env.FLIXO_FAILURE_TRIGGER ?? null, rootCause: top.id, violatedInvariant: process.env.FLIXO_VIOLATED_INVARIANT ?? null, responsibleSource: location?.file ?? null, symptom: normalizeFailure(text) }),
+    crossWorkflowCorrelation: crossWorkflowCorrelation({ workflow: process.env.GITHUB_WORKFLOW ?? null, failures: (() => { try { const p = process.env.FLIXO_WORKFLOW_FAILURES; return p && fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : []; } catch { return []; } })() }),
+    adaptiveBudget: adaptiveBudget({ attempts: Number(process.env.FLIXO_REPAIR_ATTEMPTS ?? 0), ambiguity, alternatives: alternatives.length, features }),
+    decision,
     scout: scout.fresh
       ? { fresh: true, path: scout.path ?? null, scannedSha: scout.report.scannedSha, findings: scout.report.findings?.length ?? 0 }
       : { fresh: false, reason: scout.reason, currentSha: scout.currentSha ?? null, scannedSha: scout.scannedSha ?? null },
