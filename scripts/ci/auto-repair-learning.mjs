@@ -9,6 +9,14 @@ export const MEMORY_VERSION = 9;
 export const INTRACTABLE_THRESHOLD = 3;
 export { normalizeFailure, fingerprintFailure, extractFeatures };
 
+export function externalProviderSignature(text = '') {
+  const input = String(text ?? '');
+  const model = input.match(/COPILOT_AGENT_MODEL:\s*([^\r\n]+)/i)?.[1]?.trim() ?? null;
+  const api = input.match(/COPILOT_API_URL:\s*(https?:\/\/[^\s\r\n]+)/i)?.[1]?.trim() ?? null;
+  const error = input.match(/CAPIError:\s*400\s+The requested model is not supported/i)?.[0]?.trim() ?? null;
+  return [model, api, error].filter(Boolean).join('|') || null;
+}
+
 export function normalizeLearningOutcome(outcome, verification) {
   if (outcome === 'unrepaired' && (verification === 'proposal-only' || verification === 'diagnostic-only')) return 'proposed';
   return outcome;
@@ -263,6 +271,10 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   if (features.length) entry.features = [...new Set(features)];
   const isExternalBlock = outcome === 'blocked-external';
   const isHistoricalRevert = outcome === 'reverted-repair';
+  const effectiveProviderSignature = provenance?.providerSignature ?? (isExternalBlock ? externalProviderSignature(normalizedFailure) : null);
+  const effectiveProvenance = effectiveProviderSignature
+    ? { ...(provenance ?? {}), providerSignature: effectiveProviderSignature }
+    : (provenance ?? {});
   const isHistoricalRevertFailure = outcome === 'revert-failure';
   if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
   if (isHistoricalRevert) {
@@ -280,7 +292,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   if (outcome === 'success') entry.successes += 1; else if (countsAsRepairAttempt) entry.failures += 1;
   entry.confidence = confidenceFor(entry);
   if (rule) entry.rules = [...new Set([...entry.rules, rule])];
-  entry.outcomes.push({ outcome, verification, rule, provenance, preventionRule, at: new Date().toISOString() });
+  entry.outcomes.push({ outcome, verification, rule, provenance: effectiveProvenance, preventionRule, at: new Date().toISOString() });
   entry.outcomes = entry.outcomes.slice(-10);
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
   const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
@@ -300,7 +312,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     if (!memory.playbooks.includes(playbook)) memory.playbooks.push(playbook);
   }
   if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked' || outcome === 'blocked-external') {
-    upsertLesson(memory, { fingerprint, rootCause: entry.rootCause, rule, outcome, verification, provenance, preventionRule });
+    upsertLesson(memory, { fingerprint, rootCause: entry.rootCause, rule, outcome, verification, provenance: effectiveProvenance, preventionRule });
   }
   if (entry.attempts >= INTRACTABLE_THRESHOLD && entry.successes === 0) {
     fs.writeFileSync('/tmp/flixo-intractable-state', 'true\n');
