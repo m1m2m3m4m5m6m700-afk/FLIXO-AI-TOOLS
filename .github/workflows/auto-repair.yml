@@ -39,7 +39,7 @@ env:
   FLIXO_HISTORY_LIMIT: '30'
   FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
   FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id || github.event.workflow_run.id }}
-  FLIXO_MAX_REPAIR_CHAIN_RUNS: '32'
+  FLIXO_MAX_REPAIR_CHAIN_RUNS: '1000000'
   FLIXO_STRICT_RED_REPAIR: 'true'
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
