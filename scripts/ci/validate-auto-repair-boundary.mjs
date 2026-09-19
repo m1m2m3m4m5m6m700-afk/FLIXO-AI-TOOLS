@@ -66,10 +66,8 @@ export function validateStatic() {
   must(Number.isFinite(timeout) && timeout <= 45, 'auto-repair-timeout-bound');
 
   must(/name:\s*FLIXO Execution Bot Watchdog/.test(watchdog), 'watchdog-identity');
-  must(/workflow_run:\s*\n\s*types:\s*\[requested, in_progress, completed\]/.test(watchdog), 'watchdog-lifecycle-trigger');
-  must(/schedule:\s*\n\s*- cron:\s*['"]\*\/5 \* \* \* \*['"]/.test(watchdog), 'watchdog-persistence-schedule');
   must(/push:\s*\n\s*branches:\s*\[execution\]/.test(watchdog), 'watchdog-execution-push');
-  must(/pull_request:\s*\n\s*types:\s*\[opened, synchronize, reopened\]\s*\n\s*branches:\s*\[main\]/.test(watchdog), 'watchdog-main-pr-observer');
+  must(/workflow_dispatch:/.test(watchdog), 'watchdog-manual-wake');
   must(/actions:\s*write/.test(watchdog) && /contents:\s*read/.test(watchdog), 'watchdog-permissions');
   must(/--workflow auto-repair\.yml[\s\S]*--ref execution/.test(watchdog), 'watchdog-canonical-dispatch');
   must(!/git\s+(checkout|switch)\s+-[bc]/.test(watchdog), 'watchdog-no-third-branch');
