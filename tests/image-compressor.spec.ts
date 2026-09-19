@@ -6,7 +6,6 @@ const hugeSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="9000" height="90
 test('Large pixel dimensions are rejected before expensive canvas work', async ({ page }) => {
   await page.goto('/en/image-compressor');
   await page.locator('#image-file').setInputFiles({ name: 'huge.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(hugeSvg) });
-  await page.getByRole('button', { name: 'Compress image' }).click();
   await expect(page.getByRole('alert')).toContainText('source image is too large for safe browser processing', { timeout: 15000 });
   await expect(page.getByRole('link', { name: 'Download image' })).toHaveCount(0);
 });
