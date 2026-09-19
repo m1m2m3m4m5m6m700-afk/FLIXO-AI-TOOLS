@@ -1,11 +1,13 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { isAdminSessionStoreConfigured, isAdminSessionRevoked } from './session-store.ts';
+import { ADMIN_CAPABILITIES } from '../../src/lib/admin/control-plane.ts';
 
 const SESSION_COOKIE = 'flixo_admin_session';
 const DEFAULT_TTL_SECONDS = 60 * 60;
 
 const BOUNDARY_CAPABILITY = 'admin.read' as const;
+const ACTIVE_CAPABILITIES = new Set<string>(ADMIN_CAPABILITIES);
 
 type AdminRequest = IncomingMessage & {
   method?: string;
@@ -89,7 +91,9 @@ export const verifyAdminSessionToken = (token: string | null, secret = process.e
     const payload = JSON.parse(fromBase64url(encoded)) as { sub?: string; role?: string; sid?: string; cap?: unknown; exp?: number };
     if (!payload.sub || !Array.isArray(payload.cap) || typeof payload.exp !== 'number' || !Number.isInteger(payload.exp)) return null;
     if (payload.exp <= Math.floor(Date.now() / 1000)) return null;
-    return { subject: payload.sub, sessionId: typeof payload.sid === 'string' ? payload.sid : undefined, role: typeof payload.role === 'string' ? payload.role : undefined, expiresAt: payload.exp, capabilities: new Set(payload.cap.filter((value): value is string => typeof value === 'string')) };
+    const capabilities = payload.cap.filter((value): value is string => typeof value === 'string');
+    if (capabilities.length !== payload.cap.length || capabilities.some((value) => !ACTIVE_CAPABILITIES.has(value))) return null;
+    return { subject: payload.sub, sessionId: typeof payload.sid === 'string' ? payload.sid : undefined, role: typeof payload.role === 'string' ? payload.role : undefined, expiresAt: payload.exp, capabilities: new Set(capabilities) };
   } catch {
     return null;
   }
