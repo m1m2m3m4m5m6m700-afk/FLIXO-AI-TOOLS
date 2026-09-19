@@ -49,7 +49,7 @@ const checkFailures = checkRuns
   .filter((check) => ['failure', 'timed_out', 'cancelled', 'action_required'].includes(String(check.conclusion ?? '')))
   .filter((check) => {
     const details = String(check.details_url ?? '');
-    const match = details.match(/\/actions\/runs\/(\d+)/u);
+    const match = details.split('/actions/runs/')[1]?.match(/^\d+/u);
     return match ? byRunId.has(match[1]) : true;
   });
 
