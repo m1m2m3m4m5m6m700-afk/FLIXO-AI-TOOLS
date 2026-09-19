@@ -17,6 +17,25 @@ assert.equal(planRepair('certification FAST 66 DEEP 60').selected, null);
 assert.equal(isPathAllowed('.github/workflows/ci.yml'), false);
 assert.equal(isProtectedPath('tests/seed.spec.ts'), true);
 assert.equal(isPathAllowed('src/example.ts'), true);
+assert.equal(repairPolicy.maxAttemptsPerFingerprint, 3);
+assert.equal(repairPolicy.maxRepairChainRuns, 8);
 assert.equal(repairPolicy.maxChangedFiles, 8);
 assert.equal(repairPolicy.maxChangedLines, 300);
+assert.equal(repairPolicy.openDraftPrOnly, false);
+for (const path of [
+  '.github/workflows/auto-repair-executor.yml',
+  '.github/workflows/auto-repair-merge-gate.yml',
+  '.github/workflows/execution-sync.yml',
+  '.github/workflows/wp0-trust-baseline.yml',
+  'scripts/ci/auto-repair-policy.mjs',
+  'scripts/ci/auto-repair-engine.mjs',
+  'scripts/ci/auto-repair-learning.mjs',
+  'scripts/ci/auto-repair/',
+  'scripts/ci/task-agent.mjs',
+  'scripts/ci/agent-execution-control.mjs',
+  'scripts/ci/repository-security-baseline.mjs',
+  'scripts/ci/validate-auto-repair-memory.mjs',
+]) {
+  assert.equal(isPathAllowed(path), false, `trust perimeter must remain immutable to auto-repair: ${path}`);
+}
 console.log('AUTO_REPAIR_FINAL_ARCHITECTURE=PASS');

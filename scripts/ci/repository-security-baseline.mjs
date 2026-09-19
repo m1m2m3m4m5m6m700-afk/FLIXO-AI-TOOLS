@@ -15,6 +15,34 @@ const writeWorkflowAllowlist = new Set([
   '.github/workflows/execution-sync.yml',
 ]);
 
+const securityCriticalWorkflows = new Set([
+  '.github/workflows/auto-repair.yml',
+  '.github/workflows/auto-repair-executor.yml',
+  '.github/workflows/auto-repair-merge-gate.yml',
+  '.github/workflows/execution-sync.yml',
+  '.github/workflows/wp0-trust-baseline.yml',
+]);
+
+const trustPerimeter = [
+  '.github/workflows/auto-repair.yml',
+  '.github/workflows/auto-repair-executor.yml',
+  '.github/workflows/auto-repair-merge-gate.yml',
+  '.github/workflows/execution-sync.yml',
+  '.github/workflows/wp0-trust-baseline.yml',
+  'scripts/ci/auto-repair-policy.mjs',
+  'scripts/ci/auto-repair-engine.mjs',
+  'scripts/ci/auto-repair-learning.mjs',
+  'scripts/ci/auto-repair-proof.mjs',
+  'scripts/ci/auto-repair/',
+  'scripts/ci/task-agent.mjs',
+  'scripts/ci/agent-execution-control.mjs',
+  'scripts/ci/repository-security-baseline.mjs',
+  'scripts/ci/validate-auto-repair-memory.mjs',
+  'scripts/ci/validate-certification-surface.mjs',
+  'scripts/ci/validate-ci-cd-trust.mjs',
+  'scripts/ci/validate-wp0-trust-baseline.mjs',
+];
+
 function walk(dir) {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -26,6 +54,14 @@ function walk(dir) {
 function workflowFiles() {
   return walk(workflowDir).filter((file) => /\.ya?ml$/i.test(file));
 }
+
+const policyPath = path.join(root, 'scripts', 'ci', 'auto-repair-policy.mjs');
+const policyText = fs.existsSync(policyPath) ? fs.readFileSync(policyPath, 'utf8') : '';
+for (const protectedPath of trustPerimeter) {
+  if (!policyText.includes("'" + protectedPath + "'")) failures.push('auto-repair-policy: missing protected trust path ' + protectedPath);
+}
+if (policyText.includes('maxAttemptsPerFingerprint: Number.POSITIVE_INFINITY')) failures.push('auto-repair-policy: unbounded per-fingerprint repair is forbidden');
+if (/openDraftPrOnly:\s*true/u.test(policyText)) failures.push('auto-repair-policy: openDraftPrOnly=true contradicts canonical execution→main publication');
 
 for (const file of workflowFiles()) {
   const relative = path.relative(root, file).replaceAll(path.sep, '/');
@@ -42,6 +78,15 @@ for (const file of workflowFiles()) {
   const hasContentsWrite = /^\s*contents\s*:\s*write\s*$/m.test(text);
   if (hasContentsWrite && !writeWorkflowAllowlist.has(relative)) {
     failures.push(`${relative}: contents: write requires explicit security allowlisting`);
+  }
+
+  if (securityCriticalWorkflows.has(relative)) {
+    for (const match of text.matchAll(/^\s*uses:\s*([^\s#]+)@([^\s#]+)\s*$/gmu)) {
+      const actionRef = match[2];
+      if (!/^[a-f0-9]{40}$/u.test(actionRef)) {
+        failures.push(`${relative}: security-critical workflow action must use an immutable 40-hex SHA; found ${actionRef}`);
+      }
+    }
   }
 
   if (/^\s*permissions\s*:\s*$/m.test(text) === false) {

@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: 01 — Checkout exact execution SHA
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
@@ -45,7 +45,7 @@ jobs:
           printf '%s\n' "$ACTUAL_SHA" > flixo-wp0-head-sha.txt
 
       - name: 03 — Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -72,7 +72,13 @@ jobs:
       - name: 08 — WP0 static trust and readiness alignment gate
         run: node scripts/ci/validate-wp0-trust-baseline.mjs
 
-      - name: 09 — Engineering baseline
+      - name: 09 — Auto-Repair memory evidence integrity
+        run: node scripts/ci/validate-auto-repair-memory.mjs
+
+      - name: 10 — Repository security trust perimeter
+        run: node scripts/ci/repository-security-baseline.mjs
+
+      - name: 11 — Engineering baseline
         run: npm run validate:baseline
 
       - name: 10 — Typecheck
@@ -114,7 +120,7 @@ jobs:
 
       - name: 14 — Upload WP0 evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0
         with:
           name: flixo-wp0-evidence-${{ github.event.pull_request.head.sha || github.sha }}
           path: dist/wp0-evidence/

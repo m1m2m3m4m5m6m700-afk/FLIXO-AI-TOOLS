@@ -17,9 +17,10 @@ export function normalizeLearningOutcome(outcome, verification) {
 const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });
 
 export function loadMemory() {
-  if (!fs.existsSync(memoryPath)) return emptyMemory();
+  const trustedSourcePath = process.env.FLIXO_TRUSTED_REPAIR_MEMORY || memoryPath;
+  if (!fs.existsSync(trustedSourcePath)) return emptyMemory();
   try {
-    const parsed = JSON.parse(fs.readFileSync(memoryPath, 'utf8'));
+    const parsed = JSON.parse(fs.readFileSync(trustedSourcePath, 'utf8'));
     const memory = { ...emptyMemory(), ...parsed };
     memory.version = Number.isInteger(parsed?.version) ? Math.max(parsed.version, MEMORY_VERSION) : MEMORY_VERSION;
     for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(memory[key])) memory[key] = [];

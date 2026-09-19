@@ -4,7 +4,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const ROOT = process.cwd();
-const memoryPath = resolve(ROOT, 'diagnostics/auto-repair/memory.json');
+const memoryPath = resolve(
+  ROOT,
+  process.env.FLIXO_MEMORY_VALIDATION_PATH
+    ?? process.env.FLIXO_TRUSTED_REPAIR_MEMORY
+    ?? process.env.FLIXO_REPAIR_MEMORY
+    ?? 'diagnostics/auto-repair/memory.json',
+);
 const fail = (message) => {
   console.error(`AUTO_REPAIR_MEMORY_CONTRACT_ERROR=${message}`);
   process.exit(1);
@@ -28,6 +34,13 @@ for (const collection of ['lessons', 'antiLessons']) {
     if (typeof lesson.rootCause !== 'string' || !lesson.rootCause) fail(`${collection}-missing-root-cause`);
     if (typeof lesson.confidence !== 'number' || lesson.confidence < 0 || lesson.confidence > 1) fail(`${collection}-invalid-confidence`);
     if (!Array.isArray(lesson.evidence) || !Array.isArray(lesson.preventionRules)) fail(`${collection}-evidence-shape`);
+    for (const evidence of lesson.evidence) {
+      const provenance = evidence?.provenance;
+      if (!provenance || !/^\d+$/.test(String(provenance.runId ?? ''))) fail(`${collection}-missing-provenance-run-id`);
+      const hasSha = ['failedSha', 'executionSha', 'targetSha', 'mergedMainSha', 'revertedCommit']
+        .some((key) => /^[a-f0-9]{40}$/u.test(String(provenance[key] ?? '')));
+      if (!hasSha) fail(`${collection}-missing-provenance-sha`);
+    }
   }
 }
 
@@ -44,6 +57,14 @@ for (const entry of memory.cases) {
   if (!entry?.fingerprint || typeof entry.fingerprint !== 'string') fail('case-missing-fingerprint');
   if (entry.attempts < 0 || entry.successes < 0 || entry.failures < 0) fail('case-negative-count');
   if (entry.successes + entry.failures > entry.attempts) fail(`case-count-invariant:${entry.fingerprint}`);
+  for (const outcome of entry.outcomes ?? []) {
+    if (!outcome || typeof outcome !== 'object') fail(`case-outcome-not-object:${entry.fingerprint}`);
+    const provenance = outcome.provenance;
+    if (!provenance || !/^\d+$/.test(String(provenance.runId ?? ''))) fail(`case-missing-provenance-run-id:${entry.fingerprint}`);
+    const hasSha = ['failedSha', 'executionSha', 'targetSha', 'mergedMainSha', 'revertedCommit']
+      .some((key) => /^[a-f0-9]{40}$/u.test(String(provenance[key] ?? '')));
+    if (!hasSha) fail(`case-missing-provenance-sha:${entry.fingerprint}`);
+  }
 }
 
 const canonical = JSON.stringify({ ...memory, integrityDigest: undefined });

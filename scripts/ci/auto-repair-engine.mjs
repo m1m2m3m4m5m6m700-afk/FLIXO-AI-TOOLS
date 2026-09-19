@@ -39,7 +39,7 @@ const historicalRollbackCandidate = findHistoricalRepairCandidate(targetDir, {
   historyLimit: Number(process.env.FLIXO_HISTORY_LIMIT ?? 30),
 });
 
-if (known?.attempts != null && repairPolicy.maxAttemptsPerFingerprint !== Number.POSITIVE_INFINITY && (known.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint && !historicalRollbackCandidate) {
+if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint && !historicalRollbackCandidate) {
   console.log('AUTO_REPAIR_RESULT=LEARNING_MEMORY_BLOCK');
   process.exit(0);
 }
@@ -55,9 +55,6 @@ const specialist = selectSpecialist(plan.features);
 let selected = plan.selected;
 const historicalRules = [
   ...(reusableKnowledge.generalizedRules ?? []).map((item) => item.rule).filter(Boolean),
-  ...(known?.rules ?? []),
-  ...similar.flatMap(({ case: item }) => item.rules ?? []),
-  ...trustedLessons.map((item) => item.rule).filter(Boolean),
 ];
 const historicalCandidate = plan.candidates.find((candidate) => historicalRules.includes(candidate.id) && candidate.mutate && candidate.confidence >= 90 && !revertedRuleIds.has(candidate.id));
 const blockedRuleIds = new Set(blockedLessons.map((item) => item.rule).filter(Boolean));
@@ -82,6 +79,10 @@ const evidence = {
   reusableKnowledge,
   selected: selected?.id ?? null,
   historicalRollbackCandidate: historicalRollbackCandidate ? historicalRollbackRecord(historicalRollbackCandidate) : null,
+  trustedMemorySource: {
+    mode: process.env.FLIXO_TRUSTED_REPAIR_MEMORY ? 'canonical-main-snapshot' : 'local-output-memory',
+    sourceSha: process.env.FLIXO_TRUSTED_MEMORY_SHA ?? null,
+  },
   learning: {
     memoryVersion: memory.version,
     exactCase: Boolean(known),
