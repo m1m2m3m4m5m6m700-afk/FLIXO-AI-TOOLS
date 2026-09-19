@@ -47,6 +47,12 @@ const latestCheck = (checks, patterns) => latestBy(checks, (check) => patterns.s
 const stateOf = (item) => !item ? 'MISSING' : item.status === 'completed' ? (item.conclusion ?? 'unknown') : (item.status ?? 'unknown');
 const providerFailure = (log) => PROVIDER_FAILURE_PATTERNS.some((pattern) => pattern.test(String(log ?? '')));
 
+const logForCheck = (check, logs) => {
+  const detailsUrl = String(check?.details_url ?? '');
+  const match = detailsUrl.match(/\/actions\/runs\/(\d+)/);
+  return logs[String(match?.[1] ?? '')] ?? logs[String(check?.id ?? '')] ?? '';
+};
+
 function externalCheckBlock(check, log) {
   if (!check || !EXTERNAL_CHECK_PATTERNS.some((pattern) => pattern.test(String(check.name ?? '')))) return null;
   return {
@@ -224,7 +230,7 @@ export function evaluateGreen({
       action: 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED',
     });
   } else if (securityCheck.conclusion !== 'success') {
-    const external = securityProviderBlock(securityCheck, logs[String(securityCheck.id)] ?? '');
+    const external = securityProviderBlock(securityCheck, logForCheck(securityCheck, logs));
     if (external) {
       report.externalBlockers.push(external);
     } else {
