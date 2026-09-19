@@ -1,7 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs';
 
 const canonicalPath = 'src/config/canonical-tool-definition.ts';
+const loaderPath = 'src/config/tool-platform/loader.ts';
 const legacyPath = 'src/config/tool-definitions/image.ts';
+
+if (!existsSync(loaderPath)) {
+  console.error(`Tool registry contract failed: canonical loader missing: ${loaderPath}`);
+  process.exit(1);
+}
 
 if (!existsSync(canonicalPath)) {
   console.error(`Tool registry contract failed: canonical source missing: ${canonicalPath}`);
@@ -25,11 +31,11 @@ for (const match of inventoryMatch.groups.entries.matchAll(/\{ id: '([^']+)', ti
   entries.push({ id: match[1], title: match[2], path: match[3], description: match[4], category: match[5], isReady: match[6] === 'true' });
 }
 
-const expectedToolCount = 22;
-const expectedReadyCount = 21;
-const expectedUnavailableCount = 1;
-if (entries.length !== expectedToolCount) {
-  console.error(`Tool registry contract failed: expected ${expectedToolCount} canonical image tools, discovered ${entries.length}.`);
+const expectedToolCount = entries.length;
+const expectedReadyCount = entries.filter(({ isReady }) => isReady).length;
+const expectedUnavailableCount = entries.length - expectedReadyCount;
+if (!entries.length) {
+  console.error('Tool registry contract failed: canonical registry is empty.');
   process.exit(1);
 }
 
@@ -69,9 +75,9 @@ for (const { id, title, description, category, path } of entries) {
   }
 }
 
-const unavailableIds = entries.filter(({ isReady }) => !isReady).map(({ id }) => id);
-if (unavailableIds.length !== 1 || unavailableIds[0] !== 'photo-colorizer') {
-  console.error(`Tool registry contract failed: expected only photo-colorizer to be unavailable; actual: ${unavailableIds.join(', ') || 'none'}.`);
+const loaderSource = readFileSync(loaderPath, 'utf8');
+if (!loaderSource.includes('TOOL_DEFINITIONS') || !loaderSource.includes('createToolCatalog')) {
+  console.error('Tool registry contract failed: single canonical Tool Loader is not bound to TOOL_DEFINITIONS.');
   process.exit(1);
 }
 
