@@ -56,6 +56,9 @@ export function validateStatic() {
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(auto), 'auto-repair-no-self-dispatch');
   must(/target_run_id:[\s\S]*required:\s*true/.test(auto), 'auto-repair-target-run-required');
   must(/ref:\s*execution/.test(auto), 'auto-repair-checkout-execution');
+  must(/CONTROLLER_SHA=\"\$MAIN_SHA\"/.test(auto), 'auto-repair-main-controller-trust');
+  must(/TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/.test(auto), 'auto-repair-trust-model');
+  must(/FLIXO_TRUSTED_CONTROLLER_SHA=\$CONTROLLER_SHA/.test(auto), 'auto-repair-controller-provenance');
   must(/contents:\s*write/.test(auto) && /actions:\s*write/.test(auto) && /pull-requests:\s*write/.test(auto), 'auto-repair-required-permissions');
   must(/checks:\s*read/.test(auto), 'auto-repair-check-permission');
   must(/cancel-in-progress:\s*false/.test(auto), 'auto-repair-single-lane');
@@ -96,6 +99,9 @@ export function validateStatic() {
   must(/--workflow auto-repair\.yml[\s\S]*--ref execution/.test(watchdog), 'watchdog-canonical-dispatch');
   must(!/git\s+(checkout|switch)\s+-[bc]/.test(watchdog), 'watchdog-no-third-branch');
   must(!/git\s+push[^\n]*\bmain\b/.test(watchdog), 'watchdog-no-main-push');
+  must(!/actions\/checkout@/i.test(watchdog), 'watchdog-no-untrusted-checkout');
+  must(!/node\s+scripts\//i.test(watchdog), 'watchdog-no-untrusted-source-execution');
+  must(/WATCHDOG_EXECUTION_CODE_EXECUTED=false/.test(watchdog), 'watchdog-source-execution-disabled');
 
   if (errors.length) fail(errors.join(','));
   return { status: 'PASS', maxChangedFiles: MAX_CHANGED_FILES, maxChangedLines: MAX_CHANGED_LINES, controlPlaneFiles: [...CONTROL_PLANE_FILES] };
