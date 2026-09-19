@@ -256,6 +256,9 @@ jobs:
       - name: Run Phase 1 AI self-test
         run: node --experimental-strip-types scripts/ci/test-ai-phase1.mjs
 
+      - name: Run Phase 2 AI self-test
+        run: node --experimental-strip-types scripts/ci/test-ai-phase2.mjs
+
       - name: Install target dependencies
         id: install_target
         if: steps.strategy.outputs.intractable != 'true'
@@ -500,7 +503,6 @@ jobs:
         env:
           FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
           FLIXO_REPAIR_EVIDENCE_PATH: /tmp/flixo-repair-evidence.json
-          FLIXO_EXECUTION_SHA: ${{ github.sha }}
         run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase2.mjs --release-handoff
 
       - name: Publish repair evidence
