@@ -1,6 +1,6 @@
 # Safe Task Agent Execution
 
-The Task Agent repairs GitHub Actions through the single canonical `execution` branch. Canonical CI is the merge gate. Direct mutation of `main` is not permitted.
+The Task Agent repairs GitHub Actions against the exact observed target SHA on `execution` or `main`. Canonical CI remains the final GREEN authority. Direct `main` mutation is permitted only under the exact-SHA repair boundary.
 
 ## Canonical lifecycle
 
