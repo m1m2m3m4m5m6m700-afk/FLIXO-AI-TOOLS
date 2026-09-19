@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { planFromIntent, type ExecutionPlan } from '@/lib/ai/planner';
 import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipeline-runner';
@@ -36,27 +36,26 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const [progress, setProgress] = useState<PipelineProgress | null>(null);
   const [result, setResult] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const initialMemoryRef = useRef<ConversationMemory>(loadConversationMemory());
+  const [memory, setMemory] = useState<ConversationMemory>(() => loadConversationMemory());
   const [messages, setMessages] = useState<Message[]>(() => {
-    const turns = initialMemoryRef.current.turns;
+    const turns = loadConversationMemory().turns;
     if (turns.length === 0) return [{ id: 1, role: 'agent', text: copy.greeting }];
     return turns.map((turn, index) => ({ id: index + 1, role: turn.role, text: turn.text }));
   });
-  const [messageId, setMessageId] = useState(() => initialMemoryRef.current.turns.length + 1);
-  const memoryRef = initialMemoryRef;
+  const [messageId, setMessageId] = useState(() => loadConversationMemory().turns.length + 1);
 
-  const contextualQuery = useMemo(() => contextualizeCommand(query, memoryRef.current), [query]);
+  const contextualQuery = useMemo(() => contextualizeCommand(query, memory), [query, memory]);
   const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, getReadyToolConfigs())[0] : null, [contextualQuery]);
   const planned = useMemo(() => contextualQuery.trim() ? planFromIntent(contextualQuery) : null, [contextualQuery]);
   const pushMessage = (role: Message['role'], text: string) => {
     setMessages((current) => [...current, { id: messageId, role, text }]);
     setMessageId((value) => value + 1);
-    memoryRef.current = rememberTurn(memoryRef.current, { role, text });
+    setMemory((current) => rememberTurn(current, { role, text }));
   };
 
   const buildPlan = (command: string, responseCopy = copy): ExecutionPlan | null => {
     setError(null); setResult(null); setProgress(null);
-    const contextualCommand = contextualizeCommand(command, memoryRef.current);
+    const contextualCommand = contextualizeCommand(command, memory);
     const extracted = extractParameters(contextualCommand);
     if (!extracted.success) {
       setPlan(null); setState('error'); setError(extracted.errors.join(' '));
@@ -65,18 +64,18 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     const nextPlan = planFromIntent(contextualCommand);
     if (!nextPlan) { setPlan(null); setState('error'); setError(responseCopy.noSafePlan); return null; }
     const firstStep = nextPlan.steps[0];
-    memoryRef.current = setConversationTask(memoryRef.current, {
+    setMemory((current) => setConversationTask(current, {
       command: contextualCommand,
       toolId: firstStep?.toolId ?? null,
       planReady: true,
-    });
+    }));
     setPlan(nextPlan); setState('ready'); return nextPlan;
   };
 
   const execute = async (nextPlan = plan, responseCopy = copy) => {
     if (!file || !nextPlan) return;
     setState('running'); setError(null);
-    memoryRef.current = setConversationTask(memoryRef.current, { command: memoryRef.current.activeCommand ?? '', planReady: false });
+    setMemory((current) => setConversationTask(current, { command: current.activeCommand ?? '', planReady: false }));
     pushMessage('agent', `${responseCopy.success} ${nextPlan.steps.length} ${responseCopy.step}.`);
     try { const output = await runWorkflowPipeline(file, nextPlan, setProgress); setResult(output); setState('success'); pushMessage('agent', responseCopy.success); }
     catch (cause) { const message = cause instanceof Error ? cause.message : 'Execution failed.'; setError(message); setState('error'); pushMessage('agent', `${responseCopy.stopped} ${message}`); }
@@ -106,7 +105,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       setPlan(null);
       setState('idle');
       setError(null);
-      memoryRef.current = clearConversationTask(memoryRef.current);
+      setMemory((current) => clearConversationTask(current));
       pushMessage('agent', responseCopy.cancelled);
       return;
     }
@@ -122,7 +121,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     }
 
     if (GENERIC_CROP_REQUEST.test(command)) {
-      memoryRef.current = setConversationTask(memoryRef.current, {
+      setMemory((current) => setConversationTask(current, {
         command,
         toolId: 'image-cropper',
         pendingToolId: 'image-cropper',
@@ -130,7 +129,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           ? 'ما النسبة أو الأبعاد التي تريدها؟ مثال: 1:1 أو 1200×800.'
           : 'What aspect ratio or dimensions do you want? For example: 1:1 or 1200×800.',
         planReady: false,
-      });
+      }));
       setPlan(null);
       setState('idle');
       setError(null);
@@ -142,9 +141,9 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
 
     const nextPlan = buildPlan(command, responseCopy);
     if (!nextPlan) {
-      const hasPending = Boolean(memoryRef.current.pendingQuestion);
+      const hasPending = Boolean(memory.pendingQuestion);
       pushMessage('agent', hasPending
-        ? memoryRef.current.pendingQuestion ?? responseCopy.clarification
+        ? memory.pendingQuestion ?? responseCopy.clarification
         : responseCopy.clarification);
       return;
     }
@@ -165,7 +164,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     const naturalReply = conversationalReply(classifyConversation(command), detectedLocale);
     if (naturalReply) { pushMessage('agent', naturalReply); return; }
     if (GENERIC_CROP_REQUEST.test(command)) {
-      memoryRef.current = setConversationTask(memoryRef.current, { command, toolId: 'image-cropper', pendingToolId: 'image-cropper', pendingQuestion: responseCopy.clarification, planReady: false });
+      setMemory((current) => setConversationTask(current, { command, toolId: 'image-cropper', pendingToolId: 'image-cropper', pendingQuestion: responseCopy.clarification, planReady: false }));
       pushMessage('agent', detectedLocale === 'ar' ? 'مفهوم. أعطني النسبة أو الأبعاد وسأجهز خطة القص.' : 'Understood. Give me the ratio or dimensions and I will prepare the crop plan.');
       return;
     }
