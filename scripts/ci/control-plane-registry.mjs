@@ -31,6 +31,7 @@ export const HISTORICAL_REPAIR_WORKFLOWS = Object.freeze([
 
 export const TRUST_PERIMETER_PATHS = Object.freeze([
   '.github/workflows/auto-repair.yml',
+  '.github/workflows/agent-repair-supervisor.yml',
   '.github/workflows/execution-sync.yml',
   '.github/workflows/wp0-trust-baseline.yml',
   'scripts/ci/control-plane-registry.mjs',
