@@ -54,8 +54,11 @@ PACKAGE ENTRYPOINT = audit:technical-debt
 CURRENT DETECTION SURFACES = orphan tests, legacy-labelled files, unreferenced dependencies, and unproven i18n fallback ownership.
 GUARDRAIL = inventory first; no broad deletion, no CI weakening, no certification bypass, no production mutation.
 FIRST BOUNDED DELIVERABLE = deterministic validator/regression contract proving audit output schema, SHA binding, finding fingerprints, and evidence completeness.
+IMPLEMENTATION STATUS = DELIVERED ON EXECUTION; validator now recomputes finding fingerprints, requires non-empty evidence, and the regression is registered as canonical STATIC-028 / ASSERT-TECHNICAL-DEBT-001.
+CURRENT IMPLEMENTATION HEAD = 6b26703cde343c5d95ae8c93627d4c540d3ab783.
+VERIFICATION STATUS = PENDING FRESH EXACT-SHA CANONICAL CI.
 SUCCESS GATE = targeted regression + Static/Build + FAST/DEEP + Certification + CI/CD trust + invariant proof + closure evidence.
-NEXT GATE = review findings after the validator is proven and activate only one bounded repair candidate.
+NEXT GATE = review audit findings after the validator is proven and activate only one bounded repair candidate.
 ```
 
 ## ADMIN ENTRY — FIVE-CLICK LOGO
