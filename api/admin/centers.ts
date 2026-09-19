@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { authorizeAdminRequestWithDurableSession } from './boundary.ts';
-import { getEvent, getLatestAuditForEvidence, getLatestEvidenceForAssertion, isPersistenceConfigured, probePersistence } from './persistence.ts';
+import { getEvent, getLatestAuditForEvidence, getLatestAuditForEvidence, getLatestEvidenceForAssertion, isPersistenceConfigured, probePersistence } from './persistence.ts';
 
 const CENTER_CAPABILITY = {
   truth: 'truth.read',
@@ -56,6 +56,7 @@ export default async function adminCenters(req: AdminRequest, res: ServerRespons
   const assertionId = first(req.query?.assertionId);
   let event: Awaited<ReturnType<typeof getEvent>> | undefined;
   let evidence: Awaited<ReturnType<typeof getLatestEvidenceForAssertion>> | undefined;
+  let audit: Awaited<ReturnType<typeof getLatestAuditForEvidence>> | undefined;
   let audit: Awaited<ReturnType<typeof getLatestAuditForEvidence>> | undefined;
   if (eventId && (center === 'truth' || center === 'incident')) {
     try {
