@@ -103,7 +103,8 @@ if (!promptRegistryValidation.valid) throw new Error(`PROMPT_REGISTRY_INVALID=${
 const promptCandidates = selectPromptCandidates(promptRegistry, {
   failureClasses: diagnosis?.failureClass ? [diagnosis.failureClass] : diagnosis?.classification ? [String(diagnosis.classification).toUpperCase()] : [],
   rootCauses: diagnosis?.rootCause ? [diagnosis.rootCause] : [],
-  domain: diagnosis?.domain ?? 'error-intelligence',
+  domain: diagnosis?.domain ?? 'task-execution',
+  agentRole: 'task-agent',
 });
 const promptMemory = promptCandidates.map(({ prompt, score }) => ({ promptId: prompt.promptId, version: prompt.version, status: prompt.status, score, sourcePath: prompt.sourcePath, relatedPrompts: prompt.relatedPrompts ?? [] }));
 const memory = loadMemory();
