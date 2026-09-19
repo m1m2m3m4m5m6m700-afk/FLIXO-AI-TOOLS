@@ -20,7 +20,7 @@ jobs:
         run: |
           set -euo pipefail
           gh api --paginate "repos/$REPO/branches?per_page=100" --jq '.[].name' > /tmp/branches.txt
-          printf '%s\n' "main" "execution" "review" > /tmp/keep.txt
+
       - name: Delete historical branch refs
         env:
           GH_TOKEN: ${{ github.token }}
@@ -28,15 +28,28 @@ jobs:
         shell: bash
         run: |
           set -u
-          failed=0
-          while IFS= read -r branch; do
-            case "$branch" in
-              ""|main|execution|review) continue ;;
-            esac
+          : > /tmp/delete-errors
+          grep -Ev '^(main|execution|review)$' /tmp/branches.txt > /tmp/delete-list || true
+
+          delete_one() {
+            branch="$1"
+            [ -n "$branch" ] || return 0
             echo "Deleting historical branch: $branch"
-            if ! gh api -X DELETE "repos/$REPO/git/refs/heads/$branch"; then
-              echo "::error::Failed to delete branch $branch"
-              failed=1
+            if ! gh api -X DELETE "repos/$REPO/git/refs/heads/$branch" >/dev/null 2>&1; then
+              if ! gh api "repos/$REPO/git/ref/heads/$branch" >/dev/null 2>&1; then
+                return 0
+              fi
+              printf '%s\n' "$branch" >> /tmp/delete-errors
             fi
-          done < /tmp/branches.txt
-          exit "$failed"
+          }
+          export -f delete_one
+
+          xargs -r -n1 -P20 bash -c 'delete_one "$1"' _ < /tmp/delete-list
+
+          if [ -s /tmp/delete-errors ]; then
+            echo "::error::Some branch deletions failed:"
+            cat /tmp/delete-errors
+            exit 1
+          fi
+
+          echo "Canonical branch set retained: main execution review"
