@@ -60,7 +60,7 @@ export function validateStatic() {
   must(/gh\s+workflow\s+run\s+agent-repair-supervisor\.yml/i.test(supervisor), 'supervisor-continuation');
   must(/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(auto), 'auto-repair-self-recovery-dispatch');
   must(/target_run_id:[\s\S]*required:\s*true/.test(auto), 'auto-repair-target-run-required');
-  must(/ref:\s*\$\{\{ github\.event\.workflow_run\.head_branch \|\| 'execution' \}\}/.test(auto) || /ref:\s*main/.test(auto) || /git checkout \"\$FAILED_BRANCH\"/.test(auto), 'auto-repair-checkout-target-branch');
+  must(/ref:\s*\$\{\{ github\.event\.workflow_run\.head_branch \|\| 'execution' \}\}/.test(auto) || /ref:\s*main/.test(auto) || /git checkout "\$FAILED_BRANCH"/.test(auto), 'auto-repair-checkout-target-branch');
   must(/persist-credentials:\s*false/.test(auto), 'auto-repair-checkout-credential-isolation');
   must(/CONTROLLER_SHA="\$MAIN_SHA"/.test(auto), 'auto-repair-main-controller-trust');
   must(/TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/.test(auto), 'auto-repair-trust-model');
