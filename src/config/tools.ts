@@ -1,13 +1,15 @@
-import type { ComponentType, LazyExoticComponent } from 'react';
 import { TOOL_MANIFEST, getToolManifest, getToolManifestByPath } from './tool-manifest.ts';
+import { TOOL_REGISTRY } from './registry.ts';
+import type { ToolDefinition } from './canonical-tool-definition.ts';
 
-export type { ToolConfig } from './tool-definitions.ts';
-export type { ToolFamily } from './tool-definitions/types.ts';
-export type ToolComponent = LazyExoticComponent<ComponentType>;
+export type ToolConfig = ToolDefinition;
+export type ToolComponent = ToolDefinition['component'];
 
-export const TOOLS_REGISTRY = TOOL_MANIFEST;
+export const TOOLS_REGISTRY = TOOL_REGISTRY;
 export const TOOL_MANIFEST_ENTRIES = TOOL_MANIFEST;
 
-export const getToolConfig = getToolManifest;
+export const getToolConfig = (id: string) => TOOL_REGISTRY.find((tool) => tool.id === id);
 export const getToolConfigByPath = getToolManifestByPath;
-export const getReadyToolConfigs = () => TOOL_MANIFEST.filter((tool) => tool.isReady);
+export const getReadyToolConfigs = () => TOOL_REGISTRY.filter((tool) => tool.isReady);
+
+export { getToolManifest };
