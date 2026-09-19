@@ -279,7 +279,7 @@ export function ToolWorkbench<P>({
             />
             {renderControls?.({ ...commonContext })}
             <div className="image-workbench-actions">
-              <button className="primary-button" type="button" disabled={!inputAssetId || busy} aria-disabled={busy ? 'true' : 'false'} onClick={() => void run()}>
+              <button className="primary-button" type="button" disabled={!inputAssetId || busy} aria-disabled={!inputAssetId || busy ? 'true' : 'false'} onClick={() => void run()}>
                 {busy ? (processingLabel ?? labels.processing) : (runLabel ?? labels.run)}
               </button>
               {onReset && <button className="secondary-button" type="button" disabled={busy} onClick={reset}>{resetLabel ?? labels.reset}</button>}
