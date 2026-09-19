@@ -208,7 +208,8 @@ export function reasonFailure(log, {
   const requiresVerifiedLocation = top.id === 'lint' || top.id === 'format';
   const locationVerified = !requiresVerifiedLocation || (location !== null && codeContext.available);
   const sourceMutationAllowed = !hardBlock && !ambiguity && directFailureSignal && causalConfidence >= 0.75 && locationVerified;
-  const falsificationChecks = counterfactualChecks(text, top, alternatives);\n  const decision = hardBlock
+  const falsificationChecks = counterfactualChecks(text, top, alternatives);
+  const decision = hardBlock
     ? 'BLOCK_EXTERNAL'
     : sourceMutationAllowed
       ? 'ALLOW_BOUNDED_MUTATION'
