@@ -33,10 +33,10 @@ const packageJson = JSON.parse(read('package.json') || '{}');
 const packageScripts = JSON.stringify(packageJson.scripts ?? {});
 const packageScriptEntries = Object.entries(packageJson.scripts ?? {});
 const playwrightConfig = read('playwright.config.ts');
-const hasGenericPlaywrightHarness = packageScriptEntries.some(([, command]) => /\\bplaywright\\s+test(?:\\s*)$/u.test(String(command))) &&
+const hasGenericPlaywrightHarness = packageScriptEntries.some(([, command]) => /\bplaywright\s+test(?:\s*)$/u.test(String(command))) &&
   /testDir:\s*['"]\.\/tests['"]/u.test(playwrightConfig) &&
   !/testIgnore\s*:/u.test(playwrightConfig);
-const isPlaywrightTestFile = (file) => /^tests\\//u.test(file) && /\\.(?:spec|test)\\.(?:js|mjs|cjs|ts|tsx|jsx)$/u.test(file);
+const isPlaywrightTestFile = (file) => /^tests\//u.test(file) && /\.(?:spec|test)\.(?:js|mjs|cjs|ts|tsx|jsx)$/u.test(file);
 const packageNames = [
   ...Object.keys(packageJson.dependencies ?? {}),
   ...Object.keys(packageJson.devDependencies ?? {}),
@@ -61,7 +61,8 @@ for (const file of testFiles) {
   const escaped = basename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const referenced = grep(`(^|[/"' ])${escaped}$`);
   const packageReferenced = packageScripts.includes(file);
-  if (!referenced && !packageReferenced) {
+  const harnessReferenced = hasGenericPlaywrightHarness && isPlaywrightTestFile(file);
+  if (!referenced && !packageReferenced && !harnessReferenced) {
     findings.push({ id: 'RC-DEBT-ORPHAN-TEST-CANDIDATE', category: 'DEAD_CODE', severity: 'MEDIUM', status: 'CANDIDATE', target: file, summary: 'Tracked test file has no package-script ownership, harness ownership, and no tracked textual consumer.', evidence: { tracked: true, packageReferenced: false, harnessReferenced: false, textualReferences: 0 }, action: 'REVIEW_THEN_DELETE' });
   }
 }
