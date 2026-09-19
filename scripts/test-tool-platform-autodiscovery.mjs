@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { TOOL_DEFINITIONS } from '../src/config/canonical-tool-definition.ts';
-import { loadToolCatalog } from '../src/config/tool-platform/catalog.ts';
+import { createToolCatalog } from '../src/config/tool-platform/catalog.ts';
 
 const base = TOOL_DEFINITIONS.find((tool) => tool.id === 'image-compressor');
 assert.ok(base);
@@ -21,7 +21,7 @@ const fixture = {
   },
 };
 
-const catalog = loadToolCatalog([...TOOL_DEFINITIONS, fixture]);
+const catalog = createToolCatalog([...TOOL_DEFINITIONS, fixture]);
 assert.equal(catalog.byId.get(fixture.id)?.id, fixture.id);
 assert.equal(catalog.byPath.get(fixture.path)?.id, fixture.id);
 assert.equal(catalog.byAlias.get(fixture.aliases[0])?.id, fixture.id);
