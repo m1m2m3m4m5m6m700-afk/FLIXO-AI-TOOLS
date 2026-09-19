@@ -388,6 +388,17 @@ jobs:
           FINGERPRINT="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.fingerprint||'unknown')")"
           RULE="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.selected||x.historicalRollback?.rule||'unknown')")"
           BASE_SHA="$(git rev-parse HEAD)"
+          git fetch --no-tags origin execution
+          REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          test "$BASE_SHA" = "$FAILED_SHA" || {
+            echo "FAIL CLOSED: local repair base $BASE_SHA is not the failed target SHA $FAILED_SHA."
+            exit 1
+          }
+          test "$REMOTE_EXECUTION_SHA" = "$FAILED_SHA" || {
+            echo "FAIL CLOSED: execution advanced during repair; refusing stale publication."
+            exit 1
+          }
           if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
             REVERTED_SHA="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.historicalRollback?.revertedSha||'')")"
             test "$REVERTED_SHA" != ""
@@ -397,24 +408,16 @@ jobs:
             git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-MARKER-v1\nkind=verified-source-repair\nfingerprint=$FINGERPRINT\nrule=$RULE\nfailedSha=$FAILED_SHA\nbaseSha=$BASE_SHA"
           fi
           PUSHED=false
-          for attempt in 1 2 3; do
-            if git push origin execution; then
-              PUSHED=true
-              break
-            fi
-            git fetch --no-tags origin execution
-            REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
-            LOCAL_EXECUTION_SHA="$(git rev-parse HEAD)"
-            if git merge-base --is-ancestor "$LOCAL_EXECUTION_SHA" "$REMOTE_EXECUTION_SHA"; then
-              echo "FAIL CLOSED: execution advanced after repair commit; refusing to overwrite remote history."
-              exit 1
-            fi
-            if ! git merge-base --is-ancestor "$REMOTE_EXECUTION_SHA" "$LOCAL_EXECUTION_SHA"; then
-              echo "Execution diverged while publishing repair; rebasing local verified repair onto the remote execution head."
-              git rebase "$REMOTE_EXECUTION_SHA" || { git rebase --abort || true; exit 1; }
-            fi
-            sleep $((attempt * 2))
-          done
+          git fetch --no-tags origin execution
+          REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
+          LOCAL_REPAIR_PARENT="$(git rev-parse HEAD^)"
+          if [ "$REMOTE_EXECUTION_SHA" != "$LOCAL_REPAIR_PARENT" ]; then
+            echo "FAIL CLOSED: execution advanced after the verified repair was created; refusing stale publication."
+            exit 1
+          fi
+          if git push origin execution; then
+            PUSHED=true
+          fi
           test "$PUSHED" = true
           PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
           if [ -z "$PR_URL" ]; then

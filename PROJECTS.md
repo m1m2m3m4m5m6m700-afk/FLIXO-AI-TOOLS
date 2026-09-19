@@ -242,6 +242,11 @@ FIX = branch-scoped superseding watcher concurrency; Auto-Repair remains non-can
 VERIFICATION = concurrency contract + exact-SHA watcher self-test.
 PREVENTION = observer workflows are supersedable; mutation workflows remain serialized.
 
+RC-034 = Auto-Repair publication could rebase a verified repair onto a newer `execution` head after the target moved during diagnosis, creating stale repair commits and repeatedly canceling fresh canonical CI.
+FIX = require local base == failed target SHA == remote execution SHA before commit, and require remote execution to equal the repair commit parent before push; remove stale rebase fallback.
+VERIFICATION = Auto-Repair boundary/final architecture contracts on the resulting exact SHA.
+PREVENTION = execution head movement is always fail-closed during a repair cycle; verified repairs never rebase across unrelated execution mutations.
+
 ## GOVERNANCE
 
 Bounded single-owner work may execute directly on `main`. Use `execution` only for materially risky, broad, conflict-prone, architectural, or production-sensitive isolation. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements remain mandatory.

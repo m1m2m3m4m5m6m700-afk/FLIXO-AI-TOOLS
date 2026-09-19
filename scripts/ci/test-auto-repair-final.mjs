@@ -34,6 +34,9 @@ const handoffGateWorkflow = fs.readFileSync('.github/workflows/agent-repair-hand
 assert.doesNotMatch(autoRepairWorkflow, /workflow_run:/);
 assert.doesNotMatch(autoRepairWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml/i);
 assert.match(autoRepairWorkflow, /CURRENT_TARGET_SHA=/);
+assert.match(autoRepairWorkflow, /execution advanced during repair; refusing stale publication/);
+assert.match(autoRepairWorkflow, /REMOTE_EXECUTION_SHA.*FAILED_SHA/);
+assert.doesNotMatch(autoRepairWorkflow, /git rebase "\$REMOTE_EXECUTION_SHA"/);
 assert.match(autoRepairWorkflow, /EVIDENCE_CAPTURE=FAILED/);
 assert.match(autoRepairWorkflow, /CONTROLLER_SHA="\$MAIN_SHA"/);
 assert.match(autoRepairWorkflow, /persist-credentials:\s*false/);

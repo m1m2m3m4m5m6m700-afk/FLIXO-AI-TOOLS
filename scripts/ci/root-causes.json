@@ -381,5 +381,17 @@
       "node scripts/ci/test-auto-repair-final.mjs"
     ],
     "prevention": "Watcher executions are supersedable by branch; Auto-Repair execution remains isolated and non-canceling."
+  },
+  "RC-AUTO-REPAIR-PUBLISH-STALE-BASE-001": {
+    "category": "AUTO_REPAIR",
+    "description": "The repair publisher previously rebased a verified repair onto a newer execution head when the branch moved during diagnosis, allowing a stale repair to become a new execution commit and churn canonical CI.",
+    "repairTargets": [
+      ".github/workflows/auto-repair.yml"
+    ],
+    "verification": [
+      "scripts/ci/validate-auto-repair-boundary.mjs",
+      "scripts/ci/test-auto-repair-final.mjs"
+    ],
+    "prevention": "A repair must publish only when local and remote execution both equal the failed target SHA; any head movement causes fail-closed publication, never rebase."
   }
 }

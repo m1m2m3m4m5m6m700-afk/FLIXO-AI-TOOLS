@@ -64,6 +64,9 @@ export function validateStatic() {
   must(/FLIXO_STRICT_RED_REPAIR:\s*['"]true['"]/.test(auto), 'auto-repair-strict-red');
   must(/not a diagnosable failure/.test(auto), 'auto-repair-failure-only-policy');
   must(auto.includes('CURRENT_TARGET_SHA=') && auto.includes('FAIL CLOSED: repair target'), 'auto-repair-no-superseded-target');
+  must(auto.includes('execution advanced during repair; refusing stale publication'), 'auto-repair-no-stale-publication');
+  must(auto.includes('REMOTE_EXECUTION_SHA') && auto.includes('FAILED_SHA'), 'auto-repair-publication-exact-target');
+  must(!/git rebase "\$REMOTE_EXECUTION_SHA"/.test(auto), 'auto-repair-no-stale-rebase');
   must(auto.includes('EVIDENCE_CAPTURE=FAILED'), 'auto-repair-evidence-capture-fail-closed');
   must(handoffGate.includes('branches: [execution]'), 'handoff-gate-execution-trigger');
   must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
