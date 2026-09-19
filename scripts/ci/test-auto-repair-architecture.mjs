@@ -106,7 +106,7 @@ const fingerprintSource = fs.readFileSync('scripts/ci/auto-repair/fingerprint.mj
 assert.match(fingerprintSource, /external-tooling/);
 assert.match(fingerprintSource, /format/);
 const taskAgentSource = fs.readFileSync('scripts/ci/task-agent.mjs', 'utf8');
-assert.match(taskAgentSource, /maxCycles: 3/);
+assert.match(taskAgentSource, /maxCycles: 12/);
 assert.match(taskAgentSource, /maxPreparedFiles: 12/);
 const learningSource = fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8');
 assert(!learningSource.includes('git/refs/heads/flixo-intractable/'));
