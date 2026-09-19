@@ -57,7 +57,7 @@ const securityProvider = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
   workflowRuns: requiredRuns,
   checkRuns: [
-    { id: 104, name: 'github-advanced-security', status: 'completed', conclusion: 'failure' },
+    { id: 104, name: 'github-advanced-security', status: 'completed', conclusion: 'failure', details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/35452323662' },
     { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
   ],
   logs: { 35452323662: 'CAPIError: 400 The requested model is not supported' },
