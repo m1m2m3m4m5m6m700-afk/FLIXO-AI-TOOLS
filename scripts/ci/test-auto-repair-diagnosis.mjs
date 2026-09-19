@@ -25,7 +25,7 @@ assert.equal(evidence.ambiguity, false);
 assert.ok(evidence.causalConfidence >= 0.75);
 assert.ok(evidence.hypotheses.some((item) => item.id === 'playwright'));
 
-fs.writeFileSync(logPath, 'Type error TS2345 at src/example.ts:10:3');
+fs.writeFileSync(logPath, 'Possible TypeScript issue noted in a follow-up note; investigate compiler configuration.');
 execFileSync(process.execPath, ['scripts/ci/auto-repair-classifier.mjs'], {
   env: { ...process.env, FLIXO_FAILURE_LOG: logPath },
   stdio: 'pipe',
