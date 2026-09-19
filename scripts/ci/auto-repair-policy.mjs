@@ -24,6 +24,7 @@ export const repairPolicy = Object.freeze({
     'scripts/ci/auto-repair-policy.mjs',
     'scripts/ci/auto-repair-engine.mjs',
     'scripts/ci/auto-repair-learning.mjs',
+    'scripts/ci/auto-repair-supervisor.mjs',
     'scripts/ci/auto-repair-proof.mjs',
     'scripts/ci/auto-repair/',
     'scripts/ci/task-agent.mjs',
