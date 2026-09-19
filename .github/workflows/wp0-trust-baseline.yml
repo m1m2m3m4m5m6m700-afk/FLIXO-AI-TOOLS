@@ -34,13 +34,13 @@ jobs:
         run: |
           set -euo pipefail
           test "${{ github.event_name }}" = "pull_request"
-          test "${{ github.event.pull_request.head.ref }}" = "execution"
+          test -n "${{ github.event.pull_request.head.ref }}"
           test "${{ github.event.pull_request.base.ref }}" = "main"
           test "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}"
           ACTUAL_SHA="$(git rev-parse HEAD)"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
-          git switch -C execution "$EXPECTED_SHA"
-          test "$(git branch --show-current)" = "execution"
+          git checkout --detach "$EXPECTED_SHA"
+          test -z "$(git branch --show-current)"
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           printf '%s\n' "$ACTUAL_SHA" > flixo-wp0-head-sha.txt
 
@@ -114,7 +114,7 @@ jobs:
 
       - name: 14 — Upload WP0 evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: flixo-wp0-evidence-${{ github.event.pull_request.head.sha || github.sha }}
           path: dist/wp0-evidence/
