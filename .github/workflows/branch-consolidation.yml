@@ -1,0 +1,42 @@
+name: Consolidate historical branches
+
+on:
+  push:
+    branches: [review]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    name: Keep only canonical branches
+    runs-on: ubuntu-latest
+    steps:
+      - name: Snapshot branch names
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$REPO/branches?per_page=100" --jq '.[].name' > /tmp/branches.txt
+          printf '%s\n' "main" "execution" "review" > /tmp/keep.txt
+      - name: Delete historical branch refs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -u
+          failed=0
+          while IFS= read -r branch; do
+            case "$branch" in
+              ""|main|execution|review) continue ;;
+            esac
+            echo "Deleting historical branch: $branch"
+            if ! gh api -X DELETE "repos/$REPO/git/refs/heads/$branch"; then
+              echo "::error::Failed to delete branch $branch"
+              failed=1
+            fi
+          done < /tmp/branches.txt
+          exit "$failed"
