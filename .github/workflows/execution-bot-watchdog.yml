@@ -27,14 +27,15 @@ permissions:
 
 concurrency:
   group: flixo-execution-bot-watchdog
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   watch:
     name: Wake, inspect exact execution SHA, dispatch repair
     if: >-
       github.event_name != 'workflow_run' ||
-      github.event.workflow_run.head_branch == 'execution'
+      (github.event.workflow_run.name != 'FLIXO Execution Bot Watchdog' &&
+       github.event.workflow_run.head_branch == 'execution')
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
