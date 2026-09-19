@@ -123,6 +123,19 @@ const external = evaluateGreen({
 assert.equal(external.status, 'BLOCKED_EXTERNAL');
 assert.equal(external.repair.required, false);
 
+const externalActionRequired = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: [
+    ...securityAndCertification,
+    { id: 106, name: 'Vercel', status: 'completed', conclusion: 'action_required' },
+  ],
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(externalActionRequired.status, 'FAIL_CLOSED');
+assert.equal(externalActionRequired.repair.required, false);
+assert.equal(externalActionRequired.rootCause, 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED');
+
 const externalCommitStatus = evaluateGreen({
   executionSha: SHA_A,
   mainSha: SHA_B,
