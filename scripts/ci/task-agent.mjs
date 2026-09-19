@@ -102,6 +102,7 @@ if (branch !== 'execution') throw new Error('DIRECT_EXECUTION_REQUIRES_EXECUTION
 
 const scopePolicy = 'SELF_HEALING_REPAIR_ONLY';
 const scopeEnforcement = 'FAIL_CLOSED';
+const controlPlaneMutationPolicy = 'HUMAN_REVIEW_REQUIRED';
 if (scopePolicy !== 'SELF_HEALING_REPAIR_ONLY' || scopeEnforcement !== 'FAIL_CLOSED') throw new Error('SELF_HEALING_SCOPE_CONTRACT_VIOLATION');
 
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -138,6 +139,8 @@ for (const task of selected) {
     executionBranch: branch,
     mainBranchMutation: false,
     branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN',
+    controlPlaneMutationPolicy,
+    controlPlaneMutationScope: 'AUTO_REPAIR_CONTROLLER_FILES_MUST_NOT_BE_MUTATED_BY_AUTO_REPAIR',
     generatedAt,
     errorFingerprint: fingerprint,
     repairSummary: {
@@ -196,13 +199,13 @@ for (const task of selected) {
     },
     repairLoop: {
       mode: 'RED_TO_GREEN_IN_SAME_CYCLE',
-      maxCycles: 1000000,
+      maxCycles: 12,
       rescanAfterEveryRepair: true,
       rescanScope: 'ALL_REQUIRED_CHECKS',
       repairOrder: ['capture-failure', 'root-cause', 'source-fix', 'proportional-hardening', 'targeted-regression', 'canonical-ci'],
       circuitBreaker: {
         enabled: true,
-        maxStalledCycles: 1000000,
+        maxStalledCycles: 3,
         definition: 'SAME_FAILURE_FINGERPRINT_WITHOUT_VERIFIABLE_PROGRESS',
         fingerprintScope: 'RED_CHECKS_AND_REPAIR_TARGETS',
         progressEvidence: 'CHECK_STATE_OR_ERROR_FINGERPRINT_CHANGED',
@@ -243,6 +246,8 @@ const index = {
   executionBranch: branch,
   mainBranchMutation: false,
   branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN',
+  controlPlaneMutationPolicy,
+  controlPlaneMutationScope: 'AUTO_REPAIR_CONTROLLER_FILES_MUST_NOT_BE_MUTATED_BY_AUTO_REPAIR',
   generatedAt,
   selected: outputs,
   selectedCount: outputs.length,

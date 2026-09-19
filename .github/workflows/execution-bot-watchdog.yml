@@ -52,6 +52,9 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      - name: Validate permanent auto-repair boundary
+        run: node scripts/ci/validate-auto-repair-boundary.mjs --static-only
+
       - name: Validate watchdog control surface
         run: |
           set -euo pipefail

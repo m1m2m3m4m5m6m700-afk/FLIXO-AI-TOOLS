@@ -82,6 +82,9 @@ jobs:
           printf '%s\n' "$FAILED_BRANCH" > /tmp/flixo-failed-branch
           printf '%s\n' "$FAILED_NAME" > /tmp/flixo-failed-workflow
 
+      - name: Validate immutable repair boundary before mutation
+        run: node scripts/ci/validate-auto-repair-boundary.mjs --static-only
+
       - name: Enforce strict red-to-repair policy
         run: |
           set -euo pipefail
@@ -234,7 +237,7 @@ jobs:
 
       - name: Execute bounded root-cause repair under Task Agent authority
         id: execute_repair
-        if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome == 'success'
+        if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome == 'success' && steps.boundary.outcome == 'success'
         env:
           FLIXO_TARGET_DIR: ${{ github.workspace }}
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
@@ -242,6 +245,11 @@ jobs:
           set -euo pipefail
           export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
           node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs
+
+      - name: Validate repair diff boundary before publication
+        id: boundary
+        if: always()
+        run: node scripts/ci/validate-auto-repair-boundary.mjs --diff-only
 
       - name: Verify Task Agent repair before publication
         id: verify
@@ -329,7 +337,7 @@ jobs:
           fi
 
       - name: Commit and push verified repair on the single working branch
-        if: steps.verify.outputs.verified == 'true'
+        if: steps.verify.outputs.verified == 'true' && steps.boundary.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

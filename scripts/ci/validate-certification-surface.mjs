@@ -28,6 +28,9 @@ if (!ci.includes(POLICY.runtimeOrigin)) errors.push(`runtime origin ${POLICY.run
 if (ci.includes(POLICY.testSentinel)) errors.push(`canonical workflow contains forbidden test sentinel ${POLICY.testSentinel}`);
 
 const workflowFiles = fs.readdirSync(path.join(ROOT, '.github', 'workflows')).filter((name) => /\.ya?ml$/i.test(name));
+for (const required of ['auto-repair.yml', 'execution-bot-watchdog.yml']) {
+  if (!workflowFiles.includes(required)) errors.push(`permanent repair control missing: ${required}`);
+}
 const nonTestAutomation = new Set([
   'claude-security-review.yml',
   'dependency-health.yml',
@@ -36,7 +39,7 @@ const nonTestAutomation = new Set([
 ]);
 const auxiliaryEvidenceAutomation = new Set(['test-impact.yml', 'test-impact-execution.yml']);
 const trustBaselineAutomation = new Set(['wp0-trust-baseline.yml']);
-const repairGateAutomation = new Set(['auto-repair-merge-gate.yml', 'execution-sync.yml', 'execution-bot-watchdog.yml']);
+const repairGateAutomation = new Set(['auto-repair.yml', 'auto-repair-merge-gate.yml', 'execution-sync.yml', 'execution-bot-watchdog.yml']);
 const automatedNonCanonical = [];
 for (const file of workflowFiles) {
   if (file === 'ci.yml' || nonTestAutomation.has(file) || auxiliaryEvidenceAutomation.has(file) || trustBaselineAutomation.has(file) || repairGateAutomation.has(file)) continue;
