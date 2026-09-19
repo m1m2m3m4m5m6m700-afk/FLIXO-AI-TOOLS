@@ -453,3 +453,18 @@ Current checkpoint:
 - ADMIN-006: LOCKED pending authoritative task contract
 
 This document is the persistent execution roadmap. Update it after each material Admin phase, preserving exact SHA and evidence references. Never mark a phase complete without proof.
+
+
+## Current execution delta — BIG-002 Real Persistence & Evidence
+
+As of the current execution lane, the Phase-2 substrate is implemented without enabling production execution:
+
+- Durable Admin sessions are persisted in `flix_admin_sessions` with actor role, environment, issuance/expiry and revocation state.
+- Signed sessions carry a session ID; authenticated control-plane reads reject missing, revoked, expired or unavailable durable session state.
+- Canonical role capability activation is derived from `ADMIN_ROLE_CAPABILITY_MATRIX` and filtered through the active capability catalog; `production.write` remains locked.
+- `evidence.read` is active and the Truth/Evidence centers read from the canonical evidence ledger rather than synthetic client state.
+- Evidence read-back verifies the persisted integrity hash and marks expired evidence `STALE`.
+- Evidence-linked audit read-back is available from the same persistence boundary.
+- Phase-2 contract tests cover durable session lifecycle, revocation, role/capability activation and freshness behavior.
+
+Verification state: IMPLEMENTATION PRESENT / CURRENT-LANE VERIFICATION PENDING. Production write/read-back certification and exact-SHA production evidence remain required before the phase can be declared CLOSED.
