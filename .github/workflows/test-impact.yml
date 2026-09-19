@@ -3,6 +3,8 @@ name: FLIXO Test Impact
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [execution]
   workflow_dispatch:
 
 concurrency:
@@ -27,7 +29,7 @@ jobs:
           node-version-file: .nvmrc
       - name: Build impact plan
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
         run: node scripts/ci/test-impact.mjs --base="$BASE_SHA"
       - name: Verify impact evidence identity
         shell: bash

@@ -111,7 +111,7 @@ EOF
                 exit 1
               }
             done < /tmp/canonical-required-checks.txt
-            jq -s '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate")] | group_by(.name) | map(max_by((.completed_at // .started_at // "")))' /tmp/check-runs.json > /tmp/repository-check-runs.json
+            jq -s '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate" and (.name | ascii_downcase) != "claude security review (advisory)")] | group_by(.name) | map(max_by((.completed_at // .started_at // "")))' /tmp/check-runs.json > /tmp/repository-check-runs.json
             if ! jq -e 'length > 0 and all(.[]; .status == "completed" and .conclusion == "success")' /tmp/repository-check-runs.json >/dev/null; then
               if [ "$SECONDS" -ge "$deadline" ]; then echo 'Timed out waiting for exact-head repository checks.'; exit 1; fi
               sleep 20
@@ -204,7 +204,7 @@ EOF
               exit 1
             }
           done < /tmp/canonical-required-checks-final.txt
-          jq -s -e '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate") | select(.status != "completed" or .conclusion != "success")] | length == 0' /tmp/check-runs-final.json
+          jq -s -e '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate" and (.name | ascii_downcase) != "claude security review (advisory)") | select(.status != "completed" or .conclusion != "success")] | length == 0' /tmp/check-runs-final.json
           jq -s -e 'any([.[].check_runs[] | select((.name | ascii_downcase) | test("codeql|github-advanced-security|github advanced security|code scanning ai findings"))])' /tmp/check-runs-final.json
           jq -s -e 'all([.[].check_runs[] | select((.name | ascii_downcase) | test("codeql|github-advanced-security|github advanced security|code scanning ai findings"))]; .status == "completed" and .conclusion == "success")' /tmp/check-runs-final.json
           gh api "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/status" > /tmp/statuses-final.json || true

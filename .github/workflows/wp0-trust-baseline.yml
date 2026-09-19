@@ -3,6 +3,8 @@ name: FLIXO WP0 Trust Baseline
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [execution]
   workflow_dispatch:
 
 concurrency:
@@ -33,10 +35,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "${{ github.event_name }}" = "pull_request"
-          test "${{ github.event.pull_request.head.ref }}" = "execution"
-          test "${{ github.event.pull_request.base.ref }}" = "main"
-          test "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            test "${{ github.event.pull_request.head.ref }}" = "execution"
+            test "${{ github.event.pull_request.base.ref }}" = "main"
+            test "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}"
+          else
+            test "${{ github.event_name }}" = "push"
+            test "${{ github.ref }}" = "refs/heads/execution"
+          fi
           ACTUAL_SHA="$(git rev-parse HEAD)"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
           git switch -C execution "$EXPECTED_SHA"
