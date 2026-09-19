@@ -77,23 +77,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          jq -r '.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required") | .databaseId' /tmp/flixo-watch/workflow-runs.json \
-            | while read -r run_id; do
+          {
+            set +o pipefail
+            jq -r '.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required") | .databaseId' /tmp/flixo-watch/workflow-runs.json 2>/dev/null |
+              while read -r run_id; do
                 [ -n "$run_id" ] || continue
                 gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1 || true
               done
-
-          jq -r '[.[].check_runs[]
-            | select(.status == "completed")
-            | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
-            | select(.details_url != null and (.details_url | test("/actions/runs/[0-9]+")))
-            | .details_url
-            | capture("/actions/runs/(?<id>[0-9]+)").id' /tmp/flixo-watch/check-runs.json 2>/dev/null \
-            | sort -u \
-            | while read -r run_id; do
+            jq -r '[.[].check_runs[]
+              | select(.status == "completed")
+              | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
+              | select(.details_url != null and (.details_url | test("/actions/runs/[0-9]+")))
+              | .details_url
+              | capture("/actions/runs/(?<id>[0-9]+)").id' /tmp/flixo-watch/check-runs.json 2>/dev/null |
+              sort -u |
+              while read -r run_id; do
                 [ -n "$run_id" ] || continue
                 gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1 || true
               done
+            set -o pipefail
+          } || true
 
       - name: Build watcher input
         run: |
@@ -153,14 +156,17 @@ jobs:
             exit 1
           }
 
-          EXISTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow execution-bot-watchdog.yml --limit 20 --json status \
-            --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
+          CHAIN_ID="watch-$TARGET_RUN_ID"
+          EXISTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 100 --json displayTitle \
+            --jq '.[].displayTitle' | grep -Fxc "FLIXO Auto Repair Chain $CHAIN_ID" || true)"
 
           if [ "$EXISTS" -eq 0 ]; then
-            gh workflow run execution-bot-watchdog.yml --repo "$GITHUB_REPOSITORY" --ref execution
-            echo "WATCHDOG_WAKE=DISPATCHED target_run_id=$TARGET_RUN_ID"
+            gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution \
+              -f "target_run_id=$TARGET_RUN_ID" \
+              -f "chain_id=$CHAIN_ID"
+            echo "REPAIR_DISPATCHED=$TARGET_RUN_ID"
           else
-            echo "WATCHDOG_WAKE=ALREADY_ACTIVE target_run_id=$TARGET_RUN_ID"
+            echo "REPAIR_ALREADY_TRACKED=$TARGET_RUN_ID"
           fi
 
       - name: Publish cycle evidence
