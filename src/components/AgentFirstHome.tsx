@@ -72,7 +72,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
       <section className="agent-first-main" aria-labelledby="agent-first-title">
         <div className="agent-first-heading">
           <span className="agent-first-mark" aria-hidden="true">✦</span>
-          <h1 id="agent-first-title">{localizedTitle}</h1>
+          <h1 id="home-title">{localizedTitle}</h1>
           <p>{copy.subtitle}</p>
         </div>
         <div className="agent-first-chat"><FlixoAIAgent locale={locale} /></div>
