@@ -263,3 +263,12 @@ NO GATE BYPASS = required
 ## PROJECT MAP RULE
 
 Every material workflow/project must map to one task ID in `المهام.md`. No orphan operational system is considered complete until its owning task has an exit criterion and fresh evidence.
+
+
+## SIMPLIFY-001 — Engineering Complexity Reduction
+
+STATUS = ACTIVE / EXECUTION
+BASE = 50e6a19f8faaabf958d0bdc5309ab3c8e4019fb7
+COMPLETED = canonical task-ledger selection, historical roadmap archival, public command facade, engineering-simplification contract, anti-complexity validator.
+NEXT = workflow ownership consolidation → deterministic duplication reduction → dead-code proof → boundary cleanup → exact-SHA canonical verification.
+CONSTRAINTS = ACCEL FROZEN; zero coverage/security reduction; execution → main only.
