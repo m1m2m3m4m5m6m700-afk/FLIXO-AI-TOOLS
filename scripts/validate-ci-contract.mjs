@@ -12,6 +12,7 @@ const workflowSource = readFileSync('.github/workflows/ci.yml', 'utf8');
 const wp0Workflow = readFileSync('.github/workflows/wp0-trust-baseline.yml', 'utf8');
 const impactExecutionWorkflow = readFileSync('.github/workflows/test-impact-execution.yml', 'utf8');
 const securityBaselineWorkflow = readFileSync('.github/workflows/repository-security-baseline.yml', 'utf8');
+const greenGateWorkflow = readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
 const workflow = workflowSource.replace(/\\"/g, '"');
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
 const certifyEngine = readFileSync('scripts/ci/certify.mjs', 'utf8');
@@ -53,6 +54,17 @@ for (const [label, source] of [
 }
 
 const evidenceClassPresent = workflow.includes('evidenceClass') && workflow.includes('PRIMARY_EXECUTION');
+
+if (/gh run view[\s\S]*--log-failed[\s\S]*\|\|\s*true/u.test(greenGateWorkflow)) {
+  console.error('CI contract failed: evidence capture must not swallow gh run view failures.');
+  process.exit(1);
+}
+for (const marker of ['EVIDENCE_CAPTURE=AVAILABLE', 'EVIDENCE_CAPTURE=FAILED']) {
+  if (!greenGateWorkflow.includes(marker)) {
+    console.error(`CI contract failed: daily green gate evidence marker ${marker} is missing.`);
+    process.exit(1);
+  }
+}
 if (!evidenceClassPresent) {
   console.error('CI contract failed: PRIMARY_EXECUTION evidence class is missing from .github/workflows/ci.yml');
   process.exit(1);
