@@ -217,6 +217,10 @@ export function evaluateGreen({
         report.ci.requiredWorkflows[name].successorRunId = cancelled.successorRunId;
       } else {
         report.errors.push({ type: 'CANCELLED_UNSUPERSEDED', workflow: name, runId: run.databaseId });
+        const rawEvidence = String(logs[String(run.databaseId)] ?? '').trim();
+        if (!rawEvidence || /EVIDENCE_CAPTURE=FAILED/i.test(rawEvidence)) {
+          report.errors.push({ type: 'EVIDENCE_CAPTURE_FAILED', workflow: name, runId: run.databaseId });
+        }
       }
     } else if (run.conclusion !== 'success') {
       const failureLog = logs[String(run.databaseId)] ?? '';
@@ -385,14 +389,14 @@ export function evaluateGreen({
     'CERTIFICATION_RED_OR_PENDING',
   ].includes(error.type));
 
-  if (hardInternalFailure) {
+  if (evidenceFailure) {
+    report.status = 'FAIL_CLOSED';
+    report.rootCause = 'REQUIRED_EVIDENCE_MISSING';
+  } else if (hardInternalFailure) {
     report.status = 'RED_INTERNAL';
     report.rootCause = report.repair.required
       ? 'PENDING_TASK_AGENT_RCA'
       : 'REQUIRED_CHECK_FAILURE_REQUIRES_REPAIR_CYCLE';
-  } else if (evidenceFailure) {
-    report.status = 'FAIL_CLOSED';
-    report.rootCause = 'REQUIRED_EVIDENCE_MISSING';
   } else if (actionRequired) {
     report.status = 'FAIL_CLOSED';
     report.rootCause = 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED';
