@@ -10,7 +10,7 @@ assert.match(source, /MAX_PREPARED_FILES = 12/);
 assert.match(source, /maxInspectedFiles: 40/);
 assert.match(source, /MAX_REPAIR_CYCLES = 12/);
 assert.match(source, /MAX_STALLED_REPAIR_CYCLES = 3/);
-assert.match(source, /MAX_PREPARED_FILES = 8/);
+assert.match(source, /MAX_PREPARED_FILES = 12/);
 assert.match(source, /STALE_BASELINE/);
 assert.match(source, /mainBranchMutation: false/);
 assert.match(source, /DIRECT_ON_EXECUTION_BRANCH/);
