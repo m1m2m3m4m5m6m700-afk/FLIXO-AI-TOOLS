@@ -270,6 +270,11 @@ VERIFICATION = exact failed-SHA Phase 1 preflight and verified-repair handoff.
 RC-039 = Auto Repair downstream postflight could mask the primary RED with a missing strategy artifact error.
 FIX = gate dependent phases on upstream success and fail closed on missing strategy data.
 VERIFICATION = next real Auto Repair failure/repair cycle.
+
+RC-041 = Effective Home heroTitle markup mismatch for ms/uk caused the localization gate to reject raw <span> overrides.
+FIX = normalize the effective ms/uk heroTitle overrides to the canonical [[...]] marker contract.
+VERIFICATION = validate:effective-localization + WP0 + canonical browser CI on the exact execution SHA.
+PREVENTION = presentation HTML belongs to AgentFirstHome; localization data stores semantic markers only.
 ## GOVERNANCE
 
 Bounded single-owner work may execute directly on `main`. Use `execution` only for materially risky, broad, conflict-prone, architectural, or production-sensitive isolation. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements remain mandatory.
