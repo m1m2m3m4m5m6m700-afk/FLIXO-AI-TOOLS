@@ -36,7 +36,7 @@ const isExpectedNavigationAbort = (request: { url(): string; failure(): { errorT
   if (failure?.errorText === 'NS_BINDING_ABORTED') {
     try {
       const url = new URL(request.url());
-      if (url.origin === 'http://127.0.0.1:3000' && (url.pathname === '/logo.svg' || url.pathname === '/flixo-logo.svg' || url.pathname.startsWith('/assets/'))) return true;
+      if (url.origin === 'http://127.0.0.1:3000' && (url.pathname === '/flixo-favicon.png' || url.pathname === '/flixo-logo.webp' || url.pathname.startsWith('/assets/'))) return true;
     } catch {
       return false;
     }

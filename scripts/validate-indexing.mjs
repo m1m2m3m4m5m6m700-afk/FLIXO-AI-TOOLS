@@ -49,8 +49,8 @@ if (!rootSource.includes("property: 'og:title'")) throw new Error('Root route is
 if (!rootSource.includes("property: 'og:description'")) throw new Error('Root route is missing Open Graph description metadata.');
 if (!rootSource.includes("property: 'og:url'")) throw new Error('Root route is missing Open Graph URL metadata.');
 if (!rootSource.includes("name: 'twitter:card'")) throw new Error('Root route is missing Twitter card metadata.');
-if (rootSource.includes("href: '/flixo-logo.jpg'") || rootSource.includes("href: '/logo.jpg'")) throw new Error('Root route references stale JPG logo URLs.');
-if (!rootSource.includes("href: '/favicon.svg'")) throw new Error('Root route is missing the canonical favicon.');
+if (/flixo-logo\.jpg|logo\.jpg|logo\.svg|favicon\.svg/.test(rootSource)) throw new Error('Root route references legacy logo assets.');
+if (!rootSource.includes("href: '/flixo-favicon.png'")) throw new Error('Root route is missing the canonical favicon.');
 
 if (!localizedToolRouteSource.includes("path: '/$locale/$tool'")) throw new Error('Localized tool route is missing.');
 if (!localizedToolRouteSource.includes("rel: 'canonical'")) throw new Error('Localized tool canonical generation is missing.');
@@ -63,11 +63,11 @@ if (!toolSeoSource.includes('getLocalizedToolUrl(alternateLocale, tool.id)')) th
 if (!indexSource.includes('<html lang="en" dir="ltr">')) throw new Error('index.html must declare the default language and direction.');
 if (!indexSource.includes('<meta name="viewport"')) throw new Error('index.html is missing the viewport declaration.');
 if (!indexSource.includes('<link rel="manifest" href="/manifest.webmanifest"')) throw new Error('index.html is missing the web manifest.');
-if (!indexSource.includes('<link rel="icon" type="image/svg+xml" href="/favicon.svg"')) throw new Error('index.html must use the canonical favicon.');
-if (indexSource.includes('/flixo-logo.jpg') || indexSource.includes('/logo.jpg')) throw new Error('index.html references stale JPG logo assets.');
+if (!indexSource.includes('<link rel="icon" type="image/png" href="/flixo-favicon.png"')) throw new Error('index.html must use the canonical favicon.');
+if (/flixo-logo\.jpg|logo\.jpg|logo\.svg|favicon\.svg/.test(indexSource)) throw new Error('index.html references legacy logo assets.');
 
 if (!rootSource.includes("{ name: 'description', content:")) throw new Error('Root route is missing the base description metadata.');
 if (!manifestSource.includes('"start_url": "/en"')) throw new Error('Manifest start_url must resolve to a localized public route.');
-if (!manifestSource.includes('"src": "/flixo-logo.svg"')) throw new Error('Manifest must use the canonical FLIXO logo asset.');
+if (!manifestSource.includes('"src": "/flixo-logo.webp"')) throw new Error('Manifest must use the canonical FLIXO logo asset.');
 
 console.log(`Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical image tools, localized tool canonical/hreflang symmetry, canonical HTTPS origin, and robots/sitemap contracts are aligned.`);
