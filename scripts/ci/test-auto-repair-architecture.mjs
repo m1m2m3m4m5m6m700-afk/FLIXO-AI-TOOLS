@@ -13,11 +13,18 @@ import { runAstRepair } from './auto-repair/ast-repair.mjs';
 import { validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
 
 const workflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
-assert.match(workflow, /conclusion != 'success'/);
-assert.match(workflow, /failure\|cancelled\|timed_out\|action_required\|stale/);
+assert.match(workflow, /github\.event\.workflow_run\.conclusion == 'failure'/);
+assert.match(workflow, /github\.event\.workflow_run\.conclusion == 'timed_out'/);
+assert.match(workflow, /branches: \[main, execution\]/);
+assert.match(workflow, /FAILED_BRANCH/);
+
 assert.match(workflow, /Repair remains open/);
+assert.match(workflow, /Execution repair remains open/);
 assert.match(workflow, /gh workflow run auto-repair\.yml/);
 assert.match(workflow, /cancel-in-progress: false/);
+assert.doesNotMatch(fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8'), /flixo-intractable\//);
+assert.match(fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8'), /issue.*create/);
+
 
 const sample = 'Run 35012345678 failed: abcdefabcdefabcdefabcdefabcdefabcdefabcd no-unused-vars';
 const normalized = normalizeFailure(sample);
