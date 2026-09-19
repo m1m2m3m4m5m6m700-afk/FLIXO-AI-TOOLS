@@ -1,0 +1,87 @@
+name: FLIXO Agent Repair Heartbeat
+
+run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: flixo-agent-repair-heartbeat
+  cancel-in-progress: true
+
+jobs:
+  wake-repair-agent:
+    name: Wake autonomous repair agent when RED persists
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Find current repairable RED
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ACTIVE_REPAIRS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 20             --json databaseId,status             --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
+
+          if [ "$ACTIVE_REPAIRS" -gt 0 ]; then
+            echo "REPAIR_ALREADY_ACTIVE=$ACTIVE_REPAIRS"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          TARGET=""
+          for BRANCH in execution main; do
+            CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+
+            CANDIDATE="$(gh run list --repo "$GITHUB_REPOSITORY" --branch "$BRANCH" --limit 100               --json databaseId,name,headSha,conclusion,createdAt               --jq --arg sha "$CURRENT_SHA" '
+                map(select(
+                  (.name == "FLIXO Test Impact" or
+                   .name == "FLIXO Test Impact Execution" or
+                   .name == "Repository Security Baseline" or
+                   .name == "Claude Security Review")
+                  and .headSha == $sha
+                  and (.conclusion == "failure" or .conclusion == "timed_out")
+                ))
+                | sort_by(.createdAt)
+                | last.databaseId // empty
+              ')"
+
+            if [ -n "$CANDIDATE" ]; then
+              TARGET="$CANDIDATE"
+              echo "HEARTBEAT_TARGET=$TARGET"
+              echo "HEARTBEAT_BRANCH=$BRANCH"
+              break
+            fi
+          done
+
+          if [ -z "$TARGET" ]; then
+            echo 'HEARTBEAT=NO_REPAIRABLE_RED'
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "target_run_id=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch autonomous repair cycle
+        if: steps.target.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TARGET="${{ steps.target.outputs.target_run_id }}"
+          echo "AUTONOMOUS_DISPATCH target=$TARGET"
+
+          gh workflow run auto-repair.yml             --repo "$GITHUB_REPOSITORY"             --ref main             -f "target_run_id=$TARGET"             -f "chain_id=heartbeat-$TARGET"
+
+          echo "AUTONOMOUS_REPAIR_DISPATCHED=$TARGET"
