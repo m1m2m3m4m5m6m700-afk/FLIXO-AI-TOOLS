@@ -10,10 +10,11 @@ const failures = [];
 // execution-sync is the canonical execution-branch reconciliation controller; it
 // may write only to execution and trigger canonical CI, and it merges only after
 // exact-head GREEN evidence. Direct-main repair remains intentionally forbidden.
-const writeWorkflowAllowlist = new Set(WRITE_CAPABLE_WORKFLOWS);
+const writeWorkflowAllowlist = new Set(WRITE_CAPABLE_WORKFLOWS.map((name) => `.github/workflows/${name}`));
 
-const securityCriticalWorkflows = new Set(SECURITY_CRITICAL_WORKFLOWS);
+const securityCriticalWorkflows = new Set(SECURITY_CRITICAL_WORKFLOWS.map((name) => `.github/workflows/${name}`));
 
+const dynamicRepairWorkflowPaths = new Set(REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`));
 const trustPerimeter = [
   '.github/workflows/auto-repair.yml',
   '.github/workflows/execution-sync.yml',
@@ -48,7 +49,11 @@ function workflowFiles() {
 const policyPath = path.join(root, 'scripts', 'ci', 'auto-repair-policy.mjs');
 const policyText = fs.existsSync(policyPath) ? fs.readFileSync(policyPath, 'utf8') : '';
 for (const protectedPath of trustPerimeter) {
+  if (dynamicRepairWorkflowPaths.has(protectedPath)) continue;
   if (!policyText.includes("'" + protectedPath + "'")) failures.push('auto-repair-policy: missing protected trust path ' + protectedPath);
+}
+if (!policyText.includes('...REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`)')) {
+  failures.push('auto-repair-policy: canonical repair-gate workflow expansion is missing');
 }
 if (policyText.includes('maxAttemptsPerFingerprint: Number.POSITIVE_INFINITY')) failures.push('auto-repair-policy: unbounded per-fingerprint repair is forbidden');
 if (/openDraftPrOnly:\s*true/u.test(policyText)) failures.push('auto-repair-policy: openDraftPrOnly=true contradicts canonical execution→main publication');
