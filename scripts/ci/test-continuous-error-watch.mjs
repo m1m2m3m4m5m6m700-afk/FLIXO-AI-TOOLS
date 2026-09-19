@@ -108,6 +108,21 @@ const stale = evaluateGreen({
 });
 assert.equal(stale.status, 'RED_INTERNAL');
 
+const actionRequired = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns.map((item) =>
+    item.workflowName === 'FLIXO Test System'
+      ? { ...item, conclusion: 'action_required', status: 'completed', databaseId: 1001 }
+      : item),
+  checkRuns: securityAndCertification,
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(actionRequired.status, 'FAIL_CLOSED');
+assert.equal(actionRequired.repair.required, false);
+assert.equal(actionRequired.rootCause, 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED');
+
 const waiting = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
   workflowRuns: requiredRuns.map((item) =>
