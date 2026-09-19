@@ -553,9 +553,11 @@ jobs:
             exit 1
           }
           if [ "$FLIXO_REPAIR_TARGET_BRANCH" = "main" ]; then
+            git remote set-url origin "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git"
             git push origin HEAD:main
             echo 'DIRECT_MAIN_REPAIR_PUBLISHED=true'
           else
+            git remote set-url origin "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git"
             git push origin HEAD:execution
             PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
             if [ -z "$PR_URL" ]; then
