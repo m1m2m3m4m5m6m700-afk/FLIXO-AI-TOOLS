@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: flixo-test-impact-execution-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  group: flixo-test-impact-execution-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
