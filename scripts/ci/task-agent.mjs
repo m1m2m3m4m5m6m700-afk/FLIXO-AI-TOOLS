@@ -11,6 +11,16 @@ const TASK_FILE = fs.existsSync(path.join(ROOT, 'المهام.md')) ? path.join(
 const OUTPUT_DIR = process.env.FLIXO_TASK_AGENT_OUTPUT_DIR ?? '/tmp/flixo-task-agent';
 const DIAGNOSIS_PATH = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
 const CONTRACT_VERSION = 'TASK-AGENT-DIRECT-REPAIR-v2';
+const MAJOR_REPAIR_WAVE = /^(1|true|yes|on)$/iu.test(process.env.FLIXO_MAJOR_REPAIR_WAVE ?? '');
+const NORMAL_MAX_REPAIR_CYCLES = 12;
+const MAJOR_MAX_REPAIR_CYCLES = 30;
+const NORMAL_MAX_PREPARED_FILES = 12;
+const MAJOR_MAX_PREPARED_FILES = 60;
+const NORMAL_MAX_INSPECTED_FILES = 40;
+const MAJOR_MAX_INSPECTED_FILES = 240;
+const MAX_REPAIR_CYCLES = MAJOR_REPAIR_WAVE ? MAJOR_MAX_REPAIR_CYCLES : NORMAL_MAX_REPAIR_CYCLES;
+const MAX_PREPARED_FILES = MAJOR_REPAIR_WAVE ? MAJOR_MAX_PREPARED_FILES : NORMAL_MAX_PREPARED_FILES;
+const MAX_INSPECTED_FILES = MAJOR_REPAIR_WAVE ? MAJOR_MAX_INSPECTED_FILES : NORMAL_MAX_INSPECTED_FILES;
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
@@ -82,7 +92,9 @@ const failureRunId = arg('failure-run-id');
 const failureSha = arg('failure-sha');
 const failureFingerprint = arg('failure-fingerprint');
 const failureEvidencePath = arg('failure-evidence');
-const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION' : 'DIRECT_EXECUTION';
+const repairMode = failureRunId || failureSha || failureFingerprint
+  ? (MAJOR_REPAIR_WAVE ? 'ACTIVE_MAJOR_REPAIR_CYCLE_DIRECT_EXECUTION' : 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION')
+  : 'DIRECT_EXECUTION';
 const diagnosis = fs.existsSync(DIAGNOSIS_PATH) ? JSON.parse(fs.readFileSync(DIAGNOSIS_PATH, 'utf8')) : null;
 const memory = loadMemory();
 const recentActionHistory = (memory.actionHistory ?? [])
@@ -171,6 +183,7 @@ for (const task of selected) {
     contractVersion: CONTRACT_VERSION,
     role: 'TASK_OWNER_AND_DIRECT_REPAIR_AGENT',
     mode: repairMode,
+    majorRepairWave: MAJOR_REPAIR_WAVE,
     preparedOnly: false,
     executionMode: 'DIRECT_ON_EXECUTION_BRANCH',
     mutationPolicy: 'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH',
@@ -264,7 +277,7 @@ for (const task of selected) {
     },
     repairLoop: {
       mode: 'RED_TO_GREEN_IN_SAME_CYCLE',
-      maxCycles: 12,
+      maxCycles: MAX_REPAIR_CYCLES,
       rescanAfterEveryRepair: true,
       rescanScope: 'ALL_REQUIRED_CHECKS',
       repairOrder: ['capture-failure', 'root-cause', 'source-fix', 'proportional-hardening', 'targeted-regression', 'canonical-ci'],
@@ -324,10 +337,11 @@ const index = {
   selectedCount: outputs.length,
   lifecycle: 'ACTIVE_UNTIL_CANONICAL_GREEN',
   failureContext: { runId: failureRunId || null, failedSha: failureSha || null, fingerprint: failureFingerprint || null },
+  majorRepairWave: MAJOR_REPAIR_WAVE,
   repairLoop: {
     enabled: true,
     mode: 'RED_TO_GREEN_IN_SAME_CYCLE',
-    maxCycles: 12,
+    maxCycles: MAX_REPAIR_CYCLES,
     rescanAfterEveryRepair: true,
     circuitBreaker: { enabled: true, maxStalledCycles: 3, action: 'REQUIRES_REVIEW_AND_REDISPATCH', failClosed: true },
   },
@@ -335,7 +349,7 @@ const index = {
     required: ['CANONICAL_GREEN', 'ZERO_RED_CHECKS', 'FRESH_EXACT_SHA_EVIDENCE', 'REGRESSION_PROOF'],
     closureAllowedOnlyWhenAllRequired: true,
   },
-  changeBudget: { maxPreparedFiles: 12, maxInspectedFiles: 40, onExceed: 'REQUIRES_REVIEW' },
+  changeBudget: { maxPreparedFiles: MAX_PREPARED_FILES, maxInspectedFiles: MAX_INSPECTED_FILES, onExceed: 'REQUIRES_REVIEW', profile: MAJOR_REPAIR_WAVE ? 'MAJOR' : 'NORMAL' },
   memory: { fingerprinted: true, summaryPerRepair: true, reuseKnownFingerprint: true, generalizedAcrossFingerprints: true, promotionRequiresMultipleVerifiedCases: true },
   cognition: diagnosis ? { rootCause: diagnosis.rootCause ?? 'unknown', decision: diagnosis.decision ?? 'PROPOSE_ONLY', causalConfidence: diagnosis.causalConfidence ?? 0, ambiguity: diagnosis.ambiguity ?? true, reusableKnowledge, memoryContext } : { memoryVersion: memory.version, caseCount: memory.cases.length, playbookCount: memory.playbooks.length },
   digest: hash(JSON.stringify(outputs)),
