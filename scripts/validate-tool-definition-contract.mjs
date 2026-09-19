@@ -12,7 +12,7 @@ const capability = readFileSync(capabilityPath, 'utf8');
 const requiredFields = [
   'id', 'family', 'title', 'description', 'category', 'isReady', 'path', 'routes',
   'aliases', 'component', 'capability', 'executionMode', 'parameterSchema',
-  'safetyLimits', 'verifier', 'localization', 'seo',
+  'safetyLimits', 'verifier', 'recovery', 'operational', 'localization', 'seo',
 ];
 
 const failures = [];
@@ -21,7 +21,7 @@ for (const field of requiredFields) {
   if (!canonical.includes(`${field}:`)) failures.push(`ToolDefinition field missing: ${field}`);
 }
 if (!canonical.includes('export const TOOL_DEFINITIONS')) failures.push('Canonical TOOL_DEFINITIONS export is missing.');
-if (!canonical.includes('const IMAGE_TOOL_CONFIGS: readonly ToolConfig[]')) failures.push('Canonical image definition source is missing.');
+if (!canonical.includes('const IMAGE_TOOL_CONFIGS: readonly ToolSource[]')) failures.push('Canonical image definition source is missing.');
 const canonicalToolIds = [...canonical.matchAll(/\{ id: '([^']+)'/g)].map((match) => match[1]);
 const readyToolIds = [...canonical.matchAll(/\{ id: '([^']+)',[^\n]*?isReady: true,/g)].map((match) => match[1]);
 const unavailableToolIds = [...canonical.matchAll(/\{ id: '([^']+)',[^\n]*?isReady: false,/g)].map((match) => match[1]);
