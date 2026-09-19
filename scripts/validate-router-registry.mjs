@@ -68,7 +68,24 @@ const expectedPublicRoutes = new Set(
 const missingDynamicBoundary = expectedPublicRoutes.size > 0 && !declaredRoutes.has('/$locale/$tool');
 if (missingDynamicBoundary) fail('localized-boundary', 'Image routes require the registry-backed /$locale/$tool dynamic boundary.');
 
-const explicitPublicRoutes = [...declaredRoutes].filter((route) => route.split('/').filter(Boolean).length === 2 && /^[a-z]{2}$/u.test(route.split('/').filter(Boolean)[0]) && !route.includes('$'));
+const nonToolApplicationRoutes = new Set(['/ar/tools']);
+const explicitPublicRoutes = [...declaredRoutes].filter((route) => route.split('/').filter(Boolean).length === 2 && /^[a-z]{2}$/u.test(route.split('/').filter(Boolean)[0]) && !route.includes('
+const orphan = toolOwnedPublicRoutes.filter((route) => !expectedPublicRoutes.has(route));
+if (orphan.length) fail('orphan-routes', 'Router contains public tool routes not owned by TOOL_REGISTRY.', { orphan });
+
+const nonReadyToolRoutes = TOOL_REGISTRY
+  .filter((tool) => !tool.isReady)
+  .filter((tool) => declaredRoutes.has(tool.path) || [...aliases.keys()].some((alias) => declaredRoutes.has(alias)))
+  .map((tool) => tool.path);
+if (nonReadyToolRoutes.length) fail('readiness', 'Non-ready image tools expose public routes.', { routes: nonReadyToolRoutes });
+
+console.log('image-only router/registry/runtime contract passed');
+console.log(`registry tools: ${TOOL_REGISTRY.length}`);
+console.log(`ready tools: ${TOOL_REGISTRY.filter((tool) => tool.isReady).length}`);
+console.log(`non-ready tools: ${TOOL_REGISTRY.filter((tool) => !tool.isReady).length}`);
+console.log(`dynamic localized tool route: enabled`);
+));
+const toolOwnedPublicRoutes = explicitPublicRoutes.filter((route) => !nonToolApplicationRoutes.has(route));
 const orphan = explicitPublicRoutes.filter((route) => !expectedPublicRoutes.has(route));
 if (orphan.length) fail('orphan-routes', 'Router contains public tool routes not owned by TOOL_REGISTRY.', { orphan });
 
