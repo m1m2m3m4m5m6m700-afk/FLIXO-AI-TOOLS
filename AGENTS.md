@@ -19,12 +19,17 @@ Before any repository action, every agent MUST read, in this order:
 7. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
 8. `docs/PROTOCOL-HIERARCHY.md`
 9. `docs/PROTOCOL-REGISTRY.json`
-10. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+10. `docs/agents/PROMPT-REGISTRY.json`
+11. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
 11. `scripts/ci/test-plan.json`
 12. `scripts/ci/assertion-registry.json`
 13. the current exact `main` SHA and current workflow state
 
 `PROJECTS.md` is the navigation/control layer; `المهام.md` is the open-task scope gate; the linked contract/plan remains authoritative for implementation semantics, and CI/evidence remains authoritative for completion.
+
+## SHARED PROMPT GATE
+
+Any agent that creates, selects, modifies, merges, or deprecates a repair prompt MUST read `docs/agents/PROMPT-REGISTRY.json` and use the Prompt Intelligence validator. It must search fingerprint, RCA, similar prompts, lessons, anti-lessons, overlap, and conflicts before changing prompt artifacts. Prompt duplication is decided from causal structure, not wording. Failed quality gates produce `PROMPT_REVIEW_REQUIRED` and cannot be ACTIVE. Prompt usage is advisory and must be bound to the current exact SHA.
 
 ## TASK GATE
 
