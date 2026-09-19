@@ -5,7 +5,7 @@ import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-re
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
-export const MEMORY_VERSION = 9;
+export const MEMORY_VERSION = 10;
 export const INTRACTABLE_THRESHOLD = 3;
 export { normalizeFailure, fingerprintFailure, extractFeatures };
 
