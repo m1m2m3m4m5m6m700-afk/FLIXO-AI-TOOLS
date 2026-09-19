@@ -265,7 +265,8 @@ const cliRun = spawnSync(process.execPath, ['scripts/ci/auto-repair-learning.mjs
 });
 assert.equal(cliRun.status, 0);
 const cliMemoryData = JSON.parse(fs.readFileSync(cliMemory, 'utf8'));
-const cliCase = cliMemoryData.cases.find((item) => item.rootCause === 'webkit-render');
+const cliFingerprint = fingerprintFailure(fs.readFileSync(cliLog, 'utf8'));
+const cliCase = cliMemoryData.cases.find((item) => item.fingerprint === cliFingerprint && item.rootCause === 'webkit-render');
 assert(cliCase);
 assert.equal(cliCase.attempts, 0);
 assert.equal(cliCase.failures, 0);
