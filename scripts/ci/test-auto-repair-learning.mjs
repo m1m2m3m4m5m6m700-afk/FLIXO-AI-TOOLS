@@ -10,6 +10,15 @@ const fingerprint = fingerprintFailure(sample);
 assert(!fingerprint.includes('35012345678'));
 assert(!fingerprint.includes('abcdefabcdefabcdefabcdefabcdefabcdefabcd'));
 
+const learningEnvironment = {
+  GH_TOKEN: process.env.GH_TOKEN,
+  GITHUB_REPOSITORY: process.env.GITHUB_REPOSITORY,
+  FLIXO_RUN_ID: process.env.FLIXO_RUN_ID,
+};
+delete process.env.GH_TOKEN;
+delete process.env.GITHUB_REPOSITORY;
+delete process.env.FLIXO_RUN_ID;
+
 const memory = loadMemory();
 assert.equal(memory.version, 9);
 const before = memory.cases.length;
@@ -113,6 +122,11 @@ assert.deepEqual(revertedCase?.revertedRules ?? [], ['eslint-unused']);
 assert.deepEqual(revertedCase?.revertedCommits ?? [], ['b'.repeat(40)]);
 assert.equal(revertedCase?.failures ?? 0, 0);
 assert.equal(scorePlaybook(memory, 'lint', 'eslint-unused'), 1);
+
+for (const [key, value] of Object.entries(learningEnvironment)) {
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
+}
 
 const fallbackOutcome = process.env.FLIXO_LEARNING_OUTCOME;
 const fallbackVerification = process.env.FLIXO_VERIFICATION;
