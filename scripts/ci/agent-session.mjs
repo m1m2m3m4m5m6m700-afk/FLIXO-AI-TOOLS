@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -35,9 +36,10 @@ const now = () => new Date().toISOString();
 const gitSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const requiredReads = ['AGENTS.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md', 'docs/MINIMAL-CI-FINAL-ARCHITECTURE.md', 'scripts/ci/test-plan.json', 'scripts/ci/assertion-registry.json'];
 const split = (value, separator = ',') => String(value ?? '').split(separator).map((v) => v.trim()).filter(Boolean);
-const sessionPath = (id) => path.join(sessionDir, `${id}.json`);
-const handoffPath = (id) => path.join(handoffDir, `${id}.json`);
-const visibilityPath = (id) => path.join(visibilityDir, `${id}.json`);
+const storageKey = (id) => createHash('sha256').update(id).digest('hex');
+const sessionPath = (id) => path.join(sessionDir, `${storageKey(id)}.json`);
+const handoffPath = (id) => path.join(handoffDir, `${storageKey(id)}.json`);
+const visibilityPath = (id) => path.join(visibilityDir, `${storageKey(id)}.json`);
 const roles = new Set(['analysis','implementation','verification','release','assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent']);
 const writeVisibility = (record) => {
   fs.mkdirSync(visibilityDir, { recursive: true });
