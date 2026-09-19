@@ -1,1 +1,2 @@
 Branch consolidation recheck. Keep only main, execution, review.
+consolidation-pass-2=2026-09-19T04:00:00Z
