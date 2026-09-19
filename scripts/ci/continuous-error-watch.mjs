@@ -27,6 +27,7 @@ export const REPAIRABLE_WORKFLOWS = Object.freeze([
   'FLIXO Test Impact Execution',
   'Repository Security Baseline',
   'Claude Security Review',
+  'Daily·FLIXO Green Gate',
 ]);
 
 const SECURITY_CHECK_PATTERNS = Object.freeze([
