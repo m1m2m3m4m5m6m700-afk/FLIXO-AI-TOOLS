@@ -27,7 +27,7 @@ export function planFromIntent(input: string): ExecutionPlan | null {
   if (quickFlow) {
     const intent = resolveIntent(input);
     const steps = quickFlow.steps.map((step) => ({ toolId: step.toolId as ToolDefinition['id'], params: step.params }));
-    if (steps.length > MAX_STEPS || !steps.every((step) => EXECUTABLE_PIPELINE_TOOL_ID_SET.has(step.toolId))) return null;
+    if (steps.length > MAX_STEPS || !steps.every((step) => getCapability(step.toolId)?.state === 'EXECUTABLE')) return null;
     if (intent.kind === 'tool' && intent.id && !steps.some((step) => step.toolId === intent.id)) return null;
     return validateExecutionPlan({
       workflowName: steps.length > 1 ? 'Dynamic QuickFlow' : 'Direct Tool',
