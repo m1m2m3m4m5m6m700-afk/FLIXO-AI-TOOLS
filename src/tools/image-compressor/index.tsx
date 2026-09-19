@@ -136,7 +136,7 @@ export function ImageCompressor({ locale }: { locale?: string }) {
       setParameters={setParameters}
       parameterSchema={parameterSchema}
       validateInput={(file, dimensions) => assertSafeImageInput(file, dimensions)}
-      createJob={({ assetStore, inputAssetId, inputAsset, parameters: validated }) => {
+      createJob={({ assetStore, inputAssetId, parameters: validated }) => {
         const next = validated as Parameters;
         return new ImageJob({
           toolId: 'image-compressor',
