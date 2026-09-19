@@ -2,6 +2,35 @@ import assert from 'node:assert/strict';
 import { randomBytes, scryptSync } from 'node:crypto';
 import { sessionCookieName, signAdminSession } from '../api/admin/boundary.ts';
 
+process.env.SUPABASE_URL = 'https://example.supabase.co';
+process.env.SUPABASE_SECRET_KEY = 'test-secret';
+process.env.VERCEL_ENV = 'test';
+const sessions = new Map();
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (input, init = {}) => {
+  const url = String(input);
+  const method = String(init.method ?? 'GET');
+  if (!url.includes('/rest/v1/flix_admin_sessions')) return originalFetch(input, init);
+  const body = init.body ? JSON.parse(String(init.body)) : null;
+  if (method === 'POST') {
+    sessions.set(body.session_id, { ...body, revoked_at: null });
+    return new Response(JSON.stringify([{ ...body, revoked_at: null, created_at: body.issued_at }]), { status: 201 });
+  }
+  if (method === 'GET') {
+    const sessionId = new URL(url).searchParams.get('session_id')?.replace(/^eq\./, '');
+    const record = sessions.get(sessionId);
+    return new Response(JSON.stringify(record ? [record] : []), { status: 200 });
+  }
+  if (method === 'PATCH') {
+    const sessionId = new URL(url).searchParams.get('session_id')?.replace(/^eq\./, '');
+    const record = sessions.get(sessionId);
+    if (!record) return new Response(JSON.stringify([]), { status: 200 });
+    Object.assign(record, body);
+    return new Response(JSON.stringify([record]), { status: 200 });
+  }
+  throw new Error('unexpected session store method');
+};
+
 const SECRET = 'admin-session-test-secret'.padEnd(32, '0');
 const PASSWORD = 'Test-Admin-Password-123!';
 const salt = randomBytes(16);
@@ -83,6 +112,7 @@ assert.equal(session.body.authenticated, true);
 assert.equal(session.body.identity.subject, 'owner');
 assert.equal(session.body.identity.role, 'OWNER');
 assert.equal(Array.isArray(session.body.capabilities), true);
+assert.equal(session.body.capabilities.includes('evidence.read'), true);
 
 const tampered = await invoke({
   cookie: `${sessionCookieName}=invalid.invalid`,
@@ -98,6 +128,9 @@ const loggedOut = await invoke({
 assert.equal(loggedOut.status, 200);
 assert.equal(loggedOut.body.authenticated, false);
 assert.match(String(loggedOut.headers['Set-Cookie']), /Max-Age=0/);
+const revokedSession = await invoke({ cookie });
+assert.equal(revokedSession.status, 401);
+assert.equal(revokedSession.body.error.code, 'authentication_required');
 
 const wrongMethod = await invoke({ method: 'PUT' });
 assert.equal(wrongMethod.status, 405);
