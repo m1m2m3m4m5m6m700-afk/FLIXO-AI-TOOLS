@@ -145,7 +145,7 @@ const session = issue({ subject: 'test-owner', capabilities: ['admin.read', 'tru
 const cookie = `${sessionCookieName}=${session}`;
 const readModelSession = issue({
   subject: 'read-model-owner',
-  capabilities: ['truth.read', 'operations.read', 'audit.read'],
+  capabilities: ['truth.read', 'operations.read', 'evidence.read', 'audit.read'],
 }, SECRET);
 const readModelCookie = `${sessionCookieName}=${readModelSession}`;
 
@@ -210,7 +210,7 @@ assert.equal(overviewAllowed.body.truth.state, 'UNAVAILABLE');
 assert.equal(overviewAllowed.body.persistence.state, 'BLOCKED');
 assert.equal(overviewAllowed.body.identity.subject, 'test-owner');
 assert.equal(overviewAllowed.body.modules.length, 10);
-assert.equal(overviewAllowed.body.capabilities.length, 8);
+assert.equal(overviewAllowed.body.capabilities.length, 9);
 assert.equal(overviewAllowed.headers['X-Request-Id'], 'overview-request-001');
 
 const centersUnauthenticated = await invokeCenters({ query: { center: 'truth' } });
