@@ -31,6 +31,7 @@ const DEFAULT_RULES: ImpactRule[] = [
   { pattern: 'scripts/ci/core/**', contracts: ['CI-DECISION-001', 'CI-CONFIG-001'], escalateTo: 'L2', reason: 'CI engine core changed' },
   { pattern: 'scripts/ci/contracts/**', contracts: ['CI-CONFIG-001'], escalateTo: 'L2', reason: 'CI contract configuration changed' },
   { pattern: 'scripts/ci/impact/**', contracts: ['CI-CONFIG-001'], escalateTo: 'L2', reason: 'impact engine changed' },
+  { pattern: 'scripts/ci/auto-repair/ai-phase1.mjs', contracts: ['CI-CONFIG-001', 'CI-DECISION-001'], escalateTo: 'L2', reason: 'AI repair control plane orchestration changed' },
   { pattern: '.github/workflows/**', contracts: ['CI-CONFIG-001', 'CI-TOOLCHAIN-001'], escalateTo: 'L2', reason: 'workflow orchestration changed' },
   { pattern: 'tests/helpers/upload-file.ts', contracts: ['G3-DOWNLOAD-001'], escalateTo: 'L1', reason: 'G3 browser upload adapter changed' },
   { pattern: 'tests/g3-artifact-integrity.spec.ts', contracts: ['G3-DOWNLOAD-001'], escalateTo: 'L1', reason: 'G3 browser artifact flow changed' },

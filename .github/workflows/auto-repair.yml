@@ -217,6 +217,12 @@ jobs:
             grep -E -i 'error|failed|failure|timeout|cancelled|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(|DEEP_[A-Z_]+_MISSING|execution graph completeness' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
           } > /tmp/flixo-repair-summary.txt
 
+      - name: Run Phase 1 AI failure intelligence and exact-target preflight
+        env:
+          FLIXO_CURRENT_TARGET_SHA_FILE: /tmp/flixo-failed-sha
+          FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
+        run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --preflight
+
       - name: Classify root cause with trusted controller
         env:
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
@@ -247,6 +253,9 @@ jobs:
             echo 'Teaching escalation recorded; continuing with the next repair strategy.'
           fi
 
+      - name: Run Phase 1 AI self-test
+        run: node --experimental-strip-types scripts/ci/test-ai-phase1.mjs
+
       - name: Install target dependencies
         id: install_target
         if: steps.strategy.outputs.intractable != 'true'
@@ -262,6 +271,14 @@ jobs:
           set -euo pipefail
           export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
           node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs
+
+      - name: Build Phase 1 AI impact and CI orchestration plan
+        id: ai_phase1
+        if: always()
+        env:
+          FLIXO_CURRENT_TARGET_SHA_FILE: /tmp/flixo-failed-sha
+          FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
+        run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --postflight
 
       - name: Validate repair diff boundary before publication
         id: boundary
@@ -279,6 +296,8 @@ jobs:
             exit 0
           fi
           test -f /tmp/flixo-repair-evidence.json || { echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; }
+          test -s /tmp/flixo-ai-phase1.json
+          node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --assert-post
           OUTCOME=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.outcome||'unknown')")
           echo "REPAIR_OUTCOME=$OUTCOME"
           if [ "$OUTCOME" != "verified-repair" ] && [ "$OUTCOME" != "verified-historical-revert" ]; then echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; fi
@@ -478,6 +497,7 @@ jobs:
             /tmp/flixo-engine-outcome
             /tmp/flixo-learning-outcome
             /tmp/flixo-repair-evidence.json
+            /tmp/flixo-ai-phase1.json
             /tmp/flixo-repair-strategy.json
             /tmp/flixo-intractable-state
             /tmp/flixo-task-agent/*.json

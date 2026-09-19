@@ -19,6 +19,7 @@ export function checkVerificationContamination({ changedPaths = [], selection = 
     'scripts/ci/auto-repair/verification.mjs',
     'scripts/ci/auto-repair-proof.mjs',
     'scripts/ci/assertion-registry.json',
+    'scripts/ci/auto-repair/ai-phase1.mjs',
   ]);
   if (targetSpec && changed.has(targetSpec)) blocked.push('target-test-changed:' + targetSpec);
   for (const file of controls) if (changed.has(file)) blocked.push('verification-control-changed:' + file);
