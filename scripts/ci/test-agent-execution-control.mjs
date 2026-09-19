@@ -4,11 +4,15 @@ import fs from 'node:fs';
 
 const source = fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8');
 assert.match(source, /singleOrchestrator: true/);
+assert.match(source, /MAJOR_MAX_REPAIR_CYCLES = 30/);
+assert.match(source, /MAJOR_MAX_PREPARED_FILES = 60/);
+assert.match(source, /MAJOR_MAX_INSPECTED_FILES = 240/);
+assert.match(source, /FLIXO_MAJOR_REPAIR_WAVE/);
 assert.match(source, /specializedRolesAreStages: true/);
 assert.match(source, /failClosed: true/);
-assert.match(source, /MAX_PREPARED_FILES = 12/);
-assert.match(source, /MAX_INSPECTED_FILES = 40/);
-assert.match(source, /MAX_REPAIR_CYCLES = 12/);
+assert.match(source, /NORMAL_MAX_PREPARED_FILES = 12/);
+assert.match(source, /NORMAL_MAX_INSPECTED_FILES = 40/);
+assert.match(source, /NORMAL_MAX_REPAIR_CYCLES = 12/);
 assert.match(source, /MAX_STALLED_REPAIR_CYCLES = 3/);
 assert.match(source, /MAX_PREPARED_FILES = 12/);
 assert.match(source, /STALE_BASELINE/);
