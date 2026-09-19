@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: flixo-test-impact-execution-${{ github.head_ref || github.ref }}
+  group: flixo-test-impact-execution-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 permissions:
@@ -67,7 +67,7 @@ jobs:
       - name: Verify evidence reducer contract
         run: node scripts/ci/test-evidence-reducer.mjs
       - name: Upload impact evidence
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v6
         with:
           name: flixo-test-impact-execution-${{ github.run_id }}
