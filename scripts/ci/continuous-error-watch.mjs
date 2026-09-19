@@ -211,7 +211,19 @@ export function evaluateGreen({
 
   if (!securityCheck) {
     report.errors.push({ type: 'SECURITY_EVIDENCE_MISSING' });
-  } else if (!(securityCheck.status === 'completed' && securityCheck.conclusion === 'success')) {
+  } else if (securityCheck.status !== 'completed') {
+    report.errors.push({
+      type: 'SECURITY_CHECK_PENDING',
+      checkName: securityCheck.name,
+      status: securityCheck.status,
+    });
+  } else if (securityCheck.conclusion === 'action_required') {
+    report.errors.push({
+      type: 'SECURITY_CHECK_ACTION_REQUIRED',
+      checkName: securityCheck.name,
+      action: 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED',
+    });
+  } else if (securityCheck.conclusion !== 'success') {
     const external = securityProviderBlock(securityCheck, logs[String(securityCheck.id)] ?? '');
     if (external) {
       report.externalBlockers.push(external);
@@ -219,7 +231,7 @@ export function evaluateGreen({
       report.errors.push({
         type: 'SECURITY_CHECK_RED',
         checkName: securityCheck.name,
-        conclusion: securityCheck.conclusion ?? securityCheck.status,
+        conclusion: securityCheck.conclusion,
       });
       if (!report.repair.required && securityCheck.details_url) {
         const match = String(securityCheck.details_url).match(/\/actions\/runs\/(\d+)/);
