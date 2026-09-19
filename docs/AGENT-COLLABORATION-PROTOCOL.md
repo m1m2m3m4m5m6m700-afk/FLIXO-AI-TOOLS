@@ -40,6 +40,28 @@ The following terms are normative coordination controls and are intentionally ex
 - **Conflict arbitration** — conflicting findings are preserved and resolved against exact-SHA evidence by explicit authority; no last-writer-wins behavior.
 - **Quality dimensions** — correctness, security, maintainability, performance, accessibility, localization, observability and operability are evaluated according to affected scope.
 
+## Shared Prompt Intelligence Protocol
+
+The repository has one canonical Prompt Registry at `docs/agents/PROMPT-REGISTRY.json`. It is a shared coordination artifact, not a source of authority. Prompt text cannot override `scripts/ci/repair-protocol.mjs`, validators, exact-SHA evidence, security controls, or canonical certification.
+
+Before creating, extending, merging, specializing, splitting, deprecating, or selecting a repair prompt, the agent MUST:
+1. read the Prompt Registry;
+2. search the current failure fingerprint;
+3. search the current RCA and similar causal families;
+4. read Error Memory lessons and anti-lessons;
+5. compare existing prompts by causal fields rather than wording;
+6. check overlap and conflict;
+7. reuse, extend, merge, or specialize before creating a new prompt.
+
+The canonical comparison key is:
+`failureClasses + rootCauses + scope + repairStrategy + verificationPlan`.
+
+Every prompt selection MUST be bound to the current target SHA and recorded with prompt ID, version, registry digest, decision, and provenance. Prompt quality failure returns `PROMPT_REVIEW_REQUIRED` and MUST NOT activate the prompt.
+
+After each repair attempt the learning record SHOULD preserve the prompt used, outcome, verification state, changed files, exact SHA, lesson/anti-lesson decision, and provenance. SUCCESS produces lesson evidence; FAILURE produces anti-lesson evidence; REVERTED produces strategy-rejection evidence; PROPOSED and BLOCKED_EXTERNAL do not increase internal repair confidence.
+
+`RPR-CORE-MASTER-001` is the master repair prompt. Specialist prompts are subordinate execution instructions and MUST NOT create a competing policy, control plane, registry, or certification authority.
+
 ## Scout evidence consumption invariant
 **MANDATORY FOR EVERY MUTATION:** before the Executive Controller or any authorized Execution Agent changes a repository file, it MUST consume the latest applicable Code Scout report for the current investigation scope and exact baseline SHA, when a Scout report is required by the lifecycle/risk gate. The report must be treated as evidence, not as authorization.
 
