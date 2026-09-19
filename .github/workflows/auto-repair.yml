@@ -256,10 +256,10 @@ jobs:
           echo "REPAIR_OUTCOME=$OUTCOME"
           if [ "$OUTCOME" != "verified-repair" ] && [ "$OUTCOME" != "verified-historical-revert" ]; then echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; fi
           git diff --quiet && { echo 'verified=false' >> "$GITHUB_OUTPUT"; echo 'Verified repair produced no source diff; refusing publication.'; exit 1; }
-          node scripts/ci/ensure-agent-locales.mjs
-          ./node_modules/.bin/tsc --noEmit
-          node scripts/test.mjs --mode=diagnose --gate=static
-          node scripts/test.mjs --mode=diagnose --gate=build
+          node /tmp/flixo-repair-controller/scripts/ci/ensure-agent-locales.mjs
+          node /tmp/flixo-repair-controller/node_modules/typescript/bin/tsc --noEmit
+          node /tmp/flixo-repair-controller/scripts/test.mjs --mode=diagnose --gate=static
+          node /tmp/flixo-repair-controller/scripts/test.mjs --mode=diagnose --gate=build
           git diff --check
           test "$(git branch --show-current)" = execution
           echo 'verified=true' >> "$GITHUB_OUTPUT"
