@@ -31,7 +31,7 @@ function workflowFiles() {
 
 const policyPath = path.join(root, 'scripts', 'ci', 'auto-repair-policy.mjs');
 const policyText = fs.existsSync(policyPath) ? fs.readFileSync(policyPath, 'utf8') : '';
-for (const protectedPath of trustPerimeter) {
+for (const protectedPath of TRUST_PERIMETER_PATHS) {
   if (dynamicRepairWorkflowPaths.has(protectedPath)) continue;
   if (!policyText.includes("'" + protectedPath + "'")) failures.push('auto-repair-policy: missing protected trust path ' + protectedPath);
 }
