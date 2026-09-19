@@ -1,10 +1,10 @@
 name: FLIXO Agent Repair Supervisor
 
-run-name: FLIXO Agent Repair Supervisor ${{ github.sha }}
-
 on:
   push:
-    branches: [execution, main]
+    branches:
+      - execution
+      - main
   workflow_dispatch:
     inputs:
       branch:
@@ -13,7 +13,11 @@ on:
         default: execution
         type: string
       target_sha:
-        description: 'Exact SHA to supervise; defaults to the branch head'
+        description: 'Exact SHA to supervise'
+        required: false
+        type: string
+      chain_id:
+        description: 'Continuous supervision chain identifier'
         required: false
         type: string
 
@@ -22,17 +26,13 @@ permissions:
   contents: read
   checks: read
 
-concurrency:
-  group: flixo-agent-repair-supervisor-${{ github.event.inputs.branch || github.ref_name }}-${{ github.event.inputs.target_sha || github.sha }}
-  cancel-in-progress: true
-
 jobs:
   supervise:
-    name: Start at commit and wait for RED before dispatch
+    name: Monitor commit until GREEN
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    timeout-minutes: 350
     steps:
-      - name: Establish watched branch and exact SHA
+      - name: Establish watched branch and SHA
         id: target
         env:
           GH_TOKEN: ${{ github.token }}
@@ -42,111 +42,101 @@ jobs:
         run: |
           set -euo pipefail
           BRANCH="${INPUT_BRANCH:-${GITHUB_REF_NAME}}"
-          case "$BRANCH" in execution|main) ;; *) echo "Unsupported branch: $BRANCH"; exit 1 ;; esac
+          case "$BRANCH" in
+            execution|main) ;;
+            *) echo "Unsupported branch: $BRANCH"; exit 1 ;;
+          esac
           SHA="${INPUT_SHA:-$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')}"
           LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
-          test "$SHA" = "$LIVE_SHA" || { echo "FAIL CLOSED: requested SHA is not current branch head."; exit 1; }
-          printf '%s
-' "$BRANCH" > /tmp/flixo-supervisor-branch
-          printf '%s
-' "$SHA" > /tmp/flixo-supervisor-sha
-          echo "WATCHED_BRANCH=$BRANCH"
-          echo "WATCHED_SHA=$SHA"
+          test "$SHA" = "$LIVE_SHA" || { echo "SUPERSEDED target=$SHA live=$LIVE_SHA"; exit 0; }
+          printf '%s\n' "$BRANCH" > /tmp/flixo-supervisor-branch
+          printf '%s\n' "$SHA" > /tmp/flixo-supervisor-sha
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "SUPERVISOR_STARTED branch=$BRANCH sha=$SHA"
 
-      - name: Wait for canonical result on the watched SHA
+      - name: Monitor exact SHA and delegate RED
         id: observe
         env:
           GH_TOKEN: ${{ github.token }}
-          WATCHED_BRANCH: ${{ steps.target.outputs.branch }}
-          WATCHED_SHA: ${{ steps.target.outputs.sha }}
+          BRANCH: ${{ steps.target.outputs.branch }}
+          SHA: ${{ steps.target.outputs.sha }}
+          CHAIN_ID: ${{ inputs.chain_id || github.sha }}
         shell: bash
         run: |
           set -euo pipefail
           DEADLINE=$(( $(date +%s) + 20400 ))
-          REQUIRED_NAMES='FLIXO Test System|FLIXO WP0 Trust Baseline|FLIXO Test Impact|FLIXO Test Impact Execution|FLIXO Continuous Delivery|Repository Security Baseline|Claude Security Review|Daily·FLIXO Green Gate'
+          REQUIRED='FLIXO Test System|FLIXO WP0 Trust Baseline|FLIXO Test Impact|FLIXO Test Impact Execution|FLIXO Continuous Delivery|Repository Security Baseline|Claude Security Review|Daily·FLIXO Green Gate'
+          LAST_FAILURE=''
+          NEXT_DISPATCH=0
 
           while [ "$(date +%s)" -lt "$DEADLINE" ]; do
-            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$WATCHED_BRANCH" --jq '.object.sha')"
-            if [ "$LIVE_SHA" != "$WATCHED_SHA" ]; then
-              echo "SUPERSEDED watched=$WATCHED_SHA live=$LIVE_SHA"
-              echo "status=superseded" >> "$GITHUB_OUTPUT"
+            LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+            if [ "$LIVE_SHA" != "$SHA" ]; then
+              echo "SUPERSEDED watched=$SHA live=$LIVE_SHA"
+              echo "status=continue" >> "$GITHUB_OUTPUT"
+              echo "next_sha=$LIVE_SHA" >> "$GITHUB_OUTPUT"
               exit 0
             fi
 
-            RUNS="$(gh run list --repo "$GITHUB_REPOSITORY" --commit "$WATCHED_SHA" --limit 100 --json databaseId,name,status,conclusion,headSha,headBranch,createdAt)"
-            if [ -z "$RUNS" ] || [ "$RUNS" = "[]" ]; then
-              echo "WAITING_FOR_CANONICAL_RUNS sha=$WATCHED_SHA"
-            else
-              MATCHED="$(printf '%s' "$RUNS" | jq -r --arg sha "$WATCHED_SHA" --arg names "$REQUIRED_NAMES" '
-                map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null))))
-                | unique_by(.name) | length')"
-              EXPECTED="$(printf '%s' "$REQUIRED_NAMES" | awk -F'|' '{print NF}')"
-              FAILED="$(printf '%s' "$RUNS" | jq -r --arg sha "$WATCHED_SHA" --arg names "$REQUIRED_NAMES" '
-                map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null))))
-                | map(select(.conclusion == "failure" or .conclusion == "timed_out"))
-                | sort_by(.createdAt) | last.databaseId // empty')"
-              ACTIVE="$(printf '%s' "$RUNS" | jq -r --arg sha "$WATCHED_SHA" --arg names "$REQUIRED_NAMES" '
-                map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null))))
-                | map(select(.status == "queued" or .status == "in_progress" or .status == "pending")) | length')"
-              SUCCESS="$(printf '%s' "$RUNS" | jq -r --arg sha "$WATCHED_SHA" --arg names "$REQUIRED_NAMES" '
-                map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null))))
-                | map(select(.conclusion == "success")) | unique_by(.name) | length')"
-              if [ -n "$FAILED" ]; then
-                echo "RED_DETECTED run=$FAILED sha=$WATCHED_SHA"
-                echo "failed_run_id=$FAILED" >> "$GITHUB_OUTPUT"
-                echo "status=red" >> "$GITHUB_OUTPUT"
-                exit 0
-              fi
-              if [ "$MATCHED" -lt "$EXPECTED" ]; then
-                echo "WAITING_FOR_MISSING_CANONICAL_CHECKS matched=$MATCHED expected=$EXPECTED sha=$WATCHED_SHA"
-              elif [ "$ACTIVE" -gt 0 ]; then
-                echo "WAITING_ACTIVE_CHECKS=$ACTIVE sha=$WATCHED_SHA"
-              elif [ "$SUCCESS" -eq "$EXPECTED" ]; then
-                echo "CANONICAL_GREEN_CONFIRMED sha=$WATCHED_SHA"
-                echo "status=green" >> "$GITHUB_OUTPUT"
-                exit 0
-              else
-                echo "WAITING_FOR_COMPLETE_CANONICAL_RESULTS matched=$MATCHED success=$SUCCESS expected=$EXPECTED sha=$WATCHED_SHA"
-              fi
+            RUNS="$(gh run list --repo "$GITHUB_REPOSITORY" --commit "$SHA" --limit 100 --json databaseId,name,status,conclusion,headSha,createdAt)"
+            GREEN="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" 'map(select(.headSha == $sha and .name == "Daily·FLIXO Green Gate" and .conclusion == "success")) | last.databaseId // empty')"
+            FAILED="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" --arg names "$REQUIRED" 'map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null)))) | map(select(.conclusion == "failure" or .conclusion == "timed_out")) | sort_by(.createdAt) | last.databaseId // empty')"
+
+            if [ -n "$GREEN" ]; then
+              echo "CANONICAL_GREEN_CONFIRMED sha=$SHA run=$GREEN"
+              echo "status=green" >> "$GITHUB_OUTPUT"
+              exit 0
             fi
+
+            if [ -n "$FAILED" ]; then
+              NOW="$(date +%s)"
+              if [ "$FAILED" != "$LAST_FAILURE" ] || [ "$NOW" -ge "$NEXT_DISPATCH" ]; then
+                ACTIVE_REPAIR="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 30 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
+                if [ "$ACTIVE_REPAIR" -eq 0 ]; then
+                  echo "RED_DETECTED run=$FAILED sha=$SHA"
+                  gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref main -f "target_run_id=$FAILED" -f "chain_id=${CHAIN_ID}-${SHA}-${FAILED}"
+                  echo "DEDICATED_REPAIR_AGENT_DISPATCHED run=$FAILED sha=$SHA"
+                  LAST_FAILURE="$FAILED"
+                  NEXT_DISPATCH=$((NOW + 120))
+                else
+                  echo "RED_PRESENT_REPAIR_ACTIVE run=$FAILED active=$ACTIVE_REPAIR sha=$SHA"
+                  LAST_FAILURE="$FAILED"
+                  NEXT_DISPATCH=$((NOW + 60))
+                fi
+              fi
+            else
+              ACTIVE_CHECKS="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" --arg names "$REQUIRED" 'map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null)))) | map(select(.status == "queued" or .status == "in_progress" or .status == "pending")) | length')"
+              echo "WAITING_FOR_CANONICAL_RESULTS active=$ACTIVE_CHECKS sha=$SHA"
+            fi
+
             sleep 30
           done
 
-          echo "SUPERVISOR_WINDOW_EXPIRED sha=$WATCHED_SHA"
+          echo "SUPERVISOR_WINDOW_EXHAUSTED sha=$SHA"
           echo "status=continue" >> "$GITHUB_OUTPUT"
 
-      - name: Dispatch custom repair agent immediately on RED
-        if: steps.observe.outputs.status == 'red'
+      - name: Continue supervision until GREEN
+        if: steps.observe.outputs.status == 'continue'
         env:
           GH_TOKEN: ${{ github.token }}
-          FAILED_RUN_ID: ${{ steps.observe.outputs.failed_run_id }}
           BRANCH: ${{ steps.target.outputs.branch }}
-          SHA: ${{ steps.target.outputs.sha }}
+          CHAIN_ID: ${{ inputs.chain_id || github.sha }}
         shell: bash
         run: |
           set -euo pipefail
           LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
-          test "$LIVE_SHA" = "$SHA" || { echo "SUPERSEDED before dispatch"; exit 0; }
-          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref main             -f "target_run_id=$FAILED_RUN_ID"             -f "chain_id=supervisor-$SHA-$FAILED_RUN_ID"
-          echo "CUSTOM_REPAIR_AGENT_DISPATCHED run=$FAILED_RUN_ID branch=$BRANCH sha=$SHA"
-
-      - name: Continue supervision until GREEN
-        if: steps.observe.outputs.status == 'continue' || steps.observe.outputs.status == 'superseded'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ steps.target.outputs.branch }}
-          CHAIN_ID: ${{ github.sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq ".object.sha")"
           echo "SUPERVISOR_CONTINUE branch=$BRANCH sha=$LIVE_SHA"
           gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref main -f "branch=$BRANCH" -f "target_sha=$LIVE_SHA" -f "chain_id=$CHAIN_ID"
           echo "SUPERVISOR_CONTINUATION_DISPATCHED=true"
-      - name: Preserve explicit terminal state
+
+      - name: Record terminal state
         if: always()
         run: |
-          echo "SUPERVISOR_RESULT=${{ steps.observe.outputs.status || 'unknown' }}"
-          echo "WATCHED_SHA=${{ steps.target.outputs.sha }}"
+          RESULT="${{ steps.observe.outputs.status || 'unknown' }}"
+          echo "SUPERVISOR_RESULT=$RESULT"
+          if [ "$RESULT" = 'green' ]; then
+            echo 'SUPERVISOR_TERMINAL=GREEN'
+          else
+            echo 'SUPERVISOR_TERMINAL=NON_GREEN_CONTINUE'
+          fi
