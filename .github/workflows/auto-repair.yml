@@ -1,5 +1,5 @@
 name: FLIXO Auto Repair Bot
-run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id || github.event.workflow_run.id }}
+run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id }}
 
 # TWO-BRANCH MODEL:
 # execution = sole working/repair branch
@@ -7,14 +7,7 @@ run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id ||
 # This workflow is EXECUTOR-ONLY; execution-bot-watchdog is the sole dispatcher.
 # No workflow in this file may create another branch or dispatch this workflow again.
 on:
-  # Autonomous repair wake-up: canonical failures start the repair cycle without
-  # requiring a human command. The executor still fail-closes on scope/evidence.
-  workflow_run:
-    workflows:
-      - FLIXO Test System
-      - FLIXO WP0 Trust Baseline
-      - FLIXO Continuous Delivery
-    types: [completed]
+  # Auto-Repair is an executor only. execution-bot-watchdog is the sole dispatcher.
   workflow_dispatch:
     inputs:
       target_run_id:
@@ -40,7 +33,7 @@ env:
   FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
   FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
   FLIXO_REPAIR_LANE: single
-  TARGET_RUN_ID: ${{ inputs.target_run_id || github.event.workflow_run.id }}
+  TARGET_RUN_ID: ${{ inputs.target_run_id }}
   FLIXO_HISTORY_LIMIT: '30'
   FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
   FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
@@ -53,8 +46,7 @@ jobs:
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
     if: >-
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event_name == 'workflow_run' && (github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out'))
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
