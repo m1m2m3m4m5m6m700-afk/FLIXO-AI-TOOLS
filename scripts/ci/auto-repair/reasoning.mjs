@@ -176,6 +176,7 @@ export function reasonFailure(log, {
     directFailureSignal,
     ambiguity,
     sourceMutationAllowed,
+    externalTooling: hardBlock,
     locationVerified,
     decision,
     scout: scout.fresh
