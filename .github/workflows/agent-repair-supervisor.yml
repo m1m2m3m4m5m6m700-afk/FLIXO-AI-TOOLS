@@ -79,25 +79,37 @@ jobs:
             if [ -z "$RUNS" ] || [ "$RUNS" = "[]" ]; then
               echo "WAITING_FOR_CANONICAL_RUNS sha=$WATCHED_SHA"
             else
-              FAILED="$(printf '%s' "$RUNS" | jq -r --arg names "$REQUIRED_NAMES" '
-                map(select(.headSha == "'$WATCHED_SHA'" and (.name as $n | ($names | split("|") | index($n) != null)))) |
-                map(select(.conclusion == "failure" or .conclusion == "timed_out")) |
-                sort_by(.createdAt) | last.databaseId // empty')"
-              ACTIVE="$(printf '%s' "$RUNS" | jq -r --arg names "$REQUIRED_NAMES" '
-                map(select(.headSha == "'$WATCHED_SHA'" and (.name as $n | ($names | split("|") | index($n) != null)))) |
-                map(select(.status == "queued" or .status == "in_progress" or .status == "pending")) | length')"
+              MATCHED="$(printf '%s' "$RUNS" | jq -r --arg sha "$WATCHED_SHA" --arg names "$REQUIRED_NAMES" '
+                map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null))))
+                | unique_by(.name) | length')"
+              EXPECTED="$(printf '%s' "$REQUIRED_NAMES" | awk -F'|' '{print NF}')"
+              FAILED="$(printf '%s' "$RUNS" | jq -r --arg sha "$WATCHED_SHA" --arg names "$REQUIRED_NAMES" '
+                map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null))))
+                | map(select(.conclusion == "failure" or .conclusion == "timed_out"))
+                | sort_by(.createdAt) | last.databaseId // empty')"
+              ACTIVE="$(printf '%s' "$RUNS" | jq -r --arg sha "$WATCHED_SHA" --arg names "$REQUIRED_NAMES" '
+                map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null))))
+                | map(select(.status == "queued" or .status == "in_progress" or .status == "pending")) | length')"
+              SUCCESS="$(printf '%s' "$RUNS" | jq -r --arg sha "$WATCHED_SHA" --arg names "$REQUIRED_NAMES" '
+                map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null))))
+                | map(select(.conclusion == "success")) | unique_by(.name) | length')"
               if [ -n "$FAILED" ]; then
                 echo "RED_DETECTED run=$FAILED sha=$WATCHED_SHA"
                 echo "failed_run_id=$FAILED" >> "$GITHUB_OUTPUT"
                 echo "status=red" >> "$GITHUB_OUTPUT"
                 exit 0
               fi
-              if [ "$ACTIVE" -eq 0 ]; then
-                echo "CANONICAL_NO_ACTIVE_RED sha=$WATCHED_SHA"
+              if [ "$MATCHED" -lt "$EXPECTED" ]; then
+                echo "WAITING_FOR_MISSING_CANONICAL_CHECKS matched=$MATCHED expected=$EXPECTED sha=$WATCHED_SHA"
+              elif [ "$ACTIVE" -gt 0 ]; then
+                echo "WAITING_ACTIVE_CHECKS=$ACTIVE sha=$WATCHED_SHA"
+              elif [ "$SUCCESS" -eq "$EXPECTED" ]; then
+                echo "CANONICAL_GREEN_CONFIRMED sha=$WATCHED_SHA"
                 echo "status=green" >> "$GITHUB_OUTPUT"
                 exit 0
+              else
+                echo "WAITING_FOR_COMPLETE_CANONICAL_RESULTS matched=$MATCHED success=$SUCCESS expected=$EXPECTED sha=$WATCHED_SHA"
               fi
-              echo "WAITING_ACTIVE_CHECKS=$ACTIVE sha=$WATCHED_SHA"
             fi
             sleep 30
           done

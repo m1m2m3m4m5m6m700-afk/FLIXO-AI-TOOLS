@@ -40,7 +40,7 @@ assert.match(workflow, /--branch=\"\$FLIXO_REPAIR_TARGET_BRANCH\"/);
 const supervisor = fs.readFileSync('.github/workflows/agent-repair-supervisor.yml', 'utf8');
 assert.match(supervisor, /push:/);
 assert.match(supervisor, /branches: \[execution, main\]/);
-assert.match(supervisor, /Watched SHA/);
+assert.match(supervisor, /watched SHA/);
 assert.match(supervisor, /gh workflow run auto-repair\.yml/);
 assert.match(supervisor, /SUPERSEDED/);
 assert.match(workflow, /NON_GREEN_LEARNING_PERSISTENCE=ARTIFACT_ONLY/);
