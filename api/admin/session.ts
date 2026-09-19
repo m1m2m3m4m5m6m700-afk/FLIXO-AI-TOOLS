@@ -168,6 +168,7 @@ export default async function adminSession(req: AdminRequest, res: ServerRespons
       await persistAdminSession(verifyAdminSessionToken(token)!, {
         environment: process.env.VERCEL_ENV ?? 'unknown',
         issuedAt: new Date().toISOString(),
+        token,
       });
     } catch {
       return fail(res, 503, 'session_store_unavailable', correlationId);
