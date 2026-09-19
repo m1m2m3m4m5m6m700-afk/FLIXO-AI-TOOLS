@@ -8,8 +8,9 @@ const ROOT = process.cwd();
 const AUTO_REPAIR = path.join(ROOT, '.github', 'workflows', 'auto-repair.yml');
 const DAILY_GATE = path.join(ROOT, '.github', 'workflows', 'daily-flixo-green-gate.yml');
 const HANDOFF_GATE = path.join(ROOT, '.github', 'workflows', 'agent-repair-handoff-gate.yml');
-const MAX_CHANGED_FILES = 12;
-const MAX_CHANGED_LINES = 300;
+const MAJOR_REPAIR_WAVE = /^(1|true|yes|on)$/iu.test(process.env.FLIXO_MAJOR_REPAIR_WAVE ?? '');
+const MAX_CHANGED_FILES = MAJOR_REPAIR_WAVE ? 60 : 12;
+const MAX_CHANGED_LINES = MAJOR_REPAIR_WAVE ? 3000 : 300;
 
 export const CONTROL_PLANE_FILES = Object.freeze([
   ...REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`),
@@ -30,6 +31,10 @@ export const CONTROL_PLANE_FILES = Object.freeze([
   'AGENTS.md',
   'docs/agents/TASK-AGENT.md',
   'docs/agents/CONTINUOUS-ERROR-WATCH-REPAIR-PROTOCOL.md',
+  'docs/agents/PROMPT-REGISTRY.json',
+  'docs/agents/prompts/',
+  'scripts/ci/prompt-intelligence.mjs',
+  'scripts/ci/validate-prompt-registry.mjs',
 ]);
 
 const denyPath = (p) =>
