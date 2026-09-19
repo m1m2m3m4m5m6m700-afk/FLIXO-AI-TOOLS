@@ -58,7 +58,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
     return (
       <>
         {value.slice(0, openingIndex)}
-        [[{value.slice(contentStart, closingIndex)}]]
+        <span>{value.slice(contentStart, closingIndex)}</span>
         {value.slice(closingIndex + closing.length)}
       </>
     );
