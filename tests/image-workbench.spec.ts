@@ -10,7 +10,7 @@ test.describe('shared image workbench integration', () => {
     test(`${path} uses the shared input/preview/output/export contract`, async ({ page }) => {
       await page.goto(path);
       const expectedToolId = path.endsWith('image-cropper') ? 'image-cropper' : path.endsWith('image-converter') ? 'image-converter' : 'image-compressor';
-      await expect(page.locator('main.image-tool-shell')).toHaveAttribute('data-tool-id', expectedToolId);
+      await expect(page.locator('.image-tool-shell')).toHaveAttribute('data-tool-id', expectedToolId);
       await page.locator(inputId).setInputFiles({ name: path.endsWith('image-compressor') ? 'compressor-fixture.png' : 'fixture.png', mimeType: 'image/png', buffer: PNG });
       await expect(page.getByText('Before')).toHaveCount(1);
       await page.getByRole('button', { name: runLabel }).click();
