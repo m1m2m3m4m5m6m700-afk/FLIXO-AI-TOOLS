@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process';
 const ROOT = process.cwd();
 const AUTO_REPAIR = path.join(ROOT, '.github', 'workflows', 'auto-repair.yml');
 const DAILY_GATE = path.join(ROOT, '.github', 'workflows', 'daily-flixo-green-gate.yml');
+const HANDOFF_GATE = path.join(ROOT, '.github', 'workflows', 'agent-repair-handoff-gate.yml');
 const MAX_CHANGED_FILES = 12;
 const MAX_CHANGED_LINES = 300;
 
@@ -43,6 +44,7 @@ function read(file) {
 export function validateStatic() {
   const auto = read(AUTO_REPAIR);
   const dailyGate = read(DAILY_GATE);
+  const handoffGate = read(HANDOFF_GATE);
   const errors = [];
   const must = (condition, code) => { if (!condition) errors.push(code); };
 
@@ -61,6 +63,10 @@ export function validateStatic() {
   must(/cancel-in-progress:\s*false/.test(auto), 'auto-repair-single-lane');
   must(/FLIXO_STRICT_RED_REPAIR:\s*['"]true['"]/.test(auto), 'auto-repair-strict-red');
   must(/not a diagnosable failure/.test(auto), 'auto-repair-failure-only-policy');
+  must(auto.includes('CURRENT_TARGET_SHA=') && auto.includes('FAIL CLOSED: repair target'), 'auto-repair-no-superseded-target');
+  must(auto.includes('EVIDENCE_CAPTURE=FAILED'), 'auto-repair-evidence-capture-fail-closed');
+  must(handoffGate.includes('branches: [execution]'), 'handoff-gate-execution-trigger');
+  must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
   must(/cannot repair itself/.test(auto), 'auto-repair-self-protection');
   must(!/continue-on-error:\s*true/i.test(auto), 'auto-repair-no-continue-on-error');
   must(!/git\s+(checkout|switch)\s+-[bc]/.test(auto), 'auto-repair-no-third-branch');
