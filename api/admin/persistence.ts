@@ -94,6 +94,18 @@ export const getLatestEvidenceForAssertion = async (assertionId: string): Promis
   return normalized;
 };
 
+
+export const getLatestAuditForEvidence = async (evidenceId: string): Promise<AdminAuditEvent | null> => {
+  if (!/^[0-9a-f-]{36}$/i.test(evidenceId)) return null;
+  const body = await request(
+    `/rest/v1/flix_admin_audit_events?evidence_id=eq.${encodeURIComponent(evidenceId)}&select=*&order=occurred_at.desc&limit=1`,
+  );
+  if (!Array.isArray(body) || body.length === 0) return null;
+  const audit = assertSingleObject(body, 'supabase_invalid_audit_readback') as unknown as AdminAuditEvent;
+  assertIntegrity(audit.integrity_sha256, auditIntegrityPayload(audit), 'supabase_audit_integrity_failed');
+  return audit;
+};
+
 export const createAuditEvent = async (input: AdminAuditInput): Promise<AdminAuditEvent> => {
   const metadata = input.metadata ?? {};
   const integrity_sha256 = integritySha256({ actor_subject: input.actor_subject, actor_role: input.actor_role ?? null, action: input.action, capability: input.capability ?? null, target_type: input.target_type, target_id: input.target_id, exact_sha: input.exact_sha, environment: input.environment, outcome: input.outcome, correlation_id: input.correlation_id ?? null, evidence_id: input.evidence_id ?? null, metadata });
