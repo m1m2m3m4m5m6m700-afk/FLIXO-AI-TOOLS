@@ -24,7 +24,7 @@ permissions:
 
 concurrency:
   group: flixo-agent-repair-supervisor-${{ github.event.inputs.branch || github.ref_name }}-${{ github.event.inputs.target_sha || github.sha }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   supervise:
@@ -64,7 +64,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          DEADLINE=$(( $(date +%s) + 19800 ))
+          DEADLINE=$(( $(date +%s) + 20400 ))
           REQUIRED_NAMES='FLIXO Test System|FLIXO WP0 Trust Baseline|FLIXO Test Impact|FLIXO Test Impact Execution|FLIXO Continuous Delivery|Repository Security Baseline|Claude Security Review|Daily·FLIXO Green Gate'
 
           while [ "$(date +%s)" -lt "$DEADLINE" ]; do
@@ -115,7 +115,7 @@ jobs:
           done
 
           echo "SUPERVISOR_WINDOW_EXPIRED sha=$WATCHED_SHA"
-          echo "status=expired" >> "$GITHUB_OUTPUT"
+          echo "status=continue" >> "$GITHUB_OUTPUT"
 
       - name: Dispatch custom repair agent immediately on RED
         if: steps.observe.outputs.status == 'red'
@@ -132,6 +132,19 @@ jobs:
           gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref main             -f "target_run_id=$FAILED_RUN_ID"             -f "chain_id=supervisor-$SHA-$FAILED_RUN_ID"
           echo "CUSTOM_REPAIR_AGENT_DISPATCHED run=$FAILED_RUN_ID branch=$BRANCH sha=$SHA"
 
+      - name: Continue supervision until GREEN
+        if: steps.observe.outputs.status == 'continue' || steps.observe.outputs.status == 'superseded'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.target.outputs.branch }}
+          CHAIN_ID: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq ".object.sha")"
+          echo "SUPERVISOR_CONTINUE branch=$BRANCH sha=$LIVE_SHA"
+          gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref main -f "branch=$BRANCH" -f "target_sha=$LIVE_SHA" -f "chain_id=$CHAIN_ID"
+          echo "SUPERVISOR_CONTINUATION_DISPATCHED=true"
       - name: Preserve explicit terminal state
         if: always()
         run: |
