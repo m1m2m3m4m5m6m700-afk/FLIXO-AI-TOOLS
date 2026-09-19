@@ -10,7 +10,7 @@ on:
     inputs:
       target_run_id:
         description: 'Workflow run ID to diagnose and repair; optional for autonomous/scheduled discovery'
-        required: false
+        required: true
         type: string
       chain_id:
         description: 'Stable repair-chain identifier; recursive runs must reuse it'
