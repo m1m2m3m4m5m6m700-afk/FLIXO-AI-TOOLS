@@ -5,7 +5,6 @@ import { execFileSync } from 'node:child_process';
 
 const ROOT = process.cwd();
 const AUTO_REPAIR = path.join(ROOT, '.github', 'workflows', 'auto-repair.yml');
-const WATCHDOG = path.join(ROOT, '.github', 'workflows', 'execution-bot-watchdog.yml');
 const DAILY_GATE = path.join(ROOT, '.github', 'workflows', 'daily-flixo-green-gate.yml');
 const MERGE_GATE = path.join(ROOT, '.github', 'workflows', 'auto-repair-merge-gate.yml');
 const MAX_CHANGED_FILES = 12;
@@ -13,7 +12,7 @@ const MAX_CHANGED_LINES = 300;
 
 export const CONTROL_PLANE_FILES = Object.freeze([
   '.github/workflows/auto-repair.yml',
-  '.github/workflows/execution-bot-watchdog.yml',
+  '.github/workflows/daily-flixo-green-gate.yml',
   '.github/workflows/auto-repair-merge-gate.yml',
   '.github/workflows/agent-repair-handoff-gate.yml',
   'scripts/ci/validate-auto-repair-boundary.mjs',
@@ -44,7 +43,6 @@ function read(file) {
 
 export function validateStatic() {
   const auto = read(AUTO_REPAIR);
-  const watchdog = read(WATCHDOG);
   const dailyGate = read(DAILY_GATE);
   const mergeGate = read(MERGE_GATE);
   const errors = [];
@@ -70,8 +68,8 @@ export function validateStatic() {
   must(!/git\s+(checkout|switch)\s+-[bc]/.test(auto), 'auto-repair-no-third-branch');
   must(!/git\s+push[^\n]*\bmain\b/.test(auto), 'auto-repair-no-main-push');
   must(!/gh\s+pr\s+merge/i.test(auto), 'auto-repair-no-self-merge');
-  must(/gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i.test(dailyGate), 'daily-gate-watchdog-dispatch');
-  must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(dailyGate), 'daily-gate-no-auto-repair-dispatch');
+  must(/gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--ref execution/i.test(dailyGate), 'daily-gate-auto-repair-dispatch');
+  must(!/gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i.test(dailyGate), 'daily-gate-no-watchdog-dispatch');
 
   must(/name:\s*FLIXO Auto Repair Merge Gate/.test(mergeGate), 'merge-gate-identity');
   must(/pull_request:\s*\n[\s\S]*branches:\s*\[main\]/.test(mergeGate), 'merge-gate-main-trigger');
@@ -89,20 +87,6 @@ export function validateStatic() {
 
   const timeout = Number(auto.match(/jobs:\s*\n\s+repair:[\s\S]*?timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
   must(Number.isFinite(timeout) && timeout <= 45, 'auto-repair-timeout-bound');
-
-  must(/name:\s*FLIXO Execution Bot Watchdog/.test(watchdog), 'watchdog-identity');
-  must(/push:\s*\n\s*branches:\s*\[execution\]/.test(watchdog), 'watchdog-execution-push');
-  must(/workflow_dispatch:/.test(watchdog), 'watchdog-manual-wake');
-  must(/workflow_run:\s*[\s\S]*types:\s*\[completed\]/.test(watchdog), 'watchdog-immediate-red-trigger');
-  must(/cron:\s*['"]\*\/5 \* \* \* \*['"]/.test(watchdog), 'watchdog-five-minute-heartbeat');
-  must(/cancel-in-progress:\s*false/.test(watchdog), 'watchdog-never-cancel-active-cycle');
-  must(/actions:\s*write/.test(watchdog) && /contents:\s*read/.test(watchdog), 'watchdog-permissions');
-  must(/--workflow auto-repair\.yml[\s\S]*--ref execution/.test(watchdog), 'watchdog-canonical-dispatch');
-  must(!/git\s+(checkout|switch)\s+-[bc]/.test(watchdog), 'watchdog-no-third-branch');
-  must(!/git\s+push[^\n]*\bmain\b/.test(watchdog), 'watchdog-no-main-push');
-  must(!/actions\/checkout@/i.test(watchdog), 'watchdog-no-untrusted-checkout');
-  must(!/node\s+scripts\//i.test(watchdog), 'watchdog-no-untrusted-source-execution');
-  must(/WATCHDOG_EXECUTION_CODE_EXECUTED=false/.test(watchdog), 'watchdog-source-execution-disabled');
 
   if (errors.length) fail(errors.join(','));
   return { status: 'PASS', maxChangedFiles: MAX_CHANGED_FILES, maxChangedLines: MAX_CHANGED_LINES, controlPlaneFiles: [...CONTROL_PLANE_FILES] };
