@@ -54,7 +54,6 @@ test('image-converter: rejects unsupported MIME before decoding', async ({ page 
     mimeType: 'text/plain',
     buffer: Buffer.from('not an image'),
   });
-  await page.getByRole('button', { name: 'Run tool' }).click();
   await expect(page.getByRole('alert')).toContainText('unsupported input MIME type');
   await expect(page.getByText('No result yet.')).toBeVisible();
 });
@@ -66,7 +65,6 @@ test('image-converter: rejects empty files before decoding', async ({ page }) =>
     mimeType: 'image/png',
     buffer: Buffer.alloc(0),
   });
-  await page.getByRole('button', { name: 'Run tool' }).click();
   await expect(page.getByRole('alert')).toContainText('file size must be a positive integer');
 });
 
@@ -78,6 +76,5 @@ test('image-converter: rejects oversized files before decoding', async ({ page }
     mimeType: 'image/png',
     buffer: oversized,
   });
-  await page.getByRole('button', { name: 'Run tool' }).click();
   await expect(page.getByRole('alert')).toContainText('file exceeds the maximum size');
 });
