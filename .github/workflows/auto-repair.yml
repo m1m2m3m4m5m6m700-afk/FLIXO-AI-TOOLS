@@ -24,6 +24,9 @@ on:
     workflows:
       - FLIXO Test Impact
       - FLIXO Test Impact Execution
+      - FLIXO Test System
+      - FLIXO WP0 Trust Baseline
+      - FLIXO Continuous Delivery
       - Repository Security Baseline
       - Claude Security Review
       - Daily·FLIXO Green Gate
