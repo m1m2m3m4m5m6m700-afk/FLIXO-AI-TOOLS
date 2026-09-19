@@ -169,6 +169,8 @@ export function evaluateGreen({
 
     if (run.status !== 'completed') {
       report.errors.push({ type: 'REQUIRED_CHECK_PENDING', workflow: name, status: run.status });
+    } else if (run.conclusion === 'action_required') {
+      report.errors.push({ type: 'REQUIRED_CHECK_ACTION_REQUIRED', workflow: name, runId: run.databaseId, action: 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED' });
     } else if (run.conclusion !== 'success') {
       const failureLog = logs[String(run.databaseId)] ?? '';
       if (providerFailure(failureLog)) {
@@ -295,6 +297,8 @@ export function evaluateGreen({
     'POST_MERGE_MAIN_IDENTITY_MISMATCH',
   ].includes(error.type));
 
+  const actionRequired = report.errors.some((error) => error.type === 'REQUIRED_CHECK_ACTION_REQUIRED');
+
   const evidenceFailure = report.errors.some((error) => [
     'EVIDENCE_MISSING',
     'REQUIRED_CHECK_MISSING',
@@ -315,6 +319,9 @@ export function evaluateGreen({
   } else if (evidenceFailure) {
     report.status = 'FAIL_CLOSED';
     report.rootCause = 'REQUIRED_EVIDENCE_MISSING';
+  } else if (actionRequired) {
+    report.status = 'FAIL_CLOSED';
+    report.rootCause = 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED';
   } else if (report.externalBlockers.length > 0) {
     report.status = 'BLOCKED_EXTERNAL';
     report.rootCause = report.externalBlockers.map((item) => item.rootCause).join('; ');
