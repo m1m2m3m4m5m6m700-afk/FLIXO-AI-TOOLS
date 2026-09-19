@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import path from 'node:path';
 
 export const REQUIRED_WORKFLOWS = Object.freeze([
   'FLIXO Test System',
@@ -336,7 +337,7 @@ export function evaluateGreen({
   return report;
 }
 
-if (process.argv[1]?.endsWith('continuous-error-watch.mjs')) {
+if (path.basename(process.argv[1] ?? '') === 'continuous-error-watch.mjs') {
   const input = process.argv[2] ?? '/tmp/flixo-watch/input.json';
   const output = process.argv[3] ?? '/tmp/flixo-watch/report.json';
   const inputData = JSON.parse(fs.readFileSync(input, 'utf8'));
