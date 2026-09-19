@@ -30,8 +30,11 @@ assert.equal(repairPolicy.maxChangedLines, 300);
 assert.equal(repairPolicy.openDraftPrOnly, false);
 const autoRepairWorkflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
 const dailyGateWorkflow = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
+const handoffGateWorkflow = fs.readFileSync('.github/workflows/agent-repair-handoff-gate.yml', 'utf8');
 assert.doesNotMatch(autoRepairWorkflow, /workflow_run:/);
 assert.doesNotMatch(autoRepairWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml/i);
+assert.match(autoRepairWorkflow, /CURRENT_TARGET_SHA=/);
+assert.match(autoRepairWorkflow, /EVIDENCE_CAPTURE=FAILED/);
 assert.match(autoRepairWorkflow, /CONTROLLER_SHA="\$MAIN_SHA"/);
 assert.match(autoRepairWorkflow, /persist-credentials:\s*false/);
 assert.match(autoRepairWorkflow, /TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/);
@@ -40,6 +43,9 @@ assert.match(dailyGateWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--
 assert.match(dailyGateWorkflow, /workflow_run:[\s\S]*workflows:\s*\n\s+- FLIXO Test System/);
 assert.doesNotMatch(dailyGateWorkflow, /- FLIXO WP0 Trust Baseline\n\s+- FLIXO Test Impact/);
 assert.doesNotMatch(dailyGateWorkflow, /gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i);
+assert.match(handoffGateWorkflow, /branches: \[execution\]/);
+assert.match(handoffGateWorkflow, /CURRENT_EXECUTION_SHA=/);
+assert.match(handoffGateWorkflow, /HANDOFF_EXECUTION_SHA/);
 
 
 const externalLog = [
