@@ -32,6 +32,8 @@ jobs:
           set -euo pipefail
           git fetch --no-tags origin main execution
           test "$(git branch --show-current)" = "execution"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           MAIN_SHA="$(git rev-parse origin/main)"
           EXEC_SHA="$(git rev-parse origin/execution)"
