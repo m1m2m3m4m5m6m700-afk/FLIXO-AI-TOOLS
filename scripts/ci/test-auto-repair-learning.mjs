@@ -93,6 +93,22 @@ assert.equal(carried.attempts, 1);
 assert.equal(carried.successes, 1);
 assert.equal(carried.failures, 0);
 assert(mergedMemory.cases.some((item) => item.fingerprint === '__new_carried_case__'));
+
+const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-memory-'));
+const trustedMemoryPath = path.join(tempRoot, 'trusted.json');
+const derivedMemoryPath = path.join(tempRoot, 'derived.json');
+fs.writeFileSync(trustedMemoryPath, JSON.stringify({ version: 10, cases: [{ fingerprint: '__trusted_case__', attempts: 0, successes: 0, failures: 0, outcomes: [] }], playbooks: [], lessons: [], antiLessons: [] }));
+fs.writeFileSync(derivedMemoryPath, JSON.stringify({ version: 10, cases: [{ fingerprint: '__derived_case__', attempts: 1, successes: 0, failures: 1, outcomes: [{ outcome: 'failure', verification: 'failed' }] }], playbooks: [], lessons: [], antiLessons: [] }));
+const previousTrustedMemory = process.env.FLIXO_TRUSTED_REPAIR_MEMORY;
+const previousDerivedMemory = process.env.FLIXO_DERIVED_REPAIR_MEMORY;
+process.env.FLIXO_TRUSTED_REPAIR_MEMORY = trustedMemoryPath;
+process.env.FLIXO_DERIVED_REPAIR_MEMORY = derivedMemoryPath;
+const loadedMergedMemory = loadMemory();
+if (previousTrustedMemory === undefined) delete process.env.FLIXO_TRUSTED_REPAIR_MEMORY; else process.env.FLIXO_TRUSTED_REPAIR_MEMORY = previousTrustedMemory;
+if (previousDerivedMemory === undefined) delete process.env.FLIXO_DERIVED_REPAIR_MEMORY; else process.env.FLIXO_DERIVED_REPAIR_MEMORY = previousDerivedMemory;
+fs.rmSync(tempRoot, { recursive: true, force: true });
+assert(loadedMergedMemory.cases.some((item) => item.fingerprint === '__trusted_case__'));
+assert(loadedMergedMemory.cases.some((item) => item.fingerprint === '__derived_case__'));
 const before = memory.cases.length;
 const hadSelfTestCase = memory.cases.some((item) => item.fingerprint === '__self_test__');
 recordOutcome(memory, {
