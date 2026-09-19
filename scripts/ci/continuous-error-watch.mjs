@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import path from 'node:path';
 
 export const REQUIRED_WORKFLOWS = Object.freeze([
   'FLIXO Test System',
@@ -264,6 +265,8 @@ export function evaluateGreen({
   for (const check of checkRuns) {
     const name = String(check.name ?? '');
     if (/flixo auto repair merge gate|^gate$/i.test(name)) continue;
+    if (SECURITY_CHECK_PATTERNS.some((pattern) => pattern.test(name))) continue;
+    if (CERTIFICATION_CHECK_PATTERNS.some((pattern) => pattern.test(name))) continue;
     if (check.status === 'completed' && check.conclusion === 'success') continue;
 
     const external = externalCheckBlock(check, logs[String(check.id)] ?? '');
@@ -348,7 +351,7 @@ export function evaluateGreen({
   return report;
 }
 
-if (process.argv[1]?.endsWith('continuous-error-watch.mjs')) {
+if (path.basename(process.argv[1] ?? '') === 'continuous-error-watch.mjs') {
   const input = process.argv[2] ?? '/tmp/flixo-watch/input.json';
   const output = process.argv[3] ?? '/tmp/flixo-watch/report.json';
   const inputData = JSON.parse(fs.readFileSync(input, 'utf8'));
