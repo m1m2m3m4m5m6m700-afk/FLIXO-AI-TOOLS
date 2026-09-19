@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { authorizeAdminRequest } from './boundary.ts';
+import { authorizeAdminRequestWithDurableSession } from './boundary.ts';
 import { createAdminExecutionPlan } from './execution-plan.ts';
 import type { AdminExecutionClass } from './execution-policy.ts';
 
