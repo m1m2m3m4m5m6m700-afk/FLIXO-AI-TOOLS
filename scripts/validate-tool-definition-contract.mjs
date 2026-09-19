@@ -12,7 +12,7 @@ const capability = readFileSync(capabilityPath, 'utf8');
 const requiredFields = [
   'id', 'family', 'title', 'description', 'category', 'isReady', 'path', 'routes',
   'aliases', 'component', 'capability', 'executionMode', 'parameterSchema',
-  'safetyLimits', 'verifier', 'recovery', 'operational', 'localization', 'seo',
+  'safetyLimits', 'verifier', 'requirements', 'recovery', 'operational', 'localization', 'seo',
 ];
 
 const failures = [];
