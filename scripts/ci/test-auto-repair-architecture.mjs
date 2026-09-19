@@ -1,3 +1,9 @@
+const dispatcher = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
+assert.match(dispatcher, /schedule:/);
+assert.match(dispatcher, /gh workflow run auto-repair\.yml/);
+assert.match(dispatcher, /FLIXO Continuous Delivery/);
+assert.match(dispatcher, /Repository Security Baseline/);
+assert.match(dispatcher, /Test Impact Execution/);
 const workflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
 assert.match(workflow, /workflow_dispatch:/);
 assert.match(workflow, /github\.event_name == 'workflow_dispatch'/);
