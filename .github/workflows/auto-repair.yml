@@ -46,6 +46,8 @@ env:
   # 3) heartbeat remains an independent liveness/recovery path.
   # Canonical CI remains the final GREEN authority.
   FLIXO_STRICT_RED_REPAIR: 'true'
+  # Major repair wave: allow larger bounded source changes while preserving exact-SHA, fail-closed, and canonical GREEN gates.
+  FLIXO_MAJOR_REPAIR_WAVE: 'true'
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
 
