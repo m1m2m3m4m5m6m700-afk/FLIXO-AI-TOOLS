@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "protocol": "HISTORICAL-REPAIR-KNOWLEDGE-v1",
+  "purpose": "Advisory knowledge recovered from verified historical FLIXO repair architecture. Historical entries never bypass current RCA, scope, exact-SHA, regression, certification, or merge gates.",
+  "activationPolicy": {
+    "mode": "ADVISORY_ONLY",
+    "exactShaProofRequired": true,
+    "freshReproductionRequired": true,
+    "noBlindMutation": true,
+    "rejectedOrRevertedRulesRemainBlocked": true
+  },
+  "entries": [
+    {
+      "id": "hist-evidence-reasoning",
+      "rootCause": "diagnosis",
+      "rule": "evidence-first-reasoning",
+      "lesson": "Use evidence-first causal reasoning before mutation; ambiguity blocks mutation.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35424403916"
+        }
+      ]
+    },
+    {
+      "id": "hist-exact-source",
+      "rootCause": "lint",
+      "rule": "exact-source-location",
+      "lesson": "Require a verified exact source location before deterministic lint mutation.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35424403916"
+        }
+      ]
+    },
+    {
+      "id": "hist-external-isolation",
+      "rootCause": "external-tooling",
+      "rule": "external-provider-isolation",
+      "lesson": "Separate provider/tooling failures from source-repair attempts; remain fail-closed.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35427463513"
+        }
+      ]
+    },
+    {
+      "id": "hist-historical-rollback",
+      "rootCause": "recurrence",
+      "rule": "proof-gated-historical-rollback",
+      "lesson": "A verified historical repair can be reverted only after ancestry, policy, causal proof and regression checks; preserve provenance.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35420543755"
+        }
+      ]
+    },
+    {
+      "id": "hist-revert-antipattern",
+      "rootCause": "recurrence",
+      "rule": "block-reverted-rule-repetition",
+      "lesson": "A rule that caused a verified historical rollback becomes an anti-pattern and cannot be blindly reapplied.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35420543755"
+        }
+      ]
+    },
+    {
+      "id": "hist-cross-fingerprint",
+      "rootCause": "learning",
+      "rule": "cross-fingerprint-generalization",
+      "lesson": "Generalize a playbook only after distinct fingerprints provide repeated successful evidence; never infer generality from one case.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35420543755"
+        }
+      ]
+    },
+    {
+      "id": "hist-unbounded-supervision",
+      "rootCause": "orchestration",
+      "rule": "supervised-cycle-continuation",
+      "lesson": "Outer repair supervision may continue across fresh canonical failures while each individual mutation/verification cycle remains bounded.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35425840484"
+        }
+      ]
+    },
+    {
+      "id": "hist-stale-recursion",
+      "rootCause": "orchestration",
+      "rule": "reject-stale-failure-targets",
+      "lesson": "Do not recursively target stale failures; bind each cycle to the authoritative active failure SHA/run.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35424403943"
+        }
+      ]
+    },
+    {
+      "id": "hist-isolated-diagnostics",
+      "rootCause": "trust-boundary",
+      "rule": "isolate-agent-diagnostics",
+      "lesson": "Keep Task Agent diagnostics and learning state outside the repair worktree so evidence cannot contaminate source mutation.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35420543755"
+        }
+      ]
+    },
+    {
+      "id": "hist-debt-fingerprint",
+      "rootCause": "technical-debt",
+      "rule": "deterministic-finding-fingerprint",
+      "lesson": "Technical-debt findings require deterministic fingerprints so repeated audits identify the same defect without duplicate learning.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35420543755"
+        }
+      ]
+    },
+    {
+      "id": "hist-pre-mutation-selftest",
+      "rootCause": "trust-boundary",
+      "rule": "self-test-before-mutation",
+      "lesson": "Run the repair-agent architecture/self-test before allowing mutation.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35420543755"
+        }
+      ]
+    },
+    {
+      "id": "hist-exact-scout",
+      "rootCause": "evidence",
+      "rule": "fresh-exact-sha-scout",
+      "lesson": "Scout evidence must be fresh and bound to the exact target SHA before it can influence repair.",
+      "evidence": [
+        {
+          "commitSha": "75a6780f760de6acde2a69affc5104e634667596",
+          "runId": "35420543755"
+        }
+      ]
+    }
+  ]
+}
