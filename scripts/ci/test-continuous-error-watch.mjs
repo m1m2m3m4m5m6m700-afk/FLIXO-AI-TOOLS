@@ -41,6 +41,18 @@ const external = evaluateGreen({
 assert.equal(external.status, 'BLOCKED_EXTERNAL');
 assert.equal(external.repair.required, false);
 
+const externalCommitStatus = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: securityAndCertification,
+  statuses: [{ context: 'Vercel', state: 'failure' }],
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(externalCommitStatus.status, 'BLOCKED_EXTERNAL');
+assert.equal(externalCommitStatus.repair.required, false);
+
 const securityProvider = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
   workflowRuns: requiredRuns,
