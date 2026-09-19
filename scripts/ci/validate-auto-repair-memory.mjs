@@ -53,6 +53,15 @@ for (const playbook of memory.playbooks) {
   }
 }
 
+for (const playbook of memory.playbooks) {
+  if (!playbook?.rootCause || !playbook?.rule) fail('playbook-missing-identity');
+  if ((playbook.attempts ?? 0) < 0 || (playbook.successes ?? 0) < 0 || (playbook.failures ?? 0) < 0) fail('playbook-negative-count');
+  if ((playbook.successes ?? 0) + (playbook.failures ?? 0) > (playbook.attempts ?? 0)) fail(`playbook-count-invariant:${playbook.rootCause}:${playbook.rule}`);
+  for (const key of ['fingerprints', 'successfulFingerprints', 'failedFingerprints']) {
+    if (playbook[key] !== undefined && !Array.isArray(playbook[key])) fail(`playbook-invalid-${key}`);
+  }
+}
+
 for (const entry of memory.cases) {
   if (!entry?.fingerprint || typeof entry.fingerprint !== 'string') fail('case-missing-fingerprint');
   if (entry.attempts < 0 || entry.successes < 0 || entry.failures < 0) fail('case-negative-count');
