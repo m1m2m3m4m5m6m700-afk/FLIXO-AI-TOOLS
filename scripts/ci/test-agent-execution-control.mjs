@@ -7,7 +7,7 @@ assert.match(source, /singleOrchestrator: true/);
 assert.match(source, /specializedRolesAreStages: true/);
 assert.match(source, /failClosed: true/);
 assert.match(source, /MAX_PREPARED_FILES = 12/);
-assert.match(source, /maxInspectedFiles: 40/);
+assert.match(source, /MAX_INSPECTED_FILES = 40/);
 assert.match(source, /MAX_REPAIR_CYCLES = 12/);
 assert.match(source, /MAX_STALLED_REPAIR_CYCLES = 3/);
 assert.match(source, /MAX_PREPARED_FILES = 12/);
