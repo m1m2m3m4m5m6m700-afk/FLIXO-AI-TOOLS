@@ -9,7 +9,8 @@ import {
   verifyAdminSessionToken,
 } from './boundary.ts';
 import { verifyAdminPassword } from './credentials.ts';
-import { ADMIN_CAPABILITIES } from '../../src/lib/admin/control-plane.ts';
+import { activeCapabilitiesForRole } from '../../src/lib/admin/roles.ts';
+import { persistAdminSession, revokeAdminSession, isAdminSessionStoreConfigured, getAdminSessionRecord } from './session-store.ts';
 
 type AdminRequest = IncomingMessage & { body?: unknown };
 type BodyRecord = Record<string, unknown>;
@@ -118,6 +119,15 @@ export default async function adminSession(req: AdminRequest, res: ServerRespons
 
     const session = verifyAdminSessionToken(readAdminSessionToken(req.headers.cookie));
     if (!session) return fail(res, 401, 'authentication_required', correlationId);
+    if (session.sessionId) {
+      if (!isAdminSessionStoreConfigured()) return fail(res, 503, 'session_store_unavailable', correlationId);
+      try {
+        const record = await getAdminSessionRecord(session.sessionId);
+        if (!record || record.revoked_at || Date.parse(record.expires_at) <= Date.now()) return fail(res, 401, 'authentication_required', correlationId);
+      } catch {
+        return fail(res, 503, 'session_store_unavailable', correlationId);
+      }
+    }
 
     return json(res, 200, {
       ok: true,
@@ -139,13 +149,25 @@ export default async function adminSession(req: AdminRequest, res: ServerRespons
     if (!password || password.length > 256) return fail(res, 400, 'invalid_credentials_payload', correlationId);
     if (!verifyAdminPassword(password)) return fail(res, 401, 'invalid_credentials', correlationId);
 
-    const capabilities = [...new Set(['admin.read', ...ADMIN_CAPABILITIES])];
+    const sessionId = randomUUID();
+    const role = 'OWNER' as const;
+    const capabilities = activeCapabilitiesForRole(role);
     const token = signAdminSession({
       subject: 'owner',
-      role: 'OWNER',
-      capabilities,
+      role,
+      sessionId,
+      capabilities: [...capabilities],
       ttlSeconds: LOGIN_TTL_SECONDS,
     });
+
+    try {
+      await persistAdminSession(verifyAdminSessionToken(token)!, {
+        environment: process.env.VERCEL_ENV ?? 'unknown',
+        issuedAt: new Date().toISOString(),
+      });
+    } catch {
+      return fail(res, 503, 'session_store_unavailable', correlationId);
+    }
 
     return json(res, 200, {
       ok: true,
@@ -164,6 +186,13 @@ export default async function adminSession(req: AdminRequest, res: ServerRespons
 
     const session = verifyAdminSessionToken(readAdminSessionToken(req.headers.cookie));
     if (!session) return fail(res, 401, 'authentication_required', correlationId);
+    if (!session.sessionId) return fail(res, 401, 'authentication_required', correlationId);
+    if (!isAdminSessionStoreConfigured()) return fail(res, 503, 'session_store_unavailable', correlationId);
+    try {
+      await revokeAdminSession(session.sessionId);
+    } catch {
+      return fail(res, 503, 'session_store_unavailable', correlationId);
+    }
 
     return json(res, 200, {
       ok: true,
