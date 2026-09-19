@@ -393,5 +393,17 @@
       "scripts/ci/test-auto-repair-final.mjs"
     ],
     "prevention": "A repair must publish only when local and remote execution both equal the failed target SHA; any head movement causes fail-closed publication, never rebase."
+  },
+  "RC-GREEN-GATE-PENDING-CANCELLATION-001": {
+    "category": "CI_EVIDENCE",
+    "description": "Daily·FLIXO Green Gate observations could be cancelled or superseded before evidence publication because concurrency grouped by branch/SHA and GitHub allows only one pending item per concurrency group.",
+    "repairTargets": [
+      ".github/workflows/daily-flixo-green-gate.yml",
+      "scripts/ci/test-auto-repair-architecture.mjs"
+    ],
+    "verification": [
+      "assert Green Gate concurrency group uses github.run_id",
+      "assert cancel-in-progress is false"
+    ]
   }
 }
