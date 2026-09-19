@@ -1,0 +1,194 @@
+name: Daily·FLIXO Green Gate
+run-name: Daily·FLIXO Green Gate ${{ github.run_id }}
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_run:
+    workflows:
+      - FLIXO Test System
+      - FLIXO WP0 Trust Baseline
+      - FLIXO Test Impact
+      - FLIXO Test Impact Execution
+      - Repository Security Baseline
+      - Claude Security Review
+    types: [completed]
+    branches: [execution, main]
+
+permissions:
+  actions: write
+  contents: read
+  checks: read
+  pull-requests: read
+
+concurrency:
+  group: flixo-continuous-error-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Observe, classify, repair-or-block, prove, continue
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.head_branch == 'execution' ||
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout exact execution branch
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+
+      - name: Self-test continuous watcher
+        run: node scripts/ci/test-continuous-error-watch.mjs
+
+      - name: Capture exact repository state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-watch/logs
+          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/execution" --jq '.sha')"
+          MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
+          gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 5 \
+            --json number,headRefOid,baseRefOid,url,mergedAt,mergeCommit,isDraft > /tmp/flixo-watch/open-prs.json
+          gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state all --limit 10 \
+            --json number,state,headRefOid,baseRefOid,url,mergedAt,mergeCommit,isDraft > /tmp/flixo-watch/all-prs.json
+          gh run list --repo "$GITHUB_REPOSITORY" --commit "$EXECUTION_SHA" --limit 100 \
+            --json databaseId,workflowName,status,conclusion,headSha,headBranch,event,displayTitle,createdAt,updatedAt > /tmp/flixo-watch/workflow-runs.json
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$EXECUTION_SHA/check-runs?per_page=100" > /tmp/flixo-watch/check-runs.json
+          gh api "repos/$GITHUB_REPOSITORY/compare/main...execution" > /tmp/flixo-watch/compare.json
+          printf '%s\n' "$EXECUTION_SHA" > /tmp/flixo-watch/execution-sha
+          printf '%s\n' "$MAIN_SHA" > /tmp/flixo-watch/main-sha
+
+      - name: Capture failed CI evidence for classification
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          jq -r '.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required") | .databaseId' /tmp/flixo-watch/workflow-runs.json \
+            | while read -r run_id; do
+                [ -n "$run_id" ] || continue
+                gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1 || true
+              done
+
+          jq -r '[.[].check_runs[]
+            | select(.status == "completed")
+            | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
+            | .details_url]
+            | .[]?
+            | capture("/actions/runs/(?<id>[0-9]+)").id' /tmp/flixo-watch/check-runs.json 2>/dev/null \
+            | sort -u \
+            | while read -r run_id; do
+                [ -n "$run_id" ] || continue
+                gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1 || true
+              done
+
+      - name: Build watcher input
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const read = (p) => fs.readFileSync(p, 'utf8');
+          const parse = (p) => JSON.parse(read(p));
+          const executionSha = read('/tmp/flixo-watch/execution-sha').trim();
+          const mainSha = read('/tmp/flixo-watch/main-sha').trim();
+          const openPrs = parse('/tmp/flixo-watch/open-prs.json');
+          const allPrs = parse('/tmp/flixo-watch/all-prs.json');
+          const workflowRuns = parse('/tmp/flixo-watch/workflow-runs.json');
+          const checkPages = parse('/tmp/flixo-watch/check-runs.json');
+          const checkRuns = checkPages.flatMap((page) => page.check_runs ?? []);
+          const compare = parse('/tmp/flixo-watch/compare.json');
+          const logs = {};
+          for (const name of fs.readdirSync('/tmp/flixo-watch/logs')) {
+            const match = name.match(/^run-(\d+)\.log$/);
+            if (match) logs[match[1]] = read('/tmp/flixo-watch/logs/' + name);
+          }
+          const input = {
+            executionSha,
+            mainSha,
+            openPr: openPrs[0] ?? null,
+            latestMergedPr: allPrs.find((item) => item.mergedAt && item.mergeCommit) ?? null,
+            workflowRuns,
+            checkRuns,
+            logs,
+            compare,
+          };
+          fs.writeFileSync('/tmp/flixo-watch/input.json', JSON.stringify(input, null, 2) + '\n');
+          NODE
+
+      - name: Evaluate Daily FLIXO Green Gate
+        id: evaluate
+        run: |
+          set +e
+          node scripts/ci/continuous-error-watch.mjs /tmp/flixo-watch/input.json /tmp/flixo-watch/report.json
+          rc=$?
+          STATUS="$(jq -r '.status' /tmp/flixo-watch/report.json)"
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Dispatch internal repair target under Task Agent authority
+        if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.evaluate.outputs.exit_code == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TARGET_RUN_ID="$(jq -r '.repair.targetRunId // empty' /tmp/flixo-watch/report.json)"
+          test -n "$TARGET_RUN_ID" || {
+            echo 'FAIL CLOSED: internal RED has no exact workflow run target.'
+            exit 1
+          }
+
+          CHAIN_ID="watch-$TARGET_RUN_ID"
+          EXISTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 100 --json displayTitle \
+            --jq '.[].displayTitle' | grep -Fxc "FLIXO Auto Repair Chain $CHAIN_ID" || true)"
+
+          if [ "$EXISTS" -eq 0 ]; then
+            gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution \
+              -f "target_run_id=$TARGET_RUN_ID" \
+              -f "chain_id=$CHAIN_ID"
+            echo "REPAIR_DISPATCHED=$TARGET_RUN_ID"
+          else
+            echo "REPAIR_ALREADY_TRACKED=$TARGET_RUN_ID"
+          fi
+
+      - name: Publish cycle evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-continuous-error-watch-${{ github.run_id }}
+          path: |
+            /tmp/flixo-watch/report.json
+            /tmp/flixo-watch/execution-sha
+            /tmp/flixo-watch/main-sha
+            /tmp/flixo-watch/open-prs.json
+            /tmp/flixo-watch/all-prs.json
+            /tmp/flixo-watch/workflow-runs.json
+            /tmp/flixo-watch/check-runs.json
+            /tmp/flixo-watch/compare.json
+            /tmp/flixo-watch/logs/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Fail closed unless the monitored state is fully GREEN
+        if: always()
+        run: |
+          set -euo pipefail
+          test -s /tmp/flixo-watch/report.json
+          STATUS="$(jq -r '.status' /tmp/flixo-watch/report.json)"
+          echo "FLIXO CONTINUOUS ERROR WATCH STATUS=$STATUS"
+          case "$STATUS" in
+            GREEN) exit 0 ;;
+            *) exit 1 ;;
+          esac
