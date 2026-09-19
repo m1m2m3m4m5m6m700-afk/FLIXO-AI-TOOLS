@@ -1,5 +1,5 @@
-import { REPAIR_GATE_AUTOMATION } from './control-plane-registry.mjs';
 #!/usr/bin/env node
+import { REPAIR_GATE_AUTOMATION } from './control-plane-registry.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
