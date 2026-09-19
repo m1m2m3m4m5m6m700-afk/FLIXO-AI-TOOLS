@@ -25,6 +25,28 @@ type Message = { id: number; role: 'user' | 'agent'; text: string };
 const CONFIRMATIONS = /^(نعم|أيوه|ايوه|نفذ|نفّذ|ابدأ|ابدئي|موافق|تمام|yes|y|ok|okay|go|execute|run|ejecutar|exécuter|ausführen|실행|実行|jalankan|esegui|uitvoeren|wykonaj|executar|kör|ดำเนินการ|çalıştır|виконати|thực hiện)$/i;
 const CANCELLATIONS = /^(لا|لأ|الغاء|إلغاء|cancel|no|n|stop)$/i;
 const GENERIC_CROP_REQUEST = /(?:^|\\s)(?:(?:أريد|اريد|ممكن|هل\\s+تستطيع|please)\\s+)?(?:قص|اقت(?:ص|طع)|crop)(?:\\s+(?:صورة|الصور|الصورة|image|photo))?\\s*$/i;
+const conversationalReply = (
+  kind: ReturnType<typeof classifyConversation>,
+  responseCopy: typeof AGENT_I18N.en,
+): string | null => {
+  switch (kind) {
+    case 'greeting':
+      return responseCopy.greeting;
+    case 'thanks':
+      return responseCopy.understood;
+    case 'farewell':
+      return responseCopy.cancelled;
+    case 'capability':
+      return responseCopy.lead;
+    case 'help':
+      return responseCopy.lead;
+    case 'conversation':
+      return responseCopy.greeting;
+    default:
+      return null;
+  }
+};
+
 
 export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const copy = AGENT_I18N[locale] ?? AGENT_I18N.en;
