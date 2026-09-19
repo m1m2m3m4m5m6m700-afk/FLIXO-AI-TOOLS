@@ -160,7 +160,7 @@ jobs:
             --retry 10 --retry-delay 3 --retry-all-errors --max-time 30 \
             -H 'Cache-Control: no-cache, no-store' \
             -o /tmp/flixo-production-identity.txt -w '%{http_code}' "$identity_url")"
-          identity_body="$(tr -d '\r\n\ufeff' < /tmp/flixo-production-identity.txt)"
+          identity_body="$(node -e 'const fs=require("fs"); process.stdout.write(fs.readFileSync("/tmp/flixo-production-identity.txt","utf8").trimEnd());')"
           echo "Unique identity endpoint HTTP status: $identity_status"
           echo "Unique identity endpoint body length: ${#identity_body}"
           if [ "$identity_status" != "200" ] || [ "$identity_body" != "$DEPLOYMENT_SHA" ]; then
