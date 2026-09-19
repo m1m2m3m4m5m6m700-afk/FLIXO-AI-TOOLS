@@ -466,5 +466,20 @@
       "no secondary strategy artifact exception"
     ],
     "prevention": "Gate dependent AI phases on upstream success and explicitly fail closed when strategy evidence is absent."
+  },
+  "RC-I18N-HOME-HEROTITLE-MARKUP-001": {
+    "category": "I18N",
+    "description": "Effective localization verification failed for ms and uk because HOME_COPY_OVERRIDES used raw HTML <span> tags in heroTitle while the canonical Home contract uses [[...]] presentation markers rendered by AgentFirstHome.",
+    "repairTargets": [
+      "src/lib/i18n/locale-quality-overrides.ts",
+      "src/data/home-locales.ts",
+      "src/components/AgentFirstHome.tsx"
+    ],
+    "verification": [
+      "validate:effective-localization",
+      "FLIXO WP0 Trust Baseline",
+      "canonical Test System"
+    ],
+    "prevention": "Home heroTitle localization data must use the canonical [[...]] marker contract; presentation HTML is produced by AgentFirstHome only."
   }
 }
