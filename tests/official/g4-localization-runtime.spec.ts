@@ -56,8 +56,13 @@ const isExpectedNavigationAbort = (request: { url(): string; failure(): { errorT
 
 async function waitForNavigationSettled(page: Page): Promise<void> {
   await page.waitForLoadState('load', { timeout: 30_000 });
-  await page.waitForLoadState('networkidle', { timeout: 10_000 });
   await page.evaluate(async () => {
+    if (document.readyState !== 'complete') {
+      await new Promise<void>((resolve) => {
+        window.addEventListener('load', () => resolve(), { once: true });
+      });
+    }
+    if (document.fonts?.ready) await document.fonts.ready;
     await new Promise<void>((resolve) => {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     });

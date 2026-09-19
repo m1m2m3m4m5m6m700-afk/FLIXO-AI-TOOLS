@@ -431,5 +431,16 @@
       "npm run test:static"
     ],
     "prevention": "Critical governance invariants must be stated explicitly in the canonical ledger and validated from that single authority."
+  },
+  "RC-BROWSER-FIREFOX-NETWORKIDLE-001": {
+    "category": "BROWSER",
+    "description": "Firefox DEEP localization/SEO coverage intermittently timed out waiting for Playwright networkidle even though load completed and page assertions/runtime checks otherwise progressed. Chromium and WebKit on the same exact SHA did not reproduce the pattern.",
+    "repairTargets": [
+      "tests/official/g4-localization-runtime.spec.ts"
+    ],
+    "verification": [
+      "FLIXO Test System Browser DEEP on exact SHA across Firefox/Chromium/WebKit"
+    ],
+    "prevention": "Use deterministic document readiness, font readiness, animation-frame, and idle-callback settling for this local static/runtime contract instead of browser-dependent networkidle quiescence."
   }
 }

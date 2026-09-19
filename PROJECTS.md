@@ -257,6 +257,11 @@ FIX = record the explicit auto-merge-after-GREEN invariant in المهام.md wh
 VERIFICATION = fresh Task Agent/static/WP0 evidence on exact SHA.
 PREVENTION = governance invariants are declared once in the executable ledger and verified there.
 
+RC-037 = Firefox DEEP localization runtime checks intermittently timed out on Playwright networkidle while load/runtime assertions were otherwise healthy.
+FIX = replace the browser-dependent networkidle wait with deterministic load + document.fonts.ready + double requestAnimationFrame + idle callback settling.
+VERIFICATION = fresh canonical Browser FAST/DEEP execution on the exact SHA across all three engines.
+PREVENTION = do not use networkidle as the synchronization primitive for this local static contract unless the application explicitly requires network quiescence.
+
 ## GOVERNANCE
 
 Bounded single-owner work may execute directly on `main`. Use `execution` only for materially risky, broad, conflict-prone, architectural, or production-sensitive isolation. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements remain mandatory.
