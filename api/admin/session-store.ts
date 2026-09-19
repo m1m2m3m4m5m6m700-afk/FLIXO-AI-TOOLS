@@ -65,7 +65,11 @@ export const persistAdminSession = async (
       expires_at: new Date(session.expiresAt * 1000).toISOString(),
     }),
   });
-  return assertSingle(body);
+  const persisted = assertSingle(body);
+  if (persisted.session_id !== session.sessionId || persisted.actor_subject !== session.subject || persisted.environment !== input.environment) {
+    throw new Error('admin_session_persistence_identity_mismatch');
+  }
+  return persisted;
 };
 
 export const getAdminSessionRecord = async (sessionId: string): Promise<SessionRecord | null> => {
