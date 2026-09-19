@@ -1,5 +1,4 @@
 import {createHash} from 'node:crypto';
 import {validateKnowledgeRecord} from './types';
-export function fingerprintKnowledge(input:Pick<Parameters<typeof createHash>[0] extends never?never,never>,'x'>|string):never { throw new Error('unreachable'); }
 export function createKnowledgeFingerprint(content:string,source:string,version:string){return createHash('sha256').update(JSON.stringify({content,source,version})).digest('hex');}
 export function ingestKnowledge(input:{id:string;content:string;source:string;sourceType:'FLIXO_DOC'|'REPOSITORY'|'TEST'|'INTERNAL_EVIDENCE'|'TRUSTED_EXTERNAL'|'WEB'|'GENERATED';version:string;scope:string;confidence:number;provenance:string[];timestamp:string;status:'VERIFIED'|'PROBABLE'|'INFERRED'|'UNKNOWN'|'CONFLICTED'}){const record={...input,validity:'CURRENT' as const,fingerprint:createKnowledgeFingerprint(input.content,input.source,input.version)};return validateKnowledgeRecord(record);}
