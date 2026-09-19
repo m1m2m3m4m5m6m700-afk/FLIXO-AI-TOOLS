@@ -31,28 +31,26 @@ function classify(log) {
 
 function normalizeActionLog(log) {
   return String(log ?? '')
-    .replace(/\\x1B\\[[0-?]*[ -/]*[@-~]/g, '')
-    .replace(/\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z/g, '<TS>')
-    .replace(/\\b\\d{10,}\\b/g, '<ID>')
-    .replace(/\\b[a-f0-9]{40}\\b/gi, '<SHA>')
-    .replace(/\\s+/g, ' ')
+    .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '')
+    .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g, '<TS>')
+    .replace(/\b\d{10,}\b/g, '<ID>')
+    .replace(/\b[a-f0-9]{40}\b/gi, '<SHA>')
+    .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 12000);
 }
 
 function actionFingerprint(log, run) {
-  return crypto.createHash('sha256').update(
-    \`${run.name ?? ''}|${run.conclusion ?? ''}|${normalizeActionLog(log)}\`,
-    'utf8',
-  ).digest('hex');
+  const seed = String(run.name ?? '') + '|' + String(run.conclusion ?? '') + '|' + normalizeActionLog(log);
+  return crypto.createHash('sha256').update(seed, 'utf8').digest('hex');
 }
 
 function positiveRules(log) {
   const rules = [];
-  if (/Static \\+ Build[\\s\\S]{0,2500}?(?:PASS|success|completed)/i.test(log)) rules.push('static-build-green');
-  if (/Browser FAST[\\s\\S]{0,2500}?(?:PASS|success|completed)/i.test(log)) rules.push('browser-fast-green');
-  if (/Browser DEEP[\\s\\S]{0,2500}?(?:PASS|success|completed)/i.test(log)) rules.push('browser-deep-green');
-  if (/(?:Certification|certify)[\\s\\S]{0,2500}?(?:PASS|success|GREEN|completed)/i.test(log)) rules.push('canonical-certification-green');
+  if (/Static \+ Build[\s\S]{0,2500}?(?:PASS|success|completed)/i.test(log)) rules.push('static-build-green');
+  if (/Browser FAST[\s\S]{0,2500}?(?:PASS|success|completed)/i.test(log)) rules.push('browser-fast-green');
+  if (/Browser DEEP[\s\S]{0,2500}?(?:PASS|success|completed)/i.test(log)) rules.push('browser-deep-green');
+  if (/(?:Certification|certify)[\s\S]{0,2500}?(?:PASS|success|GREEN|completed)/i.test(log)) rules.push('canonical-certification-green');
   if (/exact[- ]SHA|immutable artifact|provenance/i.test(log)) rules.push('exact-sha-provenance-preserved');
   if (/repair.*verified|verified-repair/i.test(log)) rules.push('verified-repair-observed');
   return [...new Set(rules)];
