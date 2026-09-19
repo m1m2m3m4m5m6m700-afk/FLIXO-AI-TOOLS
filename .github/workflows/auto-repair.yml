@@ -16,6 +16,10 @@ on:
         description: 'Stable repair-chain identifier; recursive runs must reuse it'
         required: false
         type: string
+      failure_fingerprint:
+        description: 'Watcher-provided exact failure fingerprint for Control Plane identity'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -34,6 +38,7 @@ env:
   TARGET_RUN_ID: ${{ inputs.target_run_id }}
   FLIXO_HISTORY_LIMIT: '30'
   FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
+  FLIXO_FAILURE_FINGERPRINT: ${{ inputs.failure_fingerprint || '' }}
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
   # This workflow is executor-only and must never self-dispatch.
@@ -127,6 +132,31 @@ jobs:
           test "$(git branch --show-current)" = execution
           printf '%s\n' execution > /tmp/flixo-repair-branch
 
+      - name: Initialize Repair Control Plane cycle
+        run: |
+          set -euo pipefail
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          EXECUTION_SHA="$(git rev-parse HEAD)"
+          MAIN_SHA="$(git rev-parse origin/main)"
+          FAILURE_FINGERPRINT="$FLIXO_FAILURE_FINGERPRINT"
+          if [ -z "$FAILURE_FINGERPRINT" ]; then
+            SIGNATURE_SEED="$(printf '%s:%s:%s' "$FAILED_SHA" "$TARGET_RUN_ID" "$(cat /tmp/flixo-failed-workflow)")"
+            FAILURE_FINGERPRINT="$(node --input-type=module -e "import crypto from 'node:crypto'; console.log(crypto.createHash('sha256').update(process.argv[1], 'utf8').digest('hex'))" "$SIGNATURE_SEED")"
+            echo "CONTROL_PLANE_FINGERPRINT_SOURCE=FALLBACK_DERIVATION"
+          else
+            echo "CONTROL_PLANE_FINGERPRINT_SOURCE=WATCHER_INPUT"
+          fi
+          node scripts/ci/repair-control-plane.mjs claim \
+            --fingerprint="$FAILURE_FINGERPRINT" \
+            --failedSha="$FAILED_SHA" \
+            --targetRunId="$TARGET_RUN_ID" \
+            --executionSha="$EXECUTION_SHA" \
+            --mainSha="$MAIN_SHA" \
+            --owner="AUTO_REPAIR_BOT" \
+            --branch="execution" > /tmp/flixo-repair-control-plane.json
+          test "$(jq -r '.state' /tmp/flixo-repair-control-plane.json)" = "CLAIMED"
+          echo "FLIXO_CONTROL_PLANE_FILE=/tmp/flixo-repair-control-plane.json" >> "$GITHUB_ENV"
+
       - name: Setup Node
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
@@ -219,6 +249,7 @@ jobs:
             gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json name,headSha,headBranch,conclusion
             grep -E -i 'error|failed|failure|timeout|cancelled|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(|DEEP_[A-Z_]+_MISSING|execution graph completeness' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
           } > /tmp/flixo-repair-summary.txt
+          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=EVIDENCE_LOCKED --actor=AUTO_REPAIR_BOT --reason=FAILURE_EVIDENCE_CAPTURED
 
       - name: Run Phase 1 AI failure intelligence and exact-target preflight
         env:
@@ -238,6 +269,11 @@ jobs:
         env:
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
         run: node /tmp/flixo-repair-controller/scripts/ci/auto-repair-classifier.mjs
+
+      - name: Record RCA state in the Repair Control Plane
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=RCA --actor=INVESTIGATOR --reason=TRUSTED_ROOT_CAUSE_CLASSIFIED
 
       - name: Bind Task Agent to the active repair cycle on execution
         run: |
@@ -264,6 +300,12 @@ jobs:
             echo 'Teaching escalation recorded; continuing with the next repair strategy.'
           fi
 
+      - name: Record repair plan state in the Repair Control Plane
+        if: steps.strategy.outcome == 'success'
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=REPAIR_PLANNED --actor=TASK_AGENT --reason=REPAIR_STRATEGY_SELECTED
+
       - name: Run Phase 1 AI self-test
         run: node --experimental-strip-types scripts/ci/test-ai-phase1.mjs
 
@@ -277,6 +319,12 @@ jobs:
         id: install_target
         if: steps.strategy.outputs.intractable != 'true'
         run: npm ci --ignore-scripts --prefer-offline --no-audit --no-fund
+
+      - name: Mark mutation boundary in the Repair Control Plane
+        if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome == 'success'
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=MUTATING --actor=TASK_AGENT --reason=BOUNDED_SOURCE_MUTATION
 
       - name: Execute bounded root-cause repair under Task Agent authority
         id: execute_repair
@@ -350,6 +398,12 @@ jobs:
           git diff --check
           test "$(git branch --show-current)" = execution
           echo 'verified=true' >> "$GITHUB_OUTPUT"
+
+      - name: Record local verification state in the Repair Control Plane
+        if: steps.verify.outputs.verified == 'true'
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=LOCAL_VERIFICATION --actor=VERIFIER --reason=FULL_VERIFICATION_PASSED
 
       - name: Record learning outcome for every diagnosed failure
         if: always()
@@ -480,6 +534,13 @@ jobs:
           fi
           echo "Canonical execution -> main PR: $PR_URL"
 
+      - name: Record publication state in the Repair Control Plane
+        if: steps.verify.outputs.verified == 'true'
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=PUBLISHED_TO_EXECUTION --actor=AUTO_REPAIR_BOT --reason=VERIFIED_EXECUTION_SHA_PUSHED
+          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=CANONICAL_CI --actor=AUTO_REPAIR_BOT --reason=AWAITING_CANONICAL_CI
+
       - name: Enforce central Repair Protocol post-commit boundary
         if: steps.verify.outputs.verified == 'true'
         run: |
@@ -555,6 +616,15 @@ jobs:
           FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
           FLIXO_REPAIR_EVIDENCE_PATH: /tmp/flixo-repair-evidence.json
         run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase2.mjs --release-handoff
+
+      - name: Publish Repair Control Plane evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with
+          name: flixo-repair-control-plane-${{ github.run_id }}
+          path: /tmp/flixo-repair-control-plane.json
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Publish repair evidence
         if: always()

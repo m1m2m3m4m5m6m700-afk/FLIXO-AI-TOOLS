@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
+import fs from 'node:fs';
 
 export const CONTROL_PLANE_SCHEMA_VERSION = 1;
 export const CONTROL_PLANE_AUTHORITY = 'FLIXO_REPAIR_CONTROL_PLANE';
@@ -242,7 +243,19 @@ function cli() {
     console.log(JSON.stringify(claimed, null, 2));
     return;
   }
-  throw new Error('Usage: repair-control-plane.mjs schema|claim --fingerprint=... --failedSha=... --targetRunId=... --executionSha=...');
+  if (command === 'advance') {
+    const file = requireText('file', args.file);
+    const to = requireText('state', args.to);
+    const cycle = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const next = transitionRepairCycle(cycle, to, {
+      actor: args.actor || 'CONTROL_PLANE',
+      reason: args.reason || 'STATE_TRANSITION',
+    });
+    fs.writeFileSync(file, JSON.stringify(next, null, 2) + '\n');
+    console.log(JSON.stringify(next, null, 2));
+    return;
+  }
+  throw new Error('Usage: repair-control-plane.mjs schema|claim|advance');
 }
 
 if (process.argv[1]?.endsWith('repair-control-plane.mjs')) {

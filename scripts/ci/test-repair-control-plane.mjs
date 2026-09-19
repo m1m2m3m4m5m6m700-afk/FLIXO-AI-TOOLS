@@ -81,4 +81,6 @@ assert.throws(() => createRepairCycle({
 }), /CONTROL_PLANE_REPAIR_BRANCH_BLOCKED/);
 
 assert.equal(CIRCUIT_BREAKER.failClosed, true);
+const advanced = transitionRepairCycle(claimed, 'EVIDENCE_LOCKED', { actor: 'WATCHER', reason: 'CLI_ADVANCE_TEST' });
+assert.equal(advanced.events.at(-1).to, 'EVIDENCE_LOCKED');
 console.log('REPAIR_CONTROL_PLANE=PASS');

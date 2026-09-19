@@ -213,7 +213,8 @@ jobs:
 
             gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution \
               -f "target_run_id=$TARGET_RUN_ID" \
-              -f "chain_id=$CHAIN_ID"
+              -f "chain_id=$CHAIN_ID" \
+              -f "failure_fingerprint=$FAILURE_FINGERPRINT"
             echo "REPAIR_DISPATCHED=$TARGET_RUN_ID"
             echo "CONTROL_PLANE_CHAIN_ID=$CLAIMED_CHAIN_ID"
           else
