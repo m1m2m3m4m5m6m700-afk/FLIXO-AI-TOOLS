@@ -4,7 +4,6 @@ import { TOOLS_REGISTRY } from '@/config/tools';
 import { getAuthoritativeToolSeoName } from '@/config/tool-seo-name-resolver';
 import { localizeToolDescription } from '@/lib/i18n/tool-localization';
 import type { Locale } from '@/lib/i18n';
-import './tools-modern.css';
 
 const CATEGORIES = ['All','Images','AI','Other'] as const;
 
