@@ -67,7 +67,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/execution" --jq '.sha')"
+          export EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/execution" --jq '.sha')"
           printf '%s\n' "$EXECUTION_SHA" > /tmp/execution-sha
 
           gh run list --repo "$GITHUB_REPOSITORY" --commit "$EXECUTION_SHA" --limit 100 \
