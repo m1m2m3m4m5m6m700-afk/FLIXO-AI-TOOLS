@@ -29,7 +29,7 @@ export function loadMemory() {
   if (!fs.existsSync(trustedSourcePath)) return emptyMemory();
   try {
     const parsed = JSON.parse(fs.readFileSync(trustedSourcePath, 'utf8'));
-    const memory = { ...emptyMemory(), ...parsed };
+    const memory = normalizeMemoryCounters({ ...emptyMemory(), ...parsed });
     memory.version = Number.isInteger(parsed?.version) ? Math.max(parsed.version, MEMORY_VERSION) : MEMORY_VERSION;
     for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(memory[key])) memory[key] = [];
     return memory;
@@ -77,7 +77,39 @@ function priorRepairArtifactCount() {
   return result.stdout.split('\n').filter((name) => name.startsWith(prefix)).length;
 }
 
-export function findCase(memory, fingerprint) {
+export function normalizeCaseCounters(entry) {
+  if (!entry || typeof entry !== 'object') return entry;
+  const attempts = Math.max(0, Number(entry.attempts ?? 0));
+  const successes = Math.max(0, Number(entry.successes ?? 0));
+  const failures = Math.max(0, Number(entry.failures ?? 0));
+  if (successes + failures <= attempts) {
+    return { ...entry, attempts, successes, failures };
+  }
+  const observedSuccesses = (entry.outcomes ?? []).filter((item) =>
+    item?.outcome === 'success' || (item?.outcome === 'repair' && item?.verification === 'success')
+  ).length;
+  const observedFailures = (entry.outcomes ?? []).filter((item) =>
+    ['failure', 'unrepaired', 'blocked'].includes(item?.outcome) ||
+    (item?.outcome === 'repair' && item?.verification !== 'success' && item?.verification !== 'proposal-only' && item?.verification !== 'diagnostic-only')
+  ).length;
+  const repairedSuccesses = Math.max(successes, observedSuccesses);
+  const repairedAttempts = Math.max(attempts, repairedSuccesses);
+  const repairedFailures = Math.min(failures, Math.max(0, repairedAttempts - repairedSuccesses));
+  return {
+    ...entry,
+    attempts: repairedAttempts,
+    successes: Math.min(repairedSuccesses, repairedAttempts),
+    failures: repairedFailures,
+  };
+}
+
+export function normalizeMemoryCounters(memory) {
+  const source = { ...emptyMemory(), ...memory };
+  source.cases = (source.cases ?? []).map(normalizeCaseCounters);
+  return source;
+}
+
+function findCase(memory, fingerprint) {
   return memory.cases.find((item) => item.fingerprint === fingerprint);
 }
 
@@ -354,7 +386,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
 
 export function writeMemory(memory) {
   fs.mkdirSync(memoryPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
-  const normalized = { ...emptyMemory(), ...memory };
+  const normalized = normalizeMemoryCounters({ ...emptyMemory(), ...memory });
   normalized.version = Number.isInteger(memory?.version) ? Math.max(memory.version, MEMORY_VERSION) : MEMORY_VERSION;
   for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(normalized[key])) normalized[key] = [];
   fs.writeFileSync(memoryPath, `${JSON.stringify(normalized, null, 2)}\n`);
