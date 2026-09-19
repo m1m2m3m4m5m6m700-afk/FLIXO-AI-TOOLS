@@ -1,5 +1,5 @@
 name: FLIXO Auto Repair Bot
-run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id || github.event.workflow_run.id }}
+run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id }}
 
 # TWO-BRANCH MODEL:
 # execution = sole working/repair branch
@@ -16,10 +16,6 @@ on:
         description: 'Stable repair-chain identifier; recursive runs must reuse it'
         required: false
         type: string
-  workflow_run:
-    workflows: ["FLIXO Test System", "FLIXO WP0 Trust Baseline", "FLIXO Continuous Delivery"]
-    types: [completed]
-    branches: [main, execution]
 
 permissions:
   contents: write
@@ -35,11 +31,13 @@ env:
   FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
   FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
   FLIXO_REPAIR_LANE: single
-  TARGET_RUN_ID: ${{ inputs.target_run_id || github.event.workflow_run.id }}
+  TARGET_RUN_ID: ${{ inputs.target_run_id }}
   FLIXO_HISTORY_LIMIT: '30'
   FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
-  FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id || github.event.workflow_run.id }}
+  FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
+  # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
+  # This workflow is executor-only and must never self-dispatch.
   FLIXO_STRICT_RED_REPAIR: 'true'
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
@@ -48,9 +46,7 @@ jobs:
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'failure' ||
-      github.event.workflow_run.conclusion == 'timed_out'
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -273,7 +269,7 @@ jobs:
           FLIXO_DERIVED_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
           FLIXO_INTRACTABLE_ERRORS: /tmp/flixo-intractable-errors.json
           VERIFY_OUTCOME: ${{ steps.verify.outputs.verified == 'true' && 'success' || 'failure' }}
-          FLIXO_FAILED_SHA: ${{ github.event.workflow_run.head_sha || '' }}
+          FLIXO_FAILED_SHA: ''
           FLIXO_RUN_ID: ${{ env.TARGET_RUN_ID }}
           FLIXO_TRUSTED_MEMORY_SHA: ${{ env.FLIXO_TRUSTED_MEMORY_SHA || '' }}
           FLIXO_TARGET_SHA: ''
@@ -318,15 +314,16 @@ jobs:
           if [ -s /tmp/flixo-intractable-errors.json ]; then
             cp /tmp/flixo-intractable-errors.json diagnostics/auto-repair/intractable-errors.json
           fi
-      - name: Persist learning state after a non-green cycle
+      - name: Keep non-green learning state ephemeral
         if: always() && steps.verify.outputs.verified != 'true' && steps.strategy.outputs.intractable != 'true'
         run: |
           set -euo pipefail
           test -s /tmp/flixo-repair-memory.json
-          cp /tmp/flixo-repair-memory.json diagnostics/auto-repair/memory.json
           if [ -s /tmp/flixo-intractable-errors.json ]; then
-            cp /tmp/flixo-intractable-errors.json diagnostics/auto-repair/intractable-errors.json
+            cp /tmp/flixo-intractable-errors.json /tmp/flixo-intractable-errors-non-green.json
           fi
+          echo 'NON_GREEN_LEARNING_PERSISTENCE=ARTIFACT_ONLY'
+          echo 'NON_GREEN_REPAIR_MAY_NOT_ADVANCE_EXECUTION_SHA'
 
       - name: Commit and push verified repair on the single working branch
         if: steps.verify.outputs.verified == 'true'
@@ -510,7 +507,9 @@ jobs:
             fi
             echo "Repair remains open on execution failure run $CURRENT_FAILURE_ID."
             echo "Execution repair remains open on execution failure run $CURRENT_FAILURE_ID."
-            gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution -f target_run_id="$CURRENT_FAILURE_ID" -f chain_id="$FLIXO_REPAIR_CHAIN_ID"
+            echo 'DISPATCH_AUTHORITY=DAILY_FLIXO_GREEN_GATE'
+            echo "RED_REMAINS_OPEN=$CURRENT_FAILURE_ID"
+            echo 'The Daily·FLIXO Green Gate is the sole dispatcher. The executor never dispatches itself; unresolved RED remains fail-closed.'
             exit 1
           fi
 
@@ -523,5 +522,7 @@ jobs:
             exit 0
           fi
           echo "Repair remains open on current canonical failure run $CURRENT_FAILURE_ID."
-          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution -f target_run_id="$CURRENT_FAILURE_ID" -f chain_id="$FLIXO_REPAIR_CHAIN_ID"
+          echo 'DISPATCH_AUTHORITY=DAILY_FLIXO_GREEN_GATE'
+            echo "RED_REMAINS_OPEN=$CURRENT_FAILURE_ID"
+            echo 'The Daily·FLIXO Green Gate is the sole dispatcher. The executor never dispatches itself; unresolved RED remains fail-closed.'
           exit 1
