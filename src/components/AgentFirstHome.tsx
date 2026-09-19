@@ -13,7 +13,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
   return (
     <main className="agent-first-home" lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'}>
       <header className="agent-first-nav">
-        <Link className="agent-first-brand" to={locale === 'ar' ? '/ar/' : '/'} aria-label={copy.title}>{copy.title}</Link>
+        <Link className="agent-first-brand" to={locale === 'ar' ? '/ar' : '/'} aria-label={copy.title}>{copy.title}</Link>
         <div className="agent-first-nav-actions">
           <Link className="agent-first-tools-button" to={locale === 'ar' ? '/ar/tools' : '/tools'}>{copy.tools}</Link>
           <button type="button" className="agent-first-new-chat" onClick={() => window.location.reload()}>{copy.newChat}</button>
