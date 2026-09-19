@@ -33,7 +33,13 @@ const sessionPath = (id) => path.join(sessionDir, `${id}.json`);
 const handoffPath = (id) => path.join(handoffDir, `${id}.json`);
 const visibilityPath = (id) => path.join(visibilityDir, `${id}.json`);
 const roles = new Set(['analysis','implementation','verification','release','assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent']);
-const writeVisibility = (record) => { fs.mkdirSync(visibilityDir, { recursive: true }); fs.writeFileSync(visibilityPath(sessionId), `${JSON.stringify(record, null, 2)}\n`); };\nconst secretLike = (value) => /(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|ghp_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+|Bearer\\s+[A-Za-z0-9._-]+|sk-[A-Za-z0-9_-]+)/i.test(String(value ?? ''));\nconst assertSafeText = (...values) => { for (const value of values.flat()) if (secretLike(value)) throw new Error('AGENT_EVENT_SECRET_LIKE_CONTENT_REJECTED'); };\nconst appendEvent = (record, event) => { record.actions = Array.isArray(record.actions) ? [...record.actions, event] : [event]; record.activity = Array.isArray(record.activity) ? [...record.activity, event] : [event]; };
+const writeVisibility = (record) => {
+  fs.mkdirSync(visibilityDir, { recursive: true });
+  fs.writeFileSync(visibilityPath(sessionId), `${JSON.stringify(record, null, 2)}\n`);
+};
+const secretLike = (value) => /(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|ghp_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+|Bearer\s+[A-Za-z0-9._-]+|sk-[A-Za-z0-9_-]+)/i.test(String(value ?? ''));
+const assertSafeText = (...values) => { for (const value of values.flat()) if (secretLike(value)) throw new Error('AGENT_EVENT_SECRET_LIKE_CONTENT_REJECTED'); };
+const appendEvent = (record, event) => { record.actions = Array.isArray(record.actions) ? [...record.actions, event] : [event]; record.activity = Array.isArray(record.activity) ? [...record.activity, event] : [event]; };
 
 if (!['login', 'event', 'logout'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout --session=<id> --agent=<id> --task=<task-id> [--role=analysis|implementation|verification|release|assistantController|codeScout|executionAgent|reviewAgent|testAgent|securityAgent|performanceAgent|certificationAuthority|taskAgent|errorAgent] [--rca=<id>] [--scope=a,b] [--from-session=<previous-id>]');
 if (!sessionId || !agentId || !taskId) throw new Error('Agent session requires --session, --agent and --task.');
