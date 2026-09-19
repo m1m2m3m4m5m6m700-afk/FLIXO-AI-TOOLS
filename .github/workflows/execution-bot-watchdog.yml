@@ -2,21 +2,14 @@ name: FLIXO Execution Bot Watchdog
 
 run-name: FLIXO Execution Bot Watchdog ${{ github.run_id }}
 
-# Permanent wake-up surface for the execution repair supervisor.
-# Push on execution wakes the supervisor without requiring main.
-# Workflow-run/schedule events add coverage when the workflow is available on the default branch.
-# The watchdog never mutates main and never creates a third branch.
+# Push wake surface for the execution repair supervisor.
+# Canonical workflow_run + schedule monitoring is provided by daily-flixo-green-gate.yml.
+# This watcher is intentionally small and fail-safe: it records the exact execution
+# state and dispatches the canonical repair chain for actionable failures.
 
 on:
-  workflow_run:
-    types: [requested, in_progress, completed]
   push:
     branches: [execution]
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [main]
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -32,10 +25,6 @@ concurrency:
 jobs:
   watch:
     name: Wake, inspect exact execution SHA, dispatch repair
-    if: >-
-      github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.name != 'FLIXO Execution Bot Watchdog' &&
-       github.event.workflow_run.head_branch == 'execution')
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -52,10 +41,7 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Validate permanent auto-repair boundary
-        run: node scripts/ci/validate-auto-repair-boundary.mjs --static-only
-
-      - name: Validate watchdog control surface
+      - name: Validate repair control surface
         run: |
           set -euo pipefail
           test -f scripts/ci/task-agent.mjs
@@ -63,30 +49,7 @@ jobs:
           test -f .github/workflows/auto-repair.yml
           node scripts/ci/test-agent-execution-control.mjs
 
-      - name: Reap superseded execution CI runs
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          export CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/execution" --jq '.sha')"
-          echo "CURRENT_EXECUTION_SHA=$CURRENT_SHA"
-
-          gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Test System" --branch execution --limit 50 \
-            --json databaseId,status,headSha,createdAt \
-            --jq '.[] | select((.status == "queued" or .status == "in_progress") and .headSha != $ENV.CURRENT_SHA) | [.databaseId,.status,.headSha,.createdAt] | @tsv' \
-            > /tmp/superseded-ci-runs.tsv
-
-          while IFS=$'\t' read -r RUN_ID STATUS HEAD_SHA CREATED_AT; do
-            [ -n "${RUN_ID:-}" ] || continue
-            echo "CANCEL_SUPERSEDED_RUN=$RUN_ID status=$STATUS sha=$HEAD_SHA created=$CREATED_AT"
-            gh run cancel "$RUN_ID" --repo "$GITHUB_REPOSITORY" || true
-          done < /tmp/superseded-ci-runs.tsv
-
-          echo "SUPERSEDED_RUN_REAP_COMPLETE"
-
-      - name: Observe exact execution SHA
+      - name: Inspect exact execution SHA
         id: observe
         env:
           GH_TOKEN: ${{ github.token }}
@@ -104,7 +67,9 @@ jobs:
             [.[] |
               select(.headSha == $ENV.EXECUTION_SHA and
                 (.conclusion == "failure" or
-                 .conclusion == "timed_out"))] |
+                 .conclusion == "timed_out" or
+                 .conclusion == "cancelled" or
+                 .conclusion == "action_required"))] |
             sort_by(.updatedAt) |
             last |
             .databaseId // empty
@@ -132,7 +97,7 @@ jobs:
           set -euo pipefail
           test -n "$TARGET_RUN_ID"
 
-          CHAIN_ID="watchdog-$TARGET_RUN_ID"
+          CHAIN_ID="push-watch-$TARGET_RUN_ID"
           EXISTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 100 --json displayTitle \
             --jq '.[].displayTitle' | grep -Fxc "FLIXO Auto Repair Chain $CHAIN_ID" || true)"
 
