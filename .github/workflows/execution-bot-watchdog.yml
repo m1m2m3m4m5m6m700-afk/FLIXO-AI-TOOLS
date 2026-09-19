@@ -1,0 +1,134 @@
+name: FLIXO Execution Bot Watchdog
+
+run-name: FLIXO Execution Bot Watchdog ${{ github.run_id }}
+
+# Permanent wake-up surface for the execution repair supervisor.
+# This workflow observes every workflow lifecycle event and periodically re-checks
+# execution even when an upstream event was missed. It never mutates main and
+# never creates a third branch.
+
+on:
+  workflow_run:
+    types: [requested, in_progress, completed]
+  push:
+    branches: [execution]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+  checks: read
+  pull-requests: read
+
+concurrency:
+  group: flixo-execution-bot-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Wake, inspect exact execution SHA, dispatch repair
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.head_branch == 'execution'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout execution supervisor contracts
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+
+      - name: Validate watchdog control surface
+        run: |
+          set -euo pipefail
+          test -f scripts/ci/task-agent.mjs
+          test -f scripts/ci/agent-execution-control.mjs
+          test -f .github/workflows/auto-repair.yml
+          node scripts/ci/test-agent-execution-control.mjs
+
+      - name: Observe exact execution SHA
+        id: observe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/execution" --jq '.sha')"
+          printf '%s\n' "$EXECUTION_SHA" > /tmp/execution-sha
+
+          gh run list --repo "$GITHUB_REPOSITORY" --commit "$EXECUTION_SHA" --limit 100 \
+            --json databaseId,workflowName,status,conclusion,headSha,headBranch,event,displayTitle,createdAt,updatedAt > /tmp/execution-runs.json
+
+          FAILED_RUN_ID="$(jq -r '
+            [.[] |
+              select(.headSha == "$ENV.EXECUTION_SHA" and
+                (.conclusion == "failure" or
+                 .conclusion == "timed_out" or
+                 .conclusion == "action_required"))] |
+            sort_by(.updatedAt) |
+            last |
+            .databaseId // empty
+          ' /tmp/execution-runs.json)"
+
+          # The shell variable is exported explicitly for the jq environment.
+          if [ -n "$FAILED_RUN_ID" ]; then
+            echo "failed_run_id=$FAILED_RUN_ID" >> "$GITHUB_OUTPUT"
+            echo "state=RED" >> "$GITHUB_OUTPUT"
+          else
+            echo "failed_run_id=" >> "$GITHUB_OUTPUT"
+            echo "state=NO_RED" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "EXECUTION_SHA=$EXECUTION_SHA"
+          echo "WATCHDOG_STATE=${FAILED_RUN_ID:+RED:$FAILED_RUN_ID}"
+          echo "${FAILED_RUN_ID:-NO_RED}"
+
+      - name: Dispatch canonical repair chain
+        if: steps.observe.outputs.state == 'RED'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_RUN_ID: ${{ steps.observe.outputs.failed_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$TARGET_RUN_ID"
+
+          CHAIN_ID="watchdog-$TARGET_RUN_ID"
+          EXISTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 100 --json displayTitle \
+            --jq '.[].displayTitle' | grep -Fxc "FLIXO Auto Repair Chain $CHAIN_ID" || true)"
+
+          if [ "$EXISTS" -eq 0 ]; then
+            gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution \
+              -f "target_run_id=$TARGET_RUN_ID" \
+              -f "chain_id=$CHAIN_ID"
+            echo "REPAIR_WAKE=DISPATCHED target_run_id=$TARGET_RUN_ID chain_id=$CHAIN_ID"
+          else
+            echo "REPAIR_WAKE=ALREADY_TRACKED target_run_id=$TARGET_RUN_ID chain_id=$CHAIN_ID"
+          fi
+
+      - name: Publish watchdog state
+        if: always()
+        env:
+          EXECUTION_SHA: ${{ steps.observe.outputs.state || 'UNKNOWN' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "FLIXO_EXECUTION_BOT_WATCHDOG=ACTIVE"
+          echo "OBSERVED_STATE=${{ steps.observe.outputs.state || 'UNKNOWN' }}"
+          echo "TARGET_RUN_ID=${{ steps.observe.outputs.failed_run_id || '' }}"
+          test -s /tmp/execution-sha
+          cat /tmp/execution-sha
