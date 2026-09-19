@@ -44,6 +44,21 @@ for (const collection of ['lessons', 'antiLessons']) {
   }
 }
 
+if (!Array.isArray(memory.actionHistory)) fail('invalid-action-history');
+
+for (const observation of memory.actionHistory) {
+  if (!observation || typeof observation !== 'object') fail('action-history-entry-not-object');
+  if (!/^[a-f0-9]{64}$/u.test(String(observation.fingerprint ?? ''))) fail('action-history-invalid-fingerprint');
+  if (!['success', 'failure'].includes(String(observation.outcome ?? ''))) fail('action-history-invalid-outcome');
+  if (Number(observation.successes ?? 0) < 0 || Number(observation.failures ?? 0) < 0) fail('action-history-negative-count');
+  if (!Array.isArray(observation.evidence)) fail('action-history-evidence-shape');
+  for (const evidence of observation.evidence) {
+    if (!evidence || typeof evidence !== 'object') fail('action-history-evidence-not-object');
+    if (!/^\d+$/.test(String(evidence.runId ?? ''))) fail('action-history-missing-run-id');
+    if (!/^[a-f0-9]{40}$/u.test(String(evidence.headSha ?? ''))) fail('action-history-missing-head-sha');
+  }
+}
+
 for (const playbook of memory.playbooks) {
   if (!playbook?.rootCause || !playbook?.rule) fail('playbook-missing-identity');
   if ((playbook.attempts ?? 0) < 0 || (playbook.successes ?? 0) < 0 || (playbook.failures ?? 0) < 0) fail('playbook-negative-count');
