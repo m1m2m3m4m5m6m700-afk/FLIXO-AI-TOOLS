@@ -143,6 +143,12 @@ function blastRadius(features = [], rootCause = 'unknown') {
   return [...surfaces];
 }
 
+function adaptiveBudget({ attempts = 0, ambiguity = false, alternatives = 0, features = [] } = {}) {
+  const complexity = (ambiguity ? 2 : 0) + Math.min(3, alternatives) + Math.min(3, features.length);
+  const budget = Math.max(3, Math.min(12, 3 + attempts + complexity));
+  return { budget, failClosed: attempts >= 12, reason: { attempts, ambiguity, alternatives, features: features.length } };
+}
+
 function selectTop(hypotheses) {
   const viable = hypotheses.filter((item) => !item.suppressedBy);
   return viable[0] ?? hypotheses[0] ?? {
@@ -198,7 +204,7 @@ export function reasonFailure(log, {
     sourceMutationAllowed: sourceMutationAllowed && (!falsificationChecks.some((item) => item.status === 'REQUIRED_BEFORE_NONTRIVIAL_MUTATION') || directFailureSignal),
     externalTooling: hardBlock,
     locationVerified,
-    falsificationChecks,\n    blastRadius: blastRadius(features, top.id),\n    decision,
+    falsificationChecks,\n    blastRadius: blastRadius(features, top.id),\n    adaptiveBudget: adaptiveBudget({ attempts: Number(process.env.FLIXO_REPAIR_ATTEMPTS ?? 0), ambiguity, alternatives: alternatives.length, features }),\n    decision,
     scout: scout.fresh
       ? { fresh: true, path: scout.path ?? null, scannedSha: scout.report.scannedSha, findings: scout.report.findings?.length ?? 0 }
       : { fresh: false, reason: scout.reason, currentSha: scout.currentSha ?? null, scannedSha: scout.scannedSha ?? null },
