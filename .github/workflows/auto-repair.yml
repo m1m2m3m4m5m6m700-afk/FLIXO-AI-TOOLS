@@ -289,19 +289,10 @@ jobs:
           if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
             REVERTED_SHA="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.historicalRollback?.revertedSha||'')")"
             test "$REVERTED_SHA" != ""
-            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "revert(auto-repair): historical rollback for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-ROLLBACK-v1
-kind=historical-revert
-revertedSha=$REVERTED_SHA
-fingerprint=$FINGERPRINT
-rule=$RULE"
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "revert(auto-repair): historical rollback for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-ROLLBACK-v1\nkind=historical-revert\nrevertedSha=$REVERTED_SHA\nfingerprint=$FINGERPRINT\nrule=$RULE"
           else
             FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
-            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-MARKER-v1
-kind=verified-source-repair
-fingerprint=$FINGERPRINT
-rule=$RULE
-failedSha=$FAILED_SHA
-baseSha=$BASE_SHA"
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-MARKER-v1\nkind=verified-source-repair\nfingerprint=$FINGERPRINT\nrule=$RULE\nfailedSha=$FAILED_SHA\nbaseSha=$BASE_SHA"
           fi
           git push origin execution
           PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
