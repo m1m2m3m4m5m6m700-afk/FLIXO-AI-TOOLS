@@ -46,8 +46,8 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
   const copy = COPY[locale === 'ar' ? 'ar' : 'en'];
   const home = getHomeCopy(locale);
   function renderHeroTitle(value: string) {
-    const opening = '<span>';
-    const closing = '</span>';
+    const opening = '[[';
+    const closing = ']]';
     const openingIndex = value.indexOf(opening);
     if (openingIndex === -1) return value;
 
@@ -58,7 +58,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
     return (
       <>
         {value.slice(0, openingIndex)}
-        <span>{value.slice(contentStart, closingIndex)}</span>
+        [[{value.slice(contentStart, closingIndex)}]]
         {value.slice(closingIndex + closing.length)}
       </>
     );
@@ -74,11 +74,11 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
       <header className="agent-first-nav">
         {locale === 'en' ? (
           <Link className="agent-first-brand" to="/" aria-label={copy.title}>
-            <img src="/flixo-logo.svg" alt="FLIXO AI Tools" width={40} height={40} />
+            <img src="/flixo-logo.webp" alt="FLIXO AI Tools" width={40} height={40} />
           </Link>
         ) : (
           <Link className="agent-first-brand" to="/$locale" params={{ locale }} aria-label={copy.title}>
-            <img src="/flixo-logo.svg" alt="FLIXO AI Tools" width={40} height={40} />
+            <img src="/flixo-logo.webp" alt="FLIXO AI Tools" width={40} height={40} />
           </Link>
         )}
         <nav className="agent-first-nav-actions" aria-label={home.ariaPrimary}>
@@ -103,7 +103,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
       </header>
       <section className="agent-first-main" aria-labelledby="agent-first-title">
         <div className="agent-first-heading">
-          <span className="agent-first-mark" aria-hidden="true">✦</span>
+          <span className="agent-first-mark" aria-hidden="true">✦]]
           <h1 id="home-title">{renderHeroTitle(home.heroTitle)}</h1>
           <p>{copy.subtitle}</p>
         </div>

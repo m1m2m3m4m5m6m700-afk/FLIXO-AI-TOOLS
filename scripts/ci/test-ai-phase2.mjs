@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { buildPhase1Report } from './auto-repair/ai-phase1.mjs';
-import { minimizeTestSet, rankRepairStrategies, securityGuardian, validatePhase1Linkage, validateReleaseIntegrity } from './auto-repair/ai-phase2.mjs';
+import { globMatch, minimizeTestSet, rankRepairStrategies, securityGuardian, validatePhase1Linkage, validateReleaseIntegrity } from './auto-repair/ai-phase2.mjs';
 const map={rules:[{domain:'a',patterns:['src/a/**'],commands:['npm run typecheck','npm run validate:a']},{domain:'b',patterns:['src/b/**'],commands:['npm run typecheck','npm run validate:b']},{domain:'c',patterns:['src/c/**'],commands:['npm run lint','npm run test:c']}]};
 const cover=minimizeTestSet(['src/a/x.ts','src/b/y.ts'],map);assert.equal(cover.complete,true);assert.deepEqual(cover.selectedCommands,['npm run typecheck']);
 const full=minimizeTestSet(['unknown/file.bin'],map);assert.equal(full.forceFull,true);
@@ -33,3 +33,4 @@ const fileDrift = validatePhase1Linkage({phase1Report:p1,currentSha:'a'.repeat(4
 assert.equal(fileDrift.ok,false);
 assert.ok(fileDrift.failures.includes('PHASE1_CHANGED_FILES_MISMATCH'));
 console.log('AI_PHASE2_SELF_TEST=PASS');
+assert.equal(globMatch('src/fixture\\literal.ts', 'src/fixture\\literal.ts'), true);

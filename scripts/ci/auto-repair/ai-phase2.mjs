@@ -19,17 +19,18 @@ const uniq=(v)=>[...new Set(v.filter(Boolean))];
 const norm=(v)=>String(v??'').replaceAll('\\','/').replace(/^\.\//u,'');
 const readJson=(f,d)=>{try{return JSON.parse(fs.readFileSync(f,'utf8'));}catch{return d;}};
 function cost(c){const s=String(c);if(/^npm run validate:/u.test(s))return 1;if(/^npm run (typecheck|lint)$/u.test(s))return 2;if(/^npm run test:/u.test(s))return 3;if(/^npm ci\b/u.test(s))return 4;return 4;}
-function globMatch(file, pattern) {
+export function globMatch(file, pattern) {
   const source = String(pattern);
-  let escaped = '';
-  for (const ch of source) {
-    if (ch === '*' || ch === '?') escaped += ch;
-    else if (ch === '\\') escaped += '\\\\';
-    else if ('.^$+()|{}[]'.includes(ch)) escaped += '\\' + ch;
-    else escaped += ch;
+  const regexMeta = new Set(['\\\\', '^', '$', '+', '.', '(', ')', '|', '[', ']', '{', '}']);
+  let regex = '^';
+  for (let index = 0; index < source.length; index += 1) {
+    const ch = source[index];
+    if (ch === '*' && source[index + 1] === '*') { regex += '.*'; index += 1; continue; }
+    if (ch === '*') { regex += '[^/]*'; continue; }
+    if (ch === '?') { regex += '.'; continue; }
+    regex += regexMeta.has(ch) ? '\\\\' + ch : ch;
   }
-  escaped = escaped.replace(/\*\*/g, '§§').replace(/\*/g, '[^/]*').replace(/§§/g, '.*').replace(/\?/g, '.');
-  return new RegExp('^' + escaped + '$').test(file);
+  return new RegExp(regex + '$').test(file);
 }
 
 export function rankRepairStrategies(strategy={},memory={},context={}){
