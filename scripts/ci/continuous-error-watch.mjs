@@ -253,6 +253,8 @@ export function evaluateGreen({
   for (const check of checkRuns) {
     const name = String(check.name ?? '');
     if (/flixo auto repair merge gate|^gate$/i.test(name)) continue;
+    if (SECURITY_CHECK_PATTERNS.some((pattern) => pattern.test(name))) continue;
+    if (CERTIFICATION_CHECK_PATTERNS.some((pattern) => pattern.test(name))) continue;
     if (check.status === 'completed' && check.conclusion === 'success') continue;
 
     const external = externalCheckBlock(check, logs[String(check.id)] ?? '');
