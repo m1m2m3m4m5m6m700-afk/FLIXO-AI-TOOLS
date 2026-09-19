@@ -76,6 +76,7 @@ export function evaluateGreen({
   latestMergedPr = null,
   workflowRuns = [],
   checkRuns = [],
+  statuses = [],
   logs = {},
   compare = {},
 } = {}) {
@@ -255,10 +256,30 @@ export function evaluateGreen({
     }
   }
 
+  for (const status of statuses) {
+    const context = String(status.context ?? '');
+    if (/^vercel(?: deployment)?$/i.test(context) && status.state !== 'success') {
+      const key = context.toLowerCase();
+      if (!report.externalBlockers.some((item) => String(item.checkName ?? '').toLowerCase() === key)) {
+        report.externalBlockers.push({
+          kind: 'BLOCKED_EXTERNAL',
+          checkName: context,
+          state: status.state ?? 'unknown',
+          rootCause: 'EXTERNAL_DEPLOYMENT_PROVIDER_UNRESOLVED',
+        });
+      }
+      continue;
+    }
+    if (status.state && !['success', 'pending'].includes(status.state)) {
+      report.errors.push({ type: 'UNEXPECTED_COMMIT_STATUS_RED', context, state: status.state });
+    }
+  }
+
   const hardInternalFailure = report.errors.some((error) => [
     'REQUIRED_CHECK_RED',
     'SECURITY_CHECK_RED',
     'UNEXPECTED_CHECK_RED',
+    'UNEXPECTED_COMMIT_STATUS_RED',
     'STALE_HEAD',
     'STALE_WORKFLOW_EVIDENCE',
     'MAIN_DIVERGENCE',
