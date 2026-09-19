@@ -220,7 +220,37 @@ const blockerPrompts = externalBlockers.map((blocker, index) => ({
   ].join('\\n'),
 }));
 
-const allPrompts = [...prompts, ...blockerPrompts];
+const taskFallback = (() => {
+  if (prompts.length > 0 || blockerPrompts.length > 0 || report.status !== 'GREEN') return null;
+  const taskFile = fs.existsSync('المهام.md') ? 'المهام.md' : 'مهام.md';
+  if (!fs.existsSync(taskFile)) return null;
+  const lines = fs.readFileSync(taskFile, 'utf8').split(/\\r?\\n/u);
+  let section = 'TASK LEDGER';
+  for (const line of lines) {
+    const heading = line.match(/^#{1,3}\\s+(.+)$/u);
+    if (heading) section = heading[1].trim();
+    const item = line.match(/^\\s*-\\s+\\[ \\]\\s+(.+)$/u);
+    if (!item) continue;
+    return {
+      promptId: 'task-prompt-' + sha256(item[1]).slice(0, 20),
+      priority: 1,
+      kind: 'TASK_EXECUTION',
+      task: { section, title: item[1].trim() },
+      prompt: [
+        'FLIXO DAILY VISIT — TASK EXECUTION PROMPT',
+        `Exact execution SHA: ${executionSha}`,
+        `Task section: ${section}`,
+        `Task: ${item[1].trim()}`,
+        '',
+        'Execute this task only within its declared scope. READ PROJECTS.md → المهام.md → AGENTS.md and the applicable contracts first.',
+        'Inspect current code before mutation, consume applicable Scout evidence, define proof obligations, implement the smallest complete change, run targeted regression and canonical verification, then record exact-SHA evidence and a learning outcome.',
+        'Do not weaken tests or gates, do not mutate main directly, and do not close the task without current canonical evidence.',
+      ].join('\\n'),
+    };
+  }
+  return null;
+})();
+const allPrompts = [...prompts, ...blockerPrompts, ...(taskFallback ? [taskFallback] : [])];
 const masterPrompt = [
   'FLIXO DAILY VISIT — MASTER REPAIR EXECUTION PROMPT',
   `Exact execution SHA: ${executionSha}`,
