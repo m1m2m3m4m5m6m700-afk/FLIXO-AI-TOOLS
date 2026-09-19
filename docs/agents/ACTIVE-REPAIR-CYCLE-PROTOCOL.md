@@ -94,5 +94,17 @@ The first corrective action must address the demonstrated root cause. Adding a t
 Each active repair packet should retain:
 `repairChainId`, `repairAttempt`, `failureRunId`, `failedSha`, `failureFingerprint`, `testStateSnapshot`, `causalEvidence`, `rootCause`, `sourceCorrection`, `hardeningControl`, `regressionProof`, `canonicalExactShaEvidence`, and `preventionOutcome`.
 
+## Action-log learning mandate
+The Task Agent MUST learn from both successful and failed GitHub Actions runs during the repair lifecycle:
+1. read recent canonical workflow logs for both GREEN and RED runs;
+2. fingerprint and normalize the observations;
+3. record workflow, run ID, exact SHA, job evidence, root-cause/features and observed repair rules;
+4. treat successful runs as positive evidence and failed runs as negative evidence;
+5. merge repeated evidence only after provenance checks;
+6. keep derived learning advisory until fresh targeted proof and exact-SHA verification promote a rule;
+7. never treat an action log or historical lesson as permission to bypass RCA, regression, certification, or fail-closed boundaries.
+
+The action-learning path is part of the repair task, not an optional afterthought.
+
 ## Closure
 `CLOSED / VERIFIED` is permitted only after Canonical CI is green on the exact `execution` SHA, with zero required red checks, fresh evidence, and no unprocessed active failure. Promotion to `main` must then use only the canonical `execution → main` path.
