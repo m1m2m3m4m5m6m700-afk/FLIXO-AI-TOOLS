@@ -1,46 +1,103 @@
 {
   "schemaVersion": 1,
   "authority": "AGENT_VISIBILITY_LEDGER",
-  "visibilityState": "OPEN",
+  "visibilityState": "CLOSED",
   "taskId": "AUTO-REPAIR-BOUNDARY-HARDENING-001",
   "sessionId": "repair-boundary-20260919-1530",
   "agentId": "chatgpt-repair-controller",
   "role": "errorAgent",
   "entrySha": "90636e24adad6d6fdcaacb856c68363a8c5ba3dc",
-  "exitSha": null,
-  "status": "RUNNING",
-  "finalStatus": null,
-  "finalSummary": null,
+  "exitSha": "d9c9d7c6c25cdd3581e75a54c430a761a12d4629",
+  "status": "BLOCKED",
+  "finalStatus": "BLOCKED",
+  "finalSummary": "Boundary hardening completed and verified statically. Session closed BLOCKED because fresh exact-SHA Canonical CI and Vercel external evidence are not yet green.",
   "scope": [
     "SELF_HEALING_REPAIR_ONLY",
     "AUTO_REPAIR_BOUNDARY_HARDENING",
     "EXECUTION_ONLY"
   ],
-  "currentRca": "AUTO-REPAIR-BOUNDARY-HARDENING",
-  "rcaClosed": [],
-  "openRcas": [
+  "currentRca": "FRESH-CI-VERIFICATION",
+  "rcaClosed": [
     "AUTO-REPAIR-BOUNDARY-HARDENING"
   ],
-  "changedFiles": [],
-  "commands": [],
-  "evidence": [],
-  "findings": [
-    "Require permanent repair bot presence with immutable control-plane boundaries"
+  "openRcas": [
+    "FRESH-CI-VERIFICATION"
   ],
-  "activity": [],
-  "lastEvent": null,
-  "completedWork": [],
+  "changedFiles": [
+    ".github/workflows/auto-repair.yml",
+    ".github/workflows/execution-bot-watchdog.yml",
+    "scripts/ci/task-agent.mjs",
+    "scripts/ci/agent-execution-control.mjs",
+    "scripts/ci/test-task-agent-contract.mjs",
+    "scripts/ci/validate-certification-surface.mjs",
+    "scripts/ci/validate-auto-repair-boundary.mjs"
+  ],
+  "commands": [
+    "Static boundary validation",
+    "Protected control-plane enforcement",
+    "12-cycle/3-stall bound enforcement",
+    "12-file/300-line mutation budget",
+    "Exact execution-only repair lane"
+  ],
+  "evidence": [
+    "Boundary implementation verified in repository",
+    "task-agent now reports maxCycles 12 and maxStalledCycles 3",
+    "WP0 failure diagnosed as budget-contract drift and corrected",
+    "Current Vercel status remains external rate-limit"
+  ],
+  "findings": [
+    "Repair bot is persistent and included in certification surface.",
+    "Auto-repair controller files are immutable to autonomous repair.",
+    "Each repair invocation is bounded; indefinite monitoring is delegated to the watchdog."
+  ],
+  "activity": [
+    {
+      "at": "2026-09-19T12:35:18.642Z",
+      "action": "CHANGE",
+      "sha": "d9c9d7c6c25cdd3581e75a54c430a761a12d4629",
+      "summary": "Synchronized all Task Agent repair-loop bounds to 12 cycles / 3 stalled cycles."
+    },
+    {
+      "at": "2026-09-19T12:35:18.642Z",
+      "action": "VERIFICATION",
+      "sha": "d9c9d7c6c25cdd3581e75a54c430a761a12d4629",
+      "summary": "Static invariants verified; WP0 budget-drift RCA fixed."
+    },
+    {
+      "at": "2026-09-19T12:35:18.642Z",
+      "action": "LOGOUT",
+      "sha": "d9c9d7c6c25cdd3581e75a54c430a761a12d4629",
+      "status": "BLOCKED"
+    }
+  ],
+  "lastEvent": {
+    "at": "2026-09-19T12:35:18.642Z",
+    "action": "LOGOUT",
+    "sha": "d9c9d7c6c25cdd3581e75a54c430a761a12d4629",
+    "status": "BLOCKED"
+  },
+  "completedWork": [
+    "Permanent repair bot boundary hardening",
+    "Certification-surface permanence check",
+    "Fail-closed mutation and cycle budgets",
+    "Correction of all Task Agent repair-loop budget occurrences"
+  ],
   "failedWork": [],
   "remainingWork": [
-    "Harden and verify auto-repair boundaries"
+    "Fresh Canonical CI must complete on the newest execution SHA.",
+    "Vercel external rate-limit must clear before full GREEN/production evidence."
   ],
   "executionPlanNext": [
-    "Validate exact-SHA canonical CI after commit"
+    "Inspect fresh exact-SHA CI",
+    "Repair only internal actionable RED inside the protected boundary"
   ],
-  "blockers": [],
-  "handoffToNextAgent": null,
+  "blockers": [
+    "Fresh required CI has not yet produced terminal evidence.",
+    "Vercel deployment status is externally rate-limited."
+  ],
+  "handoffToNextAgent": "Continue on execution only. Never mutate protected repair control-plane files autonomously; keep fail-closed gates intact.",
   "continuationFrom": null,
   "inheritedExitSha": null,
   "startedAt": "2026-09-19T12:32:20.156Z",
-  "updatedAt": "2026-09-19T12:32:20.160Z"
+  "updatedAt": "2026-09-19T12:35:18.642Z"
 }

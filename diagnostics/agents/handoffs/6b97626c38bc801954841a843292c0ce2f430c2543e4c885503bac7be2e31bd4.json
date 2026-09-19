@@ -1,55 +1,29 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 1,
+  "reportId": "repair-boundary-20260919-1530:d9c9d7c6c25cdd3581e75a54c430a761a12d4629",
   "sessionId": "repair-boundary-20260919-1530",
   "agentId": "chatgpt-repair-controller",
   "role": "errorAgent",
+  "taskId": "AUTO-REPAIR-BOUNDARY-HARDENING-001",
+  "finalSummary": "Boundary hardening completed and verified statically. Session closed BLOCKED because fresh exact-SHA Canonical CI and Vercel external evidence are not yet green.",
+  "visibilityPath": "docs/agents/ledger/6b97626c38bc801954841a843292c0ce2f430c2543e4c885503bac7be2e31bd4.json",
   "entrySha": "90636e24adad6d6fdcaacb856c68363a8c5ba3dc",
-  "baseSha": "90636e24adad6d6fdcaacb856c68363a8c5ba3dc",
+  "exitSha": "d9c9d7c6c25cdd3581e75a54c430a761a12d4629",
   "startedAt": "2026-09-19T12:32:20.156Z",
+  "finishedAt": "2026-09-19T12:35:18.642Z",
+  "status": "BLOCKED",
   "scope": [
     "SELF_HEALING_REPAIR_ONLY",
     "AUTO_REPAIR_BOUNDARY_HARDENING",
     "EXECUTION_ONLY"
   ],
-  "readFiles": [
-    "AGENTS.md",
-    "docs/AGENT-COLLABORATION-PROTOCOL.md",
-    "docs/AGENT-HANDOFF-REPORT-SCHEMA.md",
-    "docs/MINIMAL-CI-FINAL-ARCHITECTURE.md",
-    "scripts/ci/test-plan.json",
-    "scripts/ci/assertion-registry.json"
-  ],
   "currentRca": "AUTO-REPAIR-BOUNDARY-HARDENING",
-  "taskId": "AUTO-REPAIR-BOUNDARY-HARDENING-001",
-  "status": "BLOCKED",
-  "bootstrap": true,
-  "actions": [
-    {
-      "at": "2026-09-19T12:32:20.160Z",
-      "action": "LOGIN",
-      "sha": "90636e24adad6d6fdcaacb856c68363a8c5ba3dc"
-    },
-    {
-      "at": "2026-09-19T12:35:18.642Z",
-      "action": "CHANGE",
-      "sha": "d9c9d7c6c25cdd3581e75a54c430a761a12d4629",
-      "summary": "Synchronized all Task Agent repair-loop bounds to 12 cycles / 3 stalled cycles."
-    },
-    {
-      "at": "2026-09-19T12:35:18.642Z",
-      "action": "VERIFICATION",
-      "sha": "d9c9d7c6c25cdd3581e75a54c430a761a12d4629",
-      "summary": "Static invariants verified; WP0 budget-drift RCA fixed."
-    },
-    {
-      "at": "2026-09-19T12:35:18.642Z",
-      "action": "LOGOUT",
-      "sha": "d9c9d7c6c25cdd3581e75a54c430a761a12d4629",
-      "status": "BLOCKED"
-    }
+  "rcaClosed": [
+    "AUTO-REPAIR-BOUNDARY-HARDENING"
   ],
-  "exitSha": "d9c9d7c6c25cdd3581e75a54c430a761a12d4629",
-  "finishedAt": "2026-09-19T12:35:18.642Z",
+  "openRcas": [
+    "FRESH-CI-VERIFICATION"
+  ],
   "changedFiles": [
     ".github/workflows/auto-repair.yml",
     ".github/workflows/execution-bot-watchdog.yml",
@@ -96,12 +70,7 @@
     "Fresh required CI has not yet produced terminal evidence.",
     "Vercel deployment status is externally rate-limited."
   ],
-  "finalSummary": "Boundary hardening completed and verified statically. Session closed BLOCKED because fresh exact-SHA Canonical CI and Vercel external evidence are not yet green.",
-  "handoff": "Continue on execution only. Never mutate protected repair control-plane files autonomously; keep fail-closed gates intact.",
-  "rcaClosed": [
-    "AUTO-REPAIR-BOUNDARY-HARDENING"
-  ],
-  "openRcas": [
-    "FRESH-CI-VERIFICATION"
-  ]
+  "handoffToNextAgent": "Continue on execution only. Never mutate protected repair control-plane files autonomously; keep fail-closed gates intact.",
+  "continuationFrom": null,
+  "inheritedExitSha": null
 }
