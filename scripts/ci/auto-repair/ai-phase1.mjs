@@ -152,7 +152,7 @@ export function buildCiOrchestrationPlan({ impact, targetSelection } = {}) {
     plannedCommands: dedupedCommands,
     affectedContracts: [...(impact?.affectedContracts ?? [])],
     escalationReasons: [...(impact?.reasons ?? [])],
-  });
+  };
 }
 
 function readDiffNames() {
