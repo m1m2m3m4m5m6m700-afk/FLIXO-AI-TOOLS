@@ -74,6 +74,7 @@ jobs:
           PUSHED=false
           for attempt in 1 2 3 4 5; do
             git fetch origin execution
+            PRE_PUBLISH_SHA="$(git rev-parse HEAD)"
             if git merge-base --is-ancestor HEAD origin/execution; then
               git merge --ff-only origin/execution
             elif git merge-base --is-ancestor origin/execution HEAD; then
@@ -82,6 +83,10 @@ jobs:
               git merge --no-edit origin/execution
             fi
             test -z "$(git status --porcelain=v1 --untracked-files=all)"
+            if [ "$(git rev-parse HEAD)" != "$PRE_PUBLISH_SHA" ]; then
+              npm run test:auto-repair
+              npm run validate:auto-repair-memory
+            fi
             if git push origin HEAD:execution; then
               PUSHED=true
               break
