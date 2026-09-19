@@ -58,9 +58,15 @@ function guard(){
  const report={schemaVersion:1,protocol:'FLIXO-AI-PHASE2',mode:'POST_MUTATION_GUARD',generatedAt:new Date().toISOString(),agents:PHASE2_AGENTS,repairStrategy:strategyDecision,testSetCover:cover,securityGuardian:security};
  fs.writeFileSync(OUT,JSON.stringify(report,null,2)+'\n');if(!strategyDecision.repairAttemptRequired||!cover.complete||security.status!=='PASS')process.exitCode=1;console.log(JSON.stringify(report,null,2));
 }
-function release(){
+function releaseHandoff(){
  const evidence=readJson(EVIDENCE,{});const source=String(evidence.targetSha??process.env.FLIXO_FAILED_SHA??'');const execution=String(process.env.FLIXO_EXECUTION_SHA??git(['rev-parse','HEAD']));const current=git(['rev-parse','HEAD']);
  const integrity=validateReleaseIntegrity({expectedSourceSha:source,executionSha:execution,currentExecutionSha:current,prHeadSha:process.env.FLIXO_PR_HEAD_SHA??execution,evidenceSha:execution,evidenceClass:'PRIMARY_EXECUTION'});
  const report={schemaVersion:1,protocol:'FLIXO-AI-PHASE2',mode:'RELEASE_HANDOFF',generatedAt:new Date().toISOString(),agents:PHASE2_AGENTS,releaseIntegrity:integrity};fs.writeFileSync(OUT,JSON.stringify(report,null,2)+'\n');if(integrity.status!=='PASS')process.exitCode=1;console.log(JSON.stringify(report,null,2));
 }
-const mode=process.argv.includes('--guard')?'guard':process.argv.includes('--release-handoff')?'release':' ';if(mode==='guard')guard();else if(mode==='release')release();else{console.error('Usage: --guard|--release-handoff');process.exit(2);}
+function runRelease(){
+ const evidence=readJson(path.resolve(ROOT,process.env.FLIXO_DEPLOYMENT_EVIDENCE_PATH??'production-deployment-evidence.json'),{});
+ const promotion=String(process.env.FLIXO_PROMOTION_SHA??git(['rev-parse','HEAD']));const main=String(process.env.FLIXO_MAIN_SHA??git(['rev-parse','HEAD']));const ci=String(process.env.FLIXO_CI_CONCLUSION??'success');const deployment=String(evidence.deploymentSha??evidence.canonicalSha??'');
+ const integrity=evidence.status==='BLOCKED_EXTERNAL' ? {schemaVersion:1,status:'BLOCKED_EXTERNAL',failures:['EXTERNAL_DEPLOYMENT_BLOCK'],chain:{mainSha:main,promotionSha:promotion,mergeSha:promotion,deploymentSha:deployment||null}} : validateReleaseIntegrity({expectedSourceSha:promotion,executionSha:promotion,currentExecutionSha:main,prHeadSha:promotion,mainSha:main,promotionSha:promotion,mergeSha:promotion,mergeState:ci,evidenceSha:promotion,evidenceClass:'PRIMARY_EXECUTION',deploymentSha:deployment});
+ const report={schemaVersion:1,protocol:'FLIXO-AI-PHASE2',mode:'RELEASE',generatedAt:new Date().toISOString(),agents:PHASE2_AGENTS,releaseIntegrity:integrity};fs.writeFileSync(OUT,JSON.stringify(report,null,2)+'\n');if(integrity.status!=='PASS'&&integrity.status!=='BLOCKED_EXTERNAL')process.exitCode=1;console.log(JSON.stringify(report,null,2));
+}
+const mode=process.argv.includes('--guard')?'guard':process.argv.includes('--release-handoff')?'release-handoff':process.argv.includes('--release')?'release':' ';if(mode==='guard')guard();else if(mode==='release-handoff')releaseHandoff();else if(mode==='release')runRelease();else{console.error('Usage: --guard|--release-handoff|--release');process.exit(2);}
