@@ -57,8 +57,7 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
     await expect(page.locator('label[for="image-file"]')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Compress image' })).toBeDisabled();
 
-    const oversized = Buffer.alloc(10 * 1024 * 1024 + 1, 0);
-    await input.setInputFiles({ name: 'oversized.jpg', mimeType: 'image/jpeg', buffer: oversized });
+    await input.setInputFiles({ name: 'oversized.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(oversizedSvg) });
 
     await expect(page.getByRole('alert')).toContainText('source image is too large for safe browser processing', { timeout: 15000 });
     await expect(page.getByRole('button', { name: 'Compress image' })).toBeDisabled();
