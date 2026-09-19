@@ -78,8 +78,7 @@ jobs:
             [.[] |
               select(.headSha == $ENV.EXECUTION_SHA and
                 (.conclusion == "failure" or
-                 .conclusion == "timed_out" or
-                 .conclusion == "action_required"))] |
+                 .conclusion == "timed_out"))] |
             sort_by(.updatedAt) |
             last |
             .databaseId // empty
