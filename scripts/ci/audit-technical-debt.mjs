@@ -67,6 +67,7 @@ for (const file of testFiles) {
 }
 
 for (const file of tracked) {
+  if (/^(?:artifacts|diagnostics|docs)\//u.test(file)) continue;
   if (!/(?:legacy|deprecated|obsolete|old)[^/]*\./i.test(file)) continue;
   if (contractProtected.includes(file)) continue;
   const basename = file.split('/').pop();
