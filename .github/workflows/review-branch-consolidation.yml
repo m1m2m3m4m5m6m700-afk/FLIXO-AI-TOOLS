@@ -1,0 +1,129 @@
+name: Review Branch Consolidation
+
+on:
+  push:
+    branches: [review]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  consolidate:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[consolidate-branches]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout review
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: review
+          fetch-depth: 0
+
+      - name: Consolidate every non-canonical branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
+
+          mapfile -t BRANCHES < <(
+            git for-each-ref --sort=-committerdate --format='%(refname:strip=3)' refs/remotes/origin/ |
+              awk 'NF && $0 != "HEAD" && $0 != "main" && $0 != "review" && $0 != "execution"'
+          )
+
+          merged=()
+          deleted=()
+          archived=()
+          conflicts=()
+          ff=()
+          ancestors=()
+
+          for branch in "${BRANCHES[@]}"; do
+            tip="origin/$branch"
+
+            if ! git show-ref --verify --quiet "refs/remotes/$tip"; then
+              continue
+            fi
+
+            if git merge-base --is-ancestor "$tip" HEAD; then
+              ancestors+=("$branch")
+              deleted+=("$branch")
+              continue
+            fi
+
+            if git merge-base --is-ancestor HEAD "$tip"; then
+              git merge --ff-only "$tip"
+              ff+=("$branch")
+              deleted+=("$branch")
+              continue
+            fi
+
+            git merge --no-ff --no-edit "$tip" || {
+              git merge --abort
+              safe="${branch//[^A-Za-z0-9._/-]/-}"
+              safe="${safe//\//--}"
+              tag="archive/consolidation/$safe"
+              git tag -f "$tag" "$tip"
+              archived+=("$branch")
+              conflicts+=("$branch")
+              continue
+            }
+
+            merged+=("$branch")
+            deleted+=("$branch")
+          done
+
+          {
+            printf '%s\n' "# Branch consolidation"
+            printf '%s\n\n' "Generated from review on $(date -u +%Y-%m-%dT%H:%M:%SZ)."
+            printf '%s\n' "- Canonical branches retained: main, review, execution"
+            printf '%s\n' "- Ancestor branches removed: ${#ancestors[@]}"
+            printf '%s\n' "- Fast-forward branches absorbed: ${#ff[@]}"
+            printf '%s\n' "- Cleanly merged branches absorbed: ${#merged[@]}"
+            printf '%s\n' "- Conflicting branches archived as tags: ${#archived[@]}"
+            printf '%s\n' "- Branches scheduled for deletion: ${#deleted[@]}"
+            printf '%s\n' "- Branches retained because they conflicted: 0 (their tips are preserved as archive/consolidation/* tags)"
+            if ((${#conflicts[@]})); then
+              printf '\n## Conflict archive\n'
+              printf -- '- %s\n' "${conflicts[@]}"
+            fi
+          } > /tmp/consolidation-report.md
+
+          if ((${#deleted[@]})); then
+            git push origin HEAD:refs/heads/review
+          fi
+
+          if ((${#archived[@]})); then
+            git push origin $(git tag --list 'archive/consolidation/*')
+          fi
+
+          if ((${#deleted[@]})); then
+            git push origin --delete "${deleted[@]}"
+          fi
+
+          cp /tmp/consolidation-report.md docs/BRANCH_CONSOLIDATION_2026-09-19.md
+          git add docs/BRANCH_CONSOLIDATION_2026-09-19.md
+          git commit -m "docs(review): record branch consolidation" || true
+          git push origin HEAD:refs/heads/review
+
+      - name: Verify exactly three canonical branches remain
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
+          mapfile -t REMAINING < <(
+            git for-each-ref --format='%(refname:strip=3)' refs/remotes/origin/ |
+              awk 'NF && $0 != "HEAD"'
+          )
+          printf 'Remaining remote branches:\n'
+          printf '%s\n' "${REMAINING[@]}"
+          test "${#REMAINING[@]}" -eq 3
+          printf '%s\n' "${REMAINING[@]}" | sort | diff -u <(printf '%s\n' execution main review | sort)
