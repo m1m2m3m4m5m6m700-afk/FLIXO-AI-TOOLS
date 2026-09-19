@@ -20,18 +20,6 @@ on:
         description: 'Watcher-provided exact failure fingerprint for Control Plane identity'
         required: false
         type: string
-  workflow_run:
-    workflows:
-      - FLIXO Test Impact
-      - FLIXO Test Impact Execution
-      - FLIXO Test System
-      - FLIXO WP0 Trust Baseline
-      - FLIXO Continuous Delivery
-      - Repository Security Baseline
-      - Claude Security Review
-      - Daily·FLIXO Green Gate
-    types:
-      - completed
 
 permissions:
   contents: write
@@ -47,16 +35,16 @@ env:
   FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
   FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
   FLIXO_REPAIR_LANE: single
-  TARGET_RUN_ID: ${{ inputs.target_run_id || github.event.workflow_run.id || '' }}
+  TARGET_RUN_ID: ${{ inputs.target_run_id || '' }}
   FLIXO_HISTORY_LIMIT: '30'
-  FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id || github.event.workflow_run.id || github.run_id }}
+  FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id || github.run_id }}
   FLIXO_FAILURE_FINGERPRINT: ${{ inputs.failure_fingerprint || '' }}
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   # AUTONOMOUS AUTHORITY:
-  # 1) workflow_run wakes the repair agent directly when a canonical repairable workflow fails.
-  # 2) an independent heartbeat workflow provides periodic liveness/recovery.
-  # 3) the agent may self-dispatch a continuation after an internal engine/unrepaired failure.
-  # Safety boundary remains unchanged: mutations are execution-only and canonical CI remains the final GREEN authority.
+  # 1) Agent Repair Supervisor starts at commit and watches the exact SHA.
+  # 2) RED is handed to this repair agent through workflow_dispatch.
+  # 3) heartbeat remains an independent liveness/recovery path.
+  # Canonical CI remains the final GREEN authority.
   FLIXO_STRICT_RED_REPAIR: 'true'
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
@@ -64,11 +52,7 @@ env:
 jobs:
   repair:
     name: Single-lane diagnose, execute, verify and learn on target branch
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-       (github.event.workflow_run.conclusion == 'failure' ||
-        github.event.workflow_run.conclusion == 'timed_out'))
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
