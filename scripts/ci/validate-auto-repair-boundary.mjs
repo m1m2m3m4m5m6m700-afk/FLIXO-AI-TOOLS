@@ -55,7 +55,7 @@ export function validateStatic() {
   must(/name:\s*FLIXO Auto Repair Bot/.test(auto), 'auto-repair-identity');
   must(!/workflow_run:/.test(auto), 'auto-repair-dispatch-only');
   must(/workflow_dispatch:/.test(auto), 'auto-repair-dispatch-trigger');
-  must(/push:[\s\S]*branches:\s*\[execution, main\]/.test(supervisor), 'supervisor-commit-trigger');
+  must(/push:[\s\S]*branches:\s*(?:\[execution, main\]|\n\s*- execution\n\s*- main)/.test(supervisor), 'supervisor-commit-trigger');
   must(/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(supervisor), 'supervisor-red-dispatch');
   must(/gh\s+workflow\s+run\s+agent-repair-supervisor\.yml/i.test(supervisor), 'supervisor-continuation');
   must(/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(auto), 'auto-repair-self-recovery-dispatch');
