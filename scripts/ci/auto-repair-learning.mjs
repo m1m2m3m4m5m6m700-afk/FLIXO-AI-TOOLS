@@ -22,7 +22,7 @@ export function normalizeLearningOutcome(outcome, verification) {
   return outcome;
 }
 
-const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });
+const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [], actionHistory: [] });
 
 const historicalKnowledgePath = process.env.FLIXO_HISTORICAL_KNOWLEDGE ?? 'docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json';
 
@@ -54,7 +54,7 @@ export function loadMemory() {
       }
     }
     memory.version = Number.isInteger(parsed?.version) ? Math.max(parsed.version, MEMORY_VERSION) : MEMORY_VERSION;
-    for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(memory[key])) memory[key] = [];
+    for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons', 'actionHistory']) if (!Array.isArray(memory[key])) memory[key] = [];
     return memory;
   } catch {
     return emptyMemory();
@@ -142,6 +142,7 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
     playbooks: [...base.playbooks],
     lessons: [...base.lessons],
     antiLessons: [...base.antiLessons],
+    actionHistory: [...(base.actionHistory ?? [])],
   };
 
   const mergeUnique = (left = [], right = [], keyFor = (item) => JSON.stringify(item)) => {
@@ -207,6 +208,23 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
     successRate: item.attempts ? Number((item.successes / item.attempts).toFixed(4)) : 0,
     generalized: new Set(item.successfulFingerprints ?? []).size >= 2 && item.successes >= 2 && (item.attempts ? item.successes / item.attempts : 0) >= 0.8,
   }));
+
+  const actionMap = new Map((merged.actionHistory ?? []).map((item) => [item.fingerprint, item]));
+  for (const incoming of derived.actionHistory ?? []) {
+    const existing = actionMap.get(incoming.fingerprint);
+    if (!existing) {
+      actionMap.set(incoming.fingerprint, incoming);
+      continue;
+    }
+    existing.occurrences = Math.max(Number(existing.occurrences ?? 0), Number(incoming.occurrences ?? 0));
+    existing.successes = Math.max(Number(existing.successes ?? 0), Number(incoming.successes ?? 0));
+    existing.failures = Math.max(Number(existing.failures ?? 0), Number(incoming.failures ?? 0));
+    existing.features = [...new Set([...(existing.features ?? []), ...(incoming.features ?? [])])];
+    existing.workflows = [...new Set([...(existing.workflows ?? []), ...(incoming.workflows ?? [])])].slice(-20);
+    existing.evidence = [...(existing.evidence ?? []), ...(incoming.evidence ?? [])].slice(-12);
+    existing.lastSeenAt = [existing.lastSeenAt, incoming.lastSeenAt].filter(Boolean).sort().at(-1) ?? existing.lastSeenAt ?? null;
+  }
+  merged.actionHistory = [...actionMap.values()].slice(-200);
 
   for (const collection of ['lessons', 'antiLessons']) {
     const map = new Map(merged[collection].map((item) => [item.id, item]));
@@ -571,7 +589,7 @@ export function writeMemory(memory) {
     normalized = mergeMemoryHistory(historical, normalized);
   }
   normalized.version = Number.isInteger(memory?.version) ? Math.max(memory.version, MEMORY_VERSION) : MEMORY_VERSION;
-  for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(normalized[key])) normalized[key] = [];
+  for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons', 'actionHistory']) if (!Array.isArray(normalized[key])) normalized[key] = [];
   fs.writeFileSync(memoryPath, `${JSON.stringify(normalized, null, 2)}\n`);
 }
 
