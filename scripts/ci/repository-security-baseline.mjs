@@ -31,12 +31,15 @@ function workflowFiles() {
 
 const policyPath = path.join(root, 'scripts', 'ci', 'auto-repair-policy.mjs');
 const policyText = fs.existsSync(policyPath) ? fs.readFileSync(policyPath, 'utf8') : '';
+
 for (const protectedPath of TRUST_PERIMETER_PATHS) {
-  if (dynamicRepairWorkflowPaths.has(protectedPath)) continue;
-  if (!policyText.includes("'" + protectedPath + "'")) failures.push('auto-repair-policy: missing protected trust path ' + protectedPath);
-}
-if (!policyText.includes('...REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`)')) {
-  failures.push('auto-repair-policy: canonical repair-gate workflow expansion is missing');
+  const absolute = path.join(root, protectedPath);
+  if (!isProtectedPath(protectedPath)) {
+    failures.push('auto-repair-policy: trust perimeter path is not protected ' + protectedPath);
+  }
+  if (!fs.existsSync(absolute)) {
+    failures.push('control-plane-registry: missing trust perimeter path ' + protectedPath);
+  }
 }
 if (policyText.includes('maxAttemptsPerFingerprint: Number.POSITIVE_INFINITY')) failures.push('auto-repair-policy: unbounded per-fingerprint repair is forbidden');
 if (/openDraftPrOnly:\s*true/u.test(policyText)) failures.push('auto-repair-policy: openDraftPrOnly=true contradicts canonical execution→main publication');
