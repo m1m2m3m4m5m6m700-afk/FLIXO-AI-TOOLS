@@ -79,8 +79,8 @@ export function validateStatic() {
   must(/COMPARE=.*compare\//.test(mergeGate), 'merge-gate-ancestry-proof');
   must(/MAIN_AFTER=.*commits\/main[\s\S]*MAIN_AFTER.*EXPECTED_SHA/.test(mergeGate), 'merge-gate-post-promotion-sha-readback');
   must(/gh api "repos\/\$GITHUB_REPOSITORY\/commits\/\$EXPECTED_SHA\/status"/.test(mergeGate), 'merge-gate-status-proof');
-  must(/VERCEL_STATE=.*starts_with\("vercel"\)/.test(mergeGate), 'merge-gate-vercel-status-gate');
-  must(/test "\$VERCEL_STATE" = "success"/.test(mergeGate), 'merge-gate-vercel-success-required');
+  must(/EXTERNAL_PROVIDER_GATE=INFORMATIONAL/.test(mergeGate), 'merge-gate-vercel-informational');
+  must(!/test "\$VERCEL_STATE" = "success"/.test(mergeGate), 'merge-gate-vercel-hard-gate-forbidden');
   must(!/gh\s+pr\s+merge/i.test(mergeGate), 'merge-gate-no-pr-merge');
   must(!/--squash|--rebase|--merge(?:\s|")/i.test(mergeGate), 'merge-gate-no-non-ff-method');
 
