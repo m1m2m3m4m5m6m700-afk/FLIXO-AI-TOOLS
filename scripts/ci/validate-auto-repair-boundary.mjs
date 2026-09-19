@@ -52,9 +52,9 @@ export function validateStatic() {
   const must = (condition, code) => { if (!condition) errors.push(code); };
 
   must(/name:\s*FLIXO Auto Repair Bot/.test(auto), 'auto-repair-identity');
-  must(!/workflow_run:/.test(auto), 'auto-repair-executor-only-trigger');
+  must(/workflow_run:/.test(auto), 'auto-repair-autonomous-trigger');
   must(/workflow_dispatch:/.test(auto), 'auto-repair-dispatch-trigger');
-  must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(auto), 'auto-repair-no-self-dispatch');
+  must(/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(auto), 'auto-repair-self-recovery-dispatch');
   must(/target_run_id:[\s\S]*required:\s*true/.test(auto), 'auto-repair-target-run-required');
   must(/ref:\s*execution/.test(auto), 'auto-repair-checkout-execution');
   must(/persist-credentials:\s*false/.test(auto), 'auto-repair-checkout-credential-isolation');
