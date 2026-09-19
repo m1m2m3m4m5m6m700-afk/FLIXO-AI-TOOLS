@@ -332,5 +332,17 @@
       "npm run validate:router-registry"
     ],
     "prevention": "Use registered TanStack route literals (/ar) or route templates/params instead of ad-hoc trailing-slash string literals."
+  },
+  "RC-CI-CONTRACT-EVIDENCE-REGEX-001": {
+    "category": "CI_CONTRACT",
+    "description": "The CI contract validator used a cross-line regex that falsely paired a real gh run view --log-failed command with a later intentional || true on gh run list, producing a false RED during canonical static verification.",
+    "repairTargets": [
+      "scripts/validate-ci-contract.mjs"
+    ],
+    "verification": [
+      "npm run lint",
+      "npm run validate:ci-contract"
+    ],
+    "prevention": "Evidence-swallow checks must be scoped to the same command line or parsed command block; intentional idempotency fallbacks in unrelated commands must not satisfy the forbidden pattern."
   }
 }
