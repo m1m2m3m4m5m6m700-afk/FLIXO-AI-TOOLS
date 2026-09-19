@@ -14,6 +14,7 @@ import { validateRepairProof, preventionRuleFor, escalationReason } from './auto
 
 const workflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
 const dispatcher = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
+const handoff = fs.readFileSync('.github/workflows/agent-repair-handoff-gate.yml', 'utf8');
 assert.match(workflow, /workflow_dispatch:/);
 assert.match(workflow, /github\.event_name == 'workflow_dispatch'/);
 assert.match(workflow, /CURRENT_MAIN_SHA/);
@@ -30,6 +31,8 @@ assert.match(workflow, /DEEP_\[A-Z_\]+_MISSING/);
 assert.match(workflow, /ENGINE_OUTCOME.*proposal-only/);
 assert.match(workflow, /LEARNING_OUTCOME='proposed'/);
 assert(!workflow.includes('workflow_run:'));
+assert.match(workflow, /CURRENT_TARGET_SHA=/);
+assert.match(workflow, /EVIDENCE_CAPTURE=FAILED/);
 assert(!workflow.includes('github.event.workflow_run'));
 assert(!workflow.includes('gh workflow run auto-repair.yml'));
 assert.match(workflow, /DISPATCH AUTHORITY: Daily·FLIXO Green Gate/);
@@ -42,6 +45,9 @@ assert.match(dispatcher, /FLIXO Continuous Delivery/);
 assert.match(dispatcher, /Repository Security Baseline/);
 assert.match(dispatcher, /Test Impact Execution/);
 assert(!dispatcher.includes('gh workflow run execution-bot-watchdog.yml'));
+assert.match(handoff, /branches: \[execution\]/);
+assert.match(handoff, /CURRENT_EXECUTION_SHA=/);
+assert.match(handoff, /HANDOFF_EXECUTION_SHA/);
 const classifierSource = fs.readFileSync('scripts/ci/auto-repair-classifier.mjs', 'utf8');
 assert.match(classifierSource, /ensureFreshScout/);
 assert.match(classifierSource, /code-read-only-scout\.mjs/);
