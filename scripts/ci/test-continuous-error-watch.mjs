@@ -60,7 +60,7 @@ const securityProvider = evaluateGreen({
     { id: 104, name: 'github-advanced-security', status: 'completed', conclusion: 'failure' },
     { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
   ],
-  logs: { 104: 'CAPIError: 400 The requested model is not supported' },
+  logs: { 35452323662: 'CAPIError: 400 The requested model is not supported' },
   compare: { ahead_by: 1, behind_by: 0 },
 });
 assert.equal(securityProvider.status, 'BLOCKED_EXTERNAL');
