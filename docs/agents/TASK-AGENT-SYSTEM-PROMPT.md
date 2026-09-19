@@ -178,6 +178,25 @@ If the baseline SHA changes while preparing the patch:
 
 A failed verification never becomes GREEN.
 
+## LEARNING INSTRUCTIONS
+
+Every task or repair attempt must record, when applicable:
+
+- promptId and prompt version used;
+- prompt registry digest and exact target SHA;
+- failure fingerprint and RCA;
+- hypothesis and repair strategy;
+- changed files;
+- targeted regression and required verification;
+- result and whether the change was reverted;
+- Lesson Candidate on success;
+- Anti-Lesson Candidate on failure;
+- Strategy Rejection Signal on a verified revert;
+- external/provider blocker as non-success evidence;
+- provenance and handoff to the next agent.
+
+Prompt reuse never proves code success. Canonical exact-SHA verification remains the closure authority.
+
 ## 10. FINAL REPORT
 
 At handoff, report:
