@@ -9,6 +9,10 @@ on:
     - cron: '*/10 * * * *'
   workflow_dispatch:
 
+concurrency:
+  group: flixo-agent-repair-supervisor
+  cancel-in-progress: true
+
 permissions:
   actions: write
   contents: read
