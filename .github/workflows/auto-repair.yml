@@ -484,7 +484,12 @@ jobs:
           ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome 2>/dev/null || printf '%s' engine-error)"
           if [ "$ENGINE_OUTCOME" = "blocked-external" ]; then
             echo 'External tooling failure is not a source-repair target; stopping fail-closed.'
-            exit 1
+            REPROBE_DECISION="$(node scripts/ci/auto-repair-supervisor.mjs --check-reprobe | tail -n 1)"
+            if [ "$REPROBE_DECISION" != "true" ]; then
+              echo 'External provider block is already learned for this failure signature; keeping the repair cycle open without recursive retries.'
+              exit 1
+            fi
+            echo 'External provider signature changed; permitting one new diagnostic cycle.'
           fi
           if [ "$ENGINE_OUTCOME" = "engine-error" ]; then
             echo 'Repair engine error; stopping fail-closed.'
