@@ -15,7 +15,7 @@ const required = [
   ['Browser FAST engine', /\n\s{2}browser_fast:\s*\n/],
   ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
   ['single certification gate', /\n\s{2}certify:\s*\n/],
-  ['PR cancellation', /cancel-in-progress:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*\}\}/],
+  ['PR/latest-run cancellation', /cancel-in-progress:\s*(?:true|\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*\}\})/],
   ['exact SHA', /EXPECTED_SHA/],
   ['immutable artifact identity', /flixo-head-sha\.txt[\s\S]*flixo-package-lock\.sha256/],
   ['minimal checkout', /fetch-depth:\s*1/],
