@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge } from './auto-repair-learning.mjs';
+import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, normalizeMemoryCounters } from './auto-repair-learning.mjs';
 
 const sample = 'Run 35012345678 failed on webkit at abcdefabcdefabcdefabcdefabcdefabcdefabcd: Seed waitForGpuRender';
 const fingerprint = fingerprintFailure(sample);
@@ -21,6 +21,37 @@ delete process.env.FLIXO_RUN_ID;
 
 const memory = loadMemory();
 assert.equal(memory.version, 10);
+
+const normalizedCorruptMemory = normalizeMemoryCounters({
+  version: 10,
+  cases: [
+    {
+      fingerprint: '__stale_success__',
+      attempts: 1,
+      successes: 1,
+      failures: 1,
+      outcomes: [
+        { outcome: 'repair', verification: 'success' },
+        { outcome: 'stale', verification: 'invalidated' },
+      ],
+    },
+    {
+      fingerprint: '__external_current__',
+      attempts: 0,
+      successes: 0,
+      failures: 6,
+      outcomes: [
+        { outcome: 'current', verification: 'failure', provenance: { source: 'GitHub Advanced Security' } },
+      ],
+    },
+  ],
+});
+assert.equal(normalizedCorruptMemory.cases[0].attempts, 1);
+assert.equal(normalizedCorruptMemory.cases[0].successes, 1);
+assert.equal(normalizedCorruptMemory.cases[0].failures, 0);
+assert.equal(normalizedCorruptMemory.cases[1].attempts, 0);
+assert.equal(normalizedCorruptMemory.cases[1].successes, 0);
+assert.equal(normalizedCorruptMemory.cases[1].failures, 0);
 const before = memory.cases.length;
 const hadSelfTestCase = memory.cases.some((item) => item.fingerprint === '__self_test__');
 recordOutcome(memory, {
