@@ -31,7 +31,7 @@ function classify(log) {
 
 function normalizeActionLog(log) {
   return String(log ?? '')
-    .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '')
+    .replace(new RegExp(String.fromCharCode(27) + '\\[[0-?]*[ -/]*[@-~]', 'g'), '')
     .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g, '<TS>')
     .replace(/\b\d{10,}\b/g, '<ID>')
     .replace(/\b[a-f0-9]{40}\b/gi, '<SHA>')
