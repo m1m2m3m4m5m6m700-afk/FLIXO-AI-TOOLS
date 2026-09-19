@@ -74,34 +74,31 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          {
-            set +o pipefail
-            jq -r '.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required") | .databaseId' /tmp/flixo-watch/workflow-runs.json 2>/dev/null |
-              while read -r run_id; do
-                [ -n "$run_id" ] || continue
-                if gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1; then
-                printf "\nEVIDENCE_CAPTURE=AVAILABLE\n" >> "/tmp/flixo-watch/logs/run-$run_id.log"
-else
-  printf "EVIDENCE_CAPTURE=FAILED\nRUN_ID=%s\n" "$run_id" > "/tmp/flixo-watch/logs/run-$run_id.log"
-fi
-              done
-            jq -r '[.[].check_runs[]
-              | select(.status == "completed")
-              | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
-              | select(.details_url != null and (.details_url | test("/actions/runs/[0-9]+")))
-              | .details_url
-              | capture("/actions/runs/(?<id>[0-9]+)").id' /tmp/flixo-watch/check-runs.json 2>/dev/null |
-              sort -u |
-              while read -r run_id; do
-                [ -n "$run_id" ] || continue
-                if gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1; then
-                printf "\nEVIDENCE_CAPTURE=AVAILABLE\n" >> "/tmp/flixo-watch/logs/run-$run_id.log"
-else
-  printf "EVIDENCE_CAPTURE=FAILED\nRUN_ID=%s\n" "$run_id" > "/tmp/flixo-watch/logs/run-$run_id.log"
-fi
-              done
-            set -o pipefail
-          } || true
+          jq -r '.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required") | .databaseId' /tmp/flixo-watch/workflow-runs.json > /tmp/flixo-watch/failed-run-ids
+          while read -r run_id; do
+            [ -n "$run_id" ] || continue
+            if gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1; then
+              printf '\nEVIDENCE_CAPTURE=AVAILABLE\n' >> "/tmp/flixo-watch/logs/run-$run_id.log"
+            else
+              printf 'EVIDENCE_CAPTURE=FAILED\nRUN_ID=%s\n' "$run_id" > "/tmp/flixo-watch/logs/run-$run_id.log"
+            fi
+          done < /tmp/flixo-watch/failed-run-ids
+
+          jq -r '[.[].check_runs[]
+            | select(.status == "completed")
+            | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
+            | select(.details_url != null and (.details_url | test("/actions/runs/[0-9]+")))
+            | .details_url
+            | capture("/actions/runs/(?<id>[0-9]+)").id
+          ] | .[]' /tmp/flixo-watch/check-runs.json | sort -u > /tmp/flixo-watch/failed-check-run-ids
+          while read -r run_id; do
+            [ -n "$run_id" ] || continue
+            if gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1; then
+              printf '\nEVIDENCE_CAPTURE=AVAILABLE\n' >> "/tmp/flixo-watch/logs/run-$run_id.log"
+            else
+              printf 'EVIDENCE_CAPTURE=FAILED\nRUN_ID=%s\n' "$run_id" > "/tmp/flixo-watch/logs/run-$run_id.log"
+            fi
+          done < /tmp/flixo-watch/failed-check-run-ids
 
       - name: Build watcher input
         run: |
