@@ -55,7 +55,7 @@ assert.equal(isProtectedPath('tests/seed.spec.ts'), true);
 assert.equal(isPathAllowed('src/example.ts'), true);
 assert.equal(repairPolicy.maxChangedFiles, 8);
 assert.equal(repairPolicy.maxChangedLines, 300);
-assert.equal(repairPolicy.maxAttemptsPerFingerprint, Number.POSITIVE_INFINITY);
+assert.equal(repairPolicy.maxAttemptsPerFingerprint, 3);
 assert.equal(MEMORY_VERSION, 9);
 assert.match(fs.readFileSync('scripts/ci/auto-repair/reasoning.mjs', 'utf8'), /ONLY_FRESH_EXACT_SHA_SCOUT_EVIDENCE_IS_ACTIONABLE/);
 assert.equal(INTRACTABLE_THRESHOLD, 3);
