@@ -7,4 +7,5 @@ const full=minimizeTestSet(['unknown/file.bin'],map);assert.equal(full.forceFull
 const strategy=rankRepairStrategies({strategyId:'reproduce-exact',attempt:2},{cases:[]});assert.equal(strategy.deterministicNext,'minimize-failure');assert.equal(strategy.repairAttemptRequired,true);
 const blocked=securityGuardian({changedFiles:['.env.production'],branch:'execution'});assert.equal(blocked.status,'BLOCK');assert.ok(blocked.violations.some(x=>x.startsWith('SENSITIVE_PATH:')));
 const integrity=validateReleaseIntegrity({expectedSourceSha:'a'.repeat(40),executionSha:'b'.repeat(40),currentExecutionSha:'b'.repeat(40),prHeadSha:'b'.repeat(40),evidenceSha:'b'.repeat(40)});assert.equal(integrity.status,'BLOCK');
+const releasePass=validateReleaseIntegrity({expectedSourceSha:'a'.repeat(40),executionSha:'b'.repeat(40),currentExecutionSha:'b'.repeat(40),prHeadSha:'b'.repeat(40),mainSha:'b'.repeat(40),promotionSha:'b'.repeat(40),mergeSha:'b'.repeat(40),mergeState:'success',evidenceSha:'b'.repeat(40),evidenceClass:'PRIMARY_EXECUTION',deploymentSha:'b'.repeat(40),requireSourceParent:false});assert.equal(releasePass.status,'PASS');
 console.log('AI_PHASE2_SELF_TEST=PASS');
