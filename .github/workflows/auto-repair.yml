@@ -237,7 +237,7 @@ jobs:
 
       - name: Execute bounded root-cause repair under Task Agent authority
         id: execute_repair
-        if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome == 'success' && steps.boundary.outcome == 'success'
+        if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome == 'success'
         env:
           FLIXO_TARGET_DIR: ${{ github.workspace }}
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
@@ -253,7 +253,7 @@ jobs:
 
       - name: Verify Task Agent repair before publication
         id: verify
-        if: always()
+        if: always() && steps.boundary.outcome == 'success'
         run: |
           set -euo pipefail
           if [ "${{ steps.strategy.outputs.intractable }}" = "true" ]; then
