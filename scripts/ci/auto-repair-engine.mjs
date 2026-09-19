@@ -6,7 +6,7 @@ import { planRepair } from './auto-repair/planner.mjs';
 import { selectSpecialist } from './auto-repair/specialists.mjs';
 import { confidenceGate } from './auto-repair/confidence.mjs';
 import { runAstRepair } from './auto-repair/ast-repair.mjs';
-import { reproduce, impactedTests } from './auto-repair/reproduction.mjs';
+import { reproduce, resolveTargetedTests } from './auto-repair/reproduction.mjs';
 import { runRegression } from './auto-repair/regression.mjs';
 import { summarizeDiff, writeEvidence } from './auto-repair/evidence.mjs';
 import { snapshot, rollback } from './auto-repair/rollback.mjs';
@@ -129,7 +129,8 @@ evidence.diagnosisGate = diagnosisGate;
 
 if (historicalRollbackCandidate && diagnosisGate.allowed) {
   const before = snapshot(targetDir);
-  evidence.reproductionCommands = impactedTests(plan.features);
+  evidence.reproductionSelection = resolveTargetedTests(log, plan.features, { targetDir });
+  evidence.reproductionCommands = evidence.reproductionSelection.commands;
   evidence.reproductionBefore = reproduce(targetDir, evidence.reproductionCommands);
   evidence.historicalRollback = historicalRollbackRecord(historicalRollbackCandidate);
   evidence.selected = historicalRollbackCandidate.rule ?? null;
@@ -177,7 +178,8 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     }
 
     evidence.reproductionAfter = reproduce(targetDir, evidence.reproductionCommands);
-    evidence.regression = runRegression(targetDir, [['npm', ['run', 'typecheck']], ['npm', ['run', 'test:static']], ['npm', ['run', 'test:build']]]);
+    evidence.regressionSelection = evidence.reproductionSelection;
+    evidence.regression = runRegression(targetDir, evidence.reproductionSelection.regressionCommands);
     const rootCauseProof = {
       required: true,
       reproductionWasFailing: evidence.reproductionBefore.results.length > 0 && !evidence.reproductionBefore.ok,
@@ -364,7 +366,8 @@ if (!simulation.ok) {
 }
 
 const before = snapshot(targetDir);
-evidence.reproductionCommands = impactedTests(plan.features);
+evidence.reproductionSelection = resolveTargetedTests(log, plan.features, { targetDir });
+  evidence.reproductionCommands = evidence.reproductionSelection.commands;
 evidence.reproductionBefore = reproduce(targetDir, evidence.reproductionCommands);
 
 try {
@@ -414,7 +417,8 @@ try {
     process.exitCode = 2;
   } else {
     evidence.reproductionAfter = reproduce(targetDir, evidence.reproductionCommands);
-    evidence.regression = runRegression(targetDir, [['npm', ['run', 'typecheck']], ['npm', ['run', 'test:static']], ['npm', ['run', 'test:build']]]);
+    evidence.regressionSelection = evidence.reproductionSelection;
+    evidence.regression = runRegression(targetDir, evidence.reproductionSelection.regressionCommands);
     const rootCauseProof = {
       required: true,
       reproductionWasFailing: evidence.reproductionBefore.results.length > 0 && !evidence.reproductionBefore.ok,
