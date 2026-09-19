@@ -82,6 +82,30 @@ const failureRunId = arg('failure-run-id');
 const failureSha = arg('failure-sha');
 const failureFingerprint = arg('failure-fingerprint');
 const failureEvidencePath = arg('failure-evidence');
+const executionPromptPath = arg('execution-prompt');
+const executionPromptBundle = (() => {
+  if (!executionPromptPath) return null;
+  try {
+    const bundle = JSON.parse(fs.readFileSync(executionPromptPath, 'utf8'));
+    if (bundle.executionSha !== sha) throw new Error(`PROMPT_BUNDLE_SHA_MISMATCH:${bundle.executionSha}:${sha}`);
+    if (!Array.isArray(bundle.prompts)) throw new Error('PROMPT_BUNDLE_PROMPTS_INVALID');
+    const selectedPrompt = failureRunId
+      ? bundle.prompts.find((item) => (item.runIds ?? []).map(String).includes(String(failureRunId))) ?? null
+      : null;
+    return {
+      sourcePath: executionPromptPath,
+      digest: bundle.digest ?? null,
+      bundleSha: bundle.executionSha ?? null,
+      sourceRunId: bundle.sourceRunId ?? null,
+      selectedPromptId: selectedPrompt?.promptId ?? null,
+      selectedPrompt: selectedPrompt?.prompt ?? bundle.masterPrompt ?? null,
+      promptCount: Number(bundle.promptCount ?? bundle.prompts.length),
+      verifiedExactSha: true,
+    };
+  } catch (error) {
+    throw new Error(`PROMPT_BUNDLE_INVALID:${error?.message ?? error}`);
+  }
+})();
 const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION' : 'DIRECT_EXECUTION';
 const diagnosis = fs.existsSync(DIAGNOSIS_PATH) ? JSON.parse(fs.readFileSync(DIAGNOSIS_PATH, 'utf8')) : null;
 const memory = loadMemory();
@@ -191,6 +215,7 @@ for (const task of selected) {
     controlPlaneMutationScope: 'AUTO_REPAIR_CONTROLLER_FILES_MUST_NOT_BE_MUTATED_BY_AUTO_REPAIR',
     generatedAt,
     errorFingerprint: fingerprint,
+    executionPrompt: executionPromptBundle,
     repairSummary: {
       status: repairMode.includes('ACTIVE') ? 'ACTIVE_FAILURE_TARGET' : 'DIRECT_TASK_TARGET',
       taskId: task.taskId,
@@ -304,6 +329,7 @@ const index = {
   controlPlaneMutationScope: 'AUTO_REPAIR_CONTROLLER_FILES_MUST_NOT_BE_MUTATED_BY_AUTO_REPAIR',
   generatedAt,
   selected: outputs,
+  executionPrompt: executionPromptBundle ? { digest: executionPromptBundle.digest, selectedPromptId: executionPromptBundle.selectedPromptId, verifiedExactSha: executionPromptBundle.verifiedExactSha } : null,
   selectedCount: outputs.length,
   lifecycle: 'ACTIVE_UNTIL_CANONICAL_GREEN',
   failureContext: { runId: failureRunId || null, failedSha: failureSha || null, fingerprint: failureFingerprint || null },
