@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, normalizeMemoryCounters } from './auto-repair-learning.mjs';
+import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, normalizeMemoryCounters, mergeMemoryHistory } from './auto-repair-learning.mjs';
 
 const sample = 'Run 35012345678 failed on webkit at abcdefabcdefabcdefabcdefabcdefabcdefabcd: Seed waitForGpuRender';
 const fingerprint = fingerprintFailure(sample);
@@ -52,6 +52,47 @@ assert.equal(normalizedCorruptMemory.cases[0].failures, 0);
 assert.equal(normalizedCorruptMemory.cases[1].attempts, 0);
 assert.equal(normalizedCorruptMemory.cases[1].successes, 0);
 assert.equal(normalizedCorruptMemory.cases[1].failures, 0);
+
+const mergedMemory = mergeMemoryHistory(
+  {
+    version: 9,
+    cases: [{
+      fingerprint: '__carry_case__',
+      attempts: 1,
+      successes: 1,
+      failures: 0,
+      outcomes: [{ outcome: 'repair', verification: 'success', provenance: { runId: '1', failedSha: 'a'.repeat(40) } }],
+    }],
+    playbooks: [],
+    lessons: [],
+    antiLessons: [],
+  },
+  {
+    version: 10,
+    cases: [{
+      fingerprint: '__carry_case__',
+      attempts: 1,
+      successes: 1,
+      failures: 2,
+      outcomes: [{ outcome: 'stale', verification: 'invalidated', provenance: { runId: '2', failedSha: 'b'.repeat(40) } }],
+    }, {
+      fingerprint: '__new_carried_case__',
+      attempts: 1,
+      successes: 0,
+      failures: 1,
+      outcomes: [{ outcome: 'failure', verification: 'failed', provenance: { runId: '3', failedSha: 'c'.repeat(40) } }],
+    }],
+    playbooks: [],
+    lessons: [],
+    antiLessons: [],
+  },
+);
+const carried = mergedMemory.cases.find((item) => item.fingerprint === '__carry_case__');
+assert(carried);
+assert.equal(carried.attempts, 1);
+assert.equal(carried.successes, 1);
+assert.equal(carried.failures, 0);
+assert(mergedMemory.cases.some((item) => item.fingerprint === '__new_carried_case__'));
 const before = memory.cases.length;
 const hadSelfTestCase = memory.cases.some((item) => item.fingerprint === '__self_test__');
 recordOutcome(memory, {
