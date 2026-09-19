@@ -4,7 +4,8 @@ run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id ||
 # TWO-BRANCH MODEL:
 # execution = sole working/repair branch
 # main      = sole production/source-of-truth branch
-# No workflow in this file may create another branch.
+# This workflow is EXECUTOR-ONLY; execution-bot-watchdog is the sole dispatcher.
+# No workflow in this file may create another branch or dispatch this workflow again.
 on:
   workflow_dispatch:
     inputs:
@@ -16,10 +17,6 @@ on:
         description: 'Stable repair-chain identifier; recursive runs must reuse it'
         required: false
         type: string
-  workflow_run:
-    workflows: ["FLIXO Test System", "FLIXO WP0 Trust Baseline", "FLIXO Continuous Delivery"]
-    types: [completed]
-    branches: [main, execution]
 
 permissions:
   contents: write
@@ -35,10 +32,10 @@ env:
   FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
   FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
   FLIXO_REPAIR_LANE: single
-  TARGET_RUN_ID: ${{ inputs.target_run_id || github.event.workflow_run.id }}
+  TARGET_RUN_ID: ${{ inputs.target_run_id }}
   FLIXO_HISTORY_LIMIT: '30'
   FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
-  FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id || github.event.workflow_run.id }}
+  FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   FLIXO_STRICT_RED_REPAIR: 'true'
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
@@ -48,9 +45,7 @@ jobs:
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'failure' ||
-      github.event.workflow_run.conclusion == 'timed_out'
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -289,7 +284,7 @@ jobs:
           FLIXO_DERIVED_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
           FLIXO_INTRACTABLE_ERRORS: /tmp/flixo-intractable-errors.json
           VERIFY_OUTCOME: ${{ steps.verify.outputs.verified == 'true' && 'success' || 'failure' }}
-          FLIXO_FAILED_SHA: ${{ github.event.workflow_run.head_sha || '' }}
+          FLIXO_FAILED_SHA: ''
           FLIXO_RUN_ID: ${{ env.TARGET_RUN_ID }}
           FLIXO_TRUSTED_MEMORY_SHA: ${{ env.FLIXO_TRUSTED_MEMORY_SHA || '' }}
           FLIXO_TARGET_SHA: ''
@@ -526,7 +521,9 @@ jobs:
             fi
             echo "Repair remains open on execution failure run $CURRENT_FAILURE_ID."
             echo "Execution repair remains open on execution failure run $CURRENT_FAILURE_ID."
-            gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution -f target_run_id="$CURRENT_FAILURE_ID" -f chain_id="$FLIXO_REPAIR_CHAIN_ID"
+            echo 'DISPATCH_AUTHORITY=WATCHDOG_ONLY'
+            echo "RED_REMAINS_OPEN=$CURRENT_FAILURE_ID"
+            echo 'The watchdog/daily green gate must re-wake this executor; auto-repair never self-dispatches.'
             exit 1
           fi
 
@@ -539,5 +536,7 @@ jobs:
             exit 0
           fi
           echo "Repair remains open on current canonical failure run $CURRENT_FAILURE_ID."
-          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution -f target_run_id="$CURRENT_FAILURE_ID" -f chain_id="$FLIXO_REPAIR_CHAIN_ID"
+          echo 'DISPATCH_AUTHORITY=WATCHDOG_ONLY'
+            echo "RED_REMAINS_OPEN=$CURRENT_FAILURE_ID"
+            echo 'The watchdog/daily green gate must re-wake this executor; auto-repair never self-dispatches.'
           exit 1
