@@ -1,9 +1,10 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fingerprintFailure, extractFeatures, loadMemory, writeMemory, findCase } from './auto-repair-learning.mjs';
+import { HISTORICAL_REPAIR_WORKFLOWS } from './control-plane-registry.mjs';
 
 const limit = Math.min(50, Math.max(1, Number(process.env.FLIXO_HISTORY_LIMIT ?? 30)));
-const workflows = (process.env.FLIXO_HISTORY_WORKFLOWS ?? 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery').split(',').map((x) => x.trim()).filter(Boolean);
+const workflows = (process.env.FLIXO_HISTORY_WORKFLOWS ?? HISTORICAL_REPAIR_WORKFLOWS.join(',')).split(',').map((x) => x.trim()).filter(Boolean);
 const memory = loadMemory();
 const report = { schemaVersion: 1, generatedAt: new Date().toISOString(), limit, workflows, runsScanned: 0, failuresImported: 0, repairsRead: 0, similarCases: 0 };
 
