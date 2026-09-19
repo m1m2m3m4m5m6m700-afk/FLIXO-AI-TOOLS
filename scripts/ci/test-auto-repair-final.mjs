@@ -1,4 +1,4 @@
-import { REPAIR_GATE_AUTOMATION } from './control-plane-registry.mjs';
+import { REPAIR_GATE_AUTOMATION, HISTORICAL_REPAIR_WORKFLOWS, TRUST_PERIMETER_PATHS } from './control-plane-registry.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fingerprintFailure, normalizeFailure } from './auto-repair-learning.mjs';
@@ -73,20 +73,9 @@ const changedProvider = shouldReopenExternalRepairCycle(learnedBlock, {
   providerSignature: 'different-provider-signature',
 });
 assert.equal(changedProvider.reopen, true);
-for (const path of REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`).concat([
-  '.github/workflows/execution-sync.yml',
-  '.github/workflows/wp0-trust-baseline.yml',
-  'scripts/ci/control-plane-registry.mjs',
-  'scripts/ci/auto-repair-policy.mjs',
-  'scripts/ci/auto-repair-engine.mjs',
-  'scripts/ci/auto-repair-learning.mjs',
-  'scripts/ci/auto-repair-supervisor.mjs',
-  'scripts/ci/auto-repair/',
-  'scripts/ci/task-agent.mjs',
-  'scripts/ci/agent-execution-control.mjs',
-  'scripts/ci/repository-security-baseline.mjs',
-  'scripts/ci/validate-auto-repair-memory.mjs',
-])) {
+assert.equal(new Set(REPAIR_GATE_AUTOMATION).size, REPAIR_GATE_AUTOMATION.length);
+assert.equal(new Set(HISTORICAL_REPAIR_WORKFLOWS).size, HISTORICAL_REPAIR_WORKFLOWS.length);
+for (const path of TRUST_PERIMETER_PATHS) {
   assert.equal(isPathAllowed(path), false, `trust perimeter must remain immutable to auto-repair: ${path}`);
 }
 console.log('AUTO_REPAIR_FINAL_ARCHITECTURE=PASS');
