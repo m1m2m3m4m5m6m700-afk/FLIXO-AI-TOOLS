@@ -144,14 +144,14 @@ export function toToolDefinition(tool: ToolConfig): ToolDefinition {
   const safetyLimits = Object.freeze({ maxPixels: DEFAULT_MAX_PIXELS, maxFileSizeBytes: DEFAULT_MAX_FILE_SIZE_BYTES, timeoutMs: DEFAULT_TIMEOUT_MS });
   const verifier = verifierFor(tool.id);
   const intents = Object.freeze(TOOL_INTENTS[tool.id] ?? []);
-  const operational = Object.freeze({
+  const operational: ToolOperationalProfile = Object.freeze({
     lifecycle: tool.isReady ? 'ready' : 'experimental',
     execution: executionMode === 'LOCAL' ? 'browser-local' : executionMode === 'HYBRID' ? 'browser-worker' : 'remote',
     contracts: Object.freeze(['structural', 'runtime', 'artifact'] as const),
     executorId: capabilityState === 'EXECUTABLE' ? tool.id : null,
     outputContractId: tool.isReady ? tool.id : null,
   });
-  const recovery = Object.freeze({ maxAttempts: capabilityState === 'EXECUTABLE' ? 3 : 0, replanOnFailure: false });
+  const recovery: ToolRecoveryPolicy = Object.freeze({ maxAttempts: capabilityState === 'EXECUTABLE' ? 3 : 0, replanOnFailure: false });
   return Object.freeze({
     id: tool.id,
     family: 'image',
