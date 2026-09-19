@@ -55,7 +55,7 @@ export function validateStatic() {
   must(/target_run_id:[\s\S]*required:\s*true/.test(auto), 'auto-repair-target-run-required');
   must(/ref:\s*execution/.test(auto), 'auto-repair-checkout-execution');
   must(/persist-credentials:\s*false/.test(auto), 'auto-repair-checkout-credential-isolation');
-  must(/CONTROLLER_SHA=\"\$MAIN_SHA\"/.test(auto), 'auto-repair-main-controller-trust');
+  must(/CONTROLLER_SHA="\$MAIN_SHA"/.test(auto), 'auto-repair-main-controller-trust');
   must(/TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/.test(auto), 'auto-repair-trust-model');
   must(/FLIXO_TRUSTED_CONTROLLER_SHA=\$CONTROLLER_SHA/.test(auto), 'auto-repair-controller-provenance');
   must(/contents:\s*write/.test(auto) && /actions:\s*write/.test(auto) && /pull-requests:\s*write/.test(auto), 'auto-repair-required-permissions');
