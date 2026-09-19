@@ -7,6 +7,9 @@ import { confidenceGate } from './auto-repair/confidence.mjs';
 import { selectSpecialist } from './auto-repair/specialists.mjs';
 import { isPathAllowed, isProtectedPath, repairPolicy } from './auto-repair-policy.mjs';
 import { shouldReopenExternalRepairCycle, superviseExternalRepairCycle } from './auto-repair-supervisor.mjs';
+import { critiqueRepair } from './auto-repair/self-critic.mjs';
+import { buildCausalProof } from './auto-repair/causal-proof.mjs';
+import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
 
 const lint = 'Run 35012345678 failed: abcdefabcdefabcdefabcdefabcdefabcdefabcd no-unused-vars';
 assert(!normalizeFailure(lint).includes('35012345678'));
@@ -87,3 +90,13 @@ for (const path of REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${nam
   assert.equal(isPathAllowed(path), false, `trust perimeter must remain immutable to auto-repair: ${path}`);
 }
 console.log('AUTO_REPAIR_FINAL_ARCHITECTURE=PASS');
+
+const criticPass=critiqueRepair({diff:'--- a/src/example.ts\\n+++ b/src/example.ts\\n@@\\n-const x = 1;\\n+const x = 2;\\n',diffSummary:{files:['src/example.ts'],lines:2},plan:{id:'eslint-unused',file:'src/example.ts',targetScope:'exact-file'},diagnosis:{location:{file:'src/example.ts'}},simulation:{ok:true}});
+assert.equal(criticPass.ok,true);
+const criticBlock=critiqueRepair({diff:'+test.skip();\\n',diffSummary:{files:['src/example.ts'],lines:1},plan:{id:'eslint-unused',file:'src/example.ts',targetScope:'exact-file'},simulation:{ok:true}});
+assert.equal(criticBlock.ok,false);
+const causal=buildCausalProof({diagnosis:{causalConfidence:0.92,secondHypothesis:null,mutationGate:{hypothesisSeparation:true},location:{file:'src/example.ts'}},plan:{file:'src/example.ts'},simulation:{ok:true},reproductionBefore:{ok:false,results:[{ok:false}]},reproductionAfter:{ok:true,results:[{ok:true}]},regression:{ok:true},recurrenceProof:{firstPass:true,secondPass:true},changedPaths:['src/example.ts'],selfCritic:{ok:true}});
+assert.equal(causal.ok,true);
+const graph=buildRepairKnowledgeGraph({fingerprint:fingerprintFailure('example failure'),targetSha:'a'.repeat(40),diagnosis:{rootCause:'lint'},plan:{id:'eslint-unused',file:'src/example.ts'},simulation:{ok:true,reason:'SIMULATION_PASS'},selfCritic:{ok:true,verdict:'ACCEPT'},causalProof:causal});
+assert.equal(graph.valid,true);
+assert.equal(graph.nodes.length,8);

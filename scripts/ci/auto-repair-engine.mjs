@@ -12,6 +12,10 @@ import { summarizeDiff, writeEvidence } from './auto-repair/evidence.mjs';
 import { snapshot, rollback } from './auto-repair/rollback.mjs';
 import { findHistoricalRepairCandidate, applyHistoricalRepair, historicalRollbackRecord } from './auto-repair/historical-rollback.mjs';
 import { validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
+import { simulateRepair } from './auto-repair/simulation.mjs';
+import { critiqueRepair } from './auto-repair/self-critic.mjs';
+import { buildCausalProof } from './auto-repair/causal-proof.mjs';
+import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
 
 // Static protocol contract marker: root-cause-proof-reproductionRecovered.
 function mutationAttribution({ beforeSha, afterSha, changedFiles = [], rule = null, outcome = 'unknown' } = {}) {
@@ -106,6 +110,7 @@ const evidence = {
   },
   outcome: 'diagnostic-only',
   changedPaths: [],
+  capabilityVersion: 'V11-CAUSAL-SIMULATION-ADVERSARIAL-PROOF',
   updatedAt: new Date().toISOString(),
 };
 
@@ -313,6 +318,10 @@ if (!selected) {
 
 const gate = confidenceGate({ selected, features: plan.features, maxFiles: repairPolicy.maxChangedFiles, maxLines: repairPolicy.maxChangedLines });
 evidence.confidenceGate = gate;
+evidence.v11 = {
+  capability: 'CAUSAL-SIMULATION-ADVERSARIAL-PROOF',
+  knowledgeGraph: buildRepairKnowledgeGraph({ fingerprint, targetSha, diagnosis, plan }),
+};
 if (!gate.allowed) {
   evidence.outcome = 'proposal-only';
   evidence.escalation = { required: true, reason: 'confidence-gate-blocked' };
@@ -320,6 +329,37 @@ if (!gate.allowed) {
   recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected.id, outcome: 'proposed', verification: 'confidence-gate-blocked', provenance: { targetSha }, preventionRule: 'Require guarded or human-gated repair for this class.' });
   writeMemory(memory);
   console.log(`AUTO_REPAIR_RESULT=PROPOSAL_ONLY\nAUTO_REPAIR_PLAN=${selected.id}`);
+  process.exit(0);
+}
+
+const simulation = simulateRepair({
+  targetDir,
+  plan: selected,
+  maxChangedFiles: repairPolicy.maxChangedFiles,
+  maxChangedLines: repairPolicy.maxChangedLines,
+});
+evidence.simulation = simulation;
+if (!simulation.ok) {
+  evidence.outcome = 'proposal-only';
+  evidence.escalation = { required: true, reason: 'pre-mutation-simulation-failed' };
+  evidence.v11.knowledgeGraph = buildRepairKnowledgeGraph({
+    fingerprint, targetSha, diagnosis, plan, simulation,
+  });
+  writeEvidence(evidencePath, evidence);
+  recordOutcome(memory, {
+    fingerprint,
+    normalizedFailure,
+    features,
+    rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+    rule: selected.id,
+    outcome: 'proposed',
+    verification: 'pre-mutation-simulation-failed',
+    provenance: { targetSha, simulation },
+    preventionRule: 'Require an isolated deterministic simulation to pass before source mutation.',
+  });
+  writeMemory(memory);
+  console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
+  console.log('AUTO_REPAIR_REASON=pre-mutation-simulation-failed');
   process.exit(0);
 }
 
@@ -333,7 +373,38 @@ try {
   const diffSummary = summarizeDiff(changed);
   evidence.diff = diffSummary;
   evidence.changedPaths = diffSummary.files;
-  if (!diffSummary.files.length || diffSummary.files.length > repairPolicy.maxChangedFiles || diffSummary.lines > repairPolicy.maxChangedLines || diffSummary.files.some((path) => !isPathAllowed(path))) {
+  evidence.selfCritic = critiqueRepair({
+    diff: changed,
+    diffSummary,
+    plan: selected,
+    diagnosis,
+    simulation,
+    maxChangedFiles: repairPolicy.maxChangedFiles,
+    maxChangedLines: repairPolicy.maxChangedLines,
+  });
+  evidence.v11.knowledgeGraph = buildRepairKnowledgeGraph({
+    fingerprint, targetSha, diagnosis, plan, simulation, selfCritic: evidence.selfCritic,
+  });
+  if (!evidence.selfCritic.ok) {
+    rollback(targetDir, before);
+    evidence.outcome = 'rolled-back';
+    evidence.rollback = true;
+    evidence.escalation = { required: true, reason: 'self-critic-blocked' };
+    recordOutcome(memory, {
+      fingerprint,
+      normalizedFailure,
+      features,
+      rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+      rule: selected.id,
+      outcome: 'failure',
+      verification: 'self-critic-blocked',
+      provenance: { targetSha, changedPaths: diffSummary.files, selfCritic: evidence.selfCritic },
+      preventionRule: 'Reject patches that bypass gates, exceed scope, or diverge from the causal target.',
+    });
+    writeMemory(memory);
+    writeEvidence(evidencePath, evidence);
+    process.exitCode = 3;
+  } else if (!diffSummary.files.length || diffSummary.files.length > repairPolicy.maxChangedFiles || diffSummary.lines > repairPolicy.maxChangedLines || diffSummary.files.some((path) => !isPathAllowed(path))) {
     evidence.outcome = 'blocked';
     evidence.escalation = { required: true, reason: 'scope-policy' };
     rollback(targetDir, before);
@@ -359,9 +430,25 @@ try {
       evidence.recurrenceProof.secondPass = secondReproduction.ok;
       evidence.recurrenceProof.secondRun = secondReproduction;
     }
+    evidence.causalProof = buildCausalProof({
+      diagnosis,
+      plan: selected,
+      simulation,
+      reproductionBefore: evidence.reproductionBefore,
+      reproductionAfter: evidence.reproductionAfter,
+      regression: evidence.regression,
+      recurrenceProof: evidence.recurrenceProof,
+      changedPaths: evidence.changedPaths,
+      selfCritic: evidence.selfCritic,
+    });
+    evidence.v11.knowledgeGraph = buildRepairKnowledgeGraph({
+      fingerprint, targetSha, diagnosis, plan, simulation,
+      selfCritic: evidence.selfCritic,
+      causalProof: evidence.causalProof,
+    });
     const proof = validateRepairProof({ rootCauseProof, recurrenceProof: evidence.recurrenceProof, evidence });
     evidence.repairProof = proof;
-    const verified = proof.ok;
+    const verified = proof.ok && evidence.causalProof.ok;
     if (!verified) {
       rollback(targetDir, before);
       evidence.outcome = 'rolled-back';
