@@ -4,6 +4,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { loadMemory, findSimilarCases, deriveReusableKnowledge, rankLessons } from './auto-repair-learning.mjs';
+import { assertAgentAdmission } from './repair-protocol.mjs';
 
 const ROOT = process.cwd();
 const TASK_FILE = fs.existsSync(path.join(ROOT, 'المهام.md')) ? path.join(ROOT, 'المهام.md') : path.join(ROOT, 'مهام.md');
@@ -130,6 +131,7 @@ const selected = requested
 
 if (!selected.length) throw new Error(requested ? `TASK_NOT_FOUND=${requested}` : 'NO_READY_TASKS');
 if (branch !== 'execution') throw new Error('DIRECT_EXECUTION_REQUIRES_EXECUTION_BRANCH');
+const repairProtocolAdmission = assertAgentAdmission({ actor: 'implementation', branch, mutation: false });
 
 const scopePolicy = 'SELF_HEALING_REPAIR_ONLY';
 const executionAuthority = 'BOUND_ADMIN_ON_EXECUTION_WITH_ERROR_SCOPE';
@@ -137,6 +139,7 @@ const mutationScope = 'CURRENT_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING_ONL
 const humanCommandRequired = false;
 const scopeEnforcement = 'FAIL_CLOSED';
 const controlPlaneMutationPolicy = 'HUMAN_REVIEW_REQUIRED';
+const repairProtocol = repairProtocolAdmission.protocol;
 if (scopePolicy !== 'SELF_HEALING_REPAIR_ONLY' || scopeEnforcement !== 'FAIL_CLOSED') throw new Error('SELF_HEALING_SCOPE_CONTRACT_VIOLATION');
 
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -184,6 +187,7 @@ for (const task of selected) {
     mainBranchMutation: false,
     branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN',
     controlPlaneMutationPolicy,
+    repairProtocol,
     controlPlaneMutationScope: 'AUTO_REPAIR_CONTROLLER_FILES_MUST_NOT_BE_MUTATED_BY_AUTO_REPAIR',
     generatedAt,
     errorFingerprint: fingerprint,

@@ -16,6 +16,7 @@ export const repairPolicy = Object.freeze({
   protectedAreas: [
     ...TRUST_PERIMETER_PATHS,
     'scripts/ci/certification-engine.mjs',
+    'scripts/ci/repair-protocol.mjs',
     'scripts/ci/validate-execution-graph.mjs',
     'scripts/ci/auto-repair-supervisor.mjs',
     'tests/seed.spec.ts',

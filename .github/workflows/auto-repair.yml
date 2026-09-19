@@ -421,6 +421,13 @@ jobs:
           echo 'NON_GREEN_LEARNING_PERSISTENCE=ARTIFACT_ONLY'
           echo 'NON_GREEN_REPAIR_MAY_NOT_ADVANCE_EXECUTION_SHA'
 
+      - name: Enforce central Repair Protocol commit boundary
+        if: steps.verify.outputs.verified == 'true'
+        run: |
+          set -euo pipefail
+          test -f /tmp/flixo-repair-evidence.json
+          node /tmp/flixo-repair-controller/scripts/ci/repair-protocol.mjs commit-gate --evidence=/tmp/flixo-repair-evidence.json
+
       - name: Commit and push verified repair on the single working branch
         if: steps.verify.outputs.verified == 'true'
         env:
@@ -472,6 +479,13 @@ jobs:
             PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head execution --title "fix(auto-repair): canonical execution repair" --body "Canonical two-branch repair path.\n\nAll repairs are applied only on execution and promoted only after exact-SHA Canonical CI GREEN.")"
           fi
           echo "Canonical execution -> main PR: $PR_URL"
+
+      - name: Enforce central Repair Protocol post-commit boundary
+        if: steps.verify.outputs.verified == 'true'
+        run: |
+          set -euo pipefail
+          test -f /tmp/flixo-repair-evidence.json
+          node /tmp/flixo-repair-controller/scripts/ci/repair-protocol.mjs post-commit --evidence=/tmp/flixo-repair-evidence.json
 
       - name: Prepare exact post-commit repair handoff
         if: steps.verify.outputs.verified == 'true'

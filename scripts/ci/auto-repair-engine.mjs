@@ -17,6 +17,7 @@ import { simulateRepair } from './auto-repair/simulation.mjs';
 import { critiqueRepair } from './auto-repair/self-critic.mjs';
 import { buildCausalProof } from './auto-repair/causal-proof.mjs';
 import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
+import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession } from './repair-protocol.mjs';
 
 // Static protocol contract marker: root-cause-proof-reproductionRecovered.
 function mutationAttribution({ beforeSha, afterSha, changedFiles = [], rule = null, outcome = 'unknown' } = {}) {
@@ -42,6 +43,11 @@ const evidencePath = process.env.FLIXO_REPAIR_EVIDENCE_PATH ?? '/tmp/flixo-repai
 const diagnosisPath = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
 const git = (args, options = {}) => execFileSync('git', ['-C', targetDir, ...args], { encoding: 'utf8', ...options });
 const targetSha = git(['rev-parse', 'HEAD']).trim();
+const protocolBranch = git(['branch', '--show-current']);
+if (protocolBranch !== 'execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
+const repairSessionId = process.env.FLIXO_REPAIR_SESSION_ID ?? process.env.FLIXO_REPAIR_CHAIN_ID ?? `repair-${process.env.GITHUB_RUN_ID ?? 'local'}-${targetSha.slice(0, 12)}`;
+let repairProtocolSession = createRepairSession({ repairSessionId, actor: 'repairAgent', failureFingerprint: fingerprint, targetSHA: targetSha, beforeState: { worktree: 'clean', targetSha }, attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1) });
+repairProtocolSession = captureFailure(repairProtocolSession, { runId: process.env.GITHUB_RUN_ID ?? null, failureFingerprint: fingerprint, logPath });
 const prepareTargetedVerification = (currentLog, currentFeatures) => {
   const selection = resolveTargetedTests(currentLog, currentFeatures, { targetDir });
   const targetIdentity = verifyTargetIdentity(targetDir, selection);
@@ -108,6 +114,7 @@ if (historicalCandidate && !blockedRuleIds.has(historicalCandidate.id) && (!sele
 const evidence = {
   schemaVersion: 6,
   protocol: 'AUTONOMOUS-REPAIR-PROTOCOL-v4',
+  repairProtocol: repairProtocolSession,
   fingerprint,
   targetSha,
   features,
@@ -151,6 +158,8 @@ evidence.diagnosisGate = diagnosisGate;
 
 if (historicalRollbackCandidate && diagnosisGate.allowed) {
   const before = snapshot(targetDir);
+  repairProtocolSession = authorizeMutation(repairProtocolSession);
+  assertAgentAdmission({ actor: 'repairAgent', branch: protocolBranch, mutation: true, session: repairProtocolSession });
   const preparedVerification = prepareTargetedVerification(log, plan.features);
   evidence.reproductionSelection = preparedVerification.selection;
   evidence.targetIdentity = preparedVerification.targetIdentity;
@@ -278,6 +287,11 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     }
 
     evidence.outcome = 'verified-historical-revert';
+    evidence.repairProtocol = completeRepairSession(repairProtocolSession, {
+      retestResult: evidence.reproductionStabilityAfter?.classification === 'STABLE_PASS',
+      resumePoint: 'REMAINING_REQUIRED_TESTS',
+      finalVerification: { targetedRetest: evidence.reproductionStabilityAfter?.classification === 'STABLE_PASS', recurrence: evidence.recurrenceProof?.firstPass === true && evidence.recurrenceProof?.secondPass === true, regression: evidence.regression?.ok === true, exactSHA: evidence.targetSha === targetSha },
+    });
     evidence.preventionRule = preventionRuleFor({ fingerprint, rule: historicalRollbackCandidate.rule ?? 'historical-revert' });
     recordOutcome(memory, {
       fingerprint,
@@ -560,6 +574,11 @@ try {
       process.exitCode = 3;
     } else {
       evidence.outcome = 'verified-repair';
+      evidence.repairProtocol = completeRepairSession(repairProtocolSession, {
+        retestResult: evidence.reproductionStabilityAfter?.classification === 'STABLE_PASS',
+        resumePoint: 'REMAINING_REQUIRED_TESTS',
+        finalVerification: { targetedRetest: evidence.reproductionStabilityAfter?.classification === 'STABLE_PASS', recurrence: evidence.recurrenceProof?.firstPass === true && evidence.recurrenceProof?.secondPass === true, regression: evidence.regression?.ok === true, exactSHA: evidence.targetSha === targetSha },
+      });
       evidence.preventionRule = preventionRuleFor({ fingerprint, rule: selected.id });
       recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', rule: selected.id, outcome: 'success', verification: 'diagnosis-proof+root-cause-proof+recurrence-proof+typecheck+static+build', provenance: { targetSha, changedPaths: diffSummary.files, proof }, preventionRule: evidence.preventionRule });
       writeMemory(memory);

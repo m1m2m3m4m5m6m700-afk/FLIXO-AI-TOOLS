@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -23,6 +24,7 @@ const safeSessionId = (value, label) => {
   return value;
 };
 const sessionId = safeSessionId(rawSessionId, 'session');
+const protocolAdmission = assertAgentAdmission({ actor: role, branch: gitBranch(), mutation: false });
 const agentId = String(args.get('agent') ?? process.env.FLIXO_AGENT_ID ?? '').trim();
 const role = String(args.get('role') ?? process.env.FLIXO_AGENT_ROLE ?? 'implementation').trim();
 const rca = String(args.get('rca') ?? process.env.FLIXO_AGENT_RCA ?? '').trim() || null;
@@ -34,6 +36,7 @@ const visibilityDir = path.resolve(ROOT, 'docs/agents/ledger');
 const handoffDir = path.resolve(ROOT, 'diagnostics/agents/handoffs');
 const now = () => new Date().toISOString();
 const gitSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
+const gitBranch = () => execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const requiredReads = ['AGENTS.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md', 'docs/MINIMAL-CI-FINAL-ARCHITECTURE.md', 'scripts/ci/test-plan.json', 'scripts/ci/assertion-registry.json'];
 const split = (value, separator = ',') => String(value ?? '').split(separator).map((v) => v.trim()).filter(Boolean);
 const storageKey = (id) => createHash('sha256').update(id).digest('hex');
@@ -60,6 +63,7 @@ const file = sessionPath(sessionId);
 if (command === 'event') {
   if (!fs.existsSync(file)) throw new Error('Session not found: ' + sessionId);
   const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (!record.repairProtocol || record.repairProtocol.protocolHash !== assertProtocolDefinition().protocolHash) throw new Error('REPAIR_PROTOCOL_SESSION_HASH_DRIFT');
   if (record.agentId !== agentId) throw new Error('Session owner mismatch: ' + sessionId);
   if (record.taskId !== taskId) throw new Error('AGENT_EVENT_TASK_MISMATCH');
   if (record.status !== 'RUNNING') throw new Error('AGENT_EVENT_REQUIRES_ACTIVE_SESSION');
@@ -121,6 +125,7 @@ if (command === 'event') {
   const sha = gitSha();
   const record = {
     schemaVersion: 2,
+    repairProtocol: { ...assertProtocolDefinition(), compliance: 'VALIDATED_AT_ENTRY', admission: protocolAdmission },
     sessionId,
     agentId,
     role,

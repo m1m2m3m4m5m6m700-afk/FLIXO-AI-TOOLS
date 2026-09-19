@@ -34,6 +34,7 @@ export const TRUST_PERIMETER_PATHS = Object.freeze([
   '.github/workflows/wp0-trust-baseline.yml',
   'scripts/ci/control-plane-registry.mjs',
   'scripts/ci/auto-repair-policy.mjs',
+  'scripts/ci/repair-protocol.mjs',
   'scripts/ci/auto-repair-engine.mjs',
   'scripts/ci/auto-repair-learning.mjs',
   'scripts/ci/auto-repair-proof.mjs',

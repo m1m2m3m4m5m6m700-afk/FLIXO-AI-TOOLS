@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { assertAgentAdmission } from './repair-protocol.mjs';
 
 const ROOT = process.cwd();
 const OUT = process.env.FLIXO_AGENT_EXECUTION_CONTROL_OUTPUT_DIR ?? path.resolve(ROOT, 'diagnostics/agents/execution-control');
@@ -23,6 +24,7 @@ const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' })
 const now = () => new Date().toISOString();
 const sha = git(['rev-parse','HEAD']);
 const branch = git(['branch','--show-current']);
+const repairProtocolAdmission = assertAgentAdmission({ actor: 'assistantController', branch, mutation: false });
 const fingerprint = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex').slice(0, 16);
 
 function readJson(file) { return JSON.parse(fs.readFileSync(file, 'utf8')); }
@@ -98,6 +100,7 @@ function buildPlan({ index, packet }) {
     humanCommandRequired: false,
     branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN',
     controlPlaneMutationPolicy: CONTROL_PLANE_MUTATION_POLICY,
+    repairProtocol: repairProtocolAdmission.protocol,
     controlPlaneMutationScope: 'AUTO_REPAIR_CONTROLLER_FILES_MUST_NOT_BE_MUTATED_BY_AUTO_REPAIR',
     allowedWork: 'ACTIVE_SELF_HEALING_REPAIR_CYCLE_OR_EXPLICIT_INCOMPLETE_REPAIR_TASK_ONLY',
     forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','GATE_WEAKENING','MAIN_MUTATION','THIRD_BRANCH_CREATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],

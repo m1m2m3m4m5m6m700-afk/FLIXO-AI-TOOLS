@@ -18,6 +18,7 @@ const requiredFiles = [
   'docs/PROTOCOL-HIERARCHY.md',
   'docs/PROTOCOL-REGISTRY.json',
   'scripts/ci/agent-session.mjs',
+  'scripts/ci/repair-protocol.mjs',
   'scripts/ci/agent-coordination.mjs',
   'scripts/ci/auto-repair-engine.mjs',
   'scripts/ci/auto-repair-proof.mjs',
@@ -78,6 +79,7 @@ if (exists('docs/AGENT-COLLABORATION-PROTOCOL.md')) {
   for (const marker of requiredProtocolMarkers) if (!text.includes(marker)) fail('PROTOCOL_MISSING', marker);
 }
 
+const repairProtocol = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
 const repairEngine = exists('scripts/ci/auto-repair-engine.mjs') ? read('scripts/ci/auto-repair-engine.mjs') : '';
 const proofContract = exists('scripts/ci/auto-repair-proof.mjs') ? read('scripts/ci/auto-repair-proof.mjs') : '';
 const repairMarkers = [
@@ -98,10 +100,21 @@ const repairMarkers = [
   'evidence.preventionRule',
   'evidence.escalation',
 ];
+const centralMarkers = ['REPAIR_PROTOCOL', "protocolVersion: '1.0.0'", 'CONTROL_PLANE', 'FAILURE_CAPTURE', 'TARGETED_RETEST', 'RESUME_REMAINING_TESTS', 'ONE_COMMIT_PER_COMPLETED_REPAIR_SESSION', 'protectedPaths', 'validateCommitBoundary', 'validatePostCommitBoundary', 'assertAgentAdmission', 'REPAIR_PROTOCOL_SESSION_REQUIRED', 'REPAIR_PROTOCOL_SELF_MUTATION_BLOCKED'];
+for (const marker of centralMarkers) if (repairProtocol && !repairProtocol.includes(marker)) fail('REPAIR_PROTOCOL_CORE_MISSING', marker);
+for (const requiredImport of [
+  ['scripts/ci/agent-session.mjs', "from './repair-protocol.mjs'"],
+  ['scripts/ci/agent-execution-control.mjs', "from './repair-protocol.mjs'"],
+  ['scripts/ci/task-agent.mjs', "from './repair-protocol.mjs'"],
+  ['scripts/ci/auto-repair-engine.mjs', "from './repair-protocol.mjs'"],
+]) { const source = exists(requiredImport[0]) ? read(requiredImport[0]) : ''; if (!source.includes(requiredImport[1])) fail('REPAIR_PROTOCOL_NOT_CONSUMED', requiredImport[0]); }
 for (const marker of repairMarkers) if (repairEngine && !repairEngine.includes(marker)) fail('REPAIR_PROTOCOL_MISSING', marker);
 for (const marker of ['validateRepairProof', 'preventionRuleFor', 'escalationReason', 'target-sha-missing', 'recurrence-proof-second-pass']) if (proofContract && !proofContract.includes(marker)) fail('REPAIR_PROOF_CONTRACT_MISSING', marker);
 if (repairEngine && !repairEngine.includes('if (!verified)')) fail('REPAIR_PROTOCOL_MISSING', 'fail-closed-verification');
 if (repairEngine && repairEngine.includes("evidence.outcome = 'verified-repair';") && !repairEngine.includes('const verified = proof.ok')) fail('REPAIR_PROTOCOL_MISSING', 'verified-repair-gate');
+const policySource = exists('scripts/ci/auto-repair-policy.mjs') ? read('scripts/ci/auto-repair-policy.mjs') : '';
+if (!policySource.includes("'scripts/ci/repair-protocol.mjs'")) fail('REPAIR_PROTOCOL_PROTECTION_MISSING');
+if (repairProtocol && !repairProtocol.includes("'scripts/ci/control-plane-registry.mjs'")) fail('REPAIR_PROTOCOL_CORE_MISSING', 'protected-control-plane-registry');
 
 const hierarchyMarkers = [
   'FLIXO Protocol Hierarchy & Anti-Bloat Contract v1', '## Precedence', '## Canonical Protocol Families',
@@ -186,6 +199,7 @@ const result = {
   approvedProtocolCount: registry?.protocols?.length ?? 0,
   rootCauseRepairProtocol: 'ROOT-CAUSE-FIRST REPAIR PROTOCOL',
   repairProof: 'centralized auto-repair-proof + root-cause-proof + recurrence-proof',
+  repairProtocol: 'scripts/ci/repair-protocol.mjs',
   handoffSchema: 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md',
   coordinationControlPlane: 'scripts/ci/agent-coordination.mjs',
   sessionTool: 'scripts/ci/agent-session.mjs',
