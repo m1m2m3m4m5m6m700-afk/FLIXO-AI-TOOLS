@@ -11,6 +11,18 @@ on:
   push:
     branches: [execution]
   workflow_dispatch:
+  workflow_run:
+    workflows:
+      - FLIXO Test System
+      - FLIXO WP0 Trust Baseline
+      - FLIXO Test Impact
+      - FLIXO Test Impact Execution
+      - Repository Security Baseline
+      - Claude Security Review
+    types: [completed]
+    branches: [execution]
+  schedule:
+    - cron: '*/5 * * * *'
 
 permissions:
   actions: write
@@ -20,7 +32,7 @@ permissions:
 
 concurrency:
   group: flixo-execution-bot-watchdog
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   watch:
@@ -57,20 +69,37 @@ jobs:
         run: |
           set -euo pipefail
 
-          export EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/execution" --jq '.sha')"
-          printf '%s\n' "$EXECUTION_SHA" > /tmp/execution-sha
+          export EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/execution" --jq '          FAILED_RUN_ID=""
+          EVENT_NAME="${{ github.event_name }}"
+          EVENT_RUN_ID="${{ github.event.workflow_run.id || '' }}"
+          EVENT_RUN_SHA="${{ github.event.workflow_run.head_sha || '' }}"
+          EVENT_RUN_BRANCH="${{ github.event.workflow_run.head_branch || '' }}"
+          EVENT_CONCLUSION="${{ github.event.workflow_run.conclusion || '' }}"
 
-          gh run list --repo "$GITHUB_REPOSITORY" --commit "$EXECUTION_SHA" --limit 100 \
-            --json databaseId,workflowName,status,conclusion,headSha,headBranch,event,displayTitle,createdAt,updatedAt > /tmp/execution-runs.json
-
-          FAILED_RUN_ID="$(jq -r '
-            [.[] |
-              select(.headSha == $ENV.EXECUTION_SHA and
-                (.conclusion == "failure" or
-                 .conclusion == "timed_out" or
-                 .conclusion == "cancelled" or
-                 .conclusion == "action_required")) |
-              select((.workflowName // "") as $w |
+          if [ "$EVENT_NAME" = "workflow_run" ] &&
+             [ "$EVENT_RUN_BRANCH" = "execution" ] &&
+             [ "$EVENT_RUN_SHA" = "$EXECUTION_SHA" ] &&
+             { [ "$EVENT_CONCLUSION" = "failure" ] ||
+               [ "$EVENT_CONCLUSION" = "timed_out" ] ||
+               [ "$EVENT_CONCLUSION" = "cancelled" ] ||
+               [ "$EVENT_CONCLUSION" = "action_required" ]; }; then
+            FAILED_RUN_ID="$EVENT_RUN_ID"
+            echo "IMMEDIATE_RED_WAKE=true run=$FAILED_RUN_ID sha=$EVENT_RUN_SHA"
+          else
+            FAILED_RUN_ID="$(jq -r '
+              [.[] |
+                select(.headSha == $ENV.EXECUTION_SHA and
+                  (.conclusion == "failure" or
+                   .conclusion == "timed_out" or
+                   .conclusion == "cancelled" or
+                   .conclusion == "action_required")) |
+                select((.workflowName // "") as $w |
+                  ($w | test("Auto Repair|Execution Bot Watchdog|Daily·FLIXO Green Gate|auto-repair-merge-gate|execution-sync|agent-repair-handoff"; "i")) | not)] |
+              sort_by(.createdAt) |
+              first |
+              .databaseId // empty
+            ' /tmp/execution-runs.json)"
+          fiwName // "") as $w |
                 ($w | test("Auto Repair|Execution Bot Watchdog|Daily·FLIXO Green Gate|auto-repair-merge-gate|execution-sync|agent-repair-handoff"; "i")) | not)] |
             sort_by(.updatedAt) |
             last |
@@ -86,6 +115,7 @@ jobs:
           fi
 
           echo "EXECUTION_SHA=$EXECUTION_SHA"
+          echo "WATCHDOG_TRIGGER=$EVENT_NAME"
           echo "WATCHDOG_STATE=${FAILED_RUN_ID:+RED:$FAILED_RUN_ID}"
           echo "${FAILED_RUN_ID:-NO_RED}"
 
