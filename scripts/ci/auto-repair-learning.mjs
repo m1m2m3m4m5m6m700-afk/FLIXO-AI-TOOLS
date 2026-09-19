@@ -22,7 +22,9 @@ export function normalizeLearningOutcome(outcome, verification) {
   return outcome;
 }
 
-const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });\n\nconst historicalKnowledgePath = process.env.FLIXO_HISTORICAL_KNOWLEDGE ?? 'docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json';
+const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });
+
+const historicalKnowledgePath = process.env.FLIXO_HISTORICAL_KNOWLEDGE ?? 'docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json';
 
 function loadHistoricalKnowledge() {
   if (!fs.existsSync(historicalKnowledgePath)) return [];
