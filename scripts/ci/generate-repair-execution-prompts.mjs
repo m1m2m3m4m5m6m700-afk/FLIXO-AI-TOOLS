@@ -18,7 +18,7 @@ const markdownPath = process.argv[5] ?? '/tmp/flixo-watch/execution-prompts.md';
 const readJson = (file, fallback = null) => {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
 };
-const readText = (value) => String(value ?? '').replace(/\u001b\\[[0-?]*[ -/]*[@-~]/gu, '').replace(/\r/g, '').trim();
+const readText = (value) => String(value ?? '').replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '').replace(/\r/g, '').trim();
 const sha256 = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex');
 const unique = (items) => [...new Set(items.filter(Boolean))];
 
