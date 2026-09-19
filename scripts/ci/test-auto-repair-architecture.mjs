@@ -25,7 +25,7 @@ assert.match(workflow, /FLIXO_SCOUT_REPORT/);
 assert.match(workflow, /SCOUT_SHA/);
 assert.match(workflow, /test "\$SCOUT_SHA" = "\$CURRENT_SHA"/);
 assert.match(workflow, /\/tmp\/flixo-scout-report\.json/);
-assert.match(workflow, /DEEP_\\[A-Z_\\]\\+_MISSING/);
+assert.match(workflow, /DEEP_\[A-Z_\]\+_MISSING/);
 assert.match(workflow, /ENGINE_OUTCOME.*proposal-only/);
 assert.match(workflow, /LEARNING_OUTCOME='proposed'/);
 const classifierSource = fs.readFileSync('scripts/ci/auto-repair-classifier.mjs', 'utf8');
