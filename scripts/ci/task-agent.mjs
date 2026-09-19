@@ -124,8 +124,9 @@ const memoryContext = diagnosis
         fingerprint: failureFingerprint || diagnosis.fingerprint || null,
         rootCause: diagnosis.rootCause || null,
       }).slice(0, 8),
+      actionHistory: recentActionHistory,
     }
-  : { similarCases: [], reusableKnowledge: null, lessons: [] };
+  : { similarCases: [], reusableKnowledge: null, lessons: [], actionHistory: recentActionHistory };
 const reusableKnowledge = diagnosis?.reusableKnowledge ?? memoryContext.reusableKnowledge;
 const activeRepairTask = failureRunId || failureSha || failureFingerprint
   ? [{
