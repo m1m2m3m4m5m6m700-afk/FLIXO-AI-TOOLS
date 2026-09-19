@@ -11,7 +11,7 @@ SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
 CURRENT MAIN SHA = 5115ac0528a7b18ae9ae3d392ccbfd2257900ea3
 ACTIVE PR = #750 OPEN / execution → main
-CURRENT PR HEAD = c2640bad5c3af4c55b4a72a365fef8749f47672a
+CURRENT PR HEAD = authoritative GitHub PR #750 head; do not duplicate a mutable SHA in this map
 STATE = BLOCKED_EXTERNAL
 CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED AFTER c2640bad; prior exact-head evidence is stale for current execution
 CURRENT EXECUTION PRE-REPAIR EVIDENCE = Test System PASS; Test Impact PASS; Claude Security Review PASS
@@ -31,7 +31,7 @@ NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROV
 
 ```text
 TASK LEDGER = المهام.md §15.0 LIVE DISCOVERY OVERLAY
-CURRENT EXECUTION SHA = c2640bad5c3af4c55b4a72a365fef8749f47672a
+CURRENT EXECUTION SHA = authoritative GitHub execution branch ref; do not duplicate a mutable SHA in this map
 OPEN PR = #750 → main
 DEPENDENT PR = #752 → execution, stale/conflicting base
 LIVE EXTERNAL BLOCKERS = GitHub Advanced Security model rejection + Vercel deployment rate-limit
