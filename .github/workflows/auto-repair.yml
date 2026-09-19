@@ -460,21 +460,12 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Commit learning state for the next repair cycle
-        if: always() && steps.verify.outputs.verified != 'true' && steps.strategy.outputs.intractable != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Block source-free learning publication on non-green cycle
+        if: always() && steps.verify.outputs.verified != 'true'
         run: |
           set -euo pipefail
-          test "$(git branch --show-current)" = execution
-          git add -f diagnostics/auto-repair/memory.json
-          if [ -f diagnostics/auto-repair/intractable-errors.json ]; then git add -f diagnostics/auto-repair/intractable-errors.json; fi
-          if git diff --cached --quiet; then
-            echo 'No new learning state to persist.'
-            exit 0
-          fi
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "chore(auto-repair): persist learning cycle ${TARGET_RUN_ID}"
-          git push origin execution
+          echo 'NON_GREEN_LEARNING_PUBLISH=DISABLED'
+          echo 'Learning remains workflow-local/artifact-only until a verified source repair exists.'
       - name: Keep the same repair cycle open when verification is not green
         if: always() && steps.verify.outputs.verified != 'true'
         env:
