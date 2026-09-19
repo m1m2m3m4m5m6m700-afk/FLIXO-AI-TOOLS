@@ -33,7 +33,6 @@ env:
   FLIXO_REPAIR_LANE: single
   TARGET_RUN_ID: ${{ inputs.target_run_id }}
   FLIXO_HISTORY_LIMIT: '30'
-  FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Test Impact,FLIXO Test Impact Execution,Repository Security Baseline,Claude Security Review,FLIXO Continuous Delivery,Daily·FLIXO Green Gate,FLIXO Auto Repair Bot,FLIXO Execution Canonical Sync'
   FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
