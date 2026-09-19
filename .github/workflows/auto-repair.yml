@@ -124,28 +124,30 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Establish trusted repair baseline and active execution controller
+      - name: Establish trusted main controller and active execution target
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git fetch --no-tags origin main execution
-          CONTROLLER_SHA="$(git rev-parse HEAD)"
           MAIN_SHA="$(git rev-parse origin/main)"
           EXECUTION_SHA="$(git rev-parse origin/execution)"
-          test "$CONTROLLER_SHA" = "$EXECUTION_SHA"
+          CONTROLLER_SHA="$MAIN_SHA"
+          test "$CONTROLLER_SHA" = "$MAIN_SHA"
+          test "$EXECUTION_SHA" != ""
           git worktree add --detach /tmp/flixo-repair-controller "$CONTROLLER_SHA"
           test "$(git -C /tmp/flixo-repair-controller rev-parse HEAD)" = "$CONTROLLER_SHA"
           git show "$MAIN_SHA:diagnostics/auto-repair/memory.json" > /tmp/flixo-trusted-memory.json
           test -s /tmp/flixo-trusted-memory.json
-          printf '%s
-' "$CONTROLLER_SHA" > /tmp/flixo-trusted-controller-sha
-          printf '%s
-' "$MAIN_SHA" > /tmp/flixo-trusted-memory-sha
+          printf "%s\n" "$CONTROLLER_SHA" > /tmp/flixo-trusted-controller-sha
+          printf "%s\n" "$MAIN_SHA" > /tmp/flixo-trusted-memory-sha
+          printf "%s\n" "$EXECUTION_SHA" > /tmp/flixo-execution-target-sha
           echo "FLIXO_TRUSTED_CONTROLLER_SHA=$CONTROLLER_SHA" >> "$GITHUB_ENV"
           echo "FLIXO_TRUSTED_MEMORY_SHA=$MAIN_SHA" >> "$GITHUB_ENV"
           echo "FLIXO_TRUSTED_REPAIR_MEMORY=/tmp/flixo-trusted-memory.json" >> "$GITHUB_ENV"
           echo "FLIXO_REPAIR_CONTROLLER=/tmp/flixo-repair-controller" >> "$GITHUB_ENV"
+          echo "FLIXO_EXECUTION_TARGET_SHA=$EXECUTION_SHA" >> "$GITHUB_ENV"
+          echo "TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET"
 
       - name: Validate trusted controller memory before mutation
         run: |
