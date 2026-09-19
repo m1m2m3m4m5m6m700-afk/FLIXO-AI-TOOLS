@@ -522,6 +522,16 @@ function bestHistoricalMemory() {
   return best;
 }
 export function writeMemory(memory) {
+  // Failed/non-green cycles are derived evidence only. Persisting them to the execution
+  // branch creates a mutation-only commit, which can trigger approval/action-required
+  // loops without producing a source repair. Verified repairs remain persistable.
+  const outcome = process.env.FLIXO_LEARNING_OUTCOME ?? '';
+  const trustedSourcePath = process.env.FLIXO_TRUSTED_REPAIR_MEMORY;
+  if (outcome !== 'success' && outcome !== 'reverted-repair' && trustedSourcePath && fs.existsSync(trustedSourcePath)) {
+    fs.mkdirSync(memoryPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
+    fs.copyFileSync(trustedSourcePath, memoryPath);
+    return;
+  }
   fs.mkdirSync(memoryPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
   let normalized = normalizeMemoryCounters({ ...emptyMemory(), ...memory });
   const historical = bestHistoricalMemory();
