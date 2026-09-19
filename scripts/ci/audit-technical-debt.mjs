@@ -31,6 +31,12 @@ const findingFingerprint = (finding) => createHash('sha256').update(JSON.stringi
 
 const packageJson = JSON.parse(read('package.json') || '{}');
 const packageScripts = JSON.stringify(packageJson.scripts ?? {});
+const packageScriptEntries = Object.entries(packageJson.scripts ?? {});
+const playwrightConfig = read('playwright.config.ts');
+const hasGenericPlaywrightHarness = packageScriptEntries.some(([, command]) => /\\bplaywright\\s+test(?:\\s*)$/u.test(String(command))) &&
+  /testDir:\s*['"]\.\/tests['"]/u.test(playwrightConfig) &&
+  !/testIgnore\s*:/u.test(playwrightConfig);
+const isPlaywrightTestFile = (file) => /^tests\\//u.test(file) && /\\.(?:spec|test)\\.(?:js|mjs|cjs|ts|tsx|jsx)$/u.test(file);
 const packageNames = [
   ...Object.keys(packageJson.dependencies ?? {}),
   ...Object.keys(packageJson.devDependencies ?? {}),
@@ -56,7 +62,7 @@ for (const file of testFiles) {
   const referenced = grep(`(^|[/"' ])${escaped}$`);
   const packageReferenced = packageScripts.includes(file);
   if (!referenced && !packageReferenced) {
-    findings.push({ id: 'RC-DEBT-ORPHAN-TEST-CANDIDATE', category: 'DEAD_CODE', severity: 'MEDIUM', status: 'CANDIDATE', target: file, summary: 'Tracked test file has no package-script ownership and no tracked textual consumer.', evidence: { tracked: true, packageReferenced: false, textualReferences: 0 }, action: 'REVIEW_THEN_DELETE' });
+    findings.push({ id: 'RC-DEBT-ORPHAN-TEST-CANDIDATE', category: 'DEAD_CODE', severity: 'MEDIUM', status: 'CANDIDATE', target: file, summary: 'Tracked test file has no package-script ownership, harness ownership, and no tracked textual consumer.', evidence: { tracked: true, packageReferenced: false, harnessReferenced: false, textualReferences: 0 }, action: 'REVIEW_THEN_DELETE' });
   }
 }
 
@@ -86,7 +92,7 @@ for (const finding of findings) finding.fingerprint = findingFingerprint(finding
 
 const result = {
   schema: 'flixo-technical-debt-audit/v3', generatedAt: new Date().toISOString(), sha,
-  inventory: { trackedFiles: tracked.length, sourceFiles: sourceFiles.length, testFiles: testFiles.length, localeJsonFiles: localeFiles.length, assetFiles: assetFiles.length, packageDependencies: packageNames.length, contractProtected },
+  inventory: { trackedFiles: tracked.length, sourceFiles: sourceFiles.length, testFiles: testFiles.length, localeJsonFiles: localeFiles.length, assetFiles: assetFiles.length, packageDependencies: packageNames.length, contractProtected, genericPlaywrightHarness: hasGenericPlaywrightHarness },
   classification: {
     directCiBlockers: findings.filter((x) => x.category === 'CI' && /HIGH|CRITICAL/.test(x.severity)).map((x) => x.id),
     latentCiDebt: findings.filter((x) => x.category === 'CI').map((x) => x.id),
