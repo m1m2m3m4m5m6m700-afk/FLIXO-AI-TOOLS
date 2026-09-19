@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       target_run_id:
-        description: 'Workflow run ID to diagnose and repair; optional for autonomous/scheduled discovery'
+        description: 'Workflow run ID to diagnose and repair'
         required: true
         type: string
       chain_id:
@@ -22,8 +22,6 @@ on:
         type: string
   workflow_run:
     workflows:
-      - FLIXO Test System
-      - FLIXO WP0 Trust Baseline
       - FLIXO Test Impact
       - FLIXO Test Impact Execution
       - Repository Security Baseline
