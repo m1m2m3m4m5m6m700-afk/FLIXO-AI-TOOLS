@@ -16,4 +16,7 @@ assert.match(source, /mainBranchMutation: false/);
 assert.match(source, /DIRECT_ON_EXECUTION_BRANCH/);
 assert.match(source, /ACTIVE_UNTIL_GREEN/);
 assert.match(source, /COGNITION_CONTEXT_MISSING/);
-console.log(JSON.stringify({ status: 'PASS', authority: 'LEAN_AGENT_EXECUTION_CONTROL_TEST', checks: 8 }, null, 2));
+assert.match(source, /BOUND_ADMIN_ON_EXECUTION_WITH_ERROR_SCOPE/);
+assert.match(source, /CURRENT_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING_ONLY/);
+assert.match(source, /HUMAN_COMMAND_DEPENDENCY_VIOLATION/);
+console.log(JSON.stringify({ status: 'PASS', authority: 'LEAN_AGENT_EXECUTION_CONTROL_TEST', checks: 11 }, null, 2));
