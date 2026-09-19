@@ -76,7 +76,7 @@ const issueCandidates = [];
 for (const run of failedRuns) {
   const matchingChecks = checkFailures.filter((check) => {
     const details = String(check.details_url ?? '');
-    const match = details.match(/\\/actions\\/runs\\/(\\d+)/u);
+    const match = details.split('/actions/runs/')[1]?.match(/^\d+/u);
     return match?.[1] === String(run.databaseId);
   });
   if (matchingChecks.length) {
@@ -127,7 +127,6 @@ const buildAgentPrompt = (fingerprint, members, index) => {
     fingerprint,
   });
   const external = providerPatterns.some((pattern) => pattern.test(primary.log));
-  const causes = unique(members.map((item) => item.error?.type).filter(Boolean));
   const runIds = unique(members.map((item) => item.runId));
   const workflows = unique(members.map((item) => item.workflow));
   const prompt = [
