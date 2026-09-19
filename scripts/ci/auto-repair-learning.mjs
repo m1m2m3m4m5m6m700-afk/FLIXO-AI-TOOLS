@@ -94,7 +94,7 @@ export function normalizeCaseCounters(entry) {
   ).length;
   const repairedSuccesses = Math.max(successes, observedSuccesses);
   const repairedAttempts = Math.max(attempts, repairedSuccesses);
-  const repairedFailures = Math.min(failures, Math.max(0, repairedAttempts - repairedSuccesses));
+  const repairedFailures = Math.min(Math.max(failures, observedFailures), Math.max(0, repairedAttempts - repairedSuccesses));
   return {
     ...entry,
     attempts: repairedAttempts,
