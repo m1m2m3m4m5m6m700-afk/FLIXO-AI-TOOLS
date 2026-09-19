@@ -52,9 +52,9 @@ export function ArHomePage() {
       {paletteOpen && <SmartCommandPalette onClose={() => setPaletteOpen(false)} />}
       <nav className="home-nav" aria-label={HOME_AR.ariaPrimary}>
         <div className="home-container home-nav-inner">
-          <Link className="home-brand" to="/" aria-label={HOME_AR.ariaHome}>FLIXO</Link>
-          <div className="home-nav-links"><a href="#tools">{HOME_AR.nav.tools}</a><a href="#categories">{HOME_AR.nav.categories}</a><a href="#privacy">{HOME_AR.nav.privacy}</a></div>
-          <a className="home-nav-language" href="/" lang="en">{HOME_AR.nav.switch}</a>
+          <Link className="home-brand" to="/" aria-label={HOME_AR.ariaHome}><img src="/flixo-logo.svg" alt="FLIXO AI Tools" width={40} height={40} /></Link>
+          <div className="home-nav-links"><a href="#tools">أدوات الصور</a><Link to="/ar/pix">الفلاتر</Link></div>
+          <a className="home-nav-language" href="/" lang="en">English</a>
         </div>
       </nav>
       <div className="home-container home-content">
