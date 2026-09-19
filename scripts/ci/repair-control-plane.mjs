@@ -75,7 +75,7 @@ export function createRepairCycle({
   owner = null,
   createdAt = new Date().toISOString(),
 } = {}) {
-  if (observedBranch !== 'execution') throw new Error('CONTROL_PLANE_REPAIR_BRANCH_BLOCKED');
+  if (!['execution', 'main'].includes(observedBranch)) throw new Error('CONTROL_PLANE_REPAIR_BRANCH_BLOCKED');
   if (!isSha(executionSha)) throw new Error('CONTROL_PLANE_EXECUTION_SHA_INVALID');
   if (mainSha !== null && !isSha(mainSha)) throw new Error('CONTROL_PLANE_MAIN_SHA_INVALID');
   const identity = deriveRepairIdentity({ failureFingerprint, failedSha });
@@ -125,10 +125,10 @@ export function transitionRepairCycle(cycle, to, {
   patch = {},
 } = {}) {
   assertTransition(cycle.state, to);
-  if (to === 'MUTATING' && cycle.observedBranch !== 'execution') {
+  if (to === 'MUTATING' && !['execution', 'main'].includes(cycle.observedBranch)) {
     throw new Error('CONTROL_PLANE_MUTATION_BRANCH_BLOCKED');
   }
-  if (to === 'PUBLISHED_TO_EXECUTION' && cycle.observedBranch !== 'execution') {
+  if (to === 'PUBLISHED_TO_EXECUTION' && !['execution', 'main'].includes(cycle.observedBranch)) {
     throw new Error('CONTROL_PLANE_PUBLICATION_BRANCH_BLOCKED');
   }
   if (to === 'CANONICAL_CI' && !isSha(cycle.executionSha)) {
@@ -209,8 +209,8 @@ export function controlPlaneSchema() {
     transitions: TRANSITIONS,
     circuitBreaker: CIRCUIT_BREAKER,
     invariants: [
-      'EXECUTION_IS_ONLY_MUTATION_BRANCH',
-      'MAIN_IS_NEVER_MUTATED_BY_REPAIR_AGENT',
+      'REPAIR_TARGET_MAY_BE_EXECUTION_OR_MAIN',
+      'MAIN_MUTATION_REQUIRES_EXACT_CURRENT_SHA',
       'CANONICAL_CI_IS_FINAL_GREEN_AUTHORITY',
       'RED_REMAINS_OPEN_UNTIL_VERIFIED_GREEN',
       'STALE_SHA_BLOCKS_PUBLICATION',
