@@ -123,6 +123,16 @@ function buildHypotheses(log, features, scout, historical = [], codeContext = nu
   });
 }
 
+function counterfactualChecks(log, top, alternatives) {
+  const checks = [];
+  const text = String(log ?? '');
+  if (top?.id === 'lint') checks.push({ id: 'CF-LINT-SOURCE', question: 'Would the failure remain if the reported source line were isolated?', required: true });
+  if (top?.id === 'playwright' || top?.id === 'webkit-render') checks.push({ id: 'CF-BROWSER-MODE', question: 'Would the failure remain with browser/runtime-specific factors excluded?', required: true });
+  if (top?.id === 'external-tooling') checks.push({ id: 'CF-EXTERNAL', question: 'Can the same failure be reproduced without the external provider?', required: true });
+  if (alternatives?.length) checks.push({ id: 'CF-ALTERNATIVE-CAUSE', question: 'Does evidence distinguish the leading hypothesis from the strongest alternative?', required: true });
+  return checks.map((check) => ({ ...check, status: text ? 'REQUIRED_BEFORE_NONTRIVIAL_MUTATION' : 'BLOCKED_MISSING_EVIDENCE' }));
+}
+
 function selectTop(hypotheses) {
   const viable = hypotheses.filter((item) => !item.suppressedBy);
   return viable[0] ?? hypotheses[0] ?? {
@@ -157,7 +167,7 @@ export function reasonFailure(log, {
   const requiresVerifiedLocation = top.id === 'lint' || top.id === 'format';
   const locationVerified = !requiresVerifiedLocation || (location !== null && codeContext.available);
   const sourceMutationAllowed = !hardBlock && !ambiguity && directFailureSignal && causalConfidence >= 0.75 && locationVerified;
-  const decision = hardBlock
+  const falsificationChecks = counterfactualChecks(text, top, alternatives);\n  const decision = hardBlock
     ? 'BLOCK_EXTERNAL'
     : sourceMutationAllowed
       ? 'ALLOW_BOUNDED_MUTATION'
@@ -175,10 +185,10 @@ export function reasonFailure(log, {
     diagnosisQuality: hardBlock || sourceMutationAllowed ? 'strong' : causalConfidence >= 0.5 ? 'provisional' : 'weak',
     directFailureSignal,
     ambiguity,
-    sourceMutationAllowed,
+    sourceMutationAllowed: sourceMutationAllowed && (!falsificationChecks.some((item) => item.status === 'REQUIRED_BEFORE_NONTRIVIAL_MUTATION') || directFailureSignal),
     externalTooling: hardBlock,
     locationVerified,
-    decision,
+    falsificationChecks,\n    decision,
     scout: scout.fresh
       ? { fresh: true, path: scout.path ?? null, scannedSha: scout.report.scannedSha, findings: scout.report.findings?.length ?? 0 }
       : { fresh: false, reason: scout.reason, currentSha: scout.currentSha ?? null, scannedSha: scout.scannedSha ?? null },
