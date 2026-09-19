@@ -166,6 +166,31 @@ const externalCommitStatus = evaluateGreen({
 assert.equal(externalCommitStatus.status, 'BLOCKED_EXTERNAL');
 assert.equal(externalCommitStatus.repair.required, false);
 
+const codeqlSecurityEvidence = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_A,
+  observedBranch: 'main',
+  openPr: null,
+  latestMergedPr: null,
+  workflowRuns: [
+    { ...requiredRuns[0], headBranch: 'main', conclusion: 'success', updatedAt: '2026-09-19T00:00:00Z' },
+  ],
+  checkRuns: [
+    { id: 201, name: 'Analyze (javascript-typescript)', status: 'completed', conclusion: 'success', updatedAt: '2026-09-19T00:02:00Z' },
+    { id: 202, name: 'Certification', status: 'completed', conclusion: 'success', updatedAt: '2026-09-19T00:02:00Z' },
+    { id: 203, name: 'Deploy exact SHA to Cloudflare flixoai', status: 'completed', conclusion: 'failure', updatedAt: '2026-09-19T00:01:00Z' },
+    { id: 204, name: 'Deploy exact SHA to Cloudflare flixoai', status: 'completed', conclusion: 'skipped', updatedAt: '2026-09-19T00:03:00Z' },
+    { id: 205, name: 'Observe, classify, repair-or-block, prove, continue', status: 'completed', conclusion: 'failure', updatedAt: '2026-09-19T00:04:00Z' },
+  ],
+  statuses: [{ context: 'Vercel', state: 'failure' }],
+  compare: { ahead_by: 0, behind_by: 0 },
+});
+assert.equal(codeqlSecurityEvidence.status, 'BLOCKED_EXTERNAL');
+assert.equal(codeqlSecurityEvidence.ci.security.present, true);
+assert.equal(codeqlSecurityEvidence.ci.security.name, 'Analyze (javascript-typescript)');
+assert.equal(codeqlSecurityEvidence.errors.some((x) => x.type === 'UNEXPECTED_CHECK_RED'), false);
+assert.equal(codeqlSecurityEvidence.errors.some((x) => x.type === 'SECURITY_EVIDENCE_MISSING'), false);
+
 const securityProvider = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
   workflowRuns: requiredRuns,

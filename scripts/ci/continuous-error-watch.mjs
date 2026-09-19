@@ -34,6 +34,8 @@ const SECURITY_CHECK_PATTERNS = Object.freeze([
   /github advanced security/i,
   /codeql/i,
   /code scanning ai findings/i,
+  /^Analyze \\(javascript-typescript\\)$/i,
+  /^Analyze \\(actions\\)$/i,
 ]);
 
 const CERTIFICATION_CHECK_PATTERNS = Object.freeze([
@@ -343,9 +345,18 @@ export function evaluateGreen({
     });
   }
 
+  const latestChecksByName = new Map();
   for (const check of checkRuns) {
     const name = String(check.name ?? '');
-    if (/flixo auto repair merge gate|^gate$/i.test(name)) continue;
+    const current = latestChecksByName.get(name);
+    if (!current || String(check.updated_at ?? check.completed_at ?? check.started_at ?? '').localeCompare(String(current.updated_at ?? current.completed_at ?? current.started_at ?? '')) > 0) {
+      latestChecksByName.set(name, check);
+    }
+  }
+
+  for (const check of latestChecksByName.values()) {
+    const name = String(check.name ?? '');
+    if (/flixo auto repair merge gate|^gate$|^Observe, classify, repair-or-block, prove, continue$/i.test(name)) continue;
     if (SECURITY_CHECK_PATTERNS.some((pattern) => pattern.test(name))) continue;
     if (CERTIFICATION_CHECK_PATTERNS.some((pattern) => pattern.test(name))) continue;
     if (check.status === 'completed' && check.conclusion === 'success') continue;
