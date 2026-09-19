@@ -129,7 +129,7 @@ export function applyHistoricalRepair(targetDir, candidate) {
   try {
     execFileSync('git', ['-C', targetDir, 'revert', '--no-commit', '--no-edit', candidate.commitSha], { stdio: 'inherit' });
   } catch (error) {
-    throw new Error(`HISTORICAL_REVERT_CONFLICT:${String(error?.message ?? error)}`);
+    throw new Error(`HISTORICAL_REVERT_CONFLICT:${String(error?.message ?? error)}`, { cause: error });
   }
   return { revertedCommit: candidate.commitSha, baseSha: candidate.baseSha, changedPaths };
 }
