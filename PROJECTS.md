@@ -222,6 +222,11 @@ FIX = normalize the navigation links to the registered `/ar` route literal.
 VERIFICATION = `npm run typecheck` + router contract on the new exact SHA.
 PREVENTION = route links must use generated TanStack route literals or route templates/params, not hand-authored trailing-slash variants.
 
+RC-030 = Canonical CI contract validator falsely rejected Daily Green Gate evidence handling because its multiline regex joined an `gh run view --log-failed` command to an unrelated intentional `|| true` on a later `gh run list` command.
+FIX = scope the forbidden pattern to individual command lines.
+VERIFICATION = fresh WP0 canonical static run on the resulting exact SHA.
+PREVENTION = never use cross-command multiline regexes for shell safety assertions when command-local matching is sufficient.
+
 ## GOVERNANCE
 
 Bounded single-owner work may execute directly on `main`. Use `execution` only for materially risky, broad, conflict-prone, architectural, or production-sensitive isolation. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements remain mandatory.
