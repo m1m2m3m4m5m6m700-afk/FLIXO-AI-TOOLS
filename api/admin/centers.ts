@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { authorizeAdminRequest } from './boundary.ts';
+import { authorizeAdminRequestWithDurableSession } from './boundary.ts';
 import { getEvent, isPersistenceConfigured, probePersistence } from './persistence.ts';
 
 const CENTER_CAPABILITY = {
