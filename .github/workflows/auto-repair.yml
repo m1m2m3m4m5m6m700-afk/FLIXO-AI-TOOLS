@@ -333,8 +333,8 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git branch --show-current)" = execution
-          git add diagnostics/auto-repair/memory.json
-          if [ -f diagnostics/auto-repair/intractable-errors.json ]; then git add diagnostics/auto-repair/intractable-errors.json; fi
+          git add -f diagnostics/auto-repair/memory.json
+          if [ -f diagnostics/auto-repair/intractable-errors.json ]; then git add -f diagnostics/auto-repair/intractable-errors.json; fi
           if git diff --cached --quiet; then
             echo 'No new learning state to persist.'
             exit 0
