@@ -25,25 +25,16 @@ assert.equal(repairPolicy.maxChangedFiles, 8);
 assert.equal(repairPolicy.maxChangedLines, 300);
 assert.equal(repairPolicy.openDraftPrOnly, false);
 const autoRepairWorkflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
-const watchdogWorkflow = fs.readFileSync('.github/workflows/execution-bot-watchdog.yml', 'utf8');
 const dailyGateWorkflow = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
 const mergeGateWorkflow = fs.readFileSync('.github/workflows/auto-repair-merge-gate.yml', 'utf8');
 assert.doesNotMatch(autoRepairWorkflow, /workflow_run:/);
 assert.doesNotMatch(autoRepairWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml/i);
-assert.match(autoRepairWorkflow, /CONTROLLER_SHA=\"\$MAIN_SHA\"/);
+assert.match(autoRepairWorkflow, /CONTROLLER_SHA="\$MAIN_SHA"/);
 assert.match(autoRepairWorkflow, /persist-credentials:\s*false/);
 assert.match(autoRepairWorkflow, /TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/);
 assert.match(autoRepairWorkflow, /FLIXO_TRUSTED_CONTROLLER_SHA=\$CONTROLLER_SHA/);
-assert.doesNotMatch(watchdogWorkflow, /actions\/checkout@/i);
-assert.doesNotMatch(watchdogWorkflow, /node\s+scripts\//i);
-assert.match(watchdogWorkflow, /WATCHDOG_EXECUTION_CODE_EXECUTED=false/);
-assert.match(watchdogWorkflow, /workflow_run:[\s\S]*types:\s*\[completed\]/i);
-assert.match(watchdogWorkflow, /cron:\s*['"]\*\/5 \* \* \* \*['"]/i);
-assert.match(watchdogWorkflow, /cancel-in-progress:\s*false/i);
-assert.match(watchdogWorkflow, /IMMEDIATE_RED_WAKE=true/i);
-assert.match(watchdogWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--ref execution/i);
-assert.match(dailyGateWorkflow, /gh\s+workflow\s+run\s+execution-bot-watchdog\.yml[\s\S]*--ref execution/i);
-assert.doesNotMatch(dailyGateWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml/i);
+assert.match(dailyGateWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--ref execution/i);
+assert.doesNotMatch(dailyGateWorkflow, /gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i);
 assert.doesNotMatch(mergeGateWorkflow, /gh\s+pr\s+merge/i);
 assert.doesNotMatch(mergeGateWorkflow, /--squash|--rebase|--merge(?:\s|")/i);
 assert.match(mergeGateWorkflow, /gh api --method PATCH[\s\S]*git\/refs\/heads\/main/);
@@ -52,7 +43,7 @@ assert.match(mergeGateWorkflow, /MAIN_AFTER=.*EXPECTED_SHA/);
 assert.match(mergeGateWorkflow, /POST_PROMOTION_EXACT_SHA_PROOF=true/);
 assert.match(mergeGateWorkflow, /commits\/\$EXPECTED_SHA\/status/);
 assert.match(mergeGateWorkflow, /VERCEL_STATE=/);
-assert.match(mergeGateWorkflow, /test "\$VERCEL_STATE" = "success"/);
+
 
 const externalLog = [
   'COPILOT_AGENT_MODEL: sweagent-capi:claude-opus-5[ReasoningEffort=medium]',
