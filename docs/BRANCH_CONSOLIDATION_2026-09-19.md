@@ -1,7 +1,7 @@
 # Branch consolidation
-Generated from review on 2026-09-19T04:16:34Z.
+Generated from review on 2026-09-19T06:11:34Z.
 
-- Canonical branches retained: main, review, execution
+- Canonical branches retained: main, execution
 - Ancestor branches removed: 0
 - Fast-forward branches absorbed: 0
 - Cleanly merged branches absorbed: 0
