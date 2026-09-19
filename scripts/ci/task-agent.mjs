@@ -142,6 +142,7 @@ for (const task of selected) {
       stateAfterAnyRedCheck: 'REPAIR_PENDING',
       stateAfterGreenCheck: 'REVERIFY_ALL',
       terminalState: 'CLOSED_VERIFIED_ONLY_AFTER_CANONICAL_GREEN',
+      closureRequiresCanonicalGreen: true,
       codeAppliedIsNotCompletion: true,
       everyRepairOpensAnotherVerificationCycle: true,
       everyRedCheckMustBecomeARepairTarget: true,
