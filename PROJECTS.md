@@ -10,14 +10,14 @@
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
 CURRENT MAIN SHA = 5115ac0528a7b18ae9ae3d392ccbfd2257900ea3
-ACTIVE PR = NONE (PR #748 MERGED)
-CURRENT PR HEAD = 3b056c33b7d7a84ac8ae6231959a67f9d304f3b5
+ACTIVE PR = #750 OPEN / execution → main
+CURRENT PR HEAD = c2640bad5c3af4c55b4a72a365fef8749f47672a
 STATE = BLOCKED_EXTERNAL
-CANONICAL TEST SYSTEM = run 35422774202 on exact head 738676c; current evidence is still completing
+CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED AFTER c2640bad; prior exact-head evidence is stale for current execution
 CURRENT EXECUTION PRE-REPAIR EVIDENCE = Test System PASS; Test Impact PASS; Claude Security Review PASS
 REPOSITORY SECURITY = FAIL on exact head: GitHub Advanced Security Code Scanning AI returned CAPI 400 model-not-supported
-WP0 TRUST BASELINE = pending on exact head; run 35422774190 is in progress
-VERCEL = FAILURE on exact head: provider reports build-rate-limit
+WP0 TRUST BASELINE = CURRENT-HEAD VERIFICATION REQUIRED
+VERCEL = BLOCKED_EXTERNAL: provider deployment rate-limit
 EXACT-SHA GREEN = NOT PROVEN
 ADMIN STATES = historical labels below are not current exact-SHA proof; revalidation required after the active repair cycle
 PRODUCTION DEPLOYMENT EXACT-SHA = NOT PROVEN IN CURRENT EVIDENCE
@@ -26,6 +26,18 @@ POST-MERGE CI / CERTIFICATION = PENDING FRESH EVIDENCE
 NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROVEN ON THE ACTIVE MAIN SHA
 ```
 
+
+## LIVE DISCOVERY SYNC — 2026-09-19
+
+```text
+TASK LEDGER = المهام.md §15.0 LIVE DISCOVERY OVERLAY
+CURRENT EXECUTION SHA = c2640bad5c3af4c55b4a72a365fef8749f47672a
+OPEN PR = #750 → main
+DEPENDENT PR = #752 → execution, stale/conflicting base
+LIVE EXTERNAL BLOCKERS = GitHub Advanced Security model rejection + Vercel deployment rate-limit
+LIVE AUTOMATION RCA = continuous-error-watch input artifact missing on main automation cycle
+ADMIN PROVENANCE = production Vercel→Supabase binding not proven
+```
 
 ## TASK QUEUE
 
