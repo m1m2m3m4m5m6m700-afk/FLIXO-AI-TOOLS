@@ -1,12 +1,14 @@
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fingerprintFailure, extractFeatures, loadMemory, writeMemory, findCase } from './auto-repair-learning.mjs';
 import { HISTORICAL_REPAIR_WORKFLOWS } from './control-plane-registry.mjs';
 
 const limit = Math.min(50, Math.max(1, Number(process.env.FLIXO_HISTORY_LIMIT ?? 30)));
+const includeSuccess = process.env.FLIXO_HISTORY_INCLUDE_SUCCESS !== 'false';
 const workflows = (process.env.FLIXO_HISTORY_WORKFLOWS ?? HISTORICAL_REPAIR_WORKFLOWS.join(',')).split(',').map((x) => x.trim()).filter(Boolean);
 const memory = loadMemory();
-const report = { schemaVersion: 1, generatedAt: new Date().toISOString(), limit, workflows, runsScanned: 0, failuresImported: 0, repairsRead: 0, similarCases: 0 };
+const report = { schemaVersion: 2, generatedAt: new Date().toISOString(), limit, includeSuccess, workflows, runsScanned: 0, failuresImported: 0, successesImported: 0, actionObservationsImported: 0, repairsRead: 0, similarCases: 0 };
 
 function runGh(args) {
   return execFileSync('gh', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
@@ -25,6 +27,75 @@ function classify(log) {
   const matches = patterns.filter(([, p]) => p.test(log)).map(([id]) => id);
   const priority = ['webkit-render', 'certification', 'typescript', 'playwright', 'lint', 'format', 'build'];
   return priority.find((id) => matches.includes(id)) ?? 'unknown';
+}
+
+function normalizeActionLog(log) {
+  return String(log ?? '')
+    .replace(/\\x1B\\[[0-?]*[ -/]*[@-~]/g, '')
+    .replace(/\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z/g, '<TS>')
+    .replace(/\\b\\d{10,}\\b/g, '<ID>')
+    .replace(/\\b[a-f0-9]{40}\\b/gi, '<SHA>')
+    .replace(/\\s+/g, ' ')
+    .trim()
+    .slice(0, 12000);
+}
+
+function actionFingerprint(log, run) {
+  return crypto.createHash('sha256').update(
+    \`${run.name ?? ''}|${run.conclusion ?? ''}|${normalizeActionLog(log)}\`,
+    'utf8',
+  ).digest('hex');
+}
+
+function positiveRules(log) {
+  const rules = [];
+  if (/Static \\+ Build[\\s\\S]{0,2500}?(?:PASS|success|completed)/i.test(log)) rules.push('static-build-green');
+  if (/Browser FAST[\\s\\S]{0,2500}?(?:PASS|success|completed)/i.test(log)) rules.push('browser-fast-green');
+  if (/Browser DEEP[\\s\\S]{0,2500}?(?:PASS|success|completed)/i.test(log)) rules.push('browser-deep-green');
+  if (/(?:Certification|certify)[\\s\\S]{0,2500}?(?:PASS|success|GREEN|completed)/i.test(log)) rules.push('canonical-certification-green');
+  if (/exact[- ]SHA|immutable artifact|provenance/i.test(log)) rules.push('exact-sha-provenance-preserved');
+  if (/repair.*verified|verified-repair/i.test(log)) rules.push('verified-repair-observed');
+  return [...new Set(rules)];
+}
+
+function addActionObservation(log, run) {
+  if (!log.trim()) return false;
+  const fingerprint = actionFingerprint(log, run);
+  const normalized = normalizeActionLog(log);
+  const features = extractFeatures(log);
+  const rootCause = classify(log);
+  const external = /CAPIError|SessionModelError|requested model is not supported|api-deployments-free-per-day|rate limit|quota|deployment provider/i.test(log);
+  const seenAt = run.updatedAt ?? new Date().toISOString();
+  const rules = run.conclusion === 'success' ? positiveRules(log) : ['canonical-red-evidence'];
+  const collection = memory.actionHistory ?? (memory.actionHistory = []);
+  let entry = collection.find((item) => item.fingerprint === fingerprint);
+  if (!entry) {
+    entry = {
+      fingerprint, outcome: run.conclusion, rootCause, features: [], rules: [], workflows: [],
+      successes: 0, failures: 0, occurrences: 0, firstSeenAt: seenAt, lastSeenAt: seenAt,
+      evidence: [], classification: external ? 'external' : 'internal',
+    };
+    collection.push(entry);
+  }
+  entry.rootCause = rootCause;
+  entry.features = [...new Set([...(entry.features ?? []), ...features])];
+  entry.rules = [...new Set([...(entry.rules ?? []), ...rules])];
+  entry.workflows = [...new Set([...(entry.workflows ?? []), run.name].filter(Boolean))].slice(-20);
+  entry.firstSeenAt = [entry.firstSeenAt, seenAt].filter(Boolean).sort()[0] ?? seenAt;
+  entry.lastSeenAt = [entry.lastSeenAt, seenAt].filter(Boolean).sort().at(-1) ?? seenAt;
+  entry.classification = external ? 'external' : (entry.classification ?? 'internal');
+  const runId = String(run.databaseId);
+  if ((entry.evidence ?? []).some((item) => item?.runId === runId)) return false;
+  entry.occurrences = Number(entry.occurrences ?? 0) + 1;
+  if (run.conclusion === 'success') entry.successes = Number(entry.successes ?? 0) + 1;
+  if (run.conclusion === 'failure') entry.failures = Number(entry.failures ?? 0) + 1;
+  entry.evidence = [...(entry.evidence ?? []), {
+    runId, workflow: run.name ?? null, conclusion: run.conclusion ?? null,
+    headSha: run.headSha ?? null, headBranch: run.headBranch ?? null, jobs: run.jobs ?? [],
+    classification: external ? 'external' : 'internal', normalizedLog: normalized.slice(0, 6000), at: seenAt,
+  }].slice(-12);
+  memory.actionHistory = collection.slice(-200);
+  return true;
 }
 
 function addHistoricalCase(log, run) {
@@ -92,15 +163,16 @@ function addHistoricalCase(log, run) {
 for (const workflow of workflows) {
   let runs;
   try {
-    runs = JSON.parse(runGh(['run', 'list', '--workflow', workflow, '--limit', String(limit), '--json', 'databaseId,name,conclusion,headSha,updatedAt']));
+    runs = JSON.parse(runGh(['run', 'list', '--workflow', workflow, '--limit', String(limit), '--json', 'databaseId,name,conclusion,headSha,headBranch,updatedAt']));
   } catch (error) {
     console.warn(`Unable to read workflow ${workflow}: ${error.message}`);
     continue;
   }
-  for (const run of runs.filter((r) => r.conclusion === 'failure')) {
+  for (const run of runs.filter((r) => r.conclusion === 'failure' || (includeSuccess && r.conclusion === 'success'))) {
     report.runsScanned += 1;
     try {
-      const log = runGh(['run', 'view', String(run.databaseId), '--log-failed']);
+      const logArg = run.conclusion === 'failure' ? '--log-failed' : '--log';
+      const log = runGh(['run', 'view', String(run.databaseId), logArg]);
       let jobs = [];
       try {
         const meta = JSON.parse(runGh(['run', 'view', String(run.databaseId), '--json', 'jobs']));
@@ -108,9 +180,12 @@ for (const workflow of workflows) {
       } catch (error) {
         console.warn(`Unable to read jobs for historical run ${run.databaseId}: ${error.message}`);
       }
-      if (addHistoricalCase(log, { ...run, jobs })) report.failuresImported += 1;
+      const enriched = { ...run, jobs };
+      if (addActionObservation(log, enriched)) report.actionObservationsImported += 1;
+      if (run.conclusion === 'failure' && addHistoricalCase(log, enriched)) report.failuresImported += 1;
+      if (run.conclusion === 'success') report.successesImported += 1;
     } catch (error) {
-      console.warn(`Unable to read failed log ${run.databaseId}: ${error.message}`);
+      console.warn(`Unable to read ${run.conclusion} log ${run.databaseId}: ${error.message}`);
     }
   }
 }
