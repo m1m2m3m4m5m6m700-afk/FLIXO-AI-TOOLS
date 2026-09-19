@@ -207,7 +207,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       <div className="flixo-ai-agent-grid">
         <div className="flixo-ai-agent-inputs">
           <label htmlFor="flixo-agent-command">{copy.commandLabel}</label>
-          <textarea id="flixo-agent-command" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendMessage(); } }} placeholder={copy.placeholder} rows={3} />
+          <input id="flixo-agent-command" type="text" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void sendMessage(); } }} placeholder={copy.placeholder} autoComplete="off" />
           <div className="flixo-ai-agent-examples" aria-label={copy.examplesLabel}>{copy.examples.map((example) => <button key={example} type="button" onClick={() => setQuery(example)}>{example}</button>)}</div>
           <label htmlFor="flixo-agent-file">{copy.fileLabel}</label>
           <input id="flixo-agent-file" type="file" accept="image/*" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setResult(null); setState('idle'); setError(null); }} />
