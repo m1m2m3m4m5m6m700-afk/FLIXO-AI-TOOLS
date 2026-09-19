@@ -368,13 +368,28 @@ export function deriveReusableKnowledge(memory, { rootCause, features = [], fing
     .filter((item) => blockedRules.has(item.rule) || (item.failures >= 2 && item.successRate <= 0.25))
     .map((item) => ({ ...item, reason: blockedRules.has(item.rule) ? 'historical-revert' : 'low-success-rate' }));
 
+  const historicalAdvisories = loadHistoricalKnowledge()
+    .filter((entry) => (!rootCause || entry.rootCause === rootCause) && (
+      !features.length || entry.features?.some((feature) => features.includes(feature)) || !entry.features
+    ))
+    .map((entry) => ({
+      id: entry.id,
+      rootCause: entry.rootCause,
+      rule: entry.rule,
+      lesson: entry.lesson,
+      evidence: entry.evidence,
+      status: 'historical-advisory',
+      activation: 'fresh-proof-required',
+    }));
+
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     fingerprint: fingerprint ?? null,
     rootCause: rootCause ?? null,
     features: [...new Set(features)],
     generalizedRules,
     rejectedRules,
+    historicalAdvisories,
     policy: {
       promotionRequiresDistinctFingerprints: 2,
       promotionRequiresSuccessfulRepairs: 2,
