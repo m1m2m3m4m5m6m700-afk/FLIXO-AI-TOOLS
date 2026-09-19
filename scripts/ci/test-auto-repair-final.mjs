@@ -30,6 +30,10 @@ const dailyGateWorkflow = fs.readFileSync('.github/workflows/daily-flixo-green-g
 const mergeGateWorkflow = fs.readFileSync('.github/workflows/auto-repair-merge-gate.yml', 'utf8');
 assert.doesNotMatch(autoRepairWorkflow, /workflow_run:/);
 assert.doesNotMatch(autoRepairWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml/i);
+assert.match(watchdogWorkflow, /workflow_run:[\s\S]*types:\s*\[completed\]/i);
+assert.match(watchdogWorkflow, /cron:\s*['"]\*\/5 \* \* \* \*['"]/i);
+assert.match(watchdogWorkflow, /cancel-in-progress:\s*false/i);
+assert.match(watchdogWorkflow, /IMMEDIATE_RED_WAKE=true/i);
 assert.match(watchdogWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--ref execution/i);
 assert.match(dailyGateWorkflow, /gh\s+workflow\s+run\s+execution-bot-watchdog\.yml[\s\S]*--ref execution/i);
 assert.doesNotMatch(dailyGateWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml/i);
