@@ -17,6 +17,9 @@ const requiredFiles = [
   'docs/AGENT-COORDINATION-CONTROL-PLANE.md',
   'docs/PROTOCOL-HIERARCHY.md',
   'docs/PROTOCOL-REGISTRY.json',
+  'docs/agents/PROMPT-REGISTRY.json',
+  'scripts/ci/prompt-intelligence.mjs',
+  'scripts/ci/validate-prompt-registry.mjs',
   'scripts/ci/agent-session.mjs',
   'scripts/ci/repair-protocol.mjs',
   'scripts/ci/agent-coordination.mjs',
@@ -35,7 +38,7 @@ const requiredAgentsMarkers = [
   'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
   'docs/PROTOCOL-REGISTRY.json',
   '`PROJECTS.md` → `المهام.md` → `AGENTS.md`',
-  'TASK GATE',
+  'TASK GATE', 'SHARED PROMPT GATE', 'PROMPT-REGISTRY.json',
 ];
 if (exists('AGENTS.md')) {
   const text = read('AGENTS.md');
