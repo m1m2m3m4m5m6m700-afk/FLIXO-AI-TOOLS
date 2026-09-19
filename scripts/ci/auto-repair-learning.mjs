@@ -493,9 +493,41 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   return memory;
 }
 
+function bestHistoricalMemory() {
+  if (process.env.FLIXO_SKIP_GIT_MEMORY_HISTORY === 'true') return null;
+  const result = spawnSync('git', ['log', '--all', '--format=%H', '--max-count=64', '--', 'diagnostics/auto-repair/memory.json'], {
+    encoding: 'utf8',
+    env: process.env,
+  });
+  if (result.status !== 0) return null;
+  let best = null;
+  let bestCaseCount = -1;
+  for (const commitSha of result.stdout.split(/\s+/).filter(Boolean)) {
+    const snapshot = spawnSync('git', ['show', commitSha + ':diagnostics/auto-repair/memory.json'], {
+      encoding: 'utf8',
+      env: process.env,
+    });
+    if (snapshot.status !== 0) continue;
+    try {
+      const parsed = normalizeMemoryCounters(JSON.parse(snapshot.stdout));
+      if (!Number.isInteger(parsed?.version) || !Array.isArray(parsed?.cases)) continue;
+      if (parsed.cases.length > bestCaseCount) {
+        best = parsed;
+        bestCaseCount = parsed.cases.length;
+      }
+    } catch {
+      // Ignore malformed historical snapshots; preserve the newest valid memory.
+    }
+  }
+  return best;
+}
 export function writeMemory(memory) {
   fs.mkdirSync(memoryPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
-  const normalized = normalizeMemoryCounters({ ...emptyMemory(), ...memory });
+  let normalized = normalizeMemoryCounters({ ...emptyMemory(), ...memory });
+  const historical = bestHistoricalMemory();
+  if (historical && historical.cases.length > normalized.cases.length) {
+    normalized = mergeMemoryHistory(historical, normalized);
+  }
   normalized.version = Number.isInteger(memory?.version) ? Math.max(memory.version, MEMORY_VERSION) : MEMORY_VERSION;
   for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(normalized[key])) normalized[key] = [];
   fs.writeFileSync(memoryPath, `${JSON.stringify(normalized, null, 2)}\n`);
