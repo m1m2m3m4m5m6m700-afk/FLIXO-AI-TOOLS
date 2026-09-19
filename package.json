@@ -114,7 +114,8 @@
     "release": "npm run ci:certify",
     "engineering:check": "node scripts/ci/validate-engineering-simplicity.mjs",
     "validate:repair-protocol": "node scripts/ci/repair-protocol.mjs validate",
-    "test:repair-protocol": "node scripts/ci/test-repair-protocol.mjs"
+    "test:repair-protocol": "node scripts/ci/test-repair-protocol.mjs",
+    "test:agent-conversation": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-conversation.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
