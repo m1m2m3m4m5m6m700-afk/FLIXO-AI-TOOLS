@@ -247,6 +247,16 @@ FIX = require local base == failed target SHA == remote execution SHA before com
 VERIFICATION = Auto-Repair boundary/final architecture contracts on the resulting exact SHA.
 PREVENTION = execution head movement is always fail-closed during a repair cycle; verified repairs never rebase across unrelated execution mutations.
 
+RC-035 = Canonical build verification failed because src/routes/tools-page.tsx imported tools-modern.css from the wrong directory.
+FIX = use the authoritative ../components/tools-modern.css import without creating a duplicate stylesheet.
+VERIFICATION = fresh exact-SHA build, WP0, and Test Impact.
+PREVENTION = keep route/component asset imports aligned with their owning filesystem authority.
+
+RC-036 = Task Agent contract validation still required an obsolete governance phrase that was missing from the canonical المهام.md ledger.
+FIX = record the explicit auto-merge-after-GREEN invariant in المهام.md while keeping the validator fail-closed.
+VERIFICATION = fresh Task Agent/static/WP0 evidence on exact SHA.
+PREVENTION = governance invariants are declared once in the executable ledger and verified there.
+
 ## GOVERNANCE
 
 Bounded single-owner work may execute directly on `main`. Use `execution` only for materially risky, broad, conflict-prone, architectural, or production-sensitive isolation. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements remain mandatory.

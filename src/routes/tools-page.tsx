@@ -4,7 +4,7 @@ import { TOOLS_REGISTRY } from '@/config/tools';
 import { getAuthoritativeToolSeoName } from '@/config/tool-seo-name-resolver';
 import { localizeToolDescription } from '@/lib/i18n/tool-localization';
 import type { Locale } from '@/lib/i18n';
-import './tools-modern.css';
+import '../components/tools-modern.css';
 
 export function ToolsPage({ locale = 'en' as Locale }: { locale?: Locale }) {
   const [query,setQuery]=useState('');

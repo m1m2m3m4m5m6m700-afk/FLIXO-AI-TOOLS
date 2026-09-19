@@ -405,5 +405,31 @@
       "assert Green Gate concurrency group uses github.run_id",
       "assert cancel-in-progress is false"
     ]
+  },
+  "RC-BUILD-TOOLS-CSS-PATH-001": {
+    "category": "BUILD",
+    "description": "src/routes/tools-page.tsx imported tools-modern.css relative to src/routes although the authoritative stylesheet is stored in src/components, causing Vite UNRESOLVED_IMPORT.",
+    "repairTargets": [
+      "src/routes/tools-page.tsx",
+      "src/components/tools-modern.css"
+    ],
+    "verification": [
+      "npm run test:build",
+      "npm run test:static"
+    ],
+    "prevention": "Keep imports aligned with the authoritative module location; the stylesheet is not duplicated."
+  },
+  "RC-TASK-AGENT-LEDGER-MARKER-001": {
+    "category": "CI_CONTRACT",
+    "description": "Task Agent contract validation required an obsolete literal governance marker that was absent from the canonical المهام.md ledger, causing a contract failure even after the ledger filename was corrected.",
+    "repairTargets": [
+      "المهام.md",
+      "scripts/ci/validate-task-agent-contract.mjs"
+    ],
+    "verification": [
+      "npm run test:task-agent",
+      "npm run test:static"
+    ],
+    "prevention": "Critical governance invariants must be stated explicitly in the canonical ledger and validated from that single authority."
   }
 }
