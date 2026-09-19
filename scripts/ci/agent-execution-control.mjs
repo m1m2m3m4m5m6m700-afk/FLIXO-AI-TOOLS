@@ -17,6 +17,8 @@ const MAX_INSPECTED_FILES = 40;
 const SCOPE_POLICY = 'SELF_HEALING_REPAIR_ONLY';
 const SCOPE_ENFORCEMENT = 'FAIL_CLOSED';
 
+const CONTRACT_CHECK_ONLY = process.env.FLIXO_AGENT_EXECUTION_CONTROL_MODE === 'CONTRACT_CHECK';
+
 const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
 const now = () => new Date().toISOString();
 const sha = git(['rev-parse','HEAD']);
@@ -51,6 +53,35 @@ function latestPacket() {
   if (packet.executionBranch !== 'execution') throw new Error('DIRECT_EXECUTION_BRANCH_VIOLATION');
   if (packet.handoff?.scopeAuthority !== SCOPE_POLICY) throw new Error('SELF_HEALING_HANDOFF_SCOPE_VIOLATION');
   return { index, packet };
+}
+function contractCheckOnly() {
+  if (branch && branch === 'main') throw new Error('CONTRACT_CHECK_CANNOT_RUN_AS_DIRECT_EXECUTION_ON_MAIN');
+  const agentSource = fs.readFileSync(TASK_AGENT, 'utf8');
+  const required = [
+    'DIRECT_ON_EXECUTION_BRANCH',
+    'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH',
+    'SELF_HEALING_REPAIR_ONLY',
+    'FAIL_CLOSED',
+    'mainBranchMutation: false',
+    "branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN'",
+    'everyRepairOpensAnotherVerificationCycle',
+    'closureRequiresCanonicalGreen',
+  ];
+  for (const marker of required) if (!agentSource.includes(marker)) throw new Error('AGENT_EXECUTION_CONTRACT_MARKER_MISSING=' + marker);
+  const output = {
+    status: 'PASS',
+    mode: 'CONTRACT_CHECK',
+    repositoryBranch: branch || null,
+    directExecutionBranch: 'execution',
+    scopePolicy: SCOPE_POLICY,
+    scopeEnforcement: SCOPE_ENFORCEMENT,
+    mainBranchMutation: false,
+    closure: 'CANONICAL_GREEN_ONLY',
+    requiredMarkers: required.length,
+  };
+  fs.mkdirSync(OUT, { recursive: true });
+  fs.writeFileSync(path.join(OUT, 'contract-check.json'), JSON.stringify(output, null, 2) + '\\n');
+  console.log(JSON.stringify(output, null, 2));
 }
 function complexityGuard(packet) {
   const fileCount = packet.preparedChanges?.length ?? 0;
@@ -98,6 +129,10 @@ function buildPlan({ index, packet }) {
 }
 
 if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=مهام.md');
+if (CONTRACT_CHECK_ONLY) {
+  contractCheckOnly();
+  process.exit(0);
+}
 if (branch !== 'execution') throw new Error('DIRECT_EXECUTION_REQUIRES_EXECUTION_BRANCH');
 fs.mkdirSync(OUT, { recursive: true });
 const taskId = process.argv.find((arg) => arg.startsWith('--task-id='))?.slice('--task-id='.length) ?? '';
