@@ -67,6 +67,7 @@ jobs:
           gh run list --repo "$GITHUB_REPOSITORY" --commit "$EXECUTION_SHA" --limit 100 \
             --json databaseId,workflowName,status,conclusion,headSha,headBranch,event,displayTitle,createdAt,updatedAt > /tmp/flixo-watch/workflow-runs.json
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$EXECUTION_SHA/check-runs?per_page=100" > /tmp/flixo-watch/check-runs.json
+          gh api "repos/$GITHUB_REPOSITORY/commits/$EXECUTION_SHA/status" > /tmp/flixo-watch/statuses.json
           gh api "repos/$GITHUB_REPOSITORY/compare/main...execution" > /tmp/flixo-watch/compare.json
           printf '%s\n' "$EXECUTION_SHA" > /tmp/flixo-watch/execution-sha
           printf '%s\n' "$MAIN_SHA" > /tmp/flixo-watch/main-sha
@@ -108,6 +109,7 @@ jobs:
           const workflowRuns = parse('/tmp/flixo-watch/workflow-runs.json');
           const checkPages = parse('/tmp/flixo-watch/check-runs.json');
           const checkRuns = checkPages.flatMap((page) => page.check_runs ?? []);
+          const statuses = parse('/tmp/flixo-watch/statuses.json').statuses ?? [];
           const compare = parse('/tmp/flixo-watch/compare.json');
           const logs = {};
           for (const name of fs.readdirSync('/tmp/flixo-watch/logs')) {
@@ -121,6 +123,7 @@ jobs:
             latestMergedPr: allPrs.find((item) => item.mergedAt && item.mergeCommit) ?? null,
             workflowRuns,
             checkRuns,
+            statuses,
             logs,
             compare,
           };
@@ -139,7 +142,7 @@ jobs:
           exit 0
 
       - name: Dispatch internal repair target under Task Agent authority
-        if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.evaluate.outputs.exit_code == '0'
+        if: steps.evaluate.outputs.status == 'RED_INTERNAL'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -176,6 +179,7 @@ jobs:
             /tmp/flixo-watch/all-prs.json
             /tmp/flixo-watch/workflow-runs.json
             /tmp/flixo-watch/check-runs.json
+            /tmp/flixo-watch/statuses.json
             /tmp/flixo-watch/compare.json
             /tmp/flixo-watch/logs/
           if-no-files-found: warn
