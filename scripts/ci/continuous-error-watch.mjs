@@ -334,7 +334,7 @@ export function evaluateGreen({
     if (check.status === 'completed' && check.conclusion === 'success') continue;
 
     const externalLog = logs[String(check.id)] ?? '';
-    if (external && check.status === 'completed' && check.conclusion === 'action_required') {
+    if (EXTERNAL_CHECK_PATTERNS.some((pattern) => pattern.test(name)) && check.status === 'completed' && check.conclusion === 'action_required') {
       report.errors.push({ type: 'EXTERNAL_ACTION_REQUIRED', checkName: name });
       continue;
     }
