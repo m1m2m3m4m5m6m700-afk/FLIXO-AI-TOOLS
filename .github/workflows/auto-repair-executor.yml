@@ -42,7 +42,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          conclusion="$(gh run view "$REPAIR_RUN_ID" --repo "$GITHUB_REPOSITORY" --json jobs --jq '[.jobs[] | select(.name == "Single-lane diagnose, prepare, verify and learn") | .conclusion] | first // "skipped"')"
+          conclusion="$(gh run view "$REPAIR_RUN_ID" --repo "$GITHUB_REPOSITORY" --json jobs --jq '[.jobs[] | select(.name == "Single-lane diagnose, execute, verify and learn on execution") | .conclusion] | first // "skipped"')"
           echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
           test "$conclusion" = success
 
