@@ -15,8 +15,6 @@ const writeWorkflowAllowlist = new Set(WRITE_CAPABLE_WORKFLOWS.map((name) => `.g
 
 const securityCriticalWorkflows = new Set(SECURITY_CRITICAL_WORKFLOWS.map((name) => `.github/workflows/${name}`));
 
-const dynamicRepairWorkflowPaths = new Set(REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`));
-
 function walk(dir) {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
