@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fingerprintFailure, normalizeFailure, extractFeatures } from '../auto-repair-learning.mjs';
 import { resolveTargetedTests } from './reproduction.mjs';
@@ -21,6 +22,61 @@ const REPORT_PATH = process.env.FLIXO_AI_PHASE1_PATH ?? '/tmp/flixo-ai-phase1.js
 const EXPECTED_SHA_FILE = process.env.FLIXO_CURRENT_TARGET_SHA_FILE ?? '/tmp/flixo-failed-sha';
 
 const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
+
+function stableValue(value) {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).sort(([x], [y]) => x.localeCompare(y)).map(([key, item]) => [key, stableValue(item)]));
+  return value;
+}
+
+function hashContext(value) {
+  return crypto.createHash('sha256').update(JSON.stringify(stableValue(value))).digest('hex');
+}
+
+export function buildCanonicalRepairContext({ mode, expectedSha = '', branch = 'execution', failureIntelligence = {}, targetSelection = null, targetIdentity = null, impact = {}, orchestration = {} } = {}) {
+  const payload = {
+    protocol: 'FLIXO-CANONICAL-REPAIR-CONTEXT',
+    schemaVersion: 1,
+    producer: 'FLIXO-AI-PHASE1',
+    mode: mode || null,
+    sourceSha: expectedSha || null,
+    branch,
+    failure: {
+      fingerprint: failureIntelligence.fingerprint || null,
+      normalizedFailure: failureIntelligence.normalizedFailure || null,
+      features: failureIntelligence.features || null,
+      evidencePresent: failureIntelligence.evidencePresent === true,
+    },
+    target: {
+      selection: targetSelection,
+      identity: targetIdentity,
+      exact: Boolean(targetSelection?.exact && targetIdentity?.ok),
+    },
+    impact: {
+      changedFiles: [...(impact.changedFiles ?? [])],
+      affectedContracts: [...(impact.affectedContracts ?? [])],
+      escalation: impact.escalation ?? null,
+      reasons: [...(impact.reasons ?? [])],
+    },
+    ciOrchestration: {
+      mode: orchestration.mode ?? null,
+      level: orchestration.level ?? null,
+      plannedCommands: [...(orchestration.plannedCommands ?? [])],
+      canonicalCiRequired: orchestration.canonicalCiRequired === true,
+      dispatchAuthority: orchestration.dispatchAuthority ?? null,
+      executorAuthority: orchestration.executorAuthority ?? null,
+    },
+  };
+  return Object.freeze({ ...payload, contextHash: hashContext(payload) });
+}
+
+export function verifyCanonicalRepairContext(context = {}) {
+  if (!context || context.protocol !== 'FLIXO-CANONICAL-REPAIR-CONTEXT' || context.schemaVersion !== 1) return Object.freeze({ ok: false, reason: 'CONTEXT_SCHEMA_INVALID' });
+  const { contextHash, ...payload } = context;
+  if (!/^[a-f0-9]{64}$/u.test(String(contextHash ?? ''))) return Object.freeze({ ok: false, reason: 'CONTEXT_HASH_MISSING' });
+  const expected = hashContext(payload);
+  return Object.freeze({ ok: expected === contextHash, reason: expected === contextHash ? 'PASS' : 'CONTEXT_HASH_MISMATCH', expectedHash: expected, contextHash });
+}
 
 function readExpectedSha() {
   if (process.env.FLIXO_EXPECTED_TARGET_SHA) return process.env.FLIXO_EXPECTED_TARGET_SHA.trim();
@@ -109,8 +165,18 @@ export function buildPhase1Report({ mode, log = '', expectedSha = '', currentSha
   const impact = calculateImpact(normalizeChangedFiles(changedFiles), CI_CONTRACTS);
   const orchestration = buildCiOrchestrationPlan({ impact, targetSelection });
   const concurrency = guardExecutionIdentity({ expectedSha, currentSha, remoteSha, branch });
+  const canonicalRepairContext = buildCanonicalRepairContext({
+    mode,
+    expectedSha,
+    branch,
+    failureIntelligence: intelligence,
+    targetSelection,
+    targetIdentity,
+    impact,
+    orchestration,
+  });
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     protocol: 'FLIXO-AI-PHASE1',
     mode,
     agents: PHASE1_AGENTS,
@@ -124,6 +190,7 @@ export function buildPhase1Report({ mode, log = '', expectedSha = '', currentSha
     impact,
     ciOrchestration: orchestration,
     concurrencyGuard: concurrency,
+    canonicalRepairContext,
   };
 }
 
@@ -159,6 +226,8 @@ function preflight() {
     : 'CONCURRENCY_BLOCKED';
   writeReport(report);
   if (!report.concurrencyGuard.ok) throw new Error('AI_PHASE1_CONCURRENCY_GUARD=' + report.concurrencyGuard.failures.join(','));
+  const contextIntegrity = verifyCanonicalRepairContext(report.canonicalRepairContext);
+  if (!contextIntegrity.ok) throw new Error('AI_PHASE1_CANONICAL_CONTEXT=' + contextIntegrity.reason);
   console.log(JSON.stringify(report, null, 2));
 }
 
@@ -185,6 +254,8 @@ function postflight() {
   });
   writeReport(report);
   if (!report.concurrencyGuard.ok) throw new Error('AI_PHASE1_CONCURRENCY_GUARD=' + report.concurrencyGuard.failures.join(','));
+  const contextIntegrity = verifyCanonicalRepairContext(report.canonicalRepairContext);
+  if (!contextIntegrity.ok) throw new Error('AI_PHASE1_CANONICAL_CONTEXT=' + contextIntegrity.reason);
   console.log(JSON.stringify(report, null, 2));
 }
 
@@ -193,6 +264,10 @@ function assertPostflight() {
   const report = JSON.parse(fs.readFileSync(REPORT_PATH, 'utf8'));
   if (report.mode !== 'POSTFLIGHT') throw new Error('AI_PHASE1_REPORT_NOT_POSTFLIGHT');
   if (report.concurrencyGuard?.ok !== true) throw new Error('AI_PHASE1_CONCURRENCY_GUARD_FAILED');
+  const contextIntegrity = verifyCanonicalRepairContext(report.canonicalRepairContext);
+  if (!contextIntegrity.ok) throw new Error('AI_PHASE1_CANONICAL_CONTEXT=' + contextIntegrity.reason);
+  if (report.canonicalRepairContext.sourceSha !== report.concurrencyGuard.expectedSha) throw new Error('AI_PHASE1_CONTEXT_SOURCE_SHA_MISMATCH');
+  if (report.canonicalRepairContext.branch !== 'execution') throw new Error('AI_PHASE1_CONTEXT_BRANCH_MISMATCH');
   if (!Array.isArray(report.impact?.changedFiles)) throw new Error('AI_PHASE1_IMPACT_MISSING');
   if (report.ciOrchestration?.dispatchAuthority !== 'DAILY_FLIXO_GREEN_GATE') {
     throw new Error('AI_PHASE1_DISPATCH_AUTHORITY_DRIFT');

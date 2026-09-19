@@ -283,10 +283,11 @@ jobs:
           FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
         run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --postflight
 
-      - name: Run Phase 2 AI strategy, set-cover and security guard
+      - name: Run Phase 2 AI strategy, set-cover and security guard from Phase 1 canonical context
         id: ai_phase2
         if: always()
         env:
+          FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
           FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
           FLIXO_REPAIR_STRATEGY_PATH: /tmp/flixo-repair-strategy.json
           FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
@@ -501,6 +502,7 @@ jobs:
       - name: Validate Phase 2 release integrity handoff
         if: steps.verify.outputs.verified == 'true'
         env:
+          FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
           FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
           FLIXO_REPAIR_EVIDENCE_PATH: /tmp/flixo-repair-evidence.json
         run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase2.mjs --release-handoff
