@@ -14,12 +14,15 @@ type AdminRequest = IncomingMessage & {
 type SessionInput = {
   subject: string;
   capabilities: string[];
+  role?: string;
   ttlSeconds?: number;
 };
 
-type Session = {
+export type AdminSession = {
   subject: string;
   capabilities: Set<string>;
+  role?: string;
+  expiresAt: number;
 };
 
 export type AdminAuthorization = {
@@ -59,6 +62,7 @@ export const signAdminSession = ({ subject, capabilities, ttlSeconds = DEFAULT_T
 
   const payload = {
     sub: subject,
+    role,
     cap: [...new Set(capabilities)].sort(),
     exp: Math.floor(Date.now() / 1000) + ttlSeconds,
   };
@@ -67,7 +71,8 @@ export const signAdminSession = ({ subject, capabilities, ttlSeconds = DEFAULT_T
   return `${encoded}.${signature}`;
 };
 
-const verifyAdminSession = (token: string | null, secret: string): Session | null => {
+export const verifyAdminSessionToken = (token: string | null, secret = process.env.ADMIN_SESSION_SECRET): AdminSession | null => {
+  if (!secret || secret.length < 32) return null;
   if (!token) return null;
   const [encoded, providedSignature] = token.split('.');
   if (!encoded || !providedSignature) return null;
@@ -77,13 +82,25 @@ const verifyAdminSession = (token: string | null, secret: string): Session | nul
   if (actualSignature.length !== expectedSignature.length || !timingSafeEqual(actualSignature, expectedSignature)) return null;
 
   try {
-    const payload = JSON.parse(fromBase64url(encoded)) as { sub?: string; cap?: unknown; exp?: number };
+    const payload = JSON.parse(fromBase64url(encoded)) as { sub?: string; role?: string; cap?: unknown; exp?: number };
     if (!payload.sub || !Array.isArray(payload.cap) || typeof payload.exp !== 'number' || !Number.isInteger(payload.exp)) return null;
     if (payload.exp <= Math.floor(Date.now() / 1000)) return null;
-    return { subject: payload.sub, capabilities: new Set(payload.cap.filter((value): value is string => typeof value === 'string')) };
+    return { subject: payload.sub, role: typeof payload.role === 'string' ? payload.role : undefined, expiresAt: payload.exp, capabilities: new Set(payload.cap.filter((value): value is string => typeof value === 'string')) };
   } catch {
     return null;
   }
+};
+
+export const readAdminSessionToken = (cookieHeader: string | undefined) => readCookie(cookieHeader, SESSION_COOKIE);
+
+export const buildAdminSessionCookie = (token: string, ttlSeconds = DEFAULT_TTL_SECONDS) => {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=${Math.max(1, Math.floor(ttlSeconds))}; HttpOnly; SameSite=Lax${secure}`;
+};
+
+export const buildAdminClearCookie = () => {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  return `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${secure}`;
 };
 
 const readCookie = (cookieHeader: string | undefined, name: string) => {
@@ -105,7 +122,7 @@ export const authorizeAdminRequest = (req: AdminRequest, requiredCapability = 'a
   if (!secret) return { status: 503, code: 'server_configuration_unavailable', correlationId };
 
   const token = readCookie(req.headers.cookie, SESSION_COOKIE);
-  const session = verifyAdminSession(token, secret);
+  const session = verifyAdminSessionToken(token, secret);
   if (!session) return { status: 401, code: 'authentication_required', correlationId };
 
   if (!requiredCapability || !session.capabilities.has(requiredCapability)) {
