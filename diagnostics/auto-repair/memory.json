@@ -1,5 +1,5 @@
 {
-  "version": 9,
+  "version": 10,
   "cases": [
     {
       "fingerprint": "cefe8e431b2be0d946960754d598c026fdb7e760c2b8803922a69344eb2921c0",
@@ -333,6 +333,70 @@
       ],
       "normalizedFailure": "Promote exact certified SHA\tDownload certified build artifact\t﻿2026-09-19T04:23:55.7966543Z ##[group]Run set -euo pipefail\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7966979Z ^[[36;1mset -euo pipefail^[[0m\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7967333Z ^[[36;1mmkdir -p /tmp/artifact^[[0m\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7967812Z ^[[36;1mgh run download \"$SOURCE_RUN_ID\" -n \"flixo-build-${SOURCE_RUN_ID}\" -D /tmp/artifact^[[0m\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7968793Z ^[[36;1mtest \"$(cat /tmp/artifact/flixo-head-sha.txt)\" = \"$PROMOTION_SHA\"^[[0m\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7969280Z ^[[36;1mtest -s /tmp/artifact/__flixo/build-identity.json^[[0m\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7969740Z ^[[36;1mtest -s /tmp/artifact/__flixo/artifact-hash.txt^[[0m\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7970250Z ^[[36;1mtest \"$(jq -r '.schemaVersion' /tmp/artifact/__flixo/build-identity.json)\" = \"2\"^[[0m\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7970876Z ^[[36;1mtest \"$(jq -r '.producer' /tmp/artifact/__flixo/build-identity.json)\" = \"scripts/ci/runtime/build-identity.mjs\"^[[0m\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7971510Z ^[[36;1mtest \"$(jq -r '.commitSha' /tmp/artifact/__flixo/build-identity.json)\" = \"$PROMOTION_SHA\"^[[0m\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7972217Z ^[[36;1mtest \"$(jq -r '.artifactHash' /tmp/artifact/__flixo/build-identity.json)\" = \"$(cat /tmp/artifact/__flixo/artifact-hash.txt)\"^[[0m\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7990594Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7991035Z env:\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7991469Z   FLIXO_PRODUCTION_ORIGIN: https://flixoai.vercel.app\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7993611Z   GH_TOKEN: ***\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7994034Z   PROMOTION_SHA: d3053d6be2101f2a19a94ce362e56ab7c153be07\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7994419Z   SOURCE_RUN_ID: <ID>\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:55.7994721Z ##[endgroup]\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:56.6195345Z error fetching artifacts: HTTP 403: API rate limit exceeded for installation. If you reach out to GitHub Support for help, please include the request ID 84C0:1ED6FD:1D6E14D:622179D:6AAE0E5C and timestamp 2026-09-19 04:23:56 UTC. For more on scraping GitHub and how it may affect your rights, please review our Terms of Service (https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) (https://api.github.com/repos/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/<ID>/artifacts?per_page=100)\nPromote exact certified SHA\tDownload certified build artifact\t2026-09-19T04:23:56.6215508Z ##[error]Process completed with exit code 1.\nPromote exact certified SHA\tUpload deployment evidence\t﻿2026-09-19T04:23:56.6325874Z ##[group]Run actions/upload-artifact@v6\nPromote exact certified SHA\tUpload deployment evidence\t2026-09-19T04:23:56.6326649Z with:\nPromote exact certified SHA\tUpload deployment evidence\t2026-09-19T04:23:56.6326991Z   name: flixo-cd-evidence-d3053d6be2101f2a19a94ce362e56ab7c153be07\nPromote exact certified SHA\tUpload deployment evidence\t2026-09-19T04:23:56.6327449Z   path: production-deployment-evidence.json\nPromote exact certified SHA\tUpload deployment evidence\t2026-09-19T04:23:56.6327776Z   if-no-files-found: error\nPromote exact certified SHA\tUpload deployment evidence\t2026-09-19T04:23:56.6328056Z   retention-days: 30\nPromote exact certified SHA\tUpload deployment evidence\t2026-09-19T04:23:56.6328345Z   compression-level: 6\nPromote exact certified SHA\tUpload deployment evidence\t2026-09-19T04:23:56.6328606Z   overwrite: false\nPromote exact certified SHA\tUpload deployment evidence\t2026-09-19T04:23:56.6328905Z   include-hidden-files: false\nPromote exact certified SHA\tUpload deployment evidence\t2026-09-19T04:23:56.6329179Z env:\nPromote exact certified SHA\tUpload deployment evidence\t2026-09-19T04:23:56.6329605Z   FLIXO_PRODUCTION_ORIGIN: https://flixoai.vercel.app\nPromote exact certified SHA\tUpload deployment evidence\t2026-09-19T04:23:56.6329967Z ##[endgroup]\nPromote exact certified SHA\tUpload deployment evidence\t2026-09-19T04:23:56.7650968Z ##[error]No files were found with the provided path: production-deployment-evidence.json. No artifacts will be uploaded.\n",
       "features": []
+    },
+    {
+      "fingerprint": "000c60953644efaaf2e48394fb66d83723c9cf684344b70e504d524bb4d9961b",
+      "rootCause": "technical-debt-audit-grep-parser",
+      "attempts": 1,
+      "successes": 1,
+      "failures": 1,
+      "confidence": 1,
+      "rules": [
+        "Never suppress grep/tool errors other than exit status 1; use POSIX ERE patterns for grep -E; scope dependency usage evidence to source files; assert producer stderr is empty in regression."
+      ],
+      "outcomes": [
+        {
+          "outcome": "repair",
+          "verification": "success",
+          "rule": "fail-closed grep and deterministic dependency evidence",
+          "provenance": {
+            "source": "GitHub Actions",
+            "runId": "35422251044",
+            "failedSha": "2cb2a31a232650fffd489fc884688ecb6aba0bfc",
+            "workflow": "FLIXO Test System"
+          },
+          "at": "2026-09-19T04:48:45Z"
+        },
+        {
+          "outcome": "stale",
+          "verification": "invalidated",
+          "rule": null,
+          "provenance": {
+            "source": "GitHub branch state change",
+            "runId": "35422774218",
+            "failedSha": "8c90d429bb7ecf41ac578a841f4ec3282476aed1",
+            "workflow": "FLIXO Auto Repair Merge Gate"
+          },
+          "at": "2026-09-19T05:00:00Z"
+        }
+      ],
+      "normalizedFailure": "GNU grep -E received a PCRE non-capturing group in the technical-debt dependency usage expression; the previous catch-all error handler converted parser failure into empty usage and false unreferenced findings."
+    },
+    {
+      "fingerprint": "4e97aa72682373b2801b6637e4a428cf30fbb7ae428c79db3bdff56aea3385a4",
+      "rootCause": "github-copilot-provider-model",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 6,
+      "confidence": 1,
+      "rules": [
+        "Provider model rejection is BLOCKED_EXTERNAL; do not mutate source code, weaken CI, bypass required checks, or rerun blindly. Preserve exact request evidence and wait for provider-side recovery/configuration correction."
+      ],
+      "outcomes": [
+        {
+          "outcome": "current",
+          "verification": "failure",
+          "rule": null,
+          "provenance": {
+            "source": "GitHub Advanced Security",
+            "runId": "35422774205",
+            "failedSha": "738676cba8f48a861c4be9126ec691a5c18e1bb6",
+            "workflow": "Code scanning AI findings on PR #748"
+          },
+          "at": "2026-09-19T05:00:51Z"
+        }
+      ],
+      "normalizedFailure": "GitHub Advanced Security Code Scanning AI created a Copilot session with claude-opus-5 and the provider returned CAPI 400: The requested model is not supported."
     }
   ],
   "playbooks": [],
