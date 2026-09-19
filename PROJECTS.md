@@ -54,6 +54,7 @@ ADMIN PROVENANCE = production Vercel→Supabase binding not proven
 | BUILD-002 | CLOSED / VERIFIED | Preserve canonical artifact identity producer/consumer contract |
 | TEST-001 | CLOSED / VERIFIED | Preserve deterministic ownership registry and validator |
 | AGENT-PROTOCOL-003 | CLOSED / VERIFIED | Preserve proof-driven fail-closed repair lifecycle and learning/prevention contracts |
+| AGENT-PROMPT-INTEL-001 | IMPLEMENTED / VERIFICATION PENDING | Shared Prompt Registry + causal deduplication + quality gate + Task Agent prompt provenance | Run current main canonical static/contract verification; reconcile execution exact-SHA before promotion |
 | DEBT-001 | BLOCKED_EXTERNAL | Deterministic validator delivered; required exact-head external security/Vercel gates are unresolved |
 | TOOL-EXPANSION | CANDIDATE | Activate only after a fresh deterministic scope is proven |
 
@@ -174,6 +175,22 @@ TARGETED REGRESSION = PASS: critical CI/repair verification commands have explic
 INVARIANT PROOF = PASS: ownership registry is unique/non-empty, required npm scripts exist, CI and auto-repair consumers are present, and execution-surface classifications are valid
 CLOSURE EVIDENCE = RECORDED
 ```
+
+## AGENT-PROMPT-INTEL-001
+
+STATUS = IMPLEMENTED / VERIFICATION PENDING
+PURPOSE = Build one shared Prompt Intelligence Layer over Error Detection → Fingerprint → RCA → Memory → Strategy → Repair → Verification → Learning without creating a second agent registry or repair engine.
+CANONICAL REGISTRY = docs/agents/PROMPT-REGISTRY.json
+VALIDATOR = scripts/ci/validate-prompt-registry.mjs
+COMPARISON ENGINE = scripts/ci/prompt-intelligence.mjs
+MASTER PROMPT = RPR-CORE-MASTER-001 → AI_AGENT_MASTER_PROMPT.md
+SPECIALIST PROMPTS = RPR-ERROR-RCA-001, RPR-PROMPT-INTEL-001, RPR-TASK-REPAIR-001
+LEARNING PROVENANCE = promptId + promptVersion + masterPromptId + promptDecision + promptRegistrySha
+EXACT-SHA = prompt selection is bound to the active repair target SHA; Prompt text never grants authority.
+DUPLICATION RULE = compare failureClasses + rootCauses + scope + repairStrategy + verificationPlan; hard duplicates cannot be ACTIVE together.
+QUALITY GATE = duplicate + fingerprint + RCA + scope + safety + verification + learning + provenance + exact-SHA + overlap.
+CURRENT BLOCKER = execution branch remains historically divergent from main; canonical verification must run after synchronization.
+NEXT ACTION = fresh exact-SHA canonical static/contract verification on main, then synchronize execution and verify the resulting execution SHA.
 
 ## AGENT-PROTOCOL-003
 
