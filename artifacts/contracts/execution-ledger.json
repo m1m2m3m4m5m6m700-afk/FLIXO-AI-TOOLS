@@ -4,9 +4,9 @@
   "currentPhase": "CANONICAL",
   "phaseStatus": "BLOCKED",
   "currentPr": 745,
-  "currentHead": "513fe81f7eee6f5a41cf935d32d336370f613b18",
+  "currentHead": "8f757f3797f21ebac1a551919b7c99305fcaa2fb",
   "latestVerifiedSha": null,
-  "latestVerifiedCi": "UNVERIFIED: current main canonical run 35415932072 is still in progress; current execution 513fe81f has passed Static + Build, CodeQL, Repository Security Baseline, WP0 Trust Baseline, and Test Impact, but has a Vercel deployment-rate-limit status failure and GitHub Code Scanning AI provider failure.",
+  "latestVerifiedCi": "UNVERIFIED: current main canonical run 35415932072 was still in progress at the last poll; active execution head has fresh documentation/ledger changes and requires a new exact-SHA verification cycle.",
   "latestDeploymentSha": null,
   "rootCauses": [
     "RC-G4-ORACLE-001: resolved",
@@ -20,12 +20,12 @@
     "RC-SECURITY-COPILOT-MODEL-001: GitHub-managed Code Scanning AI provider rejects requested model before source analysis; external infrastructure.",
     "RC-DEPLOY-VERCEL-RATE-001: Vercel provider rejected deployment due rate limit; external provider blocker."
   ],
-  "activeRecovery": "Repair cycle bound to PR #745 execution → main at execution SHA 513fe81f7eee6f5a41cf935d32d336370f613b18; every new head invalidates prior proof.",
+  "activeRecovery": "PR #745 execution → main remains the only active repair path. Current execution head is 8f757f3797f21ebac1a551919b7c99305fcaa2fb. Any new commit invalidates prior proof.",
   "blockers": [
-    "PROVIDER: Vercel status on execution 513fe81f7eee6f5a41cf935d32d336370f613b18 is FAILURE: Deployment rate limited — retry in 24 hours.",
-    "SECURITY: GitHub Code Scanning AI provider on PR #745 fails before source analysis with CAPIError 400: The requested model is not supported (claude-opus-5[ReasoningEffort=medium]).",
-    "EVIDENCE: Vercel project/deployment exact-SHA evidence is not retrievable through the connected Vercel API (team visible, project list empty).",
-    "GOVERNANCE/EVIDENCE: GitHub branch-protection endpoint is not readable by the installed integration (HTTP 403 Resource not accessible by integration); no repository rulesets are exposed."
+    "PROVIDER: Vercel status on PR #745 execution head failed with 'Deployment rate limited — retry in 24 hours.'",
+    "SECURITY: GitHub Code Scanning AI failed before source analysis with CAPIError 400 'The requested model is not supported' for claude-opus-5[ReasoningEffort=medium].",
+    "EVIDENCE: Vercel project/deployment exact-SHA evidence is unavailable through the connected Vercel API (team visible; project list returned zero projects).",
+    "GOVERNANCE/EVIDENCE: GitHub branch-protection endpoint returns HTTP 403 for the installed integration; no repository rulesets are exposed."
   ],
   "completedItems": [
     "Authoritative localized tool SEO resolver introduced for ms/uk",
@@ -36,14 +36,14 @@
     "G3 lint/type root causes recorded"
   ],
   "incompleteItems": [
+    "Fresh exact-SHA verification on current execution head 8f757f3797f21ebac1a551919b7c99305fcaa2fb",
     "Current-main canonical FLIXO Test System completion",
     "Current-execution canonical FLIXO Test System completion",
     "Current-execution Auto Repair Merge Gate completion",
     "Current-execution Vercel exact-SHA deployment proof",
     "Current-execution Code Scanning AI provider recovery or canonical alternative evidence",
-    "Documentation snapshot reconciliation for PROJECTS.md and مهام.md",
-    "Final main exact-SHA verification after any merge",
-    "Recurrence proof on a fresh post-repair cycle",
+    "Final exact-SHA main verification after any merge",
+    "Fresh recurrence proof",
     "Final independent audit"
   ],
   "invalidatedCheckpoints": [
@@ -51,10 +51,10 @@
     "All verification tied to SHAs older than current active recovery head 513fe81f7eee6f5a41cf935d32d336370f613b18 is stale for this repair cycle."
   ],
   "reusedCheckpoints": [],
-  "lastFailure": "External provider failures on current PR #745: Vercel deployment rate limit and GitHub Code Scanning AI model unsupported; historical Auto Repair Bot failures are stale and not current-source defects.",
-  "lastFix": "Rebound Auto Repair executor/handoff to execution → main, reconciled execution with current canonical main via two-parent merge, and updated artifact action version.",
-  "lastVerification": "Current execution 513fe: Static + Build PASS, CodeQL PASS, Repository Security Baseline PASS, WP0 PASS, Test Impact PASS, Claude Security Review PASS; Vercel status FAIL by provider rate limit; Code Scanning AI FAIL by provider model rejection; Browser FAST/DEEP and Merge Gate not yet fully proven.",
-  "nextRequiredAction": "Finish all current exact-SHA CI gates; repair any source failure; resolve external Vercel/Code Scanning AI blockers or obtain canonical alternative evidence; merge only after all required checks pass; then rescan the resulting new main SHA and update final documentation.",
-  "executionAttempt": 2,
+  "lastFailure": "Current-cycle external blockers: Vercel deployment rate limit and GitHub Code Scanning AI unsupported-model error.",
+  "lastFix": "Reconciled execution with canonical main; corrected obsolete auto-repair branch/job references; updated artifact action; refreshed project/task state and execution ledger.",
+  "lastVerification": "Execution predecessor 513fe passed Static+Build, CodeQL, Repository Security Baseline, WP0, Test Impact and Claude review; proof invalidated by later documentation/ledger commits. Main cf257 had no observed completed failures in FLIXO Test System at last poll but final run remained in progress.",
+  "nextRequiredAction": "Run and complete all required checks on current execution head; resolve/obtain alternatives for external Vercel and Code Scanning AI blockers; merge only after canonical GREEN; then reverify resulting main SHA and final documentation.",
+  "executionAttempt": 4,
   "updatedAt": "2026-09-19T02:39:32Z"
 }
