@@ -113,6 +113,10 @@ assert.equal(session.body.identity.subject, 'owner');
 assert.equal(session.body.identity.role, 'OWNER');
 assert.equal(Array.isArray(session.body.capabilities), true);
 assert.equal(session.body.capabilities.includes('evidence.read'), true);
+assert.equal(session.body.capabilities.includes('production.write'), false);
+assert.match(session.body.provenance.sessionId, /^[0-9a-f-]{36}$/i);
+assert.equal(session.body.provenance.environment, 'test');
+assert.equal(session.body.capabilities.includes('evidence.read'), true);
 
 const tampered = await invoke({
   cookie: `${sessionCookieName}=invalid.invalid`,
