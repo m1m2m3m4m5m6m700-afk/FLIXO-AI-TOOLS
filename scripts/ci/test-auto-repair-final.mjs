@@ -31,6 +31,7 @@ const mergeGateWorkflow = fs.readFileSync('.github/workflows/auto-repair-merge-g
 assert.doesNotMatch(autoRepairWorkflow, /workflow_run:/);
 assert.doesNotMatch(autoRepairWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml/i);
 assert.match(autoRepairWorkflow, /CONTROLLER_SHA=\"\$MAIN_SHA\"/);
+assert.match(autoRepairWorkflow, /persist-credentials:\s*false/);
 assert.match(autoRepairWorkflow, /TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/);
 assert.match(autoRepairWorkflow, /FLIXO_TRUSTED_CONTROLLER_SHA=\$CONTROLLER_SHA/);
 assert.doesNotMatch(watchdogWorkflow, /actions\/checkout@/i);
