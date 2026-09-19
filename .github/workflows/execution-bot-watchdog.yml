@@ -62,7 +62,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          export EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/execution" --jq '          FAILED_RUN_ID=""
+          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/execution" --jq '.sha')"
+          test -n "$EXECUTION_SHA"
+          printf '%s\n' "$EXECUTION_SHA" > /tmp/execution-sha
+          gh run list --repo "$GITHUB_REPOSITORY" --branch execution --limit 100             --json databaseId,workflowName,status,conclusion,headSha,createdAt,updatedAt             > /tmp/execution-runs.json
+
+          FAILED_RUN_ID=""
           EVENT_NAME="${{ github.event_name }}"
           EVENT_RUN_ID="${{ github.event.workflow_run.id || '' }}"
           EVENT_RUN_SHA="${{ github.event.workflow_run.head_sha || '' }}"
@@ -79,25 +84,21 @@ jobs:
             FAILED_RUN_ID="$EVENT_RUN_ID"
             echo "IMMEDIATE_RED_WAKE=true run=$FAILED_RUN_ID sha=$EVENT_RUN_SHA"
           else
-            FAILED_RUN_ID="$(jq -r '
-              [.[] |
-                select(.headSha == $ENV.EXECUTION_SHA and
-                  (.conclusion == "failure" or
-                   .conclusion == "timed_out" or
-                   .conclusion == "cancelled" or
-                   .conclusion == "action_required")) |
+            FAILED_RUN_ID="$(jq -r --arg sha "$EXECUTION_SHA" '
+              [ .[] |
+                select(.headSha == $sha) |
+                select(.conclusion == "failure" or
+                       .conclusion == "timed_out" or
+                       .conclusion == "cancelled" or
+                       .conclusion == "action_required") |
                 select((.workflowName // "") as $w |
-                  ($w | test("Auto Repair|Execution Bot Watchdog|Daily·FLIXO Green Gate|auto-repair-merge-gate|execution-sync|agent-repair-handoff"; "i")) | not)] |
-              sort_by(.createdAt) |
-              first |
+                  ($w | test("Auto Repair|Execution Bot Watchdog|Daily·FLIXO Green Gate|auto-repair-merge-gate|execution-sync|agent-repair-handoff"; "i")) | not)
+              ] |
+              sort_by(.updatedAt) |
+              last |
               .databaseId // empty
             ' /tmp/execution-runs.json)"
-          fiwName // "") as $w |
-                ($w | test("Auto Repair|Execution Bot Watchdog|Daily·FLIXO Green Gate|auto-repair-merge-gate|execution-sync|agent-repair-handoff"; "i")) | not)] |
-            sort_by(.updatedAt) |
-            last |
-            .databaseId // empty
-          ' /tmp/execution-runs.json)"
+          fi
 
           if [ -n "$FAILED_RUN_ID" ]; then
             echo "failed_run_id=$FAILED_RUN_ID" >> "$GITHUB_OUTPUT"
