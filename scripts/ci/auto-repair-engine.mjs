@@ -6,14 +6,31 @@ import { planRepair } from './auto-repair/planner.mjs';
 import { selectSpecialist } from './auto-repair/specialists.mjs';
 import { confidenceGate } from './auto-repair/confidence.mjs';
 import { runAstRepair } from './auto-repair/ast-repair.mjs';
-import { reproduce, impactedTests } from './auto-repair/reproduction.mjs';
+import { reproduce, resolveTargetedTests } from './auto-repair/reproduction.mjs';
 import { runRegression } from './auto-repair/regression.mjs';
 import { summarizeDiff, writeEvidence } from './auto-repair/evidence.mjs';
 import { snapshot, rollback } from './auto-repair/rollback.mjs';
 import { findHistoricalRepairCandidate, applyHistoricalRepair, historicalRollbackRecord } from './auto-repair/historical-rollback.mjs';
 import { validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
+import { simulateRepair } from './auto-repair/simulation.mjs';
+import { critiqueRepair } from './auto-repair/self-critic.mjs';
+import { buildCausalProof } from './auto-repair/causal-proof.mjs';
+import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
 
 // Static protocol contract marker: root-cause-proof-reproductionRecovered.
+function mutationAttribution({ beforeSha, afterSha, changedFiles = [], rule = null, outcome = 'unknown' } = {}) {
+  return {
+    schemaVersion: 1,
+    beforeSha: beforeSha ?? null,
+    afterSha: afterSha ?? null,
+    changedFiles: [...new Set(changedFiles)],
+    rule,
+    outcome,
+    exactShaBound: Boolean(beforeSha && afterSha),
+    recordedAt: new Date().toISOString(),
+  };
+}
+
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
@@ -93,6 +110,7 @@ const evidence = {
   },
   outcome: 'diagnostic-only',
   changedPaths: [],
+  capabilityVersion: 'V11-CAUSAL-SIMULATION-ADVERSARIAL-PROOF',
   updatedAt: new Date().toISOString(),
 };
 
@@ -111,7 +129,8 @@ evidence.diagnosisGate = diagnosisGate;
 
 if (historicalRollbackCandidate && diagnosisGate.allowed) {
   const before = snapshot(targetDir);
-  evidence.reproductionCommands = impactedTests(plan.features);
+  evidence.reproductionSelection = resolveTargetedTests(log, plan.features, { targetDir });
+  evidence.reproductionCommands = evidence.reproductionSelection.commands;
   evidence.reproductionBefore = reproduce(targetDir, evidence.reproductionCommands);
   evidence.historicalRollback = historicalRollbackRecord(historicalRollbackCandidate);
   evidence.selected = historicalRollbackCandidate.rule ?? null;
@@ -125,6 +144,13 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     const diffSummary = summarizeDiff(changed);
     evidence.diff = diffSummary;
     evidence.changedPaths = diffSummary.files;
+    evidence.mutationAttribution = mutationAttribution({
+      beforeSha: targetSha,
+      afterSha: git(['rev-parse', 'HEAD']).trim(),
+      changedFiles: diffSummary.files,
+      rule: evidence.selected,
+      outcome: 'mutation-applied',
+    });
     if (
       !diffSummary.files.length ||
       diffSummary.files.length > repairPolicy.maxChangedFiles ||
@@ -152,7 +178,8 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     }
 
     evidence.reproductionAfter = reproduce(targetDir, evidence.reproductionCommands);
-    evidence.regression = runRegression(targetDir, [['npm', ['run', 'typecheck']], ['npm', ['run', 'test:static']], ['npm', ['run', 'test:build']]]);
+    evidence.regressionSelection = evidence.reproductionSelection;
+    evidence.regression = runRegression(targetDir, evidence.reproductionSelection.regressionCommands);
     const rootCauseProof = {
       required: true,
       reproductionWasFailing: evidence.reproductionBefore.results.length > 0 && !evidence.reproductionBefore.ok,
@@ -293,6 +320,10 @@ if (!selected) {
 
 const gate = confidenceGate({ selected, features: plan.features, maxFiles: repairPolicy.maxChangedFiles, maxLines: repairPolicy.maxChangedLines });
 evidence.confidenceGate = gate;
+evidence.v11 = {
+  capability: 'CAUSAL-SIMULATION-ADVERSARIAL-PROOF',
+  knowledgeGraph: buildRepairKnowledgeGraph({ fingerprint, targetSha, diagnosis, plan }),
+};
 if (!gate.allowed) {
   evidence.outcome = 'proposal-only';
   evidence.escalation = { required: true, reason: 'confidence-gate-blocked' };
@@ -303,8 +334,40 @@ if (!gate.allowed) {
   process.exit(0);
 }
 
+const simulation = simulateRepair({
+  targetDir,
+  plan: selected,
+  maxChangedFiles: repairPolicy.maxChangedFiles,
+  maxChangedLines: repairPolicy.maxChangedLines,
+});
+evidence.simulation = simulation;
+if (!simulation.ok) {
+  evidence.outcome = 'proposal-only';
+  evidence.escalation = { required: true, reason: 'pre-mutation-simulation-failed' };
+  evidence.v11.knowledgeGraph = buildRepairKnowledgeGraph({
+    fingerprint, targetSha, diagnosis, plan, simulation,
+  });
+  writeEvidence(evidencePath, evidence);
+  recordOutcome(memory, {
+    fingerprint,
+    normalizedFailure,
+    features,
+    rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+    rule: selected.id,
+    outcome: 'proposed',
+    verification: 'pre-mutation-simulation-failed',
+    provenance: { targetSha, simulation },
+    preventionRule: 'Require an isolated deterministic simulation to pass before source mutation.',
+  });
+  writeMemory(memory);
+  console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
+  console.log('AUTO_REPAIR_REASON=pre-mutation-simulation-failed');
+  process.exit(0);
+}
+
 const before = snapshot(targetDir);
-evidence.reproductionCommands = impactedTests(plan.features);
+evidence.reproductionSelection = resolveTargetedTests(log, plan.features, { targetDir });
+  evidence.reproductionCommands = evidence.reproductionSelection.commands;
 evidence.reproductionBefore = reproduce(targetDir, evidence.reproductionCommands);
 
 try {
@@ -313,7 +376,38 @@ try {
   const diffSummary = summarizeDiff(changed);
   evidence.diff = diffSummary;
   evidence.changedPaths = diffSummary.files;
-  if (!diffSummary.files.length || diffSummary.files.length > repairPolicy.maxChangedFiles || diffSummary.lines > repairPolicy.maxChangedLines || diffSummary.files.some((path) => !isPathAllowed(path))) {
+  evidence.selfCritic = critiqueRepair({
+    diff: changed,
+    diffSummary,
+    plan: selected,
+    diagnosis,
+    simulation,
+    maxChangedFiles: repairPolicy.maxChangedFiles,
+    maxChangedLines: repairPolicy.maxChangedLines,
+  });
+  evidence.v11.knowledgeGraph = buildRepairKnowledgeGraph({
+    fingerprint, targetSha, diagnosis, plan, simulation, selfCritic: evidence.selfCritic,
+  });
+  if (!evidence.selfCritic.ok) {
+    rollback(targetDir, before);
+    evidence.outcome = 'rolled-back';
+    evidence.rollback = true;
+    evidence.escalation = { required: true, reason: 'self-critic-blocked' };
+    recordOutcome(memory, {
+      fingerprint,
+      normalizedFailure,
+      features,
+      rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+      rule: selected.id,
+      outcome: 'failure',
+      verification: 'self-critic-blocked',
+      provenance: { targetSha, changedPaths: diffSummary.files, selfCritic: evidence.selfCritic },
+      preventionRule: 'Reject patches that bypass gates, exceed scope, or diverge from the causal target.',
+    });
+    writeMemory(memory);
+    writeEvidence(evidencePath, evidence);
+    process.exitCode = 3;
+  } else if (!diffSummary.files.length || diffSummary.files.length > repairPolicy.maxChangedFiles || diffSummary.lines > repairPolicy.maxChangedLines || diffSummary.files.some((path) => !isPathAllowed(path))) {
     evidence.outcome = 'blocked';
     evidence.escalation = { required: true, reason: 'scope-policy' };
     rollback(targetDir, before);
@@ -323,7 +417,8 @@ try {
     process.exitCode = 2;
   } else {
     evidence.reproductionAfter = reproduce(targetDir, evidence.reproductionCommands);
-    evidence.regression = runRegression(targetDir, [['npm', ['run', 'typecheck']], ['npm', ['run', 'test:static']], ['npm', ['run', 'test:build']]]);
+    evidence.regressionSelection = evidence.reproductionSelection;
+    evidence.regression = runRegression(targetDir, evidence.reproductionSelection.regressionCommands);
     const rootCauseProof = {
       required: true,
       reproductionWasFailing: evidence.reproductionBefore.results.length > 0 && !evidence.reproductionBefore.ok,
@@ -339,9 +434,25 @@ try {
       evidence.recurrenceProof.secondPass = secondReproduction.ok;
       evidence.recurrenceProof.secondRun = secondReproduction;
     }
+    evidence.causalProof = buildCausalProof({
+      diagnosis,
+      plan: selected,
+      simulation,
+      reproductionBefore: evidence.reproductionBefore,
+      reproductionAfter: evidence.reproductionAfter,
+      regression: evidence.regression,
+      recurrenceProof: evidence.recurrenceProof,
+      changedPaths: evidence.changedPaths,
+      selfCritic: evidence.selfCritic,
+    });
+    evidence.v11.knowledgeGraph = buildRepairKnowledgeGraph({
+      fingerprint, targetSha, diagnosis, plan, simulation,
+      selfCritic: evidence.selfCritic,
+      causalProof: evidence.causalProof,
+    });
     const proof = validateRepairProof({ rootCauseProof, recurrenceProof: evidence.recurrenceProof, evidence });
     evidence.repairProof = proof;
-    const verified = proof.ok;
+    const verified = proof.ok && evidence.causalProof.ok;
     if (!verified) {
       rollback(targetDir, before);
       evidence.outcome = 'rolled-back';

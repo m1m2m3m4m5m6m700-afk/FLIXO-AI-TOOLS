@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { reasonFailure, reasoningPolicy, verificationStrategy } from './auto-repair/reasoning.mjs';
+import { resolveTargetedTests } from './auto-repair/reproduction.mjs';
 
 const webkit = reasonFailure([
   'FAIL playwright test: render smoke',
@@ -19,6 +20,8 @@ assert.equal(webkit.ambiguity, false);
 assert(webkit.causalConfidence >= 0.75);
 assert.equal(webkit.sourceMutationAllowed, true);
 assert.equal(webkit.decision, 'ALLOW_BOUNDED_MUTATION');
+assert(webkit.evidenceProfile.diversity >= 2);
+assert.equal(webkit.mutationGate.evidenceDiversity, true);
 assert(webkit.hypotheses.some((item) => item.id === 'playwright' && item.suppressedBy === 'webkit-render'));
 assert.deepEqual(verificationStrategy(['webkit', 'playwright']), [['npm', ['run', 'test:browser']], ['npm', ['run', 'test:static']]]);
 
@@ -77,3 +80,35 @@ assert.equal(missingSignal.directFailureSignal, true);
 assert.equal(reasoningPolicy().principle, 'EVIDENCE_FIRST_CAUSAL_REASONING');
 
 console.log('AUTO_REPAIR_REASONING_SELF_TEST=PASS');
+
+const targetedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-targeted-reproduction-'));
+fs.mkdirSync(path.join(targetedDir, 'tests'), { recursive: true });
+fs.writeFileSync(path.join(targetedDir, 'tests', 'pix.spec.ts'), "import { test } from '@playwright/test';\ntest('opens an image and exposes all editor modes', async () => {});\n");
+fs.mkdirSync(path.join(targetedDir, 'scripts', 'ci'), { recursive: true });
+fs.writeFileSync(path.join(targetedDir, 'scripts', 'ci', 'test-example.mjs'), 'process.exit(0);\n');
+fs.writeFileSync(path.join(targetedDir, 'src.ts'), 'export const x=1;\n');
+
+const exactBrowser = resolveTargetedTests('[webkit] › tests/pix.spec.ts:12:7 › Pix Studio › opens an image and exposes all editor modes', ['playwright', 'webkit'], { targetDir: targetedDir });
+assert.equal(exactBrowser.strategy, 'exact-test');
+assert.equal(exactBrowser.level, 'EXACT');
+assert.equal(exactBrowser.target.spec, 'tests/pix.spec.ts');
+assert.equal(exactBrowser.target.test, 'opens an image and exposes all editor modes');
+assert.equal(exactBrowser.target.browser, 'webkit');
+assert.equal(exactBrowser.existingTestReused, true);
+assert.equal(exactBrowser.testCreation, 'DISABLED');
+assert.deepEqual(exactBrowser.commands, [['npx', ['playwright', 'test', 'tests/pix.spec.ts', '--grep', 'opens an image and exposes all editor modes', '--retries=0', '--project', 'webkit']]]);
+
+const exactScript = resolveTargetedTests('ERROR scripts/ci/test-example.mjs:4:2 unexpected assertion', ['certification'], { targetDir: targetedDir });
+assert.equal(exactScript.strategy, 'exact-test-file');
+assert.equal(exactScript.level, 'EXACT');
+assert.deepEqual(exactScript.commands, [['node', ['scripts/ci/test-example.mjs']]]);
+
+const exactLint = resolveTargetedTests('ERROR eslint: no-unused-vars at src.ts:1:7', ['lint'], { targetDir: targetedDir });
+assert.equal(exactLint.strategy, 'exact-file');
+assert.equal(exactLint.level, 'EXACT');
+assert.deepEqual(exactLint.commands, [['npx', ['eslint', 'src.ts']]]);
+
+const fallback = resolveTargetedTests('Type error TS2322 without source identity', ['typescript'], { targetDir: targetedDir });
+assert.equal(fallback.level, 'FALLBACK');
+assert.deepEqual(fallback.commands, [['npm', ['run', 'typecheck']]]);
+console.log('TARGETED_REPRODUCTION_SELF_TEST=PASS');

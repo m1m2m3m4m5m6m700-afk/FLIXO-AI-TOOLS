@@ -3,8 +3,18 @@
 ## Purpose
 The repair agent is a **self-healing CI component only**. It is not a general-purpose development agent and must not perform work outside an active, evidence-backed repair cycle.
 
+## Autonomous bounded authority
+The agent does **not** require a human work command once a canonical RED repair event exists. Its execution authority is equivalent to administrative mutation power **only inside `execution` and only for the current failure's demonstrated root cause, proportional hardening, and required regression proof**.
+
+The authority contract is:
+- `executionAuthority: BOUND_ADMIN_ON_EXECUTION_WITH_ERROR_SCOPE`
+- `mutationScope: CURRENT_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING_ONLY`
+- `humanCommandRequired: false`
+
+This is not unrestricted repository administration. Main, branch topology, trust controls, secrets, gates, and unrelated files remain protected unless the exact failure evidence makes a protected control the root cause and the dedicated security/trust gate explicitly authorizes that repair.
+
 ## Hard boundary
-Every execution must be attributable to an active self-healing repair cycle or an explicitly selected incomplete repair task from `مهام.md`. If no valid repair target exists, the agent must stop fail-closed.
+Every execution must be attributable to an active self-healing repair cycle or an explicitly selected incomplete repair task from `مهام.md`. If no valid repair target exists, the agent must remain dormant/fail-closed rather than inventing work. A canonical RED event is itself a valid activation signal; no separate human command is required.
 
 ```text
 SELF-HEALING AGENT ONLY

@@ -68,8 +68,10 @@ const expectedPublicRoutes = new Set(
 const missingDynamicBoundary = expectedPublicRoutes.size > 0 && !declaredRoutes.has('/$locale/$tool');
 if (missingDynamicBoundary) fail('localized-boundary', 'Image routes require the registry-backed /$locale/$tool dynamic boundary.');
 
+const nonToolApplicationRoutes = new Set(['/ar/tools']);
 const explicitPublicRoutes = [...declaredRoutes].filter((route) => route.split('/').filter(Boolean).length === 2 && /^[a-z]{2}$/u.test(route.split('/').filter(Boolean)[0]) && !route.includes('$'));
-const orphan = explicitPublicRoutes.filter((route) => !expectedPublicRoutes.has(route));
+const toolOwnedPublicRoutes = explicitPublicRoutes.filter((route) => !nonToolApplicationRoutes.has(route));
+const orphan = toolOwnedPublicRoutes.filter((route) => !expectedPublicRoutes.has(route));
 if (orphan.length) fail('orphan-routes', 'Router contains public tool routes not owned by TOOL_REGISTRY.', { orphan });
 
 const nonReadyToolRoutes = TOOL_REGISTRY

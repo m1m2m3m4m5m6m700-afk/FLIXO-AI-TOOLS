@@ -43,12 +43,21 @@ if (exists('AGENTS.md')) {
 }
 
 const taskGatewayMarkers = [
-  '# FLIXO-AI-TOOLS — بوابة المهام التنفيذية',
-  'ACTIVE / REQUIRED AGENT GATE', 'PROJECTS.md', 'ADMIN-003', 'ADMIN-004', 'ADMIN-008',
-  'BUILD-002', 'I18N-001', 'TEST-001', 'DEBT-001', 'CANDIDATE ≠ ACTIVE',
-  'MERGED TO MAIN', 'EXACT MAIN SHA CONFIRMED', 'REQUIRED CI / CERTIFICATION PASS',
-  'PROJECTS.md CLOSED HISTORY UPDATED', 'حذف المهمة قبل اكتمال أي شرط = PROTOCOL VIOLATION',
+  '# FLIXO-AI-TOOLS — سجل التنفيذ الموحد',
+  'TASK-LEDGER v3.0 — GREEN-FIRST / EXECUTABLE',
+  '## 0) MASTER EXECUTION PROMPT',
+  '## 1) P0 — GREEN-RECOVERY-001',
+  'STATUS = IN_PROGRESS / BLOCKING',
+  'FINGERPRINT → RCA → REPRODUCE → REPAIR → TARGETED REGRESSION → FULL CI',
+  '## 2) P0 — AGENT EXECUTION CONTROL',
+  '## 3) P0 — ERROR INTELLIGENCE',
+  '## 4) P1 — FOUNDATION AFTER GREEN',
+  '## 8) DEPENDENCY GRAPH',
+  '## 9) DONE / GREEN CONTRACT',
+  '## 10) ANTI-COMPLEXITY',
+  '## 13) EXCEPTIONAL IDEAS REVIEW',
 ];
+
 if (exists('المهام.md')) {
   const text = read('المهام.md');
   for (const marker of taskGatewayMarkers) if (!text.includes(marker)) fail('TASK_GATE_MISSING', marker);

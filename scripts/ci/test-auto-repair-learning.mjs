@@ -144,6 +144,9 @@ recordOutcome(memory, {
 const reusable = deriveReusableKnowledge(memory, { rootCause: 'lint', features: ['lint'], fingerprint: '__new_lint_case__' });
 assert.equal(reusable.schemaVersion, 2);
 assert(reusable.generalizedRules.some((item) => item.rule === 'eslint-unused' && item.successfulFingerprintSupport >= 2));
+const historicalAdvisory = deriveReusableKnowledge({ version: 10, cases: [], playbooks: [], lessons: [], antiLessons: [] }, { rootCause: 'lint', features: ['lint'], fingerprint: '__historical_lint_case__' });
+assert(historicalAdvisory.historicalAdvisories.some((item) => item.rule === 'exact-source-location' && item.status === 'historical-advisory'));
+assert(historicalAdvisory.historicalAdvisories.every((item) => item.activation === 'fresh-proof-required'));
 const mirroredMemory = {
   ...memory,
   playbooks: [{

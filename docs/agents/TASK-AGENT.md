@@ -3,7 +3,7 @@
 ## Purpose
 The **Task Agent** is the **direct-execution agent** and owns `مهام.md` task intelligence and active self-healing repair execution. It understands the repair target, inspects failures and contracts, applies the smallest evidence-backed source correction, performs proportional hardening, verifies it, and commits/pushes only on the canonical `execution` branch.
 
-The Task Agent is a **self-healing repair agent only**. It must not perform unrelated development work.
+The Task Agent is a **self-healing repair agent only**. It must not perform unrelated development work. Once a canonical RED event activates the repair cycle, no human work command is required.
 
 ## Two-branch model
 ```text
@@ -56,6 +56,17 @@ The Task Agent MUST NOT use a repair cycle to:
 - create or use a third branch;
 - alter trust controls unless that exact control is the demonstrated root cause and the security repair scope explicitly authorizes it;
 - close the task from source mutation or a targeted test alone.
+
+## Autonomous bounded authority
+
+A canonical RED event is sufficient activation. The agent must not wait for a user command, task assignment, or manual redispatch before repairing the active failure.
+
+Authority contract:
+- `executionAuthority = BOUND_ADMIN_ON_EXECUTION_WITH_ERROR_SCOPE`
+- `mutationScope = CURRENT_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING_ONLY`
+- `humanCommandRequired = false`
+
+The authority is deliberately stronger than ordinary task execution on `execution`, but narrower than repository administration: no main mutation, no third branch, no gate weakening, and no unrelated work. Safety/evidence gates remain hard stops.
 
 ## Direct-execution boundary
 Direct execution means:
@@ -155,7 +166,7 @@ or:
 npm run agent:task -- --all-ready
 ```
 
-For an active failure, provide the failure context (`--failure-run-id`, `--failure-sha`, `--failure-fingerprint`, and evidence) so the agent stays bound to the current repair cycle.
+For an active failure, the workflow supplies the failure context (`--failure-run-id`, `--failure-sha`, `--failure-fingerprint`, and evidence) automatically. A human command is not required.
 ## Historical rollback recovery
 - A previously verified auto-repair is reversible on `execution` without rewriting Git history.
 - Historical rollback requires the exact failure fingerprint, a prior successful repair record, a signed-in-history repair marker, single-parent ancestry, allowed change scope, and the same proof contract.

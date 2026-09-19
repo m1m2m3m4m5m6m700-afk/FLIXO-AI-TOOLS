@@ -33,7 +33,6 @@ env:
   FLIXO_REPAIR_LANE: single
   TARGET_RUN_ID: ${{ inputs.target_run_id }}
   FLIXO_HISTORY_LIMIT: '30'
-  FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
   FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
@@ -74,6 +73,12 @@ jobs:
           FAILED_NAME="$(printf '%s' "$RUN_META" | jq -r '.name')"
           test -n "$FAILED_SHA" && test "$FAILED_SHA" != "null"
           test "$FAILED_BRANCH" = "main" || test "$FAILED_BRANCH" = "execution"
+          CURRENT_TARGET_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$FAILED_BRANCH" --jq '.object.sha')"
+          test "$CURRENT_TARGET_SHA" = "$FAILED_SHA" || {
+            echo "FAIL CLOSED: repair target $FAILED_SHA is superseded by current $FAILED_BRANCH SHA $CURRENT_TARGET_SHA."
+            exit 1
+          }
+          printf '%s\n' "$CURRENT_TARGET_SHA" > /tmp/flixo-current-target-sha
           test "$FAILED_NAME" != "FLIXO Auto Repair Bot" || { echo 'FAIL CLOSED: auto-repair cannot repair itself.'; exit 1; }
           test "$FAILED_NAME" != "FLIXO Auto Repair Chain" || { echo 'FAIL CLOSED: auto-repair cannot repair itself.'; exit 1; }
           printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
@@ -199,8 +204,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > "$FLIXO_FAILURE_LOG" 2>&1 || true
-          test -s "$FLIXO_FAILURE_LOG" || printf '%s\n' 'No failed log payload was available.' > "$FLIXO_FAILURE_LOG"
+          if ! gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > "$FLIXO_FAILURE_LOG" 2>&1; then
+            echo 'FAIL CLOSED: failed-run evidence could not be captured.'
+            printf '%s\n' 'EVIDENCE_CAPTURE=FAILED' > /tmp/flixo-evidence-capture-failed
+            exit 1
+          fi
+          test -s "$FLIXO_FAILURE_LOG"
           {
             echo '### Failed CI classification input'
             echo "run_id=$TARGET_RUN_ID"

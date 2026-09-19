@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -15,12 +16,18 @@ for (let i = 2; i < process.argv.length; i += 1) {
 }
 
 const command = String(process.argv[2] ?? '').toLowerCase();
-const sessionId = String(args.get('session') ?? process.env.FLIXO_AGENT_SESSION ?? '').trim();
+const rawSessionId = String(args.get('session') ?? process.env.FLIXO_AGENT_SESSION ?? '').trim();
+const rawFromSession = String(args.get('from-session') ?? process.env.FLIXO_AGENT_FROM_SESSION ?? '').trim() || null;
+const safeSessionId = (value, label) => {
+  if (!value || value.length > 128 || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value)) throw new Error(`INVALID_${label.toUpperCase()}_ID`);
+  return value;
+};
+const sessionId = safeSessionId(rawSessionId, 'session');
 const agentId = String(args.get('agent') ?? process.env.FLIXO_AGENT_ID ?? '').trim();
 const role = String(args.get('role') ?? process.env.FLIXO_AGENT_ROLE ?? 'implementation').trim();
 const rca = String(args.get('rca') ?? process.env.FLIXO_AGENT_RCA ?? '').trim() || null;
 const scope = String(args.get('scope') ?? process.env.FLIXO_AGENT_SCOPE ?? '').split(',').map((v) => v.trim()).filter(Boolean);
-const fromSession = String(args.get('from-session') ?? process.env.FLIXO_AGENT_FROM_SESSION ?? '').trim() || null;
+const fromSession = rawFromSession ? safeSessionId(rawFromSession, 'previous_session') : null;
 const taskId = String(args.get('task') ?? process.env.FLIXO_AGENT_TASK ?? '').trim();
 const sessionDir = path.resolve(ROOT, 'diagnostics/agents/sessions');
 const visibilityDir = path.resolve(ROOT, 'docs/agents/ledger');
@@ -29,13 +36,20 @@ const now = () => new Date().toISOString();
 const gitSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const requiredReads = ['AGENTS.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md', 'docs/MINIMAL-CI-FINAL-ARCHITECTURE.md', 'scripts/ci/test-plan.json', 'scripts/ci/assertion-registry.json'];
 const split = (value, separator = ',') => String(value ?? '').split(separator).map((v) => v.trim()).filter(Boolean);
-const sessionPath = (id) => path.join(sessionDir, `${id}.json`);
-const handoffPath = (id) => path.join(handoffDir, `${id}.json`);
-const visibilityPath = (id) => path.join(visibilityDir, `${id}.json`);
+const storageKey = (id) => createHash('sha256').update(id).digest('hex');
+const sessionPath = (id) => path.join(sessionDir, `${storageKey(id)}.json`);
+const handoffPath = (id) => path.join(handoffDir, `${storageKey(id)}.json`);
+const visibilityPath = (id) => path.join(visibilityDir, `${storageKey(id)}.json`);
 const roles = new Set(['analysis','implementation','verification','release','assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent']);
-const writeVisibility = (record) => { fs.mkdirSync(visibilityDir, { recursive: true }); fs.writeFileSync(visibilityPath(sessionId), `${JSON.stringify(record, null, 2)}\n`); };
+const writeVisibility = (record) => {
+  fs.mkdirSync(visibilityDir, { recursive: true });
+  fs.writeFileSync(visibilityPath(sessionId), `${JSON.stringify(record, null, 2)}\n`);
+};
+const secretLike = (value) => /(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|ghp_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+|Bearer\s+[A-Za-z0-9._-]+|sk-[A-Za-z0-9_-]+)/i.test(String(value ?? ''));
+const assertSafeText = (...values) => { for (const value of values.flat()) if (secretLike(value)) throw new Error('AGENT_EVENT_SECRET_LIKE_CONTENT_REJECTED'); };
+const appendEvent = (record, event) => { record.actions = Array.isArray(record.actions) ? [...record.actions, event] : [event]; record.activity = Array.isArray(record.activity) ? [...record.activity, event] : [event]; };
 
-if (!['login', 'logout'].includes(command)) throw new Error('Usage: agent-session.mjs login|logout --session=<id> --agent=<id> --task=<task-id> [--role=analysis|implementation|verification|release|assistantController|codeScout|executionAgent|reviewAgent|testAgent|securityAgent|performanceAgent|certificationAuthority|taskAgent|errorAgent] [--rca=<id>] [--scope=a,b] [--from-session=<previous-id>]');
+if (!['login', 'event', 'logout'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout --session=<id> --agent=<id> --task=<task-id> [--role=analysis|implementation|verification|release|assistantController|codeScout|executionAgent|reviewAgent|testAgent|securityAgent|performanceAgent|certificationAuthority|taskAgent|errorAgent] [--rca=<id>] [--scope=a,b] [--from-session=<previous-id>]');
 if (!sessionId || !agentId || !taskId) throw new Error('Agent session requires --session, --agent and --task.');
 if (!roles.has(role)) throw new Error(`Invalid agent role: ${role}`);
 
@@ -43,7 +57,42 @@ fs.mkdirSync(sessionDir, { recursive: true });
 fs.mkdirSync(handoffDir, { recursive: true });
 const file = sessionPath(sessionId);
 
-if (command === 'login') {
+if (command === 'event') {
+  if (!fs.existsSync(file)) throw new Error('Session not found: ' + sessionId);
+  const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (record.agentId !== agentId) throw new Error('Session owner mismatch: ' + sessionId);
+  if (record.taskId !== taskId) throw new Error('AGENT_EVENT_TASK_MISMATCH');
+  if (record.status !== 'RUNNING') throw new Error('AGENT_EVENT_REQUIRES_ACTIVE_SESSION');
+  const type = String(args.get('type') ?? '').trim().toUpperCase();
+  const summary = String(args.get('summary') ?? '').trim();
+  const allowed = new Set(['PROGRESS','FINDING','BLOCKER','CHANGE','TEST','VERIFICATION','HANDOFF','NOTE']);
+  if (!allowed.has(type)) throw new Error('Invalid event type: ' + (type || 'MISSING'));
+  if (!summary) throw new Error('AGENT_EVENT_SUMMARY_REQUIRED');
+  const files = split(args.get('files') ?? process.env.FLIXO_AGENT_EVENT_FILES);
+  const evidence = split(args.get('evidence') ?? process.env.FLIXO_AGENT_EVENT_EVIDENCE);
+  const findings = split(args.get('findings') ?? process.env.FLIXO_AGENT_EVENT_FINDINGS, '|');
+  const blockers = split(args.get('blockers') ?? process.env.FLIXO_AGENT_EVENT_BLOCKERS, '|');
+  const next = split(args.get('next') ?? process.env.FLIXO_AGENT_EVENT_NEXT, '|');
+  const sha = gitSha();
+  assertSafeText(type, summary, files, evidence, findings, blockers, next);
+  const event = { at: now(), action: 'EVENT', type, summary, sha, files, evidence, findings, blockers, next };
+  appendEvent(record, event);
+  fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
+  const visibilityFile = visibilityPath(sessionId);
+  if (!fs.existsSync(visibilityFile)) throw new Error('AGENT_VISIBILITY_RECORD_MISSING');
+  const visibility = JSON.parse(fs.readFileSync(visibilityFile, 'utf8'));
+  if (visibility.visibilityState !== 'OPEN' || visibility.status !== 'RUNNING') throw new Error('AGENT_VISIBILITY_NOT_OPEN');
+  visibility.activity = Array.isArray(visibility.activity) ? [...visibility.activity, event] : [event];
+  visibility.lastEvent = event;
+  visibility.changedFiles = [...new Set([...(visibility.changedFiles ?? []), ...files])];
+  visibility.evidence = [...new Set([...(visibility.evidence ?? []), ...evidence])];
+  visibility.findings = [...new Set([...(visibility.findings ?? []), ...findings])];
+  visibility.blockers = [...new Set([...(visibility.blockers ?? []), ...blockers])];
+  visibility.updatedAt = now();
+  writeVisibility(visibility);
+  console.log('AGENT_SESSION_EVENT=' + type);
+  console.log('AGENT_SESSION_SHA=' + sha);
+} else if (command === 'login') {
   if (fs.existsSync(file)) throw new Error(`Session already exists: ${sessionId}`);
   const missing = requiredReads.filter((entry) => !fs.existsSync(path.resolve(ROOT, entry)));
   if (missing.length) throw new Error(`Mandatory reads missing: ${missing.join(', ')}`);
@@ -88,7 +137,7 @@ if (command === 'login') {
     actions: [{ at: now(), action: 'LOGIN', sha, ...(continuation ? { fromSession } : {}) }],
   };
   fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`, { flag: 'wx' });
-  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'OPEN', taskId, sessionId, agentId, role, entrySha: sha, exitSha: null, status: 'RUNNING', finalStatus: null, finalSummary: null, scope, currentRca: rca, rcaClosed: [], openRcas: [], changedFiles: [], commands: [], evidence: [], findings: [], completedWork: [], failedWork: [], remainingWork: [], executionPlanNext: [], blockers: [], handoffToNextAgent: null, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() });
+  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'OPEN', taskId, sessionId, agentId, role, entrySha: sha, exitSha: null, status: 'RUNNING', finalStatus: null, finalSummary: null, scope, currentRca: rca, rcaClosed: [], openRcas: [], changedFiles: [], commands: [], evidence: [], findings: [], activity: [], lastEvent: null, completedWork: [], failedWork: [], remainingWork: [], executionPlanNext: [], blockers: [], handoffToNextAgent: null, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() });
   console.log(`AGENT_SESSION_LOGIN=${sessionId}`);
   console.log(`AGENT_SESSION_SHA=${sha}`);
   console.log(`AGENT_SESSION_FILE=${path.relative(ROOT, file)}`);
@@ -126,6 +175,8 @@ if (command === 'login') {
     throw new Error('BLOCKED logout requires an explicit unresolved item.');
   }
   if (status === 'VERIFIED' && completedWork.length === 0 && evidence.length === 0) throw new Error('VERIFIED_LOGOUT_REQUIRES_COMPLETED_WORK_OR_EVIDENCE');
+  const activity = Array.isArray(record.activity) ? record.activity : [];
+  if (status === 'VERIFIED' && activity.length === 0) throw new Error('VERIFIED_LOGOUT_REQUIRES_ACTIVITY_LOG');
   if (record.bootstrap && !record.continuationFrom) {
     // First session may bootstrap the chain, but its logout still establishes the handoff contract.
   }
@@ -151,7 +202,7 @@ if (command === 'login') {
   record.actions = Array.isArray(record.actions) ? [...record.actions, { at: now(), action: 'LOGOUT', sha, status }] : [{ at: now(), action: 'LOGOUT', sha, status }];
   fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
 
-  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'CLOSED', taskId, sessionId: record.sessionId, agentId: record.agentId, role: record.role, entrySha: record.entrySha, exitSha: sha, status, finalStatus: status, finalSummary, scope: record.scope, currentRca: record.currentRca, rcaClosed, openRcas, changedFiles, commands, evidence, findings, completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() });
+  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'CLOSED', taskId, sessionId: record.sessionId, agentId: record.agentId, role: record.role, entrySha: record.entrySha, exitSha: sha, status, finalStatus: status, finalSummary, scope: record.scope, currentRca: record.currentRca, rcaClosed, openRcas, changedFiles, commands, evidence, findings, activity, lastEvent: activity.at(-1) ?? null, completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() });
 
   const report = {
     schemaVersion: 1,

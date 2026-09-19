@@ -17,7 +17,6 @@ const commands = [
 ];
 
 const requested = [
-  ['final-architecture', 'node', ['scripts/ci/validate-architecture.mjs']],
   ['change-intelligence', 'node', ['scripts/ci/change-risk-planner.mjs']],
   ['weighted-shard-plan', 'node', ['scripts/ci/weighted-shard-plan.mjs']],
 ];

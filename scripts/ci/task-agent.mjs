@@ -3,9 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { loadMemory, findSimilarCases, deriveReusableKnowledge, rankLessons } from './auto-repair-learning.mjs';
 
 const ROOT = process.cwd();
-const TASK_FILE = path.join(ROOT, 'مهام.md');
+const TASK_FILE = fs.existsSync(path.join(ROOT, 'المهام.md')) ? path.join(ROOT, 'المهام.md') : path.join(ROOT, 'مهام.md');
 const OUTPUT_DIR = process.env.FLIXO_TASK_AGENT_OUTPUT_DIR ?? '/tmp/flixo-task-agent';
 const DIAGNOSIS_PATH = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
 const CONTRACT_VERSION = 'TASK-AGENT-DIRECT-REPAIR-v2';
@@ -24,8 +25,32 @@ const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'u
 const branch = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const hash = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex');
 
-if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=مهام.md');
+if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=المهام.md|legacy=مهام.md');
 const source = fs.readFileSync(TASK_FILE, 'utf8');
+
+function extractBotEvolutionLedger(markdown) {
+  const lines = markdown.split(/\r?\n/);
+  const keywords = /(AUTO-REPAIR|EXECUTION-BOT|ERROR-INTELLIGENCE|ERROR-MEMORY|WATCHDOG|REPAIR|AGENT|SELF-HEALING|ROOT-CAUSE|CERTIFICATION|EXACT-SHA|REGRESSION|HANDOFF|SECURITY|PROVENANCE|CIRCUIT|BLAST-RADIUS|CROSS-WORKFLOW)/iu;
+  const items = [];
+  let section = 'UNSCOPED';
+  for (let i = 0; i < lines.length; i += 1) {
+    const heading = lines[i].match(/^#{1,3}\s+(.+)$/u);
+    if (heading) section = heading[1].trim();
+    const line = lines[i].trim();
+    if (!line || line.startsWith('```') || !keywords.test(line)) continue;
+    if (/^\|.*\|$/u.test(line) || /^[-*]\s+/u.test(line) || /^\d+[.)]\s+/u.test(line) || /^STATUS\s*=/iu.test(line)) {
+      items.push({ section, line: i + 1, text: line });
+    }
+  }
+  const unique = new Map();
+  for (const item of items) {
+    const key = item.text.replace(/\s+/gu, ' ').trim();
+    if (!unique.has(key)) unique.set(key, item);
+  }
+  return [...unique.values()].slice(0, 80);
+}
+
+const botEvolutionLedger = extractBotEvolutionLedger(source);
 
 function parseTasks(markdown) {
   const lines = markdown.split(/\r?\n/);
@@ -58,7 +83,33 @@ const failureFingerprint = arg('failure-fingerprint');
 const failureEvidencePath = arg('failure-evidence');
 const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION' : 'DIRECT_EXECUTION';
 const diagnosis = fs.existsSync(DIAGNOSIS_PATH) ? JSON.parse(fs.readFileSync(DIAGNOSIS_PATH, 'utf8')) : null;
-const reusableKnowledge = diagnosis?.reusableKnowledge ?? null;
+const memory = loadMemory();
+const currentOriginExecutionSha = (() => {
+  try { return execFileSync('git', ['rev-parse', 'origin/execution'], { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { return null; }
+})();
+if (currentOriginExecutionSha && currentOriginExecutionSha !== sha) {
+  throw new Error('STALE_EXECUTION_BASELINE=HEAD:' + sha + ':ORIGIN_EXECUTION:' + currentOriginExecutionSha);
+}
+
+const memoryContext = diagnosis
+  ? {
+      similarCases: findSimilarCases(memory, {
+        fingerprint: failureFingerprint || diagnosis.fingerprint || null,
+        normalized: diagnosis.normalizedFailure || diagnosis.failure || '',
+        features: diagnosis.features || [],
+      }),
+      reusableKnowledge: deriveReusableKnowledge(memory, {
+        rootCause: diagnosis.rootCause || null,
+        features: diagnosis.features || [],
+        fingerprint: failureFingerprint || diagnosis.fingerprint || null,
+      }),
+      lessons: rankLessons(memory, {
+        fingerprint: failureFingerprint || diagnosis.fingerprint || null,
+        rootCause: diagnosis.rootCause || null,
+      }).slice(0, 8),
+    }
+  : { similarCases: [], reusableKnowledge: null, lessons: [] };
+const reusableKnowledge = diagnosis?.reusableKnowledge ?? memoryContext.reusableKnowledge;
 const activeRepairTask = failureRunId || failureSha || failureFingerprint
   ? [{
       taskId: `repair-${slug(failureFingerprint || 'active-failure').slice(0, 80)}`,
@@ -81,7 +132,11 @@ if (!selected.length) throw new Error(requested ? `TASK_NOT_FOUND=${requested}` 
 if (branch !== 'execution') throw new Error('DIRECT_EXECUTION_REQUIRES_EXECUTION_BRANCH');
 
 const scopePolicy = 'SELF_HEALING_REPAIR_ONLY';
+const executionAuthority = 'BOUND_ADMIN_ON_EXECUTION_WITH_ERROR_SCOPE';
+const mutationScope = 'CURRENT_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING_ONLY';
+const humanCommandRequired = false;
 const scopeEnforcement = 'FAIL_CLOSED';
+const controlPlaneMutationPolicy = 'HUMAN_REVIEW_REQUIRED';
 if (scopePolicy !== 'SELF_HEALING_REPAIR_ONLY' || scopeEnforcement !== 'FAIL_CLOSED') throw new Error('SELF_HEALING_SCOPE_CONTRACT_VIOLATION');
 
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -101,10 +156,20 @@ for (const task of selected) {
     mutationPolicy: 'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH',
     scopePolicy,
     scopeEnforcement,
+    executionAuthority,
+    mutationScope,
+    humanCommandRequired,
     allowedWork: 'ACTIVE_SELF_HEALING_REPAIR_CYCLE_OR_EXPLICIT_INCOMPLETE_REPAIR_TASK_ONLY',
     forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','GATE_WEAKENING','MAIN_MUTATION','THIRD_BRANCH_CREATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],
     taskFile: 'مهام.md',
     task,
+    botEvolution: {
+      source: 'مهام.md',
+      extractedCount: botEvolutionLedger.length,
+      priorities: ['ERROR_INTELLIGENCE','SELF_HEALING_REPAIR_LOOP','EXACT_SHA_AND_PROVENANCE','REGRESSION_AND_BLAST_RADIUS','WATCHDOG_AND_HANDOFF','MEMORY_AND_HISTORICAL_LEARNING'],
+      ledgerItems: botEvolutionLedger,
+      policy: 'ADVISORY_ONLY_NO_SCOPE_EXPANSION',
+    },
     failureContext: {
       active: Boolean(failureRunId || failureSha || failureFingerprint),
       runId: failureRunId || null,
@@ -118,6 +183,8 @@ for (const task of selected) {
     executionBranch: branch,
     mainBranchMutation: false,
     branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN',
+    controlPlaneMutationPolicy,
+    controlPlaneMutationScope: 'AUTO_REPAIR_CONTROLLER_FILES_MUST_NOT_BE_MUTATED_BY_AUTO_REPAIR',
     generatedAt,
     errorFingerprint: fingerprint,
     repairSummary: {
@@ -142,6 +209,7 @@ for (const task of selected) {
       verificationStrategy: diagnosis.verificationStrategy ?? [],
       evidenceDigest: diagnosis.signature ?? null,
       reusableKnowledge,
+      memoryContext,
     } : (failureRunId || failureSha || failureFingerprint ? { authority: 'AUTO_REPAIR_REASONING_KERNEL', required: true, decision: 'MISSING' } : null),
     instructions: {
       cognitionRequired: Boolean(failureRunId || failureSha || failureFingerprint),
@@ -175,13 +243,13 @@ for (const task of selected) {
     },
     repairLoop: {
       mode: 'RED_TO_GREEN_IN_SAME_CYCLE',
-      maxCycles: 1000000,
+      maxCycles: 12,
       rescanAfterEveryRepair: true,
       rescanScope: 'ALL_REQUIRED_CHECKS',
       repairOrder: ['capture-failure', 'root-cause', 'source-fix', 'proportional-hardening', 'targeted-regression', 'canonical-ci'],
       circuitBreaker: {
         enabled: true,
-        maxStalledCycles: 1000000,
+        maxStalledCycles: 3,
         definition: 'SAME_FAILURE_FINGERPRINT_WITHOUT_VERIFIABLE_PROGRESS',
         fingerprintScope: 'RED_CHECKS_AND_REPAIR_TARGETS',
         progressEvidence: 'CHECK_STATE_OR_ERROR_FINGERPRINT_CHANGED',
@@ -202,6 +270,9 @@ for (const task of selected) {
       pushAuthority: 'TASK_AGENT_ON_EXECUTION_BRANCH_ONLY',
       completionAuthority: 'VERIFIER_AFTER_CANONICAL_GREEN_ONLY',
       scopeAuthority: 'SELF_HEALING_REPAIR_ONLY',
+      executionAuthority,
+      mutationScope,
+      humanCommandRequired,
     },
   };
   const output = path.join(OUTPUT_DIR, `${task.taskId}.json`);
@@ -218,10 +289,15 @@ const index = {
   executionMode: 'DIRECT_ON_EXECUTION_BRANCH',
   scopePolicy,
   scopeEnforcement,
+  executionAuthority,
+  mutationScope,
+  humanCommandRequired,
   baselineSha: sha,
   executionBranch: branch,
   mainBranchMutation: false,
   branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN',
+  controlPlaneMutationPolicy,
+  controlPlaneMutationScope: 'AUTO_REPAIR_CONTROLLER_FILES_MUST_NOT_BE_MUTATED_BY_AUTO_REPAIR',
   generatedAt,
   selected: outputs,
   selectedCount: outputs.length,
@@ -230,9 +306,9 @@ const index = {
   repairLoop: {
     enabled: true,
     mode: 'RED_TO_GREEN_IN_SAME_CYCLE',
-    maxCycles: 1000000,
+    maxCycles: 12,
     rescanAfterEveryRepair: true,
-    circuitBreaker: { enabled: true, maxStalledCycles: 1000000, action: 'REQUIRES_REVIEW_AND_REDISPATCH', failClosed: true },
+    circuitBreaker: { enabled: true, maxStalledCycles: 3, action: 'REQUIRES_REVIEW_AND_REDISPATCH', failClosed: true },
   },
   greenGate: {
     required: ['CANONICAL_GREEN', 'ZERO_RED_CHECKS', 'FRESH_EXACT_SHA_EVIDENCE', 'REGRESSION_PROOF'],
@@ -240,7 +316,7 @@ const index = {
   },
   changeBudget: { maxPreparedFiles: 12, maxInspectedFiles: 40, onExceed: 'REQUIRES_REVIEW' },
   memory: { fingerprinted: true, summaryPerRepair: true, reuseKnownFingerprint: true, generalizedAcrossFingerprints: true, promotionRequiresMultipleVerifiedCases: true },
-  cognition: diagnosis ? { rootCause: diagnosis.rootCause ?? 'unknown', decision: diagnosis.decision ?? 'PROPOSE_ONLY', causalConfidence: diagnosis.causalConfidence ?? 0, ambiguity: diagnosis.ambiguity ?? true, reusableKnowledge } : null,
+  cognition: diagnosis ? { rootCause: diagnosis.rootCause ?? 'unknown', decision: diagnosis.decision ?? 'PROPOSE_ONLY', causalConfidence: diagnosis.causalConfidence ?? 0, ambiguity: diagnosis.ambiguity ?? true, reusableKnowledge, memoryContext } : { memoryVersion: memory.version, caseCount: memory.cases.length, playbookCount: memory.playbooks.length },
   digest: hash(JSON.stringify(outputs)),
 };
 fs.writeFileSync(path.join(OUTPUT_DIR, 'latest.json'), `${JSON.stringify(index, null, 2)}\n`);
