@@ -13,6 +13,7 @@ assert(!fingerprint.includes('abcdefabcdefabcdefabcdefabcdefabcdefabcd'));
 const memory = loadMemory();
 assert.equal(memory.version, 9);
 const before = memory.cases.length;
+const hadSelfTestCase = memory.cases.some((item) => item.fingerprint === '__self_test__');
 recordOutcome(memory, {
   fingerprint: '__self_test__',
   normalizedFailure: 'lint no-unused-vars src/example.ts',
@@ -22,7 +23,7 @@ recordOutcome(memory, {
   outcome: 'success',
   verification: 'passed',
 });
-assert.equal(memory.cases.length, before + (memory.cases.some((item) => item.fingerprint === '__self_test__') ? 0 : 1));
+assert.equal(memory.cases.length, before + (hadSelfTestCase ? 0 : 1));
 assert.equal(scorePlaybook(memory, 'lint', 'eslint-unused'), 0.75);
 
 recordOutcome(memory, {
