@@ -14,9 +14,11 @@ import { validateRepairProof, preventionRuleFor, escalationReason } from './auto
 
 const workflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
 assert.match(workflow, /workflow_run:\s*\n\s*workflows:/);
+assert.match(workflow, /branches: \[main, execution\]/);
 assert.match(workflow, /github\.event\.workflow_run\.conclusion == 'failure'/);
 assert.match(workflow, /CURRENT_MAIN_SHA/);
 assert.match(workflow, /CURRENT_FAILURE_ID/);
+assert.match(workflow, /FAILED_BRANCH.*flixo-failed-branch/);
 assert.match(workflow, /Repair remains open/);
 assert.match(workflow, /gh workflow run auto-repair\.yml/);
 assert.match(workflow, /cancel-in-progress: false/);
