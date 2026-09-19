@@ -237,14 +237,21 @@ jobs:
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-final.mjs
           FLIXO_HISTORICAL_ROLLBACK_SELF_TEST=1 node /tmp/flixo-repair-controller/scripts/ci/auto-repair/historical-rollback.mjs
 
-      - name: Learn from historical GitHub Actions failures and repair history
+      - name: Learn from successful and failed GitHub Actions logs and repair history
         env:
           GH_TOKEN: ${{ github.token }}
           FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
           FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
           FLIXO_INTRACTABLE_ERRORS: /tmp/flixo-intractable-errors.json
           FLIXO_HISTORICAL_LEARNING_OUTPUT: /tmp/flixo-historical-learning.json
-        run: node /tmp/flixo-repair-controller/scripts/ci/learn-from-historical-actions.mjs
+          FLIXO_HISTORY_INCLUDE_SUCCESS: 'true'
+        run: |
+          set -euo pipefail
+          node /tmp/flixo-repair-controller/scripts/ci/learn-from-historical-actions.mjs
+          test -s /tmp/flixo-historical-learning.json
+          test -s /tmp/flixo-repair-memory.json
+          echo 'FLIXO_DERIVED_REPAIR_MEMORY=/tmp/flixo-repair-memory.json' >> "$GITHUB_ENV"
+          echo 'ACTION_LOG_LEARNING=SUCCESS_AND_FAILURE_ENABLED' >> "$GITHUB_ENV"
 
       - name: Capture failed CI logs before dependency installation
         env:
