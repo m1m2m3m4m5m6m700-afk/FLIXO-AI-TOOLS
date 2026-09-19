@@ -7,6 +7,14 @@ run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id ||
 # This workflow is EXECUTOR-ONLY; execution-bot-watchdog is the sole dispatcher.
 # No workflow in this file may create another branch or dispatch this workflow again.
 on:
+  # Autonomous repair wake-up: canonical failures start the repair cycle without
+  # requiring a human command. The executor still fail-closes on scope/evidence.
+  workflow_run:
+    workflows:
+      - FLIXO Test System
+      - FLIXO WP0 Trust Baseline
+      - FLIXO Continuous Delivery
+    types: [completed]
   workflow_dispatch:
     inputs:
       target_run_id:
@@ -32,7 +40,7 @@ env:
   FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
   FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
   FLIXO_REPAIR_LANE: single
-  TARGET_RUN_ID: ${{ inputs.target_run_id }}
+  TARGET_RUN_ID: ${{ inputs.target_run_id || github.event.workflow_run.id }}
   FLIXO_HISTORY_LIMIT: '30'
   FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
   FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
@@ -45,7 +53,8 @@ jobs:
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
     if: >-
-      github.event_name == 'workflow_dispatch'
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event_name == 'workflow_run' && (github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out'))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -73,6 +82,7 @@ jobs:
           test -n "$FAILED_SHA" && test "$FAILED_SHA" != "null"
           test "$FAILED_BRANCH" = "main" || test "$FAILED_BRANCH" = "execution"
           test "$FAILED_NAME" != "FLIXO Auto Repair Bot" || { echo 'FAIL CLOSED: auto-repair cannot repair itself.'; exit 1; }
+          test "$FAILED_NAME" != "FLIXO Auto Repair Chain" || { echo 'FAIL CLOSED: auto-repair cannot repair itself.'; exit 1; }
           printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
           printf '%s\n' "$FAILED_BRANCH" > /tmp/flixo-failed-branch
           printf '%s\n' "$FAILED_NAME" > /tmp/flixo-failed-workflow
@@ -523,7 +533,7 @@ jobs:
             echo "Execution repair remains open on execution failure run $CURRENT_FAILURE_ID."
             echo 'DISPATCH_AUTHORITY=WATCHDOG_ONLY'
             echo "RED_REMAINS_OPEN=$CURRENT_FAILURE_ID"
-            echo 'The watchdog/daily green gate must re-wake this executor; auto-repair never self-dispatches.'
+            echo 'The canonical failure event automatically re-wakes this executor; no human command is required. If the event cannot safely re-wake the executor, the cycle remains RED and fail-closed.'
             exit 1
           fi
 
@@ -538,5 +548,5 @@ jobs:
           echo "Repair remains open on current canonical failure run $CURRENT_FAILURE_ID."
           echo 'DISPATCH_AUTHORITY=WATCHDOG_ONLY'
             echo "RED_REMAINS_OPEN=$CURRENT_FAILURE_ID"
-            echo 'The watchdog/daily green gate must re-wake this executor; auto-repair never self-dispatches.'
+            echo 'The canonical failure event automatically re-wakes this executor; no human command is required. If the event cannot safely re-wake the executor, the cycle remains RED and fail-closed.'
           exit 1
