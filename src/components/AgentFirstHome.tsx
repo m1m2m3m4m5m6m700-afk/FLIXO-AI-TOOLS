@@ -62,7 +62,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
             aria-label={home.nav.switch}
             onChange={(event) => {
               const nextLocale = event.target.value as Locale;
-              void navigate({ to: nextLocale === 'en' ? '/' : `/${nextLocale}` });
+              void navigate(nextLocale === 'en' ? { to: '/' } : { to: '/$locale', params: { locale: nextLocale } });
             }}
           >
             {LOCALES.map((code) => (
