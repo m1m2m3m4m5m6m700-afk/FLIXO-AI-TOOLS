@@ -36,11 +36,16 @@ function RouteContent() {
 export const rootRoute = createRootRoute({
   component: function RootLayout() {
     useEffect(() => {
+      let active = true;
       let dispose = () => undefined;
       void import('../lib/diagnostics/performance').then(({ installCoreWebVitalsDiagnostics }) => {
+        if (!active) return;
         dispose = installCoreWebVitalsDiagnostics();
       });
-      return () => dispose();
+      return () => {
+        active = false;
+        dispose();
+      };
     }, []);
     return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} /><FlixoGlobalLogo /><Suspense fallback={null}><CommandPalette /></Suspense><RouteContent /><Scripts /></>;
   },
