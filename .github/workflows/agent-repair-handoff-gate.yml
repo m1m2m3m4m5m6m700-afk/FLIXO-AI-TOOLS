@@ -22,6 +22,7 @@ env:
 jobs:
   validate-handoff:
     name: Validate repair handoff boundary
+    if: github.event.workflow_run.conclusion != 'skipped' && github.event.workflow_run.conclusion != 'cancelled'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
