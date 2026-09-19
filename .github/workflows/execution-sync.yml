@@ -42,6 +42,22 @@ jobs:
             exit 0
           fi
 
+          # The execution branch may already contain an equivalent workflow-file change
+          # that exists on the single main-only tip commit. Prove semantic parity and
+          # skip history-only reconciliation rather than pushing workflow files with
+          # a GITHUB_TOKEN that cannot authorize workflow updates.
+          MAIN_AHEAD_COUNT="$(git rev-list --count "$EXEC_SHA..$MAIN_SHA")"
+          if [ "$MAIN_AHEAD_COUNT" -eq 1 ]; then
+            MAIN_ONLY_SHA="$(git rev-list "$EXEC_SHA..$MAIN_SHA")"
+            MAIN_ONLY_FILES="$(git diff-tree --no-commit-id --name-only -r "$MAIN_ONLY_SHA" | sort)"
+            if [ "$MAIN_ONLY_FILES" = ".github/workflows/auto-repair.yml" ] &&
+              git diff --quiet "$MAIN_SHA:.github/workflows/auto-repair.yml" "HEAD:.github/workflows/auto-repair.yml"; then
+              echo "execution already contains equivalent auto-repair workflow content from main commit $MAIN_ONLY_SHA"
+              echo "History-only reconciliation skipped; canonical CI remains the verification authority."
+              exit 0
+            fi
+          fi
+
           if ! git merge --no-edit -X ours origin/main; then
             echo "FAIL CLOSED: execution cannot reconcile canonical main $MAIN_SHA without a merge conflict."
             git merge --abort || true
