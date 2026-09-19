@@ -36,6 +36,8 @@ jobs:
           test "${PR_STATE%%|*}" = "execution"
           git fetch --no-tags origin main execution
           test "$(git branch --show-current)" = "execution"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           CANONICAL_MAIN="$(git rev-parse origin/main)"
           MERGE_BASE="$(git merge-base origin/main origin/execution)"
           EXPECTED_MAIN="dfc2d5f6cc3d9426a98630d97c3e2c321746a9eb"
