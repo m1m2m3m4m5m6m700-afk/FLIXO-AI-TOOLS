@@ -175,13 +175,13 @@ for (const task of selected) {
     },
     repairLoop: {
       mode: 'RED_TO_GREEN_IN_SAME_CYCLE',
-      maxCycles: 1000000,
+      maxCycles: 12,
       rescanAfterEveryRepair: true,
       rescanScope: 'ALL_REQUIRED_CHECKS',
       repairOrder: ['capture-failure', 'root-cause', 'source-fix', 'proportional-hardening', 'targeted-regression', 'canonical-ci'],
       circuitBreaker: {
         enabled: true,
-        maxStalledCycles: 1000000,
+        maxStalledCycles: 3,
         definition: 'SAME_FAILURE_FINGERPRINT_WITHOUT_VERIFIABLE_PROGRESS',
         fingerprintScope: 'RED_CHECKS_AND_REPAIR_TARGETS',
         progressEvidence: 'CHECK_STATE_OR_ERROR_FINGERPRINT_CHANGED',
@@ -230,9 +230,9 @@ const index = {
   repairLoop: {
     enabled: true,
     mode: 'RED_TO_GREEN_IN_SAME_CYCLE',
-    maxCycles: 1000000,
+    maxCycles: 12,
     rescanAfterEveryRepair: true,
-    circuitBreaker: { enabled: true, maxStalledCycles: 1000000, action: 'REQUIRES_REVIEW', failClosed: true },
+    circuitBreaker: { enabled: true, maxStalledCycles: 3, action: 'REQUIRES_REVIEW', failClosed: true },
   },
   greenGate: {
     required: ['CANONICAL_GREEN', 'ZERO_RED_CHECKS', 'FRESH_EXACT_SHA_EVIDENCE', 'REGRESSION_PROOF'],
