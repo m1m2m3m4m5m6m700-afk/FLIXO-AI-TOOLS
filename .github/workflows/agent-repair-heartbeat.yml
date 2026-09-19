@@ -46,7 +46,8 @@ jobs:
                   (.name == "FLIXO Test Impact" or
                    .name == "FLIXO Test Impact Execution" or
                    .name == "Repository Security Baseline" or
-                   .name == "Claude Security Review")
+                   .name == "Claude Security Review" or
+                   .name == "Daily·FLIXO Green Gate")
                   and .headSha == $sha
                   and (.conclusion == "failure" or .conclusion == "timed_out")
                 ))
