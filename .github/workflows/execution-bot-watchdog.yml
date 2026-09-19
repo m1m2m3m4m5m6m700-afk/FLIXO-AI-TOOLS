@@ -69,7 +69,9 @@ jobs:
                 (.conclusion == "failure" or
                  .conclusion == "timed_out" or
                  .conclusion == "cancelled" or
-                 .conclusion == "action_required"))] |
+                 .conclusion == "action_required")) |
+              select((.workflowName // "") as $w |
+                ($w | test("Auto Repair|Execution Bot Watchdog|Daily·FLIXO Green Gate|auto-repair-merge-gate|execution-sync|agent-repair-handoff"; "i")) | not)] |
             sort_by(.updatedAt) |
             last |
             .databaseId // empty
