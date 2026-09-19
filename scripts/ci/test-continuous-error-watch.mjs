@@ -87,6 +87,19 @@ const cancelledUnsuperseded = evaluateGreen({
 assert.equal(cancelledUnsuperseded.status, 'RED_INTERNAL');
 assert.equal(cancelledUnsuperseded.repair.required, false);
 
+const cancelledWithoutEvidence = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr,
+  workflowRuns: requiredRuns.map((item) =>
+    item.workflowName === 'FLIXO Test Impact Execution'
+      ? { ...item, conclusion: 'cancelled', databaseId: 994, updatedAt: '2026-09-19T00:03:00Z', headBranch: 'execution' }
+      : item),
+  checkRuns: securityAndCertification,
+  logs: {},
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(cancelledWithoutEvidence.status, 'FAIL_CLOSED');
+assert.equal(cancelledWithoutEvidence.repair.required, false);
+
 const missingEvidence = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
   workflowRuns: requiredRuns.map((item) =>
@@ -134,6 +147,19 @@ const securityProvider = evaluateGreen({
 });
 assert.equal(securityProvider.status, 'BLOCKED_EXTERNAL');
 assert.equal(securityProvider.externalBlockers[0].rootCause, 'EXTERNAL_SECURITY_PROVIDER_FAILURE');
+
+const securityMissingEvidence = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: [
+    { id: 105, name: 'github-advanced-security', status: 'completed', conclusion: 'failure', details_url: 'https://github.com/m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS/actions/runs/35452323663' },
+    { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
+  ],
+  logs: {},
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(securityMissingEvidence.status, 'FAIL_CLOSED');
+assert.equal(securityMissingEvidence.repair.required, false);
 
 const internal = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
