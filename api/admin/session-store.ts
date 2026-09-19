@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { AdminSession } from './boundary.ts';
 
 type SessionRecord = {
@@ -48,13 +49,14 @@ export const isAdminSessionStoreConfigured = () => config() !== null;
 
 export const persistAdminSession = async (
   session: AdminSession,
-  input: { environment: string; issuedAt: string },
+  input: { environment: string; issuedAt: string; token: string },
 ) => {
   if (!session.sessionId) throw new Error('admin_session_id_missing');
   const body = await request('/rest/v1/flix_admin_sessions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Prefer: 'return=representation' },
     body: JSON.stringify({
+      token_hash: createHash('sha256').update(input.token).digest('hex'),
       session_id: session.sessionId,
       actor_subject: session.subject,
       actor_role: session.role ?? 'ADMIN',
