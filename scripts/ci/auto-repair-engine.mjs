@@ -146,6 +146,13 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     const diffSummary = summarizeDiff(changed);
     evidence.diff = diffSummary;
     evidence.changedPaths = diffSummary.files;
+    evidence.mutationAttribution = mutationAttribution({
+      beforeSha: targetSha,
+      afterSha: git(['rev-parse', 'HEAD']).trim(),
+      changedFiles: diffSummary.files,
+      rule: evidence.selected,
+      outcome: 'mutation-applied',
+    });
     if (
       !diffSummary.files.length ||
       diffSummary.files.length > repairPolicy.maxChangedFiles ||
