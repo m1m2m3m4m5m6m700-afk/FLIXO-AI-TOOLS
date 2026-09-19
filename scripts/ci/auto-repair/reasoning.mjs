@@ -80,6 +80,30 @@ function evidenceLines(log, profile) {
     .map((line) => line.trim().slice(0, 500));
 }
 
+function evidenceProfile({ directFailureSignal, codeContext, scout, learnedSupport, crossWorkflow } = {}) {
+  const channels = {
+    directLog: Boolean(directFailureSignal),
+    sourceContext: Boolean(codeContext?.available),
+    exactShaScout: Boolean(scout?.fresh),
+    historicalLearning: Number(learnedSupport ?? 0) > 0,
+    crossWorkflowCorrelation: crossWorkflow?.confidence === 'CORRELATED',
+  };
+  const diversity = Object.values(channels).filter(Boolean).length;
+  return {
+    channels,
+    diversity,
+    minimumForMutation: 2,
+    quality: diversity >= 4 ? 'MULTI_SOURCE' : diversity >= 3 ? 'STRONG' : diversity >= 2 ? 'BOUNDED' : 'INSUFFICIENT',
+  };
+}
+
+function confidenceCap({ diversity = 0, directFailureSignal = false, ambiguity = false } = {}) {
+  if (!directFailureSignal) return 0.65;
+  if (ambiguity) return 0.82;
+  if (diversity < 2) return 0.80;
+  if (diversity === 2) return 0.92;
+  return 0.995;
+}
 function buildHypotheses(log, features, scout, historical = [], codeContext = null) {
   const candidates = PROFILES
     .filter((profile) => features.includes(profile.feature))
@@ -200,14 +224,41 @@ export function reasonFailure(log, {
   const causalDominance = alternatives.some((item) => top.dominates.includes(item.id) || item.dominates?.includes(top.id));
   const contradiction = Boolean(second && !causalDominance && second.score >= top.score * 0.9);
   const multiCauseAmbiguity = features.length > 1 && !causalDominance;
-  const causalConfidence = top.id === 'external-tooling'
-    ? 0.99
-    : Number(Math.min(0.995, top.score + (directFailureSignal ? 0.12 : 0) + Math.min(0.08, Math.max(0, separation))).toFixed(3));
   const ambiguity = contradiction || multiCauseAmbiguity;
   const hardBlock = profileFor(top.id)?.hardBlock === true;
   const requiresVerifiedLocation = top.id === 'lint' || top.id === 'format';
   const locationVerified = !requiresVerifiedLocation || (location !== null && codeContext.available);
-  const sourceMutationAllowed = !hardBlock && !ambiguity && directFailureSignal && causalConfidence >= 0.75 && locationVerified;
+  const crossWorkflow = crossWorkflowCorrelation({
+    workflow: process.env.GITHUB_WORKFLOW ?? null,
+    failures: (() => {
+      try {
+        const p = process.env.FLIXO_WORKFLOW_FAILURES;
+        return p && fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : [];
+      } catch {
+        return [];
+      }
+    })(),
+  });
+  const evidence = evidenceProfile({
+    directFailureSignal,
+    codeContext,
+    scout,
+    learnedSupport: top.learnedSupport,
+    crossWorkflow,
+  });
+  const cap = confidenceCap({ diversity: evidence.diversity, directFailureSignal, ambiguity });
+  const causalConfidence = top.id === 'external-tooling'
+    ? 0.99
+    : Number(Math.min(cap, top.score + (directFailureSignal ? 0.10 : 0) + Math.min(0.07, Math.max(0, separation))).toFixed(3));
+  const mutationGate = {
+    directFailureSignal,
+    locationVerified,
+    nonAmbiguous: !ambiguity,
+    evidenceDiversity: evidence.diversity >= evidence.minimumForMutation,
+    hypothesisSeparation: second ? separation >= 0.08 : top.score >= 0.75,
+    confidence: causalConfidence >= 0.75,
+  };
+  const sourceMutationAllowed = !hardBlock && Object.values(mutationGate).every(Boolean);
   const falsificationChecks = counterfactualChecks(text, top, alternatives);
   const decision = hardBlock
     ? 'BLOCK_EXTERNAL'
@@ -227,13 +278,15 @@ export function reasonFailure(log, {
     diagnosisQuality: hardBlock || sourceMutationAllowed ? 'strong' : causalConfidence >= 0.5 ? 'provisional' : 'weak',
     directFailureSignal,
     ambiguity,
-    sourceMutationAllowed: sourceMutationAllowed && (!falsificationChecks.some((item) => item.status === 'REQUIRED_BEFORE_NONTRIVIAL_MUTATION') || directFailureSignal),
+    evidenceProfile: evidence,
+    mutationGate,
+    sourceMutationAllowed,
     externalTooling: hardBlock,
     locationVerified,
     falsificationChecks,
     blastRadius: blastRadius(features, top.id),
     causalGraph: causalGraph({ trigger: process.env.FLIXO_FAILURE_TRIGGER ?? null, rootCause: top.id, violatedInvariant: process.env.FLIXO_VIOLATED_INVARIANT ?? null, responsibleSource: location?.file ?? null, symptom: normalizeFailure(text) }),
-    crossWorkflowCorrelation: crossWorkflowCorrelation({ workflow: process.env.GITHUB_WORKFLOW ?? null, failures: (() => { try { const p = process.env.FLIXO_WORKFLOW_FAILURES; return p && fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : []; } catch { return []; } })() }),
+    crossWorkflowCorrelation: crossWorkflow,
     adaptiveBudget: adaptiveBudget({ attempts: Number(process.env.FLIXO_REPAIR_ATTEMPTS ?? 0), ambiguity, alternatives: alternatives.length, features }),
     decision,
     scout: scout.fresh
@@ -260,7 +313,7 @@ export function verificationStrategy(features = []) {
 export function reasoningPolicy() {
   return Object.freeze({
     principle: 'EVIDENCE_FIRST_CAUSAL_REASONING',
-    mutationRule: 'ALLOW_ONLY_WITH_DIRECT_FAILURE_SIGNAL_NON_AMBIGUOUS_CAUSAL_CONFIDENCE_AND_BOUNDED_PLAN',
+    mutationRule: 'ALLOW_ONLY_WITH_DIRECT_FAILURE_SIGNAL_NON_AMBIGUOUS_MULTI_SOURCE_EVIDENCE_HYPOTHESIS_SEPARATION_CALIBRATED_CONFIDENCE_AND_BOUNDED_PLAN',
     externalRule: 'EXTERNAL_TOOLING_IS_NOT_A_SOURCE_FIX',
     scoutRule: 'ONLY_FRESH_EXACT_SHA_SCOUT_EVIDENCE_IS_ACTIONABLE',
     learningRule: 'HISTORICAL_SUCCESS_IS_PRIOR_SUPPORT_NOT_CAUSAL_PROOF',

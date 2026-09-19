@@ -7,12 +7,9 @@ on:
     - cron: '*/15 * * * *'
   workflow_run:
     workflows:
+      # Canonical trigger: one completed Test System cycle wakes the watcher.
+      # The watcher still inspects every required workflow/check on the exact SHA.
       - FLIXO Test System
-      - FLIXO WP0 Trust Baseline
-      - FLIXO Test Impact
-      - FLIXO Test Impact Execution
-      - Repository Security Baseline
-      - Claude Security Review
     types: [completed]
     branches: [execution, main]
 
@@ -156,7 +153,18 @@ jobs:
             exit 1
           }
 
-          CHAIN_ID="watch-$TARGET_RUN_ID"
+          REPAIR_KEY="$(jq -r '.repair.repairKey // empty' /tmp/flixo-watch/report.json)"
+          FAILURE_FINGERPRINT="$(jq -r '.repair.failureFingerprint // empty' /tmp/flixo-watch/report.json)"
+          test -n "$REPAIR_KEY" || {
+            echo 'FAIL CLOSED: internal RED has no deterministic repair key.'
+            exit 1
+          }
+          test -n "$FAILURE_FINGERPRINT" || {
+            echo 'FAIL CLOSED: internal RED has no failure fingerprint.'
+            exit 1
+          }
+
+          CHAIN_ID="watch-$REPAIR_KEY"
           EXISTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 100 --json displayTitle \
             --jq '.[].displayTitle' | grep -Fxc "FLIXO Auto Repair Chain $CHAIN_ID" || true)"
 

@@ -78,6 +78,8 @@ const internal = evaluateGreen({
 assert.equal(internal.status, 'RED_INTERNAL');
 assert.equal(internal.repair.required, true);
 assert.equal(internal.repair.targetRunId, 999);
+assert.match(internal.repair.failureFingerprint, /^[0-9a-f]{64}$/);
+assert.equal(internal.repair.repairKey, SHA_A + ':' + internal.repair.failureFingerprint);
 
 const providerWorkflow = evaluateGreen({
   executionSha: SHA_A,

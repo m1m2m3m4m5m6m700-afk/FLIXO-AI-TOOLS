@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { fingerprintFailure } from './auto-repair/fingerprint.mjs';
 
 export const REQUIRED_WORKFLOWS = Object.freeze([
   'FLIXO Test System',
@@ -106,6 +107,8 @@ export function evaluateGreen({
     repair: {
       required: false,
       targetRunId: null,
+      failureFingerprint: null,
+      repairKey: null,
       action: 'NONE',
       rootCauseAuthority: 'TASK_AGENT_RCA',
     },
@@ -196,9 +199,13 @@ export function evaluateGreen({
         });
 
         if (!report.repair.required && !['FLIXO Test System', 'FLIXO WP0 Trust Baseline'].includes(name)) {
+          const failureLog = logs[String(run.databaseId)] ?? '';
+          const failureFingerprint = fingerprintFailure(failureLog || (name + ':' + run.conclusion));
           report.repair = {
             required: true,
             targetRunId: run.databaseId ?? null,
+            failureFingerprint,
+            repairKey: executionSha + ':' + failureFingerprint,
             action: 'PENDING_DISPATCH',
             rootCauseAuthority: 'TASK_AGENT_RCA',
           };

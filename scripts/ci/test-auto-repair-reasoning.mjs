@@ -19,6 +19,8 @@ assert.equal(webkit.ambiguity, false);
 assert(webkit.causalConfidence >= 0.75);
 assert.equal(webkit.sourceMutationAllowed, true);
 assert.equal(webkit.decision, 'ALLOW_BOUNDED_MUTATION');
+assert(webkit.evidenceProfile.diversity >= 2);
+assert.equal(webkit.mutationGate.evidenceDiversity, true);
 assert(webkit.hypotheses.some((item) => item.id === 'playwright' && item.suppressedBy === 'webkit-render'));
 assert.deepEqual(verificationStrategy(['webkit', 'playwright']), [['npm', ['run', 'test:browser']], ['npm', ['run', 'test:static']]]);
 
