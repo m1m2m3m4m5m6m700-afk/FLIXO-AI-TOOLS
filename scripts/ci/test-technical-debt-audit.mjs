@@ -25,6 +25,7 @@ assert.equal(audit.sha, run(['rev-parse', 'HEAD']));
 assert.equal(audit.findings.length, audit.summary.findings);
 assert.equal(audit.inventory.genericPlaywrightHarness, true, 'generic Playwright harness must be recognized for test ownership');
 assert.equal(audit.findings.some((finding) => finding.target === 'tests/foundation.spec.ts' && finding.id === 'RC-DEBT-ORPHAN-TEST-CANDIDATE'), false, 'Playwright-owned spec must not be classified as orphaned');
+assert.equal(audit.findings.some((finding) => finding.target === 'artifacts/ci/legacy-inventory.json'), false, 'historical evidence must not be classified as legacy deletion debt');
 const fingerprints = audit.findings.map((finding) => finding.fingerprint);
 assert.equal(new Set(fingerprints).size, fingerprints.length, 'finding fingerprints must be unique');
 for (const fingerprint of fingerprints) assert.match(fingerprint, /^[a-f0-9]{64}$/);
