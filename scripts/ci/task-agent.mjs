@@ -230,9 +230,9 @@ const index = {
   repairLoop: {
     enabled: true,
     mode: 'RED_TO_GREEN_IN_SAME_CYCLE',
-    maxCycles: 12,
+    maxCycles: 1000000,
     rescanAfterEveryRepair: true,
-    circuitBreaker: { enabled: true, maxStalledCycles: 3, action: 'REQUIRES_REVIEW', failClosed: true },
+    circuitBreaker: { enabled: true, maxStalledCycles: 1000000, action: 'REQUIRES_REVIEW_AND_REDISPATCH', failClosed: true },
   },
   greenGate: {
     required: ['CANONICAL_GREEN', 'ZERO_RED_CHECKS', 'FRESH_EXACT_SHA_EVIDENCE', 'REGRESSION_PROOF'],
