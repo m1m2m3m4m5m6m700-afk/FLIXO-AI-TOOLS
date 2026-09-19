@@ -26,6 +26,7 @@ on:
       - FLIXO Test Impact Execution
       - Repository Security Baseline
       - Claude Security Review
+      - Daily·FLIXO Green Gate
     types:
       - completed
 
@@ -98,7 +99,7 @@ jobs:
           CONCLUSION="$(gh run view "$TARGET" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion')"
           case "$CONCLUSION" in
             failure|timed_out) ;;
-            *) echo "Target run $TARGET is no longer a diagnosable failure: $CONCLUSION"; exit 0 ;;
+            *) echo "Target run $TARGET is not a diagnosable failure: $CONCLUSION"; exit 0 ;;
           esac
 
           gh run view "$TARGET" --repo "$GITHUB_REPOSITORY" --json databaseId,conclusion,headSha,headBranch,name
