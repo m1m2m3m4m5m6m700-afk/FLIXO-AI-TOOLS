@@ -51,6 +51,15 @@ assert.match(dailyGateWorkflow, /observedBranch,/);
 assert.doesNotMatch(dailyGateWorkflow, /- FLIXO WP0 Trust Baseline\n\s+- FLIXO Test Impact/);
 assert.doesNotMatch(dailyGateWorkflow, /gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i);
 assert.match(handoffGateWorkflow, /branches: \[execution\]/);
+assert.match(autoRepairWorkflow, /Initialize Repair Control Plane cycle/);
+assert.match(autoRepairWorkflow, /to=EVIDENCE_LOCKED/);
+assert.match(autoRepairWorkflow, /to=RCA/);
+assert.match(autoRepairWorkflow, /to=REPAIR_PLANNED/);
+assert.match(autoRepairWorkflow, /to=MUTATING/);
+assert.match(autoRepairWorkflow, /to=LOCAL_VERIFICATION/);
+assert.match(autoRepairWorkflow, /to=PUBLISHED_TO_EXECUTION/);
+assert.match(autoRepairWorkflow, /to=CANONICAL_CI/);
+assert.match(dailyGateWorkflow, /failure_fingerprint=\\$FAILURE_FINGERPRINT/);
 assert.match(handoffGateWorkflow, /CURRENT_EXECUTION_SHA=/);
 assert.match(handoffGateWorkflow, /HANDOFF_EXECUTION_SHA/);
 
