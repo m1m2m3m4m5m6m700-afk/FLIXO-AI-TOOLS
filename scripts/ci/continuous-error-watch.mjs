@@ -47,6 +47,8 @@ const CERTIFICATION_CHECK_PATTERNS = Object.freeze([
 const EXTERNAL_CHECK_PATTERNS = Object.freeze([
   /^vercel$/i,
   /^vercel deployment$/i,
+  /cloudflare.*deploy/i,
+  /deploy.*cloudflare/i,
 ]);
 
 const PROVIDER_FAILURE_PATTERNS = Object.freeze([
