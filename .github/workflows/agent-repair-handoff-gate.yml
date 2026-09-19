@@ -36,7 +36,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          repair_job_conclusion="$(gh run view "$REPAIR_RUN_ID" --repo "$GITHUB_REPOSITORY" --json jobs --jq '[.jobs[] | select(.name == "Single-lane diagnose, prepare, verify and learn") | .conclusion] | first // "skipped"')"
+          repair_job_conclusion="$(gh run view "$REPAIR_RUN_ID" --repo "$GITHUB_REPOSITORY" --json jobs --jq '[.jobs[] | select(.name == "Single-lane diagnose, execute, verify and learn on execution") | .conclusion] | first // "skipped"')"
           echo "repair_job_conclusion=$repair_job_conclusion" >> "$GITHUB_OUTPUT"
 
       - name: Download repair handoff artifact

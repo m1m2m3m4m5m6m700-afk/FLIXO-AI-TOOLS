@@ -14,13 +14,14 @@ on:
   workflow_run:
     workflows: ["FLIXO Test System", "FLIXO WP0 Trust Baseline", "FLIXO Continuous Delivery"]
     types: [completed]
-    branches: [main]
+    branches: [main, execution]
 
 permissions:
   contents: write
   actions: write
   checks: read
   pull-requests: write
+  issues: write
 
 concurrency:
   group: flixo-auto-repair-execution
@@ -61,9 +62,17 @@ jobs:
             *) echo "Target run $TARGET_RUN_ID is not a diagnosable failure: $CONCLUSION"; exit 1 ;;
           esac
           gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,conclusion,headSha,headBranch,name
-          FAILED_SHA="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha --jq '.headSha')"
+          RUN_META="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha,headBranch,name,conclusion)"
+          FAILED_SHA="$(printf '%s' "$RUN_META" | jq -r '.headSha')"
+          FAILED_BRANCH="$(printf '%s' "$RUN_META" | jq -r '.headBranch')"
           test -n "$FAILED_SHA" && test "$FAILED_SHA" != "null"
+          test -n "$FAILED_BRANCH" && test "$FAILED_BRANCH" != "null"
+          case "$FAILED_BRANCH" in
+            main|execution) ;;
+            *) echo "FAIL CLOSED: unsupported repair source branch=$FAILED_BRANCH"; exit 1 ;;
+          esac
           printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
+          printf '%s\n' "$FAILED_BRANCH" > /tmp/flixo-failed-branch
 
       - name: Synchronize execution with the failed main SHA without creating a branch
         env:
@@ -181,6 +190,41 @@ jobs:
           test "$(git branch --show-current)" = execution
           echo 'verified=true' >> "$GITHUB_OUTPUT"
 
+      - name: Prepare verified repair handoff
+        if: steps.verify.outputs.verified == 'true'
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = execution
+          test -s /tmp/flixo-repair-evidence.json
+          git diff --binary > /tmp/flixo-prepared-repair.patch
+          test -s /tmp/flixo-prepared-repair.patch
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          import { execFileSync } from 'node:child_process';
+          const evidence = JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));
+          const patch = fs.readFileSync('/tmp/flixo-prepared-repair.patch');
+          const changedPaths = execFileSync('git',['diff','--name-only'],{encoding:'utf8'}).trim().split('\\n').filter(Boolean);
+          const handoff = {
+            schemaVersion: 3,
+            protocol: 'AGENT-REPAIR-HANDOFF-GATE-v3',
+            mode: 'VERIFIED_REPAIR',
+            applyBy: 'AUTO_REPAIR_BOT',
+            requiresCanonicalCI: true,
+            repairRunId: process.env.TARGET_RUN_ID,
+            failedSha: fs.existsSync('/tmp/flixo-failed-sha') ? fs.readFileSync('/tmp/flixo-failed-sha','utf8').trim() : null,
+            sourceSha: evidence.targetSha,
+            fingerprint: evidence.fingerprint,
+            selectedRule: evidence.selected,
+            changedPaths,
+            patchSha256: crypto.createHash('sha256').update(patch).digest('hex'),
+            evidenceFile: 'flixo-repair-evidence.json',
+            generatedAt: new Date().toISOString()
+          };
+          fs.writeFileSync('/tmp/flixo-prepared-repair-handoff.json', JSON.stringify(handoff,null,2)+'\\n');
+          NODE
+          test -s /tmp/flixo-prepared-repair-handoff.json
+
       - name: Record learning outcome for every diagnosed failure
         if: always()
         env:
@@ -245,6 +289,8 @@ jobs:
             /tmp/flixo-engine-outcome
             /tmp/flixo-learning-outcome
             /tmp/flixo-repair-evidence.json
+            /tmp/flixo-prepared-repair-handoff.json
+            /tmp/flixo-prepared-repair.patch
             /tmp/flixo-repair-strategy.json
             /tmp/flixo-intractable-state
             /tmp/flixo-task-agent/*.json
@@ -266,11 +312,25 @@ jobs:
             echo 'INTRACTABLE case reached: recursive repair is intentionally stopped.'
             exit 1
           fi
+          FAILED_BRANCH="$(cat /tmp/flixo-failed-branch)"
+          CURRENT_FAILURE_ID=""
+          if [ "$FAILED_BRANCH" = "execution" ]; then
+            CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+            CURRENT_FAILURE_ID="$(
+              gh run list --repo "$GITHUB_REPOSITORY" --branch execution --limit 50                 --json databaseId,name,headSha,conclusion,createdAt                 --jq 'map(select((.name == "FLIXO Test System" or .name == "FLIXO WP0 Trust Baseline" or .name == "FLIXO Continuous Delivery") and .headSha == "'$CURRENT_EXECUTION_SHA'" and (.conclusion == "failure" or .conclusion == "timed_out"))) | sort_by(.createdAt) | last.databaseId // empty'
+            )"
+            if [ -z "$CURRENT_FAILURE_ID" ]; then
+              echo "No current canonical failure remains on execution $CURRENT_EXECUTION_SHA; repair cycle remains fail-closed."
+              exit 1
+            fi
+            echo "Execution repair remains open on current failure run $CURRENT_FAILURE_ID."
+            gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref main -f target_run_id="$CURRENT_FAILURE_ID"
+            exit 1
+          fi
+
           CURRENT_MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
           CURRENT_FAILURE_ID="$(
-            gh run list --repo "$GITHUB_REPOSITORY" --branch main --limit 50 \
-              --json databaseId,name,headSha,conclusion,createdAt \
-              --jq 'map(select((.name == "FLIXO Test System" or .name == "FLIXO WP0 Trust Baseline" or .name == "FLIXO Continuous Delivery") and .headSha == "'$CURRENT_MAIN_SHA'" and (.conclusion == "failure" or .conclusion == "timed_out"))) | sort_by(.createdAt) | last.databaseId // empty'
+            gh run list --repo "$GITHUB_REPOSITORY" --branch main --limit 50               --json databaseId,name,headSha,conclusion,createdAt               --jq 'map(select((.name == "FLIXO Test System" or .name == "FLIXO WP0 Trust Baseline" or .name == "FLIXO Continuous Delivery") and .headSha == "'$CURRENT_MAIN_SHA'" and (.conclusion == "failure" or .conclusion == "timed_out"))) | sort_by(.createdAt) | last.databaseId // empty'
           )"
           if [ -z "$CURRENT_FAILURE_ID" ]; then
             echo "No current canonical failure remains on main $CURRENT_MAIN_SHA; stale target $TARGET_RUN_ID is closed."

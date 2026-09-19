@@ -8,13 +8,14 @@ const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/aut
 const INTRACTABLE_THRESHOLD = 10;
 export { normalizeFailure, fingerprintFailure, extractFeatures };
 
-const emptyMemory = () => ({ version: 6, cases: [], playbooks: [], lessons: [], antiLessons: [] });
+const MEMORY_VERSION = 7;
+const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });
 
 export function loadMemory() {
   if (!fs.existsSync(memoryPath)) return emptyMemory();
   try {
     const parsed = JSON.parse(fs.readFileSync(memoryPath, 'utf8'));
-    return { ...emptyMemory(), ...parsed, version: 6 };
+    return { ...emptyMemory(), ...parsed, version: MEMORY_VERSION };
   } catch {
     return emptyMemory();
   }
@@ -41,24 +42,28 @@ function writeIntractable(data) {
 
 function publishIntractableRecord(record) {
   if (!process.env.GH_TOKEN || !process.env.GITHUB_REPOSITORY) return;
-  const branch = `flixo-intractable/${record.fingerprint.slice(0, 12)}-${process.env.GITHUB_RUN_ID ?? Date.now()}`;
   const run = (args) => spawnSync('gh', args, { encoding: 'utf8', env: process.env });
-  const git = (args) => spawnSync('git', args, { encoding: 'utf8', env: process.env });
-  const branchResult = run(['pr', 'list', '--repo', process.env.GITHUB_REPOSITORY, '--head', branch, '--state', 'open', '--json', 'number']);
-  if (branchResult.status === 0 && JSON.parse(branchResult.stdout || '[]').length > 0) return;
-  const switchResult = run(['api', `repos/${process.env.GITHUB_REPOSITORY}/git/refs/heads/main`, '--jq', '.object.sha']);
-  if (switchResult.status !== 0) return;
-  const baseSha = switchResult.stdout.trim();
-  if (!baseSha) return;
-  if (run(['api', `repos/${process.env.GITHUB_REPOSITORY}/git/refs`, '-f', `ref=refs/heads/${branch}`, '-f', `sha=${baseSha}`]).status !== 0) return;
-  if (git(['fetch', '--no-tags', 'origin', branch]).status !== 0) return;
-  if (git(['switch', '--create', branch, '--track', `origin/${branch}`]).status !== 0) return;
-  if (git(['add', intractablePath]).status !== 0) return;
-  if (git(['config', 'user.name', 'github-actions[bot]']).status !== 0) return;
-  if (git(['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com']).status !== 0) return;
-  if (git(['commit', '-m', `chore(auto-repair): record intractable error ${record.fingerprint.slice(0, 12)}`]).status !== 0) return;
-  if (git(['push', '--set-upstream', 'origin', branch]).status !== 0) return;
-  run(['pr', 'create', '--repo', process.env.GITHUB_REPOSITORY, '--base', 'main', '--head', branch, '--title', `chore(auto-repair): escalate intractable error ${record.fingerprint.slice(0, 12)}`, '--body', `This escalation was opened automatically after ${record.attempts} non-verified repair attempts for fingerprint ${record.fingerprint}.\n\nProtocol: SUPERVISING-REPAIR-TEACHING-v1\n\nThis PR contains diagnostic state only. It does not bypass verified-repair or canonical CI. The supervising agent must provide a new evidence-backed hypothesis, diagnostic change, repair strategy, verification plan, rejected approaches, and exit criteria before the case can leave INTRACTABLE.`]);
+  const marker = `Auto Repair Intractable ${record.fingerprint.slice(0, 12)}`;
+  const existing = run(['issue', 'list', '--repo', process.env.GITHUB_REPOSITORY, '--state', 'open', '--search', `${marker} in:title`, '--json', 'number']);
+  if (existing.status !== 0) return;
+  try {
+    const issues = JSON.parse(existing.stdout || '[]');
+    if (issues.length) return;
+  } catch {
+    return;
+  }
+  run(['issue', 'create', '--repo', process.env.GITHUB_REPOSITORY,
+    '--title', marker,
+    '--body', [
+      `Protocol: SUPERVISING-REPAIR-TEACHING-v1`,
+      `Fingerprint: ${record.fingerprint}`,
+      `Attempts: ${record.attempts}`,
+      `Root cause: ${record.rootCause}`,
+      '',
+      'This is diagnostic escalation only. It intentionally creates no branch and no repair lane.',
+      'The repair cycle remains fail-closed until a new evidence-backed strategy is supplied and canonical CI verifies it.',
+    ].join('\n')
+  ]);
 }
 
 function priorRepairArtifactCount() {
@@ -215,7 +220,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
 
 export function writeMemory(memory) {
   fs.mkdirSync(memoryPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
-  const normalized = { ...emptyMemory(), ...memory, version: 6 };
+  const normalized = { ...emptyMemory(), ...memory, version: MEMORY_VERSION };
   fs.writeFileSync(memoryPath, `${JSON.stringify(normalized, null, 2)}\n`);
 }
 
