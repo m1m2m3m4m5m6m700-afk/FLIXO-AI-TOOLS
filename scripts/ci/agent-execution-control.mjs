@@ -16,8 +16,7 @@ const MAX_PREPARED_FILES = 12;
 const MAX_INSPECTED_FILES = 40;
 const SCOPE_POLICY = 'SELF_HEALING_REPAIR_ONLY';
 const SCOPE_ENFORCEMENT = 'FAIL_CLOSED';
-
-const CONTRACT_CHECK_ONLY = process.env.FLIXO_AGENT_EXECUTION_CONTROL_MODE === 'CONTRACT_CHECK';
+const TASK_AGENT_CONTRACT_VERSION = 'TASK-AGENT-DIRECT-REPAIR-v2';
 
 const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
 const now = () => new Date().toISOString();
@@ -39,6 +38,8 @@ function latestPacket() {
   if (index.preparedOnly !== false || index.executionMode !== 'DIRECT_ON_EXECUTION_BRANCH') throw new Error('TASK_AGENT_DIRECT_EXECUTION_CONTRACT_VIOLATION');
   if (index.scopePolicy !== SCOPE_POLICY || index.scopeEnforcement !== SCOPE_ENFORCEMENT) throw new Error('SELF_HEALING_SCOPE_CONTRACT_VIOLATION');
   if (index.mainBranchMutation !== false) throw new Error('MAIN_BRANCH_MUTATION_POLICY_VIOLATION');
+  if (index.repairLoop?.maxCycles !== MAX_REPAIR_CYCLES || index.repairLoop?.circuitBreaker?.maxStalledCycles !== MAX_STALLED_REPAIR_CYCLES) throw new Error('REPAIR_LOOP_BUDGET_DRIFT');
+  if (index.changeBudget?.maxPreparedFiles !== MAX_PREPARED_FILES || index.changeBudget?.maxInspectedFiles !== MAX_INSPECTED_FILES) throw new Error('CHANGE_BUDGET_DRIFT');
   if (index.branchPolicy !== 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN') throw new Error('TWO_BRANCH_POLICY_VIOLATION');
   if (branch !== 'execution' || index.executionBranch !== 'execution') throw new Error('EXECUTION_BRANCH_VIOLATION');
   if (!index.selected?.length) throw new Error('TASK_AGENT_SELECTED_TASK_MISSING');
@@ -46,42 +47,21 @@ function latestPacket() {
   if (!first.output) throw new Error('TASK_AGENT_SELECTED_TASK_MISSING');
   const packet = readJson(first.output);
   if (packet.baselineSha !== sha) throw new Error('STALE_BASELINE');
+  if (packet.contractVersion !== TASK_AGENT_CONTRACT_VERSION) throw new Error('TASK_AGENT_CONTRACT_VERSION_MISMATCH');
   if (packet.scopePolicy !== SCOPE_POLICY || packet.scopeEnforcement !== SCOPE_ENFORCEMENT) throw new Error('SELF_HEALING_PACKET_SCOPE_VIOLATION');
   if (packet.mainBranchMutation !== false) throw new Error('MAIN_BRANCH_MUTATION_POLICY_VIOLATION');
   if (packet.branchPolicy !== 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN') throw new Error('TWO_BRANCH_POLICY_VIOLATION');
   if (packet.mutationPolicy !== 'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH') throw new Error('DIRECT_MUTATION_POLICY_VIOLATION');
   if (packet.executionBranch !== 'execution') throw new Error('DIRECT_EXECUTION_BRANCH_VIOLATION');
   if (packet.handoff?.scopeAuthority !== SCOPE_POLICY) throw new Error('SELF_HEALING_HANDOFF_SCOPE_VIOLATION');
+  if (packet.failureContext?.active && (!packet.cognition || packet.cognition.decision === 'MISSING')) throw new Error('COGNITION_CONTEXT_MISSING');
+  if (packet.failureContext?.active) {
+    const confidence = packet.cognition?.causalConfidence;
+    if (typeof confidence !== 'number' || confidence < 0 || confidence > 1) throw new Error('COGNITION_CONFIDENCE_INVALID');
+    if (packet.cognition?.decision === 'ALLOW_BOUNDED_MUTATION' && (confidence < 0.75 || packet.cognition?.ambiguity === true || packet.cognition?.sourceMutationAllowed !== true)) throw new Error('COGNITION_DECISION_CONFLICT');
+    if (packet.cognition?.decision === 'BLOCK_EXTERNAL' && packet.cognition?.sourceMutationAllowed !== false) throw new Error('COGNITION_EXTERNAL_CONFLICT');
+  }
   return { index, packet };
-}
-function contractCheckOnly() {
-  if (branch && branch === 'main') throw new Error('CONTRACT_CHECK_CANNOT_RUN_AS_DIRECT_EXECUTION_ON_MAIN');
-  const agentSource = fs.readFileSync(TASK_AGENT, 'utf8');
-  const required = [
-    'DIRECT_ON_EXECUTION_BRANCH',
-    'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH',
-    'SELF_HEALING_REPAIR_ONLY',
-    'FAIL_CLOSED',
-    'mainBranchMutation: false',
-    "branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN'",
-    'everyRepairOpensAnotherVerificationCycle',
-    'closureRequiresCanonicalGreen',
-  ];
-  for (const marker of required) if (!agentSource.includes(marker)) throw new Error('AGENT_EXECUTION_CONTRACT_MARKER_MISSING=' + marker);
-  const output = {
-    status: 'PASS',
-    mode: 'CONTRACT_CHECK',
-    repositoryBranch: branch || null,
-    directExecutionBranch: 'execution',
-    scopePolicy: SCOPE_POLICY,
-    scopeEnforcement: SCOPE_ENFORCEMENT,
-    mainBranchMutation: false,
-    closure: 'CANONICAL_GREEN_ONLY',
-    requiredMarkers: required.length,
-  };
-  fs.mkdirSync(OUT, { recursive: true });
-  fs.writeFileSync(path.join(OUT, 'contract-check.json'), JSON.stringify(output, null, 2) + '\\n');
-  console.log(JSON.stringify(output, null, 2));
 }
 function complexityGuard(packet) {
   const fileCount = packet.preparedChanges?.length ?? 0;
@@ -129,10 +109,6 @@ function buildPlan({ index, packet }) {
 }
 
 if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=مهام.md');
-if (CONTRACT_CHECK_ONLY) {
-  contractCheckOnly();
-  process.exit(0);
-}
 if (branch !== 'execution') throw new Error('DIRECT_EXECUTION_REQUIRES_EXECUTION_BRANCH');
 fs.mkdirSync(OUT, { recursive: true });
 const taskId = process.argv.find((arg) => arg.startsWith('--task-id='))?.slice('--task-id='.length) ?? '';

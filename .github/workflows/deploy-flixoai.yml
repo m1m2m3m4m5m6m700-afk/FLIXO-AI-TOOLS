@@ -152,7 +152,7 @@ jobs:
           set -euo pipefail
           # Use a SHA-specific root-level .txt asset. This avoids SPA fallback
           # and gives every deployment a unique cache key.
-          identity_url="$FLIXOAI_PRODUCTION_ORIGIN/__flixo-identity-$DEPLOYMENT_SHA.txt"
+          identity_url="$FLIXOAI_PRODUCTION_ORIGIN/__flixo-identity-$DEPLOYMENT_SHA.txt?__flixo_sha=$DEPLOYMENT_SHA&__flixo_verify=$GITHUB_RUN_ID"
           legacy_identity_url="$FLIXOAI_PRODUCTION_ORIGIN/flixo-head-sha.txt"
           root_url="$FLIXOAI_PRODUCTION_ORIGIN/?__flixo_sha=$DEPLOYMENT_SHA&__flixo_verify=1"
 

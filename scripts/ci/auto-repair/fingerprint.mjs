@@ -19,7 +19,9 @@ export function fingerprintFailure(text) {
 export function extractFeatures(text) {
   const features = [];
   const checks = [
+    ['external-tooling', /SessionModelError|CAPIError|requested model is not supported|github-advanced-security\[bot\]|code scanning AI findings/i],
     ['lint', /eslint|no-unused-vars|defined but never used/i],
+    ['format', /prettier|formatting|code style/i],
     ['typescript', /TS\d+|Type error|typescript/i],
     ['playwright', /playwright|expect\(|locator\(|page\./i],
     ['webkit', /webkit|data-render-revision|GPU rendering|waitForGpuRender/i],

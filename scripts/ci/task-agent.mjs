@@ -7,6 +7,8 @@ import { createHash } from 'node:crypto';
 const ROOT = process.cwd();
 const TASK_FILE = path.join(ROOT, 'مهام.md');
 const OUTPUT_DIR = process.env.FLIXO_TASK_AGENT_OUTPUT_DIR ?? '/tmp/flixo-task-agent';
+const DIAGNOSIS_PATH = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
+const CONTRACT_VERSION = 'TASK-AGENT-DIRECT-REPAIR-v2';
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
@@ -55,6 +57,8 @@ const failureSha = arg('failure-sha');
 const failureFingerprint = arg('failure-fingerprint');
 const failureEvidencePath = arg('failure-evidence');
 const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION' : 'DIRECT_EXECUTION';
+const diagnosis = fs.existsSync(DIAGNOSIS_PATH) ? JSON.parse(fs.readFileSync(DIAGNOSIS_PATH, 'utf8')) : null;
+const reusableKnowledge = diagnosis?.reusableKnowledge ?? null;
 const activeRepairTask = failureRunId || failureSha || failureFingerprint
   ? [{
       taskId: `repair-${slug(failureFingerprint || 'active-failure').slice(0, 80)}`,
@@ -89,6 +93,7 @@ for (const task of selected) {
   const packet = {
     schemaVersion: 8,
     authority: 'FLIXO_TASK_AGENT',
+    contractVersion: CONTRACT_VERSION,
     role: 'TASK_OWNER_AND_DIRECT_REPAIR_AGENT',
     mode: repairMode,
     preparedOnly: false,
@@ -120,16 +125,33 @@ for (const task of selected) {
       taskId: task.taskId,
       fingerprint,
       error: repairMode.includes('ACTIVE') ? 'SEE_FAILURE_EVIDENCE' : 'UNOBSERVED',
-      rootCause: 'REQUIRES_EVIDENCE',
+      rootCause: diagnosis?.rootCause ?? 'REQUIRES_EVIDENCE',
       repair: 'EXECUTE_SOURCE_FIX_ON_EXECUTION_BRANCH',
       verification: 'REQUIRED_AFTER_SOURCE_REPAIR',
     },
+    cognition: diagnosis ? {
+      authority: 'AUTO_REPAIR_REASONING_KERNEL',
+      schemaVersion: diagnosis.schemaVersion ?? null,
+      rootCause: diagnosis.rootCause ?? 'unknown',
+      decision: diagnosis.decision ?? 'PROPOSE_ONLY',
+      causalConfidence: diagnosis.causalConfidence ?? 0,
+      ambiguity: diagnosis.ambiguity ?? true,
+      sourceMutationAllowed: diagnosis.sourceMutationAllowed ?? false,
+      topHypothesis: diagnosis.topHypothesis?.id ?? diagnosis.rootCause ?? 'unknown',
+      secondHypothesis: diagnosis.secondHypothesis?.id ?? null,
+      verificationStrategy: diagnosis.verificationStrategy ?? [],
+      evidenceDigest: diagnosis.signature ?? null,
+      reusableKnowledge,
+    } : (failureRunId || failureSha || failureFingerprint ? { authority: 'AUTO_REPAIR_REASONING_KERNEL', required: true, decision: 'MISSING' } : null),
     instructions: {
+      cognitionRequired: Boolean(failureRunId || failureSha || failureFingerprint),
+      mutationDecisionMustMatch: 'ALLOW_BOUNDED_MUTATION',
       objective: repairMode.includes('ACTIVE')
         ? 'Execute only the smallest safe source correction plus proportional hardening for the currently failing repair cycle; do not replace source repair with a newly added test or unrelated work.'
         : 'Execute only the selected repair task directly on execution, verify the result, and leave main untouched.',
       sourcePayload: 'CODE_AND_EXECUTION',
       requiredChangeShape: ['path', 'operation', 'content', 'baselineSha', 'repairRationale'],
+    contractVersion: CONTRACT_VERSION,
       verificationRequired: true,
       unresolvedWorkMustBeReported: true,
       currentCycleFirst: true,
@@ -142,7 +164,6 @@ for (const task of selected) {
       stateAfterAnyRedCheck: 'REPAIR_PENDING',
       stateAfterGreenCheck: 'REVERIFY_ALL',
       terminalState: 'CLOSED_VERIFIED_ONLY_AFTER_CANONICAL_GREEN',
-      closureRequiresCanonicalGreen: true,
       codeAppliedIsNotCompletion: true,
       everyRepairOpensAnotherVerificationCycle: true,
       everyRedCheckMustBecomeARepairTarget: true,
@@ -189,6 +210,7 @@ for (const task of selected) {
 const index = {
   schemaVersion: 8,
   authority: 'FLIXO_TASK_AGENT',
+  contractVersion: CONTRACT_VERSION,
   mode: repairMode,
   preparedOnly: false,
   executionMode: 'DIRECT_ON_EXECUTION_BRANCH',
@@ -215,7 +237,8 @@ const index = {
     closureAllowedOnlyWhenAllRequired: true,
   },
   changeBudget: { maxPreparedFiles: 12, maxInspectedFiles: 40, onExceed: 'REQUIRES_REVIEW' },
-  memory: { fingerprinted: true, summaryPerRepair: true, reuseKnownFingerprint: true },
+  memory: { fingerprinted: true, summaryPerRepair: true, reuseKnownFingerprint: true, generalizedAcrossFingerprints: true, promotionRequiresMultipleVerifiedCases: true },
+  cognition: diagnosis ? { rootCause: diagnosis.rootCause ?? 'unknown', decision: diagnosis.decision ?? 'PROPOSE_ONLY', causalConfidence: diagnosis.causalConfidence ?? 0, ambiguity: diagnosis.ambiguity ?? true, reusableKnowledge } : null,
   digest: hash(JSON.stringify(outputs)),
 };
 fs.writeFileSync(path.join(OUTPUT_DIR, 'latest.json'), `${JSON.stringify(index, null, 2)}\n`);

@@ -25,7 +25,7 @@ assert.equal(evidence.ambiguity, false);
 assert.ok(evidence.causalConfidence >= 0.75);
 assert.ok(evidence.hypotheses.some((item) => item.id === 'playwright'));
 
-fs.writeFileSync(logPath, 'Type error TS2345 at src/example.ts:10:3');
+fs.writeFileSync(logPath, 'Possible TypeScript issue noted in a follow-up note; investigate compiler configuration.');
 execFileSync(process.execPath, ['scripts/ci/auto-repair-classifier.mjs'], {
   env: { ...process.env, FLIXO_FAILURE_LOG: logPath },
   stdio: 'pipe',
@@ -33,5 +33,20 @@ execFileSync(process.execPath, ['scripts/ci/auto-repair-classifier.mjs'], {
 const weakEvidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
 assert.equal(weakEvidence.rootCause, 'typescript');
 assert.notEqual(weakEvidence.diagnosisQuality, 'strong');
+
+fs.writeFileSync(logPath, [
+  'Code scanning AI findings on PR #745',
+  'Error creating PR review request: SessionModelError: Execution failed: CAPIError: 400 The requested model is not supported.',
+].join('\n'));
+
+execFileSync(process.execPath, ['scripts/ci/auto-repair-classifier.mjs'], {
+  env: { ...process.env, FLIXO_FAILURE_LOG: logPath },
+  stdio: 'pipe',
+});
+const externalEvidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
+assert.equal(externalEvidence.rootCause, 'external-tooling');
+assert.equal(externalEvidence.diagnosisQuality, 'strong');
+assert.equal(externalEvidence.sourceMutationAllowed, false);
+assert.equal(externalEvidence.externalTooling, true);
 
 console.log('auto-repair diagnosis evidence gate: PASS');

@@ -74,6 +74,18 @@ with all of these invariants:
 - every repair triggers fresh verification;
 - Canonical CI remains the closure authority.
 
+## Cognition contract
+
+For every active failure repair cycle, the Task Agent must receive the AUTO_REPAIR_REASONING_KERNEL context produced by the evidence-first reasoning layer.
+
+Contract version: TASK-AGENT-DIRECT-REPAIR-v2.
+
+The cognition packet binds:
+rootCause + decision + causalConfidence + ambiguity + sourceMutationAllowed + top/second hypothesis + verificationStrategy + evidenceDigest.
+
+The execution controller fails closed when cognition is missing or internally contradictory. Source mutation is permitted only when the reasoning decision is exactly ALLOW_BOUNDED_MUTATION and the engine diagnosis gate independently agrees.
+
+Historical learning, scout findings, and source-context matches are supporting evidence only. They never become causal proof by themselves. A stale or missing exact-SHA scout report is non-actionable.
 ## Full repair lifecycle
 
 ```text
@@ -114,6 +126,8 @@ CLOSED / VERIFIED
 Every repair packet must bind:
 `taskId + failureFingerprint + baselineSha + contractVersion + scope + dependencies + proofObligations`.
 
+The execution controller rejects packets whose `contractVersion` does not exactly match the canonical Task Agent contract.
+
 Every repair must record:
 - root cause and causal evidence;
 - changed files and exact operations;
@@ -125,10 +139,11 @@ Every repair must record:
 - learning/prevention outcome.
 
 ## Bounded execution
-- Maximum repair cycles: 12 per failure chain.
-- Maximum stalled cycles: 3 with the same fingerprint and no verifiable progress.
-- If proof fails, the repair cycle stays open or fails closed; it never fabricates GREEN.
-- A circuit breaker escalates only after bounded evidence-based limits.
+- Maximum repair cycles: 3 inside one workflow execution only; this is not a global failure-chain ceiling.
+- Outer repair cycles are unbounded and continue on execution until canonical GREEN, an external provider failure, or a fail-closed branch/scope violation.
+- Each outer cycle rotates the repair strategy and persists learning before the next cycle.
+- A repeated rule cannot be reapplied after it has been rejected or historically reverted without materially new evidence.
+- If proof fails, the current cycle fails closed, learning is persisted, and the next supervised cycle may continue; GREEN is never fabricated.
 
 ## Invocation
 ```bash
@@ -141,3 +156,11 @@ npm run agent:task -- --all-ready
 ```
 
 For an active failure, provide the failure context (`--failure-run-id`, `--failure-sha`, `--failure-fingerprint`, and evidence) so the agent stays bound to the current repair cycle.
+## Historical rollback recovery
+- A previously verified auto-repair is reversible on `execution` without rewriting Git history.
+- Historical rollback requires the exact failure fingerprint, a prior successful repair record, a signed-in-history repair marker, single-parent ancestry, allowed change scope, and the same proof contract.
+- The bot applies `git revert --no-commit`; on proof failure it restores the pre-revert state. A successful rollback is committed with `FLIXO-REPAIR-ROLLBACK-v1`.
+- Rollback is learned as `reverted-repair`, never as a successful source-repair attempt, so it does not inflate the repair-attempt budget.
+
+## Cross-fingerprint learning
+The repair agent may reuse a rule learned from a different failure fingerprint only when the learning engine has at least two independently successful fingerprints for the same root-cause/rule pair with an aggregate success rate of at least 0.80. Case evidence is numerically authoritative; mirrored playbook records cannot double-count the same outcomes. Historical reverts and low-success rules are treated as non-reusable knowledge.

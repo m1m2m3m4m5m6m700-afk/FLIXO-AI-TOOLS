@@ -118,8 +118,10 @@ jobs:
         run: |
           set -euo pipefail
           echo 'The executor never pushes directly to main.'
-          echo 'The Auto Repair Bot owns the isolated PR; canonical CI and the merge gate own publication.'
-          gh pr list --repo "$GITHUB_REPOSITORY" --base main --state open --json number,headRefName,statusCheckRollup --jq '.[] | select(.headRefName | startswith("flixo-auto-repair/")) | [.number,.headRefName] | @tsv' | tee /tmp/flixo-executor/open-repair-prs.txt
+          echo 'The Auto Repair Bot prepares the verified repair; execution → main PR, canonical CI, and the merge gate own publication.'
+          open_execution_prs="$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --head execution --state open --json number,headRefName,statusCheckRollup --jq '.[] | [.number,.headRefName] | @tsv')"
+          test -n "$open_execution_prs" || { echo 'FAIL CLOSED: no canonical execution → main PR is open.'; exit 1; }
+          printf '%s\n' "$open_execution_prs" | tee /tmp/flixo-executor/open-repair-prs.txt
 
       - name: Record execution evidence
         if: always()

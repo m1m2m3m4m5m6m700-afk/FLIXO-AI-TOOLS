@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { fingerprintFailure } from './auto-repair-learning.mjs';
+import { INTRACTABLE_THRESHOLD, fingerprintFailure } from './auto-repair-learning.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
@@ -38,7 +38,7 @@ function priorRepairArtifactCount() {
 }
 
 const memory = readJson(memoryPath, { cases: [] });
-const intractable = readJson(intractablePath, { threshold: 10, cases: [] });
+const intractable = readJson(intractablePath, { cases: [] });
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
 const fingerprint = fingerprintFailure(log);
 const entry = (memory.cases ?? []).find((item) => item.fingerprint === fingerprint);
@@ -46,10 +46,11 @@ const record = (intractable.cases ?? []).find((item) => item.fingerprint === fin
 const attempts = Number(entry?.attempts ?? 0);
 const persistedAttempts = priorRepairArtifactCount();
 const nextAttempt = Math.max(attempts + 1, persistedAttempts + 1);
-const index = Math.min(strategies.length - 1, Math.max(0, nextAttempt - 1));
+const index = (Math.max(0, nextAttempt - 1)) % strategies.length;
 const [strategyId, strategy] = strategies[index];
-const threshold = Number(intractable.threshold ?? 10);
-const isIntractable = record?.status === 'INTRACTABLE' || nextAttempt >= threshold;
+const threshold = INTRACTABLE_THRESHOLD;
+const teachingEscalation = record?.status === 'INTRACTABLE' || nextAttempt > threshold;
+const isIntractable = false;
 
 fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   fingerprint,
@@ -58,7 +59,9 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   strategyId,
   strategy,
   intractable: isIntractable,
-  protocol: isIntractable ? 'SUPERVISING-REPAIR-TEACHING-v1' : null,
+  teachingEscalation,
+  cycle: nextAttempt,
+  protocol: teachingEscalation ? 'SUPERVISING-REPAIR-TEACHING-v1' : null,
 }, null, 2)}\n`);
 fs.writeFileSync('/tmp/flixo-intractable-state', isIntractable ? 'true\n' : 'false\n');
-console.log(JSON.stringify({ fingerprint, attempt: nextAttempt, priorRepairArtifacts: persistedAttempts, strategyId, intractable: isIntractable }));
+console.log(JSON.stringify({ fingerprint, attempt: nextAttempt, priorRepairArtifacts: persistedAttempts, strategyId, teachingEscalation, intractable: isIntractable }));

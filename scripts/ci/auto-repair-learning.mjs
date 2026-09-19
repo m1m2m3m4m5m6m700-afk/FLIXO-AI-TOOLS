@@ -5,17 +5,25 @@ import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-re
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
-const INTRACTABLE_THRESHOLD = 10;
+export const MEMORY_VERSION = 9;
+export const INTRACTABLE_THRESHOLD = 3;
 export { normalizeFailure, fingerprintFailure, extractFeatures };
 
-const MEMORY_VERSION = 7;
+export function normalizeLearningOutcome(outcome, verification) {
+  if (outcome === 'unrepaired' && (verification === 'proposal-only' || verification === 'diagnostic-only')) return 'proposed';
+  return outcome;
+}
+
 const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });
 
 export function loadMemory() {
   if (!fs.existsSync(memoryPath)) return emptyMemory();
   try {
     const parsed = JSON.parse(fs.readFileSync(memoryPath, 'utf8'));
-    return { ...emptyMemory(), ...parsed, version: MEMORY_VERSION };
+    const memory = { ...emptyMemory(), ...parsed };
+    memory.version = Number.isInteger(parsed?.version) ? Math.max(parsed.version, MEMORY_VERSION) : MEMORY_VERSION;
+    for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(memory[key])) memory[key] = [];
+    return memory;
   } catch {
     return emptyMemory();
   }
@@ -41,31 +49,11 @@ function writeIntractable(data) {
 }
 
 function publishIntractableRecord(record) {
-  if (!process.env.GH_TOKEN || !process.env.GITHUB_REPOSITORY) return;
-  const run = (args) => spawnSync('gh', args, { encoding: 'utf8', env: process.env });
-  const marker = `Auto Repair Intractable ${record.fingerprint.slice(0, 12)}`;
-  const existing = run(['issue', 'list', '--repo', process.env.GITHUB_REPOSITORY, '--state', 'open', '--search', `${marker} in:title`, '--json', 'number']);
-  if (existing.status !== 0) return;
-  try {
-    const issues = JSON.parse(existing.stdout || '[]');
-    if (issues.length) return;
-  } catch {
-    return;
-  }
-  run(['issue', 'create', '--repo', process.env.GITHUB_REPOSITORY,
-    '--title', marker,
-    '--body', [
-      `Protocol: SUPERVISING-REPAIR-TEACHING-v1`,
-      `Fingerprint: ${record.fingerprint}`,
-      `Attempts: ${record.attempts}`,
-      `Root cause: ${record.rootCause}`,
-      '',
-      'This is diagnostic escalation only. It intentionally creates no branch and no repair lane.',
-      'The repair cycle remains fail-closed until a new evidence-backed strategy is supplied and canonical CI verifies it.',
-    ].join('\n')
-  ]);
+  // The repair protocol is intentionally two-branch only. Intractable state is
+  // retained in the repair artifact/memory path and escalated without creating
+  // a third Git branch or mutating main.
+  console.warn('INTRACTABLE_ESCALATION_RECORDED=' + record.fingerprint);
 }
-
 function priorRepairArtifactCount() {
   const token = process.env.GH_TOKEN;
   const repo = process.env.GITHUB_REPOSITORY;
@@ -122,6 +110,119 @@ export function rankLessons(memory, { fingerprint, rootCause, rule } = {}) {
     .sort((a, b) => b.score - a.score);
 }
 
+export function deriveReusableKnowledge(memory, { rootCause, features = [], fingerprint } = {}) {
+  const aggregate = new Map();
+  const caseBackedKeys = new Set();
+
+  const ensure = (rc, rule) => {
+    const key = `${rc}|${rule}`;
+    const item = aggregate.get(key) ?? {
+      rootCause: rc,
+      rule,
+      attempts: 0,
+      successes: 0,
+      failures: 0,
+      fingerprints: new Set(),
+      successfulFingerprints: new Set(),
+      failedFingerprints: new Set(),
+      revertedFingerprints: new Set(),
+    };
+    aggregate.set(key, item);
+    return item;
+  };
+
+  for (const entry of memory.cases ?? []) {
+    for (const outcome of entry.outcomes ?? []) {
+      if (!outcome?.rule) continue;
+      const item = ensure(entry.rootCause ?? 'unknown', outcome.rule);
+      const key = `${item.rootCause}|${item.rule}`;
+      caseBackedKeys.add(key);
+      item.fingerprints.add(entry.fingerprint);
+      if (outcome.outcome === 'success') {
+        item.attempts += 1;
+        item.successes += 1;
+        item.successfulFingerprints.add(entry.fingerprint);
+      } else if (['failure', 'blocked', 'unrepaired'].includes(outcome.outcome)) {
+        item.attempts += 1;
+        item.failures += 1;
+        item.failedFingerprints.add(entry.fingerprint);
+      }
+    }
+    for (const rule of entry.revertedRules ?? []) {
+      const item = ensure(entry.rootCause ?? 'unknown', rule);
+      item.revertedFingerprints.add(entry.fingerprint);
+    }
+  }
+
+  for (const playbook of memory.playbooks ?? []) {
+    const item = ensure(playbook.rootCause, playbook.rule);
+    const key = `${item.rootCause}|${item.rule}`;
+    for (const value of playbook.fingerprints ?? []) item.fingerprints.add(value);
+    for (const value of playbook.successfulFingerprints ?? []) item.successfulFingerprints.add(value);
+    for (const value of playbook.failedFingerprints ?? []) item.failedFingerprints.add(value);
+    if (!caseBackedKeys.has(key)) {
+      item.attempts += Number(playbook.attempts ?? 0);
+      item.successes += Number(playbook.successes ?? 0);
+      item.failures += Number(playbook.failures ?? 0);
+    }
+  }
+
+  const relevantPlaybooks = [...aggregate.values()]
+    .filter((item) => !rootCause || item.rootCause === rootCause)
+    .map((item) => {
+      const attempts = Number(item.attempts ?? 0);
+      const successes = Number(item.successes ?? 0);
+      const successRate = attempts ? successes / attempts : 0;
+      const fingerprintSupport = item.fingerprints.size;
+      const successfulFingerprintSupport = item.successfulFingerprints.size;
+      const generalized = successfulFingerprintSupport >= 2 && successes >= 2 && successRate >= 0.8;
+      return {
+        rootCause: item.rootCause,
+        rule: item.rule,
+        attempts,
+        successes,
+        failures: Number(item.failures ?? 0),
+        successRate: Number(successRate.toFixed(4)),
+        fingerprintSupport,
+        successfulFingerprintSupport,
+        failedFingerprintSupport: item.failedFingerprints.size,
+        revertedFingerprintSupport: item.revertedFingerprints.size,
+        generalized,
+      };
+    });
+
+  const blockedRules = new Set(
+    (memory.cases ?? [])
+      .filter((item) => !rootCause || item.rootCause === rootCause)
+      .flatMap((item) => item.revertedRules ?? [])
+      .filter(Boolean),
+  );
+
+  const generalizedRules = relevantPlaybooks
+    .filter((item) => item.generalized && !blockedRules.has(item.rule))
+    .sort((a, b) => (b.successRate - a.successRate) || (b.successfulFingerprintSupport - a.successfulFingerprintSupport));
+
+  const rejectedRules = relevantPlaybooks
+    .filter((item) => blockedRules.has(item.rule) || (item.failures >= 2 && item.successRate <= 0.25))
+    .map((item) => ({ ...item, reason: blockedRules.has(item.rule) ? 'historical-revert' : 'low-success-rate' }));
+
+  return {
+    schemaVersion: 2,
+    fingerprint: fingerprint ?? null,
+    rootCause: rootCause ?? null,
+    features: [...new Set(features)],
+    generalizedRules,
+    rejectedRules,
+    policy: {
+      promotionRequiresDistinctFingerprints: 2,
+      promotionRequiresSuccessfulRepairs: 2,
+      promotionRequiresSuccessRate: 0.8,
+      rejectedRulesAreNonReusable: true,
+      exactShaProofStillRequired: true,
+    },
+  };
+}
+
 export function scorePlaybook(memory, rootCause, rule) {
   const records = memory.playbooks.filter((item) => item.rootCause === rootCause && item.rule === rule);
   const attempts = records.reduce((sum, item) => sum + item.attempts, 0);
@@ -155,29 +256,49 @@ function upsertLesson(memory, { fingerprint, rootCause, rule, outcome, verificat
 }
 
 export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule } = {}) {
-  const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, rules: [], outcomes: [] };
+  const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, externalBlocks: 0, reversions: 0, revertFailures: 0, revertedRules: [], revertedCommits: [], rules: [], outcomes: [] };
   entry.rootCause = rootCause ?? entry.rootCause ?? 'unknown';
   if (normalizedFailure) entry.normalizedFailure = normalizeFailure(normalizedFailure);
   if (features.length) entry.features = [...new Set(features)];
-  if (outcome !== 'proposed') {
+  const isExternalBlock = outcome === 'blocked-external';
+  const isHistoricalRevert = outcome === 'reverted-repair';
+  const isHistoricalRevertFailure = outcome === 'revert-failure';
+  if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
+  if (isHistoricalRevert) {
+    entry.reversions = (entry.reversions ?? 0) + 1;
+    if (rule) entry.revertedRules = [...new Set([...(entry.revertedRules ?? []), rule])];
+    if (/^[a-f0-9]{40}$/u.test(String(provenance?.revertedCommit ?? ''))) entry.revertedCommits = [...new Set([...(entry.revertedCommits ?? []), provenance.revertedCommit])];
+  }
+  if (isHistoricalRevertFailure) entry.revertFailures = (entry.revertFailures ?? 0) + 1;
+  const countsAsRepairAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
+  if (countsAsRepairAttempt) {
     entry.attempts += 1;
     const persistedAttempts = priorRepairArtifactCount() + 1;
     if (persistedAttempts > entry.attempts) entry.attempts = persistedAttempts;
   }
-  if (outcome === 'success') entry.successes += 1; else if (outcome !== 'proposed') entry.failures += 1;
+  if (outcome === 'success') entry.successes += 1; else if (countsAsRepairAttempt) entry.failures += 1;
   entry.confidence = confidenceFor(entry);
   if (rule) entry.rules = [...new Set([...entry.rules, rule])];
   entry.outcomes.push({ outcome, verification, rule, provenance, preventionRule, at: new Date().toISOString() });
   entry.outcomes = entry.outcomes.slice(-10);
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
-  if (rule && outcome !== 'proposed') {
-    const playbook = memory.playbooks.find((item) => item.rootCause === entry.rootCause && item.rule === rule) ?? { rootCause: entry.rootCause, rule, attempts: 0, successes: 0, failures: 0 };
+  const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
+  if (rule && countsAsPlaybookAttempt) {
+    const playbook = memory.playbooks.find((item) => item.rootCause === entry.rootCause && item.rule === rule) ?? { rootCause: entry.rootCause, rule, attempts: 0, successes: 0, failures: 0, fingerprints: [], successfulFingerprints: [], failedFingerprints: [] };
     playbook.attempts += 1;
-    if (outcome === 'success') playbook.successes += 1; else playbook.failures += 1;
+    playbook.fingerprints = [...new Set([...(playbook.fingerprints ?? []), fingerprint])];
+    if (outcome === 'success') {
+      playbook.successes += 1;
+      playbook.successfulFingerprints = [...new Set([...(playbook.successfulFingerprints ?? []), fingerprint])];
+    } else {
+      playbook.failures += 1;
+      playbook.failedFingerprints = [...new Set([...(playbook.failedFingerprints ?? []), fingerprint])];
+    }
     playbook.successRate = Number((playbook.successes / playbook.attempts).toFixed(4));
+    playbook.generalized = new Set(playbook.successfulFingerprints ?? []).size >= 2 && playbook.successes >= 2 && playbook.successRate >= 0.8;
     if (!memory.playbooks.includes(playbook)) memory.playbooks.push(playbook);
   }
-  if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked') {
+  if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked' || outcome === 'blocked-external') {
     upsertLesson(memory, { fingerprint, rootCause: entry.rootCause, rule, outcome, verification, provenance, preventionRule });
   }
   if (entry.attempts >= INTRACTABLE_THRESHOLD && entry.successes === 0) {
@@ -220,7 +341,9 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
 
 export function writeMemory(memory) {
   fs.mkdirSync(memoryPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
-  const normalized = { ...emptyMemory(), ...memory, version: MEMORY_VERSION };
+  const normalized = { ...emptyMemory(), ...memory };
+  normalized.version = Number.isInteger(memory?.version) ? Math.max(memory.version, MEMORY_VERSION) : MEMORY_VERSION;
+  for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(normalized[key])) normalized[key] = [];
   fs.writeFileSync(memoryPath, `${JSON.stringify(normalized, null, 2)}\n`);
 }
 
@@ -228,6 +351,9 @@ if (process.argv[1]?.endsWith('auto-repair-learning.mjs') && process.env.FLIXO_L
   const memory = loadMemory();
   const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
   const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
-  recordOutcome(memory, { fingerprint: fingerprintFailure(log), normalizedFailure: log, features: extractFeatures(log), rootCause: process.env.FLIXO_ROOT_CAUSE ?? 'unknown', rule: process.env.FLIXO_REPAIR_RULE || undefined, outcome: process.env.FLIXO_LEARNING_OUTCOME, verification: process.env.FLIXO_VERIFICATION ?? 'unknown', provenance: { source: 'FLIXO Auto Repair', failedSha: process.env.FLIXO_FAILED_SHA ?? null, runId: process.env.FLIXO_RUN_ID ?? null } });
+  const rawOutcome = process.env.FLIXO_LEARNING_OUTCOME;
+  const verification = process.env.FLIXO_VERIFICATION ?? 'unknown';
+  const normalizedOutcome = normalizeLearningOutcome(rawOutcome, verification);
+  recordOutcome(memory, { fingerprint: fingerprintFailure(log), normalizedFailure: log, features: extractFeatures(log), rootCause: process.env.FLIXO_ROOT_CAUSE ?? 'unknown', rule: process.env.FLIXO_REPAIR_RULE || undefined, outcome: normalizedOutcome, verification, provenance: { source: 'FLIXO Auto Repair', failedSha: process.env.FLIXO_FAILED_SHA ?? null, targetSha: process.env.FLIXO_TARGET_SHA ?? null, revertedCommit: process.env.FLIXO_REVERTED_COMMIT ?? null, runId: process.env.FLIXO_RUN_ID ?? null, rawOutcome } });
   writeMemory(memory);
 }

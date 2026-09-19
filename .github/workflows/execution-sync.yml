@@ -1,0 +1,93 @@
+name: FLIXO Execution Canonical Sync
+
+on:
+  push:
+    branches: [execution]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: flixo-execution-canonical-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Reconcile execution with canonical main
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout execution
+        uses: actions/checkout@v5
+        with:
+          ref: execution
+          fetch-depth: 0
+
+      - name: Reconcile current execution divergence without rewriting history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main execution
+          test "$(git branch --show-current)" = "execution"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          MAIN_SHA="$(git rev-parse origin/main)"
+          EXEC_SHA="$(git rev-parse origin/execution)"
+          if git merge-base --is-ancestor "$MAIN_SHA" "$EXEC_SHA"; then
+            echo "execution already contains canonical main $MAIN_SHA"
+            exit 0
+          fi
+
+          if ! git merge --no-edit -X ours origin/main; then
+            echo "FAIL CLOSED: execution cannot reconcile canonical main $MAIN_SHA without a merge conflict."
+            git merge --abort || true
+            exit 1
+          fi
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          git diff --check
+          npm ci --prefer-offline --no-audit --no-fund
+          npm run test:auto-repair
+          npm run validate:auto-repair-memory
+
+          # Reconcile concurrent execution writes before publishing. Any remote
+          # change incorporated after the verified merge is re-verified before push.
+          PUSHED=false
+          for attempt in 1 2 3 4 5; do
+            git fetch origin execution
+            PRE_PUBLISH_SHA="$(git rev-parse HEAD)"
+            if git merge-base --is-ancestor HEAD origin/execution; then
+              git merge --ff-only origin/execution
+            elif git merge-base --is-ancestor origin/execution HEAD; then
+              :
+            else
+              git merge --no-edit origin/execution
+            fi
+            test -z "$(git status --porcelain=v1 --untracked-files=all)"
+            git diff --check
+            if [ "$(git rev-parse HEAD)" != "$PRE_PUBLISH_SHA" ]; then
+              npm run test:auto-repair
+              npm run validate:auto-repair-memory
+            fi
+            if git push origin HEAD:execution; then
+              PUSHED=true
+              break
+            fi
+            sleep $((attempt * 2))
+          done
+          test "$PUSHED" = true
+          git fetch origin execution
+          NEW_SHA="$(git rev-parse origin/execution)"
+          test "$NEW_SHA" != "$EXEC_SHA"
+          PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
+          if [ -n "$PR_URL" ]; then
+            echo "Open execution → main PR detected: $PR_URL"
+            echo "Skipping duplicate workflow_dispatch; pull_request CI will verify the exact execution SHA."
+          else
+            gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution
+            echo "Canonical FLIXO Test System dispatched for reconciled execution head."
+          fi
+          echo "Execution reconciled with canonical main: $NEW_SHA"

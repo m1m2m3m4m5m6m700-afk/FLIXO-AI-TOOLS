@@ -1,5 +1,5 @@
 {
-  "version": 7,
+  "version": 9,
   "cases": [
     {
       "fingerprint": "7ee9ce7b111189a636df0f2155d6f0be9192276595365dc1c054e1071b1b2ff2",
@@ -68,15 +68,59 @@
         "deterministic-evidence"
       ],
       "confidence": 1
+    },
+    {
+      "fingerprint": "f6125d993dad9c70842879c4858e4c3dbaaf6d3739a821b098ffdab46e5bb185",
+      "rootCause": "external-tooling",
+      "attempts": 1,
+      "successes": 0,
+      "failures": 1,
+      "normalizedFailure": "Error creating PR review request: SessionModelError: Execution failed: CAPIError: 400 The requested model is not supported. (Request ID: <PROVIDER_REQUEST>)",
+      "features": [
+        "external-tooling"
+      ],
+      "rules": [],
+      "outcomes": [
+        {
+          "outcome": "blocked",
+          "verification": "external-tooling-classification",
+          "rule": null,
+          "preventionRule": "Never mutate source to remediate an external model/provider/tooling failure; classify it as blocked external infrastructure and require provider-side recovery.",
+          "provenance": {
+            "source": "GitHub Advanced Security code-scanning AI",
+            "failedSha": "5454a40ce113920a6462fc003e482a0a90ffcd24",
+            "runId": "35341945411"
+          }
+        }
+      ],
+      "confidence": 0
     }
   ],
   "playbooks": [],
   "lessons": [
     {
+      "id": "e1f49dc8ac476569aedb",
       "fingerprint": "ff97e0be10dce2886a9c93bfe4440102e143e41e19a08d726da0c0b0a289e3b8",
+      "rootCause": "technical-debt-audit-missing-deterministic-finding-fingerprint-contract",
+      "rule": "technical-debt audit findings must expose deterministic SHA-256 fingerprints; validator must reject missing, malformed, or duplicate fingerprints",
+      "attempts": 1,
+      "successes": 1,
+      "failures": 0,
+      "confidence": 1,
       "lesson": "Deterministic technical-debt evidence requires explicit finding fingerprints, validator enforcement, and a regression assertion before downstream repair selection.",
-      "verifiedSha": "9ec7995f6c419b6c1b3868631cad6adde1f6a4d9",
-      "canonicalRunId": "35302931325"
+      "evidence": [
+        {
+          "verification": "fresh canonical CI and certification",
+          "provenance": {
+            "executionSha": "9ec7995f6c419b6c1b3868631cad6adde1f6a4d9",
+            "runId": "35302931325"
+          }
+        }
+      ],
+      "preventionRules": [
+        "never accept technical-debt audit output as deterministic evidence unless every finding has a unique 64-hex fingerprint and the fingerprint contract is regression-tested"
+      ],
+      "lastSeenAt": "2026-09-18T03:29:17Z"
     }
   ],
   "antiLessons": [
@@ -105,7 +149,7 @@
       "lastSeenAt": "2026-09-17T00:38:20Z"
     },
     {
-      "id": "debt-fingerprint-no-unproven-closure",
+      "id": "678ed33c7293df5be73c",
       "fingerprint": "ff97e0be10dce2886a9c93bfe4440102e143e41e19a08d726da0c0b0a289e3b8",
       "rootCause": "technical-debt-audit-missing-deterministic-finding-fingerprint-contract",
       "attempts": 1,
@@ -126,6 +170,28 @@
         "require unique deterministic finding fingerprints before marking DEBT-001 validator contract verified"
       ],
       "lastSeenAt": "2026-09-18T03:29:17Z"
+    },
+    {
+      "id": "1196b4a822738da3cc83",
+      "fingerprint": "f6125d993dad9c70842879c4858e4c3dbaaf6d3739a821b098ffdab46e5bb185",
+      "rootCause": "external-tooling",
+      "attempts": 1,
+      "successes": 0,
+      "failures": 1,
+      "confidence": 0,
+      "evidence": [
+        {
+          "verification": "external-tooling-classification",
+          "provenance": {
+            "runId": "35341945411",
+            "executionSha": "5454a40ce113920a6462fc003e482a0a90ffcd24"
+          }
+        }
+      ],
+      "preventionRules": [
+        "Never mutate source to remediate an external model/provider/tooling failure; classify it as blocked external infrastructure and require provider-side recovery."
+      ],
+      "lastSeenAt": "2026-09-18T11:55:03Z"
     }
   ]
 }
