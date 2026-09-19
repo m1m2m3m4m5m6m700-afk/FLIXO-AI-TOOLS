@@ -10,7 +10,7 @@ const exists = (file) => fs.existsSync(path.resolve(root, file));
 
 const expected = {
   'scripts/ci/agent-coordination.mjs': ['task-create', 'task-claim', 'task-release', 'task-complete', 'visible', 'ingest-handoff', 'COORDINATION_CONFLICT', 'AGENT_VISIBILITY', 'TASK_COMPLETION_REQUIRES_VERIFIED_AGENT_STATUS'],
-  'scripts/ci/agent-session.mjs': ['login', 'logout', '--from-session=<previous-session>', '--task=<task-id>', 'VERIFIED', 'BLOCKED', 'FINAL_SUMMARY_REQUIRED_BEFORE_SESSION_CLOSE', 'docs/agents/ledger'],
+  'scripts/ci/agent-session.mjs': ['login', 'event', 'logout', '--from-session=<previous-session>', '--task=<task-id>', 'VERIFIED', 'BLOCKED', 'FINAL_SUMMARY_REQUIRED_BEFORE_SESSION_CLOSE', 'AGENT_EVENT_SUMMARY_REQUIRED', 'VERIFIED_LOGOUT_REQUIRES_ACTIVITY_LOG', 'docs/agents/ledger'],
   'docs/AGENT-HANDOFF-REPORT-SCHEMA.md': ['completedWork', 'failedWork', 'remainingWork', 'executionPlanNext', 'handoffToNextAgent'],
   'docs/AGENT-COLLABORATION-PROTOCOL.md': ['Multi-Agent', 'handoff', 'scope', 'RCA', 'Assistant/controller', 'Execution Agent', 'Evidence over assertion', 'Stop-and-escalate', 'Challenge-before-mutation', 'Independent review', 'Decision trace', 'Parallel execution protocol', 'Conflict arbitration', 'Quality dimensions'],
   'docs/agents/ledger/README.md': ['Agent Visibility Ledger', 'docs/agents/ledger/<sessionId>.json', 'taskId', 'finalStatus', 'finalSummary', 'visibilityState'],
