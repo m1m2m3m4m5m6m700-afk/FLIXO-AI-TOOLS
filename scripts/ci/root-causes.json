@@ -344,5 +344,17 @@
       "npm run validate:ci-contract"
     ],
     "prevention": "Evidence-swallow checks must be scoped to the same command line or parsed command block; intentional idempotency fallbacks in unrelated commands must not satisfy the forbidden pattern."
+  },
+  "RC-AUTO-REPAIR-PROTOCOL-MARKER-001": {
+    "category": "CI_CONTRACT",
+    "description": "The auto-repair engine migrated reproduction command ownership to evidence.reproductionSelection.commands, but validate-agent-protocol retained the historical impactedTests marker and failed canonical static verification.",
+    "repairTargets": [
+      "scripts/ci/validate-agent-protocol.mjs"
+    ],
+    "verification": [
+      "npm run test:static",
+      "npm run validate:agent-protocol"
+    ],
+    "prevention": "Protocol validators must assert current authoritative execution markers after contract migrations and should not depend on obsolete implementation syntax."
   }
 }
