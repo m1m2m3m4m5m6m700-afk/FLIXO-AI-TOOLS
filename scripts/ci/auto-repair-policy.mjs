@@ -16,6 +16,7 @@ export const repairPolicy = Object.freeze({
     '.env.*',
   ],
   protectedAreas: [
+    'scripts/ci/control-plane-registry.mjs',
     'scripts/ci/certification-engine.mjs',
     'scripts/ci/validate-execution-graph.mjs',
     'scripts/ci/auto-repair-policy.mjs',
