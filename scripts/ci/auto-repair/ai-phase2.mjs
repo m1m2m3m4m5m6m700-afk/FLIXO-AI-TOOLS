@@ -19,7 +19,18 @@ const uniq=(v)=>[...new Set(v.filter(Boolean))];
 const norm=(v)=>String(v??'').replaceAll('\\','/').replace(/^\.\//u,'');
 const readJson=(f,d)=>{try{return JSON.parse(fs.readFileSync(f,'utf8'));}catch{return d;}};
 function cost(c){const s=String(c);if(/^npm run validate:/u.test(s))return 1;if(/^npm run (typecheck|lint)$/u.test(s))return 2;if(/^npm run test:/u.test(s))return 3;if(/^npm ci\b/u.test(s))return 4;return 4;}
-function globMatch(file,pattern){const e=String(pattern).replace(/[.^$+?()|[\]{}]/g,'\\function globMatch(file,pattern){const e=String(pattern).replace(/[.\^$+?()|[\]{}]/g,'\\$&').replace(/\*\*/g,'§§').replace(/\*/g,'[^/]*').replace(/§§/g,'.*').replace(/\?/g,'.');return new RegExp('^'+e+'$').test(file);}').replace(/\*\*/g,'§§').replace(/\*/g,'[^/]*').replace(/§§/g,'.*').replace(/\?/g,'.');return new RegExp('^'+e+'
+function globMatch(file, pattern) {
+  const source = String(pattern);
+  let escaped = '';
+  for (const ch of source) {
+    if (ch === '*' || ch === '?') escaped += ch;
+    else if (ch === '\\') escaped += '\\\\';
+    else if ('.^$+()|{}[]'.includes(ch)) escaped += '\\' + ch;
+    else escaped += ch;
+  }
+  escaped = escaped.replace(/\*\*/g, '§§').replace(/\*/g, '[^/]*').replace(/§§/g, '.*').replace(/\?/g, '.');
+  return new RegExp('^' + escaped + '$').test(file);
+}
 
 export function rankRepairStrategies(strategy={},memory={},context={}){
  const ids=['reproduce-exact','minimize-failure','diff-forensics','environment-audit','workflow-forensics','observability-trace','historical-analogy','synthetic-reproduction','alternate-hypothesis','supervising-escalation'];
