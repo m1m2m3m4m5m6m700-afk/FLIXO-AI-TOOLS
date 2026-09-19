@@ -188,9 +188,8 @@ A simplification batch is complete only when:
 
 Two redundant entrypoints were removed only after repository-wide caller inspection:
 
-- `scripts/ci/validate-certification-graph.mjs) was a one-line alias of `validate-execution-graph.mjs). Its only execution consumer was the canonical `ci.yml) certification job; CI now calls the underlying validator directly.
-- `verify:contracts) was an alias of `test:static` with no repository caller. It was removed from `package.json`; `verify:fast) remains because `ci:target) and the documented developer fast gate still use it.
-- `build:runtime) was retained because `playwright.config.ts` explicitly uses it for the lightweight local preview path.
+- `scripts/ci/validate-certification-graph.mjs` was a one-line alias of `validate-execution-graph.mjs`. Its only execution consumer was the canonical `ci.yml` certification job; CI now calls the underlying validator directly.
+- `verify:contracts` was an alias of `test:static` with no repository caller. It was removed from `package.json`; `verify:fast` remains because `ci:target` and the documented developer fast gate still use it.
+- `build:runtime` was retained because `playwright.config.ts` explicitly uses it for the lightweight local preview path.
 
 No test, security, deployment, registry, or production boundary was removed.
-
