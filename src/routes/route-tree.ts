@@ -7,4 +7,4 @@ import { adminLoginRoute } from './admin-login';
 import { toolsRoute } from './tools';
 import { arToolsRoute } from './ar-tools';
 
-export const routeChildren = [indexRoute, arIndexRoute, localizedHomeRoute, toolsRoute, arToolsRoute, localizedToolRoute, adminControlPlaneRoute] as const;
+export const routeChildren = [indexRoute, arIndexRoute, localizedHomeRoute, toolsRoute, arToolsRoute, localizedToolRoute, adminLoginRoute, adminControlPlaneRoute] as const;
