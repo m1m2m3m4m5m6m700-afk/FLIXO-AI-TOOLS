@@ -224,10 +224,10 @@ const taskFallback = (() => {
   if (prompts.length > 0 || blockerPrompts.length > 0 || report.status !== 'GREEN') return null;
   const taskFile = fs.existsSync('المهام.md') ? 'المهام.md' : 'مهام.md';
   if (!fs.existsSync(taskFile)) return null;
-  const lines = fs.readFileSync(taskFile, 'utf8').split(/\\r?\\n/u);
+  const lines = fs.readFileSync(taskFile, 'utf8').split(/\r?\n/u);
   let section = 'TASK LEDGER';
   for (const line of lines) {
-    const heading = line.match(/^#{1,3}\\s+(.+)$/u);
+    const heading = line.match(/^#{1,3}\s+(.+)$/u);
     if (heading) section = heading[1].trim();
     const item = line.match(/^\\s*-\\s+\\[ \\]\\s+(.+)$/u);
     if (!item) continue;
