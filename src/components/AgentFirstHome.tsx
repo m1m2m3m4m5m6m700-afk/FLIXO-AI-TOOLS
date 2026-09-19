@@ -50,7 +50,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
           <img src="/flixo-logo.svg" alt="FLIXO AI Tools" width={40} height={40} />
         </a>
         <nav className="agent-first-nav-actions" aria-label={home.ariaPrimary}>
-          <a className="agent-first-tools-button" href={`#tools`}>{IMAGE_TOOLS_LABELS[locale]}</a>
+          <a className="agent-first-tools-button" href={`/${locale}/image-compressor`}>{IMAGE_TOOLS_LABELS[locale]}</a>
           <a className="agent-first-tools-button" href={`/${locale}/pix`}>{FILTER_LABELS[locale]}</a>
           <label className="sr-only" htmlFor="agent-first-language">{home.nav.switch}</label>
           <select
