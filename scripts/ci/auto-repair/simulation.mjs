@@ -7,7 +7,14 @@ import { summarizeDiff } from './evidence.mjs';
 
 const git=(cwd,args,options={})=>execFileSync('git',['-C',cwd,...args],{encoding:'utf8',...options});
 
-function cleanup(targetDir,dir){try{git(targetDir,['worktree','remove','--force',dir],{stdio:'pipe'});}catch{}}
+function cleanup(targetDir,dir){
+  try{
+    git(targetDir,['worktree','remove','--force',dir],{stdio:'pipe'});
+    return null;
+  }catch(error){
+    return String(error?.message ?? error);
+  }
+}
 
 export function simulateRepair({targetDir=process.cwd(),plan=null,maxChangedFiles=8,maxChangedLines=300}={}){
   if(!plan?.id||!plan?.file)return Object.freeze({ok:false,stage:'preflight',reason:'SIMULATION_PLAN_MISSING'});
@@ -29,6 +36,15 @@ export function simulateRepair({targetDir=process.cwd(),plan=null,maxChangedFile
   }catch(error){
     return Object.freeze({ok:false,stage:'simulation',reason:String(error?.message??error),isolated:true});
   }finally{
-    if(added)cleanup(targetDir,dir);else{try{fs.rmSync(dir,{recursive:true,force:true});}catch{}}
+    if(added){
+      const cleanupError=cleanup(targetDir,dir);
+      if(cleanupError) process.stderr.write(`AUTO_REPAIR_SIMULATION_CLEANUP_FAILED=${cleanupError}\n`);
+    }else{
+      try{
+        fs.rmSync(dir,{recursive:true,force:true});
+      }catch(error){
+        process.stderr.write(`AUTO_REPAIR_SIMULATION_CLEANUP_FAILED=${String(error?.message ?? error)}\n`);
+      }
+    }
   }
 }
