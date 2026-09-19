@@ -7,6 +7,7 @@ import { selectSpecialist } from './auto-repair/specialists.mjs';
 import { confidenceGate } from './auto-repair/confidence.mjs';
 import { runAstRepair } from './auto-repair/ast-repair.mjs';
 import { reproduce, resolveTargetedTests } from './auto-repair/reproduction.mjs';
+import { buildVerificationPlan, checkVerificationContamination, reproduceStable, verifyTargetIdentity } from './auto-repair/verification.mjs';
 import { runRegression } from './auto-repair/regression.mjs';
 import { summarizeDiff, writeEvidence } from './auto-repair/evidence.mjs';
 import { snapshot, rollback } from './auto-repair/rollback.mjs';
@@ -41,6 +42,27 @@ const evidencePath = process.env.FLIXO_REPAIR_EVIDENCE_PATH ?? '/tmp/flixo-repai
 const diagnosisPath = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
 const git = (args, options = {}) => execFileSync('git', ['-C', targetDir, ...args], { encoding: 'utf8', ...options });
 const targetSha = git(['rev-parse', 'HEAD']).trim();
+const prepareTargetedVerification = (currentLog, currentFeatures) => {
+  const selection = resolveTargetedTests(currentLog, currentFeatures, { targetDir });
+  const targetIdentity = verifyTargetIdentity(targetDir, selection);
+  const verificationPlan = buildVerificationPlan(selection, targetIdentity);
+  if (!selection.exact || !targetIdentity.ok) return {
+    ok: false,
+    selection,
+    targetIdentity,
+    verificationPlan,
+    reason: 'verification-target-not-exact:' + targetIdentity.reason,
+  };
+  const reproductionStability = reproduceStable(targetDir, selection.commands, reproduce, { attempts: 3 });
+  return {
+    ok: reproductionStability.classification === 'REPRODUCIBLE_FAILURE',
+    selection,
+    targetIdentity,
+    verificationPlan,
+    reproductionStability,
+    reason: reproductionStability.classification === 'REPRODUCIBLE_FAILURE' ? null : 'baseline-not-reproducible:' + reproductionStability.classification,
+  };
+};
 const memory = loadMemory();
 const known = findCase(memory, fingerprint);
 const similar = findSimilarCases(memory, { fingerprint, normalized: normalizedFailure, features });
@@ -129,9 +151,34 @@ evidence.diagnosisGate = diagnosisGate;
 
 if (historicalRollbackCandidate && diagnosisGate.allowed) {
   const before = snapshot(targetDir);
-  evidence.reproductionSelection = resolveTargetedTests(log, plan.features, { targetDir });
+  const preparedVerification = prepareTargetedVerification(log, plan.features);
+  evidence.reproductionSelection = preparedVerification.selection;
+  evidence.targetIdentity = preparedVerification.targetIdentity;
+  evidence.verificationPlan = preparedVerification.verificationPlan;
   evidence.reproductionCommands = evidence.reproductionSelection.commands;
-  evidence.reproductionBefore = reproduce(targetDir, evidence.reproductionCommands);
+  evidence.reproductionStability = preparedVerification.reproductionStability ?? null;
+  evidence.reproductionBefore = preparedVerification.reproductionStability?.firstRun ?? null;
+  if (!preparedVerification.ok) {
+    evidence.outcome = 'proposal-only';
+    evidence.escalation = { required: true, reason: preparedVerification.reason };
+    writeEvidence(evidencePath, evidence);
+    recordOutcome(memory, {
+      fingerprint,
+      normalizedFailure,
+      features,
+      rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+      rule: selected?.id,
+      outcome: 'proposed',
+      verification: 'failure-directed-baseline-blocked',
+      provenance: { targetSha, targetIdentity: evidence.targetIdentity, reproductionStability: evidence.reproductionStability },
+      preventionRule: 'Require an exact, uniquely identified, stable failing target before source mutation.',
+    });
+    writeMemory(memory);
+    console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
+    console.log('AUTO_REPAIR_REASON=' + preparedVerification.reason);
+    console.log('AUTO_REPAIR_FINGERPRINT=' + fingerprint);
+    process.exit(0);
+  }
   evidence.historicalRollback = historicalRollbackRecord(historicalRollbackCandidate);
   evidence.selected = historicalRollbackCandidate.rule ?? null;
   evidence.learning.decision = 'historical-rollback';
@@ -177,24 +224,36 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
       process.exit(6);
     }
 
-    evidence.reproductionAfter = reproduce(targetDir, evidence.reproductionCommands);
-    evidence.regressionSelection = evidence.reproductionSelection;
-    evidence.regression = runRegression(targetDir, evidence.reproductionSelection.regressionCommands);
+    evidence.contaminationGuard = checkVerificationContamination({
+      changedPaths: evidence.changedPaths,
+      selection: evidence.reproductionSelection,
+    });
+    evidence.reproductionStabilityAfter = evidence.contaminationGuard.ok
+      ? reproduceStable(targetDir, evidence.reproductionCommands, reproduce, { attempts: 2 })
+      : null;
+    evidence.reproductionAfter = evidence.reproductionStabilityAfter?.lastRun ?? null;
+    evidence.regressionSelection = {
+      ...evidence.reproductionSelection,
+      regressionMode: 'MINIMAL_TARGET_REPEAT',
+    };
+    evidence.regression = evidence.contaminationGuard.ok
+      ? runRegression(targetDir, evidence.regressionSelection.regressionCommands)
+      : { ok: false, results: [] };
     const rootCauseProof = {
       required: true,
-      reproductionWasFailing: evidence.reproductionBefore.results.length > 0 && !evidence.reproductionBefore.ok,
-      reproductionRecovered: evidence.reproductionAfter.results.length > 0 && evidence.reproductionAfter.ok,
+      reproductionWasFailing: evidence.reproductionStability?.classification === 'REPRODUCIBLE_FAILURE',
+      reproductionRecovered: evidence.reproductionStabilityAfter?.classification === 'STABLE_PASS',
       regressionPassed: evidence.regression.ok,
       commandsPresent: evidence.reproductionCommands.length > 0,
     };
     evidence.rootCauseProof = rootCauseProof;
-    evidence.recurrenceProof = { required: true, firstPass: false, secondPass: false };
-    if (rootCauseProof.commandsPresent && rootCauseProof.reproductionWasFailing && rootCauseProof.reproductionRecovered) {
-      const secondReproduction = reproduce(targetDir, evidence.reproductionCommands);
-      evidence.recurrenceProof.firstPass = true;
-      evidence.recurrenceProof.secondPass = secondReproduction.ok;
-      evidence.recurrenceProof.secondRun = secondReproduction;
-    }
+    evidence.recurrenceProof = {
+      required: true,
+      firstPass: evidence.reproductionStabilityAfter?.runs?.[0]?.ok === true,
+      secondPass: evidence.reproductionStabilityAfter?.runs?.[1]?.ok === true,
+      firstRun: evidence.reproductionStabilityAfter?.runs?.[0] ?? null,
+      secondRun: evidence.reproductionStabilityAfter?.runs?.[1] ?? null,
+    };
     const proof = validateRepairProof({ rootCauseProof, recurrenceProof: evidence.recurrenceProof, evidence });
     evidence.repairProof = proof;
     if (!proof.ok) {
@@ -366,9 +425,34 @@ if (!simulation.ok) {
 }
 
 const before = snapshot(targetDir);
-evidence.reproductionSelection = resolveTargetedTests(log, plan.features, { targetDir });
+  const preparedVerification = prepareTargetedVerification(log, plan.features);
+  evidence.reproductionSelection = preparedVerification.selection;
+  evidence.targetIdentity = preparedVerification.targetIdentity;
+  evidence.verificationPlan = preparedVerification.verificationPlan;
   evidence.reproductionCommands = evidence.reproductionSelection.commands;
-evidence.reproductionBefore = reproduce(targetDir, evidence.reproductionCommands);
+  evidence.reproductionStability = preparedVerification.reproductionStability ?? null;
+  evidence.reproductionBefore = preparedVerification.reproductionStability?.firstRun ?? null;
+  if (!preparedVerification.ok) {
+    evidence.outcome = 'proposal-only';
+    evidence.escalation = { required: true, reason: preparedVerification.reason };
+    writeEvidence(evidencePath, evidence);
+    recordOutcome(memory, {
+      fingerprint,
+      normalizedFailure,
+      features,
+      rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown',
+      rule: selected?.id,
+      outcome: 'proposed',
+      verification: 'failure-directed-baseline-blocked',
+      provenance: { targetSha, targetIdentity: evidence.targetIdentity, reproductionStability: evidence.reproductionStability },
+      preventionRule: 'Require an exact, uniquely identified, stable failing target before source mutation.',
+    });
+    writeMemory(memory);
+    console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
+    console.log('AUTO_REPAIR_REASON=' + preparedVerification.reason);
+    console.log('AUTO_REPAIR_FINGERPRINT=' + fingerprint);
+    process.exit(0);
+  }
 
 try {
   evidence.repair = runAstRepair(targetDir, selected);
@@ -416,24 +500,36 @@ try {
     writeEvidence(evidencePath, evidence);
     process.exitCode = 2;
   } else {
-    evidence.reproductionAfter = reproduce(targetDir, evidence.reproductionCommands);
-    evidence.regressionSelection = evidence.reproductionSelection;
-    evidence.regression = runRegression(targetDir, evidence.reproductionSelection.regressionCommands);
+    evidence.contaminationGuard = checkVerificationContamination({
+      changedPaths: evidence.changedPaths,
+      selection: evidence.reproductionSelection,
+    });
+    evidence.reproductionStabilityAfter = evidence.contaminationGuard.ok
+      ? reproduceStable(targetDir, evidence.reproductionCommands, reproduce, { attempts: 2 })
+      : null;
+    evidence.reproductionAfter = evidence.reproductionStabilityAfter?.lastRun ?? null;
+    evidence.regressionSelection = {
+      ...evidence.reproductionSelection,
+      regressionMode: 'MINIMAL_TARGET_REPEAT',
+    };
+    evidence.regression = evidence.contaminationGuard.ok
+      ? runRegression(targetDir, evidence.regressionSelection.regressionCommands)
+      : { ok: false, results: [] };
     const rootCauseProof = {
       required: true,
-      reproductionWasFailing: evidence.reproductionBefore.results.length > 0 && !evidence.reproductionBefore.ok,
-      reproductionRecovered: evidence.reproductionAfter.results.length > 0 && evidence.reproductionAfter.ok,
+      reproductionWasFailing: evidence.reproductionStability?.classification === 'REPRODUCIBLE_FAILURE',
+      reproductionRecovered: evidence.reproductionStabilityAfter?.classification === 'STABLE_PASS',
       regressionPassed: evidence.regression.ok,
       commandsPresent: evidence.reproductionCommands.length > 0,
     };
     evidence.rootCauseProof = rootCauseProof;
-    evidence.recurrenceProof = { required: true, firstPass: false, secondPass: false };
-    if (rootCauseProof.commandsPresent && rootCauseProof.reproductionWasFailing && rootCauseProof.reproductionRecovered) {
-      const secondReproduction = reproduce(targetDir, evidence.reproductionCommands);
-      evidence.recurrenceProof.firstPass = true;
-      evidence.recurrenceProof.secondPass = secondReproduction.ok;
-      evidence.recurrenceProof.secondRun = secondReproduction;
-    }
+    evidence.recurrenceProof = {
+      required: true,
+      firstPass: evidence.reproductionStabilityAfter?.runs?.[0]?.ok === true,
+      secondPass: evidence.reproductionStabilityAfter?.runs?.[1]?.ok === true,
+      firstRun: evidence.reproductionStabilityAfter?.runs?.[0] ?? null,
+      secondRun: evidence.reproductionStabilityAfter?.runs?.[1] ?? null,
+    };
     evidence.causalProof = buildCausalProof({
       diagnosis,
       plan: selected,

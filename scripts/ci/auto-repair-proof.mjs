@@ -15,6 +15,12 @@ export function validateRepairProof({ rootCauseProof, recurrenceProof, evidence 
   if (recurrenceProof?.firstPass !== true) failures.push('recurrence-proof-first-pass');
   if (recurrenceProof?.secondPass !== true) failures.push('recurrence-proof-second-pass');
   if (!evidence?.targetSha || !/^[a-f0-9]{40}$/u.test(evidence.targetSha)) failures.push('target-sha-missing');
+  if (evidence?.reproductionSelection?.exact !== true) failures.push('verification-target-not-exact');
+  if (evidence?.targetIdentity?.ok !== true) failures.push('verification-target-identity');
+  if (evidence?.reproductionStability?.classification !== 'REPRODUCIBLE_FAILURE') failures.push('baseline-not-reproducible');
+  if (evidence?.reproductionStabilityAfter?.classification !== 'STABLE_PASS') failures.push('post-repair-not-stable');
+  if (evidence?.contaminationGuard?.ok !== true) failures.push('verification-contamination');
+  if (evidence?.reproductionSelection?.testCreation !== 'DISABLED') failures.push('test-creation-not-disabled');
   if (!Array.isArray(evidence?.changedPaths)) failures.push('changed-paths-missing');
   if (!evidence?.diff || typeof evidence.diff !== 'object') failures.push('diff-evidence-missing');
   if (!evidence?.regression || evidence.regression.ok !== true) failures.push('regression-evidence-missing');

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { reasonFailure, reasoningPolicy, verificationStrategy } from './auto-repair/reasoning.mjs';
 import { resolveTargetedTests } from './auto-repair/reproduction.mjs';
+import { buildVerificationPlan, checkVerificationContamination, classifyReproductionRuns } from './auto-repair/verification.mjs';
 
 const webkit = reasonFailure([
   'FAIL playwright test: render smoke',
@@ -112,3 +113,22 @@ const fallback = resolveTargetedTests('Type error TS2322 without source identity
 assert.equal(fallback.level, 'FALLBACK');
 assert.deepEqual(fallback.commands, [['npm', ['run', 'typecheck']]]);
 console.log('TARGETED_REPRODUCTION_SELF_TEST=PASS');
+
+const stableFailure = classifyReproductionRuns([{ ok: false }, { ok: false }, { ok: false }]);
+assert.equal(stableFailure, 'REPRODUCIBLE_FAILURE');
+assert.equal(classifyReproductionRuns([{ ok: false }, { ok: true }, { ok: false }]), 'FLAKY_SUSPECTED');
+assert.equal(classifyReproductionRuns([{ ok: true }, { ok: true }]), 'STABLE_PASS');
+assert.equal(classifyReproductionRuns([]), 'NO_TARGET');
+
+const exactPlan = buildVerificationPlan(exactBrowser, { ok: true, reason: 'unique-playwright-test', matches: 1 });
+assert.equal(exactPlan.exact, true);
+assert.equal(exactPlan.scope, 'EXACT_TEST');
+assert.equal(exactPlan.testCreation, 'DISABLED');
+assert.equal(exactPlan.baselineAttempts, 3);
+assert.equal(exactPlan.afterAttempts, 2);
+
+assert.equal(checkVerificationContamination({ changedPaths: ['src/components/pix.tsx'], selection: exactBrowser }).ok, true);
+for (const changedPath of ['tests/pix.spec.ts', 'scripts/ci/assertion-registry.json', 'scripts/ci/auto-repair/reproduction.mjs', 'scripts/ci/test-auto-repair-reasoning.mjs']) {
+  assert.equal(checkVerificationContamination({ changedPaths: [changedPath], selection: exactBrowser }).ok, false);
+}
+console.log('FAILURE_DIRECTED_VERIFICATION_SELF_TEST=PASS');
