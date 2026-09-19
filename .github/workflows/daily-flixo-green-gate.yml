@@ -80,7 +80,7 @@ jobs:
               while read -r run_id; do
                 [ -n "$run_id" ] || continue
                 if gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1; then
-  printf "\nEVIDENCE_CAPTURE=AVAILABLE\n" >> "/tmp/flixo-watch/logs/run-$run_id.log"
+                printf "\nEVIDENCE_CAPTURE=AVAILABLE\n" >> "/tmp/flixo-watch/logs/run-$run_id.log"
 else
   printf "EVIDENCE_CAPTURE=FAILED\nRUN_ID=%s\n" "$run_id" > "/tmp/flixo-watch/logs/run-$run_id.log"
 fi
@@ -95,7 +95,7 @@ fi
               while read -r run_id; do
                 [ -n "$run_id" ] || continue
                 if gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1; then
-  printf "\nEVIDENCE_CAPTURE=AVAILABLE\n" >> "/tmp/flixo-watch/logs/run-$run_id.log"
+                printf "\nEVIDENCE_CAPTURE=AVAILABLE\n" >> "/tmp/flixo-watch/logs/run-$run_id.log"
 else
   printf "EVIDENCE_CAPTURE=FAILED\nRUN_ID=%s\n" "$run_id" > "/tmp/flixo-watch/logs/run-$run_id.log"
 fi
