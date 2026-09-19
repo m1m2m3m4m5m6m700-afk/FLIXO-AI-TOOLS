@@ -329,7 +329,7 @@ jobs:
           merge-multiple: true
       - name: Validate execution graph completeness
         shell: bash
-        run: node scripts/ci/validate-certification-graph.mjs
+        run: node scripts/ci/validate-execution-graph.mjs
       - name: Single certification engine
         shell: bash
         run: node scripts/ci/certification-engine.mjs

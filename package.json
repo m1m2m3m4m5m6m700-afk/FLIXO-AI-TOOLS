@@ -95,7 +95,6 @@
     "audit:technical-debt": "node scripts/ci/audit-technical-debt.mjs",
     "validate:technical-debt-audit": "node scripts/ci/validate-technical-debt-audit.mjs",
     "validate:auto-repair-memory": "node scripts/ci/validate-auto-repair-memory.mjs",
-    "verify:contracts": "npm run test:static",
     "verify:fast": "npm run test:static",
     "orchestrate": "node scripts/ci/unified-orchestrator.mjs",
     "verify:ci-cd-trust": "node scripts/ci/validate-ci-cd-trust.mjs",

@@ -267,8 +267,10 @@ Every material workflow/project must map to one task ID in `المهام.md`. No
 
 ## SIMPLIFY-001 — Engineering Complexity Reduction
 
-STATUS = ACTIVE / EXECUTION
+STATUS = VERIFYING / BLOCKING
 BASE = 50e6a19f8faaabf958d0bdc5309ab3c8e4019fb7
-COMPLETED = canonical task-ledger selection, historical roadmap archival, public command facade, engineering-simplification contract, anti-complexity validator.
-NEXT = workflow ownership consolidation → deterministic duplication reduction → dead-code proof → boundary cleanup → exact-SHA canonical verification.
+COMPLETED = canonical task-ledger selection, command facade, CI ownership consolidation, single certification authority enforcement, dead-code proof, and bounded boundary cleanup.
+REMOVED = validate-certification-graph.mjs alias; verify:contracts duplicate package command.
+PRESERVED = security, coverage, artifact identity, exact-SHA, WP0 trust, browser FAST/DEEP, certification, and frozen ACCEL constraints.
+NEXT = fresh Canonical CI → WP0/Security → FAST/DEEP → Certification → exact-SHA verification → main merge.
 CONSTRAINTS = ACCEL FROZEN; zero coverage/security reduction; execution → main only.

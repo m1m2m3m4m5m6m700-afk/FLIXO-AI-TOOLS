@@ -16,6 +16,10 @@ for (const [name, command] of Object.entries(required)) {
   if (pkg.scripts?.[name] !== command) failures.push(`script ${name} does not match the canonical facade`);
 }
 
+if ("verify:contracts" in (pkg.scripts ?? {})) {
+  failures.push("legacy duplicate facade command remains: verify:contracts");
+}
+
 const scripts = Object.keys(pkg.scripts ?? {});
 const forbiddenPublicPatterns = [/^ci:(?!target$|repair$|certify$)/, /^release:/];
 for (const name of scripts) {
@@ -35,6 +39,13 @@ try {
   await readFile("docs/ENGINEERING-SIMPLIFICATION.md", "utf8");
 } catch {
   failures.push("engineering simplification contract missing");
+}
+
+try {
+  await readFile("scripts/ci/validate-certification-graph.mjs", "utf8");
+  failures.push("dead compatibility alias remains: validate-certification-graph.mjs");
+} catch {
+  // Expected: the historical alias has been removed after caller proof.
 }
 
 if (failures.length) {
