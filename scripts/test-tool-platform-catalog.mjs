@@ -38,6 +38,8 @@ const managedCloud = TOOL_CATALOG.byId.get('ai-image-generator');
 assert.ok(canonicalCloud && managedCloud);
 assert.equal(managedCloud.executionMode, canonicalCloud.executionMode);
 assert.equal(managedCloud.operational.execution, 'remote');
+assert.equal(managedLocal.requirements.network, false);
+assert.equal(managedCloud.requirements.network, true);
 
 assert.throws(
   () => createToolCatalog([{ ...source[0], id: 'duplicate' }, { ...source[0], id: 'duplicate' }]),
