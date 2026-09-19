@@ -84,7 +84,41 @@ A lower level never replaces a higher required level.
 
 There is one certification authority. Supporting workflows may diagnose, validate, report, or prepare evidence, but they must not independently declare release GREEN.
 
-When multiple workflows perform the same deterministic work, consolidate the implementation behind a reusable workflow or shared deterministic command rather than copying steps. GitHub documents reusable workflows specifically as a mechanism to avoid duplicated workflow logic. 
+The current automated certification authority is `.github/workflows/ci.yml` → job `certify` → `scripts/ci/certification-engine.mjs`. `scripts/validate-ci-contract.mjs` enforces that no second workflow can become a certification authority.
+
+When multiple workflows perform the same deterministic work, consolidate the implementation behind a reusable workflow or shared deterministic command rather than copying steps. GitHub documents reusable workflows specifically as a mechanism to avoid duplicated workflow logic.
+
+## Current workflow ownership map — 2026-09-19
+
+| Workflow | Ownership class | Authority boundary |
+|---|---|---|
+| `ci.yml` | CORE / CERTIFICATION | Sole automated application + browser + certification owner |
+| `wp0-trust-baseline.yml` | TRUST | Exact-SHA trust/provenance/security baseline; not release certification |
+| `repository-security-baseline.yml` | SECURITY | Repository security baseline evidence |
+| `claude-security-review.yml` | SECURITY / REVIEW | Security review evidence; no release certification |
+| `bundle-boundary-contract.yml` | CONTRACT | Browser/server bundle boundary contract |
+| `test-matrix-contract.yml` | CONTRACT | Test matrix contract/invariant validation |
+| `phase3-chain-compatibility.yml` | CONTRACT / COMPATIBILITY | Compatibility contract; manual/targeted scope |
+| `dependency-health.yml` | MAINTENANCE | Dependency inventory/health |
+| `dependency-usage-classification-v2.yml` | MAINTENANCE | Dependency usage classification |
+| `test-impact.yml` | IMPACT PLANNING | Determines impacted test scope; not certification |
+| `test-impact-execution.yml` | IMPACT EXECUTION | Executes selected impacted tests; not certification |
+| `auto-repair.yml` | REPAIR | Repair diagnosis/execution; must return evidence to canonical CI |
+| `agent-recovery-gate.yml` | AGENT GOVERNANCE | Recovery contract/gate |
+| `agent-repair-handoff-gate.yml` | AGENT GOVERNANCE | Repair handoff/continuity |
+| `code-read-only-scout.yml` | DISCOVERY | Read-only repository scouting |
+| `execution-sync.yml` | SYNC | Canonical execution synchronization only |
+| `ultra-investigator.yml` | DIAGNOSTICS | Deep investigation/recovery evidence |
+| `root-cause-diagnostics.yml` | DIAGNOSTICS | Root-cause evidence |
+| `error-memory-root-cause.yml` | DIAGNOSTICS / MEMORY | Historical root-cause extraction |
+| `daily-flixo-green-gate.yml` | MONITORING | Periodic health/green monitoring |
+| `ci-slo-report.yml` | OBSERVABILITY | SLO/reporting only |
+| `seo-production-certification.yml` | PRODUCT DIAGNOSTIC | Manual SEO diagnostic; not CI release certification |
+| `admin-006-persistence-roundtrip.yml` | DOMAIN PROOF | Manual persistence read-back proof; not automated release certification |
+| `cd.yml` | DEPLOYMENT | Promotes only an already certified exact SHA |
+| `deploy-flixoai.yml` | DEPLOYMENT | Cloudflare deployment boundary; no CI certification |
+
+The map is intentionally descriptive: workflow names containing words such as "certification", "green", or "gate" do not acquire certification authority. Authority is defined by the executable contract above.
 
 ## Registry rule
 
@@ -106,6 +140,10 @@ Every simplification must preserve:
 - rollback/recovery behavior
 
 Simplification means **less duplication and fewer authority points**, not fewer guarantees.
+
+## Compatibility-wrapper rule
+
+Legacy validator paths may remain temporarily for callers that still reference them, but they must delegate to the current authority and contain no independent policy. Removing a wrapper requires caller search, test proof, and historical-evidence review.
 
 ## Complexity budget
 

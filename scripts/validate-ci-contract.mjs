@@ -1,8 +1,15 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+
+const workflowDir = '.github/workflows';
+const workflowFiles = readdirSync(workflowDir).filter((file) => /\.(ya?ml)$/.test(file)).sort();
+const workflowTexts = workflowFiles.map((file) => ({
+  file,
+  text: readFileSync(`${workflowDir}/${file}`, 'utf8'),
+}));
 
 const workflowSource = readFileSync('.github/workflows/ci.yml', 'utf8');
-const workflow = workflowSource.replace(/\\"/g, '"');
+const workflow = workflowSource.replace(/\\\"/g, '"');
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
 const certifyEngine = readFileSync('scripts/ci/certify.mjs', 'utf8');
 const certifyCore = readFileSync('scripts/ci/certify-core.mjs', 'utf8');
@@ -33,6 +40,42 @@ const evidenceClassPresent = workflow.includes('evidenceClass') && workflow.incl
 if (!evidenceClassPresent) {
   console.error('CI contract failed: PRIMARY_EXECUTION evidence class is missing from .github/workflows/ci.yml');
   process.exit(1);
+}
+
+const certificationEngineOwners = workflowTexts.filter(({ text }) =>
+  text.includes('node scripts/ci/certification-engine.mjs'),
+);
+if (
+  certificationEngineOwners.length !== 1 ||
+  certificationEngineOwners[0].file !== 'ci.yml'
+) {
+  console.error(
+    `CI contract failed: canonical certification engine must have exactly one workflow owner (ci.yml); owners=${certificationEngineOwners.map(({ file }) => file).join(',') || 'none'}`,
+  );
+  process.exit(1);
+}
+
+const certificationJobOwners = workflowTexts.filter(({ text }) =>
+  /^\s{4}name:\s*Certification\s*$/m.test(text),
+);
+if (
+  certificationJobOwners.length !== 1 ||
+  certificationJobOwners[0].file !== 'ci.yml'
+) {
+  console.error(
+    `CI contract failed: canonical Certification job must have exactly one workflow owner (ci.yml); owners=${certificationJobOwners.map(({ file }) => file).join(',') || 'none'}`,
+  );
+  process.exit(1);
+}
+
+for (const job of ['verify', 'browser_fast', 'browser_deep', 'certify']) {
+  const owners = workflowTexts.filter(({ text }) => new RegExp(`^  ${job}:\\s*$`, 'm').test(text));
+  if (owners.length !== 1 || owners[0].file !== 'ci.yml') {
+    console.error(
+      `CI contract failed: canonical job ${job} must have exactly one workflow owner (ci.yml); owners=${owners.map(({ file }) => file).join(',') || 'none'}`,
+    );
+    process.exit(1);
+  }
 }
 
 for (const [label, source, pattern] of [
@@ -87,4 +130,6 @@ try {
   process.exit(1);
 }
 
-console.log('CI contract passed: one execution graph, centralized result-state reduction, explicit evidence provenance, canonical DEEP semantic identity, shared image-core foundation, minimal SHA checkout, one FAST engine, one DEEP engine, PR+push DEEP coverage, one fail-closed certification gate, and mandatory multi-agent coordination protocol.');
+console.log(
+  `CI contract passed: one execution graph, centralized result-state reduction, explicit evidence provenance, canonical DEEP semantic identity, shared image-core foundation, minimal SHA checkout, one FAST engine, one DEEP engine, PR+push DEEP coverage, one fail-closed certification gate, single workflow certification authority across ${workflowFiles.length} workflow definitions, and mandatory multi-agent coordination protocol.`,
+);
