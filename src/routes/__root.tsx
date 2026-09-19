@@ -37,7 +37,7 @@ export const rootRoute = createRootRoute({
   component: function RootLayout() {
     useEffect(() => {
       let active = true;
-      let dispose = () => undefined;
+      let dispose: () => void = () => undefined;
       void import('../lib/diagnostics/performance').then(({ installCoreWebVitalsDiagnostics }) => {
         if (!active) return;
         dispose = installCoreWebVitalsDiagnostics();
