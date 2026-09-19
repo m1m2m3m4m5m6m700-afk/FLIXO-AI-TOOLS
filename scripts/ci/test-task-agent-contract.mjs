@@ -9,6 +9,10 @@ const execution = fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 
 assert.ok(taskFile.length > 0, 'المهام.md must exist and be non-empty');
+assert.match(execution, /MAJOR_MAX_REPAIR_CYCLES = 30/);
+assert.match(execution, /MAJOR_MAX_PREPARED_FILES = 60/);
+assert.match(execution, /MAJOR_MAX_INSPECTED_FILES = 240/);
+assert.match(agent, /FLIXO_MAJOR_REPAIR_WAVE/);
 assert.match(contract, /direct-execution agent/i);
 assert.match(contract, /MUST NOT use a repair cycle to:[\s\S]*mutate `main`[\s\S]*self-approve\/merge/i);
 assert.match(contract, /SELF_HEALING_REPAIR_ONLY/);
@@ -38,9 +42,9 @@ assert.match(execution, /status: 'ACTIVE_UNTIL_GREEN'/);
 assert.match(execution, /openNewCycleForEveryRedCheck: true/);
 assert.match(execution, /closureRequiresCanonicalGreen: true/);
 assert.match(execution, /CLOSURE_GATE/);
-assert.match(execution, /MAX_REPAIR_CYCLES = 12/);
+assert.match(execution, /NORMAL_MAX_REPAIR_CYCLES = 12/);
 assert.match(execution, /maxCycles: MAX_REPAIR_CYCLES/);
-assert.match(execution, /MAX_PREPARED_FILES = 12/);
+assert.match(execution, /NORMAL_MAX_PREPARED_FILES = 12/);
 assert.match(execution, /CONTROL_PLANE_MUTATION_POLICY = 'HUMAN_REVIEW_REQUIRED'/);
 assert.match(execution, /MAX_STALLED_REPAIR_CYCLES = 3/);
 assert.match(execution, /CIRCUIT_BREAKER_OPEN/);
