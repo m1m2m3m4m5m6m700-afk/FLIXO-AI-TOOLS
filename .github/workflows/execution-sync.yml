@@ -1,8 +1,6 @@
 name: FLIXO Execution Canonical Sync
 
 on:
-  push:
-    branches: [execution]
   workflow_dispatch:
 
 permissions:
