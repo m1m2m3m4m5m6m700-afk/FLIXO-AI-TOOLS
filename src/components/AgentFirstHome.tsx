@@ -54,7 +54,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
           <a className="agent-first-tools-button" href={`/${locale}/pix`}>{FILTER_LABELS[locale]}</a>
           <label className="sr-only" htmlFor="agent-first-language">{home.nav.switch}</label>
           <select
-            id="agent-first-language"
+            id="home-language"
             className="agent-first-language"
             value={locale}
             aria-label={home.nav.switch}
