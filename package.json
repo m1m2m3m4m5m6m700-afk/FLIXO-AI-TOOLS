@@ -119,7 +119,8 @@
     "validate:repair-protocol": "node scripts/ci/repair-protocol.mjs validate",
     "test:repair-protocol": "node scripts/ci/test-repair-protocol.mjs",
     "test:agent-conversation": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-conversation.mjs",
-    "test:tool-platform-autodiscovery": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-tool-platform-autodiscovery.mjs"
+    "test:tool-platform-autodiscovery": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-tool-platform-autodiscovery.mjs",
+    "test:repair-execution-prompts": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/test-repair-execution-prompts.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
