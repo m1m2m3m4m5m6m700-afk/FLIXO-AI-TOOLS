@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { evaluateGreen } from './continuous-error-watch.mjs';
+import { evaluateGreen, classifyCancelledRun, validateRepairTarget } from './continuous-error-watch.mjs';
 
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
@@ -7,6 +7,7 @@ const run = (workflowName, databaseId, conclusion = 'success') => ({
   workflowName,
   databaseId,
   headSha: SHA_A,
+  headBranch: 'execution',
   status: 'completed',
   conclusion,
   updatedAt: '2026-09-19T00:00:00Z',
@@ -19,6 +20,47 @@ const requiredRuns = [
   'Repository Security Baseline',
   'Claude Security Review',
 ].map((name, i) => run(name, i + 1));
+const cancelledRun = { ...run('FLIXO Test Impact Execution', 40, 'cancelled'), updatedAt: '2026-09-19T00:00:00Z' };
+const successorRun = { ...run('FLIXO Test Impact Execution', 41, 'success'), updatedAt: '2026-09-19T00:01:00Z' };
+assert.equal(classifyCancelledRun(cancelledRun, [cancelledRun, successorRun]).state, 'CANCELLED_SUPERSEDED');
+assert.equal(classifyCancelledRun(cancelledRun, [cancelledRun]).state, 'CANCELLED_UNSUPERSEDED');
+assert.equal(validateRepairTarget({
+  run: { ...run('FLIXO Test Impact Execution', 50, 'failure'), headBranch: 'execution' },
+  executionSha: SHA_A,
+  workflowRuns: [],
+  logs: { 50: 'EVIDENCE_CAPTURE=AVAILABLE\ninternal failure' },
+}).valid, true);
+assert.equal(validateRepairTarget({
+  run: { ...run('FLIXO Test Impact Execution', 51, 'failure'), headBranch: 'main' },
+  executionSha: SHA_A,
+  workflowRuns: [],
+  logs: { 51: 'EVIDENCE_CAPTURE=AVAILABLE\ninternal failure' },
+}).valid, false);
+assert.equal(validateRepairTarget({
+  run: { ...run('FLIXO Test Impact Execution', 52, 'failure'), headBranch: 'execution' },
+  executionSha: SHA_B,
+  workflowRuns: [],
+  logs: { 52: 'EVIDENCE_CAPTURE=AVAILABLE\ninternal failure' },
+}).valid, false);
+assert.equal(validateRepairTarget({
+  run: { ...run('FLIXO Auto Repair Bot', 53, 'failure'), headBranch: 'execution' },
+  executionSha: SHA_A,
+  workflowRuns: [],
+  logs: { 53: 'EVIDENCE_CAPTURE=AVAILABLE\nself target' },
+}).errors.includes('TARGET_SELF_REPAIR'), true);
+assert.equal(validateRepairTarget({
+  run: { ...run('Unknown workflow', 54, 'failure'), headBranch: 'execution' },
+  executionSha: SHA_A,
+  workflowRuns: [],
+  logs: { 54: 'EVIDENCE_CAPTURE=AVAILABLE\nunknown target' },
+}).errors.includes('TARGET_WORKFLOW_NOT_ALLOWED'), true);
+assert.equal(validateRepairTarget({
+  run: { ...run('FLIXO Test Impact Execution', 55, 'failure'), headBranch: 'execution' },
+  executionSha: SHA_A,
+  workflowRuns: [],
+  logs: {},
+}).errors.includes('EVIDENCE_CAPTURE_FAILED'), true);
+
 const securityAndCertification = [
   { id: 101, name: 'github-advanced-security', status: 'completed', conclusion: 'success' },
   { id: 102, name: 'Certification', status: 'completed', conclusion: 'success' },
@@ -31,6 +73,33 @@ const green = evaluateGreen({
   compare: { ahead_by: 1, behind_by: 0 },
 });
 assert.equal(green.status, 'GREEN');
+
+const cancelledUnsuperseded = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr,
+  workflowRuns: requiredRuns.map((item) =>
+    item.workflowName === 'FLIXO Test Impact Execution'
+      ? { ...item, conclusion: 'cancelled', databaseId: 996, updatedAt: '2026-09-19T00:02:00Z', headBranch: 'execution' }
+      : item),
+  checkRuns: securityAndCertification,
+  logs: { 996: 'EVIDENCE_CAPTURE=AVAILABLE\ncancelled internal run' },
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(cancelledUnsuperseded.status, 'RED_INTERNAL');
+assert.equal(cancelledUnsuperseded.repair.required, false);
+
+const missingEvidence = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr,
+  workflowRuns: requiredRuns.map((item) =>
+    item.workflowName === 'FLIXO Test Impact Execution'
+      ? { ...item, conclusion: 'failure', databaseId: 995, headBranch: 'execution' }
+      : item),
+  checkRuns: securityAndCertification,
+  logs: {},
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(missingEvidence.status, 'FAIL_CLOSED');
+assert.equal(missingEvidence.repair.required, false);
+assert(missingEvidence.errors.some((x) => x.type === 'EVIDENCE_CAPTURE_FAILED'));
 
 const external = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
