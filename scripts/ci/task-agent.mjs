@@ -101,6 +101,9 @@ if (!selected.length) throw new Error(requested ? `TASK_NOT_FOUND=${requested}` 
 if (branch !== 'execution') throw new Error('DIRECT_EXECUTION_REQUIRES_EXECUTION_BRANCH');
 
 const scopePolicy = 'SELF_HEALING_REPAIR_ONLY';
+const executionAuthority = 'BOUND_ADMIN_ON_EXECUTION_WITH_ERROR_SCOPE';
+const mutationScope = 'CURRENT_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING_ONLY';
+const humanCommandRequired = false;
 const scopeEnforcement = 'FAIL_CLOSED';
 const controlPlaneMutationPolicy = 'HUMAN_REVIEW_REQUIRED';
 if (scopePolicy !== 'SELF_HEALING_REPAIR_ONLY' || scopeEnforcement !== 'FAIL_CLOSED') throw new Error('SELF_HEALING_SCOPE_CONTRACT_VIOLATION');
@@ -122,6 +125,9 @@ for (const task of selected) {
     mutationPolicy: 'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH',
     scopePolicy,
     scopeEnforcement,
+    executionAuthority,
+    mutationScope,
+    humanCommandRequired,
     allowedWork: 'ACTIVE_SELF_HEALING_REPAIR_CYCLE_OR_EXPLICIT_INCOMPLETE_REPAIR_TASK_ONLY',
     forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','GATE_WEAKENING','MAIN_MUTATION','THIRD_BRANCH_CREATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],
     taskFile: 'مهام.md',
@@ -226,6 +232,9 @@ for (const task of selected) {
       pushAuthority: 'TASK_AGENT_ON_EXECUTION_BRANCH_ONLY',
       completionAuthority: 'VERIFIER_AFTER_CANONICAL_GREEN_ONLY',
       scopeAuthority: 'SELF_HEALING_REPAIR_ONLY',
+      executionAuthority,
+      mutationScope,
+      humanCommandRequired,
     },
   };
   const output = path.join(OUTPUT_DIR, `${task.taskId}.json`);
@@ -242,6 +251,9 @@ const index = {
   executionMode: 'DIRECT_ON_EXECUTION_BRANCH',
   scopePolicy,
   scopeEnforcement,
+  executionAuthority,
+  mutationScope,
+  humanCommandRequired,
   baselineSha: sha,
   executionBranch: branch,
   mainBranchMutation: false,
