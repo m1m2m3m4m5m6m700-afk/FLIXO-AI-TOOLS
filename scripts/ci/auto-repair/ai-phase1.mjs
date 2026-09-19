@@ -109,7 +109,7 @@ export function buildPhase1Report({ mode, log = '', expectedSha = '', currentSha
   const impact = calculateImpact(normalizeChangedFiles(changedFiles), CI_CONTRACTS);
   const orchestration = buildCiOrchestrationPlan({ impact, targetSelection });
   const concurrency = guardExecutionIdentity({ expectedSha, currentSha, remoteSha, branch });
-  return Object.freeze({
+  return {
     schemaVersion: 1,
     protocol: 'FLIXO-AI-PHASE1',
     mode,
