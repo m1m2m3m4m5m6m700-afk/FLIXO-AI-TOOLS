@@ -133,6 +133,16 @@ function counterfactualChecks(log, top, alternatives) {
   return checks.map((check) => ({ ...check, status: text ? 'REQUIRED_BEFORE_NONTRIVIAL_MUTATION' : 'BLOCKED_MISSING_EVIDENCE' }));
 }
 
+function blastRadius(features = [], rootCause = 'unknown') {
+  const surfaces = new Set(['source', 'targeted-regression', 'canonical-ci']);
+  if (features.includes('typescript') || features.includes('build')) surfaces.add('build');
+  if (features.includes('lint') || features.includes('format')) surfaces.add('static');
+  if (features.includes('playwright') || features.includes('webkit')) surfaces.add('browser');
+  if (features.includes('certification')) surfaces.add('certification');
+  if (rootCause === 'external-tooling') surfaces.add('external-provider');
+  return [...surfaces];
+}
+
 function selectTop(hypotheses) {
   const viable = hypotheses.filter((item) => !item.suppressedBy);
   return viable[0] ?? hypotheses[0] ?? {
@@ -188,7 +198,7 @@ export function reasonFailure(log, {
     sourceMutationAllowed: sourceMutationAllowed && (!falsificationChecks.some((item) => item.status === 'REQUIRED_BEFORE_NONTRIVIAL_MUTATION') || directFailureSignal),
     externalTooling: hardBlock,
     locationVerified,
-    falsificationChecks,\n    decision,
+    falsificationChecks,\n    blastRadius: blastRadius(features, top.id),\n    decision,
     scout: scout.fresh
       ? { fresh: true, path: scout.path ?? null, scannedSha: scout.report.scannedSha, findings: scout.report.findings?.length ?? 0 }
       : { fresh: false, reason: scout.reason, currentSha: scout.currentSha ?? null, scannedSha: scout.scannedSha ?? null },
