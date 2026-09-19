@@ -223,3 +223,31 @@ REQUEST = validate main-state i18n repair through the canonical FLIXO Test Syste
 TARGET = Seed UI ownership repair at 40786637552d8c0268fd4b9de579c104f58726ab
 NO GATE BYPASS = required
 ```
+
+## INCOMPLETE PROJECT COVERAGE — synchronized with the unified task ledger
+
+> Source set: current `المهام.md`, legacy `مهام.md`, `docs/DEBT-REGISTER.md`, Agent Knowledge Architecture, and active repair/security workflows. Historical-only records are excluded from the active queue.
+
+| ID | Status | Owner/Surface | Next deterministic action |
+|---|---|---|---|
+| AUTO-REPAIR-BOT-001 | ACTIVE / LEDGER-MISSING | Auto Repair + Task Agent + Error Agent | Register lifecycle, prove repair publication and learning gates on current SHA |
+| EXECUTION-BOT-WATCHDOG-001 | ACTIVE | execution-bot-watchdog | Verify exact-SHA RED detection and canonical repair dispatch |
+| REPAIR-SUPERVISION-GATES-001 | ACTIVE | handoff/recovery/merge gates | Prove fail-closed handoff→merge chain |
+| ROOT-CAUSE-DIAGNOSTICS-001 | OPEN | diagnostics/scout/investigator | Unify evidence→fingerprint→RCA path |
+| WP1-REGISTRY-ENGINE-001 | INCOMPLETE / PARTIAL | Registry/Planner/Executor/Verifier | Finish loader/discovery/contracts |
+| WP2-SECURITY-OBSERVABILITY-001 | OPEN | security/tracing/error classification | Close security + observability invariants |
+| WP3-UNDERSTAND-PLAN-CONFIRM-001 | OPEN | intent/planner/confirmation | Complete lifecycle contracts |
+| WP4-EXECUTE-VERIFY-RECOVER-001 | OPEN | executor/verifier/recovery/memory | Complete output + recovery contracts |
+| WP5-CONTRACT-E2E-ADVERSARIAL-001 | OPEN | tests/impact/adversarial | Complete reusable E2E and negative coverage |
+| WP6-PERFORMANCE-LOCAL-FIRST-001 | OPEN | performance/deps/local-first | Complete profiling and performance contracts |
+| WP7-SEO-I18N-RELEASE-001 | OPEN | SEO/i18n/release | Complete SEO-A..F + release gate |
+| AGENT-KNOWLEDGE-000..013 | VERIFICATION-PENDING / PLANNED | embedded agent knowledge | Reconcile existing implementation then execute remaining sessions |
+| D-001..D-012 | OPEN / LINKED | technical-debt register | Close through owning WP or GREEN recovery |
+| FIX-001 | BLOCKED_EXTERNAL / OPEN | GitHub branch protection | Apply with authorized integration, then re-verify |
+| PERFORMANCE-BUNDLE-001 | OPEN | bundle-boundary contract | Prove chunk/budget invariants |
+| ACCEL-1..9 | FROZEN | CI speed work | Remain frozen until explicitly reactivated |
+| RELEASE-FINALIZATION-001 | PLANNED | release/finalization | Require complete exact-SHA release evidence |
+
+## PROJECT MAP RULE
+
+Every material workflow/project must map to one task ID in `المهام.md`. No orphan operational system is considered complete until its owning task has an exit criterion and fresh evidence.
