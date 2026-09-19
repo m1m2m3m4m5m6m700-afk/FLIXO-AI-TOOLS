@@ -54,8 +54,7 @@ jobs:
           WORKFLOW_CHANGES="$(git diff --name-only "$EXEC_SHA" HEAD -- .github/workflows || true)"
           if [ -n "$WORKFLOW_CHANGES" ]; then
             echo "Restoring execution-owned workflow files before publication:"
-            printf '%s
-' "$WORKFLOW_CHANGES"
+            printf '%s\n' "$WORKFLOW_CHANGES"
             while IFS= read -r path; do
               [ -z "$path" ] && continue
               if git cat-file -e "$EXEC_SHA:$path" 2>/dev/null; then
