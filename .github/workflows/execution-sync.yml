@@ -61,5 +61,3 @@ jobs:
           gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution
           echo "Execution reconciled with canonical main: $NEW_SHA"
           echo "Canonical FLIXO Test System dispatched for reconciled execution head."
-          echo "execution reconciled and PR #$PR_NUMBER merged after exact-head repository GREEN."
-          echo "Canonical main after merge: $MAIN_AFTER"
