@@ -6,10 +6,10 @@ const source = fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8')
 assert.match(source, /singleOrchestrator: true/);
 assert.match(source, /specializedRolesAreStages: true/);
 assert.match(source, /failClosed: true/);
-assert.match(source, /MAX_PREPARED_FILES = 8/);
+assert.match(source, /MAX_PREPARED_FILES = 12/);
 assert.match(source, /maxInspectedFiles: 40/);
-assert.match(source, /MAX_REPAIR_CYCLES = 3/);
-assert.match(source, /MAX_STALLED_REPAIR_CYCLES = 2/);
+assert.match(source, /MAX_REPAIR_CYCLES = 12/);
+assert.match(source, /MAX_STALLED_REPAIR_CYCLES = 3/);
 assert.match(source, /MAX_PREPARED_FILES = 8/);
 assert.match(source, /STALE_BASELINE/);
 assert.match(source, /mainBranchMutation: false/);
