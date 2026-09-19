@@ -74,6 +74,24 @@ const green = evaluateGreen({
 });
 assert.equal(green.status, 'GREEN');
 
+const mainObservedGreen = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_A,
+  observedBranch: 'main',
+  openPr: null,
+  latestMergedPr: { headRefOid: SHA_B, mergeCommit: { oid: SHA_B } },
+  workflowRuns: [
+    { ...requiredRuns[0], headBranch: 'main', conclusion: 'success' },
+  ],
+  checkRuns: securityAndCertification,
+  statuses: [{ context: 'Vercel', state: 'success' }],
+  compare: { ahead_by: 0, behind_by: 0 },
+});
+assert.equal(mainObservedGreen.status, 'GREEN');
+assert.equal(mainObservedGreen.errors.length, 0);
+assert.equal(mainObservedGreen.ci.requiredWorkflows['FLIXO Test System'].status, 'success');
+assert.equal(mainObservedGreen.ci.requiredWorkflows['FLIXO WP0 Trust Baseline'], undefined);
+
 const cancelledUnsuperseded = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
   workflowRuns: requiredRuns.map((item) =>

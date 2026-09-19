@@ -139,9 +139,11 @@ jobs:
             const match = name.match(/^run-(\d+)\.log$/);
             if (match) logs[match[1]] = read('/tmp/flixo-watch/logs/' + name);
           }
+          const observedBranch = read('/tmp/flixo-watch/observed-branch').trim();
           const input = {
             executionSha,
             mainSha,
+            observedBranch,
             openPr: openPrs[0] ?? null,
             latestMergedPr: allPrs.find((item) => item.mergedAt && item.mergeCommit) ?? null,
             workflowRuns,
