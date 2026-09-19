@@ -11,14 +11,12 @@ const failures = [];
 // exact-head GREEN evidence. Direct-main repair remains intentionally forbidden.
 const writeWorkflowAllowlist = new Set([
   '.github/workflows/auto-repair.yml',
-  '.github/workflows/auto-repair-merge-gate.yml',
   '.github/workflows/execution-sync.yml',
 ]);
 
 const securityCriticalWorkflows = new Set([
   '.github/workflows/auto-repair.yml',
   '.github/workflows/auto-repair-executor.yml',
-  '.github/workflows/auto-repair-merge-gate.yml',
   '.github/workflows/execution-sync.yml',
   '.github/workflows/wp0-trust-baseline.yml',
 ]);
@@ -26,7 +24,6 @@ const securityCriticalWorkflows = new Set([
 const trustPerimeter = [
   '.github/workflows/auto-repair.yml',
   '.github/workflows/auto-repair-executor.yml',
-  '.github/workflows/auto-repair-merge-gate.yml',
   '.github/workflows/execution-sync.yml',
   '.github/workflows/wp0-trust-baseline.yml',
   'scripts/ci/auto-repair-policy.mjs',

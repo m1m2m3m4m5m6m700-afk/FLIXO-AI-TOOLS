@@ -10,7 +10,6 @@ export const repairPolicy = Object.freeze({
     '.github/workflows/deploy-flixoai.yml',
     '.github/workflows/auto-repair.yml',
     '.github/workflows/auto-repair-executor.yml',
-    '.github/workflows/auto-repair-merge-gate.yml',
     '.github/workflows/execution-sync.yml',
     '.github/workflows/wp0-trust-baseline.yml',
     '.github/workflows/repair-seed.yml',
