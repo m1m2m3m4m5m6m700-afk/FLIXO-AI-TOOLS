@@ -22,7 +22,8 @@ permissions:
 # Every observation is evidence-bearing and must complete; never cancel a watcher because a newer observation arrived.
 # The repair lane itself is also non-canceling. Both layers use exact event identity.
 concurrency:
-  group: flixo-continuous-error-watch-${{ github.event.workflow_run.head_sha || github.sha }}
+  # Unique group per observation: queued evidence must never supersede another queued observation.
+  group: flixo-continuous-error-watch-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
