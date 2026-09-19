@@ -26,8 +26,8 @@ const required = [
   ['Browser FAST engine', /\n\s{2}browser_fast:\s*\n/],
   ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
   ['single certification gate', /\n\s{2}certify:\s*\n/],
-  ['superseding exact-head CI', /cancel-in-progress:\s*true/],
-  ['superseding PR/branch concurrency isolation', /group:\s*flixo-test-\$\{\{\s*github\.workflow\s*\}\}-\$\{\{\s*github\.event\.pull_request\.number\s*\|\|\s*github\.ref\s*\}\}/],
+  ['exact-SHA non-canceling CI', /cancel-in-progress:\s*false/],
+  ['exact-SHA concurrency isolation', /group:\s*flixo-test-\$\{\{\s*github\.workflow\s*\}\}-\$\{\{\s*github\.event\.pull_request\.number\s*\|\|\s*github\.ref\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/],
   ['exact SHA', /EXPECTED_SHA/],
   ['immutable artifact identity', /flixo-head-sha\.txt[\s\S]*flixo-package-lock\.sha256/],
   ['minimal checkout', /fetch-depth:\s*1/],
@@ -53,20 +53,20 @@ for (const [label, source] of [
   }
 }
 
-const supersedableVerificationWorkflows = [
+const exactShaVerificationWorkflows = [
   ['ci.yml', workflow],
   ['wp0-trust-baseline.yml', wp0Workflow],
   ['test-impact-execution.yml', impactExecutionWorkflow],
   ['repository-security-baseline.yml', securityBaselineWorkflow],
 ];
 
-for (const [file, source] of supersedableVerificationWorkflows) {
-  if (!/cancel-in-progress:\s*true/.test(source)) {
-    console.error('CI contract failed: ' + file + ' must cancel superseded verification runs.');
+for (const [file, source] of exactShaVerificationWorkflows) {
+  if (!/cancel-in-progress:\s*false/.test(source)) {
+    console.error('CI contract failed: ' + file + ' must not cancel same-SHA reruns.');
     process.exit(1);
   }
-  if (!/github\.event\.pull_request\.number\s*\|\|\s*github\.ref/.test(source)) {
-    console.error('CI contract failed: ' + file + ' must isolate concurrency by PR number or branch ref.');
+  if (!/github\.event\.pull_request\.number\s*\|\|\s*github\.ref[\s\S]*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha/.test(source)) {
+    console.error('CI contract failed: ' + file + ' must isolate runs by PR/branch and exact SHA.');
     process.exit(1);
   }
 }
@@ -80,9 +80,9 @@ for (const [file, source] of [
     process.exit(1);
   }
 }
-if (!/cancel-in-progress:\s*true/.test(greenGateWorkflow) ||
-    !/group:\s*flixo-continuous-error-watch-\$\{\{\s*github\.event\.workflow_run\.head_branch\s*\|\|\s*github\.ref\s*\}\}/.test(greenGateWorkflow)) {
-  console.error('CI contract failed: daily green gate must supersede duplicate watcher runs by branch.');
+if (!/cancel-in-progress:\s*false/.test(greenGateWorkflow) ||
+    !/group:\s*flixo-continuous-error-watch-\$\{\{\s*github\.run_id\s*\}\}/.test(greenGateWorkflow)) {
+  console.error('CI contract failed: daily green gate must preserve each observation run for evidence integrity.');
   process.exit(1);
 }
 
