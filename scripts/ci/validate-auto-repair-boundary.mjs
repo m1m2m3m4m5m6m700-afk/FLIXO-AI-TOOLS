@@ -6,6 +6,8 @@ import { execFileSync } from 'node:child_process';
 const ROOT = process.cwd();
 const AUTO_REPAIR = path.join(ROOT, '.github', 'workflows', 'auto-repair.yml');
 const WATCHDOG = path.join(ROOT, '.github', 'workflows', 'execution-bot-watchdog.yml');
+const DAILY_GATE = path.join(ROOT, '.github', 'workflows', 'daily-flixo-green-gate.yml');
+const MERGE_GATE = path.join(ROOT, '.github', 'workflows', 'auto-repair-merge-gate.yml');
 const MAX_CHANGED_FILES = 12;
 const MAX_CHANGED_LINES = 300;
 
@@ -43,12 +45,15 @@ function read(file) {
 export function validateStatic() {
   const auto = read(AUTO_REPAIR);
   const watchdog = read(WATCHDOG);
+  const dailyGate = read(DAILY_GATE);
+  const mergeGate = read(MERGE_GATE);
   const errors = [];
   const must = (condition, code) => { if (!condition) errors.push(code); };
 
   must(/name:\s*FLIXO Auto Repair Bot/.test(auto), 'auto-repair-identity');
-  must(/workflow_run:\s*\n\s*workflows:/.test(auto), 'auto-repair-workflow-run-trigger');
-  must(/branches:\s*\[main, execution\]/.test(auto), 'auto-repair-two-branch-trigger');
+  must(!/workflow_run:/.test(auto), 'auto-repair-executor-only-trigger');
+  must(/workflow_dispatch:/.test(auto), 'auto-repair-dispatch-trigger');
+  must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(auto), 'auto-repair-no-self-dispatch');
   must(/target_run_id:[\s\S]*required:\s*true/.test(auto), 'auto-repair-target-run-required');
   must(/ref:\s*execution/.test(auto), 'auto-repair-checkout-execution');
   must(/contents:\s*write/.test(auto) && /actions:\s*write/.test(auto) && /pull-requests:\s*write/.test(auto), 'auto-repair-required-permissions');
@@ -61,6 +66,19 @@ export function validateStatic() {
   must(!/git\s+(checkout|switch)\s+-[bc]/.test(auto), 'auto-repair-no-third-branch');
   must(!/git\s+push[^\n]*\bmain\b/.test(auto), 'auto-repair-no-main-push');
   must(!/gh\s+pr\s+merge/i.test(auto), 'auto-repair-no-self-merge');
+  must(/gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i.test(dailyGate), 'daily-gate-watchdog-dispatch');
+  must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(dailyGate), 'daily-gate-no-auto-repair-dispatch');
+
+  must(/name:\s*FLIXO Auto Repair Merge Gate/.test(mergeGate), 'merge-gate-identity');
+  must(/pull_request:\s*\n[\s\S]*branches:\s*\[main\]/.test(mergeGate), 'merge-gate-main-trigger');
+  must(/github\.event\.pull_request\.head\.ref == 'execution'/.test(mergeGate), 'merge-gate-execution-only');
+  must(/gh api --method PATCH[\s\S]*git\/refs\/heads\/main/.test(mergeGate), 'merge-gate-fast-forward-ref-update');
+  must(/-F "force=false"/.test(mergeGate), 'merge-gate-no-force-push');
+  must(/COMPARE=.*compare\//.test(mergeGate), 'merge-gate-ancestry-proof');
+  must(/MAIN_AFTER=.*commits\/main[\s\S]*MAIN_AFTER.*EXPECTED_SHA/.test(mergeGate), 'merge-gate-post-promotion-sha-readback');
+  must(!/gh\s+pr\s+merge/i.test(mergeGate), 'merge-gate-no-pr-merge');
+  must(!/--squash|--rebase|--merge(?:\s|")/i.test(mergeGate), 'merge-gate-no-non-ff-method');
+
 
   const timeout = Number(auto.match(/jobs:\s*\n\s+repair:[\s\S]*?timeout-minutes:\s*(\d+)/)?.[1] ?? NaN);
   must(Number.isFinite(timeout) && timeout <= 45, 'auto-repair-timeout-bound');
