@@ -20,17 +20,17 @@ globalThis.fetch = async (input, init = {}) => {
   throw new Error('unexpected test boundary session-store mutation');
 };
 const issuedTokens = new Map();
-const issue = ({ subject, capabilities, role } = {}) => {
+const issue = ({ subject, capabilities, role, ttlSeconds } = {}) => {
   const sessionId = randomUUID();
   const now = new Date();
-  const token = signAdminSession({ subject, capabilities, role, sessionId }, SECRET);
+  const token = signAdminSession({ subject, capabilities, role, sessionId, ttlSeconds }, SECRET);
   sessions.set(sessionId, {
     session_id: sessionId,
     actor_subject: subject,
     actor_role: role ?? 'ADMIN',
     environment: 'test',
     issued_at: now.toISOString(),
-    expires_at: new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
+    expires_at: new Date(now.getTime() + (ttlSeconds ?? 60 * 60) * 1000).toISOString(),
     revoked_at: null,
   });
   issuedTokens.set(token, sessionId);
