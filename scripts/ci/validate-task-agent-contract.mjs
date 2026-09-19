@@ -33,7 +33,8 @@ for (const marker of [
 for (const marker of [
   '`main`',
   'GREEN',
-  'auto-merge مسموح فقط بعد GREEN',
+  'لا يعلن الوكيل GREEN؛ الأدلة الرسمية هي المرجع.',
+  'execution → main',
 ]) {
   if (!task.includes(marker)) throw new Error(`TASK_AGENT_TASK_GATE_MARKER_MISSING=${marker}`);
 }
