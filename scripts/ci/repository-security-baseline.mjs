@@ -1,3 +1,4 @@
+import { WRITE_CAPABLE_WORKFLOWS, SECURITY_CRITICAL_WORKFLOWS } from './control-plane-registry.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -9,21 +10,12 @@ const failures = [];
 // execution-sync is the canonical execution-branch reconciliation controller; it
 // may write only to execution and trigger canonical CI, and it merges only after
 // exact-head GREEN evidence. Direct-main repair remains intentionally forbidden.
-const writeWorkflowAllowlist = new Set([
-  '.github/workflows/auto-repair.yml',
-  '.github/workflows/execution-sync.yml',
-]);
+const writeWorkflowAllowlist = new Set(WRITE_CAPABLE_WORKFLOWS);
 
-const securityCriticalWorkflows = new Set([
-  '.github/workflows/auto-repair.yml',
-  '.github/workflows/auto-repair-executor.yml',
-  '.github/workflows/execution-sync.yml',
-  '.github/workflows/wp0-trust-baseline.yml',
-]);
+const securityCriticalWorkflows = new Set(SECURITY_CRITICAL_WORKFLOWS);
 
 const trustPerimeter = [
   '.github/workflows/auto-repair.yml',
-  '.github/workflows/auto-repair-executor.yml',
   '.github/workflows/execution-sync.yml',
   '.github/workflows/wp0-trust-baseline.yml',
   'scripts/ci/auto-repair-policy.mjs',
