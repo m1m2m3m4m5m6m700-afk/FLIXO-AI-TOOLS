@@ -37,7 +37,11 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
   const navigate = useNavigate();
   const copy = COPY[locale === 'ar' ? 'ar' : 'en'];
   const home = getHomeCopy(locale);
-  const localizedTitle = home.heroTitle.replace(/<[^>]+>/g, '');
+  function renderHeroTitle(value: string) {
+    const match = /^([\s\S]*?)<span>([\s\S]*?)<\/span>([\s\S]*)$/.exec(value);
+    if (!match) return value;
+    return <>{match[1]}<span>{match[2]}</span>{match[3]}</>;
+  }
 
   useEffect(() => {
     document.documentElement.lang = home.language;
@@ -79,7 +83,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
       <section className="agent-first-main" aria-labelledby="agent-first-title">
         <div className="agent-first-heading">
           <span className="agent-first-mark" aria-hidden="true">✦</span>
-          <h1 id="home-title">{localizedTitle}</h1>
+          <h1 id="home-title">{renderHeroTitle(home.heroTitle)}</h1>
           <p>{copy.subtitle}</p>
         </div>
         <div className="agent-first-chat"><FlixoAIAgent locale={locale} /></div>
