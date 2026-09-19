@@ -465,6 +465,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   const promptVersion = String(process.env.FLIXO_PROMPT_VERSION ?? provenance?.promptVersion ?? '').trim() || null;
   const masterPromptId = String(process.env.FLIXO_MASTER_PROMPT_ID ?? provenance?.masterPromptId ?? '').trim() || null;
   const promptDecision = String(process.env.FLIXO_PROMPT_DECISION ?? provenance?.promptDecision ?? '').trim() || null;
+  const promptRegistrySha = String(process.env.FLIXO_PROMPT_REGISTRY_SHA ?? provenance?.promptRegistrySha ?? '').trim() || null;
   const effectiveProvenance = {
     ...(provenance ?? {}),
     ...(strategyId ? { strategyId } : {}),
@@ -473,6 +474,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     ...(promptVersion ? { promptVersion } : {}),
     ...(masterPromptId ? { masterPromptId } : {}),
     ...(promptDecision ? { promptDecision } : {}),
+    ...(promptRegistrySha ? { promptRegistrySha } : {}),
   };
   const isHistoricalRevertFailure = outcome === 'revert-failure';
   if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
