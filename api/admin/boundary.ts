@@ -126,7 +126,7 @@ export const authorizeAdminRequestWithDurableSession = async (
   const token = readAdminSessionToken(req.headers.cookie);
   const session = verifyAdminSessionToken(token);
   if (!session?.sessionId) {
-    return authorization;
+    return { status: 401, code: 'authentication_required', correlationId: authorization.correlationId };
   }
 
   if (!isAdminSessionStoreConfigured()) {
