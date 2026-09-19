@@ -356,5 +356,30 @@
       "npm run validate:agent-protocol"
     ],
     "prevention": "Protocol validators must assert current authoritative execution markers after contract migrations and should not depend on obsolete implementation syntax."
+  },
+  "RC-WATCH-TEST-EVIDENCE-FIXTURE-001": {
+    "category": "CI_EVIDENCE",
+    "description": "Continuous error watch self-test expected RED_INTERNAL for an internal failed workflow while providing no captured log evidence; the production reducer correctly fails closed on missing evidence.",
+    "repairTargets": [
+      "scripts/ci/test-continuous-error-watch.mjs"
+    ],
+    "verification": [
+      "node scripts/ci/test-continuous-error-watch.mjs"
+    ],
+    "prevention": "Internal RED fixtures must include explicit EVIDENCE_CAPTURE=AVAILABLE evidence when asserting RED_INTERNAL; missing evidence is always FAIL_CLOSED."
+  },
+  "RC-WATCH-RUN-STORM-001": {
+    "category": "CI_CONCURRENCY",
+    "description": "Daily Green Gate workflow_run triggers accumulated duplicate watcher runs because the watcher used one global non-canceling concurrency lane while historical Test System completions continued arriving.",
+    "repairTargets": [
+      ".github/workflows/daily-flixo-green-gate.yml",
+      "scripts/validate-ci-contract.mjs",
+      "scripts/ci/test-auto-repair-final.mjs"
+    ],
+    "verification": [
+      "npm run validate:ci-contract",
+      "node scripts/ci/test-auto-repair-final.mjs"
+    ],
+    "prevention": "Watcher executions are supersedable by branch; Auto-Repair execution remains isolated and non-canceling."
   }
 }

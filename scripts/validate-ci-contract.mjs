@@ -74,12 +74,16 @@ for (const [file, source] of supersedableVerificationWorkflows) {
 for (const [file, source] of [
   ['auto-repair.yml', readFileSync('.github/workflows/auto-repair.yml', 'utf8')],
   ['execution-sync.yml', readFileSync('.github/workflows/execution-sync.yml', 'utf8')],
-  ['daily-flixo-green-gate.yml', greenGateWorkflow],
 ]) {
   if (!/cancel-in-progress:\s*false/.test(source)) {
-    console.error('CI contract failed: ' + file + ' must remain non-canceling because it carries repair/watch state.');
+    console.error('CI contract failed: ' + file + ' must remain non-canceling because it carries repair state.');
     process.exit(1);
   }
+}
+if (!/cancel-in-progress:\s*true/.test(greenGateWorkflow) ||
+    !/group:\s*flixo-continuous-error-watch-\$\{\{\s*github\.event\.workflow_run\.head_branch\s*\|\|\s*github\.ref\s*\}\}/.test(greenGateWorkflow)) {
+  console.error('CI contract failed: daily green gate must supersede duplicate watcher runs by branch.');
+  process.exit(1);
 }
 
 const evidenceClassPresent = workflow.includes('evidenceClass') && workflow.includes('PRIMARY_EXECUTION');

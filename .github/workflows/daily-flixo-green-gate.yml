@@ -19,9 +19,10 @@ permissions:
   checks: read
   pull-requests: read
 
+# The watcher is supersedable; the repair lane itself remains non-canceling.
 concurrency:
-  group: flixo-continuous-error-watch
-  cancel-in-progress: false
+  group: flixo-continuous-error-watch-${{ github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   watch:

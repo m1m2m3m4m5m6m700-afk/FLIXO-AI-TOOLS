@@ -232,6 +232,16 @@ FIX = update the validator to enforce the current authoritative engine marker.
 VERIFICATION = fresh WP0/static on the exact execution SHA.
 PREVENTION = update contract assertions atomically with protocol/engine migrations; never require historical implementation strings as certification evidence.
 
+RC-032 = Continuous-error-watch self-test expected `RED_INTERNAL` without `EVIDENCE_CAPTURE=AVAILABLE`; under the current fail-closed contract this correctly resolves to `FAIL_CLOSED`.
+FIX = make the internal RED fixture provide explicit evidence.
+VERIFICATION = watcher self-test on the exact execution SHA.
+PREVENTION = missing evidence must never be used to manufacture an internally repairable RED.
+
+RC-033 = Daily Green Gate accumulated duplicate watcher runs because workflow_run events shared one non-canceling global concurrency lane.
+FIX = branch-scoped superseding watcher concurrency; Auto-Repair remains non-canceling.
+VERIFICATION = concurrency contract + exact-SHA watcher self-test.
+PREVENTION = observer workflows are supersedable; mutation workflows remain serialized.
+
 ## GOVERNANCE
 
 Bounded single-owner work may execute directly on `main`. Use `execution` only for materially risky, broad, conflict-prone, architectural, or production-sensitive isolation. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements remain mandatory.

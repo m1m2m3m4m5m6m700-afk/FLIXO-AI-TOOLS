@@ -181,6 +181,7 @@ const internal = evaluateGreen({
       ? { ...item, conclusion: 'failure', databaseId: 999 }
       : item),
   checkRuns: securityAndCertification,
+  logs: { 999: 'EVIDENCE_CAPTURE=AVAILABLE\ninternal failure' },
   compare: { ahead_by: 1, behind_by: 0 },
 });
 assert.equal(internal.status, 'RED_INTERNAL');
