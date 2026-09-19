@@ -126,6 +126,7 @@ jobs:
           test "$FAILED_NAME" != "FLIXO Auto Repair Chain" || { echo 'FAIL CLOSED: auto-repair cannot repair itself.'; exit 1; }
           printf '%s\n' "$FAILED_BRANCH" > /tmp/flixo-failed-branch
           printf '%s\n' "$FAILED_NAME" > /tmp/flixo-failed-workflow
+          echo "FLIXO_REPAIR_TARGET_BRANCH=$FAILED_BRANCH" >> "$GITHUB_ENV"
 
       - name: Validate immutable repair boundary before mutation
         run: node scripts/ci/validate-auto-repair-boundary.mjs --static-only
@@ -143,28 +144,23 @@ jobs:
           echo 'CONTINUOUS_REPAIR=true: no finite chain-count may close an actionable RED cycle.'
           echo 'The cycle remains open until canonical GREEN evidence is observed.'
 
-      - name: Synchronize execution with the failed main SHA without creating a branch
+      - name: Synchronize repair workspace with the failed target SHA
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          FAILED_BRANCH="$(cat /tmp/flixo-failed-branch)"
           git fetch --no-tags origin main execution "$FAILED_SHA"
-          git checkout execution
-          git reset --hard origin/execution
-          # execution may advance to the failed main SHA only by fast-forward.
-          # If it contains unrelated/unmerged work, fail closed rather than branching.
-          if git merge-base --is-ancestor "$FAILED_SHA" HEAD; then
-            echo "execution already contains failed SHA $FAILED_SHA"
-          elif git merge-base --is-ancestor HEAD "$FAILED_SHA"; then
-            git merge --ff-only "$FAILED_SHA"
-            git push origin execution
-          else
-            echo "execution and failed main SHA have diverged; refusing a third branch or destructive reset."
+          git checkout "$FAILED_BRANCH"
+          git reset --hard "origin/$FAILED_BRANCH"
+          CURRENT_TARGET_HEAD="$(git rev-parse HEAD)"
+          test "$CURRENT_TARGET_HEAD" = "$FAILED_SHA" || {
+            echo "FAIL CLOSED: target branch $FAILED_BRANCH moved from failed SHA $FAILED_SHA to $CURRENT_TARGET_HEAD."
             exit 1
-          fi
-          test "$(git branch --show-current)" = execution
-          printf '%s\n' execution > /tmp/flixo-repair-branch
+          }
+          test "$(git branch --show-current)" = "$FAILED_BRANCH"
+          printf '%s\n' "$FAILED_BRANCH" > /tmp/flixo-repair-branch
 
       - name: Initialize Repair Control Plane cycle
         run: |
@@ -314,7 +310,7 @@ jobs:
           set -euo pipefail
           SIGNATURE="$(node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8')); process.stdout.write(x.signature||'unknown')")"
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
-          test "$(git branch --show-current)" = execution
+          test "$(git branch --show-current)" = "$FLIXO_REPAIR_TARGET_BRANCH"
           FLIXO_TASK_AGENT_OUTPUT_DIR=/tmp/flixo-task-agent node /tmp/flixo-repair-controller/scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$SIGNATURE" --failure-evidence=/tmp/flixo-repair-summary.txt
           test -s /tmp/flixo-task-agent/latest.json
 
@@ -430,7 +426,7 @@ jobs:
           node /tmp/flixo-repair-controller/scripts/test.mjs --mode=diagnose --gate=static
           node /tmp/flixo-repair-controller/scripts/test.mjs --mode=diagnose --gate=build
           git diff --check
-          test "$(git branch --show-current)" = execution
+          test "$(git branch --show-current)" = "$FLIXO_REPAIR_TARGET_BRANCH"
           echo 'verified=true' >> "$GITHUB_OUTPUT"
 
       - name: Record local verification state in the Repair Control Plane
@@ -516,13 +512,13 @@ jobs:
           test -f /tmp/flixo-repair-evidence.json
           node /tmp/flixo-repair-controller/scripts/ci/repair-protocol.mjs commit-gate --evidence=/tmp/flixo-repair-evidence.json
 
-      - name: Commit and push verified repair on the single working branch
+      - name: Commit and publish verified repair on the exact target branch
         if: steps.verify.outputs.verified == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$(git branch --show-current)" = execution
+          test "$(git branch --show-current)" = "$FLIXO_REPAIR_TARGET_BRANCH"
           git add -A
           git add -f diagnostics/auto-repair/memory.json
           if [ -f diagnostics/auto-repair/intractable-errors.json ]; then git add -f diagnostics/auto-repair/intractable-errors.json; fi
@@ -531,15 +527,15 @@ jobs:
           FINGERPRINT="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.fingerprint||'unknown')")"
           RULE="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.selected||x.historicalRollback?.rule||'unknown')")"
           BASE_SHA="$(git rev-parse HEAD)"
-          git fetch --no-tags origin execution
-          REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          git fetch --no-tags origin main execution
+          REMOTE_TARGET_SHA="$(git rev-parse "origin/$FLIXO_REPAIR_TARGET_BRANCH")"
           test "$BASE_SHA" = "$FAILED_SHA" || {
             echo "FAIL CLOSED: local repair base $BASE_SHA is not the failed target SHA $FAILED_SHA."
             exit 1
           }
-          test "$REMOTE_EXECUTION_SHA" = "$FAILED_SHA" || {
-            echo "FAIL CLOSED: execution advanced during repair; refusing stale publication."
+          test "$REMOTE_TARGET_SHA" = "$FAILED_SHA" || {
+            echo "FAIL CLOSED: target branch advanced during repair; refusing stale publication."
             exit 1
           }
           if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
@@ -547,32 +543,32 @@ jobs:
             test "$REVERTED_SHA" != ""
             git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "revert(auto-repair): historical rollback for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-ROLLBACK-v1\nkind=historical-revert\nrevertedSha=$REVERTED_SHA\nfingerprint=$FINGERPRINT\nrule=$RULE"
           else
-            FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
-            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-MARKER-v1\nkind=verified-source-repair\nfingerprint=$FINGERPRINT\nrule=$RULE\nfailedSha=$FAILED_SHA\nbaseSha=$BASE_SHA"
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-MARKER-v1\nkind=verified-source-repair\nfingerprint=$FINGERPRINT\nrule=$RULE\nfailedSha=$FAILED_SHA\nbaseSha=$BASE_SHA\ntargetBranch=$FLIXO_REPAIR_TARGET_BRANCH"
           fi
-          PUSHED=false
-          git fetch --no-tags origin execution
-          REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
+          git fetch --no-tags origin main execution
+          REMOTE_TARGET_PARENT="$(git rev-parse "origin/$FLIXO_REPAIR_TARGET_BRANCH")"
           LOCAL_REPAIR_PARENT="$(git rev-parse HEAD^)"
-          if [ "$REMOTE_EXECUTION_SHA" != "$LOCAL_REPAIR_PARENT" ]; then
-            echo "FAIL CLOSED: execution advanced after the verified repair was created; refusing stale publication."
+          test "$REMOTE_TARGET_PARENT" = "$LOCAL_REPAIR_PARENT" || {
+            echo "FAIL CLOSED: $FLIXO_REPAIR_TARGET_BRANCH advanced after verified repair; refusing stale publication."
             exit 1
+          }
+          if [ "$FLIXO_REPAIR_TARGET_BRANCH" = "main" ]; then
+            git push origin HEAD:main
+            echo 'DIRECT_MAIN_REPAIR_PUBLISHED=true'
+          else
+            git push origin HEAD:execution
+            PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
+            if [ -z "$PR_URL" ]; then
+              PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head execution --title "fix(auto-repair): canonical execution repair" --body "Canonical repair path. The repair was proven against the exact target SHA; canonical CI remains the verification authority.")"
+            fi
+            echo "Canonical execution -> main PR: $PR_URL"
           fi
-          if git push origin execution; then
-            PUSHED=true
-          fi
-          test "$PUSHED" = true
-          PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
-          if [ -z "$PR_URL" ]; then
-            PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head execution --title "fix(auto-repair): canonical execution repair" --body "Canonical two-branch repair path.\n\nAll repairs are applied only on execution and promoted only after exact-SHA Canonical CI GREEN.")"
-          fi
-          echo "Canonical execution -> main PR: $PR_URL"
 
       - name: Record publication state in the Repair Control Plane
         if: steps.verify.outputs.verified == 'true'
         run: |
           set -euo pipefail
-          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=PUBLISHED_TO_EXECUTION --actor=AUTO_REPAIR_BOT --reason=VERIFIED_EXECUTION_SHA_PUSHED
+          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=PUBLISHED_TO_EXECUTION --actor=AUTO_REPAIR_BOT --reason=VERIFIED_TARGET_SHA_PUSHED
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=CANONICAL_CI --actor=AUTO_REPAIR_BOT --reason=AWAITING_CANONICAL_CI
 
       - name: Enforce central Repair Protocol post-commit boundary
@@ -586,12 +582,12 @@ jobs:
         if: steps.verify.outputs.verified == 'true'
         run: |
           set -euo pipefail
-          test "$(git branch --show-current)" = execution
-          git fetch --no-tags origin execution
-          EXECUTION_SHA="$(git rev-parse HEAD)"
-          REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
-          test "$EXECUTION_SHA" = "$REMOTE_EXECUTION_SHA"
-          PARENT_SHA="$(git rev-parse "$EXECUTION_SHA^")"
+          test "$(git branch --show-current)" = "$FLIXO_REPAIR_TARGET_BRANCH"
+          git fetch --no-tags origin main execution
+          TARGET_PUBLISHED_SHA="$(git rev-parse HEAD)"
+          REMOTE_TARGET_SHA="$(git rev-parse "origin/$FLIXO_REPAIR_TARGET_BRANCH")"
+          test "$TARGET_PUBLISHED_SHA" = "$REMOTE_TARGET_SHA"
+          PARENT_SHA="$(git rev-parse "$TARGET_PUBLISHED_SHA^")"
           test -f /tmp/flixo-repair-evidence.json
           SOURCE_SHA="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.targetSha||'')")"
           test "$SOURCE_SHA" = "$PARENT_SHA"
@@ -601,16 +597,16 @@ jobs:
             verified-repair|verified-historical-revert) ;;
             *) echo "FAIL CLOSED: invalid post-commit handoff outcome=$ENGINE_OUTCOME"; exit 1 ;;
           esac
-          git diff --binary "$PARENT_SHA" "$EXECUTION_SHA" > /tmp/flixo-prepared-repair.patch
+          git diff --binary "$PARENT_SHA" "$TARGET_PUBLISHED_SHA" > /tmp/flixo-prepared-repair.patch
           test -s /tmp/flixo-prepared-repair.patch
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import crypto from 'node:crypto';
           import { execFileSync } from 'node:child_process';
           const evidence = JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));
-          const executionSha = execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
-          const parentSha = execFileSync('git',['rev-parse',`${executionSha}^`],{encoding:'utf8'}).trim();
-          const changedPaths = execFileSync('git',['diff','--name-only',parentSha,executionSha],{encoding:'utf8'}).trim().split('\n').filter(Boolean).sort();
+          const targetSha = execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
+          const parentSha = execFileSync('git',['rev-parse',`${targetSha}^`],{encoding:'utf8'}).trim();
+          const changedPaths = execFileSync('git',['diff','--name-only',parentSha,targetSha],{encoding:'utf8'}).trim().split('\n').filter(Boolean).sort();
           const patch = fs.readFileSync('/tmp/flixo-prepared-repair.patch');
           const mode = fs.readFileSync('/tmp/flixo-engine-outcome','utf8').trim();
           const handoff = {
@@ -620,7 +616,7 @@ jobs:
             applyBy: 'AUTO_REPAIR_BOT',
             requiresCanonicalCI: true,
             repository: process.env.GITHUB_REPOSITORY,
-            headBranch: 'execution',
+            headBranch: process.env.FLIXO_REPAIR_TARGET_BRANCH,
             baseBranch: 'main',
             repairRunId: process.env.GITHUB_RUN_ID,
             targetFailureRunId: process.env.TARGET_RUN_ID,
@@ -628,8 +624,9 @@ jobs:
             failedSha: fs.readFileSync('/tmp/flixo-failed-sha','utf8').trim(),
             sourceSha: evidence.targetSha,
             controllerSha: process.env.FLIXO_TRUSTED_MEMORY_SHA || null,
-            executionSha,
+            executionSha: targetSha,
             parentSha,
+            targetBranch: process.env.FLIXO_REPAIR_TARGET_BRANCH,
             fingerprint: evidence.fingerprint,
             selectedRule: evidence.selected || evidence.historicalRollback?.rule || null,
             changedPaths,
@@ -640,7 +637,7 @@ jobs:
           fs.writeFileSync('/tmp/flixo-prepared-repair-handoff.json', JSON.stringify(handoff,null,2)+'\n');
           NODE
           test -s /tmp/flixo-prepared-repair-handoff.json
-          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/flixo-prepared-repair-handoff.json','utf8'));for(const k of ['repairRunId','targetFailureRunId','chainId','failedSha','sourceSha','controllerSha','executionSha','parentSha','fingerprint','selectedRule','patchSha256']) if(h[k]===undefined||h[k]===null||h[k]==='') throw new Error('missing handoff field '+k);"
+          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/flixo-prepared-repair-handoff.json','utf8'));for(const k of ['repairRunId','targetFailureRunId','chainId','failedSha','sourceSha','controllerSha','executionSha','parentSha','targetBranch','fingerprint','selectedRule','patchSha256']) if(h[k]===undefined||h[k]===null||h[k]==='') throw new Error('missing handoff field '+k);"
           test "${GITHUB_RUN_ID}" = "$(node -e "const h=require('/tmp/flixo-prepared-repair-handoff.json');process.stdout.write(h.repairRunId)")"
           test "$TARGET_RUN_ID" = "$(node -e "const h=require('/tmp/flixo-prepared-repair-handoff.json');process.stdout.write(h.targetFailureRunId)")"
       - name: Validate Phase 2 release integrity handoff
