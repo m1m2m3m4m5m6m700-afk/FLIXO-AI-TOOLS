@@ -227,6 +227,11 @@ FIX = scope the forbidden pattern to individual command lines.
 VERIFICATION = fresh WP0 canonical static run on the resulting exact SHA.
 PREVENTION = never use cross-command multiline regexes for shell safety assertions when command-local matching is sufficient.
 
+RC-031 = `validate-agent-protocol.mjs` asserted an obsolete auto-repair reproduction marker after the engine refactored reproduction ownership to `evidence.reproductionSelection.commands`.
+FIX = update the validator to enforce the current authoritative engine marker.
+VERIFICATION = fresh WP0/static on the exact execution SHA.
+PREVENTION = update contract assertions atomically with protocol/engine migrations; never require historical implementation strings as certification evidence.
+
 ## GOVERNANCE
 
 Bounded single-owner work may execute directly on `main`. Use `execution` only for materially risky, broad, conflict-prone, architectural, or production-sensitive isolation. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements remain mandatory.
