@@ -1,3 +1,4 @@
+import { REPAIR_GATE_AUTOMATION } from './control-plane-registry.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fingerprintFailure, normalizeFailure } from './auto-repair-learning.mjs';
@@ -67,8 +68,7 @@ const changedProvider = shouldReopenExternalRepairCycle(learnedBlock, {
   providerSignature: 'different-provider-signature',
 });
 assert.equal(changedProvider.reopen, true);
-for (const path of [
-  '.github/workflows/auto-repair-executor.yml',
+for (const path of REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`).concat([
   '.github/workflows/execution-sync.yml',
   '.github/workflows/wp0-trust-baseline.yml',
   'scripts/ci/auto-repair-policy.mjs',
@@ -80,7 +80,7 @@ for (const path of [
   'scripts/ci/agent-execution-control.mjs',
   'scripts/ci/repository-security-baseline.mjs',
   'scripts/ci/validate-auto-repair-memory.mjs',
-]) {
+])) {
   assert.equal(isPathAllowed(path), false, `trust perimeter must remain immutable to auto-repair: ${path}`);
 }
 console.log('AUTO_REPAIR_FINAL_ARCHITECTURE=PASS');
