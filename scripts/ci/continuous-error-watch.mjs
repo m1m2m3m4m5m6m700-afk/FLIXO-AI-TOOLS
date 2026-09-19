@@ -34,7 +34,6 @@ const PROVIDER_FAILURE_PATTERNS = Object.freeze([
   /api-deployments-free-per-day/i,
   /rate limit/i,
   /quota/i,
-  /provider/i,
   /deployment provider/i,
 ]);
 
@@ -171,20 +170,30 @@ export function evaluateGreen({
     if (run.status !== 'completed') {
       report.errors.push({ type: 'REQUIRED_CHECK_PENDING', workflow: name, status: run.status });
     } else if (run.conclusion !== 'success') {
-      report.errors.push({
-        type: 'REQUIRED_CHECK_RED',
-        workflow: name,
-        conclusion: run.conclusion,
-        runId: run.databaseId,
-      });
+      const failureLog = logs[String(run.databaseId)] ?? '';
+      if (providerFailure(failureLog)) {
+        report.externalBlockers.push({
+          kind: 'BLOCKED_EXTERNAL',
+          workflow: name,
+          state: run.conclusion,
+          rootCause: 'EXTERNAL_PROVIDER_FAILURE',
+        });
+      } else {
+        report.errors.push({
+          type: 'REQUIRED_CHECK_RED',
+          workflow: name,
+          conclusion: run.conclusion,
+          runId: run.databaseId,
+        });
 
-      if (!report.repair.required && !['FLIXO Test System', 'FLIXO WP0 Trust Baseline'].includes(name)) {
-        report.repair = {
-          required: true,
-          targetRunId: run.databaseId ?? null,
-          action: 'PENDING_DISPATCH',
-          rootCauseAuthority: 'TASK_AGENT_RCA',
-        };
+        if (!report.repair.required && !['FLIXO Test System', 'FLIXO WP0 Trust Baseline'].includes(name)) {
+          report.repair = {
+            required: true,
+            targetRunId: run.databaseId ?? null,
+            action: 'PENDING_DISPATCH',
+            rootCauseAuthority: 'TASK_AGENT_RCA',
+          };
+        }
       }
     }
   }
