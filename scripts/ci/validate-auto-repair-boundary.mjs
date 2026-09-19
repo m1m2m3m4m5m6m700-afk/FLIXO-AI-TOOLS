@@ -13,6 +13,7 @@ const MAX_CHANGED_LINES = 300;
 export const CONTROL_PLANE_FILES = Object.freeze([
   ...REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`),
   '.github/workflows/agent-repair-handoff-gate.yml',
+  'scripts/ci/control-plane-registry.mjs',
   'scripts/ci/validate-auto-repair-boundary.mjs',
   'scripts/ci/task-agent.mjs',
   'scripts/ci/agent-execution-control.mjs',
