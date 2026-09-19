@@ -70,13 +70,47 @@ jobs:
             ACTUAL_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
             test "$ACTUAL_SHA" = "$EXPECTED_SHA" || { echo "HEAD_CHANGED=$ACTUAL_SHA expected=$EXPECTED_SHA"; exit 1; }
             fetch_check_runs /tmp/check-runs.json
-            gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --required --json name,state > /tmp/required-checks.json
-            jq -e 'length > 0' /tmp/required-checks.json >/dev/null || { echo 'FAIL CLOSED: GitHub reported no required checks for this PR.'; exit 1; }
-            jq -e 'all(.[]; .state == "SUCCESS")' /tmp/required-checks.json >/dev/null || {
-              echo 'FAIL CLOSED: one or more GitHub-required checks are not successful.'
-              cat /tmp/required-checks.json
-              exit 1
-            }
+            cat > /tmp/canonical-required-checks.txt <<'EOF'
+Static + Build
+Browser Dependencies
+Browser FAST — chromium / shard-1
+Browser FAST — chromium / shard-2
+Browser FAST — firefox / shard-1
+Browser FAST — firefox / shard-2
+Browser FAST — webkit / shard-1
+Browser FAST — webkit / shard-2
+Browser DEEP — chromium / shard-1
+Browser DEEP — chromium / shard-2
+Browser DEEP — chromium / shard-3
+Browser DEEP — chromium / shard-4
+Browser DEEP — chromium / shard-5
+Browser DEEP — chromium / shard-6
+Browser DEEP — chromium / shard-7
+Browser DEEP — firefox / shard-1
+Browser DEEP — firefox / shard-2
+Browser DEEP — firefox / shard-3
+Browser DEEP — firefox / shard-4
+Browser DEEP — firefox / shard-5
+Browser DEEP — firefox / shard-6
+Browser DEEP — firefox / shard-7
+Browser DEEP — webkit / shard-1
+Browser DEEP — webkit / shard-2
+Browser DEEP — webkit / shard-3
+Browser DEEP — webkit / shard-4
+Browser DEEP — webkit / shard-5
+Browser DEEP — webkit / shard-6
+Browser DEEP — webkit / shard-7
+Certification
+WP0 Trust Baseline — Single Verification Path
+Impact Verification Execution
+EOF
+            while IFS= read -r required; do
+              test -n "$required"
+              jq -s -e --arg name "$required" 'any([.[].check_runs[]]; .name == $name and .status == "completed" and .conclusion == "success")' /tmp/check-runs.json >/dev/null || {
+                echo "FAIL CLOSED: canonical required check missing or not successful: $required"
+                exit 1
+              }
+            done < /tmp/canonical-required-checks.txt
             jq -s '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate")] | group_by(.name) | map(max_by((.completed_at // .started_at // "")))' /tmp/check-runs.json > /tmp/repository-check-runs.json
             if ! jq -e 'length > 0 and all(.[]; .status == "completed" and .conclusion == "success")' /tmp/repository-check-runs.json >/dev/null; then
               if [ "$SECONDS" -ge "$deadline" ]; then echo 'Timed out waiting for exact-head repository checks.'; exit 1; fi
@@ -131,13 +165,47 @@ jobs:
             done
           }
           fetch_check_runs /tmp/check-runs-final.json
-          gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --required --json name,state > /tmp/required-checks-final.json
-          jq -e 'length > 0' /tmp/required-checks-final.json >/dev/null || { echo 'FAIL CLOSED: GitHub reported no required checks for this PR.'; exit 1; }
-          jq -e 'all(.[]; .state == "SUCCESS")' /tmp/required-checks-final.json >/dev/null || {
-            echo 'FAIL CLOSED: one or more GitHub-required checks are not successful.'
-            cat /tmp/required-checks-final.json
-            exit 1
-          }
+          cat > /tmp/canonical-required-checks-final.txt <<'EOF'
+Static + Build
+Browser Dependencies
+Browser FAST — chromium / shard-1
+Browser FAST — chromium / shard-2
+Browser FAST — firefox / shard-1
+Browser FAST — firefox / shard-2
+Browser FAST — webkit / shard-1
+Browser FAST — webkit / shard-2
+Browser DEEP — chromium / shard-1
+Browser DEEP — chromium / shard-2
+Browser DEEP — chromium / shard-3
+Browser DEEP — chromium / shard-4
+Browser DEEP — chromium / shard-5
+Browser DEEP — chromium / shard-6
+Browser DEEP — chromium / shard-7
+Browser DEEP — firefox / shard-1
+Browser DEEP — firefox / shard-2
+Browser DEEP — firefox / shard-3
+Browser DEEP — firefox / shard-4
+Browser DEEP — firefox / shard-5
+Browser DEEP — firefox / shard-6
+Browser DEEP — firefox / shard-7
+Browser DEEP — webkit / shard-1
+Browser DEEP — webkit / shard-2
+Browser DEEP — webkit / shard-3
+Browser DEEP — webkit / shard-4
+Browser DEEP — webkit / shard-5
+Browser DEEP — webkit / shard-6
+Browser DEEP — webkit / shard-7
+Certification
+WP0 Trust Baseline — Single Verification Path
+Impact Verification Execution
+EOF
+          while IFS= read -r required; do
+            test -n "$required"
+            jq -s -e --arg name "$required" 'any([.[].check_runs[]]; .name == $name and .status == "completed" and .conclusion == "success")' /tmp/check-runs-final.json >/dev/null || {
+              echo "FAIL CLOSED: canonical required check missing or not successful: $required"
+              exit 1
+            }
+          done < /tmp/canonical-required-checks-final.txt
           jq -s -e '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate") | select(.status != "completed" or .conclusion != "success")] | length == 0' /tmp/check-runs-final.json
           jq -s -e 'any([.[].check_runs[] | select((.name | ascii_downcase) | test("codeql|github-advanced-security|github advanced security|code scanning ai findings"))])' /tmp/check-runs-final.json
           jq -s -e 'all([.[].check_runs[] | select((.name | ascii_downcase) | test("codeql|github-advanced-security|github advanced security|code scanning ai findings"))]; .status == "completed" and .conclusion == "success")' /tmp/check-runs-final.json
