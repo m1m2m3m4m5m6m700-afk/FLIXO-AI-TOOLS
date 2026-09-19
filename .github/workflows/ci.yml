@@ -9,7 +9,7 @@ on:
 
 concurrency:
   group: flixo-test-${{ github.head_ref || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
