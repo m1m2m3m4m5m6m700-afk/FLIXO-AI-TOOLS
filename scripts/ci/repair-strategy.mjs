@@ -50,7 +50,7 @@ const index = (Math.max(0, nextAttempt - 1)) % strategies.length;
 const [strategyId, strategy] = strategies[index];
 const threshold = INTRACTABLE_THRESHOLD;
 const teachingEscalation = record?.status === 'INTRACTABLE' || nextAttempt > threshold;
-const isIntractable = false;
+const isIntractable = teachingEscalation;
 
 fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   fingerprint,
