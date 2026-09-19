@@ -101,6 +101,28 @@ jobs:
           EXPECTED_SHA="$(cat /tmp/flixo-verified-head-sha)"
           ACTUAL_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
+          fetch_check_runs() {
+            local output="$1"
+            local delay=20
+            for attempt in 1 2 3 4 5 6; do
+              if gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/check-runs?per_page=100" > "$output"; then
+                return 0
+              fi
+              if [ "$attempt" -eq 6 ]; then
+                echo 'GitHub check-run API remained unavailable after retry budget.'
+                return 1
+              fi
+              echo "GitHub check-run API unavailable/rate-limited; retrying in ${delay}s (attempt ${attempt}/6)."
+              sleep "$delay"
+              case "$delay" in
+                20) delay=40 ;;
+                40) delay=80 ;;
+                80) delay=160 ;;
+                160) delay=320 ;;
+                320) delay=640 ;;
+              esac
+            done
+          }
           fetch_check_runs /tmp/check-runs-final.json
           jq -s -e '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate") | select(.status != "completed" or .conclusion != "success")] | length == 0' /tmp/check-runs-final.json
           jq -s -e 'any([.[].check_runs[] | select((.name | ascii_downcase) | test("codeql|github-advanced-security|github advanced security|code scanning ai findings"))])' /tmp/check-runs-final.json
