@@ -7,7 +7,7 @@ on:
   workflow_run:
     workflows: ["FLIXO Auto Repair Bot"]
     types: [completed]
-    branches: [main, execution]
+    branches: [main]
 
 permissions:
   contents: read
