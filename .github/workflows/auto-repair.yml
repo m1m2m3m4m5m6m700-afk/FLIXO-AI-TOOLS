@@ -71,9 +71,6 @@ jobs:
 
           TARGET="${TARGET_RUN_ID:-}"
 
-          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
-            TARGET="${{ github.event.workflow_run.id }}"
-          fi
 
           if [ -z "$TARGET" ]; then
             echo 'AUTONOMOUS_REPAIR=NO_CURRENT_CANONICAL_FAILURE'
