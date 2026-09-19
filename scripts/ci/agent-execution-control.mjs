@@ -8,7 +8,7 @@ const ROOT = process.cwd();
 const OUT = process.env.FLIXO_AGENT_EXECUTION_CONTROL_OUTPUT_DIR ?? path.resolve(ROOT, 'diagnostics/agents/execution-control');
 const TASK_AGENT_OUTPUT_DIR = process.env.FLIXO_TASK_AGENT_OUTPUT_DIR ?? '/tmp/flixo-task-agent';
 const TASK_AGENT = path.resolve(ROOT, 'scripts/ci/task-agent.mjs');
-const TASK_FILE = path.resolve(ROOT, 'مهام.md');
+const TASK_FILE = path.resolve(ROOT, 'المهام.md');
 const MAX_STAGES = 10;
 const MAX_REPAIR_CYCLES = 1000000;
 const MAX_STALLED_REPAIR_CYCLES = 1000000;
@@ -108,7 +108,7 @@ function buildPlan({ index, packet }) {
   };
 }
 
-if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=مهام.md');
+if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=المهام.md');
 if (branch !== 'execution') throw new Error('DIRECT_EXECUTION_REQUIRES_EXECUTION_BRANCH');
 fs.mkdirSync(OUT, { recursive: true });
 const taskId = process.argv.find((arg) => arg.startsWith('--task-id='))?.slice('--task-id='.length) ?? '';
