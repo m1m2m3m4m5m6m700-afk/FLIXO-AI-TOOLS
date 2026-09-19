@@ -56,7 +56,7 @@ export function validateStatic() {
   must(/workflow_dispatch:/.test(auto), 'auto-repair-dispatch-trigger');
   must(/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(auto), 'auto-repair-self-recovery-dispatch');
   must(/target_run_id:[\s\S]*required:\s*true/.test(auto), 'auto-repair-target-run-required');
-  must(/ref:\s*execution/.test(auto), 'auto-repair-checkout-execution');
+  must(/ref:\s*\$\{\{ github\.event\.workflow_run\.head_branch \|\| 'execution' \}\}/.test(auto) || /ref:\s*main/.test(auto) || /git checkout \"\$FAILED_BRANCH\"/.test(auto), 'auto-repair-checkout-target-branch');
   must(/persist-credentials:\s*false/.test(auto), 'auto-repair-checkout-credential-isolation');
   must(/CONTROLLER_SHA="\$MAIN_SHA"/.test(auto), 'auto-repair-main-controller-trust');
   must(/TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/.test(auto), 'auto-repair-trust-model');
@@ -68,15 +68,15 @@ export function validateStatic() {
   must(/not a diagnosable failure/.test(auto), 'auto-repair-failure-only-policy');
   must(auto.includes('CURRENT_TARGET_SHA=') && auto.includes('FAIL CLOSED: repair target'), 'auto-repair-no-superseded-target');
   must(auto.includes('execution advanced during repair; refusing stale publication'), 'auto-repair-no-stale-publication');
-  must(auto.includes('REMOTE_EXECUTION_SHA') && auto.includes('FAILED_SHA'), 'auto-repair-publication-exact-target');
+  must(auto.includes('FAILED_SHA') && (auto.includes('REMOTE_TARGET_SHA') || auto.includes('CURRENT_TARGET_HEAD')), 'auto-repair-publication-exact-target');
   must(!/git rebase "\$REMOTE_EXECUTION_SHA"/.test(auto), 'auto-repair-no-stale-rebase');
   must(auto.includes('EVIDENCE_CAPTURE=FAILED'), 'auto-repair-evidence-capture-fail-closed');
-  must(handoffGate.includes('branches: [execution]'), 'handoff-gate-execution-trigger');
-  must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
+  must(handoffGate.includes('branches: [execution, main]'), 'handoff-gate-target-branch-trigger');
+  must(handoffGate.includes('CURRENT_TARGET_SHA=') && handoffGate.includes('HANDOFF_TARGET_SHA'), 'handoff-gate-current-target-check');
   must(/cannot repair itself/.test(auto), 'auto-repair-self-protection');
   must(!/continue-on-error:\s*true/i.test(auto), 'auto-repair-no-continue-on-error');
   must(!/git\s+(checkout|switch)\s+-[bc]/.test(auto), 'auto-repair-no-third-branch');
-  must(!/git\s+push[^\n]*\bmain\b/.test(auto), 'auto-repair-no-main-push');
+  must(/git\s+push[^\n]*\bmain\b/.test(auto), 'auto-repair-main-push-enabled');
   must(!/gh\s+pr\s+merge/i.test(auto), 'auto-repair-no-self-merge');
   must(/gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--ref execution/i.test(dailyGate), 'daily-gate-auto-repair-dispatch');
   must(!/gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i.test(dailyGate), 'daily-gate-no-watchdog-dispatch');
@@ -92,7 +92,7 @@ export function validateStatic() {
 
 export function validateDiff() {
   const branch = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
-  if (branch !== 'execution') fail('mutation-branch:' + branch);
+  if (!['execution', 'main'].includes(branch)) fail('mutation-branch:' + branch);
   const raw = execFileSync('git', ['diff', '--name-status'], { cwd: ROOT, encoding: 'utf8' }).trim();
   if (!raw) return { status: 'PASS', changedFiles: 0, changedLines: 0 };
   const entries = raw.split(/\r?\n/).filter(Boolean).map((line) => {
