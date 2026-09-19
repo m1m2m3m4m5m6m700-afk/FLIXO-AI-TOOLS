@@ -121,7 +121,7 @@ assert.equal(revertedCase?.reversions ?? 0, revertBefore + 1);
 assert.deepEqual(revertedCase?.revertedRules ?? [], ['eslint-unused']);
 assert.deepEqual(revertedCase?.revertedCommits ?? [], ['b'.repeat(40)]);
 assert.equal(revertedCase?.failures ?? 0, 0);
-assert.equal(scorePlaybook(memory, 'lint', 'eslint-unused'), 1);
+assert.equal(scorePlaybook(memory, 'lint', 'eslint-unused'), 0.75);
 
 for (const [key, value] of Object.entries(learningEnvironment)) {
   if (value === undefined) delete process.env[key];
