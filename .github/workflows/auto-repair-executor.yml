@@ -8,6 +8,8 @@ on:
     workflows: ["FLIXO Auto Repair Bot"]
     types: [completed]
     branches: [main]
+  push:
+    branches: [execution]
 
 permissions:
   contents: read
@@ -24,9 +26,22 @@ env:
   REPAIR_SHA: ${{ github.event.workflow_run.head_sha }}
 
 jobs:
+  push-scope-check:
+    name: Non-publishing execution push guard
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Confirm workflow_run-only publication boundary
+        run: |
+          set -euo pipefail
+          echo 'Execution push observed; Auto Repair Executor publication remains workflow_run-only.'
+          echo 'No repository mutation, deployment, or merge occurs in this push guard.'
+
   execute:
     name: Validate verified repair handoff
-    if: github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
