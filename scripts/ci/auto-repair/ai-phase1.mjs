@@ -275,15 +275,17 @@ function assertPostflight() {
   console.log('AI_PHASE1_POSTFLIGHT_ASSERT=PASS');
 }
 
-const mode = process.argv.includes('--preflight') ? 'preflight'
-  : process.argv.includes('--postflight') ? 'postflight'
-    : process.argv.includes('--assert-post') ? 'assert-post'
-      : '';
+if ((process.argv[1] ?? '').endsWith('/ai-phase1.mjs')) {
+  const mode = process.argv.includes('--preflight') ? 'preflight'
+    : process.argv.includes('--postflight') ? 'postflight'
+      : process.argv.includes('--assert-post') ? 'assert-post'
+        : '';
 
-if (mode === 'preflight') preflight();
-else if (mode === 'postflight') postflight();
-else if (mode === 'assert-post') assertPostflight();
-else {
-  console.error('Usage: node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --preflight|--postflight|--assert-post');
-  process.exit(2);
+  if (mode === 'preflight') preflight();
+  else if (mode === 'postflight') postflight();
+  else if (mode === 'assert-post') assertPostflight();
+  else {
+    console.error('Usage: node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --preflight|--postflight|--assert-post');
+    process.exit(2);
+  }
 }
