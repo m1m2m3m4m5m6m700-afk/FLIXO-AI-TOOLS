@@ -12,6 +12,13 @@ export const REQUIRED_WORKFLOWS = Object.freeze([
   'Claude Security Review',
 ]);
 
+export const REPAIRABLE_WORKFLOWS = Object.freeze([
+  'FLIXO Test Impact',
+  'FLIXO Test Impact Execution',
+  'Repository Security Baseline',
+  'Claude Security Review',
+]);
+
 const SECURITY_CHECK_PATTERNS = Object.freeze([
   /github-advanced-security/i,
   /github advanced security/i,
@@ -69,7 +76,7 @@ export function validateRepairTarget({ run, executionSha, workflowRuns = [], log
   if (!run || run.status !== 'completed' || !['failure', 'timed_out', 'cancelled'].includes(run.conclusion)) errors.push('TARGET_NOT_FAILED_COMPLETED');
   if (run?.headSha !== executionSha) errors.push('TARGET_SHA_MISMATCH');
   if ((run?.headBranch ?? null) !== branch) errors.push('TARGET_BRANCH_MISMATCH');
-  if (!REQUIRED_WORKFLOWS.includes(String(run?.workflowName ?? ''))) errors.push('TARGET_WORKFLOW_NOT_ALLOWED');
+  if (!REPAIRABLE_WORKFLOWS.includes(String(run?.workflowName ?? ''))) errors.push('TARGET_WORKFLOW_NOT_ALLOWED');
   if (/auto repair/i.test(String(run?.workflowName ?? ''))) errors.push('TARGET_SELF_REPAIR');
   if (classifyCancelledRun(run, workflowRuns)?.state === 'CANCELLED_SUPERSEDED') errors.push('TARGET_SUPERSEDED');
   const evidence = String(logs[String(run?.databaseId ?? '')] ?? '').trim();
@@ -285,23 +292,19 @@ export function evaluateGreen({
       action: 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED',
     });
   } else if (securityCheck.conclusion !== 'success') {
-    const external = securityProviderBlock(securityCheck, logForCheck(securityCheck, logs));
-    if (external) {
-      report.externalBlockers.push(external);
+    const securityLog = logForCheck(securityCheck, logs);
+    if (!securityLog.trim()) {
+      report.errors.push({ type: 'EVIDENCE_CAPTURE_FAILED', checkName: securityCheck.name });
     } else {
-      report.errors.push({
-        type: 'SECURITY_CHECK_RED',
-        checkName: securityCheck.name,
-        conclusion: securityCheck.conclusion,
-      });
-      if (!report.repair.required && securityCheck.details_url) {
-        const match = String(securityCheck.details_url).match(/\/actions\/runs\/(\d+)/);
-        report.repair = {
-          required: true,
-          targetRunId: match ? Number(match[1]) : null,
-          action: 'PENDING_DISPATCH',
-          rootCauseAuthority: 'TASK_AGENT_RCA',
-        };
+      const external = securityProviderBlock(securityCheck, securityLog);
+      if (external) {
+        report.externalBlockers.push(external);
+      } else {
+        report.errors.push({
+          type: 'SECURITY_CHECK_RED',
+          checkName: securityCheck.name,
+          conclusion: securityCheck.conclusion,
+        });
       }
     }
   }
