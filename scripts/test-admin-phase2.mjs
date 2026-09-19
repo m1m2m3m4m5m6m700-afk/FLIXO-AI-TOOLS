@@ -42,15 +42,31 @@ evidence.integrity_sha256 = canonical.integritySha256({
   expires_at: canonical.canonicalTimestamp(evidence.expires_at),
 });
 
+const makeEvidence = (expiresAt) => {
+  const row = { ...evidence, expires_at: expiresAt };
+  row.integrity_sha256 = canonical.integritySha256({
+    assertion_id: row.assertion_id,
+    claim_id: row.claim_id,
+    exact_sha: row.exact_sha,
+    source: row.source,
+    evaluator: row.evaluator,
+    environment: row.environment,
+    status: row.status,
+    freshness_at: canonical.canonicalTimestamp(row.freshness_at),
+    payload: row.payload,
+    expires_at: canonical.canonicalTimestamp(row.expires_at),
+  });
+  return row;
+};
+
 let readCount = 0;
 globalThis.fetch = async (input) => {
   const url = String(input);
   assert.match(url, /flix_admin_evidence/);
   readCount += 1;
-  const expired = readCount > 1;
-  const row = expired
-    ? { ...evidence, expires_at: new Date(Date.now() - 60_000).toISOString() }
-    : evidence;
+  const row = makeEvidence(readCount === 1
+    ? new Date(Date.now() + 60_000).toISOString()
+    : new Date(Date.now() - 60_000).toISOString());
   return new Response(JSON.stringify([row]), { status: 200 });
 };
 
