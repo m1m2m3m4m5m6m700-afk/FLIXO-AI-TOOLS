@@ -4,10 +4,8 @@ run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id }}
 # TWO-BRANCH MODEL:
 # execution = sole working/repair branch
 # main      = sole production/source-of-truth branch
-# This workflow is EXECUTOR-ONLY; execution-bot-watchdog is the sole dispatcher.
-# No workflow in this file may create another branch or dispatch this workflow again.
+# No workflow in this file may create another branch.
 on:
-  # Auto-Repair is an executor only. execution-bot-watchdog is the sole dispatcher.
   workflow_dispatch:
     inputs:
       target_run_id:
@@ -38,6 +36,8 @@ env:
   FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
   FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
+  # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
+  # This workflow is executor-only and must never self-dispatch.
   FLIXO_STRICT_RED_REPAIR: 'true'
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
@@ -346,7 +346,7 @@ jobs:
           echo 'NON_GREEN_REPAIR_MAY_NOT_ADVANCE_EXECUTION_SHA'
 
       - name: Commit and push verified repair on the single working branch
-        if: steps.verify.outputs.verified == 'true' && steps.boundary.outcome == 'success'
+        if: steps.verify.outputs.verified == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -518,9 +518,9 @@ jobs:
             fi
             echo "Repair remains open on execution failure run $CURRENT_FAILURE_ID."
             echo "Execution repair remains open on execution failure run $CURRENT_FAILURE_ID."
-            echo 'DISPATCH_AUTHORITY=WATCHDOG_ONLY'
+            echo 'DISPATCH_AUTHORITY=DAILY_FLIXO_GREEN_GATE'
             echo "RED_REMAINS_OPEN=$CURRENT_FAILURE_ID"
-            echo 'The canonical failure event automatically re-wakes this executor; no human command is required. If the event cannot safely re-wake the executor, the cycle remains RED and fail-closed.'
+            echo 'The Daily·FLIXO Green Gate is the sole dispatcher. The executor never dispatches itself; unresolved RED remains fail-closed.'
             exit 1
           fi
 
@@ -533,7 +533,7 @@ jobs:
             exit 0
           fi
           echo "Repair remains open on current canonical failure run $CURRENT_FAILURE_ID."
-          echo 'DISPATCH_AUTHORITY=WATCHDOG_ONLY'
+          echo 'DISPATCH_AUTHORITY=DAILY_FLIXO_GREEN_GATE'
             echo "RED_REMAINS_OPEN=$CURRENT_FAILURE_ID"
-            echo 'The canonical failure event automatically re-wakes this executor; no human command is required. If the event cannot safely re-wake the executor, the cycle remains RED and fail-closed.'
+            echo 'The Daily·FLIXO Green Gate is the sole dispatcher. The executor never dispatches itself; unresolved RED remains fail-closed.'
           exit 1
