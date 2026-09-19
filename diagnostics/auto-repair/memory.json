@@ -2,196 +2,62 @@
   "version": 9,
   "cases": [
     {
-      "fingerprint": "7ee9ce7b111189a636df0f2155d6f0be9192276595365dc1c054e1071b1b2ff2",
-      "rootCause": "static-lint-no-useless-escape",
-      "attempts": 1,
-      "successes": 0,
-      "failures": 1,
-      "rules": [
-        "remove only unnecessary regex escapes in scripts/ci/code-read-only-scout.mjs"
-      ],
-      "outcomes": [
-        {
-          "outcome": "blocked",
-          "verification": "historical failure evidence; repair PR #715 exists but is not yet merged/certified",
-          "rule": "remove only unnecessary regex escapes in scripts/ci/code-read-only-scout.mjs",
-          "provenance": {
-            "source": "historical GitHub Actions / repair-cycle evidence",
-            "failedSha": "a489918fbdc666c7f1cae2c7db0dc17b3b9a8ca7",
-            "runId": "35152740859",
-            "repairPr": 715
-          },
-          "preventionRule": "do not mark DEBT-001 closed until targeted verification, regression, canonical CI, certification and exact-SHA evidence are green"
-        }
-      ],
-      "normalizedFailure": "Run <RUN> failed on the static lint gate with fingerprint FPR-ECA7132F12B9: seven no-useless-escape errors in scripts/ci/code-read-only-scout.mjs.",
-      "features": [
-        "lint"
-      ],
-      "confidence": 0
-    },
-    {
-      "fingerprint": "ff97e0be10dce2886a9c93bfe4440102e143e41e19a08d726da0c0b0a289e3b8",
-      "rootCause": "technical-debt-audit-missing-deterministic-finding-fingerprint-contract",
-      "attempts": 1,
-      "successes": 1,
-      "failures": 0,
-      "rules": [
-        "technical-debt audit findings must expose deterministic SHA-256 fingerprints; validator must reject missing, malformed, or duplicate fingerprints"
-      ],
-      "outcomes": [
-        {
-          "outcome": "success",
-          "verification": "FLIXO Test System canonical CI passed with Static+Build, FAST/DEEP browser matrix, Certification and CI/CD trust on exact execution SHA",
-          "rootCause": "audit findings had id/evidence but no explicit deterministic fingerprint contract",
-          "successfulRepair": [
-            "scripts/ci/audit-technical-debt.mjs",
-            "scripts/ci/validate-technical-debt-audit.mjs",
-            "scripts/ci/test-technical-debt-audit.mjs"
-          ],
-          "provenance": {
-            "source": "fresh GitHub Actions canonical evidence",
-            "executionSha": "9ec7995f6c419b6c1b3868631cad6adde1f6a4d9",
-            "runId": "35302931325",
-            "certification": "PASS",
-            "mergedMainSha": "02bdabe6fa56327558bd8db7d0cae35130203bf1"
-          },
-          "regressionTest": "scripts/ci/test-technical-debt-audit.mjs",
-          "canonicalResult": "PASS",
-          "preventionRule": "never accept technical-debt audit output as deterministic evidence unless every finding has a unique 64-hex fingerprint and the fingerprint contract is regression-tested"
-        }
-      ],
-      "normalizedFailure": "Technical-debt audit findings lacked an explicit deterministic fingerprint field despite DEBT-001 requiring fingerprint-backed evidence.",
-      "features": [
-        "technical-debt",
-        "audit-contract",
-        "deterministic-evidence"
-      ],
-      "confidence": 1
-    },
-    {
-      "fingerprint": "f6125d993dad9c70842879c4858e4c3dbaaf6d3739a821b098ffdab46e5bb185",
+      "fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "rootCause": "external-tooling",
       "attempts": 1,
       "successes": 0,
       "failures": 1,
-      "normalizedFailure": "Error creating PR review request: SessionModelError: Execution failed: CAPIError: 400 The requested model is not supported. (Request ID: <PROVIDER_REQUEST>)",
-      "features": [
-        "external-tooling"
-      ],
+      "externalBlocks": 0,
+      "reversions": 0,
+      "revertFailures": 0,
+      "revertedRules": [],
+      "revertedCommits": [],
       "rules": [],
       "outcomes": [
         {
-          "outcome": "blocked",
-          "verification": "external-tooling-classification",
-          "rule": null,
-          "preventionRule": "Never mutate source to remediate an external model/provider/tooling failure; classify it as blocked external infrastructure and require provider-side recovery.",
+          "outcome": "unrepaired",
+          "verification": "engine-error",
           "provenance": {
-            "source": "GitHub Advanced Security code-scanning AI",
-            "failedSha": "5454a40ce113920a6462fc003e482a0a90ffcd24",
-            "runId": "35341945411"
-          }
+            "source": "FLIXO Auto Repair",
+            "failedSha": "85992c2599c19d7789ed9500e525afb5e84be5ff",
+            "targetSha": "",
+            "revertedCommit": "",
+            "runId": "35420028403",
+            "rawOutcome": "unrepaired"
+          },
+          "at": "2026-09-19T03:59:21.716Z"
         }
       ],
       "confidence": 0
     }
   ],
   "playbooks": [],
-  "lessons": [
-    {
-      "id": "e1f49dc8ac476569aedb",
-      "fingerprint": "ff97e0be10dce2886a9c93bfe4440102e143e41e19a08d726da0c0b0a289e3b8",
-      "rootCause": "technical-debt-audit-missing-deterministic-finding-fingerprint-contract",
-      "rule": "technical-debt audit findings must expose deterministic SHA-256 fingerprints; validator must reject missing, malformed, or duplicate fingerprints",
-      "attempts": 1,
-      "successes": 1,
-      "failures": 0,
-      "confidence": 1,
-      "lesson": "Deterministic technical-debt evidence requires explicit finding fingerprints, validator enforcement, and a regression assertion before downstream repair selection.",
-      "evidence": [
-        {
-          "verification": "fresh canonical CI and certification",
-          "provenance": {
-            "executionSha": "9ec7995f6c419b6c1b3868631cad6adde1f6a4d9",
-            "runId": "35302931325"
-          }
-        }
-      ],
-      "preventionRules": [
-        "never accept technical-debt audit output as deterministic evidence unless every finding has a unique 64-hex fingerprint and the fingerprint contract is regression-tested"
-      ],
-      "lastSeenAt": "2026-09-18T03:29:17Z"
-    }
-  ],
+  "lessons": [],
   "antiLessons": [
     {
-      "id": "a1b2c3d4e5f60718293a",
-      "fingerprint": "7ee9ce7b111189a636df0f2155d6f0be9192276595365dc1c054e1071b1b2ff2",
-      "rootCause": "static-lint-no-useless-escape",
-      "rule": "remove only unnecessary regex escapes in scripts/ci/code-read-only-scout.mjs",
-      "attempts": 1,
-      "successes": 0,
-      "failures": 1,
-      "confidence": 0,
-      "evidence": [
-        {
-          "verification": "historical failure evidence; repair PR #715 remains unmerged",
-          "provenance": {
-            "runId": "35152740859",
-            "failedSha": "a489918fbdc666c7f1cae2c7db0dc17b3b9a8ca7",
-            "repairPr": 715
-          }
-        }
-      ],
-      "preventionRules": [
-        "never convert a failed historical repair into a success lesson without exact-SHA verification"
-      ],
-      "lastSeenAt": "2026-09-17T00:38:20Z"
-    },
-    {
-      "id": "678ed33c7293df5be73c",
-      "fingerprint": "ff97e0be10dce2886a9c93bfe4440102e143e41e19a08d726da0c0b0a289e3b8",
-      "rootCause": "technical-debt-audit-missing-deterministic-finding-fingerprint-contract",
-      "attempts": 1,
-      "successes": 1,
-      "failures": 0,
-      "confidence": 1,
-      "evidence": [
-        {
-          "verification": "fresh canonical CI and certification",
-          "provenance": {
-            "runId": "35302931325",
-            "executionSha": "9ec7995f6c419b6c1b3868631cad6adde1f6a4d9",
-            "mergedMainSha": "02bdabe6fa56327558bd8db7d0cae35130203bf1"
-          }
-        }
-      ],
-      "preventionRules": [
-        "require unique deterministic finding fingerprints before marking DEBT-001 validator contract verified"
-      ],
-      "lastSeenAt": "2026-09-18T03:29:17Z"
-    },
-    {
-      "id": "1196b4a822738da3cc83",
-      "fingerprint": "f6125d993dad9c70842879c4858e4c3dbaaf6d3739a821b098ffdab46e5bb185",
+      "id": "2737bd695a8549ae5a46",
+      "fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "rootCause": "external-tooling",
+      "rule": null,
       "attempts": 1,
       "successes": 0,
       "failures": 1,
       "confidence": 0,
       "evidence": [
         {
-          "verification": "external-tooling-classification",
+          "verification": "engine-error",
           "provenance": {
-            "runId": "35341945411",
-            "executionSha": "5454a40ce113920a6462fc003e482a0a90ffcd24"
+            "source": "FLIXO Auto Repair",
+            "failedSha": "85992c2599c19d7789ed9500e525afb5e84be5ff",
+            "targetSha": "",
+            "revertedCommit": "",
+            "runId": "35420028403",
+            "rawOutcome": "unrepaired"
           }
         }
       ],
-      "preventionRules": [
-        "Never mutate source to remediate an external model/provider/tooling failure; classify it as blocked external infrastructure and require provider-side recovery."
-      ],
-      "lastSeenAt": "2026-09-18T11:55:03Z"
+      "preventionRules": [],
+      "lastSeenAt": "2026-09-19T03:59:21.716Z"
     }
   ]
 }
