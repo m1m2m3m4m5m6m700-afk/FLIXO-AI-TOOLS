@@ -57,6 +57,10 @@ FIRST BOUNDED DELIVERABLE = deterministic validator/regression contract proving 
 IMPLEMENTATION STATUS = DELIVERED ON EXECUTION; validator now recomputes finding fingerprints, requires non-empty evidence, and the regression is registered as canonical STATIC-028 / ASSERT-TECHNICAL-DEBT-001.
 CURRENT IMPLEMENTATION HEAD = 6b26703cde343c5d95ae8c93627d4c540d3ab783.
 VERIFICATION STATUS = PENDING FRESH EXACT-SHA CANONICAL CI.
+BOUNDED REPAIR CANDIDATE = FALSE ORPHAN TEST CLASSIFICATION.
+REPAIR = audit now recognizes generic Playwright ownership for `tests/*.spec.*` / `tests/*.test.*` under the canonical `testDir: './tests'` configuration; regression proves `tests/foundation.spec.ts` is not reported as orphaned.
+LATEST EXECUTION HEAD = 9802b033a346153c12a6182d077991a86af0e0f1.
+NEXT EXIT = fresh canonical static/build/browser/certification evidence on this exact head.
 SUCCESS GATE = targeted regression + Static/Build + FAST/DEEP + Certification + CI/CD trust + invariant proof + closure evidence.
 NEXT GATE = review audit findings after the validator is proven and activate only one bounded repair candidate.
 ```
