@@ -20,7 +20,7 @@ delete process.env.GITHUB_REPOSITORY;
 delete process.env.FLIXO_RUN_ID;
 
 const memory = loadMemory();
-assert.equal(memory.version, 9);
+assert.equal(memory.version, 10);
 const before = memory.cases.length;
 const hadSelfTestCase = memory.cases.some((item) => item.fingerprint === '__self_test__');
 recordOutcome(memory, {
