@@ -50,6 +50,10 @@ jobs:
         run: node scripts/ci/validate-task-agent-contract.mjs
       - name: Task Agent contract test
         run: node scripts/ci/test-task-agent-contract.mjs
+      - name: Agent execution-control contract (read-only)
+        env:
+          FLIXO_AGENT_EXECUTION_CONTROL_MODE: CONTRACT_CHECK
+        run: npm run agent:execution-control
       - name: Static contracts
         run: npm run test:static
       - name: Build contracts
