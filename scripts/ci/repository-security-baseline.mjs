@@ -5,13 +5,14 @@ const root = process.cwd();
 const workflowDir = path.join(root, '.github', 'workflows');
 const failures = [];
 
-// The only workflows permitted to request write authority are the two halves
-// of the bounded repair lane: one creates an isolated repair PR, the other
-// merges only after exact-head canonical CI is green. Direct-main repair is
-// intentionally forbidden.
+// Write-capable workflows are restricted to the bounded repair control plane.
+// execution-sync is the canonical execution-branch reconciliation controller; it
+// may write only to execution and trigger canonical CI, and it merges only after
+// exact-head GREEN evidence. Direct-main repair remains intentionally forbidden.
 const writeWorkflowAllowlist = new Set([
   '.github/workflows/auto-repair.yml',
   '.github/workflows/auto-repair-merge-gate.yml',
+  '.github/workflows/execution-sync.yml',
 ]);
 
 function walk(dir) {
