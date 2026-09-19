@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 
 const required = [
-  'مهام.md',
+  'المهام.md',
   'docs/agents/TASK-AGENT.md',
   'docs/agents/TASK-AGENT-SYSTEM-PROMPT.md',
   'scripts/ci/task-agent.mjs',
@@ -13,7 +13,7 @@ const required = [
 for (const file of required) {
   if (!fs.existsSync(file)) throw new Error(`TASK_AGENT_REQUIRED_FILE_MISSING=${file}`);
 }
-const task = fs.readFileSync('مهام.md', 'utf8');
+const task = fs.readFileSync('المهام.md', 'utf8');
 const contract = fs.readFileSync('docs/agents/TASK-AGENT.md', 'utf8');
 const agent = fs.readFileSync('scripts/ci/task-agent.mjs', 'utf8');
 const scope = fs.readFileSync('docs/agents/SELF-HEALING-AGENT-SCOPE-PROTOCOL.md', 'utf8');
