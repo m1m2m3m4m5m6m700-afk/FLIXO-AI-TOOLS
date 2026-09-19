@@ -366,7 +366,7 @@ baseSha=$BASE_SHA"
             exit 1
           fi
 
-          FAILED_BRANCH="$(cat /tmp/flixo-repair-branch 2>/dev/null || cat /tmp/flixo-failed-branch 2>/dev/null || printf '%s' main)"
+          FAILED_BRANCH="$(cat /tmp/flixo-failed-branch 2>/dev/null || printf '%s' main)"
           if [ "$FAILED_BRANCH" = "execution" ]; then
             CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
             CURRENT_FAILURE_ID="$(
