@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { loadMemory, findSimilarCases, deriveReusableKnowledge, rankLessons } from './auto-repair-learning.mjs';
 import { assertAgentAdmission } from './repair-protocol.mjs';
+import { loadPromptRegistry, validatePromptRegistry, selectPromptCandidates } from './prompt-intelligence.mjs';
 
 const ROOT = process.cwd();
 const TASK_FILE = fs.existsSync(path.join(ROOT, 'المهام.md')) ? path.join(ROOT, 'المهام.md') : path.join(ROOT, 'مهام.md');
@@ -96,6 +97,15 @@ const repairMode = failureRunId || failureSha || failureFingerprint
   ? (MAJOR_REPAIR_WAVE ? 'ACTIVE_MAJOR_REPAIR_CYCLE_DIRECT_EXECUTION' : 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION')
   : 'DIRECT_EXECUTION';
 const diagnosis = fs.existsSync(DIAGNOSIS_PATH) ? JSON.parse(fs.readFileSync(DIAGNOSIS_PATH, 'utf8')) : null;
+const promptRegistry = loadPromptRegistry();
+const promptRegistryValidation = validatePromptRegistry(promptRegistry);
+if (!promptRegistryValidation.valid) throw new Error(`PROMPT_REGISTRY_INVALID=${promptRegistryValidation.errors.join('|')}`);
+const promptCandidates = selectPromptCandidates(promptRegistry, {
+  failureClasses: diagnosis?.failureClass ? [diagnosis.failureClass] : diagnosis?.classification ? [String(diagnosis.classification).toUpperCase()] : [],
+  rootCauses: diagnosis?.rootCause ? [diagnosis.rootCause] : [],
+  domain: diagnosis?.domain ?? 'error-intelligence',
+});
+const promptMemory = promptCandidates.map(({ prompt, score }) => ({ promptId: prompt.promptId, version: prompt.version, status: prompt.status, score, sourcePath: prompt.sourcePath, relatedPrompts: prompt.relatedPrompts ?? [] }));
 const memory = loadMemory();
 const recentActionHistory = (memory.actionHistory ?? [])
   .slice(-12)
@@ -137,8 +147,23 @@ const memoryContext = diagnosis
         rootCause: diagnosis.rootCause || null,
       }).slice(0, 8),
       actionHistory: recentActionHistory,
+      promptContext: {
+        registryPath: 'docs/agents/PROMPT-REGISTRY.json',
+        masterPromptId: 'RPR-CORE-MASTER-001',
+        candidates: promptMemory,
+      },
     }
-  : { similarCases: [], reusableKnowledge: null, lessons: [], actionHistory: recentActionHistory };
+  : {
+      similarCases: [],
+      reusableKnowledge: null,
+      lessons: [],
+      actionHistory: recentActionHistory,
+      promptContext: {
+        registryPath: 'docs/agents/PROMPT-REGISTRY.json',
+        masterPromptId: 'RPR-CORE-MASTER-001',
+        candidates: promptMemory,
+      },
+    };
 const reusableKnowledge = diagnosis?.reusableKnowledge ?? memoryContext.reusableKnowledge;
 const activeRepairTask = failureRunId || failureSha || failureFingerprint
   ? [{
@@ -229,6 +254,12 @@ for (const task of selected) {
       rootCause: diagnosis?.rootCause ?? 'REQUIRES_EVIDENCE',
       repair: 'EXECUTE_SOURCE_FIX_ON_EXECUTION_BRANCH',
       verification: 'REQUIRED_AFTER_SOURCE_REPAIR',
+    },
+    promptIntelligence: {
+      registryPath: 'docs/agents/PROMPT-REGISTRY.json',
+      masterPromptId: 'RPR-CORE-MASTER-001',
+      candidates: promptMemory,
+      decision: promptMemory.some((item) => item.promptId === 'RPR-ERROR-RCA-001') ? 'REUSE_OR_SPECIALIZE' : 'MASTER_FALLBACK',
     },
     cognition: diagnosis ? {
       authority: 'AUTO_REPAIR_REASONING_KERNEL',
