@@ -15,8 +15,8 @@ type Message = { id: number; role: 'user' | 'agent'; text: string };
 
 const CONFIRMATIONS = /^(نعم|أيوه|ايوه|نفذ|نفّذ|ابدأ|ابدئي|موافق|تمام|yes|y|ok|okay|go|execute|run|ejecutar|exécuter|ausführen|실행|実行|jalankan|esegui|uitvoeren|wykonaj|executar|kör|ดำเนินการ|çalıştır|виконати|thực hiện)$/i;
 const CANCELLATIONS = /^(لا|لأ|الغاء|إلغاء|cancel|no|n|stop)$/i;
-const CAPABILITY_QUESTIONS = /(?:ما|ما هي|ما الذي|ايه|إيه|اذكر|أذكر|what)\s*(?:ال)?(?:أدوات|ادوات|يمكنك|تستطيع|تقدر|tools|capabilities)|(?:what can you do|what tools can you use|capabilities)/i;
-const GENERIC_CROP_REQUEST = /(?:^|\s)(?:قص|اقت(?:ص|طع)|crop)(?:\s+(?:صورة|الصور|الصورة|image|photo))?\s*$/i;
+const CAPABILITY_QUESTIONS = /(?:\b(?:ما|ماذا|ما هي|ما الذي|ايه|إيه|اذكر|أذكر)\b.*\b(?:أدوات|ادوات)\b)|(?:\b(?:ما|ماذا)\b.*\b(?:تستطيع|تسطيع|تقدر|يمكنك)\b.*\b(?:تنفيذ|تعمل|تفعل)\b)|(?:what\s+(?:can\s+you\s+do|tools\s+can\s+you\s+use)|capabilities)/i;
+const GENERIC_CROP_REQUEST = /(?:^|\s)(?:(?:أريد|اريد|ممكن|هل\s+تستطيع|please)\s+)?(?:قص|اقت(?:ص|طع)|crop)(?:\s+(?:صورة|الصور|الصورة|image|photo))?\s*$/i;
 const EXECUTABLE_TOOL_NAMES: Record<Locale, readonly string[]> = {
   en: ['background removal', 'image upscaling', 'image cropping/resizing', 'image compression', 'image format conversion', 'image effects'],
   ar: ['إزالة الخلفية', 'تكبير وتحسين الصورة', 'قص وتغيير أبعاد الصورة', 'ضغط الصورة', 'تحويل صيغة الصورة', 'تأثيرات وتحسينات الصورة'],
