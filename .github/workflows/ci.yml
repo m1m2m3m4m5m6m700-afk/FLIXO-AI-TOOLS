@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: flixo-test-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  group: flixo-test-${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
 
 permissions:
   contents: read

@@ -9,14 +9,15 @@
 ```text
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
-CURRENT MAIN SHA = cf25757bfe76c3a4fcb186be1bc1488151b47974
-ACTIVE PR = #745 (execution → main)
-CURRENT PR HEAD = 513fe81f7eee6f5a41cf935d32d336370f613b18 (superseded by subsequent ledger/documentation commits on execution)
-STATE = BLOCKED — external deployment/security-provider evidence prevents canonical GREEN
-CANONICAL MAIN TEST = run 35415932072 / in_progress at last evidence poll; no completed job failure observed
-CURRENT EXECUTION EVIDENCE = Static+Build PASS; CodeQL PASS; Repository Security Baseline PASS; WP0 PASS; Test Impact PASS
-VERCEL = FAILURE — Deployment rate limited — retry in 24 hours (execution PR status)
-CODE SCANNING AI = FAILURE — GitHub-managed provider rejects claude-opus-5 with CAPIError 400 before source analysis
+CURRENT MAIN SHA = 27e5f4486e29ac9e7a4383ce5243d4bb05c04ce1
+ACTIVE PR = #748 (execution → main)
+CURRENT PR HEAD = 3b056c33b7d7a84ac8ae6231959a67f9d304f3b5
+STATE = BLOCKED_EXTERNAL
+CANONICAL TEST SYSTEM = run 35422774202 on exact head 738676c; current evidence is still completing
+CURRENT EXECUTION PRE-REPAIR EVIDENCE = Test System PASS; Test Impact PASS; Claude Security Review PASS
+REPOSITORY SECURITY = FAIL on exact head: GitHub Advanced Security Code Scanning AI returned CAPI 400 model-not-supported
+WP0 TRUST BASELINE = pending on exact head; run 35422774190 is in progress
+VERCEL = FAILURE on exact head: provider reports build-rate-limit
 EXACT-SHA GREEN = NOT PROVEN
 ADMIN STATES = historical labels below are not current exact-SHA proof; revalidation required after the active repair cycle
 PRODUCTION DEPLOYMENT EXACT-SHA = NOT PROVEN IN CURRENT EVIDENCE
@@ -39,7 +40,7 @@ NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROV
 | BUILD-002 | CLOSED / VERIFIED | Preserve canonical artifact identity producer/consumer contract |
 | TEST-001 | CLOSED / VERIFIED | Preserve deterministic ownership registry and validator |
 | AGENT-PROTOCOL-003 | CLOSED / VERIFIED | Preserve proof-driven fail-closed repair lifecycle and learning/prevention contracts |
-| DEBT-001 | ACTIVE | Harden technical-debt audit evidence; first deliverable is a deterministic validator/regression contract, with no broad deletion |
+| DEBT-001 | BLOCKED_EXTERNAL | Deterministic validator delivered; required exact-head external security/Vercel gates are unresolved |
 | TOOL-EXPANSION | CANDIDATE | Activate only after a fresh deterministic scope is proven |
 
 ## DEBT-001
@@ -53,8 +54,15 @@ PACKAGE ENTRYPOINT = audit:technical-debt
 CURRENT DETECTION SURFACES = orphan tests, legacy-labelled files, unreferenced dependencies, and unproven i18n fallback ownership.
 GUARDRAIL = inventory first; no broad deletion, no CI weakening, no certification bypass, no production mutation.
 FIRST BOUNDED DELIVERABLE = deterministic validator/regression contract proving audit output schema, SHA binding, finding fingerprints, and evidence completeness.
+IMPLEMENTATION STATUS = DELIVERED ON EXECUTION; validator now recomputes finding fingerprints, requires non-empty evidence, and the regression is registered as canonical STATIC-028 / ASSERT-TECHNICAL-DEBT-001.
+CURRENT IMPLEMENTATION HEAD = 3b056c33b7d7a84ac8ae6231959a67f9d304f3b5.
+VERIFICATION STATUS = BLOCKED_EXTERNAL; required external security/Vercel gates are unresolved.
+BOUNDED REPAIR CANDIDATE = FALSE ORPHAN TEST CLASSIFICATION.
+REPAIR = audit recognizes generic Playwright ownership for `tests/*.spec.*` / `tests/*.test.*` under canonical `testDir: './tests'`, and excludes `artifacts/`, `diagnostics/`, and `docs/` from legacy deletion candidates so historical evidence is preserved.
+REGRESSION = `tests/foundation.spec.ts` must not be orphaned; `artifacts/ci/legacy-inventory.json` must not be a deletion candidate.
+NEXT EXIT = fresh canonical static/build/browser/certification evidence on this exact head.
 SUCCESS GATE = targeted regression + Static/Build + FAST/DEEP + Certification + CI/CD trust + invariant proof + closure evidence.
-NEXT GATE = review findings after the validator is proven and activate only one bounded repair candidate.
+NEXT GATE = review audit findings after the validator is proven and activate only one bounded repair candidate.
 ```
 
 ## ADMIN ENTRY — FIVE-CLICK LOGO
@@ -176,6 +184,20 @@ CERTIFICATION EVIDENCE = flixo-certification-evidence-35121180929
 TARGETED REGRESSION = PASS: validator/engine proof contract aligned and canonical CI certification completed
 INVARIANT PROOF = PASS: fail-closed proof markers, rollback path, recurrence requirements, and canonical evidence gates were exercised by the certified run
 CLOSURE EVIDENCE = RECORDED
+```
+
+## EXECUTION LEARNING
+
+```text
+RC-023 = Technical-debt dependency audit used GNU grep -E with an unsupported PCRE non-capturing group and swallowed parser errors, producing false unreferenced-dependency evidence.
+FIX = 8c90d429bb7ecf41ac578a841f4ec3282476aed1
+VERIFIED = CI RUN 35422251044 on exact SHA 8c90d429; stale for closure after execution advanced to 738676c.
+PREVENTION = fail closed on grep/tool errors other than exit status 1, use POSIX ERE, scope usage evidence to source files, and assert producer stderr is empty.
+
+RC-024 = GitHub Advanced Security Code Scanning AI repeatedly rejected the configured Copilot model with CAPI 400 "The requested model is not supported".
+EVIDENCE = runs 35422058941, 35422055397, 35422052291, 35422047947, 35422635168, and current check on execution 738676c.
+STATUS = BLOCKED_EXTERNAL.
+PREVENTION = classify provider model rejection as external infrastructure; do not mutate source code, weaken required checks, bypass certification, or rerun blindly.
 ```
 
 ## GOVERNANCE

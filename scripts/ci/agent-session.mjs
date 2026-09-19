@@ -21,7 +21,9 @@ const role = String(args.get('role') ?? process.env.FLIXO_AGENT_ROLE ?? 'impleme
 const rca = String(args.get('rca') ?? process.env.FLIXO_AGENT_RCA ?? '').trim() || null;
 const scope = String(args.get('scope') ?? process.env.FLIXO_AGENT_SCOPE ?? '').split(',').map((v) => v.trim()).filter(Boolean);
 const fromSession = String(args.get('from-session') ?? process.env.FLIXO_AGENT_FROM_SESSION ?? '').trim() || null;
+const taskId = String(args.get('task') ?? process.env.FLIXO_AGENT_TASK ?? '').trim();
 const sessionDir = path.resolve(ROOT, 'diagnostics/agents/sessions');
+const visibilityDir = path.resolve(ROOT, 'docs/agents/ledger');
 const handoffDir = path.resolve(ROOT, 'diagnostics/agents/handoffs');
 const now = () => new Date().toISOString();
 const gitSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
@@ -29,10 +31,13 @@ const requiredReads = ['AGENTS.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'doc
 const split = (value, separator = ',') => String(value ?? '').split(separator).map((v) => v.trim()).filter(Boolean);
 const sessionPath = (id) => path.join(sessionDir, `${id}.json`);
 const handoffPath = (id) => path.join(handoffDir, `${id}.json`);
+const visibilityPath = (id) => path.join(visibilityDir, `${id}.json`);
+const roles = new Set(['analysis','implementation','verification','release','assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent']);
+const writeVisibility = (record) => { fs.mkdirSync(visibilityDir, { recursive: true }); fs.writeFileSync(visibilityPath(sessionId), `${JSON.stringify(record, null, 2)}\n`); };
 
-if (!['login', 'logout'].includes(command)) throw new Error('Usage: agent-session.mjs login|logout --session=<id> --agent=<id> [--role=analysis|implementation|verification|release] [--rca=<id>] [--scope=a,b] [--from-session=<previous-id>]');
-if (!sessionId || !agentId) throw new Error('Agent session requires --session and --agent.');
-if (!['analysis', 'implementation', 'verification', 'release'].includes(role)) throw new Error(`Invalid agent role: ${role}`);
+if (!['login', 'logout'].includes(command)) throw new Error('Usage: agent-session.mjs login|logout --session=<id> --agent=<id> --task=<task-id> [--role=analysis|implementation|verification|release|assistantController|codeScout|executionAgent|reviewAgent|testAgent|securityAgent|performanceAgent|certificationAuthority|taskAgent|errorAgent] [--rca=<id>] [--scope=a,b] [--from-session=<previous-id>]');
+if (!sessionId || !agentId || !taskId) throw new Error('Agent session requires --session, --agent and --task.');
+if (!roles.has(role)) throw new Error(`Invalid agent role: ${role}`);
 
 fs.mkdirSync(sessionDir, { recursive: true });
 fs.mkdirSync(handoffDir, { recursive: true });
@@ -57,7 +62,9 @@ if (command === 'login') {
       inheritedOpenRcas: Array.isArray(predecessor.openRcas) ? predecessor.openRcas : [],
       inheritedNextPlan: Array.isArray(predecessor.executionPlanNext) ? predecessor.executionPlanNext : [],
       predecessorReport: path.relative(ROOT, predecessorFile),
+      predecessorTaskId: predecessor.taskId ?? null,
     };
+    if (continuation.predecessorTaskId && continuation.predecessorTaskId !== taskId) throw new Error(`CONTINUATION_TASK_MISMATCH=${continuation.predecessorTaskId}`);
   } else if (existingHandoffs.length > 0 && args.get('bootstrap') !== 'true') {
     throw new Error('Continuation handoff required: use --from-session=<previous-session> or explicitly declare --bootstrap=true.');
   }
@@ -74,12 +81,14 @@ if (command === 'login') {
     scope,
     readFiles: [...requiredReads],
     currentRca: rca,
+    taskId,
     status: 'RUNNING',
     bootstrap: !continuation,
     ...(continuation ?? {}),
     actions: [{ at: now(), action: 'LOGIN', sha, ...(continuation ? { fromSession } : {}) }],
   };
   fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`, { flag: 'wx' });
+  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'OPEN', taskId, sessionId, agentId, role, entrySha: sha, exitSha: null, status: 'RUNNING', finalStatus: null, finalSummary: null, scope, currentRca: rca, rcaClosed: [], openRcas: [], changedFiles: [], commands: [], evidence: [], findings: [], completedWork: [], failedWork: [], remainingWork: [], executionPlanNext: [], blockers: [], handoffToNextAgent: null, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() });
   console.log(`AGENT_SESSION_LOGIN=${sessionId}`);
   console.log(`AGENT_SESSION_SHA=${sha}`);
   console.log(`AGENT_SESSION_FILE=${path.relative(ROOT, file)}`);
@@ -105,6 +114,8 @@ if (command === 'login') {
   const executionPlanNext = split(args.get('next-plan') ?? process.env.FLIXO_AGENT_NEXT_PLAN, '|');
   const blockers = split(args.get('blockers') ?? process.env.FLIXO_AGENT_BLOCKERS, '|');
   const handoffToNextAgent = String(args.get('handoff') ?? process.env.FLIXO_AGENT_HANDOFF ?? '').trim() || null;
+  const finalSummary = String(args.get('final-summary') ?? process.env.FLIXO_AGENT_FINAL_SUMMARY ?? '').trim();
+  if (!finalSummary) throw new Error('FINAL_SUMMARY_REQUIRED_BEFORE_SESSION_CLOSE');
   if (remainingWork.length === 0 && openRcas.length > 0) {
     throw new Error('Open RCAs exist but remaining-work is empty; session report must preserve unresolved work.');
   }
@@ -114,6 +125,7 @@ if (command === 'login') {
   if (status === 'BLOCKED' && remainingWork.length === 0 && failedWork.length === 0 && openRcas.length === 0) {
     throw new Error('BLOCKED logout requires an explicit unresolved item.');
   }
+  if (status === 'VERIFIED' && completedWork.length === 0 && evidence.length === 0) throw new Error('VERIFIED_LOGOUT_REQUIRES_COMPLETED_WORK_OR_EVIDENCE');
   if (record.bootstrap && !record.continuationFrom) {
     // First session may bootstrap the chain, but its logout still establishes the handoff contract.
   }
@@ -128,6 +140,9 @@ if (command === 'login') {
   record.rcaClosed = rcaClosed;
   record.openRcas = openRcas;
   record.handoff = handoffToNextAgent;
+  record.finalSummary = finalSummary;
+  record.finalStatus = status;
+  record.taskId = taskId;
   record.completedWork = completedWork;
   record.failedWork = failedWork;
   record.remainingWork = remainingWork;
@@ -136,12 +151,17 @@ if (command === 'login') {
   record.actions = Array.isArray(record.actions) ? [...record.actions, { at: now(), action: 'LOGOUT', sha, status }] : [{ at: now(), action: 'LOGOUT', sha, status }];
   fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
 
+  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'CLOSED', taskId, sessionId: record.sessionId, agentId: record.agentId, role: record.role, entrySha: record.entrySha, exitSha: sha, status, finalStatus: status, finalSummary, scope: record.scope, currentRca: record.currentRca, rcaClosed, openRcas, changedFiles, commands, evidence, findings, completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() });
+
   const report = {
     schemaVersion: 1,
     reportId: `${sessionId}:${sha}`,
     sessionId: record.sessionId,
     agentId: record.agentId,
     role: record.role,
+    taskId,
+    finalSummary,
+    visibilityPath: path.relative(ROOT, visibilityPath(sessionId)),
     entrySha: record.entrySha,
     exitSha: sha,
     startedAt: record.startedAt,

@@ -20,81 +20,207 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Reconcile current execution divergence with canonical main once, fail-closed
-        uses: actions/checkout@v5
-        with:
-          ref: execution
-          fetch-depth: 0
-
-      - name: Verify execution is synchronized with canonical main
+      - name: Freeze exact PR head
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          PR_HEAD="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName,baseRefName,headRefOid --jq '.headRefName+"|"+.baseRefName+"|"+.headRefOid')"
-          test "${PR_HEAD%%|*}" = "execution"
+          PR_HEAD="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName,baseRefName,headRefOid,headRepositoryOwner --jq '.headRefName+"|"+.baseRefName+"|"+.headRefOid+"|"+.headRepositoryOwner.login')"
+          test "${PR_HEAD%%|*}" = execution
           PR_BASE="$(printf '%s' "$PR_HEAD" | cut -d'|' -f2)"
           EXPECTED_SHA="$(printf '%s' "$PR_HEAD" | cut -d'|' -f3)"
-          test "$PR_BASE" = "main"
-          git fetch --no-tags origin main execution
-          test "$(git branch --show-current)" = "execution"
-          EXECUTION_SHA="$(git rev-parse origin/execution)"
-          CANONICAL_MAIN="$(git rev-parse origin/main)"
-          test "$EXECUTION_SHA" = "$EXPECTED_SHA"
-          if ! git merge-base --is-ancestor "$CANONICAL_MAIN" "$EXECUTION_SHA"; then
-            echo "FAIL CLOSED: execution $EXECUTION_SHA does not contain canonical main $CANONICAL_MAIN."
-            echo "The dedicated Execution Canonical Sync must reconcile the branch before merge can proceed."
-            exit 1
-          fi
-          echo "Execution contains canonical main: main=$CANONICAL_MAIN execution=$EXECUTION_SHA"
-      - name: Wait for exact-head repository check-runs; isolate external deployment-provider status
+          HEAD_OWNER="$(printf '%s' "$PR_HEAD" | cut -d'|' -f4)"
+          test "$PR_BASE" = main
+          test "$HEAD_OWNER" = "${GITHUB_REPOSITORY%%/*}"
+          test "$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRepositoryOwner --jq '.headRepositoryOwner.login')" = "${GITHUB_REPOSITORY%%/*}"
+          printf '%s\n' "$EXPECTED_SHA" > /tmp/flixo-verified-head-sha
+
+      - name: Wait for exact-head repository and required security GREEN
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          EXPECTED_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+          EXPECTED_SHA="$(cat /tmp/flixo-verified-head-sha)"
           deadline=$((SECONDS + 3300))
-          while true; do
-            gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/check-runs?per_page=100" > /tmp/check-runs.json
-            jq -s '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate" and (.name | ascii_downcase) != "github-advanced-security" and (.name | ascii_downcase) != "github advanced security" and (.name | ascii_downcase) != "code scanning ai findings")] | group_by(.name) | map(max_by((.completed_at // .started_at // "")))' /tmp/check-runs.json > /tmp/repository-check-runs.json
-            jq -s '[.[].check_runs[] | select((.name | ascii_downcase) == "vercel" or (.name | ascii_downcase) == "vercel deployment" or (.name | ascii_downcase) == "github-advanced-security" or (.name | ascii_downcase) == "github advanced security" or (.name | ascii_downcase) == "code scanning ai findings")] | group_by(.name) | map(max_by((.completed_at // .started_at // "")))' /tmp/check-runs.json > /tmp/external-vercel.json
-
-            if jq -e 'length == 0 or any(.[]; .status != "completed" or .conclusion != "success")' /tmp/repository-check-runs.json >/tmp/non-green-checks.json; then
-              jq '.[] | select(.status != "completed" or .conclusion != "success") | {name,status,conclusion}' /tmp/repository-check-runs.json
-              if [ "$SECONDS" -ge "$deadline" ]; then
-                echo 'Timed out waiting for exact-head repository check-runs.'
-                exit 1
+          fetch_check_runs() {
+            local output="$1"
+            local delay=20
+            for attempt in 1 2 3 4 5 6; do
+              if gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/check-runs?per_page=100" > "$output"; then
+                return 0
               fi
+              if [ "$attempt" -eq 6 ]; then
+                echo 'GitHub check-run API remained unavailable after retry budget.'
+                return 1
+              fi
+              echo "GitHub check-run API unavailable/rate-limited; retrying in ${delay}s (attempt ${attempt}/6)."
+              sleep "$delay"
+              case "$delay" in
+                20) delay=40 ;;
+                40) delay=80 ;;
+                80) delay=160 ;;
+                160) delay=320 ;;
+                320) delay=640 ;;
+              esac
+            done
+          }
+          while true; do
+            ACTUAL_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+            test "$ACTUAL_SHA" = "$EXPECTED_SHA" || { echo "HEAD_CHANGED=$ACTUAL_SHA expected=$EXPECTED_SHA"; exit 1; }
+            fetch_check_runs /tmp/check-runs.json
+            cat > /tmp/canonical-required-checks.txt <<'EOF'
+Static + Build
+Browser Dependencies
+Browser FAST — chromium / shard-1
+Browser FAST — chromium / shard-2
+Browser FAST — firefox / shard-1
+Browser FAST — firefox / shard-2
+Browser FAST — webkit / shard-1
+Browser FAST — webkit / shard-2
+Browser DEEP — chromium / shard-1
+Browser DEEP — chromium / shard-2
+Browser DEEP — chromium / shard-3
+Browser DEEP — chromium / shard-4
+Browser DEEP — chromium / shard-5
+Browser DEEP — chromium / shard-6
+Browser DEEP — chromium / shard-7
+Browser DEEP — firefox / shard-1
+Browser DEEP — firefox / shard-2
+Browser DEEP — firefox / shard-3
+Browser DEEP — firefox / shard-4
+Browser DEEP — firefox / shard-5
+Browser DEEP — firefox / shard-6
+Browser DEEP — firefox / shard-7
+Browser DEEP — webkit / shard-1
+Browser DEEP — webkit / shard-2
+Browser DEEP — webkit / shard-3
+Browser DEEP — webkit / shard-4
+Browser DEEP — webkit / shard-5
+Browser DEEP — webkit / shard-6
+Browser DEEP — webkit / shard-7
+Certification
+WP0 Trust Baseline — Single Verification Path
+Impact Verification Execution
+EOF
+            while IFS= read -r required; do
+              test -n "$required"
+              jq -s -e --arg name "$required" 'any([.[].check_runs[]]; .name == $name and .status == "completed" and .conclusion == "success")' /tmp/check-runs.json >/dev/null || {
+                echo "FAIL CLOSED: canonical required check missing or not successful: $required"
+                exit 1
+              }
+            done < /tmp/canonical-required-checks.txt
+            jq -s '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate")] | group_by(.name) | map(max_by((.completed_at // .started_at // "")))' /tmp/check-runs.json > /tmp/repository-check-runs.json
+            if ! jq -e 'length > 0 and all(.[]; .status == "completed" and .conclusion == "success")' /tmp/repository-check-runs.json >/dev/null; then
+              if [ "$SECONDS" -ge "$deadline" ]; then echo 'Timed out waiting for exact-head repository checks.'; exit 1; fi
+              sleep 20
+              continue
+            fi
+            SECURITY_COUNT="$(jq -s '[.[].check_runs[] | select((.name | ascii_downcase) | test("codeql|github-advanced-security|github advanced security|code scanning ai findings"))] | unique_by(.id) | length' /tmp/check-runs.json)"
+            test "$SECURITY_COUNT" -gt 0 || { echo 'FAIL CLOSED: required security check is missing from exact-head checks.'; exit 1; }
+            jq -s -e 'all([.[].check_runs[] | select((.name | ascii_downcase) | test("codeql|github-advanced-security|github advanced security|code scanning ai findings"))]; .status == "completed" and .conclusion == "success")' /tmp/check-runs.json
+            if jq -s -e '[.[].check_runs[] | select((.name | ascii_downcase) == "vercel" or (.name | ascii_downcase) == "vercel deployment")] | length > 0 and any(.[]; .status != "completed" or .conclusion != "success")' /tmp/check-runs.json >/dev/null; then
+              echo 'EXTERNAL_UNRESOLVED=vercel'
+              jq -s '[.[].check_runs[] | select((.name | ascii_downcase) == "vercel" or (.name | ascii_downcase) == "vercel deployment")] | unique_by(.id)' /tmp/check-runs.json
+              if [ "$SECONDS" -ge "$deadline" ]; then echo 'Timed out with EXTERNAL_UNRESOLVED provider status.'; exit 1; fi
               sleep 20
               continue
             fi
             break
           done
-          echo 'Exact-head repository check-runs are GREEN.'
-          echo 'Vercel status is recorded separately as external deployment-provider evidence:'
-          cat /tmp/external-vercel.json
+          echo 'EXACT_SHA_REPOSITORY_GREEN=true'
+          echo 'EXACT_SHA_SECURITY_GREEN=true'
+          echo 'EXTERNAL_UNRESOLVED=false'
 
-      - name: Require exact-head repository GREEN evidence
+      - name: Recheck exact-head proof immediately before merge
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          EXPECTED_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+          EXPECTED_SHA="$(cat /tmp/flixo-verified-head-sha)"
           ACTUAL_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
-          gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/check-runs?per_page=100" > /tmp/check-runs-final.json
-          jq -s -e '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate" and (.name | ascii_downcase) != "github-advanced-security" and (.name | ascii_downcase) != "github advanced security" and (.name | ascii_downcase) != "code scanning ai findings") | select(.status != "completed" or .conclusion != "success")] | length == 0' /tmp/check-runs-final.json
+          fetch_check_runs() {
+            local output="$1"
+            local delay=20
+            for attempt in 1 2 3 4 5 6; do
+              if gh api --paginate "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/check-runs?per_page=100" > "$output"; then
+                return 0
+              fi
+              if [ "$attempt" -eq 6 ]; then
+                echo 'GitHub check-run API remained unavailable after retry budget.'
+                return 1
+              fi
+              echo "GitHub check-run API unavailable/rate-limited; retrying in ${delay}s (attempt ${attempt}/6)."
+              sleep "$delay"
+              case "$delay" in
+                20) delay=40 ;;
+                40) delay=80 ;;
+                80) delay=160 ;;
+                160) delay=320 ;;
+                320) delay=640 ;;
+              esac
+            done
+          }
+          fetch_check_runs /tmp/check-runs-final.json
+          cat > /tmp/canonical-required-checks-final.txt <<'EOF'
+Static + Build
+Browser Dependencies
+Browser FAST — chromium / shard-1
+Browser FAST — chromium / shard-2
+Browser FAST — firefox / shard-1
+Browser FAST — firefox / shard-2
+Browser FAST — webkit / shard-1
+Browser FAST — webkit / shard-2
+Browser DEEP — chromium / shard-1
+Browser DEEP — chromium / shard-2
+Browser DEEP — chromium / shard-3
+Browser DEEP — chromium / shard-4
+Browser DEEP — chromium / shard-5
+Browser DEEP — chromium / shard-6
+Browser DEEP — chromium / shard-7
+Browser DEEP — firefox / shard-1
+Browser DEEP — firefox / shard-2
+Browser DEEP — firefox / shard-3
+Browser DEEP — firefox / shard-4
+Browser DEEP — firefox / shard-5
+Browser DEEP — firefox / shard-6
+Browser DEEP — firefox / shard-7
+Browser DEEP — webkit / shard-1
+Browser DEEP — webkit / shard-2
+Browser DEEP — webkit / shard-3
+Browser DEEP — webkit / shard-4
+Browser DEEP — webkit / shard-5
+Browser DEEP — webkit / shard-6
+Browser DEEP — webkit / shard-7
+Certification
+WP0 Trust Baseline — Single Verification Path
+Impact Verification Execution
+EOF
+          while IFS= read -r required; do
+            test -n "$required"
+            jq -s -e --arg name "$required" 'any([.[].check_runs[]]; .name == $name and .status == "completed" and .conclusion == "success")' /tmp/check-runs-final.json >/dev/null || {
+              echo "FAIL CLOSED: canonical required check missing or not successful: $required"
+              exit 1
+            }
+          done < /tmp/canonical-required-checks-final.txt
+          jq -s -e '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate") | select(.status != "completed" or .conclusion != "success")] | length == 0' /tmp/check-runs-final.json
+          jq -s -e 'any([.[].check_runs[] | select((.name | ascii_downcase) | test("codeql|github-advanced-security|github advanced security|code scanning ai findings"))])' /tmp/check-runs-final.json
+          jq -s -e 'all([.[].check_runs[] | select((.name | ascii_downcase) | test("codeql|github-advanced-security|github advanced security|code scanning ai findings"))]; .status == "completed" and .conclusion == "success")' /tmp/check-runs-final.json
+          if jq -s -e '[.[].check_runs[] | select((.name | ascii_downcase) == "vercel" or (.name | ascii_downcase) == "vercel deployment")] | length > 0 and any(.[]; .status != "completed" or .conclusion != "success")' /tmp/check-runs-final.json >/dev/null; then
+            echo 'EXTERNAL_UNRESOLVED=vercel'
+            exit 1
+          fi
 
-      - name: Execute canonical merge only after exact-SHA repository GREEN proof
+      - name: Execute canonical merge only after exact-SHA GREEN proof
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          EXPECTED_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
+          EXPECTED_SHA="$(cat /tmp/flixo-verified-head-sha)"
           gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --match-head-commit "$EXPECTED_SHA"
 
       - name: Verify merged main identity

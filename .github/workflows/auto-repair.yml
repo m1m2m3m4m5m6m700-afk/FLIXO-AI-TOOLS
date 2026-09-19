@@ -1,4 +1,5 @@
 name: FLIXO Auto Repair Bot
+run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id || github.event.workflow_run.id }}
 
 # TWO-BRANCH MODEL:
 # execution = sole working/repair branch
@@ -10,6 +11,10 @@ on:
       target_run_id:
         description: 'Workflow run ID to diagnose and repair'
         required: true
+        type: string
+      chain_id:
+        description: 'Stable repair-chain identifier; recursive runs must reuse it'
+        required: false
         type: string
   workflow_run:
     workflows: ["FLIXO Test System", "FLIXO WP0 Trust Baseline", "FLIXO Continuous Delivery"]
@@ -33,6 +38,10 @@ env:
   TARGET_RUN_ID: ${{ inputs.target_run_id || github.event.workflow_run.id }}
   FLIXO_HISTORY_LIMIT: '30'
   FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
+  FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id || github.event.workflow_run.id }}
+  # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
+  FLIXO_STRICT_RED_REPAIR: 'true'
+  FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
 
 jobs:
@@ -46,7 +55,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout canonical execution branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: execution
           fetch-depth: 0
@@ -73,6 +82,19 @@ jobs:
           printf '%s\n' "$FAILED_BRANCH" > /tmp/flixo-failed-branch
           printf '%s\n' "$FAILED_NAME" > /tmp/flixo-failed-workflow
 
+      - name: Enforce strict red-to-repair policy
+        run: |
+          set -euo pipefail
+          test "$FLIXO_STRICT_RED_REPAIR" = 'true'
+          echo 'STRICT_RED_REPAIR=true: every actionable RED must produce a repair attempt before closure.'
+
+      - name: Enforce continuous repair-cycle contract
+        run: |
+          set -euo pipefail
+          test "$FLIXO_STRICT_RED_REPAIR" = 'true'
+          echo 'CONTINUOUS_REPAIR=true: no finite chain-count may close an actionable RED cycle.'
+          echo 'The cycle remains open until canonical GREEN evidence is observed.'
+
       - name: Synchronize execution with the failed main SHA without creating a branch
         env:
           GH_TOKEN: ${{ github.token }}
@@ -97,18 +119,38 @@ jobs:
           printf '%s\n' execution > /tmp/flixo-repair-branch
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Establish trusted repair controller from canonical main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main execution
+          CONTROLLER_SHA="$(git rev-parse origin/main)"
+          git worktree add --detach /tmp/flixo-repair-controller "$CONTROLLER_SHA"
+          test "$(git -C /tmp/flixo-repair-controller rev-parse HEAD)" = "$CONTROLLER_SHA"
+          git show "$CONTROLLER_SHA:diagnostics/auto-repair/memory.json" > /tmp/flixo-trusted-memory.json
+          test -s /tmp/flixo-trusted-memory.json
+          printf '%s\n' "$CONTROLLER_SHA" > /tmp/flixo-trusted-controller-sha
+          echo "FLIXO_TRUSTED_MEMORY_SHA=$CONTROLLER_SHA" >> "$GITHUB_ENV"
+          echo "FLIXO_TRUSTED_REPAIR_MEMORY=/tmp/flixo-trusted-memory.json" >> "$GITHUB_ENV"
+          echo "FLIXO_REPAIR_CONTROLLER=/tmp/flixo-repair-controller" >> "$GITHUB_ENV"
+
+      - name: Validate trusted controller memory before mutation
+        run: |
+          set -euo pipefail
+          FLIXO_MEMORY_VALIDATION_PATH=/tmp/flixo-trusted-memory.json node /tmp/flixo-repair-controller/scripts/ci/validate-auto-repair-memory.mjs
       - name: Run exact-SHA read-only source scout
         env:
           INVESTIGATION_DIR: /tmp/flixo-investigation
           FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
         run: |
           set -euo pipefail
-          node scripts/ci/code-read-only-scout.mjs
+          node /tmp/flixo-repair-controller/scripts/ci/code-read-only-scout.mjs
           test -s "$FLIXO_SCOUT_REPORT"
           SCOUT_SHA="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync(process.env.FLIXO_SCOUT_REPORT,'utf8'));process.stdout.write(x.scannedSha||'')")"
           CURRENT_SHA="$(git rev-parse HEAD)"
@@ -117,19 +159,29 @@ jobs:
           test -s /tmp/flixo-scout-report.json
           printf '%s\n' /tmp/flixo-scout-report.json > /tmp/flixo-scout-path
 
-      - name: Self-test repair system before mutation
+      - name: Self-test trusted repair controller before mutation
+        env:
+          FLIXO_TRUSTED_REPAIR_MEMORY: ''
+          FLIXO_TRUSTED_MEMORY_SHA: ''
         run: |
           set -euo pipefail
-          npm run test:auto-repair
-          npm run validate:auto-repair-memory
+          node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-diagnosis.mjs
+          node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-learning.mjs
+          node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-architecture.mjs
+          node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-reasoning.mjs
+          node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-strategy.mjs
+          node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-external-guard.mjs
+          node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-final.mjs
+          FLIXO_HISTORICAL_ROLLBACK_SELF_TEST=1 node /tmp/flixo-repair-controller/scripts/ci/auto-repair/historical-rollback.mjs
 
       - name: Learn from historical GitHub Actions failures and repair history
         env:
           GH_TOKEN: ${{ github.token }}
           FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+          FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
           FLIXO_INTRACTABLE_ERRORS: /tmp/flixo-intractable-errors.json
           FLIXO_HISTORICAL_LEARNING_OUTPUT: /tmp/flixo-historical-learning.json
-        run: node scripts/ci/learn-from-historical-actions.mjs
+        run: node /tmp/flixo-repair-controller/scripts/ci/learn-from-historical-actions.mjs
 
       - name: Capture failed CI logs before dependency installation
         env:
@@ -145,10 +197,10 @@ jobs:
             grep -E -i 'error|failed|failure|timeout|cancelled|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(|DEEP_[A-Z_]+_MISSING|execution graph completeness' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
           } > /tmp/flixo-repair-summary.txt
 
-      - name: Classify root cause with evidence gate
+      - name: Classify root cause with trusted controller
         env:
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
-        run: node scripts/ci/auto-repair-classifier.mjs
+        run: node /tmp/flixo-repair-controller/scripts/ci/auto-repair-classifier.mjs
 
       - name: Bind Task Agent to the active repair cycle on execution
         run: |
@@ -156,29 +208,29 @@ jobs:
           SIGNATURE="$(node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8')); process.stdout.write(x.signature||'unknown')")"
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
           test "$(git branch --show-current)" = execution
-          FLIXO_TASK_AGENT_OUTPUT_DIR=/tmp/flixo-task-agent node scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$SIGNATURE" --failure-evidence=/tmp/flixo-repair-summary.txt
+          FLIXO_TASK_AGENT_OUTPUT_DIR=/tmp/flixo-task-agent node /tmp/flixo-repair-controller/scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$SIGNATURE" --failure-evidence=/tmp/flixo-repair-summary.txt
           test -s /tmp/flixo-task-agent/latest.json
 
-      - name: Select bounded repair strategy and detect intractable cases
+      - name: Select repair strategy and continue strict RED repair
         id: strategy
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          node scripts/ci/repair-strategy.mjs
+          node /tmp/flixo-repair-controller/scripts/ci/repair-strategy.mjs
           cat /tmp/flixo-repair-strategy.json
-          if [ "$(cat /tmp/flixo-intractable-state)" = "true" ]; then
-            echo 'intractable=true' >> "$GITHUB_OUTPUT"
-            printf '%s\n' 'intractable' > /tmp/flixo-engine-outcome
-            printf '%s\n' 'unrepaired' > /tmp/flixo-learning-outcome
-          else
-            echo 'intractable=false' >> "$GITHUB_OUTPUT"
+          # INTRACTABLE is a learning/escalation signal, never a permission to leave an
+          # actionable RED untouched. repair-strategy rotates to the next evidence-backed
+          # strategy on the next cycle.
+          echo 'intractable=false' >> "$GITHUB_OUTPUT"
+          if [ "$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(String(x.teachingEscalation))")" = "true" ]; then
+            echo 'Teaching escalation recorded; continuing with the next repair strategy.'
           fi
 
       - name: Install target dependencies
         id: install_target
         if: steps.strategy.outputs.intractable != 'true'
-        run: npm ci --prefer-offline --no-audit --no-fund
+        run: npm ci --ignore-scripts --prefer-offline --no-audit --no-fund
 
       - name: Execute bounded root-cause repair under Task Agent authority
         id: execute_repair
@@ -189,7 +241,7 @@ jobs:
         run: |
           set -euo pipefail
           export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
-          node scripts/ci/auto-repair-engine.mjs
+          node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs
 
       - name: Verify Task Agent repair before publication
         id: verify
@@ -206,9 +258,10 @@ jobs:
           echo "REPAIR_OUTCOME=$OUTCOME"
           if [ "$OUTCOME" != "verified-repair" ] && [ "$OUTCOME" != "verified-historical-revert" ]; then echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; fi
           git diff --quiet && { echo 'verified=false' >> "$GITHUB_OUTPUT"; echo 'Verified repair produced no source diff; refusing publication.'; exit 1; }
-          npm run typecheck
-          npm run test:static
-          npm run test:build
+          node /tmp/flixo-repair-controller/scripts/ci/ensure-agent-locales.mjs
+          node /tmp/flixo-repair-controller/node_modules/typescript/bin/tsc --noEmit
+          node /tmp/flixo-repair-controller/scripts/test.mjs --mode=diagnose --gate=static
+          node /tmp/flixo-repair-controller/scripts/test.mjs --mode=diagnose --gate=build
           git diff --check
           test "$(git branch --show-current)" = execution
           echo 'verified=true' >> "$GITHUB_OUTPUT"
@@ -217,10 +270,12 @@ jobs:
         if: always()
         env:
           FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+          FLIXO_DERIVED_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
           FLIXO_INTRACTABLE_ERRORS: /tmp/flixo-intractable-errors.json
           VERIFY_OUTCOME: ${{ steps.verify.outputs.verified == 'true' && 'success' || 'failure' }}
           FLIXO_FAILED_SHA: ${{ github.event.workflow_run.head_sha || '' }}
           FLIXO_RUN_ID: ${{ env.TARGET_RUN_ID }}
+          FLIXO_TRUSTED_MEMORY_SHA: ${{ env.FLIXO_TRUSTED_MEMORY_SHA || '' }}
           FLIXO_TARGET_SHA: ''
           FLIXO_REVERTED_COMMIT: ''
         run: |
@@ -250,7 +305,7 @@ jobs:
           else
             LEARNING_OUTCOME='unrepaired'
           fi
-          FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" FLIXO_LEARNING_OUTCOME="$LEARNING_OUTCOME" FLIXO_VERIFICATION="$ENGINE_OUTCOME" FLIXO_TARGET_SHA="$TARGET_SHA" FLIXO_REVERTED_COMMIT="$REVERTED_COMMIT" node scripts/ci/auto-repair-learning.mjs
+          FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" FLIXO_LEARNING_OUTCOME="$LEARNING_OUTCOME" FLIXO_VERIFICATION="$ENGINE_OUTCOME" FLIXO_TARGET_SHA="$TARGET_SHA" FLIXO_REVERTED_COMMIT="$REVERTED_COMMIT" FLIXO_TRUSTED_MEMORY_SHA="${FLIXO_TRUSTED_MEMORY_SHA:-}" node scripts/ci/auto-repair-learning.mjs
           printf '%s\n' "$ENGINE_OUTCOME" > /tmp/flixo-engine-outcome
           printf '%s\n' "$LEARNING_OUTCOME" > /tmp/flixo-learning-outcome
 
@@ -322,9 +377,70 @@ jobs:
           fi
           echo "Canonical execution -> main PR: $PR_URL"
 
+      - name: Prepare exact post-commit repair handoff
+        if: steps.verify.outputs.verified == 'true'
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = execution
+          git fetch --no-tags origin execution
+          EXECUTION_SHA="$(git rev-parse HEAD)"
+          REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
+          test "$EXECUTION_SHA" = "$REMOTE_EXECUTION_SHA"
+          PARENT_SHA="$(git rev-parse "$EXECUTION_SHA^")"
+          test -f /tmp/flixo-repair-evidence.json
+          SOURCE_SHA="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.targetSha||'')")"
+          test "$SOURCE_SHA" = "$PARENT_SHA"
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome)"
+          case "$ENGINE_OUTCOME" in
+            verified-repair|verified-historical-revert) ;;
+            *) echo "FAIL CLOSED: invalid post-commit handoff outcome=$ENGINE_OUTCOME"; exit 1 ;;
+          esac
+          git diff --binary "$PARENT_SHA" "$EXECUTION_SHA" > /tmp/flixo-prepared-repair.patch
+          test -s /tmp/flixo-prepared-repair.patch
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          import { execFileSync } from 'node:child_process';
+          const evidence = JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));
+          const executionSha = execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
+          const parentSha = execFileSync('git',['rev-parse',`${executionSha}^`],{encoding:'utf8'}).trim();
+          const changedPaths = execFileSync('git',['diff','--name-only',parentSha,executionSha],{encoding:'utf8'}).trim().split('\n').filter(Boolean).sort();
+          const patch = fs.readFileSync('/tmp/flixo-prepared-repair.patch');
+          const mode = fs.readFileSync('/tmp/flixo-engine-outcome','utf8').trim();
+          const handoff = {
+            schemaVersion: 4,
+            protocol: 'AGENT-REPAIR-HANDOFF-GATE-v4',
+            mode: mode === 'verified-historical-revert' ? 'VERIFIED_HISTORICAL_REVERT' : 'VERIFIED_REPAIR',
+            applyBy: 'AUTO_REPAIR_BOT',
+            requiresCanonicalCI: true,
+            repository: process.env.GITHUB_REPOSITORY,
+            headBranch: 'execution',
+            baseBranch: 'main',
+            repairRunId: process.env.GITHUB_RUN_ID,
+            targetFailureRunId: process.env.TARGET_RUN_ID,
+            chainId: process.env.FLIXO_REPAIR_CHAIN_ID,
+            failedSha: fs.readFileSync('/tmp/flixo-failed-sha','utf8').trim(),
+            sourceSha: evidence.targetSha,
+            controllerSha: process.env.FLIXO_TRUSTED_MEMORY_SHA || null,
+            executionSha,
+            parentSha,
+            fingerprint: evidence.fingerprint,
+            selectedRule: evidence.selected || evidence.historicalRollback?.rule || null,
+            changedPaths,
+            patchSha256: crypto.createHash('sha256').update(patch).digest('hex'),
+            evidenceFile: 'flixo-repair-evidence.json',
+            generatedAt: new Date().toISOString(),
+          };
+          fs.writeFileSync('/tmp/flixo-prepared-repair-handoff.json', JSON.stringify(handoff,null,2)+'\n');
+          NODE
+          test -s /tmp/flixo-prepared-repair-handoff.json
+          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/flixo-prepared-repair-handoff.json','utf8'));for(const k of ['repairRunId','targetFailureRunId','chainId','failedSha','sourceSha','controllerSha','executionSha','parentSha','fingerprint','selectedRule','patchSha256']) if(h[k]===undefined||h[k]===null||h[k]==='') throw new Error('missing handoff field '+k);"
+          test "${GITHUB_RUN_ID}" = "$(node -e "const h=require('/tmp/flixo-prepared-repair-handoff.json');process.stdout.write(h.repairRunId)")"
+          test "$TARGET_RUN_ID" = "$(node -e "const h=require('/tmp/flixo-prepared-repair-handoff.json');process.stdout.write(h.targetFailureRunId)")"
       - name: Publish repair evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-auto-repair-${{ env.TARGET_RUN_ID }}-${{ github.run_id }}
           path: |
@@ -361,30 +477,7 @@ jobs:
             exit 0
           fi
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "chore(auto-repair): persist learning cycle ${TARGET_RUN_ID}"
-          PUSHED=false
-          for attempt in 1 2 3; do
-            if git push origin execution; then
-              PUSHED=true
-              break
-            fi
-            git fetch --no-tags origin execution
-            REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
-            LOCAL_EXECUTION_SHA="$(git rev-parse HEAD)"
-            if git merge-base --is-ancestor "$LOCAL_EXECUTION_SHA" "$REMOTE_EXECUTION_SHA"; then
-              echo "Learning commit is already contained in the remote execution head; treating persistence as complete."
-              PUSHED=true
-              break
-            fi
-            if ! git merge-base --is-ancestor "$REMOTE_EXECUTION_SHA" "$LOCAL_EXECUTION_SHA"; then
-              echo "Execution diverged while publishing learning state; rebasing local learning commit onto remote execution."
-              git rebase "$REMOTE_EXECUTION_SHA" || { git rebase --abort || true; exit 1; }
-            else
-              echo "Execution advanced before learning push; rebasing local learning commit onto remote execution."
-              git rebase "$REMOTE_EXECUTION_SHA" || { git rebase --abort || true; exit 1; }
-            fi
-            sleep $((attempt * 2))
-          done
-          test "$PUSHED" = true
+          git push origin execution
       - name: Keep the same repair cycle open when verification is not green
         if: always() && steps.verify.outputs.verified != 'true'
         env:
@@ -393,12 +486,16 @@ jobs:
           set -euo pipefail
           ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome 2>/dev/null || printf '%s' engine-error)"
           if [ "$ENGINE_OUTCOME" = "blocked-external" ]; then
-            echo 'External tooling failure is not a source-repair target; stopping fail-closed.'
-            exit 1
+            echo 'External tooling failure is BLOCKED_EXTERNAL; source mutation remains prohibited, but the repair cycle stays open.'
+            REPROBE_DECISION="$(node scripts/ci/auto-repair-supervisor.mjs --check-reprobe | tail -n 1)"
+            if [ "$REPROBE_DECISION" = "true" ]; then
+              echo 'External provider signature changed; permitting another diagnostic cycle.'
+            else
+              echo 'External provider signature unchanged; keeping the cycle open and scheduling a controlled re-probe.'
+            fi
           fi
           if [ "$ENGINE_OUTCOME" = "engine-error" ]; then
-            echo 'Repair engine error; stopping fail-closed.'
-            exit 1
+            echo 'Repair engine error; preserving RED and reopening the repair cycle for another diagnostic/strategy attempt.'
           fi
 
           FAILED_BRANCH="$(cat /tmp/flixo-failed-branch 2>/dev/null || printf '%s' main)"
@@ -408,12 +505,12 @@ jobs:
               gh run list --repo "$GITHUB_REPOSITORY" --branch execution --limit 50                 --json databaseId,name,headSha,conclusion,createdAt                 --jq 'map(select((.name == "FLIXO Test System" or .name == "FLIXO WP0 Trust Baseline" or .name == "FLIXO Continuous Delivery") and .headSha == "'$CURRENT_EXECUTION_SHA'" and (.conclusion == "failure" or .conclusion == "timed_out"))) | sort_by(.createdAt) | last.databaseId // empty'
             )"
             if [ -z "$CURRENT_FAILURE_ID" ]; then
-              echo "No current canonical failure remains on execution $CURRENT_EXECUTION_SHA; stale target is closed."
+              echo "No current canonical failure remains on execution $CURRENT_EXECUTION_SHA; no RED is currently open."
               exit 0
             fi
             echo "Repair remains open on execution failure run $CURRENT_FAILURE_ID."
             echo "Execution repair remains open on execution failure run $CURRENT_FAILURE_ID."
-            gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution -f target_run_id="$CURRENT_FAILURE_ID"
+            gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution -f target_run_id="$CURRENT_FAILURE_ID" -f chain_id="$FLIXO_REPAIR_CHAIN_ID"
             exit 1
           fi
 
@@ -422,9 +519,9 @@ jobs:
             gh run list --repo "$GITHUB_REPOSITORY" --branch main --limit 50               --json databaseId,name,headSha,conclusion,createdAt               --jq 'map(select((.name == "FLIXO Test System" or .name == "FLIXO WP0 Trust Baseline" or .name == "FLIXO Continuous Delivery") and .headSha == "'$CURRENT_MAIN_SHA'" and (.conclusion == "failure" or .conclusion == "timed_out"))) | sort_by(.createdAt) | last.databaseId // empty'
           )"
           if [ -z "$CURRENT_FAILURE_ID" ]; then
-            echo "No current canonical failure remains on main $CURRENT_MAIN_SHA; stale target $TARGET_RUN_ID is closed."
+            echo "No current canonical failure remains on main $CURRENT_MAIN_SHA; no RED is currently open."
             exit 0
           fi
           echo "Repair remains open on current canonical failure run $CURRENT_FAILURE_ID."
-          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution -f target_run_id="$CURRENT_FAILURE_ID"
+          gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution -f target_run_id="$CURRENT_FAILURE_ID" -f chain_id="$FLIXO_REPAIR_CHAIN_ID"
           exit 1

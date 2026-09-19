@@ -1,10 +1,13 @@
-import { Suspense, useEffect, useLayoutEffect } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect } from 'react';
 import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tanstack/react-router';
 import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
-import { CommandPalette } from '../components/command-palette';
-import { installCoreWebVitalsDiagnostics } from '../lib/diagnostics/performance';
 import { applyDocumentLocale, installDocumentLocaleContract, localeFromPathname } from '../lib/i18n/runtime-document-locale';
 import { SITE_ORIGIN } from '../lib/i18n';
+
+const CommandPalette = lazy(async () => {
+  const module = await import('../components/command-palette');
+  return { default: module.CommandPalette };
+});
 
 const GLOBAL_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
@@ -32,8 +35,19 @@ function RouteContent() {
 
 export const rootRoute = createRootRoute({
   component: function RootLayout() {
-    useEffect(() => installCoreWebVitalsDiagnostics(), []);
-    return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} /><FlixoGlobalLogo /><CommandPalette /><RouteContent /><Scripts /></>;
+    useEffect(() => {
+      let active = true;
+      let dispose: () => void = () => undefined;
+      void import('../lib/diagnostics/performance').then(({ installCoreWebVitalsDiagnostics }) => {
+        if (!active) return;
+        dispose = installCoreWebVitalsDiagnostics();
+      });
+      return (): undefined => {
+        active = false;
+        dispose();
+      };
+    }, []);
+    return <><HeadContent /><RuntimeLocaleAttributes /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(GLOBAL_STRUCTURED_DATA).replace(/</g, '\\u003c') }} /><FlixoGlobalLogo /><Suspense fallback={null}><CommandPalette /></Suspense><RouteContent /><Scripts /></>;
   },
   head: () => ({
     meta: [

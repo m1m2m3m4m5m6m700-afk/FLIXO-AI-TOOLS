@@ -5,9 +5,17 @@ import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-re
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
-export const MEMORY_VERSION = 9;
+export const MEMORY_VERSION = 10;
 export const INTRACTABLE_THRESHOLD = 3;
 export { normalizeFailure, fingerprintFailure, extractFeatures };
+
+export function externalProviderSignature(text = '') {
+  const input = String(text ?? '');
+  const model = input.match(/COPILOT_AGENT_MODEL:\s*([^\r\n]+)/i)?.[1]?.trim() ?? null;
+  const api = input.match(/COPILOT_API_URL:\s*(https?:\/\/[^\s\r\n]+)/i)?.[1]?.trim() ?? null;
+  const error = input.match(/CAPIError:\s*400\s+The requested model is not supported/i)?.[0]?.trim() ?? null;
+  return [model, api, error].filter(Boolean).join('|') || null;
+}
 
 export function normalizeLearningOutcome(outcome, verification) {
   if (outcome === 'unrepaired' && (verification === 'proposal-only' || verification === 'diagnostic-only')) return 'proposed';
@@ -17,10 +25,20 @@ export function normalizeLearningOutcome(outcome, verification) {
 const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });
 
 export function loadMemory() {
-  if (!fs.existsSync(memoryPath)) return emptyMemory();
+  const trustedSourcePath = process.env.FLIXO_TRUSTED_REPAIR_MEMORY || memoryPath;
+  if (!fs.existsSync(trustedSourcePath)) return emptyMemory();
   try {
-    const parsed = JSON.parse(fs.readFileSync(memoryPath, 'utf8'));
-    const memory = { ...emptyMemory(), ...parsed };
+    const parsed = JSON.parse(fs.readFileSync(trustedSourcePath, 'utf8'));
+    let memory = normalizeMemoryCounters({ ...emptyMemory(), ...parsed });
+    const derivedPath = process.env.FLIXO_DERIVED_REPAIR_MEMORY;
+    if (process.env.FLIXO_TRUSTED_REPAIR_MEMORY && derivedPath && fs.existsSync(derivedPath) && derivedPath !== trustedSourcePath) {
+      try {
+        const derived = JSON.parse(fs.readFileSync(derivedPath, 'utf8'));
+        memory = mergeMemoryHistory(memory, derived);
+      } catch {
+        // Derived execution memory is supplemental evidence; trusted memory remains authoritative.
+      }
+    }
     memory.version = Number.isInteger(parsed?.version) ? Math.max(parsed.version, MEMORY_VERSION) : MEMORY_VERSION;
     for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(memory[key])) memory[key] = [];
     return memory;
@@ -68,7 +86,139 @@ function priorRepairArtifactCount() {
   return result.stdout.split('\n').filter((name) => name.startsWith(prefix)).length;
 }
 
-export function findCase(memory, fingerprint) {
+export function normalizeCaseCounters(entry) {
+  if (!entry || typeof entry !== 'object') return entry;
+  const attempts = Math.max(0, Number(entry.attempts ?? 0));
+  const successes = Math.max(0, Number(entry.successes ?? 0));
+  const failures = Math.max(0, Number(entry.failures ?? 0));
+  if (successes + failures <= attempts) {
+    return { ...entry, attempts, successes, failures };
+  }
+  const observedSuccesses = (entry.outcomes ?? []).filter((item) =>
+    item?.outcome === 'success' || (item?.outcome === 'repair' && item?.verification === 'success')
+  ).length;
+  const observedFailures = (entry.outcomes ?? []).filter((item) =>
+    ['failure', 'unrepaired', 'blocked'].includes(item?.outcome) ||
+    (item?.outcome === 'repair' && item?.verification !== 'success' && item?.verification !== 'proposal-only' && item?.verification !== 'diagnostic-only')
+  ).length;
+  const repairedSuccesses = Math.max(successes, observedSuccesses);
+  const repairedAttempts = Math.max(attempts, repairedSuccesses);
+  const repairedFailures = Math.min(Math.max(failures, observedFailures), Math.max(0, repairedAttempts - repairedSuccesses));
+  return {
+    ...entry,
+    attempts: repairedAttempts,
+    successes: Math.min(repairedSuccesses, repairedAttempts),
+    failures: repairedFailures,
+  };
+}
+
+export function normalizeMemoryCounters(memory) {
+  const source = { ...emptyMemory(), ...memory };
+  source.cases = (source.cases ?? []).map(normalizeCaseCounters);
+  return source;
+}
+
+export function mergeMemoryHistory(baseMemory, derivedMemory) {
+  const base = normalizeMemoryCounters({ ...emptyMemory(), ...(baseMemory ?? {}) });
+  const derived = normalizeMemoryCounters({ ...emptyMemory(), ...(derivedMemory ?? {}) });
+  const merged = {
+    ...base,
+    version: Math.max(Number(base.version ?? 0), Number(derived.version ?? 0), MEMORY_VERSION),
+    cases: [...base.cases],
+    playbooks: [...base.playbooks],
+    lessons: [...base.lessons],
+    antiLessons: [...base.antiLessons],
+  };
+
+  const mergeUnique = (left = [], right = [], keyFor = (item) => JSON.stringify(item)) => {
+    const out = [...left];
+    const seen = new Set(out.map(keyFor));
+    for (const item of right) {
+      const key = keyFor(item);
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push(item);
+      }
+    }
+    return out;
+  };
+
+  const caseMap = new Map(merged.cases.map((item) => [item.fingerprint, item]));
+  for (const incoming of derived.cases) {
+    const existing = caseMap.get(incoming.fingerprint);
+    if (!existing) {
+      caseMap.set(incoming.fingerprint, normalizeCaseCounters(incoming));
+      continue;
+    }
+    existing.rootCause = existing.rootCause && existing.rootCause !== 'unknown' ? existing.rootCause : incoming.rootCause;
+    existing.normalizedFailure = incoming.normalizedFailure ?? existing.normalizedFailure;
+    existing.features = [...new Set([...(existing.features ?? []), ...(incoming.features ?? [])])];
+    existing.rules = [...new Set([...(existing.rules ?? []), ...(incoming.rules ?? [])])];
+    existing.outcomes = mergeUnique(existing.outcomes, incoming.outcomes, (item) => [
+      item?.outcome, item?.verification, item?.rule, item?.provenance?.runId,
+      item?.provenance?.failedSha, item?.provenance?.targetSha, item?.at,
+    ].map((value) => String(value ?? '')).join('|')).slice(-20);
+    existing.attempts = Math.max(Number(existing.attempts ?? 0), Number(incoming.attempts ?? 0));
+    existing.successes = Math.max(Number(existing.successes ?? 0), Number(incoming.successes ?? 0));
+    existing.failures = Math.max(Number(existing.failures ?? 0), Number(incoming.failures ?? 0));
+    existing.externalBlocks = Math.max(Number(existing.externalBlocks ?? 0), Number(incoming.externalBlocks ?? 0));
+    existing.reversions = Math.max(Number(existing.reversions ?? 0), Number(incoming.reversions ?? 0));
+    existing.revertFailures = Math.max(Number(existing.revertFailures ?? 0), Number(incoming.revertFailures ?? 0));
+    existing.revertedRules = [...new Set([...(existing.revertedRules ?? []), ...(incoming.revertedRules ?? [])])];
+    existing.revertedCommits = [...new Set([...(existing.revertedCommits ?? []), ...(incoming.revertedCommits ?? [])])];
+  }
+  merged.cases = [...caseMap.values()].map((item) => {
+    const normalized = normalizeCaseCounters(item);
+    normalized.confidence = normalized.attempts ? Number((normalized.successes / normalized.attempts).toFixed(4)) : 0;
+    return normalized;
+  });
+
+  const playbookMap = new Map(merged.playbooks.map((item) => [`${item.rootCause}|${item.rule}`, item]));
+  for (const incoming of derived.playbooks) {
+    const key = `${incoming.rootCause}|${incoming.rule}`;
+    const existing = playbookMap.get(key);
+    if (!existing) {
+      playbookMap.set(key, incoming);
+      continue;
+    }
+    existing.attempts = Math.max(Number(existing.attempts ?? 0), Number(incoming.attempts ?? 0));
+    existing.successes = Math.max(Number(existing.successes ?? 0), Number(incoming.successes ?? 0));
+    existing.failures = Math.max(Number(existing.failures ?? 0), Number(incoming.failures ?? 0));
+    existing.fingerprints = mergeUnique(existing.fingerprints, incoming.fingerprints, String);
+    existing.successfulFingerprints = mergeUnique(existing.successfulFingerprints, incoming.successfulFingerprints, String);
+    existing.failedFingerprints = mergeUnique(existing.failedFingerprints, incoming.failedFingerprints, String);
+  }
+  merged.playbooks = [...playbookMap.values()].map((item) => ({
+    ...item,
+    successRate: item.attempts ? Number((item.successes / item.attempts).toFixed(4)) : 0,
+    generalized: new Set(item.successfulFingerprints ?? []).size >= 2 && item.successes >= 2 && (item.attempts ? item.successes / item.attempts : 0) >= 0.8,
+  }));
+
+  for (const collection of ['lessons', 'antiLessons']) {
+    const map = new Map(merged[collection].map((item) => [item.id, item]));
+    for (const incoming of derived[collection]) {
+      const existing = map.get(incoming.id);
+      if (!existing) {
+        map.set(incoming.id, incoming);
+        continue;
+      }
+      existing.attempts = Math.max(Number(existing.attempts ?? 0), Number(incoming.attempts ?? 0));
+      existing.successes = Math.max(Number(existing.successes ?? 0), Number(incoming.successes ?? 0));
+      existing.failures = Math.max(Number(existing.failures ?? 0), Number(incoming.failures ?? 0));
+      existing.evidence = mergeUnique(existing.evidence, incoming.evidence, (item) => JSON.stringify(item)).slice(-8);
+      existing.preventionRules = mergeUnique(existing.preventionRules, incoming.preventionRules, String).slice(-8);
+      existing.lastSeenAt = [existing.lastSeenAt, incoming.lastSeenAt].filter(Boolean).sort().at(-1) ?? null;
+    }
+    merged[collection] = [...map.values()].map((item) => ({
+      ...item,
+      confidence: item.attempts ? Number((item.successes / item.attempts).toFixed(4)) : 0,
+    }));
+  }
+
+  return normalizeMemoryCounters(merged);
+}
+
+function findCase(memory, fingerprint) {
   return memory.cases.find((item) => item.fingerprint === fingerprint);
 }
 
@@ -262,6 +412,10 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   if (features.length) entry.features = [...new Set(features)];
   const isExternalBlock = outcome === 'blocked-external';
   const isHistoricalRevert = outcome === 'reverted-repair';
+  const effectiveProviderSignature = provenance?.providerSignature ?? (isExternalBlock ? externalProviderSignature(normalizedFailure) : null);
+  const effectiveProvenance = effectiveProviderSignature
+    ? { ...(provenance ?? {}), providerSignature: effectiveProviderSignature }
+    : (provenance ?? {});
   const isHistoricalRevertFailure = outcome === 'revert-failure';
   if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
   if (isHistoricalRevert) {
@@ -279,7 +433,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   if (outcome === 'success') entry.successes += 1; else if (countsAsRepairAttempt) entry.failures += 1;
   entry.confidence = confidenceFor(entry);
   if (rule) entry.rules = [...new Set([...entry.rules, rule])];
-  entry.outcomes.push({ outcome, verification, rule, provenance, preventionRule, at: new Date().toISOString() });
+  entry.outcomes.push({ outcome, verification, rule, provenance: effectiveProvenance, preventionRule, at: new Date().toISOString() });
   entry.outcomes = entry.outcomes.slice(-10);
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
   const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
@@ -299,7 +453,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     if (!memory.playbooks.includes(playbook)) memory.playbooks.push(playbook);
   }
   if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked' || outcome === 'blocked-external') {
-    upsertLesson(memory, { fingerprint, rootCause: entry.rootCause, rule, outcome, verification, provenance, preventionRule });
+    upsertLesson(memory, { fingerprint, rootCause: entry.rootCause, rule, outcome, verification, provenance: effectiveProvenance, preventionRule });
   }
   if (entry.attempts >= INTRACTABLE_THRESHOLD && entry.successes === 0) {
     fs.writeFileSync('/tmp/flixo-intractable-state', 'true\n');
@@ -339,9 +493,51 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   return memory;
 }
 
+function bestHistoricalMemory() {
+  if (process.env.FLIXO_SKIP_GIT_MEMORY_HISTORY === 'true') return null;
+  const result = spawnSync('git', ['log', '--all', '--format=%H', '--max-count=64', '--', 'diagnostics/auto-repair/memory.json'], {
+    encoding: 'utf8',
+    env: process.env,
+  });
+  if (result.status !== 0) return null;
+  let best = null;
+  let bestCaseCount = -1;
+  for (const commitSha of result.stdout.split(/\s+/).filter(Boolean)) {
+    const snapshot = spawnSync('git', ['show', commitSha + ':diagnostics/auto-repair/memory.json'], {
+      encoding: 'utf8',
+      env: process.env,
+    });
+    if (snapshot.status !== 0) continue;
+    try {
+      const parsed = normalizeMemoryCounters(JSON.parse(snapshot.stdout));
+      if (!Number.isInteger(parsed?.version) || !Array.isArray(parsed?.cases)) continue;
+      if (parsed.cases.length > bestCaseCount) {
+        best = parsed;
+        bestCaseCount = parsed.cases.length;
+      }
+    } catch {
+      // Ignore malformed historical snapshots; preserve the newest valid memory.
+    }
+  }
+  return best;
+}
 export function writeMemory(memory) {
+  // Failed/non-green cycles are derived evidence only. Persisting them to the execution
+  // branch creates a mutation-only commit, which can trigger approval/action-required
+  // loops without producing a source repair. Verified repairs remain persistable.
+  const outcome = process.env.FLIXO_LEARNING_OUTCOME ?? '';
+  const trustedSourcePath = process.env.FLIXO_TRUSTED_REPAIR_MEMORY;
+  if (outcome !== 'success' && outcome !== 'reverted-repair' && trustedSourcePath && fs.existsSync(trustedSourcePath)) {
+    fs.mkdirSync(memoryPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
+    fs.copyFileSync(trustedSourcePath, memoryPath);
+    return;
+  }
   fs.mkdirSync(memoryPath.split('/').slice(0, -1).join('/') || '.', { recursive: true });
-  const normalized = { ...emptyMemory(), ...memory };
+  let normalized = normalizeMemoryCounters({ ...emptyMemory(), ...memory });
+  const historical = bestHistoricalMemory();
+  if (historical && historical.cases.length > normalized.cases.length) {
+    normalized = mergeMemoryHistory(historical, normalized);
+  }
   normalized.version = Number.isInteger(memory?.version) ? Math.max(memory.version, MEMORY_VERSION) : MEMORY_VERSION;
   for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(normalized[key])) normalized[key] = [];
   fs.writeFileSync(memoryPath, `${JSON.stringify(normalized, null, 2)}\n`);

@@ -64,8 +64,8 @@ const COMMON_PARAMETERS = z.record(z.string().max(64), z.union([z.string(), z.nu
 const PARAMETER_SCHEMAS: Readonly<Record<string, ZodType>> = {
   'background-remover': z.object({ tolerance: z.number().finite().min(0).max(255).optional() }).strict(),
   'image-upscaler': z.object({ scale: z.number().finite().positive().max(8).optional() }).strict(),
-  'image-cropper': z.object({ width: z.number().int().positive().max(4000).optional(), height: z.number().int().positive().max(4000).optional(), aspectRatio: z.string().regex(/^\d{1,3}:\d{1,3}$/).optional(), mode: z.literal('exact').optional() }).strict(),
-  'image-compressor': z.object({ quality: z.number().finite().min(0.01).max(1).optional(), format: z.enum(MIME_TYPES).optional(), targetSizeKB: z.number().finite().int().positive().max(64 * 1024).optional() }).strict(),
+  'image-cropper': z.object({ x: z.number().int().nonnegative().max(40_000).optional(), y: z.number().int().nonnegative().max(40_000).optional(), cropWidth: z.number().int().positive().max(40_000).optional(), cropHeight: z.number().int().positive().max(40_000).optional(), width: z.number().int().positive().max(4000).optional(), height: z.number().int().positive().max(4000).optional(), aspectRatio: z.string().regex(/^\d{1,3}:\d{1,3}$/).optional(), mode: z.literal('exact').optional() }).strict(),
+  'image-compressor': z.object({ quality: z.number().finite().min(0.01).max(1).optional(), format: z.enum(MIME_TYPES).optional(), targetSizeKB: z.number().finite().int().positive().max(64 * 1024).optional(), maxWidth: z.number().int().positive().max(4000).optional(), maxHeight: z.number().int().positive().max(4000).optional() }).strict(),
   'image-converter': z.object({ format: z.enum(MIME_TYPES) }).strict(),
   'image-effects': z.object({ brightness: z.number().finite().min(0).max(200).optional(), contrast: z.number().finite().min(0).max(200).optional(), saturate: z.number().finite().min(0).max(200).optional(), grayscale: z.number().finite().min(0).max(100).optional() }).strict(),
 };

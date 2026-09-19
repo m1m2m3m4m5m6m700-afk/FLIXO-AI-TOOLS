@@ -106,6 +106,8 @@ Every delegation MUST contain:
 Every completion MUST return:
 `status + exitSha + changedFiles + commands + evidenceRefs + remainingWork + openRcas + nextAction + decisionTrace + verificationState + ownershipState`.
 
+Every agent session MUST also declare `taskId` and maintain a durable visibility record at `docs/agents/ledger/<sessionId>.json`. The record is OPEN while active and CLOSED only after logout records the final status and final summary. Other agents can read task, owner, scope, exact SHA lineage, evidence, unresolved work and final outcome from this ledger. It exposes coordination state without granting authority and never substitutes for certification.
+
 Diagnosis-to-preparation handoffs additionally require the exact `failureFingerprint`, RCA evidence and falsification tests.
 
 ## Canonical v6 compatibility aliases

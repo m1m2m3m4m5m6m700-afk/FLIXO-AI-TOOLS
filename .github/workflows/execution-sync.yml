@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout execution
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: execution
           fetch-depth: 0
@@ -42,16 +42,52 @@ jobs:
             exit 0
           fi
 
+          # The execution branch may already contain an equivalent workflow-file change
+          # that exists on the single main-only tip commit. Prove semantic parity and
+          # skip history-only reconciliation rather than pushing workflow files with
+          # a GITHUB_TOKEN that cannot authorize workflow updates.
+          MAIN_AHEAD_COUNT="$(git rev-list --count "$EXEC_SHA..$MAIN_SHA")"
+          if [ "$MAIN_AHEAD_COUNT" -eq 1 ]; then
+            MAIN_ONLY_SHA="$(git rev-list "$EXEC_SHA..$MAIN_SHA")"
+            MAIN_ONLY_FILES="$(git diff-tree --no-commit-id --name-only -r "$MAIN_ONLY_SHA" | sort)"
+            if [ "$MAIN_ONLY_FILES" = ".github/workflows/auto-repair.yml" ] &&
+              git diff --quiet "$MAIN_SHA:.github/workflows/auto-repair.yml" "HEAD:.github/workflows/auto-repair.yml"; then
+              echo "execution already contains equivalent auto-repair workflow content from main commit $MAIN_ONLY_SHA"
+              echo "History-only reconciliation skipped; canonical CI remains the verification authority."
+              exit 0
+            fi
+          fi
+
           if ! git merge --no-edit -X ours origin/main; then
             echo "FAIL CLOSED: execution cannot reconcile canonical main $MAIN_SHA without a merge conflict."
             git merge --abort || true
             exit 1
           fi
+
+          # The Actions GITHUB_TOKEN cannot authorize pushes that modify workflow files.
+          # Preserve the pre-merge execution versions of .github/workflows/* so this
+          # reconciliation commit contains only non-workflow changes from main.
+          WORKFLOW_CHANGES="$(git diff --name-only "$EXEC_SHA" HEAD -- .github/workflows || true)"
+          if [ -n "$WORKFLOW_CHANGES" ]; then
+            echo "Restoring execution-owned workflow files before publication:"
+            printf '%s\n' "$WORKFLOW_CHANGES"
+            while IFS= read -r path; do
+              [ -z "$path" ] && continue
+              if git cat-file -e "$EXEC_SHA:$path" 2>/dev/null; then
+                git restore --source="$EXEC_SHA" -- "$path"
+              else
+                git rm -f -- "$path"
+              fi
+            done <<< "$WORKFLOW_CHANGES"
+            git add -A .github/workflows
+            git commit --amend --no-edit
+          fi
+
           test -z "$(git status --porcelain=v1 --untracked-files=all)"
           git diff --check
-          npm ci --prefer-offline --no-audit --no-fund
-          npm run test:auto-repair
-          npm run validate:auto-repair-memory
+
+          # Execution sync is reconciliation-only: do not execute target-branch package scripts with write authority.
+          # Canonical Test System remains the verifier for the resulting execution SHA.
 
           # Reconcile concurrent execution writes before publishing. Any remote
           # change incorporated after the verified merge is re-verified before push.
@@ -69,8 +105,7 @@ jobs:
             test -z "$(git status --porcelain=v1 --untracked-files=all)"
             git diff --check
             if [ "$(git rev-parse HEAD)" != "$PRE_PUBLISH_SHA" ]; then
-              npm run test:auto-repair
-              npm run validate:auto-repair-memory
+              git diff --check
             fi
             if git push origin HEAD:execution; then
               PUSHED=true

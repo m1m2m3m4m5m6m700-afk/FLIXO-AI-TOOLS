@@ -45,12 +45,20 @@ if (!audit?.auditDigest || !/^[a-f0-9]{64}$/.test(audit.auditDigest)) fail('audi
 
 const requiredFindingKeys = ['id', 'fingerprint', 'category', 'severity', 'status', 'target', 'summary', 'evidence', 'action'];
 const fingerprints = new Set();
+const recomputeFindingFingerprint = (finding) => createHash('sha256').update(JSON.stringify({
+  id: finding.id, category: finding.category, severity: finding.severity, target: finding.target,
+  summary: finding.summary, action: finding.action,
+}), 'utf8').digest('hex');
 for (const [index, finding] of audit.findings.entries()) {
   if (!finding || typeof finding !== 'object') fail(`finding-${index}-not-object`);
   for (const key of requiredFindingKeys) {
     if (!(key in finding)) fail(`finding-${index}-missing-${key}`);
   }
   if (!/^[a-f0-9]{64}$/.test(finding.fingerprint)) fail(`finding-${index}-fingerprint-invalid`);
+  if (finding.fingerprint !== recomputeFindingFingerprint(finding)) fail(`finding-${index}-fingerprint-mismatch`);
+  if (!finding.target || typeof finding.target !== 'string') fail(`finding-${index}-target-invalid`);
+  if (!finding.summary || typeof finding.summary !== 'string') fail(`finding-${index}-summary-invalid`);
+  if (!finding.evidence || typeof finding.evidence !== 'object' || Array.isArray(finding.evidence) || Object.keys(finding.evidence).length === 0) fail(`finding-${index}-evidence-incomplete`);
   if (fingerprints.has(finding.fingerprint)) fail(`finding-${index}-fingerprint-duplicate`);
   fingerprints.add(finding.fingerprint);
 }

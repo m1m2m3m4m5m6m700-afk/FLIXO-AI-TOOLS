@@ -1,5 +1,6 @@
 export const repairPolicy = Object.freeze({
-  maxAttemptsPerFingerprint: Number.POSITIVE_INFINITY, // No global cycle ceiling; per-cycle mutation budgets remain bounded.
+  maxAttemptsPerFingerprint: 3,
+  maxRepairChainRuns: 8,
   maxChangedFiles: 8,
   maxChangedLines: 300,
   requireCleanGitBeforeRepair: true,
@@ -8,6 +9,10 @@ export const repairPolicy = Object.freeze({
     '.github/workflows/ci.yml',
     '.github/workflows/deploy-flixoai.yml',
     '.github/workflows/auto-repair.yml',
+    '.github/workflows/auto-repair-executor.yml',
+    '.github/workflows/auto-repair-merge-gate.yml',
+    '.github/workflows/execution-sync.yml',
+    '.github/workflows/wp0-trust-baseline.yml',
     '.github/workflows/repair-seed.yml',
     'package-lock.json',
     '.env',
@@ -16,10 +21,23 @@ export const repairPolicy = Object.freeze({
   protectedAreas: [
     'scripts/ci/certification-engine.mjs',
     'scripts/ci/validate-execution-graph.mjs',
+    'scripts/ci/auto-repair-policy.mjs',
+    'scripts/ci/auto-repair-engine.mjs',
+    'scripts/ci/auto-repair-learning.mjs',
+    'scripts/ci/auto-repair-supervisor.mjs',
+    'scripts/ci/auto-repair-proof.mjs',
+    'scripts/ci/auto-repair/',
+    'scripts/ci/task-agent.mjs',
+    'scripts/ci/agent-execution-control.mjs',
+    'scripts/ci/repository-security-baseline.mjs',
+    'scripts/ci/validate-auto-repair-memory.mjs',
+    'scripts/ci/validate-certification-surface.mjs',
+    'scripts/ci/validate-ci-cd-trust.mjs',
+    'scripts/ci/validate-wp0-trust-baseline.mjs',
     'tests/seed.spec.ts',
   ],
   requireVerification: ['typecheck', 'test:static', 'test:build'],
-  openDraftPrOnly: true,
+  openDraftPrOnly: false,
 });
 
 function matches(path, rule) {

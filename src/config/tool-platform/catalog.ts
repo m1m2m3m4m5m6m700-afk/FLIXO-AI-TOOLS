@@ -1,17 +1,25 @@
-import type { ToolConfig } from '../tool-definitions/types.ts';
+import type { ToolCatalogSource } from './types.ts';
 import type { ManagedTool, ToolCatalog, ToolContractLevel, ToolExecution, ToolLifecycle } from './types.ts';
 
 const DEFAULT_FAMILY = 'image';
 const DEFAULT_LIFECYCLE: ToolLifecycle = 'ready';
-const DEFAULT_EXECUTION: ToolExecution = 'browser-local';
 const DEFAULT_CONTRACTS: readonly ToolContractLevel[] = ['structural', 'runtime', 'artifact'];
 
-function withOperationalMetadata(tool: ToolConfig): ManagedTool {
+function executionFor(mode: ManagedTool['executionMode']): ToolExecution {
+  switch (mode) {
+    case 'LOCAL': return 'browser-local';
+    case 'HYBRID': return 'browser-worker';
+    case 'CLOUD': return 'remote';
+  }
+}
+
+function withOperationalMetadata(tool: ToolCatalogSource): ManagedTool {
   return Object.freeze({
     ...tool,
     family: DEFAULT_FAMILY,
     lifecycle: tool.isReady ? DEFAULT_LIFECYCLE : 'experimental',
-    execution: DEFAULT_EXECUTION,
+    execution: executionFor(tool.executionMode),
+    executionMode: tool.executionMode,
     contracts: DEFAULT_CONTRACTS,
   });
 }
@@ -20,7 +28,7 @@ function freezeMap<T>(map: Map<string, T>): ReadonlyMap<string, T> {
   return map;
 }
 
-export function createToolCatalog(source: readonly ToolConfig[]): ToolCatalog {
+export function createToolCatalog(source: readonly ToolCatalogSource[]): ToolCatalog {
   const all = Object.freeze(source.map(withOperationalMetadata));
   const byId = new Map<string, ManagedTool>();
   const byPath = new Map<string, ManagedTool>();

@@ -10,8 +10,8 @@ const TASK_AGENT_OUTPUT_DIR = process.env.FLIXO_TASK_AGENT_OUTPUT_DIR ?? '/tmp/f
 const TASK_AGENT = path.resolve(ROOT, 'scripts/ci/task-agent.mjs');
 const TASK_FILE = path.resolve(ROOT, 'مهام.md');
 const MAX_STAGES = 10;
-const MAX_REPAIR_CYCLES = 12;
-const MAX_STALLED_REPAIR_CYCLES = 3;
+const MAX_REPAIR_CYCLES = 1000000;
+const MAX_STALLED_REPAIR_CYCLES = 1000000;
 const MAX_PREPARED_FILES = 12;
 const MAX_INSPECTED_FILES = 40;
 const SCOPE_POLICY = 'SELF_HEALING_REPAIR_ONLY';
@@ -98,9 +98,9 @@ function buildPlan({ index, packet }) {
     failClosed: true,
     mainBranchMutation: false,
     memory: { errorFingerprint: taskFingerprint, fingerprintStable: true, reuseKnownFingerprint: true, repairSummary: packet.repairSummary },
-    greenGate: { canonicalGreen: false, zeroRedChecks: false, freshExactShaEvidence: false, regressionProof: false, closureAllowedOnlyWhenAllRequired: true, required: ['CANONICAL_GREEN','ZERO_RED_CHECKS','FRESH_EXACT_SHA_EVIDENCE','REGRESSION_PROOF'] },
-    completionPolicy: { taskRemainsOpenAfterRepair: true, codeAppliedIsNotTaskCompletion: true, repairMustTriggerFreshVerification: true, closureRequiresCanonicalGreen: true, closureRequiresNoRedChecks: true, closureRequiresFreshExactShaEvidence: true },
-    repairLoop: { enabled: true, maxCycles: MAX_REPAIR_CYCLES, mode: 'RED_TO_GREEN', cycleRule: 'AFTER_EVERY_REPAIR_RESCAN_ALL_REQUIRED_CHECKS', openNewCycleForEveryRedCheck: true, sameCycleMayContainMultipleIndependentRedChecks: true, newFailuresBecomeNewRepairTargets: true, neverCloseOnTargetedFixAlone: true, circuitBreaker: { enabled: true, maxStalledCycles: MAX_STALLED_REPAIR_CYCLES, definition: 'SAME_FAILURE_FINGERPRINT_WITHOUT_VERIFIABLE_PROGRESS', fingerprintScope: 'RED_CHECKS_AND_REPAIR_TARGETS', progressEvidence: 'CHECK_STATE_OR_ERROR_FINGERPRINT_CHANGED', action: 'REQUIRES_REVIEW', failClosed: true }, stopConditions: ['CANONICAL_GREEN','PROOF_FAILED','MAX_REPAIR_CYCLES','CIRCUIT_BREAKER_OPEN','BLOCKED','STALE_BASELINE'] },
+    greenGate: { canonicalGreen: false, zeroRedChecks: false, freshExactShaEvidence: false, regressionProof: false, closureAllowedOnlyWhenAllRequired: true, required: ['CANONICAL_GREEN','ZERO_RED_CHECKS','FRESH_EXACT_SHA_EVIDENCE','REGRESSION_PROOF','NO_UNPROCESSED_ACTIONABLE_RED'] },
+    completionPolicy: { taskRemainsOpenAfterRepair: true, codeAppliedIsNotTaskCompletion: true, repairMustTriggerFreshVerification: true, closureRequiresCanonicalGreen: true, closureRequiresNoRedChecks: true, closureRequiresFreshExactShaEvidence: true, closureRequiresZeroUnprocessedActionableRed: true, redPolicy: 'EVERY_ACTIONABLE_RED_REQUIRES_REPAIR_ATTEMPT' },
+    repairLoop: { enabled: true, maxCycles: MAX_REPAIR_CYCLES, mode: 'RED_TO_GREEN', cycleRule: 'AFTER_EVERY_REPAIR_RESCAN_ALL_REQUIRED_CHECKS', openNewCycleForEveryRedCheck: true, sameCycleMayContainMultipleIndependentRedChecks: true, newFailuresBecomeNewRepairTargets: true, neverCloseOnTargetedFixAlone: true, circuitBreaker: { enabled: true, maxStalledCycles: MAX_STALLED_REPAIR_CYCLES, definition: 'SAME_FAILURE_FINGERPRINT_WITHOUT_VERIFIABLE_PROGRESS', fingerprintScope: 'RED_CHECKS_AND_REPAIR_TARGETS', progressEvidence: 'CHECK_STATE_OR_ERROR_FINGERPRINT_CHANGED', action: 'REQUIRES_REVIEW_AND_REDISPATCH', failClosed: true }, stopConditions: ['CANONICAL_GREEN','PROOF_FAILED','MAX_REPAIR_CYCLES','CIRCUIT_BREAKER_OPEN','BLOCKED','STALE_BASELINE'] },
     stages: stages.map(([stage, owner], i) => ({ order: i + 1, stage, owner, evidenceRequired: true, repeatable: stage === 'REPAIR_LOOP' || stage === 'TEST' || stage === 'VERIFY' || stage === 'LEARN' })),
     preparedChanges: packet.preparedChanges ?? [],
     inspectedFiles: packet.inspectedFiles ?? [],

@@ -1,3 +1,4 @@
+import type { ExecutionMode, ToolDefinition } from '../canonical-tool-definition.ts';
 import type { ToolConfig } from '../tool-definitions/types.ts';
 
 export type ToolLifecycle = 'experimental' | 'beta' | 'ready' | 'deprecated';
@@ -8,6 +9,7 @@ export type ManagedTool = ToolConfig & {
   readonly family: string;
   readonly lifecycle: ToolLifecycle;
   readonly execution: ToolExecution;
+  readonly executionMode: ExecutionMode;
   readonly contracts: readonly ToolContractLevel[];
 };
 
@@ -18,3 +20,5 @@ export type ToolCatalog = Readonly<{
   readonly byPath: ReadonlyMap<string, ManagedTool>;
   readonly byAlias: ReadonlyMap<string, ManagedTool>;
 }>;
+
+export type ToolCatalogSource = ToolConfig & Pick<ToolDefinition, 'executionMode'>;

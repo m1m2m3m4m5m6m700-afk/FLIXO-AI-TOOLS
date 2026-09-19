@@ -171,21 +171,17 @@ export default function SeedTool({ locale = 'en' as Locale }: { locale?: Locale 
     if (historyIndex === 0) return;
     const next = cloneSnapshot(history[historyIndex - 1]);
     renderSettingsRef.current = next.basic;
-    setHistoryIndex(historyIndex - 1); setSettings(next.basic); setAdvanced(next.advanced);
-    try { renderGpu(next.basic); } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'GPU rendering failed.';
-      queueMicrotask(() => setError(message));
-    }
+    setHistoryIndex(historyIndex - 1);
+    setSettings(next.basic);
+    setAdvanced(next.advanced);
   };
   const redo = () => {
     if (historyIndex >= history.length - 1) return;
     const next = cloneSnapshot(history[historyIndex + 1]);
     renderSettingsRef.current = next.basic;
-    setHistoryIndex(historyIndex + 1); setSettings(next.basic); setAdvanced(next.advanced);
-    try { renderGpu(next.basic); } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'GPU rendering failed.';
-      queueMicrotask(() => setError(message));
-    }
+    setHistoryIndex(historyIndex + 1);
+    setSettings(next.basic);
+    setAdvanced(next.advanced);
   };
 
   const openImage = (file: File) => {

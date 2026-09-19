@@ -49,14 +49,6 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/repair-handoff
-          if [ ! -f flixo-engine-outcome ] || [ ! -f flixo-learning-outcome ] || [ ! -f flixo-root-cause.json ]; then
-            if [ "$REPAIR_RUN_CONCLUSION" = "success" ]; then
-              echo "Successful Auto Repair run produced no handoff evidence; recording NO_HANDOFF_NEEDED."
-              exit 0
-            fi
-            echo "Expected Auto Repair evidence artifact is unavailable for a failed/timed-out source run."
-            exit 1
-          fi
           outcome="$(cat flixo-engine-outcome)"
           learning="$(cat flixo-learning-outcome)"
           if [ "$outcome" = "verified-repair" ]; then
