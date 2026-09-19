@@ -58,7 +58,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
     return (
       <>
         {value.slice(0, openingIndex)}
-        [[{value.slice(contentStart, closingIndex)}]]
+        <span>{value.slice(contentStart, closingIndex)}</span>
         {value.slice(closingIndex + closing.length)}
       </>
     );
@@ -103,7 +103,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
       </header>
       <section className="agent-first-main" aria-labelledby="agent-first-title">
         <div className="agent-first-heading">
-          <span className="agent-first-mark" aria-hidden="true">✦]]
+          <span className="agent-first-mark" aria-hidden="true">✦</span>
           <h1 id="home-title">{renderHeroTitle(home.heroTitle)}</h1>
           <p>{copy.subtitle}</p>
         </div>
