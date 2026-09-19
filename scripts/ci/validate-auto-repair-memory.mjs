@@ -30,7 +30,7 @@ for (const collection of ['lessons', 'antiLessons']) {
     const summaryLesson = collection === 'lessons' && typeof lesson.lesson === 'string' && typeof lesson.verifiedSha === 'string' && typeof lesson.canonicalRunId === 'string';
     if (summaryLesson) {
       if (!shaPattern.test(lesson.verifiedSha)) fail(`${collection}-invalid-verified-sha`);
-      if (!/^\\d+$/.test(lesson.canonicalRunId)) fail(`${collection}-invalid-canonical-run-id`);
+      if (!/^\d+$/.test(lesson.canonicalRunId)) fail(`${collection}-invalid-canonical-run-id`);
       continue;
     }
     if (typeof lesson.rootCause !== 'string' || !lesson.rootCause) fail(`${collection}-missing-root-cause`);
