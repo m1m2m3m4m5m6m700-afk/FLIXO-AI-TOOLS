@@ -60,8 +60,43 @@ const makeEvidence = (expiresAt) => {
 };
 
 let readCount = 0;
+const audit = {
+  event_id: '55555555-5555-4555-8555-555555555555',
+  actor_subject: 'owner',
+  actor_role: 'OWNER',
+  action: 'evidence.recorded',
+  capability: 'audit.read',
+  target_type: 'evidence',
+  target_id: evidence.evidence_id,
+  exact_sha: evidence.exact_sha,
+  environment: 'test',
+  outcome: 'ALLOW',
+  correlation_id: 'phase2-audit',
+  evidence_id: evidence.evidence_id,
+  occurred_at: now,
+  metadata: { marker: 'phase2-audit' },
+  created_at: now,
+};
+audit.integrity_sha256 = canonical.integritySha256({
+  actor_subject: audit.actor_subject,
+  actor_role: audit.actor_role,
+  action: audit.action,
+  capability: audit.capability,
+  target_type: audit.target_type,
+  target_id: audit.target_id,
+  exact_sha: audit.exact_sha,
+  environment: audit.environment,
+  outcome: audit.outcome,
+  correlation_id: audit.correlation_id,
+  evidence_id: audit.evidence_id,
+  metadata: audit.metadata,
+});
+
 globalThis.fetch = async (input) => {
   const url = String(input);
+  if (url.includes('/flix_admin_audit_events?')) {
+    return new Response(JSON.stringify([audit]), { status: 200 });
+  }
   assert.match(url, /flix_admin_evidence/);
   readCount += 1;
   const row = makeEvidence(readCount === 1
@@ -76,4 +111,7 @@ assert.equal(readCount, 1);
 
 const stale = await persistence.getLatestEvidenceForAssertion(evidence.assertion_id);
 assert.equal(stale?.status, 'STALE');
-console.log('ADMIN phase-2 role/freshness contract tests: PASS');
+const auditReadBack = await persistence.getLatestAuditForEvidence(evidence.evidence_id);
+assert.equal(auditReadBack?.evidence_id, evidence.evidence_id);
+assert.equal(auditReadBack?.correlation_id, 'phase2-audit');
+console.log('ADMIN phase-2 role/freshness/audit-link contract tests: PASS');
