@@ -296,7 +296,26 @@ jobs:
             FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
             git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-MARKER-v1\nkind=verified-source-repair\nfingerprint=$FINGERPRINT\nrule=$RULE\nfailedSha=$FAILED_SHA\nbaseSha=$BASE_SHA"
           fi
-          git push origin execution
+          PUSHED=false
+          for attempt in 1 2 3; do
+            if git push origin execution; then
+              PUSHED=true
+              break
+            fi
+            git fetch --no-tags origin execution
+            REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
+            LOCAL_EXECUTION_SHA="$(git rev-parse HEAD)"
+            if git merge-base --is-ancestor "$LOCAL_EXECUTION_SHA" "$REMOTE_EXECUTION_SHA"; then
+              echo "FAIL CLOSED: execution advanced after repair commit; refusing to overwrite remote history."
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "$REMOTE_EXECUTION_SHA" "$LOCAL_EXECUTION_SHA"; then
+              echo "Execution diverged while publishing repair; rebasing local verified repair onto the remote execution head."
+              git rebase "$REMOTE_EXECUTION_SHA" || { git rebase --abort || true; exit 1; }
+            fi
+            sleep $((attempt * 2))
+          done
+          test "$PUSHED" = true
           PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
           if [ -z "$PR_URL" ]; then
             PR_URL="$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head execution --title "fix(auto-repair): canonical execution repair" --body "Canonical two-branch repair path.\n\nAll repairs are applied only on execution and promoted only after exact-SHA Canonical CI GREEN.")"
