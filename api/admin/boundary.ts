@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { isAdminSessionStoreConfigured, isAdminSessionRevoked } from './session-store.ts';
 
 const SESSION_COOKIE = 'flixo_admin_session';
 const DEFAULT_TTL_SECONDS = 60 * 60;
@@ -15,11 +16,13 @@ type SessionInput = {
   subject: string;
   capabilities: string[];
   role?: string;
+  sessionId?: string;
   ttlSeconds?: number;
 };
 
 export type AdminSession = {
   subject: string;
+  sessionId?: string;
   capabilities: Set<string>;
   role?: string;
   expiresAt: number;
@@ -56,13 +59,14 @@ const sessionSecret = () => {
   return secret && secret.length >= 32 ? secret : null;
 };
 
-export const signAdminSession = ({ subject, capabilities, ttlSeconds = DEFAULT_TTL_SECONDS }: SessionInput, secret = process.env.ADMIN_SESSION_SECRET) => {
+export const signAdminSession = ({ subject, capabilities, role, sessionId, ttlSeconds = DEFAULT_TTL_SECONDS }: SessionInput, secret = process.env.ADMIN_SESSION_SECRET) => {
   if (!secret || secret.length < 32) throw new Error('ADMIN_SESSION_SECRET is not configured');
   if (!subject || !Array.isArray(capabilities)) throw new Error('invalid session payload');
 
   const payload = {
     sub: subject,
     role,
+    sid: sessionId,
     cap: [...new Set(capabilities)].sort(),
     exp: Math.floor(Date.now() / 1000) + ttlSeconds,
   };
@@ -82,10 +86,10 @@ export const verifyAdminSessionToken = (token: string | null, secret = process.e
   if (actualSignature.length !== expectedSignature.length || !timingSafeEqual(actualSignature, expectedSignature)) return null;
 
   try {
-    const payload = JSON.parse(fromBase64url(encoded)) as { sub?: string; role?: string; cap?: unknown; exp?: number };
+    const payload = JSON.parse(fromBase64url(encoded)) as { sub?: string; role?: string; sid?: string; cap?: unknown; exp?: number };
     if (!payload.sub || !Array.isArray(payload.cap) || typeof payload.exp !== 'number' || !Number.isInteger(payload.exp)) return null;
     if (payload.exp <= Math.floor(Date.now() / 1000)) return null;
-    return { subject: payload.sub, role: typeof payload.role === 'string' ? payload.role : undefined, expiresAt: payload.exp, capabilities: new Set(payload.cap.filter((value): value is string => typeof value === 'string')) };
+    return { subject: payload.sub, sessionId: typeof payload.sid === 'string' ? payload.sid : undefined, role: typeof payload.role === 'string' ? payload.role : undefined, expiresAt: payload.exp, capabilities: new Set(payload.cap.filter((value): value is string => typeof value === 'string')) };
   } catch {
     return null;
   }
@@ -109,6 +113,38 @@ const readCookie = (cookieHeader: string | undefined, name: string) => {
     if (key === name) return value.join('=');
   }
   return null;
+};
+
+
+export const authorizeAdminRequestWithDurableSession = async (
+  req: AdminRequest,
+  requiredCapability = 'admin.read',
+): Promise<AdminAuthorization | AdminAuthorizationFailure> => {
+  const authorization = authorizeAdminRequest(req, requiredCapability);
+  if ('status' in authorization) return authorization;
+
+  const token = readAdminSessionToken(req.headers.cookie);
+  const session = verifyAdminSessionToken(token);
+  if (!session?.sessionId) {
+    return authorization;
+  }
+
+  if (!isAdminSessionStoreConfigured()) {
+    return { status: 503, code: 'session_store_unavailable', correlationId: authorization.correlationId };
+  }
+
+  let state: Awaited<ReturnType<typeof isAdminSessionRevoked>>;
+  try {
+    state = await isAdminSessionRevoked(session.sessionId);
+  } catch {
+    return { status: 503, code: 'session_store_unavailable', correlationId: authorization.correlationId };
+  }
+
+  if (state !== 'ACTIVE') {
+    return { status: 401, code: 'authentication_required', correlationId: authorization.correlationId };
+  }
+
+  return authorization;
 };
 
 export const authorizeAdminRequest = (req: AdminRequest, requiredCapability = 'admin.read'): AdminAuthorization | AdminAuthorizationFailure => {
@@ -139,7 +175,7 @@ export const authorizeAdminRequest = (req: AdminRequest, requiredCapability = 'a
 export default async function adminBoundary(req: AdminRequest, res: ServerResponse) {
   const requestedCapability = req.query?.capability;
   const capability = Array.isArray(requestedCapability) ? requestedCapability[0] : requestedCapability;
-  const authorization = authorizeAdminRequest(req, BOUNDARY_CAPABILITY);
+  const authorization = await authorizeAdminRequestWithDurableSession(req, BOUNDARY_CAPABILITY);
 
   console.info(JSON.stringify({ event: 'admin_boundary_request', correlationId: authorization.correlationId, method: String(req.method ?? 'GET').toUpperCase() }));
 
