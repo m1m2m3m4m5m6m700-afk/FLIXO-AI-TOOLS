@@ -4,7 +4,7 @@ import { RouterProvider } from '@tanstack/react-router';
 import { router } from './router';
 import { applyDocumentLocale, localeFromPathname } from './lib/i18n/runtime-document-locale';
 import { FlixoUxShell } from './components/flixo-ux-shell';
-import { installRuntimeDiagnostics } from './lib/diagnostics/runtime';
+import { installStartupRuntimeDiagnostics } from './lib/diagnostics/runtime-startup-capture';
 import './styles.css';
 import './home-motion.css';
 import './command-palette.css';
@@ -15,7 +15,7 @@ if (typeof window !== 'undefined') {
   applyDocumentLocale(localeFromPathname(window.location.pathname));
 }
 
-installRuntimeDiagnostics();
+installStartupRuntimeDiagnostics();
 void import('./lib/i18n/tool-ui-runtime-completeness').then(({ installToolUiRuntimeCompleteness }) => installToolUiRuntimeCompleteness());
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
