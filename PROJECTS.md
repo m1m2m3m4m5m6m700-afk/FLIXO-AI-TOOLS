@@ -217,6 +217,11 @@ PREVENTION = classify provider model rejection as external infrastructure; do no
 RC-027 = Canonical CI contract validator contained a no-useless-escape lint error in its regex literal; repaired without changing contract semantics.
 VERIFICATION = WP0 + Canonical CI on the resulting exact SHA.
 
+RC-028 = TanStack Router typed route literal mismatch in `src/routes/tools-page.tsx`: `/ar/` was not a registered route literal; exact-head WP0 typecheck rejected it.
+FIX = normalize the navigation links to the registered `/ar` route literal.
+VERIFICATION = `npm run typecheck` + router contract on the new exact SHA.
+PREVENTION = route links must use generated TanStack route literals or route templates/params, not hand-authored trailing-slash variants.
+
 ## GOVERNANCE
 
 Bounded single-owner work may execute directly on `main`. Use `execution` only for materially risky, broad, conflict-prone, architectural, or production-sensitive isolation. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements remain mandatory.
