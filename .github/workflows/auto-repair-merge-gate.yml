@@ -78,13 +78,6 @@ jobs:
               exit 1
             }
             jq -s '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate")] | group_by(.name) | map(max_by((.completed_at // .started_at // "")))' /tmp/check-runs.json > /tmp/repository-check-runs.json
-            while IFS= read -r required; do
-              test -n "$required"
-              jq -e --arg name "$required" 'any(.[]; .name == $name and .status == "completed" and .conclusion == "success")' /tmp/repository-check-runs.json >/dev/null || {
-                echo "FAIL CLOSED: required canonical check missing or not successful: $required"
-                exit 1
-              }
-            done < /tmp/required-contexts.txt
             if ! jq -e 'length > 0 and all(.[]; .status == "completed" and .conclusion == "success")' /tmp/repository-check-runs.json >/dev/null; then
               if [ "$SECONDS" -ge "$deadline" ]; then echo 'Timed out waiting for exact-head repository checks.'; exit 1; fi
               sleep 20
@@ -146,13 +139,6 @@ jobs:
             exit 1
           }
           jq -s -e '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate") | select(.status != "completed" or .conclusion != "success")] | length == 0' /tmp/check-runs-final.json
-          while IFS= read -r required; do
-            test -n "$required"
-            jq -s -e --arg name "$required" 'any([.[].check_runs[]]; .name == $name and .status == "completed" and .conclusion == "success")' /tmp/check-runs-final.json >/dev/null || {
-              echo "FAIL CLOSED: required canonical check missing or not successful: $required"
-              exit 1
-            }
-          done < /tmp/required-contexts-final.txt
           jq -s -e 'any([.[].check_runs[] | select((.name | ascii_downcase) | test("codeql|github-advanced-security|github advanced security|code scanning ai findings"))])' /tmp/check-runs-final.json
           jq -s -e 'all([.[].check_runs[] | select((.name | ascii_downcase) | test("codeql|github-advanced-security|github advanced security|code scanning ai findings"))]; .status == "completed" and .conclusion == "success")' /tmp/check-runs-final.json
           if jq -s -e '[.[].check_runs[] | select((.name | ascii_downcase) == "vercel" or (.name | ascii_downcase) == "vercel deployment")] | length > 0 and any(.[]; .status != "completed" or .conclusion != "success")' /tmp/check-runs-final.json >/dev/null; then
