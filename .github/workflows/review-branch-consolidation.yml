@@ -82,7 +82,7 @@ jobs:
           {
             printf '%s\n' "# Branch consolidation"
             printf '%s\n\n' "Generated from review on $(date -u +%Y-%m-%dT%H:%M:%SZ)."
-            printf '%s\n' "- Canonical branches retained: main, review, execution"
+            printf '%s\n' "- Canonical branches retained: main, execution"
             printf '%s\n' "- Ancestor branches removed: ${#ancestors[@]}"
             printf '%s\n' "- Fast-forward branches absorbed: ${#ff[@]}"
             printf '%s\n' "- Cleanly merged branches absorbed: ${#merged[@]}"
@@ -112,7 +112,19 @@ jobs:
           git commit -m "docs(review): record branch consolidation" || true
           git push origin HEAD:refs/heads/review
 
-      - name: Verify exactly three canonical branches remain
+      - name: Archive review tip and remove non-canonical review branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          REVIEW_SHA="$(git rev-parse HEAD)"
+          ARCHIVE_TAG="archive/review-2026-09-19-${GITHUB_RUN_ID}"
+          git tag -a "$ARCHIVE_TAG" "$REVIEW_SHA" -m "Archive non-canonical review branch before removal"
+          git push origin "$ARCHIVE_TAG"
+          git push origin --delete review
+
+      - name: Verify exactly two canonical branches remain
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -125,5 +137,5 @@ jobs:
           )
           printf 'Remaining remote branches:\n'
           printf '%s\n' "${REMAINING[@]}"
-          test "${#REMAINING[@]}" -eq 3
-          printf '%s\n' "${REMAINING[@]}" | sort | diff -u <(printf '%s\n' execution main review | sort)
+          test "${#REMAINING[@]}" -eq 2
+          printf '%s\n' "${REMAINING[@]}" | sort | diff -u <(printf '%s\n' execution main | sort)
