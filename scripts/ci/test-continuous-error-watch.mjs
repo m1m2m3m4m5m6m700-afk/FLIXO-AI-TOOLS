@@ -79,6 +79,21 @@ assert.equal(internal.status, 'RED_INTERNAL');
 assert.equal(internal.repair.required, true);
 assert.equal(internal.repair.targetRunId, 999);
 
+const providerWorkflow = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns.map((item) =>
+    item.workflowName === 'Claude Security Review'
+      ? { ...item, conclusion: 'failure', databaseId: 1000 }
+      : item),
+  checkRuns: securityAndCertification,
+  logs: { 1000: 'CAPIError: 400 The requested model is not supported' },
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(providerWorkflow.status, 'BLOCKED_EXTERNAL');
+assert.equal(providerWorkflow.repair.required, false);
+
 const missing = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
   workflowRuns: requiredRuns.slice(1), checkRuns: securityAndCertification,
