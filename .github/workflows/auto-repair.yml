@@ -62,9 +62,16 @@ jobs:
             *) echo "Target run $TARGET_RUN_ID is not a diagnosable failure: $CONCLUSION"; exit 1 ;;
           esac
           gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,conclusion,headSha,headBranch,name
-          FAILED_SHA="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha --jq '.headSha')"
+          RUN_META="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha,headBranch,name,conclusion)"
+          FAILED_SHA="$(printf '%s' "$RUN_META" | jq -r '.headSha')"
+          FAILED_BRANCH="$(printf '%s' "$RUN_META" | jq -r '.headBranch')"
+          FAILED_NAME="$(printf '%s' "$RUN_META" | jq -r '.name')"
           test -n "$FAILED_SHA" && test "$FAILED_SHA" != "null"
+          test "$FAILED_BRANCH" = "main" || test "$FAILED_BRANCH" = "execution"
+          test "$FAILED_NAME" != "FLIXO Auto Repair Bot" || { echo 'FAIL CLOSED: auto-repair cannot repair itself.'; exit 1; }
           printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
+          printf '%s\n' "$FAILED_BRANCH" > /tmp/flixo-failed-branch
+          printf '%s\n' "$FAILED_NAME" > /tmp/flixo-failed-workflow
 
       - name: Synchronize execution with the failed main SHA without creating a branch
         env:
