@@ -20,7 +20,7 @@ const STATUS_LABELS: Record<string, string> = {
   UNAVAILABLE: 'غير متاح',
   VERIFIED: 'متحقق',
   FAILED: 'فشل',
-  Bمقفل: 'محظور',
+  BLOCKED: 'محظور',
   STALE: 'قديم',
   UNKNOWN: 'غير معروف',
   FOUNDATION: 'أساسي',
@@ -30,7 +30,7 @@ const STATUS_LABELS: Record<string, string> = {
   READ_ONLY: 'للقراءة فقط',
   IMPLEMENTATION_PRESENT: 'التنفيذ موجود',
   RUNTIME_UNAVAILABLE: 'وقت التشغيل غير متاح',
-  PROVENANCE_Bمقفل: 'إثبات المصدر محظور',
+  PROVENANCE_BLOCKED: 'إثبات المصدر محظور',
   AVAILABLE: 'متاح',
   LOW_RISK_WRITE: 'كتابة منخفضة المخاطر',
   HIGH_RISK_WRITE: 'كتابة عالية المخاطر',
@@ -84,7 +84,7 @@ type المركزResponse = {
   capability: string;
   identity: { subject: string };
   truth: { state: 'AVAILABLE' | 'UNAVAILABLE'; productionConnected: boolean; reason: string };
-  persistence: { state: 'CONNECTED' | 'Bمقفل'; reason: string; table?: string };
+  persistence: { state: 'CONNECTED' | 'BLOCKED'; reason: string; table?: string };
   data: { event: Record<string, unknown> | null; eventLookup: string; execution: 'READ_ONLY' };
   provenance: { exactSha: string; environment: string };
   correlationId: string;
@@ -95,7 +95,7 @@ type المركزError = { ok: false; error?: { code?: string; correlationId?: s
 const toneFor = (value: string) => {
   const normalized = value.toUpperCase();
   if (normalized.includes('CONNECTED') || normalized.includes('AVAILABLE') || normalized === 'FOUNDATION' || normalized === 'READ') return 'success';
-  if (normalized.includes('Bمقفل') || normalized === 'مقفل') return 'danger';
+  if (normalized.includes('BLOCKED') || normalized === 'مقفل') return 'danger';
   if (normalized.includes('PARTIAL') || normalized === 'UNAVAILABLE') return 'warning';
   return 'neutral';
 };
@@ -104,12 +104,12 @@ function AdminControlPlanePage() {
   const state = INITIAL_CONTROL_PLANE_STATE;
   const [center, setالمركز] = useState<المركز>('truth');
   const [centerState, setالمركزState] = useState<
-    { status: 'IDLE' } | { status: 'LOADING' } | { status: 'READY'; data: المركزResponse } | { status: 'Bمقفل'; code: string; correlationId?: string }
+    { status: 'IDLE' } | { status: 'LOADING' } | { status: 'READY'; data: المركزResponse } | { status: 'BLOCKED'; code: string; correlationId?: string }
   >({ status: 'IDLE' });
 
   const foundationCount = ADMIN_MODULES.filter((module) => module.status === 'FOUNDATION').length;
   const partialCount = ADMIN_MODULES.filter((module) => module.status === 'PARTIAL').length;
-  const blockedCount = ADMIN_MODULES.filter((module) => module.status === 'Bمقفل').length;
+  const blockedCount = ADMIN_MODULES.filter((module) => module.status === 'BLOCKED').length;
 
   useEffect(() => {
     let cancelled = false;
@@ -126,12 +126,12 @@ function AdminControlPlanePage() {
         if (cancelled) return;
         if (!response.ok || body.ok !== true) {
           const error = 'error' in body ? body.error : undefined;
-          setالمركزState({ status: 'Bمقفل', code: error?.code ?? `http_${response.status}`, correlationId: error?.correlationId });
+          setالمركزState({ status: 'BLOCKED', code: error?.code ?? `http_${response.status}`, correlationId: error?.correlationId });
           return;
         }
         setالمركزState({ status: 'READY', data: body });
       } catch {
-        if (!cancelled) setالمركزState({ status: 'Bمقفل', code: 'center_read_unavailable' });
+        if (!cancelled) setالمركزState({ status: 'BLOCKED', code: 'center_read_unavailable' });
       }
     };
     void load();
@@ -177,7 +177,7 @@ function AdminControlPlanePage() {
           <div style={{ marginTop: 14 }} aria-live="polite">
             {centerState.status === 'LOADING' && <div className="mini">جارٍ قراءة حالة المركز الموثقة…</div>}
             {centerState.status === 'IDLE' && <div className="mini">في انتظار تهيئة نموذج القراءة.</div>}
-            {centerState.status === 'Bمقفل' && <div className="blocked"><strong>محظور · لم يتم استنتاج حالة إنتاج</strong><p>لم ينتج نموذج القراءة المرجعي نتيجة موثقة. الخطأ <code>{centerState.code}</code>{centerState.correlationId ? ` · الطلب ${centerState.correlationId}` : ''}.</p></div>}
+            {centerState.status === 'BLOCKED' && <div className="blocked"><strong>محظور · لم يتم استنتاج حالة إنتاج</strong><p>لم ينتج نموذج القراءة المرجعي نتيجة موثقة. الخطأ <code>{centerState.code}</code>{centerState.correlationId ? ` · الطلب ${centerState.correlationId}` : ''}.</p></div>}
             {activeالمركز && <div className="read-grid">
               <Mini label="المركز" value={activeالمركز.center.toUpperCase()} detail={`Capability ${activeالمركز.capability}`} />
               <Mini label="الحقيقة" value={activeالمركز.truth.state} detail={activeالمركز.truth.reason} tone={toneFor(activeالمركز.truth.state)} />
