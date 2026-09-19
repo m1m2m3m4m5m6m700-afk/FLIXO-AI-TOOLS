@@ -24,7 +24,7 @@ recordOutcome(memory, {
   verification: 'passed',
 });
 assert.equal(memory.cases.length, before + (hadSelfTestCase ? 0 : 1));
-assert.equal(scorePlaybook(memory, 'lint', 'eslint-unused'), 0.75);
+assert.equal(scorePlaybook(memory, 'lint', 'eslint-unused'), 1);
 
 recordOutcome(memory, {
   fingerprint: '__general_case_a__',
@@ -112,7 +112,7 @@ assert.equal(revertedCase?.reversions ?? 0, revertBefore + 1);
 assert.deepEqual(revertedCase?.revertedRules ?? [], ['eslint-unused']);
 assert.deepEqual(revertedCase?.revertedCommits ?? [], ['b'.repeat(40)]);
 assert.equal(revertedCase?.failures ?? 0, 0);
-assert.equal(scorePlaybook(memory, 'lint', 'eslint-unused'), 0.75);
+assert.equal(scorePlaybook(memory, 'lint', 'eslint-unused'), 1);
 
 const fallbackOutcome = process.env.FLIXO_LEARNING_OUTCOME;
 const fallbackVerification = process.env.FLIXO_VERIFICATION;
