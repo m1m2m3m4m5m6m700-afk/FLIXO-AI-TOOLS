@@ -7,6 +7,41 @@ const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/m
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
 export const MEMORY_VERSION = 10;
 export const INTRACTABLE_THRESHOLD = 3;
+export const MEMORY_RELATION_TYPES = Object.freeze([
+  'caused-by',
+  'affects',
+  'appears-in',
+  'related-to',
+  'fixed-by',
+  'verified-by',
+  'regressed-by',
+]);
+const SHA_PATTERN = /^[a-f0-9]{40}$/u;
+
+export function normalizeRelations(relations = [], sourceFingerprint = null) {
+  if (!Array.isArray(relations)) return [];
+  const normalized = [];
+  const seen = new Set();
+  for (const relation of relations) {
+    if (!relation || typeof relation !== 'object') continue;
+    const type = String(relation.type ?? '').trim();
+    const target = String(relation.target ?? '').trim();
+    const source = String(relation.sourceFingerprint ?? sourceFingerprint ?? '').trim();
+    if (!MEMORY_RELATION_TYPES.includes(type) || !target || !source) continue;
+    const targetSha = relation.targetSha == null ? null : String(relation.targetSha).trim();
+    const sourceSha = relation.sourceSha == null ? null : String(relation.sourceSha).trim();
+    if (targetSha && !SHA_PATTERN.test(targetSha)) continue;
+    if (sourceSha && !SHA_PATTERN.test(sourceSha)) continue;
+    const item = { type, sourceFingerprint: source, target, targetSha: targetSha || null, sourceSha: sourceSha || null, evidenceRef: relation.evidenceRef == null ? null : String(relation.evidenceRef) };
+    const key = JSON.stringify(item);
+    if (!seen.has(key)) { seen.add(key); normalized.push(item); }
+  }
+  return normalized;
+}
+
+export function mergeRelations(left = [], right = [], sourceFingerprint = null) {
+  return normalizeRelations([...normalizeRelations(left, sourceFingerprint), ...normalizeRelations(right, sourceFingerprint)], sourceFingerprint);
+}
 export { normalizeFailure, fingerprintFailure, extractFeatures };
 
 export function externalProviderSignature(text = '') {
@@ -120,6 +155,7 @@ export function normalizeCaseCounters(entry) {
   const repairedFailures = Math.min(Math.max(failures, observedFailures), Math.max(0, repairedAttempts - repairedSuccesses));
   return {
     ...entry,
+    relations: normalizeRelations(entry.relations, entry.fingerprint),
     attempts: repairedAttempts,
     successes: Math.min(repairedSuccesses, repairedAttempts),
     failures: repairedFailures,
@@ -138,7 +174,7 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
   const merged = {
     ...base,
     version: Math.max(Number(base.version ?? 0), Number(derived.version ?? 0), MEMORY_VERSION),
-    cases: [...base.cases],
+    cases: [...base.cases].map((item) => ({ ...normalizeCaseCounters(item) })),
     playbooks: [...base.playbooks],
     lessons: [...base.lessons],
     antiLessons: [...base.antiLessons],
@@ -161,10 +197,11 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
   for (const incoming of derived.cases) {
     const existing = caseMap.get(incoming.fingerprint);
     if (!existing) {
-      caseMap.set(incoming.fingerprint, normalizeCaseCounters(incoming));
+      caseMap.set(incoming.fingerprint, normalizeCaseCounters({ ...incoming, relations: normalizeRelations(incoming.relations, incoming.fingerprint) }));
       continue;
     }
     existing.rootCause = existing.rootCause && existing.rootCause !== 'unknown' ? existing.rootCause : incoming.rootCause;
+    existing.relations = mergeRelations(existing.relations, incoming.relations, existing.fingerprint);
     existing.normalizedFailure = incoming.normalizedFailure ?? existing.normalizedFailure;
     existing.features = [...new Set([...(existing.features ?? []), ...(incoming.features ?? [])])];
     existing.rules = [...new Set([...(existing.rules ?? []), ...(incoming.rules ?? [])])];
@@ -434,11 +471,12 @@ function upsertLesson(memory, { fingerprint, rootCause, rule, outcome, verificat
   if (!collection.includes(lesson)) collection.push(lesson);
 }
 
-export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule } = {}) {
+export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule, relationships = [] } = {}) {
   const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, externalBlocks: 0, reversions: 0, revertFailures: 0, revertedRules: [], revertedCommits: [], rules: [], outcomes: [] };
   entry.rootCause = rootCause ?? entry.rootCause ?? 'unknown';
   if (normalizedFailure) entry.normalizedFailure = normalizeFailure(normalizedFailure);
   if (features.length) entry.features = [...new Set(features)];
+  entry.relations = mergeRelations(entry.relations, relationships, fingerprint);
   const isExternalBlock = outcome === 'blocked-external';
   const isHistoricalRevert = outcome === 'reverted-repair';
   const effectiveProviderSignature = provenance?.providerSignature ?? (isExternalBlock ? externalProviderSignature(normalizedFailure) : null);

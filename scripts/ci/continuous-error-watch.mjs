@@ -450,11 +450,58 @@ export function evaluateGreen({
   return report;
 }
 
+function writeFailClosedReport(output, error, inputPath) {
+  const report = {
+    schemaVersion: 1,
+    protocol: 'FLIXO-CONTINUOUS-ERROR-WATCH-v1',
+    generatedAt: new Date().toISOString(),
+    executionSha: null,
+    mainSha: null,
+    branch: null,
+    pr: null,
+    status: 'FAIL_CLOSED',
+    rootCause: 'REQUIRED_EVIDENCE_MISSING',
+    errors: [{
+      type: 'WATCHER_INPUT_INVALID',
+      message: String(error?.message ?? error),
+      inputPath,
+    }],
+    externalBlockers: [],
+    repair: {
+      required: false,
+      targetRunId: null,
+      failureFingerprint: null,
+      repairKey: null,
+      action: 'NONE',
+      rootCauseAuthority: 'TASK_AGENT_RCA',
+    },
+    ci: {
+      requiredWorkflows: {},
+      security: { present: false, status: 'MISSING' },
+      certification: { present: false, status: 'MISSING' },
+    },
+    evidence: {
+      exactSha: false,
+      executionMatchesPr: false,
+      executionAheadOfMain: 0,
+      executionBehindMain: 0,
+    },
+  };
+  fs.mkdirSync(output.split('/').slice(0, -1).join('/') || '.', { recursive: true });
+  fs.writeFileSync(output, JSON.stringify(report, null, 2) + '\n');
+  return report;
+}
+
 if (path.basename(process.argv[1] ?? '') === 'continuous-error-watch.mjs') {
   const input = process.argv[2] ?? '/tmp/flixo-watch/input.json';
   const output = process.argv[3] ?? '/tmp/flixo-watch/report.json';
-  const inputData = JSON.parse(fs.readFileSync(input, 'utf8'));
-  const report = evaluateGreen(inputData);
+  let report;
+  try {
+    const inputData = JSON.parse(fs.readFileSync(input, 'utf8'));
+    report = evaluateGreen(inputData);
+  } catch (error) {
+    report = writeFailClosedReport(output, error, input);
+  }
   fs.mkdirSync(output.split('/').slice(0, -1).join('/') || '.', { recursive: true });
   fs.writeFileSync(output, JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify({

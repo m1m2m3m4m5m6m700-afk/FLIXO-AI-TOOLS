@@ -1,0 +1,128 @@
+name: FLIXO Auto Repair Merge Gate
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+
+concurrency:
+  group: flixo-auto-repair-merge-gate-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Exact-SHA promotion proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Resolve canonical PR and exact execution SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PR_NUMBER="${{ github.event.pull_request.number || '' }}"
+          if [ -z "$PR_NUMBER" ]; then
+            PR_NUMBER="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number --jq '.[0].number // empty')"
+          fi
+          test -n "$PR_NUMBER" || { echo "FAIL CLOSED: no open execution→main PR."; exit 1; }
+
+          PR_JSON="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json number,state,isDraft,baseRefName,headRefName,headRefOid,baseRefOid)"
+          BASE="$(printf '%s' "$PR_JSON" | jq -r '.baseRefName')"
+          HEAD_BRANCH="$(printf '%s' "$PR_JSON" | jq -r '.headRefName')"
+          HEAD_SHA="$(printf '%s' "$PR_JSON" | jq -r '.headRefOid')"
+          STATE="$(printf '%s' "$PR_JSON" | jq -r '.state')"
+          test "$BASE" = "main" || { echo "FAIL CLOSED: base=$BASE"; exit 1; }
+          test "$HEAD_BRANCH" = "execution" || { echo "FAIL CLOSED: head=$HEAD_BRANCH"; exit 1; }
+          test "$STATE" = "OPEN" || { echo "FAIL CLOSED: PR state=$STATE"; exit 1; }
+
+          CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$CURRENT_EXECUTION_SHA" = "$HEAD_SHA" || {
+            echo "FAIL CLOSED: execution SHA $CURRENT_EXECUTION_SHA != PR head $HEAD_SHA"
+            exit 1
+          }
+          echo "EXPECTED_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+
+      - name: Checkout exact PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Reconfirm exact checkout SHA
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Require canonical workflow GREEN on exact SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          REQUIRED_WORKFLOWS=(
+            "FLIXO Test System"
+            "FLIXO WP0 Trust Baseline"
+            "FLIXO Test Impact"
+            "FLIXO Test Impact Execution"
+            "Repository Security Baseline"
+            "Claude Security Review"
+          )
+          gh run list --repo "$GITHUB_REPOSITORY" --commit "$EXPECTED_SHA" --limit 100             --json databaseId,name,status,conclusion,headSha,headBranch,updatedAt > /tmp/exact-runs.json
+          for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
+            RUN_JSON="$(jq -c --arg name "$workflow" '[.[] | select(.name == $name)] | sort_by(.updatedAt) | last // empty' /tmp/exact-runs.json)"
+            test -n "$RUN_JSON" || { echo "FAIL CLOSED: missing workflow=$workflow"; exit 1; }
+            test "$(printf '%s' "$RUN_JSON" | jq -r '.headSha')" = "$EXPECTED_SHA" || { echo "FAIL CLOSED: stale workflow evidence=$workflow"; exit 1; }
+            test "$(printf '%s' "$RUN_JSON" | jq -r '.status')" = "completed" || { echo "FAIL CLOSED: pending workflow=$workflow"; exit 1; }
+            test "$(printf '%s' "$RUN_JSON" | jq -r '.conclusion')" = "success" || { echo "FAIL CLOSED: RED workflow=$workflow"; exit 1; }
+          done
+
+      - name: Require Certification and Security check runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/check-runs?per_page=100" > /tmp/exact-check-pages.json
+          jq -s 'add' /tmp/exact-check-pages.json > /tmp/exact-check-runs.json
+          CERT="$(jq -c '[.[].check_runs[] | select(.name == "Certification")] | sort_by(.completed_at // .started_at // "") | last // empty' /tmp/exact-check-runs.json)"
+          test -n "$CERT" || { echo "FAIL CLOSED: Certification check missing."; exit 1; }
+          test "$(printf '%s' "$CERT" | jq -r '.status')" = "completed"
+          test "$(printf '%s' "$CERT" | jq -r '.conclusion')" = "success"
+          SECURITY="$(jq -c '[.[].check_runs[] | select(.name|test("github-advanced-security|github advanced security|codeql|code scanning ai findings";"i"))] | sort_by(.completed_at // .started_at // "") | last // empty' /tmp/exact-check-runs.json)"
+          test -n "$SECURITY" || { echo "FAIL CLOSED: Security check evidence missing."; exit 1; }
+          test "$(printf '%s' "$SECURITY" | jq -r '.status')" = "completed"
+          test "$(printf '%s' "$SECURITY" | jq -r '.conclusion')" = "success" || { echo "FAIL CLOSED: Security check is not GREEN."; exit 1; }
+
+      - name: Require commit statuses GREEN
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/status" > /tmp/exact-status.json
+          jq -e '[.statuses[] | select(.state != "success")] | length == 0' /tmp/exact-status.json
+
+      - name: Race-safe final SHA readback
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FINAL_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$FINAL_EXECUTION_SHA" = "$EXPECTED_SHA" || {
+            echo "FAIL CLOSED: execution advanced during merge-gate proof."
+            exit 1
+          }
+
+      - name: Publish exact-SHA merge-gate evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-auto-repair-merge-gate-${{ github.run_id }}
+          path: /tmp/exact-*.json
+          if-no-files-found: warn
+          retention-days: 30

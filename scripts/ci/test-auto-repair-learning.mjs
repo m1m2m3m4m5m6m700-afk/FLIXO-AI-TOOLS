@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, normalizeMemoryCounters, mergeMemoryHistory } from './auto-repair-learning.mjs';
+import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, normalizeMemoryCounters, mergeMemoryHistory, MEMORY_RELATION_TYPES, normalizeRelations } from './auto-repair-learning.mjs';
 
 const sample = 'Run 35012345678 failed on webkit at abcdefabcdefabcdefabcdefabcdefabcdefabcd: Seed waitForGpuRender';
 const fingerprint = fingerprintFailure(sample);
@@ -122,6 +122,28 @@ recordOutcome(memory, {
 });
 assert.equal(memory.cases.length, before + (hadSelfTestCase ? 0 : 1));
 assert.equal(scorePlaybook(memory, 'lint', 'eslint-unused'), 1);
+recordOutcome(memory, {
+  fingerprint: '__relation_case__',
+  normalizedFailure: 'build contract relation test',
+  features: ['contract'],
+  rootCause: 'contract',
+  rule: 'existing-contract-fix',
+  outcome: 'success',
+  verification: 'exact-sha-proof',
+  provenance: { runId: '12345', targetSha: 'a'.repeat(40) },
+  relationships: [
+    { type: 'caused-by', target: 'contract:missing-input', targetSha: 'b'.repeat(40), evidenceRef: 'run:12345' },
+    { type: 'verified-by', target: 'run:12345', sourceSha: 'a'.repeat(40) },
+  ],
+});
+const relationCase = memory.cases.find((item) => item.fingerprint === '__relation_case__');
+assert.equal(relationCase?.relations?.length, 2);
+assert.deepEqual(relationCase.relations.map((item) => item.type).sort(), ['caused-by', 'verified-by']);
+assert.equal(MEMORY_RELATION_TYPES.length, 7);
+assert.equal(normalizeRelations([
+  { type: 'not-real', target: 'x', sourceFingerprint: '__relation_case__' },
+  { type: 'caused-by', target: '', sourceFingerprint: '__relation_case__' },
+], '__relation_case__').length, 0);
 
 recordOutcome(memory, {
   fingerprint: '__general_case_a__',

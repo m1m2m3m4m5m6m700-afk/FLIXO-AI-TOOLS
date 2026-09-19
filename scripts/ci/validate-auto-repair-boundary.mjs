@@ -8,6 +8,8 @@ const ROOT = process.cwd();
 const AUTO_REPAIR = path.join(ROOT, '.github', 'workflows', 'auto-repair.yml');
 const DAILY_GATE = path.join(ROOT, '.github', 'workflows', 'daily-flixo-green-gate.yml');
 const HANDOFF_GATE = path.join(ROOT, '.github', 'workflows', 'agent-repair-handoff-gate.yml');
+const WATCHDOG = path.join(ROOT, '.github', 'workflows', 'execution-bot-watchdog.yml');
+const MERGE_GATE = path.join(ROOT, '.github', 'workflows', 'auto-repair-merge-gate.yml');
 const MAX_CHANGED_FILES = 12;
 const MAX_CHANGED_LINES = 300;
 
@@ -48,6 +50,8 @@ export function validateStatic() {
   const auto = read(AUTO_REPAIR);
   const dailyGate = read(DAILY_GATE);
   const handoffGate = read(HANDOFF_GATE);
+  const watchdog = read(WATCHDOG);
+  const mergeGate = read(MERGE_GATE);
   const errors = [];
   const must = (condition, code) => { if (!condition) errors.push(code); };
 
@@ -80,6 +84,18 @@ export function validateStatic() {
   must(!/gh\s+pr\s+merge/i.test(auto), 'auto-repair-no-self-merge');
   must(/gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--ref execution/i.test(dailyGate), 'daily-gate-auto-repair-dispatch');
   must(!/gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i.test(dailyGate), 'daily-gate-no-watchdog-dispatch');
+  must(/workflow_run:/.test(watchdog), 'watchdog-workflow-run-trigger');
+  must(/FLIXO Test System/.test(watchdog) && /FLIXO WP0 Trust Baseline/.test(watchdog), 'watchdog-required-workflow-set');
+  must(/gh\s+workflow\s+run\s+daily-flixo-green-gate\.yml/.test(watchdog), 'watchdog-dispatches-canonical-observer');
+  must(!/gh\s+workflow\s+run\s+auto-repair\.yml/.test(watchdog), 'watchdog-no-direct-repair-dispatch');
+  must(/CURRENT_EXECUTION_SHA/.test(watchdog) && /SOURCE_RUN_SHA/.test(watchdog), 'watchdog-exact-sha-boundary');
+  must(/pull_request:/.test(mergeGate) && /branches:\s*\[main\]/.test(mergeGate), 'merge-gate-pr-main-trigger');
+  must(/HEAD_BRANCH.*execution|HEAD_BRANCH.*=\s*"execution"/.test(mergeGate), 'merge-gate-execution-head');
+  must(/CURRENT_EXECUTION_SHA/.test(mergeGate), 'merge-gate-exact-sha');
+  must(/Certification/.test(mergeGate), 'merge-gate-certification-required');
+  must(/Repository Security Baseline/.test(mergeGate), 'merge-gate-security-required');
+  must(!/continue-on-error:\s*true/i.test(mergeGate), 'merge-gate-no-continue-on-error');
+  must(!/gh\s+pr\s+merge/i.test(mergeGate), 'merge-gate-no-self-merge');
 
 
 
