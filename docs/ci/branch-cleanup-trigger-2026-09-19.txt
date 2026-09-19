@@ -1,1 +1,1 @@
-Branch consolidation trigger. Keep only main, execution, review.
+Branch consolidation recheck. Keep only main, execution, review.
