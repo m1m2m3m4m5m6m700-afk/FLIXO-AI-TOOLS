@@ -333,7 +333,12 @@ export function evaluateGreen({
     if (CERTIFICATION_CHECK_PATTERNS.some((pattern) => pattern.test(name))) continue;
     if (check.status === 'completed' && check.conclusion === 'success') continue;
 
-    const external = externalCheckBlock(check, logs[String(check.id)] ?? '');
+    const externalLog = logs[String(check.id)] ?? '';
+    if (external && check.status === 'completed' && check.conclusion === 'action_required') {
+      report.errors.push({ type: 'EXTERNAL_ACTION_REQUIRED', checkName: name });
+      continue;
+    }
+    const external = externalCheckBlock(check, externalLog);
     if (external) {
       if (!report.externalBlockers.some((item) => item.checkName === external.checkName)) {
         report.externalBlockers.push(external);
@@ -377,7 +382,7 @@ export function evaluateGreen({
     'CANCELLED_UNSUPERSEDED',
   ].includes(error.type));
 
-  const actionRequired = report.errors.some((error) => error.type === 'REQUIRED_CHECK_ACTION_REQUIRED');
+  const actionRequired = report.errors.some((error) => ['REQUIRED_CHECK_ACTION_REQUIRED', 'EXTERNAL_ACTION_REQUIRED'].includes(error.type));
 
   const evidenceFailure = report.errors.some((error) => [
     'EVIDENCE_MISSING',
