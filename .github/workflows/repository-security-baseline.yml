@@ -9,7 +9,7 @@ on:
       - 'docs/security.md'
       - '.github/CODEOWNERS'
   push:
-    branches: [main, execution]
+    branches: [main]
     paths:
       - '.github/workflows/**'
       - 'scripts/ci/repository-security-baseline.mjs'
