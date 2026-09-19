@@ -37,7 +37,7 @@ function extractBotEvolutionLedger(markdown) {
     const heading = lines[i].match(/^#{1,3}\s+(.+)$/u);
     if (heading) section = heading[1].trim();
     const line = lines[i].trim();
-    if (!line || line.startsWith('\`\`\`') || !keywords.test(line)) continue;
+    if (!line || line.startsWith('```') || !keywords.test(line)) continue;
     if (/^\|.*\|$/u.test(line) || /^[-*]\s+/u.test(line) || /^\d+[.)]\s+/u.test(line) || /^STATUS\s*=/iu.test(line)) {
       items.push({ section, line: i + 1, text: line });
     }
