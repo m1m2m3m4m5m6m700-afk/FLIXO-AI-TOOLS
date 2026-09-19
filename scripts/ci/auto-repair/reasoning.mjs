@@ -133,6 +133,31 @@ function counterfactualChecks(log, top, alternatives) {
   return checks.map((check) => ({ ...check, status: text ? 'REQUIRED_BEFORE_NONTRIVIAL_MUTATION' : 'BLOCKED_MISSING_EVIDENCE' }));
 }
 
+function causalGraph({ trigger = null, rootCause = null, violatedInvariant = null, responsibleSource = null, symptom = null } = {}) {
+  return {
+    schemaVersion: 1,
+    trigger,
+    propagationPath: [trigger, rootCause, responsibleSource, symptom].filter(Boolean),
+    violatedInvariant,
+    responsibleSource,
+    observableSymptom: symptom,
+    closureRequired: ['mechanism-proven','causal-source-repaired','targeted-regression','affected-contract-graph','fresh-exact-sha'],
+  };
+}
+
+function crossWorkflowCorrelation({ workflow = null, failures = [] } = {}) {
+  const normalized = failures.filter((item) => item && (item.workflow || item.runId || item.fingerprint));
+  const sameFingerprint = normalized.filter((item) => item.fingerprint && item.fingerprint === normalized[0]?.fingerprint);
+  return {
+    schemaVersion: 1,
+    workflow,
+    observedFailures: normalized.slice(-20),
+    firstCommonFailure: sameFingerprint[0] ?? normalized[0] ?? null,
+    confidence: sameFingerprint.length > 1 ? 'CORRELATED' : normalized.length > 1 ? 'MULTI_WORKFLOW_UNPROVEN' : 'INSUFFICIENT_EVIDENCE',
+    mutationAllowed: false,
+  };
+}
+
 function blastRadius(features = [], rootCause = 'unknown') {
   const surfaces = new Set(['source', 'targeted-regression', 'canonical-ci']);
   if (features.includes('typescript') || features.includes('build')) surfaces.add('build');
@@ -204,7 +229,7 @@ export function reasonFailure(log, {
     sourceMutationAllowed: sourceMutationAllowed && (!falsificationChecks.some((item) => item.status === 'REQUIRED_BEFORE_NONTRIVIAL_MUTATION') || directFailureSignal),
     externalTooling: hardBlock,
     locationVerified,
-    falsificationChecks,\n    blastRadius: blastRadius(features, top.id),\n    adaptiveBudget: adaptiveBudget({ attempts: Number(process.env.FLIXO_REPAIR_ATTEMPTS ?? 0), ambiguity, alternatives: alternatives.length, features }),\n    decision,
+    falsificationChecks,\n    blastRadius: blastRadius(features, top.id),\n    causalGraph: causalGraph({ trigger: process.env.FLIXO_FAILURE_TRIGGER ?? null, rootCause: top.id, violatedInvariant: process.env.FLIXO_VIOLATED_INVARIANT ?? null, responsibleSource: location?.file ?? null, symptom: normalizeFailure(text) }),\n    crossWorkflowCorrelation: crossWorkflowCorrelation({ workflow: process.env.GITHUB_WORKFLOW ?? null, failures: (() => { try { const p = process.env.FLIXO_WORKFLOW_FAILURES; return p && fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : []; } catch { return []; } })() }),\n    adaptiveBudget: adaptiveBudget({ attempts: Number(process.env.FLIXO_REPAIR_ATTEMPTS ?? 0), ambiguity, alternatives: alternatives.length, features }),\n    decision,
     scout: scout.fresh
       ? { fresh: true, path: scout.path ?? null, scannedSha: scout.report.scannedSha, findings: scout.report.findings?.length ?? 0 }
       : { fresh: false, reason: scout.reason, currentSha: scout.currentSha ?? null, scannedSha: scout.scannedSha ?? null },
