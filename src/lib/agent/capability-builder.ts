@@ -1,4 +1,4 @@
-import { CAPABILITY_REGISTRY, getCapability, type CapabilityContract, type CapabilityParameters } from './capability-registry.ts';
+import { CAPABILITY_REGISTRY, getCapability, type CapabilityParameters } from './capability-registry.ts';
 
 export const CAPABILITY_BUILDER_VERSION = 1 as const;
 export const CAPABILITY_BUILDER_STATES = ['EXISTING', 'COMPOSABLE', 'EXTENDABLE', 'MISSING'] as const;
