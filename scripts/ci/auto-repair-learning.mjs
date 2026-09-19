@@ -44,7 +44,7 @@ function publishIntractableRecord(record) {
   if (!process.env.GH_TOKEN || !process.env.GITHUB_REPOSITORY) return;
   const run = (args) => spawnSync('gh', args, { encoding: 'utf8', env: process.env });
   const marker = `Auto Repair Intractable ${record.fingerprint.slice(0, 12)}`;
-  const existing = run(['issue', 'list', '--repo', process.env.GITHUB_REPOSITORY, '--state', 'open', '--search', `\\"${marker}\\" in:title`, '--json', 'number']);
+  const existing = run(['issue', 'list', '--repo', process.env.GITHUB_REPOSITORY, '--state', 'open', '--search', `${marker} in:title`, '--json', 'number']);
   if (existing.status !== 0) return;
   try {
     const issues = JSON.parse(existing.stdout || '[]');
