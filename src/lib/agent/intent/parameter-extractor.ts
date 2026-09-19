@@ -50,6 +50,7 @@ function parseDimensions(text: string): { width: number; height: number } | unde
 }
 
 function parseAspectRatio(text: string): string | undefined {
+  if (/(?:\bsquare\b|مربع|مربعة|مربعه|شكل\s+مربع)/i.test(text)) return '1:1';
   const match = text.match(/(?:aspect\s+ratio|ratio|نسبة\s*(?:الأبعاد|ابعاد)?)\s*(?:is|of|=|هي|:)?\s*(\d{1,3})\s*[:/]\s*(\d{1,3})/i);
   if (!match) return undefined;
   const left = Number(match[1]); const right = Number(match[2]);
@@ -91,7 +92,9 @@ export function extractParameters(input: string): ExtractionResult {
   const brightness = parseBrightness(text);
   const hasCompressionIntent = /(?:compress|compression|ضغط|تصغير)/i.test(text);
   const hasConversionIntent = /(?:convert|conversion|تحويل|حول|حوّل)/i.test(text);
+  const hasBackgroundRemovalIntent = /(?:remove\s+(?:the\s+)?background|background\s+removal|إزالة\s+الخلفية|ازالة\s+الخلفية|شيل\s+الخلفية|شيل\s+خلفية|بدون\s+خلفية|خلفية\s+شفافة)/i.test(text);
 
+  if (hasBackgroundRemovalIntent) addOperation(operations, 'background-remover', {});
   if (hasCompressionIntent) addOperation(operations, 'image-compressor', targetSizeKB === undefined ? {} : { targetSizeKB });
   else if (targetSizeKB !== undefined) addOperation(operations, 'image-compressor', { targetSizeKB });
   if (hasConversionIntent && format !== undefined) addOperation(operations, 'image-converter', { format });
@@ -104,7 +107,7 @@ export function extractParameters(input: string): ExtractionResult {
   if (/\b(?:crop|قص)\b/i.test(text) && dimensions === undefined && aspectRatio === undefined) errors.push('Crop requests require explicit dimensions or an aspect ratio.');
   for (const operation of operations) validateOperation(operation, errors);
 
-  const knownSignal = /(?:compress|ضغط|convert|تحويل|حول|حوّل|webp|png|jpe?g|resize|dimensions|size|أبعاد|حجم|aspect\s+ratio|نسبة|brightness|سطوع|\d+\s*[x×]\s*\d+|\d+(?:\.\d+)?\s*(?:kb|kib|mb|mib|كيلوبايت|ميجابايت))/i;
+  const knownSignal = /(?:compress|ضغط|convert|تحويل|حول|حوّل|webp|png|jpe?g|resize|dimensions|size|أبعاد|حجم|aspect\s+ratio|نسبة|square|مربع|مربعة|خلفية|background|remove|إزالة|ازالة|شيل|brightness|سطوع|\d+\s*[x×]\s*\d+|\d+(?:\.\d+)?\s*(?:kb|kib|mb|mib|كيلوبايت|ميجابايت))/i;
   if (!knownSignal.test(text)) unrecognizedFragments.push(input.trim());
   if (operations.length === 0 && errors.length === 0) errors.push('No executable operation could be safely extracted.');
   if (unrecognizedFragments.length > 0) errors.push('Unrecognized instruction content requires explicit handling before execution.');
