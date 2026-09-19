@@ -153,17 +153,14 @@ jobs:
             exit 1
           }
 
-          CHAIN_ID="watch-$TARGET_RUN_ID"
-          EXISTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 100 --json displayTitle \
-            --jq '.[].displayTitle' | grep -Fxc "FLIXO Auto Repair Chain $CHAIN_ID" || true)"
+          EXISTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow execution-bot-watchdog.yml --limit 100 --json displayTitle \
+            --jq '.[].displayTitle' | grep -Fxc "FLIXO Execution Bot Watchdog" || true)"
 
           if [ "$EXISTS" -eq 0 ]; then
-            gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution \
-              -f "target_run_id=$TARGET_RUN_ID" \
-              -f "chain_id=$CHAIN_ID"
-            echo "REPAIR_DISPATCHED=$TARGET_RUN_ID"
+            gh workflow run execution-bot-watchdog.yml --repo "$GITHUB_REPOSITORY" --ref execution
+            echo "WATCHDOG_WAKE=DISPATCHED target_run_id=$TARGET_RUN_ID"
           else
-            echo "REPAIR_ALREADY_TRACKED=$TARGET_RUN_ID"
+            echo "WATCHDOG_WAKE=ALREADY_ACTIVE target_run_id=$TARGET_RUN_ID"
           fi
 
       - name: Publish cycle evidence
