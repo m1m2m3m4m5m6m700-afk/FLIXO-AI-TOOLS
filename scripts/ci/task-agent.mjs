@@ -28,6 +28,30 @@ const hash = (value) => createHash('sha256').update(String(value), 'utf8').diges
 if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=المهام.md|legacy=مهام.md');
 const source = fs.readFileSync(TASK_FILE, 'utf8');
 
+function extractBotEvolutionLedger(markdown) {
+  const lines = markdown.split(/\r?\n/);
+  const keywords = /(AUTO-REPAIR|EXECUTION-BOT|ERROR-INTELLIGENCE|ERROR-MEMORY|WATCHDOG|REPAIR|AGENT|SELF-HEALING|ROOT-CAUSE|CERTIFICATION|EXACT-SHA|REGRESSION|HANDOFF|SECURITY|PROVENANCE|CIRCUIT|BLAST-RADIUS|CROSS-WORKFLOW)/iu;
+  const items = [];
+  let section = 'UNSCOPED';
+  for (let i = 0; i < lines.length; i += 1) {
+    const heading = lines[i].match(/^#{1,3}\s+(.+)$/u);
+    if (heading) section = heading[1].trim();
+    const line = lines[i].trim();
+    if (!line || line.startsWith('\`\`\`') || !keywords.test(line)) continue;
+    if (/^\|.*\|$/u.test(line) || /^[-*]\s+/u.test(line) || /^\d+[.)]\s+/u.test(line) || /^STATUS\s*=/iu.test(line)) {
+      items.push({ section, line: i + 1, text: line });
+    }
+  }
+  const unique = new Map();
+  for (const item of items) {
+    const key = item.text.replace(/\s+/gu, ' ').trim();
+    if (!unique.has(key)) unique.set(key, item);
+  }
+  return [...unique.values()].slice(0, 80);
+}
+
+const botEvolutionLedger = extractBotEvolutionLedger(source);
+
 function parseTasks(markdown) {
   const lines = markdown.split(/\r?\n/);
   const tasks = [];
@@ -60,6 +84,13 @@ const failureEvidencePath = arg('failure-evidence');
 const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION' : 'DIRECT_EXECUTION';
 const diagnosis = fs.existsSync(DIAGNOSIS_PATH) ? JSON.parse(fs.readFileSync(DIAGNOSIS_PATH, 'utf8')) : null;
 const memory = loadMemory();
+const currentOriginExecutionSha = (() => {
+  try { return execFileSync('git', ['rev-parse', 'origin/execution'], { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { return null; }
+})();
+if (currentOriginExecutionSha && currentOriginExecutionSha !== sha) {
+  throw new Error('STALE_EXECUTION_BASELINE=HEAD:' + sha + ':ORIGIN_EXECUTION:' + currentOriginExecutionSha);
+}
+
 const memoryContext = diagnosis
   ? {
       similarCases: findSimilarCases(memory, {
@@ -132,6 +163,13 @@ for (const task of selected) {
     forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','GATE_WEAKENING','MAIN_MUTATION','THIRD_BRANCH_CREATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],
     taskFile: 'مهام.md',
     task,
+    botEvolution: {
+      source: 'مهام.md',
+      extractedCount: botEvolutionLedger.length,
+      priorities: ['ERROR_INTELLIGENCE','SELF_HEALING_REPAIR_LOOP','EXACT_SHA_AND_PROVENANCE','REGRESSION_AND_BLAST_RADIUS','WATCHDOG_AND_HANDOFF','MEMORY_AND_HISTORICAL_LEARNING'],
+      ledgerItems: botEvolutionLedger,
+      policy: 'ADVISORY_ONLY_NO_SCOPE_EXPANSION',
+    },
     failureContext: {
       active: Boolean(failureRunId || failureSha || failureFingerprint),
       runId: failureRunId || null,
