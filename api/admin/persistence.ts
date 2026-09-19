@@ -77,6 +77,23 @@ export const createEvidence = async (input: AdminEvidenceInput): Promise<AdminEv
 };
 export const getEvidence = async (id: string): Promise<AdminEvidence | null> => { if (!/^[0-9a-f-]{36}$/i.test(id)) return null; const body = await request(`/rest/v1/flix_admin_evidence?evidence_id=eq.${encodeURIComponent(id)}&select=*`); if (!Array.isArray(body) || body.length === 0) return null; const evidence = assertSingleObject(body, 'supabase_invalid_evidence_readback') as unknown as AdminEvidence; assertIntegrity(evidence.integrity_sha256, evidenceIntegrityPayload(evidence), 'supabase_evidence_integrity_failed'); return evidence; };
 
+
+export const getLatestEvidenceForAssertion = async (assertionId: string): Promise<AdminEvidence | null> => {
+  if (!assertionId.trim()) return null;
+  const body = await request(
+    `/rest/v1/flix_admin_evidence?assertion_id=eq.${encodeURIComponent(assertionId.trim())}&select=*&order=recorded_at.desc&limit=1`,
+  );
+  if (!Array.isArray(body) || body.length === 0) return null;
+  const evidence = assertSingleObject(body, 'supabase_invalid_evidence_readback') as unknown as AdminEvidence;
+  const computedStatus =
+    evidence.expires_at && Date.parse(evidence.expires_at) <= Date.now()
+      ? 'STALE'
+      : evidence.status;
+  const normalized = computedStatus === evidence.status ? evidence : { ...evidence, status: computedStatus };
+  assertIntegrity(normalized.integrity_sha256, evidenceIntegrityPayload(evidence), 'supabase_evidence_integrity_failed');
+  return normalized;
+};
+
 export const createAuditEvent = async (input: AdminAuditInput): Promise<AdminAuditEvent> => {
   const metadata = input.metadata ?? {};
   const integrity_sha256 = integritySha256({ actor_subject: input.actor_subject, actor_role: input.actor_role ?? null, action: input.action, capability: input.capability ?? null, target_type: input.target_type, target_id: input.target_id, exact_sha: input.exact_sha, environment: input.environment, outcome: input.outcome, correlation_id: input.correlation_id ?? null, evidence_id: input.evidence_id ?? null, metadata });
