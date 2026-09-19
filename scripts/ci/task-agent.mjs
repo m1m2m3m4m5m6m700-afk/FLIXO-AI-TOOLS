@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { loadMemory, findSimilarCases, deriveReusableKnowledge, rankLessons } from './auto-repair-learning.mjs';
 
 const ROOT = process.cwd();
-const TASK_FILE = path.join(ROOT, 'المهام.md');
+const TASK_FILE = fs.existsSync(path.join(ROOT, 'المهام.md')) ? path.join(ROOT, 'المهام.md') : path.join(ROOT, 'مهام.md');
 const OUTPUT_DIR = process.env.FLIXO_TASK_AGENT_OUTPUT_DIR ?? '/tmp/flixo-task-agent';
 const DIAGNOSIS_PATH = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
 const CONTRACT_VERSION = 'TASK-AGENT-DIRECT-REPAIR-v2';
@@ -25,7 +25,7 @@ const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'u
 const branch = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const hash = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex');
 
-if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=المهام.md');
+if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=المهام.md|legacy=مهام.md');
 const source = fs.readFileSync(TASK_FILE, 'utf8');
 
 function parseTasks(markdown) {
