@@ -83,7 +83,7 @@ const proofContract = exists('scripts/ci/auto-repair-proof.mjs') ? read('scripts
 const repairMarkers = [
   'schemaVersion: 6',
   "protocol: 'AUTONOMOUS-REPAIR-PROTOCOL-v4'",
-  'evidence.reproductionCommands = impactedTests(plan.features)',
+  'evidence.reproductionCommands = evidence.reproductionSelection.commands',
   'diagnosisGate',
   "evidence.outcome = 'proposal-only'",
   'reproductionWasFailing',
