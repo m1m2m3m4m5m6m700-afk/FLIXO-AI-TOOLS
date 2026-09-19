@@ -62,7 +62,7 @@ function publishIntractableRecord(record) {
       '',
       'This is diagnostic escalation only. It intentionally creates no branch and no repair lane.',
       'The repair cycle remains fail-closed until a new evidence-backed strategy is supplied and canonical CI verifies it.',
-    ].join('\\n')
+    ].join('\n')
   ]);
 }
 
