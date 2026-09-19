@@ -698,7 +698,7 @@ jobs:
           test -n "$CURRENT_TARGET_RUN_ID"
 
           CURRENT_REPAIR_RUN="${GITHUB_RUN_ID}"
-          ACTIVE_OTHER="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 20 --json databaseId,status --jq --arg current "$CURRENT_REPAIR_RUN" 'map(select((.databaseId | tostring) != $current and (.status == "queued" or .status == "in_progress"))) | length')"
+          ACTIVE_OTHER="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 20 --json databaseId,status | jq --arg current "$CURRENT_REPAIR_RUN" 'map(select((.databaseId | tostring) != $current and (.status == "queued" or .status == "in_progress"))) | length')"
 
           if [ "$ACTIVE_OTHER" -gt 0 ]; then
             echo "SELF_RECOVERY_ALREADY_ACTIVE=$ACTIVE_OTHER"
