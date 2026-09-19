@@ -1,3 +1,4 @@
+import { REPAIR_GATE_AUTOMATION } from './control-plane-registry.mjs';
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,8 +11,7 @@ const MAX_CHANGED_FILES = 12;
 const MAX_CHANGED_LINES = 300;
 
 export const CONTROL_PLANE_FILES = Object.freeze([
-  '.github/workflows/auto-repair.yml',
-  '.github/workflows/daily-flixo-green-gate.yml',
+  ...REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`),
   '.github/workflows/agent-repair-handoff-gate.yml',
   'scripts/ci/validate-auto-repair-boundary.mjs',
   'scripts/ci/task-agent.mjs',
