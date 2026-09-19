@@ -4,6 +4,7 @@ import { planRepair } from './auto-repair/planner.mjs';
 import { confidenceGate } from './auto-repair/confidence.mjs';
 import { selectSpecialist } from './auto-repair/specialists.mjs';
 import { isPathAllowed, isProtectedPath, repairPolicy } from './auto-repair-policy.mjs';
+import { shouldReopenExternalRepairCycle, superviseExternalRepairCycle } from './auto-repair-supervisor.mjs';
 
 const lint = 'Run 35012345678 failed: abcdefabcdefabcdefabcdefabcdefabcdefabcd no-unused-vars';
 assert(!normalizeFailure(lint).includes('35012345678'));
@@ -22,6 +23,38 @@ assert.equal(repairPolicy.maxRepairChainRuns, 8);
 assert.equal(repairPolicy.maxChangedFiles, 8);
 assert.equal(repairPolicy.maxChangedLines, 300);
 assert.equal(repairPolicy.openDraftPrOnly, false);
+
+const externalLog = [
+  'COPILOT_AGENT_MODEL: sweagent-capi:claude-opus-5[ReasoningEffort=medium]',
+  'COPILOT_API_URL: https://api.individual.githubcopilot.com',
+  'Error creating PR review request: SessionModelError: Execution failed: CAPIError: 400 The requested model is not supported.',
+].join('\n');
+const supervised = superviseExternalRepairCycle({
+  log: externalLog,
+  memory: { version: 9, cases: [] },
+});
+assert.equal(supervised.reopen, true);
+assert.equal(Boolean(supervised.providerSignature), true);
+const learnedBlock = {
+  fingerprint: supervised.fingerprint,
+  cases: [{
+    fingerprint: supervised.fingerprint,
+    outcomes: [{
+      outcome: 'blocked-external',
+      provenance: { providerSignature: supervised.providerSignature },
+    }],
+  }],
+};
+const suppressed = shouldReopenExternalRepairCycle(learnedBlock, {
+  fingerprint: supervised.fingerprint,
+  providerSignature: supervised.providerSignature,
+});
+assert.equal(suppressed.reopen, false);
+const changedProvider = shouldReopenExternalRepairCycle(learnedBlock, {
+  fingerprint: supervised.fingerprint,
+  providerSignature: 'different-provider-signature',
+});
+assert.equal(changedProvider.reopen, true);
 for (const path of [
   '.github/workflows/auto-repair-executor.yml',
   '.github/workflows/auto-repair-merge-gate.yml',
