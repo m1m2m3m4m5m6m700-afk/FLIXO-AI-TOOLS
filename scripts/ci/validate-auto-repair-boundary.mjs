@@ -48,12 +48,16 @@ export function validateStatic() {
   const auto = read(AUTO_REPAIR);
   const dailyGate = read(DAILY_GATE);
   const handoffGate = read(HANDOFF_GATE);
+  const supervisor = read(path.join(ROOT, '.github', 'workflows', 'agent-repair-supervisor.yml'));
   const errors = [];
   const must = (condition, code) => { if (!condition) errors.push(code); };
 
   must(/name:\s*FLIXO Auto Repair Bot/.test(auto), 'auto-repair-identity');
-  must(/workflow_run:/.test(auto), 'auto-repair-autonomous-trigger');
+  must(!/workflow_run:/.test(auto), 'auto-repair-dispatch-only');
   must(/workflow_dispatch:/.test(auto), 'auto-repair-dispatch-trigger');
+  must(/push:[\s\S]*branches:\s*\[execution, main\]/.test(supervisor), 'supervisor-commit-trigger');
+  must(/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(supervisor), 'supervisor-red-dispatch');
+  must(/gh\s+workflow\s+run\s+agent-repair-supervisor\.yml/i.test(supervisor), 'supervisor-continuation');
   must(/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(auto), 'auto-repair-self-recovery-dispatch');
   must(/target_run_id:[\s\S]*required:\s*true/.test(auto), 'auto-repair-target-run-required');
   must(/ref:\s*\$\{\{ github\.event\.workflow_run\.head_branch \|\| 'execution' \}\}/.test(auto) || /ref:\s*main/.test(auto) || /git checkout \"\$FAILED_BRANCH\"/.test(auto), 'auto-repair-checkout-target-branch');
