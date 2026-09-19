@@ -8,6 +8,7 @@ export type ToolLifecycle = 'experimental' | 'beta' | 'ready' | 'deprecated';
 export type ToolExecution = 'browser-local' | 'browser-worker' | 'remote';
 export type ToolContractLevel = 'structural' | 'runtime' | 'artifact';
 export type ToolRecoveryPolicy = Readonly<{ maxAttempts: number; replanOnFailure: boolean }>;
+export type ToolRequirements = Readonly<{ browser: true; network: boolean }>
 export type ToolOperationalProfile = Readonly<{
   lifecycle: ToolLifecycle;
   execution: ToolExecution;
@@ -48,6 +49,7 @@ export type ToolDefinition = Readonly<{
   parameterSchema: ZodType;
   safetyLimits: CapabilityLimits;
   verifier: CapabilityVerifier;
+  requirements: ToolRequirements;
   recovery: ToolRecoveryPolicy;
   operational: ToolOperationalProfile;
   localization: Readonly<{ titleKey: string; descriptionKey: string }>;
@@ -151,6 +153,7 @@ export function toToolDefinition(tool: ToolConfig): ToolDefinition {
     executorId: capabilityState === 'EXECUTABLE' ? tool.id : null,
     outputContractId: tool.isReady ? tool.id : null,
   });
+  const requirements: ToolRequirements = Object.freeze({ browser: true, network: executionMode === 'CLOUD' });
   const recovery: ToolRecoveryPolicy = Object.freeze({ maxAttempts: capabilityState === 'EXECUTABLE' ? 3 : 0, replanOnFailure: false });
   return Object.freeze({
     id: tool.id,
@@ -168,6 +171,7 @@ export function toToolDefinition(tool: ToolConfig): ToolDefinition {
     parameterSchema,
     safetyLimits,
     verifier,
+    requirements,
     recovery,
     operational,
     localization: Object.freeze({ titleKey: `tool.${tool.id}.title`, descriptionKey: `tool.${tool.id}.description` }),
