@@ -28,32 +28,34 @@ const json = (res: ServerResponse, status: number, body: unknown, correlationId:
   res.end(JSON.stringify(body));
 };
 
+const headerValue = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
+
 const correlationIdFor = (req: AdminRequest) => {
-  const supplied = req.headers['x-request-id'];
+  const supplied = headerValue(req.headers['x-request-id']);
   return typeof supplied === 'string' && supplied.trim().length > 0 && supplied.trim().length <= 128
     ? supplied.trim()
     : randomUUID();
 };
 
 const clientIpFor = (req: AdminRequest) => {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') {
+  const forwarded = headerValue(req.headers['x-forwarded-for']);
+  if (forwarded) {
     const first = forwarded.split(',')[0]?.trim();
     if (first) return first;
   }
-  const real = req.headers['x-real-ip'];
-  return typeof real === 'string' && real.trim() ? real.trim() : 'unknown';
+  const real = headerValue(req.headers['x-real-ip']);
+  return real && real.trim() ? real.trim() : 'unknown';
 };
 
 const allowMutationOrigin = (req: AdminRequest) => {
-  const origin = req.headers.origin;
-  if (typeof origin !== 'string' || origin.trim() === '') return true;
+  const origin = headerValue(req.headers.origin);
+  if (!origin || origin.trim() === '') return true;
 
-  const host = req.headers.host;
-  if (typeof host !== 'string' || !host.trim()) return false;
+  const host = headerValue(req.headers.host);
+  if (!host || !host.trim()) return false;
 
-  const forwardedProto = req.headers['x-forwarded-proto'];
-  const protocol = typeof forwardedProto === 'string' && forwardedProto.trim()
+  const forwardedProto = headerValue(req.headers['x-forwarded-proto']);
+  const protocol = forwardedProto && forwardedProto.trim()
     ? forwardedProto.split(',')[0].trim()
     : process.env.NODE_ENV === 'production' ? 'https' : 'http';
 
