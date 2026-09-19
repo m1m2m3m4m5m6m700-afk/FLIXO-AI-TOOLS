@@ -13,6 +13,8 @@ globalThis.fetch = async (input, init = {}) => {
   if (!url.includes('/rest/v1/flix_admin_sessions')) return originalFetch(input, init);
   const body = init.body ? JSON.parse(String(init.body)) : null;
   if (method === 'POST') {
+    assert.match(body.token_hash, /^[0-9a-f]{64}$/i);
+    assert.ok(!body.token_hash.includes(body.session_id));
     sessions.set(body.session_id, { ...body, revoked_at: null });
     return new Response(JSON.stringify([{ ...body, revoked_at: null, created_at: body.issued_at }]), { status: 201 });
   }
