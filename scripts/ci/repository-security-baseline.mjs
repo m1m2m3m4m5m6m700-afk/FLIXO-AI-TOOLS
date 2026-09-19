@@ -18,6 +18,7 @@ const trustPerimeter = [
   '.github/workflows/auto-repair.yml',
   '.github/workflows/execution-sync.yml',
   '.github/workflows/wp0-trust-baseline.yml',
+  'scripts/ci/control-plane-registry.mjs',
   'scripts/ci/auto-repair-policy.mjs',
   'scripts/ci/auto-repair-engine.mjs',
   'scripts/ci/auto-repair-learning.mjs',
@@ -51,6 +52,12 @@ for (const protectedPath of trustPerimeter) {
 }
 if (policyText.includes('maxAttemptsPerFingerprint: Number.POSITIVE_INFINITY')) failures.push('auto-repair-policy: unbounded per-fingerprint repair is forbidden');
 if (/openDraftPrOnly:\s*true/u.test(policyText)) failures.push('auto-repair-policy: openDraftPrOnly=true contradicts canonical execution→main publication');
+
+for (const workflowName of [...REPAIR_GATE_AUTOMATION, ...WRITE_CAPABLE_WORKFLOWS, ...SECURITY_CRITICAL_WORKFLOWS]) {
+  if (!fs.existsSync(path.join(workflowDir, workflowName))) {
+    failures.push(`control-plane-registry: missing declared workflow ${workflowName}`);
+  }
+}
 
 for (const file of workflowFiles()) {
   const relative = path.relative(root, file).replaceAll(path.sep, '/');
