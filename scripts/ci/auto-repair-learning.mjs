@@ -442,9 +442,12 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   const isExternalBlock = outcome === 'blocked-external';
   const isHistoricalRevert = outcome === 'reverted-repair';
   const effectiveProviderSignature = provenance?.providerSignature ?? (isExternalBlock ? externalProviderSignature(normalizedFailure) : null);
-  const effectiveProvenance = effectiveProviderSignature
-    ? { ...(provenance ?? {}), providerSignature: effectiveProviderSignature }
-    : (provenance ?? {});
+  const strategyId = String(process.env.FLIXO_REPAIR_STRATEGY_ID ?? provenance?.strategyId ?? '').trim() || null;
+  const effectiveProvenance = {
+    ...(provenance ?? {}),
+    ...(strategyId ? { strategyId } : {}),
+    ...(effectiveProviderSignature ? { providerSignature: effectiveProviderSignature } : {}),
+  };
   const isHistoricalRevertFailure = outcome === 'revert-failure';
   if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
   if (isHistoricalRevert) {

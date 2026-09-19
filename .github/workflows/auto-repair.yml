@@ -223,6 +223,13 @@ jobs:
           FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
         run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --preflight
 
+      - name: Run Phase 3 AI decision-intelligence preflight
+        env:
+          FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
+          FLIXO_AI_PHASE3_PATH: /tmp/flixo-ai-phase3.json
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+        run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase3.mjs --preflight
+
       - name: Classify root cause with trusted controller
         env:
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
@@ -259,6 +266,9 @@ jobs:
       - name: Run Phase 2 AI self-test
         run: node --experimental-strip-types scripts/ci/test-ai-phase2.mjs
 
+      - name: Run Phase 3 AI self-test
+        run: node --experimental-strip-types scripts/ci/test-ai-phase3.mjs
+
       - name: Install target dependencies
         id: install_target
         if: steps.strategy.outputs.intractable != 'true'
@@ -293,6 +303,17 @@ jobs:
           FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
         run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase2.mjs --guard
 
+      - name: Run Phase 3 AI decision-intelligence postflight
+        id: ai_phase3
+        if: always()
+        env:
+          FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
+          FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
+          FLIXO_AI_PHASE3_PATH: /tmp/flixo-ai-phase3.json
+          FLIXO_REPAIR_STRATEGY_PATH: /tmp/flixo-repair-strategy.json
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+        run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase3.mjs --postflight
+
       - name: Validate repair diff boundary before publication
         id: boundary
         if: always()
@@ -310,7 +331,9 @@ jobs:
           fi
           test -f /tmp/flixo-repair-evidence.json || { echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; }
           test -s /tmp/flixo-ai-phase1.json
+          test -s /tmp/flixo-ai-phase3.json
           node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --assert-post
+          node --experimental-strip-types scripts/ci/auto-repair/ai-phase3.mjs --assert-post
           OUTCOME=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.outcome||'unknown')")
           echo "REPAIR_OUTCOME=$OUTCOME"
           if [ "$OUTCOME" != "verified-repair" ] && [ "$OUTCOME" != "verified-historical-revert" ]; then echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; fi
@@ -362,7 +385,8 @@ jobs:
           else
             LEARNING_OUTCOME='unrepaired'
           fi
-          FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" FLIXO_LEARNING_OUTCOME="$LEARNING_OUTCOME" FLIXO_VERIFICATION="$ENGINE_OUTCOME" FLIXO_TARGET_SHA="$TARGET_SHA" FLIXO_REVERTED_COMMIT="$REVERTED_COMMIT" FLIXO_TRUSTED_MEMORY_SHA="${FLIXO_TRUSTED_MEMORY_SHA:-}" node scripts/ci/auto-repair-learning.mjs
+          STRATEGY_ID="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId||'')")"
+          FLIXO_REPAIR_STRATEGY_ID="$STRATEGY_ID" FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" FLIXO_LEARNING_OUTCOME="$LEARNING_OUTCOME" FLIXO_VERIFICATION="$ENGINE_OUTCOME" FLIXO_TARGET_SHA="$TARGET_SHA" FLIXO_REVERTED_COMMIT="$REVERTED_COMMIT" FLIXO_TRUSTED_MEMORY_SHA="${FLIXO_TRUSTED_MEMORY_SHA:-}" node scripts/ci/auto-repair-learning.mjs
           printf '%s\n' "$ENGINE_OUTCOME" > /tmp/flixo-engine-outcome
           printf '%s\n' "$LEARNING_OUTCOME" > /tmp/flixo-learning-outcome
 
@@ -523,6 +547,7 @@ jobs:
             /tmp/flixo-repair-evidence.json
             /tmp/flixo-ai-phase1.json
             /tmp/flixo-ai-phase2.json
+            /tmp/flixo-ai-phase3.json
             /tmp/flixo-repair-strategy.json
             /tmp/flixo-intractable-state
             /tmp/flixo-task-agent/*.json

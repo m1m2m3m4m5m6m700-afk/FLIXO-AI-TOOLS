@@ -21,6 +21,7 @@ export const CONTROL_PLANE_FILES = Object.freeze([
   'scripts/ci/repair-strategy.mjs',
   'scripts/ci/auto-repair/ai-phase1.mjs',
   'scripts/ci/auto-repair/ai-phase2.mjs',
+  'scripts/ci/auto-repair/ai-phase3.mjs',
   'scripts/ci/auto-repair-supervisor.mjs',
   'scripts/ci/auto-repair-learning.mjs',
   'scripts/ci/continuous-error-watch.mjs',
