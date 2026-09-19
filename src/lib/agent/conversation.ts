@@ -1,5 +1,3 @@
-import type { Locale } from '@/lib/i18n';
-
 export type ConversationTurn = Readonly<{
   role: 'user' | 'agent';
   text: string;
@@ -188,26 +186,3 @@ export function clearConversationTask(memory: ConversationMemory): ConversationM
   return next;
 }
 
-export function conversationalReply(kind: ConversationKind, locale: Locale): string | null {
-  if (locale === 'ar') {
-    switch (kind) {
-      case 'greeting': return 'أهلاً 👋 أنا وكيل FLIXO. نستطيع أن نتحدث بشكل طبيعي، ويمكنني متابعة ما اتفقنا عليه عبر الرسائل المتتابعة ثم تحويل الجزء المطلوب إلى خطة تنفيذ عند الحاجة.';
-      case 'thanks': return 'العفو 🌷 نكمل من حيث توقفنا.';
-      case 'farewell': return 'إلى اللقاء 👋 سأحتفظ بسياق هذه الجلسة ما دامت الجلسة مفتوحة.';
-      case 'capability': return 'أستطيع فهم الطلبات المتتابعة والحوار عنها، ثم عند الحاجة أستخرج من الحديث عمليات الصور المحلية المسموح بها مثل القص، تغيير الأبعاد، الضغط، تحويل الصيغة، إزالة الخلفية وتحسين الصورة.';
-      case 'help': return 'تحدث معي بطريقتك المعتادة. يمكنك البدء بفكرة عامة، ثم إضافة تفاصيل في رسائل لاحقة مثل: «اجعلها مربعة»، «ثم حوّلها إلى WebP»، أو «لا، أريد الحجم أصغر». سأربط هذه الرسائل بالسياق السابق بدل بدء مهمة جديدة كل مرة.';
-      case 'conversation': return 'نعم، أستطيع متابعة الحوار والسياق بدل التعامل مع كل رسالة كأمر منفصل. أخبرني بما تفكر فيه وسأبني على ما قلته قبلها.';
-      default: return null;
-    }
-  }
-
-  switch (kind) {
-    case 'greeting': return 'Hello 👋 I am the FLIXO agent. You can talk naturally; I will keep the current conversation context and only turn it into an execution plan when needed.';
-    case 'thanks': return 'You’re welcome. Let’s continue from where we left off.';
-    case 'farewell': return 'Goodbye 👋 I will keep the session context while this session remains open.';
-    case 'capability': return 'I can follow a multi-turn conversation, keep the current task context, and turn the relevant part into a safe local execution plan when needed.';
-    case 'help': return 'Talk to me naturally. You can start with a broad goal and add details later, such as “make it square” or “then convert it to WebP”. I will connect those follow-ups to the current context.';
-    case 'conversation': return 'Yes. I can follow the conversation and preserve context instead of treating every message as a separate command.';
-    default: return null;
-  }
-}
