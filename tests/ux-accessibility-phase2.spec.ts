@@ -126,7 +126,7 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
   test('preserves the same workflow contract in Arabic RTL', async ({ page }) => {
     await page.goto('/ar/image-compressor');
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-    await expect(page.locator('main.image-tool-shell')).toHaveAttribute('dir', 'rtl');
+    await expect(page.locator('.image-tool-shell')).toHaveAttribute('dir', 'rtl');
 
     await page.locator('#image-file').setInputFiles({
       name: 'source.svg',
