@@ -89,6 +89,9 @@ export function validateStatic() {
   must(/name:\s*FLIXO Execution Bot Watchdog/.test(watchdog), 'watchdog-identity');
   must(/push:\s*\n\s*branches:\s*\[execution\]/.test(watchdog), 'watchdog-execution-push');
   must(/workflow_dispatch:/.test(watchdog), 'watchdog-manual-wake');
+  must(/workflow_run:\s*[\s\S]*types:\s*\[completed\]/.test(watchdog), 'watchdog-immediate-red-trigger');
+  must(/cron:\s*['"]\*\/5 \* \* \* \*['"]/.test(watchdog), 'watchdog-five-minute-heartbeat');
+  must(/cancel-in-progress:\s*false/.test(watchdog), 'watchdog-never-cancel-active-cycle');
   must(/actions:\s*write/.test(watchdog) && /contents:\s*read/.test(watchdog), 'watchdog-permissions');
   must(/--workflow auto-repair\.yml[\s\S]*--ref execution/.test(watchdog), 'watchdog-canonical-dispatch');
   must(!/git\s+(checkout|switch)\s+-[bc]/.test(watchdog), 'watchdog-no-third-branch');
