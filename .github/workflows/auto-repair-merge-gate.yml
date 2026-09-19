@@ -26,53 +26,28 @@ jobs:
           ref: execution
           fetch-depth: 0
 
-      - name: Reconcile execution divergence with canonical main
+      - name: Verify execution is synchronized with canonical main
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          PR_STATE="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName,baseRefName,headRefOid --jq '.headRefName+"|"+.baseRefName+"|"+.headRefOid')"
-          test "${PR_STATE%%|*}" = "execution"
+          PR_HEAD="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefName,baseRefName,headRefOid --jq '.headRefName+"|"+.baseRefName+"|"+.headRefOid')"
+          test "${PR_HEAD%%|*}" = "execution"
+          PR_BASE="$(printf '%s' "$PR_HEAD" | cut -d'|' -f2)"
+          EXPECTED_SHA="$(printf '%s' "$PR_HEAD" | cut -d'|' -f3)"
+          test "$PR_BASE" = "main"
           git fetch --no-tags origin main execution
           test "$(git branch --show-current)" = "execution"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          EXECUTION_SHA="$(git rev-parse origin/execution)"
           CANONICAL_MAIN="$(git rev-parse origin/main)"
-          MERGE_BASE="$(git merge-base origin/main origin/execution)"
-          EXPECTED_MAIN="dfc2d5f6cc3d9426a98630d97c3e2c321746a9eb"
-          EXPECTED_BASE="8a59c089f5c4d48bcb3448d0175a26ceeef3d67e"
-          test "$CANONICAL_MAIN" = "$EXPECTED_MAIN"
-          test "$MERGE_BASE" = "$EXPECTED_BASE"
-          if git merge-base --is-ancestor origin/main origin/execution; then
-            echo "execution already contains canonical main."
-            exit 0
+          test "$EXECUTION_SHA" = "$EXPECTED_SHA"
+          if ! git merge-base --is-ancestor "$CANONICAL_MAIN" "$EXECUTION_SHA"; then
+            echo "FAIL CLOSED: execution $EXECUTION_SHA does not contain canonical main $CANONICAL_MAIN."
+            echo "The dedicated Execution Canonical Sync must reconcile the branch before merge can proceed."
+            exit 1
           fi
-          mapfile -t MAIN_FILES < <(git diff --name-only "$MERGE_BASE" origin/main | sort)
-          EXPECTED_FILES=(
-            ".github/workflows/auto-repair.yml"
-            "diagnostics/auto-repair/memory.json"
-            "scripts/ci/audit-technical-debt.mjs"
-            "scripts/ci/task-agent.mjs"
-            "scripts/ci/test-technical-debt-audit.mjs"
-            "scripts/ci/validate-technical-debt-audit.mjs"
-          )
-          printf '%s\n' "${EXPECTED_FILES[@]}" | sort > /tmp/flixo-expected-main-files
-          printf '%s\n' "${MAIN_FILES[@]}" > /tmp/flixo-actual-main-files
-          diff -u /tmp/flixo-expected-main-files /tmp/flixo-actual-main-files
-          PRE_SHA="$(git rev-parse HEAD)"
-          git merge --no-edit -X ours origin/main
-          test -z "$(git status --porcelain=v1 --untracked-files=all)"
-          test -z "$(git diff "$PRE_SHA" HEAD)"
-          npm ci --prefer-offline --no-audit --no-fund
-          npm run test:auto-repair
-          npm run validate:auto-repair-memory
-          NEW_SHA="$(git rev-parse HEAD)"
-          test "$NEW_SHA" != "$PRE_SHA"
-          git push origin HEAD:execution
-          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution
-          echo "Execution synchronized by non-forced merge commit: $NEW_SHA"
-          echo "Canonical FLIXO Test System dispatched for synchronized execution head."
+          echo "Execution contains canonical main: main=$CANONICAL_MAIN execution=$EXECUTION_SHA"
       - name: Wait for exact-head repository check-runs; isolate external deployment-provider status
         env:
           GH_TOKEN: ${{ github.token }}
