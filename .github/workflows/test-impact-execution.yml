@@ -5,9 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Keep only the newest test-impact execution for the same PR/branch.
 concurrency:
-  group: flixo-test-impact-execution-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: false
+  group: flixo-test-impact-execution-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

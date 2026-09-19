@@ -26,8 +26,8 @@ const required = [
   ['Browser FAST engine', /\n\s{2}browser_fast:\s*\n/],
   ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
   ['single certification gate', /\n\s{2}certify:\s*\n/],
-  ['non-canceling exact-head CI', /cancel-in-progress:\s*false/],
-  ['exact-head concurrency isolation', /group:\s*flixo-test-\$\{\{\s*github\.workflow\s*\}\}-\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/],
+  ['superseding exact-head CI', /cancel-in-progress:\s*true/],
+  ['superseding PR/branch concurrency isolation', /group:\s*flixo-test-\$\{\{\s*github\.workflow\s*\}\}-\$\{\{\s*github\.event\.pull_request\.number\s*\|\|\s*github\.ref\s*\}\}/],
   ['exact SHA', /EXPECTED_SHA/],
   ['immutable artifact identity', /flixo-head-sha\.txt[\s\S]*flixo-package-lock\.sha256/],
   ['minimal checkout', /fetch-depth:\s*1/],
@@ -49,6 +49,35 @@ for (const [label, source] of [
 ]) {
   if (executionPushDuplicate.test(source)) {
     console.error(`CI contract failed: ${label} must not duplicate pull_request verification with an execution-branch push trigger.`);
+    process.exit(1);
+  }
+}
+
+const supersedableVerificationWorkflows = [
+  ['ci.yml', workflow],
+  ['wp0-trust-baseline.yml', wp0Workflow],
+  ['test-impact-execution.yml', impactExecutionWorkflow],
+  ['repository-security-baseline.yml', securityBaselineWorkflow],
+];
+
+for (const [file, source] of supersedableVerificationWorkflows) {
+  if (!/cancel-in-progress:\s*true/.test(source)) {
+    console.error('CI contract failed: ' + file + ' must cancel superseded verification runs.');
+    process.exit(1);
+  }
+  if (!/github\.event\.pull_request\.number\s*\|\|\s*github\.ref/.test(source)) {
+    console.error('CI contract failed: ' + file + ' must isolate concurrency by PR number or branch ref.');
+    process.exit(1);
+  }
+}
+
+for (const [file, source] of [
+  ['auto-repair.yml', readFileSync('.github/workflows/auto-repair.yml', 'utf8')],
+  ['execution-sync.yml', readFileSync('.github/workflows/execution-sync.yml', 'utf8')],
+  ['daily-flixo-green-gate.yml', greenGateWorkflow],
+]) {
+  if (!/cancel-in-progress:\s*false/.test(source)) {
+    console.error('CI contract failed: ' + file + ' must remain non-canceling because it carries repair/watch state.');
     process.exit(1);
   }
 }
