@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import type { Locale } from '@/lib/i18n';
 import { getHomeCopy } from '../data/home-locales';
 import { LOCALES } from '../lib/i18n';
@@ -33,6 +34,7 @@ const COPY = {
 } as const;
 
 export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale }) {
+  const navigate = useNavigate();
   const copy = COPY[locale === 'ar' ? 'ar' : 'en'];
   const home = getHomeCopy(locale);
   const localizedTitle = home.heroTitle.replace(/<[^>]+>/g, '');
@@ -60,7 +62,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
             aria-label={home.nav.switch}
             onChange={(event) => {
               const nextLocale = event.target.value as Locale;
-              window.location.assign(nextLocale === 'en' ? '/' : `/${nextLocale}`);
+              void navigate({ to: nextLocale === 'en' ? '/' : `/${nextLocale}` });
             }}
           >
             {LOCALES.map((code) => (
