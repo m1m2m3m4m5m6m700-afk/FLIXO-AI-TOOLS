@@ -127,7 +127,7 @@ export function evaluateGreen({
   if (openPr && Number(compare.behind_by ?? 0) > 0) {
     report.errors.push({
       type: 'MAIN_DIVERGENCE',
-      message: \`execution is behind canonical main by \${compare.behind_by}\`,
+      message: `execution is behind canonical main by ${compare.behind_by}`,
     });
   }
 
