@@ -146,21 +146,25 @@ jobs:
           git fetch origin main execution
           git checkout --detach "$EXECUTION_SHA"
           test -z "$(git branch --show-current)" || { echo 'FAIL CLOSED: validation must run detached; no third branch allowed.'; exit 1; }
+          test "$(git rev-parse HEAD)" = "$EXECUTION_SHA"
           git diff --check "$PARENT_SHA" "$EXECUTION_SHA"
-          printf '%s\n' "$EXECUTION_SHA" > /tmp/flixo-executor/validated-execution-sha.txt
+          printf '%s
+' "$EXECUTION_SHA" > /tmp/flixo-executor/validated-execution-sha.txt
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
-          const changed=fs.readFileSync('/tmp/flixo-executor/actual-changed-paths.txt','utf8').trim().split('\n').filter(Boolean);
+          const changed=fs.readFileSync('/tmp/flixo-executor/actual-changed-paths.txt','utf8').trim().split('
+').filter(Boolean);
           const neverModify=[
             '.github/workflows/ci.yml','.github/workflows/deploy-flixoai.yml','.github/workflows/auto-repair.yml','.github/workflows/auto-repair-executor.yml','.github/workflows/auto-repair-merge-gate.yml','.github/workflows/execution-sync.yml','.github/workflows/wp0-trust-baseline.yml','.github/workflows/repair-seed.yml','package-lock.json','.env',
           ];
           const protectedAreas=[
-            'scripts/ci/certification-engine.mjs','scripts/ci/validate-execution-graph.mjs','scripts/ci/auto-repair-policy.mjs','scripts/ci/auto-repair-engine.mjs','scripts/ci/auto-repair-learning.mjs','scripts/ci/auto-repair-proof.mjs','scripts/ci/auto-repair/','scripts/ci/task-agent.mjs','scripts/ci/agent-execution-control.mjs','scripts/ci/repository-security-baseline.mjs','scripts/ci/validate-auto-repair-memory.mjs','scripts/ci/validate-certification-surface.mjs','scripts/ci/validate-ci-cd-trust.mjs','scripts/ci/validate-wp0-trust-baseline.mjs', 'tests/seed.spec.ts',
+            'scripts/ci/certification-engine.mjs','scripts/ci/validate-execution-graph.mjs','scripts/ci/auto-repair-policy.mjs','scripts/ci/auto-repair-engine.mjs','scripts/ci/auto-repair-learning.mjs','scripts/ci/auto-repair-proof.mjs','scripts/ci/auto-repair/','scripts/ci/task-agent.mjs','scripts/ci/agent-execution-control.mjs','scripts/ci/repository-security-baseline.mjs','scripts/ci/validate-auto-repair-memory.mjs','scripts/ci/validate-certification-surface.mjs','scripts/ci/validate-ci-cd-trust.mjs','scripts/ci/validate-wp0-trust-baseline.mjs','tests/seed.spec.ts',
           ];
           const blocked=changed.filter((p)=>neverModify.includes(p)||protectedAreas.some((prefix)=>prefix.endsWith('/') ? p.startsWith(prefix) : p===prefix));
           if(blocked.length){console.error(JSON.stringify({blocked},null,2));process.exit(1)}
           NODE
 
+      - name: Validate prepared repair patch against current main without publication
         if: steps.handoff.outputs.ready == 'true'
         run: |
           set -euo pipefail
@@ -171,13 +175,15 @@ jobs:
           git apply --index /tmp/flixo-executor/flixo-prepared-repair.patch
           changed="$(git diff --cached --name-only)"
           test -n "$changed"
-          printf '%s\n' "$changed" > /tmp/flixo-executor/changed-files.txt
+          printf '%s
+' "$changed" > /tmp/flixo-executor/changed-files.txt
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
-          const changed=fs.readFileSync('/tmp/flixo-executor/changed-files.txt','utf8').trim().split('\n').filter(Boolean);
+          const changed=fs.readFileSync('/tmp/flixo-executor/changed-files.txt','utf8').trim().split('
+').filter(Boolean);
           const neverModify=['.github/workflows/ci.yml','.github/workflows/deploy-flixoai.yml','.github/workflows/auto-repair.yml','.github/workflows/repair-seed.yml','package-lock.json','.env'];
           const protectedAreas=['scripts/ci/certification-engine.mjs','scripts/ci/validate-execution-graph.mjs','tests/seed.spec.ts'];
-          const blocked=changed.filter(p=>neverModify.includes(p)||protectedAreas.includes(p));
+          const blocked=changed.filter((p)=>neverModify.includes(p)||protectedAreas.includes(p));
           if(blocked.length){console.error(JSON.stringify({blocked},null,2));process.exit(1)}
           NODE
           git diff --cached --check
@@ -204,7 +210,7 @@ jobs:
 
       - name: Record execution evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-auto-repair-execution-${{ github.run_id }}
           path: /tmp/flixo-executor/

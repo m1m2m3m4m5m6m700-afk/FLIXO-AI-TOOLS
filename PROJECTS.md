@@ -9,14 +9,15 @@
 ```text
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
-CURRENT MAIN SHA = cf25757bfe76c3a4fcb186be1bc1488151b47974
-ACTIVE PR = #745 (execution → main)
-CURRENT PR HEAD = 513fe81f7eee6f5a41cf935d32d336370f613b18 (superseded by subsequent ledger/documentation commits on execution)
-STATE = BLOCKED — external deployment/security-provider evidence prevents canonical GREEN
-CANONICAL MAIN TEST = run 35415932072 / in_progress at last evidence poll; no completed job failure observed
-CURRENT EXECUTION EVIDENCE = Static+Build PASS; CodeQL PASS; Repository Security Baseline PASS; WP0 PASS; Test Impact PASS
-VERCEL = FAILURE — Deployment rate limited — retry in 24 hours (execution PR status)
-CODE SCANNING AI = FAILURE — GitHub-managed provider rejects claude-opus-5 with CAPIError 400 before source analysis
+CURRENT MAIN SHA = 75a6780f760de6acde2a69affc5104e634667596
+ACTIVE PR = #748 (execution → main)
+CURRENT PR HEAD = tracked by GitHub PR #748; exact head is authoritative in GitHub
+STATE = BLOCKED — fresh verification is required after the current security repair commit
+CANONICAL TEST SYSTEM = run 35417501218 PASS on pre-repair execution head; invalidated by this commit and must rerun
+CURRENT EXECUTION PRE-REPAIR EVIDENCE = Test System PASS; Test Impact PASS; Claude Security Review PASS
+REPOSITORY SECURITY BASELINE = FAIL on pre-repair head because three security-critical workflows used a 39-character upload-artifact SHA
+WP0 TRUST BASELINE = FAIL on pre-repair head because the same 39-character action ref prevented runner setup
+VERCEL = FAILURE — deployment rate limited on PR #748; external provider state, not a source-code failure
 EXACT-SHA GREEN = NOT PROVEN
 ADMIN STATES = historical labels below are not current exact-SHA proof; revalidation required after the active repair cycle
 PRODUCTION DEPLOYMENT EXACT-SHA = NOT PROVEN IN CURRENT EVIDENCE

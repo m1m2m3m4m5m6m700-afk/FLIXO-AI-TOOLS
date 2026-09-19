@@ -120,7 +120,7 @@ jobs:
 
       - name: 14 — Upload WP0 evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-wp0-evidence-${{ github.event.pull_request.head.sha || github.sha }}
           path: dist/wp0-evidence/

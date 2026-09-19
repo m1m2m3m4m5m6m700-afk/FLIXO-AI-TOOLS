@@ -416,7 +416,7 @@ jobs:
           test "$TARGET_RUN_ID" = "$(node -e "const h=require('/tmp/flixo-prepared-repair-handoff.json');process.stdout.write(h.targetFailureRunId)")"
       - name: Publish repair evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-auto-repair-${{ env.TARGET_RUN_ID }}-${{ github.run_id }}
           path: |

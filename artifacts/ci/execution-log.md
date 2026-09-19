@@ -1,49 +1,40 @@
 # FLIXO CI Rebuild Execution Log
 
-CURRENT PHASE: CI-11 — G3 Artifact Integrity Decomplexification
+CURRENT PHASE: SECURITY-HARDENING — execution workflow repair and state synchronization
 
-PHASE STATUS: VERIFYING
+PHASE STATUS: REQUIRES FRESH VERIFICATION
 
-CURRENT BRANCH: g3-decomplexification-2026-08-31
-CURRENT HEAD: aa491c433ab896d7fb9379fe854980463a61920b
-BASE SHA: f8c99b41d0e66b3bf958bcf24ad5499b7722b2db
-CURRENT PR: #540
+CURRENT BRANCH: execution
+CANONICAL MAIN SHA: 75a6780f760de6acde2a69affc5104e634667596
+ACTIVE PR: #748
+PRE-REPAIR EXECUTION HEAD: 49c3699555af41464e15745f45708bb20a7cc0fe
 
-LAST VERIFIED G3 RUN:
-- merge SHA: d3f208fc8df3466bb0c7811049c5d21bbf65ff33
-- result: FAIL in real browser flow
-- failing operation: locator.setInputFiles
-- affected tests: image flow + batch ZIP flow
-- classification: RUNTIME_EXCEPTION
-- rootCauseId: RC-G3-RUNTIME-001
+PRE-REPAIR VERIFIED EVIDENCE:
+- FLIXO Test System run 35417501218: PASS
+- FLIXO Test Impact run 35417501217: PASS
+- Claude Security Review run 35417501224: PASS
 
-IMPLEMENTATION SINCE LAST FAILURE:
-- G3 upload adapter moved to in-memory Playwright file payloads: IMPLEMENTED
-- Change Impact mapping for G3 browser upload adapter: IMPLEMENTED
-- Failure taxonomy mapping for locator.setInputFiles timeout: IMPLEMENTED
-- Regression coverage for impact mapping: IMPLEMENTED
-- Regression coverage for failure classification: IMPLEMENTED
+PRE-REPAIR FAILURES:
+- WP0 Trust Baseline run 35417501209: FAIL before job setup because actions/upload-artifact used a 39-character SHA
+- Repository Security Baseline run 35417501202: FAIL because auto-repair-executor.yml, auto-repair.yml, and wp0-trust-baseline.yml used the same 39-character upload-artifact SHA
+
+REPAIR APPLIED IN THIS COMMIT:
+- Pin actions/upload-artifact to full immutable SHA in the three failing security-critical workflows.
+- Split the duplicated executor validation mapping into two explicit YAML steps.
+- Synchronize PROJECTS.md, المهام.md, execution-ledger.json, and this execution log with main 75a6780 and active PR #748.
+- No direct modification to main.
 
 VERIFICATION:
-- TypeScript: PENDING current HEAD
-- Lint: PENDING current HEAD
-- Targeted G3 browser flow: PENDING current HEAD
-- Impact engine tests: PENDING current HEAD
-- Failure intelligence tests: PENDING current HEAD
-- CI shadow verification: PENDING current HEAD
+- All pre-repair proof tied to execution 49c3699555af41464e15745f45708bb20a7cc0fe is invalidated by this commit.
+- Fresh current-head WP0, Repository Security Baseline, canonical Test System, merge-gate, and exact-SHA evidence are required.
 
 SAFETY:
 - main modified: NO
 - branch protection modified: NO
 - required checks modified: NO
 - production configuration modified: NO
-- legacy workflows deleted: NO
-- legacy workflow behavior weakened: NO
-- allowlist added: NO
-
-BLOCKERS:
-- G3 browser upload flow is not yet re-verified after the adapter change.
-- Vercel deployment rate limit is an independent INFRASTRUCTURE_ERROR and must not be conflated with G3 correctness.
+- auto-repair trust perimeter remains protected
+- no third branch created
 
 NEXT REQUIRED ACTION:
-Run current-HEAD targeted G3 verification. Promote only after the browser flow, impact tests, failure-classifier tests, evidence, and CI exit criteria pass.
+Run fresh current-head verification. Do not treat this commit as GREEN until WP0, Repository Security Baseline, canonical CI, and exact-SHA evidence all pass.
