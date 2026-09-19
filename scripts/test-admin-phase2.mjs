@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash, randomUUID } from 'node:crypto';
 
 process.env.SUPABASE_SECRET_KEY = 'test-secret';
 process.env.SUPABASE_URL = 'https://example.supabase.co';
@@ -10,6 +11,74 @@ assert.deepEqual(
 );
 assert.equal(roles.activeCapabilitiesForRole('OWNER').includes('evidence.read'), true);
 assert.equal(roles.activeCapabilitiesForRole('AUDITOR').includes('production.write'), false);
+
+
+const boundary = await import('../api/admin/boundary.ts');
+const sessionStore = await import('../api/admin/session-store.ts');
+const sessionId = randomUUID();
+const token = boundary.signAdminSession({
+  subject: 'phase2-owner',
+  role: 'OWNER',
+  sessionId,
+  capabilities: ['admin.read', 'evidence.read'],
+}, 'phase2-session-secret-123456789012345678901234');
+let sessionPosted;
+globalThis.fetch = async (input, init = {}) => {
+  const url = String(input);
+  assert.match(url, /flix_admin_sessions/);
+  const method = String(init.method ?? 'GET');
+  if (method === 'POST') {
+    sessionPosted = JSON.parse(String(init.body));
+    return new Response(JSON.stringify([{
+      ...sessionPosted,
+      created_at: now,
+      last_seen_at: now,
+      revoked_at: null,
+    }]), { status: 201 });
+  }
+  if (method === 'GET') {
+    return new Response(JSON.stringify([{
+      token_hash: sessionPosted.token_hash,
+      session_id: sessionId,
+      actor_subject: 'phase2-owner',
+      actor_role: 'OWNER',
+      environment: 'test',
+      issued_at: now,
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      revoked_at: null,
+      created_at: now,
+      last_seen_at: now,
+    }]), { status: 200 });
+  }
+  if (method === 'PATCH') {
+    return new Response(JSON.stringify([{
+      token_hash: sessionPosted.token_hash,
+      session_id: sessionId,
+      actor_subject: 'phase2-owner',
+      actor_role: 'OWNER',
+      environment: 'test',
+      issued_at: now,
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      revoked_at: now,
+      created_at: now,
+      last_seen_at: now,
+    }]), { status: 200 });
+  }
+  throw new Error('unexpected session-store test method');
+};
+const persisted = await sessionStore.persistAdminSession(
+  boundary.verifyAdminSessionToken(token, 'phase2-session-secret-123456789012345678901234'),
+  { environment: 'test', issuedAt: now, token },
+);
+assert.equal(persisted.session_id, sessionId);
+assert.equal(
+  sessionPosted.token_hash,
+  createHash('sha256').update(token).digest('hex'),
+);
+assert.equal(await sessionStore.isAdminSessionRevoked(sessionId), 'ACTIVE');
+const revoked = await sessionStore.revokeAdminSession(sessionId, now);
+assert.equal(revoked.session_id, sessionId);
+assert.ok(revoked.revoked_at);
 
 const persistence = await import('../api/admin/persistence.ts');
 const canonical = await import('../api/admin/canonical.ts');
