@@ -70,9 +70,13 @@ jobs:
             ACTUAL_SHA="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid')"
             test "$ACTUAL_SHA" = "$EXPECTED_SHA" || { echo "HEAD_CHANGED=$ACTUAL_SHA expected=$EXPECTED_SHA"; exit 1; }
             fetch_check_runs /tmp/check-runs.json
-            REQUIRED_CONTEXTS="$(gh api "repos/$GITHUB_REPOSITORY/branches/main/protection/required_status_checks/contexts" --jq '.[]' 2>/dev/null || true)"
-            test -n "$REQUIRED_CONTEXTS" || { echo 'FAIL CLOSED: canonical main required-status-check contexts are unavailable.'; exit 1; }
-            printf '%s\n' "$REQUIRED_CONTEXTS" > /tmp/required-contexts.txt
+            gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --required --json name,state > /tmp/required-checks.json
+            jq -e 'length > 0' /tmp/required-checks.json >/dev/null || { echo 'FAIL CLOSED: GitHub reported no required checks for this PR.'; exit 1; }
+            jq -e 'all(.[]; .state == "SUCCESS")' /tmp/required-checks.json >/dev/null || {
+              echo 'FAIL CLOSED: one or more GitHub-required checks are not successful.'
+              cat /tmp/required-checks.json
+              exit 1
+            }
             jq -s '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate")] | group_by(.name) | map(max_by((.completed_at // .started_at // "")))' /tmp/check-runs.json > /tmp/repository-check-runs.json
             while IFS= read -r required; do
               test -n "$required"
@@ -134,9 +138,13 @@ jobs:
             done
           }
           fetch_check_runs /tmp/check-runs-final.json
-          REQUIRED_CONTEXTS="$(gh api "repos/$GITHUB_REPOSITORY/branches/main/protection/required_status_checks/contexts" --jq '.[]' 2>/dev/null || true)"
-          test -n "$REQUIRED_CONTEXTS" || { echo 'FAIL CLOSED: canonical main required-status-check contexts are unavailable.'; exit 1; }
-          printf '%s\n' "$REQUIRED_CONTEXTS" > /tmp/required-contexts-final.txt
+          gh pr checks "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --required --json name,state > /tmp/required-checks-final.json
+          jq -e 'length > 0' /tmp/required-checks-final.json >/dev/null || { echo 'FAIL CLOSED: GitHub reported no required checks for this PR.'; exit 1; }
+          jq -e 'all(.[]; .state == "SUCCESS")' /tmp/required-checks-final.json >/dev/null || {
+            echo 'FAIL CLOSED: one or more GitHub-required checks are not successful.'
+            cat /tmp/required-checks-final.json
+            exit 1
+          }
           jq -s -e '[.[].check_runs[] | select((.name | ascii_downcase) != "vercel" and (.name | ascii_downcase) != "vercel deployment" and (.name | ascii_downcase) != "flixo auto repair merge gate" and (.name | ascii_downcase) != "gate") | select(.status != "completed" or .conclusion != "success")] | length == 0' /tmp/check-runs-final.json
           while IFS= read -r required; do
             test -n "$required"
