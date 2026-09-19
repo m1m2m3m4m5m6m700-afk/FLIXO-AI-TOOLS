@@ -153,8 +153,8 @@ jobs:
             exit 1
           }
 
-          EXISTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow execution-bot-watchdog.yml --limit 100 --json displayTitle \
-            --jq '.[].displayTitle' | grep -Fxc "FLIXO Execution Bot Watchdog" || true)"
+          EXISTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow execution-bot-watchdog.yml --limit 20 --json status \
+            --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
 
           if [ "$EXISTS" -eq 0 ]; then
             gh workflow run execution-bot-watchdog.yml --repo "$GITHUB_REPOSITORY" --ref execution
