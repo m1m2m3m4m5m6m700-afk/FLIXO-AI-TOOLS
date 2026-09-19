@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { authorizeAdminRequestWithDurableSession } from './boundary.ts';
-import { getEvent, getLatestEvidenceForAssertion, isPersistenceConfigured, probePersistence } from './persistence.ts';
+import { getEvent, getLatestAuditForEvidence, getLatestEvidenceForAssertion, isPersistenceConfigured, probePersistence } from './persistence.ts';
 
 const CENTER_CAPABILITY = {
   truth: 'truth.read',
@@ -56,6 +56,7 @@ export default async function adminCenters(req: AdminRequest, res: ServerRespons
   const assertionId = first(req.query?.assertionId);
   let event: Awaited<ReturnType<typeof getEvent>> | undefined;
   let evidence: Awaited<ReturnType<typeof getLatestEvidenceForAssertion>> | undefined;
+  let audit: Awaited<ReturnType<typeof getLatestAuditForEvidence>> | undefined;
   if (eventId && (center === 'truth' || center === 'incident')) {
     try {
       event = await getEvent(eventId);
@@ -66,6 +67,7 @@ export default async function adminCenters(req: AdminRequest, res: ServerRespons
   if (assertionId && (center === 'truth' || center === 'evidence')) {
     try {
       evidence = await getLatestEvidenceForAssertion(assertionId);
+      if (evidence && center === 'evidence') audit = await getLatestAuditForEvidence(evidence.evidence_id);
     } catch {
       return json(res, 503, { ok: false, error: { code: 'evidence_source_unavailable', correlationId: authorization.correlationId } }, authorization.correlationId);
     }
@@ -85,6 +87,8 @@ export default async function adminCenters(req: AdminRequest, res: ServerRespons
       eventLookup: eventId ? (event === null ? 'NOT_FOUND' : 'READ_BACK') : 'NOT_REQUESTED',
       evidence: evidence ?? null,
       evidenceLookup: assertionId ? (evidence === null ? 'NOT_FOUND' : 'READ_BACK') : 'NOT_REQUESTED',
+      audit: audit ?? null,
+      auditLookup: assertionId && evidence ? (audit === null ? 'NOT_FOUND' : 'READ_BACK') : 'NOT_REQUESTED',
       execution: 'READ_ONLY',
     },
     provenance: {
