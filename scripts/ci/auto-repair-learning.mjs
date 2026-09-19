@@ -22,7 +22,19 @@ export function normalizeLearningOutcome(outcome, verification) {
   return outcome;
 }
 
-const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });
+const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });\n\nconst historicalKnowledgePath = process.env.FLIXO_HISTORICAL_KNOWLEDGE ?? 'docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json';
+
+function loadHistoricalKnowledge() {
+  if (!fs.existsSync(historicalKnowledgePath)) return [];
+  try {
+    const parsed = JSON.parse(fs.readFileSync(historicalKnowledgePath, 'utf8'));
+    return Array.isArray(parsed?.entries) ? parsed.entries.filter((entry) =>
+      entry?.id && entry?.rootCause && entry?.rule && Array.isArray(entry?.evidence)
+    ) : [];
+  } catch {
+    return [];
+  }
+}
 
 export function loadMemory() {
   const trustedSourcePath = process.env.FLIXO_TRUSTED_REPAIR_MEMORY || memoryPath;
