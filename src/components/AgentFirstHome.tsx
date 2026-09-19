@@ -29,8 +29,16 @@ const LANGUAGE_LABELS: Record<Locale, string> = {
 };
 
 const COPY = {
-  ar: { title: 'FLIXO', subtitle: 'ماذا تريد أن تنجز؟' },
-  en: { title: 'FLIXO', subtitle: 'What do you want to accomplish?' },
+  ar: {
+    title: 'FLIXO',
+    subtitle: 'وكيلك الذكي لتعديل الصور',
+    hint: 'ارفع صورة واطلب ما تريد تعديله. FLIXO يفهم الهدف ويختار طريقة التنفيذ.',
+  },
+  en: {
+    title: 'FLIXO',
+    subtitle: 'Your AI image editing agent',
+    hint: 'Upload an image and describe what you want changed. FLIXO plans the edit and executes it.',
+  },
 } as const;
 
 export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale }) {
@@ -100,7 +108,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
           <p>{copy.subtitle}</p>
         </div>
         <div className="agent-first-chat"><FlixoAIAgent locale={locale} /></div>
-        <p className="agent-first-hint">{locale === 'ar' ? 'اطلب من FLIXO تنفيذ المهمة أو التفكير في أفضل طريقة لإنجازها.' : 'Ask FLIXO to work out the best way to accomplish your task.'}</p>
+        <p className="agent-first-hint">{copy.hint}</p>
       </section>
     </main>
   );
