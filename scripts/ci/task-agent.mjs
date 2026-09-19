@@ -3,9 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { loadMemory, findSimilarCases, deriveReusableKnowledge, rankLessons } from './auto-repair-learning.mjs';
 
 const ROOT = process.cwd();
-const TASK_FILE = path.join(ROOT, 'مهام.md');
+const TASK_FILE = path.join(ROOT, 'المهام.md');
 const OUTPUT_DIR = process.env.FLIXO_TASK_AGENT_OUTPUT_DIR ?? '/tmp/flixo-task-agent';
 const DIAGNOSIS_PATH = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
 const CONTRACT_VERSION = 'TASK-AGENT-DIRECT-REPAIR-v2';
@@ -24,7 +25,7 @@ const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'u
 const branch = execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const hash = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex');
 
-if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=مهام.md');
+if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=المهام.md');
 const source = fs.readFileSync(TASK_FILE, 'utf8');
 
 function parseTasks(markdown) {
@@ -58,7 +59,26 @@ const failureFingerprint = arg('failure-fingerprint');
 const failureEvidencePath = arg('failure-evidence');
 const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION' : 'DIRECT_EXECUTION';
 const diagnosis = fs.existsSync(DIAGNOSIS_PATH) ? JSON.parse(fs.readFileSync(DIAGNOSIS_PATH, 'utf8')) : null;
-const reusableKnowledge = diagnosis?.reusableKnowledge ?? null;
+const memory = loadMemory();
+const memoryContext = diagnosis
+  ? {
+      similarCases: findSimilarCases(memory, {
+        fingerprint: failureFingerprint || diagnosis.fingerprint || null,
+        normalized: diagnosis.normalizedFailure || diagnosis.failure || '',
+        features: diagnosis.features || [],
+      }),
+      reusableKnowledge: deriveReusableKnowledge(memory, {
+        rootCause: diagnosis.rootCause || null,
+        features: diagnosis.features || [],
+        fingerprint: failureFingerprint || diagnosis.fingerprint || null,
+      }),
+      lessons: rankLessons(memory, {
+        fingerprint: failureFingerprint || diagnosis.fingerprint || null,
+        rootCause: diagnosis.rootCause || null,
+      }).slice(0, 8),
+    }
+  : { similarCases: [], reusableKnowledge: null, lessons: [] };
+const reusableKnowledge = diagnosis?.reusableKnowledge ?? memoryContext.reusableKnowledge;
 const activeRepairTask = failureRunId || failureSha || failureFingerprint
   ? [{
       taskId: `repair-${slug(failureFingerprint || 'active-failure').slice(0, 80)}`,
@@ -142,6 +162,7 @@ for (const task of selected) {
       verificationStrategy: diagnosis.verificationStrategy ?? [],
       evidenceDigest: diagnosis.signature ?? null,
       reusableKnowledge,
+      memoryContext,
     } : (failureRunId || failureSha || failureFingerprint ? { authority: 'AUTO_REPAIR_REASONING_KERNEL', required: true, decision: 'MISSING' } : null),
     instructions: {
       cognitionRequired: Boolean(failureRunId || failureSha || failureFingerprint),
@@ -240,7 +261,7 @@ const index = {
   },
   changeBudget: { maxPreparedFiles: 12, maxInspectedFiles: 40, onExceed: 'REQUIRES_REVIEW' },
   memory: { fingerprinted: true, summaryPerRepair: true, reuseKnownFingerprint: true, generalizedAcrossFingerprints: true, promotionRequiresMultipleVerifiedCases: true },
-  cognition: diagnosis ? { rootCause: diagnosis.rootCause ?? 'unknown', decision: diagnosis.decision ?? 'PROPOSE_ONLY', causalConfidence: diagnosis.causalConfidence ?? 0, ambiguity: diagnosis.ambiguity ?? true, reusableKnowledge } : null,
+  cognition: diagnosis ? { rootCause: diagnosis.rootCause ?? 'unknown', decision: diagnosis.decision ?? 'PROPOSE_ONLY', causalConfidence: diagnosis.causalConfidence ?? 0, ambiguity: diagnosis.ambiguity ?? true, reusableKnowledge, memoryContext } : { memoryVersion: memory.version, caseCount: memory.cases.length, playbookCount: memory.playbooks.length },
   digest: hash(JSON.stringify(outputs)),
 };
 fs.writeFileSync(path.join(OUTPUT_DIR, 'latest.json'), `${JSON.stringify(index, null, 2)}\n`);
