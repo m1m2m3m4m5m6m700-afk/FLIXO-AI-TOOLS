@@ -6,6 +6,7 @@ import { ADMIN_EXECUTION_CLASSES, ADMIN_MODULES, ADMIN_ROLE_CAPABILITY_MATRIX } 
 
 const CENTER_OPTIONS = ['truth', 'operations', 'incident', 'evidence', 'security', 'contract'] as const;
 type المركز = (typeof CENTER_OPTIONS)[number];
+const CENTER_LABELS: Record<المركز, string> = { truth: 'الحقيقة', operations: 'العمليات', incident: 'الحوادث', evidence: 'الأدلة', security: 'الأمان', contract: 'العقود' };
 const STATUS_LABELS: Record<string, string> = {
   CONNECTED: 'متصل',
   UNAVAILABLE: 'غير متاح',
@@ -17,6 +18,7 @@ const STATUS_LABELS: Record<string, string> = {
   FOUNDATION: 'أساسي',
   PARTIAL: 'جزئي',
   مقفل: 'مقفل',
+  LOCKED: 'مقفل',
   READ: 'قراءة',
   READ_ONLY: 'للقراءة فقط',
   IMPLEMENTATION_PRESENT: 'التنفيذ موجود',
@@ -150,7 +152,7 @@ function AdminControlPlanePage() {
             <h1 id="admin-control-plane-title">الحقيقة والأدلة.<br />دون تخمين.</h1>
             <p className="hero-copy">مركز تحكم عالي الإشارة للمراقبة الموثقة، وإثبات المصدر، والسياسات، والتنفيذ المنضبط. الواجهة تعمل بمنطق الإغلاق الآمن: لا تُعرض حقيقة إنتاج غير متاحة على أنها سليمة.</p>
           </div>
-          <div className="hero-badge"><small>الحالة الحالية</small><strong>{state.verdict}</strong><div style={{ marginTop: 8, color: '#8792a6', fontSize: 11 }}>{state.reason}</div></div>
+          <div className="hero-badge"><small>الحالة الحالية</small><strong>{labelFor(state.verdict)}</strong><div style={{ marginTop: 8, color: '#8792a6', fontSize: 11 }}>{state.reason}</div></div>
         </header>
 
         <section className="status-grid" aria-label="حالة مركز التحكم">
@@ -163,14 +165,14 @@ function AdminControlPlanePage() {
         <section className="card section" aria-labelledby="admin-read-model-title">
           <div className="section-head"><div><h2 className="section-title" id="admin-read-model-title">نموذج القراءة المرجعي</h2><p className="section-sub">حالة الخادم الموثقة بحسب المركز التشغيلي المختار. تبقى الأخطاء صريحة وقابلة للتتبع.</p></div><span className={`pill pill-${overallTone}`}>إغلاق آمن</span></div>
           <div className="center-tabs" role="tablist" aria-label="مراكز الإدارة">
-            {CENTER_OPTIONS.map((option) => <button key={option} type="button" role="tab" aria-selected={center === option} className={`tab ${center === option ? 'tab-active' : ''}`} onClick={() => setالمركز(option)}>{option}</button>)}
+            {CENTER_OPTIONS.map((option) => <button key={option} type="button" role="tab" aria-selected={center === option} className={`tab ${center === option ? 'tab-active' : ''}`} onClick={() => setالمركز(option)}>{CENTER_LABELS[option]}</button>)}
           </div>
           <div style={{ marginTop: 14 }} aria-live="polite">
             {centerState.status === 'LOADING' && <div className="mini">جارٍ قراءة حالة المركز الموثقة…</div>}
             {centerState.status === 'IDLE' && <div className="mini">في انتظار تهيئة نموذج القراءة.</div>}
             {centerState.status === 'BLOCKED' && <div className="blocked"><strong>محظور · لم يتم استنتاج حالة إنتاج</strong><p>لم ينتج نموذج القراءة المرجعي نتيجة موثقة. الخطأ <code>{centerState.code}</code>{centerState.correlationId ? ` · الطلب ${centerState.correlationId}` : ''}.</p></div>}
             {activeالمركز && <div className="read-grid">
-              <Mini label="المركز" value={activeالمركز.center.toUpperCase()} detail={`Capability ${activeالمركز.capability}`} />
+              <Mini label="المركز" value={activeالمركز.center.toUpperCase()} detail={`الصلاحية ${activeالمركز.capability}`} />
               <Mini label="الحقيقة" value={activeالمركز.truth.state} detail={activeالمركز.truth.reason} tone={toneFor(activeالمركز.truth.state)} />
               <Mini label="الاستمرارية" value={activeالمركز.persistence.state} detail={activeالمركز.persistence.reason} tone={toneFor(activeالمركز.persistence.state)} />
               <Mini label="التنفيذ" value={activeالمركز.data.execution} detail="للمراقبة فقط." />
@@ -181,17 +183,17 @@ function AdminControlPlanePage() {
         </section>
 
         <section className="card section">
-          <div className="section-head"><div><h2 className="section-title">الحقيقة boundary</h2><p className="section-sub">الحالات الموثقة صريحة؛ ولا يمكن أبدًا تحويل غير المتاح أو القديم أو غير المعروف إلى حالة سليمة.</p></div></div>
+          <div className="section-head"><div><h2 className="section-title">حدود الحقيقة</h2><p className="section-sub">الحالات الموثقة صريحة؛ ولا يمكن أبدًا تحويل غير المتاح أو القديم أو غير المعروف إلى حالة سليمة.</p></div></div>
           <div className="split">
             <dl className="kv"><dt>الحكم</dt><dd>{state.verdict}</dd><dt>السبب</dt><dd><code>{state.reason}</code></dd><dt>سجلات الأدلة</dt><dd>{state.evidence.length}</dd><dt>الصلاحيات المعلنة</dt><dd>{state.capabilities.length}</dd></dl>
-            <div className="path"><strong>دورة التنفيذ الآمن</strong><br />النية → أمر حتمي → تفويض → سياسة → معاينة → موافقة → تنفيذ → تحقق → دليل → تدقيق</div>
+            <div className="path"><strong>دورة التنفيذ الآمن</strong><br />النية ← أمر حتمي ← تفويض ← سياسة ← معاينة ← موافقة ← تنفيذ ← تحقق ← دليل ← تدقيق</div>
           </div>
         </section>
 
         <section className="section" aria-labelledby="admin-modules-title">
           <div className="section-head"><div><h2 className="section-title" id="admin-modules-title">وحدات التحكم</h2><p className="section-sub">كل وحدة تعرض حالة تنفيذها والعائق المرتبط بها بوضوح. لا توجد بيانات مباشرة مصطنعة.</p></div></div>
           <div className="module-grid">
-            {ADMIN_MODULES.map((module) => { const tone = toneFor(module.status); return <article className="card module" key={module.id}><div className="module-top"><strong className="module-name">{moduleLabelFor(module.id, module.name)}</strong><span className={`pill pill-${tone}`}>{labelFor(module.status)}</span></div><p>الصلاحية · <code>{module.capability}</code></p><p>الحقيقة · <strong style={{ color: '#dbe2ec' }}>{labelFor(module.truth)}</strong></p><p>{blockerLabelFor(module.blocker)}</p><p style={{ marginTop: 11, textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 9 }}>التنفيذ · {labelFor(module.execution)}</p></article>; })}
+            {ADMIN_MODULES.map((module) => { const tone = toneFor(module.status); return <article className="card module" key={module.id}><div className="module-top"><strong className="module-name">{moduleLabelFor(module.id, module.name)}</strong><span className={`pill pill-${tone}`}>{labelFor(module.status)}</span></div><p>الصلاحية · <code>{module.capability}</code></p><p>الحقيقة · <strong style={{ color: '#dbe2ec' }}>{labelFor(module.truth)}</strong></p><p>{blockerLabelFor(module.blocker)}</p><p style={{ marginTop: 11, textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 9 }}>حالة التنفيذ · {labelFor(module.execution)}</p></article>; })}
           </div>
         </section>
 
@@ -202,11 +204,11 @@ function AdminControlPlanePage() {
 
         <section className="card section">
           <div className="section-head"><div><h2 className="section-title">الدور ← الصلاحيات</h2><p className="section-sub">هذه مصفوفة سياسات فقط، ولا تُعد إثباتًا لهوية إنتاج موثقة.</p></div></div>
-          <div className="table-wrap"><table className="admin-table"><thead><tr><th>Role</th><th>الصلاحيات المعلنة</th></tr></thead><tbody>{Object.entries(ADMIN_ROLE_CAPABILITY_MATRIX).map(([role, capabilities]) => <tr key={role}><td><strong>{roleLabelFor(role)}</strong></td><td>{capabilities.join(' · ')}</td></tr>)}</tbody></table></div>
+          <div className="table-wrap"><table className="admin-table"><thead><tr><th>الدور</th><th>الصلاحيات المعلنة</th></tr></thead><tbody>{Object.entries(ADMIN_ROLE_CAPABILITY_MATRIX).map(([role, capabilities]) => <tr key={role}><td><strong>{roleLabelFor(role)}</strong></td><td>{capabilities.join(' · ')}</td></tr>)}</tbody></table></div>
         </section>
 
         <section className="card section">
-          <div className="section-head"><div><h2 className="section-title">التنفيذ safety</h2><p className="section-sub">تغييرات الإنتاج تظل غير متاحة حتى تتوفر أدلة الاستمرارية والتفويض والموافقة.</p></div></div>
+          <div className="section-head"><div><h2 className="section-title">سلامة التنفيذ</h2><p className="section-sub">تغييرات الإنتاج تظل غير متاحة حتى تتوفر أدلة الاستمرارية والتفويض والموافقة.</p></div></div>
           <div className="exec-grid">{ADMIN_EXECUTION_CLASSES.map((executionClass, index) => <article className="mini exec" key={executionClass}><div className="exec-num">الفئة {String(index + 1).padStart(2, '0')}</div><div className="exec-name">{labelFor(executionClass)}</div><div className={executionClass === 'READ' ? 'metric-detail' : 'exec-state'}>{executionClass === 'READ' ? 'مسموح عبر حدود القراءة الموثقة.' : 'مقفل'}</div></article>)}</div>
         </section>
 
