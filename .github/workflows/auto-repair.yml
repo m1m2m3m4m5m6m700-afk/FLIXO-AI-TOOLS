@@ -30,8 +30,6 @@ on:
       - Claude Security Review
     types:
       - completed
-  schedule:
-    - cron: '*/10 * * * *'
 
 permissions:
   contents: write
@@ -54,7 +52,7 @@ env:
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   # AUTONOMOUS AUTHORITY:
   # 1) workflow_run wakes the repair agent directly when a canonical repairable workflow fails.
-  # 2) schedule provides a periodic liveness/recovery heartbeat independent of Green Gate health.
+  # 2) an independent heartbeat workflow provides periodic liveness/recovery.
   # 3) the agent may self-dispatch a continuation after an internal engine/unrepaired failure.
   # Safety boundary remains unchanged: mutations are execution-only and canonical CI remains the final GREEN authority.
   FLIXO_STRICT_RED_REPAIR: 'true'
@@ -66,7 +64,6 @@ jobs:
     name: Single-lane diagnose, execute, verify and learn on execution
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
       (github.event_name == 'workflow_run' &&
        (github.event.workflow_run.conclusion == 'failure' ||
         github.event.workflow_run.conclusion == 'timed_out'))
@@ -90,28 +87,6 @@ jobs:
 
           if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
             TARGET="${{ github.event.workflow_run.id }}"
-          elif [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ -z "$TARGET" ]; then
-            echo "AUTONOMOUS_HEARTBEAT=ACTIVE"
-
-            for BRANCH in execution main; do
-              CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
-              CANDIDATE="$(gh run list --repo "$GITHUB_REPOSITORY" --branch "$BRANCH" --limit 100                 --json databaseId,name,headSha,conclusion,createdAt                 --jq 'map(select(
-                  (.name == "FLIXO Test Impact" or
-                   .name == "FLIXO Test Impact Execution" or
-                   .name == "Repository Security Baseline" or
-                   .name == "Claude Security Review" or
-                   .name == "FLIXO Test System" or
-                   .name == "FLIXO WP0 Trust Baseline")
-                  and .headSha == "'"'$CURRENT_SHA'"'" 
-                  and (.conclusion == "failure" or .conclusion == "timed_out")
-                )) | sort_by(.createdAt) | last.databaseId // empty')"
-
-              if [ -n "$CANDIDATE" ]; then
-                TARGET="$CANDIDATE"
-                echo "AUTONOMOUS_TARGET_DISCOVERED=$TARGET branch=$BRANCH sha=$CURRENT_SHA"
-                break
-              fi
-            done
           fi
 
           if [ -z "$TARGET" ]; then
@@ -804,9 +779,9 @@ jobs:
             fi
             echo "Repair remains open on execution failure run $CURRENT_FAILURE_ID."
             echo "Execution repair remains open on execution failure run $CURRENT_FAILURE_ID."
-            echo 'DISPATCH_AUTHORITY=DAILY_FLIXO_GREEN_GATE'
+            echo 'DISPATCH_AUTHORITY=AUTONOMOUS_RECOVERY'
             echo "RED_REMAINS_OPEN=$CURRENT_FAILURE_ID"
-            echo 'The Daily·FLIXO Green Gate is the sole dispatcher. The executor never dispatches itself; unresolved RED remains fail-closed.'
+            echo 'Recovery may be continued by workflow_run, the independent heartbeat, or the agent self-recovery path; unresolved RED remains fail-closed.'
             exit 1
           fi
 
@@ -819,7 +794,7 @@ jobs:
             exit 0
           fi
           echo "Repair remains open on current canonical failure run $CURRENT_FAILURE_ID."
-          echo 'DISPATCH_AUTHORITY=DAILY_FLIXO_GREEN_GATE'
-            echo "RED_REMAINS_OPEN=$CURRENT_FAILURE_ID"
-            echo 'The Daily·FLIXO Green Gate is the sole dispatcher. The executor never dispatches itself; unresolved RED remains fail-closed.'
+          echo 'DISPATCH_AUTHORITY=AUTONOMOUS_RECOVERY'
+          echo "RED_REMAINS_OPEN=$CURRENT_FAILURE_ID"
+          echo 'Recovery may be continued by workflow_run, the independent heartbeat, or the agent self-recovery path; unresolved RED remains fail-closed.'
           exit 1
