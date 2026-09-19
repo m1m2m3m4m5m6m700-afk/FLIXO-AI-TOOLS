@@ -12,7 +12,7 @@ async function enableE2EProcessingState(page: Page) {
 async function armProcessingStateObservation(page: Page) {
   await page.evaluate(() => {
     (window as typeof window & { __processingSemantics?: Promise<boolean> }).__processingSemantics = new Promise<boolean>((resolve) => {
-      const grid = document.querySelector('.compressor-grid');
+      const grid = document.querySelector('.image-workbench-grid');
       const button = document.querySelector('.primary-button');
 
       if (!grid || !button) {
@@ -60,7 +60,7 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
     const oversized = Buffer.alloc(10 * 1024 * 1024 + 1, 0);
     await input.setInputFiles({ name: 'oversized.jpg', mimeType: 'image/jpeg', buffer: oversized });
 
-    await expect(page.getByRole('alert')).toContainText('Some files were skipped');
+    await expect(page.getByRole('alert')).toContainText('source image is too large for safe browser processing', { timeout: 15000 });
     await expect(page.getByRole('button', { name: 'Compress image' })).toBeDisabled();
   });
 
@@ -80,14 +80,14 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
     await action.click();
 
     await expect(page.evaluate(() => (window as typeof window & { __processingSemantics?: Promise<boolean> }).__processingSemantics)).resolves.toBe(true);
-    await expect(page.locator('.compressor-grid')).toHaveAttribute('aria-busy', 'false');
+    await expect(page.locator('.image-workbench-grid')).toHaveAttribute('aria-busy', 'false');
     await expect(action).toBeEnabled();
     await expect(action).toHaveAttribute('aria-disabled', 'false');
 
     const download = page.getByRole('link', { name: 'Download image' });
     await expect(download).toHaveAttribute('download', 'flixo-compressed.webp', { timeout: 15000 });
-    await expect(page.getByRole('complementary')).toBeVisible();
-    await expect(page.getByRole('complementary').getByText('WebP', { exact: true })).toBeVisible();
+    await expect(page.locator('img[alt="Tool result"]')).toBeVisible();
+    await expect(page.locator('.image-workbench-output')).toContainText('WebP');
   });
 
   test('keeps export and result information keyboard and screen-reader reachable', async ({ page }) => {
@@ -102,11 +102,11 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
     const download = page.getByRole('link', { name: 'Download image' });
     await expect(download).toHaveAttribute('href', /^blob:/, { timeout: 15000 });
     await expect(download).toBeEnabled();
-    await expect(page.getByRole('complementary')).toBeVisible();
+    await expect(page.locator('.image-workbench-output')).toBeVisible();
 
     await download.focus();
     await expect(download).toBeFocused();
-    await expect(page.getByRole('complementary')).toContainText(/WebP|1200 × 800/);
+    await expect(page.locator('.image-workbench-output')).toContainText(/WebP|1200 × 800/);
   });
 
   test('announces processing errors without exposing a download result', async ({ page }) => {
@@ -116,11 +116,9 @@ test.describe('UX + Accessibility phase 2 workflow contract', () => {
       mimeType: 'image/svg+xml',
       buffer: Buffer.from(oversizedSvg),
     });
-    await page.getByRole('button', { name: 'Compress image', exact: true }).click();
-
     await expect(page.getByRole('alert')).toContainText('source image is too large for safe browser processing', { timeout: 15000 });
     await expect(page.getByRole('link', { name: 'Download image' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Compress image', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Compress image', exact: true })).toBeDisabled();
   });
 
   test('preserves the same workflow contract in Arabic RTL', async ({ page }) => {
