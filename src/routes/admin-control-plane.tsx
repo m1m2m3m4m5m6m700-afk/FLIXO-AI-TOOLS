@@ -6,15 +6,6 @@ import { ADMIN_EXECUTION_CLASSES, ADMIN_MODULES, ADMIN_ROLE_CAPABILITY_MATRIX } 
 
 const CENTER_OPTIONS = ['truth', 'operations', 'incident', 'evidence', 'security', 'contract'] as const;
 type المركز = (typeof CENTER_OPTIONS)[number];
-const CENTER_LABELS: Record<المركز, string> = {
-  truth: 'الحقيقة',
-  operations: 'العمليات',
-  incident: 'الحوادث',
-  evidence: 'الأدلة',
-  security: 'الأمان',
-  contract: 'العقود',
-};
-
 const STATUS_LABELS: Record<string, string> = {
   CONNECTED: 'متصل',
   UNAVAILABLE: 'غير متاح',
