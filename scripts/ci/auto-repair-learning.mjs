@@ -29,7 +29,16 @@ export function loadMemory() {
   if (!fs.existsSync(trustedSourcePath)) return emptyMemory();
   try {
     const parsed = JSON.parse(fs.readFileSync(trustedSourcePath, 'utf8'));
-    const memory = normalizeMemoryCounters({ ...emptyMemory(), ...parsed });
+    let memory = normalizeMemoryCounters({ ...emptyMemory(), ...parsed });
+    const derivedPath = process.env.FLIXO_DERIVED_REPAIR_MEMORY;
+    if (process.env.FLIXO_TRUSTED_REPAIR_MEMORY && derivedPath && fs.existsSync(derivedPath) && derivedPath !== trustedSourcePath) {
+      try {
+        const derived = JSON.parse(fs.readFileSync(derivedPath, 'utf8'));
+        memory = mergeMemoryHistory(memory, derived);
+      } catch {
+        // Derived execution memory is supplemental evidence; trusted memory remains authoritative.
+      }
+    }
     memory.version = Number.isInteger(parsed?.version) ? Math.max(parsed.version, MEMORY_VERSION) : MEMORY_VERSION;
     for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(memory[key])) memory[key] = [];
     return memory;
@@ -107,6 +116,106 @@ export function normalizeMemoryCounters(memory) {
   const source = { ...emptyMemory(), ...memory };
   source.cases = (source.cases ?? []).map(normalizeCaseCounters);
   return source;
+}
+
+export function mergeMemoryHistory(baseMemory, derivedMemory) {
+  const base = normalizeMemoryCounters({ ...emptyMemory(), ...(baseMemory ?? {}) });
+  const derived = normalizeMemoryCounters({ ...emptyMemory(), ...(derivedMemory ?? {}) });
+  const merged = {
+    ...base,
+    version: Math.max(Number(base.version ?? 0), Number(derived.version ?? 0), MEMORY_VERSION),
+    cases: [...base.cases],
+    playbooks: [...base.playbooks],
+    lessons: [...base.lessons],
+    antiLessons: [...base.antiLessons],
+  };
+
+  const mergeUnique = (left = [], right = [], keyFor = (item) => JSON.stringify(item)) => {
+    const out = [...left];
+    const seen = new Set(out.map(keyFor));
+    for (const item of right) {
+      const key = keyFor(item);
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push(item);
+      }
+    }
+    return out;
+  };
+
+  const caseMap = new Map(merged.cases.map((item) => [item.fingerprint, item]));
+  for (const incoming of derived.cases) {
+    const existing = caseMap.get(incoming.fingerprint);
+    if (!existing) {
+      caseMap.set(incoming.fingerprint, normalizeCaseCounters(incoming));
+      continue;
+    }
+    existing.rootCause = existing.rootCause && existing.rootCause !== 'unknown' ? existing.rootCause : incoming.rootCause;
+    existing.normalizedFailure = incoming.normalizedFailure ?? existing.normalizedFailure;
+    existing.features = [...new Set([...(existing.features ?? []), ...(incoming.features ?? [])])];
+    existing.rules = [...new Set([...(existing.rules ?? []), ...(incoming.rules ?? [])])];
+    existing.outcomes = mergeUnique(existing.outcomes, incoming.outcomes, (item) => [
+      item?.outcome, item?.verification, item?.rule, item?.provenance?.runId,
+      item?.provenance?.failedSha, item?.provenance?.targetSha, item?.at,
+    ].map((value) => String(value ?? '')).join('|')).slice(-20);
+    existing.attempts = Math.max(Number(existing.attempts ?? 0), Number(incoming.attempts ?? 0));
+    existing.successes = Math.max(Number(existing.successes ?? 0), Number(incoming.successes ?? 0));
+    existing.failures = Math.max(Number(existing.failures ?? 0), Number(incoming.failures ?? 0));
+    existing.externalBlocks = Math.max(Number(existing.externalBlocks ?? 0), Number(incoming.externalBlocks ?? 0));
+    existing.reversions = Math.max(Number(existing.reversions ?? 0), Number(incoming.reversions ?? 0));
+    existing.revertFailures = Math.max(Number(existing.revertFailures ?? 0), Number(incoming.revertFailures ?? 0));
+    existing.revertedRules = [...new Set([...(existing.revertedRules ?? []), ...(incoming.revertedRules ?? [])])];
+    existing.revertedCommits = [...new Set([...(existing.revertedCommits ?? []), ...(incoming.revertedCommits ?? [])])];
+  }
+  merged.cases = [...caseMap.values()].map((item) => {
+    const normalized = normalizeCaseCounters(item);
+    normalized.confidence = normalized.attempts ? Number((normalized.successes / normalized.attempts).toFixed(4)) : 0;
+    return normalized;
+  });
+
+  const playbookMap = new Map(merged.playbooks.map((item) => [`${item.rootCause}|${item.rule}`, item]));
+  for (const incoming of derived.playbooks) {
+    const key = `${incoming.rootCause}|${incoming.rule}`;
+    const existing = playbookMap.get(key);
+    if (!existing) {
+      playbookMap.set(key, incoming);
+      continue;
+    }
+    existing.attempts = Math.max(Number(existing.attempts ?? 0), Number(incoming.attempts ?? 0));
+    existing.successes = Math.max(Number(existing.successes ?? 0), Number(incoming.successes ?? 0));
+    existing.failures = Math.max(Number(existing.failures ?? 0), Number(incoming.failures ?? 0));
+    existing.fingerprints = mergeUnique(existing.fingerprints, incoming.fingerprints, String);
+    existing.successfulFingerprints = mergeUnique(existing.successfulFingerprints, incoming.successfulFingerprints, String);
+    existing.failedFingerprints = mergeUnique(existing.failedFingerprints, incoming.failedFingerprints, String);
+  }
+  merged.playbooks = [...playbookMap.values()].map((item) => ({
+    ...item,
+    successRate: item.attempts ? Number((item.successes / item.attempts).toFixed(4)) : 0,
+    generalized: new Set(item.successfulFingerprints ?? []).size >= 2 && item.successes >= 2 && (item.attempts ? item.successes / item.attempts : 0) >= 0.8,
+  }));
+
+  for (const collection of ['lessons', 'antiLessons']) {
+    const map = new Map(merged[collection].map((item) => [item.id, item]));
+    for (const incoming of derived[collection]) {
+      const existing = map.get(incoming.id);
+      if (!existing) {
+        map.set(incoming.id, incoming);
+        continue;
+      }
+      existing.attempts = Math.max(Number(existing.attempts ?? 0), Number(incoming.attempts ?? 0));
+      existing.successes = Math.max(Number(existing.successes ?? 0), Number(incoming.successes ?? 0));
+      existing.failures = Math.max(Number(existing.failures ?? 0), Number(incoming.failures ?? 0));
+      existing.evidence = mergeUnique(existing.evidence, incoming.evidence, (item) => JSON.stringify(item)).slice(-8);
+      existing.preventionRules = mergeUnique(existing.preventionRules, incoming.preventionRules, String).slice(-8);
+      existing.lastSeenAt = [existing.lastSeenAt, incoming.lastSeenAt].filter(Boolean).sort().at(-1) ?? null;
+    }
+    merged[collection] = [...map.values()].map((item) => ({
+      ...item,
+      confidence: item.attempts ? Number((item.successes / item.attempts).toFixed(4)) : 0,
+    }));
+  }
+
+  return normalizeMemoryCounters(merged);
 }
 
 function findCase(memory, fingerprint) {
