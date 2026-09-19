@@ -30,26 +30,20 @@ for (const icon of manifest.icons) if (!icon?.src || !existsSync(join(root, 'pub
 pass('manifest validation');
 
 const brandFiles = [
-  ['canonical master', 'public/flixo-logo.jpg'],
-  ['canonical logo', 'public/flixo-logo.svg'],
-  ['logo alias', 'public/logo.svg'],
-  ['favicon alias', 'public/favicon.svg'],
+  ['canonical logo', 'public/flixo-logo.webp'],
+  ['favicon', 'public/flixo-favicon.png'],
   ['global logo component', 'src/components/FlixoGlobalLogo.tsx'],
 ];
 for (const [label, file] of brandFiles) if (!existsSync(join(root, file))) fail(`${label} is missing: ${file}`);
-const master = readFileSync(join(root, 'public/flixo-logo.jpg'));
-if (master.length < 4096 || master[0] !== 0xff || master[1] !== 0xd8 || master[2] !== 0xff) fail('canonical FLIXO master artwork is invalid');
-const logo = readFileSync(join(root, 'public/flixo-logo.svg'), 'utf8');
-const alias = readFileSync(join(root, 'public/logo.svg'), 'utf8');
-const favicon = readFileSync(join(root, 'public/favicon.svg'), 'utf8');
+const logo = readFileSync(join(root, 'public/flixo-logo.webp'));
+const favicon = readFileSync(join(root, 'public/flixo-favicon.png'));
 const globalLogo = readFileSync(join(root, 'src/components/FlixoGlobalLogo.tsx'), 'utf8');
-if (!logo.includes('FLIXO AI Tools') || !logo.includes('href="/flixo-logo.jpg"')) fail('canonical logo contract failed');
-for (const [label, source] of [['logo.svg', alias], ['favicon.svg', favicon]]) {
-  if (!source.includes('href="/flixo-logo.svg"')) fail(`${label} must reference canonical /flixo-logo.svg`);
-  if (/<(?:path|linearGradient|radialGradient|filter)\b/u.test(source)) fail(`${label} contains duplicate logo geometry`);
-}
-if (!globalLogo.includes('src="/flixo-logo.svg"')) fail('FlixoGlobalLogo must use canonical /flixo-logo.svg');
-if (!indexHtml.includes('href="/favicon.svg"') || !indexHtml.includes('href="/logo.svg"') || !indexHtml.includes('href="/flixo-logo.svg"')) fail('index.html canonical icon contract failed');
+if (logo.length < 4096 || logo.toString('ascii', 0, 4) !== 'RIFF' || logo.toString('ascii', 8, 12) !== 'WEBP') fail('canonical FLIXO logo artwork is invalid');
+if (favicon.length < 1024 || favicon[0] !== 0x89 || favicon[1] !== 0x50 || favicon[2] !== 0x4e || favicon[3] !== 0x47) fail('canonical FLIXO favicon artwork is invalid');
+if (!globalLogo.includes('src="/flixo-logo.webp"')) fail('FlixoGlobalLogo must use canonical /flixo-logo.webp');
+if (!indexHtml.includes('href="/flixo-favicon.png"')) fail('index.html must use the canonical FLIXO favicon');
+if (!indexHtml.includes('rel="preload" as="image" href="/flixo-logo.webp"')) fail('index.html must preload the canonical FLIXO logo');
+if (logo.toString('binary').includes('flixo-logo.svg') || logo.toString('binary').includes('logo.jpg')) fail('canonical FLIXO logo must not depend on legacy logo assets');
 pass('canonical FLIXO brand contract');
 
 run('npm', ['run', 'typecheck']);
@@ -140,7 +134,7 @@ const exactAllow = new Set([
   'src/lib/contracts/pdf-output.ts', 'src/lib/contracts/upload-boundary.ts', 'src/lib/contracts/file-safety.ts', 'src/lib/contracts/output-integrity.ts', 'src/lib/contracts/tool-output.ts', 'src/lib/contracts/tool-output-contracts.ts',
   'src/tools/image-compressor/output-contract.ts', 'src/tools/exif-cleaner/output-contract.ts', 'src/tools/image-converter/output-contract.ts', 'src/tools/image-cropper/output-contract.ts', 'src/tools/image-to-svg/output-contract.ts', 'src/tools/watermark-adder/output-contract.ts', 'src/tools/watermark-remover/output-contract.ts',
   'tests/exif-cleaner.spec.ts', 'tests/exif-cleaner-output-integrity.spec.ts', 'tests/helpers/image-tool-fixture.ts', 'tests/image-converter.spec.ts', 'tests/image-cropper.spec.ts', 'tests/image-to-svg.spec.ts', 'tests/watermark-adder.spec.ts', 'tests/watermark-remover.spec.ts', 'tests/image-compressor.spec.ts', 'tests/g3-artifact-integrity.spec.ts', 'tests/localization-runtime.spec.ts', 'tests/image-converter.contract.spec.ts', 'tests/pix.spec.ts',
-  'src/main.tsx', 'src/home-modern.css', 'src/config/tool-manifest.ts', 'src/config/origin.config.ts', 'src/lib/i18n/config.ts', 'src/lib/i18n/home-loader.ts', 'src/lib/i18n/locale-quality-overrides.ts', 'src/lib/i18n/tool-seo-localization.ts', 'src/lib/routing/route-resolver.ts', 'src/lib/seo/tool-seo.ts', 'src/routes/__root.tsx', 'src/routes/home-page.tsx', 'src/routes/localized-home.tsx', 'src/routes/locale-pages.tsx', 'src/routes/use-case.tsx', 'src/routes/localized-quickflow.tsx', 'src/data/home-locales.ts', 'src/data/quickflow-locales.ts', 'src/data/tool-ui-i18n.ts', 'src/components/FlixoGlobalLogo.tsx', 'src/components/auto-localized-tool-surface.tsx', 'src/tools/image-toolkit/index.tsx', 'src/tools/image-compressor/index.tsx', 'src/config/tool-definitions/image.ts', 'src/tools/pix/index.tsx', 'src/routes/route-tree.ts', 'public/favicon.svg', 'public/flixo-logo.svg', 'public/flixo-logo.jpg', 'public/logo.svg', 'public/logo.jpg', 'index.html', '.env.example', '.gitleaks.toml',
+  'src/main.tsx', 'src/home-modern.css', 'src/config/tool-manifest.ts', 'src/config/origin.config.ts', 'src/lib/i18n/config.ts', 'src/lib/i18n/home-loader.ts', 'src/lib/i18n/locale-quality-overrides.ts', 'src/lib/i18n/tool-seo-localization.ts', 'src/lib/routing/route-resolver.ts', 'src/lib/seo/tool-seo.ts', 'src/routes/__root.tsx', 'src/routes/home-page.tsx', 'src/routes/localized-home.tsx', 'src/routes/locale-pages.tsx', 'src/routes/use-case.tsx', 'src/routes/localized-quickflow.tsx', 'src/data/home-locales.ts', 'src/data/quickflow-locales.ts', 'src/data/tool-ui-i18n.ts', 'src/components/FlixoGlobalLogo.tsx', 'src/components/auto-localized-tool-surface.tsx', 'src/tools/image-toolkit/index.tsx', 'src/tools/image-compressor/index.tsx', 'src/config/tool-definitions/image.ts', 'src/tools/pix/index.tsx', 'src/routes/route-tree.ts', 'public/flixo-favicon.png', 'public/flixo-logo.webp', 'public/flixo-logo.jpg', 'public/logo.svg', 'public/logo.jpg', 'index.html', '.env.example', '.gitleaks.toml',
   'README.md', 'README', 'docs/CONSOLIDATION-LOG.md', 'docs/DEBT-REGISTER.md', 'docs/engineering/pr-445-decomposition.md', 'ci/INTEGRATION-BLOCKER.md', 'ci/README.md', 'ci/V5-V10-STATUS.md', 'ci/architecture-plan.md', 'ci/test-duration-history.json', 'package.json', 'release/finalization/C5_PLACEHOLDER.md', 'release/finalization/README.md', 'release/finalization/final_execution_manifest.json', 'release/finalization/final_verification.json',
   'evidence/c4/bundle_metric.json', 'evidence/c4/dag_manifest.pre_c4.json', 'evidence/c4/e2e_aggregate_report.json', 'evidence/c4/environment_fingerprint.json', 'evidence/c4/server_execution.log', 'evidence/c4/server_process_identity.json',
   'src/routes/localized-tool-page.tsx',

@@ -26,7 +26,7 @@ test.describe('Universal browser diagnostic', () => {
   test('browser runtime can navigate between public locale roots without HTTP failure', async ({ page }) => {
     const first = await page.goto('/en', { waitUntil: 'domcontentloaded', timeout: 30_000 });
     expect(first?.status()).toBe(200);
-    await page.getByRole('link', { name: 'العربية', exact: true }).click();
+    await page.locator('#home-language').selectOption('ar');
     await expect(page).toHaveURL(/\/ar\/?$/);
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
     await expect(page.locator('main')).toHaveCount(1);

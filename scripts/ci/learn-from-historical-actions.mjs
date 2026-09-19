@@ -1,9 +1,10 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fingerprintFailure, extractFeatures, loadMemory, writeMemory, findCase } from './auto-repair-learning.mjs';
+import { HISTORICAL_REPAIR_WORKFLOWS } from './control-plane-registry.mjs';
 
 const limit = Math.min(50, Math.max(1, Number(process.env.FLIXO_HISTORY_LIMIT ?? 30)));
-const workflows = (process.env.FLIXO_HISTORY_WORKFLOWS ?? 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery').split(',').map((x) => x.trim()).filter(Boolean);
+const workflows = (process.env.FLIXO_HISTORY_WORKFLOWS ?? HISTORICAL_REPAIR_WORKFLOWS.join(',')).split(',').map((x) => x.trim()).filter(Boolean);
 const memory = loadMemory();
 const report = { schemaVersion: 1, generatedAt: new Date().toISOString(), limit, workflows, runsScanned: 0, failuresImported: 0, repairsRead: 0, similarCases: 0 };
 
@@ -32,19 +33,57 @@ function addHistoricalCase(log, run) {
   const normalized = log.replace(/\d{10,}/g, '<ID>').slice(0, 12000);
   const rootCause = classify(log);
   const features = extractFeatures(log);
+  const external = /CAPIError|SessionModelError|requested model is not supported|api-deployments-free-per-day|rate limit|quota|deployment provider/i.test(log);
+  const seenAt = run.updatedAt ?? new Date().toISOString();
   const existing = findCase(memory, fingerprint);
-  const entry = existing ?? { fingerprint, rootCause, attempts: 0, successes: 0, failures: 0, confidence: 0, rules: [], outcomes: [] };
+  const entry = existing ?? {
+    fingerprint,
+    rootCause,
+    attempts: 0,
+    successes: 0,
+    failures: 0,
+    confidence: 0,
+    rules: [],
+    outcomes: [],
+    firstSeenAt: seenAt,
+    lastSeenAt: seenAt,
+    occurrences: 0,
+    workflow: null,
+    workflows: [],
+    jobs: [],
+    sha: run.headSha ?? null,
+    classification: external ? 'external' : 'internal',
+    successfulStrategies: [],
+    failedStrategies: [],
+    repairCount: 0,
+  };
   entry.rootCause = rootCause;
   entry.normalizedFailure = normalized;
   entry.features = [...new Set([...(entry.features ?? []), ...features])];
+  entry.firstSeenAt = [entry.firstSeenAt, seenAt].filter(Boolean).sort()[0] ?? seenAt;
+  entry.lastSeenAt = [entry.lastSeenAt, seenAt].filter(Boolean).sort().at(-1) ?? seenAt;
+  entry.workflow = run.name ?? entry.workflow ?? null;
+  entry.workflows = [...new Set([...(entry.workflows ?? []), run.name].filter(Boolean))];
+  entry.jobs = [...new Set([...(entry.jobs ?? []), ...(run.jobs ?? [])].filter(Boolean))].slice(-50);
+  entry.sha = run.headSha ?? entry.sha ?? null;
+  entry.classification = external ? 'external' : (entry.classification ?? 'internal');
   const already = (entry.outcomes ?? []).some((x) => x.provenance?.runId === String(run.databaseId) && x.provenance?.source === 'GitHub Actions historical');
   if (already) return false;
+  entry.occurrences = Number(entry.occurrences ?? 0) + 1;
+  if (external) entry.externalBlocks = Number(entry.externalBlocks ?? 0) + 1;
   entry.outcomes = [...(entry.outcomes ?? []), {
     outcome: 'historical',
     verification: run.conclusion ?? 'unknown',
     rule: null,
-    provenance: { source: 'GitHub Actions historical', runId: String(run.databaseId), failedSha: run.headSha ?? null, workflow: run.name ?? null },
-    at: run.updatedAt ?? new Date().toISOString(),
+    provenance: {
+      source: 'GitHub Actions historical',
+      runId: String(run.databaseId),
+      failedSha: run.headSha ?? null,
+      workflow: run.name ?? null,
+      jobs: run.jobs ?? [],
+      classification: external ? 'external' : 'internal',
+    },
+    at: seenAt,
   }].slice(-20);
   if (!existing) memory.cases.push(entry);
   return true;
@@ -62,7 +101,14 @@ for (const workflow of workflows) {
     report.runsScanned += 1;
     try {
       const log = runGh(['run', 'view', String(run.databaseId), '--log-failed']);
-      if (addHistoricalCase(log, run)) report.failuresImported += 1;
+      let jobs = [];
+      try {
+        const meta = JSON.parse(runGh(['run', 'view', String(run.databaseId), '--json', 'jobs']));
+        jobs = (meta.jobs ?? []).map((job) => job.name).filter(Boolean);
+      } catch (error) {
+        console.warn(`Unable to read jobs for historical run ${run.databaseId}: ${error.message}`);
+      }
+      if (addHistoricalCase(log, { ...run, jobs })) report.failuresImported += 1;
     } catch (error) {
       console.warn(`Unable to read failed log ${run.databaseId}: ${error.message}`);
     }

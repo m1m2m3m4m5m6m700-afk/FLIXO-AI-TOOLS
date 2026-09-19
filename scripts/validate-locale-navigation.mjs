@@ -14,8 +14,8 @@ if (home.includes('window.location.assign(`/${event.target.value}`)')) {
   throw new Error('Locale selector must use client-side router navigation, not a full document navigation.');
 }
 
-if (!home.includes('useNavigate') || !home.includes('navigate({ to: `/${event.target.value}` })')) {
-  throw new Error('Home locale selector is missing TanStack Router client-side navigation.');
+if (!home.includes('useNavigate') || !home.includes("to: '/$locale'") || !home.includes('params: { locale: nextLocale }')) {
+  throw new Error('Home locale selector must use the canonical typed locale route with validated params.');
 }
 
 const rewrites = Array.isArray(vercel.rewrites) ? vercel.rewrites : [];

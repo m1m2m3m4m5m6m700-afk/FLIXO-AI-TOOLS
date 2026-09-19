@@ -36,7 +36,7 @@ const isExpectedNavigationAbort = (request: { url(): string; failure(): { errorT
   if (failure?.errorText === 'NS_BINDING_ABORTED') {
     try {
       const url = new URL(request.url());
-      if (url.origin === 'http://127.0.0.1:3000' && (url.pathname === '/logo.svg' || url.pathname === '/flixo-logo.svg' || url.pathname.startsWith('/assets/'))) return true;
+      if (url.origin === 'http://127.0.0.1:3000' && (url.pathname === '/flixo-favicon.png' || url.pathname === '/flixo-logo.webp' || url.pathname.startsWith('/assets/'))) return true;
     } catch {
       return false;
     }
@@ -56,8 +56,13 @@ const isExpectedNavigationAbort = (request: { url(): string; failure(): { errorT
 
 async function waitForNavigationSettled(page: Page): Promise<void> {
   await page.waitForLoadState('load', { timeout: 30_000 });
-  await page.waitForLoadState('networkidle', { timeout: 10_000 });
   await page.evaluate(async () => {
+    if (document.readyState !== 'complete') {
+      await new Promise<void>((resolve) => {
+        window.addEventListener('load', () => resolve(), { once: true });
+      });
+    }
+    if (document.fonts?.ready) await document.fonts.ready;
     await new Promise<void>((resolve) => {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     });

@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 const ROOT = process.cwd();
 const COORD_DIR = path.resolve(ROOT, 'diagnostics/agents');
@@ -28,7 +29,9 @@ const sha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encodi
 const ensure = () => { fs.mkdirSync(COORD_DIR, { recursive: true }); fs.mkdirSync(PACKET_DIR, { recursive: true }); fs.mkdirSync(HANDOFF_DIR, { recursive: true }); };
 const readJson = (file, fallback) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : fallback;
 const writeJson = (file, value) => fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
-const visibilityPath = (sessionId) => path.join(VISIBILITY_DIR, `${sessionId}.json`);
+const storageKey = (value) => createHash('sha256').update(value).digest('hex');
+const visibilityPath = (sessionId) => path.join(VISIBILITY_DIR, `${storageKey(sessionId)}.json`);
+const packetPath = (taskId) => path.join(PACKET_DIR, `${storageKey(taskId)}.json`);
 const readVisibility = (sessionId) => { const file = visibilityPath(sessionId); if (!fs.existsSync(file)) throw new Error(`AGENT_VISIBILITY_RECORD_MISSING=${sessionId}`); return JSON.parse(fs.readFileSync(file, 'utf8')); };
 const assertOpenVisibility = (task, sessionId, agentId) => { const record = readVisibility(sessionId); if (record.visibilityState !== 'OPEN' || record.status !== 'RUNNING') throw new Error(`AGENT_VISIBILITY_NOT_OPEN=${sessionId}`); if (record.taskId !== task.taskId) throw new Error('AGENT_VISIBILITY_TASK_MISMATCH'); if (record.agentId !== agentId) throw new Error('AGENT_VISIBILITY_AGENT_MISMATCH'); return record; };
 const visibleAgents = () => { if (!fs.existsSync(VISIBILITY_DIR)) return []; return fs.readdirSync(VISIBILITY_DIR).filter((entry) => entry.endsWith('.json')).sort().map((entry) => { try { const item = JSON.parse(fs.readFileSync(path.join(VISIBILITY_DIR, entry), 'utf8')); return { taskId: item.taskId ?? null, sessionId: item.sessionId ?? entry.slice(0,-5), agentId: item.agentId ?? null, role: item.role ?? null, status: item.status ?? null, finalStatus: item.finalStatus ?? null, entrySha: item.entrySha ?? null, exitSha: item.exitSha ?? null, finalSummary: item.finalSummary ?? null, remainingWork: item.remainingWork ?? [], openRcas: item.openRcas ?? [], updatedAt: item.updatedAt ?? null }; } catch { return { sessionId: entry.slice(0,-5), status: 'MALFORMED_EVIDENCE' }; } }); };
@@ -55,7 +58,7 @@ if (command === 'task-create') {
   const task = { taskId, title: requireArg('title'), priority: Number(optional('priority', '50')), lane: optional('lane', 'fast-path'), rca: optional('rca') || null, scope: list('scope'), objective: optional('objective'), knownFailure: optional('known-failure'), evidenceRequired: list('evidence-required'), dependsOn: list('depends-on'), status: 'READY', createdAt: now() };
   for (const dep of task.dependsOn) if (!state.tasks[dep]) throw new Error(`Unknown dependency: ${dep}`);
   state.tasks[taskId] = task;
-  writeJson(path.join(PACKET_DIR, `${taskId}.json`), { schemaVersion: 1, ...task, entrySha: sha(), createdAt: now(), nextActions: [], continuation: null });
+  writeJson(packetPath(taskId), { schemaVersion: 1, ...task, entrySha: sha(), createdAt: now(), nextActions: [], continuation: null });
   save();
   console.log(JSON.stringify(task, null, 2));
 }
@@ -67,7 +70,7 @@ if (command === 'task-claim') {
   assertOpenVisibility(task, sessionId, agentId);
   const lockId = lock(sessionId, agentId, task.rca, task.scope); task.status = 'RUNNING'; task.claimedBy = agentId; task.sessionId = sessionId; task.claimedAt = now(); task.entrySha = sha(); task.lockId = lockId;
   state.activeSessions[sessionId] = { sessionId, agentId, taskId, lockId, entrySha: sha(), updatedAt: now() };
-  const packetFile = path.join(PACKET_DIR, `${taskId}.json`); const packet = readJson(packetFile, task); packet.claim = { sessionId, agentId, lockId, claimedAt: now(), entrySha: sha() }; writeJson(packetFile, packet); save(); console.log(JSON.stringify(task, null, 2));
+  const packetFile = packetPath(taskId); const packet = readJson(packetFile, task); packet.claim = { sessionId, agentId, lockId, claimedAt: now(), entrySha: sha() }; writeJson(packetFile, packet); save(); console.log(JSON.stringify(task, null, 2));
 }
 
 if (command === 'task-release') {
@@ -80,7 +83,7 @@ if (command === 'task-complete') {
   const taskId = requireArg('task'); const sessionId = requireArg('session'); const task = state.tasks[taskId]; if (!task) throw new Error(`Unknown task: ${taskId}`); if (task.sessionId !== sessionId) throw new Error('TASK_OWNER_MISMATCH');
   const openRcas = list('open-rcas'); const remainingWork = list('remaining-work'); if (openRcas.length || remainingWork.length) throw new Error('TASK_COMPLETION_BLOCKED_BY_UNRESOLVED_WORK');
   const visibility = readVisibility(sessionId);
-  const handoffFile = path.join(HANDOFF_DIR, `${sessionId}.json`);
+  const handoffFile = path.join(HANDOFF_DIR, `${storageKey(sessionId)}.json`);
   if (!fs.existsSync(handoffFile)) throw new Error('TASK_COMPLETION_REQUIRES_AGENT_HANDOFF');
   const handoff = JSON.parse(fs.readFileSync(handoffFile, 'utf8'));
   if (handoff.status !== 'VERIFIED' || visibility.finalStatus !== 'VERIFIED') throw new Error('TASK_COMPLETION_REQUIRES_VERIFIED_AGENT_STATUS');
@@ -91,7 +94,7 @@ if (command === 'task-complete') {
 }
 
 if (command === 'ingest-handoff') {
-  const previous = requireArg('from-session'); const file = path.join(HANDOFF_DIR, `${previous}.json`); if (!fs.existsSync(file)) throw new Error(`HANDOFF_NOT_FOUND=${previous}`);
+  const previous = requireArg('from-session'); const file = path.join(HANDOFF_DIR, `${storageKey(previous)}.json`); if (!fs.existsSync(file)) throw new Error(`HANDOFF_NOT_FOUND=${previous}`);
   const report = JSON.parse(fs.readFileSync(file, 'utf8')); if (!['VERIFIED', 'BLOCKED'].includes(report.status)) throw new Error('PREDECESSOR_NOT_CLOSED');
   const sessionId = requireArg('session'); const agentId = requireArg('agent'); state.activeSessions[sessionId] = { sessionId, agentId, continuationFrom: previous, inheritedExitSha: report.exitSha ?? null, inheritedRemainingWork: report.remainingWork ?? [], inheritedOpenRcas: report.openRcas ?? [], inheritedNextPlan: report.executionPlanNext ?? [], updatedAt: now() }; save(); console.log(JSON.stringify(state.activeSessions[sessionId], null, 2));
 }

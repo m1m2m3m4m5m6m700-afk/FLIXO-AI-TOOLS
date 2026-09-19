@@ -5,6 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: flixo-test-impact-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -23,7 +27,7 @@ jobs:
           node-version-file: .nvmrc
       - name: Build impact plan
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
         run: node scripts/ci/test-impact.mjs --base="$BASE_SHA"
       - name: Verify impact evidence identity
         shell: bash

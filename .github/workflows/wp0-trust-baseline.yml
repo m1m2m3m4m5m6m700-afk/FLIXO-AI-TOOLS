@@ -5,9 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Keep only the newest verification for the PR/branch.
+# Exact-SHA checks below remain mandatory for the surviving run.
 concurrency:
-  group: flixo-wp0-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: false
+  group: flixo-wp0-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -33,10 +35,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "${{ github.event_name }}" = "pull_request"
-          test "${{ github.event.pull_request.head.ref }}" = "execution"
-          test "${{ github.event.pull_request.base.ref }}" = "main"
-          test "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            test "${{ github.event.pull_request.head.ref }}" = "execution"
+            test "${{ github.event.pull_request.base.ref }}" = "main"
+            test "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}"
+          else
+            test "${{ github.event_name }}" = "push"
+            test "${{ github.ref }}" = "refs/heads/execution"
+          fi
           ACTUAL_SHA="$(git rev-parse HEAD)"
           test "$ACTUAL_SHA" = "$EXPECTED_SHA"
           git switch -C execution "$EXPECTED_SHA"

@@ -8,15 +8,16 @@ const ROOT = process.cwd();
 const OUT = process.env.FLIXO_AGENT_EXECUTION_CONTROL_OUTPUT_DIR ?? path.resolve(ROOT, 'diagnostics/agents/execution-control');
 const TASK_AGENT_OUTPUT_DIR = process.env.FLIXO_TASK_AGENT_OUTPUT_DIR ?? '/tmp/flixo-task-agent';
 const TASK_AGENT = path.resolve(ROOT, 'scripts/ci/task-agent.mjs');
-const TASK_FILE = path.resolve(ROOT, 'مهام.md');
+const TASK_FILE = fs.existsSync(path.resolve(ROOT, 'المهام.md')) ? path.resolve(ROOT, 'المهام.md') : path.resolve(ROOT, 'مهام.md');
 const MAX_STAGES = 10;
-const MAX_REPAIR_CYCLES = 1000000;
-const MAX_STALLED_REPAIR_CYCLES = 1000000;
+const MAX_REPAIR_CYCLES = 12;
+const MAX_STALLED_REPAIR_CYCLES = 3;
 const MAX_PREPARED_FILES = 12;
 const MAX_INSPECTED_FILES = 40;
 const SCOPE_POLICY = 'SELF_HEALING_REPAIR_ONLY';
 const SCOPE_ENFORCEMENT = 'FAIL_CLOSED';
 const TASK_AGENT_CONTRACT_VERSION = 'TASK-AGENT-DIRECT-REPAIR-v2';
+const CONTROL_PLANE_MUTATION_POLICY = 'HUMAN_REVIEW_REQUIRED';
 
 const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
 const now = () => new Date().toISOString();
@@ -49,8 +50,12 @@ function latestPacket() {
   if (packet.baselineSha !== sha) throw new Error('STALE_BASELINE');
   if (packet.contractVersion !== TASK_AGENT_CONTRACT_VERSION) throw new Error('TASK_AGENT_CONTRACT_VERSION_MISMATCH');
   if (packet.scopePolicy !== SCOPE_POLICY || packet.scopeEnforcement !== SCOPE_ENFORCEMENT) throw new Error('SELF_HEALING_PACKET_SCOPE_VIOLATION');
+  if (packet.executionAuthority !== 'BOUND_ADMIN_ON_EXECUTION_WITH_ERROR_SCOPE') throw new Error('EXECUTION_AUTHORITY_VIOLATION');
+  if (packet.mutationScope !== 'CURRENT_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING_ONLY') throw new Error('MUTATION_SCOPE_VIOLATION');
+  if (packet.humanCommandRequired !== false) throw new Error('HUMAN_COMMAND_DEPENDENCY_VIOLATION');
   if (packet.mainBranchMutation !== false) throw new Error('MAIN_BRANCH_MUTATION_POLICY_VIOLATION');
   if (packet.branchPolicy !== 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN') throw new Error('TWO_BRANCH_POLICY_VIOLATION');
+  if (packet.controlPlaneMutationPolicy !== CONTROL_PLANE_MUTATION_POLICY) throw new Error('CONTROL_PLANE_MUTATION_POLICY_VIOLATION');
   if (packet.mutationPolicy !== 'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH') throw new Error('DIRECT_MUTATION_POLICY_VIOLATION');
   if (packet.executionBranch !== 'execution') throw new Error('DIRECT_EXECUTION_BRANCH_VIOLATION');
   if (packet.handoff?.scopeAuthority !== SCOPE_POLICY) throw new Error('SELF_HEALING_HANDOFF_SCOPE_VIOLATION');
@@ -88,7 +93,12 @@ function buildPlan({ index, packet }) {
     executionMode: 'DIRECT_ON_EXECUTION_BRANCH',
     scopePolicy: SCOPE_POLICY,
     scopeEnforcement: SCOPE_ENFORCEMENT,
+    executionAuthority: 'BOUND_ADMIN_ON_EXECUTION_WITH_ERROR_SCOPE',
+    mutationScope: 'CURRENT_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING_ONLY',
+    humanCommandRequired: false,
     branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN',
+    controlPlaneMutationPolicy: CONTROL_PLANE_MUTATION_POLICY,
+    controlPlaneMutationScope: 'AUTO_REPAIR_CONTROLLER_FILES_MUST_NOT_BE_MUTATED_BY_AUTO_REPAIR',
     allowedWork: 'ACTIVE_SELF_HEALING_REPAIR_CYCLE_OR_EXPLICIT_INCOMPLETE_REPAIR_TASK_ONLY',
     forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','GATE_WEAKENING','MAIN_MUTATION','THIRD_BRANCH_CREATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],
     complexityBudget: { maxStages: MAX_STAGES, maxPreparedFiles: MAX_PREPARED_FILES, maxInspectedFiles: MAX_INSPECTED_FILES, onExceed: 'REQUIRES_REVIEW' },
@@ -108,7 +118,7 @@ function buildPlan({ index, packet }) {
   };
 }
 
-if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=مهام.md');
+if (!fs.existsSync(TASK_FILE)) throw new Error('TASK_FILE_NOT_FOUND=المهام.md|legacy=مهام.md');
 if (branch !== 'execution') throw new Error('DIRECT_EXECUTION_REQUIRES_EXECUTION_BRANCH');
 fs.mkdirSync(OUT, { recursive: true });
 const taskId = process.argv.find((arg) => arg.startsWith('--task-id='))?.slice('--task-id='.length) ?? '';

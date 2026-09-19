@@ -24,6 +24,20 @@ export function normalizeLearningOutcome(outcome, verification) {
 
 const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });
 
+const historicalKnowledgePath = process.env.FLIXO_HISTORICAL_KNOWLEDGE ?? 'docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json';
+
+function loadHistoricalKnowledge() {
+  if (!fs.existsSync(historicalKnowledgePath)) return [];
+  try {
+    const parsed = JSON.parse(fs.readFileSync(historicalKnowledgePath, 'utf8'));
+    return Array.isArray(parsed?.entries) ? parsed.entries.filter((entry) =>
+      entry?.id && entry?.rootCause && entry?.rule && Array.isArray(entry?.evidence)
+    ) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function loadMemory() {
   const trustedSourcePath = process.env.FLIXO_TRUSTED_REPAIR_MEMORY || memoryPath;
   if (!fs.existsSync(trustedSourcePath)) return emptyMemory();
@@ -356,13 +370,28 @@ export function deriveReusableKnowledge(memory, { rootCause, features = [], fing
     .filter((item) => blockedRules.has(item.rule) || (item.failures >= 2 && item.successRate <= 0.25))
     .map((item) => ({ ...item, reason: blockedRules.has(item.rule) ? 'historical-revert' : 'low-success-rate' }));
 
+  const historicalAdvisories = loadHistoricalKnowledge()
+    .filter((entry) => (!rootCause || entry.rootCause === rootCause) && (
+      !features.length || entry.features?.some((feature) => features.includes(feature)) || !entry.features
+    ))
+    .map((entry) => ({
+      id: entry.id,
+      rootCause: entry.rootCause,
+      rule: entry.rule,
+      lesson: entry.lesson,
+      evidence: entry.evidence,
+      status: 'historical-advisory',
+      activation: 'fresh-proof-required',
+    }));
+
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     fingerprint: fingerprint ?? null,
     rootCause: rootCause ?? null,
     features: [...new Set(features)],
     generalizedRules,
     rejectedRules,
+    historicalAdvisories,
     policy: {
       promotionRequiresDistinctFingerprints: 2,
       promotionRequiresSuccessfulRepairs: 2,
@@ -413,9 +442,12 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   const isExternalBlock = outcome === 'blocked-external';
   const isHistoricalRevert = outcome === 'reverted-repair';
   const effectiveProviderSignature = provenance?.providerSignature ?? (isExternalBlock ? externalProviderSignature(normalizedFailure) : null);
-  const effectiveProvenance = effectiveProviderSignature
-    ? { ...(provenance ?? {}), providerSignature: effectiveProviderSignature }
-    : (provenance ?? {});
+  const strategyId = String(process.env.FLIXO_REPAIR_STRATEGY_ID ?? provenance?.strategyId ?? '').trim() || null;
+  const effectiveProvenance = {
+    ...(provenance ?? {}),
+    ...(strategyId ? { strategyId } : {}),
+    ...(effectiveProviderSignature ? { providerSignature: effectiveProviderSignature } : {}),
+  };
   const isHistoricalRevertFailure = outcome === 'revert-failure';
   if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
   if (isHistoricalRevert) {

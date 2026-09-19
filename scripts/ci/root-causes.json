@@ -1,20 +1,470 @@
 {
-  "RC-DEPENDENCY-001":{"category":"DEPENDENCY","description":"Committed dependency graph cannot be installed or resolved.","repairTargets":["package.json","package-lock.json"],"verification":["npm ci"]},
-  "RC-DEPENDENCY-ZERO-DEBT-001":{"category":"DEPENDENCY_ZERO_DEBT","description":"Direct dependency declarations are not aligned with actual source/build/test usage, or the committed lockfile drifts from the declared dependency graph.","repairTargets":["package.json","package-lock.json","scripts/report-dependency-usage.mjs"],"verification":["npm run validate:dependency-zero-debt"]},
-  "RC-TYPE-001":{"category":"TYPE","description":"TypeScript/static contract failure.","repairTargets":["src","scripts"],"verification":["npm run typecheck"]},
-  "RC-I18N-001":{"category":"I18N","description":"Locale or localized UI contract failure.","repairTargets":["src/lib/i18n","src/locales"],"verification":["npm run validate:i18n"]},
-  "RC-SEO-001":{"category":"SEO","description":"SEO/canonical/indexing contract failure.","repairTargets":["src","scripts"],"verification":["npm run validate:seo"]},
-  "RC-ROUTER-001":{"category":"ROUTER","description":"Route resolution or registry parity failure.","repairTargets":["src/routes","src/lib"],"verification":["npm run validate:router-registry"]},
-  "RC-BUILD-001":{"category":"BUILD","description":"Production build or generated artifact failure.","repairTargets":["vite.config.ts","src","scripts"],"verification":["npm run build"]},
-  "RC-RUNTIME-001":{"category":"RUNTIME","description":"Browser runtime, page error, or console execution failure.","repairTargets":["src","tests"],"verification":["npm run test:browser"]},
-  "RC-NETWORK-001":{"category":"NETWORK","description":"Browser request or response failure.","repairTargets":["src","playwright.config.ts"],"verification":["npm run test:browser"]},
-  "RC-BROWSER-001":{"category":"BROWSER","description":"Browser gate failed without a more specific root cause.","repairTargets":["src","tests"],"verification":["npm run test:browser"]},
-  "RC-CI-EVIDENCE-001":{"category":"CI_EVIDENCE","description":"Evidence is stale, incomplete, or not authoritative for the executed gates.","repairTargets":["scripts/test.mjs","scripts/ci"],"verification":["npm run test:diagnose"]},
-  "RC-CI-CONTRACT-001":{"category":"CI_CONTRACT","description":"Workflow and executable certification contract drifted.","repairTargets":[".github/workflows","scripts/ci","package.json"],"verification":["npm run validate:ci-contract"]},
-  "RC-CI-DEEP-SEMANTIC-IDENTITY-001":{"category":"CI_EVIDENCE","description":"DEEP execution evidence used one canonical semanticUnitId while certification ownership lookup reconstructed a different key shape, producing false missing-unit failures despite complete 20-locale x 3-browser evidence.","repairTargets":["scripts/ci/record-playwright-execution.mjs","scripts/ci/validate-execution-graph.mjs","scripts/ci/test-execution-graph-semantic-identity.mjs"],"verification":["node scripts/ci/test-execution-graph-semantic-identity.mjs","node scripts/ci/validate-execution-graph.mjs"]},
-  "RC-G4-FIREFOX-NATIVE-DOWNLOAD-001":{"category":"BROWSER","description":"Firefox did not emit Playwright's download event for the result-control synthetic anchor click, even though the generated image Blob and result object URL were valid. The cross-browser contract is repaired by exposing the primary Download now control as a native download link while preserving the existing user-facing role and filename contract.","repairTargets":["src/tools/image-toolkit/index.tsx","tests/image-upscaler.spec.ts"],"verification":["npx playwright test tests/image-upscaler.spec.ts --project=firefox","npx playwright test tests/image-upscaler.spec.ts --project=chromium","npx playwright test tests/image-upscaler.spec.ts --project=webkit"]},
-  "RC-IMAGE-CORE-BOUNDARY-001":{"category":"RUNTIME_CONTRACT","description":"Image Core document mutators accepted runtime-invalid layer and selection state despite TypeScript types, allowing invalid opacity, transforms, masks, enum values, duplicate identifiers, missing targets, and malformed selection bounds to enter the shared document model.","repairTargets":["src/image-core/document.ts","scripts/test-image-core-contract.mjs"],"verification":["npm run test:image-core","npm run typecheck","npm run test:static"]},
-  "RC-TOOL-CATALOG-SCALING-001":{"category":"ARCHITECTURE","description":"Tool management depended on a flat registry with duplicated lookup patterns, making large tool counts increase routing and discovery overhead and encouraging duplicated per-system catalogs. The scalable replacement is a single indexed Tool Catalog with stable identity, canonical route indexes, alias collision checks, readiness indexing, lazy component loading, and typed operational metadata without unsafe inference.","repairTargets":["src/config/registry.ts","src/config/tool-platform/types.ts","src/config/tool-platform/catalog.ts","scripts/test-tool-platform-catalog.mjs"],"verification":["npm run test:tool-platform","npm run validate:tool-registry","npm run test:static"]},
-  "RC-SEED-REDO-GPU-SYNC-001":{"category":"BROWSER","description":"Seed's browser contract sampled WebGL canvas pixels after UI actions using fixed wall-clock waits, while React state/history changes trigger a requestAnimationFrame render with no observable completion boundary. Under CI scheduling variance, Chromium could sample a previous framebuffer after redo even though the page had no console, page, or network failure. The repair exposes a monotonic data-render-revision only after the GPU render returns successfully and makes pixel assertions await that causal completion signal.","repairTargets":["src/tools/seed/index.tsx","tests/seed.spec.ts"],"verification":["npx playwright test tests/seed.spec.ts --project=chromium","npx playwright test tests/seed.spec.ts --project=firefox","npx playwright test tests/seed.spec.ts --project=webkit"]},
-  "RC-UNKNOWN-001":{"category":"UNKNOWN","description":"Failure could not be assigned to a known root cause.","repairTargets":[],"verification":["npm run test:diagnose"]}
+  "RC-DEPENDENCY-001": {
+    "category": "DEPENDENCY",
+    "description": "Committed dependency graph cannot be installed or resolved.",
+    "repairTargets": [
+      "package.json",
+      "package-lock.json"
+    ],
+    "verification": [
+      "npm ci"
+    ]
+  },
+  "RC-DEPENDENCY-ZERO-DEBT-001": {
+    "category": "DEPENDENCY_ZERO_DEBT",
+    "description": "Direct dependency declarations are not aligned with actual source/build/test usage, or the committed lockfile drifts from the declared dependency graph.",
+    "repairTargets": [
+      "package.json",
+      "package-lock.json",
+      "scripts/report-dependency-usage.mjs"
+    ],
+    "verification": [
+      "npm run validate:dependency-zero-debt"
+    ]
+  },
+  "RC-TYPE-001": {
+    "category": "TYPE",
+    "description": "TypeScript/static contract failure.",
+    "repairTargets": [
+      "src",
+      "scripts"
+    ],
+    "verification": [
+      "npm run typecheck"
+    ]
+  },
+  "RC-I18N-001": {
+    "category": "I18N",
+    "description": "Locale or localized UI contract failure.",
+    "repairTargets": [
+      "src/lib/i18n",
+      "src/locales"
+    ],
+    "verification": [
+      "npm run validate:i18n"
+    ]
+  },
+  "RC-SEO-001": {
+    "category": "SEO",
+    "description": "SEO/canonical/indexing contract failure.",
+    "repairTargets": [
+      "src",
+      "scripts"
+    ],
+    "verification": [
+      "npm run validate:seo"
+    ]
+  },
+  "RC-ROUTER-001": {
+    "category": "ROUTER",
+    "description": "Route resolution or registry parity failure.",
+    "repairTargets": [
+      "src/routes",
+      "src/lib"
+    ],
+    "verification": [
+      "npm run validate:router-registry"
+    ]
+  },
+  "RC-BUILD-001": {
+    "category": "BUILD",
+    "description": "Production build or generated artifact failure.",
+    "repairTargets": [
+      "vite.config.ts",
+      "src",
+      "scripts"
+    ],
+    "verification": [
+      "npm run build"
+    ]
+  },
+  "RC-RUNTIME-001": {
+    "category": "RUNTIME",
+    "description": "Browser runtime, page error, or console execution failure.",
+    "repairTargets": [
+      "src",
+      "tests"
+    ],
+    "verification": [
+      "npm run test:browser"
+    ]
+  },
+  "RC-NETWORK-001": {
+    "category": "NETWORK",
+    "description": "Browser request or response failure.",
+    "repairTargets": [
+      "src",
+      "playwright.config.ts"
+    ],
+    "verification": [
+      "npm run test:browser"
+    ]
+  },
+  "RC-BROWSER-001": {
+    "category": "BROWSER",
+    "description": "Browser gate failed without a more specific root cause.",
+    "repairTargets": [
+      "src",
+      "tests"
+    ],
+    "verification": [
+      "npm run test:browser"
+    ]
+  },
+  "RC-CI-EVIDENCE-001": {
+    "category": "CI_EVIDENCE",
+    "description": "Evidence is stale, incomplete, or not authoritative for the executed gates.",
+    "repairTargets": [
+      "scripts/test.mjs",
+      "scripts/ci"
+    ],
+    "verification": [
+      "npm run test:diagnose"
+    ]
+  },
+  "RC-CI-CONTRACT-001": {
+    "category": "CI_CONTRACT",
+    "description": "Workflow and executable certification contract drifted.",
+    "repairTargets": [
+      ".github/workflows",
+      "scripts/ci",
+      "package.json"
+    ],
+    "verification": [
+      "npm run validate:ci-contract"
+    ]
+  },
+  "RC-CI-DEEP-SEMANTIC-IDENTITY-001": {
+    "category": "CI_EVIDENCE",
+    "description": "DEEP execution evidence used one canonical semanticUnitId while certification ownership lookup reconstructed a different key shape, producing false missing-unit failures despite complete 20-locale x 3-browser evidence.",
+    "repairTargets": [
+      "scripts/ci/record-playwright-execution.mjs",
+      "scripts/ci/validate-execution-graph.mjs",
+      "scripts/ci/test-execution-graph-semantic-identity.mjs"
+    ],
+    "verification": [
+      "node scripts/ci/test-execution-graph-semantic-identity.mjs",
+      "node scripts/ci/validate-execution-graph.mjs"
+    ]
+  },
+  "RC-G4-FIREFOX-NATIVE-DOWNLOAD-001": {
+    "category": "BROWSER",
+    "description": "Firefox did not emit Playwright's download event for the result-control synthetic anchor click, even though the generated image Blob and result object URL were valid. The cross-browser contract is repaired by exposing the primary Download now control as a native download link while preserving the existing user-facing role and filename contract.",
+    "repairTargets": [
+      "src/tools/image-toolkit/index.tsx",
+      "tests/image-upscaler.spec.ts"
+    ],
+    "verification": [
+      "npx playwright test tests/image-upscaler.spec.ts --project=firefox",
+      "npx playwright test tests/image-upscaler.spec.ts --project=chromium",
+      "npx playwright test tests/image-upscaler.spec.ts --project=webkit"
+    ]
+  },
+  "RC-IMAGE-CORE-BOUNDARY-001": {
+    "category": "RUNTIME_CONTRACT",
+    "description": "Image Core document mutators accepted runtime-invalid layer and selection state despite TypeScript types, allowing invalid opacity, transforms, masks, enum values, duplicate identifiers, missing targets, and malformed selection bounds to enter the shared document model.",
+    "repairTargets": [
+      "src/image-core/document.ts",
+      "scripts/test-image-core-contract.mjs"
+    ],
+    "verification": [
+      "npm run test:image-core",
+      "npm run typecheck",
+      "npm run test:static"
+    ]
+  },
+  "RC-TOOL-CATALOG-SCALING-001": {
+    "category": "ARCHITECTURE",
+    "description": "Tool management depended on a flat registry with duplicated lookup patterns, making large tool counts increase routing and discovery overhead and encouraging duplicated per-system catalogs. The scalable replacement is a single indexed Tool Catalog with stable identity, canonical route indexes, alias collision checks, readiness indexing, lazy component loading, and typed operational metadata without unsafe inference.",
+    "repairTargets": [
+      "src/config/registry.ts",
+      "src/config/tool-platform/types.ts",
+      "src/config/tool-platform/catalog.ts",
+      "scripts/test-tool-platform-catalog.mjs"
+    ],
+    "verification": [
+      "npm run test:tool-platform",
+      "npm run validate:tool-registry",
+      "npm run test:static"
+    ]
+  },
+  "RC-SEED-REDO-GPU-SYNC-001": {
+    "category": "BROWSER",
+    "description": "Seed's browser contract sampled WebGL canvas pixels after UI actions using fixed wall-clock waits, while React state/history changes trigger a requestAnimationFrame render with no observable completion boundary. Under CI scheduling variance, Chromium could sample a previous framebuffer after redo even though the page had no console, page, or network failure. The repair exposes a monotonic data-render-revision only after the GPU render returns successfully and makes pixel assertions await that causal completion signal.",
+    "repairTargets": [
+      "src/tools/seed/index.tsx",
+      "tests/seed.spec.ts"
+    ],
+    "verification": [
+      "npx playwright test tests/seed.spec.ts --project=chromium",
+      "npx playwright test tests/seed.spec.ts --project=firefox",
+      "npx playwright test tests/seed.spec.ts --project=webkit"
+    ]
+  },
+  "RC-UNKNOWN-001": {
+    "category": "UNKNOWN",
+    "description": "Failure could not be assigned to a known root cause.",
+    "repairTargets": [],
+    "verification": [
+      "npm run test:diagnose"
+    ]
+  },
+  "RC-SECURITY-BASELINE-IMPORT-001": {
+    "category": "CI_SECURITY",
+    "description": "Repository security baseline referenced the REPAIR_GATE_AUTOMATION control-plane registry without importing the symbol, causing a deterministic ReferenceError before the trust-perimeter scan could run.",
+    "repairTargets": [
+      "scripts/ci/repository-security-baseline.mjs"
+    ],
+    "verification": [
+      "node scripts/ci/repository-security-baseline.mjs",
+      "npm run verify:ci-cd-trust"
+    ],
+    "prevention": "Security baseline consumers of control-plane registry symbols must import every referenced registry export; exact-head CI execution is the regression proof."
+  },
+  "RC-SECURITY-BASELINE-PATH-POLICY-001": {
+    "category": "CI_SECURITY",
+    "description": "Repository security baseline compared registry workflow basenames against repository-relative workflow paths and required dynamically generated policy paths to appear as literal strings, causing false security failures after the registry became canonical.",
+    "repairTargets": [
+      "scripts/ci/repository-security-baseline.mjs"
+    ],
+    "verification": [
+      "node scripts/ci/repository-security-baseline.mjs",
+      "node scripts/ci/test-auto-repair-final.mjs"
+    ],
+    "prevention": "Normalize control-plane registry workflow names to repository-relative paths before allowlist comparison and accept canonical REPAIR_GATE_AUTOMATION expansion rather than requiring duplicated literals."
+  },
+  "RC-CI-CONTRACT-LINT-001": {
+    "category": "CI_CONTRACT",
+    "description": "The canonical CI contract validator contained an unnecessarily escaped quote inside a regex literal, causing ESLint no-useless-escape to fail the WP0 trust baseline.",
+    "repairTargets": [
+      "scripts/validate-ci-contract.mjs"
+    ],
+    "verification": [
+      "npm run lint",
+      "npm run validate:ci-contract"
+    ],
+    "prevention": "Keep regex literals free of unnecessary string-style quote escaping; lint remains a mandatory contract regression."
+  },
+  "RC-CONTROL-PLANE-DRIFT-001": {
+    "category": "CI_CONTROL_PLANE",
+    "description": "Trust-perimeter workflow and path protection rules were duplicated across the registry, repair policy, security baseline, and tests, allowing registry-driven controls to drift from textual assertions.",
+    "repairTargets": [
+      "scripts/ci/control-plane-registry.mjs",
+      "scripts/ci/auto-repair-policy.mjs",
+      "scripts/ci/repository-security-baseline.mjs",
+      "scripts/ci/test-auto-repair-final.mjs"
+    ],
+    "verification": [
+      "node scripts/ci/repository-security-baseline.mjs",
+      "node scripts/ci/test-auto-repair-final.mjs"
+    ],
+    "prevention": "Control-plane workflow ownership, write authority, security-critical workflows, history coverage, and trust perimeter paths must be consumed from the canonical registry."
+  },
+  "RC-WATCH-CANCELLATION-001": {
+    "category": "CI_EVIDENCE",
+    "description": "Cancelled workflow runs were treated as generic internal failures without distinguishing valid supersession from an unsuperseded cancellation.",
+    "repairTargets": [
+      "scripts/ci/continuous-error-watch.mjs",
+      "scripts/ci/test-continuous-error-watch.mjs"
+    ],
+    "verification": [
+      "node scripts/ci/test-continuous-error-watch.mjs"
+    ],
+    "prevention": "Classify cancelled runs using same workflow, exact SHA, branch, successor state, and replacement evidence; superseded cancellations are not repair targets."
+  },
+  "RC-WATCH-EVIDENCE-001": {
+    "category": "CI_EVIDENCE",
+    "description": "CI log retrieval used a permissive fallback that could leave missing or error text in the evidence map and still allow repair target creation.",
+    "repairTargets": [
+      ".github/workflows/daily-flixo-green-gate.yml",
+      "scripts/ci/continuous-error-watch.mjs",
+      "scripts/ci/test-continuous-error-watch.mjs"
+    ],
+    "verification": [
+      "node scripts/ci/test-continuous-error-watch.mjs"
+    ],
+    "prevention": "Evidence retrieval emits an explicit capture marker and missing capture forces FAIL_CLOSED before repair dispatch."
+  },
+  "RC-WATCH-TARGET-001": {
+    "category": "CI_EVIDENCE",
+    "description": "Repair target selection did not enforce all target invariants before producing targetRunId.",
+    "repairTargets": [
+      "scripts/ci/continuous-error-watch.mjs",
+      "scripts/ci/test-continuous-error-watch.mjs"
+    ],
+    "verification": [
+      "node scripts/ci/test-continuous-error-watch.mjs"
+    ],
+    "prevention": "Require completed failure/timed-out state, exact execution SHA, execution branch, repairable workflow allowlist, no self target, non-superseded state, and evidence before dispatch."
+  },
+  "RC-HISTORICAL-LEARNING-001": {
+    "category": "CI_LEARNING",
+    "description": "Historical learning defaulted to a partial workflow set and did not persist structured workflow/job/SHA occurrence provenance for each fingerprint.",
+    "repairTargets": [
+      "scripts/ci/control-plane-registry.mjs",
+      "scripts/ci/learn-from-historical-actions.mjs",
+      ".github/workflows/auto-repair.yml"
+    ],
+    "verification": [
+      "node scripts/ci/learn-from-historical-actions.mjs"
+    ],
+    "prevention": "Historical coverage is derived from the canonical registry and fingerprints preserve firstSeenAt, lastSeenAt, occurrences, workflow, jobs, SHA, classification, and strategy metadata."
+  },
+  "RC-WATCH-WORKFLOW-SYNTAX-001": {
+    "category": "CI_CONTRACT",
+    "description": "The evidence-capture shell block was temporarily malformed by incorrect indentation inside a YAML run block, causing the workflow to fail before creating a job.",
+    "repairTargets": [
+      ".github/workflows/daily-flixo-green-gate.yml"
+    ],
+    "verification": [
+      "Daily FLIXO Green Gate exact-SHA run"
+    ],
+    "prevention": "Treat YAML workflow syntax and shell indentation as first-class regression targets before evaluating runtime gate behavior."
+  },
+  "RC-ROUTER-PATH-LITERAL-001": {
+    "category": "ROUTER",
+    "description": "TanStack Router generated route types reject trailing-slash literal links such as /ar/ when the canonical registered route is /ar; this caused exact-head WP0 typecheck failure.",
+    "repairTargets": [
+      "src/routes/tools-page.tsx"
+    ],
+    "verification": [
+      "npm run typecheck",
+      "npm run validate:router-registry"
+    ],
+    "prevention": "Use registered TanStack route literals (/ar) or route templates/params instead of ad-hoc trailing-slash string literals."
+  },
+  "RC-CI-CONTRACT-EVIDENCE-REGEX-001": {
+    "category": "CI_CONTRACT",
+    "description": "The CI contract validator used a cross-line regex that falsely paired a real gh run view --log-failed command with a later intentional || true on gh run list, producing a false RED during canonical static verification.",
+    "repairTargets": [
+      "scripts/validate-ci-contract.mjs"
+    ],
+    "verification": [
+      "npm run lint",
+      "npm run validate:ci-contract"
+    ],
+    "prevention": "Evidence-swallow checks must be scoped to the same command line or parsed command block; intentional idempotency fallbacks in unrelated commands must not satisfy the forbidden pattern."
+  },
+  "RC-AUTO-REPAIR-PROTOCOL-MARKER-001": {
+    "category": "CI_CONTRACT",
+    "description": "The auto-repair engine migrated reproduction command ownership to evidence.reproductionSelection.commands, but validate-agent-protocol retained the historical impactedTests marker and failed canonical static verification.",
+    "repairTargets": [
+      "scripts/ci/validate-agent-protocol.mjs"
+    ],
+    "verification": [
+      "npm run test:static",
+      "npm run validate:agent-protocol"
+    ],
+    "prevention": "Protocol validators must assert current authoritative execution markers after contract migrations and should not depend on obsolete implementation syntax."
+  },
+  "RC-WATCH-TEST-EVIDENCE-FIXTURE-001": {
+    "category": "CI_EVIDENCE",
+    "description": "Continuous error watch self-test expected RED_INTERNAL for an internal failed workflow while providing no captured log evidence; the production reducer correctly fails closed on missing evidence.",
+    "repairTargets": [
+      "scripts/ci/test-continuous-error-watch.mjs"
+    ],
+    "verification": [
+      "node scripts/ci/test-continuous-error-watch.mjs"
+    ],
+    "prevention": "Internal RED fixtures must include explicit EVIDENCE_CAPTURE=AVAILABLE evidence when asserting RED_INTERNAL; missing evidence is always FAIL_CLOSED."
+  },
+  "RC-WATCH-RUN-STORM-001": {
+    "category": "CI_CONCURRENCY",
+    "description": "Daily Green Gate workflow_run triggers accumulated duplicate watcher runs because the watcher used one global non-canceling concurrency lane while historical Test System completions continued arriving.",
+    "repairTargets": [
+      ".github/workflows/daily-flixo-green-gate.yml",
+      "scripts/validate-ci-contract.mjs",
+      "scripts/ci/test-auto-repair-final.mjs"
+    ],
+    "verification": [
+      "npm run validate:ci-contract",
+      "node scripts/ci/test-auto-repair-final.mjs"
+    ],
+    "prevention": "Watcher executions are supersedable by branch; Auto-Repair execution remains isolated and non-canceling."
+  },
+  "RC-AUTO-REPAIR-PUBLISH-STALE-BASE-001": {
+    "category": "AUTO_REPAIR",
+    "description": "The repair publisher previously rebased a verified repair onto a newer execution head when the branch moved during diagnosis, allowing a stale repair to become a new execution commit and churn canonical CI.",
+    "repairTargets": [
+      ".github/workflows/auto-repair.yml"
+    ],
+    "verification": [
+      "scripts/ci/validate-auto-repair-boundary.mjs",
+      "scripts/ci/test-auto-repair-final.mjs"
+    ],
+    "prevention": "A repair must publish only when local and remote execution both equal the failed target SHA; any head movement causes fail-closed publication, never rebase."
+  },
+  "RC-GREEN-GATE-PENDING-CANCELLATION-001": {
+    "category": "CI_EVIDENCE",
+    "description": "Daily·FLIXO Green Gate observations could be cancelled or superseded before evidence publication because concurrency grouped by branch/SHA and GitHub allows only one pending item per concurrency group.",
+    "repairTargets": [
+      ".github/workflows/daily-flixo-green-gate.yml",
+      "scripts/ci/test-auto-repair-architecture.mjs"
+    ],
+    "verification": [
+      "assert Green Gate concurrency group uses github.run_id",
+      "assert cancel-in-progress is false"
+    ]
+  },
+  "RC-BUILD-TOOLS-CSS-PATH-001": {
+    "category": "BUILD",
+    "description": "src/routes/tools-page.tsx imported tools-modern.css relative to src/routes although the authoritative stylesheet is stored in src/components, causing Vite UNRESOLVED_IMPORT.",
+    "repairTargets": [
+      "src/routes/tools-page.tsx",
+      "src/components/tools-modern.css"
+    ],
+    "verification": [
+      "npm run test:build",
+      "npm run test:static"
+    ],
+    "prevention": "Keep imports aligned with the authoritative module location; the stylesheet is not duplicated."
+  },
+  "RC-TASK-AGENT-LEDGER-MARKER-001": {
+    "category": "CI_CONTRACT",
+    "description": "Task Agent contract validation required an obsolete literal governance marker that was absent from the canonical المهام.md ledger, causing a contract failure even after the ledger filename was corrected.",
+    "repairTargets": [
+      "المهام.md",
+      "scripts/ci/validate-task-agent-contract.mjs"
+    ],
+    "verification": [
+      "npm run test:task-agent",
+      "npm run test:static"
+    ],
+    "prevention": "Critical governance invariants must be stated explicitly in the canonical ledger and validated from that single authority."
+  },
+  "RC-BROWSER-FIREFOX-NETWORKIDLE-001": {
+    "category": "BROWSER",
+    "description": "Firefox DEEP localization/SEO coverage intermittently timed out waiting for Playwright networkidle even though load completed and page assertions/runtime checks otherwise progressed. Chromium and WebKit on the same exact SHA did not reproduce the pattern.",
+    "repairTargets": [
+      "tests/official/g4-localization-runtime.spec.ts"
+    ],
+    "verification": [
+      "FLIXO Test System Browser DEEP on exact SHA across Firefox/Chromium/WebKit"
+    ],
+    "prevention": "Use deterministic document readiness, font readiness, animation-frame, and idle-callback settling for this local static/runtime contract instead of browser-dependent networkidle quiescence."
+  },
+  "RC-AUTOREPAIR-EXPECTED-SHA-001": {
+    "category": "AUTO_REPAIR",
+    "description": "Auto Repair Phase 1 previously failed with EXPECTED_SHA_MISSING even though the target resolver wrote the failed SHA file.",
+    "repairTargets": [
+      ".github/workflows/auto-repair.yml"
+    ],
+    "verification": [
+      "Phase 1 preflight on exact failed SHA with FLIXO_EXPECTED_TARGET_SHA",
+      "verified-repair handoff gate"
+    ],
+    "prevention": "Propagate the exact target SHA through GITHUB_ENV and retain independent file proof."
+  },
+  "RC-AUTOREPAIR-STRATEGY-CASCADE-001": {
+    "category": "AUTO_REPAIR",
+    "description": "Downstream postflight/learning steps could emit a secondary missing strategy artifact error after an upstream strategy/preflight failure.",
+    "repairTargets": [
+      ".github/workflows/auto-repair.yml"
+    ],
+    "verification": [
+      "Auto Repair failure-path execution",
+      "no secondary strategy artifact exception"
+    ],
+    "prevention": "Gate dependent AI phases on upstream success and explicitly fail closed when strategy evidence is absent."
+  }
 }

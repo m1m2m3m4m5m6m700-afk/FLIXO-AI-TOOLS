@@ -33,7 +33,6 @@ env:
   FLIXO_REPAIR_LANE: single
   TARGET_RUN_ID: ${{ inputs.target_run_id }}
   FLIXO_HISTORY_LIMIT: '30'
-  FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
   FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
@@ -74,9 +73,18 @@ jobs:
           FAILED_NAME="$(printf '%s' "$RUN_META" | jq -r '.name')"
           test -n "$FAILED_SHA" && test "$FAILED_SHA" != "null"
           test "$FAILED_BRANCH" = "main" || test "$FAILED_BRANCH" = "execution"
+          CURRENT_TARGET_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$FAILED_BRANCH" --jq '.object.sha')"
+          test "$CURRENT_TARGET_SHA" = "$FAILED_SHA" || {
+            echo "FAIL CLOSED: repair target $FAILED_SHA is superseded by current $FAILED_BRANCH SHA $CURRENT_TARGET_SHA."
+            exit 1
+          }
+          printf '%s\n' "$CURRENT_TARGET_SHA" > /tmp/flixo-current-target-sha
+          printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
+          test -s /tmp/flixo-failed-sha
+          test "$(cat /tmp/flixo-failed-sha)" = "$FAILED_SHA"
+          echo "FLIXO_EXPECTED_TARGET_SHA=$FAILED_SHA" >> "$GITHUB_ENV"
           test "$FAILED_NAME" != "FLIXO Auto Repair Bot" || { echo 'FAIL CLOSED: auto-repair cannot repair itself.'; exit 1; }
           test "$FAILED_NAME" != "FLIXO Auto Repair Chain" || { echo 'FAIL CLOSED: auto-repair cannot repair itself.'; exit 1; }
-          printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
           printf '%s\n' "$FAILED_BRANCH" > /tmp/flixo-failed-branch
           printf '%s\n' "$FAILED_NAME" > /tmp/flixo-failed-workflow
 
@@ -199,14 +207,32 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > "$FLIXO_FAILURE_LOG" 2>&1 || true
-          test -s "$FLIXO_FAILURE_LOG" || printf '%s\n' 'No failed log payload was available.' > "$FLIXO_FAILURE_LOG"
+          if ! gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > "$FLIXO_FAILURE_LOG" 2>&1; then
+            echo 'FAIL CLOSED: failed-run evidence could not be captured.'
+            printf '%s\n' 'EVIDENCE_CAPTURE=FAILED' > /tmp/flixo-evidence-capture-failed
+            exit 1
+          fi
+          test -s "$FLIXO_FAILURE_LOG"
           {
             echo '### Failed CI classification input'
             echo "run_id=$TARGET_RUN_ID"
             gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json name,headSha,headBranch,conclusion
             grep -E -i 'error|failed|failure|timeout|cancelled|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(|DEEP_[A-Z_]+_MISSING|execution graph completeness' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
           } > /tmp/flixo-repair-summary.txt
+
+      - name: Run Phase 1 AI failure intelligence and exact-target preflight
+        env:
+          FLIXO_CURRENT_TARGET_SHA_FILE: /tmp/flixo-failed-sha
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
+        run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --preflight
+
+      - name: Run Phase 3 AI decision-intelligence preflight
+        env:
+          FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
+          FLIXO_AI_PHASE3_PATH: /tmp/flixo-ai-phase3.json
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+        run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase3.mjs --preflight
 
       - name: Classify root cause with trusted controller
         env:
@@ -238,6 +264,15 @@ jobs:
             echo 'Teaching escalation recorded; continuing with the next repair strategy.'
           fi
 
+      - name: Run Phase 1 AI self-test
+        run: node --experimental-strip-types scripts/ci/test-ai-phase1.mjs
+
+      - name: Run Phase 2 AI self-test
+        run: node --experimental-strip-types scripts/ci/test-ai-phase2.mjs
+
+      - name: Run Phase 3 AI self-test
+        run: node --experimental-strip-types scripts/ci/test-ai-phase3.mjs
+
       - name: Install target dependencies
         id: install_target
         if: steps.strategy.outputs.intractable != 'true'
@@ -253,6 +288,36 @@ jobs:
           set -euo pipefail
           export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
           node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs
+
+      - name: Build Phase 1 AI impact and CI orchestration plan
+        id: ai_phase1
+        if: always() && steps.strategy.outcome == 'success'
+        env:
+          FLIXO_CURRENT_TARGET_SHA_FILE: /tmp/flixo-failed-sha
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
+        run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --postflight
+
+      - name: Run Phase 2 AI strategy, set-cover and security guard from Phase 1 canonical context
+        id: ai_phase2
+        if: always() && steps.ai_phase1.outcome == 'success'
+        env:
+          FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
+          FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
+          FLIXO_REPAIR_STRATEGY_PATH: /tmp/flixo-repair-strategy.json
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+        run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase2.mjs --guard
+
+      - name: Run Phase 3 AI decision-intelligence postflight
+        id: ai_phase3
+        if: always() && steps.ai_phase2.outcome == 'success'
+        env:
+          FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
+          FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
+          FLIXO_AI_PHASE3_PATH: /tmp/flixo-ai-phase3.json
+          FLIXO_REPAIR_STRATEGY_PATH: /tmp/flixo-repair-strategy.json
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+        run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase3.mjs --postflight
 
       - name: Validate repair diff boundary before publication
         id: boundary
@@ -270,6 +335,10 @@ jobs:
             exit 0
           fi
           test -f /tmp/flixo-repair-evidence.json || { echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; }
+          test -s /tmp/flixo-ai-phase1.json
+          test -s /tmp/flixo-ai-phase3.json
+          node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --assert-post
+          node --experimental-strip-types scripts/ci/auto-repair/ai-phase3.mjs --assert-post
           OUTCOME=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.outcome||'unknown')")
           echo "REPAIR_OUTCOME=$OUTCOME"
           if [ "$OUTCOME" != "verified-repair" ] && [ "$OUTCOME" != "verified-historical-revert" ]; then echo 'verified=false' >> "$GITHUB_OUTPUT"; exit 0; fi
@@ -321,7 +390,14 @@ jobs:
           else
             LEARNING_OUTCOME='unrepaired'
           fi
-          FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" FLIXO_LEARNING_OUTCOME="$LEARNING_OUTCOME" FLIXO_VERIFICATION="$ENGINE_OUTCOME" FLIXO_TARGET_SHA="$TARGET_SHA" FLIXO_REVERTED_COMMIT="$REVERTED_COMMIT" FLIXO_TRUSTED_MEMORY_SHA="${FLIXO_TRUSTED_MEMORY_SHA:-}" node scripts/ci/auto-repair-learning.mjs
+          if [ ! -s /tmp/flixo-repair-strategy.json ]; then
+            printf '%s\n' 'engine-error' > /tmp/flixo-engine-outcome
+            printf '%s\n' 'unrepaired' > /tmp/flixo-learning-outcome
+            echo 'FAIL CLOSED: repair strategy evidence is missing; no handoff or learning promotion is permitted.'
+            exit 1
+          fi
+          STRATEGY_ID="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId||'')")"
+          FLIXO_REPAIR_STRATEGY_ID="$STRATEGY_ID" FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" FLIXO_LEARNING_OUTCOME="$LEARNING_OUTCOME" FLIXO_VERIFICATION="$ENGINE_OUTCOME" FLIXO_TARGET_SHA="$TARGET_SHA" FLIXO_REVERTED_COMMIT="$REVERTED_COMMIT" FLIXO_TRUSTED_MEMORY_SHA="${FLIXO_TRUSTED_MEMORY_SHA:-}" node scripts/ci/auto-repair-learning.mjs
           printf '%s\n' "$ENGINE_OUTCOME" > /tmp/flixo-engine-outcome
           printf '%s\n' "$LEARNING_OUTCOME" > /tmp/flixo-learning-outcome
 
@@ -360,6 +436,17 @@ jobs:
           FINGERPRINT="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.fingerprint||'unknown')")"
           RULE="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.selected||x.historicalRollback?.rule||'unknown')")"
           BASE_SHA="$(git rev-parse HEAD)"
+          git fetch --no-tags origin execution
+          REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          test "$BASE_SHA" = "$FAILED_SHA" || {
+            echo "FAIL CLOSED: local repair base $BASE_SHA is not the failed target SHA $FAILED_SHA."
+            exit 1
+          }
+          test "$REMOTE_EXECUTION_SHA" = "$FAILED_SHA" || {
+            echo "FAIL CLOSED: execution advanced during repair; refusing stale publication."
+            exit 1
+          }
           if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
             REVERTED_SHA="$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8'));process.stdout.write(x.historicalRollback?.revertedSha||'')")"
             test "$REVERTED_SHA" != ""
@@ -369,24 +456,16 @@ jobs:
             git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "fix(auto-repair): verified repair for run ${TARGET_RUN_ID}" -m "FLIXO-REPAIR-MARKER-v1\nkind=verified-source-repair\nfingerprint=$FINGERPRINT\nrule=$RULE\nfailedSha=$FAILED_SHA\nbaseSha=$BASE_SHA"
           fi
           PUSHED=false
-          for attempt in 1 2 3; do
-            if git push origin execution; then
-              PUSHED=true
-              break
-            fi
-            git fetch --no-tags origin execution
-            REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
-            LOCAL_EXECUTION_SHA="$(git rev-parse HEAD)"
-            if git merge-base --is-ancestor "$LOCAL_EXECUTION_SHA" "$REMOTE_EXECUTION_SHA"; then
-              echo "FAIL CLOSED: execution advanced after repair commit; refusing to overwrite remote history."
-              exit 1
-            fi
-            if ! git merge-base --is-ancestor "$REMOTE_EXECUTION_SHA" "$LOCAL_EXECUTION_SHA"; then
-              echo "Execution diverged while publishing repair; rebasing local verified repair onto the remote execution head."
-              git rebase "$REMOTE_EXECUTION_SHA" || { git rebase --abort || true; exit 1; }
-            fi
-            sleep $((attempt * 2))
-          done
+          git fetch --no-tags origin execution
+          REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
+          LOCAL_REPAIR_PARENT="$(git rev-parse HEAD^)"
+          if [ "$REMOTE_EXECUTION_SHA" != "$LOCAL_REPAIR_PARENT" ]; then
+            echo "FAIL CLOSED: execution advanced after the verified repair was created; refusing stale publication."
+            exit 1
+          fi
+          if git push origin execution; then
+            PUSHED=true
+          fi
           test "$PUSHED" = true
           PR_URL="$(gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --json url --jq '.[0].url // empty')"
           if [ -z "$PR_URL" ]; then
@@ -455,6 +534,14 @@ jobs:
           node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/flixo-prepared-repair-handoff.json','utf8'));for(const k of ['repairRunId','targetFailureRunId','chainId','failedSha','sourceSha','controllerSha','executionSha','parentSha','fingerprint','selectedRule','patchSha256']) if(h[k]===undefined||h[k]===null||h[k]==='') throw new Error('missing handoff field '+k);"
           test "${GITHUB_RUN_ID}" = "$(node -e "const h=require('/tmp/flixo-prepared-repair-handoff.json');process.stdout.write(h.repairRunId)")"
           test "$TARGET_RUN_ID" = "$(node -e "const h=require('/tmp/flixo-prepared-repair-handoff.json');process.stdout.write(h.targetFailureRunId)")"
+      - name: Validate Phase 2 release integrity handoff
+        if: steps.verify.outputs.verified == 'true'
+        env:
+          FLIXO_AI_PHASE1_PATH: /tmp/flixo-ai-phase1.json
+          FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
+          FLIXO_REPAIR_EVIDENCE_PATH: /tmp/flixo-repair-evidence.json
+        run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase2.mjs --release-handoff
+
       - name: Publish repair evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -469,6 +556,9 @@ jobs:
             /tmp/flixo-engine-outcome
             /tmp/flixo-learning-outcome
             /tmp/flixo-repair-evidence.json
+            /tmp/flixo-ai-phase1.json
+            /tmp/flixo-ai-phase2.json
+            /tmp/flixo-ai-phase3.json
             /tmp/flixo-repair-strategy.json
             /tmp/flixo-intractable-state
             /tmp/flixo-task-agent/*.json

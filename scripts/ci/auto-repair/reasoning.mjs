@@ -80,6 +80,30 @@ function evidenceLines(log, profile) {
     .map((line) => line.trim().slice(0, 500));
 }
 
+function evidenceProfile({ directFailureSignal, codeContext, scout, learnedSupport, crossWorkflow } = {}) {
+  const channels = {
+    directLog: Boolean(directFailureSignal),
+    sourceContext: Boolean(codeContext?.available),
+    exactShaScout: Boolean(scout?.fresh),
+    historicalLearning: Number(learnedSupport ?? 0) > 0,
+    crossWorkflowCorrelation: crossWorkflow?.confidence === 'CORRELATED',
+  };
+  const diversity = Object.values(channels).filter(Boolean).length;
+  return {
+    channels,
+    diversity,
+    minimumForMutation: 2,
+    quality: diversity >= 4 ? 'MULTI_SOURCE' : diversity >= 3 ? 'STRONG' : diversity >= 2 ? 'BOUNDED' : 'INSUFFICIENT',
+  };
+}
+
+function confidenceCap({ diversity = 0, directFailureSignal = false, ambiguity = false } = {}) {
+  if (!directFailureSignal) return 0.65;
+  if (ambiguity) return 0.82;
+  if (diversity < 2) return 0.80;
+  if (diversity === 2) return 0.92;
+  return 0.995;
+}
 function buildHypotheses(log, features, scout, historical = [], codeContext = null) {
   const candidates = PROFILES
     .filter((profile) => features.includes(profile.feature))
@@ -123,6 +147,57 @@ function buildHypotheses(log, features, scout, historical = [], codeContext = nu
   });
 }
 
+function counterfactualChecks(log, top, alternatives) {
+  const checks = [];
+  const text = String(log ?? '');
+  if (top?.id === 'lint') checks.push({ id: 'CF-LINT-SOURCE', question: 'Would the failure remain if the reported source line were isolated?', required: true });
+  if (top?.id === 'playwright' || top?.id === 'webkit-render') checks.push({ id: 'CF-BROWSER-MODE', question: 'Would the failure remain with browser/runtime-specific factors excluded?', required: true });
+  if (top?.id === 'external-tooling') checks.push({ id: 'CF-EXTERNAL', question: 'Can the same failure be reproduced without the external provider?', required: true });
+  if (alternatives?.length) checks.push({ id: 'CF-ALTERNATIVE-CAUSE', question: 'Does evidence distinguish the leading hypothesis from the strongest alternative?', required: true });
+  return checks.map((check) => ({ ...check, status: text ? 'REQUIRED_BEFORE_NONTRIVIAL_MUTATION' : 'BLOCKED_MISSING_EVIDENCE' }));
+}
+
+function causalGraph({ trigger = null, rootCause = null, violatedInvariant = null, responsibleSource = null, symptom = null } = {}) {
+  return {
+    schemaVersion: 1,
+    trigger,
+    propagationPath: [trigger, rootCause, responsibleSource, symptom].filter(Boolean),
+    violatedInvariant,
+    responsibleSource,
+    observableSymptom: symptom,
+    closureRequired: ['mechanism-proven','causal-source-repaired','targeted-regression','affected-contract-graph','fresh-exact-sha'],
+  };
+}
+
+function crossWorkflowCorrelation({ workflow = null, failures = [] } = {}) {
+  const normalized = failures.filter((item) => item && (item.workflow || item.runId || item.fingerprint));
+  const sameFingerprint = normalized.filter((item) => item.fingerprint && item.fingerprint === normalized[0]?.fingerprint);
+  return {
+    schemaVersion: 1,
+    workflow,
+    observedFailures: normalized.slice(-20),
+    firstCommonFailure: sameFingerprint[0] ?? normalized[0] ?? null,
+    confidence: sameFingerprint.length > 1 ? 'CORRELATED' : normalized.length > 1 ? 'MULTI_WORKFLOW_UNPROVEN' : 'INSUFFICIENT_EVIDENCE',
+    mutationAllowed: false,
+  };
+}
+
+function blastRadius(features = [], rootCause = 'unknown') {
+  const surfaces = new Set(['source', 'targeted-regression', 'canonical-ci']);
+  if (features.includes('typescript') || features.includes('build')) surfaces.add('build');
+  if (features.includes('lint') || features.includes('format')) surfaces.add('static');
+  if (features.includes('playwright') || features.includes('webkit')) surfaces.add('browser');
+  if (features.includes('certification')) surfaces.add('certification');
+  if (rootCause === 'external-tooling') surfaces.add('external-provider');
+  return [...surfaces];
+}
+
+function adaptiveBudget({ attempts = 0, ambiguity = false, alternatives = 0, features = [] } = {}) {
+  const complexity = (ambiguity ? 2 : 0) + Math.min(3, alternatives) + Math.min(3, features.length);
+  const budget = Math.max(3, Math.min(12, 3 + attempts + complexity));
+  return { budget, failClosed: attempts >= 12, reason: { attempts, ambiguity, alternatives, features: features.length } };
+}
+
 function selectTop(hypotheses) {
   const viable = hypotheses.filter((item) => !item.suppressedBy);
   return viable[0] ?? hypotheses[0] ?? {
@@ -149,14 +224,42 @@ export function reasonFailure(log, {
   const causalDominance = alternatives.some((item) => top.dominates.includes(item.id) || item.dominates?.includes(top.id));
   const contradiction = Boolean(second && !causalDominance && second.score >= top.score * 0.9);
   const multiCauseAmbiguity = features.length > 1 && !causalDominance;
-  const causalConfidence = top.id === 'external-tooling'
-    ? 0.99
-    : Number(Math.min(0.995, top.score + (directFailureSignal ? 0.12 : 0) + Math.min(0.08, Math.max(0, separation))).toFixed(3));
   const ambiguity = contradiction || multiCauseAmbiguity;
   const hardBlock = profileFor(top.id)?.hardBlock === true;
   const requiresVerifiedLocation = top.id === 'lint' || top.id === 'format';
   const locationVerified = !requiresVerifiedLocation || (location !== null && codeContext.available);
-  const sourceMutationAllowed = !hardBlock && !ambiguity && directFailureSignal && causalConfidence >= 0.75 && locationVerified;
+  const crossWorkflow = crossWorkflowCorrelation({
+    workflow: process.env.GITHUB_WORKFLOW ?? null,
+    failures: (() => {
+      try {
+        const p = process.env.FLIXO_WORKFLOW_FAILURES;
+        return p && fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : [];
+      } catch {
+        return [];
+      }
+    })(),
+  });
+  const evidence = evidenceProfile({
+    directFailureSignal,
+    codeContext,
+    scout,
+    learnedSupport: top.learnedSupport,
+    crossWorkflow,
+  });
+  const cap = confidenceCap({ diversity: evidence.diversity, directFailureSignal, ambiguity });
+  const causalConfidence = top.id === 'external-tooling'
+    ? 0.99
+    : Number(Math.min(cap, top.score + (directFailureSignal ? 0.10 : 0) + Math.min(0.07, Math.max(0, separation))).toFixed(3));
+  const mutationGate = {
+    directFailureSignal,
+    locationVerified,
+    nonAmbiguous: !ambiguity,
+    evidenceDiversity: evidence.diversity >= evidence.minimumForMutation,
+    hypothesisSeparation: second ? separation >= 0.08 : top.score >= 0.75,
+    confidence: causalConfidence >= 0.75,
+  };
+  const sourceMutationAllowed = !hardBlock && Object.values(mutationGate).every(Boolean);
+  const falsificationChecks = counterfactualChecks(text, top, alternatives);
   const decision = hardBlock
     ? 'BLOCK_EXTERNAL'
     : sourceMutationAllowed
@@ -175,9 +278,16 @@ export function reasonFailure(log, {
     diagnosisQuality: hardBlock || sourceMutationAllowed ? 'strong' : causalConfidence >= 0.5 ? 'provisional' : 'weak',
     directFailureSignal,
     ambiguity,
+    evidenceProfile: evidence,
+    mutationGate,
     sourceMutationAllowed,
     externalTooling: hardBlock,
     locationVerified,
+    falsificationChecks,
+    blastRadius: blastRadius(features, top.id),
+    causalGraph: causalGraph({ trigger: process.env.FLIXO_FAILURE_TRIGGER ?? null, rootCause: top.id, violatedInvariant: process.env.FLIXO_VIOLATED_INVARIANT ?? null, responsibleSource: location?.file ?? null, symptom: normalizeFailure(text) }),
+    crossWorkflowCorrelation: crossWorkflow,
+    adaptiveBudget: adaptiveBudget({ attempts: Number(process.env.FLIXO_REPAIR_ATTEMPTS ?? 0), ambiguity, alternatives: alternatives.length, features }),
     decision,
     scout: scout.fresh
       ? { fresh: true, path: scout.path ?? null, scannedSha: scout.report.scannedSha, findings: scout.report.findings?.length ?? 0 }
@@ -203,7 +313,7 @@ export function verificationStrategy(features = []) {
 export function reasoningPolicy() {
   return Object.freeze({
     principle: 'EVIDENCE_FIRST_CAUSAL_REASONING',
-    mutationRule: 'ALLOW_ONLY_WITH_DIRECT_FAILURE_SIGNAL_NON_AMBIGUOUS_CAUSAL_CONFIDENCE_AND_BOUNDED_PLAN',
+    mutationRule: 'ALLOW_ONLY_WITH_DIRECT_FAILURE_SIGNAL_NON_AMBIGUOUS_MULTI_SOURCE_EVIDENCE_HYPOTHESIS_SEPARATION_CALIBRATED_CONFIDENCE_AND_BOUNDED_PLAN',
     externalRule: 'EXTERNAL_TOOLING_IS_NOT_A_SOURCE_FIX',
     scoutRule: 'ONLY_FRESH_EXACT_SHA_SCOUT_EVIDENCE_IS_ACTIONABLE',
     learningRule: 'HISTORICAL_SUCCESS_IS_PRIOR_SUPPORT_NOT_CAUSAL_PROOF',

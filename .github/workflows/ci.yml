@@ -7,9 +7,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Superseded PR/branch runs are obsolete once a newer commit arrives.
+# The exact-SHA identity gates still validate the newest run before it can pass.
 concurrency:
-  group: flixo-test-${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: false
+  group: flixo-test-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -329,7 +331,7 @@ jobs:
           merge-multiple: true
       - name: Validate execution graph completeness
         shell: bash
-        run: node scripts/ci/validate-certification-graph.mjs
+        run: node scripts/ci/validate-execution-graph.mjs
       - name: Single certification engine
         shell: bash
         run: node scripts/ci/certification-engine.mjs

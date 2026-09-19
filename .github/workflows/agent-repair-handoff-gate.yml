@@ -4,7 +4,7 @@ on:
   workflow_run:
     workflows: ["FLIXO Auto Repair Bot"]
     types: [completed]
-    branches: [main]
+    branches: [execution]
 
 permissions:
   contents: read
@@ -42,6 +42,20 @@ jobs:
           pattern: flixo-auto-repair-*-${{ env.REPAIR_RUN_ID }}
           path: /tmp/repair-handoff
           merge-multiple: true
+
+      - name: Validate handoff targets the current execution head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test -s /tmp/repair-handoff/flixo-prepared-repair-handoff.json
+          HANDOFF_EXECUTION_SHA="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.executionSha||'')")"
+          test -n "$HANDOFF_EXECUTION_SHA"
+          test "$HANDOFF_EXECUTION_SHA" = "$CURRENT_EXECUTION_SHA" || {
+            echo "FAIL CLOSED: handoff SHA $HANDOFF_EXECUTION_SHA is superseded by execution $CURRENT_EXECUTION_SHA."
+            exit 1
+          }
 
       - name: Validate canonical handoff contract
         if: env.REPAIR_RUN_CONCLUSION == 'success' || env.REPAIR_RUN_CONCLUSION == 'failure' || env.REPAIR_RUN_CONCLUSION == 'timed_out'

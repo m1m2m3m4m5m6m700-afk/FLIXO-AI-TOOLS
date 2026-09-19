@@ -1,4 +1,5 @@
-import { WRITE_CAPABLE_WORKFLOWS, SECURITY_CRITICAL_WORKFLOWS } from './control-plane-registry.mjs';
+import { REPAIR_GATE_AUTOMATION, WRITE_CAPABLE_WORKFLOWS, SECURITY_CRITICAL_WORKFLOWS, TRUST_PERIMETER_PATHS } from './control-plane-registry.mjs';
+import { isProtectedPath } from './auto-repair-policy.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -10,28 +11,9 @@ const failures = [];
 // execution-sync is the canonical execution-branch reconciliation controller; it
 // may write only to execution and trigger canonical CI, and it merges only after
 // exact-head GREEN evidence. Direct-main repair remains intentionally forbidden.
-const writeWorkflowAllowlist = new Set(WRITE_CAPABLE_WORKFLOWS);
+const writeWorkflowAllowlist = new Set(WRITE_CAPABLE_WORKFLOWS.map((name) => `.github/workflows/${name}`));
 
-const securityCriticalWorkflows = new Set(SECURITY_CRITICAL_WORKFLOWS);
-
-const trustPerimeter = [
-  '.github/workflows/auto-repair.yml',
-  '.github/workflows/execution-sync.yml',
-  '.github/workflows/wp0-trust-baseline.yml',
-  'scripts/ci/control-plane-registry.mjs',
-  'scripts/ci/auto-repair-policy.mjs',
-  'scripts/ci/auto-repair-engine.mjs',
-  'scripts/ci/auto-repair-learning.mjs',
-  'scripts/ci/auto-repair-proof.mjs',
-  'scripts/ci/auto-repair/',
-  'scripts/ci/task-agent.mjs',
-  'scripts/ci/agent-execution-control.mjs',
-  'scripts/ci/repository-security-baseline.mjs',
-  'scripts/ci/validate-auto-repair-memory.mjs',
-  'scripts/ci/validate-certification-surface.mjs',
-  'scripts/ci/validate-ci-cd-trust.mjs',
-  'scripts/ci/validate-wp0-trust-baseline.mjs',
-];
+const securityCriticalWorkflows = new Set(SECURITY_CRITICAL_WORKFLOWS.map((name) => `.github/workflows/${name}`));
 
 function walk(dir) {
   if (!fs.existsSync(dir)) return [];
@@ -47,8 +29,15 @@ function workflowFiles() {
 
 const policyPath = path.join(root, 'scripts', 'ci', 'auto-repair-policy.mjs');
 const policyText = fs.existsSync(policyPath) ? fs.readFileSync(policyPath, 'utf8') : '';
-for (const protectedPath of trustPerimeter) {
-  if (!policyText.includes("'" + protectedPath + "'")) failures.push('auto-repair-policy: missing protected trust path ' + protectedPath);
+
+for (const protectedPath of TRUST_PERIMETER_PATHS) {
+  const absolute = path.join(root, protectedPath);
+  if (!isProtectedPath(protectedPath)) {
+    failures.push('auto-repair-policy: trust perimeter path is not protected ' + protectedPath);
+  }
+  if (!fs.existsSync(absolute)) {
+    failures.push('control-plane-registry: missing trust perimeter path ' + protectedPath);
+  }
 }
 if (policyText.includes('maxAttemptsPerFingerprint: Number.POSITIVE_INFINITY')) failures.push('auto-repair-policy: unbounded per-fingerprint repair is forbidden');
 if (/openDraftPrOnly:\s*true/u.test(policyText)) failures.push('auto-repair-policy: openDraftPrOnly=true contradicts canonical execution→main publication');

@@ -74,10 +74,10 @@ export function FlixoGlobalLogo() {
       }}
     >
       <img
-        src="/flixo-logo.svg"
+        src="/flixo-logo.webp"
         alt="FLIXO AI Tools"
-        width={256}
-        height={256}
+        width={192}
+        height={192}
         loading="eager"
         decoding="async"
         draggable={false}

@@ -293,6 +293,23 @@ jobs:
         run: |
           test -s production-deployment-evidence.json
 
+      - name: Run Phase 2 Release Integrity Agent
+        if: steps.guard.outputs.skip_deploy != 'true'
+        env:
+          FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2-release.json
+          FLIXO_PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
+          FLIXO_MAIN_SHA: ${{ steps.sha.outputs.sha }}
+          FLIXO_CI_CONCLUSION: success
+          FLIXO_DEPLOYMENT_EVIDENCE_PATH: production-deployment-evidence.json
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/ci/auto-repair/ai-phase2.mjs --release
+          STATUS="$(jq -r '.releaseIntegrity.status' /tmp/flixo-ai-phase2-release.json)"
+          case "$STATUS" in
+            PASS|BLOCKED_EXTERNAL) ;;
+            *) echo "Release Integrity Agent blocked promotion: $STATUS"; exit 1 ;;
+          esac
+
       - name: Upload deployment evidence
         if: always()
         uses: actions/upload-artifact@v6

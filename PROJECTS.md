@@ -9,21 +9,35 @@
 ```text
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
-CURRENT MAIN SHA = 27e5f4486e29ac9e7a4383ce5243d4bb05c04ce1
-ACTIVE PR = #748 (execution → main)
-CURRENT PR HEAD = 3b056c33b7d7a84ac8ae6231959a67f9d304f3b5
+CURRENT MAIN SHA = 5115ac0528a7b18ae9ae3d392ccbfd2257900ea3
+ACTIVE PR = #750 OPEN / execution → main
+CURRENT PR HEAD = authoritative GitHub PR #750 head; do not duplicate a mutable SHA in this map
 STATE = BLOCKED_EXTERNAL
-CANONICAL TEST SYSTEM = run 35422774202 on exact head 738676c; current evidence is still completing
+CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED AFTER c2640bad; prior exact-head evidence is stale for current execution
 CURRENT EXECUTION PRE-REPAIR EVIDENCE = Test System PASS; Test Impact PASS; Claude Security Review PASS
 REPOSITORY SECURITY = FAIL on exact head: GitHub Advanced Security Code Scanning AI returned CAPI 400 model-not-supported
-WP0 TRUST BASELINE = pending on exact head; run 35422774190 is in progress
-VERCEL = FAILURE on exact head: provider reports build-rate-limit
+WP0 TRUST BASELINE = CURRENT-HEAD VERIFICATION REQUIRED
+VERCEL = BLOCKED_EXTERNAL: provider deployment rate-limit
 EXACT-SHA GREEN = NOT PROVEN
 ADMIN STATES = historical labels below are not current exact-SHA proof; revalidation required after the active repair cycle
 PRODUCTION DEPLOYMENT EXACT-SHA = NOT PROVEN IN CURRENT EVIDENCE
+POST-MERGE MAIN SHA VERIFIED = 5115ac0528a7b18ae9ae3d392ccbfd2257900ea3
+POST-MERGE CI / CERTIFICATION = PENDING FRESH EVIDENCE
 NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROVEN ON THE ACTIVE MAIN SHA
 ```
 
+
+## LIVE DISCOVERY SYNC — 2026-09-19
+
+```text
+TASK LEDGER = المهام.md §15.0 LIVE DISCOVERY OVERLAY
+CURRENT EXECUTION SHA = authoritative GitHub execution branch ref; do not duplicate a mutable SHA in this map
+OPEN PR = #750 → main
+DEPENDENT PR = #752 → execution, stale/conflicting base
+LIVE EXTERNAL BLOCKERS = GitHub Advanced Security model rejection + Vercel deployment rate-limit
+LIVE AUTOMATION RCA = continuous-error-watch input artifact missing on main automation cycle
+ADMIN PROVENANCE = production Vercel→Supabase binding not proven
+```
 
 ## TASK QUEUE
 
@@ -200,6 +214,62 @@ STATUS = BLOCKED_EXTERNAL.
 PREVENTION = classify provider model rejection as external infrastructure; do not mutate source code, weaken required checks, bypass certification, or rerun blindly.
 ```
 
+RC-027 = Canonical CI contract validator contained a no-useless-escape lint error in its regex literal; repaired without changing contract semantics.
+VERIFICATION = WP0 + Canonical CI on the resulting exact SHA.
+
+RC-028 = TanStack Router typed route literal mismatch in `src/routes/tools-page.tsx`: `/ar/` was not a registered route literal; exact-head WP0 typecheck rejected it.
+FIX = normalize the navigation links to the registered `/ar` route literal.
+VERIFICATION = `npm run typecheck` + router contract on the new exact SHA.
+PREVENTION = route links must use generated TanStack route literals or route templates/params, not hand-authored trailing-slash variants.
+
+RC-030 = Canonical CI contract validator falsely rejected Daily Green Gate evidence handling because its multiline regex joined an `gh run view --log-failed` command to an unrelated intentional `|| true` on a later `gh run list` command.
+FIX = scope the forbidden pattern to individual command lines.
+VERIFICATION = fresh WP0 canonical static run on the resulting exact SHA.
+PREVENTION = never use cross-command multiline regexes for shell safety assertions when command-local matching is sufficient.
+
+RC-031 = `validate-agent-protocol.mjs` asserted an obsolete auto-repair reproduction marker after the engine refactored reproduction ownership to `evidence.reproductionSelection.commands`.
+FIX = update the validator to enforce the current authoritative engine marker.
+VERIFICATION = fresh WP0/static on the exact execution SHA.
+PREVENTION = update contract assertions atomically with protocol/engine migrations; never require historical implementation strings as certification evidence.
+
+RC-032 = Continuous-error-watch self-test expected `RED_INTERNAL` without `EVIDENCE_CAPTURE=AVAILABLE`; under the current fail-closed contract this correctly resolves to `FAIL_CLOSED`.
+FIX = make the internal RED fixture provide explicit evidence.
+VERIFICATION = watcher self-test on the exact execution SHA.
+PREVENTION = missing evidence must never be used to manufacture an internally repairable RED.
+
+RC-033 = Daily Green Gate accumulated duplicate watcher runs because workflow_run events shared one non-canceling global concurrency lane.
+FIX = branch-scoped superseding watcher concurrency; Auto-Repair remains non-canceling.
+VERIFICATION = concurrency contract + exact-SHA watcher self-test.
+PREVENTION = observer workflows are supersedable; mutation workflows remain serialized.
+
+RC-034 = Auto-Repair publication could rebase a verified repair onto a newer `execution` head after the target moved during diagnosis, creating stale repair commits and repeatedly canceling fresh canonical CI.
+FIX = require local base == failed target SHA == remote execution SHA before commit, and require remote execution to equal the repair commit parent before push; remove stale rebase fallback.
+VERIFICATION = Auto-Repair boundary/final architecture contracts on the resulting exact SHA.
+PREVENTION = execution head movement is always fail-closed during a repair cycle; verified repairs never rebase across unrelated execution mutations.
+
+RC-035 = Canonical build verification failed because src/routes/tools-page.tsx imported tools-modern.css from the wrong directory.
+FIX = use the authoritative ../components/tools-modern.css import without creating a duplicate stylesheet.
+VERIFICATION = fresh exact-SHA build, WP0, and Test Impact.
+PREVENTION = keep route/component asset imports aligned with their owning filesystem authority.
+
+RC-036 = Task Agent contract validation still required an obsolete governance phrase that was missing from the canonical المهام.md ledger.
+FIX = record the explicit auto-merge-after-GREEN invariant in المهام.md while keeping the validator fail-closed.
+VERIFICATION = fresh Task Agent/static/WP0 evidence on exact SHA.
+PREVENTION = governance invariants are declared once in the executable ledger and verified there.
+
+RC-037 = Firefox DEEP localization runtime checks intermittently timed out on Playwright networkidle while load/runtime assertions were otherwise healthy.
+FIX = replace the browser-dependent networkidle wait with deterministic load + document.fonts.ready + double requestAnimationFrame + idle callback settling.
+VERIFICATION = fresh canonical Browser FAST/DEEP execution on the exact SHA across all three engines.
+PREVENTION = do not use networkidle as the synchronization primitive for this local static contract unless the application explicitly requires network quiescence.
+
+
+RC-038 = Auto Repair Phase 1 previously failed with EXPECTED_SHA_MISSING despite target-file evidence existing.
+FIX = propagate FLIXO_EXPECTED_TARGET_SHA through the job environment and retain file checks.
+VERIFICATION = exact failed-SHA Phase 1 preflight and verified-repair handoff.
+
+RC-039 = Auto Repair downstream postflight could mask the primary RED with a missing strategy artifact error.
+FIX = gate dependent phases on upstream success and fail closed on missing strategy data.
+VERIFICATION = next real Auto Repair failure/repair cycle.
 ## GOVERNANCE
 
 Bounded single-owner work may execute directly on `main`. Use `execution` only for materially risky, broad, conflict-prone, architectural, or production-sensitive isolation. Exact-SHA, regression, authorization, rollback, evidence, and certification requirements remain mandatory.
@@ -221,3 +291,42 @@ REQUEST = validate main-state i18n repair through the canonical FLIXO Test Syste
 TARGET = Seed UI ownership repair at 40786637552d8c0268fd4b9de579c104f58726ab
 NO GATE BYPASS = required
 ```
+
+## INCOMPLETE PROJECT COVERAGE — synchronized with the unified task ledger
+
+> Source set: current `المهام.md`, legacy `مهام.md`, `docs/DEBT-REGISTER.md`, Agent Knowledge Architecture, and active repair/security workflows. Historical-only records are excluded from the active queue.
+
+| ID | Status | Owner/Surface | Next deterministic action |
+|---|---|---|---|
+| AUTO-REPAIR-BOT-001 | ACTIVE / LEDGER-MISSING | Auto Repair + Task Agent + Error Agent | Register lifecycle, prove repair publication and learning gates on current SHA |
+| EXECUTION-BOT-WATCHDOG-001 | ACTIVE | execution-bot-watchdog | Verify exact-SHA RED detection and canonical repair dispatch |
+| REPAIR-SUPERVISION-GATES-001 | ACTIVE | handoff/recovery/merge gates | Prove fail-closed handoff→merge chain |
+| ROOT-CAUSE-DIAGNOSTICS-001 | OPEN | diagnostics/scout/investigator | Unify evidence→fingerprint→RCA path |
+| WP1-REGISTRY-ENGINE-001 | INCOMPLETE / PARTIAL | Registry/Planner/Executor/Verifier | Finish loader/discovery/contracts |
+| WP2-SECURITY-OBSERVABILITY-001 | OPEN | security/tracing/error classification | Close security + observability invariants |
+| WP3-UNDERSTAND-PLAN-CONFIRM-001 | OPEN | intent/planner/confirmation | Complete lifecycle contracts |
+| WP4-EXECUTE-VERIFY-RECOVER-001 | OPEN | executor/verifier/recovery/memory | Complete output + recovery contracts |
+| WP5-CONTRACT-E2E-ADVERSARIAL-001 | OPEN | tests/impact/adversarial | Complete reusable E2E and negative coverage |
+| WP6-PERFORMANCE-LOCAL-FIRST-001 | OPEN | performance/deps/local-first | Complete profiling and performance contracts |
+| WP7-SEO-I18N-RELEASE-001 | OPEN | SEO/i18n/release | Complete SEO-A..F + release gate |
+| AGENT-KNOWLEDGE-000..013 | VERIFICATION-PENDING / PLANNED | embedded agent knowledge | Reconcile existing implementation then execute remaining sessions |
+| D-001..D-012 | OPEN / LINKED | technical-debt register | Close through owning WP or GREEN recovery |
+| FIX-001 | BLOCKED_EXTERNAL / OPEN | GitHub branch protection | Apply with authorized integration, then re-verify |
+| PERFORMANCE-BUNDLE-001 | OPEN | bundle-boundary contract | Prove chunk/budget invariants |
+| ACCEL-1..9 | FROZEN | CI speed work | Remain frozen until explicitly reactivated |
+| RELEASE-FINALIZATION-001 | PLANNED | release/finalization | Require complete exact-SHA release evidence |
+
+## PROJECT MAP RULE
+
+Every material workflow/project must map to one task ID in `المهام.md`. No orphan operational system is considered complete until its owning task has an exit criterion and fresh evidence.
+
+
+## SIMPLIFY-001 — Engineering Complexity Reduction
+
+STATUS = VERIFYING / BLOCKING
+BASE = 50e6a19f8faaabf958d0bdc5309ab3c8e4019fb7
+COMPLETED = canonical task-ledger selection, command facade, CI ownership consolidation, single certification authority enforcement, dead-code proof, and bounded boundary cleanup.
+REMOVED = validate-certification-graph.mjs alias; verify:contracts duplicate package command; redundant execution-branch push triggers from canonical verification and security workflows.
+PRESERVED = security, coverage, artifact identity, exact-SHA, WP0 trust, browser FAST/DEEP, certification, and frozen ACCEL constraints.
+NEXT = fresh Canonical CI → WP0/Security → FAST/DEEP → Certification → exact-SHA verification → main merge.
+CONSTRAINTS = ACCEL FROZEN; zero coverage/security reduction; execution → main only.

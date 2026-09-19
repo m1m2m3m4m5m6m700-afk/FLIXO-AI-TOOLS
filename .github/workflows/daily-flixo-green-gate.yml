@@ -7,12 +7,9 @@ on:
     - cron: '*/15 * * * *'
   workflow_run:
     workflows:
+      # Canonical trigger: one completed Test System cycle wakes the watcher.
+      # The watcher still inspects every required workflow/check on the exact SHA.
       - FLIXO Test System
-      - FLIXO WP0 Trust Baseline
-      - FLIXO Test Impact
-      - FLIXO Test Impact Execution
-      - Repository Security Baseline
-      - Claude Security Review
     types: [completed]
     branches: [execution, main]
 
@@ -22,8 +19,11 @@ permissions:
   checks: read
   pull-requests: read
 
+# Every observation is evidence-bearing and must complete; never cancel a watcher because a newer observation arrived.
+# The repair lane itself is also non-canceling. Both layers use exact event identity.
 concurrency:
-  group: flixo-continuous-error-watch
+  # Unique group per observation: queued evidence must never supersede another queued observation.
+  group: flixo-continuous-error-watch-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -77,26 +77,31 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          {
-            set +o pipefail
-            jq -r '.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required") | .databaseId' /tmp/flixo-watch/workflow-runs.json 2>/dev/null |
-              while read -r run_id; do
-                [ -n "$run_id" ] || continue
-                gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1 || true
-              done
-            jq -r '[.[].check_runs[]
-              | select(.status == "completed")
-              | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
-              | select(.details_url != null and (.details_url | test("/actions/runs/[0-9]+")))
-              | .details_url
-              | capture("/actions/runs/(?<id>[0-9]+)").id' /tmp/flixo-watch/check-runs.json 2>/dev/null |
-              sort -u |
-              while read -r run_id; do
-                [ -n "$run_id" ] || continue
-                gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1 || true
-              done
-            set -o pipefail
-          } || true
+          jq -r '.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required") | .databaseId' /tmp/flixo-watch/workflow-runs.json > /tmp/flixo-watch/failed-run-ids
+          while read -r run_id; do
+            [ -n "$run_id" ] || continue
+            if gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1; then
+              printf '\nEVIDENCE_CAPTURE=AVAILABLE\n' >> "/tmp/flixo-watch/logs/run-$run_id.log"
+            else
+              printf 'EVIDENCE_CAPTURE=FAILED\nRUN_ID=%s\n' "$run_id" > "/tmp/flixo-watch/logs/run-$run_id.log"
+            fi
+          done < /tmp/flixo-watch/failed-run-ids
+
+          jq -r '[.[].check_runs[]
+            | select(.status == "completed")
+            | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
+            | select(.details_url != null and (.details_url | test("/actions/runs/[0-9]+")))
+            | .details_url
+            | capture("/actions/runs/(?<id>[0-9]+)").id
+          ] | .[]' /tmp/flixo-watch/check-runs.json | sort -u > /tmp/flixo-watch/failed-check-run-ids
+          while read -r run_id; do
+            [ -n "$run_id" ] || continue
+            if gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --log-failed > "/tmp/flixo-watch/logs/run-$run_id.log" 2>&1; then
+              printf '\nEVIDENCE_CAPTURE=AVAILABLE\n' >> "/tmp/flixo-watch/logs/run-$run_id.log"
+            else
+              printf 'EVIDENCE_CAPTURE=FAILED\nRUN_ID=%s\n' "$run_id" > "/tmp/flixo-watch/logs/run-$run_id.log"
+            fi
+          done < /tmp/flixo-watch/failed-check-run-ids
 
       - name: Build watcher input
         run: |
@@ -156,7 +161,18 @@ jobs:
             exit 1
           }
 
-          CHAIN_ID="watch-$TARGET_RUN_ID"
+          REPAIR_KEY="$(jq -r '.repair.repairKey // empty' /tmp/flixo-watch/report.json)"
+          FAILURE_FINGERPRINT="$(jq -r '.repair.failureFingerprint // empty' /tmp/flixo-watch/report.json)"
+          test -n "$REPAIR_KEY" || {
+            echo 'FAIL CLOSED: internal RED has no deterministic repair key.'
+            exit 1
+          }
+          test -n "$FAILURE_FINGERPRINT" || {
+            echo 'FAIL CLOSED: internal RED has no failure fingerprint.'
+            exit 1
+          }
+
+          CHAIN_ID="watch-$REPAIR_KEY"
           EXISTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 100 --json displayTitle \
             --jq '.[].displayTitle' | grep -Fxc "FLIXO Auto Repair Chain $CHAIN_ID" || true)"
 

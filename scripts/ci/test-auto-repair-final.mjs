@@ -1,4 +1,4 @@
-import { REPAIR_GATE_AUTOMATION } from './control-plane-registry.mjs';
+import { REPAIR_GATE_AUTOMATION, HISTORICAL_REPAIR_WORKFLOWS, TRUST_PERIMETER_PATHS } from './control-plane-registry.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fingerprintFailure, normalizeFailure } from './auto-repair-learning.mjs';
@@ -7,6 +7,9 @@ import { confidenceGate } from './auto-repair/confidence.mjs';
 import { selectSpecialist } from './auto-repair/specialists.mjs';
 import { isPathAllowed, isProtectedPath, repairPolicy } from './auto-repair-policy.mjs';
 import { shouldReopenExternalRepairCycle, superviseExternalRepairCycle } from './auto-repair-supervisor.mjs';
+import { critiqueRepair } from './auto-repair/self-critic.mjs';
+import { buildCausalProof } from './auto-repair/causal-proof.mjs';
+import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
 
 const lint = 'Run 35012345678 failed: abcdefabcdefabcdefabcdefabcdefabcdefabcd no-unused-vars';
 assert(!normalizeFailure(lint).includes('35012345678'));
@@ -27,14 +30,27 @@ assert.equal(repairPolicy.maxChangedLines, 300);
 assert.equal(repairPolicy.openDraftPrOnly, false);
 const autoRepairWorkflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
 const dailyGateWorkflow = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
+const handoffGateWorkflow = fs.readFileSync('.github/workflows/agent-repair-handoff-gate.yml', 'utf8');
 assert.doesNotMatch(autoRepairWorkflow, /workflow_run:/);
 assert.doesNotMatch(autoRepairWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml/i);
+assert.match(autoRepairWorkflow, /CURRENT_TARGET_SHA=/);
+assert.match(autoRepairWorkflow, /execution advanced during repair; refusing stale publication/);
+assert.match(autoRepairWorkflow, /REMOTE_EXECUTION_SHA.*FAILED_SHA/);
+assert.doesNotMatch(autoRepairWorkflow, /git rebase "\$REMOTE_EXECUTION_SHA"/);
+assert.match(autoRepairWorkflow, /EVIDENCE_CAPTURE=FAILED/);
 assert.match(autoRepairWorkflow, /CONTROLLER_SHA="\$MAIN_SHA"/);
 assert.match(autoRepairWorkflow, /persist-credentials:\s*false/);
 assert.match(autoRepairWorkflow, /TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/);
 assert.match(autoRepairWorkflow, /FLIXO_TRUSTED_CONTROLLER_SHA=\$CONTROLLER_SHA/);
 assert.match(dailyGateWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml[\s\S]*--ref execution/i);
+assert.match(dailyGateWorkflow, /workflow_run:[\s\S]*workflows:\s*\n\s+- FLIXO Test System/);
+assert.match(dailyGateWorkflow, /group:\s*flixo-continuous-error-watch-\$\{\{\s*github\.event\.workflow_run\.head_branch\s*\|\|\s*github\.ref\s*\}\}/);
+assert.match(dailyGateWorkflow, /cancel-in-progress:\s*true/);
+assert.doesNotMatch(dailyGateWorkflow, /- FLIXO WP0 Trust Baseline\n\s+- FLIXO Test Impact/);
 assert.doesNotMatch(dailyGateWorkflow, /gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i);
+assert.match(handoffGateWorkflow, /branches: \[execution\]/);
+assert.match(handoffGateWorkflow, /CURRENT_EXECUTION_SHA=/);
+assert.match(handoffGateWorkflow, /HANDOFF_EXECUTION_SHA/);
 
 
 const externalLog = [
@@ -68,20 +84,19 @@ const changedProvider = shouldReopenExternalRepairCycle(learnedBlock, {
   providerSignature: 'different-provider-signature',
 });
 assert.equal(changedProvider.reopen, true);
-for (const path of REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`).concat([
-  '.github/workflows/execution-sync.yml',
-  '.github/workflows/wp0-trust-baseline.yml',
-  'scripts/ci/control-plane-registry.mjs',
-  'scripts/ci/auto-repair-policy.mjs',
-  'scripts/ci/auto-repair-engine.mjs',
-  'scripts/ci/auto-repair-learning.mjs',
-  'scripts/ci/auto-repair-supervisor.mjs',
-  'scripts/ci/auto-repair/',
-  'scripts/ci/task-agent.mjs',
-  'scripts/ci/agent-execution-control.mjs',
-  'scripts/ci/repository-security-baseline.mjs',
-  'scripts/ci/validate-auto-repair-memory.mjs',
-])) {
+assert.equal(new Set(REPAIR_GATE_AUTOMATION).size, REPAIR_GATE_AUTOMATION.length);
+assert.equal(new Set(HISTORICAL_REPAIR_WORKFLOWS).size, HISTORICAL_REPAIR_WORKFLOWS.length);
+for (const path of TRUST_PERIMETER_PATHS) {
   assert.equal(isPathAllowed(path), false, `trust perimeter must remain immutable to auto-repair: ${path}`);
 }
 console.log('AUTO_REPAIR_FINAL_ARCHITECTURE=PASS');
+
+const criticPass=critiqueRepair({diff:'--- a/src/example.ts\\n+++ b/src/example.ts\\n@@\\n-const x = 1;\\n+const x = 2;\\n',diffSummary:{files:['src/example.ts'],lines:2},plan:{id:'eslint-unused',file:'src/example.ts',targetScope:'exact-file'},diagnosis:{location:{file:'src/example.ts'}},simulation:{ok:true}});
+assert.equal(criticPass.ok,true);
+const criticBlock=critiqueRepair({diff:'+test.skip();\\n',diffSummary:{files:['src/example.ts'],lines:1},plan:{id:'eslint-unused',file:'src/example.ts',targetScope:'exact-file'},simulation:{ok:true}});
+assert.equal(criticBlock.ok,false);
+const causal=buildCausalProof({diagnosis:{causalConfidence:0.92,secondHypothesis:null,mutationGate:{hypothesisSeparation:true},location:{file:'src/example.ts'}},plan:{file:'src/example.ts'},simulation:{ok:true},reproductionBefore:{ok:false,results:[{ok:false}]},reproductionAfter:{ok:true,results:[{ok:true}]},regression:{ok:true},recurrenceProof:{firstPass:true,secondPass:true},changedPaths:['src/example.ts'],selfCritic:{ok:true}});
+assert.equal(causal.ok,true);
+const graph=buildRepairKnowledgeGraph({fingerprint:fingerprintFailure('example failure'),targetSha:'a'.repeat(40),diagnosis:{rootCause:'lint'},plan:{id:'eslint-unused',file:'src/example.ts'},simulation:{ok:true,reason:'SIMULATION_PASS'},selfCritic:{ok:true,verdict:'ACCEPT'},causalProof:causal});
+assert.equal(graph.valid,true);
+assert.equal(graph.nodes.length,8);
