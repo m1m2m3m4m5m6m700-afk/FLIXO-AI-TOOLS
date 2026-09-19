@@ -251,24 +251,16 @@ export function ToolWorkbench<P>({
   const outputAsset = outputAssetId ? assetStore.get(outputAssetId) ?? null : null;
   const outputName = outputAsset?.name ?? `flixo-${toolId}.${extensionForMime(outputAsset?.mimeType ?? 'image/png')}`;
   const commonContext = { files, input: inputAsset, parameters, setParameters, busy } as const;
-  const languageLink = (() => {
-    const path = typeof window === 'undefined' ? '' : window.location.pathname;
-    const current = locale.toLowerCase().startsWith('ar') ? 'ar' : locale.toLowerCase().startsWith('en') ? 'en' : '';
-    if (!current) return null;
-    const next = current === 'en' ? 'ar' : 'en';
-    return <a className="language-link" href={path.replace(/^\/(?:en|ar)(?=\/)/, `/${next}`)} lang={next}>{next === 'en' ? 'English' : 'العربية'}</a>;
-  })();
 
   return (
-    <main lang={locale} dir={locale.toLowerCase().startsWith('ar') ? 'rtl' : 'ltr'} className="image-tool-shell" data-tool-id={toolId}>
+    <div lang={locale} dir={locale.toLowerCase().startsWith('ar') ? 'rtl' : 'ltr'} className="image-tool-shell" data-tool-id={toolId}>
       <div className="image-tool-container">
         <header className="image-tool-header">
           <div>
             <p className="image-tool-eyebrow">FLIXO · IMAGE TOOLS</p>
-            <h1>{title}</h1>
+            <h2>{title}</h2>
             <p className="image-tool-lead">{description}</p>
           </div>
-          {languageLink}
         </header>
         <section className="image-workbench-grid" aria-label={title} aria-busy={busy}>
           <div className="image-workbench-card image-workbench-controls">
@@ -319,6 +311,6 @@ export function ToolWorkbench<P>({
           </section>
         </section>
       </div>
-    </main>
+    </div>
   );
 }
