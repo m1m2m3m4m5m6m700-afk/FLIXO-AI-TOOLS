@@ -53,12 +53,21 @@ jobs:
         run: node scripts/ci/test-continuous-error-watch.mjs
 
       - name: Capture exact repository state
+        id: capture
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/flixo-watch/logs
-          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/execution" --jq '.sha')"
+          WATCH_BRANCH="main"
+          if [ "\${{ github.event_name }}" = "workflow_run" ]; then
+            WATCH_BRANCH="\${{ github.event.workflow_run.head_branch }}"
+          fi
+          case "$WATCH_BRANCH" in
+            execution|main) ;;
+            *) echo "Unsupported observer branch: $WATCH_BRANCH"; exit 1 ;;
+          esac
+          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/$WATCH_BRANCH" --jq '.sha')"
           MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq '.sha')"
           gh pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 5 \
             --json number,headRefOid,baseRefOid,url,mergedAt,mergeCommit,isDraft > /tmp/flixo-watch/open-prs.json
@@ -68,10 +77,15 @@ jobs:
             --json databaseId,workflowName,status,conclusion,headSha,headBranch,event,displayTitle,createdAt,updatedAt > /tmp/flixo-watch/workflow-runs.json
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$EXECUTION_SHA/check-runs?per_page=100" > /tmp/flixo-watch/check-runs.json
           gh api "repos/$GITHUB_REPOSITORY/commits/$EXECUTION_SHA/status" > /tmp/flixo-watch/statuses.json
-          gh api "repos/$GITHUB_REPOSITORY/compare/main...execution" > /tmp/flixo-watch/compare.json
+          if [ "$WATCH_BRANCH" = "execution" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/compare/main...execution" > /tmp/flixo-watch/compare.json
+          else
+            gh api "repos/$GITHUB_REPOSITORY/compare/main...main" > /tmp/flixo-watch/compare.json
+          fi
           printf '%s\n' "$EXECUTION_SHA" > /tmp/flixo-watch/execution-sha
           printf '%s\n' "$MAIN_SHA" > /tmp/flixo-watch/main-sha
           printf '%s\n' "$WATCH_BRANCH" > /tmp/flixo-watch/observed-branch
+          printf 'branch=%s\n' "$WATCH_BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Capture failed CI evidence for classification
         env:
@@ -151,7 +165,7 @@ jobs:
           exit 0
 
       - name: Dispatch internal repair target under Task Agent authority
-        if: steps.evaluate.outputs.status == 'RED_INTERNAL'
+        if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.capture.outputs.branch == 'execution'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
