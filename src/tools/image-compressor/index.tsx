@@ -4,7 +4,8 @@ import { ImageJob } from '../../image-core/job';
 import { getToolDefinition } from '../../config/canonical-tool-definition';
 import { validateOutputIntegrity } from '../../lib/contracts/output-integrity';
 import { imageCompressorOutputIntegrity } from './output-contract';
-import { assertSafeImageInput, type CompressionFormat } from './file-safety';
+import { assertSafeImageInput } from './file-safety';
+import type { CompressionFormat } from './engine';
 import { compressImage, MAX_FILES, MAX_INPUT_SIZE } from './engine';
 
 type Parameters = {
