@@ -307,6 +307,42 @@ jobs:
           FLIXO_TASK_AGENT_OUTPUT_DIR=/tmp/flixo-task-agent node /tmp/flixo-repair-controller/scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$SIGNATURE" --failure-evidence=/tmp/flixo-repair-summary.txt
           test -s /tmp/flixo-task-agent/latest.json
 
+      - name: Bind shared Prompt Intelligence context
+        env:
+          FLIXO_PROMPT_REGISTRY: /tmp/flixo-repair-controller/docs/agents/PROMPT-REGISTRY.json
+          FLIXO_PROMPT_CONTEXT: /tmp/flixo-prompt-context.json
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { createHash } from 'node:crypto';
+          const { loadPromptRegistry, validatePromptRegistry, selectPromptCandidates, promptQualityGate } = await import('/tmp/flixo-repair-controller/scripts/ci/prompt-intelligence.mjs');
+          const registry = loadPromptRegistry(process.env.FLIXO_PROMPT_REGISTRY);
+          const validation = validatePromptRegistry(registry);
+          if (!validation.valid) throw new Error('PROMPT_REGISTRY_INVALID=' + validation.errors.join('|'));
+          const diagnosis = JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json', 'utf8'));
+          const failureClasses = [diagnosis.failureClass, diagnosis.classification, ...(Array.isArray(diagnosis.features) ? diagnosis.features : [])].filter(Boolean).map((item) => String(item).toUpperCase());
+          const rootCauses = diagnosis.rootCause ? [String(diagnosis.rootCause)] : [];
+          const candidates = selectPromptCandidates(registry, { failureClasses, rootCauses, domain: diagnosis.domain ?? 'error-intelligence' });
+          const master = registry.prompts.find((item) => item.promptId === 'RPR-CORE-MASTER-001');
+          if (!master) throw new Error('MASTER_PROMPT_MISSING');
+          const selected = candidates.find((item) => item.prompt.promptId !== master.promptId)?.prompt ?? master;
+          const gate = promptQualityGate(registry, selected.promptId);
+          if (gate.status !== 'PASS') throw new Error('PROMPT_REVIEW_REQUIRED=' + selected.promptId + ':' + gate.reasons.join('|'));
+          const registrySha = createHash('sha256').update(fs.readFileSync(process.env.FLIXO_PROMPT_REGISTRY)).digest('hex');
+          const context = { schemaVersion: 1, exactSha: fs.readFileSync('/tmp/flixo-failed-sha', 'utf8').trim(), registrySha, masterPromptId: master.promptId, selectedPromptId: selected.promptId, selectedPromptVersion: selected.version, decision: candidates.length > 1 ? 'REUSE_OR_SPECIALIZE' : 'MASTER_FALLBACK', candidates: candidates.map(({ prompt, score }) => ({ promptId: prompt.promptId, version: prompt.version, score, status: prompt.status })), failureFingerprint: diagnosis.fingerprint ?? null, rootCause: diagnosis.rootCause ?? 'unknown', qualityGate: gate, provenance: { source: process.env.FLIXO_PROMPT_REGISTRY, governingAuthority: 'REPAIR_PROTOCOL_AND_CANONICAL_CI' } };
+          fs.writeFileSync(process.env.FLIXO_PROMPT_CONTEXT, JSON.stringify(context, null, 2) + '\n');
+          NODE
+          PROMPT_ID="$(node -e "const x=require('/tmp/flixo-prompt-context.json');process.stdout.write(x.selectedPromptId)")"
+          PROMPT_VERSION="$(node -e "const x=require('/tmp/flixo-prompt-context.json');process.stdout.write(String(x.selectedPromptVersion))")"
+          REGISTRY_SHA="$(node -e "const x=require('/tmp/flixo-prompt-context.json');process.stdout.write(x.registrySha)")"
+          PROMPT_DECISION="$(node -e "const x=require('/tmp/flixo-prompt-context.json');process.stdout.write(x.decision)")"
+          echo "FLIXO_PROMPT_ID=$PROMPT_ID" >> "$GITHUB_ENV"
+          echo "FLIXO_PROMPT_VERSION=$PROMPT_VERSION" >> "$GITHUB_ENV"
+          echo "FLIXO_MASTER_PROMPT_ID=RPR-CORE-MASTER-001" >> "$GITHUB_ENV"
+          echo "FLIXO_PROMPT_REGISTRY_SHA=$REGISTRY_SHA" >> "$GITHUB_ENV"
+          echo "FLIXO_PROMPT_DECISION=$PROMPT_DECISION" >> "$GITHUB_ENV"
+          test -s /tmp/flixo-prompt-context.json
       - name: Select repair strategy and continue strict RED repair
         id: strategy
         env:
@@ -440,6 +476,11 @@ jobs:
           FLIXO_TRUSTED_MEMORY_SHA: ${{ env.FLIXO_TRUSTED_MEMORY_SHA || '' }}
           FLIXO_TARGET_SHA: ''
           FLIXO_REVERTED_COMMIT: ''
+          FLIXO_PROMPT_ID: ${{ env.FLIXO_PROMPT_ID || '' }}
+          FLIXO_PROMPT_VERSION: ${{ env.FLIXO_PROMPT_VERSION || '' }}
+          FLIXO_MASTER_PROMPT_ID: ${{ env.FLIXO_MASTER_PROMPT_ID || '' }}
+          FLIXO_PROMPT_REGISTRY_SHA: ${{ env.FLIXO_PROMPT_REGISTRY_SHA || '' }}
+          FLIXO_PROMPT_DECISION: ${{ env.FLIXO_PROMPT_DECISION || '' }}
         run: |
           set -euo pipefail
           if [ -f /tmp/flixo-failed-sha ]; then FLIXO_FAILED_SHA="$(cat /tmp/flixo-failed-sha)"; fi
@@ -474,7 +515,7 @@ jobs:
             exit 1
           fi
           STRATEGY_ID="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId||'')")"
-          FLIXO_REPAIR_STRATEGY_ID="$STRATEGY_ID" FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" FLIXO_LEARNING_OUTCOME="$LEARNING_OUTCOME" FLIXO_VERIFICATION="$ENGINE_OUTCOME" FLIXO_TARGET_SHA="$TARGET_SHA" FLIXO_REVERTED_COMMIT="$REVERTED_COMMIT" FLIXO_TRUSTED_MEMORY_SHA="${FLIXO_TRUSTED_MEMORY_SHA:-}" node scripts/ci/auto-repair-learning.mjs
+          FLIXO_REPAIR_STRATEGY_ID="$STRATEGY_ID" FLIXO_ROOT_CAUSE="$ROOT_CAUSE" FLIXO_REPAIR_RULE="$RULE" FLIXO_LEARNING_OUTCOME="$LEARNING_OUTCOME" FLIXO_VERIFICATION="$ENGINE_OUTCOME" FLIXO_TARGET_SHA="$TARGET_SHA" FLIXO_REVERTED_COMMIT="$REVERTED_COMMIT" FLIXO_TRUSTED_MEMORY_SHA="${FLIXO_TRUSTED_MEMORY_SHA:-}" FLIXO_PROMPT_ID="${FLIXO_PROMPT_ID:-}" FLIXO_PROMPT_VERSION="${FLIXO_PROMPT_VERSION:-}" FLIXO_MASTER_PROMPT_ID="${FLIXO_MASTER_PROMPT_ID:-}" FLIXO_PROMPT_REGISTRY_SHA="${FLIXO_PROMPT_REGISTRY_SHA:-}" FLIXO_PROMPT_DECISION="${FLIXO_PROMPT_DECISION:-}" node scripts/ci/auto-repair-learning.mjs
           printf '%s\n' "$ENGINE_OUTCOME" > /tmp/flixo-engine-outcome
           printf '%s\n' "$LEARNING_OUTCOME" > /tmp/flixo-learning-outcome
 
@@ -672,6 +713,7 @@ jobs:
             /tmp/flixo-repair-strategy.json
             /tmp/flixo-intractable-state
             /tmp/flixo-task-agent/*.json
+            /tmp/flixo-prompt-context.json
             /tmp/flixo-repair-memory.json
             /tmp/flixo-historical-learning.json
             /tmp/flixo-intractable-errors.json
