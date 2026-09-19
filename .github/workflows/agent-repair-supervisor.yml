@@ -65,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           DEADLINE=$(( $(date +%s) + 19800 ))
-          REQUIRED_NAMES='FLIXO Test System|FLIXO Test Impact|FLIXO Test Impact Execution|Repository Security Baseline|Claude Security Review|Daily·FLIXO Green Gate'
+          REQUIRED_NAMES='FLIXO Test System|FLIXO WP0 Trust Baseline|FLIXO Test Impact|FLIXO Test Impact Execution|FLIXO Continuous Delivery|Repository Security Baseline|Claude Security Review|Daily·FLIXO Green Gate'
 
           while [ "$(date +%s)" -lt "$DEADLINE" ]; do
             LIVE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$WATCHED_BRANCH" --jq '.object.sha')"
