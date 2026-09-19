@@ -1,3 +1,4 @@
+import { REPAIR_GATE_AUTOMATION } from './control-plane-registry.mjs';
 export const repairPolicy = Object.freeze({
   maxAttemptsPerFingerprint: 3,
   maxRepairChainRuns: 8,
@@ -8,11 +9,8 @@ export const repairPolicy = Object.freeze({
   neverModify: [
     '.github/workflows/ci.yml',
     '.github/workflows/deploy-flixoai.yml',
-    '.github/workflows/auto-repair.yml',
-    '.github/workflows/auto-repair-executor.yml',
-    '.github/workflows/execution-sync.yml',
+    ...REPAIR_GATE_AUTOMATION.map((name) => `.github/workflows/${name}`),
     '.github/workflows/wp0-trust-baseline.yml',
-    '.github/workflows/repair-seed.yml',
     'package-lock.json',
     '.env',
     '.env.*',
