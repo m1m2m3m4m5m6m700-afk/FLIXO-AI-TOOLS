@@ -12,6 +12,16 @@ export const REQUIRED_WORKFLOWS = Object.freeze([
   'Claude Security Review',
 ]);
 
+export const REQUIRED_WORKFLOWS_BY_BRANCH = Object.freeze({
+  execution: REQUIRED_WORKFLOWS,
+  main: Object.freeze([
+    'FLIXO Test System',
+  ]),
+});
+
+const requiredWorkflowsForBranch = (branch) =>
+  REQUIRED_WORKFLOWS_BY_BRANCH[branch] ?? REQUIRED_WORKFLOWS_BY_BRANCH.execution;
+
 export const REPAIRABLE_WORKFLOWS = Object.freeze([
   'FLIXO Test Impact',
   'FLIXO Test Impact Execution',
@@ -191,7 +201,9 @@ export function evaluateGreen({
     }
   }
 
-  for (const name of REQUIRED_WORKFLOWS) {
+  const requiredWorkflows = requiredWorkflowsForBranch(observedBranch);
+
+  for (const name of requiredWorkflows) {
     const run = latestWorkflow(workflowRuns, name);
     const state = stateOf(run);
     report.ci.requiredWorkflows[name] = {
