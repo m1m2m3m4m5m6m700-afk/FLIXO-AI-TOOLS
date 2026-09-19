@@ -38,9 +38,22 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
   const copy = COPY[locale === 'ar' ? 'ar' : 'en'];
   const home = getHomeCopy(locale);
   function renderHeroTitle(value: string) {
-    const match = /^([\s\S]*?)<span>([\s\S]*?)<\/span>([\s\S]*)$/.exec(value);
-    if (!match) return value;
-    return <>{match[1]}<span>{match[2]}</span>{match[3]}</>;
+    const opening = '<span>';
+    const closing = '</span>';
+    const openingIndex = value.indexOf(opening);
+    if (openingIndex === -1) return value;
+
+    const contentStart = openingIndex + opening.length;
+    const closingIndex = value.indexOf(closing, contentStart);
+    if (closingIndex === -1) return value;
+
+    return (
+      <>
+        {value.slice(0, openingIndex)}
+        <span>{value.slice(contentStart, closingIndex)}</span>
+        {value.slice(closingIndex + closing.length)}
+      </>
+    );
   }
 
   useEffect(() => {
