@@ -649,19 +649,6 @@
           "verification": "engine-error",
           "provenance": {
             "source": "FLIXO Auto Repair",
-            "failedSha": "f0682dd9e95324dc1b9d37d43b4be5b3cb89f5c4",
-            "targetSha": "",
-            "revertedCommit": "",
-            "runId": "35424089244",
-            "rawOutcome": "unrepaired"
-          },
-          "at": "2026-09-19T05:32:34.708Z"
-        },
-        {
-          "outcome": "unrepaired",
-          "verification": "engine-error",
-          "provenance": {
-            "source": "FLIXO Auto Repair",
             "failedSha": "190a02d306737fddc8c024831bc57d90590f1dc8",
             "targetSha": "",
             "revertedCommit": "",
@@ -903,6 +890,19 @@
             "rawOutcome": "unrepaired"
           },
           "at": "2026-09-19T06:42:00.697Z"
+        },
+        {
+          "outcome": "unrepaired",
+          "verification": "engine-error",
+          "provenance": {
+            "source": "FLIXO Auto Repair",
+            "failedSha": "9ea9022107e65737417848612c7c83389d63480a",
+            "targetSha": "",
+            "revertedCommit": "",
+            "runId": "35427458433",
+            "rawOutcome": "unrepaired"
+          },
+          "at": "2026-09-19T06:47:04.661Z"
         }
       ],
       "confidence": 0,
@@ -922,17 +922,6 @@
       "failures": 1,
       "confidence": 0,
       "evidence": [
-        {
-          "verification": "engine-error",
-          "provenance": {
-            "source": "FLIXO Auto Repair",
-            "failedSha": "1b6abc79e580073d57c98630840ad91ceda6462b",
-            "targetSha": "",
-            "revertedCommit": "",
-            "runId": "35426688324",
-            "rawOutcome": "unrepaired"
-          }
-        },
         {
           "verification": "engine-error",
           "provenance": {
@@ -1009,10 +998,21 @@
             "runId": "35427288342",
             "rawOutcome": "unrepaired"
           }
+        },
+        {
+          "verification": "engine-error",
+          "provenance": {
+            "source": "FLIXO Auto Repair",
+            "failedSha": "9ea9022107e65737417848612c7c83389d63480a",
+            "targetSha": "",
+            "revertedCommit": "",
+            "runId": "35427458433",
+            "rawOutcome": "unrepaired"
+          }
         }
       ],
       "preventionRules": [],
-      "lastSeenAt": "2026-09-19T06:42:00.697Z"
+      "lastSeenAt": "2026-09-19T06:47:04.661Z"
     }
   ]
 }
