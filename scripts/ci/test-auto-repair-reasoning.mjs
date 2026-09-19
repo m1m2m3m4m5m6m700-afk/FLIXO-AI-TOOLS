@@ -20,7 +20,7 @@ assert(webkit.causalConfidence >= 0.75);
 assert.equal(webkit.sourceMutationAllowed, true);
 assert.equal(webkit.decision, 'ALLOW_BOUNDED_MUTATION');
 assert(webkit.hypotheses.some((item) => item.id === 'playwright' && item.suppressedBy === 'webkit-render'));
-assert.deepEqual(verificationStrategy(['webkit', 'playwright']), [['npm', ['run', 'test:browser']], ['npm', ['run', 'test:static']]);
+assert.deepEqual(verificationStrategy(['webkit', 'playwright']), [['npm', ['run', 'test:browser']], ['npm', ['run', 'test:static']]]);
 
 const lint = reasonFailure('ERROR eslint: no-unused-vars at scripts/ci/test-auto-repair-reasoning.mjs:10:3');
 assert.equal(lint.rootCause, 'lint');
