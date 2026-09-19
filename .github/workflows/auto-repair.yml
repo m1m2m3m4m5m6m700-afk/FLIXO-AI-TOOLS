@@ -361,7 +361,30 @@ jobs:
             exit 0
           fi
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "chore(auto-repair): persist learning cycle ${TARGET_RUN_ID}"
-          git push origin execution
+          PUSHED=false
+          for attempt in 1 2 3; do
+            if git push origin execution; then
+              PUSHED=true
+              break
+            fi
+            git fetch --no-tags origin execution
+            REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
+            LOCAL_EXECUTION_SHA="$(git rev-parse HEAD)"
+            if git merge-base --is-ancestor "$LOCAL_EXECUTION_SHA" "$REMOTE_EXECUTION_SHA"; then
+              echo "Learning commit is already contained in the remote execution head; treating persistence as complete."
+              PUSHED=true
+              break
+            fi
+            if ! git merge-base --is-ancestor "$REMOTE_EXECUTION_SHA" "$LOCAL_EXECUTION_SHA"; then
+              echo "Execution diverged while publishing learning state; rebasing local learning commit onto remote execution."
+              git rebase "$REMOTE_EXECUTION_SHA" || { git rebase --abort || true; exit 1; }
+            else
+              echo "Execution advanced before learning push; rebasing local learning commit onto remote execution."
+              git rebase "$REMOTE_EXECUTION_SHA" || { git rebase --abort || true; exit 1; }
+            fi
+            sleep $((attempt * 2))
+          done
+          test "$PUSHED" = true
       - name: Keep the same repair cycle open when verification is not green
         if: always() && steps.verify.outputs.verified != 'true'
         env:
