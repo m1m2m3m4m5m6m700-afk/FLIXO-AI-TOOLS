@@ -39,7 +39,8 @@ env:
   FLIXO_HISTORY_LIMIT: '30'
   FLIXO_HISTORY_WORKFLOWS: 'FLIXO Test System,FLIXO WP0 Trust Baseline,FLIXO Continuous Delivery'
   FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id || github.event.workflow_run.id }}
-  FLIXO_MAX_REPAIR_CHAIN_RUNS: '8'
+  FLIXO_MAX_REPAIR_CHAIN_RUNS: '32'
+  FLIXO_STRICT_RED_REPAIR: 'true'
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
 
@@ -80,6 +81,12 @@ jobs:
           printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
           printf '%s\n' "$FAILED_BRANCH" > /tmp/flixo-failed-branch
           printf '%s\n' "$FAILED_NAME" > /tmp/flixo-failed-workflow
+
+      - name: Enforce strict red-to-repair policy
+        run: |
+          set -euo pipefail
+          test "$FLIXO_STRICT_RED_REPAIR" = 'true'
+          echo 'STRICT_RED_REPAIR=true: every actionable RED must produce a repair attempt before closure.'
 
       - name: Enforce bounded repair chain
         env:
@@ -209,7 +216,7 @@ jobs:
           FLIXO_TASK_AGENT_OUTPUT_DIR=/tmp/flixo-task-agent node /tmp/flixo-repair-controller/scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$SIGNATURE" --failure-evidence=/tmp/flixo-repair-summary.txt
           test -s /tmp/flixo-task-agent/latest.json
 
-      - name: Select bounded repair strategy and detect intractable cases
+      - name: Select repair strategy and continue strict RED repair
         id: strategy
         env:
           GH_TOKEN: ${{ github.token }}
@@ -217,12 +224,12 @@ jobs:
           set -euo pipefail
           node /tmp/flixo-repair-controller/scripts/ci/repair-strategy.mjs
           cat /tmp/flixo-repair-strategy.json
-          if [ "$(cat /tmp/flixo-intractable-state)" = "true" ]; then
-            echo 'intractable=true' >> "$GITHUB_OUTPUT"
-            printf '%s\n' 'intractable' > /tmp/flixo-engine-outcome
-            printf '%s\n' 'unrepaired' > /tmp/flixo-learning-outcome
-          else
-            echo 'intractable=false' >> "$GITHUB_OUTPUT"
+          # INTRACTABLE is a learning/escalation signal, never a permission to leave an
+          # actionable RED untouched. repair-strategy rotates to the next evidence-backed
+          # strategy on the next cycle.
+          echo 'intractable=false' >> "$GITHUB_OUTPUT"
+          if [ "$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(String(x.teachingEscalation))")" = "true" ]; then
+            echo 'Teaching escalation recorded; continuing with the next repair strategy.'
           fi
 
       - name: Install target dependencies
@@ -493,8 +500,7 @@ jobs:
             echo 'External provider signature changed; permitting one new diagnostic cycle.'
           fi
           if [ "$ENGINE_OUTCOME" = "engine-error" ]; then
-            echo 'Repair engine error; stopping fail-closed.'
-            exit 1
+            echo 'Repair engine error; preserving RED and reopening the repair cycle for another diagnostic/strategy attempt.'
           fi
 
           FAILED_BRANCH="$(cat /tmp/flixo-failed-branch 2>/dev/null || printf '%s' main)"
