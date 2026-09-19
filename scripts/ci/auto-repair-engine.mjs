@@ -84,7 +84,7 @@ const mutationAttributionRecord = mutationAttribution({
   afterSha: null,
   changedFiles: [],
   rule: selected?.id ?? null,
-  mutationAttribution: mutationAttributionRecord,\n  outcome: 'diagnostic-only',
+  outcome: 'diagnostic-only',
 });
 
 const evidence = {
