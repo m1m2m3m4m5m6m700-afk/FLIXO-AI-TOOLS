@@ -70,7 +70,7 @@ assert.equal(login.status, 200);
 assert.equal(login.body.ok, true);
 assert.equal(login.body.identity.subject, 'owner');
 assert.equal(login.body.identity.role, 'OWNER');
-assert.match(String(login.headers['Set-Cookie']), new RegExp(`^\\${sessionCookieName}=`));
+assert.ok(String(login.headers['Set-Cookie']).startsWith(`${sessionCookieName}=`));
 assert.match(String(login.headers['Set-Cookie']), /HttpOnly/);
 assert.match(String(login.headers['Set-Cookie']), /SameSite=Lax/);
 
