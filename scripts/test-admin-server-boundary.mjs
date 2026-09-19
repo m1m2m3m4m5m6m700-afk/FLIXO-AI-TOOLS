@@ -157,6 +157,11 @@ const unauthenticated = await invoke();
 assert.equal(unauthenticated.status, 401);
 assert.equal(unauthenticated.body.error.code, 'authentication_required');
 
+const inactiveCapability = issue({ subject: 'bad-capability', capabilities: ['admin.read', 'production.write'], role: 'OWNER' });
+const inactiveCapabilityResponse = await invoke({ cookie: sessionCookieName + '=' + inactiveCapability });
+assert.equal(inactiveCapabilityResponse.status, 401);
+assert.equal(inactiveCapabilityResponse.body.error.code, 'authentication_required');
+
 const invalid = await invoke({ cookie: `${sessionCookieName}=invalid.token` });
 assert.equal(invalid.status, 401);
 assert.equal(invalid.body.error.code, 'authentication_required');
