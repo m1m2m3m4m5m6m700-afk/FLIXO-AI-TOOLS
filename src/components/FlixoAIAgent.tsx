@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import { buildIntentPlan, toExecutionPlan } from '@/lib/agent/intent/intent-plan';
@@ -61,6 +61,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const [plan, setPlan] = useState<ExecutionPlan | null>(null);
   const [progress, setProgress] = useState<PipelineProgress | null>(null);
   const [result, setResult] = useState<Blob | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [memory, setMemory] = useState<ConversationMemory>(() => loadConversationMemory());
   const [messages, setMessages] = useState<Message[]>(() => {
@@ -70,6 +71,16 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   });
   const [messageId, setMessageId] = useState(() => loadConversationMemory().turns.length + 1);
   const [filterHandoff, setFilterHandoff] = useState<FilterMaskHandoff | null>(null);
+
+  useEffect(() => {
+    if (!result) {
+      setDownloadUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(result);
+    setDownloadUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [result]);
 
   const contextualQuery = useMemo(() => contextualizeCommand(query, memory), [query, memory]);
   const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, getReadyToolConfigs())[0] : null, [contextualQuery]);
@@ -341,12 +352,6 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     if (nextPlan) pushMessage('agent', file ? `${responseCopy.planReady} ${responseCopy.execute}` : `${responseCopy.planReady} ${responseCopy.uploadThenExecute}`);
   };
 
-  const download = () => {
-    if (!result) return;
-    const url = URL.createObjectURL(result); const anchor = document.createElement('a'); anchor.href = url;
-    anchor.download = `flixo-agent-${Date.now()}.${result.type.includes('jpeg') ? 'jpg' : result.type.includes('png') ? 'png' : 'webp'}`; anchor.click(); URL.revokeObjectURL(url);
-  };
-
   return (
     <section className="flixo-ai-agent" aria-labelledby="flixo-ai-agent-title">
       <div className="flixo-ai-agent-glow" aria-hidden="true" />
@@ -377,7 +382,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           {progress && <div className="flixo-ai-agent-progress"><span>{copy.step} {progress.currentStepIndex}/{progress.totalSteps}</span><strong>{progress.currentToolId}</strong>{progress.retry ? <small>{copy.retry} {progress.retry}</small> : null}</div>}
           {error && <div className="flixo-ai-agent-error" role="alert">{error}</div>}
           {state === 'ready' && plan && <div className="flixo-ai-agent-confirm">{copy.planReady} <strong>{file ? copy.execute : copy.uploadThenExecute}</strong></div>}
-          {state === 'success' && result && <div className="flixo-ai-agent-success"><strong>{copy.success}</strong><button type="button" className="primary-button" onClick={download}>{copy.download}</button></div>}
+          {state === 'success' && result && <div className="flixo-ai-agent-success"><strong>{copy.success}</strong>{downloadUrl ? <a className="primary-button" href={downloadUrl} download={`flixo-agent-${Date.now()}.${result.type.includes('jpeg') ? 'jpg' : result.type.includes('png') ? 'png' : 'webp'}`}>{copy.download}</a> : <span className="primary-button" aria-disabled="true">{copy.download}</span>}</div>}
         </div>
       </div>
       <p className="flixo-ai-agent-note">{copy.safetyNote} <Link to="/admin">{copy.admin}</Link></p>
