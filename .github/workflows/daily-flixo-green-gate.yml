@@ -260,7 +260,7 @@ jobs:
                 RECOVERY_ALREADY_CLAIMED)
                   echo 'Another watcher already acquired the stale recovery lease; no duplicate dispatch.'
                   ;;
-                ACTIVE|NOT_STALE|MUTATION_OR_NEW_SHA|VERIFIED|CIRCUIT_OPEN)
+                ACTIVE|NOT_STALE|MUTATION_OR_NEW_SHA|VERIFIED|CIRCUIT_OPEN|SUCCESS_WITHOUT_ATTESTATION)
                   echo "NO_DISPATCH_REASON=$RECOVERY_STATUS"
                   ;;
                 AUTH_FAILURE|PROVIDER_FAILURE|FAIL_CLOSED)
