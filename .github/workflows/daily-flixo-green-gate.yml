@@ -4,7 +4,7 @@ run-name: Daily·FLIXO Green Gate ${{ github.run_id }}
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/10 * * * *'
   workflow_run:
     workflows:
       # Canonical triggers: completed Test System or Auto Repair cycles wake the watcher.
@@ -19,6 +19,7 @@ permissions:
   contents: read
   checks: read
   pull-requests: read
+  issues: write
 
 # Every observation is evidence-bearing and must complete; duplicate wake suppression is handled by the watchdog.
 # The watcher itself never cancels an evidence-bearing observation.
@@ -210,6 +211,71 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Wake Agent 2 with exact-SHA failure packet
+        if: >-
+          steps.evaluate.outcome == 'success' &&
+          steps.capture.outputs.branch == 'execution' &&
+          (
+            steps.evaluate.outputs.status == 'RED_INTERNAL' ||
+            steps.evaluate.outputs.status == 'BLOCKED_EXTERNAL' ||
+            steps.evaluate.outputs.status == 'FAIL_CLOSED'
+          )
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT=/tmp/flixo-watch/report.json
+          SHA="$(jq -r '.executionSha // empty' "$REPORT")"
+          STATUS="$(jq -r '.status // empty' "$REPORT")"
+          ROOT_CAUSE="$(jq -r '.rootCause // empty' "$REPORT")"
+          TARGET_RUN_ID="$(jq -r '.repair.targetRunId // empty' "$REPORT")"
+          FAILURE_FINGERPRINT="$(jq -r '.repair.failureFingerprint // empty' "$REPORT")"
+          PRIMARY_WORKFLOW="$(jq -r '[.errors[] | select(.workflow != null) | .workflow] | .[0] // "unknown-workflow"' "$REPORT")"
+          PROMPT_DIGEST="NOT_AVAILABLE"
+          PROMPT_COUNT="0"
+          if [ -s /tmp/flixo-watch/execution-prompts.json ]; then
+            PROMPT_DIGEST="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.digest ?? ''))")"
+            PROMPT_COUNT="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.promptCount ?? 0))")"
+          fi
+          test "$SHA" = "$(cat /tmp/flixo-watch/execution-sha)"
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
+          test -n "$STATUS"
+
+          SAFE_FINGERPRINT="${FAILURE_FINGERPRINT:-NO_FINGERPRINT}"
+          WAKE_ID="agent-2-${SHA}-${SAFE_FINGERPRINT}"
+          if gh api --paginate "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --jq '.[].body' | grep -Fq "<!-- FLIXO_AGENT_2_WAKE:${WAKE_ID} -->"; then
+            echo "AGENT_2_WAKE_DUPLICATE=true"
+            exit 0
+          fi
+
+          BODY="$(cat <<EOF
+<!-- FLIXO_AGENT_COUNCIL_WAKE -->
+### AGENT 2 WAKE — FAILURE RECOVERY
+ENTRY SHA: $SHA
+ROLE: EXECUTION
+WORK PACKAGE: ROOT-CAUSE-SPINE-001
+TASK ID: AGENT-2-FAILURE-RECOVERY-001
+WAKE ID: $WAKE_ID
+STATUS: $STATUS
+PRIMARY WORKFLOW: $PRIMARY_WORKFLOW
+TARGET RUN ID: ${TARGET_RUN_ID:-NONE}
+FAILURE FINGERPRINT: $SAFE_FINGERPRINT
+ROOT CAUSE HINT: ${ROOT_CAUSE:-UNKNOWN_RCA}
+PROMPT BUNDLE DIGEST: $PROMPT_DIGEST
+PROMPT COUNT: $PROMPT_COUNT
+PROMPT ARTIFACT: flixo-repair-execution-prompts-$GITHUB_RUN_ID
+
+REQUIRED MODE: RCA → REPAIR → TARGETED REGRESSION → AFFECTED-CONTRACT VERIFICATION
+TEST POLICY: Reproduce the demonstrated failure first. Test the smallest affected surface. Do NOT rerun the full suite merely because a new commit exists; expand verification only when the repaired invariant, contract, security boundary, or certification proof requires it.
+LEARNING POLICY: Record symptom, trigger, propagation, violated invariant, causal root, repair rationale, targeted proof, exact SHA, and lesson/anti-lesson for the next small task.
+FAIL-CLOSED: Missing evidence, stale SHA, ambiguous RCA, or scope mismatch must block mutation and request investigation.
+
+<!-- FLIXO_AGENT_2_WAKE:${WAKE_ID} -->
+EOF
+)"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
+          echo "AGENT_2_WAKE_SENT=true"
       - name: Dispatch internal repair target under Task Agent authority
         if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.evaluate.outputs.repair_required == 'true' && steps.capture.outputs.branch == 'execution'
         env:

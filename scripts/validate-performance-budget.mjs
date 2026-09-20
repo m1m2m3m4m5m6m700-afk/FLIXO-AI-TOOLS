@@ -196,6 +196,15 @@ if (deferredWorkerAssets.length) {
   }
 }
 
+const PERFORMANCE_MANIFEST = process.env.FLIXO_PERFORMANCE_MANIFEST || 'artifacts/ci/performance/performance-manifest.json';
+const oversizedApplicationAssets = assets.filter((asset) => !isNonRuntimeAsset(asset.path) && !isDeferredWorkerAsset(asset.path) && asset.bytes > 512 * 1024).sort((a, b) => b.bytes - a.bytes || a.path.localeCompare(b.path));
+const performanceManifest = { schemaVersion: 1, manifest: 'FLIXO_PERFORMANCE_MANIFEST', generatedAt: new Date().toISOString(), sourceSha: process.env.EXACT_SHA || process.env.GITHUB_SHA || null, budgets: { criticalJavascriptBytes: budget.criticalJavascriptBytes, javascriptBytes: budget.javascriptBytes, cssBytes: budget.cssBytes, totalAssetBytes: budget.totalAssetBytes }, measured: { criticalJavascriptBytes, javascriptBytes, cssBytes, totalAssetBytes }, criticalJavascriptAssets, oversizedApplicationAssets, deferredWorkerAssets, nonRuntimeAssets };
+if (process.env.FLIXO_PERFORMANCE_MANIFEST) {
+  fs.mkdirSync(path.dirname(PERFORMANCE_MANIFEST), { recursive: true });
+  fs.writeFileSync(PERFORMANCE_MANIFEST, JSON.stringify(performanceManifest, null, 2) + '\n');
+  console.log('PERFORMANCE_MANIFEST_WRITTEN=' + PERFORMANCE_MANIFEST);
+}
+
 if (failed) {
   const largestAssets = assets
     .filter((asset) => !isNonRuntimeAsset(asset.path) && !isDeferredWorkerAsset(asset.path))

@@ -26,6 +26,10 @@ assert.equal(catalog.byId.get('a')?.executionMode, 'LOCAL');
 assert.equal(catalog.byId.get('b')?.operational.execution, 'remote');
 assert.equal(catalog.byId.get('b')?.executionMode, 'CLOUD');
 assert.deepEqual(catalog.byId.get('a')?.operational.contracts, ['structural', 'runtime', 'artifact']);
+assert.match(catalog.fingerprint, /^[a-f0-9]{64}$/);
+assert.equal(catalog.fingerprint, createToolCatalog(source).fingerprint);
+const reordered = createToolCatalog([source[1], source[0]]);
+assert.equal(reordered.fingerprint, catalog.fingerprint);
 
 const canonicalLocal = getToolDefinition('image-compressor');
 const managedLocal = TOOL_CATALOG.byId.get('image-compressor');

@@ -17,7 +17,7 @@ import { simulateRepair } from './auto-repair/simulation.mjs';
 import { critiqueRepair } from './auto-repair/self-critic.mjs';
 import { buildCausalProof } from './auto-repair/causal-proof.mjs';
 import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
-import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession, validateErrorOnlyMutation } from './repair-protocol.mjs';
+import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession, validateErrorOnlyMutation, validateMinimalRepairScope, validateTargetedRegressionSelection } from './repair-protocol.mjs';
 
 // Static protocol contract marker: root-cause-proof-reproductionRecovered.
 function mutationAttribution({ beforeSha, afterSha, changedFiles = [], rule = null, outcome = 'unknown' } = {}) {
@@ -177,6 +177,7 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
   evidence.targetIdentity = preparedVerification.targetIdentity;
   evidence.verificationPlan = preparedVerification.verificationPlan;
   evidence.reproductionCommands = evidence.reproductionSelection.commands;
+  evidence.targetedRegression = validateTargetedRegressionSelection(evidence.reproductionSelection);
   evidence.reproductionStability = preparedVerification.reproductionStability ?? null;
   evidence.reproductionBefore = preparedVerification.reproductionStability?.firstRun ?? null;
   if (!preparedVerification.ok) {
@@ -496,6 +497,7 @@ try {
   const diffSummary = summarizeDiff(changed);
   evidence.diff = diffSummary;
   evidence.changedPaths = diffSummary.files;
+  evidence.minimalRepairScope = validateMinimalRepairScope({ affectedPaths: diagnosis?.affectedPaths ?? [diagnosis?.location?.file].filter(Boolean), changedPaths: diffSummary.files });
   evidence.selfCritic = critiqueRepair({
     diff: changed,
     diffSummary,

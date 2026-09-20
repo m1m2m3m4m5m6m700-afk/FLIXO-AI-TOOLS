@@ -38,16 +38,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### COUNCIL WAKE BOOTSTRAP SMOKE
-
-          **Workflow:** \`FLIXO Council Wake Bootstrap\`
-          **Trigger:** \`push\`
-          **Main SHA:** \`$SHA\`
-          **Result:** WORKFLOW_EXECUTED
-
-          This proves the default-branch bootstrap workflow is registered and executable. It does not assert agent ACK.
-
-          <!-- FLIXO_COUNCIL_BOOTSTRAP_SMOKE:$SHA -->"
+          BODY="$(printf '%s\n' "### COUNCIL WAKE BOOTSTRAP SMOKE" "" "**Workflow:** FLIXO Council Wake Bootstrap" "**Trigger:** push" "**Main SHA:** $SHA" "**Result:** WORKFLOW_EXECUTED" "" "This proves the default-branch bootstrap workflow is registered and executable. It does not assert agent ACK." "" "<!-- FLIXO_COUNCIL_BOOTSTRAP_SMOKE:$SHA -->")"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
 
   wake:
     if: >-
@@ -187,12 +179,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### PRESIDENT WAKE RECEIPT
-
-          **Role:** \`$ROLE\`
-          **Work Package:** \`$WORK_PACKAGE\`
-          **Exact SHA:** \`$ENTRY_SHA\`
-          **Result:** ACCEPTED
-          **Bootstrap:** main-default-branch ingress
-
-          <!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
+          BODY="$(printf '%s\n' "### PRESIDENT WAKE RECEIPT" "" "**Role:** $ROLE" "**Work Package:** $WORK_PACKAGE" "**Exact SHA:** $ENTRY_SHA" "**Result:** ACCEPTED" "**Bootstrap:** main-default-branch ingress" "" "<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->")"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null

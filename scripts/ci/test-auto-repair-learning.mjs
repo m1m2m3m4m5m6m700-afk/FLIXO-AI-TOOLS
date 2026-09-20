@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, hydrateActionHistory, normalizeMemoryCounters, mergeMemoryHistory, MEMORY_RELATION_TYPES, normalizeRelations } from './auto-repair-learning.mjs';
+import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, hydrateActionHistory, normalizeMemoryCounters, mergeMemoryHistory, MEMORY_RELATION_TYPES, normalizeRelations, normalizeDiagnosticRecord } from './auto-repair-learning.mjs';
 
 const sample = 'Run 35012345678 failed on webkit at abcdefabcdefabcdefabcdefabcdefabcdefabcd: Seed waitForGpuRender';
 const fingerprint = fingerprintFailure(sample);
@@ -21,6 +21,19 @@ delete process.env.FLIXO_RUN_ID;
 
 const memory = loadMemory();
 assert.equal(memory.version, 10);
+const diagnostic = normalizeDiagnosticRecord({
+  rootCause: 'lint',
+  violatedInvariant: 'UNEXPECTED_UNUSED_SYMBOL',
+  causalSource: 'src/example.ts',
+  confidence: 0.97,
+  falsificationCheck: 'lint reproduces on exact SHA',
+  propagationPath: ['lint', 'task-agent'],
+  location: { file: 'src/example.ts', line: 18, column: 4 },
+}, { affectedPaths: ['src/example.ts'] });
+assert.equal(diagnostic.rootCause, 'lint');
+assert.equal(diagnostic.location.file, 'src/example.ts');
+assert.deepEqual(diagnostic.affectedPaths, ['src/example.ts']);
+
 assert(Array.isArray(memory.actionHistory));
 
 const normalizedCorruptMemory = normalizeMemoryCounters({
@@ -228,6 +241,27 @@ recordOutcome(memory, {
   verification: 'failed',
 });
 assert(memory.antiLessons.some((item) => item.fingerprint === '__negative_test__'));
+const diagnosticFingerprint = 'd'.repeat(64);
+recordOutcome(memory, {
+  fingerprint: diagnosticFingerprint,
+  normalizedFailure: 'lint failure at src/example.ts:18',
+  features: ['lint'],
+  rootCause: 'lint',
+  rule: 'eslint-unused',
+  outcome: 'failure',
+  verification: 'targeted-failure',
+  diagnosis: diagnostic,
+  affectedPaths: ['src/example.ts'],
+  provenance: { runId: 'diagnostic-run', failedSha: 'c'.repeat(40), targetSha: 'c'.repeat(40) },
+});
+const diagnosticCase = memory.cases.find((item) => item.fingerprint === diagnosticFingerprint);
+assert.deepEqual(diagnosticCase?.latestDiagnosis?.affectedPaths, ['src/example.ts']);
+assert.equal(diagnosticCase?.outcomes.at(-1)?.diagnosis?.violatedInvariant, 'UNEXPECTED_UNUSED_SYMBOL');
+assert.deepEqual(
+  memory.actionHistory.find((item) => item.fingerprint === diagnosticFingerprint)?.evidence.at(-1)?.affectedPaths,
+  ['src/example.ts'],
+);
+
 const afterFailureKnowledge = deriveReusableKnowledge(memory, { rootCause: 'lint', features: ['lint'] });
 assert.equal(afterFailureKnowledge.generalizedRules.some((item) => item.rule === 'eslint-unused'), false);
 assert.equal(afterFailureKnowledge.rejectedRules.some((item) => item.rule === 'eslint-unused' && item.reason === 'low-success-rate'), false);

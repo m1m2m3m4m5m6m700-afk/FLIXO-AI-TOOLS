@@ -8,6 +8,7 @@ const text: ToolOutputVariant = { kind: 'text', outputMimeTypes: ['text/plain'],
 const json: ToolOutputVariant = { kind: 'json', outputMimeTypes: ['application/json'], allowedExtensions: ['json'], downloadRequired: true, minOutputBytes: 2, maxOutputBytes: 25 * 1024 * 1024, parseAs: 'json' };
 
 const contracts: Record<string, ToolOutputContract> = {
+  'filter-mask': { toolId: 'filter-mask', variants: [image] },
   'image-compressor': imageCompressorOutputContract,
   'background-remover': { toolId: 'background-remover', variants: [image] },
   'image-upscaler': { toolId: 'image-upscaler', variants: [image] },

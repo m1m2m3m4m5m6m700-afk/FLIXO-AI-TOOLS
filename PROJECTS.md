@@ -1,6 +1,15 @@
 ## Agent Communication Priority
 
-Communication-first is a P0 execution invariant. The canonical ingress is Master Inbox Issue #761, the event-driven relay is `.github/workflows/agent-communication-relay.yml`, and the runtime is `scripts/ci/agent-communication.mjs` consumed by `agent-session` and `agent-coordination`. This must remain within the existing agent control plane; no parallel registry/protocol is permitted.
+Communication-fi
+
+## GREEN-RECOVERY-001 — VERIFIED EVIDENCE / CLOSURE PENDING CURRENT SHA
+
+- Exact SHA: `c5fcf7be89cb7f4a3a56a4fce91f0853d523e5ce`
+- Historical verification on c5fcf7be: PASS
+- Current execution SHA must re-certify before closure
+- Internal RED currently tracked by GREEN-RECOVERY-001 task gate
+- External blocker: Vercel deployment rate-limit (`BLOCKED_EXTERNAL`), not masked.
+rst is a P0 execution invariant. The canonical ingress is Master Inbox Issue #761, the event-driven relay is `.github/workflows/agent-communication-relay.yml`, and the runtime is `scripts/ci/agent-communication.mjs` consumed by `agent-session` and `agent-coordination`. This must remain within the existing agent control plane; no parallel registry/protocol is permitted.
 
 # FLIXO AI — Persistent Projects & Agent Work Map
 
@@ -13,8 +22,8 @@ Communication-first is a P0 execution invariant. The canonical ingress is Master
 ```text
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
-CURRENT MAIN SHA = b80dbf2edcd323ec5921634b05ee098be407b0fc
-ACTIVE PR = #759 OPEN / execution → main (canonical integration lane)
+CURRENT MAIN SHA = `9150a5770bf113baf6d5b58439351bf3c5b42514`
+ACTIVE PR = #771 OPEN / execution → main (current repair/integration lane); #759 is historical/merged
 CURRENT PR HEAD = authoritative GitHub PR #759 head; do not duplicate a mutable SHA in this map
 NO-NEW-BRANCH = ABSOLUTE; only execution and main are active agent branches; existing historical branches are not valid work paths
 STATE = BLOCKED_EXTERNAL
@@ -37,9 +46,9 @@ NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROV
 ```text
 TASK LEDGER = المهام.md §15.0 LIVE DISCOVERY OVERLAY
 CURRENT EXECUTION SHA = authoritative GitHub execution branch ref; do not duplicate a mutable SHA in this map
-OPEN PR = #759 → main
+OPEN PR = #771 → main; #759 is historical/merged
 DEPENDENT PR = none; prior non-canonical PRs are historical and not active work paths
-LIVE EXTERNAL BLOCKERS = GitHub Advanced Security model rejection + Vercel deployment rate-limit
+LIVE EXTERNAL BLOCKERS = GitHub/Copilot model rejection + Vercel deployment rate-limit
 LIVE AUTOMATION RCA = continuous-error-watch input artifact missing on main automation cycle
 ADMIN PROVENANCE = production Vercel→Supabase binding not proven
 ```

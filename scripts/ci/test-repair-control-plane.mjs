@@ -11,6 +11,10 @@ import {
   evaluateNoProgress,
   staleRecoveryDecision,
   controlPlaneSchema,
+  assertDispatchIdentity,
+  assertExecutionHeadUnchanged,
+  buildEvidenceProvenance,
+  validateEvidenceProvenance,
 } from './repair-control-plane.mjs';
 
 const SHA_A = 'a'.repeat(40);
@@ -20,6 +24,16 @@ const FAILURE = 'f'.repeat(64);
 const identity = deriveRepairIdentity({ failureFingerprint: FAILURE, failedSha: SHA_A, targetRunId: 'target-1', branch: 'execution' });
 assert.match(identity.repairChainId, /^RC-[a-f0-9]{20}$/);
 assert.equal(identity.cycleKey, `execution:${SHA_A}:${FAILURE}:target-1`);
+assert.equal(identity.dispatchKey, SHA_A + ':target-1:' + FAILURE);
+assert.equal(assertDispatchIdentity({ dispatchKey: identity.dispatchKey }, { failedSha: SHA_A, targetRunId: 'target-1', failureFingerprint: FAILURE }), true);
+assert.throws(() => assertDispatchIdentity({ dispatchKey: identity.dispatchKey }, { failedSha: SHA_B, targetRunId: 'target-1', failureFingerprint: FAILURE }), /DISPATCH_IDENTITY_MISMATCH/);
+assert.equal(assertExecutionHeadUnchanged({ expectedSha: SHA_A, currentSha: SHA_A }), true);
+assert.throws(() => assertExecutionHeadUnchanged({ expectedSha: SHA_A, currentSha: SHA_B }), /HEAD_CHANGED/);
+const provenance = buildEvidenceProvenance({ assertionId: 'ASSERT-001', executionUnit: 'job:test', sourceSha: SHA_A, runId: 'run-1', result: 'PASS', certificateId: 'CERT-001' });
+assert.equal(validateEvidenceProvenance(provenance, { expectedSha: SHA_A, expectedCertificateId: 'CERT-001' }).valid, true);
+assert.throws(() => validateEvidenceProvenance(provenance, { expectedSha: SHA_B }), /EVIDENCE_SHA_MISMATCH/);
+assert.throws(() => validateEvidenceProvenance(provenance, { expectedSha: SHA_A, expectedCertificateId: 'CERT-002' }), /CERTIFICATE_ID_MISMATCH/);
+
 assert.match(identity.leaseRef, /^refs\/tags\/flixo-repair-lease-[a-f0-9]{64}$/);
 assert.equal(identity.claimKey, `claim-${identity.leaseRef.slice('refs/tags/flixo-repair-lease-'.length)}`);
 const identityVariants = [

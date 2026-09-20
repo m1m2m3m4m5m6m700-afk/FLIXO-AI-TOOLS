@@ -40,6 +40,17 @@ export function rankKnowledge(
     .slice(0, query.limit);
 }
 
+export function createHybridScorer(semantic: (query: KnowledgeQuery, record: KnowledgeRecord) => number): RetrievalScorer {
+  return (query, record) => {
+    const lexical = createLexicalScorer()(query, record);
+    const semanticScore = Number(semantic(query, record));
+    if (!Number.isFinite(semanticScore) || semanticScore < 0 || semanticScore > 1) {
+      throw new Error('Hybrid semantic scorer must return a finite value in [0,1].');
+    }
+    return Object.freeze({ ...lexical, semantic: semanticScore });
+  };
+}
+
 export function createLexicalScorer(): RetrievalScorer {
   return (query, record) => {
     const q = new Set(query.text.toLocaleLowerCase().split(/\s+/u).filter(Boolean));
