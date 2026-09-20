@@ -39,7 +39,7 @@ The agent may:
 - inspect repository state, CI evidence, tests, logs, and files needed to diagnose the repair target;
 - modify only files required by the demonstrated root cause, proportional hardening, or its required regression proof;
 - run targeted tests and required verification;
-- commit and push repair changes only to the isolated repair branch;
+- commit and push repair changes only to the canonical `execution` branch;
 - continue the same repair chain when a new red check appears;
 - record fingerprints, evidence, repair outcomes, and prevention results in the self-healing memory surfaces.
 
@@ -57,10 +57,10 @@ The agent must not use a repair cycle to:
 ## Direct-execution boundary
 Direct execution does **not** mean unrestricted execution. It means:
 
-`DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_REPAIR_BRANCH`
+`DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH`
 
 with all of the following invariants:
-- execution branch exists and is not `main`;
+- the current branch is exactly `execution` and is not `main`;
 - `mainBranchMutation` is `false`;
 - mutation scope is `SELF_HEALING_REPAIR_ONLY`;
 - every mutation has a repair rationale tied to the current failure/task;
