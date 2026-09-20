@@ -1,6 +1,8 @@
 name: FLIXO Council Wake Bootstrap
 
 on:
+  push:
+    branches: [main]
   issue_comment:
     types: [created]
   workflow_dispatch:
@@ -20,6 +22,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  smoke:
+    name: Bootstrap workflow execution smoke
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Publish execution smoke receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### COUNCIL WAKE BOOTSTRAP SMOKE
+
+**Workflow:** \`FLIXO Council Wake Bootstrap\`
+**Trigger:** \`push\`
+**Main SHA:** \`$SHA\`
+**Result:** WORKFLOW_EXECUTED
+
+This proves the default-branch bootstrap workflow is registered and executable. It does not assert agent ACK.
+
+<!-- FLIXO_COUNCIL_BOOTSTRAP_SMOKE:$SHA -->"
+
   wake:
     if: >-
       github.event_name == 'workflow_dispatch' ||
