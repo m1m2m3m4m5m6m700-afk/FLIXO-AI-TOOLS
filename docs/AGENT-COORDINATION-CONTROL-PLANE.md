@@ -67,3 +67,11 @@ To inspect all visible agent records:
 `node scripts/ci/agent-coordination.mjs visible`
 
 Visibility never transfers authority and never replaces CI/certification evidence.
+
+## Atomic coordination invariant
+
+Mutating coordination commands are serialized by an OS-level write lock created atomically with `mkdir` at `diagnostics/agents/.coordination-write.lock/owner.json`. A bounded stale-lock policy prevents permanent deadlock after a crashed writer.
+
+Queue state and lock state carry a shared monotonic `revision` and `transactionId`. A writer re-reads both files under the write lock before commit and fails closed on any revision or transaction mismatch. Persistence uses temporary files followed by atomic rename; readers reject mismatched state versions rather than accepting a partial transaction.
+
+The canonical regression `scripts/ci/test-agent-coordination.mjs` starts concurrent `task-claim` processes against the same task and requires exactly one winner. This is the executable proof for the coordination race invariant.

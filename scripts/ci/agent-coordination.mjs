@@ -1,17 +1,23 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { getMessage as getAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
 
 const ROOT = process.cwd();
-const COORD_DIR = path.resolve(ROOT, 'diagnostics/agents');
+const COORD_DIR = path.resolve(ROOT, process.env.FLIXO_COORDINATION_DIR ?? 'diagnostics/agents');
 const QUEUE_FILE = path.join(COORD_DIR, 'coordination-state.json');
 const LOCK_FILE = path.join(COORD_DIR, 'coordination-locks.json');
+const WRITE_LOCK_DIR = path.join(COORD_DIR, '.coordination-write.lock');
+const WRITE_LOCK_OWNER = path.join(WRITE_LOCK_DIR, 'owner.json');
 const PACKET_DIR = path.join(COORD_DIR, 'task-packets');
 const HANDOFF_DIR = path.join(COORD_DIR, 'handoffs');
-const VISIBILITY_DIR = path.resolve(ROOT, 'docs/agents/ledger');
+const VISIBILITY_DIR = path.resolve(ROOT, process.env.FLIXO_AGENT_VISIBILITY_DIR ?? 'docs/agents/ledger');
+const WRITE_LOCK_WAIT_MS = 50;
+const WRITE_LOCK_MAX_ATTEMPTS = 240;
+const WRITE_LOCK_STALE_MS = 10 * 60 * 1000;
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
@@ -30,15 +36,71 @@ const sha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encodi
 const ensure = () => { fs.mkdirSync(COORD_DIR, { recursive: true }); fs.mkdirSync(PACKET_DIR, { recursive: true }); fs.mkdirSync(HANDOFF_DIR, { recursive: true }); };
 const readJson = (file, fallback) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : fallback;
 const writeJson = (file, value) => fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
+const writeJsonAtomic = (file, value) => {
+  const temp = `${file}.tmp-${process.pid}-${Date.now()}`;
+  fs.writeFileSync(temp, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+  fs.renameSync(temp, file);
+};
+const sleepSync = (ms) => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); };
+const pidAlive = (pid) => { try { process.kill(pid, 0); return true; } catch (error) { return error?.code !== 'ESRCH'; } };
+const removeStaleWriteLock = () => {
+  if (!fs.existsSync(WRITE_LOCK_DIR)) return false;
+  let owner = null;
+  try { owner = JSON.parse(fs.readFileSync(WRITE_LOCK_OWNER, 'utf8')); } catch { owner = null; }
+  let age = 0;
+  try { age = Date.now() - Number(owner?.createdAtMs ?? fs.statSync(WRITE_LOCK_DIR).mtimeMs); } catch { return false; }
+  const sameHostAlive = owner?.hostname === os.hostname() && Number.isInteger(owner?.pid) && pidAlive(owner.pid);
+  if (sameHostAlive || age < WRITE_LOCK_STALE_MS) return false;
+  fs.rmSync(WRITE_LOCK_DIR, { recursive: true, force: true });
+  return true;
+};
+const acquireWriteLock = () => {
+  ensure();
+  for (let attempt = 0; attempt < WRITE_LOCK_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      fs.mkdirSync(WRITE_LOCK_DIR, { recursive: false });
+      fs.writeFileSync(WRITE_LOCK_OWNER, JSON.stringify({ pid: process.pid, hostname: os.hostname(), createdAtMs: Date.now() }) + '\n', { flag: 'wx' });
+      return;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error;
+      removeStaleWriteLock();
+      sleepSync(WRITE_LOCK_WAIT_MS);
+    }
+  }
+  throw new Error('COORDINATION_WRITE_LOCK_TIMEOUT');
+};
+const releaseWriteLock = () => { try { fs.rmSync(WRITE_LOCK_DIR, { recursive: true, force: true }); } catch {} };
 const storageKey = (value) => createHash('sha256').update(value).digest('hex');
 const visibilityPath = (sessionId) => path.join(VISIBILITY_DIR, `${storageKey(sessionId)}.json`);
 const packetPath = (taskId) => path.join(PACKET_DIR, `${storageKey(taskId)}.json`);
 const readVisibility = (sessionId) => { const file = visibilityPath(sessionId); if (!fs.existsSync(file)) throw new Error(`AGENT_VISIBILITY_RECORD_MISSING=${sessionId}`); return JSON.parse(fs.readFileSync(file, 'utf8')); };
 const assertOpenVisibility = (task, sessionId, agentId) => { const record = readVisibility(sessionId); if (record.visibilityState !== 'OPEN' || record.status !== 'RUNNING') throw new Error(`AGENT_VISIBILITY_NOT_OPEN=${sessionId}`); if (record.taskId !== task.taskId) throw new Error('AGENT_VISIBILITY_TASK_MISMATCH'); if (record.agentId !== agentId) throw new Error('AGENT_VISIBILITY_AGENT_MISMATCH'); return record; };
 const visibleAgents = () => { if (!fs.existsSync(VISIBILITY_DIR)) return []; return fs.readdirSync(VISIBILITY_DIR).filter((entry) => entry.endsWith('.json')).sort().map((entry) => { try { const item = JSON.parse(fs.readFileSync(path.join(VISIBILITY_DIR, entry), 'utf8')); return { taskId: item.taskId ?? null, sessionId: item.sessionId ?? entry.slice(0,-5), agentId: item.agentId ?? null, role: item.role ?? null, status: item.status ?? null, finalStatus: item.finalStatus ?? null, entrySha: item.entrySha ?? null, exitSha: item.exitSha ?? null, finalSummary: item.finalSummary ?? null, remainingWork: item.remainingWork ?? [], openRcas: item.openRcas ?? [], updatedAt: item.updatedAt ?? null }; } catch { return { sessionId: entry.slice(0,-5), status: 'MALFORMED_EVIDENCE' }; } }); };
-const state = readJson(QUEUE_FILE, { schemaVersion: 1, authority: 'AGENT_COORDINATION_CONTROL_PLANE', authoritativeSha: sha(), updatedAt: now(), tasks: {}, activeSessions: {} });
-const locks = readJson(LOCK_FILE, { schemaVersion: 1, authority: 'AGENT_SCOPE_LOCKS', locks: {} });
-function save() { state.authoritativeSha = sha(); state.updatedAt = now(); writeJson(QUEUE_FILE, state); writeJson(LOCK_FILE, locks); }
+const MUTATING_COMMANDS = new Set(['task-create', 'task-claim', 'task-release', 'task-complete', 'ingest-handoff', 'state']);
+const writeLocked = MUTATING_COMMANDS.has(command);
+if (writeLocked) acquireWriteLock();
+process.on('exit', releaseWriteLock);
+const defaultState = () => ({ schemaVersion: 1, authority: 'AGENT_COORDINATION_CONTROL_PLANE', authoritativeSha: sha(), revision: 0, transactionId: null, updatedAt: now(), tasks: {}, activeSessions: {} });
+const defaultLocks = () => ({ schemaVersion: 1, authority: 'AGENT_SCOPE_LOCKS', revision: 0, transactionId: null, locks: {} });
+const state = readJson(QUEUE_FILE, defaultState());
+const locks = readJson(LOCK_FILE, defaultLocks());
+let initialRevision = Number(state.revision ?? 0);
+if (Number(locks.revision ?? initialRevision) !== initialRevision) throw new Error('COORDINATION_STATE_VERSION_MISMATCH');
+if ((locks.transactionId ?? null) !== (state.transactionId ?? null)) throw new Error('COORDINATION_TRANSACTION_MISMATCH');
+function save() {
+  const persisted = readJson(QUEUE_FILE, defaultState());
+  const persistedLocks = readJson(LOCK_FILE, defaultLocks());
+  if (Number(persisted.revision ?? 0) !== initialRevision || Number(persistedLocks.revision ?? initialRevision) !== initialRevision) throw new Error('COORDINATION_STATE_VERSION_CONFLICT');
+  const nextRevision = initialRevision + 1;
+  const transactionId = `${sha()}:${nextRevision}:${process.pid}:${Date.now()}`;
+  const nextState = { ...state, authoritativeSha: sha(), revision: nextRevision, transactionId, updatedAt: now() };
+  const nextLocks = { ...locks, revision: nextRevision, transactionId };
+  writeJsonAtomic(QUEUE_FILE, nextState);
+  writeJsonAtomic(LOCK_FILE, nextLocks);
+  Object.assign(state, { authoritativeSha: nextState.authoritativeSha, revision: nextRevision, transactionId, updatedAt: nextState.updatedAt });
+  Object.assign(locks, { revision: nextRevision, transactionId });
+  initialRevision = nextRevision;
+}
 function overlap(a, b) { return a.some((x) => b.has(x)); }
 function lock(sessionId, agentId, rca, scope) {
   for (const [id, item] of Object.entries(locks.locks)) {
