@@ -62,8 +62,8 @@ assert.match(autoRepairWorkflow, /to=LOCAL_VERIFICATION/);
 assert.match(autoRepairWorkflow, /to=PUBLISHED_TO_EXECUTION/);
 assert.match(autoRepairWorkflow, /to=CANONICAL_CI/);
 assert.match(dailyGateWorkflow, /failure_fingerprint=\\$FAILURE_FINGERPRINT/);
-assert.match(handoffGateWorkflow, /CURRENT_TARGET_SHA=/);
-assert.match(handoffGateWorkflow, /HANDOFF_TARGET_SHA/);
+assert.match(handoffGateWorkflow, /CURRENT_EXECUTION_SHA=/);
+assert.match(handoffGateWorkflow, /HANDOFF_EXECUTION_SHA/);
 
 
 const externalLog = [
