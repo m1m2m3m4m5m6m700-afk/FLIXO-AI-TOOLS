@@ -22,7 +22,7 @@ on:
         type: choice
         options: [LOW, MEDIUM, HIGH, CRITICAL]
       question:
-        description: Question for Master GPT
+        description: Teaching question for Master inbox
         required: true
         type: string
       obstacle:
@@ -40,8 +40,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
-  actions: read
 
 concurrency:
   group: flixo-cell-master-consult-${{ inputs.request_id }}
@@ -49,7 +47,7 @@ concurrency:
 
 jobs:
   consult:
-    name: CELL to Master GPT consult
+    name: CELL to Master inbox consult
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -77,40 +75,59 @@ jobs:
           if(!Array.isArray(x.bots)||!x.bots.some(b=>String(b.id)===id)) throw new Error('CELL_MASTER_UNKNOWN_CELL_AGENT='+id);
           NODE
 
-      - name: Obtain GitHub OIDC token
-        id: oidc
+      - name: Build canonical Master inbox message
         env:
-          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
-          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
-        run: |
-          set -euo pipefail
-          test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
-          test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
-          AUDIENCE="https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime"
-          RESPONSE="$(curl -fsS --max-time 10 -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUDIENCE")"
-          TOKEN="$(printf '%s' "$RESPONSE" | jq -r '.value')"
-          test -n "$TOKEN" && test "$TOKEN" != null
-          printf '%s' "$TOKEN" > /tmp/github-oidc-token
-
-      - name: Send CELL teaching consult to Master CHIEF
-        env:
-          GH_TOKEN: ${{ github.token }}
-          OIDC_TOKEN: /tmp/github-oidc-token
-          ENTRY_SHA: ${{ inputs.entry_sha }}
-          REQUEST_ID: ${{ inputs.request_id }}
           AGENT: ${{ inputs.agent }}
           TASK: ${{ inputs.task }}
+          ENTRY_SHA: ${{ inputs.entry_sha }}
+          REQUEST_ID: ${{ inputs.request_id }}
           RISK: ${{ inputs.risk }}
           QUESTION: ${{ inputs.question }}
           OBSTACLE: ${{ inputs.obstacle }}
           EVIDENCE: ${{ inputs.evidence }}
         run: |
           set -euo pipefail
-          TOKEN="$(cat "$OIDC_TOKEN")"
-          PAYLOAD="$(jq -nc --arg messageId "$REQUEST_ID" --arg idempotencyKey "$REQUEST_ID:$ENTRY_SHA" --arg taskId "$TASK" --arg workPackageId "CELL-MASTER-CONSULT" --arg entrySha "$ENTRY_SHA" --arg agent "$AGENT" --arg risk "$RISK" --arg question "$QUESTION" --arg obstacle "$OBSTACLE" --arg evidence "$EVIDENCE" '{messageId:$messageId,idempotencyKey:$idempotencyKey,taskId:$taskId,workPackageId:$workPackageId,entrySha:$entrySha,requestedByAccountId:"SYSTEM",primaryAccountId:"CHIEF",fallbackAccountId:"CHIEF",source:"CELL_MASTER_CONSULT",payload:{requestKind:"MASTER_TEACHING_CONSULT",requestedByAgent:$agent,risk:$risk,question:$question,obstacle:$obstacle,evidence:$evidence,requireTeaching:true,returnToAgent:$agent,threeModelRuntime:["CHIEF","WORKER_A","WORKER_B"]}}')"
-          RESPONSE="$(curl -fsS --max-time 15 -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data "$PAYLOAD" "https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime?action=dispatch")"
-          printf '%s\n' "$RESPONSE" > /tmp/master-consult-response.json
-          jq -e '.ok==true and .primaryAccountId=="CHIEF" and .entrySha==env.ENTRY_SHA' /tmp/master-consult-response.json >/dev/null
+          cat > /tmp/cell-master-message.json <<'JSON'
+{
+  "schemaVersion": 1,
+  "messageId": "${REQUEST_ID}",
+  "idempotencyKey": "${REQUEST_ID}:${ENTRY_SHA}",
+  "actor": "${AGENT}",
+  "recipient": "assistantController",
+  "intent": "CELL_MASTER_TEACHING_CONSULT",
+  "taskId": "${TASK}",
+  "scope": ["MASTER_INBOX_TEACHING_CONSULT"],
+  "entrySha": "${ENTRY_SHA}",
+  "risk": "${RISK}",
+  "dependencies": ["MASTER_INBOX","CURRENT_EXACT_SHA"],
+  "expectedEvidence": ["MASTER_RECEIPT","TEACHING_RESPONSE","EXACT_SHA_REVALIDATION"],
+  "stopConditions": ["STALE_SHA","CONFLICT","MASTER_UNAVAILABLE"],
+  "proofObligations": ["MESSAGE_IDEMPOTENCY","EXACT_SHA_REVALIDATION"],
+  "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "source": "CELL_MASTER_CONSULT",
+  "payload": {
+    "requestKind": "MASTER_TEACHING_CONSULT",
+    "requestedByAgent": "${AGENT}",
+    "risk": "${RISK}",
+    "question": "${QUESTION}",
+    "obstacle": "${OBSTACLE}",
+    "evidence": "${EVIDENCE}",
+    "requireTeaching": true,
+    "returnToAgent": "${AGENT}",
+    "preserveInMissionMemory": true,
+    "promoteAfterVerification": true,
+    "masterExecution": {"target":"MASTER_INBOX","selection":"ANY_CONNECTED_MASTER_MODEL","modelPinned":false}
+  }
+}
+JSON
+          jq -e --arg sha "$ENTRY_SHA" --arg agent "$AGENT" '.entrySha==$sha and .actor==$agent and .recipient=="assistantController" and .payload.masterExecution.selection=="ANY_CONNECTED_MASTER_MODEL" and .payload.masterExecution.modelPinned==false' /tmp/cell-master-message.json >/dev/null
+
+      - name: Ingest CELL request into canonical Master inbox
+        run: |
+          set -euo pipefail
+          node scripts/ci/agent-communication.mjs validate --message-file=/tmp/cell-master-message.json
+          node scripts/ci/agent-communication.mjs ingest --message-file=/tmp/cell-master-message.json | tee /tmp/master-consult-response.json
+          jq -e '.status=="RECEIVED" or .status=="STALE"' /tmp/master-consult-response.json >/dev/null
 
       - name: Publish consult evidence
         if: always()
