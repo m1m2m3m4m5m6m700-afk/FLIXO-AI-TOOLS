@@ -108,8 +108,8 @@
     "councilDeputy": "verification: queue sequencing, dependency ordering, ownership and handoff management; no mutation or certification",
     "councilInvestigator": "analysis: fingerprint, RCA, falsification and proof-obligation ownership; no mutation or reassignment",
     "externalRuntime": "External account adapter: transports Wake/ACK/heartbeat/completion between GitHub/Supabase and external GPT runtimes. It grants no mutation or certification authority.",
-    "actionRepairBot": "ACTION-REPAIR / actionRepairBot: bounded mutation specialist for GitHub Actions repair. It may mutate only on execution, only after repair-protocol admission, only inside the diagnosed scope, and never self-certifies or widens gates.",
-    "actionRepairVerifier": "ACTION-REPAIR-2 / actionRepairVerifier: adversarial verification specialist. It independently challenges RCA, alternative hypotheses, changed-scope legitimacy and regression evidence; it has no mutation, commit, push, merge or certification authority.",
+    "actionRepairBot": "ACTION-REPAIR / actionRepairBot: primary bounded mutation owner for Actions repair. It may mutate only after the canonical Action Vault verifier challenge passes on the same exact SHA and fingerprint, then the normal Repair Protocol admits the mutation. It never self-certifies or widens gates.",
+    "actionRepairVerifier": "ACTION-REPAIR-2 verifier mode: independently challenges RCA and evidence with no direct mutation. Fallback mutation is a separate assistantRepairAgent execution mode and is allowed only after ACTION-REPAIR approval, current exact-SHA validation, active heartbeat and the normal Repair Protocol; verifier evidence never self-authorizes mutation.",
     "actionHistorian": "ACTION-HISTORIAN-3 / actionHistorian: learning and recurrence specialist. It records exact-SHA lessons, anti-lessons, rejected strategies, recurrence conditions and prevention rules; it has no mutation, commit, push, merge or certification authority."
   },
   "decisionGates": {
@@ -443,7 +443,16 @@
           "merge",
           "certification",
           "rewriting evidence"
-        ]
+        ],
+        "fallbackMutation": {
+          "actor": "assistantRepairAgent",
+          "authority": "EXPLICIT_PRIMARY_HANDOFF_ONLY",
+          "approvalFrom": "ACTION-REPAIR",
+          "heartbeatRequired": true,
+          "exactShaRequired": true,
+          "verifierProofRequired": true,
+          "normalRepairProtocolRequired": true
+        }
       },
       "ACTION-HISTORIAN-3": {
         "agent": "actionHistorian",
@@ -469,7 +478,8 @@
           "authority grant",
           "confidence-only promotion",
           "deleting failed history"
-        ]
+        ],
+        "memoryWriteAuthority": "ACTION_VAULT_MEMORY_ONLY"
       }
     },
     "missionSequence": [
