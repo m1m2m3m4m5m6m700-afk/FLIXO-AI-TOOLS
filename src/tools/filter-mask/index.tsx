@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LIVE_FILTER_FAMILIES, LIVE_FILTER_REGISTRY, getLiveFilter } from './registry';
-import { parseFilterMaskHandoff } from './handoff';
+import { parseFilterMaskHandoff, type FilterMaskParameters } from './handoff';
 import { FILTER_MASK_I18N } from './locales';
 import type { Locale } from '@/lib/i18n';
 
@@ -35,11 +35,16 @@ function drawFilteredFrame(
   intensity: number,
   zoom: number,
   mirror: boolean,
+  aspectRatio: FilterMaskParameters['aspectRatio'],
 ) {
   const sourceWidth = video.videoWidth || width;
   const sourceHeight = video.videoHeight || height;
-  const cropWidth = sourceWidth / zoom;
-  const cropHeight = sourceHeight / zoom;
+  const targetAspect = width / height;
+  const sourceAspect = sourceWidth / sourceHeight;
+  const baseCropWidth = sourceAspect > targetAspect ? sourceHeight * targetAspect : sourceWidth;
+  const baseCropHeight = sourceAspect > targetAspect ? sourceHeight : sourceWidth / targetAspect;
+  const cropWidth = Math.min(sourceWidth, baseCropWidth / zoom);
+  const cropHeight = Math.min(sourceHeight, baseCropHeight / zoom);
   const cropX = (sourceWidth - cropWidth) / 2;
   const cropY = (sourceHeight - cropHeight) / 2;
 
@@ -104,6 +109,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   const [intensity, setIntensity] = useState(handoff?.parameters.intensity ?? 100);
   const [zoom, setZoom] = useState(handoff?.parameters.zoom ?? 1);
   const [mirror, setMirror] = useState(handoff?.parameters.mirror ?? true);
+  const [aspectRatio, setAspectRatio] = useState<FilterMaskParameters['aspectRatio']>(handoff?.parameters.aspectRatio ?? '9:16');
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
   const [capturedKind, setCapturedKind] = useState<'photo' | 'video' | null>(null);
 
@@ -126,8 +132,9 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     params.set('intensity', String(clampIntensity(intensity)));
     params.set('zoom', String(zoom));
     params.set('mirror', String(mirror));
+    params.set('aspectRatio', aspectRatio);
     window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params.toString()}`);
-  }, [selected.canonicalId, intensity, mirror, zoom]);
+  }, [selected.canonicalId, aspectRatio, intensity, mirror, zoom]);
 
   useEffect(() => () => {
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
@@ -279,6 +286,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
           intensity,
           zoom,
           mirror,
+          aspectRatio,
         );
         recordFrameRef.current = requestAnimationFrame(drawFrame);
       };
@@ -365,6 +373,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       intensity,
       zoom,
       mirror,
+      aspectRatio,
     );
 
     const blob = await new Promise<Blob | null>((resolve) => {
@@ -398,7 +407,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         </div>
       </div>
 
-      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 18, background: '#111', aspectRatio: '16 / 10' }}>
+      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 18, background: '#111', aspectRatio: aspectRatio.replace(':', ' / ') }}>
         <video
           ref={baseVideoRef}
           playsInline
@@ -489,6 +498,19 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
           {favorites.includes(selected.canonicalId) ? copy.favoriteActive : copy.favorite}
         </button>
         <button type="button" onClick={() => selectFilter('effect.original')}>{copy.reset}</button>
+      </div>
+
+      <div role="group" aria-label="Capture aspect ratio" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {(['9:16', '4:5', '1:1', '16:9'] as const).map((ratio) => (
+          <button
+            key={ratio}
+            type="button"
+            aria-pressed={aspectRatio === ratio}
+            onClick={() => setAspectRatio(ratio)}
+          >
+            {ratio}
+          </button>
+        ))}
       </div>
 
       <div role="group" aria-label={copy.cameraFraming} style={{ display: 'grid', gap: 8 }}>
