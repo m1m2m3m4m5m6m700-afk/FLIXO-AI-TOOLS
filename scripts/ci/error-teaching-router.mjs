@@ -10,7 +10,8 @@ const normalized = query.toLowerCase().replace(/[_/.:#-]+/gu, ' ').replace(/\s+/
 const clean = (value) => value.toLowerCase().replace(/[_/.:#-]+/gu, ' ').replace(/\s+/gu, ' ').trim();
 
 function result(group, by, term, confidence) {
-  const text = readFileSync(group.file, 'utf8');
+  const sourceFiles = [group.file, ...(router.corpus?.expanded ?? [])];
+  const text = sourceFiles.map((file) => readFileSync(file, 'utf8')).join('\n');
   const rules = text.split(/\r?\n/u)
     .filter((line) => /^T\d{3,4} \|/u.test(line))
     .filter((line) => {
