@@ -229,6 +229,8 @@ const buildAgentPrompt = (fingerprint, members, index) => {
     rootCauseHint: known?.rootCause ?? null,
     exactCaseInMemory: Boolean(known),
     prompt,
+    promptHandoff,
+    promptHandoff,
   };
 };
 
