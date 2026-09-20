@@ -244,7 +244,7 @@ async function commandClaim() {
   }
   const ref = await createRef(identity.leaseRef, tag.tag);
   if (ref.status === 201) {
-    await emitEvent(identity, 'STATE', `claimed-${repairRunId || getArg('ownerRunId', Date.now())}`, { ...claimMetadata });
+    await emitEvent(identity, 'STATE', `attestation-missing-${repairRun.data.id}`, {
   }
   console.log(JSON.stringify({
     status: ref.decision,
