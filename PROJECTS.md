@@ -1,3 +1,7 @@
+## Agent Communication Priority
+
+Communication-first is a P0 execution invariant. The canonical ingress is Master Inbox Issue #761, the event-driven relay is `.github/workflows/agent-communication-relay.yml`, and the runtime is `scripts/ci/agent-communication.mjs` consumed by `agent-session` and `agent-coordination`. This must remain within the existing agent control plane; no parallel registry/protocol is permitted.
+
 # FLIXO AI — Persistent Projects & Agent Work Map
 
 **First work gate for every agent.** Read this file before implementation.
