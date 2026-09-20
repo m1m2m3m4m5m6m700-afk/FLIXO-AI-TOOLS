@@ -90,8 +90,8 @@ const top = diagnosis.topHypothesis ?? null;
 const second = diagnosis.secondHypothesis ?? null;
 const alternative = second && second.id !== top?.id ? second : null;
 const inferenceCandidate = inferenceFallback?.hypothesis ?? null;
-const selectedHypothesis = twinVariant === 'B' && inferenceCandidate?.id
-  ? inferenceCandidate
+const selectedHypothesis = twinVariant === 'B' && (inferenceCandidate?.repairRule || inferenceCandidate?.strategyId)
+  ? { id: inferenceCandidate.repairRule ?? inferenceCandidate.strategyId, score: inferenceFallback?.prediction?.confidence ?? 0 }
   : (top ?? alternative);
 const twinPreferredStrategy = twinVariant === 'B'
   ? (inferenceFallback?.hypothesis?.strategyId ?? mapAlternativeStrategy(alternative?.id ?? top?.id))
@@ -141,6 +141,7 @@ const result = Object.freeze({
     preferredAlternativeRootCause: selectedHypothesis?.id ?? alternative?.id ?? null,
     preferredAlternativeStrategy: twinPreferredStrategy,
     preferredAlternativeRepair: twinAlternativeRepair,
+    reasoningMode: twinVariant === 'B' ? 'INFERENCE_AND_HISTORICAL_CHALLENGE' : 'CAUSAL_AND_DIRECT_EVIDENCE',
     dissentStrength,
     disposition: alternative ? (dissentStrength >= 0.9 ? 'STRONG_DISSENT' : 'COUNTERCHECK') : 'NO_SAFE_ALTERNATIVE_FOUND',
     rule: 'NEVER_WRITE_SOURCE_AND_NEVER_CONTROL_ACTIONS',
