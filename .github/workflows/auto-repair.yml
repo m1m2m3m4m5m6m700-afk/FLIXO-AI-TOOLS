@@ -94,16 +94,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Validate Bot-First Autonomous operating contract
-        run: node scripts/ci/action-vault-autonomy-mode.mjs
-      - name: Validate in-place branch conflict recovery contract
-        run: node scripts/ci/test-action-vault-branch-conflict-recovery.mjs
       - name: Checkout canonical execution branch
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: execution
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Validate Bot-First Autonomous operating contract
+        run: node scripts/ci/action-vault-autonomy-mode.mjs
+
+      - name: Validate in-place branch conflict recovery contract
+        run: node scripts/ci/test-action-vault-branch-conflict-recovery.mjs
 
       - name: Enforce central Council directive before diagnosis or mutation
         run: node scripts/ci/test-council-directive.mjs
