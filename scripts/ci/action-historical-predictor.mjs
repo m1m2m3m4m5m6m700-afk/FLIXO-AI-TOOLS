@@ -5,7 +5,8 @@ import crypto from 'node:crypto';
 
 const ROOT=process.cwd();
 const OUT=path.resolve(ROOT,'diagnostics/auto-repair/action-vault/historical-predictions/latest.json');
-const normalize=(value)=>String(value??'').replace(/\x1b\[[0-?]*[ -/]*[@-~]/gu,'').replace(/\b[a-f0-9]{40}\b/giu,'<SHA>').replace(/\b\d{8,}\b/gu,'<N>').replace(/\s+/gu,' ').trim().toLowerCase();
+const ansiEscape=new RegExp(String.fromCharCode(27)+'\\\\[[0-?]*[ -/]*[@-~]','gu');
+const normalize=(value)=>String(value??'').replace(ansiEscape,'').replace(/\b[a-f0-9]{40}\b/giu,'<SHA>').replace(/\b\d{8,}\b/gu,'<N>').replace(/\s+/gu,' ').trim().toLowerCase();
 const tokens=(value)=>[...new Set((normalize(value).match(/[a-z][a-z0-9_-]{2,}/g)||[]).filter(x=>!['the','and','run','with','from','this','that','error','failed','failure'].includes(x)))];
 const readJson=(file,fallback)=>{try{return fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):fallback}catch{return fallback}};
 const exact=(v)=>/^[a-f0-9]{40}$/u.test(String(v));
