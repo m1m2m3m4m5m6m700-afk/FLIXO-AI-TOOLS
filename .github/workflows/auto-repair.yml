@@ -172,8 +172,7 @@ jobs:
     # A twin failure must never suppress the canonical RCA/repair lane.
     if: >-
       always() &&
-      github.event_name == 'workflow_dispatch' &&
-      needs.adversarial_twin.result != 'cancelled'
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
