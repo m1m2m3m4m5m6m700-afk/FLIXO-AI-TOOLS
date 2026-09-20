@@ -51,6 +51,8 @@ if (contract?.actionVaultContinuity?.retryPolicy !== 'NO_BLIND_RETRY') failures.
 if (contract?.actionVaultContinuity?.preMutationChallenge?.required !== true) failures.push('ACTION_VAULT_PREMUTATION_CHALLENGE_MISSING');
 if (contract?.actionVaultContinuity?.preMutationChallenge?.artifact !== 'actionVaultVerifierProof') failures.push('ACTION_VAULT_VERIFIER_ARTIFACT_INVALID');
 if (contract?.actionVaultContinuity?.preMutationChallenge?.verifier !== 'actionRepairVerifier') failures.push('ACTION_VAULT_VERIFIER_ROLE_INVALID');
+if (contract?.actionVaultContinuity?.preMutationChallenge?.programmerTwinParityRequired !== true) failures.push('ACTION_VAULT_PROGRAMMER_TWIN_PARITY_REQUIRED');
+if (contract?.actionVaultContinuity?.programmerTwin?.intelligenceParity !== 'EXACT') failures.push('ACTION_VAULT_PROGRAMMER_TWIN_PARITY_INVALID');
 if (contract?.actionVaultContinuity?.verificationRule && !contract.actionVaultContinuity.verificationRule.includes('independently')) failures.push('ACTION_VAULT_INDEPENDENT_VERIFICATION_INVALID');
     if (!/no.*mutation|read.*repository state/i.test(contract?.roles?.codeScout ?? '')) failures.push('CODE_SCOUT_MUTATION_BOUNDARY_MISSING');
     for (const tier of ['LOW','MEDIUM','HIGH','CRITICAL']) if (typeof contract?.decisionGates?.[tier] !== 'string') failures.push(`COOPERATION_RISK_GATE_MISSING=${tier}`);
