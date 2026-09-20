@@ -7,7 +7,7 @@ function escapeRegExp(value) { return String(value).replace(/[.*+?^${}()|[\]\\]/
 function findTrackedExport(targetDir, symbol) {
   if (!symbol) return { ok: false, reason: 'TS_MISSING_IMPORT_SYMBOL_MISSING' };
   const files = String(execFileSync('git', ['-C', targetDir, 'ls-files', '--', '*.ts', '*.tsx', '*.js', '*.jsx', '*.mjs'], { encoding: 'utf8' }))
-    .split(/\r?\n/u).map((v) => v.trim()).filter(Boolean).filter((file) => !/(^|\\/)(?:tests?|__tests__)(?:\\/|$)/iu.test(file));
+    .split(/\r?\n/u).map((v) => v.trim()).filter(Boolean).filter((file) => !/(^|[/\\])(?:tests?|__tests__)(?:[/\\]|$)/iu.test(file));
   const safe = escapeRegExp(symbol);
   const decl = new RegExp('^\\s*export\\s+(?:(?:declare|type)\\s+)?(?:const|let|var|function|class|enum|interface|type)\\s+' + safe + '\\b', 'mu');
   const reExport = new RegExp('^\\s*export\\s*\\{[^}]*\\b' + safe + '\\b[^}]*\\}', 'mu');
