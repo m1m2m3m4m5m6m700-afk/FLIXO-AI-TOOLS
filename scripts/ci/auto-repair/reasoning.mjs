@@ -217,14 +217,32 @@ function causalGraph({ trigger = null, rootCause = null, violatedInvariant = nul
 }
 
 function crossWorkflowCorrelation({ workflow = null, failures = [] } = {}) {
-  const normalized = failures.filter((item) => item && (item.workflow || item.runId || item.fingerprint));
-  const sameFingerprint = normalized.filter((item) => item.fingerprint && item.fingerprint === normalized[0]?.fingerprint);
+  const normalized = failures
+    .filter((item) => item && (item.workflow || item.runId || item.fingerprint))
+    .slice(-20);
+  const workflowCount = new Set(normalized.map((item) => item.workflow).filter(Boolean)).size;
+  const grouped = new Map();
+  for (const item of normalized) {
+    const fingerprint = String(item.fingerprint ?? '');
+    if (!fingerprint) continue;
+    const entry = grouped.get(fingerprint) ?? { fingerprint, records: [], workflows: new Set() };
+    entry.records.push(item);
+    if (item.workflow) entry.workflows.add(String(item.workflow));
+    grouped.set(fingerprint, entry);
+  }
+  const common = [...grouped.values()]
+    .filter((entry) => entry.records.length > 1 && entry.workflows.size > 1)
+    .sort((a, b) => b.records.length - a.records.length || a.records[0].fingerprint.localeCompare(b.records[0].fingerprint))[0];
   return {
     schemaVersion: 1,
     workflow,
-    observedFailures: normalized.slice(-20),
-    firstCommonFailure: sameFingerprint[0] ?? normalized[0] ?? null,
-    confidence: sameFingerprint.length > 1 ? 'CORRELATED' : normalized.length > 1 ? 'MULTI_WORKFLOW_UNPROVEN' : 'INSUFFICIENT_EVIDENCE',
+    observedFailures: normalized,
+    firstCommonFailure: common?.records[0] ?? normalized[0] ?? null,
+    confidence: common
+      ? 'CORRELATED'
+      : normalized.length > 1 && workflowCount > 1
+        ? 'MULTI_WORKFLOW_UNPROVEN'
+        : 'INSUFFICIENT_EVIDENCE',
     mutationAllowed: false,
   };
 }
