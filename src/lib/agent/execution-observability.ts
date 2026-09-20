@@ -75,7 +75,8 @@ export function toStructuredExecutionLog(event:ExecutionAuditEvent):StructuredEx
 }
 
 function assertExecutionIdentity(value: string, label: string): void {
-  if (!value.trim() || value.length > 256 || /[\u0000-\u001f\u007f]/.test(value)) throw new Error(`Execution ${label} is invalid.`);
+  const hasControlCharacter = [...value].some((character) => { const code = character.codePointAt(0) ?? 0; return code <= 0x1f || code === 0x7f; });
+  if (!value.trim() || value.length > 256 || hasControlCharacter) throw new Error(`Execution ${label} is invalid.`);
 }
 
 export async function createExecutionAuditEvent({task,capabilityId,tool,stage,outcome,message,errorClass,timestamp=new Date().toISOString()}:{
