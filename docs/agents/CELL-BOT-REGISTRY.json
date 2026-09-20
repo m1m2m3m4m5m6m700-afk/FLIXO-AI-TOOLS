@@ -29,18 +29,18 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "ACTERR",
-        "fullName": "ACTION_ERROR_READER",
+        "shortName": "ACTION_SOLUTION_INDEXER",
+        "fullName": "ACTION_SOLUTION_INDEXER",
         "state": "ASSIGNED",
-        "version": 1,
-        "learnedFrom": "CONTROLLER_ASSIGNED_TASK",
+        "version": 2,
+        "learnedFrom": "ACTION_REPAIR_SQUAD",
         "returnTo": "assistantController"
       },
       "upgradeTarget": {
         "upgradePriority": 95,
-        "upgradeNumber": 1,
-        "weakness": "HISTORICAL_ACTION_COVERAGE_AND_EXACT_ERROR_EXTRACTION",
-        "target": "Scan all available GitHub Actions run failures, timed_out, cancelled, and action_required records; preserve runId, job, step, log fingerprint, exact SHA, and evidence.",
+        "upgradeNumber": 2,
+        "weakness": "HISTORICAL_ACTION_INDEX_RETRIEVAL",
+        "target": "Extract the most applicable previously observed repair solutions from the historical Action-error index and verified repair memory.",
         "state": "ACTIVE",
         "reassessAfterTask": true
       },
@@ -51,28 +51,24 @@
         "supervisor": "assistantController"
       },
       "currentAssignment": {
-        "taskId": "CELL-TASK-ACTION-ERRORS",
-        "shortName": "ACTERR",
-        "scope": "ALL_AVAILABLE_GITHUB_ACTIONS_ERRORS",
-        "objective": "Read historical and current Actions errors and return a structured evidence report directly to assistantController.",
+        "taskId": "CELL-TASK-ACTION-REPAIR-SQUAD",
+        "shortName": "ACTION_SOLUTION_INDEXER",
+        "scope": "READ_HISTORICAL_ACTION_INDEX",
+        "objective": "Extract the most applicable previously observed repair solutions from the historical Action-error index and verified repair memory.",
         "inputs": [
-          "workflow_runs",
-          "run_jobs",
-          "job_steps",
-          "job_logs",
-          "commit_sha"
+          "failure run",
+          "exact failed SHA",
+          "failure log",
+          "historical Action-error index",
+          "repair memory",
+          "twin evidence"
         ],
         "outputs": [
-          "runId",
-          "workflow",
-          "job",
-          "step",
-          "sha",
-          "errorFingerprint",
-          "errorLines",
-          "rootCauseCandidate",
+          "evidence",
+          "hypothesis",
           "confidence",
-          "evidenceRef"
+          "falsification",
+          "recommendation"
         ],
         "returnProtocol": "DIRECT_TO_ASSISTANT_CONTROLLER",
         "mutationAuthority": false,
@@ -84,7 +80,7 @@
       },
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [
-        "ACTERR"
+        "ACTION_SOLUTION_INDEXER"
       ],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
@@ -109,29 +105,31 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-002",
-        "fullName": "UNLEARNED_TASK",
-        "state": "UNLEARNED",
-        "version": 0,
-        "learnedFrom": "BOOTSTRAP_ONLY",
+        "shortName": "ACTION_SYSTEM_WAKE_COORDINATOR",
+        "fullName": "ACTION_SYSTEM_WAKE_COORDINATOR",
+        "state": "ASSIGNED",
+        "version": 1,
+        "learnedFrom": "ACTION_REPAIR_SQUAD",
         "returnTo": "assistantController"
       },
       "upgradeTarget": {
-        "upgradePriority": 1,
-        "upgradeNumber": 0,
-        "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "upgradePriority": 92,
+        "upgradeNumber": 1,
+        "weakness": "WAKE_SURFACE_COORDINATION",
+        "target": "On any actionable Actions failure, produce the canonical wake directive without creating a competing dispatcher or mutating source.",
+        "state": "ACTIVE",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
+        "state": "SPECIALIZING",
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
-      "learnedCapabilities": [],
+      "learnedCapabilities": [
+        "ACTION_SYSTEM_WAKE_COORDINATOR"
+      ],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-002.json",
@@ -141,7 +139,35 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": {
+        "taskId": "CELL-TASK-ACTION-REPAIR-SQUAD",
+        "shortName": "ACTION_SYSTEM_WAKE_COORDINATOR",
+        "scope": "WAKE_CANONICAL_REPAIR_SURFACE",
+        "objective": "On any actionable Actions failure, produce the canonical wake directive without creating a competing dispatcher or mutating source.",
+        "inputs": [
+          "failure run",
+          "exact failed SHA",
+          "failure log",
+          "historical Action-error index",
+          "repair memory",
+          "twin evidence"
+        ],
+        "outputs": [
+          "evidence",
+          "hypothesis",
+          "confidence",
+          "falsification",
+          "recommendation"
+        ],
+        "returnProtocol": "DIRECT_TO_ASSISTANT_CONTROLLER",
+        "mutationAuthority": false,
+        "completionRequires": [
+          "observation",
+          "evidence",
+          "validation"
+        ]
+      }
     },
     {
       "id": "CELL-003",
@@ -155,29 +181,31 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-003",
-        "fullName": "UNLEARNED_TASK",
-        "state": "UNLEARNED",
-        "version": 0,
-        "learnedFrom": "BOOTSTRAP_ONLY",
+        "shortName": "ACTION_REPAIR_TWIN_A",
+        "fullName": "ACTION_REPAIR_TWIN_A",
+        "state": "ASSIGNED",
+        "version": 1,
+        "learnedFrom": "ACTION_REPAIR_SQUAD",
         "returnTo": "assistantController"
       },
       "upgradeTarget": {
-        "upgradePriority": 1,
-        "upgradeNumber": 0,
-        "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "upgradePriority": 85,
+        "upgradeNumber": 1,
+        "weakness": "TWIN_A_REASONING",
+        "target": "Independently diagnose the exact-SHA failure using causal reasoning plus historical evidence and propose one bounded repair hypothesis.",
+        "state": "ACTIVE",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
+        "state": "SPECIALIZING",
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
-      "learnedCapabilities": [],
+      "learnedCapabilities": [
+        "ACTION_REPAIR_TWIN_A"
+      ],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-003.json",
@@ -187,7 +215,35 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": {
+        "taskId": "CELL-TASK-ACTION-REPAIR-SQUAD",
+        "shortName": "ACTION_REPAIR_TWIN_A",
+        "scope": "READ_ONLY_REPAIR_TWIN_A",
+        "objective": "Independently diagnose the exact-SHA failure using causal reasoning plus historical evidence and propose one bounded repair hypothesis.",
+        "inputs": [
+          "failure run",
+          "exact failed SHA",
+          "failure log",
+          "historical Action-error index",
+          "repair memory",
+          "twin evidence"
+        ],
+        "outputs": [
+          "evidence",
+          "hypothesis",
+          "confidence",
+          "falsification",
+          "recommendation"
+        ],
+        "returnProtocol": "DIRECT_TO_ASSISTANT_CONTROLLER",
+        "mutationAuthority": false,
+        "completionRequires": [
+          "observation",
+          "evidence",
+          "validation"
+        ]
+      }
     },
     {
       "id": "CELL-004",
@@ -201,29 +257,31 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-004",
-        "fullName": "UNLEARNED_TASK",
-        "state": "UNLEARNED",
-        "version": 0,
-        "learnedFrom": "BOOTSTRAP_ONLY",
+        "shortName": "ACTION_REPAIR_TWIN_B",
+        "fullName": "ACTION_REPAIR_TWIN_B",
+        "state": "ASSIGNED",
+        "version": 1,
+        "learnedFrom": "ACTION_REPAIR_SQUAD",
         "returnTo": "assistantController"
       },
       "upgradeTarget": {
-        "upgradePriority": 1,
-        "upgradeNumber": 0,
-        "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "upgradePriority": 85,
+        "upgradeNumber": 1,
+        "weakness": "TWIN_B_REASONING",
+        "target": "Independently challenge the same failure using an alternative reasoning/inference lens and propose a materially different or falsifying repair hypothesis.",
+        "state": "ACTIVE",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
+        "state": "SPECIALIZING",
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
-      "learnedCapabilities": [],
+      "learnedCapabilities": [
+        "ACTION_REPAIR_TWIN_B"
+      ],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-004.json",
@@ -233,7 +291,35 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": {
+        "taskId": "CELL-TASK-ACTION-REPAIR-SQUAD",
+        "shortName": "ACTION_REPAIR_TWIN_B",
+        "scope": "READ_ONLY_REPAIR_TWIN_B",
+        "objective": "Independently challenge the same failure using an alternative reasoning/inference lens and propose a materially different or falsifying repair hypothesis.",
+        "inputs": [
+          "failure run",
+          "exact failed SHA",
+          "failure log",
+          "historical Action-error index",
+          "repair memory",
+          "twin evidence"
+        ],
+        "outputs": [
+          "evidence",
+          "hypothesis",
+          "confidence",
+          "falsification",
+          "recommendation"
+        ],
+        "returnProtocol": "DIRECT_TO_ASSISTANT_CONTROLLER",
+        "mutationAuthority": false,
+        "completionRequires": [
+          "observation",
+          "evidence",
+          "validation"
+        ]
+      }
     },
     {
       "id": "CELL-005",
@@ -247,29 +333,31 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-005",
-        "fullName": "UNLEARNED_TASK",
-        "state": "UNLEARNED",
-        "version": 0,
-        "learnedFrom": "BOOTSTRAP_ONLY",
+        "shortName": "ACTION_BEST_OPTION_SELECTOR",
+        "fullName": "ACTION_BEST_OPTION_SELECTOR",
+        "state": "ASSIGNED",
+        "version": 1,
+        "learnedFrom": "ACTION_REPAIR_SQUAD",
         "returnTo": "assistantController"
       },
       "upgradeTarget": {
-        "upgradePriority": 1,
-        "upgradeNumber": 0,
-        "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "upgradePriority": 90,
+        "upgradeNumber": 1,
+        "weakness": "BEST_OPTION_SELECTION",
+        "target": "Compare the historical solution packet and both twin outputs using exact-SHA evidence, falsification, recurrence, and proof safety; select one option or BLOCK.",
+        "state": "ACTIVE",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
+        "state": "SPECIALIZING",
         "rawStateForbidden": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
-      "learnedCapabilities": [],
+      "learnedCapabilities": [
+        "ACTION_BEST_OPTION_SELECTOR"
+      ],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-005.json",
@@ -279,7 +367,35 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": {
+        "taskId": "CELL-TASK-ACTION-REPAIR-SQUAD",
+        "shortName": "ACTION_BEST_OPTION_SELECTOR",
+        "scope": "BEST_OPTION_SELECTION",
+        "objective": "Compare the historical solution packet and both twin outputs using exact-SHA evidence, falsification, recurrence, and proof safety; select one option or BLOCK.",
+        "inputs": [
+          "failure run",
+          "exact failed SHA",
+          "failure log",
+          "historical Action-error index",
+          "repair memory",
+          "twin evidence"
+        ],
+        "outputs": [
+          "evidence",
+          "hypothesis",
+          "confidence",
+          "falsification",
+          "recommendation"
+        ],
+        "returnProtocol": "DIRECT_TO_ASSISTANT_CONTROLLER",
+        "mutationAuthority": false,
+        "completionRequires": [
+          "observation",
+          "evidence",
+          "validation"
+        ]
+      }
     },
     {
       "id": "CELL-006",
@@ -2426,7 +2542,7 @@
   "actionRepairCohort": {
     "schemaVersion": 1,
     "authority": "CELL_CONTROL_PLANE",
-    "purpose": "Five reusable repair workers for any GitHub Actions failure. All five consume identical Action-error references and return independent repair analysis to the canonical controller.",
+    "purpose": "Five standing Actions-repair workers: historical solution extraction, canonical wake coordination, twin A, twin B, and deterministic best-option selection.",
     "workerIds": [
       "CELL-001",
       "CELL-002",
@@ -2435,11 +2551,11 @@
       "CELL-005"
     ],
     "workerModes": {
-      "CELL-001": "PRIMARY_ACTION_RCA",
-      "CELL-002": "HISTORICAL_STRATEGY_TRANSFER",
-      "CELL-003": "INFERENTIAL_ALTERNATIVE",
-      "CELL-004": "FALSIFICATION_AND_RISK",
-      "CELL-005": "REGRESSION_AND_IMPACT"
+      "CELL-001": "ACTION_SOLUTION_INDEXER",
+      "CELL-002": "ACTION_SYSTEM_WAKE_COORDINATOR",
+      "CELL-003": "ACTION_REPAIR_TWIN_A",
+      "CELL-004": "ACTION_REPAIR_TWIN_B",
+      "CELL-005": "ACTION_BEST_OPTION_SELECTOR"
     },
     "sharedReferences": [
       "docs/agents/historical-action-errors/index.json",
@@ -2453,9 +2569,48 @@
     ],
     "sameReferencesForAll": true,
     "anyActionFailureAdmitted": true,
-    "assignmentPolicy": "SAME_INCIDENT_CONTEXT_DIFFERENT_ANALYTIC_ROLE",
+    "assignmentPolicy": "ONE_ACTION_FAILURE_CONTEXT_FANOUT",
     "mutationAuthority": false,
     "canonicalMutationOwner": "repairAgent",
-    "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY"
+    "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY",
+    "roles": [
+      {
+        "order": 1,
+        "botId": "CELL-001",
+        "role": "ACTION_SOLUTION_INDEXER",
+        "mode": "READ_HISTORICAL_ACTION_INDEX",
+        "mutationAuthority": false
+      },
+      {
+        "order": 2,
+        "botId": "CELL-002",
+        "role": "ACTION_SYSTEM_WAKE_COORDINATOR",
+        "mode": "WAKE_CANONICAL_REPAIR_SURFACE",
+        "mutationAuthority": false
+      },
+      {
+        "order": 3,
+        "botId": "CELL-003",
+        "role": "ACTION_REPAIR_TWIN_A",
+        "mode": "READ_ONLY_REPAIR_TWIN_A",
+        "mutationAuthority": false
+      },
+      {
+        "order": 4,
+        "botId": "CELL-004",
+        "role": "ACTION_REPAIR_TWIN_B",
+        "mode": "READ_ONLY_REPAIR_TWIN_B",
+        "mutationAuthority": false
+      },
+      {
+        "order": 5,
+        "botId": "CELL-005",
+        "role": "ACTION_BEST_OPTION_SELECTOR",
+        "mode": "BEST_OPTION_SELECTION",
+        "mutationAuthority": false
+      }
+    ],
+    "selectionPolicy": "HISTORICAL_PLUS_TWIN_A_PLUS_TWIN_B -> BEST_OPTION_SELECTOR -> repairAgent",
+    "wakePolicy": "ACTION_SYSTEM_WAKE_COORDINATOR -> EXISTING_CANONICAL_DISPATCHER_ONLY"
   }
 }
