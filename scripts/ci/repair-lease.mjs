@@ -656,7 +656,7 @@ async function commandRecover() {
     return;
   }
   if (!decision.eligible) {
-    const status = decision.reasons.includes('NO_PROGRESS_CIRCUIT_OPEN') ? 'CIRCUIT_OPEN'
+    const status = decision.reasons.includes('NO_PROGRESS_REQUIRES_STRATEGY_ROTATION') ? 'CIRCUIT_OPEN'
       : decision.reasons.includes('ACTIVE_REPAIR_SESSION_PRESENT') ? 'ACTIVE'
       : decision.reasons.includes('EXECUTION_SHA_CHANGED') ? 'MUTATION_OR_NEW_SHA'
       : decision.reasons.includes('SUCCESSFUL_REPAIR_ALREADY_VERIFIED') ? 'VERIFIED'
