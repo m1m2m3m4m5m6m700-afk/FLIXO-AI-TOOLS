@@ -9,7 +9,7 @@ task = transitionTask(task, 'PLANNED');
 task = transitionTask(task, 'AWAITING_CONFIRMATION');
 task = transitionTask(task, 'EXECUTING');
 
-const authorized = authorizeExecution({
+const authorized = await authorizeExecution({
   task,
   capabilityId: 'image-compressor',
   parameters: { quality: 0.8 },
@@ -29,24 +29,24 @@ assert.match(authorized.audit.eventId, /^[a-f0-9]{64}$/);
 assert.equal(authorized.parameters.quality, 0.8);
 
 const unconfirmed = createTaskContext('blocked-task', 'blocked-trace');
-assert.throws(
-  () => authorizeExecution({ task: unconfirmed, capabilityId: 'image-compressor', inputBlob: input }),
+await assert.rejects(
+  authorizeExecution({ task: unconfirmed, capabilityId: 'image-compressor', inputBlob: input }),
   /Execution is blocked until explicit confirmation/,
 );
 
-assert.throws(
-  () => authorizeExecution({ task, capabilityId: 'photo-colorizer', inputBlob: input }),
+await assert.rejects(
+  authorizeExecution({ task, capabilityId: 'photo-colorizer', inputBlob: input }),
   /not executable/,
 );
 
-assert.throws(
-  () => authorizeExecution({ task, capabilityId: 'image-compressor', parameters: { quality: 9 }, inputBlob: input }),
+await assert.rejects(
+  authorizeExecution({ task, capabilityId: 'image-compressor', parameters: { quality: 9 }, inputBlob: input }),
   /Number must be less than or equal to 1/,
 );
 
 const oversized = new Blob([new Uint8Array(64 * 1024 * 1024 + 1)]);
-assert.throws(
-  () => authorizeExecution({ task, capabilityId: 'image-compressor', inputBlob: oversized }),
+await assert.rejects(
+  authorizeExecution({ task, capabilityId: 'image-compressor', inputBlob: oversized }),
   /file-size limit/,
 );
 
