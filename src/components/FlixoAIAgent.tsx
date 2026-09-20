@@ -98,8 +98,8 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     pushMessage(
       'agent',
       detectedLocale === 'ar'
-        ? 'جهزت Filter Mask. الاختيار: ' + label + ' (' + nextHandoff.canonicalId + ')، الشدة ' + nextHandoff.parameters.intensity + '%، التكبير ' + nextHandoff.parameters.zoom.toFixed(1) + '×، والنسبة ' + nextHandoff.parameters.aspectRatio + '. افتح المعاينة المباشرة.'
-        : 'Filter Mask is ready. Selection: ' + label + ' (' + nextHandoff.canonicalId + '), intensity ' + nextHandoff.parameters.intensity + '%, zoom ' + nextHandoff.parameters.zoom.toFixed(1) + '×, aspect ' + nextHandoff.parameters.aspectRatio + '. Open the live preview.',
+        ? 'جهزت Filter Mask. الاختيار: ' + label + ' (' + nextHandoff.canonicalId + ')، الشدة ' + nextHandoff.parameters.intensity + '%، التكبير ' + nextHandoff.parameters.zoom.toFixed(1) + '×، النسبة ' + nextHandoff.parameters.aspectRatio + '، والجودة ' + nextHandoff.parameters.captureQuality + '. افتح المعاينة المباشرة.'
+        : 'Filter Mask is ready. Selection: ' + label + ' (' + nextHandoff.canonicalId + '), intensity ' + nextHandoff.parameters.intensity + '%, zoom ' + nextHandoff.parameters.zoom.toFixed(1) + '×, aspect ' + nextHandoff.parameters.aspectRatio + ', quality ' + nextHandoff.parameters.captureQuality + '. Open the live preview.',
     );
     return true;
   };
