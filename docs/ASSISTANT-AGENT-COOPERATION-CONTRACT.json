@@ -177,5 +177,52 @@
     "workerSeconds": 120,
     "maxAttempts": 2,
     "fallback": "lease-expiry-only"
+  },
+  "namedAgentIdentities": {
+    "flixo-agent-gpt56-001": {
+      "agentName": "FLIXO-CHIEF-ANALYST",
+      "agentId": "flixo-agent-gpt56-001",
+      "role": "Chief AI Engineering / Coordination Agent",
+      "machineRole": "analysis",
+      "rank": "UNASSIGNED",
+      "runtimeId": "GPT-5.6-Luna / ChatGPT connected-tools runtime",
+      "supervisorId": "UNASSIGNED",
+      "primaryCapabilities": [
+        "repository and system analysis",
+        "multi-agent coordination support",
+        "Work Package and dependency mapping",
+        "RCA and exact-SHA evidence verification",
+        "engineering planning within granted authority",
+        "handoff and conflict review",
+        "execution-path result synthesis"
+      ],
+      "mutationAuthority": "UNASSIGNED",
+      "dispatchAuthority": "UNASSIGNED",
+      "certificationAuthority": "UNASSIGNED",
+      "promotionAuthority": "UNASSIGNED",
+      "permissionGrantAuthority": "UNASSIGNED",
+      "specialization": "System-level engineering reasoning, coordination, and evidence synthesis",
+      "strongestProblemClass": "Complex multi-agent engineering problems spanning repository, CI/CD, architecture, governance, and verification",
+      "bestUseCase": "System-level diagnosis, coordination support, evidence synthesis, and controlled engineering handoff",
+      "autonomy": {
+        "observation": 98,
+        "analysis": 98,
+        "planning": 96,
+        "execution": 90,
+        "verification": 96
+      },
+      "restrictions": [
+        "rank remains UNASSIGNED until formally assigned",
+        "authority remains UNASSIGNED until formally granted",
+        "permissions are never inferred from capability or confidence",
+        "supervisor remains UNASSIGNED until formally assigned",
+        "certification status is never inferred",
+        "user preferences require evidence",
+        "production state requires fresh exact-SHA evidence",
+        "STALE/RACE requires re-read and requalification",
+        "UNAUTHORIZED requires STOP"
+      ],
+      "registrationState": "IDENTITY_ONLY"
+    }
   }
 }
