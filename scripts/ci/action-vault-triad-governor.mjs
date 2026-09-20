@@ -14,6 +14,7 @@ const LEDGER = path.join(VAULT, 'failure-ledger.ndjson');
 const STATE = path.join(VAULT, 'triad-governor-state.json');
 const MISS_LEDGER = path.join(VAULT, 'catalog-misses.ndjson');
 const LEARNED = path.join(VAULT, 'learned-advice.ndjson');
+const ADVICE_CATALOG = path.join(VAULT, 'advice-catalog.ndjson');
 
 const sha = (v) => crypto.createHash('sha256').update(String(v), 'utf8').digest('hex');
 const validSha = (v) => /^[a-f0-9]{40}$/u.test(String(v));
@@ -192,6 +193,25 @@ export function recordLearnedAdvice({ taskId, fingerprint, targetSha, failedRunI
   return record;
 }
 
+export function promoteLearnedAdvice({ taskId, fingerprint, targetSha, failedRunId, advice, greenRecord }) {
+  if (!greenRecord || greenRecord.source !== 'DAILY_FLIXO_GREEN_GATE' || greenRecord.conclusion !== 'success' || greenRecord.zeroRed !== true || greenRecord.exactShaVerified !== true || greenRecord.targetSha !== targetSha) {
+    throw new Error('ACTION_VAULT_TRIAD_GREEN_PROOF_REQUIRED_FOR_ADVICE_PROMOTION');
+  }
+  if (!advice) throw new Error('ACTION_VAULT_TRIAD_ADVICE_REQUIRED');
+  const record = {
+    schemaVersion: 1,
+    protocol: ACTION_VAULT_TRIAD_PROTOCOL,
+    eventType: 'ADVICE_PROMOTED',
+    taskId, fingerprint, targetSha, failedRunId: String(failedRunId),
+    advice: String(advice).slice(0, 8000),
+    sourceBots: BOTS,
+    provenance: { greenRecordId: greenRecord.recordId ?? null, source: greenRecord.source },
+    at: new Date().toISOString(),
+  };
+  append(ADVICE_CATALOG, record);
+  return record;
+}
+
 function cli() {
   const op = process.argv[2];
   const args = Object.fromEntries(process.argv.slice(3).map((x) => {
@@ -200,6 +220,12 @@ function cli() {
   }));
   if (op === 'gate') {
     const result = openErrorGate({ taskId: args.task, fingerprint: args.fingerprint, targetSha: args.sha, failedRunId: args.run, errorText: args.error ?? '' });
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  if (op === 'promote') {
+    const green = args['green-record-json'] ? JSON.parse(args['green-record-json']) : null;
+    const result = promoteLearnedAdvice({ taskId: args.task, fingerprint: args.fingerprint, targetSha: args.sha, failedRunId: args.run, advice: args.advice, greenRecord: green });
     console.log(JSON.stringify(result, null, 2));
     return;
   }
