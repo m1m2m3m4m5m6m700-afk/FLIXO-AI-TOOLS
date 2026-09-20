@@ -145,6 +145,11 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(recordButton).toBeEnabled();
     await recordButton.click();
     await expect(section.getByRole('button', { name: 'Stop recording' })).toBeVisible();
+    await page.waitForTimeout(500);
+    const cinematic = section.getByRole('button', { name: /Cinema effect\.cinema/ }).first();
+    await cinematic.click();
+    await expect(cinematic).toHaveAttribute('aria-pressed', 'true');
+    await expect(section.getByText(/Recording 00:/)).toBeVisible();
     await page.waitForTimeout(1200);
     await section.getByRole('button', { name: 'Stop recording' }).click();
     const videoLink = section.getByRole('link', { name: 'Download result' });
