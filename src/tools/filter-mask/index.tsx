@@ -162,6 +162,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   const [favorites, setFavorites] = useState<string[]>(() => readStoredIds(FAVORITES_KEY));
   const [recent, setRecent] = useState<string[]>(() => readStoredIds(RECENT_KEY).slice(0, 8));
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [presets, setPresets] = useState<FilterMaskPreset[]>(() => readStoredPresets());
   const [selectedId, setSelectedId] = useState(handoff?.canonicalId ?? 'effect.original');
   const [intensity, setIntensity] = useState(handoff?.parameters.intensity ?? 100);
   const [zoom, setZoom] = useState(handoff?.parameters.zoom ?? 1);
@@ -284,6 +285,50 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         ? current.filter((id) => id !== canonicalId)
         : [canonicalId, ...current];
       writeStoredIds(FAVORITES_KEY, next);
+      return next;
+    });
+  }
+
+  function savePreset() {
+    const preset: FilterMaskPreset = {
+      id: `${selected.canonicalId}-${Date.now()}`,
+      name: `${selected.label} · ${intensity}% · ${zoom.toFixed(1)}× · ${aspectRatio}`,
+      canonicalId: selected.canonicalId,
+      intensity,
+      zoom,
+      mirror,
+      aspectRatio,
+    };
+
+    setPresets((current) => {
+      const duplicate = current.some((item) =>
+        item.canonicalId === preset.canonicalId
+        && item.intensity === preset.intensity
+        && item.zoom === preset.zoom
+        && item.mirror === preset.mirror
+        && item.aspectRatio === preset.aspectRatio,
+      );
+      if (duplicate) return current;
+      const next = [preset, ...current].slice(0, 20);
+      writeStoredPresets(next);
+      return next;
+    });
+  }
+
+  function applyPreset(preset: FilterMaskPreset) {
+    if (!getLiveFilter(preset.canonicalId)) return;
+    setSelectedId(preset.canonicalId);
+    setIntensity(clampIntensity(preset.intensity));
+    setZoom(Math.min(2, Math.max(1, preset.zoom)));
+    setMirror(preset.mirror);
+    setAspectRatio(preset.aspectRatio);
+    selectFilter(preset.canonicalId);
+  }
+
+  function deletePreset(id: string) {
+    setPresets((current) => {
+      const next = current.filter((preset) => preset.id !== id);
+      writeStoredPresets(next);
       return next;
     });
   }
