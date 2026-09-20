@@ -7,7 +7,7 @@
 
 ## Purpose
 
-Provide the **Repair Agent** with a bounded, provenance-first capacity for up to **1,000,000 normalized lessons/advice records** without turning the Action Vault into an execution authority.
+Provide every registered repair agent with a shared, bounded, provenance-first capacity for up to **1,000,000 normalized lessons/advice records** without turning the Action Vault into an execution authority.
 
 This is a **capacity and governance implementation**, not a claim that 1,000,000 entries have been fabricated or already populated.
 
