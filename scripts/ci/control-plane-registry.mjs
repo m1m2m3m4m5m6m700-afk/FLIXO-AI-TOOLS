@@ -23,6 +23,7 @@ export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
   'repository-security-baseline.yml',
   'agent-master-activation.yml',
   'council-wake-push-relay.yml',
+  'repair-agent-intake.yml',
 ]);
 
 export const HISTORICAL_REPAIR_WORKFLOWS = Object.freeze([
