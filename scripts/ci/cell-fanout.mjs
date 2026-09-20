@@ -10,7 +10,7 @@ if(tasks.length===0||tasks.length>200) throw new Error('CELL_FANOUT_TASK_COUNT_M
 if(!plan.planId||!Number.isInteger(plan.planVersion)||plan.planVersion<1||!/^[0-9a-f]{40}$/.test(String(plan.entrySha))) throw new Error('CELL_FANOUT_PLAN_INVALID');
 const ids=new Set(), scopes=new Set();
 const assignments=tasks.map((task,i)=>{
- const botId=\`CELL-${String(i+1).padStart(3,'0')}\`;
+ const botId=`CELL-${String(i+1).padStart(3,'0')}`;
  if(ids.has(botId)) throw new Error('CELL_FANOUT_BOT_DUPLICATE');
  if(!task.taskId||!task.scope||!task.objective) throw new Error('CELL_FANOUT_TASK_FIELDS_REQUIRED');
  if(scopes.has(task.scope)) throw new Error('CELL_FANOUT_SCOPE_COLLISION='+task.scope);
