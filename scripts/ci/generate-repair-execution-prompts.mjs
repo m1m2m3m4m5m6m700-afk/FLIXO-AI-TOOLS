@@ -227,7 +227,10 @@ const blockerPrompts = externalBlockers.map((blocker, index) => ({
     `Blocker: ${JSON.stringify(blocker)}`,
     '',
     'External blocker context: collect provider evidence, preserve provenance, classify BLOCKED_EXTERNAL when proven, and do not create a source-code workaround without an independent internal RCA.',
-  ].joiconst taskFallback = (() => {
+  ].join('\\n')),
+}));
+
+const taskFallback = (() => {
   if (prompts.length > 0 || blockerPrompts.length > 0 || report.status !== 'GREEN') return null;
   const taskFile = fs.existsSync('المهام.md') ? 'المهام.md' : 'مهام.md';
   if (!fs.existsSync(taskFile)) return null;
@@ -256,6 +259,7 @@ const blockerPrompts = externalBlockers.map((blocker, index) => ({
   }
   return null;
 })();
+
 const allPrompts = [...prompts, ...blockerPrompts, ...(taskFallback ? [taskFallback] : [])];
 const ACTION_BOTS = ['ACTION-REPAIR', 'ACTION-REPAIR-2', 'ACTION-HISTORIAN-3'];
 const VISIT_MODES = ['DISCOVER', 'CHALLENGE', 'LEARN'];
@@ -287,9 +291,7 @@ const automaticVisits = ACTION_BOTS.flatMap((botId) =>
     ].join('\\n')),
   })),
 );
-const masterPrompt = [
-  'FLIXO DAILY VISIT — MASTER REPAIR EXECUTION PROMPT',
-  `Exact execution SHA: ${executionSha}`,
+
 const masterPrompt = bindCanonicalPrompt([
   `Prompt kind: DAILY_MASTER_CONTEXT`,
   `Exact execution SHA: ${executionSha}`,
