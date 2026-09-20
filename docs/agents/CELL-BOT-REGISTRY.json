@@ -2651,5 +2651,66 @@
     "promotionRule": "ACCEPTED_REVIEW_MAY_RECOMMEND_PROMOTION; CONTROLLER_MUST_REASSESS",
     "mutationAuthority": false,
     "certificationAuthority": false
+  },
+  "parallelExecution": {
+    "authority": "CELL_CONTROL_PLANE",
+    "maxConcurrentBots": 50,
+    "planModel": "ONE_MASTER_PLAN -> UP_TO_50_DISJOINT_TASKS",
+    "assignmentRule": "ONE_BOT_ONE_TASK_ONE_SCOPE",
+    "admissionRequirements": [
+      "ACTIVE_PLAN",
+      "CURRENT_EXACT_SHA",
+      "DISJOINT_SCOPE",
+      "OWNERSHIP_LOCK",
+      "CHECK_IN"
+    ],
+    "forbidden": [
+      "OVERLAPPING_MUTATION_SCOPE",
+      "STALE_PLAN",
+      "STALE_SHA",
+      "SELF_REVIEW",
+      "SKIPPED_ATTENDANCE"
+    ],
+    "completionRule": "CHECK_OUT -> INDEPENDENT_RESULT_REVIEW -> KNOWLEDGE_ADMISSION -> CONTROLLER_REASSESSMENT -> RETURN_TO_POOL",
+    "reuseRule": "THE_SAME_RAW_BOT_TEMPLATE_IS_REUSED_FOR_ANY_ADMITTED_TASK",
+    "failClosedRule": "Any bot that cannot prove scope, SHA, evidence, or review stops without promotion."
+  },
+  "rawBotTemplate": {
+    "id": "CELL-RAW-TEMPLATE",
+    "sourceOfTruth": "CELL-BOT-REGISTRY + CELL-HQ CONTRACT",
+    "identityState": "RAW",
+    "permanentProperties": [
+      "botId",
+      "supervisor",
+      "safetyPolicy",
+      "knowledgePolicy"
+    ],
+    "taskProperties": [
+      "planId",
+      "planVersion",
+      "taskId",
+      "scope",
+      "entrySha",
+      "objective",
+      "expectedOutput"
+    ],
+    "resultProperties": [
+      "attendanceId",
+      "exitSha",
+      "status",
+      "result",
+      "evidence",
+      "knowledgeId",
+      "reviewId"
+    ],
+    "promotionProperties": [
+      "reviewVerdict",
+      "reviewScore",
+      "validatedKnowledge",
+      "weakness",
+      "upgradePriority",
+      "controllerDecision"
+    ],
+    "reuse": "Reset task-scoped fields after closed review; retain attributable knowledge and weakness history."
   }
 }
