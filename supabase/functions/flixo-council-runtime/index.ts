@@ -282,6 +282,14 @@ Deno.serve(async (req) => {
     throw new Error("COUNCIL_ACTION_UNSUPPORTED");
   } catch (e) {
     const message = String(e instanceof Error ? e.message : e);
-    return response({ ok: false, error: message }, message.includes("UNAUTHORIZED") ? 401 : 403, requestId);
+    const publicCode = /^([A-Z0-9_]+)/u.exec(message)?.[1] ?? "COUNCIL_INTERNAL_ERROR";
+    const errorCode = publicCode.startsWith("COUNCIL_") ? publicCode : "COUNCIL_INTERNAL_ERROR";
+    console.error(JSON.stringify({ requestId, error: message }));
+    const status =
+      /UNAUTHORIZED|OIDC_MISSING/u.test(errorCode) ? 401 :
+      /REJECTED|FORBIDDEN/u.test(errorCode) ? 403 :
+      /INVALID|REQUIRED|TOO_LARGE|UNKNOWN/u.test(errorCode) ? 400 :
+      500;
+    return response({ ok: false, error: errorCode, requestId }, status, requestId);
   }
 });
