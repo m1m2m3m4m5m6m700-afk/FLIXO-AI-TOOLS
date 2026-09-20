@@ -107,18 +107,23 @@ const targetSHA = 'a'.repeat(40);
 const verifierProof = {
   status: 'CHALLENGE_PASSED',
   challengeId: 'challenge-test',
+  role: 'EXACT_PROGRAMMER_TWIN_VERIFIER',
+  challengeMode: 'PROGRAMMER_TWIN',
   verifierAgent: 'actionRepairVerifier',
   targetSha: targetSHA,
   failureFingerprint: 'fp-test',
   alternativeHypotheses: [{ id: 'alt-a', basis: 'independent-cause' }],
   falsificationChecks: [{ id: 'check-a', command: 'echo prove-or-disprove' }],
   counterEvidence: { rejectedHypothesis: 'alt-a', evidenceRef: 'test-evidence' },
+  programmerTwinParity: { intelligenceParity: 'EXACT', authorityParity: 'SEPARATED_BY_DESIGN' },
   mutationRecommendation: 'ALLOW',
   remainingRisks: ['rerun-targeted-regression'],
 };
 assert.doesNotThrow(() => validateActionVaultVerifierProof({ proof: verifierProof, targetSHA, failureFingerprint: 'fp-test' }));
 assert.throws(() => validateActionVaultVerifierProof({ proof: { ...verifierProof, targetSha: 'b'.repeat(40) }, targetSHA, failureFingerprint: 'fp-test' }), /SHA_MISMATCH/);
 assert.throws(() => validateActionVaultVerifierProof({ proof: { ...verifierProof, alternativeHypotheses: [] }, targetSHA, failureFingerprint: 'fp-test' }), /ALTERNATIVES_MISSING/);
+assert.throws(() => validateActionVaultVerifierProof({ proof: { ...verifierProof, challengeMode: 'PREDICTOR' }, targetSHA, failureFingerprint: 'fp-test' }), /PROGRAMMER_TWIN_MODE_INVALID/);
+assert.throws(() => validateActionVaultVerifierProof({ proof: { ...verifierProof, programmerTwinParity: { intelligenceParity: 'MISMATCH', authorityParity: 'SEPARATED_BY_DESIGN' } }, targetSHA, failureFingerprint: 'fp-test' }), /PROGRAMMER_TWIN_PARITY_INVALID/);
 
 const actionVaultSession = {
   protocolId: REPAIR_PROTOCOL.protocolId,
