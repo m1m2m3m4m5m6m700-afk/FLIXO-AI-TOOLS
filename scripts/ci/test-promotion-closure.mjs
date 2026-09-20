@@ -35,6 +35,10 @@ const livePath = write('live.json', {
 });
 const outputPath = path.join(dir, 'evidence.json');
 const script = path.resolve('scripts/ci/validate-promotion-closure.mjs');
+const autoRepairWorkflow = fs.readFileSync(path.resolve('.github/workflows/auto-repair.yml'), 'utf8');
+assert.doesNotMatch(autoRepairWorkflow, /ACTION-REPAIR-TWO-COMMITS|ACTION_REPAIR_TWO_COMMITS|SECOND_SHA/u);
+assert.match(autoRepairWorkflow, /ACTION_REPAIR_SINGLE_COMMIT=PASS/u);
+assert.match(autoRepairWorkflow, /rev-list --count \"\\$FAILED_SHA\"\.\.\\$EXECUTION_SHA/u);
 
 let p = spawnSync(process.execPath, [script], {
   env: { ...process.env, EXPECTED_SHA: sha, EXACT_RUNS_PATH: runsPath, EXACT_STATUS_PATH: statusPath, EXACT_CHECKS_PATH: checksPath, LIVE_RUNTIME_EVIDENCE_PATH: livePath, EVIDENCE_OUTPUT_PATH: outputPath },
