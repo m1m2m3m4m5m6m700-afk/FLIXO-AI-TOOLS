@@ -200,7 +200,18 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
 
   useEffect(() => () => {
     if (capturedUrl) URL.revokeObjectURL(capturedUrl);
-  }, [capturedUrl]);
+  }, [capturedUrl]);\n\n  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && recording && (!wakeLockRef.current || wakeLockRef.current.released)) {
+        void acquireWakeLock();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [recording]);
+
+
 
   async function start(facingMode: 'user' | 'environment' = 'user') {
     setError('');
