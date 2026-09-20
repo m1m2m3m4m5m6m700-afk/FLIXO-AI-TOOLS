@@ -1,10 +1,14 @@
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { INTRACTABLE_THRESHOLD, fingerprintFailure } from './auto-repair-learning.mjs';
+import { loadAttemptLedger, isRepairRejected, rejectionReasons } from './repair-attempt-ledger.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
+const chainId = String(process.env.FLIXO_REPAIR_CHAIN_ID ?? process.env.TARGET_RUN_ID ?? '').trim();
+const caseFingerprint = String(process.env.FLIXO_FAILURE_FINGERPRINT ?? '').trim();
+const attemptLedgerPath = process.env.FLIXO_REPAIR_ATTEMPT_LEDGER ?? '/tmp/flixo-repair-attempt-ledger.json';
 
 const strategies = [
   ['reproduce-exact', 'Reproduce the exact failure on the exact target SHA before changing source.'],
@@ -44,6 +48,8 @@ const memory = readJson(memoryPath, { cases: [] });
 const intractable = readJson(intractablePath, { cases: [] });
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
 const fingerprint = fingerprintFailure(log);
+const stableCaseFingerprint = caseFingerprint || fingerprint;
+const attemptLedger = loadAttemptLedger(attemptLedgerPath, { chainId, caseFingerprint: stableCaseFingerprint });
 const entry = (memory.cases ?? []).find((item) => item.fingerprint === fingerprint);
 const record = (intractable.cases ?? []).find((item) => item.fingerprint === fingerprint);
 const attempts = Number(entry?.attempts ?? 0);
@@ -55,10 +61,14 @@ const priorStrategies = [
   ...(entry?.strategies ?? []),
 ].map(String);
 const unusedIndexes = strategies.map((_, i) => i).filter((i) => !priorStrategies.includes(strategies[i][0]));
-const divergentIndexes = unusedIndexes.filter((i) => strategies[i][0] !== twinPreferredStrategy);
-const index = divergentIndexes[0]
-  ?? strategies.map((_, i) => i).find((i) => strategies[i][0] !== twinPreferredStrategy)
-  ?? ((Math.max(0, nextAttempt - 1)) % strategies.length);
+const ledgerAvailableIndexes = unusedIndexes.filter((i) => !isRepairRejected(attemptLedger, { chainId, caseFingerprint: stableCaseFingerprint, strategyId: strategies[i][0] }));
+const divergentIndexes = ledgerAvailableIndexes.filter((i) => strategies[i][0] !== twinPreferredStrategy);
+if (!ledgerAvailableIndexes.length) {
+  const rejected = strategies.map((item) => item[0]).filter((id) => isRepairRejected(attemptLedger, { chainId, caseFingerprint: stableCaseFingerprint, strategyId: id }));
+  const reasons = rejectionReasons(attemptLedger, { chainId, caseFingerprint: stableCaseFingerprint }).slice(-20);
+  throw new Error('REPAIR_NO_UNUSED_STRATEGY_FOR_ACTIVE_CASE rejected=' + rejected.join(',') + ' reasons=' + JSON.stringify(reasons));
+}
+const index = divergentIndexes[0] ?? ledgerAvailableIndexes[0];
 const [strategyId, strategy] = strategies[index];
 const threshold = INTRACTABLE_THRESHOLD;
 const teachingEscalation = record?.status === 'INTRACTABLE' || nextAttempt > threshold;
@@ -75,8 +85,11 @@ const teachingPacket = {
 
 fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   fingerprint,
+  stableCaseFingerprint,
+  chainId: chainId || null,
   attempt: nextAttempt,
   priorRepairArtifacts: persistedAttempts,
+  rejectedByDurableLedger: rejectionReasons(attemptLedger, { chainId, caseFingerprint: stableCaseFingerprint }).slice(-20),
   strategyId,
   strategy,
   intractable: false,
