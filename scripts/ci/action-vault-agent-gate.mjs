@@ -151,8 +151,10 @@ export function runGate(root = ROOT) {
   const targetedProtocolPath = path.resolve(root, 'docs/agents/ACTION-VAULT-TARGETED-REPAIR-PROTOCOL.md');
   const targetedPlannerPath = path.resolve(root, 'scripts/ci/action-vault-targeted-test.mjs');
   const targetedTestPath = path.resolve(root, 'scripts/ci/test-action-vault-targeted-test.mjs');
+  const predictorPath = path.resolve(root, 'scripts/ci/action-historical-predictor.mjs');
+  const ledgerPath = path.resolve(root, 'scripts/ci/action-failure-ledger.mjs');
 
-  for (const file of [profilePath, residencyPath, gradePath, parallelProtocolPath, sleepAdmissionPath, collaborationScriptPath, targetedProtocolPath, targetedPlannerPath, targetedTestPath]) {
+  for (const file of [profilePath, residencyPath, gradePath, mentorPath, parallelProtocolPath, sleepAdmissionPath, collaborationScriptPath, targetedProtocolPath, targetedPlannerPath, targetedTestPath, predictorPath, ledgerPath]) {
     if (!exists(file)) err(errors, 'REQUIRED_VAULT_CONTRACT_MISSING', path.relative(root, file));
   }
 
@@ -209,6 +211,10 @@ export function runGate(root = ROOT) {
   if (intelligence?.cooperation?.mentorship?.parentBot !== 'ACTION-REPAIR') err(errors, 'CODE_MENTOR_PARENT_INVALID');
   if (intelligence?.cooperation?.mentorship?.readOnly !== true) err(errors, 'CODE_MENTOR_READ_ONLY_MISSING');
   if (intelligence?.cooperation?.mentorship?.promotedOnlyAfterCanonicalGreen !== true) err(errors, 'CODE_MENTOR_GREEN_PROMOTION_MISSING');
+  if (intelligence?.cooperation?.prediction?.runtime !== 'scripts/ci/action-historical-predictor.mjs') err(errors, 'HISTORICAL_PREDICTOR_RUNTIME_INVALID');
+  if (intelligence?.cooperation?.prediction?.packetProtocol !== 'PREDICTIVE_REPAIR_PACKET_V1') err(errors, 'HISTORICAL_PREDICTOR_PACKET_INVALID');
+  if (intelligence?.cooperation?.failureLedger?.runtime !== 'scripts/ci/action-failure-ledger.mjs') err(errors, 'FAILURE_LEDGER_RUNTIME_INVALID');
+  if (intelligence?.cooperation?.failureLedger?.appendOnly !== true) err(errors, 'FAILURE_LEDGER_APPEND_ONLY_MISSING');
   if (intelligence?.cooperation?.parallelExecution?.cognitiveParallelism !== true) err(errors, 'PARALLEL_COGNITIVE_MODE_MISSING');
   if (intelligence?.cooperation?.parallelExecution?.sourceMutationParallelism !== false) err(errors, 'PARALLEL_SOURCE_MUTATION_MUST_REMAIN_FALSE');
   if (intelligence?.cooperation?.parallelExecution?.allThreeContributionsRequired !== true) err(errors, 'ALL_THREE_CONTRIBUTIONS_REQUIRED_MISSING');
