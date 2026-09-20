@@ -16,6 +16,8 @@
 6. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
 7. `docs/PROTOCOL-HIERARCHY.md`
 8. `docs/PROTOCOL-REGISTRY.json`
+9. `docs/agents/PROMPT-REGISTRY.json`
+10. `diagnostics/auto-repair/memory.json`
 
 هذه الملفات هي عقود التنفيذ الحالية للمشروع، وليست اقتراحات. بوابة الوكيل الحالية تفرض قراءة خريطة المشروع والمهام والبروتوكولات قبل العمل. fileciteturn178file0
 
@@ -238,3 +240,12 @@ Learning:
 `BLOCKED_EXTERNAL → external blocker`
 
 Unknown RCA remains `UNKNOWN_RCA` and cannot receive a high-risk specialist mutation path.
+
+## فصل السلطات بين الوكلاء
+
+`Task Agent = preparation only`.
+`Error Agent = diagnosis only`.
+`Repair Agent / Execution Agent = authorized mutation only`.
+`Certification Authority = certification only`.
+
+A prompt, memory record, handoff, or scout report never grants mutation or certification authority. The Task Agent MUST hand off before source mutation.
