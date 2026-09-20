@@ -26,7 +26,7 @@ const awareness=write('awareness.json',{
   awarenessCompleteness:{requiredDomains:['TASK_SEMANTICS','REPOSITORY_CONTEXT','CAUSAL_CONTEXT','HISTORICAL_CONTEXT','SAFETY_GOVERNANCE','ADVERSARIAL_CONTEXT','OPERATIONAL_CONTEXT','TEMPORAL_CONTEXT','SYSTEMIC_IMPACT'],complete:true}
 });
 const out=path.join(dir,'proof.json');
-execFileSync(process.execPath,['scripts/ci/action-primary-correctness-proof.mjs','--task=task','--run-id=1','--sha='+sha,'--fingerprint=fp','--diagnosis='+diagnosis,'--strategy='+strategy,'--file-selection='+fileSelection,'--output='+out],{stdio:'pipe'});
+execFileSync(process.execPath,['scripts/ci/action-primary-correctness-proof.mjs','--task=task','--run-id=1','--sha='+sha,'--fingerprint=fp','--diagnosis='+diagnosis,'--strategy='+strategy,'--file-selection='+fileSelection,'--awareness='+awareness,'--output='+out],{stdio:'pipe'});
 const proof=JSON.parse((await import('node:fs')).readFileSync(out,'utf8'));
 assert.equal(proof.role,'PRIMARY_CORRECTNESS_PROVER');
 assert.equal(proof.status,'PRIMARY_CORRECTNESS_PROVEN');
