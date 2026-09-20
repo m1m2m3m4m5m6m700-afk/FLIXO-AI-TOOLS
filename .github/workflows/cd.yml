@@ -81,15 +81,9 @@ jobs:
             '{status:$status,sha:$sha,currentMain:$currentMain,checkedOut:$checkedOut,reason:$reason,origin:$origin,stage:"CURRENT_MAIN_GUARD"}' \
             > production-deployment-evidence.json
 
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "Manual promotion rejected: $reason"
-            printf 'skip_deploy=false\n' >> "$GITHUB_OUTPUT"
-            exit 1
-          fi
-
-          echo "Automatic promotion skipped safely: $reason"
-          printf 'skip_deploy=true\n' >> "$GITHUB_OUTPUT"
-          exit 0
+          echo "Manual promotion rejected: $reason"
+          printf 'skip_deploy=false\n' >> "$GITHUB_OUTPUT"
+          exit 1
 
       - name: Resolve certified CI run by exact SHA
         id: ci
@@ -105,23 +99,7 @@ jobs:
           run_id=''
           resolution=''
 
-          if false; then
-            if [ "$EVENT_RUN_SHA" != "$PROMOTION_SHA" ]; then
-              resolution=TRIGGER_SHA_MISMATCH
-            elif [ "$EVENT_RUN_BRANCH" != "main" ]; then
-              resolution=TRIGGER_BRANCH_NOT_MAIN
-            elif [ "$EVENT_RUN_EVENT" != "push" ]; then
-              resolution=TRIGGER_EVENT_NOT_PUSH
-            elif [ "$EVENT_RUN_CONCLUSION" != "success" ]; then
-              resolution=TRIGGER_CI_NOT_SUCCESS
-            elif [ -z "$EVENT_RUN_ID" ]; then
-              resolution=TRIGGER_RUN_ID_MISSING
-            else
-              run_id="$EVENT_RUN_ID"
-              resolution=TRIGGER_WORKFLOW_RUN
-            fi
-          else
-            runs="$(gh api \
+          runs="$(gh api \
               -H 'Accept: application/vnd.github+json' \
               "/repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${PROMOTION_SHA}&event=push&per_page=20")" || runs='{}'
             run_id="$(jq -r '[.workflow_runs[] | select(.head_sha == env.PROMOTION_SHA and .head_branch == "main" and .event == "push" and .conclusion == "success")] | sort_by(.id) | last.id // empty' <<<"$runs")"
