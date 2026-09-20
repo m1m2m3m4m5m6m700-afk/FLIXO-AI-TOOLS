@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   ADVICE_VAULT_CAPACITY,
-  ADVICE_VAULT_SHARD_COUNT,
+  ADVICE_VAULT_SHARD_COUNT,\n  ADVICE_VAULT_SHARD_SIZE,
   assertAdviceVaultCapacity,
   detectAdviceConflicts,
   evaluateAdvicePromotion,
@@ -46,7 +46,7 @@ const conflict = normalizeAdviceRecord({
   now,
 });
 
-assert.equal(a.executionAuthority, 'ADVISORY_ONLY');
+assert.equal(a.executionAuthority, 'ADVISORY_ONLY');\nassert.equal(ADVICE_VAULT_CAPACITY, 1_000_000);\nassert.equal(ADVICE_VAULT_SHARD_SIZE, 10_000);\nassert.equal(ADVICE_VAULT_SHARD_COUNT, 100);
 assert.equal(assertAdviceVaultCapacity([a, duplicate]).length, 1);
 assert.equal(partitionAdvice([a, b]).reduce((sum, shard) => sum + shard.length, 0), 2);
 assert.equal(new Set(partitionAdvice([a, b]).flat().map(shardForAdvice)).size, 2);
@@ -68,10 +68,10 @@ assert.throws(
 );
 
 const summary = summarizeAdviceVault([a, b]);
-assert.equal(summary.capacity, 200_000);
+assert.equal(summary.protocol, 'FLIXO-ADVICE-VAULT-1M-v1');\nassert.equal(summary.capacity, 1_000_000);
 assert.equal(summary.materialized, 2);
-assert.equal(summary.remaining, 199_998);
-assert.equal(summary.shards, ADVICE_VAULT_SHARD_COUNT);
+assert.equal(summary.remaining, 999_998);
+assert.equal(summary.shards, 100);\nassert.equal(summary.shardSize, 10_000);
 assert.equal(summary.advisoryOnly, true);
 
-console.log('Agent knowledge 200K vault tests passed.');
+console.log('Agent knowledge 1M vault tests passed.');
