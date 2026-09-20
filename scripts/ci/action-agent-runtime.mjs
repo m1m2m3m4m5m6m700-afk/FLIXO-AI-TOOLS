@@ -88,7 +88,7 @@ const metaCausalModel=buildMetaCausalModel({
   failedRunId:runId,
   taskId:task,
   branch:process.env.FLIXO_MUTATION_BRANCH ?? 'execution',
-  historicalKnowledge:[],
+  historicalKnowledge:historicalKnowledge.entries ?? [],
   exactCases,
   doNotRepeat,
 });
