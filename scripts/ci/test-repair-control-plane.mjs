@@ -43,7 +43,6 @@ for (const invariant of [
   'NO_PROGRESS_REQUIRES_SAME_REPAIR_KEY_NO_EXIT_SHA_CHANGE_AND_NO_VERIFICATION_PROGRESS',
 ]) assert(schema.invariants.includes(invariant));
 
-
 const progressOutcomes = [
   { repairKey: identity.claimKey, failedSha: SHA_A, exitSha: SHA_A, verificationProgress: false, noProgress: true, at: '2026-09-19T00:03:00Z' },
   { repairKey: identity.claimKey, failedSha: SHA_A, exitSha: SHA_A, verificationProgress: false, noProgress: true, at: '2026-09-19T00:02:00Z' },
@@ -72,7 +71,7 @@ const circuitStale = staleRecoveryDecision({
   activeRuns: [],
   outcomes: progressOutcomes,
 });
-assert.equal(circuitStale.eligible, true);
+assert.equal(circuitStale.eligible, false);
 assert.equal(circuitStale.strategyRotationRequired, true);
 
 const activeStale = staleRecoveryDecision({
