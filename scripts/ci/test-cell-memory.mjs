@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {BOT_MEMORY_DIR,learnIntoBotMemory,exportBotMemory,importBotKnowledge} from './cell-memory.mjs';
+fs.rmSync(BOT_MEMORY_DIR,{recursive:true,force:true});
+const learned=learnIntoBotMemory({botId:'CELL-001',taskId:'CELL-TASK-ACTION-ERRORS',taskShortName:'ACTERR',taskName:'ACTION_ERROR_READER',outcome:'success',rootCause:'historical-actions',rule:'read-actions',verification:'canonical-task-verified',evidenceRef:'run:35510427203',weakness:'ACTION_ERROR_COVERAGE',upgrade:{upgradeNumber:1,upgradePriority:95,state:'READY'},knowledge:{id:'CK-ACTERR',taskIdentity:{version:1},claim:'Actions error reader'}});
+assert.equal(learned.identity.shortName,'ACTERR');
+assert.equal(learned.state.taskCount,1);
+assert.equal(fs.existsSync(BOT_MEMORY_DIR+'/CELL-001.json'),true);
+const copy=exportBotMemory('CELL-001');
+assert.equal(copy.exportBundle.knowledgeOnly,true);
+assert.equal(copy.exportBundle.noPermissions,true);
+const target=importBotKnowledge('CELL-002',copy);
+assert.equal(target.knowledge.length,1);
+assert.equal(target.importHistory.length,1);
+console.log('CELL_BOT_PERSONAL_MEMORY=PASS');
