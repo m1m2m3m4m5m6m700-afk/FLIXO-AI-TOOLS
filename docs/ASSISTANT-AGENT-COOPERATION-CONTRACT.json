@@ -36,7 +36,23 @@
     "external_account_runtime": "P20 extension: CHIEF, WORKER_A and WORKER_B are external runtime identities persisted in Supabase. Only CHIEF may dispatch worker Work Packages; workers may ACK, heartbeat and complete their assigned work.",
     "external_wake": "GitHub RED wakes CHIEF through the canonical external-runtime route. CHIEF dispatches Worker A/B. A worker is active only after ACK on the current exact SHA. Lease expiry triggers one deterministic fallback.",
     "external_github_oidc": "GitHub RED and lease recovery authenticate to the external council runtime with GitHub Actions OIDC. The runtime validates issuer, audience, repository, workflow and execution context before allowing SYSTEM dispatch or recovery. No static GitHub dispatch secret is required.",
-    "council_cell_triseat": "The cell uses three ChatGPT governance seats for assignment, challenge, analysis and verification. They supervise one reusable raw-bot pool through assistantController; raw bots never become a second council."
+    "council_cell_triseat": "The cell uses three ChatGPT governance seats for assignment, challenge, analysis and verification. They supervise one reusable raw-bot pool through assistantController; raw bots never become a second council.",
+    "directCellMasterCommunication": {
+      "enabled": true,
+      "channel": "CELL_DIRECT_MASTER",
+      "recipient": "assistantController",
+      "sourceIdentityPattern": "CELL-\\d{3}",
+      "registeredAgentsAutoEligible": true,
+      "exactShaRequired": true,
+      "idempotencyRequired": true,
+      "receiptRequired": true,
+      "authorityGranted": "COMMUNICATION_ONLY",
+      "mutationAuthorityGranted": false,
+      "certificationAuthorityGranted": false,
+      "permissionGrantAuthorityGranted": false,
+      "staleMessage": "FAIL_CLOSED",
+      "conflict": "MASTER_ARBITRATION_REQUIRED"
+    }
   },
   "messageEnvelope": {
     "required": [
