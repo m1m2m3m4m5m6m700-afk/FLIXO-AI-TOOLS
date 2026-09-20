@@ -81,5 +81,50 @@
       "executionAuthority": "RECORD_INDEX_ESCALATE_ONLY"
     }
   ],
-  "note": "Capability parity is intentional; execution authority remains role-scoped. All three can think, search, infer, challenge and learn to the same contract."
+  "note": "The three bots have capability parity and mandatory collaboration on each actionable RED. Mutation authority remains role-scoped so cooperation cannot create concurrent source writes.",
+  "cooperation": {
+    "enabled": true,
+    "trigger": "ANY_ACTIONABLE_RED",
+    "missionModel": "ONE_SHARED_TASK",
+    "identityBinding": [
+      "taskId",
+      "failureFingerprint",
+      "targetSha",
+      "failedRunId"
+    ],
+    "participants": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "requiredWork": [
+      "all three read the same exact failure evidence",
+      "all three search the same historical/action indexes",
+      "all three may form independent RCA and inference hypotheses",
+      "all three may challenge competing repair hypotheses",
+      "all three exchange findings before mutation",
+      "historian records every hypothesis, attempt, handoff and outcome",
+      "repair owner selects executable path only after collaboration evidence is assembled",
+      "failed owner triggers handoff; other repair bot becomes owner while historian remains attached",
+      "canonical GREEN closes the shared mission and promotes only verified learning"
+    ],
+    "contributionOrder": [
+      "ACTION-HISTORIAN-3: intake, first-seen detection, evidence/index record",
+      "ACTION-REPAIR-2: independent RCA/inference and counter-hypothesis",
+      "ACTION-REPAIR: current-owner RCA/synthesis and bounded repair execution",
+      "ACTION-HISTORIAN-3: outcome recording and solution-index update"
+    ],
+    "authority": {
+      "taskOwnership": "single_active_repair_owner",
+      "repairOwners": [
+        "ACTION-REPAIR",
+        "ACTION-REPAIR-2"
+      ],
+      "historianParticipation": "mandatory_contributor_non_mutating",
+      "handoffOnlyAfter": "documented_repair_failure_or_unrepaired",
+      "noParallelSourceMutation": true,
+      "canonicalGreen": "DAILY_FLIXO_GREEN_GATE"
+    },
+    "sharedArtifact": "diagnostics/auto-repair/action-vault/current-collaboration.json"
+  }
 }
