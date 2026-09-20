@@ -302,6 +302,13 @@ export function evaluateGreen({
   }
   const securityBlock = securityProviderBlock(securityCheck, logForCheck(securityCheck, logs));
   if (securityBlock) report.externalBlockers.push(securityBlock);
+  else if (securityCheck && stateOf(securityCheck) !== 'success') {
+    report.errors.push({
+      type: 'SECURITY_EVIDENCE_MISSING',
+      checkName: securityCheck.name ?? null,
+      status: stateOf(securityCheck),
+    });
+  }
 
   if (observedBranch === 'execution' && !report.repair.required) {
     const failedCandidates = workflowRuns
