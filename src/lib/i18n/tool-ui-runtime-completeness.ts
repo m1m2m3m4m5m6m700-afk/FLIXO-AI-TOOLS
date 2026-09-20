@@ -1,5 +1,6 @@
 import { LOCALES, normalizeLocale, type CanonicalLocale } from './config';
 import { getLocalizedToolTitle } from '../seo/tool-seo';
+import { installScopedRuntimeObserver } from './scoped-runtime-observer';
 
 type LocaleMap = Partial<Record<CanonicalLocale, string>>;
 
@@ -136,7 +137,9 @@ function shouldSkip(node: Text): boolean {
 }
 
 function getToolId(root: HTMLElement): string {
-  const fromRoot = root.getAttribute('data-tool-id') ?? document.body.getAttribute('data-tool-id');
+  const declaredToolId = root.querySelector<HTMLElement>('[data-tool-id]')?.getAttribute('data-tool-id');
+  if (declaredToolId) return declaredToolId;
+  const fromRoot = root.getAttribute('data-tool-id');
   if (fromRoot) return fromRoot;
   const segments = window.location.pathname.split('/').filter(Boolean);
   return segments.length >= 2 && LOCALES.includes(normalizeLocale(segments[0])) ? segments[1] : '';
@@ -172,30 +175,13 @@ function localizeRoot(root: HTMLElement, locale: CanonicalLocale, toolId: string
 }
 
 export function installToolUiRuntimeCompleteness(): () => void {
-  const apply = () => {
-    const rawLocale = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
-    const locale = normalizeLocale(rawLocale);
+  const apply = (declaredRoot: Element, locale: CanonicalLocale): void => {
+    if (!(declaredRoot instanceof HTMLElement)) return;
     if (!LOCALES.includes(locale) || locale === 'en') return;
-    const root = document.querySelector<HTMLElement>('.tool-page-modern, .tool-shell, main');
-    if (!root) return;
-    const toolId = getToolId(root);
-    if (root.lang !== locale) root.lang = locale;
-    localizeRoot(root, locale, toolId);
+    const toolId = getToolId(declaredRoot);
+    if (declaredRoot.lang !== locale) declaredRoot.lang = locale;
+    localizeRoot(declaredRoot, locale, toolId);
   };
 
-  let scheduled = false;
-  const schedule = () => {
-    if (scheduled) return;
-    scheduled = true;
-    queueMicrotask(() => {
-      scheduled = false;
-      apply();
-    });
-  };
-
-  apply();
-  const observer = typeof MutationObserver === 'undefined' ? null : new MutationObserver(schedule);
-  const root = typeof document !== 'undefined' ? document.body : null;
-  if (observer && root) observer.observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['aria-label', 'title', 'placeholder'] });
-  return () => observer?.disconnect();
+  return installScopedRuntimeObserver(apply);
 }
