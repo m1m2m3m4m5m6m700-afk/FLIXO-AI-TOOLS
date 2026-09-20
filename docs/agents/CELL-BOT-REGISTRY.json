@@ -87,7 +87,9 @@
         "ACTERR"
       ],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-001.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-002",
@@ -125,7 +127,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-002.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-003",
@@ -163,7 +167,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-003.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-004",
@@ -201,7 +207,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-004.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-005",
@@ -239,7 +247,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-005.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-006",
@@ -277,7 +287,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-006.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-007",
@@ -315,7 +327,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-007.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-008",
@@ -353,7 +367,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-008.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-009",
@@ -391,7 +407,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-009.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-010",
@@ -429,7 +447,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-010.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-011",
@@ -467,7 +487,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-011.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-012",
@@ -505,7 +527,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-012.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-013",
@@ -543,7 +567,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-013.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-014",
@@ -581,7 +607,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-014.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-015",
@@ -619,7 +647,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-015.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-016",
@@ -657,7 +687,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-016.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-017",
@@ -695,7 +727,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-017.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-018",
@@ -733,7 +767,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-018.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-019",
@@ -771,7 +807,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-019.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-020",
@@ -809,7 +847,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-020.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-021",
@@ -847,7 +887,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-021.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-022",
@@ -885,7 +927,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-022.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-023",
@@ -923,7 +967,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-023.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-024",
@@ -961,7 +1007,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-024.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-025",
@@ -999,7 +1047,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-025.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-026",
@@ -1037,7 +1087,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-026.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-027",
@@ -1075,7 +1127,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-027.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-028",
@@ -1113,7 +1167,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-028.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-029",
@@ -1151,7 +1207,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-029.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-030",
@@ -1189,7 +1247,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-030.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-031",
@@ -1227,7 +1287,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-031.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-032",
@@ -1265,7 +1327,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-032.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-033",
@@ -1303,7 +1367,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-033.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-034",
@@ -1341,7 +1407,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-034.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-035",
@@ -1379,7 +1447,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-035.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-036",
@@ -1417,7 +1487,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-036.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-037",
@@ -1455,7 +1527,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-037.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-038",
@@ -1493,7 +1567,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-038.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-039",
@@ -1531,7 +1607,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-039.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-040",
@@ -1569,7 +1647,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-040.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-041",
@@ -1607,7 +1687,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-041.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-042",
@@ -1645,7 +1727,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-042.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-043",
@@ -1683,7 +1767,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-043.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-044",
@@ -1721,7 +1807,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-044.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-045",
@@ -1759,7 +1847,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-045.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-046",
@@ -1797,7 +1887,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-046.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-047",
@@ -1835,7 +1927,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-047.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-048",
@@ -1873,7 +1967,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-048.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-049",
@@ -1911,7 +2007,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-049.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     },
     {
       "id": "CELL-050",
@@ -1949,7 +2047,9 @@
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE"
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-050.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
     }
   ],
   "lifecycle": {
@@ -1986,5 +2086,16 @@
     "universalTaskRule": "Any bot may receive any admitted project task; learned specialization changes routing priority, not task eligibility.",
     "scopeRule": "Execution remains limited to the exact task scope delegated by the control plane.",
     "reuseRule": "After task closure the bot returns to the reusable pool with its learned knowledge retained."
+  },
+  "personalMemory": {
+    "authority": "CELL_BOT_PERSONAL_MEMORY",
+    "directory": "diagnostics/auto-repair/cell-bots",
+    "filePattern": "CELL-NNN.json",
+    "copyable": true,
+    "transferableKnowledgeOnly": true,
+    "permissionsNeverCopied": true,
+    "independentAuthorityNeverCopied": true,
+    "aggregateIndex": "diagnostics/auto-repair/cell-knowledge/index.json",
+    "rule": "The personal file stores learned knowledge for that bot; the aggregate index is derived for discovery/routing."
   }
 }
