@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fingerprintFailure } from './auto-repair/fingerprint.mjs';
+import { deriveRepairIdentity } from './repair-control-plane.mjs';
 
 export const REQUIRED_WORKFLOWS = Object.freeze([
   'FLIXO Test System',
@@ -161,6 +162,11 @@ export function evaluateGreen({
       targetRunId: null,
       failureFingerprint: null,
       repairKey: null,
+      claimKey: null,
+      repairChainId: null,
+      leaseRef: null,
+      failedSha: null,
+      branch: null,
       action: 'NONE',
       rootCauseAuthority: 'TASK_AGENT_RCA',
     },
@@ -278,11 +284,22 @@ export function evaluateGreen({
 
         if (!report.repair.required) {
           const failureFingerprint = fingerprintFailure(failureLog);
+          const identity = deriveRepairIdentity({
+            branch: observedBranch,
+            failedSha: executionSha,
+            failureFingerprint,
+            targetRunId: run.databaseId,
+          });
           report.repair = {
             required: true,
-            targetRunId: run.databaseId,
+            targetRunId: String(run.databaseId),
             failureFingerprint,
-            repairKey: executionSha + ':' + failureFingerprint,
+            repairKey: identity.claimKey,
+            claimKey: identity.claimKey,
+            repairChainId: identity.repairChainId,
+            leaseRef: identity.leaseRef,
+            failedSha: executionSha,
+            branch: observedBranch,
             action: 'PENDING_DISPATCH',
             rootCauseAuthority: 'TASK_AGENT_RCA',
           };
