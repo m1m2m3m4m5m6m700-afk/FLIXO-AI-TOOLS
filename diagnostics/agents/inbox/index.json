@@ -5,13 +5,13 @@
     "AGENT1-KNOWLEDGE-HANDOFF-20260920-001": {
       "messageId": "AGENT1-KNOWLEDGE-HANDOFF-20260920-001",
       "idempotencyKey": "AGENT1-KNOWLEDGE-HANDOFF-20260920-001",
-      "status": "RECEIVED",
+      "status": "STALE",
       "recipient": "taskAgent",
       "taskId": "AGENT1-KNOWLEDGE-INDEX-001",
       "entrySha": "e8c38c45b1aeda2c60bb8181b2b67265c6cf310e",
       "receivedAt": "2026-09-20T14:00:00+03:00",
-      "updatedAt": "2026-09-20T14:00:00+03:00"
+      "updatedAt": "2026-09-20T14:01:00+03:00"
     }
   },
-  "updatedAt": "2026-09-20T14:00:00+03:00"
+  "updatedAt": "2026-09-20T14:01:00+03:00"
 }
