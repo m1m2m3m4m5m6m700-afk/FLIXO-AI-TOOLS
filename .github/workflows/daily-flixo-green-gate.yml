@@ -126,6 +126,7 @@ jobs:
           done < /tmp/flixo-watch/failed-check-run-ids
 
       - name: Build watcher input
+        id: build_input
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
@@ -174,7 +175,8 @@ jobs:
           exit 0
 
       - name: Generate comprehensive execution prompts from this visit
-        if: always()
+        id: generate_prompts
+        if: steps.build_input.outcome == 'success'
         env:
           FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
         run: |
@@ -189,7 +191,7 @@ jobs:
           echo "REPAIR_PROMPT_SOURCE_RUN_ID=$GITHUB_RUN_ID"
 
       - name: Publish execution prompt bundle
-        if: always()
+        if: steps.generate_prompts.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-repair-execution-prompts-${{ github.run_id }}
