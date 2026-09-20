@@ -44,6 +44,10 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   if(mutation&&branch!=='execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
   if(mutation&&!protocolOk(session)) throw new Error('REPAIR_PROTOCOL_SESSION_REQUIRED');
   if(mutation&&!['FAILURE_CAPTURED','MUTATION_AUTHORIZED'].includes(session.state)) throw new Error('REPAIR_PROTOCOL_MUTATION_STATE_BLOCKED');
+  if(mutation&&actor==='actionRepairAssistant') {
+    const approval=session?.assistantApproval;
+    if(approval?.approver!=='ACTION-REPAIR'||approval?.approvedFor!=='ACTION-REPAIR-2'||!shaOk(approval.entrySha)||approval.entrySha!==session.targetSHA) throw new Error('REPAIR_PROTOCOL_ASSISTANT_PRIMARY_APPROVAL_REQUIRED');
+  }
   if(mutation&&actor==='assistantRepairAgent') {
     const fallback=session?.fallback;
     if(!fallback?.primaryAgentsUnavailable) throw new Error('REPAIR_PROTOCOL_FALLBACK_PRIMARY_AGENT_AVAILABLE');
