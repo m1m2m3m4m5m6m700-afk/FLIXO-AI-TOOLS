@@ -23,7 +23,9 @@ const strategies = [
   ['synthetic-reproduction', 'Build a minimal synthetic reproduction or focused regression test for the suspected root cause.'],
   ['alternate-hypothesis', 'Reject the leading hypothesis and test a materially different evidence-backed repair hypothesis.'],
   ['supervising-escalation', 'Prepare a complete teaching packet for the supervising agent; do not repeat prior repairs.'],
-];
+ ];
+
+const VALID_STRATEGY_IDS = new Set(strategies.map(([id]) => id));
 
 function readJson(path, fallback) {
   try { return JSON.parse(fs.readFileSync(path, 'utf8')); } catch { return fallback; }
@@ -220,6 +222,9 @@ const twinA = process.env.FLIXO_TWIN_A_PATH ? readJson(process.env.FLIXO_TWIN_A_
 const twinB = process.env.FLIXO_TWIN_B_PATH ? readJson(process.env.FLIXO_TWIN_B_PATH, null) : null;
 const twinSelection = process.env.FLIXO_SELECTION_PATH ? readJson(process.env.FLIXO_SELECTION_PATH, null) : null;
 const selectedRepairStrategy = String(twinSelection?.selection?.selectedStrategy ?? '').trim();
+if (selectedRepairStrategy && !VALID_STRATEGY_IDS.has(selectedRepairStrategy)) {
+  throw new Error('TWIN_SELECTED_STRATEGY_NOT_ALLOWLISTED');
+}
 const twinPreferredStrategy = selectedRepairStrategy
   || String(twinProposal?.challenge?.preferredAlternativeStrategy ?? twinA?.challenge?.preferredAlternativeStrategy ?? twinB?.challenge?.preferredAlternativeStrategy ?? '').trim();
 const memory = readJson(memoryPath, { cases: [] });
