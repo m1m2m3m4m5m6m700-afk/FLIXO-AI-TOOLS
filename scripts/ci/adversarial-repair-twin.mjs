@@ -31,6 +31,21 @@ function readJson(file, fallback = null) {
 function hash(value) {
   return createHash('sha256').update(String(value), 'utf8').digest('hex');
 }
+function mapAlternativeRepair(hypothesis, location) {
+  const file = location?.file ?? 'the smallest exact target file';
+  const map = new Map([
+    ['lint', `Inspect ${file} at the reported symbol and prefer the smallest semantic correction (remove, rename, or consume the symbol) rather than blindly applying the executor's first lint fix.`],
+    ['format', `Verify the formatter configuration and scope first, then apply only the smallest formatting change required by the exact failure.`],
+    ['typescript', `Trace the type mismatch to its boundary and repair the real contract/type flow; reject an assertion-only workaround unless the invariant proves it safe.`],
+    ['build', 'Trace the build dependency/module-resolution path first and repair configuration or import ownership before changing unrelated source code.'],
+    ['playwright', 'Reproduce the browser failure on the exact target and isolate runtime/browser state before accepting an application-source mutation.'],
+    ['webkit-render', 'Test the WebKit-specific rendering path and runtime assumptions first; only mutate source after the browser-specific mechanism is reproduced.'],
+    ['certification', 'Trace the certification evidence contract and exact-SHA provenance before changing product source; repair the violated evidence invariant instead of the symptom.'],
+    ['external-tooling', 'Separate provider failure from source failure and require a reproducible repository-side signal before any source mutation.'],
+  ]);
+  return map.get(hypothesis) ?? 'Use a materially different root-cause hypothesis and prove it on the exact SHA before mutation.';
+}
+
 function mapAlternativeStrategy(hypothesis) {
   const map = new Map([
     ['lint', 'alternate-hypothesis'],
@@ -69,6 +84,7 @@ const top = diagnosis.topHypothesis ?? null;
 const second = diagnosis.secondHypothesis ?? null;
 const alternative = second && second.id !== top?.id ? second : null;
 const twinPreferredStrategy = mapAlternativeStrategy(alternative?.id ?? top?.id);
+const twinAlternativeRepair = mapAlternativeRepair(alternative?.id ?? top?.id, diagnosis.location);
 const dissentStrength = alternative
   ? Number(Math.max(0, Math.min(1, 1 - Math.abs(Number(top?.score ?? 0) - Number(alternative?.score ?? 0)))).toFixed(3))
   : 0;
@@ -101,6 +117,7 @@ const result = Object.freeze({
     objective: 'TRY_TO_DISPROVE_EXECUTOR_PLAN_AND_PROPOSE_A_MATERIALLY_DIFFERENT_SAFE_APPROACH',
     preferredAlternativeRootCause: alternative?.id ?? null,
     preferredAlternativeStrategy: twinPreferredStrategy,
+    preferredAlternativeRepair: twinAlternativeRepair,
     dissentStrength,
     disposition: alternative ? (dissentStrength >= 0.9 ? 'STRONG_DISSENT' : 'COUNTERCHECK') : 'NO_SAFE_ALTERNATIVE_FOUND',
     rule: 'NEVER_WRITE_SOURCE_AND_NEVER_CONTROL_ACTIONS',
