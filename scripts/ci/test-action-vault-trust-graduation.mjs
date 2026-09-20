@@ -20,6 +20,20 @@ assert.equal(profile.missionProof.requiredGreenSource,'DAILY_FLIXO_GREEN_GATE');
 assert.equal(profile.missionProof.requiredExactShaVerified,true);
 assert.equal(profile.revalidationTriggers.length>=5,true);
 
+
+// Permanent residency: no sleep/freeze/idle/withdrawal, including after GREEN.
+const residency=JSON.parse(fs.readFileSync('diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json','utf8'));
+assert.equal(residency.schemaVersion,3);
+assert.equal(residency.residency.alwaysResident,true);
+assert.equal(residency.residency.leaveVault,false);
+assert.equal(residency.residency.sleepState,'PERMANENTLY_FORBIDDEN');
+assert.equal(residency.residency.noSleepAfterGreen,true);
+assert.equal(residency.residency.noIdleAfterGreen,true);
+assert.equal(residency.residency.noFreeze,true);
+assert.equal(residency.residency.noWithdrawal,true);
+assert.equal(residency.residency.postGreenState,'READY_RESIDENT');
+assert.equal(residency.residency.sleepAdmissionMode,'DENY_ALL_STATES');
+
 const gate=runGate(process.cwd());
 assert.equal(gate.errors.length,0,gate.errors.join('\n'));
 for(const file of [
