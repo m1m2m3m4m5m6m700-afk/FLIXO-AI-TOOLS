@@ -27,23 +27,38 @@ jobs:
           fetch-depth: 1
           persist-credentials: true
 
-      - name: Download canonical GREEN evidence
+      - name: Download canonical GREEN evidence and provisional Action activity
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           set -euo pipefail
-          mkdir -p /tmp/flixo-green
+          mkdir -p /tmp/flixo-green /tmp/flixo-provisional
           gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name "flixo-continuous-error-watch-$RUN_ID" --dir /tmp/flixo-green
           test -s /tmp/flixo-green/report.json
           jq -e '.status=="GREEN" and (.executionSha|test("^[0-9a-f]{40}$"))' /tmp/flixo-green/report.json >/dev/null
+          TARGET_SHA="$(jq -r '.executionSha' /tmp/flixo-green/report.json)
+          WATCHDOG_RUN_ID="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Action Vault Watchdog" --commit "$TARGET_SHA" --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+          if [ -n "$WATCHDOG_RUN_ID" ]; then
+            gh run download "$WATCHDOG_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "flixo-action-vault-wake-$WATCHDOG_RUN_ID" --dir /tmp/flixo-provisional || true
+          fi
+          find /tmp/flixo-provisional -type f -path '*/agent-activity/index.json' -print -quit | grep -q . || true
 
       - name: Promote only verified Action agent activity
         run: |
           set -euo pipefail
           TARGET_SHA="$(jq -r '.executionSha' /tmp/flixo-green/report.json)"
           test "$TARGET_SHA" = "$(git rev-parse HEAD)"
-          node scripts/ci/promote-action-agent-history.mjs --green-report=/tmp/flixo-green/report.json --sha="$TARGET_SHA" > /tmp/action-agent-history-promotion.json
+          ACTIVITY_ROOT=""
+          PROVISIONAL_INDEX="$(find /tmp/flixo-provisional -type f -path '*/agent-activity/index.json' -print -quit || true)"
+          if [ -n "$PROVISIONAL_INDEX" ]; then
+            ACTIVITY_ROOT="$(dirname "$PROVISIONAL_INDEX")"
+          fi
+          if [ -n "$ACTIVITY_ROOT" ]; then
+            node scripts/ci/promote-action-agent-history.mjs --green-report=/tmp/flixo-green/report.json --sha="$TARGET_SHA" --activity-root="$ACTIVITY_ROOT" > /tmp/action-agent-history-promotion.json
+          else
+            node scripts/ci/promote-action-agent-history.mjs --green-report=/tmp/flixo-green/report.json --sha="$TARGET_SHA" > /tmp/action-agent-history-promotion.json
+          fi
           jq -e '.status=="PASS" and .promotion=="VERIFIED_HISTORICAL_AGENT_ACTIVITY"' /tmp/action-agent-history-promotion.json >/dev/null
 
       - name: Persist verified historical experience
@@ -67,5 +82,6 @@ jobs:
           path: |
             /tmp/flixo-green/report.json
             /tmp/action-agent-history-promotion.json
+            /tmp/flixo-provisional
           if-no-files-found: warn
           retention-days: 30
