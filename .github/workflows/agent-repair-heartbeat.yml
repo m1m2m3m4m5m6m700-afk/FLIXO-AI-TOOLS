@@ -35,6 +35,28 @@ jobs:
           echo 'OPEN_WORK_SLEEP=FORBIDDEN'
           echo 'STALE_HEARTBEAT_ACTION=RECOVER_AND_CONTINUE'
 
+      - name: Verify five-minute heartbeat workflow compliance
+        id: heartbeat_compliance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-heartbeat
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-heartbeat.yml --branch main --limit 50 --json databaseId,status,conclusion,createdAt,updatedAt,runStartedAt,headSha,event > /tmp/flixo-heartbeat/scheduled-wakes.json
+          gh run view "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,status,conclusion,createdAt,updatedAt,runStartedAt,headSha,event > /tmp/flixo-heartbeat/current-wake.json
+          jq -s 'add' /tmp/flixo-heartbeat/scheduled-wakes.json /tmp/flixo-heartbeat/current-wake.json > /tmp/flixo-heartbeat/wake-runs.json
+          node scripts/ci/wake-compliance.mjs /tmp/flixo-heartbeat/wake-runs.json /tmp/flixo-heartbeat/wake-compliance.json
+          jq -e '.status == "PASS" or .status == "BASELINE_REQUIRED"' /tmp/flixo-heartbeat/wake-compliance.json >/dev/null
+
+      - name: Publish heartbeat compliance evidence
+        if: always() && steps.heartbeat_compliance.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-heartbeat-compliance-${{ github.run_id }}
+          path: /tmp/flixo-heartbeat/wake-compliance.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Check supervisor liveness and current GREEN state
         id: state
         env:
