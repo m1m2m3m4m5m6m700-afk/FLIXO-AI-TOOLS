@@ -120,3 +120,53 @@ html[dir="rtl"] .home-final-cta {
   border-color: rgba(103,232,249,.62) !important;
   box-shadow: 0 10px 28px rgba(0,0,0,.34), 0 0 22px rgba(103,232,249,.22) !important;
 }
+
+
+/* 2026-09-20 — compact typography pass for a tighter product surface. */
+.home-nav-inner{min-height:54px !important}
+.home-nav-links a,.home-nav-language{min-height:34px !important;font-size:.76rem !important}
+.home-brand{width:38px !important;height:38px !important;border-radius:10px !important}
+.home-content{padding-bottom:54px !important}
+.home-hero{padding:54px 0 24px !important;max-width:760px !important}
+.home-hero > div:first-child{gap:9px !important}
+.home-badge{min-height:26px !important;padding:4px 8px !important;font-size:.62rem !important}
+.home-hero h1{
+  max-width:720px !important;
+  font-size:clamp(2.1rem,5.4vw,4.3rem) !important;
+  line-height:.98 !important;
+  letter-spacing:-.05em !important;
+}
+.home-lead{max-width:590px !important;font-size:.82rem !important;line-height:1.55 !important}
+.home-hero-command{min-height:38px !important;padding:0 10px !important;gap:8px !important;font-size:.72rem !important}
+.home-hero-command kbd{font-size:.62rem !important}
+.home-search-panel{padding:6px !important;border-radius:13px !important}
+.home-search-wrap{min-height:46px !important}
+.home-search-wrap input{font-size:.82rem !important}
+.home-search-icon{font-size:1rem !important}
+.quick-tags{margin-top:5px !important}
+.quick-tags button,.category-pills button{min-height:31px !important;padding:0 9px !important;font-size:.68rem !important}
+.home-trust-grid{margin:12px 0 18px !important}
+.home-trust-grid div{min-height:66px !important;padding:11px !important}
+.home-trust-grid strong{font-size:.72rem !important}
+.home-trust-grid span{font-size:.66rem !important}
+.home-quick-drop{gap:12px !important;padding:14px !important;border-radius:14px !important}
+.home-quick-drop h2,.home-tools-section h2,.home-final-cta h2{
+  font-size:clamp(1.05rem,2.2vw,1.45rem) !important;
+  margin:4px 0 6px !important;
+}
+.home-quick-drop p,.home-final-cta p{font-size:.72rem !important}
+.home-drop-zone{min-height:118px !important;border-radius:11px !important;font-size:.72rem !important}
+.home-tools-section{margin-top:24px !important}
+.section-heading{gap:8px !important}
+.home-tool-card{min-height:132px !important;padding:12px !important;border-radius:12px !important}
+.tool-card-category{font-size:.58rem !important}
+.home-tool-card h3{margin:10px 0 5px !important;font-size:.78rem !important}
+.home-tool-card p{font-size:.68rem !important;line-height:1.42 !important}
+.tool-card-meta{padding-top:8px !important;font-size:.58rem !important}
+.tool-count{font-size:.64rem !important}
+.home-final-cta{margin-top:24px !important;padding:14px !important;border-radius:14px !important}
+
+@media (max-width:520px){
+  .home-hero{padding-top:42px !important}
+  .home-hero h1{font-size:clamp(1.9rem,12vw,3rem) !important}
+}
