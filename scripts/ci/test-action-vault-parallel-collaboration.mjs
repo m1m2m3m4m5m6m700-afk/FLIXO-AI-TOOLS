@@ -32,7 +32,7 @@ assert.equal(residency.sleepAdmission.required,true);
 assert.equal(residency.sleepAdmission.openWorkBlocksSleep,true);
 
 const source=fs.readFileSync(script,'utf8');
-for(const marker of ['PARALLEL_DISCOVERY','PARALLEL_ANALYSIS','CROSS_LEARNING','CHALLENGE','OWNER_MUTATION','GREEN_LEARNING','allThreeMustContributeBeforeMutation','exchangeBeforeMutation','learnedFromPeers','SUPERVISOR_20_CATALOG_REVIEW_AND_TRIAD_SELECTION','ACTION_VAULT_TRIAD-ADVERSARIAL-LEARNING-v1','ACTION_THREE_BOT_MUTATOR_SUSPENDED_AT_20','ACTION_THREE_BOT_CLOSE_BLOCKED_NO_GREEN_RECORD']) assert.ok(source.includes(marker),'missing marker: '+marker);
+for(const marker of ['PARALLEL_DISCOVERY','PARALLEL_ANALYSIS','CROSS_LEARNING','CHALLENGE','OWNER_MUTATION','GREEN_LEARNING','allThreeMustContributeBeforeMutation','exchangeBeforeMutation','learnedFromPeers','SUPERVISOR_20_CATALOG_REVIEW_AND_TRIAD_SELECTION','ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-v1','ACTION_THREE_BOT_MUTATOR_SUSPENDED_AT_20','ACTION_THREE_BOT_CLOSE_BLOCKED_NO_GREEN_RECORD']) assert.ok(source.includes(marker),'missing marker: '+marker);
 
 assert.equal(intelligence.cooperation.triadGovernance.recurrenceEscalationThreshold,20);
 assert.equal(intelligence.cooperation.triadGovernance.catalogCapacity,1000000);
