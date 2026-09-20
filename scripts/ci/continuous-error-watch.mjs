@@ -23,12 +23,15 @@ export const REQUIRED_WORKFLOWS_BY_BRANCH = Object.freeze({
 const requiredWorkflowsForBranch = (branch) =>
   REQUIRED_WORKFLOWS_BY_BRANCH[branch] ?? REQUIRED_WORKFLOWS_BY_BRANCH.execution;
 
-export const REPAIRABLE_WORKFLOWS = Object.freeze([
-  'FLIXO Test Impact',
-  'FLIXO Test Impact Execution',
-  'Repository Security Baseline',
-  'Claude Security Review',
-  'Daily·FLIXO Green Gate',
+// Any failed execution workflow may enter the repair lane.
+// Only the repair/control-plane infrastructure itself is excluded to prevent self-repair loops.
+const NON_REPAIRABLE_WORKFLOW_PATTERNS = Object.freeze([
+  /auto repair/i,
+  /daily·flixo green gate/i,
+  /execution bot watchdog/i,
+  /agent-repair-supervisor/i,
+  /agent-repair-heartbeat/i,
+  /auto-repair-merge-gate/i,
 ]);
 
 const SECURITY_CHECK_PATTERNS = Object.freeze([
@@ -92,8 +95,10 @@ export function validateRepairTarget({ run, executionSha, workflowRuns = [], log
   if (!run || run.status !== 'completed' || !['failure', 'timed_out', 'cancelled'].includes(run.conclusion)) errors.push('TARGET_NOT_FAILED_COMPLETED');
   if (run?.headSha !== executionSha) errors.push('TARGET_SHA_MISMATCH');
   if ((run?.headBranch ?? null) !== branch) errors.push('TARGET_BRANCH_MISMATCH');
-  if (!REPAIRABLE_WORKFLOWS.includes(String(run?.workflowName ?? ''))) errors.push('TARGET_WORKFLOW_NOT_ALLOWED');
-  if (/auto repair/i.test(String(run?.workflowName ?? ''))) errors.push('TARGET_SELF_REPAIR');
+  const workflowName = String(run?.workflowName ?? '');
+  if (NON_REPAIRABLE_WORKFLOW_PATTERNS.some((pattern) => pattern.test(workflowName))) {
+    errors.push('TARGET_WORKFLOW_NOT_ALLOWED');
+  }
   if (classifyCancelledRun(run, workflowRuns)?.state === 'CANCELLED_SUPERSEDED') errors.push('TARGET_SUPERSEDED');
   const evidence = String(logs[String(run?.databaseId ?? '')] ?? '').trim();
   if (!evidence || /EVIDENCE_CAPTURE=FAILED/i.test(evidence)) errors.push('EVIDENCE_CAPTURE_FAILED');
@@ -305,6 +310,60 @@ export function evaluateGreen({
           };
         }
       }
+    }
+  }
+
+  // Any RED workflow on execution is repairable after exact-SHA and evidence validation.
+  // This deliberately does not depend on a fixed allow-list of workflow names.
+  if (observedBranch === 'execution' && !report.repair.required) {
+    const failedCandidates = workflowRuns
+      .filter((candidate) =>
+        candidate?.headSha === executionSha &&
+        candidate?.headBranch === 'execution' &&
+        candidate?.status === 'completed' &&
+        ['failure', 'timed_out'].includes(candidate?.conclusion) &&
+        !NON_REPAIRABLE_WORKFLOW_PATTERNS.some((pattern) => pattern.test(String(candidate?.workflowName ?? '')))
+      )
+      .sort((a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')));
+
+    for (const candidate of failedCandidates) {
+      const failureLog = String(logs[String(candidate.databaseId)] ?? '');
+      const target = validateRepairTarget({
+        run: candidate,
+        executionSha,
+        workflowRuns,
+        logs,
+        branch: 'execution',
+      });
+      if (!target.valid || providerFailure(failureLog)) continue;
+
+      const failureFingerprint = fingerprintFailure(failureLog);
+      const identity = deriveRepairIdentity({
+        branch: 'execution',
+        failedSha: executionSha,
+        failureFingerprint,
+        targetRunId: candidate.databaseId,
+      });
+      report.errors.push({
+        type: 'UNEXPECTED_WORKFLOW_RED',
+        workflow: candidate.workflowName,
+        conclusion: candidate.conclusion,
+        runId: candidate.databaseId,
+      });
+      report.repair = {
+        required: true,
+        targetRunId: candidate.databaseId,
+        failureFingerprint,
+        repairKey: identity.claimKey,
+        claimKey: identity.claimKey,
+        repairChainId: identity.repairChainId,
+        leaseRef: identity.leaseRef,
+        failedSha: executionSha,
+        branch: 'execution',
+        action: 'PENDING_DISPATCH',
+        rootCauseAuthority: 'TASK_AGENT_RCA',
+      };
+      break;
     }
   }
 
