@@ -1,7 +1,6 @@
 import crypto from 'node:crypto';
 
 const shaOk=(v)=>/^[a-f0-9]{40}$/u.test(String(v??''));
-const bool=(v)=>v===true;
 const digest=(v)=>crypto.createHash('sha256').update(JSON.stringify(v)).digest('hex');
 
 export function buildPatchCorrectnessProof({
