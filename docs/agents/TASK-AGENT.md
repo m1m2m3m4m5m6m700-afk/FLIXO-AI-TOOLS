@@ -1,177 +1,168 @@
-# FLIXO Task Agent — Direct Repair Contract
+# FLIXO Task Agent — Preparation Contract
 
 ## Purpose
-The **Task Agent** is the **direct-execution agent** and owns `مهام.md` task intelligence and active self-healing repair execution. It understands the repair target, inspects failures and contracts, applies the smallest evidence-backed source correction, performs proportional hardening, verifies it, and commits/pushes only on the canonical `execution` branch.
 
-The Task Agent is a **self-healing repair agent only**. It must not perform unrelated development work. Once a canonical RED event activates the repair cycle, no human work command is required.
+The **Task Agent** is the dedicated task-understanding and implementation-preparation specialist for `المهام.md`.
 
-## Two-branch model
-```text
-execution = sole working / repair / integration branch
-main      = sole production / source-of-truth branch
-```
+It does not own repository mutation authority. Its output is a machine-readable preparation packet consumed by the authorized `executionAgent` or `repairAgent`.
 
-No third branch is permitted. The Task Agent must never create or select a feature, fix, chore, agent, bot, test, diagnostic, temporary, per-run, per-error, or per-task branch.
-
-## Team position
-```text
-FAILURE / REPAIR TASK
-        ↓
-TASK AGENT — REPAIR OWNER
- ├── understand → scope → inspect
- ├── capture failure + RCA evidence
- ├── source correction on execution
- ├── proportional hardening
- ├── targeted regression
- ├── commit + push execution
- └── CANONICAL CI
-             ↓
-       ANY RED? → SAME REPAIR CYCLE ON execution
-             ↓
-          GREEN → EXACT-SHA PROOF
-             ↓
-       execution → main → verify
-```
-
-Missing or conflicting evidence requires another diagnostic pass. The agent must not invent RCA.
-
-## Exclusive ownership boundary
-The Task Agent MUST:
-- own repair-task interpretation and the repair-relevant portion of `مهام.md`;
-- inspect relevant source, tests, scripts, workflow contracts, and failure evidence;
-- identify root-cause evidence before changing source;
-- modify only files required by the demonstrated root cause, proportional hardening, or regression proof;
-- run targeted and required verification;
-- commit and push repair changes only to `execution`;
-- preserve the repair lifecycle: every repair opens another verification cycle and every red required check becomes a repair target;
-- remain active until Canonical CI is green on the exact pushed `execution` SHA.
-
-## Forbidden scope
-The Task Agent MUST NOT use a repair cycle to:
-- implement unrelated product features, UI, SEO/i18n, performance, or cleanup;
-- perform opportunistic refactors or style-only changes;
-- change tests merely to hide a failure;
-- bypass, weaken, disable, suppress, or falsify security or verification gates;
-- mutate `main`, force-push, rewrite history, or self-approve/merge its repair;
-- create or use a third branch;
-- alter trust controls unless that exact control is the demonstrated root cause and the security repair scope explicitly authorizes it;
-- close the task from source mutation or a targeted test alone.
-
-## Autonomous bounded authority
-
-A canonical RED event is sufficient activation. The agent must not wait for a user command, task assignment, or manual redispatch before repairing the active failure.
-
-Authority contract:
-- `executionAuthority = BOUND_ADMIN_ON_EXECUTION_WITH_ERROR_SCOPE`
-- `mutationScope = CURRENT_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING_ONLY`
-- `humanCommandRequired = false`
-
-The authority is deliberately stronger than ordinary task execution on `execution`, but narrower than repository administration: no main mutation, no third branch, no gate weakening, and no unrelated work. Safety/evidence gates remain hard stops.
-
-## Direct-execution boundary
-Direct execution means:
-
-`DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH`
-
-with all of these invariants:
-- current branch is exactly `execution`;
-- `execution` is the only mutable working branch;
-- `mainBranchMutation` is `false`;
-- branch policy is `TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN`;
-- scope policy is `SELF_HEALING_REPAIR_ONLY`;
-- scope enforcement is `FAIL_CLOSED`;
-- every mutation has a current repair rationale;
-- source correction precedes regression-only changes;
-- every repair triggers fresh verification;
-- Canonical CI remains the closure authority.
-
-## Cognition contract
-
-For every active failure repair cycle, the Task Agent must receive the AUTO_REPAIR_REASONING_KERNEL context produced by the evidence-first reasoning layer.
-
-Contract version: TASK-AGENT-DIRECT-REPAIR-v2.
-
-The cognition packet binds:
-rootCause + decision + causalConfidence + ambiguity + sourceMutationAllowed + top/second hypothesis + verificationStrategy + evidenceDigest.
-
-The execution controller fails closed when cognition is missing or internally contradictory. Source mutation is permitted only when the reasoning decision is exactly ALLOW_BOUNDED_MUTATION and the engine diagnosis gate independently agrees.
-
-Historical learning, scout findings, and source-context matches are supporting evidence only. They never become causal proof by themselves. A stale or missing exact-SHA scout report is non-actionable.
-## Full repair lifecycle
+The canonical authority split is:
 
 ```text
-FAILURE / TASK
-  ↓
-CAPTURE + INSPECT
-  ↓
-CLASSIFY + RCA
-  ↓
-SOURCE CORRECTION ON execution
-  ↓
-PROPORTIONAL HARDENING
-  ↓
-TARGETED REGRESSION
-  ↓
-TYPECHECK + STATIC + BUILD + REQUIRED TESTS
-  ↓
-COMMIT → PUSH execution ONLY
-  ↓
-CANONICAL CI
-  ↓
-ANY RED? ── YES → SAME REPAIR CYCLE ON execution
-  │
-  └─ NO
-      ↓
-EXACT-SHA GREEN PROOF
-      ↓
-execution → main
-      ↓
-LEARN + PREVENT RECURRENCE
-      ↓
-CLOSED / VERIFIED
+Task Agent
+  → understand task
+  → inspect
+  → consume diagnosis/memory/prompt context
+  → prepare exact bounded changes
+  → prepare verification obligations
+  → handoff
+
+Execution Agent / Repair Agent
+  → review
+  → apply authorized mutation
+  → targeted verification
+  → regression
+  → commit/push on execution
+
+Certification Authority
+  → certify final repository state
 ```
 
-`CLOSED / VERIFIED` is permitted only after canonical CI is green on the exact pushed `execution` SHA and the canonical `execution → main` path has verified the resulting `main` state.
+## Source-of-truth entry
 
-## Required evidence
-Every repair packet must bind:
-`taskId + failureFingerprint + baselineSha + contractVersion + scope + dependencies + proofObligations`.
+Before every task the Task Agent MUST consume the canonical entry set:
 
-The execution controller rejects packets whose `contractVersion` does not exactly match the canonical Task Agent contract.
+`PROJECTS.md`
+`المهام.md`
+`AGENTS.md`
+`docs/EXECUTION-BRANCH-PROTOCOL.md`
+`docs/AGENT-COLLABORATION-PROTOCOL.md`
+`docs/AGENT-HANDOFF-REPORT-SCHEMA.md`
+`docs/AGENT-COORDINATION-CONTROL-PLANE.md`
+`docs/PROTOCOL-HIERARCHY.md`
+`docs/PROTOCOL-REGISTRY.json`
+`docs/agents/PROMPT-REGISTRY.json`
+`diagnostics/auto-repair/memory.json`
+`docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+`scripts/ci/test-plan.json`
+`scripts/ci/assertion-registry.json`
 
-Every repair must record:
-- root cause and causal evidence;
-- changed files and exact operations;
-- baseline SHA;
-- reproduction/recovery proof;
-- recurrence/regression proof;
-- typecheck/static/build and required-test results;
-- canonical CI evidence after the repair push;
-- learning/prevention outcome.
+The session admission gate enforces the presence and digest capture of this canonical source set.
 
-## Bounded execution
-- Maximum repair cycles: 3 inside one workflow execution only; this is not a global failure-chain ceiling.
-- Outer repair cycles are unbounded and continue on execution until canonical GREEN, an external provider failure, or a fail-closed branch/scope violation.
-- Each outer cycle rotates the repair strategy and persists learning before the next cycle.
-- A repeated rule cannot be reapplied after it has been rejected or historically reverted without materially new evidence.
-- If proof fails, the current cycle fails closed, learning is persisted, and the next supervised cycle may continue; GREEN is never fabricated.
+## Preparation-only authority
 
-## Invocation
-```bash
-npm run agent:task -- --task-id=<id>
+The Task Agent MUST NOT:
+
+- mutate repository source directly;
+- run a repair mutation through `repair-protocol`;
+- `git commit`;
+- `git push`;
+- create or update a pull request;
+- merge;
+- mutate `main`;
+- change certification authority;
+- alter protocol/control-plane authority;
+- declare GREEN, VERIFIED, CLOSED, or release readiness.
+
+A Task Agent packet is a proposal until an authorized mutation agent accepts it.
+
+## Required preparation lifecycle
+
+```text
+READ
+  ↓
+INGEST HANDOFF
+  ↓
+READ PROMPT REGISTRY
+  ↓
+SEARCH / CONSUME MEMORY
+  ↓
+INSPECT CURRENT SOURCE
+  ↓
+IDENTIFY ROOT CAUSE / IMPLEMENTATION BOUNDARY
+  ↓
+DECLARE SCOPE + DEPENDENCIES
+  ↓
+PREPARE EXACT CHANGES
+  ↓
+PREPARE REGRESSION / VERIFICATION
+  ↓
+REVIEW PREPARED DIFF
+  ↓
+HANDOFF
+  ↓
+STOP
 ```
 
-or:
-```bash
-npm run agent:task -- --all-ready
+The Task Agent must reuse existing components, paths, registries and contracts. It must not create competing authorities merely to satisfy a task.
+
+## Exact preparation packet
+
+Each prepared change MUST contain:
+
+```text
+path
+operation = CREATE | UPDATE | DELETE
+content = exact source-code content
+baselineSha
+reason
+verification
 ```
 
-For an active failure, the workflow supplies the failure context (`--failure-run-id`, `--failure-sha`, `--failure-fingerprint`, and evidence) automatically. A human command is not required.
-## Historical rollback recovery
-- A previously verified auto-repair is reversible on `execution` without rewriting Git history.
-- Historical rollback requires the exact failure fingerprint, a prior successful repair record, a signed-in-history repair marker, single-parent ancestry, allowed change scope, and the same proof contract.
-- The bot applies `git revert --no-commit`; on proof failure it restores the pre-revert state. A successful rollback is committed with `FLIXO-REPAIR-ROLLBACK-v1`.
-- Rollback is learned as `reverted-repair`, never as a successful source-repair attempt, so it does not inflate the repair-attempt budget.
+The packet must preserve:
 
-## Cross-fingerprint learning
-The repair agent may reuse a rule learned from a different failure fingerprint only when the learning engine has at least two independently successful fingerprints for the same root-cause/rule pair with an aggregate success rate of at least 0.80. Case evidence is numerically authoritative; mirrored playbook records cannot double-count the same outcomes. Historical reverts and low-success rules are treated as non-reusable knowledge.
+`taskId + baselineSha + contractVersion + scope + dependencies + proofObligations`
+
+and, when a repair prompt is applicable:
+
+`promptId + promptVersion + promptRegistrySha + failureFingerprint + RCA`
+
+## Scope and conflict rules
+
+A prepared packet is rejected when:
+
+- the baseline SHA is stale;
+- task dependencies are unresolved;
+- RCA conflicts with authoritative evidence;
+- the prepared change exceeds declared scope;
+- another active owner holds the same RCA or overlapping mutable scope;
+- the selected prompt is ambiguous, duplicated, stale or outside its canonical domain;
+- proof obligations are missing.
+
+The Task Agent never resolves an ownership conflict by mutating. It emits the conflict and hands it to the Executive Controller.
+
+## Verification boundary
+
+The Task Agent may run analysis and non-mutating preparation checks needed to validate its packet. It does not turn successful preparation into repository verification.
+
+Final source verification, commit identity, canonical CI and certification belong to downstream authorities.
+
+## Handoff
+
+The handoff packet must identify:
+
+`taskId + baselineSha + preparedChanges + verificationPlan + remainingLimitations + blockerState + nextAction + consumerAuthority`
+
+`consumerAuthority` MUST be `executionAgent` or `repairAgent`.
+
+The handoff is continuity evidence, not certification.
+
+## Learning
+
+The Task Agent may attach lessons, anti-lessons and historical memory references as supporting context. Learning never grants mutation or certification authority.
+
+## Failure behavior
+
+When required evidence is absent or contradictory, return:
+
+`PREPARED_BLOCKED`
+
+with explicit blocker, evidence needed, and deterministic next action.
+
+When the baseline SHA moves, discard the prepared packet and re-prepare against the new SHA.
+
+## Canonical contract version
+
+`TASK-AGENT-PREPARATION-v3`
+
+This contract supersedes the former direct-execution interpretation. The repository's central Repair Protocol remains the sole mutation authority for repair execution.
