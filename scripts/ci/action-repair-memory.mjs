@@ -3,19 +3,19 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT=process.cwd();
-export const ACTION_MEMORY_DIR=path.resolve(ROOT, process.env.FLIXO_ACTION_MEMORY_DIR ?? 'diagnostics/auto-repair/action-repair-bots');
+const memoryDir=()=>path.resolve(ROOT, process.env.FLIXO_ACTION_MEMORY_DIR ?? 'diagnostics/auto-repair/action-repair-bots');
 const ID_RE=/^ACTION-(INDEX|WISE|WAKE|TWIN-1|TWIN-2)$/u;
-const fileOf=id=>path.join(ACTION_MEMORY_DIR,String(id)+'.json');
+const fileOf=id=>path.join(memoryDir(),String(id)+'.json');
 const valid=id=>{if(!ID_RE.test(String(id))) throw new Error('ACTION_BOT_ID_INVALID'); return String(id)};
 const now=()=>new Date().toISOString();
 
 export function loadActionBotMemory(botId){
- const id=valid(botId); fs.mkdirSync(ACTION_MEMORY_DIR,{recursive:true});
+ const id=valid(botId); fs.mkdirSync(memoryDir(),{recursive:true});
  try { const x=JSON.parse(fs.readFileSync(fileOf(id),'utf8')); if(x.botId===id) return x; } catch {}
  return {schemaVersion:1,authority:'ACTION_REPAIR_BOT_PERSONAL_MEMORY',botId:id,copyable:true,transferableKnowledgeOnly:true,permanentIndependentAuthority:false,state:{status:'READY',taskCount:0,lastTaskId:null,lastUpdatedAt:null},learnedTasks:[],knowledge:[],solutions:[],successfulStrategies:[],failedStrategies:[],sourceEvidence:[]};
 }
 export function saveActionBotMemory(memory){
- const id=valid(memory?.botId); fs.mkdirSync(ACTION_MEMORY_DIR,{recursive:true});
+ const id=valid(memory?.botId); fs.mkdirSync(memoryDir(),{recursive:true});
  const out={...loadActionBotMemory(id),...memory,botId:id};
  fs.writeFileSync(fileOf(id),JSON.stringify(out,null,2)+'\n'); return out;
 }
