@@ -292,7 +292,7 @@ export function evaluateGreen({
           });
           report.repair = {
             required: true,
-            targetRunId: String(run.databaseId),
+            targetRunId: run.databaseId,
             failureFingerprint,
             repairKey: identity.claimKey,
             claimKey: identity.claimKey,
@@ -492,6 +492,11 @@ function writeFailClosedReport(output, error, inputPath) {
       targetRunId: null,
       failureFingerprint: null,
       repairKey: null,
+      claimKey: null,
+      repairChainId: null,
+      leaseRef: null,
+      failedSha: null,
+      branch: null,
       action: 'NONE',
       rootCauseAuthority: 'TASK_AGENT_RCA',
     },
