@@ -76,7 +76,6 @@ const FILTER_MASK_RUNTIME_COPY: Readonly<Record<string, Partial<Record<Canonical
   'Video recording failed.': { it: 'La registrazione video non è riuscita.', uk: 'Не вдалося записати відео.' },
   'Video recording could not be started.': { it: 'Non è stato possibile avviare la registrazione video.', uk: 'Не вдалося розпочати запис відео.' },
   'Preset name': { it: 'Nome del preset', uk: 'Назва пресету' },
-  'Name this creator preset': { it: 'Dai un nome a questo preset', uk: 'Назвіть цей пресет' },
   'Capture quality could not be changed for the active camera.': { it: 'Non è stato possibile modificare la qualità di acquisizione per la fotocamera attiva.', uk: 'Не вдалося змінити якість захоплення для активної камери.' },
 };
 
