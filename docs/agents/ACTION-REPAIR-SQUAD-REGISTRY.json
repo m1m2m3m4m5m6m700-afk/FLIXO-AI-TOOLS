@@ -454,9 +454,9 @@
     },
     "assistant": {
       "id": "ACTION-REPAIR-2",
-      "displayName": "بوت مساعد إصلاح Actions",
-      "mutationAuthority": true,
-      "executionAuthority": "MUTATION_GATED_BY_ACTION_REPAIR",
+      "displayName": "بوت إصلاح Actions 2 — Programmer Twin",
+      "mutationAuthority": false,
+      "executionAuthority": "INDEPENDENT_PROGRAMMER_TWIN_VERIFIER",
       "approvalRequiredFrom": "ACTION-REPAIR",
       "canPrepare": true,
       "canAudit": true,
@@ -487,11 +487,19 @@
         "current exact SHA",
         "verifier challenge passed",
         "normal Repair Protocol admission"
-      ]
+      ],
+      "programmerTwinParityRequired": true,
+      "programmerTwinParityArtifact": "/tmp/action-repair-twin-parity.json",
+      "programmerTwinParity": [
+        "sameExactSha",
+        "sameFailureFingerprint",
+        "sameProgrammingIntelligence"
+      ],
+      "verifierRole": "EXACT_PROGRAMMER_TWIN"
     },
     "nonGreenLearning": {
       "recordEveryRedNotGreen": true,
-      "source": "CURRENT_ACTION_RUN + historical-action-errors + repair-memory",
+      "source": "CURRENT_ACTION_RUN + independent-programmer-twin-analysis + file-selection + repair-memory",
       "durablePath": "diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-2.json",
       "promotion": "ONLY_AFTER_CANONICAL_GREEN",
       "nonGreenPersistence": "ARTIFACT_AND_NEXT_MISSION_CONTEXT"
@@ -651,7 +659,10 @@
       "alternativesRequired": true,
       "falsificationChecksRequired": true,
       "counterEvidenceRequired": true,
-      "mutationBlockedWithoutProof": true
+      "mutationBlockedWithoutProof": true,
+      "verifierRole": "EXACT_PROGRAMMER_TWIN",
+      "programmerTwinParityRequired": true,
+      "programmerTwinParityArtifact": "/tmp/action-repair-twin-parity.json"
     },
     "fileSelectionGate": {
       "enabled": true,
@@ -676,9 +687,11 @@
     },
     "ACTION-REPAIR-2": {
       "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
-      "role": "SECONDARY_REPAIR_OWNER",
-      "executionAuthority": "MUTATE_WHEN_TASK_OWNER_AFTER_HANDOFF",
-      "cooperation": "MANDATORY_ON_RED"
+      "role": "EXACT_PROGRAMMER_TWIN_VERIFIER",
+      "executionAuthority": "READ_ANALYZE_CHALLENGE_PROPOSE_ONLY",
+      "cooperation": "MANDATORY_ON_RED",
+      "intelligenceParity": "EXACT_WITH_ACTION-REPAIR",
+      "sourceMutation": false
     },
     "ACTION-HISTORIAN-3": {
       "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
@@ -706,5 +719,16 @@
     "escalationAfterFailedAttempts": 20,
     "supervisorRecipient": "assistantController",
     "supervisorRoute": "scripts/ci/agent-communication.mjs -> .github/workflows/agent-communication-relay.yml"
+  },
+  "programmerTwin": {
+    "enabled": true,
+    "protocol": "ACTION-PROGRAMMER-TWIN-PARITY-v1",
+    "runtime": "scripts/ci/action-repair-twin-parity.mjs",
+    "artifact": "/tmp/action-repair-twin-parity.json",
+    "primary": "ACTION-REPAIR",
+    "twin": "ACTION-REPAIR-2",
+    "intelligenceParity": "EXACT",
+    "authorityParity": "SEPARATED_BY_DESIGN",
+    "mutationOwner": "ACTION-REPAIR"
   }
 }
