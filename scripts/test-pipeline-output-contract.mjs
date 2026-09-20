@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { getToolOutputContractForDefinition } from '../src/lib/contracts/tool-output-contracts.ts';
 import { getToolDefinition } from '../src/config/canonical-tool-definition.ts';
 import { verifyPipelineOutput } from '../src/lib/workflows/pipeline-runner.ts';
-import { createPipelineStepReceipt } from '../src/lib/workflows/pipeline-receipt.ts';
+import { appendPipelineStepReceipt, createPipelineReceiptChain, createPipelineStepReceipt } from '../src/lib/workflows/pipeline-receipt.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 
 const input = new Blob(['input'], { type: 'image/png' });
@@ -49,5 +49,38 @@ assert.match(receipt.inputSha256, /^[a-f0-9]{64}$/);
 assert.match(receipt.outputSha256, /^[a-f0-9]{64}$/);
 assert.equal(receipt.recoveryApplied, false);
 assert.equal(receipt.verified, true);
+
+let receiptChain = createPipelineReceiptChain(TOOL_CATALOG.fingerprint);
+receiptChain = await appendPipelineStepReceipt(receiptChain, receipt);
+assert.equal(receiptChain.steps.length, 1);
+assert.match(receiptChain.chainSha256, /^[a-f0-9]{64}$/);
+
+const secondReceipt = await createPipelineStepReceipt({
+  toolId: 'image-compressor',
+  stepIndex: 2,
+  attempt: 1,
+  inputBlob: validPng,
+  outputBlob: validPng,
+  catalogFingerprint: TOOL_CATALOG.fingerprint,
+  verified: true,
+});
+receiptChain = await appendPipelineStepReceipt(receiptChain, secondReceipt);
+assert.equal(receiptChain.steps.length, 2);
+assert.equal(receiptChain.steps[1].inputSha256, receiptChain.steps[0].outputSha256);
+assert.equal(receiptChain.steps[1].recoveryApplied, true);
+
+const brokenReceipt = await createPipelineStepReceipt({
+  toolId: 'image-compressor',
+  stepIndex: 3,
+  attempt: 0,
+  inputBlob: input,
+  outputBlob: validPng,
+  catalogFingerprint: TOOL_CATALOG.fingerprint,
+  verified: true,
+});
+await assert.rejects(
+  () => appendPipelineStepReceipt(receiptChain, brokenReceipt),
+  /artifact linkage is broken/,
+);
 
 console.log('Pipeline output contract + artifact receipt tests passed.');
