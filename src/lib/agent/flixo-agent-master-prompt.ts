@@ -7,9 +7,12 @@
  */
 import canonicalPrompt from '../../../docs/agents/PROMPT-UNIFIED-EXECUTION.md?raw';
 
+// The imported file above is the sole canonical instruction source.
+
 export const FLIXO_AGENT_PROMPT_ID = 'RPR-UNIFIED-EXECUTION-001';
 export const FLIXO_AGENT_PROMPT_VERSION = 2;
 export const FLIXO_AGENT_RUNTIME_ALIAS = 'FLIXO-IMAGE-AGENT-MASTER-001';
+export const FLIXO_AGENT_CANONICAL_SOURCE = 'docs/agents/PROMPT-UNIFIED-EXECUTION.md';
 
 export type FlixoAgentPromptContext = Readonly<{
   locale: string;
