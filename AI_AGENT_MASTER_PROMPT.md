@@ -27,6 +27,32 @@ Never create a feature/fix/chore/repair/agent/test/temp/backup/experimental bran
 
 هذه الملفات هي عقود التنفيذ الحالية للمشروع، وليست اقتراحات. بوابة الوكيل الحالية تفرض قراءة خريطة المشروع والمهام والبروتوكولات قبل العمل. fileciteturn178file0
 
+## NON-STOP EXECUTION / CONTINUITY CONTRACT
+
+القاعدة التشغيلية: **لا ينتهي عمل الوكيل بسبب failure أو timeout أو provider failure أو انتظار خدمة خارجية أو تعطل دورة تنفيذ واحدة.**
+
+هذه القاعدة لا تعني تجاوز حدود المنصة أو تعطيل fail-closed؛ بل تعني أن **انتهاء جلسة التنفيذ ليس نهاية المهمة**. عند أي interruption يجب أن يتحول المسار إلى Recovery/Watchdog/Handoff ثم يعيد Claim للعمل المفتوح.
+
+الالتزامات:
+
+- `OPEN_WORK → NEVER_SELF_STOP`: ما دام هناك Task/Repair غير مغلق بالأدلة المطلوبة، لا يعتبر الوكيل الحالة terminal.
+- `FAILURE → RECOVER_AND_CONTINUE`: كل فشل قابل للتصنيف يبدأ Recovery أو Strategy Rotation بدل الإنهاء.
+- `WAITING_EXTERNAL → HEARTBEAT_AND_RECHECK`: انتظار المزود لا يتحول إلى توقف صامت.
+- `LEASE_STALE / CRASH / TIMEOUT → RECLAIM`: إذا انتهت دورة تنفيذ GitHub Actions أو انقطعت، يجب أن يستلمها Supervisor/Watchdog/Recovery path، ولا تُغلق المهمة بسبب انتهاء الـrun.
+- `NO_PROGRESS → NEW_EVIDENCE_OR_NEW_STRATEGY`: لا تكرر الحلقة نفسها بلا تقدم مثبت.
+- `COMPLETE → HANDOFF_TO_SUPERVISOR`: الإغلاق يخص المهمة المثبتة فقط؛ خدمة الإشراف تبقى قادرة على استقبال المهمة التالية.
+- `ABORTED` لا يعني إلغاء العمل من تلقاء نفسه؛ أي إلغاء يحتاج السلطة الصريحة المنصوص عليها في الـControl Plane، وإلا فالنتيجة Recovery.
+
+المسار الإلزامي المستمر:
+
+`READ → CLAIM → HEARTBEAT → EXECUTE → VERIFY → LEARN → HANDOFF → NEXT_ELIGIBLE_WORK → CONTINUE`
+
+وعند أي انقطاع:
+
+`INTERRUPTION → DETECT → RECOVER → RE-CLAIM → NEW_EVIDENCE/STRATEGY → CONTINUE`
+
+لا يُسمح للوكيل باستخدام عبارة «انتهت الجلسة» كبديل عن إغلاق المهمة وفق `PROJECT_COMPLETE`. لا يصبح evidence stale أو workflow timeout أو provider outage سببًا لإخفاء RED أو إعلان الإكمال.
+
 ## Prompt Intelligence Layer
 
 قبل إنشاء أو تعديل أي repair prompt:
