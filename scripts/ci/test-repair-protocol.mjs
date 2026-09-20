@@ -100,14 +100,14 @@ const verifierProof = {
   falsificationComplete:true,
   counterexampleFound:false,
   falsificationSearches:Array.from({length:10},()=>({})),
-  remainingRisks:['canonical-ci'],
+  remainingRisks:[],
   proofCompleteness:completeProof,
   preMutationProof:{status:'PROVEN',targetSha:targetSHA,failureFingerprint:'action-repair-test'},
 };
 const verified=validateActionVaultVerifierProof({proof:verifierProof,targetSHA,failureFingerprint:'action-repair-test'});
 assert.equal(verified.verified,true);
 assert.equal(verified.mutationRecommendation,'ALLOW_AFTER_FALSIFICATION_NO_COUNTEREXAMPLE');
-assert.equal(verified.remainingRiskCount,1);
+assert.equal(verified.remainingRiskCount,0);
 assert.equal(verified.proofCompleteness.NO_VALID_COUNTEREXAMPLE,true);
 assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,targetSha:'b'.repeat(40)},targetSHA,failureFingerprint:'action-repair-test'}),/SHA_MISMATCH/);
 assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,alternativeHypotheses:[]},targetSHA,failureFingerprint:'action-repair-test'}),/ALTERNATIVES_MISSING/);
