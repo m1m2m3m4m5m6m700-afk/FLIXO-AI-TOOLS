@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {recordRedSignal,createLearningRequest,closeLearningRequest,recordVerifiedGreen,copyHistoricalIndexToActionIndexBot,requestMasterRepair} from './action-repair-memory.mjs';
+import {recordRed,recordGreen} from './action-failure-ledger.mjs';
 
 const ROOT=process.cwd();
 const arg=(name,fallback='')=>{const p='--'+name+'=';const v=process.argv.find(x=>x.startsWith(p));return v?v.slice(p.length):fallback};
@@ -24,6 +25,7 @@ if(op==='sync-index'){
 }
 if(op==='open-red'){
  const x=recordRedSignal({fingerprint,runId,targetSha,workflow,job,normalizedFailure,rawFailure:process.env.FLIXO_FAILURE_LOG});
+ recordRed({taskId:'ACTION-MASTER:'+runId+':'+String(fingerprint).slice(0,16),failureFingerprint:fingerprint,targetSha,failedRunId:runId,workflow,job,botId:'ACTION-HISTORIAN-3',notes:normalizedFailure});
  const y=createLearningRequest({fingerprint,runId,targetSha,workflow,job,normalizedFailure,master:'repairAgent',requiredFields:['rootCause','solution.strategyId','solution.rule','solution.changedPaths','verification','evidenceRef']});
  console.log(JSON.stringify({master:'repairAgent',operation:op,status:'OPEN_FOR_REPAIR_AND_LEARNING',signalId:x.redSignals.at(-1)?.signalId,requestId:y.learningRequests.at(-1)?.requestId},null,2));
  process.exit(0);
@@ -52,6 +54,7 @@ if(op==='request-master'){
 if(op==='close-green'){
  if(!solution) throw new Error('ACTION_MASTER_SOLUTION_FILE_REQUIRED');
  const x=recordVerifiedGreen({fingerprint,runId,targetSha,solution,verification,evidenceRef});
+ recordGreen({taskId:'ACTION-MASTER:'+runId+':'+String(fingerprint).slice(0,16),failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId:'ACTION-HISTORIAN-3',notes:verification,evidence:[evidenceRef].filter(Boolean)});
  let y=null;
  try{y=closeLearningRequest({fingerprint,runId,targetSha,solution,verification,evidenceRef,master:'repairAgent'});}catch(error){if(error?.message!=='ACTION_LEARNING_REQUEST_NOT_FOUND')throw error}
  console.log(JSON.stringify({master:'repairAgent',operation:op,status:'GREEN_SOLUTION_LEARNED',requestClosed:Boolean(y),solution,verification},null,2));
