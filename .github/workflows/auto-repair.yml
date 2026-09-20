@@ -1,5 +1,5 @@
 name: FLIXO Auto Repair Bot
-run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id }}
+run-name: FLIXO Auto Repair Chain ${{ inputs.chain_id || inputs.target_run_id }} ${{ inputs.failure_fingerprint || 'NO_FINGERPRINT' }}
 
 # TWO-BRANCH MODEL:
 # execution = sole working/repair branch
