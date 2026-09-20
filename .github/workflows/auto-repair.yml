@@ -308,7 +308,7 @@ jobs:
           set -euo pipefail
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=RCA --actor=INVESTIGATOR --reason=TRUSTED_ROOT_CAUSE_CLASSIFIED
 
-      - name: Bind Task Agent to the active repair cycle on execution
+      - name: Bind Task Agent preparation to the active repair cycle on execution
         run: |
           set -euo pipefail
           SIGNATURE="$(node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8')); process.stdout.write(x.signature||'unknown')")"
@@ -346,11 +346,11 @@ jobs:
             echo 'Teaching escalation recorded; continuing with the next repair strategy.'
           fi
 
-      - name: Record repair plan state in the Repair Control Plane
+      - name: Record prepared repair plan state in the Repair Control Plane
         if: steps.strategy.outcome == 'success'
         run: |
           set -euo pipefail
-          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=REPAIR_PLANNED --actor=TASK_AGENT --reason=REPAIR_STRATEGY_SELECTED
+          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=REPAIR_PLANNED --actor=REPAIR_AGENT --reason=REPAIR_STRATEGY_SELECTED
 
       - name: Run Phase 1 AI self-test
         run: node --experimental-strip-types scripts/ci/test-ai-phase1.mjs
@@ -370,9 +370,9 @@ jobs:
         if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome == 'success'
         run: |
           set -euo pipefail
-          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=MUTATING --actor=TASK_AGENT --reason=BOUNDED_SOURCE_MUTATION
+          node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=MUTATING --actor=REPAIR_AGENT --reason=BOUNDED_SOURCE_MUTATION
 
-      - name: Execute bounded root-cause repair under Task Agent authority
+      - name: Execute bounded root-cause repair under Repair Agent authority
         id: execute_repair
         if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome == 'success'
         env:
@@ -418,7 +418,7 @@ jobs:
         if: always()
         run: node scripts/ci/validate-auto-repair-boundary.mjs --diff-only
 
-      - name: Verify Task Agent repair before publication
+      - name: Verify Repair Agent repair before publication
         id: verify
         if: always() && steps.boundary.outcome == 'success'
         run: |
