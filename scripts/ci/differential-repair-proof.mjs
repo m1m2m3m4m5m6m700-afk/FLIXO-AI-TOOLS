@@ -4,13 +4,13 @@ const hash=(s)=>crypto.createHash('sha256').update(normalize(s),'utf8').digest('
 const symbols=(text)=>({
   functions:[...normalize(text).matchAll(/(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/g)].map(x=>x[1]).sort(),
   exports:[...normalize(text).matchAll(/\bexport\s+(?:async\s+)?(?:function|const|let|var|class)\s+([A-Za-z_$][\w$]*)/g)].map(x=>x[1]).sort(),
-  imports:[...normalize(text).matchAll(/(?:from\s+|import\s*\(|require\s*\()(['\"][^'\"]+['\"])/g)].map(x=>x[1]).sort(),
+  imports:[...normalize(text).matchAll(/(?:from\s+|import\s*\(|require\s*\()(['"][^'"]+['"])/g)].map(x=>x[1]).sort(),
   controlFlow:(normalize(text).match(/\b(?:if|else|switch|case|for|while|try|catch|throw|return|await|yield)\b/g)||[]).sort(),
 });
-const literals=(text)=>[...normalize(text).matchAll(/['\"]([^'\"]{2,120})['\"]/g)].map(x=>x[1]).filter(x=>/[A-Za-z]/.test(x)).sort();
+const literals=(text)=>[...normalize(text).matchAll(/['"]([^'"]{2,120})['"]/g)].map(x=>x[1]).filter(x=>/[A-Za-z]/.test(x)).sort();
 const signature=(text)=>symbols(text);
 
-export function buildDifferentialProof({targetSha=null,failureFingerprint=null,changedPaths=[],baseFiles={},candidateFiles={},diff='',protectedPaths=[],verification=null,scopeFiles=[]}={}){
+export function buildDifferentialProof({targetSha=null,failureFingerprint=null,changedPaths=[],baseFiles={},candidateFiles={},protectedPaths=[],verification=null,scopeFiles=[]}={}){
  const failures=[]; const all=[...new Set(changedPaths)];
  if(!/^[a-f0-9]{40}$/.test(String(targetSha??''))) failures.push('DIFF_TARGET_SHA_INVALID');
  if(!failureFingerprint) failures.push('DIFF_FINGERPRINT_MISSING');
