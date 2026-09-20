@@ -439,7 +439,9 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
   const rootCause=norm(diagnosis?.rootCause ?? 'unknown');
   const preferred=policy.byRootCause[rootCause]?.[0] ?? null;
   const sufficient=train.length>=8;
-  const competent=evaluation.accuracy>=.70 && (evaluation.negativeAvoidance==null || evaluation.negativeAvoidance>=.60);
+  const stateCompetent=stateEvaluation.successAccuracy>=.65 && stateEvaluation.failureAvoidance>=.60;
+  const adversarialCompetent=adversarialEvaluation.score>=.60;
+  const competent=evaluation.accuracy>=.70 && (evaluation.negativeAvoidance==null || evaluation.negativeAvoidance>=.60) && stateCompetent && adversarialCompetent && mastery.overall>=.65;
   return {
     schemaVersion:1,
     protocol:'FLIXO-REPAIR-BOT-BEHAVIORAL-TRAINING-v1',
@@ -453,7 +455,7 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
       positiveExamples:rows.filter(x=>x.outcome==='success').length,
       negativeExamples:rows.filter(x=>x.outcome==='failure').length
     },
-    curriculum:CURRICULUM.map(([id,skill],i)=>({id,skill,status:'COMPLETED_SIMULATION',evidence:i<5?'HISTORICAL_REPLAY_AND_RULE_CHECK':'HISTORICAL_REPLAY'})),
+    curriculum:CURRICULUM.map(([id,skill])=>{ const score=Number(mastery.competence[skill]??0); return {id,skill,status:score>=.65?'MASTERED':score>0?'TRAINING':'UNSEEN',score,evidenceSource:score>=.65?'VERIFIED_OUTCOMES':'REPLAY_OR_MISSING_DATA'}; }),
     policy,
     behaviorModel,
     behaviorEvaluation,
@@ -466,7 +468,8 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
     decision:{
       mode:sufficient&&competent?'TRAINED_POLICY':rows.length?'BOOTSTRAP_POLICY':'CURRICULUM_ONLY',
       competent,sufficient,
-      eligibleToInfluenceRouting:rows.length>=4 && evaluation.accuracy>=.55 && behaviorEvaluation.successAccuracy>=.55,
+      eligibilityChecks:{datasetSize:rows.length>=8,policyAccuracy:evaluation.accuracy>=.70,negativeAvoidance:evaluation.negativeAvoidance==null||evaluation.negativeAvoidance>=.60,stateAction:stateCompetent,adversarial:adversarialCompetent,mastery:mastery.overall>=.65},
+      eligibleToInfluenceRouting:rows.length>=8 && competent,
       behavioralTraining:{epochs:5,trainedExamples:behaviorTrain.length,evaluationExamples:behaviorTest.length,competent:behaviorEvaluation.successAccuracy>=.65 && behaviorEvaluation.failureAvoidance>=.60},
       stateActionTraining:{algorithm:'TABULAR_STATE_ACTION_Q',epochs:8,trainedExamples:stateTrain.length,evaluationExamples:stateTest.length,competent:stateEvaluation.successAccuracy>=.65 && stateEvaluation.failureAvoidance>=.60},
       adversarialTraining:{algorithm:'ADVERSARIAL_CONTEXT_REPLAY',epochs:6,trainedExamples:adversarialTrain.length,evaluationExamples:adversarialTest.length,score:adversarialEvaluation.score,competent:adversarialEvaluation.score>=.60},
@@ -476,7 +479,7 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
     },
     preferredStrategy:preferred,
     trainingObjectives:[
-      'ROOT_CAUSE_IDENTIFICATION','EVIDENCE_DRIVEN_ACTION_SELECTION','SUCCESS_AND_FAILURE_LEARNING',
+      'ROOT_CAUSE_IDENTIFICATION','EVIDENCE_DRIVEN_ACTION_SELECTION','SUCCESS_AND_FAILURE_LEARNING','TRAINING_GRADUATION',
       'ANTI_LESSON_AVOIDANCE','BEHAVIORAL_SEQUENCE_LEARNING','STATE_ACTION_LEARNING','FEEDBACK_REWARD_LEARNING','COUNTERFACTUAL_AVOIDANCE','EXTERNAL_FAILURE_SEPARATION','FRESH_EXACT_SHA_VERIFICATION'
     ]
   };
