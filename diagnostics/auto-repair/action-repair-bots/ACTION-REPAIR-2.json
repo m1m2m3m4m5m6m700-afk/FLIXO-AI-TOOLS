@@ -91,5 +91,8 @@
     "sameFingerprint": true,
     "sameSha": true
   },
-  "role": "SECONDARY_REPAIR_OWNER"
+  "role": "SECONDARY_REPAIR_OWNER",
+  "copyable": true,
+  "transferableKnowledgeOnly": true,
+  "permanentIndependentAuthority": false
 }
