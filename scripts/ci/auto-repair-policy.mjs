@@ -1,7 +1,9 @@
 import { TRUST_PERIMETER_PATHS } from './control-plane-registry.mjs';
 export const repairPolicy = Object.freeze({
-  maxAttemptsPerFingerprint: 3,
-  maxRepairChainRuns: 8,
+  // High-capacity repair ceiling: one million operations/cycles before policy-level exhaustion.
+  // This is not a GREEN closure condition; canonical GREEN remains the only successful terminal state.
+  maxAttemptsPerFingerprint: 1_000_000,
+  maxRepairChainRuns: 1_000_000,
   maxChangedFiles: 8,
   maxChangedLines: 300,
   requireCleanGitBeforeRepair: true,
