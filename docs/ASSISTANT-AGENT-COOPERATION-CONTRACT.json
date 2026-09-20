@@ -361,5 +361,26 @@
     "conflictRule": "Preserve conflicting findings and resolve against current exact-SHA evidence; never last-writer-wins.",
     "fallback": "If peer seats are unavailable, controller may continue routine bounded work only when the canonical contract allows unilateral continuation; critical mutations remain blocked until required quorum.",
     "independence": "Peer seats are logical governance seats, not independent repository mutation identities."
+  },
+  "actionVaultContinuity": {
+    "enabled": true,
+    "vault": "diagnostics/auto-repair/action-vault",
+    "residents": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "alwaysResident": true,
+    "leaveVault": false,
+    "maxOperationsPerBot": 2000000,
+    "automaticVisitsPerBotPerDay": 3,
+    "automaticVisitsPerDay": 9,
+    "redCollaboration": "MANDATORY_THREE_BOT_SHARED_MISSION",
+    "failedAttemptEscalationThreshold": 20,
+    "supervisorRecipient": "assistantController",
+    "supervisorRoute": "scripts/ci/agent-communication.mjs -> .github/workflows/agent-communication-relay.yml -> scripts/ci/council-wake-dispatch.mjs",
+    "escalationIsNotClosure": true,
+    "closureOnly": "CANONICAL_GREEN",
+    "continueRepairAfterEscalation": true
   }
 }
