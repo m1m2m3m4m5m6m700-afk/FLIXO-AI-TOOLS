@@ -20,6 +20,13 @@ export const REPAIR_STATES = Object.freeze([
   'PROMOTION',
   'CLOSED',
   'BLOCKED',
+  'BLOCKED_EXTERNAL',
+  'STALE',
+  'RACE_DETECTED',
+  'BUDGET_EXHAUSTED',
+  'ROLLBACK_REQUIRED',
+  'CERTIFICATION_INVALID',
+  'ABORTED',
 ]);
 
 const TRANSITIONS = Object.freeze({

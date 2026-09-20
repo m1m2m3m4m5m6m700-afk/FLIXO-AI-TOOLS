@@ -168,4 +168,35 @@ assert.throws(() => createRepairCycle({
 assert.equal(CIRCUIT_BREAKER.failClosed, true);
 const advanced = transitionRepairCycle(claimed, 'EVIDENCE_LOCKED', { actor: 'WATCHER', reason: 'CLI_ADVANCE_TEST' });
 assert.equal(advanced.events.at(-1).to, 'EVIDENCE_LOCKED');
+
+assert.ok(REPAIR_STATES.includes('BLOCKED_EXTERNAL'));
+assert.ok(REPAIR_STATES.includes('STALE'));
+assert.ok(REPAIR_STATES.includes('RACE_DETECTED'));
+assert.ok(REPAIR_STATES.includes('BUDGET_EXHAUSTED'));
+assert.ok(REPAIR_STATES.includes('ROLLBACK_REQUIRED'));
+assert.ok(REPAIR_STATES.includes('CERTIFICATION_INVALID'));
+assert.ok(REPAIR_STATES.includes('ABORTED'));
+
+const promotedToInvalid = transitionRepairCycle(promotion, 'CERTIFICATION_INVALID', { actor: 'CERTIFICATION', reason: 'CERTIFICATE_STALE' });
+assert.equal(promotedToInvalid.state, 'CERTIFICATION_INVALID');
+const invalidReverified = transitionRepairCycle(promotedToInvalid, 'CANONICAL_CI', { actor: 'CERTIFICATION', reason: 'RECERTIFY_CURRENT_SHA' });
+assert.equal(invalidReverified.state, 'CANONICAL_CI');
+const promotedToRace = transitionRepairCycle(promotion, 'RACE_DETECTED', { actor: 'CONTROL_PLANE', reason: 'HEAD_CHANGED' });
+assert.equal(promotedToRace.state, 'RACE_DETECTED');
+assert.equal(transitionRepairCycle(promotedToRace, 'ABORTED', { actor: 'CONTROL_PLANE', reason: 'RACE_ABORT' }).state, 'ABORTED');
+assert.throws(() => transitionRepairCycle({ ...promotion, state: 'CERTIFICATION_INVALID' }, 'CLOSED'), /CONTROL_PLANE_INVALID_TRANSITION/);
+
+const blockedByNewSha = staleRecoveryDecision({
+  repairKey: identity.claimKey,
+  leaseCreatedAt: '2026-09-18T22:00:00Z',
+  now: Date.parse('2026-09-19T00:00:00Z'),
+  currentExecutionSha: SHA_B,
+  failedSha: SHA_A,
+  activeRuns: [],
+  outcomes: [],
+});
+assert.equal(blockedByNewSha.eligible, false);
+assert(blockedByNewSha.reasons.includes('EXECUTION_SHA_CHANGED'));
+
+assert.throws(() => deriveRepairIdentity({ failureFingerprint: FAILURE, failedSha: SHA_A, targetRunId: 'target-1', branch: 'feature' }), /CONTROL_PLANE_REPAIR_BRANCH_BLOCKED/);
 console.log('REPAIR_CONTROL_PLANE=PASS');
