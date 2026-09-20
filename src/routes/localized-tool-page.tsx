@@ -75,9 +75,11 @@ export function LocalizedToolPage() {
     setFavorite(next.includes(seo.tool.id));
   };
 
+  const structuredDataJson = JSON.stringify({ ...seo.structuredData, keywords: seo.keywords }).replace(/</g, '\\u003c');
+
   return (
     <main lang={seo.languageTag} dir={direction} className="tool-page-modern">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ ...seo.structuredData, keywords: seo.keywords }).replace(/</g, '\\u003c') }} />
+      <script type="application/ld+json">{structuredDataJson}</script>
       <nav className="tool-page-modern__nav" aria-label={copy.navigation}>
         <div className="tool-page-modern__nav-inner">
           <a className="tool-page-modern__brand" href={homeUrl} aria-label={copy.home}><FlixoLogoImage alt="FLIXO" width={44} height={44} className="tool-page-modern__brand-logo" /></a>
