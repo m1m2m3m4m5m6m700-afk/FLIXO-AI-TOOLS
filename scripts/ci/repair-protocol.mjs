@@ -74,6 +74,29 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   }
   return Object.freeze({actor,branch,mutation,protocol,admitted:true});
 }
+export function validateActionVaultVerifierProof({ proof, targetSHA, failureFingerprint, verifierAgent = 'actionRepairVerifier' } = {}) {
+  if (verifierAgent !== 'actionRepairVerifier') throw new Error('ACTION_VAULT_VERIFIER_AGENT_INVALID');
+  if (!proof || typeof proof !== 'object') throw new Error('ACTION_VAULT_VERIFIER_PROOF_REQUIRED');
+  if (proof.status !== 'CHALLENGE_PASSED') throw new Error('ACTION_VAULT_VERIFIER_CHALLENGE_FAILED');
+  if (proof.targetSha !== targetSHA) throw new Error('ACTION_VAULT_VERIFIER_SHA_MISMATCH');
+  if (proof.failureFingerprint !== failureFingerprint) throw new Error('ACTION_VAULT_VERIFIER_FINGERPRINT_MISMATCH');
+  if (!proof.verifierAgent || proof.verifierAgent !== verifierAgent) throw new Error('ACTION_VAULT_VERIFIER_IDENTITY_INVALID');
+  if (!Array.isArray(proof.alternativeHypotheses) || proof.alternativeHypotheses.length < 1) throw new Error('ACTION_VAULT_ALTERNATIVES_MISSING');
+  if (!Array.isArray(proof.falsificationChecks) || proof.falsificationChecks.length < 1) throw new Error('ACTION_VAULT_FALSIFICATION_CHECKS_MISSING');
+  if (!proof.counterEvidence || typeof proof.counterEvidence !== 'object') throw new Error('ACTION_VAULT_COUNTER_EVIDENCE_MISSING');
+  if (proof.mutationRecommendation === 'ALLOW' && proof.remainingRisks == null) throw new Error('ACTION_VAULT_REMAINING_RISKS_REQUIRED');
+  return Object.freeze({
+    verified: true,
+    verifierAgent,
+    targetSHA,
+    failureFingerprint,
+    challengeId: String(proof.challengeId ?? '').trim() || null,
+    alternativeCount: proof.alternativeHypotheses.length,
+    falsificationCount: proof.falsificationChecks.length,
+    mutationRecommendation: proof.mutationRecommendation ?? 'REVIEW',
+  });
+}
+
 export function validateErrorOnlyMutation({failureLocation,selectedFile,selectedFiles=[],changedPaths=[]}={}) {
   const normalize = (value) => String(value ?? '').trim().replace(/\\/g, '/');
   const location = normalize(failureLocation);
