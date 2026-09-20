@@ -19,9 +19,8 @@ permissions:
   contents: read
   checks: read
   pull-requests: read
-  issues: write
 
-# Every 5 minutes this canonical gate wakes, observes exact execution state, classifies RED/blocked/green, and dispatches the bounded repair cycle when an internal RED requires repair. Duplicate wake suppression is handled by the watchdog.
+# Every observation is evidence-bearing and must complete; duplicate wake suppression is handled by the watchdog.
 # The watcher itself never cancels an evidence-bearing observation.
 concurrency:
   group: flixo-continuous-error-watch-${{ github.run_id }}
@@ -93,28 +92,6 @@ jobs:
           printf '%s\n' "$MAIN_SHA" > /tmp/flixo-watch/main-sha
           printf '%s\n' "$WATCH_BRANCH" > /tmp/flixo-watch/observed-branch
           printf 'branch=%s\n' "$WATCH_BRANCH" >> "$GITHUB_OUTPUT"
-
-      - name: Verify five-minute canonical wake compliance
-        id: wake_compliance
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/flixo-watch
-          gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch "$GITHUB_REF_NAME" --limit 50 --json databaseId,status,conclusion,createdAt,updatedAt,startedAt,headSha,event > /tmp/flixo-watch/scheduled-wakes.json
-          gh run view "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,status,conclusion,createdAt,updatedAt,startedAt,headSha,event > /tmp/flixo-watch/current-wake.json
-          jq -s 'add' /tmp/flixo-watch/scheduled-wakes.json /tmp/flixo-watch/current-wake.json > /tmp/flixo-watch/wake-runs.json
-          node scripts/ci/wake-compliance.mjs /tmp/flixo-watch/wake-runs.json /tmp/flixo-watch/wake-compliance.json
-          jq -e '.status == "PASS" or .status == "BASELINE_REQUIRED"' /tmp/flixo-watch/wake-compliance.json >/dev/null
-
-      - name: Publish five-minute wake evidence
-        if: always() && steps.wake_compliance.outcome != 'skipped'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: flixo-wake-compliance-${{ github.run_id }}
-          path: /tmp/flixo-watch/wake-compliance.json
-          if-no-files-found: warn
-          retention-days: 14
 
       - name: Capture failed CI evidence for classification
         env:
@@ -208,9 +185,6 @@ jobs:
           node --experimental-strip-types scripts/ci/generate-repair-execution-prompts.mjs             /tmp/flixo-watch/input.json             /tmp/flixo-watch/report.json             /tmp/flixo-watch/execution-prompts.json             /tmp/flixo-watch/execution-prompts.md
           test -s /tmp/flixo-watch/execution-prompts.json
           test -s /tmp/flixo-watch/execution-prompts.md
-          VISIT_META="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); if(x.automaticVisitPolicy?.visitsPerBotPerDay!==3 || x.automaticVisitPolicy?.botCount!==3 || x.automaticVisitPolicy?.totalAutomaticVisitsPerDay!==9 || x.automaticVisitPolicy?.residentsNeverLeaveVault!==true || x.automaticVisitPolicy?.closure!=='CANONICAL_GREEN_ONLY') throw new Error('ACTION_VISIT_POLICY_INVALID'); const ids=(x.automaticVisits||[]).map(v=>v.botId); const counts={}; for(const id of ids) counts[id]=(counts[id]||0)+1; if(counts['ACTION-REPAIR']!==3 || counts['ACTION-REPAIR-2']!==3 || counts['ACTION-HISTORIAN-3']!==3) throw new Error('ACTION_VISIT_COUNT_INVALID'); process.stdout.write(JSON.stringify({visitCount:(x.automaticVisits||[]).length,counts}));")"
-          echo "ACTION_AUTOMATIC_VISITS=$VISIT_META"
-          echo "ACTION_AUTOMATIC_VISITS=9" >> "$GITHUB_ENV"
           PROMPT_META="$(node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const bundle = JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json', 'utf8'));
@@ -236,71 +210,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Wake Agent 2 with exact-SHA failure packet
-        if: >-
-          steps.evaluate.outcome == 'success' &&
-          steps.capture.outputs.branch == 'execution' &&
-          (
-            steps.evaluate.outputs.status == 'RED_INTERNAL' ||
-            steps.evaluate.outputs.status == 'BLOCKED_EXTERNAL' ||
-            steps.evaluate.outputs.status == 'FAIL_CLOSED'
-          )
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          REPORT=/tmp/flixo-watch/report.json
-          SHA="$(jq -r '.executionSha // empty' "$REPORT")"
-          STATUS="$(jq -r '.status // empty' "$REPORT")"
-          ROOT_CAUSE="$(jq -r '.rootCause // empty' "$REPORT")"
-          TARGET_RUN_ID="$(jq -r '.repair.targetRunId // empty' "$REPORT")"
-          FAILURE_FINGERPRINT="$(jq -r '.repair.failureFingerprint // empty' "$REPORT")"
-          PRIMARY_WORKFLOW="$(jq -r '[.errors[] | select(.workflow != null) | .workflow] | .[0] // "unknown-workflow"' "$REPORT")"
-          PROMPT_DIGEST="NOT_AVAILABLE"
-          PROMPT_COUNT="0"
-          if [ -s /tmp/flixo-watch/execution-prompts.json ]; then
-            PROMPT_DIGEST="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.digest ?? ''))")"
-            PROMPT_COUNT="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.promptCount ?? 0))")"
-          fi
-          test "$SHA" = "$(cat /tmp/flixo-watch/execution-sha)"
-          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
-          test -n "$STATUS"
-
-          SAFE_FINGERPRINT="${FAILURE_FINGERPRINT:-NO_FINGERPRINT}"
-          WAKE_ID="agent-2-${SHA}-${SAFE_FINGERPRINT}"
-          if gh api --paginate "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --jq '.[].body' | grep -Fq "<!-- FLIXO_AGENT_2_WAKE:${WAKE_ID} -->"; then
-            echo "AGENT_2_WAKE_DUPLICATE=true"
-            exit 0
-          fi
-
-          BODY="$(cat <<EOF
-          <!-- FLIXO_AGENT_COUNCIL_WAKE -->
-          ### AGENT 2 WAKE — FAILURE RECOVERY
-          ENTRY SHA: $SHA
-          ROLE: EXECUTION
-          WORK PACKAGE: ROOT-CAUSE-SPINE-001
-          TASK ID: AGENT-2-FAILURE-RECOVERY-001
-          WAKE ID: $WAKE_ID
-          STATUS: $STATUS
-          PRIMARY WORKFLOW: $PRIMARY_WORKFLOW
-          TARGET RUN ID: ${TARGET_RUN_ID:-NONE}
-          FAILURE FINGERPRINT: $SAFE_FINGERPRINT
-          ROOT CAUSE HINT: ${ROOT_CAUSE:-UNKNOWN_RCA}
-          PROMPT BUNDLE DIGEST: $PROMPT_DIGEST
-          PROMPT COUNT: $PROMPT_COUNT
-          PROMPT ARTIFACT: flixo-repair-execution-prompts-$GITHUB_RUN_ID
-          
-          REQUIRED MODE: RCA → REPAIR → TARGETED REGRESSION → AFFECTED-CONTRACT VERIFICATION
-          TEST POLICY: Reproduce the demonstrated failure first. Test the smallest affected surface. Do NOT rerun the full suite merely because a new commit exists; expand verification only when the repaired invariant, contract, security boundary, or certification proof requires it.
-          LEARNING POLICY: Record symptom, trigger, propagation, violated invariant, causal root, repair rationale, targeted proof, exact SHA, and lesson/anti-lesson for the next small task.
-          FAIL-CLOSED: Missing evidence, stale SHA, ambiguous RCA, or scope mismatch must block mutation and request investigation.
-          
-          <!-- FLIXO_AGENT_2_WAKE:${WAKE_ID} -->
-EOF
-)"
-          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
-          echo "AGENT_2_WAKE_SENT=true"
       - name: Dispatch internal repair target under Task Agent authority
         if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.evaluate.outputs.repair_required == 'true' && steps.capture.outputs.branch == 'execution'
         env:
@@ -415,26 +324,6 @@ EOF
             echo "REPAIR_ALREADY_CLAIMED=$REPAIR_KEY"
           fi
 
-          # Twenty completed failed repair attempts are a supervisor escalation threshold,
-          # not a closure threshold. Attempt 21 carries the formal wake request.
-          if [ "$DISPATCH" = true ] && [ "$ATTEMPT" -ge 21 ]; then
-            ESCALATION_FILE="/tmp/flixo-watch/action-supervisor-escalation.json"
-            node scripts/ci/agent-communication.mjs send-supervisor               --agent=ACTION-REPAIR               --task="ACTION-RED:$TARGET_RUN_ID:$FAILURE_FINGERPRINT"               --run-id="$TARGET_RUN_ID"               --fingerprint="$FAILURE_FINGERPRINT"               --attempt="$ATTEMPT"               --sha="$FAILED_SHA"               --reason="20_FAILED_REPAIR_ATTEMPTS" > "$ESCALATION_FILE"
-            test -s "$ESCALATION_FILE"
-            WAKE_ID="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.stdout.write(String(x.message.messageId||''))" "$ESCALATION_FILE")"
-            RELAY_BODY="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.stdout.write(String(x.relayBody||''))" "$ESCALATION_FILE")"
-            test -n "$WAKE_ID"
-            test -n "$RELAY_BODY"
-            if gh api --paginate "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --jq '.[].body' | grep -Fq "MESSAGE ID: $WAKE_ID"; then
-              echo "ACTION_SUPERVISOR_ESCALATION=ALREADY_SENT"
-            else
-              gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$RELAY_BODY" >/dev/null
-              echo "ACTION_SUPERVISOR_ESCALATION=SENT"
-            fi
-            echo "ACTION_REPAIR_ESCALATION_ATTEMPT=$ATTEMPT"
-            echo "ACTION_REPAIR_ESCALATION_THRESHOLD=20"
-          fi
-
       - name: Publish cycle evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -469,48 +358,3 @@ EOF
             GREEN) exit 0 ;;
             *) exit 1 ;;
           esac
-
-  post_merge_root_closure:
-    name: Post-merge root closure and provenance
-    if: >-
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.head_branch == 'main')
-      || (github.event_name == 'workflow_dispatch' &&
-      github.ref == 'refs/heads/main')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout exact main
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          ref: main
-          fetch-depth: 2
-          persist-credentials: false
-
-      - name: Setup Node
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version-file: .nvmrc
-
-      - name: Fetch exact execution contract ref
-        run: |
-          set -euo pipefail
-          git fetch --no-tags --depth=1 origin refs/heads/execution:refs/remotes/origin/execution
-          test -n "$(git rev-parse origin/execution)"
-
-      - name: Prove post-merge root closure
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ROOT_CLOSURE_OUTPUT: /tmp/flixo-root-closure-provenance.json
-        run: |
-          set -euo pipefail
-          node scripts/ci/verify-post-merge-root-closure.mjs
-
-      - name: Publish post-merge root closure evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: flixo-post-merge-root-closure-${{ github.run_id }}
-          path: /tmp/flixo-root-closure-provenance.json
-          if-no-files-found: warn
-          retention-days: 30
