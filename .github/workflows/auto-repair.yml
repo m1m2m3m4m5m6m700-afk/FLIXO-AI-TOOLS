@@ -401,39 +401,6 @@ jobs:
           ' /tmp/action-file-selection-decision.json >/dev/null
           echo "FLIXO_FILE_SELECTION_PATH=/tmp/action-file-selection-decision.json" >> "$GITHUB_ENV"
 
-      - name: Open mandatory three-bot collaboration mission
-        if: success()
-        run: |
-          set -euo pipefail
-          SHA="$(cat /tmp/flixo-failed-sha)"
-          FP="$FLIXO_FAILURE_FINGERPRINT"
-          TASK_ID="ACTION-RED:$TARGET_RUN_ID:$FP"
-          node scripts/ci/action-three-bot-collaboration.mjs             --task="$TASK_ID"             --fingerprint="$FP"             --sha="$SHA"             --run-id="$TARGET_RUN_ID"             --log="$FLIXO_FAILURE_LOG"             --file-selection="$FLIXO_FILE_SELECTION_PATH"             --programmer-twin-parity="$FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH"             --output=/tmp/action-three-bot-collaboration.json
-          test -s /tmp/action-three-bot-collaboration.json
-          jq -e --arg sha "$SHA" --arg fp "$FP" --arg run "$TARGET_RUN_ID" '
-            .status == "ACTIVE" and
-            .targetSha == $sha and
-            .failureFingerprint == $fp and
-            .failedRunId == $run and
-            (.participants | length) == 3 and
-            ([.participants[].id] | sort) == ["ACTION-HISTORIAN-3","ACTION-REPAIR","ACTION-REPAIR-2"] and
-            .collaborationRules.sameTask == true and
-            .collaborationRules.sameFingerprint == true and
-            .collaborationRules.sameSha == true and
-            .collaborationRules.evidenceExchangeBeforeMutation == true and
-            .collaborationRules.fileSelectionBeforeProgramming == true and
-            .collaborationRules.primaryCorrectnessProofBeforeFalsification == true and
-            .programmerTwinParity.proofObjectives.twin == "ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG" and
-            .fileSelectionDecision.decision == "SELECTED" and
-            .fileSelectionDecision.targetSha == $sha and
-            .programmerTwinParity.intelligenceParity == "EXACT" and
-            .programmerTwinParity.authorityParity == "SEPARATED_BY_DESIGN" and
-            .programmerTwinParity.targetSha == $sha
-          ' /tmp/action-three-bot-collaboration.json >/dev/null
-          echo "FLIXO_THREE_BOT_COLLABORATION_PATH=/tmp/action-three-bot-collaboration.json" >> "$GITHUB_ENV"
-          echo "ACTION_THREE_BOT_COLLABORATION=ACTIVE"
-
-
       - name: Prepare isolated runtime memory for ACTION-REPAIR
         if: always()
         run: |
@@ -768,6 +735,43 @@ jobs:
             .failureFingerprint == $fp
           ' /tmp/action-repair-twin-parity.json >/dev/null
           echo "FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH=/tmp/action-repair-twin-parity.json" >> "$GITHUB_ENV"
+
+      - name: Open mandatory three-bot collaboration mission
+        if: success()
+        run: |
+          set -euo pipefail
+          SHA="$(cat /tmp/flixo-failed-sha)"
+          FP="$FLIXO_FAILURE_FINGERPRINT"
+          TASK_ID="ACTION-RED:$TARGET_RUN_ID:$FP"
+          node scripts/ci/action-three-bot-collaboration.mjs             --task="$TASK_ID"             --fingerprint="$FP"             --sha="$SHA"             --run-id="$TARGET_RUN_ID"             --log="$FLIXO_FAILURE_LOG"             --file-selection="$FLIXO_FILE_SELECTION_PATH"             --programmer-twin-parity="$FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH"             --output=/tmp/action-three-bot-collaboration.json
+          test -s /tmp/action-three-bot-collaboration.json
+          jq -e --arg sha "$SHA" --arg fp "$FP" --arg run "$TARGET_RUN_ID" '
+            .status == "ACTIVE" and
+            .targetSha == $sha and
+            .failureFingerprint == $fp and
+            .failedRunId == $run and
+            (.participants | length) == 3 and
+            ([.participants[].id] | sort) == ["ACTION-HISTORIAN-3","ACTION-REPAIR","ACTION-REPAIR-2"] and
+            .collaborationRules.sameTask == true and
+            .collaborationRules.sameFingerprint == true and
+            .collaborationRules.sameSha == true and
+            .collaborationRules.evidenceExchangeBeforeMutation == true and
+            .collaborationRules.fileSelectionBeforeProgramming == true and
+            .collaborationRules.primaryCorrectnessProofBeforeFalsification == true and
+            .programmerTwinParity.proofObjectives.twin == "ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG" and
+            .fileSelectionDecision.decision == "SELECTED" and
+            .fileSelectionDecision.targetSha == $sha and
+            .primaryCorrectnessProof.proofObjective == "PROVE_PRIMARY_REPAIR_CORRECT" and
+            .programmerTwinParity.intelligenceParity == "EXACT" and
+            .programmerTwinParity.authorityParity == "SEPARATED_BY_DESIGN" and
+            .cognitiveAwareness.protocol == "ACTION-SYSTEM-COGNITIVE-AWARENESS-v1" and
+            .cognitiveAwareness.targetSha == $sha and
+            .programmerTwinParity.authorityParity == "SEPARATED_BY_DESIGN" and
+            .programmerTwinParity.targetSha == $sha
+          ' /tmp/action-three-bot-collaboration.json >/dev/null
+          echo "FLIXO_THREE_BOT_COLLABORATION_PATH=/tmp/action-three-bot-collaboration.json" >> "$GITHUB_ENV"
+          echo "ACTION_THREE_BOT_COLLABORATION=ACTIVE"
+
 
       - name: ACTION-REPAIR-2 adversarial falsification of ACTION-REPAIR correctness proof
         id: action_repair_assistant
