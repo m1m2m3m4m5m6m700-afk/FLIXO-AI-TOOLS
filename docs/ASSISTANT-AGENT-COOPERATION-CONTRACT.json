@@ -53,7 +53,7 @@
       "staleMessage": "FAIL_CLOSED",
       "conflict": "MASTER_ARBITRATION_REQUIRED"
     },
-    "action_vault_reasoning": "The Action Vault is a bounded extension of P20 for the resident repair triad: ACTION-REPAIR performs only admitted repair mutation, ACTION-REPAIR-2 independently challenges the causal explanation and verification evidence without mutation, and ACTION-HISTORIAN-3 records lessons/anti-lessons and recurrence prevention without mutation. A triad mission must preserve exact SHA, failure fingerprint, ownership, independent roles, targeted regression and final evidence; memory never grants authority and blind retries are forbidden."
+    "action_vault_reasoning": "The Action Vault is a bounded extension of P20 for the resident repair triad: ACTION-REPAIR performs only admitted repair mutation, ACTION-REPAIR-2 independently challenges the causal explanation and verification evidence without mutation, and ACTION-HISTORIAN-3 records lessons/anti-lessons and recurrence prevention without mutation. A triad mission must preserve exact SHA, failure fingerprint, ownership, independent roles, targeted regression and final evidence; memory never grants authority and blind retries are forbidden. Mutation admission additionally requires an independent verifier proof bound to the same exact SHA and failure fingerprint."
   },
   "messageEnvelope": {
     "required": [
@@ -394,7 +394,8 @@
           "diagnosis",
           "ownershipLock",
           "repairProtocolAdmission",
-          "proofObligations"
+          "proofObligations",
+          "actionVaultVerifierProof"
         ],
         "requiredOutputs": [
           "changedFiles",
@@ -428,7 +429,12 @@
           "challengeResult",
           "counterEvidence",
           "verificationState",
-          "remainingRisks"
+          "remainingRisks",
+          "alternativeHypotheses",
+          "falsificationChecks",
+          "counterEvidence",
+          "targetSha",
+          "failureFingerprint"
         ],
         "forbidden": [
           "source mutation",
@@ -504,6 +510,13 @@
     "supervisorRoute": "scripts/ci/agent-communication.mjs -> .github/workflows/agent-communication-relay.yml -> scripts/ci/council-wake-dispatch.mjs",
     "escalationIsNotClosure": true,
     "closureOnly": "CANONICAL_GREEN",
-    "continueRepairAfterEscalation": true
+    "continueRepairAfterEscalation": true,
+    "preMutationChallenge": {
+      "required": true,
+      "artifact": "actionVaultVerifierProof",
+      "verifier": "actionRepairVerifier",
+      "admission": "verify exact SHA + failure fingerprint + alternatives + falsification checks + counter-evidence + remaining risks",
+      "failClosed": true
+    }
   }
 }
