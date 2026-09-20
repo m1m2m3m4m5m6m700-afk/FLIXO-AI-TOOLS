@@ -5,6 +5,8 @@ export function FilterMaskTool() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const recordFrameRef = useRef<number | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [running, setRunning] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -57,6 +59,7 @@ export function FilterMaskTool() {
 
   function stop() {
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
+    if (recordFrameRef.current !== null) cancelAnimationFrame(recordFrameRef.current);
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
@@ -70,16 +73,40 @@ export function FilterMaskTool() {
 
   function startRecording() {
     const stream = streamRef.current;
-    if (!stream || !('MediaRecorder' in window)) {
-      setError('Video recording is not supported in this browser.');
+    const video = videoRef.current;
+    if (!stream || !video || !('MediaRecorder' in window) || !('captureStream' in HTMLCanvasElement.prototype)) {
+      setError('Video recording with live effects is not supported in this browser.');
       return;
     }
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    recordCanvasRef.current = canvas;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { setError('Video recording is unavailable.'); return; }
+    const outputStream = canvas.captureStream(30);
+    const audioTrack = stream.getAudioTracks()[0];
+    if (audioTrack) outputStream.addTrack(audioTrack);
     const mimeType = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find((type) => MediaRecorder.isTypeSupported(type));
     try {
       chunksRef.current = [];
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const recorder = new MediaRecorder(outputStream, mimeType ? { mimeType } : undefined);
+      const drawFrame = () => {
+        if (recorder.state !== 'recording') return;
+        ctx.save();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.filter = liveFilter === 'none' ? 'none' : liveFilter;
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        recordFrameRef.current = requestAnimationFrame(drawFrame);
+      };
       recorder.ondataavailable = (event) => { if (event.data.size) chunksRef.current.push(event.data); };
       recorder.onstop = () => {
+        if (recordFrameRef.current !== null) cancelAnimationFrame(recordFrameRef.current);
+        recordFrameRef.current = null;
+        outputStream.getTracks().forEach((track) => track.stop());
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'video/webm' });
         const url = URL.createObjectURL(blob);
         setCapturedUrl((previous) => { if (previous) URL.revokeObjectURL(previous); return url; });
@@ -89,6 +116,7 @@ export function FilterMaskTool() {
       recorder.onerror = () => { setRecording(false); setError('Video recording failed.'); };
       recorder.start(1000);
       recorderRef.current = recorder;
+      recordFrameRef.current = requestAnimationFrame(drawFrame);
       setRecording(true);
     } catch {
       setError('Video recording could not be started.');
