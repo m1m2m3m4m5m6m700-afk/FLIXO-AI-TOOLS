@@ -172,7 +172,7 @@ if (exists('docs/AGENT-HANDOFF-REPORT-SCHEMA.md')) {
   for (const marker of requiredHandoffMarkers) if (!text.includes(marker)) fail('HANDOFF_SCHEMA_MISSING', marker);
 }
 
-const requiredCoordinationMarkers = ['coordination-state.json', 'coordination-locks.json', 'task-packets', 'task-create', 'task-claim', 'task-release', 'task-complete', 'ingest-handoff', 'COORDINATION_CONFLICT'];
+const requiredCoordinationMarkers = ['coordination-state.json', 'coordination-locks.json', 'task-packets', 'task-create', 'task-claim', 'task-release', 'task-complete', 'ingest-handoff', 'COORDINATION_CONFLICT', 'COORDINATION_MUTATION_BRANCH_BLOCKED', 'HANDOFF_STALE_EXIT_SHA', 'HANDOFF_SCOPE_EXPANSION_BLOCKED', 'COORDINATION_GOVERNANCE_DRIFT', 'STALE_SESSION_KILL_SWITCH'];
 if (exists('scripts/ci/agent-coordination.mjs')) {
   const text = read('scripts/ci/agent-coordination.mjs');
   for (const marker of requiredCoordinationMarkers) if (!text.includes(marker)) fail('COORDINATION_TOOL_MISSING', marker);
