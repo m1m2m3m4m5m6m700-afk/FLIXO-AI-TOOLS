@@ -33,6 +33,26 @@ const indexFile = path.join(inbox, 'index.json');
 const originalIndex = fs.existsSync(indexFile) ? fs.readFileSync(indexFile, 'utf8') : null;
 
 try {
+  const directId = 'CELL-DIRECT-MASTER-' + Date.now();
+  const direct = JSON.parse(execFileSync('node', [
+    'scripts/ci/agent-communication.mjs','send-master',
+    '--agent=CELL-001','--task=CELL-MASTER-001',
+    '--intent=CELL_DIRECT_MASTER_REQUEST','--risk=MEDIUM',
+    '--sha='+sha,'--message-id='+directId,
+    '--idempotency-key='+directId+':'+sha,
+    '--payload='+JSON.stringify({request:'MASTER_REVIEW'})
+  ], { encoding: 'utf8' }));
+  assert.equal(direct.status, 'RECEIVED');
+  assert.equal(direct.actor, 'CELL-001');
+  assert.equal(direct.recipient, 'assistantController');
+  assert.equal(direct.payload.directMasterChannel, true);
+  assert.equal(direct.entrySha, sha);
+  const directPath = path.join(inbox, (await import('node:crypto')).createHash('sha256').update(directId, 'utf8').digest('hex') + '.json');
+  fs.rmSync(directPath, { force: true });
+  const directIndex = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
+  delete directIndex.messages[directId];
+  fs.writeFileSync(indexFile, JSON.stringify(directIndex, null, 2) + '\n');
+
   assert.equal(validateMessage(base, sha).entrySha, sha);
   assert.throws(() => validateMessage({ ...base, recipient: undefined }, sha), /RECIPIENT|REQUIRED_FIELD/);
   const first = ingest(base, sha);
