@@ -67,3 +67,25 @@ SLEEP/IDLE is not a chat state for an open mission. A completed mission requires
 ## Vault change watchdog
 
 Any committed change under ACTION VAULT wakes ACTION-REPAIR, ACTION-REPAIR-2, and ACTION-HISTORIAN-3 on the exact resulting SHA. The wake creates a shared preparation task and runs only the targeted vault regression set; it does not authorize source mutation.
+
+## Specialized triad roles
+
+
+### ACTION-REPAIR — Programming owner
+Reads the current code as a programmer, performs root-cause reasoning, consumes the historical prediction packet, and applies the bounded source repair when it is the active owner.
+
+### ACTION-REPAIR-2 — Historical explorer and predictor
+Searches the historical Action error index, Action repair catalog, repair memory, lessons and anti-lessons. Produces a ranked **PREDICTIVE_REPAIR_PACKET_V1** with candidate strategies, likely files and predicted checks. It never mutates source or tests.
+
+### ACTION-HISTORIAN-3 — Failure ledger
+Records every RED, repair attempt, failed attempt, handoff, prediction outcome and Canonical GREEN chain with exact task/fingerprint/SHA/run provenance. Failure records are append-only and remain available as learning material.
+
+### Required order
+FAILURE RECORD
+→ HISTORICAL SEARCH + PREDICTION
+→ PROGRAMMER ANALYSIS
+→ OWNER MUTATION
+→ VERIFICATION
+→ FAILURE/GREEN RECORD
+
+A prediction is a proposal, not proof. The programmer may reject it. A repair attempt may fail. Every failure is recorded and remains part of the learning corpus. Only Canonical GREEN promotes lessons to verified knowledge.
