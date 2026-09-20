@@ -1,0 +1,122 @@
+name: FLIXO Cell Master Consult Relay
+
+on:
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: Registered CELL agent ID
+        required: true
+        type: string
+      task:
+        description: Current task ID
+        required: true
+        type: string
+      entry_sha:
+        description: Exact execution SHA
+        required: true
+        type: string
+      risk:
+        description: Risk level
+        required: true
+        default: MEDIUM
+        type: choice
+        options: [LOW, MEDIUM, HIGH, CRITICAL]
+      question:
+        description: Question for Master GPT
+        required: true
+        type: string
+      obstacle:
+        description: Blocking obstacle
+        required: false
+        type: string
+      evidence:
+        description: Comma-separated evidence references
+        required: false
+        type: string
+      request_id:
+        description: Stable request identity
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+
+concurrency:
+  group: flixo-cell-master-consult-${{ inputs.request_id }}
+  cancel-in-progress: false
+
+jobs:
+  consult:
+    name: CELL to Master GPT consult
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact execution SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate CELL identity and exact SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGENT: ${{ inputs.agent }}
+          ENTRY_SHA: ${{ inputs.entry_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$AGENT" =~ ^CELL-[0-9]{3}$ ]]
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$ENTRY_SHA" = "$CURRENT_SHA"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const x=JSON.parse(fs.readFileSync('docs/agents/CELL-BOT-REGISTRY.json','utf8'));
+          const id=process.env.AGENT;
+          if(!Array.isArray(x.bots)||!x.bots.some(b=>String(b.id)===id)) throw new Error('CELL_MASTER_UNKNOWN_CELL_AGENT='+id);
+          NODE
+
+      - name: Obtain GitHub OIDC token
+        id: oidc
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+          AUDIENCE="https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime"
+          RESPONSE="$(curl -fsS --max-time 10 -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUDIENCE")"
+          TOKEN="$(printf '%s' "$RESPONSE" | jq -r '.value')"
+          test -n "$TOKEN" && test "$TOKEN" != null
+          printf '%s' "$TOKEN" > /tmp/github-oidc-token
+
+      - name: Send CELL teaching consult to Master CHIEF
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OIDC_TOKEN: /tmp/github-oidc-token
+          ENTRY_SHA: ${{ inputs.entry_sha }}
+          REQUEST_ID: ${{ inputs.request_id }}
+          AGENT: ${{ inputs.agent }}
+          TASK: ${{ inputs.task }}
+          RISK: ${{ inputs.risk }}
+          QUESTION: ${{ inputs.question }}
+          OBSTACLE: ${{ inputs.obstacle }}
+          EVIDENCE: ${{ inputs.evidence }}
+        run: |
+          set -euo pipefail
+          TOKEN="$(cat "$OIDC_TOKEN")"
+          PAYLOAD="$(jq -nc --arg messageId "$REQUEST_ID" --arg idempotencyKey "$REQUEST_ID:$ENTRY_SHA" --arg taskId "$TASK" --arg workPackageId "CELL-MASTER-CONSULT" --arg entrySha "$ENTRY_SHA" --arg agent "$AGENT" --arg risk "$RISK" --arg question "$QUESTION" --arg obstacle "$OBSTACLE" --arg evidence "$EVIDENCE" '{messageId:$messageId,idempotencyKey:$idempotencyKey,taskId:$taskId,workPackageId:$workPackageId,entrySha:$entrySha,requestedByAccountId:"SYSTEM",primaryAccountId:"CHIEF",fallbackAccountId:"CHIEF",source:"CELL_MASTER_CONSULT",payload:{requestKind:"MASTER_TEACHING_CONSULT",requestedByAgent:$agent,risk:$risk,question:$question,obstacle:$obstacle,evidence:$evidence,requireTeaching:true,returnToAgent:$agent,threeModelRuntime:["CHIEF","WORKER_A","WORKER_B"]}}')"
+          RESPONSE="$(curl -fsS --max-time 15 -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data "$PAYLOAD" "https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime?action=dispatch")"
+          printf '%s\n' "$RESPONSE" > /tmp/master-consult-response.json
+          jq -e '.ok==true and .primaryAccountId=="CHIEF" and .entrySha==env.ENTRY_SHA' /tmp/master-consult-response.json >/dev/null
+
+      - name: Publish consult evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-cell-master-consult-${{ github.run_id }}
+          path: /tmp/master-consult-response.json
+          if-no-files-found: ignore
+          retention-days: 14
