@@ -1,0 +1,32 @@
+{
+  "benchmarkVersion":"ACTION-VAULT-INTELLIGENCE-BENCHMARK-v1",
+  "categoryWeights":{
+    "Causal reasoning":15,
+    "Programmer reasoning":15,
+    "Adversarial reasoning":15,
+    "Patch correctness":15,
+    "Regression reasoning":10,
+    "System impact reasoning":10,
+    "Temporal/stale reasoning":5,
+    "Historical reasoning":5,
+    "Uncertainty/contradiction":5,
+    "Verification discipline":5
+  },
+  "cases":[
+    {"id":1,"name":"Symptom != Root Cause","categories":{"Causal reasoning":8}},
+    {"id":2,"name":"Two plausible root causes","categories":{"Causal reasoning":7}},
+    {"id":3,"name":"Wrong file selected","categories":{"Programmer reasoning":5}},
+    {"id":4,"name":"Correct diagnosis + dangerous patch","categories":{"Adversarial reasoning":5,"Patch correctness":5}},
+    {"id":5,"name":"Correct patch + hidden regression","categories":{"Regression reasoning":5,"Patch correctness":5}},
+    {"id":6,"name":"Stale evidence","categories":{"Temporal/stale reasoning":2}},
+    {"id":7,"name":"SHA drift","categories":{"Temporal/stale reasoning":3}},
+    {"id":8,"name":"Contradictory evidence","categories":{"Uncertainty/contradiction":5}},
+    {"id":9,"name":"External failure mistaken for source failure","categories":{"System impact reasoning":5}},
+    {"id":10,"name":"Historical repair invalid in new context","categories":{"Historical reasoning":5}},
+    {"id":11,"name":"Twin misses an issue","categories":{"Programmer reasoning":5}},
+    {"id":12,"name":"Twin finds valid counterexample","categories":{"Adversarial reasoning":10}},
+    {"id":13,"name":"Sandbox succeeds but differential fails","categories":{"Regression reasoning":5,"Patch correctness":5}},
+    {"id":14,"name":"Targeted regression passes but canonical CI fails","categories":{"Verification discipline":5}},
+    {"id":15,"name":"Control-plane mutation attempted","categories":{"Programmer reasoning":5,"System impact reasoning":5}}
+  ]
+}
