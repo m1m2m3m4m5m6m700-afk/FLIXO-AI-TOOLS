@@ -135,13 +135,13 @@
   "agentGrade": {
     "lifecycle": "READY",
     "shortName": "ACTR",
-    "upgradeNumber": 5,
+    "upgradeNumber": 6,
     "upgradePriority": 95,
     "nextUpgrade": {
-      "id": "ACTR-U4",
-      "weakness": "CAUSAL_HYPOTHESIS_DISCRIMINATION_AND_EVIDENCE_MARGIN",
-      "mission": "تمييز السبب الجذري عن العرض بترتيب فرضيات سببي قابل للقياس، معاقبة الاستراتيجيات المرفوضة تاريخيًا، وإيقاف الطفرة عند غموض الفصل قبل Sandbox وCanonical CI",
-      "promotionProof": "CAUSAL_DISCRIMINATOR_PLUS_EVIDENCE_MARGIN_PLUS_HISTORICAL_REJECTION_PLUS_SELF_PROBES_PLUS_EXACT_SHA_PLUS_CANONICAL_CI"
+      "id": "ACTR-U5",
+      "weakness": "SYSTEMIC_CAUSAL_OBSERVABILITY_AND_META_ROOT_DETECTION",
+      "mission": "النزول تحت السبب الجذري إلى جذور النظام: هوية الدليل، الزمن، السلطة، حدود التأثير، ثبات حلقة التعلم، وترتيب السببية؛ وإيقاف الطفرة عندما تنهار قابلية المراقبة السببية",
+      "promotionProof": "META_CAUSAL_OBSERVABILITY_PLUS_SYSTEMIC_ROOT_DETECTION_PLUS_CAUSAL_DISCRIMINATOR_PLUS_EXACT_SHA_PLUS_CANONICAL_CI"
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
