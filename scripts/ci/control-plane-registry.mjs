@@ -20,6 +20,9 @@ export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
   'auto-repair.yml',
   'execution-sync.yml',
   'wp0-trust-baseline.yml',
+  'repository-security-baseline.yml',
+  'agent-master-activation.yml',
+  'council-wake-push-relay.yml',
 ]);
 
 export const HISTORICAL_REPAIR_WORKFLOWS = Object.freeze([
