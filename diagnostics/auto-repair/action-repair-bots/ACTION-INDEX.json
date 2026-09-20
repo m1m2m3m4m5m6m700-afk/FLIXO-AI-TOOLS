@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "authority": "ACTION_REPAIR_BOT_PERSONAL_MEMORY",
   "botId": "ACTION-INDEX",
   "displayName": "الفهرس",
@@ -7,8 +7,8 @@
   "transferableKnowledgeOnly": true,
   "permanentIndependentAuthority": false,
   "independentDevelopment": true,
-  "role": "ACTION_SOLUTION_INDEXER",
-  "mission": "Historical GitHub Actions error index and prior-solution retrieval.",
+  "role": "ACTION_SOLUTION_INDEXER_AND_INFORMATION_CENTER",
+  "mission": "Canonical historical Actions index plus shared repair-information center for the five-bot squad.",
   "state": {
     "status": "READY",
     "taskCount": 0,
@@ -88,5 +88,14 @@
       "recordCount": 2,
       "updatedAt": "2026-09-20T11:55:51.945Z"
     }
+  },
+  "center": {
+    "schemaVersion": 1,
+    "authority": "ACTION_REPAIR_INFORMATION_CENTER",
+    "knowledgeOnly": true,
+    "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY",
+    "events": [],
+    "eventCount": 0,
+    "lastEventAt": null
   }
 }
