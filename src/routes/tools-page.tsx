@@ -11,7 +11,6 @@ import {
   Layers2,
   MonitorSmartphone,
   Palette,
-  RotateCw,
   ScanText,
   Settings2,
   SlidersHorizontal,
