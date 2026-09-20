@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+const root=process.cwd(); const dir=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-release-evidence-'));
+const good=path.join(dir,'good.json'); const bad=path.join(dir,'bad.json'); const sha='a'.repeat(40);
+const base={schemaVersion:1,commitSha:sha,verification:{state:'passed',canonicalGate:'passed',requiredChecks:'passed'},deployment:{state:'blocked',provider:'Vercel'},runtime:{state:'unknown'},artifact:{id:'artifact-1',sha256:'b'.repeat(64)}};
+fs.writeFileSync(good,JSON.stringify(base)); fs.writeFileSync(bad,JSON.stringify({...base,commitSha:'c'.repeat(40)}));
+assert.equal(spawnSync(process.execPath,['scripts/ci/release-evidence-binding.mjs',good],{cwd:root,env:{...process.env,EXACT_SHA:sha}}).status,0);
+assert.notEqual(spawnSync(process.execPath,['scripts/ci/release-evidence-binding.mjs',bad],{cwd:root,env:{...process.env,EXACT_SHA:sha}}).status,0);
+fs.rmSync(dir,{recursive:true,force:true}); console.log('RELEASE_EVIDENCE_BINDING_SELF_TEST=PASS');

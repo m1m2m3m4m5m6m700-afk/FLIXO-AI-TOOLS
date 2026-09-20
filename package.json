@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
-    "build": "npm run ensure:agent-locales && npm run validate:site-origin && vite build && node scripts/ci/validate-build-chunk-boundaries.mjs && FLIXO_GENERATED_OUTPUT_DIR=dist npm run generate:robots && FLIXO_GENERATED_OUTPUT_DIR=dist npm run generate:sitemap && node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-static-route-entries.mjs",
+    "build": "npm run ensure:agent-locales && npm run validate:site-origin && vite build && node scripts/ci/validate-build-chunk-boundaries.mjs && node scripts/validate-performance-budget.mjs && FLIXO_GENERATED_OUTPUT_DIR=dist npm run generate:robots && FLIXO_GENERATED_OUTPUT_DIR=dist npm run generate:sitemap && node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/generate-static-route-entries.mjs",
     "build:runtime": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port 3000",
     "typecheck": "npm run ensure:agent-locales && tsc --noEmit",
@@ -86,7 +86,7 @@
     "verify:admin-persistence-roundtrip": "node scripts/verify-admin-persistence-roundtrip.mjs",
     "test:negative-control-integration": "node scripts/ci/test-negative-control-integration.mjs",
     "validate:i18n-observer-boundary": "node scripts/validate-i18n-observer-boundary.mjs",
-    "test:unit": "npm run test:repair-protocol && npm run test:agent-admission && npm run test:agent-coordination && npm run test:council-wake && npm run test:quickflow && npm run test:filter-mask && npm run test:agent-capability && npm run test:agent-execution-gate && npm run test:agent-language && npm run test:ai-planner && npm run test:agent-self-correction && npm run test:llm-provider && npm run test:i18n && npm run test:route-resolver && npm run test:upload-boundary && npm run test:tool-localization && npm run test:image-core && npm run test:image-platform-runtime && npm run test:tool-platform && npm run test:tool-platform-autodiscovery && npm run validate:i18n-observer-boundary && npm run validate:tool-definition && npm run test:unified-audit && npm run test:checkpoint-producer && npm run test:execution-sha-provenance && npm run test:admin-auth-session && npm run test:admin-phase2 && npm run test:admin-server-boundary && npm run test:admin-persistence && npm run test:admin-persistence-contract && npm run test:admin-canonical-contract && npm run test:admin-integrity-readback && npm run test:admin-execution-policy && npm run test:admin-capability-contract && npm run test:negative-control-integration && npm run test:council-external",
+    "test:unit": "npm run test:repair-protocol && npm run test:agent-admission && npm run test:agent-coordination && npm run test:council-wake && npm run test:quickflow && npm run test:filter-mask && npm run test:agent-capability && npm run test:agent-execution-gate && npm run test:agent-language && npm run test:ai-planner && npm run test:agent-cognitive && npm run test:agent-self-correction && npm run test:llm-provider && npm run test:i18n && npm run test:route-resolver && npm run test:upload-boundary && npm run test:tool-localization && npm run test:image-core && npm run test:image-platform-runtime && npm run test:tool-platform && npm run test:shared-contract-harness && npm run test:release-evidence-binding && npm run test:tool-platform-autodiscovery && npm run validate:i18n-observer-boundary && npm run validate:tool-definition && npm run test:unified-audit && npm run test:checkpoint-producer && npm run test:execution-sha-provenance && npm run test:admin-auth-session && npm run test:admin-phase2 && npm run test:admin-server-boundary && npm run test:admin-persistence && npm run test:admin-persistence-contract && npm run test:admin-canonical-contract && npm run test:admin-integrity-readback && npm run test:admin-execution-policy && npm run test:admin-capability-contract && npm run test:negative-control-integration && npm run test:council-external",
     "test:continuous-error-watch": "node scripts/ci/test-continuous-error-watch.mjs",
     "test:repair-supervision": "node scripts/ci/test-repair-supervision-contract.mjs",
     "test:auto-repair": "npm run test:prompt-registry && npm run test:repair-control-plane && npm run test:continuous-error-watch && npm run test:repair-supervision && node scripts/ci/test-auto-repair-diagnosis.mjs && node scripts/ci/test-auto-repair-learning.mjs && node scripts/ci/test-auto-repair-architecture.mjs && node scripts/ci/test-auto-repair-reasoning.mjs && node scripts/ci/test-auto-repair-strategy.mjs && node scripts/ci/test-auto-repair-external-guard.mjs && FLIXO_HISTORICAL_ROLLBACK_SELF_TEST=1 node scripts/ci/auto-repair/historical-rollback.mjs",
@@ -134,7 +134,10 @@
     "test:council-external": "node --experimental-strip-types scripts/test-council-external-runtime.mjs && npm run test:council-runtime-route && npm run test:council-bridge",
     "test:council-runtime-route": "node scripts/test-council-runtime-route.mjs",
     "council:bridge": "node scripts/council/external-gpt-bridge.mjs",
-    "test:council-bridge": "node scripts/test-council-external-gpt-bridge.mjs"
+    "test:council-bridge": "node scripts/test-council-external-gpt-bridge.mjs",
+    "test:shared-contract-harness": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-shared-contract-harness.mjs",
+    "test:release-evidence-binding": "node scripts/ci/test-release-evidence-binding.mjs",
+    "validate:release-evidence-binding": "node scripts/ci/release-evidence-binding.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
