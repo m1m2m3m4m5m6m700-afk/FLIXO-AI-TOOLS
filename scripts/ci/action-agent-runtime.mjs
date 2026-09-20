@@ -6,6 +6,7 @@ import { buildMentorPacket } from './action-code-mentor.mjs';
 import { buildSoftwareEngineerPacket } from './action-software-engineer-core.mjs';
 import { buildPrediction } from './action-historical-predictor.mjs';
 import { buildRepairEngineeringPlan, executeRepairEngineering } from './action-repair-engineering.mjs';
+import { buildCausalDiscriminator } from './action-causal-discriminator.mjs';
 
 const ROOT=process.cwd();
 const arg=(name,fallback='')=>{const p='--'+name+'=';const v=process.argv.find(x=>x.startsWith(p));return v?v.slice(p.length):fallback};
@@ -71,12 +72,14 @@ const lanes={
   HISTORIAN:{agentId:'ACTION-HISTORIAN-3',profile:'ACTION_FAILURE_HISTORIAN_V2',lane:'FAILURE_LEDGER_AND_LEARNING_RECORDING'}
 };
 
-const hypothesisBase=[
-  {id:'H1',kind:'PRIMARY',statement:normalizedLog?'Root cause must be causally supported by the exact current failure evidence.':'No current failure log supplied; hypothesis is provisional.',score:normalizedLog?0.55:0.2,requiresFreshEvidence:true},
-  {id:'H2',kind:'ADVERSARIAL',statement:'The visible RED may be a propagated symptom; test an earlier causal boundary before mutation.',score:0.6,requiresFalsification:true}
-];
-if(exactHistoricalIds.length) hypothesisBase[0].score+=0.2;
-if(historicalActivity.length) hypothesisBase[1].score+=0.1;
+const causalDiscriminator=buildCausalDiscriminator({
+  failureLog:normalizedLog,
+  exactCases,
+  doNotRepeat,
+  fingerprint,
+  targetSha,
+});
+const hypothesisBase=causalDiscriminator.hypotheses.slice(0,12);
 
 const toolBudget={
   maxToolCalls:36,
@@ -89,7 +92,10 @@ const toolBudget={
   parallelMutationAllowed:false,
   maxCandidatePatches:12,
   maxSandboxCandidates:6,
-  maxSandboxChecks:12
+  maxSandboxChecks:12,
+  maxCausalHypotheses:12,
+  minHypothesisSeparation:0.08,
+  causalDiscriminatorProtocol:'CAUSAL-DISCRIMINATOR-v1'
 };
 
 const mentorPaths=(process.env.FLIXO_ACTION_CODE_MENTOR_PATHS??'').split(',').map((x)=>x.trim()).filter(Boolean);
@@ -172,6 +178,9 @@ const runtime={
   },
   evidence:{items:evidenceItems,minimumActionableScore:0.8,proofAuthority:'DAILY_FLIXO_GREEN_GATE'},
   hypotheses:hypothesisBase,
+  causalDiscriminator,
+  selectedStrategy:causalDiscriminator.ranking.selectedStrategy,
+  selectionConfidence:causalDiscriminator.capabilityScore,
   codeMentor:{requiredByActionRepair:true,packet:codeMentor},
   historicalPrediction:{requiredByActionRepair:true,provider:'ACTION-REPAIR-2',packet:historicalPrediction},
   softwareEngineerCore:{requiredByActionRepair:true,provider:'ACTION-REPAIR',packet:softwareEngineerCore},
@@ -182,7 +191,7 @@ const runtime={
   safety,
   lifecycle:{current:'INTAKE',next:'CONTEXT_RETRIEVAL',closure:'CANONICAL_GREEN_ONLY'},
   outputContract:{
-    required:[ 'currentEvidence','unknowns','historicalMatches','candidateHypotheses','codeMentorPacket','historicalPredictionPacket','softwareEngineerCorePacket','repairEngineeringPacket','differentialVerification','selectedStrategy','selfCritique','independentReview','targetedRegression','exactSha','canonicalGreen' ],
+    required:[ 'currentEvidence','unknowns','historicalMatches','candidateHypotheses','codeMentorPacket','historicalPredictionPacket','softwareEngineerCorePacket','repairEngineeringPacket','causalDiscriminator','selectedStrategy','selectionConfidence','selfCritique','independentReview','targetedRegression','exactSha','canonicalGreen' ],
     selectedStrategyMayBeNull:true,
     mutationMayBeNull:true
   },
@@ -191,4 +200,4 @@ const runtime={
 };
 fs.mkdirSync(path.dirname(path.resolve(output)),{recursive:true});
 fs.writeFileSync(path.resolve(output),JSON.stringify(runtime,null,2)+'\n');
-console.log(JSON.stringify({status:'PASS',protocol:runtime.protocol,targetSha,fingerprint,exactHistoricalMatches:exactHistoricalIds.length,historicalActivityMatches:historicalActivity.length,doNotRepeatCount:doNotRepeat.length,toolBudget:toolBudget.maxToolCalls,phase:runtime.lifecycle.current},null,2));
+console.log(JSON.stringify({status:'PASS',protocol:runtime.protocol,targetSha,fingerprint,selectedStrategy:runtime.selectedStrategy,selectionConfidence:runtime.selectionConfidence,causalProbeSuite:runtime.causalDiscriminator.probeSuite.passed,toolBudget:toolBudget.maxToolCalls,phase:runtime.lifecycle.current},null,2));
