@@ -7,6 +7,17 @@ const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/m
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
 export const MEMORY_VERSION = 10;
 export const INTRACTABLE_THRESHOLD = 3;
+// Large bounded retention: preserve substantial Actions history without making a single
+// repair-memory file unbounded or operationally hostile to GitHub/JSON tooling.
+export const MEMORY_RETENTION = Object.freeze({
+  maxActionHistory: 2000,
+  maxCaseOutcomes: 100,
+  maxLessonEvidence: 50,
+  maxPreventionRules: 50,
+  maxIntractableEvidence: 100,
+  maxRejectedApproaches: 100,
+  maxGitMemorySnapshots: 256,
+});
 export const MEMORY_RELATION_TYPES = Object.freeze([
   'caused-by',
   'affects',
@@ -57,7 +68,7 @@ export function normalizeLearningOutcome(outcome, verification) {
   return outcome;
 }
 
-const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });
+const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [], actionHistory: [] });
 
 const historicalKnowledgePath = process.env.FLIXO_HISTORICAL_KNOWLEDGE ?? 'docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json';
 
@@ -178,6 +189,7 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
     playbooks: [...base.playbooks],
     lessons: [...base.lessons],
     antiLessons: [...base.antiLessons],
+    actionHistory: [...(base.actionHistory ?? [])],
   };
 
   const mergeUnique = (left = [], right = [], keyFor = (item) => JSON.stringify(item)) => {
@@ -208,7 +220,7 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
     existing.outcomes = mergeUnique(existing.outcomes, incoming.outcomes, (item) => [
       item?.outcome, item?.verification, item?.rule, item?.provenance?.runId,
       item?.provenance?.failedSha, item?.provenance?.targetSha, item?.at,
-    ].map((value) => String(value ?? '')).join('|')).slice(-20);
+    ].map((value) => String(value ?? '')).join('|')).slice(-MEMORY_RETENTION.maxCaseOutcomes);
     existing.attempts = Math.max(Number(existing.attempts ?? 0), Number(incoming.attempts ?? 0));
     existing.successes = Math.max(Number(existing.successes ?? 0), Number(incoming.successes ?? 0));
     existing.failures = Math.max(Number(existing.failures ?? 0), Number(incoming.failures ?? 0));
@@ -245,6 +257,29 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
     generalized: new Set(item.successfulFingerprints ?? []).size >= 2 && item.successes >= 2 && (item.attempts ? item.successes / item.attempts : 0) >= 0.8,
   }));
 
+  const actionHistoryMap = new Map((merged.actionHistory ?? []).map((item) => [item.fingerprint, item]));
+  for (const incoming of derived.actionHistory ?? []) {
+    const existing = actionHistoryMap.get(incoming.fingerprint);
+    if (!existing) {
+      actionHistoryMap.set(incoming.fingerprint, { ...incoming });
+      continue;
+    }
+    existing.rootCause = existing.rootCause && existing.rootCause !== 'unknown' ? existing.rootCause : incoming.rootCause;
+    existing.features = [...new Set([...(existing.features ?? []), ...(incoming.features ?? [])])];
+    existing.rules = [...new Set([...(existing.rules ?? []), ...(incoming.rules ?? [])])];
+    existing.workflows = [...new Set([...(existing.workflows ?? []), ...(incoming.workflows ?? [])])].slice(-50);
+    existing.successes = Math.max(Number(existing.successes ?? 0), Number(incoming.successes ?? 0));
+    existing.failures = Math.max(Number(existing.failures ?? 0), Number(incoming.failures ?? 0));
+    existing.occurrences = Math.max(Number(existing.occurrences ?? 0), Number(incoming.occurrences ?? 0));
+    existing.firstSeenAt = [existing.firstSeenAt, incoming.firstSeenAt].filter(Boolean).sort()[0] ?? null;
+    existing.lastSeenAt = [existing.lastSeenAt, incoming.lastSeenAt].filter(Boolean).sort().at(-1) ?? null;
+    existing.evidence = [...(existing.evidence ?? []), ...(incoming.evidence ?? [])]
+      .filter((item, index, arr) => arr.findIndex((other) => String(other?.runId ?? '') === String(item?.runId ?? '') && String(other?.workflow ?? '') === String(item?.workflow ?? '')) === index)
+      .slice(-50);
+    if (incoming.classification === 'external' || existing.classification === 'external') existing.classification = 'external';
+  }
+  merged.actionHistory = [...actionHistoryMap.values()].slice(-MEMORY_RETENTION.maxActionHistory);
+
   for (const collection of ['lessons', 'antiLessons']) {
     const map = new Map(merged[collection].map((item) => [item.id, item]));
     for (const incoming of derived[collection]) {
@@ -256,8 +291,8 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
       existing.attempts = Math.max(Number(existing.attempts ?? 0), Number(incoming.attempts ?? 0));
       existing.successes = Math.max(Number(existing.successes ?? 0), Number(incoming.successes ?? 0));
       existing.failures = Math.max(Number(existing.failures ?? 0), Number(incoming.failures ?? 0));
-      existing.evidence = mergeUnique(existing.evidence, incoming.evidence, (item) => JSON.stringify(item)).slice(-8);
-      existing.preventionRules = mergeUnique(existing.preventionRules, incoming.preventionRules, String).slice(-8);
+      existing.evidence = mergeUnique(existing.evidence, incoming.evidence, (item) => JSON.stringify(item)).slice(-MEMORY_RETENTION.maxLessonEvidence);
+      existing.preventionRules = mergeUnique(existing.preventionRules, incoming.preventionRules, String).slice(-MEMORY_RETENTION.maxPreventionRules);
       existing.lastSeenAt = [existing.lastSeenAt, incoming.lastSeenAt].filter(Boolean).sort().at(-1) ?? null;
     }
     merged[collection] = [...map.values()].map((item) => ({
@@ -506,7 +541,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   entry.confidence = confidenceFor(entry);
   if (rule) entry.rules = [...new Set([...entry.rules, rule])];
   entry.outcomes.push({ outcome, verification, rule, provenance: effectiveProvenance, preventionRule, at: new Date().toISOString() });
-  entry.outcomes = entry.outcomes.slice(-10);
+  entry.outcomes = entry.outcomes.slice(-MEMORY_RETENTION.maxCaseOutcomes);
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
   const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
   if (rule && countsAsPlaybookAttempt) {
@@ -556,7 +591,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     record.successes = entry.successes;
     record.failures = entry.failures;
     record.lastSeenAt = new Date().toISOString();
-    record.evidence = [...record.evidence, { at: record.lastSeenAt, verification, provenance, rule: rule ?? null }].slice(-20);
+    record.evidence = [...record.evidence, { at: record.lastSeenAt, verification, provenance, rule: rule ?? null }].slice(-MEMORY_RETENTION.maxIntractableEvidence);
     if (rule) record.rejectedApproaches = [...new Set([...record.rejectedApproaches, rule])].slice(-20);
     if (!existing) data.cases.push(record);
     writeIntractable(data);
@@ -567,7 +602,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
 
 function bestHistoricalMemory() {
   if (process.env.FLIXO_SKIP_GIT_MEMORY_HISTORY === 'true') return null;
-  const result = spawnSync('git', ['log', '--all', '--format=%H', '--max-count=64', '--', 'diagnostics/auto-repair/memory.json'], {
+  const result = spawnSync('git', ['log', '--all', '--format=%H', '--max-count=256', '--', 'diagnostics/auto-repair/memory.json'], {
     encoding: 'utf8',
     env: process.env,
   });

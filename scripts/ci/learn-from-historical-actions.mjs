@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { fingerprintFailure, extractFeatures, loadMemory, writeMemory, findCase } from './auto-repair-learning.mjs';
 import { HISTORICAL_REPAIR_WORKFLOWS } from './control-plane-registry.mjs';
 
-const limit = Math.min(50, Math.max(1, Number(process.env.FLIXO_HISTORY_LIMIT ?? 30)));
+const limit = Math.min(100, Math.max(1, Number(process.env.FLIXO_HISTORY_LIMIT ?? 100)));
 const includeSuccess = process.env.FLIXO_HISTORY_INCLUDE_SUCCESS !== 'false';
 const workflows = (process.env.FLIXO_HISTORY_WORKFLOWS ?? HISTORICAL_REPAIR_WORKFLOWS.join(',')).split(',').map((x) => x.trim()).filter(Boolean);
 const memory = loadMemory();
@@ -78,7 +78,7 @@ function addActionObservation(log, run) {
   entry.rootCause = rootCause;
   entry.features = [...new Set([...(entry.features ?? []), ...features])];
   entry.rules = [...new Set([...(entry.rules ?? []), ...rules])];
-  entry.workflows = [...new Set([...(entry.workflows ?? []), run.name].filter(Boolean))].slice(-20);
+  entry.workflows = [...new Set([...(entry.workflows ?? []), run.name].filter(Boolean))].slice(-100);
   entry.firstSeenAt = [entry.firstSeenAt, seenAt].filter(Boolean).sort()[0] ?? seenAt;
   entry.lastSeenAt = [entry.lastSeenAt, seenAt].filter(Boolean).sort().at(-1) ?? seenAt;
   entry.classification = external ? 'external' : (entry.classification ?? 'internal');
@@ -91,8 +91,8 @@ function addActionObservation(log, run) {
     runId, workflow: run.name ?? null, conclusion: run.conclusion ?? null,
     headSha: run.headSha ?? null, headBranch: run.headBranch ?? null, jobs: run.jobs ?? [],
     classification: external ? 'external' : 'internal', normalizedLog: normalized.slice(0, 6000), at: seenAt,
-  }].slice(-12);
-  memory.actionHistory = collection.slice(-200);
+  }].slice(-50);
+  memory.actionHistory = collection.slice(-2000);
   return true;
 }
 

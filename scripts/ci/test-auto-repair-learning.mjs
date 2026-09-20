@@ -21,6 +21,7 @@ delete process.env.FLIXO_RUN_ID;
 
 const memory = loadMemory();
 assert.equal(memory.version, 10);
+assert(Array.isArray(memory.actionHistory));
 
 const normalizedCorruptMemory = normalizeMemoryCounters({
   version: 10,
@@ -93,6 +94,13 @@ assert.equal(carried.attempts, 1);
 assert.equal(carried.successes, 1);
 assert.equal(carried.failures, 0);
 assert(mergedMemory.cases.some((item) => item.fingerprint === '__new_carried_case__'));
+
+const mergedActionHistory = mergeMemoryHistory(
+  { version: 10, cases: [], playbooks: [], lessons: [], antiLessons: [], actionHistory: [{ fingerprint: '__action_a__', occurrences: 1, evidence: [{ runId: '1' }] }] },
+  { version: 10, cases: [], playbooks: [], lessons: [], antiLessons: [], actionHistory: [{ fingerprint: '__action_a__', occurrences: 2, evidence: [{ runId: '2' }] }, { fingerprint: '__action_b__', occurrences: 1, evidence: [{ runId: '3' }] }] },
+);
+assert.equal(mergedActionHistory.actionHistory.length, 2);
+assert.equal(mergedActionHistory.actionHistory.find((item) => item.fingerprint === '__action_a__').occurrences, 2);
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-memory-'));
 const trustedMemoryPath = path.join(tempRoot, 'trusted.json');
