@@ -28,6 +28,13 @@ function safePath(root, relative) {
   const absolute = path.resolve(root, rel);
   const rootAbs = path.resolve(root);
   if (absolute !== rootAbs && !absolute.startsWith(rootAbs + path.sep)) throw new Error('PREPARED_CHANGE_PATH_ESCAPE');
+  const parts = rel.split('/');
+  let cursor = rootAbs;
+  for (const part of parts.slice(0, -1)) {
+    cursor = path.join(cursor, part);
+    if (fs.existsSync(cursor) && fs.lstatSync(cursor).isSymbolicLink()) throw new Error('PREPARED_CHANGE_SYMLINK_ESCAPE');
+  }
+  if (fs.existsSync(absolute) && fs.lstatSync(absolute).isSymbolicLink()) throw new Error('PREPARED_CHANGE_SYMLINK_ESCAPE');
   return { rel, absolute };
 }
 function isProtected(rel) {
