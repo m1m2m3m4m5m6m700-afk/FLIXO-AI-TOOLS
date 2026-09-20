@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-repair/fingerprint.mjs';
 import { retrieveTeachingRecords } from './error-learning-log.mjs';
+import { buildKnowledgeRecord, persistKnowledge } from './cell-learning.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
@@ -731,6 +732,33 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked' || outcome === 'blocked-external') {
     upsertLesson(memory, { fingerprint, rootCause: entry.rootCause, rule, outcome, verification, provenance: effectiveProvenance, preventionRule });
   }
+  const cellKnowledge = buildKnowledgeRecord({
+    taskId: process.env.FLIXO_TASK_ID ?? provenance?.taskId ?? null,
+    fingerprint,
+    rootCause: entry.rootCause,
+    rule,
+    outcome,
+    verification,
+    targetSha: effectiveProvenance?.targetSha ?? process.env.FLIXO_TARGET_SHA ?? null,
+    failedSha: effectiveProvenance?.failedSha ?? process.env.FLIXO_FAILED_SHA ?? null,
+    runId: effectiveProvenance?.runId ?? process.env.FLIXO_RUN_ID ?? null,
+    source: 'FLIXO Error Memory / Cell Learning',
+    evidenceRef: effectiveProvenance?.evidenceRef ?? process.env.FLIXO_REPAIR_EVIDENCE_PATH ?? null,
+    changedPaths: affectedPaths,
+    knowledgeClaim: effectiveDiagnosis?.rootCause
+      ? 'Validated task knowledge: observed failure maps to ' + effectiveDiagnosis.rootCause + ' under outcome ' + outcome + ' and verification ' + verification + '.'
+      : null,
+    antiLesson: outcome === 'success' ? null : rule ? 'Do not repeat strategy ' + rule + ' for this fingerprint without new evidence.' : null,
+  });
+  const cellKnowledgePersist = persistKnowledge(cellKnowledge);
+  entry.latestKnowledge = cellKnowledge;
+  entry.knowledgeHistory = [...(entry.knowledgeHistory ?? []), {
+    id: cellKnowledge.id,
+    confidence: cellKnowledge.confidence,
+    persisted: cellKnowledgePersist.persisted,
+    at: cellKnowledge.createdAt,
+  }].slice(-MEMORY_RETENTION.maxLessonEvidence);
+
   if (entry.attempts >= INTRACTABLE_THRESHOLD && entry.successes === 0) {
     fs.writeFileSync('/tmp/flixo-intractable-state', 'true\n');
     const data = loadIntractable();
