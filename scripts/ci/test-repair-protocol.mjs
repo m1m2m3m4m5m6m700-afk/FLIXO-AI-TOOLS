@@ -61,6 +61,17 @@ assert.throws(()=>assertAgentAdmission({actor:'unknownFutureAgent'}),/UNKNOWN_AG
 assert.throws(()=>assertAgentAdmission({actor:'diagnosticAgent',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
 assert.throws(()=>assertAgentAdmission({actor:'taskAgent',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
 assert.throws(()=>assertAgentAdmission({actor:'implementation',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
+assert.throws(()=>assertAgentAdmission({actor:'actionHistorian',branch:'execution',mutation:true,session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA}}),/SUPERVISOR_MODE_REQUIRED/);
+assert.equal(assertAgentAdmission({
+  actor:'actionRepairVerifier', branch:'execution', mutation:true,
+  session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,
+    actionVaultMission:{role:'ACTION-REPAIR-2',mutationSeat:'ACTION-REPAIR-2',supervisorMode:'NORMAL_TRIAD',entrySha:targetSHA,targetSha:targetSHA,candidateRepairApproved:true}}
+}).admitted,true);
+assert.equal(assertAgentAdmission({
+  actor:'actionHistorian', branch:'execution', mutation:true,
+  session:{state:'FAILURE_CAPTURED',protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,targetSHA,
+    actionVaultMission:{role:'ACTION-HISTORIAN-3',mutationSeat:'ACTION-HISTORIAN-3',supervisorMode:'SUPERVISOR_20',entrySha:targetSHA,targetSha:targetSHA,catalogReviewed:true,bothProgrammingProposalsReviewed:true,supervisorDecision:true}}
+}).admitted,true);
 const targetSHA='a'.repeat(40);
 const actionRepairSession=createRepairSession({repairSessionId:'action-repair-session',actor:'actionRepairBot',failureFingerprint:'action-repair-test',targetSHA,beforeState:{worktree:'clean'}});
 assert.equal(actionRepairSession.actor,'actionRepairBot');
