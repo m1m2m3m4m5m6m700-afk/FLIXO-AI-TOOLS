@@ -60,7 +60,7 @@
   "agentGrade": {
     "lifecycle": "READY",
     "shortName": "ACTR2",
-    "upgradeNumber": 1,
+    "upgradeNumber": 2,
     "upgradePriority": 90,
     "nextUpgrade": {
       "id": "ACTR2-U2",
@@ -94,5 +94,29 @@
   "role": "SECONDARY_REPAIR_OWNER",
   "copyable": true,
   "transferableKnowledgeOnly": true,
-  "permanentIndependentAuthority": false
+  "permanentIndependentAuthority": false,
+  "agentRuntime": {
+    "protocol": "ACTION-AGENT-RUNTIME-v1",
+    "modelProfile": "ACTION_ADVERSARIAL_REPAIR_V1",
+    "reasoningEffort": "HIGH",
+    "cognitiveLoop": [
+      "INTAKE",
+      "CONTEXT_RETRIEVAL",
+      "PLAN",
+      "EXECUTE",
+      "SELF_CHECK",
+      "INDEPENDENT_REVIEW",
+      "VERIFY",
+      "LEARN"
+    ],
+    "historicalActivity": "docs/agents/historical-action-errors/agent-activity",
+    "runtime": "scripts/ci/action-agent-runtime.mjs",
+    "activityLedger": "scripts/ci/action-agent-history.mjs",
+    "toolBudget": 24,
+    "selfCritique": true,
+    "independentReview": true,
+    "structuredOutput": true,
+    "failClosed": true,
+    "noSelfApproval": true
+  }
 }
