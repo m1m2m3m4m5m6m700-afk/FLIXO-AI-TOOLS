@@ -22,7 +22,7 @@ const expected = {
   'docs/AGENT-HANDOFF-REPORT-SCHEMA.md': ['completedWork', 'failedWork', 'remainingWork', 'executionPlanNext', 'handoffToNextAgent', 'cycleLessons'],
   'docs/AGENT-COLLABORATION-PROTOCOL.md': ['Multi-Agent', 'handoff', 'scope', 'RCA', 'Assistant/controller', 'Execution Agent', 'Evidence over assertion', 'Stop-and-escalate', 'Challenge-before-mutation', 'Independent review', 'Decision trace', 'Parallel execution protocol', 'Conflict arbitration', 'Quality dimensions', 'Council President', 'Council Deputy', 'Council Investigator', 'large Work Package', 'PRESIDENT → DEPUTY → INVESTIGATOR'],
   'docs/agents/ledger/README.md': ['Agent Visibility Ledger', 'docs/agents/ledger/<sessionId>.json', 'taskId', 'finalStatus', 'finalSummary', 'visibilityState'],
-  'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json': ['ASSISTANT_AGENT_COOPERATION_CONTRACT', 'assistantController', 'councilPresident', 'councilDeputy', 'councilInvestigator', 'codeScout', 'executionAgent', 'reviewAgent', 'testAgent', 'securityAgent', 'performanceAgent', 'certificationAuthority', 'messageEnvelope', 'no_implicit_authority', 'parallelism', 'arbitration', 'architecture', 'quality', 'efficiency', 'recovery', 'security', 'release', 'communication_first', 'event_driven_delivery', 'message_idempotency', 'message_freshness'],
+  'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json': ['ASSISTANT_AGENT_COOPERATION_CONTRACT', 'assistantController', 'councilPresident', 'councilDeputy', 'councilInvestigator', 'codeScout', 'executionAgent', 'reviewAgent', 'testAgent', 'securityAgent', 'performanceAgent', 'certificationAuthority', 'actionRepairBot', 'actionRepairVerifier', 'actionHistorian', 'ACTION-REPAIR', 'ACTION-REPAIR-2', 'ACTION-HISTORIAN-3', 'action_vault_reasoning', 'messageEnvelope', 'no_implicit_authority', 'parallelism', 'arbitration', 'architecture', 'quality', 'efficiency', 'recovery', 'security', 'release', 'communication_first', 'event_driven_delivery', 'message_idempotency', 'message_freshness'],
   'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md': ['READ', 'WRITE', 'FORBIDDEN', 'NO_SOURCE_MUTATION', 'code-scout-latest.json', 'execution agents'],
 };
 
@@ -41,7 +41,14 @@ if (exists('docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json')) {
     for (const key of rules) if (typeof contract?.protocols?.[key] !== 'string' || !contract.protocols[key].trim()) failures.push(`COOPERATION_RULE_MISSING=${key}`);
     for (const key of ['messageId','actor','recipient','intent','taskId','scope','entrySha','risk','dependencies','expectedEvidence','stopConditions','proofObligations','createdAt']) if (!contract?.messageEnvelope?.required?.includes(key)) failures.push(`COOPERATION_ENVELOPE_MISSING=${key}`);
     for (const key of ['status','exitSha','changedFiles','commands','evidenceRefs','remainingWork','openRcas','nextAction','decisionTrace','verificationState','ownershipState','messageId','messageStatus']) if (!contract?.messageEnvelope?.completion?.includes(key)) failures.push(`COOPERATION_COMPLETION_MISSING=${key}`);
-    for (const role of ['assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority']) if (typeof contract?.roles?.[role] !== 'string') failures.push(`COOPERATION_ROLE_MISSING=${role}`);
+    for (const role of ['assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','actionRepairBot','actionRepairVerifier','actionHistorian']) if (typeof contract?.roles?.[role] !== 'string') failures.push(`COOPERATION_ROLE_MISSING=${role}`);
+if (contract?.actionVaultContinuity?.missionContractVersion !== 2) failures.push('ACTION_VAULT_MISSION_VERSION_INVALID');
+if (JSON.stringify(contract?.actionVaultContinuity?.residents) !== JSON.stringify(['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3'])) failures.push('ACTION_VAULT_RESIDENTS_INVALID');
+if (contract?.actionVaultContinuity?.roles?.['ACTION-REPAIR']?.mutationAuthority !== true) failures.push('ACTION_REPAIR_MUTATION_ROLE_INVALID');
+if (contract?.actionVaultContinuity?.roles?.['ACTION-REPAIR-2']?.mutationAuthority !== false) failures.push('ACTION_REPAIR_2_MUTATION_ROLE_INVALID');
+if (contract?.actionVaultContinuity?.roles?.['ACTION-HISTORIAN-3']?.mutationAuthority !== false) failures.push('ACTION_HISTORIAN_MUTATION_ROLE_INVALID');
+if (contract?.actionVaultContinuity?.retryPolicy !== 'NO_BLIND_RETRY') failures.push('ACTION_VAULT_RETRY_POLICY_INVALID');
+if (contract?.actionVaultContinuity?.verificationRule && !contract.actionVaultContinuity.verificationRule.includes('independently')) failures.push('ACTION_VAULT_INDEPENDENT_VERIFICATION_INVALID');
     if (!/no.*mutation|read.*repository state/i.test(contract?.roles?.codeScout ?? '')) failures.push('CODE_SCOUT_MUTATION_BOUNDARY_MISSING');
     for (const tier of ['LOW','MEDIUM','HIGH','CRITICAL']) if (typeof contract?.decisionGates?.[tier] !== 'string') failures.push(`COOPERATION_RISK_GATE_MISSING=${tier}`);
     if (!Array.isArray(contract?.collaborationFlow) || contract.collaborationFlow.length < 10) failures.push('COLLABORATION_FLOW_INCOMPLETE');
@@ -98,6 +105,10 @@ else {
   for (const marker of ['decision provenance','independent verification','parallel work','conflicts','dependency edges','learning never grants authority']) if (!p20?.invariant?.includes(marker)) failures.push(`P20_COOPERATION_EXTENSION_MISSING=${marker}`);
 }
 
+const sessionSource = exists('scripts/ci/agent-session.mjs') ? read('scripts/ci/agent-session.mjs') : '';
+for (const role of ['actionRepairBot','actionRepairVerifier','actionHistorian']) if (!sessionSource.includes(role)) failures.push(`ACTION_VAULT_SESSION_ROLE_MISSING=${role}`);
+const repairSource = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
+for (const marker of ['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','NO_BLIND_RETRY','ACTION_VAULT_SHA_MISMATCH','ACTION_VAULT_TRIAD_INCOMPLETE']) if (!repairSource.includes(marker)) failures.push(`ACTION_VAULT_REPAIR_MARKER_MISSING=${marker}`);
 const sha = execFileSync('git', ['rev-parse','HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 const result = { schemaVersion: 7, authority: 'AGENT_COORDINATION_GUARD', status: failures.length ? 'FAIL' : 'PASS', checkedSha: sha, controlPlane: 'scripts/ci/agent-coordination.mjs', sessionTool: 'scripts/ci/agent-session.mjs', cooperationContract: 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', scoutProtocol: 'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md', scout: 'scripts/ci/code-read-only-scout.mjs', protocolRegistry: 'docs/PROTOCOL-REGISTRY.json#P20', runtimeStatePolicy: 'generated-and-ignored', atomicCoordination: 'WRITE_LOCK_PLUS_OPTIMISTIC_REVISION_AND_ATOMIC_RENAME', failures };
 fs.mkdirSync(path.resolve(root,'diagnostics/agents'), { recursive:true });
