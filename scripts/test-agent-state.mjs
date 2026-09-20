@@ -18,6 +18,14 @@ assert.equal(canTransition('EXECUTING', 'COMPLETED'), false);
 
 assert.throws(() => assertExecutionAllowed(task), /blocked until explicit confirmation/);
 
+const missingIdentity = { ...task, state: 'EXECUTING' };
+assert.throws(() => assertExecutionAllowed({ ...missingIdentity, taskId: '   ' }), /task identity is missing/);
+assert.throws(() => assertExecutionAllowed({ ...missingIdentity, traceId: '' }), /task identity is missing/);
+assert.throws(() => assertExecutionAllowed({ ...missingIdentity, revision: -1 }), /task revision is invalid/);
+assert.throws(() => assertExecutionAllowed({ ...missingIdentity, revision: 1.5 }), /task revision is invalid/);
+assert.throws(() => assertExecutionAllowed({ ...missingIdentity, confirmationRequired: true }), /blocked until explicit confirmation/);
+
+
 task = transitionTask(task, 'PLANNED');
 task = transitionTask(task, 'AWAITING_CONFIRMATION');
 assert.equal(task.confirmationRequired, true);
