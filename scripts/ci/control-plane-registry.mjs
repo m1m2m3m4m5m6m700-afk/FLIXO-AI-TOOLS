@@ -25,6 +25,7 @@ export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
   'council-wake-push-relay.yml',
   'repair-agent-intake.yml',
   'auto-repair-merge-gate.yml',
+  'council-live-runtime-verification.yml',
 ]);
 
 export const HISTORICAL_REPAIR_WORKFLOWS = Object.freeze([
@@ -65,4 +66,5 @@ export const TRUST_PERIMETER_PATHS = Object.freeze([
   'scripts/ci/validate-council-rpc-contract.mjs',
   'scripts/ci/validate-promotion-closure.mjs',
   'scripts/ci/test-promotion-closure.mjs',
+  'scripts/ci/verify-council-live-runtime.mjs',
 ]);
