@@ -1492,7 +1492,8 @@
           "failedSha": "f0682dd9e95324dc1b9d37d43b4be5b3cb89f5c4",
           "targetSha": "",
           "runId": "35424089172",
-          "at": "2026-09-19T05:33:52.567Z"
+          "at": "2026-09-19T05:33:52.567Z",
+          "headSha": "f0682dd9e95324dc1b9d37d43b4be5b3cb89f5c4"
         },
         {
           "outcome": "unrepaired",
@@ -1501,7 +1502,8 @@
           "failedSha": "190d0c3bb36a62c3095171486a4093d77d2c7570",
           "targetSha": "",
           "runId": "35424112877",
-          "at": "2026-09-19T05:34:30.449Z"
+          "at": "2026-09-19T05:34:30.449Z",
+          "headSha": "190d0c3bb36a62c3095171486a4093d77d2c7570"
         },
         {
           "outcome": "unrepaired",
@@ -1510,7 +1512,8 @@
           "failedSha": "411bb45408321bb7ae281b228f14fef2cd890f65",
           "targetSha": "",
           "runId": "35424272134",
-          "at": "2026-09-19T05:34:46.432Z"
+          "at": "2026-09-19T05:34:46.432Z",
+          "headSha": "411bb45408321bb7ae281b228f14fef2cd890f65"
         },
         {
           "outcome": "unrepaired",
@@ -1519,7 +1522,8 @@
           "failedSha": "45c1072c7802e9031b6e968bef487f581848e100",
           "targetSha": "",
           "runId": "35424134112",
-          "at": "2026-09-19T05:35:15.854Z"
+          "at": "2026-09-19T05:35:15.854Z",
+          "headSha": "45c1072c7802e9031b6e968bef487f581848e100"
         },
         {
           "outcome": "unrepaired",
@@ -1528,7 +1532,8 @@
           "failedSha": "7587630fa6efbbe32b8369979cde44081359ae8b",
           "targetSha": "",
           "runId": "35424403952",
-          "at": "2026-09-19T05:41:58.301Z"
+          "at": "2026-09-19T05:41:58.301Z",
+          "headSha": "7587630fa6efbbe32b8369979cde44081359ae8b"
         },
         {
           "outcome": "unrepaired",
@@ -1537,7 +1542,8 @@
           "failedSha": "8c9f3e3ab4010d26447f54871133894159180090",
           "targetSha": "",
           "runId": "35424444043",
-          "at": "2026-09-19T05:45:58.100Z"
+          "at": "2026-09-19T05:45:58.100Z",
+          "headSha": "8c9f3e3ab4010d26447f54871133894159180090"
         },
         {
           "outcome": "unrepaired",
@@ -1546,7 +1552,8 @@
           "failedSha": "7587630fa6efbbe32b8369979cde44081359ae8b",
           "targetSha": "",
           "runId": "35424403916",
-          "at": "2026-09-19T06:02:52.768Z"
+          "at": "2026-09-19T06:02:52.768Z",
+          "headSha": "7587630fa6efbbe32b8369979cde44081359ae8b"
         },
         {
           "outcome": "unrepaired",
@@ -1555,7 +1562,8 @@
           "failedSha": "389abeecdf313497d2db203f182a338ae76145c6",
           "targetSha": "",
           "runId": "35425814734",
-          "at": "2026-09-19T06:12:28.001Z"
+          "at": "2026-09-19T06:12:28.001Z",
+          "headSha": "389abeecdf313497d2db203f182a338ae76145c6"
         },
         {
           "outcome": "unrepaired",
@@ -1564,7 +1572,8 @@
           "failedSha": "a9621dcc6b7c45e2b589123af86ee5bb1de4b46d",
           "targetSha": "",
           "runId": "35425840484",
-          "at": "2026-09-19T06:13:08.068Z"
+          "at": "2026-09-19T06:13:08.068Z",
+          "headSha": "a9621dcc6b7c45e2b589123af86ee5bb1de4b46d"
         },
         {
           "outcome": "unrepaired",
@@ -1573,7 +1582,8 @@
           "failedSha": "330ec6ca51f789fe9aeeca089dc994dd4608d427",
           "targetSha": "",
           "runId": "35426019583",
-          "at": "2026-09-19T06:14:38.867Z"
+          "at": "2026-09-19T06:14:38.867Z",
+          "headSha": "330ec6ca51f789fe9aeeca089dc994dd4608d427"
         },
         {
           "outcome": "unrepaired",
@@ -1582,7 +1592,8 @@
           "failedSha": "1b6abc79e580073d57c98630840ad91ceda6462b",
           "targetSha": "",
           "runId": "35426688324",
-          "at": "2026-09-19T06:30:39.353Z"
+          "at": "2026-09-19T06:30:39.353Z",
+          "headSha": "1b6abc79e580073d57c98630840ad91ceda6462b"
         },
         {
           "outcome": "unrepaired",
@@ -1591,7 +1602,8 @@
           "failedSha": "cf0453aad659f801fa5a2de0aaaaab57db0aad35",
           "targetSha": "",
           "runId": "35426694228",
-          "at": "2026-09-19T06:31:01.108Z"
+          "at": "2026-09-19T06:31:01.108Z",
+          "headSha": "cf0453aad659f801fa5a2de0aaaaab57db0aad35"
         },
         {
           "outcome": "unrepaired",
@@ -1600,7 +1612,8 @@
           "failedSha": "a9621dcc6b7c45e2b589123af86ee5bb1de4b46d",
           "targetSha": "",
           "runId": "35425840483",
-          "at": "2026-09-19T06:31:40.118Z"
+          "at": "2026-09-19T06:31:40.118Z",
+          "headSha": "a9621dcc6b7c45e2b589123af86ee5bb1de4b46d"
         },
         {
           "outcome": "unrepaired",
@@ -1609,7 +1622,8 @@
           "failedSha": "c471b15907cf55b4aaa42412aa9e57c48817ec05",
           "targetSha": "",
           "runId": "35426112796",
-          "at": "2026-09-19T06:32:18.211Z"
+          "at": "2026-09-19T06:32:18.211Z",
+          "headSha": "c471b15907cf55b4aaa42412aa9e57c48817ec05"
         },
         {
           "outcome": "unrepaired",
@@ -1618,7 +1632,8 @@
           "failedSha": "5105b3afa20fa51d66d4fe366e8b23821ce48732",
           "targetSha": "",
           "runId": "35426630274",
-          "at": "2026-09-19T06:32:56.552Z"
+          "at": "2026-09-19T06:32:56.552Z",
+          "headSha": "5105b3afa20fa51d66d4fe366e8b23821ce48732"
         },
         {
           "outcome": "unrepaired",
@@ -1627,7 +1642,8 @@
           "failedSha": "b1fe925182ecbcaaea65e53daff51110ac9faa5e",
           "targetSha": "",
           "runId": "35427245542",
-          "at": "2026-09-19T06:41:04.264Z"
+          "at": "2026-09-19T06:41:04.264Z",
+          "headSha": "b1fe925182ecbcaaea65e53daff51110ac9faa5e"
         },
         {
           "outcome": "unrepaired",
@@ -1636,7 +1652,8 @@
           "failedSha": "b1fe925182ecbcaaea65e53daff51110ac9faa5e",
           "targetSha": "",
           "runId": "35427245533",
-          "at": "2026-09-19T06:41:38.891Z"
+          "at": "2026-09-19T06:41:38.891Z",
+          "headSha": "b1fe925182ecbcaaea65e53daff51110ac9faa5e"
         },
         {
           "outcome": "unrepaired",
@@ -1645,7 +1662,8 @@
           "failedSha": "9a6da1ebb0af6ae1493987239aa753a1f6b45ff0",
           "targetSha": "",
           "runId": "35427288342",
-          "at": "2026-09-19T06:42:00.697Z"
+          "at": "2026-09-19T06:42:00.697Z",
+          "headSha": "9a6da1ebb0af6ae1493987239aa753a1f6b45ff0"
         },
         {
           "outcome": "unrepaired",
@@ -1654,7 +1672,8 @@
           "failedSha": "9ea9022107e65737417848612c7c83389d63480a",
           "targetSha": "",
           "runId": "35427458433",
-          "at": "2026-09-19T06:47:04.661Z"
+          "at": "2026-09-19T06:47:04.661Z",
+          "headSha": "9ea9022107e65737417848612c7c83389d63480a"
         },
         {
           "outcome": "unrepaired",
@@ -1663,7 +1682,8 @@
           "failedSha": "3c2a44fff4e812dd54904703d147cf5d76a0370c",
           "targetSha": "",
           "runId": "35427463513",
-          "at": "2026-09-19T06:48:35.260Z"
+          "at": "2026-09-19T06:48:35.260Z",
+          "headSha": "3c2a44fff4e812dd54904703d147cf5d76a0370c"
         }
       ],
       "outcome": "failure"
