@@ -12,6 +12,7 @@ const approver=arg('approver','');
 const assistant=arg('assistant','');
 const out=arg('out','');
 const fileSelectionPath=arg('file-selection','');
+const programmerTwinParityPath=arg('programmer-twin-parity','');
 const now=()=>new Date().toISOString();
 const read=(p)=>JSON.parse(fs.readFileSync(p,'utf8'));
 const shaOk=x=>/^[a-f0-9]{40}$/u.test(String(x||''));
@@ -21,7 +22,9 @@ if(mode==='audit'){
  const evidence=arg('evidence');
  if(!shaOk(targetSha)||!fingerprint||!memory||!proposal||!evidence) throw new Error('ACTION_PAIR_AUDIT_INPUT_REQUIRED');
  if(!fileSelectionPath||!fs.existsSync(fileSelectionPath)) throw new Error('ACTION_PAIR_FILE_SELECTION_REQUIRED');
- const m=read(memory), p=read(evidence), s=read(arg('strategy')), fileSelection=read(fileSelectionPath);
+ if(!programmerTwinParityPath||!fs.existsSync(programmerTwinParityPath)) throw new Error('ACTION_PAIR_PROGRAMMER_TWIN_PARITY_REQUIRED');
+ const m=read(memory), p=read(evidence), s=read(arg('strategy')), fileSelection=read(fileSelectionPath), programmerTwinParity=read(programmerTwinParityPath);
+ if(programmerTwinParity.status!=='EXACT_INTELLIGENCE_PARITY'||programmerTwinParity.intelligenceParity!=='EXACT'||programmerTwinParity.authorityParity!=='SEPARATED_BY_DESIGN'||programmerTwinParity.primaryAgent!=='ACTION-REPAIR'||programmerTwinParity.twinAgent!=='ACTION-REPAIR-2'||programmerTwinParity.targetSha!==targetSha||programmerTwinParity.failureFingerprint!==fingerprint) throw new Error('ACTION_PAIR_PROGRAMMER_TWIN_PARITY_INVALID');
  if(fileSelection.agentId!=='ACTION-HISTORIAN-3'||fileSelection.protocol!=='ACTION-FILE-SELECTION-INTELLIGENCE-v1'||fileSelection.targetSha!==targetSha||fileSelection.failureFingerprint!==fingerprint||fileSelection.pathOnlyAnalysis!==true||fileSelection.codeContentRead!==false||fileSelection.sourceMutationAllowed!==false||fileSelection.decision!=='SELECTED'||!Array.isArray(fileSelection.selectedFiles)||fileSelection.selectedFiles.length<1) throw new Error('ACTION_PAIR_FILE_SELECTION_INVALID');
  const alternatives=(Array.isArray(p.hypotheses)?p.hypotheses:[])
    .filter((item)=>item?.id && item.id!==p.rootCause)
@@ -35,11 +38,14 @@ if(mode==='audit'){
    throw new Error('ACTION_PAIR_ADVERSARIAL_CHALLENGE_FAILED');
  }
  const record={
-   schemaVersion:2,botId:'ACTION-REPAIR-2',role:'ACTION_REPAIR_ASSISTANT',verifierAgent:'actionRepairVerifier',
+   schemaVersion:3,botId:'ACTION-REPAIR-2',role:'EXACT_PROGRAMMER_TWIN_VERIFIER',verifierAgent:'actionRepairVerifier',
    status:'CHALLENGE_PASSED',challengeId:'ARP2-'+crypto.createHash('sha256').update(JSON.stringify({targetSha,fingerprint,p.rootCause,secondHypothesis})).digest('hex').slice(0,20),
    targetSha,failureFingerprint:fingerprint,fingerprint,runId:arg('run-id'),partner:'ACTION-REPAIR',observedAt:now(),redNotGreen:true,
+   programmerTwinParity:{artifact:programmerTwinParityPath,status:programmerTwinParity.status,intelligenceParity:programmerTwinParity.intelligenceParity,authorityParity:programmerTwinParity.authorityParity},
+   programmerTwinAnalysis:{required:true,independentReasoning:true,sameProgrammingIntelligence:true,mutationAuthority:false},
    fileSelectionDecision:{artifact:fileSelectionPath,decision:fileSelection.decision,primaryFile:fileSelection.primaryFile,selectedFiles:fileSelection.selectedFiles,excludedFiles:fileSelection.excludedFiles,confidence:fileSelection.confidence},
    rootCause:p.rootCause||'unknown',strategy:s.strategyId||null,
+   challengeMode:'PROGRAMMER_TWIN',
    alternativeHypotheses:alternatives,
    falsificationChecks,
    counterEvidence:{
@@ -62,8 +68,8 @@ if(mode==='audit'){
 if(mode==='approve'){
  if(approver!=='ACTION-REPAIR'||assistant!=='ACTION-REPAIR-2'||!shaOk(targetSha)||!fingerprint) throw new Error('ACTION_PAIR_APPROVAL_IDENTITY_INVALID');
  const p=read(approvalPath.replace(/approval\.json$/u,'proposal.json'));
- if(p.status!=='CHALLENGE_PASSED'||p.verifierAgent!=='actionRepairVerifier'||p.targetSha!==targetSha||p.failureFingerprint!==fingerprint||!Array.isArray(p.alternativeHypotheses)||p.alternativeHypotheses.length<1||!Array.isArray(p.falsificationChecks)||p.falsificationChecks.length<1||!p.fileSelectionDecision?.primaryFile||!Array.isArray(p.fileSelectionDecision?.selectedFiles)||p.fileSelectionDecision.selectedFiles.length<1) throw new Error('ACTION_PAIR_APPROVAL_REQUIRES_VERIFIED_CHALLENGE');
- const approval={schemaVersion:2,approvalId:'ARP2-'+crypto.createHash('sha256').update(JSON.stringify({targetSha,fingerprint,p})).digest('hex').slice(0,24),approver,approvedFor:assistant,targetSha,fingerprint,approvedAt:now(),decision:'APPROVED_FOR_ASSISTANT_EXECUTION',condition:'ERROR_ONLY_EXACT_SHA+VERIFIER_CHALLENGE'};
+ if(p.status!=='CHALLENGE_PASSED'||p.role!=='EXACT_PROGRAMMER_TWIN_VERIFIER'||p.verifierAgent!=='actionRepairVerifier'||p.targetSha!==targetSha||p.failureFingerprint!==fingerprint||!Array.isArray(p.alternativeHypotheses)||p.alternativeHypotheses.length<1||!Array.isArray(p.falsificationChecks)||p.falsificationChecks.length<1||!p.fileSelectionDecision?.primaryFile||!Array.isArray(p.fileSelectionDecision?.selectedFiles)||p.fileSelectionDecision.selectedFiles.length<1||!p.programmerTwinParity?.intelligenceParity||p.programmerTwinParity.intelligenceParity!=='EXACT') throw new Error('ACTION_PAIR_APPROVAL_REQUIRES_VERIFIED_CHALLENGE');
+ const approval={schemaVersion:3,programmerTwinParityRequired:true,approvalId:'ARP2-'+crypto.createHash('sha256').update(JSON.stringify({targetSha,fingerprint,p})).digest('hex').slice(0,24),approver,approvedFor:assistant,targetSha,fingerprint,approvedAt:now(),decision:'APPROVED_FOR_ASSISTANT_EXECUTION',condition:'ERROR_ONLY_EXACT_SHA+VERIFIER_CHALLENGE'};
  fs.writeFileSync(approvalPath,JSON.stringify(approval,null,2)+'\n');
  console.log(JSON.stringify({status:'PASS',decision:approval.decision,approvalId:approval.approvalId},null,2)); process.exit(0);
 }
