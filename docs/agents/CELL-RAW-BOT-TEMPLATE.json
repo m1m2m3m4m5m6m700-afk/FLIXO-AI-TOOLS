@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "kind": "RAW_BOT_TEMPLATE",
+  "status": "RAW",
+  "permanent": {
+    "supervisor": "assistantController",
+    "permissions": [],
+    "taskPolicy": "ONE_TASK_AT_A_TIME",
+    "scopePolicy": "ASSIGNED_SCOPE_ONLY",
+    "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK"
+  },
+  "taskBinding": [
+    "planId",
+    "planVersion",
+    "taskId",
+    "scope",
+    "entrySha",
+    "objective",
+    "expectedOutput"
+  ],
+  "attendance": [
+    "check-in",
+    "check-out"
+  ],
+  "review": {
+    "reviewer": "CELL-RESULT-REVIEWER",
+    "required": true
+  },
+  "promotion": [
+    "reviewVerdict",
+    "reviewScore",
+    "validatedKnowledge",
+    "weakness",
+    "upgradePriority",
+    "controllerDecision"
+  ],
+  "reuse": "Task-scoped state resets after review; attributable knowledge and weakness history remain."
+}
