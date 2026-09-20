@@ -447,3 +447,47 @@ EOF
             GREEN) exit 0 ;;
             *) exit 1 ;;
           esac
+
+  post_merge_root_closure:
+    name: Post-merge root closure and provenance
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.head_branch == 'main'
+      || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact main
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: main
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version-file: .nvmrc
+
+      - name: Fetch exact execution contract ref
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin refs/heads/execution:refs/remotes/origin/execution
+          test -n "$(git rev-parse origin/execution)"
+
+      - name: Prove post-merge root closure
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROOT_CLOSURE_OUTPUT: /tmp/flixo-root-closure-provenance.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/verify-post-merge-root-closure.mjs
+
+      - name: Publish post-merge root closure evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-post-merge-root-closure-${{ github.run_id }}
+          path: /tmp/flixo-root-closure-provenance.json
+          if-no-files-found: warn
+          retention-days: 30
