@@ -25,8 +25,6 @@ const ROLE_MAP=Object.freeze({
   'ACTION-WISE':'ACTION_BEST_OPTION_SELECTOR'
 });
 const sha=v=>/^[a-f0-9]{40}$/iu.test(String(v??''));
-const ACTION_INDEX_PATH=path.join(ROOT,'docs/agents/historical-action-errors/index.json');
-const ACTION_RECORDS_PATH=path.join(ROOT,'docs/agents/historical-action-errors/records');
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):String(fallback)};
 const readJson=f=>JSON.parse(fs.readFileSync(f,'utf8'));
 const targetSha=arg('target-sha',process.env.FLIXO_EXPECTED_TARGET_SHA);
