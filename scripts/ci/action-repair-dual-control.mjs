@@ -14,6 +14,7 @@ const out=arg('out','');
 const fileSelectionPath=arg('file-selection','');
 const programmerTwinParityPath=arg('programmer-twin-parity','');
 const primaryProofPath=arg('primary-proof','');
+const awarenessPath=arg('awareness','');
 const now=()=>new Date().toISOString();
 const read=(p)=>JSON.parse(fs.readFileSync(p,'utf8'));
 const shaOk=x=>/^[a-f0-9]{40}$/u.test(String(x||''));
@@ -25,7 +26,9 @@ if(mode==='audit'){
  if(!fileSelectionPath||!fs.existsSync(fileSelectionPath)) throw new Error('ACTION_PAIR_FILE_SELECTION_REQUIRED');
  if(!programmerTwinParityPath||!fs.existsSync(programmerTwinParityPath)) throw new Error('ACTION_PAIR_PROGRAMMER_TWIN_PARITY_REQUIRED');
  if(!primaryProofPath||!fs.existsSync(primaryProofPath)) throw new Error('ACTION_PAIR_PRIMARY_CORRECTNESS_PROOF_REQUIRED');
- const m=read(memory), p=read(evidence), s=read(arg('strategy')), fileSelection=read(fileSelectionPath), programmerTwinParity=read(programmerTwinParityPath), primaryProof=read(primaryProofPath);
+ if(!awarenessPath||!fs.existsSync(awarenessPath)) throw new Error('ACTION_PAIR_COGNITIVE_AWARENESS_REQUIRED');
+ const m=read(memory), p=read(evidence), s=read(arg('strategy')), fileSelection=read(fileSelectionPath), programmerTwinParity=read(programmerTwinParityPath), primaryProof=read(primaryProofPath), awareness=read(awarenessPath);
+ if(awareness.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'||awareness.targetSha!==targetSha||awareness.failureFingerprint!==fingerprint||awareness.exactShaBound!==true||awareness.awarenessCompleteness?.complete!==true) throw new Error('ACTION_PAIR_COGNITIVE_AWARENESS_INVALID');
  if(programmerTwinParity.status!=='EXACT_INTELLIGENCE_PARITY'||programmerTwinParity.intelligenceParity!=='EXACT'||programmerTwinParity.authorityParity!=='SEPARATED_BY_DESIGN'||programmerTwinParity.primaryAgent!=='ACTION-REPAIR'||programmerTwinParity.twinAgent!=='ACTION-REPAIR-2'||programmerTwinParity.targetSha!==targetSha||programmerTwinParity.failureFingerprint!==fingerprint) throw new Error('ACTION_PAIR_PROGRAMMER_TWIN_PARITY_INVALID');
  if(primaryProof.role!=='PRIMARY_CORRECTNESS_PROVER'||primaryProof.status!=='PRIMARY_CORRECTNESS_CLAIM'||primaryProof.proofObjective!=='PROVE_PRIMARY_REPAIR_CORRECT'||primaryProof.targetSha!==targetSha||primaryProof.failureFingerprint!==fingerprint||primaryProof.agentId!=='ACTION-REPAIR') throw new Error('ACTION_PAIR_PRIMARY_CORRECTNESS_PROOF_INVALID');
  if(!Array.isArray(primaryProof.obligationsForVerifier)||primaryProof.obligationsForVerifier.length<4) throw new Error('ACTION_PAIR_PRIMARY_PROOF_OBLIGATIONS_INCOMPLETE');
@@ -58,6 +61,7 @@ if(mode==='audit'){
    programmerTwinParity:{artifact:programmerTwinParityPath,status:programmerTwinParity.status,intelligenceParity:programmerTwinParity.intelligenceParity,authorityParity:programmerTwinParity.authorityParity},
    programmerTwinAnalysis:{required:true,independentReasoning:true,sameProgrammingIntelligence:true,mutationAuthority:false},
    primaryCorrectnessProof:{artifact:primaryProofPath,objective:primaryProof.proofObjective,status:primaryProof.status},
+   cognitiveAwareness:{artifact:awarenessPath,protocol:awareness.protocol,domainCount:awareness.awarenessCompleteness.requiredDomains.length,systemWide:true},
    falsificationObjective:'ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG',
    falsificationComplete:true,
    counterexampleFound:false,
