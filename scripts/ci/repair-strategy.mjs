@@ -37,6 +37,9 @@ function priorRepairArtifactCount() {
   return result.stdout.split('\n').filter((name) => name.startsWith(prefix)).length;
 }
 
+const twinProposalPath = process.env.FLIXO_TWIN_PROPOSAL_PATH ?? '';
+const twinProposal = twinProposalPath ? readJson(twinProposalPath, null) : null;
+const twinPreferredStrategy = String(twinProposal?.challenge?.preferredAlternativeStrategy ?? '').trim();
 const memory = readJson(memoryPath, { cases: [] });
 const intractable = readJson(intractablePath, { cases: [] });
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
@@ -52,7 +55,10 @@ const priorStrategies = [
   ...(entry?.strategies ?? []),
 ].map(String);
 const unusedIndexes = strategies.map((_, i) => i).filter((i) => !priorStrategies.includes(strategies[i][0]));
-const index = unusedIndexes[0] ?? ((Math.max(0, nextAttempt - 1)) % strategies.length);
+const divergentIndexes = unusedIndexes.filter((i) => strategies[i][0] !== twinPreferredStrategy);
+const index = divergentIndexes[0]
+  ?? strategies.map((_, i) => i).find((i) => strategies[i][0] !== twinPreferredStrategy)
+  ?? ((Math.max(0, nextAttempt - 1)) % strategies.length);
 const [strategyId, strategy] = strategies[index];
 const threshold = INTRACTABLE_THRESHOLD;
 const teachingEscalation = record?.status === 'INTRACTABLE' || nextAttempt > threshold;
@@ -78,6 +84,13 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   sameStrategyRepeated,
   teachingPacket,
   cycle: nextAttempt,
+  twin: {
+    present: Boolean(twinProposal),
+    preferredStrategy: twinPreferredStrategy || null,
+    executorStrategy: strategyId,
+    divergent: Boolean(twinPreferredStrategy) && strategyId !== twinPreferredStrategy,
+    disposition: twinProposal?.challenge?.disposition ?? 'NO_TWIN'
+  },
   protocol: teachingEscalation ? 'SUPERVISING-REPAIR-TEACHING-v2-CONTINUE-REPAIR' : 'SUPERVISING-REPAIR-TEACHING-v2',
 }, null, 2)}\n`);
 fs.writeFileSync('/tmp/flixo-intractable-state', 'false\n');
