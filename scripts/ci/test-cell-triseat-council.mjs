@@ -8,6 +8,6 @@ assert.equal(contract.cellCouncil.controller,'assistantController');
 assert.equal(contract.cellCouncil.quorum.minimumSeats,2);
 assert.equal(contract.cellCouncil.quorum.criticalDecisions,3);
 assert.equal(registry.cellCouncil.seats.length,3);
-assert.equal(registry.bots.length,50);
+assert.equal(registry.bots.length,200);
 assert.equal(registry.bots.every((bot)=>bot.cellCouncil==='CELL_TRISEAT_CONTROLLER'),true);
 console.log('CELL_TRISEAT_COUNCIL=PASS');
