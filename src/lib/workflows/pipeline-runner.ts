@@ -1,6 +1,6 @@
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import { assertExecutionResourceBudget, getCapability, validateCapabilityParameters, type CapabilityParameters } from '@/lib/agent/capability-registry';
-import { getToolById } from '@/config/registry';
+import { getToolById, TOOL_CATALOG } from '@/config/registry';
 import { getToolExecutor, repairToolParameters } from '@/lib/workflows/executor-registry';
 import { assertToolOutputContract, getToolOutputContractForDefinition, type ToolOutputResult } from '@/lib/contracts/tool-output-contracts';
 import { createPipelineStepReceipt, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
