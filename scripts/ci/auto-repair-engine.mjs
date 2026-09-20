@@ -114,6 +114,9 @@ if (historicalCandidate && !blockedRuleIds.has(historicalCandidate.id) && !isRep
     file: selected?.file ?? plan.reasoning?.location?.file ?? null,
   };
 }
+const durableLedgerRejected = selected?.id ? isRepairRejected(attemptLedger, { chainId: repairChainId, caseFingerprint: stableCaseFingerprint, strategyId: process.env.FLIXO_REPAIR_STRATEGY_ID ?? null, ruleId: selected.id }) : false;
+if (durableLedgerRejected) selected = null;
+
 const evidence = {
   schemaVersion: 6,
   protocol: 'AUTONOMOUS-REPAIR-PROTOCOL-v4',
@@ -146,9 +149,6 @@ const evidence = {
   capabilityVersion: 'V11-CAUSAL-SIMULATION-ADVERSARIAL-PROOF',
   updatedAt: new Date().toISOString(),
 };
-
-const durableLedgerRejected = selected?.id ? isRepairRejected(attemptLedger, { chainId: repairChainId, caseFingerprint: stableCaseFingerprint, strategyId: process.env.FLIXO_REPAIR_STRATEGY_ID ?? null, ruleId: selected.id }) : false;
-if (durableLedgerRejected) selected = null;
 
 const reasoningDecision = diagnosis?.decision ?? null;
 const diagnosisGate = {
