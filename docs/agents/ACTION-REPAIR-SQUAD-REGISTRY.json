@@ -208,5 +208,208 @@
     ],
     "searchBeforeMutation": true,
     "canonicalSearchOwner": "ACTION-REPAIR"
+  },
+  "parallelCouncil": {
+    "id": "ACTION-COUNCIL-20",
+    "displayName": "مجلس إصلاح Actions — 20 وكيل",
+    "purpose": "Receives a read-only snapshot of ACTION-REPAIR knowledge, analyzes the same incident in parallel, and submits independent repair candidates to ACTION-ARBITER.",
+    "activation": "ON_DEMAND_OR_ESCALATED",
+    "sourceBot": "ACTION-REPAIR",
+    "knowledgeTransferMode": "SNAPSHOT_ONLY",
+    "workerCount": 20,
+    "parallel": true,
+    "mutationAuthority": false,
+    "executionAuthority": "ANALYSIS_ONLY",
+    "workers": [
+      {
+        "id": "ACTION-COUNCIL-01",
+        "index": 1,
+        "specialization": "DIRECT_LOG_CAUSAL",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-02",
+        "index": 2,
+        "specialization": "HISTORICAL_MATCH",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-03",
+        "index": 3,
+        "specialization": "RCA_PATTERN",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-04",
+        "index": 4,
+        "specialization": "REGEX_WORKFLOW",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-05",
+        "index": 5,
+        "specialization": "RUNNER_CONTROL",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-06",
+        "index": 6,
+        "specialization": "DEPENDENCY_BUILD",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-07",
+        "index": 7,
+        "specialization": "BROWSER_RUNTIME",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-08",
+        "index": 8,
+        "specialization": "ARTIFACT_INTEGRITY",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-09",
+        "index": 9,
+        "specialization": "PERMISSIONS",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-10",
+        "index": 10,
+        "specialization": "EXTERNAL_PROVIDER",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-11",
+        "index": 11,
+        "specialization": "SHA_PROVENANCE",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-12",
+        "index": 12,
+        "specialization": "REPAIR_SCOPE",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-13",
+        "index": 13,
+        "specialization": "ANTI_LESSON",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-14",
+        "index": 14,
+        "specialization": "PLAYBOOK_TRANSFER",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-15",
+        "index": 15,
+        "specialization": "INFERENCE_SYNTHESIS",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-16",
+        "index": 16,
+        "specialization": "REGRESSION_PLAN",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-17",
+        "index": 17,
+        "specialization": "RECURRENCE_RISK",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-18",
+        "index": 18,
+        "specialization": "SECURITY_BOUNDARY",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-19",
+        "index": 19,
+        "specialization": "CHANGE_MINIMALITY",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      },
+      {
+        "id": "ACTION-COUNCIL-20",
+        "index": 20,
+        "specialization": "FULL_CASE_REVIEW",
+        "mutationAuthority": false,
+        "executionAuthority": "ANALYSIS_ONLY",
+        "knowledgeSource": "ACTION-REPAIR",
+        "canWriteRepository": false
+      }
+    ],
+    "arbiter": {
+      "id": "ACTION-ARBITER",
+      "role": "FINAL_REPAIR_PROPOSAL_ARBITER",
+      "mutationAuthority": false,
+      "executionAuthority": "ACCEPT_OR_REJECT_PROPOSAL_ONLY",
+      "acceptanceDoesNotMeanCanonicalGreen": true,
+      "canonicalGreenAuthority": "DAILY_FLIXO_GREEN_GATE",
+      "downstreamExecutor": "ACTION-REPAIR"
+    }
   }
 }
