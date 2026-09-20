@@ -63,6 +63,7 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
     if(mission.role!=='ACTION-REPAIR') throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_ROLE_INVALID');
     if(mission.verifierAgent!=='actionRepairVerifier'||mission.historianAgent!=='actionHistorian') throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_TRIAD_INCOMPLETE');
     if(mission.noBlindRetry!==true) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_BLIND_RETRY_BLOCKED');
+    validateActionVaultVerifierProof({ proof: session.actionVaultVerifierProof, targetSHA: session.targetSHA, failureFingerprint: session.failureFingerprint, verifierAgent: mission.verifierAgent });
   }
   if(mutation&&['actionRepairVerifier','actionHistorian'].includes(actor)) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_NON_MUTATING_ROLE_BLOCKED');
   if(mutation&&actor==='assistantRepairAgent') {
