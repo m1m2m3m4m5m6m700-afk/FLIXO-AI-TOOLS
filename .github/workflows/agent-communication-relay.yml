@@ -119,16 +119,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### PRESIDENT WAKE RECEIPT
-
-          **Role:** `$ROLE`
-          **Mode:** `$MODE`
-          **Work Package:** `$WORKPACKAGE`
-          **Exact SHA:** `$ENTRY_SHA`
-
-          Wake accepted through the canonical communication relay. Workflow dispatch remains subject to exact-SHA and role controls.
-
-          <!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
+          BODY="$(printf '%s\n' "### PRESIDENT WAKE RECEIPT" "" "**Role:** $ROLE" "**Mode:** $MODE" "**Work Package:** $WORKPACKAGE" "**Exact SHA:** $ENTRY_SHA" "" "Wake accepted through the canonical communication relay. Workflow dispatch remains subject to exact-SHA and role controls." "" "<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->")"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
 
       - name: Extract and validate incoming message
         id: message
@@ -225,18 +217,8 @@ jobs:
           MESSAGE_KEY: ${{ steps.ingest.outputs.MESSAGE_IDEMPOTENCY_KEY }}
         run: |
           set -euo pipefail
-          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### AGENT MESSAGE RECEIVED
-
-          **Message:** `$MESSAGE_ID`
-          **Status:** `$MESSAGE_STATUS`
-          **Entry SHA:** `$MESSAGE_SHA`
-          **Idempotency Key:** `$MESSAGE_KEY`
-          **Receipt:** `IMMEDIATE_EVENT_RECEIPT`
-          **Target ref:** `${{ steps.target.outputs.target_ref }}`
-
-          The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute.
-
-          <!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->"
+          BODY="$(printf '%s\n' "### AGENT MESSAGE RECEIVED" "" "**Message:** $MESSAGE_ID" "**Status:** $MESSAGE_STATUS" "**Entry SHA:** $MESSAGE_SHA" "**Idempotency Key:** $MESSAGE_KEY" "**Receipt:** IMMEDIATE_EVENT_RECEIPT" "**Target ref:** ${{ steps.target.outputs.target_ref }}" "" "The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute." "" "<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->")"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$BODY" >/dev/null
 
       - name: Wake repair supervision for repair-class messages
         if: >-
