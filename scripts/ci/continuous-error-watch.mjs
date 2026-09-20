@@ -36,8 +36,8 @@ const SECURITY_CHECK_PATTERNS = Object.freeze([
   /github advanced security/i,
   /codeql/i,
   /code scanning ai findings/i,
-  /^Analyze \\(javascript-typescript\\)$/i,
-  /^Analyze \\(actions\\)$/i,
+  /^Analyze \(javascript-typescript\)$/i,
+  /^Analyze \(actions\)$/i,
 ]);
 
 const CERTIFICATION_CHECK_PATTERNS = Object.freeze([
