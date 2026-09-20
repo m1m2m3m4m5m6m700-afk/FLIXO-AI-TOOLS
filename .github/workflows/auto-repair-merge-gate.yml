@@ -137,34 +137,6 @@ jobs:
               return 1
             done
           }
-
-          gh_with_backoff() {
-            local attempt=0
-            local delay=10
-            local err
-            err="$(mktemp)"
-            while [ "$attempt" -lt 4 ]; do
-              if gh "$@" 2>"$err"; then
-                rm -f "$err"
-                return 0
-              fi
-              if grep -Eqi 'rate limit|HTTP 403|API rate limit exceeded|secondary rate limit' "$err"; then
-                attempt=$((attempt + 1))
-                if [ "$attempt" -ge 4 ]; then
-                  cat "$err" >&2
-                  rm -f "$err"
-                  return 75
-                fi
-                echo "GITHUB_API_RATE_LIMIT_BACKOFF attempt=$attempt sleep=${delay}s" >&2
-                sleep "$delay"
-                delay=$((delay * 2))
-                continue
-              fi
-              cat "$err" >&2
-              rm -f "$err"
-              return 1
-            done
-          }
           REQUIRED_WORKFLOWS=(
             "FLIXO Test System"
             "FLIXO WP0 Trust Baseline"
@@ -215,34 +187,6 @@ jobs:
               return 1
             done
           }
-
-          gh_with_backoff() {
-            local attempt=0
-            local delay=10
-            local err
-            err="$(mktemp)"
-            while [ "$attempt" -lt 4 ]; do
-              if gh "$@" 2>"$err"; then
-                rm -f "$err"
-                return 0
-              fi
-              if grep -Eqi 'rate limit|HTTP 403|API rate limit exceeded|secondary rate limit' "$err"; then
-                attempt=$((attempt + 1))
-                if [ "$attempt" -ge 4 ]; then
-                  cat "$err" >&2
-                  rm -f "$err"
-                  return 75
-                fi
-                echo "GITHUB_API_RATE_LIMIT_BACKOFF attempt=$attempt sleep=${delay}s" >&2
-                sleep "$delay"
-                delay=$((delay * 2))
-                continue
-              fi
-              cat "$err" >&2
-              rm -f "$err"
-              return 1
-            done
-          }
           gh_with_backoff api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/check-runs?per_page=100" > /tmp/exact-check-pages.json
           jq -s 'add' /tmp/exact-check-pages.json > /tmp/exact-check-runs.json
           CERT="$(jq -c '[.[].check_runs[] | select(.name == "Certification")] | sort_by(.completed_at // .started_at // "") | last // empty' /tmp/exact-check-runs.json)"
@@ -259,34 +203,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-
-          gh_with_backoff() {
-            local attempt=0
-            local delay=10
-            local err
-            err="$(mktemp)"
-            while [ "$attempt" -lt 4 ]; do
-              if gh "$@" 2>"$err"; then
-                rm -f "$err"
-                return 0
-              fi
-              if grep -Eqi 'rate limit|HTTP 403|API rate limit exceeded|secondary rate limit' "$err"; then
-                attempt=$((attempt + 1))
-                if [ "$attempt" -ge 4 ]; then
-                  cat "$err" >&2
-                  rm -f "$err"
-                  return 75
-                fi
-                echo "GITHUB_API_RATE_LIMIT_BACKOFF attempt=$attempt sleep=${delay}s" >&2
-                sleep "$delay"
-                delay=$((delay * 2))
-                continue
-              fi
-              cat "$err" >&2
-              rm -f "$err"
-              return 1
-            done
-          }
 
           gh_with_backoff() {
             local attempt=0
