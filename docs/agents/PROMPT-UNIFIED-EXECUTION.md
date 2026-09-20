@@ -131,6 +131,72 @@ Task preparation is not certification:
 
 Prepared work with a stale baseline SHA must be discarded and re-prepared.
 
+## 5.1 RECOVERED OPERATING CONTROLS
+
+The repository retains valuable operational controls from the historical Task Agent, Error Agent, Active Repair Cycle, teaching router, orchestration, registry-symmetry, external-tooling, and contract-drift contracts. Their **behavioral value is canonical here**; their former specialist prompt files are not restored as competing instruction sources.
+
+### Agent-stage boundaries
+- `ERROR AGENT = diagnosis/evidence only`.
+- `TASK AGENT = preparation only`: it may inspect and prepare exact source changes but may not mutate, commit, push, create/update PRs, merge, certify, or declare GREEN.
+- `EXECUTION/REPAIR AGENT = authorized mutation on execution only`.
+- `CERTIFICATION = closure authority only`.
+- A handoff packet, memory record, teaching rule, or prompt never grants authority that the machine control plane does not grant.
+
+### Diagnosis packet
+A diagnosis is actionable only when it carries:
+`schemaVersion + failureFingerprint + entrySha + runIdentity + trigger/evidence + environment + reproductionState + propagationPath + violatedInvariant + causalSource/UNKNOWN_RCA + affectedScope/dependencyGraph + classification + recurrenceSignals + confidence/uncertainty + falsificationObligations + blockers/stopConditions + nextAction + immutableEvidenceRefs`.
+
+### Liveness / continuity
+While work remains open:
+- do not silently enter `SLEEP`, `IDLE`, or `ABANDONED` as a completion state;
+- waiting on CI/external infrastructure is `WAITING_EXTERNAL` with heartbeat/lease continuity;
+- stale heartbeat/lease becomes `RECOVERING`, not completion;
+- repeated no-progress windows require new evidence or strategy rotation;
+- abort requires explicit authority;
+- no active work may be abandoned merely because the current session ended.
+
+### Same-cycle interception
+A newly observed RED during an active repair remains in the same repair chain when it lies within the active causal boundary:
+`CAPTURE → FINGERPRINT → RCA → PREPARE → ROOT REPAIR → HARDEN → TARGETED VERIFY → RESCAN`.
+
+Do not create a new branch, PR lane, repair engine, or independent authority for the new RED. A genuinely independent causal family receives a new failure fingerprint and diagnosis while remaining on the same canonical `execution` lane.
+
+### Teaching corpus and retrieval
+The error-teaching corpus is advisory guidance, not proof. When available, route before broad retrieval:
+`exact_class → class_prefix → alias → keyword`.
+
+If routing is ambiguous/unmapped, fail closed and acquire stronger current evidence. Teaching rules may improve diagnosis/falsification/regression/SHA handling but never authorize mutation, certification, or GREEN. Current exact-SHA evidence always outranks historical teaching. A current contradiction becomes an anti-lesson candidate.
+
+### Preparation packet
+For prepared source changes, bind:
+`path + operation + exact content + baselineSha + repairRationale + verification`.
+
+For UPDATE/DELETE, capture the exact baseline identity before preparation. If the baseline SHA changes, discard stale prepared changes and regenerate them. Preparation must remain inside the declared task/failure scope.
+
+### Action-log learning
+Every meaningful repair cycle consumes both RED and GREEN evidence where available. Record:
+`runId + exactSha + jobEvidence + failureFingerprint + RCA + strategy + result + regression + verification + provenance`.
+
+Learning outcomes are explicit:
+`SUCCESS → Lesson Candidate`;
+`FAILURE/UNREPAIRED → Anti-Lesson Candidate`;
+`REVERTED → Strategy Rejection Signal`;
+`PROPOSED → no success confidence`;
+`BLOCKED_EXTERNAL → external blocker, not internal repair success`.
+
+Repeated knowledge is reusable only after provenance checks and fresh exact-SHA proof.
+
+### Recovered specialized invariants
+- **Orchestration preflight:** prove target immutability, command shape, ownership, and retry coordination before mutation; no stale rebase or identical blind retry.
+- **Registry symmetry:** map workflow → canonical registry → validator → supervisor/control owner; an unregistered automation surface is a control-plane defect; never create a second registry or execution engine.
+- **External tooling:** classify `BLOCKED_EXTERNAL` only from fresh exact-SHA provider/infrastructure evidence after checking for an independent internal RCA; never change source merely because a provider rejected a capability/model/quota request.
+- **Regex/command contracts:** prove exact emitted text and distinguish syntax/lint failure from semantic contract mismatch; use the smallest literal-aware correction; never add escaping until lint passes or weaken the assertion.
+- **Canonical contract drift:** identify the current contract owner before changing a failing consumer. Stale liveness assertions, duplicate heartbeat/control dispatch, and legacy ownership assumptions are repaired at the consumer; never relax the canonical contract to satisfy stale consumers.
+- **Heartbeat ownership:** preserve one canonical supervisor/watchdog wake path; do not add duplicate direct Green-Gate dispatch, ignore protocol errors such as 422, or mask ownership drift with retries.
+
+### Recovery-budget rule
+Use the **current machine-enforced budget**, not historical prompt limits. Historical budgets are evidence only and must not silently widen autonomous mutation scope.
+
 ## 6. ERROR INTELLIGENCE / RCA
 
 Capture:
