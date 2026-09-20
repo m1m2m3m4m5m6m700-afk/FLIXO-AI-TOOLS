@@ -222,7 +222,7 @@ export function createWebGL2FilterRenderer(canvas: HTMLCanvasElement): GpuFilter
     const uIntensity = gl.getUniformLocation(program, 'uIntensity');
     const uMirror = gl.getUniformLocation(program, 'uMirror');
 
-    const upload = () => {
+    const upload = (video: HTMLVideoElement) => {
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -255,7 +255,7 @@ export function createWebGL2FilterRenderer(canvas: HTMLCanvasElement): GpuFilter
       gl.uniform1f(uSepia, parsed.sepia);
       gl.uniform1f(uIntensity, Math.min(1, Math.max(0, intensity / 100)));
       gl.uniform1i(uMirror, mirror ? 1 : 0);
-      upload();
+      upload(video);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       return true;
     };
