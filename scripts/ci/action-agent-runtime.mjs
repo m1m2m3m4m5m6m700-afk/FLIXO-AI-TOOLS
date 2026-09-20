@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { buildMentorPacket } from './action-code-mentor.mjs';
+import { buildSoftwareEngineerPacket } from './action-software-engineer-core.mjs';
 import { buildPrediction } from './action-historical-predictor.mjs';
 
 const ROOT=process.cwd();
@@ -89,6 +90,15 @@ const toolBudget={
 };
 
 const mentorPaths=(process.env.FLIXO_ACTION_CODE_MENTOR_PATHS??'').split(',').map((x)=>x.trim()).filter(Boolean);
+const softwareEngineerCore=buildSoftwareEngineerPacket({
+  taskId:task,
+  fingerprint,
+  targetSha,
+  failedRunId:runId,
+  baseSha:process.env.FLIXO_BASE_SHA,
+  paths:mentorPaths,
+  deep:true
+});
 const historicalPrediction=buildPrediction({
   taskId:task,
   fingerprint,
@@ -144,11 +154,12 @@ const runtime={
   hypotheses:hypothesisBase,
   codeMentor:{requiredByActionRepair:true,packet:codeMentor},
   historicalPrediction:{requiredByActionRepair:true,provider:'ACTION-REPAIR-2',packet:historicalPrediction},
+  softwareEngineerCore:{requiredByActionRepair:true,provider:'ACTION-REPAIR',packet:softwareEngineerCore},
   toolBudget,
   safety,
   lifecycle:{current:'INTAKE',next:'CONTEXT_RETRIEVAL',closure:'CANONICAL_GREEN_ONLY'},
   outputContract:{
-    required:[ 'currentEvidence','unknowns','historicalMatches','candidateHypotheses','codeMentorPacket','historicalPredictionPacket','selectedStrategy','selfCritique','independentReview','targetedRegression','exactSha','canonicalGreen' ],
+    required:[ 'currentEvidence','unknowns','historicalMatches','candidateHypotheses','codeMentorPacket','historicalPredictionPacket','softwareEngineerCorePacket','selectedStrategy','selfCritique','independentReview','targetedRegression','exactSha','canonicalGreen' ],
     selectedStrategyMayBeNull:true,
     mutationMayBeNull:true
   },
