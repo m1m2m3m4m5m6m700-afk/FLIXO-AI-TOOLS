@@ -112,6 +112,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const applyFilterMaskHandoff = (command: string, detectedLocale: Locale) => {
     const nextHandoff = resolveFilterMaskHandoff(command);
     if (!nextHandoff) return false;
+    const selected = getLiveFilter(nextHandoff.canonicalId);
     setFilterHandoff(nextHandoff);
     setFilterHandoffLabel(selected?.label ?? 'Filter Mask');
     setPlan(null);
@@ -122,7 +123,6 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       toolId: 'filter-mask',
       planReady: false,
     }));
-    const selected = getLiveFilter(nextHandoff.canonicalId);
     const label = selected?.label ?? nextHandoff.canonicalId;
     pushMessage(
       'agent',
