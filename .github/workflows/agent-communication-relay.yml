@@ -62,7 +62,7 @@ jobs:
             fs.writeFileSync('message.json', JSON.stringify(message, null, 2) + '\\n');
             if (!message.messageId) throw new Error('AGENT_MESSAGE_ID_MISSING');
             process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'MESSAGE_ID=' + message.messageId + '\\n');
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'MESSAGE_ID=' + message.messageId + '\\n');
             process.exit(0);
           }
           if (!match) {
@@ -73,6 +73,7 @@ jobs:
           fs.writeFileSync('message.json', JSON.stringify(message, null, 2) + '\\n');
           if (!message.messageId) throw new Error('AGENT_MESSAGE_ID_MISSING');
           process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'MESSAGE_ID=' + message.messageId + '\\n');
           NODE
 
       - name: Resolve message branch by exact SHA
@@ -123,7 +124,7 @@ jobs:
           set -euo pipefail
           node scripts/ci/agent-communication.mjs validate --message-file=message.json
           node scripts/ci/agent-communication.mjs ingest --message-file=message.json | tee /tmp/flixo-agent-message-receipt.json
-          jq -r '"MESSAGE_STATUS=" + .status + "\\nMESSAGE_ID=" + .messageId + "\\nMESSAGE_ENTRY_SHA=" + .entrySha' /tmp/flixo-agent-message-receipt.json >> "$GITHUB_OUTPUT"
+          jq -r '"MESSAGE_STATUS=" + .status + "\\nMESSAGE_ID=" + .messageId + "\\nMESSAGE_ENTRY_SHA=" + .entrySha + "\\nMESSAGE_IDEMPOTENCY_KEY=" + .idempotencyKey' /tmp/flixo-agent-message-receipt.json >> "$GITHUB_OUTPUT"
 
       - name: Publish immediate receipt to master inbox
         if: steps.ingest.outcome == 'success'
@@ -132,6 +133,7 @@ jobs:
           MESSAGE_ID: ${{ steps.ingest.outputs.MESSAGE_ID }}
           MESSAGE_STATUS: ${{ steps.ingest.outputs.MESSAGE_STATUS }}
           MESSAGE_SHA: ${{ steps.ingest.outputs.MESSAGE_ENTRY_SHA }}
+          MESSAGE_KEY: ${{ steps.ingest.outputs.MESSAGE_IDEMPOTENCY_KEY }}
         run: |
           set -euo pipefail
           gh issue comment 761 --repo "$GITHUB_REPOSITORY" --body "### AGENT MESSAGE RECEIVED
@@ -139,7 +141,7 @@ jobs:
           **Message:** `$MESSAGE_ID`
           **Status:** `$MESSAGE_STATUS`
           **Entry SHA:** `$MESSAGE_SHA`
-          **Idempotency:** `$MESSAGE_ID`
+          **Idempotency Key:** `$MESSAGE_KEY`
           **Receipt:** `IMMEDIATE_EVENT_RECEIPT`
           **Target ref:** `${{ steps.target.outputs.target_ref }}`
 
