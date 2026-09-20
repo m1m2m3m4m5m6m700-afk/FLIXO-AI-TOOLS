@@ -1,4 +1,4 @@
-const FILTER_FUNCTION = /([a-z-]+)\(([-+]?\d*\.?\d+)(deg|%)?\)/giu;
+const FILTER_FUNCTION = /([a-z-]+)\(([-+]?\d*\.?\d+)(deg|rad|%)?\)/giu;
 
 type FilterParameters = {
   brightness: number;
@@ -30,10 +30,14 @@ function parseFilter(cssFilter: string): FilterParameters | null {
   let matched = false;
 
   FILTER_FUNCTION.lastIndex = 0;
+  let cursor = 0;
   while ((match = FILTER_FUNCTION.exec(cssFilter)) !== null) {
+    if (cssFilter.slice(cursor, match.index).trim()) return null;
     const [, name, rawValue, unit] = match;
-    const value = Number(rawValue);
-    if (!Number.isFinite(value)) return null;
+    const parsedValue = Number(rawValue);
+    if (!Number.isFinite(parsedValue)) return null;
+    const percentage = unit === '%' ? parsedValue / 100 : parsedValue;
+    const value = unit === 'rad' ? (parsedValue * 180) / Math.PI : percentage;
     matched = true;
     switch (name.toLocaleLowerCase()) {
       case 'brightness':
@@ -46,7 +50,7 @@ function parseFilter(cssFilter: string): FilterParameters | null {
         parameters.saturate = value;
         break;
       case 'hue-rotate':
-        parameters.hueRotateDeg = unit === 'rad' ? (value * 180) / Math.PI : value;
+        parameters.hueRotateDeg = unit === 'rad' ? (parsedValue * 180) / Math.PI : parsedValue;
         break;
       case 'sepia':
         parameters.sepia = Math.min(1, Math.max(0, value));
@@ -54,8 +58,10 @@ function parseFilter(cssFilter: string): FilterParameters | null {
       default:
         return null;
     }
+    cursor = FILTER_FUNCTION.lastIndex;
   }
 
+  if (cssFilter.slice(cursor).trim()) return null;
   return matched ? parameters : null;
 }
 
