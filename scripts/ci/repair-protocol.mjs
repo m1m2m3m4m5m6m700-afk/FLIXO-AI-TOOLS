@@ -77,6 +77,11 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   }
   return Object.freeze({actor,branch,mutation,protocol,admitted:true});
 }
+export const ACTION_VAULT_APPROVED_MUTATION_RECOMMENDATIONS = Object.freeze([
+  'ALLOW',
+  'ALLOW_AFTER_FALSIFICATION_NO_COUNTEREXAMPLE',
+]);
+
 export function validateActionVaultVerifierProof({ proof, targetSHA, failureFingerprint, verifierAgent = 'actionRepairVerifier' } = {}) {
   if (verifierAgent !== 'actionRepairVerifier') throw new Error('ACTION_VAULT_VERIFIER_AGENT_INVALID');
   if (!proof || typeof proof !== 'object') throw new Error('ACTION_VAULT_VERIFIER_PROOF_REQUIRED');
@@ -86,17 +91,46 @@ export function validateActionVaultVerifierProof({ proof, targetSHA, failureFing
   if (!proof.verifierAgent || proof.verifierAgent !== verifierAgent) throw new Error('ACTION_VAULT_VERIFIER_IDENTITY_INVALID');
   if (!Array.isArray(proof.alternativeHypotheses) || proof.alternativeHypotheses.length < 1) throw new Error('ACTION_VAULT_ALTERNATIVES_MISSING');
   if (!Array.isArray(proof.falsificationChecks) || proof.falsificationChecks.length < 1) throw new Error('ACTION_VAULT_FALSIFICATION_CHECKS_MISSING');
+  if (!Array.isArray(proof.falsificationSearches) || proof.falsificationSearches.length < 10) throw new Error('ACTION_VAULT_FALSIFICATION_SEARCH_INCOMPLETE');
   if (!proof.counterEvidence || typeof proof.counterEvidence !== 'object') throw new Error('ACTION_VAULT_COUNTER_EVIDENCE_MISSING');
   if (proof.role !== 'ADVERSARIAL_PROGRAMMER_FALSIFIER') throw new Error('ACTION_VAULT_ADVERSARIAL_FALSIFIER_ROLE_INVALID');
   if (proof.challengeMode !== 'FALSIFY_PRIMARY') throw new Error('ACTION_VAULT_FALSIFICATION_MODE_INVALID');
   if (proof.programmerTwinParity?.intelligenceParity !== 'EXACT') throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_PARITY_INVALID');
+  if (proof.programmerTwinParity?.authorityParity !== 'SEPARATED_BY_DESIGN') throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_AUTHORITY_PARITY_INVALID');
+  if (proof.programmerTwinParity?.targetSha !== targetSHA || proof.programmerTwinParity?.failureFingerprint !== failureFingerprint) throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_IDENTITY_INVALID');
   if (proof.cognitiveAwareness?.protocol !== 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1' || proof.cognitiveAwareness?.systemWide !== true) throw new Error('ACTION_VAULT_COGNITIVE_AWARENESS_INVALID');
+  if (proof.cognitiveAwareness?.targetSha !== targetSHA || proof.cognitiveAwareness?.failureFingerprint !== failureFingerprint) throw new Error('ACTION_VAULT_COGNITIVE_AWARENESS_IDENTITY_INVALID');
   if (proof.primaryCorrectnessProof?.objective !== 'PROVE_PRIMARY_REPAIR_CORRECT') throw new Error('ACTION_VAULT_PRIMARY_CORRECTNESS_PROOF_INVALID');
+  if (proof.primaryCorrectnessProof?.status !== 'PRIMARY_CORRECTNESS_PROVEN') throw new Error('ACTION_VAULT_PRIMARY_CORRECTNESS_NOT_PROVEN');
   if (proof.falsificationComplete !== true) throw new Error('ACTION_VAULT_FALSIFICATION_INCOMPLETE');
   if (proof.counterexampleFound !== false) throw new Error('ACTION_VAULT_COUNTEREXAMPLE_FOUND');
-  if (!Array.isArray(proof.falsificationSearches) || proof.falsificationSearches.length < 4) throw new Error('ACTION_VAULT_FALSIFICATION_SEARCH_INCOMPLETE');
-  if (proof.programmerTwinParity?.authorityParity !== 'SEPARATED_BY_DESIGN') throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_AUTHORITY_PARITY_INVALID');
-  if (proof.mutationRecommendation === 'ALLOW' && proof.remainingRisks == null) throw new Error('ACTION_VAULT_REMAINING_RISKS_REQUIRED');
+  if (proof.mutationRecommendation && !ACTION_VAULT_APPROVED_MUTATION_RECOMMENDATIONS.includes(proof.mutationRecommendation)) throw new Error('ACTION_VAULT_MUTATION_RECOMMENDATION_NOT_APPROVED');
+  if (!ACTION_VAULT_APPROVED_MUTATION_RECOMMENDATIONS.includes(proof.mutationRecommendation)) throw new Error('ACTION_VAULT_MUTATION_RECOMMENDATION_REQUIRED');
+  if (!Array.isArray(proof.remainingRisks)) throw new Error('ACTION_VAULT_REMAINING_RISKS_REQUIRED');
+  const completeness = proof.proofCompleteness;
+  if (!completeness || typeof completeness !== 'object') throw new Error('ACTION_VAULT_PROOF_COMPLETENESS_REQUIRED');
+  const required = [
+    'COGNITIVE_AWARENESS_PROVEN',
+    'ROOT_CAUSE_PROVEN',
+    'FILE_SELECTION_PROVEN',
+    'PROGRAMMER_TWIN_PARITY_PROVEN',
+    'ADVERSARIAL_FALSIFICATION_COMPLETE',
+    'NO_VALID_COUNTEREXAMPLE',
+    'SANDBOX_SIMULATION_PASSED',
+    'DIFFERENTIAL_CHECK_PASSED',
+    'PATCH_CORRECTNESS_PROVEN',
+    'REGRESSION_COUNTEREXAMPLES_EXHAUSTED',
+    'NO_SCOPE_VIOLATION',
+    'NO_TEST_MUTATION',
+    'NO_CONTROL_PLANE_MUTATION',
+    'NO_MAIN_MUTATION',
+    'NO_GATE_WEAKENING',
+  ];
+  for (const key of required) if (completeness[key] !== true) throw new Error('ACTION_VAULT_PROOF_COMPLETENESS_FAILED=' + key);
+  if (proof.preMutationProof?.targetSha && proof.preMutationProof.targetSha !== targetSHA) throw new Error('ACTION_VAULT_PRE_MUTATION_SHA_MISMATCH');
+  if (proof.preMutationProof?.failureFingerprint && proof.preMutationProof.failureFingerprint !== failureFingerprint) throw new Error('ACTION_VAULT_PRE_MUTATION_FINGERPRINT_MISMATCH');
+  if (proof.preMutationProof?.status && proof.preMutationProof.status !== 'PROVEN') throw new Error('ACTION_VAULT_PRE_MUTATION_PROOF_NOT_PROVEN');
+  if (proof.counterEvidence?.noCounterexampleIsNotPatchCorrect !== true && proof.noCounterexampleIsNotPatchCorrect !== true) throw new Error('ACTION_VAULT_NO_COUNTEREXAMPLE_RULE_MISSING');
   return Object.freeze({
     verified: true,
     verifierAgent,
@@ -105,7 +139,9 @@ export function validateActionVaultVerifierProof({ proof, targetSHA, failureFing
     challengeId: String(proof.challengeId ?? '').trim() || null,
     alternativeCount: proof.alternativeHypotheses.length,
     falsificationCount: proof.falsificationChecks.length,
-    mutationRecommendation: proof.mutationRecommendation ?? 'REVIEW',
+    mutationRecommendation: proof.mutationRecommendation,
+    remainingRiskCount: proof.remainingRisks.length,
+    proofCompleteness: completeness,
     falsificationComplete: proof.falsificationComplete,
     counterexampleFound: proof.counterexampleFound,
     proofObjective: 'ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG',
