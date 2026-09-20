@@ -180,7 +180,6 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   const [aspectRatio, setAspectRatio] = useState<FilterMaskParameters['aspectRatio']>(handoff?.parameters.aspectRatio ?? '9:16');
   const [captureQuality, setCaptureQuality] = useState<FilterMaskParameters['captureQuality']>(handoff?.parameters.captureQuality ?? '1080p');
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
-  const [capturedKind, setCapturedKind] = useState<'photo' | 'video' | null>(null);
   const [capturedFilename, setCapturedFilename] = useState<string>('flixo-filter-mask.jpg');
 
   const selected = getLiveFilter(selectedId) ?? LIVE_FILTER_REGISTRY[0];
@@ -485,7 +484,6 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
           if (previous) URL.revokeObjectURL(previous);
           return url;
         });
-        setCapturedKind('video');
         setCapturedFilename(`flixo-filter-mask.${videoExtensionForMime(recorder.mimeType || mimeType || 'video/webm')}`);
         setRecording(false);
         setRecordSeconds(0);
@@ -606,7 +604,6 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       if (previous) URL.revokeObjectURL(previous);
       return url;
     });
-    setCapturedKind('photo');
     setCapturedFilename('flixo-filter-mask.jpg');
   }
 
