@@ -2649,5 +2649,45 @@
     },
     "noAutomaticPrivilegeChange": true,
     "controllerReassessmentRequired": true
+  },
+  "knowledgeVault": {
+    "authority": "CELL_CONTROL_PLANE",
+    "directory": "diagnostics/auto-repair/cell-knowledge",
+    "indexFile": "diagnostics/auto-repair/cell-knowledge/index.json",
+    "botFilePattern": "diagnostics/auto-repair/cell-knowledge/CELL-NNN.json",
+    "oneFilePerBot": true,
+    "writerIdentityRequired": [
+      "botId",
+      "taskId",
+      "attendanceId",
+      "planId",
+      "planVersion",
+      "exactSha"
+    ],
+    "immutableProvenance": [
+      "botId",
+      "taskId",
+      "attendanceId",
+      "entrySha",
+      "exitSha",
+      "createdAt"
+    ],
+    "knowledgeLifecycle": [
+      "CAPTURED",
+      "VALIDATED",
+      "REUSED",
+      "REJECTED",
+      "SUPERSEDED"
+    ],
+    "rule": "Knowledge is attributable, searchable, reusable and never transfers permissions or authority.",
+    "weaknessTracking": {
+      "requiredFields": [
+        "weakness",
+        "upgradePriority",
+        "upgradeTarget"
+      ],
+      "derivedFrom": "attendance outcomes + knowledge validation + recurrence",
+      "controllerReviewRequired": true
+    }
   }
 }
