@@ -36,7 +36,7 @@ const CANONICAL_UNIFIED_PROMPT_ID = 'RPR-UNIFIED-EXECUTION-001';
 const CANONICAL_UNIFIED_PROMPT_PATH = 'docs/agents/PROMPT-UNIFIED-EXECUTION.md';
 const canonicalExecutionPrompt = readText(fs.readFileSync(path.resolve(CANONICAL_UNIFIED_PROMPT_PATH), 'utf8'));
 if (!canonicalExecutionPrompt) throw new Error('UNIFIED_EXECUTION_PROMPT_EMPTY');
-const bindCanonicalPrompt = (context) => [canonicalExecutionPrompt, '', '## CURRENT EXECUTION CONTEXT', context].join('\\n');
+const bindCanonicalPrompt = (context) => [canonicalExecutionPrompt, '', '## CURRENT EXECUTION CONTEXT', 'OPERATING_MODE=REPOSITORY_EXECUTION', context].join('\\n');
 
 const executionSha = String(input.executionSha ?? report.executionSha ?? '');
 const mainSha = String(input.mainSha ?? report.mainSha ?? '');
