@@ -1,0 +1,126 @@
+name: FLIXO Council Wake Bootstrap
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      comment_body:
+        description: "Canonical wake payload for bootstrap testing"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+concurrency:
+  group: flixo-council-bootstrap-${{ github.event.comment.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  wake:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.issue.number == 759 &&
+        github.event.comment.body != '' &&
+        (
+          github.event.comment.user.login == github.repository_owner ||
+          github.event.comment.user.login == 'github-actions[bot]'
+        ) &&
+        contains(github.event.comment.body, '<!-- FLIXO_AGENT_COUNCIL_WAKE -->')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read canonical wake payload
+        id: parse
+        env:
+          BODY: ${{ github.event.comment.body || github.event.inputs.comment_body || '' }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$BODY" > /tmp/wake.md
+
+          SHA="$(printf '%s\n' "$BODY" | sed -nE 's/^ENTRY SHA:[[:space:]]*([0-9a-f]{40})[[:space:]]*$/\1/p' | head -n1)"
+          ROLE="$(printf '%s\n' "$BODY" | sed -nE 's/^ROLE:[[:space:]]*([A-Z]+)[[:space:]]*$/\1/p' | head -n1)"
+          WP="$(printf '%s\n' "$BODY" | sed -nE 's/^WORK PACKAGE:[[:space:]]*([A-Z][A-Z0-9_-]{3,80})[[:space:]]*$/\1/p' | head -n1)"
+
+          test "$SHA" =~ ^[0-9a-f]{40}$
+          test -n "$ROLE"
+          test "$WP" =~ ^[A-Z][A-Z0-9_-]{3,80}$
+
+          CURRENT="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$CURRENT" =~ ^[0-9a-f]{40}$
+          test "$SHA" = "$CURRENT"
+
+          echo "entry_sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "role=$ROLE" >> "$GITHUB_OUTPUT"
+          echo "work_package=$WP" >> "$GITHUB_OUTPUT"
+
+      - name: Fail closed on unsupported route
+        env:
+          ROLE: ${{ steps.parse.outputs.role }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$ROLE" in
+            INVESTIGATOR|SCOUT|PERFORMANCE|TEST|SECURITY) ;;
+            DEPUTY|TASK|EXECUTION|REVIEW|CERTIFICATION)
+              echo "EXTERNAL_AGENT_WAKE_REQUIRED role=$ROLE"
+              exit 0
+              ;;
+            *)
+              echo "FAIL_CLOSED_UNSUPPORTED_ROLE=$ROLE"
+              exit 1
+              ;;
+          esac
+
+      - name: Dispatch supported internal workflow
+        if: ${{ steps.parse.outputs.role == 'INVESTIGATOR' || steps.parse.outputs.role == 'SCOUT' || steps.parse.outputs.role == 'PERFORMANCE' || steps.parse.outputs.role == 'TEST' || steps.parse.outputs.role == 'SECURITY' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROLE: ${{ steps.parse.outputs.role }}
+          ENTRY_SHA: ${{ steps.parse.outputs.entry_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$ROLE" in
+            INVESTIGATOR)
+              gh workflow run ultra-investigator.yml --repo "$GITHUB_REPOSITORY" --ref execution -f "expected_sha=$ENTRY_SHA"
+              ;;
+            SCOUT)
+              gh workflow run code-read-only-scout.yml --repo "$GITHUB_REPOSITORY" --ref execution
+              ;;
+            PERFORMANCE)
+              gh workflow run root-cause-diagnostics.yml --repo "$GITHUB_REPOSITORY" --ref execution
+              ;;
+            TEST)
+              gh workflow run test-matrix-contract.yml --repo "$GITHUB_REPOSITORY" --ref execution
+              ;;
+            SECURITY)
+              gh workflow run repository-security-baseline.yml --repo "$GITHUB_REPOSITORY" --ref execution
+              ;;
+          esac
+
+      - name: Publish wake receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROLE: ${{ steps.parse.outputs.role }}
+          ENTRY_SHA: ${{ steps.parse.outputs.entry_sha }}
+          WORK_PACKAGE: ${{ steps.parse.outputs.work_package }}
+          COMMENT_ID: ${{ github.event.comment.id || github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### PRESIDENT WAKE RECEIPT
+
+**Role:** \`$ROLE\`
+**Work Package:** \`$WORK_PACKAGE\`
+**Exact SHA:** \`$ENTRY_SHA\`
+**Result:** ACCEPTED
+**Bootstrap:** main-default-branch ingress
+
+<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
