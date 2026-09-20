@@ -24,6 +24,11 @@ on:
         description: 'Existing atomic global repair lease ref created by the watcher'
         required: false
         type: string
+      repair_lease_attempt:
+        description: 'Durable lease attempt number; 1 is initial claim, >1 is stale recovery'
+        required: false
+        default: '1'
+        type: string
       prompt_source_run_id:
         description: 'Daily Green Gate run that published the comprehensive repair prompt bundle'
         required: false
@@ -36,8 +41,8 @@ permissions:
   pull-requests: write
 
 concurrency:
-  # Serialize identical repair keys while allowing independent exact-SHA failures to progress.
-  group: flixo-auto-repair-execution-${{ inputs.failure_fingerprint || inputs.target_run_id }}
+  # Serialize one canonical repair chain; the chain identity includes branch, SHA, fingerprint and target run ID.
+  group: flixo-auto-repair-execution-${{ inputs.chain_id || inputs.target_run_id }}
   cancel-in-progress: false
 
 env:
@@ -49,6 +54,7 @@ env:
   FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
   FLIXO_FAILURE_FINGERPRINT: ${{ inputs.failure_fingerprint || '' }}
   FLIXO_REPAIR_LEASE_REF: ${{ inputs.repair_lease_ref || '' }}
+  FLIXO_REPAIR_LEASE_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
   FLIXO_PROMPT_SOURCE_RUN_ID: ${{ inputs.prompt_source_run_id || '' }}
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
@@ -162,18 +168,28 @@ jobs:
             --failedSha="$FAILED_SHA" \
             --targetRunId="$TARGET_RUN_ID" \
             --branch="execution")"
-          LEASE_REF="${FLIXO_REPAIR_LEASE_REF:-$EXPECTED_LEASE_REF}"
-          test "$LEASE_REF" = "$EXPECTED_LEASE_REF" || {
+          test -n "$FLIXO_REPAIR_LEASE_REF" || {
+            echo 'FAIL CLOSED: Auto-Repair must be dispatched only after a watcher-owned global lease exists.'
+            exit 1
+          }
+          test "$FLIXO_REPAIR_LEASE_REF" = "$EXPECTED_LEASE_REF" || {
             echo "FAIL CLOSED: provided repair lease ref does not match the canonical repair identity."
             exit 1
           }
-          TAG_NAME="${LEASE_REF#refs/tags/}"
-          LEASE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG_NAME" --jq '.object.sha' 2>/dev/null || true)"
-          test "$LEASE_SHA" = "$FAILED_SHA" || {
-            echo "FAIL CLOSED: atomic repair lease is missing or pinned to a different failure SHA."
-            exit 1
-          }
-          echo "GLOBAL_REPAIR_LEASE_VERIFIED=$LEASE_REF"
+          case "$FLIXO_REPAIR_LEASE_ATTEMPT" in
+            ''|*[!0-9]*|0) echo "FAIL CLOSED: invalid repair lease attempt=$FLIXO_REPAIR_LEASE_ATTEMPT"; exit 1 ;;
+          esac
+          node scripts/ci/repair-lease.mjs verify \
+            --fingerprint="$FAILURE_FINGERPRINT" \
+            --failedSha="$FAILED_SHA" \
+            --targetRunId="$TARGET_RUN_ID" \
+            --branch="execution" \
+            --attempt="$FLIXO_REPAIR_LEASE_ATTEMPT" \
+            --leaseOwner="AUTO_REPAIR_BOT" \
+            --repairRunId="$GITHUB_RUN_ID" > /tmp/flixo-lease-verification.json
+          test "$(jq -r '.status' /tmp/flixo-lease-verification.json)" = "LEASE_ACTIVE"
+          echo "GLOBAL_REPAIR_LEASE_VERIFIED=$FLIXO_REPAIR_LEASE_REF"
+          echo "GLOBAL_REPAIR_LEASE_ATTEMPT=$FLIXO_REPAIR_LEASE_ATTEMPT"
 
           node scripts/ci/repair-control-plane.mjs claim \
             --fingerprint="$FAILURE_FINGERPRINT" \
@@ -686,6 +702,62 @@ jobs:
           FLIXO_AI_PHASE2_PATH: /tmp/flixo-ai-phase2.json
           FLIXO_REPAIR_EVIDENCE_PATH: /tmp/flixo-repair-evidence.json
         run: node --experimental-strip-types scripts/ci/auto-repair/ai-phase2.mjs --release-handoff
+
+      - name: Record durable repair lease outcome
+        if: always()
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          set +e
+          if [ ! -s /tmp/flixo-lease-verification.json ]; then
+            echo 'LEASE_OUTCOME_ATTESTATION=SKIPPED_NO_VERIFIED_LEASE'
+            exit 0
+          fi
+
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha 2>/dev/null || printf '%s' '')"
+          EXIT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha' 2>/dev/null || printf '%s' "$FAILED_SHA")"
+          ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome 2>/dev/null || printf '%s' 'engine-error')"
+          VERIFICATION="engine-error"
+          OUTCOME="FAILED_REPAIR"
+          if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
+            OUTCOME="VERIFIED_HISTORICAL_REVERT"
+            VERIFICATION="verified-historical-revert"
+          elif [ "$ENGINE_OUTCOME" = "verified-repair" ] && [ "\${{ steps.verify.outputs.verified }}" = "true" ]; then
+            OUTCOME="VERIFIED_REPAIR"
+            VERIFICATION="verified-repair"
+          elif [ "$ENGINE_OUTCOME" = "blocked-external" ]; then
+            OUTCOME="BLOCKED_EXTERNAL"
+            VERIFICATION="blocked-external"
+          elif [ ! -s /tmp/flixo-root-cause.json ]; then
+            OUTCOME="BLOCKED_RCA"
+            VERIFICATION="root-cause-unavailable"
+          else
+            VERIFICATION="$ENGINE_OUTCOME"
+          fi
+          VERIFICATION_PROGRESS=false
+          if [ "$OUTCOME" = "VERIFIED_REPAIR" ] || [ "$OUTCOME" = "VERIFIED_HISTORICAL_REVERT" ] || [ "$EXIT_SHA" != "$FAILED_SHA" ]; then
+            VERIFICATION_PROGRESS=true
+          fi
+          STRATEGY_ID="$(node -e "const fs=require('fs');try{const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-strategy.json','utf8'));process.stdout.write(x.strategyId||'unknown')}catch{process.stdout.write('unavailable')}" 2>/dev/null || printf '%s' 'unavailable')"
+
+          node scripts/ci/repair-lease.mjs outcome \
+            --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
+            --failedSha="$FAILED_SHA" \
+            --targetRunId="$TARGET_RUN_ID" \
+            --branch="execution" \
+            --attempt="$FLIXO_REPAIR_LEASE_ATTEMPT" \
+            --leaseOwner="AUTO_REPAIR_BOT" \
+            --repairRunId="$GITHUB_RUN_ID" \
+            --strategy="$STRATEGY_ID" \
+            --outcome="$OUTCOME" \
+            --exitSha="$EXIT_SHA" \
+            --verification="$VERIFICATION" \
+            --verificationProgress="$VERIFICATION_PROGRESS" \
+            >/tmp/flixo-repair-lease-outcome.json
+          cat /tmp/flixo-repair-lease-outcome.json
+          echo "LEASE_OUTCOME=$OUTCOME"
+          echo "LEASE_EXIT_SHA=$EXIT_SHA"
+          echo "LEASE_VERIFICATION_PROGRESS=$VERIFICATION_PROGRESS"
 
       - name: Publish Repair Control Plane evidence
         if: always()
