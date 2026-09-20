@@ -21,10 +21,11 @@ assert.equal(intelligence.cooperation.parallelExecution.allThreeContributionsReq
 assert.equal(intelligence.cooperation.parallelExecution.exchangeBeforeMutation,true);
 assert.equal(intelligence.cooperation.parallelExecution.peerLearningReceiptsRequired,true);
 assert.equal(intelligence.cooperation.sharedLearning.promotedOnlyAfterCanonicalGreen,true);
-assert.equal(intelligence.roleMatrix['ACTION-REPAIR'].role,'PRIMARY_PROGRAMMING_REPAIR_OWNER');
-assert.equal(intelligence.roleMatrix['ACTION-REPAIR-2'].role,'HISTORICAL_INDEX_EXPLORER_AND_PREDICTOR');
-assert.equal(intelligence.roleMatrix['ACTION-HISTORIAN-3'].role,'FAILURE_LEDGER_AND_LEARNING_RECORDER');
-assert.equal(intelligence.cooperation.authority.repairOwner,'ACTION-REPAIR');
+assert.equal(intelligence.roleMatrix['ACTION-REPAIR'].mutationAuthority,'ADMITTED_SEAT');
+assert.equal(intelligence.roleMatrix['ACTION-REPAIR-2'].mutationAuthority,'ADMITTED_SEAT');
+assert.equal(intelligence.roleMatrix['ACTION-HISTORIAN-3'].mutationAuthority,'SUPERVISOR_20_ONLY');
+assert.equal(intelligence.cooperation.authority.repairOwner,'SELECTED_TRIAD_SEAT');
+assert.equal(intelligence.cooperation.authority.supervisorAfter20,'ACTION-HISTORIAN-3');
 assert.equal(intelligence.cooperation.authority.predictionOwner,'ACTION-REPAIR-2');
 assert.equal(residency.residency.noSleepBeforeGreen,true);
 assert.equal(residency.residency.noIdleBeforeGreen,true);
@@ -32,6 +33,9 @@ assert.equal(residency.sleepAdmission.required,true);
 assert.equal(residency.sleepAdmission.openWorkBlocksSleep,true);
 
 const source=fs.readFileSync(script,'utf8');
-for(const marker of ['PARALLEL_DISCOVERY','PARALLEL_ANALYSIS','CROSS_LEARNING','CHALLENGE','OWNER_MUTATION','GREEN_LEARNING','allThreeMustContributeBeforeMutation','exchangeBeforeMutation','learnedFromPeers','HISTORICAL_INDEX_EXPLORATION_AND_REPAIR_PREDICTION','PROGRAMMER_THINKING_AND_BOUNDED_SOURCE_REPAIR','FAILURE_LEDGER_AND_LEARNING_RECORDING','ACTION_THREE_BOT_ONLY_PROGRAMMER_OWNER_MAY_MUTATE','ACTION_THREE_BOT_CLOSE_BLOCKED_NO_GREEN_RECORD']) assert.ok(source.includes(marker),'missing marker: '+marker);
+for(const marker of ['PARALLEL_DISCOVERY','PARALLEL_ANALYSIS','CROSS_LEARNING','CHALLENGE','OWNER_MUTATION','GREEN_LEARNING','allThreeMustContributeBeforeMutation','exchangeBeforeMutation','learnedFromPeers','HISTORICAL_INDEX_EXPLORATION_AND_REPAIR_PREDICTION','PROGRAMMER_THINKING_AND_BOUNDED_SOURCE_REPAIR','FAILURE_LEDGER_AND_LEARNING_RECORDING','ACTION_THREE_BOT_MUTATION_OWNER_INVALID','ACTION_THREE_BOT_CLOSE_BLOCKED_NO_GREEN_RECORD']) assert.ok(source.includes(marker),'missing marker: '+marker);
 
-console.log(JSON.stringify({status:'PASS',authority:'ACTION_VAULT_PARALLEL_COLLABORATION_TEST',assertions:19},null,2));
+assert.equal(intelligence.cooperation.triadGovernance.recurrenceEscalationThreshold,20);
+assert.equal(intelligence.cooperation.triadGovernance.catalogCapacity,1000000);
+assert.equal(intelligence.cooperation.triadGovernance.supervisor,'ACTION-HISTORIAN-3');
+console.log(JSON.stringify({status:'PASS',authority:'ACTION_VAULT_PARALLEL_COLLABORATION_TEST',assertions:23},null,2));
