@@ -318,6 +318,8 @@ jobs:
             /tmp/flixo-watch/compare.json
             /tmp/flixo-watch/logs/
             /tmp/flixo-watch/repair-control-plane.json
+            /tmp/flixo-watch/lease-claim.json
+            /tmp/flixo-watch/lease-recovery.json
           if-no-files-found: warn
           retention-days: 14
 
