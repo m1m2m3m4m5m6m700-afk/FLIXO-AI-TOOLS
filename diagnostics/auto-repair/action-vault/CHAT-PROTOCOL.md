@@ -39,3 +39,27 @@ The chat belongs to ACTION VAULT and is independent of CELL. It does not write t
 
 Persistence:
 Current-session chat is stored in the Action Vault transcript and indexed by task/fingerprint/SHA. Verified knowledge is promoted into each participating bot's memory after GREEN.
+
+
+## Parallel-learning extension
+
+The three resident agents work in parallel cognitive lanes:
+
+- ACTION-REPAIR → PRIMARY_EXECUTION_RCA_AND_BOUNDED_REPAIR
+- ACTION-REPAIR-2 → INDEPENDENT_RCA_CHALLENGE_AND_FALSIFICATION
+- ACTION-HISTORIAN-3 → EVIDENCE_INTAKE_INDEX_PROVENANCE_AND_LEARNING
+
+Before source mutation, the chat session MUST reach:
+
+PARALLEL_DISCOVERY
+→ PARALLEL_ANALYSIS
+→ CROSS_LEARNING
+→ CHALLENGE
+→ SYNTHESIS
+→ OWNER_MUTATION
+
+Every contributor must publish a contribution bound to taskId + failureFingerprint + exact target SHA + runId. Every participant must receive the other two contributions before mutation authorization.
+
+The chat may carry provisional learning during RED. Shared knowledge is promotable only after Canonical GREEN.
+
+SLEEP/IDLE is not a chat state for an open mission. A completed mission requires a GREEN record before sleep admission.
