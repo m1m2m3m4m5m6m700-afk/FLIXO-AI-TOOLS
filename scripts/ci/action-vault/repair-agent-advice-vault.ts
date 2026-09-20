@@ -1,8 +1,10 @@
 // Canonical Action Vault for the Repair Agent. Advice is bounded, evidence-first context; it never grants mutation or certification authority.\nimport { createHash } from 'node:crypto';
 import { z } from 'zod';
 
-export const ADVICE_VAULT_PROTOCOL = 'FLIXO-REPAIR-ACTION-VAULT-1M-v1' as const;
-export const ADVICE_VAULT_OWNER = 'repairAgent' as const;
+export const ADVICE_VAULT_PROTOCOL = 'FLIXO-ACTION-VAULT-1M-v2' as const;
+export const ADVICE_VAULT_KNOWLEDGE_STEWARD = 'agent3' as const;
+export const ADVICE_VAULT_READ_POLICY = 'ALL_REGISTERED_AGENTS' as const;
+export const ADVICE_VAULT_MUTATION_POLICY = 'KNOWLEDGE_STEWARD_ONLY' as const;
 export const ADVICE_VAULT_CAPACITY = 1_000_000 as const;
 export const ADVICE_VAULT_SHARD_SIZE = 10_000 as const;
 export const ADVICE_VAULT_SHARD_COUNT = ADVICE_VAULT_CAPACITY / ADVICE_VAULT_SHARD_SIZE;
@@ -34,7 +36,7 @@ export const AdviceEvidenceSchema = z.object({
 
 export const AdviceRecordSchema = z.object({
   id: z.string().min(1).max(256),
-  ownerAgent: z.literal(ADVICE_VAULT_OWNER),
+  knowledgeSteward: z.literal(ADVICE_VAULT_KNOWLEDGE_STEWARD),
   kind: AdviceKindSchema,
   content: z.string().trim().min(1).max(20_000),
   scope: z.string().trim().min(1).max(512),
@@ -54,6 +56,35 @@ export const AdviceRecordSchema = z.object({
 
 export type AdviceRecord = z.infer<typeof AdviceRecordSchema>;
 export type AdviceOutcome = z.infer<typeof AdviceOutcomeSchema>;
+
+export type AdviceVaultAgentId = string;
+
+export function assertAdviceVaultReadAccess(_agentId: AdviceVaultAgentId): void {
+  if (!_agentId.trim()) throw new Error('ADVICE_VAULT_AGENT_ID_REQUIRED');
+}
+
+export function assertAdviceVaultMutationAccess(agentId: AdviceVaultAgentId): void {
+  if (agentId !== ADVICE_VAULT_KNOWLEDGE_STEWARD) {
+    throw new Error('ADVICE_VAULT_MUTATION_FORBIDDEN');
+  }
+}
+
+export const ADVICE_VAULT_MUTATION_OPERATIONS = Object.freeze([
+  'UPSERT_ADVICE',
+  'REVOKE_ADVICE',
+  'RECLASSIFY_ADVICE',
+  'MERGE_DUPLICATES',
+  'RESOLVE_CONFLICT',
+  'REBALANCE_SHARD_METADATA',
+  'UPDATE_RETRIEVAL_METADATA',
+] as const);
+
+export function authorizeAdviceVaultMutation(agentId: AdviceVaultAgentId, operation: string): void {
+  assertAdviceVaultMutationAccess(agentId);
+  if (!(ADVICE_VAULT_MUTATION_OPERATIONS as readonly string[]).includes(operation)) {
+    throw new Error('ADVICE_VAULT_MUTATION_OPERATION_FORBIDDEN');
+  }
+}
 
 export type AdvicePromotion = Readonly<{
   status: 'ADVISORY' | 'PLAYBOOK_CANDIDATE' | 'BLOCKED';
@@ -222,7 +253,6 @@ export function summarizeAdviceVault(records: readonly AdviceRecord[]) {
   const shards = partitionAdvice(unique);
   return Object.freeze({
     protocol: ADVICE_VAULT_PROTOCOL,
-    ownerAgent: ADVICE_VAULT_OWNER,
     capacity: ADVICE_VAULT_CAPACITY,
     materialized: unique.length,
     remaining: ADVICE_VAULT_CAPACITY - unique.length,
