@@ -31,7 +31,7 @@ const packet = buildMentorPacket({
   fingerprint: 'fingerprint-test',
   targetSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   failedRunId: 'run-mentor-test',
-  sourceFiles: ['scripts/ci/action-code-mentor.mjs']
+  sourceFiles: ['scripts/ci/action-vault-targeted-test.mjs']
 });
 assert.equal(packet.parentBotId, 'ACTION-REPAIR');
 assert.equal(packet.readOnly, true);
