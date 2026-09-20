@@ -17,8 +17,9 @@ import {
 } from '@/lib/agent/conversation';
 import { AGENT_I18N } from '@/data/agent-locales';
 import type { Locale } from '@/lib/i18n';
-import { buildFilterMaskUrl, createFilterMaskHandoff } from '@/tools/filter-mask/handoff';
-import { getLiveFilter, resolveLiveFilter } from '@/tools/filter-mask/registry';
+import { buildFilterMaskUrl, type FilterMaskHandoff } from '@/tools/filter-mask/handoff';
+import { getLiveFilter } from '@/tools/filter-mask/registry';
+import { resolveFilterMaskSelection } from '@/lib/intent/resolver';
 import './FlixoAIAgent.css';
 
 type AgentState = 'idle' | 'ready' | 'running' | 'success' | 'error';
@@ -66,25 +67,14 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     return turns.map((turn, index) => ({ id: index + 1, role: turn.role, text: turn.text }));
   });
   const [messageId, setMessageId] = useState(() => loadConversationMemory().turns.length + 1);
-  const [filterHandoff, setFilterHandoff] = useState<ReturnType<typeof createFilterMaskHandoff> | null>(null);
+  const [filterHandoff, setFilterHandoff] = useState<FilterMaskHandoff | null>(null);
 
   const contextualQuery = useMemo(() => contextualizeCommand(query, memory), [query, memory]);
   const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, getReadyToolConfigs())[0] : null, [contextualQuery]);
   const planned = useMemo(() => contextualQuery.trim() ? planFromIntent(contextualQuery) : null, [contextualQuery]);
   const filterMaskMatch = intent?.tool.id === 'filter-mask';
 
-  const resolveFilterMaskHandoff = (command: string) => {
-    const requested = resolveLiveFilter(command) ?? getLiveFilter('effect.original');
-    if (!requested) return null;
-    const intensityMatch = command.match(/(?:intensity|strength|شدة|قوة)?\s*(\d{1,3})\s*%/i);
-    const zoomMatch = command.match(/(?:zoom|تكبير|زوم)\s*(\d+(?:\.\d+)?)\s*x?/i);
-    const requestedIntensity = intensityMatch ? Number(intensityMatch[1]) : 100;
-    const requestedZoom = zoomMatch ? Number(zoomMatch[1]) : 1;
-    return createFilterMaskHandoff(requested, {
-      intensity: Number.isFinite(requestedIntensity) ? requestedIntensity : 100,
-      zoom: Number.isFinite(requestedZoom) ? requestedZoom : 1,
-    });
-  };
+  const resolveFilterMaskHandoff = (command: string) => resolveFilterMaskSelection(command);
 
   const pushMessage = (role: Message['role'], text: string) => {
     setMessages((current) => [...current, { id: messageId, role, text }]);
