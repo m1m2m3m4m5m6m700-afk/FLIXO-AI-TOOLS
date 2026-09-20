@@ -153,8 +153,41 @@ const packet={
  roleExpansion:{ACTION_REPAIR:['whole-system context','correctness proof','downstream impact'],ACTION_REPAIR_2:['independent source analysis','falsification','counterexample search'],ACTION_HISTORIAN_3:['minimal file selection','recurrence evidence','anti-lessons']},
  generatedAt:now()
 };
-\nconst awarenessValidation=validateActionSystemCognitiveAwareness(packet,{targetSha,failureFingerprint:fingerprint});\npacket.validation=awarenessValidation;\npacket.awarenessCompleteness.complete=packet.awarenessCompleteness.complete===true&&awarenessValidation.valid;fs.mkdirSync(path.dirname(path.resolve(output)),{recursive:true});
+
+const stampEvidence=(items)=>items.map(item=>({...item,targetSha,failureFingerprint:fingerprint,runId:failedRunId,timestamp:now()}));
+for(const domainName of Object.keys(domains)){
+  domains[domainName].evidence=stampEvidence(domains[domainName].evidence);
+  domains[domainName].evidenceRefs=domains[domainName].evidence.map(item=>item.id);
+}
+const awarenessValidation=validateActionSystemCognitiveAwareness(packet,{targetSha,failureFingerprint:fingerprint});
+packet.validation=awarenessValidation;
+packet.awarenessCompleteness.complete=packet.awarenessCompleteness.complete===true&&awarenessValidation.valid;
+fs.mkdirSync(path.dirname(path.resolve(output)),{recursive:true});
 fs.writeFileSync(output,JSON.stringify(packet,null,2)+'\n');
-console.log(JSON.stringify({status:complete?'PASS':'BLOCK',protocol:packet.protocol,targetSha,failureFingerprint,domainCount:requiredDomains.length,completedDomains:packet.awarenessCompleteness.declaredCompleteDomains.length,complete},null,2));
-if(!complete)process.exitCode=1;
-\nexport function validateActionSystemCognitiveAwareness(packet,{targetSha=null,failureFingerprint=null}={}){\n  const failures=[];\n  if(!packet||packet.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1') failures.push('AWARENESS_PROTOCOL_INVALID');\n  if(packet?.schemaVersion!==2) failures.push('AWARENESS_SCHEMA_INVALID');\n  if(targetSha&&packet?.targetSha!==targetSha) failures.push('AWARENESS_SHA_MISMATCH');\n  if(failureFingerprint&&packet?.failureFingerprint!==failureFingerprint) failures.push('AWARENESS_FINGERPRINT_MISMATCH');\n  if(packet?.exactShaBound!==true||packet?.readOnly!==true||packet?.noMutation!==true) failures.push('AWARENESS_GOVERNANCE_INVALID');\n  const names=packet?.awarenessCompleteness?.requiredDomains??[];\n  if(names.length!==9) failures.push('AWARENESS_DOMAIN_COUNT_INVALID');\n  for(const name of names){\n    const d=packet?.domains?.[name];\n    if(!d) {failures.push('AWARENESS_DOMAIN_MISSING='+name);continue;}\n    if(!Array.isArray(d.facts)||!Array.isArray(d.evidence)||d.evidence.length===0||!Array.isArray(d.unknowns)||!Array.isArray(d.contradictions)||!Array.isArray(d.hypotheses)||typeof d.confidence?.value!=='number'||!Array.isArray(d.confidence?.basis)||d.confidence.basis.length===0||!Array.isArray(d.evidenceRefs)||d.evidenceRefs.length===0||!Array.isArray(d.impact)||typeof d.conclusion!=='string'||typeof d.reevaluationTrigger!=='string') failures.push('AWARENESS_DOMAIN_EVIDENCE_INVALID='+name);\n    if(d.completed!==true) failures.push('AWARENESS_DOMAIN_UNPROVEN='+name);\n  }\n  if(packet?.domains?.CAUSAL_CONTEXT?.evidence?.length<4) failures.push('AWARENESS_CAUSAL_PROOF_EVIDENCE_MISSING');\n  if(packet?.domains?.ADVERSARIAL_CONTEXT?.completed!==true) failures.push('AWARENESS_ADVERSARIAL_CONTEXT_UNPROVEN');\n  if(packet?.reasoningDiscipline?.confidenceCannotReplaceProof!==true) failures.push('AWARENESS_CONFIDENCE_NOT_PROOF');\n  if(packet?.reasoningDiscipline?.noCounterexampleDoesNotEqualGreen!==true) failures.push('AWARENESS_NO_COUNTEREXAMPLE_RULE_MISSING');\n  const valid=failures.length===0&&packet.awarenessCompleteness.complete===true;\n  return Object.freeze({valid,status:valid?'PROVEN':'BLOCK',failures,targetSha:packet?.targetSha??null,failureFingerprint:packet?.failureFingerprint??null,domainCount:names.length});\n}\n
+console.log(JSON.stringify({status:packet.awarenessCompleteness.complete?'PASS':'BLOCK',protocol:packet.protocol,targetSha,failureFingerprint,domainCount:requiredDomains.length,completedDomains:packet.awarenessCompleteness.declaredCompleteDomains.length,complete:packet.awarenessCompleteness.complete},null,2));
+if(!packet.awarenessCompleteness.complete)process.exitCode=1;
+
+export function validateActionSystemCognitiveAwareness(packet,{targetSha=null,failureFingerprint=null}={}){
+  const failures=[];
+  if(!packet||packet.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1') failures.push('AWARENESS_PROTOCOL_INVALID');
+  if(packet?.schemaVersion!==2) failures.push('AWARENESS_SCHEMA_INVALID');
+  if(targetSha&&packet?.targetSha!==targetSha) failures.push('AWARENESS_SHA_MISMATCH');
+  if(failureFingerprint&&packet?.failureFingerprint!==failureFingerprint) failures.push('AWARENESS_FINGERPRINT_MISMATCH');
+  if(packet?.exactShaBound!==true||packet?.readOnly!==true||packet?.noMutation!==true) failures.push('AWARENESS_GOVERNANCE_INVALID');
+  const names=packet?.awarenessCompleteness?.requiredDomains??[];
+  if(names.length!==9) failures.push('AWARENESS_DOMAIN_COUNT_INVALID');
+  for(const name of names){
+    const d=packet?.domains?.[name];
+    if(!d){failures.push('AWARENESS_DOMAIN_MISSING='+name);continue;}
+    if(!Array.isArray(d.facts)||!Array.isArray(d.evidence)||d.evidence.length===0||!Array.isArray(d.unknowns)||!Array.isArray(d.contradictions)||!Array.isArray(d.hypotheses)||typeof d.confidence?.value!=='number'||!Array.isArray(d.confidence?.basis)||d.confidence.basis.length===0||!Array.isArray(d.evidenceRefs)||d.evidenceRefs.length===0||!Array.isArray(d.impact)||typeof d.conclusion!=='string'||typeof d.reevaluationTrigger!=='string') failures.push('AWARENESS_DOMAIN_EVIDENCE_INVALID='+name);
+    if(d.evidence.some(item=>item?.targetSha!==packet.targetSha||item?.failureFingerprint!==packet.failureFingerprint||item?.runId!==packet.failedRunId||typeof item?.timestamp!=='string'||Number.isNaN(Date.parse(item.timestamp)))) failures.push('AWARENESS_EVIDENCE_PROVENANCE_INVALID='+name);
+    if(d.contradictions.length>0) failures.push('AWARENESS_UNRESOLVED_CONTRADICTION='+name);
+    if(d.completed!==true) failures.push('AWARENESS_DOMAIN_UNPROVEN='+name);
+  }
+  if(packet?.domains?.CAUSAL_CONTEXT?.evidence?.length<4) failures.push('AWARENESS_CAUSAL_PROOF_EVIDENCE_MISSING');
+  if(packet?.domains?.ADVERSARIAL_CONTEXT?.completed!==true) failures.push('AWARENESS_ADVERSARIAL_CONTEXT_UNPROVEN');
+  if(packet?.reasoningDiscipline?.confidenceCannotReplaceProof!==true) failures.push('AWARENESS_CONFIDENCE_NOT_PROOF');
+  if(packet?.reasoningDiscipline?.noCounterexampleDoesNotEqualGreen!==true) failures.push('AWARENESS_NO_COUNTEREXAMPLE_RULE_MISSING');
+  const valid=failures.length===0&&packet.awarenessCompleteness.complete===true;
+  return Object.freeze({valid,status:valid?'PROVEN':'BLOCK',failures,targetSha:packet?.targetSha??null,failureFingerprint:packet?.failureFingerprint??null,domainCount:names.length});
+}
