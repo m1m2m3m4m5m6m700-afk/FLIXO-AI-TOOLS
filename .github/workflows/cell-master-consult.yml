@@ -24,7 +24,8 @@ on:
         description: Risk level
         required: true
         default: MEDIUM
-        type: string
+        type: choice
+        options: [LOW, MEDIUM, HIGH, CRITICAL]
       question:
         description: Teaching question
         required: true
@@ -42,7 +43,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
 
 concurrency:
   group: flixo-cell-master-consult-${{ inputs.request_id }}
@@ -130,3 +130,17 @@ jobs:
           jq -e --arg sha "$ENTRY_SHA" --arg agent "$AGENT" '.entrySha==$sha and .actor==$agent and .recipient=="assistantController" and .payload.masterExecution.selection=="ANY_CONNECTED_MASTER_MODEL" and .payload.masterExecution.modelPinned==false' /tmp/cell-master-message.json >/dev/null
 
       - name: Ingest CELL request into canonical Master inbox
+        run: |
+          set -euo pipefail
+          node scripts/ci/agent-communication.mjs validate --message-file=/tmp/cell-master-message.json
+          node scripts/ci/agent-communication.mjs ingest --message-file=/tmp/cell-master-message.json | tee /tmp/master-consult-response.json
+          jq -e '.status=="RECEIVED" or .status=="STALE"' /tmp/master-consult-response.json >/dev/null
+
+      - name: Publish consult evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-cell-master-consult-${{ github.run_id }}
+          path: /tmp/master-consult-response.json
+          if-no-files-found: ignore
+          retention-days: 14
