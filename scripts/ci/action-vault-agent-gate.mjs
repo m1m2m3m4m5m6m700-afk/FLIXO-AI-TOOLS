@@ -122,11 +122,11 @@ export function validateExecutionBoundaries(profiles) {
     err(errors, 'SECONDARY_PREDICTION_CONTRACT_WEAK');
   }
 
-  if (historian?.mutationAuthority !== false && historian?.mutationAuthority !== 'ADMITTED_SEAT' ||
-      historian?.canMutateSource !== false && historian?.canMutateSource !== 'SUPERVISOR_20_ONLY' ||
+  if (!['ADMITTED_SEAT','SUPERVISOR_20_ONLY'].includes(historian?.mutationAuthority) ||
+      historian?.canMutateSource !== 'SUPERVISOR_20_ONLY' ||
       historian?.canDispatchRepair !== false ||
-      historian?.executionAuthority !== 'RECORD_INDEX_ESCALATE_ONLY' ||
-      historian?.executionBoundary?.sourceMutation !== false ||
+      historian?.executionAuthority !== 'MUTATE_WHEN_SUPERVISOR_20' ||
+      historian?.executionBoundary?.sourceMutation !== 'SUPERVISOR_20_ONLY' ||
       historian?.executionBoundary?.testMutation !== false) {
     err(errors, 'HISTORIAN_MUTATION_BOUNDARY_WEAK');
   }
