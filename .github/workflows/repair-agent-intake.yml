@@ -63,7 +63,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout trusted intake gateway
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: main
           fetch-depth: 1
@@ -155,7 +155,7 @@ jobs:
 
       - name: Preserve central intake evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-repair-agent-incident-${{ github.run_id }}
           path: /tmp/repair-agent-intake
