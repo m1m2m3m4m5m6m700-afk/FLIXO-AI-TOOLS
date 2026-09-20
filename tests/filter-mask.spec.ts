@@ -40,6 +40,11 @@ test.describe('Filter Mask live camera surface', () => {
     await aspectGroup.getByRole('button', { name: '1:1' }).click();
     await expect(aspectGroup.getByRole('button', { name: '1:1' })).toHaveAttribute('aria-pressed', 'true');
     await expect(page).toHaveURL(/aspectRatio=1%3A1/);
+    const quality = section.getByRole('group', { name: 'Capture quality' });
+    await expect(quality.getByRole('button', { name: '1080p high' })).toHaveAttribute('aria-pressed', 'true');
+    await quality.getByRole('button', { name: '720p standard' }).click();
+    await expect(quality.getByRole('button', { name: '720p standard' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page).toHaveURL(/captureQuality=720p/);
   });
 
   test('reports a clear error when camera permission is denied', async ({ page }) => {
@@ -180,7 +185,7 @@ test.describe('Filter Mask live camera surface', () => {
   });
 
   test('accepts a canonical filter handoff from the live URL', async ({ page }) => {
-    await page.goto('/en/filter-mask?canonicalId=effect.warm&intensity=65&zoom=1.6&mirror=false');
+    await page.goto('/en/filter-mask?canonicalId=effect.warm&intensity=65&zoom=1.6&mirror=false&captureQuality=720p');
 
     const section = page.getByRole('region', { name: 'Filter Mask' });
     const selected = section.getByRole('button', { name: /Warm effect\.warm/ }).first();
@@ -193,6 +198,7 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(page).toHaveURL(/intensity=65/);
     await expect(page).toHaveURL(/zoom=1\.6/);
     await expect(page).toHaveURL(/mirror=false/);
+    await expect(page).toHaveURL(/captureQuality=720p/);
   });
 
   test('agent resolves a live-filter request into a canonical handoff', async ({ page }) => {
@@ -210,9 +216,9 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(handoff).toContainText('1.6×');
 
     const openPreview = handoff.getByRole('link', { name: 'Open live preview' });
-    await expect(openPreview).toHaveAttribute('href', '/en/filter-mask?canonicalId=effect.warm&intensity=65&zoom=1.6&mirror=true&aspectRatio=9%3A16');
+    await expect(openPreview).toHaveAttribute('href', '/en/filter-mask?canonicalId=effect.warm&intensity=65&zoom=1.6&mirror=true&aspectRatio=9%3A16&captureQuality=1080p');
     await openPreview.click();
-    await expect(page).toHaveURL(/\/en\/filter-mask\?canonicalId=effect\.warm&intensity=65&zoom=1\.6&mirror=true&aspectRatio=9%3A16/);
+    await expect(page).toHaveURL(/\/en\/filter-mask\?canonicalId=effect\.warm&intensity=65&zoom=1\.6&mirror=true&aspectRatio=9%3A16&captureQuality=1080p/);
     await expect(page.getByRole('button', { name: /Warm effect\.warm/ }).first()).toHaveAttribute('aria-pressed', 'true');
   });
   test('persists favorites and exposes recent filter shortcuts', async ({ page }) => {
