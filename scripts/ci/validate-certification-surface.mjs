@@ -40,7 +40,7 @@ const nonTestAutomation = new Set([
 ]);
 const auxiliaryEvidenceAutomation = new Set(['test-impact.yml', 'test-impact-execution.yml']);
 const trustBaselineAutomation = new Set(['wp0-trust-baseline.yml']);
-const councilWakeAutomation = new Set(['council-wake-push-relay.yml']);
+const councilWakeAutomation = new Set(['council-wake-push-relay.yml', 'council-network-probe.yml']);
 const automatedNonCanonical = [];
 for (const file of workflowFiles) {
   if (file === 'ci.yml' || nonTestAutomation.has(file) || auxiliaryEvidenceAutomation.has(file) || trustBaselineAutomation.has(file) || councilWakeAutomation.has(file) || REPAIR_GATE_AUTOMATION.includes(file)) continue;

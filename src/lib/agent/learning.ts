@@ -1,3 +1,0 @@
-import type {KnowledgeRecord} from './knowledge/types';
-export type LearningCandidate={content:string,evidence:KnowledgeRecord[],confidence:number};
-export function acceptLearning(candidate:LearningCandidate){if(!candidate.evidence.length||candidate.confidence<.9)return null;if(candidate.evidence.some(e=>e.validity!=='CURRENT'||e.status==='INFERRED'))return null;return Object.freeze({...candidate,status:'VERIFIED' as const});}

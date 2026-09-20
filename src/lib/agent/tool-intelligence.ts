@@ -1,2 +1,0 @@
-export type ToolProfile={id:string,purpose:string,permission:'READ'|'WRITE'|'EXECUTE',risk:'LOW'|'MEDIUM'|'HIGH',failureModes:string[]};
-export function canUseTool(tool:ToolProfile,granted:readonly ToolProfile['permission'][]){if(!granted.includes(tool.permission))return false;if(tool.risk==='HIGH'&&tool.permission==='EXECUTE'&&!granted.includes('WRITE'))return false;return true;}
