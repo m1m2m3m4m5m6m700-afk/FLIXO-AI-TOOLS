@@ -185,6 +185,20 @@ export function selectRepairPrompt({ registry, failureFingerprint = '', rootCaus
     candidates: causal.map((item) => item.promptId),
     validation,
   };
+
+  // The repository has exactly one canonical active execution prompt.
+  // A broad unified prompt may own uncatalogued causal variants without
+  // creating prompt-per-error specialists.
+  if (
+    active.length === 1 &&
+    (
+      active[0].failureClasses.includes('ALL_REPAIRABLE') ||
+      active[0].rootCauses.includes('ANY_CONFIRMED_RCA')
+    )
+  ) {
+    return { status: 'REUSE', prompt: active[0], validation };
+  }
+
   return { status: 'PROMPT_REVIEW_REQUIRED', reason: 'no-active-causal-prompt', validation };
 }
 
