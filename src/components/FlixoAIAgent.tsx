@@ -129,7 +129,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     try {
       const decision = await askConversationalAgent({
         locale,
-        messages: [...messages, { role: 'user', content: command }].slice(-24).map((message) => ({
+        messages: [...messages, { id: messageId, role: 'user', text: command }].slice(-24).map((message) => ({
           role: message.role === 'agent' ? 'assistant' : 'user',
           content: message.text,
         })),
@@ -295,7 +295,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     pushMessage('agent', responseCopy.understood);
   };
 
-  const prepare = () => {
+  const prepare = async () => {
     const command = query.trim(); if (!command) return;
     const detectedLocale = detectAgentLocale(command, locale);
     const responseCopy = AGENT_I18N[detectedLocale] ?? copy;
