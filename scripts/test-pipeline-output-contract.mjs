@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { getToolOutputContractForDefinition } from '../src/lib/contracts/tool-output-contracts.ts';
 import { getToolDefinition } from '../src/config/canonical-tool-definition.ts';
 import { verifyPipelineOutput } from '../src/lib/workflows/pipeline-runner.ts';
-import { appendPipelineStepReceipt, createPipelineReceiptChain, createPipelineStepReceipt } from '../src/lib/workflows/pipeline-receipt.ts';
+import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelineReceiptChain, createPipelineStepReceipt } from '../src/lib/workflows/pipeline-receipt.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 
 const input = new Blob(['input'], { type: 'image/png' });
@@ -68,6 +68,13 @@ receiptChain = await appendPipelineStepReceipt(receiptChain, secondReceipt);
 assert.equal(receiptChain.steps.length, 2);
 assert.equal(receiptChain.steps[1].inputSha256, receiptChain.steps[0].outputSha256);
 assert.equal(receiptChain.steps[1].recoveryApplied, true);
+await assertPipelineReceiptChain(receiptChain);
+
+const tamperedChain = Object.freeze({ ...receiptChain, chainSha256: 'f'.repeat(64) });
+await assert.rejects(
+  () => assertPipelineReceiptChain(tamperedChain),
+  /digest or length mismatch/,
+);
 
 const brokenReceipt = await createPipelineStepReceipt({
   toolId: 'image-compressor',
