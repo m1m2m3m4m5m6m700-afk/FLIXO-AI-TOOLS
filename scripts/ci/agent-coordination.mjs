@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { getMessage as getAgentMessage } from './agent-communication.mjs';
+import { getMessage as getAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
 
 const ROOT = process.cwd();
 const COORD_DIR = path.resolve(ROOT, 'diagnostics/agents');
@@ -82,7 +82,16 @@ if (command === 'task-claim') {
     if (inboundMessage.taskId !== taskId) throw new Error('COORDINATION_MESSAGE_TASK_MISMATCH');
     if (!overlap(task.scope ?? [], new Set(inboundMessage.scope ?? []))) throw new Error('COORDINATION_MESSAGE_SCOPE_MISMATCH');
   }
-  const lockId = lock(sessionId, agentId, task.rca, task.scope); task.status = 'RUNNING'; task.claimedBy = agentId; task.sessionId = sessionId; task.claimedAt = now(); task.entrySha = sha(); task.lockId = lockId;
+  let lockId = lock(sessionId, agentId, task.rca, task.scope);
+  if (inboundMessage) {
+    try {
+      inboundMessage = consumeAgentMessage(inboundMessage.messageId, agentId, sha(), true);
+    } catch (error) {
+      unlock(sessionId);
+      throw error;
+    }
+  }
+  task.status = 'RUNNING'; task.claimedBy = agentId; task.sessionId = sessionId; task.claimedAt = now(); task.entrySha = sha(); task.lockId = lockId;
   state.activeSessions[sessionId] = { sessionId, agentId, taskId, lockId, entrySha: sha(), ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}), updatedAt: now() };
   const packetFile = packetPath(taskId); const packet = readJson(packetFile, task); packet.claim = { sessionId, agentId, lockId, claimedAt: now(), entrySha: sha(), ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha } : {}) }; writeJson(packetFile, packet); save(); console.log(JSON.stringify(task, null, 2));
 }
