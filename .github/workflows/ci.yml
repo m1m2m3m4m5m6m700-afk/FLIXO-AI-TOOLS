@@ -11,7 +11,7 @@ on:
 # supersession controller also cancels stale runs belonging to other workflows.
 concurrency:
   group: flixo-test-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
