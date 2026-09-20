@@ -19,7 +19,7 @@ assert.match(generator, /rankLessons/u);
 assert.match(generator, /antiLessons/u);
 assert.match(generator, /exact SHA/u);
 assert.match(generator, /OPERATING_MODE=REPOSITORY_EXECUTION/u);
-assert.match(canonicalPrompt, /CUSTOMER-FACING IMAGE-AGENT CONTRACT/u);
+assert.match(canonicalPrompt, /Customer-facing image-agent contract/u);
 assert.match(canonicalPrompt, /OPERATING_MODE=CUSTOMER_IMAGE_RUNTIME/u);
 assert.match(runtimeAdapter, /PROMPT-UNIFIED-EXECUTION\\.md\\?raw/u);
 assert.match(runtimeAdapter, /OPERATING_MODE=CUSTOMER_IMAGE_RUNTIME/u);
