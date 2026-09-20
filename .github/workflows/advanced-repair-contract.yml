@@ -1,0 +1,22 @@
+name: FLIXO Advanced Repair Contract
+
+on:
+  pull_request:
+  push:
+    branches: [execution]
+
+permissions:
+  contents: read
+
+jobs:
+  packet-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+      - name: Validate packet validator syntax
+        run: node --check scripts/ci/validate-advanced-repair-packet.mjs
+      - name: Run negative-control contract test
+        run: node scripts/ci/test-advanced-repair-packet.mjs
