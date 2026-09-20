@@ -49,3 +49,28 @@
 
 اختبار العقد:
 `scripts/ci/test-agent-liveness-protocol.mjs`
+
+
+## Green-gated sleep
+
+SLEEP وIDLE ليسا حالات انتقال حرة.
+
+قبل أي دخول إلى SLEEP أو IDLE يجب تقديم GREEN record صادر من DAILY_FLIXO_GREEN_GATE.
+
+الحد الأدنى للسجل:
+- recordId
+- taskId
+- failureFingerprint
+- exact target SHA
+- conclusion=success
+- zeroRed=true
+- exactShaVerified=true
+- recordedAt
+
+يجب أن يطابق GREEN record المهمة وSHA الحاليين. أي mismatch أو evidence قديم يمنع النوم ويحوّل الجلسة إلى RECOVERING أو ACTIVE.
+
+البروتوكول التنفيذي: scripts/ci/action-vault-sleep-admission.mjs
+
+## قاعدة Action Vault
+
+الوكلاء الثلاثة resident agents لا يدخلون SLEEP/IDLE أثناء مهمة مفتوحة. انتهاء الزيارة أو فشل المحاولة لا يغلق المهمة؛ الإغلاق يتطلب GREEN record.
