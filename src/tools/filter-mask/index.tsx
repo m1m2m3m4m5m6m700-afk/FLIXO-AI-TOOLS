@@ -589,7 +589,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
           <button type="button" onClick={() => void start()} disabled={running}>{copy.startCamera}</button>
           <button type="button" onClick={stop} disabled={!running || recording}>{copy.stop}</button>
           <button type="button" onClick={switchCamera} disabled={!running || recording}>{copy.switchCamera}</button>
-          <button type="button" onClick={() => void toggleTorch()} disabled={!running || recording}>{torch ? copy.torchOn : copy.torchOff}</button>
+          <button type="button" aria-pressed={torch} onClick={() => void toggleTorch()} disabled={!running || recording}>{torch ? copy.torchOn : copy.torchOff}</button>
           <button type="button" onClick={() => void capture()} disabled={!running || recording}>{copy.photo}</button>
           {!recording
             ? <button type="button" onClick={startRecording} disabled={!running}>{copy.recordVideo}</button>
