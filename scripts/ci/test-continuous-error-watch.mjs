@@ -351,6 +351,36 @@ const waiting = evaluateGreen({
 });
 assert.equal(waiting.status, 'WAITING_REQUIRED_CHECKS');
 
+const postMergeWrongMain = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr: null,
+  latestMergedPr: { headRefOid: SHA_A, mergeCommit: { oid: SHA_A } },
+  workflowRuns: requiredRuns, checkRuns: securityAndCertification,
+  compare: { ahead_by: 0, behind_by: 0 },
+});
+assert.equal(postMergeWrongMain.status, 'RED_INTERNAL');
+assert.equal(postMergeWrongMain.repair.required, false);
+assert(postMergeWrongMain.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'));
+
+const postMergeWrongHead = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr: null,
+  latestMergedPr: { headRefOid: SHA_B, mergeCommit: { oid: SHA_B } },
+  workflowRuns: requiredRuns, checkRuns: securityAndCertification,
+  compare: { ahead_by: 0, behind_by: 0 },
+});
+assert.equal(postMergeWrongHead.status, 'RED_INTERNAL');
+assert.equal(postMergeWrongHead.repair.required, false);
+assert(postMergeWrongHead.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'));
+
+const postMergeMissingCommit = evaluateGreen({
+  executionSha: SHA_A, mainSha: SHA_B, openPr: null,
+  latestMergedPr: { headRefOid: SHA_A, mergeCommit: null },
+  workflowRuns: requiredRuns, checkRuns: securityAndCertification,
+  compare: { ahead_by: 0, behind_by: 0 },
+});
+assert.equal(postMergeMissingCommit.status, 'RED_INTERNAL');
+assert.equal(postMergeMissingCommit.repair.required, false);
+assert(postMergeMissingCommit.errors.some((item) => item.type === 'POST_MERGE_MAIN_IDENTITY_MISMATCH'));
+
 const postMerge = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr: null,
   latestMergedPr: { headRefOid: SHA_A, mergeCommit: { oid: SHA_B } },
