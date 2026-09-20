@@ -257,11 +257,12 @@ test.describe('Filter Mask live camera surface', () => {
     await page.goto('/en/filter-mask');
     const section = page.getByRole('region', { name: 'Filter Mask' });
 
-    await section.getByRole('button', { name: /Warm effect\\.warm/ }).first().click();
+    await section.getByRole('button', { name: /Warm effect\.warm/ }).first().click();
     await section.getByRole('slider').last().fill('65');
     await section.getByRole('slider', { name: 'Zoom' }).fill('1.4');
     await section.getByRole('button', { name: 'Mirror on' }).click();
     await section.getByRole('group', { name: 'Capture aspect ratio' }).getByRole('button', { name: '4:5' }).click();
+    await section.getByRole('group', { name: 'Capture quality' }).getByRole('button', { name: '720p standard' }).click();
     await section.getByRole('textbox', { name: 'Preset name' }).fill('Creator Warm');
     await section.getByRole('button', { name: 'Save preset' }).click();
 
@@ -273,13 +274,15 @@ test.describe('Filter Mask live camera surface', () => {
     await section.getByRole('slider', { name: 'Zoom' }).fill('1');
     await section.getByRole('button', { name: 'Mirror on' }).click();
     await section.getByRole('group', { name: 'Capture aspect ratio' }).getByRole('button', { name: '9:16' }).click();
+    await section.getByRole('group', { name: 'Capture quality' }).getByRole('button', { name: '1080p high' }).click();
 
     await preset.click();
-    await expect(section.getByRole('button', { name: /Warm effect\\.warm/ }).first()).toHaveAttribute('aria-pressed', 'true');
+    await expect(section.getByRole('button', { name: /Warm effect\.warm/ }).first()).toHaveAttribute('aria-pressed', 'true');
     await expect(section.getByRole('slider').last()).toHaveValue('65');
     await expect(section.getByRole('slider', { name: 'Zoom' })).toHaveValue('1.4');
     await expect(section.getByRole('button', { name: 'Mirror off' })).toHaveAttribute('aria-pressed', 'false');
     await expect(section.getByRole('group', { name: 'Capture aspect ratio' }).getByRole('button', { name: '4:5' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(section.getByRole('group', { name: 'Capture quality' }).getByRole('button', { name: '720p standard' })).toHaveAttribute('aria-pressed', 'true');
 
     await page.reload();
     const reloaded = page.getByRole('region', { name: 'Filter Mask' });
