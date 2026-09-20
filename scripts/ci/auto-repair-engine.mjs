@@ -17,7 +17,7 @@ import { simulateRepair } from './auto-repair/simulation.mjs';
 import { critiqueRepair } from './auto-repair/self-critic.mjs';
 import { buildCausalProof } from './auto-repair/causal-proof.mjs';
 import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
-import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession } from './repair-protocol.mjs';
+import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession, validateErrorOnlyMutation } from './repair-protocol.mjs';
 
 // Static protocol contract marker: root-cause-proof-reproductionRecovered.
 function mutationAttribution({ beforeSha, afterSha, changedFiles = [], rule = null, outcome = 'unknown' } = {}) {
@@ -210,6 +210,11 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     const diffSummary = summarizeDiff(changed);
     evidence.diff = diffSummary;
     evidence.changedPaths = diffSummary.files;
+    evidence.errorOnlyMutation = validateErrorOnlyMutation({
+      failureLocation: diagnosis?.location?.file,
+      selectedFile: historicalRollbackCandidate?.file ?? diagnosis?.location?.file,
+      changedPaths: diffSummary.files,
+    });
     evidence.mutationAttribution = mutationAttribution({
       beforeSha: targetSha,
       afterSha: git(['rev-parse', 'HEAD']).trim(),
@@ -479,6 +484,11 @@ const before = snapshot(targetDir);
   }
 
 try {
+  evidence.errorOnlyMutation = validateErrorOnlyMutation({
+    failureLocation: diagnosis?.location?.file,
+    selectedFile: selected?.file,
+    changedPaths: [selected?.file],
+  });
   evidence.repair = runAstRepair(targetDir, selected);
   const changed = git(['diff', '--binary']);
   const diffSummary = summarizeDiff(changed);
