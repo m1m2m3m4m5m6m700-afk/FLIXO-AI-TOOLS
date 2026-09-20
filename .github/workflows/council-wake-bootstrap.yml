@@ -148,9 +148,7 @@ jobs:
           )"
           echo "$RESPONSE" > /tmp/council-dispatch.json
           jq -e '.ok == true' /tmp/council-dispatch.json >/dev/null
-          jq -r '"COUNCIL_DISPATCH_ID=" + .dispatchId + "
-COUNCIL_DISPATCH_STATUS=" + .status + "
-COUNCIL_PUSH=" + (.push|tostring)' /tmp/council-dispatch.json
+          jq -r '"COUNCIL_DISPATCH_ID=" + .dispatchId + "\nCOUNCIL_DISPATCH_STATUS=" + .status + "\nCOUNCIL_PUSH=" + (.push|tostring)' /tmp/council-dispatch.json
 
       - name: Dispatch supported internal workflow
         if: ${{ steps.parse.outputs.role == 'INVESTIGATOR' || steps.parse.outputs.role == 'SCOUT' || steps.parse.outputs.role == 'PERFORMANCE' || steps.parse.outputs.role == 'TEST' || steps.parse.outputs.role == 'SECURITY' }}
