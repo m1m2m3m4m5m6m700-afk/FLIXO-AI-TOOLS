@@ -110,7 +110,7 @@
     "externalRuntime": "External account adapter: transports Wake/ACK/heartbeat/completion between GitHub/Supabase and external GPT runtimes. It grants no mutation or certification authority.",
     "actionRepairBot": "ACTION-REPAIR / actionRepairBot: primary bounded mutation owner for Actions repair. It may mutate only after the canonical Action Vault verifier challenge passes on the same exact SHA and fingerprint, then the normal Repair Protocol admits the mutation. It never self-certifies or widens gates.",
     "actionRepairVerifier": "ACTION-REPAIR-2 verifier mode: independently challenges RCA and evidence with no direct mutation. Fallback mutation is a separate assistantRepairAgent execution mode and is allowed only after ACTION-REPAIR approval, current exact-SHA validation, active heartbeat and the normal Repair Protocol; verifier evidence never self-authorizes mutation.",
-    "actionHistorian": "ACTION-HISTORIAN-3 / actionHistorian: learning and recurrence specialist. It records exact-SHA lessons, anti-lessons, rejected strategies, recurrence conditions and prevention rules; it has no mutation, commit, push, merge or certification authority."
+    "actionHistorian": "ACTION-HISTORIAN-3 / actionHistorian: file-selection intelligence and learning specialist. It reasons about repository files, file relationships, change surfaces and exclusions without reading source-code content as a programmer; it has no source mutation, commit, push, merge or certification authority."
   },
   "decisionGates": {
     "LOW": "Auto-execute only inside declared scope with deterministic verification and no protected-path impact.",
@@ -456,17 +456,22 @@
       },
       "ACTION-HISTORIAN-3": {
         "agent": "actionHistorian",
-        "purpose": "learning and recurrence prevention",
+        "purpose": "file selection intelligence, recurrence prevention and learning",
         "mutationAuthority": false,
         "certificationAuthority": false,
         "requiredInputs": [
           "exactSha",
           "failureFingerprint",
-          "rca",
-          "strategy",
-          "verificationResult"
+          "failureLog",
+          "trackedFilePaths",
+          "currentShaChangeSurface"
         ],
         "requiredOutputs": [
+          "fileSelectionDecision",
+          "selectedFiles",
+          "excludedFiles",
+          "selectionConfidence",
+          "uncertainty",
           "lesson",
           "antiLesson",
           "recurrenceRule",
@@ -475,16 +480,20 @@
         ],
         "forbidden": [
           "source mutation",
+          "code patching",
+          "programmer-level root-cause claims",
           "authority grant",
           "confidence-only promotion",
           "deleting failed history"
         ],
-        "memoryWriteAuthority": "ACTION_VAULT_MEMORY_ONLY"
+        "memoryWriteAuthority": "ACTION_VAULT_MEMORY_ONLY",
+        "pathOnlyReasoning": true
       }
     },
     "missionSequence": [
       "CAPTURE",
       "FINGERPRINT",
+      "FILE_SELECTION",
       "RCA",
       "FALSIFY",
       "REPAIR",
@@ -503,10 +512,11 @@
       "targetSha",
       "ownerAgent",
       "proofObligations",
-      "stopConditions"
+      "stopConditions",
+      "fileSelectionDecision"
     ],
     "independenceRule": "ACTION-REPAIR-2 and ACTION-HISTORIAN-3 must not impersonate ACTION-REPAIR or reuse its mutation authority.",
-    "verificationRule": "ACTION-REPAIR-2 must receive the post-repair evidence independently; ACTION-REPAIR cannot declare the verifier result on its behalf.",
+    "verificationRule": "ACTION-REPAIR-2 must receive the post-repair evidence independently; ACTION-REPAIR cannot declare the verifier result on its behalf. ACTION-HISTORIAN-3 must provide the file-selection decision before ACTION-REPAIR performs code-level repair reasoning.",
     "memoryPromotionRule": "A reusable repair rule requires at least two independently verified successful exact-SHA cases plus one explicit prevention rule; one success never promotes authority.",
     "retryPolicy": "NO_BLIND_RETRY",
     "failedAttemptEscalationThreshold": 20,
@@ -526,7 +536,31 @@
       "artifact": "actionVaultVerifierProof",
       "verifier": "actionRepairVerifier",
       "admission": "verify exact SHA + failure fingerprint + alternatives + falsification checks + counter-evidence + remaining risks",
-      "failClosed": true
+      "failClosed": true,
+      "fileSelectionRequired": true
+    },
+    "fileSelectionIntelligence": {
+      "enabled": true,
+      "protocol": "ACTION-FILE-SELECTION-INTELLIGENCE-v1",
+      "runtime": "scripts/ci/action-file-selection-intelligence.mjs",
+      "owner": "ACTION-HISTORIAN-3",
+      "readOnly": true,
+      "pathOnlyAnalysis": true,
+      "codeContentRead": false,
+      "sourceMutationAllowed": false,
+      "exactShaRequired": true,
+      "failureFingerprintRequired": true,
+      "minimumSelectedFiles": 1,
+      "maximumSelectedFiles": 12,
+      "requiredDecisionFields": [
+        "targetSha",
+        "failureFingerprint",
+        "selectedFiles",
+        "excludedFiles",
+        "uncertainty",
+        "decision"
+      ],
+      "boundary": "SELECT_SCOPE_ONLY; NEVER_DECLARE_CODE_ROOT_CAUSE"
     }
   }
 }
