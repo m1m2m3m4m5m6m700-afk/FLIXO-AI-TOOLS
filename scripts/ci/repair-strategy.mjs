@@ -171,7 +171,7 @@ function causalIntelligence(log, memory, stableCaseFingerprint, targetDir) {
   const rootCause = String(reasoning?.rootCause ?? discriminator?.hypotheses?.[0]?.id ?? 'unknown');
   const rootMethods = ROOT_CAUSE_METHODS[rootCause] ?? ROOT_CAUSE_METHODS.unknown;
   return Object.freeze({
-    version: 'V12',
+    version: 'V13-BEHAVIORAL-TRAINING',
     rootCause,
     confidence: Number(reasoning?.causalConfidence ?? 0),
     ambiguity: reasoning?.ambiguity === true || discriminator?.ranking?.ambiguous === true,
@@ -431,7 +431,7 @@ const teachingPacket = {
   requiredEvidenceDelta: teachingEscalation ? ['new-root-cause-evidence', 'new-reproduction-or-disproof', 'new-verification-proof'] : ['exact-failure-evidence'],
   exitCriteria: 'verified-repair-on-exact-target-sha-and-canonical-green',
   intelligence: {
-    version: 'V12',
+    version: 'V13-BEHAVIORAL-TRAINING',
     causal,
     strategyPortfolio: intelligentRanking.portfolio,
     falsificationPlan: buildFalsificationPlan(causal, intelligentRanking),
@@ -439,7 +439,7 @@ const teachingPacket = {
     training,
     stateActionRecommendation,
     behavioralRecommendation,
-    selectedBy: selectedRepairStrategy ? 'TWIN_OR_EXTERNAL_SELECTION' : intelligentSelectedId ? 'V12_CAUSAL_PORTFOLIO' : 'DETERMINISTIC_ROTATION',
+    selectedBy: selectedRepairStrategy ? 'TWIN_OR_EXTERNAL_SELECTION' : stateActionPreferredId ? 'TRAINED_STATE_ACTION' : behaviorPreferredId ? 'TRAINED_BEHAVIOR_SEQUENCE' : intelligentSelectedId ? 'V12_CAUSAL_PORTFOLIO' : 'DETERMINISTIC_ROTATION',
     noBlindRepeat: true,
     steering: steeringDirective,
   },
@@ -488,7 +488,7 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
       ranked: twinSelection?.selection?.ranked ?? []
     }
   },
-  protocol: 'SUPERVISING-REPAIR-TEACHING-v3-V12-CAUSAL',
+  protocol: 'SUPERVISING-REPAIR-TEACHING-v3-V13-TRAINED-BEHAVIOR',
 }, null, 2)}\n`);
 fs.writeFileSync('/tmp/flixo-intractable-state', 'false\n');
 console.log(JSON.stringify({ fingerprint, attempt: nextAttempt, priorRepairArtifacts: persistedAttempts, strategyId, teachingEscalation, sameStrategyRepeated, teachingPacket, intractable: false, policy: 'EVERY_ACTIONABLE_RED_REQUIRES_NEW_EVIDENCE_OR_STRATEGY' }));
