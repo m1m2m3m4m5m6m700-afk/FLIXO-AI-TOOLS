@@ -649,6 +649,23 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         </div>
       )}
 
+      <div role="group" aria-label={copy.savePreset} style={{ display: 'grid', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <strong>Presets</strong>
+          <button type="button" onClick={savePreset}>{copy.savePreset}</button>
+        </div>
+        {presets.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {presets.map((preset) => (
+              <div key={preset.id} style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                <button type="button" onClick={() => applyPreset(preset)}>{preset.name}</button>
+                <button type="button" aria-label={`${copy.deletePreset} ${preset.name}`} onClick={() => deletePreset(preset.id)}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div role="group" aria-label={copy.selected} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button
           type="button"
