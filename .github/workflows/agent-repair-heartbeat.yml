@@ -29,8 +29,10 @@ jobs:
         run: |
           set -euo pipefail
           ACTIVE_SUPERVISORS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-supervisor.yml --limit 20 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
-          if [ "$ACTIVE_SUPERVISORS" -gt 0 ]; then
+          ACTIVE_GREEN_GATES="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --limit 50 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
+          if [ "$ACTIVE_SUPERVISORS" -gt 0 ] || [ "$ACTIVE_GREEN_GATES" -gt 0 ]; then
             echo "SUPERVISOR_ALREADY_ACTIVE=$ACTIVE_SUPERVISORS"
+            echo "GREEN_GATE_ALREADY_ACTIVE=$ACTIVE_GREEN_GATES"
             echo "wake=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -59,4 +61,6 @@ jobs:
         run: |
           set -euo pipefail
           gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref main
+          gh workflow run daily-flixo-green-gate.yml --repo "$GITHUB_REPOSITORY" --ref execution
           echo 'SUPERVISOR_WAKE_DISPATCHED=true'
+          echo 'CANONICAL_GREEN_GATE_WAKE_DISPATCHED=true'
