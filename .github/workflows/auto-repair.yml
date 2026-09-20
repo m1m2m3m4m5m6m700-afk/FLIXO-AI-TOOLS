@@ -690,6 +690,34 @@ jobs:
       - name: Verify auto-repair security boundary before mutation
         run: node scripts/ci/test-auto-repair-security-boundary.mjs
 
+      - name: Build Action Vault system cognitive awareness — shared context gate
+        if: steps.strategy.outcome == 'success'
+        run: |
+          set -euo pipefail
+          SHA="$(cat /tmp/flixo-failed-sha)"
+          FP="$FLIXO_FAILURE_FINGERPRINT"
+          TASK_ID="ACTION-RED:$TARGET_RUN_ID:$FP"
+          node scripts/ci/action-system-cognitive-awareness.mjs \
+            --task="$TASK_ID" \
+            --sha="$SHA" \
+            --fingerprint="$FP" \
+            --run-id="$TARGET_RUN_ID" \
+            --file-selection="$FLIXO_FILE_SELECTION_PATH" \
+            --log="$FLIXO_FAILURE_LOG" \
+            --output=/tmp/action-system-cognitive-awareness.json
+          node scripts/ci/test-action-system-cognitive-awareness.mjs /tmp/action-system-cognitive-awareness.json
+          jq -e --arg sha "$SHA" --arg fp "$FP" '
+            .protocol == "ACTION-SYSTEM-COGNITIVE-AWARENESS-v1" and
+            .targetSha == $sha and
+            .failureFingerprint == $fp and
+            .exactShaBound == true and
+            .readOnly == true and
+            .noMutation == true and
+            .awarenessCompleteness.complete == true and
+            (.awarenessCompleteness.requiredDomains | length) >= 9
+          ' /tmp/action-system-cognitive-awareness.json >/dev/null
+          echo "FLIXO_SYSTEM_COGNITIVE_AWARENESS_PATH=/tmp/action-system-cognitive-awareness.json" >> "$GITHUB_ENV"
+
       - name: ACTION-REPAIR primary correctness proof — constructive proof gate
         if: steps.strategy.outcome == 'success'
         run: |
@@ -705,6 +733,7 @@ jobs:
             --diagnosis=/tmp/flixo-root-cause.json \
             --strategy=/tmp/flixo-repair-strategy.json \
             --file-selection="$FLIXO_FILE_SELECTION_PATH" \
+            --awareness="$FLIXO_SYSTEM_COGNITIVE_AWARENESS_PATH" \
             --output=/tmp/action-primary-correctness-proof.json
           node scripts/ci/test-action-primary-correctness-proof.mjs
           jq -e --arg sha "$SHA" --arg fp "$FP" '
@@ -750,7 +779,7 @@ jobs:
           TARGET_RUN_ID: ${{ env.TARGET_RUN_ID }}
         run: |
           set -euo pipefail
-          node scripts/ci/action-repair-dual-control.mjs audit --agent=ACTION-REPAIR-2 --partner=ACTION-REPAIR --target-sha="$FLIXO_EXPECTED_TARGET_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --run-id="$TARGET_RUN_ID" --memory="$FLIXO_ACTION_REPAIR_ASSISTANT_MEMORY" --strategy=/tmp/flixo-repair-strategy.json --evidence=/tmp/flixo-root-cause.json --file-selection="$FLIXO_FILE_SELECTION_PATH" --programmer-twin-parity="$FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH" --primary-proof="$FLIXO_PRIMARY_CORRECTNESS_PROOF_PATH" --proposal=/tmp/action-repair-2-proposal.json
+          node scripts/ci/action-repair-dual-control.mjs audit --agent=ACTION-REPAIR-2 --partner=ACTION-REPAIR --target-sha="$FLIXO_EXPECTED_TARGET_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --run-id="$TARGET_RUN_ID" --memory="$FLIXO_ACTION_REPAIR_ASSISTANT_MEMORY" --strategy=/tmp/flixo-repair-strategy.json --evidence=/tmp/flixo-root-cause.json --file-selection="$FLIXO_FILE_SELECTION_PATH" --programmer-twin-parity="$FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH" --primary-proof="$FLIXO_PRIMARY_CORRECTNESS_PROOF_PATH" --awareness="$FLIXO_SYSTEM_COGNITIVE_AWARENESS_PATH" --proposal=/tmp/action-repair-2-proposal.json
           test -s /tmp/action-repair-2-proposal.json
 
       - name: ACTION-REPAIR-1 approval for ACTION-REPAIR-2
