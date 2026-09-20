@@ -74,3 +74,33 @@ const IDS=new Set(LIVE_FILTER_REGISTRY.map((filter)=>filter.canonicalId));
 if(IDS.size!==LIVE_FILTER_REGISTRY.length) throw new Error('Duplicate live filter canonicalId.');
 if(LIVE_FILTER_REGISTRY.length<60) throw new Error('Filter Mask requires at least 60 live filters.');
 export const getLiveFilter=(canonicalId:string)=>LIVE_FILTER_REGISTRY.find((filter)=>filter.canonicalId===canonicalId);
+
+export type LiveFilterFamily = LiveFilterDefinition['family'];
+
+export const LIVE_FILTER_FAMILIES: readonly LiveFilterFamily[] = Object.freeze(
+  Array.from(new Set(LIVE_FILTER_REGISTRY.map((filter) => filter.family))) as LiveFilterFamily[],
+);
+
+const normalizeFilterQuery = (value: string): string =>
+  value
+    .toLocaleLowerCase()
+    .normalize('NFKC')
+    .replace(/[^\\p{L}\\p{N}\\s-]/gu, ' ')
+    .replace(/\\s+/g, ' ')
+    .trim();
+
+export const findLiveFilters = (query: string): readonly LiveFilterDefinition[] => {
+  const normalized = normalizeFilterQuery(query);
+  if (!normalized) return LIVE_FILTER_REGISTRY;
+  return LIVE_FILTER_REGISTRY.filter((filter) =>
+    normalizeFilterQuery(`${filter.canonicalId} ${filter.label} ${filter.family}`).includes(normalized),
+  );
+};
+
+export const resolveLiveFilter = (query: string): LiveFilterDefinition | undefined => {
+  const normalized = normalizeFilterQuery(query);
+  if (!normalized) return undefined;
+  return LIVE_FILTER_REGISTRY.find((filter) => normalizeFilterQuery(filter.canonicalId) === normalized)
+    ?? LIVE_FILTER_REGISTRY.find((filter) => normalizeFilterQuery(filter.label) === normalized)
+    ?? findLiveFilters(normalized)[0];
+};
