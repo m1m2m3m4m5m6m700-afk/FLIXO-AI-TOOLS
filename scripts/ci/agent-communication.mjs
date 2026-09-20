@@ -34,6 +34,8 @@ const writeJson = (file, value) => {
 };
 const ensure = () => { fs.mkdirSync(INBOX_DIR, { recursive: true }); };
 const roles = new Set(['assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','diagnosticAgent','ALL_AGENTS']);
+const MESSAGE_TYPES = new Set(['DIRECTIVE','REQUEST','RESPONSE','CHALLENGE','HANDOFF']);
+const RESPONSE_STATUSES = new Set(['ACCEPTED','REJECTED','ACKNOWLEDGED','BLOCKED','NEEDS_CLARIFICATION']);
 const required = ['messageId','actor','recipient','intent','taskId','scope','entrySha','risk','dependencies','expectedEvidence','stopConditions','proofObligations','createdAt'];
 const asArray = (value, name) => {
   if (!Array.isArray(value) || value.length === 0 || value.some((item) => typeof item !== 'string' || !item.trim())) {
@@ -56,6 +58,17 @@ export function validateMessage(message, observedSha = currentSha()) {
   for (const field of ['scope','dependencies','expectedEvidence','stopConditions','proofObligations']) asArray(message[field], field);
   if (!['LOW','MEDIUM','HIGH','CRITICAL'].includes(String(message.risk))) throw new Error('AGENT_MESSAGE_RISK_INVALID');
   if (typeof message.intent !== 'string' || !message.intent.trim()) throw new Error('AGENT_MESSAGE_INTENT_INVALID');
+  const messageType = String(message.messageType ?? 'DIRECTIVE').toUpperCase();
+  if (!MESSAGE_TYPES.has(messageType)) throw new Error('AGENT_MESSAGE_TYPE_INVALID');
+  const requiresResponse = message.requiresResponse === undefined ? ['REQUEST', 'CHALLENGE', 'HANDOFF'].includes(messageType) : message.requiresResponse === true;
+  if (['REQUEST', 'CHALLENGE', 'HANDOFF'].includes(messageType) && !requiresResponse) throw new Error('AGENT_MESSAGE_RESPONSE_REQUIREMENT_INVALID');
+  if (messageType === 'RESPONSE') {
+    safeId(String(message.inReplyTo ?? ''), 'in_reply_to');
+    safeId(String(message.correlationId ?? ''), 'correlation_id');
+    if (!RESPONSE_STATUSES.has(String(message.responseStatus))) throw new Error('AGENT_MESSAGE_RESPONSE_STATUS_INVALID');
+  }
+  const responseState = String(message.responseState ?? (requiresResponse ? 'PENDING' : 'NONE')).toUpperCase();
+  if (!['NONE','PENDING','RESPONDED','BLOCKED'].includes(responseState)) throw new Error('AGENT_MESSAGE_RESPONSE_STATE_INVALID');
   return Object.freeze({
     schemaVersion: Number(message.schemaVersion ?? 1),
     messageId: String(message.messageId),
@@ -75,6 +88,15 @@ export function validateMessage(message, observedSha = currentSha()) {
     source: String(message.source ?? 'UNKNOWN'),
     notificationRef: message.notificationRef ?? null,
     payload: message.payload ?? null,
+    messageType,
+    requiresResponse,
+    correlationId: message.correlationId ?? null,
+    inReplyTo: message.inReplyTo ?? null,
+    responseState,
+    responseStatus: message.responseStatus ?? null,
+    responseMessageId: message.responseMessageId ?? null,
+    respondedBy: message.respondedBy ?? null,
+    respondedAt: message.respondedAt ?? null,
     observedSha: observedSha,
   });
 }
@@ -124,11 +146,59 @@ export function ingest(message, observedSha = currentSha()) {
     recipient: normalized.recipient,
     taskId: normalized.taskId,
     entrySha: normalized.entrySha,
+    messageType: normalized.messageType,
+    requiresResponse: normalized.requiresResponse,
+    correlationId: normalized.correlationId,
+    responseState: normalized.responseState,
+    responseStatus: normalized.responseStatus,
+    responseMessageId: normalized.responseMessageId,
     receivedAt: record.receivedAt,
     updatedAt: record.receivedAt,
   };
   saveIndex(index);
   return record;
+}
+export function createMessage({ messageId, actor, recipient, intent, taskId, scope, entrySha,
+  risk = 'MEDIUM', dependencies = ['coordination'], expectedEvidence = ['message-receipt'],
+  stopConditions = ['scope-conflict', 'stale-sha', 'authority-conflict'], proofObligations = ['exact-sha'],
+  messageType = 'DIRECTIVE', requiresResponse, correlationId = null, inReplyTo = null, payload = null,
+  source = 'agent-coordination', createdAt = now() } = {}, observedSha = currentSha()) {
+  const type = String(messageType).toUpperCase();
+  const resolvedId = String(messageId ?? type + '-' + hash(String(actor) + '|' + String(recipient) + '|' + String(taskId) + '|' + String(intent) + '|' + String(entrySha)).slice(0, 24));
+  return validateMessage({ schemaVersion: 2, messageId: resolvedId, idempotencyKey: resolvedId, actor, recipient, intent, taskId, scope,
+    entrySha, risk, dependencies, expectedEvidence, stopConditions, proofObligations, createdAt, source, payload, messageType: type,
+    requiresResponse: requiresResponse ?? ['REQUEST', 'CHALLENGE', 'HANDOFF'].includes(type), correlationId, inReplyTo }, observedSha);
+}
+
+export function sendMessage(message, observedSha = currentSha()) { return ingest(message, observedSha); }
+
+export function respondToMessage({ requestId, actor, responseStatus = 'ACKNOWLEDGED', intent, payload = null, evidence = ['response-receipt'] } = {}, observedSha = currentSha()) {
+  const original = loadMessage(requestId);
+  const originalType = String(original.messageType ?? 'DIRECTIVE');
+  if (!['REQUEST','CHALLENGE','HANDOFF'].includes(originalType)) throw new Error('AGENT_MESSAGE_RESPONSE_TARGET_INVALID');
+  if (original.entrySha !== observedSha) throw new Error('AGENT_MESSAGE_RESPONSE_SHA_STALE');
+  if (original.status === 'STALE') throw new Error('AGENT_MESSAGE_RESPONSE_STALE');
+  if (!['READ','CONSUMED'].includes(original.status)) throw new Error('AGENT_MESSAGE_RESPONSE_REQUIRES_READ');
+  if (original.requiresResponse !== true) throw new Error('AGENT_MESSAGE_RESPONSE_NOT_REQUIRED');
+  if (original.responseState === 'RESPONDED') return { request: original, duplicate: true };
+  if (!RESPONSE_STATUSES.has(String(responseStatus))) throw new Error('AGENT_MESSAGE_RESPONSE_STATUS_INVALID');
+  const responseId = 'RESPONSE-' + hash(String(requestId) + '|' + String(actor) + '|' + String(responseStatus) + '|' + String(observedSha)).slice(0, 48);
+  const response = createMessage({ messageId: responseId, actor, recipient: original.actor, intent: intent ?? 'RESPONSE_TO_' + requestId, taskId: original.taskId,
+    scope: original.scope, entrySha: observedSha, risk: original.risk, dependencies: original.dependencies, expectedEvidence: evidence,
+    stopConditions: original.stopConditions, proofObligations: original.proofObligations, messageType: 'RESPONSE', requiresResponse: false,
+    correlationId: original.correlationId ?? original.messageId, inReplyTo: original.messageId, payload: { responseStatus, data: payload }, source: 'agent-coordination' }, observedSha);
+  const storedResponse = ingest(response, observedSha);
+  const updated = { ...original, responseState: 'RESPONDED', responseStatus: String(responseStatus), responseMessageId: storedResponse.messageId, respondedBy: actor, respondedAt: now() };
+  writeJson(messagePath(requestId), updated);
+  const index = loadIndex();
+  index.messages[requestId] = { ...(index.messages[requestId] ?? {}), status: updated.status, responseState: updated.responseState, responseStatus: updated.responseStatus, responseMessageId: updated.responseMessageId, respondedBy: updated.respondedBy, respondedAt: updated.respondedAt, updatedAt: now() };
+  saveIndex(index);
+  return { request: updated, response: storedResponse, duplicate: false };
+}
+
+export function listPendingResponses(agentId) {
+  ensure(); const index = loadIndex();
+  return Object.values(index.messages ?? {}).filter((item) => item.recipient === agentId && item.requiresResponse === true && item.responseState === 'PENDING').map((item) => loadMessage(item.messageId));
 }
 export function getMessage(messageId) { ensure(); return loadMessage(messageId); }
 export function markRead(messageId, agentId, observedSha = currentSha()) {
@@ -163,18 +233,22 @@ export function markConsumed(messageId, agentId, observedSha = currentSha(), exe
   saveIndex(index);
   return record;
 }
-if (!['validate','ingest','read','ack'].includes(command)) throw new Error('Usage: agent-communication.mjs validate|ingest|read|ack');
+if (!['validate','ingest','send','respond','pending','read','ack'].includes(command)) throw new Error('Usage: agent-communication.mjs validate|ingest|send|respond|pending|read|ack');
 try {
   if (command === 'validate') {
     const file = arg('message-file');
     if (!file) throw new Error('AGENT_MESSAGE_FILE_REQUIRED');
     const message = JSON.parse(fs.readFileSync(path.resolve(ROOT, file), 'utf8'));
     console.log(JSON.stringify(validateMessage(message, currentSha()), null, 2));
-  } else if (command === 'ingest') {
+  } else if (command === 'ingest' || command === 'send') {
     const file = arg('message-file');
     if (!file) throw new Error('AGENT_MESSAGE_FILE_REQUIRED');
     const message = JSON.parse(fs.readFileSync(path.resolve(ROOT, file), 'utf8'));
-    console.log(JSON.stringify(ingest(message, currentSha()), null, 2));
+    console.log(JSON.stringify(sendMessage(message, currentSha()), null, 2));
+  } else if (command === 'respond') {
+    console.log(JSON.stringify(respondToMessage({ requestId: arg('reply-to'), actor: arg('agent'), responseStatus: arg('response-status', 'ACKNOWLEDGED').toUpperCase(), intent: arg('intent', ''), payload: arg('payload', '') || null }, currentSha()), null, 2));
+  } else if (command === 'pending') {
+    console.log(JSON.stringify(listPendingResponses(arg('agent')), null, 2));
   } else if (command === 'read') {
     const id = arg('message-id');
     const agentId = arg('agent');
