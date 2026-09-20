@@ -23,8 +23,8 @@ const markdownPath = process.argv[5] ?? '/tmp/flixo-watch/execution-prompts.md';
 const readJson = (file, fallback = null) => {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
 };
-const ANSI_ESCAPE = new RegExp('\\\\x1B\\\\[[0-?]*[ -/]*[@-~]', 'g');
-const readText = (value) => String(value ?? '').replace(ANSI_ESCAPE, '').replace(/\\r/g, '').trim();
+const ANSI_ESCAPE = new RegExp(`${String.fromCharCode(27)}\\\\[[0-?]*[ -/]*[@-~]`, 'g');
+const readText = (value) => String(value ?? '').replace(ANSI_ESCAPE, '').replace(/\r/g, '').trim();
 const sha256 = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex');
 const unique = (items) => [...new Set(items.filter(Boolean))];
 
@@ -229,7 +229,6 @@ const buildAgentPrompt = (fingerprint, members, index) => {
     rootCauseHint: known?.rootCause ?? null,
     exactCaseInMemory: Boolean(known),
     prompt,
-    promptHandoff,
     promptHandoff,
   };
 };
