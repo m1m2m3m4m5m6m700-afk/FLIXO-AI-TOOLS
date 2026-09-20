@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "ACTION-RESIDENCY-POLICY",
   "scope": "ACTION-VAULT",
   "residents": [
@@ -10,11 +10,16 @@
   "residency": {
     "alwaysResident": true,
     "leaveVault": false,
-    "idleState": "RESIDENT_READY",
+    "idleState": "RESIDENT_ACTIVE_ONLY",
     "taskMustRemainOpenUntil": "CANONICAL_GREEN",
     "visitCompletionNeverClosesTask": true,
     "failedAttemptNeverClosesTask": true,
-    "escalationNeverClosesTask": true
+    "escalationNeverClosesTask": true,
+    "sleepState": "SLEEP_ALLOWED_ONLY_AFTER_GREEN_RECORD",
+    "noSleepBeforeGreen": true,
+    "noIdleBeforeGreen": true,
+    "greenRecordPath": "diagnostics/auto-repair/action-vault/green-records",
+    "sleepAdmissionProtocol": "scripts/ci/action-vault-sleep-admission.mjs"
   },
   "operations": {
     "maxOperationsPerBot": 2000000,
@@ -38,11 +43,13 @@
     "visitModes": [
       "DISCOVER",
       "CHALLENGE",
+      "EXCHANGE",
       "LEARN"
     ],
     "sameMissionOnRed": true,
     "sameFailureFingerprintOnRed": true,
-    "sameExactShaOnRed": true
+    "sameExactShaOnRed": true,
+    "noSleepDuringMission": true
   },
   "escalation": {
     "thresholdAfterFailedAttempts": 20,
@@ -57,5 +64,25 @@
     "continueRepairAfterEscalation": true,
     "repeatedEscalationIdempotent": true
   },
-  "note": "This policy adds continuity and capacity. It does not authorize bypassing exact-SHA, repair scope, verification or canonical GREEN."
+  "note": "This policy adds continuity and capacity. It does not authorize bypassing exact-SHA, repair scope, verification or canonical GREEN.",
+  "sleepAdmission": {
+    "required": true,
+    "authority": "DAILY_FLIXO_GREEN_GATE",
+    "requiredFields": [
+      "recordId",
+      "taskId",
+      "fingerprint",
+      "targetSha",
+      "conclusion",
+      "zeroRed",
+      "exactShaVerified",
+      "recordedAt"
+    ],
+    "allowedConclusion": "success",
+    "zeroRedRequired": true,
+    "exactShaRequired": true,
+    "openWorkBlocksSleep": true,
+    "staleGreenRecordBlocksSleep": true,
+    "mismatchBlocksSleep": true
+  }
 }
