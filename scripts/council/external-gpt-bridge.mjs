@@ -97,8 +97,12 @@ export const pollDispatch = async (config, fetchImpl = globalThis.fetch) => {
   });
   const dispatch = body?.dispatch ?? null;
   if (!dispatch) return null;
+  const identity = body?.identity ?? null;
+  if (!body?.identityVerified || !identity || !identity.agentId || !identity.machineRole) {
+    throw new Error('COUNCIL_BRIDGE_AGENT_IDENTITY_UNVERIFIED');
+  }
   const entrySha = exactSha(dispatch.entry_sha ?? dispatch.entrySha);
-  return Object.freeze({ ...dispatch, entry_sha: entrySha });
+  return Object.freeze({ ...dispatch, entry_sha: entrySha, identity });
 };
 
 export const ackDispatch = async (config, dispatch, sessionId, fetchImpl = globalThis.fetch) =>
@@ -109,6 +113,7 @@ export const ackDispatch = async (config, dispatch, sessionId, fetchImpl = globa
       accountId: config.accountId,
       dispatchId: String(dispatch.dispatch_id ?? dispatch.dispatchId),
       sessionId,
+      agentId: String(dispatch.identity?.agentId ?? dispatch.payload?.agentId ?? ''),
       entrySha: exactSha(dispatch.entry_sha ?? dispatch.entrySha),
     }),
   });
@@ -149,6 +154,7 @@ export const executeExternalAgent = async (config, dispatch, sessionId, fetchImp
     accountId: config.accountId,
     sessionId,
     dispatchId: String(dispatch.dispatch_id ?? dispatch.dispatchId),
+    agentId: String(dispatch.identity?.agentId ?? dispatch.payload?.agentId ?? ''),
     exactSha: exactSha(dispatch.entry_sha ?? dispatch.entrySha),
     taskId: String(dispatch.task_id ?? dispatch.taskId ?? ''),
     workPackageId: String(dispatch.work_package_id ?? dispatch.workPackageId ?? ''),
