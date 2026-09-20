@@ -18,6 +18,13 @@ const fileSelection=write('selection.json',{
   decision:'SELECTED',targetSha:sha,failureFingerprint:'fp',
   selectedFiles:[{path:'src/example.ts'}],excludedFiles:[]
 });
+const awareness=write('awareness.json',{
+  protocol:'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1',
+  targetSha:sha,
+  failureFingerprint:'fp',
+  exactShaBound:true,
+  awarenessCompleteness:{requiredDomains:['TASK_SEMANTICS','REPOSITORY_CONTEXT','CAUSAL_CONTEXT','HISTORICAL_CONTEXT','SAFETY_GOVERNANCE','ADVERSARIAL_CONTEXT','OPERATIONAL_CONTEXT','TEMPORAL_CONTEXT','SYSTEMIC_IMPACT'],complete:true}
+});
 const out=path.join(dir,'proof.json');
 execFileSync(process.execPath,['scripts/ci/action-primary-correctness-proof.mjs','--task=task','--run-id=1','--sha='+sha,'--fingerprint=fp','--diagnosis='+diagnosis,'--strategy='+strategy,'--file-selection='+fileSelection,'--output='+out],{stdio:'pipe'});
 const proof=JSON.parse((await import('node:fs')).readFileSync(out,'utf8'));
