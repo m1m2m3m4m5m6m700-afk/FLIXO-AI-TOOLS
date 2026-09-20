@@ -187,8 +187,7 @@ export function buildCausalDiscriminator({
       passed:probeResults.every((item)=>item.pass),
       results:probeResults,
     },
-    decision:'EVIDENCE_SELECTED'
-      ? (selected ? 'BOUNDED_HYPOTHESIS_SELECTED' : 'NO_SAFE_HYPOTHESIS'),
+    decision:selected ? 'BOUNDED_HYPOTHESIS_SELECTED' : 'NO_SAFE_HYPOTHESIS',
     exactShaBound:Boolean(/^[a-f0-9]{40}$/iu.test(targetSha)),
     failClosed:ambiguous,
   };
