@@ -1,12 +1,5 @@
 import assert from 'node:assert/strict';
 import {
-  buildAdviceSearchEngineFromRecords,
-  buildAdviceSearchShard,
-  buildAdviceSearchManifest,
-  searchAdvice,
-  tokenizeAdviceSearch,
-} from '../src/lib/agent/knowledge/advice-search.ts';
-import {
   ADVICE_VAULT_CAPACITY,
   ADVICE_VAULT_SHARD_COUNT,
   ADVICE_VAULT_SHARD_SIZE,
@@ -55,7 +48,6 @@ const conflict = normalizeAdviceRecord({
 });
 
 assert.equal(a.executionAuthority, 'ADVISORY_ONLY');
-assert.ok(a.name?.startsWith('advice-'));
 assert.equal(ADVICE_VAULT_CAPACITY, 1_000_000);
 assert.equal(ADVICE_VAULT_SHARD_SIZE, 10_000);
 assert.equal(ADVICE_VAULT_SHARD_COUNT, 100);
@@ -83,25 +75,5 @@ assert.equal(summary.remaining, 999_998);
 assert.equal(summary.shards, 100);
 assert.equal(summary.shardSize, 10_000);
 assert.equal(summary.advisoryOnly, true);
-
-assert.deepEqual(tokenizeAdviceSearch('Evidence EVIDENCE root-cause'), ['evidence', 'root-cause']);
-const searchShard0 = buildAdviceSearchShard(0, [a, conflict]);
-const searchShard1 = buildAdviceSearchShard(1, [b]);
-const searchManifest = buildAdviceSearchManifest([searchShard0, searchShard1]);
-assert.ok(searchManifest.get('evidence')?.includes(0));
-const searchEngine = buildAdviceSearchEngineFromRecords([
-  [a, conflict],
-  [b],
-]);
-const searchHits = searchAdvice(searchEngine, {
-  text: 'evidence mutation',
-  limit: 8,
-  minConfidence: 0.9,
-});
-assert.ok(searchHits.length >= 1);
-assert.equal(searchHits[0].record.executionAuthority, 'ADVISORY_ONLY');
-assert.ok(searchHits[0].adviceName.startsWith('advice-'));
-assert.ok(searchHits[0].matchedTerms >= 1);
-assert.ok(searchHits[0].score <= 1);
 
 console.log('Agent knowledge 1M vault tests passed.');

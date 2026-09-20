@@ -33,7 +33,6 @@ export const AdviceEvidenceSchema = z.object({
 
 export const AdviceRecordSchema = z.object({
   id: z.string().min(1).max(256),
-  name: z.string().trim().min(1).max(256).optional(),
   kind: AdviceKindSchema,
   content: z.string().trim().min(1).max(20_000),
   scope: z.string().trim().min(1).max(512),
@@ -63,35 +62,6 @@ export type AdvicePromotion = Readonly<{
   exactShaEvidence: boolean;
   reason: string;
 }>;
-
-
-function adviceNamePart(value: string | null | undefined): string {
-  return String(value ?? '')
-    .trim()
-    .toLocaleLowerCase()
-    .replace(/[^a-z0-9]+/gu, '-')
-    .replace(/^-+|-+$/gu, '')
-    .slice(0, 80);
-}
-
-export function deriveAdviceName(input: Readonly<{
-  failureClass?: string | null;
-  stage?: string | null;
-  rootCause?: string | null;
-  rule?: string | null;
-}>): string {
-  const failureClass = adviceNamePart(input.failureClass);
-  const stage = adviceNamePart(input.stage);
-  const rootCause = adviceNamePart(input.rootCause);
-  const rule = adviceNamePart(input.rule);
-  if (failureClass && rule) return `advice-${failureClass}-${rule}`;
-  if (failureClass && stage) return `advice-${failureClass}-${stage}`;
-  if (failureClass) return `advice-${failureClass}`;
-  if (rootCause && rule) return `advice-${rootCause}-${rule}`;
-  if (rootCause) return `advice-${rootCause}`;
-  if (rule) return `advice-${rule}`;
-  return 'advice-unknown-failure-signature';
-}
 
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -129,16 +99,12 @@ export function normalizeAdviceRecord(
     ...rest
   } = input;
   void _now;
-  const normalizedRest = {
-    ...rest,
-    name: rest.name ?? deriveAdviceName({ rootCause: rest.rootCause, rule: rest.action }),
-  };
-  const fingerprint = createAdviceFingerprint(normalizedRest);
+  const fingerprint = createAdviceFingerprint(rest);
   if (suppliedFingerprint && suppliedFingerprint !== fingerprint) {
     throw new Error('ADVICE_FINGERPRINT_MISMATCH');
   }
   return validateAdviceRecord({
-    ...normalizedRest,
+    ...rest,
     fingerprint,
     createdAt: suppliedCreatedAt ?? now,
     updatedAt: suppliedUpdatedAt ?? now,

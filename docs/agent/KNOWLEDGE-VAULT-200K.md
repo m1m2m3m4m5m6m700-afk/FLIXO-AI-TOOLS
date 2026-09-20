@@ -1,4 +1,4 @@
-# FLIXO Agent Knowledge Vault — 1,000,000 Advisory Entries + Minimal Search
+# FLIXO Agent Knowledge Vault — 1,000,000 Advisory Entries
 
 **Protocol:** `FLIXO-ADVICE-VAULT-1M-v1`
 
@@ -19,9 +19,7 @@ Deduplication / conflict detection
         ↓
 100 deterministic shards × 10,000 maximum records
         ↓
-100-shard search manifest
-        ↓
-query → shards → postings → Top-K ≤128
+Evidence-aware retrieval
         ↓
 Advisory context only
         ↓
@@ -53,39 +51,6 @@ The vault accepts at most 1,000,000 unique entries.
 It is partitioned into **100 deterministic shards**, each bounded at 10,000 entries. Shard assignment is derived from the first eight hexadecimal characters of the advice fingerprint, so the same advice deterministically lands in the same shard.
 
 The system never needs to deserialize all 1,000,000 entries to perform the policy checks that belong to a single shard.
-
-## Minimal search engine
-
-The search engine deliberately stays small:
-
-```text
-QUERY
-  ↓
-tokenize
-  ↓
-manifest finds relevant shards
-  ↓
-shard postings find candidate records
-  ↓
-score coverage + confidence + quality
-  ↓
-Top-K (≤128)
-```
-
-It uses an inverted posting list inside each 10,000-record shard and one tiny global term→shards manifest. This keeps the operational path simple while the durable capacity grows to one million records.
-
-Search is evidence retrieval only. It never grants mutation, certification, merge, or deployment authority.
-
-
-### Exposed advice name
-
-Every normalized record exposes a stable human-readable `name` such as:
-
-```text
-advice-<observed-failure-class>-<observed-rule>
-```
-
-The search result exposes the same value as `adviceName`. The name is deterministic and derived only from observed failure facts, root cause, stage, or rule. When those facts are unavailable, the explicit fallback is `advice-unknown-failure-signature`; the system never invents a hidden diagnosis.
 
 ## Quality gates
 
