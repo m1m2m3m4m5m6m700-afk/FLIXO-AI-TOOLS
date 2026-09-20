@@ -12,6 +12,8 @@ import fs from 'node:fs';
 
 const registry = loadPromptRegistry();
 const taskAgent = fs.readFileSync('scripts/ci/task-agent.mjs', 'utf8');
+const unifiedPrompt = fs.readFileSync('docs/agents/PROMPT-UNIFIED-EXECUTION.md', 'utf8');
+const runtimeAdapter = fs.readFileSync('src/lib/agent/flixo-agent-master-prompt.ts', 'utf8');
 assert.match(taskAgent, /selectedPromptId/);
 assert.match(taskAgent, /exactSha/);
 assert.match(taskAgent, /failureFingerprint/);
@@ -32,7 +34,7 @@ assert.ok(unified.rootCauses.includes('ANY_CONFIRMED_RCA'));
 const candidates = selectPromptCandidates(registry, {
   failureClasses: ['SOURCE', 'CI_ORCHESTRATION'],
   rootCauses: ['stale-contract', 'race-condition'],
-  domain: 'unified-repository-execution',
+  domain: 'unified-execution-and-runtime',
   agentRole: 'executive-repair-development-controller',
 });
 assert.equal(candidates[0]?.prompt.promptId, 'RPR-UNIFIED-EXECUTION-001');
