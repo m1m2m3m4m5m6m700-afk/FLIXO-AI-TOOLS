@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: flixo-council-external-lease-watch
@@ -20,11 +21,13 @@ jobs:
     steps:
       - name: Recover expired leases and wake fallback
         env:
-          COUNCIL_RUNTIME_URL: ${{ secrets.COUNCIL_RUNTIME_URL }}
-          COUNCIL_DISPATCH_SECRET: ${{ secrets.COUNCIL_DISPATCH_SECRET }}
+          COUNCIL_RUNTIME_URL: https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime
         shell: bash
         run: |
           set -euo pipefail
           test -n "$COUNCIL_RUNTIME_URL"
-          test -n "$COUNCIL_DISPATCH_SECRET"
-          curl -fsS --max-time 15             -X POST             -H "Authorization: Bearer $COUNCIL_DISPATCH_SECRET"             -H "Content-Type: application/json"             --data '{"limit":10}'             "${COUNCIL_RUNTIME_URL%/}/api/council/external-runtime?action=recover"
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
+          OIDC_RESPONSE="$(curl -fsS --max-time 10 -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$COUNCIL_RUNTIME_URL")"
+          OIDC_TOKEN="$(printf '%s' "$OIDC_RESPONSE" | jq -r '.value')"
+          test -n "$OIDC_TOKEN"
+          curl -fsS --max-time 15             -X POST             -H "Authorization: Bearer $OIDC_TOKEN"             -H "Content-Type: application/json"             --data '{"limit":10}'             "${COUNCIL_RUNTIME_URL%/}/api/council/external-runtime?action=recover"

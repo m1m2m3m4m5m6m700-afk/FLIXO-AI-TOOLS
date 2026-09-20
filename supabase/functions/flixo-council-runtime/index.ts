@@ -1,0 +1,287 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import crypto from "node:crypto";
+import { createRemoteJWKSet, jwtVerify } from "npm:jose@6";
+
+type Account = "CHIEF" | "WORKER_A" | "WORKER_B";
+type Body = Record<string, unknown>;
+
+const GITHUB_REPOSITORY = "m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS";
+const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
+const GITHUB_OIDC_AUDIENCE = "https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime";
+const GITHUB_OIDC_JWKS = createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"));
+
+const accounts: Record<Account, { tokenEnv: string; endpointEnv?: string; fallback: Account; }> = {
+  CHIEF: { tokenEnv: "COUNCIL_CHIEF_TOKEN", fallback: "CHIEF" },
+  WORKER_A: { tokenEnv: "COUNCIL_WORKER_A_TOKEN", endpointEnv: "COUNCIL_WORKER_A_WAKE_ENDPOINT", fallback: "WORKER_B" },
+  WORKER_B: { tokenEnv: "COUNCIL_WORKER_B_TOKEN", endpointEnv: "COUNCIL_WORKER_B_WAKE_ENDPOINT", fallback: "WORKER_A" },
+};
+
+const response = (body: unknown, status = 200, requestId = crypto.randomUUID()) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+      "x-request-id": requestId,
+    },
+  });
+
+const constantTimeEqual = (left: string, right: string) => {
+  const a = new TextEncoder().encode(left);
+  const b = new TextEncoder().encode(right);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+};
+
+const env = (name: string) => {
+  const value = Deno.env.get(name)?.trim() ?? "";
+  if (!value) throw new Error("COUNCIL_ENV_MISSING=" + name);
+  return value;
+};
+
+const bearer = (req: Request) => {
+  const value = req.headers.get("authorization") ?? "";
+  return value.startsWith("Bearer ") ? value.slice(7).trim() : "";
+};
+
+const authAccount = (req: Request, account: Account) => {
+  if (!constantTimeEqual(bearer(req), env(accounts[account].tokenEnv))) {
+    throw new Error("COUNCIL_ACCOUNT_UNAUTHORIZED");
+  }
+};
+
+const authGitHubWorkflow = async (req: Request, allowedWorkflows: string[]) => {
+  const token = bearer(req);
+  if (!token) throw new Error("COUNCIL_GITHUB_OIDC_MISSING");
+  const verified = await jwtVerify(token, GITHUB_OIDC_JWKS, {
+    issuer: GITHUB_OIDC_ISSUER,
+    audience: GITHUB_OIDC_AUDIENCE,
+  });
+  const claims = verified.payload;
+  if (String(claims.repository ?? "") !== GITHUB_REPOSITORY) throw new Error("COUNCIL_GITHUB_OIDC_REPOSITORY_REJECTED");
+  if (!allowedWorkflows.includes(String(claims.workflow ?? ""))) throw new Error("COUNCIL_GITHUB_OIDC_WORKFLOW_REJECTED");
+  const event = String(claims.event_name ?? "");
+  const ref = String(claims.ref ?? "");
+  const allowed = allowedWorkflows.some((workflow) => {
+    if (workflow === "FLIXO Master Agent Activation Relay") return event === "workflow_run" && ref === "refs/heads/execution";
+    if (workflow === "FLIXO External Council Lease Watcher") return (event === "schedule" && ref === "refs/heads/main") || (event === "workflow_dispatch" && (ref === "refs/heads/main" || ref === "refs/heads/execution"));
+    return false;
+  });
+  if (!allowed) throw new Error("COUNCIL_GITHUB_OIDC_CONTEXT_REJECTED");
+  return claims;
+};
+
+const db = async (path: string, init: RequestInit = {}) => {
+  const headers = new Headers(init.headers);
+  headers.set("apikey", env("SUPABASE_SERVICE_ROLE_KEY"));
+  headers.set("authorization", "Bearer " + env("SUPABASE_SERVICE_ROLE_KEY"));
+  headers.set("accept", "application/json");
+  const r = await fetch(env("SUPABASE_URL").replace(/\/$/u, "") + path, {
+    ...init,
+    headers,
+    signal: init.signal ?? AbortSignal.timeout(10000),
+  });
+  const raw = await r.text();
+  let body: unknown = null;
+  if (raw) { try { body = JSON.parse(raw); } catch { body = raw; } }
+  if (!r.ok) throw new Error("COUNCIL_DB_FAILED=" + r.status);
+  return body;
+};
+
+const jsonBody = async (req: Request): Promise<Body> => {
+  const raw = await req.text();
+  if (raw.length > 1_000_000) throw new Error("COUNCIL_BODY_TOO_LARGE");
+  if (!raw.trim()) return {};
+  const body = JSON.parse(raw);
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("COUNCIL_BODY_INVALID");
+  return body as Body;
+};
+
+const accountFrom = (value: unknown): Account => {
+  const account = String(value ?? "").trim() as Account;
+  if (!(account in accounts)) throw new Error("COUNCIL_ACCOUNT_UNKNOWN=" + account);
+  return account;
+};
+
+const sha = (value: unknown) => {
+  const s = String(value ?? "").trim();
+  if (!/^[0-9a-f]{40}$/u.test(s)) throw new Error("COUNCIL_EXACT_SHA_INVALID");
+  return s;
+};
+
+const dispatch = async (body: Body) => {
+  const primary = accountFrom(body.primaryAccountId);
+  const fallback = accountFrom(body.fallbackAccountId);
+  const requestedBy = String(body.requestedByAccountId ?? "SYSTEM");
+  if (requestedBy === "SYSTEM") {
+    if (primary !== "CHIEF" || fallback !== "CHIEF") throw new Error("COUNCIL_SYSTEM_DISPATCH_ONLY_CHIEF");
+  } else {
+    if (requestedBy !== "CHIEF") throw new Error("COUNCIL_WORKER_DISPATCH_FORBIDDEN");
+    if (!["WORKER_A", "WORKER_B"].includes(primary)) throw new Error("COUNCIL_TARGET_ACCOUNT_FORBIDDEN");
+    if (fallback !== accounts[primary].fallback) throw new Error("COUNCIL_FALLBACK_ACCOUNT_INVALID");
+  }
+  const messageId = String(body.messageId ?? "").trim();
+  const idempotencyKey = String(body.idempotencyKey ?? messageId).trim();
+  const taskId = String(body.taskId ?? "").trim();
+  const workPackageId = String(body.workPackageId ?? "").trim();
+  const entrySha = sha(body.entrySha);
+  if (!messageId || !idempotencyKey || !taskId || !workPackageId) throw new Error("COUNCIL_DISPATCH_IDENTITY_REQUIRED");
+
+  const leaseSeconds = Number(body.leaseSeconds ?? (primary === "CHIEF" ? 180 : 120));
+  if (!Number.isInteger(leaseSeconds) || leaseSeconds < 15 || leaseSeconds > 3600) throw new Error("COUNCIL_LEASE_SECONDS_INVALID");
+
+  const rows = await db("/rest/v1/flix_council_dispatches", {
+    method: "POST",
+    headers: { "content-type": "application/json", prefer: "resolution=ignore-duplicates,return=representation" },
+    body: JSON.stringify({
+      message_id: messageId,
+      idempotency_key: idempotencyKey,
+      task_id: taskId,
+      work_package_id: workPackageId,
+      entry_sha: entrySha,
+      primary_account_id: primary,
+      fallback_account_id: fallback,
+      recipient_account_id: primary,
+      handoff_account_id: "CHIEF",
+      status: "LEASED",
+      payload: body,
+      evidence: {},
+      lease_expires_at: new Date(Date.now() + leaseSeconds * 1000).toISOString(),
+      attempts: 1,
+    }),
+  }) as Array<Record<string, unknown>>;
+
+  let row = rows?.[0];
+  if (!row) {
+    const existing = await db("/rest/v1/flix_council_dispatches?idempotency_key=eq." + encodeURIComponent(idempotencyKey) + "&select=*&limit=1") as Array<Record<string, unknown>>;
+    row = existing?.[0];
+  }
+  if (!row) throw new Error("COUNCIL_DISPATCH_NOT_PERSISTED");
+
+  const dispatchId = String(row.dispatch_id);
+  await db("/rest/v1/flix_council_events", {
+    method: "POST",
+    headers: { "content-type": "application/json", prefer: "return=minimal" },
+    body: JSON.stringify({ dispatch_id: dispatchId, account_id: primary, event_type: "DISPATCHED", exact_sha: entrySha, payload: { requestedBy, attempt: row.attempts } }),
+  });
+
+  let push = { attempted: false, ok: false, reason: "POLL_ONLY" };
+  const endpoint = accounts[primary].endpointEnv ? Deno.env.get(accounts[primary].endpointEnv!)?.trim() ?? "" : "";
+  const token = Deno.env.get(accounts[primary].tokenEnv)?.trim() ?? "";
+  if (endpoint && token) {
+    push = { attempted: true, ok: false, reason: "UNSET" };
+    try {
+      const r = await fetch(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: "Bearer " + token },
+        body: JSON.stringify({ wakeType: "FLIXO_COUNCIL_WAKE", dispatchId, accountId: primary, exactSha: entrySha, taskId, workPackageId, payload: body }),
+        signal: AbortSignal.timeout(8000),
+      });
+      push.ok = r.ok;
+      push.reason = r.ok ? "DELIVERED" : "HTTP_" + r.status;
+    } catch (e) {
+      push.reason = String(e instanceof Error ? e.message : e);
+    }
+  }
+  return { dispatchId, status: row.status, entrySha: row.entry_sha, primaryAccountId: primary, fallbackAccountId: fallback, leaseExpiresAt: row.lease_expires_at, push, pollUrl: "/functions/v1/flixo-council-runtime?action=poll&accountId=" + primary };
+};
+
+Deno.serve(async (req) => {
+  const requestId = crypto.randomUUID();
+  try {
+    const url = new URL(req.url);
+    const action = url.searchParams.get("action") ?? (req.method === "GET" ? "poll" : "");
+    if (action === "poll" && req.method === "GET") {
+      const account = accountFrom(url.searchParams.get("accountId"));
+      authAccount(req, account);
+      const rows = await db("/rest/v1/rpc/council_claim_dispatch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ p_account_id: account }),
+      }) as Array<Record<string, unknown>>;
+      return response({ ok: true, accountId: account, dispatch: rows?.[0] ?? null }, 200, requestId);
+    }
+    if (action === "handoffs" && req.method === "GET") {
+      authAccount(req, "CHIEF");
+      const rows = await db("/rest/v1/flix_council_events?account_id=eq.CHIEF&event_type=eq.HANDOFF_READY&select=*&order=created_at.asc&limit=25");
+      return response({ ok: true, accountId: "CHIEF", events: rows }, 200, requestId);
+    }
+
+    const body = await jsonBody(req);
+
+    if (action === "dispatch" && req.method === "POST") {
+      const requester = String(body.requestedByAccountId ?? "SYSTEM");
+      if (requester === "SYSTEM") await authGitHubWorkflow(req, ["FLIXO Master Agent Activation Relay"]);
+      else authAccount(req, "CHIEF");
+      return response({ ok: true, ...(await dispatch(body) as Record<string, unknown>) }, 202, requestId);
+    }
+
+    if (action === "ack" && req.method === "POST") {
+      const account = accountFrom(body.accountId);
+      authAccount(req, account);
+      const result = await db("/rest/v1/rpc/council_ack_dispatch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ p_dispatch_id: String(body.dispatchId), p_account_id: account, p_session_id: String(body.sessionId), p_exact_sha: sha(body.entrySha) }),
+      });
+      return response({ ok: true, dispatch: Array.isArray(result) ? result[0] ?? null : result }, 200, requestId);
+    }
+
+    if (action === "heartbeat" && req.method === "POST") {
+      const account = accountFrom(body.accountId);
+      authAccount(req, account);
+      const result = await db("/rest/v1/rpc/council_heartbeat_dispatch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ p_dispatch_id: String(body.dispatchId), p_account_id: account, p_session_id: String(body.sessionId), p_exact_sha: sha(body.entrySha) }),
+      });
+      return response({ ok: true, dispatch: Array.isArray(result) ? result[0] ?? null : result }, 200, requestId);
+    }
+
+    if (action === "complete" && req.method === "POST") {
+      const account = accountFrom(body.accountId);
+      authAccount(req, account);
+      const status = String(body.status ?? "DONE");
+      if (!["DONE", "FAILED"].includes(status)) throw new Error("COUNCIL_COMPLETE_STATUS_INVALID");
+      const result = await db("/rest/v1/rpc/council_complete_dispatch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          p_dispatch_id: String(body.dispatchId),
+          p_account_id: account,
+          p_session_id: String(body.sessionId),
+          p_exact_sha: sha(body.entrySha),
+          p_status: status,
+          p_evidence: body.evidence ?? {},
+          p_payload: body.payload ?? {},
+        }),
+      });
+      return response({ ok: true, dispatch: Array.isArray(result) ? result[0] ?? null : result }, 200, requestId);
+    }
+
+    if (action === "recover" && req.method === "POST") {
+      await authGitHubWorkflow(req, ["FLIXO External Council Lease Watcher"]);
+      const rows = await db("/rest/v1/rpc/council_recover_expired_dispatches", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ p_limit: 10 }),
+      }) as Array<Record<string, unknown>>;
+      return response({
+        ok: true,
+        recovered: (rows ?? []).map((row) => ({
+          dispatchId: row.dispatch_id,
+          recipientAccountId: row.recipient_account_id,
+          attempts: row.attempts,
+          entrySha: row.entry_sha,
+          workPackageId: row.work_package_id,
+        })),
+      }, 200, requestId);
+    }
+
+    throw new Error("COUNCIL_ACTION_UNSUPPORTED");
+  } catch (e) {
+    const message = String(e instanceof Error ? e.message : e);
+    return response({ ok: false, error: message }, message.includes("UNAUTHORIZED") ? 401 : 403, requestId);
+  }
+});

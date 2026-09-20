@@ -22,3 +22,6 @@ A worker runtime should:
 6. handoff returns to CHIEF through `HANDOFF_READY`.
 
 The repository cannot directly inject instructions into another ChatGPT UI account. Each ChatGPT account therefore needs an external runtime/bridge capable of polling this endpoint or exposing the configured push endpoint. The bridge is the only missing provider-side component.
+
+
+The Edge Function audience is `https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime` and validates the repository/workflow context before accepting SYSTEM operations.

@@ -34,7 +34,8 @@
     "large_work_packages": "Executable work is grouped into causally coherent Work Packages carrying missionId, workPackageId, ownerRole, ownerAgent, workItems, acceptanceCriteria and proofObligations. Independent causes remain separate.",
     "wake_dispatch": "President Wake is a fail-closed exact-SHA activation request processed by the canonical communication relay with scripts/ci/council-wake-dispatch.mjs. It dispatches only reusable workflows or records an external-agent wake requirement.",
     "external_account_runtime": "P20 extension: CHIEF, WORKER_A and WORKER_B are external runtime identities persisted in Supabase. Only CHIEF may dispatch worker Work Packages; workers may ACK, heartbeat and complete their assigned work.",
-    "external_wake": "GitHub RED wakes CHIEF through the canonical external-runtime route. CHIEF dispatches Worker A/B. A worker is active only after ACK on the current exact SHA. Lease expiry triggers one deterministic fallback."
+    "external_wake": "GitHub RED wakes CHIEF through the canonical external-runtime route. CHIEF dispatches Worker A/B. A worker is active only after ACK on the current exact SHA. Lease expiry triggers one deterministic fallback.",
+    "external_github_oidc": "GitHub RED and lease recovery authenticate to the external council runtime with GitHub Actions OIDC. The runtime validates issuer, audience, repository, workflow and execution context before allowing SYSTEM dispatch or recovery. No static GitHub dispatch secret is required."
   },
   "messageEnvelope": {
     "required": [
@@ -146,7 +147,8 @@
     "noSecondProtocol": true,
     "dispatcher": ".github/workflows/agent-communication-relay.yml",
     "activeLegacyInbox": "Issue #761 is archived and rejected as an activation source",
-    "externalRuntime": "/api/council/external-runtime"
+    "externalRuntime": "/functions/v1/flixo-council-runtime",
+    "githubAuthentication": "GitHub Actions OIDC"
   },
   "fallbackRepair": {
     "trigger": "repairAgent AND executionAgent unavailable",

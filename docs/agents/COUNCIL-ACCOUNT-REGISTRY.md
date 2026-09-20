@@ -24,3 +24,6 @@ Server-only environment names:
 `COUNCIL_WORKER_B_WAKE_ENDPOINT`
 
 The file contains no secret values. It is an Account Registry, not a competing protocol/registry for product capabilities or certification.
+
+
+SYSTEM transport: GitHub Actions uses OIDC for RED dispatch and lease recovery. Worker A/B retain separate account tokens.
