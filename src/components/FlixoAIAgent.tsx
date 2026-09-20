@@ -71,13 +71,26 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   });
   const [messageId, setMessageId] = useState(() => loadConversationMemory().turns.length + 1);
   const [filterHandoff, setFilterHandoff] = useState<FilterMaskHandoff | null>(null);
+  const downloadUrlRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (!result) return;
-    const url = URL.createObjectURL(result);
-    setDownloadUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [result]);
+  const replaceDownloadUrl = (blob: Blob | null) => {
+    if (downloadUrlRef.current) URL.revokeObjectURL(downloadUrlRef.current);
+    if (!blob) {
+      downloadUrlRef.current = null;
+      setDownloadUrl(null);
+      return;
+    }
+    const nextUrl = URL.createObjectURL(blob);
+    downloadUrlRef.current = nextUrl;
+    setDownloadUrl(nextUrl);
+  };
+
+  useEffect(() => () => {
+    if (downloadUrlRef.current) {
+      URL.revokeObjectURL(downloadUrlRef.current);
+      downloadUrlRef.current = null;
+    }
+  }, []);
 
   const contextualQuery = useMemo(() => contextualizeCommand(query, memory), [query, memory]);
   const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, getReadyToolConfigs())[0] : null, [contextualQuery]);
@@ -119,7 +132,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   };
 
   const buildPlan = (command: string, responseCopy = copy): ExecutionPlan | null => {
-    setError(null); setDownloadUrl(null); setResult(null); setProgress(null);
+    setError(null); replaceDownloadUrl(null); setResult(null); setProgress(null);
     const contextualCommand = contextualizeCommand(command, memory);
     const intentPlan = buildIntentPlan(contextualCommand);
     if (intentPlan.status === 'NEEDS_INPUT') {
@@ -242,7 +255,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       const output = await runWorkflowPipeline(file, nextPlan, task, setProgress);
       task = transitionTask(task, 'VERIFYING');
       task = transitionTask(task, 'COMPLETED');
-      setDownloadUrl(null); setResult(output); setState('success'); pushMessage('agent', responseCopy.success);
+      replaceDownloadUrl(output); setResult(output); setState('success'); pushMessage('agent', responseCopy.success);
     } catch (cause) {
       if (task.state === 'EXECUTING' || task.state === 'VERIFYING' || task.state === 'RECOVERING') {
         try { task = transitionTask(task, 'FAILED'); } catch { /* preserve the original execution error */ }
@@ -360,7 +373,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           <input id="flixo-agent-command" type="text" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void sendMessage(); } }} placeholder={copy.placeholder} autoComplete="off" />
           <div className="flixo-ai-agent-examples" aria-label={copy.examplesLabel}>{copy.examples.map((example) => <button key={example} type="button" onClick={() => setQuery(example)}>{example}</button>)}</div>
           <label htmlFor="flixo-agent-file">{copy.fileLabel}</label>
-          <input id="flixo-agent-file" type="file" accept="image/*" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setDownloadUrl(null); setResult(null); setState('idle'); setError(null); }} />
+          <input id="flixo-agent-file" type="file" accept="image/*" onChange={(event) => { setFile(event.target.files?.[0] ?? null); replaceDownloadUrl(null); setResult(null); setState('idle'); setError(null); }} />
           <div className="flixo-ai-agent-actions"><button type="button" className="primary-button" onClick={() => void sendMessage()} disabled={!query.trim() || state === 'running'}>{copy.send}</button><button type="button" className="primary-button" onClick={prepare} disabled={!query.trim() || state === 'running'}>{copy.analyze}</button></div>
         </div>
         <div className="flixo-ai-agent-plan">
