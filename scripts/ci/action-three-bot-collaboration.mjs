@@ -14,11 +14,11 @@ const STATE=path.join(VAULT,'current-collaboration.json');
 const CHAT_PROTOCOL='diagnostics/auto-repair/action-vault/CHAT-PROTOCOL.md';
 const BOTS=Object.freeze(['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3']);
 const LANES=Object.freeze({
-  'ACTION-REPAIR':'PROGRAMMER_THINKING_AND_BOUNDED_SOURCE_REPAIR',
-  'ACTION-REPAIR-2':'HISTORICAL_INDEX_EXPLORATION_AND_REPAIR_PREDICTION',
+  'ACTION-REPAIR':'CONSTRUCTIVE_CORRECTNESS_PROOF_AND_BOUNDED_REPAIR',
+  'ACTION-REPAIR-2':'ADVERSARIAL_FALSIFICATION_AND_COUNTEREXAMPLE_SEARCH',
   'ACTION-HISTORIAN-3':'FILE_SELECTION_INTELLIGENCE_AND_FAILURE_LEARNING'
 });
-const PHASES=Object.freeze(['PARALLEL_DISCOVERY','FILE_SELECTION','PARALLEL_ANALYSIS','CROSS_LEARNING','CHALLENGE','SYNTHESIS','PATCH_SYNTHESIS','SANDBOX_SIMULATION','DIFFERENTIAL_VERIFICATION','OWNER_MUTATION','VERIFICATION','GREEN_LEARNING','CLOSED']);
+const PHASES=Object.freeze(['PARALLEL_DISCOVERY','FILE_SELECTION','PRIMARY_CORRECTNESS_PROOF','ADVERSARIAL_FALSIFICATION','PROOF_REPAIR','CHALLENGE','SYNTHESIS','PATCH_SYNTHESIS','SANDBOX_SIMULATION','DIFFERENTIAL_VERIFICATION','OWNER_MUTATION','VERIFICATION','GREEN_LEARNING','CLOSED']);
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):fallback};
 const task=String(arg('task')).trim();
 const fingerprint=String(arg('fingerprint')).trim();
@@ -108,7 +108,7 @@ const ensureState=()=>{
     exactShaBound:true,
     participants:BOTS.map(id=>({id,lane:LANES[id],required:true,status:'ASSIGNED',contributionReceived:false,exchangeReceived:false,challengeIssued:false,learnedFromPeers:false})),
     sharedEvidence:{failureLog:logPath||null,failureSignalCount:(log.match(/(?:error|failure|failed|fatal|timeout|exception)/giu)||[]).length,actionIndex4000:'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json',historicalIndex:'docs/agents/historical-action-errors/index.json',repairMemory:'diagnostics/auto-repair/memory.json',teachingRouter:'docs/agents/ERROR-TEACHING-ROUTER.json',inferentialIntelligence:'docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md'},
-    parallelProtocol:{phases:[...PHASES],independentWorkRequired:true,crossLearningRequired:true,exchangeBeforeMutation:true,allThreeMustContributeBeforeMutation:true,oneActiveMutationOwner:true,mutationOwner:'ACTION-REPAIR',programmerTwin:'ACTION-REPAIR-2',historian:'ACTION-HISTORIAN-3',mutationWindow:'OWNER_ONLY_AFTER_EXCHANGE',greenClosesMission:true},
+    parallelProtocol:{phases:[...PHASES],independentWorkRequired:true,crossLearningRequired:true,exchangeBeforeMutation:true,allThreeMustContributeBeforeMutation:true,oneActiveMutationOwner:true,mutationOwner:'ACTION-REPAIR',adversarialFalsifier:'ACTION-REPAIR-2',historian:'ACTION-HISTORIAN-3',mutationWindow:'OWNER_ONLY_AFTER_EXCHANGE',greenClosesMission:true},
     contributions:{},
     exchange:{status:'PENDING',digest:null,at:null,receipts:{}},
     challenge:{status:'PENDING',checks:[]},
@@ -132,9 +132,9 @@ if(op==='start'){
 } else if(op==='contribute'){
   validBot(bot);
   if(!summary) throw new Error('ACTION_THREE_BOT_CONTRIBUTION_SUMMARY_REQUIRED');
-  if(!['OBSERVATION','RCA','HYPOTHESIS','CHALLENGE','PLAN','EVIDENCE','LESSON_CANDIDATE','PROGRAMMING_ANALYSIS','HISTORICAL_PREDICTION','PROPOSED_REPAIR','FAILURE_RECORD','HANDOFF_RECORD','FILE_SELECTION'].includes(kind)) throw new Error('ACTION_THREE_BOT_CONTRIBUTION_KIND_INVALID');
-  if(bot==='ACTION-REPAIR' && !['PROGRAMMING_ANALYSIS','RCA','HYPOTHESIS','PLAN'].includes(kind)) throw new Error('ACTION_THREE_BOT_PROGRAMMER_CONTRIBUTION_INVALID');
-  if(bot==='ACTION-REPAIR-2' && !['RCA','HYPOTHESIS','PLAN','PROPOSED_REPAIR','CHALLENGE'].includes(kind)) throw new Error('ACTION_THREE_BOT_FALSIFIER_CONTRIBUTION_INVALID');
+  if(!['OBSERVATION','RCA','HYPOTHESIS','CHALLENGE','PLAN','EVIDENCE','LESSON_CANDIDATE','PROGRAMMING_ANALYSIS','PROPOSED_REPAIR','FAILURE_RECORD','HANDOFF_RECORD','FILE_SELECTION','CORRECTNESS_PROOF','FALSIFICATION'].includes(kind)) throw new Error('ACTION_THREE_BOT_CONTRIBUTION_KIND_INVALID');
+  if(bot==='ACTION-REPAIR' && !['PROGRAMMING_ANALYSIS','RCA','HYPOTHESIS','PLAN','CORRECTNESS_PROOF'].includes(kind)) throw new Error('ACTION_THREE_BOT_PROGRAMMER_CONTRIBUTION_INVALID');
+  if(bot==='ACTION-REPAIR-2' && !['RCA','HYPOTHESIS','PLAN','PROPOSED_REPAIR','CHALLENGE','FALSIFICATION'].includes(kind)) throw new Error('ACTION_THREE_BOT_FALSIFIER_CONTRIBUTION_INVALID');
   if(bot==='ACTION-HISTORIAN-3' && !['FAILURE_RECORD','HANDOFF_RECORD','EVIDENCE','FILE_SELECTION'].includes(kind)) throw new Error('ACTION_THREE_BOT_HISTORIAN_CONTRIBUTION_INVALID');
   const contributionId=bot+'-'+shaDigest(task+'|'+fingerprint+'|'+targetSha+'|'+bot+'|'+summary).slice(0,20);
   state.contributions[bot]={contributionId,bot,lane:LANES[bot],kind,summary:summary.slice(0,12000),evidence,targetSha,fingerprint,createdAt:now(),verified:false};
@@ -148,7 +148,7 @@ if(op==='start'){
   state.exchange={status:'COMPLETE',digest,at:now(),receipts:Object.fromEntries(BOTS.map(id=>[id,{receivedAll:true,receivedAt:now(),peerCount:2,digest}]))};
   for(const member of state.participants){member.exchangeReceived=true;member.learnedFromPeers=true;member.challengeIssued=true;}
   state.phase='CHALLENGE';state.updatedAt=now();write(state);
-} else if(op==='predict' || op==='programmer-twin'){
+} else if(op==='programmer-twin'){
   if(bot!=='ACTION-REPAIR-2') throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_ONLY');
   const supportingHistory=buildPrediction({taskId:task,fingerprint,targetSha,failedRunId:runId,failureLog:logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'',workflow:arg('workflow',''),job:arg('job','')});
   const twin={
