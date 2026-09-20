@@ -163,18 +163,19 @@ test.describe('Filter Mask live camera surface', () => {
 
     const command = page.locator('#flixo-agent-command');
     await expect(command).toBeVisible();
-    await command.fill('Warm live filter 65%');
+    await command.fill('Warm live filter 65% zoom 1.6x');
     await page.getByRole('button', { name: 'Send' }).click();
 
     const handoff = page.getByTestId('filter-mask-handoff');
     await expect(handoff).toBeVisible();
     await expect(handoff).toContainText('effect.warm');
     await expect(handoff).toContainText('65%');
+    await expect(handoff).toContainText('1.6×');
 
     const openPreview = handoff.getByRole('link', { name: 'Open live preview' });
-    await expect(openPreview).toHaveAttribute('href', '/en/filter-mask?canonicalId=effect.warm&intensity=65&zoom=1&mirror=true');
+    await expect(openPreview).toHaveAttribute('href', '/en/filter-mask?canonicalId=effect.warm&intensity=65&zoom=1.6&mirror=true');
     await openPreview.click();
-    await expect(page).toHaveURL(/\/en\/filter-mask\?canonicalId=effect\.warm&intensity=65&zoom=1&mirror=true/);
+    await expect(page).toHaveURL(/\/en\/filter-mask\?canonicalId=effect\.warm&intensity=65&zoom=1\.6&mirror=true/);
     await expect(page.getByRole('button', { name: /Warm effect\.warm/ }).first()).toHaveAttribute('aria-pressed', 'true');
   });
   test('persists favorites and exposes recent filter shortcuts', async ({ page }) => {
