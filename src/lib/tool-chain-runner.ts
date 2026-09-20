@@ -3,7 +3,7 @@ import { executeToolChain, getToolChainAdapter, type ChainInput, type ChainOutpu
 import { validateToolChain } from './tool-chain-compatibility';
 
 const createConfirmedChainTask = (): TaskContext => {
-  let task = createTaskContext('tool-chain:' + crypto.randomUUID(), 'tool-chain-trace:' + crypto.randomUUID());
+  let task = createTaskContext();
   task = transitionTask(task, 'PLANNED');
   task = transitionTask(task, 'AWAITING_CONFIRMATION');
   return transitionTask(task, 'EXECUTING');
