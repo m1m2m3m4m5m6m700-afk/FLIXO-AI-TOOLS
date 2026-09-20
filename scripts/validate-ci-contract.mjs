@@ -23,6 +23,7 @@ const certifyEngine = readFileSync('scripts/ci/certify.mjs', 'utf8');
 const certifyCore = readFileSync('scripts/ci/certify-core.mjs', 'utf8');
 const autoRepairWorkflow = readFileSync('.github/workflows/auto-repair.yml', 'utf8');
 const cellMasterConsultWorkflow = readFileSync('.github/workflows/cell-master-consult.yml', 'utf8');
+const executionWatchdogWorkflow = readFileSync('.github/workflows/execution-bot-watchdog.yml', 'utf8');
 const resultState = readFileSync('scripts/ci/result-state.mjs', 'utf8');
 
 const required = [
@@ -149,6 +150,11 @@ if (/FLIXO_SELECTED_REPAIR_STRATEGY=\$SELECTED/.test(autoRepairWorkflow) ||
 }
 if (!/permissions:\s*\n\s*contents:\s*read\s*\n\s*actions:\s*read/.test(cellMasterConsultWorkflow)) {
   console.error('CI contract failed: cell-master-consult.yml must declare explicit read-only token permissions.');
+  process.exit(1);
+}
+if (!/name: Checkout exact watchdog source SHA[\s\S]*actions\/checkout@[^\n]+[\s\S]*ref: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/.test(executionWatchdogWorkflow) ||
+    !/name: Verify exact watchdog checkout[\s\S]*git rev-parse HEAD[\s\S]*test "\$EXPECTED_WATCHDOG_SHA" = "\$ACTUAL_WATCHDOG_SHA"/.test(executionWatchdogWorkflow)) {
+  console.error('CI contract failed: execution-bot-watchdog.yml must checkout and verify the exact source SHA before running repository scripts.');
   process.exit(1);
 }
 if (!/cancel-in-progress:\s*false/.test(greenGateWorkflow) ||
