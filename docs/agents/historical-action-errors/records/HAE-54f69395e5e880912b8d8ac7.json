@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 2,
+  "id": "HAE-54f69395e5e880912b8d8ac7",
+  "fingerprint": "54f69395e5e880912b8d8ac707e8c5cf7807958fb74f8933e485ef1b8b820f3a",
+  "source": "github-actions-log",
+  "authority": "historical-observation",
+  "externalDiagnosis": false,
+  "exactSha": true,
+  "workflow": "Deploy",
+  "job": "Deploy to Vercel (production)",
+  "errorClass": "provider-deployment",
+  "normalized": "Error: You defined \"--token\", but it's missing a value",
+  "rawExamples": [
+    "Error: You defined \"--token\", but it's missing a value"
+  ],
+  "occurrenceCount": 1,
+  "runs": [
+    "31704383994"
+  ],
+  "shas": [
+    "615cf0cc0c5ea90bb426b7f9abe75a134bc11d06"
+  ],
+  "branches": [
+    "main"
+  ],
+  "firstSeen": "2026-08-13T13:20:05Z",
+  "lastSeen": "2026-08-13T13:20:05Z"
+}
