@@ -46,16 +46,16 @@ const ROOT_CAUSE_METHODS = Object.freeze({
 });
 
 const STRATEGY_FAMILIES = Object.freeze({
-  'reproduce-exact': new Set(['lint', 'format', 'typescript', 'typescript-async-contract', 'playwright', 'webkit-render', 'build']),
-  'minimize-failure': new Set(['lint', 'format', 'typescript', 'playwright', 'build']),
-  'diff-forensics': new Set(['typescript', 'build', 'contract-drift', 'certification']),
-  'environment-audit': new Set(['typescript', 'build', 'playwright', 'webkit-render', 'external-tooling']),
-  'workflow-forensics': new Set(['noncanonical-automation', 'liveness-contract', 'contract-drift', 'certification', 'external-tooling']),
-  'observability-trace': new Set(['playwright', 'webkit-render', 'liveness-contract', 'certification']),
-  'historical-analogy': new Set(['lint', 'format', 'typescript', 'build', 'playwright', 'webkit-render', 'certification', 'contract-drift']),
-  'synthetic-reproduction': new Set(['lint', 'typescript', 'playwright', 'webkit-render', 'build', 'contract-drift']),
-  'alternate-hypothesis': new Set(['lint', 'format', 'typescript', 'playwright', 'webkit-render', 'build', 'certification', 'contract-drift', 'liveness-contract']),
-  'supervising-escalation': new Set(['unknown', 'external-tooling', 'certification', 'contract-drift', 'liveness-contract']),
+  'reproduce-exact': ['lint', 'format', 'typescript', 'typescript-async-contract', 'playwright', 'webkit-render', 'build'],
+  'minimize-failure': ['lint', 'format', 'typescript', 'playwright', 'build'],
+  'diff-forensics': ['typescript', 'build', 'contract-drift', 'certification'],
+  'environment-audit': ['typescript', 'build', 'playwright', 'webkit-render', 'external-tooling'],
+  'workflow-forensics': ['noncanonical-automation', 'liveness-contract', 'contract-drift', 'certification', 'external-tooling'],
+  'observability-trace': ['playwright', 'webkit-render', 'liveness-contract', 'certification'],
+  'historical-analogy': ['lint', 'format', 'typescript', 'build', 'playwright', 'webkit-render', 'certification', 'contract-drift'],
+  'synthetic-reproduction': ['lint', 'typescript', 'playwright', 'webkit-render', 'build', 'contract-drift'],
+  'alternate-hypothesis': ['lint', 'format', 'typescript', 'playwright', 'webkit-render', 'build', 'certification', 'contract-drift', 'liveness-contract'],
+  'supervising-escalation': ['unknown', 'external-tooling', 'certification', 'contract-drift', 'liveness-contract'],
 });
 
 const SECURITY_PATTERNS = Object.freeze([
@@ -68,28 +68,35 @@ const SECURITY_PATTERNS = Object.freeze([
 ]);
 
 function canonicalSecuritySurface(targetDir) {
-  const roots = ['.github/workflows', 'scripts/ci'];
   const findings = [];
+  const roots = ['.github/workflows', 'scripts/ci'];
+  const rank = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
   for (const root of roots) {
     const absolute = targetDir.replace(/[/\\]$/u, '') + '/' + root;
     if (!fs.existsSync(absolute)) continue;
-    const files = fs.readdirSync(absolute).filter((name) => /\.(?:ya?ml|mjs|js|ts)$/u.test(name)).slice(0, root === '.github/workflows' ? 80 : 120);
-    for (const name of files) {
+    const names = fs.readdirSync(absolute).filter((name) => /\.(?:ya?ml|mjs|js|ts)$/u.test(name));
+    for (const name of names.slice(0, root === '.github/workflows' ? 80 : 120)) {
       const file = absolute + '/' + name;
-      let text = '';
-      try { text = fs.readFileSync(file, 'utf8'); } catch { continue; }
-      for (const rule of SECURITY_PATTERNS) if (rule.pattern.test(text)) findings.push({ id: rule.id, className: rule.className, severity: rule.severity, path: root + '/' + name, status: 'SIGNAL_REQUIRES_REVIEW' });
+      let source;
+      try { source = fs.readFileSync(file, 'utf8'); } catch { continue; }
+      for (const rule of SECURITY_PATTERNS) {
+        if (!rule.pattern.test(source)) continue;
+        findings.push({ id: rule.id, className: rule.className, severity: rule.severity, path: root + '/' + name, status: 'SIGNAL_REQUIRES_REVIEW' });
+      }
     }
   }
-  const rank = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
-  return findings.sort((a, b) => (rank[a.severity] - rank[b.severity]) || a.path.localeCompare(b.path) || a.id.localeCompare(b.id)).slice(0, 40);
+  return findings.sort((a, b) => rank[a.severity] - rank[b.severity] || a.path.localeCompare(b.path) || a.id.localeCompare(b.id)).slice(0, 40);
 }
 
 function strategyOutcomeStats(memory, id, rootCause) {
-  let successes = 0; let failures = 0; let observations = 0; let contextual = 0;
+  let successes = 0;
+  let failures = 0;
+  let observations = 0;
+  let contextual = 0;
   for (const entry of memory.cases ?? []) {
     for (const outcome of entry.outcomes ?? []) {
-      if (outcome?.provenance?.strategyId !== id || outcome.outcome === 'blocked-external') continue;
+      if (outcome?.provenance?.strategyId !== id) continue;
+      if (outcome.outcome === 'blocked-external') continue;
       if (!['success', 'failure', 'unrepaired', 'blocked', 'reverted-repair'].includes(outcome.outcome)) continue;
       observations += 1;
       if (outcome.outcome === 'success') successes += 1; else failures += 1;
@@ -100,9 +107,16 @@ function strategyOutcomeStats(memory, id, rootCause) {
 }
 
 function causalIntelligence(log, memory, stableCaseFingerprint, targetDir) {
-  let reasoning = null;
-  try { reasoning = reasonFailure(log, { targetDir, historical: (memory.cases ?? []).map((entry) => ({ rootCause: entry.rootCause, successes: entry.successes, attempts: entry.attempts })) }); } catch { reasoning = null; }
-  let discriminator = null;
+  let reasoning;
+  try {
+    reasoning = reasonFailure(log, {
+      targetDir,
+      historical: (memory.cases ?? []).map((entry) => ({ rootCause: entry.rootCause, successes: entry.successes, attempts: entry.attempts })),
+    });
+  } catch {
+    reasoning = null;
+  }
+  let discriminator;
   try {
     discriminator = buildCausalDiscriminator({
       failureLog: log,
@@ -111,7 +125,9 @@ function causalIntelligence(log, memory, stableCaseFingerprint, targetDir) {
       fingerprint: stableCaseFingerprint,
       targetSha: process.env.FLIXO_EXPECTED_TARGET_SHA ?? process.env.FLIXO_TARGET_SHA ?? '',
     });
-  } catch { discriminator = null; }
+  } catch {
+    discriminator = null;
+  }
   const rootCause = String(reasoning?.rootCause ?? discriminator?.hypotheses?.[0]?.id ?? 'unknown');
   const rootMethods = ROOT_CAUSE_METHODS[rootCause] ?? ROOT_CAUSE_METHODS.unknown;
   return Object.freeze({
@@ -122,7 +138,12 @@ function causalIntelligence(log, memory, stableCaseFingerprint, targetDir) {
     decision: reasoning?.decision ?? discriminator?.decision ?? 'PROPOSE_ONLY',
     mutationAllowed: reasoning?.sourceMutationAllowed === true && discriminator?.failClosed !== true,
     rootMethods,
-    topHypotheses: (reasoning?.hypotheses ?? discriminator?.hypotheses ?? []).slice(0, 5).map((item) => ({ id: item.id, score: item.score ?? item.evidenceScore ?? null, evidenceAnchors: item.directMatches ?? item.evidenceAnchors ?? 0, suppressedBy: item.suppressedBy ?? null })),
+    topHypotheses: (reasoning?.hypotheses ?? discriminator?.hypotheses ?? []).slice(0, 5).map((item) => ({
+      id: item.id,
+      score: item.score ?? item.evidenceScore ?? null,
+      evidenceAnchors: item.directMatches ?? item.evidenceAnchors ?? 0,
+      suppressedBy: item.suppressedBy ?? null,
+    })),
     falsification: (reasoning?.falsificationChecks ?? []).slice(0, 8),
     evidenceProfile: reasoning?.evidenceProfile ?? null,
     discriminatorScore: discriminator?.capabilityScore ?? null,
@@ -131,10 +152,9 @@ function causalIntelligence(log, memory, stableCaseFingerprint, targetDir) {
 }
 
 function rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, twinPreferredStrategy }) {
-  const rootCause = causal.rootCause;
   const ranked = strategies.map(([id, description], order) => {
-    const stats = strategyOutcomeStats(memory, id, rootCause);
-    const familyMatch = STRATEGY_FAMILIES[id]?.has(rootCause) ? 1 : 0;
+    const stats = strategyOutcomeStats(memory, id, causal.rootCause);
+    const familyMatch = (STRATEGY_FAMILIES[id] ?? []).includes(causal.rootCause) ? 1 : 0;
     const rejectionPenalty = rejected.has(id) ? 1 : 0;
     const repeatCount = priorStrategies.filter((value) => value === id).length;
     const successRate = stats.observations ? stats.successes / stats.observations : 0;
@@ -142,27 +162,44 @@ function rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, 
     const contextualSignal = stats.observations ? Math.min(1, stats.contextual / stats.observations) : 0;
     const twinSignal = twinPreferredStrategy === id ? 1 : 0;
     const evidenceSignal = causal.rootCause !== 'unknown' ? familyMatch : id === 'supervising-escalation' ? 1 : 0;
-    const score = Number((evidenceSignal * 0.32 + contextualSignal * 0.18 + successRate * 0.18 + empiricalSignal * 0.10 + twinSignal * 0.12 - Math.min(0.24, repeatCount * 0.06) - rejectionPenalty * 0.70).toFixed(5));
-    return { id, description, order, score, rootCause, familyMatch: Boolean(familyMatch), twinPreferred: twinSignal === 1, observations: stats.observations, successes: stats.successes, failures: stats.failures, successRate: Number(successRate.toFixed(4)), contextualRate: Number(contextualSignal.toFixed(4)), repeatCount, rejected: rejectionPenalty === 1 };
-  }).filter((item) => !item.rejected).sort((a, b) => b.score - a.score || a.repeatCount - b.repeatCount || a.order - b.order);
+    const score = evidenceSignal * 0.32 + contextualSignal * 0.18 + successRate * 0.18 + empiricalSignal * 0.10 + twinSignal * 0.12 - Math.min(0.24, repeatCount * 0.06) - rejectionPenalty * 0.70;
+    return {
+      id, description, order, score: Number(score.toFixed(5)), rootCause: causal.rootCause,
+      familyMatch: Boolean(familyMatch), twinPreferred: twinSignal === 1,
+      observations: stats.observations, successes: stats.successes, failures: stats.failures,
+      successRate: Number(successRate.toFixed(4)), contextualRate: Number(contextualSignal.toFixed(4)),
+      repeatCount, rejected: rejectionPenalty === 1,
+    };
+  })
+    .filter((item) => !item.rejected)
+    .sort((a, b) => b.score - a.score || a.repeatCount - b.repeatCount || a.order - b.order);
   const portfolio = ranked.slice(0, 4);
-  return { ranked: ranked.slice(0, 8), portfolio, selected: portfolio[0] ?? null, runnerUp: portfolio[1] ?? null, separation: portfolio[1] ? Number((portfolio[0].score - portfolio[1].score).toFixed(5)) : 1, exploration: portfolio.slice(1).map((item, index) => ({ phase: index + 1, strategyId: item.id, purpose: index === 0 ? 'STRONGEST_ALTERNATIVE' : index === 1 ? 'INDEPENDENT_DIAGNOSTIC' : 'RECOVERY_ESCALATION' })) };
+  return {
+    ranked: ranked.slice(0, 8),
+    portfolio,
+    selected: portfolio[0] ?? null,
+    runnerUp: portfolio[1] ?? null,
+    separation: portfolio[1] ? Number((portfolio[0].score - portfolio[1].score).toFixed(5)) : 1,
+    exploration: portfolio.slice(1).map((item, index) => ({
+      phase: index + 1,
+      strategyId: item.id,
+      purpose: index === 0 ? 'STRONGEST_ALTERNATIVE' : index === 1 ? 'INDEPENDENT_DIAGNOSTIC' : 'RECOVERY_ESCALATION',
+    })),
+  };
 }
 
 function buildFalsificationPlan(causal, strategyRanking) {
   const top = causal.topHypotheses?.[0] ?? null;
   const runner = causal.topHypotheses?.find((item) => item.id !== top?.id && !item.suppressedBy) ?? null;
-  const checks = [
+  return [
     { id: 'HYPOTHESIS_SEPARATION', action: 'Disprove the strongest competing hypothesis before mutation.', target: runner?.id ?? 'UNKNOWN' },
-    { id: 'MECHANISM_PROOF', action: 'Show trigger → propagation → causal source → symptom.', target: top?.id ?? causal.rootCause },
-    { id: 'SOURCE_OWNERSHIP', action: 'Verify the proposed file is the canonical causal owner and not a downstream symptom.', target: 'canonical-source' },
+    { id: 'MECHANISM_PROOF', action: 'Show trigger -> propagation -> causal source -> symptom.', target: top?.id ?? causal.rootCause },
+    { id: 'SOURCE_OWNERSHIP', action: 'Verify the proposed file is the canonical causal owner.', target: 'canonical-source' },
     { id: 'REGRESSION_CAUSALITY', action: 'Run the smallest failing regression before and twice after repair.', target: causal.rootMethods?.[0] ?? 'exact-reproduction' },
     { id: 'SECURITY_BOUNDARY', action: 'Audit input, artifact, permission, environment and token boundaries touched by the repair.', target: 'security-surface' },
-    { id: 'RECURRENCE_GUARD', action: 'Reject the strategy when its previous failure lacks materially new evidence.', target: strategyRanking.selected?.id ?? 'none' },
+    { id: 'RECURRENCE_GUARD', action: 'Reject a repeated strategy without materially new evidence.', target: strategyRanking.selected?.id ?? 'none' },
   ];
-  return checks;
 }
-
 function priorRepairArtifactCount() {
   const token = process.env.GH_TOKEN;
   const repo = process.env.GITHUB_REPOSITORY;
