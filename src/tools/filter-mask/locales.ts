@@ -30,6 +30,8 @@ export type FilterMaskCopy = Readonly<{
   favoriteActive: string;
   reset: string;
   savePreset: string;
+  presetName: string;
+  presetNamePlaceholder: string;
   presets: string;
   deletePreset: string;
   cameraFraming: string;
@@ -79,6 +81,8 @@ const EN: FilterMaskCopy = {
   favoriteActive: '★ Favorite',
   reset: 'Reset filter',
   savePreset: 'Save preset',
+  presetName: 'Preset name',
+  presetNamePlaceholder: 'Name this creator preset',
   presets: 'Presets',
   deletePreset: 'Delete preset',
   cameraFraming: 'Camera framing',

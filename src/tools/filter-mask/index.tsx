@@ -167,6 +167,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   const [favorites, setFavorites] = useState<string[]>(() => readStoredIds(FAVORITES_KEY));
   const [recent, setRecent] = useState<string[]>(() => readStoredIds(RECENT_KEY).slice(0, 8));
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [presetName, setPresetName] = useState('');
   const [presets, setPresets] = useState<FilterMaskPreset[]>(() => readStoredPresets());
   const [selectedId, setSelectedId] = useState(handoff?.canonicalId ?? 'effect.original');
   const [intensity, setIntensity] = useState(handoff?.parameters.intensity ?? 100);
@@ -301,7 +302,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   function savePreset() {
     const preset: FilterMaskPreset = {
       id: `${selected.canonicalId}-${Date.now()}`,
-      name: `${selected.label} · ${intensity}% · ${zoom.toFixed(1)}× · ${aspectRatio}`,
+      name: presetName.trim().slice(0, 40) || `${selected.label} · ${intensity}% · ${zoom.toFixed(1)}× · ${aspectRatio}`,
       canonicalId: selected.canonicalId,
       intensity,
       zoom,
@@ -322,6 +323,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       writeStoredPresets(next);
       return next;
     });
+    setPresetName('');
   }
 
   function applyPreset(preset: FilterMaskPreset) {
@@ -680,8 +682,17 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       )}
 
       <div role="group" aria-label={copy.presets} style={{ display: 'grid', gap: 8 }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'grid', gap: 8 }}>
           <strong>{copy.presets}</strong>
+          <label>
+            {copy.presetName}
+            <input
+              value={presetName}
+              onChange={(event) => setPresetName(event.target.value)}
+              placeholder={copy.presetNamePlaceholder}
+              maxLength={40}
+            />
+          </label>
           <button type="button" onClick={savePreset}>{copy.savePreset}</button>
         </div>
         {presets.length > 0 && (

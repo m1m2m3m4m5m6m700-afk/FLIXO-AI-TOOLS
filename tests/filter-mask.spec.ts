@@ -245,9 +245,10 @@ test.describe('Filter Mask live camera surface', () => {
     await section.getByRole('slider', { name: 'Zoom' }).fill('1.4');
     await section.getByRole('button', { name: 'Mirror on' }).click();
     await section.getByRole('group', { name: 'Capture aspect ratio' }).getByRole('button', { name: '4:5' }).click();
+    await section.getByRole('textbox', { name: 'Preset name' }).fill('Creator Warm');
     await section.getByRole('button', { name: 'Save preset' }).click();
 
-    const preset = section.getByRole('button', { name: /Warm · 65% · 1\.4× · 4:5/ });
+    const preset = section.getByRole('button', { name: 'Creator Warm' });
     await expect(preset).toBeVisible();
 
     await section.getByRole('button', { name: 'Reset filter' }).click();
@@ -265,11 +266,11 @@ test.describe('Filter Mask live camera surface', () => {
 
     await page.reload();
     const reloaded = page.getByRole('region', { name: 'Filter Mask' });
-    const persistedPreset = reloaded.getByRole('button', { name: /Warm · 65% · 1\.4× · 4:5/ });
+    const persistedPreset = reloaded.getByRole('button', { name: 'Creator Warm' });
     await expect(persistedPreset).toBeVisible();
 
-    await reloaded.getByRole('button', { name: /Delete preset Warm · 65% · 1\.4× · 4:5/ }).click();
-    await expect(reloaded.getByRole('button', { name: /Warm · 65% · 1\.4× · 4:5/ })).toHaveCount(0);
+    await reloaded.getByRole('button', { name: 'Delete preset Creator Warm' }).click();
+    await expect(reloaded.getByRole('button', { name: 'Creator Warm' })).toHaveCount(0);
   });
 
 
