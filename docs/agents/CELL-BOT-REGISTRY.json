@@ -2612,5 +2612,42 @@
     ],
     "selectionPolicy": "HISTORICAL_PLUS_TWIN_A_PLUS_TWIN_B -> BEST_OPTION_SELECTOR -> repairAgent",
     "wakePolicy": "ACTION_SYSTEM_WAKE_COORDINATOR -> EXISTING_CANONICAL_DISPATCHER_ONLY"
+  },
+  "attendanceLedger": {
+    "authority": "CELL_CONTROL_PLANE",
+    "directory": "diagnostics/auto-repair/cell-attendance",
+    "logFile": "diagnostics/auto-repair/cell-attendance/attendance.jsonl",
+    "assessmentFile": "diagnostics/auto-repair/cell-attendance/upgrade-summary.json",
+    "checkInRequired": [
+      "botId",
+      "taskId",
+      "planId",
+      "planVersion",
+      "entrySha",
+      "scope",
+      "objective"
+    ],
+    "checkOutRequired": [
+      "attendanceId",
+      "exitSha",
+      "status",
+      "result"
+    ],
+    "terminalStatuses": [
+      "COMPLETED",
+      "VERIFIED",
+      "BLOCKED",
+      "FAILED",
+      "ABORTED"
+    ],
+    "requiredForCompletion": "VERIFIED_OR_COMPLETED_REQUIRES_EVIDENCE",
+    "upgradeAssessment": "OBJECTIVE_ATTENDANCE_OUTCOME_KNOWLEDGE_SIGNALS",
+    "upgradeThresholds": {
+      "stableMax": 29,
+      "coachingMin": 30,
+      "upgradeRecommendedMin": 60
+    },
+    "noAutomaticPrivilegeChange": true,
+    "controllerReassessmentRequired": true
   }
 }
