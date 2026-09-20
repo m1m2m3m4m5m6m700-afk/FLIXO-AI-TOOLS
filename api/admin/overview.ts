@@ -17,7 +17,7 @@ const json = (res: ServerResponse, status: number, body: unknown, correlationId:
 };
 
 export default async function adminOverview(req: AdminRequest, res: ServerResponse) {
-  const authorization = authorizeAdminRequest(req, 'truth.read');
+  const authorization = await authorizeAdminRequestWithDurableSession(req, 'truth.read');
 
   if ('status' in authorization) {
     if (authorization.status === 405) res.setHeader('Allow', 'GET');
