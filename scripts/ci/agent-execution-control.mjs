@@ -15,7 +15,7 @@ const MAX_REPAIR_CYCLES = 12;
 const MAX_STALLED_REPAIR_CYCLES = 3;
 const MAX_PREPARED_FILES = 12;
 const MAX_INSPECTED_FILES = 40;
-const SCOPE_POLICY = 'SELF_HEALING_REPAIR_ONLY';
+const SCOPE_POLICY = 'TASK_PREPARATION_ONLY';
 const SCOPE_ENFORCEMENT = 'FAIL_CLOSED';
 const TASK_AGENT_CONTRACT_VERSION = 'TASK-AGENT-PREPARATION-v3';
 const CONTROL_PLANE_MUTATION_POLICY = 'HUMAN_REVIEW_REQUIRED';
@@ -39,7 +39,7 @@ function latestPacket() {
   if (!fs.existsSync(latest)) throw new Error('TASK_AGENT_OUTPUT_MISSING');
   const index = readJson(latest);
   if (index.preparedOnly !== true || index.executionMode !== 'PREPARATION_ONLY') throw new Error('TASK_AGENT_PREPARATION_CONTRACT_VIOLATION');
-  if (index.scopePolicy !== SCOPE_POLICY || index.scopeEnforcement !== SCOPE_ENFORCEMENT) throw new Error('SELF_HEALING_SCOPE_CONTRACT_VIOLATION');
+  if (index.scopePolicy !== SCOPE_POLICY || index.scopeEnforcement !== SCOPE_ENFORCEMENT) throw new Error('TASK_PREPARATION_SCOPE_CONTRACT_VIOLATION');
   if (index.mainBranchMutation !== false) throw new Error('MAIN_BRANCH_MUTATION_POLICY_VIOLATION');
   if (index.repairLoop?.maxCycles !== MAX_REPAIR_CYCLES || index.repairLoop?.circuitBreaker?.maxStalledCycles !== MAX_STALLED_REPAIR_CYCLES) throw new Error('REPAIR_LOOP_BUDGET_DRIFT');
   if (index.changeBudget?.maxPreparedFiles !== MAX_PREPARED_FILES || index.changeBudget?.maxInspectedFiles !== MAX_INSPECTED_FILES) throw new Error('CHANGE_BUDGET_DRIFT');
@@ -51,16 +51,16 @@ function latestPacket() {
   const packet = readJson(first.output);
   if (packet.baselineSha !== sha) throw new Error('STALE_BASELINE');
   if (packet.contractVersion !== TASK_AGENT_CONTRACT_VERSION) throw new Error('TASK_AGENT_CONTRACT_VERSION_MISMATCH');
-  if (packet.scopePolicy !== SCOPE_POLICY || packet.scopeEnforcement !== SCOPE_ENFORCEMENT) throw new Error('SELF_HEALING_PACKET_SCOPE_VIOLATION');
+  if (packet.scopePolicy !== SCOPE_POLICY || packet.scopeEnforcement !== SCOPE_ENFORCEMENT) throw new Error('TASK_AGENT_PREPARATION_PACKET_SCOPE_VIOLATION');
   if (packet.executionAuthority !== 'TASK_PREPARATION_ONLY') throw new Error('TASK_AGENT_EXECUTION_AUTHORITY_VIOLATION');
-  if (packet.mutationScope !== 'CURRENT_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING_ONLY') throw new Error('MUTATION_SCOPE_VIOLATION');
+  if (packet.mutationScope !== 'PREPARATION_ONLY_NO_REPOSITORY_MUTATION') throw new Error('TASK_AGENT_MUTATION_SCOPE_VIOLATION');
   if (packet.humanCommandRequired !== false) throw new Error('HUMAN_COMMAND_DEPENDENCY_VIOLATION');
   if (packet.mainBranchMutation !== false) throw new Error('MAIN_BRANCH_MUTATION_POLICY_VIOLATION');
   if (packet.branchPolicy !== 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN') throw new Error('TWO_BRANCH_POLICY_VIOLATION');
   if (packet.controlPlaneMutationPolicy !== CONTROL_PLANE_MUTATION_POLICY) throw new Error('CONTROL_PLANE_MUTATION_POLICY_VIOLATION');
   if (packet.mutationPolicy !== 'NO_DIRECT_MUTATION') throw new Error('TASK_AGENT_DIRECT_MUTATION_POLICY_VIOLATION');
-  if (packet.executionBranch !== 'execution') throw new Error('DIRECT_EXECUTION_BRANCH_VIOLATION');
-  if (packet.handoff?.scopeAuthority !== SCOPE_POLICY) throw new Error('SELF_HEALING_HANDOFF_SCOPE_VIOLATION');
+  if (packet.executionBranch !== 'execution') throw new Error('TASK_PREPARATION_BRANCH_VIOLATION');
+  if (packet.handoff?.scopeAuthority !== SCOPE_POLICY) throw new Error('TASK_PREPARATION_HANDOFF_SCOPE_VIOLATION');
   if (packet.failureContext?.active && (!packet.cognition || packet.cognition.decision === 'MISSING')) throw new Error('COGNITION_CONTEXT_MISSING');
   if (packet.failureContext?.active) {
     const confidence = packet.cognition?.causalConfidence;
