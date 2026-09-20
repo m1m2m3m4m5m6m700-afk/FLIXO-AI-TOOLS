@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "id": "ACTION-VAULT-AGENT-GRADE",
+  "authority": "ACTION_VAULT_AGENT_GRADE_GATE",
+  "purpose": "رفع ACTION-REPAIR وACTION-REPAIR-2 وACTION-HISTORIAN-3 من ملفات Action bots إلى وكلاء تشغيل يمكن الاعتماد عليهم ضمن حدود موثقة وقابلة للاختبار.",
+  "residents": [
+    "ACTION-REPAIR",
+    "ACTION-REPAIR-2",
+    "ACTION-HISTORIAN-3"
+  ],
+  "proofAuthority": "DAILY_FLIXO_GREEN_GATE",
+  "mutationModel": "SINGLE_ACTIVE_OWNER_ON_EXECUTION",
+  "learningModel": "UNVERIFIED_IN_SESSION; VERIFIED_ONLY_AFTER_GREEN",
+  "trustRequirements": [
+    "EXACT_IDENTITY",
+    "EXACT_SHA",
+    "SHARED_RED_CONTEXT",
+    "INDEPENDENT_RCA_OR_CHALLENGE",
+    "BOUNDED_SCOPE",
+    "TARGETED_REGRESSION",
+    "CANONICAL_CI",
+    "HANDOFF_AND_RECOVERY"
+  ],
+  "lifecycle": [
+    "RESIDENT_READY",
+    "ASSIGNED",
+    "INVESTIGATING",
+    "CHALLENGING",
+    "EXECUTING",
+    "VERIFYING",
+    "LEARNING",
+    "HANDOFF",
+    "RECOVERING",
+    "QUARANTINED"
+  ],
+  "rules": {
+    "sameTaskIdRequired": true,
+    "sameFailureFingerprintRequired": true,
+    "sameTargetShaRequired": true,
+    "historianAlwaysAttached": true,
+    "oneActiveMutationOwner": true,
+    "noTestMutation": true,
+    "noMainMutation": true,
+    "noFalseGreen": true,
+    "externalFailureIsNotInternalRepair": true,
+    "staleEvidenceRequiresRequalification": true,
+    "failedAttemptDoesNotCloseMission": true
+  },
+  "agentUpgradePolicy": {
+    "rawIsTransient": true,
+    "everyMissionProducesWeaknessOrSkillSignal": true,
+    "upgradeNumberIncrementsOnlyAfterVerifiedLearning": true,
+    "weaknessGetsNextMission": true,
+    "promotionRequiresIndependentVerification": true,
+    "regressionOrDriftTriggersRevalidation": true
+  }
+}
