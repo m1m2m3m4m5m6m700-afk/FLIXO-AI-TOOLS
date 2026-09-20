@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { extractParameters } from '../src/lib/agent/intent/parameter-extractor.ts';
 import { planFromIntent } from '../src/lib/ai/planner.ts';
 import { safeParseExecutionPlan } from '../src/lib/contracts/ai-plan.ts';
+import { TOOL_CATALOG } from '../src/config/registry.ts';
 
 const combined = extractParameters('compress this image under 200KB and convert to WebP');
 assert.equal(combined.success, true);
@@ -15,6 +16,8 @@ assert.deepEqual(combinedPlan?.steps, [
   { toolId: 'image-converter', params: { format: 'image/webp' } },
   { toolId: 'image-compressor', params: { targetSizeKB: 200 } },
 ]);
+
+assert.equal(combinedPlan?.catalogFingerprint, TOOL_CATALOG.fingerprint);
 
 const productPlan = planFromIntent('جهز صورة المنتج للمتجر بأقل من 200KB وصيغة WebP');
 assert.deepEqual(productPlan?.steps, [
@@ -52,6 +55,22 @@ const missingFormat = extractParameters('convert this image');
 assert.equal(missingFormat.success, false);
 assert.match(missingFormat.errors.join(' '), /target output format/i);
 assert.equal(planFromIntent('convert this image'), null);
+
+const stalePlan = safeParseExecutionPlan({
+  workflowName: 'Stale Plan',
+  confidence: 0.9,
+  catalogFingerprint: '0'.repeat(64),
+  steps: [{ toolId: 'image-compressor', params: { quality: 0.8 } }],
+});
+assert.equal(stalePlan.success, false);
+
+const unboundPlan = safeParseExecutionPlan({
+  workflowName: 'Unbound Plan',
+  confidence: 0.9,
+  steps: [{ toolId: 'image-compressor', params: { quality: 0.8 } }],
+});
+assert.equal(unboundPlan.success, true);
+if (unboundPlan.success) assert.equal(unboundPlan.data.catalogFingerprint, TOOL_CATALOG.fingerprint);
 
 const unsupportedParameter = safeParseExecutionPlan({
   workflowName: 'Invalid Parameter',
