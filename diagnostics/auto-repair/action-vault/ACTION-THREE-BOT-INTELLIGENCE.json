@@ -48,7 +48,10 @@
     "SANDBOX_REPAIR_SIMULATION",
     "DIFFERENTIAL_VERIFICATION",
     "TRANSACTIONAL_REPAIR",
-    "COUNTERFACTUAL_PATCH_REVIEW"
+    "COUNTERFACTUAL_PATCH_REVIEW",
+    "CAUSAL_HYPOTHESIS_DISCRIMINATION",
+    "HYPOTHESIS_SEPARATION_SCORING",
+    "COUNTERFACTUAL_PROBE_SUITE"
   ],
   "sharedSources": [
     "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
@@ -79,7 +82,8 @@
     "scripts/ci/action-repair-sandbox.mjs",
     "scripts/ci/action-differential-verifier.mjs",
     "scripts/ci/action-repair-engineering.mjs",
-    "diagnostics/auto-repair/action-vault/repair-engineering"
+    "diagnostics/auto-repair/action-vault/repair-engineering",
+    "scripts/ci/action-causal-discriminator.mjs"
   ],
   "safetyBoundary": {
     "intelligenceDoesNotImplyMutationAuthority": true,
@@ -135,6 +139,7 @@
       "ACTION-REPAIR runs the Local Software Engineer Core to inspect code semantics, impact and patch risk",
       "ACTION-REPAIR reads the code as a programmer and combines current evidence with historical prediction and semantic review",
       "ACTION-REPAIR synthesizes one or more bounded patch candidates from explicit evidence anchors before mutation",
+      "ACTION-REPAIR runs the causal discriminator to rank competing root-cause hypotheses and records the evidence margin before allowing a mutation",
       "ACTION-REPAIR simulates candidate repairs in an isolated detached worktree and requires differential verification before source mutation",
       "ACTION-REPAIR may apply the minimal source repair only as active owner",
       "ACTION-HISTORIAN-3 records every attempt and every failure regardless of outcome",
