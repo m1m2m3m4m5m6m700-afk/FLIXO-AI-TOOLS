@@ -308,3 +308,7 @@ Agents produce evidence. Only the canonical certification system can issue final
 CI MUST verify the cooperation contract, Task Agent preparation-only boundary, Error Agent diagnosis-only boundary, coordination control plane, session/handoff schema, repair-proof controls and exact-SHA evidence rules.
 
 Removing, bypassing, weakening, duplicating or silently ignoring these controls MUST fail the repository contract gate.
+
+
+## Assistant Repair Fallback — P20
+When both `repairAgent` and `executionAgent` are unavailable, `assistantRepairAgent` may execute a learned repair directly on `execution`. It must use a previously verified repair rule from the canonical memory with at least 0.90 success confidence and support from at least two successful fingerprints. The rule is revalidated against the current exact SHA and must remain inside the normal Repair Protocol. No new speculative strategy, gate bypass, third branch, or certification self-approval is permitted. If any fallback condition is not proven, execution fails closed.
