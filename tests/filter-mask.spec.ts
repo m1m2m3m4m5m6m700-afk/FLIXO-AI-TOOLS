@@ -96,6 +96,15 @@ test.describe('Filter Mask live camera surface', () => {
       };
       paint();
       const cameraStream = source.captureStream(30);
+      const videoTrack = cameraStream.getVideoTracks()[0];
+      Object.defineProperty(videoTrack, 'getCapabilities', {
+        configurable: true,
+        value: () => ({ torch: true }),
+      });
+      Object.defineProperty(videoTrack, 'applyConstraints', {
+        configurable: true,
+        value: async () => undefined,
+      });
       let requestCount = 0;
       Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
@@ -120,6 +129,10 @@ test.describe('Filter Mask live camera surface', () => {
 
     await section.getByRole('button', { name: 'Start camera' }).first().click();
     await expect(section.getByRole('button', { name: 'Stop' }).first()).toBeEnabled();
+    const torch = section.getByRole('button', { name: 'Torch off' });
+    await expect(torch).toHaveAttribute('aria-pressed', 'false');
+    await torch.click();
+    await expect(section.getByRole('button', { name: 'Torch on' })).toHaveAttribute('aria-pressed', 'true');
     await expect(section.locator('video[aria-label="Filter Mask live camera"]')).toHaveJSProperty('srcObject', expect.anything());
 
     const video = section.locator('video[aria-label="Filter Mask live camera"]');
