@@ -125,6 +125,18 @@
       "noParallelSourceMutation": true,
       "canonicalGreen": "DAILY_FLIXO_GREEN_GATE"
     },
-    "sharedArtifact": "diagnostics/auto-repair/action-vault/current-collaboration.json"
+    "sharedArtifact": "diagnostics/auto-repair/action-vault/current-collaboration.json",
+    "hardRule": "ANY_ACTIONABLE_RED_REQUIRES_ALL_THREE_TO_CONTRIBUTE_BEFORE_OWNER_MUTATION"
+  },
+  "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
+  "residency": {
+    "alwaysResident": true,
+    "leaveVault": false,
+    "maxOperationsPerBot": 2000000,
+    "visitsPerBotPerDay": 3,
+    "totalAutomaticVisitsPerDay": 9,
+    "closure": "CANONICAL_GREEN_ONLY",
+    "escalationAfterFailedAttempts": 20,
+    "supervisorRoute": "scripts/ci/agent-communication.mjs -> .github/workflows/agent-communication-relay.yml -> assistantController"
   }
 }
