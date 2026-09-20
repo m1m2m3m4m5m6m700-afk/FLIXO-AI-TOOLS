@@ -52,26 +52,38 @@ function historicalSolutions(limit=8){
  const seen=new Set();
  return found.filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true}).slice(0,limit);
 }
-function scoreOption(option){
- const evidence=option?.evidence ?? {};
- const confidence=Number(option?.confidence ?? option?.independentDiagnosis?.causalConfidence ?? 0);
- const exact=option?.targetSha===targetSha || evidence?.targetSha===targetSha || option?.target?.failedSha===targetSha;
- const falsify=Array.isArray(option?.independentDiagnosis?.falsificationChecks)&&option.independentDiagnosis.falsificationChecks.length>0 || Boolean(option?.falsification);
+function optionStrategy(option){
+ return String(option?.challenge?.preferredAlternativeStrategy || option?.independentDiagnosis?.repairHypothesis?.strategyId || option?.strategyId || '').trim();
+}
+function scoreOption(option, historicalCount){
+ const confidence=Number(option?.independentDiagnosis?.causalConfidence ?? option?.challenge?.inferredFallback?.confidence ?? option?.confidence ?? 0);
+ const exact=option?.targetSha===targetSha;
+ const falsify=(Array.isArray(option?.independentDiagnosis?.falsificationChecks)&&option.independentDiagnosis.falsificationChecks.length>0) || Boolean(option?.challenge?.inferredFallback?.falsification);
  const safe=option?.mutationAuthority===false && option?.repositoryWrite===false && option?.actionsWrite===false;
- const historical=Number(option?.historicalSupport ?? 0);
- return (exact?4:0)+(safe?2:0)+(falsify?2:0)+Math.min(2,Math.max(0,historical/5))+Math.max(0,Math.min(3,confidence*3));
+ const strategy=optionStrategy(option);
+ return (exact?4:0)+(safe?2:0)+(falsify?2:0)+Math.min(2,Math.max(0,Number(historicalCount||0)/5))+Math.min(3,Math.max(0,confidence*3))+(strategy?1:0);
 }
 function selectBest({historical=[],twinA=null,twinB=null}){
- const options=[
-  twinA&&{id:'TWIN_A',source:'CELL-003',...twinA,historicalSupport:historical.length},
-  twinB&&{id:'TWIN_B',source:'CELL-004',...twinB,historicalSupport:historical.length},
-  historical.length&&{id:'HISTORICAL',source:'CELL-001',targetSha,evidence:{targetSha},historicalSupport:historical.length,mutationAuthority:false,repositoryWrite:false,actionsWrite:false,confidence:Math.min(.95,historical.length/8),falsification:true}
- ].filter(Boolean);
- if(!options.length)return {disposition:'BLOCK',reason:'NO_ACTION_REPAIR_OPTION_WITH_EVIDENCE'};
- const ranked=options.map(x=>({...x,score:scoreOption(x)})).sort((a,b)=>b.score-a.score);
+ if(!twinA || !twinB) return {disposition:'BLOCK',reason:'BOTH_TWINS_REQUIRED'};
+ const options=[{id:'TWIN_A',source:'CELL-003',value:twinA},{id:'TWIN_B',source:'CELL-004',value:twinB}]
+   .map(({id,source,value})=>({id,source,value,strategyId:optionStrategy(value)}))
+   .filter(x=>x.strategyId);
+ if(options.length<2) return {disposition:'BLOCK',reason:'BOTH_TWINS_MUST_PROVIDE_ACTIONABLE_STRATEGY'};
+ const ranked=options.map(({id,source,value,strategyId})=>({
+   id,source,score:Number(scoreOption(value,historical.length).toFixed(3)),
+   strategyId,targetSha:value?.targetSha??null,
+   disposition:value?.challenge?.disposition??null
+ })).sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
  const best=ranked[0];
- const tied=ranked.filter(x=>x.score===best.score);
- return {disposition:best.score>4?'SELECTED':'BLOCK',selected:best.score>4?best.id:null,reason:best.score>4?'BEST_EVIDENCE_SCORE':'INSUFFICIENT_PROOF',ranked:ranked.map(x=>({id:x.id,source:x.source,score:x.score,targetSha:x.targetSha??x.evidence?.targetSha??null})),tieCount:tied.length};
+ return {
+   disposition:best.score>=6?'SELECTED':'BLOCK',
+   selected:best.score>=6?best.id:null,
+   selectedStrategy:best.score>=6?best.strategyId:null,
+   reason:best.score>=6?'BEST_TWIN_EVIDENCE':'INSUFFICIENT_TWIN_PROOF',
+   ranked,
+   tieCount:ranked.filter(x=>x.score===best.score).length,
+   historicalSupport:historical.length
+ };
 }
 if(role==='wake'){
  requireIdentity();
