@@ -49,6 +49,8 @@
     "DIFFERENTIAL_VERIFICATION",
     "TRANSACTIONAL_REPAIR",
     "COUNTERFACTUAL_PATCH_REVIEW",
+    "META_CAUSAL_ANALYSIS",
+    "CAUSAL_OBSERVABILITY_MODEL",
     "CAUSAL_HYPOTHESIS_DISCRIMINATION",
     "HYPOTHESIS_SEPARATION_SCORING",
     "COUNTERFACTUAL_PROBE_SUITE"
@@ -83,7 +85,8 @@
     "scripts/ci/action-differential-verifier.mjs",
     "scripts/ci/action-repair-engineering.mjs",
     "diagnostics/auto-repair/action-vault/repair-engineering",
-    "scripts/ci/action-causal-discriminator.mjs"
+    "scripts/ci/action-causal-discriminator.mjs",
+    "scripts/ci/meta-causal-model.mjs"
   ],
   "safetyBoundary": {
     "intelligenceDoesNotImplyMutationAuthority": true,
@@ -139,7 +142,7 @@
       "ACTION-REPAIR runs the Local Software Engineer Core to inspect code semantics, impact and patch risk",
       "ACTION-REPAIR reads the code as a programmer and combines current evidence with historical prediction and semantic review",
       "ACTION-REPAIR synthesizes one or more bounded patch candidates from explicit evidence anchors before mutation",
-      "ACTION-REPAIR runs the causal discriminator to rank competing root-cause hypotheses and records the evidence margin before allowing a mutation",
+      "ACTION-REPAIR first evaluates the meta-causal model to protect causal observability, then runs the causal discriminator to rank competing root-cause hypotheses and records the evidence margin before allowing a mutation",
       "ACTION-REPAIR simulates candidate repairs in an isolated detached worktree and requires differential verification before source mutation",
       "ACTION-REPAIR may apply the minimal source repair only as active owner",
       "ACTION-HISTORIAN-3 records every attempt and every failure regardless of outcome",
