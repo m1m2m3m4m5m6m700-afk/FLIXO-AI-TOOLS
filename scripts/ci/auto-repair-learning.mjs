@@ -89,7 +89,7 @@ export function loadMemory() {
   if (!fs.existsSync(trustedSourcePath)) return emptyMemory();
   try {
     const parsed = JSON.parse(fs.readFileSync(trustedSourcePath, 'utf8'));
-    let memory = normalizeMemoryCounters({ ...emptyMemory(), ...parsed });
+    let memory = hydrateActionHistory({ ...emptyMemory(), ...parsed });
     const derivedPath = process.env.FLIXO_DERIVED_REPAIR_MEMORY;
     if (process.env.FLIXO_TRUSTED_REPAIR_MEMORY && derivedPath && fs.existsSync(derivedPath) && derivedPath !== trustedSourcePath) {
       try {
@@ -176,6 +176,68 @@ export function normalizeCaseCounters(entry) {
 export function normalizeMemoryCounters(memory) {
   const source = { ...emptyMemory(), ...memory };
   source.cases = (source.cases ?? []).map(normalizeCaseCounters);
+  return source;
+}
+
+export function hydrateActionHistory(memory) {
+  const source = normalizeMemoryCounters(memory);
+  const byFingerprint = new Map((source.actionHistory ?? []).map((item) => [item.fingerprint, { ...item }]));
+  for (const entry of source.cases ?? []) {
+    const item = byFingerprint.get(entry.fingerprint) ?? {
+      fingerprint: entry.fingerprint,
+      rootCause: entry.rootCause ?? 'unknown',
+      attempts: 0,
+      successes: 0,
+      failures: 0,
+      occurrences: 0,
+      strategies: [],
+      rejectedStrategies: [],
+      rules: [],
+      doNotRepeat: [],
+      evidence: [],
+      firstSeenAt: null,
+      lastSeenAt: null,
+    };
+    item.rootCause = entry.rootCause ?? item.rootCause ?? 'unknown';
+    const evidence = (entry.outcomes ?? []).filter((outcome) => ['success', 'unrepaired', 'failure', 'blocked', 'blocked-external', 'reverted-repair', 'revert-failure'].includes(outcome?.outcome));
+    const uniqueAttemptKeys = new Set(evidence.map((outcome) => [
+      outcome?.provenance?.runId,
+      outcome?.provenance?.failedSha,
+      outcome?.at,
+      outcome?.outcome,
+    ].map((value) => String(value ?? '')).join('|')));
+    item.attempts = Math.max(Number(item.attempts ?? 0), Number(entry.attempts ?? 0), uniqueAttemptKeys.size);
+    item.successes = Math.max(Number(item.successes ?? 0), Number(entry.successes ?? 0), evidence.filter((outcome) => outcome.outcome === 'success').length);
+    item.failures = Math.max(Number(item.failures ?? 0), Number(entry.failures ?? 0), evidence.filter((outcome) => ['unrepaired', 'failure', 'blocked'].includes(outcome.outcome)).length);
+    item.occurrences = Math.max(Number(item.occurrences ?? 0), (entry.outcomes ?? []).length);
+    for (const outcome of entry.outcomes ?? []) {
+      const strategy = outcome?.provenance?.strategyId;
+      if (strategy) item.strategies = [...new Set([...(item.strategies ?? []), String(strategy)])];
+      if (strategy && outcome.outcome !== 'success') item.rejectedStrategies = [...new Set([...(item.rejectedStrategies ?? []), String(strategy)])];
+      if (outcome?.rule) {
+        item.rules = [...new Set([...(item.rules ?? []), String(outcome.rule)])];
+        if (outcome.outcome !== 'success') item.doNotRepeat = [...new Set([...(item.doNotRepeat ?? []), String(outcome.rule)])];
+      }
+    }
+    item.evidence = [...(item.evidence ?? []), ...evidence.map((outcome) => ({
+      outcome: outcome.outcome,
+      verification: outcome.verification ?? null,
+      strategyId: outcome.provenance?.strategyId ?? null,
+      failedSha: outcome.provenance?.failedSha ?? null,
+      targetSha: outcome.provenance?.targetSha ?? null,
+      runId: outcome.provenance?.runId ?? null,
+      at: outcome.at ?? null,
+    }))].filter((value, index, arr) => arr.findIndex((other) =>
+      String(other?.runId ?? '') === String(value?.runId ?? '') &&
+      String(other?.failedSha ?? '') === String(value?.failedSha ?? '') &&
+      String(other?.at ?? '') === String(value?.at ?? '')
+    ) === index).slice(-MEMORY_RETENTION.maxLessonEvidence);
+    const timestamps = [...(entry.outcomes ?? [])].map((outcome) => outcome?.at).filter(Boolean).sort();
+    item.firstSeenAt = [item.firstSeenAt, timestamps[0]].filter(Boolean).sort()[0] ?? item.firstSeenAt ?? null;
+    item.lastSeenAt = [item.lastSeenAt, timestamps.at(-1)].filter(Boolean).sort().at(-1) ?? item.lastSeenAt ?? null;
+    byFingerprint.set(entry.fingerprint, item);
+  }
+  source.actionHistory = [...byFingerprint.values()].slice(-MEMORY_RETENTION.maxActionHistory);
   return source;
 }
 
