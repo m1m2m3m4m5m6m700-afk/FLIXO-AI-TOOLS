@@ -172,6 +172,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   const [intensity, setIntensity] = useState(handoff?.parameters.intensity ?? 100);
   const [zoom, setZoom] = useState(handoff?.parameters.zoom ?? 1);
   const [mirror, setMirror] = useState(handoff?.parameters.mirror ?? true);
+  const [torch, setTorch] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<FilterMaskParameters['aspectRatio']>(handoff?.parameters.aspectRatio ?? '9:16');
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
   const [capturedKind, setCapturedKind] = useState<'photo' | 'video' | null>(null);
@@ -264,6 +265,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
 
       previousStream?.getTracks().forEach((track) => track.stop());
       streamRef.current = stream;
+      setTorch(false);
       setRunning(true);
     } catch {
       stream?.getTracks().forEach((track) => track.stop());
@@ -271,6 +273,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         video.srcObject = previousStream ?? null;
       });
       setRunning(Boolean(previousStream?.active));
+      setTorch(false);
       setError(copy.cameraDenied);
     }
   }
@@ -338,6 +341,26 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     });
   }
 
+  async function toggleTorch() {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+
+    const capabilities = track.getCapabilities() as MediaTrackCapabilities & { torch?: boolean };
+    if (!capabilities.torch) {
+      setError(copy.torchUnsupported);
+      return;
+    }
+
+    const next = !torch;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] } as MediaTrackConstraints);
+      setTorch(next);
+      setError('');
+    } catch {
+      setError(copy.torchFailed);
+    }
+  }
+
   function stop() {
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
     if (recordFrameRef.current !== null) cancelAnimationFrame(recordFrameRef.current);
@@ -349,6 +372,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     });
     setRunning(false);
     setRecording(false);
+    setTorch(false);
   }
 
   function switchCamera() {
@@ -565,6 +589,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
           <button type="button" onClick={() => void start()} disabled={running}>{copy.startCamera}</button>
           <button type="button" onClick={stop} disabled={!running || recording}>{copy.stop}</button>
           <button type="button" onClick={switchCamera} disabled={!running || recording}>{copy.switchCamera}</button>
+          <button type="button" onClick={() => void toggleTorch()} disabled={!running || recording}>{torch ? copy.torchOn : copy.torchOff}</button>
           <button type="button" onClick={() => void capture()} disabled={!running || recording}>{copy.photo}</button>
           {!recording
             ? <button type="button" onClick={startRecording} disabled={!running}>{copy.recordVideo}</button>
