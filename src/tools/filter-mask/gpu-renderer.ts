@@ -1,4 +1,4 @@
-const FILTER_FUNCTION = /([a-z-]+)\\(([-+]?\\d*\\.?\\d+)(deg|%)?\\)/giu;
+const FILTER_FUNCTION = /([a-z-]+)\(([-+]?\d*\.?\d+)(deg|%)?\)/giu;
 
 type FilterParameters = {
   brightness: number;
