@@ -1,0 +1,92 @@
+name: FLIXO Latest Commit Test Supersession
+
+on:
+  push:
+    branches:
+      - execution
+      - main
+  pull_request:
+    branches:
+      - main
+    types: [synchronize]
+
+# Central stale-run controller. It cancels only older test/verification runs.
+concurrency:
+  group: flixo-latest-commit-supersession-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  supersede:
+    name: Cancel stale test runs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve current branch and exact head
+        id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BRANCH='${{ github.event.pull_request.head.ref || github.ref_name }}'
+          if [ '${{ github.event_name }}' = 'pull_request' ]; then
+            SHA='${{ github.event.pull_request.head.sha }}'
+          else
+            SHA='${{ github.sha }}'
+          fi
+          test "$BRANCH" != ""
+          test "$SHA" =~ ^[0-9a-f]{40}$
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "LATEST_TEST_HEAD=$SHA"
+
+      - name: Cancel stale test and verification runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.head.outputs.branch }}
+          CURRENT_SHA: ${{ steps.head.outputs.sha }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          is_test_workflow() {
+            case "$1" in
+              "FLIXO Test System"|"FLIXO Test Impact"|"FLIXO Test Impact Execution"|
+              "FLIXO WP0 Trust Baseline"|"FLIXO Auto Repair Merge Gate"|
+              "FLIXO Advanced Repair Contract"|"Repository Security Baseline"|
+              "Claude Security Review"|"FLIXO Test Matrix Contract"|"Bundle Boundary Contract"|
+              "SEO Production Certification (Manual Diagnostic)") return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          gh run list --repo "$REPOSITORY" --branch "$BRANCH" --limit 100             --json databaseId,headSha,status,name,event             --jq '.[] | select(.status != "completed") | [.databaseId,.headSha,.status,.name,.event] | @tsv' |
+          while IFS=$'	' read -r RUN_ID HEAD_SHA STATUS NAME EVENT; do
+            [ -n "$RUN_ID" ] || continue
+            if [ "$HEAD_SHA" = "$CURRENT_SHA" ]; then
+              echo "KEEP current SHA run=$RUN_ID name=$NAME status=$STATUS"
+              continue
+            fi
+            if is_test_workflow "$NAME"; then
+              echo "CANCEL stale run=$RUN_ID sha=$HEAD_SHA name=$NAME event=$EVENT"
+              gh run cancel "$RUN_ID"
+            fi
+          done
+
+      - name: Assert repository head has not moved during supersession
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ steps.head.outputs.sha }}
+          EXPECTED_BRANCH: ${{ steps.head.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$EXPECTED_BRANCH" --jq '.object.sha')"
+          test "$CURRENT_SHA" = "$EXPECTED_SHA"
+          echo "LATEST_COMMIT_SUPERSESSION=PASS"
+          echo "LATEST_COMMIT_SHA=$EXPECTED_SHA"
