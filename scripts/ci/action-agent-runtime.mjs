@@ -38,7 +38,7 @@ const actionMemory=readJson(path.join(ROOT,'diagnostics/auto-repair/memory.json'
 const activityIndex=readJson(path.join(ROOT,'docs/agents/historical-action-errors/agent-activity/index.json'),{byFingerprint:{},records:[]});
 const failureLog=logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'';
 
-const ansiEscape=new RegExp(String.fromCharCode(27)+'\\\\[[0-?]*[ -/]*[@-~]','g');
+const ansiEscape=new RegExp(String.fromCharCode(27)+'\\[[0-?]*[ -/]*[@-~]','g');
 const normalizedLog=failureLog.replace(ansiEscape,'').replace(/\\b\\d{10,}\\b/g,'<ID>').replace(/\\b[a-f0-9]{40}\\b/gi,'<SHA>').replace(/\\s+/g,' ').trim().slice(0,16000);
 const currentFeatures=[...new Set((normalizedLog.match(/[A-Za-z][A-Za-z0-9_-]{2,}/g)||[]).slice(0,120))];
 
