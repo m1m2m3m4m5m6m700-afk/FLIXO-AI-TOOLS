@@ -57,18 +57,18 @@ jobs:
             process.exit(0);
           }
           const message = JSON.parse(match[1]);
-          fs.writeFileSync('/tmp/flixo-agent-message.json', JSON.stringify(message, null, 2) + '\\n');
+          fs.writeFileSync('message.json', JSON.stringify(message, null, 2) + '\\n');
           if (!message.messageId) throw new Error('AGENT_MESSAGE_ID_MISSING');
           process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
           NODE
 
       - name: Ingest incoming message immediately
         id: ingest
-        if: hashFiles('/tmp/flixo-agent-message.json') != ''
+        if: steps.message.outcome == 'success' && hashFiles('message.json') != ''
         run: |
           set -euo pipefail
-          node scripts/ci/agent-communication.mjs validate --message-file=/tmp/flixo-agent-message.json
-          node scripts/ci/agent-communication.mjs ingest --message-file=/tmp/flixo-agent-message.json | tee /tmp/flixo-agent-message-receipt.json
+          node scripts/ci/agent-communication.mjs validate --message-file=message.json
+          node scripts/ci/agent-communication.mjs ingest --message-file=message.json | tee /tmp/flixo-agent-message-receipt.json
           jq -r '"MESSAGE_STATUS=" + .status + "\\nMESSAGE_ID=" + .messageId + "\\nMESSAGE_ENTRY_SHA=" + .entrySha' /tmp/flixo-agent-message-receipt.json >> "$GITHUB_OUTPUT"
 
       - name: Publish immediate receipt to master inbox
@@ -112,7 +112,7 @@ jobs:
         with:
           name: flixo-agent-message-${{ github.run_id }}
           path: |
-            /tmp/flixo-agent-message.json
+            message.json
             /tmp/flixo-agent-message-receipt.json
             /tmp/flixo-agent-message-skip
           if-no-files-found: ignore
