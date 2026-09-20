@@ -123,13 +123,12 @@ jobs:
 
       - name: Run FLIXO adversarial twin — read only
         env:
-          FLIXO_TARGET_DIR: ${{ github.workspace }}
+          FLIXO_TARGET_DIR: /tmp/flixo-twin-target
           FLIXO_FAILURE_LOG: /tmp/flixo-twin/failure.log
           FLIXO_TWIN_OUTPUT: /tmp/flixo-twin/twin-result.json
           FLIXO_EXPECTED_TARGET_SHA: ${{ steps.target.outputs.failed_sha }}
           FLIXO_TWIN_READ_ONLY: 'true'
           FLIXO_TWIN_DETACHED: 'true'
-          FLIXO_TWIN_READ_ONLY: 'true'
         run: |
           set -euo pipefail
           node scripts/ci/adversarial-repair-twin.mjs
