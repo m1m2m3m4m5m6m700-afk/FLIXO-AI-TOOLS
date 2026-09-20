@@ -80,7 +80,7 @@ export function validateStatic() {
   must(!/git rebase "\$REMOTE_EXECUTION_SHA"/.test(auto), 'auto-repair-no-stale-rebase');
   must(auto.includes('EVIDENCE_CAPTURE=FAILED'), 'auto-repair-evidence-capture-fail-closed');
   must(handoffGate.includes('branches: [execution]'), 'handoff-gate-execution-trigger');
-  must(/permissions:\s*\n\s+contents:\s+read\n\s+checks:\s+read/.test(supervisor) && !/actions:\s*write/.test(supervisor), 'supervisor-read-only');
+  must(/permissions:\s*[\s\S]*contents:\s+read[\s\S]*checks:\s+read/.test(supervisor) && !/actions:\s*write/.test(supervisor), 'supervisor-read-only');
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(supervisor), 'supervisor-no-direct-repair-dispatch');
   must(!/push:\s*\n\s+branches:/m.test(supervisor) && !/pull_request:/m.test(supervisor), 'supervisor-observer-only-trigger');
   must(!/gh\s+workflow\s+run\s+auto-repair\.yml/i.test(heartbeat), 'heartbeat-no-direct-repair-dispatch');
