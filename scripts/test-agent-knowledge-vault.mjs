@@ -76,4 +76,23 @@ assert.equal(summary.shards, 100);
 assert.equal(summary.shardSize, 10_000);
 assert.equal(summary.advisoryOnly, true);
 
+assert.deepEqual(tokenizeAdviceSearch('Evidence EVIDENCE root-cause'), ['evidence', 'root-cause']);
+const searchShard0 = buildAdviceSearchShard(0, [a, conflict]);
+const searchShard1 = buildAdviceSearchShard(1, [b]);
+const searchManifest = buildAdviceSearchManifest([searchShard0, searchShard1]);
+assert.ok(searchManifest.get('evidence')?.includes(0));
+const searchEngine = buildAdviceSearchEngineFromRecords([
+  [a, conflict],
+  [b],
+]);
+const searchHits = searchAdvice(searchEngine, {
+  text: 'evidence mutation',
+  limit: 8,
+  minConfidence: 0.9,
+});
+assert.ok(searchHits.length >= 1);
+assert.equal(searchHits[0].record.executionAuthority, 'ADVISORY_ONLY');
+assert.ok(searchHits[0].matchedTerms >= 1);
+assert.ok(searchHits[0].score <= 1);
+
 console.log('Agent knowledge 1M vault tests passed.');
