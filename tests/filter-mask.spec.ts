@@ -8,9 +8,8 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(section).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Filter Mask' })).toBeVisible();
 
-    const filterButtons = section.locator('div').filter({ has: page.getByRole('button') }).last();
     const allButtons = section.getByRole('button');
-    await expect(allButtons).toHaveCount(74);
+    await expect(allButtons).toHaveCount(75);
 
     const original = section.getByRole('button', { name: /Original effect\.original/ });
     await expect(original).toHaveAttribute('aria-pressed', 'true');
