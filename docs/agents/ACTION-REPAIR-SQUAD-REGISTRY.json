@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "authority": "ACTION_REPAIR_HISTORY_CONTROL_PLANE",
   "name": "FLIXO-ACTIONS-VAULT",
-  "purpose": "Five independent Actions specialists, outside the 50-bot CELL pool, intentionally separated so each can be developed independently according to project needs.",
+  "purpose": "Five independent Actions specialists, outside the 200-bot CELL pool, intentionally separated so each can be developed independently according to project needs.",
   "headquarters": {
     "primary": "docs/agents/historical-action-errors",
     "index": "docs/agents/historical-action-errors/index.json",
