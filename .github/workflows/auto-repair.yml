@@ -57,7 +57,7 @@ env:
   FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
   FLIXO_REPAIR_LANE: single
   TARGET_RUN_ID: ${{ inputs.target_run_id }}
-  FLIXO_HISTORY_LIMIT: '30'
+  FLIXO_HISTORY_LIMIT: '100'
   FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
   FLIXO_FAILURE_FINGERPRINT: ${{ inputs.failure_fingerprint || '' }}
   FLIXO_REPAIR_LEASE_REF: ${{ inputs.repair_lease_ref || '' }}
