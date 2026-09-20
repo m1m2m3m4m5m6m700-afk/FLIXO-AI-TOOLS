@@ -112,6 +112,7 @@ export function validateActionVaultVerifierProof({ proof, targetSHA, failureFing
   if (!completeness || typeof completeness !== 'object') throw new Error('ACTION_VAULT_PROOF_COMPLETENESS_REQUIRED');
   const required = [
     'COGNITIVE_AWARENESS_PROVEN',
+    'CAUSAL_EVIDENCE_GRAPH_PROVEN',
     'ROOT_CAUSE_PROVEN',
     'FILE_SELECTION_PROVEN',
     'PROGRAMMER_TWIN_PARITY_PROVEN',
