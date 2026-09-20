@@ -40,7 +40,7 @@ for(const run of Object.values(exactRuns)){
 const testSkipped=[...Object.values(jobData).flatMap(jobs=>jobs.flatMap(job=>(job.steps??[]).filter(step=>step.conclusion==='skipped'&&/(test|check|gate|cert|proof|falsif|simulat|regress)/iu.test(String(step.name??'')))))];
 const continueOnErrorScan=spawnSync('git',['grep','-n','continue-on-error:','--','.github/workflows'],{encoding:'utf8',env:process.env});
 const canonicalRedRuns=Object.values(exactRuns).filter(run=>run?.status!=='completed'||run?.conclusion!=='success');
-const canonicalRedSteps=[...Object.values(jobData).flatMap(jobs=>jobs.flatMap(job=>(job.steps??[]).filter(step=>['failure','timed_out','action_required','cancelled'].includes(step.conclusion)))))];
+const canonicalRedSteps=[...Object.values(jobData).flatMap(jobs=>jobs.flatMap(job=>(job.steps??[]).filter(step=>['failure','timed_out','action_required','cancelled'].includes(step.conclusion))))];
 const projectRedCount=canonicalRedRuns.length+canonicalRedSteps.length;
 if(projectRedCount!==0)throw new Error('PROJECT_RED_COUNT_NOT_ZERO');
 const allIntelligenceTestsPass=requiredPass&&testSuite.status===0&&benchmarkReport.allCasesPass===true;
