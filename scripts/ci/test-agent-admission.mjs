@@ -5,6 +5,7 @@ import { assertAgentAdmission, REPAIR_PROTOCOL, REPAIR_PROTOCOL_HASH, validateAc
 
 const session = fs.readFileSync('scripts/ci/agent-session.mjs', 'utf8');
 const repair = fs.readFileSync('scripts/ci/repair-protocol.mjs', 'utf8');
+const repairEngine = fs.readFileSync('scripts/ci/auto-repair-engine.mjs', 'utf8');
 const task = fs.readFileSync('scripts/ci/task-agent.mjs', 'utf8');
 const taskContract = fs.readFileSync('docs/agents/TASK-AGENT.md', 'utf8');
 const safeExecution = fs.readFileSync('docs/agents/SAFE-TASK-AGENT-EXECUTION.md', 'utf8');
@@ -53,6 +54,9 @@ assert.ok(!repair.includes("mutationAgents: ['repairAgent','implementation','exe
 assert.ok(!repair.includes("mutationAgents: ['repairAgent','implementation','executionAgent']"));
 assert.ok(repair.includes("mode: 'ERROR_ONLY'"));
 assert.ok(repair.includes('REPAIR_PROTOCOL_TEST_MUTATION_BLOCKED'));
+assert.ok(repairEngine.includes('FLIXO_ACTION_VAULT_VERIFIER_PROOF_PATH'));
+assert.ok(repairEngine.includes('validateActionVaultVerifierProof'));
+assert.ok(repairEngine.includes("repairActor === 'actionRepairBot'"));
 assert.throws(
   () => validateErrorOnlyMutation({ failureLocation: 'src/example.ts', selectedFile: 'src/other.ts', changedPaths: ['src/other.ts'] }),
   /REPAIR_PROTOCOL_ERROR_TARGET_MISMATCH/,
