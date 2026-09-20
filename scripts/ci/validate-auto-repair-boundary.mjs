@@ -54,6 +54,12 @@ export function validateStatic() {
   const handoffGate = read(HANDOFF_GATE);
   const watchdog = read(WATCHDOG);
   const mergeGate = read(MERGE_GATE);
+  const canonicalTest = read(path.join(ROOT, '.github', 'workflows', 'ci.yml'));
+  const wp0 = read(path.join(ROOT, '.github', 'workflows', 'wp0-trust-baseline.yml'));
+  const testImpact = read(path.join(ROOT, '.github', 'workflows', 'test-impact.yml'));
+  const testImpactExecution = read(path.join(ROOT, '.github', 'workflows', 'test-impact-execution.yml'));
+  const securityBaseline = read(path.join(ROOT, '.github', 'workflows', 'repository-security-baseline.yml'));
+  const claudeSecurity = read(path.join(ROOT, '.github', 'workflows', 'claude-security-review.yml'));
   const supervisor = read(path.join(ROOT, '.github', 'workflows', 'agent-repair-supervisor.yml'));
   const heartbeat = read(path.join(ROOT, '.github', 'workflows', 'agent-repair-heartbeat.yml'));
   const errors = [];
@@ -105,6 +111,15 @@ export function validateStatic() {
   must(/HEAD_BRANCH.*execution|HEAD_BRANCH.*=\s*"execution"/.test(mergeGate), 'merge-gate-execution-head');
   must(/CURRENT_EXECUTION_SHA/.test(mergeGate), 'merge-gate-exact-sha');
   must(/Certification/.test(mergeGate), 'merge-gate-certification-required');
+  for (const [id, workflow] of [
+    ['canonical-test', canonicalTest],
+    ['wp0', wp0],
+    ['test-impact', testImpact],
+    ['test-impact-execution', testImpactExecution],
+    ['security-baseline', securityBaseline],
+    ['claude-security', claudeSecurity],
+    ['merge-gate', mergeGate],
+  ]) must(/cancel-in-progress:\s*false/.test(workflow), 'required-evidence-workflow-must-not-cancel:' + id);
   must(/Repository Security Baseline/.test(mergeGate), 'merge-gate-security-required');
   must(!/continue-on-error:\s*true/i.test(mergeGate), 'merge-gate-no-continue-on-error');
   must(!/gh\s+pr\s+merge/i.test(mergeGate), 'merge-gate-no-self-merge');
