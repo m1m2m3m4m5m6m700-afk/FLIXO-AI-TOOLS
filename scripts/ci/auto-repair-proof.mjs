@@ -1,3 +1,17 @@
+export function buildRegressionSentinel({ original = false, related = false, protected: protectedLayer = false } = {}) {
+  const pass = (layer) => layer === true || layer?.ok === true || layer?.pass === true;
+  const originalPass = pass(original);
+  const relatedPass = pass(related);
+  const protectedPass = pass(protectedLayer);
+  return Object.freeze({
+    schemaVersion: 1,
+    contract: 'ORIGINAL_PASS_AND_RELATED_PASS_AND_PROTECTED_STILL_PASS',
+    originalPass,
+    relatedPass,
+    protectedPass,
+    ok: originalPass && relatedPass && protectedPass,
+  });
+}
 const REQUIRED_PROOF_KEYS = Object.freeze([
   'reproductionWasFailing',
   'reproductionRecovered',
@@ -24,6 +38,7 @@ export function validateRepairProof({ rootCauseProof, recurrenceProof, evidence 
   if (!Array.isArray(evidence?.changedPaths)) failures.push('changed-paths-missing');
   if (!evidence?.diff || typeof evidence.diff !== 'object') failures.push('diff-evidence-missing');
   if (!evidence?.regression || evidence.regression.ok !== true) failures.push('regression-evidence-missing');
+  if (evidence?.regressionSentinel !== undefined && evidence.regressionSentinel?.ok !== true) failures.push('regression-sentinel-incomplete');
   return Object.freeze({ ok: failures.length === 0, failures });
 }
 

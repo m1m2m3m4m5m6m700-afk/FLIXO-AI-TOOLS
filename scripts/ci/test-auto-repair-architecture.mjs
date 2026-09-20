@@ -10,7 +10,7 @@ import { summarizeDiff } from './auto-repair/evidence.mjs';
 import { runRegression } from './auto-repair/regression.mjs';
 import { snapshot } from './auto-repair/rollback.mjs';
 import { runAstRepair } from './auto-repair/ast-repair.mjs';
-import { validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
+import { buildRegressionSentinel, validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
 
 const workflow = fs.readFileSync('.github/workflows/auto-repair.yml', 'utf8');
 const dispatcher = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
@@ -104,6 +104,16 @@ assert.equal(planRepair('certification FAST 66 DEEP 60').selected, null);
 const externalPlan = planRepair('SessionModelError: CAPIError: 400 The requested model is not supported');
 assert.equal(externalPlan.selected, null);
 assert(externalPlan.features.includes('external-tooling'));
+
+const sentinelPass = buildRegressionSentinel({ original: true, related: { ok: true }, protected: { pass: true } });
+assert.equal(sentinelPass.ok, true);
+const sentinelFail = buildRegressionSentinel({ original: true, related: false, protected: true });
+assert.equal(sentinelFail.ok, false);
+const proofInputWithSentinel = { targetSha: 'a'.repeat(40), changedPaths: ['src/example.ts'], diff: { files: ['src/example.ts'], lines: 2 }, regression: { ok: true }, regressionSentinel: sentinelPass };
+const sentinelProof = validateRepairProof({ evidence: proofInputWithSentinel, rootCauseProof: { reproductionWasFailing: true, reproductionRecovered: true, regressionPassed: true, commandsPresent: true }, recurrenceProof: { required: true, firstPass: true, secondPass: true } });
+assert.equal(sentinelProof.ok, true);
+const failedSentinelProof = validateRepairProof({ evidence: { ...proofInputWithSentinel, regressionSentinel: sentinelFail }, rootCauseProof: { reproductionWasFailing: true, reproductionRecovered: true, regressionPassed: true, commandsPresent: true }, recurrenceProof: { required: true, firstPass: true, secondPass: true } });
+assert(failedSentinelProof.failures.includes('regression-sentinel-incomplete'));
 
 const proofInput = {
   targetSha: 'a'.repeat(40),

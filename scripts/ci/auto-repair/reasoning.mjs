@@ -157,6 +157,53 @@ function counterfactualChecks(log, top, alternatives) {
   return checks.map((check) => ({ ...check, status: text ? 'REQUIRED_BEFORE_NONTRIVIAL_MUTATION' : 'BLOCKED_MISSING_EVIDENCE' }));
 }
 
+
+export function buildRepairHypothesis({
+  top = null,
+  features = [],
+  location = null,
+  falsificationChecks = [],
+  causalConfidence = 0,
+  evidenceProfile: evidence = null,
+} = {}) {
+  const id = top?.id ?? 'unknown';
+  const expectedEffectByCause = {
+    lint: 'STATIC_CONTRACT_RECOVERS_WITHOUT_UNRELATED_MUTATION',
+    format: 'FORMAT_CONTRACT_RECOVERS_WITHOUT_UNRELATED_MUTATION',
+    typescript: 'TYPECHECK_CONTRACT_RECOVERS_WITHOUT_UNRELATED_MUTATION',
+    build: 'BUILD_CONTRACT_RECOVERS_WITHOUT_UNRELATED_MUTATION',
+    playwright: 'TARGET_BROWSER_REGRESSION_RECOVERS',
+    'webkit-render': 'WEBKIT_RENDER_CONTRACT_RECOVERS',
+    certification: 'CERTIFICATION_EVIDENCE_CONTRACT_RECOVERS',
+    'external-tooling': 'PROVIDER_RECOVERY_WITHOUT_SOURCE_MUTATION',
+    unknown: 'ORIGINAL_FAILURE_SIGNAL_DISAPPEARS_AND_RELATED_INVARIANT_HOLDS',
+  };
+  const affectedFiles = [...new Set([location?.file, ...(top?.file ? [top.file] : [])].filter(Boolean))];
+  const falsification = falsificationChecks.find((item) => item?.required !== false) ?? {
+    id: 'CF-MISSING',
+    question: 'Can the leading hypothesis be falsified from fresh exact-SHA evidence?',
+    required: true,
+    status: 'BLOCKED_MISSING_EVIDENCE',
+  };
+  return Object.freeze({
+    schemaVersion: 1,
+    hypothesis: id,
+    expectedEffect: expectedEffectByCause[id] ?? expectedEffectByCause.unknown,
+    violatedInvariant: process.env.FLIXO_VIOLATED_INVARIANT ?? 'UNKNOWN_INVARIANT_UNPROVEN',
+    affectedFiles,
+    falsificationCheck: falsification,
+    targetedRegression: verificationStrategy(features),
+    rollbackCondition: 'ORIGINAL_OR_RELATED_OR_PROTECTED_REGRESSION_FAILURE',
+    confidence: Number(causalConfidence ?? 0),
+    evidence: {
+      diversity: Number(evidence?.diversity ?? 0),
+      channels: evidence?.channels ?? {},
+      quality: evidence?.quality ?? 'INSUFFICIENT',
+    },
+    failClosed: id === 'unknown' || id === 'external-tooling' || Number(causalConfidence ?? 0) < 0.75,
+  });
+}
+
 function causalGraph({ trigger = null, rootCause = null, violatedInvariant = null, responsibleSource = null, symptom = null } = {}) {
   return {
     schemaVersion: 1,
@@ -295,6 +342,14 @@ export function reasonFailure(log, {
     location,
     codeContext,
     normalizedFailure: normalizeFailure(text),
+    repairHypothesis: buildRepairHypothesis({
+      top,
+      features,
+      location,
+      falsificationChecks,
+      causalConfidence,
+      evidenceProfile: evidence,
+    }),
   };
 }
 
