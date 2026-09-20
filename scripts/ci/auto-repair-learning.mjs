@@ -587,6 +587,75 @@ export function recurrencePreventionRule({ rootCause, rule, external = false } =
   return `RECURRENCE-${normalized}: require new exact-SHA evidence, a falsification/reproduction delta, and a non-repeated strategy before mutation.${ruleSuffix}`;
 }
 
+export function buildCycleLessons({ fingerprint, rootCause, rule, outcome, verification, provenance = {}, preventionRule, diagnosis = null, changedPaths = [] } = {}) {
+  const normalizedRootCause = String(rootCause ?? 'unknown').trim() || 'unknown';
+  const normalizedOutcome = String(outcome ?? 'unknown').trim() || 'unknown';
+  const strategy = String(rule ?? provenance?.strategyId ?? '').trim() || 'unspecified';
+  const exactSha = String(provenance?.targetSha ?? provenance?.failedSha ?? '').trim() || null;
+  const lessons = [];
+
+  lessons.push({
+    type: 'lesson',
+    category: 'RCA',
+    text: diagnosis?.causalSource
+      ? 'Root cause ' + normalizedRootCause + ' was tied to causal source ' + diagnosis.causalSource + '; preserve this trigger → propagation → invariant → source chain.'
+      : 'Classify the failure as ' + normalizedRootCause + ' before selecting another repair strategy.',
+  });
+
+  if (normalizedOutcome === 'success') {
+    lessons.push({
+      type: 'lesson',
+      category: 'STRATEGY',
+      text: 'Strategy ' + strategy + ' produced a verified repair outcome; reuse it only when the RCA/fingerprint is still applicable.',
+    });
+  } else {
+    lessons.push({
+      type: 'antiLesson',
+      category: 'STRATEGY',
+      text: 'Strategy ' + strategy + ' is not a verified solution for fingerprint ' + String(fingerprint ?? 'unknown') + '; do not repeat it without new evidence.',
+    });
+  }
+
+  lessons.push({
+    type: 'lesson',
+    category: 'VERIFICATION',
+    text: 'Verification state was ' + String(verification ?? 'unknown') + '; current acceptance still requires fresh exact-SHA evidence.',
+  });
+
+  if (Array.isArray(changedPaths) && changedPaths.length) {
+    lessons.push({
+      type: 'lesson',
+      category: 'SCOPE',
+      text: 'Keep mutation scope bounded to the causally affected paths: ' + changedPaths.map((item) => String(item)).slice(0, 12).join(', ') + '.',
+    });
+  }
+
+  if (preventionRule) {
+    lessons.push({
+      type: 'prevention',
+      category: 'RECURRENCE',
+      text: String(preventionRule),
+    });
+  }
+
+  if (normalizedOutcome === 'blocked-external') {
+    lessons.push({
+      type: 'antiLesson',
+      category: 'BLOCKER',
+      text: 'External/provider blockers are not internal source repairs and must remain fail-closed.',
+    });
+  }
+
+  lessons.push({
+    type: 'provenance',
+    category: 'EXACT_SHA',
+    text: exactSha
+      ? 'Bind this cycle learning to exact SHA ' + exactSha + '; stale evidence must not be reused.'
+      : 'No exact SHA was supplied; learning remains non-certifying until exact-SHA evidence exists.',
+  });
+
+  return lessons.slice(0, 7);
+}
 function upsertLesson(memory, { fingerprint, rootCause, rule, outcome, verification, provenance, preventionRule }) {
   const id = stableLessonId({ fingerprint, rootCause, rule });
   const collection = outcome === 'success' ? memory.lessons : memory.antiLessons;
@@ -667,6 +736,17 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     rule,
     external: isExternalBlock,
   });
+  const cycleLessons = buildCycleLessons({
+    fingerprint,
+    rootCause: entry.rootCause,
+    rule,
+    outcome,
+    verification,
+    provenance: effectiveProvenance,
+    preventionRule: effectivePreventionRule,
+    diagnosis: effectiveDiagnosis,
+    changedPaths: effectiveDiagnosis?.affectedPaths ?? affectedPaths,
+  });
   if (recurrenceObserved || isExternalBlock) {
     entry.preventionRules = [...new Set([...(entry.preventionRules ?? []), ...(effectivePreventionRule ? [effectivePreventionRule] : [])])].slice(-MEMORY_RETENTION.maxPreventionRules);
   }
@@ -685,7 +765,17 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   if (outcome === 'success') entry.successes += 1; else if (countsAsRepairAttempt) entry.failures += 1;
   entry.confidence = confidenceFor(entry);
   if (rule) entry.rules = [...new Set([...entry.rules, rule])];
-  entry.outcomes.push({ outcome, verification, rule, provenance: effectiveProvenance, diagnosis: effectiveDiagnosis, preventionRule, at: new Date().toISOString() });
+  entry.latestCycleLessons = cycleLessons;
+  entry.outcomes.push({
+    outcome,
+    verification,
+    rule,
+    provenance: effectiveProvenance,
+    diagnosis: effectiveDiagnosis,
+    preventionRule,
+    cycleLessons,
+    at: new Date().toISOString(),
+  });
   entry.outcomes = entry.outcomes.slice(-MEMORY_RETENTION.maxCaseOutcomes);
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
   const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
@@ -708,6 +798,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   actionRecord.rootCause = entry.rootCause;
   actionRecord.occurrences = Number(actionRecord.occurrences ?? 0) + 1;
   actionRecord.lastSeenAt = new Date().toISOString();
+  actionRecord.latestCycleLessons = cycleLessons;
   if (countsAsPlaybookAttempt) actionRecord.attempts = Number(actionRecord.attempts ?? 0) + 1;
   if (outcome === 'success') actionRecord.successes = Number(actionRecord.successes ?? 0) + 1;
   if (['failure', 'unrepaired', 'blocked', 'reverted-repair', 'revert-failure'].includes(outcome)) actionRecord.failures = Number(actionRecord.failures ?? 0) + 1;
@@ -791,6 +882,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
       changedPaths: affectedPaths,
     },
     antiLesson: outcome === 'success' ? null : rule ? 'Do not repeat strategy ' + rule + ' for this fingerprint without new evidence.' : null,
+    learningList: cycleLessons,
   });
   const cellKnowledgePersist = persistKnowledge(cellKnowledge);
   entry.latestKnowledge = cellKnowledge;
