@@ -189,5 +189,35 @@
     "structuredOutput": true,
     "failClosed": true,
     "noSelfApproval": true
+  },
+  "subAgents": {
+    "codeMentor": {
+      "id": "ACTION-CODE-MENTOR",
+      "role": "PROGRAMMING_TEACHER_SUBAGENT",
+      "profile": "diagnostics/auto-repair/action-vault/ACTION-CODE-MENTOR.json",
+      "runtime": "scripts/ci/action-code-mentor.mjs",
+      "readOnly": true,
+      "independentAuthority": false,
+      "requiredBeforeMutation": true,
+      "requiredDuringSelfCheck": true,
+      "exactShaRequired": true,
+      "teaches": [
+        "CODE_READING",
+        "TYPESCRIPT_REASONING",
+        "NODE_RUNTIME_REASONING",
+        "GITHUB_ACTIONS_YAML_REVIEW",
+        "MINIMAL_CHANGE_TEACHING",
+        "REGRESSION_TEACHING",
+        "ANTI_PATTERN_DETECTION"
+      ],
+      "learners": [
+        "ACTION-REPAIR",
+        "ACTION-REPAIR-2",
+        "ACTION-HISTORIAN-3"
+      ],
+      "promotionOnlyAfterCanonicalGreen": true,
+      "output": "diagnostics/auto-repair/action-vault/code-mentor/latest-packet.json",
+      "verifiedLessons": "diagnostics/auto-repair/action-vault/code-mentor/lessons.ndjson"
+    }
   }
 }
