@@ -31,4 +31,11 @@ assert(registry.bots.every((bot)=>bot.capabilityMode==='SPECIALIZED_PLUS_GENERAL
 assert(registry.bots.every((bot)=>bot.reassignmentPolicy==='ANY_ADMITTED_TASK'));
 assert.deepEqual(actionReader.learnedCapabilities,['ACTERR']);
 assert.equal(actionReader.returnPolicy,'RETURN_TO_POOL_WITH_KNOWLEDGE');
-
+for (const bot of registry.bots) {
+  assert.equal(bot.personalMemoryFile, 'diagnostics/auto-repair/cell-bots/' + bot.id + '.json');
+  assert.equal(bot.memoryPolicy, 'LEARN_PERSIST_COPYABLE_REUSE');
+}
+assert.equal(registry.personalMemory.copyable, true);
+assert.equal(registry.personalMemory.transferableKnowledgeOnly, true);
+assert.equal(registry.personalMemory.permissionsNeverCopied, true);
+assert.equal(registry.personalMemory.independentAuthorityNeverCopied, true);
