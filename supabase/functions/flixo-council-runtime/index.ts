@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import crypto from "node:crypto";
+import { Buffer } from "node:buffer";
 import { createRemoteJWKSet, jwtVerify } from "npm:jose@6";
 
 type Account = "CHIEF" | "WORKER_A" | "WORKER_B";
