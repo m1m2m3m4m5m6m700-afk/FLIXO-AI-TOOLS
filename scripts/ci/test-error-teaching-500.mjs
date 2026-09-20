@@ -1,15 +1,30 @@
 import { readFileSync } from 'node:fs';
 
-const paths = [
-  'docs/agents/ERROR-TEACHING-500.md',
-  'docs/agents/ERROR-TEACHING-ADDITIONAL-500.md',
-];
-const lines = paths.flatMap((path) =>
-  readFileSync(path, 'utf8').split(/\r?\n/u).filter((line) => /^T\d{3} \|/u.test(line)),
-);
+const basePath = 'docs/agents/ERROR-TEACHING-500.md';
+const additionalPath = 'docs/agents/ERROR-TEACHING-ADDITIONAL-500.md';
+const baseLines = readFileSync(basePath, 'utf8').split(/\r?\n/u).filter((line) => /^T\d{3} \|/u.test(line));
+const additionalLines = readFileSync(additionalPath, 'utf8').split(/\r?\n/u).filter((line) => /^T\d{3} \|/u.test(line));
+const lines = [...baseLines, ...additionalLines];
 
 if (lines.length !== 1000) {
-  console.error(`ERROR_TEACHING_CONTRACT_ERROR=expected_500_nonempty_lines actual_${lines.length}`);
+  console.error(`ERROR_TEACHING_CONTRACT_ERROR=expected_1000_rules actual_${lines.length}`);
+  process.exit(1);
+}
+
+if (baseLines.length !== 500 || additionalLines.length !== 500) {
+  console.error(`ERROR_TEACHING_CONTRACT_ERROR=expected_500_rules_per_chapter base=${baseLines.length} additional=${additionalLines.length}`);
+  process.exit(1);
+}
+if (new Set(lines).size !== 1000) {
+  console.error('ERROR_TEACHING_CONTRACT_ERROR=duplicate_rule_lines_detected');
+  process.exit(1);
+}
+const extractClass = (line) => line.match(/\| class=([^|]+)/u)?.[1] ?? '';
+const baseClasses = new Set(baseLines.map(extractClass));
+const additionalClasses = new Set(additionalLines.map(extractClass));
+const classOverlap = [...additionalClasses].filter((item) => baseClasses.has(item));
+if (classOverlap.length > 0) {
+  console.error(`ERROR_TEACHING_CONTRACT_ERROR=class_overlap_detected count=${classOverlap.length}`);
   process.exit(1);
 }
 
