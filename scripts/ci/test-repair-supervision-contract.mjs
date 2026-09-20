@@ -47,6 +47,8 @@ assert.match(watchdog, /Ensure canonical Test System exists for exact SHA withou
 assert.match(watchdog, /WATCHDOG_TEST_SYSTEM_DISPATCH=NOOP_ACTIVE/);
 assert.match(watchdog, /WATCHDOG_TEST_SYSTEM_DISPATCH=NOOP_GREEN/);
 assert.match(watchdog, /gh\s+run\s+list[\s\S]*--workflow "FLIXO Test System"[\s\S]*--commit "\$EXECUTION_SHA"/);
+assert.match(watchdog, /gh\s+workflow\s+run\s+ci\.yml[\s\S]*--ref execution/);
+assert.doesNotMatch(watchdog, /gh\s+workflow\s+run\s+ci\.yml[\s\S]*--ref "\$EXECUTION_SHA"/);
 assert.doesNotMatch(watchdog, /gh\s+api\s+"repos\/\$GITHUB_REPOSITORY\/git\/ref\/heads\/execution"/);
 assert.doesNotMatch(watchdog, /gh\s+workflow\s+run\s+auto-repair\.yml/);
 assert.match(dailyGate, /gh\s+workflow\s+run\s+auto-repair\.yml/);
