@@ -19,7 +19,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: flixo-council-bootstrap-${{ github.event.comment.id || github.run_id }}
+  group: flixo-council-bootstrap-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -78,9 +78,9 @@ This proves the default-branch bootstrap workflow is registered and executable. 
           ROLE="$(printf '%s\n' "$BODY" | sed -nE 's/^ROLE:[[:space:]]*([A-Z]+)[[:space:]]*$/\1/p' | head -n1)"
           WP="$(printf '%s\n' "$BODY" | sed -nE 's/^WORK PACKAGE:[[:space:]]*([A-Z][A-Z0-9_-]{3,80})[[:space:]]*$/\1/p' | head -n1)"
 
-          test "$SHA" =~ ^[0-9a-f]{40}$
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
           test -n "$ROLE"
-          test "$WP" =~ ^[A-Z][A-Z0-9_-]{3,80}$
+          [[ "$WP" =~ ^[A-Z][A-Z0-9_-]{3,80}$ ]]
 
           CURRENT="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           test "$CURRENT" =~ ^[0-9a-f]{40}$

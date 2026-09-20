@@ -12,7 +12,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: flixo-council-wake-push-${{ github.sha }}
+  group: flixo-council-wake-push-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:

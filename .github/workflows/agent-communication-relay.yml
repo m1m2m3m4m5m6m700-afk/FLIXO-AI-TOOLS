@@ -16,7 +16,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: flixo-agent-communication-${{ github.event.comment.id || github.run_id }}
+  group: flixo-agent-communication-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -55,7 +55,7 @@ jobs:
         run: |
           set -euo pipefail
           SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          test "$SHA" =~ ^[0-9a-f]{40}$
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
       - name: Build President Wake plan
