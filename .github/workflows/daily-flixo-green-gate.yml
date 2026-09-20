@@ -94,6 +94,28 @@ jobs:
           printf '%s\n' "$WATCH_BRANCH" > /tmp/flixo-watch/observed-branch
           printf 'branch=%s\n' "$WATCH_BRANCH" >> "$GITHUB_OUTPUT"
 
+      - name: Verify five-minute canonical wake compliance
+        id: wake_compliance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-watch
+          gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch main --limit 50 --json databaseId,status,conclusion,createdAt,updatedAt,runStartedAt,headSha,event > /tmp/flixo-watch/scheduled-wakes.json
+          gh run view "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,status,conclusion,createdAt,updatedAt,runStartedAt,headSha,event > /tmp/flixo-watch/current-wake.json
+          jq -s 'add' /tmp/flixo-watch/scheduled-wakes.json /tmp/flixo-watch/current-wake.json > /tmp/flixo-watch/wake-runs.json
+          node scripts/ci/wake-compliance.mjs /tmp/flixo-watch/wake-runs.json /tmp/flixo-watch/wake-compliance.json
+          jq -e '.status == "PASS" or .status == "BASELINE_REQUIRED"' /tmp/flixo-watch/wake-compliance.json >/dev/null
+
+      - name: Publish five-minute wake evidence
+        if: always() && steps.wake_compliance.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-wake-compliance-${{ github.run_id }}
+          path: /tmp/flixo-watch/wake-compliance.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Capture failed CI evidence for classification
         env:
           GH_TOKEN: ${{ github.token }}
