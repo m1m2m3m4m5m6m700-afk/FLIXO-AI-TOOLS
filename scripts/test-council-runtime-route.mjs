@@ -17,6 +17,11 @@ assert.match(wakePush, /id-token:\s*write/);
 assert.match(runtime, /FLIXO Council Wake Push Relay/);
 assert.match(runtime, /event === "push" && ref === "refs\/heads\/execution"/);
 assert.match(runtime, /authGitHubWorkflow\(req, \["FLIXO Master Agent Activation Relay", "FLIXO Council Wake Push Relay"\]\)/);
+assert.match(runtime, /job_workflow_ref/);
+assert.match(runtime, /action === "activate" && req\.method === "POST"/);
+assert.match(runtime, /action === "heartbeat" && req\.method === "POST"/);
+assert.match(runtime, /action === "complete" && req\.method === "POST"/);
+assert.doesNotMatch(runtime, /searchParams\.get\("session"\)/);
 
 console.log('COUNCIL_GITHUB_RUNTIME_ROUTE=PASS');
 console.log('COUNCIL_GITHUB_RUNTIME_LEGACY_ROUTE_REJECTED=PASS');
