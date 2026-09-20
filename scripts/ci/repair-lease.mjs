@@ -170,6 +170,13 @@ async function listRecoveryAttempts(identity) {
   }).filter(Number.isInteger);
 }
 
+async function readWorkflowRun(runId) {
+  const result = await api('GET', \`/repos/\${repo}/actions/runs/\${encodeURIComponent(String(runId))}\`);
+  return { status: result.status, data: result.data };
+}
+
+const crashConclusions = new Set(['failure', 'timed_out', 'cancelled']);
+
 async function activeRepairRuns(identity, failedSha) {
   const result = await api('GET', `/repos/${repo}/actions/workflows/auto-repair.yml/runs?branch=execution&per_page=100`);
   if (!result.ok) return [{ status: 'UNKNOWN', reason: `ACTIONS_API_${result.status}` }];
@@ -318,6 +325,69 @@ async function commandRecover() {
   if (!meta.exists) throw new Error('REPAIR_LEASE_NOT_FOUND_FOR_RECOVERY');
   const events = await listEventMetadata(identity);
   const outcomes = events.filter((item) => item?.eventType === 'OUTCOME' && item?.outcome && item?.repairKey === identity.claimKey);
+  const latestActiveState = [...events]
+    .filter((item) => item?.eventType === 'STATE' && item?.leaseState === 'LEASE_ACTIVE' && item?.repairKey === identity.claimKey)
+    .sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')))[0] ?? null;
+
+  if (latestActiveState?.repairRunId && !outcomes.some((item) => String(item.repairRunId) === String(latestActiveState.repairRunId))) {
+    const repairRun = await readWorkflowRun(latestActiveState.repairRunId);
+    if (repairRun.status === 200 && repairRun.data?.status === 'completed') {
+      const conclusion = String(repairRun.data?.conclusion ?? '');
+      if (conclusion === 'success') {
+        await emitEvent(identity, 'STATE', \`attestation-missing-\${repairRun.data.id}\`, {
+          repairKey: identity.claimKey,
+          leaseRef: identity.leaseRef,
+          failedSha,
+          targetRunId: getArg('targetRunId'),
+          repairRunId: repairRun.data.id,
+          attempt: latestActiveState.attempt ?? 1,
+          state: 'LEASE_BLOCKED',
+          leaseState: 'LEASE_BLOCKED',
+          reason: 'RUN_COMPLETED_WITHOUT_OUTCOME_ATTESTATION',
+          verification: 'workflow-run-success-without-durable-outcome',
+          at: new Date().toISOString(),
+        });
+        console.log(JSON.stringify({
+          status: 'SUCCESS_WITHOUT_ATTESTATION',
+          repairRunId: repairRun.data.id,
+          reason: 'RUN_COMPLETED_WITHOUT_OUTCOME_ATTESTATION',
+        }, null, 2));
+        return;
+      }
+      if (crashConclusions.has(conclusion)) {
+        const crashMetadata = {
+          repairKey: identity.claimKey,
+          leaseRef: identity.leaseRef,
+          leaseOwner: latestActiveState.leaseOwner ?? 'AUTO_REPAIR_BOT',
+          repairRunId: repairRun.data.id,
+          targetRunId: getArg('targetRunId'),
+          failedSha,
+          failureFingerprint: getArg('fingerprint'),
+          branch: 'execution',
+          attempt: latestActiveState.attempt ?? 1,
+          strategy: latestActiveState.strategy ?? 'unknown',
+          outcome: 'CRASHED',
+          exitSha: failedSha,
+          verification: \`workflow-run-\${conclusion}-without-outcome-attestation\`,
+          verificationProgress: false,
+          noProgress: true,
+          state: 'LEASE_BLOCKED',
+          generatedAt: new Date().toISOString(),
+          at: new Date().toISOString(),
+        };
+        await emitEvent(identity, 'OUTCOME', \`\${repairRun.data.id}-CRASHED\`, crashMetadata);
+        outcomes.push({ ...crashMetadata, eventType: 'OUTCOME' });
+      }
+    } else if (![200, 404].includes(repairRun.status)) {
+      console.log(JSON.stringify({
+        status: 'FAIL_CLOSED',
+        reason: \`REPAIR_RUN_EVIDENCE_UNAVAILABLE_\${repairRun.status}\`,
+      }, null, 2));
+      process.exitCode = 1;
+      return;
+    }
+  }
+
   const active = await activeRepairRuns(identity, failedSha);
   const currentRef = await readRef('refs/heads/execution');
   const currentExecutionSha = String(currentRef?.data?.object?.sha ?? '');
