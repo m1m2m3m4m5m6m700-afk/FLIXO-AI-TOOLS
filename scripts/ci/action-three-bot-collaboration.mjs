@@ -35,6 +35,7 @@ const greenRecordPath=String(arg('green-record')).trim();
 const fileSelectionPath=String(arg('file-selection')).trim();
 const programmerTwinParityPath=String(arg('programmer-twin-parity')).trim();
 const primaryProofPath=String(arg('primary-proof')).trim();
+const awarenessPath=String(arg('awareness')).trim();
 const now=()=>new Date().toISOString();
 const read=()=>JSON.parse(fs.readFileSync(STATE,'utf8'));
 const write=(value)=>{fs.mkdirSync(VAULT,{recursive:true});fs.writeFileSync(STATE,JSON.stringify(value,null,2)+'\n')};
@@ -58,6 +59,12 @@ if(profile.cooperation?.repairEngineering?.enabled!==true) throw new Error('ACTI
 if(profile.cooperation?.repairEngineering?.owner!=='ACTION-REPAIR') throw new Error('ACTION_THREE_BOT_REPAIR_ENGINEERING_OWNER_INVALID');
 
 const execFileList=(command)=>execFileSync(command[0],command.slice(1),{encoding:'utf8'}).split('\\0').filter(Boolean);
+const buildAwareness=()=>{
+  if(!awarenessPath||!fs.existsSync(awarenessPath)) throw new Error('ACTION_THREE_BOT_COGNITIVE_AWARENESS_REQUIRED');
+  const awareness=JSON.parse(fs.readFileSync(awarenessPath,'utf8'));
+  if(awareness.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'||awareness.targetSha!==targetSha||awareness.failureFingerprint!==fingerprint||awareness.exactShaBound!==true||awareness.awarenessCompleteness?.complete!==true) throw new Error('ACTION_THREE_BOT_COGNITIVE_AWARENESS_INVALID');
+  return awareness;
+};
 const buildPrimaryProof=()=>{
   if(!primaryProofPath||!fs.existsSync(primaryProofPath)) throw new Error('ACTION_THREE_BOT_PRIMARY_CORRECTNESS_PROOF_REQUIRED');
   const proof=JSON.parse(fs.readFileSync(primaryProofPath,'utf8'));
@@ -84,6 +91,7 @@ const buildSelection=()=>{
 };
 const ensureState=()=>{
   const fileSelection=buildSelection();
+  const awareness=buildAwareness();
   const primaryProof=buildPrimaryProof();
   const programmerTwinParity=buildProgrammerTwinParity();
   if(fs.existsSync(STATE)){
@@ -92,6 +100,7 @@ const ensureState=()=>{
     if(state.fileSelectionDecision?.targetSha!==targetSha||state.fileSelectionDecision?.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_FILE_SELECTION_STATE_MISMATCH');
     if(state.programmerTwinParity?.targetSha!==targetSha||state.programmerTwinParity?.failureFingerprint!==fingerprint||state.programmerTwinParity?.intelligenceParity!=='EXACT') throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_PARITY_STATE_MISMATCH');
     if(state.primaryCorrectnessProof?.targetSha!==targetSha||state.primaryCorrectnessProof?.failureFingerprint!==fingerprint||state.primaryCorrectnessProof?.proofObjective!=='PROVE_PRIMARY_REPAIR_CORRECT') throw new Error('ACTION_THREE_BOT_PRIMARY_PROOF_STATE_MISMATCH');
+    if(state.cognitiveAwareness?.targetSha!==targetSha||state.cognitiveAwareness?.failureFingerprint!==fingerprint||state.cognitiveAwareness?.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1') throw new Error('ACTION_THREE_BOT_COGNITIVE_AWARENESS_STATE_MISMATCH');
     return state;
   }
   const log=logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'';
@@ -100,7 +109,7 @@ const ensureState=()=>{
     id:'ACTION-THREE-BOT-COLLABORATION',
     protocol:'ACTION-VAULT-PARALLEL-COLLABORATION-v1',
     status:'ACTIVE',
-    phase:'FILE_SELECTION',
+    phase:'PRIMARY_CORRECTNESS_PROOF',
     taskId:task,
     failedRunId:runId,
     failureFingerprint:fingerprint,
@@ -114,6 +123,7 @@ const ensureState=()=>{
     challenge:{status:'PENDING',checks:[]},
     fileSelectionDecision:fileSelection,
     primaryCorrectnessProof:primaryProof,
+    cognitiveAwareness:{protocol:awareness.protocol,targetSha:awareness.targetSha,failureFingerprint:awareness.failureFingerprint,domainCount:awareness.awarenessCompleteness.requiredDomains.length,systemWide:true},
     programmerTwinParity,
     falsificationObjective:'ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG',
     authorization:{status:'BLOCKED',owner:null,authorizedAt:null,reason:'WAITING_FOR_FILE_SELECTION_AND_ALL_THREE_CONTRIBUTIONS_AND_CROSS_LEARNING'},
@@ -128,7 +138,7 @@ const ensureState=()=>{
 let state=ensureState();
 
 if(op==='start'){
-  state.phase='FILE_SELECTION';state.status='ACTIVE';state.updatedAt=now();write(state);
+  state.phase='PRIMARY_CORRECTNESS_PROOF';state.status='ACTIVE';state.updatedAt=now();write(state);
 } else if(op==='contribute'){
   validBot(bot);
   if(!summary) throw new Error('ACTION_THREE_BOT_CONTRIBUTION_SUMMARY_REQUIRED');
@@ -177,6 +187,7 @@ if(op==='start'){
   if(state.fileSelectionDecision?.decision!=='SELECTED'||state.fileSelectionDecision?.targetSha!==targetSha||state.fileSelectionDecision?.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_FILE_SELECTION');
   if(state.programmerTwinParity?.intelligenceParity!=='EXACT'||state.programmerTwinParity?.authorityParity!=='SEPARATED_BY_DESIGN'||state.programmerTwinParity?.targetSha!==targetSha||state.programmerTwinParity?.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_PROGRAMMER_TWIN_PARITY');
   if(state.primaryCorrectnessProof?.proofObjective!=='PROVE_PRIMARY_REPAIR_CORRECT') throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_PRIMARY_PROOF');
+  if(state.cognitiveAwareness?.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'||state.cognitiveAwareness?.targetSha!==targetSha) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_COGNITIVE_AWARENESS');
   if(state.participants.some(x=>!x.learnedFromPeers)) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_CROSS_LEARNING_INCOMPLETE');
   if(owner!=='ACTION-REPAIR') throw new Error('ACTION_THREE_BOT_ONLY_PROGRAMMER_OWNER_MAY_MUTATE');
   if(!state.outputs.programmerTwinAnalysis && !state.contributions['ACTION-REPAIR-2']) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_NO_PROGRAMMER_TWIN_ANALYSIS');
@@ -204,6 +215,6 @@ if(op==='start'){
   state.phase='CLOSED';state.status='CLOSED_GREEN';state.updatedAt=now();write(state);
 } else throw new Error('ACTION_THREE_BOT_COLLAB_OPERATION_INVALID='+op);
 
-const result={status:'PASS',protocol:'ACTION-VAULT-PARALLEL-COLLABORATION-v1',op,taskId:task,fingerprint,targetSha,phase:state.phase,authorization:state.authorization,exchange:state.exchange,fileSelectionDecision:state.fileSelectionDecision,programmerTwinParity:state.programmerTwinParity,collaborationRules:state.collaborationRules,contributionBots:Object.keys(state.contributions),sharedArtifact:STATE};
+const result={status:'PASS',protocol:'ACTION-VAULT-PARALLEL-COLLABORATION-v1',op,taskId:task,fingerprint,targetSha,phase:state.phase,authorization:state.authorization,exchange:state.exchange,fileSelectionDecision:state.fileSelectionDecision,primaryCorrectnessProof:state.primaryCorrectnessProof,cognitiveAwareness:state.cognitiveAwareness,programmerTwinParity:state.programmerTwinParity,collaborationRules:state.collaborationRules,contributionBots:Object.keys(state.contributions),sharedArtifact:STATE};
 fs.writeFileSync(output,JSON.stringify(state,null,2)+'\n');
 console.log(JSON.stringify(result,null,2));
