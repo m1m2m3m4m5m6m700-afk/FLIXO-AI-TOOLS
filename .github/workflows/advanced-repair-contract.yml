@@ -5,6 +5,10 @@ on:
   push:
     branches: [execution]
 
+concurrency:
+  group: flixo-latest-test-advanced-repair-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -12,6 +16,12 @@ jobs:
   packet-contract:
     runs-on: ubuntu-latest
     steps:
+      - name: Fail closed when this commit is superseded
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+        run: node scripts/ci/assert-current-commit.mjs
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
