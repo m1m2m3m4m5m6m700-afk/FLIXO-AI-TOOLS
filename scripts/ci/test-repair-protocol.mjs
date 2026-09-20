@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import {REPAIR_PROTOCOL,REPAIR_PROTOCOL_HASH,assertProtocolDefinition,assertAgentAdmission,createRepairSession,captureFailure,authorizeMutation,completeRepairSession,validateCommitBoundary,validatePostCommitBoundary,validateErrorOnlyMutation,validateMinimalRepairScope,validateTargetedRegressionSelection} from './repair-protocol.mjs';
+import {REPAIR_PROTOCOL,REPAIR_PROTOCOL_HASH,assertProtocolDefinition,assertAgentAdmission,createRepairSession,captureFailure,authorizeMutation,completeRepairSession,validateActionVaultVerifierProof,validateCommitBoundary,validatePostCommitBoundary,validateErrorOnlyMutation,validateMinimalRepairScope,validateTargetedRegressionSelection} from './repair-protocol.mjs';
 
 const definition=assertProtocolDefinition();
 assert.equal(definition.protocolId,'REPAIR_PROTOCOL');
@@ -64,6 +64,33 @@ assert.throws(()=>assertAgentAdmission({actor:'implementation',branch:'execution
 const targetSHA='a'.repeat(40);
 const actionRepairSession=createRepairSession({repairSessionId:'action-repair-session',actor:'actionRepairBot',failureFingerprint:'action-repair-test',targetSHA,beforeState:{worktree:'clean'}});
 assert.equal(actionRepairSession.actor,'actionRepairBot');
+const verifierProof = {
+  status:'CHALLENGE_PASSED',
+  challengeId:'challenge-1',
+  verifierAgent:'actionRepairVerifier',
+  targetSha:targetSHA,
+  failureFingerprint:'action-repair-test',
+  alternativeHypotheses:[{id:'alt-1',basis:'independent-cause'}],
+  falsificationChecks:[{id:'f-1',command:'echo falsify'}],
+  counterEvidence:{rejectedHypothesis:'alt-1',evidenceRef:'test'},
+  mutationRecommendation:'ALLOW',
+  remainingRisks:['canonical-ci'],
+};
+assert.deepEqual(
+  validateActionVaultVerifierProof({proof:verifierProof,targetSHA,failureFingerprint:'action-repair-test'}),
+  {verified:true,verifierAgent:'actionRepairVerifier',targetSHA,failureFingerprint:'action-repair-test',challengeId:'challenge-1',alternativeCount:1,falsificationCount:1,mutationRecommendation:'ALLOW'},
+);
+assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,targetSha:'b'.repeat(40)},targetSHA,failureFingerprint:'action-repair-test'}),/SHA_MISMATCH/);
+assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,alternativeHypotheses:[]},targetSHA,failureFingerprint:'action-repair-test'}),/ALTERNATIVES_MISSING/);
+const vaultMutationSession={
+  ...actionRepairSession,
+  state:'FAILURE_CAPTURED',
+  actionVaultMission:{role:'ACTION-REPAIR',triadId:'triad-1',messageId:'msg-1',taskId:'task-1',failureFingerprint:'action-repair-test',entrySha:targetSHA,targetSha:targetSHA,ownerAgent:'actionRepairBot',verifierAgent:'actionRepairVerifier',historianAgent:'actionHistorian',proofObligations:['proof'],stopConditions:['GREEN'],noBlindRetry:true},
+  actionVaultVerifierProof:verifierProof,
+};
+assert.equal(assertAgentAdmission({actor:'actionRepairBot',branch:'execution',mutation:true,session:vaultMutationSession}).admitted,true);
+assert.throws(()=>assertAgentAdmission({actor:'actionRepairBot',branch:'execution',mutation:true,session:{...vaultMutationSession,actionVaultVerifierProof:{...verifierProof,status:'CHALLENGE_FAILED'}}}),/CHALLENGE_FAILED/);
+
 assert.equal(assertAgentAdmission({actor:'actionRepairBot',branch:'execution',mutation:false}).admitted,true);
 const actionCaptured=captureFailure(actionRepairSession,{runId:'action-test-run'});
 assert.equal(authorizeMutation(actionCaptured).state,'MUTATION_AUTHORIZED');
