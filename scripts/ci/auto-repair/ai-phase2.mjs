@@ -35,10 +35,14 @@ export function globMatch(file, pattern) {
 export function rankRepairStrategies(strategy={},memory={},context={}){
  const ids=['reproduce-exact','minimize-failure','diff-forensics','environment-audit','workflow-forensics','observability-trace','historical-analogy','synthetic-reproduction','alternate-hypothesis','supervising-escalation'];
  const attempt=Number(strategy.attempt??0);const selected=String(strategy.strategyId??'');
- const next=attempt>0?ids[(attempt-1)%ids.length]:(selected||ids[0]);
+ const rejected = new Set([...(strategy.rejectedStrategies ?? []), ...(strategy.rejectedByDurableLedger ?? []).map((x) => typeof x === 'string' ? x : x.strategyId)].filter(Boolean).map(String));
+ const available = ids.filter((id) => !rejected.has(id));
+ if (!available.length) throw new Error('AI_PHASE2_NO_UNUSED_REPAIR_STRATEGY');
+ const next=available[attempt>0 ? (attempt-1)%available.length : 0] ?? available[0];
  const failedHistory=(memory.cases??[]).flatMap(x=>x.outcomes??[]).filter(x=>x.outcome!=='success').slice(-8);
  const repeatPenalty=failedHistory.filter(x=>x.strategyId===selected).length;
- return Object.freeze({schemaVersion:1,inputStrategy:selected||null,attempt,deterministicNext:next,repeatPenalty,teachingEscalation:strategy.teachingEscalation===true,repairAttemptRequired:true,sourceSha:context.sourceSha||null,failureFingerprint:context.failure?.fingerprint||null,impactEscalation:context.impact?.escalation||null});
+ const durableRejected = selected ? rejected.has(selected) : false;
+ return Object.freeze({schemaVersion:1,inputStrategy:selected||null,attempt,deterministicNext:next,rejectedStrategies:[...rejected],durableRejected,repeatPenalty,teachingEscalation:strategy.teachingEscalation===true,repairAttemptRequired:true,sourceSha:context.sourceSha||null,failureFingerprint:context.failure?.fingerprint||null,impactEscalation:context.impact?.escalation||null});
 }
 
 export function minimizeTestSet(changedFiles=[],impactMap={}){
