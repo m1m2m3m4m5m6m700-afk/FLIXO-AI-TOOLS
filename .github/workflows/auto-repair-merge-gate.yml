@@ -154,7 +154,16 @@ jobs:
             # first resolves workflow metadata via /actions/workflows, which can hit the
             # installation API rate limit even when the commit itself is healthy.
             gh_with_backoff api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXPECTED_SHA&per_page=100" > /tmp/exact-runs-response.json
-            jq '.workflow_runs' /tmp/exact-runs-response.json > /tmp/exact-runs.json
+            # Normalize REST snake_case fields to the stable schema used by the gate.
+            jq '[.workflow_runs[] | {
+              databaseId: .id,
+              name,
+              status,
+              conclusion,
+              headSha: .head_sha,
+              headBranch: .head_branch,
+              updatedAt: .updated_at
+            }]' /tmp/exact-runs-response.json > /tmp/exact-runs.json
             WAITING=false
 
             for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
