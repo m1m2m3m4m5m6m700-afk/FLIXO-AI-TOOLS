@@ -492,6 +492,23 @@ jobs:
           echo "TWIN_A_READY=true"
           echo "TWIN_B_READY=true"
 
+      - name: ACTION-REPAIR self-search current Actions log and historical index
+        id: action_repair_search
+        env:
+          FLIXO_ACTION_REPAIR_INDEX_PATH: docs/agents/historical-action-errors/index.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/action-repair-five-workers.mjs \
+            --role=repair-search \
+            --target-sha="$(cat /tmp/flixo-failed-sha)" \
+            --run-id="$TARGET_RUN_ID" \
+            --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
+            --log="$FLIXO_FAILURE_LOG" \
+            --output=/tmp/flixo-action-repair-search.json
+          test -s /tmp/flixo-action-repair-search.json
+          jq -e '.botId=="ACTION-REPAIR" and .indexOwner==true and .directActionSearch==true and .searchBeforeMutation==true and .targetSha==env.FLIXO_EXPECTED_TARGET_SHA' /tmp/flixo-action-repair-search.json >/dev/null
+          echo "FLIXO_ACTION_REPAIR_SEARCH_PATH=/tmp/flixo-action-repair-search.json" >> "$GITHUB_ENV"
+
       - name: ACTION-WISE select best repair option from history and twin A/B
         id: cell_selector
         if: steps.twin.outcome == 'success'
