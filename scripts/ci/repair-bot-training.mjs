@@ -36,6 +36,9 @@ function memoryExamples(memory) {
         fingerprint: String(c.fingerprint ?? sha256(c.normalizedFailure ?? c.rootCause ?? 'case')),
         rootCause: norm(c.rootCause ?? 'unknown'),
         features: Array.isArray(c.features) ? c.features.map(norm) : [],
+        failedSha: o?.provenance?.failedSha ?? null,
+        targetSha: o?.provenance?.targetSha ?? null,
+        at: o?.at ?? null,
         strategyId,
         outcome: SUCCESS.has(state) ? 'success' : FAILURE.has(state) ? 'failure' : 'observation',
       });
@@ -63,6 +66,9 @@ function historicalExamples() {
       fingerprint:String(r.fingerprint ?? sha256(r.normalized ?? id)),
       rootCause:norm(r.rootCause ?? r.class ?? 'unknown'),
       features:Array.isArray(r.features)?r.features.map(norm):[],
+      failedSha:r.failedSha ?? r.provenance?.failedSha ?? null,
+      targetSha:r.targetSha ?? r.provenance?.targetSha ?? null,
+      at:r.at ?? r.createdAt ?? null,
       strategyId,
       outcome:SUCCESS.has(state)?'success':FAILURE.has(state)?'failure':'observation',
     });
@@ -148,6 +154,75 @@ function evaluate(policy,test){
   };
 }
 
+function buildBehaviorExamples(rows) {
+  const grouped=new Map();
+  for(const row of rows){
+    const key=[row.fingerprint,row.rootCause].join('|');
+    const list=grouped.get(key) ?? [];
+    list.push(row);
+    grouped.set(key,list);
+  }
+  const out=[];
+  for(const list of grouped.values()){
+    list.sort((a,b)=>String(a.at??'').localeCompare(String(b.at??'')));
+    let previousStrategy='START';
+    for(const row of list){
+      out.push({
+        fingerprint:row.fingerprint,
+        rootCause:row.rootCause,
+        features:row.features ?? [],
+        previousStrategy,
+        strategyId:row.strategyId,
+        outcome:row.outcome,
+        reward:row.outcome==='success' ? 3 : row.outcome==='failure' ? -2 : 0,
+      });
+      previousStrategy=row.strategyId;
+    }
+  }
+  return out;
+}
+
+function fitBehaviorModel(examples,epochs=5){
+  const cells=new Map();
+  for(let epoch=0;epoch<epochs;epoch++){
+    for(const row of examples){
+      if(row.outcome==='observation') continue;
+      const key=[row.rootCause,row.previousStrategy,row.strategyId].join('|');
+      const cell=cells.get(key) ?? {rootCause:row.rootCause,previousStrategy:row.previousStrategy,strategyId:row.strategyId,reward:0,success:0,failure:0,observations:0};
+      cell.reward += row.reward*(1+epoch*0.1);
+      cell.observations += 1;
+      if(row.outcome==='success') cell.success += 1; else cell.failure += 1;
+      cells.set(key,cell);
+    }
+  }
+  const transitions={};
+  for(const cell of cells.values()){
+    const total=cell.success+cell.failure;
+    const quality=(cell.reward/Math.max(1,cell.observations*3)+1)/2;
+    const candidate={strategyId:cell.strategyId,reward:Number(cell.reward.toFixed(3)),success:cell.success,failure:cell.failure,observations:total,quality:Number(Math.max(0,Math.min(1,quality)).toFixed(4))};
+    const key=[cell.rootCause,cell.previousStrategy].join('|');
+    (transitions[key] ??= []).push(candidate);
+  }
+  for(const list of Object.values(transitions)) list.sort((a,b)=>b.quality-a.quality||b.reward-a.reward||b.observations-a.observations||a.strategyId.localeCompare(b.strategyId));
+  return {epochs,transitions};
+}
+
+function predictBehavior(model,{rootCause='unknown',previousStrategy='START',rejected=[]}={}){
+  const list=model?.transitions?.[[norm(rootCause),norm(previousStrategy)].join('|')] ?? [];
+  return list.find((item)=>!rejected.includes(item.strategyId)) ?? null;
+}
+
+function evaluateBehavior(model,examples){
+  const scored=examples.filter((x)=>x.outcome==='success'||x.outcome==='failure');
+  let hit=0,avoid=0,pos=0,neg=0;
+  for(const row of scored){
+    const p=predictBehavior(model,{rootCause:row.rootCause,previousStrategy:row.previousStrategy,rejected:[]});
+    if(row.outcome==='success'){pos+=1;if(p?.strategyId===row.strategyId)hit+=1;}
+    else {neg+=1;if(p?.strategyId!==row.strategyId)avoid+=1;}
+  }
+  return {cases:scored.length,successCases:pos,successHits:hit,successAccuracy:Number((hit/Math.max(1,pos)).toFixed(4)),failureCases:neg,failureAvoidance:Number((avoid/Math.max(1,neg)).toFixed(4))};
+}
+
 export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],lessons:[],antiLessons:[],actionHistory:[]}),log='',diagnosis=readJson(DIAGNOSIS,null)}={}) {
   const rows=dedupe([...memoryExamples(memory),...historicalExamples(),...negativeExamples(memory)]);
   const {train,test}=split(rows);
@@ -172,17 +247,20 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
     },
     curriculum:CURRICULUM.map(([id,skill],i)=>({id,skill,status:'COMPLETED_SIMULATION',evidence:i<5?'HISTORICAL_REPLAY_AND_RULE_CHECK':'HISTORICAL_REPLAY'})),
     policy,
+    behaviorModel,
+    behaviorEvaluation,
     evaluation,
     decision:{
       mode:sufficient&&competent?'TRAINED_POLICY':rows.length?'BOOTSTRAP_POLICY':'CURRICULUM_ONLY',
       competent,sufficient,
-      eligibleToInfluenceRouting:rows.length>=4 && evaluation.accuracy>=.55,
+      eligibleToInfluenceRouting:rows.length>=4 && evaluation.accuracy>=.55 && behaviorEvaluation.successAccuracy>=.55,
+      behavioralTraining:{epochs:5,trainedExamples:behaviorTrain.length,evaluationExamples:behaviorTest.length,competent:behaviorEvaluation.successAccuracy>=.65 && behaviorEvaluation.failureAvoidance>=.60},
       rule:'TRAINING_INFLUENCES_SELECTION_BUT_NEVER_GRANTS_MUTATION_OR_GREEN_AUTHORITY'
     },
     preferredStrategy:preferred,
     trainingObjectives:[
       'ROOT_CAUSE_IDENTIFICATION','EVIDENCE_DRIVEN_ACTION_SELECTION','SUCCESS_AND_FAILURE_LEARNING',
-      'ANTI_LESSON_AVOIDANCE','EXTERNAL_FAILURE_SEPARATION','FRESH_EXACT_SHA_VERIFICATION'
+      'ANTI_LESSON_AVOIDANCE','BEHAVIORAL_SEQUENCE_LEARNING','FEEDBACK_REWARD_LEARNING','EXTERNAL_FAILURE_SEPARATION','FRESH_EXACT_SHA_VERIFICATION'
     ]
   };
 }
