@@ -1,9 +1,9 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "id": "ACTION-THREE-BOT-INTELLIGENCE",
-  "purpose": "Canonical specialized intelligence contract for the three Action Vault roles: programmer, historical challenger, and file-selection intelligence/history.",
+  "purpose": "Canonical shared-intelligence contract for the three Action Vault seats: two equal programming seats with opposed proof objectives and one knowledge/catalog supervisor seat.",
   "parity": {
-    "model": "EXACT_PROGRAMMER_TWIN_WITH_SEPARATED_AUTHORITY",
+    "model": "SHARED_INTELLIGENCE_WITH_SPECIALIZED_PROOF_OBJECTIVES",
     "commonSafetyEqual": true,
     "commonIdentityBindingEqual": true,
     "roleCapabilitiesEqual": true,
@@ -121,9 +121,9 @@
     "protectedControlPlaneMutationForbidden": true,
     "externalFailureCannotBecomeInternalRepair": true,
     "oneActiveRepairOwnerPerTask": true,
-    "agent2SourceMutationForbidden": true,
-    "agent3SourceMutationForbidden": true,
-    "agent1OwnerOnlyMutation": true,
+    "agent2SourceMutationForbidden": false,
+    "agent3SourceMutationForbidden": false,
+    "agent1OwnerOnlyMutation": false,
     "predictionIsNotProof": true,
     "failureLedgerAppendOnly": true,
     "fileReasoningIsNotCodeReasoning": true,
@@ -138,23 +138,26 @@
     "cognitiveExpansionDoesNotGrantMutationAuthority": true,
     "systemContextRequiredBeforeDecision": true,
     "unknownsMustBeExplicit": true,
-    "contradictionsMustBePreserved": true
+    "contradictionsMustBePreserved": true,
+    "sourceMutationSerialized": true,
+    "triadGovernorRequired": true,
+    "supervisor3After20": true
   },
   "members": [
     {
       "id": "ACTION-REPAIR",
-      "role": "PRIMARY_CORRECTNESS_PROVER_AND_REPAIR_OWNER",
-      "executionAuthority": "MUTATE_WHEN_TASK_OWNER"
+      "role": "PROGRAMMER_DEFENSE_SEAT",
+      "executionAuthority": "MUTATE_WHEN_ADMITTED"
     },
     {
       "id": "ACTION-REPAIR-2",
-      "role": "ADVERSARIAL_PROGRAMMER_FALSIFIER",
-      "executionAuthority": "FALSIFY_PROPOSE_ONLY"
+      "role": "ADVERSARIAL_PROGRAMMER_SEAT",
+      "executionAuthority": "MUTATE_WHEN_ADMITTED"
     },
     {
       "id": "ACTION-HISTORIAN-3",
-      "role": "FILE_SELECTION_INTELLIGENCE_AND_FAILURE_HISTORIAN",
-      "executionAuthority": "READ_ONLY_SELECTION_RECORD_INDEX_ESCALATE"
+      "role": "COGNITIVE_CATALOG_SUPERVISOR_SEAT",
+      "executionAuthority": "MUTATE_WHEN_SUPERVISOR_20"
     }
   ],
   "note": "The three bots have capability parity and mandatory collaboration on each actionable RED. Mutation authority remains role-scoped so cooperation cannot create concurrent source writes.",
@@ -192,8 +195,8 @@
       "ACTION-HISTORIAN-3: FAILURE/ATTEMPT/GREEN LEDGER UPDATE"
     ],
     "authority": {
-      "taskOwnership": "single_active_programming_owner",
-      "repairOwner": "ACTION-REPAIR",
+      "taskOwnership": "single_active_mutation_seat",
+      "repairOwner": "SELECTED_TRIAD_SEAT",
       "historian": "ACTION-HISTORIAN-3",
       "noParallelSourceMutation": true,
       "predictionCannotAuthorizeMutation": true,
@@ -205,7 +208,10 @@
       "falsificationOwner": "ACTION-REPAIR-2",
       "counterexampleBlocksMutation": true,
       "noCounterexampleIsNotGreen": true,
-      "historicalPrediction": "SUPPORTING_EVIDENCE_ONLY"
+      "historicalPrediction": "SUPPORTING_EVIDENCE_ONLY",
+      "supervisorAfter20": "ACTION-HISTORIAN-3",
+      "agent2Mutation": "ADMITTED_AFTER_TRIAD_REVIEW",
+      "agent3Mutation": "SUPERVISOR_20_ONLY"
     },
     "sharedArtifact": "diagnostics/auto-repair/action-vault/current-collaboration.json",
     "hardRule": "ANY_ACTIONABLE_RED_REQUIRES_ALL_THREE_TO_CONTRIBUTE_BEFORE_OWNER_MUTATION",
@@ -408,7 +414,18 @@
       "falsificationRuntime": "scripts/ci/action-repair-dual-control.mjs",
       "falsificationArtifact": "/tmp/action-repair-2-proposal.json",
       "counterexampleBlocksMutation": true,
-      "noCounterexampleNotGreen": true
+      "noCounterexampleNotGreen": true,
+      "mutationMode": "ADMITTED_SEAT_AFTER_TRIAD_SELECTION"
+    },
+    "triadGovernance": {
+      "protocol": "ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-v1",
+      "recurrenceEscalationThreshold": 20,
+      "catalogCapacity": 1000000,
+      "supervisor": "ACTION-HISTORIAN-3",
+      "allThreeMayCreateCandidateArtifacts": true,
+      "sourceMutationSerialized": true,
+      "catalogMissIsMandatory": true,
+      "newAdvicePromotion": "CANONICAL_GREEN_ONLY"
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
@@ -505,7 +522,7 @@
         "TRANSACTIONAL_REPAIR",
         "COUNTERFACTUAL_PATCH_REVIEW"
       ],
-      "mutationAuthority": "OWNER_ONLY",
+      "mutationAuthority": "ADMITTED_SEAT",
       "requiredInputs": [
         "ACTION-HISTORIAN-3:FILE_SELECTION_DECISION",
         "ACTION-REPAIR-2:ADVERSARIAL_FALSIFICATION_REPORT",
@@ -565,7 +582,7 @@
         "TRANSACTIONAL_REPAIR",
         "COUNTERFACTUAL_PATCH_REVIEW"
       ],
-      "mutationAuthority": "VERIFIER_ONLY_NO_DIRECT_SOURCE_MUTATION",
+      "mutationAuthority": "ADMITTED_SEAT",
       "requiredInputs": [
         "ACTION-HISTORIAN-3:FILE_SELECTION_DECISION",
         "ACTION-REPAIR:PRIMARY_CORRECTNESS_PROOF",
@@ -603,7 +620,7 @@
     },
     "ACTION-HISTORIAN-3": {
       "role": "FILE_SELECTION_INTELLIGENCE_AND_FAILURE_HISTORIAN",
-      "mission": "SELECT_AND_EXCLUDE_THE_MINIMAL_FILE_SURFACE_FROM_PATH_LEVEL_EVIDENCE_THEN_RECORD_FAILURE_LEARNING",
+      "mission": "CURATE_CATALOG_COMPARE_BOTH_PROGRAMMING_PROPOSALS_SELECT_SOLUTION_AND_SUPERVISE_AFTER_20_UNRESOLVED_OCCURRENCES",
       "capabilities": [
         "FAILURE_INTAKE",
         "EXACT_PROVENANCE",
@@ -618,7 +635,7 @@
         "GREEN_CHAIN_RECORDING",
         "MASTER_ESCALATION"
       ],
-      "mutationAuthority": "NONE",
+      "mutationAuthority": "SUPERVISOR_20_ONLY",
       "output": "FILE_SELECTION_DECISION_AND_APPEND_ONLY_FAILURE_LEDGER",
       "pathOnly": true,
       "codeContentReasoning": false,
