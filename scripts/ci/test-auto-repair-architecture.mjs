@@ -98,6 +98,12 @@ assert(livenessPlan.candidates.some((candidate) => candidate.id === 'liveness-co
 const canonicalWakePlan = planRepair("heartbeat received HTTP 422 from Daily·FLIXO Green Gate because heartbeat attempted a direct workflow dispatch instead of the canonical wake/supervisor path.");
 assert(canonicalWakePlan.features.includes('noncanonical-automation'));
 assert(canonicalWakePlan.candidates.some((candidate) => candidate.id === 'noncanonical-automation'));
+assert.equal(canonicalWakePlan.reasoning.rootCause, 'noncanonical-automation');
+
+const canonicalCombinedPlan = planRepair("agent-liveness contract test still treats IDLE/SLEEP as forbidden; heartbeat received HTTP 422 because it directly invoked Daily·FLIXO Green Gate instead of the canonical supervisor wake path.");
+assert(canonicalCombinedPlan.features.includes('liveness-contract'));
+assert(canonicalCombinedPlan.features.includes('noncanonical-automation'));
+assert.equal(canonicalCombinedPlan.reasoning.rootCause, 'noncanonical-automation');
 
 const contractDriftPlan = planRepair("contract drift: agent-liveness test is out of sync with the current state-transition contract; expected and received states disagree.");
 assert(contractDriftPlan.features.includes('contract-drift'));
