@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "authority": "CELL_CONTROL_PLANE",
   "purpose": "Fifty raw workers managed as a reusable execution pool. Intelligence is delegated per task; workers do not own reasoning authority.",
   "supervisor": {
@@ -8,611 +8,1773 @@
     "sourceOfTruth": "scripts/ci/agent-coordination.mjs"
   },
   "invariants": [
-    "A raw bot never receives permanent independent authority.",
+    "RAW_BOT describes the reusable worker shape; it is never a terminal lifecycle state.",
     "One active task and one assigned scope per raw bot.",
-    "Every completed task must emit an observation, evidence, validation result, and reusable knowledge record.",
+    "Every completed task must emit an observation, evidence, validation result, learned task short name, and upgrade target.",
+    "A learned task identity is promoted only from validated task evidence.",
+    "Every bot carries one numeric upgradePriority (1-100; 100 is the highest upgrade urgency) and one best current weakness target.",
+    "After every task the controller must reassess weakness and either specialize, upgrade, become ready, or recycle the bot.",
     "Knowledge never bypasses exact-SHA or canonical CI proof."
   ],
   "bots": [
     {
       "id": "CELL-001",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "SPECIALIZING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "ACTERR",
+        "fullName": "ACTION_ERROR_READER",
+        "state": "ASSIGNED",
+        "version": 1,
+        "learnedFrom": "CONTROLLER_ASSIGNED_TASK",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 95,
+        "upgradeNumber": 1,
+        "weakness": "HISTORICAL_ACTION_COVERAGE_AND_EXACT_ERROR_EXTRACTION",
+        "target": "Scan all available GitHub Actions run failures, timed_out, cancelled, and action_required records; preserve runId, job, step, log fingerprint, exact SHA, and evidence.",
+        "state": "ACTIVE",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "SPECIALIZING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      },
+      "currentAssignment": {
+        "taskId": "CELL-TASK-ACTION-ERRORS",
+        "shortName": "ACTERR",
+        "scope": "ALL_AVAILABLE_GITHUB_ACTIONS_ERRORS",
+        "objective": "Read historical and current Actions errors and return a structured evidence report directly to assistantController.",
+        "inputs": [
+          "workflow_runs",
+          "run_jobs",
+          "job_steps",
+          "job_logs",
+          "commit_sha"
+        ],
+        "outputs": [
+          "runId",
+          "workflow",
+          "job",
+          "step",
+          "sha",
+          "errorFingerprint",
+          "errorLines",
+          "rootCauseCandidate",
+          "confidence",
+          "evidenceRef"
+        ],
+        "returnProtocol": "DIRECT_TO_ASSISTANT_CONTROLLER",
+        "mutationAuthority": false,
+        "completionRequires": [
+          "observation",
+          "evidence",
+          "validation"
+        ]
+      }
     },
     {
       "id": "CELL-002",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-002",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-003",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-003",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-004",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-004",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-005",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-005",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-006",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-006",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-007",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-007",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-008",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-008",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-009",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-009",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-010",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-010",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-011",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-011",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-012",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-012",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-013",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-013",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-014",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-014",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-015",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-015",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-016",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-016",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-017",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-017",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-018",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-018",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-019",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-019",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-020",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-020",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-021",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-021",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-022",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-022",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-023",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-023",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-024",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-024",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-025",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-025",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-026",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-026",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-027",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-027",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-028",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-028",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-029",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-029",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-030",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-030",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-031",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-031",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-032",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-032",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-033",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-033",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-034",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-034",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-035",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-035",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-036",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-036",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-037",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-037",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-038",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-038",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-039",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-039",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-040",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-040",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-041",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-041",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-042",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-042",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-043",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-043",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-044",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-044",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-045",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-045",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-046",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-046",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-047",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-047",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-048",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-048",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-049",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-049",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     },
     {
       "id": "CELL-050",
       "kind": "RAW_BOT",
-      "status": "UNPROVISIONED",
-      "role": "RAW_WORKER",
+      "status": "LEARNING",
+      "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
       "taskPolicy": "ONE_TASK_AT_A_TIME",
       "scopePolicy": "ASSIGNED_SCOPE_ONLY",
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE"
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "LRN-050",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Establish the first validated task weakness.",
+        "state": "PENDING_LEARNING",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "LEARNING",
+        "rawStateForbidden": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      }
     }
-  ]
+  ],
+  "lifecycle": {
+    "rawKindIsBootstrapOnly": true,
+    "allowedStates": [
+      "LEARNING",
+      "SPECIALIZING",
+      "UPGRADING",
+      "READY",
+      "RECYCLE"
+    ],
+    "prohibitedTerminalStates": [
+      "RAW",
+      "UNPROVISIONED"
+    ],
+    "postTaskRequiredState": "REASSESS_AND_PROMOTE",
+    "supervisor": "assistantController",
+    "rule": "Every completed task must produce a learned task identity and an upgrade target; no bot may settle in RAW/UNPROVISIONED."
+  },
+  "upgradeModel": {
+    "priorityRange": [
+      1,
+      100
+    ],
+    "priorityMeaning": "100=highest upgrade urgency",
+    "levelStartsAt": 0,
+    "promotionRule": "validated observation + evidence + controller reassessment",
+    "specializationRule": "learned short name becomes the current task identity only after validation"
+  }
 }
