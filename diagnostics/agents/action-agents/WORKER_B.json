@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "agentId": "WORKER_B",
+  "profileId": "ACTION_ADVERSARIAL_REPAIR_V1",
+  "role": "ADVERSARIAL_ACTION_REPAIR",
+  "mutationMode": "DELEGATED_REPAIR_ONLY",
+  "certificationAuthority": false,
+  "state": "READY",
+  "taskCount": 0,
+  "verifiedResults": 0,
+  "knownWeaknesses": []
+}
