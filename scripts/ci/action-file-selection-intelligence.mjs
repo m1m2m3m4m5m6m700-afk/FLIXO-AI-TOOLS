@@ -13,7 +13,7 @@ const now = () => new Date().toISOString();
 const shaOk = (value) => /^[a-f0-9]{40}$/u.test(String(value || ''));
 const cleanToken = (value) =>
   String(value || '')
-    .replace(/^['"\(\[]+|['"\),;:]+$/gu, '')
+    .replace(/^['"([]+|['"(),;:]+$/gu, '')
     .replace(/:(?:\d+)(?::\d+)?$/u, '');
 const isFilePath = (value) =>
   /^(?:\.github\/|scripts\/|src\/|tests?\/|test\/|diagnostics\/|docs\/|public\/|packages\/|config\/|vite\.config|tsconfig|package(?:-lock)?\.json)/u.test(value);
@@ -37,7 +37,7 @@ export function selectFileScope({
   const log = String(failureLog || '');
   const directMatches = new Set();
 
-  for (const match of log.matchAll(/(?:^|\s|["'\(])([^\s"'\),;:]+(?:\.[a-z0-9_-]+)?)(?::\d+(?::\d+)?)?/giu)) {
+  for (const match of log.matchAll(/(?:^|\s|["'(])([^\s"'),;:]+(?:\.[a-z0-9_-]+)?)(?::\d+(?::\d+)?)?/giu)) {
     const token = cleanToken(match[1]);
     if (trackedSet.has(token) && isFilePath(token)) directMatches.add(token);
   }
