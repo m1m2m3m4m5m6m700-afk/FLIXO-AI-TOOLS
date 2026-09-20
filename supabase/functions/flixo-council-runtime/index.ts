@@ -71,6 +71,7 @@ const authGitHubWorkflow = async (req: Request, allowedWorkflows: string[]) => {
   const allowed = allowedWorkflows.some((workflow) => {
     if (workflow === "FLIXO Master Agent Activation Relay") return event === "workflow_run" && ref === "refs/heads/execution";
     if (workflow === "FLIXO External Council Lease Watcher") return (event === "schedule" && ref === "refs/heads/main") || (event === "workflow_dispatch" && (ref === "refs/heads/main" || ref === "refs/heads/execution"));
+    if (workflow === "FLIXO Council Wake Push Relay") return event === "push" && ref === "refs/heads/execution";
     if (workflow === "FLIXO Cell Master Consult Relay") return event === "workflow_dispatch" && (ref === "refs/heads/execution" || ref === "refs/heads/main");
     return false;
   });
@@ -460,7 +461,7 @@ Deno.serve(async (req) => {
 
     if (action === "dispatch" && req.method === "POST") {
       const requester = String(body.requestedByAccountId ?? "SYSTEM");
-      if (requester === "SYSTEM") await authGitHubWorkflow(req, ["FLIXO Master Agent Activation Relay"]);
+      if (requester === "SYSTEM") await authGitHubWorkflow(req, ["FLIXO Master Agent Activation Relay", "FLIXO Council Wake Push Relay"]);
       else authAccount(req, "CHIEF");
       return response({ ok: true, ...(await dispatch(body) as Record<string, unknown>) }, 202, requestId);
     }
