@@ -395,6 +395,18 @@ export function evaluateGreen({
     report.rootCause = report.rootCause ?? 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED';
   } else if (waitingRequiredChecks && !report.rootCause) {
     report.status = 'WAITING_REQUIRED_CHECKS';
+  } else if (report.errors.some((error) => [
+    'STALE_HEAD',
+    'STALE_WORKFLOW_EVIDENCE',
+    'MAIN_DIVERGENCE',
+    'POST_MERGE_MAIN_IDENTITY_MISMATCH',
+    'REQUIRED_CHECK_RED',
+    'SECURITY_CHECK_RED',
+    'UNEXPECTED_CHECK_RED',
+    'UNEXPECTED_COMMIT_STATUS_RED',
+  ].includes(error.type))) {
+    report.status = 'RED_INTERNAL';
+    report.rootCause = 'REQUIRED_CHECK_FAILURE_REQUIRES_REPAIR_CYCLE';
   } else if (report.errors.length) {
     report.status = report.rootCause ? 'BLOCKED_EXTERNAL' : 'FAIL_CLOSED';
   } else if (report.externalBlockers.some((item) => item.state === 'action_required')) {
