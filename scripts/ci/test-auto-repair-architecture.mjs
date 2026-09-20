@@ -200,6 +200,8 @@ assert.equal(pendingAttribution.outcome, 'unknown');
 
 const engineSource = fs.readFileSync('scripts/ci/auto-repair-engine.mjs', 'utf8');
 assert.match(engineSource, /file: selected\?\.file \?\? plan\.reasoning\?\.location\?\.file/);
+assert.match(engineSource, /loadAttemptLedger/);
+assert.match(engineSource, /durable-no-repeat-blocked/);
 const fingerprintSource = fs.readFileSync('scripts/ci/auto-repair/fingerprint.mjs', 'utf8');
 assert.match(fingerprintSource, /external-tooling/);
 assert.match(fingerprintSource, /format/);
@@ -218,9 +220,9 @@ assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), 
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /MAX_STALLED_REPAIR_CYCLES = 3/);
 assert.match(fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8'), /NORMAL_MAX_PREPARED_FILES = 12/);
 const strategySource = fs.readFileSync('scripts/ci/repair-strategy.mjs', 'utf8');
-assert.match(strategySource, /% strategies\.length/);
 assert.match(strategySource, /teachingEscalation/);
-assert.match(strategySource, /const isIntractable = teachingEscalation/);
+assert.match(strategySource, /ledgerAvailableIndexes/);
+assert.match(strategySource, /REPAIR_NO_UNUSED_STRATEGY_FOR_ACTIVE_CASE/);
 assert.match(strategySource, /INTRACTABLE_THRESHOLD/);
 assert.match(strategySource, /nextAttempt > threshold/);
 const rollbackSource = fs.readFileSync('scripts/ci/auto-repair/historical-rollback.mjs', 'utf8');
