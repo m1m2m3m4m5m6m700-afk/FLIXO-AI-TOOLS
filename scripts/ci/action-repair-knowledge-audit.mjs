@@ -143,6 +143,7 @@ const audit={
    noFiniteClosureOnRed:true
  },
  sourceContractsDigest:{
+   sourceBytes:{policy:policy.length,protocol:protocol.length,workflow:workflow.length},
    policySignals:['maxAttemptsPerFingerprint:1_000_000','requireCleanGitBeforeRepair:true','requireDeterministicMatch:true','protectedAreas'],
    protocolSignals:['mutationScope:ERROR_ONLY','testMutationPolicy:BLOCK','mutationAgents','bypassPolicy:BLOCK','commit boundary'],
    workflowSignals:['target run exact SHA','failure log capture','ACTION-INDEX red learning','twin review','AI/RCA','mutation','targeted regression','canonical verification']
