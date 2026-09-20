@@ -39,6 +39,7 @@ export function recordRed(data){return appendFailureLedger({...data,eventType:'R
 export function recordAttempt(data){return appendFailureLedger({...data,eventType:'REPAIR_ATTEMPT',result:data.result??'ATTEMPTED'})}
 export function recordFailedAttempt(data){return appendFailureLedger({...data,eventType:'REPAIR_FAILED',result:'FAILED'})}
 export function recordHandoff(data){return appendFailureLedger({...data,eventType:'HANDOFF',result:'HANDED_OFF'})}
+export function recordPredictionGenerated(data){return appendFailureLedger({...data,eventType:'PREDICTION_GENERATED',result:'PROVISIONAL'})}
 export function recordPredictionOutcome(data){return appendFailureLedger({...data,eventType:data.accepted?'PREDICTION_ACCEPTED':'PREDICTION_REJECTED',result:data.accepted?'ACCEPTED':'REJECTED'})}
 export function recordGreen(data){return appendFailureLedger({...data,eventType:'GREEN_VERIFIED',result:'VERIFIED'})}
 
