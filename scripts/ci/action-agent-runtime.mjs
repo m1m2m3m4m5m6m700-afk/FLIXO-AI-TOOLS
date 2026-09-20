@@ -17,7 +17,10 @@ const output=arg('output','/tmp/action-agent-runtime.json');
 const MODEL_DEFAULTS=Object.freeze({
   ACTION_COMMANDER_V1:{modelProfile:'FRONTIER_REASONING',reasoningEffort:'HIGH',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true},
   ACTION_PRIMARY_REPAIR_V1:{modelProfile:'FRONTIER_REASONING',reasoningEffort:'HIGH',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true},
-  ACTION_ADVERSARIAL_REPAIR_V1:{modelProfile:'FRONTIER_REASONING_ADVERSARIAL',reasoningEffort:'HIGH',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true}
+  ACTION_ADVERSARIAL_REPAIR_V1:{modelProfile:'FRONTIER_REASONING_ADVERSARIAL',reasoningEffort:'HIGH',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true},
+  ACTION_FRONTIER_REPAIR_V2:{modelProfile:'FRONTIER_CODING_REASONING',reasoningEffort:'MAXIMUM',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true},
+  ACTION_HISTORICAL_EXPLORER_V2:{modelProfile:'FRONTIER_HISTORICAL_REASONING',reasoningEffort:'MAXIMUM',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true},
+  ACTION_FAILURE_HISTORIAN_V2:{modelProfile:'FRONTIER_FORENSIC_REASONING',reasoningEffort:'HIGH',toolCalling:true,structuredOutput:true,selfCritique:true,independentReview:true}
 });
 
 const readJson=(p,d)=>fs.existsSync(p)?JSON.parse(fs.readFileSync(p,'utf8')):d;
@@ -62,9 +65,9 @@ const evidenceItems=[
 const phases=['INTAKE','CONTEXT_RETRIEVAL','PLAN','EXECUTE','SELF_CHECK','INDEPENDENT_REVIEW','VERIFY','LEARN'];
 const lanes={
   CHIEF:{agentId:'ACTION-MASTER',profile:'ACTION_COMMANDER_V1',lane:'ORCHESTRATION_AND_TOOL_SELECTION'},
-  PRIMARY:{agentId:'ACTION-REPAIR',profile:'ACTION_PRIMARY_REPAIR_V1',lane:'RCA_REPAIR_VERIFICATION'},
-  ADVERSARIAL:{agentId:'ACTION-REPAIR-2',profile:'ACTION_ADVERSARIAL_REPAIR_V1',lane:'FALSIFICATION_ALTERNATIVE_RCA'},
-  HISTORIAN:{agentId:'ACTION-HISTORIAN-3',profile:'ACTION_PRIMARY_REPAIR_V1',lane:'PROVENANCE_INDEX_LEARNING'}
+  PRIMARY:{agentId:'ACTION-REPAIR',profile:'ACTION_FRONTIER_REPAIR_V2',lane:'PROGRAMMER_THINKING_AND_SOURCE_REPAIR'},
+  ADVERSARIAL:{agentId:'ACTION-REPAIR-2',profile:'ACTION_HISTORICAL_EXPLORER_V2',lane:'HISTORICAL_INDEX_EXPLORATION_AND_PREDICTION'},
+  HISTORIAN:{agentId:'ACTION-HISTORIAN-3',profile:'ACTION_FAILURE_HISTORIAN_V2',lane:'FAILURE_LEDGER_AND_LEARNING_RECORDING'}
 };
 
 const hypothesisBase=[
