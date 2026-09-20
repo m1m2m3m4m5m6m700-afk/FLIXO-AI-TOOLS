@@ -50,6 +50,27 @@ try {
   assert.equal(finalState.revision, 1);
   assert.equal(finalLocks.revision, 1);
   assert.equal(finalState.transactionId, finalLocks.transactionId);
+  const revisionBeforeRead = finalState.revision;
+  const readLockDir = path.join(coordDir, '.coordination-write.lock');
+  fs.mkdirSync(readLockDir, { recursive: true });
+  fs.writeFileSync(path.join(readLockDir, 'owner.json'), JSON.stringify({ pid: process.pid, hostname: os.hostname(), createdAtMs: Date.now() }) + '\n');
+  const briefResult = await runArgs(['brief']);
+  assert.equal(briefResult.code, 0, `lock-free brief read failed: ${JSON.stringify(briefResult)}`);
+  const brief = JSON.parse(briefResult.stdout);
+  assert.equal(brief.authority, 'AGENT_COORDINATION_FAST_READ_PATH');
+  assert.equal(brief.readOnly, true);
+  assert.equal(brief.readSha, currentSha);
+  assert.equal(brief.revision, revisionBeforeRead);
+  const stateResult = await runArgs(['state']);
+  assert.equal(stateResult.code, 0, `lock-free state read failed: ${JSON.stringify(stateResult)}`);
+  const readState = JSON.parse(stateResult.stdout);
+  assert.equal(readState.readSha, currentSha);
+  assert.equal(readState.revision, revisionBeforeRead);
+  const afterReadState = JSON.parse(fs.readFileSync(path.join(coordDir, 'coordination-state.json'), 'utf8'));
+  assert.equal(afterReadState.revision, revisionBeforeRead);
+  fs.rmSync(readLockDir, { recursive: true, force: true });
+  console.log('COORDINATION_LOCK_FREE_READ=PASS');
+  console.log('COORDINATION_BRIEF_SNAPSHOT=PASS');
 
   const staleSessionId = 'stale-session';
   const staleTaskId = 'stale-task';
