@@ -76,7 +76,7 @@ async function inspectResult(page) {
   });
 
   return page.evaluate(async () => {
-    const image = globalThis.document.querySelector('img[alt="Tool result"]);
+    const image = globalThis.document.querySelector('img[alt="Tool result"]');
     if (!(image instanceof globalThis.HTMLImageElement)) throw new Error('EXTERNAL_RESULT_NOT_FOUND');
     if (typeof image.decode === 'function') await image.decode();
     const response = await fetch(image.src);
