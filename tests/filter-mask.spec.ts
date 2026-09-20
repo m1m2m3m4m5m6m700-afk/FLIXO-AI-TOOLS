@@ -24,10 +24,16 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(section.getByRole('button', { name: /Cinematic/ }).first()).toBeVisible();
     await expect(section.getByRole('button', { name: /Original effect\.original/ })).toHaveCount(0);
 
-    const intensity = section.locator('input[type="range"]');
+    const intensity = section.getByRole('slider').last();
     await expect(intensity).toHaveValue('100');
     await intensity.fill('60');
     await expect(intensity).toHaveValue('60');
+
+    const zoom = section.getByRole('slider', { name: 'Zoom' });
+    await expect(zoom).toHaveValue('1');
+    await zoom.fill('1.5');
+    await expect(zoom).toHaveValue('1.5');
+    await expect(section.getByRole('button', { name: 'Mirror on' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('reports a clear error when camera permission is denied', async ({ page }) => {
@@ -136,14 +142,18 @@ test.describe('Filter Mask live camera surface', () => {
   });
 
   test('accepts a canonical filter handoff from the live URL', async ({ page }) => {
-    await page.goto('/en/filter-mask?canonicalId=effect.warm&intensity=65');
+    await page.goto('/en/filter-mask?canonicalId=effect.warm&intensity=65&zoom=1.6&mirror=false');
 
     const section = page.getByRole('region', { name: 'Filter Mask' });
     const selected = section.getByRole('button', { name: /Warm effect\.warm/ }).first();
     await expect(selected).toHaveAttribute('aria-pressed', 'true');
     await expect(section.locator('input[type="range"]')).toHaveValue('65');
+    await expect(section.getByRole('slider', { name: 'Zoom' })).toHaveValue('1.6');
+    await expect(section.getByRole('button', { name: 'Mirror off' })).toHaveAttribute('aria-pressed', 'false');
     await expect(page).toHaveURL(/canonicalId=effect\.warm/);
     await expect(page).toHaveURL(/intensity=65/);
+    await expect(page).toHaveURL(/zoom=1\.6/);
+    await expect(page).toHaveURL(/mirror=false/);
   });
 
   test('agent resolves a live-filter request into a canonical handoff', async ({ page }) => {
