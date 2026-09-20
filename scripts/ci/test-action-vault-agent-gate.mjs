@@ -41,7 +41,7 @@ assert.deepEqual(validateBotProfile(valid), []);
 
 const tampered = structuredClone(valid);
 tampered.permanentIndependentAuthority = true;
-assert.ok(validateBotProfile(tampered).includes('INDEPENDENT_AUTHORITY_NOT_DISABLED'));
+assert.ok(validateBotProfile(tampered).some((error) => error.startsWith('INDEPENDENT_AUTHORITY_NOT_DISABLED=')));
 
 const boundaries = validateExecutionBoundaries([
   { ...valid, role: 'ACTION_REPAIR_EXECUTOR', botId: 'ACTION-REPAIR', executionBoundary: { singleActiveRepairOwner: true, canMutateWhenOwner: true, canMutateTests: false, canMutateMain: false, canonicalGreen: 'DAILY_FLIXO_GREEN_GATE' }, executionContract: { mutationBranch: 'execution', mutationScope: 'ERROR_ONLY', exactShaRequired: true, reproduceBeforeMutation: true, targetedRegressionRequired: true, canonicalGreenRequired: true } },
