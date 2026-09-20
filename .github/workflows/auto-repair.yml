@@ -674,8 +674,8 @@ jobs:
         run: |
           set -euo pipefail
           ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome 2>/dev/null || printf '%s' engine-error)"
-          VERIFIED="steps.verify.outputs.verified == 'true' && 'success' || 'failure'"
-          if [ "$ENGINE_OUTCOME" = "verified-repair" ] && [ "$VERIFIED" = "success" ]; then
+          VERIFIED_OUTCOME="$FLIXO_LEDGER_OUTCOME"
+          if [ "$ENGINE_OUTCOME" = "verified-repair" ] && [ "$VERIFIED_OUTCOME" = "success" ]; then
             echo 'NO_REPEAT_LEDGER=GREEN_NO_REJECTION'
           elif [ "$ENGINE_OUTCOME" = "proposal-only" ] || [ "$ENGINE_OUTCOME" = "blocked-external" ]; then
             echo "NO_REPEAT_LEDGER=NO_SOURCE_REPAIR outcome=$ENGINE_OUTCOME"
