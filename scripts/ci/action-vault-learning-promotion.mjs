@@ -17,7 +17,7 @@ export function promoteVerifiedLearning({
   if(!taskId||!fingerprint||!shaOk(targetSha)||!shaOk(executionSha)) throw new Error('LEARNING_PROMOTION_IDENTITY_REQUIRED');
   if(!Array.isArray(proofIds)||proofIds.length<1) throw new Error('LEARNING_PROOF_IDS_REQUIRED');
   if(!greenRecord||greenRecord.source!=='DAILY_FLIXO_GREEN_GATE'||greenRecord.conclusion!=='success'||greenRecord.zeroRed!==true||greenRecord.exactShaVerified!==true) throw new Error('LEARNING_CANONICAL_GREEN_REQUIRED');
-  if(greenRecord.targetSha!==executionSha||greenRecord.targetSha!==targetSha) throw new Error('LEARNING_GREEN_SHA_MISMATCH');
+  if(greenRecord.targetSha!==executionSha) throw new Error('LEARNING_GREEN_EXECUTION_SHA_MISMATCH');
   if(greenRecord.taskId&&greenRecord.taskId!==taskId) throw new Error('LEARNING_GREEN_TASK_MISMATCH');
   if(greenRecord.fingerprint&&greenRecord.fingerprint!==fingerprint) throw new Error('LEARNING_GREEN_FINGERPRINT_MISMATCH');
   if(!greenRecord.recordId) throw new Error('LEARNING_GREEN_RECORD_ID_REQUIRED');
