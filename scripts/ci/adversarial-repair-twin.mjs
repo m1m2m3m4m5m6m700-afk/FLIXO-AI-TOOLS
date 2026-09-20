@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { loadMemory, fingerprintFailure, normalizeFailure } from './auto-repair-learning.mjs';
 import { reasonFailure } from './auto-repair/reasoning.mjs';
+import { inferFailureResolution } from './auto-repair/inference-fallback.mjs';
 
 const root = process.env.FLIXO_TARGET_DIR ?? process.cwd();
 const output = process.env.FLIXO_TWIN_OUTPUT ?? '/tmp/flixo-twin/twin-result.json';
@@ -77,6 +78,12 @@ const historical = [
 ];
 
 const diagnosis = reasonFailure(log, { targetDir: root, historical });
+const inferenceFallback = inferFailureResolution({
+  log,
+  memory,
+  targetSha: currentSha,
+  diagnosis,
+});
 const top = diagnosis.topHypothesis ?? null;
 const second = diagnosis.secondHypothesis ?? null;
 const alternative = second && second.id !== top?.id ? second : null;
@@ -112,6 +119,14 @@ const result = Object.freeze({
   },
   challenge: {
     objective: 'TRY_TO_DISPROVE_EXECUTOR_PLAN_AND_PROPOSE_A_MATERIALLY_DIFFERENT_SAFE_APPROACH',
+    inferredFallback: {
+      present: true,
+      strategyId: inferenceFallback.hypothesis.strategyId,
+      predictedOutcome: inferenceFallback.prediction.predictedOutcome,
+      confidence: inferenceFallback.prediction.confidence,
+      eligibleForBoundedMutation: inferenceFallback.prediction.eligibleForBoundedMutation,
+      falsification: inferenceFallback.falsification,
+    },
     preferredAlternativeRootCause: alternative?.id ?? null,
     preferredAlternativeStrategy: twinPreferredStrategy,
     preferredAlternativeRepair: twinAlternativeRepair,
@@ -119,7 +134,7 @@ const result = Object.freeze({
     disposition: alternative ? (dissentStrength >= 0.9 ? 'STRONG_DISSENT' : 'COUNTERCHECK') : 'NO_SAFE_ALTERNATIVE_FOUND',
     rule: 'NEVER_WRITE_SOURCE_AND_NEVER_CONTROL_ACTIONS',
   },
-  evidenceDigest: hash(JSON.stringify({ currentSha, log, top, alternative })),
+  evidenceDigest: hash(JSON.stringify({ currentSha, log, top, alternative, inferenceFallback })),
   generatedAt: new Date().toISOString(),
 });
 
