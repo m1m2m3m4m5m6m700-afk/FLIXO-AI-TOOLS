@@ -21,7 +21,7 @@ const branches = fs.readFileSync('docs/EXECUTION-BRANCH-PROTOCOL.md', 'utf8');
 
 for (const marker of [
   'Preparation-only authority',
-  'must not:',
+  'The Task Agent MUST NOT:',
   'consumerAuthority',
   'executionAgent',
   'repairAgent',
