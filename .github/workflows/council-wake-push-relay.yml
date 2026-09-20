@@ -8,7 +8,7 @@ on:
 permissions:
   contents: read
   issues: write
-  actions: write
+  actions: read
   id-token: write
 
 concurrency:
