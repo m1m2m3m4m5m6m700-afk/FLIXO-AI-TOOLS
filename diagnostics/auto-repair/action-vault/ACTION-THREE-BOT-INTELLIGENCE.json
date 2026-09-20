@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "ACTION-THREE-BOT-INTELLIGENCE",
   "purpose": "Canonical shared intelligence and capability contract for ACTION-REPAIR, ACTION-REPAIR-2 and ACTION-HISTORIAN-3.",
   "parity": {
@@ -126,7 +126,43 @@
       "canonicalGreen": "DAILY_FLIXO_GREEN_GATE"
     },
     "sharedArtifact": "diagnostics/auto-repair/action-vault/current-collaboration.json",
-    "hardRule": "ANY_ACTIONABLE_RED_REQUIRES_ALL_THREE_TO_CONTRIBUTE_BEFORE_OWNER_MUTATION"
+    "hardRule": "ANY_ACTIONABLE_RED_REQUIRES_ALL_THREE_TO_CONTRIBUTE_BEFORE_OWNER_MUTATION",
+    "parallelExecution": {
+      "cognitiveParallelism": true,
+      "sourceMutationParallelism": false,
+      "lanes": {
+        "ACTION-REPAIR": "PRIMARY_EXECUTION_RCA_AND_BOUNDED_REPAIR",
+        "ACTION-REPAIR-2": "INDEPENDENT_RCA_CHALLENGE_AND_FALSIFICATION",
+        "ACTION-HISTORIAN-3": "EVIDENCE_INTAKE_INDEX_PROVENANCE_AND_LEARNING"
+      },
+      "phases": [
+        "PARALLEL_DISCOVERY",
+        "PARALLEL_ANALYSIS",
+        "CROSS_LEARNING",
+        "CHALLENGE",
+        "SYNTHESIS",
+        "OWNER_MUTATION",
+        "VERIFICATION",
+        "GREEN_LEARNING",
+        "CLOSED"
+      ],
+      "allThreeContributionsRequired": true,
+      "exchangeBeforeMutation": true,
+      "peerLearningReceiptsRequired": true,
+      "oneActiveMutationOwner": true,
+      "greenOnlyClosure": true
+    },
+    "sharedLearning": {
+      "provisionalDuringRed": true,
+      "promotedOnlyAfterCanonicalGreen": true,
+      "evidenceBinding": [
+        "taskId",
+        "failureFingerprint",
+        "targetSha",
+        "failedRunId"
+      ],
+      "crossLearningRequired": true
+    }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
   "residency": {
