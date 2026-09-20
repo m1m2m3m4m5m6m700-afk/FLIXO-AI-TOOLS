@@ -229,6 +229,7 @@ assert.match(rollbackSource, /FLIXO-REPAIR-MARKER-v1/);
 assert.match(rollbackSource, /git.*revert.*--no-commit/);
 assert.match(rollbackSource, /isAncestor/);
 assert.match(engineSource, /verified-historical-revert/);
+assert.match(engineSource, /mutation-pending-commit/);
 assert.match(engineSource, /reverted-repair/);
 assert.match(workflow, /verified-historical-revert/);
 assert.match(workflow, /reverted-repair/);
