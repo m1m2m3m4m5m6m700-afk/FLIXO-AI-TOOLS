@@ -12,3 +12,162 @@
 @media (max-width:900px){.tool-page-modern__seo{grid-template-columns:1fr}.tool-page-modern__privacy{grid-template-columns:auto auto}.tool-page-modern__privacy>span:last-child{grid-column:1/-1}}@media (max-width:680px){.tool-page-modern__nav-inner,.tool-page-modern__body{width:min(100% - 20px,1280px)}.tool-page-modern__body{padding-top:14px}.tool-page-modern__nav-actions .tool-page-modern__nav-link{display:none}.tool-page-modern__hero{padding-top:14px}.tool-page-modern__title{font-size:clamp(1.85rem,10vw,2.7rem)}.tool-page-modern__description{font-size:.86rem}.tool-page-modern__workspace{border-radius:12px;padding:6px}}
 @media (prefers-reduced-motion:reduce){.tool-page-modern__nav-link,.tool-page-modern__lang,.tool-page-modern__favorite{transition:none}}
 html[dir="rtl"] .tool-page-modern{font-family:"Noto Sans Arabic","Noto Kufi Arabic","Segoe UI",Tahoma,Arial,sans-serif}html[dir="rtl"] .tool-page-modern,html[dir="rtl"] .tool-page-modern__body,html[dir="rtl"] .tool-page-modern__tool-host{text-align:start;direction:rtl}html[dir="rtl"] .tool-page-modern__nav-inner,html[dir="rtl"] .tool-page-modern__nav-actions,html[dir="rtl"] .tool-page-modern__breadcrumbs,html[dir="rtl"] .tool-page-modern__meta-row{flex-direction:row-reverse}html[dir="rtl"] .tool-page-modern__privacy{direction:rtl}html[dir="rtl"] .tool-page-modern__seo-card ol,html[dir="rtl"] .tool-page-modern__seo-card ul{padding-inline-start:20px;padding-inline-end:0}html[dir="rtl"] .tool-page-modern__eyebrow{letter-spacing:.04em}html[dir="rtl"] .tool-page-modern__title{line-height:1.1;letter-spacing:-.03em}
+
+
+/* -------------------------------------------------------------------------
+   Universal Tool Experience Layer
+   Applied to every tool surface without requiring per-tool redesign.
+   Visual rule: restrained, dense, professional; canvas/media are untouched.
+   ------------------------------------------------------------------------- */
+.flixo-universal-tool-surface{
+  --tool-ui-bg:#0b0e12;
+  --tool-ui-panel:#0f1318;
+  --tool-ui-panel-2:#12171d;
+  --tool-ui-line:rgba(255,255,255,.08);
+  --tool-ui-line-strong:rgba(255,255,255,.14);
+  --tool-ui-text:#edf0f3;
+  --tool-ui-muted:#7f8791;
+  --tool-ui-accent:#9b86e8;
+  color:var(--tool-ui-text);
+  background:var(--tool-ui-bg);
+}
+.flixo-universal-tool-surface :where(button,[role="button"],input,select,textarea){
+  font:inherit;
+}
+.flixo-universal-tool-surface :where(button,[role="button"]){
+  min-height:34px;
+  border-radius:8px;
+  border:1px solid var(--tool-ui-line);
+  background:var(--tool-ui-panel);
+  color:#c9ced5;
+  box-shadow:none;
+  transition:background .14s ease,border-color .14s ease,color .14s ease,transform .14s ease;
+}
+.flixo-universal-tool-surface :where(button,[role="button"]):hover:not(:disabled){
+  background:var(--tool-ui-panel-2);
+  border-color:var(--tool-ui-line-strong);
+  color:#fff;
+  transform:translateY(-1px);
+}
+.flixo-universal-tool-surface :where(button,[role="button"]):focus-visible{
+  outline:2px solid rgba(155,134,232,.72);
+  outline-offset:2px;
+}
+.flixo-universal-tool-surface :where(button[type="submit"],button[data-primary="true"],[role="button"][data-primary="true"]){
+  background:#765fce;
+  border-color:rgba(190,176,255,.42);
+  color:#fff;
+  font-weight:650;
+}
+.flixo-universal-tool-surface :where(button[type="submit"],button[data-primary="true"],[role="button"][data-primary="true"]):hover:not(:disabled){
+  background:#846fda;
+}
+.flixo-universal-tool-surface :where(input:not([type="file"]),select,textarea){
+  min-height:38px;
+  border:1px solid var(--tool-ui-line);
+  border-radius:8px;
+  background:#0e1217;
+  color:#edf0f3;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.015);
+}
+.flixo-universal-tool-surface :where(input:not([type="file"]),select,textarea):focus{
+  border-color:rgba(155,134,232,.55);
+  box-shadow:0 0 0 3px rgba(155,134,232,.08);
+  outline:none;
+}
+.flixo-universal-tool-surface :where(input::placeholder,textarea::placeholder){
+  color:#555e68;
+}
+.flixo-universal-tool-surface :where(label){
+  color:#aab1ba;
+  font-size:.76rem;
+  line-height:1.4;
+}
+.flixo-universal-tool-surface :where(fieldset){
+  border-color:var(--tool-ui-line);
+  background:transparent;
+}
+.flixo-universal-tool-surface :where(output,[role="status"],[role="alert"]){
+  border-radius:8px;
+}
+.flixo-universal-tool-surface :where(hr){
+  border:0;
+  border-top:1px solid var(--tool-ui-line);
+}
+.flixo-universal-tool-surface :where(img:not([data-flixo-preserve-image-ui]),video,canvas){
+  border-radius:8px;
+}
+.flixo-universal-tool-surface :where(a){
+  color:#b6a7ee;
+}
+.flixo-universal-tool-surface :where(a:hover){
+  color:#d3caff;
+}
+.flixo-universal-tool-surface :where([class*="shadow-"]){
+  box-shadow:none !important;
+}
+.flixo-universal-tool-surface :where([class*="backdrop-blur"]){
+  backdrop-filter:none !important;
+}
+.flixo-universal-tool-surface :where([class*="rounded-2xl"],[class*="rounded-3xl"],[class*="rounded-[2"]){
+  border-radius:12px !important;
+}
+.flixo-universal-tool-surface :where([class*="border-white/"]){
+  border-color:var(--tool-ui-line) !important;
+}
+.flixo-universal-tool-surface :where([class*="bg-white/"]){
+  background:var(--tool-ui-panel) !important;
+}
+.flixo-universal-tool-surface :where([class*="text-zinc-"],[class*="text-slate-"],[class*="text-gray-"]){
+  color:#9da5ae !important;
+}
+.flixo-universal-tool-surface :where([class*="font-bold"],[class*="font-extrabold"]){
+  font-weight:650 !important;
+}
+.flixo-universal-tool-surface :where(h1,h2,h3,h4,h5,h6){
+  color:#edf0f3;
+  letter-spacing:-.02em;
+  text-wrap:balance;
+}
+.flixo-universal-tool-surface :where(h1){
+  font-size:clamp(1.35rem,2.4vw,2.15rem);
+  line-height:1.12;
+  font-weight:650;
+}
+.flixo-universal-tool-surface :where(h2){
+  font-size:1.15rem;
+  line-height:1.2;
+  font-weight:630;
+}
+.flixo-universal-tool-surface :where(h3,h4,h5,h6){
+  font-size:1rem;
+  line-height:1.3;
+  font-weight:620;
+}
+/* Keep media editing surfaces visually dominant. */
+.flixo-universal-tool-surface :where(canvas){
+  background:#080a0d;
+}
+/* File pickers are visually normalized but keep native behavior. */
+.flixo-universal-tool-surface :where(input[type="file"]){
+  min-height:36px;
+  color:#8f98a3;
+  font-size:.72rem;
+}
+/* Avoid amateurishly large decorative copy inside tool surfaces. */
+.flixo-universal-tool-surface :where(p){
+  line-height:1.6;
+}
+@media (max-width:680px){
+  .flixo-universal-tool-surface :where(button,[role="button"]){
+    min-height:36px;
+  }
+  .flixo-universal-tool-surface :where(h1){
+    font-size:1.45rem;
+  }
+}
+@media (prefers-reduced-motion:reduce){
+  .flixo-universal-tool-surface :where(button,[role="button"]){
+    transition:none;
+  }
+}
