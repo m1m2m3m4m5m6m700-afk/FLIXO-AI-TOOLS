@@ -21,12 +21,12 @@ export const REPAIR_PROTOCOL = Object.freeze({
   mutationRequires: ['protocolVersion','protocolHash','repairSessionId','failureFingerprint','targetSHA','beforeState'],
   completionRequires: ['repairAttempts','retestResult','resumePoint','finalVerification','finalSHA'],
   protectedPaths: ['scripts/ci/repair-protocol.mjs','scripts/ci/control-plane-registry.mjs','scripts/ci/auto-repair-engine.mjs','scripts/ci/auto-repair-policy.mjs','scripts/ci/agent-execution-control.mjs','.github/workflows/auto-repair.yml','scripts/ci/validate-agent-protocol.mjs'],
-  mutationAgents: ['repairAgent','executionAgent','assistantRepairAgent','actionRepairBot'],
+  mutationAgents: ['repairAgent','executionAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian'],
   allAgents: ['assistantController','analysis','implementation','verification','release','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent','actionRepairBot','actionRepairVerifier','actionHistorian'],
   actionVaultRoles: Object.freeze({
     'ACTION-REPAIR': Object.freeze({ actor: 'actionRepairBot', mutation: true }),
-    'ACTION-REPAIR-2': Object.freeze({ actor: 'actionRepairVerifier', mutation: false }),
-    'ACTION-HISTORIAN-3': Object.freeze({ actor: 'actionHistorian', mutation: false }),
+    'ACTION-REPAIR-2': Object.freeze({ actor: 'actionRepairVerifier', mutation: true }),
+    'ACTION-HISTORIAN-3': Object.freeze({ actor: 'actionHistorian', mutation: true }),
   }),
   actionVaultMissionRequires: ['triadId','messageId','taskId','failureFingerprint','entrySha','targetSha','ownerAgent','proofObligations','stopConditions'],
 });
@@ -42,8 +42,8 @@ export function assertProtocolDefinition(){
   if(REPAIR_PROTOCOL.mutationScope!=='ERROR_ONLY') throw new Error('REPAIR_PROTOCOL_MUTATION_SCOPE_DRIFT');
   if(REPAIR_PROTOCOL.testMutationPolicy!=='BLOCK') throw new Error('REPAIR_PROTOCOL_TEST_MUTATION_POLICY_DRIFT');
   if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-REPAIR']?.actor!=='actionRepairBot') throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_ROLE_DRIFT');
-  if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-REPAIR-2']?.mutation!==false) throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_MUTATION_DRIFT');
-  if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-HISTORIAN-3']?.mutation!==false) throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_MUTATION_DRIFT');
+  if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-REPAIR-2']?.mutation!==true) throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_MUTATION_DRIFT');
+  if(REPAIR_PROTOCOL.actionVaultRoles?.['ACTION-HISTORIAN-3']?.mutation!==true) throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_MUTATION_DRIFT');
   if(JSON.stringify(REPAIR_PROTOCOL.actionVaultMissionRequires)!==JSON.stringify(['triadId','messageId','taskId','failureFingerprint','entrySha','targetSha','ownerAgent','proofObligations','stopConditions'])) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_MISSION_SCHEMA_DRIFT');
   return Object.freeze({protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH});
 }
@@ -68,7 +68,20 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
     validateActionVaultVerifierProof({ proof: session.actionVaultVerifierProof, targetSHA: session.targetSHA, failureFingerprint: session.failureFingerprint, verifierAgent: mission.verifierAgent });
     validateActionVaultPreMutationProofs({ sandboxProof: mission.sandboxProof, differentialProof: mission.differentialProof, patchCorrectnessProof: mission.patchCorrectnessProof, targetSHA: session.targetSHA, failureFingerprint: session.failureFingerprint });
   }
-  if(mutation&&['actionRepairVerifier','actionHistorian'].includes(actor)) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_NON_MUTATING_ROLE_BLOCKED');
+  if(mutation&&actor==='actionRepairVerifier') {
+    const mission=session?.actionVaultMission;
+    if(mission?.role!=='ACTION-REPAIR-2' || mission?.mutationSeat!=='ACTION-REPAIR-2') throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_MUTATION_SEAT_INVALID');
+    if(mission?.supervisorMode==='SUPERVISOR_20') throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_SUSPENDED_AT_20');
+    if(mission?.targetSha!==session.targetSHA || mission?.entrySha!==session.targetSHA) throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_SHA_MISMATCH');
+    if(mission?.candidateRepairApproved!==true) throw new Error('REPAIR_PROTOCOL_ACTION_REPAIR_2_CANDIDATE_NOT_APPROVED');
+  }
+  if(mutation&&actor==='actionHistorian') {
+    const mission=session?.actionVaultMission;
+    if(mission?.role!=='ACTION-HISTORIAN-3' || mission?.mutationSeat!=='ACTION-HISTORIAN-3') throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_MUTATION_SEAT_INVALID');
+    if(mission?.supervisorMode!=='SUPERVISOR_20') throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_SUPERVISOR_MODE_REQUIRED');
+    if(mission?.targetSha!==session.targetSHA || mission?.entrySha!==session.targetSHA) throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_SHA_MISMATCH');
+    if(mission?.catalogReviewed!==true || mission?.bothProgrammingProposalsReviewed!==true || mission?.supervisorDecision!==true) throw new Error('REPAIR_PROTOCOL_ACTION_HISTORIAN_SUPERVISOR_DECISION_REQUIRED');
+  }
   if(mutation&&actor==='assistantRepairAgent') {
     const fallback=session?.fallback;
     if(!fallback?.primaryAgentsUnavailable) throw new Error('REPAIR_PROTOCOL_FALLBACK_PRIMARY_AGENT_AVAILABLE');
