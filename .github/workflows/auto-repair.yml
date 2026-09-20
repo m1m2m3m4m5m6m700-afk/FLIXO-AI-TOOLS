@@ -585,15 +585,13 @@ jobs:
             --twin-a="${FLIXO_TWIN_A_PATH:-/tmp/flixo-twin-a.json}" \
             --twin-b="${FLIXO_TWIN_B_PATH:-/tmp/flixo-twin-b.json}" \
             --output=/tmp/flixo-selected-repair-option.json
-          SELECTED="$(jq -r '.selection.selectedStrategy // empty' /tmp/flixo-selected-repair-option.json 2>/dev/null || true)"
+          SELECTED="$(jq -r '.selection.selectedStrategy // empty' /tmp/flixo-selected-repair-option.json)"
           if [ -n "$SELECTED" ]; then
-            echo "FLIXO_SELECTED_REPAIR_STRATEGY=$SELECTED" >> "$GITHUB_ENV"
-            echo "ACTION_WISE_SELECTED_STRATEGY=$SELECTED"
+            printf '%s\n' "ACTION_WISE_SELECTED_STRATEGY=$SELECTED"
           else
-            echo "ACTION_WISE_SELECTED_STRATEGY=NONE"
-            echo "ACTION_WISE_NO_SOLUTION=true" >> "$GITHUB_ENV"
+            printf '%s\n' 'ACTION_WISE_SELECTED_STRATEGY=NONE'
           fi
-          echo "FLIXO_SELECTION_PATH=/tmp/flixo-selected-repair-option.json" >> "$GITHUB_ENV"
+          printf '%s\n' 'FLIXO_SELECTION_PATH=/tmp/flixo-selected-repair-option.json' >> "$GITHUB_ENV"
       - name: Run Phase 1 AI failure intelligence and exact-target preflight
         env:
           FLIXO_CURRENT_TARGET_SHA_FILE: /tmp/flixo-failed-sha
