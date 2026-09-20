@@ -49,8 +49,53 @@ const PREFIXES: ReadonlyArray<readonly [string, LocaleMap]> = [
 
 const TOOL_TITLE_KEYS = new Set(['AI Image Generator', 'Background Remover', 'Image Upscaler', 'Image Converter', 'Image to Text OCR', 'Object Remover', 'Crop & Resize', 'Watermark Remover', 'Image Compressor', 'Meme Generator', 'Image Effects', 'Watermark Adder', 'Image Cropper']);
 
+const FILTER_MASK_FILTER_PREFIXES: Partial<Record<CanonicalLocale, string>> = {
+  ar: 'فلتر', es: 'Filtro', fr: 'Filtre', de: 'Filter', hi: 'फ़िल्टर', id: 'Filter', it: 'Filtro', ja: 'フィルター', ko: '필터', ms: 'Penapis', nl: 'Filter', pl: 'Filtr', pt: 'Filtro', ru: 'Фильтр', sv: 'Filter', th: 'ฟิลเตอร์', tr: 'Filtre', uk: 'Фільтр', vi: 'Bộ lọc',
+};
+
+const FILTER_MASK_RUNTIME_COPY: Readonly<Record<string, Partial<Record<CanonicalLocale, string>>>> = {
+  'Filter Mask live camera': { it: 'Filter Mask · fotocamera live', uk: 'Filter Mask · жива камера' },
+  'Torch on': { it: 'Torcia attiva', uk: 'Ліхтарик увімкнено' },
+  'Torch off': { it: 'Torcia disattivata', uk: 'Ліхтарик вимкнено' },
+  'Torch is not available on this camera.': { it: 'La torcia non è disponibile su questa fotocamera.', uk: 'Ліхтарик недоступний на цій камері.' },
+  'Torch could not be changed.': { it: 'Impossibile modificare la torcia.', uk: 'Не вдалося змінити ліхтарик.' },
+  'Name this creator preset': { it: 'Dai un nome a questo preset', uk: 'Назвіть цей пресет' },
+  'Capture quality': { it: 'Qualità di acquisizione', uk: 'Якість захоплення' },
+  '720p standard': { it: '720p standard', uk: '720p стандарт' },
+  '1080p high': { it: '1080p alta', uk: '1080p висока' },
+  'Zoom': { it: 'Ingrandimento', uk: 'Масштаб' },
+  'Mono': { it: 'Monocromatico', uk: 'Монохромний' },
+  'Performance': { it: 'Prestazioni', uk: 'Продуктивність' },
+  'Screen wake lock is not available; recording will continue normally.': { it: 'Il blocco di riattivazione dello schermo non è disponibile; la registrazione continuerà normalmente.', uk: 'Блокування пробудження екрана недоступне; запис продовжиться нормально.' },
+  'Recording': { it: 'Registrazione', uk: 'Запис' },
+  'Pause recording': { it: 'Metti in pausa la registrazione', uk: 'Призупинити запис' },
+  'Resume recording': { it: 'Riprendi registrazione', uk: 'Відновити запис' },
+  'Cancel recording': { it: 'Annulla registrazione', uk: 'Скасувати запис' },
+  'Video recording with live effects is not supported in this browser.': { it: 'La registrazione video con effetti in diretta non è supportata in questo browser.', uk: 'Запис відео з ефектами в реальному часі не підтримується цим браузером.' },
+  'Video recording is unavailable.': { it: 'La registrazione video non è disponibile.', uk: 'Запис відео недоступний.' },
+  'Video recording failed.': { it: 'La registrazione video non è riuscita.', uk: 'Не вдалося записати відео.' },
+  'Video recording could not be started.': { it: 'Non è stato possibile avviare la registrazione video.', uk: 'Не вдалося розпочати запис відео.' },
+  'Preset name': { it: 'Nome del preset', uk: 'Назва пресету' },
+  'Name this creator preset': { it: 'Dai un nome a questo preset', uk: 'Назвіть цей пресет' },
+  'Capture quality could not be changed for the active camera.': { it: 'Non è stato possibile modificare la qualità di acquisizione per la fotocamera attiva.', uk: 'Не вдалося змінити якість захоплення для активної камери.' },
+};
+
+function translateFilterMaskRuntimeValue(locale: CanonicalLocale, value: string, toolId: string): string {
+  if (toolId !== 'filter-mask' || locale === 'en') return value;
+  const trimmed = value.trim();
+  const exact = FILTER_MASK_RUNTIME_COPY[trimmed]?.[locale];
+  if (exact) return value.replace(trimmed, exact);
+  const filterLabelMatch = trimmed.match(/^(.+) (effect\.[a-z0-9_]+)$/u);
+  const prefix = FILTER_MASK_FILTER_PREFIXES[locale];
+  if (filterLabelMatch && prefix) return prefix + ' ' + filterLabelMatch[1] + ' ' + filterLabelMatch[2];
+  return value;
+};
+
+
 function translateValue(locale: CanonicalLocale, value: string, toolId: string): string {
   if (locale === 'en') return value;
+  const filterMaskValue = translateFilterMaskRuntimeValue(locale, value, toolId);
+  if (filterMaskValue !== value) return filterMaskValue;
   const trimmed = value.trim();
   const exact = UI[trimmed]?.[locale];
   if (exact) return value.replace(trimmed, exact);
@@ -66,6 +111,8 @@ function translateValue(locale: CanonicalLocale, value: string, toolId: string):
 
 export function isAuthoritativeLocalizedUiValue(locale: CanonicalLocale, value: string, toolId = ''): boolean {
   if (locale === 'en') return true;
+  const localizedFilterMaskValue = translateFilterMaskRuntimeValue(locale, value, toolId);
+  if (localizedFilterMaskValue !== value) return true;
   const trimmed = value.trim();
   const exactMap = UI[trimmed];
   if (exactMap && Object.prototype.hasOwnProperty.call(exactMap, locale)) return exactMap[locale] === trimmed;
