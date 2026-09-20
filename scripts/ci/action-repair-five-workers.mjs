@@ -39,8 +39,14 @@ const normalize=s=>String(s??'').replace(new RegExp(String.fromCharCode(27)+'\\[
 const digest=s=>crypto.createHash('sha256').update(String(s),'utf8').digest('hex');
 const requireIdentity=()=>{if(!sha(targetSha))throw new Error('FIVE_ACTION_REPAIR_TARGET_SHA_INVALID');if(!runId)throw new Error('FIVE_ACTION_REPAIR_RUN_ID_REQUIRED');if(!fingerprint)throw new Error('FIVE_ACTION_REPAIR_FINGERPRINT_REQUIRED')};
 const registry=readJson(REGISTRY);
-const workerIds=Array.isArray(registry.workers)?registry.workers.map(worker=>worker.id):[];
-if(!Array.isArray(workerIds)||workerIds.length!==5||new Set(workerIds).size!==5||workerIds.some(id=>!/^ACTION-(?:INDEX|WAKE|TWIN-1|TWIN-2|WISE)$/u.test(id)))throw new Error('FIVE_ACTION_REPAIR_SQUAD_REGISTRY_INVALID');
+const registryWorkerIds=Array.isArray(registry.workers)?registry.workers.map(worker=>worker.id):[];
+const workerIds=registryWorkerIds.filter(id=>id!=='ACTION-HISTORIAN-3');
+if(!Array.isArray(registryWorkerIds)||registryWorkerIds.length!==6||new Set(registryWorkerIds).size!==6||
+   !registryWorkerIds.includes('ACTION-HISTORIAN-3')||
+   workerIds.length!==5||new Set(workerIds).size!==5||
+   workerIds.some(id=>!/^ACTION-(?:INDEX|WAKE|TWIN-1|TWIN-2|WISE)$/u.test(id))) {
+  throw new Error('FIVE_ACTION_REPAIR_SQUAD_REGISTRY_INVALID');
+}
 const executor=registry.repairExecutor;
 if(!executor || executor.id!=='ACTION-REPAIR' || executor.protocolActor!=='actionRepairBot' || executor.mutationAuthority!==true || executor.executionAuthority!=='SOURCE_MUTATION_VIA_REPAIR_PROTOCOL' || executor.branch!=='execution' || Number(executor.maxAttemptsPerFingerprint)!==1000000 || executor.canMutateMain!==false || executor.canMutateTests!==false) throw new Error('ACTION_REPAIR_EXECUTOR_REGISTRY_INVALID');
 const missing=SHARED_REFS.filter(ref=>!fs.existsSync(path.join(ROOT,ref)));
