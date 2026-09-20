@@ -76,6 +76,17 @@ It uses an inverted posting list inside each 10,000-record shard and one tiny gl
 
 Search is evidence retrieval only. It never grants mutation, certification, merge, or deployment authority.
 
+
+### Exposed advice name
+
+Every normalized record exposes a stable human-readable `name` such as:
+
+```text
+advice-<observed-failure-class>-<observed-rule>
+```
+
+The search result exposes the same value as `adviceName`. The name is deterministic and derived only from observed failure facts, root cause, stage, or rule. When those facts are unavailable, the explicit fallback is `advice-unknown-failure-signature`; the system never invents a hidden diagnosis.
+
 ## Quality gates
 
 ### Ingestion
