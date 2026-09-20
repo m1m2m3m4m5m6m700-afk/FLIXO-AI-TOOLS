@@ -32,8 +32,8 @@ const required = [
   ['Browser FAST engine', /\n\s{2}browser_fast:\s*\n/],
   ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
   ['single certification gate', /\n\s{2}certify:\s*\n/],
-  ['superseding verification CI', /cancel-in-progress:\s*true/],
-  ['superseding PR/branch concurrency isolation', /group:\s*flixo-test-\$\{\{\s*github\.event\.pull_request\.number\s*\|\|\s*github\.ref\s*\}\}/],
+  ['non-cancelling exact-SHA verification CI', /cancel-in-progress:\s*false/],
+  ['PR/branch concurrency isolation', /group:\s*flixo-test-\$\{\{\s*(?:github\.event\.pull_request\.number\s*\|\|\s*github\.ref|github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name)\s*\}\}/],
   ['exact SHA', /EXPECTED_SHA/],
   ['immutable artifact identity', /flixo-head-sha\.txt[\s\S]*flixo-package-lock\.sha256/],
   ['minimal checkout', /fetch-depth:\s*1/],
@@ -80,11 +80,11 @@ if ((workflow.match(/assert-current-commit\.mjs/g) ?? []).length !== 3) {
 }
 
 for (const [file, source] of exactShaVerificationWorkflows) {
-  if (!/cancel-in-progress:\s*true/.test(source)) {
+  if (!/cancel-in-progress:\s*false/.test(source)) {
     console.error('CI contract failed: ' + file + ' must cancel superseded verification runs.');
     process.exit(1);
   }
-  if (!/github\.event\.pull_request\.number\s*\|\|\s*github\.ref/.test(source)) {
+  if (!/github\.event\.pull_request\.number\s*\|\|\s*github\.ref/.test(source) && !/github\.event\.pull_request\.head\.ref\s*\|\|\s*github\.ref_name/.test(source)) {
     console.error('CI contract failed: ' + file + ' must isolate runs by PR or branch.');
     process.exit(1);
   }
