@@ -51,7 +51,9 @@ export function planRepair(log, { historical = [], memory } = {}) {
   const safe = candidates.filter((plan) => plan.mutate && plan.confidence >= 90 && (plan.id !== 'prepared-source-change' || plan.deterministicProof === true));
   const selectedRule = prepared.ok && reasoning.decision === 'ALLOW_BOUNDED_MUTATION'
     ? 'prepared-source-change'
-    : reasoning.rootCause === 'format' ? 'prettier-file' : reasoning.rootCause === 'lint' ? 'eslint-unused' : reasoning.rootCause;
+    : inferenceFallback.prediction.eligibleForBoundedMutation && inferenceFallback.hypothesis.strategyId
+      ? inferenceFallback.hypothesis.strategyId
+      : reasoning.rootCause === 'format' ? 'prettier-file' : reasoning.rootCause === 'lint' ? 'eslint-unused' : reasoning.rootCause;
   const requiresSourceLocation = selectedRule === 'prettier-file' || selectedRule === 'eslint-unused';
   const selectedCandidate = safe.find((candidate) => candidate.id === selectedRule)
     ?? candidates.find((candidate) => candidate.inferred && candidate.mutationCapable && candidate.confidence >= 90 && candidate.id === inferenceFallback.hypothesis.strategyId)
