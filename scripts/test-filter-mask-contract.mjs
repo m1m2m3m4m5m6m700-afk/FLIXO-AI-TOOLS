@@ -22,8 +22,9 @@ assert.equal(handoff.parameters.intensity, 63);
 assert.equal(handoff.parameters.zoom, 1.6);
 assert.equal(handoff.parameters.mirror, false);
 assert.equal(handoff.parameters.aspectRatio, '9:16');
-assert.deepEqual(parseFilterMaskHandoff('?canonicalId=effect.warm&intensity=63&zoom=1.6&mirror=false&aspectRatio=9:16'), handoff);
-assert.equal(buildFilterMaskUrl('ar', handoff), '/ar/filter-mask?canonicalId=effect.warm&intensity=63&zoom=1.6&mirror=false&aspectRatio=9%3A16');
+assert.equal(handoff.parameters.captureQuality, '1080p');
+assert.deepEqual(parseFilterMaskHandoff('?canonicalId=effect.warm&intensity=63&zoom=1.6&mirror=false&aspectRatio=9:16&captureQuality=1080p'), handoff);
+assert.equal(buildFilterMaskUrl('ar', handoff), '/ar/filter-mask?canonicalId=effect.warm&intensity=63&zoom=1.6&mirror=false&aspectRatio=9%3A16&captureQuality=1080p');
 assert.equal(parseFilterMaskHandoff('?canonicalId=missing&intensity=63'), null);
 assert.equal(Object.keys(FILTER_MASK_I18N).length, LOCALES.length);
 for (const locale of LOCALES) {
