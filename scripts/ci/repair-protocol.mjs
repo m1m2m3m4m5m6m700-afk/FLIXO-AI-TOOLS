@@ -49,6 +49,26 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   }
   return Object.freeze({actor,branch,mutation,protocol,admitted:true});
 }
+export function validateErrorOnlyMutation({failureLocation,selectedFile,changedPaths=[]}={}) {
+  const location = typeof failureLocation === 'string' ? failureLocation.trim().replace(/\\/g, '/') : '';
+  const selected = typeof selectedFile === 'string' ? selectedFile.trim().replace(/\\/g, '/') : '';
+  const changed = [...new Set(changedPaths.map((value) => String(value).trim().replace(/\\/g, '/')).filter(Boolean))];
+  if (!location) throw new Error('REPAIR_PROTOCOL_ERROR_LOCATION_REQUIRED');
+  if (!selected) throw new Error('REPAIR_PROTOCOL_ERROR_TARGET_REQUIRED');
+  if (selected !== location) throw new Error('REPAIR_PROTOCOL_ERROR_TARGET_MISMATCH');
+  if (changed.length !== 1 || changed[0] !== location) throw new Error('REPAIR_PROTOCOL_ERROR_SCOPE_EXCEEDED');
+  if (/(^|\\/)(?:tests?|__tests__)(?:\\/|$)/iu.test(location) || /(?:\\.(?:spec|test)\\.(?:mjs|cjs|js|ts|tsx|jsx))$/iu.test(location) || /(^|\\/)test-[^/]+\\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu.test(location)) {
+    throw new Error('REPAIR_PROTOCOL_TEST_MUTATION_BLOCKED');
+  }
+  return Object.freeze({
+    mode: 'ERROR_ONLY',
+    failureLocation: location,
+    selectedFile: selected,
+    changedPaths: changed,
+    testMutation: false,
+  });
+}
+
 export function createRepairSession({repairSessionId,actor='repairAgent',failureFingerprint,targetSHA,beforeState={worktree:'clean'},attempt=1,fallback=null}={}){
   assertAgentAdmission({actor,branch:'execution',mutation:false});
   if(!String(repairSessionId??'').trim()) throw new Error('REPAIR_PROTOCOL_SESSION_ID_REQUIRED');
