@@ -50,7 +50,12 @@ function readStoredPresets(): FilterMaskPreset[] {
       && typeof value.intensity === 'number'
       && typeof value.zoom === 'number'
       && typeof value.mirror === 'boolean'
+      && Number.isFinite(value.intensity)
+      && value.intensity >= 25 && value.intensity <= 100
+      && Number.isFinite(value.zoom)
+      && value.zoom >= 1 && value.zoom <= 2
       && typeof value.aspectRatio === 'string'
+      && FILTER_MASK_ASPECT_RATIOS.includes(value.aspectRatio as FilterMaskParameters['aspectRatio'])
       && getLiveFilter(value.canonicalId) !== undefined,
     ).slice(0, 20);
   } catch {
@@ -227,6 +232,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     }
 
     const previousStream = streamRef.current;
+    const videos = [baseVideoRef.current, videoRef.current].filter(Boolean) as HTMLVideoElement[];
     let stream: MediaStream | null = null;
 
     try {
@@ -317,7 +323,6 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
 
   function applyPreset(preset: FilterMaskPreset) {
     if (!getLiveFilter(preset.canonicalId)) return;
-    setSelectedId(preset.canonicalId);
     setIntensity(clampIntensity(preset.intensity));
     setZoom(Math.min(2, Math.max(1, preset.zoom)));
     setMirror(preset.mirror);
@@ -558,7 +563,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button type="button" onClick={() => void start()} disabled={running}>{copy.startCamera}</button>
-          <button type="button" onClick={stop} disabled={!running}>{copy.stop}</button>
+          <button type="button" onClick={stop} disabled={!running || recording}>{copy.stop}</button>
           <button type="button" onClick={switchCamera} disabled={!running || recording}>{copy.switchCamera}</button>
           <button type="button" onClick={() => void capture()} disabled={!running || recording}>{copy.photo}</button>
           {!recording
@@ -649,9 +654,9 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         </div>
       )}
 
-      <div role="group" aria-label={copy.savePreset} style={{ display: 'grid', gap: 8 }}>
+      <div role="group" aria-label={copy.presets} style={{ display: 'grid', gap: 8 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <strong>Presets</strong>
+          <strong>{copy.presets}</strong>
           <button type="button" onClick={savePreset}>{copy.savePreset}</button>
         </div>
         {presets.length > 0 && (
