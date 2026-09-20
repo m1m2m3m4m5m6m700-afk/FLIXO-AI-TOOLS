@@ -36,6 +36,9 @@ const ensure = () => { fs.mkdirSync(INBOX_DIR, { recursive: true }); };
 const roles = new Set(['assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','diagnosticAgent','ALL_AGENTS']);
 const MESSAGE_TYPES = new Set(['DIRECTIVE','REQUEST','RESPONSE','CHALLENGE','HANDOFF']);
 const RESPONSE_STATUSES = new Set(['ACCEPTED','REJECTED','ACKNOWLEDGED','BLOCKED','NEEDS_CLARIFICATION']);
+const AGENT_ENDPOINT_RE = /^(?:assistantController|codeScout|executionAgent|reviewAgent|testAgent|securityAgent|performanceAgent|certificationAuthority|taskAgent|errorAgent|repairAgent|diagnosticAgent)(?:[-.:][A-Za-z0-9._:-]+)?$/u;
+const isAgentEndpoint = (value) => roles.has(value) || AGENT_ENDPOINT_RE.test(value);
+const endpointMatchesActor = (recipient, actor) => recipient === 'ALL_AGENTS' || recipient === actor || String(actor).startsWith(String(recipient) + '-');
 const required = ['messageId','actor','recipient','intent','taskId','scope','entrySha','risk','dependencies','expectedEvidence','stopConditions','proofObligations','createdAt'];
 const asArray = (value, name) => {
   if (!Array.isArray(value) || value.length === 0 || value.some((item) => typeof item !== 'string' || !item.trim())) {
@@ -53,7 +56,7 @@ export function validateMessage(message, observedSha = currentSha()) {
   safeId(String(message.messageId), 'message_id');
   safeId(String(message.taskId), 'task_id');
   if (typeof message.actor !== 'string' || !message.actor.trim()) throw new Error('AGENT_MESSAGE_ACTOR_INVALID');
-  if (!roles.has(String(message.recipient))) throw new Error('AGENT_MESSAGE_RECIPIENT_INVALID');
+  if (!isAgentEndpoint(String(message.recipient))) throw new Error('AGENT_MESSAGE_RECIPIENT_INVALID');
   if (typeof message.entrySha !== 'string' || !/^[0-9a-f]{40}$/u.test(message.entrySha)) throw new Error('AGENT_MESSAGE_ENTRY_SHA_INVALID');
   for (const field of ['scope','dependencies','expectedEvidence','stopConditions','proofObligations']) asArray(message[field], field);
   if (!['LOW','MEDIUM','HIGH','CRITICAL'].includes(String(message.risk))) throw new Error('AGENT_MESSAGE_RISK_INVALID');
@@ -181,6 +184,7 @@ export function respondToMessage({ requestId, actor, responseStatus = 'ACKNOWLED
   if (!['READ','CONSUMED'].includes(original.status)) throw new Error('AGENT_MESSAGE_RESPONSE_REQUIRES_READ');
   if (original.requiresResponse !== true) throw new Error('AGENT_MESSAGE_RESPONSE_NOT_REQUIRED');
   if (original.responseState === 'RESPONDED') return { request: original, duplicate: true };
+  if (!endpointMatchesActor(String(original.recipient), String(actor))) throw new Error('AGENT_MESSAGE_RESPONSE_ACTOR_MISMATCH');
   if (!RESPONSE_STATUSES.has(String(responseStatus))) throw new Error('AGENT_MESSAGE_RESPONSE_STATUS_INVALID');
   const responseId = 'RESPONSE-' + hash(String(requestId) + '|' + String(actor) + '|' + String(responseStatus) + '|' + String(observedSha)).slice(0, 48);
   const response = createMessage({ messageId: responseId, actor, recipient: original.actor, intent: intent ?? 'RESPONSE_TO_' + requestId, taskId: original.taskId,
