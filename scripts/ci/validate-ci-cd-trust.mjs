@@ -44,15 +44,10 @@ const forbidden = fs.readdirSync(workflowDir).filter((entry) => /^unified-orches
 if (forbidden.length) fail(`parallel orchestrator workflow exists: ${forbidden.join(', ')}`);
 
 for (const token of [
-  'workflows: ["FLIXO Test System"]',
-  "github.event.workflow_run.conclusion == 'success'",
-  "github.event.workflow_run.head_branch == 'main'",
-  "github.event.workflow_run.event == 'push'",
+  'workflow_dispatch:',
   'git fetch --no-tags --depth=1 origin main',
   'skip_deploy=false',
-  'skip_deploy=true',
   'SKIPPED_STALE_SHA',
-  'Automatic promotion skipped safely',
   'Manual promotion rejected',
   'gh run download',
   'test "$(cat /tmp/artifact/flixo-head-sha.txt)" = "$PROMOTION_SHA"',
@@ -61,6 +56,8 @@ for (const token of [
 ]) {
   if (!cd.includes(token)) fail(`missing canonical CD invariant: ${token}`);
 }
+if (/workflow_run:/m.test(cd)) fail('CD must be manual-only and must not auto-promote from workflow_run');
+if (cd.includes('Automatic promotion skipped safely')) fail('CD contains obsolete automatic-promotion handling after manual-only migration');
 
 if (!cd.includes('if [ "$head_sha" = "$PROMOTION_SHA" ] && [ "$main_sha" = "$PROMOTION_SHA" ]; then')) {
   fail('CD does not require exact checkout SHA and current main SHA for promotion');
