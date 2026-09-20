@@ -96,17 +96,6 @@ const db = async (path: string, init: RequestInit = {}) => {
   return body;
 };
 
-const queryBody = (url: URL): Body => {
-  const body: Body = Object.fromEntries(url.searchParams.entries());
-  for (const key of ["evidence", "payload"]) {
-    const value = body[key];
-    if (typeof value === "string" && value.trim()) {
-      try { body[key] = JSON.parse(value); } catch { /* keep scalar input; canonical RPC will reject malformed JSON */ }
-    }
-  }
-  return body;
-};
-
 const jsonBody = async (req: Request): Promise<Body> => {
   const raw = await req.text();
   if (raw.length > 1_000_000) throw new Error("COUNCIL_BODY_TOO_LARGE");
@@ -167,7 +156,6 @@ const verifySessionToken = (token: string) => {
 };
 
 const sessionAuth = (req: Request, account: Account, dispatchId?: string) => {
-  const url = new URL(req.url);
   const token = (req.headers.get("x-council-session") ?? "").trim();
   if (!token) return false;
   const claims = verifySessionToken(token);

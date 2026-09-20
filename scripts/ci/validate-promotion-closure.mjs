@@ -21,11 +21,11 @@ const requiredWorkflows = [
 const failures = [];
 const readJson = (file, label) => {
   if (!fs.existsSync(file)) {
-    failures.push(\`MISSING_\${label}=\${file}\`);
+    failures.push(`MISSING_${label}=${file}`);
     return null;
   }
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
-  catch { failures.push(\`INVALID_\${label}=\${file}\`); return null; }
+  catch { failures.push(`INVALID_${label}=${file}`); return null; }
 };
 
 if (!/^[0-9a-f]{40}$/u.test(expectedSha)) failures.push('EXPECTED_SHA_INVALID');
@@ -38,12 +38,12 @@ if (Array.isArray(runs)) {
       .sort((a, b) => String(a?.updatedAt ?? '').localeCompare(String(b?.updatedAt ?? '')))
       .at(-1);
     if (!current) {
-      failures.push(\`WORKFLOW_MISSING=\${name}\`);
+      failures.push(`WORKFLOW_MISSING=${name}`);
       continue;
     }
-    if (current.headSha !== expectedSha) failures.push(\`WORKFLOW_SHA_DRIFT=\${name}:\${current.headSha}\`);
+    if (current.headSha !== expectedSha) failures.push(`WORKFLOW_SHA_DRIFT=${name}:${current.headSha}`);
     if (current.status !== 'completed' || current.conclusion !== 'success') {
-      failures.push(\`WORKFLOW_NOT_GREEN=\${name}:\${current.status}:\${current.conclusion}\`);
+      failures.push(`WORKFLOW_NOT_GREEN=${name}:${current.status}:${current.conclusion}`);
     }
   }
 }
@@ -52,7 +52,7 @@ const status = readJson(statusPath, 'COMMIT_STATUS');
 if (status?.statuses) {
   for (const item of status.statuses) {
     if (item?.context !== 'Vercel' && item?.state !== 'success') {
-      failures.push(\`COMMIT_STATUS_NOT_GREEN=\${item?.context}:\${item?.state}\`);
+      failures.push(`COMMIT_STATUS_NOT_GREEN=${item?.context}:${item?.state}`);
     }
   }
 }
@@ -70,8 +70,8 @@ const live = readJson(livePath, 'LIVE_RUNTIME_EVIDENCE');
 if (!live) {
   failures.push('LIVE_RUNTIME_NOT_VERIFIED');
 } else {
-  if (live.state !== 'LIVE_VERIFIED') failures.push(\`LIVE_RUNTIME_STATE=\${live.state}\`);
-  if (live.verifiedSha !== expectedSha) failures.push(\`LIVE_RUNTIME_SHA_DRIFT=\${live.verifiedSha}\`);
+  if (live.state !== 'LIVE_VERIFIED') failures.push(`LIVE_RUNTIME_STATE=${live.state}`);
+  if (live.verifiedSha !== expectedSha) failures.push(`LIVE_RUNTIME_SHA_DRIFT=${live.verifiedSha}`);
   if (!String(live.evidenceRef ?? '').trim()) failures.push('LIVE_RUNTIME_EVIDENCE_REF_MISSING');
   if (!String(live.verifier ?? '').trim()) failures.push('LIVE_RUNTIME_VERIFIER_MISSING');
   if (Number.isNaN(Date.parse(String(live.verifiedAt ?? '')))) failures.push('LIVE_RUNTIME_VERIFIED_AT_INVALID');
@@ -94,6 +94,6 @@ const evidence = {
 };
 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-fs.writeFileSync(outputPath, JSON.stringify(evidence, null, 2) + '\\n');
+fs.writeFileSync(outputPath, JSON.stringify(evidence, null, 2) + '\n');
 console.log(JSON.stringify(evidence, null, 2));
 if (failures.length) process.exit(1);

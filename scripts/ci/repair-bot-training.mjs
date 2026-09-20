@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { extractFeatures, fingerprintFailure } from './auto-repair/fingerprint.mjs';
+import { fingerprintFailure } from './auto-repair/fingerprint.mjs';
 
 const ROOT = process.cwd();
 const MEMORY = process.env.FLIXO_REPAIR_MEMORY ?? path.join(ROOT, 'diagnostics/auto-repair/memory.json');
@@ -439,6 +439,19 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
   const rootCause=norm(diagnosis?.rootCause ?? 'unknown');
   const preferred=policy.byRootCause[rootCause]?.[0] ?? null;
   const sufficient=train.length>=8;
+  const behaviorRows=buildBehaviorExamples(rows);
+  const {train:behaviorTrain,test:behaviorTest}=split(behaviorRows);
+  const behaviorModel=fitBehaviorModel(behaviorTrain,5);
+  const behaviorEvaluation=evaluateBehavior(behaviorModel,behaviorTest);
+  const stateRows=buildStateExamples(rows);
+  const {train:stateTrain,test:stateTest}=split(stateRows);
+  const stateModel=trainStatePolicy(stateTrain,8);
+  const stateEvaluation=evaluateStatePolicy(stateModel,stateTest);
+  const adversarialRows=buildAdversarialTrainingSet(stateRows);
+  const {train:adversarialTrain,test:adversarialTest}=split(adversarialRows);
+  const adversarialModel=trainAdversarialPolicy(adversarialTrain,6);
+  const adversarialEvaluation=evaluateAdversarial(adversarialModel,adversarialTest);
+  const mastery=masteryProfile({rows,behaviorEvaluation,stateEvaluation});
   const stateCompetent=stateEvaluation.successAccuracy>=.65 && stateEvaluation.failureAvoidance>=.60;
   const adversarialCompetent=adversarialEvaluation.score>=.60;
   const competent=evaluation.accuracy>=.70 && (evaluation.negativeAvoidance==null || evaluation.negativeAvoidance>=.60) && stateCompetent && adversarialCompetent && mastery.overall>=.65;

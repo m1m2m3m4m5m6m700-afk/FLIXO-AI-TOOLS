@@ -58,12 +58,12 @@ if (exists('docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json')) {
 }
 
 if (exists('.github/workflows/agent-master-activation.yml') && read('.github/workflows/agent-master-activation.yml').includes('issue comment 761')) failures.push('LEGACY_761_ACTIVATION_DETECTED');
-if (exists('.github/workflows/repair-agent-intake.yml') && /gh\\s+issue\\s+comment\\s+759/.test(read('.github/workflows/repair-agent-intake.yml'))) failures.push('LEGACY_GH_ISSUE_COMMENT_IN_INTAKE');
-if (exists('.github/workflows/agent-master-activation.yml') && /gh\\s+issue\\s+comment\\s+759/.test(read('.github/workflows/agent-master-activation.yml'))) failures.push('LEGACY_GH_ISSUE_COMMENT_IN_ACTIVATION');
+if (exists('.github/workflows/repair-agent-intake.yml') && /gh\s+issue\s+comment\s+759/.test(read('.github/workflows/repair-agent-intake.yml'))) failures.push('LEGACY_GH_ISSUE_COMMENT_IN_INTAKE');
+if (exists('.github/workflows/agent-master-activation.yml') && /gh\s+issue\s+comment\s+759/.test(read('.github/workflows/agent-master-activation.yml'))) failures.push('LEGACY_GH_ISSUE_COMMENT_IN_ACTIVATION');
 const councilRuntime = exists('supabase/functions/flixo-council-runtime/index.ts') ? read('supabase/functions/flixo-council-runtime/index.ts') : '';
 const councilPushRelay = exists('.github/workflows/council-wake-push-relay.yml') ? read('.github/workflows/council-wake-push-relay.yml') : '';
 if (councilPushRelay && councilRuntime && !councilRuntime.includes('workflow === "FLIXO Council Wake Push Relay"')) failures.push('COUNCIL_PUSH_RELAY_OIDC_ALLOWLIST_MISSING');
-if (exists('.github/workflows/repository-security-baseline.yml') && !/actions\\/checkout@[a-f0-9]{40}/u.test(read('.github/workflows/repository-security-baseline.yml'))) failures.push('SECURITY_BASELINE_CHECKOUT_NOT_IMMUTABLE');
+if (exists('.github/workflows/repository-security-baseline.yml') && !/actions\/checkout@[a-f0-9]{40}/u.test(read('.github/workflows/repository-security-baseline.yml'))) failures.push('SECURITY_BASELINE_CHECKOUT_NOT_IMMUTABLE');
 if (exists('scripts/ci/validate-council-rpc-contract.mjs') && exists('db/council-external-accounts.sql') && !read('db/council-external-accounts.sql').includes('create or replace function public.council_claim_dispatch')) failures.push('COUNCIL_RPC_CONTRACT_MISSING');
 
 const scout = exists('scripts/ci/code-read-only-scout.mjs') ? read('scripts/ci/code-read-only-scout.mjs') : '';

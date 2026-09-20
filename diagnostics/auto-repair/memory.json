@@ -974,14 +974,25 @@
             "revertedCommit": "",
             "runId": "35474433320"
           }
+        },
+        {
+          "verification": "current-head-red-before-repair",
+          "provenance": {
+            "source": "FLIXO Test System",
+            "failedSha": "fe79c28d20fab392e0ca56d2075ed7996423722a",
+            "targetSha": "fe79c28d20fab392e0ca56d2075ed7996423722a",
+            "runId": "35532484163",
+            "workflow": "FLIXO Test System"
+          }
         }
       ],
       "preventionRules": [
         "When repairing regex-based source assertions, preserve only syntactically necessary escapes.",
         "Do not repair a lint error by adding extra backslash escaping inside a JavaScript RegExp literal.",
-        "Re-run the exact linter on the edited file before moving to broader CI."
+        "Re-run the exact linter on the edited file before moving to broader CI.",
+        "Promote dependent repair commits only after the exact-head syntax/lint gate passes; advisory escape rules alone do not prevent recurrence."
       ],
-      "lastSeenAt": "2026-09-19T22:50:01Z"
+      "lastSeenAt": "2026-09-20T19:35:00Z"
     },
     {
       "id": "b7676df7aa32ad7e718f",
@@ -1072,6 +1083,33 @@
         "Use dependency order to build the root-cause tree before choosing a mutation."
       ],
       "lastSeenAt": "2026-09-19T22:48:35Z"
+    },
+    {
+      "id": "f4423c648ec49d08d49e",
+      "fingerprint": "f4423c648ec49d08d49e881e9f2b6c05f5463d1816ce476231a8c9a5c1964d25",
+      "rootCause": "orchestration",
+      "rule": "composed-training-stage-wiring",
+      "attempts": 0,
+      "successes": 0,
+      "failures": 1,
+      "confidence": 0.85,
+      "evidence": [
+        {
+          "verification": "current-head-red-before-repair",
+          "provenance": {
+            "source": "FLIXO Test System",
+            "failedSha": "fe79c28d20fab392e0ca56d2075ed7996423722a",
+            "targetSha": "fe79c28d20fab392e0ca56d2075ed7996423722a",
+            "runId": "35532484163",
+            "workflow": "FLIXO Test System"
+          }
+        }
+      ],
+      "preventionRules": [
+        "When a training feature adds model/evaluation stages, wire every produced value before it is consumed in the same atomic change.",
+        "Run the exact training self-test and lint after adding each dependent training stage; never stack undefined-stage consumers on a green-looking contract."
+      ],
+      "lastSeenAt": "2026-09-20T19:35:00Z"
     }
   ],
   "antiLessons": [
