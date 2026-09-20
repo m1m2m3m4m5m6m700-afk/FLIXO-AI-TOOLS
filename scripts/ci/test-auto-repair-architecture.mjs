@@ -86,6 +86,34 @@ const plan = planRepair(sample);
 assert.equal(plan.selected?.id, 'eslint-unused');
 assert.equal(confidenceGate({ selected: plan.selected, features: plan.features }).allowed, true);
 assert.equal(plan.selected?.file, 'scripts/ci/test-auto-repair-architecture.mjs');
+
+const asyncPlan = planRepair("src/lib/agent/execution-observability.ts:42:4 error TS1064: The return type of an async function or method must be the global Promise<T> type.");
+assert(asyncPlan.features.includes('typescript-async-contract'));
+assert(asyncPlan.candidates.some((candidate) => candidate.id === 'typescript-async-contract'));
+
+const livenessPlan = planRepair("agent-liveness contract failure: test still treats IDLE/SLEEP as forbidden while the current contract permits waiting states.");
+assert(livenessPlan.features.includes('liveness-contract'));
+assert(livenessPlan.candidates.some((candidate) => candidate.id === 'liveness-contract'));
+
+const canonicalWakePlan = planRepair("heartbeat received HTTP 422 from Daily·FLIXO Green Gate because heartbeat attempted a direct workflow dispatch instead of the canonical wake/supervisor path.");
+assert(canonicalWakePlan.features.includes('noncanonical-automation'));
+assert(canonicalWakePlan.candidates.some((candidate) => candidate.id === 'noncanonical-automation'));
+
+const contractDriftPlan = planRepair("contract drift: agent-liveness test is out of sync with the current state-transition contract; expected and received states disagree.");
+assert(contractDriftPlan.features.includes('contract-drift'));
+assert(contractDriftPlan.candidates.some((candidate) => candidate.id === 'contract-drift'));
+
+const asyncFixtureRoot = fs.mkdtempSync('/tmp/flixo-async-repair-');
+fs.mkdirSync(asyncFixtureRoot + '/src', { recursive: true });
+fs.writeFileSync(asyncFixtureRoot + '/src/test.ts', "export async function demo(): string { return 'ok'; }\n");
+const asyncMutation = runAstRepair(asyncFixtureRoot, {
+  id: 'typescript-async-contract',
+  file: 'src/test.ts',
+  diagnosticLine: 1,
+});
+assert.equal(asyncMutation.applied, true, JSON.stringify(asyncMutation));
+assert.match(fs.readFileSync(asyncFixtureRoot + '/src/test.ts', 'utf8'), /async function demo\(\): Promise<string>/u);
+fs.rmSync(asyncFixtureRoot, { recursive: true, force: true });
 assert.equal(selectSpecialist(plan.features).id, 'eslint-specialist');
 assert.deepEqual(impactedTests(['lint']), [['npm', ['run', 'lint']]]);
 assert.equal(summarizeDiff('diff --git a/src/a.ts b/src/a.ts\n+new\n-old\n').files.length, 1);
