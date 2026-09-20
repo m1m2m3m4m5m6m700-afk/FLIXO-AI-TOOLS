@@ -4,12 +4,10 @@ import path from 'node:path';
 
 const ID_RE=/^CELL-(\\d{3})$/u;
 const botIds=Array.from({length:200},(_,i)=>`CELL-${String(i+1).padStart(3,'0')}`);
-const memoryDir=path.join(process.argv[2]||process.cwd(),'diagnostics/auto-repair/cell-bots');
-const knowledgeDir=path.join(process.argv[2]||process.cwd(),'diagnostics/auto-repair/cell-knowledge');
-
 function ensureCellPool(root=process.cwd()){
-  const memDir=path.isAbsolute(memoryDir)?memoryDir:path.join(root,'diagnostics/auto-repair/cell-bots');
-  const knowDir=path.isAbsolute(knowledgeDir)?knowledgeDir:path.join(root,'diagnostics/auto-repair/cell-knowledge');
+  const base=path.resolve(root);
+  const memDir=path.join(base,'diagnostics/auto-repair/cell-bots');
+  const knowDir=path.join(base,'diagnostics/auto-repair/cell-knowledge');
   fs.mkdirSync(memDir,{recursive:true}); fs.mkdirSync(knowDir,{recursive:true});
   const templateMemory={
     schemaVersion:1,authority:'CELL_BOT_PERSONAL_MEMORY',botId:null,copyable:true,
