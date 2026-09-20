@@ -9,16 +9,16 @@
 ```text
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
-CURRENT MAIN SHA = 5115ac0528a7b18ae9ae3d392ccbfd2257900ea3
+CURRENT MAIN SHA = 22e67525a2e406d449fa158d67674281c7a75168
 ACTIVE PR = #750 OPEN / execution → main
 CURRENT PR HEAD = authoritative GitHub PR #750 head; do not duplicate a mutable SHA in this map
 STATE = BLOCKED_EXTERNAL
-CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED AFTER c2640bad; prior exact-head evidence is stale for current execution
+CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED ON CURRENT MAIN/EXECUTION HEAD; prior exact-head evidence is stale
 CURRENT EXECUTION PRE-REPAIR EVIDENCE = Test System PASS; Test Impact PASS; Claude Security Review PASS
 REPOSITORY SECURITY = FAIL on exact head: GitHub Advanced Security Code Scanning AI returned CAPI 400 model-not-supported
 WP0 TRUST BASELINE = CURRENT-HEAD VERIFICATION REQUIRED
 VERCEL = BLOCKED_EXTERNAL: provider deployment rate-limit
-EXACT-SHA GREEN = NOT PROVEN
+EXACT-SHA GREEN = NOT PROVEN; prompt-intelligence verification is pending on the current canonical SHA
 ADMIN STATES = historical labels below are not current exact-SHA proof; revalidation required after the active repair cycle
 PRODUCTION DEPLOYMENT EXACT-SHA = NOT PROVEN IN CURRENT EVIDENCE
 POST-MERGE MAIN SHA VERIFIED = 5115ac0528a7b18ae9ae3d392ccbfd2257900ea3
