@@ -12,8 +12,6 @@ const event=String(process.env.FLIXO_WAKE_EVENT??'push');
 if(!/^[a-f0-9]{40}$/iu.test(sha)) throw new Error('CELL_WAKE_EXACT_SHA_REQUIRED');
 const registry=JSON.parse(fs.readFileSync(registryPath,'utf8'));
 if(!Array.isArray(registry.bots)||registry.bots.length!==50) throw new Error('CELL_WAKE_50_BOTS_REQUIRED');
-const cohort=registry.actionRepairCohort;
-if(!cohort||cohort.workerIds?.length!==5) throw new Error('CELL_WAKE_ACTION_SQUAD_REQUIRED');
 const personalMemoryCount=fs.readdirSync(path.join(root,'diagnostics/auto-repair/cell-bots')).filter(x=>/^CELL-\d{3}\.json$/u.test(x)).length;
 const digest=crypto.createHash('sha256').update(JSON.stringify({sha,branch,registryVersion:registry.schemaVersion,cohort}),'utf8').digest('hex');
 const packet={
@@ -23,13 +21,7 @@ const packet={
  branch,
  exactSha:sha,
  readiness:'AWAKE_AND_READY',
- wholeCell:{botCount:50,personalMemoryFiles:personalMemoryCount,controller:registry.supervisor?.role??'assistantController',council:cohort.workerIds.map(id=>id)},
- actionRepairSquad:{
-   workerIds:cohort.workerIds,
-   roles:cohort.roles??[],
-   sharedReferences:cohort.sharedReferences??[],
-   sameReferencesForAll:cohort.sameReferencesForAll===true
- },
+ wholeCell:{botCount:50,personalMemoryFiles:personalMemoryCount,controller:registry.supervisor?.role??'assistantController',council:registry.threeSeatCouncil?.seats??[]},
  nextStage:'CANONICAL_DAILY_GREEN_GATE',
  directMutation:false,
  directRepairDispatch:false,
