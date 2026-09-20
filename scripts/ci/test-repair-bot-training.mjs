@@ -24,4 +24,7 @@ assert.deepEqual(Object.keys(report.policy.global),STRATEGIES);
 assert.ok(report.dataset.positiveExamples>=2);
 assert.ok(report.dataset.negativeExamples>=2);
 assert.ok(report.decision.rule.includes('NEVER_GRANTS_MUTATION'));
+assert.equal(report.behaviorModel.epochs,5);
+assert.ok(report.behaviorEvaluation);
+assert.ok(report.competency);
 console.log('REPAIR_BOT_TRAINING_CONTRACT_SELF_TEST=PASS');
