@@ -198,9 +198,9 @@ export const executeExternalAgent = async (config, dispatch, sessionId, fetchImp
   const status = String(body.status ?? 'DONE');
   if (!['DONE','FAILED'].includes(status)) throw new Error('COUNCIL_BRIDGE_EXECUTOR_STATUS_INVALID');
   const evidence=body.evidence&&typeof body.evidence==='object'?body.evidence:{};
-  const payload=body.payload&&typeof body.payload==='object'?body.payload:{};
-  const validation=validateActionAgentResult({accountId:config.accountId,dispatch,status,payload});
-  return {status,evidence:{...evidence,actionAgentValidation:validation},payload};
+  const resultPayload=body.payload&&typeof body.payload==='object'?body.payload:{};
+  const validation=validateActionAgentResult({accountId:config.accountId,dispatch,status,payload:resultPayload});
+  return {status,evidence:{...evidence,actionAgentValidation:validation},payload:resultPayload};
 };
 
 export function createBridge({ config, fetchImpl = globalThis.fetch, heartbeatMs = 30_000 } = {}) {
