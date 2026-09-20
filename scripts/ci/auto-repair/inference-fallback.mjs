@@ -66,10 +66,11 @@ export function inferFailureResolution({
   memory = { cases: [], lessons: [], antiLessons: [], playbooks: [] },
   targetSha = null,
   diagnosis = null,
+  historicalRecordsOverride = null,
 } = {}) {
   const normalized = normalizeFailure(log);
   const features = extractFeatures(log);
-  const hist = historicalRecords();
+  const hist = Array.isArray(historicalRecordsOverride) ? historicalRecordsOverride : historicalRecords();
 
   const similarHistorical = hist
     .map((record) => ({
@@ -136,6 +137,24 @@ export function inferFailureResolution({
     : Boolean(best)
       ? 'CROSS_CASE_SYNTHESIS'
       : 'NEW_HYPOTHESIS';
+
+  const orderedHistorical = [...hist]
+    .filter((record) => record?.lastSeen || record?.firstSeen)
+    .sort((a, b) => String(a.firstSeen ?? a.lastSeen ?? '').localeCompare(String(b.firstSeen ?? b.lastSeen ?? '')));
+  const workflowHistory = orderedHistorical.filter((record) => !process.env.GITHUB_WORKFLOW || record.workflow === process.env.GITHUB_WORKFLOW);
+  const classTransitions = new Map();
+  for (let i = 1; i < workflowHistory.length; i += 1) {
+    const previous = String(workflowHistory[i - 1]?.errorClass ?? 'unknown');
+    const next = String(workflowHistory[i]?.errorClass ?? 'unknown');
+    const key = previous + '→' + next;
+    classTransitions.set(key, Number(classTransitions.get(key) ?? 0) + 1);
+  }
+  const currentClasses = [...new Set(similarHistorical.map(({ record }) => String(record.errorClass ?? 'unknown')))];
+  const predictions = currentClasses.flatMap((currentClass) => [...classTransitions.entries()]
+    .filter(([key]) => key.startsWith(currentClass + '→'))
+    .map(([key, count]) => ({ from: currentClass, to: key.split('→')[1], count })))
+    .sort((a, b) => b.count - a.count || a.to.localeCompare(b.to))
+    .slice(0, 5);
 
   const confidence = Number(Math.min(
     0.94,
@@ -210,6 +229,8 @@ export function inferFailureResolution({
       evidenceDiversity,
       thresholdForMutation: 0.78,
       eligibleForBoundedMutation: mutationEligible,
+      nextFailureClasses: predictions,
+      predictionBasis: predictions.length ? 'historical-class-transition' : 'none',
     },
     falsification,
     safety: {
