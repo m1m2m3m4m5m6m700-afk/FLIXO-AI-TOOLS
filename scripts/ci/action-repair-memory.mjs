@@ -9,6 +9,8 @@ const fileOf=id=>path.join(memoryDir(),String(id)+'.json');
 const valid=id=>{if(!ID_RE.test(String(id))) throw new Error('ACTION_BOT_ID_INVALID'); return String(id)};
 const now=()=>new Date().toISOString();
 const bounded=(list,max=2000)=>Array.isArray(list)?list.slice(-max):[];
+const CENTER_MAX_EVENTS=5000;
+const CENTER_TYPES=Object.freeze(['RED_OPEN','HISTORICAL_MATCHES','TWIN_A','TWIN_B','WISE_SELECTION','WAKE','LEARNING_REQUEST_OPEN','GREEN_VERIFIED','LEARNING_REQUEST_CLOSED','NO_SOLUTION_MASTER_REQUEST']);
 
 export function loadActionBotMemory(botId){
  const id=valid(botId); fs.mkdirSync(memoryDir(),{recursive:true});
@@ -19,13 +21,28 @@ export function loadActionBotMemory(botId){
   state:{status:'READY',taskCount:0,lastTaskId:null,lastUpdatedAt:null},
   learnedTasks:[],knowledge:[],solutions:[],successfulStrategies:[],failedStrategies:[],
   weaknesses:[],upgrades:[],sourceEvidence:[],redSignals:[],learningRequests:[],
-  importHistory:[],exportHistory:[]
+  importHistory:[],exportHistory:[],
+  center:{
+   schemaVersion:1,authority:'ACTION_REPAIR_INFORMATION_CENTER',knowledgeOnly:true,proofAuthority:'CURRENT_EXACT_SHA_CI_ONLY',
+   events:[],eventCount:0,lastEventAt:null
+  }
  };
 }
 export function saveActionBotMemory(memory){
  const id=valid(memory?.botId); fs.mkdirSync(memoryDir(),{recursive:true});
  const out={...loadActionBotMemory(id),...memory,botId:id};
+ fs.writeFileSync(fileOf(id),JSON.stringify(out,null,2)+'\n'); if(id==='ACTION-INDEX') out.center.eventCount=out.center.events.length;
+ if(id==='ACTION-INDEX') out.center.lastEventAt=out.center.events.at(-1)?.at??out.center.lastEventAt??null;
  fs.writeFileSync(fileOf(id),JSON.stringify(out,null,2)+'\n'); return out;
+}
+export function appendActionCenterEvent({type,taskId,fingerprint,runId,targetSha,actor,payload={}}={}){
+ const normalizedType=String(type??'').trim();
+ if(!CENTER_TYPES.includes(normalizedType)) throw new Error('ACTION_CENTER_EVENT_TYPE_INVALID');
+ if(!runId||!/^[a-f0-9]{40}$/iu.test(String(targetSha??''))) throw new Error('ACTION_CENTER_EVENT_IDENTITY_INVALID');
+ const m=loadActionBotMemory('ACTION-INDEX');
+ const event={eventId:'ACE-'+String(runId)+'-'+normalizedType+'-'+String(fingerprint??'').slice(0,12),type:normalizedType,taskId:taskId??null,fingerprint:fingerprint??null,runId:String(runId),targetSha:String(targetSha),actor:actor??null,payload:payload&&typeof payload==='object'?payload:{},at:now()};
+ const prior=(m.center?.events??[]).filter(item=>item.eventId!==event.eventId);
+ return saveActionBotMemory({...m,center:{...(m.center??{}),schemaVersion:1,authority:'ACTION_REPAIR_INFORMATION_CENTER',knowledgeOnly:true,proofAuthority:'CURRENT_EXACT_SHA_CI_ONLY',events:bounded([...prior,event],CENTER_MAX_EVENTS)}});
 }
 export function learnIntoActionBotMemory({botId,taskId,knowledge,solution,outcome,rootCause,rule,verification,evidenceRef,fingerprint,runId,targetSha,failedSha,normalizedFailure}={}){
  const m=loadActionBotMemory(botId), at=now();
@@ -59,7 +76,8 @@ export function recordRedSignal({fingerprint,runId,targetSha,workflow,job,normal
   signalAt
  };
  const prior=(m.redSignals??[]).filter(x=>x.signalId!==item.signalId);
- return saveActionBotMemory({...m,redSignals:bounded([...prior,item],5000)});
+ const saved=saveActionBotMemory({...m,redSignals:bounded([...prior,item],5000)});
+ return appendActionCenterEvent({type:'RED_OPEN',taskId:'ACTION-RED:'+runId+':'+fp,fingerprint:fp,runId,targetSha,actor:'ACTION-INDEX',payload:{signalId:item.signalId,workflow:workflow??null,job:job??null,normalizedFailure:item.normalizedFailure,historicalMatchCount:item.historicalMatchCount}});
 }
 
 export function createLearningRequest({fingerprint,runId,targetSha,workflow,job,normalizedFailure,reason='NO_VERIFIED_SOLUTION',master='repairAgent',requiredFields=[]}={}){
@@ -74,7 +92,8 @@ export function createLearningRequest({fingerprint,runId,targetSha,workflow,job,
   solution:null,verification:null,evidenceRef:null,openedAt:now(),closedAt:null
  };
  const prior=(m.learningRequests??[]).filter(x=>x.requestId!==request.requestId);
- return saveActionBotMemory({...m,learningRequests:bounded([...prior,request],5000)});
+ const saved=saveActionBotMemory({...m,learningRequests:bounded([...prior,request],5000)});
+ return appendActionCenterEvent({type:'LEARNING_REQUEST_OPEN',taskId:'ACTION-LEARN:'+runId+':'+fp,fingerprint:fp,runId,targetSha,actor:master,payload:{requestId:request.requestId,reason,status:request.status,requiredFields:request.requiredFields,workflow:workflow??null,job:job??null}});
 }
 
 export function closeLearningRequest({fingerprint,runId,targetSha,solution,verification,evidenceRef,master='repairAgent'}={}){
@@ -93,7 +112,8 @@ export function closeLearningRequest({fingerprint,runId,targetSha,solution,verif
  });
  if(!found) throw new Error('ACTION_LEARNING_REQUEST_NOT_FOUND');
  const solutions=[...(m.solutions??[]),{requestId:'LEARN-'+String(runId)+'-'+fp.slice(0,16),solution,verification,master,validatedAt:now()}];
- return saveActionBotMemory({...m,learningRequests:bounded(requests,5000),solutions:bounded(solutions,2000)});
+ const saved=saveActionBotMemory({...m,learningRequests:bounded(requests,5000),solutions:bounded(solutions,2000)});
+ return appendActionCenterEvent({type:'LEARNING_REQUEST_CLOSED',taskId:'ACTION-LEARN:'+runId+':'+fp,fingerprint:fp,runId,targetSha,actor:master,payload:{requestId:'LEARN-'+String(runId)+'-'+fp.slice(0,16),solution,verification,evidenceRef:evidenceRef??null}});
 }
 
 export function recordVerifiedGreen({fingerprint,runId,targetSha,solution,verification,evidenceRef}={}){
@@ -105,7 +125,8 @@ export function recordVerifiedGreen({fingerprint,runId,targetSha,solution,verifi
    return {...item,status:'GREEN_VERIFIED',solution,verification,evidenceRef:evidenceRef??null,greenVerifiedAt:now()};
   return item;
  });
- return saveActionBotMemory({...m,redSignals,solutions:[...(m.solutions??[]),{fingerprint,runId,targetSha,solution,verification,evidenceRef:evidenceRef??null,greenVerifiedAt:now()}].slice(-2000)});
+ const saved=saveActionBotMemory({...m,redSignals,solutions:[...(m.solutions??[]),{fingerprint,runId,targetSha,solution,verification,evidenceRef:evidenceRef??null,greenVerifiedAt:now()}].slice(-2000)});
+ return appendActionCenterEvent({type:'GREEN_VERIFIED',taskId:'ACTION-GREEN:'+runId+':'+String(fingerprint??'').slice(0,16),fingerprint,runId,targetSha,actor:'repairAgent',payload:{solution,verification,evidenceRef:evidenceRef??null}});
 }
 
 export function copyHistoricalIndexToActionIndexBot(sourcePath='docs/agents/historical-action-errors/index.json'){
