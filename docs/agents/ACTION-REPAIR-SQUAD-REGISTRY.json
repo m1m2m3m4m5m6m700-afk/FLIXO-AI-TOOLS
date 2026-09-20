@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "authority": "ACTION_REPAIR_HISTORY_CONTROL_PLANE",
+  "name": "FLIXO-ACTION-REPAIR-SQUAD",
+  "purpose": "Five specialized workers dedicated exclusively to GitHub Actions failure intelligence; separate from the 50-worker CELL pool.",
+  "headquarters": {
+    "primary": "docs/agents/historical-action-errors",
+    "index": "docs/agents/historical-action-errors/index.json",
+    "records": "docs/agents/historical-action-errors/records",
+    "additionalReferences": [
+      "docs/AUTO_REPAIR_HISTORY.jsonl",
+      "diagnostics/auto-repair/memory.json",
+      "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+      "docs/agents/ERROR-TEACHING-ROUTER.json",
+      "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md"
+    ]
+  },
+  "separation": {
+    "separateFromCell": true,
+    "cellBotCount": 50,
+    "includedInCellCount": false,
+    "identityNamespace": "ACTION-NNN",
+    "memoryDirectory": "diagnostics/auto-repair/action-repair-bots"
+  },
+  "sharedPolicy": {
+    "sameReferencesForAll": true,
+    "anyActionFailureAdmitted": true,
+    "oneTaskAtATime": true,
+    "assignedScopeOnly": true,
+    "mutationAuthority": false,
+    "canonicalMutationOwner": "repairAgent",
+    "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY",
+    "knowledgeMayTransfer": true,
+    "permissionsMayTransfer": false,
+    "independentAuthorityMayTransfer": false
+  },
+  "workers": [
+    {
+      "id": "ACTION-001",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 1,
+      "role": "ACTION_SOLUTION_INDEXER",
+      "mission": "Extract and index historical GitHub Actions failures and retrieve prior repair candidates.",
+      "weakness": "HISTORICAL_ACTION_INDEX_RETRIEVAL",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records",
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-001.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null
+    },
+    {
+      "id": "ACTION-002",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 2,
+      "role": "ACTION_SYSTEM_WAKE_COORDINATOR",
+      "mission": "Wake the Actions repair system on first push or actionable RED and hand off to the canonical dispatcher.",
+      "weakness": "ACTION_SYSTEM_WAKE_AND_HANDOFF",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records",
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-002.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null
+    },
+    {
+      "id": "ACTION-003",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 3,
+      "role": "ACTION_REPAIR_TWIN_A",
+      "mission": "Independent direct-evidence repair hypothesis; read-only.",
+      "weakness": "DIRECT_CAUSAL_REPAIR_HYPOTHESIS",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records",
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-003.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null
+    },
+    {
+      "id": "ACTION-004",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 4,
+      "role": "ACTION_REPAIR_TWIN_B",
+      "mission": "Independent inferential/historical repair hypothesis; read-only.",
+      "weakness": "INFERENTIAL_REPAIR_HYPOTHESIS",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records",
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-004.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null
+    },
+    {
+      "id": "ACTION-005",
+      "kind": "ACTION_REPAIR_BOT",
+      "status": "READY",
+      "workerIndex": 5,
+      "role": "ACTION_BEST_OPTION_SELECTOR",
+      "mission": "Select the strongest actionable option from historical evidence and both twins.",
+      "weakness": "EVIDENCE_BASED_OPTION_SELECTION",
+      "headquarters": "docs/agents/historical-action-errors",
+      "sharedReferences": [
+        "docs/agents/historical-action-errors/index.json",
+        "docs/agents/historical-action-errors/records",
+        "docs/AUTO_REPAIR_HISTORY.jsonl",
+        "diagnostics/auto-repair/memory.json",
+        "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+        "docs/agents/ERROR-TEACHING-ROUTER.json",
+        "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md"
+      ],
+      "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-005.json",
+      "mutationAuthority": false,
+      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
+      "currentAssignment": null
+    }
+  ],
+  "sourceIndexSnapshot": {
+    "sourceUpdatedAt": "2026-09-20T11:55:51.945Z",
+    "recordCount": 2
+  }
+}
