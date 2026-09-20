@@ -867,6 +867,24 @@ jobs:
           node scripts/ci/action-repair-dual-control.mjs heartbeat --primary=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$FLIXO_EXPECTED_TARGET_SHA" --state=READY_FOR_MUTATION --out=/tmp/action-repair-pair-heartbeat.json
           node scripts/ci/action-repair-dual-control.mjs assert --approval=/tmp/action-repair-2-approval.json --heartbeat=/tmp/action-repair-pair-heartbeat.json --approver=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$FLIXO_EXPECTED_TARGET_SHA"
 
+      - name: ACTION-REPAIR self-critique loop before mutation
+        id: self_critique
+        if: steps.action_repair_primary_approval.outcome == 'success'
+        env:
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
+          TARGET_RUN_ID: ${{ env.TARGET_RUN_ID }}
+        run: |
+          set -euo pipefail
+          node scripts/ci/action-vault-self-critique.mjs \
+            --sha="$FLIXO_EXPECTED_TARGET_SHA" \
+            --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
+            --run-id="$TARGET_RUN_ID" \
+            --primary-proof=/tmp/action-primary-correctness-proof.json \
+            --twin=/tmp/action-repair-programmer-twin.json \
+            --pre-proof=/tmp/action-vault-pre-mutation-proof.json \
+            --output=/tmp/action-vault-self-critique.json
+          jq -e --arg sha "$FLIXO_EXPECTED_TARGET_SHA" --arg fp "$FLIXO_FAILURE_FINGERPRINT" '.status=="FINAL_PROOF" and .protocol=="ACTION-VAULT-SELF-CRITIQUE-v1" and .targetSha==$sha and .failureFingerprint==$fp and .noMutation==true and .recritique.stable==true' /tmp/action-vault-self-critique.json >/dev/null
       - name: Action Vault adversarial gate-integrity benchmark
         if: steps.action_repair_primary_approval.outcome == 'success'
         run: |
