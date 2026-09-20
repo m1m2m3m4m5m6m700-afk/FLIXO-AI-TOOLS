@@ -160,6 +160,7 @@
     "test:action-learning-master": "node scripts/ci/test-action-learning-master.mjs",
     "validate:action-vault-agents": "node scripts/ci/action-vault-agent-gate.mjs",
     "test:action-vault-agents": "node scripts/ci/test-action-vault-agent-gate.mjs",
+    "test:action-vault-trust": "node scripts/ci/test-action-vault-trust-graduation.mjs",
     "test:action-vault-parallel": "node scripts/ci/test-action-vault-parallel-collaboration.mjs",
     "test:action-vault-targeted": "node scripts/ci/test-action-vault-targeted-test.mjs",
     "test:action-agent-runtime": "node scripts/ci/test-action-agent-runtime.mjs",
