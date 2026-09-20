@@ -18,7 +18,8 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
     'BLOCKED_EXTERNAL',
   ]),
   terminalStates: Object.freeze(['COMPLETE', 'ABORTED']),
-  forbiddenStates: Object.freeze(['SLEEP', 'IDLE', 'SILENT', 'ABANDONED']),
+  forbiddenStates: Object.freeze(['SILENT', 'ABANDONED']),
+  protectedRestStates: Object.freeze(['SLEEP', 'IDLE']),
   sleepPolicy: Object.freeze({
     requiresGreenRecord: true,
     greenAuthority: 'DAILY_FLIXO_GREEN_GATE',
@@ -34,8 +35,10 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
     RECOVERING: ['RECOVERING', 'ACTIVE', 'VERIFYING', 'ABORTED'],
     VERIFYING: ['VERIFYING', 'ACTIVE', 'RECOVERING', 'COMPLETE', 'BLOCKED_EXTERNAL', 'ABORTED'],
     BLOCKED_EXTERNAL: ['BLOCKED_EXTERNAL', 'ACTIVE', 'RECOVERING', 'VERIFYING', 'ABORTED'],
-    COMPLETE: [],
-    ABORTED: [],
+    COMPLETE: ['SLEEP', 'IDLE'],
+    SLEEP: ['ACTIVE'],
+    IDLE: ['ACTIVE'],
+    ABORTED: [] ,
   }),
   rules: Object.freeze([
     'NO_SILENT_STOP',
@@ -57,6 +60,7 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
 
 const terminal = new Set(AGENT_LIVENESS_PROTOCOL.terminalStates);
 const forbidden = new Set(AGENT_LIVENESS_PROTOCOL.forbiddenStates);
+const protectedRest = new Set(AGENT_LIVENESS_PROTOCOL.protectedRestStates);
 const working = new Set(AGENT_LIVENESS_PROTOCOL.workAssignedStates);
 
 export function assertLivenessDefinition() {
@@ -75,19 +79,26 @@ export function assertState(state, { workAssigned = true } = {}) {
   if (forbidden.has(value)) throw new Error('AGENT_LIVENESS_FORBIDDEN_STATE=' + value);
   if (workAssigned && terminal.has(value)) throw new Error('AGENT_LIVENESS_TERMINAL_WITH_OPEN_WORK=' + value);
   if (workAssigned && !working.has(value)) throw new Error('AGENT_LIVENESS_UNKNOWN_WORK_STATE=' + value);
+  if (!workAssigned && !terminal.has(value) && !protectedRest.has(value) && !working.has(value)) throw new Error('AGENT_LIVENESS_UNKNOWN_REST_STATE=' + value);
   return true;
 }
 
-export function assertTransition(from, to, { workAssigned = true, authorization = null } = {}) {
+export function assertTransition(from, to, { workAssigned = true, authorization = null, greenRecord = null, targetSha = null, taskId = null, fingerprint = null } = {}) {
   assertState(from, { workAssigned });
-  if (workAssigned && String(to) === 'ABORTED' && authorization !== 'EXPLICIT_ABORT_AUTHORITY') {
+  const target = String(to);
+  if (workAssigned && target === 'ABORTED' && authorization !== 'EXPLICIT_ABORT_AUTHORITY') {
     throw new Error('AGENT_LIVENESS_ABORT_AUTHORITY_REQUIRED');
   }
-  assertState(to, { workAssigned: false });
-  if (!AGENT_LIVENESS_PROTOCOL.transitions[from]?.includes(to)) {
-    throw new Error(`AGENT_LIVENESS_TRANSITION_BLOCKED=${from}->${to}`);
+  if (protectedRest.has(target)) {
+    if (workAssigned) throw new Error('AGENT_LIVENESS_REST_WITH_OPEN_WORK');
+    if (!['COMPLETE'].includes(String(from))) throw new Error('AGENT_LIVENESS_REST_ENTRY_STATE_INVALID');
+    validateGreenRecord(greenRecord, { targetSha, taskId, fingerprint });
   }
-  if (workAssigned && forbidden.has(to)) throw new Error('AGENT_LIVENESS_FORBIDDEN_TRANSITION=' + to);
+  assertState(target, { workAssigned: false });
+  if (!AGENT_LIVENESS_PROTOCOL.transitions[from]?.includes(target)) {
+    throw new Error(`AGENT_LIVENESS_TRANSITION_BLOCKED=${from}->${target}`);
+  }
+  if (workAssigned && protectedRest.has(target)) throw new Error('AGENT_LIVENESS_REST_TRANSITION_BLOCKED=' + target);
   return true;
 }
 
@@ -193,13 +204,15 @@ export function validateGreenRecord(greenRecord, { targetSha = null, taskId = nu
 }
 
 export function sleepAdmission({ workAssigned = false, greenRecord = null, targetSha = null, taskId = null, fingerprint = null } = {}) {
-  if (workAssigned) throw new Error('AGENT_LIVENESS_SLEEP_BLOCKED_OPEN_WORK');
   validateGreenRecord(greenRecord, { targetSha, taskId, fingerprint });
+  if (workAssigned) throw new Error('AGENT_LIVENESS_SLEEP_BLOCKED_OPEN_WORK');
+  assertTransition('COMPLETE','SLEEP',{workAssigned:false,greenRecord,targetSha,taskId,fingerprint});
   return Object.freeze({ ok: true, state: 'SLEEP', admission: 'GREEN_RECORD_VERIFIED' });
 }
 
 export function idleAdmission({ workAssigned = false, greenRecord = null, targetSha = null, taskId = null, fingerprint = null } = {}) {
-  if (workAssigned) throw new Error('AGENT_LIVENESS_IDLE_BLOCKED_OPEN_WORK');
   validateGreenRecord(greenRecord, { targetSha, taskId, fingerprint });
+  if (workAssigned) throw new Error('AGENT_LIVENESS_IDLE_BLOCKED_OPEN_WORK');
+  assertTransition('COMPLETE','IDLE',{workAssigned:false,greenRecord,targetSha,taskId,fingerprint});
   return Object.freeze({ ok: true, state: 'IDLE', admission: 'GREEN_RECORD_VERIFIED' });
 }
