@@ -264,6 +264,7 @@ export function simulateAstRepair({
       schemaVersion: 3,
       protocol: 'REPAIR-SANDBOX-SIMULATION-PROOF-v2',
       status,
+      ok: status === 'PASS',
       taskId,
       failureFingerprint: fingerprint,
       targetSha,
