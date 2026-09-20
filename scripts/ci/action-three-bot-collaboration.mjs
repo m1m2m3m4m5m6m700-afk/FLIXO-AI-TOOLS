@@ -16,7 +16,7 @@ const LANES=Object.freeze({
   'ACTION-REPAIR-2':'HISTORICAL_INDEX_EXPLORATION_AND_REPAIR_PREDICTION',
   'ACTION-HISTORIAN-3':'FAILURE_LEDGER_AND_LEARNING_RECORDING'
 });
-const PHASES=Object.freeze(['PARALLEL_DISCOVERY','PARALLEL_ANALYSIS','CROSS_LEARNING','CHALLENGE','SYNTHESIS','OWNER_MUTATION','VERIFICATION','GREEN_LEARNING','CLOSED']);
+const PHASES=Object.freeze(['PARALLEL_DISCOVERY','PARALLEL_ANALYSIS','CROSS_LEARNING','CHALLENGE','SYNTHESIS','PATCH_SYNTHESIS','SANDBOX_SIMULATION','DIFFERENTIAL_VERIFICATION','OWNER_MUTATION','VERIFICATION','GREEN_LEARNING','CLOSED']);
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):fallback};
 const task=String(arg('task')).trim();
 const fingerprint=String(arg('fingerprint')).trim();
@@ -47,6 +47,8 @@ if(profile.roleMatrix?.['ACTION-HISTORIAN-3']?.mission!=='RECORD_EVERY_FAILURE_A
 if(profile.cooperation?.enabled!==true) throw new Error('ACTION_THREE_BOT_COOPERATION_DISABLED');
 if(JSON.stringify(profile.cooperation.participants)!==JSON.stringify(BOTS)) throw new Error('ACTION_THREE_BOT_PARTICIPANT_SET_INVALID');
 if(profile.cooperation.authority?.noParallelSourceMutation!==true) throw new Error('ACTION_THREE_BOT_PARALLEL_SOURCE_MUTATION_FORBIDDEN');
+if(profile.cooperation?.repairEngineering?.enabled!==true) throw new Error('ACTION_THREE_BOT_REPAIR_ENGINEERING_DISABLED');
+if(profile.cooperation?.repairEngineering?.owner!=='ACTION-REPAIR') throw new Error('ACTION_THREE_BOT_REPAIR_ENGINEERING_OWNER_INVALID');
 
 const ensureState=()=>{
   if(fs.existsSync(STATE)){
