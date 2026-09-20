@@ -118,6 +118,16 @@ jobs:
           echo "failed_sha=$FAILED_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Capture exact failed-run evidence
+      - name: Fast-scan Action failure signal and open Action Vault task
+        if: always()
+        env:
+          FLIXO_ACTION_VAULT_FAILURE_LOG: /tmp/flixo-twin/failure.log
+          FLIXO_ACTION_VAULT_TARGET_SHA: ${{ steps.target.outputs.failed_sha }}
+        run: |
+          set -euo pipefail
+          node scripts/ci/action-fast-reader.mjs --input="$FLIXO_ACTION_VAULT_FAILURE_LOG" --output=/tmp/flixo-fast-failure.json
+          node scripts/ci/action-vault-historian.mjs --op=red --run-id="$TARGET_RUN_ID" --target-sha="$FLIXO_ACTION_VAULT_TARGET_SHA" --workflow="action-run" --log="$FLIXO_ACTION_VAULT_FAILURE_LOG" --fast=/tmp/flixo-fast-failure.json --vault=diagnostics/auto-repair/action-vault
+
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -712,13 +722,32 @@ jobs:
           node scripts/ci/action-repair-dual-control.mjs heartbeat --primary=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$FLIXO_EXPECTED_TARGET_SHA" --state=READY_FOR_MUTATION --out=/tmp/action-repair-pair-heartbeat.json
           node scripts/ci/action-repair-dual-control.mjs assert --approval=/tmp/action-repair-2-approval.json --heartbeat=/tmp/action-repair-pair-heartbeat.json --approver=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$FLIXO_EXPECTED_TARGET_SHA"
 
+      - name: Select active Actions repair bot turn
+        id: action_turn
+        if: steps.strategy.outcome == 'success'
+        env:
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
+          FLIXO_REPAIR_ATTEMPT: ${{ env.FLIXO_REPAIR_LEASE_ATTEMPT }}
+        run: |
+          set -euo pipefail
+          node scripts/ci/action-repair-turn.mjs --attempt="$FLIXO_REPAIR_ATTEMPT" --sha="$FLIXO_EXPECTED_TARGET_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" > /tmp/action-repair-turn.json
+          ACTIVE="$(jq -r '.activeBot' /tmp/action-repair-turn.json)
+          echo "FLIXO_ACTIVE_ACTION_BOT=$ACTIVE" >> "$GITHUB_ENV"
+          if [ "$ACTIVE" = "ACTION-REPAIR-2" ]; then
+            echo "FLIXO_REPAIR_ACTOR=actionRepairAssistant" >> "$GITHUB_ENV"
+          else
+            echo "FLIXO_REPAIR_ACTOR=actionRepairBot" >> "$GITHUB_ENV"
+          fi
+
       - name: FLIXO Auto Repair Bot — sole mutation authority for the active RED target
         id: execute_repair
         if: steps.strategy.outcome == 'success' && steps.install_target.outcome == 'success'
         env:
           FLIXO_TARGET_DIR: ${{ github.workspace }}
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
-          FLIXO_REPAIR_ACTOR: actionRepairBot
+          FLIXO_REPAIR_ACTOR: ${{ env.FLIXO_REPAIR_ACTOR }}
+          FLIXO_ASSISTANT_APPROVAL_PATH: /tmp/action-repair-2-approval.json
           FLIXO_ACTION_REPAIR_BOT_ID: ACTION-REPAIR
           FLIXO_ACTION_KNOWLEDGE_BOT_ID: ACTION-WISE
           FLIXO_ACTION_REPAIR_MEMORY: /tmp/flixo-action-repair-bots/ACTION-REPAIR.json
