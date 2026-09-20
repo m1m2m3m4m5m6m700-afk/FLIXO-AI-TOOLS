@@ -1,3 +1,20 @@
+## Absolute No-New-Branch Rule
+
+The FLIXO agent team operates on exactly two active branch refs: `execution` and `main`. The topology is fixed:
+
+`execution → main`
+
+No agent may create, checkout, use, rename, or resurrect a third working branch for any reason, including feature work, conflict resolution, prompt work, repair attempts, per-error isolation, temporary staging, experiments, backups, or handoffs. A new failure is an in-flight failure on the same `execution` lane. Repair it there and continue the same controlled lifecycle.
+
+Required behavior:
+1. Verify the active branch is `execution` before mutation.
+2. If a branch other than `execution` or `main` is proposed, stop and fail closed.
+3. Use the existing `execution → main` integration PR for promotion.
+4. Never solve a conflict by creating a third branch.
+5. Historical branches are evidence only; they are not active work surfaces.
+
+`BRANCH_CREATION_ATTEMPT` is a protocol violation requiring immediate controller review.
+
 # FLIXO Multi-Agent Collaboration Protocol v7
 
 ## Mission
