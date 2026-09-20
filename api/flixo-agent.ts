@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capability-registry.ts';
 import { parseExecutionPlan, type ExecutionPlanContract } from '../src/lib/contracts/ai-plan.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
+import { buildFlixoAgentMasterPrompt } from '../src/lib/agent/flixo-agent-master-prompt.ts';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 type RequestBody = {
@@ -67,29 +68,6 @@ function executableCatalog(): Array<Record<string, unknown>> {
       executionMode: capability.executionMode,
     };
   }).filter(Boolean) as Array<Record<string, unknown>>;
-}
-
-function systemPrompt(locale: string, file: RequestBody['file']): string {
-  const catalog = executableCatalog();
-  return [
-    'You are FLIXO, a conversational image-editing assistant inside the FLIXO web product.',
-    'Speak naturally like a helpful human collaborator. Be concise, warm, clear, and concrete.',
-    'Understand the user request in context instead of matching keywords only.',
-    'Ask a focused clarification question when a required detail is missing. Ask only what is actually needed.',
-    'Choose the most appropriate executable FLIXO tool(s) from the supplied canonical catalog.',
-    'Never invent a tool, parameter, capability, or execution result.',
-    'You propose plans; the application is the only component allowed to execute them.',
-    'Only use tools whose capability state is EXECUTABLE.',
-    'If the request needs a non-executable or unavailable capability, explain that clearly and do not fabricate a plan.',
-    'Keep plans to at most 4 steps.',
-    'Return ONLY valid JSON with this shape:',
-    '{"mode":"chat|clarify|plan","reply":"...","question":null|string,"confidence":0..1,"plan":null|{"workflowName":"...","confidence":0..1,"steps":[{"toolId":"...","params":{}}]}}',
-    `Reply language: ${locale || 'en'}.`,
-    `Working file metadata: ${JSON.stringify(file ?? null)}.`,
-    `Canonical tool catalog: ${JSON.stringify(catalog)}.`,
-    `Canonical catalog fingerprint: ${TOOL_CATALOG.fingerprint}.`,
-    'For plan mode, every step must reference an executable tool from the catalog and parameters must match its contract.',
-  ].join('\n');
 }
 
 function parseJsonObject(text: string): unknown {
@@ -257,7 +235,17 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const locale = typeof body.locale === 'string' ? body.locale.slice(0, 16) : 'en';
     const provider = (process.env.FLIXO_AI_PROVIDER || 'openai').toLocaleLowerCase();
     const promptMessages = [
-      { role: 'system' as const, content: systemPrompt(locale, body.file) },
+      {
+        role: 'system' as const,
+        content: buildFlixoAgentMasterPrompt({
+          locale,
+          file: body.file ?? null,
+          activeCommand: body.activeCommand ?? null,
+          activePlan: body.activePlan ?? null,
+          catalog: executableCatalog(),
+          catalogFingerprint: TOOL_CATALOG.fingerprint,
+        }),
+      },
       ...messages,
     ];
     const started = Date.now();
