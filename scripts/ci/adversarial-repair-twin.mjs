@@ -13,6 +13,8 @@ const failureLogPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-twin/failure
 const targetRunId = String(process.env.TARGET_RUN_ID ?? '').trim();
 const expectedSha = String(process.env.FLIXO_EXPECTED_TARGET_SHA ?? '').trim();
 const attempt = Math.max(1, Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1));
+const twinVariant = String(process.env.FLIXO_TWIN_VARIANT ?? 'A').toUpperCase();
+if (!['A','B'].includes(twinVariant)) throw new Error('TWIN_VARIANT_INVALID');
 
 if (process.env.FLIXO_TWIN_READ_ONLY !== 'true') throw new Error('TWIN_READ_ONLY_CONTRACT_REQUIRED');
 const branch = execFileSync('git', ['-C', root, 'branch', '--show-current'], { encoding: 'utf8' }).trim();
@@ -87,15 +89,24 @@ const inferenceFallback = inferFailureResolution({
 const top = diagnosis.topHypothesis ?? null;
 const second = diagnosis.secondHypothesis ?? null;
 const alternative = second && second.id !== top?.id ? second : null;
-const twinPreferredStrategy = mapAlternativeStrategy(alternative?.id ?? top?.id);
-const twinAlternativeRepair = mapAlternativeRepair(alternative?.id ?? top?.id, diagnosis.location);
+const inferenceCandidate = inferenceFallback?.hypothesis ?? null;
+const selectedHypothesis = twinVariant === 'B' && inferenceCandidate?.id
+  ? inferenceCandidate
+  : (top ?? alternative);
+const twinPreferredStrategy = twinVariant === 'B'
+  ? (inferenceFallback?.hypothesis?.strategyId ?? mapAlternativeStrategy(alternative?.id ?? top?.id))
+  : mapAlternativeStrategy(alternative?.id ?? top?.id);
+const twinAlternativeRepair = twinVariant === 'B'
+  ? (inferenceFallback?.hypothesis?.repair ?? mapAlternativeRepair(alternative?.id ?? top?.id, diagnosis.location))
+  : mapAlternativeRepair(alternative?.id ?? top?.id, diagnosis.location);
 const dissentStrength = alternative
   ? Number(Math.max(0, Math.min(1, 1 - Math.abs(Number(top?.score ?? 0) - Number(alternative?.score ?? 0)))).toFixed(3))
   : 0;
 
 const result = Object.freeze({
   schemaVersion: 1,
-  protocol: 'FLIXO-ADVERSARIAL-REPAIR-TWIN-v1',
+  protocol: 'FLIXO-ADVERSARIAL-REPAIR-TWIN-v2',
+  twinVariant,
   authority: 'READ_ONLY_ADVERSARIAL_TWIN',
   mutationAuthority: false,
   repositoryWrite: false,
@@ -127,14 +138,14 @@ const result = Object.freeze({
       eligibleForBoundedMutation: inferenceFallback.prediction.eligibleForBoundedMutation,
       falsification: inferenceFallback.falsification,
     },
-    preferredAlternativeRootCause: alternative?.id ?? null,
+    preferredAlternativeRootCause: selectedHypothesis?.id ?? alternative?.id ?? null,
     preferredAlternativeStrategy: twinPreferredStrategy,
     preferredAlternativeRepair: twinAlternativeRepair,
     dissentStrength,
     disposition: alternative ? (dissentStrength >= 0.9 ? 'STRONG_DISSENT' : 'COUNTERCHECK') : 'NO_SAFE_ALTERNATIVE_FOUND',
     rule: 'NEVER_WRITE_SOURCE_AND_NEVER_CONTROL_ACTIONS',
   },
-  evidenceDigest: hash(JSON.stringify({ currentSha, log, top, alternative, inferenceFallback })),
+  evidenceDigest: hash(JSON.stringify({ currentSha, log, top, alternative, inferenceFallback, twinVariant })),
   generatedAt: new Date().toISOString(),
 });
 
