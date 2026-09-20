@@ -38,8 +38,8 @@ jobs:
             [ "$run_sha" = "$EXPECTED_SHA" ] && continue
 
             echo "Cancelling stale run $run_id ($run_name) sha=$run_sha branch=$run_branch"
-            if ! gh run cancel "$run_id"; then
-              status="$(gh run view "$run_id" --json status --jq '.status')"
+            if ! gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then
+              status="$(gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --json status --jq '.status')"
               if [ "$status" != "completed" ]; then
                 echo "FAIL CLOSED: could not cancel stale active run $run_id (status=$status)" >&2
                 exit 1
