@@ -16,8 +16,6 @@ const ROLE_BY_BOT = Object.freeze({
 });
 
 const ROOT = process.cwd();
-const VAULT = path.resolve(ROOT, 'diagnostics/auto-repair/action-vault');
-const BOT_DIR = path.resolve(ROOT, 'diagnostics/auto-repair/action-repair-bots');
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const exists = (file) => fs.existsSync(file);
@@ -171,7 +169,7 @@ export function runGate(root = ROOT) {
       err(errors, 'BOT_PROFILE_MISSING', bot);
       return null;
     }
-    try { return readJson(file); } catch (error) {
+    try { return readJson(file); } catch {
       err(errors, 'BOT_PROFILE_INVALID_JSON', bot);
       return null;
     }
