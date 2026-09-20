@@ -24,7 +24,6 @@ const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
 const fingerprint = fingerprintFailure(log);
-const stableCaseFingerprint = String(process.env.FLIXO_FAILURE_FINGERPRINT ?? '').trim() || fingerprint;
 const repairChainId = String(process.env.FLIXO_REPAIR_CHAIN_ID ?? process.env.TARGET_RUN_ID ?? '').trim();
 const normalizedFailure = normalizeFailure(log);
 const features = extractFeatures(log);
@@ -62,7 +61,9 @@ const prepareTargetedVerification = (currentLog, currentFeatures) => {
     reason: reproductionStability.classification === 'REPRODUCIBLE_FAILURE' ? null : 'baseline-not-reproducible:' + reproductionStability.classification,
   };
 };
-const attemptLedger = loadAttemptLedger(process.env.FLIXO_REPAIR_ATTEMPT_LEDGER ?? '/tmp/flixo-repair-attempt-ledger.json', { chainId: repairChainId, caseFingerprint: stableCaseFingerprint });
+const attemptLedger = loadAttemptLedger(process.env.FLIXO_REPAIR_ATTEMPT_LEDGER ?? '/tmp/flixo-repair-attempt-ledger.json', { chainId: repairChainId });
+const stableCaseFingerprint = String(process.env.FLIXO_FAILURE_FINGERPRINT ?? '').trim() || attemptLedger.caseFingerprint || fingerprint;
+attemptLedger.caseFingerprint = stableCaseFingerprint;
 const memory = loadMemory();
 const known = findCase(memory, fingerprint);
 const similar = findSimilarCases(memory, { fingerprint, normalized: normalizedFailure, features });
