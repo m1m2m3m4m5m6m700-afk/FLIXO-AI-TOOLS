@@ -14,9 +14,9 @@ const expectedSha = String(process.env.FLIXO_EXPECTED_TARGET_SHA ?? '').trim();
 const attempt = Math.max(1, Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1));
 
 if (process.env.FLIXO_TWIN_READ_ONLY !== 'true') throw new Error('TWIN_READ_ONLY_CONTRACT_REQUIRED');
-if (execFileSync('git', ['-C', root, 'branch', '--show-current'], { encoding: 'utf8' }).trim() !== 'execution') {
-  throw new Error('TWIN_EXECUTION_BRANCH_REQUIRED');
-}
+const branch = execFileSync('git', ['-C', root, 'branch', '--show-current'], { encoding: 'utf8' }).trim();
+const detached = process.env.FLIXO_TWIN_DETACHED === 'true';
+if (branch !== 'execution' && !(detached && branch === '')) throw new Error('TWIN_EXECUTION_REF_REQUIRED');
 const currentSha = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 if (expectedSha && currentSha !== expectedSha) throw new Error(`TWIN_EXACT_SHA_MISMATCH:${currentSha}:${expectedSha}`);
 
