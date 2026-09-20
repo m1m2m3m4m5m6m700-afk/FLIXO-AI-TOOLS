@@ -22,6 +22,9 @@ export type PipelineReceiptChain = Readonly<{
   schemaVersion: '1';
   catalogFingerprint: string;
   planFingerprint: string;
+  taskId: string;
+  traceId: string;
+  taskRevision: number;
   steps: readonly PipelineStepReceipt[];
   chainSha256: string;
 }>;
@@ -77,13 +80,24 @@ async function sha256Text(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export function createPipelineReceiptChain(catalogFingerprint: string, planFingerprint: string): PipelineReceiptChain {
+export function createPipelineReceiptChain(
+  catalogFingerprint: string,
+  planFingerprint: string,
+  taskId: string,
+  traceId: string,
+  taskRevision: number,
+): PipelineReceiptChain {
   if (catalogFingerprint !== TOOL_CATALOG.fingerprint) throw new Error('Pipeline receipt chain catalog fingerprint is stale.');
   if (!SHA256_PATTERN.test(planFingerprint)) throw new Error('Pipeline receipt chain plan fingerprint is invalid.');
+  if (!taskId.trim() || !traceId.trim()) throw new Error('Pipeline receipt chain task identity is required.');
+  if (!Number.isInteger(taskRevision) || taskRevision < 0) throw new Error('Pipeline receipt chain task revision is invalid.');
   return Object.freeze({
     schemaVersion: '1',
     catalogFingerprint,
     planFingerprint,
+    taskId,
+    traceId,
+    taskRevision,
     steps: Object.freeze([]),
     chainSha256: EMPTY_CHAIN_SHA256,
   });
@@ -112,6 +126,9 @@ export async function appendPipelineStepReceipt(
     schemaVersion: '1',
     catalogFingerprint: chain.catalogFingerprint,
     planFingerprint: chain.planFingerprint,
+    taskId: chain.taskId,
+    traceId: chain.traceId,
+    taskRevision: chain.taskRevision,
     steps: Object.freeze([...chain.steps, receipt]),
     chainSha256,
   });
@@ -125,11 +142,13 @@ export async function assertPipelineReceiptChain(
   if (chain.schemaVersion !== '1') throw new Error('Unsupported pipeline receipt chain schema version.');
   if (chain.catalogFingerprint !== TOOL_CATALOG.fingerprint) throw new Error('Pipeline receipt chain catalog fingerprint is stale.');
   if (!SHA256_PATTERN.test(chain.planFingerprint)) throw new Error('Pipeline receipt chain plan fingerprint is invalid.');
+  if (!chain.taskId.trim() || !chain.traceId.trim()) throw new Error('Pipeline receipt chain task identity is missing.');
+  if (!Number.isInteger(chain.taskRevision) || chain.taskRevision < 0) throw new Error('Pipeline receipt chain task revision is invalid.');
   if (plan) {
     const expectedPlanFingerprint = await createPipelinePlanFingerprint(plan);
     if (expectedPlanFingerprint !== chain.planFingerprint) throw new Error('Pipeline receipt chain plan fingerprint does not match the execution plan.');
   }
-  let rebuilt = createPipelineReceiptChain(chain.catalogFingerprint, chain.planFingerprint);
+  let rebuilt = createPipelineReceiptChain(chain.catalogFingerprint, chain.planFingerprint, chain.taskId, chain.traceId, chain.taskRevision);
   for (const receipt of chain.steps) {
     rebuilt = await appendPipelineStepReceipt(rebuilt, receipt);
   }
