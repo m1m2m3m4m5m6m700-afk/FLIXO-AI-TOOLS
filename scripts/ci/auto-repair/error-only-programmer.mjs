@@ -14,6 +14,7 @@ const DRIVER_DEFINITIONS = Object.freeze({
   'prettier-deterministic': Object.freeze({ deterministic: true, maxScope: 'exact-file', class: 'format' }),
   'prepared-source-change': Object.freeze({ deterministic: true, maxScope: 'declared-affected-source', class: 'prepared' }),
   'typescript-missing-import': Object.freeze({ deterministic: true, maxScope: 'exact-file', class: 'typescript', requires: 'TS2304_CAN_T_FIND_NAME' }),
+  'typescript-async-return-contract': Object.freeze({ deterministic: true, maxScope: 'exact-file', class: 'typescript', requires: 'TS1064_ASYNC_PROMISE_RETURN' }),
 });
 
 const DRIVER_BY_RULE = Object.freeze({
@@ -21,11 +22,13 @@ const DRIVER_BY_RULE = Object.freeze({
   'prettier-file': 'prettier-deterministic',
   'prepared-source-change': 'prepared-source-change',
   'typescript-missing-import': 'typescript-missing-import',
+  'typescript-async-contract': 'typescript-async-return-contract',
 });
 
 function exactSha(value) { return SHA_RE.test(String(value ?? '')); }
 function normalizePath(value) { return String(value ?? '').trim().replace(/\\/g, '/').replace(/^\.\//u, ''); }
 function tsMissingImportSignal(log) { return /TS2304\b|Cannot find name ['\"]/iu.test(String(log ?? '')); }
+function tsAsyncContractSignal(log) { return /TS1064\b|return type of an async function|Did you mean to write ['\"]?Promise/iu.test(String(log ?? '')); }
 function deriveSemanticSourceSlice({ targetDir = process.cwd(), location = null } = {}) {
   const file = normalizePath(location?.file);
   const line = Number(location?.line ?? 0);
@@ -64,6 +67,7 @@ export function classifyRepairTarget({ diagnosis = null, selected = null } = {})
   if (diagnosis?.rootCause === 'UNKNOWN_RCA') problems.push('ERROR_UNKNOWN_RCA_BLOCKED');
   if (diagnosis?.ambiguity === true) problems.push('ERROR_AMBIGUOUS_CAUSALITY_BLOCKED');
   if (rule === 'typescript-missing-import' && !tsMissingImportSignal(diagnosis?.failureLog ?? diagnosis?.log ?? '')) problems.push('ERROR_TS_MISSING_IMPORT_SIGNAL_REQUIRED');
+  if (rule === 'typescript-async-contract' && !tsAsyncContractSignal(diagnosis?.failureLog ?? diagnosis?.log ?? '')) problems.push('ERROR_TS_ASYNC_CONTRACT_SIGNAL_REQUIRED');
 
   return Object.freeze({
     targetFile: file || null,
