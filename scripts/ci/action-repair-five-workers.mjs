@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import { query as queryHistoricalActionErrors } from './historical-action-error-index.mjs';
 
 const ROOT=process.cwd();
-const REGISTRY=path.join(ROOT,'docs/agents/CELL-BOT-REGISTRY.json');
+const REGISTRY=path.join(ROOT,'docs/agents/ACTION-REPAIR-SQUAD-REGISTRY.json');
 const SHARED_REFS=[
   'docs/agents/historical-action-errors/index.json',
   'docs/agents/historical-action-errors/records',
@@ -16,11 +16,11 @@ const SHARED_REFS=[
   'docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md'
 ];
 const ROLE_MAP=Object.freeze({
-  'CELL-001':'ACTION_SOLUTION_INDEXER',
-  'CELL-002':'ACTION_SYSTEM_WAKE_COORDINATOR',
-  'CELL-003':'ACTION_REPAIR_TWIN_A',
-  'CELL-004':'ACTION_REPAIR_TWIN_B',
-  'CELL-005':'ACTION_BEST_OPTION_SELECTOR'
+  'ACTION-001':'ACTION_SOLUTION_INDEXER',
+  'ACTION-002':'ACTION_SYSTEM_WAKE_COORDINATOR',
+  'ACTION-003':'ACTION_REPAIR_TWIN_A',
+  'ACTION-004':'ACTION_REPAIR_TWIN_B',
+  'ACTION-005':'ACTION_BEST_OPTION_SELECTOR'
 });
 const sha=v=>/^[a-f0-9]{40}$/iu.test(String(v??''));
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):String(fallback)};
@@ -35,9 +35,8 @@ const normalize=s=>String(s??'').replace(new RegExp(String.fromCharCode(27)+'\\[
 const digest=s=>crypto.createHash('sha256').update(String(s),'utf8').digest('hex');
 const requireIdentity=()=>{if(!sha(targetSha))throw new Error('FIVE_ACTION_REPAIR_TARGET_SHA_INVALID');if(!runId)throw new Error('FIVE_ACTION_REPAIR_RUN_ID_REQUIRED');if(!fingerprint)throw new Error('FIVE_ACTION_REPAIR_FINGERPRINT_REQUIRED')};
 const registry=readJson(REGISTRY);
-const cohort=registry.actionRepairCohort;
-const workerIds=cohort.workerIds;
-if(!Array.isArray(workerIds)||workerIds.length!==5||new Set(workerIds).size!==5)throw new Error('FIVE_ACTION_REPAIR_COHORT_INVALID');
+const workerIds=Array.isArray(registry.workers)?registry.workers.map(worker=>worker.id):[];
+if(!Array.isArray(workerIds)||workerIds.length!==5||new Set(workerIds).size!==5||workerIds.some(id=>!/^ACTION-\d{3}$/u.test(id)))throw new Error('FIVE_ACTION_REPAIR_SQUAD_REGISTRY_INVALID');
 const missing=SHARED_REFS.filter(ref=>!fs.existsSync(path.join(ROOT,ref)));
 if(missing.length)throw new Error('FIVE_ACTION_REPAIR_SHARED_REFERENCE_MISSING='+missing.join(','));
 const rawLog=logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'';
@@ -91,13 +90,13 @@ if(role==='wake'){
  const branch=arg('branch','execution');
  if(branch!=='execution')throw new Error('ACTION_WAKE_BRANCH_BLOCKED');
  if(!['PUSH_READY','RED_INTERNAL','BLOCKED_EXTERNAL','FAIL_CLOSED'].includes(status))throw new Error('ACTION_WAKE_STATUS_NOT_ACTIONABLE');
- const result={schemaVersion:1,botId:'CELL-002',role:ROLE_MAP['CELL-002'],action:'WAKE_WHOLE_CELL',dispatcher:'FLIXO Execution Bot Watchdog',targetRunId:runId,targetSha,failureFingerprint:fingerprint,status,mutationAuthority:false,directDispatch:false,wholeCellReady:true,sharedReferences:SHARED_REFS,canonicalNextStep:status==='PUSH_READY'?'DAILY_FLIXO_GREEN_GATE':'EXISTING_CANONICAL_DISPATCHER'};
+ const result={schemaVersion:1,botId:'ACTION-002',role:ROLE_MAP['ACTION-002'],action:'WAKE_ACTION_REPAIR_SQUAD',dispatcher:'FLIXO Execution Bot Watchdog',targetRunId:runId,targetSha,failureFingerprint:fingerprint,status,mutationAuthority:false,directDispatch:false,wholeCellReady:true,sharedReferences:SHARED_REFS,canonicalNextStep:status==='PUSH_READY'?'DAILY_FLIXO_GREEN_GATE':'EXISTING_CANONICAL_DISPATCHER'};
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));process.exit(0);
 }
 if(role==='index'){
  requireIdentity();
  const records=historicalSolutions(12);
- const result={schemaVersion:1,botId:'CELL-001',role:ROLE_MAP['CELL-001'],targetSha,runId,failureFingerprint:fingerprint,logDigest,queryTerms:topTerms,historicalMatchCount:records.length,historicalMatches:records,sameReferences:true,sharedReferences:SHARED_REFS,mutationAuthority:false,recommendation:records.length?'HISTORICAL_CANDIDATES_FOUND':'NO_HISTORICAL_MATCH'};
+ const result={schemaVersion:1,botId:'ACTION-001',role:ROLE_MAP['ACTION-001'],targetSha,runId,failureFingerprint:fingerprint,logDigest,queryTerms:topTerms,historicalMatchCount:records.length,historicalMatches:records,sameReferences:true,sharedReferences:SHARED_REFS,mutationAuthority:false,recommendation:records.length?'HISTORICAL_CANDIDATES_FOUND':'NO_HISTORICAL_MATCH'};
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify({status:'PASS',role,resultCount:records.length,output:out},null,2));process.exit(0);
 }
 if(role==='select'){
@@ -109,10 +108,10 @@ if(role==='select'){
  const twinA=aFile&&fs.existsSync(aFile)?readJson(aFile):null;
  const twinB=bFile&&fs.existsSync(bFile)?readJson(bFile):null;
  const selection=selectBest({historical,twinA,twinB});
- const result={schemaVersion:1,botId:'CELL-005',role:ROLE_MAP['CELL-005'],targetSha,runId,failureFingerprint:fingerprint,mutationAuthority:false,canonicalMutationOwner:'repairAgent',historicalSolutionCount:historical.length,twinAAvailable:Boolean(twinA),twinBAvailable:Boolean(twinB),selection};
+ const result={schemaVersion:1,botId:'ACTION-005',role:ROLE_MAP['ACTION-005'],targetSha,runId,failureFingerprint:fingerprint,mutationAuthority:false,canonicalMutationOwner:'repairAgent',historicalSolutionCount:historical.length,twinAAvailable:Boolean(twinA),twinBAvailable:Boolean(twinB),selection};
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));process.exit(selection.disposition==='SELECTED'?0:2);
 }
 const logExists=Boolean(logPath&&fs.existsSync(logPath));
 const packets=workerIds.map((id,i)=>({schemaVersion:1,workerId:id,workerIndex:i+1,role:ROLE_MAP[id],taskId:'ACTION-REPAIR:'+runId+':'+fingerprint,target:{runId,failedSha:targetSha,failureFingerprint:fingerprint,logDigest},sharedReferences:SHARED_REFS,sameIncidentContext:true,mutationAuthority:false,canonicalMutationOwner:'repairAgent',proofRule:'CURRENT_EXACT_SHA_CI_ONLY'}));
-const report={schemaVersion:2,authority:'CELL_ACTION_REPAIR_WORKER_FANOUT',workerCount:5,workers:packets,sharedReferences:SHARED_REFS,sameReferencesForAll:true,anyActionFailureAdmitted:true,roleOrder:workerIds.map(id=>ROLE_MAP[id]),mutationModel:'FIVE_ROLES_ONE_CANONICAL_MUTATION_LANE',wakeModel:'CELL-002_TO_EXISTING_CANONICAL_DISPATCHER',selectionModel:'CELL-001+CELL-003+CELL-004_TO_CELL-005',logEvidencePresent:logExists,generatedAt:new Date().toISOString()};
+const report={schemaVersion:2,authority:'ACTION_REPAIR_SQUAD_FANOUT',workerCount:5,workers:packets,sharedReferences:SHARED_REFS,sameReferencesForAll:true,anyActionFailureAdmitted:true,roleOrder:workerIds.map(id=>ROLE_MAP[id]),mutationModel:'FIVE_ROLES_ONE_CANONICAL_MUTATION_LANE',wakeModel:'ACTION-002_TO_EXISTING_CANONICAL_DISPATCHER',selectionModel:'ACTION-001+ACTION-003+ACTION-004_TO_ACTION-005',logEvidencePresent:logExists,generatedAt:new Date().toISOString()};
 fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({status:'PASS',workerCount:5,roles:report.roleOrder,targetSha,runId,fingerprint,output:out},null,2));
