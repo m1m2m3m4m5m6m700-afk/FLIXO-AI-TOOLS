@@ -448,7 +448,12 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     setRecordRenderBackend(gpuRenderer ? 'webgl2' : 'canvas2d');
 
     const measuredMs = gpuRenderer ? benchmark.gpuMs : benchmark.baselineMs;
-    const frameRate = Number.isFinite(measuredMs ?? Number.POSITIVE_INFINITY) && (measuredMs ?? 0) > 20 ? 24 : 30;
+    const sourceFrameRate = stream.getVideoTracks()[0]?.getSettings().frameRate ?? 30;
+    const frameRate = Number.isFinite(measuredMs ?? Number.POSITIVE_INFINITY) && (measuredMs ?? 0) <= 14 && sourceFrameRate >= 50
+      ? 60
+      : Number.isFinite(measuredMs ?? Number.POSITIVE_INFINITY) && (measuredMs ?? 0) > 20
+        ? 24
+        : 30;
     const outputStream = canvas.captureStream(frameRate);
     const audioTrack = stream.getAudioTracks()[0];
     if (audioTrack) outputStream.addTrack(audioTrack);
