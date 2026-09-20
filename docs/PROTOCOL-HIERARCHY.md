@@ -21,7 +21,7 @@ When rules appear to conflict, precedence is:
 6. Testing, certification, collaboration, coordination, and recovery procedures.
 7. CI performance and operational optimization.
 
-A lower-level rule MUST NOT weaken or override a higher-level invariant. In particular, no workflow, agent, session budget, timeout, lease, queue, retry policy, or manual-control rule may terminate or suspend the resident automation plane while work remains open. Speed, convenience, retries, sharding, or ownership changes are never valid reasons to reduce required correctness or evidence.
+A lower-level rule MUST NOT weaken or override a higher-level invariant. In particular, no workflow, agent, session budget, timeout, lease, queue, retry policy, or manual-control rule may terminate or suspend the resident automation plane while work remains open. Speed, convenience, retries, sharding, or ownership changes are never valid reasons to reduce required correctness or evidence. For push/synchronize test execution, older branch-head runs are stale and must be canceled or fail closed; only the newest exact branch head can provide current test evidence.
 
 ## Canonical Protocol Families
 
