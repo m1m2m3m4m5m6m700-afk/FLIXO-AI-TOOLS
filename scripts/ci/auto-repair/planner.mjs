@@ -140,9 +140,9 @@ export function planRepair(log, { historical = [], memory } = {}) {
     ? 'prepared-source-change'
     : useCausalSelection
       ? causalSelectedRule
-      : /TS1064\\b|return type of an async function|Did you mean to write ['"]?Promise/iu.test(log)
+      : /TS1064\b|return type of an async function|Did you mean to write ['"]?Promise/iu.test(log)
         ? 'typescript-async-contract'
-        : /TS2304\\b|Cannot find name ['\"]/iu.test(log)
+        : /TS2304\b|Cannot find name ["']/iu.test(log)
         ? 'typescript-missing-import'
         : inferenceEligible && inferenceFallback.hypothesis.strategyId
         ? inferenceFallback.hypothesis.strategyId
@@ -177,7 +177,7 @@ export function planRepair(log, { historical = [], memory } = {}) {
         ? selectedCandidate.file
         : reasoning.location?.file ?? null,
       symbol: selectedCandidate.id === 'typescript-missing-import'
-        ? String(log.match(/Cannot find name ['\"]([^'\"]+)['\"]/iu)?.[1] ?? '').trim()
+        ? String(log.match(/Cannot find name ["']([^'\"]+)["']/iu)?.[1] ?? '').trim()
         : undefined,
       diagnosticCode: selectedCandidate.id === 'typescript-missing-import' ? 'TS2304' : selectedCandidate.id === 'typescript-async-contract' ? 'TS1064' : undefined,
       diagnosticLine: reasoning.location?.line ?? null,
