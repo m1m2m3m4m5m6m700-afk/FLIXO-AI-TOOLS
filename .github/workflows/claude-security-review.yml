@@ -23,16 +23,16 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
       - name: Fail closed when this commit is superseded
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
           EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
         run: node scripts/ci/assert-current-commit.mjs
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 2
 
       - name: Check whether Claude API key is configured
         id: key-check
