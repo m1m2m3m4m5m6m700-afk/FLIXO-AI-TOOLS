@@ -115,7 +115,6 @@ This proves the default-branch bootstrap workflow is registered and executable. 
             DEPUTY|TASK|EXECUTION|REVIEW|CERTIFICATION)
               echo "EXTERNAL_AGENT_WAKE_REQUIRED role=$ROLE"
               ;;
-              ;;
             *)
               echo "FAIL_CLOSED_UNSUPPORTED_ROLE=$ROLE"
               exit 1
