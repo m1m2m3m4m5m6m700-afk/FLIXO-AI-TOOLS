@@ -37,7 +37,10 @@
     "FIRST_SEEN_DETECTION",
     "MASTER_ESCALATION",
     "GREEN_CHAIN_INTERPRETATION",
-    "EXTERNAL_BLOCK_CLASSIFICATION"
+    "EXTERNAL_BLOCK_CLASSIFICATION",
+    "CODE_MENTOR_GUIDANCE",
+    "TYPE_AND_CONTRACT_REVIEW",
+    "CI_CODE_PATTERN_TEACHING"
   ],
   "sharedSources": [
     "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
@@ -55,7 +58,9 @@
     "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
     "docs/agents/ACTION-AGENT-RUNTIME-PROTOCOL.md",
     "docs/agents/historical-action-errors/agent-activity/index.json",
-    "docs/agents/historical-action-errors/agent-activity"
+    "docs/agents/historical-action-errors/agent-activity",
+    "diagnostics/auto-repair/action-vault/ACTION-CODE-MENTOR.json",
+    "scripts/ci/action-code-mentor.mjs"
   ],
   "safetyBoundary": {
     "intelligenceDoesNotImplyMutationAuthority": true,
@@ -174,6 +179,24 @@
       "exactShaRequired": true,
       "canonicalGreenRequired": true,
       "runtimePacket": "scripts/ci/action-agent-runtime.mjs"
+    },
+    "mentorship": {
+      "enabled": true,
+      "provider": "ACTION-CODE-MENTOR",
+      "parentBot": "ACTION-REPAIR",
+      "readOnly": true,
+      "exactShaRequired": true,
+      "invokeBeforeOwnerMutation": true,
+      "invokeDuringSelfCheck": true,
+      "learners": [
+        "ACTION-REPAIR",
+        "ACTION-REPAIR-2",
+        "ACTION-HISTORIAN-3"
+      ],
+      "packet": "CODE_MENTOR_PACKET_V1",
+      "provisionalDuringRed": true,
+      "promotedOnlyAfterCanonicalGreen": true,
+      "hardRule": "MENTOR_GUIDANCE_MUST_NEVER_BE_TREATED_AS_PROOF_OR_AUTHORITY"
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
