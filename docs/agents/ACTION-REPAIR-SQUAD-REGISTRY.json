@@ -411,5 +411,73 @@
       "canonicalGreenAuthority": "DAILY_FLIXO_GREEN_GATE",
       "downstreamExecutor": "ACTION-REPAIR"
     }
+  },
+  "pairedRepairControl": {
+    "id": "ACTION-REPAIR-PAIR",
+    "headquarters": "docs/agents/historical-action-errors",
+    "primary": {
+      "id": "ACTION-REPAIR",
+      "displayName": "بوت إصلاح Actions 1",
+      "mutationAuthority": true,
+      "approvalAuthority": true
+    },
+    "assistant": {
+      "id": "ACTION-REPAIR-2",
+      "displayName": "بوت مساعد إصلاح Actions",
+      "mutationAuthority": true,
+      "executionAuthority": "MUTATION_GATED_BY_ACTION_REPAIR",
+      "approvalRequiredFrom": "ACTION-REPAIR",
+      "canPrepare": true,
+      "canAudit": true,
+      "canLearn": true,
+      "canWriteRepository": false,
+      "canBypassPrimary": false
+    },
+    "binding": {
+      "sameHeadquarters": true,
+      "sameFailureFingerprint": true,
+      "sameExactSha": true,
+      "sharedMissionIdRequired": true,
+      "mutualHeartbeatRequired": true,
+      "freezeDetection": true,
+      "failClosedOnMissingHeartbeat": true,
+      "failClosedOnApprovalMismatch": true,
+      "noIndependentPromotion": true
+    },
+    "nonGreenLearning": {
+      "recordEveryRedNotGreen": true,
+      "source": "CURRENT_ACTION_RUN + historical-action-errors + repair-memory",
+      "durablePath": "diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-2.json",
+      "promotion": "ONLY_AFTER_CANONICAL_GREEN",
+      "nonGreenPersistence": "ARTIFACT_AND_NEXT_MISSION_CONTEXT"
+    }
+  },
+  "assistant": {
+    "id": "ACTION-REPAIR-2",
+    "displayName": "بوت مساعد إصلاح Actions",
+    "kind": "ACTION_REPAIR_ASSISTANT",
+    "status": "READY",
+    "role": "ACTION_REPAIR_ASSISTANT",
+    "mission": "Audit every RED case, retain every non-green case for learning, challenge ACTION-REPAIR, prepare repair proposals, and execute only after explicit machine approval from ACTION-REPAIR.",
+    "protocolActor": "actionRepairAssistant",
+    "workflow": ".github/workflows/auto-repair.yml",
+    "engine": "scripts/ci/auto-repair-engine.mjs",
+    "headquarters": "docs/agents/historical-action-errors",
+    "mutationAuthority": true,
+    "executionAuthority": "MUTATION_GATED_BY_ACTION_REPAIR",
+    "requiredApprover": "ACTION-REPAIR",
+    "mutationScope": "ERROR_ONLY",
+    "branch": "execution",
+    "canMutateMain": false,
+    "canMutateTests": false,
+    "canMutateProtectedControlPlane": false,
+    "directActionSearch": true,
+    "selfLearning": true,
+    "auditAuthority": true,
+    "nonGreenRecorder": true,
+    "permanentMemory": "diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-2.json",
+    "approvalProtocol": "scripts/ci/action-repair-dual-control.mjs",
+    "canFreezeRepair": false,
+    "partnerRequired": "ACTION-REPAIR"
   }
 }
