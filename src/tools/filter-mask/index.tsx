@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LIVE_FILTER_FAMILIES, LIVE_FILTER_REGISTRY, getLiveFilter } from './registry';
-import { FILTER_MASK_ASPECT_RATIOS, parseFilterMaskHandoff, type FilterMaskParameters } from './handoff';
+import { FILTER_MASK_ASPECT_RATIOS, FILTER_MASK_CAPTURE_QUALITIES, parseFilterMaskHandoff, type FilterMaskParameters } from './handoff';
 import { FILTER_MASK_I18N } from './locales';
 import type { Locale } from '@/lib/i18n';
 
@@ -74,12 +74,14 @@ function writeStoredPresets(presets: readonly FilterMaskPreset[]) {
 const canvasDimensions = (
   video: HTMLVideoElement,
   aspectRatio: FilterMaskParameters['aspectRatio'],
+  captureQuality: FilterMaskParameters['captureQuality'],
 ): { width: number; height: number } => {
   const [rawWidth, rawHeight] = aspectRatio.split(':').map(Number);
   const ratio = rawWidth / rawHeight;
   const sourceWidth = video.videoWidth || 1280;
   const sourceHeight = video.videoHeight || 720;
-  const longSide = Math.min(1280, Math.max(sourceWidth, sourceHeight));
+  const maxLongSide = captureQuality === '1080p' ? 1920 : 1280;
+  const longSide = Math.min(maxLongSide, Math.max(sourceWidth, sourceHeight));
 
   if (ratio >= 1) {
     return { width: Math.round(longSide), height: Math.round(longSide / ratio) };
@@ -175,6 +177,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   const [mirror, setMirror] = useState(handoff?.parameters.mirror ?? true);
   const [torch, setTorch] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<FilterMaskParameters['aspectRatio']>(handoff?.parameters.aspectRatio ?? '9:16');
+  const [captureQuality, setCaptureQuality] = useState<FilterMaskParameters['captureQuality']>(handoff?.parameters.captureQuality ?? '1080p');
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
   const [capturedKind, setCapturedKind] = useState<'photo' | 'video' | null>(null);
 
@@ -210,8 +213,9 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     params.set('zoom', String(zoom));
     params.set('mirror', String(mirror));
     params.set('aspectRatio', aspectRatio);
+    params.set('captureQuality', captureQuality);
     window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params.toString()}`);
-  }, [selected.canonicalId, aspectRatio, intensity, mirror, zoom]);
+  }, [selected.canonicalId, aspectRatio, captureQuality, intensity, mirror, zoom]);
 
   useEffect(() => () => {
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
@@ -242,8 +246,8 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: facingMode },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
+            width: { ideal: captureQuality === '1080p' ? 1920 : 1280 },
+            height: { ideal: captureQuality === '1080p' ? 1080 : 720 },
           },
           audio: true,
         });
@@ -399,7 +403,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       return;
     }
 
-    const dimensions = canvasDimensions(video, aspectRatio);
+    const dimensions = canvasDimensions(video, aspectRatio, captureQuality);
     const canvas = document.createElement('canvas');
     canvas.width = dimensions.width;
     canvas.height = dimensions.height;
@@ -728,6 +732,20 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
             onClick={() => setAspectRatio(ratio)}
           >
             {ratio}
+          </button>
+        ))}
+      </div>
+
+      <div role="group" aria-label={copy.captureQuality} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {FILTER_MASK_CAPTURE_QUALITIES.map((quality) => (
+          <button
+            key={quality}
+            type="button"
+            aria-pressed={captureQuality === quality}
+            disabled={recording}
+            onClick={() => setCaptureQuality(quality)}
+          >
+            {quality === '1080p' ? copy.quality1080 : copy.quality720}
           </button>
         ))}
       </div>
