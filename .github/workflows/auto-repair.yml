@@ -313,6 +313,30 @@ jobs:
           FLIXO_HISTORICAL_LEARNING_OUTPUT: /tmp/flixo-historical-learning.json
         run: node /tmp/flixo-repair-controller/scripts/ci/learn-from-historical-actions.mjs
 
+      - name: Run persistent repair-bot teaching sessions
+        id: teaching_sessions
+        env:
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_CURRENT_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
+          TARGET_RUN_ID: ${{ env.TARGET_RUN_ID }}
+          FLIXO_TEACHING_SESSIONS_OUTPUT: /tmp/flixo-teaching-sessions.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-teaching-sessions.mjs
+          test -s /tmp/flixo-teaching-sessions.json
+          jq -e '.exactShaRequired == true and (.sessions | length) == 10 and .closure.result == "OPEN_UNTIL_PROVEN"' /tmp/flixo-teaching-sessions.json >/dev/null
+          echo "FLIXO_TEACHING_SESSIONS_PATH=/tmp/flixo-teaching-sessions.json" >> "$GITHUB_ENV"
+
+      - name: Publish repair teaching packet
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-repair-teaching-sessions-${{ github.run_id }}
+          path: /tmp/flixo-teaching-sessions.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Capture failed CI logs before dependency installation
         env:
           GH_TOKEN: ${{ github.token }}
