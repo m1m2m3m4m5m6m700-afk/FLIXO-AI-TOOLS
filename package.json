@@ -93,6 +93,7 @@
     "test:build-identity": "node scripts/ci/test-build-identity-contract.mjs",
     "test:diagnose": "node scripts/test.mjs --mode=diagnose",
     "test:static": "node scripts/test.mjs --mode=diagnose --gate=static",
+    "test:error-learning-log": "node scripts/ci/test-error-learning-log-50000.mjs",
     "test:build": "node scripts/test.mjs --mode=diagnose --gate=build",
     "test:browser": "node scripts/test.mjs --mode=diagnose --gate=browser",
     "audit:technical-debt": "node scripts/ci/audit-technical-debt.mjs",
