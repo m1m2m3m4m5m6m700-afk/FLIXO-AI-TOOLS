@@ -53,6 +53,7 @@ export async function verifyPipelineOutput(toolId: string, inputBlob: Blob, outp
 }
 
 export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan, onProgress: (progress: PipelineProgress) => void): Promise<Blob> {
+  if (plan.catalogFingerprint !== TOOL_CATALOG.fingerprint) throw new Error('Execution plan is stale because the canonical tool catalog changed.');
   if (plan.steps.length === 0 || plan.steps.length > 4) throw new Error('FLIXO plans must contain 1 to 4 steps.');
   let currentBlob: Blob = initialFile;
 
