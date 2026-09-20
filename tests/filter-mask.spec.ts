@@ -165,5 +165,26 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(page).toHaveURL(/\/en\/filter-mask\?canonicalId=effect\.warm&intensity=65/);
     await expect(page.getByRole('button', { name: /Warm effect\.warm/ }).first()).toHaveAttribute('aria-pressed', 'true');
   });
+  test('persists favorites and exposes recent filter shortcuts', async ({ page }) => {
+    await page.goto('/en/filter-mask');
+    const section = page.getByRole('region', { name: 'Filter Mask' });
+    const warm = section.getByRole('button', { name: /Warm effect\.warm/ }).first();
+
+    await warm.click();
+    const favorite = section.getByRole('button', { name: /Favorite/ }).first();
+    await favorite.click();
+    await expect(favorite).toHaveAttribute('aria-pressed', 'true');
+
+    await expect(section.getByRole('group', { name: 'Recent filters' })).toContainText('Warm');
+
+    await section.getByRole('button', { name: 'Reset filter' }).click();
+    await expect(section.getByRole('button', { name: /Original effect\.original/ }).first()).toHaveAttribute('aria-pressed', 'true');
+
+    await page.reload();
+    const reloaded = page.getByRole('region', { name: 'Filter Mask' });
+    await reloaded.getByRole('button', { name: 'Favorites' }).click();
+    await expect(reloaded.getByRole('button', { name: /Warm effect\.warm/ }).first()).toHaveAttribute('aria-pressed', 'true');
+  });
+
 
 });
