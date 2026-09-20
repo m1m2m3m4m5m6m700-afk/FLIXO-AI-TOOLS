@@ -23,21 +23,21 @@ const baseName = (name: string) => name.replace(/\.[^.]+$/, '') || 'flixo-output
 export const TOOL_CHAIN_ADAPTERS: Readonly<Record<string, ToolChainAdapterDefinition>> = Object.freeze({
   'image-converter': Object.freeze({
     parameters: Object.freeze({ format: 'image/webp' }),
-    execute: async ({ blob, fileName }) => ({
+    execute: async ({ blob, fileName }: ChainInput) => ({
       blob: await convertImage(blob, 'image/webp'),
       fileName: baseName(fileName) + '.webp',
     }),
   }),
   'image-upscaler': Object.freeze({
     parameters: Object.freeze({ scale: 2 }),
-    execute: async ({ blob, fileName }) => ({
+    execute: async ({ blob, fileName }: ChainInput) => ({
       blob: await resizeImage(blob, 2),
       fileName: baseName(fileName) + '-2x.png',
     }),
   }),
   'background-remover': Object.freeze({
     parameters: Object.freeze({ tolerance: 42 }),
-    execute: async ({ blob, fileName }) => ({
+    execute: async ({ blob, fileName }: ChainInput) => ({
       blob: await removeBackground(blob, 42),
       fileName: baseName(fileName) + '-no-background.png',
     }),
