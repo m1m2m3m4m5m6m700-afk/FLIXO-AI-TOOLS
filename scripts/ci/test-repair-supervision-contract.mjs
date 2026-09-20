@@ -9,9 +9,17 @@ const dailyGate = read('.github/workflows/daily-flixo-green-gate.yml');
 const liveness = read('scripts/ci/agent-liveness-protocol.mjs');
 const lease = read('scripts/ci/repair-lease.mjs');
 const intake = read('.github/workflows/repair-agent-intake.yml');
+const masterActivation = read('.github/workflows/agent-master-activation.yml');
+const autoRepair = read('.github/workflows/auto-repair.yml');
 const master = read('AI_AGENT_MASTER_PROMPT.md');
 const livenessDoc = read('docs/agents/AGENT-LIVENESS-PROTOCOL.md');
 
+assert.match(watchdog, /cancel-in-progress:\s*false/);
+assert.match(watchdog, /github\.event_name == 'workflow_run' && github\.event\.workflow_run\.head_sha \|\| 'execution'/);
+assert.match(watchdog, /--commit "\$EXECUTION_SHA"/);
+assert.match(masterActivation, /cancel-in-progress:\s*false/);
+assert.match(autoRepair, /needs\.adversarial_twin\.result/);
+assert.doesNotMatch(autoRepair, /needs\.adversarial_twin\.result != 'cancelled'/);
 assert.match(watchdog, /workflow_run:/);
 assert.match(twin, /adversarial_twin:/);
 assert.match(twin, /contents:\s+read/);
