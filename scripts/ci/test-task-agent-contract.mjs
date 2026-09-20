@@ -41,4 +41,4 @@ assert.ok(!repairProtocol.includes("mutationAgents: ['repairAgent','implementati
 assert.equal(packageJson.scripts['agent:task'], 'node scripts/ci/task-agent.mjs');
 assert.equal(packageJson.scripts['test:agent-admission'], 'node scripts/ci/test-agent-admission.mjs');
 
-console.log(JSON.stringify({ status: 'PASS', authority: 'TASK_AGENT_CONTRACT_TEST', checks: 20 }, null, 2));
+console.log(JSON.stringify({ status: 'PASS', authority: 'TASK_AGENT_PREPARATION_CONTRACT_TEST', checks: 20 }, null, 2));
