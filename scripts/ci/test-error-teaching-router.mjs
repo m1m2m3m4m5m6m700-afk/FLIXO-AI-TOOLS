@@ -4,8 +4,9 @@ import { readFileSync } from 'node:fs';
 const router = JSON.parse(readFileSync('docs/agents/ERROR-TEACHING-ROUTER.json', 'utf8'));
 const base = readFileSync('docs/agents/ERROR-TEACHING-500.md', 'utf8');
 const additional = readFileSync('docs/agents/ERROR-TEACHING-ADDITIONAL-500.md', 'utf8');
-const rules = [...base.split(/\r?\n/u), ...additional.split(/\r?\n/u)].filter((line) => /^T\d{3,4} \|/u.test(line));
-if (rules.length !== 1000 || new Set(rules).size !== 1000) {
+const expanded = ['A','B','C','D'].map((letter) => readFileSync('docs/agents/ERROR-TEACHING-EXPANDED-'+letter+'-1000.md', 'utf8'));
+const rules = [...base.split(/\r?\n/u), ...additional.split(/\r?\n/u), ...expanded.flatMap((text) => text.split(/\r?\n/u))].filter((line) => /^T\d{3,4} \|/u.test(line));
+if (rules.length !== 5000 || new Set(rules).size !== 5000) {
   console.error(`ERROR_TEACHING_ROUTE_CONTRACT_ERROR=corpus_invalid_${rules.length}`);
   process.exit(1);
 }
