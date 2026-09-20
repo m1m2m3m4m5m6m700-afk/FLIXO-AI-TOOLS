@@ -15,6 +15,8 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
+  push:
+    branches: [execution, main]
 
 permissions:
   actions: write
@@ -32,6 +34,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
+      github.event_name == 'push' ||
       (
         github.event.workflow_run.conclusion != 'success' ||
         github.event.workflow_run.name == 'FLIXO Auto Repair Bot'
@@ -73,6 +76,21 @@ jobs:
             echo 'wake=true' >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Wake whole FLIXO cell on first push and prepare all workers
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FLIXO_WAKE_EVENT: push
+          FLIXO_WAKE_BRANCH: execution
+          FLIXO_CELL_WAKE_OUTPUT: /tmp/flixo-cell-wake.json
+        run: |
+          set -euo pipefail
+          EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          FLIXO_WAKE_SHA="$EXECUTION_SHA" node scripts/ci/cell-wake-preparation.mjs
+          test -s /tmp/flixo-cell-wake.json
+          node scripts/ci/test-cell-wake-preparation.mjs
+          echo "CELL_WAKE_READY=true"
+
       - name: Dispatch canonical observer only
         if: github.event_name != 'schedule' || steps.scheduled_wake.outputs.wake == 'true'
         env:
@@ -81,6 +99,15 @@ jobs:
           set -euo pipefail
           gh workflow run daily-flixo-green-gate.yml --repo "$GITHUB_REPOSITORY" --ref execution
           echo "WATCHDOG_DISPATCHED_CANONICAL_OBSERVER=true"
+
+      - name: Publish whole-cell wake evidence
+        if: github.event_name == 'push' && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-cell-wake-${{ github.run_id }}
+          path: /tmp/flixo-cell-wake.json
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Record watchdog evidence
         if: always()
