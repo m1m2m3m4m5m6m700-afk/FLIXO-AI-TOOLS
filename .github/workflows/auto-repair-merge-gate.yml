@@ -167,7 +167,7 @@ jobs:
             WAITING=false
 
             for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
-              RUN_JSON="$(jq -c --arg name "$workflow" '[.[] | select(.name == $name)] | sort_by(.updatedAt) | last // empty' /tmp/exact-runs.json)"
+              RUN_JSON="$(jq -c --arg name "$workflow" '[.[] | select(.name == $name and .conclusion != "cancelled")] | sort_by(.updatedAt) | last // empty' /tmp/exact-runs.json)"
               if [ -z "$RUN_JSON" ]; then
                 echo "EXACT_SHA_GATE_WAITING poll=$poll workflow=$workflow state=MISSING"
                 WAITING=true
