@@ -2,6 +2,11 @@ import fs from 'node:fs';
 
 const manifest=JSON.parse(fs.readFileSync('docs/agents/error-learning-log/manifest.json','utf8'));
 const index=JSON.parse(fs.readFileSync('docs/agents/error-learning-log/index.json','utf8'));
+const historicalIndexPath='docs/agents/historical-action-errors/index.json';
+const historicalRecordsDir='docs/agents/historical-action-errors/records';
+const historicalIndex=fs.existsSync(historicalIndexPath)
+  ? JSON.parse(fs.readFileSync(historicalIndexPath,'utf8'))
+  : null;
 
 function readShard(file){
   return fs.readFileSync(file,'utf8').split(/\r?\n/u).filter(Boolean).map((line)=>JSON.parse(line));
@@ -25,6 +30,22 @@ export function retrieveTeachingRecords({className=null,stage=null,limit=12}={})
   return records;
 }
 
+
+export function retrieveHistoricalActionErrors({term=null,limit=12}={}){
+  if(!historicalIndex || !term) return [];
+  const q=String(term).trim();
+  const ids=[...(historicalIndex.byFingerprint?.[q]??[]),...(historicalIndex.byNormalized?.[q]??[])];
+  const exact=[...new Set(ids)].map((id)=>{
+    try{return JSON.parse(fs.readFileSync(`${historicalRecordsDir}/${id}.json`,'utf8'));}catch{return null;}
+  }).filter(Boolean);
+  if(exact.length) return exact.slice(0,limit);
+  const needle=q.toLowerCase();
+  const candidates=Object.values(historicalIndex.byNormalized??{}).flat().filter((id)=>typeof id==='string').map((id)=>{
+    try{return JSON.parse(fs.readFileSync(`${historicalRecordsDir}/${id}.json`,'utf8'));}catch{return null;}
+  }).filter(Boolean);
+  return candidates.filter((r)=>String(r.normalized??'').toLowerCase().includes(needle)).slice(0,limit);
+}
+
 export function logContract(){
   return {
     totalRecords:manifest.totalRecords,
@@ -32,7 +53,15 @@ export function logContract(){
     source:manifest.source,
     authority:manifest.authority,
     exactShaRequired:manifest.exactShaRequired,
-    shardCount:manifest.shardCount
+    shardCount:manifest.shardCount,
+    historicalActionErrorIndex: historicalIndex
+      ? {
+          source: historicalIndex.source,
+          authority: historicalIndex.authority,
+          recordCount: historicalIndex.recordCount,
+          indexed: true,
+        }
+      : { indexed: false }
   };
 }
 
