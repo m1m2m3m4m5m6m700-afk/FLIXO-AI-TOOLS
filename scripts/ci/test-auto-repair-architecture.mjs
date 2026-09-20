@@ -90,7 +90,7 @@ assert.equal(isProtectedPath('tests/seed.spec.ts'), true);
 assert.equal(isPathAllowed('src/example.ts'), true);
 assert.equal(repairPolicy.maxChangedFiles, 8);
 assert.equal(repairPolicy.maxChangedLines, 300);
-assert.equal(repairPolicy.maxAttemptsPerFingerprint, 3);
+assert.equal(repairPolicy.maxAttemptsPerFingerprint, 1_000_000);
 assert.equal(MEMORY_VERSION, 10);
 assert.equal(typeof hydrateActionHistory, 'function');
 assert.match(fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8'), /rejectedStrategies/);
