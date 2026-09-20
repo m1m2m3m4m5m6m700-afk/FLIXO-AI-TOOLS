@@ -53,7 +53,7 @@ function applyTypescriptAsyncReturnContract(targetDir, plan) {
   const end = Math.min(lines.length, center + 8);
   let declarationIndex = -1;
   for (let index = start; index < end; index += 1) {
-    if (/\basync\s+function\b|\bfunction\s+[A-Za-z_$][\\w$]*[\\s\\S]*\basync\b|=\s*async\s*\(/u.test(lines[index])) {
+    if (/\basync\s+function\b|\bfunction\s+[A-Za-z_$][\w$]*[\s\S]*\basync\b|=\s*async\s*\(/u.test(lines[index])) {
       declarationIndex = index;
       break;
     }
@@ -71,13 +71,13 @@ function applyTypescriptAsyncReturnContract(targetDir, plan) {
   const scanEnd = Math.min(lines.length, declarationIndex + 12);
   for (let index = scanStart; index < scanEnd; index += 1) {
     const line = lines[index];
-    const functionReturn = line.match(/(\)\\s*:\\s*)(?!Promise<)([A-Za-z_$][A-Za-z0-9_$]*(?:<[^\\n{};=>]+>)?(?:\\[\\])?)(\\s*\\{?\\s*)$/u);
+    const functionReturn = line.match(/(\)\s*:\s*)(?!Promise<)([A-Za-z_$][A-Za-z0-9_$]*(?:<[^\n{};=>]+>)?(?:\[\])?)(\s*\{?\s*)$/u);
     if (functionReturn) {
       lines[index] = line.replace(functionReturn[0], functionReturn[1] + 'Promise<' + functionReturn[2].trim() + '>' + functionReturn[3]);
       fs.writeFileSync(absolute, lines.join('\n'));
       return { applied: true, engine: 'typescript-async-return-contract', target: file, line: index + 1, wrappedReturnType: functionReturn[2].trim() };
     }
-    const arrowReturn = line.match(/(\)\\s*:\\s*)(?!Promise<)([A-Za-z_$][A-Za-z0-9_$]*(?:<[^\\n{};=>]+>)?(?:\\[\\])?)(\\s*=>)/u);
+    const arrowReturn = line.match(/(\)\s*:\s*)(?!Promise<)([A-Za-z_$][A-Za-z0-9_$]*(?:<[^\n{};=>]+>)?(?:\[\])?)(\s*=>)/u);
     if (arrowReturn) {
       lines[index] = line.replace(arrowReturn[0], arrowReturn[1] + 'Promise<' + arrowReturn[2].trim() + '>' + arrowReturn[3]);
       fs.writeFileSync(absolute, lines.join('\n'));
