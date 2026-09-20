@@ -8,7 +8,7 @@ import { inferFailureResolution } from './inference-fallback.mjs';
 const plans = [
   { id: 'external-tooling', features: ['external-tooling'], confidence: 99, mutate: false, commands: [] },
   { id: 'eslint-unused', features: ['lint'], confidence: 92, mutate: true, targetScope: 'exact-file', commands: [] },
-  { id: 'prettier-file', features: ['format'], confidence: 90, mutate: true, commands: [] },
+  { id: 'prettier-file', features: ['format'], confidence: 90, mutate: true, targetScope: 'exact-file', commands: [] },
   { id: 'typescript-diagnostic', features: ['typescript'], confidence: 88, mutate: false, commands: [['npm', ['run', 'typecheck']]] },
   { id: 'playwright-diagnostic', features: ['playwright'], confidence: 72, mutate: false, commands: [] },
   { id: 'webkit-proposal', features: ['webkit'], confidence: 68, mutate: false, commands: [] },
@@ -18,55 +18,130 @@ const plans = [
 
 export function planRepair(log, { historical = [], memory } = {}) {
   const features = extractFeatures(log);
-  const targetSha = (() => { try { return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return null; } })();
+  const targetSha = (() => {
+    try { return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return null; }
+  })();
   const preparedPacketPath = process.env.FLIXO_TASK_AGENT_PACKET_PATH ?? '/tmp/flixo-task-agent/latest.json';
-  const prepared = targetSha ? preparedPlan(preparedPacketPath, targetSha) : { ok: false, reason: 'PREPARED_TARGET_SHA_UNAVAILABLE' };
+  const prepared = targetSha
+    ? preparedPlan(preparedPacketPath, targetSha)
+    : { ok: false, reason: 'PREPARED_TARGET_SHA_UNAVAILABLE' };
+
   const reasoning = reasonFailure(log, { historical });
   const inferenceFallback = inferFailureResolution({
     log,
-    memory: memory ?? { cases: [], lessons: [], antiLessons: [], playbooks: [] },
+    memory: memory ?? { cases: [], lessons: [], antiLessons: [], playbooks: [], actionHistory: [] },
     targetSha,
     diagnosis: reasoning,
   });
-  const reusableKnowledge = memory ? deriveReusableKnowledge(memory, { rootCause: reasoning.rootCause, features }) : null;
+  const inferenceEligible = inferenceFallback.prediction.eligibleForBoundedMutation === true;
+  const reusableKnowledge = memory
+    ? deriveReusableKnowledge(memory, { rootCause: reasoning.rootCause, features })
+    : null;
+
   const candidates = plans
     .filter((plan) => plan.features.some((feature) => features.includes(feature)))
     .map((plan) => ({ ...plan, evidence: features }))
     .sort((a, b) => b.confidence - a.confidence);
-  if (prepared.ok && reasoning.decision === 'ALLOW_BOUNDED_MUTATION') candidates.push({ ...prepared, evidence: features, rootCause: reasoning.rootCause });
 
-  if (inferenceFallback.prediction.eligibleForBoundedMutation && inferenceFallback.hypothesis.strategyId) {
+  if (prepared.ok && reasoning.decision === 'ALLOW_BOUNDED_MUTATION') {
+    candidates.push({ ...prepared, evidence: features, rootCause: reasoning.rootCause });
+  }
+
+  if (inferenceFallback.hypothesis.strategyId) {
     const inferredPlan = plans.find((item) => item.id === inferenceFallback.hypothesis.strategyId);
     if (inferredPlan) {
       candidates.push({
         ...inferredPlan,
-        confidence: Math.max(Number(inferredPlan.confidence ?? 0), Math.round(inferenceFallback.prediction.confidence * 100)),
+        confidence: Math.max(
+          Number(inferredPlan.confidence ?? 0),
+          Math.round(inferenceFallback.prediction.confidence * 100),
+        ),
         evidence: [...features, 'INFERENTIAL_HISTORY'],
         rootCause: inferenceFallback.hypothesis.rootCause,
         inferred: true,
+        inferenceEligible,
         inferenceEvidence: inferenceFallback,
+        mutate: inferenceEligible && inferredPlan.mutate === true,
+      });
+    } else {
+      candidates.push({
+        id: inferenceFallback.hypothesis.strategyId,
+        features,
+        confidence: Math.round(inferenceFallback.prediction.confidence * 100),
+        mutate: false,
+        commands: [],
+        evidence: [...features, 'INFERENTIAL_SYNTHESIS'],
+        rootCause: inferenceFallback.hypothesis.rootCause,
+        inferred: true,
+        inferenceEligible: false,
+        inferenceEvidence: inferenceFallback,
+        proposalOnly: true,
       });
     }
   }
-  const safe = candidates.filter((plan) => plan.mutate && plan.confidence >= 90 && (plan.id !== 'prepared-source-change' || plan.deterministicProof === true));
+
+  const safe = candidates.filter((plan) =>
+    plan.mutate &&
+    plan.confidence >= 90 &&
+    (plan.id !== 'prepared-source-change' || plan.deterministicProof === true),
+  );
+
   const selectedRule = prepared.ok && reasoning.decision === 'ALLOW_BOUNDED_MUTATION'
     ? 'prepared-source-change'
-    : inferenceFallback.prediction.eligibleForBoundedMutation && inferenceFallback.hypothesis.strategyId
+    : inferenceEligible && inferenceFallback.hypothesis.strategyId
       ? inferenceFallback.hypothesis.strategyId
-      : reasoning.rootCause === 'format' ? 'prettier-file' : reasoning.rootCause === 'lint' ? 'eslint-unused' : reasoning.rootCause;
+      : reasoning.rootCause === 'format'
+        ? 'prettier-file'
+        : reasoning.rootCause === 'lint'
+          ? 'eslint-unused'
+          : reasoning.rootCause;
+
   const requiresSourceLocation = selectedRule === 'prettier-file' || selectedRule === 'eslint-unused';
-  const selectedCandidate = safe.find((candidate) => candidate.id === selectedRule)
-    ?? candidates.find((candidate) => candidate.inferred && candidate.mutationCapable && candidate.confidence >= 90 && candidate.id === inferenceFallback.hypothesis.strategyId)
+  const selectedCandidate =
+    safe.find((candidate) => candidate.id === selectedRule)
+    ?? candidates.find((candidate) =>
+      candidate.inferred === true &&
+      candidate.inferenceEligible === true &&
+      candidate.mutate === true &&
+      candidate.confidence >= 90 &&
+      candidate.id === inferenceFallback.hypothesis.strategyId,
+    )
     ?? null;
-  const selected = reasoning.decision === 'ALLOW_BOUNDED_MUTATION' && selectedCandidate && (!requiresSourceLocation || selectedRule === 'prepared-source-change' || Boolean(reasoning.location?.file))
-    ? { ...selectedCandidate, file: selectedCandidate.id === 'prepared-source-change' ? selectedCandidate.file : reasoning.location?.file ?? null, learning: reusableKnowledge }
+
+  const fallbackSelectionAllowed = inferenceEligible || reasoning.decision === 'ALLOW_BOUNDED_MUTATION';
+  const selected = fallbackSelectionAllowed &&
+    selectedCandidate &&
+    (!requiresSourceLocation ||
+      selectedRule === 'prepared-source-change' ||
+      Boolean(reasoning.location?.file))
+    ? {
+      ...selectedCandidate,
+      file: selectedCandidate.id === 'prepared-source-change'
+        ? selectedCandidate.file
+        : reasoning.location?.file ?? null,
+      learning: reusableKnowledge,
+    }
     : null;
+
   return {
     features,
-    prepared: { ok: prepared.ok, reason: prepared.reason ?? null, files: prepared.files ?? prepared.changes?.map((item) => item.path) ?? [] },
+    prepared: {
+      ok: prepared.ok,
+      reason: prepared.reason ?? null,
+      files: prepared.files ?? prepared.changes?.map((item) => item.path) ?? [],
+    },
     candidates,
     selected,
-    blockedReason: reasoning.decision === 'BLOCK_EXTERNAL' ? 'external-tooling' : selected ? null : reasoning.ambiguity ? 'ambiguous-causality' : null,
+    blockedReason:
+      reasoning.decision === 'BLOCK_EXTERNAL'
+        ? 'external-tooling'
+        : selected
+          ? null
+          : inferenceFallback.hypothesis.novelty === 'NEW_HYPOTHESIS'
+            ? 'new-hypothesis-proposal-only'
+            : reasoning.ambiguity
+              ? 'ambiguous-causality'
+              : null,
     reasoning,
     reusableKnowledge,
     inferenceFallback,
