@@ -354,6 +354,123 @@ Every completion must also expose:
 
 `status + exitSha + changedFiles + commands + evidenceRefs + remainingWork + openRcas + verificationState + ownershipState + decisionTrace`
 
+## 19. FULL REPOSITORY INSPECTION
+
+When repository access is available, inspect the complete relevant repository surface rather than reasoning from selected snippets.
+
+Required inspection families:
+- React/Vite/TypeScript and build configuration;
+- router/route tree/SSR/hydration;
+- i18n and locale symmetry;
+- tool routes and capability manifests;
+- AI planner/agent capability contracts;
+- tool registry and definitions;
+- image processing, workers and local/remote execution;
+- dynamic imports and bundle boundaries;
+- Admin server boundary and persistence;
+- Supabase and canonical serialization/hashing;
+- timestamps, evidence/audit identity and provenance linkage;
+- CI YAML and shell serialization;
+- exact-SHA provenance and certification freshness;
+- CD promotion safety;
+- security/fail-closed boundaries;
+- dependency debt/dead code;
+- test gaps and false-positive validators;
+- Error Memory, teaching corpus and diagnostics.
+
+Inspect history/commits when needed to prove regression or contract drift.
+
+Do not indiscriminately ingest secrets, credentials, `node_modules/`, `dist/`, `.git/`, caches, or other non-source generated material.
+
+## 20. ARCHITECTURAL DEDUCTION
+
+Do not stop at a bug list. Derive:
+1. root architectural weakness;
+2. contract drift;
+3. the correct single source of truth;
+4. enforceable invariants;
+5. tests derivable from contracts;
+6. recurrence predictions from the same causal family;
+7. opportunities for self-diagnosis;
+8. reproducible evidence boundaries;
+9. the smallest class-level prevention;
+10. duplicated/conflicting verification layers that can be safely consolidated.
+
+The desired engineering model is:
+
+`failure class → invariant → canonical contract → enforcement → regression → evidence → prevention`
+
+## 21. ADMIN / PERSISTENCE EVIDENCE
+
+For persistence or Admin work verify, where applicable:
+- canonical serialization before hashing;
+- object-key ordering and nested JSON determinism;
+- timestamp canonicalization;
+- database-generated versus client-generated IDs;
+- audit target/evidence linkage;
+- read-back integrity;
+- authorization headers and server boundaries;
+- exact-SHA evidence;
+- non-production boundaries.
+
+A UI success state without durable contract/read-back evidence is not proof.
+
+## 22. CI / CD FAILURE CLASSIFICATION
+
+Separate:
+- code defect;
+- test/fixture drift;
+- validator defect;
+- CI serialization/orchestration defect;
+- evidence defect;
+- certification defect;
+- external deployment/provider blocker.
+
+Never convert an external quota/rate-limit/model/provider failure into a fabricated source-code RCA. Never change CD merely to make an external failure appear VERIFIED.
+
+## 23. CONTEXTUAL VERIFICATION COMMANDS
+
+When the environment permits local verification, choose commands from the repository's real package scripts and affected graph, for example:
+
+`npm ci --prefer-offline --no-audit --no-fund`
+`npm run typecheck`
+`npm run lint`
+`npm run test:unit`
+`npm run test:static`
+`npm run test:build`
+`npm run validate:ci-contract`
+`npm run validate:agent-protocol`
+`npm run validate:agent-coordination`
+`npm run validate:contracts`
+`npm run validate:i18n`
+`npm run validate:tool-registry`
+`npm run verify:ci-cd-trust`
+
+Do not assume every command is universally required. Bind each result to the governing contract, affected graph, and current exact SHA.
+
+## 24. FINAL HANDOFF REPORT
+
+At the end of an execution cycle, return:
+1. executive verdict/status;
+2. exact SHA;
+3. root causes;
+4. implemented repairs;
+5. changed files;
+6. targeted/affected/full verification results;
+7. CI run IDs and evidence references when available;
+8. remaining blockers;
+9. architectural deductions;
+10. next deterministic action.
+
+## 25. AUTHORITY SEPARATION
+
+`Task Agent = preparation only`  
+`Error Agent = diagnosis only`  
+`Repair Agent / Execution Agent = authorized mutation only`  
+`Certification Authority = certification only`
+
+Preparation, diagnosis, memory, Prompt Registry entries, Action Vault knowledge, Scout reports, and handoff packets never grant authority that the machine control plane does not grant.
+
 ## 19. FINAL OPERATING RULE
 
 `SEARCH EXISTING → REUSE → EXTEND → MERGE → CREATE ONLY IF NECESSARY`
