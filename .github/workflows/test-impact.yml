@@ -9,7 +9,7 @@ on:
 # The surviving run still validates the exact SHA before publishing evidence.
 concurrency:
   group: flixo-test-impact-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
