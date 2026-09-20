@@ -57,7 +57,7 @@ jobs:
           test -n "$HANDOFF_EXECUTION_SHA"
           test "$HANDOFF_BRANCH" = "$REPAIR_TARGET_BRANCH"
           test "$HANDOFF_EXECUTION_SHA" = "$CURRENT_EXECUTION_SHA" || {
-            echo "FAIL CLOSED: handoff SHA $HANDOFF_TARGET_SHA is superseded by $REPAIR_TARGET_BRANCH $CURRENT_TARGET_SHA."
+            echo "FAIL CLOSED: handoff SHA $HANDOFF_EXECUTION_SHA is superseded by execution $CURRENT_EXECUTION_SHA."
             exit 1
           }
 
