@@ -13,6 +13,7 @@ const fileSelectionPath=arg('file-selection','');
 const failureLogPath=arg('log','');
 const diagnosisPath=arg('diagnosis','');
 const twinPath=arg('twin','');
+const rootCausePath=arg('root-cause','');
 if(!taskId||!/^[a-f0-9]{40}$/.test(targetSha)||!fingerprint||!failedRunId)throw new Error('ACTION_AWARENESS_IDENTITY_REQUIRED');
 
 const git=(args)=>execFileSync('git',args,{encoding:'utf8'}).trim();
@@ -24,6 +25,7 @@ const failureLog=failureLogPath&&fs.existsSync(failureLogPath)?fs.readFileSync(f
 const selection=fileSelectionPath&&fs.existsSync(fileSelectionPath)?JSON.parse(fs.readFileSync(fileSelectionPath,'utf8')):null;
 const diagnosis=diagnosisPath&&fs.existsSync(diagnosisPath)?JSON.parse(fs.readFileSync(diagnosisPath,'utf8')):null;
 const twin=twinPath&&fs.existsSync(twinPath)?JSON.parse(fs.readFileSync(twinPath,'utf8')):null;
+const rootCauseProof=rootCausePath&&fs.existsSync(rootCausePath)?JSON.parse(fs.readFileSync(rootCausePath,'utf8')):null;
 
 const read=(p,fallback=null)=>{try{return JSON.parse(fs.readFileSync(p,'utf8'));}catch{return fallback;}};
 const safeText=(file)=>{try{const full=path.resolve(process.cwd(),file);if(!full.startsWith(path.resolve(process.cwd())+path.sep)||!fs.existsSync(full))return null;return fs.readFileSync(full,'utf8');}catch{return null;}};
@@ -36,12 +38,13 @@ const failSignals=(failureLog.match(/error|failure|failed|fatal|exception|timeou
 const shaFresh=currentSha===targetSha;
 const fileSelectionValid=selection?.decision==='SELECTED'&&selection?.targetSha===targetSha&&selection?.failureFingerprint===fingerprint;
 const twinValid=twin?.protocol==='INDEPENDENT_FALSIFICATION_REPORT-v1'&&twin?.targetSha===targetSha&&twin?.failureFingerprint===fingerprint&&twin?.falsificationComplete===true&&twin?.counterexampleFound===false;
+const rootCauseValid=rootCauseProof?.protocol==='CAUSAL-EVIDENCE-GRAPH-v1'&&rootCauseProof?.status==='PROVEN'&&rootCauseProof?.targetSha===targetSha&&rootCauseProof?.failureFingerprint===fingerprint;
 
 function domain(name, facts, evidence, unknowns, contradictions, hypotheses, impact, conclusion, trigger){
   const ids=evidence.map(x=>x.id);
   const basis=ids.length?ids:['NO_EVIDENCE'];
   const confidenceValue=Math.max(0,Math.min(0.98,0.50+Math.min(0.40,ids.length*0.06)-Math.min(0.25,unknowns.length*0.05)-Math.min(0.30,contradictions.length*0.08)));
-  const complete=ids.length>0&&basis.length>0&&Boolean(conclusion)&&Array.isArray(unknowns)&&Array.isArray(contradictions)&&(!name.includes('ADVERSARIAL_CONTEXT')||twinValid)&&shaFresh&&fileSelectionValid;
+  const complete=ids.length>0&&basis.length>0&&Boolean(conclusion)&&Array.isArray(unknowns)&&Array.isArray(contradictions)&&(!name.includes('ADVERSARIAL_CONTEXT')||twinValid)&&(!name.includes('CAUSAL_CONTEXT')||rootCauseValid)&&shaFresh&&fileSelectionValid;
   return {facts,evidence,unknowns,contradictions,hypotheses,confidence:{value:Number(confidenceValue.toFixed(3)),basis},evidenceRefs:ids,impact,conclusion,reevaluationTrigger:trigger,completed:complete};
 }
 
@@ -62,6 +65,7 @@ const eCausal=[
  {id:pushRef('EV-CAUSE-2','diagnosis','location',diagnosis?.location?.file||'UNKNOWN'),type:'location',value:diagnosis?.location?.file||'UNKNOWN'},
  {id:pushRef('EV-CAUSE-3','diagnosis','fingerprint',diagnosis?.failureFingerprint||fingerprint),type:'fingerprint',value:diagnosis?.failureFingerprint||fingerprint}
 ];
+if(rootCauseProof){eCausal.push({id:pushRef('EV-CAUSE-4','causal-proof','rootCauseProof',rootCauseProof.digest||'NO_DIGEST'),type:'causal-proof',value:rootCauseProof});}
 const historicalIndex=read('docs/agents/historical-action-errors/index.json',{});
 const memory=read('diagnostics/auto-repair/memory.json',{});
 const eHistory=[
@@ -149,7 +153,8 @@ const packet={
  roleExpansion:{ACTION_REPAIR:['whole-system context','correctness proof','downstream impact'],ACTION_REPAIR_2:['independent source analysis','falsification','counterexample search'],ACTION_HISTORIAN_3:['minimal file selection','recurrence evidence','anti-lessons']},
  generatedAt:now()
 };
-fs.mkdirSync(path.dirname(path.resolve(output)),{recursive:true});
+\nconst awarenessValidation=validateActionSystemCognitiveAwareness(packet,{targetSha,failureFingerprint:fingerprint});\npacket.validation=awarenessValidation;\npacket.awarenessCompleteness.complete=packet.awarenessCompleteness.complete===true&&awarenessValidation.valid;fs.mkdirSync(path.dirname(path.resolve(output)),{recursive:true});
 fs.writeFileSync(output,JSON.stringify(packet,null,2)+'\n');
 console.log(JSON.stringify({status:complete?'PASS':'BLOCK',protocol:packet.protocol,targetSha,failureFingerprint,domainCount:requiredDomains.length,completedDomains:packet.awarenessCompleteness.declaredCompleteDomains.length,complete},null,2));
 if(!complete)process.exitCode=1;
+\nexport function validateActionSystemCognitiveAwareness(packet,{targetSha=null,failureFingerprint=null}={}){\n  const failures=[];\n  if(!packet||packet.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1') failures.push('AWARENESS_PROTOCOL_INVALID');\n  if(packet?.schemaVersion!==2) failures.push('AWARENESS_SCHEMA_INVALID');\n  if(targetSha&&packet?.targetSha!==targetSha) failures.push('AWARENESS_SHA_MISMATCH');\n  if(failureFingerprint&&packet?.failureFingerprint!==failureFingerprint) failures.push('AWARENESS_FINGERPRINT_MISMATCH');\n  if(packet?.exactShaBound!==true||packet?.readOnly!==true||packet?.noMutation!==true) failures.push('AWARENESS_GOVERNANCE_INVALID');\n  const names=packet?.awarenessCompleteness?.requiredDomains??[];\n  if(names.length!==9) failures.push('AWARENESS_DOMAIN_COUNT_INVALID');\n  for(const name of names){\n    const d=packet?.domains?.[name];\n    if(!d) {failures.push('AWARENESS_DOMAIN_MISSING='+name);continue;}\n    if(!Array.isArray(d.facts)||!Array.isArray(d.evidence)||d.evidence.length===0||!Array.isArray(d.unknowns)||!Array.isArray(d.contradictions)||!Array.isArray(d.hypotheses)||typeof d.confidence?.value!=='number'||!Array.isArray(d.confidence?.basis)||d.confidence.basis.length===0||!Array.isArray(d.evidenceRefs)||d.evidenceRefs.length===0||!Array.isArray(d.impact)||typeof d.conclusion!=='string'||typeof d.reevaluationTrigger!=='string') failures.push('AWARENESS_DOMAIN_EVIDENCE_INVALID='+name);\n    if(d.completed!==true) failures.push('AWARENESS_DOMAIN_UNPROVEN='+name);\n  }\n  if(packet?.domains?.CAUSAL_CONTEXT?.evidence?.length<4) failures.push('AWARENESS_CAUSAL_PROOF_EVIDENCE_MISSING');\n  if(packet?.domains?.ADVERSARIAL_CONTEXT?.completed!==true) failures.push('AWARENESS_ADVERSARIAL_CONTEXT_UNPROVEN');\n  if(packet?.reasoningDiscipline?.confidenceCannotReplaceProof!==true) failures.push('AWARENESS_CONFIDENCE_NOT_PROOF');\n  if(packet?.reasoningDiscipline?.noCounterexampleDoesNotEqualGreen!==true) failures.push('AWARENESS_NO_COUNTEREXAMPLE_RULE_MISSING');\n  const valid=failures.length===0&&packet.awarenessCompleteness.complete===true;\n  return Object.freeze({valid,status:valid?'PROVEN':'BLOCK',failures,targetSha:packet?.targetSha??null,failureFingerprint:packet?.failureFingerprint??null,domainCount:names.length});\n}\n
