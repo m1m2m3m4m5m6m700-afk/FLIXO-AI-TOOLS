@@ -115,7 +115,8 @@ assert.equal(graph.valid,true);
 assert.equal(graph.nodes.length,8);
 
 const supervisorWorkflow = fs.readFileSync('.github/workflows/agent-repair-supervisor.yml', 'utf8');
-assert.match(supervisorWorkflow, /push:/);
-assert.match(supervisorWorkflow, /branches: \[execution, main\]/);
-assert.match(supervisorWorkflow, /gh workflow run auto-repair\.yml/);
-assert.match(supervisorWorkflow, /SUPERSEDED/);
+assert.doesNotMatch(supervisorWorkflow, /push:/);
+assert.doesNotMatch(supervisorWorkflow, /pull_request:/);
+assert.doesNotMatch(supervisorWorkflow, /gh workflow run auto-repair\.yml/);
+assert.match(supervisorWorkflow, /DISPATCH_AUTHORITY=CANONICAL_REPAIR_GATE_ONLY/);
+assert.match(supervisorWorkflow, /permissions:[\\s\\S]*contents: read/);
