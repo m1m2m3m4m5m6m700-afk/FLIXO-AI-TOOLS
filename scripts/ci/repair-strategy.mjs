@@ -176,7 +176,8 @@ function rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, 
     const contextualSignal = stats.observations ? Math.min(1, stats.contextual / stats.observations) : 0;
     const twinSignal = twinPreferredStrategy === id ? 1 : 0;
     const evidenceSignal = causal.rootCause !== 'unknown' ? familyMatch : id === 'supervising-escalation' ? 1 : 0;
-    const score = evidenceSignal * 0.32 + contextualSignal * 0.18 + successRate * 0.18 + empiricalSignal * 0.10 + twinSignal * 0.12 - Math.min(0.24, repeatCount * 0.06) - rejectionPenalty * 0.70;
+    const trainingSignal = Math.min(1, trainingStats.successRate * Math.min(1, trainingStats.observations / 4) * Math.max(0.35, trainingStats.confidence));
+    const score = evidenceSignal * 0.28 + contextualSignal * 0.16 + successRate * 0.16 + empiricalSignal * 0.08 + trainingSignal * 0.16 + twinSignal * 0.08 - Math.min(0.24, repeatCount * 0.06) - rejectionPenalty * 0.70;
     return {
       id, description, order, score: Number(score.toFixed(5)), rootCause: causal.rootCause,
       familyMatch: Boolean(familyMatch), twinPreferred: twinSignal === 1,

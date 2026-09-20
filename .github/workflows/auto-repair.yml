@@ -629,7 +629,7 @@ jobs:
           FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
           FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
           FLIXO_REPAIR_DIAGNOSIS_PATH: /tmp/flixo-root-cause.json
-          FLIXO_EXPECTED_TARGET_SHA: \${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
           FLIXO_REPAIR_TRAINING_PATH: /tmp/flixo-repair-training.json
         run: |
           set -euo pipefail
