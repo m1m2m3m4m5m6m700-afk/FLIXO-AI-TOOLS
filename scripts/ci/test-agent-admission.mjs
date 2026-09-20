@@ -140,7 +140,7 @@ const actionVaultSession = {
   actionVaultMission: {
     role: 'ACTION-REPAIR', triadId: 'triad-test', messageId: 'msg-test', taskId: 'task-test',
     failureFingerprint: 'fp-test', entrySha: targetSHA, targetSha: targetSHA, ownerAgent: 'actionRepairBot',
-    verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian', programmerTwinParity: { intelligenceParity: 'EXACT', authorityParity: 'SEPARATED_BY_DESIGN', targetSha: targetSHA, failureFingerprint: 'fp-test' }, cognitiveAwareness: { protocol: 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1', targetSha, complete: true }, proofObligations: ['proof'], stopConditions: ['GREEN'], noBlindRetry: true,
+    verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian', programmerTwinParity: { intelligenceParity: 'EXACT', authorityParity: 'SEPARATED_BY_DESIGN', targetSha: targetSHA, failureFingerprint: 'fp-test' }, cognitiveAwareness: { protocol: 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1', targetSha: targetSHA, complete: true }, proofObligations: ['proof'], stopConditions: ['GREEN'], noBlindRetry: true,
   },
   actionVaultVerifierProof: verifierProof,
 };

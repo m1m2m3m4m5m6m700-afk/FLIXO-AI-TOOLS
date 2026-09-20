@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-post-mutation-'));
 const pre={status:'PROVEN',targetSha:'a'.repeat(40),failureFingerprint:'fp',noMutationApplied:true,sandboxSimulation:{patchDigest:'x'},patchCorrectness:{patchDigest:'x'}};
 const prePath=path.join(dir,'pre.json'); fs.writeFileSync(prePath,JSON.stringify(pre));

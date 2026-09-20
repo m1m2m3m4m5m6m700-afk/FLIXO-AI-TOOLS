@@ -94,7 +94,6 @@ if(mode==='audit'){
    },
    remainingRisks:Array.isArray(preMutationProof.remainingRisks)?preMutationProof.remainingRisks:[],
    mutationRecommendation:'ALLOW_AFTER_FALSIFICATION_NO_COUNTEREXAMPLE',
-   proofCompleteness:preMutationProof.proofCompleteness,
    preMutationProof:{protocol:preMutationProof.protocol,status:preMutationProof.status,targetSha:preMutationProof.targetSha,failureFingerprint:preMutationProof.failureFingerprint,proofDigest:preMutationProof.patchCorrectness?.proofDigest??null},
    proposal:{auditOnly:true,recommendedStrategy:s.strategyId||null,evidenceRefs:[evidence,memory],decision:p.decision??null},
    proofCompleteness:{

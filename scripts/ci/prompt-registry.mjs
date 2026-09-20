@@ -8,7 +8,6 @@ export const PROMPT_STATUS = Object.freeze(new Set([
   'ACTIVE', 'CANDIDATE', 'MERGED', 'DEPRECATED', 'BLOCKED', 'SUPERSEDED',
 ]));
 const SHA40 = /^[a-f0-9]{40}$/u;
-const SHA64 = /^[a-f0-9]{64}$/u;
 
 export function loadPromptRegistry(filePath = PROMPT_REGISTRY_PATH) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));

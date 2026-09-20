@@ -144,7 +144,7 @@ const requiredDomains=Object.keys(domains);
 const complete=requiredDomains.every(name=>domains[name].completed);
 const packet={
  schemaVersion:2,protocol:'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1',
- taskId,failureFingerprint,targetSha,failedRunId,exactShaBound:true,readOnly:true,noMutation:true,
+ taskId,failureFingerprint:fingerprint,targetSha,failedRunId,exactShaBound:true,readOnly:true,noMutation:true,
  domains,awarenessCompleteness:{requiredDomains,declaredCompleteDomains:requiredDomains.filter(name=>domains[name].completed),complete},
  repositorySnapshot:{branch,headSha:currentSha,workingTree:status,selectedFiles,trackedRelevantPaths:relevant},
  temporalState:{entrySha:targetSha,observedSha:currentSha,proposedState:'MUTATION_PENDING_PROOF',mutationState:'NOT_MUTATED',verifiedState:'NOT_YET_VERIFIED'},
@@ -164,7 +164,7 @@ packet.validation=awarenessValidation;
 packet.awarenessCompleteness.complete=packet.awarenessCompleteness.complete===true&&awarenessValidation.valid;
 fs.mkdirSync(path.dirname(path.resolve(output)),{recursive:true});
 fs.writeFileSync(output,JSON.stringify(packet,null,2)+'\n');
-console.log(JSON.stringify({status:packet.awarenessCompleteness.complete?'PASS':'BLOCK',protocol:packet.protocol,targetSha,failureFingerprint,domainCount:requiredDomains.length,completedDomains:packet.awarenessCompleteness.declaredCompleteDomains.length,complete:packet.awarenessCompleteness.complete},null,2));
+console.log(JSON.stringify({status:packet.awarenessCompleteness.complete?'PASS':'BLOCK',protocol:packet.protocol,targetSha,failureFingerprint:fingerprint,domainCount:requiredDomains.length,completedDomains:packet.awarenessCompleteness.declaredCompleteDomains.length,complete:packet.awarenessCompleteness.complete},null,2));
 if(!packet.awarenessCompleteness.complete)process.exitCode=1;
 
 export function validateActionSystemCognitiveAwareness(packet,{targetSha=null,failureFingerprint=null}={}){

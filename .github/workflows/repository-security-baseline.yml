@@ -29,8 +29,8 @@ permissions:
 # A newer commit supersedes stale security-baseline evidence for the same PR/branch.
 # The active run still validates its exact SHA.
 concurrency:
-  group: repository-security-baseline-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: false
+  group: repository-security-baseline-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   baseline:
