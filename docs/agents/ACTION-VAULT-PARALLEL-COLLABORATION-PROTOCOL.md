@@ -33,15 +33,15 @@ ACTION-REPAIR contribution + ACTION-REPAIR-2 contribution + ACTION-HISTORIAN-3 c
 3. Historian-Evidence Protocol: المصدر والدليل والتسلسل محفوظان.
 4. Cross-Learning Protocol: لا mutation قبل قراءة مساهمات الزملاء.
 5. Challenge Protocol: كل استراتيجية قابلة للطعن قبل التنفيذ.
-6. Single-Owner Mutation Protocol: مالك واحد فقط يكتب المصدر.
-7. Handoff Protocol: فشل المالك ينقل الملكية رسميًا إلى ACTION-REPAIR-2.
+6. Single-Seat Mutation Protocol: وكيل واحد فقط يكتب المصدر في اللحظة نفسها؛ المقعد المختار قد يكون VAULT-1 أو VAULT-2، وبعد 20 حالة غير محلولة يكون VAULT-3.
+7. Supervisor-20 Protocol: عند 20 تكرارًا لنفس fingerprint، يتوقف VAULT-1 وVAULT-2 عن mutation لذلك fingerprint، ويتولى VAULT-3 مراجعة الكتالوج واختيار/تنفيذ الحل.
 8. Green-Learning Protocol: لا promotion للذاكرة المشتركة قبل Canonical GREEN.
 9. No-Sleep Protocol: المهمة المفتوحة لا تدخل SLEEP أو IDLE.
 10. Green-Sleep Admission Protocol: SLEEP لا يسمح به إلا مع GREEN record مطابق للـSHA.
 
 ## الفشل
 غياب وكيل → WAKE → RECOVER → REJOIN.
-فشل المالك → ACTION-REPAIR → HANDOFF → ACTION-REPAIR-2.
+فشل المحاولة → إعادة RCA/challenge؛ تكرار نفس fingerprint حتى 20 → SUPERVISOR_20 → ACTION-HISTORIAN-3.
 غياب الدليل → BLOCKED وليس GREEN.
 تغير SHA → INVALIDATE EXCHANGE → RE-READ → RE-ANALYZE.
 
