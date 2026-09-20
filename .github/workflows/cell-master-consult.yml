@@ -51,6 +51,8 @@ concurrency:
 jobs:
   consult:
     name: CELL to Master inbox consult
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
