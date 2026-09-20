@@ -540,5 +540,38 @@
     "canDispatchRepair": false,
     "masterEscalationOnFirstRepositoryOccurrence": true,
     "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-HISTORIAN-3.json"
+  },
+  "learningChatMesh": {
+    "id": "ACTION-BOT-CHAT-MESH",
+    "headquarters": "diagnostics/auto-repair/action-vault",
+    "transport": "scripts/ci/action-bot-chat.mjs",
+    "participants": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "directBotToBot": true,
+    "sameMissionRequired": true,
+    "sameFailureFingerprintRequired": true,
+    "sameExactShaRequired": true,
+    "messageKinds": [
+      "OBSERVATION",
+      "CHALLENGE",
+      "SOLUTION_PROPOSAL",
+      "LESSON",
+      "HANDOFF",
+      "REQUEST_HELP"
+    ],
+    "learningPolicy": {
+      "ingestImmediately": true,
+      "markUnverifiedUntilGreen": true,
+      "promoteSharedKnowledgeOnlyAfterCanonicalGreen": true,
+      "antiLessonCanBeShared": false,
+      "noAuthorityTransferViaChat": true
+    },
+    "authorityPolicy": {
+      "chatDoesNotGrantMutationAuthority": true,
+      "taskOwnerRemainsControlPlaneSource": true
+    }
   }
 }
