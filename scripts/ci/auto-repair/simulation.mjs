@@ -4,6 +4,8 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { runAstRepair } from './ast-repair.mjs';
 import { summarizeDiff } from './evidence.mjs';
+import { runVerification } from './verifier.mjs';
+import { buildDifferentialProof } from '../differential-repair-proof.mjs';
 
 const git = (cwd, args, options = {}) =>
   execFileSync('git', ['-C', cwd, ...args], {
@@ -25,6 +27,9 @@ export function simulateRepair({
   plan = null,
   maxChangedFiles = 8,
   maxChangedLines = 300,
+  verificationCommands = [],
+  targetSha = null,
+  failureFingerprint = null,
 } = {}) {
   if (!plan?.id || !plan?.file) {
     return Object.freeze({
@@ -53,8 +58,35 @@ export function simulateRepair({
     const repair = runAstRepair(dir, plan);
     const diff = git(dir, ['diff', '--binary']);
     const summary = summarizeDiff(diff);
+    const baseFiles = {};
+    const candidateFiles = {};
+    for (const file of summary.files) {
+      try { baseFiles[file] = git(dir, ['show', `HEAD:${file}`], { stdio: 'pipe' }); } catch { baseFiles[file] = ''; }
+      try { candidateFiles[file] = fs.readFileSync(path.join(dir, file), 'utf8'); } catch { candidateFiles[file] = ''; }
+    }
 
-    git(dir, ['diff', '--check'], { stdio: 'pipe' });
+    let diffCheck = true;
+    try { git(dir, ['diff', '--check'], { stdio: 'pipe' }); } catch { diffCheck = false; }
+
+    const behavioralVerification = verificationCommands.length
+      ? runVerification(verificationCommands.map((entry) => Array.isArray(entry) ? entry : [entry.command, entry.args ?? []]))
+      : { ok: false, results: [], reason: 'NO_CANDIDATE_VERIFICATION_COMMANDS' };
+
+    const differentialProof = buildDifferentialProof({
+      targetSha: targetSha ?? beforeSha,
+      failureFingerprint,
+      changedPaths: summary.files,
+      baseFiles,
+      candidateFiles,
+      diff,
+      protectedPaths: ['scripts/ci/repair-protocol.mjs','scripts/ci/auto-repair-engine.mjs','.github/workflows/auto-repair.yml','scripts/ci/auto-repair/'],
+      verification: {
+        ok: behavioralVerification.ok,
+        diffCheck,
+        commands: verificationCommands,
+      },
+      scopeFiles: plan.files?.length ? plan.files : [plan.file],
+    });
 
     const declaredFiles = Array.isArray(plan.files) && plan.files.length ? plan.files : [plan.file];
     const scopeOk =
@@ -65,7 +97,7 @@ export function simulateRepair({
       declaredFiles.includes(plan.file);
 
     return Object.freeze({
-      ok: Boolean(repair?.applied) && scopeOk,
+      ok: Boolean(repair?.applied) && scopeOk && behavioralVerification.ok && differentialProof.status === 'PASS',
       stage: 'simulation',
       beforeSha,
       repair,
@@ -73,11 +105,17 @@ export function simulateRepair({
       scopeOk,
       target: plan.file,
       declaredFiles,
+      behavioralVerification,
+      differentialProof,
       isolated: true,
       reason: repair?.applied
-        ? scopeOk
-          ? 'SIMULATION_PASS'
-          : 'SIMULATION_SCOPE_MISMATCH'
+        ? !scopeOk
+          ? 'SIMULATION_SCOPE_MISMATCH'
+          : !behavioralVerification.ok
+            ? 'SIMULATION_CANDIDATE_VERIFICATION_FAILED'
+            : differentialProof.status !== 'PASS'
+              ? 'SIMULATION_DIFFERENTIAL_FAILED'
+              : 'SIMULATION_PASS'
         : 'SIMULATION_REPAIR_NOT_APPLIED',
     });
   } catch (error) {
