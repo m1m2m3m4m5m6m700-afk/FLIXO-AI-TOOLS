@@ -2422,5 +2422,40 @@
     "quorum": "2_OF_3_FOR_ROUTINE_CELL_DECISIONS_3_OF_3_FOR_CRITICAL_DECISIONS",
     "peerAuthority": "PROPOSE_CHALLENGE_VERIFY_ONLY",
     "rawBotAuthority": "EXECUTE_ASSIGNED_SCOPE_ONLY"
+  },
+  "actionRepairCohort": {
+    "schemaVersion": 1,
+    "authority": "CELL_CONTROL_PLANE",
+    "purpose": "Five reusable repair workers for any GitHub Actions failure. All five consume identical Action-error references and return independent repair analysis to the canonical controller.",
+    "workerIds": [
+      "CELL-001",
+      "CELL-002",
+      "CELL-003",
+      "CELL-004",
+      "CELL-005"
+    ],
+    "workerModes": {
+      "CELL-001": "PRIMARY_ACTION_RCA",
+      "CELL-002": "HISTORICAL_STRATEGY_TRANSFER",
+      "CELL-003": "INFERENTIAL_ALTERNATIVE",
+      "CELL-004": "FALSIFICATION_AND_RISK",
+      "CELL-005": "REGRESSION_AND_IMPACT"
+    },
+    "sharedReferences": [
+      "docs/agents/historical-action-errors/index.json",
+      "docs/agents/historical-action-errors/records",
+      "docs/AUTO_REPAIR_HISTORY.jsonl",
+      "diagnostics/auto-repair/memory.json",
+      "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+      "docs/agents/ERROR-TEACHING-ROUTER.json",
+      "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
+      "scripts/ci/error-learning-log.mjs"
+    ],
+    "sameReferencesForAll": true,
+    "anyActionFailureAdmitted": true,
+    "assignmentPolicy": "SAME_INCIDENT_CONTEXT_DIFFERENT_ANALYTIC_ROLE",
+    "mutationAuthority": false,
+    "canonicalMutationOwner": "repairAgent",
+    "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY"
   }
 }
