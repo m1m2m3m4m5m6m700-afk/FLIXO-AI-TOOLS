@@ -7,14 +7,43 @@ const SOURCE_EXT = /\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu;
 const TEST_PATH = /(^|\/)(?:tests?|__tests__)(?:\/|$)|(?:^|\/)test-[^/]+\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu;
 const CONTROL_PATH = /^(?:scripts\/ci\/(?:repair-|auto-repair)|scripts\/ci\/agent-|\.github\/workflows\/)/u;
 
+const DRIVER_DEFINITIONS = Object.freeze({
+  'eslint-ast': Object.freeze({ deterministic: true, maxScope: 'exact-file', class: 'lint' }),
+  'prettier-deterministic': Object.freeze({ deterministic: true, maxScope: 'exact-file', class: 'format' }),
+  'prepared-source-change': Object.freeze({ deterministic: true, maxScope: 'declared-affected-source', class: 'prepared' }),
+  'typescript-missing-import': Object.freeze({ deterministic: true, maxScope: 'exact-file', class: 'typescript', requires: 'TS2304_CAN_T_FIND_NAME' }),
+});
+
 const DRIVER_BY_RULE = Object.freeze({
   'eslint-unused': 'eslint-ast',
   'prettier-file': 'prettier-deterministic',
   'prepared-source-change': 'prepared-source-change',
+  'typescript-missing-import': 'typescript-missing-import',
 });
 
 function exactSha(value) { return SHA_RE.test(String(value ?? '')); }
 function normalizePath(value) { return String(value ?? '').trim().replace(/\\/g, '/').replace(/^\.\//u, ''); }
+function tsMissingImportSignal(log) { return /TS2304\b|Cannot find name ['\"]/iu.test(String(log ?? '')); }
+function deriveSemanticSourceSlice({ targetDir = process.cwd(), location = null } = {}) {
+  const file = normalizePath(location?.file);
+  const line = Number(location?.line ?? 0);
+  if (!file || !line) return Object.freeze({ available: false, file: file || null, line: line || null, symbol: null, startLine: null, endLine: null });
+  try {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const lines = fs.readFileSync(path.resolve(targetDir, file), 'utf8').split(/\r?\n/u);
+    const start = Math.max(0, line - 8);
+    const end = Math.min(lines.length, line + 7);
+    const context = lines.slice(start, end);
+    const declaration = context.map((text, i) => ({ text, line: start + i + 1 })).reverse().find(({ text }) => /\\b(?:function|class|const|let|var|enum|interface|type)\\s+[A-Za-z_$][\\w$]*/u.test(text));
+    const symbol = declaration?.text.match(/\\b(?:function|class|const|let|var|enum|interface|type)\\s+([A-Za-z_$][\\w$]*)/u)?.[1] ?? null;
+    return Object.freeze({ available: true, file, line, startLine: start + 1, endLine: end, symbol, excerpt: context.map((text, i) => ({ line: start + i + 1, text: String(text).slice(0, 500) })) });
+  } catch { return Object.freeze({ available: false, file, line, symbol: null, startLine: null, endLine: null }); }
+}
+function strategyKey({ driver, rule, diagnosis, classification, semanticSlice }) {
+  return [driver || 'none', rule || 'none', diagnosis?.rootCause || 'unknown', classification?.targetFile || classification?.targetFiles?.join(',') || 'none', diagnosis?.diagnosticCode || 'none', semanticSlice?.symbol || 'module']
+    .map((value) => String(value).replace(/[^a-z0-9._,-]+/gi, '_')).join('|');
+}
 
 export function classifyRepairTarget({ diagnosis = null, selected = null } = {}) {
   const files = [...new Set((Array.isArray(selected?.files) ? selected.files : [selected?.file || diagnosis?.location?.file || diagnosis?.causalGraph?.responsibleSource])
@@ -34,6 +63,7 @@ export function classifyRepairTarget({ diagnosis = null, selected = null } = {})
   if (diagnosis?.decision === 'BLOCK_EXTERNAL') problems.push('ERROR_EXTERNAL_BLOCKER_IS_NOT_SOURCE_DEFECT');
   if (diagnosis?.rootCause === 'UNKNOWN_RCA') problems.push('ERROR_UNKNOWN_RCA_BLOCKED');
   if (diagnosis?.ambiguity === true) problems.push('ERROR_AMBIGUOUS_CAUSALITY_BLOCKED');
+  if (rule === 'typescript-missing-import' && !tsMissingImportSignal(diagnosis?.failureLog ?? diagnosis?.log ?? '')) problems.push('ERROR_TS_MISSING_IMPORT_SIGNAL_REQUIRED');
 
   return Object.freeze({
     targetFile: file || null,
@@ -54,16 +84,20 @@ export function buildErrorOnlyRepairModel({
   selected = null,
   targetSha = '',
   failedSha = null,
+  targetDir = process.cwd(),
 } = {}) {
   const fingerprint = fingerprintFailure(log);
   const normalizedFailure = normalizeFailure(log);
-  const classification = classifyRepairTarget({ diagnosis, selected });
+  const normalizedDiagnosis = { ...(diagnosis ?? {}), failureLog: log };
+  const classification = classifyRepairTarget({ diagnosis: normalizedDiagnosis, selected });
+  const semanticSlice = deriveSemanticSourceSlice({ targetDir, location: diagnosis?.location });
   const shaValid = exactSha(targetSha) && (!failedSha || exactSha(failedSha));
   const identityMatches = !failedSha || !exactSha(failedSha) || failedSha === targetSha || diagnosis?.targetSha === targetSha || diagnosis?.entrySha === targetSha;
   const directSignal = diagnosis?.directFailureSignal === true;
   const confidence = Number(diagnosis?.causalConfidence ?? 0);
   const sourceGrounded = Boolean(diagnosis?.location?.file || diagnosis?.causalGraph?.responsibleSource || selected?.file);
-  const mutationAllowed = classification.allowed && shaValid && identityMatches && directSignal && confidence >= 0.75 && diagnosis?.sourceMutationAllowed !== false;
+  const driverDefinition = classification.driver ? DRIVER_DEFINITIONS[classification.driver] : null;
+  const mutationAllowed = classification.allowed && Boolean(driverDefinition?.deterministic) && shaValid && identityMatches && directSignal && confidence >= 0.75 && diagnosis?.sourceMutationAllowed !== false;
 
   return Object.freeze({
     schemaVersion: 1,
@@ -77,6 +111,8 @@ export function buildErrorOnlyRepairModel({
       confidence,
       directSignal,
       sourceGrounded,
+      diagnosticCode: diagnosis?.diagnosticCode ?? (tsMissingImportSignal(log) ? 'TS2304' : null),
+      semanticSlice,
     },
     repair: {
       rule: selected?.id ?? null,
@@ -84,8 +120,11 @@ export function buildErrorOnlyRepairModel({
       targetFile: classification.targetFile,
       targetFiles: classification.targetFiles,
       mutationAllowed,
+      driverDefinition,
+      strategyKey: strategyKey({ driver: classification.driver, rule: selected?.id ?? null, diagnosis, classification, semanticSlice }),
       reason: mutationAllowed ? 'ERROR_SOURCE_MATCHED_AND_GUARDED' : 'ERROR_ONLY_GUARD_BLOCKED',
     },
+    candidates: Object.entries(DRIVER_DEFINITIONS).map(([id, definition]) => ({ id, ...definition, selected: id === classification.driver })),
     invariants: [
       'MUTATE_ONLY_THE_CAUSAL_SOURCE',
       'NEVER_MUTATE_TESTS',
