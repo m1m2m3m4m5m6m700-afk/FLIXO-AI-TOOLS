@@ -38,13 +38,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Checkout exact PR head
       - name: Fail closed when this commit is superseded
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           EXPECTED_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
           EXPECTED_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
         run: node scripts/ci/assert-current-commit.mjs
-      - name: Checkout exact PR head
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
