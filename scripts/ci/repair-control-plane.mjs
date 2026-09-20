@@ -5,6 +5,9 @@ import fs from 'node:fs';
 export const CONTROL_PLANE_SCHEMA_VERSION = 1;
 export const CONTROL_PLANE_AUTHORITY = 'FLIXO_REPAIR_CONTROL_PLANE';
 
+export const BROTHER_IDS = Object.freeze(['A', 'B']);
+export const BROTHER_MODES = Object.freeze(['WRITE', 'READ']);
+
 export const REPAIR_STATES = Object.freeze([
   'DETECTED',
   'CLAIMED',
@@ -132,6 +135,114 @@ export function validateEvidenceProvenance(record, { expectedSha, expectedCertif
   if (expectedArtifactDigest !== null && record.artifactDigest !== expectedArtifactDigest) throw new Error('CONTROL_PLANE_ARTIFACT_DIGEST_MISMATCH');
   if (!record.result) throw new Error('CONTROL_PLANE_EVIDENCE_RESULT_REQUIRED');
   return Object.freeze({ valid: true, exactSha: !expectedSha || record.sourceSha === expectedSha });
+}
+
+export function createBrotherSession({
+  repairChainId,
+  failureFingerprint,
+  targetSha,
+  activeBrother = 'A',
+  createdAt = new Date().toISOString(),
+} = {}) {
+  requireText('repairChainId', repairChainId);
+  requireText('failureFingerprint', failureFingerprint);
+  if (!isSha(targetSha)) throw new Error('CONTROL_PLANE_BROTHER_TARGET_SHA_INVALID');
+  if (!BROTHER_IDS.includes(activeBrother)) throw new Error('CONTROL_PLANE_BROTHER_ID_INVALID');
+  const waitingBrother = activeBrother === 'A' ? 'B' : 'A';
+  return Object.freeze({
+    schemaVersion: 1,
+    kind: 'FLIXO_BROTHER_SESSION',
+    repairChainId: String(repairChainId),
+    failureFingerprint: String(failureFingerprint),
+    targetSha: String(targetSha),
+    state: 'WRITE_ACTIVE',
+    turn: 1,
+    activeBrother,
+    activeMode: 'WRITE',
+    waitingBrother,
+    waitingMode: 'READ',
+    handoffCount: 0,
+    challengeCount: 0,
+    lastSurrender: null,
+    lastChallenge: null,
+    createdAt,
+    updatedAt: createdAt,
+  });
+}
+
+export function assertBrotherAuthority(session, {
+  brotherId,
+  mode,
+  mutation = false,
+  targetSha,
+} = {}) {
+  if (!session || typeof session !== 'object') throw new Error('CONTROL_PLANE_BROTHER_SESSION_INVALID');
+  if (!BROTHER_IDS.includes(brotherId)) throw new Error('CONTROL_PLANE_BROTHER_ID_INVALID');
+  if (!BROTHER_MODES.includes(mode)) throw new Error('CONTROL_PLANE_BROTHER_MODE_INVALID');
+  if (targetSha !== undefined && String(targetSha) !== String(session.targetSha)) {
+    throw new Error('CONTROL_PLANE_BROTHER_TARGET_SHA_MISMATCH');
+  }
+  const expectedMode = session.activeBrother === brotherId ? 'WRITE' : 'READ';
+  if (mode !== expectedMode) throw new Error('CONTROL_PLANE_BROTHER_TURN_VIOLATION');
+  if (mutation !== true) return Object.freeze({ authorized: true, mutation: false, readOnly: mode === 'READ' });
+  if (mode !== 'WRITE') throw new Error('CONTROL_PLANE_BROTHER_READ_ONLY_MUTATION_BLOCKED');
+  return Object.freeze({ authorized: true, mutation: true, readOnly: false });
+}
+
+export function surrenderBrother(session, {
+  brotherId,
+  reason = 'BROTHER_SURRENDER',
+  exitSha = session?.targetSha,
+  at = new Date().toISOString(),
+} = {}) {
+  assertBrotherAuthority(session, { brotherId, mode: 'WRITE', mutation: true, targetSha: exitSha });
+  if (!String(reason).trim()) throw new Error('CONTROL_PLANE_BROTHER_SURRENDER_REASON_REQUIRED');
+  const nextActive = brotherId === 'A' ? 'B' : 'A';
+  return Object.freeze({
+    ...session,
+    state: 'TURN_HANDOFF_REQUIRED',
+    turn: Number(session.turn ?? 1) + 1,
+    activeBrother: nextActive,
+    activeMode: 'WRITE',
+    waitingBrother: brotherId,
+    waitingMode: 'READ',
+    handoffCount: Number(session.handoffCount ?? 0) + 1,
+    lastSurrender: Object.freeze({
+      brotherId,
+      fromMode: 'WRITE',
+      toMode: 'READ',
+      exitSha: String(exitSha),
+      reason: String(reason),
+      at,
+    }),
+    updatedAt: at,
+  });
+}
+
+export function recordBrotherChallenge(session, {
+  brotherId,
+  targetSha,
+  disposition = 'COUNTERCHECK',
+  evidenceDigest = null,
+  at = new Date().toISOString(),
+} = {}) {
+  assertBrotherAuthority(session, { brotherId, mode: 'READ', mutation: false, targetSha });
+  if (session.waitingBrother !== brotherId) throw new Error('CONTROL_PLANE_BROTHER_CHALLENGE_NOT_WAITING');
+  const next = {
+    ...session,
+    state: 'READ_ONLY_CHALLENGE',
+    challengeCount: Number(session.challengeCount ?? 0) + 1,
+    lastChallenge: {
+      brotherId,
+      targetSha: String(targetSha),
+      disposition: String(disposition),
+      evidenceDigest: evidenceDigest == null ? null : String(evidenceDigest),
+      at,
+    },
+    nextAction: 'WAIT_FOR_ACTIVE_BROTHER_SURRENDER',
+    updatedAt: at,
+  };
+  return Object.freeze(next);
 }
 
 export function deriveRepairIdentity({ failureFingerprint, failedSha, targetRunId, branch = 'execution' }) {
@@ -402,6 +513,11 @@ export function controlPlaneSchema() {
       'CERTIFICATE_IDENTITY_IS_SHA_BOUND',
       'MERGE_SHA_MUST_MATCH_CERTIFIED_SHA',
       'HEAD_RACE_INVALIDATES_REPAIR_EVIDENCE',
+      'ONE_ACTIVE_BROTHER_WRITER',
+      'SURRENDER_FLIPS_WRITE_AUTHORITY_TO_THE_OTHER_BROTHER',
+      'SURRENDERED_BROTHER_IS_READ_ONLY_UNTIL_THE_OTHER_BROTHER_SURRENDERS',
+      'BROTHER_PAIR_SHARES_REPAIR_IDENTITY_AND_EXACT_TARGET_SHA',
+      'BROTHER_DISPATCH_IS_CONTROLLER_MEDIATED_NOT_SIBLING_TO_SIBLING',
     ],
   });
 }
