@@ -4,7 +4,7 @@ run-name: Daily·FLIXO Green Gate ${{ github.run_id }}
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/5 * * * *'
   workflow_run:
     workflows:
       # Canonical triggers: completed Test System or Auto Repair cycles wake the watcher.
@@ -21,7 +21,7 @@ permissions:
   pull-requests: read
   issues: write
 
-# Every observation is evidence-bearing and must complete; duplicate wake suppression is handled by the watchdog.
+# Every 5 minutes this canonical gate wakes, observes exact execution state, classifies RED/blocked/green, and dispatches the bounded repair cycle when an internal RED requires repair. Duplicate wake suppression is handled by the watchdog.
 # The watcher itself never cancels an evidence-bearing observation.
 concurrency:
   group: flixo-continuous-error-watch-${{ github.run_id }}
