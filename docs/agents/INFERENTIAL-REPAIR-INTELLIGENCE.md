@@ -82,3 +82,17 @@ Historical index update
 \`\`\`
 
 Memory is a prior. The current repository state is the evidence.
+
+## Learned synthesis boundary
+
+The inference layer also reads the routed error-teaching corpus and the verified historical repair knowledge. These sources are advisory ingredients for strategy synthesis; they do not become proof.
+
+A synthesized strategy is represented with a deterministic strategy ID, its evidence ingredients, expected steps and a mutation capability. Only strategies backed by an approved deterministic mutation adapter can enter bounded source mutation. Unsupported synthesized strategies remain proposal-only.
+
+## Predictive ordering
+
+Prediction is derived from historical run transitions and action-history evidence rather than from a single repeated log line. Predicted next failure classes are used only to order investigation and regression work.
+
+## Fallback activation
+
+The planner may select an inferentially validated adapter even when literal RCA returns PROPOSE_ONLY. This is the intended fallback path: literal diagnosis is not authoritative for rejecting a stronger evidence-bounded learned strategy, while exact-SHA reproduction, regression and Canonical CI remain mandatory.
