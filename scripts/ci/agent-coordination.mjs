@@ -21,6 +21,7 @@ const WRITE_LOCK_WAIT_MS = 50;
 const WRITE_LOCK_MAX_ATTEMPTS = 240;
 const WRITE_LOCK_STALE_MS = 10 * 60 * 1000;
 const STALE_SESSION_KILL_SWITCH = true;
+const COUNCIL_MACHINE_ROLES = new Set(['assistantController','verification','analysis','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent']);
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
@@ -114,7 +115,16 @@ const materializeLedgerTask = (ledgerTask) => {
     knownFailure: null,
     evidenceRequired: ['exact-sha', 'targeted-regression'],
     dependsOn: [],
-    status: 'READY',
+    missionId: `LEDGER:${ledgerTask.taskId}`,
+    workPackageId: ledgerTask.taskId,
+    councilRole: 'UNASSIGNED',
+    ownerRole: null,
+    ownerAgent: null,
+    workItems: [],
+    acceptanceCriteria: [],
+    proofObligations: [],
+    handoffTo: 'assistantController',
+    status: 'QUEUED',
     sourceOfTruth: 'المهام.md',
     ledgerLine: ledgerTask.line,
     ledgerStatus: ledgerTask.status,
@@ -174,7 +184,25 @@ const storageKey = (value) => createHash('sha256').update(value).digest('hex');
 const visibilityPath = (sessionId) => path.join(VISIBILITY_DIR, `${storageKey(sessionId)}.json`);
 const packetPath = (taskId) => path.join(PACKET_DIR, `${storageKey(taskId)}.json`);
 const readVisibility = (sessionId) => { const file = visibilityPath(sessionId); if (!fs.existsSync(file)) throw new Error(`AGENT_VISIBILITY_RECORD_MISSING=${sessionId}`); return JSON.parse(fs.readFileSync(file, 'utf8')); };
-const assertOpenVisibility = (task, sessionId, agentId) => { const record = readVisibility(sessionId); if (record.visibilityState !== 'OPEN' || record.status !== 'RUNNING') throw new Error(`AGENT_VISIBILITY_NOT_OPEN=${sessionId}`); if (record.taskId !== task.taskId) throw new Error('AGENT_VISIBILITY_TASK_MISMATCH'); if (record.agentId !== agentId) throw new Error('AGENT_VISIBILITY_AGENT_MISMATCH'); if (record.entrySha && record.entrySha !== sha()) throw new Error('AGENT_VISIBILITY_STALE_ENTRY_SHA'); return record; };
+const assertOpenVisibility = (task, sessionId, agentId) => {
+  const record = readVisibility(sessionId);
+  if (record.visibilityState !== 'OPEN' || record.status !== 'RUNNING') throw new Error(`AGENT_VISIBILITY_NOT_OPEN=${sessionId}`);
+  if (record.taskId !== task.taskId) throw new Error('AGENT_VISIBILITY_TASK_MISMATCH');
+  if (record.agentId !== agentId) throw new Error('AGENT_VISIBILITY_AGENT_MISMATCH');
+  if (record.entrySha && record.entrySha !== sha()) throw new Error('AGENT_VISIBILITY_STALE_ENTRY_SHA');
+  if (!task.ownerRole) throw new Error('TASK_OWNER_ROLE_REQUIRED');
+  if (!COUNCIL_MACHINE_ROLES.has(String(task.ownerRole))) throw new Error('TASK_OWNER_ROLE_INVALID');
+  if (record.role !== task.ownerRole) throw new Error(`TASK_OWNER_ROLE_MISMATCH=${task.ownerRole}`);
+  if (task.ownerAgent && record.agentId !== task.ownerAgent) throw new Error('TASK_OWNER_AGENT_MISMATCH');
+  if (!task.workPackageId) throw new Error('TASK_WORK_PACKAGE_REQUIRED');
+  if (!Array.isArray(task.workItems) || task.workItems.length === 0) throw new Error('TASK_WORK_ITEMS_REQUIRED');
+  if (!Array.isArray(task.acceptanceCriteria) || task.acceptanceCriteria.length === 0) throw new Error('TASK_ACCEPTANCE_CRITERIA_REQUIRED');
+  if (!Array.isArray(task.proofObligations) || task.proofObligations.length === 0) throw new Error('TASK_PROOF_OBLIGATIONS_REQUIRED');
+  const taskScope = new Set(task.scope ?? []);
+  const sessionScope = new Set(record.scope ?? []);
+  for (const item of taskScope) if (!sessionScope.has(item)) throw new Error(`TASK_SCOPE_NOT_IN_SESSION_SCOPE=${item}`);
+  return record;
+};
 const staleSessionRecord = (sessionId, session, reason) => {
   const staleAtSha = sha();
   state.staleSessions[sessionId] = { ...session, staleAt: now(), staleAtSha, staleReason: reason };
@@ -245,7 +273,34 @@ if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'task-next',
 if (command === 'task-create') {
   const taskId = requireArg('task');
   if (state.tasks[taskId]) throw new Error(`Task already exists: ${taskId}`);
-  const task = { taskId, title: requireArg('title'), priority: Number(optional('priority', '50')), lane: optional('lane', 'fast-path'), rca: optional('rca') || null, scope: list('scope'), objective: optional('objective'), knownFailure: optional('known-failure'), evidenceRequired: list('evidence-required'), dependsOn: list('depends-on'), status: 'READY', createdAt: now() };
+  const ownerRole = optional('owner-role') || null;
+  if (ownerRole && !COUNCIL_MACHINE_ROLES.has(ownerRole)) throw new Error('TASK_OWNER_ROLE_INVALID=' + ownerRole);
+  const workItems = list('work-items');
+  const acceptanceCriteria = list('acceptance');
+  const proofObligations = list('proof');
+  const task = {
+    taskId,
+    title: requireArg('title'),
+    priority: Number(optional('priority', '50')),
+    lane: optional('lane', 'fast-path'),
+    rca: optional('rca') || null,
+    scope: list('scope'),
+    objective: optional('objective'),
+    knownFailure: optional('known-failure'),
+    evidenceRequired: list('evidence-required'),
+    dependsOn: list('depends-on'),
+    missionId: optional('mission-id') || `MISSION:${taskId}`,
+    workPackageId: optional('work-package') || taskId,
+    councilRole: optional('council-role') || null,
+    ownerRole,
+    ownerAgent: optional('owner-agent') || null,
+    workItems,
+    acceptanceCriteria,
+    proofObligations,
+    handoffTo: optional('handoff-to') || 'assistantController',
+    status: ownerRole && optional('owner-agent') && workItems.length && acceptanceCriteria.length && proofObligations.length ? 'READY' : 'QUEUED',
+    createdAt: now(),
+  };
   for (const dep of task.dependsOn) if (!state.tasks[dep]) throw new Error(`Unknown dependency: ${dep}`);
   state.tasks[taskId] = task;
   writeJson(packetPath(taskId), { schemaVersion: 1, ...task, entrySha: sha(), createdAt: now(), nextActions: [], continuation: null });
@@ -313,19 +368,22 @@ if (command === 'task-complete') {
       ledgerLine: ledgerNext.line,
       ledgerStatus: ledgerNext.status,
       priority: ledgerNext.priority,
-      assignedAgent: task.claimedBy ?? null,
+      assignedAgent: nextTask.ownerAgent ?? null,
+      assignedRole: nextTask.ownerRole ?? null,
+      councilRole: nextTask.councilRole ?? null,
       entrySha: sha(),
       requiresNewSession: true,
+      requiresPresidentAssignment: !nextTask.ownerRole || !nextTask.ownerAgent,
       dispatchReason: 'PREVIOUS_TASK_VERIFIED'
     };
     state.nextDispatch = {
       dispatchId: `TASK-NEXT:${taskId}:${sha()}`,
       completedTaskId: taskId,
       nextTaskId: nextTask.taskId,
-      recipient: task.claimedBy ?? 'ALL_AGENTS',
+      recipient: nextTask.ownerAgent ?? 'assistantController',
       sourceOfTruth: 'المهام.md',
       entrySha: sha(),
-      status: 'READY',
+      status: nextTask.ownerRole && nextTask.ownerAgent ? 'READY' : 'PENDING_ASSIGNMENT',
       createdAt: now()
     };
   } else {
@@ -354,14 +412,17 @@ if (command === 'task-next') {
       dispatchId: `TASK-NEXT:${completedTaskId ?? 'IDLE'}:${sha()}:${task.taskId}`,
       completedTaskId,
       nextTaskId: task.taskId,
-      recipient: agentId,
+      recipient: task.ownerAgent ?? 'assistantController',
       sourceOfTruth: 'المهام.md',
       ledgerLine: ledgerTask.line,
       ledgerStatus: ledgerTask.status,
       priority: ledgerTask.priority,
+      ownerRole: task.ownerRole ?? null,
+      councilRole: task.councilRole ?? null,
       entrySha: sha(),
-      status: 'READY',
+      status: task.ownerRole && task.ownerAgent ? 'READY' : 'PENDING_ASSIGNMENT',
       requiresNewSession: true,
+      requiresPresidentAssignment: !task.ownerRole || !task.ownerAgent,
       createdAt: now()
     };
     state.nextDispatch = dispatch;

@@ -1,6 +1,10 @@
-# ⛔ AUTONOMOUS MUTATION HALT — ISSUE #761
+# ✅ CANONICAL AGENT COUNCIL — PR #759
 
-Issue #761 is closed and its activation loop is terminated. Any agent/session deriving authority from that inbox MUST STOP and MUST NOT create commits, dispatch workflows, or mutate `execution`. Autonomous repair authority remains only with the canonical Daily FLIXO Green Gate → Auto Repair lease path for a fresh exact-SHA RED. This is a fail-closed control-plane constraint until a new authorized activation protocol is explicitly established.
+Issue #761 is archived and MUST NOT be used as an activation source. Active Council ingress is PR #759 on `execution → main`.
+
+PRESIDENT=`assistantController`; DEPUTY=`verification`; INVESTIGATOR=`analysis`. These are coordination titles over existing machine roles and do not create mutation or certification authority.
+
+Canonical Wake Dispatcher: integrated into `.github/workflows/agent-communication-relay.yml`, with `scripts/ci/council-wake-dispatch.mjs` as the deterministic planner.
 
 # 🚨 AGENT ENTRY GATE — FLIXO-AI-TOOLS
 
@@ -140,7 +144,7 @@ The shared agent communication channel is the first operational dependency for e
 
 `NOTIFICATION → MASTER INBOX → EVENT-DRIVEN RELAY → READ → EXACT-SHA REVALIDATION → LOCK_SCOPE → TASK CLAIM → EXECUTE`
 
-The canonical communication runtime is `scripts/ci/agent-communication.mjs`, the event ingress is `.github/workflows/agent-communication-relay.yml`, and the existing Master Inbox is GitHub Issue #761.
+The canonical communication runtime is `scripts/ci/agent-communication.mjs`, the event ingress is `.github/workflows/agent-communication-relay.yml`, the active Council ingress is PR #759, and Wake Dispatch is `.github/workflows/council-wake-dispatch.yml`. Issue #761 is archived and rejected.
 
 Every actionable message MUST carry a unique `messageId`/`idempotencyKey`, target `recipient`, `taskId`, declared `scope`, exact `entrySha`, risk, dependencies, expected evidence, stop conditions and proof obligations.
 
@@ -270,3 +274,10 @@ The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 - Never claim a green release without fresh exact-SHA CI evidence.
 
 **MANDATORY ENTRY: `PROJECTS.md` → `المهام.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTION-ONLY CHANGE → TARGETED REGRESSION → EXACT-SHA PROOF → UPDATE PROJECT MAPS → HANDOFF.**
+
+
+## PRESIDENTIAL COUNCIL OPERATING MODEL
+
+`PRESIDENT → DEPUTY → INVESTIGATOR → SPECIALIST → VERIFY → HANDOFF → PRESIDENT`
+
+Tasks are large causally coherent Work Packages. Every claim requires ownerRole, Work Package identity, acceptance criteria, proof obligations and exact SHA. Unassigned ledger work returns to the President as PENDING_ASSIGNMENT. An agent stops after handoff and does not self-assign another package.

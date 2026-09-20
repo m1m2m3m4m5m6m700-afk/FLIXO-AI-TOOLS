@@ -185,7 +185,7 @@ NOTIFICATION
   → EXECUTE
 ```
 
-The canonical ingress is the existing Master Inbox at GitHub Issue #761. The event-driven adapter is `.github/workflows/agent-communication-relay.yml`. The machine-readable inbox lifecycle is implemented by `scripts/ci/agent-communication.mjs` and consumed by `scripts/ci/agent-session.mjs`.
+The canonical ingress is the active Council conversation at canonical PR #759. Issue #761 is archived and rejected as an activation source. The event-driven adapter is `.github/workflows/agent-communication-relay.yml`, and the President Wake dispatcher is integrated into `.github/workflows/agent-communication-relay.yml`, using `scripts/ci/council-wake-dispatch.mjs` as the deterministic planner. The machine-readable inbox lifecycle is implemented by `scripts/ci/agent-communication.mjs` and consumed by `scripts/ci/agent-session.mjs`.
 
 Message states are:
 
@@ -312,3 +312,18 @@ Removing, bypassing, weakening, duplicating or silently ignoring these controls 
 
 ## Assistant Repair Fallback — P20
 When both `repairAgent` and `executionAgent` are unavailable, `assistantRepairAgent` may execute a learned repair directly on `execution`. It must use a previously verified repair rule from the canonical memory with at least 0.90 success confidence and support from at least two successful fingerprints. The rule is revalidated against the current exact SHA and must remain inside the normal Repair Protocol. No new speculative strategy, gate bypass, third branch, or certification self-approval is permitted. If any fallback condition is not proven, execution fails closed.
+
+
+## Presidential Council hierarchy and large Work Packages
+
+P20 remains the single cooperation protocol; this section extends it without creating a competing protocol.
+
+- Council President = `assistantController`: mission selection, priority, assignment, arbitration, handoff acceptance and closure decisions. No mutation or certification.
+- Council Deputy = `verification`: queue sequencing, dependency ordering, ownership conflicts, session visibility and handoff flow. No mutation or certification.
+- Council Investigator = `analysis`: fingerprint, RCA, propagation, causal source, falsification and proof obligations. No mutation or reassignment.
+
+Every executable task is a causally coherent large Work Package carrying `missionId, workPackageId, taskId, councilRole, ownerRole, ownerAgent, workItems, acceptanceCriteria, proofObligations, dependsOn, entrySha, handoffTo`. Independent causes remain separate tasks.
+
+Claim admission fails closed when ownerRole is missing/mismatched, when the agent is not the assigned owner, when required Work Package fields are missing, or when the session scope does not cover the task scope. Unassigned ledger tasks return to the President as PENDING_ASSIGNMENT.
+
+Wake lifecycle: `PRESIDENT WAKE → exact-SHA validation → role/work-package validation → canonical communication relay → reusable workflow dispatch OR external-agent wake → session → claim → execute → handoff → President decision`. Wake never grants mutation authority.

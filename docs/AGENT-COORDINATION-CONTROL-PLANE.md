@@ -1,6 +1,6 @@
 # FLIXO Agent Coordination Control Plane v2
 
-The repository uses one shared control plane for multi-agent execution and one durable per-session visibility ledger. Runtime locks/state protect active ownership; the visibility ledger makes each agent's task and final outcome readable by the other agents.
+The repository uses one shared control plane for multi-agent execution, one durable per-session visibility ledger, and a President-controlled Wake Dispatcher integrated into the canonical communication relay. Runtime locks/state protect active ownership; the visibility ledger makes each agent's task and final outcome readable by the other agents.
 
 ## State
 
@@ -92,3 +92,14 @@ The canonical regression `scripts/ci/test-agent-coordination.mjs` starts concurr
 Every active coordination session stores its entry SHA, protocol hash and governance fingerprint. Before any mutating coordination command, the control plane reconciles active sessions. A changed entry SHA or governance fingerprint moves the session to `STALE`, marks its owned task `STALE`, releases its lock, removes it from `activeSessions`, and preserves a stale-session record. A stale session cannot regain ownership.
 
 Mutating coordination commands are topology-bound to `execution`. `main` is read-only for this control plane. Governance drift and branch drift fail closed; they are never silently repaired by the coordination layer.
+
+
+## Presidential control and Work Package admission
+
+Council titles map to existing machine roles: PRESIDENT=`assistantController`, DEPUTY=`verification`, INVESTIGATOR=`analysis`. No second role registry is created.
+
+Claimable work must be a large Work Package with `missionId + workPackageId + ownerRole + workItems + acceptanceCriteria + proofObligations`. Ledger materialization may create QUEUED work without an owner, but claim is blocked until Presidential assignment.
+
+`task-next` returns an unassigned ledger task to `assistantController` as `PENDING_ASSIGNMENT`; it never silently assigns work to the previous worker.
+
+President Wake is exact-SHA bound and dispatched by the canonical communication relay. Reusable routes: SCOUT→`code-read-only-scout.yml`, INVESTIGATOR→`ultra-investigator.yml`, PERFORMANCE→`root-cause-diagnostics.yml`, TEST→`test-matrix-contract.yml`, SECURITY→`repository-security-baseline.yml`. Roles without reusable workflows are `EXTERNAL_AGENT_WAKE_REQUIRED` and must never be represented as executed.

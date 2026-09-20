@@ -9,16 +9,18 @@ const read = (file) => fs.readFileSync(path.resolve(root, file), 'utf8');
 const exists = (file) => fs.existsSync(path.resolve(root, file));
 
 const expected = {
-  'scripts/ci/agent-coordination.mjs': ['task-create', 'task-claim', 'task-release', 'task-complete', 'visible', 'ingest-handoff', 'COORDINATION_CONFLICT', 'AGENT_VISIBILITY', 'TASK_COMPLETION_REQUIRES_VERIFIED_AGENT_STATUS', 'getAgentMessage', 'COORDINATION_MESSAGE_NOT_READ', 'COORDINATION_MESSAGE_SHA_STALE', 'consumeAgentMessage', 'COORDINATION_WRITE_LOCK', 'COORDINATION_STATE_VERSION_CONFLICT', 'COORDINATION_TRANSACTION_MISMATCH', 'writeJsonAtomic', 'transactionId', 'COORDINATION_MUTATION_BRANCH_BLOCKED', 'HANDOFF_STALE_EXIT_SHA', 'HANDOFF_SCOPE_EXPANSION_BLOCKED', 'COORDINATION_GOVERNANCE_DRIFT', 'STALE_SESSION_KILL_SWITCH', 'AGENT_COORDINATION_FAST_READ_PATH', 'COORDINATION_READ_SHA_STALE', 'COORDINATION_READ_STATE_MISMATCH'],
+  'scripts/ci/agent-coordination.mjs': ['task-create', 'task-claim', 'task-release', 'task-complete', 'visible', 'ingest-handoff', 'COORDINATION_CONFLICT', 'AGENT_VISIBILITY', 'TASK_COMPLETION_REQUIRES_VERIFIED_AGENT_STATUS', 'getAgentMessage', 'COORDINATION_MESSAGE_NOT_READ', 'COORDINATION_MESSAGE_SHA_STALE', 'consumeAgentMessage', 'COORDINATION_WRITE_LOCK', 'COORDINATION_STATE_VERSION_CONFLICT', 'COORDINATION_TRANSACTION_MISMATCH', 'writeJsonAtomic', 'transactionId', 'COORDINATION_MUTATION_BRANCH_BLOCKED', 'HANDOFF_STALE_EXIT_SHA', 'HANDOFF_SCOPE_EXPANSION_BLOCKED', 'COORDINATION_GOVERNANCE_DRIFT', 'STALE_SESSION_KILL_SWITCH', 'AGENT_COORDINATION_FAST_READ_PATH', 'COORDINATION_READ_SHA_STALE', 'COORDINATION_READ_STATE_MISMATCH', 'TASK_OWNER_ROLE_REQUIRED', 'TASK_OWNER_ROLE_MISMATCH', 'TASK_WORK_PACKAGE_REQUIRED', 'TASK_WORK_ITEMS_REQUIRED', 'TASK_PROOF_OBLIGATIONS_REQUIRED'],
   'scripts/ci/agent-communication.mjs': ['validateMessage', 'ingest', 'markRead', 'markConsumed', 'AGENT_MESSAGE_IDEMPOTENCY_COLLISION', 'AGENT_MESSAGE_STALE_REQUIRES_REVALIDATION'],
   'scripts/ci/test-agent-communication.mjs': ['AGENT_COMMUNICATION_TEST=PASS', 'MESSAGE_IDEMPOTENCY=PASS', 'STALE_MESSAGE_FAIL_CLOSED=PASS'],
   'scripts/ci/test-agent-coordination.mjs': ['AGENT_COORDINATION_ATOMIC_TEST=PASS', 'COORDINATION_SINGLE_WINNER=PASS', 'COORDINATION_REVISION=PASS', 'STALE_SESSION_KILL_SWITCH=PASS', 'HANDOFF_ADMISSION_PARITY=PASS', 'HANDOFF_STALE_FAIL_CLOSED=PASS'],
-  '.github/workflows/agent-communication-relay.yml': ['issue_comment', 'Immediate agent message receive', 'agent-communication.mjs', 'IMMEDIATE_EVENT_RECEIPT'],
+  '.github/workflows/agent-communication-relay.yml': ['issue_comment', 'Immediate agent message receive', 'agent-communication.mjs', 'IMMEDIATE_EVENT_RECEIPT', 'github.event.issue.number == 759', 'PRESIDENT WAKE', 'council-wake-dispatch.mjs'],
+    'scripts/ci/council-wake-dispatch.mjs': ['ROLE_ROUTES', 'COUNCIL_WAKE_STALE_SHA', 'EXTERNAL_AGENT_WAKE_REQUIRED', 'WORKFLOW_DISPATCH'],
+  'scripts/ci/test-council-wake-dispatch.mjs': ['COUNCIL_WAKE_SCOUT_ROUTE=PASS', 'COUNCIL_WAKE_INVESTIGATOR_ROUTE=PASS', 'COUNCIL_WAKE_EXTERNAL_ROUTE=PASS', 'COUNCIL_WAKE_FAIL_CLOSED=PASS'],
   'scripts/ci/agent-session.mjs': ['login', 'event', 'logout', 'message-receive', 'message-consume', '--from-session=<previous-session>', '--task=<task-id>', 'AGENT_MESSAGE_NOT_EXECUTION_READY', 'P0_COMMUNICATION_FIRST', 'VERIFIED', 'BLOCKED', 'FINAL_SUMMARY_REQUIRED_BEFORE_SESSION_CLOSE', 'AGENT_EVENT_SUMMARY_REQUIRED', 'VERIFIED_LOGOUT_REQUIRES_ACTIVITY_LOG', 'docs/agents/ledger', 'CONTINUATION_STALE_EXIT_SHA', 'AGENT_SESSION_STALE_ENTRY_SHA', 'AGENT_SESSION_GOVERNANCE_DRIFT'],
   'docs/AGENT-HANDOFF-REPORT-SCHEMA.md': ['completedWork', 'failedWork', 'remainingWork', 'executionPlanNext', 'handoffToNextAgent'],
-  'docs/AGENT-COLLABORATION-PROTOCOL.md': ['Multi-Agent', 'handoff', 'scope', 'RCA', 'Assistant/controller', 'Execution Agent', 'Evidence over assertion', 'Stop-and-escalate', 'Challenge-before-mutation', 'Independent review', 'Decision trace', 'Parallel execution protocol', 'Conflict arbitration', 'Quality dimensions'],
+  'docs/AGENT-COLLABORATION-PROTOCOL.md': ['Multi-Agent', 'handoff', 'scope', 'RCA', 'Assistant/controller', 'Execution Agent', 'Evidence over assertion', 'Stop-and-escalate', 'Challenge-before-mutation', 'Independent review', 'Decision trace', 'Parallel execution protocol', 'Conflict arbitration', 'Quality dimensions', 'Council President', 'Council Deputy', 'Council Investigator', 'large Work Package', 'PRESIDENT → DEPUTY → INVESTIGATOR'],
   'docs/agents/ledger/README.md': ['Agent Visibility Ledger', 'docs/agents/ledger/<sessionId>.json', 'taskId', 'finalStatus', 'finalSummary', 'visibilityState'],
-  'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json': ['ASSISTANT_AGENT_COOPERATION_CONTRACT', 'assistantController', 'codeScout', 'executionAgent', 'reviewAgent', 'testAgent', 'securityAgent', 'performanceAgent', 'certificationAuthority', 'messageEnvelope', 'no_implicit_authority', 'parallelism', 'arbitration', 'architecture', 'quality', 'efficiency', 'recovery', 'security', 'release', 'communication_first', 'event_driven_delivery', 'message_idempotency', 'message_freshness'],
+  'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json': ['ASSISTANT_AGENT_COOPERATION_CONTRACT', 'assistantController', 'councilPresident', 'councilDeputy', 'councilInvestigator', 'codeScout', 'executionAgent', 'reviewAgent', 'testAgent', 'securityAgent', 'performanceAgent', 'certificationAuthority', 'messageEnvelope', 'no_implicit_authority', 'parallelism', 'arbitration', 'architecture', 'quality', 'efficiency', 'recovery', 'security', 'release', 'communication_first', 'event_driven_delivery', 'message_idempotency', 'message_freshness'],
   'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md': ['READ', 'WRITE', 'FORBIDDEN', 'NO_SOURCE_MUTATION', 'code-scout-latest.json', 'execution agents'],
 };
 
@@ -43,7 +45,11 @@ if (exists('docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json')) {
     if (!Array.isArray(contract?.collaborationFlow) || contract.collaborationFlow.length < 10) failures.push('COLLABORATION_FLOW_INCOMPLETE');
     if (contract?.investigation?.canonicalReport !== 'diagnostics/investigation/code-scout-latest.json') failures.push('SCOUT_REPORT_PATH_INVALID');
     if (!Array.isArray(contract?.messageLifecycle) || JSON.stringify(contract.messageLifecycle) !== JSON.stringify(['RECEIVED','READ','CONSUMED','STALE','BLOCKED_CONFLICT'])) failures.push('MESSAGE_LIFECYCLE_INVALID');
-    if (contract?.communication?.ingress !== 'Master Inbox / Issue #761') failures.push('COMMUNICATION_INGRESS_INVALID');
+    if (contract?.communication?.ingress !== 'Canonical Council PR #759') failures.push('COMMUNICATION_INGRESS_INVALID');
+    if (contract?.communication?.dispatcher !== '.github/workflows/agent-communication-relay.yml') failures.push('COMMUNICATION_DISPATCHER_INVALID');
+    if (contract?.roles?.councilPresident !== 'assistantController: presidential control, assignment and integration decisions; no mutation or certification') failures.push('COUNCIL_PRESIDENT_ROLE_INVALID');
+    if (!String(contract?.roles?.councilDeputy ?? '').includes('verification')) failures.push('COUNCIL_DEPUTY_ROLE_INVALID');
+    if (!String(contract?.roles?.councilInvestigator ?? '').includes('analysis')) failures.push('COUNCIL_INVESTIGATOR_ROLE_INVALID');
     if (contract?.communication?.relay !== '.github/workflows/agent-communication-relay.yml') failures.push('COMMUNICATION_RELAY_INVALID');
     if (contract?.communication?.implementation !== 'scripts/ci/agent-communication.mjs') failures.push('COMMUNICATION_IMPLEMENTATION_INVALID');
   } catch { failures.push('COOPERATION_JSON_INVALID'); }
@@ -72,7 +78,7 @@ if (exists('docs/agents/ledger/README.md')) {
 }
 
 const packageJson = exists('package.json') ? JSON.parse(read('package.json')) : { scripts: {} };
-for (const key of ['validate:agent-coordination','agent:coordination','agent:communication','test:agent-communication','validate:code-scout','agent:code-scout']) if (typeof packageJson.scripts?.[key] !== 'string') failures.push(`PACKAGE_SCRIPT_MISSING=${key}`);
+for (const key of ['validate:agent-coordination','agent:coordination','agent:communication','test:agent-communication','validate:code-scout','agent:code-scout','test:council-wake','agent:council-wake']) if (typeof packageJson.scripts?.[key] !== 'string') failures.push(`PACKAGE_SCRIPT_MISSING=${key}`);
 
 const protocolRegistry = exists('docs/PROTOCOL-REGISTRY.json') ? JSON.parse(read('docs/PROTOCOL-REGISTRY.json')) : null;
 if (!protocolRegistry) failures.push('PROTOCOL_REGISTRY_MISSING');

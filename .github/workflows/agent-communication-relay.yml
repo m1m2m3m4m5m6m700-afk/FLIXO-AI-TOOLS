@@ -25,7 +25,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (
-        github.event.issue.number == 761 &&
+        github.event.issue.number == 759 &&
         github.event.comment.body != '' &&
         (
           github.event.comment.user.login == 'github-actions[bot]' ||
@@ -40,6 +40,104 @@ jobs:
           ref: main
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Extract President Wake when present
+        id: president_wake
+        if: >-
+          github.event_name == 'issue_comment' &&
+          github.event.issue.number == 759 &&
+          contains(github.event.comment.body || '', '<!-- FLIXO_AGENT_COUNCIL_WAKE -->')
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$COMMENT_BODY" > /tmp/council-wake-comment.md
+          echo 'wake=true' >> "$GITHUB_OUTPUT"
+
+      - name: Resolve current execution SHA for President Wake
+        id: president_head
+        if: steps.president_wake.outputs.wake == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$SHA" =~ ^[0-9a-f]{40}$
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Build President Wake plan
+        id: president_plan
+        if: steps.president_wake.outputs.wake == 'true'
+        env:
+          CURRENT_SHA: ${{ steps.president_head.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/ci/council-wake-dispatch.mjs             --comment-file=/tmp/council-wake-comment.md             --current-execution-sha="$CURRENT_SHA"             --repository="$GITHUB_REPOSITORY" > /tmp/council-wake-plan.json
+          jq -r '"mode=" + .mode + "\nrole=" + .role + "\nworkflow=" + (.workflow // "") + "\nworkPackage=" + .workPackageId + "\nentrySha=" + .entrySha' /tmp/council-wake-plan.json >> "$GITHUB_OUTPUT"
+
+      - name: Check President Wake idempotency
+        id: president_duplicate
+        if: steps.president_wake.outputs.wake == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RECEIPT="<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
+          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+            echo 'duplicate=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'duplicate=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch President Wake workflow
+        if: steps.president_wake.outputs.wake == 'true' && steps.president_duplicate.outputs.duplicate != 'true' && steps.president_plan.outputs.mode == 'WORKFLOW_DISPATCH'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW: ${{ steps.president_plan.outputs.workflow }}
+          ENTRY_SHA: ${{ steps.president_plan.outputs.entrySha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$WORKFLOW" in
+            ultra-investigator.yml)
+              gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref execution -f "expected_sha=$ENTRY_SHA"
+              ;;
+            code-read-only-scout.yml|test-matrix-contract.yml|repository-security-baseline.yml|root-cause-diagnostics.yml)
+              gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref execution
+              ;;
+            *)
+              echo "FAIL CLOSED: unsupported President Wake workflow=$WORKFLOW"
+              exit 1
+              ;;
+          esac
+
+      - name: Acknowledge President Wake
+        if: steps.president_wake.outputs.wake == 'true' && steps.president_duplicate.outputs.duplicate != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROLE: ${{ steps.president_plan.outputs.role }}
+          MODE: ${{ steps.president_plan.outputs.mode }}
+          WORKPACKAGE: ${{ steps.president_plan.outputs.workPackage }}
+          ENTRY_SHA: ${{ steps.president_plan.outputs.entrySha }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### PRESIDENT WAKE RECEIPT
+
+**Role:** `$ROLE`
+**Mode:** `$MODE`
+**Work Package:** `$WORKPACKAGE`
+**Exact SHA:** `$ENTRY_SHA`
+
+Wake accepted through the canonical communication relay. Workflow dispatch remains subject to exact-SHA and role controls.
+
+<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
 
       - name: Extract and validate incoming message
         id: message
@@ -110,7 +208,7 @@ jobs:
         run: |
           set -euo pipefail
           RECEIPT="<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->"
-          if gh api "repos/$GITHUB_REPOSITORY/issues/761/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
             echo 'duplicate=true' >> "$GITHUB_OUTPUT"
             echo 'DUPLICATE_AGENT_MESSAGE=NO_OP'
           else
@@ -136,7 +234,7 @@ jobs:
           MESSAGE_KEY: ${{ steps.ingest.outputs.MESSAGE_IDEMPOTENCY_KEY }}
         run: |
           set -euo pipefail
-          gh issue comment 761 --repo "$GITHUB_REPOSITORY" --body "### AGENT MESSAGE RECEIVED
+          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### AGENT MESSAGE RECEIVED
 
           **Message:** `$MESSAGE_ID`
           **Status:** `$MESSAGE_STATUS`

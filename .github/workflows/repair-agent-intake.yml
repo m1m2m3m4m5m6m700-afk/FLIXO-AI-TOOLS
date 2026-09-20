@@ -127,12 +127,12 @@ jobs:
           set -euo pipefail
           INCIDENT_ID="$(jq -r '.incident.incidentId' /tmp/repair-agent-intake/output.json)"
           RECEIPT="<!-- repair-agent-incident:$INCIDENT_ID -->"
-          if gh api "repos/$GITHUB_REPOSITORY/issues/761/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
             echo "REPAIR_AGENT_INTAKE_DUPLICATE=NO_OP"
             exit 0
           fi
           jq -r '.issueComment' /tmp/repair-agent-intake/output.json > /tmp/repair-agent-intake/comment.md
-          gh issue comment 761 --repo "$GITHUB_REPOSITORY" --body-file /tmp/repair-agent-intake/comment.md
+          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body-file /tmp/repair-agent-intake/comment.md
           echo 'REPAIR_AGENT_ERROR_DELIVERED_TO_COUNCIL=true'
           echo 'OTHER_AGENTS_LOG_POLLING_REQUIRED=false'
 

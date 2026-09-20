@@ -34,7 +34,7 @@ jobs:
           test "$BRANCH" = "execution"
           test -n "$SHA"
           MARKER="<!-- activation-run:${RUN_ID}:sha:${SHA} -->"
-          if gh api "repos/$GITHUB_REPOSITORY/issues/761/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$MARKER"; then
+          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$MARKER"; then
             echo "MASTER_ACTIVATION_DEDUP=1"
             exit 0
           fi
@@ -50,4 +50,4 @@ jobs:
             echo
             echo "$MARKER"
           } > /tmp/activation-comment.md
-          gh issue comment 761 --repo "$GITHUB_REPOSITORY" --body-file /tmp/activation-comment.md
+          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body-file /tmp/activation-comment.md

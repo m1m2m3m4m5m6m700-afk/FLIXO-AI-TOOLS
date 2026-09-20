@@ -29,7 +29,10 @@
     "communication_first": "Every actionable inter-agent notification enters the canonical communication inbox before task selection; receipt is not authority, and execution requires READ + current exact-SHA revalidation + ownership lock.",
     "event_driven_delivery": "The canonical communication relay consumes notification events immediately when emitted; periodic polling is recovery only, never the primary delivery path.",
     "message_idempotency": "messageId/idempotencyKey identifies one logical notification; duplicate delivery is a NO-OP and conflicting reuse of an id is fail-closed.",
-    "message_freshness": "A message may be received on any SHA, but it is executable only when its entrySha matches the current authoritative workspace SHA or has been explicitly revalidated by the controller."
+    "message_freshness": "A message may be received on any SHA, but it is executable only when its entrySha matches the current authoritative workspace SHA or has been explicitly revalidated by the controller.",
+    "council_hierarchy": "assistantController is the Council President; verification is the Council Deputy; analysis is the Council Investigator. These titles add coordination responsibility but no new mutation or certification authority.",
+    "large_work_packages": "Executable work is grouped into causally coherent Work Packages carrying missionId, workPackageId, ownerRole, ownerAgent, workItems, acceptanceCriteria and proofObligations. Independent causes remain separate.",
+    "wake_dispatch": "President Wake is a fail-closed exact-SHA activation request processed by the canonical communication relay with scripts/ci/council-wake-dispatch.mjs. It dispatches only reusable workflows or records an external-agent wake requirement."
   },
   "messageEnvelope": {
     "required": [
@@ -45,7 +48,14 @@
       "stopConditions",
       "proofObligations",
       "recipient",
-      "createdAt"
+      "createdAt",
+      "missionId",
+      "workPackageId",
+      "councilRole",
+      "ownerRole",
+      "ownerAgent",
+      "workItems",
+      "acceptanceCriteria"
     ],
     "completion": [
       "status",
@@ -72,7 +82,10 @@
     "securityAgent": "Reviews security-sensitive surfaces, secrets boundaries and trust assumptions; it may block unsafe work.",
     "performanceAgent": "Evaluates performance-impacting changes with measured evidence and prevents unmeasured regressions from being declared improvements.",
     "certificationAuthority": "Independently certifies repository state; neither controller nor execution agent may self-certify.",
-    "assistantRepairAgent": "Fallback repair executor. It runs learned internal repairs only when both repairAgent and executionAgent are unavailable, using a previously verified rule with exact-SHA revalidation; it remains bound to all normal verification, certification, ownership and commit controls."
+    "assistantRepairAgent": "Fallback repair executor. It runs learned internal repairs only when both repairAgent and executionAgent are unavailable, using a previously verified rule with exact-SHA revalidation; it remains bound to all normal verification, certification, ownership and commit controls.",
+    "councilPresident": "assistantController: presidential control, assignment and integration decisions; no mutation or certification",
+    "councilDeputy": "verification: queue sequencing, dependency ordering, ownership and handoff management; no mutation or certification",
+    "councilInvestigator": "analysis: fingerprint, RCA, falsification and proof-obligation ownership; no mutation or reassignment"
   },
   "decisionGates": {
     "LOW": "Auto-execute only inside declared scope with deterministic verification and no protected-path impact.",
@@ -81,22 +94,17 @@
     "CRITICAL": "Stop autonomous mutation and require human authorization; preserve investigation evidence and handoff state."
   },
   "collaborationFlow": [
-    "DISCOVER",
-    "LOCK_SCOPE",
-    "SCOUT",
-    "RCA",
-    "PLAN",
-    "RISK_GATE",
-    "EXECUTE",
+    "PRESIDENT_ASSIGN",
+    "DEPUTY_SEQUENCE",
+    "INVESTIGATOR_RCA",
+    "SPECIALIST_EXECUTE",
     "TARGETED_VERIFY",
     "AFFECTED_CONTRACT_VERIFY",
     "INDEPENDENT_REVIEW",
     "REGRESSION",
-    "RECURRENCE_CHECK",
-    "LEARN",
-    "PREVENT",
+    "HANDOFF_TO_PRESIDENT",
     "CERTIFY",
-    "HANDOFF_OR_CLOSE"
+    "CLOSE_OR_REDISPATCH"
   ],
   "investigation": {
     "canonicalReport": "diagnostics/investigation/code-scout-latest.json",
@@ -120,7 +128,7 @@
   ],
   "communication": {
     "authority": "ASSISTANT_AGENT_COOPERATION_CONTRACT",
-    "ingress": "Master Inbox / Issue #761",
+    "ingress": "Canonical Council PR #759",
     "relay": ".github/workflows/agent-communication-relay.yml",
     "implementation": "scripts/ci/agent-communication.mjs",
     "sessionConsumer": "scripts/ci/agent-session.mjs",
@@ -132,7 +140,9 @@
       "EXECUTE"
     ],
     "noSecondRegistry": true,
-    "noSecondProtocol": true
+    "noSecondProtocol": true,
+    "dispatcher": ".github/workflows/agent-communication-relay.yml",
+    "activeLegacyInbox": "Issue #761 is archived and rejected as an activation source"
   },
   "fallbackRepair": {
     "trigger": "repairAgent AND executionAgent unavailable",
