@@ -4,6 +4,11 @@ on:
   issue_comment:
     types: [created]
   workflow_dispatch:
+    inputs:
+      message_json:
+        description: 'Canonical agent message JSON for controlled manual delivery testing'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -42,17 +47,24 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body || '' }}
           EVENT_NAME: ${{ github.event_name }}
           RUN_SHA: ${{ github.sha }}
+          MANUAL_MESSAGE_JSON: ${{ github.event.inputs.message_json || '' }}
         shell: bash
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const body = process.env.COMMENT_BODY || '';
+          const manual = process.env.MANUAL_MESSAGE_JSON || '';
           const match = body.match(/<!-- FLIXO_AGENT_MESSAGE -->[\\s\\S]*?\`\`\`json\\s*([\\s\\S]*?)\\s*\`\`\`/u);
+          if (!match && process.env.EVENT_NAME === 'workflow_dispatch') {
+            if (!manual) throw new Error('MANUAL_MESSAGE_PAYLOAD_REQUIRED');
+            const message = JSON.parse(manual);
+            fs.writeFileSync('message.json', JSON.stringify(message, null, 2) + '\\n');
+            if (!message.messageId) throw new Error('AGENT_MESSAGE_ID_MISSING');
+            process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
+            process.exit(0);
+          }
           if (!match) {
-            if (process.env.EVENT_NAME === 'workflow_dispatch') {
-              throw new Error('MANUAL_MESSAGE_PAYLOAD_REQUIRED');
-            }
             fs.writeFileSync('/tmp/flixo-agent-message-skip', 'NO_CANONICAL_AGENT_MESSAGE\\n');
             process.exit(0);
           }
@@ -86,9 +98,26 @@ jobs:
           fi
           echo "message_sha=$MESSAGE_SHA" >> "$GITHUB_OUTPUT"
 
+      - name: Check durable master-inbox idempotency
+        id: duplicate
+        if: steps.message.outcome == 'success' && hashFiles('message.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MESSAGE_ID: ${{ steps.message.outputs.MESSAGE_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RECEIPT="<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->"
+          if gh api "repos/$GITHUB_REPOSITORY/issues/761/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+            echo 'duplicate=true' >> "$GITHUB_OUTPUT"
+            echo 'DUPLICATE_AGENT_MESSAGE=NO_OP'
+          else
+            echo 'duplicate=false' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Ingest incoming message immediately
         id: ingest
-        if: steps.target.outputs.status == 'READY' && hashFiles('message.json') != ''
+        if: steps.target.outputs.status == 'READY' && steps.duplicate.outputs.duplicate != 'true' && hashFiles('message.json') != ''
         run: |
           set -euo pipefail
           node scripts/ci/agent-communication.mjs validate --message-file=message.json
@@ -109,6 +138,7 @@ jobs:
           **Message:** `$MESSAGE_ID`
           **Status:** `$MESSAGE_STATUS`
           **Entry SHA:** `$MESSAGE_SHA`
+          **Idempotency:** `$MESSAGE_ID`
           **Receipt:** `IMMEDIATE_EVENT_RECEIPT`
           **Target ref:** `${{ steps.target.outputs.target_ref }}`
 
