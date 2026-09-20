@@ -152,7 +152,8 @@ const verifySessionToken = (token: string) => {
 };
 
 const sessionAuth = (req: Request, account: Account, dispatchId?: string) => {
-  const token = req.headers.get("x-council-session")?.trim() ?? "";
+  const url = new URL(req.url);
+  const token = (req.headers.get("x-council-session") ?? url.searchParams.get("session"))?.trim() ?? "";
   if (!token) return false;
   const claims = verifySessionToken(token);
   if (claims.accountId !== account) throw new Error("COUNCIL_SESSION_ACCOUNT_MISMATCH");
