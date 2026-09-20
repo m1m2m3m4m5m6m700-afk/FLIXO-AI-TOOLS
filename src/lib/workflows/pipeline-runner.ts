@@ -3,8 +3,9 @@ import { assertExecutionResourceBudget, getCapability, validateCapabilityParamet
 import { getToolById } from '@/config/registry';
 import { getToolExecutor, repairToolParameters } from '@/lib/workflows/executor-registry';
 import { assertToolOutputContract, getToolOutputContractForDefinition, type ToolOutputResult } from '@/lib/contracts/tool-output-contracts';
+import { createPipelineStepReceipt, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
 
-export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; outputBlob?: Blob; retry?: number; }
+export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; outputBlob?: Blob; retry?: number; receipt?: PipelineStepReceipt; }
 export class PipelineVerificationError extends Error {
   constructor(message: string, readonly stableBlob: Blob, readonly failedStepIndex: number, readonly failedToolId: string) { super(message); this.name = 'PipelineVerificationError'; }
 }
@@ -78,9 +79,10 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
         const output = await executor({ tool, inputBlob: stableBlob, parameters: params });
         lastOutput = output;
         verified = await verifyPipelineOutput(step.toolId, stableBlob, output, params);
+        const receipt = await createPipelineStepReceipt({ toolId: step.toolId, stepIndex: i + 1, attempt, inputBlob: stableBlob, outputBlob: output, catalogFingerprint: TOOL_CATALOG.fingerprint, verified });
         if (verified) {
           currentBlob = output;
-          onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, outputBlob: output, retry: attempt });
+          onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, outputBlob: output, retry: attempt, receipt });
           break;
         }
       } catch (error) {
