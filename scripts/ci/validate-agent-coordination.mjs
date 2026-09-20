@@ -9,8 +9,11 @@ const read = (file) => fs.readFileSync(path.resolve(root, file), 'utf8');
 const exists = (file) => fs.existsSync(path.resolve(root, file));
 
 const expected = {
-  'scripts/ci/agent-coordination.mjs': ['task-create', 'task-claim', 'task-release', 'task-complete', 'visible', 'ingest-handoff', 'COORDINATION_CONFLICT', 'AGENT_VISIBILITY', 'TASK_COMPLETION_REQUIRES_VERIFIED_AGENT_STATUS'],
-  'scripts/ci/agent-session.mjs': ['login', 'event', 'logout', '--from-session=<previous-session>', '--task=<task-id>', 'VERIFIED', 'BLOCKED', 'FINAL_SUMMARY_REQUIRED_BEFORE_SESSION_CLOSE', 'AGENT_EVENT_SUMMARY_REQUIRED', 'VERIFIED_LOGOUT_REQUIRES_ACTIVITY_LOG', 'docs/agents/ledger'],
+  'scripts/ci/agent-coordination.mjs': ['task-create', 'task-claim', 'task-release', 'task-complete', 'visible', 'ingest-handoff', 'COORDINATION_CONFLICT', 'AGENT_VISIBILITY', 'TASK_COMPLETION_REQUIRES_VERIFIED_AGENT_STATUS', 'getAgentMessage', 'COORDINATION_MESSAGE_NOT_READ', 'COORDINATION_MESSAGE_SHA_STALE'],
+  'scripts/ci/agent-communication.mjs': ['validateMessage', 'ingest', 'markRead', 'markConsumed', 'AGENT_MESSAGE_IDEMPOTENCY_COLLISION', 'AGENT_MESSAGE_STALE_REQUIRES_REVALIDATION'],
+  'scripts/ci/test-agent-communication.mjs': ['AGENT_COMMUNICATION_TEST=PASS', 'MESSAGE_IDEMPOTENCY=PASS', 'STALE_MESSAGE_FAIL_CLOSED=PASS'],
+  '.github/workflows/agent-communication-relay.yml': ['issue_comment', 'Immediate agent message receive', 'agent-communication.mjs', 'IMMEDIATE_EVENT_RECEIPT'],
+  'scripts/ci/agent-session.mjs': ['login', 'event', 'logout', 'message-receive', 'message-consume', '--from-session=<previous-session>', '--task=<task-id>', 'AGENT_MESSAGE_NOT_EXECUTION_READY', 'P0_COMMUNICATION_FIRST', 'VERIFIED', 'BLOCKED', 'FINAL_SUMMARY_REQUIRED_BEFORE_SESSION_CLOSE', 'AGENT_EVENT_SUMMARY_REQUIRED', 'VERIFIED_LOGOUT_REQUIRES_ACTIVITY_LOG', 'docs/agents/ledger'],
   'docs/AGENT-HANDOFF-REPORT-SCHEMA.md': ['completedWork', 'failedWork', 'remainingWork', 'executionPlanNext', 'handoffToNextAgent'],
   'docs/AGENT-COLLABORATION-PROTOCOL.md': ['Multi-Agent', 'handoff', 'scope', 'RCA', 'Assistant/controller', 'Execution Agent', 'Evidence over assertion', 'Stop-and-escalate', 'Challenge-before-mutation', 'Independent review', 'Decision trace', 'Parallel execution protocol', 'Conflict arbitration', 'Quality dimensions'],
   'docs/agents/ledger/README.md': ['Agent Visibility Ledger', 'docs/agents/ledger/<sessionId>.json', 'taskId', 'finalStatus', 'finalSummary', 'visibilityState'],
@@ -27,17 +30,21 @@ for (const [file, markers] of Object.entries(expected)) {
 if (exists('docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json')) {
   try {
     const contract = JSON.parse(read('docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json'));
-    if (contract?.schemaVersion !== 4) failures.push('COOPERATION_SCHEMA_INVALID');
+    if (contract?.schemaVersion !== 5) failures.push('COOPERATION_SCHEMA_INVALID');
     if (contract?.authority !== 'ASSISTANT_AGENT_COOPERATION_CONTRACT') failures.push('COOPERATION_AUTHORITY_INVALID');
     const rules = ['command','truth','evidence','delegation','checkpoint','challenge','independent_review','feedback','handoff','stop','verification','learning','decision_trace','fresh_state','parallelism','arbitration','architecture','quality','efficiency','recovery','security','release','no_implicit_authority'];
     for (const key of rules) if (typeof contract?.protocols?.[key] !== 'string' || !contract.protocols[key].trim()) failures.push(`COOPERATION_RULE_MISSING=${key}`);
-    for (const key of ['messageId','actor','intent','taskId','scope','entrySha','risk','dependencies','expectedEvidence','stopConditions','proofObligations']) if (!contract?.messageEnvelope?.required?.includes(key)) failures.push(`COOPERATION_ENVELOPE_MISSING=${key}`);
-    for (const key of ['status','exitSha','changedFiles','commands','evidenceRefs','remainingWork','openRcas','nextAction','decisionTrace','verificationState','ownershipState']) if (!contract?.messageEnvelope?.completion?.includes(key)) failures.push(`COOPERATION_COMPLETION_MISSING=${key}`);
+    for (const key of ['messageId','actor','recipient','intent','taskId','scope','entrySha','risk','dependencies','expectedEvidence','stopConditions','proofObligations','createdAt']) if (!contract?.messageEnvelope?.required?.includes(key)) failures.push(`COOPERATION_ENVELOPE_MISSING=${key}`);
+    for (const key of ['status','exitSha','changedFiles','commands','evidenceRefs','remainingWork','openRcas','nextAction','decisionTrace','verificationState','ownershipState','messageId','messageStatus']) if (!contract?.messageEnvelope?.completion?.includes(key)) failures.push(`COOPERATION_COMPLETION_MISSING=${key}`);
     for (const role of ['assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority']) if (typeof contract?.roles?.[role] !== 'string') failures.push(`COOPERATION_ROLE_MISSING=${role}`);
     if (!/no.*mutation|read.*repository state/i.test(contract?.roles?.codeScout ?? '')) failures.push('CODE_SCOUT_MUTATION_BOUNDARY_MISSING');
     for (const tier of ['LOW','MEDIUM','HIGH','CRITICAL']) if (typeof contract?.decisionGates?.[tier] !== 'string') failures.push(`COOPERATION_RISK_GATE_MISSING=${tier}`);
     if (!Array.isArray(contract?.collaborationFlow) || contract.collaborationFlow.length < 10) failures.push('COLLABORATION_FLOW_INCOMPLETE');
     if (contract?.investigation?.canonicalReport !== 'diagnostics/investigation/code-scout-latest.json') failures.push('SCOUT_REPORT_PATH_INVALID');
+    if (!Array.isArray(contract?.messageLifecycle) || JSON.stringify(contract.messageLifecycle) !== JSON.stringify(['RECEIVED','READ','CONSUMED','STALE','BLOCKED_CONFLICT'])) failures.push('MESSAGE_LIFECYCLE_INVALID');
+    if (contract?.communication?.ingress !== 'Master Inbox / Issue #761') failures.push('COMMUNICATION_INGRESS_INVALID');
+    if (contract?.communication?.relay !== '.github/workflows/agent-communication-relay.yml') failures.push('COMMUNICATION_RELAY_INVALID');
+    if (contract?.communication?.implementation !== 'scripts/ci/agent-communication.mjs') failures.push('COMMUNICATION_IMPLEMENTATION_INVALID');
   } catch { failures.push('COOPERATION_JSON_INVALID'); }
 }
 
@@ -64,7 +71,7 @@ if (exists('docs/agents/ledger/README.md')) {
 }
 
 const packageJson = exists('package.json') ? JSON.parse(read('package.json')) : { scripts: {} };
-for (const key of ['validate:agent-coordination','agent:coordination','validate:code-scout','agent:code-scout']) if (typeof packageJson.scripts?.[key] !== 'string') failures.push(`PACKAGE_SCRIPT_MISSING=${key}`);
+for (const key of ['validate:agent-coordination','agent:coordination','agent:communication','test:agent-communication','validate:code-scout','agent:code-scout']) if (typeof packageJson.scripts?.[key] !== 'string') failures.push(`PACKAGE_SCRIPT_MISSING=${key}`);
 
 const protocolRegistry = exists('docs/PROTOCOL-REGISTRY.json') ? JSON.parse(read('docs/PROTOCOL-REGISTRY.json')) : null;
 if (!protocolRegistry) failures.push('PROTOCOL_REGISTRY_MISSING');
@@ -74,7 +81,7 @@ else {
 }
 
 const sha = execFileSync('git', ['rev-parse','HEAD'], { cwd: root, encoding: 'utf8' }).trim();
-const result = { schemaVersion: 5, authority: 'AGENT_COORDINATION_GUARD', status: failures.length ? 'FAIL' : 'PASS', checkedSha: sha, controlPlane: 'scripts/ci/agent-coordination.mjs', sessionTool: 'scripts/ci/agent-session.mjs', cooperationContract: 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', scoutProtocol: 'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md', scout: 'scripts/ci/code-read-only-scout.mjs', protocolRegistry: 'docs/PROTOCOL-REGISTRY.json#P20', runtimeStatePolicy: 'generated-and-ignored', failures };
+const result = { schemaVersion: 6, authority: 'AGENT_COORDINATION_GUARD', status: failures.length ? 'FAIL' : 'PASS', checkedSha: sha, controlPlane: 'scripts/ci/agent-coordination.mjs', sessionTool: 'scripts/ci/agent-session.mjs', cooperationContract: 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', scoutProtocol: 'docs/READ-ONLY-CODE-SCOUT-PROTOCOL.md', scout: 'scripts/ci/code-read-only-scout.mjs', protocolRegistry: 'docs/PROTOCOL-REGISTRY.json#P20', runtimeStatePolicy: 'generated-and-ignored', failures };
 fs.mkdirSync(path.resolve(root,'diagnostics/agents'), { recursive:true });
 fs.writeFileSync(path.resolve(root,'diagnostics/agents/coordination-validation.json'), `${JSON.stringify(result,null,2)}\n`);
 console.log(JSON.stringify(result,null,2));
