@@ -422,6 +422,26 @@ jobs:
         run: |
           set -euo pipefail
           export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
+      - name: Select assistant fallback only when primary repair agents are unavailable
+        id: assistant_fallback
+        shell: bash
+        run: |
+          set -euo pipefail
+          PRIMARY_ACTIVE=false
+          if [ -f diagnostics/agents/coordination-state.json ]; then
+            if jq -e '.activeSessions | to_entries | any(.[]; (.value.role == "repairAgent" or .value.role == "executionAgent") and (.value.taskId != null))' diagnostics/agents/coordination-state.json >/dev/null; then PRIMARY_ACTIVE=true; fi
+          fi
+          RULE="$(node --input-type=module -e "import fs from 'node:fs'; const m=JSON.parse(fs.readFileSync(process.env.FLIXO_REPAIR_MEMORY,'utf8')); const c=m.cases?.find(x=>x.fingerprint===process.env.FALLBACK_FINGERPRINT); const ok=(r)=>Number(r?.attempts||0)>=2&&Number(r?.successRate||0)>=0.9&&!((c?.revertedRules||[]).includes(r?.rule)); const p=(m.playbooks||[]).filter(ok).sort((a,b)=>Number(b.successRate||0)-Number(a.successRate||0)||Number(b.successes||0)-Number(a.successes||0))[0]; process.stdout.write(p?.rule||'')" )"
+          if [ "$PRIMARY_ACTIVE" = false ] && [ -n "$RULE" ]; then
+            printf '%s\n' '{"fallbackEligible":true}' > /tmp/flixo-assistant-fallback-proof.json
+            node --input-type=module -e "import fs from 'node:fs'; const p='/tmp/flixo-assistant-fallback-proof.json'; const x=JSON.parse(fs.readFileSync(p,'utf8')); x.actor='assistantRepairAgent'; x.primaryAgentsUnavailable=true; x.approvedLearnedRule=process.env.FALLBACK_RULE; x.learnedRuleConfidence=0.9; x.learnedRuleSupport=2; x.targetSha=process.env.FLIXO_EXPECTED_TARGET_SHA; fs.writeFileSync(p,JSON.stringify(x,null,2)+'\n')"
+            echo "FLIXO_REPAIR_ACTOR=assistantRepairAgent" >> "$GITHUB_ENV"
+            echo "FLIXO_ASSISTANT_FALLBACK_PROOF_PATH=/tmp/flixo-assistant-fallback-proof.json" >> "$GITHUB_ENV"
+            echo "ASSISTANT_FALLBACK_SELECTED=true"
+          else
+            echo "FLIXO_REPAIR_ACTOR=repairAgent" >> "$GITHUB_ENV"
+            echo "ASSISTANT_FALLBACK_SELECTED=false"
+          fi
           node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs
 
       - name: Build Phase 1 AI impact and CI orchestration plan
