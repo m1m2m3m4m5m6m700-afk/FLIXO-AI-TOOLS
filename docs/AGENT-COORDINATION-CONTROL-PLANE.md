@@ -49,6 +49,8 @@ Receipt or READ state never grants execution authority.
 
 ## CLI
 
+`node scripts/ci/agent-coordination.mjs brief`
+
 
 `node scripts/ci/agent-coordination.mjs task-create ...`
 
