@@ -267,7 +267,7 @@ function lock(sessionId, agentId, rca, scope) {
   return lockId;
 }
 function unlock(sessionId) { for (const item of Object.values(locks.locks)) if (item.sessionId === sessionId && item.status === 'ACTIVE') { item.status = 'RELEASED'; item.releasedAt = now(); } }
-function recordCellTaskKnowledge(task, { outcome, verification, sessionId }) {
+function recordCellTaskKnowledge(task, { outcome, verification }) {
   const botId = String(task.ownerAgent ?? '').match(/^CELL-\d{3}$/u)?.[0] ?? null;
   const record = buildKnowledgeRecord({
     botId,
