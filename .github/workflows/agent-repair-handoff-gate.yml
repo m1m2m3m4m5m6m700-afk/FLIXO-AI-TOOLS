@@ -54,9 +54,9 @@ jobs:
           test -s /tmp/repair-handoff/flixo-prepared-repair-handoff.json
           HANDOFF_EXECUTION_SHA="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.executionSha||'')")"
           HANDOFF_BRANCH="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.headBranch||'')")"
-          test -n "$HANDOFF_TARGET_SHA"
+          test -n "$HANDOFF_EXECUTION_SHA"
           test "$HANDOFF_BRANCH" = "$REPAIR_TARGET_BRANCH"
-          test "$HANDOFF_TARGET_SHA" = "$CURRENT_TARGET_SHA" || {
+          test "$HANDOFF_EXECUTION_SHA" = "$CURRENT_EXECUTION_SHA" || {
             echo "FAIL CLOSED: handoff SHA $HANDOFF_TARGET_SHA is superseded by $REPAIR_TARGET_BRANCH $CURRENT_TARGET_SHA."
             exit 1
           }
