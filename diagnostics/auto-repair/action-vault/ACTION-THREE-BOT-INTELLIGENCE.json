@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "id": "ACTION-THREE-BOT-INTELLIGENCE",
+  "purpose": "Canonical shared intelligence and capability contract for ACTION-REPAIR, ACTION-REPAIR-2 and ACTION-HISTORIAN-3.",
+  "parity": {
+    "cognitiveCapabilitiesEqual": true,
+    "knowledgeSourcesEqual": true,
+    "reasoningModesEqual": true,
+    "searchAccessEqual": true,
+    "learningAccessEqual": true,
+    "explorationAccessEqual": true,
+    "challengeAccessEqual": true,
+    "taskAssignmentAwarenessEqual": true,
+    "resultInterpretationEqual": true,
+    "rcaCapabilityEqual": true,
+    "inferenceFallbackEqual": true
+  },
+  "capabilities": [
+    "CURRENT_ACTION_LOG_ANALYSIS",
+    "EXACT_SHA_PROVENANCE_ANALYSIS",
+    "FAILURE_FINGERPRINTING",
+    "HISTORICAL_INDEX_SEARCH",
+    "ACTION_INDEX_4000_SEARCH",
+    "REPAIR_MEMORY_SEARCH",
+    "ERROR_TEACHING_5000_SEARCH",
+    "ROOT_CAUSE_ANALYSIS",
+    "INFERENTIAL_REPAIR",
+    "CROSS_CASE_SYNTHESIS",
+    "PLAYBOOK_REUSE",
+    "ANTI_LESSON_DETECTION",
+    "PREDICTIVE_FAILURE_CLASS_ORDERING",
+    "TARGETED_REGRESSION_PLANNING",
+    "MINIMAL_SOURCE_CHANGE_PLANNING",
+    "BOT_TO_BOT_CHALLENGE",
+    "TASK_HANDOFF",
+    "LESSON_AND_ANTILESSON_LEARNING",
+    "FIRST_SEEN_DETECTION",
+    "MASTER_ESCALATION",
+    "GREEN_CHAIN_INTERPRETATION",
+    "EXTERNAL_BLOCK_CLASSIFICATION"
+  ],
+  "sharedSources": [
+    "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
+    "docs/agents/historical-action-errors/index.json",
+    "docs/agents/historical-action-errors/records",
+    "diagnostics/auto-repair/memory.json",
+    "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+    "docs/agents/ERROR-TEACHING-ROUTER.json",
+    "docs/agents/ERROR-TEACHING-500.md",
+    "docs/agents/ERROR-TEACHING-ADDITIONAL-500.md",
+    "docs/agents/ERROR-TEACHING-EXPANDED-A-1000.md",
+    "docs/agents/ERROR-TEACHING-EXPANDED-B-1000.md",
+    "docs/agents/ERROR-TEACHING-EXPANDED-C-1000.md",
+    "docs/agents/ERROR-TEACHING-EXPANDED-D-1000.md",
+    "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md"
+  ],
+  "safetyBoundary": {
+    "intelligenceDoesNotImplyMutationAuthority": true,
+    "canonicalCiRemainsProofAuthority": true,
+    "exactShaRequiredForActionableDecision": true,
+    "testMutationForbidden": true,
+    "mainMutationForbidden": true,
+    "protectedControlPlaneMutationForbidden": true,
+    "externalFailureCannotBecomeInternalRepair": true,
+    "oneActiveRepairOwnerPerTask": true
+  },
+  "members": [
+    {
+      "id": "ACTION-REPAIR",
+      "role": "PRIMARY_REPAIR_OWNER",
+      "executionAuthority": "MUTATE_WHEN_TASK_OWNER"
+    },
+    {
+      "id": "ACTION-REPAIR-2",
+      "role": "SECONDARY_REPAIR_OWNER",
+      "executionAuthority": "MUTATE_WHEN_TASK_OWNER_AFTER_HANDOFF"
+    },
+    {
+      "id": "ACTION-HISTORIAN-3",
+      "role": "HISTORIAN_AND_SOLUTION_INDEXER",
+      "executionAuthority": "RECORD_INDEX_ESCALATE_ONLY"
+    }
+  ],
+  "note": "Capability parity is intentional; execution authority remains role-scoped. All three can think, search, infer, challenge and learn to the same contract."
+}
