@@ -83,11 +83,11 @@ export function validateThreeBotIntelligence(profile, bots) {
 
 export function validateResidency(policy) {
   const errors = [];
-  if (policy?.schemaVersion !== 1) err(errors, 'RESIDENCY_SCHEMA_INVALID');
+  if (policy?.schemaVersion !== 2) err(errors, 'RESIDENCY_SCHEMA_INVALID');
   if (JSON.stringify(policy?.residents ?? []) !== JSON.stringify(EXPECTED_BOTS)) err(errors, 'RESIDENT_SET_INVALID');
   if (policy?.residency?.alwaysResident !== true) err(errors, 'ALWAYS_RESIDENT_DISABLED');
   if (policy?.residency?.leaveVault !== false) err(errors, 'VAULT_EXIT_NOT_BLOCKED');
-  if (policy?.residency?.idleState !== 'RESIDENT_READY') err(errors, 'IDLE_STATE_INVALID');
+  if (policy?.residency?.idleState !== 'RESIDENT_ACTIVE_ONLY') err(errors, 'IDLE_STATE_INVALID');
   if (policy?.residency?.taskMustRemainOpenUntil !== 'CANONICAL_GREEN') err(errors, 'TASK_CLOSURE_POLICY_INVALID');
   if (policy?.operations?.greenAuthority !== 'DAILY_FLIXO_GREEN_GATE') err(errors, 'GREEN_AUTHORITY_INVALID');
   if (policy?.automaticVisits?.botCount !== 3 || policy?.automaticVisits?.visitsPerBotPerDay !== 3) err(errors, 'VISIT_POLICY_INVALID');
@@ -194,7 +194,7 @@ export function runGate(root = ROOT) {
   errors.push(...validateExecutionBoundaries(profiles));
 
   if (grade) {
-    if (grade.schemaVersion !== 1) err(errors, 'AGENT_GRADE_SCHEMA_INVALID');
+    if (grade.schemaVersion !== 2) err(errors, 'AGENT_GRADE_SCHEMA_INVALID');
     if (JSON.stringify(grade.residents ?? []) !== JSON.stringify(EXPECTED_BOTS)) err(errors, 'AGENT_GRADE_RESIDENT_SET_INVALID');
     if (grade.proofAuthority !== 'DAILY_FLIXO_GREEN_GATE') err(errors, 'AGENT_GRADE_PROOF_AUTHORITY_INVALID');
     if (grade.mutationModel !== 'SINGLE_ACTIVE_OWNER_ON_EXECUTION') err(errors, 'AGENT_GRADE_MUTATION_MODEL_INVALID');
