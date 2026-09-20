@@ -54,4 +54,12 @@ if (!prompt.includes('TEACHING_RULE_MATCHED') || !prompt.includes('TEACHING_RULE
 }
 
 console.log('ERROR_TEACHING_CONTRACT=PASS');
+const route = JSON.parse(readFileSync('docs/agents/ERROR-TEACHING-ROUTER.json', 'utf8'));
+const routedClasses = new Set(route.groups.flatMap((group) => group.classes));
+const corpusClasses = new Set(lines.map(extractClass));
+if (routedClasses.size !== corpusClasses.size || [...corpusClasses].some((className) => !routedClasses.has(className))) {
+  console.error('ERROR_TEACHING_CONTRACT_ERROR=router_class_coverage_mismatch');
+  process.exit(1);
+}
 console.log('ERROR_TEACHING_LINES=1000');
+console.log('ERROR_TEACHING_ROUTER=PASS');
