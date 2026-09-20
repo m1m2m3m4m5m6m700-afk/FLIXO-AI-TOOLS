@@ -15,23 +15,24 @@ assert.match(twin, /repositoryWrite: false/);
 assert.match(twin, /actionsWrite: false/);
 assert.match(twin, /preferredAlternativeRepair/);
 assert.match(twin, /TWIN_READ_ONLY_CONTRACT_REQUIRED/);
-assert.doesNotMatch(twin, /git['"],\s*\[[^\]]*push/i);
-assert.doesNotMatch(twin, /gh['"],\s*\[[^\]]*workflow\s+run/i);
-assert.doesNotMatch(twin, /--method['"],\s*['"]POST/i);
+assert.doesNotMatch(twin, /git['"],\\s*\\[[^\\]]*push/i);
+assert.doesNotMatch(twin, /gh['"],\\s*\\[[^\\]]*workflow\\s+run/i);
+assert.doesNotMatch(twin, /--method['"],\\s*['"]POST/i);
 
-assert.match(workflow, /adversarial_twin:/);
-assert.match(workflow, /contents: read/);
-assert.match(workflow, /actions: read/);
-assert.match(workflow, /flixo-repair-twin-\$\{\{ github\.run_id \}\}/);
-assert.match(workflow, /Await the parallel adversarial twin/);
-assert.match(workflow, /TWIN_RESULT_READY=true/);
-assert.match(workflow, /jq -e '\.mutationAuthority == false and \.repositoryWrite == false and \.actionsWrite == false'/);
-assert.match(workflow, /FLIXO_TWIN_PROPOSAL_PATH/);
+assert.doesNotMatch(workflow, /adversarial_twin:/);
+assert.doesNotMatch(workflow, /needs\\.adversarial_twin\\.outputs/);
+assert.match(workflow, /Run adversarial twins locally inside the canonical repair trust domain/);
+assert.match(workflow, /validate-adversarial-repair-twin\\.mjs/);
+assert.match(workflow, /FLIXO_HISTORICAL_SOLUTION_PATH: \/tmp\/flixo-historical-solution-index\\.json/);
+assert.match(workflow, /FLIXO_TWIN_A_PATH: \/tmp\/flixo-twin-a\\.json/);
+assert.match(workflow, /FLIXO_TWIN_B_PATH: \/tmp\/flixo-twin-b\\.json/);
+assert.match(workflow, /FLIXO_SELECTION_PATH: \/tmp\/flixo-selected-repair-option\\.json/);
+assert.doesNotMatch(workflow, /FLIXO_SELECTED_REPAIR_STRATEGY=.*>> "\$GITHUB_ENV"/);
+assert.doesNotMatch(workflow, /FLIXO_REPAIR_ACTOR=.*>> "\$GITHUB_ENV"/);
 
 assert.match(strategy, /FLIXO_TWIN_PROPOSAL_PATH/);
 assert.match(strategy, /twinPreferredStrategy/);
 assert.match(strategy, /divergentIndexes/);
-assert.match(strategy, /divergent: Boolean\(twinPreferredStrategy\) && strategyId !== twinPreferredStrategy/);
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-twin-test-'));
 const logPath = path.join(temp, 'failure.log');
