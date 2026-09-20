@@ -343,7 +343,7 @@ export function staleRecoveryDecision({
   if (String(currentExecutionSha ?? '') !== String(failedSha ?? '')) reasons.push('EXECUTION_SHA_CHANGED');
   if (verified) reasons.push('SUCCESSFUL_REPAIR_ALREADY_VERIFIED');
   if (strategyRotationRequired) reasons.push('NO_PROGRESS_REQUIRES_STRATEGY_ROTATION');
-  const blockingReasons = reasons.filter((reason) => reason !== 'NO_PROGRESS_REQUIRES_STRATEGY_ROTATION');
+  const blockingReasons = reasons;
   return Object.freeze({
     // Terminal crash/cancel and orphaned dispatch are immediately recoverable.
     // Circuit-open forces strategy rotation but never dead-ends the repair chain.
