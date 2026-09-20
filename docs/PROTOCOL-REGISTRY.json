@@ -170,8 +170,8 @@
       "name": "Immutable Artifact & CI Critical Path",
       "class": "CI",
       "status": "MANDATORY",
-      "enforcement": "minimal CI architecture + workflow",
-      "invariant": "Build/install work is reused safely and duplicate execution does not inflate the critical path."
+      "enforcement": "minimal CI architecture + latest-commit supersession controller + workflow concurrency + exact-SHA stale guards + certification",
+      "invariant": "Build/install work is reused safely, duplicate execution does not inflate the critical path, and push/synchronize events supersede stale test evidence so only the newest branch head may produce current test verification."
     },
     {
       "id": "P20",
