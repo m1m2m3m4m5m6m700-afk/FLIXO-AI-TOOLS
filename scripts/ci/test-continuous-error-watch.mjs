@@ -166,6 +166,21 @@ const cloudflareDeployment = evaluateGreen({
 assert.equal(cloudflareDeployment.status, 'BLOCKED_EXTERNAL');
 assert.equal(cloudflareDeployment.repair.required, false);
 
+const cloudflareSkipped = evaluateGreen({
+  executionSha: SHA_A,
+  mainSha: SHA_B,
+  openPr,
+  workflowRuns: requiredRuns,
+  checkRuns: [
+    ...securityAndCertification,
+    { id: 108, name: 'Deploy exact SHA to Cloudflare flixoai', status: 'completed', conclusion: 'skipped' },
+  ],
+  compare: { ahead_by: 1, behind_by: 0 },
+});
+assert.equal(cloudflareSkipped.status, 'GREEN');
+assert.equal(cloudflareSkipped.repair.required, false);
+assert.equal(cloudflareSkipped.externalBlockers.length, 0);
+
 const externalActionRequired = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
   workflowRuns: requiredRuns,

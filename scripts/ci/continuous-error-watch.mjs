@@ -121,6 +121,7 @@ const isExternalCheckName = (name) => {
 function externalCheckBlock(check, log) {
   if (!check || !isExternalCheckName(check.name)) return null;
   const state = stateOf(check);
+  if (state === 'skipped' || state === 'neutral') return null;
   return {
     kind: 'BLOCKED_EXTERNAL',
     checkName: String(check.name ?? '').trim(),
