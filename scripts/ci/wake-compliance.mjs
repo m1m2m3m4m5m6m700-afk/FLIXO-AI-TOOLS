@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import path from 'node:path';
 
 const inputPath=process.argv[2] ?? '/tmp/flixo-watch/wake-runs.json';
 const outputPath=process.argv[3] ?? '/tmp/flixo-watch/wake-compliance.json';
+const nowArg=process.argv.find((v)=>v.startsWith('--now='))?.slice(6) ?? null;
+const now=nowArg ? Date.parse(nowArg) : Date.now();
+if(!Number.isFinite(now)) throw new Error('WAKE_COMPLIANCE_NOW_INVALID');
 const raw=fs.readFileSync(inputPath,'utf8');
 const parsed=JSON.parse(raw);
 const runs=Array.isArray(parsed) ? parsed : (parsed.workflow_runs ?? []);
@@ -43,7 +47,6 @@ for(let i=1;i<scheduleRuns.length;i++){
 }
 
 const latest=scheduleRuns.at(-1) ?? null;
-const now=Date.now();
 const latestAgeMs=latest ? Math.max(0,now-Date.parse(latest.startedAt)) : null;
 const latestStale=latest ? latestAgeMs>maxGapMs : true;
 const sampleState=scheduleRuns.length<2 ? 'BASELINE_REQUIRED' : gaps.length===0 && !latestStale ? 'PASS' : 'WAKE_GAP_RED';
@@ -64,7 +67,7 @@ const report={
   action:sampleState==='WAKE_GAP_RED'?'OPEN_WAKE_GAP_AND_RECOVER':'CONTINUE_OBSERVATION',
 };
 
-fs.mkdirSync(new URL('.',new URL('file://'+outputPath)).pathname,{recursive:true});
+fs.mkdirSync(path.dirname(outputPath),{recursive:true});
 fs.writeFileSync(outputPath,JSON.stringify(report,null,2)+'\n');
 console.log(JSON.stringify(report,null,2));
 if(sampleState==='WAKE_GAP_RED') process.exit(2);
