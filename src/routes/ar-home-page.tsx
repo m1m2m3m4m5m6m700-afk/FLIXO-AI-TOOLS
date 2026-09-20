@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { SmartCommandPalette } from '../components/SmartCommandPalette';
+import { FlixoLogoImage } from '../components/FlixoLogoImage';
 import { FlixoHeroWorkspace } from '../components/home/FlixoHeroWorkspace';
 import { ArHomeToolsSection } from '../components/ar-home-tools-section';
 import { TOOLS_REGISTRY } from '../config/tools';
@@ -52,7 +53,7 @@ export function ArHomePage() {
       {paletteOpen && <SmartCommandPalette onClose={() => setPaletteOpen(false)} />}
       <nav className="home-nav" aria-label={HOME_AR.ariaPrimary}>
         <div className="home-container home-nav-inner">
-          <Link className="home-brand" to="/" aria-label={HOME_AR.ariaHome}><img src="/flixo-logo.webp" alt="FLIXO AI Tools" width={40} height={40} /></Link>
+          <Link className="home-brand" to="/" aria-label={HOME_AR.ariaHome}><FlixoLogoImage alt="FLIXO AI Tools" width={40} height={40} /></Link>
           <div className="home-nav-links"><a href="#tools">أدوات الصور</a><a href="/ar/pix">الفلاتر</a></div>
           <a className="home-nav-language" href="/" lang="en">English</a>
         </div>
