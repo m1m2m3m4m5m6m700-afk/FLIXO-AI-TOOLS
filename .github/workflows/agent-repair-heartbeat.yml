@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: flixo-agent-repair-heartbeat
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   wake-supervisor:
