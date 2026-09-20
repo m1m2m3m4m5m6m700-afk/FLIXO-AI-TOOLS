@@ -17,13 +17,16 @@ const SHARED_REFS=[
   'docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md'
 ];
 const ROLE_MAP=Object.freeze({
-  'ACTION-INDEX':'ACTION_SOLUTION_INDEXER',
+  'ACTION-INDEX':'ACTION_SOLUTION_INDEXER_SUPPORT',
+  'ACTION-REPAIR':'ACTION_REPAIR_EXECUTOR',
   'ACTION-WAKE':'ACTION_SYSTEM_WAKE_COORDINATOR',
   'ACTION-TWIN-1':'ACTION_REPAIR_TWIN_A',
   'ACTION-TWIN-2':'ACTION_REPAIR_TWIN_B',
   'ACTION-WISE':'ACTION_BEST_OPTION_SELECTOR'
 });
 const sha=v=>/^[a-f0-9]{40}$/iu.test(String(v??''));
+const ACTION_INDEX_PATH=path.join(ROOT,'docs/agents/historical-action-errors/index.json');
+const ACTION_RECORDS_PATH=path.join(ROOT,'docs/agents/historical-action-errors/records');
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):String(fallback)};
 const readJson=f=>JSON.parse(fs.readFileSync(f,'utf8'));
 const targetSha=arg('target-sha',process.env.FLIXO_EXPECTED_TARGET_SHA);
@@ -96,6 +99,38 @@ if(role==='wake'){
  const result={schemaVersion:1,botId:'ACTION-WAKE',role:ROLE_MAP['ACTION-WAKE'],action:'WAKE_ACTION_REPAIR_SQUAD',dispatcher:'FLIXO Execution Bot Watchdog',targetRunId:runId,targetSha,failureFingerprint:fingerprint,status,mutationAuthority:false,directDispatch:false,actionRepairSquadReady:true,sharedReferences:SHARED_REFS,canonicalNextStep:status==='PUSH_READY'?'DAILY_FLIXO_GREEN_GATE':'EXISTING_CANONICAL_DISPATCHER'};
  appendActionCenterEvent({type:'WAKE',taskId:'ACTION-WAKE:'+runId+':'+fingerprint,fingerprint,runId,targetSha,actor:'ACTION-WAKE',payload:{status,dispatcher:result.dispatcher,canonicalNextStep:result.canonicalNextStep}});
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));process.exit(0);
+}
+if(role==='repair-search'){
+ requireIdentity();
+ const currentLog=rawLog;
+ const currentTerms=topTerms;
+ let liveLogDigest=null;
+ let liveFailureLines=[];
+ if(currentLog){
+   liveLogDigest=digest(currentLog);
+   liveFailureLines=currentLog.split(/\r?\n/u).filter(Boolean).slice(-250);
+ }
+ const records=historicalSolutions(20);
+ const result={
+   schemaVersion:1,botId:'ACTION-REPAIR',role:ROLE_MAP['ACTION-REPAIR'],
+   targetSha,runId,failureFingerprint:fingerprint,
+   indexOwner:true,directActionSearch:true,searchBeforeMutation:true,
+   indexPath:"docs/agents/historical-action-errors/index.json",
+   recordsPath:"docs/agents/historical-action-errors/records",
+   currentActionLog:{present:Boolean(currentLog),digest:liveLogDigest,recentFailureLines:liveFailureLines},
+   queryTerms:currentTerms,
+   historicalMatchCount:records.length,
+   historicalMatches:records,
+   searchEngine:"scripts/ci/historical-action-error-index.mjs",
+   proofAuthority:"CURRENT_EXACT_SHA_CI_ONLY",
+   mutationAuthority:true,executionAuthority:"SOURCE_MUTATION_VIA_REPAIR_PROTOCOL"
+ };
+ appendActionCenterEvent({type:'HISTORICAL_MATCHES',taskId:'ACTION-REPAIR:'+runId+':'+fingerprint,fingerprint,runId,targetSha,actor:'ACTION-REPAIR',payload:{
+   searchMode:'SELF_INDEX_SEARCH',historicalMatchCount:records.length,queryTerms:currentTerms,liveLogDigest,
+   matchIds:records.map(x=>x.id).filter(Boolean)
+ }});
+ fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');
+ console.log(JSON.stringify({status:'PASS',role:result.role,resultCount:records.length,indexOwner:true,output:out},null,2));process.exit(0);
 }
 if(role==='index'){
  requireIdentity();
