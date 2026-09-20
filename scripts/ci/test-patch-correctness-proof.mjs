@@ -18,6 +18,7 @@ const base={
 const pass=buildPatchCorrectnessProof(base);
 assert.equal(pass.status,'PROVEN');
 assert.equal(pass.sourceMutationAllowed,false);
+assert.equal(pass.proofCompleteness.CAUSAL_EVIDENCE_GRAPH_PROVEN,true);
 assert.equal(pass.proofCompleteness.ROOT_CAUSE_PROVEN,true);
 assert.equal(pass.proofCompleteness.DIFFERENTIAL_CHECK_PASSED,true);
 assert.equal(pass.proofCompleteness.NO_VALID_COUNTEREXAMPLE,true);
