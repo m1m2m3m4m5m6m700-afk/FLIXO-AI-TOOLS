@@ -1,5 +1,5 @@
-import fs from 'node:fs';
 #!/usr/bin/env node
+import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { createToolCatalog } from '../src/config/tool-platform/catalog.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
