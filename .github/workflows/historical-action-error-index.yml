@@ -46,8 +46,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          START='\${{ inputs.start || '' }}'
-          END='\${{ inputs.end || '' }}'
+          START='${{ inputs.start || '' }}'
+          END='${{ inputs.end || '' }}'
           if [ -z "$START" ]; then
             START="$(node --input-type=module -e "import fs from 'node:fs'; const p='docs/agents/historical-action-errors/manifest.json'; const m=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(m.nextCursor || m.repositoryCreatedAt || '2026-08-10T00:00:00Z')")"
           fi
@@ -59,10 +59,10 @@ jobs:
 
       - name: Backfill real Action error lines
         env:
-          GH_TOKEN: \${{ github.token }}
-          FLIXO_HISTORY_START: \${{ steps.window.outputs.start }}
-          FLIXO_HISTORY_END: \${{ steps.window.outputs.end }}
-          FLIXO_HISTORY_BATCH_DAYS: \${{ inputs.batch_days || '1' }}
+          GH_TOKEN: ${{ github.token }}
+          FLIXO_HISTORY_START: ${{ steps.window.outputs.start }}
+          FLIXO_HISTORY_END: ${{ steps.window.outputs.end }}
+          FLIXO_HISTORY_BATCH_DAYS: ${{ inputs.batch_days || '1' }}
           FLIXO_HISTORY_OUT: /tmp/flixo-historical-errors
         run: node scripts/ci/backfill-historical-action-errors.mjs
 
@@ -82,7 +82,7 @@ jobs:
 
       - name: Persist historical corpus on execution
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           test "$(git branch --show-current)" = execution
