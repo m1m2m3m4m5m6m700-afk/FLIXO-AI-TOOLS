@@ -137,14 +137,17 @@ jobs:
           FLIXO_TWIN_DETACHED: 'true'
         run: |
           set -euo pipefail
-          node scripts/ci/adversarial-repair-twin.mjs
-          jq -e '.mutationAuthority == false and .repositoryWrite == false and .actionsWrite == false and .targetSha == env.FLIXO_EXPECTED_TARGET_SHA' /tmp/flixo-twin/twin-result.json > /dev/null
+          for VARIANT in A B; do
+            case "$VARIANT" in A) OUTPUT=/tmp/flixo-twin/twin-a.json ;; B) OUTPUT=/tmp/flixo-twin/twin-b.json ;; esac
+            FLIXO_TWIN_VARIANT="$VARIANT" FLIXO_TWIN_OUTPUT="$OUTPUT" node scripts/ci/adversarial-repair-twin.mjs
+            jq -e --arg variant "$VARIANT" '.mutationAuthority == false and .repositoryWrite == false and .actionsWrite == false and .targetSha == env.FLIXO_EXPECTED_TARGET_SHA and .twinVariant == $variant' "$OUTPUT" >/dev/null
+          done
 
       - name: Publish adversarial twin result
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: flixo-repair-twin-${{ github.run_id }}
-          path: /tmp/flixo-twin/twin-result.json
+          name: flixo-repair-twins-${{ github.run_id }}
+          path: /tmp/flixo-twin/twin-*.json
           if-no-files-found: error
           retention-days: 14
 
@@ -453,7 +456,7 @@ jobs:
         id: twin
         env:
           GH_TOKEN: ${{ github.token }}
-          TWIN_ARTIFACT_NAME: flixo-repair-twin-${{ github.run_id }}
+          TWIN_ARTIFACT_NAME: flixo-repair-twins-${{ github.run_id }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/flixo-twin-download
@@ -463,26 +466,24 @@ jobs:
             if [ "$COUNT" -gt 0 ]; then
               rm -rf /tmp/flixo-twin-download/*
               gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$TWIN_ARTIFACT_NAME" --dir /tmp/flixo-twin-download
-              if [ -s /tmp/flixo-twin-download/twin-result.json ]; then
+              if [ -s /tmp/flixo-twin-download/twin-a.json ] && [ -s /tmp/flixo-twin-download/twin-b.json ]; then
                 found=true
                 break
               fi
             fi
             sleep 10
           done
-          test "$found" = true || { echo 'FAIL CLOSED: adversarial twin result did not arrive.'; exit 1; }
-          TWIN_SHA="$(jq -r '.targetSha // empty' /tmp/flixo-twin-download/twin-result.json)"
+          test "$found" = true || { echo 'FAIL CLOSED: both adversarial twin results did not arrive.'; exit 1; }
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
-          test "$TWIN_SHA" = "$FAILED_SHA" || {
-            echo "FAIL CLOSED: twin SHA $TWIN_SHA does not match repair target $FAILED_SHA."
-            exit 1
-          }
-          jq -e '.mutationAuthority == false and .repositoryWrite == false and .actionsWrite == false' /tmp/flixo-twin-download/twin-result.json > /dev/null
-          cp /tmp/flixo-twin-download/twin-result.json /tmp/flixo-twin-result.json
-          echo 'FLIXO_TWIN_PROPOSAL_PATH=/tmp/flixo-twin-result.json' >> "$GITHUB_ENV"
-          echo "TWIN_RESULT_READY=true"
-          echo "TWIN_PREFERRED_STRATEGY=$(jq -r '.challenge.preferredAlternativeStrategy // "none"' /tmp/flixo-twin-result.json)"
-          echo "TWIN_DISPOSITION=$(jq -r '.challenge.disposition // "unknown"' /tmp/flixo-twin-result.json)"
+          for TWIN in a b; do
+            jq -e --arg sha "$FAILED_SHA" '.targetSha == $sha and .mutationAuthority == false and .repositoryWrite == false and .actionsWrite == false' "/tmp/flixo-twin-download/twin-$TWIN.json" >/dev/null
+          done
+          cp /tmp/flixo-twin-download/twin-a.json /tmp/flixo-twin-a.json
+          cp /tmp/flixo-twin-download/twin-b.json /tmp/flixo-twin-b.json
+          echo 'FLIXO_TWIN_A_PATH=/tmp/flixo-twin-a.json' >> "$GITHUB_ENV"
+          echo 'FLIXO_TWIN_B_PATH=/tmp/flixo-twin-b.json' >> "$GITHUB_ENV"
+          echo "TWIN_A_READY=true"
+          echo "TWIN_B_READY=true"
 
       - name: Run Phase 1 AI failure intelligence and exact-target preflight
         env:
