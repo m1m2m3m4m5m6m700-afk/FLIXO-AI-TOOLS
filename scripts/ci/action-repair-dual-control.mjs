@@ -69,7 +69,7 @@ if(mode==='audit'){
    falsificationObjective:'ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG',
    falsificationComplete:true,
    counterexampleFound:false,
-   falsificationSearches,
+   falsificationSearches:[...(preMutationProof.programmerTwin?.falsificationSearches??[]),...(preMutationProof.regressionCounterexamples?.searches??[]),...falsificationSearches],
    fileSelectionDecision:{artifact:fileSelectionPath,decision:fileSelection.decision,primaryFile:fileSelection.primaryFile,selectedFiles:fileSelection.selectedFiles,excludedFiles:fileSelection.excludedFiles,confidence:fileSelection.confidence},
    rootCause:p.rootCause||'unknown',strategy:s.strategyId||null,
    challengeMode:'FALSIFY_PRIMARY',
@@ -79,6 +79,7 @@ if(mode==='audit'){
      mutationGate:p.mutationGate??null,
      evidenceProfile,
      sourceMutationAllowed,
+     noCounterexampleIsNotPatchCorrect:true,
      hypothesisSeparation:p.separation??null,
      causalConfidence:p.causalConfidence??null
    },
