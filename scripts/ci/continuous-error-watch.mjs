@@ -92,7 +92,8 @@ export function classifyCancelledRun(run, runs = []) {
 export function validateRepairTarget({ run, executionSha, workflowRuns = [], logs = {}, branch = 'execution' } = {}) {
   const errors = [];
   if (!run?.databaseId) errors.push('TARGET_MISSING');
-  if (!run || run.status !== 'completed' || !['failure', 'timed_out', 'cancelled'].includes(run.conclusion)) errors.push('TARGET_NOT_FAILED_COMPLETED');
+  if (!run || run.status !== 'completed' || !['failure', 'timed_out'].includes(run.conclusion)) errors.push('TARGET_NOT_FAILED_COMPLETED');
+  if (run?.conclusion === 'cancelled') errors.push('TARGET_CANCELLED_NOT_SOURCE_FAILURE');
   if (run?.headSha !== executionSha) errors.push('TARGET_SHA_MISMATCH');
   if ((run?.headBranch ?? null) !== branch) errors.push('TARGET_BRANCH_MISMATCH');
   const workflowName = String(run?.workflowName ?? '');
@@ -227,30 +228,9 @@ export function evaluateGreen({
       headSha: run?.headSha ?? null,
       headBranch: run?.headBranch ?? null,
     };
-    if (status === 'MISSING') {
-      report.errors.push({ type: 'REQUIRED_WORKFLOW_MISSING', workflow: workflowName });
-    } else if (status !== 'success') {
-      report.errors.push({
-        type: 'REQUIRED_WORKFLOW_RED',
-        workflow: workflowName,
-        status,
-        runId: run?.databaseId ?? null,
-        headSha: run?.headSha ?? null,
-        headBranch: run?.headBranch ?? null,
-      });
-      if (run?.databaseId != null && ['failure', 'timed_out', 'cancelled'].includes(status)) {
-        const evidence = String(logs[String(run.databaseId)] ?? '').trim();
-        if (!evidence || /EVIDENCE_CAPTURE=FAILED/i.test(evidence)) {
-          report.errors.push({
-            type: 'EVIDENCE_CAPTURE_FAILED',
-            workflow: workflowName,
-            runId: run.databaseId,
-          });
-        }
-      }
-    } else if (run.headSha !== executionSha && observedBranch === 'execution') {
-      report.errors.push({ type: 'STALE_WORKFLOW_EVIDENCE', workflow: workflowName, runId: run.databaseId });
-    }
+    if (status === 'MISSING') report.errors.push({ type: 'REQUIRED_WORKFLOW_MISSING', workflow: workflowName });
+    else if (status !== 'success') report.errors.push({ type: 'REQUIRED_WORKFLOW_RED', workflow: workflowName, status });
+    else if (run.headSha !== executionSha && observedBranch === 'execution') report.errors.push({ type: 'STALE_WORKFLOW_EVIDENCE', workflow: workflowName, runId: run.databaseId });
   }
 
   const securityCheck = latestCheck(checkRuns, SECURITY_CHECK_PATTERNS);
@@ -339,26 +319,11 @@ export function evaluateGreen({
     }
   }
 
-  const internalCancelledWithEvidence = report.errors.some((item) => {
-    if (item.type !== 'REQUIRED_WORKFLOW_RED' || item.status !== 'cancelled') return false;
-    const run = workflowRuns.find((candidate) => candidate?.databaseId === item.runId);
-    if (!run || run.headSha !== executionSha || run.headBranch !== observedBranch) return false;
-    const cancellation = classifyCancelledRun(run, workflowRuns);
-    const evidence = String(logs[String(run.databaseId)] ?? '').trim();
-    return cancellation?.state === 'CANCELLED_UNSUPERSEDED' &&
-      Boolean(evidence) &&
-      !/EVIDENCE_CAPTURE=FAILED/i.test(evidence);
-  });
-
   if (report.repair.required) {
     report.status = 'RED_INTERNAL';
     report.rootCause = report.errors.find((item) => item.type === 'UNEXPECTED_WORKFLOW_RED')?.workflow ?? 'INTERNAL_WORKFLOW_FAILURE';
   } else if (report.errors.length) {
-    report.status = report.rootCause
-      ? 'BLOCKED_EXTERNAL'
-      : internalCancelledWithEvidence
-        ? 'RED_INTERNAL'
-        : 'FAIL_CLOSED';
+    report.status = report.rootCause ? 'BLOCKED_EXTERNAL' : 'FAIL_CLOSED';
   } else {
     report.status = 'GREEN';
     report.rootCause = null;
