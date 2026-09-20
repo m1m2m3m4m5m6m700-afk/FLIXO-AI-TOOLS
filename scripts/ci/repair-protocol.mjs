@@ -108,6 +108,7 @@ export function validateActionVaultVerifierProof({ proof, targetSHA, failureFing
   if (proof.mutationRecommendation && !ACTION_VAULT_APPROVED_MUTATION_RECOMMENDATIONS.includes(proof.mutationRecommendation)) throw new Error('ACTION_VAULT_MUTATION_RECOMMENDATION_NOT_APPROVED');
   if (!ACTION_VAULT_APPROVED_MUTATION_RECOMMENDATIONS.includes(proof.mutationRecommendation)) throw new Error('ACTION_VAULT_MUTATION_RECOMMENDATION_REQUIRED');
   if (!Array.isArray(proof.remainingRisks)) throw new Error('ACTION_VAULT_REMAINING_RISKS_REQUIRED');
+  if (proof.remainingRisks.length !== 0) throw new Error('ACTION_VAULT_UNRESOLVED_REMAINING_RISKS');
   const completeness = proof.proofCompleteness;
   if (!completeness || typeof completeness !== 'object') throw new Error('ACTION_VAULT_PROOF_COMPLETENESS_REQUIRED');
   const required = [
@@ -118,6 +119,10 @@ export function validateActionVaultVerifierProof({ proof, targetSHA, failureFing
     'PROGRAMMER_TWIN_PARITY_PROVEN',
     'ADVERSARIAL_FALSIFICATION_COMPLETE',
     'NO_VALID_COUNTEREXAMPLE',
+    'SANDBOX_SIMULATION_PASSED',
+    'DIFFERENTIAL_CHECK_PASSED',
+    'PATCH_CORRECTNESS_PROVEN',
+    'REGRESSION_COUNTEREXAMPLES_EXHAUSTED',
     'NO_SCOPE_VIOLATION',
     'NO_TEST_MUTATION',
     'NO_CONTROL_PLANE_MUTATION',
