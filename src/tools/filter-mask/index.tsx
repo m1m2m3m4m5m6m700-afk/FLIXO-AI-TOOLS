@@ -347,6 +347,26 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     });
   }
 
+  async function changeCaptureQuality(next: FilterMaskParameters['captureQuality']) {
+    if (next === captureQuality) return;
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) {
+      setCaptureQuality(next);
+      return;
+    }
+
+    try {
+      await track.applyConstraints({
+        width: { ideal: next === '1080p' ? 1920 : 1280 },
+        height: { ideal: next === '1080p' ? 1080 : 720 },
+      });
+      setCaptureQuality(next);
+      setError('');
+    } catch {
+      setError(copy.qualityChangeFailed);
+    }
+  }
+
   async function toggleTorch() {
     const track = streamRef.current?.getVideoTracks()[0];
     if (!track) return;
@@ -743,7 +763,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
             type="button"
             aria-pressed={captureQuality === quality}
             disabled={recording}
-            onClick={() => setCaptureQuality(quality)}
+            onClick={() => void changeCaptureQuality(quality)}
           >
             {quality === '1080p' ? copy.quality1080 : copy.quality720}
           </button>
