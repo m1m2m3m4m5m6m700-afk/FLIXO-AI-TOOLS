@@ -1,6 +1,8 @@
-# Safe Task Agent Execution
+# Safe Repair Agent Execution
 
-The Task Agent repairs GitHub Actions through the single canonical `execution` branch. Canonical CI is the merge gate. Direct mutation of `main` is not permitted.
+This document defines the bounded mutation contract for the **Repair Agent / Execution Agent**. It is not a Task Agent contract.
+
+The Task Agent is preparation-only. It may inspect, reason, prepare a bounded packet and hand off. Mutation starts only after the authorized mutation agent passes protocol admission and ownership locks.
 
 ## Canonical lifecycle
 
@@ -9,62 +11,84 @@ FAILURE
   ↓
 capture exact SHA + run + job + evidence
   ↓
-prove root cause with fresh exact-SHA evidence
+diagnosis + RCA
   ↓
-bounded source/config/workflow correction on execution
+Task Agent preparation
   ↓
-proportional hardening + targeted regression
+Executive / Coordination admission
   ↓
-push execution
+Repair Agent or Execution Agent mutation
   ↓
-Canonical CI on the exact execution SHA
+targeted regression + affected-contract verification
   ↓
-ANY RED / CANCELLED / SKIPPED / TIMED_OUT / STALE REQUIRED CHECK
-  → same active repair cycle
+canonical verification
   ↓
-ALL REQUIRED CHECKS GREEN
-  ↓
-exact-SHA proof
-  ↓
-execution → main
-  ↓
-verify resulting main identity and post-merge CI
+certification
 ```
 
-## Branch and mutation invariants
+## Mutation authority
 
-- `execution` is the sole working, repair, and integration branch.
+Only agents admitted by `scripts/ci/repair-protocol.mjs` may mutate.
+
+Current mutation roles:
+
+`repairAgent`
+`executionAgent`
+`implementation`
+
+The **Task Agent is explicitly not a mutation role**.
+
+The central admission rule is enforced by `assertAgentAdmission({ actor, mutation: true, ... })`. A `taskAgent` mutation request fails closed with `REPAIR_PROTOCOL_MUTATION_ROLE_BLOCKED`.
+
+## Branch and scope invariants
+
+- `execution` is the sole working/repair/integration branch.
 - `main` is the sole production/source-of-truth branch.
-- The Task Agent must never create or select a third repair/feature/temporary branch.
-- Direct mutation during repair is allowed only on `execution`.
-- `main` mutation, force-push, and history rewriting during repair are forbidden.
-- A repair cycle remains open after source mutation until Canonical CI is GREEN on the exact pushed `execution` SHA.
-- A cancelled, skipped, timed-out, stale, or failed required check is never treated as GREEN.
+- No third branch exists as an active execution path.
+- Mutation requires current protocol/session admission.
+- Protected control-plane files remain protected.
+- Scope and RCA ownership are established before mutation.
+
+## Task Agent handoff boundary
+
+The Task Agent may provide:
+
+`taskId + baselineSha + scope + dependencies + preparedChanges + verificationPlan + proofObligations + prompt provenance`
+
+The downstream mutation agent MUST independently revalidate:
+
+- exact baseline SHA;
+- RCA/evidence;
+- prompt selection;
+- ownership;
+- dependencies;
+- scope;
+- security/control-plane policy;
+- verification obligations.
+
+A Task Agent packet is never a mutation authorization.
 
 ## Evidence and closure
 
-Every active repair cycle must retain:
+Every mutation retains:
 
 `repairChainId + repairAttempt + failureRunId + failedSha + failureFingerprint + causalEvidence + rootCause + sourceCorrection + regressionProof + canonicalExactShaEvidence + preventionOutcome`
 
-The Task Agent must address the demonstrated root cause before adding regression-only tests. A new test cannot substitute for the missing source correction.
+Source correction must precede regression-only hardening. A test cannot substitute for the causal source repair.
 
-Closure is allowed only when all of the following are true:
+Closure remains external to the mutation agent:
 
-1. Canonical CI is green on the exact pushed `execution` SHA.
-2. There are zero required red, cancelled, skipped, timed-out, or stale checks.
-3. Fresh exact-SHA evidence proves the repair.
-4. Required regression proof is present.
-5. The canonical `execution → main` path completes and the resulting `main` state is independently verified.
+`mutation → targeted verify → affected graph → regression → recurrence → certification`
+
+No Repair Agent or Task Agent may declare final GREEN/CLOSED/VERIFIED without canonical certification evidence.
 
 ## Trust boundary
 
-Privileged diagnosis, repair strategy, and controller policy must use the trusted canonical-main controller snapshot and trusted learning input.
+Trusted controller policy, protocol definitions and canonical memory remain authoritative. Derived agent learning is supporting evidence only.
 
-Execution-side learning is derived output only. Derived learning may be merged into trusted history only through validated, evidence-preserving normalization; it must never replace or weaken the canonical trust source.
+Historical evidence cannot certify a newer SHA.
 
-## Escalation
+## Failure and escalation
 
-Repeated failure with the same fingerprint and no verifiable progress opens the configured circuit breaker and fails closed. Intractable cases escalate for supervising-agent teaching instead of repeating rejected approaches.
+Repeated failure without verifiable progress is escalated through the existing repair supervisor/circuit-breaker path. External provider failures remain `BLOCKED_EXTERNAL` and are never converted into an internal source RCA without independent evidence.
 
-A successful source repair is not completion by itself; the verifier owns closure only after exact-SHA Canonical CI GREEN and post-merge verification.
