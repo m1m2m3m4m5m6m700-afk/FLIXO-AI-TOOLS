@@ -79,7 +79,7 @@
     "targetedRegressionRequired": true,
     "canonicalGreenRequired": true,
     "continuousRedUntilGreen": true,
-    "maxAttemptsPerFingerprint": 1000000
+    "maxAttemptsPerFingerprint": 2000000
   },
   "knowledgeFlow": [
     "CURRENT_ACTION_RED",
