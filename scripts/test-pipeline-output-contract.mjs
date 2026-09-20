@@ -15,6 +15,8 @@ assert.match(pipelineSource, /authorizeExecution\(\{/);
 assert.match(pipelineSource, /auditEvents:\s*\[authorization\.audit\]/);
 assert.match(pipelineSource, /stage:\s*'EXECUTION'/);
 assert.match(pipelineSource, /stage:\s*'VERIFICATION'/);
+assert.match(pipelineSource, /stage:\s*'RECOVERY'/);
+assert.match(pipelineSource, /deriveRecoveryMetadata/);
 assert.match(pipelineSource, /classifyExecutionFailure/);
 
 const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01]);
