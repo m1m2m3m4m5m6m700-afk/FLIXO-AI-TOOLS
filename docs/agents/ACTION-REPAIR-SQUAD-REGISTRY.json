@@ -473,7 +473,21 @@
       "freezeDetection": true,
       "failClosedOnMissingHeartbeat": true,
       "failClosedOnApprovalMismatch": true,
-      "noIndependentPromotion": true
+      "noIndependentPromotion": true,
+      "verifierChallengeRequired": true,
+      "verifierProofArtifact": "action-repair-2-proposal.json",
+      "verifierProofBinding": [
+        "sameHeadquarters",
+        "sameFailureFingerprint",
+        "sameExactSha"
+      ],
+      "fallbackMutationRequires": [
+        "ACTION-REPAIR approval",
+        "READY_FOR_MUTATION heartbeat",
+        "current exact SHA",
+        "verifier challenge passed",
+        "normal Repair Protocol admission"
+      ]
     },
     "nonGreenLearning": {
       "recordEveryRedNotGreen": true,
@@ -509,7 +523,14 @@
     "permanentMemory": "diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-2.json",
     "approvalProtocol": "scripts/ci/action-repair-dual-control.mjs",
     "canFreezeRepair": false,
-    "partnerRequired": "ACTION-REPAIR"
+    "partnerRequired": "ACTION-REPAIR",
+    "verifierMode": {
+      "enabled": true,
+      "mutationInVerifierMode": false,
+      "fallbackExecutor": "assistantRepairAgent",
+      "fallbackRequiresPrimaryApproval": true,
+      "verifierProofRequired": true
+    }
   },
   "officialWorkplace": {
     "id": "ACTION-VAULT",
@@ -620,7 +641,18 @@
     "handoff": "ONLY_AFTER_DOCUMENTED_FAILURE_OR_UNREPAIRED",
     "greenAuthority": "DAILY_FLIXO_GREEN_GATE",
     "noMonitoringBot": true,
-    "separateFromCell": true
+    "separateFromCell": true,
+    "proofGate": {
+      "enabled": true,
+      "verifier": "ACTION-REPAIR-2",
+      "artifact": "action-repair-2-proposal.json",
+      "exactSha": true,
+      "failureFingerprint": true,
+      "alternativesRequired": true,
+      "falsificationChecksRequired": true,
+      "counterEvidenceRequired": true,
+      "mutationBlockedWithoutProof": true
+    }
   },
   "coreThreeBotContract": {
     "ACTION-REPAIR": {
