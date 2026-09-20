@@ -8,10 +8,12 @@
     "sourceOfTruth": "scripts/ci/agent-coordination.mjs"
   },
   "invariants": [
-    "RAW_BOT describes the reusable worker shape; it is never a terminal lifecycle state.",
+    "RAW is the initial bootstrap state for every bot and is not itself a failure or terminal state.",
+    "A bot remains RAW until its first task has a closed attendance record and an independent result review.",
+    "Specialization and promotion are earned from validated evidence; temporary task assignment never changes bot identity.",
+    "A reviewer may recommend promotion, but only the Controller changes lifecycle state and learned capability.",
     "One active task and one assigned scope per raw bot.",
     "Every completed task must emit an observation, evidence, validation result, learned task short name, and upgrade target.",
-    "A learned task identity is promoted only from validated task evidence.",
     "Every bot carries one numeric upgradePriority (1-100; 100 is the highest upgrade urgency) and one best current weakness target.",
     "After every task the controller must reassess weakness and either specialize, upgrade, become ready, or recycle the bot.",
     "Knowledge never bypasses exact-SHA or canonical CI proof."
@@ -20,7 +22,7 @@
     {
       "id": "CELL-001",
       "kind": "RAW_BOT",
-      "status": "SPECIALIZING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -29,59 +31,31 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "ACTION_SOLUTION_INDEXER",
-        "fullName": "ACTION_SOLUTION_INDEXER",
-        "state": "ASSIGNED",
-        "version": 2,
-        "learnedFrom": "ACTION_REPAIR_SQUAD",
+        "shortName": "RAW-CELL-001",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
         "returnTo": "assistantController"
       },
       "upgradeTarget": {
-        "upgradePriority": 95,
-        "upgradeNumber": 2,
-        "weakness": "HISTORICAL_ACTION_INDEX_RETRIEVAL",
-        "target": "Extract the most applicable previously observed repair solutions from the historical Action-error index and verified repair memory.",
-        "state": "ACTIVE",
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "SPECIALIZING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
-      "currentAssignment": {
-        "taskId": "CELL-TASK-ACTION-REPAIR-SQUAD",
-        "shortName": "ACTION_SOLUTION_INDEXER",
-        "scope": "READ_HISTORICAL_ACTION_INDEX",
-        "objective": "Extract the most applicable previously observed repair solutions from the historical Action-error index and verified repair memory.",
-        "inputs": [
-          "failure run",
-          "exact failed SHA",
-          "failure log",
-          "historical Action-error index",
-          "repair memory",
-          "twin evidence"
-        ],
-        "outputs": [
-          "evidence",
-          "hypothesis",
-          "confidence",
-          "falsification",
-          "recommendation"
-        ],
-        "returnProtocol": "DIRECT_TO_ASSISTANT_CONTROLLER",
-        "mutationAuthority": false,
-        "completionRequires": [
-          "observation",
-          "evidence",
-          "validation"
-        ]
-      },
+      "currentAssignment": null,
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
-      "learnedCapabilities": [
-        "ACTION_SOLUTION_INDEXER"
-      ],
+      "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-001.json",
@@ -96,7 +70,7 @@
     {
       "id": "CELL-002",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -105,311 +79,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "ACTION_SYSTEM_WAKE_COORDINATOR",
-        "fullName": "ACTION_SYSTEM_WAKE_COORDINATOR",
-        "state": "ASSIGNED",
-        "version": 1,
-        "learnedFrom": "ACTION_REPAIR_SQUAD",
-        "returnTo": "assistantController"
-      },
-      "upgradeTarget": {
-        "upgradePriority": 92,
-        "upgradeNumber": 1,
-        "weakness": "WAKE_SURFACE_COORDINATION",
-        "target": "On any actionable Actions failure, produce the canonical wake directive without creating a competing dispatcher or mutating source.",
-        "state": "ACTIVE",
-        "reassessAfterTask": true
-      },
-      "lifecycle": {
-        "state": "SPECIALIZING",
-        "rawStateForbidden": true,
-        "reassessAfterTask": true,
-        "supervisor": "assistantController"
-      },
-      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
-      "learnedCapabilities": [
-        "ACTION_SYSTEM_WAKE_COORDINATOR"
-      ],
-      "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
-      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-002.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
-      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
-      "supervisedBySeats": [
-        "CELL-SEAT-01",
-        "CELL-SEAT-02",
-        "CELL-SEAT-03"
-      ],
-      "currentAssignment": {
-        "taskId": "CELL-TASK-ACTION-REPAIR-SQUAD",
-        "shortName": "ACTION_SYSTEM_WAKE_COORDINATOR",
-        "scope": "WAKE_CANONICAL_REPAIR_SURFACE",
-        "objective": "On any actionable Actions failure, produce the canonical wake directive without creating a competing dispatcher or mutating source.",
-        "inputs": [
-          "failure run",
-          "exact failed SHA",
-          "failure log",
-          "historical Action-error index",
-          "repair memory",
-          "twin evidence"
-        ],
-        "outputs": [
-          "evidence",
-          "hypothesis",
-          "confidence",
-          "falsification",
-          "recommendation"
-        ],
-        "returnProtocol": "DIRECT_TO_ASSISTANT_CONTROLLER",
-        "mutationAuthority": false,
-        "completionRequires": [
-          "observation",
-          "evidence",
-          "validation"
-        ]
-      }
-    },
-    {
-      "id": "CELL-003",
-      "kind": "RAW_BOT",
-      "status": "LEARNING",
-      "role": "ADAPTIVE_RAW_WORKER",
-      "permissions": [],
-      "supervisor": "assistantController",
-      "taskPolicy": "ONE_TASK_AT_A_TIME",
-      "scopePolicy": "ASSIGNED_SCOPE_ONLY",
-      "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
-      "taskIdentity": {
-        "shortName": "ACTION_REPAIR_TWIN_A",
-        "fullName": "ACTION_REPAIR_TWIN_A",
-        "state": "ASSIGNED",
-        "version": 1,
-        "learnedFrom": "ACTION_REPAIR_SQUAD",
-        "returnTo": "assistantController"
-      },
-      "upgradeTarget": {
-        "upgradePriority": 85,
-        "upgradeNumber": 1,
-        "weakness": "TWIN_A_REASONING",
-        "target": "Independently diagnose the exact-SHA failure using causal reasoning plus historical evidence and propose one bounded repair hypothesis.",
-        "state": "ACTIVE",
-        "reassessAfterTask": true
-      },
-      "lifecycle": {
-        "state": "SPECIALIZING",
-        "rawStateForbidden": true,
-        "reassessAfterTask": true,
-        "supervisor": "assistantController"
-      },
-      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
-      "learnedCapabilities": [
-        "ACTION_REPAIR_TWIN_A"
-      ],
-      "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
-      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-003.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
-      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
-      "supervisedBySeats": [
-        "CELL-SEAT-01",
-        "CELL-SEAT-02",
-        "CELL-SEAT-03"
-      ],
-      "currentAssignment": {
-        "taskId": "CELL-TASK-ACTION-REPAIR-SQUAD",
-        "shortName": "ACTION_REPAIR_TWIN_A",
-        "scope": "READ_ONLY_REPAIR_TWIN_A",
-        "objective": "Independently diagnose the exact-SHA failure using causal reasoning plus historical evidence and propose one bounded repair hypothesis.",
-        "inputs": [
-          "failure run",
-          "exact failed SHA",
-          "failure log",
-          "historical Action-error index",
-          "repair memory",
-          "twin evidence"
-        ],
-        "outputs": [
-          "evidence",
-          "hypothesis",
-          "confidence",
-          "falsification",
-          "recommendation"
-        ],
-        "returnProtocol": "DIRECT_TO_ASSISTANT_CONTROLLER",
-        "mutationAuthority": false,
-        "completionRequires": [
-          "observation",
-          "evidence",
-          "validation"
-        ]
-      }
-    },
-    {
-      "id": "CELL-004",
-      "kind": "RAW_BOT",
-      "status": "LEARNING",
-      "role": "ADAPTIVE_RAW_WORKER",
-      "permissions": [],
-      "supervisor": "assistantController",
-      "taskPolicy": "ONE_TASK_AT_A_TIME",
-      "scopePolicy": "ASSIGNED_SCOPE_ONLY",
-      "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
-      "taskIdentity": {
-        "shortName": "ACTION_REPAIR_TWIN_B",
-        "fullName": "ACTION_REPAIR_TWIN_B",
-        "state": "ASSIGNED",
-        "version": 1,
-        "learnedFrom": "ACTION_REPAIR_SQUAD",
-        "returnTo": "assistantController"
-      },
-      "upgradeTarget": {
-        "upgradePriority": 85,
-        "upgradeNumber": 1,
-        "weakness": "TWIN_B_REASONING",
-        "target": "Independently challenge the same failure using an alternative reasoning/inference lens and propose a materially different or falsifying repair hypothesis.",
-        "state": "ACTIVE",
-        "reassessAfterTask": true
-      },
-      "lifecycle": {
-        "state": "SPECIALIZING",
-        "rawStateForbidden": true,
-        "reassessAfterTask": true,
-        "supervisor": "assistantController"
-      },
-      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
-      "learnedCapabilities": [
-        "ACTION_REPAIR_TWIN_B"
-      ],
-      "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
-      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-004.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
-      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
-      "supervisedBySeats": [
-        "CELL-SEAT-01",
-        "CELL-SEAT-02",
-        "CELL-SEAT-03"
-      ],
-      "currentAssignment": {
-        "taskId": "CELL-TASK-ACTION-REPAIR-SQUAD",
-        "shortName": "ACTION_REPAIR_TWIN_B",
-        "scope": "READ_ONLY_REPAIR_TWIN_B",
-        "objective": "Independently challenge the same failure using an alternative reasoning/inference lens and propose a materially different or falsifying repair hypothesis.",
-        "inputs": [
-          "failure run",
-          "exact failed SHA",
-          "failure log",
-          "historical Action-error index",
-          "repair memory",
-          "twin evidence"
-        ],
-        "outputs": [
-          "evidence",
-          "hypothesis",
-          "confidence",
-          "falsification",
-          "recommendation"
-        ],
-        "returnProtocol": "DIRECT_TO_ASSISTANT_CONTROLLER",
-        "mutationAuthority": false,
-        "completionRequires": [
-          "observation",
-          "evidence",
-          "validation"
-        ]
-      }
-    },
-    {
-      "id": "CELL-005",
-      "kind": "RAW_BOT",
-      "status": "LEARNING",
-      "role": "ADAPTIVE_RAW_WORKER",
-      "permissions": [],
-      "supervisor": "assistantController",
-      "taskPolicy": "ONE_TASK_AT_A_TIME",
-      "scopePolicy": "ASSIGNED_SCOPE_ONLY",
-      "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
-      "taskIdentity": {
-        "shortName": "ACTION_BEST_OPTION_SELECTOR",
-        "fullName": "ACTION_BEST_OPTION_SELECTOR",
-        "state": "ASSIGNED",
-        "version": 1,
-        "learnedFrom": "ACTION_REPAIR_SQUAD",
-        "returnTo": "assistantController"
-      },
-      "upgradeTarget": {
-        "upgradePriority": 90,
-        "upgradeNumber": 1,
-        "weakness": "BEST_OPTION_SELECTION",
-        "target": "Compare the historical solution packet and both twin outputs using exact-SHA evidence, falsification, recurrence, and proof safety; select one option or BLOCK.",
-        "state": "ACTIVE",
-        "reassessAfterTask": true
-      },
-      "lifecycle": {
-        "state": "SPECIALIZING",
-        "rawStateForbidden": true,
-        "reassessAfterTask": true,
-        "supervisor": "assistantController"
-      },
-      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
-      "learnedCapabilities": [
-        "ACTION_BEST_OPTION_SELECTOR"
-      ],
-      "reassignmentPolicy": "ANY_ADMITTED_TASK",
-      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
-      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-005.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
-      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
-      "supervisedBySeats": [
-        "CELL-SEAT-01",
-        "CELL-SEAT-02",
-        "CELL-SEAT-03"
-      ],
-      "currentAssignment": {
-        "taskId": "CELL-TASK-ACTION-REPAIR-SQUAD",
-        "shortName": "ACTION_BEST_OPTION_SELECTOR",
-        "scope": "BEST_OPTION_SELECTION",
-        "objective": "Compare the historical solution packet and both twin outputs using exact-SHA evidence, falsification, recurrence, and proof safety; select one option or BLOCK.",
-        "inputs": [
-          "failure run",
-          "exact failed SHA",
-          "failure log",
-          "historical Action-error index",
-          "repair memory",
-          "twin evidence"
-        ],
-        "outputs": [
-          "evidence",
-          "hypothesis",
-          "confidence",
-          "falsification",
-          "recommendation"
-        ],
-        "returnProtocol": "DIRECT_TO_ASSISTANT_CONTROLLER",
-        "mutationAuthority": false,
-        "completionRequires": [
-          "observation",
-          "evidence",
-          "validation"
-        ]
-      }
-    },
-    {
-      "id": "CELL-006",
-      "kind": "RAW_BOT",
-      "status": "LEARNING",
-      "role": "ADAPTIVE_RAW_WORKER",
-      "permissions": [],
-      "supervisor": "assistantController",
-      "taskPolicy": "ONE_TASK_AT_A_TIME",
-      "scopePolicy": "ASSIGNED_SCOPE_ONLY",
-      "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
-      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
-      "taskIdentity": {
-        "shortName": "LRN-006",
+        "shortName": "RAW-CELL-002",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -420,13 +90,206 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-002.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ],
+      "currentAssignment": null
+    },
+    {
+      "id": "CELL-003",
+      "kind": "RAW_BOT",
+      "status": "RAW",
+      "role": "ADAPTIVE_RAW_WORKER",
+      "permissions": [],
+      "supervisor": "assistantController",
+      "taskPolicy": "ONE_TASK_AT_A_TIME",
+      "scopePolicy": "ASSIGNED_SCOPE_ONLY",
+      "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "RAW-CELL-003",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-003.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ],
+      "currentAssignment": null
+    },
+    {
+      "id": "CELL-004",
+      "kind": "RAW_BOT",
+      "status": "RAW",
+      "role": "ADAPTIVE_RAW_WORKER",
+      "permissions": [],
+      "supervisor": "assistantController",
+      "taskPolicy": "ONE_TASK_AT_A_TIME",
+      "scopePolicy": "ASSIGNED_SCOPE_ONLY",
+      "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "RAW-CELL-004",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-004.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ],
+      "currentAssignment": null
+    },
+    {
+      "id": "CELL-005",
+      "kind": "RAW_BOT",
+      "status": "RAW",
+      "role": "ADAPTIVE_RAW_WORKER",
+      "permissions": [],
+      "supervisor": "assistantController",
+      "taskPolicy": "ONE_TASK_AT_A_TIME",
+      "scopePolicy": "ASSIGNED_SCOPE_ONLY",
+      "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "RAW-CELL-005",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
+        "reassessAfterTask": true,
+        "supervisor": "assistantController"
+      },
+      "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
+      "learnedCapabilities": [],
+      "reassignmentPolicy": "ANY_ADMITTED_TASK",
+      "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
+      "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-005.json",
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ],
+      "currentAssignment": null
+    },
+    {
+      "id": "CELL-006",
+      "kind": "RAW_BOT",
+      "status": "RAW",
+      "role": "ADAPTIVE_RAW_WORKER",
+      "permissions": [],
+      "supervisor": "assistantController",
+      "taskPolicy": "ONE_TASK_AT_A_TIME",
+      "scopePolicy": "ASSIGNED_SCOPE_ONLY",
+      "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
+      "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
+      "taskIdentity": {
+        "shortName": "RAW-CELL-006",
+        "fullName": "UNLEARNED_TASK",
+        "state": "UNLEARNED",
+        "version": 0,
+        "learnedFrom": "BOOTSTRAP_ONLY",
+        "returnTo": "assistantController"
+      },
+      "upgradeTarget": {
+        "upgradePriority": 1,
+        "upgradeNumber": 0,
+        "weakness": "FIRST_TASK_EVIDENCE",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
+        "reassessAfterTask": true
+      },
+      "lifecycle": {
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -441,12 +304,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-007",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -455,7 +319,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-007",
+        "shortName": "RAW-CELL-007",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -466,13 +330,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -487,12 +352,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-008",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -501,7 +367,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-008",
+        "shortName": "RAW-CELL-008",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -512,13 +378,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -533,12 +400,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-009",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -547,7 +415,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-009",
+        "shortName": "RAW-CELL-009",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -558,13 +426,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -579,12 +448,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-010",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -593,7 +463,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-010",
+        "shortName": "RAW-CELL-010",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -604,13 +474,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -625,12 +496,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-011",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -639,7 +511,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-011",
+        "shortName": "RAW-CELL-011",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -650,13 +522,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -671,12 +544,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-012",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -685,7 +559,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-012",
+        "shortName": "RAW-CELL-012",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -696,13 +570,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -717,12 +592,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-013",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -731,7 +607,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-013",
+        "shortName": "RAW-CELL-013",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -742,13 +618,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -763,12 +640,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-014",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -777,7 +655,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-014",
+        "shortName": "RAW-CELL-014",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -788,13 +666,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -809,12 +688,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-015",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -823,7 +703,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-015",
+        "shortName": "RAW-CELL-015",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -834,13 +714,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -855,12 +736,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-016",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -869,7 +751,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-016",
+        "shortName": "RAW-CELL-016",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -880,13 +762,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -901,12 +784,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-017",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -915,7 +799,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-017",
+        "shortName": "RAW-CELL-017",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -926,13 +810,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -947,12 +832,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-018",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -961,7 +847,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-018",
+        "shortName": "RAW-CELL-018",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -972,13 +858,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -993,12 +880,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-019",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1007,7 +895,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-019",
+        "shortName": "RAW-CELL-019",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1018,13 +906,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1039,12 +928,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-020",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1053,7 +943,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-020",
+        "shortName": "RAW-CELL-020",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1064,13 +954,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1085,12 +976,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-021",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1099,7 +991,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-021",
+        "shortName": "RAW-CELL-021",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1110,13 +1002,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1131,12 +1024,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-022",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1145,7 +1039,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-022",
+        "shortName": "RAW-CELL-022",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1156,13 +1050,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1177,12 +1072,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-023",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1191,7 +1087,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-023",
+        "shortName": "RAW-CELL-023",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1202,13 +1098,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1223,12 +1120,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-024",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1237,7 +1135,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-024",
+        "shortName": "RAW-CELL-024",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1248,13 +1146,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1269,12 +1168,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-025",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1283,7 +1183,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-025",
+        "shortName": "RAW-CELL-025",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1294,13 +1194,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1315,12 +1216,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-026",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1329,7 +1231,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-026",
+        "shortName": "RAW-CELL-026",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1340,13 +1242,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1361,12 +1264,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-027",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1375,7 +1279,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-027",
+        "shortName": "RAW-CELL-027",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1386,13 +1290,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1407,12 +1312,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-028",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1421,7 +1327,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-028",
+        "shortName": "RAW-CELL-028",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1432,13 +1338,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1453,12 +1360,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-029",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1467,7 +1375,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-029",
+        "shortName": "RAW-CELL-029",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1478,13 +1386,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1499,12 +1408,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-030",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1513,7 +1423,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-030",
+        "shortName": "RAW-CELL-030",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1524,13 +1434,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1545,12 +1456,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-031",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1559,7 +1471,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-031",
+        "shortName": "RAW-CELL-031",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1570,13 +1482,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1591,12 +1504,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-032",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1605,7 +1519,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-032",
+        "shortName": "RAW-CELL-032",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1616,13 +1530,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1637,12 +1552,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-033",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1651,7 +1567,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-033",
+        "shortName": "RAW-CELL-033",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1662,13 +1578,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1683,12 +1600,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-034",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1697,7 +1615,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-034",
+        "shortName": "RAW-CELL-034",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1708,13 +1626,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1729,12 +1648,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-035",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1743,7 +1663,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-035",
+        "shortName": "RAW-CELL-035",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1754,13 +1674,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1775,12 +1696,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-036",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1789,7 +1711,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-036",
+        "shortName": "RAW-CELL-036",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1800,13 +1722,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1821,12 +1744,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-037",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1835,7 +1759,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-037",
+        "shortName": "RAW-CELL-037",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1846,13 +1770,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1867,12 +1792,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-038",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1881,7 +1807,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-038",
+        "shortName": "RAW-CELL-038",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1892,13 +1818,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1913,12 +1840,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-039",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1927,7 +1855,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-039",
+        "shortName": "RAW-CELL-039",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1938,13 +1866,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -1959,12 +1888,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-040",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -1973,7 +1903,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-040",
+        "shortName": "RAW-CELL-040",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -1984,13 +1914,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -2005,12 +1936,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-041",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -2019,7 +1951,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-041",
+        "shortName": "RAW-CELL-041",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -2030,13 +1962,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -2051,12 +1984,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-042",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -2065,7 +1999,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-042",
+        "shortName": "RAW-CELL-042",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -2076,13 +2010,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -2097,12 +2032,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-043",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -2111,7 +2047,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-043",
+        "shortName": "RAW-CELL-043",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -2122,13 +2058,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -2143,12 +2080,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-044",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -2157,7 +2095,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-044",
+        "shortName": "RAW-CELL-044",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -2168,13 +2106,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -2189,12 +2128,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-045",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -2203,7 +2143,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-045",
+        "shortName": "RAW-CELL-045",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -2214,13 +2154,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -2235,12 +2176,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-046",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -2249,7 +2191,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-046",
+        "shortName": "RAW-CELL-046",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -2260,13 +2202,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -2281,12 +2224,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-047",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -2295,7 +2239,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-047",
+        "shortName": "RAW-CELL-047",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -2306,13 +2250,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -2327,12 +2272,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-048",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -2341,7 +2287,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-048",
+        "shortName": "RAW-CELL-048",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -2352,13 +2298,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -2373,12 +2320,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-049",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -2387,7 +2335,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-049",
+        "shortName": "RAW-CELL-049",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -2398,13 +2346,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -2419,12 +2368,13 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-050",
       "kind": "RAW_BOT",
-      "status": "LEARNING",
+      "status": "RAW",
       "role": "ADAPTIVE_RAW_WORKER",
       "permissions": [],
       "supervisor": "assistantController",
@@ -2433,7 +2383,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "LRN-050",
+        "shortName": "RAW-CELL-050",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -2444,13 +2394,14 @@
         "upgradePriority": 1,
         "upgradeNumber": 0,
         "weakness": "FIRST_TASK_EVIDENCE",
-        "target": "Establish the first validated task weakness.",
-        "state": "PENDING_LEARNING",
+        "target": "Complete a first bounded task, pass independent result review, and establish a validated capability.",
+        "state": "PENDING_FIRST_TASK",
         "reassessAfterTask": true
       },
       "lifecycle": {
-        "state": "LEARNING",
-        "rawStateForbidden": true,
+        "state": "RAW",
+        "rawStateForbidden": false,
+        "bootstrapOnly": true,
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
@@ -2465,12 +2416,14 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     }
   ],
   "lifecycle": {
     "rawKindIsBootstrapOnly": true,
     "allowedStates": [
+      "RAW",
       "LEARNING",
       "SPECIALIZING",
       "UPGRADING",
@@ -2478,12 +2431,12 @@
       "RECYCLE"
     ],
     "prohibitedTerminalStates": [
-      "RAW",
       "UNPROVISIONED"
     ],
-    "postTaskRequiredState": "REASSESS_AND_PROMOTE",
+    "firstTaskExitGate": "CLOSED_ATTENDANCE + INDEPENDENT_RESULT_REVIEW",
+    "postTaskRule": "REVIEW_THEN_REASSESS",
     "supervisor": "assistantController",
-    "rule": "Every completed task must produce a learned task identity and an upgrade target; no bot may settle in RAW/UNPROVISIONED."
+    "rule": "Every bot begins RAW. After a reviewed task the controller either keeps it RAW/LEARNING, specializes, upgrades, promotes to READY, or recycles."
   },
   "upgradeModel": {
     "priorityRange": [
@@ -2492,7 +2445,7 @@
     ],
     "priorityMeaning": "100=highest upgrade urgency",
     "levelStartsAt": 0,
-    "promotionRule": "validated observation + evidence + controller reassessment",
+    "promotionRule": "closed attendance + independent result review + validated observation + evidence + controller reassessment",
     "specializationRule": "learned short name becomes the current task identity only after validation"
   },
   "taskExecutionModel": {
@@ -2674,6 +2627,7 @@
     ],
     "knowledgeLifecycle": [
       "CAPTURED",
+      "REVIEW_PENDING",
       "VALIDATED",
       "REUSED",
       "REJECTED",
@@ -2689,5 +2643,13 @@
       "derivedFrom": "attendance outcomes + knowledge validation + recurrence",
       "controllerReviewRequired": true
     }
+  },
+  "resultReviewer": {
+    "id": "CELL-RESULT-REVIEWER",
+    "role": "INDEPENDENT_RESULT_REVIEWER",
+    "authority": "REVIEW_AND_PROMOTION_RECOMMENDATION_ONLY",
+    "promotionRule": "ACCEPTED_REVIEW_MAY_RECOMMEND_PROMOTION; CONTROLLER_MUST_REASSESS",
+    "mutationAuthority": false,
+    "certificationAuthority": false
   }
 }
