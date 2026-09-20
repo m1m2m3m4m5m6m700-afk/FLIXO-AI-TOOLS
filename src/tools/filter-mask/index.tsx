@@ -31,29 +31,47 @@ function drawFilteredFrame(
   height: number,
   cssFilter: string,
   intensity: number,
+  zoom: number,
+  mirror: boolean,
 ) {
+  const sourceWidth = video.videoWidth || width;
+  const sourceHeight = video.videoHeight || height;
+  const cropWidth = sourceWidth / zoom;
+  const cropHeight = sourceHeight / zoom;
+  const cropX = (sourceWidth - cropWidth) / 2;
+  const cropY = (sourceHeight - cropHeight) / 2;
+
+  const drawLayer = (filter: string, alpha: number) => {
+    ctx.save();
+    ctx.filter = filter;
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(
+      video,
+      cropX,
+      cropY,
+      cropWidth,
+      cropHeight,
+      0,
+      0,
+      width,
+      height,
+    );
+    ctx.restore();
+  };
+
   ctx.save();
   ctx.clearRect(0, 0, width, height);
-  ctx.translate(width, 0);
-  ctx.scale(-1, 1);
-
-  if (cssFilter === 'none') {
-    ctx.filter = 'none';
-    ctx.globalAlpha = 1;
-    ctx.drawImage(video, 0, 0, width, height);
-  } else if (intensity >= 100) {
-    ctx.filter = cssFilter;
-    ctx.globalAlpha = 1;
-    ctx.drawImage(video, 0, 0, width, height);
-  } else {
-    ctx.filter = 'none';
-    ctx.globalAlpha = 1;
-    ctx.drawImage(video, 0, 0, width, height);
-    ctx.filter = cssFilter;
-    ctx.globalAlpha = intensity / 100;
-    ctx.drawImage(video, 0, 0, width, height);
+  if (mirror) {
+    ctx.translate(width, 0);
+    ctx.scale(-1, 1);
   }
 
+  if (cssFilter === 'none' || intensity >= 100) {
+    drawLayer(cssFilter === 'none' ? 'none' : cssFilter, 1);
+  } else {
+    drawLayer('none', 1);
+    drawLayer(cssFilter, intensity / 100);
+  }
   ctx.restore();
 }
 
@@ -81,6 +99,8 @@ export function FilterMaskTool() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [selectedId, setSelectedId] = useState(handoff?.canonicalId ?? 'effect.original');
   const [intensity, setIntensity] = useState(handoff?.parameters.intensity ?? 100);
+  const [zoom, setZoom] = useState(handoff?.parameters.zoom ?? 1);
+  const [mirror, setMirror] = useState(handoff?.parameters.mirror ?? true);
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
   const [capturedKind, setCapturedKind] = useState<'photo' | 'video' | null>(null);
 
@@ -101,8 +121,10 @@ export function FilterMaskTool() {
     const params = new URLSearchParams(window.location.search);
     params.set('canonicalId', selected.canonicalId);
     params.set('intensity', String(clampIntensity(intensity)));
+    params.set('zoom', String(zoom));
+    params.set('mirror', String(mirror));
     window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params.toString()}`);
-  }, [selected.canonicalId, intensity]);
+  }, [selected.canonicalId, intensity, mirror, zoom]);
 
   useEffect(() => () => {
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
@@ -237,6 +259,8 @@ export function FilterMaskTool() {
           canvas.height,
           selected.cssFilter,
           intensity,
+          zoom,
+          mirror,
         );
         recordFrameRef.current = requestAnimationFrame(drawFrame);
       };
@@ -297,6 +321,8 @@ export function FilterMaskTool() {
       canvas.height,
       selected.cssFilter,
       intensity,
+      zoom,
+      mirror,
     );
 
     const blob = await new Promise<Blob | null>((resolve) => {
@@ -351,7 +377,7 @@ export function FilterMaskTool() {
             objectFit: 'cover',
             filter: selected.cssFilter === 'none' ? undefined : selected.cssFilter,
             opacity: intensity / 100,
-            transform: 'scaleX(-1)',
+            transform: `${mirror ? 'scaleX(-1)' : ''} scale(${zoom})`.trim(),
           }}
         />
         {!running && (
@@ -416,6 +442,24 @@ export function FilterMaskTool() {
           {favorites.includes(selected.canonicalId) ? '★ Favorite' : '☆ Favorite'}
         </button>
         <button type="button" onClick={() => selectFilter('effect.original')}>Reset filter</button>
+      </div>
+
+      <div role="group" aria-label="Camera framing" style={{ display: 'grid', gap: 8 }}>
+        <label>
+          Zoom: {zoom.toFixed(1)}×
+          <input
+            aria-label="Zoom"
+            type="range"
+            min="1"
+            max="2"
+            step="0.1"
+            value={zoom}
+            onChange={(event) => setZoom(Math.min(2, Math.max(1, Number(event.target.value))))}
+          />
+        </label>
+        <button type="button" aria-pressed={mirror} onClick={() => setMirror((current) => !current)}>
+          {mirror ? 'Mirror on' : 'Mirror off'}
+        </button>
       </div>
 
       <label>
