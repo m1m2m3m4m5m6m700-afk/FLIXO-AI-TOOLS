@@ -71,6 +71,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   });
   const [messageId, setMessageId] = useState(() => loadConversationMemory().turns.length + 1);
   const [filterHandoff, setFilterHandoff] = useState<FilterMaskHandoff | null>(null);
+  const [filterHandoffLabel, setFilterHandoffLabel] = useState<string | null>(null);
   const downloadUrlRef = useRef<string | null>(null);
 
   const replaceDownloadUrl = (blob: Blob | null) => {
@@ -112,6 +113,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     const nextHandoff = resolveFilterMaskHandoff(command);
     if (!nextHandoff) return false;
     setFilterHandoff(nextHandoff);
+    setFilterHandoffLabel(selected?.label ?? 'Filter Mask');
     setPlan(null);
     setState('ready');
     setError(null);
@@ -196,7 +198,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         setPlan(decision.plan);
         setState('ready');
         setError(null);
-        setFilterHandoff(null);
+        setFilterHandoff(null); setFilterHandoffLabel(null);
         setMemory((current) => setConversationTask(current, {
           command,
           toolId: decision.plan?.steps[0]?.toolId ?? null,
@@ -214,7 +216,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       setPlan(null);
       setError(null);
       setState('idle');
-      setFilterHandoff(null);
+      setFilterHandoff(null); setFilterHandoffLabel(null);
 
       if (decision.mode === 'clarify') {
         setMemory((current) => setConversationTask(current, {
@@ -290,7 +292,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       setState('idle');
       setError(null);
       setMemory((current) => clearConversationTask(current));
-      setFilterHandoff(null);
+      setFilterHandoff(null); setFilterHandoffLabel(null);
       pushMessage('agent', responseCopy.cancelled);
       return;
     }
@@ -381,8 +383,8 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           {intent && <div className="flixo-ai-agent-intent">{copy.nearestTool} <strong>{intent.tool.title}</strong> · {intent.score}%</div>}
           {filterHandoff && (
             <div className="flixo-ai-agent-confirm" data-testid="filter-mask-handoff">
-              <strong>{filterHandoff.canonicalId}</strong>
-              <span> · intensity {filterHandoff.parameters.intensity}% · zoom {filterHandoff.parameters.zoom.toFixed(1)}× · {filterHandoff.parameters.aspectRatio} · {filterHandoff.parameters.mirror ? 'mirror' : 'direct'}</span>
+              <strong>{filterHandoffLabel ?? 'Filter Mask'}</strong>
+              <span> · ready for live preview</span>
               <a className="primary-button" href={buildFilterMaskUrl(locale, filterHandoff)}>
                 {locale === 'ar' ? 'فتح المعاينة المباشرة' : 'Open live preview'}
               </a>
