@@ -104,21 +104,14 @@ export function openErrorGate({ taskId, fingerprint, targetSha, failedRunId, err
     at: new Date().toISOString(),
   };
   append(escalation.mode === 'SUPERVISOR_20' ? MISS_LEDGER : path.join(VAULT, 'triad-gate.ndjson'), record);
+  if (record.catalog.miss) append(MISS_LEDGER, { ...record, eventType: 'CATALOG_MISS', learningStatus: 'CANDIDATE_ONLY' });
   writeJson(STATE, record);
   return record;
 }
 
 export function registerCatalogMiss(input) {
   const gate = openErrorGate(input);
-  if (!gate.catalog.miss) return { ...gate, catalogMissRecorded: false };
-  const miss = {
-    ...gate,
-    eventType: 'CATALOG_MISS',
-    learningStatus: 'CANDIDATE_ONLY',
-    requiredLearning: ['ACTION-REPAIR:programming-advice','ACTION-REPAIR-2:counter-advice','ACTION-HISTORIAN-3:curated-advice'],
-  };
-  append(MISS_LEDGER, miss);
-  return { ...gate, catalogMissRecorded: true };
+  return { ...gate, catalogMissRecorded: Boolean(gate.catalog.miss) };
 }
 
 export function recordTriadProposal({ taskId, fingerprint, targetSha, failedRunId, botId, proposal, adviceIds = [], counterexamples = [] }) {
