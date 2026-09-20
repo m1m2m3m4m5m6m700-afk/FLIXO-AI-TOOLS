@@ -5,8 +5,8 @@
   "kind": "ACTION_HISTORICAL_EXPLORER",
   "headquarters": "docs/agents/historical-action-errors",
   "purpose": "يستكشف فهرس أخطاء Actions وقائمة الإصلاحات التاريخية، يطابق الحالة الحالية مع السوابق، ويرتب حلولًا محتملة ويقدم حزمة إصلاح تنبؤية للوكيل 1.",
-  "mutationAuthority": false,
-  "executionAuthority": "HISTORICAL_PREDICTION_PROPOSAL_ONLY",
+  "mutationAuthority": "ADMITTED_SEAT",
+  "executionAuthority": "MUTATE_WHEN_ADMITTED",
   "requiredApprover": "ACTION-REPAIR",
   "mutationScope": "NONE",
   "branch": "execution",
@@ -59,7 +59,7 @@
   ],
   "executionBoundary": {
     "singleActiveRepairOwner": true,
-    "canMutateWhenOwner": false,
+    "canMutateWhenOwner": true,
     "canMutateBeforeHandoff": false,
     "canMutateTests": false,
     "canMutateMain": false,
@@ -102,7 +102,7 @@
     "sameFingerprint": true,
     "sameSha": true
   },
-  "role": "HISTORICAL_INDEX_EXPLORER_AND_PREDICTOR",
+  "role": "ADVERSARIAL_PROGRAMMER_SEAT",
   "copyable": true,
   "transferableKnowledgeOnly": true,
   "permanentIndependentAuthority": false,
