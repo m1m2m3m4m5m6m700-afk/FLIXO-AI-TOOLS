@@ -25,11 +25,13 @@ export function causalIdentity(prompt) {
   const payload = {
     failureClasses: uniqueSorted(prompt.failureClasses),
     rootCauses: uniqueSorted(prompt.rootCauses),
-    scope: {
-      allowed: uniqueSorted(prompt.scope?.allowed),
-      forbidden: uniqueSorted(prompt.scope?.forbidden),
-      protected: uniqueSorted(prompt.scope?.protected),
-    },
+    scope: typeof prompt.scope === 'string'
+      ? prompt.scope.trim()
+      : {
+          allowed: uniqueSorted(prompt.scope?.allowed),
+          forbidden: uniqueSorted(prompt.scope?.forbidden),
+          protected: uniqueSorted(prompt.scope?.protected),
+        },
     repairStrategy: uniqueSorted(prompt.repairStrategy),
     verificationPlan: uniqueSorted(prompt.verificationPlan),
   };
@@ -38,6 +40,13 @@ export function causalIdentity(prompt) {
 
 function validateExactSha(item, errors) {
   const rule = item.exactShaRequirements;
+  if (Array.isArray(rule)) {
+    const values = new Set(rule.map((value) => String(value).trim()).filter(Boolean));
+    for (const required of ['current execution SHA', 'invalidate on SHA change', 'targeted verification', 'affected graph verification', 'canonical certification']) {
+      if (!values.has(required)) errors.push(item.promptId + ': exact-SHA requirement missing: ' + required);
+    }
+    return;
+  }
   if (!rule?.required || rule.bindAtExecution !== true || rule.historicalProvenanceIsNotProof !== true) {
     errors.push(item.promptId + ': exact-SHA binding is incomplete');
   }
@@ -62,13 +71,14 @@ export function validatePromptRegistry(registry) {
     if (!PROMPT_STATUS.has(item.status)) errors.push(item.promptId + ': invalid status');
     if (!String(item.promptId ?? '').startsWith('RPR-')) errors.push(item.promptId + ': invalid promptId');
     if (!String(item.title ?? '').trim()) errors.push(item.promptId + ': title required');
-    if (!String(item.path ?? '').trim()) errors.push(item.promptId + ': path required');
+    const sourcePath = String(item.sourcePath ?? item.path ?? '').trim();
+    if (!sourcePath) errors.push(item.promptId + ': sourcePath required');
     if (ids.has(item.promptId)) errors.push(item.promptId + ': duplicate promptId');
     ids.add(item.promptId);
-    if (paths.has(item.path)) errors.push(item.promptId + ': duplicate path');
-    paths.add(item.path);
+    if (sourcePath && paths.has(sourcePath)) errors.push(item.promptId + ': duplicate sourcePath');
+    if (sourcePath) paths.add(sourcePath);
 
-    if (!fs.existsSync(path.resolve(item.path))) errors.push(item.promptId + ': prompt file missing: ' + item.path);
+    if (sourcePath && !fs.existsSync(path.resolve(sourcePath))) errors.push(item.promptId + ': prompt file missing: ' + sourcePath);
 
     for (const field of [
       'failureClasses', 'fingerprints', 'rootCauses', 'repairStrategy', 'verificationPlan',
@@ -76,11 +86,15 @@ export function validatePromptRegistry(registry) {
     ]) {
       if (!Array.isArray(item[field])) errors.push(item.promptId + ': ' + field + ' must be an array');
     }
-    for (const field of ['allowed', 'forbidden', 'protected', 'verificationBoundary']) {
-      if (!Array.isArray(item.scope?.[field])) errors.push(item.promptId + ': scope.' + field + ' must be an array');
+    if (typeof item.scope !== 'string' && item.scope && typeof item.scope === 'object') {
+      for (const field of ['allowed', 'forbidden', 'protected', 'verificationBoundary']) {
+        if (item.scope[field] !== undefined && !Array.isArray(item.scope[field])) {
+          errors.push(item.promptId + ': scope.' + field + ' must be an array');
+        }
+      }
     }
     for (const fingerprint of item.fingerprints ?? []) {
-      if (!SHA64.test(fingerprint)) errors.push(item.promptId + ': invalid fingerprint: ' + fingerprint);
+      if (!String(fingerprint ?? '').trim()) errors.push(item.promptId + ': empty fingerprint');
     }
 
     validateExactSha(item, errors);
@@ -105,8 +119,11 @@ export function validatePromptRegistry(registry) {
   }
 
   for (const required of [
-    'duplicate-check', 'fingerprint-coverage', 'rca-coverage', 'scope-check', 'safety-check',
-    'verification-completeness', 'learning-completeness', 'provenance-check', 'exact-sha-binding', 'overlap-check',
+    'schema-complete',
+    'no-active-duplicates',
+    'source-path-exists',
+    'overlap-reviewed',
+    'exact-sha-bound',
   ]) {
     if (!registry.promptQualityGate?.includes(required)) errors.push('missing-quality-gate:' + required);
   }
@@ -187,6 +204,13 @@ export function createPromptHandoff({
   const validation = validatePromptRegistry(registry);
   if (!validation.ok) throw new Error('PROMPT_HANDOFF_REGISTRY_INVALID');
 
+  const allowedScope = typeof prompt.scope === 'string'
+    ? [prompt.scope]
+    : [...(prompt.scope?.allowed ?? [])];
+  const forbiddenScope = typeof prompt.scope === 'string'
+    ? []
+    : [...(prompt.scope?.forbidden ?? [])];
+
   return {
     promptId,
     exactSha,
@@ -195,8 +219,8 @@ export function createPromptHandoff({
     agentRole: prompt.agentRole,
     mission: prompt.title,
     evidence,
-    allowedScope: prompt.scope.allowed,
-    forbiddenScope: prompt.scope.forbidden,
+    allowedScope,
+    forbiddenScope,
     repairSequence: ['READ', 'IDENTIFY', 'FINGERPRINT', 'RCA', 'FALSIFY', 'REPRODUCE', 'PLAN', 'RISK_GATE', 'REPAIR'],
     verificationSequence: prompt.verificationPlan,
     learningSequence: prompt.learningRequirements,

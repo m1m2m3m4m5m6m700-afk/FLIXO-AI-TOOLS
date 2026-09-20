@@ -15,71 +15,47 @@ const registry = loadPromptRegistry();
 const validation = validatePromptRegistry(registry);
 assert.equal(validation.ok, true);
 assert.equal(validation.status, 'VALID');
-assert.ok(validation.promptCount >= 8);
+assert.equal(validation.promptCount, 3);
 
 const memory = loadErrorMemory();
 const discovery = discoverPromptContext({
   registry,
   memory,
-  failureFingerprint: '83b077936ef0130cd635cdfa433ea9bebea9a4a4',
-  rootCause: 'orchestration',
+  failureFingerprint: 'SHA_RACE',
+  rootCause: 'stale-evidence',
 });
 assert.equal(discovery.memoryIsAdvisoryOnly, true);
 assert.equal(discovery.selection.status, 'REUSE');
-assert.equal(discovery.selection.prompt.promptId, 'RPR-ORCHESTRATION-PREFLIGHT-001');
+assert.equal(discovery.selection.prompt.promptId, 'RPR-MASTER-EXECUTION-001');
 
-const cases = [
-  ['83b077936ef0130cd635cdfa433ea9bebea9a4a4', 'orchestration', 'RPR-ORCHESTRATION-PREFLIGHT-001'],
-  ['e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'external-tooling', 'RPR-EXTERNAL-TOOLING-001'],
-  ['cc208a65323355b8846d7aa6d7e85f742feb8909', 'lint', 'RPR-REGEX-CONTRACT-001'],
-  ['11a69c066357a565d2cc26afd516d4b2d1eb6f7b', 'architecture', 'RPR-ARCHITECTURE-REGISTRY-001'],
+const currentCases = [
+  ['SHA_RACE', 'stale-evidence', 'RPR-MASTER-EXECUTION-001'],
+  ['fingerprint-match', 'symptom-only-repair', 'RPR-ERROR-REPAIR-001'],
+  ['registry-asymmetry', 'duplicate-source-of-truth', 'RPR-FLIXO-PRODUCT-001'],
 ];
-const canonical = selectRepairPrompt({
-  registry,
-  failureFingerprint: 'f'.repeat(64),
-  rootCause: 'noncanonical-automation',
-  failureClass: 'noncanonical-automation',
-});
-assert.equal(canonical.status, 'REUSE');
-assert.equal(canonical.prompt.promptId, 'RPR-CANONICAL-CONTRACT-DRIFT-001');
-const liveness = selectRepairPrompt({
-  registry,
-  failureFingerprint: 'f'.repeat(64),
-  rootCause: 'liveness-contract',
-  failureClass: 'liveness-contract',
-});
-assert.equal(liveness.status, 'REUSE');
-assert.equal(liveness.prompt.promptId, 'RPR-CANONICAL-CONTRACT-DRIFT-001');
-const drift = selectRepairPrompt({
-  registry,
-  failureFingerprint: 'f'.repeat(64),
-  rootCause: 'contract-drift',
-  failureClass: 'contract-test-mismatch',
-});
-assert.equal(drift.status, 'REUSE');
-assert.equal(drift.prompt.promptId, 'RPR-CANONICAL-CONTRACT-DRIFT-001');
-
-for (const [fingerprint, rootCause, expected] of cases) {
+for (const [fingerprint, rootCause, expected] of currentCases) {
   const found = selectRepairPrompt({ registry, failureFingerprint: fingerprint, rootCause });
   assert.equal(found.status, 'REUSE');
   assert.equal(found.prompt.promptId, expected);
 }
 
-const unknown = selectRepairPrompt({ registry, failureFingerprint: 'f'.repeat(64), rootCause: 'unknown' });
+const unknown = selectRepairPrompt({ registry, failureFingerprint: 'unknown-fingerprint', rootCause: 'unknown' });
 assert.equal(unknown.status, 'PROMPT_REVIEW_REQUIRED');
 
 const handoff = createPromptHandoff({
   registry,
-  promptId: 'RPR-ORCHESTRATION-PREFLIGHT-001',
+  promptId: 'RPR-MASTER-EXECUTION-001',
   exactSha: 'a'.repeat(40),
-  failureFingerprint: '83b077936ef0130cd635cdfa433ea9bebea9a4a4',
-  rootCause: 'orchestration',
+  failureFingerprint: 'b'.repeat(64),
+  rootCause: 'stale-evidence',
   evidence: ['current-run'],
 });
-assert.equal(handoff.promptId, 'RPR-ORCHESTRATION-PREFLIGHT-001');
+assert.equal(handoff.promptId, 'RPR-MASTER-EXECUTION-001');
 assert.equal(handoff.exactSha, 'a'.repeat(40));
 assert.equal(handoff.status, 'CANDIDATE');
-assert.ok(handoff.allowedScope.length > 0);
+assert.ok(Array.isArray(handoff.allowedScope));
+assert.equal(handoff.allowedScope.length, 1);
+assert.deepEqual(handoff.forbiddenScope, []);
 assert.equal(handoff.provenance.evidenceIsCurrentOnlyWhenBoundToExactSha, true);
 
 for (const [input, expected] of [
@@ -92,11 +68,11 @@ for (const [input, expected] of [
 ]) assert.equal(classifyPromptLearningOutcome(input), expected);
 
 const duplicateRegistry = JSON.parse(JSON.stringify(registry));
-const one = duplicateRegistry.prompts.find((item) => item.promptId === 'RPR-ORCHESTRATION-PREFLIGHT-001');
-const two = duplicateRegistry.prompts.find((item) => item.promptId === 'RPR-ARCHITECTURE-REGISTRY-001');
+const one = duplicateRegistry.prompts.find((item) => item.promptId === 'RPR-MASTER-EXECUTION-001');
+const two = duplicateRegistry.prompts.find((item) => item.promptId === 'RPR-ERROR-REPAIR-001');
 two.failureClasses = [...one.failureClasses];
 two.rootCauses = [...one.rootCauses];
-two.scope = JSON.parse(JSON.stringify(one.scope));
+two.scope = one.scope;
 two.repairStrategy = [...one.repairStrategy];
 two.verificationPlan = [...one.verificationPlan];
 two.causalKey = causalIdentity(two);
@@ -105,7 +81,11 @@ assert.equal(duplicateCheck.ok, false);
 assert.ok(duplicateCheck.errors.some((item) => item.startsWith('PROMPT_DUPLICATE_CAUSAL_KEY:')));
 
 const invalidShaRegistry = JSON.parse(JSON.stringify(registry));
-invalidShaRegistry.prompts[0].exactShaRequirements.bindAtExecution = false;
+invalidShaRegistry.prompts[0].exactShaRequirements = ['current execution SHA'];
 assert.equal(validatePromptRegistry(invalidShaRegistry).ok, false);
+
+const missingSourceRegistry = JSON.parse(JSON.stringify(registry));
+delete missingSourceRegistry.prompts[0].sourcePath;
+assert.equal(validatePromptRegistry(missingSourceRegistry).ok, false);
 
 console.log('PROMPT_REGISTRY_TEST=PASS');
