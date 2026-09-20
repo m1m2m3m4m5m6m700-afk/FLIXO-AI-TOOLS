@@ -966,6 +966,32 @@ jobs:
         if: always()
         run: node scripts/ci/validate-auto-repair-boundary.mjs --diff-only
 
+      - name: Recheck Action Vault after source mutation and invalidate pre-mutation proofs
+        id: post_mutation_recheck
+        if: always() && steps.execute_repair.outcome == 'success'
+        env:
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
+          TARGET_RUN_ID: ${{ env.TARGET_RUN_ID }}
+        run: |
+          set -euo pipefail
+          node scripts/ci/action-vault-post-mutation-recheck.mjs \
+            --pre-proof=/tmp/action-vault-pre-mutation-proof.json \
+            --sha="$FLIXO_EXPECTED_TARGET_SHA" \
+            --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
+            --run-id="$TARGET_RUN_ID" \
+            --output=/tmp/action-vault-post-mutation-recheck.json
+          test -s /tmp/action-vault-post-mutation-recheck.json
+          jq -e --arg sha "$FLIXO_EXPECTED_TARGET_SHA" --arg fp "$FLIXO_FAILURE_FINGERPRINT" '
+            .protocol == "ACTION-VAULT-POST-MUTATION-RECHECK-v1" and
+            .status == "PASS" and
+            .verified == true and
+            .targetSha == $sha and
+            .failureFingerprint == $fp and
+            .preMutationProofStatus == "STALE_AFTER_MUTATION" and
+            .noProofReuse == true and
+            (.receipts | length) == 3
+          ' /tmp/action-vault-post-mutation-recheck.json >/dev/null
       - name: Verify Repair Agent repair before publication
         id: verify
         if: always() && steps.boundary.outcome == 'success'
@@ -1158,15 +1184,34 @@ jobs:
           if-no-files-found: ignore
           retention-days: 90
 
-      - name: Promote verified repair learning state
+      - name: Record provisional Action Vault learning — never canonical before Green
         if: steps.verify.outputs.verified == 'true'
         run: |
           set -euo pipefail
-          test -s /tmp/flixo-repair-memory.json
-          cp /tmp/flixo-repair-memory.json diagnostics/auto-repair/memory.json
-          if [ -s /tmp/flixo-intractable-errors.json ]; then
-            cp /tmp/flixo-intractable-errors.json diagnostics/auto-repair/intractable-errors.json
-          fi
+          test -s /tmp/flixo-repair-evidence.json
+          TARGET_SHA="$(jq -r '.targetSha // empty' /tmp/flixo-repair-evidence.json)"
+          FINGERPRINT="$(jq -r '.fingerprint // empty' /tmp/flixo-repair-evidence.json)"
+          ENGINE_OUTCOME="$(jq -r '.outcome // empty' /tmp/flixo-repair-evidence.json)"
+          test -n "$TARGET_SHA" && test -n "$FINGERPRINT"
+          test "$ENGINE_OUTCOME" = 'verified-repair' || { echo 'LEARNING_PROVISIONAL_STATE=NOT_APPLICABLE'; exit 0; }
+          jq -n \
+            --arg taskId "ACTION-REPAIR:$TARGET_RUN_ID" \
+            --arg fingerprint "$FINGERPRINT" \
+            --arg targetSha "$TARGET_SHA" \
+            --arg executionSha "$(git rev-parse HEAD)" \
+            --arg runId "$TARGET_RUN_ID" \
+            --argjson proofIds '["CAUSAL-EVIDENCE-GRAPH-v1","PRIMARY_CORRECTNESS_PROOF","INDEPENDENT_FALSIFICATION_REPORT-v1","REPAIR-SANDBOX-SIMULATION-PROOF-v2","DIFFERENTIAL-REPAIR-PROOF-v1","PATCH-CORRECTNESS-PROOF-v1","REGRESSION_COUNTEREXAMPLES","ACTION-VAULT-POST-MUTATION-RECHECK-v1"]' \
+            '{status:"PROVISIONAL",taskId:$taskId,fingerprint:$fingerprint,targetSha:$targetSha,executionSha:$executionSha,runId:$runId,proofIds:$proofIds,greenRequired:true,canonical:false,generatedAt:now}' > /tmp/action-vault-provisional-learning.json
+          test -s /tmp/action-vault-provisional-learning.json
+
+      - name: Publish provisional Action Vault learning
+        if: steps.verify.outputs.verified == 'true' && hashFiles('/tmp/action-vault-provisional-learning.json') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-action-vault-provisional-learning-${{ github.run_id }}
+          path: /tmp/action-vault-provisional-learning.json
+          if-no-files-found: error
+          retention-days: 90
       - name: Keep non-green learning state ephemeral
         if: always() && steps.verify.outputs.verified != 'true' && steps.strategy.outputs.intractable != 'true'
         run: |
