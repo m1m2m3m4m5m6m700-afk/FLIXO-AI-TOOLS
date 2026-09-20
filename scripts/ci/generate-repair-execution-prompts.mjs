@@ -326,7 +326,9 @@ const bundle = {
 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.mkdirSync(path.dirname(markdownPath), { recursive: true });
-fs.writeFileSync(outputPath, JSON.stringify(bundle, null, 2) + '\\n');
+const serializedBundle = JSON.stringify(bundle, null, 2) + '\\n';
+fs.writeFileSync(outputPath, serializedBundle);
+JSON.parse(fs.readFileSync(outputPath, 'utf8'));
 fs.writeFileSync(markdownPath, `# FLIXO Daily Repair Prompt Bundle
 
 - Exact execution SHA: ${executionSha}
