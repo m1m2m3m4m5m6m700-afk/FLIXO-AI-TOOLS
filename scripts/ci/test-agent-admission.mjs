@@ -40,8 +40,9 @@ assert.ok(session.includes('loadErrorMemory'));
 assert.ok(session.includes('readCanonicalAdmissionSources'));
 assert.ok(session.includes('admissionSources'));
 
-assert.ok(repair.includes("mutationAgents: ['repairAgent','implementation','executionAgent']"));
+assert.ok(repair.includes("mutationAgents: ['repairAgent','executionAgent']"));
 assert.ok(!repair.includes("mutationAgents: ['repairAgent','implementation','executionAgent','taskAgent']"));
+assert.ok(!repair.includes("mutationAgents: ['repairAgent','implementation','executionAgent']"));
 
 assert.ok(task.includes("actor: 'taskAgent'"));
 assert.ok(task.includes('preparedOnly: true'));
