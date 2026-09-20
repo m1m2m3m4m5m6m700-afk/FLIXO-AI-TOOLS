@@ -9,6 +9,7 @@ import { assertAgentAdmission, assertProtocolDefinition } from './repair-protoco
 
 const ROOT = process.cwd();
 const COORD_DIR = path.resolve(ROOT, process.env.FLIXO_COORDINATION_DIR ?? 'diagnostics/agents');
+const DEFAULT_TEAM_ID = String(process.env.FLIXO_AGENT_TEAM_ID ?? 'FLIXO-EXECUTION-TEAM').trim();
 const QUEUE_FILE = path.join(COORD_DIR, 'coordination-state.json');
 const LOCK_FILE = path.join(COORD_DIR, 'coordination-locks.json');
 const WRITE_LOCK_DIR = path.join(COORD_DIR, '.coordination-write.lock');
@@ -151,14 +152,14 @@ function unresolvedRequiredTasks(excludeTaskId = null) {
   );
 }
 
-function activePeerSessions(excludeSessionId = null) {
+function activePeerSessions(excludeSessionId = null, teamId = DEFAULT_TEAM_ID) {
   return Object.values(state.activeSessions ?? {}).filter((session) =>
-    session.sessionId !== excludeSessionId && !['CLOSED', 'STALE'].includes(String(session.collaborationState ?? ''))
+    session.sessionId !== excludeSessionId && String(session.teamId ?? DEFAULT_TEAM_ID) === String(teamId) && !['CLOSED', 'STALE'].includes(String(session.collaborationState ?? ''))
   );
 }
 
-function chooseContinuationTarget(excludeSessionId) {
-  return activePeerSessions(excludeSessionId)
+function chooseContinuationTarget(excludeSessionId, teamId = DEFAULT_TEAM_ID) {
+  return activePeerSessions(excludeSessionId, teamId)
     .filter((session) => session.entrySha === sha())
     .sort((a, b) => String(a.updatedAt ?? '').localeCompare(String(b.updatedAt ?? '')))[0] ?? null;
 }
@@ -179,9 +180,9 @@ function chooseContinuationTask(sessionId) {
   return null;
 }
 
-function mandatoryContinuation(sessionId, agentId, completedTaskId) {
-  const peer = chooseContinuationTarget(sessionId);
-  const remaining = unresolvedRequiredTasks(completedTaskId);
+function mandatoryContinuation(sessionId, agentId, completedTaskId, teamId = DEFAULT_TEAM_ID) {
+  const peer = chooseContinuationTarget(sessionId, teamId);
+  const remaining = unresolvedRequiredTasks(completedTaskId).filter((task) => String(task.teamId ?? DEFAULT_TEAM_ID) === String(teamId));
   if (!peer && remaining.length === 0) return { state: 'NONE' };
 
   const current = state.activeSessions[sessionId];
@@ -198,10 +199,12 @@ function mandatoryContinuation(sessionId, agentId, completedTaskId) {
     task.lockId = next.lockId;
 
     current.taskId = task.taskId;
+    current.teamId = teamId;
     current.completedTaskId = completedTaskId;
     current.joinedToSessionId = peer?.sessionId ?? null;
     current.collaborationState = peer ? 'JOINED' : 'CONTINUING';
     current.collaborationRequired = true;
+    current.teamBarrier = 'ACTIVE';
     current.entrySha = sha();
     current.updatedAt = now();
 
@@ -263,11 +266,13 @@ function mandatoryContinuation(sessionId, agentId, completedTaskId) {
   }
 
   current.taskId = null;
+  current.teamId = teamId;
   current.completedTaskId = completedTaskId;
   current.joinedToSessionId = peer?.sessionId ?? null;
   current.collaborationState = peer ? 'JOINED_SUPPORT' : 'JOIN_REQUIRED';
   current.collaborationRequired = true;
-  current.requiredUntil = 'ALL_REQUIRED_WORK_CLOSED';
+  current.teamBarrier = remaining.length === 0 && activePeerSessions(sessionId, teamId).every((peerSession) => peerSession.readyForTeamClose === true) ? 'READY_TO_CLOSE' : 'WAITING_FOR_TEAM';
+  current.requiredUntil = 'ALL_TEAM_WORK_CLOSED';
   current.updatedAt = now();
   if (peer) {
     peer.collaborators = Array.isArray(peer.collaborators) ? peer.collaborators : [];
@@ -337,7 +342,7 @@ if (command === 'coop-pending') {
 if (command === 'task-create') {
   const taskId = requireArg('task');
   if (state.tasks[taskId]) throw new Error(`Task already exists: ${taskId}`);
-  const task = { taskId, title: requireArg('title'), priority: Number(optional('priority', '50')), lane: optional('lane', 'fast-path'), rca: optional('rca') || null, scope: list('scope'), objective: optional('objective'), knownFailure: optional('known-failure'), evidenceRequired: list('evidence-required'), dependsOn: list('depends-on'), status: 'READY', createdAt: now() };
+  const task = { taskId, teamId: optional('team', DEFAULT_TEAM_ID), title: requireArg('title'), priority: Number(optional('priority', '50')), lane: optional('lane', 'fast-path'), rca: optional('rca') || null, scope: list('scope'), objective: optional('objective'), knownFailure: optional('known-failure'), evidenceRequired: list('evidence-required'), dependsOn: list('depends-on'), status: 'READY', createdAt: now() };
   for (const dep of task.dependsOn) if (!state.tasks[dep]) throw new Error(`Unknown dependency: ${dep}`);
   state.tasks[taskId] = task;
   writeJson(packetPath(taskId), { schemaVersion: 1, ...task, entrySha: sha(), createdAt: now(), nextActions: [], continuation: null });
@@ -346,8 +351,8 @@ if (command === 'task-create') {
 }
 
 if (command === 'task-claim') {
-  const taskId = requireArg('task'); const sessionId = requireArg('session'); const agentId = requireArg('agent');
-  const task = state.tasks[taskId]; if (!task) throw new Error(`Unknown task: ${taskId}`); if (!['READY', 'QUEUED'].includes(task.status)) throw new Error(`Task not claimable: ${task.status}`);
+  const taskId = requireArg('task'); const sessionId = requireArg('session'); const agentId = requireArg('agent'); const teamId = optional('team', DEFAULT_TEAM_ID);
+  const task = state.tasks[taskId]; if (!task) throw new Error(`Unknown task: ${taskId}`); if (String(task.teamId ?? DEFAULT_TEAM_ID) !== String(teamId)) throw new Error('TEAM_ID_MISMATCH'); if (!['READY', 'QUEUED'].includes(task.status)) throw new Error(`Task not claimable: ${task.status}`);
   for (const dep of task.dependsOn ?? []) if (state.tasks[dep]?.status !== 'DONE') throw new Error(`DEPENDENCY_BLOCK=${dep}`);
   assertOpenVisibility(task, sessionId, agentId);
   const visibility = readVisibility(sessionId);
@@ -403,12 +408,21 @@ if (command === 'task-complete') {
   task.status = 'DONE'; task.completedAt = now(); task.exitSha = sha(); task.evidence = list('evidence'); task.findings = list('findings'); task.finalStatus = visibility.finalStatus; task.finalSummary = visibility.finalSummary; task.visibilityPath = path.relative(ROOT, visibilityPath(sessionId));
   unlock(sessionId);
 
-  const continuation = mandatoryContinuation(sessionId, task.claimedBy, taskId);
+  const teamId = String((state.activeSessions[sessionId]?.teamId ?? task.teamId ?? DEFAULT_TEAM_ID));
+  const continuation = mandatoryContinuation(sessionId, task.claimedBy, taskId, teamId);
+  const session = state.activeSessions[sessionId] ?? { sessionId, agentId: task.claimedBy, teamId, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash };
+  session.teamId = teamId;
+  session.completedTaskIds = [...new Set([...(session.completedTaskIds ?? []), taskId])];
+  session.readyForTeamClose = continuation.state === 'NONE';
+  session.updatedAt = now();
+  state.activeSessions[sessionId] = session;
   state.activeSessions[sessionId] = state.activeSessions[sessionId] ?? { sessionId, agentId: task.claimedBy, entrySha: sha(), governanceFingerprint: currentGovernanceFingerprint, protocolHash: assertProtocolDefinition().protocolHash, updatedAt: now() };
   if (continuation.state === 'NONE') {
     state.activeSessions[sessionId].taskId = null;
-    state.activeSessions[sessionId].collaborationState = 'AVAILABLE';
-    state.activeSessions[sessionId].collaborationRequired = false;
+    state.activeSessions[sessionId].collaborationState = 'WAITING_FOR_TEAM';
+    state.activeSessions[sessionId].collaborationRequired = true;
+    state.activeSessions[sessionId].teamBarrier = 'READY_TO_CLOSE';
+    state.activeSessions[sessionId].readyForTeamClose = true;
     state.activeSessions[sessionId].updatedAt = now();
   }
   save();
