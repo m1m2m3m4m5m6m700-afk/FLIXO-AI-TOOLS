@@ -93,7 +93,7 @@ jobs:
           echo "CANONICAL_PR=$PR_NUMBER" >> "$GITHUB_ENV"
 
       - name: Checkout exact PR head
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ env.EXPECTED_SHA }}
           fetch-depth: 1
@@ -326,7 +326,7 @@ jobs:
 
       - name: Publish exact-SHA merge-gate evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-auto-repair-merge-gate-${{ github.run_id }}
           path: |
