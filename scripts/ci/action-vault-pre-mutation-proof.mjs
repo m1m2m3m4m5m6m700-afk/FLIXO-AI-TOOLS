@@ -6,7 +6,7 @@ import { planRepair } from './auto-repair/planner.mjs';
 import { resolveTargetedTests } from './auto-repair/reproduction.mjs';
 import { verifyTargetIdentity, reproduceStable } from './auto-repair/verification.mjs';
 import { reproduce } from './auto-repair/reproduction.mjs';
-import { simulateRepair } from './auto-repair/simulation.mjs';
+import { simulateAstRepair } from './action-repair-sandbox.mjs';
 import { buildDifferentialProof } from './differential-repair-proof.mjs';
 import { searchRegressionCounterexamples } from './regression-counterexamples.mjs';
 import { buildPatchCorrectnessProof } from './patch-correctness-proof.mjs';
@@ -84,7 +84,7 @@ const regressionCounterexamples=searchRegressionCounterexamples({
   targetSha,
   failureFingerprint:fingerprint,
   selectedFiles:selection.selectedFiles?.map(x=>x.path)??[],
-  relatedFiles:[...(simulation?.diff?.files??[])],
+  relatedFiles:[...(simulation?.changedFiles??[])],
   diff:simulation?.candidateDiff??'',
   sourceFiles:{...(simulation?.candidateFiles??{}),...(simulation?.baseFiles??{})},
   failureLog,
@@ -111,8 +111,8 @@ const patchCorrectness=buildPatchCorrectnessProof({
   },
   primaryProof,
   scopeCheck:simulation?.scopeOk===true,
-  noTestMutation:!(simulation?.diff?.files||[]).some(f=>/(^|\/)(?:tests?|__tests__)\//u.test(f)),
-  noControlPlaneMutation:!(simulation?.diff?.files||[]).some(f=>/^scripts\/ci\/|^\.github\/workflows\//u.test(f)),
+  noTestMutation:!(simulation?.changedFiles||[]).some(f=>/(^|\/)(?:tests?|__tests__)\//u.test(f)),
+  noControlPlaneMutation:!(simulation?.changedFiles||[]).some(f=>/^scripts\/ci\/|^\.github\/workflows\//u.test(f)),
   noMainMutation:true,
   noGateWeakening:!/(continue-on-error|test\.(?:skip|only)|describe\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck))/i.test(simulation?.candidateDiff||''),
 });
@@ -150,7 +150,7 @@ const report={
  diagnosis,
  primaryCorrectnessProof:primaryProof,
  cognitiveAwareness:{protocol:awareness.protocol,complete:awareness.awarenessCompleteness?.complete===true},
- programmerTwin:{protocol:twin.protocol,status:twin.status,falsificationComplete:twin.falsificationComplete,counterexampleFound:twin.counterexampleFound},
+ programmerTwin:{protocol:twin.protocol,status:twin.status,falsificationComplete:twin.falsificationComplete,counterexampleFound:twin.counterexampleFound,falsificationSearches:twin.falsificationSearches||[]},
  sandboxSimulation:simulation,
  differentialProof:differential,
  regressionCounterexamples,
