@@ -93,7 +93,13 @@ export function cancelTask(context: TaskContext): TaskContext {
 }
 
 export function assertExecutionAllowed(context: TaskContext): void {
-  if (context.state !== 'EXECUTING') {
+  if (!context.taskId.trim() || !context.traceId.trim()) {
+    throw new Error('Execution is blocked because task identity is missing.');
+  }
+  if (!Number.isInteger(context.revision) || context.revision < 0) {
+    throw new Error('Execution is blocked because task revision is invalid.');
+  }
+  if (context.state !== 'EXECUTING' || context.confirmationRequired) {
     throw new Error(`Execution is blocked until explicit confirmation. Current state: ${context.state}.`);
   }
 }
