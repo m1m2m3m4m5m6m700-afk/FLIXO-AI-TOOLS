@@ -72,6 +72,7 @@ env:
   FLIXO_STRICT_RED_REPAIR: 'true'
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
+  FLIXO_DIAGNOSTIC_LINE_LIMIT: '5000'
 
 jobs:
   adversarial_twin:
@@ -427,7 +428,7 @@ jobs:
             echo '### Failed CI classification input'
             echo "run_id=$TARGET_RUN_ID"
             gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json name,headSha,headBranch,conclusion
-            grep -E -i 'error|failed|failure|timeout|cancelled|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(|DEEP_[A-Z_]+_MISSING|execution graph completeness' "$FLIXO_FAILURE_LOG" | tail -n 300 || true
+            grep -E -i 'error|failed|failure|timeout|cancelled|unused|no-unused|type error|TS[0-9]+|prettier|playwright|expect\(|DEEP_[A-Z_]+_MISSING|execution graph completeness' "$FLIXO_FAILURE_LOG" | tail -n "$FLIXO_DIAGNOSTIC_LINE_LIMIT" || true
           } > /tmp/flixo-repair-summary.txt
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=EVIDENCE_LOCKED --actor=AUTO_REPAIR_BOT --reason=FAILURE_EVIDENCE_CAPTURED
 
