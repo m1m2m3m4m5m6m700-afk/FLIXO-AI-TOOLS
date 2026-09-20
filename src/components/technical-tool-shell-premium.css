@@ -1,6 +1,12 @@
-@keyframes flixo-ambient-breathe{0%,100%{opacity:.42;transform:scale(1)}50%{opacity:.7;transform:scale(1.04)}}
-@keyframes flixo-status-pulse{0%,100%{opacity:.55;transform:scale(.95)}50%{opacity:1;transform:scale(1.08)}}
-.flixo-premium-shell::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 12% 0%,rgba(139,92,246,.11),transparent 30%),radial-gradient(circle at 88% 8%,rgba(99,102,241,.09),transparent 26%),radial-gradient(circle at 50% 100%,rgba(16,185,129,.045),transparent 28%);animation:flixo-ambient-breathe 12s ease-in-out infinite}
-.flixo-premium-grid{background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);background-size:28px 28px}
-.flixo-status-dot{animation:flixo-status-pulse 1.8s ease-in-out infinite}
-@media (prefers-reduced-motion:reduce){.flixo-premium-shell::before,.flixo-status-dot{animation:none}}
+.flixo-premium-shell{--flixo-line:rgba(255,255,255,.075);--flixo-panel:#101318;--flixo-muted:#777f8a;color:#eef1f5}
+.flixo-tool-action,.flixo-tool-primary,.flixo-tool-status{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;border-radius:9px;font-size:11px;line-height:1;white-space:nowrap}
+.flixo-tool-action{padding:0 10px;border:1px solid var(--flixo-line);background:#0e1116;color:#aeb5be;transition:background .16s ease,border-color .16s ease,color .16s ease}
+.flixo-tool-action:hover{background:#15191f;border-color:rgba(255,255,255,.14);color:#f5f7fa}
+.flixo-tool-action:focus-visible,.flixo-tool-primary:focus-visible{outline:2px solid rgba(167,139,250,.7);outline-offset:2px}
+.flixo-tool-primary{padding:0 12px;border:1px solid rgba(167,139,250,.42);background:#7457d8;color:#fff;font-weight:650;box-shadow:0 6px 18px rgba(0,0,0,.16);transition:background .16s ease,border-color .16s ease,transform .16s ease}
+.flixo-tool-primary:hover{background:#846be0;transform:translateY(-1px)}
+.flixo-tool-primary:disabled{opacity:.42;cursor:not-allowed;transform:none}
+.flixo-tool-status{padding:0 9px;border:1px solid rgba(255,255,255,.07);background:#0d1014;color:#7f8791;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase}
+.flixo-status-dot{width:6px;height:6px;border-radius:999px;background:#4b5563}
+.flixo-status-dot.is-ready{background:#7dd3a6}
+@media (prefers-reduced-motion:reduce){.flixo-tool-action,.flixo-tool-primary{transition:none}}
