@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, completionGate, buildRecoveryDirective, sessionTerminationDirective, idleAdmission, sleepAdmission } from './agent-liveness-protocol.mjs';
+import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, sessionTerminationDirective, idleAdmission, sleepAdmission } from './agent-liveness-protocol.mjs';
 
 assert.equal(assertLivenessDefinition(), true);
 assert.deepEqual([...AGENT_LIVENESS_PROTOCOL.forbiddenStates].sort(), ['ABANDONED','IDLE','SILENT','SLEEP'].sort());
