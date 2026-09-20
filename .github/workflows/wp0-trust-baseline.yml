@@ -78,6 +78,8 @@ jobs:
           set -euo pipefail
           npm run test:checkpoint-producer
           npm run test:execution-sha-provenance
+      - name: 06b — Project root closure contract
+        run: npm run test:root-closure
 
       - name: 07 — Canonical CI/CD trust and exact-SHA gate
         run: npm run verify:ci-cd-trust
