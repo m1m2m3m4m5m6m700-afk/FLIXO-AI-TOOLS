@@ -30,7 +30,7 @@ const api = async (url, attempt = 0) => {
   });
   const body = await response.text();
   let data = null;
-  try { data = body ? JSON.parse(body) : null; } catch {}
+  try { data = body ? JSON.parse(body) : null; } catch { /* malformed JSON is represented as null */ }
 
   if ((response.status === 403 || response.status === 429) && attempt < 8) {
     const retryAfter = Number(response.headers.get('retry-after') ?? Math.min(60, 5 * (attempt + 1)));
