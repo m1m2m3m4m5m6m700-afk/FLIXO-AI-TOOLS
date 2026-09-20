@@ -329,7 +329,9 @@ const main = async () => {
     await bridge.processOnce().catch((error) => console.error(JSON.stringify({
       event: 'COUNCIL_BRIDGE_CYCLE_FAILED',
       accountId: config.accountId,
-      error: error instanceof Error ? error.message : String(error),
+      errorCode: error instanceof Error && error.message.startsWith('COUNCIL_BRIDGE_')
+        ? error.message
+        : 'COUNCIL_BRIDGE_CYCLE_FAILED',
     })));
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
