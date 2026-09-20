@@ -10,9 +10,9 @@ export const EXPECTED_BOTS = Object.freeze([
 ]);
 
 const ROLE_BY_BOT = Object.freeze({
-  'ACTION-REPAIR': 'PRIMARY_PROGRAMMING_REPAIR_OWNER',
-  'ACTION-REPAIR-2': 'HISTORICAL_INDEX_EXPLORER_AND_PREDICTOR',
-  'ACTION-HISTORIAN-3': 'FAILURE_LEDGER_AND_LEARNING_RECORDER',
+  'ACTION-REPAIR': 'PROGRAMMER_DEFENSE_SEAT',
+  'ACTION-REPAIR-2': 'ADVERSARIAL_PROGRAMMER_SEAT',
+  'ACTION-HISTORIAN-3': 'COGNITIVE_CATALOG_SUPERVISOR_SEAT',
 });
 
 const ROOT = process.cwd();
@@ -44,22 +44,22 @@ export function validateBotProfile(profile) {
 
 export function validateThreeBotIntelligence(profile, bots) {
   const errors = [];
-  if (profile?.schemaVersion !== 5) err(errors, 'INTELLIGENCE_SCHEMA_INVALID');
-  if (profile?.parity?.model !== 'ROLE_SPECIALIZATION_WITH_SHARED_SAFETY' ||
+  if (profile?.schemaVersion !== 6) err(errors, 'INTELLIGENCE_SCHEMA_INVALID');
+  if (profile?.parity?.model !== 'SHARED_INTELLIGENCE_WITH_SPECIALIZED_PROOF_OBJECTIVES' ||
       profile?.parity?.commonSafetyEqual !== true ||
       profile?.parity?.commonIdentityBindingEqual !== true ||
-      profile?.parity?.roleCapabilitiesEqual !== false) {
+      profile?.parity?.roleCapabilitiesEqual !== true) {
     err(errors, 'ROLE_SPECIALIZATION_CONTRACT_INVALID');
   }
   const matrix = profile?.roleMatrix ?? {};
-  if (matrix['ACTION-REPAIR']?.mission !== 'THINK_AS_PROGRAMMER_AND_APPLY_BOUNDED_SOURCE_REPAIR') err(errors, 'PROGRAMMER_ROLE_MISSION_INVALID');
-  if (matrix['ACTION-REPAIR-2']?.mission !== 'SEARCH_HISTORICAL_INDEX_AND_ACTION_REPAIR_CATALOG_THEN_PREDICT_A_CANDIDATE_SOLUTION') err(errors, 'PREDICTOR_ROLE_MISSION_INVALID');
-  if (matrix['ACTION-HISTORIAN-3']?.mission !== 'RECORD_EVERY_FAILURE_ATTEMPT_HANDOFF_AND_VERIFIED_OUTCOME_FOR_LIFELONG_REPAIR_MEMORY') err(errors, 'HISTORIAN_ROLE_MISSION_INVALID');
+  if (matrix['ACTION-REPAIR']?.mutationAuthority !== 'ADMITTED_SEAT') err(errors, 'PROGRAMMER_ROLE_MISSION_INVALID');
+  if (matrix['ACTION-REPAIR-2']?.mutationAuthority !== 'ADMITTED_SEAT') err(errors, 'PREDICTOR_ROLE_MISSION_INVALID');
+  if (matrix['ACTION-HISTORIAN-3']?.mutationAuthority !== 'SUPERVISOR_20_ONLY') err(errors, 'HISTORIAN_ROLE_MISSION_INVALID');
   if (profile?.cooperation?.enabled !== true) err(errors, 'COOPERATION_DISABLED');
   if (JSON.stringify(profile?.cooperation?.participants ?? []) !== JSON.stringify(EXPECTED_BOTS)) err(errors, 'PARTICIPANT_SET_INVALID');
-  if (profile?.cooperation?.authority?.taskOwnership !== 'single_active_programming_owner') err(errors, 'SINGLE_OWNER_POLICY_MISSING');
-  if (profile?.cooperation?.authority?.repairOwner !== 'ACTION-REPAIR') err(errors, 'PROGRAMMER_OWNER_INVALID');
-  if (profile?.cooperation?.authority?.predictionOwner !== 'ACTION-REPAIR-2') err(errors, 'PREDICTOR_OWNER_INVALID');
+  if (profile?.cooperation?.authority?.taskOwnership !== 'single_active_mutation_seat') err(errors, 'SINGLE_OWNER_POLICY_MISSING');
+  if (profile?.cooperation?.authority?.repairOwner !== 'SELECTED_TRIAD_SEAT') err(errors, 'PROGRAMMER_OWNER_INVALID');
+  if (profile?.cooperation?.authority?.supervisorAfter20 !== 'ACTION-HISTORIAN-3') err(errors, 'SUPERVISOR_OWNER_INVALID');
   if (profile?.cooperation?.authority?.noParallelSourceMutation !== true) err(errors, 'PARALLEL_SOURCE_MUTATION_NOT_BLOCKED');
   if (profile?.safetyBoundary?.intelligenceDoesNotImplyMutationAuthority !== true) err(errors, 'INTELLIGENCE_AUTHORITY_BOUNDARY_MISSING');
   if (profile?.safetyBoundary?.canonicalCiRemainsProofAuthority !== true) err(errors, 'CANONICAL_PROOF_AUTHORITY_MISSING');
@@ -103,9 +103,9 @@ export function validateExecutionBoundaries(profiles) {
   if (primary?.executionBoundary?.canMutateTests !== false) err(errors, 'PRIMARY_TEST_MUTATION_ENABLED');
   if (primary?.executionBoundary?.canMutateMain !== false) err(errors, 'PRIMARY_MAIN_MUTATION_ENABLED');
   if (primary?.executionBoundary?.canonicalGreen !== 'DAILY_FLIXO_GREEN_GATE') err(errors, 'PRIMARY_CANONICAL_GREEN_INVALID');
-  if (secondary?.executionAuthority !== 'HISTORICAL_PREDICTION_PROPOSAL_ONLY') err(errors, 'SECONDARY_EXECUTION_ROLE_INVALID');
+  if (secondary?.executionAuthority !== 'MUTATE_WHEN_ADMITTED') err(errors, 'SECONDARY_EXECUTION_ROLE_INVALID');
   if (secondary?.mutationAuthority !== false && secondary?.mutationAuthority !== 'ADMITTED_SEAT') err(errors, 'SECONDARY_MUTATION_AUTHORITY_INVALID');
-  if (secondary?.executionBoundary?.canMutateWhenOwner !== false) err(errors, 'SECONDARY_OWNER_MUTATION_ENABLED');
+  if (secondary?.executionBoundary?.canMutateWhenOwner !== true) err(errors, 'SECONDARY_OWNER_MUTATION_ENABLED');
   if (secondary?.executionBoundary?.canMutateTests !== false) err(errors, 'SECONDARY_TEST_MUTATION_ENABLED');
   if (secondary?.executionBoundary?.canMutateMain !== false) err(errors, 'SECONDARY_MAIN_MUTATION_ENABLED');
 
