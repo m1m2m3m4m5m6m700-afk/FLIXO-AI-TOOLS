@@ -105,6 +105,8 @@ assert.match(fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8'), /do
 assert.match(fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8'), /hydrateActionHistory/);
 assert.match(fs.readFileSync('scripts/ci/auto-repair/reasoning.mjs', 'utf8'), /ONLY_FRESH_EXACT_SHA_SCOUT_EVIDENCE_IS_ACTIONABLE/);
 assert.equal(INTRACTABLE_THRESHOLD, 3);
+assert.match(fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8'), /retrieveTeachingRecords/);
+assert.match(fs.readFileSync('scripts/ci/error-learning-log.mjs', 'utf8'), /50000|totalRecords/);
 assert.equal(planRepair('webkit waitForGpuRender timeout').selected, null);
 assert.equal(planRepair('typescript TS2322 type error').selected, null);
 assert.equal(planRepair('certification FAST 66 DEEP 60').selected, null);
