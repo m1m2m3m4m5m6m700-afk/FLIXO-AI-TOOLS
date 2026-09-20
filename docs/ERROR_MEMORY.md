@@ -118,3 +118,13 @@ Current historical ledger state: **8 incidents**, **7 historical fixed/supersede
 **Evidence:** The failing run isolated the exact line and rule after Typecheck and unit checks passed. The fix commit `ea63c08bd09242b0fad132890193182db846e12a` changed only the throw expression to `new Error(message, { cause: error })`. Fresh WP0 on execution SHA `3f0ee95f03e7a7008566de5f21339a4695b02da0` passed Typecheck, canonical static verification, and canonical build.  
 **Fix:** Preserve the caught exception through the standard JavaScript `ErrorOptions.cause` field when wrapping parse failures.  
 **Prevention:** Any catch-and-wrap boundary that converts an existing exception into a new `Error` must preserve the original exception as `cause`; the canonical static gate remains the regression detector.  
+
+## F-009 — Certification Evidence Cancellation Race
+
+**Area:** CI / Certification concurrency  
+**First observed:** Repeated certification attempts in the Action Vault hardening cycle, including runs #35538555519, #35538555524, #35538555526, and #35538555532.  
+**Symptom:** Required verification runs were cancelled while the execution SHA remained unchanged, leaving no completed exact-SHA evidence.  
+**Root cause:** Required certification workflows used `cancel-in-progress: true` with concurrency groups scoped to the PR/branch rather than the exact head SHA. Duplicate/manual/workflow-triggered runs could cancel an otherwise valid verification run, while disabling cancellation without changing the group would serialize different SHAs behind stale runs.  
+**Evidence:** The repository showed repeated cancellations on an unchanged HEAD; the required workflows all used PR/branch-scoped groups and `cancel-in-progress: true`.  
+**Fix:** Required evidence workflows now use `cancel-in-progress: false` and bind their concurrency groups to the exact pull-request head SHA expression. The auto-repair boundary validator now enforces both invariants.  
+**Prevention:** Required exact-SHA evidence must never be cancelled or blocked by evidence for a different SHA. Stale evidence is rejected by exact-SHA gates, not by cancelling the producer run.  
