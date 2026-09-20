@@ -58,3 +58,298 @@ jobs:
         run: node scripts/ci/ensure-agent-locales.mjs
       - name: Task Agent gate contract
         run: node scripts/ci/validate-task-agent-contract.mjs
+      - name: Task Agent contract test
+        run: node scripts/ci/test-task-agent-contract.mjs
+      - name: Static contracts
+        run: npm run test:static
+      - name: Build contracts
+        run: npm run test:build
+      - name: Create canonical build artifact identity
+        env:
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/ci/runtime/build-identity.mjs
+      - name: Fingerprint immutable artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -f dist/index.html
+          test -s dist/__flixo/build-identity.json
+          test -s dist/__flixo/artifact-hash.txt
+          node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("dist/__flixo/build-identity.json","utf8")); if(x.schemaVersion!==2) throw new Error("Invalid schemaVersion"); if(x.producer!=="scripts/ci/runtime/build-identity.mjs") throw new Error("Invalid producer"); if(x.commitSha!==process.env.EXPECTED_SHA) throw new Error("Invalid commitSha"); if(x.artifactHash!==fs.readFileSync("dist/__flixo/artifact-hash.txt","utf8").trim()) throw new Error("Invalid artifactHash");'
+          printf '%s\n' "$EXPECTED_SHA" > dist/flixo-head-sha.txt
+          printf '%s\n' "$EXPECTED_SHA" > "dist/__flixo-identity-$EXPECTED_SHA.txt"
+          mkdir -p "dist/__flixo/identity/$EXPECTED_SHA"
+          printf '%s\n' "$EXPECTED_SHA" > "dist/__flixo/identity/$EXPECTED_SHA/index.txt"
+          sha256sum package-lock.json > dist/flixo-package-lock.sha256
+      - name: Verify static/build identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/flixo-head-sha.txt
+          test "$(cat dist/flixo-head-sha.txt)" = "$EXPECTED_SHA"
+          test -s "dist/__flixo-identity-$EXPECTED_SHA.txt"
+          test "$(cat "dist/__flixo-identity-$EXPECTED_SHA.txt")" = "$EXPECTED_SHA"
+          test -s "dist/__flixo/identity/$EXPECTED_SHA/index.txt"
+          test "$(cat "dist/__flixo/identity/$EXPECTED_SHA/index.txt")" = "$EXPECTED_SHA"
+          node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("dist/__flixo/build-identity.json","utf8")); if(x.commitSha!==process.env.EXPECTED_SHA) throw new Error("Invalid commitSha"); if(x.artifactHash!==fs.readFileSync("dist/__flixo/artifact-hash.txt","utf8").trim()) throw new Error("Invalid artifactHash");'
+          sha256sum -c dist/flixo-package-lock.sha256
+      - uses: actions/upload-artifact@v6
+        with:
+          name: flixo-build-${{ github.run_id }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: flixo-static-build-evidence-${{ github.run_id }}
+          path: diagnostics/
+          if-no-files-found: warn
+          retention-days: 14
+
+  browser_dependencies:
+    name: Browser Dependencies
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Restore browser dependency cache
+        id: browser-deps-cache
+        uses: actions/cache@v6
+        with:
+          path: node_modules
+          key: flixo-browser-node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('.nvmrc') }}
+      - name: Install browser dependencies on cache miss
+        if: steps.browser-deps-cache.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Verify browser dependency identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x node_modules/.bin/playwright
+          node --version
+          npx playwright --version
+
+  browser_fast:
+    name: Browser FAST — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    needs: [verify, browser_dependencies]
+    if: needs.verify.result == 'success' && needs.browser_dependencies.result == 'success'
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Restore browser dependency cache
+        uses: actions/cache@v6
+        with:
+          path: node_modules
+          key: flixo-browser-node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('.nvmrc') }}
+      - name: Verify browser dependency identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x node_modules/.bin/playwright
+          sha256sum package-lock.json
+      - uses: actions/download-artifact@v7
+        with:
+          name: flixo-build-${{ github.run_id }}
+          path: dist
+      - name: Verify immutable artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cat dist/flixo-head-sha.txt)" = "$EXPECTED_SHA"
+          test "$(cat "dist/__flixo/identity/$EXPECTED_SHA/index.txt")" = "$EXPECTED_SHA"
+          node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("dist/__flixo/build-identity.json","utf8")); if(x.commitSha!==process.env.EXPECTED_SHA) throw new Error("Invalid commitSha"); if(x.artifactHash!==fs.readFileSync("dist/__flixo/artifact-hash.txt","utf8").trim()) throw new Error("Invalid artifactHash");'
+          test -s dist/__flixo/artifact-hash.txt
+          sha256sum -c dist/flixo-package-lock.sha256
+      - name: Verify Playwright runtime image
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx playwright --version
+          test -d /ms-playwright
+      - name: Run Browser FAST engine
+        shell: bash
+        env:
+          BROWSER: ${{ matrix.browser }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          specs=(tests/image-compressor.spec.ts tests/background-remover.spec.ts tests/image-upscaler.spec.ts tests/image-converter.spec.ts tests/ai-image-generator.spec.ts tests/object-remover.spec.ts tests/watermark-remover.spec.ts tests/image-cropper.spec.ts tests/image-to-svg.spec.ts tests/image-ocr.spec.ts tests/photo-colorizer.spec.ts tests/background-blur.spec.ts tests/passport-photo-maker.spec.ts tests/watermark-adder.spec.ts tests/meme-generator.spec.ts tests/collage-maker.spec.ts tests/image-effects.spec.ts tests/exif-cleaner.spec.ts tests/svg-optimizer.spec.ts tests/mockup-generator.spec.ts tests/seed.spec.ts tests/pix.spec.ts)
+          test "${#specs[@]}" -eq 22
+          npx playwright test "${specs[@]}" --project="$BROWSER" --workers=6 --retries=0 --max-failures=0 --shard="$SHARD/2"
+          mkdir -p diagnostics/certification/playwright-results
+          printf '%s\n' "{\"evidenceClass\":\"PRIMARY_EXECUTION\",\"mode\":\"FAST\",\"browser\":\"$BROWSER\",\"shard\":$SHARD,\"sha\":\"$EXPECTED_SHA\",\"run_id\":\"${GITHUB_RUN_ID}\",\"toolSpecs\":22,\"status\":\"PASS\"}" > "diagnostics/certification/browser-fast-${BROWSER}-${SHARD}.json"
+          cp playwright-report/results.json "diagnostics/certification/playwright-results/browser-fast-${BROWSER}-${SHARD}-results.json"
+      - name: Validate Playwright evidence serialization
+        if: success()
+        run: node scripts/ci/validate-playwright-evidence.mjs playwright-report/results.json
+      - name: Record Playwright execution units
+        if: success()
+        env:
+          BROWSER: ${{ matrix.browser }}
+          SHARD: ${{ matrix.shard }}
+        run: node scripts/ci/record-playwright-execution.mjs --mode=FAST --browser="$BROWSER" --shard="$SHARD"
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-browser-fast-${{ matrix.browser }}-${{ matrix.shard }}-${{ github.run_id }}
+          path: |
+            diagnostics/certification/browser-fast-${{ matrix.browser }}-${{ matrix.shard }}.json
+            diagnostics/certification/playwright-results/browser-fast-${{ matrix.browser }}-${{ matrix.shard }}-results.json
+          if-no-files-found: warn
+          retention-days: 14
+          overwrite: true
+
+  browser_deep:
+    name: Browser DEEP — ${{ matrix.browser }} / shard-${{ matrix.shard }}
+    needs: [verify, browser_dependencies]
+    if: needs.verify.result == 'success' && needs.browser_dependencies.result == 'success'
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+        shard: [1, 2, 3, 4, 5, 6, 7] # historical-runtime weighted
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Restore browser dependency cache
+        uses: actions/cache@v6
+        with:
+          path: node_modules
+          key: flixo-browser-node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('.nvmrc') }}
+      - name: Verify browser dependency identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x node_modules/.bin/playwright
+          sha256sum package-lock.json
+      - uses: actions/download-artifact@v7
+        with:
+          name: flixo-build-${{ github.run_id }}
+          path: dist
+      - name: Verify immutable artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cat dist/flixo-head-sha.txt)" = "$EXPECTED_SHA"
+          test "$(cat "dist/__flixo/identity/$EXPECTED_SHA/index.txt")" = "$EXPECTED_SHA"
+          node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("dist/__flixo/build-identity.json","utf8")); if(x.commitSha!==process.env.EXPECTED_SHA) throw new Error("Invalid commitSha"); if(x.artifactHash!==fs.readFileSync("dist/__flixo/artifact-hash.txt","utf8").trim()) throw new Error("Invalid artifactHash");'
+          test -s dist/__flixo/artifact-hash.txt
+          sha256sum -c dist/flixo-package-lock.sha256
+      - name: Verify Playwright runtime image
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx playwright --version
+          test -d /ms-playwright
+      - name: Run Browser DEEP engine
+        shell: bash
+        env:
+          BROWSER: ${{ matrix.browser }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          case "$SHARD" in
+            1) DEEP_LOCALE_GREP='/(?:id|vi|de)(?:/|$)' ;;
+            2) DEEP_LOCALE_GREP='/(?:it|uk|en)(?:/|$)' ;;
+            3) DEEP_LOCALE_GREP='/(?:ms|sv|hi)(?:/|$)' ;;
+            4) DEEP_LOCALE_GREP='/(?:nl|ru|fr)(?:/|$)' ;;
+            5) DEEP_LOCALE_GREP='/(?:ja|th|es)(?:/|$)' ;;
+            6) DEEP_LOCALE_GREP='/(?:ko|tr|ar)(?:/|$)' ;;
+            7) DEEP_LOCALE_GREP='/(?:pl|pt)(?:/|$)' ;;
+            *) echo "Unsupported DEEP shard: $SHARD" >&2; exit 2 ;;
+          esac
+          npx playwright test tests/localization-runtime.spec.ts --project="$BROWSER" --workers=6 --retries=0 --max-failures=0 --grep="$DEEP_LOCALE_GREP"
+          mkdir -p diagnostics/certification/playwright-results
+          printf '%s\n' "{\"evidenceClass\":\"PRIMARY_EXECUTION\",\"mode\":\"DEEP\",\"browser\":\"$BROWSER\",\"shard\":$SHARD,\"sha\":\"$EXPECTED_SHA\",\"run_id\":\"${GITHUB_RUN_ID}\",\"locales\":20,\"status\":\"PASS\"}" > "diagnostics/certification/browser-deep-${BROWSER}-${SHARD}.json"
+          cp playwright-report/results.json "diagnostics/certification/playwright-results/browser-deep-${BROWSER}-${SHARD}-results.json"
+      - name: Validate Playwright evidence serialization
+        if: success()
+        run: node scripts/ci/validate-playwright-evidence.mjs playwright-report/results.json
+      - name: Record Playwright execution units
+        if: success()
+        env:
+          BROWSER: ${{ matrix.browser }}
+          SHARD: ${{ matrix.shard }}
+        run: node scripts/ci/record-playwright-execution.mjs --mode=DEEP --browser="$BROWSER" --shard="$SHARD"
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-browser-deep-${{ matrix.browser }}-${{ matrix.shard }}-${{ github.run_id }}
+          path: |
+            diagnostics/certification/browser-deep-${{ matrix.browser }}-${{ matrix.shard }}.json
+            diagnostics/certification/playwright-results/browser-deep-${{ matrix.browser }}-${{ matrix.shard }}-results.json
+          if-no-files-found: warn
+          retention-days: 14
+          overwrite: true
+
+  certify:
+    name: Certification
+    needs: [verify, browser_fast, browser_deep]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: flixo-browser-*-*-${{ github.run_id }}
+          path: diagnostics/certification
+          merge-multiple: true
+      - name: Validate execution graph completeness
+        shell: bash
+        run: node scripts/ci/validate-execution-graph.mjs
+      - name: Single certification engine
+        shell: bash
+        run: node scripts/ci/certification-engine.mjs
+      - name: Validate CI/CD trust contract
+        shell: bash
+        run: npm run verify:ci-cd-trust
+      - name: Publish certification evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-certification-evidence-${{ github.run_id }}
+          path: diagnostics/certification
+          if-no-files-found: error
+          retention-days: 14
