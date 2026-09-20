@@ -149,7 +149,7 @@ jobs:
             exit 0
           fi
           jq -r '.issueComment' /tmp/repair-agent-intake/output.json > /tmp/repair-agent-intake/comment.md
-          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body-file /tmp/repair-agent-intake/comment.md
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --field body@"/tmp/repair-agent-intake/comment.md" >/dev/null
           echo 'REPAIR_AGENT_ERROR_DELIVERED_TO_COUNCIL=true'
           echo 'OTHER_AGENTS_LOG_POLLING_REQUIRED=false'
 
