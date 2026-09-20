@@ -763,7 +763,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
           ref={videoRef}
           playsInline
           muted
-          aria-label={`${copy.title} live camera`}
+          aria-label={`${copy.title} ${copy.liveCamera}`}
           style={{
             position: 'absolute',
             inset: 0,
