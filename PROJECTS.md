@@ -5,7 +5,7 @@ RPR-UNIFIED-EXECUTION-001 → docs/agents/PROMPT-UNIFIED-EXECUTION.md.
 
 It absorbs orchestration, causal repair, task preparation, contract-drift, external classification, product/platform implementation, Action Vault learning, Exact-SHA verification and GREEN-closure intent.
 
-The customer-facing runtime behavior contract remains in src/lib/agent/flixo-agent-master-prompt.ts; it is a protected application runtime contract, not a second repair-authority prompt.
+The canonical prompt source is docs/agents/PROMPT-UNIFIED-EXECUTION.md. src/lib/agent/flixo-agent-master-prompt.ts is only the customer-runtime adapter and does not contain a second instruction source.
 
 ## Agent Communication Priority
 
