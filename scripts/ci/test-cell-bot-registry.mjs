@@ -11,3 +11,18 @@ assert(registry.bots.every((bot)=>bot.supervisor==='assistantController'));
 assert(registry.bots.every((bot)=>bot.taskPolicy==='ONE_TASK_AT_A_TIME'));
 console.log('CELL_RAW_BOT_REGISTRY=PASS');
 console.log('CELL_RAW_BOT_COUNT=50');
+assert.deepEqual(registry.lifecycle.allowedStates,['LEARNING','SPECIALIZING','UPGRADING','READY','RECYCLE']);
+assert.equal(registry.bots.some((bot)=>bot.status==='RAW'||bot.status==='UNPROVISIONED'),false);
+const actionReader=registry.bots.find((bot)=>bot.id==='CELL-001');
+assert.equal(actionReader.taskIdentity.shortName,'ACTERR');
+assert.equal(actionReader.taskIdentity.fullName,'ACTION_ERROR_READER');
+assert.equal(actionReader.currentAssignment.taskId,'CELL-TASK-ACTION-ERRORS');
+assert.equal(actionReader.currentAssignment.returnProtocol,'DIRECT_TO_ASSISTANT_CONTROLLER');
+assert.equal(actionReader.currentAssignment.mutationAuthority,false);
+assert.equal(actionReader.upgradeTarget.upgradeNumber,1);
+assert.equal(typeof actionReader.upgradeTarget.upgradePriority,'number');
+assert(actionReader.upgradeTarget.upgradePriority>=1&&actionReader.upgradeTarget.upgradePriority<=100);
+assert.equal(actionReader.lifecycle.rawStateForbidden,true);
+console.log('CELL_ACTION_ERROR_READER=PASS');
+console.log('CELL_RAW_TERMINAL_STATES=FORBIDDEN');
+
