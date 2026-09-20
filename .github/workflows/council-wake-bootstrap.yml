@@ -49,7 +49,7 @@ jobs:
 
           <!-- FLIXO_COUNCIL_BOOTSTRAP_SMOKE:$SHA -->"
 
-            wake:
+  wake:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (
