@@ -529,6 +529,19 @@ jobs:
             echo 'Teaching escalation recorded; continuing with the next repair strategy.'
           fi
 
+      - name: Enforce divergent twin decision before mutation
+        if: steps.strategy.outcome == 'success'
+        run: |
+          set -euo pipefail
+          TWIN_PRESENT="$(jq -r '.twin.present // false' /tmp/flixo-repair-strategy.json)"
+          TWIN_DIVERGENT="$(jq -r '.twin.divergent // false' /tmp/flixo-repair-strategy.json)"
+          TWIN_DISPOSITION="$(jq -r '.twin.disposition // "NO_TWIN"' /tmp/flixo-repair-strategy.json)"
+          if [ "$TWIN_PRESENT" = true ] && [ "$TWIN_DIVERGENT" != true ] && [ "$TWIN_DISPOSITION" != "NO_SAFE_ALTERNATIVE_FOUND" ]; then
+            echo 'FAIL CLOSED: executor and adversarial twin selected the same repair strategy without a justified absence of alternatives.'
+            exit 1
+          fi
+          echo "TWIN_DIVERGENCE_GATE=PASS disposition=$TWIN_DISPOSITION"
+
       - name: Record prepared repair plan state in the Repair Control Plane
         if: steps.strategy.outcome == 'success'
         run: |
