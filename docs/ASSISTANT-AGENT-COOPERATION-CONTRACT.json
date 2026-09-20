@@ -35,7 +35,8 @@
     "wake_dispatch": "President Wake is a fail-closed exact-SHA activation request processed by the canonical communication relay with scripts/ci/council-wake-dispatch.mjs. It dispatches only reusable workflows or records an external-agent wake requirement.",
     "external_account_runtime": "P20 extension: CHIEF, WORKER_A and WORKER_B are external runtime identities persisted in Supabase. Only CHIEF may dispatch worker Work Packages; workers may ACK, heartbeat and complete their assigned work.",
     "external_wake": "GitHub RED wakes CHIEF through the canonical external-runtime route. CHIEF dispatches Worker A/B. A worker is active only after ACK on the current exact SHA. Lease expiry triggers one deterministic fallback.",
-    "external_github_oidc": "GitHub RED and lease recovery authenticate to the external council runtime with GitHub Actions OIDC. The runtime validates issuer, audience, repository, workflow and execution context before allowing SYSTEM dispatch or recovery. No static GitHub dispatch secret is required."
+    "external_github_oidc": "GitHub RED and lease recovery authenticate to the external council runtime with GitHub Actions OIDC. The runtime validates issuer, audience, repository, workflow and execution context before allowing SYSTEM dispatch or recovery. No static GitHub dispatch secret is required.",
+    "council_cell_triseat": "The cell uses three ChatGPT governance seats for assignment, challenge, analysis and verification. They supervise one reusable raw-bot pool through assistantController; raw bots never become a second council."
   },
   "messageEnvelope": {
     "required": [
@@ -305,5 +306,44 @@
       ],
       "registrationState": "IDENTITY_ONLY_WITH_DECLARED_MUTATION_CAPABILITY"
     }
+  },
+  "cellCouncil": {
+    "schemaVersion": 1,
+    "authority": "CELL_TRISEAT_CONTROLLER",
+    "seats": [
+      {
+        "id": "CELL-SEAT-01",
+        "agent": "CURRENT_CHATGPT_AGENT",
+        "role": "CONTROLLER",
+        "authority": "ASSIGNMENT_AND_INTEGRATION",
+        "mutation": "VIA_ASSISTANT_CONTROLLER_ONLY"
+      },
+      {
+        "id": "CELL-SEAT-02",
+        "agent": "CHATGPT_PEER_A",
+        "role": "RCA_AND_CHALLENGE",
+        "authority": "ANALYSIS_AND_CHALLENGE_ONLY",
+        "mutation": "NONE"
+      },
+      {
+        "id": "CELL-SEAT-03",
+        "agent": "CHATGPT_PEER_B",
+        "role": "VERIFICATION_AND_ALTERNATIVE",
+        "authority": "REVIEW_AND_VERIFICATION_ONLY",
+        "mutation": "NONE"
+      }
+    ],
+    "quorum": {
+      "minimumSeats": 2,
+      "criticalDecisions": 3,
+      "rule": "No single seat may authorize a cell mutation, capability promotion, knowledge promotion, or irreversible action alone."
+    },
+    "controller": "assistantController",
+    "communication": "Canonical communication inbox only; no direct raw-bot mesh.",
+    "taskAssignment": "assistantController assigns one task and one exact scope to each available raw bot.",
+    "knowledgeRule": "Seats may propose or challenge knowledge, but only evidence-backed validation may promote it into reusable bot memory.",
+    "conflictRule": "Preserve conflicting findings and resolve against current exact-SHA evidence; never last-writer-wins.",
+    "fallback": "If peer seats are unavailable, controller may continue routine bounded work only when the canonical contract allows unilateral continuation; critical mutations remain blocked until required quorum.",
+    "independence": "Peer seats are logical governance seats, not independent repository mutation identities."
   }
 }
