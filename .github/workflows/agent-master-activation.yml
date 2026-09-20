@@ -1,0 +1,53 @@
+name: FLIXO Master Agent Activation Relay
+
+on:
+  workflow_run:
+    workflows: ["FLIXO Test System"]
+    types: [completed]
+    branches: [execution]
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  issues: write
+
+concurrency:
+  group: flixo-master-agent-activation-${{ github.event.workflow_run.id }}
+  cancel-in-progress: true
+
+jobs:
+  activate:
+    name: Record genuine canonical RED
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Deduplicated RED activation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          test "$BRANCH" = "execution"
+          test -n "$SHA"
+          MARKER="<!-- activation-run:${RUN_ID}:sha:${SHA} -->"
+          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$MARKER"; then
+            echo "MASTER_ACTIVATION_DEDUP=1"
+            exit 0
+          fi
+          {
+            echo "## FLIXO Test System — RED"
+            echo
+            echo "**Activation:** `MASTER_AGENT_ACTIVATION`"
+            echo "**Run:** ${RUN_ID}"
+            echo "**Branch:** ${BRANCH}"
+            echo "**Exact SHA:** ${SHA}"
+            echo
+            echo "Diagnose the exact canonical failure, repair only its causal root, verify on a newer exact SHA, and return to canonical GREEN."
+            echo
+            echo "$MARKER"
+          } > /tmp/activation-comment.md
+          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body-file /tmp/activation-comment.md

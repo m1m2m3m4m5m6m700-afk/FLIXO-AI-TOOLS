@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "purpose": "Deterministic ownership for critical verification commands used by CI and autonomous repair.",
+  "criticalCommands": {
+    "typecheck": {
+      "command": ["npm", "run", "typecheck"],
+      "owner": "STATIC-001",
+      "executionSurface": "static",
+      "requiredConsumers": ["ci:verify", "auto-repair:regression"],
+      "routing": "shared"
+    },
+    "test:static": {
+      "command": ["npm", "run", "test:static"],
+      "owner": "STATIC-ENGINE",
+      "executionSurface": "static",
+      "requiredConsumers": ["ci:verify", "auto-repair:regression"],
+      "routing": "shared"
+    },
+    "test:build": {
+      "command": ["npm", "run", "test:build"],
+      "owner": "BUILD-ENGINE",
+      "executionSurface": "build",
+      "requiredConsumers": ["ci:build", "auto-repair:regression"],
+      "routing": "shared"
+    }
+  }
+}

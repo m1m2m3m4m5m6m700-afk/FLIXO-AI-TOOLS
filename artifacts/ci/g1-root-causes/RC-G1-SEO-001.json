@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "rootCauseId": "RC-G1-SEO-001",
+  "classification": "SEO_METADATA_MISMATCH",
+  "status": "RESOLVED",
+  "scope": "G1 ready-tool localized SEO name contract",
+  "firstObserved": {
+    "sha": "0b60281c29e88883f4297e303ed2ed32c8fdf589",
+    "source": "G1 Contract Shadow"
+  },
+  "failure": "EXIF Cleaner had no authoritative ms/uk SEO names and caused the ready-tool localization contract to fail closed.",
+  "repair": "Added reviewed ms/uk authoritative SEO names for all ready tools, including exif-cleaner, in the canonical resolver.",
+  "safety": {
+    "assertionsWeakened": false,
+    "coverageReduced": false,
+    "fallbackAdded": false
+  },
+  "verificationRequired": ["G1 Platform Contract", "G4 localization runtime", "Full Matrix", "production SEO verification"],
+  "artifact": "artifacts/ci/g1-root-causes/RC-G1-SEO-001.json"
+}

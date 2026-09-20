@@ -1,0 +1,77 @@
+name: FLIXO Test Impact Execution
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Keep only the newest test-impact execution for the same PR/branch.
+concurrency:
+  group: flixo-test-impact-execution-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+
+env:
+  IMPACT_MAX_CONCURRENCY: '10'
+
+jobs:
+  impact-execution:
+    name: Impact Verification Execution
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Build impact plan and execute selected verification
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          VITE_SITE_URL: 'https://flixoai.vercel.app'
+        run: node scripts/ci/test-impact.mjs --mode=pr --base="$BASE_SHA" --execute
+      - name: Verify impact execution evidence
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test -s diagnostics/ci/test-impact.json
+          test -s diagnostics/ci/test-impact-execution.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const plan = JSON.parse(fs.readFileSync('diagnostics/ci/test-impact.json', 'utf8'));
+          const execution = JSON.parse(fs.readFileSync('diagnostics/ci/test-impact-execution.json', 'utf8'));
+          const expected = process.env.EXPECTED_SHA;
+          if (plan.sha !== expected) throw new Error(`Impact SHA mismatch: ${plan.sha} != ${expected}`);
+          if (execution.sha !== expected) throw new Error(`Execution SHA mismatch: ${execution.sha} != ${expected}`);
+          if (plan.evidenceClass !== 'PRIMARY_EXECUTION') throw new Error('Impact evidence must be PRIMARY_EXECUTION');
+          if (execution.status !== 'PASS') throw new Error(`Impact execution status: ${execution.status}`);
+          if (execution.executionMaxConcurrency !== 10) throw new Error('Unexpected impact concurrency');
+          if (!Array.isArray(execution.results) || execution.results.length !== execution.commands.length) {
+            throw new Error('Impact execution result coverage mismatch');
+          }
+          if (execution.results.some((r) => r.status !== 'PASS')) throw new Error('Impact verification contains failures');
+          NODE
+      - name: Verify evidence reducer contract
+        run: node scripts/ci/test-evidence-reducer.mjs
+      - name: Upload impact evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-test-impact-execution-${{ github.run_id }}
+          path: diagnostics/ci/
+          if-no-files-found: error
+          retention-days: 14

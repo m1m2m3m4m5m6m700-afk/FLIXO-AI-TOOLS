@@ -1,0 +1,73 @@
+name: ADMIN-006 Persistence Round-Trip
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: admin-006-persistence-roundtrip
+  cancel-in-progress: false
+
+jobs:
+  roundtrip:
+    name: Real non-production Supabase write → read-back
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: admin-006-non-production
+    steps:
+      - name: Checkout exact triggering SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Verify exact SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          printf 'ADMIN-006 exact SHA: %s\n' "$EXPECTED_SHA"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Execute real remote persistence round-trip
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ADMIN_PERSISTENCE_ENVIRONMENT: non-production
+        run: npm run verify:admin-persistence-roundtrip
+
+      - name: Record verified result
+        if: success()
+        run: |
+          printf '%s\n' '{"task":"ADMIN-006","verdict":"VERIFIED","exactSha":"'"${GITHUB_SHA}"'","environment":"non-production"}' > admin-006-verification.json
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: admin-006-persistence-evidence-${{ github.run_id }}
+          path: admin-006-verification.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Emit blocked guidance
+        if: failure()
+        run: |
+          echo 'ADMIN-006 remains ACTIVE/BLOCKED unless the real non-production Supabase round-trip produces VERIFIED evidence.'
+          echo 'No production mutation is permitted.'
+
+# ADMIN-006 is intentionally manual-only so the canonical FLIXO Test System remains the sole automated certification surface.

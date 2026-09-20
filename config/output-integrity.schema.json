@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FLIXO Output Integrity Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "toolId", "input", "output"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "toolId": { "type": "string", "minLength": 1 },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mime", "bytes"],
+      "properties": {
+        "mime": { "type": "string", "minLength": 1 },
+        "bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mime", "bytes", "valid"],
+      "properties": {
+        "mime": { "type": "string", "minLength": 1 },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "valid": { "const": true },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

@@ -1,0 +1,743 @@
+{
+  "version": 7,
+  "assertionRegistry": "scripts/ci/assertion-registry.json",
+  "execution": {
+    "maxConcurrency": 16,
+    "failFast": false,
+    "certification": "complete-gate-results",
+    "identityFields": [
+      "sha",
+      "packageLockSha256",
+      "testPlanSha256",
+      "assertionRegistrySha256"
+    ]
+  },
+  "gateDependencies": {
+    "static": [],
+    "build": [
+      "static"
+    ],
+    "browser": [
+      "build"
+    ]
+  },
+  "sourceDependencyGraph": {
+    "registry": [
+      "router",
+      "sitemap",
+      "seo",
+      "e2e-inventory"
+    ],
+    "localeRegistry": [
+      "i18n-structural",
+      "effective-localization",
+      "language-quality",
+      "localized-runtime"
+    ],
+    "siteOrigin": [
+      "canonical",
+      "indexing",
+      "sitemap",
+      "seo"
+    ],
+    "buildArtifact": [
+      "g2",
+      "g3",
+      "matrix-first",
+      "full-matrix",
+      "browser-runtime"
+    ]
+  },
+  "coverage": {
+    "COV-TYPEGRAPH": "TypeScript type graph",
+    "COV-LINT": "Static lint correctness",
+    "COV-UNIT": "Core unit behavior",
+    "COV-TOOL-LOCALIZATION": "Tool localization contract",
+    "COV-BASELINE": "Engineering baseline",
+    "COV-REGISTRY": "Tool registry contract",
+    "COV-MANIFEST": "Tool manifest contract",
+    "COV-ROUTER": "Router/registry parity",
+    "COV-I18N": "Locale contracts",
+    "COV-SEO": "SEO/indexing contracts",
+    "COV-CI-CONTRACT": "CI contract",
+    "COV-DEPENDENCY": "Dependency graph",
+    "COV-IMAGE-CLOSURE": "Image-only closure contract",
+    "COV-DEPENDENCY-MANIFEST": "Manifest/lock dependency parity",
+    "COV-PLAYWRIGHT-SURFACE": "Playwright test surface contract",
+    "COV-ASSERTION-REGISTRY": "Canonical assertion ownership and dependency graph",
+    "COV-FILE-SAFETY": "File safety",
+    "COV-OUTPUT-INTEGRITY": "Output integrity",
+    "COV-SVG-INTEGRITY": "SVG integrity",
+    "COV-RELEASE-EVIDENCE": "Release evidence",
+    "COV-BUILD": "Production build",
+    "COV-PERFORMANCE": "Performance budget",
+    "COV-BROWSER-CHROMIUM": "Chromium universal diagnostic runtime",
+    "COV-BROWSER-FIREFOX": "Firefox universal diagnostic runtime",
+    "COV-BROWSER-WEBKIT": "WebKit universal diagnostic runtime",
+    "COV-TECHNICAL-DEBT": "Evidence-backed technical-debt audit contract"
+  },
+  "assertions": {
+    "ASSERT-TYPEGRAPH-001": {
+      "owner": "STATIC-001"
+    },
+    "ASSERT-LINT-001": {
+      "owner": "STATIC-002"
+    },
+    "ASSERT-UNIT-001": {
+      "owner": "STATIC-003"
+    },
+    "ASSERT-I18N-001": {
+      "owner": "STATIC-004"
+    },
+    "ASSERT-BASELINE-001": {
+      "owner": "STATIC-005"
+    },
+    "ASSERT-REGISTRY-001": {
+      "owner": "STATIC-006"
+    },
+    "ASSERT-MANIFEST-001": {
+      "owner": "STATIC-007"
+    },
+    "ASSERT-ROUTER-001": {
+      "owner": "STATIC-008"
+    },
+    "ASSERT-I18N2-001": {
+      "owner": "STATIC-009"
+    },
+    "ASSERT-SEO-001": {
+      "owner": "STATIC-010"
+    },
+    "ASSERT-CI-CONTRACT-001": {
+      "owner": "STATIC-011"
+    },
+    "ASSERT-IMAGE-CLOSURE-001": {
+      "owner": "STATIC-012"
+    },
+    "ASSERT-DEPENDENCY-001": {
+      "owner": "STATIC-013"
+    },
+    "ASSERT-FILE-SAFETY-001": {
+      "owner": "STATIC-014"
+    },
+    "ASSERT-OUTPUT-001": {
+      "owner": "STATIC-015"
+    },
+    "ASSERT-SVG-001": {
+      "owner": "STATIC-016"
+    },
+    "ASSERT-RELEASE-EVIDENCE-001": {
+      "owner": "STATIC-017"
+    },
+    "ASSERT-LOCALE-NAV-001": {
+      "owner": "STATIC-018"
+    },
+    "ASSERT-HOME-I18N-001": {
+      "owner": "STATIC-019"
+    },
+    "ASSERT-LOCALIZATION-COMPLETE-001": {
+      "owner": "STATIC-020"
+    },
+    "ASSERT-BREADCRUMB-SEO-001": {
+      "owner": "STATIC-021"
+    },
+    "ASSERT-LANGUAGE-QUALITY-001": {
+      "owner": "STATIC-022"
+    },
+    "ASSERT-INDEXING-001": {
+      "owner": "STATIC-023"
+    },
+    "ASSERT-SITE-ORIGIN-001": {
+      "owner": "STATIC-024"
+    },
+    "ASSERT-DEPENDENCY-MANIFEST-001": {
+      "owner": "STATIC-025"
+    },
+    "ASSERT-PLAYWRIGHT-SURFACE-001": {
+      "owner": "STATIC-026"
+    },
+    "ASSERT-ASSERTION-REGISTRY-001": {
+      "owner": "STATIC-027"
+    },
+    "ASSERT-BUILD-001": {
+      "owner": "BUILD-001"
+    },
+    "ASSERT-PERFORMANCE-001": {
+      "owner": "BUILD-003"
+    },
+    "ASSERT-BROWSER-CHROMIUM-001": {
+      "owner": "BROWSER-001"
+    },
+    "ASSERT-BROWSER-FIREFOX-001": {
+      "owner": "BROWSER-002"
+    },
+    "ASSERT-BROWSER-WEBKIT-001": {
+      "owner": "BROWSER-003"
+    },
+    "ASSERT-TECHNICAL-DEBT-001": {
+      "owner": "STATIC-028"
+    }
+  },
+  "gates": {
+    "static": {
+      "expected": 28,
+      "checks": [
+        {
+          "id": "STATIC-001",
+          "label": "typescript",
+          "command": "npm",
+          "args": [
+            "run",
+            "typecheck"
+          ],
+          "rootCause": "RC-TYPE-001",
+          "assertions": [
+            "ASSERT-TYPEGRAPH-001"
+          ],
+          "coverage": [
+            "COV-TYPEGRAPH"
+          ]
+        },
+        {
+          "id": "STATIC-002",
+          "label": "lint",
+          "command": "npm",
+          "args": [
+            "run",
+            "lint"
+          ],
+          "rootCause": "RC-TYPE-001",
+          "assertions": [
+            "ASSERT-LINT-001"
+          ],
+          "coverage": [
+            "COV-LINT"
+          ]
+        },
+        {
+          "id": "STATIC-003",
+          "label": "unit",
+          "command": "node",
+          "args": [
+            "scripts/ci/run-unit-suite.mjs"
+          ],
+          "rootCause": "RC-UNKNOWN-001",
+          "assertions": [
+            "ASSERT-UNIT-001"
+          ],
+          "coverage": [
+            "COV-UNIT"
+          ]
+        },
+        {
+          "id": "STATIC-004",
+          "label": "tool-localization",
+          "command": "npm",
+          "args": [
+            "run",
+            "test:tool-localization"
+          ],
+          "rootCause": "RC-I18N-001",
+          "assertions": [
+            "ASSERT-I18N-001"
+          ],
+          "coverage": [
+            "COV-TOOL-LOCALIZATION"
+          ]
+        },
+        {
+          "id": "STATIC-005",
+          "label": "baseline",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:baseline"
+          ],
+          "rootCause": "RC-UNKNOWN-001",
+          "assertions": [
+            "ASSERT-BASELINE-001"
+          ],
+          "coverage": [
+            "COV-BASELINE"
+          ]
+        },
+        {
+          "id": "STATIC-006",
+          "label": "tool-registry",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:tool-registry"
+          ],
+          "rootCause": "RC-UNKNOWN-001",
+          "assertions": [
+            "ASSERT-REGISTRY-001"
+          ],
+          "coverage": [
+            "COV-REGISTRY"
+          ]
+        },
+        {
+          "id": "STATIC-007",
+          "label": "tool-manifest",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:tool-manifest"
+          ],
+          "rootCause": "RC-UNKNOWN-001",
+          "assertions": [
+            "ASSERT-MANIFEST-001"
+          ],
+          "coverage": [
+            "COV-MANIFEST"
+          ]
+        },
+        {
+          "id": "STATIC-008",
+          "label": "router",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:router-registry"
+          ],
+          "rootCause": "RC-ROUTER-001",
+          "assertions": [
+            "ASSERT-ROUTER-001"
+          ],
+          "coverage": [
+            "COV-ROUTER"
+          ]
+        },
+        {
+          "id": "STATIC-009",
+          "label": "i18n",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:i18n"
+          ],
+          "rootCause": "RC-I18N-001",
+          "assertions": [
+            "ASSERT-I18N2-001"
+          ],
+          "coverage": [
+            "COV-I18N"
+          ]
+        },
+        {
+          "id": "STATIC-010",
+          "label": "seo",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:seo"
+          ],
+          "rootCause": "RC-SEO-001",
+          "assertions": [
+            "ASSERT-SEO-001"
+          ],
+          "coverage": [
+            "COV-SEO"
+          ]
+        },
+        {
+          "id": "STATIC-011",
+          "label": "ci-contract",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:ci-contract"
+          ],
+          "rootCause": "RC-CI-CONTRACT-001",
+          "assertions": [
+            "ASSERT-CI-CONTRACT-001"
+          ],
+          "coverage": [
+            "COV-CI-CONTRACT"
+          ]
+        },
+        {
+          "id": "STATIC-012",
+          "label": "image-only",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:image-only-closure"
+          ],
+          "rootCause": "RC-UNKNOWN-001",
+          "assertions": [
+            "ASSERT-IMAGE-CLOSURE-001"
+          ],
+          "coverage": [
+            "COV-IMAGE-CLOSURE"
+          ]
+        },
+        {
+          "id": "STATIC-013",
+          "label": "dependency-zero-debt",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:dependency-zero-debt"
+          ],
+          "rootCause": "RC-DEPENDENCY-001",
+          "assertions": [
+            "ASSERT-DEPENDENCY-001"
+          ],
+          "coverage": [
+            "COV-DEPENDENCY"
+          ]
+        },
+        {
+          "id": "STATIC-014",
+          "label": "file-safety",
+          "command": "node",
+          "args": [
+            "--experimental-strip-types",
+            "scripts/test-file-safety.mjs"
+          ],
+          "rootCause": "RC-G2-SIGNATURE-001",
+          "assertions": [
+            "ASSERT-FILE-SAFETY-001"
+          ],
+          "coverage": [
+            "COV-FILE-SAFETY"
+          ]
+        },
+        {
+          "id": "STATIC-015",
+          "label": "output-integrity",
+          "command": "node",
+          "args": [
+            "--experimental-strip-types",
+            "scripts/test-output-integrity.mjs"
+          ],
+          "rootCause": "RC-G3-INTEGRITY-001",
+          "assertions": [
+            "ASSERT-OUTPUT-001"
+          ],
+          "coverage": [
+            "COV-OUTPUT-INTEGRITY"
+          ]
+        },
+        {
+          "id": "STATIC-016",
+          "label": "svg-integrity",
+          "command": "node",
+          "args": [
+            "--experimental-strip-types",
+            "scripts/test-svg-integrity.mjs"
+          ],
+          "rootCause": "RC-G3-INTEGRITY-001",
+          "assertions": [
+            "ASSERT-SVG-001"
+          ],
+          "coverage": [
+            "COV-SVG-INTEGRITY"
+          ]
+        },
+        {
+          "id": "STATIC-017",
+          "label": "release-evidence",
+          "command": "node",
+          "args": [
+            "scripts/test-release-evidence.mjs"
+          ],
+          "rootCause": "RC-CI-EVIDENCE-001",
+          "assertions": [
+            "ASSERT-RELEASE-EVIDENCE-001"
+          ],
+          "coverage": [
+            "COV-RELEASE-EVIDENCE"
+          ]
+        },
+        {
+          "id": "STATIC-018",
+          "label": "locale-navigation",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:locale-navigation"
+          ],
+          "rootCause": "RC-I18N-001",
+          "assertions": [
+            "ASSERT-LOCALE-NAV-001"
+          ],
+          "coverage": [
+            "COV-I18N"
+          ]
+        },
+        {
+          "id": "STATIC-019",
+          "label": "home-i18n",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:home-i18n"
+          ],
+          "rootCause": "RC-I18N-001",
+          "assertions": [
+            "ASSERT-HOME-I18N-001"
+          ],
+          "coverage": [
+            "COV-I18N"
+          ]
+        },
+        {
+          "id": "STATIC-020",
+          "label": "localization-complete",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:localization-complete"
+          ],
+          "rootCause": "RC-I18N-001",
+          "assertions": [
+            "ASSERT-LOCALIZATION-COMPLETE-001"
+          ],
+          "coverage": [
+            "COV-I18N"
+          ]
+        },
+        {
+          "id": "STATIC-021",
+          "label": "breadcrumb-seo",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:breadcrumb-seo"
+          ],
+          "rootCause": "RC-SEO-001",
+          "assertions": [
+            "ASSERT-BREADCRUMB-SEO-001"
+          ],
+          "coverage": [
+            "COV-SEO"
+          ]
+        },
+        {
+          "id": "STATIC-022",
+          "label": "language-quality",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:language-quality"
+          ],
+          "rootCause": "RC-I18N-001",
+          "assertions": [
+            "ASSERT-LANGUAGE-QUALITY-001"
+          ],
+          "coverage": [
+            "COV-I18N"
+          ]
+        },
+        {
+          "id": "STATIC-023",
+          "label": "indexing",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:indexing"
+          ],
+          "rootCause": "RC-SEO-001",
+          "assertions": [
+            "ASSERT-INDEXING-001"
+          ],
+          "coverage": [
+            "COV-SEO"
+          ]
+        },
+        {
+          "id": "STATIC-024",
+          "label": "site-origin",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:site-origin"
+          ],
+          "rootCause": "RC-SEO-001",
+          "assertions": [
+            "ASSERT-SITE-ORIGIN-001"
+          ],
+          "coverage": [
+            "COV-SEO"
+          ]
+        },
+        {
+          "id": "STATIC-025",
+          "label": "lock-manifest",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:lock-manifest"
+          ],
+          "rootCause": "RC-DEPENDENCY-001",
+          "assertions": [
+            "ASSERT-DEPENDENCY-MANIFEST-001"
+          ],
+          "coverage": [
+            "COV-DEPENDENCY-MANIFEST"
+          ]
+        },
+        {
+          "id": "STATIC-026",
+          "label": "playwright-surface",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:playwright-surface"
+          ],
+          "rootCause": "RC-BROWSER-001",
+          "assertions": [
+            "ASSERT-PLAYWRIGHT-SURFACE-001"
+          ],
+          "coverage": [
+            "COV-PLAYWRIGHT-SURFACE"
+          ]
+        },
+        {
+          "id": "STATIC-027",
+          "label": "assertion-registry",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:assertion-registry"
+          ],
+          "rootCause": "RC-CI-CONTRACT-001",
+          "assertions": [
+            "ASSERT-ASSERTION-REGISTRY-001"
+          ],
+          "coverage": [
+            "COV-ASSERTION-REGISTRY"
+          ]
+        },
+        {
+          "id": "STATIC-028",
+          "label": "technical-debt-audit",
+          "command": "node",
+          "args": [
+            "scripts/ci/test-technical-debt-audit.mjs"
+          ],
+          "rootCause": "RC-DEBT-AUDIT-001",
+          "assertions": [
+            "ASSERT-TECHNICAL-DEBT-001"
+          ],
+          "coverage": [
+            "COV-TECHNICAL-DEBT"
+          ]
+        }
+      ]
+    },
+    "build": {
+      "expected": 2,
+      "checks": [
+        {
+          "id": "BUILD-001",
+          "label": "build",
+          "command": "npm",
+          "args": [
+            "run",
+            "build"
+          ],
+          "rootCause": "RC-BUILD-001",
+          "assertions": [
+            "ASSERT-BUILD-001"
+          ],
+          "coverage": [
+            "COV-BUILD"
+          ]
+        },
+        {
+          "id": "BUILD-003",
+          "label": "performance",
+          "command": "npm",
+          "args": [
+            "run",
+            "validate:performance-budget"
+          ],
+          "rootCause": "RC-BUILD-001",
+          "assertions": [
+            "ASSERT-PERFORMANCE-001"
+          ],
+          "coverage": [
+            "COV-PERFORMANCE"
+          ]
+        }
+      ]
+    },
+    "browser": {
+      "expected": 3,
+      "maxConcurrency": 1,
+      "projects": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "checks": [
+        {
+          "id": "BROWSER-001",
+          "label": "chromium",
+          "command": "npx",
+          "args": [
+            "playwright",
+            "test",
+            "tests/universal-diagnostic-browser.spec.ts",
+            "--project=chromium",
+            "--workers=6",
+            "--retries=0",
+            "--max-failures=1"
+          ],
+          "rootCause": "RC-BROWSER-001",
+          "assertions": [
+            "ASSERT-BROWSER-CHROMIUM-001"
+          ],
+          "coverage": [
+            "COV-BROWSER-CHROMIUM"
+          ]
+        },
+        {
+          "id": "BROWSER-002",
+          "label": "firefox",
+          "command": "npx",
+          "args": [
+            "playwright",
+            "test",
+            "tests/universal-diagnostic-browser.spec.ts",
+            "--project=firefox",
+            "--workers=6",
+            "--retries=0",
+            "--max-failures=1"
+          ],
+          "rootCause": "RC-BROWSER-001",
+          "assertions": [
+            "ASSERT-BROWSER-FIREFOX-001"
+          ],
+          "coverage": [
+            "COV-BROWSER-FIREFOX"
+          ]
+        },
+        {
+          "id": "BROWSER-003",
+          "label": "webkit",
+          "command": "npx",
+          "args": [
+            "playwright",
+            "test",
+            "tests/universal-diagnostic-browser.spec.ts",
+            "--project=webkit",
+            "--workers=6",
+            "--retries=0",
+            "--max-failures=1"
+          ],
+          "rootCause": "RC-BROWSER-001",
+          "assertions": [
+            "ASSERT-BROWSER-WEBKIT-001"
+          ],
+          "coverage": [
+            "COV-BROWSER-WEBKIT"
+          ]
+        }
+      ]
+    }
+  }
+}

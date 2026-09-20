@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "phase": "CI-5",
+  "status": "COMPLETE",
+  "verifiedSha": "fec5731e66d7d4a7098e4c992e14da699411caf6",
+  "base": "1bc8b7ab8b821ff45c0679239cd95a7ea871d66a",
+  "acceptance": {
+    "affectedSelection": "PASS",
+    "unaffectedSafety": "PASS",
+    "ambiguousConservativeEscalation": "PASS",
+    "impactPlan": "PASS",
+    "shadowWorkflow": "PASS"
+  },
+  "safety": {
+    "mainModified": false,
+    "branchProtectionModified": false,
+    "requiredChecksModified": false,
+    "productionConfigurationModified": false,
+    "legacyWorkflowDeleted": false,
+    "legacyWorkflowBehaviorModified": false
+  },
+  "exitDecision": "PASS",
+  "nextPhaseAllowed": true
+}

@@ -1,0 +1,74 @@
+import { readFileSync } from 'node:fs';
+
+const sitemapSource = readFileSync('scripts/generate-sitemap.mjs', 'utf8');
+const robotsGeneratorSource = readFileSync('scripts/generate-robots.mjs', 'utf8');
+const robotsSource = readFileSync('public/robots.txt', 'utf8');
+const originSource = readFileSync('src/config/origin.config.ts', 'utf8');
+const i18nSource = readFileSync('src/lib/i18n/config.ts', 'utf8');
+const rootSource = readFileSync('src/routes/__root.tsx', 'utf8');
+const indexSource = readFileSync('index.html', 'utf8');
+const manifestSource = readFileSync('public/manifest.webmanifest', 'utf8');
+const localizedToolRouteSource = readFileSync('src/routes/localized-tool.tsx', 'utf8');
+const toolSeoSource = readFileSync('src/lib/seo/tool-seo.ts', 'utf8');
+const toolRegistrySource = readFileSync('src/config/canonical-tool-definition.ts', 'utf8');
+
+const expectedLocales = i18nSource.match(/export const LOCALES = \[([\s\S]*?)\] as const/)
+  ?.[1]
+  ?.match(/'([a-z]{2})'/g)
+  ?.map((value) => value.slice(1, -1)) ?? [];
+if (expectedLocales.length !== 20) throw new Error(`Indexing gate locale registry expectation must contain exactly 20 locales, found ${expectedLocales.length}.`);
+
+const toolIds = [...toolRegistrySource.matchAll(/\bid:\s*'([^']+)'/g)].map((match) => match[1]);
+if (toolIds.length !== 22) throw new Error(`Canonical image tool registry must contain exactly 22 tools, found ${toolIds.length}.`);
+
+if (!originSource.includes('export function getCanonicalSiteOrigin()')) throw new Error('Canonical origin contract is missing getCanonicalSiteOrigin().');
+if (!originSource.includes("if (origin.protocol !== 'https:')")) throw new Error('Canonical origin contract must enforce HTTPS.');
+if (!originSource.includes("OFFICIAL_PRODUCTION_ORIGIN = 'https://flixoai.vercel.app'")) throw new Error('Canonical origin contract must define the sole official FLIXO production origin.');
+if (!originSource.includes('origin.origin !== OFFICIAL_PRODUCTION_ORIGIN')) throw new Error('Canonical origin contract must reject every non-official production origin.');
+if (!i18nSource.includes('export const SITE_ORIGIN = getCanonicalSiteOrigin();')) throw new Error('SITE_ORIGIN must come from the canonical origin contract.');
+
+if (!sitemapSource.includes('getCanonicalSiteOrigin()')) throw new Error('Sitemap generator must source its origin from the canonical origin contract.');
+if (!sitemapSource.includes('TOOL_MANIFEST.filter((tool) => tool.isReady)')) throw new Error('Sitemap generator does not derive tool URLs from ready TOOL_MANIFEST entries.');
+if (!sitemapSource.includes('getLocalizedToolPath(tool, locale)')) throw new Error('Sitemap generator must use getLocalizedToolPath for localized tool routes.');
+if (sitemapSource.includes('USE_CASES') || sitemapSource.includes('useCasePaths')) throw new Error('Sitemap must not publish non-localized use-case URLs.');
+if (!sitemapSource.includes('xmlns:xhtml="http://www.w3.org/1999/xhtml"')) throw new Error('Sitemap generator is missing the hreflang namespace.');
+if (!sitemapSource.includes('xhtml:link rel="alternate" hreflang=')) throw new Error('Sitemap generator does not emit hreflang alternates.');
+if (!sitemapSource.includes('hreflang="x-default"')) throw new Error('Sitemap generator is missing x-default.');
+if (!sitemapSource.includes('const isLocalizedPage = localePrefixPattern.test(path);')) throw new Error('Sitemap alternate emission must be limited to localized routes.');
+if (sitemapSource.includes('vercel.app') || sitemapSource.includes('vercel.sh') || sitemapSource.includes('localhost')) throw new Error('Sitemap generator contains a forbidden deployment/local origin literal.');
+
+if (!robotsGeneratorSource.includes("import { getCanonicalSiteOrigin } from '../src/config/origin.config.ts';")) throw new Error('robots generator must consume the canonical origin contract.');
+if (!robotsGeneratorSource.includes('const origin = getCanonicalSiteOrigin();')) throw new Error('robots generator must resolve its origin through getCanonicalSiteOrigin().');
+if (!robotsGeneratorSource.includes('Sitemap: ${origin}/sitemap.xml')) throw new Error('robots generator must publish the canonical sitemap URL.');
+if (!robotsSource.includes('User-agent: *\nAllow: /')) throw new Error('robots.txt must permit normal crawling.');
+if (!/^Sitemap:\s+https:\/\/[^\s]+\/sitemap\.xml$/m.test(robotsSource)) throw new Error('robots.txt must reference an HTTPS canonical sitemap.');
+
+if (!rootSource.includes("name: 'robots'")) throw new Error('Root route is missing robots metadata.');
+if (!rootSource.includes('index,follow')) throw new Error('Root route must allow indexing and link following for public pages.');
+if (!rootSource.includes("property: 'og:title'")) throw new Error('Root route is missing Open Graph title metadata.');
+if (!rootSource.includes("property: 'og:description'")) throw new Error('Root route is missing Open Graph description metadata.');
+if (!rootSource.includes("property: 'og:url'")) throw new Error('Root route is missing Open Graph URL metadata.');
+if (!rootSource.includes("name: 'twitter:card'")) throw new Error('Root route is missing Twitter card metadata.');
+if (/flixo-logo\.jpg|logo\.jpg|logo\.svg|favicon\.svg/.test(rootSource)) throw new Error('Root route references legacy logo assets.');
+if (!rootSource.includes("href: '/flixo-favicon.png'")) throw new Error('Root route is missing the canonical favicon.');
+
+if (!localizedToolRouteSource.includes("path: '/$locale/$tool'")) throw new Error('Localized tool route is missing.');
+if (!localizedToolRouteSource.includes("rel: 'canonical'")) throw new Error('Localized tool canonical generation is missing.');
+if (!localizedToolRouteSource.includes("hrefLang: 'x-default'")) throw new Error('Localized tool x-default hreflang is missing.');
+const alternateCount = (toolSeoSource.match(/locale: alternateLocale/g) ?? []).length;
+if (alternateCount !== 1) throw new Error('Tool SEO must derive alternates from the canonical LOCALES registry exactly once.');
+if (!toolSeoSource.includes('LOCALES.map((alternateLocale)')) throw new Error('Tool SEO alternates must be generated from LOCALES.');
+if (!toolSeoSource.includes('getLocalizedToolUrl(alternateLocale, tool.id)')) throw new Error('Tool SEO alternates must use the canonical localized URL resolver.');
+
+if (!indexSource.includes('<html lang="en" dir="ltr">')) throw new Error('index.html must declare the default language and direction.');
+if (!indexSource.includes('<meta name="viewport"')) throw new Error('index.html is missing the viewport declaration.');
+if (!indexSource.includes('<link rel="manifest" href="/manifest.webmanifest"')) throw new Error('index.html is missing the web manifest.');
+if (!indexSource.includes('<link rel="icon" type="image/png" href="/flixo-favicon.png"')) throw new Error('index.html must use the canonical favicon.');
+if (!indexSource.includes('<link rel="preload" as="image" href="/flixo-logo.webp" type="image/webp"')) throw new Error('index.html must preload the canonical FLIXO logo.');
+if (/flixo-logo\.jpg|logo\.jpg|logo\.svg|favicon\.svg/.test(indexSource)) throw new Error('index.html references legacy logo assets.');
+
+if (!rootSource.includes("{ name: 'description', content:")) throw new Error('Root route is missing the base description metadata.');
+if (!manifestSource.includes('"start_url": "/en"')) throw new Error('Manifest start_url must resolve to a localized public route.');
+if (!manifestSource.includes('"src": "/flixo-logo.webp"')) throw new Error('Manifest must use the canonical FLIXO logo asset.');
+
+console.log(`Indexing validation passed: ${expectedLocales.length} locales, ${toolIds.length} canonical image tools, localized tool canonical/hreflang symmetry, canonical HTTPS origin, and robots/sitemap contracts are aligned.`);

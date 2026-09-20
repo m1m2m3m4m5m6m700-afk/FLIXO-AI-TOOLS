@@ -1,0 +1,25 @@
+{
+  "root_cause_id": "RC-G4-I18N-001",
+  "classification": "ENGLISH_UI_LEAKAGE",
+  "status": "RECOVERING",
+  "contract": "G4",
+  "scope": {
+    "routes": "all public localized tool routes",
+    "locales": "all supported non-English locales",
+    "browsers": ["chromium", "firefox", "webkit"]
+  },
+  "first_observed_sha": "0d0ea9e140d686adda46a37dc83c965eb6cf9a77",
+  "observed_run": 33432786078,
+  "expected": "Non-English public tool pages expose localized visible UI without exact English fallbacks.",
+  "actual": "Full Matrix failed the same public-route localization assertion across all 12 browser shards; diagnostic artifacts contained repeated exact English UI fallbacks including Local processing status text, Choose a file, Run tool, and tool-specific labels.",
+  "source": "tests/localization-runtime.spec.ts and full-matrix diagnostic artifacts",
+  "hypothesis": "The existing runtime localization dictionaries cover only a subset of tool-surface strings and do not fully translate English literals emitted by locale tool implementations.",
+  "repair_commit": "887f71b89f0fce465a5c8cceac9215e7fc7dcd83",
+  "repair": "Added a centralized runtime localization completeness layer driven by the document locale and authoritative tool SEO metadata, and installed it in main.tsx.",
+  "verification": {
+    "toolchain_build": "PASS",
+    "full_matrix": "IN_PROGRESS",
+    "final_status": "NOT_VERIFIED"
+  },
+  "next_action": "Verify the fresh Full Matrix on the repair commit; collect fresh failures, classify remaining independent causes, and update this evidence to RESOLVED only after the affected contracts pass."
+}

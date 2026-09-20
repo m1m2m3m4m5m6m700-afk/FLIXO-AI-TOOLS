@@ -1,0 +1,2 @@
+import type { LocalizedToolSeo } from '../manifest';
+export const ur: LocalizedToolSeo = { title:'تصویر کو SVG میں تبدیل کریں', description:'براؤزر میں براہِ راست تصاویر کو SVG میں تبدیل کریں۔', intro:'معاون تصویر کو مقامی طور پر SVG میں تبدیل کریں اور اصل فائل اپ لوڈ نہ کریں۔', keywords:['تصویر سے svg','svg کنورٹر','تصویر کو svg کریں'], howTo:['تصویر اپ لوڈ کریں۔','SVG میں تبدیل کریں۔','نتیجہ ڈاؤن لوڈ کریں۔'], features:['مقامی پروسیسنگ','SVG ایکسپورٹ','تیز ڈاؤن لوڈ'], altText:['تصویر سے SVG ٹول','تبدیلی کا پیش منظر','SVG نتیجہ'] };

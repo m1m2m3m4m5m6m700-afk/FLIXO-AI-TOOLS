@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const zh: LocalizedToolSeo={title:'证件照制作器',description:'使用 FLIXO 创建护照和身份证件照片。',intro:'准备符合证件照片尺寸与裁剪要求的人像照片。',keywords:['证件照','护照照片','身份证照片'],howTo:['上传人像。','调整裁剪和尺寸。','下载结果。'],features:['证件照尺寸','简单裁剪','下载结果'],altText:['证件照工作区','证件照预览','完成的证件照片']};

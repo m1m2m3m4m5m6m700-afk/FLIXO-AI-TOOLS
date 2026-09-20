@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "authority": "TASK_AGENT_PREPARATION_ONLY",
+  "role": "Task Agent",
+  "mode": "PREPARATION_ONLY",
+  "preparedOnly": true,
+  "mutationPolicy": "NO_SOURCE_MUTATION_NO_COMMIT_NO_PUSH",
+  "taskId": "ERR-DEPENDENCY-001",
+  "baselineSha": "2fbde16a2bfe324568a9293e331737df0abe6898",
+  "contractVersion": "AGENT-COLLABORATION-PROTOCOL-v7",
+  "errorFingerprint": "DEPENDENCY-NPM-CI-MANIFEST-LOCK-MISMATCH-PRETTIER-001",
+  "scope": ["package.json", "package-lock.json"],
+  "dependencies": ["npm ci", "Dependency Health"],
+  "requiredProofObligations": [
+    "package.json and package-lock.json are synchronized",
+    "fresh npm ci succeeds",
+    "format:check remains available or an explicitly approved equivalent is preserved",
+    "no unrelated dependency upgrades are introduced"
+  ],
+  "preparedChanges": [],
+  "verificationPlan": [
+    "npm ci",
+    "npm run validate:lock-manifest",
+    "npm run test:static"
+  ],
+  "blockers": [
+    "The connected execution surface cannot run npm install locally; lock regeneration must be performed by a trusted CI-capable execution path or an exact lock update must be supplied."
+  ],
+  "handoffTo": "SUPERVISING_EXECUTION_AGENT"
+}

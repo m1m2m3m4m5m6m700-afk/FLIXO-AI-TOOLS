@@ -1,0 +1,62 @@
+name: FLIXO Agent Repair Heartbeat
+
+run-name: FLIXO Agent Repair Heartbeat ${{ github.run_id }}
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: flixo-agent-repair-heartbeat
+  cancel-in-progress: true
+
+jobs:
+  wake-supervisor:
+    name: Restore continuous supervisor when RED or unfinished
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check supervisor liveness and current GREEN state
+        id: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTIVE_SUPERVISORS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow agent-repair-supervisor.yml --limit 20 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
+          if [ "$ACTIVE_SUPERVISORS" -gt 0 ]; then
+            echo "SUPERVISOR_ALREADY_ACTIVE=$ACTIVE_SUPERVISORS"
+            echo "wake=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          NEED_WAKE=false
+          REQUIRED='FLIXO Test System|FLIXO WP0 Trust Baseline|FLIXO Test Impact|FLIXO Test Impact Execution|FLIXO Continuous Delivery|Repository Security Baseline|Claude Security Review|Daily·FLIXO Green Gate'
+          for BRANCH in main execution; do
+            SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+            RUNS="$(gh run list --repo "$GITHUB_REPOSITORY" --branch "$BRANCH" --commit "$SHA" --limit 100 --json databaseId,name,status,conclusion,headSha,createdAt)"
+            GREEN="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" 'map(select(.headSha == $sha and .name == "Daily·FLIXO Green Gate" and .conclusion == "success")) | last.databaseId // empty')"
+            FAILED="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" --arg names "$REQUIRED" 'map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null)))) | map(select(.conclusion == "failure" or .conclusion == "timed_out")) | last.databaseId // empty')"
+            if [ -z "$GREEN" ] || [ -n "$FAILED" ]; then
+              NEED_WAKE=true
+              echo "SUPERVISOR_NEEDED branch=$BRANCH sha=$SHA green=${GREEN:-none} failed=${FAILED:-none}"
+            else
+              echo "BRANCH_GREEN branch=$BRANCH sha=$SHA run=$GREEN"
+            fi
+          done
+          echo "wake=$NEED_WAKE" >> "$GITHUB_OUTPUT"
+
+      - name: Wake supervisor only when GREEN is not proven
+        if: steps.state.outputs.wake == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo 'SUPERVISOR_WAKE_DISPATCHED=true'

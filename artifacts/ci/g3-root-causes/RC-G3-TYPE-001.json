@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "rootCauseId": "RC-G3-TYPE-001",
+  "classification": "TYPE_ERROR",
+  "status": "RESOLVED",
+  "scope": "G3 Toolchain TypeScript verification",
+  "firstObserved": {
+    "sha": "57a8a3adc4c5b71f349bd94a90b37c54aa6ed1f6",
+    "job": "CI Toolchain and Build Shadow",
+    "step": "TypeScript"
+  },
+  "failure": "getAuthoritativeToolSeoName continued to call localizeMsUkToolTitle with three arguments after the function signature was reduced to two arguments to satisfy the lint contract.",
+  "repair": "Aligned the resolver call to the two-argument signature.",
+  "safety": {
+    "assertionsWeakened": false,
+    "coverageReduced": false,
+    "fallbackAdded": false,
+    "testsDisabled": false
+  },
+  "verificationRequired": ["TypeScript", "ESLint", "Build", "G1", "G2", "G3", "G4", "Full Matrix"],
+  "artifact": "artifacts/ci/g3-root-causes/RC-G3-TYPE-001.json"
+}

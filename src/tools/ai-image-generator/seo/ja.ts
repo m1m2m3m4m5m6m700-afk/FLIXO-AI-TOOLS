@@ -1,0 +1,1 @@
+import type { LocalizedToolSeo } from '../manifest'; export const ja: LocalizedToolSeo={title:'AI画像生成ツール',description:'FLIXOでプロンプトから画像を生成します。',intro:'作りたい画像を説明して結果を生成します。',keywords:['AI画像生成','画像生成AI','テキストから画像'],howTo:['プロンプトを入力。','画像を生成。','結果をダウンロード。'],features:['プロンプト生成','簡単な操作','ダウンロード'],altText:['画像生成ワークスペース','生成画像のプレビュー','完成したAI画像']};

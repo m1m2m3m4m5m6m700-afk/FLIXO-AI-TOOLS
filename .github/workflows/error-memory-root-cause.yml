@@ -1,0 +1,44 @@
+name: Historical Error Root Cause
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    name: Extract historical root causes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact triggering SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Verify exact SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$
+
+      - name: Run extractor regression
+        run: node scripts/test-error-root-cause-extractor.mjs
+
+      - name: Emit normalized root-cause report
+        run: node scripts/ci/extract-error-root-causes.mjs docs/ERROR_MEMORY.md error-root-causes.json
+
+      - name: Upload root-cause report
+        uses: actions/upload-artifact@v6
+        with:
+          name: error-root-causes-${{ github.run_id }}
+          path: error-root-causes.json
+          if-no-files-found: error
+          retention-days: 30
+
+# Historical root-cause extraction is intentionally manual-only; FLIXO Test System owns automated certification.

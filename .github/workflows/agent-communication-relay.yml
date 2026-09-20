@@ -1,0 +1,283 @@
+name: FLIXO Agent Communication Relay
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      message_json:
+        description: 'Canonical agent message JSON for controlled manual delivery testing'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+concurrency:
+  group: flixo-agent-communication-${{ github.event.comment.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  receive:
+    name: Immediate agent message receive
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.issue.number == 759 &&
+        github.event.comment.body != '' &&
+        (
+          github.event.comment.user.login == 'github-actions[bot]' ||
+          github.event.comment.user.login == github.repository_owner
+        )
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout canonical communication implementation
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Extract President Wake when present
+        id: president_wake
+        if: >-
+          github.event_name == 'issue_comment' &&
+          github.event.issue.number == 759 &&
+          contains(github.event.comment.body || '', '<!-- FLIXO_AGENT_COUNCIL_WAKE -->')
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$COMMENT_BODY" > /tmp/council-wake-comment.md
+          echo 'wake=true' >> "$GITHUB_OUTPUT"
+
+      - name: Resolve current execution SHA for President Wake
+        id: president_head
+        if: steps.president_wake.outputs.wake == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$SHA" =~ ^[0-9a-f]{40}$
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Build President Wake plan
+        id: president_plan
+        if: steps.president_wake.outputs.wake == 'true'
+        env:
+          CURRENT_SHA: ${{ steps.president_head.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/ci/council-wake-dispatch.mjs             --comment-file=/tmp/council-wake-comment.md             --current-execution-sha="$CURRENT_SHA"             --repository="$GITHUB_REPOSITORY" > /tmp/council-wake-plan.json
+          jq -r '"mode=" + .mode + "\nrole=" + .role + "\nworkflow=" + (.workflow // "") + "\nworkPackage=" + .workPackageId + "\nentrySha=" + .entrySha' /tmp/council-wake-plan.json >> "$GITHUB_OUTPUT"
+
+      - name: Check President Wake idempotency
+        id: president_duplicate
+        if: steps.president_wake.outputs.wake == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RECEIPT="<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
+          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+            echo 'duplicate=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'duplicate=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch President Wake workflow
+        if: steps.president_wake.outputs.wake == 'true' && steps.president_duplicate.outputs.duplicate != 'true' && steps.president_plan.outputs.mode == 'WORKFLOW_DISPATCH'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW: ${{ steps.president_plan.outputs.workflow }}
+          ENTRY_SHA: ${{ steps.president_plan.outputs.entrySha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$WORKFLOW" in
+            ultra-investigator.yml)
+              gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref execution -f "expected_sha=$ENTRY_SHA"
+              ;;
+            code-read-only-scout.yml|test-matrix-contract.yml|repository-security-baseline.yml|root-cause-diagnostics.yml)
+              gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref execution
+              ;;
+            *)
+              echo "FAIL CLOSED: unsupported President Wake workflow=$WORKFLOW"
+              exit 1
+              ;;
+          esac
+
+      - name: Acknowledge President Wake
+        if: steps.president_wake.outputs.wake == 'true' && steps.president_duplicate.outputs.duplicate != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROLE: ${{ steps.president_plan.outputs.role }}
+          MODE: ${{ steps.president_plan.outputs.mode }}
+          WORKPACKAGE: ${{ steps.president_plan.outputs.workPackage }}
+          ENTRY_SHA: ${{ steps.president_plan.outputs.entrySha }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### PRESIDENT WAKE RECEIPT
+
+**Role:** `$ROLE`
+**Mode:** `$MODE`
+**Work Package:** `$WORKPACKAGE`
+**Exact SHA:** `$ENTRY_SHA`
+
+Wake accepted through the canonical communication relay. Workflow dispatch remains subject to exact-SHA and role controls.
+
+<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
+
+      - name: Extract and validate incoming message
+        id: message
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_SHA: ${{ github.sha }}
+          MANUAL_MESSAGE_JSON: ${{ github.event.inputs.message_json || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const body = process.env.COMMENT_BODY || '';
+          const manual = process.env.MANUAL_MESSAGE_JSON || '';
+          const match = body.match(/<!-- FLIXO_AGENT_MESSAGE -->[\\s\\S]*?\`\`\`json\\s*([\\s\\S]*?)\\s*\`\`\`/u);
+          if (!match && process.env.EVENT_NAME === 'workflow_dispatch') {
+            if (!manual) throw new Error('MANUAL_MESSAGE_PAYLOAD_REQUIRED');
+            const message = JSON.parse(manual);
+            fs.writeFileSync('message.json', JSON.stringify(message, null, 2) + '\\n');
+            if (!message.messageId) throw new Error('AGENT_MESSAGE_ID_MISSING');
+            process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'MESSAGE_ID=' + message.messageId + '\\n');
+            process.exit(0);
+          }
+          if (!match) {
+            fs.writeFileSync('/tmp/flixo-agent-message-skip', 'NO_CANONICAL_AGENT_MESSAGE\\n');
+            process.exit(0);
+          }
+          const message = JSON.parse(match[1]);
+          fs.writeFileSync('message.json', JSON.stringify(message, null, 2) + '\\n');
+          if (!message.messageId) throw new Error('AGENT_MESSAGE_ID_MISSING');
+          process.stdout.write('MESSAGE_ID=' + message.messageId + '\\n');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'MESSAGE_ID=' + message.messageId + '\\n');
+          NODE
+
+      - name: Resolve message branch by exact SHA
+        id: target
+        if: steps.message.outcome == 'success' && hashFiles('message.json') != ''
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main execution
+          MESSAGE_SHA="$(node -e "const x=require('./message.json'); process.stdout.write(x.entrySha)")"
+          MAIN_SHA="$(git rev-parse origin/main)"
+          EXECUTION_SHA="$(git rev-parse origin/execution)"
+          case "$MESSAGE_SHA" in
+            "$MAIN_SHA") TARGET_REF=main ;;
+            "$EXECUTION_SHA") TARGET_REF=execution ;;
+            *) TARGET_REF='' ;;
+          esac
+          if [ -z "$TARGET_REF" ]; then
+            echo "MESSAGE_TARGET_SHA_STALE=$MESSAGE_SHA"
+            echo 'status=STALE' >> "$GITHUB_OUTPUT"
+          else
+            git checkout --detach "origin/$TARGET_REF"
+            echo "target_ref=$TARGET_REF" >> "$GITHUB_OUTPUT"
+            echo "status=READY" >> "$GITHUB_OUTPUT"
+          fi
+          echo "message_sha=$MESSAGE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Check durable master-inbox idempotency
+        id: duplicate
+        if: steps.message.outcome == 'success' && hashFiles('message.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MESSAGE_ID: ${{ steps.message.outputs.MESSAGE_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RECEIPT="<!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->"
+          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+            echo 'duplicate=true' >> "$GITHUB_OUTPUT"
+            echo 'DUPLICATE_AGENT_MESSAGE=NO_OP'
+          else
+            echo 'duplicate=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ingest incoming message immediately
+        id: ingest
+        if: steps.target.outputs.status == 'READY' && steps.duplicate.outputs.duplicate != 'true' && hashFiles('message.json') != ''
+        run: |
+          set -euo pipefail
+          node scripts/ci/agent-communication.mjs validate --message-file=message.json
+          node scripts/ci/agent-communication.mjs ingest --message-file=message.json | tee /tmp/flixo-agent-message-receipt.json
+          jq -r '"MESSAGE_STATUS=" + .status + "\\nMESSAGE_ID=" + .messageId + "\\nMESSAGE_ENTRY_SHA=" + .entrySha + "\\nMESSAGE_IDEMPOTENCY_KEY=" + .idempotencyKey' /tmp/flixo-agent-message-receipt.json >> "$GITHUB_OUTPUT"
+
+      - name: Publish immediate receipt to master inbox
+        if: steps.ingest.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MESSAGE_ID: ${{ steps.ingest.outputs.MESSAGE_ID }}
+          MESSAGE_STATUS: ${{ steps.ingest.outputs.MESSAGE_STATUS }}
+          MESSAGE_SHA: ${{ steps.ingest.outputs.MESSAGE_ENTRY_SHA }}
+          MESSAGE_KEY: ${{ steps.ingest.outputs.MESSAGE_IDEMPOTENCY_KEY }}
+        run: |
+          set -euo pipefail
+          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### AGENT MESSAGE RECEIVED
+
+          **Message:** `$MESSAGE_ID`
+          **Status:** `$MESSAGE_STATUS`
+          **Entry SHA:** `$MESSAGE_SHA`
+          **Idempotency Key:** `$MESSAGE_KEY`
+          **Receipt:** `IMMEDIATE_EVENT_RECEIPT`
+          **Target ref:** `${{ steps.target.outputs.target_ref }}`
+
+          The message has entered the canonical agent communication inbox. No execution authority is granted by receipt; the target agent must read, revalidate the exact SHA, acquire coordination ownership, and only then execute.
+
+          <!-- FLIXO_AGENT_MESSAGE_RECEIPT:$MESSAGE_ID -->"
+
+      - name: Wake repair supervision for repair-class messages
+        if: >-
+          steps.ingest.outcome == 'success' &&
+          (
+            contains(toJSON(github.event.comment.body || ''), 'REPAIR') ||
+            contains(toJSON(github.event.comment.body || ''), 'FAILURE') ||
+            contains(toJSON(github.event.comment.body || ''), 'RED')
+          )
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo 'AGENT_MESSAGE_REPAIR_WAKE=DISPATCHED'
+
+      - name: Record stale-message evidence
+        if: steps.target.outputs.status == 'STALE'
+        run: |
+          set -euo pipefail
+          printf '%s\n' 'MESSAGE_STALE=FAIL_CLOSED' > /tmp/flixo-agent-message-stale.txt
+          printf '%s\n' "ENTRY_SHA=${{ steps.target.outputs.message_sha }}" >> /tmp/flixo-agent-message-stale.txt
+
+      - name: Preserve communication evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-agent-message-${{ github.run_id }}
+          path: |
+            message.json
+            /tmp/flixo-agent-message-receipt.json
+            /tmp/flixo-agent-message-skip
+            /tmp/flixo-agent-message-stale.txt
+          if-no-files-found: ignore
+          retention-days: 30

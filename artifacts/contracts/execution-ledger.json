@@ -1,0 +1,60 @@
+{
+  "contractVersion": "v5",
+  "executionState": "RECOVERING",
+  "currentPhase": "CANONICAL",
+  "phaseStatus": "BLOCKED",
+  "currentPr": 748,
+  "currentHead": "DYNAMIC: execution branch HEAD is authoritative in GitHub",
+  "latestVerifiedSha": null,
+  "latestVerifiedCi": "INVALIDATED: this security repair commit changes execution; a fresh exact-SHA cycle is required.",
+  "latestDeploymentSha": null,
+  "rootCauses": [
+    "RC-G4-ORACLE-001: resolved",
+    "RC-G1-SEO-001: resolved",
+    "RC-G3-LINT-001: resolved",
+    "RC-G3-TYPE-001: resolved",
+    "RC-G3-LEGACY-001: active scope documented by PR #542",
+    "RC-CI-G3-HANG-001: stale/superseded evidence, not current",
+    "RC-AUTO-REPAIR-BRANCH-DRIFT-001: executor/handoff referenced obsolete flixo-auto-repair/* protocol; corrected to execution → main.",
+    "RC-AUTO-REPAIR-MERGE-DRIFT-001: execution could not reconcile canonical main without conflicts; resolved by explicit two-parent merge commit and current execution rebinding.",
+    "RC-SECURITY-COPILOT-MODEL-001: GitHub-managed Code Scanning AI provider rejects requested model before source analysis; external infrastructure.",
+    "RC-DEPLOY-VERCEL-RATE-001: Vercel provider rejected deployment due rate limit; external provider blocker."
+  ],
+  "activeRecovery": "PR #748 execution → main is the active repair path. The exact execution head is authoritative from the GitHub branch/PR ref. Any new commit invalidates prior proof.",
+  "blockers": [
+    "PROVIDER: Vercel status on PR #745 execution head failed with 'Deployment rate limited — retry in 24 hours.'",
+    "SECURITY: GitHub Code Scanning AI failed before source analysis with CAPIError 400 'The requested model is not supported' for claude-opus-5[ReasoningEffort=medium].",
+    "EVIDENCE: Vercel project/deployment exact-SHA evidence is unavailable through the connected Vercel API (team visible; project list returned zero projects).",
+    "GOVERNANCE/EVIDENCE: GitHub branch-protection endpoint returns HTTP 403 for the installed integration; no repository rulesets are exposed."
+  ],
+  "completedItems": [
+    "Authoritative localized tool SEO resolver introduced for ms/uk",
+    "G4 runtime test moved to authoritative resolver oracle",
+    "Localization validator CLI argument forwarding repaired",
+    "ms/uk untranslated fallback made fail-closed",
+    "Reviewed ms/uk names added for all ready tools",
+    "G3 lint/type root causes recorded"
+  ],
+  "incompleteItems": [
+    "Fresh exact-SHA verification on the post-repair execution head",
+    "Current-execution WP0 Trust Baseline completion",
+    "Current-execution Repository Security Baseline completion",
+    "Current-execution canonical FLIXO Test System completion",
+    "Current-execution Auto Repair Merge Gate completion",
+    "Current-execution Vercel deployment proof or explicit external-blocked evidence",
+    "Final exact-SHA main verification after merge",
+    "Fresh recurrence proof",
+    "Final independent audit"
+  ],
+  "invalidatedCheckpoints": [
+    "All verification tied to SHAs older than 30d94ea716b095ac455ae3691e54c5328150c406",
+    "All verification tied to SHAs older than current active recovery head 513fe81f7eee6f5a41cf935d32d336370f613b18 is stale for this repair cycle."
+  ],
+  "reusedCheckpoints": [],
+  "lastFailure": "Pre-repair execution head 49c3699555af41464e15745f45708bb20a7cc0fe failed WP0 Trust Baseline and Repository Security Baseline because security-critical workflows referenced a 39-character actions/upload-artifact SHA.",
+  "lastFix": "Repaired the shortened upload-artifact SHA in the security-critical workflows, separated the duplicated executor validation step, and synchronized live-state records with main 75a6780 and PR #748.",
+  "lastVerification": "Execution predecessor 513fe passed Static+Build, CodeQL, Repository Security Baseline, WP0, Test Impact and Claude review; proof invalidated by later documentation/ledger commits. Main cf257 had no observed completed failures in FLIXO Test System at last poll but final run remained in progress.",
+  "nextRequiredAction": "Run the full required verification suite on the new execution head; resolve only remaining source/CI blockers, keep external provider failures explicitly blocked, then merge only after exact-SHA GREEN.",
+  "executionAttempt": 4,
+  "updatedAt": "2026-09-19T03:30:24.267Z"
+}

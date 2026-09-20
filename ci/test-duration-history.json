@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "shardBudget": {"default": 6, "maximum": 18, "reserve": 2},
+  "tests": {
+    "image-compressor": {"weight": 1}, "background-remover": {"weight": 1}, "image-upscaler": {"weight": 2}, "image-converter": {"weight": 1}, "ai-image-generator": {"weight": 2}, "object-remover": {"weight": 1}, "watermark-remover": {"weight": 1}, "image-cropper": {"weight": 1}, "image-to-svg": {"weight": 1}, "image-ocr": {"weight": 2}, "photo-colorizer": {"weight": 2}, "background-blur": {"weight": 1}, "passport-photo-maker": {"weight": 1}, "watermark-adder": {"weight": 1}, "meme-generator": {"weight": 1}, "collage-maker": {"weight": 1}, "image-effects": {"weight": 1}, "exif-cleaner": {"weight": 1}, "svg-optimizer": {"weight": 1}, "mockup-generator": {"weight": 2}, "seed": {"weight": 2}, "pix": {"weight": 2}, "localization": {"weight": 1}
+  }
+}

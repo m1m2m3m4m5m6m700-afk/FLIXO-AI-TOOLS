@@ -1,0 +1,50 @@
+{
+  "schema": "flixo-g4-root-cause/v1",
+  "rootCauseId": "RC-SEED-ZOOM-READINESS-001",
+  "classification": "TEST_SYNCHRONIZATION",
+  "status": "RECOVERING",
+  "contract": "G4",
+  "scope": {
+    "route": "/en/seed",
+    "browser": "firefox",
+    "mode": "FAST",
+    "test": "SeedTool Real WebGL Engine & Overlay Integration > applies 0.25x zoom steps and resets to 1x on the actual canvas stage",
+    "sha": "2c1508163bb0143e5186a1d521ee126cd5ae7d76",
+    "runId": "34309024881"
+  },
+  "trigger": "The test selected an image and immediately clicked the Zoom In control before observing the real Seed canvas become visible.",
+  "propagationPath": "file input -> Image.onload -> setImage/setZoomLevel(1) -> React commit -> canvas becomes visible; the test clicked Zoom In before that readiness boundary was observed, allowing the asynchronous image-load reset to race with the user action in Firefox.",
+  "violatedInvariant": "Browser interaction assertions must begin only after the UI state they exercise has crossed its observable readiness boundary; fixed delays and timing assumptions are not valid synchronization.",
+  "responsibleSource": [
+    "tests/seed.spec.ts readiness sequencing",
+    "src/tools/seed/index.tsx image loading/reset sequencing"
+  ],
+  "observableSymptom": "Firefox remained at 100% after the Zoom In click and timed out waiting for 125%; Chromium and WebKit passed the same assertion.",
+  "evidence": {
+    "runAttempt": "34309024881 attempt 1",
+    "failure": "Expected 125%, received 100% for 10 seconds",
+    "runtimeState": "failed",
+    "consoleErrors": [],
+    "pageErrors": [],
+    "requestFailures": [],
+    "reproductionBoundary": "The test already had an established canvas readiness helper in loadSeed(); the failing overlay test bypassed that boundary."
+  },
+  "repair": {
+    "mechanism": "Await the actual Seed canvas visibility immediately after setting the file input and before interacting with or asserting the zoom overlay.",
+    "forbiddenApproachesNotUsed": [
+      "fixed sleep",
+      "retry",
+      "weakened assertion",
+      "browser-specific skip",
+      "allowlist"
+    ],
+    "regression": "The existing 0.25x zoom sequence remains unchanged and now starts after the real canvas readiness boundary."
+  },
+  "verificationPlan": [
+    "Static + Build",
+    "Browser FAST Chromium/Firefox/WebKit",
+    "Browser DEEP Chromium/Firefox/WebKit",
+    "Certification on the exact resulting main SHA"
+  ],
+  "timestamp": "2026-09-09T04:00:00Z"
+}

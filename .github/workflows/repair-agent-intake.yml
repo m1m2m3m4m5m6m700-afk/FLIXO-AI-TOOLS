@@ -1,0 +1,146 @@
+name: FLIXO Repair Agent — Error Intake Gateway
+run-name: FLIXO Repair Agent Intake ${{ github.event.workflow_run.id || github.run_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Workflow run ID to ingest'
+        required: true
+        type: string
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_run:
+    workflows:
+      - FLIXO Test System
+      - FLIXO WP0 Trust Baseline
+      - FLIXO Test Impact
+      - FLIXO Test Impact Execution
+      - FLIXO Continuous Delivery
+      - Repository Security Baseline
+      - Claude Security Review
+      - Daily·FLIXO Green Gate
+      - FLIXO Auto Repair Bot
+      - FLIXO Auto Repair Chain
+      - FLIXO Auto Repair Merge Gate
+      - FLIXO Agent Repair Supervisor
+      - FLIXO Agent Repair Heartbeat
+      - FLIXO Master Agent Activation Relay
+      - FLIXO Agent Communication Relay
+      - FLIXO Agent Repair Handoff Gate
+      - Agent Recovery Gate
+      - Admin 006 Persistence Roundtrip
+      - Bundle Boundary Contract
+      - CI SLO Report
+      - Dependency Health
+      - Dependency Usage Classification v2
+      - Deploy FLIXOAI
+      - Error Memory Root Cause
+      - Execution Bot Watchdog
+      - Execution Sync
+      - Phase3 Chain Compatibility
+      - Repair Lease Live Race
+      - Root Cause Diagnostics
+      - SEO Production Certification
+      - Test Matrix Contract
+      - Code Read-Only Scout
+    types: [completed]
+    branches: [execution, main]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+concurrency:
+  group: flixo-repair-agent-intake-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  intake:
+    name: Capture every CI error and route to Agent Council
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted intake gateway
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve completed workflow run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_RUN_ID: ${{ inputs.run_id || '' }}
+          EVENT_RUN_ID: ${{ github.event.workflow_run.id || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID="$EVENT_RUN_ID"
+          if [ -n "$INPUT_RUN_ID" ]; then RUN_ID="$INPUT_RUN_ID"; fi
+          test -n "$RUN_ID"
+          META="$(gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,name,conclusion,headSha,headBranch,status,updatedAt)"
+          CONCLUSION="$(jq -r '.conclusion // empty' <<<"$META")"
+          case "$CONCLUSION" in
+            failure|timed_out|cancelled|action_required) ;;
+            *) echo "No actionable error: conclusion=$CONCLUSION"; exit 0 ;;
+          esac
+          FAILED_SHA="$(jq -r '.headSha' <<<"$META")"
+          WORKFLOW="$(jq -r '.name' <<<"$META")"
+          BRANCH="$(jq -r '.headBranch' <<<"$META")"
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
+          printf '%s\n' "$RUN_ID" >/tmp/run-id
+          printf '%s\n' "$FAILED_SHA" >/tmp/failed-sha
+          printf '%s\n' "$WORKFLOW" >/tmp/workflow
+          printf '%s\n' "$BRANCH" >/tmp/branch
+          printf '%s\n' "$CONCLUSION" >/tmp/conclusion
+          printf '%s\n' "$CURRENT_SHA" >/tmp/current-sha
+
+      - name: Capture logs once at the gateway
+        if: hashFiles('/tmp/run-id') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -u
+          mkdir -p /tmp/repair-agent-intake
+          RUN_ID="$(cat /tmp/run-id)"
+          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > /tmp/repair-agent-intake/failure.log 2>&1 || true
+          test -s /tmp/repair-agent-intake/failure.log || printf 'LOG_CAPTURE_EMPTY run=%s\n' "$RUN_ID" > /tmp/repair-agent-intake/failure.log
+
+      - name: Build canonical Repair Agent incident
+        if: hashFiles('/tmp/run-id') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-agent-intake.mjs             --run-id="$(cat /tmp/run-id)"             --workflow="$(cat /tmp/workflow)"             --conclusion="$(cat /tmp/conclusion)"             --failed-sha="$(cat /tmp/failed-sha)"             --branch="$(cat /tmp/branch)"             --current-sha="$(cat /tmp/current-sha)"             --log=/tmp/repair-agent-intake/failure.log             --evidence=/tmp/repair-agent-intake/incident.json > /tmp/repair-agent-intake/output.json
+          jq -e '.message.recipient == "ALL_AGENTS"' /tmp/repair-agent-intake/output.json >/dev/null
+          jq -e '.incident.failureFingerprint != null' /tmp/repair-agent-intake/output.json >/dev/null
+
+      - name: Deliver incident once to Agent Council
+        if: hashFiles('/tmp/run-id') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          INCIDENT_ID="$(jq -r '.incident.incidentId' /tmp/repair-agent-intake/output.json)"
+          RECEIPT="<!-- repair-agent-incident:$INCIDENT_ID -->"
+          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$RECEIPT"; then
+            echo "REPAIR_AGENT_INTAKE_DUPLICATE=NO_OP"
+            exit 0
+          fi
+          jq -r '.issueComment' /tmp/repair-agent-intake/output.json > /tmp/repair-agent-intake/comment.md
+          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body-file /tmp/repair-agent-intake/comment.md
+          echo 'REPAIR_AGENT_ERROR_DELIVERED_TO_COUNCIL=true'
+          echo 'OTHER_AGENTS_LOG_POLLING_REQUIRED=false'
+
+      - name: Preserve central intake evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-repair-agent-incident-${{ github.run_id }}
+          path: /tmp/repair-agent-intake
+          if-no-files-found: ignore
+          retention-days: 30

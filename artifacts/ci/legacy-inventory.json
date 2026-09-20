@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "phase": "CI-0",
+  "repository": "m1m2m3m4m5m6m700-afk/FLIXO-AI-TOOLS",
+  "baselineSha": "f8c99b41d0e66b3bf958bcf24ad5499b7722b2db",
+  "authorityRule": "Legacy CI remains authoritative until contract-level parity is proven.",
+  "entries": [
+    {"id":"wf-bundle-boundary-contract","kind":"workflow","path":".github/workflows/bundle-boundary-contract.yml","authority":true,"purpose":"Bundle boundary contract","dependencies":[],"consumers":[],"migrationStatus":"NOT_STARTED"},
+    {"id":"wf-ci-fast","kind":"workflow","path":".github/workflows/ci-fast.yml","authority":false,"purpose":"Manual fast incremental diagnostic path","dependencies":["scripts/ci/fast-verify.mjs"],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-ci-slo-report","kind":"workflow","path":".github/workflows/ci-slo-report.yml","authority":false,"purpose":"CI SLO reporting","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-ci","kind":"workflow","path":".github/workflows/ci.yml","authority":true,"purpose":"Current canonical PR/main CI path","dependencies":["scripts/ci/fast-verify.mjs"],"consumers":["Canonical Verification Gate"],"migrationStatus":"MAPPED"},
+    {"id":"wf-claude-security-review","kind":"workflow","path":".github/workflows/claude-security-review.yml","authority":false,"purpose":"Security review automation","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-dependency-health","kind":"workflow","path":".github/workflows/dependency-health.yml","authority":false,"purpose":"Dependency health inventory","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-dependency-usage-classification-v2","kind":"workflow","path":".github/workflows/dependency-usage-classification-v2.yml","authority":false,"purpose":"Dependency usage classification","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-g1-platform-contract","kind":"workflow","path":".github/workflows/g1-platform-contract.yml","authority":true,"purpose":"G1 platform contract","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-g2-file-safety","kind":"workflow","path":".github/workflows/g2-file-safety.yml","authority":true,"purpose":"G2 file safety","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-g3-artifact-integrity","kind":"workflow","path":".github/workflows/g3-artifact-integrity.yml","authority":true,"purpose":"G3 artifact integrity","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-g4-ui-supplement-contract","kind":"workflow","path":".github/workflows/g4-ui-supplement-contract.yml","authority":true,"purpose":"G4 UI supplementary contract","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-localization-20","kind":"workflow","path":".github/workflows/localization-20.yml","authority":true,"purpose":"20-locale localization validation","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-parallel-diagnostics","kind":"workflow","path":".github/workflows/parallel-diagnostics.yml","authority":false,"purpose":"Parallel diagnostics","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-phase-b-evidence","kind":"workflow","path":".github/workflows/phase-b-evidence.yml","authority":false,"purpose":"Legacy evidence phase","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-phase-c-failure-classifier","kind":"workflow","path":".github/workflows/phase-c-failure-classifier.yml","authority":false,"purpose":"Legacy failure classifier phase","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-phase1-foundation","kind":"workflow","path":".github/workflows/phase1-foundation.yml","authority":false,"purpose":"Legacy foundation phase","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-phase3-chain-compatibility","kind":"workflow","path":".github/workflows/phase3-chain-compatibility.yml","authority":false,"purpose":"Legacy chain compatibility checks","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-phase3-tool-adapters","kind":"workflow","path":".github/workflows/phase3-tool-adapters.yml","authority":false,"purpose":"Legacy tool adapter checks","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-release-certification","kind":"workflow","path":".github/workflows/release-certification.yml","authority":true,"purpose":"Release certification","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-root-cause-diagnostics","kind":"workflow","path":".github/workflows/root-cause-diagnostics.yml","authority":false,"purpose":"Legacy root-cause diagnostics","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-s4-runtime-e2e","kind":"workflow","path":".github/workflows/s4-runtime-e2e.yml","authority":true,"purpose":"Runtime E2E","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"},
+    {"id":"wf-seo-production-certification","kind":"workflow","path":".github/workflows/seo-production-certification.yml","authority":true,"purpose":"Production SEO certification","dependencies":[],"consumers":[],"migrationStatus":"MAPPED"}
+  ],
+  "knownRisks": [
+    "Current CI has overlapping workflow responsibilities.",
+    "Current ci.yml and ci-fast.yml both invoke fast-verify, creating duplicated orchestration concepts.",
+    "Current ci.yml contains a production-origin value that must not become the new CI production-origin authority.",
+    "Current package.json contains broad composite verification commands that must not become the atomic CI engine.",
+    "Branch protection details are not readable through the current GitHub integration; no protection mutation is permitted in CI-0."
+  ]
+}
