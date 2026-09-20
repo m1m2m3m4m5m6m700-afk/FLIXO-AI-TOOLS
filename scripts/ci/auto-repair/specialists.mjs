@@ -1,5 +1,9 @@
 const specialists = Object.freeze({
   lint: { id: 'eslint-specialist', confidence: 92, safe: true },
+  'noncanonical-automation': { id: 'control-plane-specialist', confidence: 96, safe: false },
+  'liveness-contract': { id: 'control-plane-specialist', confidence: 94, safe: false },
+  'contract-drift': { id: 'contract-specialist', confidence: 92, safe: false },
+  'typescript-async-contract': { id: 'typescript-specialist', confidence: 95, safe: true },
   typescript: { id: 'typescript-specialist', confidence: 86, safe: false },
   playwright: { id: 'playwright-specialist', confidence: 72, safe: false },
   webkit: { id: 'webkit-specialist', confidence: 70, safe: false },
