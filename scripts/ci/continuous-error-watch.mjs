@@ -155,7 +155,6 @@ export function evaluateGreen({
   workflowRuns = [],
   checkRuns = [],
   logs = {},
-  statuses = [],
   compare = {},
 } = {}) {
   const report = {
