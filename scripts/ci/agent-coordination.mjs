@@ -31,7 +31,6 @@ for (let i = 2; i < process.argv.length; i += 1) {
 const command = String(process.argv[2] ?? '').toLowerCase();
 const gitBranch = () => execFileSync('git', ['branch', '--show-current'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const GOVERNANCE_FILES = ['AGENTS.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/PROTOCOL-HIERARCHY.md', 'docs/PROTOCOL-REGISTRY.json', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json'];
-const STALE_SESSION_KILL_SWITCH = 'STALE_SESSION_KILL_SWITCH';
 const governanceFingerprint = () => createHash('sha256').update(GOVERNANCE_FILES.map((file) => `${file}:${createHash('sha256').update(fs.readFileSync(path.resolve(ROOT, file), 'utf8'), 'utf8').digest('hex')}`).join('|'), 'utf8').digest('hex');
 const assertMutationTopology = () => { if (MUTATING_COMMANDS.has(command) && gitBranch() !== 'execution') throw new Error('COORDINATION_MUTATION_BRANCH_BLOCKED'); };
 
@@ -52,10 +51,14 @@ const sleepSync = (ms) => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)
 const pidAlive = (pid) => { try { process.kill(pid, 0); return true; } catch (error) { return error?.code !== 'ESRCH'; } };
 const removeStaleWriteLock = () => {
   if (!fs.existsSync(WRITE_LOCK_DIR)) return false;
-  let owner = null;
-  try { owner = JSON.parse(fs.readFileSync(WRITE_LOCK_OWNER, 'utf8')); } catch { owner = null; }
-  let age = 0;
-  try { age = Date.now() - Number(owner?.createdAtMs ?? fs.statSync(WRITE_LOCK_DIR).mtimeMs); } catch { return false; }
+  const owner = (() => {
+    try { return JSON.parse(fs.readFileSync(WRITE_LOCK_OWNER, 'utf8')); }
+    catch { return null; }
+  })();
+  const age = (() => {
+    try { return Date.now() - Number(owner?.createdAtMs ?? fs.statSync(WRITE_LOCK_DIR).mtimeMs); }
+    catch { return 0; }
+  })();
   const sameHostAlive = owner?.hostname === os.hostname() && Number.isInteger(owner?.pid) && pidAlive(owner.pid);
   if (sameHostAlive || age < WRITE_LOCK_STALE_MS) return false;
   fs.rmSync(WRITE_LOCK_DIR, { recursive: true, force: true });
@@ -76,7 +79,7 @@ const acquireWriteLock = () => {
   }
   throw new Error('COORDINATION_WRITE_LOCK_TIMEOUT');
 };
-const releaseWriteLock = () => { try { fs.rmSync(WRITE_LOCK_DIR, { recursive: true, force: true }); } catch {} };
+const releaseWriteLock = () => { try { fs.rmSync(WRITE_LOCK_DIR, { recursive: true, force: true }); } catch { return false; } };
 const storageKey = (value) => createHash('sha256').update(value).digest('hex');
 const visibilityPath = (sessionId) => path.join(VISIBILITY_DIR, `${storageKey(sessionId)}.json`);
 const packetPath = (taskId) => path.join(PACKET_DIR, `${storageKey(taskId)}.json`);
