@@ -29,7 +29,7 @@ const verifier={
   cognitiveAwareness:{protocol:'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1',systemWide:true,targetSha:sha,failureFingerprint:fp},
   primaryCorrectnessProof:{objective:'PROVE_PRIMARY_REPAIR_CORRECT',status:'PRIMARY_CORRECTNESS_PROVEN'},
   falsificationComplete:true,counterexampleFound:false,mutationRecommendation:'ALLOW_AFTER_FALSIFICATION_NO_COUNTEREXAMPLE',
-  remainingRisks:['canonical-green'],proofCompleteness:completeness,
+  remainingRisks:[],proofCompleteness:completeness,
   preMutationProof:{status:'PROVEN',targetSha:sha,failureFingerprint:fp},
 };
 const base={
