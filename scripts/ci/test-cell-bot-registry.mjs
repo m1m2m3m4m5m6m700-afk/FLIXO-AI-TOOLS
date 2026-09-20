@@ -25,4 +25,10 @@ assert(actionReader.upgradeTarget.upgradePriority>=1&&actionReader.upgradeTarget
 assert.equal(actionReader.lifecycle.rawStateForbidden,true);
 console.log('CELL_ACTION_ERROR_READER=PASS');
 console.log('CELL_RAW_TERMINAL_STATES=FORBIDDEN');
+assert.equal(registry.taskExecutionModel.selection,'LEARNED_CAPABILITY_MATCH_THEN_GENERAL_EXECUTOR');
+assert.equal(registry.taskExecutionModel.universalTaskRule.includes('Any bot may receive any admitted project task'),true);
+assert(registry.bots.every((bot)=>bot.capabilityMode==='SPECIALIZED_PLUS_GENERAL'));
+assert(registry.bots.every((bot)=>bot.reassignmentPolicy==='ANY_ADMITTED_TASK'));
+assert.deepEqual(actionReader.learnedCapabilities,['ACTERR']);
+assert.equal(actionReader.returnPolicy,'RETURN_TO_POOL_WITH_KNOWLEDGE');
 
