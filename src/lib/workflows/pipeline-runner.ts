@@ -1,4 +1,5 @@
 import type { ExecutionPlan } from '@/lib/ai/planner';
+import { assertExecutionAllowed, type TaskContext } from '@/lib/agent/task-state';
 import { assertExecutionResourceBudget, getCapability, validateCapabilityParameters, type CapabilityParameters } from '@/lib/agent/capability-registry';
 import { getToolById, TOOL_CATALOG } from '@/config/registry';
 import { getToolExecutor, repairToolParameters } from '@/lib/workflows/executor-registry';
@@ -53,12 +54,13 @@ export async function verifyPipelineOutput(toolId: string, inputBlob: Blob, outp
   }
 }
 
-export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan, onProgress: (progress: PipelineProgress) => void): Promise<Blob> {
+export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan, task: TaskContext, onProgress: (progress: PipelineProgress) => void): Promise<Blob> {
+  assertExecutionAllowed(task);
   if (plan.catalogFingerprint !== TOOL_CATALOG.fingerprint) throw new Error('Execution plan is stale because the canonical tool catalog changed.');
   if (plan.steps.length === 0 || plan.steps.length > 4) throw new Error('FLIXO plans must contain 1 to 4 steps.');
   let currentBlob: Blob = initialFile;
   const planFingerprint = await createPipelinePlanFingerprint(plan);
-  let receiptChain = createPipelineReceiptChain(TOOL_CATALOG.fingerprint, planFingerprint);
+  let receiptChain = createPipelineReceiptChain(TOOL_CATALOG.fingerprint, planFingerprint, task.taskId, task.traceId, task.revision);
 
   for (let i = 0; i < plan.steps.length; i += 1) {
     const step = plan.steps[i];
