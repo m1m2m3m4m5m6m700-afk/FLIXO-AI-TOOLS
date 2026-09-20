@@ -16,8 +16,8 @@ Before producing or using a repair instruction:
 ## ROUTING RULE
 The router is the retrieval path. Do not scan the full corpus by default. If routing is ambiguous or unmapped, fail closed and acquire stronger failure evidence.
 
-## 1000-RULE TEACHING CONTRACT
-The 1000-rule teaching set (`ERROR-TEACHING-500.md` + `ERROR-TEACHING-ADDITIONAL-500.md`) is training guidance, not authority.
+## 5000-RULE TEACHING CONTRACT
+The 5000-rule teaching set (the base chapters plus the four expanded 1000-rule chapters) is training guidance, not authority.
 - Match the failure to one or more error classes before selecting a repair strategy.
 - Use the corpus to improve diagnosis, falsification, targeted regression, SHA handling, and learning.
 - Never treat a teaching rule as proof; current exact-SHA evidence outranks historical teaching.
