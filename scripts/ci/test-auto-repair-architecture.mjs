@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { INTRACTABLE_THRESHOLD, MEMORY_VERSION, fingerprintFailure, normalizeFailure, rankLessons } from './auto-repair-learning.mjs';
+import { INTRACTABLE_THRESHOLD, MEMORY_VERSION, fingerprintFailure, normalizeFailure, rankLessons, hydrateActionHistory } from './auto-repair-learning.mjs';
 import { planRepair } from './auto-repair/planner.mjs';
 import { isPathAllowed, isProtectedPath, repairPolicy } from './auto-repair-policy.mjs';
 import { confidenceGate } from './auto-repair/confidence.mjs';
@@ -92,6 +92,10 @@ assert.equal(repairPolicy.maxChangedFiles, 8);
 assert.equal(repairPolicy.maxChangedLines, 300);
 assert.equal(repairPolicy.maxAttemptsPerFingerprint, 3);
 assert.equal(MEMORY_VERSION, 10);
+assert.equal(typeof hydrateActionHistory, 'function');
+assert.match(fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8'), /rejectedStrategies/);
+assert.match(fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8'), /doNotRepeat/);
+assert.match(fs.readFileSync('scripts/ci/auto-repair-learning.mjs', 'utf8'), /hydrateActionHistory/);
 assert.match(fs.readFileSync('scripts/ci/auto-repair/reasoning.mjs', 'utf8'), /ONLY_FRESH_EXACT_SHA_SCOUT_EVIDENCE_IS_ACTIONABLE/);
 assert.equal(INTRACTABLE_THRESHOLD, 3);
 assert.equal(planRepair('webkit waitForGpuRender timeout').selected, null);
