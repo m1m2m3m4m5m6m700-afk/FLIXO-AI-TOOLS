@@ -42,6 +42,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Checkout exact watchdog source SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify exact watchdog checkout
+        env:
+          EXPECTED_WATCHDOG_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          ACTUAL_WATCHDOG_SHA="$(git rev-parse HEAD)"
+          test "$EXPECTED_WATCHDOG_SHA" = "$ACTUAL_WATCHDOG_SHA"
       - name: Check source SHA freshness
         if: github.event_name == 'workflow_run'
         env:
