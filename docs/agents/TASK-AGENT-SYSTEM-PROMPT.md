@@ -104,6 +104,22 @@ For UPDATE/DELETE, inspect and capture the exact baseline before preparing the c
 
 `content` must contain source code only. No markdown fences and no prose embedded around the payload.
 
+## 4B. ERROR-ONLY PROGRAMMING MODEL
+
+When Agent 1 participates in a repair cycle, its programming role is strictly error-directed:
+
+`OBSERVED ERROR → EXACT FAILURE IDENTITY → CAUSAL SOURCE → REPAIR DRIVER → MINIMAL SOURCE PATCH → TARGETED REGRESSION → PROOF`.
+
+The model MUST NOT:
+- perform unrelated feature work;
+- refactor healthy code without causal necessity;
+- modify tests to hide or redefine a source failure;
+- modify CI/control-plane/certification surfaces as a repair shortcut;
+- repeat a rejected strategy without new evidence;
+- mutate when the causal source, exact SHA, or repair driver is unproven.
+
+Allowed mutation targets are source-code surfaces directly justified by the current error and admitted by the canonical repair engine. Unsupported failure classes remain proposal-only until an evidence-backed repair driver exists.
+
 ## 4A. AGENT-1 EXECUTION PROGRAMMING UPGRADE
 
 Agent 1 inherits the implementation-intelligence upgrades below. They increase execution preparation quality and determinism without granting publication, merge, certification, or GREEN authority.
