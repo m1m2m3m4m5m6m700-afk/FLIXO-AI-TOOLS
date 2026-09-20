@@ -104,6 +104,51 @@ For UPDATE/DELETE, inspect and capture the exact baseline before preparing the c
 
 `content` must contain source code only. No markdown fences and no prose embedded around the payload.
 
+## 4A. AGENT-1 EXECUTION PROGRAMMING UPGRADE
+
+Agent 1 inherits the implementation-intelligence upgrades below. They increase execution preparation quality and determinism without granting publication, merge, certification, or GREEN authority.
+
+### Capability control plane
+- Use `src/config/canonical-tool-definition.ts` as the canonical source and `src/lib/agent/capability-registry.ts` as the execution-facing derived registry.
+- Enforce `RECOGNIZED → PLANNABLE → EXECUTABLE → UNAVAILABLE`; fail closed unless the requested capability is `EXECUTABLE`.
+- Derive intent matching, parameter validation, execution mode, safety limits, and output verification from the canonical definition. Never create a parallel capability registry.
+- Preserve executable-parity/drift checks and resource/file-size limits.
+
+### Structured planning and parameter extraction
+- Use `Free Text → Parameter Extraction → Semantic Validation → ExecutionPlan` before execution.
+- Preserve typed `operations[]`, Arabic/English normalization, format, dimensions, aspect ratio, brightness, compression target, and other parameters already defined by canonical schemas.
+- Require explicit missing information instead of guessing when a parameter materially changes the requested result.
+- Preserve the bounded QuickFlow limit and duplicate-operation protection.
+
+### Execution verification and bounded recovery
+- Validate every executable step against the capability registry before handoff.
+- A successful tool invocation is not proof of task success; require the registered output verifier.
+- Where the existing execution contract permits recovery, use bounded retry → verification → replan, never an unbounded loop.
+- Preserve stable-input recovery and the verification-error contract.
+- Never make a failed verification pass by changing expected values, skipping checks, or weakening a gate.
+
+### Session / claim / SHA integrity
+- Preserve `Session ↔ Claim ↔ Branch ↔ SHA` integrity.
+- Before handoff, verify the session/claim is current, branch is `execution`, target SHA is exact, lease is valid, and scope does not collide with another active claim.
+- Cross-branch/cross-PR collisions on mutable scope, contract, or root-cause identity are fail-closed.
+- Stale SHA, stale lease, missing claim, or ownership collision requires redispatch/recovery, not silent continuation.
+
+### Signed planning and evidence integrity
+- When a matrix/plan artifact is used, bind it to `source_sha` and `plan_hash`; preserve HMAC/signature checks where required by the existing contract.
+- Verification/certification consumers must validate raw evidence, declared SHA, suites, counts, skipped/unexpected/flaky state, and provenance rather than trusting summaries.
+- Historical evidence is learning input only and never substitutes for fresh exact-SHA proof.
+
+### Learning from execution history
+- Treat prior repair/implementation patterns as hypotheses until current evidence verifies them.
+- Record successful and failed outcomes with failure fingerprint, RCA, exact SHA, changed scope, regression result, and provenance.
+- Success produces a Lesson Candidate; failure produces an Anti-Lesson Candidate; verified revert produces a Strategy Rejection Signal.
+- Correlate repeated symptoms to one causal root when evidence supports it; do not create duplicate repairs for the same root cause.
+
+### Dynamic multi-step and state continuity
+- Permit multi-step planning only through the existing bounded planner/QuickFlow contract.
+- Carry task/trace/session identity through plan and handoff so later steps use verified state without bypassing registry or verifier.
+- An optional AI planner may refine intent, but deterministic registry validation remains authoritative and deterministic fallback remains available.
+
 ## 5. CONTINUOUS VERIFICATION
 
 Verify incrementally while preparing the task.
