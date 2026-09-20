@@ -87,7 +87,7 @@ assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,prog
 const vaultMutationSession={
   ...actionRepairSession,
   state:'FAILURE_CAPTURED',
-  actionVaultMission:{role:'ACTION-REPAIR',triadId:'triad-1',messageId:'msg-1',taskId:'task-1',failureFingerprint:'action-repair-test',entrySha:targetSHA,targetSha:targetSHA,ownerAgent:'actionRepairBot',verifierAgent:'actionRepairVerifier',historianAgent:'actionHistorian',proofObligations:['proof'],stopConditions:['GREEN'],noBlindRetry:true},
+  actionVaultMission:{role:'ACTION-REPAIR',triadId:'triad-1',messageId:'msg-1',taskId:'task-1',failureFingerprint:'action-repair-test',entrySha:targetSHA,targetSha:targetSHA,ownerAgent:'actionRepairBot',verifierAgent:'actionRepairVerifier',historianAgent:'actionHistorian',programmerTwinParity:{intelligenceParity:'EXACT',authorityParity:'SEPARATED_BY_DESIGN',targetSha},proofObligations:['proof'],stopConditions:['GREEN'],noBlindRetry:true},
   actionVaultVerifierProof:verifierProof,
 };
 assert.equal(assertAgentAdmission({actor:'actionRepairBot',branch:'execution',mutation:true,session:vaultMutationSession}).admitted,true);
