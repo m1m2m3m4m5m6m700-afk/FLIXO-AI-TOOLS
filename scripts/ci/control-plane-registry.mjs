@@ -11,6 +11,7 @@ export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
   'daily-flixo-green-gate.yml',
   'execution-sync.yml',
   'repair-lease-live-race.yml',
+  'historical-action-error-index.yml',
 ]);
 
 export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
