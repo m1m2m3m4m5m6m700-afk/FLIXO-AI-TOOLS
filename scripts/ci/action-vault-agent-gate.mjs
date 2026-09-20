@@ -10,9 +10,9 @@ export const EXPECTED_BOTS = Object.freeze([
 ]);
 
 const ROLE_BY_BOT = Object.freeze({
-  'ACTION-REPAIR': 'PRIMARY_REPAIR_OWNER',
-  'ACTION-REPAIR-2': 'SECONDARY_REPAIR_OWNER',
-  'ACTION-HISTORIAN-3': 'HISTORIAN_AND_SOLUTION_INDEXER',
+  'ACTION-REPAIR': 'PRIMARY_PROGRAMMING_REPAIR_OWNER',
+  'ACTION-REPAIR-2': 'HISTORICAL_INDEX_EXPLORER_AND_PREDICTOR',
+  'ACTION-HISTORIAN-3': 'FAILURE_LEDGER_AND_LEARNING_RECORDER',
 });
 
 const ROOT = process.cwd();
@@ -45,23 +45,22 @@ export function validateBotProfile(profile) {
 
 export function validateThreeBotIntelligence(profile, bots) {
   const errors = [];
-  if (profile?.schemaVersion !== 3) err(errors, 'INTELLIGENCE_SCHEMA_INVALID');
-  if (profile?.parity?.cognitiveCapabilitiesEqual !== true ||
-      profile?.parity?.knowledgeSourcesEqual !== true ||
-      profile?.parity?.reasoningModesEqual !== true ||
-      profile?.parity?.searchAccessEqual !== true ||
-      profile?.parity?.learningAccessEqual !== true ||
-      profile?.parity?.explorationAccessEqual !== true ||
-      profile?.parity?.challengeAccessEqual !== true ||
-      profile?.parity?.taskAssignmentAwarenessEqual !== true ||
-      profile?.parity?.resultInterpretationEqual !== true ||
-      profile?.parity?.rcaCapabilityEqual !== true ||
-      profile?.parity?.inferenceFallbackEqual !== true) {
-    err(errors, 'CAPABILITY_PARITY_INVALID');
+  if (profile?.schemaVersion !== 4) err(errors, 'INTELLIGENCE_SCHEMA_INVALID');
+  if (profile?.parity?.model !== 'ROLE_SPECIALIZATION_WITH_SHARED_SAFETY' ||
+      profile?.parity?.commonSafetyEqual !== true ||
+      profile?.parity?.commonIdentityBindingEqual !== true ||
+      profile?.parity?.roleCapabilitiesEqual !== false) {
+    err(errors, 'ROLE_SPECIALIZATION_CONTRACT_INVALID');
   }
+  const matrix = profile?.roleMatrix ?? {};
+  if (matrix['ACTION-REPAIR']?.mission !== 'THINK_AS_PROGRAMMER_AND_APPLY_BOUNDED_SOURCE_REPAIR') err(errors, 'PROGRAMMER_ROLE_MISSION_INVALID');
+  if (matrix['ACTION-REPAIR-2']?.mission !== 'SEARCH_HISTORICAL_INDEX_AND_ACTION_REPAIR_CATALOG_THEN_PREDICT_A_CANDIDATE_SOLUTION') err(errors, 'PREDICTOR_ROLE_MISSION_INVALID');
+  if (matrix['ACTION-HISTORIAN-3']?.mission !== 'RECORD_EVERY_FAILURE_ATTEMPT_HANDOFF_AND_VERIFIED_OUTCOME_FOR_LIFELONG_REPAIR_MEMORY') err(errors, 'HISTORIAN_ROLE_MISSION_INVALID');
   if (profile?.cooperation?.enabled !== true) err(errors, 'COOPERATION_DISABLED');
   if (JSON.stringify(profile?.cooperation?.participants ?? []) !== JSON.stringify(EXPECTED_BOTS)) err(errors, 'PARTICIPANT_SET_INVALID');
-  if (profile?.cooperation?.authority?.taskOwnership !== 'single_active_repair_owner') err(errors, 'SINGLE_OWNER_POLICY_MISSING');
+  if (profile?.cooperation?.authority?.taskOwnership !== 'single_active_programming_owner') err(errors, 'SINGLE_OWNER_POLICY_MISSING');
+  if (profile?.cooperation?.authority?.repairOwner !== 'ACTION-REPAIR') err(errors, 'PROGRAMMER_OWNER_INVALID');
+  if (profile?.cooperation?.authority?.predictionOwner !== 'ACTION-REPAIR-2') err(errors, 'PREDICTOR_OWNER_INVALID');
   if (profile?.cooperation?.authority?.noParallelSourceMutation !== true) err(errors, 'PARALLEL_SOURCE_MUTATION_NOT_BLOCKED');
   if (profile?.safetyBoundary?.intelligenceDoesNotImplyMutationAuthority !== true) err(errors, 'INTELLIGENCE_AUTHORITY_BOUNDARY_MISSING');
   if (profile?.safetyBoundary?.canonicalCiRemainsProofAuthority !== true) err(errors, 'CANONICAL_PROOF_AUTHORITY_MISSING');
@@ -100,12 +99,16 @@ export function validateExecutionBoundaries(profiles) {
   const secondary = profiles.find((x) => x.botId === 'ACTION-REPAIR-2');
   const historian = profiles.find((x) => x.botId === 'ACTION-HISTORIAN-3');
 
-  for (const bot of [primary, secondary]) {
-    if (bot?.executionBoundary?.singleActiveRepairOwner !== true) err(errors, 'SINGLE_OWNER_ENFORCEMENT_MISSING', bot?.botId);
-    if (bot?.executionBoundary?.canMutateTests !== false) err(errors, 'TEST_MUTATION_ENABLED', bot?.botId);
-    if (bot?.executionBoundary?.canMutateMain !== false) err(errors, 'MAIN_MUTATION_ENABLED', bot?.botId);
-    if (bot?.executionBoundary?.canonicalGreen !== 'DAILY_FLIXO_GREEN_GATE') err(errors, 'CANONICAL_GREEN_INVALID', bot?.botId);
-  }
+  if (primary?.executionBoundary?.singleActiveRepairOwner !== true) err(errors, 'SINGLE_OWNER_ENFORCEMENT_MISSING', primary?.botId);
+  if (primary?.executionBoundary?.canMutateWhenOwner !== true) err(errors, 'PRIMARY_OWNER_MUTATION_DISABLED');
+  if (primary?.executionBoundary?.canMutateTests !== false) err(errors, 'PRIMARY_TEST_MUTATION_ENABLED');
+  if (primary?.executionBoundary?.canMutateMain !== false) err(errors, 'PRIMARY_MAIN_MUTATION_ENABLED');
+  if (primary?.executionBoundary?.canonicalGreen !== 'DAILY_FLIXO_GREEN_GATE') err(errors, 'PRIMARY_CANONICAL_GREEN_INVALID');
+  if (secondary?.executionAuthority !== 'HISTORICAL_PREDICTION_PROPOSAL_ONLY') err(errors, 'SECONDARY_EXECUTION_ROLE_INVALID');
+  if (secondary?.mutationAuthority !== false) err(errors, 'SECONDARY_MUTATION_AUTHORITY_ENABLED');
+  if (secondary?.executionBoundary?.canMutateWhenOwner !== false) err(errors, 'SECONDARY_OWNER_MUTATION_ENABLED');
+  if (secondary?.executionBoundary?.canMutateTests !== false) err(errors, 'SECONDARY_TEST_MUTATION_ENABLED');
+  if (secondary?.executionBoundary?.canMutateMain !== false) err(errors, 'SECONDARY_MAIN_MUTATION_ENABLED');
 
   if (primary?.executionContract?.mutationBranch !== 'execution' ||
       primary?.executionContract?.mutationScope !== 'ERROR_ONLY' ||
@@ -116,8 +119,8 @@ export function validateExecutionBoundaries(profiles) {
     err(errors, 'PRIMARY_EXECUTION_CONTRACT_WEAK');
   }
 
-  if (secondary?.rules?.handoffActivatesOwnership !== true || secondary?.executionBoundary?.canMutateBeforeHandoff !== false) {
-    err(errors, 'SECONDARY_HANDOFF_BOUNDARY_WEAK');
+  if (secondary?.rules?.requireOwnerReviewBeforeMutation !== true || secondary?.rules?.producePredictionPacket !== true || secondary?.rules?.searchHistoricalIndexBeforeProposal !== true) {
+    err(errors, 'SECONDARY_PREDICTION_CONTRACT_WEAK');
   }
 
   if (historian?.mutationAuthority !== false ||
