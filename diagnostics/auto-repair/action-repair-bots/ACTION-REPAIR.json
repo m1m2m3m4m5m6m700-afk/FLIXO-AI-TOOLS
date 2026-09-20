@@ -131,5 +131,17 @@
     "canMutateTests": false,
     "canMutateMain": false,
     "canonicalGreen": "DAILY_FLIXO_GREEN_GATE"
+  },
+  "agentGrade": {
+    "lifecycle": "READY",
+    "shortName": "ACTR",
+    "upgradeNumber": 1,
+    "upgradePriority": 95,
+    "nextUpgrade": {
+      "id": "ACTR-U2",
+      "weakness": "HISTORICAL_ACTION_REPRODUCTION_DEPTH_AND_EXACT_CLOSURE",
+      "mission": "زيادة تغطية الحالات التاريخية ثم إعادة إثبات الحل على SHA الحالي",
+      "promotionProof": "EXACT_SHA_PLUS_CANONICAL_CI"
+    }
   }
 }
