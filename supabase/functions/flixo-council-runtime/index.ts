@@ -104,6 +104,35 @@ const accountFrom = (value: unknown): Account => {
   return account;
 };
 
+const accountFromBearer = (req: Request): Account => {
+  const token = bearer(req);
+  if (!token) throw new Error("COUNCIL_ACCOUNT_UNAUTHORIZED");
+  const matches = (Object.keys(accounts) as Account[]).filter((account) =>
+    constantTimeEqual(token, env(accounts[account].tokenEnv))
+  );
+  if (matches.length !== 1) throw new Error("COUNCIL_ACCOUNT_IDENTITY_UNVERIFIED");
+  return matches[0];
+};
+
+const getAccountState = async (account: Account) => {
+  const rows = await db("/rest/v1/flix_council_accounts?account_id=eq." + encodeURIComponent(account) + "&select=account_id,role,active,current_session_id,last_seen_at,metadata&limit=1") as Array<Record<string, unknown>>;
+  const row = rows?.[0];
+  if (!row) throw new Error("COUNCIL_ACCOUNT_STATE_MISSING");
+  const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+    ? row.metadata as Record<string, unknown>
+    : {};
+  const identity = metadata.agentId && metadata.machineRole
+    ? {
+        agentId: String(metadata.agentId),
+        agentName: metadata.agentName ? String(metadata.agentName) : null,
+        machineRole: String(metadata.machineRole),
+        runtimeId: metadata.runtimeId ? String(metadata.runtimeId) : null,
+        identityType: metadata.identityType ? String(metadata.identityType) : "named-agent",
+      }
+    : null;
+  return { row, identity, identityVerified: Boolean(identity) };
+};
+
 const sha = (value: unknown) => {
   const s = String(value ?? "").trim();
   if (!/^[0-9a-f]{40}$/u.test(s)) throw new Error("COUNCIL_EXACT_SHA_INVALID");
@@ -193,14 +222,47 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const action = url.searchParams.get("action") ?? (req.method === "GET" ? "poll" : "");
     if (action === "poll" && req.method === "GET") {
-      const account = accountFrom(url.searchParams.get("accountId"));
+      const accountParam = url.searchParams.get("accountId");
+      const account = accountParam ? accountFrom(accountParam) : accountFromBearer(req);
       authAccount(req, account);
+      const runtime = await getAccountState(account);
       const rows = await db("/rest/v1/rpc/council_claim_dispatch", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ p_account_id: account }),
       }) as Array<Record<string, unknown>>;
-      return response({ ok: true, accountId: account, dispatch: rows?.[0] ?? null }, 200, requestId);
+      return response({
+        ok: true,
+        accountId: account,
+        identity: runtime.identity,
+        identityVerified: runtime.identityVerified,
+        accountState: {
+          active: runtime.row.active,
+          currentSessionId: runtime.row.current_session_id,
+          lastSeenAt: runtime.row.last_seen_at,
+        },
+        dispatch: rows?.[0] ?? null,
+      }, 200, requestId);
+    }
+
+    if (action === "runtime-state" && req.method === "GET") {
+      const accountParam = url.searchParams.get("accountId");
+      const account = accountParam ? accountFrom(accountParam) : accountFromBearer(req);
+      authAccount(req, account);
+      const runtime = await getAccountState(account);
+      const assignments = await db("/rest/v1/flix_council_dispatches?recipient_account_id=eq." + encodeURIComponent(account) + "&status=in.(LEASED,ACKED)&select=dispatch_id,message_id,task_id,work_package_id,entry_sha,status,session_id,lease_expires_at,attempts,created_at,updated_at&order=created_at.asc&limit=1") as Array<Record<string, unknown>>;
+      return response({
+        ok: true,
+        accountId: account,
+        identity: runtime.identity,
+        identityVerified: runtime.identityVerified,
+        accountState: {
+          active: runtime.row.active,
+          currentSessionId: runtime.row.current_session_id,
+          lastSeenAt: runtime.row.last_seen_at,
+        },
+        assignment: assignments?.[0] ?? null,
+      }, 200, requestId);
     }
     if (action === "handoffs" && req.method === "GET") {
       authAccount(req, "CHIEF");
@@ -220,6 +282,11 @@ Deno.serve(async (req) => {
     if (action === "ack" && req.method === "POST") {
       const account = accountFrom(body.accountId);
       authAccount(req, account);
+      const runtime = await getAccountState(account);
+      const declaredAgentId = String(body.agentId ?? "").trim();
+      if (!runtime.identityVerified || declaredAgentId !== runtime.identity?.agentId) {
+        throw new Error("COUNCIL_AGENT_IDENTITY_REJECTED");
+      }
       const result = await db("/rest/v1/rpc/council_ack_dispatch", {
         method: "POST",
         headers: { "content-type": "application/json" },
