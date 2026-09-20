@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const ID_RE=/^CELL-(\\d{3})$/u;
+const ID_RE=/^CELL-(\d{3})$/u;
 const botIds=Array.from({length:200},(_,i)=>`CELL-${String(i+1).padStart(3,'0')}`);
 function ensureCellPool(root=process.cwd()){
   const base=path.resolve(root);
