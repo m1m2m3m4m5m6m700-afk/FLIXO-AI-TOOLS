@@ -631,13 +631,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PROMPT_ID="$(node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("/tmp/flixo-task-agent/latest.json","utf8")); process.stdout.write(x.executionPrompt?.selectedPromptId || "")')"
-          if [ -n "$PROMPT_ID" ]; then
-            echo "FLIXO_PROMPT_ID=$PROMPT_ID" >> "$GITHUB_ENV"
-            echo "FLIXO_PROMPT_ID=$PROMPT_ID"
-          else
-            echo "FLIXO_PROMPT_ID not available; learning remains unbound to a registry prompt."
-          fi
+           PROMPT_ID="$(node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("/tmp/flixo-task-agent/latest.json","utf8")); process.stdout.write(x.executionPrompt?.selectedPromptId || "")')"
+           if [ -n "$PROMPT_ID" ]; then
+             printf '%s\n' 'FLIXO_PROMPT_ID selected and retained only in the current repair packet.'
+           else
+             printf '%s\n' 'FLIXO_PROMPT_ID not available; learning remains unbound to a registry prompt.'
+           fi
+
 
       - name: Restore durable no-repeat repair ledger
         env:
