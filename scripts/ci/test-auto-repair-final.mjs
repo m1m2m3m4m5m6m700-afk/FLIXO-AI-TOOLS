@@ -55,6 +55,17 @@ assert.match(autoRepairWorkflow, /Enforce divergent twin decision before mutatio
 assert.match(autoRepairWorkflow, /TWIN_DECISION_GATE=PASS/);
 assert.match(autoRepairWorkflow, /CELL-005 select best repair option/);
 assert.match(autoRepairWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml/i);
+const dualControlSource = fs.readFileSync('scripts/ci/action-repair-dual-control.mjs','utf8');
+assert.match(dualControlSource, /ACTION_PAIR_ADVERSARIAL_CHALLENGE_FAILED/);
+assert.match(dualControlSource, /alternativeHypotheses/);
+assert.match(dualControlSource, /falsificationChecks/);
+assert.match(dualControlSource, /counterEvidence/);
+assert.match(dualControlSource, /ACTION_PAIR_APPROVAL_REQUIRES_VERIFIED_CHALLENGE/);
+assert.match(autoRepairWorkflow, /FLIXO_ACTION_VAULT_VERIFIER_PROOF_PATH: \/tmp\/action-repair-2-proposal\.json/);
+assert.match(autoRepairWorkflow, /ACTION_VAULT_VERIFIER_APPROVED_EXACT_SHA/);
+const markIndex=autoRepairWorkflow.indexOf('Mark mutation boundary after verifier dual-control');
+const auditIndex=autoRepairWorkflow.indexOf('ACTION-REPAIR-2 audit, non-green learning and dual-control proposal');
+assert.ok(markIndex>auditIndex, 'MUTATING state must be opened only after verifier audit/approval');
 assert.match(autoRepairWorkflow, /CURRENT_TARGET_SHA=/);
 assert.match(autoRepairWorkflow, /execution advanced during repair; refusing stale publication/);
 assert.match(autoRepairWorkflow, /REMOTE_EXECUTION_SHA.*FAILED_SHA/);
