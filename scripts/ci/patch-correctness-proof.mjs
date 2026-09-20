@@ -12,6 +12,7 @@ export function buildPatchCorrectnessProof({
  fileSelection=null,
  awareness=null,
  twin=null,
+ rootCauseProof=null,
  simulation=null,
  differential=null,
  regressionCounterexamples=null,
