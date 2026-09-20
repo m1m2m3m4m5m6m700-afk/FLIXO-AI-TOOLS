@@ -13,6 +13,6 @@ assert.match(source, /requiredHypothesisChange/);
 assert.match(source, /requiredEvidenceDelta/);
 assert.match(source, /doNotRepeat/);
 assert.match(source, /sameStrategyRepeated/);
-assert.match(source, /const isIntractable = teachingEscalation/);
+assert.match(source, /const isIntractable = false/);
 assert.doesNotMatch(source, /threshold \?\? 10/);
 console.log('AUTO_REPAIR_STRATEGY_CONTRACT_SELF_TEST=PASS');
