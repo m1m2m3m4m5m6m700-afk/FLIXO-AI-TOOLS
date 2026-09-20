@@ -34,7 +34,7 @@ if(!Array.isArray(read.autonomyScope?.allowed)||read.autonomyScope.allowed.lengt
 if(!Array.isArray(read.autonomyScope?.prohibited)||read.autonomyScope.prohibited.length<5)errors.push('autonomyScope.prohibited');
 if(!Array.isArray(read.failureBehavior?.criticalPath)||read.failureBehavior.criticalPath!=='STOP_AND_REQUIRE_HUMAN_AUTHORIZATION'){}
 if(read.failureBehavior?.criticalPath!=='STOP_AND_REQUIRE_HUMAN_AUTHORIZATION')errors.push('criticalPath');
-if(read.failureBehavior?.staleSha!=='FAIL_CLOSED_AND_REQUALIFY')errors.push('staleSha');
+if(read.failureBehavior?.staleSha!=='PAUSE_REQUALIFY_CONTINUE_SAME_MISSION')errors.push('staleSha');
 if(read.failureBehavior?.conflictRecovery!=='IN_PLACE_ONLY')errors.push('conflictRecovery');
 if(read.failureBehavior?.conflictRecoveryNever!=='SURRENDER_OWNER_OR_CLOSE_MISSION')errors.push('conflictRecoveryNever');
 if(read.failureBehavior?.externalFailure!=='CLASSIFY_EXTERNAL_NO_SOURCE_MUTATION')errors.push('externalFailure');
