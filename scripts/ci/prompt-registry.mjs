@@ -174,7 +174,7 @@ export function selectRepairPrompt({ registry, failureFingerprint = '', rootCaus
 
 export function createPromptHandoff({
   registry, promptId, exactSha, failureFingerprint, rootCause,
-  evidence = [], changedFiles = [], relatedPrompts = [], conflicts = [], nextPromptId = null,
+  evidence = [], relatedPrompts = [], conflicts = [], nextPromptId = null,
 } = {}) {
   if (!String(promptId ?? '').trim()) throw new Error('PROMPT_ID_REQUIRED');
   if (!SHA40.test(String(exactSha ?? ''))) throw new Error('PROMPT_HANDOFF_EXACT_SHA_INVALID');
