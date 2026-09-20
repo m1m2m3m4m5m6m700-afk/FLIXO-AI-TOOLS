@@ -1174,7 +1174,9 @@
           }
         }
       ],
-      "preventionRules": [],
+      "preventionRules": [
+        "EXTERNAL-EXTERNAL-TOOLING: classify as BLOCKED_EXTERNAL; do not mutate internal source; wait for provider recheck or escalate."
+      ],
       "lastSeenAt": "2026-09-19T06:48:35.261Z"
     },
     {
