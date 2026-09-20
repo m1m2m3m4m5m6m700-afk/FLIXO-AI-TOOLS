@@ -102,7 +102,7 @@ const reconcileStaleSessions = () => {
   }
 };
 const visibleAgents = () => { if (!fs.existsSync(VISIBILITY_DIR)) return []; return fs.readdirSync(VISIBILITY_DIR).filter((entry) => entry.endsWith('.json')).sort().map((entry) => { try { const item = JSON.parse(fs.readFileSync(path.join(VISIBILITY_DIR, entry), 'utf8')); return { taskId: item.taskId ?? null, sessionId: item.sessionId ?? entry.slice(0,-5), agentId: item.agentId ?? null, role: item.role ?? null, status: item.status ?? null, finalStatus: item.finalStatus ?? null, entrySha: item.entrySha ?? null, exitSha: item.exitSha ?? null, finalSummary: item.finalSummary ?? null, remainingWork: item.remainingWork ?? [], openRcas: item.openRcas ?? [], updatedAt: item.updatedAt ?? null }; } catch { return { sessionId: entry.slice(0,-5), status: 'MALFORMED_EVIDENCE' }; } }); };
-const MUTATING_COMMANDS = new Set(['task-create', 'task-claim', 'task-release', 'task-complete', 'ingest-handoff', 'state']);
+const MUTATING_COMMANDS = new Set(['task-create', 'task-claim', 'task-release', 'task-complete', 'ingest-handoff']);
 const writeLocked = MUTATING_COMMANDS.has(command);
 assertMutationTopology();
 if (writeLocked) acquireWriteLock();
@@ -149,7 +149,7 @@ function lock(sessionId, agentId, rca, scope) {
 function unlock(sessionId) { for (const item of Object.values(locks.locks)) if (item.sessionId === sessionId && item.status === 'ACTIVE') { item.status = 'RELEASED'; item.releasedAt = now(); } }
 ensure();
 if (writeLocked) reconcileStaleSessions();
-if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'state', 'visible', 'ingest-handoff'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|state|visible|ingest-handoff');
+if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'state', 'brief', 'visible', 'ingest-handoff'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|state|brief|visible|ingest-handoff');
 
 if (command === 'task-create') {
   const taskId = requireArg('task');
@@ -251,4 +251,45 @@ if (command === 'ingest-handoff') {
   console.log(JSON.stringify(state.activeSessions[sessionId], null, 2));
 }
 if (command === 'visible') { console.log(JSON.stringify(visibleAgents(), null, 2)); }
-if (command === 'state') { save(); console.log(JSON.stringify({ ...state, visibleAgents: visibleAgents() }, null, 2)); }
+if (command === 'state') {
+  const readSha = sha();
+  if (state.authoritativeSha && state.authoritativeSha !== readSha) throw new Error('COORDINATION_READ_SHA_STALE');
+  console.log(JSON.stringify({ ...state, visibleAgents: visibleAgents(), readSha }, null, 2));
+}
+if (command === 'brief') {
+  const readSha = sha();
+  if (state.authoritativeSha && state.authoritativeSha !== readSha) throw new Error('COORDINATION_READ_SHA_STALE');
+  if (Number(locks.revision ?? state.revision ?? 0) !== Number(state.revision ?? 0) || (locks.transactionId ?? null) !== (state.transactionId ?? null)) {
+    throw new Error('COORDINATION_READ_STATE_MISMATCH');
+  }
+  const tasks = Object.values(state.tasks ?? {});
+  const summarize = (status) => tasks
+    .filter((task) => task.status === status)
+    .sort((left, right) => Number(left.priority ?? 50) - Number(right.priority ?? 50))
+    .slice(0, 8)
+    .map((task) => ({ taskId: task.taskId, priority: task.priority, lane: task.lane, scope: task.scope ?? [], status: task.status }));
+  const activeLocks = Object.values(locks.locks ?? {}).filter((item) => item.status === 'ACTIVE');
+  const activeSessions = Object.values(state.activeSessions ?? {});
+  console.log(JSON.stringify({
+    schemaVersion: 1,
+    authority: 'AGENT_COORDINATION_FAST_READ_PATH',
+    readOnly: true,
+    readSha,
+    revision: state.revision ?? 0,
+    transactionId: state.transactionId ?? null,
+    counts: {
+      ready: tasks.filter((task) => task.status === 'READY').length,
+      queued: tasks.filter((task) => task.status === 'QUEUED').length,
+      running: tasks.filter((task) => task.status === 'RUNNING').length,
+      stale: tasks.filter((task) => task.status === 'STALE').length,
+      done: tasks.filter((task) => task.status === 'DONE').length,
+      activeSessions: activeSessions.length,
+      activeLocks: activeLocks.length,
+    },
+    readyTasks: summarize('READY'),
+    queuedTasks: summarize('QUEUED'),
+    runningTasks: summarize('RUNNING'),
+    activeAgents: activeSessions.map((session) => ({ sessionId: session.sessionId, agentId: session.agentId, taskId: session.taskId, entrySha: session.entrySha, updatedAt: session.updatedAt })),
+    conflicts: activeLocks.map((item) => ({ lockId: item.lockId, sessionId: item.sessionId, agentId: item.agentId, scope: item.scope ?? [], rca: item.rca ?? null })),
+  }, null, 2));
+}
