@@ -32,6 +32,10 @@ const autoRepairWorkflow = fs.readFileSync('.github/workflows/auto-repair.yml', 
 const dailyGateWorkflow = fs.readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
 const handoffGateWorkflow = fs.readFileSync('.github/workflows/agent-repair-handoff-gate.yml', 'utf8');
 assert.doesNotMatch(autoRepairWorkflow, /workflow_run:/);
+assert.match(autoRepairWorkflow, /adversarial_twin:/);
+assert.match(autoRepairWorkflow, /Await the parallel adversarial twin/);
+assert.match(autoRepairWorkflow, /TWIN_RESULT_READY=true/);
+assert.match(autoRepairWorkflow, /FLIXO_TWIN_PROPOSAL_PATH/);
 assert.match(autoRepairWorkflow, /gh\s+workflow\s+run\s+auto-repair\.yml/i);
 assert.match(autoRepairWorkflow, /CURRENT_TARGET_SHA=/);
 assert.match(autoRepairWorkflow, /execution advanced during repair; refusing stale publication/);
