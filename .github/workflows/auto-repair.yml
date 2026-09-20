@@ -572,7 +572,6 @@ jobs:
       - name: ACTION-WISE select best repair option from history and twin A/B
         id: cell_selector
         if: steps.twin.outcome == 'success'
-        continue-on-error: true
         env:
           FLIXO_ACTION_MEMORY_DIR: /tmp/flixo-action-repair-bots
         run: |
@@ -760,23 +759,25 @@ jobs:
           TURN="$(jq -r '.turn' /tmp/action-repair-brother-state.json)"
           case "$ACTIVE_BROTHER" in
             A)
-              ACTIVE="ACTION-REPAIR"
-              ACTOR="actionRepairBot"
+              printf '%s\n' 'FLIXO_ACTIVE_ACTION_BOT=ACTION-REPAIR' >> "$GITHUB_ENV"
+              printf '%s\n' 'FLIXO_REPAIR_ACTOR=actionRepairBot' >> "$GITHUB_ENV"
+              OWNER_LABEL='A:ACTION-REPAIR:actionRepairBot'
               ;;
             B)
-              ACTIVE="ACTION-REPAIR-2"
-              ACTOR="assistantRepairAgent"
+              printf '%s\n' 'FLIXO_ACTIVE_ACTION_BOT=ACTION-REPAIR-2' >> "$GITHUB_ENV"
+              printf '%s\n' 'FLIXO_REPAIR_ACTOR=assistantRepairAgent' >> "$GITHUB_ENV"
+              OWNER_LABEL='B:ACTION-REPAIR-2:assistantRepairAgent'
               ;;
             *)
-              echo "FAIL CLOSED: unknown durable Actions repair owner $ACTIVE_BROTHER"
+              echo 'FAIL CLOSED: unknown durable Actions repair owner.'
               exit 1
               ;;
           esac
-          echo "FLIXO_ACTIVE_ACTION_BOT=$ACTIVE" >> "$GITHUB_ENV"
-          echo "FLIXO_REPAIR_ACTOR=$ACTOR" >> "$GITHUB_ENV"
-          echo "FLIXO_ACTION_REPAIR_TURN=$TURN" >> "$GITHUB_ENV"
-          echo "FLIXO_ACTIVE_ACTION_BROTHER=$ACTIVE_BROTHER" >> "$GITHUB_ENV"
-          echo "ACTION_OWNER_STATE=$ACTIVE_BROTHER:$ACTIVE:TURN:$TURN"
+          case "$TURN" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: invalid durable Actions repair turn.'; exit 1 ;;
+          esac
+          printf 'FLIXO_ACTION_REPAIR_TURN=%s\n' "$TURN" >> "$GITHUB_ENV"
+          printf 'ACTION_OWNER_STATE=%s:TURN:%s\n' "$OWNER_LABEL" "$TURN"
 
       - name: FLIXO Auto Repair Bot — sole mutation authority for the active RED target
         id: execute_repair
