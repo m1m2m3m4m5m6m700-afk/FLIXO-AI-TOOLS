@@ -65,6 +65,10 @@ env:
   FLIXO_REPAIR_LEASE_REF: ${{ inputs.repair_lease_ref || '' }}
   FLIXO_REPAIR_LEASE_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
   FLIXO_REPAIR_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
+  FLIXO_HISTORICAL_SOLUTION_PATH: /tmp/flixo-historical-solution-index.json
+  FLIXO_TWIN_A_PATH: /tmp/flixo-twin-a.json
+  FLIXO_TWIN_B_PATH: /tmp/flixo-twin-b.json
+  FLIXO_SELECTION_PATH: /tmp/flixo-selected-repair-option.json
   # prompt_source_run_id remains a compatibility input; artifact provenance is resolved from the canonical Green Gate by exact SHA.
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
@@ -79,92 +83,6 @@ env:
   FLIXO_ACTION_MASTER: repairAgent
 
 jobs:
-  adversarial_twin:
-    name: Read-only adversarial twin — independent challenge
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    outputs:
-      twin_a: ${{ steps.publish_twin_outputs.outputs.twin_a }}
-      twin_b: ${{ steps.publish_twin_outputs.outputs.twin_b }}
-    timeout-minutes: 45
-    permissions:
-      contents: read
-      actions: read
-      checks: read
-      pull-requests: read
-      issues: read
-    steps:
-      - name: Checkout execution for read-only analysis
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          ref: execution
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Resolve exact failed SHA
-        id: target
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          RUN_META="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json headSha,headBranch,conclusion,name)"
-          FAILED_SHA="$(printf '%s' "$RUN_META" | jq -r '.headSha')"
-          FAILED_BRANCH="$(printf '%s' "$RUN_META" | jq -r '.headBranch')"
-          CONCLUSION="$(printf '%s' "$RUN_META" | jq -r '.conclusion')"
-          test "$CONCLUSION" = failure || test "$CONCLUSION" = timed_out
-          test "$FAILED_BRANCH" = main || test "$FAILED_BRANCH" = execution
-          test "$FAILED_SHA" != "null" && test -n "$FAILED_SHA"
-          git fetch --no-tags origin "$FAILED_SHA"
-          rm -rf /tmp/flixo-twin-target
-          git worktree add --detach /tmp/flixo-twin-target "$FAILED_SHA"
-          test "$(git -C /tmp/flixo-twin-target rev-parse HEAD)" = "$FAILED_SHA"
-          echo "failed_sha=$FAILED_SHA" >> "$GITHUB_OUTPUT"
-
-      - name: Capture exact failed-run evidence
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/flixo-twin
-          gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > /tmp/flixo-twin/failure.log
-          test -s /tmp/flixo-twin/failure.log
-
-      - name: Fast-scan Action failure signal
-        env:
-          FLIXO_ACTION_VAULT_FAILURE_LOG: /tmp/flixo-twin/failure.log
-          FLIXO_ACTION_VAULT_TARGET_SHA: ${{ steps.target.outputs.failed_sha }}
-        run: |
-          set -euo pipefail
-          node scripts/ci/action-fast-reader.mjs --input="$FLIXO_ACTION_VAULT_FAILURE_LOG" --output=/tmp/flixo-fast-failure.json
-
-      - name: Run FLIXO adversarial twin — read only
-        env:
-          FLIXO_TARGET_DIR: /tmp/flixo-twin-target
-          FLIXO_FAILURE_LOG: /tmp/flixo-twin/failure.log
-          FLIXO_TWIN_OUTPUT: /tmp/flixo-twin/twin-result.json
-          FLIXO_EXPECTED_TARGET_SHA: ${{ steps.target.outputs.failed_sha }}
-          FLIXO_TWIN_READ_ONLY: 'true'
-          FLIXO_TWIN_DETACHED: 'true'
-        run: |
-          set -euo pipefail
-          for VARIANT in A B; do
-            case "$VARIANT" in A) OUTPUT=/tmp/flixo-twin/twin-a.json ;; B) OUTPUT=/tmp/flixo-twin/twin-b.json ;; esac
-            FLIXO_TWIN_VARIANT="$VARIANT" FLIXO_TWIN_OUTPUT="$OUTPUT" node scripts/ci/adversarial-repair-twin.mjs
-            jq -e --arg variant "$VARIANT" '.mutationAuthority == false and .repositoryWrite == false and .actionsWrite == false and .targetSha == env.FLIXO_EXPECTED_TARGET_SHA and .twinVariant == $variant' "$OUTPUT" >/dev/null
-          done
-
-      - name: Publish validated twin outputs
-        id: publish_twin_outputs
-        env:
-          FLIXO_EXPECTED_TARGET_SHA: ${{ steps.target.outputs.failed_sha }}
-        run: |
-          set -euo pipefail
-          for TWIN in a b; do
-            jq -e --arg sha "$FLIXO_EXPECTED_TARGET_SHA" '.targetSha == $sha and .mutationAuthority == false and .repositoryWrite == false and .actionsWrite == false' "/tmp/flixo-twin/twin-$TWIN.json" >/dev/null
-          done
-          printf '%s\n' "twin_a=$(base64 -w0 /tmp/flixo-twin/twin-a.json)" >> "$GITHUB_OUTPUT"
-          printf '%s\n' "twin_b=$(base64 -w0 /tmp/flixo-twin/twin-b.json)" >> "$GITHUB_OUTPUT"
-
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
     needs: adversarial_twin
@@ -191,6 +109,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          case "$TARGET_RUN_ID" in
+            ''|*[!0-9]*) echo 'FAIL CLOSED: target_run_id must be numeric.'; exit 1 ;;
+          esac
+          if [ -n "$FLIXO_FAILURE_FINGERPRINT" ]; then
+            case "$FLIXO_FAILURE_FINGERPRINT" in
+              ''|*[!a-fA-F0-9]*) echo 'FAIL CLOSED: failure fingerprint must be hexadecimal.'; exit 1 ;;
+            esac
+          fi
           CONCLUSION="$(gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --json conclusion --jq '.conclusion')"
           case "$CONCLUSION" in
             failure|timed_out) ;;
@@ -541,40 +467,45 @@ jobs:
             printf '%s\n' '{"schemaVersion":1,"historicalMatchCount":0,"historicalMatches":[]}' > /tmp/flixo-historical-solution-index.json
           fi
           test -s /tmp/flixo-historical-solution-index.json
-          echo 'FLIXO_HISTORICAL_SOLUTION_PATH=/tmp/flixo-historical-solution-index.json' >> "$GITHUB_ENV"
           echo "ACTION_INDEX_HISTORICAL_MATCHES=$(jq -r '.historicalMatchCount' /tmp/flixo-historical-solution-index.json)"
           NORMALIZED_FAILURE='FAILED_RUN_EVIDENCE_UNAVAILABLE'
           if [ -s "$FLIXO_FAILURE_LOG" ]; then NORMALIZED_FAILURE="$(tr '\n' ' ' < "$FLIXO_FAILURE_LOG" | sed 's/[[:space:]]\+/ /g' | cut -c1-16000)"; fi
           node scripts/ci/action-learning-master.mjs --op=open-red --target-sha="$SHA" --run-id="$TARGET_RUN_ID" --fingerprint="$FP" --workflow="Actions" --normalized-failure="$NORMALIZED_FAILURE"
           test -s /tmp/flixo-action-repair-bots/ACTION-INDEX.json
 
-      - name: Materialize validated twin outputs from read-only job
+      - name: Run adversarial twins locally inside the canonical repair trust domain
         id: twin
-        if: needs.adversarial_twin.result == 'success'
         env:
-          TWIN_A_B64: ${{ needs.adversarial_twin.outputs.twin_a }}
-          TWIN_B_B64: ${{ needs.adversarial_twin.outputs.twin_b }}
-          EXPECTED_TWIN_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test -n "$TWIN_A_B64"
-          test -n "$TWIN_B_B64"
-          printf '%s' "$TWIN_A_B64" | base64 -d > /tmp/flixo-twin-a.json
-          printf '%s' "$TWIN_B_B64" | base64 -d > /tmp/flixo-twin-b.json
-          for TWIN in a b; do
-            jq -e --arg sha "$EXPECTED_TWIN_SHA" '.targetSha == $sha and .mutationAuthority == false and .repositoryWrite == false and .actionsWrite == false' "/tmp/flixo-twin-$TWIN.json" >/dev/null
+          EXPECTED_SHA="$(cat /tmp/flixo-failed-sha)"
+          rm -rf /tmp/flixo-twin-target
+          git worktree add --detach /tmp/flixo-twin-target "$EXPECTED_SHA"
+          trap 'git worktree remove --force /tmp/flixo-twin-target >/dev/null 2>&1 || true' EXIT
+          for VARIANT in A B; do
+            case "$VARIANT" in
+              A) OUTPUT=/tmp/flixo-twin-a.json ;;
+              B) OUTPUT=/tmp/flixo-twin-b.json ;;
+              *) exit 1 ;;
+            esac
+            rm -f "$OUTPUT"
+            FLIXO_TARGET_DIR=/tmp/flixo-twin-target \
+            FLIXO_FAILURE_LOG="$FLIXO_FAILURE_LOG" \
+            FLIXO_TWIN_OUTPUT="$OUTPUT" \
+            FLIXO_EXPECTED_TARGET_SHA="$EXPECTED_SHA" \
+            FLIXO_TWIN_VARIANT="$VARIANT" \
+            FLIXO_TWIN_READ_ONLY='true' \
+            FLIXO_TWIN_DETACHED='true' \
+            node scripts/ci/adversarial-repair-twin.mjs
+            test -s "$OUTPUT"
+            node scripts/ci/validate-adversarial-repair-twin.mjs \
+              --file="$OUTPUT" \
+              --target-sha="$EXPECTED_SHA" \
+              --target-run-id="$TARGET_RUN_ID" \
+              --variant="$VARIANT"
           done
-          printf '%s\n' 'FLIXO_TWIN_A_PATH=/tmp/flixo-twin-a.json' >> "$GITHUB_ENV"
-          printf '%s\n' 'FLIXO_TWIN_B_PATH=/tmp/flixo-twin-b.json' >> "$GITHUB_ENV"
-
-      - name: Continue canonical repair lane without adversarial twin
-        if: always() && needs.adversarial_twin.result != 'success'
-        run: |
-          set -euo pipefail
-          echo 'TWIN_FALLBACK_MODE=CANONICAL_RCA_WITHOUT_TWIN'
-          echo 'TWIN_FALLBACK_REASON=ADVERSARIAL_TWIN_UNAVAILABLE'
-          echo 'No twin output is admitted as repair authority; RCA and exact-SHA verification remain mandatory.'
-
+          echo 'ADVERSARIAL_TWIN_TRUST=LOCAL_FIXED_PATH_EXACT_SHA_SCHEMA_BOUNDED'
       - name: ACTION-REPAIR comprehensive knowledge audit
         id: action_repair_knowledge_audit
         env:
@@ -623,9 +554,9 @@ jobs:
             --target-sha="$(cat /tmp/flixo-failed-sha)" \
             --run-id="$TARGET_RUN_ID" \
             --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
-            --historical="${FLIXO_HISTORICAL_SOLUTION_PATH:-/tmp/flixo-historical-solution-index.json}" \
-            --twin-a="${FLIXO_TWIN_A_PATH:-/tmp/flixo-twin-a.json}" \
-            --twin-b="${FLIXO_TWIN_B_PATH:-/tmp/flixo-twin-b.json}" \
+            --historical=/tmp/flixo-historical-solution-index.json \
+            --twin-a=/tmp/flixo-twin-a.json \
+            --twin-b=/tmp/flixo-twin-b.json \
             --output=/tmp/flixo-selected-repair-option.json
           SELECTED="$(jq -r '.selection.selectedStrategy // empty' /tmp/flixo-selected-repair-option.json)"
           if [ -n "$SELECTED" ]; then
@@ -633,7 +564,6 @@ jobs:
           else
             printf '%s\n' 'ACTION_WISE_SELECTED_STRATEGY=NONE'
           fi
-          printf '%s\n' 'FLIXO_SELECTION_PATH=/tmp/flixo-selected-repair-option.json' >> "$GITHUB_ENV"
       - name: Run Phase 1 AI failure intelligence and exact-target preflight
         env:
           FLIXO_CURRENT_TARGET_SHA_FILE: /tmp/flixo-failed-sha
@@ -752,6 +682,9 @@ jobs:
         if: steps.strategy.outputs.intractable != 'true'
         run: npm ci --ignore-scripts --prefer-offline --no-audit --no-fund
 
+      - name: Verify auto-repair security boundary before mutation
+        run: node scripts/ci/test-auto-repair-security-boundary.mjs
+
       - name: Mark mutation boundary in the Repair Control Plane
         if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome == 'success'
         run: |
@@ -783,7 +716,7 @@ jobs:
           node scripts/ci/action-repair-dual-control.mjs heartbeat --primary=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$FLIXO_EXPECTED_TARGET_SHA" --state=READY_FOR_MUTATION --out=/tmp/action-repair-pair-heartbeat.json
           node scripts/ci/action-repair-dual-control.mjs assert --approval=/tmp/action-repair-2-approval.json --heartbeat=/tmp/action-repair-pair-heartbeat.json --approver=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$FLIXO_EXPECTED_TARGET_SHA"
 
-      - name: Resolve active Actions repair owner from durable lease state
+      - name: Resolve active Actions repair owner with fail-closed local handoff
         id: action_turn
         if: steps.strategy.outcome == 'success'
         env:
@@ -794,41 +727,38 @@ jobs:
         run: |
           set -euo pipefail
           FAILED_SHA="$FLIXO_EXPECTED_TARGET_SHA"
-          node /tmp/flixo-repair-controller/scripts/ci/repair-lease.mjs brother-state             --fingerprint="$FLIXO_FAILURE_FINGERPRINT"             --failedSha="$FAILED_SHA"             --targetRunId="$TARGET_RUN_ID"             --branch="execution" > /tmp/action-repair-brother-state.json
+          node /tmp/flixo-repair-controller/scripts/ci/repair-lease.mjs brother-state \
+            --fingerprint="$FLIXO_FAILURE_FINGERPRINT" \
+            --failedSha="$FAILED_SHA" \
+            --targetRunId="$TARGET_RUN_ID" \
+            --branch="execution" > /tmp/action-repair-brother-state.json
           ACTIVE_BROTHER="$(jq -r '.activeBrother' /tmp/action-repair-brother-state.json)"
           case "$ACTIVE_BROTHER" in
-            A)
-              printf '%s\n' 'FLIXO_ACTIVE_ACTION_BOT=ACTION-REPAIR' >> "$GITHUB_ENV"
-              printf '%s\n' 'FLIXO_REPAIR_ACTOR=actionRepairBot' >> "$GITHUB_ENV"
-              printf '%s\n' 'FLIXO_ACTIVE_ACTION_BROTHER=A' >> "$GITHUB_ENV"
-              ;;
-            B)
-              printf '%s\n' 'FLIXO_ACTIVE_ACTION_BOT=ACTION-REPAIR-2' >> "$GITHUB_ENV"
-              printf '%s\n' 'FLIXO_REPAIR_ACTOR=assistantRepairAgent' >> "$GITHUB_ENV"
-              printf '%s\n' 'FLIXO_ACTIVE_ACTION_BROTHER=B' >> "$GITHUB_ENV"
-              ;;
-            *)
-              echo 'FAIL CLOSED: unknown durable Actions repair owner.'
-              exit 1
-              ;;
+            A) printf '%s\n' 'A' > /tmp/flixo-active-action-brother ;;
+            B) printf '%s\n' 'B' > /tmp/flixo-active-action-brother ;;
+            *) echo 'FAIL CLOSED: unknown durable Actions repair owner.'; exit 1 ;;
           esac
-
+          test "$(cat /tmp/flixo-active-action-brother)" = "$ACTIVE_BROTHER"
       - name: FLIXO Auto Repair Bot — sole mutation authority for the active RED target
         id: execute_repair
         if: steps.strategy.outcome == 'success' && steps.install_target.outcome == 'success'
         env:
           FLIXO_TARGET_DIR: ${{ github.workspace }}
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
-          FLIXO_REPAIR_ACTOR: ${{ env.FLIXO_REPAIR_ACTOR }}
           FLIXO_ASSISTANT_APPROVAL_PATH: /tmp/action-repair-2-approval.json
           FLIXO_ACTION_REPAIR_BOT_ID: ACTION-REPAIR
           FLIXO_ACTION_KNOWLEDGE_BOT_ID: ACTION-WISE
           FLIXO_ACTION_REPAIR_MEMORY: /tmp/flixo-action-repair-bots/ACTION-REPAIR.json
         run: |
           set -euo pipefail
+          ACTIVE_BROTHER="$(cat /tmp/flixo-active-action-brother)"
           export FLIXO_REPAIR_STRATEGY_ID="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId||'')")"
           export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
-          node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs
+          case "$ACTIVE_BROTHER" in
+            A) FLIXO_REPAIR_ACTOR='actionRepairBot' node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs ;;
+            B) FLIXO_REPAIR_ACTOR='assistantRepairAgent' node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs ;;
+            *) echo 'FAIL CLOSED: active repair owner is outside the closed set.'; exit 1 ;;
+          esac
       - name: Build Phase 1 AI impact and CI orchestration plan
         id: ai_phase1
         if: always() && steps.strategy.outcome == 'success'
