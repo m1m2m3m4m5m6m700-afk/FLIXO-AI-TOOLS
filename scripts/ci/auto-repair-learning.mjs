@@ -988,6 +988,9 @@ if (process.argv[1]?.endsWith('auto-repair-learning.mjs') && process.env.FLIXO_L
   const rawOutcome = process.env.FLIXO_LEARNING_OUTCOME;
   const verification = process.env.FLIXO_VERIFICATION ?? 'unknown';
   const normalizedOutcome = normalizeLearningOutcome(rawOutcome, verification);
-  recordOutcome(memory, { fingerprint: fingerprintFailure(log), normalizedFailure: log, features: extractFeatures(log), rootCause: process.env.FLIXO_ROOT_CAUSE ?? 'unknown', rule: process.env.FLIXO_REPAIR_RULE || undefined, outcome: normalizedOutcome, verification, provenance: { source: 'FLIXO Auto Repair', failedSha: process.env.FLIXO_FAILED_SHA ?? null, targetSha: process.env.FLIXO_TARGET_SHA ?? null, revertedCommit: process.env.FLIXO_REVERTED_COMMIT ?? null, runId: process.env.FLIXO_RUN_ID ?? null, rawOutcome } });
+  const fingerprint = fingerprintFailure(log);
+  recordOutcome(memory, { fingerprint, normalizedFailure: log, features: extractFeatures(log), rootCause: process.env.FLIXO_ROOT_CAUSE ?? 'unknown', rule: process.env.FLIXO_REPAIR_RULE || undefined, outcome: normalizedOutcome, verification, provenance: { source: 'FLIXO Auto Repair', failedSha: process.env.FLIXO_FAILED_SHA ?? null, targetSha: process.env.FLIXO_TARGET_SHA ?? null, revertedCommit: process.env.FLIXO_REVERTED_COMMIT ?? null, runId: process.env.FLIXO_RUN_ID ?? null, rawOutcome } });
   writeMemory(memory);
+  const cycleCase = findCase(memory, fingerprint);
+  console.log(JSON.stringify({ cycleLessons: cycleCase?.latestCycleLessons ?? [], fingerprint, outcome: normalizedOutcome, verification, exactSha: process.env.FLIXO_TARGET_SHA ?? process.env.FLIXO_FAILED_SHA ?? null }, null, 2));
 }
