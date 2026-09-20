@@ -78,22 +78,23 @@ jobs:
           test -s docs/agents/historical-action-errors/index.json
           test -s docs/agents/historical-action-errors/manifest.json
 
-      - name: Synchronize permanent CELL-001 copy of historical Action index
+      - name: Synchronize permanent ACTION-INDEX copy of historical Action index
         run: |
           set -euo pipefail
-          node scripts/ci/sync-cell-001-historical-action-index.mjs
-          node scripts/ci/test-cell-001-historical-action-index.mjs
+          node scripts/ci/action-learning-master.mjs --op=sync-index
+          test -s diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json
+          node scripts/ci/test-action-repair-memory.mjs
 
       - name: Validate historical index
         run: node scripts/ci/test-historical-action-error-index.mjs
 
-      - name: Persist historical corpus and CELL-001 memory on execution
+      - name: Persist historical corpus and ACTION-INDEX memory on execution
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           test "$(git branch --show-current)" = execution
-          git add docs/agents/historical-action-errors diagnostics/auto-repair/cell-bots/CELL-001.json
+          git add docs/agents/historical-action-errors diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json
           git diff --cached --quiet && exit 0
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "chore(memory): index historical GitHub Action errors [skip ci]"
           git push origin execution
