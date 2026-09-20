@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, completionGate, buildRecoveryDirective } from './agent-liveness-protocol.mjs';
+import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, completionGate, buildRecoveryDirective, idleAdmission, sleepAdmission } from './agent-liveness-protocol.mjs';
 
 assert.equal(assertLivenessDefinition(), true);
 assert.deepEqual([...AGENT_LIVENESS_PROTOCOL.forbiddenStates].sort(), ['ABANDONED','IDLE','SILENT','SLEEP'].sort());
@@ -13,6 +13,12 @@ assert.doesNotThrow(() => assertTransition('VERIFYING', 'COMPLETE', { workAssign
 assert.throws(() => assertTransition('ACTIVE', 'IDLE', { workAssigned: true }), /FORBIDDEN|TRANSITION/u);
 assert.throws(() => assertTransition('ACTIVE', 'SLEEP', { workAssigned: true }), /FORBIDDEN|TRANSITION/u);
 assert.throws(() => assertTransition('ACTIVE', 'ABORTED', { workAssigned: true }), /ABORT_AUTHORITY/u);
+
+assert.throws(() => idleAdmission({ workAssigned: false }), /GREEN_RECORD_REQUIRED/u);
+assert.throws(() => sleepAdmission({ workAssigned: true, greenRecord: { source: 'DAILY_FLIXO_GREEN_GATE' } }), /OPEN_WORK/u);
+const green = { source: 'DAILY_FLIXO_GREEN_GATE', conclusion: 'success', zeroRed: true, exactShaVerified: true, targetSha: 'a'.repeat(40), taskId: 'T-1', fingerprint: 'FP-1', recordId: 'GREEN-1', recordedAt: new Date().toISOString() };
+assert.equal(idleAdmission({ workAssigned: false, greenRecord: green, targetSha: green.targetSha, taskId: green.taskId, fingerprint: green.fingerprint }).ok, true);
+assert.equal(sleepAdmission({ workAssigned: false, greenRecord: green, targetSha: green.targetSha, taskId: green.taskId, fingerprint: green.fingerprint }).state, 'SLEEP');
 
 const fresh = new Date(Date.now() - 2 * 60 * 1000).toISOString();
 const stale = new Date(Date.now() - 20 * 60 * 1000).toISOString();
