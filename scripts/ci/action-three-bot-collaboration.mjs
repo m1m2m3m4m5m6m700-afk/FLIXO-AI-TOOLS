@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { recordAttempt, recordFailedAttempt, recordHandoff, recordPredictionOutcome } from './action-failure-ledger.mjs';
+import { recordAttempt, recordFailedAttempt, recordHandoff, recordPredictionGenerated } from './action-failure-ledger.mjs';
 import { buildPrediction } from './action-historical-predictor.mjs';
 
 const ROOT=process.cwd();
@@ -108,7 +108,7 @@ if(op==='start'){
   const packet=buildPrediction({taskId:task,fingerprint,targetSha,failedRunId:runId,failureLog:logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'',workflow:arg('workflow',''),job:arg('job','')});
   state.outputs.predictiveRepair=packet;
   state.prediction={status:'PROVISIONAL',confidence:packet.proposedRepair.confidence,packetDigest:packet.packetDigest,output:'diagnostics/auto-repair/action-vault/historical-predictions/latest.json'};
-  recordPredictionOutcome({taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId:'ACTION-REPAIR-2',accepted:false,notes:'prediction_created_provisional'});
+  recordPredictionGenerated({taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId:'ACTION-REPAIR-2',notes:'prediction_created_provisional'});
   state.phase='CROSS_LEARNING';state.updatedAt=now();write(state);
 } else if(op==='authorize-mutation'){
   const owner=validBot(arg('owner'));
