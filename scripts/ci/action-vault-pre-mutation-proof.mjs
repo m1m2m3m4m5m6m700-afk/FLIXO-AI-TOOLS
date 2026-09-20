@@ -7,7 +7,6 @@ import { resolveTargetedTests } from './auto-repair/reproduction.mjs';
 import { verifyTargetIdentity, reproduceStable } from './auto-repair/verification.mjs';
 import { reproduce } from './auto-repair/reproduction.mjs';
 import { simulateAstRepair } from './action-repair-sandbox.mjs';
-import { buildDifferentialProof } from './differential-repair-proof.mjs';
 import { searchRegressionCounterexamples } from './regression-counterexamples.mjs';
 import { buildPatchCorrectnessProof } from './patch-correctness-proof.mjs';
 
