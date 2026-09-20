@@ -1033,15 +1033,32 @@ jobs:
           node scripts/ci/action-learning-master.mjs --op=close-green --target-sha="$FAILED_SHA" --run-id="$TARGET_RUN_ID" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --solution-file=/tmp/flixo-master-solution.json --verification=verified-repair --evidence-ref=/tmp/flixo-repair-evidence.json
           test -s /tmp/flixo-action-repair-bots/ACTION-INDEX.json
           test -s /tmp/flixo-action-repair-bots/ACTION-REPAIR.json
+          test -s /tmp/flixo-repair-training.json
           node scripts/ci/action-repair-knowledge-audit.mjs --target-sha="$FIRST_REPAIR_SHA" --run-id="$TARGET_RUN_ID" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --output=/tmp/flixo-action-repair-post-green.json
           test -s /tmp/flixo-action-repair-post-green.json
           cp /tmp/flixo-action-repair-post-green.json /tmp/flixo-action-repair-bots/ACTION-REPAIR.json
+          FAILED_SHA="$FAILED_SHA" FIRST_REPAIR_SHA="$FIRST_REPAIR_SHA" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report=JSON.parse(fs.readFileSync('/tmp/flixo-repair-training.json','utf8'));
+          const engineOutcome=fs.readFileSync('/tmp/flixo-engine-outcome','utf8').trim();
+          report.persistence={
+            status:engineOutcome==='verified-repair'?'DURABLE_VERIFIED_TRAINING':'DURABLE_VERIFIED_HISTORICAL_REVERT',
+            failedSha:process.env.FAILED_SHA,
+            verifiedExecutionSha:process.env.FIRST_REPAIR_SHA,
+            targetRunId:process.env.TARGET_RUN_ID,
+            repairRunId:process.env.GITHUB_RUN_ID,
+            verification:engineOutcome,
+            promotedAt:new Date().toISOString(),
+          };
+          fs.writeFileSync('diagnostics/auto-repair/training-state.json',JSON.stringify(report,null,2)+'\\n');
+          NODE
+          test -s diagnostics/auto-repair/training-state.json
           mkdir -p diagnostics/auto-repair/action-repair-bots
           cp /tmp/flixo-action-repair-bots/ACTION-INDEX.json diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json
           cp /tmp/flixo-action-repair-bots/ACTION-REPAIR.json diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR.json
-          test "$(git diff --name-only | sort | tr '\n' ' ')" = "diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR.json "
-          git add diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR.json
-          test "$(git diff --cached --name-only | wc -l | tr -d ' ')" -eq 2
+          test "$(git diff --name-only | sort | tr '\n' ' ')" = "diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR.json diagnostics/auto-repair/training-state.json "
+          git add diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR.json diagnostics/auto-repair/training-state.json
+          test "$(git diff --cached --name-only | wc -l | tr -d ' ')" -eq 3
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "chore(memory): record verified Actions solution for run $TARGET_RUN_ID"
           SECOND_SHA="$(git rev-parse HEAD)"
           test "$(git rev-list --count "$FAILED_SHA"..$SECOND_SHA)" -eq 2
