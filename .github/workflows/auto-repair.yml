@@ -1185,6 +1185,7 @@ jobs:
           retention-days: 90
 
       - name: Record provisional Action Vault learning — never canonical before Green
+        id: learning_provisional
         if: steps.verify.outputs.verified == 'true'
         run: |
           set -euo pipefail
@@ -1205,7 +1206,7 @@ jobs:
           test -s /tmp/action-vault-provisional-learning.json
 
       - name: Publish provisional Action Vault learning
-        if: steps.verify.outputs.verified == 'true' && hashFiles('/tmp/action-vault-provisional-learning.json') != ''
+        if: steps.learning_provisional.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-action-vault-provisional-learning-${{ github.run_id }}
