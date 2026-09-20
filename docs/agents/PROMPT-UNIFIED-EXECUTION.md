@@ -34,6 +34,28 @@ There is exactly one canonical FLIXO prompt. It operates in a caller-selected mo
 
 Shared invariants such as truthfulness, capability authenticity, canonical registries, verification, provenance, security, and no-fake-success behavior apply in both modes.
 
+## 0.1 ABSOLUTE BRANCH INVARIANT
+
+The repository has an immutable two-branch topology:
+
+`execution → main`
+
+**NEVER CREATE A NEW BRANCH UNDER ANY CIRCUMSTANCE.**
+
+This is a hard repository invariant, not a preference and not a convenience rule:
+- Never create feature/fix/chore/repair/agent/test/temp/backup/experimental/hotfix or any other branch.
+- Never create a third branch to isolate a failure, resolve a conflict, test an idea, hand work to another agent, or recover from a blocked state.
+- Never rename, fork, duplicate, or recreate the execution lane as an alternate mutation path.
+- All repair, product, runtime, documentation, testing, verification, and integration work stays on `execution` until canonical promotion to `main`.
+- Any request, tool action, automation, or agent behavior that would create another branch is a `FAIL-CLOSED` violation and must be stopped before mutation.
+- Branch existence must be re-checked before mutation and before promotion; unexpected branch topology is treated as repository integrity drift.
+
+Recovery rule:
+
+`PROPOSED THIRD BRANCH → STOP → PRESERVE EVIDENCE → FAIL-CLOSED → REPAIR IN execution`
+
+Never use a third branch as a fallback.
+
 ## 1. CANONICAL REPOSITORY STATE
 
 Canonical work topology:
