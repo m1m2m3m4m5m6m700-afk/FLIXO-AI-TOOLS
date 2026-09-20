@@ -403,6 +403,10 @@ export function evaluateGreen({
     }
   }
 
+  const activeExternalBlocker = report.externalBlockers.some((item) =>
+    ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state)
+  );
+
   if (report.repair.required) {
     report.status = 'RED_INTERNAL';
     report.rootCause = report.errors.find((item) => item.type === 'UNEXPECTED_WORKFLOW_RED')?.workflow ?? 'INTERNAL_WORKFLOW_FAILURE';
