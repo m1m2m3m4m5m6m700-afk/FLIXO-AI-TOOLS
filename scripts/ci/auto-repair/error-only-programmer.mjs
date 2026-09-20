@@ -17,15 +17,19 @@ function exactSha(value) { return SHA_RE.test(String(value ?? '')); }
 function normalizePath(value) { return String(value ?? '').trim().replace(/\\/g, '/').replace(/^\.\//u, ''); }
 
 export function classifyRepairTarget({ diagnosis = null, selected = null } = {}) {
-  const file = normalizePath(selected?.file || diagnosis?.location?.file || diagnosis?.causalGraph?.responsibleSource);
+  const files = [...new Set((Array.isArray(selected?.files) ? selected.files : [selected?.file || diagnosis?.location?.file || diagnosis?.causalGraph?.responsibleSource])
+    .map(normalizePath).filter(Boolean))];
+  const file = files[0] || '';
   const rule = String(selected?.id ?? '');
   const driver = DRIVER_BY_RULE[rule] ?? null;
   const problems = [];
 
   if (!file) problems.push('ERROR_SOURCE_LOCATION_MISSING');
-  if (file && !SOURCE_EXT.test(file)) problems.push('ERROR_SOURCE_FILE_TYPE_UNSUPPORTED');
-  if (file && TEST_PATH.test(file)) problems.push('ERROR_REPAIR_TEST_SURFACE_BLOCKED');
-  if (file && CONTROL_PATH.test(file)) problems.push('ERROR_REPAIR_CONTROL_PLANE_BLOCKED');
+  for (const candidate of files) {
+    if (!SOURCE_EXT.test(candidate)) problems.push('ERROR_SOURCE_FILE_TYPE_UNSUPPORTED:' + candidate);
+    if (TEST_PATH.test(candidate)) problems.push('ERROR_REPAIR_TEST_SURFACE_BLOCKED:' + candidate);
+    if (CONTROL_PATH.test(candidate)) problems.push('ERROR_REPAIR_CONTROL_PLANE_BLOCKED:' + candidate);
+  }
   if (!driver) problems.push('ERROR_REPAIR_DRIVER_UNSUPPORTED');
   if (diagnosis?.decision === 'BLOCK_EXTERNAL') problems.push('ERROR_EXTERNAL_BLOCKER_IS_NOT_SOURCE_DEFECT');
   if (diagnosis?.rootCause === 'UNKNOWN_RCA') problems.push('ERROR_UNKNOWN_RCA_BLOCKED');
@@ -33,6 +37,7 @@ export function classifyRepairTarget({ diagnosis = null, selected = null } = {})
 
   return Object.freeze({
     targetFile: file || null,
+    targetFiles: files,
     rule: rule || null,
     driver,
     sourceOnly: true,
@@ -77,6 +82,7 @@ export function buildErrorOnlyRepairModel({
       rule: selected?.id ?? null,
       driver: classification.driver,
       targetFile: classification.targetFile,
+      targetFiles: classification.targetFiles,
       mutationAllowed,
       reason: mutationAllowed ? 'ERROR_SOURCE_MATCHED_AND_GUARDED' : 'ERROR_ONLY_GUARD_BLOCKED',
     },
