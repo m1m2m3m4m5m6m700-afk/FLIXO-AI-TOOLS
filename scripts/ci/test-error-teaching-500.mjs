@@ -2,12 +2,20 @@ import { readFileSync } from 'node:fs';
 
 const basePath = 'docs/agents/ERROR-TEACHING-500.md';
 const additionalPath = 'docs/agents/ERROR-TEACHING-ADDITIONAL-500.md';
-const baseLines = readFileSync(basePath, 'utf8').split(/\r?\n/u).filter((line) => /^T\d{3,4} \|/u.test(line));
-const additionalLines = readFileSync(additionalPath, 'utf8').split(/\r?\n/u).filter((line) => /^T\d{3,4} \|/u.test(line));
-const lines = [...baseLines, ...additionalLines];
+const expandedPaths = [
+  'docs/agents/ERROR-TEACHING-EXPANDED-A-1000.md',
+  'docs/agents/ERROR-TEACHING-EXPANDED-B-1000.md',
+  'docs/agents/ERROR-TEACHING-EXPANDED-C-1000.md',
+  'docs/agents/ERROR-TEACHING-EXPANDED-D-1000.md',
+];
+const readRules = (file) => readFileSync(file, 'utf8').split(/\r?\n/u).filter((line) => /^T\d{3,4} \|/u.test(line));
+const baseLines = readRules(basePath);
+const additionalLines = readRules(additionalPath);
+const expandedLines = expandedPaths.flatMap(readRules);
+const lines = [...baseLines, ...additionalLines, ...expandedLines];
 
-if (lines.length !== 1000) {
-  console.error(`ERROR_TEACHING_CONTRACT_ERROR=expected_1000_rules actual_${lines.length}`);
+if (lines.length !== 5000) {
+  console.error(`ERROR_TEACHING_CONTRACT_ERROR=expected_5000_rules actual_${lines.length}`);
   process.exit(1);
 }
 
@@ -15,7 +23,7 @@ if (baseLines.length !== 500 || additionalLines.length !== 500) {
   console.error(`ERROR_TEACHING_CONTRACT_ERROR=expected_500_rules_per_chapter base=${baseLines.length} additional=${additionalLines.length}`);
   process.exit(1);
 }
-if (new Set(lines).size !== 1000) {
+if (new Set(lines).size !== 5000) {
   console.error('ERROR_TEACHING_CONTRACT_ERROR=duplicate_rule_lines_detected');
   process.exit(1);
 }
@@ -44,7 +52,7 @@ for (let i = 0; i < lines.length; i += 1) {
 }
 
 const prompt = readFileSync('docs/agents/prompts/RPR-ERROR-RCA-001.md', 'utf8');
-if (!prompt.includes('docs/agents/ERROR-TEACHING-500.md') || !prompt.includes('docs/agents/ERROR-TEACHING-ADDITIONAL-500.md')) {
+if (!prompt.includes('docs/agents/ERROR-TEACHING-500.md') || !prompt.includes('docs/agents/ERROR-TEACHING-ADDITIONAL-500.md') || !prompt.includes('5000-rule')) {
   console.error('ERROR_TEACHING_CONTRACT_ERROR=RCA_prompt_not_bound_to_teaching_corpus');
   process.exit(1);
 }
@@ -61,5 +69,5 @@ if (routedClasses.size !== corpusClasses.size || [...corpusClasses].some((classN
   console.error('ERROR_TEACHING_CONTRACT_ERROR=router_class_coverage_mismatch');
   process.exit(1);
 }
-console.log('ERROR_TEACHING_LINES=1000');
+console.log('ERROR_TEACHING_LINES=5000');
 console.log('ERROR_TEACHING_ROUTER=PASS');
