@@ -14,10 +14,10 @@ const outDir = path.resolve(process.env.FLIXO_HISTORY_OUT ?? '/tmp/flixo-histori
 fs.mkdirSync(outDir, { recursive: true });
 
 const ANSI_ESC = String.fromCharCode(27);
-const ANSI_PATTERN = new RegExp(ANSI_ESC + '\\\\[[0-?]*[ -/]*[@-~]', 'gu');
+const ANSI_PATTERN = new RegExp(ANSI_ESC + '\\[[0-?]*[ -/]*[@-~]', 'gu');
 const sha256 = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex');
 const relevant = /(error|failed|failure|fatal|exception|assert|ts\d{3,4}|type .* is not assignable|cannot find name|expect\(|timeout|timed out|permission|forbidden|unauthorized|npm err|module not found|codeql|deployment|vercel|supabase)/iu;
-const priority = /(^|\\b)(##\\[error\\]|error:|failed|failure|fatal|exception|assert|ts\\d{3,4}|cannot find name|type .* is not assignable|expect\\(|timeout|timed out|permission denied|forbidden|unauthorized)(\\b|:)/iu;
+const priority = /(^|\b)(##\[error\]|error:|failed|failure|fatal|exception|assert|ts\d{3,4}|cannot find name|type .* is not assignable|expect\(|timeout|timed out|permission denied|forbidden|unauthorized)(\b|:)/iu;
 
 const api = async (url, attempt = 0) => {
   const response = await fetch('https://api.github.com' + url, {
