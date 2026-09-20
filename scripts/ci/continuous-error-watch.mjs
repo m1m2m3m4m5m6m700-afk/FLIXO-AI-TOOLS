@@ -345,6 +345,12 @@ export function evaluateGreen({
     report.rootCause = report.errors.find((item) => item.type === 'UNEXPECTED_WORKFLOW_RED')?.workflow ?? 'INTERNAL_WORKFLOW_FAILURE';
   } else if (report.errors.length) {
     report.status = report.rootCause ? 'BLOCKED_EXTERNAL' : 'FAIL_CLOSED';
+  } else if (report.externalBlockers.some((item) =>
+    ['failure', 'action_required', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state)
+  )) {
+    report.status = report.externalBlockers.some((item) => item.kind === 'BLOCKED_EXTERNAL')
+      ? 'BLOCKED_EXTERNAL'
+      : 'FAIL_CLOSED';
   } else {
     report.status = 'GREEN';
     report.rootCause = null;
