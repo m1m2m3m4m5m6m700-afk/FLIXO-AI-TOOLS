@@ -220,8 +220,8 @@ if (
 
 const protectedLiveRuntime = workflowTexts.find(({ file }) => file === 'council-live-runtime-verification.yml');
 if (!protectedLiveRuntime ||
-    !/^  verify:\\s*$/m.test(protectedLiveRuntime.text) ||
-    !/environment:\\s*flixo-live-runtime-verification/.test(protectedLiveRuntime.text) ||
+    !/^\s{2}verify:\s*$/m.test(protectedLiveRuntime.text) ||
+    !/environment:\s*flixo-live-runtime-verification/.test(protectedLiveRuntime.text) ||
     !/Run read-only live runtime verification/.test(protectedLiveRuntime.text)) {
   console.error('CI contract failed: protected live-runtime verification owner is missing or not explicitly isolated.');
   process.exit(1);
@@ -230,11 +230,11 @@ if (!protectedLiveRuntime ||
 for (const job of ['verify', 'browser_fast', 'browser_deep', 'certify']) {
   const owners = workflowTexts.filter(({ file, text }) =>
     file !== 'council-live-runtime-verification.yml' &&
-    new RegExp(`^  ${job}:\\\\s*$`, 'm').test(text),
+    new RegExp('^\\s{2}' + job + ':\\s*$', 'm').test(text),
   );
   if (owners.length !== 1 || owners[0].file !== 'ci.yml') {
     console.error(
-      `CI contract failed: canonical job ${job} must have exactly one workflow owner (ci.yml), excluding the separately protected live-runtime verifier; owners=${owners.map(({ file }) => file).join(',') || 'none'}`,
+      \`CI contract failed: canonical job \${job} must have exactly one workflow owner (ci.yml), excluding the separately protected live-runtime verifier; owners=\${owners.map(({ file }) => file).join(',') || 'none'}\`,
     );
     process.exit(1);
   }
