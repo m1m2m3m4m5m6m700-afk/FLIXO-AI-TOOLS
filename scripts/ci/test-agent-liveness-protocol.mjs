@@ -15,6 +15,7 @@ assert.throws(() => assertTransition('ACTIVE', 'SLEEP', { workAssigned: true }),
 assert.throws(() => assertTransition('ACTIVE', 'ABORTED', { workAssigned: true }), /ABORT_AUTHORITY/u);
 
 assert.throws(() => idleAdmission({ workAssigned: false }), /GREEN_RECORD_REQUIRED/u);
+assert.throws(() => assertTransition('COMPLETE','SLEEP',{workAssigned:false}), /GREEN_RECORD_REQUIRED/u);
 assert.throws(() => sleepAdmission({ workAssigned: true, greenRecord: { source: 'DAILY_FLIXO_GREEN_GATE' } }), /OPEN_WORK/u);
 const green = { source: 'DAILY_FLIXO_GREEN_GATE', conclusion: 'success', zeroRed: true, exactShaVerified: true, targetSha: 'a'.repeat(40), taskId: 'T-1', fingerprint: 'FP-1', recordId: 'GREEN-1', recordedAt: new Date().toISOString() };
 assert.equal(idleAdmission({ workAssigned: false, greenRecord: green, targetSha: green.targetSha, taskId: green.taskId, fingerprint: green.fingerprint }).ok, true);
