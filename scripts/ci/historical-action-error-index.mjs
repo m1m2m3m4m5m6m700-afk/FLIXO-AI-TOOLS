@@ -63,6 +63,7 @@ function emptyManifest() {
     externalDiagnosis: false,
     exactShaRequired: true,
     repositoryCreatedAt: '2026-08-10T14:20:17Z',
+    nextCursor: '2026-08-10T00:00:00Z',
     coverageStart: null,
     coverageEnd: null,
     totalRunsScanned: 0,
@@ -143,6 +144,7 @@ export function mergeOccurrences(input) {
   manifest.uniqueRecords = fs.readdirSync(RECORDS_DIR).filter((name) => name.endsWith('.json')).length;
   if (input.start && (!manifest.coverageStart || input.start < manifest.coverageStart)) manifest.coverageStart = input.start;
   if (input.end && (!manifest.coverageEnd || input.end > manifest.coverageEnd)) manifest.coverageEnd = input.end;
+  if (input.end && (!manifest.nextCursor || input.end > manifest.nextCursor)) manifest.nextCursor = input.end;
   manifest.updatedAt = new Date().toISOString();
   index.updatedAt = manifest.updatedAt;
   fs.writeFileSync(INDEX_FILE, JSON.stringify(index, null, 2) + '\n');
