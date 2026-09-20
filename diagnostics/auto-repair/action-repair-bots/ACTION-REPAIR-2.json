@@ -102,7 +102,7 @@
     "sameFingerprint": true,
     "sameSha": true
   },
-  "role": "SECONDARY_REPAIR_OWNER",
+  "role": "HISTORICAL_INDEX_EXPLORER_AND_PREDICTOR",
   "copyable": true,
   "transferableKnowledgeOnly": true,
   "permanentIndependentAuthority": false,
