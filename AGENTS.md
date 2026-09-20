@@ -19,10 +19,12 @@ Before any repository action, every agent MUST read, in this order:
 7. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
 8. `docs/PROTOCOL-HIERARCHY.md`
 9. `docs/PROTOCOL-REGISTRY.json`
-10. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-11. `scripts/ci/test-plan.json`
-12. `scripts/ci/assertion-registry.json`
-13. the current exact `main` SHA and current workflow state
+10. `docs/agents/PROMPT-REGISTRY.json`
+11. `diagnostics/auto-repair/memory.json`
+12. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+13. `scripts/ci/test-plan.json`
+14. `scripts/ci/assertion-registry.json`
+15. the current exact `main` SHA and current workflow state
 
 `PROJECTS.md` is the navigation/control layer; `المهام.md` is the open-task scope gate; the linked contract/plan remains authoritative for implementation semantics, and CI/evidence remains authoritative for completion.
 
