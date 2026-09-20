@@ -130,7 +130,7 @@ The Task Agent may understand tasks, inspect evidence, consume Prompt Registry/M
 
 The Task Agent MUST NOT mutate source, commit, push, create or merge pull requests, certify, or declare GREEN/CLOSED/VERIFIED.
 
-Repository mutation is limited to the canonical mutation roles admitted by `scripts/ci/repair-protocol.mjs`: `repairAgent` and `executionAgent`.
+Repository mutation is limited to the canonical mutation roles admitted by `scripts/ci/repair-protocol.mjs`: `repairAgent` and `executionAgent`. `assistantRepairAgent` is fallback-only: it may mutate only when both primary mutation agents are unavailable, a learned rule has support >= 2 and confidence >= 0.90, the exact target SHA matches, and repair admission passes.
 
 A prompt, memory record, scout report, or handoff cannot grant mutation authority.
 

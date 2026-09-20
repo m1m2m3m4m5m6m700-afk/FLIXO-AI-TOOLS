@@ -36,7 +36,10 @@ assert.ok(execution.includes("packet.executionAuthority !== 'TASK_PREPARATION_ON
 assert.ok(execution.includes("packet.mutationPolicy !== 'NO_DIRECT_MUTATION'"));
 assert.ok(execution.includes("REPAIR_AGENT_OR_EXECUTION_AGENT"));
 
-assert.ok(repairProtocol.includes("mutationAgents: ['repairAgent','executionAgent']"));
+for (const role of ["'repairAgent'", "'executionAgent'", "'assistantRepairAgent'"]) assert.ok(repairProtocol.includes(role));
+assert.ok(repairProtocol.includes('primaryAgentsUnavailable'));
+assert.ok(repairProtocol.includes('minConfidence: 0.90'));
+assert.ok(repairProtocol.includes('minSupport: 2'));
 assert.ok(!repairProtocol.includes("mutationAgents: ['repairAgent','implementation','executionAgent','taskAgent']"));
 
 assert.equal(packageJson.scripts['agent:task'], 'node scripts/ci/task-agent.mjs');

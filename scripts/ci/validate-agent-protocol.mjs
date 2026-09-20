@@ -39,7 +39,7 @@ const requiredAgentsMarkers = [
   'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
   'docs/PROTOCOL-REGISTRY.json',
   '`PROJECTS.md` → `المهام.md` → `AGENTS.md`',
-  'TASK GATE', 'Task Agent preparation-only',
+  'TASK GATE', 'Task Agent = preparation only',
 ];
 if (exists('AGENTS.md')) {
   const text = read('AGENTS.md');
@@ -85,12 +85,13 @@ if (exists('docs/AGENT-COLLABORATION-PROTOCOL.md')) {
 
 const taskAgentSource = exists('scripts/ci/task-agent.mjs') ? read('scripts/ci/task-agent.mjs') : '';
 if (taskAgentSource) {
-  for (const marker of ["actor: 'taskAgent'", "preparedOnly: true", "executionMode: 'PREPARATION_ONLY'", "mutationPolicy: 'NO_DIRECT_MUTATION'", "executionAuthority: 'TASK_PREPARATION_ONLY'", "TASK-AGENT-PREPARATION-v3", "applyAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT'"]) if (!taskAgentSource.includes(marker)) fail('TASK_AGENT_PREPARATION_CONTRACT_MISSING', marker);
+  for (const marker of ["actor: 'taskAgent'", "preparedOnly: true", "executionMode: 'PREPARATION_ONLY'", "mutationPolicy: 'NO_DIRECT_MUTATION'", "const executionAuthority = 'TASK_PREPARATION_ONLY';", "TASK-AGENT-PREPARATION-v3", "applyAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT'"]) if (!taskAgentSource.includes(marker)) fail('TASK_AGENT_PREPARATION_CONTRACT_MISSING', marker);
   if (taskAgentSource.includes("TASK_AGENT_DIRECT_EXECUTION") || taskAgentSource.includes("TASK_AGENT_ON_EXECUTION_BRANCH_ONLY")) fail('TASK_AGENT_DIRECT_MUTATION_MARKER_PRESENT');
 }
 const repairProtocolSource = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
 if (repairProtocolSource.includes("mutationAgents: ['repairAgent','implementation','executionAgent','taskAgent']")) fail('TASK_AGENT_MUTATION_AUTHORITY_PRESENT');
-if (repairProtocolSource.includes("mutationAgents: ['repairAgent','executionAgent']") === false) fail('REPAIR_MUTATION_AUTHORITY_SET_INVALID');
+for (const marker of ["'repairAgent'", "'executionAgent'", "'assistantRepairAgent'", 'primaryAgentsUnavailable', 'minConfidence: 0.90', 'minSupport: 2']) if (!repairProtocolSource.includes(marker)) fail('REPAIR_MUTATION_AUTHORITY_SET_INVALID', marker);
+
 
 const repairProtocol = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
 const repairEngine = exists('scripts/ci/auto-repair-engine.mjs') ? read('scripts/ci/auto-repair-engine.mjs') : '';

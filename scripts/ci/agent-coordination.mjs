@@ -20,6 +20,7 @@ const TASK_LEDGER_FILE = path.resolve(ROOT, process.env.FLIXO_TASK_LEDGER_FILE ?
 const WRITE_LOCK_WAIT_MS = 50;
 const WRITE_LOCK_MAX_ATTEMPTS = 240;
 const WRITE_LOCK_STALE_MS = 10 * 60 * 1000;
+const STALE_SESSION_KILL_SWITCH = true;
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
@@ -42,7 +43,6 @@ const now = () => new Date().toISOString();
 const sha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const ensure = () => { fs.mkdirSync(COORD_DIR, { recursive: true }); fs.mkdirSync(PACKET_DIR, { recursive: true }); fs.mkdirSync(HANDOFF_DIR, { recursive: true }); };
 const readJson = (file, fallback) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : fallback;
-const LEDGER_TASK_ID_RE = /\b([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d{1,4})\b/u;
 const LEDGER_BLOCKED_RE = /\b(BLOCKED|BLOCKED_EXTERNAL|BLOCKED-UNTIL-GREEN|FROZEN|CANCELLED|DEFER|CLOSED|DONE|HISTORICAL)\b/i;
 const LEDGER_READY_RE = /\b(OPEN|READY|EXECUTION-READY|VERIFICATION-PENDING|PLANNED)\b/i;
 const parseTaskLedger = () => {
@@ -185,6 +185,7 @@ const staleSessionRecord = (sessionId, session, reason) => {
   try { const file = visibilityPath(sessionId); if (fs.existsSync(file)) { const visibility = JSON.parse(fs.readFileSync(file, 'utf8')); visibility.status = 'STALE'; visibility.staleReason = reason; visibility.staleAt = now(); visibility.updatedAt = now(); fs.writeFileSync(file, JSON.stringify(visibility, null, 2) + '\n'); } } catch { return false; }
 };
 const reconcileStaleSessions = () => {
+  if (!STALE_SESSION_KILL_SWITCH) return;
   const current = sha();
   for (const [sessionId, session] of Object.entries(state.activeSessions)) {
     if (session.entrySha && session.entrySha !== current) staleSessionRecord(sessionId, session, 'ENTRY_SHA_MISMATCH');

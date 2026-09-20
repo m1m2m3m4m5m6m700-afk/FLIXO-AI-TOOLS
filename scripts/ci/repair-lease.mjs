@@ -244,7 +244,18 @@ async function commandClaim() {
   }
   const ref = await createRef(identity.leaseRef, tag.tag);
   if (ref.status === 201) {
-    await emitEvent(identity, 'STATE', `attestation-missing-${repairRun.data.id}`, {
+    await emitEvent(identity, 'STATE', `claim-${identity.claimKey}`, {
+      repairKey: identity.claimKey,
+      leaseRef: identity.leaseRef,
+      failedSha,
+      targetRunId: getArg('targetRunId'),
+      repairRunId: repairRunId || null,
+      attempt,
+      leaseOwner,
+      state: 'LEASE_CLAIMED',
+      leaseState: 'LEASE_CLAIMED',
+      at: now,
+    });
   }
   console.log(JSON.stringify({
     status: ref.decision,
