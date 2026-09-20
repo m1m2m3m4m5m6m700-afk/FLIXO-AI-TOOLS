@@ -68,6 +68,8 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const contextualQuery = useMemo(() => contextualizeCommand(query, memory), [query, memory]);
   const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, getReadyToolConfigs())[0] : null, [contextualQuery]);
   const planned = useMemo(() => contextualQuery.trim() ? planFromIntent(contextualQuery) : null, [contextualQuery]);
+  const filterMaskMatch = intent?.tool.id === 'filter-mask';
+  const filterMaskRoute = `/${locale}/filter-mask`;
   const pushMessage = (role: Message['role'], text: string) => {
     setMessages((current) => [...current, { id: messageId, role, text }]);
     setMessageId((value) => value + 1);
@@ -128,6 +130,17 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       setError(null);
       setMemory((current) => clearConversationTask(current));
       pushMessage('agent', responseCopy.cancelled);
+      return;
+    }
+
+    if (filterMaskMatch) {
+      setPlan(null);
+      setState('ready');
+      setError(null);
+      setMemory((current) => setConversationTask(current, { command, toolId: 'filter-mask', planReady: false }));
+      pushMessage('agent', detectedLocale === 'ar'
+        ? 'وجدت Filter Mask في الكتالوج. افتح الكاميرا المباشرة لاختيار الفلتر ومعاينته.'
+        : 'I found Filter Mask in the canonical catalog. Open the live camera to preview and choose a filter.');
       return;
     }
 
