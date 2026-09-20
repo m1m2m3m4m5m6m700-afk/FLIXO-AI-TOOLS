@@ -14,6 +14,8 @@ assert.doesNotThrow(() => assertCanonicalContractClosure());
 assert.doesNotThrow(() => assertExternalProviderClosure());
 assert.doesNotThrow(() => assertHistoricalClassClosure({
   scripts: {
+    'test:execution-sha-provenance': 'x',
+    'test:checkpoint-producer': 'x',
     'test:browser': 'x',
     'validate:playwright-surface': 'x',
     'validate:router-registry': 'x',
@@ -28,6 +30,11 @@ assert.doesNotThrow(() => assertHistoricalClassClosure({
     'validate:indexing': 'x',
     'verify:ci-cd-trust': 'x',
     'test:repair-supervision': 'x',
+    'validate:tool-registry': 'x',
+    'validate:tool-definition': 'x',
+    'test:upload-boundary': 'x',
+    'test:negative-control-integration': 'x',
+    'test:auto-repair': 'x',
   },
 }));
 
