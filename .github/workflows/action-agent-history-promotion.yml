@@ -37,7 +37,7 @@ jobs:
           gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name "flixo-continuous-error-watch-$RUN_ID" --dir /tmp/flixo-green
           test -s /tmp/flixo-green/report.json
           jq -e '.status=="GREEN" and (.executionSha|test("^[0-9a-f]{40}$"))' /tmp/flixo-green/report.json >/dev/null
-          TARGET_SHA="$(jq -r '.executionSha' /tmp/flixo-green/report.json)
+          TARGET_SHA="$(jq -r '.executionSha' /tmp/flixo-green/report.json)"
           WATCHDOG_RUN_ID="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Action Vault Watchdog" --commit "$TARGET_SHA" --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
           if [ -n "$WATCHDOG_RUN_ID" ]; then
             gh run download "$WATCHDOG_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "flixo-action-vault-wake-$WATCHDOG_RUN_ID" --dir /tmp/flixo-provisional || true
