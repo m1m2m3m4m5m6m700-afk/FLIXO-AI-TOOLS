@@ -171,7 +171,7 @@ async function listRecoveryAttempts(identity) {
 }
 
 async function readWorkflowRun(runId) {
-  const result = await api('GET', \`/repos/\${repo}/actions/runs/\${encodeURIComponent(String(runId))}\`);
+  const result = await api('GET', `/repos/${repo}/actions/runs/${encodeURIComponent(String(runId))}`);
   return { status: result.status, data: result.data };
 }
 
