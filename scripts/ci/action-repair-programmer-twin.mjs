@@ -77,7 +77,7 @@ const location=diagnosis?.location?.file??null;
 const locationLinked=location?selectedFiles.includes(location):selectedFiles.length>0;
 const dangerousPatch=/(?:test\.(?:skip|only)|describe\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck)|continue-on-error|skip:|\.github\/workflows|scripts\/ci)/iu.test(candidateDiff);
 const externalSignal=/(?:SessionModelError|CAPIError|requested model|code scanning AI findings|rate limit|quota)/iu.test(failureLog);
-const search=(id,hypothesis,test,result,evidence,counterexample=false,confidence=0.5)=>({id,hypothesis,evidence,test,result,counterexampleStatus:counterexample?'COUNTEREXAMPLE_FOUND':'NO_VALID_COUNTEREXAMPLE',confidence,survivingUncertainty:'NO_COUNTEREXAMPLE_IS_NOT_PATCH_CORRECT'});
+const search=(id,hypothesis,test,result,evidence,counterexample=false,confidence=0.5)=>({id,hypothesis,evidence,test,result,counterexampleStatus:counterexample?'COUNTEREXAMPLE_FOUND':'NO_VALID_COUNTEREXAMPLE',confidence,survivingUncertainty:'NO_COUNTEREXAMPLE_IS_NOT_PATCH_CORRECT',targetSha,failureFingerprint:fingerprint,runId,observedAt:new Date().toISOString()});
 const falsificationSearches=[
   search('F01_ALTERNATIVE_ROOT_CAUSES','A stronger alternative root cause exists.','Compare failure markers, diagnosis and independent alternatives.',rootCause?'FIVE_ALTERNATIVES_ANALYZED':'ROOT_CAUSE_MISSING',['ALT_EXTERNAL_PROVIDER','ALT_WRONG_FILE','ALT_CONTRACT_DRIFT','ALT_HIDDEN_COUPLING','ALT_CONCURRENCY']),
   search('F02_HIDDEN_COUPLING','Selected code has hidden callers/dependencies.','Build caller, callee and import edges from repository source.',sources.every(x=>x.exists)?'SOURCE_GRAPH_ANALYZED':'SOURCE_MISSING',sourceGraph.flatMap(x=>x.callers.concat(x.dependencyEdges)).slice(0,60)),
