@@ -3,10 +3,12 @@ import { LIVE_FILTER_REGISTRY, findLiveFilters, getLiveFilter, resolveLiveFilter
 import { buildFilterMaskUrl, createFilterMaskHandoff, parseFilterMaskHandoff } from '../src/tools/filter-mask/handoff.ts';
 import { resolveFilterMaskSelection } from '../src/lib/intent/resolver.ts';
 import { FILTER_MASK_I18N } from '../src/tools/filter-mask/locales.ts';
+import { filterParametersForTest } from '../src/tools/filter-mask/gpu-renderer.ts';
 import { LOCALES } from '../src/lib/i18n/config.ts';
 assert.ok(LIVE_FILTER_REGISTRY.length >= 100);
 assert.equal(new Set(LIVE_FILTER_REGISTRY.map((filter) => filter.canonicalId)).size, LIVE_FILTER_REGISTRY.length);
 assert.ok(LIVE_FILTER_REGISTRY.every((filter) => filter.version === 1 && filter.supportsLive));
+assert.ok(LIVE_FILTER_REGISTRY.every((filter) => filterParametersForTest(filter.cssFilter) !== null));
 assert.equal(getLiveFilter('effect.original')?.canonicalId, 'effect.original');
 assert.equal(getLiveFilter('missing'), undefined);
 assert.equal(resolveLiveFilter('warm live filter')?.canonicalId, 'effect.warm');
@@ -38,5 +40,8 @@ for (const locale of LOCALES) {
   assert.ok(FILTER_MASK_I18N[locale].quality1080.length > 0);
   assert.ok(FILTER_MASK_I18N[locale].quality720.length > 0);
   assert.ok(FILTER_MASK_I18N[locale].captureQuality.length > 0);
+  assert.ok(FILTER_MASK_I18N[locale].pauseRecording.length > 0);
+  assert.ok(FILTER_MASK_I18N[locale].resumeRecording.length > 0);
+  assert.ok(FILTER_MASK_I18N[locale].cancelRecording.length > 0);
 }
 console.log('Filter Mask registry contract: PASS');
