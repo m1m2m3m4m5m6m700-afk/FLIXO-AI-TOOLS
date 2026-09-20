@@ -21,7 +21,7 @@ const packet={
  branch,
  exactSha:sha,
  readiness:'AWAKE_AND_READY',
- wholeCell:{botCount:50,personalMemoryFiles:personalMemoryCount,controller:registry.supervisor?.role??'assistantController',council:registry.threeSeatCouncil?.seats??[]},
+ wholeCell:{botCount:50,personalMemoryFiles:personalMemoryCount,controller:registry.supervisor?.role??'assistantController',council:registry.cellCouncil?.seats?.map(seat=>seat.id)??[]},
  nextStage:'CANONICAL_DAILY_GREEN_GATE',
  directMutation:false,
  directRepairDispatch:false,
