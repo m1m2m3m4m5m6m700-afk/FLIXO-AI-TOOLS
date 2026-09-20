@@ -343,7 +343,7 @@ NO GATE BYPASS = required
 |---|---|---|---|
 | AUTO-REPAIR-BOT-001 | VERIFYING / EVIDENCE-PENDING | Auto Repair + Task Agent + Error Agent | إثبات repair publication + learning + handoff على current SHA |
 | EXECUTION-BOT-WATCHDOG-001 | ACTIVE | execution-bot-watchdog | Verify exact-SHA RED detection and canonical repair dispatch |
-| REPAIR-SUPERVISION-GATES-001 | ACTIVE | handoff/recovery/merge gates | Prove fail-closed handoff→merge chain |
+| REPAIR-SUPERVISION-GATES-001 | VERIFYING / EVIDENCE-PENDING | handoff/recovery/merge gates | إثبات fail-closed handoff→merge chain على exact current SHA |
 | ROOT-CAUSE-DIAGNOSTICS-001 | OPEN | diagnostics/scout/investigator | Unify evidence→fingerprint→RCA path |
 | WP1-REGISTRY-ENGINE-001 | INCOMPLETE / PARTIAL | Registry/Planner/Executor/Verifier | Finish loader/discovery/contracts |
 | WP2-SECURITY-OBSERVABILITY-001 | OPEN | security/tracing/error classification | Close security + observability invariants |
