@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LIVE_FILTER_FAMILIES, LIVE_FILTER_REGISTRY, getLiveFilter } from './registry';
-import { parseFilterMaskHandoff, type FilterMaskParameters } from './handoff';
+import { FILTER_MASK_ASPECT_RATIOS, parseFilterMaskHandoff, type FilterMaskParameters } from './handoff';
 import { FILTER_MASK_I18N } from './locales';
 import type { Locale } from '@/lib/i18n';
 
@@ -518,8 +518,8 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         <button type="button" onClick={() => selectFilter('effect.original')}>{copy.reset}</button>
       </div>
 
-      <div role="group" aria-label="Capture aspect ratio" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {(['9:16', '4:5', '1:1', '16:9'] as const).map((ratio) => (
+      <div role="group" aria-label={copy.aspectRatio} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {FILTER_MASK_ASPECT_RATIOS.map((ratio) => (
           <button
             key={ratio}
             type="button"
