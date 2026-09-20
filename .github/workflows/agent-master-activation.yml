@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: flixo-master-agent-activation-${{ github.event.workflow_run.id }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   activate:
