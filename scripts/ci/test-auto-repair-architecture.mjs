@@ -20,6 +20,8 @@ assert.match(workflow, /workflow_dispatch:/);
 assert.match(workflow, /adversarial_twin:/);
 assert.match(workflow, /flixo-repair-twin-\$\{\{ github\.run_id \}\}/);
 assert.match(workflow, /Enforce divergent twin decision before mutation/);
+assert.match(workflow, /CELL-005 select best repair option from history and twin A\/B/);
+assert.match(workflow, /flixo-repair-twins-\\\$\\\{\\{ github\\.run_id \\}\\}/);
 assert.match(twinSource, /mutationAuthority: false/);
 assert.doesNotMatch(twinSource, /git\([^\n]*push/);
 assert.match(workflow, /github\.event_name == 'workflow_dispatch'/);
