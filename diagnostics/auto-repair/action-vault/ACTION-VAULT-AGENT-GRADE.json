@@ -55,14 +55,17 @@
     "regressionOrDriftTriggersRevalidation": true
   },
   "agentRuntime": {
-    "protocol": "ACTION-AGENT-RUNTIME-v1",
+    "protocol": "ACTION-AGENT-RUNTIME-v2",
     "cycle": [
       "INTAKE",
       "CONTEXT_RETRIEVAL",
       "PLAN",
+      "SYNTHESIZE",
+      "SIMULATE",
       "EXECUTE",
       "SELF_CHECK",
       "INDEPENDENT_REVIEW",
+      "DIFFERENTIAL_VERIFY",
       "VERIFY",
       "LEARN"
     ],
@@ -79,7 +82,11 @@
       "NO_SELF_APPROVAL",
       "FAIL_CLOSED",
       "STRUCTURED_OUTPUT",
-      "BOUNDED_TOOL_BUDGET"
+      "BOUNDED_TOOL_BUDGET",
+      "PATCH_SYNTHESIS",
+      "SANDBOX_SIMULATION",
+      "DIFFERENTIAL_VERIFICATION",
+      "TRANSACTIONAL_REPAIR"
     ]
   }
 }
