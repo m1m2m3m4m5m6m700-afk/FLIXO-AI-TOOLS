@@ -9,6 +9,12 @@ assert.equal(result.botCount, 3);
 assert.ok(result.errors.length === 0, JSON.stringify(result.errors));
 assert.deepEqual(result.bots.map((x) => x.botId), EXPECTED_BOTS);
 const intelligence = JSON.parse(fs.readFileSync('diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json','utf8'));
+assert.equal(intelligence.schemaVersion,6);
+assert.equal(intelligence.cooperation.triadGovernance.protocol,'ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-v1');
+assert.equal(intelligence.cooperation.triadGovernance.recurrenceEscalationThreshold,20);
+assert.equal(intelligence.cooperation.triadGovernance.catalogCapacity,1000000);
+assert.equal(intelligence.cooperation.triadGovernance.supervisor,'ACTION-HISTORIAN-3');
+assert.equal(intelligence.cooperation.triadGovernance.allThreeMayCreateCandidateArtifacts,true);
 assert.equal(intelligence.cooperation.softwareEngineerCore.protocol, 'LOCAL_SOFTWARE_ENGINEER_CORE_V1');
 assert.equal(intelligence.cooperation.softwareEngineerCore.owner, 'ACTION-REPAIR');
 assert.equal(intelligence.cooperation.softwareEngineerCore.readOnly, true);
@@ -23,7 +29,7 @@ assert.equal(intelligence.agentRuntime.requirements.differentialVerification, tr
 
 const valid = {
   botId: 'ACTION-REPAIR',
-  role: 'PRIMARY_PROGRAMMING_REPAIR_OWNER',
+  role: 'PROGRAMMER_DEFENSE_SEAT',
   permanentIndependentAuthority: false,
   transferableKnowledgeOnly: true,
   intelligenceProfileRef: 'diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json',
@@ -44,11 +50,12 @@ tampered.permanentIndependentAuthority = true;
 assert.ok(validateBotProfile(tampered).some((error) => error.startsWith('INDEPENDENT_AUTHORITY_NOT_DISABLED=')));
 
 const boundaries = validateExecutionBoundaries([
-  { ...valid, role: 'ACTION_REPAIR_EXECUTOR', botId: 'ACTION-REPAIR', executionBoundary: { singleActiveRepairOwner: true, canMutateWhenOwner: true, canMutateTests: false, canMutateMain: false, canonicalGreen: 'DAILY_FLIXO_GREEN_GATE' }, executionContract: { mutationBranch: 'execution', mutationScope: 'ERROR_ONLY', exactShaRequired: true, reproduceBeforeMutation: true, targetedRegressionRequired: true, canonicalGreenRequired: true } },
-  { botId: 'ACTION-REPAIR-2', mutationAuthority:false, executionAuthority:'HISTORICAL_PREDICTION_PROPOSAL_ONLY', rules: { requireOwnerReviewBeforeMutation: true, producePredictionPacket: true, searchHistoricalIndexBeforeProposal: true }, executionBoundary: { canMutateWhenOwner: false, canMutateTests: false, canMutateMain: false, canonicalGreen: 'DAILY_FLIXO_GREEN_GATE' } },
-  { botId: 'ACTION-HISTORIAN-3', mutationAuthority: false, canMutateSource: false, canDispatchRepair: false, executionAuthority: 'RECORD_INDEX_ESCALATE_ONLY', repositoryWriteScope: 'ACTION_VAULT_MEMORY_ONLY', executionBoundary: { sourceMutation: false, testMutation: false } },
+  { ...valid, role: 'PROGRAMMER_DEFENSE_SEAT', botId: 'ACTION-REPAIR', executionBoundary: { singleActiveRepairOwner: true, canMutateWhenOwner: true, canMutateTests: false, canMutateMain: false, canonicalGreen: 'DAILY_FLIXO_GREEN_GATE' }, executionContract: { mutationBranch: 'execution', mutationScope: 'ERROR_ONLY', exactShaRequired: true, reproduceBeforeMutation: true, targetedRegressionRequired: true, canonicalGreenRequired: true } },
+  { botId: 'ACTION-REPAIR-2', mutationAuthority:'ADMITTED_SEAT', executionAuthority:'MUTATE_WHEN_ADMITTED', rules: { requireOwnerReviewBeforeMutation: true, producePredictionPacket: true, searchHistoricalIndexBeforeProposal: true }, executionBoundary: { canMutateWhenOwner: true, canMutateTests: false, canMutateMain: false, canonicalGreen: 'DAILY_FLIXO_GREEN_GATE' } },
+  { botId: 'ACTION-HISTORIAN-3', mutationAuthority: 'SUPERVISOR_20_ONLY', canMutateSource: 'SUPERVISOR_20_ONLY', canDispatchRepair: false, executionAuthority: 'MUTATE_WHEN_SUPERVISOR_20', repositoryWriteScope: 'EXECUTION_SOURCE_AFTER_SUPERVISOR_20', executionBoundary: { sourceMutation: 'SUPERVISOR_20_ONLY', testMutation: false } },
 ]);
 assert.deepEqual(boundaries, []);
+console.log('ACTION_VAULT_TRIAD_MUTATION_SEATS=PASS');
 
 console.log(JSON.stringify({
   status: 'PASS',
