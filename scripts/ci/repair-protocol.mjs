@@ -8,7 +8,9 @@ export const REPAIR_PROTOCOL = Object.freeze({
   protocolId: 'REPAIR_PROTOCOL',
   protocolVersion: '1.0.0',
   authority: 'CONTROL_PLANE',
-  invariant: 'Every repair mutation requires protocol validation, failure capture, causal mutation, targeted retest, resume of remaining verification, final verification, and one session-scoped commit.',
+  invariant: 'Every repair mutation requires protocol validation, failure capture, causal mutation at the exact diagnosed error location only, targeted retest, resume of remaining verification, final verification, and one session-scoped commit.',
+  mutationScope: 'ERROR_ONLY',
+  testMutationPolicy: 'BLOCK',
   precedence: ['SYSTEM_SAFETY','REPAIR_PROTOCOL','CONTROL_PLANE','REPAIR_AGENT','INDIVIDUAL_TASK'],
   lifecycle: ['PROTOCOL_VALIDATION','FAILURE_CAPTURE','MUTATION','TARGETED_RETEST','RESUME_REMAINING_TESTS','FINAL_VERIFICATION','COMMIT_BOUNDARY'],
   inFlightFailurePolicy: 'REPAIR_IN_PLACE_THEN_TARGETED_RETEST_THEN_RESUME',
@@ -31,6 +33,8 @@ export function assertProtocolDefinition(){
   if(REPAIR_PROTOCOL.protocolVersion!=='1.0.0') throw new Error('REPAIR_PROTOCOL_VERSION_INVALID');
   if(REPAIR_PROTOCOL.bypassPolicy!=='BLOCK') throw new Error('REPAIR_PROTOCOL_BYPASS_POLICY_DRIFT');
   if(REPAIR_PROTOCOL.commitPolicy!=='ONE_COMMIT_PER_COMPLETED_REPAIR_SESSION') throw new Error('REPAIR_PROTOCOL_COMMIT_POLICY_DRIFT');
+  if(REPAIR_PROTOCOL.mutationScope!=='ERROR_ONLY') throw new Error('REPAIR_PROTOCOL_MUTATION_SCOPE_DRIFT');
+  if(REPAIR_PROTOCOL.testMutationPolicy!=='BLOCK') throw new Error('REPAIR_PROTOCOL_TEST_MUTATION_POLICY_DRIFT');
   return Object.freeze({protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH});
 }
 export function assertAgentAdmission({actor,branch='execution',mutation=false,session=null}={}){
