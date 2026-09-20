@@ -20,6 +20,8 @@ const bayes=calibrateBayesianConfidence({successes:2,failures:1,externalBlocks:7
 assert.equal(bayes.posteriorMean,0.6);
 assert.equal(bayes.externalBlocksExcluded,true);
 const bandit=selectContextualBandit(memory,current,'reproduce-exact');
+const noRepeatBandit=selectContextualBandit(memory,{...current,rejectedStrategies:['diff-forensics']},'reproduce-exact');
+assert.equal(noRepeatBandit.topCandidates.some(x=>x.strategyId==='diff-forensics'),false);
 assert.equal(bandit.algorithm,'BOUNDED_DETERMINISTIC_UCB_BETA');
 assert.equal(bandit.advisoryOnly,true);
 assert.equal(bandit.randomExploration,false);
