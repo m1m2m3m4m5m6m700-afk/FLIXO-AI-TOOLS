@@ -2,6 +2,8 @@ name: Daily·FLIXO Green Gate
 run-name: Daily·FLIXO Green Gate ${{ github.run_id }}
 
 on:
+  push:
+    branches: [execution]
   workflow_dispatch:
   schedule:
     - cron: '*/5 * * * *'
