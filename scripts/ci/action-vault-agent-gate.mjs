@@ -155,8 +155,13 @@ export function runGate(root = ROOT) {
   const predictorPath = path.resolve(root, 'scripts/ci/action-historical-predictor.mjs');
   const ledgerPath = path.resolve(root, 'scripts/ci/action-failure-ledger.mjs');
   const engineerCorePath = path.resolve(root, 'scripts/ci/action-software-engineer-core.mjs');
+  const patchSynthesisPath = path.resolve(root, 'scripts/ci/action-patch-synthesis.mjs');
+  const sandboxPath = path.resolve(root, 'scripts/ci/action-repair-sandbox.mjs');
+  const differentialVerifierPath = path.resolve(root, 'scripts/ci/action-differential-verifier.mjs');
+  const repairEngineeringPath = path.resolve(root, 'scripts/ci/action-repair-engineering.mjs');
+  const repairEngineeringTestPath = path.resolve(root, 'scripts/ci/test-action-repair-engineering.mjs');
 
-  for (const file of [profilePath, residencyPath, gradePath, mentorPath, parallelProtocolPath, sleepAdmissionPath, collaborationScriptPath, targetedProtocolPath, targetedPlannerPath, targetedTestPath, predictorPath, ledgerPath]) {
+  for (const file of [profilePath, residencyPath, gradePath, mentorPath, parallelProtocolPath, sleepAdmissionPath, collaborationScriptPath, targetedProtocolPath, targetedPlannerPath, targetedTestPath, predictorPath, ledgerPath, engineerCorePath, patchSynthesisPath, sandboxPath, differentialVerifierPath, repairEngineeringPath, repairEngineeringTestPath]) {
     if (!exists(file)) err(errors, 'REQUIRED_VAULT_CONTRACT_MISSING', path.relative(root, file));
   }
 
@@ -222,6 +227,23 @@ export function runGate(root = ROOT) {
   if (intelligence?.cooperation?.softwareEngineerCore?.exactShaRequired !== true) err(errors, 'SOFTWARE_ENGINEER_CORE_SHA_MISSING');
   if (intelligence?.cooperation?.softwareEngineerCore?.mutationByCore !== false) err(errors, 'SOFTWARE_ENGINEER_CORE_SELF_MUTATION_ENABLED');
   if (!exists(engineerCorePath)) err(errors, 'SOFTWARE_ENGINEER_CORE_RUNTIME_MISSING');
+  if (!exists(patchSynthesisPath)) err(errors, 'PATCH_SYNTHESIS_RUNTIME_MISSING');
+  if (!exists(sandboxPath)) err(errors, 'SANDBOX_RUNTIME_MISSING');
+  if (!exists(differentialVerifierPath)) err(errors, 'DIFFERENTIAL_VERIFIER_RUNTIME_MISSING');
+  if (!exists(repairEngineeringPath)) err(errors, 'REPAIR_ENGINEERING_RUNTIME_MISSING');
+  if (!exists(repairEngineeringTestPath)) err(errors, 'REPAIR_ENGINEERING_TEST_MISSING');
+  if (intelligence?.cooperation?.repairEngineering?.enabled !== true) err(errors, 'REPAIR_ENGINEERING_DISABLED');
+  if (intelligence?.cooperation?.repairEngineering?.owner !== 'ACTION-REPAIR') err(errors, 'REPAIR_ENGINEERING_OWNER_INVALID');
+  if (intelligence?.cooperation?.repairEngineering?.exactShaRequired !== true) err(errors, 'REPAIR_ENGINEERING_SHA_MISSING');
+  if (intelligence?.cooperation?.repairEngineering?.detachedWorktreeRequired !== true) err(errors, 'REPAIR_ENGINEERING_WORKTREE_REQUIRED');
+  if (intelligence?.cooperation?.repairEngineering?.testsImmutable !== true) err(errors, 'REPAIR_ENGINEERING_TEST_MUTATION_ENABLED');
+  if (intelligence?.cooperation?.repairEngineering?.mainImmutable !== true) err(errors, 'REPAIR_ENGINEERING_MAIN_MUTATION_ENABLED');
+  if (intelligence?.cooperation?.repairEngineering?.gateWeakeningRejected !== true) err(errors, 'REPAIR_ENGINEERING_GATE_WEAKENING_GUARD_MISSING');
+  if (intelligence?.cooperation?.repairEngineering?.canonicalGreenRequired !== true) err(errors, 'REPAIR_ENGINEERING_GREEN_GATE_MISSING');
+  if (intelligence?.agentRuntime?.protocol !== 'ACTION-AGENT-RUNTIME-v2') err(errors, 'ACTION_AGENT_RUNTIME_PROTOCOL_INVALID');
+  if (intelligence?.agentRuntime?.requirements?.patchSynthesis !== true) err(errors, 'ACTION_AGENT_PATCH_SYNTHESIS_REQUIREMENT_MISSING');
+  if (intelligence?.agentRuntime?.requirements?.sandboxSimulation !== true) err(errors, 'ACTION_AGENT_SANDBOX_REQUIREMENT_MISSING');
+  if (intelligence?.agentRuntime?.requirements?.differentialVerification !== true) err(errors, 'ACTION_AGENT_DIFFERENTIAL_REQUIREMENT_MISSING');
   if (intelligence?.cooperation?.prediction?.runtime !== 'scripts/ci/action-historical-predictor.mjs') err(errors, 'HISTORICAL_PREDICTOR_RUNTIME_INVALID');
   if (intelligence?.cooperation?.prediction?.packetProtocol !== 'PREDICTIVE_REPAIR_PACKET_V1') err(errors, 'HISTORICAL_PREDICTOR_PACKET_INVALID');
   if (intelligence?.cooperation?.failureLedger?.runtime !== 'scripts/ci/action-failure-ledger.mjs') err(errors, 'FAILURE_LEDGER_RUNTIME_INVALID');
