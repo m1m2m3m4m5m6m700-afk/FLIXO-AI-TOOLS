@@ -79,7 +79,7 @@ const requestJson = async (fetchImpl, url, init = {}) => {
     },
   });
   const raw = await response.text();
-  let body = null;
+  let body;
   try { body = raw ? JSON.parse(raw) : null; } catch { body = raw; }
   if (!response.ok) {
     const code = body && typeof body === 'object' ? String(body.error ?? 'COUNCIL_BRIDGE_REMOTE_ERROR') : 'COUNCIL_BRIDGE_REMOTE_ERROR';

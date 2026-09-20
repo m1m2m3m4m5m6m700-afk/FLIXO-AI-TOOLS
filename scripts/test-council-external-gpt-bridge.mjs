@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import http from 'node:http';
 import {
   buildConfig,
   pollDispatch,
