@@ -234,7 +234,7 @@ for (const job of ['verify', 'browser_fast', 'browser_deep', 'certify']) {
   );
   if (owners.length !== 1 || owners[0].file !== 'ci.yml') {
     console.error(
-      console.error('CI contract failed: canonical job ' + job + ' must have exactly one workflow owner (ci.yml), excluding the separately protected live-runtime verifier; owners=' + (owners.map(({ file }) => file).join(',') || 'none'));
+      `CI contract failed: canonical job ${job} must have exactly one workflow owner (ci.yml), excluding the separately protected live-runtime verifier; owners=${owners.map(({ file }) => file).join(',') || 'none'}`,
     );
     process.exit(1);
   }
