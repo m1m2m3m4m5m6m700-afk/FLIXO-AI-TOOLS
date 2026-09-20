@@ -297,7 +297,18 @@ export function evaluateGreen({
   };
   if (!certificationCheck) report.errors.push({ type: 'CERTIFICATION_EVIDENCE_MISSING' });
 
-  const externalCandidates = checkRuns.map((check) => externalCheckBlock(check, logForCheck(check, logs))).filter(Boolean);
+  const latestChecksByName = new Map();
+  for (const check of checkRuns) {
+    const name = String(check.name ?? '');
+    const current = latestChecksByName.get(name);
+    const checkTime = String(check.updated_at ?? check.updatedAt ?? check.completed_at ?? check.started_at ?? '');
+    const currentTime = String(current?.updated_at ?? current?.updatedAt ?? current?.completed_at ?? current?.started_at ?? '');
+    if (!current || checkTime.localeCompare(currentTime) > 0) {
+      latestChecksByName.set(name, check);
+    }
+  }
+  const latestChecks = [...latestChecksByName.values()];
+  const externalCandidates = latestChecks.map((check) => externalCheckBlock(check, logForCheck(check, logs))).filter(Boolean);
   const externalStatusCandidates = statuses
     .filter((status) => isExternalCheckName(status?.context))
     .map((status) => {
