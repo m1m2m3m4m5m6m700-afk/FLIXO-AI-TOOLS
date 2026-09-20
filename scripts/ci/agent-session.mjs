@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
 import { ingest as ingestAgentMessage, markRead as readAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
 import { loadPromptRegistry, validatePromptRegistry, loadErrorMemory } from './prompt-registry.mjs';
+import { recordAgentLearningEvent } from './auto-repair-learning.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -137,6 +138,18 @@ if (command === 'event') {
   const sha = gitSha();
   assertSafeText(type, summary, files, evidence, findings, blockers, next);
   const event = { at: now(), action: 'EVENT', type, summary, sha, files, evidence, findings, blockers, next };
+  const learning = recordAgentLearningEvent({
+    teamId,
+    eventType: type,
+    taskId,
+    actor: agentId,
+    sessionId,
+    entrySha: sha,
+    information: summary,
+    lesson: ['FINDING', 'VERIFICATION', 'TEST', 'CHANGE', 'BLOCKER', 'HANDOFF'].includes(type) ? summary : null,
+    preventionRule: type === 'BLOCKER' ? 'Repair Agent must inspect this blocker before the next mutation decision.' : null,
+    evidence: [...files, ...evidence, ...findings, ...blockers],
+  });
   appendEvent(record, event);
   fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
   const visibilityFile = visibilityPath(sessionId);
@@ -148,6 +161,7 @@ if (command === 'event') {
   visibility.changedFiles = [...new Set([...(visibility.changedFiles ?? []), ...files])];
   visibility.evidence = [...new Set([...(visibility.evidence ?? []), ...evidence])];
   visibility.findings = [...new Set([...(visibility.findings ?? []), ...findings])];
+  visibility.repairAgentLearning = { recorded: true, observationId: learning.id, source: 'diagnostics/auto-repair/memory.json' };
   visibility.blockers = [...new Set([...(visibility.blockers ?? []), ...blockers])];
   visibility.updatedAt = now();
   writeVisibility(visibility);
