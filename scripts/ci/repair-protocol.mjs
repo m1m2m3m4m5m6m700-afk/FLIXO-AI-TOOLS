@@ -142,14 +142,39 @@ export function validateActionVaultVerifierProof({ proof, targetSHA, failureFing
   });
 }
 
-export function validateActionVaultPreMutationProofs({ sandboxProof, differentialProof, patchCorrectnessProof, targetSHA, failureFingerprint } = {}) {
+export function validateActionVaultPreMutationProofs({ sandboxProof, differentialProof, patchCorrectnessProof, regressionCounterexamples = null, targetSHA, failureFingerprint } = {}) {
   if (!sandboxProof || typeof sandboxProof !== 'object') throw new Error('ACTION_VAULT_SANDBOX_PROOF_REQUIRED');
   if (!differentialProof || typeof differentialProof !== 'object') throw new Error('ACTION_VAULT_DIFFERENTIAL_PROOF_REQUIRED');
   if (!patchCorrectnessProof || typeof patchCorrectnessProof !== 'object') throw new Error('ACTION_VAULT_PATCH_CORRECTNESS_PROOF_REQUIRED');
-  if (sandboxProof.protocol !== 'REPAIR_SANDBOX_SIMULATION_V1' || sandboxProof.targetSha !== targetSHA || sandboxProof.failureFingerprint !== failureFingerprint || sandboxProof.exactShaBound !== true || sandboxProof.mutationPerformed !== false || sandboxProof.status !== 'PASS') throw new Error('ACTION_VAULT_SANDBOX_PROOF_INVALID');
-  if (differentialProof.protocol !== 'DIFFERENTIAL_REPAIR_VERIFICATION_V1' || differentialProof.targetSha !== targetSHA || differentialProof.status !== 'PASS' || differentialProof.executionEvidence?.required !== true || Number(differentialProof.executionEvidence?.receiptCount ?? 0) < 1) throw new Error('ACTION_VAULT_DIFFERENTIAL_PROOF_INVALID');
-  if (patchCorrectnessProof.status !== 'PROVEN' || patchCorrectnessProof.targetSha !== targetSHA || patchCorrectnessProof.patchDigest !== sandboxProof.patchDigest || patchCorrectnessProof.mutationPerformed !== false || patchCorrectnessProof.differentialStatus !== 'PASS') throw new Error('ACTION_VAULT_PATCH_CORRECTNESS_PROOF_INVALID');
-  return Object.freeze({ verified: true, targetSHA, failureFingerprint, sandbox: 'PROVEN', differential: 'PROVEN', patchCorrectness: 'PROVEN', patchDigest: sandboxProof.patchDigest });
+  if (!['REPAIR_SANDBOX_SIMULATION_V1', 'REPAIR-SANDBOX-SIMULATION-PROOF-v2'].includes(sandboxProof.protocol)) throw new Error('ACTION_VAULT_SANDBOX_PROTOCOL_INVALID');
+  if (sandboxProof.targetSha !== targetSHA || sandboxProof.failureFingerprint !== failureFingerprint || sandboxProof.exactShaBound !== true || sandboxProof.mutationPerformed !== false || sandboxProof.status !== 'PASS' || sandboxProof.ok === false) throw new Error('ACTION_VAULT_SANDBOX_PROOF_INVALID');
+  const differentialV1 = differentialProof.protocol === 'DIFFERENTIAL_REPAIR_VERIFICATION_V1';
+  const differentialV2 = differentialProof.protocol === 'DIFFERENTIAL-REPAIR-PROOF-v1';
+  if (!differentialV1 && !differentialV2) throw new Error('ACTION_VAULT_DIFFERENTIAL_PROTOCOL_INVALID');
+  if (differentialProof.targetSha !== targetSHA || differentialProof.status !== 'PASS') throw new Error('ACTION_VAULT_DIFFERENTIAL_PROOF_INVALID');
+  if (differentialV1 && (differentialProof.executionEvidence?.required !== true || Number(differentialProof.executionEvidence?.receiptCount ?? 0) < 1)) throw new Error('ACTION_VAULT_DIFFERENTIAL_PROOF_EXECUTION_MISSING');
+  if (differentialV2 && (differentialProof.behavioralVerification?.ok !== true || differentialProof.exactShaBound !== true || differentialProof.scopeProof !== true)) throw new Error('ACTION_VAULT_DIFFERENTIAL_PROOF_EXECUTION_MISSING');
+  if (patchCorrectnessProof.protocol === 'PATCH-CORRECTNESS-PROOF-v1') {
+    if (patchCorrectnessProof.status !== 'PROVEN' || patchCorrectnessProof.targetSha !== targetSHA || patchCorrectnessProof.failureFingerprint !== failureFingerprint || patchCorrectnessProof.sourceMutationAllowed !== false) throw new Error('ACTION_VAULT_PATCH_CORRECTNESS_PROOF_INVALID');
+    if (patchCorrectnessProof.proofCompleteness?.NO_VALID_COUNTEREXAMPLE !== true || patchCorrectnessProof.proofCompleteness?.SIMULATION_PASSED !== true && patchCorrectnessProof.proofCompleteness?.SANDBOX_SIMULATION_PASSED !== true || patchCorrectnessProof.proofCompleteness?.DIFFERENTIAL_CHECK_PASSED !== true || patchCorrectnessProof.proofCompleteness?.PATCH_TARGET_PROVEN !== true || patchCorrectnessProof.proofCompleteness?.PATCH_MECHANISM_PROVEN !== true) throw new Error('ACTION_VAULT_PATCH_CORRECTNESS_COMPLETENESS_INVALID');
+  } else if (patchCorrectnessProof.status !== 'PROVEN' || patchCorrectnessProof.targetSha !== targetSHA || patchCorrectnessProof.patchDigest !== sandboxProof.patchDigest || patchCorrectnessProof.mutationPerformed !== false || patchCorrectnessProof.differentialStatus !== 'PASS') {
+    throw new Error('ACTION_VAULT_PATCH_CORRECTNESS_PROOF_INVALID');
+  }
+  if (regressionCounterexamples) {
+    if (regressionCounterexamples.targetSha !== targetSHA || regressionCounterexamples.failureFingerprint !== failureFingerprint || regressionCounterexamples.exhausted !== true || regressionCounterexamples.counterexampleFound !== false) throw new Error('ACTION_VAULT_REGRESSION_COUNTEREXAMPLES_INVALID');
+  } else if (sandboxProof.regressionCounterexamples?.exhausted !== true || sandboxProof.regressionCounterexamples?.counterexampleFound !== false) {
+    throw new Error('ACTION_VAULT_REGRESSION_COUNTEREXAMPLES_MISSING');
+  }
+  return Object.freeze({
+    verified: true,
+    targetSHA,
+    failureFingerprint,
+    sandbox: 'PROVEN',
+    differential: 'PROVEN',
+    patchCorrectness: 'PROVEN',
+    counterexamples: 'EXHAUSTED_NO_COUNTEREXAMPLE',
+    patchDigest: sandboxProof.patchDigest,
+  });
 }
 
 export function validateErrorOnlyMutation({failureLocation,selectedFile,selectedFiles=[],changedPaths=[]}={}) {
