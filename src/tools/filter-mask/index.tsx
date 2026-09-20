@@ -7,6 +7,17 @@ import type { Locale } from '@/lib/i18n';
 const clampIntensity = (value: number): number => Math.min(100, Math.max(25, Math.round(value)));
 const FAVORITES_KEY = 'flixo.filter-mask.favorites.v1';
 const RECENT_KEY = 'flixo.filter-mask.recent.v1';
+const PRESETS_KEY = 'flixo.filter-mask.presets.v1';
+
+type FilterMaskPreset = Readonly<{
+  id: string;
+  name: string;
+  canonicalId: string;
+  intensity: number;
+  zoom: number;
+  mirror: boolean;
+  aspectRatio: FilterMaskParameters['aspectRatio'];
+}>;
 
 function readStoredIds(key: string): string[] {
   if (typeof window === 'undefined') return [];
@@ -23,6 +34,35 @@ function writeStoredIds(key: string, ids: readonly string[]) {
     window.localStorage.setItem(key, JSON.stringify(ids));
   } catch {
     // Local persistence is optional; the live camera surface remains usable.
+  }
+}
+
+function readStoredPresets(): FilterMaskPreset[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(PRESETS_KEY) ?? '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((value): value is FilterMaskPreset =>
+      value && typeof value === 'object'
+      && typeof value.id === 'string'
+      && typeof value.name === 'string'
+      && typeof value.canonicalId === 'string'
+      && typeof value.intensity === 'number'
+      && typeof value.zoom === 'number'
+      && typeof value.mirror === 'boolean'
+      && typeof value.aspectRatio === 'string'
+      && getLiveFilter(value.canonicalId) !== undefined,
+    ).slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredPresets(presets: readonly FilterMaskPreset[]) {
+  try {
+    window.localStorage.setItem(PRESETS_KEY, JSON.stringify(presets.slice(0, 20)));
+  } catch {
+    // Preset persistence is optional; the live camera surface remains usable.
   }
 }
 
