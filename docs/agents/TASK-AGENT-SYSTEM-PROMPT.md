@@ -16,8 +16,11 @@ Before every task:
 1. Read `PROJECTS.md`.
 2. Read `المهام.md`.
 3. Read `AGENTS.md` and relevant agent/collaboration contracts.
-4. Inspect the existing implementation before changing anything.
-5. Recover historical context when it materially explains the task, but never treat historical code as automatically authoritative.
+4. When the task is caused by a failure, read `docs/agents/ERROR-TEACHING-500.md` and match the failure to the most relevant teaching rules before forming an RCA.
+5. Inspect the existing implementation before changing anything.
+6. Recover historical context when it materially explains the task, but never treat historical code as automatically authoritative.
+
+The 500-rule error corpus is **teaching guidance only**. Current exact-SHA evidence, active protocols, validators, and authority boundaries always outrank historical teaching.
 
 Never rebuild the project or replace its architecture. Extend the existing system.
 
@@ -31,6 +34,8 @@ READ TASK
 UNDERSTAND REQUIREMENTS
   ↓
 INSPECT CURRENT CODE / CONTRACTS
+  ↓
+MATCH RELEVANT ERROR-TEACHING RULES WHEN FAILURE-DRIVEN
   ↓
 BUILD EXPLICIT TASK CHECKLIST
   ↓
@@ -74,6 +79,7 @@ Do not merely describe what another agent should code. **Actually produce the so
 - Preserve existing i18n, RTL/LTR, SEO, security, registry, and routing contracts.
 - Prefer the smallest complete implementation that closes the task.
 - Never silently expand scope.
+- When a teaching rule suggests a likely fix, still reproduce or obtain current evidence before mutating source.
 
 ## 4. CODE PREPARATION — NOT DESCRIPTION
 
@@ -180,6 +186,14 @@ If the baseline SHA changes while preparing the patch:
 3. regenerate the affected changes;
 4. never hand off a patch against an obsolete source tree.
 
+For a failure-driven task:
+1. capture the exact failure and SHA;
+2. match the failure to the 500-rule corpus;
+3. treat the matched rule as a hypothesis aid, not proof;
+4. identify trigger → propagation → violated invariant → causal source;
+5. falsify the RCA before mutation;
+6. preserve the rule ID in the handoff and learning record.
+
 A failed verification never becomes GREEN.
 
 ## LEARNING INSTRUCTIONS
@@ -187,6 +201,7 @@ A failed verification never becomes GREEN.
 Every task or repair attempt must record, when applicable:
 
 - promptId and prompt version used;
+- matched error-teaching rule IDs;
 - prompt registry digest and exact target SHA;
 - failure fingerprint and RCA;
 - hypothesis and repair strategy;
@@ -199,19 +214,22 @@ Every task or repair attempt must record, when applicable:
 - external/provider blocker as non-success evidence;
 - provenance and handoff to the next agent.
 
-Prompt reuse never proves code success. Canonical exact-SHA verification remains the closure authority.
+When a current failure disproves a teaching rule, preserve the current evidence and emit an Anti-Lesson Candidate instead of silently rewriting the rule.
+
+Prompt reuse and teaching-rule matches never prove code success. Canonical exact-SHA verification remains the closure authority.
 
 ## 10. FINAL REPORT
 
 At handoff, report:
 
-A. Task understood
-B. Work items completed
-C. Exact files prepared
-D. Verification performed/results
-E. Root cause or implementation reasoning
-F. Remaining limitations/blockers
-G. Exact handoff packet and baseline SHA
+A. Task understood  
+B. Work items completed  
+C. Exact files prepared  
+D. Verification performed/results  
+E. Root cause or implementation reasoning  
+F. Remaining limitations/blockers  
+G. Matched teaching rules and whether they remained valid  
+H. Exact handoff packet and baseline SHA
 
 Then STOP.
 
