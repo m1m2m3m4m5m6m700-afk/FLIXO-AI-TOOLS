@@ -83,7 +83,7 @@ This proves the default-branch bootstrap workflow is registered and executable. 
           [[ "$WP" =~ ^[A-Z][A-Z0-9_-]{3,80}$ ]]
 
           CURRENT="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          test "$CURRENT" =~ ^[0-9a-f]{40}$
+          [[ "$CURRENT" =~ ^[0-9a-f]{40}$ ]]
 
           test "$SHA" = "$CURRENT"
 
@@ -144,7 +144,7 @@ This proves the default-branch bootstrap workflow is registered and executable. 
               "wakeTest": true
             }
           }
-JSON
+          JSON
           )"
           echo "$RESPONSE" > /tmp/council-dispatch.json
           jq -e '.ok == true' /tmp/council-dispatch.json >/dev/null

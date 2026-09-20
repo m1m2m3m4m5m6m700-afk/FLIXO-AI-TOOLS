@@ -86,7 +86,7 @@ jobs:
               "exactSha": "$ENTRY_SHA"
             }
           }
-JSON
+          JSON
           jq -e '.ok == true' /tmp/council-dispatch.json >/dev/null
           jq -r '"DISPATCH_ID=" + .dispatchId + "\nDISPATCH_STATUS=" + .status + "\nPUSH_RESULT=" + (.push|tostring)' /tmp/council-dispatch.json
 

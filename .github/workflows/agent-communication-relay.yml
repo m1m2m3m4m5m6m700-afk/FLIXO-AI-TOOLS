@@ -121,14 +121,14 @@ jobs:
           set -euo pipefail
           gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### PRESIDENT WAKE RECEIPT
 
-**Role:** `$ROLE`
-**Mode:** `$MODE`
-**Work Package:** `$WORKPACKAGE`
-**Exact SHA:** `$ENTRY_SHA`
+          **Role:** `$ROLE`
+          **Mode:** `$MODE`
+          **Work Package:** `$WORKPACKAGE`
+          **Exact SHA:** `$ENTRY_SHA`
 
-Wake accepted through the canonical communication relay. Workflow dispatch remains subject to exact-SHA and role controls.
+          Wake accepted through the canonical communication relay. Workflow dispatch remains subject to exact-SHA and role controls.
 
-<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
+          <!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
 
       - name: Extract and validate incoming message
         id: message
