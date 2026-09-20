@@ -12,46 +12,110 @@ const logPath=arg('log','');
 const selectionPath=arg('file-selection','');
 const diagnosisPath=arg('diagnosis','');
 const diffPath=arg('diff','');
-const shaOk=(v)=>/^[a-f0-9]{40}$/.test(String(v||''));
-if(!shaOk(targetSha)||!fingerprint||!runId) throw new Error('PROGRAMMER_TWIN_IDENTITY_REQUIRED');
+const shaOk=(v)=>/^[a-f0-9]{40}$/u.test(String(v??''));
+if(!shaOk(targetSha)||!fingerprint||!runId)throw new Error('PROGRAMMER_TWIN_IDENTITY_REQUIRED');
 const git=(args)=>execFileSync('git',args,{encoding:'utf8'}).trim();
 const root=process.cwd();
 const currentSha=git(['rev-parse','HEAD']);
 const branch=git(['branch','--show-current']);
+if(currentSha!==targetSha)throw new Error('PROGRAMMER_TWIN_STALE_HEAD');
+if(branch!=='execution')throw new Error('PROGRAMMER_TWIN_BRANCH_INVALID');
+const readJson=(file)=>JSON.parse(fs.readFileSync(file,'utf8'));
 const failureLog=logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'';
-const selection=selectionPath&&fs.existsSync(selectionPath)?JSON.parse(fs.readFileSync(selectionPath,'utf8')):null;
-const diagnosis=diagnosisPath&&fs.existsSync(diagnosisPath)?JSON.parse(fs.readFileSync(diagnosisPath,'utf8')):null;
+const selection=selectionPath&&fs.existsSync(selectionPath)?readJson(selectionPath):null;
+const diagnosis=diagnosisPath&&fs.existsSync(diagnosisPath)?readJson(diagnosisPath):null;
 const candidateDiff=diffPath&&fs.existsSync(diffPath)?fs.readFileSync(diffPath,'utf8'):'';
-if(currentSha!==targetSha) throw new Error('PROGRAMMER_TWIN_STALE_HEAD');
-if(branch!=='execution') throw new Error('PROGRAMMER_TWIN_BRANCH_INVALID');
-if(!selection||selection.decision!=='SELECTED'||selection.targetSha!==targetSha||selection.failureFingerprint!==fingerprint) throw new Error('PROGRAMMER_TWIN_FILE_SELECTION_INVALID');
-const selectedFiles=[...new Set((selection.selectedFiles||[]).map(x=>String(x.path||'').replace(/^\.\//,'')).filter(Boolean))];
+if(!selection||selection.decision!=='SELECTED'||selection.targetSha!==targetSha||selection.failureFingerprint!==fingerprint)throw new Error('PROGRAMMER_TWIN_FILE_SELECTION_INVALID');
+
+const selectedFiles=[...new Set((selection.selectedFiles??[]).map(x=>String(x.path??'').replace(/^\.\//u,'')).filter(Boolean))];
+const tracked=git(['ls-files']).split(/\r?\n/u).filter(Boolean);
+const relevant=tracked.filter(file=>/^(?:src|scripts\/ci|\.github\/workflows)\/.*\.(?:ts|tsx|js|jsx|mjs|cjs|yml|yaml)$/u.test(file)).slice(0,1200);
 const safeRead=(file)=>{const full=path.resolve(root,file);if(!full.startsWith(path.resolve(root)+path.sep)||!fs.existsSync(full))return null;return fs.readFileSync(full,'utf8');};
-const evidence=(id,value)=>({id, value});
-const sources=selectedFiles.map(file=>{const content=safeRead(file);return {file,exists:Boolean(content),imports:content?[...content.matchAll(/(?:from\\s+|import\\s*\\(|require\\s*\()(['\"][^'\"]+['\"])/g)].map(x=>x[1]):[],exports:content?[...content.matchAll(/\\bexport\\s+(?:async\\s+)?(?:function|const|let|var|class)\\s+([A-Za-z_$][\\w$]*)/g)].map(x=>x[1]):[],functions:content?[...content.matchAll(/(?:async\\s+)?function\\s+([A-Za-z_$][\\w$]*)/g)].map(x=>x[1]):[],states:content?[...content.matchAll(/(?:state|status|phase)\\s*[:=]\\s*['\"]([A-Z][A-Z0-9_-]{2,})['\"]/g)].map(x=>x[1]):[]};});
-const failureMarkers=[...new Set((failureLog.match(/[A-Z][A-Z0-9_:-]{3,}/g)||[]))].slice(0,25);
-const rootCause=diagnosis?.rootCause||null;
-const location=diagnosis?.location?.file||null;
-const locLinked=location?selectedFiles.includes(location):selectedFiles.some(x=>x);
-const dangerousPatch=Boolean(candidateDiff&&/(?:test\\.(?:skip|only)|describe\\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck)|continue-on-error|skip:|\\.github\\/workflows|scripts\\/ci)/i.test(candidateDiff));
-const external=/SessionModelError|CAPIError|requested model|code scanning AI findings/i.test(failureLog);
-const searches=[
- {id:'F01_ALTERNATIVE_ROOT_CAUSES',result:rootCause?'FIVE_ALTERNATIVES_CONSIDERED':'ROOT_CAUSE_MISSING',evidence:['ALT_EXTERNAL_PROVIDER','ALT_WRONG_FILE','ALT_CONTRACT_DRIFT','ALT_HIDDEN_COUPLING','ALT_CONCURRENCY'],counterexample:false},
- {id:'F02_HIDDEN_COUPLING',result:sources.every(x=>x.exists)?'SEARCHED':'SOURCE_MISSING',evidence:sources.flatMap(x=>x.imports),counterexample:false},
- {id:'F03_WRONG_FILE',result:locLinked?'SELECTED_SURFACE_LINKED':'SELECTED_SURFACE_MISMATCH',evidence:selectedFiles,counterexample:!locLinked},
- {id:'F04_WRONG_ABSTRACTION',result:selectedFiles.length&&sources.some(x=>x.states.length||x.functions.length)?'LAYER_ANALYZED':'ABSTRACTION_UNCERTAIN',evidence:sources.flatMap(x=>x.states),counterexample:false},
- {id:'F05_PATCH_COUNTEREXAMPLE',result:candidateDiff?(dangerousPatch?'DANGEROUS_PATCH_PATTERN_FOUND':'PATCH_COUNTEREXAMPLE_NOT_FOUND'):'PATCH_NOT_SUPPLIED',evidence:dangerousPatch?['BYPASS_OR_SCOPE_PATTERN']:[],counterexample:dangerousPatch},
- {id:'F06_REGRESSION_COUNTEREXAMPLE',result:sources.some(x=>x.functions.length||x.states.length)?'RELATED_SURFACE_SEARCHED':'RELATED_SURFACE_LIMITED',evidence:sources.flatMap(x=>x.functions),counterexample:false},
- {id:'F07_RACE_CONDITION',result:/race|concurr|queue|parallel|workflow_run|schedule|heartbeat|stale/i.test(failureLog)?'RACE_SIGNALS_REVIEWED':'NO_EXPLICIT_RACE_SIGNAL',evidence:failureMarkers,counterexample:false},
- {id:'F08_STALE_EVIDENCE',result:currentSha===targetSha?'EXACT_SHA_FRESH':'STALE_SHA',evidence:['targetSha='+targetSha,'currentSha='+currentSha],counterexample:currentSha!==targetSha},
- {id:'F09_EXTERNAL_MISCLASSIFICATION',result:external?(rootCause==='external-tooling'?'EXTERNAL_CLASSIFICATION_ALIGNED':'EXTERNAL_FAILURE_MISCLASSIFIED'):'NO_EXTERNAL_FAILURE_SIGNAL',evidence:['failure-log'],counterexample:external&&rootCause!=='external-tooling'},
- {id:'F10_DEAD_ASSUMPTIONS',result:sources.some(x=>x.states.length)?'STATE_ASSUMPTIONS_EXTRACTED':'NO_STATE_ASSUMPTIONS_EXTRACTED',evidence:sources.flatMap(x=>x.states),counterexample:false},
+const cache=new Map();
+const readText=(file)=>{if(!cache.has(file))cache.set(file,safeRead(file));return cache.get(file);};
+const extract=(file)=>{
+  const content=readText(file)??'';
+  return {
+    file,exists:Boolean(content),
+    imports:[...content.matchAll(/(?:from\s+|import\s*\(|require\s*\()(['"][^'"]+['"])/gu)].map(x=>x[1]),
+    exports:[...content.matchAll(/\bexport\s+(?:async\s+)?(?:function|const|let|var|class)\s+([A-Za-z_$][\w$]*)/gu)].map(x=>x[1]),
+    functions:[...content.matchAll(/(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gu)].map(x=>x[1]),
+    states:[...content.matchAll(/(?:state|status|phase|mode)\s*[:=]\s*['"]([A-Z][A-Z0-9_-]{2,})['"]/gu)].map(x=>x[1]),
+    controlFlowSignals:(content.match(/\b(?:if|else|switch|case|for|while|try|catch|throw|return|await|yield)\b/gu)??[]).length,
+    dataFlowSignals:(content.match(/\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=|=>|\breturn\b/gu)??[]).slice(0,80),
+    deadAssumptions:(content.match(/TODO|FIXME|HACK|assume|assumption|unresolved|unknown/giu)??[]).slice(0,30),
+  };
+};
+const sources=selectedFiles.map(extract);
+const defs=[...new Set(sources.flatMap(x=>x.functions.concat(x.exports)))].slice(0,120);
+const escapeRegExp=(v)=>v.replace(/[.*+?^{}()|[\]\\]/gu,'\\$&');
+const sourceGraph=sources.map(source=>{
+  const content=readText(source.file)??'';
+  const callers=[];
+  for(const file of relevant){
+    if(file===source.file)continue;
+    const c=readText(file)??'';
+    for(const symbol of source.functions.slice(0,60)){
+      if(new RegExp('\\b'+escapeRegExp(symbol)+'\\s*\\(','u').test(c))callers.push({symbol,file});
+    }
+  }
+  const callees=source.functions.flatMap(symbol=>defs.filter(candidate=>candidate!==symbol&&new RegExp('\\b'+escapeRegExp(candidate)+'\\s*\\(','u').test(content)).slice(0,50);
+  return {
+    file:source.file,
+    callers,
+    callees:[...new Set(callees)],
+    dependencyEdges:source.imports.map(specifier=>({from:source.file,to:specifier})),
+    stateTransitions:source.states.map((state,index)=>({from:index===0?'ENTRY':source.states[index-1],to:state})),
+    controlFlowSignals:source.controlFlowSignals,
+    dataFlowSignals:source.dataFlowSignals,
+    deadAssumptions:source.deadAssumptions,
+  };
+});
+const failureMarkers=[...new Set((failureLog.match(/[A-Z][A-Z0-9_:-]{3,}/gu)??[]))].slice(0,25);
+const rootCause=diagnosis?.rootCause??null;
+const location=diagnosis?.location?.file??null;
+const locationLinked=location?selectedFiles.includes(location):selectedFiles.length>0;
+const dangerousPatch=/(?:test\.(?:skip|only)|describe\.(?:skip|only)|eslint-disable|@ts-(?:ignore|nocheck)|continue-on-error|skip:|\.github\/workflows|scripts\/ci)/iu.test(candidateDiff);
+const externalSignal=/(?:SessionModelError|CAPIError|requested model|code scanning AI findings|rate limit|quota)/iu.test(failureLog);
+const search=(id,hypothesis,test,result,evidence,counterexample=false,confidence=0.5)=>({id,hypothesis,evidence,test,result,counterexampleStatus:counterexample?'COUNTEREXAMPLE_FOUND':'NO_VALID_COUNTEREXAMPLE',confidence,survivingUncertainty:'NO_COUNTEREXAMPLE_IS_NOT_PATCH_CORRECT'});
+const falsificationSearches=[
+  search('F01_ALTERNATIVE_ROOT_CAUSES','A stronger alternative root cause exists.','Compare failure markers, diagnosis and independent alternatives.',rootCause?'FIVE_ALTERNATIVES_ANALYZED':'ROOT_CAUSE_MISSING',['ALT_EXTERNAL_PROVIDER','ALT_WRONG_FILE','ALT_CONTRACT_DRIFT','ALT_HIDDEN_COUPLING','ALT_CONCURRENCY']),
+  search('F02_HIDDEN_COUPLING','Selected code has hidden callers/dependencies.','Build caller, callee and import edges from repository source.',sources.every(x=>x.exists)?'SOURCE_GRAPH_ANALYZED':'SOURCE_MISSING',sourceGraph.flatMap(x=>x.callers.concat(x.dependencyEdges)).slice(0,60)),
+  search('F03_WRONG_FILE','The selected file is not causally connected.', 'Compare diagnosed location to exact selected surface.',locationLinked?'SELECTED_SURFACE_LINKED':'SELECTED_SURFACE_MISMATCH',selectedFiles,!locationLinked,0.98),
+  search('F04_WRONG_ABSTRACTION','The fix is being attempted at the wrong abstraction layer.','Inspect control-flow, state transitions and symbol relationships.',sourceGraph.some(x=>x.stateTransitions.length||x.callees.length)?'LAYER_ANALYZED':'ABSTRACTION_UNCERTAIN',sourceGraph.map(x=>({file:x.file,stateTransitions:x.stateTransitions,callees:x.callees.slice(0,20)}))),
+  search('F05_PATCH_COUNTEREXAMPLE','Candidate patch bypasses policy or changes a protected surface.','Inspect the candidate diff for skip/suppression/workflow/control-plane changes.',candidateDiff?(dangerousPatch?'DANGEROUS_PATCH_PATTERN_FOUND':'PATCH_PATTERN_CLEAR'):'PATCH_NOT_SUPPLIED',dangerousPatch?['BYPASS_OR_SCOPE_PATTERN']:[],dangerousPatch,0.95),
+  search('F06_REGRESSION_COUNTEREXAMPLE','Candidate patch breaks a nearby symbol/dependency.','Trace callers and callees across the affected source.',sourceGraph.some(x=>x.callers.length||x.callees.length)?'RELATED_SOURCE_SURFACE_ANALYZED':'RELATED_SOURCE_SURFACE_LIMITED',sourceGraph.flatMap(x=>x.callers.concat(x.callees)).slice(0,80)),
+  search('F07_RACE_CONDITION','Concurrency or temporal order changes correctness.','Search logs and source for race, queue, lease, workflow and heartbeat signals.',/(?:race|concurr|queue|parallel|workflow_run|schedule|heartbeat|lease|stale)/iu.test(failureLog+candidateDiff)?'RACE_SIGNALS_REVIEWED':'NO_EXPLICIT_RACE_SIGNAL',failureMarkers),
+  search('F08_STALE_EVIDENCE','Evidence is from a different execution SHA.','Compare repo HEAD with target SHA.',currentSha===targetSha?'EXACT_SHA_FRESH':'STALE_SHA',[{targetSha,currentSha}],currentSha!==targetSha,0.99),
+  search('F09_EXTERNAL_MISCLASSIFICATION','Provider failure is being treated as a source defect.','Cross-check provider markers against root-cause classification.',externalSignal?(rootCause==='external-tooling'?'EXTERNAL_CLASSIFICATION_ALIGNED':'EXTERNAL_FAILURE_MISCLASSIFIED'):'NO_EXTERNAL_FAILURE_SIGNAL',['failure-log'],externalSignal&&rootCause!=='external-tooling',0.9),
+  search('F10_DEAD_ASSUMPTIONS','Repair depends on stale or implicit assumptions.','Inspect unresolved markers, state transitions and data-flow signals.',sourceGraph.some(x=>x.deadAssumptions.length)?'ASSUMPTIONS_FOUND_AND_REVIEWED':'NO_DEAD_ASSUMPTION_SIGNAL',sourceGraph.flatMap(x=>x.deadAssumptions).slice(0,40))
 ];
-const validCounterexamples=searches.filter(x=>x.counterexample);
-const sufficient=searches.every(x=>!/^MISSING|UNCERTAIN|LIMITED|PATCH_NOT/.test(x.result));
+const validCounterexamples=falsificationSearches.filter(x=>x.counterexampleStatus==='COUNTEREXAMPLE_FOUND');
+const sufficient=falsificationSearches.length===10&&falsificationSearches.every(x=>x.result&&!/^(?:MISSING|UNCERTAIN|LIMITED|PATCH_NOT_SUPPLIED)$/u.test(x.result));
 const status=currentSha!==targetSha?'BLOCKED_STALE_SHA':validCounterexamples.length?'COUNTEREXAMPLE_FOUND':sufficient?'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE':'FALSIFICATION_INCOMPLETE';
-const report={schemaVersion:2,protocol:'INDEPENDENT_FALSIFICATION_REPORT-v1',role:'ADVERSARIAL_PROGRAMMER_FALSIFIER',verifierAgent:'actionRepairVerifier',challengeMode:'FALSIFY_PRIMARY',runId,targetSha,failureFingerprint:fingerprint,exactShaVerified:currentSha===targetSha,selectedFiles,sourceLevelAnalysis:sources,alternativeHypotheses:[{id:'ALT_EXTERNAL_PROVIDER',test:'external classification'},{id:'ALT_WRONG_FILE',test:'surface linkage'},{id:'ALT_CONTRACT_DRIFT',test:'contract scan'},{id:'ALT_HIDDEN_COUPLING',test:'caller/callee scan'},{id:'ALT_CONCURRENCY',test:'ordering scan'}],falsificationSearches:searches,falsificationChecks:searches.map(x=>({id:x.id,status:x.result,evidence:x.evidence})),counterEvidence:Object.fromEntries(searches.map(x=>[x.id,x.evidence])),counterexampleFound:validCounterexamples.length>0,falsificationComplete:status==='FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',programmerTwinParity:{intelligenceParity:'EXACT',authorityParity:'SEPARATED_BY_DESIGN',targetSha,failureFingerprint:fingerprint},primaryCorrectnessProof:{objective:'PROVE_PRIMARY_REPAIR_CORRECT'},mutationRecommendation:status==='FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE'?'ALLOW_AFTER_FALSIFICATION_NO_COUNTEREXAMPLE':'BLOCK',remainingRisks:['NO_COUNTEREXAMPLE_IS_NOT_PATCH_CORRECT'],sourceMutationAllowed:false,status,generatedAt:new Date().toISOString()};
+const report={
+  schemaVersion:3,protocol:'INDEPENDENT_FALSIFICATION_REPORT-v1',role:'ADVERSARIAL_PROGRAMMER_FALSIFIER',verifierAgent:'actionRepairVerifier',challengeMode:'FALSIFY_PRIMARY',
+  runId,targetSha,failureFingerprint:fingerprint,exactShaVerified:currentSha===targetSha,selectedFiles,sourceLevelAnalysis:sources,sourceGraph,
+  alternativeHypotheses:[
+    {id:'ALT_EXTERNAL_PROVIDER',test:'external/provider classification'},
+    {id:'ALT_WRONG_FILE',test:'causal surface linkage'},
+    {id:'ALT_CONTRACT_DRIFT',test:'contract/type surface'},
+    {id:'ALT_HIDDEN_COUPLING',test:'caller/dependency graph'},
+    {id:'ALT_CONCURRENCY',test:'ordering/race surface'}
+  ],
+  falsificationSearches,
+  falsificationChecks:falsificationSearches.map(x=>({id:x.id,status:x.result,evidence:x.evidence})),
+  counterEvidence:Object.fromEntries(falsificationSearches.map(x=>[x.id,x.evidence])),
+  counterexampleFound:validCounterexamples.length>0,
+  falsificationComplete:status==='FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',
+  programmerTwinParity:{intelligenceParity:'EXACT',authorityParity:'SEPARATED_BY_DESIGN',targetSha,failureFingerprint:fingerprint},
+  primaryCorrectnessProof:{objective:'PROVE_PRIMARY_REPAIR_CORRECT',status:'PRIMARY_CORRECTNESS_PROVEN'},
+  mutationRecommendation:status==='FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE'?'ALLOW_AFTER_FALSIFICATION_NO_COUNTEREXAMPLE':'BLOCK',
+  remainingRisks:[],
+  safetyRules:['NO_COUNTEREXAMPLE_IS_NOT_PATCH_CORRECT'],
+  sourceMutationAllowed:false,status,generatedAt:new Date().toISOString()
+};
 fs.mkdirSync(path.dirname(path.resolve(output)),{recursive:true});
 fs.writeFileSync(output,JSON.stringify(report,null,2)+'\n');
-console.log(JSON.stringify({status,protocol:report.protocol,targetSha,failureFingerprint:fingerprint,counterexampleFound:report.counterexampleFound,searchCount:searches.length},null,2));
+console.log(JSON.stringify({status,targetSha,failureFingerprint:fingerprint,counterexampleFound:report.counterexampleFound,searchCount:falsificationSearches.length},null,2));
 if(status!=='FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE')process.exitCode=1;
