@@ -870,6 +870,39 @@ jobs:
           fi
           echo "Canonical execution -> main PR: $PR_URL"
 
+      - name: ACTION-INDEX close Master learning request and create second execution commit
+        if: steps.verify.outputs.verified == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = execution
+          FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
+          git fetch --no-tags origin execution
+          FIRST_REPAIR_SHA="$(git rev-parse HEAD)"
+          REMOTE_EXECUTION_SHA="$(git rev-parse origin/execution)"
+          test "$FIRST_REPAIR_SHA" = "$REMOTE_EXECUTION_SHA"
+          test "$(git rev-list --count "$FAILED_SHA"..HEAD)" -eq 1
+          ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome)"
+          test "$ENGINE_OUTCOME" = "verified-repair" || test "$ENGINE_OUTCOME" = "verified-historical-revert"
+          node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-repair-evidence.json','utf8')); const out={strategyId:x.selected||x.historicalRollback?.rule||null,rule:x.selected||x.historicalRollback?.rule||null,rootCause:x.rootCause||null,changedPaths:x.changedPaths||[],targetSha:x.targetSha||process.env.FAILED_SHA||null,outcome:x.outcome||process.env.ENGINE_OUTCOME,verification:'verified-repair'}; fs.writeFileSync('/tmp/flixo-master-solution.json',JSON.stringify(out,null,2)+'\\n')"
+          node scripts/ci/action-learning-master.mjs --op=close-green --target-sha="$FAILED_SHA" --run-id="$TARGET_RUN_ID" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --solution-file=/tmp/flixo-master-solution.json --verification=verified-repair --evidence-ref=/tmp/flixo-repair-evidence.json
+          test -s diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json
+          test "$(git diff --name-only | wc -l | tr -d ' ')" -eq 1
+          git diff --name-only | grep -Fx 'diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json'
+          git add diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json
+          test "$(git diff --cached --name-only | wc -l | tr -d ' ')" -eq 1
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "chore(memory): record verified Actions solution for run $TARGET_RUN_ID"
+          SECOND_SHA="$(git rev-parse HEAD)"
+          test "$(git rev-list --count "$FAILED_SHA"..$SECOND_SHA)" -eq 2
+          test "$(git rev-parse "$SECOND_SHA^")" = "$FIRST_REPAIR_SHA"
+          git fetch --no-tags origin execution
+          test "$(git rev-parse origin/execution)" = "$FIRST_REPAIR_SHA"
+          git push origin execution
+          test "$(git rev-parse origin/execution)" = "$SECOND_SHA"
+          echo "ACTION_REPAIR_TWO_COMMITS=PASS"
+          echo "ACTION_REPAIR_COMMIT_1=$FIRST_REPAIR_SHA"
+          echo "ACTION_REPAIR_COMMIT_2=$SECOND_SHA"
       - name: Record publication state in the Repair Control Plane
         if: steps.verify.outputs.verified == 'true'
         run: |
