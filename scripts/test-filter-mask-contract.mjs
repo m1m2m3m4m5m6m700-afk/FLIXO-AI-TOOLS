@@ -1,8 +1,16 @@
 import assert from 'node:assert/strict';
-import { LIVE_FILTER_REGISTRY, getLiveFilter } from '../src/tools/filter-mask/registry.ts';
+import { LIVE_FILTER_REGISTRY, findLiveFilters, getLiveFilter, resolveLiveFilter } from '../src/tools/filter-mask/registry.ts';
+import { buildFilterMaskUrl, createFilterMaskHandoff, parseFilterMaskHandoff } from '../src/tools/filter-mask/handoff.ts';
 assert.ok(LIVE_FILTER_REGISTRY.length >= 60);
 assert.equal(new Set(LIVE_FILTER_REGISTRY.map((filter) => filter.canonicalId)).size, LIVE_FILTER_REGISTRY.length);
 assert.ok(LIVE_FILTER_REGISTRY.every((filter) => filter.version === 1 && filter.supportsLive));
 assert.equal(getLiveFilter('effect.original')?.canonicalId, 'effect.original');
 assert.equal(getLiveFilter('missing'), undefined);
+assert.equal(resolveLiveFilter('warm live filter')?.canonicalId, 'effect.warm');
+assert.equal(findLiveFilters('cinematic')[0]?.family, 'cinematic');
+const handoff = createFilterMaskHandoff(getLiveFilter('effect.warm')!, { intensity: 63 });
+assert.equal(handoff.parameters.intensity, 63);
+assert.deepEqual(parseFilterMaskHandoff('?canonicalId=effect.warm&intensity=63'), handoff);
+assert.equal(buildFilterMaskUrl('ar', handoff), '/ar/filter-mask?canonicalId=effect.warm&intensity=63');
+assert.equal(parseFilterMaskHandoff('?canonicalId=missing&intensity=63'), null);
 console.log('Filter Mask registry contract: PASS');
