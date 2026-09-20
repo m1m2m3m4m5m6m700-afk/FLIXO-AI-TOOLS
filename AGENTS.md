@@ -1,3 +1,23 @@
+## ZERO-NEW-BRANCH COMMAND
+
+**ABSOLUTE AGENT COMMAND — DO NOT CREATE OR USE ANY NEW BRANCH.**
+
+All autonomous agents, repair agents, diagnostics, Prompt agents, Task Agent, Error Agent, watchdogs, and helper agents MUST work only on the canonical two-branch topology:
+
+`execution → main`
+
+Forbidden without exception:
+- `git checkout -b ...`
+- `git switch -c ...`
+- creating any feature/fix/chore/repair/agent/test/temp/backup/experimental branch;
+- creating a branch per error, SHA, run, prompt, task, or agent;
+- changing work to a third branch to escape conflicts;
+- using a newly created branch as a temporary holding area.
+
+When a conflict or new failure appears, stay on `execution`, perform RCA, repair there, and continue verification. When promotion is required, use the existing `execution → main` integration PR only. Existing historical branches may remain for provenance, but agents MUST NOT check them out, extend them, or create replacements.
+
+A branch-creation attempt is a protocol violation and MUST fail closed.
+
 # 🚨 AGENT ENTRY GATE — FLIXO-AI-TOOLS
 
 **FIRST READ: `PROJECTS.md` → `المهام.md`**
