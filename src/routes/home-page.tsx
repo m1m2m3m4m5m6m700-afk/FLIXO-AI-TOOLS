@@ -2,6 +2,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TOOLS_REGISTRY } from '../config/tools';
 import { SmartCommandPalette } from '../components/SmartCommandPalette';
+import { FlixoLogoImage } from '../components/FlixoLogoImage';
 import { FlixoAIAgent } from '../components/FlixoAIAgent';
 import { getBestToolIntent } from '@/lib/intent-router';
 import { loadHomeCopy } from '@/lib/i18n/home-loader';
@@ -58,7 +59,7 @@ export function HomePage({ locale = 'en' as Locale }: { locale?: Locale }) {
   return (
     <main className="home-shell" lang={localeMetadata.languageTag} dir={localeMetadata.direction}>
       {paletteOpen && <SmartCommandPalette onClose={() => setPaletteOpen(false)} />}
-      <nav className="home-nav" aria-label={copy.ariaPrimary}><div className="home-container home-nav-inner"><Link className="home-brand" to="/" aria-label={copy.ariaHome}><img src="/flixo-logo.webp" alt="FLIXO AI Tools" width={40} height={40} /></Link><div className="home-nav-links"><a href="#tools">{locale === 'ar' ? 'أدوات الصور' : copy.nav.tools}</a><Link to="/$locale/$tool" params={{ locale, tool: 'pix' }}>{FILTER_LABELS[locale] ?? copy.nav.categories}</Link></div><label className="sr-only" htmlFor="home-language">{copy.nav.switch}</label><select id="home-language" className="home-nav-language" value={locale} aria-label={copy.nav.switch} onChange={(event) => { const nextLocale = event.target.value as Locale; void navigate(nextLocale === 'en' ? { to: '/' } : { to: '/$locale', params: { locale: nextLocale } }); }}>{LOCALES.map((code) => <option key={code} value={code}>{LANGUAGE_LABELS[code] ?? code}</option>)}</select></div></nav>
+      <nav className="home-nav" aria-label={copy.ariaPrimary}><div className="home-container home-nav-inner"><Link className="home-brand" to="/" aria-label={copy.ariaHome}><FlixoLogoImage alt="FLIXO AI Tools" width={40} height={40} /></Link><div className="home-nav-links"><a href="#tools">{locale === 'ar' ? 'أدوات الصور' : copy.nav.tools}</a><Link to="/$locale/$tool" params={{ locale, tool: 'pix' }}>{FILTER_LABELS[locale] ?? copy.nav.categories}</Link></div><label className="sr-only" htmlFor="home-language">{copy.nav.switch}</label><select id="home-language" className="home-nav-language" value={locale} aria-label={copy.nav.switch} onChange={(event) => { const nextLocale = event.target.value as Locale; void navigate(nextLocale === 'en' ? { to: '/' } : { to: '/$locale', params: { locale: nextLocale } }); }}>{LOCALES.map((code) => <option key={code} value={code}>{LANGUAGE_LABELS[code] ?? code}</option>)}</select></div></nav>
       <div className="home-container home-content">
         <section className="home-hero" aria-labelledby="home-title"><div><span className="home-badge">{copy.badge}</span><p className="image-tool-eyebrow">{copy.eyebrow}</p><h1 id="home-title">{renderHeroTitle(copy.heroTitle)}</h1><p className="home-lead">{copy.heroLead}</p></div><button type="button" className="home-hero-command" onClick={() => setPaletteOpen(true)}><span>{copy.describe}</span><kbd>Ctrl K</kbd></button></section>
         <FlixoAIAgent locale={locale} />
