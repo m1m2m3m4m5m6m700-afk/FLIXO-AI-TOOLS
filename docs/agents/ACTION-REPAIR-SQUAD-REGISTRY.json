@@ -33,7 +33,9 @@
     "knowledgeMayTransfer": true,
     "permissionsMayTransfer": false,
     "independentAuthorityMayTransfer": false,
-    "actionRepairExecutor": "ACTION-REPAIR"
+    "actionRepairExecutor": "ACTION-REPAIR",
+    "actionIndexOwner": "ACTION-REPAIR",
+    "actionIndexSearchRequired": true
   },
   "workers": [
     {
@@ -94,8 +96,8 @@
       "kind": "ACTION_REPAIR_BOT",
       "status": "READY",
       "workerIndex": 3,
-      "role": "ACTION_SOLUTION_INDEXER",
-      "mission": "Owns the historical GitHub Actions error index and retrieves prior repair candidates.",
+      "role": "ACTION_SOLUTION_INDEXER_SUPPORT",
+      "mission": "Maintains and refreshes the historical GitHub Actions error index for ACTION-REPAIR and the other knowledge workers.",
       "weakness": "HISTORICAL_ACTION_INDEX_RETRIEVAL",
       "headquarters": "docs/agents/historical-action-errors",
       "sharedReferences": [
@@ -186,13 +188,25 @@
     "mutationScope": "ERROR_ONLY",
     "branch": "execution",
     "maxAttemptsPerFingerprint": 1000000,
-    "knowledgeSource": "ACTION-WISE",
+    "knowledgeSource": "ACTION-WISE+ACTION-INDEX",
     "historicalSource": "ACTION-INDEX",
     "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY",
     "canonicalGreenAuthority": "DAILY_FLIXO_GREEN_GATE",
     "canMutateMain": false,
     "canMutateTests": false,
     "canMutateProtectedControlPlane": false,
-    "independentAuthorityMayTransfer": false
+    "independentAuthorityMayTransfer": false,
+    "indexOwner": true,
+    "ownsActionIndex": true,
+    "indexPath": "docs/agents/historical-action-errors/index.json",
+    "indexRecordsPath": "docs/agents/historical-action-errors/records",
+    "directActionSearch": true,
+    "searchEngine": "scripts/ci/historical-action-error-index.mjs",
+    "searchScope": [
+      "CURRENT_TARGET_ACTION_LOG",
+      "HISTORICAL_ACTION_ERROR_CORPUS"
+    ],
+    "searchBeforeMutation": true,
+    "canonicalSearchOwner": "ACTION-REPAIR"
   }
 }
