@@ -8,6 +8,11 @@ assert.equal(registry.separation.separateFromCell,true);
 assert.equal(registry.separation.cellBotCount,50);
 assert.equal(registry.separation.includedInCellCount,false);
 assert.deepEqual(registry.workers.map(x=>x.id),['ACTION-TWIN-1','ACTION-TWIN-2','ACTION-INDEX','ACTION-WISE','ACTION-WAKE']);
+assert.equal(registry.repairExecutor.id,'ACTION-REPAIR');
+assert.equal(registry.repairExecutor.protocolActor,'actionRepairBot');
+assert.equal(registry.repairExecutor.mutationAuthority,true);
+assert.equal(registry.repairExecutor.executionAuthority,'SOURCE_MUTATION_VIA_REPAIR_PROTOCOL');
+assert.equal(registry.repairExecutor.maxAttemptsPerFingerprint,1000000);
 const expected={
  'ACTION-TWIN-1':'ACTION_REPAIR_TWIN_A',
  'ACTION-TWIN-2':'ACTION_REPAIR_TWIN_B',

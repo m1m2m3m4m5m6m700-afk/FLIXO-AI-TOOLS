@@ -32,7 +32,8 @@
     "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY",
     "knowledgeMayTransfer": true,
     "permissionsMayTransfer": false,
-    "independentAuthorityMayTransfer": false
+    "independentAuthorityMayTransfer": false,
+    "actionRepairExecutor": "ACTION-REPAIR"
   },
   "workers": [
     {
@@ -169,5 +170,29 @@
   "sourceIndexSnapshot": {
     "sourceUpdatedAt": "2026-09-20T11:55:51.945Z",
     "recordCount": 2
+  },
+  "repairExecutor": {
+    "id": "ACTION-REPAIR",
+    "displayName": "بوت إصلاح Actions",
+    "kind": "ACTION_REPAIR_EXECUTOR",
+    "status": "READY",
+    "role": "ACTION_REPAIR_EXECUTOR",
+    "mission": "Executes the bounded source repair selected from the five Actions knowledge workers, then runs targeted regression and returns the result to canonical CI.",
+    "protocolActor": "actionRepairBot",
+    "workflow": ".github/workflows/auto-repair.yml",
+    "engine": "scripts/ci/auto-repair-engine.mjs",
+    "mutationAuthority": true,
+    "executionAuthority": "SOURCE_MUTATION_VIA_REPAIR_PROTOCOL",
+    "mutationScope": "ERROR_ONLY",
+    "branch": "execution",
+    "maxAttemptsPerFingerprint": 1000000,
+    "knowledgeSource": "ACTION-WISE",
+    "historicalSource": "ACTION-INDEX",
+    "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY",
+    "canonicalGreenAuthority": "DAILY_FLIXO_GREEN_GATE",
+    "canMutateMain": false,
+    "canMutateTests": false,
+    "canMutateProtectedControlPlane": false,
+    "independentAuthorityMayTransfer": false
   }
 }

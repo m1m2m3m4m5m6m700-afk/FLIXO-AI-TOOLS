@@ -38,6 +38,8 @@ const requireIdentity=()=>{if(!sha(targetSha))throw new Error('FIVE_ACTION_REPAI
 const registry=readJson(REGISTRY);
 const workerIds=Array.isArray(registry.workers)?registry.workers.map(worker=>worker.id):[];
 if(!Array.isArray(workerIds)||workerIds.length!==5||new Set(workerIds).size!==5||workerIds.some(id=>!/^ACTION-(?:INDEX|WAKE|TWIN-1|TWIN-2|WISE)$/u.test(id)))throw new Error('FIVE_ACTION_REPAIR_SQUAD_REGISTRY_INVALID');
+const executor=registry.repairExecutor;
+if(!executor || executor.id!=='ACTION-REPAIR' || executor.protocolActor!=='actionRepairBot' || executor.mutationAuthority!==true || executor.executionAuthority!=='SOURCE_MUTATION_VIA_REPAIR_PROTOCOL' || executor.branch!=='execution' || Number(executor.maxAttemptsPerFingerprint)!==1000000 || executor.canMutateMain!==false || executor.canMutateTests!==false) throw new Error('ACTION_REPAIR_EXECUTOR_REGISTRY_INVALID');
 const missing=SHARED_REFS.filter(ref=>!fs.existsSync(path.join(ROOT,ref)));
 if(missing.length)throw new Error('FIVE_ACTION_REPAIR_SHARED_REFERENCE_MISSING='+missing.join(','));
 const rawLog=logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'';
