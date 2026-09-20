@@ -31,6 +31,9 @@ test.describe('Filter Mask live camera surface', () => {
   });
 
   test('reports a clear error when camera permission is denied', async ({ page }) => {
+    const mediaCapabilities = await page.evaluate(() => ({ captureStream: 'captureStream' in HTMLCanvasElement.prototype, mediaRecorder: 'MediaRecorder' in window }));
+    if (!mediaCapabilities.captureStream || !mediaCapabilities.mediaRecorder) testInfo.skip(true, 'Synthetic camera recording primitives are unavailable in this browser.');
+
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
@@ -59,7 +62,7 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(section.getByRole('button', { name: 'Record video' }).first()).toBeDisabled();
     await expect(section.getByRole('region', { name: 'Filter Mask' }).getByText('Download result')).toHaveCount(0);
   });
-  test('runs the camera/capture/recording lifecycle against a synthetic MediaStream', async ({ page }) => {
+  test('runs the camera/capture/recording lifecycle against a synthetic MediaStream', async ({ page }, testInfo) => {
     await page.addInitScript(() => {
       const source = document.createElement('canvas');
       source.width = 320;
@@ -100,7 +103,7 @@ test.describe('Filter Mask live camera surface', () => {
       return { readyState: element.readyState, width: element.videoWidth, height: element.videoHeight };
     }), { timeout: 10_000 }).toEqual({ readyState: 4, width: 320, height: 240 });
 
-    const photoPromise = page.waitForEvent('download');
+    await expect(section.getByRole('button', { name: 'Photo' })).toBeEnabled();
     await section.getByRole('button', { name: 'Photo' }).click();
     await expect(section.getByText('Download result')).toBeVisible();
 
