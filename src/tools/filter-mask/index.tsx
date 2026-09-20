@@ -106,6 +106,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const recordFrameRef = useRef<number | null>(null);
+  const recordTimerRef = useRef<number | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
   const handoff = useMemo(
@@ -115,6 +116,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
 
   const [running, setRunning] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [family, setFamily] = useState<'all' | (typeof LIVE_FILTER_FAMILIES[number])>('all');
@@ -155,6 +157,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   useEffect(() => () => {
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
     if (recordFrameRef.current !== null) cancelAnimationFrame(recordFrameRef.current);
+    if (recordTimerRef.current !== null) window.clearInterval(recordTimerRef.current);
     streamRef.current?.getTracks().forEach((track) => track.stop());
     baseVideoRef.current?.srcObject && (baseVideoRef.current.srcObject = null);
     videoRef.current?.srcObject && (videoRef.current.srcObject = null);
@@ -234,6 +237,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   function stop() {
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
     if (recordFrameRef.current !== null) cancelAnimationFrame(recordFrameRef.current);
+    if (recordTimerRef.current !== null) window.clearInterval(recordTimerRef.current);
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     [baseVideoRef.current, videoRef.current].forEach((video) => {
@@ -315,6 +319,8 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       recorder.onstop = () => {
         if (recordFrameRef.current !== null) cancelAnimationFrame(recordFrameRef.current);
         recordFrameRef.current = null;
+        if (recordTimerRef.current !== null) window.clearInterval(recordTimerRef.current);
+        recordTimerRef.current = null;
         outputStream.getTracks().forEach((track) => track.stop());
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'video/webm' });
         const url = URL.createObjectURL(blob);
@@ -324,6 +330,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         });
         setCapturedKind('video');
         setRecording(false);
+        setRecordSeconds(0);
         recorderRef.current = null;
       };
 
@@ -336,11 +343,19 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       recorder.start(1000);
       recorderRef.current = recorder;
       recordFrameRef.current = requestAnimationFrame(drawFrame);
+      setRecordSeconds(0);
+      recordTimerRef.current = window.setInterval(() => setRecordSeconds((seconds) => seconds + 1), 1000);
       setRecording(true);
     } catch {
       setError(copy.recordingStartFailed);
     }
   }
+
+  const formatRecordTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const remainder = (seconds % 60).toString().padStart(2, '0');
+    return `${minutes}:${remainder}`;
+  };
 
   function stopRecording() {
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
