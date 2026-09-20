@@ -3,6 +3,26 @@ import { LIVE_FILTER_FAMILIES, LIVE_FILTER_REGISTRY, getLiveFilter } from './reg
 import { parseFilterMaskHandoff } from './handoff';
 
 const clampIntensity = (value: number): number => Math.min(100, Math.max(25, Math.round(value)));
+const FAVORITES_KEY = 'flixo.filter-mask.favorites.v1';
+const RECENT_KEY = 'flixo.filter-mask.recent.v1';
+
+function readStoredIds(key: string): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(key) ?? '[]');
+    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredIds(key: string, ids: readonly string[]) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(ids));
+  } catch {
+    // Local persistence is optional; the live camera surface remains usable.
+  }
+}
 
 function drawFilteredFrame(
   ctx: CanvasRenderingContext2D,
@@ -56,6 +76,9 @@ export function FilterMaskTool() {
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [family, setFamily] = useState<'all' | (typeof LIVE_FILTER_FAMILIES[number])>('all');
+  const [favorites, setFavorites] = useState<string[]>(() => readStoredIds(FAVORITES_KEY));
+  const [recent, setRecent] = useState<string[]>(() => readStoredIds(RECENT_KEY).slice(0, 8));
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [selectedId, setSelectedId] = useState(handoff?.canonicalId ?? 'effect.original');
   const [intensity, setIntensity] = useState(handoff?.parameters.intensity ?? 100);
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
@@ -68,9 +91,10 @@ export function FilterMaskTool() {
       const familyMatches = family === 'all' || filter.family === family;
       const queryMatches = !needle
         || `${filter.canonicalId} ${filter.label} ${filter.family}`.toLocaleLowerCase().includes(needle);
-      return familyMatches && queryMatches;
+      const favoriteMatches = !favoritesOnly || favorites.includes(filter.canonicalId);
+      return familyMatches && queryMatches && favoriteMatches;
     });
-  }, [family, query]);
+  }, [family, favorites, favoritesOnly, query]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -122,6 +146,26 @@ export function FilterMaskTool() {
       setRunning(false);
       setError('Camera or microphone access was denied or unavailable.');
     }
+  }
+
+  function selectFilter(canonicalId: string) {
+    if (!getLiveFilter(canonicalId)) return;
+    setSelectedId(canonicalId);
+    setRecent((current) => {
+      const next = [canonicalId, ...current.filter((id) => id !== canonicalId)].slice(0, 8);
+      writeStoredIds(RECENT_KEY, next);
+      return next;
+    });
+  }
+
+  function toggleFavorite(canonicalId: string) {
+    setFavorites((current) => {
+      const next = current.includes(canonicalId)
+        ? current.filter((id) => id !== canonicalId)
+        : [canonicalId, ...current];
+      writeStoredIds(FAVORITES_KEY, next);
+      return next;
+    });
   }
 
   function stop() {
@@ -329,17 +373,49 @@ export function FilterMaskTool() {
       </label>
 
       <div role="group" aria-label="Filter families" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" aria-pressed={family === 'all'} onClick={() => setFamily('all')}>All</button>
+        <button type="button" aria-pressed={family === 'all' && !favoritesOnly} onClick={() => { setFamily('all'); setFavoritesOnly(false); }}>All</button>
+        <button type="button" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly((current) => !current)}>Favorites</button>
         {LIVE_FILTER_FAMILIES.map((filterFamily) => (
           <button
             key={filterFamily}
             type="button"
             aria-pressed={family === filterFamily}
-            onClick={() => setFamily(filterFamily)}
+            onClick={() => { setFamily(filterFamily); setFavoritesOnly(false); }}
           >
             {filterFamily}
           </button>
         ))}
+      </div>
+
+      {recent.length > 0 && (
+        <div role="group" aria-label="Recent filters" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <strong>Recent:</strong>
+          {recent.map((canonicalId) => {
+            const recentFilter = getLiveFilter(canonicalId);
+            if (!recentFilter) return null;
+            return (
+              <button
+                key={canonicalId}
+                type="button"
+                aria-label={`Recent ${recentFilter.label}`}
+                onClick={() => selectFilter(canonicalId)}
+              >
+                {recentFilter.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div role="group" aria-label="Selected filter actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          aria-pressed={favorites.includes(selected.canonicalId)}
+          onClick={() => toggleFavorite(selected.canonicalId)}
+        >
+          {favorites.includes(selected.canonicalId) ? '★ Favorite' : '☆ Favorite'}
+        </button>
+        <button type="button" onClick={() => selectFilter('effect.original')}>Reset filter</button>
       </div>
 
       <label>
@@ -360,7 +436,7 @@ export function FilterMaskTool() {
             type="button"
             aria-pressed={filter.canonicalId === selectedId}
             data-filter-canonical-id={filter.canonicalId}
-            onClick={() => setSelectedId(filter.canonicalId)}
+            onClick={() => selectFilter(filter.canonicalId)}
           >
             <strong>{filter.label}</strong>
             <small style={{ display: 'block', opacity: .6 }}>{filter.canonicalId}</small>
