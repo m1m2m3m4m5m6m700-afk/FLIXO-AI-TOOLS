@@ -581,7 +581,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     const video = videoRef.current;
     if (!video || video.readyState < 2 || !video.videoWidth) return;
 
-    const dimensions = canvasDimensions(video, aspectRatio);
+    const dimensions = canvasDimensions(video, aspectRatio, captureQuality);
     const canvas = document.createElement('canvas');
     canvas.width = dimensions.width;
     canvas.height = dimensions.height;
