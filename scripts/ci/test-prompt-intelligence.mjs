@@ -18,6 +18,13 @@ assert.match(taskAgent, /selectedPromptId/);
 assert.match(taskAgent, /exactSha/);
 assert.match(taskAgent, /failureFingerprint/);
 assert.match(taskAgent, /handoffSchema: 'PROMPT-HANDOFF-v1'/);
+assert.match(unifiedPrompt, /Customer-facing image-agent contract/u);
+assert.match(unifiedPrompt, /OPERATING_MODE=CUSTOMER_IMAGE_RUNTIME/u);
+assert.match(unifiedPrompt, /Runtime response contract/u);
+assert.match(runtimeAdapter, /PROMPT-UNIFIED-EXECUTION\\.md\\?raw/u);
+assert.match(runtimeAdapter, /OPERATING_MODE=CUSTOMER_IMAGE_RUNTIME/u);
+assert.doesNotMatch(runtimeAdapter, /## CORE MISSION/u);
+assert.doesNotMatch(runtimeAdapter, /## TOOL \/ CAPABILITY SELECTION/u);
 
 const result = validatePromptRegistry(registry);
 assert.equal(result.valid, true);
