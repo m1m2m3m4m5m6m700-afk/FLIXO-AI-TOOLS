@@ -687,7 +687,6 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
   const policy=fit(train);
   const evaluation=evaluate(policy,test);
   const rootCause=norm(diagnosis?.rootCause ?? 'unknown');
-  const preferred=policy.byRootCause[rootCause]?.[0] ?? null;
   const sufficient=train.length>=8;
   const experienceLedger = buildExperienceLedger(trainableRows);
   const behaviorRows=buildBehaviorExamples(trainableRows);
@@ -699,7 +698,7 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
   const stateModel=trainStatePolicy(stateTrain,8);
   const stateEvaluation=evaluateStatePolicy(stateModel,stateTest);
   const recurrence=buildRecurrenceProfile(trainableRows, fingerprintFailure(String(log ?? '')) || null);
-  const counterfactualRows=buildCounterfactualExamples(rows);
+  const counterfactualRows=buildCounterfactualExamples(trainableRows);
   const adversarialRows=buildAdversarialTrainingSet(stateRows).concat(counterfactualRows.map((row) => ({ ...row, variant:'COUNTERFACTUAL_REPLAY', previousStrategy:row.previousStrategy ?? 'START' })));
   const {train:adversarialTrain,test:adversarialTest}=split(adversarialRows);
   const adversarialModel=trainAdversarialPolicy(adversarialTrain,6);
@@ -710,6 +709,7 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
   const antiForgetting=antiForgettingCheck(policy,baselineReport,goldenReplay);
   const policyLifecycle = derivePolicyLifecycle({ policy, baselineReport, antiForgetting, goldenRows: goldenReplay });
   const activePolicy = policyLifecycle.activePolicy;
+  const preferred=activePolicy.byRootCause[rootCause]?.[0] ?? null;
   const mastery=masteryProfile({rows:trainableRows,behaviorEvaluation,stateEvaluation,calibration,recurrence});
   const stateCompetent=stateEvaluation.successAccuracy>=.65 && stateEvaluation.failureAvoidance>=.60;
   const adversarialCompetent=adversarialEvaluation.score>=.60;
