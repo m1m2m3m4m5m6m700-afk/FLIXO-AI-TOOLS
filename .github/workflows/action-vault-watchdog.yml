@@ -5,6 +5,7 @@ on:
     branches: [execution]
     paths:
       - 'diagnostics/auto-repair/action-vault/**'
+      - 'diagnostics/auto-repair/action-repair-bots/**'
   workflow_dispatch:
 
 permissions:
