@@ -154,7 +154,7 @@
     "test:cell-triseat": "node scripts/ci/test-cell-triseat-council.mjs",
     "test:action-repair-five": "node scripts/ci/test-action-repair-five-workers.mjs",
     "action-repair:five": "node scripts/ci/action-repair-five-workers.mjs",
-    "test:cell-wake": "node scripts/ci/test-cell-wake-preparation.mjs",
+    "test:cell-wake": "node scripts/ci/test-cell-wake-preparation.mjs && node scripts/ci/test-cell-wake.mjs",
     "test:action-memory": "node scripts/ci/test-action-repair-memory.mjs",
     "test:action-learning-master": "node scripts/ci/test-action-learning-master.mjs",
     "validate:action-vault-agents": "node scripts/ci/action-vault-agent-gate.mjs",
