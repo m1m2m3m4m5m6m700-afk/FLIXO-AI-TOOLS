@@ -48,4 +48,36 @@ assert.equal(structured.level, 'INFO');
 assert.equal(structured.event.eventId, audit.eventId);
 assert.equal(classifyExecutionFailure(new Error('permission denied by security boundary')), 'SECURITY');
 
+
+import fs from 'node:fs';
+
+const toolChainAdapterSource = fs.readFileSync(new URL('../src/lib/tool-chain-adapters.ts', import.meta.url), 'utf8');
+const toolChainRunnerSource = fs.readFileSync(new URL('../src/lib/tool-chain-runner.ts', import.meta.url), 'utf8');
+
+assert.match(toolChainAdapterSource, /authorizeExecution/);
+assert.match(toolChainAdapterSource, /capabilityId: toolId/);
+assert.match(toolChainAdapterSource, /parameters: definition\.parameters/);
+assert.match(toolChainAdapterSource, /inputBlob: current\.blob/);
+assert.match(toolChainAdapterSource, /current = await definition\.execute\(current\)/);
+assert.match(toolChainRunnerSource, /transitionTask\(task, 'PLANNED'\)/);
+assert.match(toolChainRunnerSource, /transitionTask\(task, 'AWAITING_CONFIRMATION'\)/);
+assert.match(toolChainRunnerSource, /transitionTask\(task, 'EXECUTING'\)/);
+assert.match(toolChainRunnerSource, /executeToolChain\(steps, input, task, onStep\)/);
+assert.doesNotMatch(toolChainRunnerSource, /executeToolChain\(\[toolId\], current\)/);
+
+const chainParameters = {
+  'image-converter': { format: 'image/webp' },
+  'image-upscaler': { scale: 2 },
+  'background-remover': { tolerance: 42 },
+};
+
+for (const [toolId, parameters] of Object.entries(chainParameters)) {
+  const capability = getToolDefinition(toolId);
+  assert.ok(capability, 'Missing canonical tool: ' + toolId);
+  assert.equal(capability.capability.state, 'EXECUTABLE');
+  assert.doesNotThrow(() => capability.parameterSchema.parse(parameters));
+}
+
+console.log('TOOL_CHAIN_EXECUTION_GATE_CONTRACT=PASS');
+
 console.log('EXECUTION_OBSERVABILITY_CONTRACT=PASS');
