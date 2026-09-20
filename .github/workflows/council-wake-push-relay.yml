@@ -1,4 +1,5 @@
 name: FLIXO Council Wake Push Relay
+# WAKE_RELAY_ACTIVE: PRESIDENT-controlled exact-SHA transport
 
 on:
   push:
