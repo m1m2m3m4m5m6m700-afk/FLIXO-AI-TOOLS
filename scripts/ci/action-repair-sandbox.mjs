@@ -1,12 +1,15 @@
 #!/usr/bin/env node
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { validatePatchOperation, applyPatchOperations } from './action-patch-synthesis.mjs';
+import { runAstRepair } from './auto-repair/ast-repair.mjs';
 import { verifyDifferential } from './action-differential-verifier.mjs';
 
 const exactSha = (value) => /^[a-f0-9]{40}$/u.test(String(value));
+const sha256 = (value) => crypto.createHash('sha256').update(String(value), 'utf8').digest('hex');
 const run = (cwd, file, args, timeout = 120_000) => execFileSync(file, args, {
   cwd,
   encoding: 'utf8',
@@ -59,18 +62,39 @@ export function applyOperationsToWorktree(worktree, operations) {
 export function runSandboxChecks(worktree, checks) {
   const results = [];
   for (const check of [...new Set(checks)]) {
-    const startedAt = Date.now();
+    const startedAt = new Date().toISOString();
+    const startedMs = Date.now();
     const [file, args] = parseCheck(check);
     try {
       const stdout = run(worktree, file, args, 300_000);
-      results.push({ check, status: 'PASS', durationMs: Date.now() - startedAt, stdout: stdout.slice(-8000) });
+      const finishedAt = new Date().toISOString();
+      results.push({
+        check,
+        status: 'PASS',
+        exitCode: 0,
+        durationMs: Date.now() - startedMs,
+        startedAt,
+        finishedAt,
+        stdout: stdout.slice(-8000),
+        stderr: '',
+        stdoutDigest: sha256(stdout),
+        stderrDigest: sha256(''),
+      });
     } catch (error) {
+      const finishedAt = new Date().toISOString();
+      const stdout = String(error?.stdout ?? '').slice(-8000);
+      const stderr = String(error?.stderr ?? error?.message ?? error).slice(-8000);
       results.push({
         check,
         status: 'FAIL',
-        durationMs: Date.now() - startedAt,
-        stdout: String(error?.stdout ?? '').slice(-8000),
-        stderr: String(error?.stderr ?? error?.message ?? error).slice(-8000),
+        exitCode: Number(error?.status ?? 1),
+        durationMs: Date.now() - startedMs,
+        startedAt,
+        finishedAt,
+        stdout,
+        stderr,
+        stdoutDigest: sha256(stdout),
+        stderrDigest: sha256(stderr),
       });
       break;
     }
@@ -116,9 +140,11 @@ export function simulateRepair({
       targetSha,
       candidateId: candidate.id,
       operationPaths: candidate.operations.map((operation) => operation.path),
-      candidateChecks: results.filter((item) => item.status === 'PASS').map((item) => item.check),
+      candidateChecks: results.map((item) => item.check),
+      candidateCheckResults: results,
       expectedChecks: checks,
       baselineStatus,
+      requireExecutionEvidence: true,
     });
     return {
       schemaVersion: 1,
@@ -131,12 +157,96 @@ export function simulateRepair({
       differential,
       mutationPerformed: false,
       sourceWorktree: worktree,
+      patchDigest: sha256(runGit(worktree, ['diff', '--binary'])),
+      changedFiles: runGit(worktree, ['diff', '--name-only', targetSha]).split(/\\r?\\n/u).filter(Boolean),
       canonicalGreenRequired: true,
+      patchCorrectnessProof: {
+        status: failed || differential.status !== 'PASS' ? 'UNPROVEN' : 'PROVEN',
+        targetSha,
+        exactShaBound: true,
+        mutationPerformed: false,
+        differentialStatus: differential.status,
+        executedChecks: results,
+      },
     };
   } finally {
     if (added) {
       try { runGit(repoRoot, ['worktree', 'remove', '--force', worktree]); } catch { /* cleanup is best effort */ }
     }
     try { fs.rmSync(tempRoot, { recursive: true, force: true }); } catch { /* temp cleanup is best effort */ }
+  }
+}
+
+
+export function simulateAstRepair({
+  repoRoot = process.cwd(),
+  taskId,
+  fingerprint,
+  targetSha,
+  selected,
+  checks = [],
+} = {}) {
+  if (!taskId || !fingerprint || !exactSha(targetSha)) throw new Error('SANDBOX_AST_IDENTITY_REQUIRED');
+  if (!selected || typeof selected !== 'object') throw new Error('SANDBOX_AST_SELECTION_REQUIRED');
+  if (!Array.isArray(checks) || checks.length === 0) throw new Error('SANDBOX_AST_CHECKS_REQUIRED');
+  assertCleanRepository(repoRoot);
+  const allowedPaths = [...new Set((selected.files?.length ? selected.files : [selected.file]).map(String).filter(Boolean))];
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-action-ast-repair-'));
+  const worktree = path.join(tempRoot, 'repo');
+  let added = false;
+  try {
+    runGit(repoRoot, ['worktree', 'add', '--detach', worktree, targetSha]);
+    added = true;
+    const head = runGit(worktree, ['rev-parse', 'HEAD']).trim();
+    if (head !== targetSha) throw new Error('SANDBOX_AST_TARGET_SHA_MISMATCH');
+    runAstRepair(worktree, selected);
+    const diff = runGit(worktree, ['diff', '--binary']);
+    const changedFiles = runGit(worktree, ['diff', '--name-only', targetSha]).split(/\\r?\\n/u).filter(Boolean);
+    if (!diff || !changedFiles.length) throw new Error('SANDBOX_AST_PATCH_EMPTY');
+    const unexpected = changedFiles.filter((file) => !allowedPaths.includes(file));
+    if (unexpected.length) throw new Error('SANDBOX_AST_SCOPE_EXCEEDED=' + unexpected.join(','));
+    const results = runSandboxChecks(worktree, checks);
+    const differential = verifyDifferential({
+      repoRoot: worktree,
+      targetSha,
+      candidateId: String(selected.id ?? 'AST_REPAIR'),
+      operationPaths: allowedPaths,
+      candidateChecks: results.map((item) => item.check),
+      candidateCheckResults: results,
+      expectedChecks: checks,
+      baselineStatus: 'PASS',
+      requireExecutionEvidence: true,
+    });
+    const failed = results.find((item) => item.status !== 'PASS' || Number(item.exitCode ?? 1) !== 0);
+    const patchDigest = sha256(diff);
+    return {
+      schemaVersion: 2,
+      protocol: 'REPAIR_SANDBOX_SIMULATION_V1',
+      status: failed || differential.status !== 'PASS' ? 'FAIL' : 'PASS',
+      taskId,
+      failureFingerprint: fingerprint,
+      targetSha,
+      exactShaBound: true,
+      mutationPerformed: false,
+      candidate: { id: selected.id ?? null, strategy: selected.strategy ?? selected.id ?? null },
+      changedFiles,
+      unexpectedFiles: unexpected,
+      patchDigest,
+      checks: results,
+      differential,
+      patchCorrectnessProof: {
+        status: failed || differential.status !== 'PASS' ? 'UNPROVEN' : 'PROVEN',
+        targetSha,
+        patchDigest,
+        differentialStatus: differential.status,
+        executionEvidence: results,
+        mutationPerformed: false,
+      },
+    };
+  } finally {
+    if (added) {
+      try { runGit(repoRoot, ['worktree', 'remove', '--force', worktree]); } catch { /* cleanup is best effort */ }
+    }
+    try { fs.rmSync(tempRoot, { recursive: true, force: true }); } catch { /* cleanup is best effort */ }
   }
 }
