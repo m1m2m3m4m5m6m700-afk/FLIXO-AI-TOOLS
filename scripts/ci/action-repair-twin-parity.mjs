@@ -60,7 +60,11 @@ const result={
     sameCounterfactualReasoning:true,
     independentEvidenceRequired:true,
     oneActiveMutationOwner:true,
-    twinCannotBypassPrimary:true
+    twinCannotBypassPrimary:true,
+    primaryProofObjective:'PROVE_PRIMARY_REPAIR_CORRECT',
+    twinProofObjective:'ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG',
+    validCounterexampleBlocksMutation:true,
+    noCounterexampleIsNotGreen:true
   },
   generatedAt:new Date().toISOString()
 };
