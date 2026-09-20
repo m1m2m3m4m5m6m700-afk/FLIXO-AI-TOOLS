@@ -61,7 +61,7 @@ This proves the default-branch bootstrap workflow is registered and executable. 
           github.event.comment.user.login == 'github-actions[bot]'
         ) &&
         contains(github.event.comment.body, '<!-- FLIXO_AGENT_COUNCIL_WAKE -->')
-      ) ||
+      )
     runs-on: ubuntu-latest
     steps:
       - name: Read canonical wake payload
