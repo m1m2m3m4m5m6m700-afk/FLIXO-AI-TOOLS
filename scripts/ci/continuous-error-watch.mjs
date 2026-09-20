@@ -231,6 +231,7 @@ export function evaluateGreen({
 
   let waitingRequiredChecks = false;
   let externalApprovalRequired = false;
+  let internalMainFailure = false;
   const requiredWorkflows = requiredWorkflowsForBranch(observedBranch);
   for (const workflowName of requiredWorkflows) {
     const run = latestWorkflow(workflowRuns, workflowName);
@@ -261,6 +262,9 @@ export function evaluateGreen({
         report.rootCause = 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED';
       } else if (evidence && providerFailure(evidence)) {
         report.rootCause = 'PROVIDER_RATE_LIMIT_OR_DEPLOYMENT_SERVICE_FAILURE';
+      } else if (observedBranch === 'main' && ['failure', 'timed_out'].includes(status) && evidence && !/EVIDENCE_CAPTURE=FAILED/i.test(evidence)) {
+        internalMainFailure = true;
+        report.rootCause = workflowName;
       }
       if (run?.databaseId != null && ['failure', 'timed_out', 'cancelled'].includes(status)) {
         if (!evidence || /EVIDENCE_CAPTURE=FAILED/i.test(evidence)) {
@@ -390,6 +394,9 @@ export function evaluateGreen({
   if (report.repair.required) {
     report.status = 'RED_INTERNAL';
     report.rootCause = report.errors.find((item) => item.type === 'UNEXPECTED_WORKFLOW_RED')?.workflow ?? 'INTERNAL_WORKFLOW_FAILURE';
+  } else if (internalMainFailure) {
+    report.status = 'RED_INTERNAL';
+    report.rootCause = report.rootCause ?? 'INTERNAL_WORKFLOW_FAILURE';
   } else if (externalApprovalRequired) {
     report.status = 'FAIL_CLOSED';
     report.rootCause = report.rootCause ?? 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED';
