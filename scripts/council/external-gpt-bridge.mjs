@@ -321,9 +321,13 @@ export const createWakeServer = ({ config, bridge, createServer = http.createSer
       res.statusCode = 202;
       res.end(JSON.stringify({ ok: true, ...result, requestId }));
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      res.statusCode = /UNAUTHORIZED/u.test(message) ? 401 : 400;
-      res.end(JSON.stringify({ ok: false, error: message.startsWith('COUNCIL_BRIDGE_') ? message : 'COUNCIL_BRIDGE_WAKE_FAILED', requestId }));
+      const isUnauthorized = error instanceof Error && /UNAUTHORIZED/u.test(error.message);
+      res.statusCode = isUnauthorized ? 401 : 400;
+      res.end(JSON.stringify({
+        ok: false,
+        error: isUnauthorized ? 'COUNCIL_BRIDGE_UNAUTHORIZED' : 'COUNCIL_BRIDGE_WAKE_FAILED',
+        requestId,
+      }));
     }
   });
 };
