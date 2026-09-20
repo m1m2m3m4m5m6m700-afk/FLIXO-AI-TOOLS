@@ -31,7 +31,7 @@ assert.ok(validateBotProfile(tampered).includes('INDEPENDENT_AUTHORITY_NOT_DISAB
 
 const boundaries = validateExecutionBoundaries([
   { ...valid, role: 'ACTION_REPAIR_EXECUTOR', botId: 'ACTION-REPAIR', executionBoundary: { singleActiveRepairOwner: true, canMutateTests: false, canMutateMain: false, canonicalGreen: 'DAILY_FLIXO_GREEN_GATE' }, executionContract: { mutationBranch: 'execution', mutationScope: 'ERROR_ONLY', exactShaRequired: true, reproduceBeforeMutation: true, targetedRegressionRequired: true, canonicalGreenRequired: true } },
-  { botId: 'ACTION-REPAIR-2', rules: { handoffActivatesOwnership: true }, executionBoundary: { singleActiveRepairOwner: true, canMutateBeforeHandoff: false, canMutateTests: false, canMutateMain: false, canonicalGreen: 'DAILY_FLIXO_GREEN_GATE' } },
+  { botId: 'ACTION-REPAIR-2', mutationAuthority:false, executionAuthority:'HISTORICAL_PREDICTION_PROPOSAL_ONLY', rules: { requireOwnerReviewBeforeMutation: true, producePredictionPacket: true, searchHistoricalIndexBeforeProposal: true }, executionBoundary: { canMutateWhenOwner: false, canMutateTests: false, canMutateMain: false, canonicalGreen: 'DAILY_FLIXO_GREEN_GATE' } },
   { botId: 'ACTION-HISTORIAN-3', mutationAuthority: false, canMutateSource: false, canDispatchRepair: false, executionAuthority: 'RECORD_INDEX_ESCALATE_ONLY', repositoryWriteScope: 'ACTION_VAULT_MEMORY_ONLY', executionBoundary: { sourceMutation: false, testMutation: false } },
 ]);
 assert.deepEqual(boundaries, []);
@@ -39,5 +39,5 @@ assert.deepEqual(boundaries, []);
 console.log(JSON.stringify({
   status: 'PASS',
   authority: 'ACTION_VAULT_AGENT_GRADE_GATE_TEST',
-  assertions: 18,
+  assertions: 22,
 }, null, 2));
