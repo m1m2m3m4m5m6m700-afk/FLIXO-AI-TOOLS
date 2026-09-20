@@ -34,7 +34,7 @@ const writeJson = (file, value) => {
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\\n`);
 };
 const ensure = () => { fs.mkdirSync(INBOX_DIR, { recursive: true }); };
-const roles = new Set(['assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','diagnosticAgent','ALL_AGENTS']);
+const roles = new Set(['assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','diagnosticAgent','ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3','ALL_AGENTS']);
 const loadCellBotIds = () => {
   if (!fs.existsSync(CELL_REGISTRY_FILE)) return new Set();
   const registry = readJson(CELL_REGISTRY_FILE, { bots: [] });
@@ -173,10 +173,74 @@ export function markConsumed(messageId, agentId, observedSha = currentSha(), exe
   saveIndex(index);
   return record;
 }
-if (!['validate','ingest','read','ack','presence','send-master'].includes(command)) throw new Error('Usage: agent-communication.mjs validate|ingest|read|ack|presence|send-master');
+if (!['validate','ingest','read','ack','presence','send-master','send-supervisor'].includes(command)) throw new Error('Usage: agent-communication.mjs validate|ingest|read|ack|presence|send-master|send-supervisor');
 try {
-  if (command === 'send-master') {
+  if (command === 'send-supervisor') {
     const actor = arg('agent');
+    const taskId = arg('task');
+    const runId = arg('run-id');
+    const fingerprint = arg('fingerprint');
+    const attempt = Number(arg('attempt', '21'));
+    const exactSha = arg('sha', currentSha());
+    const reason = arg('reason', '20_FAILED_REPAIR_ATTEMPTS');
+    const messageId = arg('message-id') || 'action-supervisor:' + taskId + ':' + fingerprint + ':' + runId;
+    if (!['ACTION-REPAIR','ACTION-REPAIR-2','ACTION-HISTORIAN-3'].includes(actor)) throw new Error('ACTION_SUPERVISOR_ACTOR_INVALID');
+    if (!taskId) throw new Error('ACTION_SUPERVISOR_TASK_REQUIRED');
+    if (!runId) throw new Error('ACTION_SUPERVISOR_RUN_REQUIRED');
+    if (!fingerprint) throw new Error('ACTION_SUPERVISOR_FINGERPRINT_REQUIRED');
+    if (!Number.isInteger(attempt) || attempt < 21) throw new Error('ACTION_SUPERVISOR_THRESHOLD_NOT_REACHED');
+    if (!/^[0-9a-f]{40}$/u.test(exactSha)) throw new Error('ACTION_SUPERVISOR_EXACT_SHA_INVALID');
+    const message = {
+      schemaVersion: 1,
+      messageId,
+      idempotencyKey: messageId + ':' + exactSha,
+      actor,
+      recipient: 'assistantController',
+      intent: 'ACTION_REPAIR_SUPERVISOR_ESCALATION',
+      taskId,
+      scope: ['ACTION_VAULT_REPAIR_CONTINUITY'],
+      entrySha: exactSha,
+      risk: 'HIGH',
+      dependencies: ['ACTION_VAULT','CURRENT_EXACT_SHA','REPAIR_ATTEMPT_LEDGER'],
+      expectedEvidence: ['FAILED_ATTEMPT_COUNT','EXACT_SHA','FAILURE_FINGERPRINT','CURRENT_REPAIR_OWNER'],
+      stopConditions: ['CANONICAL_GREEN'],
+      proofObligations: ['EXACT_SHA_REVALIDATION','TASK_REMAINS_OPEN','NO_FALSE_GREEN'],
+      createdAt: now(),
+      source: 'ACTION_VAULT',
+      payload: {
+        threshold: 20,
+        attemptsCompleted: attempt - 1,
+        nextAttempt: attempt,
+        reason,
+        runId,
+        failureFingerprint: fingerprint,
+        residentPolicy: 'ACTION-RESIDENCY-POLICY',
+        closureRule: 'CANONICAL_GREEN_ONLY',
+        requestedAction: 'MASTER_REVIEW_AND_CONTINUATION',
+      },
+    };
+    const receipt = ingest(message, exactSha);
+    console.log(JSON.stringify({
+      status: 'SUPERVISOR_ESCALATION_INGESTED',
+      message: receipt,
+      relayMarker: '<!-- FLIXO_AGENT_COUNCIL_WAKE -->',
+      relayBody: [
+        '<!-- FLIXO_AGENT_COUNCIL_WAKE -->',
+        '### ACTION REPAIR SUPERVISOR ESCALATION',
+        'ACTOR: ' + actor,
+        'TASK ID: ' + taskId,
+        'ENTRY SHA: ' + exactSha,
+        'RUN ID: ' + runId,
+        'FAILURE FINGERPRINT: ' + fingerprint,
+        'ATTEMPTS COMPLETED: ' + String(attempt - 1),
+        'NEXT ATTEMPT: ' + String(attempt),
+        'STATUS: OPEN_CONTINUE_REPAIR',
+        'CLOSURE: CANONICAL_GREEN_ONLY',
+        'REQUEST: MASTER REVIEW + CONTINUATION',
+        'MESSAGE ID: ' + messageId,
+      ].join('\\n'),
+    }, null, 2));
+  } else if (command === 'send-master') {    const actor = arg('agent');
     const taskId = arg('task');
     const intent = arg('intent', 'CELL_DIRECT_MASTER_REQUEST');
     const messageId = arg('message-id') || `cell-master:${actor}:${taskId}:${Date.now().toString(36)}`;
