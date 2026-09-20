@@ -3,6 +3,11 @@ import fs from 'node:fs';
 
 const read = (file) => fs.readFileSync(file, 'utf8');
 const watchdog = read('.github/workflows/execution-bot-watchdog.yml');
+const canonicalCi = read('.github/workflows/ci.yml');
+const securityBaseline = read('.github/workflows/repository-security-baseline.yml');
+const impactExecution = read('.github/workflows/test-impact-execution.yml');
+const impactPlan = read('.github/workflows/test-impact.yml');
+const wp0 = read('.github/workflows/wp0-trust-baseline.yml');
 const twin = read('.github/workflows/auto-repair.yml');
 const mergeGate = read('.github/workflows/auto-repair-merge-gate.yml');
 const dailyGate = read('.github/workflows/daily-flixo-green-gate.yml');
@@ -15,6 +20,7 @@ const master = read('AI_AGENT_MASTER_PROMPT.md');
 const livenessDoc = read('docs/agents/AGENT-LIVENESS-PROTOCOL.md');
 
 assert.match(watchdog, /cancel-in-progress:\s*false/);
+for (const workflow of [canonicalCi, securityBaseline, impactExecution, impactPlan, wp0]) assert.match(workflow, /cancel-in-progress:\s*false/);
 assert.match(watchdog, /github\.event_name == 'workflow_run' && github\.event\.workflow_run\.head_sha \|\| github\.event_name == 'schedule' && 'execution' \|\| github\.sha/);
 assert.match(watchdog, /--commit "\$EXECUTION_SHA"/);
 assert.match(masterActivation, /cancel-in-progress:\s*false/);
