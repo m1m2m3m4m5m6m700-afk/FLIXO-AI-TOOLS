@@ -46,12 +46,12 @@ jobs:
       - name: Checkout exact watchdog source SHA
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'execution' }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event_name == 'schedule' && 'execution' || github.sha }}
           fetch-depth: 1
           persist-credentials: false
       - name: Verify exact watchdog checkout
         env:
-          EXPECTED_WATCHDOG_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
+          EXPECTED_WATCHDOG_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event_name == 'schedule' && '' || github.sha }}
         run: |
           set -euo pipefail
           ACTUAL_WATCHDOG_SHA="$(git rev-parse HEAD)"
@@ -155,7 +155,7 @@ jobs:
             exit 0
           fi
 
-          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution
+          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$EXECUTION_SHA"
           FOUND="false"
           for attempt in $(seq 1 30); do
             ACTIVE_COUNT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Test System" --branch execution --commit "$EXECUTION_SHA" --limit 20 --json status --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"

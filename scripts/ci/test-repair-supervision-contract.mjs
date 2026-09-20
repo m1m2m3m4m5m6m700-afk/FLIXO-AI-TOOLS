@@ -15,7 +15,7 @@ const master = read('AI_AGENT_MASTER_PROMPT.md');
 const livenessDoc = read('docs/agents/AGENT-LIVENESS-PROTOCOL.md');
 
 assert.match(watchdog, /cancel-in-progress:\s*false/);
-assert.match(watchdog, /github\.event_name == 'workflow_run' && github\.event\.workflow_run\.head_sha \|\| 'execution'/);
+assert.match(watchdog, /github\.event_name == 'workflow_run' && github\.event\.workflow_run\.head_sha \|\| github\.event_name == 'schedule' && 'execution' \|\| github\.sha/);
 assert.match(watchdog, /--commit "\$EXECUTION_SHA"/);
 assert.match(masterActivation, /cancel-in-progress:\s*false/);
 assert.match(autoRepair, /needs\.adversarial_twin\.result/);
@@ -35,7 +35,7 @@ assert.match(watchdog, /WATCHDOG_SCHEDULED_WAKE_NOT_REQUIRED=true/);
 assert.match(watchdog, /FLIXO Test System/);
 assert.match(watchdog, /CURRENT_EXECUTION_SHA/);
 assert.match(watchdog, /SOURCE_RUN_SHA/);
-assert.match(watchdog, /github\.event\.workflow_run\.head_sha \|\| github\.sha/);
+assert.match(watchdog, /github\.event\.workflow_run\.head_sha \|\| github\.event_name == 'schedule' && '' \|\| github\.sha/);
 assert.match(watchdog, /git\s+ls-remote\s+"https:\/\/github\.com\/\$GITHUB_REPOSITORY\.git"\s+refs\/heads\/execution/);
 assert.match(watchdog, /STALE_WATCHDOG_EVENT=true/);
 assert.doesNotMatch(watchdog, /GREEN_GATE_ALREADY_ACTIVE/);
