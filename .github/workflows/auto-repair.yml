@@ -162,14 +162,8 @@ jobs:
           for TWIN in a b; do
             jq -e --arg sha "$FLIXO_EXPECTED_TARGET_SHA" '.targetSha == $sha and .mutationAuthority == false and .repositoryWrite == false and .actionsWrite == false' "/tmp/flixo-twin/twin-$TWIN.json" >/dev/null
           done
-          {
-            echo 'twin_a<<FLIXO_TWIN_A_EOF'
-            cat /tmp/flixo-twin/twin-a.json
-            echo 'FLIXO_TWIN_A_EOF'
-            echo 'twin_b<<FLIXO_TWIN_B_EOF'
-            cat /tmp/flixo-twin/twin-b.json
-            echo 'FLIXO_TWIN_B_EOF'
-          } >> "$GITHUB_OUTPUT"
+          printf '%s\n' "twin_a=$(base64 -w0 /tmp/flixo-twin/twin-a.json)" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "twin_b=$(base64 -w0 /tmp/flixo-twin/twin-b.json)" >> "$GITHUB_OUTPUT"
 
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
@@ -518,15 +512,15 @@ jobs:
       - name: Materialize validated twin outputs from read-only job
         id: twin
         env:
-          TWIN_A_JSON: ${{ needs.adversarial_twin.outputs.twin_a }}
-          TWIN_B_JSON: ${{ needs.adversarial_twin.outputs.twin_b }}
+          TWIN_A_B64: ${{ needs.adversarial_twin.outputs.twin_a }}
+          TWIN_B_B64: ${{ needs.adversarial_twin.outputs.twin_b }}
           EXPECTED_TWIN_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
         run: |
           set -euo pipefail
-          test -n "$TWIN_A_JSON"
-          test -n "$TWIN_B_JSON"
-          printf '%s' "$TWIN_A_JSON" > /tmp/flixo-twin-a.json
-          printf '%s' "$TWIN_B_JSON" > /tmp/flixo-twin-b.json
+          test -n "$TWIN_A_B64"
+          test -n "$TWIN_B_B64"
+          printf '%s' "$TWIN_A_B64" | base64 -d > /tmp/flixo-twin-a.json
+          printf '%s' "$TWIN_B_B64" | base64 -d > /tmp/flixo-twin-b.json
           for TWIN in a b; do
             jq -e --arg sha "$EXPECTED_TWIN_SHA" '.targetSha == $sha and .mutationAuthority == false and .repositoryWrite == false and .actionsWrite == false' "/tmp/flixo-twin-$TWIN.json" >/dev/null
           done
