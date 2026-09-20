@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { getToolOutputContractForDefinition } from '../src/lib/contracts/tool-output-contracts.ts';
 import { getToolDefinition } from '../src/config/canonical-tool-definition.ts';
 import { verifyPipelineOutput } from '../src/lib/workflows/pipeline-runner.ts';
@@ -9,6 +10,13 @@ import { createTaskContext } from '../src/lib/agent/task-state.ts';
 import { runWorkflowPipeline } from '../src/lib/workflows/pipeline-runner.ts';
 
 const input = new Blob(['input'], { type: 'image/png' });
+const pipelineSource = fs.readFileSync(new URL('../src/lib/workflows/pipeline-runner.ts', import.meta.url), 'utf8');
+assert.match(pipelineSource, /authorizeExecution\(\{/);
+assert.match(pipelineSource, /auditEvents:\s*\[authorization\.audit\]/);
+assert.match(pipelineSource, /stage:\s*'EXECUTION'/);
+assert.match(pipelineSource, /stage:\s*'VERIFICATION'/);
+assert.match(pipelineSource, /classifyExecutionFailure/);
+
 const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01]);
 const validPng = new Blob([pngBytes], { type: 'image/png' });
 const invalidSignature = new Blob([new Uint8Array(9)], { type: 'image/png' });
