@@ -439,8 +439,17 @@ jobs:
           } > /tmp/flixo-repair-summary.txt
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=EVIDENCE_LOCKED --actor=AUTO_REPAIR_BOT --reason=FAILURE_EVIDENCE_CAPTURED
 
+      - name: Prepare isolated runtime memory for ACTION-REPAIR
+        if: always()
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/flixo-action-repair-bots
+          mkdir -p /tmp/flixo-action-repair-bots
+
       - name: ACTION-INDEX record every RED and open Master learning request
         if: always()
+        env:
+          FLIXO_ACTION_MEMORY_DIR: /tmp/flixo-action-repair-bots
         run: |
           set -euo pipefail
           SHA="$(cat /tmp/flixo-failed-sha)"
@@ -457,7 +466,7 @@ jobs:
           NORMALIZED_FAILURE='FAILED_RUN_EVIDENCE_UNAVAILABLE'
           if [ -s "$FLIXO_FAILURE_LOG" ]; then NORMALIZED_FAILURE="$(tr '\n' ' ' < "$FLIXO_FAILURE_LOG" | sed 's/[[:space:]]\+/ /g' | cut -c1-16000)"; fi
           node scripts/ci/action-learning-master.mjs --op=open-red --target-sha="$SHA" --run-id="$TARGET_RUN_ID" --fingerprint="$FP" --workflow="Actions" --normalized-failure="$NORMALIZED_FAILURE"
-          test -s diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json
+          test -s /tmp/flixo-action-repair-bots/ACTION-INDEX.json
 
       - name: Await the parallel adversarial twin before strategy selection
         id: twin
@@ -494,6 +503,8 @@ jobs:
 
       - name: ACTION-REPAIR comprehensive knowledge audit
         id: action_repair_knowledge_audit
+        env:
+          FLIXO_ACTION_INDEX_MEMORY_PATH: /tmp/flixo-action-repair-bots/ACTION-INDEX.json
         run: |
           set -euo pipefail
           node scripts/ci/action-repair-knowledge-audit.mjs \
@@ -503,11 +514,15 @@ jobs:
             --output=/tmp/flixo-action-repair-knowledge-audit.json
           test -s /tmp/flixo-action-repair-knowledge-audit.json
           jq -e '.botId=="ACTION-REPAIR" and .targetSha==env.FLIXO_EXPECTED_TARGET_SHA and .hardConstraints.exactShaRequired==true and .selfSearch.enabled==true' /tmp/flixo-action-repair-knowledge-audit.json >/dev/null
-          echo "FLIXO_ACTION_REPAIR_KNOWLEDGE_AUDIT=/tmp/flixo-action-repair-knowledge-audit.json" >> "$GITHUB_ENV"
+          cp /tmp/flixo-action-repair-knowledge-audit.json /tmp/flixo-action-repair-bots/ACTION-REPAIR.json
+          test -s /tmp/flixo-action-repair-bots/ACTION-REPAIR.json
+          echo "FLIXO_ACTION_REPAIR_KNOWLEDGE_AUDIT=/tmp/flixo-action-repair-bots/ACTION-REPAIR.json" >> "$GITHUB_ENV"
+          echo "FLIXO_ACTION_REPAIR_MEMORY=/tmp/flixo-action-repair-bots/ACTION-REPAIR.json" >> "$GITHUB_ENV"
 
       - name: ACTION-REPAIR self-search current Actions log and historical index
         id: action_repair_search
         env:
+          FLIXO_ACTION_MEMORY_DIR: /tmp/flixo-action-repair-bots
           FLIXO_ACTION_REPAIR_INDEX_PATH: docs/agents/historical-action-errors/index.json
         run: |
           set -euo pipefail
@@ -526,6 +541,8 @@ jobs:
         id: cell_selector
         if: steps.twin.outcome == 'success'
         continue-on-error: true
+        env:
+          FLIXO_ACTION_MEMORY_DIR: /tmp/flixo-action-repair-bots
         run: |
           set -euo pipefail
           node scripts/ci/action-repair-five-workers.mjs \
@@ -679,6 +696,7 @@ jobs:
           FLIXO_REPAIR_ACTOR: actionRepairBot
           FLIXO_ACTION_REPAIR_BOT_ID: ACTION-REPAIR
           FLIXO_ACTION_KNOWLEDGE_BOT_ID: ACTION-WISE
+          FLIXO_ACTION_REPAIR_MEMORY: /tmp/flixo-action-repair-bots/ACTION-REPAIR.json
         run: |
           set -euo pipefail
           export FLIXO_REPAIR_STRATEGY_ID="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId||'')")"
