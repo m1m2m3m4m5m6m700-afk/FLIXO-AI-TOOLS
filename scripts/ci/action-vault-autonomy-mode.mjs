@@ -20,6 +20,10 @@ eq('exactShaRequired',read.executionContract?.exactShaRequired,true);
 eq('verifierRequiredBeforeMutation',read.executionContract?.verifierRequiredBeforeMutation,true);
 eq('targetedRegressionRequired',read.executionContract?.targetedRegressionRequired,true);
 eq('canonicalGreenRequiredForClosure',read.executionContract?.canonicalGreenRequiredForClosure,true);
+eq('conflictRecoveryRequired',read.executionContract?.conflictRecoveryRequired,true);
+eq('conflictRecoveryOnExecutionAdvance',read.executionContract?.conflictRecoveryOnExecutionAdvance,true);
+eq('sameMissionContinuation',read.executionContract?.sameMissionContinuation,true);
+eq('noConflictWithdrawal',read.executionContract?.noConflictWithdrawal,true);
 eq('botMayOperateRoutinelyWithoutHuman',read.trustBoundary?.botMayOperateRoutinelyWithoutHuman,true);
 eq('botMayCertify',read.trustBoundary?.botMayCertify,false);
 eq('botMayGrantPermissions',read.trustBoundary?.botMayGrantPermissions,false);
@@ -31,6 +35,8 @@ if(!Array.isArray(read.autonomyScope?.prohibited)||read.autonomyScope.prohibited
 if(!Array.isArray(read.failureBehavior?.criticalPath)||read.failureBehavior.criticalPath!=='STOP_AND_REQUIRE_HUMAN_AUTHORIZATION'){}
 if(read.failureBehavior?.criticalPath!=='STOP_AND_REQUIRE_HUMAN_AUTHORIZATION')errors.push('criticalPath');
 if(read.failureBehavior?.staleSha!=='FAIL_CLOSED_AND_REQUALIFY')errors.push('staleSha');
+if(read.failureBehavior?.conflictRecovery!=='IN_PLACE_ONLY')errors.push('conflictRecovery');
+if(read.failureBehavior?.conflictRecoveryNever!=='SURRENDER_OWNER_OR_CLOSE_MISSION')errors.push('conflictRecoveryNever');
 if(read.failureBehavior?.externalFailure!=='CLASSIFY_EXTERNAL_NO_SOURCE_MUTATION')errors.push('externalFailure');
 
 const workflow=fs.readFileSync(path.resolve(ROOT,'.github/workflows/auto-repair.yml'),'utf8');
@@ -38,6 +44,7 @@ if(!workflow.includes('FLIXO_REPAIR_OPERATING_MODE: BOT_FIRST_AUTONOMOUS'))error
 if(!workflow.includes('FLIXO_ROUTINE_HUMAN_APPROVAL: \'false\''))errors.push('workflow_routine_approval_missing');
 if(!workflow.includes('FLIXO_CRITICAL_HUMAN_AUTH_REQUIRED: \'true\''))errors.push('workflow_critical_auth_missing');
 if(!workflow.includes('ACTION-VAULT-AUTONOMY-MODE'))errors.push('workflow_policy_reference_missing');
+if(!workflow.includes('branch-conflict-recovery'))errors.push('workflow_conflict_recovery_missing');
 
 if(errors.length){
  console.error(JSON.stringify({status:'FAIL',errors},null,2));
