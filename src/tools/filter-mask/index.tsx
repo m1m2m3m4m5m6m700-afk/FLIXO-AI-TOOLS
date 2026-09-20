@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LIVE_FILTER_FAMILIES, LIVE_FILTER_REGISTRY, getLiveFilter } from './registry';
 import { parseFilterMaskHandoff } from './handoff';
+import { FILTER_MASK_I18N } from './locales';
+import type { Locale } from '@/lib/i18n';
 
 const clampIntensity = (value: number): number => Math.min(100, Math.max(25, Math.round(value)));
 const FAVORITES_KEY = 'flixo.filter-mask.favorites.v1';
@@ -75,7 +77,8 @@ function drawFilteredFrame(
   ctx.restore();
 }
 
-export function FilterMaskTool() {
+export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale }) {
+  const copy = FILTER_MASK_I18N[locale] ?? FILTER_MASK_I18N.en;
   const videoRef = useRef<HTMLVideoElement>(null);
   const baseVideoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -141,7 +144,7 @@ export function FilterMaskTool() {
   async function start(facingMode: 'user' | 'environment' = 'user') {
     setError('');
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError('Camera is not available in this browser.');
+      setError(copy.cameraUnavailable);
       return;
     }
 
@@ -166,7 +169,7 @@ export function FilterMaskTool() {
       setRunning(true);
     } catch {
       setRunning(false);
-      setError('Camera or microphone access was denied or unavailable.');
+      setError(copy.cameraDenied);
     }
   }
 
@@ -220,7 +223,7 @@ export function FilterMaskTool() {
       || !('MediaRecorder' in window)
       || !('captureStream' in HTMLCanvasElement.prototype)
     ) {
-      setError('Video recording with live effects is not supported in this browser.');
+      setError(copy.recordingUnsupported);
       return;
     }
 
@@ -231,7 +234,7 @@ export function FilterMaskTool() {
 
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      setError('Video recording is unavailable.');
+      setError(copy.recordingUnavailable);
       return;
     }
 
@@ -286,7 +289,7 @@ export function FilterMaskTool() {
 
       recorder.onerror = () => {
         setRecording(false);
-        setError('Video recording failed.');
+        setError(copy.recordingFailed);
         recorderRef.current = null;
       };
 
@@ -295,7 +298,7 @@ export function FilterMaskTool() {
       recordFrameRef.current = requestAnimationFrame(drawFrame);
       setRecording(true);
     } catch {
-      setError('Video recording could not be started.');
+      setError(copy.recordingStartFailed);
     }
   }
 
@@ -308,7 +311,7 @@ export function FilterMaskTool() {
     const filename = capturedKind === 'video' ? 'flixo-filter-mask.webm' : 'flixo-filter-mask.jpg';
 
     if (!navigator.share) {
-      setError('Sharing is not available in this browser. Use Download result instead.');
+      setError(copy.shareUnsupported);
       return;
     }
 
@@ -316,14 +319,14 @@ export function FilterMaskTool() {
       const blob = await (await fetch(capturedUrl)).blob();
       const file = new File([blob], filename, { type: blob.type });
       if (navigator.canShare && !navigator.canShare({ files: [file] })) {
-        setError('This device cannot share this file. Use Download result instead.');
+        setError(copy.shareFileUnsupported);
         return;
       }
       await navigator.share({ title: 'FLIXO Filter Mask', files: [file] });
       setError('');
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === 'AbortError') return;
-      setError('Sharing failed. Use Download result instead.');
+      setError(copy.shareFailed);
     }
   }
 
@@ -366,17 +369,17 @@ export function FilterMaskTool() {
     <section aria-labelledby="filter-mask-title" style={{ display: 'grid', gap: 16 }}>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 id="filter-mask-title" style={{ margin: 0 }}>Filter Mask</h2>
-          <small aria-live="polite">Selected: {selected.label} · {selected.canonicalId}</small>
+          <h2 id="filter-mask-title" style={{ margin: 0 }}>{copy.title}</h2>
+          <small aria-live="polite">{copy.selected}: {selected.label} · {selected.canonicalId}</small>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => void start()} disabled={running}>Start camera</button>
-          <button type="button" onClick={stop} disabled={!running}>Stop</button>
-          <button type="button" onClick={switchCamera} disabled={!running}>Switch camera</button>
-          <button type="button" onClick={() => void capture()} disabled={!running || recording}>Photo</button>
+          <button type="button" onClick={() => void start()} disabled={running}>{copy.startCamera}</button>
+          <button type="button" onClick={stop} disabled={!running}>{copy.stop}</button>
+          <button type="button" onClick={switchCamera} disabled={!running}>{copy.switchCamera}</button>
+          <button type="button" onClick={() => void capture()} disabled={!running || recording}>{copy.photo}</button>
           {!recording
-            ? <button type="button" onClick={startRecording} disabled={!running}>Record video</button>
-            : <button type="button" onClick={stopRecording}>Stop recording</button>}
+            ? <button type="button" onClick={startRecording} disabled={!running}>{copy.recordVideo}</button>
+             : <button type="button" onClick={stopRecording}>{copy.stopRecording}</button>}
         </div>
       </div>
 
@@ -397,7 +400,7 @@ export function FilterMaskTool() {
           ref={videoRef}
           playsInline
           muted
-          aria-label="Filter Mask live camera"
+          aria-label={`${copy.title} live camera`}
           style={{
             position: 'absolute',
             inset: 0,
@@ -415,7 +418,7 @@ export function FilterMaskTool() {
             onClick={() => void start()}
             style={{ position: 'absolute', inset: '50% auto auto 50%', transform: 'translate(-50%, -50%)' }}
           >
-            Start camera
+            {copy.startCamera}
           </button>
         )}
       </div>
@@ -423,13 +426,13 @@ export function FilterMaskTool() {
       {error && <p role="alert">{error}</p>}
 
       <label>
-        Search filters
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search filters" />
+        {copy.searchFilters}
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={copy.searchPlaceholder} />
       </label>
 
-      <div role="group" aria-label="Filter families" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" aria-pressed={family === 'all' && !favoritesOnly} onClick={() => { setFamily('all'); setFavoritesOnly(false); }}>All</button>
-        <button type="button" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly((current) => !current)}>Favorites</button>
+      <div role="group" aria-label={copy.filterFamilies} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" aria-pressed={family === 'all' && !favoritesOnly} onClick={() => { setFamily('all'); setFavoritesOnly(false); }} >{copy.all}</button>
+        <button type="button" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly((current) => !current)} >{copy.favorites}</button>
         {LIVE_FILTER_FAMILIES.map((filterFamily) => (
           <button
             key={filterFamily}
@@ -437,14 +440,14 @@ export function FilterMaskTool() {
             aria-pressed={family === filterFamily}
             onClick={() => { setFamily(filterFamily); setFavoritesOnly(false); }}
           >
-            {filterFamily}
+            {copy.family[filterFamily]}
           </button>
         ))}
       </div>
 
       {recent.length > 0 && (
         <div role="group" aria-label="Recent filters" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <strong>Recent:</strong>
+          <strong>{copy.recent}:</strong>
           {recent.map((canonicalId) => {
             const recentFilter = getLiveFilter(canonicalId);
             if (!recentFilter) return null;
@@ -452,7 +455,7 @@ export function FilterMaskTool() {
               <button
                 key={canonicalId}
                 type="button"
-                aria-label={`Recent ${recentFilter.label}`}
+                aria-label={`${copy.recent} ${recentFilter.label}`}
                 onClick={() => selectFilter(canonicalId)}
               >
                 {recentFilter.label}
@@ -468,14 +471,14 @@ export function FilterMaskTool() {
           aria-pressed={favorites.includes(selected.canonicalId)}
           onClick={() => toggleFavorite(selected.canonicalId)}
         >
-          {favorites.includes(selected.canonicalId) ? '★ Favorite' : '☆ Favorite'}
+          {favorites.includes(selected.canonicalId) ? copy.favoriteActive : copy.favorite}
         </button>
-        <button type="button" onClick={() => selectFilter('effect.original')}>Reset filter</button>
+        <button type="button" onClick={() => selectFilter('effect.original')}>{copy.reset}</button>
       </div>
 
-      <div role="group" aria-label="Camera framing" style={{ display: 'grid', gap: 8 }}>
+      <div role="group" aria-label={copy.cameraFraming} style={{ display: 'grid', gap: 8 }}>
         <label>
-          Zoom: {zoom.toFixed(1)}×
+          {copy.zoom}: {zoom.toFixed(1)}×
           <input
             aria-label="Zoom"
             type="range"
@@ -487,12 +490,12 @@ export function FilterMaskTool() {
           />
         </label>
         <button type="button" aria-pressed={mirror} onClick={() => setMirror((current) => !current)}>
-          {mirror ? 'Mirror on' : 'Mirror off'}
+          {mirror ? copy.mirrorOn : copy.mirrorOff}
         </button>
       </div>
 
       <label>
-        Intensity: {intensity}%
+        {copy.intensity}: {intensity}%
         <input
           type="range"
           min="25"
@@ -523,10 +526,10 @@ export function FilterMaskTool() {
             href={capturedUrl}
             download={capturedKind === 'video' ? 'flixo-filter-mask.webm' : 'flixo-filter-mask.jpg'}
           >
-            Download result
+            {copy.download}
           </a>
           <button type="button" onClick={() => void shareResult()}>
-            Share result
+            {copy.share}
           </button>
         </div>
       )}
