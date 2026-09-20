@@ -44,7 +44,7 @@ jobs:
           path: /tmp/repair-handoff
           merge-multiple: true
 
-      - name: Validate handoff targets the current repair branch head
+      - name: Validate handoff targets the current execution branch head
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
