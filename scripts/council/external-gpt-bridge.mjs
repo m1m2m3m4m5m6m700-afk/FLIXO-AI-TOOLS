@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { ACTION_AGENT_TRIAD_VERSION, getActionAgentProfile, assertActionAgentDispatch, validateActionAgentResult } from './action-agent-triad.mjs';
+import { ACTION_AGENT_TRIAD_VERSION, getActionAgentProfile, assertActionAgentDispatch, validateActionAgentResult, buildActionAgentCognitionEnvelope } from './action-agent-triad.mjs';
 
 const ACCOUNTS = Object.freeze({
   CHIEF: Object.freeze({
@@ -163,6 +163,12 @@ export const executeExternalAgent = async (config, dispatch, sessionId, fetchImp
     workPackageId: String(dispatch.work_package_id ?? dispatch.workPackageId ?? ''),
     actionAgentTriadVersion: ACTION_AGENT_TRIAD_VERSION,
     actionAgentProfileId: getActionAgentProfile(config.accountId).profileId,
+    cognitionEnvelope: buildActionAgentCognitionEnvelope({
+      accountId: config.accountId,
+      dispatch,
+      objective: dispatch.payload?.objective,
+      requiredCapabilities: Array.isArray(dispatch.payload?.requiredCapabilities) ? dispatch.payload.requiredCapabilities : [],
+    }),
     payload: dispatch.payload ?? {},
   };
   const body = await requestJson(fetchImpl, endpoint, {
