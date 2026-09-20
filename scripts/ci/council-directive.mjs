@@ -14,6 +14,7 @@ export const COUNCIL_DIRECTIVE = Object.freeze({
   branchCreationAllowed: false,
   taskRegistryCount: 1,
   repeatedRedRequiresNewStrategyOrEvidence: true,
+  focusWithoutFreeze: 'stay focused on the assigned work package; do not enter FREEZE merely because execution is long or pressured; freeze only on stale/conflicting evidence, missing authority, unsafe scope, or required external blocker',
   requiredRepairCycle: Object.freeze(['fingerprint','RCA','root-fix','targeted-regression','related-regression','protected-regression','required-CI','exact-SHA-verification','handoff','learning']),
   roles: Object.freeze({
     coordinator: 'observe current SHA/workflow/task ledger/owners/dependencies and coordinate handoff',
@@ -25,6 +26,7 @@ export const COUNCIL_DIRECTIVE = Object.freeze({
     learning: 'record strategy, outcome, SHA, evidence, anti-pattern and next strategy',
   }),
   forbidden: Object.freeze(['fake-green','retry-until-green','test-weakening','symptom-only-repair','stale-evidence-as-proof','third-branch','branch-creation','force-reset-main','parallel-task-registry','llm-direct-execution']),
+  operatingMessage: 'FOCUS ON THE ASSIGNED WORK PACKAGE. DO NOT ENTER FREEZE. CONTINUE THE CURRENT CONTROLLED LIFECYCLE UNTIL VERIFIED OR A REAL BLOCKER REQUIRES STOP.',
   closure: Object.freeze(['cause-proven','root-fixed','targeted-pass','related-pass','protected-pass','required-ci-pass','security-pass','exact-sha','handoff-complete','task-complete']),
 });
 
