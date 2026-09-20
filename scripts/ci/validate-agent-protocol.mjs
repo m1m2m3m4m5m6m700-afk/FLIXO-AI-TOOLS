@@ -109,7 +109,6 @@ const repairMarkers = [
   'firstPass',
   'secondPass',
   'evidence.repairProof = proof',
-  'root-cause-proof-reproductionRecovered',
   'diagnosis-proof+root-cause-proof+recurrence-proof+typecheck+static+build',
   'evidence.preventionRule',
   'evidence.escalation',
