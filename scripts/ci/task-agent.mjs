@@ -217,7 +217,7 @@ for (const task of selected) {
     errorFingerprint: fingerprint,
     executionPrompt: executionPromptBundle,
     repairSummary: {
-      status: repairMode.includes('ACTIVE') ? 'ACTIVE_FAILURE_TARGET' : 'DIRECT_TASK_TARGET',
+      status: repairMode.includes('ACTIVE') ? 'ACTIVE_FAILURE_PREPARATION' : 'TASK_PREPARATION',
       taskId: task.taskId,
       fingerprint,
       error: repairMode.includes('ACTIVE') ? 'SEE_FAILURE_EVIDENCE' : 'UNOBSERVED',
@@ -252,8 +252,8 @@ for (const task of selected) {
       verificationRequired: true,
       unresolvedWorkMustBeReported: true,
       currentCycleFirst: true,
-      scopeMustRemainSelfHealingOnly: true,
-      newTestMayOnlyBeAddedWhen: 'IT_PROVES_REGRESSION_OR_HARDENING_AFTER_THE_SOURCE_FIX_AND_IS_NOT_THE_FIX_ITSELF',
+      scopeMustRemainTaskPreparationOnly: true,
+      newTestMayOnlyBeAddedWhen: 'IT_IS_REQUIRED_BY_THE_PREPARED_VERIFICATION_PLAN_AND_IS_NOT_USED_AS_A_SUBSTITUTE_FOR_SOURCE_REPAIR',
     },
     completionPolicy: {
       stateAfterPreparation: 'PREPARED_PACKET_READY',
@@ -300,7 +300,7 @@ for (const task of selected) {
       commitAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT_ON_EXECUTION_ONLY',
       pushAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT_ON_EXECUTION_ONLY',
       completionAuthority: 'VERIFIER_AFTER_CANONICAL_GREEN_ONLY',
-      scopeAuthority: 'TASK_PREPARATION_ONLY'
+      scopeAuthority: 'TASK_PREPARATION_ONLY',
       executionAuthority,
       mutationScope,
       humanCommandRequired,
