@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 2,
+  "id": "HAE-7df3741a26b08c90c31b8bae",
+  "fingerprint": "7df3741a26b08c90c31b8bae635540cbfde4267f535484d498a1489f88e808ac",
+  "source": "github-actions-log",
+  "authority": "historical-observation",
+  "externalDiagnosis": false,
+  "exactSha": true,
+  "workflow": "FLIXO WP0 Trust Baseline",
+  "job": "WP0 Trust Baseline — Single Verification Path",
+  "errorClass": "generic-failure",
+  "normalized": "Error: CI/CD TRUST FAILURE: CD manual promotion guard is missing",
+  "rawExamples": [
+    "Error: CI/CD TRUST FAILURE: CD manual promotion guard is missing"
+  ],
+  "occurrenceCount": 1,
+  "runs": [
+    "35508854141"
+  ],
+  "shas": [
+    "4e0d2c0b16a7bcf4a5feda518a2d2cd42c3d1da8"
+  ],
+  "branches": [
+    "execution"
+  ],
+  "firstSeen": "2026-09-20T11:48:34Z",
+  "lastSeen": "2026-09-20T11:48:34Z"
+}
