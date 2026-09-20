@@ -172,7 +172,8 @@
     "validate:repair-engineering": "node scripts/ci/action-repair-engineering.mjs",
     "test:cell-completeness": "node scripts/ci/test-cell-completeness.mjs",
     "test:error-only-programmer": "node scripts/ci/auto-repair/test-error-only-programmer.mjs",
-    "test:root-closure": "node scripts/ci/test-root-closure-contract.mjs"
+    "test:root-closure": "node scripts/ci/test-root-closure-contract.mjs",
+    "test:promotion-closure": "node scripts/ci/test-promotion-closure.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
