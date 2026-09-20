@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { getToolOutputContractForDefinition } from '../src/lib/contracts/tool-output-contracts.ts';
 import { getToolDefinition } from '../src/config/canonical-tool-definition.ts';
 import { verifyPipelineOutput } from '../src/lib/workflows/pipeline-runner.ts';
-import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelineReceiptChain, createPipelineStepReceipt } from '../src/lib/workflows/pipeline-receipt.ts';
+import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelinePlanFingerprint, createPipelineReceiptChain, createPipelineStepReceipt } from '../src/lib/workflows/pipeline-receipt.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
 
 const input = new Blob(['input'], { type: 'image/png' });
@@ -50,7 +50,28 @@ assert.match(receipt.outputSha256, /^[a-f0-9]{64}$/);
 assert.equal(receipt.recoveryApplied, false);
 assert.equal(receipt.verified, true);
 
-let receiptChain = createPipelineReceiptChain(TOOL_CATALOG.fingerprint);
+const plan = {
+  workflowName: 'Receipt chain test',
+  confidence: 0.91,
+  catalogFingerprint: TOOL_CATALOG.fingerprint,
+  steps: [
+    { toolId: 'image-compressor', params: { quality: 0.8 } },
+    { toolId: 'image-compressor', params: { quality: 0.7 } },
+  ],
+};
+const planFingerprint = await createPipelinePlanFingerprint(plan);
+assert.match(planFingerprint, /^[a-f0-9]{64}$/);
+const reorderedPlanFingerprint = await createPipelinePlanFingerprint({
+  ...plan,
+  steps: [
+    { toolId: 'image-compressor', params: { quality: 0.7 } },
+    { toolId: 'image-compressor', params: { quality: 0.8 } },
+  ],
+});
+assert.notEqual(planFingerprint, reorderedPlanFingerprint);
+
+let receiptChain = createPipelineReceiptChain(TOOL_CATALOG.fingerprint, planFingerprint);
+assert.equal(receiptChain.planFingerprint, planFingerprint);
 receiptChain = await appendPipelineStepReceipt(receiptChain, receipt);
 assert.equal(receiptChain.steps.length, 1);
 assert.match(receiptChain.chainSha256, /^[a-f0-9]{64}$/);
@@ -69,6 +90,12 @@ assert.equal(receiptChain.steps.length, 2);
 assert.equal(receiptChain.steps[1].inputSha256, receiptChain.steps[0].outputSha256);
 assert.equal(receiptChain.steps[1].recoveryApplied, true);
 await assertPipelineReceiptChain(receiptChain);
+
+const tamperedPlanChain = Object.freeze({ ...receiptChain, planFingerprint: 'f'.repeat(64) });
+await assert.rejects(
+  () => assertPipelineReceiptChain(tamperedPlanChain),
+  /plan fingerprint/,
+);
 
 const tamperedChain = Object.freeze({ ...receiptChain, chainSha256: 'f'.repeat(64) });
 await assert.rejects(
