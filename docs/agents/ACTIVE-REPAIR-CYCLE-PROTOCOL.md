@@ -106,6 +106,17 @@ The Task Agent MUST learn from both successful and failed GitHub Actions runs du
 
 The action-learning path is part of the repair task, not an optional afterthought.
 
+## Mandatory cycle lesson list
+After every repair/verification cycle, the learning stage MUST emit a `cycleLessons` list before handoff or cycle transition.
+The list MUST contain, when applicable:
+1. `RCA` — the causal lesson linking trigger, propagation, violated invariant and causal source;
+2. `STRATEGY` — a reusable lesson on the repair strategy, or an `antiLesson` when the strategy failed/repeated without proof;
+3. `VERIFICATION` — what the verification state proved or did not prove, bound to the current exact SHA;
+4. `SCOPE` — the bounded affected paths when mutation occurred;
+5. `RECURRENCE` — the prevention rule that should stop the same failure from recurring;
+6. `BLOCKER` — an explicit anti-lesson when the result is an external/provider blocker.
+
+`cycleLessons` is learning evidence, not certification authority. It MUST travel with the handoff and remain bound to the cycle fingerprint and exact SHA. A missing lesson list is an incomplete cycle and must remain open.
 ## Major repair wave
 When the autonomous repair workflow sets `FLIXO_MAJOR_REPAIR_WAVE=true`, the cycle enters the large-change bounded profile:
 - up to 30 repair/verification cycles;
