@@ -242,7 +242,8 @@ export function buildPhase3Report({ mode, phase1Report = null, phase2Report = nu
     externalBlocks: same.reduce((sum, x) => sum + Number(x.externalBlocks ?? 0), 0),
   });
   const clustering = clusterFailures(memory, current);
-  const bandit = selectContextualBandit(memory, current, baselineStrategy);
+  const rejectedStrategies = [...new Set([...(phase2Report?.repairStrategy?.rejectedStrategies ?? [])].map(String))];
+  const bandit = selectContextualBandit(memory, { ...current, rejectedStrategies }, baselineStrategy);
   const anomaly = detectPredictiveAnomaly(memory, clustering, current);
   const evolution = deriveEvolutionProposals(memory);
   const failures = contextCheck.ok ? [] : [contextCheck.reason];
