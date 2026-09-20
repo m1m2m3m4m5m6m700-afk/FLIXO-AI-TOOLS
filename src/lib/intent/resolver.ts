@@ -73,11 +73,19 @@ export const resolveFilterMaskSelection = (input: string) => {
 
   const intensityMatch = input.match(/(?:intensity|strength|شدة|قوة)?\s*(\d{1,3})\s*%/i);
   const zoomMatch = input.match(/(?:zoom|تكبير|زوم)\s*(\d+(?:\.\d+)?)\s*x?/i);
+  const aspectMatch = input.match(/(?:9\s*:\s*16|4\s*:\s*5|1\s*:\s*1|16\s*:\s*9|vertical|portrait|عمودي|طولي|square|مربع)/i);
   const intensity = intensityMatch ? Number(intensityMatch[1]) : 100;
   const zoom = zoomMatch ? Number(zoomMatch[1]) : 1;
+  const aspectToken = aspectMatch?.[0]?.replace(/\s+/g, '').toLocaleLowerCase();
+  const aspectRatio = aspectToken === 'vertical' || aspectToken === 'portrait' || aspectToken === 'عمودي' || aspectToken === 'طولي' || aspectToken === '9:16'
+    ? '9:16'
+    : aspectToken === '4:5' ? '4:5'
+      : aspectToken === '1:1' || aspectToken === 'square' || aspectToken === 'مربع' ? '1:1'
+        : aspectToken === '16:9' ? '16:9' : '9:16';
 
   return createFilterMaskHandoff(selected, {
     intensity: Number.isFinite(intensity) ? intensity : 100,
     zoom: Number.isFinite(zoom) ? zoom : 1,
+    aspectRatio,
   });
 };
