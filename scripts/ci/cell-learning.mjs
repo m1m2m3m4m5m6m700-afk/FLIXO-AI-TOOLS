@@ -7,7 +7,6 @@ const ROOT=process.cwd();
 const KNOWLEDGE_DIR=path.resolve(ROOT,process.env.FLIXO_CELL_KNOWLEDGE_DIR??'diagnostics/auto-repair/cell-knowledge');
 const INDEX_FILE=path.join(KNOWLEDGE_DIR,'index.json');
 const MAX_RECORDS=5000;
-const LIFECYCLE_STATES=new Set(['LEARNING','SPECIALIZING','UPGRADING','READY','RECYCLE']);
 const SHA=/^[a-f0-9]{40}$/iu;
 const now=()=>new Date().toISOString();
 const sha256=(value)=>createHash('sha256').update(String(value),'utf8').digest('hex');
