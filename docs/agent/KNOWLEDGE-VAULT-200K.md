@@ -1,4 +1,4 @@
-# FLIXO Repair Agent Action Vault — 1,000,000 Advisory Entries
+# FLIXO Shared Action Vault — 1,000,000 Advisory Entries
 
 **Protocol:** `FLIXO-ACTION-VAULT-1M-v2`  
 **Knowledge Steward:** `agent3`  
