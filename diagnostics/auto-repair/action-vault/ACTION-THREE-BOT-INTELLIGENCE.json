@@ -1,19 +1,13 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "ACTION-THREE-BOT-INTELLIGENCE",
-  "purpose": "Canonical shared intelligence and capability contract for ACTION-REPAIR, ACTION-REPAIR-2 and ACTION-HISTORIAN-3.",
+  "purpose": "Canonical specialized intelligence contract for the three Action Vault roles: programmer, historical predictor, and failure historian.",
   "parity": {
-    "cognitiveCapabilitiesEqual": true,
-    "knowledgeSourcesEqual": true,
-    "reasoningModesEqual": true,
-    "searchAccessEqual": true,
-    "learningAccessEqual": true,
-    "explorationAccessEqual": true,
-    "challengeAccessEqual": true,
-    "taskAssignmentAwarenessEqual": true,
-    "resultInterpretationEqual": true,
-    "rcaCapabilityEqual": true,
-    "inferenceFallbackEqual": true
+    "model": "ROLE_SPECIALIZATION_WITH_SHARED_SAFETY",
+    "commonSafetyEqual": true,
+    "commonIdentityBindingEqual": true,
+    "roleCapabilitiesEqual": false,
+    "independentAuthorityEqual": false
   },
   "capabilities": [
     "CURRENT_ACTION_LOG_ANALYSIS",
@@ -40,7 +34,11 @@
     "EXTERNAL_BLOCK_CLASSIFICATION",
     "CODE_MENTOR_GUIDANCE",
     "TYPE_AND_CONTRACT_REVIEW",
-    "CI_CODE_PATTERN_TEACHING"
+    "CI_CODE_PATTERN_TEACHING",
+    "PROGRAMMER_THINKING",
+    "HISTORICAL_PREDICTION",
+    "FAILURE_LEDGER",
+    "CANDIDATE_REPAIR_SYNTHESIS"
   ],
   "sharedSources": [
     "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
@@ -70,22 +68,27 @@
     "mainMutationForbidden": true,
     "protectedControlPlaneMutationForbidden": true,
     "externalFailureCannotBecomeInternalRepair": true,
-    "oneActiveRepairOwnerPerTask": true
+    "oneActiveRepairOwnerPerTask": true,
+    "agent2SourceMutationForbidden": true,
+    "agent3SourceMutationForbidden": true,
+    "agent1OwnerOnlyMutation": true,
+    "predictionIsNotProof": true,
+    "failureLedgerAppendOnly": true
   },
   "members": [
     {
       "id": "ACTION-REPAIR",
-      "role": "PRIMARY_REPAIR_OWNER",
+      "role": "PRIMARY_PROGRAMMING_REPAIR_OWNER",
       "executionAuthority": "MUTATE_WHEN_TASK_OWNER"
     },
     {
       "id": "ACTION-REPAIR-2",
-      "role": "SECONDARY_REPAIR_OWNER",
-      "executionAuthority": "MUTATE_WHEN_TASK_OWNER_AFTER_HANDOFF"
+      "role": "HISTORICAL_INDEX_EXPLORER_AND_PREDICTOR",
+      "executionAuthority": "PROPOSE_ONLY"
     },
     {
       "id": "ACTION-HISTORIAN-3",
-      "role": "HISTORIAN_AND_SOLUTION_INDEXER",
+      "role": "FAILURE_LEDGER_AND_LEARNING_RECORDER",
       "executionAuthority": "RECORD_INDEX_ESCALATE_ONLY"
     }
   ],
@@ -106,31 +109,27 @@
       "ACTION-HISTORIAN-3"
     ],
     "requiredWork": [
-      "all three read the same exact failure evidence",
-      "all three search the same historical/action indexes",
-      "all three may form independent RCA and inference hypotheses",
-      "all three may challenge competing repair hypotheses",
-      "all three exchange findings before mutation",
-      "historian records every hypothesis, attempt, handoff and outcome",
-      "repair owner selects executable path only after collaboration evidence is assembled",
-      "failed owner triggers handoff; other repair bot becomes owner while historian remains attached",
-      "canonical GREEN closes the shared mission and promotes only verified learning"
+      "ACTION-HISTORIAN-3 records the exact RED before repair reasoning proceeds",
+      "ACTION-REPAIR-2 searches historical indexes and repair catalog and produces a ranked predictive repair packet",
+      "ACTION-REPAIR reads the code as a programmer and combines current evidence with the predictive packet",
+      "ACTION-REPAIR may apply the minimal source repair only as active owner",
+      "ACTION-HISTORIAN-3 records every attempt and every failure regardless of outcome",
+      "prediction packets remain provisional until exact-SHA verification and Canonical GREEN",
+      "Canonical GREEN closes the mission and promotes only verified lessons"
     ],
     "contributionOrder": [
-      "ACTION-HISTORIAN-3: intake, first-seen detection, evidence/index record",
-      "ACTION-REPAIR-2: independent RCA/inference and counter-hypothesis",
-      "ACTION-REPAIR: current-owner RCA/synthesis and bounded repair execution",
-      "ACTION-HISTORIAN-3: outcome recording and solution-index update"
+      "ACTION-HISTORIAN-3: FAILURE_INTAKE_AND_LEDGER",
+      "ACTION-REPAIR-2: INDEX_EXPLORATION_AND_PREDICTION",
+      "ACTION-REPAIR: PROGRAMMER_REASONING_AND_REPAIR",
+      "ACTION-HISTORIAN-3: FAILURE/ATTEMPT/GREEN LEDGER UPDATE"
     ],
     "authority": {
-      "taskOwnership": "single_active_repair_owner",
-      "repairOwners": [
-        "ACTION-REPAIR",
-        "ACTION-REPAIR-2"
-      ],
-      "historianParticipation": "mandatory_contributor_non_mutating",
-      "handoffOnlyAfter": "documented_repair_failure_or_unrepaired",
+      "taskOwnership": "single_active_programming_owner",
+      "repairOwner": "ACTION-REPAIR",
+      "predictionOwner": "ACTION-REPAIR-2",
+      "historian": "ACTION-HISTORIAN-3",
       "noParallelSourceMutation": true,
+      "predictionCannotAuthorizeMutation": true,
       "canonicalGreen": "DAILY_FLIXO_GREEN_GATE"
     },
     "sharedArtifact": "diagnostics/auto-repair/action-vault/current-collaboration.json",
@@ -197,6 +196,34 @@
       "provisionalDuringRed": true,
       "promotedOnlyAfterCanonicalGreen": true,
       "hardRule": "MENTOR_GUIDANCE_MUST_NEVER_BE_TREATED_AS_PROOF_OR_AUTHORITY"
+    },
+    "roleExchange": {
+      "requiredArtifacts": [
+        "ACTION-HISTORIAN-3:failure-ledger-record",
+        "ACTION-REPAIR-2:predictive-repair-packet",
+        "ACTION-REPAIR:programmer-analysis"
+      ],
+      "beforeMutation": "ALL_REQUIRED_ARTIFACTS_PRESENT",
+      "onPredictionFailure": "ACTION-REPAIR-2_REISSUES_PREDICTION_WITH_COUNTEREXAMPLES",
+      "onRepairFailure": "ACTION-HISTORIAN-3_RECORDS_AND_ACTION-REPAIR_REANALYZES",
+      "noAutomaticGreen": "true"
+    },
+    "prediction": {
+      "runtime": "scripts/ci/action-historical-predictor.mjs",
+      "output": "diagnostics/auto-repair/action-vault/historical-predictions/latest.json",
+      "packetProtocol": "PREDICTIVE_REPAIR_PACKET_V1",
+      "provisional": true,
+      "exactShaBound": true,
+      "ownerReviewRequired": true
+    },
+    "failureLedger": {
+      "runtime": "scripts/ci/action-failure-ledger.mjs",
+      "output": "diagnostics/auto-repair/action-vault/failure-ledger.ndjson",
+      "appendOnly": true,
+      "recordEveryFailure": true,
+      "recordEveryAttempt": true,
+      "recordEveryHandoff": true,
+      "promoteLearningOnlyAfterGreen": true
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
@@ -249,8 +276,67 @@
     },
     "modelProfiles": {
       "chief": "FRONTIER_REASONING",
-      "primary": "FRONTIER_REASONING",
-      "adversarial": "FRONTIER_REASONING_ADVERSARIAL"
+      "primary": "FRONTIER_CODING_REASONING",
+      "historicalPredictor": "FRONTIER_HISTORICAL_REASONING",
+      "failureHistorian": "FRONTIER_FORENSIC_REASONING"
+    }
+  },
+  "roleMatrix": {
+    "ACTION-REPAIR": {
+      "role": "PRIMARY_PROGRAMMING_REPAIR_OWNER",
+      "mission": "THINK_AS_PROGRAMMER_AND_APPLY_BOUNDED_SOURCE_REPAIR",
+      "capabilities": [
+        "CURRENT_ACTION_LOG_ANALYSIS",
+        "EXACT_SHA_PROVENANCE_ANALYSIS",
+        "ROOT_CAUSE_ANALYSIS",
+        "AST_CODE_REASONING",
+        "CODE_MENTOR_GUIDANCE",
+        "MINIMAL_PATCH",
+        "REGRESSION_DESIGN",
+        "SELF_CRITIQUE",
+        "VERIFICATION",
+        "CAN_MUTATE_SOURCE_WHEN_OWNER"
+      ],
+      "mutationAuthority": "OWNER_ONLY",
+      "requiredInputs": [
+        "ACTION-REPAIR-2:PREDICTIVE_REPAIR_PACKET",
+        "ACTION-HISTORIAN-3:FAILURE_LEDGER_RECORD"
+      ]
+    },
+    "ACTION-REPAIR-2": {
+      "role": "HISTORICAL_INDEX_EXPLORER_AND_PREDICTOR",
+      "mission": "SEARCH_HISTORICAL_INDEX_AND_ACTION_REPAIR_CATALOG_THEN_PREDICT_A_CANDIDATE_SOLUTION",
+      "capabilities": [
+        "HISTORICAL_INDEX_SEARCH",
+        "ACTION_INDEX_4000_SEARCH",
+        "REPAIR_MEMORY_SEARCH",
+        "HISTORICAL_CASE_MATCHING",
+        "SOLUTION_RETRIEVAL",
+        "PATTERN_RANKING",
+        "PREDICTIVE_REPAIR",
+        "COUNTEREXAMPLE_SEARCH",
+        "CANDIDATE_PATCH_PLANNING",
+        "OWNER_HANDOFF"
+      ],
+      "mutationAuthority": "NONE",
+      "output": "PROVISIONAL_PREDICTIVE_REPAIR_PACKET"
+    },
+    "ACTION-HISTORIAN-3": {
+      "role": "FAILURE_LEDGER_AND_LEARNING_RECORDER",
+      "mission": "RECORD_EVERY_FAILURE_ATTEMPT_HANDOFF_AND_VERIFIED_OUTCOME_FOR_LIFELONG_REPAIR_MEMORY",
+      "capabilities": [
+        "FAILURE_INTAKE",
+        "EXACT_PROVENANCE",
+        "ATTEMPT_LEDGER",
+        "FAILURE_LEDGER",
+        "HANDOFF_LEDGER",
+        "LESSON_EXTRACTION",
+        "ANTI_LESSON_EXTRACTION",
+        "GREEN_CHAIN_RECORDING",
+        "MASTER_ESCALATION"
+      ],
+      "mutationAuthority": "ACTION_VAULT_MEMORY_ONLY",
+      "output": "APPEND_ONLY_FAILURE_LEDGER"
     }
   }
 }
