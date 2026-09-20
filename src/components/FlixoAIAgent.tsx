@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { planFromIntent, type ExecutionPlan } from '@/lib/ai/planner';
+import type { ExecutionPlan } from '@/lib/ai/planner';
+import { buildIntentPlan, toExecutionPlan } from '@/lib/agent/intent/intent-plan';
 import { runWorkflowPipeline, type PipelineProgress } from '@/lib/workflows/pipeline-runner';
 import { getReadyToolConfigs } from '@/config/tools';
 import { findToolIntent } from '@/lib/intent-router';
-import { extractParameters } from '@/lib/agent/intent/parameter-extractor';
 import { detectAgentLocale } from '@/lib/agent/language-detector';
 import { confirmTask, createTaskContext, transitionTask, type TaskContext } from '@/lib/agent/task-state';
 import {
@@ -73,7 +73,6 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
 
   const contextualQuery = useMemo(() => contextualizeCommand(query, memory), [query, memory]);
   const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, getReadyToolConfigs())[0] : null, [contextualQuery]);
-  const planned = useMemo(() => contextualQuery.trim() ? planFromIntent(contextualQuery) : null, [contextualQuery]);
   const filterMaskMatch = intent?.tool.id === 'filter-mask';
 
   const resolveFilterMaskHandoff = (command: string) => resolveFilterMaskSelection(command);
@@ -109,17 +108,40 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const buildPlan = (command: string, responseCopy = copy): ExecutionPlan | null => {
     setError(null); setResult(null); setProgress(null);
     const contextualCommand = contextualizeCommand(command, memory);
-    const extracted = extractParameters(contextualCommand);
-    if (!extracted.success) {
-      setPlan(null); setState('error'); setError(extracted.errors.join(' '));
+    const intentPlan = buildIntentPlan(contextualCommand);
+    if (intentPlan.status === 'NEEDS_INPUT') {
+      const missing = intentPlan.missing[0];
+      setPlan(null);
+      setState('idle');
+      setError(null);
+      setMemory((current) => setConversationTask(current, {
+        command: contextualCommand,
+        toolId: missing?.capability ?? current.activeToolId,
+        pendingToolId: missing?.capability ?? null,
+        pendingQuestion: missing?.question ?? null,
+        planReady: false,
+      }));
       return null;
     }
-    const nextPlan = planFromIntent(contextualCommand);
-    if (!nextPlan) { setPlan(null); setState('error'); setError(responseCopy.noSafePlan); return null; }
+    if (intentPlan.status !== 'READY') {
+      setPlan(null);
+      setState('error');
+      setError(intentPlan.explanation || responseCopy.noSafePlan);
+      return null;
+    }
+    const nextPlan = toExecutionPlan(intentPlan);
+    if (!nextPlan) {
+      setPlan(null);
+      setState('error');
+      setError(responseCopy.noSafePlan);
+      return null;
+    }
     const firstStep = nextPlan.steps[0];
     setMemory((current) => setConversationTask(current, {
       command: contextualCommand,
       toolId: firstStep?.toolId ?? null,
+      pendingToolId: null,
+      pendingQuestion: null,
       planReady: true,
     }));
     setPlan(nextPlan); setState('ready'); return nextPlan;
