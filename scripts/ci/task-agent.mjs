@@ -267,8 +267,13 @@ for (const task of selected) {
       masterPromptId: 'RPR-CORE-MASTER-001',
       selectedPromptId: promptMemory[0]?.promptId ?? 'RPR-CORE-MASTER-001',
       selectedPromptVersion: promptMemory[0]?.version ?? 1,
+      selectedStatus: promptMemory[0]?.status ?? 'ACTIVE',
+      exactSha: sha,
+      failureFingerprint: failureFingerprint || diagnosis?.fingerprint || null,
+      rootCause: diagnosis?.rootCause ?? null,
       candidates: promptMemory,
       decision: promptMemory.length > 1 ? 'REUSE_OR_SPECIALIZE' : 'MASTER_FALLBACK',
+      handoffSchema: 'PROMPT-HANDOFF-v1',
     },
     cognition: diagnosis ? {
       authority: 'AUTO_REPAIR_REASONING_KERNEL',
