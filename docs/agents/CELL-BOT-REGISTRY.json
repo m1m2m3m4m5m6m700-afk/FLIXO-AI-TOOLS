@@ -9839,5 +9839,72 @@
       "controllerDecision"
     ],
     "reuse": "Reset task-scoped fields after closed review; retain attributable knowledge and weakness history."
+  },
+  "swarmPolicy": {
+    "registeredBots": 200,
+    "activeRange": [
+      0,
+      200
+    ],
+    "controller": "assistantController",
+    "planAuthority": "CONTROLLER",
+    "mutationAuthority": "EXECUTION_PATH_ONLY",
+    "certificationAuthority": "CANONICAL_CI_ONLY",
+    "difficultyRanges": {
+      "D1": [
+        1,
+        3
+      ],
+      "D2": [
+        3,
+        8
+      ],
+      "D3": [
+        8,
+        20
+      ],
+      "D4": [
+        20,
+        50
+      ],
+      "D5": [
+        50,
+        200
+      ]
+    },
+    "expansionSignals": [
+      "UNCERTAINTY",
+      "EVIDENCE_GAP",
+      "RISK",
+      "CONFLICT",
+      "HISTORICAL_DIFFICULTY"
+    ],
+    "escalationLadder": [
+      3,
+      7,
+      15,
+      30,
+      50,
+      100,
+      200
+    ],
+    "stopRule": "STRONG_AGREEMENT_AFTER_REVIEW",
+    "conflictRule": "EXPAND_TO_NEXT_ESCALATION_LEVEL",
+    "criticalConflictRule": "BLOCK_AT_200_WITHOUT_SUFFICIENT_EVIDENCE",
+    "roles": [
+      "EXECUTOR",
+      "INVESTIGATOR",
+      "CHALLENGER",
+      "REVIEWER",
+      "META-REVIEWER",
+      "SIMULATOR"
+    ],
+    "oneTaskAtATime": true,
+    "oneBotOneScope": true,
+    "exactShaRequired": true,
+    "leaseRequired": true,
+    "heartbeatRequired": true,
+    "sourceMutationParallelism": false,
+    "closure": "CANONICAL_GREEN_ONLY"
   }
 }
