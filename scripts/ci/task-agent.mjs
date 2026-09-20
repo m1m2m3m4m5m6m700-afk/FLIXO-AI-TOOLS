@@ -10,7 +10,7 @@ const ROOT = process.cwd();
 const TASK_FILE = fs.existsSync(path.join(ROOT, 'المهام.md')) ? path.join(ROOT, 'المهام.md') : path.join(ROOT, 'مهام.md');
 const OUTPUT_DIR = process.env.FLIXO_TASK_AGENT_OUTPUT_DIR ?? '/tmp/flixo-task-agent';
 const DIAGNOSIS_PATH = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
-const CONTRACT_VERSION = 'TASK-AGENT-DIRECT-REPAIR-v2';
+const CONTRACT_VERSION = 'TASK-AGENT-PREPARATION-v3';
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
@@ -106,7 +106,7 @@ const executionPromptBundle = (() => {
     throw new Error(`PROMPT_BUNDLE_INVALID:${error?.message ?? error}`);
   }
 })();
-const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_CYCLE_DIRECT_EXECUTION' : 'DIRECT_EXECUTION';
+const repairMode = failureRunId || failureSha || failureFingerprint ? 'ACTIVE_REPAIR_PREPARATION' : 'TASK_PREPARATION';
 const diagnosis = fs.existsSync(DIAGNOSIS_PATH) ? JSON.parse(fs.readFileSync(DIAGNOSIS_PATH, 'utf8')) : null;
 const memory = loadMemory();
 const currentOriginExecutionSha = (() => {
@@ -155,11 +155,11 @@ const selected = requested
 
 if (!selected.length) throw new Error(requested ? `TASK_NOT_FOUND=${requested}` : 'NO_READY_TASKS');
 if (branch !== 'execution') throw new Error('DIRECT_EXECUTION_REQUIRES_EXECUTION_BRANCH');
-const repairProtocolAdmission = assertAgentAdmission({ actor: 'implementation', branch, mutation: false });
+const repairProtocolAdmission = assertAgentAdmission({ actor: 'taskAgent', branch, mutation: false });
 
 const scopePolicy = 'SELF_HEALING_REPAIR_ONLY';
-const executionAuthority = 'BOUND_ADMIN_ON_EXECUTION_WITH_ERROR_SCOPE';
-const mutationScope = 'CURRENT_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING_ONLY';
+const executionAuthority = 'TASK_PREPARATION_ONLY';
+const mutationScope = 'PREPARE_CURRENT_TASK_SCOPE_ONLY';
 const humanCommandRequired = false;
 const scopeEnforcement = 'FAIL_CLOSED';
 const controlPlaneMutationPolicy = 'HUMAN_REVIEW_REQUIRED';
@@ -176,17 +176,17 @@ for (const task of selected) {
     schemaVersion: 8,
     authority: 'FLIXO_TASK_AGENT',
     contractVersion: CONTRACT_VERSION,
-    role: 'TASK_OWNER_AND_DIRECT_REPAIR_AGENT',
+    role: 'TASK_OWNER_AND_PREPARATION_AGENT',
     mode: repairMode,
-    preparedOnly: false,
-    executionMode: 'DIRECT_ON_EXECUTION_BRANCH',
-    mutationPolicy: 'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH',
+    preparedOnly: true,
+    executionMode: 'PREPARATION_ONLY',
+    mutationPolicy: 'NO_DIRECT_MUTATION',
     scopePolicy,
     scopeEnforcement,
     executionAuthority,
     mutationScope,
     humanCommandRequired,
-    allowedWork: 'ACTIVE_SELF_HEALING_REPAIR_CYCLE_OR_EXPLICIT_INCOMPLETE_REPAIR_TASK_ONLY',
+    allowedWork: 'TASK_UNDERSTANDING_AND_BOUNDED_PREPARATION_ONLY',
     forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','GATE_WEAKENING','MAIN_MUTATION','THIRD_BRANCH_CREATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],
     taskFile: 'مهام.md',
     task,
@@ -222,7 +222,7 @@ for (const task of selected) {
       fingerprint,
       error: repairMode.includes('ACTIVE') ? 'SEE_FAILURE_EVIDENCE' : 'UNOBSERVED',
       rootCause: diagnosis?.rootCause ?? 'REQUIRES_EVIDENCE',
-      repair: 'EXECUTE_SOURCE_FIX_ON_EXECUTION_BRANCH',
+      repair: 'PREPARE_SOURCE_FIX_FOR_AUTHORIZED_EXECUTION_AGENT',
       verification: 'REQUIRED_AFTER_SOURCE_REPAIR',
     },
     cognition: diagnosis ? {
@@ -256,15 +256,15 @@ for (const task of selected) {
       newTestMayOnlyBeAddedWhen: 'IT_PROVES_REGRESSION_OR_HARDENING_AFTER_THE_SOURCE_FIX_AND_IS_NOT_THE_FIX_ITSELF',
     },
     completionPolicy: {
-      stateAfterPreparation: 'NOT_APPLICABLE_DIRECT_EXECUTION',
-      stateAfterRepair: 'REPAIR_PENDING_VERIFICATION',
+      stateAfterPreparation: 'PREPARED_PACKET_READY',
+      stateAfterRepair: 'NOT_APPLICABLE_PREPARATION_ONLY',
       stateAfterAnyRedCheck: 'REPAIR_PENDING',
       stateAfterGreenCheck: 'REVERIFY_ALL',
       terminalState: 'CLOSED_VERIFIED_ONLY_AFTER_CANONICAL_GREEN',
       codeAppliedIsNotCompletion: true,
-      everyRepairOpensAnotherVerificationCycle: true,
+      everyRepairOpensAnotherVerificationCycle: false,
       everyRedCheckMustBecomeARepairTarget: true,
-      everyActionableRedRequiresSourceRepairAttempt: true,
+      everyActionableRedRequiresSourceRepairAttempt: false,
       noRedCheckMayBeClosedWithoutRepairOrExplicitExternalBlock: true,
       newlyIntroducedFailuresMustOpenNewCycles: true,
       taskCannotBeClosedFromTargetedRegressionAlone: true,
@@ -293,10 +293,10 @@ for (const task of selected) {
     verification: [],
     blockers: [],
     handoff: {
-      consumer: 'CANONICAL_CI_AND_REPAIR_ORCHESTRATOR',
-      applyAuthority: 'TASK_AGENT_DIRECT_EXECUTION',
-      commitAuthority: 'TASK_AGENT_ON_EXECUTION_BRANCH_ONLY',
-      pushAuthority: 'TASK_AGENT_ON_EXECUTION_BRANCH_ONLY',
+      consumer: 'AUTHORIZED_EXECUTION_AGENT_OR_REPAIR_AGENT',
+      applyAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT',
+      commitAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT_ON_EXECUTION_ONLY',
+      pushAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT_ON_EXECUTION_ONLY',
       completionAuthority: 'VERIFIER_AFTER_CANONICAL_GREEN_ONLY',
       scopeAuthority: 'SELF_HEALING_REPAIR_ONLY',
       executionAuthority,
@@ -314,8 +314,8 @@ const index = {
   authority: 'FLIXO_TASK_AGENT',
   contractVersion: CONTRACT_VERSION,
   mode: repairMode,
-  preparedOnly: false,
-  executionMode: 'DIRECT_ON_EXECUTION_BRANCH',
+  preparedOnly: true,
+  executionMode: 'PREPARATION_ONLY',
   scopePolicy,
   scopeEnforcement,
   executionAuthority,
@@ -331,7 +331,7 @@ const index = {
   selected: outputs,
   executionPrompt: executionPromptBundle ? { digest: executionPromptBundle.digest, selectedPromptId: executionPromptBundle.selectedPromptId, verifiedExactSha: executionPromptBundle.verifiedExactSha } : null,
   selectedCount: outputs.length,
-  lifecycle: 'ACTIVE_UNTIL_CANONICAL_GREEN',
+  lifecycle: 'PREPARATION_HANDOFF_PENDING_EXECUTION',
   failureContext: { runId: failureRunId || null, failedSha: failureSha || null, fingerprint: failureFingerprint || null },
   repairLoop: {
     enabled: true,
