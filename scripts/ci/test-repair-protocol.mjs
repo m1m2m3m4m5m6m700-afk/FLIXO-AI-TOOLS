@@ -61,12 +61,12 @@ assert.throws(()=>assertAgentAdmission({actor:'unknownFutureAgent'}),/UNKNOWN_AG
 assert.throws(()=>assertAgentAdmission({actor:'diagnosticAgent',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
 assert.throws(()=>assertAgentAdmission({actor:'taskAgent',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
 assert.throws(()=>assertAgentAdmission({actor:'implementation',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);
+const targetSHA='a'.repeat(40);
 const actionRepairSession=createRepairSession({repairSessionId:'action-repair-session',actor:'actionRepairBot',failureFingerprint:'action-repair-test',targetSHA,beforeState:{worktree:'clean'}});
 assert.equal(actionRepairSession.actor,'actionRepairBot');
 assert.equal(assertAgentAdmission({actor:'actionRepairBot',branch:'execution',mutation:false}).admitted,true);
 const actionCaptured=captureFailure(actionRepairSession,{runId:'action-test-run'});
 assert.equal(authorizeMutation(actionCaptured).state,'MUTATION_AUTHORIZED');
-const targetSHA='a'.repeat(40);
 const fallbackSession={protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,state:'FAILURE_CAPTURED',targetSHA,fallback:{actor:'assistantRepairAgent',primaryAgentsUnavailable:true,learnedRule:'known-rule',learnedRuleConfidence:0.95,learnedRuleSupport:2,targetSha:targetSHA}};
 assert.equal(assertAgentAdmission({actor:'assistantRepairAgent',branch:'execution',mutation:true,session:fallbackSession}).admitted,true);
 assert.throws(()=>assertAgentAdmission({actor:'assistantRepairAgent',branch:'execution',mutation:true,session:{...fallbackSession,fallback:{...fallbackSession.fallback,primaryAgentsUnavailable:false}}}),/FALLBACK_PRIMARY_AGENT_AVAILABLE/);
