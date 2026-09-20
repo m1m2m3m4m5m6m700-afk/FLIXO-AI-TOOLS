@@ -2,13 +2,21 @@
 export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   schemaVersion: 2,
   protocolId: 'AGENT_LIVENESS_PROTOCOL',
-  protocolVersion: '2.0.0',
+  protocolVersion: '2.1.0',
   authority: 'CONTROL_PLANE',
   heartbeatEveryMs: 5 * 60 * 1000,
   heartbeatGraceMs: 2 * 60 * 1000,
   leaseTtlMs: 15 * 60 * 1000,
   progressWindowMs: 10 * 60 * 1000,
   maxNoProgressHeartbeats: 3,
+  sessionPolicy: Object.freeze({
+    maxSessionCycles: 12,
+    sessionBudgetScopedOnly: true,
+    sessionEndIsNotTaskCompletion: true,
+    nonGreenSessionAction: 'RECOVER_AND_REDISPATCH',
+    taskRemainsOpen: true,
+    terminalCompletion: 'GREEN_ONLY',
+  }),
   workAssignedStates: Object.freeze([
     'BOOTING',
     'ACTIVE',
@@ -41,6 +49,9 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
     ABORTED: [] ,
   }),
   rules: Object.freeze([
+    'SESSION_BUDGET_IS_NOT_TASK_COMPLETION',
+    'OPEN_WORK_REMAINS_OPEN_AFTER_SESSION_END',
+    'NON_GREEN_SESSION_END_REQUIRES_RECOVERY_AND_REDISPATCH',
     'NO_SILENT_STOP',
     'NO_SLEEP_WHILE_WORK_ASSIGNED',
     'NO_IDLE_WHILE_WORK_ASSIGNED',
@@ -88,6 +99,9 @@ export function assertTransition(from, to, { workAssigned = true, authorization 
   const target = String(to);
   if (workAssigned && target === 'ABORTED' && authorization !== 'EXPLICIT_ABORT_AUTHORITY') {
     throw new Error('AGENT_LIVENESS_ABORT_AUTHORITY_REQUIRED');
+  }
+  if (target === 'COMPLETE') {
+    validateGreenRecord(greenRecord, { targetSha, taskId, fingerprint });
   }
   if (protectedRest.has(target)) {
     if (workAssigned) throw new Error('AGENT_LIVENESS_REST_WITH_OPEN_WORK');
@@ -146,6 +160,26 @@ export function completionGate({ state, workAssigned = true, exactShaVerified, r
   if (regressionPassed !== true) throw new Error('AGENT_LIVENESS_COMPLETION_REGRESSION_REQUIRED');
   if (learningRecorded !== true) throw new Error('AGENT_LIVENESS_COMPLETION_LEARNING_REQUIRED');
   return Object.freeze({ ok: true, state: 'COMPLETE' });
+}
+
+export function sessionTerminationDirective({ canonicalGreen = false, greenRecord = null, targetSha = null, taskId = null, fingerprint = null, reason = 'SESSION_BUDGET_EXHAUSTED' } = {}) {
+  if (canonicalGreen === true) {
+    validateGreenRecord(greenRecord, { targetSha, taskId, fingerprint });
+    return Object.freeze({
+      protocolId: AGENT_LIVENESS_PROTOCOL.protocolId,
+      action: 'CLOSE_ALLOWED',
+      taskRemainsOpen: false,
+      reason: 'CANONICAL_GREEN_PROVEN',
+      targetSha: greenRecord.targetSha,
+    });
+  }
+  return Object.freeze({
+    protocolId: AGENT_LIVENESS_PROTOCOL.protocolId,
+    action: 'RECOVER_AND_REDISPATCH',
+    taskRemainsOpen: true,
+    reason: String(reason),
+    next: 'reacquire_or_renew_lease -> capture_state -> new_evidence_or_strategy -> continue_until_verified',
+  });
 }
 
 export function buildRecoveryDirective({ reason, currentState = 'ACTIVE', newEvidenceRequired = true } = {}) {
