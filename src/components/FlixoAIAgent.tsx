@@ -73,6 +73,11 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
 
   const contextualQuery = useMemo(() => contextualizeCommand(query, memory), [query, memory]);
   const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, getReadyToolConfigs())[0] : null, [contextualQuery]);
+  const planned = useMemo(() => {
+    if (!contextualQuery.trim()) return null;
+    const intentPlan = buildIntentPlan(contextualQuery);
+    return intentPlan.status === 'READY' ? toExecutionPlan(intentPlan) : null;
+  }, [contextualQuery]);
   const filterMaskMatch = intent?.tool.id === 'filter-mask';
 
   const resolveFilterMaskHandoff = (command: string) => resolveFilterMaskSelection(command);
