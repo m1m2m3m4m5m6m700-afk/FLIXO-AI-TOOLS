@@ -98,7 +98,7 @@ jobs:
           echo "CANONICAL_PR=$PR_NUMBER" >> "$GITHUB_ENV"
 
       - name: Checkout exact PR head
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ env.EXPECTED_SHA }}
           fetch-depth: 1
@@ -329,13 +329,24 @@ jobs:
             exit 1
           }
 
+      - name: Enforce promotion closure and emit unified Evidence Bundle
+        env:
+          EXPECTED_SHA: ${{ env.EXPECTED_SHA }}
+          EXACT_RUNS_PATH: /tmp/exact-runs.json
+          EXACT_STATUS_PATH: /tmp/exact-status.json
+          EXACT_CHECKS_PATH: /tmp/exact-check-runs.json
+          LIVE_RUNTIME_EVIDENCE_PATH: docs/runtime/council-live-runtime-evidence.json
+          EVIDENCE_OUTPUT_PATH: /tmp/flixo-promotion-evidence.json
+        run: node scripts/ci/validate-promotion-closure.mjs
+
       - name: Publish exact-SHA merge-gate evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-auto-repair-merge-gate-${{ github.run_id }}
           path: |
             /tmp/exact-*.json
             /tmp/external-security-evidence.json
+            /tmp/flixo-promotion-evidence.json
           if-no-files-found: warn
           retention-days: 30
