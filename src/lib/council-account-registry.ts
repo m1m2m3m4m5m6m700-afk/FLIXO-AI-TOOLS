@@ -21,7 +21,7 @@ export const COUNCIL_ACCOUNTS: Readonly<Record<CouncilAccountId, CouncilAccountD
     tokenEnv: 'COUNCIL_CHIEF_TOKEN',
     mutationAuthority: false,
     certificationAuthority: false,
-    canDispatchTo: ['WORKER_A', 'WORKER_B'],
+    canDispatchTo: ['WORKER_A', 'WORKER_B'] as CouncilAccountId[],
     fallbackAccountId: 'CHIEF',
   }),
   WORKER_A: Object.freeze({
