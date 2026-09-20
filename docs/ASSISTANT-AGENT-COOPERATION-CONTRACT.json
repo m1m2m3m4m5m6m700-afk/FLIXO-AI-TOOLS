@@ -131,6 +131,31 @@
       "EXECUTE"
     ],
     "noSecondRegistry": true,
-    "noSecondProtocol": true
+    "noSecondProtocol": true,
+    "operations": {
+      "REQUEST": "Bounded work request; recipient must READ and explicitly respond before the request is claimable.",
+      "RESPONSE": "Correlated answer to a REQUEST, CHALLENGE, or HANDOFF; carries responseStatus and never grants authority.",
+      "CHALLENGE": "Execution-blocking challenge that requires a correlated response and resolution.",
+      "HANDOFF": "Continuity transfer requiring recipient acknowledgement or acceptance before task claim."
+    },
+    "responseStates": [
+      "PENDING",
+      "RESPONDED",
+      "BLOCKED",
+      "NONE"
+    ],
+    "correlationRequired": true,
+    "responseBeforeClaim": true,
+    "enforcement": {
+      "implementation": "scripts/ci/agent-communication.mjs + scripts/ci/agent-coordination.mjs",
+      "readBeforeResponse": true,
+      "requestAcceptance": "REQUEST requires RESPONSE=ACCEPTED before task-claim.",
+      "handoffAcceptance": "HANDOFF requires RESPONSE=ACCEPTED|ACKNOWLEDGED before task-claim.",
+      "challengeBlock": "CHALLENGE cannot be task-claimed and requires a correlated RESPONSE.",
+      "responseExclusion": "RESPONSE cannot claim a task.",
+      "pendingVisibility": "coop-pending exposes unresolved requests without granting authority.",
+      "exactSha": "All cooperation transitions revalidate the current exact SHA.",
+      "idempotency": "Duplicate response is NO-OP; conflicting identity or SHA is fail-closed."
+    }
   }
 }
