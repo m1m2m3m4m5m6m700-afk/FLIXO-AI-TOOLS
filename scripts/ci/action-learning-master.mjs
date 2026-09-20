@@ -53,7 +53,7 @@ if(op==='request-master'){
 }
 if(op==='close-green'){
  if(!solution) throw new Error('ACTION_MASTER_SOLUTION_FILE_REQUIRED');
- const x=recordVerifiedGreen({fingerprint,runId,targetSha,solution,verification,evidenceRef});
+ recordVerifiedGreen({fingerprint,runId,targetSha,solution,verification,evidenceRef});
  recordGreen({taskId:'ACTION-MASTER:'+runId+':'+String(fingerprint).slice(0,16),failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId:'ACTION-HISTORIAN-3',notes:verification,evidence:[evidenceRef].filter(Boolean)});
  let y=null;
  try{y=closeLearningRequest({fingerprint,runId,targetSha,solution,verification,evidenceRef,master:'repairAgent'});}catch(error){if(error?.message!=='ACTION_LEARNING_REQUEST_NOT_FOUND')throw error}
