@@ -149,7 +149,7 @@ function chooseNextEvidenceStrategy(causal, rejectedStrategies = [], priorStrate
   };
 }
 
-function trainingAbstentionDecision(training, causal, stateActionRecommendation, behavioralRecommendation, rejectedStrategies = []) {
+function trainingAbstentionDecision(training, causal, stateActionRecommendation, behavioralRecommendation) {
   const eligible = training?.decision?.eligibleToInfluenceRouting === true;
   if (!eligible) return { eligible: false, abstain: false, mode: 'TRAINING_UNAVAILABLE', confidence: 0, threshold: null, reason: 'TRAINING_NOT_ELIGIBLE', nextEvidence: null };
   const threshold = Number(training?.decision?.calibration?.recommendedAbstentionThreshold ?? training?.calibration?.abstention?.recommendedThreshold ?? 0.75);
@@ -451,7 +451,7 @@ const behaviorPreferredId = behavioralRecommendation?.strategyId ?? null;
 const intelligentIndex = intelligentSelectedId ? strategies.findIndex(([id]) => id === intelligentSelectedId) : -1;
 const stateActionIndex = stateActionPreferredId ? strategies.findIndex(([id]) => id === stateActionPreferredId) : -1;
 const behaviorIndex = behaviorPreferredId ? strategies.findIndex(([id]) => id === behaviorPreferredId) : -1;
-const trainingAbstention = trainingAbstentionDecision(training, causal, stateActionRecommendation, behavioralRecommendation, [...rejected]);
+const trainingAbstention = trainingAbstentionDecision(training, causal, stateActionRecommendation, behavioralRecommendation);
 const nextEvidence = trainingAbstention.abstain
   ? chooseNextEvidenceStrategy(causal, [...rejected], priorStrategies)
   : null;
