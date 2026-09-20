@@ -108,7 +108,9 @@ test.describe('Filter Mask live camera surface', () => {
       });
       Object.defineProperty(videoTrack, 'applyConstraints', {
         configurable: true,
-        value: async () => undefined,
+        value: async (constraints: MediaTrackConstraints) => {
+          (window as typeof window & { __flixoQuality?: MediaTrackConstraints }).__flixoQuality = constraints;
+        },
       });
       let requestCount = 0;
       Object.defineProperty(navigator, 'mediaDevices', {
@@ -138,6 +140,13 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(torch).toHaveAttribute('aria-pressed', 'false');
     await torch.click();
     await expect(section.getByRole('button', { name: 'Torch on' })).toHaveAttribute('aria-pressed', 'true');
+    const liveQuality = section.getByRole('group', { name: 'Capture quality' });
+    await liveQuality.getByRole('button', { name: '720p standard' }).click();
+    await expect(liveQuality.getByRole('button', { name: '720p standard' })).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(async () => page.evaluate(() => (window as typeof window & { __flixoQuality?: MediaTrackConstraints }).__flixoQuality)).toMatchObject({
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+    });
     await expect(section.locator('video[aria-label="Filter Mask live camera"]')).toHaveJSProperty('srcObject', expect.anything());
 
     const video = section.locator('video[aria-label="Filter Mask live camera"]');
