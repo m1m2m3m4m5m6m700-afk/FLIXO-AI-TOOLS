@@ -45,3 +45,18 @@ Council Wake
 ```
 
 A bridge process may use POLL alone; PUSH is an acceleration path. Liveness is proven only by the bridge health endpoint and successful ACK/COMPLETE evidence, not by a dispatch row existing in Supabase.
+
+
+## The cell — 50 raw execution slots
+
+`الخلية` is a logical execution-capacity pool of exactly **50 raw slots**:
+
+- `CELL-001` … `CELL-050`
+- State at creation: `UNPROVISIONED`
+- Mode: `RAW`
+- No specialization
+- No independent mutation authority
+- No certification authority
+- No new credentials, endpoints, or external runtime identities
+
+These slots live inside the existing Control Plane and may only become executable when explicitly bound to an already-authorized runtime account and task scope. The cell therefore increases execution capacity without creating a competing account registry, authority layer, or certification path.
