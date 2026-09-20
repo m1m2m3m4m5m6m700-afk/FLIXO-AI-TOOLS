@@ -3,58 +3,15 @@
   "registryId": "FLIXO_REPAIR_PROMPT_REGISTRY",
   "authority": "PROMPT_INTELLIGENCE_LAYER",
   "authorityBoundary": "Prompt text is execution instruction only. Protocols, validators, control-plane authority, certification, and exact-SHA evidence remain authoritative.",
-  "statuses": [
-    "ACTIVE",
-    "CANDIDATE",
-    "MERGED",
-    "DEPRECATED",
-    "BLOCKED",
-    "SUPERSEDED"
-  ],
-  "causalIdentityFields": [
-    "failureClasses",
-    "rootCauses",
-    "scope.allowed",
-    "scope.forbidden",
-    "scope.protected",
-    "repairStrategy",
-    "verificationPlan"
-  ],
+  "statuses": ["ACTIVE","CANDIDATE","MERGED","DEPRECATED","BLOCKED","SUPERSEDED"],
+  "causalIdentityFields": ["failureClasses","rootCauses","scope.allowed","scope.forbidden","scope.protected","repairStrategy","verificationPlan"],
   "sharedMemory": "diagnostics/auto-repair/memory.json",
   "validationModule": "scripts/ci/prompt-registry.mjs",
-  "promptQualityGate": [
-    "schema-complete",
-    "no-active-duplicates",
-    "source-path-exists",
-    "overlap-reviewed",
-    "exact-sha-bound"
-  ],
+  "promptQualityGate": ["schema-complete","no-active-duplicates","source-path-exists","overlap-reviewed","exact-sha-bound"],
   "cooperationProtocol": {
-    "beforeCreate": [
-      "DISCOVER",
-      "READ_SHARED_PROMPT_REGISTRY",
-      "SEARCH_FINGERPRINT",
-      "SEARCH_RCA",
-      "SEARCH_SIMILAR_PROMPTS",
-      "SEARCH_LESSONS",
-      "SEARCH_ANTI_LESSONS",
-      "CHECK_OVERLAP",
-      "CHECK_CONFLICT"
-    ],
-    "decision": [
-      "REUSE",
-      "EXTEND",
-      "MERGE",
-      "SPECIALIZE",
-      "SPLIT",
-      "CREATE"
-    ],
-    "afterUse": [
-      "REGISTER_USE",
-      "REVIEW",
-      "HANDOFF",
-      "LEARN"
-    ],
+    "beforeCreate": ["DISCOVER","READ_SHARED_PROMPT_REGISTRY","SEARCH_FINGERPRINT","SEARCH_RCA","SEARCH_SIMILAR_PROMPTS","SEARCH_LESSONS","SEARCH_ANTI_LESSONS","CHECK_OVERLAP","CHECK_CONFLICT"],
+    "decision": ["REUSE","EXTEND","MERGE","SPECIALIZE","SPLIT","CREATE"],
+    "afterUse": ["REGISTER_USE","REVIEW","HANDOFF","LEARN"],
     "conflictRule": "Resolve against protocol, contract, validator, authority and current exact-SHA evidence. Never choose between conflicting prompts by convenience.",
     "learningRule": "SUCCESS => lesson candidate; FAILURE => anti-lesson candidate; REVERTED => strategy rejection signal; PROPOSED => no success confidence; BLOCKED_EXTERNAL => external blocker, not internal repair success."
   },
@@ -71,81 +28,23 @@
       "domain": "cross-cutting-orchestration",
       "agentRole": "master-controller",
       "sourcePath": "docs/agents/PROMPT-01-MASTER-EXECUTION.md",
-      "failureClasses": [
-        "ALL_REPAIRABLE",
-        "CI_ORCHESTRATION",
-        "COORDINATION",
-        "RELEASE"
-      ],
-      "fingerprints": [
-        "SHA_RACE",
-        "STALE_EVIDENCE",
-        "OWNERSHIP_CONFLICT",
-        "REQUIRED_CHECK_INCOMPLETE"
-      ],
-      "rootCauses": [
-        "stale-evidence",
-        "scope-conflict",
-        "ownership-conflict",
-        "false-green"
-      ],
+      "failureClasses": ["ALL_REPAIRABLE","CI_ORCHESTRATION","COORDINATION","RELEASE"],
+      "fingerprints": ["SHA_RACE","STALE_EVIDENCE","OWNERSHIP_CONFLICT","REQUIRED_CHECK_INCOMPLETE"],
+      "rootCauses": ["stale-evidence","scope-conflict","ownership-conflict","false-green"],
       "scope": "orchestration, ownership, dependency sequencing, agent handoff, CI closure and promotion",
-      "repairStrategy": [
-        "current-SHA binding",
-        "scope locks",
-        "work-family dispatch",
-        "terminal required checks",
-        "canonical promotion"
-      ],
-      "verificationPlan": [
-        "targeted verification",
-        "affected contract graph",
-        "required CI",
-        "security",
-        "exact-SHA certification"
-      ],
-      "learningRequirements": [
-        "cycleLessons",
-        "handoff provenance",
-        "fresh-state evidence"
-      ],
+      "repairStrategy": ["current-SHA binding","scope locks","work-family dispatch","terminal required checks","canonical promotion"],
+      "verificationPlan": ["targeted verification","affected contract graph","required CI","security","exact-SHA certification"],
+      "learningRequirements": ["cycleLessons","handoff provenance","fresh-state evidence"],
       "status": "ACTIVE",
       "version": "1.0.0",
       "createdBy": "prompt-consolidation",
       "lastUpdatedBy": "prompt-consolidation",
-      "provenance": {
-        "source": "three-prompt consolidation",
-        "replacedFamilies": [
-          "RPR-MASTER-LIFECYCLE-001",
-          "RPR-EXISTING-TASK-PREP-001",
-          "RPR-EXISTING-SAFE-TASK-001",
-          "RPR-EXISTING-ACTIVE-CYCLE-001",
-          "RPR-ORCHESTRATION-PREFLIGHT-001",
-          "RPR-EXTERNAL-TOOLING-001",
-          "RPR-REGEX-CONTRACT-001",
-          "RPR-ARCHITECTURE-REGISTRY-001",
-          "RPR-CANONICAL-CONTRACT-DRIFT-001"
-        ]
-      },
-      "relatedPrompts": [
-        "RPR-ERROR-REPAIR-001",
-        "RPR-FLIXO-PRODUCT-001"
-      ],
+      "provenance": {"source": "three-prompt consolidation","replacedFamilies": ["RPR-MASTER-LIFECYCLE-001","RPR-EXISTING-TASK-PREP-001","RPR-EXISTING-SAFE-TASK-001","RPR-EXISTING-ACTIVE-CYCLE-001","RPR-ORCHESTRATION-PREFLIGHT-001","RPR-EXTERNAL-TOOLING-001","RPR-REGEX-CONTRACT-001","RPR-ARCHITECTURE-REGISTRY-001","RPR-CANONICAL-CONTRACT-DRIFT-001"]},
+      "relatedPrompts": ["RPR-ERROR-REPAIR-001","RPR-FLIXO-PRODUCT-001"],
       "supersedes": [],
       "supersededBy": [],
-      "antiPatterns": [
-        "false-green",
-        "historical-certification",
-        "third-branch",
-        "duplicate-authority"
-      ],
-      "exactShaRequirements": [
-        "current execution SHA",
-        "invalidate on SHA change",
-        "targeted verification",
-        "affected graph verification",
-        "canonical certification"
-      ]
+      "antiPatterns": ["false-green","historical-certification","third-branch","duplicate-authority"],
+      "exactShaRequirements": ["current execution SHA","invalidate on SHA change","targeted verification","affected graph verification","canonical certification"]
     },
     {
       "promptId": "RPR-ERROR-REPAIR-001",
@@ -153,91 +52,23 @@
       "domain": "error-intelligence-and-repair",
       "agentRole": "repair-agent",
       "sourcePath": "docs/agents/PROMPT-02-ERROR-REPAIR.md",
-      "failureClasses": [
-        "SOURCE",
-        "TEST_CONTRACT",
-        "CI_ORCHESTRATION",
-        "SECURITY",
-        "EXTERNAL_PROVIDER",
-        "FLAKY_RACE",
-        "UNKNOWN_RCA"
-      ],
-      "fingerprints": [
-        "fingerprint-match",
-        "contract-drift",
-        "external-provider-signature",
-        "sha-race",
-        "duplicate-dispatch"
-      ],
-      "rootCauses": [
-        "symptom-only-repair",
-        "stale-contract",
-        "duplicate-control-path",
-        "provider-failure",
-        "race-condition"
-      ],
+      "failureClasses": ["SOURCE","TEST_CONTRACT","CI_ORCHESTRATION","SECURITY","EXTERNAL_PROVIDER","FLAKY_RACE","UNKNOWN_RCA"],
+      "fingerprints": ["fingerprint-match","contract-drift","external-provider-signature","sha-race","duplicate-dispatch"],
+      "rootCauses": ["symptom-only-repair","stale-contract","duplicate-control-path","provider-failure","race-condition"],
       "scope": "failure diagnosis, causal repair, contract drift, CI/security/external classification and prompt consolidation",
-      "repairStrategy": [
-        "capture evidence",
-        "fingerprint",
-        "RCA/falsify",
-        "causal repair",
-        "targeted regression",
-        "affected graph",
-        "learn"
-      ],
-      "verificationPlan": [
-        "targeted regression",
-        "contract verification",
-        "required CI",
-        "external classification",
-        "exact-SHA proof"
-      ],
-      "learningRequirements": [
-        "RCA",
-        "strategy/antiLesson",
-        "verification",
-        "recurrence prevention",
-        "blocker antiLesson"
-      ],
+      "repairStrategy": ["capture evidence","fingerprint","RCA/falsify","causal repair","targeted regression","affected graph","learn"],
+      "verificationPlan": ["targeted regression","contract verification","required CI","external classification","exact-SHA proof"],
+      "learningRequirements": ["RCA","strategy/antiLesson","verification","recurrence prevention","blocker antiLesson"],
       "status": "ACTIVE",
       "version": "1.0.0",
       "createdBy": "prompt-consolidation",
       "lastUpdatedBy": "prompt-consolidation",
-      "provenance": {
-        "source": "three-prompt consolidation",
-        "replacedFamilies": [
-          "RPR-MASTER-LIFECYCLE-001",
-          "RPR-EXISTING-TASK-PREP-001",
-          "RPR-EXISTING-SAFE-TASK-001",
-          "RPR-EXISTING-ACTIVE-CYCLE-001",
-          "RPR-ORCHESTRATION-PREFLIGHT-001",
-          "RPR-EXTERNAL-TOOLING-001",
-          "RPR-REGEX-CONTRACT-001",
-          "RPR-ARCHITECTURE-REGISTRY-001",
-          "RPR-CANONICAL-CONTRACT-DRIFT-001"
-        ]
-      },
-      "relatedPrompts": [
-        "RPR-MASTER-EXECUTION-001",
-        "RPR-FLIXO-PRODUCT-001"
-      ],
+      "provenance": {"source": "three-prompt consolidation","replacedFamilies": ["RPR-MASTER-LIFECYCLE-001","RPR-EXISTING-TASK-PREP-001","RPR-EXISTING-SAFE-TASK-001","RPR-EXISTING-ACTIVE-CYCLE-001","RPR-ORCHESTRATION-PREFLIGHT-001","RPR-EXTERNAL-TOOLING-001","RPR-REGEX-CONTRACT-001","RPR-ARCHITECTURE-REGISTRY-001","RPR-CANONICAL-CONTRACT-DRIFT-001"]},
+      "relatedPrompts": ["RPR-MASTER-EXECUTION-001","RPR-FLIXO-PRODUCT-001"],
       "supersedes": [],
       "supersededBy": [],
-      "antiPatterns": [
-        "test-weakening",
-        "blind-retry",
-        "gate-bypass",
-        "external-masking",
-        "unbounded-repair"
-      ],
-      "exactShaRequirements": [
-        "current execution SHA",
-        "invalidate on SHA change",
-        "targeted verification",
-        "affected graph verification",
-        "canonical certification"
-      ]
+      "antiPatterns": ["test-weakening","blind-retry","gate-bypass","external-masking","unbounded-repair"],
+      "exactShaRequirements": ["current execution SHA","invalidate on SHA change","targeted verification","affected graph verification","canonical certification"]
     },
     {
       "promptId": "RPR-FLIXO-PRODUCT-001",
@@ -245,87 +76,27 @@
       "domain": "product-platform-agent",
       "agentRole": "development-agent",
       "sourcePath": "docs/agents/PROMPT-03-FLIXO-PRODUCT.md",
-      "failureClasses": [
-        "PRODUCT",
-        "IMAGE_AGENT",
-        "REGISTRY",
-        "ADMIN",
-        "I18N",
-        "PERFORMANCE",
-        "SECURITY"
-      ],
-      "fingerprints": [
-        "registry-asymmetry",
-        "unsupported-capability",
-        "route-drift",
-        "i18n-runtime-drift",
-        "persistence-failure"
-      ],
-      "rootCauses": [
-        "duplicate-source-of-truth",
-        "llm-execution-authority",
-        "ui-only-persistence",
-        "locale-asymmetry"
-      ],
-      "scope": "image agent, Capability Registry, tools, admin, localization, performance, safety and release",
-      "repairStrategy": [
-        "inspect registry",
-        "reuse contracts",
-        "bounded implementation",
-        "targeted regression",
-        "affected graph verification"
-      ],
-      "verificationPlan": [
-        "unit/contract",
-        "registry symmetry",
-        "runtime/browser",
-        "security",
-        "exact-SHA"
-      ],
-      "learningRequirements": [
-        "implementation lesson",
-        "registry lesson",
-        "performance lesson",
-        "prevention"
-      ],
+      "failureClasses": ["PRODUCT","IMAGE_AGENT","REGISTRY","ADMIN","I18N","PERFORMANCE","SECURITY"],
+      "fingerprints": ["registry-asymmetry","unsupported-capability","route-drift","i18n-runtime-drift","persistence-failure"],
+      "rootCauses": ["duplicate-source-of-truth","llm-execution-authority","ui-only-persistence","locale-asymmetry"],
+      "scope": "image agent, Capability Registry, manual tools, admin/platform, localization/SEO/accessibility, performance, safety and product release implementation",
+      "repairStrategy": ["inspect registry","reuse contracts","bounded implementation","targeted regression","affected graph verification"],
+      "verificationPlan": ["unit/contract","registry symmetry","runtime/browser","security","exact-SHA"],
+      "learningRequirements": ["implementation lesson","registry lesson","performance lesson","prevention"],
       "status": "ACTIVE",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "createdBy": "prompt-consolidation",
-      "lastUpdatedBy": "prompt-consolidation",
-      "provenance": {
-        "source": "three-prompt consolidation",
-        "replacedFamilies": [
-          "RPR-MASTER-LIFECYCLE-001",
-          "RPR-EXISTING-TASK-PREP-001",
-          "RPR-EXISTING-SAFE-TASK-001",
-          "RPR-EXISTING-ACTIVE-CYCLE-001",
-          "RPR-ORCHESTRATION-PREFLIGHT-001",
-          "RPR-EXTERNAL-TOOLING-001",
-          "RPR-REGEX-CONTRACT-001",
-          "RPR-ARCHITECTURE-REGISTRY-001",
-          "RPR-CANONICAL-CONTRACT-DRIFT-001"
-        ]
-      },
-      "relatedPrompts": [
-        "RPR-MASTER-EXECUTION-001",
-        "RPR-ERROR-REPAIR-001"
-      ],
+      "lastUpdatedBy": "prompt-03-boundary-build",
+      "provenance": {"source": "three-prompt consolidation + standalone-boundary-build","replacedFamilies": ["RPR-MASTER-LIFECYCLE-001","RPR-EXISTING-TASK-PREP-001","RPR-EXISTING-SAFE-TASK-001","RPR-EXISTING-ACTIVE-CYCLE-001","RPR-ORCHESTRATION-PREFLIGHT-001","RPR-EXTERNAL-TOOLING-001","RPR-REGEX-CONTRACT-001","RPR-ARCHITECTURE-REGISTRY-001","RPR-CANONICAL-CONTRACT-DRIFT-001"]},
+      "relatedPrompts": ["RPR-MASTER-EXECUTION-001","RPR-ERROR-REPAIR-001"],
       "supersedes": [],
       "supersededBy": [],
-      "antiPatterns": [
-        "second-registry",
-        "invented-tool-id",
-        "invented-parameter",
-        "mock-success",
-        "security-bypass"
-      ],
-      "exactShaRequirements": [
-        "current execution SHA",
-        "invalidate on SHA change",
-        "targeted verification",
-        "affected graph verification",
-        "canonical certification"
-      ]
+      "antiPatterns": ["second-registry","invented-tool-id","invented-parameter","mock-success","security-bypass","self-certification","orchestration-ownership-drift"],
+      "exactShaRequirements": ["current execution SHA","invalidate on SHA change","targeted verification","affected graph verification","canonical certification"],
+      "boundary": {
+        "owns": ["product implementation","product tests","product contract alignment","implementation evidence"],
+        "doesNotOwn": ["task orchestration","cross-agent arbitration","RCA ownership for non-product failures","GREEN certification","promotion"]
+      }
     }
   ]
 }
