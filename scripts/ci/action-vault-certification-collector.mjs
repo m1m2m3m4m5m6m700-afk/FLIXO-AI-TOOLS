@@ -67,7 +67,7 @@ const certification=evaluateCertification({
  projectRedCount:0,globalChecks,failedTests:[],blockedCases:[],remainingRisks:[]
 });
 const result={score:certification.score,benchmarkVersion:benchmarkReport.benchmarkVersion,testedCapabilities:benchmarkReport.cases?.map(c=>c.name)??[],passedTests:benchmarkReport.cases?.filter(c=>c.passed).map(c=>c.name)??[],failedTests:benchmarkReport.cases?.filter(c=>!c.passed).map(c=>c.name)??[],blockedCases:certification.blockedCases??[],proofArtifacts:verifiedLearning.proofIds,simulationArtifacts:verifiedLearning.proofIds.filter(x=>/SANDBOX|POST-MUTATION/u.test(x)),differentialArtifacts:verifiedLearning.proofIds.filter(x=>/DIFFERENTIAL/u.test(x)),falsificationArtifacts:verifiedLearning.proofIds.filter(x=>/FALSIFICATION|COUNTEREXAMPLE/u.test(x)),exactSha:gitHead,executionSha:gitHead,canonicalGreenRecord:greenRecord,certificationStatus:certification.certificationStatus,remainingRisks:certification.remainingRisks??[],knownLimitations:certification.certificationStatus==='100/100 VERIFIED'?[]:['Certification remains fail-closed until every exact-SHA workflow, Action Vault test suite, benchmark, CI contract, and learning evidence is proven.'],
-verifiedLearningglobalChecks,requiredRuns:exactRuns,benchmark:benchmarkReport};
+verifiedLearning,globalChecks,requiredRuns:exactRuns,benchmark:benchmarkReport};
 fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');
 console.log(JSON.stringify({score:result.score,status:result.certificationStatus,exactSha:gitHead,requiredPass,globalChecks},null,2));
 if(result.certificationStatus!=='100/100 VERIFIED')process.exit(1);
