@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "protocol": "ACTION-VAULT-GAP-AUDIT-v1",
+  "auditSha": "034cd01033725e7bf60ccc8f143fff61179d0b8c",
+  "authority": "CURRENT_EXACT_SHA_CODE_AUDIT",
+  "principle": "DECLARED_CAPABILITY_DOES_NOT_COUNT_AS_PROVEN_CAPABILITY",
+  "items": [
+    {
+      "capability": "SYSTEM_COGNITIVE_AWARENESS",
+      "declared": true,
+      "implemented": true,
+      "enforced": true,
+      "tested": true,
+      "status": "ENFORCED_PENDING_CANONICAL_CI"
+    },
+    {
+      "capability": "PRIMARY_CAUSAL_PROOF",
+      "declared": true,
+      "implemented": true,
+      "enforced": true,
+      "tested": true,
+      "status": "ENFORCED_PENDING_CANONICAL_CI"
+    },
+    {
+      "capability": "PROGRAMMER_TWIN_PARITY",
+      "declared": true,
+      "implemented": true,
+      "enforced": true,
+      "tested": true,
+      "status": "ENFORCED_PENDING_CANONICAL_CI"
+    },
+    {
+      "capability": "ADVERSARIAL_FALSIFICATION",
+      "declared": true,
+      "implemented": true,
+      "enforced": true,
+      "tested": true,
+      "status": "ENFORCED_PENDING_CANONICAL_CI"
+    },
+    {
+      "capability": "EXECUTED_DIFFERENTIAL_EVIDENCE",
+      "declared": true,
+      "implemented": true,
+      "enforced": true,
+      "tested": true,
+      "status": "ENFORCED_PENDING_CANONICAL_CI"
+    },
+    {
+      "capability": "SANDBOX_SIMULATION",
+      "declared": true,
+      "implemented": true,
+      "enforced": true,
+      "tested": true,
+      "status": "ENFORCED_PENDING_CANONICAL_CI"
+    },
+    {
+      "capability": "PATCH_IDENTITY_MATCH",
+      "declared": true,
+      "implemented": true,
+      "enforced": true,
+      "tested": true,
+      "status": "ENFORCED_PENDING_CANONICAL_CI"
+    },
+    {
+      "capability": "REGRESSION_COUNTEREXAMPLE_SEARCH",
+      "declared": true,
+      "implemented": true,
+      "enforced": true,
+      "tested": true,
+      "status": "ENFORCED_PENDING_CANONICAL_CI"
+    },
+    {
+      "capability": "ADVERSARIAL_GATE_BENCHMARK",
+      "declared": true,
+      "implemented": true,
+      "enforced": true,
+      "tested": true,
+      "status": "IMPLEMENTED_PENDING_CANONICAL_EXECUTION"
+    },
+    {
+      "capability": "FINAL_EXACT_GREEN_CERTIFICATION",
+      "declared": true,
+      "implemented": true,
+      "enforced": true,
+      "tested": true,
+      "status": "AVAILABLE_NOT_CERTIFIED"
+    },
+    {
+      "capability": "REAL_RED_PRODUCTION_REPAIR_PROOF",
+      "declared": true,
+      "implemented": true,
+      "enforced": true,
+      "tested": false,
+      "status": "NOT_YET_PROVEN_IN_THIS_AUDIT"
+    }
+  ],
+  "currentBlockingEvidence": [
+    "CANONICAL_CI_NOT_GREEN_ON_CURRENT_EXECUTION_HEAD",
+    "NO_FRESH_100_CERTIFICATION_FOR_CURRENT_HEAD",
+    "NO_FRESH_ZERO_RED_PROOF_FOR_CURRENT_HEAD",
+    "REAL_RED_END_TO_END_SUCCESS_NOT_PROVEN_ON_CURRENT_HEAD"
+  ],
+  "knownCurrentHeadRunState": {
+    "canonicalDailyGreenGate": "FAILURE",
+    "exactHeadOtherRuns": "QUEUED_OR_NOT_YET_COMPLETED"
+  },
+  "scorePolicy": "NO_100_DECLARATION_UNTIL_CANONICAL_GREEN_AND_CERTIFICATION",
+  "generatedAt": "2026-09-20T22:12:01.920Z"
+}
