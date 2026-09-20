@@ -43,6 +43,7 @@ export type FilterMaskCopy = Readonly<{
   captureQuality: string;
   quality720: string;
   quality1080: string;
+  qualityChangeFailed: string;
   download: string;
   share: string;
   shareSetup: string;
@@ -97,6 +98,7 @@ const EN: FilterMaskCopy = {
   captureQuality: 'Capture quality',
   quality720: '720p standard',
   quality1080: '1080p high',
+  qualityChangeFailed: 'Capture quality could not be changed for the active camera.',
   download: 'Download result',
   share: 'Share result',
   shareSetup: 'Share filter setup',
