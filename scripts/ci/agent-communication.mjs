@@ -34,7 +34,6 @@ const writeJson = (file, value) => {
 };
 const ensure = () => { fs.mkdirSync(INBOX_DIR, { recursive: true }); };
 const roles = new Set(['assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','diagnosticAgent','ALL_AGENTS']);
-const statuses = new Set(['RECEIVED','READ','CONSUMED','STALE','BLOCKED_CONFLICT']);
 const required = ['messageId','actor','recipient','intent','taskId','scope','entrySha','risk','dependencies','expectedEvidence','stopConditions','proofObligations','createdAt'];
 const asArray = (value, name) => {
   if (!Array.isArray(value) || value.length === 0 || value.some((item) => typeof item !== 'string' || !item.trim())) {
