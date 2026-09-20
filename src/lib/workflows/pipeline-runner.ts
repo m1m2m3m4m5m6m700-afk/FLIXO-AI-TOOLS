@@ -6,7 +6,7 @@ import { getToolExecutor, repairToolParameters } from '@/lib/workflows/executor-
 import { assertToolOutputContract, getToolOutputContractForDefinition, type ToolOutputResult } from '@/lib/contracts/tool-output-contracts';
 import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelinePlanFingerprint, createPipelineReceiptChain, createPipelineStepReceipt, type PipelineReceiptChain, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
 
-export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; outputBlob?: Blob; retry?: number; receipt?: PipelineStepReceipt; receiptChain?: PipelineReceiptChain; }
+export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; task: TaskContext; outputBlob?: Blob; retry?: number; receipt?: PipelineStepReceipt; receiptChain?: PipelineReceiptChain; }
 export class PipelineVerificationError extends Error {
   constructor(message: string, readonly stableBlob: Blob, readonly failedStepIndex: number, readonly failedToolId: string) { super(message); this.name = 'PipelineVerificationError'; }
 }
@@ -78,7 +78,7 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
     const maxAttempts = Math.max(1, tool.recovery.maxAttempts);
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, retry: attempt });
+      onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, retry: attempt });
       try {
         const output = await executor({ tool, inputBlob: stableBlob, parameters: params });
         lastOutput = output;
@@ -87,7 +87,7 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
         if (verified) {
           receiptChain = await appendPipelineStepReceipt(receiptChain, receipt);
           currentBlob = output;
-          onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, outputBlob: output, retry: attempt, receipt, receiptChain });
+          onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, outputBlob: output, retry: attempt, receipt, receiptChain });
           break;
         }
       } catch (error) {
