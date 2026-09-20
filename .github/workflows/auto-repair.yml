@@ -40,6 +40,8 @@ permissions:
   # the bot, but cannot use it to disable or reconfigure Actions.
   # It still cannot bypass the execution-only mutation boundary or write main.
   contents: write
+  # Read-only artifact/run observation is required for the independent twin result.
+  actions: read
   # No Actions-admin capability: peer agents cannot be controlled by the repair bot.
   checks: read
   pull-requests: write
@@ -105,8 +107,9 @@ jobs:
           test "$FAILED_BRANCH" = main || test "$FAILED_BRANCH" = execution
           test "$FAILED_SHA" != "null" && test -n "$FAILED_SHA"
           git fetch --no-tags origin "$FAILED_SHA"
-          git checkout --detach "$FAILED_SHA"
-          test "$(git rev-parse HEAD)" = "$FAILED_SHA"
+          rm -rf /tmp/flixo-twin-target
+          git worktree add --detach /tmp/flixo-twin-target "$FAILED_SHA"
+          test "$(git -C /tmp/flixo-twin-target rev-parse HEAD)" = "$FAILED_SHA"
           echo "failed_sha=$FAILED_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Capture exact failed-run evidence
@@ -126,6 +129,7 @@ jobs:
           FLIXO_EXPECTED_TARGET_SHA: ${{ steps.target.outputs.failed_sha }}
           FLIXO_TWIN_READ_ONLY: 'true'
           FLIXO_TWIN_DETACHED: 'true'
+          FLIXO_TWIN_READ_ONLY: 'true'
         run: |
           set -euo pipefail
           node scripts/ci/adversarial-repair-twin.mjs
