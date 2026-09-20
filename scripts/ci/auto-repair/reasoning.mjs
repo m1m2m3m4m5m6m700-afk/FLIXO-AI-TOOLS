@@ -166,7 +166,7 @@ export function buildRepairHypothesis({
   causalConfidence = 0,
   evidenceProfile: evidence = null,
 } = {}) {
-  const id = top?.id ?? 'unknown';
+  const id = top?.id ?? 'UNKNOWN_RCA';
   const expectedEffectByCause = {
     lint: 'STATIC_CONTRACT_RECOVERS_WITHOUT_UNRELATED_MUTATION',
     format: 'FORMAT_CONTRACT_RECOVERS_WITHOUT_UNRELATED_MUTATION',
@@ -176,7 +176,7 @@ export function buildRepairHypothesis({
     'webkit-render': 'WEBKIT_RENDER_CONTRACT_RECOVERS',
     certification: 'CERTIFICATION_EVIDENCE_CONTRACT_RECOVERS',
     'external-tooling': 'PROVIDER_RECOVERY_WITHOUT_SOURCE_MUTATION',
-    unknown: 'ORIGINAL_FAILURE_SIGNAL_DISAPPEARS_AND_RELATED_INVARIANT_HOLDS',
+    UNKNOWN_RCA: 'ORIGINAL_FAILURE_SIGNAL_DISAPPEARS_AND_RELATED_INVARIANT_HOLDS',
   };
   const affectedFiles = [...new Set([location?.file, ...(top?.file ? [top.file] : [])].filter(Boolean))];
   const falsification = falsificationChecks.find((item) => item?.required !== false) ?? {
@@ -188,7 +188,7 @@ export function buildRepairHypothesis({
   return Object.freeze({
     schemaVersion: 1,
     hypothesis: id,
-    expectedEffect: expectedEffectByCause[id] ?? expectedEffectByCause.unknown,
+    expectedEffect: expectedEffectByCause[id] ?? expectedEffectByCause.UNKNOWN_RCA,
     violatedInvariant: process.env.FLIXO_VIOLATED_INVARIANT ?? 'UNKNOWN_INVARIANT_UNPROVEN',
     affectedFiles,
     falsificationCheck: falsification,
@@ -200,7 +200,7 @@ export function buildRepairHypothesis({
       channels: evidence?.channels ?? {},
       quality: evidence?.quality ?? 'INSUFFICIENT',
     },
-    failClosed: id === 'unknown' || id === 'external-tooling' || Number(causalConfidence ?? 0) < 0.75,
+    failClosed: id === 'UNKNOWN_RCA' || id === 'external-tooling' || Number(causalConfidence ?? 0) < 0.75,
   });
 }
 
@@ -248,7 +248,7 @@ function adaptiveBudget({ attempts = 0, ambiguity = false, alternatives = 0, fea
 function selectTop(hypotheses) {
   const viable = hypotheses.filter((item) => !item.suppressedBy);
   return viable[0] ?? hypotheses[0] ?? {
-    id: 'unknown', score: 0, directMatches: 0, evidenceLines: [], scoutFindings: 0, learnedSupport: 0, specificity: 0, dominates: [],
+    id: 'UNKNOWN_RCA', score: 0, directMatches: 0, evidenceLines: [], scoutFindings: 0, learnedSupport: 0, specificity: 0, dominates: [],
   };
 }
 
