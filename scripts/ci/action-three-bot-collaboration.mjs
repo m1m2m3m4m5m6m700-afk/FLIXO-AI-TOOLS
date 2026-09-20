@@ -125,7 +125,7 @@ if(op==='start'){
 } else if(op==='record-failure'){
   if(bot!=='ACTION-HISTORIAN-3') throw new Error('ACTION_THREE_BOT_FAILURE_RECORD_ONLY_HISTORIAN');
   const failureSummary=summary||'UNSPECIFIED_FAILURE';
-  recordFailedAttempt({taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId,notes:failureSummary,attemptedStrategy:arg('strategy',''),evidence});
+  recordFailedAttempt({taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId:'ACTION-HISTORIAN-3',notes:failureSummary,attemptedStrategy:arg('strategy',''),evidence});
   state.outputs.lessons.push({type:'FAILURE',summary:failureSummary,evidence,at:now()});
   state.updatedAt=now();write(state);
 } else if(op==='handoff'){
