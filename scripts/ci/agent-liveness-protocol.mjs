@@ -1,11 +1,17 @@
 #!/usr/bin/env node
 export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
-  schemaVersion: 3,
+  schemaVersion: 4,
+  contractRank: 'SUPREME_AUTOMATION_RESIDENCY',
+  authorityScope: 'ENTIRE_REPAIR_AUTOMATION_PLANE',
   protocolId: 'AGENT_LIVENESS_PROTOCOL',
-  protocolVersion: '3.0.0',
+  protocolVersion: '4.0.0',
   authority: 'CONTROL_PLANE',
   heartbeatEveryMs: 5 * 60 * 1000,
   heartbeatGraceMs: 2 * 60 * 1000,
+  wakeIntervalMs: 5 * 60 * 1000,
+  manualWakeRequired: false,
+  selfDisableAllowed: false,
+  selfAbortAllowed: false,
   leaseTtlMs: 15 * 60 * 1000,
   progressWindowMs: 10 * 60 * 1000,
   maxNoProgressHeartbeats: 3,
@@ -47,6 +53,13 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
     'ABORT_REQUIRES_EXPLICIT_AUTHORITY',
     'RECOVERY_REPLACES_SILENT_WAIT',
     'GREEN_DOES_NOT_SUSPEND_RESIDENT_AGENT',
+    'RUN_END_DOES_NOT_END_TASK',
+    'TIMEOUT_DOES_NOT_END_TASK',
+    'SESSION_BUDGET_DOES_NOT_END_TASK',
+    'MANUAL_WAKE_MUST_NEVER_BE_REQUIRED',
+    'SELF_DISABLE_FORBIDDEN',
+    'SELF_ABORT_FORBIDDEN',
+    'LIVENESS_FAILURE_MUST_REENTER_CANONICAL_WAKE_PATH',
   ]),
 });
 
@@ -58,6 +71,9 @@ export function assertLivenessDefinition() {
   if (!AGENT_LIVENESS_PROTOCOL.protocolVersion.startsWith('3.')) throw new Error('AGENT_LIVENESS_VERSION_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs <= 0 || AGENT_LIVENESS_PROTOCOL.leaseTtlMs <= AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs) throw new Error('AGENT_LIVENESS_TIMING_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.maxNoProgressHeartbeats < 1) throw new Error('AGENT_LIVENESS_PROGRESS_THRESHOLD_INVALID');
+  if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs !== 5 * 60 * 1000) throw new Error('AGENT_LIVENESS_HEARTBEAT_NOT_FIVE_MINUTES');
+  if (AGENT_LIVENESS_PROTOCOL.manualWakeRequired !== false) throw new Error('AGENT_LIVENESS_MANUAL_WAKE_FORBIDDEN');
+  if (AGENT_LIVENESS_PROTOCOL.selfDisableAllowed !== false || AGENT_LIVENESS_PROTOCOL.selfAbortAllowed !== false) throw new Error('AGENT_LIVENESS_SELF_DISABLE_OR_ABORT_FORBIDDEN');
   for (const state of working) if (forbidden.has(state)) throw new Error('AGENT_LIVENESS_WORKING_FORBIDDEN_STATE');
   return true;
 }
@@ -139,6 +155,9 @@ export function sessionTerminationDirective({ canonicalGreen = false, reason = '
 // Legacy admission APIs remain as hard blockers so older callers cannot suspend a resident agent.
 export function sleepAdmission() { throw new Error('AGENT_LIVENESS_SLEEP_FORBIDDEN_PERMANENT_RESIDENCY'); }
 export function idleAdmission() { throw new Error('AGENT_LIVENESS_IDLE_FORBIDDEN_PERMANENT_RESIDENCY'); }
+export function selfDisableAdmission() { throw new Error('AGENT_LIVENESS_SELF_DISABLE_FORBIDDEN_PERMANENT_RESIDENCY'); }
+export function selfAbortAdmission() { throw new Error('AGENT_LIVENESS_SELF_ABORT_FORBIDDEN_PERMANENT_RESIDENCY'); }
+export function runEndAdmission() { throw new Error('AGENT_LIVENESS_RUN_END_DOES_NOT_END_TASK'); }
 
 const command = process.argv[2] ?? 'validate';
 try {
