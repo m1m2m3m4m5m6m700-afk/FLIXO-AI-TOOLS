@@ -104,7 +104,7 @@ export function validateExecutionBoundaries(profiles) {
   if (primary?.executionBoundary?.canMutateMain !== false) err(errors, 'PRIMARY_MAIN_MUTATION_ENABLED');
   if (primary?.executionBoundary?.canonicalGreen !== 'DAILY_FLIXO_GREEN_GATE') err(errors, 'PRIMARY_CANONICAL_GREEN_INVALID');
   if (secondary?.executionAuthority !== 'HISTORICAL_PREDICTION_PROPOSAL_ONLY') err(errors, 'SECONDARY_EXECUTION_ROLE_INVALID');
-  if (secondary?.mutationAuthority !== false) err(errors, 'SECONDARY_MUTATION_AUTHORITY_ENABLED');
+  if (secondary?.mutationAuthority !== false && secondary?.mutationAuthority !== 'ADMITTED_SEAT') err(errors, 'SECONDARY_MUTATION_AUTHORITY_INVALID');
   if (secondary?.executionBoundary?.canMutateWhenOwner !== false) err(errors, 'SECONDARY_OWNER_MUTATION_ENABLED');
   if (secondary?.executionBoundary?.canMutateTests !== false) err(errors, 'SECONDARY_TEST_MUTATION_ENABLED');
   if (secondary?.executionBoundary?.canMutateMain !== false) err(errors, 'SECONDARY_MAIN_MUTATION_ENABLED');
@@ -122,15 +122,15 @@ export function validateExecutionBoundaries(profiles) {
     err(errors, 'SECONDARY_PREDICTION_CONTRACT_WEAK');
   }
 
-  if (historian?.mutationAuthority !== false ||
-      historian?.canMutateSource !== false ||
+  if (historian?.mutationAuthority !== false && historian?.mutationAuthority !== 'ADMITTED_SEAT' ||
+      historian?.canMutateSource !== false && historian?.canMutateSource !== 'SUPERVISOR_20_ONLY' ||
       historian?.canDispatchRepair !== false ||
       historian?.executionAuthority !== 'RECORD_INDEX_ESCALATE_ONLY' ||
       historian?.executionBoundary?.sourceMutation !== false ||
       historian?.executionBoundary?.testMutation !== false) {
     err(errors, 'HISTORIAN_MUTATION_BOUNDARY_WEAK');
   }
-  if (historian?.repositoryWriteScope !== 'ACTION_VAULT_MEMORY_ONLY') err(errors, 'HISTORIAN_WRITE_SCOPE_TOO_BROAD');
+  if (historian?.repositoryWriteScope !== 'ACTION_VAULT_MEMORY_ONLY' && historian?.repositoryWriteScope !== 'EXECUTION_SOURCE_AFTER_SUPERVISOR_20') err(errors, 'HISTORIAN_WRITE_SCOPE_TOO_BROAD');
   return errors;
 }
 
@@ -150,6 +150,8 @@ export function runGate(root = ROOT) {
   const targetedProtocolPath = path.resolve(root, 'docs/agents/ACTION-VAULT-TARGETED-REPAIR-PROTOCOL.md');
   const targetedPlannerPath = path.resolve(root, 'scripts/ci/action-vault-targeted-test.mjs');
   const targetedTestPath = path.resolve(root, 'scripts/ci/test-action-vault-targeted-test.mjs');
+  const triadProtocolPath = path.resolve(root, 'docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md');
+  const triadGovernorPath = path.resolve(root, 'scripts/ci/action-vault-triad-governor.mjs');
   const predictorPath = path.resolve(root, 'scripts/ci/action-historical-predictor.mjs');
   const ledgerPath = path.resolve(root, 'scripts/ci/action-failure-ledger.mjs');
   const engineerCorePath = path.resolve(root, 'scripts/ci/action-software-engineer-core.mjs');
@@ -159,7 +161,7 @@ export function runGate(root = ROOT) {
   const repairEngineeringPath = path.resolve(root, 'scripts/ci/action-repair-engineering.mjs');
   const repairEngineeringTestPath = path.resolve(root, 'scripts/ci/test-action-repair-engineering.mjs');
 
-  for (const file of [profilePath, residencyPath, gradePath, mentorPath, parallelProtocolPath, sleepAdmissionPath, collaborationScriptPath, targetedProtocolPath, targetedPlannerPath, targetedTestPath, predictorPath, ledgerPath, engineerCorePath, patchSynthesisPath, sandboxPath, differentialVerifierPath, repairEngineeringPath, repairEngineeringTestPath]) {
+  for (const file of [profilePath, residencyPath, gradePath, mentorPath, parallelProtocolPath, sleepAdmissionPath, collaborationScriptPath, targetedProtocolPath, targetedPlannerPath, targetedTestPath, triadProtocolPath, triadGovernorPath, predictorPath, ledgerPath, engineerCorePath, patchSynthesisPath, sandboxPath, differentialVerifierPath, repairEngineeringPath, repairEngineeringTestPath]) {
     if (!exists(file)) err(errors, 'REQUIRED_VAULT_CONTRACT_MISSING', path.relative(root, file));
   }
 
@@ -252,10 +254,15 @@ export function runGate(root = ROOT) {
   if (intelligence?.cooperation?.failureLedger?.appendOnly !== true) err(errors, 'FAILURE_LEDGER_APPEND_ONLY_MISSING');
   if (intelligence?.cooperation?.parallelExecution?.cognitiveParallelism !== true) err(errors, 'PARALLEL_COGNITIVE_MODE_MISSING');
   if (intelligence?.cooperation?.parallelExecution?.sourceMutationParallelism !== false) err(errors, 'PARALLEL_SOURCE_MUTATION_MUST_REMAIN_FALSE');
+  if (intelligence?.cooperation?.triadGovernance?.protocol !== 'ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-v1') err(errors, 'TRIAD_GOVERNANCE_PROTOCOL_INVALID');
+  if (intelligence?.cooperation?.triadGovernance?.recurrenceEscalationThreshold !== 20) err(errors, 'TRIAD_20_THRESHOLD_INVALID');
+  if (intelligence?.cooperation?.triadGovernance?.catalogCapacity !== 1000000) err(errors, 'TRIAD_CATALOG_CAPACITY_INVALID');
+  if (intelligence?.cooperation?.triadGovernance?.supervisor !== 'ACTION-HISTORIAN-3') err(errors, 'TRIAD_SUPERVISOR_INVALID');
   if (intelligence?.cooperation?.parallelExecution?.allThreeContributionsRequired !== true) err(errors, 'ALL_THREE_CONTRIBUTIONS_REQUIRED_MISSING');
   if (intelligence?.cooperation?.parallelExecution?.exchangeBeforeMutation !== true) err(errors, 'EXCHANGE_BEFORE_MUTATION_MISSING');
   if (intelligence?.cooperation?.parallelExecution?.peerLearningReceiptsRequired !== true) err(errors, 'PEER_LEARNING_RECEIPTS_MISSING');
   if (intelligence?.cooperation?.sharedLearning?.promotedOnlyAfterCanonicalGreen !== true) err(errors, 'GREEN_ONLY_SHARED_LEARNING_MISSING');
+  if (intelligence?.cooperation?.triadGovernance?.allThreeMayCreateCandidateArtifacts !== true) err(errors, 'TRIAD_CANDIDATE_MUTATION_PERMISSION_MISSING');
 
   if (exists(targetedProtocolPath)) {
     const targetedProtocol = fs.readFileSync(targetedProtocolPath, 'utf8');
