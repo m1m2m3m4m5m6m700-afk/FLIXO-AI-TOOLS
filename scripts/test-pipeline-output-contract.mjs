@@ -5,6 +5,8 @@ import { getToolDefinition } from '../src/config/canonical-tool-definition.ts';
 import { verifyPipelineOutput } from '../src/lib/workflows/pipeline-runner.ts';
 import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelinePlanFingerprint, createPipelineReceiptChain, createPipelineStepReceipt } from '../src/lib/workflows/pipeline-receipt.ts';
 import { TOOL_CATALOG } from '../src/config/registry.ts';
+import { createTaskContext } from '../src/lib/agent/task-state.ts';
+import { runWorkflowPipeline } from '../src/lib/workflows/pipeline-runner.ts';
 
 const input = new Blob(['input'], { type: 'image/png' });
 const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01]);
@@ -70,11 +72,26 @@ const reorderedPlanFingerprint = await createPipelinePlanFingerprint({
 });
 assert.notEqual(planFingerprint, reorderedPlanFingerprint);
 
-let receiptChain = createPipelineReceiptChain(TOOL_CATALOG.fingerprint, planFingerprint);
+const task = createTaskContext('task-receipt-test', 'trace-receipt-test');
+let receiptChain = createPipelineReceiptChain(TOOL_CATALOG.fingerprint, planFingerprint, task.taskId, task.traceId, task.revision);
+assert.equal(receiptChain.taskId, task.taskId);
+assert.equal(receiptChain.traceId, task.traceId);
+assert.equal(receiptChain.taskRevision, task.revision);
 assert.equal(receiptChain.planFingerprint, planFingerprint);
 receiptChain = await appendPipelineStepReceipt(receiptChain, receipt);
 assert.equal(receiptChain.steps.length, 1);
 assert.match(receiptChain.chainSha256, /^[a-f0-9]{64}$/);
+
+const unconfirmedTask = createTaskContext('task-blocked', 'trace-blocked');
+await assert.rejects(
+  () => runWorkflowPipeline(new File(['input'], 'input.png', { type: 'image/png' }), {
+    workflowName: 'Blocked execution',
+    confidence: 0.9,
+    catalogFingerprint: TOOL_CATALOG.fingerprint,
+    steps: [{ toolId: 'image-compressor', params: { quality: 0.8 } }],
+  }, unconfirmedTask, () => {}),
+  /blocked until explicit confirmation/,
+);
 
 const secondReceipt = await createPipelineStepReceipt({
   toolId: 'image-compressor',
