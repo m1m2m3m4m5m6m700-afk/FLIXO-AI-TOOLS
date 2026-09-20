@@ -49,6 +49,12 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      - name: Self-test canonical repair control plane
+        run: |
+          set -euo pipefail
+          node scripts/ci/test-repair-control-plane.mjs
+          node scripts/ci/test-repair-lease.mjs
+
       - name: Self-test continuous watcher
         run: node scripts/ci/test-continuous-error-watch.mjs
 
@@ -195,81 +201,103 @@ jobs:
       - name: Dispatch internal repair target under Task Agent authority
         if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.capture.outputs.branch == 'execution'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: \${{ github.token }}
         run: |
           set -euo pipefail
           TARGET_RUN_ID="$(jq -r '.repair.targetRunId // empty' /tmp/flixo-watch/report.json)"
-          test -n "$TARGET_RUN_ID" || {
-            echo 'FAIL CLOSED: internal RED has no exact workflow run target.'
-            exit 1
-          }
-
-          REPAIR_KEY="$(jq -r '.repair.repairKey // empty' /tmp/flixo-watch/report.json)"
           FAILURE_FINGERPRINT="$(jq -r '.repair.failureFingerprint // empty' /tmp/flixo-watch/report.json)"
-          test -n "$REPAIR_KEY" || {
-            echo 'FAIL CLOSED: internal RED has no deterministic repair key.'
-            exit 1
-          }
-          test -n "$FAILURE_FINGERPRINT" || {
-            echo 'FAIL CLOSED: internal RED has no failure fingerprint.'
-            exit 1
-          }
-
-          CONTROL_PLANE_FILE="/tmp/flixo-watch/repair-control-plane.json"
-          FAILED_SHA="$(cat /tmp/flixo-watch/execution-sha)"
-          CHAIN_ID="watch-$REPAIR_KEY"
-          LEASE_REF="$(node scripts/ci/repair-control-plane.mjs lease-ref \
+          FAILED_SHA="$(jq -r '.repair.failedSha // empty' /tmp/flixo-watch/report.json)"
+          REPAIR_KEY="$(jq -r '.repair.repairKey // empty' /tmp/flixo-watch/report.json)"
+          REPAIR_CHAIN_ID="$(jq -r '.repair.repairChainId // empty' /tmp/flixo-watch/report.json)"
+          LEASE_REF="$(jq -r '.repair.leaseRef // empty' /tmp/flixo-watch/report.json)"
+          for value in TARGET_RUN_ID FAILURE_FINGERPRINT FAILED_SHA REPAIR_KEY REPAIR_CHAIN_ID LEASE_REF; do
+            test -n "\${!value}" || { echo "FAIL CLOSED: watcher repair identity field $value is missing."; exit 1; }
+          done
+          EXPECTED_CLAIM_KEY="$(node scripts/ci/repair-control-plane.mjs identity \
             --fingerprint="$FAILURE_FINGERPRINT" \
             --failedSha="$FAILED_SHA" \
             --targetRunId="$TARGET_RUN_ID" \
-            --branch="execution")"
-          case "$LEASE_REF" in
-            refs/tags/flixo-repair-lease-*) ;;
-            *) echo "FAIL CLOSED: invalid global repair lease ref: $LEASE_REF"; exit 1 ;;
+            --branch="execution" | jq -r '.claimKey')"
+          test "$REPAIR_KEY" = "$EXPECTED_CLAIM_KEY" || {
+            echo 'FAIL CLOSED: watcher repairKey is not derived from the canonical Control Plane identity.'
+            exit 1
+          }
+
+          CLAIM_FILE="/tmp/flixo-watch/lease-claim.json"
+          node scripts/ci/repair-lease.mjs claim \
+            --fingerprint="$FAILURE_FINGERPRINT" \
+            --failedSha="$FAILED_SHA" \
+            --targetRunId="$TARGET_RUN_ID" \
+            --branch="execution" \
+            --leaseOwner="DAILY_FLIXO_GREEN_GATE" \
+            --repairRunId="$GITHUB_RUN_ID" > "$CLAIM_FILE"
+          CLAIM_STATUS="$(jq -r '.status' "$CLAIM_FILE")"
+          echo "REPAIR_LEASE_INITIAL_STATUS=$CLAIM_STATUS"
+
+          ATTEMPT=1
+          DISPATCH=false
+
+          case "$CLAIM_STATUS" in
+            ACQUIRED)
+              DISPATCH=true
+              ;;
+            ALREADY_CLAIMED)
+              RECOVERY_FILE="/tmp/flixo-watch/lease-recovery.json"
+              node scripts/ci/repair-lease.mjs recover \
+                --fingerprint="$FAILURE_FINGERPRINT" \
+                --failedSha="$FAILED_SHA" \
+                --targetRunId="$TARGET_RUN_ID" \
+                --branch="execution" \
+                --leaseOwner="DAILY_FLIXO_GREEN_GATE" \
+                > "$RECOVERY_FILE"
+              RECOVERY_STATUS="$(jq -r '.status' "$RECOVERY_FILE")"
+              echo "REPAIR_LEASE_RECOVERY_STATUS=$RECOVERY_STATUS"
+              case "$RECOVERY_STATUS" in
+                RECOVERY_ACQUIRED)
+                  ATTEMPT="$(jq -r '.attempt' "$RECOVERY_FILE")"
+                  DISPATCH=true
+                  ;;
+                RECOVERY_ALREADY_CLAIMED)
+                  echo 'Another watcher already acquired the stale recovery lease; no duplicate dispatch.'
+                  ;;
+                ACTIVE|NOT_STALE|MUTATION_OR_NEW_SHA|VERIFIED|CIRCUIT_OPEN)
+                  echo "NO_DISPATCH_REASON=$RECOVERY_STATUS"
+                  ;;
+                AUTH_FAILURE|PROVIDER_FAILURE|FAIL_CLOSED)
+                  echo 'FAIL CLOSED: stale recovery could not be evaluated safely.'
+                  exit 1
+                  ;;
+                *)
+                  echo "FAIL CLOSED: unexpected stale recovery status=$RECOVERY_STATUS"
+                  exit 1
+                  ;;
+              esac
+              ;;
+            AUTH_FAILURE|PROVIDER_FAILURE|FAIL_CLOSED)
+              echo "FAIL CLOSED: atomic lease claim status=$CLAIM_STATUS"
+              exit 1
+              ;;
+            *)
+              echo "FAIL CLOSED: unexpected lease claim status=$CLAIM_STATUS"
+              exit 1
+              ;;
           esac
 
-          set +e
-          LEASE_OUTPUT="$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
-            -f "ref=$LEASE_REF" \
-            -f "sha=$FAILED_SHA" 2>&1)"
-          LEASE_RC=$?
-          set -e
-
-          if [ "$LEASE_RC" -eq 0 ]; then
-            node scripts/ci/repair-control-plane.mjs claim \
-              --fingerprint="$FAILURE_FINGERPRINT" \
-              --failedSha="$FAILED_SHA" \
-              --targetRunId="$TARGET_RUN_ID" \
-              --executionSha="$FAILED_SHA" \
-              --mainSha="$(cat /tmp/flixo-watch/main-sha)" \
-              --owner="DAILY_FLIXO_GREEN_GATE" \
-              --branch="execution" > "$CONTROL_PLANE_FILE"
-
-            CLAIMED_CHAIN_ID="$(jq -r '.repairChainId' "$CONTROL_PLANE_FILE")"
-            CLAIMED_STATE="$(jq -r '.state' "$CONTROL_PLANE_FILE")"
-            test "$CLAIMED_STATE" = "CLAIMED" || {
-              echo "FAIL CLOSED: Control Plane did not produce CLAIMED state."
-              exit 1
-            }
-
+          if [ "$DISPATCH" = true ]; then
             gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref execution \
               -f "target_run_id=$TARGET_RUN_ID" \
-              -f "chain_id=$CHAIN_ID" \
+              -f "chain_id=$REPAIR_CHAIN_ID" \
               -f "failure_fingerprint=$FAILURE_FINGERPRINT" \
               -f "repair_lease_ref=$LEASE_REF" \
+              -f "repair_lease_attempt=$ATTEMPT" \
               -f "prompt_source_run_id=$GITHUB_RUN_ID"
-            echo "REPAIR_LEASE_CLAIMED=true"
-            echo "REPAIR_DISPATCHED=$TARGET_RUN_ID"
-            echo "CONTROL_PLANE_CHAIN_ID=$CLAIMED_CHAIN_ID"
+            echo "REPAIR_LEASE_DISPATCHED=true"
+            echo "REPAIR_DISPATCH_TARGET=$TARGET_RUN_ID"
+            echo "REPAIR_CHAIN_ID=$REPAIR_CHAIN_ID"
+            echo "REPAIR_LEASE_ATTEMPT=$ATTEMPT"
           else
-            if printf '%s' "$LEASE_OUTPUT" | grep -qiE 'Reference already exists|already exists'; then
-              echo "REPAIR_LEASE_CLAIMED=false"
-              echo "REPAIR_ALREADY_CLAIMED=$REPAIR_KEY"
-            else
-              echo "$LEASE_OUTPUT"
-              echo "FAIL CLOSED: global repair lease acquisition failed."
-              exit 1
-            fi
+            echo 'REPAIR_LEASE_DISPATCHED=false'
+            echo "REPAIR_ALREADY_CLAIMED=$REPAIR_KEY"
           fi
 
       - name: Publish cycle evidence
