@@ -26,6 +26,7 @@ fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify({
   externalDiagnosis: false,
   exactShaRequired: true,
   repositoryCreatedAt: '2026-08-10T14:20:17Z',
+  nextCursor: '2026-08-10T00:00:00Z',
   coverageStart: null,
   coverageEnd: null,
   totalRunsScanned: 0,
