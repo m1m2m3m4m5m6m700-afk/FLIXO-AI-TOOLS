@@ -591,11 +591,16 @@ jobs:
           TWIN_PRESENT="$(jq -r '.twin.present // false' /tmp/flixo-repair-strategy.json)"
           TWIN_DIVERGENT="$(jq -r '.twin.divergent // false' /tmp/flixo-repair-strategy.json)"
           TWIN_DISPOSITION="$(jq -r '.twin.disposition // "NO_TWIN"' /tmp/flixo-repair-strategy.json)"
-          if [ "$TWIN_PRESENT" = true ] && [ "$TWIN_DIVERGENT" != true ] && [ "$TWIN_DISPOSITION" != "NO_SAFE_ALTERNATIVE_FOUND" ]; then
-            echo 'FAIL CLOSED: executor and adversarial twin selected the same repair strategy without a justified absence of alternatives.'
+          SELECTED_STRATEGY="$(jq -r '.twin.selector.selectedStrategy // empty' /tmp/flixo-repair-strategy.json)"
+          EXECUTOR_STRATEGY="$(jq -r '.twin.executorStrategy // empty' /tmp/flixo-repair-strategy.json)"
+          if [ "$TWIN_DISPOSITION" = "SELECTED" ]; then
+            test -n "$SELECTED_STRATEGY"
+            test "$SELECTED_STRATEGY" = "$EXECUTOR_STRATEGY"
+          elif [ "$TWIN_PRESENT" = true ] && [ "$TWIN_DIVERGENT" != true ] && [ "$TWIN_DISPOSITION" != "NO_SAFE_ALTERNATIVE_FOUND" ]; then
+            echo 'FAIL CLOSED: twin review did not provide a distinct safe alternative and no selector decision was recorded.'
             exit 1
           fi
-          echo "TWIN_DIVERGENCE_GATE=PASS disposition=$TWIN_DISPOSITION"
+          echo "TWIN_DECISION_GATE=PASS disposition=$TWIN_DISPOSITION selected=$SELECTED_STRATEGY"
 
       - name: Record prepared repair plan state in the Repair Control Plane
         if: steps.strategy.outcome == 'success'
