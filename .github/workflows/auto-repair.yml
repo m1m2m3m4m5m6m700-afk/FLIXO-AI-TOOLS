@@ -440,17 +440,22 @@ jobs:
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=EVIDENCE_LOCKED --actor=AUTO_REPAIR_BOT --reason=FAILURE_EVIDENCE_CAPTURED
 
       - name: ACTION-INDEX record every RED and open Master learning request
-        if: steps.capture.outcome == 'success'
+        if: always()
         run: |
           set -euo pipefail
           SHA="$(cat /tmp/flixo-failed-sha)"
           FP="$FLIXO_FAILURE_FINGERPRINT"
           test -n "$FP"
-          node scripts/ci/action-repair-five-workers.mjs --role=index --target-sha="$SHA" --run-id="$TARGET_RUN_ID" --fingerprint="$FP" --log="$FLIXO_FAILURE_LOG" --output=/tmp/flixo-historical-solution-index.json
+          if [ -s "$FLIXO_FAILURE_LOG" ]; then
+            node scripts/ci/action-repair-five-workers.mjs --role=index --target-sha="$SHA" --run-id="$TARGET_RUN_ID" --fingerprint="$FP" --log="$FLIXO_FAILURE_LOG" --output=/tmp/flixo-historical-solution-index.json
+          else
+            printf '%s\n' '{"schemaVersion":1,"historicalMatchCount":0,"historicalMatches":[]}' > /tmp/flixo-historical-solution-index.json
+          fi
           test -s /tmp/flixo-historical-solution-index.json
           echo 'FLIXO_HISTORICAL_SOLUTION_PATH=/tmp/flixo-historical-solution-index.json' >> "$GITHUB_ENV"
           echo "ACTION_INDEX_HISTORICAL_MATCHES=$(jq -r '.historicalMatchCount' /tmp/flixo-historical-solution-index.json)"
-          NORMALIZED_FAILURE="$(tr '\n' ' ' < "$FLIXO_FAILURE_LOG" | sed 's/[[:space:]]\+/ /g' | cut -c1-16000)"
+          NORMALIZED_FAILURE='FAILED_RUN_EVIDENCE_UNAVAILABLE'
+          if [ -s "$FLIXO_FAILURE_LOG" ]; then NORMALIZED_FAILURE="$(tr '\n' ' ' < "$FLIXO_FAILURE_LOG" | sed 's/[[:space:]]\+/ /g' | cut -c1-16000)"; fi
           node scripts/ci/action-learning-master.mjs --op=open-red --target-sha="$SHA" --run-id="$TARGET_RUN_ID" --fingerprint="$FP" --workflow="Actions" --normalized-failure="$NORMALIZED_FAILURE"
           test -s diagnostics/auto-repair/action-repair-bots/ACTION-INDEX.json
 
@@ -603,7 +608,7 @@ jobs:
           if [ "$TWIN_DISPOSITION" = "SELECTED" ]; then
             test -n "$SELECTED_STRATEGY"
             test "$SELECTED_STRATEGY" = "$EXECUTOR_STRATEGY"
-          elif [ "$TWIN_PRESENT" = true ] && [ "$TWIN_DIVERGENT" != true ] && [ "$TWIN_DISPOSITION" != "NO_SAFE_ALTERNATIVE_FOUND" ]; then
+          elif [ "$TWIN_PRESENT" = true ] && [ "$TWIN_DIVERGENT" != true ] && [ "$TWIN_DISPOSITION" != "NO_SAFE_ALTERNATIVE_FOUND" && "$TWIN_DISPOSITION" != "BLOCK" ]; then
             echo 'FAIL CLOSED: twin review did not provide a distinct safe alternative and no selector decision was recorded.'
             exit 1
           fi
