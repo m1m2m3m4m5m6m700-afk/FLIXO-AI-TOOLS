@@ -1,6 +1,7 @@
 import { extractFeatures } from './fingerprint.mjs';
 import { reasonFailure } from './reasoning.mjs';
 import { deriveReusableKnowledge } from '../auto-repair-learning.mjs';
+import { preparedPlan } from './prepared-source-change.mjs';
 
 const plans = [
   { id: 'external-tooling', features: ['external-tooling'], confidence: 99, mutate: false, commands: [] },
@@ -15,20 +16,27 @@ const plans = [
 
 export function planRepair(log, { historical = [], memory } = {}) {
   const features = extractFeatures(log);
+  const targetSha = (() => { try { return require('node:child_process').execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return null; } })();
+  const preparedPacketPath = process.env.FLIXO_TASK_AGENT_PACKET_PATH ?? '/tmp/flixo-task-agent/latest.json';
+  const prepared = targetSha ? preparedPlan(preparedPacketPath, targetSha) : { ok: false, reason: 'PREPARED_TARGET_SHA_UNAVAILABLE' };
   const reasoning = reasonFailure(log, { historical });
   const reusableKnowledge = memory ? deriveReusableKnowledge(memory, { rootCause: reasoning.rootCause, features }) : null;
   const candidates = plans
     .filter((plan) => plan.features.some((feature) => features.includes(feature)))
     .map((plan) => ({ ...plan, evidence: features }))
     .sort((a, b) => b.confidence - a.confidence);
-  const safe = candidates.filter((plan) => plan.mutate && plan.confidence >= 90);
-  const selectedRule = reasoning.rootCause === 'format' ? 'prettier-file' : reasoning.rootCause === 'lint' ? 'eslint-unused' : reasoning.rootCause;
+  if (prepared.ok && reasoning.decision === 'ALLOW_BOUNDED_MUTATION') candidates.push({ ...prepared, evidence: features, rootCause: reasoning.rootCause });
+  const safe = candidates.filter((plan) => plan.mutate && plan.confidence >= 90 && (plan.id !== 'prepared-source-change' || plan.deterministicProof === true));
+  const selectedRule = prepared.ok && reasoning.decision === 'ALLOW_BOUNDED_MUTATION'
+    ? 'prepared-source-change'
+    : reasoning.rootCause === 'format' ? 'prettier-file' : reasoning.rootCause === 'lint' ? 'eslint-unused' : reasoning.rootCause;
   const requiresSourceLocation = selectedRule === 'prettier-file' || selectedRule === 'eslint-unused';
   const selected = reasoning.decision === 'ALLOW_BOUNDED_MUTATION' && safe.length === 1 && safe[0].id === selectedRule && (!requiresSourceLocation || Boolean(reasoning.location?.file))
     ? { ...safe[0], file: reasoning.location?.file ?? null, learning: reusableKnowledge }
     : null;
   return {
     features,
+    prepared: { ok: prepared.ok, reason: prepared.reason ?? null, files: prepared.files ?? prepared.changes?.map((item) => item.path) ?? [] },
     candidates,
     selected,
     blockedReason: reasoning.decision === 'BLOCK_EXTERNAL' ? 'external-tooling' : selected ? null : reasoning.ambiguity ? 'ambiguous-causality' : null,
