@@ -98,8 +98,8 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     pushMessage(
       'agent',
       detectedLocale === 'ar'
-        ? 'جهزت Filter Mask. الاختيار: ' + label + ' (' + nextHandoff.canonicalId + ')، الشدة ' + nextHandoff.parameters.intensity + '%، التكبير ' + nextHandoff.parameters.zoom.toFixed(1) + '×. افتح المعاينة المباشرة.'
-        : 'Filter Mask is ready. Selection: ' + label + ' (' + nextHandoff.canonicalId + '), intensity ' + nextHandoff.parameters.intensity + '%, zoom ' + nextHandoff.parameters.zoom.toFixed(1) + '×. Open the live preview.',
+        ? 'جهزت Filter Mask. الاختيار: ' + label + ' (' + nextHandoff.canonicalId + ')، الشدة ' + nextHandoff.parameters.intensity + '%، التكبير ' + nextHandoff.parameters.zoom.toFixed(1) + '×، والنسبة ' + nextHandoff.parameters.aspectRatio + '. افتح المعاينة المباشرة.'
+        : 'Filter Mask is ready. Selection: ' + label + ' (' + nextHandoff.canonicalId + '), intensity ' + nextHandoff.parameters.intensity + '%, zoom ' + nextHandoff.parameters.zoom.toFixed(1) + '×, aspect ' + nextHandoff.parameters.aspectRatio + '. Open the live preview.',
     );
     return true;
   };
@@ -253,7 +253,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           {filterHandoff && (
             <div className="flixo-ai-agent-confirm" data-testid="filter-mask-handoff">
               <strong>{filterHandoff.canonicalId}</strong>
-              <span> · intensity {filterHandoff.parameters.intensity}% · zoom {filterHandoff.parameters.zoom.toFixed(1)}× · {filterHandoff.parameters.mirror ? 'mirror' : 'direct'}</span>
+              <span> · intensity {filterHandoff.parameters.intensity}% · zoom {filterHandoff.parameters.zoom.toFixed(1)}× · {filterHandoff.parameters.aspectRatio} · {filterHandoff.parameters.mirror ? 'mirror' : 'direct'}</span>
               <a className="primary-button" href={buildFilterMaskUrl(locale, filterHandoff)}>
                 {locale === 'ar' ? 'فتح المعاينة المباشرة' : 'Open live preview'}
               </a>
