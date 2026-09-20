@@ -6,6 +6,9 @@ on:
     paths:
       - '.github/workflows/**'
       - 'scripts/ci/repository-security-baseline.mjs'
+      - 'scripts/ci/validate-council-rpc-contract.mjs'
+      - 'scripts/ci/control-plane-registry.mjs'
+      - 'db/council-external-accounts.sql'
       - 'docs/security.md'
       - '.github/CODEOWNERS'
   push:
@@ -42,5 +45,7 @@ jobs:
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Validate source-controlled Council RPC contract
+        run: node scripts/ci/validate-council-rpc-contract.mjs
       - name: Run repository security baseline
         run: node scripts/ci/repository-security-baseline.mjs
