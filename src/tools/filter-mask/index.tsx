@@ -51,7 +51,6 @@ function drawFilteredFrame(
   intensity: number,
   zoom: number,
   mirror: boolean,
-  aspectRatio: FilterMaskParameters['aspectRatio'],
 ) {
   const sourceWidth = video.videoWidth || width;
   const sourceHeight = video.videoHeight || height;
@@ -307,7 +306,6 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
           intensity,
           zoom,
           mirror,
-          aspectRatio,
         );
         recordFrameRef.current = requestAnimationFrame(drawFrame);
       };
@@ -406,7 +404,6 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       intensity,
       zoom,
       mirror,
-      aspectRatio,
     );
 
     const blob = await new Promise<Blob | null>((resolve) => {
