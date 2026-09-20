@@ -17,10 +17,11 @@
   },
   "separation": {
     "separateFromCell": true,
-    "cellBotCount": 50,
+    "cellBotCount": 200,
     "includedInCellCount": false,
     "identityNamespace": "ACTION-*",
-    "developmentModel": "INDEPENDENT"
+    "developmentModel": "INDEPENDENT",
+    "purpose": "Two hundred CELL raw workers remain separate from the specialized Actions repair cohort."
   },
   "sharedPolicy": {
     "sameReferencesForAll": true,

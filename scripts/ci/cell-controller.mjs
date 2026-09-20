@@ -7,7 +7,7 @@ const REGISTRY_PATH=path.resolve(ROOT,'docs/agents/CELL-BOT-REGISTRY.json');
 
 export function loadCellControllerState(){
   const registry=JSON.parse(fs.readFileSync(REGISTRY_PATH,'utf8'));
-  if(!Array.isArray(registry.bots)||registry.bots.length!==50) throw new Error('CELL_CONTROLLER_REQUIRES_50_BOTS');
+  if(!Array.isArray(registry.bots)||registry.bots.length!==200) throw new Error('CELL_CONTROLLER_REQUIRES_200_BOTS');
   if(registry.bots.some(bot=>!/^CELL-\d{3}$/u.test(bot.id))) throw new Error('CELL_CONTROLLER_INVALID_BOT_NAMESPACE');
   if(Object.prototype.hasOwnProperty.call(registry,'actionRepairCohort')) throw new Error('CELL_CONTROLLER_ACTION_SQUAD_MUST_BE_EXTERNAL');
   return {registry,controller:registry.supervisor?.role??'assistantController'};

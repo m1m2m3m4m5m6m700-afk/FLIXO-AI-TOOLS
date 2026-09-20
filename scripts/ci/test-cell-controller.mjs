@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {loadCellControllerState,selectBotForTask} from './cell-controller.mjs';
 
 const {registry}=loadCellControllerState();
-assert.equal(registry.bots.length,50);
+assert.equal(registry.bots.length,200);
 assert.equal(registry.bots.every(bot=>bot.id.startsWith('CELL-')),true);
 assert.equal(registry.bots.some(bot=>bot.id.startsWith('ACTION-')),false);
 assert.equal(Object.prototype.hasOwnProperty.call(registry,'actionRepairCohort'),false);
