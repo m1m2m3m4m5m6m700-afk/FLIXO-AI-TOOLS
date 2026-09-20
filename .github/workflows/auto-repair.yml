@@ -687,6 +687,31 @@ jobs:
           set -euo pipefail
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=MUTATING --actor=REPAIR_AGENT --reason=BOUNDED_SOURCE_MUTATION
 
+      - name: ACTION-REPAIR-2 audit, non-green learning and dual-control proposal
+        id: action_repair_assistant
+        if: steps.strategy.outcome == 'success'
+        env:
+          FLIXO_ACTION_REPAIR_ASSISTANT_MEMORY: diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-2.json
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
+          TARGET_RUN_ID: ${{ env.TARGET_RUN_ID }}
+        run: |
+          set -euo pipefail
+          node scripts/ci/action-repair-dual-control.mjs audit --agent=ACTION-REPAIR-2 --partner=ACTION-REPAIR --target-sha="$FLIXO_EXPECTED_TARGET_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --run-id="$TARGET_RUN_ID" --memory="$FLIXO_ACTION_REPAIR_ASSISTANT_MEMORY" --strategy=/tmp/flixo-repair-strategy.json --evidence=/tmp/flixo-root-cause.json --proposal=/tmp/action-repair-2-proposal.json
+          test -s /tmp/action-repair-2-proposal.json
+
+      - name: ACTION-REPAIR-1 approval for ACTION-REPAIR-2
+        id: action_repair_primary_approval
+        if: steps.action_repair_assistant.outcome == 'success'
+        env:
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+          node scripts/ci/action-repair-dual-control.mjs approve --agent=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$FLIXO_EXPECTED_TARGET_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --proposal=/tmp/action-repair-2-proposal.json --approval=/tmp/action-repair-2-approval.json
+          node scripts/ci/action-repair-dual-control.mjs heartbeat --primary=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$FLIXO_EXPECTED_TARGET_SHA" --state=READY_FOR_MUTATION --out=/tmp/action-repair-pair-heartbeat.json
+          node scripts/ci/action-repair-dual-control.mjs assert --approval=/tmp/action-repair-2-approval.json --heartbeat=/tmp/action-repair-pair-heartbeat.json --approver=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$FLIXO_EXPECTED_TARGET_SHA"
+
       - name: FLIXO Auto Repair Bot — sole mutation authority for the active RED target
         id: execute_repair
         if: steps.strategy.outcome == 'success' && steps.install_target.outcome == 'success'
