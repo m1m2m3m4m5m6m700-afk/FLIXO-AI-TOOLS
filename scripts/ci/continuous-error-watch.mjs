@@ -341,4 +341,4 @@ export function main() {
   fs.writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`);
 }
 
-if (process.argv[1]?.endsWith('continuous-error-watch.mjs')) main();
+if (path.basename(process.argv[1] ?? '') === 'continuous-error-watch.mjs') main();
