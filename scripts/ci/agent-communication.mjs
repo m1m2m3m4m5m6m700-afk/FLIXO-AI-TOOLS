@@ -227,6 +227,8 @@ try {
       relayBody: [
         '<!-- FLIXO_AGENT_COUNCIL_WAKE -->',
         '### ACTION REPAIR SUPERVISOR ESCALATION',
+        'ROLE: EXECUTION',
+        'WORK PACKAGE: ACTION-REPAIR-CONTINUATION-20',
         'ACTOR: ' + actor,
         'TASK ID: ' + taskId,
         'ENTRY SHA: ' + exactSha,
