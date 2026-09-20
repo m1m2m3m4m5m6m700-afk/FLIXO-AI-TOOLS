@@ -260,6 +260,19 @@ HANDOFF → READ → RESPONSE(ACKNOWLEDGED|ACCEPTED|REJECTED|BLOCKED)
 
 هذه قاعدة إنهاء جماعي واحدة لكل فريق تنفيذ، وليست قواعد مستقلة لكل وكيل.
 
+## Repair Agent Continuous Learning — P20
+
+وكيل الإصلاح مطلع على الفريق كاملًا، وليس على الأخطاء التي يختارها بنفسه فقط.
+
+كل دورة فريق تُرسل له تلقائيًا:
+`TASK_CREATED → TASK_CLAIMED → agent events → TASK_COMPLETED → CONTINUE_OR_JOIN / WAIT_FOR_TEAM → TEAM_READY_TO_CLOSE`.
+
+كل معلومة تشغيلية مهمة من أي وكيل (`FINDING/BLOCKER/CHANGE/TEST/VERIFICATION/HANDOFF/NOTE`) تُسجل في `memory.agentLearning`، ويُحدّث Context الحي بالمهام والجلسات الحالية.
+
+قبل كل قرار إصلاح يقرأ Repair Agent هذا السياق والتعلم المتراكم ليكون مساعدًا لكل مهمة.
+
+التعلم استشاري فقط؛ لا يمكنه منح نفسه أو غيره صلاحية mutation أو merge أو release أو certification أو gate bypass.
+
 ## Canonical v6 compatibility aliases
 The following are machine-readable aliases retained for compatibility; they do not create additional protocols:
 - **Agent login**
