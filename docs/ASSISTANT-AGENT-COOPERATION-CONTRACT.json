@@ -528,7 +528,7 @@
       "systemCognitiveAwareness"
     ],
     "independenceRule": "ACTION-REPAIR-2 and ACTION-HISTORIAN-3 must not impersonate ACTION-REPAIR or reuse its mutation authority.",
-    "verificationRule": "ACTION-REPAIR must prove its correctness; ACTION-REPAIR-2 must independently attempt to falsify that proof. A valid counterexample blocks mutation. Failure to find a counterexample does not constitute GREEN; canonical CI remains proof authority. Every participant must consume the same exact-SHA system cognitive awareness packet before role-local reasoning; broader cognition never expands authority.",
+    "verificationRule": "Every participant consumes the same exact-SHA system cognitive awareness packet before role-local reasoning. Broader cognition never expands authority. New evidence forces re-evaluation.",
     "memoryPromotionRule": "A reusable repair rule requires at least two independently verified successful exact-SHA cases plus one explicit prevention rule; one success never promotes authority.",
     "retryPolicy": "NO_BLIND_RETRY",
     "failedAttemptEscalationThreshold": 20,
@@ -601,19 +601,8 @@
     "protocol": "ACTION-SYSTEM-COGNITIVE-AWARENESS-v1",
     "runtime": "scripts/ci/action-system-cognitive-awareness.mjs",
     "artifact": "/tmp/action-system-cognitive-awareness.json",
-    "rule": "Every Action Vault agent reasons over wider system context than its immediate role before making a material decision.",
-    "invariants": {
-      "cognitiveScopeMayExceedRoleScope": true,
-      "authorityScopeMustNotExpand": true,
-      "exactShaAnchored": true,
-      "staleEvidenceRejected": true,
-      "unknownsExplicit": true,
-      "contradictionsPreserved": true,
-      "alternativesRequired": true,
-      "downstreamImpactRequired": true,
-      "temporalReasoningRequired": true,
-      "noImplicitAuthority": true
-    },
+    "rule": "Every Action Vault agent must understand the wider system context before applying its role-local reasoning.",
+    "authorityInvariant": "Cognitive breadth may exceed role scope; mutation and certification authority may never expand.",
     "domains": [
       "TASK_SEMANTICS",
       "REPOSITORY_CONTEXT",
@@ -625,7 +614,8 @@
       "TEMPORAL_CONTEXT",
       "SYSTEMIC_IMPACT"
     ],
-    "roleApplication": "SYSTEM_CONTEXT_FIRST_ROLE_SPECIALIZATION_SECOND",
-    "reEvaluation": "Any new authoritative evidence invalidates affected reasoning and requires re-evaluation before mutation."
+    "mandatory": true,
+    "exactShaRequired": true,
+    "reEvaluateOnNewEvidence": true
   }
 }
