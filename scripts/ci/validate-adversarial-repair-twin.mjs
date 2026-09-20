@@ -12,7 +12,7 @@ const targetSha = arg('target-sha');
 const targetRunId = arg('target-run-id');
 const variant = arg('variant');
 
-if (!/^\/[A-Za-z0-9._/-]+$/.test(file) || !file.startsWith('/tmp/flixo-twin-')) {
+if (!/^\/tmp\/flixo-twin-[ab]\.json$/.test(file)) {
   throw new Error('TWIN_PATH_NOT_FIXED_INTERNAL');
 }
 if (!/^[a-f0-9]{40}$/i.test(targetSha)) throw new Error('TWIN_TARGET_SHA_INVALID');
