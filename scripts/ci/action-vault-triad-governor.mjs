@@ -61,10 +61,14 @@ function findCatalogAdvice(query = '') {
 }
 
 export function countUnresolvedOccurrences(fingerprint, ledger = loadLedger()) {
-  return ledger.filter((x) => x.failureFingerprint === fingerprint &&
-    ['RED_DETECTED','REPAIR_FAILED','REPAIR_ATTEMPT'].includes(x.eventType) &&
-    !['GREEN_VERIFIED'].includes(x.result)
-  ).length;
+  const runs = new Set();
+  for (const x of ledger) {
+    if (x.failureFingerprint !== fingerprint) continue;
+    if (!['RED_DETECTED','REPAIR_FAILED'].includes(x.eventType)) continue;
+    if (x.result === 'VERIFIED') continue;
+    if (x.failedRunId) runs.add(String(x.failedRunId));
+  }
+  return runs.size;
 }
 
 export function escalationFor(fingerprint, ledger = loadLedger()) {
