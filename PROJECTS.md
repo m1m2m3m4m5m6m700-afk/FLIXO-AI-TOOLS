@@ -1,3 +1,11 @@
+## PROMPT TRIAD — CANONICAL EXECUTION SURFACE
+
+PROMPT-01 = project orchestration and completion sequencing.
+PROMPT-02 = causal error intelligence and repair.
+PROMPT-03 = product/platform/agent development.
+Current status remains authoritative in المهام.md. Each task has one prompt owner.
+Canonical files: docs/agents/PROMPT-01-MASTER-EXECUTION.md, docs/agents/PROMPT-02-ERROR-REPAIR.md, docs/agents/PROMPT-03-FLIXO-PRODUCT.md.
+
 ## Agent Communication Priority
 
 Communication-fi
