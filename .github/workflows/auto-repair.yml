@@ -743,6 +743,7 @@ jobs:
             --diagnosis=/tmp/flixo-root-cause.json \
             --strategy=/tmp/flixo-repair-strategy.json \
             --file-selection="$FLIXO_FILE_SELECTION_PATH" \
+            --root-cause=/tmp/action-root-cause-proof.json \
             --awareness="$FLIXO_SYSTEM_COGNITIVE_AWARENESS_PATH" \
             --output=/tmp/action-primary-correctness-proof.json
           node scripts/ci/test-action-primary-correctness-proof.mjs
@@ -2273,6 +2274,7 @@ jobs:
             --diagnosis=/tmp/flixo-root-cause.json \
             --strategy=/tmp/flixo-repair-strategy.json \
             --file-selection="$FLIXO_FILE_SELECTION_PATH" \
+            --root-cause=/tmp/action-root-cause-proof.json \
             --awareness=/tmp/action-system-cognitive-awareness.json \
             --twin=/tmp/action-repair-programmer-twin.json \
             --primary-proof=/tmp/action-primary-correctness-proof.json \
