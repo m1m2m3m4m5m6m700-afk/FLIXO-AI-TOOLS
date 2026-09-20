@@ -50,7 +50,7 @@ if(greenRecord){
 }
 
 write(path.join(root,id+'.json'),record);
-ix.records=[...(ix.records??[]).filter(x=>x.id!==id),{id,fingerprint,targetSha,taskId,failedRunId,status:record.status,participants:record.participants,timelineCount:record.timeline.length,file:path.relative(ROOT,path.join(root,id+'.json')),updatedAt:record.updatedAt}].slice(-5000);
+ix.records=[...(ix.records??[]).filter(x=>x.id!==id),{id,fingerprint,targetSha:sha,taskId:task,failedRunId:runId,status:record.status,participants:record.participants,timelineCount:record.timeline.length,file:path.relative(ROOT,path.join(root,id+'.json')),updatedAt:record.updatedAt}].slice(-5000);
 ix.byFingerprint=ix.byFingerprint??{};
 ix.byFingerprint[fingerprint]=[...(ix.byFingerprint[fingerprint]??[]).filter(x=>x!==id),id].slice(-100);
 ix.byAgent=ix.byAgent??{};
@@ -58,4 +58,4 @@ for(const a of record.participants)ix.byAgent[a]=[...(ix.byAgent[a]??[]).filter(
 ix.updatedAt=now;
 write(indexPath,ix);
 if(output)write(path.resolve(ROOT,output),record);
-console.log(JSON.stringify({status:'PASS',recordId:id,recordStatus:record.status,taskId,fingerprint,targetSha,agent,phase},null,2));
+console.log(JSON.stringify({status:'PASS',recordId:id,recordStatus:record.status,taskId:task,fingerprint,targetSha:sha,agent,phase},null,2));
