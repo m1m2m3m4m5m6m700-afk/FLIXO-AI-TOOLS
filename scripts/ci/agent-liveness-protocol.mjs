@@ -79,7 +79,7 @@ function validateCompletionEvidence({ exactShaVerified, requiredRedCount, regres
   if (learningRecorded !== true) throw new Error('AGENT_LIVENESS_COMPLETION_LEARNING_REQUIRED');
 }
 
-export function assertTransition(from, to, { workAssigned = true, authorization = null, exactShaVerified = false, requiredRedCount = 0, regressionPassed = false, learningRecorded = false } = {}) {
+export function assertTransition(from, to, { workAssigned = true, exactShaVerified = false, requiredRedCount = 0, regressionPassed = false, learningRecorded = false } = {}) {
   assertState(from, { workAssigned });
   const target = String(to);
   if (workAssigned && target === 'ABORTED') throw new Error('AGENT_LIVENESS_ABORT_DISABLED_PERMANENT_RESIDENCY');
