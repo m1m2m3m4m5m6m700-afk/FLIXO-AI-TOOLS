@@ -408,8 +408,39 @@ async function commandBrotherSurrender() {
   const events = await listEventMetadata(identity);
   const state = latestBrotherState(events);
   if (state.activeBrother !== brotherId) throw new Error('REPAIR_LEASE_BROTHER_TURN_VIOLATION');
-  const nextActiveBrother = brotherId === 'A' ? 'B' : 'A';
+  const reason = getArg('reason', 'ACTIVE_BROTHER_SURRENDERED');
   const attempt = Number(getArg('attempt', '1'));
+  if (/BRANCH_CONFLICT|STALE_HEAD|EXECUTION_ADVANCED|CONFLICT_RECOVERY/u.test(reason)) {
+    const repairRunId = getArg('repairRunId', process.env.GITHUB_RUN_ID);
+    const now = new Date().toISOString();
+    const metadata = {
+      repairKey: identity.claimKey,
+      leaseRef: identity.leaseRef,
+      repairChainId: identity.repairChainId,
+      cycleKey: identity.cycleKey,
+      branch: 'execution',
+      failedSha,
+      failureFingerprint: getArg('fingerprint'),
+      targetRunId: getArg('targetRunId'),
+      attempt,
+      repairRunId: repairRunId || null,
+      brotherId,
+      state: 'CONFLICT_RECOVERY_ACTIVE',
+      nextAction: 'REQUALIFY_CURRENT_EXECUTION_SHA_AND_CONTINUE_SAME_MISSION',
+      ownerWithdrawal: false,
+      verificationProgress: false,
+      reason,
+      at: now,
+    };
+    const event = await emitEvent(identity, 'CONFLICT_RECOVERY', `${repairRunId || 'run'}-${brotherId}-conflict-${attempt}`, metadata);
+    console.log(JSON.stringify({
+      status: 'CONFLICT_RECOVERY_ACTIVE',
+      ...metadata,
+      event,
+    }, null, 2));
+    return;
+  }
+  const nextActiveBrother = brotherId === 'A' ? 'B' : 'A';
   const repairRunId = getArg('repairRunId', process.env.GITHUB_RUN_ID);
   const now = new Date().toISOString();
   const metadata = {
