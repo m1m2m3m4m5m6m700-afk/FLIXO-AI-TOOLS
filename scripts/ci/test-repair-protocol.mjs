@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import {REPAIR_PROTOCOL,REPAIR_PROTOCOL_HASH,assertProtocolDefinition,assertAgentAdmission,createRepairSession,captureFailure,authorizeMutation,completeRepairSession,validateCommitBoundary,validatePostCommitBoundary,validateErrorOnlyMutation} from './repair-protocol.mjs';
+import {REPAIR_PROTOCOL,REPAIR_PROTOCOL_HASH,assertProtocolDefinition,assertAgentAdmission,createRepairSession,captureFailure,authorizeMutation,completeRepairSession,validateCommitBoundary,validatePostCommitBoundary,validateErrorOnlyMutation,validateMinimalRepairScope,validateTargetedRegressionSelection} from './repair-protocol.mjs';
 
 const definition=assertProtocolDefinition();
 assert.equal(definition.protocolId,'REPAIR_PROTOCOL');
@@ -24,6 +24,26 @@ assert.throws(
 assert.deepEqual(
   validateErrorOnlyMutation({failureLocation:'src/failure.ts',selectedFile:'src/failure.ts',changedPaths:['src/failure.ts']}),
   {mode:'ERROR_ONLY',failureLocation:'src/failure.ts',selectedFile:'src/failure.ts',changedPaths:['src/failure.ts'],testMutation:false},
+);
+assert.deepEqual(
+  validateMinimalRepairScope({affectedPaths:['src/failure.ts','src/helper.ts'],changedPaths:['src/failure.ts']}),
+  {mode:'MINIMAL_AFFECTED_SCOPE',affectedPaths:['src/failure.ts','src/helper.ts'],changedPaths:['src/failure.ts'],unexpectedPaths:[]},
+);
+assert.throws(
+  () => validateMinimalRepairScope({affectedPaths:['src/failure.ts'],changedPaths:['src/failure.ts','src/extra.ts']}),
+  /REPAIR_PROTOCOL_SCOPE_EXCEEDED/,
+);
+assert.throws(
+  () => validateMinimalRepairScope({affectedPaths:[],changedPaths:['src/failure.ts']}),
+  /REPAIR_PROTOCOL_MINIMAL_SCOPE_AFFECTED_PATHS_REQUIRED/,
+);
+assert.deepEqual(
+  validateTargetedRegressionSelection({exact:true,commands:[['node',['tests/example.mjs']]],regressionMode:'MINIMAL_TARGET_REPEAT'}),
+  {mode:'TARGET_ONLY',exact:true,commandCount:1,regressionMode:'MINIMAL_TARGET_REPEAT'},
+);
+assert.throws(
+  () => validateTargetedRegressionSelection({exact:false,commands:[['npm',['test']]],regressionMode:'MINIMAL_TARGET_REPEAT'}),
+  /REPAIR_PROTOCOL_TARGETED_REGRESSION_NOT_EXACT/,
 );
 assert.throws(()=>assertAgentAdmission({actor:'unknownFutureAgent'}),/UNKNOWN_AGENT/);
 assert.throws(()=>assertAgentAdmission({actor:'diagnosticAgent',branch:'execution',mutation:true}),/MUTATION_ROLE_BLOCKED/);

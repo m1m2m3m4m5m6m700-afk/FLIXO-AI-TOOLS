@@ -54,6 +54,8 @@ export function mergeRelations(left = [], right = [], sourceFingerprint = null) 
   return normalizeRelations([...normalizeRelations(left, sourceFingerprint), ...normalizeRelations(right, sourceFingerprint)], sourceFingerprint);
 }
 export { normalizeFailure, fingerprintFailure, extractFeatures };
+export { normalizeDiagnosticRecord };
+
 
 export function externalProviderSignature(text = '') {
   const input = String(text ?? '');
@@ -197,8 +199,12 @@ export function hydrateActionHistory(memory) {
       evidence: [],
       firstSeenAt: null,
       lastSeenAt: null,
+      latestDiagnosis: null,
+      diagnosisHistory: [],
     };
     item.rootCause = entry.rootCause ?? item.rootCause ?? 'unknown';
+    item.latestDiagnosis = entry.latestDiagnosis ?? item.latestDiagnosis ?? null;
+    item.diagnosisHistory = [...(item.diagnosisHistory ?? []), ...(entry.diagnosisHistory ?? [])].slice(-MEMORY_RETENTION.maxLessonEvidence);
     const evidence = (entry.outcomes ?? []).filter((outcome) => ['success', 'unrepaired', 'failure', 'blocked', 'blocked-external', 'reverted-repair', 'revert-failure'].includes(outcome?.outcome));
     const uniqueAttemptKeys = new Set(evidence.map((outcome) => [
       outcome?.provenance?.runId,
@@ -571,9 +577,47 @@ function upsertLesson(memory, { fingerprint, rootCause, rule, outcome, verificat
   if (!collection.includes(lesson)) collection.push(lesson);
 }
 
-export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule, relationships = [] } = {}) {
+function normalizeDiagnosticRecord(diagnosis, { affectedPaths = [] } = {}) {
+  if (!diagnosis || typeof diagnosis !== 'object') return null;
+  const sourcePaths = [
+    ...(Array.isArray(affectedPaths) ? affectedPaths : [affectedPaths]),
+    ...(Array.isArray(diagnosis.affectedPaths) ? diagnosis.affectedPaths : []),
+    diagnosis?.location?.file,
+  ];
+  const paths = [...new Set(sourcePaths
+    .map((value) => String(value ?? '').trim().replace(/\\/g, '/'))
+    .filter(Boolean))].slice(0, 32);
+  const record = {
+    rootCause: diagnosis.rootCause ?? null,
+    violatedInvariant: diagnosis.violatedInvariant ?? null,
+    causalSource: diagnosis.causalSource ?? null,
+    confidence: Number.isFinite(Number(diagnosis.confidence)) ? Number(diagnosis.confidence) : null,
+    falsificationCheck: diagnosis.falsificationCheck ?? null,
+    propagationPath: Array.isArray(diagnosis.propagationPath) ? diagnosis.propagationPath.slice(0, 16) : null,
+    location: diagnosis.location?.file ? {
+      file: String(diagnosis.location.file).replace(/\\/g, '/'),
+      line: diagnosis.location.line ?? null,
+      column: diagnosis.location.column ?? null,
+    } : null,
+    affectedPaths: paths,
+  };
+  return Object.fromEntries(Object.entries(record).filter(([, value]) => value != null));
+}
+
+function loadDiagnosticFromEnv() {
+  const path = process.env.FLIXO_REPAIR_DIAGNOSIS_PATH ?? '/tmp/flixo-root-cause.json';
+  if (!fs.existsSync(path)) return null;
+  try { return JSON.parse(fs.readFileSync(path, 'utf8')); } catch { return null; }
+}
+
+export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule, relationships = [], diagnosis = null, affectedPaths = [] } = {}) {
   const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, externalBlocks: 0, reversions: 0, revertFailures: 0, revertedRules: [], revertedCommits: [], rules: [], outcomes: [] };
   entry.rootCause = rootCause ?? entry.rootCause ?? 'unknown';
+  const effectiveDiagnosis = normalizeDiagnosticRecord(diagnosis ?? loadDiagnosticFromEnv(), { affectedPaths });
+  if (effectiveDiagnosis) {
+    entry.latestDiagnosis = effectiveDiagnosis;
+    entry.diagnosisHistory = [...(entry.diagnosisHistory ?? []), effectiveDiagnosis].slice(-MEMORY_RETENTION.maxLessonEvidence);
+  }
   if (normalizedFailure) entry.normalizedFailure = normalizeFailure(normalizedFailure);
   if (features.length) entry.features = [...new Set(features)];
   entry.relations = mergeRelations(entry.relations, relationships, fingerprint);
@@ -605,7 +649,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   if (outcome === 'success') entry.successes += 1; else if (countsAsRepairAttempt) entry.failures += 1;
   entry.confidence = confidenceFor(entry);
   if (rule) entry.rules = [...new Set([...entry.rules, rule])];
-  entry.outcomes.push({ outcome, verification, rule, provenance: effectiveProvenance, preventionRule, at: new Date().toISOString() });
+  entry.outcomes.push({ outcome, verification, rule, provenance: effectiveProvenance, diagnosis: effectiveDiagnosis, preventionRule, at: new Date().toISOString() });
   entry.outcomes = entry.outcomes.slice(-MEMORY_RETENTION.maxCaseOutcomes);
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
   const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
@@ -645,6 +689,8 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
       failedSha: effectiveProvenance?.failedSha ?? null,
       targetSha: effectiveProvenance?.targetSha ?? null,
       runId: effectiveProvenance?.runId ?? null,
+      diagnosis: effectiveDiagnosis,
+      affectedPaths: effectiveDiagnosis?.affectedPaths ?? [],
       at: new Date().toISOString(),
     }].slice(-MEMORY_RETENTION.maxLessonEvidence);
   }

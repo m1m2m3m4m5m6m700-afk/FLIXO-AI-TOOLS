@@ -73,6 +73,40 @@ export function validateErrorOnlyMutation({failureLocation,selectedFile,changedP
   });
 }
 
+export function validateMinimalRepairScope({ affectedPaths = [], changedPaths = [] } = {}) {
+  const normalize = (paths) => [...new Set((Array.isArray(paths) ? paths : [paths])
+    .map((value) => String(value ?? '').trim().replace(/\\/g, '/'))
+    .filter(Boolean))];
+  const affected = normalize(affectedPaths);
+  const changed = normalize(changedPaths);
+  if (!affected.length) throw new Error('REPAIR_PROTOCOL_MINIMAL_SCOPE_AFFECTED_PATHS_REQUIRED');
+  if (!changed.length) throw new Error('REPAIR_PROTOCOL_MINIMAL_SCOPE_NO_CHANGE');
+  const unexpected = changed.filter((path) => !affected.includes(path));
+  if (unexpected.length) throw new Error('REPAIR_PROTOCOL_SCOPE_EXCEEDED');
+  return Object.freeze({
+    mode: 'MINIMAL_AFFECTED_SCOPE',
+    affectedPaths: affected,
+    changedPaths: changed,
+    unexpectedPaths: unexpected,
+  });
+}
+
+export function validateTargetedRegressionSelection(selection = {}) {
+  if (selection?.exact !== true) throw new Error('REPAIR_PROTOCOL_TARGETED_REGRESSION_NOT_EXACT');
+  if (!Array.isArray(selection?.commands) || selection.commands.length !== 1) {
+    throw new Error('REPAIR_PROTOCOL_TARGETED_REGRESSION_SCOPE_EXCEEDED');
+  }
+  if (selection?.regressionMode !== 'MINIMAL_TARGET_REPEAT') {
+    throw new Error('REPAIR_PROTOCOL_TARGETED_REGRESSION_MODE_INVALID');
+  }
+  return Object.freeze({
+    mode: 'TARGET_ONLY',
+    exact: true,
+    commandCount: selection.commands.length,
+    regressionMode: selection.regressionMode,
+  });
+}
+
 export function createRepairSession({repairSessionId,actor='repairAgent',failureFingerprint,targetSHA,beforeState={worktree:'clean'},attempt=1,fallback=null}={}){
   assertAgentAdmission({actor,branch:'execution',mutation:false});
   if(!String(repairSessionId??'').trim()) throw new Error('REPAIR_PROTOCOL_SESSION_ID_REQUIRED');
