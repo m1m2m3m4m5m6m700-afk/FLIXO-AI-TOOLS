@@ -657,6 +657,25 @@ jobs:
       - name: Verify auto-repair security boundary before mutation
         run: node scripts/ci/test-auto-repair-security-boundary.mjs
 
+      - name: ACTION-REPAIR-2 independent source-level programmer twin — pre-awareness falsification
+        if: steps.strategy.outcome == 'success'
+        run: |
+          set -euo pipefail
+          SHA="$(cat /tmp/flixo-failed-sha)"
+          FP="$FLIXO_FAILURE_FINGERPRINT"
+          TASK_ID="ACTION-RED:$TARGET_RUN_ID:$FP"
+          node scripts/ci/action-repair-programmer-twin.mjs \
+            --sha="$SHA" \
+            --fingerprint="$FP" \
+            --run-id="$TARGET_RUN_ID" \
+            --log="$FLIXO_FAILURE_LOG" \
+            --file-selection="$FLIXO_FILE_SELECTION_PATH" \
+            --diagnosis=/tmp/flixo-root-cause.json \
+            --output=/tmp/action-repair-programmer-twin.json
+          node scripts/ci/test-action-repair-programmer-twin.mjs
+          jq -e --arg sha "$SHA" --arg fp "$FP" '.protocol == "INDEPENDENT_FALSIFICATION_REPORT-v1" and .targetSha == $sha and .failureFingerprint == $fp and .role == "ADVERSARIAL_PROGRAMMER_FALSIFIER" and .falsificationComplete == true and .counterexampleFound == false and (.falsificationSearches | length) == 10 and .sourceMutationAllowed == false' /tmp/action-repair-programmer-twin.json >/dev/null
+          echo "FLIXO_ACTION_REPAIR_PROGRAMMER_TWIN_PATH=/tmp/action-repair-programmer-twin.json" >> "$GITHUB_ENV"
+
       - name: Build Action Vault system cognitive awareness — shared context gate
         if: steps.strategy.outcome == 'success'
         run: |
@@ -681,7 +700,8 @@ jobs:
             .readOnly == true and
             .noMutation == true and
             .awarenessCompleteness.complete == true and
-            (.awarenessCompleteness.requiredDomains | length) >= 9
+            ([.domains[] | select(.completed != true)] | length) == 0 and
+            (.awarenessCompleteness.requiredDomains | length) == 9
           ' /tmp/action-system-cognitive-awareness.json >/dev/null
           echo "FLIXO_SYSTEM_COGNITIVE_AWARENESS_PATH=/tmp/action-system-cognitive-awareness.json" >> "$GITHUB_ENV"
 
