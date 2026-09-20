@@ -3,6 +3,8 @@ import { CAPABILITY_REGISTRY } from '@/lib/agent/capability-registry';
 import { WORKFLOW_REGISTRY } from '../workflows/registry';
 import type { IntentMatch } from '../workflows/types';
 import { includesTerm, normalizeIntent } from './normalize';
+import { createFilterMaskHandoff } from '@/tools/filter-mask/handoff';
+import { getLiveFilter, resolveLiveFilter } from '@/tools/filter-mask/registry';
 
 type KeywordRule = {
   readonly id: ToolConfig['id'];
@@ -60,3 +62,22 @@ export const resolveIntent = (input: string): IntentMatch => {
 };
 
 export const getResolvedTool = (id: string) => TOOLS_REGISTRY.find((tool) => tool.id === id);
+
+
+export const resolveFilterMaskSelection = (input: string) => {
+  const intent = resolveIntent(input);
+  if (intent.kind !== 'tool' || intent.id !== 'filter-mask') return null;
+
+  const selected = resolveLiveFilter(input) ?? getLiveFilter('effect.original');
+  if (!selected) return null;
+
+  const intensityMatch = input.match(/(?:intensity|strength|شدة|قوة)?\s*(\d{1,3})\s*%/i);
+  const zoomMatch = input.match(/(?:zoom|تكبير|زوم)\s*(\d+(?:\.\d+)?)\s*x?/i);
+  const intensity = intensityMatch ? Number(intensityMatch[1]) : 100;
+  const zoom = zoomMatch ? Number(zoomMatch[1]) : 1;
+
+  return createFilterMaskHandoff(selected, {
+    intensity: Number.isFinite(intensity) ? intensity : 100,
+    zoom: Number.isFinite(zoom) ? zoom : 1,
+  });
+};
