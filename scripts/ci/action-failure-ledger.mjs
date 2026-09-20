@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { openErrorGate } from './action-vault-triad-governor.mjs';
 
 const ROOT=process.cwd();
 const LEDGER=path.resolve(ROOT,'diagnostics/auto-repair/action-vault/failure-ledger.ndjson');
@@ -35,7 +36,11 @@ export function appendFailureLedger(event){
  return record;
 }
 
-export function recordRed(data){return appendFailureLedger({...data,eventType:'RED_DETECTED',result:'OPEN'})}
+export function recordRed(data){
+ const record=appendFailureLedger({...data,eventType:'RED_DETECTED',result:'OPEN'});
+ openErrorGate({taskId:data.taskId,fingerprint:data.failureFingerprint,targetSha:data.targetSha,failedRunId:data.failedRunId,errorText:data.notes??data.errorText??''});
+ return record;
+}
 export function recordAttempt(data){return appendFailureLedger({...data,eventType:'REPAIR_ATTEMPT',result:data.result??'ATTEMPTED'})}
 export function recordFailedAttempt(data){return appendFailureLedger({...data,eventType:'REPAIR_FAILED',result:'FAILED'})}
 export function recordHandoff(data){return appendFailureLedger({...data,eventType:'HANDOFF',result:'HANDED_OFF'})}
