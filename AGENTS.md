@@ -302,3 +302,23 @@ The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 `PRESIDENT → DEPUTY → INVESTIGATOR → SPECIALIST → VERIFY → HANDOFF → PRESIDENT`
 
 Tasks are large causally coherent Work Packages. Every claim requires ownerRole, Work Package identity, acceptance criteria, proof obligations and exact SHA. Unassigned ledger work returns to the President as PENDING_ASSIGNMENT. An agent stops after handoff and does not self-assign another package.
+
+
+## ACTION VAULT TRIAD — MANDATORY ROLE CONTRACT
+
+The existing Action Vault three-resident system is governed by `docs/agents/ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-PROTOCOL.md`. This is an extension of the existing Agent Ownership/Continuity protocol, not a parallel authority.
+
+For every actionable RED, the three seats operate as one shared repair intelligence:
+- VAULT-1 / ACTION-REPAIR: programmer; construct and defend a causal repair.
+- VAULT-2 / ACTION-REPAIR-2: programmer twin; independently attempt to prove VAULT-1 wrong.
+- VAULT-3 / ACTION-HISTORIAN-3: cognitive/catalog supervisor; retrieve, curate, compare, select and learn.
+
+VAULT-1 and VAULT-2 MUST have programming-intelligence parity. Their proof objectives are intentionally opposed. VAULT-3 has the same base reasoning capability with knowledge/curation specialization.
+
+All three may create and revise candidate repair artifacts. Repository source mutation remains serialized through the existing control plane and `execution` branch. No candidate, catalog rule, or agent vote is proof.
+
+Every RED MUST pass the triad error gate and be recorded. A catalog miss MUST be recorded and may generate new advice only as CANDIDATE learning until exact-SHA repair and canonical GREEN promotion.
+
+The same stable failure fingerprint reaching 20 unresolved occurrences activates `SUPERVISOR_20`: VAULT-1 and VAULT-2 are suspended from autonomous source mutation for that fingerprint; VAULT-3 becomes supervisor and may execute the bounded repair after all normal Repair Protocol, exact-SHA, targeted regression and canonical verification gates. Each seat must contribute a lesson/advice record.
+
+Forbidden: unrecorded RED, unrecorded catalog miss, repeated identical strategy without new evidence, self-approved GREEN, or silent removal of any triad resident.
