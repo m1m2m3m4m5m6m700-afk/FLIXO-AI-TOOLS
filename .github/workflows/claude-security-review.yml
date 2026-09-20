@@ -8,8 +8,8 @@ on:
 # A newer commit supersedes older advisory security-review evidence for the same PR/branch.
 # The surviving run still reviews the exact PR head SHA.
 concurrency:
-  group: claude-security-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: false
+  group: claude-security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 # Advisory only: this workflow never modifies source code and is not a merge gate.
 permissions:
