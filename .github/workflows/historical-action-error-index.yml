@@ -16,7 +16,7 @@ on:
       batch_days:
         description: 'Days per scan window'
         required: false
-        default: '1'
+        default: '7'
         type: string
   schedule:
     - cron: '17 */2 * * *'
@@ -51,8 +51,9 @@ jobs:
           if [ -z "$START" ]; then
             START="$(node --input-type=module -e "import fs from 'node:fs'; const p='docs/agents/historical-action-errors/manifest.json'; const m=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(m.nextCursor || m.repositoryCreatedAt || '2026-08-10T00:00:00Z')")"
           fi
+          BATCH_DAYS='${{ inputs.batch_days || '7' }}'
           if [ -z "$END" ]; then
-            END="$(node --input-type=module -e "const s=new Date(process.env.START); const n=new Date(); const e=new Date(Math.min(s.getTime()+86400000,n.getTime())); process.stdout.write(e.toISOString())" )"
+            END="$(START="$START" BATCH_DAYS="$BATCH_DAYS" node --input-type=module -e "const s=new Date(process.env.START); const n=new Date(); const days=Math.max(1,Math.min(31,Number(process.env.BATCH_DAYS||7))); const e=new Date(Math.min(s.getTime()+days*86400000,n.getTime())); process.stdout.write(e.toISOString())")"
           fi
           echo "start=$START" >> "$GITHUB_OUTPUT"
           echo "end=$END" >> "$GITHUB_OUTPUT"
@@ -62,7 +63,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           FLIXO_HISTORY_START: ${{ steps.window.outputs.start }}
           FLIXO_HISTORY_END: ${{ steps.window.outputs.end }}
-          FLIXO_HISTORY_BATCH_DAYS: ${{ inputs.batch_days || '1' }}
+          FLIXO_HISTORY_BATCH_DAYS: ${{ inputs.batch_days || '7' }}
           FLIXO_HISTORY_OUT: /tmp/flixo-historical-errors
         run: node scripts/ci/backfill-historical-action-errors.mjs
 
