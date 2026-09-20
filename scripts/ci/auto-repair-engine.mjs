@@ -108,7 +108,7 @@ const historicalCandidate = plan.candidates.find((candidate) => historicalRules.
 const blockedRuleIds = new Set(blockedLessons.map((item) => item.rule).filter(Boolean));
 if (selected?.id && blockedRuleIds.has(selected.id) && !trustedLessons.some((item) => item.rule === selected.id && item.confidence >= 0.85)) selected = null;
 if (selected?.id && revertedRuleIds.has(selected.id)) selected = null;
-if (historicalCandidate && !blockedRuleIds.has(historicalCandidate.id) && !isRepairRejected(attemptLedger, { chainId: repairChainId, caseFingerprint: stableCaseFingerprint, ruleId: historicalCandidate.id, strategyId: process.env.FLIXO_REPAIR_STRATEGY_ID ?? null }) && (!selected || scorePlaybook(memory, specialist?.id ?? 'unknown', historicalCandidate.id) >= scorePlaybook(memory, specialist?.id ?? 'unknown', selected.id))) {
+if (selected?.id !== 'prepared-source-change' && historicalCandidate && !blockedRuleIds.has(historicalCandidate.id) && !isRepairRejected(attemptLedger, { chainId: repairChainId, caseFingerprint: stableCaseFingerprint, ruleId: historicalCandidate.id, strategyId: process.env.FLIXO_REPAIR_STRATEGY_ID ?? null }) && (!selected || scorePlaybook(memory, specialist?.id ?? 'unknown', historicalCandidate.id) >= scorePlaybook(memory, specialist?.id ?? 'unknown', selected.id))) {
   selected = {
     ...historicalCandidate,
     file: selected?.file ?? plan.reasoning?.location?.file ?? null,
