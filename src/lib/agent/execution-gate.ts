@@ -26,7 +26,7 @@ export type ExecutionGateResult = Readonly<{
  * It composes state, registry, parameter-schema, readiness, and resource checks
  * so callers do not need per-tool safety branches.
  */
-export function authorizeExecution(input: ExecutionGateInput): ExecutionGateResult {
+export async function authorizeExecution(input: ExecutionGateInput): Promise<ExecutionGateResult> {
   assertExecutionAllowed(input.task);
 
   const capability = getCapability(input.capabilityId);
@@ -38,7 +38,7 @@ export function authorizeExecution(input: ExecutionGateInput): ExecutionGateResu
   if (!tool) throw new Error(`Unknown tool definition: ${input.capabilityId}`);
   const security = deriveToolSecurityProfile(tool);
   const recovery = deriveRecoveryMetadata(tool);
-  const audit = createExecutionAuditEvent({ task: input.task, capabilityId: input.capabilityId, tool, stage: 'AUTHORIZATION', outcome: 'ALLOW' });
+  const audit = await createExecutionAuditEvent({ task: input.task, capabilityId: input.capabilityId, tool, stage: 'AUTHORIZATION', outcome: 'ALLOW' });
 
   return Object.freeze({
     capabilityId: input.capabilityId,
