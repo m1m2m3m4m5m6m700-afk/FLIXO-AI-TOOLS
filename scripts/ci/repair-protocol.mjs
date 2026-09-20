@@ -85,6 +85,10 @@ export function validateActionVaultVerifierProof({ proof, targetSHA, failureFing
   if (!Array.isArray(proof.alternativeHypotheses) || proof.alternativeHypotheses.length < 1) throw new Error('ACTION_VAULT_ALTERNATIVES_MISSING');
   if (!Array.isArray(proof.falsificationChecks) || proof.falsificationChecks.length < 1) throw new Error('ACTION_VAULT_FALSIFICATION_CHECKS_MISSING');
   if (!proof.counterEvidence || typeof proof.counterEvidence !== 'object') throw new Error('ACTION_VAULT_COUNTER_EVIDENCE_MISSING');
+  if (proof.role !== 'EXACT_PROGRAMMER_TWIN_VERIFIER') throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_ROLE_INVALID');
+  if (proof.challengeMode !== 'PROGRAMMER_TWIN') throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_MODE_INVALID');
+  if (proof.programmerTwinParity?.intelligenceParity !== 'EXACT') throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_PARITY_INVALID');
+  if (proof.programmerTwinParity?.authorityParity !== 'SEPARATED_BY_DESIGN') throw new Error('ACTION_VAULT_PROGRAMMER_TWIN_AUTHORITY_PARITY_INVALID');
   if (proof.mutationRecommendation === 'ALLOW' && proof.remainingRisks == null) throw new Error('ACTION_VAULT_REMAINING_RISKS_REQUIRED');
   return Object.freeze({
     verified: true,
