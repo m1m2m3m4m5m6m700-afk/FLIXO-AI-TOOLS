@@ -91,9 +91,9 @@ function buildCandidate(signal, log, exactCases, doNotRepeat){
   const history=historicalOutcome(signal.id,exactCases);
   const repeatedRejected=doNotRepeat.includes(signal.id);
   const evidenceScore=clamp01(
-    0.35 +
-    anchors*0.17 +
-    (locationHints.length?0.10:0) +
+    0.50 +
+    anchors*0.18 +
+    (locationHints.length?0.12:0) +
     Math.min(history.success,3)*0.06 -
     Math.min(history.rejected,3)*0.10 -
     (repeatedRejected?0.15:0)
@@ -132,7 +132,7 @@ export function buildCausalDiscriminator({
 
   const [top,runnerUp]=candidates;
   const margin=top ? top.evidenceScore-(runnerUp?.evidenceScore??0) : 0;
-  const ambiguous=!top || top.evidenceScore<0.78 || margin<0.08 || top.contradictions.includes('SOURCE_LOCATION_NOT_EXPLICIT');
+  const ambiguous=!top || (top.mutationAllowed && (top.evidenceScore<0.78 || margin<0.08 || top.contradictions.includes('SOURCE_LOCATION_NOT_EXPLICIT')));
   const selected=ambiguous ? null : top;
 
   const probes=[
