@@ -15,6 +15,12 @@ import {
   assertExecutionHeadUnchanged,
   buildEvidenceProvenance,
   validateEvidenceProvenance,
+  BROTHER_IDS,
+  BROTHER_MODES,
+  createBrotherSession,
+  assertBrotherAuthority,
+  surrenderBrother,
+  recordBrotherChallenge,
 } from './repair-control-plane.mjs';
 
 const SHA_A = 'a'.repeat(40);
@@ -131,6 +137,84 @@ assertClosure(promotion, {
 });
 const closed = transitionRepairCycle(promotion, 'CLOSED', { actor: 'PROMOTION_GATE', reason: 'CLOSED_VERIFIED' });
 assert.equal(closed.state, 'CLOSED');
+
+assert.deepEqual(BROTHER_IDS, ['A', 'B']);
+assert.deepEqual(BROTHER_MODES, ['WRITE', 'READ']);
+const brotherSession = createBrotherSession({
+  repairChainId: identity.repairChainId,
+  failureFingerprint: FAILURE,
+  targetSha: SHA_A,
+});
+assert.equal(brotherSession.activeBrother, 'A');
+assert.equal(brotherSession.activeMode, 'WRITE');
+assert.equal(brotherSession.waitingBrother, 'B');
+assert.equal(brotherSession.waitingMode, 'READ');
+assert.equal(assertBrotherAuthority(brotherSession, { brotherId: 'A', mode: 'WRITE', mutation: true, targetSha: SHA_A }).mutation, true);
+assert.equal(assertBrotherAuthority(brotherSession, { brotherId: 'B', mode: 'READ', mutation: false, targetSha: SHA_A }).readOnly, true);
+assert.throws(() => assertBrotherAuthority(
+  brotherSession,
+  { brotherId: 'B', mode: 'READ', mutation: true, targetSha: SHA_A },
+), /BROTHER_READ_ONLY_MUTATION_BLOCKED/);
+assert.throws(() => assertBrotherAuthority(
+  brotherSession,
+  { brotherId: 'B', mode: 'WRITE', mutation: true, targetSha: SHA_A },
+), /BROTHER_TURN_VIOLATION/);
+
+const surrendered = surrenderBrother(brotherSession, {
+  brotherId: 'A',
+  reason: 'EXECUTOR_GAVE_UP',
+  exitSha: SHA_A,
+});
+assert.equal(surrendered.activeBrother, 'B');
+assert.equal(surrendered.activeMode, 'WRITE');
+assert.equal(surrendered.waitingBrother, 'A');
+assert.equal(surrendered.waitingMode, 'READ');
+assert.equal(surrendered.handoffCount, 1);
+assert.equal(surrendered.lastSurrender.fromMode, 'WRITE');
+assert.equal(surrendered.lastSurrender.toMode, 'READ');
+assert.equal(assertBrotherAuthority(surrendered, { brotherId: 'B', mode: 'WRITE', mutation: true, targetSha: SHA_A }).mutation, true);
+assert.equal(assertBrotherAuthority(surrendered, { brotherId: 'A', mode: 'READ', mutation: false, targetSha: SHA_A }).readOnly, true);
+
+const challenged = recordBrotherChallenge(surrendered, {
+  brotherId: 'A',
+  targetSha: SHA_A,
+  disposition: 'STRONG_DISSENT',
+  evidenceDigest: 'evidence-1',
+});
+assert.equal(challenged.nextAction, 'WAIT_FOR_ACTIVE_BROTHER_SURRENDER');
+assert.equal(challenged.lastChallenge.brotherId, 'A');
+assert.throws(() => recordBrotherChallenge(surrendered, {
+  brotherId: 'B',
+  targetSha: SHA_A,
+}), /BROTHER_TURN_VIOLATION/);
+
+const resurrendered = surrenderBrother(challenged, {
+  brotherId: 'B',
+  reason: 'SECOND_BROTHER_SURRENDER',
+  exitSha: SHA_A,
+});
+assert.equal(resurrendered.activeBrother, 'A');
+assert.equal(resurrendered.waitingBrother, 'B');
+assert.equal(resurrendered.handoffCount, 2);
+assert.equal(resurrendered.state, 'TURN_HANDOFF_REQUIRED');
+
+assert.throws(() => surrenderBrother(resurrendered, {
+  brotherId: 'B',
+  reason: 'STALE_WRITER_ATTEMPT',
+  exitSha: SHA_A,
+}), /BROTHER_TURN_VIOLATION/);
+
+assert.throws(() => createBrotherSession({
+  repairChainId: identity.repairChainId,
+  failureFingerprint: FAILURE,
+  targetSha: SHA_A,
+  activeBrother: 'C',
+}), /BROTHER_ID_INVALID/);
+
+assert.throws(() => assertBrotherAuthority(
+  resurrendered,
+  { brotherId: 'A', mode: 'WRITE', mutation: true, targetSha: SHA_B },
+), /BROTHER_TARGET_SHA_MISMATCH/);
 
 assert.throws(() => transitionRepairCycle(detected, 'RCA'), /CONTROL_PLANE_INVALID_TRANSITION/);
 assert.throws(() => transitionRepairCycle(canonical, 'PROMOTION'), /CONTROL_PLANE_INVALID_TRANSITION/);
