@@ -108,14 +108,24 @@ jobs:
           test -s /tmp/flixo-cell-wake-coordinator.json
           echo "CELL_WAKE_READY=true"
 
-      - name: Dispatch canonical observer only
+      - name: Dispatch canonical observer or verify active exact-SHA canonical path
         if: github.event_name != 'schedule' || steps.scheduled_wake.outputs.wake == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh workflow run daily-flixo-green-gate.yml --repo "$GITHUB_REPOSITORY" --ref execution
-          echo "WATCHDOG_DISPATCHED_CANONICAL_OBSERVER=true"
+          EXECUTION_SHA="$(git rev-parse HEAD)"
+          if gh workflow run daily-flixo-green-gate.yml --repo "$GITHUB_REPOSITORY" --ref execution; then
+            echo "WATCHDOG_DISPATCHED_CANONICAL_OBSERVER=true"
+            exit 0
+          fi
+          echo "CANONICAL_MANUAL_DISPATCH_UNAVAILABLE=true"
+          ACTIVE_TEST_SYSTEM="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Test System" --branch execution --limit 20 --json headSha,status --jq --arg sha "$EXECUTION_SHA" '[.[] | select(.headSha == $sha and (.status == "queued" or .status == "in_progress"))] | length')"
+          test "$ACTIVE_TEST_SYSTEM" -gt 0 || {
+            echo "FAIL CLOSED: no exact-SHA canonical Test System run is active and Green Gate dispatch is unavailable."
+            exit 1
+          }
+          echo "WATCHDOG_CANONICAL_FALLBACK=TEST_SYSTEM_WORKFLOW_RUN_EXACT_SHA"
 
       - name: Publish whole-cell wake evidence
         if: github.event_name == 'push' && always()
