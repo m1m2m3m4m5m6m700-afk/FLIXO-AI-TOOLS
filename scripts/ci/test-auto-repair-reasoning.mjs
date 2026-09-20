@@ -114,19 +114,22 @@ process.env.FLIXO_WORKFLOW_FAILURES = workflowEnvPath;
 const correlated = reasonFailure('ERROR eslint: no-unused-vars at a.ts:1:1', { targetDir: tempDir, scoutPath: undefined });
 assert.equal(correlated.crossWorkflowCorrelation.confidence, 'CORRELATED');
 assert.equal(correlated.crossWorkflowCorrelation.firstCommonFailure?.fingerprint, 'fp-b');
+assert.equal(correlated.crossWorkflowCorrelation.commonSHA, null);
+assert.equal(correlated.crossWorkflowCorrelation.confidence, 'MULTI_WORKFLOW_UNPROVEN');
 assert.equal(correlated.crossWorkflowCorrelation.mutationAllowed, false);
 assert.equal(correlated.evidenceProfile.channels.crossWorkflowCorrelation, true);
 assert.equal(correlated.evidenceProfile.diversity >= 2, true);
 fs.writeFileSync(workflowEnvPath, JSON.stringify([
-  { workflow: 'Test System', runId: 'r-d', fingerprint: 'fp-c' },
-  { workflow: 'WP0', runId: 'r-e', fingerprint: 'fp-d' },
+  { workflow: 'Test System', runId: 'r-d', fingerprint: 'fp-c', targetSha: 'd'.repeat(40) },
+  { workflow: 'WP0', runId: 'r-e', fingerprint: 'fp-c', targetSha: 'd'.repeat(40) },
 ]));
 const unprovenCorrelation = reasonFailure('ERROR eslint: no-unused-vars at a.ts:1:1', { targetDir: tempDir, scoutPath: undefined });
-assert.equal(unprovenCorrelation.crossWorkflowCorrelation.confidence, 'MULTI_WORKFLOW_UNPROVEN');
+assert.equal(unprovenCorrelation.crossWorkflowCorrelation.confidence, 'CORRELATED');
+assert.equal(unprovenCorrelation.crossWorkflowCorrelation.commonSHA, 'd'.repeat(40));
 assert.equal(unprovenCorrelation.crossWorkflowCorrelation.mutationAllowed, false);
 fs.writeFileSync(workflowEnvPath, JSON.stringify([
-  { workflow: 'Test System', runId: 'r-f', fingerprint: 'fp-e' },
-  { workflow: 'Test System', runId: 'r-g', fingerprint: 'fp-e' },
+  { workflow: 'Test System', runId: 'r-f', fingerprint: 'fp-e', targetSha: 'e'.repeat(40) },
+  { workflow: 'WP0', runId: 'r-g', fingerprint: 'fp-e', targetSha: 'f'.repeat(40) },
 ]));
 const sameWorkflowRepeat = reasonFailure('ERROR eslint: no-unused-vars at a.ts:1:1', { targetDir: tempDir, scoutPath: undefined });
 assert.equal(sameWorkflowRepeat.crossWorkflowCorrelation.confidence, 'INSUFFICIENT_EVIDENCE');
