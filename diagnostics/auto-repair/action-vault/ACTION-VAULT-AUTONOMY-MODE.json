@@ -88,6 +88,10 @@
     "cron": "*/5 * * * *",
     "action": "OBSERVE_STATE_DETECT_RED_WAKE_OR_CONTINUE_REPAIR",
     "exactShaBound": true,
-    "noPassiveSleep": true
+    "noPassiveSleep": true,
+    "heartbeatWorkflow": ".github/workflows/agent-repair-heartbeat.yml",
+    "wakeComplianceScript": "scripts/ci/wake-compliance.mjs",
+    "wakeComplianceTest": "scripts/ci/test-wake-compliance.mjs",
+    "allowedGapMs": 420000
   }
 }
