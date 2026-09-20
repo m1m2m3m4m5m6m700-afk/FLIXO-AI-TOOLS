@@ -74,6 +74,9 @@ env:
   # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
   # This workflow is executor-only and must never self-dispatch.
   FLIXO_STRICT_RED_REPAIR: 'true'
+  FLIXO_REPAIR_OPERATING_MODE: BOT_FIRST_AUTONOMOUS
+  FLIXO_ROUTINE_HUMAN_APPROVAL: 'false'
+  FLIXO_CRITICAL_HUMAN_AUTH_REQUIRED: 'true'
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
   FLIXO_DIAGNOSTIC_LINE_LIMIT: '5000'
@@ -89,6 +92,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      - name: Validate Bot-First Autonomous operating contract
+        run: node scripts/ci/action-vault-autonomy-mode.mjs
       - name: Checkout canonical execution branch
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
