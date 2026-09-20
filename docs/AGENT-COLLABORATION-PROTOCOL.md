@@ -121,6 +121,40 @@ The Task Agent consumes `مهام.md` plus authoritative diagnosis/handoff evide
 
 It may prepare source/test code artifacts, but those artifacts are proposals until the Executive Controller independently reviews and applies them.
 
+## Communication-first execution invariant
+
+The existing agent communication architecture is the first operational dependency for every agent.
+
+```text
+NOTIFICATION
+  → MASTER INBOX
+  → EVENT-DRIVEN RELAY
+  → RECEIVE
+  → READ
+  → EXACT-SHA REVALIDATION
+  → OWNERSHIP / RCA / DEPENDENCY CHECK
+  → EXECUTE
+```
+
+The canonical ingress is the existing Master Inbox at GitHub Issue #761. The event-driven adapter is `.github/workflows/agent-communication-relay.yml`. The machine-readable inbox lifecycle is implemented by `scripts/ci/agent-communication.mjs` and consumed by `scripts/ci/agent-session.mjs`.
+
+Message states are:
+
+`RECEIVED → READ → CONSUMED`
+
+or fail-closed:
+
+`RECEIVED → STALE`
+`READ → BLOCKED_CONFLICT`
+
+Receipt never grants execution authority. A message becomes execution-ready only after the target agent has read it, the message `entrySha` is current or explicitly revalidated, and the normal coordination ownership lock succeeds.
+
+`messageId` and `idempotencyKey` identify one logical notification. Re-delivery is a NO-OP. Reuse of the same identity with different causal content is an idempotency collision and MUST fail closed.
+
+Periodic supervision remains a recovery mechanism. It is not the primary communication path.
+
+No agent may begin task selection, mutation or repair from a notification it has not consumed through the canonical communication path.
+
 ## Handoff integrity
 Every delegation MUST contain:
 `messageId + actor + intent + taskId + scope + entrySha + risk + dependencies + expectedEvidence + stopConditions + proofObligations`.
