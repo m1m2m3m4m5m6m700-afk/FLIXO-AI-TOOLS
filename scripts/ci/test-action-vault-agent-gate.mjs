@@ -12,6 +12,14 @@ const intelligence = JSON.parse(fs.readFileSync('diagnostics/auto-repair/action-
 assert.equal(intelligence.cooperation.softwareEngineerCore.protocol, 'LOCAL_SOFTWARE_ENGINEER_CORE_V1');
 assert.equal(intelligence.cooperation.softwareEngineerCore.owner, 'ACTION-REPAIR');
 assert.equal(intelligence.cooperation.softwareEngineerCore.readOnly, true);
+assert.equal(intelligence.cooperation.repairEngineering.enabled, true);
+assert.equal(intelligence.cooperation.repairEngineering.owner, 'ACTION-REPAIR');
+assert.equal(intelligence.cooperation.repairEngineering.exactShaRequired, true);
+assert.equal(intelligence.cooperation.repairEngineering.canonicalGreenRequired, true);
+assert.equal(intelligence.agentRuntime.protocol, 'ACTION-AGENT-RUNTIME-v2');
+assert.equal(intelligence.agentRuntime.requirements.patchSynthesis, true);
+assert.equal(intelligence.agentRuntime.requirements.sandboxSimulation, true);
+assert.equal(intelligence.agentRuntime.requirements.differentialVerification, true);
 
 const valid = {
   botId: 'ACTION-REPAIR',
