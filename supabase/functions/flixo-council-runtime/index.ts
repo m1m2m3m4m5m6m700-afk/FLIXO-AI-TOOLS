@@ -345,7 +345,7 @@ Deno.serve(async (req) => {
       const declaredAgentId = String(body.agentId ?? "").trim();
       const exactSha = sha(body.entrySha);
       const sessionId = String(body.sessionId ?? req.headers.get("x-council-session-id") ?? crypto.randomUUID()).trim();
-      if (!dispatchId || !activationToken || !declaredAgentId || !sessionId) {
+      if (!dispatchId || !declaredAgentId || !sessionId) {
         throw new Error("COUNCIL_ACTIVATION_REQUIRED");
       }
 
@@ -369,9 +369,22 @@ Deno.serve(async (req) => {
         ? row.payload as Record<string, unknown>
         : {};
       if (payload.activationConsumedAt) throw new Error("COUNCIL_ACTIVATION_ALREADY_CONSUMED");
-      const expectedHash = String(payload.activationTokenHash ?? "").trim();
-      if (!expectedHash || !constantTimeEqual(sha256Hex(activationToken), expectedHash)) {
-        throw new Error("COUNCIL_ACTIVATION_REJECTED");
+
+      const bearerToken = bearer(req);
+      const bearerAuthorized = Boolean(bearerToken) && (() => {
+        try {
+          authAccount(req, account);
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+
+      if (!bearerAuthorized) {
+        const expectedHash = String(payload.activationTokenHash ?? "").trim();
+        if (!activationToken || !expectedHash || !constantTimeEqual(sha256Hex(activationToken), expectedHash)) {
+          throw new Error("COUNCIL_ACTIVATION_REJECTED");
+        }
       }
 
       const acked = await db("/rest/v1/rpc/council_ack_dispatch", {
