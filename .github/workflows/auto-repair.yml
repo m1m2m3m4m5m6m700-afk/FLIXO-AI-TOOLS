@@ -77,6 +77,8 @@ env:
   FLIXO_REPAIR_OPERATING_MODE: BOT_FIRST_AUTONOMOUS
   FLIXO_ROUTINE_HUMAN_APPROVAL: 'false'
   FLIXO_CRITICAL_HUMAN_AUTH_REQUIRED: 'true'
+  FLIXO_BRANCH_CONFLICT_RECOVERY: 'true'
+  FLIXO_CONFLICT_OWNER_WITHDRAWAL: 'false'
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
   FLIXO_DIAGNOSTIC_LINE_LIMIT: '5000'
@@ -94,6 +96,8 @@ jobs:
     steps:
       - name: Validate Bot-First Autonomous operating contract
         run: node scripts/ci/action-vault-autonomy-mode.mjs
+      - name: Validate in-place branch conflict recovery contract
+        run: node scripts/ci/test-action-vault-branch-conflict-recovery.mjs
       - name: Checkout canonical execution branch
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
@@ -130,10 +134,16 @@ jobs:
           test -n "$FAILED_SHA" && test "$FAILED_SHA" != "null"
           test "$FAILED_BRANCH" = "main" || test "$FAILED_BRANCH" = "execution"
           CURRENT_TARGET_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$FAILED_BRANCH" --jq '.object.sha')"
-          test "$CURRENT_TARGET_SHA" = "$FAILED_SHA" || {
-            echo "FAIL CLOSED: repair target $FAILED_SHA is superseded by current $FAILED_BRANCH SHA $CURRENT_TARGET_SHA."
-            exit 1
-          }
+          ORIGINAL_FAILED_SHA="$FAILED_SHA"
+          if [ "$CURRENT_TARGET_SHA" != "$FAILED_SHA" ]; then
+            echo "BRANCH_CONFLICT_RECOVERY=PRE_REPAIR_HEAD_MOVED"
+            printf '%s\n' "$FAILED_SHA" > /tmp/flixo-original-failed-sha
+            FAILED_SHA="$CURRENT_TARGET_SHA"
+            echo "FLIXO_BRANCH_CONFLICT_RECOVERY=true" >> "$GITHUB_ENV"
+            echo "FLIXO_ORIGINAL_FAILED_SHA=$ORIGINAL_FAILED_SHA" >> "$GITHUB_ENV"
+          else
+            echo "FLIXO_BRANCH_CONFLICT_RECOVERY=false" >> "$GITHUB_ENV"
+          fi
           printf '%s\n' "$CURRENT_TARGET_SHA" > /tmp/flixo-current-target-sha
           printf '%s\n' "$FAILED_SHA" > /tmp/flixo-failed-sha
           test -s /tmp/flixo-failed-sha
@@ -838,6 +848,55 @@ jobs:
           test "$(git branch --show-current)" = execution
           echo 'verified=true' >> "$GITHUB_OUTPUT"
 
+
+      - name: Recover execution branch conflict without owner withdrawal
+        id: conflict_recovery
+        if: steps.verify.outputs.verified == 'true'
+        env:
+          FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
+          FLIXO_ACTION_REPAIR_ASSISTANT_MEMORY: diagnostics/auto-repair/action-repair-bots/ACTION-REPAIR-2.json
+          FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH: /tmp/action-repair-programmer-twin-parity.json
+          FLIXO_FILE_SELECTION_PATH: /tmp/flixo-file-selection.json
+          FLIXO_ACTION_VAULT_VERIFIER_PROOF_PATH: /tmp/action-repair-2-proposal.json
+          FLIXO_ASSISTANT_APPROVAL_PATH: /tmp/action-repair-2-approval.json
+        run: |
+          set -euo pipefail
+          BEFORE_SHA="$(git rev-parse HEAD)"
+          RECOVERY_JSON="$(node scripts/ci/action-vault-branch-conflict-recovery.mjs)"
+          printf '%s\n' "$RECOVERY_JSON" > /tmp/flixo-branch-conflict-recovery.json
+          STATUS="$(printf '%s' "$RECOVERY_JSON" | jq -r '.status')"
+          if [ "$STATUS" = "NO_CONFLICT" ]; then
+            echo 'BRANCH_CONFLICT_RECOVERY=NO_CONFLICT'
+            exit 0
+          fi
+          CURRENT_SHA="$(git rev-parse HEAD)"
+          printf '%s\n' "$BEFORE_SHA" > /tmp/flixo-original-failed-sha
+          printf '%s\n' "$CURRENT_SHA" > /tmp/flixo-current-target-sha
+          printf '%s\n' "$CURRENT_SHA" > /tmp/flixo-failed-sha
+          echo "FLIXO_EXPECTED_TARGET_SHA=$CURRENT_SHA" >> "$GITHUB_ENV"
+          echo 'FLIXO_BRANCH_CONFLICT_RECOVERY=true' >> "$GITHUB_ENV"
+          echo "FLIXO_ORIGINAL_FAILED_SHA=$BEFORE_SHA" >> "$GITHUB_ENV"
+          export FLIXO_EXPECTED_TARGET_SHA="$CURRENT_SHA"
+          echo 'BRANCH_CONFLICT_RECOVERY=REQUALIFY_SAME_MISSION'
+          node /tmp/flixo-repair-controller/scripts/ci/repair-strategy.mjs
+          node scripts/ci/action-repair-dual-control.mjs audit --agent=ACTION-REPAIR-2 --partner=ACTION-REPAIR --target-sha="$CURRENT_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --run-id="$TARGET_RUN_ID" --memory="$FLIXO_ACTION_REPAIR_ASSISTANT_MEMORY" --strategy=/tmp/flixo-repair-strategy.json --evidence=/tmp/flixo-root-cause.json --file-selection="$FLIXO_FILE_SELECTION_PATH" --programmer-twin-parity="$FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH" --proposal=/tmp/action-repair-2-proposal.json
+          node scripts/ci/action-repair-dual-control.mjs approve --agent=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$CURRENT_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --proposal=/tmp/action-repair-2-proposal.json --approval=/tmp/action-repair-2-approval.json
+          node scripts/ci/action-repair-dual-control.mjs heartbeat --primary=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$CURRENT_SHA" --state=READY_FOR_MUTATION --out=/tmp/action-repair-pair-heartbeat.json
+          node scripts/ci/action-repair-dual-control.mjs assert --approval=/tmp/action-repair-2-approval.json --heartbeat=/tmp/action-repair-pair-heartbeat.json --approver=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$CURRENT_SHA"
+          NEXT_ATTEMPT=$(( ${FLIXO_REPAIR_ATTEMPT:-1} + 1 ))
+          FLIXO_REPAIR_ACTOR=actionRepairBot FLIXO_ACTION_VAULT_VERIFIER_PROOF_PATH=/tmp/action-repair-2-proposal.json FLIXO_ASSISTANT_APPROVAL_PATH=/tmp/action-repair-2-approval.json FLIXO_EXPECTED_TARGET_SHA="$CURRENT_SHA" FLIXO_REPAIR_ATTEMPT="$NEXT_ATTEMPT" node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs
+          node scripts/ci/validate-auto-repair-boundary.mjs --diff-only
+          test -f /tmp/flixo-repair-evidence.json
+          node --experimental-strip-types scripts/ci/auto-repair/ai-phase1.mjs --assert-post
+          node --experimental-strip-types scripts/ci/auto-repair/ai-phase3.mjs --assert-post
+          node /tmp/flixo-repair-controller/scripts/ci/ensure-agent-locales.mjs
+          node /tmp/flixo-repair-controller/node_modules/typescript/bin/tsc --noEmit
+          node /tmp/flixo-repair-controller/scripts/test.mjs --mode=diagnose --gate=static
+          node /tmp/flixo-repair-controller/scripts/test.mjs --mode=diagnose --gate=build
+          git diff --check
+          jq -e --arg sha "$CURRENT_SHA" '.targetSha == $sha' /tmp/flixo-repair-evidence.json >/dev/null
+          echo 'BRANCH_CONFLICT_RECOVERY=PASS'
       - name: Handoff active Actions repair owner after failed repair
         if: always() && steps.strategy.outcome == 'success' && steps.verify.outputs.verified != 'true'
         env:
@@ -988,7 +1047,9 @@ jobs:
             exit 1
           }
           test "$REMOTE_EXECUTION_SHA" = "$FAILED_SHA" || {
-            echo "FAIL CLOSED: execution advanced during repair; refusing stale publication."
+            echo "FAIL CLOSED: execution advanced again after conflict recovery; preserving same-mission recovery state."
+            printf '%s\n' "$REMOTE_EXECUTION_SHA" > /tmp/flixo-unresolved-conflict-sha
+            echo 'BRANCH_CONFLICT_RECOVERY_REQUIRED=true' >> "$GITHUB_ENV"
             exit 1
           }
           if [ "$ENGINE_OUTCOME" = "verified-historical-revert" ]; then
