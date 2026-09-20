@@ -91,7 +91,7 @@ if(role==='wake'){
  const branch=arg('branch','execution');
  if(branch!=='execution')throw new Error('ACTION_WAKE_BRANCH_BLOCKED');
  if(!['PUSH_READY','RED_INTERNAL','BLOCKED_EXTERNAL','FAIL_CLOSED'].includes(status))throw new Error('ACTION_WAKE_STATUS_NOT_ACTIONABLE');
- const result={schemaVersion:1,botId:'ACTION-WAKE',role:ROLE_MAP['ACTION-WAKE'],action:'WAKE_ACTION_REPAIR_SQUAD',dispatcher:'FLIXO Execution Bot Watchdog',targetRunId:runId,targetSha,failureFingerprint:fingerprint,status,mutationAuthority:false,directDispatch:false,wholeCellReady:true,sharedReferences:SHARED_REFS,canonicalNextStep:status==='PUSH_READY'?'DAILY_FLIXO_GREEN_GATE':'EXISTING_CANONICAL_DISPATCHER'};
+ const result={schemaVersion:1,botId:'ACTION-WAKE',role:ROLE_MAP['ACTION-WAKE'],action:'WAKE_ACTION_REPAIR_SQUAD',dispatcher:'FLIXO Execution Bot Watchdog',targetRunId:runId,targetSha,failureFingerprint:fingerprint,status,mutationAuthority:false,directDispatch:false,actionRepairSquadReady:true,sharedReferences:SHARED_REFS,canonicalNextStep:status==='PUSH_READY'?'DAILY_FLIXO_GREEN_GATE':'EXISTING_CANONICAL_DISPATCHER'};
  appendActionCenterEvent({type:'WAKE',taskId:'ACTION-WAKE:'+runId+':'+fingerprint,fingerprint,runId,targetSha,actor:'ACTION-WAKE',payload:{status,dispatcher:result.dispatcher,canonicalNextStep:result.canonicalNextStep}});
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));process.exit(0);
 }
@@ -117,5 +117,5 @@ if(role==='select'){
 }
 const logExists=Boolean(logPath&&fs.existsSync(logPath));
 const packets=workerIds.map((id,i)=>({schemaVersion:1,workerId:id,workerIndex:i+1,role:ROLE_MAP[id],taskId:'ACTION-REPAIR:'+runId+':'+fingerprint,target:{runId,failedSha:targetSha,failureFingerprint:fingerprint,logDigest},sharedReferences:SHARED_REFS,sameIncidentContext:true,mutationAuthority:false,canonicalMutationOwner:'repairAgent',proofRule:'CURRENT_EXACT_SHA_CI_ONLY'}));
-const report={schemaVersion:2,authority:'ACTION_REPAIR_SQUAD_FANOUT',workerCount:5,workers:packets,sharedReferences:SHARED_REFS,sameReferencesForAll:true,anyActionFailureAdmitted:true,roleOrder:workerIds.map(id=>ROLE_MAP[id]),mutationModel:'FIVE_ROLES_ONE_CANONICAL_MUTATION_LANE',wakeModel:'ACTION-002_TO_EXISTING_CANONICAL_DISPATCHER',selectionModel:'ACTION-001+ACTION-003+ACTION-004_TO_ACTION-005',logEvidencePresent:logExists,generatedAt:new Date().toISOString()};
+const report={schemaVersion:2,authority:'ACTION_REPAIR_SQUAD_FANOUT',workerCount:5,workers:packets,sharedReferences:SHARED_REFS,sameReferencesForAll:true,anyActionFailureAdmitted:true,roleOrder:workerIds.map(id=>ROLE_MAP[id]),mutationModel:'FIVE_ROLES_ONE_CANONICAL_MUTATION_LANE',wakeModel:'ACTION-WAKE_TO_EXISTING_CANONICAL_DISPATCHER',selectionModel:'ACTION-INDEX+ACTION-TWIN-1+ACTION-TWIN-2_TO_ACTION-WISE',logEvidencePresent:logExists,generatedAt:new Date().toISOString()};
 fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({status:'PASS',workerCount:5,roles:report.roleOrder,targetSha,runId,fingerprint,output:out},null,2));
