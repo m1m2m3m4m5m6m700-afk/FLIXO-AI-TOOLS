@@ -6,6 +6,10 @@ export type FilterMaskCopy = Readonly<{
   startCamera: string;
   stop: string;
   switchCamera: string;
+  torchOn: string;
+  torchOff: string;
+  torchUnsupported: string;
+  torchFailed: string;
   photo: string;
   recordVideo: string;
   recording: string;
@@ -51,6 +55,10 @@ const EN: FilterMaskCopy = {
   startCamera: 'Start camera',
   stop: 'Stop',
   switchCamera: 'Switch camera',
+  torchOn: 'Torch on',
+  torchOff: 'Torch off',
+  torchUnsupported: 'Torch is not available on this camera.',
+  torchFailed: 'Torch could not be changed.',
   photo: 'Photo',
   recordVideo: 'Record video',
   recording: 'Recording',
