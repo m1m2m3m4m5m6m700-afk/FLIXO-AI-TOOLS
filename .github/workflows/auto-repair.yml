@@ -20,6 +20,10 @@ on:
         description: 'Watcher-provided exact failure fingerprint for Control Plane identity'
         required: false
         type: string
+      prompt_source_run_id:
+        description: 'Daily Green Gate run that published the comprehensive repair prompt bundle'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -39,6 +43,7 @@ env:
   FLIXO_HISTORY_LIMIT: '30'
   FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
   FLIXO_FAILURE_FINGERPRINT: ${{ inputs.failure_fingerprint || '' }}
+  FLIXO_PROMPT_SOURCE_RUN_ID: ${{ inputs.prompt_source_run_id || '' }}
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
   # This workflow is executor-only and must never self-dispatch.
@@ -223,6 +228,34 @@ jobs:
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-final.mjs
           FLIXO_HISTORICAL_ROLLBACK_SELF_TEST=1 node /tmp/flixo-repair-controller/scripts/ci/auto-repair/historical-rollback.mjs
 
+      - name: Consume Daily Visit execution prompt bundle
+        if: inputs.prompt_source_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-prompt-bundle
+          gh run download "$FLIXO_PROMPT_SOURCE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "flixo-repair-execution-prompts-$FLIXO_PROMPT_SOURCE_RUN_ID" \
+            --dir /tmp/flixo-prompt-bundle
+          test -s /tmp/flixo-prompt-bundle/execution-prompts.json
+          test -s /tmp/flixo-prompt-bundle/execution-prompts.md
+          BUNDLE_SHA="$(jq -r '.executionSha' /tmp/flixo-prompt-bundle/execution-prompts.json)"
+          EXPECTED_SHA="$(cat /tmp/flixo-failed-sha)"
+          test "$BUNDLE_SHA" = "$EXPECTED_SHA" || {
+            echo "FAIL CLOSED: prompt bundle SHA $BUNDLE_SHA does not match repair target $EXPECTED_SHA."
+            exit 1
+          }
+          BUNDLE_FINGERPRINT="$(jq -r --arg run "$TARGET_RUN_ID" '.prompts[] | select((.runIds // []) | index($run)) | .fingerprint' /tmp/flixo-prompt-bundle/execution-prompts.json | head -n 1)"
+          if [ -n "$FLIXO_FAILURE_FINGERPRINT" ] && [ -n "$BUNDLE_FINGERPRINT" ]; then
+            test "$BUNDLE_FINGERPRINT" = "$FLIXO_FAILURE_FINGERPRINT" || {
+              echo 'FAIL CLOSED: prompt bundle fingerprint does not match the watcher repair target.'
+              exit 1
+            }
+          fi
+          echo "FLIXO_EXECUTION_PROMPT_PATH=/tmp/flixo-prompt-bundle/execution-prompts.json" >> "$GITHUB_ENV"
+          echo "PROMPT_BUNDLE_SOURCE_RUN=$FLIXO_PROMPT_SOURCE_RUN_ID"
       - name: Learn from historical GitHub Actions failures and repair history
         env:
           GH_TOKEN: ${{ github.token }}
@@ -281,8 +314,21 @@ jobs:
           SIGNATURE="$(node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/flixo-root-cause.json','utf8')); process.stdout.write(x.signature||'unknown')")"
           FAILED_SHA="$(cat /tmp/flixo-failed-sha)"
           test "$(git branch --show-current)" = execution
-          FLIXO_TASK_AGENT_OUTPUT_DIR=/tmp/flixo-task-agent node /tmp/flixo-repair-controller/scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$SIGNATURE" --failure-evidence=/tmp/flixo-repair-summary.txt
+          FLIXO_TASK_AGENT_OUTPUT_DIR=/tmp/flixo-task-agent node /tmp/flixo-repair-controller/scripts/ci/task-agent.mjs --all-ready --failure-run-id="$TARGET_RUN_ID" --failure-sha="$FAILED_SHA" --failure-fingerprint="$SIGNATURE" --failure-evidence=/tmp/flixo-repair-summary.txt --execution-prompt="${FLIXO_EXECUTION_PROMPT_PATH:-}"
           test -s /tmp/flixo-task-agent/latest.json
+
+      - name: Bind selected Prompt ID to learning provenance
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROMPT_ID="$(node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("/tmp/flixo-task-agent/latest.json","utf8")); process.stdout.write(x.executionPrompt?.selectedPromptId || "")')"
+          if [ -n "$PROMPT_ID" ]; then
+            echo "FLIXO_PROMPT_ID=$PROMPT_ID" >> "$GITHUB_ENV"
+            echo "FLIXO_PROMPT_ID=$PROMPT_ID"
+          else
+            echo "FLIXO_PROMPT_ID not available; learning remains unbound to a registry prompt."
+          fi
 
       - name: Select repair strategy and continue strict RED repair
         id: strategy

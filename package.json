@@ -98,7 +98,6 @@
     "audit:technical-debt": "node scripts/ci/audit-technical-debt.mjs",
     "validate:technical-debt-audit": "node scripts/ci/validate-technical-debt-audit.mjs",
     "validate:auto-repair-memory": "node scripts/ci/validate-auto-repair-memory.mjs",
-    "validate:prompt-registry": "node scripts/ci/validate-prompt-registry.mjs",
     "verify:fast": "npm run test:static",
     "orchestrate": "node scripts/ci/unified-orchestrator.mjs",
     "verify:ci-cd-trust": "node scripts/ci/validate-ci-cd-trust.mjs",
@@ -120,7 +119,11 @@
     "validate:repair-protocol": "node scripts/ci/repair-protocol.mjs validate",
     "test:repair-protocol": "node scripts/ci/test-repair-protocol.mjs",
     "test:agent-conversation": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-agent-conversation.mjs",
-    "test:tool-platform-autodiscovery": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-tool-platform-autodiscovery.mjs"
+    "test:tool-platform-autodiscovery": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/test-tool-platform-autodiscovery.mjs",
+    "test:repair-execution-prompts": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/test-repair-execution-prompts.mjs",
+    "test:repair-execution-prompt-integration": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/test-repair-execution-prompt-integration.mjs",
+    "validate:prompt-registry": "node scripts/ci/validate-prompt-registry.mjs",
+    "test:prompt-registry": "node scripts/ci/test-prompt-registry.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
