@@ -193,8 +193,11 @@ try {
   execFileSync(process.execPath, ['scripts/ci/validate-certification-surface.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/validate-agent-protocol.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/validate-agent-coordination.mjs'], { stdio: 'inherit' });
+  execFileSync(process.execPath, ['scripts/ci/test-repair-protocol.mjs'], { stdio: 'inherit' });
+  execFileSync(process.execPath, ['scripts/ci/test-task-agent-contract.mjs'], { stdio: 'inherit' });
+  execFileSync(process.execPath, ['scripts/ci/test-agent-admission.mjs'], { stdio: 'inherit' });
 } catch {
-  console.error('CI contract failed: execution-graph semantic identity/image-core/browser/certification/agent-protocol/coordination surface validation failed.');
+  console.error('CI contract failed: execution-graph semantic identity/image-core/browser/certification/agent-protocol/coordination/Task-Agent authority/admission surface validation failed.');
   process.exit(1);
 }
 
