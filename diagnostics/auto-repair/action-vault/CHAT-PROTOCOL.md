@@ -56,6 +56,9 @@ PARALLEL_DISCOVERY
 → CROSS_LEARNING
 → CHALLENGE
 → SYNTHESIS
+→ PATCH_SYNTHESIS
+→ SANDBOX_SIMULATION
+→ DIFFERENTIAL_VERIFICATION
 → OWNER_MUTATION
 
 Every contributor must publish a contribution bound to taskId + failureFingerprint + exact target SHA + runId. Every participant must receive the other two contributions before mutation authorization.
@@ -84,8 +87,18 @@ Records every RED, repair attempt, failed attempt, handoff, prediction outcome a
 FAILURE RECORD
 → HISTORICAL SEARCH + PREDICTION
 → PROGRAMMER ANALYSIS
+→ PATCH SYNTHESIS
+→ SANDBOX SIMULATION
+→ DIFFERENTIAL VERIFICATION
 → OWNER MUTATION
 → VERIFICATION
 → FAILURE/GREEN RECORD
 
 A prediction is a proposal, not proof. The programmer may reject it. A repair attempt may fail. Every failure is recorded and remains part of the learning corpus. Only Canonical GREEN promotes lessons to verified knowledge.
+
+
+## Repair engineering guard
+
+ACTION-REPAIR is the only programming mutation owner. Patch synthesis creates bounded candidates; sandbox simulation executes only in a detached exact-SHA worktree; differential verification checks scope and gate integrity. Simulation never mutates the source worktree and never grants GREEN.
+
+ACTION-REPAIR-2 may challenge or propose candidate strategies but cannot authorize mutation. ACTION-HISTORIAN-3 records simulation outcomes and failures. Canonical GREEN remains mandatory before closure or learning promotion.
