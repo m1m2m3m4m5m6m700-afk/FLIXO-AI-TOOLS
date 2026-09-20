@@ -111,7 +111,10 @@ test.describe('Filter Mask live camera surface', () => {
 
     const photoLink = section.getByRole('link', { name: 'Download result' });
     await expect(photoLink).toHaveAttribute('download', 'flixo-filter-mask.jpg');
-    await expect.poll(async () => page.evaluate(async (href) => (await (await fetch(href)).blob()).size, await photoLink.getAttribute('href'))).toBeGreaterThan(0);
+    await expect.poll(async () => photoLink.evaluate(async (element) => {
+      const href = (element as HTMLAnchorElement).href;
+      return (await (await fetch(href)).blob()).size;
+    })).toBeGreaterThan(0);
 
     const recordButton = section.getByRole('button', { name: 'Record video' });
     await expect(recordButton).toBeEnabled();
@@ -121,7 +124,10 @@ test.describe('Filter Mask live camera surface', () => {
     await section.getByRole('button', { name: 'Stop recording' }).click();
     const videoLink = section.getByRole('link', { name: 'Download result' });
     await expect(videoLink).toHaveAttribute('download', 'flixo-filter-mask.webm');
-    await expect.poll(async () => page.evaluate(async (href) => (await (await fetch(href)).blob()).size, await videoLink.getAttribute('href'))).toBeGreaterThan(0);
+    await expect.poll(async () => videoLink.evaluate(async (element) => {
+      const href = (element as HTMLAnchorElement).href;
+      return (await (await fetch(href)).blob()).size;
+    })).toBeGreaterThan(0);
 
     await section.getByRole('button', { name: 'Stop' }).click();
     await expect(section.getByRole('button', { name: 'Stop' })).toBeDisabled();
