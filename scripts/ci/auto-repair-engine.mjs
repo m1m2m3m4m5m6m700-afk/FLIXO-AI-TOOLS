@@ -17,7 +17,7 @@ import { simulateRepair } from './auto-repair/simulation.mjs';
 import { critiqueRepair } from './auto-repair/self-critic.mjs';
 import { buildCausalProof } from './auto-repair/causal-proof.mjs';
 import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
-import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession, validateErrorOnlyMutation, validateMinimalRepairScope, validateTargetedRegressionSelection } from './repair-protocol.mjs';
+import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession, validateActionVaultVerifierProof, validateErrorOnlyMutation, validateMinimalRepairScope, validateTargetedRegressionSelection } from './repair-protocol.mjs';
 import { loadAttemptLedger, isRepairRejected, rejectionReasons } from './repair-attempt-ledger.mjs';
 import { buildErrorOnlyRepairModel } from './auto-repair/error-only-programmer.mjs';
 
@@ -43,7 +43,14 @@ const assistantApprovalPath = process.env.FLIXO_ASSISTANT_APPROVAL_PATH ?? '';
 const assistantApproval = assistantApprovalPath && fs.existsSync(assistantApprovalPath)
   ? JSON.parse(fs.readFileSync(assistantApprovalPath, 'utf8'))
   : null;
-let repairProtocolSession = createRepairSession({ repairSessionId, actor: repairActor, failureFingerprint: fingerprint, targetSHA: targetSha, beforeState: { worktree: 'clean', targetSha }, attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1), fallback: repairActor === 'assistantRepairAgent' ? { ...fallbackProof, actor: 'assistantRepairAgent', targetSha } : null, assistantApproval });
+const actionVaultVerifierProofPath = process.env.FLIXO_ACTION_VAULT_VERIFIER_PROOF_PATH ?? '';
+const actionVaultVerifierProof = actionVaultVerifierProofPath && fs.existsSync(actionVaultVerifierProofPath)
+  ? JSON.parse(fs.readFileSync(actionVaultVerifierProofPath, 'utf8'))
+  : null;
+if (repairActor === 'actionRepairBot') {
+  validateActionVaultVerifierProof({ proof: actionVaultVerifierProof, targetSHA: targetSha, failureFingerprint: fingerprint });
+}
+let repairProtocolSession = createRepairSession({ repairSessionId, actor: repairActor, failureFingerprint: fingerprint, targetSHA: targetSha, beforeState: { worktree: 'clean', targetSha }, attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1), fallback: repairActor === 'assistantRepairAgent' ? { ...fallbackProof, actor: 'assistantRepairAgent', targetSha } : null, assistantApproval, actionVaultVerifierProof });
 repairProtocolSession = captureFailure(repairProtocolSession, { runId: process.env.GITHUB_RUN_ID ?? null, failureFingerprint: fingerprint, logPath });
 const prepareTargetedVerification = (currentLog, currentFeatures) => {
   const selection = resolveTargetedTests(currentLog, currentFeatures, { targetDir });
@@ -126,6 +133,7 @@ const evidence = {
   schemaVersion: 6,
   protocol: 'AUTONOMOUS-REPAIR-PROTOCOL-v4',
   repairProtocol: repairProtocolSession,
+  actionVault: repairActor === 'actionRepairBot' ? { enabled: true, verifierProofPath: actionVaultVerifierProofPath, verifierProof: actionVaultVerifierProof, verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian' } : null,
   fingerprint,
   targetSha,
   features,
