@@ -63,3 +63,7 @@ Every contributor must publish a contribution bound to taskId + failureFingerpri
 The chat may carry provisional learning during RED. Shared knowledge is promotable only after Canonical GREEN.
 
 SLEEP/IDLE is not a chat state for an open mission. A completed mission requires a GREEN record before sleep admission.
+
+## Vault change watchdog
+
+Any committed change under ACTION VAULT wakes ACTION-REPAIR, ACTION-REPAIR-2, and ACTION-HISTORIAN-3 on the exact resulting SHA. The wake creates a shared preparation task and runs only the targeted vault regression set; it does not authorize source mutation.
