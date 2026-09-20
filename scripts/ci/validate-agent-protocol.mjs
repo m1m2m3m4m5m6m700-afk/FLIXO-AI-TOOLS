@@ -20,6 +20,8 @@ const requiredFiles = [
   'scripts/ci/agent-session.mjs',
   'scripts/ci/repair-protocol.mjs',
   'scripts/ci/agent-coordination.mjs',
+  'scripts/ci/agent-communication.mjs',
+  'scripts/ci/test-agent-communication.mjs',
   'scripts/ci/auto-repair-engine.mjs',
   'scripts/ci/auto-repair-proof.mjs',
   'scripts/validate-ci-contract.mjs',
@@ -70,7 +72,7 @@ const requiredProtocolMarkers = [
   'Evidence and provenance', 'Failure and RCA', 'Conflict protocol', 'Certification separation',
   'Logout', 'Enforcement', '--from-session=<previous-session>', 'Root-Cause-First Repair Protocol',
   'causal defect', 'trigger → propagation path → violated invariant → responsible source → observable symptom',
-  'targeted regression', 'affected dependency/contract graph',
+  'targeted regression', 'affected dependency/contract graph', 'Communication-first execution invariant',
   'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
   'symptom-only workaround', 'new deterministic failure',
 ];
