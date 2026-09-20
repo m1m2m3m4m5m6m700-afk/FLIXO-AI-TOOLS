@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { comparePrompts, detectPromptRelations, functionalKey, loadPromptRegistry, selectPromptCandidates, validatePromptRegistry } from './prompt-intelligence.mjs';
+import fs from 'node:fs';
 
 const registry = loadPromptRegistry();
+const taskAgent = fs.readFileSync('scripts/ci/task-agent.mjs', 'utf8');
+assert.match(taskAgent, /selectedPromptId/);
+assert.match(taskAgent, /exactSha/);
+assert.match(taskAgent, /failureFingerprint/);
+assert.match(taskAgent, /handoffSchema: 'PROMPT-HANDOFF-v1'/);
 const result = validatePromptRegistry(registry);
 assert.equal(result.valid, true);
 assert.equal(new Set(registry.prompts.map((p) => p.promptId)).size, registry.prompts.length);
