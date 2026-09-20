@@ -142,7 +142,6 @@ export function evaluateGreen({
   latestMergedPr = null,
   workflowRuns = [],
   checkRuns = [],
-  statuses = [],
   logs = {},
   compare = {},
 } = {}) {
