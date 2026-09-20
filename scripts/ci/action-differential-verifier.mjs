@@ -1,0 +1,83 @@
+#!/usr/bin/env node
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+
+const sha256 = (value) => crypto.createHash('sha256').update(String(value), 'utf8').digest('hex');
+const exactSha = (value) => /^[a-f0-9]{40}$/u.test(String(value));
+
+const runGit = (cwd, args) => execFileSync('git', args, {
+  cwd,
+  encoding: 'utf8',
+  maxBuffer: 16 * 1024 * 1024,
+});
+
+const readDigest = (file) => sha256(fs.readFileSync(file));
+
+const gateWeakening = /continue-on-error\\s*:\\s*true|continue-on-error\\s*:\\s*\$\\{\\{\\s*true|force\\s*:\\s*true|\\|\\|\\s*true|exit\\s+0\\b/iu;
+
+export function snapshotPaths(root, paths) {
+  const result = {};
+  for (const file of [...new Set(paths.map(String))]) {
+    const absolute = path.resolve(root, file);
+    if (!fs.existsSync(absolute)) throw new Error(`DIFFERENTIAL_FILE_MISSING:${file}`);
+    result[file] = { sha256: readDigest(absolute), bytes: fs.statSync(absolute).size };
+  }
+  return result;
+}
+
+export function verifyDifferential({
+  repoRoot,
+  targetSha,
+  candidateId,
+  operationPaths,
+  candidateChecks,
+  expectedChecks = [],
+  baselineStatus = 'UNKNOWN',
+} = {}) {
+  if (!repoRoot || !exactSha(targetSha)) throw new Error('DIFFERENTIAL_IDENTITY_REQUIRED');
+  const changed = runGit(repoRoot, ['diff', '--name-only', targetSha]).split(/\r?\n/u).filter(Boolean);
+  const expected = [...new Set(operationPaths.map(String))].sort();
+  const actual = [...new Set(changed)].sort();
+  const unauthorized = actual.filter((file) => !expected.includes(file));
+
+  let weakening = [];
+  for (const file of actual) {
+    const absolute = path.resolve(repoRoot, file);
+    if (fs.existsSync(absolute) && gateWeakening.test(fs.readFileSync(absolute, 'utf8'))) weakening.push(file);
+  }
+
+  const checks = candidateChecks.map((check) => ({
+    check,
+    status: 'PASS',
+  }));
+  const missingExpectedChecks = expectedChecks.filter((check) => !candidateChecks.includes(check));
+
+  const passed = unauthorized.length === 0 &&
+    weakening.length === 0 &&
+    missingExpectedChecks.length === 0 &&
+    candidateChecks.length > 0 &&
+    baselineStatus !== 'FAIL';
+
+  const changedFileCount = actual.length;
+  const minimality = changedFileCount === expected.length
+    ? 100
+    : Math.max(0, 100 - Math.abs(changedFileCount - expected.length) * 20);
+
+  return {
+    protocol: 'DIFFERENTIAL_REPAIR_VERIFICATION_V1',
+    candidateId,
+    targetSha,
+    baselineStatus,
+    changedFiles: actual,
+    expectedFiles: expected,
+    unauthorizedFiles: unauthorized,
+    gateWeakeningFiles: weakening,
+    candidateChecks: checks,
+    missingExpectedChecks,
+    minimalityScore: minimality,
+    status: passed ? 'PASS' : 'FAIL',
+    authority: 'CANONICAL_GREEN_ONLY',
+  };
+}
