@@ -97,6 +97,13 @@ export function ingest(message, observedSha = currentSha()) {
     if (existing.idempotencyKey !== normalized.idempotencyKey || existing.entrySha !== normalized.entrySha) {
       throw new Error(`AGENT_MESSAGE_IDEMPOTENCY_COLLISION=${normalized.messageId}`);
     }
+    if (existing.status === 'STALE' && normalized.entrySha === observedSha) {
+      const revived = { ...loadMessage(normalized.messageId), status: 'RECEIVED', revalidatedAt: now(), revalidatedSha: observedSha, duplicate: true };
+      writeJson(messagePath(normalized.messageId), revived);
+      index.messages[normalized.messageId] = { ...(index.messages[normalized.messageId] ?? {}), status: 'RECEIVED', updatedAt: now() };
+      saveIndex(index);
+      return revived;
+    }
     return { ...existing, duplicate: true };
   }
   const status = normalized.entrySha === observedSha ? 'RECEIVED' : 'STALE';
