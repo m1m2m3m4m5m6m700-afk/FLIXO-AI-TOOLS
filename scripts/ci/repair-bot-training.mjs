@@ -156,7 +156,8 @@ function evaluate(policy,test){
 
 function buildBehaviorExamples(rows) {
   const grouped=new Map();
-  for(const row of rows){
+  const sequenceRows=rows.filter((row)=>row.source==='verified-repair-memory'||row.source==='historical-actions');
+  for(const row of sequenceRows){
     const key=[row.fingerprint,row.rootCause].join('|');
     const list=grouped.get(key) ?? [];
     list.push(row);
