@@ -22,7 +22,7 @@ const WRITE_LOCK_WAIT_MS = 50;
 const WRITE_LOCK_MAX_ATTEMPTS = 240;
 const WRITE_LOCK_STALE_MS = 10 * 60 * 1000;
 const STALE_SESSION_KILL_SWITCH = true;
-const COUNCIL_MACHINE_ROLES = new Set(['assistantController','verification','analysis','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent']);
+const COUNCIL_MACHINE_ROLES = new Set(['assistantController','verification','analysis','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','actionRepairBot','actionRepairVerifier','actionHistorian']);
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
