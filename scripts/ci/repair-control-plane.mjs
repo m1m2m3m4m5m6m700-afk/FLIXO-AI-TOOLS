@@ -41,9 +41,28 @@ const TRANSITIONS = Object.freeze({
 
 export const CIRCUIT_BREAKER = Object.freeze({
   maxStalledCycles: 3,
-  definition: 'SAME_FAILURE_FINGERPRINT_WITHOUT_VERIFIABLE_PROGRESS',
+  definition: 'SAME_REPAIR_KEY_WITH_NO_EXIT_SHA_CHANGE_AND_NO_VERIFICATION_PROGRESS',
   failClosed: true,
 });
+
+export const LEASE_STATES = Object.freeze([
+  'LEASE_CLAIMED',
+  'LEASE_ACTIVE',
+  'LEASE_VERIFIED',
+  'LEASE_BLOCKED',
+  'LEASE_STALE',
+  'LEASE_CIRCUIT_OPEN',
+]);
+
+export const REPAIR_OUTCOMES = Object.freeze([
+  'VERIFIED_REPAIR',
+  'VERIFIED_HISTORICAL_REVERT',
+  'BLOCKED_EXTERNAL',
+  'BLOCKED_RCA',
+  'FAILED_REPAIR',
+  'CRASHED',
+  'STALE',
+]);
 
 const sha256 = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex');
 const isSha = (value) => /^[a-f0-9]{40}$/iu.test(String(value ?? ''));
@@ -65,6 +84,93 @@ export function deriveRepairIdentity({ failureFingerprint, failedSha, targetRunI
     claimKey: `claim-${digest}`,
     repairChainId: `RC-${digest.slice(0, 20)}`,
     leaseRef: `refs/tags/flixo-repair-lease-${digest}`,
+    recoveryRefPrefix: `refs/tags/flixo-repair-lease-recovery-${digest}`,
+    eventRefPrefix: `refs/tags/flixo-repair-event-${digest}`,
+  });
+}
+
+
+const safeRefToken = (value) => String(value ?? '')
+  .trim()
+  .replace(/[^A-Za-z0-9._-]+/gu, '-')
+  .replace(/^-+|-+$/gu, '')
+  .slice(0, 120) || 'unknown';
+
+export function deriveLeaseEventRef({ identity, eventType, eventId }) {
+  if (!identity?.eventRefPrefix) throw new Error('CONTROL_PLANE_LEASE_IDENTITY_REQUIRED');
+  if (!eventType) throw new Error('CONTROL_PLANE_LEASE_EVENT_TYPE_REQUIRED');
+  if (!eventId) throw new Error('CONTROL_PLANE_LEASE_EVENT_ID_REQUIRED');
+  const event = safeRefToken(eventType).toLowerCase();
+  const id = safeRefToken(eventId);
+  return `${identity.eventRefPrefix}-${event}-${id}`;
+}
+
+export function deriveRecoveryRef({ identity, attempt }) {
+  if (!identity?.recoveryRefPrefix) throw new Error('CONTROL_PLANE_LEASE_IDENTITY_REQUIRED');
+  const n = Number(attempt);
+  if (!Number.isInteger(n) || n < 2) throw new Error('CONTROL_PLANE_RECOVERY_ATTEMPT_INVALID');
+  return `${identity.recoveryRefPrefix}-${n}`;
+}
+
+export function classifyRepairOutcome({ outcome, failedSha, exitSha, verificationProgress = false } = {}) {
+  if (!REPAIR_OUTCOMES.includes(String(outcome))) throw new Error(`CONTROL_PLANE_UNKNOWN_REPAIR_OUTCOME=${outcome}`);
+  return Object.freeze({
+    outcome,
+    failedSha: String(failedSha ?? ''),
+    exitSha: String(exitSha ?? ''),
+    verificationProgress: Boolean(verificationProgress),
+    noProgress: Boolean(failedSha && exitSha && failedSha === exitSha && verificationProgress !== true),
+  });
+}
+
+export function evaluateNoProgress({ repairKey, outcomes = [] } = {}) {
+  const key = requireText('repairKey', repairKey);
+  const ordered = [...outcomes]
+    .filter((item) => String(item?.repairKey ?? '') === key)
+    .sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')));
+  let consecutiveNoProgress = 0;
+  for (const item of ordered) {
+    const noProgress = item?.noProgress === true || (
+      String(item?.failedSha ?? '') !== '' &&
+      String(item?.exitSha ?? '') === String(item.failedSha) &&
+      item?.verificationProgress !== true
+    );
+    if (!noProgress) break;
+    consecutiveNoProgress += 1;
+  }
+  return Object.freeze({
+    repairKey: key,
+    attempts: ordered.length,
+    consecutiveNoProgress,
+    circuitOpen: consecutiveNoProgress >= CIRCUIT_BREAKER.maxStalledCycles,
+  });
+}
+
+export function staleRecoveryDecision({
+  now = Date.now(),
+  leaseCreatedAt,
+  staleAfterMs = 60 * 60 * 1000,
+  currentExecutionSha,
+  failedSha,
+  activeRuns = [],
+  outcomes = [],
+  repairKey,
+} = {}) {
+  const ageMs = Math.max(0, Number(now) - Date.parse(String(leaseCreatedAt ?? '')));
+  const progress = evaluateNoProgress({ repairKey, outcomes });
+  const verified = outcomes.some((item) => ['VERIFIED_REPAIR', 'VERIFIED_HISTORICAL_REVERT'].includes(item?.outcome));
+  const reasons = [];
+  if (!Number.isFinite(ageMs) || ageMs < staleAfterMs) reasons.push('LEASE_NOT_OLD_ENOUGH');
+  if (activeRuns.length > 0) reasons.push('ACTIVE_REPAIR_SESSION_PRESENT');
+  if (String(currentExecutionSha ?? '') !== String(failedSha ?? '')) reasons.push('EXECUTION_SHA_CHANGED');
+  if (verified) reasons.push('SUCCESSFUL_REPAIR_ALREADY_VERIFIED');
+  if (progress.circuitOpen) reasons.push('NO_PROGRESS_CIRCUIT_OPEN');
+  return Object.freeze({
+    eligible: reasons.length === 0,
+    ageMs,
+    noProgress: progress,
+    successfulVerificationPresent: verified,
+    reasons,
   });
 }
 
@@ -234,6 +340,16 @@ function cli() {
     console.log(JSON.stringify(controlPlaneSchema(), null, 2));
     return;
   }
+  if (command === 'identity') {
+    const identity = deriveRepairIdentity({
+      failureFingerprint: args.fingerprint,
+      failedSha: args.failedSha,
+      targetRunId: args.targetRunId,
+      branch: args.branch || 'execution',
+    });
+    console.log(JSON.stringify(identity, null, 2));
+    return;
+  }
   if (command === 'lease-ref') {
     const identity = deriveRepairIdentity({
       failureFingerprint: args.fingerprint,
@@ -270,7 +386,7 @@ function cli() {
     console.log(JSON.stringify(next, null, 2));
     return;
   }
-  throw new Error('Usage: repair-control-plane.mjs schema|lease-ref|claim|advance');
+  throw new Error('Usage: repair-control-plane.mjs schema|identity|lease-ref|claim|advance');
 }
 
 if (process.argv[1]?.endsWith('repair-control-plane.mjs')) {
