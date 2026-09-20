@@ -86,7 +86,7 @@ const runners=new Map([
 ]);
 
 // Direct protocol checks ensure the benchmark rejects unsafe states even when sub-gates are bypassed.
-assert.throws(()=>validateActionVaultVerifierProof({...{proof:{...verifier,mutationRecommendation:'MAYBE'},targetSHA:sha,failureFingerprint:fp}}));
+assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifier,mutationRecommendation:'MAYBE'},targetSHA:sha,failureFingerprint:fp}));
 assert.throws(()=>validateActionVaultPreMutationProofs({
   sandboxProof:{protocol:'REPAIR-SANDBOX-SIMULATION-PROOF-v2',status:'PASS',ok:true,targetSha:sha,failureFingerprint:fp,exactShaBound:true,mutationPerformed:false,patchDigest:'x',regressionCounterexamples:{exhausted:true,counterexampleFound:false}},
   differentialProof:{protocol:'DIFFERENTIAL-REPAIR-PROOF-v1',status:'BLOCK',targetSha:sha,behavioralVerification:{ok:false},exactShaBound:true,scopeProof:false},
