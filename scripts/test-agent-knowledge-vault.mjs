@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import {
   ADVICE_VAULT_PROTOCOL,
-  ADVICE_VAULT_OWNER,
+  ADVICE_VAULT_KNOWLEDGE_STEWARD,
+  ADVICE_VAULT_READ_POLICY,
+  ADVICE_VAULT_MUTATION_POLICY,
+  ADVICE_VAULT_MUTATION_OPERATIONS,
+  assertAdviceVaultReadAccess,
+  assertAdviceVaultMutationAccess,
+  authorizeAdviceVaultMutation,
   ADVICE_VAULT_CAPACITY,
   ADVICE_VAULT_SHARD_COUNT,
   ADVICE_VAULT_SHARD_SIZE,
@@ -18,7 +24,7 @@ const now = '2026-09-21T00:00:00+00:00';
 const make = (id, content, outcome, failureFingerprint, targetSha) => normalizeAdviceRecord({
   id,
   kind: 'LESSON',
-  ownerAgent: 'repairAgent',
+  knowledgeSteward: 'agent3',
   content,
   scope: 'auto-repair:example',
   rootCause: 'example-root-cause',
@@ -51,8 +57,18 @@ const conflict = normalizeAdviceRecord({
 });
 
 assert.equal(a.executionAuthority, 'ADVISORY_ONLY');
-assert.equal(ADVICE_VAULT_PROTOCOL, 'FLIXO-REPAIR-ACTION-VAULT-1M-v1');
-assert.equal(ADVICE_VAULT_OWNER, 'repairAgent');
+assert.equal(ADVICE_VAULT_PROTOCOL, 'FLIXO-ACTION-VAULT-1M-v2');
+assert.equal(ADVICE_VAULT_KNOWLEDGE_STEWARD, 'agent3');
+assert.equal(ADVICE_VAULT_READ_POLICY, 'ALL_REGISTERED_AGENTS');
+assert.equal(ADVICE_VAULT_MUTATION_POLICY, 'KNOWLEDGE_STEWARD_ONLY');
+assertAdviceVaultReadAccess('agent1');
+assertAdviceVaultReadAccess('agent2');
+assertAdviceVaultReadAccess('agent3');
+assert.throws(() => assertAdviceVaultMutationAccess('agent1'), /ADVICE_VAULT_MUTATION_FORBIDDEN/u);
+assert.throws(() => assertAdviceVaultMutationAccess('agent2'), /ADVICE_VAULT_MUTATION_FORBIDDEN/u);
+assert.doesNotThrow(() => assertAdviceVaultMutationAccess('agent3'));
+assert.doesNotThrow(() => authorizeAdviceVaultMutation('agent3', ADVICE_VAULT_MUTATION_OPERATIONS[0]));
+assert.throws(() => authorizeAdviceVaultMutation('agent3', 'EXECUTE_REPAIR'), /ADVICE_VAULT_MUTATION_OPERATION_FORBIDDEN/u);
 assert.equal(ADVICE_VAULT_CAPACITY, 1_000_000);
 assert.equal(ADVICE_VAULT_SHARD_SIZE, 10_000);
 assert.equal(ADVICE_VAULT_SHARD_COUNT, 100);
@@ -73,8 +89,7 @@ const reverted = make('reverted', 'Use evidence before mutation.', 'REVERTED', '
 assert.equal(evaluateAdvicePromotion([a, b, reverted]).status, 'BLOCKED');
 
 const summary = summarizeAdviceVault([a, b]);
-assert.equal(summary.protocol, 'FLIXO-REPAIR-ACTION-VAULT-1M-v1');
-assert.equal(summary.ownerAgent, 'repairAgent');
+assert.equal(summary.protocol, 'FLIXO-ACTION-VAULT-1M-v2');
 assert.equal(summary.capacity, 1_000_000);
 assert.equal(summary.materialized, 2);
 assert.equal(summary.remaining, 999_998);
