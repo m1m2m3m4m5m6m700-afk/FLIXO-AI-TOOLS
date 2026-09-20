@@ -83,6 +83,19 @@ export async function appendPipelineStepReceipt(
   });
 }
 
+
+export async function assertPipelineReceiptChain(chain: PipelineReceiptChain): Promise<void> {
+  if (chain.schemaVersion !== '1') throw new Error('Unsupported pipeline receipt chain schema version.');
+  if (chain.catalogFingerprint !== TOOL_CATALOG.fingerprint) throw new Error('Pipeline receipt chain catalog fingerprint is stale.');
+  let rebuilt = createPipelineReceiptChain(chain.catalogFingerprint);
+  for (const receipt of chain.steps) {
+    rebuilt = await appendPipelineStepReceipt(rebuilt, receipt);
+  }
+  if (rebuilt.chainSha256 !== chain.chainSha256 || rebuilt.steps.length !== chain.steps.length) {
+    throw new Error('Pipeline receipt chain digest or length mismatch.');
+  }
+}
+
 export async function createPipelineStepReceipt(input: Readonly<{
   toolId: string;
   stepIndex: number;
