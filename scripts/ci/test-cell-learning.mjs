@@ -12,6 +12,7 @@ const record=buildKnowledgeRecord({
   taskShortName:'ACTION_SOLUTION_INDEXER',
   taskName:'ACTION_SOLUTION_INDEXER',
   fingerprint:'fp-action-errors',
+  normalizedFailure:'ERROR new action failure',
   rootCause:'historical-actions',
   outcome:'failure',
   verification:'diagnostic-complete',
@@ -27,6 +28,7 @@ const record=buildKnowledgeRecord({
 assert.equal(record.taskIdentity.shortName,'ACTION_SOLUTION_INDEXER');
 assert.equal(record.botProfile.botId,'CELL-001');
 assert.equal(record.solution.strategyId,'read-actions');
+assert.equal(record.normalizedFailure,'ERROR new action failure');
 assert.equal(record.botProfile.upgrade.upgradeNumber,2);
 assert.equal(record.botProfile.upgrade.state,'UPGRADING');
 assert.equal(record.botProfile.lifecycle.noRawTerminalState,true);
