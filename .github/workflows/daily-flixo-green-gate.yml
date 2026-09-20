@@ -223,6 +223,18 @@ jobs:
             exit 1
           }
 
+          OBSERVED_EXECUTION_SHA="$(cat /tmp/flixo-watch/execution-sha)"
+          CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          test "$FAILED_SHA" = "$OBSERVED_EXECUTION_SHA" || {
+            echo "FAIL CLOSED: watcher failed SHA $FAILED_SHA does not match the exact observed execution SHA $OBSERVED_EXECUTION_SHA."
+            exit 1
+          }
+          test "$CURRENT_EXECUTION_SHA" = "$OBSERVED_EXECUTION_SHA" || {
+            echo "FAIL CLOSED: execution advanced between observation and lease claim: observed=$OBSERVED_EXECUTION_SHA current=$CURRENT_EXECUTION_SHA."
+            exit 1
+          }
+          echo "EXACT_SHA_DISPATCH_GUARD=PASS"
+
           CLAIM_FILE="/tmp/flixo-watch/lease-claim.json"
           node scripts/ci/repair-lease.mjs claim \
             --fingerprint="$FAILURE_FINGERPRINT" \
