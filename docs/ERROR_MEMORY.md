@@ -24,6 +24,7 @@ Purpose: preserve verified failures, their root causes, evidence, fixes, and pre
 | F-005 | E2E timing | Medium | Superseded | Test waited for presentation text before verifying output |
 | F-006 | Image engine / SVG | High | Fixed in code; CI revalidation pending | `createImageBitmap()` failed to decode SVG in Chromium CI |
 | F-007 | Routing / Registry | High | Fixed; CI verified | Validator used source-text route discovery and initially treated non-ready routes as expected public routes |
+| F-008 | Repair Agent / Session Handoff | Low | Fixed; CI verified | Wrapped cycle-lesson JSON parse errors dropped the original `Error` as `cause` |
 
 ---
 
@@ -39,7 +40,7 @@ The extractor preserves, per incident:
 - grouping of incidents that share the same normalized root cause;
 - an explicit unresolved count containing only active failure states such as `pending`, `blocked`, `unknown`, or `failed`.
 
-Current historical ledger state: **7 incidents**, **6 historical fixed/superseded**, **1 unresolved validation item (F-006)**. `F-005` is superseded and is not counted as an active failure. No historical incident is silently converted to `VERIFIED` by extraction.
+Current historical ledger state: **8 incidents**, **7 historical fixed/superseded**, **1 unresolved validation item (F-006)**. `F-005` is superseded and is not counted as an active failure. No historical incident is silently converted to `VERIFIED` by extraction.
 
 ---
 
@@ -106,3 +107,14 @@ Current historical ledger state: **7 incidents**, **6 historical fixed/supersede
 **Fix:** Replaced regex-only route scraping with TypeScript AST analysis that recognizes both `createRoute(...)` and `imageToolRoute(...)`; split ready public routes from non-ready exclusion checks. The resulting PR #203 passed CI Run #2035 and was merged as `130f77f6905ddfa88322e1f2ad48cae47c2d4e93`.  
 **Invariant:** `TOOLS_REGISTRY` is the source of truth; only ready tools may contribute expected public routes; non-ready tools must be absent from public routing.  
 **Prevention:** Validators must model the real router construction and readiness contract, not infer behavior from incidental source strings.
+
+
+## F-008 — Cycle Lesson Parse Error Cause Preservation
+
+**Area:** Repair Agent / session handoff  
+**First observed:** GitHub Actions run **#35535019090**, WP0 Trust Baseline, on failed SHA `5e21209af1158e7bf5ef775f74226f647a04f03a`.  
+**Symptom:** Static verification failed in `scripts/ci/agent-session.mjs:249:7` with ESLint rule `preserve-caught-error`: `There is no cause attached to the symptom error being thrown`.  
+**Root cause:** The `cycle-lessons-json` parsing boundary caught the original `Error` and constructed a new `Error` containing only its message, discarding the original exception as the causal chain.  
+**Evidence:** The failing run isolated the exact line and rule after Typecheck and unit checks passed. The fix commit `ea63c08bd09242b0fad132890193182db846e12a` changed only the throw expression to `new Error(message, { cause: error })`. Fresh WP0 on execution SHA `3f0ee95f03e7a7008566de5f21339a4695b02da0` passed Typecheck, canonical static verification, and canonical build.  
+**Fix:** Preserve the caught exception through the standard JavaScript `ErrorOptions.cause` field when wrapping parse failures.  
+**Prevention:** Any catch-and-wrap boundary that converts an existing exception into a new `Error` must preserve the original exception as `cause`; the canonical static gate remains the regression detector.  
