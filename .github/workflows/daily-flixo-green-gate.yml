@@ -186,6 +186,9 @@ jobs:
           node --experimental-strip-types scripts/ci/generate-repair-execution-prompts.mjs             /tmp/flixo-watch/input.json             /tmp/flixo-watch/report.json             /tmp/flixo-watch/execution-prompts.json             /tmp/flixo-watch/execution-prompts.md
           test -s /tmp/flixo-watch/execution-prompts.json
           test -s /tmp/flixo-watch/execution-prompts.md
+          VISIT_META="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); if(x.automaticVisitPolicy?.visitsPerBotPerDay!==3 || x.automaticVisitPolicy?.botCount!==3 || x.automaticVisitPolicy?.totalAutomaticVisitsPerDay!==9 || x.automaticVisitPolicy?.residentsNeverLeaveVault!==true || x.automaticVisitPolicy?.closure!=='CANONICAL_GREEN_ONLY') throw new Error('ACTION_VISIT_POLICY_INVALID'); const ids=(x.automaticVisits||[]).map(v=>v.botId); const counts={}; for(const id of ids) counts[id]=(counts[id]||0)+1; if(counts['ACTION-REPAIR']!==3 || counts['ACTION-REPAIR-2']!==3 || counts['ACTION-HISTORIAN-3']!==3) throw new Error('ACTION_VISIT_COUNT_INVALID'); process.stdout.write(JSON.stringify({visitCount:(x.automaticVisits||[]).length,counts}));")"
+          echo "ACTION_AUTOMATIC_VISITS=$VISIT_META"
+          echo "ACTION_AUTOMATIC_VISITS=9" >> "$GITHUB_ENV"
           PROMPT_META="$(node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const bundle = JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json', 'utf8'));
@@ -388,6 +391,26 @@ EOF
           else
             echo 'REPAIR_LEASE_DISPATCHED=false'
             echo "REPAIR_ALREADY_CLAIMED=$REPAIR_KEY"
+          fi
+
+          # Twenty completed failed repair attempts are a supervisor escalation threshold,
+          # not a closure threshold. Attempt 21 carries the formal wake request.
+          if [ "$DISPATCH" = true ] && [ "$ATTEMPT" -ge 21 ]; then
+            ESCALATION_FILE="/tmp/flixo-watch/action-supervisor-escalation.json"
+            node scripts/ci/agent-communication.mjs send-supervisor               --agent=ACTION-REPAIR               --task="ACTION-RED:$TARGET_RUN_ID:$FAILURE_FINGERPRINT"               --run-id="$TARGET_RUN_ID"               --fingerprint="$FAILURE_FINGERPRINT"               --attempt="$ATTEMPT"               --sha="$FAILED_SHA"               --reason="20_FAILED_REPAIR_ATTEMPTS" > "$ESCALATION_FILE"
+            test -s "$ESCALATION_FILE"
+            WAKE_ID="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.stdout.write(String(x.message.messageId||''))" "$ESCALATION_FILE")"
+            RELAY_BODY="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.stdout.write(String(x.relayBody||''))" "$ESCALATION_FILE")"
+            test -n "$WAKE_ID"
+            test -n "$RELAY_BODY"
+            if gh api --paginate "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --jq '.[].body' | grep -Fq "MESSAGE ID: $WAKE_ID"; then
+              echo "ACTION_SUPERVISOR_ESCALATION=ALREADY_SENT"
+            else
+              gh api --method POST "repos/$GITHUB_REPOSITORY/issues/759/comments" --raw-field body="$RELAY_BODY" >/dev/null
+              echo "ACTION_SUPERVISOR_ESCALATION=SENT"
+            fi
+            echo "ACTION_REPAIR_ESCALATION_ATTEMPT=$ATTEMPT"
+            echo "ACTION_REPAIR_ESCALATION_THRESHOLD=20"
           fi
 
       - name: Publish cycle evidence
