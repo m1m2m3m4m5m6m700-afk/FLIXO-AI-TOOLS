@@ -1,8 +1,8 @@
-# ACTION AGENT RUNTIME v1
+# ACTION AGENT RUNTIME v2
 
 ## Cognitive execution
 
-INTAKE → CONTEXT_RETRIEVAL → PLAN → EXECUTE → SELF_CHECK → INDEPENDENT_REVIEW → VERIFY → LEARN
+INTAKE → CONTEXT_RETRIEVAL → PLAN → SYNTHESIZE → SIMULATE → EXECUTE → SELF_CHECK → INDEPENDENT_REVIEW → DIFFERENTIAL_VERIFY → VERIFY → LEARN
 
 Every actionable Action failure gets a runtime packet bound to taskId + failureFingerprint + exact target SHA + failedRunId.
 
@@ -29,3 +29,16 @@ The runtime uses bounded historical retrieval and tool budgets. Reads may run in
 ## Authority
 
 No runtime packet can certify GREEN. Only Canonical CI / DAILY_FLIXO_GREEN_GATE can close the mission.
+
+
+## Repair engineering
+
+For source-repair missions, ACTION-REPAIR may construct bounded patch candidates only from explicit evidence anchors. A candidate is not a mutation and is not proof.
+
+The candidate path is:
+
+PATCH_SYNTHESIS → DETACHED_SANDBOX → TARGETED_CHECKS → DIFFERENTIAL_VERIFICATION → OWNER_REVIEW → REAL_MUTATION → CANONICAL_GREEN.
+
+Sandbox simulation uses an isolated detached worktree pinned to the exact target SHA. Tests and main remain immutable. Gate-weakening patterns are rejected fail-closed.
+
+Differential verification requires that the observed tracked diff equals the candidate scope, no unauthorized paths changed, no gate-weakening pattern appeared, and all required simulation checks passed. Canonical CI remains the only closure authority.
