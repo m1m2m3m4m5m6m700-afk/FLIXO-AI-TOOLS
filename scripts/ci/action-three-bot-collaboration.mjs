@@ -45,7 +45,8 @@ if(!fs.existsSync(PROFILE)) throw new Error('ACTION_THREE_BOT_INTELLIGENCE_PROFI
 if(!fs.existsSync(CHAT_PROTOCOL)) throw new Error('ACTION_THREE_BOT_CHAT_PROTOCOL_MISSING');
 const profile=JSON.parse(fs.readFileSync(PROFILE,'utf8'));
 if(profile.roleMatrix?.['ACTION-REPAIR']?.mission!=='THINK_AS_PROGRAMMER_AND_APPLY_BOUNDED_SOURCE_REPAIR') throw new Error('ACTION_THREE_BOT_PROGRAMMER_ROLE_INVALID');
-if(profile.roleMatrix?.['ACTION-REPAIR-2']?.mission!=='SEARCH_HISTORICAL_INDEX_AND_ACTION_REPAIR_CATALOG_THEN_PREDICT_A_CANDIDATE_SOLUTION') throw new Error('ACTION_THREE_BOT_PREDICTOR_ROLE_INVALID');
+if(!/THINK_AS_PROGRAMMER_AND_INDEPENDENTLY_RECONSTRUCT_AND_CHALLENGE_THE_PRIMARY_REPAIR/u.test(profile.roleMatrix?.['ACTION-REPAIR-2']?.mission||'')) throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_ROLE_INVALID');
+if(profile.parity?.programmerTwinIntelligenceEqual!==true) throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_PARITY_NOT_DECLARED');
 if(profile.roleMatrix?.['ACTION-HISTORIAN-3']?.mission!=='SELECT_AND_EXCLUDE_THE_MINIMAL_FILE_SURFACE_FROM_PATH_LEVEL_EVIDENCE_THEN_RECORD_FAILURE_LEARNING') throw new Error('ACTION_THREE_BOT_FILE_SELECTION_ROLE_INVALID');
 if(profile.cooperation?.fileSelectionIntelligence?.runtime!=='scripts/ci/action-file-selection-intelligence.mjs') throw new Error('ACTION_THREE_BOT_FILE_SELECTION_RUNTIME_INVALID');
 if(profile.cooperation?.enabled!==true) throw new Error('ACTION_THREE_BOT_COOPERATION_DISABLED');
@@ -81,7 +82,7 @@ const ensureState=()=>{
     id:'ACTION-THREE-BOT-COLLABORATION',
     protocol:'ACTION-VAULT-PARALLEL-COLLABORATION-v1',
     status:'ACTIVE',
-    phase:'PARALLEL_DISCOVERY',
+    phase:'FILE_SELECTION',
     taskId:task,
     failedRunId:runId,
     failureFingerprint:fingerprint,
@@ -89,7 +90,7 @@ const ensureState=()=>{
     exactShaBound:true,
     participants:BOTS.map(id=>({id,lane:LANES[id],required:true,status:'ASSIGNED',contributionReceived:false,exchangeReceived:false,challengeIssued:false,learnedFromPeers:false})),
     sharedEvidence:{failureLog:logPath||null,failureSignalCount:(log.match(/(?:error|failure|failed|fatal|timeout|exception)/giu)||[]).length,actionIndex4000:'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json',historicalIndex:'docs/agents/historical-action-errors/index.json',repairMemory:'diagnostics/auto-repair/memory.json',teachingRouter:'docs/agents/ERROR-TEACHING-ROUTER.json',inferentialIntelligence:'docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md'},
-    parallelProtocol:{phases:[...PHASES],independentWorkRequired:true,crossLearningRequired:true,exchangeBeforeMutation:true,allThreeMustContributeBeforeMutation:true,oneActiveMutationOwner:true,mutationOwner:'ACTION-REPAIR',predictionProvider:'ACTION-REPAIR-2',historian:'ACTION-HISTORIAN-3',mutationWindow:'OWNER_ONLY_AFTER_EXCHANGE',greenClosesMission:true},
+    parallelProtocol:{phases:[...PHASES],independentWorkRequired:true,crossLearningRequired:true,exchangeBeforeMutation:true,allThreeMustContributeBeforeMutation:true,oneActiveMutationOwner:true,mutationOwner:'ACTION-REPAIR',programmerTwin:'ACTION-REPAIR-2',historian:'ACTION-HISTORIAN-3',mutationWindow:'OWNER_ONLY_AFTER_EXCHANGE',greenClosesMission:true},
     contributions:{},
     exchange:{status:'PENDING',digest:null,at:null,receipts:{}},
     challenge:{status:'PENDING',checks:[]},
@@ -112,7 +113,7 @@ if(op==='start'){
   if(!summary) throw new Error('ACTION_THREE_BOT_CONTRIBUTION_SUMMARY_REQUIRED');
   if(!['OBSERVATION','RCA','HYPOTHESIS','CHALLENGE','PLAN','EVIDENCE','LESSON_CANDIDATE','PROGRAMMING_ANALYSIS','HISTORICAL_PREDICTION','PROPOSED_REPAIR','FAILURE_RECORD','HANDOFF_RECORD','FILE_SELECTION'].includes(kind)) throw new Error('ACTION_THREE_BOT_CONTRIBUTION_KIND_INVALID');
   if(bot==='ACTION-REPAIR' && !['PROGRAMMING_ANALYSIS','RCA','HYPOTHESIS','PLAN'].includes(kind)) throw new Error('ACTION_THREE_BOT_PROGRAMMER_CONTRIBUTION_INVALID');
-  if(bot==='ACTION-REPAIR-2' && !['HISTORICAL_PREDICTION','PROPOSED_REPAIR','CHALLENGE'].includes(kind)) throw new Error('ACTION_THREE_BOT_PREDICTOR_CONTRIBUTION_INVALID');
+  if(bot==='ACTION-REPAIR-2' && !['PROGRAMMING_ANALYSIS','RCA','HYPOTHESIS','PLAN','PROPOSED_REPAIR','CHALLENGE'].includes(kind)) throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_CONTRIBUTION_INVALID');
   if(bot==='ACTION-HISTORIAN-3' && !['FAILURE_RECORD','HANDOFF_RECORD','EVIDENCE','FILE_SELECTION'].includes(kind)) throw new Error('ACTION_THREE_BOT_HISTORIAN_CONTRIBUTION_INVALID');
   const contributionId=bot+'-'+shaDigest(task+'|'+fingerprint+'|'+targetSha+'|'+bot+'|'+summary).slice(0,20);
   state.contributions[bot]={contributionId,bot,lane:LANES[bot],kind,summary:summary.slice(0,12000),evidence,targetSha,fingerprint,createdAt:now(),verified:false};
@@ -126,12 +127,24 @@ if(op==='start'){
   state.exchange={status:'COMPLETE',digest,at:now(),receipts:Object.fromEntries(BOTS.map(id=>[id,{receivedAll:true,receivedAt:now(),peerCount:2,digest}]))};
   for(const member of state.participants){member.exchangeReceived=true;member.learnedFromPeers=true;member.challengeIssued=true;}
   state.phase='CHALLENGE';state.updatedAt=now();write(state);
-} else if(op==='predict'){
-  if(bot!=='ACTION-REPAIR-2') throw new Error('ACTION_THREE_BOT_PREDICTOR_ONLY');
-  const packet=buildPrediction({taskId:task,fingerprint,targetSha,failedRunId:runId,failureLog:logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'',workflow:arg('workflow',''),job:arg('job','')});
-  state.outputs.predictiveRepair=packet;
-  state.prediction={status:'PROVISIONAL',confidence:packet.proposedRepair.confidence,packetDigest:packet.packetDigest,output:'diagnostics/auto-repair/action-vault/historical-predictions/latest.json'};
-  recordPredictionGenerated({taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId:'ACTION-REPAIR-2',notes:'prediction_created_provisional'});
+} else if(op==='predict' || op==='programmer-twin'){
+  if(bot!=='ACTION-REPAIR-2') throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_ONLY');
+  const supportingHistory=buildPrediction({taskId:task,fingerprint,targetSha,failedRunId:runId,failureLog:logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'',workflow:arg('workflow',''),job:arg('job','')});
+  const twin={
+    protocol:'ACTION-PROGRAMMER-TWIN-PARITY-v1',
+    role:'EXACT_PROGRAMMER_TWIN',
+    status:'PROVISIONAL_INDEPENDENT_PROGRAMMER_ANALYSIS',
+    taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,
+    sameProgrammingIntelligenceAs:'ACTION-REPAIR',
+    sourceMutationAllowed:false,
+    independentReasoningRequired:true,
+    historicalEvidence:supportingHistory,
+    challengeRequirements:['ALTERNATIVE_ROOT_CAUSES','CANDIDATE_PATCH','REGRESSION_PREDICTION','COUNTERFACTUAL_CHALLENGE'],
+    generatedAt:now()
+  };
+  state.outputs.programmerTwinAnalysis=twin;
+  state.programmerTwin={status:'PROVISIONAL',analysisDigest:shaDigest(JSON.stringify(twin)),role:'EXACT_PROGRAMMER_TWIN',mutationAuthority:false};
+  recordAttempt({taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId:'ACTION-REPAIR-2',attemptedStrategy:'PROGRAMMER_TWIN_ANALYSIS',result:'PROGRAMMER_TWIN_ANALYSIS_RECORDED',evidence});
   state.phase='CROSS_LEARNING';state.updatedAt=now();write(state);
 } else if(op==='authorize-mutation'){
   const owner=validBot(arg('owner'));
@@ -141,7 +154,7 @@ if(op==='start'){
   if(state.fileSelectionDecision?.decision!=='SELECTED'||state.fileSelectionDecision?.targetSha!==targetSha||state.fileSelectionDecision?.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_FILE_SELECTION');
   if(state.participants.some(x=>!x.learnedFromPeers)) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_CROSS_LEARNING_INCOMPLETE');
   if(owner!=='ACTION-REPAIR') throw new Error('ACTION_THREE_BOT_ONLY_PROGRAMMER_OWNER_MAY_MUTATE');
-  if(!state.outputs.predictiveRepair && !state.contributions['ACTION-REPAIR-2']) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_NO_PREDICTIVE_EVIDENCE');
+  if(!state.outputs.programmerTwinAnalysis && !state.contributions['ACTION-REPAIR-2']) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_NO_PROGRAMMER_TWIN_ANALYSIS');
   state.authorization={status:'AUTHORIZED',owner,authorizedAt:now(),reason:'PROGRAMMER_OWNER_AFTER_HISTORICAL_PREDICTION_AND_HISTORIAN_RECORD',targetSha};
   state.phase='OWNER_MUTATION';state.updatedAt=now();write(state);
 } else if(op==='record-failure'){
