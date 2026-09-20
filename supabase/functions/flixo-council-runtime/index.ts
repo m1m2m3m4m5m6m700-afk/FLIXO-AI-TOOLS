@@ -463,17 +463,13 @@ Deno.serve(async (req) => {
       authAccount(req, account);
       const runtime = await getAccountState(account);
       const declaredAgentId = String(body.agentId ?? "").trim();
-      const dispatchId = String(body.dispatchId ?? "").trim();
-      const sessionId = String(body.sessionId ?? req.headers.get("x-council-session-id") ?? "").trim();
-      const exactSha = sha(body.entrySha);
-      if (!dispatchId || !sessionId) throw new Error("COUNCIL_ACK_IDENTITY_REQUIRED");
       if (!runtime.identityVerified || declaredAgentId !== runtime.identity?.agentId) {
         throw new Error("COUNCIL_AGENT_IDENTITY_REJECTED");
       }
       const result = await db("/rest/v1/rpc/council_ack_dispatch", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ p_dispatch_id: dispatchId, p_account_id: account, p_session_id: sessionId, p_exact_sha: exactSha }),
+        body: JSON.stringify({ p_dispatch_id: dispatchId, p_account_id: account, p_session_id: String(hb.sessionId), p_exact_sha: sha(hb.entrySha) }),
       });
       return response({ ok: true, dispatch: Array.isArray(result) ? result[0] ?? null : result }, 200, requestId);
     }
@@ -481,15 +477,12 @@ Deno.serve(async (req) => {
     if (action === "heartbeat" && (req.method === "POST" || req.method === "GET")) {
       const hb = req.method === "GET" ? queryBody(url) : body;
       const account = accountFrom(hb.accountId);
-      const dispatchId = String(hb.dispatchId ?? "").trim();
-      const sessionId = String(hb.sessionId ?? "").trim();
-      const exactSha = sha(hb.entrySha);
-      if (!dispatchId || !sessionId) throw new Error("COUNCIL_HEARTBEAT_IDENTITY_REQUIRED");
+      const dispatchId = String(hb.dispatchId);
       authAccountOrSession(req, account, dispatchId);
       const result = await db("/rest/v1/rpc/council_heartbeat_dispatch", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ p_dispatch_id: dispatchId, p_account_id: account, p_session_id: sessionId, p_exact_sha: exactSha }),
+        body: JSON.stringify({ p_dispatch_id: String(body.dispatchId), p_account_id: account, p_session_id: String(body.sessionId), p_exact_sha: sha(body.entrySha) }),
       });
       return response({ ok: true, dispatch: Array.isArray(result) ? result[0] ?? null : result }, 200, requestId);
     }
@@ -497,21 +490,18 @@ Deno.serve(async (req) => {
     if (action === "complete" && (req.method === "POST" || req.method === "GET")) {
       const cmp = req.method === "GET" ? queryBody(url) : body;
       const account = accountFrom(cmp.accountId);
-      const dispatchId = String(cmp.dispatchId ?? "").trim();
-      const sessionId = String(cmp.sessionId ?? "").trim();
-      const exactSha = sha(cmp.entrySha);
+      const dispatchId = String(cmp.dispatchId);
       authAccountOrSession(req, account, dispatchId);
       const status = String(cmp.status ?? "DONE");
-      if (!dispatchId || !sessionId) throw new Error("COUNCIL_COMPLETE_IDENTITY_REQUIRED");
       if (!["DONE", "FAILED"].includes(status)) throw new Error("COUNCIL_COMPLETE_STATUS_INVALID");
       const result = await db("/rest/v1/rpc/council_complete_dispatch", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          p_dispatch_id: dispatchId,
+          p_dispatch_id: String(body.dispatchId),
           p_account_id: account,
-          p_session_id: sessionId,
-          p_exact_sha: exactSha,
+          p_session_id: String(cmp.sessionId),
+          p_exact_sha: sha(cmp.entrySha),
           p_status: status,
           p_evidence: cmp.evidence ?? {},
           p_payload: cmp.payload ?? {},

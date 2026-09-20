@@ -167,21 +167,23 @@ export default function SeedTool({ locale = 'en' as Locale }: { locale?: Locale 
   };
   const updateSetting = <K extends keyof SeedState>(key: K, value: SeedState[K]) => commit({ ...settings, [key]: value }, advanced);
   const updateAdvanced = <K extends keyof AdvancedSeedSettings>(key: K, value: AdvancedSeedSettings[K]) => commit(settings, { ...advanced, [key]: value });
+  const applyHistorySnapshot = (next: Snapshot, nextIndex: number) => {
+    renderSettingsRef.current = next.basic;
+    activeParamsRef.current = next.basic;
+    setHistoryIndex(nextIndex);
+    setSettings(next.basic);
+    setAdvanced(next.advanced);
+    renderGpu(next.basic);
+  };
   const undo = () => {
     if (historyIndex === 0) return;
     const next = cloneSnapshot(history[historyIndex - 1]);
-    renderSettingsRef.current = next.basic;
-    setHistoryIndex(historyIndex - 1);
-    setSettings(next.basic);
-    setAdvanced(next.advanced);
+    applyHistorySnapshot(next, historyIndex - 1);
   };
   const redo = () => {
     if (historyIndex >= history.length - 1) return;
     const next = cloneSnapshot(history[historyIndex + 1]);
-    renderSettingsRef.current = next.basic;
-    setHistoryIndex(historyIndex + 1);
-    setSettings(next.basic);
-    setAdvanced(next.advanced);
+    applyHistorySnapshot(next, historyIndex + 1);
   };
 
   const openImage = (file: File) => {
