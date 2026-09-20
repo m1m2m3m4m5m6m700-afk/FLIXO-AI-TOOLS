@@ -3,7 +3,8 @@ import { assertExecutionAllowed, type TaskContext } from '@/lib/agent/task-state
 import { assertExecutionResourceBudget, getCapability, validateCapabilityParameters, type CapabilityParameters } from '@/lib/agent/capability-registry';
 import { getToolById, TOOL_CATALOG } from '@/config/registry';
 import { getToolExecutor, repairToolParameters } from '@/lib/workflows/executor-registry';
-import { assertToolOutputContract, getToolOutputContractForDefinition, type ToolOutputResult } from '@/lib/contracts/tool-output-contracts';
+import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-contracts';
+import { assertToolOutputContract, type ToolOutputResult } from '@/lib/contracts/tool-output';
 import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelinePlanFingerprint, createPipelineReceiptChain, createPipelineStepReceipt, type PipelineReceiptChain, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
 
 export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; task: TaskContext; outputBlob?: Blob; retry?: number; receipt?: PipelineStepReceipt; receiptChain?: PipelineReceiptChain; }
