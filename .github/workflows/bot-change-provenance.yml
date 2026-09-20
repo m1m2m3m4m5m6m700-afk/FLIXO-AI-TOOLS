@@ -1,0 +1,45 @@
+name: FLIXO Bot Change Provenance
+
+on:
+  push:
+    branches: [execution]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Exact commit SHA to audit
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  provenance:
+    name: Record bot-authored change
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || inputs.sha != ''
+    steps:
+      - name: Checkout exact pushed SHA
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ inputs.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Detect and record bot identity
+        env:
+          TARGET_SHA: ${{ inputs.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-bot-provenance
+          node scripts/ci/action-bot-provenance.mjs --sha="$TARGET_SHA" --output=/tmp/flixo-bot-provenance/commit.json
+          jq -e '.status == "BOT_CHANGE_RECORDED" or .status == "NON_BOT_OR_LEGACY_COMMIT"' /tmp/flixo-bot-provenance/commit.json >/dev/null
+          echo "FLIXO_BOT_ID=$(jq -r '.botId // "NONE"' /tmp/flixo-bot-provenance/commit.json)" >> "$GITHUB_STEP_SUMMARY"
+          echo "FLIXO_BOT_ROLE=$(jq -r '.role // "NONE"' /tmp/flixo-bot-provenance/commit.json)" >> "$GITHUB_STEP_SUMMARY"
+          echo "FLIXO_BOT_TASK=$(jq -r '.taskId // "NONE"' /tmp/flixo-bot-provenance/commit.json)" >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish provenance evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-bot-provenance-${{ github.run_id }}
+          path: /tmp/flixo-bot-provenance/commit.json
+          if-no-files-found: error
+          retention-days: 90
