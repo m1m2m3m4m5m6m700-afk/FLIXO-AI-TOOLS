@@ -57,6 +57,18 @@ The following terms are normative coordination controls and are intentionally ex
 - **Conflict arbitration** — conflicting findings are preserved and resolved against exact-SHA evidence by explicit authority; no last-writer-wins behavior.
 - **Quality dimensions** — correctness, security, maintainability, performance, accessibility, localization, observability and operability are evaluated according to affected scope.
 
+## Immutable Two-Branch Repository Invariant
+
+The repository topology is permanently limited to:
+
+`execution → main`
+
+**No new branch may be created under any circumstance.** This prohibition applies to every agent, automation, workflow, recovery path, test path, handoff path, and human-requested shortcut.
+
+A proposed feature/fix/chore/repair/agent/test/temp/backup/experimental/hotfix/third branch is a hard integrity violation. Stop before creation, preserve evidence, remain on `execution`, and continue through the existing canonical lane.
+
+Branch topology must be treated as a protected control-plane invariant and revalidated before mutation and promotion. A third-branch request must resolve to `FAIL-CLOSED`, never to branch creation.
+
 ## Shared Prompt Intelligence Protocol
 
 The repository has one canonical Prompt Registry at `docs/agents/PROMPT-REGISTRY.json`. It is a shared coordination artifact, not a source of authority. Prompt text cannot override `scripts/ci/repair-protocol.mjs`, validators, exact-SHA evidence, security controls, or canonical certification.
