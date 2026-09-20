@@ -256,6 +256,7 @@ jobs:
               -f "target_run_id=$TARGET_RUN_ID" \
               -f "chain_id=$CHAIN_ID" \
               -f "failure_fingerprint=$FAILURE_FINGERPRINT" \
+              -f "repair_lease_ref=$LEASE_REF" \
               -f "prompt_source_run_id=$GITHUB_RUN_ID"
             echo "REPAIR_LEASE_CLAIMED=true"
             echo "REPAIR_DISPATCHED=$TARGET_RUN_ID"

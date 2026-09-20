@@ -20,6 +20,10 @@ on:
         description: 'Watcher-provided exact failure fingerprint for Control Plane identity'
         required: false
         type: string
+      repair_lease_ref:
+        description: 'Existing atomic global repair lease ref created by the watcher'
+        required: false
+        type: string
       prompt_source_run_id:
         description: 'Daily Green Gate run that published the comprehensive repair prompt bundle'
         required: false
@@ -44,6 +48,7 @@ env:
   FLIXO_HISTORY_LIMIT: '30'
   FLIXO_REPAIR_CHAIN_ID: ${{ inputs.chain_id || inputs.target_run_id }}
   FLIXO_FAILURE_FINGERPRINT: ${{ inputs.failure_fingerprint || '' }}
+  FLIXO_REPAIR_LEASE_REF: ${{ inputs.repair_lease_ref || '' }}
   FLIXO_PROMPT_SOURCE_RUN_ID: ${{ inputs.prompt_source_run_id || '' }}
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
@@ -152,26 +157,23 @@ jobs:
           else
             echo "CONTROL_PLANE_FINGERPRINT_SOURCE=WATCHER_INPUT"
           fi
-          LEASE_REF="$(node scripts/ci/repair-control-plane.mjs lease-ref \
+          EXPECTED_LEASE_REF="$(node scripts/ci/repair-control-plane.mjs lease-ref \
             --fingerprint="$FAILURE_FINGERPRINT" \
             --failedSha="$FAILED_SHA" \
             --targetRunId="$TARGET_RUN_ID" \
             --branch="execution")"
-          set +e
-          LEASE_OUTPUT="$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
-            -f "ref=$LEASE_REF" \
-            -f "sha=$FAILED_SHA" 2>&1)"
-          LEASE_RC=$?
-          set -e
-          if [ "$LEASE_RC" -ne 0 ]; then
-            if printf '%s' "$LEASE_OUTPUT" | grep -qiE 'Reference already exists|already exists'; then
-              echo "FAIL CLOSED: duplicate global repair lease for the same branch+SHA+fingerprint+targetRunId."
-              exit 73
-            fi
-            echo "$LEASE_OUTPUT"
-            echo "FAIL CLOSED: global repair lease acquisition failed."
+          LEASE_REF="${FLIXO_REPAIR_LEASE_REF:-$EXPECTED_LEASE_REF}"
+          test "$LEASE_REF" = "$EXPECTED_LEASE_REF" || {
+            echo "FAIL CLOSED: provided repair lease ref does not match the canonical repair identity."
             exit 1
-          fi
+          }
+          TAG_NAME="${LEASE_REF#refs/tags/}"
+          LEASE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG_NAME" --jq '.object.sha' 2>/dev/null || true)"
+          test "$LEASE_SHA" = "$FAILED_SHA" || {
+            echo "FAIL CLOSED: atomic repair lease is missing or pinned to a different failure SHA."
+            exit 1
+          }
+          echo "GLOBAL_REPAIR_LEASE_VERIFIED=$LEASE_REF"
 
           node scripts/ci/repair-control-plane.mjs claim \
             --fingerprint="$FAILURE_FINGERPRINT" \
