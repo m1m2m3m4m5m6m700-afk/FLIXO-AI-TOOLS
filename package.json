@@ -163,6 +163,7 @@
     "test:action-vault-trust": "node scripts/ci/test-action-vault-trust-graduation.mjs",
     "test:action-vault-autonomy": "node scripts/ci/test-action-vault-autonomy-mode.mjs",
     "test:action-vault-branch-conflict": "node scripts/ci/test-action-vault-branch-conflict-recovery.mjs",
+    "test:wake-compliance": "node scripts/ci/test-wake-compliance.mjs",
     "test:action-vault-parallel": "node scripts/ci/test-action-vault-parallel-collaboration.mjs",
     "test:action-vault-targeted": "node scripts/ci/test-action-vault-targeted-test.mjs",
     "test:action-agent-runtime": "node scripts/ci/test-action-agent-runtime.mjs",
