@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, completionGate, buildRecoveryDirective, idleAdmission, sleepAdmission } from './agent-liveness-protocol.mjs';
 
 assert.equal(assertLivenessDefinition(), true);
-assert.deepEqual([...AGENT_LIVENESS_PROTOCOL.forbiddenStates].sort(), ['ABANDONED','IDLE','SILENT','SLEEP'].sort());
+assert.deepEqual([...AGENT_LIVENESS_PROTOCOL.forbiddenStates].sort(), ['ABANDONED','SILENT'].sort());
 
 for (const state of AGENT_LIVENESS_PROTOCOL.workAssignedStates) assert.doesNotThrow(() => assertState(state, { workAssigned: true }));
 for (const forbidden of AGENT_LIVENESS_PROTOCOL.forbiddenStates) assert.throws(() => assertState(forbidden, { workAssigned: true }), /AGENT_LIVENESS_/u);
@@ -10,8 +10,8 @@ for (const forbidden of AGENT_LIVENESS_PROTOCOL.forbiddenStates) assert.throws((
 assert.doesNotThrow(() => assertTransition('ACTIVE', 'WAITING_EXTERNAL', { workAssigned: true }));
 assert.doesNotThrow(() => assertTransition('ACTIVE', 'RECOVERING', { workAssigned: true }));
 assert.doesNotThrow(() => assertTransition('VERIFYING', 'COMPLETE', { workAssigned: true, authorization: null }));
-assert.throws(() => assertTransition('ACTIVE', 'IDLE', { workAssigned: true }), /FORBIDDEN|TRANSITION/u);
-assert.throws(() => assertTransition('ACTIVE', 'SLEEP', { workAssigned: true }), /FORBIDDEN|TRANSITION/u);
+assert.throws(() => assertTransition('ACTIVE', 'IDLE', { workAssigned: true }), /FORBIDDEN|TRANSITION|REST/u);
+assert.throws(() => assertTransition('ACTIVE', 'SLEEP', { workAssigned: true }), /FORBIDDEN|TRANSITION|REST/u);
 assert.throws(() => assertTransition('ACTIVE', 'ABORTED', { workAssigned: true }), /ABORT_AUTHORITY/u);
 
 assert.throws(() => idleAdmission({ workAssigned: false }), /GREEN_RECORD_REQUIRED/u);

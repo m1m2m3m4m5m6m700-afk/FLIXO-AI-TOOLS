@@ -77,6 +77,5 @@ jobs:
         run: |
           set -euo pipefail
           gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref main
-          gh workflow run daily-flixo-green-gate.yml --repo "$GITHUB_REPOSITORY" --ref execution
           echo 'SUPERVISOR_WAKE_DISPATCHED=true'
-          echo 'CANONICAL_GREEN_GATE_WAKE_DISPATCHED=true'
+          echo 'CANONICAL_GREEN_GATE_WAKE_DEFERRED_TO_SCHEDULE_OR_CANONICAL_WORKFLOW_RUN=true'
