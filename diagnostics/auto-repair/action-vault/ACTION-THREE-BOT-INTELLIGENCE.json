@@ -1,7 +1,7 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "id": "ACTION-THREE-BOT-INTELLIGENCE",
-  "purpose": "Canonical specialized intelligence contract for the three Action Vault roles: programmer, historical predictor, and failure historian.",
+  "purpose": "Canonical specialized intelligence contract for the three Action Vault roles: programmer, historical challenger, and file-selection intelligence/history.",
   "parity": {
     "model": "ROLE_SPECIALIZATION_WITH_SHARED_SAFETY",
     "commonSafetyEqual": true,
@@ -53,7 +53,14 @@
     "CAUSAL_OBSERVABILITY_MODEL",
     "CAUSAL_HYPOTHESIS_DISCRIMINATION",
     "HYPOTHESIS_SEPARATION_SCORING",
-    "COUNTERFACTUAL_PROBE_SUITE"
+    "COUNTERFACTUAL_PROBE_SUITE",
+    "FILE_SELECTION_INTELLIGENCE",
+    "FILE_SCOPE_TRIAGE",
+    "FILE_RELATIONSHIP_REASONING",
+    "CHANGE_SURFACE_SELECTION",
+    "EXCLUSION_REASONING",
+    "MINIMAL_FILE_SURFACE_PLANNING",
+    "FILE_LEVEL_REGRESSION_SURFACE_SELECTION"
   ],
   "sharedSources": [
     "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
@@ -101,7 +108,9 @@
     "agent3SourceMutationForbidden": true,
     "agent1OwnerOnlyMutation": true,
     "predictionIsNotProof": true,
-    "failureLedgerAppendOnly": true
+    "failureLedgerAppendOnly": true,
+    "fileReasoningIsNotCodeReasoning": true,
+    "fileSelectionCannotProveRootCause": true
   },
   "members": [
     {
@@ -116,8 +125,8 @@
     },
     {
       "id": "ACTION-HISTORIAN-3",
-      "role": "FAILURE_LEDGER_AND_LEARNING_RECORDER",
-      "executionAuthority": "RECORD_INDEX_ESCALATE_ONLY"
+      "role": "FILE_SELECTION_INTELLIGENCE_AND_FAILURE_HISTORIAN",
+      "executionAuthority": "READ_ONLY_SELECTION_RECORD_INDEX_ESCALATE"
     }
   ],
   "note": "The three bots have capability parity and mandatory collaboration on each actionable RED. Mutation authority remains role-scoped so cooperation cannot create concurrent source writes.",
@@ -146,10 +155,12 @@
       "ACTION-REPAIR simulates candidate repairs in an isolated detached worktree and requires differential verification before source mutation",
       "ACTION-REPAIR may apply the minimal source repair only as active owner",
       "ACTION-HISTORIAN-3 records every attempt and every failure regardless of outcome",
-      "Canonical GREEN closes the mission and promotes only verified learning"
+      "Canonical GREEN closes the mission and promotes only verified learning",
+      "ACTION-HISTORIAN-3 performs file-level reasoning only: selects and excludes the minimal evidence-backed file surface before ACTION-REPAIR performs code-level reasoning",
+      "ACTION-REPAIR must treat the file-selection decision as scope guidance, not as code-level root-cause proof"
     ],
     "contributionOrder": [
-      "ACTION-HISTORIAN-3: FAILURE_INTAKE_AND_LEDGER",
+      "ACTION-HISTORIAN-3: FAILURE_INTAKE_AND_FILE_SELECTION",
       "ACTION-REPAIR-2: INDEX_EXPLORATION_AND_PREDICTION",
       "ACTION-REPAIR: PROGRAMMER_REASONING_AND_REPAIR",
       "ACTION-HISTORIAN-3: FAILURE/ATTEMPT/GREEN LEDGER UPDATE"
@@ -161,7 +172,9 @@
       "historian": "ACTION-HISTORIAN-3",
       "noParallelSourceMutation": true,
       "predictionCannotAuthorizeMutation": true,
-      "canonicalGreen": "DAILY_FLIXO_GREEN_GATE"
+      "canonicalGreen": "DAILY_FLIXO_GREEN_GATE",
+      "fileSelectionOwner": "ACTION-HISTORIAN-3",
+      "fileSelectionIsScopeOnly": true
     },
     "sharedArtifact": "diagnostics/auto-repair/action-vault/current-collaboration.json",
     "hardRule": "ANY_ACTIONABLE_RED_REQUIRES_ALL_THREE_TO_CONTRIBUTE_BEFORE_OWNER_MUTATION",
@@ -171,7 +184,7 @@
       "lanes": {
         "ACTION-REPAIR": "PRIMARY_EXECUTION_RCA_AND_BOUNDED_REPAIR",
         "ACTION-REPAIR-2": "INDEPENDENT_RCA_CHALLENGE_AND_FALSIFICATION",
-        "ACTION-HISTORIAN-3": "EVIDENCE_INTAKE_INDEX_PROVENANCE_AND_LEARNING"
+        "ACTION-HISTORIAN-3": "FILE_SELECTION_INTELLIGENCE_AND_FAILURE_LEARNING"
       },
       "phases": [
         "PARALLEL_DISCOVERY",
@@ -234,10 +247,11 @@
     "roleExchange": {
       "requiredArtifacts": [
         "ACTION-HISTORIAN-3:failure-ledger-record",
+        "ACTION-HISTORIAN-3:file-selection-decision",
         "ACTION-REPAIR-2:predictive-repair-packet",
         "ACTION-REPAIR:programmer-analysis"
       ],
-      "beforeMutation": "ALL_REQUIRED_ARTIFACTS_PRESENT",
+      "beforeMutation": "FILE_SELECTION + HISTORICAL_PREDICTION + FAILURE_RECORD + PROGRAMMER_ANALYSIS",
       "onPredictionFailure": "ACTION-REPAIR-2_REISSUES_PREDICTION_WITH_COUNTEREXAMPLES",
       "onRepairFailure": "ACTION-HISTORIAN-3_RECORDS_AND_ACTION-REPAIR_REANALYZES",
       "noAutomaticGreen": "true"
@@ -304,6 +318,29 @@
       "gateWeakeningRejected": true,
       "canonicalGreenRequired": true,
       "noAutomaticGreen": true
+    },
+    "fileSelectionIntelligence": {
+      "enabled": true,
+      "runtime": "scripts/ci/action-file-selection-intelligence.mjs",
+      "protocol": "ACTION-FILE-SELECTION-INTELLIGENCE-v1",
+      "owner": "ACTION-HISTORIAN-3",
+      "readOnly": true,
+      "pathOnlyAnalysis": true,
+      "codeContentRead": false,
+      "sourceMutationAllowed": false,
+      "exactShaRequired": true,
+      "failureFingerprintRequired": true,
+      "output": "/tmp/action-file-selection-decision.json",
+      "maxSelectedFiles": 12,
+      "minimumSelectedFiles": 1,
+      "selectionOrder": [
+        "DIRECT_FAILURE_PATH",
+        "CURRENT_SHA_CHANGE_SURFACE",
+        "SAME_FILE_FAMILY",
+        "FAILURE_DOMAIN_FAMILY"
+      ],
+      "negativeRule": "EXCLUDED_FILES_REQUIRE_NEW_EVIDENCE",
+      "boundary": "FILE_SELECTION_GUIDES_PROGRAMMER_SCOPE_BUT_NEVER_PROVES_CODE_ROOT_CAUSE"
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
@@ -419,21 +456,42 @@
       "output": "PROVISIONAL_PREDICTIVE_REPAIR_PACKET"
     },
     "ACTION-HISTORIAN-3": {
-      "role": "FAILURE_LEDGER_AND_LEARNING_RECORDER",
-      "mission": "RECORD_EVERY_FAILURE_ATTEMPT_HANDOFF_AND_VERIFIED_OUTCOME_FOR_LIFELONG_REPAIR_MEMORY",
+      "role": "FILE_SELECTION_INTELLIGENCE_AND_FAILURE_HISTORIAN",
+      "mission": "SELECT_AND_EXCLUDE_THE_MINIMAL_FILE_SURFACE_FROM_PATH_LEVEL_EVIDENCE_THEN_RECORD_FAILURE_LEARNING",
       "capabilities": [
         "FAILURE_INTAKE",
         "EXACT_PROVENANCE",
-        "ATTEMPT_LEDGER",
-        "FAILURE_LEDGER",
-        "HANDOFF_LEDGER",
+        "FILE_SELECTION_INTELLIGENCE",
+        "FILE_SCOPE_TRIAGE",
+        "FILE_RELATIONSHIP_REASONING",
+        "CHANGE_SURFACE_SELECTION",
+        "EXCLUSION_REASONING",
+        "MINIMAL_FILE_SURFACE_PLANNING",
         "LESSON_EXTRACTION",
         "ANTI_LESSON_EXTRACTION",
         "GREEN_CHAIN_RECORDING",
         "MASTER_ESCALATION"
       ],
-      "mutationAuthority": "ACTION_VAULT_MEMORY_ONLY",
-      "output": "APPEND_ONLY_FAILURE_LEDGER"
+      "mutationAuthority": "NONE",
+      "output": "FILE_SELECTION_DECISION_AND_APPEND_ONLY_FAILURE_LEDGER",
+      "pathOnly": true,
+      "codeContentReasoning": false,
+      "sourceMutation": false,
+      "requiredInputs": [
+        "exactSha",
+        "failureFingerprint",
+        "failureLog",
+        "trackedFilePaths",
+        "currentShaChangeSurface"
+      ],
+      "requiredOutputs": [
+        "fileSelectionDecision",
+        "selectedFiles",
+        "excludedFiles",
+        "selectionConfidence",
+        "uncertainty",
+        "failureLedgerRecord"
+      ]
     }
   }
 }
