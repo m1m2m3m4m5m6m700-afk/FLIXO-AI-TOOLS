@@ -18,6 +18,7 @@ type FilterMaskPreset = Readonly<{
   zoom: number;
   mirror: boolean;
   aspectRatio: FilterMaskParameters['aspectRatio'];
+  captureQuality: FilterMaskParameters['captureQuality'];
 }>;
 
 function readStoredIds(key: string): string[] {
@@ -57,6 +58,7 @@ function readStoredPresets(): FilterMaskPreset[] {
       && value.zoom >= 1 && value.zoom <= 2
       && typeof value.aspectRatio === 'string'
       && FILTER_MASK_ASPECT_RATIOS.includes(value.aspectRatio as FilterMaskParameters['aspectRatio'])
+      && FILTER_MASK_CAPTURE_QUALITIES.includes(value.captureQuality as FilterMaskParameters['captureQuality'])
       && getLiveFilter(value.canonicalId) !== undefined,
     ).slice(0, 20);
   } catch {
@@ -313,6 +315,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       zoom,
       mirror,
       aspectRatio,
+      captureQuality,
     };
 
     setPresets((current) => {
@@ -321,7 +324,8 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         && item.intensity === preset.intensity
         && item.zoom === preset.zoom
         && item.mirror === preset.mirror
-        && item.aspectRatio === preset.aspectRatio,
+        && item.aspectRatio === preset.aspectRatio
+        && item.captureQuality === preset.captureQuality,
       );
       if (duplicate) return current;
       const next = [preset, ...current].slice(0, 20);
@@ -337,6 +341,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     setZoom(Math.min(2, Math.max(1, preset.zoom)));
     setMirror(preset.mirror);
     setAspectRatio(preset.aspectRatio);
+    setCaptureQuality(preset.captureQuality);
     selectFilter(preset.canonicalId);
   }
 
