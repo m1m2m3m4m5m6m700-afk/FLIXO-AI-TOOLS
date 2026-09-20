@@ -12,7 +12,6 @@ export const FRONTIER_PHASES=Object.freeze([
   'TOOL_LOOP','SIMULATION','EXECUTE','COUNTEREXAMPLE_SEARCH','SELF_CRITIQUE',
   'INDEPENDENT_REVIEW','VERIFY','LEARN',
 ]);
-const GRADE={E0:0,E1:10,E2:25,E3:50,E4:75,E5:100};
 const req=(v,n)=>{if(typeof v!=='string'||!v.trim())throw new Error('FRONTIER_AGENT_REQUIRED_'+n.toUpperCase())};
 const arr=(v,n)=>{if(!Array.isArray(v))throw new Error('FRONTIER_AGENT_'+n.toUpperCase()+'_ARRAY_REQUIRED')};
 
