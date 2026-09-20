@@ -12,13 +12,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: flixo-council-wake-push-${{ github.sha }}
+  group: flixo-council-wake-push-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
   wake:
-    if: >-
-      contains(github.event.head_commit.message || '', 'PRESIDENT WAKE')
+    if: ${{ contains(github.event.head_commit.message, 'PRESIDENT WAKE') }}
     runs-on: ubuntu-latest
     steps:
       - name: Load and validate central Council directive
@@ -40,7 +39,7 @@ jobs:
           ROLE="$(printf '%s\n' "$MESSAGE" | sed -nE 's/.*ROLE=([A-Z]+).*/\1/p' | head -n1)"
           WP="$(printf '%s\n' "$MESSAGE" | sed -nE 's/.*WORK_PACKAGE=([A-Z][A-Z0-9_-]{3,80}).*/\1/p' | head -n1)"
           test -n "$ROLE"
-          test "$WP" =~ ^[A-Z][A-Z0-9_-]{3,80}$
+          [[ "$WP" =~ ^[A-Z][A-Z0-9_-]{3,80}$ ]]
           echo "role=$ROLE" >> "$GITHUB_OUTPUT"
           echo "work_package=$WP" >> "$GITHUB_OUTPUT"
           echo "entry_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
@@ -87,7 +86,7 @@ jobs:
               "exactSha": "$ENTRY_SHA"
             }
           }
-JSON
+          JSON
           jq -e '.ok == true' /tmp/council-dispatch.json >/dev/null
           jq -r '"DISPATCH_ID=" + .dispatchId + "\nDISPATCH_STATUS=" + .status + "\nPUSH_RESULT=" + (.push|tostring)' /tmp/council-dispatch.json
 
@@ -102,13 +101,13 @@ JSON
           set -euo pipefail
           gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### PRESIDENT WAKE RECEIPT
 
-**Role:** \`$ROLE\`
-**Work Package:** \`$WORK_PACKAGE\`
-**Exact SHA:** \`$ENTRY_SHA\`
-**Transport:** push → OIDC → Supabase Council Runtime
-**Result:** QUEUED
+          **Role:** \`$ROLE\`
+          **Work Package:** \`$WORK_PACKAGE\`
+          **Exact SHA:** \`$ENTRY_SHA\`
+          **Transport:** push → OIDC → Supabase Council Runtime
+          **Result:** QUEUED
 
-This receipt proves the exact-SHA wake was accepted into the canonical runtime queue. Agent ACK is separate evidence and is not inferred from queue acceptance."
+          This receipt proves the exact-SHA wake was accepted into the canonical runtime queue. Agent ACK is separate evidence and is not inferred from queue acceptance."
 
       - name: Stop on unsupported role
         if: ${{ steps.parse.outputs.role != 'DEPUTY' && steps.parse.outputs.role != 'TASK' && steps.parse.outputs.role != 'EXECUTION' && steps.parse.outputs.role != 'REVIEW' && steps.parse.outputs.role != 'CERTIFICATION' }}

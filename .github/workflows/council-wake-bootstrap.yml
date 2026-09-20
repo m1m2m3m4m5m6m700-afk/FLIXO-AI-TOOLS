@@ -19,7 +19,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: flixo-council-bootstrap-${{ github.event.comment.id || github.run_id }}
+  group: flixo-council-bootstrap-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -40,14 +40,14 @@ jobs:
           set -euo pipefail
           gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### COUNCIL WAKE BOOTSTRAP SMOKE
 
-**Workflow:** \`FLIXO Council Wake Bootstrap\`
-**Trigger:** \`push\`
-**Main SHA:** \`$SHA\`
-**Result:** WORKFLOW_EXECUTED
+          **Workflow:** \`FLIXO Council Wake Bootstrap\`
+          **Trigger:** \`push\`
+          **Main SHA:** \`$SHA\`
+          **Result:** WORKFLOW_EXECUTED
 
-This proves the default-branch bootstrap workflow is registered and executable. It does not assert agent ACK.
+          This proves the default-branch bootstrap workflow is registered and executable. It does not assert agent ACK.
 
-<!-- FLIXO_COUNCIL_BOOTSTRAP_SMOKE:$SHA -->"
+          <!-- FLIXO_COUNCIL_BOOTSTRAP_SMOKE:$SHA -->"
 
   wake:
     if: >-
@@ -78,12 +78,12 @@ This proves the default-branch bootstrap workflow is registered and executable. 
           ROLE="$(printf '%s\n' "$BODY" | sed -nE 's/^ROLE:[[:space:]]*([A-Z]+)[[:space:]]*$/\1/p' | head -n1)"
           WP="$(printf '%s\n' "$BODY" | sed -nE 's/^WORK PACKAGE:[[:space:]]*([A-Z][A-Z0-9_-]{3,80})[[:space:]]*$/\1/p' | head -n1)"
 
-          test "$SHA" =~ ^[0-9a-f]{40}$
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]
           test -n "$ROLE"
-          test "$WP" =~ ^[A-Z][A-Z0-9_-]{3,80}$
+          [[ "$WP" =~ ^[A-Z][A-Z0-9_-]{3,80}$ ]]
 
           CURRENT="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          test "$CURRENT" =~ ^[0-9a-f]{40}$
+          [[ "$CURRENT" =~ ^[0-9a-f]{40}$ ]]
 
           test "$SHA" = "$CURRENT"
 
@@ -144,13 +144,11 @@ This proves the default-branch bootstrap workflow is registered and executable. 
               "wakeTest": true
             }
           }
-JSON
+          JSON
           )"
           echo "$RESPONSE" > /tmp/council-dispatch.json
           jq -e '.ok == true' /tmp/council-dispatch.json >/dev/null
-          jq -r '"COUNCIL_DISPATCH_ID=" + .dispatchId + "
-COUNCIL_DISPATCH_STATUS=" + .status + "
-COUNCIL_PUSH=" + (.push|tostring)' /tmp/council-dispatch.json
+          jq -r '"COUNCIL_DISPATCH_ID=" + .dispatchId + "\nCOUNCIL_DISPATCH_STATUS=" + .status + "\nCOUNCIL_PUSH=" + (.push|tostring)' /tmp/council-dispatch.json
 
       - name: Dispatch supported internal workflow
         if: ${{ steps.parse.outputs.role == 'INVESTIGATOR' || steps.parse.outputs.role == 'SCOUT' || steps.parse.outputs.role == 'PERFORMANCE' || steps.parse.outputs.role == 'TEST' || steps.parse.outputs.role == 'SECURITY' }}
@@ -191,10 +189,10 @@ COUNCIL_PUSH=" + (.push|tostring)' /tmp/council-dispatch.json
           set -euo pipefail
           gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body "### PRESIDENT WAKE RECEIPT
 
-**Role:** \`$ROLE\`
-**Work Package:** \`$WORK_PACKAGE\`
-**Exact SHA:** \`$ENTRY_SHA\`
-**Result:** ACCEPTED
-**Bootstrap:** main-default-branch ingress
+          **Role:** \`$ROLE\`
+          **Work Package:** \`$WORK_PACKAGE\`
+          **Exact SHA:** \`$ENTRY_SHA\`
+          **Result:** ACCEPTED
+          **Bootstrap:** main-default-branch ingress
 
-<!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"
+          <!-- FLIXO_COUNCIL_WAKE_RECEIPT:$COMMENT_ID -->"

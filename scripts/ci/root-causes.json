@@ -481,5 +481,19 @@
       "canonical Test System"
     ],
     "prevention": "Home heroTitle localization data must use the canonical [[...]] marker contract; presentation HTML is produced by AgentFirstHome only."
+  },
+  "RC-WATCH-API-RATE-LIMIT-001": {
+    "category": "CI_CONCURRENCY",
+    "description": "The execution watchdog made multiple GitHub installation-API calls per observer wake while retaining non-canceling same-SHA concurrency. Repeated required-workflow completions accumulated observer runs, consumed installation API quota, and converted stale or superseded observation events into noisy watchdog failures.",
+    "repairTargets": [
+      ".github/workflows/execution-bot-watchdog.yml",
+      "scripts/ci/test-repair-supervision-contract.mjs"
+    ],
+    "verification": [
+      "npm run validate:ci-contract",
+      "node scripts/ci/test-repair-supervision-contract.mjs",
+      "next exact-SHA required-workflow completion leaves at most one surviving watchdog wake per source SHA"
+    ],
+    "prevention": "Watchdog observation is supersedable per exact source SHA (cancel-in-progress=true); source-head reads use public git ref resolution instead of installation API polling; the evidence-bearing Green Gate remains non-canceling."
   }
 }
