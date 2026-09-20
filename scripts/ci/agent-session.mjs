@@ -76,7 +76,7 @@ const readCanonicalAdmissionSources = () => {
 const sessionPath = (id) => path.join(sessionDir, `${storageKey(id)}.json`);
 const handoffPath = (id) => path.join(handoffDir, `${storageKey(id)}.json`);
 const visibilityPath = (id) => path.join(visibilityDir, `${storageKey(id)}.json`);
-const roles = new Set(['analysis','implementation','verification','release','assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent']);
+const roles = new Set(['analysis','implementation','verification','release','assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent','actionRepairBot','actionRepairVerifier','actionHistorian']);
 const writeVisibility = (record) => {
   fs.mkdirSync(visibilityDir, { recursive: true });
   fs.writeFileSync(visibilityPath(sessionId), `${JSON.stringify(record, null, 2)}\n`);
