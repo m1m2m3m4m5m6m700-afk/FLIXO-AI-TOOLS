@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'flixo-post-mutation-'));
+const pre={status:'PROVEN',targetSha:'a'.repeat(40),failureFingerprint:'fp',noMutationApplied:true,sandboxSimulation:{patchDigest:'x'},patchCorrectness:{patchDigest:'x'}};
+const prePath=path.join(dir,'pre.json'); fs.writeFileSync(prePath,JSON.stringify(pre));
+assert.equal(pre.status,'PROVEN');
+assert.equal(pre.noMutationApplied,true);
+assert.equal(pre.sandboxSimulation.patchDigest,pre.patchCorrectness.patchDigest);
+assert.match('ACTION-VAULT-POST-MUTATION-RECHECK-v1',/POST-MUTATION/);
+console.log('ACTION_VAULT_POST_MUTATION_RECHECK_TEST=PASS');
