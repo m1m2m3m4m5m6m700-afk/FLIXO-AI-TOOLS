@@ -143,8 +143,11 @@ export function runGate(root = ROOT) {
   const parallelProtocolPath = path.resolve(root, 'docs/agents/ACTION-VAULT-PARALLEL-COLLABORATION-PROTOCOL.md');
   const sleepAdmissionPath = path.resolve(root, 'scripts/ci/action-vault-sleep-admission.mjs');
   const collaborationScriptPath = path.resolve(root, 'scripts/ci/action-three-bot-collaboration.mjs');
+  const targetedProtocolPath = path.resolve(root, 'docs/agents/ACTION-VAULT-TARGETED-REPAIR-PROTOCOL.md');
+  const targetedPlannerPath = path.resolve(root, 'scripts/ci/action-vault-targeted-test.mjs');
+  const targetedTestPath = path.resolve(root, 'scripts/ci/test-action-vault-targeted-test.mjs');
 
-  for (const file of [profilePath, residencyPath, gradePath, parallelProtocolPath, sleepAdmissionPath, collaborationScriptPath]) {
+  for (const file of [profilePath, residencyPath, gradePath, parallelProtocolPath, sleepAdmissionPath, collaborationScriptPath, targetedProtocolPath, targetedPlannerPath, targetedTestPath]) {
     if (!exists(file)) err(errors, 'REQUIRED_VAULT_CONTRACT_MISSING', path.relative(root, file));
   }
 
@@ -199,6 +202,18 @@ export function runGate(root = ROOT) {
   if (intelligence?.cooperation?.parallelExecution?.exchangeBeforeMutation !== true) err(errors, 'EXCHANGE_BEFORE_MUTATION_MISSING');
   if (intelligence?.cooperation?.parallelExecution?.peerLearningReceiptsRequired !== true) err(errors, 'PEER_LEARNING_RECEIPTS_MISSING');
   if (intelligence?.cooperation?.sharedLearning?.promotedOnlyAfterCanonicalGreen !== true) err(errors, 'GREEN_ONLY_SHARED_LEARNING_MISSING');
+
+  if (exists(targetedProtocolPath)) {
+    const targetedProtocol = fs.readFileSync(targetedProtocolPath, 'utf8');
+    if (!targetedProtocol.includes('TARGETED REGRESSION')) err(errors, 'TARGETED_REGRESSION_PROTOCOL_MISSING');
+    if (!targetedProtocol.includes('EXACT-SHA')) err(errors, 'TARGETED_EXACT_SHA_RULE_MISSING');
+    if (!targetedProtocol.includes('Canonical CI')) err(errors, 'TARGETED_CANONICAL_CI_RULE_MISSING');
+  }
+  if (exists(targetedPlannerPath)) {
+    const targetedPlanner = fs.readFileSync(targetedPlannerPath, 'utf8');
+    if (!targetedPlanner.includes('fullSuiteRequired:false')) err(errors, 'TARGETED_PLANNER_FULL_SUITE_FLAG_MISSING');
+    if (!targetedPlanner.includes('ACTION-VAULT-TARGETED-REPAIR-v1')) err(errors, 'TARGETED_PLANNER_PROTOCOL_ID_MISSING');
+  }
 
   const sharedRefs = intelligence?.sharedSources ?? [];
   for (const ref of sharedRefs) {
