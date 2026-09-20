@@ -22,6 +22,10 @@ Before every task:
 
 The 1000-rule error corpus is **teaching guidance only**. Routing is the retrieval mechanism; do not scan all 1000 rules by default. Current exact-SHA evidence, active protocols, validators, and authority boundaries always outrank historical teaching.
 
+## 1A. LIVENESS — NEVER ABANDON OPEN WORK
+
+While an assigned task or repair is open, the agent MUST remain in an active work state. `SLEEP`, `IDLE`, `SILENT`, and `ABANDONED` are forbidden. Waiting on CI/external services is `WAITING_EXTERNAL` plus heartbeat, never sleep. A stale heartbeat or lease means `RECOVERING`, not completion. Three consecutive no-progress windows require new evidence or strategy rotation. Abort requires explicit authority.
+
 Never rebuild the project or replace its architecture. Extend the existing system.
 
 ## 2. HISTORICAL TASK WORKFLOW — RESTORED
