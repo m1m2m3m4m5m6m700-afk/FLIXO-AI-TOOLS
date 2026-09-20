@@ -1,5 +1,7 @@
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import { assertExecutionAllowed, type TaskContext } from '@/lib/agent/task-state';
+import { authorizeExecution } from '@/lib/agent/execution-gate';
+import { classifyExecutionFailure, createExecutionAuditEvent, type ExecutionAuditEvent } from '@/lib/agent/execution-observability';
 import { assertExecutionResourceBudget, getCapability, validateCapabilityParameters, type CapabilityParameters } from '@/lib/agent/capability-registry';
 import { getToolById, TOOL_CATALOG } from '@/config/registry';
 import { getToolExecutor, repairToolParameters } from '@/lib/workflows/executor-registry';
@@ -7,7 +9,7 @@ import { getToolOutputContractForDefinition } from '@/lib/contracts/tool-output-
 import { assertToolOutputContract, type ToolOutputResult } from '@/lib/contracts/tool-output';
 import { appendPipelineStepReceipt, assertPipelineReceiptChain, createPipelinePlanFingerprint, createPipelineReceiptChain, createPipelineStepReceipt, type PipelineReceiptChain, type PipelineStepReceipt } from '@/lib/workflows/pipeline-receipt';
 
-export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; task: TaskContext; outputBlob?: Blob; retry?: number; receipt?: PipelineStepReceipt; receiptChain?: PipelineReceiptChain; }
+export interface PipelineProgress { currentStepIndex: number; totalSteps: number; currentToolId: string; task: TaskContext; outputBlob?: Blob; retry?: number; receipt?: PipelineStepReceipt; receiptChain?: PipelineReceiptChain; auditEvents?: readonly ExecutionAuditEvent[]; }
 export class PipelineVerificationError extends Error {
   constructor(message: string, readonly stableBlob: Blob, readonly failedStepIndex: number, readonly failedToolId: string) { super(message); this.name = 'PipelineVerificationError'; }
 }
@@ -79,20 +81,70 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
     const maxAttempts = Math.max(1, tool.recovery.maxAttempts);
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, retry: attempt });
+      const authorization = authorizeExecution({
+        task,
+        capabilityId: step.toolId,
+        parameters: params,
+        inputBlob: stableBlob,
+      });
+      params = authorization.parameters;
+      onProgress({
+        currentStepIndex: i + 1,
+        totalSteps: plan.steps.length,
+        currentToolId: step.toolId,
+        task,
+        retry: attempt,
+        auditEvents: [authorization.audit],
+      });
       try {
         const output = await executor({ tool, inputBlob: stableBlob, parameters: params });
+        const executionAudit = createExecutionAuditEvent({
+          task,
+          capabilityId: step.toolId,
+          tool,
+          stage: 'EXECUTION',
+          outcome: 'SUCCESS',
+        });
         lastOutput = output;
         verified = await verifyPipelineOutput(step.toolId, stableBlob, output, params);
+        const verificationAudit = createExecutionAuditEvent({
+          task,
+          capabilityId: step.toolId,
+          tool,
+          stage: 'VERIFICATION',
+          outcome: verified ? 'SUCCESS' : 'FAILURE',
+          errorClass: verified ? undefined : 'OUTPUT',
+          message: verified ? undefined : `Output verification failed for '${step.toolId}'.`,
+        });
         const receipt = await createPipelineStepReceipt({ toolId: step.toolId, stepIndex: i + 1, attempt, inputBlob: stableBlob, outputBlob: output, catalogFingerprint: TOOL_CATALOG.fingerprint, verified });
+        const auditEvents = Object.freeze([authorization.audit, executionAudit, verificationAudit]);
         if (verified) {
           receiptChain = await appendPipelineStepReceipt(receiptChain, receipt);
           currentBlob = output;
-          onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, outputBlob: output, retry: attempt, receipt, receiptChain });
+          onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, outputBlob: output, retry: attempt, receipt, receiptChain, auditEvents });
           break;
         }
+        onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, retry: attempt, auditEvents });
       } catch (error) {
-        if (attempt === maxAttempts - 1) throw new PipelineVerificationError(error instanceof Error ? error.message : `Step '${step.toolId}' failed.`, stableBlob, i, step.toolId);
+        const message = error instanceof Error ? error.message : `Step '${step.toolId}' failed.`;
+        const failureAudit = createExecutionAuditEvent({
+          task,
+          capabilityId: step.toolId,
+          tool,
+          stage: 'EXECUTION',
+          outcome: 'FAILURE',
+          message,
+          errorClass: classifyExecutionFailure(error),
+        });
+        onProgress({
+          currentStepIndex: i + 1,
+          totalSteps: plan.steps.length,
+          currentToolId: step.toolId,
+          task,
+          retry: attempt,
+          auditEvents: [authorization.audit, failureAudit],
+        });
+        if (attempt === maxAttempts - 1) throw new PipelineVerificationError(message, stableBlob, i, step.toolId);
       }
 
       if (!verified && attempt < maxAttempts - 1) {
