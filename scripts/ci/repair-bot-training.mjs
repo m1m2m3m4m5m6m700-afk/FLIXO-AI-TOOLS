@@ -679,7 +679,7 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
     ],
     trainingProvenance:{
       targetSha:process.env.FLIXO_EXPECTED_TARGET_SHA ?? process.env.FLIXO_TARGET_SHA ?? null,
-      datasetHash:hashObject(prioritizedRows.map((row) => { const rest = { ...row }; delete rest.replayPriority; return rest; })),
+      datasetHash:hashObject(rows),
       memoryHash:hashObject(memory),
       baselineTrainingPath:BASELINE_TRAINING,
       curriculumHash:hashObject(CURRICULUM),
