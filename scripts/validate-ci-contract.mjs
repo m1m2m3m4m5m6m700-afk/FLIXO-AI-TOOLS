@@ -161,6 +161,10 @@ if (!/EXECUTION_SHA="\$\(git rev-parse HEAD\)"[\s\S]*EXPECTED_PUSH_SHA="\$GITHUB
   console.error('CI contract failed: push watchdog wake must remain bound to the exact checked-out event SHA.');
   process.exit(1);
 }
+if (!/gh workflow run daily-flixo-green-gate\.yml[\s\S]*ACTIVE_TEST_SYSTEM="[\s\S]*gh run list --repo "\$GITHUB_REPOSITORY" --workflow "FLIXO Test System"[\s\S]*--arg sha "\$EXECUTION_SHA"[\s\S]*headSha == \$sha[\s\S]*status == "queued"[\s\S]*status == "in_progress"[\s\S]*FAIL CLOSED: no exact-SHA canonical Test System run is active/.test(executionWatchdogWorkflow)) {
+  console.error('CI contract failed: watchdog canonical observer fallback must remain exact-SHA and fail-closed.');
+  process.exit(1);
+}
 if (!/cancel-in-progress:\s*false/.test(greenGateWorkflow) ||
     !/group:\s*flixo-continuous-error-watch-\$\{\{\s*github\.run_id\s*\}\}/.test(greenGateWorkflow)) {
   console.error('CI contract failed: daily green gate must preserve each observation run for evidence integrity.');
