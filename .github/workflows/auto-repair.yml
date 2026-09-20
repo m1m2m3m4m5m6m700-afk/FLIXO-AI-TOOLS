@@ -835,6 +835,8 @@ jobs:
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
           FLIXO_ASSISTANT_APPROVAL_PATH: /tmp/action-repair-2-approval.json
           FLIXO_ACTION_VAULT_VERIFIER_PROOF_PATH: /tmp/action-repair-2-proposal.json
+          FLIXO_SYSTEM_COGNITIVE_AWARENESS_PATH: /tmp/action-system-cognitive-awareness.json
+          FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH: /tmp/action-repair-twin-parity.json
           FLIXO_ACTION_REPAIR_BOT_ID: ACTION-REPAIR
           FLIXO_ACTION_KNOWLEDGE_BOT_ID: ACTION-WISE
           FLIXO_ACTION_REPAIR_MEMORY: /tmp/flixo-action-repair-bots/ACTION-REPAIR.json
