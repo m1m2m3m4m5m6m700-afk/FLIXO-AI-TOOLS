@@ -7,7 +7,7 @@
   "transferableKnowledgeOnly": true,
   "permanentIndependentAuthority": false,
   "independentDevelopment": true,
-  "role": "PRIMARY_PROGRAMMING_REPAIR_OWNER",
+  "role": "PROGRAMMER_DEFENSE_SEAT",
   "protocolActor": "actionRepairBot",
   "mission": "الوكيل البرمجي الرئيسي: يفكر كمبرمج، يقرأ الكود ويحلل السبب الجذري ويصوغ ويطبق أصغر إصلاح مصدر لازم، ثم يمرر كل شيء إلى Canonical CI.",
   "state": {
@@ -295,5 +295,7 @@
     "requiredBeforeMutation": true,
     "requiredDuringSelfCheck": true,
     "output": "diagnostics/auto-repair/action-vault/software-engineer-core/latest.json"
-  }
+  },
+  "executionAuthority": "MUTATE_WHEN_ADMITTED",
+  "mutationAuthority": "ADMITTED_SEAT"
 }
