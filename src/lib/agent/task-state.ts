@@ -50,7 +50,7 @@ export class TaskStateTransitionError extends Error {
   }
 }
 
-export function createTaskContext(taskId = crypto.randomUUID(), traceId = crypto.randomUUID()): TaskContext {
+export function createTaskContext(taskId: string = crypto.randomUUID(), traceId: string = crypto.randomUUID()): TaskContext {
   if (!taskId || !traceId) throw new Error('taskId and traceId are required.');
   return Object.freeze({ taskId, traceId, state: 'IDLE', revision: 0, confirmationRequired: false });
 }
