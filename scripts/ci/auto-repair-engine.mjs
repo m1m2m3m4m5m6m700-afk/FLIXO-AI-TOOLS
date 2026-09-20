@@ -266,6 +266,7 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     differentialProof: preMutationProof.differentialProof,
     patchCorrectness: preMutationProof.patchCorrectness,
     regressionCounterexamples: preMutationProof.regressionCounterexamples,
+    preMutationProof,
     mutationScope,
     branch: protocolBranch,
   });
