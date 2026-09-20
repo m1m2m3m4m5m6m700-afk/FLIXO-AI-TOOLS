@@ -115,14 +115,15 @@ const verifierProof = {
   alternativeHypotheses: [{ id: 'alt-a', basis: 'independent-cause' }],
   falsificationChecks: [{ id: 'check-a', command: 'echo prove-or-disprove' }],
   counterEvidence: { rejectedHypothesis: 'alt-a', evidenceRef: 'test-evidence' },
-  programmerTwinParity: { intelligenceParity: 'EXACT', authorityParity: 'SEPARATED_BY_DESIGN' },
-  primaryCorrectnessProof: { objective: 'PROVE_PRIMARY_REPAIR_CORRECT' },
-  cognitiveAwareness: { protocol: 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1', systemWide: true },
+  programmerTwinParity: { intelligenceParity: 'EXACT', authorityParity: 'SEPARATED_BY_DESIGN', targetSha: targetSHA, failureFingerprint: 'fp-test' },
+  primaryCorrectnessProof: { objective: 'PROVE_PRIMARY_REPAIR_CORRECT', status: 'PRIMARY_CORRECTNESS_PROVEN' },
+  cognitiveAwareness: { protocol: 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1', systemWide: true, targetSha: targetSHA, failureFingerprint: 'fp-test' },
   falsificationComplete: true,
   counterexampleFound: false,
-  falsificationSearches: [{},{},{},{}],
-  mutationRecommendation: 'ALLOW',
-  remainingRisks: ['rerun-targeted-regression'],
+  falsificationSearches: Array.from({length:10},()=>({})),
+  mutationRecommendation: 'ALLOW_AFTER_FALSIFICATION_NO_COUNTEREXAMPLE',
+  remainingRisks: [],
+  proofCompleteness: { COGNITIVE_AWARENESS_PROVEN:true, CAUSAL_EVIDENCE_GRAPH_PROVEN:true, ROOT_CAUSE_PROVEN:true, FILE_SELECTION_PROVEN:true, PROGRAMMER_TWIN_PARITY_PROVEN:true, ADVERSARIAL_FALSIFICATION_COMPLETE:true, NO_VALID_COUNTEREXAMPLE:true, SANDBOX_SIMULATION_PASSED:true, DIFFERENTIAL_CHECK_PASSED:true, PATCH_CORRECTNESS_PROVEN:true, REGRESSION_COUNTEREXAMPLES_EXHAUSTED:true, NO_SCOPE_VIOLATION:true, NO_TEST_MUTATION:true, NO_CONTROL_PLANE_MUTATION:true, NO_MAIN_MUTATION:true, NO_GATE_WEAKENING:true },
 };
 assert.doesNotThrow(() => validateActionVaultVerifierProof({ proof: verifierProof, targetSHA, failureFingerprint: 'fp-test' }));
 assert.throws(() => validateActionVaultVerifierProof({ proof: { ...verifierProof, targetSha: 'b'.repeat(40) }, targetSHA, failureFingerprint: 'fp-test' }), /SHA_MISMATCH/);
@@ -139,7 +140,7 @@ const actionVaultSession = {
   actionVaultMission: {
     role: 'ACTION-REPAIR', triadId: 'triad-test', messageId: 'msg-test', taskId: 'task-test',
     failureFingerprint: 'fp-test', entrySha: targetSHA, targetSha: targetSHA, ownerAgent: 'actionRepairBot',
-    verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian', programmerTwinParity: { intelligenceParity: 'EXACT', authorityParity: 'SEPARATED_BY_DESIGN', targetSha }, cognitiveAwareness: { protocol: 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1', targetSha, complete: true }, proofObligations: ['proof'], stopConditions: ['GREEN'], noBlindRetry: true,
+    verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian', programmerTwinParity: { intelligenceParity: 'EXACT', authorityParity: 'SEPARATED_BY_DESIGN', targetSha: targetSHA, failureFingerprint: 'fp-test' }, cognitiveAwareness: { protocol: 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1', targetSha, complete: true }, proofObligations: ['proof'], stopConditions: ['GREEN'], noBlindRetry: true,
   },
   actionVaultVerifierProof: verifierProof,
 };
