@@ -135,13 +135,13 @@
   "agentGrade": {
     "lifecycle": "READY",
     "shortName": "ACTR",
-    "upgradeNumber": 4,
+    "upgradeNumber": 5,
     "upgradePriority": 95,
     "nextUpgrade": {
-      "id": "ACTR-U3",
-      "weakness": "ADAPTIVE_MULTI_HYPOTHESIS_REPAIR_AND_DEEP_DIFFERENTIAL_COVERAGE",
-      "mission": "توليد فرضيات إصلاح متعددة ضمن حدود الأدلة، محاكاتها في Sandbox، توسيع التحقق التفاضلي، ثم إثبات الفرق قبل أي تغيير فعلي",
-      "promotionProof": "MULTI_HYPOTHESIS_PLUS_PATCH_SYNTHESIS_PLUS_SANDBOX_PLUS_DIFFERENTIAL_PLUS_EXACT_SHA_PLUS_CANONICAL_CI"
+      "id": "ACTR-U4",
+      "weakness": "CAUSAL_HYPOTHESIS_DISCRIMINATION_AND_EVIDENCE_MARGIN",
+      "mission": "تمييز السبب الجذري عن العرض بترتيب فرضيات سببي قابل للقياس، معاقبة الاستراتيجيات المرفوضة تاريخيًا، وإيقاف الطفرة عند غموض الفصل قبل Sandbox وCanonical CI",
+      "promotionProof": "CAUSAL_DISCRIMINATOR_PLUS_EVIDENCE_MARGIN_PLUS_HISTORICAL_REJECTION_PLUS_SELF_PROBES_PLUS_EXACT_SHA_PLUS_CANONICAL_CI"
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
@@ -209,7 +209,10 @@
       "SANDBOX_SIMULATION",
       "DIFFERENTIAL_VERIFICATION",
       "TRANSACTIONAL_REPAIR",
-      "COUNTERFACTUAL_PATCH_REVIEW"
+      "COUNTERFACTUAL_PATCH_REVIEW",
+      "CAUSAL_DISCRIMINATION",
+      "HYPOTHESIS_SEPARATION",
+      "EVIDENCE_MARGIN_SELECTION"
     ]
   },
   "subAgents": {
@@ -240,6 +243,16 @@
       "promotionOnlyAfterCanonicalGreen": true,
       "output": "diagnostics/auto-repair/action-vault/code-mentor/latest-packet.json",
       "verifiedLessons": "diagnostics/auto-repair/action-vault/code-mentor/lessons.ndjson"
+    },
+    "causalDiscriminator": {
+      "protocol": "CAUSAL-DISCRIMINATOR-v1",
+      "runtime": "scripts/ci/action-causal-discriminator.mjs",
+      "requiredBeforeMutation": true,
+      "historicalRejectionPenalty": true,
+      "probeSuite": true,
+      "minimumSelectionMargin": 0.08,
+      "ambiguousMeansNoMutation": true,
+      "exactShaBound": true
     },
     "repairEngineering": {
       "id": "ACTION-REPAIR-ENGINEERING",
