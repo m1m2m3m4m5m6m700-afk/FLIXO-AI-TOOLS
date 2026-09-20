@@ -193,7 +193,9 @@
       },
       "phases": [
         "PARALLEL_DISCOVERY",
+        "FILE_SELECTION",
         "PARALLEL_ANALYSIS",
+        "PROGRAMMER_TWIN",
         "CROSS_LEARNING",
         "CHALLENGE",
         "SYNTHESIS",
@@ -262,12 +264,10 @@
       "noAutomaticGreen": "true"
     },
     "prediction": {
-      "runtime": "scripts/ci/action-historical-predictor.mjs",
-      "output": "diagnostics/auto-repair/action-vault/historical-predictions/latest.json",
-      "packetProtocol": "PREDICTIVE_REPAIR_PACKET_V1",
-      "provisional": true,
-      "exactShaBound": true,
-      "ownerReviewRequired": true
+      "enabled": false,
+      "retiredAsPrimaryRole": true,
+      "supportingSource": "scripts/ci/action-historical-predictor.mjs",
+      "rule": "Historical prediction may inform both programmers but never defines ACTION-REPAIR-2's role."
     },
     "failureLedger": {
       "runtime": "scripts/ci/action-failure-ledger.mjs",
@@ -421,8 +421,9 @@
     "modelProfiles": {
       "chief": "FRONTIER_REASONING",
       "primary": "FRONTIER_CODING_REASONING",
-      "historicalPredictor": "FRONTIER_HISTORICAL_REASONING",
-      "failureHistorian": "FRONTIER_FORENSIC_REASONING"
+      "historicalPredictor": "SUPPORTING_HISTORICAL_EVIDENCE_ONLY",
+      "failureHistorian": "FRONTIER_FORENSIC_REASONING",
+      "programmerTwin": "FRONTIER_CODING_REASONING"
     }
   },
   "roleMatrix": {
