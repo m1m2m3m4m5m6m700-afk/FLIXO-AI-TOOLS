@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-import { assertAgentAdmission, REPAIR_PROTOCOL, REPAIR_PROTOCOL_HASH, validateErrorOnlyMutation } from './repair-protocol.mjs';
+import { assertAgentAdmission, REPAIR_PROTOCOL, REPAIR_PROTOCOL_HASH, validateActionVaultVerifierProof, validateErrorOnlyMutation } from './repair-protocol.mjs';
 
 const session = fs.readFileSync('scripts/ci/agent-session.mjs', 'utf8');
 const repair = fs.readFileSync('scripts/ci/repair-protocol.mjs', 'utf8');
@@ -100,6 +100,22 @@ assert.ok(cooperation.protocols.message_freshness);
 assert.equal(protocolRegistry.protocols.find((item) => item.id === 'P20')?.status, 'MANDATORY');
 
 const targetSHA = 'a'.repeat(40);
+const verifierProof = {
+  status: 'CHALLENGE_PASSED',
+  challengeId: 'challenge-test',
+  verifierAgent: 'actionRepairVerifier',
+  targetSha: targetSHA,
+  failureFingerprint: 'fp-test',
+  alternativeHypotheses: [{ id: 'alt-a', basis: 'independent-cause' }],
+  falsificationChecks: [{ id: 'check-a', command: 'echo prove-or-disprove' }],
+  counterEvidence: { rejectedHypothesis: 'alt-a', evidenceRef: 'test-evidence' },
+  mutationRecommendation: 'ALLOW',
+  remainingRisks: ['rerun-targeted-regression'],
+};
+assert.doesNotThrow(() => validateActionVaultVerifierProof({ proof: verifierProof, targetSHA, failureFingerprint: 'fp-test' }));
+assert.throws(() => validateActionVaultVerifierProof({ proof: { ...verifierProof, targetSha: 'b'.repeat(40) }, targetSHA, failureFingerprint: 'fp-test' }), /SHA_MISMATCH/);
+assert.throws(() => validateActionVaultVerifierProof({ proof: { ...verifierProof, alternativeHypotheses: [] }, targetSHA, failureFingerprint: 'fp-test' }), /ALTERNATIVES_MISSING/);
+
 const actionVaultSession = {
   protocolId: REPAIR_PROTOCOL.protocolId,
   protocolVersion: REPAIR_PROTOCOL.protocolVersion,
@@ -111,6 +127,7 @@ const actionVaultSession = {
     failureFingerprint: 'fp-test', entrySha: targetSHA, targetSha: targetSHA, ownerAgent: 'actionRepairBot',
     verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian', proofObligations: ['proof'], stopConditions: ['GREEN'], noBlindRetry: true,
   },
+  actionVaultVerifierProof: verifierProof,
 };
 assert.doesNotThrow(() => assertAgentAdmission({ actor: 'actionRepairBot', branch: 'execution', mutation: true, session: actionVaultSession }));
 assert.throws(() => assertAgentAdmission({ actor: 'actionRepairBot', branch: 'execution', mutation: true, session: { ...actionVaultSession, actionVaultMission: { ...actionVaultSession.actionVaultMission, verifierAgent: 'wrong' } } }), /ACTION_VAULT_TRIAD_INCOMPLETE/);
