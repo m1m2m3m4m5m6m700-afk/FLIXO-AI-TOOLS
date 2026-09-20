@@ -23,6 +23,7 @@ const requiredFiles = [
   'scripts/ci/agent-coordination.mjs',
   'scripts/ci/agent-communication.mjs',
   'scripts/ci/test-agent-communication.mjs',
+  'scripts/ci/test-agent-admission.mjs',
   'scripts/ci/auto-repair-engine.mjs',
   'scripts/ci/auto-repair-proof.mjs',
   'scripts/validate-ci-contract.mjs',
@@ -38,7 +39,7 @@ const requiredAgentsMarkers = [
   'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
   'docs/PROTOCOL-REGISTRY.json',
   '`PROJECTS.md` → `المهام.md` → `AGENTS.md`',
-  'TASK GATE',
+  'TASK GATE', 'Task Agent preparation-only',
 ];
 if (exists('AGENTS.md')) {
   const text = read('AGENTS.md');
@@ -181,6 +182,7 @@ const packageJson = exists('package.json') ? JSON.parse(read('package.json')) : 
 if (typeof packageJson.scripts?.['validate:agent-protocol'] !== 'string') fail('PACKAGE_SCRIPT_MISSING', 'validate:agent-protocol');
 if (typeof packageJson.scripts?.['validate:agent-coordination'] !== 'string') fail('PACKAGE_SCRIPT_MISSING', 'validate:agent-coordination');
 if (typeof packageJson.scripts?.['agent:coordination'] !== 'string') fail('PACKAGE_SCRIPT_MISSING', 'agent:coordination');
+if (typeof packageJson.scripts?.['test:agent-admission'] !== 'string') fail('PACKAGE_SCRIPT_MISSING', 'test:agent-admission');
 
 const ciContract = exists('scripts/validate-ci-contract.mjs') ? read('scripts/validate-ci-contract.mjs') : '';
 if (ciContract && !/scripts\/ci\/validate-agent-protocol\.mjs/u.test(ciContract)) fail('CI_CONTRACT_NOT_WIRED', 'validate-agent-protocol');
@@ -200,7 +202,7 @@ if (exists(lockFile)) {
 }
 
 const result = {
-  schemaVersion: 9,
+  schemaVersion: 10,
   authority: 'CI_PROTOCOL_GUARD',
   status: failures.length ? 'FAIL' : 'PASS',
   entryGate: 'PROJECTS.md → المهام.md → AGENTS.md',
