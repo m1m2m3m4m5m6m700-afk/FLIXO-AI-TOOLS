@@ -83,20 +83,20 @@ const assertTeamCompletionBarrier = (record) => {
   const current = coordination.activeSessions?.[record.sessionId];
   const team = String(record.teamId ?? teamId);
   const peers = Object.values(coordination.activeSessions ?? {}).filter((item) =>
-    String(item.teamId ?? 'FLIXO-EXECUTION-TEAM') === team && item.sessionId !== record.sessionId && !['CLOSED','STALE'].includes(String(item.collaborationState ?? ''))
+    String(item.teamId ?? 'FLIXO-EXECUTION-TEAM') === team &&
+    item.sessionId !== record.sessionId &&
+    !['CLOSED', 'STALE'].includes(String(item.collaborationState ?? ''))
   );
   const unresolved = Object.values(coordination.tasks ?? {}).filter((task) =>
-    String(task.teamId ?? 'FLIXO-EXECUTION-TEAM') === team && ['READY','QUEUED','RUNNING','STALE'].includes(String(task.status))
+    String(task.teamId ?? 'FLIXO-EXECUTION-TEAM') === team &&
+    ['READY', 'QUEUED', 'RUNNING', 'STALE'].includes(String(task.status))
   );
-  if (current?.collaborationRequired === true || ['WAITING_FOR_TEAM','JOIN_REQUIRED','JOINED','JOINED_SUPPORT','CONTINUING'].includes(String(current?.collaborationState ?? ''))) {
-    throw new Error('TEAM_COMPLETION_BARRIER_ACTIVE');
-  }
-  if (peers.length > 0 || unresolved.length > 0) {
-    throw new Error('TEAM_COMPLETION_BARRIER_ACTIVE');
-  }
-  if (current && current.teamBarrier && current.teamBarrier !== 'READY_TO_CLOSE') {
-    throw new Error('TEAM_COMPLETION_BARRIER_NOT_READY');
-  }
+  if (unresolved.length > 0) throw new Error('TEAM_COMPLETION_BARRIER_ACTIVE');
+  if (!current) throw new Error('TEAM_COMPLETION_BARRIER_SESSION_MISSING');
+  if (current.teamBarrier !== 'READY_TO_CLOSE') throw new Error('TEAM_COMPLETION_BARRIER_NOT_READY');
+  if (current.collaborationRequired === true) throw new Error('TEAM_COMPLETION_BARRIER_ACTIVE');
+  const notReadyPeers = peers.filter((peer) => peer.readyForTeamClose !== true);
+  if (notReadyPeers.length > 0) throw new Error('TEAM_COMPLETION_BARRIER_ACTIVE');
 };
 const visibilityPath = (id) => path.join(visibilityDir, `${storageKey(id)}.json`);
 const roles = new Set(['analysis','implementation','verification','release','assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','diagnosticAgent']);
