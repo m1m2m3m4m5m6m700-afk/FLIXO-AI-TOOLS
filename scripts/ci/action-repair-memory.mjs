@@ -95,6 +95,41 @@ export function createLearningRequest({fingerprint,runId,targetSha,workflow,job,
  return appendActionCenterEvent({type:'LEARNING_REQUEST_OPEN',taskId:'ACTION-LEARN:'+runId+':'+fp,fingerprint:fp,runId,targetSha,actor:master,payload:{requestId:request.requestId,reason,status:request.status,requiredFields:request.requiredFields,workflow:workflow??null,job:job??null}});
 }
 
+export function requestMasterRepair({botId='ACTION-REPAIR',taskId,fingerprint,runId,targetSha,workflow,job,normalizedFailure,reason='NO_ACTIONABLE_INDEX_SOLUTION',searchedIndex,searchedTerms,attemptedStrategies,rejectedStrategies,evidenceGap,requestedPlan='MASTER_REPAIR_AND_INDEX_UPDATE',proposedHypothesis=null}={}){
+ const fp=String(fingerprint??'').trim();
+ if(!fp||!runId||!/^[a-f0-9]{40}$/iu.test(String(targetSha??''))) throw new Error('ACTION_MASTER_REPAIR_REQUEST_IDENTITY_INVALID');
+ const requester=valid(botId);
+ const m=loadActionBotMemory('ACTION-INDEX');
+ const request={
+  requestId:'MASTER-ACTION-'+String(runId)+'-'+fp.slice(0,16),
+  taskId:taskId??('ACTION-MASTER:'+runId+':'+fp.slice(0,16)),
+  botId:requester,
+  fingerprint:fp,runId:String(runId),targetSha:String(targetSha),
+  workflow:workflow??null,job:job??null,
+  normalizedFailure:String(normalizedFailure??'').slice(0,16000),
+  status:'OPEN_MASTER_REQUIRED',
+  reason,
+  searchedIndex:searchedIndex??'docs/agents/historical-action-errors/index.json',
+  searchedTerms:Array.isArray(searchedTerms)?searchedTerms.slice(0,100):[],
+  attemptedStrategies:Array.isArray(attemptedStrategies)?attemptedStrategies.slice(0,100):[],
+  rejectedStrategies:Array.isArray(rejectedStrategies)?rejectedStrategies.slice(0,100):[],
+  evidenceGap:evidenceGap??'NO_VERIFIED_ACTIONABLE_SOLUTION',
+  requestedPlan,
+  proposedHypothesis,
+  master:'repairAgent',
+  openedAt:now(),
+  completedAt:null,
+  masterSolution:null,
+  indexUpdate:null,
+  nextPlan:null
+ };
+ const prior=(m.learningRequests??[]).filter(x=>x.requestId!==request.requestId);
+ saveActionBotMemory({...m,learningRequests:bounded([...prior,request],5000)});
+ const repairMemory=loadActionBotMemory('ACTION-REPAIR');
+ saveActionBotMemory({...repairMemory,state:{...(repairMemory.state??{}),lastTaskId:request.taskId,lastUpdatedAt:request.openedAt},learningRequests:bounded([...(repairMemory.learningRequests??[]),request],5000),sourceEvidence:[...(repairMemory.sourceEvidence??[]),{taskId:request.taskId,ref:request.searchedIndex,at:request.openedAt}].slice(-1000)});
+ return appendActionCenterEvent({type:'NO_SOLUTION_MASTER_REQUEST',taskId:request.taskId,fingerprint:fp,runId,targetSha,actor:requester,payload:{requestId:request.requestId,reason,evidenceGap,searchedIndex:request.searchedIndex,searchedTerms:request.searchedTerms,attemptedStrategies:request.attemptedStrategies,rejectedStrategies:request.rejectedStrategies,requestedPlan,proposedHypothesis}});
+}
+
 export function closeLearningRequest({fingerprint,runId,targetSha,solution,verification,evidenceRef,master='repairAgent'}={}){
  const fp=String(fingerprint??'').trim();
  if(!fp||!runId||!/^[a-f0-9]{40}$/iu.test(String(targetSha??''))) throw new Error('ACTION_LEARNING_CLOSE_IDENTITY_INVALID');
