@@ -348,7 +348,7 @@ jobs:
           retention-days: 14
 
       - name: Fail closed unless the monitored state is fully GREEN
-        if: always()
+        if: ${{ !cancelled() }}
         run: |
           set -euo pipefail
           test -s /tmp/flixo-watch/report.json
