@@ -105,10 +105,10 @@ assert.equal(protocolRegistry.protocols.find((item) => item.id === 'P20')?.statu
 
 const targetSHA = 'a'.repeat(40);
 const verifierProof = {
-  status: 'CHALLENGE_PASSED',
+  status: 'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',
   challengeId: 'challenge-test',
-  role: 'EXACT_PROGRAMMER_TWIN_VERIFIER',
-  challengeMode: 'PROGRAMMER_TWIN',
+  role: 'ADVERSARIAL_PROGRAMMER_FALSIFIER',
+  challengeMode: 'FALSIFY_PRIMARY',
   verifierAgent: 'actionRepairVerifier',
   targetSha: targetSHA,
   failureFingerprint: 'fp-test',
@@ -116,13 +116,18 @@ const verifierProof = {
   falsificationChecks: [{ id: 'check-a', command: 'echo prove-or-disprove' }],
   counterEvidence: { rejectedHypothesis: 'alt-a', evidenceRef: 'test-evidence' },
   programmerTwinParity: { intelligenceParity: 'EXACT', authorityParity: 'SEPARATED_BY_DESIGN' },
+  primaryCorrectnessProof: { objective: 'PROVE_PRIMARY_REPAIR_CORRECT' },
+  cognitiveAwareness: { protocol: 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1', systemWide: true },
+  falsificationComplete: true,
+  counterexampleFound: false,
+  falsificationSearches: [{},{},{},{}],
   mutationRecommendation: 'ALLOW',
   remainingRisks: ['rerun-targeted-regression'],
 };
 assert.doesNotThrow(() => validateActionVaultVerifierProof({ proof: verifierProof, targetSHA, failureFingerprint: 'fp-test' }));
 assert.throws(() => validateActionVaultVerifierProof({ proof: { ...verifierProof, targetSha: 'b'.repeat(40) }, targetSHA, failureFingerprint: 'fp-test' }), /SHA_MISMATCH/);
 assert.throws(() => validateActionVaultVerifierProof({ proof: { ...verifierProof, alternativeHypotheses: [] }, targetSHA, failureFingerprint: 'fp-test' }), /ALTERNATIVES_MISSING/);
-assert.throws(() => validateActionVaultVerifierProof({ proof: { ...verifierProof, challengeMode: 'PREDICTOR' }, targetSHA, failureFingerprint: 'fp-test' }), /PROGRAMMER_TWIN_MODE_INVALID/);
+assert.throws(() => validateActionVaultVerifierProof({ proof: { ...verifierProof, challengeMode: 'PREDICTOR' }, targetSHA, failureFingerprint: 'fp-test' }), /FALSIFICATION_MODE_INVALID/);
 assert.throws(() => validateActionVaultVerifierProof({ proof: { ...verifierProof, programmerTwinParity: { intelligenceParity: 'MISMATCH', authorityParity: 'SEPARATED_BY_DESIGN' } }, targetSHA, failureFingerprint: 'fp-test' }), /PROGRAMMER_TWIN_PARITY_INVALID/);
 
 const actionVaultSession = {
@@ -134,7 +139,7 @@ const actionVaultSession = {
   actionVaultMission: {
     role: 'ACTION-REPAIR', triadId: 'triad-test', messageId: 'msg-test', taskId: 'task-test',
     failureFingerprint: 'fp-test', entrySha: targetSHA, targetSha: targetSHA, ownerAgent: 'actionRepairBot',
-    verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian', programmerTwinParity: { intelligenceParity: 'EXACT', authorityParity: 'SEPARATED_BY_DESIGN', targetSha }, proofObligations: ['proof'], stopConditions: ['GREEN'], noBlindRetry: true,
+    verifierAgent: 'actionRepairVerifier', historianAgent: 'actionHistorian', programmerTwinParity: { intelligenceParity: 'EXACT', authorityParity: 'SEPARATED_BY_DESIGN', targetSha }, cognitiveAwareness: { protocol: 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1', targetSha, complete: true }, proofObligations: ['proof'], stopConditions: ['GREEN'], noBlindRetry: true,
   },
   actionVaultVerifierProof: verifierProof,
 };
