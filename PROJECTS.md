@@ -341,7 +341,7 @@ NO GATE BYPASS = required
 
 | ID | Status | Owner/Surface | Next deterministic action |
 |---|---|---|---|
-| AUTO-REPAIR-BOT-001 | ACTIVE / LEDGER-MISSING | Auto Repair + Task Agent + Error Agent | Register lifecycle, prove repair publication and learning gates on current SHA |
+| AUTO-REPAIR-BOT-001 | VERIFYING / EVIDENCE-PENDING | Auto Repair + Task Agent + Error Agent | إثبات repair publication + learning + handoff على current SHA |
 | EXECUTION-BOT-WATCHDOG-001 | ACTIVE | execution-bot-watchdog | Verify exact-SHA RED detection and canonical repair dispatch |
 | REPAIR-SUPERVISION-GATES-001 | ACTIVE | handoff/recovery/merge gates | Prove fail-closed handoff→merge chain |
 | ROOT-CAUSE-DIAGNOSTICS-001 | OPEN | diagnostics/scout/investigator | Unify evidence→fingerprint→RCA path |
