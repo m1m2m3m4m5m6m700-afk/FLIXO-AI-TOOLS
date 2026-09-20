@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { recordAttempt, recordFailedAttempt, recordHandoff } from './action-failure-ledger.mjs';
 import { buildPrediction } from './action-historical-predictor.mjs';
 import { selectFileScope } from './action-file-selection-intelligence.mjs';
+import { openErrorGate, escalationFor } from './action-vault-triad-governor.mjs';
 
 const ROOT=process.cwd();
 const VAULT=path.resolve(ROOT,'diagnostics/auto-repair/action-vault');
@@ -57,6 +58,7 @@ if(JSON.stringify(profile.cooperation.participants)!==JSON.stringify(BOTS)) thro
 if(profile.cooperation.authority?.noParallelSourceMutation!==true) throw new Error('ACTION_THREE_BOT_PARALLEL_SOURCE_MUTATION_FORBIDDEN');
 if(profile.cooperation?.repairEngineering?.enabled!==true) throw new Error('ACTION_THREE_BOT_REPAIR_ENGINEERING_DISABLED');
 if(profile.cooperation?.repairEngineering?.owner!=='ACTION-REPAIR') throw new Error('ACTION_THREE_BOT_REPAIR_ENGINEERING_OWNER_INVALID');
+if(profile.cooperation?.parallelExecution?.allThreeContributionsRequired!==true) throw new Error('ACTION_THREE_BOT_TRIAD_CONTRIBUTIONS_REQUIRED');
 
 const execFileList=(command)=>execFileSync(command[0],command.slice(1),{encoding:'utf8'}).split('\\0').filter(Boolean);
 const buildAwareness=()=>{
@@ -90,6 +92,7 @@ const buildSelection=()=>{
   return selection;
 };
 const ensureState=()=>{
+  const triadGate=openErrorGate({taskId:task,fingerprint,targetSha,failedRunId:runId,errorText:logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):''});
   const fileSelection=buildSelection();
   const awareness=buildAwareness();
   const primaryProof=buildPrimaryProof();
@@ -115,6 +118,8 @@ const ensureState=()=>{
     failureFingerprint:fingerprint,
     targetSha,
     exactShaBound:true,
+    triadGate,
+    escalation:triadGate.escalation,
     participants:BOTS.map(id=>({id,lane:LANES[id],required:true,status:'ASSIGNED',contributionReceived:false,exchangeReceived:false,challengeIssued:false,learnedFromPeers:false})),
     sharedEvidence:{failureLog:logPath||null,failureSignalCount:(log.match(/(?:error|failure|failed|fatal|timeout|exception)/giu)||[]).length,actionIndex4000:'diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json',historicalIndex:'docs/agents/historical-action-errors/index.json',repairMemory:'diagnostics/auto-repair/memory.json',teachingRouter:'docs/agents/ERROR-TEACHING-ROUTER.json',inferentialIntelligence:'docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md'},
     parallelProtocol:{phases:[...PHASES],independentWorkRequired:true,crossLearningRequired:true,exchangeBeforeMutation:true,allThreeMustContributeBeforeMutation:true,oneActiveMutationOwner:true,mutationOwner:'ACTION-REPAIR',adversarialFalsifier:'ACTION-REPAIR-2',historian:'ACTION-HISTORIAN-3',mutationWindow:'OWNER_ONLY_AFTER_EXCHANGE',greenClosesMission:true},
@@ -181,7 +186,10 @@ if(op==='start'){
   state.phase='CROSS_LEARNING';state.updatedAt=now();write(state);
 } else if(op==='authorize-mutation'){
   const owner=validBot(arg('owner'));
-  if(owner==='ACTION-HISTORIAN-3') throw new Error('ACTION_THREE_BOT_HISTORIAN_CANNOT_MUTATE');
+  const escalation=escalationFor(fingerprint);
+  if(escalation.mode==='SUPERVISOR_20' && owner!=='ACTION-HISTORIAN-3') throw new Error('ACTION_THREE_BOT_MUTATOR_SUSPENDED_AT_20');
+  if(escalation.mode!=='SUPERVISOR_20' && owner==='ACTION-HISTORIAN-3') throw new Error('ACTION_THREE_BOT_SUPERVISOR_3_REQUIRES_20');
+
   for(const id of BOTS) if(!state.contributions[id]) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_MISSING_CONTRIBUTION='+id);
   if(state.exchange.status!=='COMPLETE') throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_EXCHANGE_INCOMPLETE');
   if(state.fileSelectionDecision?.decision!=='SELECTED'||state.fileSelectionDecision?.targetSha!==targetSha||state.fileSelectionDecision?.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_FILE_SELECTION');
@@ -189,7 +197,14 @@ if(op==='start'){
   if(state.primaryCorrectnessProof?.proofObjective!=='PROVE_PRIMARY_REPAIR_CORRECT') throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_PRIMARY_PROOF');
   if(state.cognitiveAwareness?.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'||state.cognitiveAwareness?.targetSha!==targetSha) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_COGNITIVE_AWARENESS');
   if(state.participants.some(x=>!x.learnedFromPeers)) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_CROSS_LEARNING_INCOMPLETE');
-  if(owner!=='ACTION-REPAIR') throw new Error('ACTION_THREE_BOT_ONLY_PROGRAMMER_OWNER_MAY_MUTATE');
+  if(owner==='ACTION-REPAIR-2' && escalation.mode==='SUPERVISOR_20') throw new Error('ACTION_THREE_BOT_AGENT_2_SUSPENDED_AT_20');
+  if(owner==='ACTION-HISTORIAN-3'){
+    if(escalation.mode!=='SUPERVISOR_20') throw new Error('ACTION_THREE_BOT_SUPERVISOR_MODE_REQUIRED');
+    state.authorization={status:'AUTHORIZED',owner,authorizedAt:now(),reason:'SUPERVISOR_20_CATALOG_REVIEW_AND_TRIAD_SELECTION',targetSha,supervisorMode:'SUPERVISOR_20'};
+    state.phase='OWNER_MUTATION';state.updatedAt=now();write(state);
+  } else if(!['ACTION-REPAIR','ACTION-REPAIR-2'].includes(owner)) {
+    throw new Error('ACTION_THREE_BOT_MUTATION_OWNER_INVALID');
+  }
   if(!state.outputs.programmerTwinAnalysis && !state.contributions['ACTION-REPAIR-2']) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_NO_PROGRAMMER_TWIN_ANALYSIS');
   state.authorization={status:'AUTHORIZED',owner,authorizedAt:now(),reason:'PROGRAMMER_OWNER_AFTER_HISTORICAL_PREDICTION_AND_HISTORIAN_RECORD',targetSha};
   state.phase='OWNER_MUTATION';state.updatedAt=now();write(state);
