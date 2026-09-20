@@ -107,6 +107,10 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   const recordFrameRef = useRef<number | null>(null);
   const recordTimerRef = useRef<number | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const selectedRef = useRef(selected);
+  const intensityRef = useRef(intensity);
+  const zoomRef = useRef(zoom);
+  const mirrorRef = useRef(mirror);
 
   const handoff = useMemo(
     () => (typeof window === 'undefined' ? null : parseFilterMaskHandoff(window.location.search)),
@@ -131,6 +135,13 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   const [capturedKind, setCapturedKind] = useState<'photo' | 'video' | null>(null);
 
   const selected = getLiveFilter(selectedId) ?? LIVE_FILTER_REGISTRY[0];
+  useEffect(() => {
+    selectedRef.current = selected;
+    intensityRef.current = intensity;
+    zoomRef.current = zoom;
+    mirrorRef.current = mirror;
+  }, [intensity, mirror, selected, zoom]);
+
   const filters = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
     return LIVE_FILTER_REGISTRY.filter((filter) => {
@@ -208,6 +219,9 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       setRunning(true);
     } catch {
       stream?.getTracks().forEach((track) => track.stop());
+      videos.forEach((video) => {
+        video.srcObject = previousStream ?? null;
+      });
       setRunning(Boolean(previousStream?.active));
       setError(copy.cameraDenied);
     }
@@ -302,10 +316,10 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
           video,
           canvas.width,
           canvas.height,
-          selected.cssFilter,
-          intensity,
-          zoom,
-          mirror,
+          selectedRef.current.cssFilter,
+          intensityRef.current,
+          zoomRef.current,
+          mirrorRef.current,
         );
         recordFrameRef.current = requestAnimationFrame(drawFrame);
       };
@@ -333,7 +347,10 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       };
 
       recorder.onerror = () => {
+        if (recordTimerRef.current !== null) window.clearInterval(recordTimerRef.current);
+        recordTimerRef.current = null;
         setRecording(false);
+        setRecordSeconds(0);
         setError(copy.recordingFailed);
         recorderRef.current = null;
       };
@@ -456,7 +473,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button type="button" onClick={() => void start()} disabled={running}>{copy.startCamera}</button>
           <button type="button" onClick={stop} disabled={!running}>{copy.stop}</button>
-          <button type="button" onClick={switchCamera} disabled={!running}>{copy.switchCamera}</button>
+          <button type="button" onClick={switchCamera} disabled={!running || recording}>{copy.switchCamera}</button>
           <button type="button" onClick={() => void capture()} disabled={!running || recording}>{copy.photo}</button>
           {!recording
             ? <button type="button" onClick={startRecording} disabled={!running}>{copy.recordVideo}</button>
@@ -563,6 +580,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
             key={ratio}
             type="button"
             aria-pressed={aspectRatio === ratio}
+            disabled={recording}
             onClick={() => setAspectRatio(ratio)}
           >
             {ratio}
