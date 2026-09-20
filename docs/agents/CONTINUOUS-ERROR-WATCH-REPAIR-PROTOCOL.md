@@ -18,6 +18,18 @@ A cycle is GREEN only after exact-head required CI, security, and certification 
 
 The watcher runs every 15 minutes and after relevant CI workflow completions. GREEN does not disable future monitoring.
 
+## Error-only mutation boundary
+
+The repair protocol is **ERROR_ONLY**: an automatic repair may mutate only the exact source file identified as the diagnosed causal failure location. It must not broaden the patch to adjacent files, repository-wide cleanup, or the test suite.
+
+- failureLocation == selectedFile
+- changedPaths must contain exactly one path, equal to failureLocation
+- test files and test suites are never mutation targets for automatic error repair
+- tests remain verification evidence: reproduce the RED, apply the causal source repair, run targeted regression, then resume the required verification
+- changing a test to remove, skip, weaken, or reinterpret the failing condition is a protocol violation and must fail closed
+
+This boundary is enforced by scripts/ci/repair-protocol.mjs::validateErrorOnlyMutation() and consumed by scripts/ci/auto-repair-engine.mjs. The enforcement test is part of scripts/ci/test-repair-protocol.mjs, which is already wired into the canonical CI contract.
+
 ## Repair teaching loop
 
 Repeated REDs are training evidence, not permission for identical retries.
