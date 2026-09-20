@@ -27,3 +27,8 @@ Prompt text is an execution instruction, not policy. Protocols, validators, exac
 ## LEARNING INSTRUCTIONS
 Record promptId, version, exactSha, failureFingerprint, rootCause, decision, comparedPromptIds, conflicts, mergedPromptIds, outcome, and provenance.
 Never interpret prompt reuse as proof that the underlying repair succeeded.
+
+## BRANCH RULE
+
+Prompt work does not create branches. All Prompt Registry changes remain on the canonical `execution` lane and are promoted only through the existing `execution → main` path. Never create a branch per prompt, fingerprint, RCA, or agent.
+
