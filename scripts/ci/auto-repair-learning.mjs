@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { normalizeFailure, fingerprintFailure, extractFeatures } from './auto-repair/fingerprint.mjs';
+import { retrieveTeachingRecords } from './error-learning-log.mjs';
 
 const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/memory.json';
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
@@ -505,6 +506,18 @@ export function deriveReusableKnowledge(memory, { rootCause, features = [], fing
       .filter(Boolean),
   );
 
+  const teachingClass = ({
+    'webkit-render': 'playwright-webkit',
+    lint: 'eslint',
+    typescript: 'typescript',
+    build: 'build-chunk',
+    playwright: 'playwright-webkit',
+    certification: 'control-plane',
+    'external-tooling': 'capi-model',
+  })[rootCause] ?? null;
+  const teachingAdvisories = teachingClass
+    ? retrieveTeachingRecords({ className: teachingClass, limit: 12 })
+    : [];
   const generalizedRules = relevantPlaybooks
     .filter((item) => item.generalized && !blockedRules.has(item.rule))
     .sort((a, b) => (b.successRate - a.successRate) || (b.successfulFingerprintSupport - a.successfulFingerprintSupport));
@@ -534,6 +547,7 @@ export function deriveReusableKnowledge(memory, { rootCause, features = [], fing
     features: [...new Set(features)],
     generalizedRules,
     rejectedRules,
+    teachingAdvisories: teachingAdvisories.map(({id,class:className,stage,trigger,hypothesis,falsify,action,verify,learning,source,authority,exactSha}) => ({ id, class: className, stage, trigger, hypothesis, falsify, action, verify, learning, source, authority, exactSha })),
     historicalAdvisories,
     policy: {
       promotionRequiresDistinctFingerprints: 2,
