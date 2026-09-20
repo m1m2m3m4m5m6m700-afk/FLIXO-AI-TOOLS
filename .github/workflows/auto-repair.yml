@@ -844,6 +844,13 @@ jobs:
           node scripts/ci/action-repair-dual-control.mjs heartbeat --primary=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$FLIXO_EXPECTED_TARGET_SHA" --state=READY_FOR_MUTATION --out=/tmp/action-repair-pair-heartbeat.json
           node scripts/ci/action-repair-dual-control.mjs assert --approval=/tmp/action-repair-2-approval.json --heartbeat=/tmp/action-repair-pair-heartbeat.json --approver=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$FLIXO_EXPECTED_TARGET_SHA"
 
+      - name: Action Vault adversarial gate-integrity benchmark
+        if: steps.action_repair_primary_approval.outcome == 'success'
+        run: |
+          set -euo pipefail
+          node scripts/ci/action-vault-intelligence-benchmark.mjs
+          echo "ACTION_VAULT_GATE_INTEGRITY_BENCHMARK=100"
+
       - name: Mark mutation boundary after verifier dual-control
         if: steps.action_repair_primary_approval.outcome == 'success'
         run: |
