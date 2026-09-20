@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
-
 export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   schemaVersion: 1,
   protocolId: 'AGENT_LIVENESS_PROTOCOL',
