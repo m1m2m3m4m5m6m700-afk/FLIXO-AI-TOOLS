@@ -1,6 +1,7 @@
 import { extractFeatures } from './fingerprint.mjs';
 import { reasonFailure } from './reasoning.mjs';
 import { deriveReusableKnowledge } from '../auto-repair-learning.mjs';
+import { execFileSync } from 'node:child_process';
 import { preparedPlan } from './prepared-source-change.mjs';
 
 const plans = [
@@ -16,7 +17,7 @@ const plans = [
 
 export function planRepair(log, { historical = [], memory } = {}) {
   const features = extractFeatures(log);
-  const targetSha = (() => { try { return require('node:child_process').execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return null; } })();
+  const targetSha = (() => { try { return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return null; } })();
   const preparedPacketPath = process.env.FLIXO_TASK_AGENT_PACKET_PATH ?? '/tmp/flixo-task-agent/latest.json';
   const prepared = targetSha ? preparedPlan(preparedPacketPath, targetSha) : { ok: false, reason: 'PREPARED_TARGET_SHA_UNAVAILABLE' };
   const reasoning = reasonFailure(log, { historical });
@@ -31,8 +32,9 @@ export function planRepair(log, { historical = [], memory } = {}) {
     ? 'prepared-source-change'
     : reasoning.rootCause === 'format' ? 'prettier-file' : reasoning.rootCause === 'lint' ? 'eslint-unused' : reasoning.rootCause;
   const requiresSourceLocation = selectedRule === 'prettier-file' || selectedRule === 'eslint-unused';
-  const selected = reasoning.decision === 'ALLOW_BOUNDED_MUTATION' && safe.length === 1 && safe[0].id === selectedRule && (!requiresSourceLocation || Boolean(reasoning.location?.file))
-    ? { ...safe[0], file: reasoning.location?.file ?? null, learning: reusableKnowledge }
+  const selectedCandidate = safe.find((candidate) => candidate.id === selectedRule) ?? null;
+  const selected = reasoning.decision === 'ALLOW_BOUNDED_MUTATION' && selectedCandidate && (!requiresSourceLocation || selectedRule === 'prepared-source-change' || Boolean(reasoning.location?.file))
+    ? { ...selectedCandidate, file: selectedCandidate.id === 'prepared-source-change' ? selectedCandidate.file : reasoning.location?.file ?? null, learning: reusableKnowledge }
     : null;
   return {
     features,
