@@ -107,6 +107,7 @@ function buildCandidate(signal, log, exactCases, doNotRepeat){
     targetScope:signal.targetScope,
     mutationAllowed:signal.mutationAllowed && !repeatedRejected,
     proposalOnly:!signal.mutationAllowed || repeatedRejected,
+    historicallyRejected:repeatedRejected,
     evidenceAnchors:anchors,
     sourceLocationHints:locationHints,
     historicalOutcome:history,
@@ -132,7 +133,7 @@ export function buildCausalDiscriminator({
 
   const [top,runnerUp]=candidates;
   const margin=top ? top.evidenceScore-(runnerUp?.evidenceScore??0) : 0;
-  const ambiguous=!top || (top.mutationAllowed && (top.evidenceScore<0.78 || margin<0.08 || top.contradictions.includes('SOURCE_LOCATION_NOT_EXPLICIT')));
+  const ambiguous=!top || top.historicallyRejected || (top.mutationAllowed && (top.evidenceScore<0.78 || margin<0.08 || top.contradictions.includes('SOURCE_LOCATION_NOT_EXPLICIT')));
   const selected=ambiguous ? null : top;
 
   const probes=[
