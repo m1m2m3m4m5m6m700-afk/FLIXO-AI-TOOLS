@@ -328,7 +328,12 @@ jobs:
             masterPromptId: context.masterPromptId ?? 'RPR-CORE-MASTER-001',
             selectedPromptId: context.selectedPromptId,
             selectedPromptVersion: context.selectedPromptVersion ?? 1,
+            selectedStatus: context.selectedStatus ?? 'ACTIVE',
+            exactSha: context.exactSha ?? null,
+            failureFingerprint: context.failureFingerprint ?? null,
+            rootCause: context.rootCause ?? null,
             decision: context.decision ?? 'UNKNOWN',
+            handoffSchema: context.handoffSchema ?? 'PROMPT-HANDOFF-v1',
             candidates: context.candidates ?? [],
             source: 'FLIXO_TASK_AGENT',
           };
