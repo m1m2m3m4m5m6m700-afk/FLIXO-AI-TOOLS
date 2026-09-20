@@ -34,6 +34,31 @@ const cases = [
   ['cc208a65323355b8846d7aa6d7e85f742feb8909', 'lint', 'RPR-REGEX-CONTRACT-001'],
   ['11a69c066357a565d2cc26afd516d4b2d1eb6f7b', 'architecture', 'RPR-ARCHITECTURE-REGISTRY-001'],
 ];
+const canonical = selectRepairPrompt({
+  registry,
+  failureFingerprint: 'f'.repeat(64),
+  rootCause: 'noncanonical-automation',
+  failureClass: 'noncanonical-automation',
+});
+assert.equal(canonical.status, 'REUSE');
+assert.equal(canonical.prompt.promptId, 'RPR-CANONICAL-CONTRACT-DRIFT-001');
+const liveness = selectRepairPrompt({
+  registry,
+  failureFingerprint: 'f'.repeat(64),
+  rootCause: 'liveness-contract',
+  failureClass: 'liveness-contract',
+});
+assert.equal(liveness.status, 'REUSE');
+assert.equal(liveness.prompt.promptId, 'RPR-CANONICAL-CONTRACT-DRIFT-001');
+const drift = selectRepairPrompt({
+  registry,
+  failureFingerprint: 'f'.repeat(64),
+  rootCause: 'contract-drift',
+  failureClass: 'contract-test-mismatch',
+});
+assert.equal(drift.status, 'REUSE');
+assert.equal(drift.prompt.promptId, 'RPR-CANONICAL-CONTRACT-DRIFT-001');
+
 for (const [fingerprint, rootCause, expected] of cases) {
   const found = selectRepairPrompt({ registry, failureFingerprint: fingerprint, rootCause });
   assert.equal(found.status, 'REUSE');
