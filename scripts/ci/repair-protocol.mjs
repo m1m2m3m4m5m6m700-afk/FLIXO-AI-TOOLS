@@ -61,7 +61,7 @@ export function validateErrorOnlyMutation({failureLocation,selectedFile,changedP
   if (!selected) throw new Error('REPAIR_PROTOCOL_ERROR_TARGET_REQUIRED');
   if (selected !== location) throw new Error('REPAIR_PROTOCOL_ERROR_TARGET_MISMATCH');
   if (changed.length !== 1 || changed[0] !== location) throw new Error('REPAIR_PROTOCOL_ERROR_SCOPE_EXCEEDED');
-  if (/(^|\\/)(?:tests?|__tests__)(?:\\/|$)/iu.test(location) || /(?:\\.(?:spec|test)\\.(?:mjs|cjs|js|ts|tsx|jsx))$/iu.test(location) || /(^|\\/)test-[^/]+\\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu.test(location)) {
+  if (/(^|[\\\\/])(?:tests?|__tests__)(?:[\\\\/]|$)/iu.test(location) || /(?:\\.(?:spec|test)\\.(?:mjs|cjs|js|ts|tsx|jsx))$/iu.test(location) || /(^|[\\\\/])test-[^/]+\\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu.test(location)) {
     throw new Error('REPAIR_PROTOCOL_TEST_MUTATION_BLOCKED');
   }
   return Object.freeze({
