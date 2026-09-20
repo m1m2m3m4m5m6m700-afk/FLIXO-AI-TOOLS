@@ -229,6 +229,8 @@ export function evaluateGreen({
     }
   }
 
+  let waitingRequiredChecks = false;
+  let externalApprovalRequired = false;
   const requiredWorkflows = requiredWorkflowsForBranch(observedBranch);
   for (const workflowName of requiredWorkflows) {
     const run = latestWorkflow(workflowRuns, workflowName);
@@ -250,8 +252,17 @@ export function evaluateGreen({
         headSha: run?.headSha ?? null,
         headBranch: run?.headBranch ?? null,
       });
+      if (['queued', 'in_progress', 'pending'].includes(status)) {
+        waitingRequiredChecks = true;
+      }
+      const evidence = String(logs[String(run?.databaseId ?? '')] ?? '').trim();
+      if (status === 'action_required') {
+        externalApprovalRequired = true;
+        report.rootCause = 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED';
+      } else if (evidence && providerFailure(evidence)) {
+        report.rootCause = 'PROVIDER_RATE_LIMIT_OR_DEPLOYMENT_SERVICE_FAILURE';
+      }
       if (run?.databaseId != null && ['failure', 'timed_out', 'cancelled'].includes(status)) {
-        const evidence = String(logs[String(run.databaseId)] ?? '').trim();
         if (!evidence || /EVIDENCE_CAPTURE=FAILED/i.test(evidence)) {
           report.errors.push({
             type: 'EVIDENCE_CAPTURE_FAILED',
@@ -379,6 +390,11 @@ export function evaluateGreen({
   if (report.repair.required) {
     report.status = 'RED_INTERNAL';
     report.rootCause = report.errors.find((item) => item.type === 'UNEXPECTED_WORKFLOW_RED')?.workflow ?? 'INTERNAL_WORKFLOW_FAILURE';
+  } else if (externalApprovalRequired) {
+    report.status = 'FAIL_CLOSED';
+    report.rootCause = report.rootCause ?? 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED';
+  } else if (waitingRequiredChecks && !report.rootCause) {
+    report.status = 'WAITING_REQUIRED_CHECKS';
   } else if (report.errors.length) {
     report.status = report.rootCause ? 'BLOCKED_EXTERNAL' : 'FAIL_CLOSED';
   } else if (report.externalBlockers.some((item) => item.state === 'action_required')) {
