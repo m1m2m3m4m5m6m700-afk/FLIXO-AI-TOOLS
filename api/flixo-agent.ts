@@ -1,0 +1,280 @@
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import { getCapability, getExecutableCapabilityIds } from '../src/lib/agent/capability-registry.ts';
+import { parseExecutionPlan, type ExecutionPlanContract } from '../src/lib/contracts/ai-plan.ts';
+import { TOOL_CATALOG } from '../src/config/registry.ts';
+
+type ChatMessage = { role: 'user' | 'assistant'; content: string };
+type RequestBody = {
+  locale?: string;
+  messages?: ChatMessage[];
+  file?: { name?: string; type?: string; size?: number } | null;
+  activePlan?: ExecutionPlanContract | null;
+  activeCommand?: string | null;
+};
+
+type AgentDecision = {
+  mode: 'chat' | 'clarify' | 'plan';
+  reply: string;
+  question: string | null;
+  plan: ExecutionPlanContract | null;
+  confidence: number;
+};
+
+const MAX_INPUT_CHARS = Math.max(2000, Number(process.env.FLIXO_AI_MAX_INPUT_CHARS ?? 12000));
+const MAX_MESSAGES = 24;
+
+function json(res: ServerResponse, status: number, body: unknown): void {
+  res.statusCode = status;
+  res.setHeader('content-type', 'application/json; charset=utf-8');
+  res.setHeader('cache-control', 'no-store');
+  res.end(JSON.stringify(body));
+}
+
+async function readBody(req: IncomingMessage): Promise<RequestBody> {
+  let raw = '';
+  for await (const chunk of req) {
+    raw += String(chunk);
+    if (raw.length > 500_000) throw new Error('Request body is too large.');
+  }
+  const value = JSON.parse(raw) as RequestBody;
+  if (!value || typeof value !== 'object') throw new Error('Invalid request.');
+  return value;
+}
+
+function normalizeMessages(messages: ChatMessage[] | undefined): ChatMessage[] {
+  if (!Array.isArray(messages)) return [];
+  return messages
+    .filter((message) => message && (message.role === 'user' || message.role === 'assistant') && typeof message.content === 'string')
+    .slice(-MAX_MESSAGES)
+    .map((message) => ({
+      role: message.role,
+      content: message.content.trim().slice(0, MAX_INPUT_CHARS),
+    }))
+    .filter((message) => message.content.length > 0);
+}
+
+function executableCatalog(): Array<Record<string, unknown>> {
+  return getExecutableCapabilityIds().map((id) => {
+    const capability = getCapability(id);
+    return capability
+      ? {
+          id,
+          title: capability.title,
+          description: capability.description,
+          intents: capability.intents,
+          parameters: capability.parameterSchema,
+          executionMode: capability.executionMode,
+        }
+      : null;
+  }).filter(Boolean) as Array<Record<string, unknown>>;
+}
+
+function systemPrompt(locale: string, file: RequestBody['file']): string {
+  const catalog = executableCatalog();
+  return [
+    'You are FLIXO, a conversational image-editing assistant inside the FLIXO web product.',
+    'Speak naturally like a helpful human collaborator. Be concise, warm, clear, and concrete.',
+    'Understand the user request in context instead of matching keywords only.',
+    'Ask a focused clarification question when a required detail is missing. Ask only what is actually needed.',
+    'Choose the most appropriate executable FLIXO tool(s) from the supplied canonical catalog.',
+    'Never invent a tool, parameter, capability, or execution result.',
+    'You propose plans; the application is the only component allowed to execute them.',
+    'Only use tools whose capability state is EXECUTABLE.',
+    'If the request needs a non-executable or unavailable capability, explain that clearly and do not fabricate a plan.',
+    'Keep plans to at most 4 steps.',
+    'Return ONLY valid JSON with this shape:',
+    '{"mode":"chat|clarify|plan","reply":"...","question":null|string,"confidence":0..1,"plan":null|{"workflowName":"...","confidence":0..1,"steps":[{"toolId":"...","params":{}}]}}',
+    `Reply language: ${locale || 'en'}.`,
+    `Working file metadata: ${JSON.stringify(file ?? null)}.`,
+    `Canonical tool catalog: ${JSON.stringify(catalog)}.`,
+    `Canonical catalog fingerprint: ${TOOL_CATALOG.fingerprint}.`,
+    'For plan mode, every step must reference an executable tool from the catalog and parameters must match its contract.',
+  ].join('\n');
+}
+
+function parseJsonObject(text: string): unknown {
+  const trimmed = text.trim().replace(/^\uFEFF/, '');
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    const start = trimmed.indexOf('{');
+    const end = trimmed.lastIndexOf('}');
+    if (start >= 0 && end > start) return JSON.parse(trimmed.slice(start, end + 1)) as unknown;
+    throw new Error('AI response was not valid JSON.');
+  }
+}
+
+function normalizeDecision(value: unknown): AgentDecision {
+  if (!value || typeof value !== 'object') throw new Error('AI decision is not an object.');
+  const raw = value as Record<string, unknown>;
+  const mode = raw.mode;
+  if (mode !== 'chat' && mode !== 'clarify' && mode !== 'plan') throw new Error('AI decision mode is invalid.');
+  const reply = typeof raw.reply === 'string' ? raw.reply.trim() : '';
+  if (!reply) throw new Error('AI reply is empty.');
+  const question = raw.question === null || raw.question === undefined ? null : String(raw.question).trim();
+  const confidence = typeof raw.confidence === 'number' && Number.isFinite(raw.confidence)
+    ? Math.min(1, Math.max(0, raw.confidence))
+    : 0.5;
+  if (mode === 'clarify' && !question) throw new Error('Clarification mode requires a question.');
+  if (mode !== 'plan') return { mode, reply, question, plan: null, confidence };
+
+  const plan = parseExecutionPlan(raw.plan);
+  return { mode: 'plan', reply, question: null, plan, confidence };
+}
+
+async function callOpenAI(
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('OPENAI_API_KEY is not configured.');
+  const base = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
+  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  const response = await fetch(`${base}/chat/completions`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.2,
+      max_tokens: Number(process.env.FLIXO_AI_DEFAULT_MAX_TOKENS ?? 900),
+      response_format: { type: 'json_object' },
+    }),
+  });
+  if (!response.ok) throw new Error(`OpenAI returned HTTP ${response.status}.`);
+  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error('OpenAI returned no content.');
+  return content;
+}
+
+async function callOpenRouter(
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured.');
+  const base = (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
+  const model = process.env.OPENROUTER_MODEL || process.env.OPENROUTER_FREE_MODEL || 'openrouter/free';
+  const response = await fetch(`${base}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${apiKey}`,
+      'HTTP-Referer': process.env.VITE_SITE_URL || 'https://flixoai.vercel.app',
+      'X-Title': 'FLIXO AI',
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.2,
+      max_tokens: Number(process.env.FLIXO_AI_DEFAULT_MAX_TOKENS ?? 900),
+      response_format: { type: 'json_object' },
+    }),
+  });
+  if (!response.ok) throw new Error(`OpenRouter returned HTTP ${response.status}.`);
+  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error('OpenRouter returned no content.');
+  return content;
+}
+
+async function callGemini(
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured.');
+  const base = (process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const system = messages.find((message) => message.role === 'system')?.content ?? '';
+  const contents = messages.filter((message) => message.role !== 'system').map((message) => ({
+    role: message.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: message.content }],
+  }));
+  const response = await fetch(`${base}/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents,
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: Number(process.env.FLIXO_AI_DEFAULT_MAX_TOKENS ?? 900),
+        responseMimeType: 'application/json',
+      },
+    }),
+  });
+  if (!response.ok) throw new Error(`Gemini returned HTTP ${response.status}.`);
+  const data = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+  const content = data.candidates?.[0]?.content?.parts?.find((part) => typeof part.text === 'string')?.text;
+  if (!content) throw new Error('Gemini returned no content.');
+  return content;
+}
+
+async function callProvider(
+  provider: string,
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+): Promise<string> {
+  if (provider === 'gemini') return callGemini(messages);
+  if (provider === 'openrouter') return callOpenRouter(messages);
+  return callOpenAI(messages);
+}
+
+function fallbackDecision(message: string, file: RequestBody['file']): AgentDecision {
+  const normalized = message.toLocaleLowerCase();
+  if (!file && /(?:الصوره|الصورة|image|photo|صور)/i.test(normalized)) {
+    return {
+      mode: 'clarify',
+      reply: 'مفهوم. قبل التنفيذ أحتاج الصورة نفسها.',
+      question: 'ارفع الصورة التي تريد العمل عليها، ثم أخبرني بالنتيجة المطلوبة.',
+      plan: null,
+      confidence: 0.9,
+    };
+  }
+  return {
+    mode: 'clarify',
+    reply: 'أريد أن أتأكد من النتيجة التي تقصدها قبل اختيار الأداة.',
+    question: 'ما النتيجة النهائية التي تريدها بالضبط؟',
+    plan: null,
+    confidence: 0.55,
+  };
+}
+
+export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  if (req.method !== 'POST') {
+    res.setHeader('allow', 'POST');
+    json(res, 405, { error: 'Method not allowed.' });
+    return;
+  }
+  try {
+    const body = await readBody(req);
+    const messages = normalizeMessages(body.messages);
+    const userMessage = messages[messages.length - 1]?.content;
+    if (!userMessage) {
+      json(res, 400, { error: 'At least one user message is required.' });
+      return;
+    }
+    const locale = typeof body.locale === 'string' ? body.locale.slice(0, 16) : 'en';
+    const provider = (process.env.FLIXO_AI_PROVIDER || 'openai').toLocaleLowerCase();
+    const promptMessages = [
+      { role: 'system' as const, content: systemPrompt(locale, body.file) },
+      ...messages,
+    ];
+    const started = Date.now();
+    try {
+      const raw = await callProvider(provider, promptMessages);
+      const decision = normalizeDecision(parseJsonObject(raw));
+      json(res, 200, { ...decision, latencyMs: Date.now() - started, provider });
+    } catch (providerError) {
+      if (process.env.FLIXO_AI_FALLBACK_PROVIDER && process.env.FLIXO_AI_FALLBACK_PROVIDER !== provider) {
+        const fallbackProvider = process.env.FLIXO_AI_FALLBACK_PROVIDER.toLocaleLowerCase();
+        const raw = await callProvider(fallbackProvider, promptMessages);
+        const decision = normalizeDecision(parseJsonObject(raw));
+        json(res, 200, { ...decision, latencyMs: Date.now() - started, provider: fallbackProvider, fallback: true });
+        return;
+      }
+      const decision = fallbackDecision(userMessage, body.file);
+      json(res, 200, { ...decision, fallback: true, reason: providerError instanceof Error ? providerError.message : 'AI provider failure.' });
+    }
+  } catch (error) {
+    json(res, 400, { error: error instanceof Error ? error.message : 'Invalid FLIXO agent request.' });
+  }
+}
