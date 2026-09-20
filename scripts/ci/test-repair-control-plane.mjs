@@ -71,8 +71,7 @@ const circuitStale = staleRecoveryDecision({
   activeRuns: [],
   outcomes: progressOutcomes,
 });
-// An open circuit is a strategy-rotation signal, not a stale-recovery blocker.
-assert.equal(circuitStale.eligible, true);
+assert.equal(circuitStale.eligible, false);
 assert.equal(circuitStale.strategyRotationRequired, true);
 
 const activeStale = staleRecoveryDecision({
