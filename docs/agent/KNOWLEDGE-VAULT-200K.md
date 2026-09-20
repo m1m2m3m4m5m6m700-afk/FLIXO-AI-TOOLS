@@ -120,9 +120,9 @@ One success ≠ General rule
 
 Focused coverage is implemented in:
 
-`scripts/test-agent-knowledge-vault.mjs
+`scripts/test-agent-knowledge-vault.mjs`
 
 Canonical implementation:
-`scripts/ci/action-vault/repair-agent-advice-vault.ts``
+`scripts/ci/action-vault/repair-agent-advice-vault.ts`
 
 The existing cognitive-agent test suite should import the same contract test so the vault cannot silently drift away from the canonical agent test lane.
