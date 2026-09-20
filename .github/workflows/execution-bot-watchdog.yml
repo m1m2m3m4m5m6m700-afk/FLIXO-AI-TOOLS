@@ -26,7 +26,7 @@ concurrency:
   # Serialize all watchdog observations for the same exact source SHA.
   # Multiple required-workflow completions for one SHA must collapse into one observer wake.
   group: flixo-execution-watchdog-${{ github.event.workflow_run.head_sha || github.sha }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   wake:
@@ -45,16 +45,22 @@ jobs:
       - name: Checkout exact watchdog source SHA
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'execution' }}
           fetch-depth: 1
           persist-credentials: false
       - name: Verify exact watchdog checkout
         env:
-          EXPECTED_WATCHDOG_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          EXPECTED_WATCHDOG_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
         run: |
           set -euo pipefail
           ACTUAL_WATCHDOG_SHA="$(git rev-parse HEAD)"
-          test "$EXPECTED_WATCHDOG_SHA" = "$ACTUAL_WATCHDOG_SHA"
+          if [ -n "$EXPECTED_WATCHDOG_SHA" ]; then
+            test "$EXPECTED_WATCHDOG_SHA" = "$ACTUAL_WATCHDOG_SHA"
+            echo "WATCHDOG_CHECKOUT_MODE=EXACT_WORKFLOW_RUN_SHA"
+          else
+            test -n "$ACTUAL_WATCHDOG_SHA"
+            echo "WATCHDOG_CHECKOUT_MODE=CURRENT_EXECUTION_REF"
+          fi
       - name: Check source SHA freshness
         if: github.event_name == 'workflow_run'
         env:
@@ -78,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          LATEST="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --limit 1 --json status,conclusion,headSha)"
+          LATEST="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow daily-flixo-green-gate.yml --branch execution --commit "$EXECUTION_SHA" --limit 20 --json status,conclusion,headSha)"
           ACTIVE="$(printf '%s' "$LATEST" | jq -r 'map(select(.status == "queued" or .status == "in_progress")) | length')"
           GREEN="$(printf '%s' "$LATEST" | jq -r --arg sha "$EXECUTION_SHA" 'map(select(.headSha == $sha and .status == "completed" and .conclusion == "success")) | length')"
           if [ "$ACTIVE" -gt 0 ] || [ "$GREEN" -gt 0 ]; then
