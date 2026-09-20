@@ -21,6 +21,21 @@ export const ROOT_CLOSURE_PROTOCOL = Object.freeze({
 });
 
 export const HISTORICAL_CLASS_CLOSURE = Object.freeze({
+  'Provenance/Topology': Object.freeze({
+    classes: ['stale-sha','concurrency','queued-run','cancelled-run','skipped-check','sha-mismatch','artifact-mismatch','stale-certificate','head-race','force-push','new-branch','wrong-branch','main-edit'],
+    verification: ['test:execution-sha-provenance','test:checkpoint-producer','verify:ci-cd-trust'],
+    prevention: 'Provenance/topology failures require exact target SHA, immutable execution branch, fresh evidence, and fail-closed stale/cancelled/queued handling.',
+  }),
+  'GitHub API/Transport': Object.freeze({
+    classes: ['graphql-comment','rest-comment','gh-cli'],
+    verification: ['verify:ci-cd-trust','test:repair-supervision'],
+    prevention: 'GitHub transport failures are API/command-shape failures first; source mutation is forbidden until transport evidence is falsified as the cause.',
+  }),
+  'External Provider': Object.freeze({
+    classes: ['vercel-rate-limit','capi-model'],
+    verification: ['verify:ci-cd-trust'],
+    prevention: 'External provider roots are BLOCKED_EXTERNAL; internal source mutation is forbidden and only recheck/escalation may proceed.',
+  }),
   'Browser/SSR': Object.freeze({
     classes: ['playwright-webkit','playwright-firefox','browser-shard','browser-timeout','browser-permission','hydration','ssr-client'],
     verification: ['test:browser','validate:playwright-surface'],
@@ -41,10 +56,10 @@ export const HISTORICAL_CLASS_CLOSURE = Object.freeze({
     verification: ['validate:i18n','validate:localization-complete','validate:seo','validate:indexing'],
     prevention: 'Content/Locale/SEO failures must resolve to canonical locale/SEO source-of-truth and cannot be repaired through ad-hoc output rewriting.',
   }),
-  'GitHub API/Transport': Object.freeze({
-    classes: ['graphql-comment','rest-comment','gh-cli'],
-    verification: ['verify:ci-cd-trust','test:repair-supervision'],
-    prevention: 'GitHub transport failures are API/command-shape failures first; source mutation is forbidden until transport evidence is falsified as the cause.',
+  'Governance/Repair/Security': Object.freeze({
+    classes: ['tool-registry','canonical-definition','test-ownership','g3-output','file-safety','upload-boundary','code-scanning','dependency-debt','control-plane','repair-recursion','memory-learning'],
+    verification: ['validate:tool-registry','validate:tool-definition','test:upload-boundary','test:negative-control-integration','test:auto-repair'],
+    prevention: 'Governance/repair/security failures require canonical ownership, boundary tests, fail-closed mutation, and durable learning/anti-learning before closure.',
   }),
 });
 
