@@ -1,9 +1,15 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "corpus": {
     "base": "docs/agents/ERROR-TEACHING-500.md",
     "additional": "docs/agents/ERROR-TEACHING-ADDITIONAL-500.md",
-    "rules": 1000
+    "rules": 5000,
+    "expanded": [
+      "docs/agents/ERROR-TEACHING-EXPANDED-A-1000.md",
+      "docs/agents/ERROR-TEACHING-EXPANDED-B-1000.md",
+      "docs/agents/ERROR-TEACHING-EXPANDED-C-1000.md",
+      "docs/agents/ERROR-TEACHING-EXPANDED-D-1000.md"
+    ]
   },
   "retrievalOrder": [
     "exact_class",
