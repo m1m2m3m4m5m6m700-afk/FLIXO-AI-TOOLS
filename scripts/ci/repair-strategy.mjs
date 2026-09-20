@@ -45,10 +45,10 @@ const twinProposalPath = process.env.FLIXO_TWIN_PROPOSAL_PATH ?? '';
 const twinProposal = twinProposalPath ? readJson(twinProposalPath, null) : null;
 const twinA = process.env.FLIXO_TWIN_A_PATH ? readJson(process.env.FLIXO_TWIN_A_PATH, null) : null;
 const twinB = process.env.FLIXO_TWIN_B_PATH ? readJson(process.env.FLIXO_TWIN_B_PATH, null) : null;
+const twinSelection = process.env.FLIXO_SELECTION_PATH ? readJson(process.env.FLIXO_SELECTION_PATH, null) : null;
 const selectedRepairStrategy = String(twinSelection?.selection?.selectedStrategy ?? '').trim();
 const twinPreferredStrategy = selectedRepairStrategy
   || String(twinProposal?.challenge?.preferredAlternativeStrategy ?? twinA?.challenge?.preferredAlternativeStrategy ?? twinB?.challenge?.preferredAlternativeStrategy ?? '').trim();
-const twinSelection = process.env.FLIXO_SELECTION_PATH ? readJson(process.env.FLIXO_SELECTION_PATH, null) : null;
 const memory = readJson(memoryPath, { cases: [] });
 const intractable = readJson(intractablePath, { cases: [] });
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
@@ -69,21 +69,32 @@ const priorStrategies = [
 const unusedIndexes = strategies.map((_, i) => i).filter((i) => !priorStrategies.includes(strategies[i][0]));
 const ledgerAvailableIndexes = unusedIndexes.filter((i) => !isRepairRejected(attemptLedger, { chainId, caseFingerprint: stableCaseFingerprint, strategyId: strategies[i][0] }));
 const divergentIndexes = ledgerAvailableIndexes.filter((i) => strategies[i][0] !== twinPreferredStrategy);
-if (!ledgerAvailableIndexes.length) {
-  const rejected = strategies.map((item) => item[0]).filter((id) => isRepairRejected(attemptLedger, { chainId, caseFingerprint: stableCaseFingerprint, strategyId: id }));
-  const reasons = rejectionReasons(attemptLedger, { chainId, caseFingerprint: stableCaseFingerprint }).slice(-20);
-  throw new Error('REPAIR_NO_UNUSED_STRATEGY_FOR_ACTIVE_CASE rejected=' + rejected.join(',') + ' reasons=' + JSON.stringify(reasons));
-}
+const allStrategiesExhausted = ledgerAvailableIndexes.length === 0;
+const rotationIndexes = strategies
+  .map((_, i) => i)
+  .filter((i) => !twinPreferredStrategy || strategies[i][0] !== twinPreferredStrategy);
+const availableIndexes = allStrategiesExhausted
+  ? (rotationIndexes.length ? rotationIndexes : strategies.map((_, i) => i))
+  : ledgerAvailableIndexes;
 const selectedIndex = selectedRepairStrategy
   ? strategies.findIndex(([id]) => id === selectedRepairStrategy)
   : -1;
-const index = selectedIndex >= 0 && ledgerAvailableIndexes.includes(selectedIndex)
+const index = selectedIndex >= 0 && availableIndexes.includes(selectedIndex)
   ? selectedIndex
-  : (divergentIndexes[0] ?? ledgerAvailableIndexes[0]);
+  : (divergentIndexes[0] ?? availableIndexes[(Math.max(0, nextAttempt - 1)) % availableIndexes.length]);
 const [strategyId, strategy] = strategies[index];
 const threshold = INTRACTABLE_THRESHOLD;
-const teachingEscalation = record?.status === 'INTRACTABLE' || nextAttempt > threshold;
+const teachingEscalation = record?.status === 'INTRACTABLE' || nextAttempt > threshold || allStrategiesExhausted;
 const sameStrategyRepeated = priorStrategies.filter((value) => value === strategyId).length > 0;
+if (allStrategiesExhausted) {
+  console.log(JSON.stringify({
+    strategyRotation: 'FULL_ROTATION_AFTER_EXHAUSTION',
+    attempt: nextAttempt,
+    priorStrategies: [...new Set(priorStrategies)].slice(-20),
+    selectedStrategy: strategyId,
+    evidenceRequired: true,
+  }));
+}
 const teachingPacket = {
   state: teachingEscalation ? 'SUPERVISING_TEACHING_REQUIRED' : 'LEARNING_CONTEXT_REQUIRED',
   attempt: nextAttempt,

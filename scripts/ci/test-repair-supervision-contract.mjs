@@ -8,6 +8,7 @@ const mergeGate = read('.github/workflows/auto-repair-merge-gate.yml');
 const dailyGate = read('.github/workflows/daily-flixo-green-gate.yml');
 const liveness = read('scripts/ci/agent-liveness-protocol.mjs');
 const lease = read('scripts/ci/repair-lease.mjs');
+const intake = read('.github/workflows/repair-agent-intake.yml');
 
 assert.match(watchdog, /workflow_run:/);
 assert.match(twin, /adversarial_twin:/);
@@ -64,5 +65,10 @@ assert.match(liveness, /heartbeatEveryMs: 5 \* 60 \* 1000/);
 assert.match(lease, /commandHeartbeat/);
 assert.match(lease, /AGENT_LIVENESS_PROTOCOL/);
 assert.match(lease, /REPAIR_LEASE_HEARTBEAT_STALE_USE_RECOVERY/);
+assert.match(lease, /terminalRepairFailure/);
+assert.match(lease, /orphanedDispatch/);
+assert.match(twin, /timeout-minutes:\s*45/);
+assert.match(intake, /INTAKE_SCHEDULE_RESCUE_MODE/);
+assert.match(intake, /SCHEDULE_RESCUE_NO_ACTIONABLE_RUN/);
 
 console.log('REPAIR_SUPERVISION_CONTRACT=PASS');

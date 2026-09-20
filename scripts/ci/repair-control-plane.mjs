@@ -329,25 +329,34 @@ export function staleRecoveryDecision({
   activeRuns = [],
   outcomes = [],
   repairKey,
+  terminalRepairFailure = false,
+  orphanedDispatch = false,
 } = {}) {
   const ageMs = Math.max(0, Number(now) - Date.parse(String(leaseCreatedAt ?? '')));
   const progress = evaluateNoProgress({ repairKey, outcomes });
   const verified = outcomes.some((item) => ['VERIFIED_REPAIR', 'VERIFIED_HISTORICAL_REVERT'].includes(item?.outcome));
   const reasons = [];
   const strategyRotationRequired = progress.circuitOpen;
-  if (!Number.isFinite(ageMs) || ageMs < staleAfterMs) reasons.push('LEASE_NOT_OLD_ENOUGH');
+  const immediateRecovery = terminalRepairFailure === true || orphanedDispatch === true;
+  if (!immediateRecovery && (!Number.isFinite(ageMs) || ageMs < staleAfterMs)) reasons.push('LEASE_NOT_OLD_ENOUGH');
   if (activeRuns.length > 0) reasons.push('ACTIVE_REPAIR_SESSION_PRESENT');
   if (String(currentExecutionSha ?? '') !== String(failedSha ?? '')) reasons.push('EXECUTION_SHA_CHANGED');
   if (verified) reasons.push('SUCCESSFUL_REPAIR_ALREADY_VERIFIED');
-  if (progress.circuitOpen) reasons.push('NO_PROGRESS_REQUIRES_STRATEGY_ROTATION');
+  if (strategyRotationRequired) reasons.push('NO_PROGRESS_REQUIRES_STRATEGY_ROTATION');
+  const blockingReasons = reasons.filter((reason) => reason !== 'NO_PROGRESS_REQUIRES_STRATEGY_ROTATION');
   return Object.freeze({
-    // Circuit-open blocks this stale-recovery attempt but is explicitly non-terminal: the caller must rotate strategy and continue the repair chain.
-    eligible: reasons.length === 0,
+    // Terminal crash/cancel and orphaned dispatch are immediately recoverable.
+    // Circuit-open forces strategy rotation but never dead-ends the repair chain.
+    eligible: blockingReasons.length === 0,
     ageMs,
     noProgress: progress,
     successfulVerificationPresent: verified,
     strategyRotationRequired,
+    immediateRecovery,
+    terminalRepairFailure: terminalRepairFailure === true,
+    orphanedDispatch: orphanedDispatch === true,
     reasons,
+    blockingReasons,
   });
 }
 

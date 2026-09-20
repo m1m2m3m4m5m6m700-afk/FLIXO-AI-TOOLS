@@ -79,6 +79,23 @@ jobs:
           set -euo pipefail
           RUN_ID="$EVENT_RUN_ID"
           if [ -n "$INPUT_RUN_ID" ]; then RUN_ID="$INPUT_RUN_ID"; fi
+          if [ -z "$RUN_ID" ] && [ "${{ github.event_name }}" = "schedule" ]; then
+            echo 'INTAKE_SCHEDULE_RESCUE_MODE=true'
+            RUN_ID="$(gh run list               --repo "$GITHUB_REPOSITORY"               --limit 100               --json databaseId,name,conclusion,headSha,headBranch,createdAt               | jq -r '
+                [ .[]
+                  | select(.headBranch == "execution" or .headBranch == "main")
+                  | select(.name != "FLIXO Repair Agent — Error Intake Gateway")
+                  | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled" or .conclusion == "action_required")
+                ]
+                | sort_by(.createdAt)
+                | last.databaseId // empty
+              ')"
+            if [ -z "$RUN_ID" ]; then
+              echo 'SCHEDULE_RESCUE_NO_ACTIONABLE_RUN=true'
+              exit 0
+            fi
+            echo "SCHEDULE_RESCUE_RUN_ID=$RUN_ID"
+          fi
           test -n "$RUN_ID"
           META="$(gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json databaseId,name,conclusion,headSha,headBranch,status,updatedAt)"
           CONCLUSION="$(jq -r '.conclusion // empty' <<<"$META")"

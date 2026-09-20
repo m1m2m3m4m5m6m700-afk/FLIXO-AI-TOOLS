@@ -530,6 +530,7 @@ async function commandRecover() {
   if (!meta.exists) throw new Error('REPAIR_LEASE_NOT_FOUND_FOR_RECOVERY');
   const events = await listEventMetadata(identity);
   const outcomes = events.filter((item) => item?.eventType === 'OUTCOME' && item?.outcome && item?.repairKey === identity.claimKey);
+  let terminalRepairFailure = false;
   const latestActiveState = [...events]
     .filter((item) => item?.eventType === 'STATE' && item?.leaseState === 'LEASE_ACTIVE' && item?.repairKey === identity.claimKey)
     .sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')))[0] ?? null;
@@ -560,6 +561,7 @@ async function commandRecover() {
         return;
       }
       if (crashConclusions.has(conclusion)) {
+        terminalRepairFailure = true;
         const crashMetadata = {
           repairKey: identity.claimKey,
           leaseRef: identity.leaseRef,
@@ -596,6 +598,11 @@ async function commandRecover() {
   const active = await activeRepairRuns(identity, failedSha);
   const currentRef = await readRef('refs/heads/execution');
   const currentExecutionSha = String(currentRef?.data?.object?.sha ?? '');
+  const orphanedDispatch = !terminalRepairFailure &&
+    active.length === 0 &&
+    outcomes.length === 0 &&
+    !latestActiveState?.repairRunId &&
+    !meta.metadata?.repairRunId;
   const decision = staleRecoveryDecision({
     leaseCreatedAt: meta.metadata?.createdAt,
     staleAfterMs: Number(getArg('staleAfterMs', String(DEFAULT_STALE_AFTER_MS))),
@@ -604,6 +611,8 @@ async function commandRecover() {
     activeRuns: active,
     outcomes,
     repairKey: identity.claimKey,
+    terminalRepairFailure,
+    orphanedDispatch,
   });
   if (active.some((item) => item.status === 'UNKNOWN')) {
     console.log(JSON.stringify({ status: 'FAIL_CLOSED', reason: 'ACTIVE_SESSION_EVIDENCE_UNAVAILABLE', active, decision }, null, 2));
