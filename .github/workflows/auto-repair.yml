@@ -690,6 +690,8 @@ jobs:
             --run-id="$TARGET_RUN_ID" \
             --file-selection="$FLIXO_FILE_SELECTION_PATH" \
             --log="$FLIXO_FAILURE_LOG" \
+            --diagnosis=/tmp/flixo-root-cause.json \
+            --twin=/tmp/action-repair-programmer-twin.json \
             --output=/tmp/action-system-cognitive-awareness.json
           node scripts/ci/test-action-system-cognitive-awareness.mjs /tmp/action-system-cognitive-awareness.json
           jq -e --arg sha "$SHA" --arg fp "$FP" '
