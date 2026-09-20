@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "authority": "ACTION_REPAIR_HISTORY_CONTROL_PLANE",
-  "name": "FLIXO-ACTIONS-5-INDEPENDENT-BOTS",
+  "name": "FLIXO-ACTIONS-VAULT",
   "purpose": "Five independent Actions specialists, outside the 50-bot CELL pool, intentionally separated so each can be developed independently according to project needs.",
   "headquarters": {
     "primary": "docs/agents/historical-action-errors",
@@ -146,10 +146,10 @@
       "id": "ACTION-WAKE",
       "displayName": "المنبه",
       "kind": "ACTION_REPAIR_BOT",
-      "status": "READY",
+      "status": "RETIRED",
       "workerIndex": 5,
       "role": "ACTION_SYSTEM_WAKE_COORDINATOR",
-      "mission": "Wakes the independent Actions squad and hands off to the canonical dispatcher.",
+      "mission": "Retired. Wake/dispatch is handled by canonical workflows and leases, not by a monitoring bot.",
       "weakness": "ACTION_SYSTEM_WAKE_AND_HANDOFF",
       "headquarters": "docs/agents/historical-action-errors",
       "sharedReferences": [
@@ -163,9 +163,27 @@
       ],
       "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-WAKE.json",
       "mutationAuthority": false,
-      "executionAuthority": "ANALYSIS_AND_HANDOFF_ONLY",
+      "executionAuthority": "DISABLED_NOT_A_BOT_MONITOR",
       "returnPolicy": "RETURN_KNOWLEDGE_TO_ACTION_REPAIR_SQUAD",
       "currentAssignment": null,
+      "independentDevelopment": true
+    },
+    {
+      "id": "ACTION-HISTORIAN-3",
+      "displayName": "بوت سجل Actions 3",
+      "kind": "ACTION_HISTORIAN_INDEXER",
+      "status": "READY",
+      "workerIndex": 6,
+      "role": "ACTION_TASK_HISTORIAN_AND_SOLUTION_INDEXER",
+      "mission": "Record RED→attempts→GREEN and maintain solution index.",
+      "headquarters": "diagnostics/auto-repair/action-vault",
+      "mutationAuthority": false,
+      "executionAuthority": "RECORD_AND_INDEX_ONLY",
+      "canWriteRepository": true,
+      "canWriteTestLogs": false,
+      "canModifyWorkflowLogs": false,
+      "masterEscalationOnFirstRepositoryOccurrence": true,
+      "currentAssignment": "ACTION_VAULT_CONTINUOUS_RECORD_AND_INDEX",
       "independentDevelopment": true
     }
   ],
@@ -479,5 +497,48 @@
     "approvalProtocol": "scripts/ci/action-repair-dual-control.mjs",
     "canFreezeRepair": false,
     "partnerRequired": "ACTION-REPAIR"
+  },
+  "officialWorkplace": {
+    "id": "ACTION-VAULT",
+    "name": "قبو Actions",
+    "path": "diagnostics/auto-repair/action-vault",
+    "purpose": "Official isolated workplace for Actions repair exploration, learning, task handoff and provenance; completely separate from CELL.",
+    "separateFromCell": true,
+    "mayWriteTestLogs": false,
+    "mayModifyWorkflowLogs": false,
+    "canonicalTaskStore": "diagnostics/auto-repair/action-vault/tasks.jsonl",
+    "canonicalSolutionIndex": "diagnostics/auto-repair/action-vault/solution-index.json",
+    "canonicalFirstSeenIndex": "diagnostics/auto-repair/action-vault/first-seen.json",
+    "testSystemsDirectory": "diagnostics/auto-repair/action-vault/test-systems"
+  },
+  "monitoringBots": [],
+  "activeRepairLane": {
+    "policy": "TURN_TAKES_OWNERSHIP",
+    "firstBot": "ACTION-REPAIR",
+    "secondBot": "ACTION-REPAIR-2",
+    "turnSelection": "ODD_ATTEMPT_PRIMARY_EVEN_ATTEMPT_ASSISTANT",
+    "firstAttemptIsAlwaysPrimary": true,
+    "failoverAfter": "FAILED_REPAIR_OR_UNREPAIRED",
+    "resumeFromSleep": "PRIMARY_RETAKES_NEXT_ODD_TURN",
+    "terminalCondition": "ZERO_ACTIONABLE_RED_OR_BLOCKED_EXTERNAL",
+    "noIdleWithoutTask": true,
+    "noMonitoringBot": true
+  },
+  "assistantBot3": {
+    "id": "ACTION-HISTORIAN-3",
+    "displayName": "بوت سجل Actions 3",
+    "kind": "ACTION_HISTORIAN_INDEXER",
+    "status": "READY",
+    "role": "ACTION_TASK_HISTORIAN_AND_SOLUTION_INDEXER",
+    "mission": "سجل كل RED، كل محاولة، كل تغيير حتى GREEN، ويعيد ترتيب فهرس الحلول؛ ويصعد أول ظهور للمشكلة على مستوى المستودع إلى Master.",
+    "headquarters": "diagnostics/auto-repair/action-vault",
+    "mutationAuthority": false,
+    "executionAuthority": "RECORD_AND_INDEX_ONLY",
+    "canWriteTestLogs": false,
+    "canModifyWorkflowLogs": false,
+    "canMutateSource": false,
+    "canDispatchRepair": false,
+    "masterEscalationOnFirstRepositoryOccurrence": true,
+    "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-HISTORIAN-3.json"
   }
 }
