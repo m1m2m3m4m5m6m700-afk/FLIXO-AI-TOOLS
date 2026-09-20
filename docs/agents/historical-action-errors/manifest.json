@@ -15,5 +15,6 @@
   "errorOccurrences": 1,
   "uniqueRecords": 1,
   "shards": [],
-  "updatedAt": "2026-09-20T11:48:34Z"
+  "updatedAt": "2026-09-20T11:48:34Z",
+  "nextCursor": "2026-08-10T00:00:00Z"
 }
