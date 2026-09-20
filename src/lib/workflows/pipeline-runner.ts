@@ -82,7 +82,7 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
     const maxAttempts = Math.max(1, recoveryMetadata.maxAttempts);
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      const authorization = authorizeExecution({
+      const authorization = await authorizeExecution({
         task,
         capabilityId: step.toolId,
         parameters: params,
@@ -100,7 +100,7 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
       });
       try {
         const output = await executor({ tool, inputBlob: stableBlob, parameters: params });
-        const executionAudit = createExecutionAuditEvent({
+        const executionAudit = await createExecutionAuditEvent({
           task,
           capabilityId: step.toolId,
           tool,
@@ -109,7 +109,7 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
         });
         lastOutput = output;
         verified = await verifyPipelineOutput(step.toolId, stableBlob, output, params);
-        const verificationAudit = createExecutionAuditEvent({
+        const verificationAudit = await createExecutionAuditEvent({
           task,
           capabilityId: step.toolId,
           tool,
@@ -129,7 +129,7 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
         onProgress({ currentStepIndex: i + 1, totalSteps: plan.steps.length, currentToolId: step.toolId, task, retry: attempt, auditEvents: auditEventsForAttempt });
       } catch (error) {
         const message = error instanceof Error ? error.message : `Step '${step.toolId}' failed.`;
-        const failureAudit = createExecutionAuditEvent({
+        const failureAudit = await createExecutionAuditEvent({
           task,
           capabilityId: step.toolId,
           tool,
@@ -151,7 +151,7 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
       }
 
       if (!verified && attempt < maxAttempts - 1) {
-        const recoveryAudit = createExecutionAuditEvent({
+        const recoveryAudit = await createExecutionAuditEvent({
           task,
           capabilityId: step.toolId,
           tool,
