@@ -19,6 +19,13 @@ const authorized = authorizeExecution({
 assert.equal(authorized.capabilityId, 'image-compressor');
 assert.equal(authorized.executionMode, 'LOCAL');
 assert.equal(authorized.traceId, 'gate-trace');
+assert.equal(authorized.security.permission, 'EXECUTE');
+assert.equal(authorized.security.browserLocal, true);
+assert.equal(authorized.recovery.retryAllowed, true);
+assert.equal(authorized.audit.stage, 'AUTHORIZATION');
+assert.equal(authorized.audit.outcome, 'ALLOW');
+assert.equal(authorized.audit.traceId, 'gate-trace');
+assert.match(authorized.audit.eventId, /^[a-f0-9]{64}$/);
 assert.equal(authorized.parameters.quality, 0.8);
 
 const unconfirmed = createTaskContext('blocked-task', 'blocked-trace');
