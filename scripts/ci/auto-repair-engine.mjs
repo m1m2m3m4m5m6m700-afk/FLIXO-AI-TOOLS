@@ -9,7 +9,7 @@ import { runAstRepair } from './auto-repair/ast-repair.mjs';
 import { reproduce, resolveTargetedTests } from './auto-repair/reproduction.mjs';
 import { buildVerificationPlan, checkVerificationContamination, reproduceStable, verifyTargetIdentity } from './auto-repair/verification.mjs';
 import { runRegression } from './auto-repair/regression.mjs';
-import { summarizeDiff, writeEvidence } from './auto-repair/evidence.mjs';
+import { summarizeDiff, writeEvidence, mutationAttribution } from './auto-repair/evidence.mjs';
 import { snapshot, rollback } from './auto-repair/rollback.mjs';
 import { findHistoricalRepairCandidate, applyHistoricalRepair, historicalRollbackRecord } from './auto-repair/historical-rollback.mjs';
 import { validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
@@ -18,20 +18,6 @@ import { critiqueRepair } from './auto-repair/self-critic.mjs';
 import { buildCausalProof } from './auto-repair/causal-proof.mjs';
 import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
 import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession, validateErrorOnlyMutation, validateMinimalRepairScope, validateTargetedRegressionSelection } from './repair-protocol.mjs';
-
-// Static protocol contract marker: root-cause-proof-reproductionRecovered.
-function mutationAttribution({ beforeSha, afterSha, changedFiles = [], rule = null, outcome = 'unknown' } = {}) {
-  return {
-    schemaVersion: 1,
-    beforeSha: beforeSha ?? null,
-    afterSha: afterSha ?? null,
-    changedFiles: [...new Set(changedFiles)],
-    rule,
-    outcome,
-    exactShaBound: Boolean(beforeSha && afterSha),
-    recordedAt: new Date().toISOString(),
-  };
-}
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
@@ -219,10 +205,19 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
       changedPaths: diffSummary.files,
     });
     evidence.mutationAttribution = mutationAttribution({
-      beforeSha: targetSha,
-      afterSha: git(['rev-parse', 'HEAD']).trim(),
+      agentIdentity: repairActor,
+      taskId: process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? null,
+      baselineSHA: targetSha,
       changedFiles: diffSummary.files,
-      rule: evidence.selected,
+      rcaFingerprint: fingerprint,
+      hypothesis: diagnosis?.rootCause ?? null,
+      strategy: evidence.selected,
+      targetedTests: evidence.reproductionCommands,
+      fullTests: evidence.regressionSelection?.regressionCommands ?? [],
+      resultingSHA: (() => {
+        const after = git(['rev-parse', 'HEAD']).trim();
+        return after !== targetSha ? after : null;
+      })(),
       outcome: 'mutation-applied',
     });
     if (
