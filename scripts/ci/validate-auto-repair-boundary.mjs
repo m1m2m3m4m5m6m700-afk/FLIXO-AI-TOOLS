@@ -69,7 +69,8 @@ export function validateStatic() {
   must(/CONTROLLER_SHA="\$MAIN_SHA"/.test(auto), 'auto-repair-main-controller-trust');
   must(/TRUST_MODEL=MAIN_CONTROLLER_EXECUTION_TARGET/.test(auto), 'auto-repair-trust-model');
   must(/FLIXO_TRUSTED_CONTROLLER_SHA=\$CONTROLLER_SHA/.test(auto), 'auto-repair-controller-provenance');
-  must(/contents:\s*write/.test(auto) && /actions:\s*write/.test(auto) && /pull-requests:\s*write/.test(auto), 'auto-repair-required-permissions');
+  must(/contents:\s*write/.test(auto) && /pull-requests:\s*write/.test(auto), 'auto-repair-required-permissions');
+  must(!/actions:\s*write/.test(auto), 'auto-repair-no-actions-admin');
   must(/checks:\s*read/.test(auto), 'auto-repair-check-permission');
   must(/cancel-in-progress:\s*false/.test(auto), 'auto-repair-single-lane');
   must(/FLIXO_STRICT_RED_REPAIR:\s*['"]true['"]/.test(auto), 'auto-repair-strict-red');
@@ -87,6 +88,8 @@ export function validateStatic() {
   must(/gh\s+workflow\s+run\s+agent-repair-supervisor\.yml/.test(heartbeat), 'heartbeat-observer-only-wakeup');
   must(handoffGate.includes('CURRENT_EXECUTION_SHA=') && handoffGate.includes('HANDOFF_EXECUTION_SHA'), 'handoff-gate-current-head-check');
   must(/cannot repair itself/.test(auto), 'auto-repair-self-protection');
+  must(!/assistant[_ -]?fallback/i.test(auto), 'auto-repair-no-peer-fallback');
+  must(/sole mutation authority/i.test(auto), 'auto-repair-sole-mutation-authority');
   must(!/continue-on-error:\s*true/i.test(auto), 'auto-repair-no-continue-on-error');
   must(!/git\s+(checkout|switch)\s+-[bc]/.test(auto), 'auto-repair-no-third-branch');
   must(!/git\s+push[^\n]*\bmain\b/.test(auto), 'auto-repair-no-main-push');
