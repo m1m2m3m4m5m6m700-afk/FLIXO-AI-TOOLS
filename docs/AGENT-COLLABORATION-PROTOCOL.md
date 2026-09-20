@@ -316,6 +316,8 @@ When both `repairAgent` and `executionAgent` are unavailable, `assistantRepairAg
 
 ## Presidential Council hierarchy and large Work Packages
 
+`PRESIDENT → DEPUTY → INVESTIGATOR`
+
 P20 remains the single cooperation protocol; this section extends it without creating a competing protocol.
 
 - Council President = `assistantController`: mission selection, priority, assignment, arbitration, handoff acceptance and closure decisions. No mutation or certification.

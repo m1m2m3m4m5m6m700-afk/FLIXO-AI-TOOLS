@@ -394,7 +394,6 @@ if (command === 'task-complete') {
 }
 
 if (command === 'task-next') {
-  const agentId = requireArg('agent');
   const completedTaskId = optional('completed-task') || null;
   const ledgerTask = selectNextLedgerTask(completedTaskId);
   if (!ledgerTask) {

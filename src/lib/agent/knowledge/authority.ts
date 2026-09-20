@@ -1,4 +1,0 @@
-import type { KnowledgeRecord } from './types';
-const AUTHORITY:Record<KnowledgeRecord['sourceType'],number>={FLIXO_DOC:1,REPOSITORY:.98,TEST:.98,INTERNAL_EVIDENCE:.95,TRUSTED_EXTERNAL:.8,WEB:.6,GENERATED:.2};
-export function authorityScore(record:KnowledgeRecord){return AUTHORITY[record.sourceType];}
-export function detectKnowledgeConflicts(records:readonly KnowledgeRecord[]){const groups=new Map<string,KnowledgeRecord[]>();for(const r of records){const a=groups.get(r.scope)??[];a.push(r);groups.set(r.scope,a);}return [...groups.entries()].flatMap(([scope,items])=>{const current=items.filter(x=>x.validity==='CURRENT');const contents=new Set(current.map(x=>x.content.trim()));return contents.size>1?[{scope,records:current}]:[];});}

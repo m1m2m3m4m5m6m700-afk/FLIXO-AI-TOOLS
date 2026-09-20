@@ -1,2 +1,0 @@
-import type {KnowledgeRecord} from './types';
-export function staleKnowledge(records:readonly KnowledgeRecord[],now=Date.now(),maxAgeMs=30*86400000){return records.filter(r=>now-new Date(r.timestamp).getTime()>maxAgeMs&&r.validity==='CURRENT').map(r=>({...r,validity:'STALE' as const}));}
