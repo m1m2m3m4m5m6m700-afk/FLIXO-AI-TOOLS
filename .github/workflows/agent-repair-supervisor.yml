@@ -6,7 +6,7 @@ on:
       - execution
       - main
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 concurrency:
@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  actions: write
+  actions: read
   contents: read
   checks: read
 
@@ -31,19 +31,75 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          DEADLINE=$(( $(date +%s) + 20400 ))
+          DEADLINE=$(( $(date +%s) + 1500 ))
           REQUIRED='FLIXO Test System|FLIXO WP0 Trust Baseline|FLIXO Test Impact|FLIXO Test Impact Execution|FLIXO Continuous Delivery|Repository Security Baseline|Claude Security Review|Daily·FLIXO Green Gate'
-          LAST_FAILURE_MAIN=''
-          LAST_FAILURE_EXECUTION=''
-          NEXT_RETRY_MAIN=0
-          NEXT_RETRY_EXECUTION=0
+
+          get_with_backoff() {
+            local attempt=0
+            local delay=15
+            local output
+            local error_file
+            error_file="$(mktemp)"
+            while [ "$attempt" -lt 4 ]; do
+              if output="$(gh "$@" 2>"$error_file")"; then
+                rm -f "$error_file"
+                printf '%s' "$output"
+                return 0
+              fi
+              if grep -Eqi 'rate limit|HTTP 403|API rate limit exceeded|secondary rate limit' "$error_file"; then
+                attempt=$((attempt + 1))
+                if [ "$attempt" -ge 4 ]; then
+                  cat "$error_file" >&2
+                  rm -f "$error_file"
+                  return 75
+                fi
+                echo "GITHUB_API_RATE_LIMIT_BACKOFF attempt=$attempt sleep=${delay}s" >&2
+                sleep "$delay"
+                delay=$((delay * 2))
+                continue
+              fi
+              cat "$error_file" >&2
+              rm -f "$error_file"
+              return 1
+            done
+          }
 
           while [ "$(date +%s)" -lt "$DEADLINE" ]; do
             ALL_GREEN=true
 
+            BRANCH_DATA="$(get_with_backoff api "repos/$GITHUB_REPOSITORY/branches?per_page=100")" || {
+              rc=$?
+              if [ "$rc" -eq 75 ]; then
+                echo 'SUPERVISOR_BLOCKED_EXTERNAL=GITHUB_API_RATE_LIMIT'
+              fi
+              exit "$rc"
+            }
+
+            RUNS_CACHE_MAIN="$(get_with_backoff run list --repo "$GITHUB_REPOSITORY" --branch main --limit 100 --json databaseId,name,status,conclusion,headSha,createdAt)" || {
+              rc=$?
+              if [ "$rc" -eq 75 ]; then
+                echo 'SUPERVISOR_BLOCKED_EXTERNAL=GITHUB_API_RATE_LIMIT'
+              fi
+              exit "$rc"
+            }
+            RUNS_CACHE_EXECUTION="$(get_with_backoff run list --repo "$GITHUB_REPOSITORY" --branch execution --limit 100 --json databaseId,name,status,conclusion,headSha,createdAt)" || {
+              rc=$?
+              if [ "$rc" -eq 75 ]; then
+                echo 'SUPERVISOR_BLOCKED_EXTERNAL=GITHUB_API_RATE_LIMIT'
+              fi
+              exit "$rc"
+            }
+
             for BRANCH in main execution; do
-              SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq '.object.sha')"
-              RUNS="$(gh run list --repo "$GITHUB_REPOSITORY" --branch "$BRANCH" --commit "$SHA" --limit 100 --json databaseId,name,status,conclusion,headSha,createdAt)"
+              SHA="$(printf '%s' "$BRANCH_DATA" | jq -r --arg branch "$BRANCH" '.[] | select(.name == $branch) | .commit.sha')"
+              test -n "$SHA" && test "$SHA" != "null"
+
+              if [ "$BRANCH" = "main" ]; then
+                RUNS="$RUNS_CACHE_MAIN"
+              else
+                RUNS="$RUNS_CACHE_EXECUTION"
+              fi
+
               GREEN="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" 'map(select(.headSha == $sha and .name == "Daily·FLIXO Green Gate" and .conclusion == "success")) | sort_by(.createdAt) | last.databaseId // empty')"
               FAILED="$(printf '%s' "$RUNS" | jq -r --arg sha "$SHA" --arg names "$REQUIRED" 'map(select(.headSha == $sha and (.name as $n | ($names | split("|") | index($n) != null)))) | map(select(.conclusion == "failure" or .conclusion == "timed_out")) | sort_by(.createdAt) | last.databaseId // empty')"
 
@@ -54,35 +110,7 @@ jobs:
 
               ALL_GREEN=false
               if [ -n "$FAILED" ]; then
-                NOW="$(date +%s)"
-                if [ "$BRANCH" = 'main' ]; then
-                  LAST_FAILURE="$LAST_FAILURE_MAIN"
-                  NEXT_RETRY="$NEXT_RETRY_MAIN"
-                else
-                  LAST_FAILURE="$LAST_FAILURE_EXECUTION"
-                  NEXT_RETRY="$NEXT_RETRY_EXECUTION"
-                fi
-                if [ "$FAILED" != "$LAST_FAILURE" ] || [ "$NOW" -ge "$NEXT_RETRY" ]; then
-                  ACTIVE_REPAIR="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 30 --json status --jq 'map(select(.status == "queued" or .status == "in_progress")) | length')"
-                  if [ "$ACTIVE_REPAIR" -eq 0 ]; then
-                    echo "RED_DETECTED branch=$BRANCH sha=$SHA run=$FAILED"
-                    gh workflow run auto-repair.yml --repo "$GITHUB_REPOSITORY" --ref main -f "target_run_id=$FAILED" -f "chain_id=supervisor-$BRANCH-$SHA-$FAILED"
-                    echo "DEDICATED_REPAIR_AGENT_DISPATCHED branch=$BRANCH run=$FAILED sha=$SHA"
-                    LAST_FAILURE="$FAILED"
-                    NEXT_RETRY=$((NOW + 120))
-                  else
-                    echo "RED_REPAIR_ALREADY_ACTIVE branch=$BRANCH run=$FAILED active=$ACTIVE_REPAIR"
-                    LAST_FAILURE="$FAILED"
-                    NEXT_RETRY=$((NOW + 60))
-                  fi
-                fi
-                if [ "$BRANCH" = 'main' ]; then
-                  LAST_FAILURE_MAIN="$LAST_FAILURE"
-                  NEXT_RETRY_MAIN="$NEXT_RETRY"
-                else
-                  LAST_FAILURE_EXECUTION="$LAST_FAILURE"
-                  NEXT_RETRY_EXECUTION="$NEXT_RETRY"
-                fi
+                echo "RED_OBSERVED branch=$BRANCH sha=$SHA run=$FAILED repair_owner=Daily·FLIXO Green Gate"
               else
                 echo "WAITING_FOR_GREEN branch=$BRANCH sha=$SHA"
               fi
@@ -93,29 +121,21 @@ jobs:
               echo 'status=green' >> "$GITHUB_OUTPUT"
               exit 0
             fi
-            sleep 30
+
+            sleep 90
           done
 
           echo 'SUPERVISOR_WINDOW_EXHAUSTED_NON_GREEN'
           echo 'status=continue' >> "$GITHUB_OUTPUT"
-
-      - name: Continue supervision until GREEN
-        if: steps.observe.outputs.status == 'continue'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref main
-          echo 'SUPERVISOR_CONTINUATION_DISPATCHED=true'
-
       - name: Record terminal state
         if: always()
         run: |
+          set -euo pipefail
           RESULT="${{ steps.observe.outputs.status || 'unknown' }}"
           echo "SUPERVISOR_RESULT=$RESULT"
           if [ "$RESULT" = 'green' ]; then
             echo 'SUPERVISOR_TERMINAL=GREEN'
-          else
-            echo 'SUPERVISOR_TERMINAL=NON_GREEN_CONTINUE'
+            exit 0
           fi
+          echo 'SUPERVISOR_TERMINAL=NON_GREEN_OR_EXTERNAL_BLOCK'
+          exit 1
