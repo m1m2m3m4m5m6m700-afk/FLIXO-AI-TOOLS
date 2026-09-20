@@ -26,4 +26,5 @@ for(const event of [
  assert.ok(event.eventId.startsWith('AFL-'));
  assert.equal(event.targetSha,base.targetSha);
 }
+try { if(fs.existsSync(path.join(original,'diagnostics/auto-repair/action-vault/failure-ledger.ndjson'))) fs.unlinkSync(path.join(original,'diagnostics/auto-repair/action-vault/failure-ledger.ndjson')); } catch {}
 console.log(JSON.stringify({status:'PASS',protocol:'ACTION_FAILURE_LEDGER_V1',assertions:12},null,2));
