@@ -213,6 +213,153 @@ function predictBehavior(model,{rootCause='unknown',previousStrategy='START',rej
   return list.find((item)=>!rejected.includes(item.strategyId)) ?? null;
 }
 
+function featureSignature(features = []) {
+  return [...new Set((features ?? []).map(norm).filter(Boolean))].sort().join(',');
+}
+
+function attemptBucket(attempt = 0) {
+  const n = Math.max(0, Number(attempt) || 0);
+  return n === 0 ? 'A0' : n === 1 ? 'A1' : n <= 3 ? 'A2_3' : n <= 7 ? 'A4_7' : 'A8_PLUS';
+}
+
+function buildStateExamples(rows) {
+  const grouped = new Map();
+  for (const row of rows) {
+    const key = [row.fingerprint, row.rootCause].join('|');
+    const list = grouped.get(key) ?? [];
+    list.push(row);
+    grouped.set(key, list);
+  }
+  const states = [];
+  for (const list of grouped.values()) {
+    list.sort((a, b) => String(a.at ?? '').localeCompare(String(b.at ?? '')));
+    let previousStrategy = 'START';
+    list.forEach((row, index) => {
+      states.push({
+        fingerprint: row.fingerprint,
+        rootCause: norm(row.rootCause),
+        featureSignature: featureSignature(row.features),
+        attemptBucket: attemptBucket(index),
+        previousStrategy,
+        strategyId: row.strategyId,
+        outcome: row.outcome,
+        reward: row.outcome === 'success' ? 4 : row.outcome === 'failure' ? -3 : 0,
+      });
+      previousStrategy = row.strategyId;
+    });
+  }
+  return states;
+}
+
+function stateKey(state) {
+  return [norm(state.rootCause), norm(state.featureSignature), norm(state.attemptBucket), norm(state.previousStrategy)].join('|');
+}
+
+function trainStatePolicy(examples, epochs = 8) {
+  const q = new Map();
+  const visits = new Map();
+  const alpha = 0.22;
+  const gamma = 0.78;
+  const learningRate = 1 / Math.max(1, epochs);
+  for (let epoch = 0; epoch < epochs; epoch += 1) {
+    for (const row of examples) {
+      if (row.outcome === 'observation') continue;
+      const key = stateKey(row);
+      const qKey = key + '|' + row.strategyId;
+      const old = Number(q.get(qKey) ?? 0);
+      const shapedReward = row.reward * (1 + epoch * learningRate * 0.25);
+      q.set(qKey, old + alpha * (shapedReward - old));
+      visits.set(key, Number(visits.get(key) ?? 0) + 1);
+    }
+  }
+  const policy = {};
+  for (const [qKey, value] of q.entries()) {
+    const parts = qKey.split('|');
+    const strategyId = parts.pop();
+    const key = parts.join('|');
+    const item = { strategyId, qValue: Number(value.toFixed(4)), visits: Number(visits.get(key) ?? 0) };
+    (policy[key] ??= []).push(item);
+  }
+  for (const list of Object.values(policy)) {
+    list.sort((a, b) => b.qValue - a.qValue || b.visits - a.visits || a.strategyId.localeCompare(b.strategyId));
+  }
+  return { schemaVersion: 1, algorithm: 'TABULAR_STATE_ACTION_Q', epochs, alpha, gamma, policy };
+}
+
+function predictStatePolicy(model, { rootCause = 'unknown', features = [], attempt = 0, previousStrategy = 'START', rejected = [] } = {}) {
+  const exact = [norm(rootCause), featureSignature(features), attemptBucket(attempt), norm(previousStrategy)].join('|');
+  const fallbacks = [
+    exact,
+    [norm(rootCause), featureSignature(features), 'A0', norm(previousStrategy)].join('|'),
+    [norm(rootCause), '', attemptBucket(attempt), norm(previousStrategy)].join('|'),
+    [norm(rootCause), '', '', norm(previousStrategy)].join('|'),
+  ];
+  for (const key of fallbacks) {
+    const candidate = (model?.policy?.[key] ?? []).find((item) => !rejected.includes(item.strategyId));
+    if (candidate) return { ...candidate, stateKey: key };
+  }
+  return null;
+}
+
+function evaluateStatePolicy(model, examples) {
+  const scored = examples.filter((row) => row.outcome === 'success' || row.outcome === 'failure');
+  let successHits = 0;
+  let successCases = 0;
+  let failuresAvoided = 0;
+  let failureCases = 0;
+  for (const row of scored) {
+    const prediction = predictStatePolicy(model, row);
+    if (row.outcome === 'success') {
+      successCases += 1;
+      if (prediction?.strategyId === row.strategyId) successHits += 1;
+    } else {
+      failureCases += 1;
+      if (prediction?.strategyId !== row.strategyId) failuresAvoided += 1;
+    }
+  }
+  return {
+    cases: scored.length,
+    successCases,
+    successAccuracy: Number((successHits / Math.max(1, successCases)).toFixed(4)),
+    failureCases,
+    failureAvoidance: Number((failuresAvoided / Math.max(1, failureCases)).toFixed(4)),
+  };
+}
+
+function masteryProfile({ rows, behaviorEvaluation, stateEvaluation }) {
+  const verified = rows.filter((row) => row.outcome === 'success' || row.outcome === 'failure');
+  const counts = Object.fromEntries(CURRICULUM.map(([, skill]) => [skill, 0]));
+  for (const row of verified) {
+    if (row.outcome === 'success') {
+      counts.strategy_selection += 1;
+      counts.regression += 1;
+      counts.closure += 1;
+    } else {
+      counts.negative_learning += 1;
+      counts.recurrence += 1;
+    }
+    if (row.rootCause === 'external-tooling') counts.external_isolation += 1;
+    if (row.features.includes('typescript') || row.features.includes('lint') || row.features.includes('format')) {
+      counts.root_cause += 1;
+      counts.hypothesis += 1;
+    }
+  }
+  const competence = {
+    exact_sha: Math.min(1, verified.length / 10),
+    root_cause: Math.min(1, counts.root_cause / 8),
+    hypothesis: Math.min(1, counts.hypothesis / 8),
+    strategy_selection: stateEvaluation.successAccuracy,
+    negative_learning: stateEvaluation.failureAvoidance,
+    external_isolation: counts.external_isolation ? 1 : 0,
+    minimal_repair: behaviorEvaluation.successAccuracy,
+    regression: counts.regression ? 1 : 0,
+    recurrence: counts.recurrence ? 1 : 0,
+    closure: counts.closure ? 1 : 0,
+  };
+  const average = Object.values(competence).reduce((sum, value) => sum + value, 0) / Object.values(competence).length;
+  return { sampleCounts: counts, competence, overall: Number(average.toFixed(4)) };
+}
+
 function evaluateBehavior(model,examples){
   const scored=examples.filter((x)=>x.outcome==='success'||x.outcome==='failure');
   let hit=0,avoid=0,pos=0,neg=0;
@@ -250,18 +397,24 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
     policy,
     behaviorModel,
     behaviorEvaluation,
+    stateModel,
+    stateEvaluation,
+    mastery,
     evaluation,
     decision:{
       mode:sufficient&&competent?'TRAINED_POLICY':rows.length?'BOOTSTRAP_POLICY':'CURRICULUM_ONLY',
       competent,sufficient,
       eligibleToInfluenceRouting:rows.length>=4 && evaluation.accuracy>=.55 && behaviorEvaluation.successAccuracy>=.55,
       behavioralTraining:{epochs:5,trainedExamples:behaviorTrain.length,evaluationExamples:behaviorTest.length,competent:behaviorEvaluation.successAccuracy>=.65 && behaviorEvaluation.failureAvoidance>=.60},
+      stateActionTraining:{algorithm:'TABULAR_STATE_ACTION_Q',epochs:8,trainedExamples:stateTrain.length,evaluationExamples:stateTest.length,competent:stateEvaluation.successAccuracy>=.65 && stateEvaluation.failureAvoidance>=.60},
+      masteryThreshold:0.65,
+      masteryOverall:mastery.overall,
       rule:'TRAINING_INFLUENCES_SELECTION_BUT_NEVER_GRANTS_MUTATION_OR_GREEN_AUTHORITY'
     },
     preferredStrategy:preferred,
     trainingObjectives:[
       'ROOT_CAUSE_IDENTIFICATION','EVIDENCE_DRIVEN_ACTION_SELECTION','SUCCESS_AND_FAILURE_LEARNING',
-      'ANTI_LESSON_AVOIDANCE','BEHAVIORAL_SEQUENCE_LEARNING','FEEDBACK_REWARD_LEARNING','EXTERNAL_FAILURE_SEPARATION','FRESH_EXACT_SHA_VERIFICATION'
+      'ANTI_LESSON_AVOIDANCE','BEHAVIORAL_SEQUENCE_LEARNING','STATE_ACTION_LEARNING','FEEDBACK_REWARD_LEARNING','COUNTERFACTUAL_AVOIDANCE','EXTERNAL_FAILURE_SEPARATION','FRESH_EXACT_SHA_VERIFICATION'
     ]
   };
 }
