@@ -577,6 +577,16 @@ function confidenceFor(entry) {
   return Number((entry.successes / attempts).toFixed(4));
 }
 
+export function recurrencePreventionRule({ rootCause, rule, external = false } = {}) {
+  const normalized = String(rootCause ?? 'unknown').trim().replace(/[^a-z0-9-]+/gi, '-').toUpperCase();
+  if (!normalized || normalized === 'UNKNOWN') return null;
+  if (external) {
+    return `EXTERNAL-${normalized}: classify as BLOCKED_EXTERNAL; do not mutate internal source; wait for provider recheck or escalate.`;
+  }
+  const ruleSuffix = rule ? ` strategy=${String(rule)}` : '';
+  return `RECURRENCE-${normalized}: require new exact-SHA evidence, a falsification/reproduction delta, and a non-repeated strategy before mutation.${ruleSuffix}`;
+}
+
 function upsertLesson(memory, { fingerprint, rootCause, rule, outcome, verification, provenance, preventionRule }) {
   const id = stableLessonId({ fingerprint, rootCause, rule });
   const collection = outcome === 'success' ? memory.lessons : memory.antiLessons;
@@ -627,6 +637,8 @@ function loadDiagnosticFromEnv() {
 
 export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule, relationships = [], diagnosis = null, affectedPaths = [] } = {}) {
   const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, externalBlocks: 0, reversions: 0, revertFailures: 0, revertedRules: [], revertedCommits: [], rules: [], outcomes: [] };
+  const priorAttempts = Number(entry.attempts ?? 0);
+  const priorOccurrences = Number(entry.occurrences ?? entry.outcomes?.length ?? 0);
   entry.rootCause = rootCause ?? entry.rootCause ?? 'unknown';
   const effectiveDiagnosis = normalizeDiagnosticRecord(diagnosis ?? loadDiagnosticFromEnv(), { affectedPaths });
   if (effectiveDiagnosis) {
@@ -649,6 +661,15 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   };
   const isHistoricalRevertFailure = outcome === 'revert-failure';
   if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
+  const recurrenceObserved = priorAttempts > 0 || priorOccurrences > 0;
+  const effectivePreventionRule = preventionRule ?? recurrencePreventionRule({
+    rootCause: entry.rootCause,
+    rule,
+    external: isExternalBlock,
+  });
+  if (recurrenceObserved || isExternalBlock) {
+    entry.preventionRules = [...new Set([...(entry.preventionRules ?? []), ...(effectivePreventionRule ? [effectivePreventionRule] : [])])].slice(-MEMORY_RETENTION.maxPreventionRules);
+  }
   if (isHistoricalRevert) {
     entry.reversions = (entry.reversions ?? 0) + 1;
     if (rule) entry.revertedRules = [...new Set([...(entry.revertedRules ?? []), rule])];
@@ -696,6 +717,7 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     if (outcome !== 'success') actionRecord.rejectedStrategies = [...new Set([...(actionRecord.rejectedStrategies ?? []), observedStrategy])].slice(-20);
   }
   if (rule) actionRecord.rules = [...new Set([...(actionRecord.rules ?? []), rule])].slice(-20);
+  if (effectivePreventionRule) actionRecord.doNotRepeat = [...new Set([...(actionRecord.doNotRepeat ?? []), effectivePreventionRule])].slice(-50);
   if (outcome !== 'success' && rule) actionRecord.doNotRepeat = [...new Set([...(actionRecord.doNotRepeat ?? []), rule])].slice(-50);
   if (effectiveProvenance?.failedSha || effectiveProvenance?.targetSha || verification) {
     actionRecord.evidence = [...(actionRecord.evidence ?? []), {
@@ -731,7 +753,15 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     if (!memory.playbooks.includes(playbook)) memory.playbooks.push(playbook);
   }
   if (outcome === 'success' || outcome === 'unrepaired' || outcome === 'failure' || outcome === 'blocked' || outcome === 'blocked-external') {
-    upsertLesson(memory, { fingerprint, rootCause: entry.rootCause, rule, outcome, verification, provenance: effectiveProvenance, preventionRule });
+    upsertLesson(memory, {
+      fingerprint,
+      rootCause: entry.rootCause,
+      rule,
+      outcome,
+      verification,
+      provenance: effectiveProvenance,
+      preventionRule: effectivePreventionRule,
+    });
   }
   const cellKnowledge = buildKnowledgeRecord({
     botId: process.env.FLIXO_CELL_BOT_ID ?? null,
