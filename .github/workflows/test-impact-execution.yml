@@ -8,7 +8,7 @@ on:
 # Keep only the newest test-impact execution for the same PR/branch.
 concurrency:
   group: flixo-test-impact-execution-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
