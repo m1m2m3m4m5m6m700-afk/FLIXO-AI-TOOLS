@@ -298,71 +298,11 @@ jobs:
           node /tmp/flixo-repair-controller/scripts/ci/test-auto-repair-final.mjs
           FLIXO_HISTORICAL_ROLLBACK_SELF_TEST=1 node /tmp/flixo-repair-controller/scripts/ci/auto-repair/historical-rollback.mjs
 
-      - name: Consume canonical Daily Green Gate execution prompt bundle
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Disable artifact-based prompt consumption in privileged repair plane
         run: |
           set -euo pipefail
-          EXPECTED_SHA="$(cat /tmp/flixo-failed-sha)"
+          echo 'FLIXO_EXECUTION_PROMPT_SOURCE=TRUSTED_WORKTREE_ONLY' >> "$GITHUB_ENV"
 
-          # Never consume an artifact selected by workflow_dispatch input.
-          # Resolve the source run exclusively from the canonical Green Gate
-          # workflow for the exact repair target SHA.
-          PROMPT_RUN_ID="$(
-            gh run list \
-              --repo "$GITHUB_REPOSITORY" \
-              --workflow "daily-flixo-green-gate.yml" \
-              --commit "$EXPECTED_SHA" \
-              --limit 20 \
-              --json databaseId,workflowName,headSha,conclusion \
-            | jq -r --arg sha "$EXPECTED_SHA" '
-                [ .[]
-                  | select(
-                      .workflowName == "Daily·FLIXO Green Gate" and
-                      .headSha == $sha and
-                      .conclusion == "success"
-                    )
-                  | .databaseId
-                ][0] // empty
-          '
-          )"
-
-          if [ -z "$PROMPT_RUN_ID" ]; then
-            echo "No trusted Daily Green Gate prompt bundle exists for exact SHA $EXPECTED_SHA; optional bundle consumption skipped."
-            exit 0
-          fi
-
-          mkdir -p /tmp/flixo-prompt-bundle
-          gh run download "$PROMPT_RUN_ID" \
-            --repo "$GITHUB_REPOSITORY" \
-            --name "flixo-repair-execution-prompts-$PROMPT_RUN_ID" \
-            --dir /tmp/flixo-prompt-bundle
-
-          test -s /tmp/flixo-prompt-bundle/execution-prompts.json
-          test -s /tmp/flixo-prompt-bundle/execution-prompts.md
-
-          BUNDLE_SHA="$(jq -r '.executionSha' /tmp/flixo-prompt-bundle/execution-prompts.json)"
-          test "$BUNDLE_SHA" = "$EXPECTED_SHA" || {
-            echo "FAIL CLOSED: prompt bundle SHA $BUNDLE_SHA does not match repair target $EXPECTED_SHA."
-            exit 1
-          }
-
-          BUNDLE_FINGERPRINT="$(
-            jq -r --arg run "$TARGET_RUN_ID" \
-              '.prompts[] | select((.runIds // []) | index($run)) | .fingerprint' \
-              /tmp/flixo-prompt-bundle/execution-prompts.json
-            | head -n 1
-          )"
-
-          if [ -n "$FLIXO_FAILURE_FINGERPRINT" ] && [ -n "$BUNDLE_FINGERPRINT" ]; then
-            test "$BUNDLE_FINGERPRINT" = "$FLIXO_FAILURE_FINGERPRINT" || {
-              echo 'FAIL CLOSED: prompt bundle fingerprint does not match the watcher repair target.'
-              exit 1
-            }
-          fi
-
-          echo "FLIXO_EXECUTION_PROMPT_PATH=/tmp/flixo-prompt-bundle/execution-prompts.json" >> "$GITHUB_ENV"
-          echo "PROMPT_BUNDLE_SOURCE_RUN=$PROMPT_RUN_ID"
       - name: Learn from historical GitHub Actions failures and repair history
         env:
           GH_TOKEN: ${{ github.token }}
