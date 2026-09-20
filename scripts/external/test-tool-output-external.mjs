@@ -71,13 +71,13 @@ async function inspectResult(page) {
   const image = page.locator('img[alt="Tool result"]').first();
   await image.waitFor({ state: 'visible', timeout: 30_000 });
   await page.waitForFunction(() => {
-    const image = document.querySelector('img[alt="Tool result"]');
-    return image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0 && image.naturalHeight > 0;
+    const image = globalThis.document.querySelector('img[alt="Tool result"]');
+    return image instanceof globalThis.HTMLImageElement && image.complete && image.naturalWidth > 0 && image.naturalHeight > 0;
   });
 
   return page.evaluate(async () => {
     const image = document.querySelector('img[alt="Tool result"]');
-    if (!(image instanceof HTMLImageElement)) throw new Error('EXTERNAL_RESULT_NOT_FOUND');
+    if (!(image instanceof globalThis.HTMLImageElement)) throw new Error('EXTERNAL_RESULT_NOT_FOUND');
     if (typeof image.decode === 'function') await image.decode();
     const response = await fetch(image.src);
     if (!response.ok) throw new Error(`EXTERNAL_RESULT_FETCH_FAILED:${response.status}`);
