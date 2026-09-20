@@ -64,13 +64,13 @@
     "memorySource": "diagnostics/auto-repair/memory.json",
     "consolidation": "One canonical active repository execution prompt; former orchestration, repair, product, task-preparation, specialist and prompt-governance instruction families are absorbed or retired.",
     "inventoryArtifact": "docs/agents/PROMPT-SORTING-INVENTORY.md",
-    "runtimePromptBoundary": "src/lib/agent/flixo-agent-master-prompt.ts remains a protected customer-facing runtime behavior contract and is not a repository repair authority."
+    "runtimePromptBoundary": "src/lib/agent/flixo-agent-master-prompt.ts is a runtime adapter only; it imports the canonical unified prompt and supplies OPERATING_MODE=CUSTOMER_IMAGE_RUNTIME plus dynamic context. It is not a second prompt source."
   },
   "prompts": [
     {
       "promptId": "RPR-UNIFIED-EXECUTION-001",
-      "title": "FLIXO Unified Repository Execution, RCA, Repair, Product Delivery & Green Closure",
-      "domain": "unified-repository-execution",
+      "title": "FLIXO Unified Execution, Product Runtime, RCA, Repair & Green Closure",
+      "domain": "unified-execution-and-runtime",
       "agentRole": "executive-repair-development-controller",
       "sourcePath": "docs/agents/PROMPT-UNIFIED-EXECUTION.md",
       "failureClasses": [
@@ -137,7 +137,8 @@
           "Action Vault learning",
           "prompt governance",
           "exact-SHA evidence",
-          "handoff"
+          "handoff",
+          "customer-facing runtime behavior"
         ],
         "forbidden": [
           "direct-main-mutation",
@@ -224,7 +225,8 @@
         "self-certification",
         "orchestration-ownership-drift",
         "prompt-per-error",
-        "prompt-per-specialist"
+        "prompt-per-specialist",
+        "second-runtime-prompt-source"
       ],
       "exactShaRequirements": [
         "current execution SHA",
@@ -234,9 +236,9 @@
         "canonical certification"
       ],
       "status": "ACTIVE",
-      "version": "1.0.0",
+      "version": "2.0.0",
       "createdBy": "prompt-consolidation",
-      "lastUpdatedBy": "unified-execution-consolidation",
+      "lastUpdatedBy": "unified-execution-runtime-consolidation",
       "provenance": {
         "source": "prompt sorting inventory + current execution architecture",
         "replacedFamilies": [
@@ -251,7 +253,8 @@
           "Regex Contract",
           "Architecture Registry",
           "Active Repair Cycle",
-          "Canonical Contract Drift"
+          "Canonical Contract Drift",
+          "FLIXO-IMAGE-AGENT-MASTER-001"
         ]
       }
     }
