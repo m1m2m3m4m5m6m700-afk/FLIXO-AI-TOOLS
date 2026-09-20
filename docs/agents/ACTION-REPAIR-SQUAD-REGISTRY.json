@@ -652,6 +652,19 @@
       "falsificationChecksRequired": true,
       "counterEvidenceRequired": true,
       "mutationBlockedWithoutProof": true
+    },
+    "fileSelectionGate": {
+      "enabled": true,
+      "agent": "ACTION-HISTORIAN-3",
+      "protocol": "ACTION-FILE-SELECTION-INTELLIGENCE-v1",
+      "artifact": "/tmp/action-file-selection-decision.json",
+      "exactSha": true,
+      "failureFingerprint": true,
+      "pathOnly": true,
+      "codeContentRead": false,
+      "minimumSelectedFiles": 1,
+      "mutationBlockedWithoutFileSelection": true,
+      "excludedFilesNeedNewEvidence": true
     }
   },
   "coreThreeBotContract": {
@@ -669,9 +682,11 @@
     },
     "ACTION-HISTORIAN-3": {
       "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
-      "role": "HISTORIAN_AND_SOLUTION_INDEXER",
-      "executionAuthority": "RECORD_INDEX_ESCALATE_ONLY",
-      "cooperation": "MANDATORY_ON_RED"
+      "role": "FILE_SELECTION_INTELLIGENCE_AND_FAILURE_HISTORIAN",
+      "executionAuthority": "READ_ONLY_SELECTION_RECORD_INDEX_ESCALATE_ONLY",
+      "cooperation": "MANDATORY_ON_RED_BEFORE_PROGRAMMER_REASONING",
+      "fileSelectionProtocol": "ACTION-FILE-SELECTION-INTELLIGENCE-v1",
+      "sourceMutation": false
     }
   },
   "residencyPolicy": {
