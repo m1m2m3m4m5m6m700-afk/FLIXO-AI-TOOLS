@@ -35,8 +35,8 @@ async function request(path, init = {}) {
     },
   });
   const body = await response.text();
-  let json = null;
-  try { json = body ? JSON.parse(body) : null; } catch { json = null; }
+  let json;
+  try { json = body ? JSON.parse(body) : null; } catch { return { response, body, json: null }; }
   return { response, body, json };
 }
 
