@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "ACTION-THREE-BOT-INTELLIGENCE",
   "purpose": "Canonical shared intelligence and capability contract for ACTION-REPAIR, ACTION-REPAIR-2 and ACTION-HISTORIAN-3.",
   "parity": {
@@ -52,7 +52,10 @@
     "docs/agents/ERROR-TEACHING-EXPANDED-B-1000.md",
     "docs/agents/ERROR-TEACHING-EXPANDED-C-1000.md",
     "docs/agents/ERROR-TEACHING-EXPANDED-D-1000.md",
-    "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md"
+    "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
+    "docs/agents/ACTION-AGENT-RUNTIME-PROTOCOL.md",
+    "docs/agents/historical-action-errors/agent-activity/index.json",
+    "docs/agents/historical-action-errors/agent-activity"
   ],
   "safetyBoundary": {
     "intelligenceDoesNotImplyMutationAuthority": true,
@@ -169,7 +172,8 @@
       "rule": "REPAIR_AND_RETEST_ONLY_THE_IMPACTED_SURFACE_FIRST",
       "fullSuiteInFastLoop": false,
       "exactShaRequired": true,
-      "canonicalGreenRequired": true
+      "canonicalGreenRequired": true,
+      "runtimePacket": "scripts/ci/action-agent-runtime.mjs"
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
@@ -182,5 +186,48 @@
     "closure": "CANONICAL_GREEN_ONLY",
     "escalationAfterFailedAttempts": 20,
     "supervisorRoute": "scripts/ci/agent-communication.mjs -> .github/workflows/agent-communication-relay.yml -> assistantController"
+  },
+  "agentRuntime": {
+    "protocol": "ACTION-AGENT-RUNTIME-v1",
+    "runtimeScript": "scripts/ci/action-agent-runtime.mjs",
+    "historyScript": "scripts/ci/action-agent-history.mjs",
+    "phases": [
+      "INTAKE",
+      "CONTEXT_RETRIEVAL",
+      "PLAN",
+      "EXECUTE",
+      "SELF_CHECK",
+      "INDEPENDENT_REVIEW",
+      "VERIFY",
+      "LEARN"
+    ],
+    "exactIdentity": [
+      "taskId",
+      "failureFingerprint",
+      "targetSha",
+      "failedRunId"
+    ],
+    "requirements": {
+      "evidenceFirst": true,
+      "historicalFirst": true,
+      "explicitUnknowns": true,
+      "selfCritique": true,
+      "independentReview": true,
+      "structuredOutput": true,
+      "toolBudget": true,
+      "noSelfApproval": true
+    },
+    "efficiency": {
+      "parallelCognitiveReads": true,
+      "parallelHistoricalRetrieval": true,
+      "serializedSourceMutation": true,
+      "targetedRegressionFirst": true,
+      "fullSuiteInFastLoop": false
+    },
+    "modelProfiles": {
+      "chief": "FRONTIER_REASONING",
+      "primary": "FRONTIER_REASONING",
+      "adversarial": "FRONTIER_REASONING_ADVERSARIAL"
+    }
   }
 }
