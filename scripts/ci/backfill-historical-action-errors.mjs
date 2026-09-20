@@ -38,6 +38,7 @@ const api = async (url, attempt = 0) => {
 
 function normalize(line) {
   return String(line)
+    .replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\s*/u, '')
     .replace(/\x1b\[[0-?]*[ -/]*[@-~]/gu, '')
     .replace(/https?:\/\/[^\s]+/gu, '<URL>')
     .replace(/\b[0-9a-f]{40}\b/giu, '<SHA>')
@@ -103,6 +104,8 @@ for (let cursor = new Date(startDate); cursor < endDate; cursor = new Date(Math.
   for (const run of runs) {
     const runId = String(run.id);
     if (seenRunIds.has(runId)) continue;
+    const createdAt = new Date(String(run.created_at ?? ''));
+    if (!Number.isFinite(createdAt.getTime()) || createdAt < new Date(windowStart) || createdAt >= new Date(windowEnd)) continue;
     seenRunIds.add(runId);
     const jobs = await fetchJobs(run.id);
     jobCount += jobs.length;
