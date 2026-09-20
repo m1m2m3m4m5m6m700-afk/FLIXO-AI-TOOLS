@@ -751,6 +751,14 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
     knowledgeClaim: effectiveDiagnosis?.rootCause
       ? 'Validated task knowledge: observed failure maps to ' + effectiveDiagnosis.rootCause + ' under outcome ' + outcome + ' and verification ' + verification + '.'
       : null,
+    solution: {
+      strategyId: strategyId ?? null,
+      rule: rule ?? null,
+      rootCause: entry.rootCause ?? null,
+      outcome,
+      verification: verification ?? null,
+      changedPaths: affectedPaths,
+    },
     antiLesson: outcome === 'success' ? null : rule ? 'Do not repeat strategy ' + rule + ' for this fingerprint without new evidence.' : null,
   });
   const cellKnowledgePersist = persistKnowledge(cellKnowledge);
