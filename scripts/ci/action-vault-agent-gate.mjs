@@ -182,7 +182,6 @@ export function runGate(root = ROOT) {
     if (grade.rules?.failedAttemptDoesNotCloseMission !== true) err(errors, 'AGENT_GRADE_FAILED_ATTEMPT_CLOSURE_INVALID');
     if (grade.rules?.noFalseGreen !== true) err(errors, 'AGENT_GRADE_FALSE_GREEN_RULE_MISSING');
   }
-  }
 
   if (residency) {
     if (residency.schemaVersion !== 2) err(errors, 'RESIDENCY_VERSION_INVALID');
