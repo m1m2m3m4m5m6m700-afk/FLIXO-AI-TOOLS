@@ -43,6 +43,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: flixo-cell-master-consult-${{ inputs.request_id }}
