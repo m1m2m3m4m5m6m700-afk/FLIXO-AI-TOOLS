@@ -14,7 +14,6 @@ import { summarizeDiff, writeEvidence, mutationAttribution } from './auto-repair
 import { snapshot, rollback } from './auto-repair/rollback.mjs';
 import { findHistoricalRepairCandidate, applyHistoricalRepair, historicalRollbackRecord } from './auto-repair/historical-rollback.mjs';
 import { validateRepairProof, preventionRuleFor, escalationReason } from './auto-repair-proof.mjs';
-import { simulateRepair } from './auto-repair/simulation.mjs';
 import { critiqueRepair } from './auto-repair/self-critic.mjs';
 import { buildCausalProof } from './auto-repair/causal-proof.mjs';
 import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
