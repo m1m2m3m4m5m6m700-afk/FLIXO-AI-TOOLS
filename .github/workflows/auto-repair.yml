@@ -744,23 +744,39 @@ jobs:
           node scripts/ci/action-repair-dual-control.mjs heartbeat --primary=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$FLIXO_EXPECTED_TARGET_SHA" --state=READY_FOR_MUTATION --out=/tmp/action-repair-pair-heartbeat.json
           node scripts/ci/action-repair-dual-control.mjs assert --approval=/tmp/action-repair-2-approval.json --heartbeat=/tmp/action-repair-pair-heartbeat.json --approver=ACTION-REPAIR --assistant=ACTION-REPAIR-2 --target-sha="$FLIXO_EXPECTED_TARGET_SHA"
 
-      - name: Select active Actions repair bot turn
+      - name: Resolve active Actions repair owner from durable lease state
         id: action_turn
         if: steps.strategy.outcome == 'success'
         env:
+          GH_TOKEN: ${{ github.token }}
           FLIXO_EXPECTED_TARGET_SHA: ${{ env.FLIXO_EXPECTED_TARGET_SHA }}
           FLIXO_FAILURE_FINGERPRINT: ${{ env.FLIXO_FAILURE_FINGERPRINT }}
           FLIXO_REPAIR_ATTEMPT: ${{ env.FLIXO_REPAIR_LEASE_ATTEMPT }}
         run: |
           set -euo pipefail
-          node scripts/ci/action-repair-turn.mjs --attempt="$FLIXO_REPAIR_ATTEMPT" --sha="$FLIXO_EXPECTED_TARGET_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" > /tmp/action-repair-turn.json
-          ACTIVE="$(jq -r '.activeBot' /tmp/action-repair-turn.json)
+          FAILED_SHA="$FLIXO_EXPECTED_TARGET_SHA"
+          node /tmp/flixo-repair-controller/scripts/ci/repair-lease.mjs brother-state             --fingerprint="$FLIXO_FAILURE_FINGERPRINT"             --failedSha="$FAILED_SHA"             --targetRunId="$TARGET_RUN_ID"             --branch="execution" > /tmp/action-repair-brother-state.json
+          ACTIVE_BROTHER="$(jq -r '.activeBrother' /tmp/action-repair-brother-state.json)"
+          TURN="$(jq -r '.turn' /tmp/action-repair-brother-state.json)"
+          case "$ACTIVE_BROTHER" in
+            A)
+              ACTIVE="ACTION-REPAIR"
+              ACTOR="actionRepairBot"
+              ;;
+            B)
+              ACTIVE="ACTION-REPAIR-2"
+              ACTOR="assistantRepairAgent"
+              ;;
+            *)
+              echo "FAIL CLOSED: unknown durable Actions repair owner $ACTIVE_BROTHER"
+              exit 1
+              ;;
+          esac
           echo "FLIXO_ACTIVE_ACTION_BOT=$ACTIVE" >> "$GITHUB_ENV"
-          if [ "$ACTIVE" = "ACTION-REPAIR-2" ]; then
-            echo "FLIXO_REPAIR_ACTOR=actionRepairAssistant" >> "$GITHUB_ENV"
-          else
-            echo "FLIXO_REPAIR_ACTOR=actionRepairBot" >> "$GITHUB_ENV"
-          fi
+          echo "FLIXO_REPAIR_ACTOR=$ACTOR" >> "$GITHUB_ENV"
+          echo "FLIXO_ACTION_REPAIR_TURN=$TURN" >> "$GITHUB_ENV"
+          echo "FLIXO_ACTIVE_ACTION_BROTHER=$ACTIVE_BROTHER" >> "$GITHUB_ENV"
+          echo "ACTION_OWNER_STATE=$ACTIVE_BROTHER:$ACTIVE:TURN:$TURN"
 
       - name: FLIXO Auto Repair Bot — sole mutation authority for the active RED target
         id: execute_repair
@@ -840,6 +856,23 @@ jobs:
           test "$(git branch --show-current)" = execution
           echo 'verified=true' >> "$GITHUB_OUTPUT"
 
+      - name: Handoff active Actions repair owner after failed repair
+        if: always() && steps.strategy.outcome == 'success' && steps.verify.outputs.verified != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome 2>/dev/null || printf '%s' 'engine-error')"
+          case "$ENGINE_OUTCOME" in
+            blocked-external|verified-repair|verified-historical-revert)
+              echo "ACTION_OWNER_HANDOFF=NOT_REQUIRED outcome=$ENGINE_OUTCOME"
+              exit 0
+              ;;
+          esac
+          BROTHER_ID="${FLIXO_ACTIVE_ACTION_BROTHER:-A}"
+          node /tmp/flixo-repair-controller/scripts/ci/repair-lease.mjs brother-surrender             --fingerprint="$FLIXO_FAILURE_FINGERPRINT"             --failedSha="$FLIXO_EXPECTED_TARGET_SHA"             --targetRunId="$TARGET_RUN_ID"             --branch="execution"             --attempt="${FLIXO_REPAIR_LEASE_ATTEMPT:-1}"             --brotherId="$BROTHER_ID"             --reason="FAILED_REPAIR_OR_UNREPAIRED"             --exitSha="$FLIXO_EXPECTED_TARGET_SHA"
+          echo "ACTION_OWNER_HANDOFF=PASS from=$BROTHER_ID"
+      
       - name: Record local verification state in the Repair Control Plane
         if: steps.verify.outputs.verified == 'true'
         run: |
