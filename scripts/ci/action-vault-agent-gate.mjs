@@ -81,7 +81,7 @@ export function validateThreeBotIntelligence(profile, bots) {
 
 export function validateResidency(policy) {
   const errors = [];
-  if (policy?.schemaVersion !== 2) err(errors, 'RESIDENCY_SCHEMA_INVALID');
+  if (policy?.schemaVersion !== 3) err(errors, 'RESIDENCY_SCHEMA_INVALID');
   if (JSON.stringify(policy?.residents ?? []) !== JSON.stringify(EXPECTED_BOTS)) err(errors, 'RESIDENT_SET_INVALID');
   if (policy?.residency?.alwaysResident !== true) err(errors, 'ALWAYS_RESIDENT_DISABLED');
   if (policy?.residency?.leaveVault !== false) err(errors, 'VAULT_EXIT_NOT_BLOCKED');
@@ -203,13 +203,16 @@ export function runGate(root = ROOT) {
   }
 
   if (residency) {
-    if (residency.schemaVersion !== 2) err(errors, 'RESIDENCY_VERSION_INVALID');
+    if (residency.schemaVersion !== 3) err(errors, 'RESIDENCY_VERSION_INVALID');
     if (residency.residency?.noSleepBeforeGreen !== true) err(errors, 'NO_SLEEP_BEFORE_GREEN_MISSING');
     if (residency.residency?.noIdleBeforeGreen !== true) err(errors, 'NO_IDLE_BEFORE_GREEN_MISSING');
-    if (residency.sleepAdmission?.required !== true) err(errors, 'SLEEP_ADMISSION_REQUIRED_MISSING');
-    if (residency.sleepAdmission?.exactShaRequired !== true) err(errors, 'SLEEP_EXACT_SHA_REQUIRED_MISSING');
-    if (residency.sleepAdmission?.openWorkBlocksSleep !== true) err(errors, 'SLEEP_OPEN_WORK_BLOCK_MISSING');
-    if (residency.automaticVisits?.visitModes?.includes('EXCHANGE') !== true) err(errors, 'RESIDENCY_EXCHANGE_VISIT_MISSING');
+    if (residency.residency?.noSleepAfterGreen !== true) err(errors, 'NO_SLEEP_AFTER_GREEN_MISSING');
+    if (residency.residency?.noIdleAfterGreen !== true) err(errors, 'NO_IDLE_AFTER_GREEN_MISSING');
+    if (residency.residency?.noFreeze !== true) err(errors, 'FREEZE_FORBIDDEN_MISSING');
+    if (residency.residency?.noWithdrawal !== true) err(errors, 'WITHDRAWAL_FORBIDDEN_MISSING');
+    if (residency.residency?.postGreenState !== 'READY_RESIDENT') err(errors, 'POST_GREEN_RESIDENCY_STATE_INVALID');
+    if (residency.residency?.sleepAdmissionMode !== 'DENY_ALL_STATES') err(errors, 'SLEEP_ADMISSION_NOT_PERMANENTLY_DENIED');
+        if (residency.automaticVisits?.visitModes?.includes('EXCHANGE') !== true) err(errors, 'RESIDENCY_EXCHANGE_VISIT_MISSING');
   }
 
   if (intelligence?.cooperation?.mentorship?.enabled !== true) err(errors, 'CODE_MENTOR_COOPERATION_MISSING');
