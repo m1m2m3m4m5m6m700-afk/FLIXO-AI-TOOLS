@@ -22,7 +22,9 @@
     "promoteOnlyAfterCanonicalGreen": true,
     "neverExecuteWithoutPrimaryApproval": false,
     "mutationRequiresOwnership": true,
-    "handoffActivatesOwnership": true
+    "handoffActivatesOwnership": true,
+    "preHandoffMutation": false,
+    "postHandoffOwnerMutation": true
   },
   "lock": {
     "partner": "ACTION-REPAIR",
@@ -54,5 +56,17 @@
     "canMutateTests": false,
     "canMutateMain": false,
     "canonicalGreen": "DAILY_FLIXO_GREEN_GATE"
+  },
+  "agentGrade": {
+    "lifecycle": "READY",
+    "shortName": "ACTR2",
+    "upgradeNumber": 1,
+    "upgradePriority": 90,
+    "nextUpgrade": {
+      "id": "ACTR2-U2",
+      "weakness": "INDEPENDENT_CHALLENGE_AND_HANDOFF_RECOVERY",
+      "mission": "رفع جودة الطعن المستقل وسرعة الاستلام بعد فشل المالك",
+      "promotionProof": "INDEPENDENT_REVIEW_PLUS_EXACT_SHA"
+    }
   }
 }
