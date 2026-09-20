@@ -8,6 +8,7 @@ import {
   executeExternalAgent,
   createBridge,
   createWakeServer,
+  exactSha,
 } from './council/external-gpt-bridge.mjs';
 
 const SHA = 'a'.repeat(40);
@@ -25,6 +26,8 @@ const mockFetch = async (url, init = {}) => {
       delivered = true;
       return new Response(JSON.stringify({
         ok: true,
+        identityVerified: true,
+        identity: { agentId: 'flixo-worker-a-001', machineRole: 'executionAgent' },
         dispatch: {
           dispatch_id: 'dispatch-001',
           task_id: 'GREEN-RECOVERY-001',
@@ -56,7 +59,7 @@ const mockFetch = async (url, init = {}) => {
 const config = buildConfig('WORKER_A', {
   COUNCIL_RUNTIME_URL: 'https://runtime.test/functions/v1/flixo-council-runtime',
   COUNCIL_WORKER_A_TOKEN: 'worker-token',
-  COUNCIL_WORKER_A_BRIDGE_PORT: '0',
+  COUNCIL_WORKER_A_BRIDGE_PORT: '8782',
   COUNCIL_WORKER_A_AGENT_ENDPOINT: 'https://executor.test/execute',
   COUNCIL_WORKER_A_AGENT_TOKEN: 'executor-token',
 });
