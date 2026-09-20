@@ -108,8 +108,8 @@
     "councilDeputy": "verification: queue sequencing, dependency ordering, ownership and handoff management; no mutation or certification",
     "councilInvestigator": "analysis: fingerprint, RCA, falsification and proof-obligation ownership; no mutation or reassignment",
     "externalRuntime": "External account adapter: transports Wake/ACK/heartbeat/completion between GitHub/Supabase and external GPT runtimes. It grants no mutation or certification authority.",
-    "actionRepairBot": "ACTION-REPAIR / actionRepairBot: primary bounded mutation owner for Actions repair. It may mutate only after the canonical Action Vault verifier challenge passes on the same exact SHA and fingerprint, then the normal Repair Protocol admits the mutation. It never self-certifies or widens gates.",
-    "actionRepairVerifier": "ACTION-REPAIR-2 / actionRepairVerifier: exact-intelligence programmer twin of ACTION-REPAIR. It independently performs programmer-level RCA, code-semantic reasoning, candidate patch reasoning, regression prediction and counterfactual challenge on the same exact SHA. It has no direct source-mutation authority and cannot bypass ACTION-REPAIR.",
+    "actionRepairBot": "ACTION-REPAIR / actionRepairBot: primary correctness prover and bounded repair owner. It must construct an explicit proof that its diagnosis and proposed repair are correct before mutation.",
+    "actionRepairVerifier": "ACTION-REPAIR-2 / actionRepairVerifier: adversarial programmer falsifier. It must assume ACTION-REPAIR may be wrong and actively attempt to prove it wrong with independent counterexamples. It never mutates source.",
     "actionHistorian": "ACTION-HISTORIAN-3 / actionHistorian: file-selection intelligence and learning specialist. It reasons about repository files, file relationships, change surfaces and exclusions without reading source-code content as a programmer; it has no source mutation, commit, push, merge or certification authority."
   },
   "decisionGates": {
@@ -385,7 +385,7 @@
     "roles": {
       "ACTION-REPAIR": {
         "agent": "actionRepairBot",
-        "purpose": "causal repair execution",
+        "purpose": "constructive correctness proof and bounded source repair",
         "mutationAuthority": true,
         "certificationAuthority": false,
         "requiredInputs": [
@@ -398,6 +398,7 @@
           "actionVaultVerifierProof"
         ],
         "requiredOutputs": [
+          "primaryCorrectnessProof",
           "changedFiles",
           "repairRationale",
           "targetedRegression",
@@ -412,27 +413,27 @@
           "self-certification",
           "main mutation",
           "third branch"
-        ]
+        ],
+        "proofObjective": "PROVE_PRIMARY_REPAIR_CORRECT"
       },
       "ACTION-REPAIR-2": {
         "agent": "actionRepairVerifier",
-        "purpose": "independent programmer twin reasoning and adversarial verification",
+        "purpose": "adversarial falsification of ACTION-REPAIR's correctness proof",
         "mutationAuthority": false,
         "certificationAuthority": false,
         "requiredInputs": [
           "exactSha",
           "failureFingerprint",
           "fileSelectionDecision",
-          "repairContext"
+          "primaryCorrectnessProof",
+          "exactFailureEvidence"
         ],
         "requiredOutputs": [
-          "programmerTwinAnalysis",
-          "alternativeRootCauses",
-          "candidatePatch",
-          "regressionPrediction",
-          "counterfactualChallenge",
-          "verificationState",
-          "remainingRisks"
+          "falsificationReport",
+          "counterexampleSearch",
+          "counterexamples",
+          "unfalsifiedObligations",
+          "blockOrReleaseRecommendation"
         ],
         "forbidden": [
           "source mutation",
@@ -456,7 +457,9 @@
           "target": "ACTION-REPAIR",
           "parity": "EXACT",
           "authority": "SEPARATED_BY_DESIGN"
-        }
+        },
+        "proofObjective": "ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG",
+        "failClosedOnCounterexample": true
       },
       "ACTION-HISTORIAN-3": {
         "agent": "actionHistorian",
@@ -498,12 +501,12 @@
       "CAPTURE",
       "FINGERPRINT",
       "FILE_SELECTION",
-      "PROGRAMMER_TWIN",
-      "PRIMARY_PROGRAMMER_ANALYSIS",
-      "COUNTERFACTUAL_CHALLENGE",
+      "PRIMARY_CORRECTNESS_PROOF",
+      "ADVERSARIAL_FALSIFICATION",
+      "PROOF_REPAIR_OR_DEFENSE",
       "REPAIR",
       "TARGETED_REGRESSION",
-      "ADVERSARIAL_VERIFY",
+      "POST_REPAIR_FALSIFICATION",
       "LEARN",
       "EXACT_SHA_RECHECK",
       "HANDOFF"
@@ -522,7 +525,7 @@
       "programmerTwinParity"
     ],
     "independenceRule": "ACTION-REPAIR-2 and ACTION-HISTORIAN-3 must not impersonate ACTION-REPAIR or reuse its mutation authority.",
-    "verificationRule": "ACTION-REPAIR-2 must receive the post-repair evidence independently; ACTION-REPAIR cannot declare the verifier result on its behalf. ACTION-HISTORIAN-3 must provide the file-selection decision before ACTION-REPAIR performs code-level repair reasoning.",
+    "verificationRule": "ACTION-REPAIR must prove its correctness; ACTION-REPAIR-2 must independently attempt to falsify that proof. A valid counterexample blocks mutation. Failure to find a counterexample does not constitute GREEN; canonical CI remains proof authority.",
     "memoryPromotionRule": "A reusable repair rule requires at least two independently verified successful exact-SHA cases plus one explicit prevention rule; one success never promotes authority.",
     "retryPolicy": "NO_BLIND_RETRY",
     "failedAttemptEscalationThreshold": 20,
@@ -541,10 +544,12 @@
       "required": true,
       "artifact": "actionVaultVerifierProof",
       "verifier": "actionRepairVerifier",
-      "admission": "verify exact SHA + failure fingerprint + file selection + exact programmer-twin parity + alternatives + falsification checks + counter-evidence + remaining risks",
+      "admission": "require exact SHA + primary correctness proof + adversarial falsification attempt + no valid counterexample + file selection + remaining risks",
       "failClosed": true,
       "fileSelectionRequired": true,
-      "programmerTwinParityRequired": true
+      "programmerTwinParityRequired": true,
+      "primaryCorrectnessProofRequired": true,
+      "adversarialFalsificationRequired": true
     },
     "fileSelectionIntelligence": {
       "enabled": true,
@@ -571,16 +576,20 @@
     },
     "programmerTwin": {
       "enabled": true,
-      "protocol": "ACTION-PROGRAMMER-TWIN-PARITY-v1",
-      "runtime": "scripts/ci/action-repair-twin-parity.mjs",
-      "artifact": "/tmp/action-repair-twin-parity.json",
+      "protocol": "ACTION-PROGRAMMER-TWIN-FALSIFICATION-v1",
       "primary": "ACTION-REPAIR",
-      "twin": "ACTION-REPAIR-2",
-      "intelligenceParity": "EXACT",
-      "authorityParity": "SEPARATED_BY_DESIGN",
-      "mutationOwner": "ACTION-REPAIR",
-      "verifierCannotMutate": true,
-      "independentReasoningRequired": true
+      "adversary": "ACTION-REPAIR-2",
+      "primaryProofRuntime": "scripts/ci/action-primary-correctness-proof.mjs",
+      "primaryProofArtifact": "/tmp/action-primary-correctness-proof.json",
+      "falsificationRuntime": "scripts/ci/action-repair-dual-control.mjs",
+      "falsificationArtifact": "/tmp/action-repair-2-proposal.json",
+      "proofObjectives": {
+        "primary": "PROVE_PRIMARY_REPAIR_CORRECT",
+        "adversary": "ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG"
+      },
+      "counterexampleBlocksMutation": true,
+      "noCounterexampleIsNotGreen": true,
+      "intelligenceParity": "EXACT"
     }
   }
 }
