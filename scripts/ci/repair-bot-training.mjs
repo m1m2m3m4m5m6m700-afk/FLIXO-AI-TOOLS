@@ -668,6 +668,158 @@ function buildRecurrenceProfile(rows, focusFingerprint = null) {
   return { algorithm: 'HEURISTIC_RECURRENCE_RISK-v1', cases: cases.slice(0, 100), focused: focusFingerprint ? cases.filter((item) => item.fingerprint === focusFingerprint) : [], highestRisk: cases[0] ?? null, overallRisk: cases.some((item) => item.risk === 'HIGH') ? 'HIGH' : cases.some((item) => item.risk === 'MEDIUM') ? 'MEDIUM' : 'LOW' };
 }
 
+function buildRecurrenceExamples(rows) {
+  const grouped = new Map();
+  for (const row of rows.filter((item) => item.source === 'verified-repair-memory' || item.source === 'historical-actions')) {
+    const key = [row.fingerprint, row.rootCause].join('|');
+    const list = grouped.get(key) ?? [];
+    list.push(row);
+    grouped.set(key, list);
+  }
+  const out = [];
+  for (const list of grouped.values()) {
+    list.sort((a, b) => String(a.at ?? '').localeCompare(String(b.at ?? '')));
+    let previousStrategy = 'START';
+    for (let index = 0; index < list.length; index += 1) {
+      const row = list[index];
+      if (!verifiedOutcome(row)) {
+        previousStrategy = row.strategyId;
+        continue;
+      }
+      out.push({
+        fingerprint: row.fingerprint,
+        rootCause: norm(row.rootCause),
+        featureSignature: featureSignature(row.features),
+        attemptBucket: attemptBucket(index),
+        previousStrategy: norm(previousStrategy),
+        strategyId: row.strategyId,
+        outcome: row.outcome,
+        failureLabel: row.outcome === 'failure' ? 1 : 0,
+        repeatedAction: previousStrategy !== 'START' && previousStrategy === row.strategyId,
+      });
+      previousStrategy = row.strategyId;
+    }
+  }
+  return out;
+}
+
+function recurrenceStateKey(row) {
+  return [norm(row.rootCause), featureSignature(row.featureSignature ? row.featureSignature.split(',') : []), norm(row.attemptBucket), norm(row.previousStrategy)].join('|');
+}
+
+function trainRecurrenceModel(examples) {
+  const cells = new Map();
+  for (const row of examples) {
+    const key = recurrenceStateKey(row);
+    const cell = cells.get(key) ?? { failures: 0, successes: 0, repeats: 0, observations: 0 };
+    cell.observations += 1;
+    if (row.failureLabel === 1) cell.failures += 1;
+    else cell.successes += 1;
+    if (row.repeatedAction) cell.repeats += 1;
+    cells.set(key, cell);
+  }
+  const model = {};
+  for (const [key, cell] of cells.entries()) {
+    const total = cell.observations;
+    const failureRisk = Number(((cell.failures + 1) / (total + 2)).toFixed(4));
+    const repeatRate = Number((cell.repeats / Math.max(1, total)).toFixed(4));
+    (model[key] ??= []).push({
+      failureRisk,
+      repeatRate,
+      observations: total,
+      confidence: Number(Math.min(0.98, 0.45 + Math.min(0.40, total / 20)).toFixed(4)),
+    });
+  }
+  return {
+    schemaVersion: 1,
+    algorithm: 'TABULAR_EARLY_RECURRENCE_WARNING-v1',
+    threshold: 0.50,
+    states: model,
+  };
+}
+
+function predictRecurrenceRisk(model, row) {
+  const keys = [
+    recurrenceStateKey(row),
+    [norm(row.rootCause), featureSignature(row.features ?? []), 'A0', norm(row.previousStrategy)].join('|'),
+    [norm(row.rootCause), '', norm(row.attemptBucket), norm(row.previousStrategy)].join('|'),
+    [norm(row.rootCause), '', '', norm(row.previousStrategy)].join('|'),
+  ];
+  for (const key of keys) {
+    const candidate = model?.states?.[key]?.[0];
+    if (candidate) return { ...candidate, stateKey: key, warning: candidate.failureRisk >= Number(model.threshold ?? 0.5) };
+  }
+  return { failureRisk: 0.5, repeatRate: 0, observations: 0, confidence: 0, stateKey: null, warning: false };
+}
+
+function evaluateRecurrenceModel(model, examples) {
+  const scored = examples.filter((row) => row.outcome === 'success' || row.outcome === 'failure');
+  let failures = 0;
+  let detectedFailures = 0;
+  let successes = 0;
+  let preservedSuccesses = 0;
+  let correct = 0;
+  for (const row of scored) {
+    const prediction = predictRecurrenceRisk(model, row);
+    if (row.outcome === 'failure') {
+      failures += 1;
+      if (prediction.warning) detectedFailures += 1;
+      if (prediction.warning === (row.outcome === 'failure')) correct += 1;
+    } else {
+      successes += 1;
+      if (!prediction.warning) preservedSuccesses += 1;
+      if (prediction.warning === (row.outcome === 'failure')) correct += 1;
+    }
+  }
+  return {
+    cases: scored.length,
+    accuracy: Number((correct / Math.max(1, scored.length)).toFixed(4)),
+    failureDetection: Number((detectedFailures / Math.max(1, failures)).toFixed(4)),
+    successPreservation: Number((preservedSuccesses / Math.max(1, successes)).toFixed(4)),
+  };
+}
+
+function evaluateHeldOutMastery({ evaluationTest, goldenRows, goldenEvaluation, behaviorEvaluation, stateEvaluation, calibration, recurrenceEvaluation }) {
+  const verified = [...evaluationTest, ...goldenRows].filter(verifiedOutcome);
+  const score = (value, cases = verified.length) => cases > 0 && Number.isFinite(value) ? Number(value.toFixed(4)) : null;
+  const passRate = (predicate, rows = verified) => rows.length ? score(rows.filter(predicate).length / rows.length, rows.length) : null;
+  const goldenVerified = goldenRows.filter(verifiedOutcome);
+  const goldenSha = passRate((row) => row.failedSha && row.targetSha, goldenVerified);
+  const goldenRoot = passRate((row) => row.rootCause && row.rootCause !== 'unknown', goldenVerified);
+  const goldenHypothesis = passRate((row) => row.rootCause && row.rootCause !== 'unknown' && STRATEGIES.includes(row.strategyId), goldenVerified);
+  const goldenClosure = passRate((row) => row.failedSha && row.targetSha && row.strategyId && row.outcome, goldenVerified);
+  const external = verified.filter((row) => row.rootCause === 'external-tooling');
+  const externalIsolation = external.length ? passRate((row) => row.failedSha && row.targetSha, external) : null;
+  const regression = goldenEvaluation?.successAccuracy ?? null;
+  const competence = {
+    exact_sha: goldenSha,
+    root_cause: goldenRoot,
+    hypothesis: goldenHypothesis,
+    strategy_selection: score((Number(stateEvaluation?.successAccuracy ?? 0) + Number(goldenEvaluation?.successAccuracy ?? 0)) / 2),
+    negative_learning: score((Number(stateEvaluation?.failureAvoidance ?? 0) + Number(goldenEvaluation?.failureAvoidance ?? 0)) / 2),
+    external_isolation: externalIsolation,
+    minimal_repair: score(behaviorEvaluation?.successAccuracy ?? 0),
+    regression: regression == null ? null : score(regression),
+    recurrence: score(((recurrenceEvaluation?.failureDetection ?? 0) + (recurrenceEvaluation?.successPreservation ?? 0)) / 2, recurrenceEvaluation?.cases ?? 0),
+    closure: goldenClosure,
+    evidence_ranking: calibration?.expectedCalibrationError == null ? null : score(Math.max(0, 1 - calibration.expectedCalibrationError)),
+    recurrence_prevention: score(recurrenceEvaluation?.failureDetection ?? 0, recurrenceEvaluation?.cases ?? 0),
+  };
+  const observed = Object.values(competence).filter((value) => value != null);
+  const overall = observed.length ? Number((observed.reduce((sum, value) => sum + value, 0) / observed.length).toFixed(4)) : 0;
+  return {
+    schemaVersion: 1,
+    algorithm: 'HELD_OUT_SKILL_MASTERY-v1',
+    heldOut: true,
+    evaluationCases: evaluationTest.length,
+    goldenCases: goldenRows.length,
+    observedSkills: observed.length,
+    competence,
+    overall,
+    requiredThreshold: 0.65,
+  };
+}
+
 function evaluateBehavior(model,examples){
   const scored=examples.filter((x)=>x.outcome==='success'||x.outcome==='failure');
   let hit=0,avoid=0,pos=0,neg=0;
@@ -698,6 +850,10 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
   const stateModel=trainStatePolicy(stateTrain,8);
   const stateEvaluation=evaluateStatePolicy(stateModel,stateTest);
   const recurrence=buildRecurrenceProfile(trainableRows, fingerprintFailure(String(log ?? '')) || null);
+  const recurrenceRows = buildRecurrenceExamples(trainableRows);
+  const {train:recurrenceTrain,test:recurrenceTest}=split(recurrenceRows);
+  const recurrenceModel = trainRecurrenceModel(recurrenceTrain);
+  const recurrenceEvaluation = evaluateRecurrenceModel(recurrenceModel, recurrenceTest);
   const counterfactualRows=buildCounterfactualExamples(trainableRows);
   const adversarialRows=buildAdversarialTrainingSet(stateRows).concat(counterfactualRows.map((row) => ({ ...row, variant:'COUNTERFACTUAL_REPLAY', previousStrategy:row.previousStrategy ?? 'START' })));
   const {train:adversarialTrain,test:adversarialTest}=split(adversarialRows);
@@ -711,11 +867,25 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
   const activePolicy = policyLifecycle.activePolicy;
   const preferred=activePolicy.byRootCause[rootCause]?.[0] ?? null;
   const mastery=masteryProfile({rows:trainableRows,behaviorEvaluation,stateEvaluation,calibration,recurrence});
+  const goldenEvaluation = evaluatePolicyAgainstRows(policy, goldenReplay);
+  const heldOutMastery = evaluateHeldOutMastery({
+    evaluationTest: test,
+    goldenRows: goldenReplay,
+    goldenEvaluation,
+    behaviorEvaluation,
+    stateEvaluation,
+    calibration,
+    recurrenceEvaluation,
+  });
+  const recurrenceCompetent = recurrenceEvaluation.cases === 0
+    ? false
+    : recurrenceEvaluation.failureDetection >= .60 && recurrenceEvaluation.successPreservation >= .60;
+  const heldOutMasteryCompetent = heldOutMastery.overall >= .65 && heldOutMastery.observedSkills >= 6;
   const stateCompetent=stateEvaluation.successAccuracy>=.65 && stateEvaluation.failureAvoidance>=.60;
   const adversarialCompetent=adversarialEvaluation.score>=.60;
   const calibrationCompetent=calibration.expectedCalibrationError==null || calibration.expectedCalibrationError<=.20;
   const antiForgettingCompetent=antiForgetting.status!=='REJECT_TRAINING';
-  const competent=evaluation.accuracy>=.70 && (evaluation.negativeAvoidance==null || evaluation.negativeAvoidance>=.60) && stateCompetent && adversarialCompetent && mastery.overall>=.65 && calibrationCompetent && antiForgettingCompetent;
+  const competent=evaluation.accuracy>=.70 && (evaluation.negativeAvoidance==null || evaluation.negativeAvoidance>=.60) && stateCompetent && adversarialCompetent && mastery.overall>=.65 && heldOutMasteryCompetent && recurrenceCompetent && calibrationCompetent && antiForgettingCompetent;
   return {
     schemaVersion:1,
     protocol:'FLIXO-REPAIR-BOT-BEHAVIORAL-TRAINING-v1',
@@ -744,14 +914,21 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
     counterfactualModel:trainCounterfactualModel(counterfactualRows),
     counterfactualEvaluation:{cases:counterfactualRows.length,sourceIntegrity:counterfactualRows.every((row)=>row.source==='counterfactual')},
     recurrence,
+    recurrenceEarlyWarning:{
+      model:recurrenceModel,
+      evaluation:recurrenceEvaluation,
+      heldOut:true,
+      competent:recurrenceCompetent,
+    },
     calibration,
     goldenReplay:{
       cases:goldenReplay.length,
       excludedFromTraining:true,
       leakageOverlap:partition.leakageOverlap,
       fingerprints:goldenReplay.map((row)=>row.fingerprint).filter((value,index,array)=>array.indexOf(value)===index).slice(0,200),
-      evaluation:evaluatePolicyAgainstRows(policy,goldenReplay)
+      evaluation:goldenEvaluation
     },
+    heldOutMastery,
     policyLifecycle,
     activePolicy,
     antiForgetting,
@@ -761,7 +938,7 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
     decision:{
       mode:sufficient&&competent&&policyLifecycle.routingEligible?'TRAINED_POLICY':rows.length?'BOOTSTRAP_POLICY':'CURRICULUM_ONLY',
       competent,sufficient,
-      eligibilityChecks:{datasetSize:rows.length>=8,policyAccuracy:evaluation.accuracy>=.70,negativeAvoidance:evaluation.negativeAvoidance==null||evaluation.negativeAvoidance>=.60,stateAction:stateCompetent,adversarial:adversarialCompetent,calibration:calibrationCompetent,antiForgetting:antiForgettingCompetent,mastery:mastery.overall>=.65},
+      eligibilityChecks:{datasetSize:rows.length>=8,policyAccuracy:evaluation.accuracy>=.70,negativeAvoidance:evaluation.negativeAvoidance==null||evaluation.negativeAvoidance>=.60,stateAction:stateCompetent,adversarial:adversarialCompetent,calibration:calibrationCompetent,antiForgetting:antiForgettingCompetent,mastery:mastery.overall>=.65,heldOutMastery:heldOutMasteryCompetent,recurrenceEarlyWarning:recurrenceCompetent},
       eligibleToInfluenceRouting:rows.length>=8 && competent && policyLifecycle.routingEligible && partition.leakageOverlap===0,
       behavioralTraining:{epochs:5,trainedExamples:behaviorTrain.length,evaluationExamples:behaviorTest.length,competent:behaviorEvaluation.successAccuracy>=.65 && behaviorEvaluation.failureAvoidance>=.60},
       stateActionTraining:{algorithm:'TABULAR_STATE_ACTION_Q',update:stateModel.update,epochs:8,trainedExamples:stateTrain.length,evaluationExamples:stateTest.length,prioritizedReplay:stateModel.prioritizedReplay,competent:stateEvaluation.successAccuracy>=.65 && stateEvaluation.failureAvoidance>=.60},
@@ -786,7 +963,7 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
       'ROOT_CAUSE_IDENTIFICATION','EVIDENCE_DRIVEN_ACTION_SELECTION','SUCCESS_AND_FAILURE_LEARNING','TRAINING_GRADUATION',
       'ANTI_LESSON_AVOIDANCE','BEHAVIORAL_SEQUENCE_LEARNING','STATE_ACTION_LEARNING','FEEDBACK_REWARD_LEARNING','COUNTERFACTUAL_AVOIDANCE','EXTERNAL_FAILURE_SEPARATION','FRESH_EXACT_SHA_VERIFICATION',
       'PRIORITIZED_EXPERIENCE_REPLAY','CONFIDENCE_CALIBRATION','ABSTENTION','RECURRENCE_PREDICTION','ANTI_CATASTROPHIC_FORGETTING','SKILL_SPECIFIC_MASTERY',
-      'HELD_OUT_GOLDEN_BENCHMARK','CONTINUOUS_EXPERIENCE_LEDGER','POLICY_PROMOTION_GATE','POLICY_ROLLBACK','REPLAYABLE_DECISION_PROVENANCE'
+      'HELD_OUT_GOLDEN_BENCHMARK','CONTINUOUS_EXPERIENCE_LEDGER','POLICY_PROMOTION_GATE','POLICY_ROLLBACK','REPLAYABLE_DECISION_PROVENANCE','EARLY_RECURRENCE_WARNING','HELD_OUT_SKILL_MASTERY'
     ],
     trainingProvenance:{
       targetSha:process.env.FLIXO_EXPECTED_TARGET_SHA ?? process.env.FLIXO_TARGET_SHA ?? null,
@@ -800,7 +977,10 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
       counterfactualHash:hashObject(counterfactualRows),
       calibrationHash:hashObject(calibration),
       recurrenceHash:hashObject(recurrence),
-      evaluationHash:hashObject({evaluation,stateEvaluation,adversarialEvaluation,antiForgetting}),
+      recurrenceModelHash:hashObject(recurrenceModel),
+      recurrenceEvaluationHash:hashObject(recurrenceEvaluation),
+      heldOutMasteryHash:hashObject(heldOutMastery),
+      evaluationHash:hashObject({evaluation,stateEvaluation,adversarialEvaluation,antiForgetting,recurrenceEvaluation,heldOutMastery}),
       goldenBenchmarkHash:hashObject(goldenReplay.map((row)=>row.fingerprint).sort()),
       experienceLedgerHash:experienceLedger.hash,
       experienceIds:experienceLedger.ids,
@@ -814,7 +994,9 @@ export function trainRepairBot({memory=readJson(MEMORY,{cases:[],playbooks:[],le
         replay:'DETERMINISTIC_PRIORITY_REPLAY-v1',
         counterfactual:'EVIDENCE_BACKED_COUNTERFACTUAL_REJECTION-v1',
         calibration:'EMPIRICAL_BUCKET_CALIBRATION-v1',
-        recurrence:'HEURISTIC_RECURRENCE_RISK-v1'
+        recurrence:'HEURISTIC_RECURRENCE_RISK-v1',
+        recurrenceEarlyWarning:'TABULAR_EARLY_RECURRENCE_WARNING-v1',
+        mastery:'HELD_OUT_SKILL_MASTERY-v1'
       }
     }
   };

@@ -4,6 +4,7 @@ import {
   partitionTrainingRows,
   buildGoldenReplaySet,
   derivePolicyLifecycle,
+  buildGoldenReplaySet,
 } from './repair-bot-training.mjs';
 
 const sampleRows = [];
@@ -49,5 +50,13 @@ const lifecycle = derivePolicyLifecycle({
 assert.equal(lifecycle.status, 'ROLLBACK_TO_BASELINE');
 assert.equal(lifecycle.routingEligible, false);
 assert.equal(lifecycle.activePolicySource, 'BASELINE');
+
+const recurrenceRows = sampleRows.map((row, index) => ({
+  ...row,
+  fingerprint: `sequence-${Math.floor(index / 4)}`,
+  at: `2026-09-20T01:00:${String(index).padStart(2,'0')}Z`,
+}));
+const recurrenceProbe = recurrenceRows.filter((row) => row.fingerprint === 'sequence-0');
+assert(recurrenceProbe.length > 0, 'recurrence sequence fixture must exist');
 
 console.log('REPAIR_BOT_TRAINING_HARDENING=PASS');
