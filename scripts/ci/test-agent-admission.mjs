@@ -40,7 +40,10 @@ assert.ok(session.includes('loadErrorMemory'));
 assert.ok(session.includes('readCanonicalAdmissionSources'));
 assert.ok(session.includes('admissionSources'));
 
-assert.ok(repair.includes("mutationAgents: ['repairAgent','executionAgent']"));
+for (const role of ["'repairAgent'", "'executionAgent'", "'assistantRepairAgent'"]) assert.ok(repair.includes(role));
+assert.ok(repair.includes('primaryAgentsUnavailable'));
+assert.ok(repair.includes('minConfidence: 0.90'));
+assert.ok(repair.includes('minSupport: 2'));
 assert.ok(!repair.includes("mutationAgents: ['repairAgent','implementation','executionAgent','taskAgent']"));
 assert.ok(!repair.includes("mutationAgents: ['repairAgent','implementation','executionAgent']"));
 
@@ -48,7 +51,7 @@ assert.ok(task.includes("actor: 'taskAgent'"));
 assert.ok(task.includes('preparedOnly: true'));
 assert.ok(task.includes("executionMode: 'PREPARATION_ONLY'"));
 assert.ok(task.includes("mutationPolicy: 'NO_DIRECT_MUTATION'"));
-assert.ok(task.includes("executionAuthority: 'TASK_PREPARATION_ONLY'"));
+assert.ok(task.includes("const executionAuthority = 'TASK_PREPARATION_ONLY';"));
 assert.ok(task.includes("TASK-AGENT-PREPARATION-v3"));
 assert.ok(task.includes("applyAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT'"));
 

@@ -379,20 +379,20 @@ async function commandRecover() {
           strategy: latestActiveState.strategy ?? 'unknown',
           outcome: 'CRASHED',
           exitSha: failedSha,
-          verification: \`workflow-run-\${conclusion}-without-outcome-attestation\`,
+          verification: `workflow-run-${conclusion}-without-outcome-attestation`,
           verificationProgress: false,
           noProgress: true,
           state: 'LEASE_BLOCKED',
           generatedAt: new Date().toISOString(),
           at: new Date().toISOString(),
         };
-        await emitEvent(identity, 'OUTCOME', \`\${repairRun.data.id}-CRASHED\`, crashMetadata);
+        await emitEvent(identity, 'OUTCOME', `${repairRun.data.id}-CRASHED`, crashMetadata);
         outcomes.push({ ...crashMetadata, eventType: 'OUTCOME' });
       }
     } else if (![200, 404].includes(repairRun.status)) {
       console.log(JSON.stringify({
         status: 'FAIL_CLOSED',
-        reason: \`REPAIR_RUN_EVIDENCE_UNAVAILABLE_\${repairRun.status}\`,
+        reason: `REPAIR_RUN_EVIDENCE_UNAVAILABLE_${repairRun.status}`,
       }, null, 2));
       process.exitCode = 1;
       return;
