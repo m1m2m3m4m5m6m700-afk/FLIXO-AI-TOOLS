@@ -59,4 +59,65 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(section.getByRole('button', { name: 'Record video' }).first()).toBeDisabled();
     await expect(section.getByRole('region', { name: 'Filter Mask' }).getByText('Download result')).toHaveCount(0);
   });
+  test('runs the camera/capture/recording lifecycle against a synthetic MediaStream', async ({ page }) => {
+    await page.addInitScript(() => {
+      const source = document.createElement('canvas');
+      source.width = 320;
+      source.height = 240;
+      const ctx = source.getContext('2d');
+      if (!ctx) throw new Error('Synthetic camera canvas is unavailable.');
+      let frame = 0;
+      const paint = () => {
+        frame += 1;
+        ctx.fillStyle = frame % 2 ? '#123456' : '#654321';
+        ctx.fillRect(0, 0, source.width, source.height);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '32px sans-serif';
+        ctx.fillText('FLIXO', 30, 90);
+        requestAnimationFrame(paint);
+      };
+      paint();
+      const cameraStream = source.captureStream(30);
+      Object.defineProperty(navigator, 'mediaDevices', {
+        configurable: true,
+        value: { getUserMedia: async () => cameraStream },
+      });
+    });
+
+    await page.goto('/en/filter-mask');
+    const section = page.getByRole('region', { name: 'Filter Mask' });
+    const selected = section.getByRole('button', { name: /Warm effect\.warm/ }).first();
+    await selected.click();
+    await expect(selected).toHaveAttribute('aria-pressed', 'true');
+    await expect(selected).toContainText('effect.warm');
+
+    await section.getByRole('button', { name: 'Start camera' }).first().click();
+    await expect(section.getByRole('button', { name: 'Stop' }).first()).toBeEnabled();
+
+    const video = section.locator('video[aria-label="Filter Mask live camera"]');
+    await expect.poll(async () => video.evaluate((node) => {
+      const element = node as HTMLVideoElement;
+      return { readyState: element.readyState, width: element.videoWidth, height: element.videoHeight };
+    }), { timeout: 10_000 }).toEqual({ readyState: 4, width: 320, height: 240 });
+
+    const photoPromise = page.waitForEvent('download');
+    await section.getByRole('button', { name: 'Photo' }).click();
+    await expect(section.getByText('Download result')).toBeVisible();
+
+    const photoLink = section.getByRole('link', { name: 'Download result' });
+    await expect(photoLink).toHaveAttribute('download', 'flixo-filter-mask.jpg');
+
+    const recordButton = section.getByRole('button', { name: 'Record video' });
+    await expect(recordButton).toBeEnabled();
+    await recordButton.click();
+    await expect(section.getByRole('button', { name: 'Stop recording' })).toBeVisible();
+    await page.waitForTimeout(1200);
+    await section.getByRole('button', { name: 'Stop recording' }).click();
+    await expect(section.getByRole('link', { name: 'Download result' })).toHaveAttribute('download', 'flixo-filter-mask.webm');
+
+    await section.getByRole('button', { name: 'Stop' }).click();
+    await expect(section.getByRole('button', { name: 'Stop' })).toBeDisabled();
+    await expect(video).toHaveJSProperty('srcObject', null);
+  });
+
 });
