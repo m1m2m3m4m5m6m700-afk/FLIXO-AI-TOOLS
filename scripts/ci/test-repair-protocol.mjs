@@ -66,6 +66,7 @@ const actionRepairSession=createRepairSession({repairSessionId:'action-repair-se
 assert.equal(actionRepairSession.actor,'actionRepairBot');
 const completeProof={
   COGNITIVE_AWARENESS_PROVEN:true,
+  CAUSAL_EVIDENCE_GRAPH_PROVEN:true,
   ROOT_CAUSE_PROVEN:true,
   FILE_SELECTION_PROVEN:true,
   PROGRAMMER_TWIN_PARITY_PROVEN:true,
