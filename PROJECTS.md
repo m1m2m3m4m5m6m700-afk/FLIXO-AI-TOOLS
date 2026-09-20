@@ -10,8 +10,9 @@
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
 CURRENT MAIN SHA = 22e67525a2e406d449fa158d67674281c7a75168
-ACTIVE PR = #750 OPEN / execution → main
+ACTIVE PR = #759 OPEN / execution → main (canonical integration lane)
 CURRENT PR HEAD = authoritative GitHub PR #750 head; do not duplicate a mutable SHA in this map
+NO-NEW-BRANCH = ABSOLUTE; only execution and main are active agent branches; existing historical branches are not valid work paths
 STATE = BLOCKED_EXTERNAL
 CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED ON CURRENT MAIN/EXECUTION HEAD; prior exact-head evidence is stale
 CURRENT EXECUTION PRE-REPAIR EVIDENCE = Test System PASS; Test Impact PASS; Claude Security Review PASS
