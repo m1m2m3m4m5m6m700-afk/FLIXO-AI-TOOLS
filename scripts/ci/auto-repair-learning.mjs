@@ -328,7 +328,10 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
     }
     existing.rootCause = existing.rootCause && existing.rootCause !== 'unknown' ? existing.rootCause : incoming.rootCause;
     existing.features = [...new Set([...(existing.features ?? []), ...(incoming.features ?? [])])];
-    existing.rules = [...new Set([...(existing.rules ?? []), ...(incoming.rules ?? [])])];
+    existing.rules = [...new Set([...(existing.rules ?? []), ...(incoming.rules ?? [])])].slice(-20);
+    existing.strategies = [...new Set([...(existing.strategies ?? []), ...(incoming.strategies ?? [])])].slice(-20);
+    existing.rejectedStrategies = [...new Set([...(existing.rejectedStrategies ?? []), ...(incoming.rejectedStrategies ?? [])])].slice(-20);
+    existing.doNotRepeat = [...new Set([...(existing.doNotRepeat ?? []), ...(incoming.doNotRepeat ?? [])])].slice(-50);
     existing.workflows = [...new Set([...(existing.workflows ?? []), ...(incoming.workflows ?? [])])].slice(-50);
     existing.successes = Math.max(Number(existing.successes ?? 0), Number(incoming.successes ?? 0));
     existing.failures = Math.max(Number(existing.failures ?? 0), Number(incoming.failures ?? 0));
