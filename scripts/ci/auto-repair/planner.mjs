@@ -6,6 +6,7 @@ import { preparedPlan } from './prepared-source-change.mjs';
 import { inferFailureResolution } from './inference-fallback.mjs';
 import { buildErrorOnlyRepairModel } from './error-only-programmer.mjs';
 import { buildCausalDiscriminator } from '../action-causal-discriminator.mjs';
+import { buildMetaCausalModel } from '../meta-causal-model.mjs';
 
 const plans = [
   { id: 'external-tooling', features: ['external-tooling'], confidence: 99, mutate: false, commands: [] },
@@ -62,6 +63,27 @@ export function planRepair(log, { historical = [], memory } = {}) {
   const causalMutationGate = causalHasSignal && (
     causalDiscriminator.ranking.ambiguous ||
     causalDiscriminator.capabilityScore < 0.68
+  );
+
+  const metaCausalModel = buildMetaCausalModel({
+    failureLog: log,
+    targetSha,
+    currentHeadSha: (() => {
+      try { return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return targetSha; }
+    })(),
+    failedRunId: process.env.TARGET_RUN_ID ?? 'planner-analysis',
+    taskId: process.env.FLIXO_TASK_ID ?? 'planner-analysis',
+    branch: process.env.FLIXO_MUTATION_BRANCH ?? 'execution',
+    strictIdentity: false,
+    historicalKnowledge: [],
+    exactCases,
+    doNotRepeat,
+  });
+  const metaMutationGate = metaCausalModel.hardBlocks.some((item) =>
+    item === 'CURRENT_HEAD_DIFFERS_FROM_TARGET_SHA' ||
+    item === 'MUTATION_BRANCH_NOT_EXECUTION' ||
+    item === 'EXTERNAL_FAILURE_SOURCE_MUTATION_COLLISION' ||
+    item === 'HISTORICALLY_REJECTED_STRATEGY_PRESENT'
   );
 
 
@@ -165,7 +187,7 @@ export function planRepair(log, { historical = [], memory } = {}) {
     )
     ?? null;
 
-  const fallbackSelectionAllowed = !causalMutationGate && (inferenceEligible || reasoning.decision === 'ALLOW_BOUNDED_MUTATION');
+  const fallbackSelectionAllowed = !causalMutationGate && !metaMutationGate && (inferenceEligible || reasoning.decision === 'ALLOW_BOUNDED_MUTATION');
   const selected = fallbackSelectionAllowed &&
     selectedCandidate &&
     (!requiresSourceLocation ||
@@ -194,12 +216,16 @@ export function planRepair(log, { historical = [], memory } = {}) {
     },
     causalDiscriminator,
     causalMutationGate,
+    metaCausalModel,
+    metaMutationGate,
     candidates,
     selected,
     blockedReason:
       reasoning.decision === 'BLOCK_EXTERNAL'
         ? 'external-tooling'
-        : causalMutationGate
+        : metaMutationGate
+          ? 'meta-causal-control-incoherence'
+          : causalMutationGate
           ? 'causal-discriminator-ambiguous'
           : selected
           ? null
