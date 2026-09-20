@@ -4,6 +4,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { assertAgentAdmission } from './repair-protocol.mjs';
+import { loadRepairAgentContext } from './auto-repair-learning.mjs';
 
 const ROOT = process.cwd();
 const OUT = process.env.FLIXO_AGENT_EXECUTION_CONTROL_OUTPUT_DIR ?? path.resolve(ROOT, 'diagnostics/agents/execution-control');
@@ -90,6 +91,7 @@ function buildPlan({ index, packet }) {
     ['VERIFY', 'VERIFIER'], ['LEARN', 'LEARNER'], ['REPAIR_LOOP', 'ORCHESTRATOR'], ['CLOSURE_GATE', 'VERIFIER'],
   ];
   const taskFingerprint = packet.errorFingerprint ?? fingerprint(`${packet.task.taskId}|${packet.task.title}`);
+  const repairAgentAdvisory = loadRepairAgentContext({ teamId: process.env.FLIXO_AGENT_TEAM_ID ?? packet.task.teamId ?? 'FLIXO-EXECUTION-TEAM', currentSha: sha, limit: 120 });
   return {
     schemaVersion: 7,
     authority: 'LEAN_AGENT_EXECUTION_CONTROL',
@@ -118,7 +120,7 @@ function buildPlan({ index, packet }) {
     parallelism: 'ONLY_FOR_INDEPENDENT_ISOLATED_WORK_WITHIN_EXECUTION',
     failClosed: true,
     mainBranchMutation: false,
-    memory: { errorFingerprint: taskFingerprint, fingerprintStable: true, reuseKnownFingerprint: true, repairSummary: packet.repairSummary },
+    memory: { errorFingerprint: taskFingerprint, fingerprintStable: true, reuseKnownFingerprint: true, repairSummary: packet.repairSummary, repairAgentAdvisory },
     majorChangePolicy: MAJOR_REPAIR_WAVE
       ? 'LARGE_SOURCE_CHANGESET_ALLOWED_WITHIN_ACTIVE_FAILURE_ROOT_CAUSE_AND_PROPORTIONAL_HARDENING;ALL_CANONICAL_GATES_REMAIN_MANDATORY'
       : 'NORMAL_BOUNDED_REPAIR',
