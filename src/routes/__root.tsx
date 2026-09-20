@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useLayoutEffect } from 'react';
 import { HeadContent, Scripts, Outlet, createRootRoute, useLocation } from '@tanstack/react-router';
 import { applyDocumentLocale, installDocumentLocaleContract, localeFromPathname } from '../lib/i18n/runtime-document-locale';
 import { SITE_ORIGIN } from '../lib/i18n';
+import { FlixoGlobalLogo } from '../components/FlixoGlobalLogo';
 
 const CommandPalette = lazy(async () => {
   const module = await import('../components/command-palette');
