@@ -27,6 +27,8 @@
     "minimumLearningPromotions": 1,
     "minimumRecurrencePreventionRules": 1,
     "minimumRecoveryOrHandoffProofs": 1,
+    "minimumAdversarialGateBenchmarkScore": 100,
+    "minimumFinalExactGreenCertification": 1,
     "allVerifiedMissionsExactShaBound": true,
     "noUnresolvedVerifiedRecord": false,
     "noFalseGreenEvidence": true
@@ -48,7 +50,9 @@
       "independentVerification",
       "targetedRegression",
       "canonicalGreen",
-      "learningOutcome"
+      "learningOutcome",
+      "adversarialGateBenchmark",
+      "finalExactGreenCertification"
     ]
   },
   "graduationRule": "TRUST_GRADUATED only when every minimum requirement is satisfied by fresh, exact-SHA-bound, independently verified mission evidence. Historical memory is advisory and cannot substitute for graduation proof.",
