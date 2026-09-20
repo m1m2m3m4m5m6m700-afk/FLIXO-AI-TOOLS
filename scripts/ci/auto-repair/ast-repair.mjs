@@ -43,6 +43,50 @@ function applyTypescriptMissingImport(targetDir, plan) {
   fs.writeFileSync(absolute, lines.join('\n'));
   return { applied: true, engine: 'typescript-missing-import', target: file, symbol, moduleFile: found.moduleFile, moduleSpecifier: specifier };
 }
+function applyTypescriptAsyncReturnContract(targetDir, plan) {
+  const file = safeRelativeFile(targetDir, plan.file);
+  const absolute = path.resolve(targetDir, file);
+  const lines = fs.readFileSync(absolute, 'utf8').split(/\r?\n/u);
+  const diagnosticLine = Number(plan.diagnosticLine ?? 0);
+  const center = Number.isInteger(diagnosticLine) && diagnosticLine > 0 ? diagnosticLine - 1 : 0;
+  const start = Math.max(0, center - 4);
+  const end = Math.min(lines.length, center + 8);
+  let declarationIndex = -1;
+  for (let index = start; index < end; index += 1) {
+    if (/\basync\s+function\b|\bfunction\s+[A-Za-z_$][\\w$]*[\\s\\S]*\basync\b|=\s*async\s*\(/u.test(lines[index])) {
+      declarationIndex = index;
+      break;
+    }
+  }
+  if (declarationIndex < 0) {
+    for (let index = Math.max(0, center - 12); index < Math.min(lines.length, center + 12); index += 1) {
+      if (/\basync\b/u.test(lines[index])) {
+        declarationIndex = index;
+        break;
+      }
+    }
+  }
+  if (declarationIndex < 0) return { applied: false, reason: 'TS_ASYNC_RETURN_DECLARATION_NOT_FOUND', target: file };
+  const scanStart = declarationIndex;
+  const scanEnd = Math.min(lines.length, declarationIndex + 12);
+  for (let index = scanStart; index < scanEnd; index += 1) {
+    const line = lines[index];
+    const functionReturn = line.match(/(\)\\s*:\\s*)(?!Promise<)([A-Za-z_$][A-Za-z0-9_$]*(?:<[^\\n{};=>]+>)?(?:\\[\\])?)(\\s*\\{?\\s*)$/u);
+    if (functionReturn) {
+      lines[index] = line.replace(functionReturn[0], functionReturn[1] + 'Promise<' + functionReturn[2].trim() + '>' + functionReturn[3]);
+      fs.writeFileSync(absolute, lines.join('\n'));
+      return { applied: true, engine: 'typescript-async-return-contract', target: file, line: index + 1, wrappedReturnType: functionReturn[2].trim() };
+    }
+    const arrowReturn = line.match(/(\)\\s*:\\s*)(?!Promise<)([A-Za-z_$][A-Za-z0-9_$]*(?:<[^\\n{};=>]+>)?(?:\\[\\])?)(\\s*=>)/u);
+    if (arrowReturn) {
+      lines[index] = line.replace(arrowReturn[0], arrowReturn[1] + 'Promise<' + arrowReturn[2].trim() + '>' + arrowReturn[3]);
+      fs.writeFileSync(absolute, lines.join('\n'));
+      return { applied: true, engine: 'typescript-async-return-contract', target: file, line: index + 1, wrappedReturnType: arrowReturn[2].trim() };
+    }
+  }
+  return { applied: false, reason: 'TS_ASYNC_RETURN_ANNOTATION_NOT_FOUND', target: file };
+}
+
 function safeRelativeFile(targetDir, candidate) {
   if (!candidate || typeof candidate !== 'string') throw new Error('FORMAT_TARGET_FILE_MISSING');
   const normalized = candidate.replace(/\\/g, '/').replace(/^\.\//, '');
@@ -65,6 +109,7 @@ export function runAstRepair(targetDir, plan) {
     return { applied: true, engine: 'eslint-ast', target: file };
   }
   if (plan?.id === 'typescript-missing-import') return applyTypescriptMissingImport(targetDir, plan);
+  if (plan?.id === 'typescript-async-contract') return applyTypescriptAsyncReturnContract(targetDir, plan);
   if (plan?.id === 'prettier-file') {
     const file = safeRelativeFile(targetDir, plan.file);
     execFileSync('npx', ['prettier', '--write', '--', file], { cwd: targetDir, stdio: 'inherit' });
