@@ -85,12 +85,7 @@ env:
 jobs:
   repair:
     name: Single-lane diagnose, execute, verify and learn on execution
-    needs: adversarial_twin
-    # The adversarial twin is an evidence enhancer, not a hard availability dependency.
-    # A twin failure must never suppress the canonical RCA/repair lane.
-    if: >-
-      always() &&
-      github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
