@@ -4,6 +4,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
+import { ingest as ingestAgentMessage, markRead as readAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -19,6 +20,9 @@ for (let i = 2; i < process.argv.length; i += 1) {
 const command = String(process.argv[2] ?? '').toLowerCase();
 const rawSessionId = String(args.get('session') ?? process.env.FLIXO_AGENT_SESSION ?? '').trim();
 const rawFromSession = String(args.get('from-session') ?? process.env.FLIXO_AGENT_FROM_SESSION ?? '').trim() || null;
+const rawMessageFile = String(args.get('message-file') ?? process.env.FLIXO_AGENT_MESSAGE_FILE ?? '').trim() || null;
+const rawMessageId = String(args.get('message-id') ?? process.env.FLIXO_AGENT_MESSAGE_ID ?? '').trim() || null;
+const messageExecutionAdmitted = String(args.get('message-execution-admitted') ?? process.env.FLIXO_AGENT_MESSAGE_EXECUTION_ADMITTED ?? 'false').trim() === 'true';
 const safeSessionId = (value, label) => {
   if (!value || value.length > 128 || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value)) throw new Error(`INVALID_${label.toUpperCase()}_ID`);
   return value;
@@ -52,7 +56,7 @@ const secretLike = (value) => /(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY----
 const assertSafeText = (...values) => { for (const value of values.flat()) if (secretLike(value)) throw new Error('AGENT_EVENT_SECRET_LIKE_CONTENT_REJECTED'); };
 const appendEvent = (record, event) => { record.actions = Array.isArray(record.actions) ? [...record.actions, event] : [event]; record.activity = Array.isArray(record.activity) ? [...record.activity, event] : [event]; };
 
-if (!['login', 'event', 'logout'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout --session=<id> --agent=<id> --task=<task-id> [--role=analysis|implementation|verification|release|assistantController|codeScout|executionAgent|reviewAgent|testAgent|securityAgent|performanceAgent|certificationAuthority|taskAgent|errorAgent] [--rca=<id>] [--scope=a,b] [--from-session=<previous-id>]');
+if (!['login', 'event', 'logout', 'message-receive', 'message-consume'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout|message-receive|message-consume --session=<id> --agent=<id> --task=<task-id> [--message-file=<path>] [--message-id=<id>]');
 if (!sessionId || !agentId || !taskId) throw new Error('Agent session requires --session, --agent and --task.');
 if (!roles.has(role)) throw new Error(`Invalid agent role: ${role}`);
 
@@ -96,6 +100,21 @@ if (command === 'event') {
   writeVisibility(visibility);
   console.log('AGENT_SESSION_EVENT=' + type);
   console.log('AGENT_SESSION_SHA=' + sha);
+} else if (command === 'message-receive') {
+  if (!rawMessageFile && !rawMessageId) throw new Error('AGENT_MESSAGE_INPUT_REQUIRED');
+  if (rawMessageFile) {
+    const message = JSON.parse(fs.readFileSync(path.resolve(ROOT, rawMessageFile), 'utf8'));
+    const received = ingestAgentMessage(message, gitSha());
+    const read = readAgentMessage(received.messageId, agentId, gitSha());
+    console.log(JSON.stringify({ status: read.status, messageId: read.messageId, entrySha: read.entrySha, readBy: agentId }, null, 2));
+  } else {
+    const read = readAgentMessage(rawMessageId, agentId, gitSha());
+    console.log(JSON.stringify({ status: read.status, messageId: read.messageId, entrySha: read.entrySha, readBy: agentId }, null, 2));
+  }
+} else if (command === 'message-consume') {
+  if (!rawMessageId) throw new Error('AGENT_MESSAGE_ID_REQUIRED');
+  const consumed = consumeAgentMessage(rawMessageId, agentId, gitSha(), messageExecutionAdmitted);
+  console.log(JSON.stringify({ status: consumed.status, messageId: consumed.messageId, entrySha: consumed.entrySha, consumedBy: agentId }, null, 2));
 } else if (command === 'login') {
   if (fs.existsSync(file)) throw new Error(`Session already exists: ${sessionId}`);
   const missing = requiredReads.filter((entry) => !fs.existsSync(path.resolve(ROOT, entry)));
@@ -123,8 +142,15 @@ if (command === 'event') {
   }
 
   const sha = gitSha();
+  let inboundMessage = null;
+  if (rawMessageFile) {
+    inboundMessage = ingestAgentMessage(JSON.parse(fs.readFileSync(path.resolve(ROOT, rawMessageFile), 'utf8')), sha);
+    inboundMessage = inboundMessage.status === 'RECEIVED' ? readAgentMessage(inboundMessage.messageId, agentId, sha) : inboundMessage;
+  } else if (rawMessageId) {
+    inboundMessage = readAgentMessage(rawMessageId, agentId, sha);
+  }
   const record = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     repairProtocol: { ...assertProtocolDefinition(), compliance: 'VALIDATED_AT_ENTRY', admission: protocolAdmission },
     sessionId,
     agentId,
@@ -136,6 +162,7 @@ if (command === 'event') {
     readFiles: [...requiredReads],
     currentRca: rca,
     taskId,
+    ...(inboundMessage ? { messageId: inboundMessage.messageId, messageStatus: inboundMessage.status, messageEntrySha: inboundMessage.entrySha, messageReadBy: agentId, messagePriority: 'P0_COMMUNICATION_FIRST' } : {}),
     status: 'RUNNING',
     bootstrap: !continuation,
     ...(continuation ?? {}),
@@ -211,6 +238,7 @@ if (command === 'event') {
 
   const report = {
     schemaVersion: 1,
+    ...(record.messageId ? { messageId: record.messageId, messageEntrySha: record.messageEntrySha, messageStatus: 'HANDOFF_VISIBLE' } : {}),
     reportId: `${sessionId}:${sha}`,
     sessionId: record.sessionId,
     agentId: record.agentId,
