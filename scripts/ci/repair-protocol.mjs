@@ -66,6 +66,7 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
     if(mission.programmerTwinParity?.intelligenceParity!=='EXACT'||mission.programmerTwinParity?.authorityParity!=='SEPARATED_BY_DESIGN'||mission.programmerTwinParity?.targetSha!==session.targetSHA) throw new Error('REPAIR_PROTOCOL_PROGRAMMER_TWIN_PARITY_REQUIRED');
     if(mission.cognitiveAwareness?.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'||mission.cognitiveAwareness?.targetSha!==session.targetSHA||mission.cognitiveAwareness?.complete!==true) throw new Error('REPAIR_PROTOCOL_COGNITIVE_AWARENESS_REQUIRED');
     validateActionVaultVerifierProof({ proof: session.actionVaultVerifierProof, targetSHA: session.targetSHA, failureFingerprint: session.failureFingerprint, verifierAgent: mission.verifierAgent });
+    validateActionVaultPreMutationProofs({ sandboxProof: mission.sandboxProof, differentialProof: mission.differentialProof, patchCorrectnessProof: mission.patchCorrectnessProof, targetSHA: session.targetSHA, failureFingerprint: session.failureFingerprint });
   }
   if(mutation&&['actionRepairVerifier','actionHistorian'].includes(actor)) throw new Error('REPAIR_PROTOCOL_ACTION_VAULT_NON_MUTATING_ROLE_BLOCKED');
   if(mutation&&actor==='assistantRepairAgent') {
@@ -116,10 +117,6 @@ export function validateActionVaultVerifierProof({ proof, targetSHA, failureFing
     'PROGRAMMER_TWIN_PARITY_PROVEN',
     'ADVERSARIAL_FALSIFICATION_COMPLETE',
     'NO_VALID_COUNTEREXAMPLE',
-    'SANDBOX_SIMULATION_PASSED',
-    'DIFFERENTIAL_CHECK_PASSED',
-    'PATCH_CORRECTNESS_PROVEN',
-    'REGRESSION_COUNTEREXAMPLES_EXHAUSTED',
     'NO_SCOPE_VIOLATION',
     'NO_TEST_MUTATION',
     'NO_CONTROL_PLANE_MUTATION',
@@ -127,9 +124,6 @@ export function validateActionVaultVerifierProof({ proof, targetSHA, failureFing
     'NO_GATE_WEAKENING',
   ];
   for (const key of required) if (completeness[key] !== true) throw new Error('ACTION_VAULT_PROOF_COMPLETENESS_FAILED=' + key);
-  if (proof.preMutationProof?.targetSha && proof.preMutationProof.targetSha !== targetSHA) throw new Error('ACTION_VAULT_PRE_MUTATION_SHA_MISMATCH');
-  if (proof.preMutationProof?.failureFingerprint && proof.preMutationProof.failureFingerprint !== failureFingerprint) throw new Error('ACTION_VAULT_PRE_MUTATION_FINGERPRINT_MISMATCH');
-  if (proof.preMutationProof?.status && proof.preMutationProof.status !== 'PROVEN') throw new Error('ACTION_VAULT_PRE_MUTATION_PROOF_NOT_PROVEN');
   if (proof.counterEvidence?.noCounterexampleIsNotPatchCorrect !== true && proof.noCounterexampleIsNotPatchCorrect !== true) throw new Error('ACTION_VAULT_NO_COUNTEREXAMPLE_RULE_MISSING');
   return Object.freeze({
     verified: true,
@@ -146,6 +140,16 @@ export function validateActionVaultVerifierProof({ proof, targetSHA, failureFing
     counterexampleFound: proof.counterexampleFound,
     proofObjective: 'ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG',
   });
+}
+
+export function validateActionVaultPreMutationProofs({ sandboxProof, differentialProof, patchCorrectnessProof, targetSHA, failureFingerprint } = {}) {
+  if (!sandboxProof || typeof sandboxProof !== 'object') throw new Error('ACTION_VAULT_SANDBOX_PROOF_REQUIRED');
+  if (!differentialProof || typeof differentialProof !== 'object') throw new Error('ACTION_VAULT_DIFFERENTIAL_PROOF_REQUIRED');
+  if (!patchCorrectnessProof || typeof patchCorrectnessProof !== 'object') throw new Error('ACTION_VAULT_PATCH_CORRECTNESS_PROOF_REQUIRED');
+  if (sandboxProof.protocol !== 'REPAIR_SANDBOX_SIMULATION_V1' || sandboxProof.targetSha !== targetSHA || sandboxProof.failureFingerprint !== failureFingerprint || sandboxProof.exactShaBound !== true || sandboxProof.mutationPerformed !== false || sandboxProof.status !== 'PASS') throw new Error('ACTION_VAULT_SANDBOX_PROOF_INVALID');
+  if (differentialProof.protocol !== 'DIFFERENTIAL_REPAIR_VERIFICATION_V1' || differentialProof.targetSha !== targetSHA || differentialProof.status !== 'PASS' || differentialProof.executionEvidence?.required !== true || Number(differentialProof.executionEvidence?.receiptCount ?? 0) < 1) throw new Error('ACTION_VAULT_DIFFERENTIAL_PROOF_INVALID');
+  if (patchCorrectnessProof.status !== 'PROVEN' || patchCorrectnessProof.targetSha !== targetSHA || patchCorrectnessProof.patchDigest !== sandboxProof.patchDigest || patchCorrectnessProof.mutationPerformed !== false || patchCorrectnessProof.differentialStatus !== 'PASS') throw new Error('ACTION_VAULT_PATCH_CORRECTNESS_PROOF_INVALID');
+  return Object.freeze({ verified: true, targetSHA, failureFingerprint, sandbox: 'PROVEN', differential: 'PROVEN', patchCorrectness: 'PROVEN', patchDigest: sandboxProof.patchDigest });
 }
 
 export function validateErrorOnlyMutation({failureLocation,selectedFile,selectedFiles=[],changedPaths=[]}={}) {
