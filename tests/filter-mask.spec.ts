@@ -222,6 +222,17 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(page).toHaveURL(/captureQuality=720p/);
   });
 
+  test('Arabic agent conversation uses the refined heading and Enter submits the single-line command', async ({ page }) => {
+    await page.goto('/ar');
+    const heading = page.getByRole('heading', { name: 'استخدم ذكاء FLIXO في العمل.' });
+    await expect(heading).toBeVisible();
+    const command = page.locator('#flixo-agent-command');
+    await expect(command).toHaveAttribute('type', 'text');
+    await command.fill('Warm live filter 65%');
+    await command.press('Enter');
+    await expect(page.getByTestId('filter-mask-handoff')).toBeVisible();
+  });
+
   test('agent resolves a live-filter request into a canonical handoff', async ({ page }) => {
     await page.goto('/en');
 
