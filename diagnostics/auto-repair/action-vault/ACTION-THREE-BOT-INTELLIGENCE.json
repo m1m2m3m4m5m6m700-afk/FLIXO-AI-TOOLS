@@ -493,5 +493,16 @@
         "failureLedgerRecord"
       ]
     }
+  },
+  "residencyContract": {
+    "alwaysResident": true,
+    "leaveVault": false,
+    "noSleep": true,
+    "noIdle": true,
+    "noFreeze": true,
+    "noWithdrawal": true,
+    "postGreenState": "READY_RESIDENT",
+    "missionClosureDoesNotSuspendResidentAgents": true,
+    "handoffMeans": "INTERNAL_COORDINATION_ONLY; NEVER_RESIDENT_WITHDRAWAL"
   }
 }
