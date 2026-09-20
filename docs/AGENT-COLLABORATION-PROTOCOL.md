@@ -242,6 +242,24 @@ HANDOFF → READ → RESPONSE(ACKNOWLEDGED|ACCEPTED|REJECTED|BLOCKED)
 دليل التعاون المطلوب:
 `request.messageId → response.messageId → inReplyTo/correlationId → responseStatus → exactSha → claim/handoff state`.
 
+## Team Completion Barrier — P20
+
+الانتهاء من مهمة الوكيل لا يعني انتهاء الوكيل.
+
+جميع الوكلاء في نفس `teamId` يشتركون في حاجز إغلاق واحد:
+`TASK_DONE → CONTINUE_OR_JOIN → WAIT_FOR_TEAM → READY_TO_CLOSE → TEAM_CLOSE`.
+
+القواعد الإلزامية:
+1. الوكيل الذي ينهي مهمته يبقى Active ولا يغادر الفريق.
+2. إذا بقيت مهمة مطلوبة قابلة للتنفيذ، يستلمها الوكيل تلقائيًا.
+3. إذا لم توجد مهمة قابلة للـclaim وبقي وكيل نشط، ينضم إليه إجباريًا في `JOINED_SUPPORT`.
+4. إذا لم توجد مهمة قابلة للclaim، يبقى `WAITING_FOR_TEAM` ولا يتحول إلى terminal state.
+5. `READY_TO_CLOSE` لا يفتح إلا عند انعدام مهام الفريق `READY/QUEUED/RUNNING/STALE` وعندما يكون كل عضو نشط `readyForTeamClose=true`.
+6. `agent-session logout` مرفوض قبل فتح حاجز الفريق.
+7. أي SHA/Governance drift يغلق الحاجز.
+
+هذه قاعدة إنهاء جماعي واحدة لكل فريق تنفيذ، وليست قواعد مستقلة لكل وكيل.
+
 ## Canonical v6 compatibility aliases
 The following are machine-readable aliases retained for compatibility; they do not create additional protocols:
 - **Agent login**
