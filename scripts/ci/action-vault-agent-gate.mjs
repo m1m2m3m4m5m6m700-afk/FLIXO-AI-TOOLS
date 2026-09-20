@@ -27,6 +27,7 @@ export function validateBotProfile(profile) {
   const errors = [];
   const id = profile?.botId;
   if (!EXPECTED_BOTS.includes(id)) err(errors, 'BOT_ID_INVALID', String(id));
+  if (EXPECTED_BOTS.includes(id) && profile?.role !== ROLE_BY_BOT[id]) err(errors, 'BOT_ROLE_INVALID', String(id));
   if (profile?.permanentIndependentAuthority !== false) err(errors, 'INDEPENDENT_AUTHORITY_NOT_DISABLED', String(id));
   if (profile?.transferableKnowledgeOnly !== true) err(errors, 'KNOWLEDGE_TRANSFER_BOUNDARY_MISSING', String(id));
   if (profile?.intelligenceProfileRef !== 'diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json') {
