@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "ACTION-VAULT-AGENT-GRADE",
   "authority": "ACTION_VAULT_AGENT_GRADE_GATE",
   "purpose": "رفع ACTION-REPAIR وACTION-REPAIR-2 وACTION-HISTORIAN-3 من ملفات Action bots إلى وكلاء تشغيل يمكن الاعتماد عليهم ضمن حدود موثقة وقابلة للاختبار.",
@@ -53,5 +53,33 @@
     "weaknessGetsNextMission": true,
     "promotionRequiresIndependentVerification": true,
     "regressionOrDriftTriggersRevalidation": true
+  },
+  "agentRuntime": {
+    "protocol": "ACTION-AGENT-RUNTIME-v1",
+    "cycle": [
+      "INTAKE",
+      "CONTEXT_RETRIEVAL",
+      "PLAN",
+      "EXECUTE",
+      "SELF_CHECK",
+      "INDEPENDENT_REVIEW",
+      "VERIFY",
+      "LEARN"
+    ],
+    "historicalActivityRoot": "docs/agents/historical-action-errors/agent-activity",
+    "runtimePacket": "scripts/ci/action-agent-runtime.mjs",
+    "activityLedger": "scripts/ci/action-agent-history.mjs",
+    "promotion": "CANONICAL_GREEN_ONLY",
+    "safeguards": [
+      "EXACT_SHA",
+      "EVIDENCE_FIRST",
+      "UNKNOWN_AWARE",
+      "SELF_CRITIQUE",
+      "INDEPENDENT_REVIEW",
+      "NO_SELF_APPROVAL",
+      "FAIL_CLOSED",
+      "STRUCTURED_OUTPUT",
+      "BOUNDED_TOOL_BUDGET"
+    ]
   }
 }
