@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import {
+  ADVICE_VAULT_PROTOCOL,
+  ADVICE_VAULT_OWNER,
   ADVICE_VAULT_CAPACITY,
   ADVICE_VAULT_SHARD_COUNT,
   ADVICE_VAULT_SHARD_SIZE,
@@ -10,12 +12,13 @@ import {
   partitionAdvice,
   shardForAdvice,
   summarizeAdviceVault,
-} from '../src/lib/agent/knowledge/advice-vault.ts';
+} from './ci/action-vault/repair-agent-advice-vault.ts';
 
 const now = '2026-09-21T00:00:00+00:00';
 const make = (id, content, outcome, failureFingerprint, targetSha) => normalizeAdviceRecord({
   id,
   kind: 'LESSON',
+  ownerAgent: 'repairAgent',
   content,
   scope: 'auto-repair:example',
   rootCause: 'example-root-cause',
@@ -48,6 +51,8 @@ const conflict = normalizeAdviceRecord({
 });
 
 assert.equal(a.executionAuthority, 'ADVISORY_ONLY');
+assert.equal(ADVICE_VAULT_PROTOCOL, 'FLIXO-REPAIR-ACTION-VAULT-1M-v1');
+assert.equal(ADVICE_VAULT_OWNER, 'repairAgent');
 assert.equal(ADVICE_VAULT_CAPACITY, 1_000_000);
 assert.equal(ADVICE_VAULT_SHARD_SIZE, 10_000);
 assert.equal(ADVICE_VAULT_SHARD_COUNT, 100);
@@ -68,7 +73,8 @@ const reverted = make('reverted', 'Use evidence before mutation.', 'REVERTED', '
 assert.equal(evaluateAdvicePromotion([a, b, reverted]).status, 'BLOCKED');
 
 const summary = summarizeAdviceVault([a, b]);
-assert.equal(summary.protocol, 'FLIXO-ADVICE-VAULT-1M-v1');
+assert.equal(summary.protocol, 'FLIXO-REPAIR-ACTION-VAULT-1M-v1');
+assert.equal(summary.ownerAgent, 'repairAgent');
 assert.equal(summary.capacity, 1_000_000);
 assert.equal(summary.materialized, 2);
 assert.equal(summary.remaining, 999_998);
