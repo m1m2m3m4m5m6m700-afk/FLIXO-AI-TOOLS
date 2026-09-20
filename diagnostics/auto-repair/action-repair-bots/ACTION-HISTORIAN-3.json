@@ -58,12 +58,26 @@
     "testMutation": false,
     "workflowLogMutation": false,
     "canEscalateMaster": true,
-    "canonicalGreen": "DAILY_FLIXO_GREEN_GATE"
+    "canonicalGreen": "DAILY_FLIXO_GREEN_GATE",
+    "repositoryWriteScope": "ACTION_VAULT_MEMORY_ONLY"
   },
   "state": {
     "status": "READY",
     "taskCount": 0,
     "lastTaskId": null,
     "lastUpdatedAt": null
-  }
+  },
+  "agentGrade": {
+    "lifecycle": "READY",
+    "shortName": "ACTH3",
+    "upgradeNumber": 1,
+    "upgradePriority": 88,
+    "nextUpgrade": {
+      "id": "ACTH3-U2",
+      "weakness": "CORPUS_COVERAGE_AND_PROVENANCE_COMPLETENESS",
+      "mission": "إكمال الفهرسة التاريخية وربط كل نتيجة بمصدر ودليل قابل لإعادة الإثبات",
+      "promotionProof": "INDEX_INTEGRITY_PLUS_EXACT_PROVENANCE"
+    }
+  },
+  "repositoryWriteScope": "ACTION_VAULT_MEMORY_ONLY"
 }
