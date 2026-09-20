@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
 
 const ROOT=process.cwd();
 const VAULT=path.resolve(ROOT,'diagnostics/auto-repair/action-vault');
