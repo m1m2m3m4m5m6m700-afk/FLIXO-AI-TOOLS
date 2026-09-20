@@ -85,6 +85,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Enforce central Council directive before diagnosis or mutation
+        run: node scripts/ci/test-council-directive.mjs
+
       - name: Resolve target workflow run
         env:
           GH_TOKEN: ${{ github.token }}
