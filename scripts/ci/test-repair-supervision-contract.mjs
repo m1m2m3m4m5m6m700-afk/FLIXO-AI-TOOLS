@@ -22,6 +22,8 @@ assert.doesNotMatch(watchdog, /gh\s+api\s+"repos\/\$GITHUB_REPOSITORY\/git\/ref\
 assert.doesNotMatch(watchdog, /gh\s+workflow\s+run\s+auto-repair\.yml/);
 assert.match(dailyGate, /gh\s+workflow\s+run\s+auto-repair\.yml/);
 assert.match(dailyGate, /issues:\s+write/);
+assert.match(dailyGate, /steps\.evaluate\.outcome == 'success'/);
+assert.doesNotMatch(dailyGate, /Wake Agent 2[\s\S]*steps\.generate_prompts\.outcome == 'success'/);
 assert.match(dailyGate, /FLIXO_AGENT_COUNCIL_WAKE/);
 assert.match(dailyGate, /AGENT 2 WAKE/);
 assert.match(dailyGate, /ROOT-CAUSE-SPINE-001/);
