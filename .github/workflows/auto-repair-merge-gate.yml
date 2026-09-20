@@ -145,14 +145,56 @@ jobs:
             "Repository Security Baseline"
             "Claude Security Review"
           )
-          gh_with_backoff run list --repo "$GITHUB_REPOSITORY" --commit "$EXPECTED_SHA" --limit 100             --json databaseId,name,status,conclusion,headSha,headBranch,updatedAt > /tmp/exact-runs.json
-          for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
-            RUN_JSON="$(jq -c --arg name "$workflow" '[.[] | select(.name == $name)] | sort_by(.updatedAt) | last // empty' /tmp/exact-runs.json)"
-            test -n "$RUN_JSON" || { echo "FAIL CLOSED: missing workflow=$workflow"; exit 1; }
-            test "$(printf '%s' "$RUN_JSON" | jq -r '.headSha')" = "$EXPECTED_SHA" || { echo "FAIL CLOSED: stale workflow evidence=$workflow"; exit 1; }
-            test "$(printf '%s' "$RUN_JSON" | jq -r '.status')" = "completed" || { echo "FAIL CLOSED: pending workflow=$workflow"; exit 1; }
-            test "$(printf '%s' "$RUN_JSON" | jq -r '.conclusion')" = "success" || { echo "FAIL CLOSED: RED workflow=$workflow"; exit 1; }
+          MAX_POLLS=40
+          POLL_SECONDS=15
+          ALL_GREEN=false
+
+          for ((poll=1; poll<=MAX_POLLS; poll++)); do
+            gh_with_backoff run list --repo "$GITHUB_REPOSITORY" --commit "$EXPECTED_SHA" --limit 100 --json databaseId,name,status,conclusion,headSha,headBranch,updatedAt > /tmp/exact-runs.json
+            WAITING=false
+
+            for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
+              RUN_JSON="$(jq -c --arg name "$workflow" '[.[] | select(.name == $name)] | sort_by(.updatedAt) | last // empty' /tmp/exact-runs.json)"
+              if [ -z "$RUN_JSON" ]; then
+                echo "EXACT_SHA_GATE_WAITING poll=$poll workflow=$workflow state=MISSING"
+                WAITING=true
+                continue
+              fi
+
+              RUN_HEAD_SHA="$(printf '%s' "$RUN_JSON" | jq -r '.headSha')"
+              RUN_STATUS="$(printf '%s' "$RUN_JSON" | jq -r '.status')"
+              RUN_CONCLUSION="$(printf '%s' "$RUN_JSON" | jq -r '.conclusion')"
+
+              test "$RUN_HEAD_SHA" = "$EXPECTED_SHA" || {
+                echo "FAIL CLOSED: stale workflow evidence=$workflow headSha=$RUN_HEAD_SHA"
+                exit 1
+              }
+
+              if [ "$RUN_STATUS" = "completed" ]; then
+                test "$RUN_CONCLUSION" = "success" || {
+                  echo "FAIL CLOSED: RED workflow=$workflow conclusion=$RUN_CONCLUSION"
+                  exit 1
+                }
+              else
+                echo "EXACT_SHA_GATE_WAITING poll=$poll workflow=$workflow status=$RUN_STATUS"
+                WAITING=true
+              fi
+            done
+
+            if [ "$WAITING" = false ]; then
+              ALL_GREEN=true
+              break
+            fi
+
+            if [ "$poll" -lt "$MAX_POLLS" ]; then
+              sleep "$POLL_SECONDS"
+            fi
           done
+
+          test "$ALL_GREEN" = "true" || {
+            echo "FAIL CLOSED: required workflows did not reach GREEN within bounded merge-gate wait."
+            exit 1
+          }
 
       - name: Require Certification and Security check runs
         env:
