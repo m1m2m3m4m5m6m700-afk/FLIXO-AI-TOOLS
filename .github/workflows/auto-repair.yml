@@ -65,7 +65,7 @@ env:
   FLIXO_REPAIR_LEASE_REF: ${{ inputs.repair_lease_ref || '' }}
   FLIXO_REPAIR_LEASE_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
   FLIXO_REPAIR_ATTEMPT: ${{ inputs.repair_lease_attempt || '1' }}
-  FLIXO_PROMPT_SOURCE_RUN_ID: ${{ inputs.prompt_source_run_id || '' }}
+  # prompt_source_run_id remains a compatibility input; artifact provenance is resolved from the canonical Green Gate by exact SHA.
   # Intentionally no finite repair-chain stop; closure is governed only by canonical GREEN.
   # DISPATCH AUTHORITY: Daily·FLIXO Green Gate.
   # This workflow is executor-only and must never self-dispatch.
@@ -789,10 +789,12 @@ jobs:
             A)
               printf '%s\n' 'FLIXO_ACTIVE_ACTION_BOT=ACTION-REPAIR' >> "$GITHUB_ENV"
               printf '%s\n' 'FLIXO_REPAIR_ACTOR=actionRepairBot' >> "$GITHUB_ENV"
+              printf '%s\n' 'FLIXO_ACTIVE_ACTION_BROTHER=A' >> "$GITHUB_ENV"
               ;;
             B)
               printf '%s\n' 'FLIXO_ACTIVE_ACTION_BOT=ACTION-REPAIR-2' >> "$GITHUB_ENV"
               printf '%s\n' 'FLIXO_REPAIR_ACTOR=assistantRepairAgent' >> "$GITHUB_ENV"
+              printf '%s\n' 'FLIXO_ACTIVE_ACTION_BROTHER=B' >> "$GITHUB_ENV"
               ;;
             *)
               echo 'FAIL CLOSED: unknown durable Actions repair owner.'
