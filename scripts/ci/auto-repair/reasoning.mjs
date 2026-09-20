@@ -4,6 +4,10 @@ import { extractFeatures, normalizeFailure } from './fingerprint.mjs';
 
 const PROFILES = Object.freeze([
   { id: 'external-tooling', feature: 'external-tooling', specificity: 1, hardBlock: true, patterns: [/SessionModelError/i, /CAPIError/i, /requested model is not supported/i, /code scanning AI findings/i] },
+  { id: 'noncanonical-automation', feature: 'noncanonical-automation', specificity: 0.99, dominates: ['liveness-contract', 'contract-drift'], patterns: [/HTTP\s*422.*(?:Daily.?FLIXO.?Green.?Gate|green gate)/i, /(?:Daily.?FLIXO.?Green.?Gate|green gate).*HTTP\s*422/i, /heartbeat.*(?:gh\s+workflow\s+run|workflow\s+dispatch)/i, /noncanonical automation/i] },
+  { id: 'liveness-contract', feature: 'liveness-contract', specificity: 0.97, dominates: ['contract-drift'], patterns: [/agent-liveness/i, /workAssignedStates/i, /forbiddenStates/i, /WAITING_EXTERNAL/i, /IDLE.*SLEEP/i, /SLEEP.*IDLE/i, /heartbeat.*lease/i, /stale heartbeat/i] },
+  { id: 'contract-drift', feature: 'contract-drift', specificity: 0.95, patterns: [/contract drift/i, /contract mismatch/i, /current contract/i, /out of sync with contract/i, /test.*contract.*drift/i, /assert.*contract/i] },
+  { id: 'typescript-async-contract', feature: 'typescript-async-contract', specificity: 0.99, dominates: ['typescript'], patterns: [/TS1064/i, /return type of an async function/i, /Did you mean to write ['"]?Promise</i, /async function.*return type/i] },
   { id: 'webkit-render', feature: 'webkit', specificity: 0.96, dominates: ['playwright'], patterns: [/webkit/i, /data-render-revision/i, /GPU rendering/i, /waitForGpuRender/i] },
   { id: 'lint', feature: 'lint', specificity: 0.94, patterns: [/eslint/i, /no-unused-vars/i, /defined but never used/i, /no-empty/i] },
   { id: 'format', feature: 'format', specificity: 0.9, patterns: [/prettier/i, /formatting/i, /code style/i] },
@@ -176,6 +180,10 @@ export function buildRepairHypothesis({
     'webkit-render': 'WEBKIT_RENDER_CONTRACT_RECOVERS',
     certification: 'CERTIFICATION_EVIDENCE_CONTRACT_RECOVERS',
     'external-tooling': 'PROVIDER_RECOVERY_WITHOUT_SOURCE_MUTATION',
+    'noncanonical-automation': 'CANONICAL_WAKE_OR_AUTOMATION_OWNERSHIP_RECOVERS_WITHOUT_DUPLICATE_DISPATCH',
+    'liveness-contract': 'LIVENESS_CONTRACT_AND_STATE_TRANSITIONS_RECOVER_WITHOUT_FALSE_TERMINATION',
+    'contract-drift': 'TEST_AND_IMPLEMENTATION_CONTRACTS_AGREE_ON_THE_CANONICAL_SOURCE_OF_TRUTH',
+    'typescript-async-contract': 'TYPECHECK_CONTRACT_RECOVERS_WITH_PROMISE_RETURN_AND_AWAIT_PROPAGATION',
     UNKNOWN_RCA: 'ORIGINAL_FAILURE_SIGNAL_DISAPPEARS_AND_RELATED_INVARIANT_HOLDS',
   };
   const affectedFiles = [...new Set([location?.file, ...(top?.file ? [top.file] : [])].filter(Boolean))];
@@ -389,7 +397,7 @@ export function verificationStrategy(features = []) {
   if (features.includes('typescript')) commands.push(['npm', ['run', 'typecheck']]);
   if (features.includes('playwright') || features.includes('webkit')) commands.push(['npm', ['run', 'test:browser']]);
   if (features.includes('build')) commands.push(['npm', ['run', 'test:build']]);
-  if (features.includes('certification')) commands.push(['npm', ['run', 'test:static']]);
+  if (features.includes('certification') || features.includes('noncanonical-automation') || features.includes('liveness-contract') || features.includes('contract-drift') || features.includes('typescript-async-contract')) commands.push(['npm', ['run', 'test:static']]);
   if (!commands.some(([, args]) => args?.[1] === 'test:static')) commands.push(['npm', ['run', 'test:static']]);
   return commands;
 }
