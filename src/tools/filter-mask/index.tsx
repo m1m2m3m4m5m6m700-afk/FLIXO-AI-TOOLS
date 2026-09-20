@@ -5,6 +5,7 @@ import { FILTER_MASK_I18N } from './locales';
 import type { Locale } from '@/lib/i18n';
 
 const clampIntensity = (value: number): number => Math.min(100, Math.max(25, Math.round(value)));
+const videoExtensionForMime = (mimeType: string): string => mimeType.includes('mp4') ? 'mp4' : 'webm';
 const FAVORITES_KEY = 'flixo.filter-mask.favorites.v1';
 const RECENT_KEY = 'flixo.filter-mask.recent.v1';
 const PRESETS_KEY = 'flixo.filter-mask.presets.v1';
@@ -180,6 +181,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   const [captureQuality, setCaptureQuality] = useState<FilterMaskParameters['captureQuality']>(handoff?.parameters.captureQuality ?? '1080p');
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
   const [capturedKind, setCapturedKind] = useState<'photo' | 'video' | null>(null);
+  const [capturedFilename, setCapturedFilename] = useState<string>('flixo-filter-mask.jpg');
 
   const selected = getLiveFilter(selectedId) ?? LIVE_FILTER_REGISTRY[0];
   const selectedRef = useRef(selected);
@@ -440,6 +442,8 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     if (audioTrack) outputStream.addTrack(audioTrack);
 
     const mimeType = [
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      'video/mp4',
       'video/webm;codecs=vp9,opus',
       'video/webm;codecs=vp8,opus',
       'video/webm',
@@ -482,6 +486,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
           return url;
         });
         setCapturedKind('video');
+        setCapturedFilename(`flixo-filter-mask.${videoExtensionForMime(recorder.mimeType || mimeType || 'video/webm')}`);
         setRecording(false);
         setRecordSeconds(0);
         recorderRef.current = null;
@@ -546,7 +551,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
 
   async function shareResult() {
     if (!capturedUrl) return;
-    const filename = capturedKind === 'video' ? 'flixo-filter-mask.webm' : 'flixo-filter-mask.jpg';
+    const filename = capturedFilename;
 
     if (!navigator.share) {
       setError(copy.shareUnsupported);
@@ -602,6 +607,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       return url;
     });
     setCapturedKind('photo');
+    setCapturedFilename('flixo-filter-mask.jpg');
   }
 
   return (
@@ -818,7 +824,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <a
             href={capturedUrl}
-            download={capturedKind === 'video' ? 'flixo-filter-mask.webm' : 'flixo-filter-mask.jpg'}
+            download={capturedFilename}
           >
             {copy.download}
           </a>
