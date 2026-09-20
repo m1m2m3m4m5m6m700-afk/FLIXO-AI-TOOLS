@@ -10,5 +10,5 @@ if(!fp) throw new Error('ACTION_PAIR_FINGERPRINT_REQUIRED');
 const active=attempt%2===1?'ACTION-REPAIR':'ACTION-REPAIR-2';
 const waiting=active==='ACTION-REPAIR'?'ACTION-REPAIR-2':'ACTION-REPAIR';
 const handoff=attempt>1;
-const result={schemaVersion:1,kind:'ACTION_REPAIR_TWO_BOT_TURN',attempt,activeBot:active,waitingBot:waiting,targetSha:sha,fingerprint:fp,requiresPrimaryApproval:active==='ACTION-REPAIR-2',handoff,stopCondition:'ZERO_ACTIONABLE_RED',externalBlockStopsMutation:true};
+const result={schemaVersion:1,kind:'ACTION_REPAIR_TWO_BOT_TURN',attempt,activeBot:active,waitingBot:waiting,targetSha:sha,fingerprint:fp,previousOutcome:prev||null,requiresPrimaryApproval:active==='ACTION-REPAIR-2',handoff,stopCondition:'ZERO_ACTIONABLE_RED',externalBlockStopsMutation:true};
 console.log(JSON.stringify(result,null,2));
