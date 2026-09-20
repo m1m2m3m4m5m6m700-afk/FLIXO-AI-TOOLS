@@ -2,11 +2,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { appendFailureLedger, recordRed, recordAttempt, recordFailedAttempt, recordHandoff, recordPredictionOutcome, recordGreen } from './action-failure-ledger.mjs';
+import { recordRed, recordAttempt, recordFailedAttempt, recordHandoff, recordPredictionOutcome, recordGreen } from './action-failure-ledger.mjs';
 
 const original=process.cwd();
 const temp=path.join(original,'diagnostics/auto-repair/action-vault/.test-ledger.ndjson');
-try { if(fs.existsSync(temp)) fs.unlinkSync(temp); } catch {}
+try { if(fs.existsSync(temp)) fs.unlinkSync(temp); } catch { /* deterministic cleanup */ }
 // The runtime ledger path is fixed; validate its contract through deterministic returned records.
 const base={
  taskId:'TASK-LEDGER-TEST',
@@ -26,5 +26,5 @@ for(const event of [
  assert.ok(event.eventId.startsWith('AFL-'));
  assert.equal(event.targetSha,base.targetSha);
 }
-try { if(fs.existsSync(path.join(original,'diagnostics/auto-repair/action-vault/failure-ledger.ndjson'))) fs.unlinkSync(path.join(original,'diagnostics/auto-repair/action-vault/failure-ledger.ndjson')); } catch {}
+try { if(fs.existsSync(path.join(original,'diagnostics/auto-repair/action-vault/failure-ledger.ndjson'))) fs.unlinkSync(path.join(original,'diagnostics/auto-repair/action-vault/failure-ledger.ndjson')); } catch { /* deterministic cleanup */ }
 console.log(JSON.stringify({status:'PASS',protocol:'ACTION_FAILURE_LEDGER_V1',assertions:12},null,2));
