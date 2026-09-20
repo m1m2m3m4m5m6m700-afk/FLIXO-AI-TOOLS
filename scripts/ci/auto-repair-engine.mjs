@@ -708,8 +708,7 @@ const before = snapshot(targetDir);
   }
 
 
-if (repairActor === 'actionRepairBot') {
-  const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
+const gateCurrentSha = git(['rev-parse', 'HEAD']).trim();
   const plannedChangedPaths = evidence.actionVaultSandbox?.changedFiles ?? preMutationProof.sandboxSimulation?.changedFiles ?? [];
   const candidateDiff = evidence.actionVaultSandbox?.candidateDiff ?? preMutationProof.sandboxSimulation?.candidateDiff ?? '';
   const mutationScope = {
@@ -757,7 +756,6 @@ if (repairActor === 'actionRepairBot') {
     console.log('AUTO_REPAIR_RESULT=PROPOSAL_ONLY');
     console.log('AUTO_REPAIR_REASON=hard-mutation-gate-blocked');
     process.exit(0);
-  }
 }
 
 try {
