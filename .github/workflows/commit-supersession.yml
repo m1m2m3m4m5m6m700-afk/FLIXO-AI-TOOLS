@@ -1,0 +1,126 @@
+name: FLIXO Commit Supersession Controller
+
+on:
+  push:
+    branches: [execution, main]
+
+# This controller is intentionally separate from the canonical test workflow.
+# It may cancel stale runs and then wait for the exact current commit's CI.
+concurrency:
+  group: flixo-commit-supersession-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  supersede:
+    name: Cancel stale commit operations and verify current execution
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Cancel every non-current active run on this branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ github.sha }}
+          EXPECTED_BRANCH: ${{ github.ref_name }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          stale_found=0
+
+          while IFS=$'\t' read -r run_id run_sha run_name run_branch; do
+            [ -n "$run_id" ] || continue
+            [ "$run_id" = "$CURRENT_RUN_ID" ] && continue
+            [ "$run_branch" = "$EXPECTED_BRANCH" ] || continue
+            [ "$run_sha" = "$EXPECTED_SHA" ] && continue
+
+            echo "Cancelling stale run $run_id ($run_name) sha=$run_sha branch=$run_branch"
+            if ! gh run cancel "$run_id"; then
+              status="$(gh run view "$run_id" --json status --jq '.status')"
+              if [ "$status" != "completed" ]; then
+                echo "FAIL CLOSED: could not cancel stale active run $run_id (status=$status)" >&2
+                exit 1
+              fi
+            fi
+            stale_found=1
+          done < <(
+            gh api --paginate \
+              "/repos/$GITHUB_REPOSITORY/actions/runs?branch=$EXPECTED_BRANCH&per_page=100" \
+              --jq '.workflow_runs[] | select(.status != "completed") | "\(.id)\t\(.head_sha)\t\(.name)\t\(.head_branch)"'
+          )
+
+          echo "STALE_RUNS_CANCELLED=$stale_found"
+
+      - name: Prove no stale active runs remain
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ github.sha }}
+          EXPECTED_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 20); do
+            stale_count="$(gh api --paginate \
+              "/repos/$GITHUB_REPOSITORY/actions/runs?branch=$EXPECTED_BRANCH&per_page=100" \
+              --jq '[.workflow_runs[] | select(.status != "completed") | select(.head_branch == env.EXPECTED_BRANCH) | select(.head_sha != env.EXPECTED_SHA)] | length' |
+              awk '{sum += $1} END {print sum+0}')"
+            echo "stale_active_count=$stale_count attempt=$attempt"
+            [ "$stale_count" -eq 0 ] && exit 0
+            sleep 3
+          done
+          echo "FAIL CLOSED: stale active runs still exist for branch $EXPECTED_BRANCH" >&2
+          exit 1
+
+      - name: Ensure canonical CI exists for the exact current commit
+        id: ensure_ci
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ github.sha }}
+          EXPECTED_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          ci_run_id=""
+
+          for attempt in $(seq 1 20); do
+            ci_run_id="$(gh run list \
+              --workflow ci.yml \
+              --branch "$EXPECTED_BRANCH" \
+              --limit 100 \
+              --json databaseId,headSha \
+              --jq 'map(select(.headSha == env.EXPECTED_SHA)) | .[0].databaseId // empty')"
+            [ -n "$ci_run_id" ] && break
+            sleep 3
+          done
+
+          if [ -z "$ci_run_id" ]; then
+            echo "No FLIXO Test System run for $EXPECTED_SHA; dispatching one on $EXPECTED_BRANCH."
+            gh workflow run ci.yml --ref "$EXPECTED_BRANCH"
+            for attempt in $(seq 1 20); do
+              ci_run_id="$(gh run list \
+                --workflow ci.yml \
+                --branch "$EXPECTED_BRANCH" \
+                --limit 100 \
+                --json databaseId,headSha \
+                --jq 'map(select(.headSha == env.EXPECTED_SHA)) | .[0].databaseId // empty')"
+              [ -n "$ci_run_id" ] && break
+              sleep 3
+            done
+          fi
+
+          [ -n "$ci_run_id" ] || { echo "FAIL CLOSED: canonical CI was not created for $EXPECTED_SHA" >&2; exit 1; }
+          echo "CURRENT_COMMIT_CI_RUN_ID=$ci_run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for canonical CI and require its result
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ci_run_id="${{ steps.ensure_ci.outputs.CURRENT_COMMIT_CI_RUN_ID }}"
+          gh run watch "$ci_run_id" --exit-status
+          conclusion="$(gh run view "$ci_run_id" --json conclusion --jq '.conclusion')"
+          test "$conclusion" = "success"

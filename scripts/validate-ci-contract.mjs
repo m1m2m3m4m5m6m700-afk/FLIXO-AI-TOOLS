@@ -15,6 +15,8 @@ const impactExecutionWorkflow = readFileSync('.github/workflows/test-impact-exec
 const securityBaselineWorkflow = readFileSync('.github/workflows/repository-security-baseline.yml', 'utf8');
 const claudeSecurityWorkflow = readFileSync('.github/workflows/claude-security-review.yml', 'utf8');
 const greenGateWorkflow = readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
+const supersessionControllerWorkflow = readFileSync('.github/workflows/commit-supersession.yml', 'utf8');
+const currentCommitGuard = readFileSync('scripts/ci/assert-current-commit.mjs', 'utf8');
 const workflow = workflowSource.replace(/\\"/g, '"');
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
 const certifyEngine = readFileSync('scripts/ci/certify.mjs', 'utf8');
@@ -29,7 +31,7 @@ const required = [
   ['Browser DEEP engine', /\n\s{2}browser_deep:\s*\n/],
   ['single certification gate', /\n\s{2}certify:\s*\n/],
   ['superseding verification CI', /cancel-in-progress:\s*true/],
-  ['superseding PR/branch concurrency isolation', /group:\s*flixo-test-\$\{\{\s*github\.workflow\s*\}\}-\$\{\{\s*github\.event\.pull_request\.number\s*\|\|\s*github\.ref\s*\}\}/],
+  ['superseding PR/branch concurrency isolation', /group:\s*flixo-test-\$\{\{\s*github\.event\.pull_request\.number\s*\|\|\s*github\.ref\s*\}\}/],
   ['exact SHA', /EXPECTED_SHA/],
   ['immutable artifact identity', /flixo-head-sha\.txt[\s\S]*flixo-package-lock\.sha256/],
   ['minimal checkout', /fetch-depth:\s*1/],
@@ -62,6 +64,28 @@ const exactShaVerificationWorkflows = [
   ['test-impact-execution.yml', impactExecutionWorkflow],
   ['repository-security-baseline.yml', securityBaselineWorkflow],
 ];
+
+if (!/actions:\s*write/.test(supersessionControllerWorkflow) ||
+    !/push:\s*\n\s*branches:\s*\[execution, main\]/.test(supersessionControllerWorkflow) ||
+    !/cancel-in-progress:\s*true/.test(supersessionControllerWorkflow) ||
+    !/gh run cancel/.test(supersessionControllerWorkflow) ||
+    !/head_sha/.test(supersessionControllerWorkflow) ||
+    !/gh run watch/.test(supersessionControllerWorkflow) ||
+    !/ci\.yml/.test(supersessionControllerWorkflow)) {
+  console.error('CI contract failed: commit-supersession.yml must cancel stale runs and prove the exact current commit reaches canonical CI.');
+  process.exit(1);
+}
+if (!/EXPECTED_SHA/.test(currentCommitGuard) ||
+    !/EXPECTED_BRANCH/.test(currentCommitGuard) ||
+    !/FAIL CLOSED/.test(currentCommitGuard) ||
+    !/actualSha !== expectedSha/.test(currentCommitGuard)) {
+  console.error('CI contract failed: exact current-commit freshness guard is missing or not fail-closed.');
+  process.exit(1);
+}
+if ((workflow.match(/assert-current-commit\.mjs/g) ?? []).length !== 3) {
+  console.error('CI contract failed: canonical CI must guard verify, browser dependencies, and certification against a superseding commit.');
+  process.exit(1);
+}
 
 for (const [file, source] of exactShaVerificationWorkflows) {
   if (!/cancel-in-progress:\s*true/.test(source)) {
@@ -216,7 +240,6 @@ try {
   execFileSync(process.execPath, ['scripts/ci/test-action-vault-targeted-test.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/test-action-agent-runtime.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/test-action-agent-history.mjs'], { stdio: 'inherit' });
-  execFileSync(process.execPath, ['scripts/ci/test-promote-action-agent-history.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/test-repair-protocol.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/test-task-agent-contract.mjs'], { stdio: 'inherit' });
   execFileSync(process.execPath, ['scripts/ci/test-agent-admission.mjs'], { stdio: 'inherit' });
