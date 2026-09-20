@@ -127,7 +127,7 @@
         "record lesson or anti-lesson according to outcome",
         "preserve provenance and strategy rejection signals"
       ],
-      "status": "ACTIVE",
+      "status": "SUPERSEDED",
       "version": 1,
       "createdBy": "FLIXO Prompt Intelligence Layer",
       "lastUpdatedBy": "FLIXO Prompt Intelligence Layer",
@@ -144,10 +144,13 @@
         "RPR-ORCHESTRATION-PREFLIGHT-001",
         "RPR-EXTERNAL-TOOLING-001",
         "RPR-REGEX-CONTRACT-001",
-        "RPR-ARCHITECTURE-REGISTRY-001"
+        "RPR-ARCHITECTURE-REGISTRY-001",
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
       ],
       "supersedes": [],
-      "supersededBy": [],
+      "supersededBy": [
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
+      ],
       "antiPatterns": [
         "generic solve-and-test prompt",
         "duplicate specialist for same causal key",
@@ -211,7 +214,7 @@
         "carry promptId into handoff when a repair prompt is used",
         "preserve rejected scope decisions"
       ],
-      "status": "ACTIVE",
+      "status": "SUPERSEDED",
       "version": 1,
       "createdBy": "pre-existing repository prompt",
       "lastUpdatedBy": "pre-existing repository prompt",
@@ -224,10 +227,13 @@
       },
       "relatedPrompts": [
         "RPR-MASTER-LIFECYCLE-001",
-        "RPR-EXISTING-SAFE-TASK-001"
+        "RPR-EXISTING-SAFE-TASK-001",
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
       ],
       "supersedes": [],
-      "supersededBy": [],
+      "supersededBy": [
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
+      ],
       "antiPatterns": [
         "scope expansion to chase downstream failures",
         "new test instead of demonstrated source correction"
@@ -309,11 +315,12 @@
       },
       "relatedPrompts": [
         "RPR-EXISTING-TASK-PREP-001",
-        "RPR-EXISTING-ACTIVE-CYCLE-001"
+        "RPR-EXISTING-ACTIVE-CYCLE-001",
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
       ],
       "supersedes": [],
       "supersededBy": [
-        "RPR-EXISTING-TASK-PREP-001"
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
       ],
       "antiPatterns": [
         "test-only fix",
@@ -383,7 +390,7 @@
         "anti-lesson on failure",
         "rejection signal on revert"
       ],
-      "status": "ACTIVE",
+      "status": "SUPERSEDED",
       "version": 1,
       "createdBy": "pre-existing repository prompt",
       "lastUpdatedBy": "pre-existing repository prompt",
@@ -395,10 +402,13 @@
         "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344"
       },
       "relatedPrompts": [
-        "RPR-MASTER-LIFECYCLE-001"
+        "RPR-MASTER-LIFECYCLE-001",
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
       ],
       "supersedes": [],
-      "supersededBy": [],
+      "supersededBy": [
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
+      ],
       "antiPatterns": [
         "blind retry",
         "regression-only closure",
@@ -473,7 +483,7 @@
         "record rejected strategy when preflight repeats",
         "promote only after verified recurrence check"
       ],
-      "status": "ACTIVE",
+      "status": "SUPERSEDED",
       "version": 1,
       "createdBy": "FLIXO Prompt Intelligence Layer",
       "lastUpdatedBy": "FLIXO Prompt Intelligence Layer",
@@ -487,10 +497,13 @@
       },
       "relatedPrompts": [
         "RPR-MASTER-LIFECYCLE-001",
-        "RPR-EXISTING-ACTIVE-CYCLE-001"
+        "RPR-EXISTING-ACTIVE-CYCLE-001",
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
       ],
       "supersedes": [],
-      "supersededBy": [],
+      "supersededBy": [
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
+      ],
       "antiPatterns": [
         "recursive dispatch after preflight failure",
         "rebasing a verified repair onto a moved execution head",
@@ -562,7 +575,7 @@
         "publish anti-lesson for incorrect internal workaround",
         "never increase repair-success confidence from external blockage"
       ],
-      "status": "ACTIVE",
+      "status": "SUPERSEDED",
       "version": 1,
       "createdBy": "FLIXO Prompt Intelligence Layer",
       "lastUpdatedBy": "FLIXO Prompt Intelligence Layer",
@@ -574,10 +587,13 @@
         "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344"
       },
       "relatedPrompts": [
-        "RPR-MASTER-LIFECYCLE-001"
+        "RPR-MASTER-LIFECYCLE-001",
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
       ],
       "supersedes": [],
-      "supersededBy": [],
+      "supersededBy": [
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
+      ],
       "antiPatterns": [
         "treating provider CAPI rejection as source-code defect",
         "rerun loops with unchanged external rejection",
@@ -650,7 +666,7 @@
         "publish anti-lesson for extra-escape regression",
         "retain promptId in provenance"
       ],
-      "status": "ACTIVE",
+      "status": "SUPERSEDED",
       "version": 1,
       "createdBy": "FLIXO Prompt Intelligence Layer",
       "lastUpdatedBy": "FLIXO Prompt Intelligence Layer",
@@ -663,10 +679,13 @@
         "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344"
       },
       "relatedPrompts": [
-        "RPR-MASTER-LIFECYCLE-001"
+        "RPR-MASTER-LIFECYCLE-001",
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
       ],
       "supersedes": [],
-      "supersededBy": [],
+      "supersededBy": [
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
+      ],
       "antiPatterns": [
         "addslashes-until-lint-passes",
         "cross-command multiline regex",
@@ -736,7 +755,7 @@
         "record symmetry rule",
         "mark unregistered automation as architecture defect"
       ],
-      "status": "ACTIVE",
+      "status": "SUPERSEDED",
       "version": 1,
       "createdBy": "FLIXO Prompt Intelligence Layer",
       "lastUpdatedBy": "FLIXO Prompt Intelligence Layer",
@@ -749,10 +768,13 @@
         "sourceSha": "d78e8db4c6b4b7e0655368183eac15694498c344"
       },
       "relatedPrompts": [
-        "RPR-MASTER-LIFECYCLE-001"
+        "RPR-MASTER-LIFECYCLE-001",
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
       ],
       "supersedes": [],
-      "supersededBy": [],
+      "supersededBy": [
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
+      ],
       "antiPatterns": [
         "workflow-without-registry-entry",
         "validator-only-fix",
@@ -842,7 +864,7 @@
         "record duplicate-dispatch prevention outcome",
         "record lesson or anti-lesson with exact SHA and run evidence"
       ],
-      "status": "ACTIVE",
+      "status": "SUPERSEDED",
       "version": 1,
       "createdBy": "FLIXO Prompt Intelligence Layer",
       "lastUpdatedBy": "FLIXO Prompt Intelligence Layer",
@@ -860,10 +882,13 @@
       "relatedPrompts": [
         "RPR-ORCHESTRATION-PREFLIGHT-001",
         "RPR-EXISTING-ACTIVE-CYCLE-001",
-        "RPR-MASTER-LIFECYCLE-001"
+        "RPR-MASTER-LIFECYCLE-001",
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
       ],
       "supersedes": [],
-      "supersededBy": [],
+      "supersededBy": [
+        "RPR-PROMPT-02-ERROR-INTELLIGENCE-001"
+      ],
       "antiPatterns": [
         "legacy forbidden-state assertions",
         "direct Daily Green Gate dispatch from heartbeat",
@@ -875,6 +900,200 @@
         "required": true,
         "bindAtExecution": true,
         "source": "repair-target.failedSha",
+        "mustEqual": "current repair target SHA",
+        "historicalProvenanceIsNotProof": true
+      }
+    },
+    {
+      "promptId": "RPR-PROMPT-02-ERROR-INTELLIGENCE-001",
+      "title": "PROMPT-02 — Error Intelligence, Root-Cause Repair & Prompt Governance",
+      "path": "docs/agents/prompts/PROMPT-02-ERROR-INTELLIGENCE.md",
+      "domain": "error-intelligence-root-repair",
+      "agentRole": "repairAgent",
+      "failureClasses": [
+        "SOURCE",
+        "TEST_CONTRACT",
+        "CI_ORCHESTRATION",
+        "SECURITY",
+        "EXTERNAL_PROVIDER",
+        "FLAKY_RACE",
+        "UNKNOWN_RCA",
+        "repair-lifecycle-coordination",
+        "prompt-selection",
+        "cross-agent-overlap",
+        "task-preparation",
+        "repair-execution-boundary",
+        "source-repair-vs-regression",
+        "handoff-integrity",
+        "active-repair-cycle",
+        "recurrence",
+        "learning-handoff",
+        "repeated-identical-preflight-red",
+        "recursive-repair-dispatch",
+        "stale-repair-target",
+        "gh-cli-contract",
+        "provider-model-rejection",
+        "external-rate-limit",
+        "external-service-block",
+        "regex-lint",
+        "escaped-command-assertion",
+        "contract-test-literal-mismatch",
+        "control-plane-registration-gap",
+        "registry-symmetry",
+        "canonical-contract-drift",
+        "contract-test-mismatch",
+        "liveness-contract",
+        "noncanonical-automation",
+        "architecture",
+        "orchestration",
+        "external-tooling",
+        "lint"
+      ],
+      "fingerprints": [
+        "83b077936ef0130cd635cdfa433ea9bebea9a4a4",
+        "89cee10f43acf1244d064dab19f9a351b8acafcf",
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "cc208a65323355b8846d7aa6d7e85f742feb8909",
+        "b7676df7aa32ad7e718f524ad84aa826d3b28b6c",
+        "11a69c066357a565d2cc26afd516d4b2d1eb6f7b"
+      ],
+      "rootCauses": [
+        "orchestration",
+        "cross-cutting-control",
+        "task-planning",
+        "scope-integrity",
+        "repair-proof",
+        "repair-orchestration",
+        "external-tooling",
+        "lint",
+        "contract-validation",
+        "architecture",
+        "noncanonical-automation",
+        "liveness-contract",
+        "contract-drift",
+        "source",
+        "test-contract",
+        "ci-orchestration",
+        "security",
+        "external-provider",
+        "flaky-race",
+        "prompt-governance"
+      ],
+      "scope": {
+        "allowed": [
+          "capture fresh RED evidence",
+          "fingerprint and correlate Error Memory/Action history",
+          "RCA and falsification",
+          "exact reproduction",
+          "bounded root repair",
+          "targeted regression",
+          "affected contract graph verification",
+          "exact-SHA requalification",
+          "action learning and handoff",
+          "prompt selection/reuse/deprecation through canonical Prompt Registry governance"
+        ],
+        "forbidden": [
+          "assertion deletion or weakening",
+          "gate skipping",
+          "blind retry",
+          "timeout inflation without evidence",
+          "failure allowlisting",
+          "ownership movement to evade checks",
+          "fabricated source RCA for external failure",
+          "unrelated refactor",
+          "direct certification or GREEN declaration"
+        ],
+        "protected": [
+          "scripts/ci/repair-protocol.mjs",
+          "scripts/ci/control-plane-registry.mjs",
+          "certification surfaces",
+          "security gates",
+          "docs/agents/PROMPT-REGISTRY.json"
+        ],
+        "verificationBoundary": [
+          "root-cause proof",
+          "targeted regression",
+          "affected-contract verification",
+          "required verification",
+          "exact-SHA evidence",
+          "canonical certification"
+        ]
+      },
+      "repairStrategy": [
+        "fresh-evidence-first",
+        "fingerprint-memory-correlation",
+        "separate-trigger-propagation-invariant-source-symptom",
+        "falsify-before-mutate",
+        "exact-reproduction",
+        "bounded-root-repair",
+        "targeted-regression",
+        "affected-contract-graph",
+        "exact-sha-requalification",
+        "action-log-learning",
+        "duplicate-dispatch-no-op",
+        "blocked-external",
+        "prompt-consolidation",
+        "fail-closed"
+      ],
+      "verificationPlan": [
+        "targeted-root-cause-regression",
+        "affected-contract-graph-proof",
+        "required-ci-verification",
+        "exact-sha-identity",
+        "prompt-registry-validation",
+        "certification-handoff"
+      ],
+      "learningRequirements": [
+        "record runId and exact SHA",
+        "record job/attempt/step evidence",
+        "record failureFingerprint and RCA",
+        "record strategy and result",
+        "record lesson or anti-lesson",
+        "record exact-SHA verification and provenance",
+        "merge repeated evidence only after provenance checks",
+        "preserve BLOCKED_EXTERNAL without internal success confidence"
+      ],
+      "status": "ACTIVE",
+      "version": 1,
+      "createdBy": "FLIXO Prompt Consolidation",
+      "lastUpdatedBy": "FLIXO Prompt Consolidation",
+      "provenance": {
+        "sourceFiles": [
+          "docs/AGENT-COLLABORATION-PROTOCOL.md",
+          "docs/agents/ACTIVE-REPAIR-CYCLE-PROTOCOL.md",
+          "docs/agents/TASK-AGENT.md",
+          "docs/agents/SAFE-TASK-AGENT-EXECUTION.md",
+          "diagnostics/auto-repair/memory.json"
+        ],
+        "sourceSha": "0989d041490748a390d2b4f1a75bbd00cfa046b9"
+      },
+      "relatedPrompts": [],
+      "supersedes": [
+        "RPR-MASTER-LIFECYCLE-001",
+        "RPR-EXISTING-TASK-PREP-001",
+        "RPR-EXISTING-SAFE-TASK-001",
+        "RPR-EXISTING-ACTIVE-CYCLE-001",
+        "RPR-ORCHESTRATION-PREFLIGHT-001",
+        "RPR-EXTERNAL-TOOLING-001",
+        "RPR-REGEX-CONTRACT-001",
+        "RPR-ARCHITECTURE-REGISTRY-001",
+        "RPR-CANONICAL-CONTRACT-DRIFT-001"
+      ],
+      "supersededBy": [],
+      "antiPatterns": [
+        "generic solve-and-test",
+        "stale-SHA reuse",
+        "history-only proof",
+        "repeated identical dispatch",
+        "external-failure-as-source-RCA",
+        "gate weakening",
+        "scope expansion",
+        "duplicate specialist prompts"
+      ],
+      "exactShaRequirements": {
+        "required": true,
+        "bindAtExecution": true,
+        "source": "handoff.entrySha + repair-session.targetSHA + current execution HEAD",
         "mustEqual": "current repair target SHA",
         "historicalProvenanceIsNotProof": true
       }
