@@ -35,12 +35,11 @@ must(runId,'ACTION_AGENT_RUNTIME_RUN_ID_REQUIRED');
 
 const historyIndex=readJson(path.join(ROOT,'docs/agents/historical-action-errors/index.json'),{byFingerprint:{},byNormalized:{},byClass:{},byWorkflow:{},recordCount:0});
 const actionMemory=readJson(path.join(ROOT,'diagnostics/auto-repair/memory.json'),{cases:[],actionHistory:[],lessons:[],antiLessons:[]});
-const vaultIntelligence=readJson(path.join(ROOT,'diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json'),{});
-const grade=readJson(path.join(ROOT,'diagnostics/auto-repair/action-vault/ACTION-VAULT-AGENT-GRADE.json'),{});
 const activityIndex=readJson(path.join(ROOT,'docs/agents/historical-action-errors/agent-activity/index.json'),{byFingerprint:{},records:[]});
 const failureLog=logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'';
 
-const normalizedLog=failureLog.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g,'').replace(/\b\d{10,}\b/g,'<ID>').replace(/\b[a-f0-9]{40}\b/gi,'<SHA>').replace(/\s+/g,' ').trim().slice(0,16000);
+const ansiEscape=new RegExp(String.fromCharCode(27)+'\\\\[[0-?]*[ -/]*[@-~]','g');
+const normalizedLog=failureLog.replace(ansiEscape,'').replace(/\\b\\d{10,}\\b/g,'<ID>').replace(/\\b[a-f0-9]{40}\\b/gi,'<SHA>').replace(/\\s+/g,' ').trim().slice(0,16000);
 const currentFeatures=[...new Set((normalizedLog.match(/[A-Za-z][A-Za-z0-9_-]{2,}/g)||[]).slice(0,120))];
 
 const exactHistoricalIds=historyIndex.byFingerprint?.[fingerprint]??[];
@@ -120,7 +119,7 @@ if(repairCandidatesRaw){
     must(Array.isArray(parsed),'ACTION_AGENT_RUNTIME_REPAIR_CANDIDATES_NOT_ARRAY');
     repairCandidates=parsed.slice(0,toolBudget.maxCandidatePatches);
   }catch(error){
-    throw new Error('ACTION_AGENT_RUNTIME_REPAIR_CANDIDATES_INVALID:'+String(error?.message??error));
+    throw new Error('ACTION_AGENT_RUNTIME_REPAIR_CANDIDATES_INVALID:'+String(error?.message??error),{cause:error});
   }
 }
 const repairEngineeringPlan=buildRepairEngineeringPlan({taskId:task,fingerprint,targetSha,candidates:repairCandidates});
@@ -159,7 +158,7 @@ const runtime={
   protocol:'ACTION-AGENT-RUNTIME-v2',
   status:'READY',
   identity:{taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,identityDigest:sha256(task+'|'+fingerprint+'|'+targetSha+'|'+runId)},
-  modelProfiles:Object.fromEntries(Object.entries(lanes).map(([lane,agent])=>[agent.agentId,{...agent,config:profileConfig(agent.profile)}])),
+  modelProfiles:Object.fromEntries(Object.values(lanes).map((agent)=>[agent.agentId,{...agent,config:profileConfig(agent.profile)}])),
   cognitiveLoop:phases,
   historicalContext:{
     exactFingerprintRecordIds:exactHistoricalIds,
