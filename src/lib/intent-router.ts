@@ -6,6 +6,7 @@ export type IntentMatch = {
 };
 
 const ALIASES: Record<string, readonly string[]> = {
+  'filter-mask': ['live filter', 'camera filter', 'live camera', 'filters', 'filter mask', 'فلتر مباشر', 'فلاتر الكاميرا', 'كاميرا مباشرة'],
   'image-compressor': ['compress image', 'compress photo', 'reduce image size', 'resize image', 'ضغط الصورة', 'ضغط الصور'],
   'background-remover': ['remove background', 'background removal', 'transparent background', 'إزالة الخلفية', 'تفريغ الصورة'],
   'image-ocr': ['ocr', 'extract text', 'read text from image', 'نسخ النص من الصورة', 'استخراج النص'],
