@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { getMessage as getAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
+import { getMessage as getAgentMessage, markConsumed as consumeAgentMessage, createMessage, sendMessage, respondToMessage, listPendingResponses } from './agent-communication.mjs';
 import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
 
 const ROOT = process.cwd();
@@ -99,7 +99,7 @@ const reconcileStaleSessions = () => {
   }
 };
 const visibleAgents = () => { if (!fs.existsSync(VISIBILITY_DIR)) return []; return fs.readdirSync(VISIBILITY_DIR).filter((entry) => entry.endsWith('.json')).sort().map((entry) => { try { const item = JSON.parse(fs.readFileSync(path.join(VISIBILITY_DIR, entry), 'utf8')); return { taskId: item.taskId ?? null, sessionId: item.sessionId ?? entry.slice(0,-5), agentId: item.agentId ?? null, role: item.role ?? null, status: item.status ?? null, finalStatus: item.finalStatus ?? null, entrySha: item.entrySha ?? null, exitSha: item.exitSha ?? null, finalSummary: item.finalSummary ?? null, remainingWork: item.remainingWork ?? [], openRcas: item.openRcas ?? [], updatedAt: item.updatedAt ?? null }; } catch { return { sessionId: entry.slice(0,-5), status: 'MALFORMED_EVIDENCE' }; } }); };
-const MUTATING_COMMANDS = new Set(['task-create', 'task-claim', 'task-release', 'task-complete', 'ingest-handoff', 'state']);
+const MUTATING_COMMANDS = new Set(['task-create', 'task-claim', 'task-release', 'task-complete', 'ingest-handoff', 'state', 'coop-request', 'coop-challenge', 'coop-handoff', 'coop-respond']);
 const writeLocked = MUTATING_COMMANDS.has(command);
 assertMutationTopology();
 if (writeLocked) acquireWriteLock();
@@ -146,8 +146,33 @@ function lock(sessionId, agentId, rca, scope) {
 function unlock(sessionId) { for (const item of Object.values(locks.locks)) if (item.sessionId === sessionId && item.status === 'ACTIVE') { item.status = 'RELEASED'; item.releasedAt = now(); } }
 ensure();
 if (writeLocked) reconcileStaleSessions();
-if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'state', 'visible', 'ingest-handoff'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|state|visible|ingest-handoff');
+if (!['task-create', 'task-claim', 'task-release', 'task-complete', 'state', 'visible', 'ingest-handoff', 'coop-request', 'coop-challenge', 'coop-handoff', 'coop-respond', 'coop-pending'].includes(command)) throw new Error('Usage: agent-coordination.mjs task-create|task-claim|task-release|task-complete|state|visible|ingest-handoff|coop-request|coop-challenge|coop-handoff|coop-respond|coop-pending');
 
+if (['coop-request','coop-challenge','coop-handoff'].includes(command)) {
+  const type = command === 'coop-request' ? 'REQUEST' : command === 'coop-challenge' ? 'CHALLENGE' : 'HANDOFF';
+  const agent = requireArg('agent');
+  const recipient = requireArg('recipient');
+  const taskId = requireArg('task');
+  const scope = list('scope');
+  if (!scope.length) throw new Error('COOPERATION_SCOPE_REQUIRED');
+  const message = createMessage({
+    messageId: optional('message-id', ''), actor: agent, recipient, intent: requireArg('intent'), taskId, scope, entrySha: sha(),
+    risk: optional('risk', 'MEDIUM').toUpperCase(), dependencies: list('depends-on').length ? list('depends-on') : ['coordination'],
+    expectedEvidence: list('evidence').length ? list('evidence') : ['response-receipt'],
+    stopConditions: list('stop').length ? list('stop') : ['scope-conflict','stale-sha','authority-conflict'],
+    proofObligations: list('proof').length ? list('proof') : ['exact-sha','response-correlation'],
+    messageType: type, requiresResponse: true, payload: optional('payload') || null, source: 'agent-coordination'
+  }, sha());
+  console.log(JSON.stringify(sendMessage(message, sha()), null, 2));
+}
+
+if (command === 'coop-respond') {
+  console.log(JSON.stringify(respondToMessage({ requestId: requireArg('reply-to'), actor: requireArg('agent'), responseStatus: optional('response-status', 'ACKNOWLEDGED').toUpperCase(), intent: optional('intent', ''), payload: optional('payload') || null }, sha()), null, 2));
+}
+
+if (command === 'coop-pending') {
+  console.log(JSON.stringify(listPendingResponses(requireArg('agent')), null, 2));
+}
 if (command === 'task-create') {
   const taskId = requireArg('task');
   if (state.tasks[taskId]) throw new Error(`Task already exists: ${taskId}`);
@@ -171,6 +196,12 @@ if (command === 'task-claim') {
   const messageId = requestedMessageId || sessionMessageId;
   if (messageId) {
     inboundMessage = getAgentMessage(messageId);
+    const messageType = String(inboundMessage.messageType ?? 'DIRECTIVE');
+    if (messageType === 'RESPONSE') throw new Error('COORDINATION_RESPONSE_NOT_TASK_DIRECTIVE');
+    if (messageType === 'CHALLENGE') throw new Error('COORDINATION_CHALLENGE_REQUIRES_RESPONSE');
+    if (messageType === 'REQUEST' && inboundMessage.responseState !== 'RESPONDED') throw new Error('COORDINATION_REQUEST_REQUIRES_RESPONSE');
+    if (messageType === 'REQUEST' && inboundMessage.responseStatus !== 'ACCEPTED') throw new Error('COORDINATION_REQUEST_NOT_ACCEPTED');
+    if (messageType === 'HANDOFF' && !['ACCEPTED','ACKNOWLEDGED'].includes(String(inboundMessage.responseStatus))) throw new Error('COORDINATION_HANDOFF_NOT_ACKNOWLEDGED');
     if (!['READ','CONSUMED'].includes(inboundMessage.status)) throw new Error('COORDINATION_MESSAGE_NOT_READ=' + inboundMessage.status);
     if (inboundMessage.entrySha !== sha()) throw new Error('COORDINATION_MESSAGE_SHA_STALE');
     if (!(inboundMessage.recipient === 'ALL_AGENTS' || inboundMessage.recipient === agentId)) throw new Error('COORDINATION_MESSAGE_RECIPIENT_MISMATCH');
