@@ -80,6 +80,7 @@ jobs:
             "fallbackAccountId": "CHIEF",
             "requestedByAccountId": "SYSTEM",
             "councilRole": "$ROLE",
+            "directiveVersion": "1.0.0",
             "payload": {
               "source": "FLIXO Council Wake Push Relay",
               "commitMessage": ${{ toJSON(github.event.head_commit.message) }},
