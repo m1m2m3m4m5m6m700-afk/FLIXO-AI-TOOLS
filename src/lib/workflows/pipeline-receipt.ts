@@ -120,7 +120,15 @@ export async function appendPipelineStepReceipt(
   }
 
   const chainSha256 = await sha256Text(
-    `${chain.chainSha256}:${canonicalReceiptPayload(receipt)}`,
+    [
+      chain.chainSha256,
+      chain.catalogFingerprint,
+      chain.planFingerprint,
+      chain.taskId,
+      chain.traceId,
+      chain.taskRevision,
+      canonicalReceiptPayload(receipt),
+    ].join(':'),
   );
   return Object.freeze({
     schemaVersion: '1',
