@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import type { ToolDefinition } from '@/config/canonical-tool-definition.ts';
 import type { TaskContext } from './task-state.ts';
 
@@ -14,7 +13,7 @@ export type ExecutionAuditEvent = Readonly<{
   permission: ExecutionPermission; risk: ExecutionRisk; network: boolean; message?: string;
   errorClass?: 'VALIDATION' | 'EXECUTION' | 'OUTPUT' | 'INFRASTRUCTURE' | 'USER_INPUT';
 }>;
-const digest=(value:unknown)=>createHash('sha256').update(JSON.stringify(value),'utf8').digest('hex');
+const digest=async(value:unknown):Promise<string>=>{const bytes=new TextEncoder().encode(JSON.stringify(value));const hash=await crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(hash),(byte)=>byte.toString(16).padStart(2,'0')).join('');};
 export function deriveToolSecurityProfile(tool:ToolDefinition):ToolSecurityProfile{
   const externalProcessing=tool.executionMode==='CLOUD'||tool.requirements.network;
   const risk:ExecutionRisk=tool.executionMode==='CLOUD'?'HIGH':tool.requirements.network?'MEDIUM':'LOW';
@@ -37,13 +36,13 @@ export function classifyExecutionFailure(error:unknown):ExecutionAuditEvent['err
   if(/input|file|required|missing/i.test(text))return 'USER_INPUT';
   return 'EXECUTION';
 }
-export function createExecutionAuditEvent({task,capabilityId,tool,stage,outcome,message,errorClass,timestamp=new Date().toISOString()}:{
+export async function createExecutionAuditEvent({task,capabilityId,tool,stage,outcome,message,errorClass,timestamp=new Date().toISOString()}:{
   task:TaskContext; capabilityId:string; tool:ToolDefinition; stage:ExecutionAuditStage; outcome:ExecutionAuditOutcome;
   message?:string; errorClass?:ExecutionAuditEvent['errorClass']; timestamp?:string;
 }):ExecutionAuditEvent{
   const security=deriveToolSecurityProfile(tool);
   const base={schemaVersion:1 as const,timestamp,traceId:task.traceId,taskId:task.taskId,capabilityId,stage,outcome,executionMode:tool.executionMode,permission:security.permission,risk:security.risk,network:security.network,message:sanitizeMessage(message),errorClass};
-  return Object.freeze({...base,eventId:digest(base)});
+  return Object.freeze({...base,eventId:await digest(base)});
 }
 export function buildExecutionAuditTrail(events:readonly ExecutionAuditEvent[]):readonly ExecutionAuditEvent[]{
   return Object.freeze([...events].sort((a,b)=>a.timestamp.localeCompare(b.timestamp)||a.eventId.localeCompare(b.eventId)));
