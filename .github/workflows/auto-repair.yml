@@ -118,16 +118,6 @@ jobs:
           echo "failed_sha=$FAILED_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Capture exact failed-run evidence
-      - name: Fast-scan Action failure signal and open Action Vault task
-        if: always()
-        env:
-          FLIXO_ACTION_VAULT_FAILURE_LOG: /tmp/flixo-twin/failure.log
-          FLIXO_ACTION_VAULT_TARGET_SHA: ${{ steps.target.outputs.failed_sha }}
-        run: |
-          set -euo pipefail
-          node scripts/ci/action-fast-reader.mjs --input="$FLIXO_ACTION_VAULT_FAILURE_LOG" --output=/tmp/flixo-fast-failure.json
-          node scripts/ci/action-vault-historian.mjs --op=red --run-id="$TARGET_RUN_ID" --target-sha="$FLIXO_ACTION_VAULT_TARGET_SHA" --workflow="action-run" --log="$FLIXO_ACTION_VAULT_FAILURE_LOG" --fast=/tmp/flixo-fast-failure.json --vault=diagnostics/auto-repair/action-vault
-
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -135,6 +125,14 @@ jobs:
           mkdir -p /tmp/flixo-twin
           gh run view "$TARGET_RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > /tmp/flixo-twin/failure.log
           test -s /tmp/flixo-twin/failure.log
+
+      - name: Fast-scan Action failure signal
+        env:
+          FLIXO_ACTION_VAULT_FAILURE_LOG: /tmp/flixo-twin/failure.log
+          FLIXO_ACTION_VAULT_TARGET_SHA: ${{ steps.target.outputs.failed_sha }}
+        run: |
+          set -euo pipefail
+          node scripts/ci/action-fast-reader.mjs --input="$FLIXO_ACTION_VAULT_FAILURE_LOG" --output=/tmp/flixo-fast-failure.json
 
       - name: Run FLIXO adversarial twin — read only
         env:
