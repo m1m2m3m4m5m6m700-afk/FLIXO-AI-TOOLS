@@ -52,6 +52,9 @@ const globalChecks={
  noStaleProof:watch.executionSha===gitHead,noUnresolvedCounterexample:benchmarkReport.allCasesPass===true,
 };
 
+const verifiedLearning=read('/tmp/verified-learning.json');
+if(verifiedLearning.status!=='VERIFIED'||verifiedLearning.executionSha!==gitHead||!Array.isArray(verifiedLearning.proofIds)||verifiedLearning.proofIds.length<1)throw new Error('VERIFIED_LEARNING_REQUIRED');
+
 const greenRecord={
  recordId:crypto.createHash('sha256').update(JSON.stringify({executionSha:gitHead,runIds:Object.values(exactRuns).map(r=>r?.id)})).digest('hex'),
  source:'DAILY_FLIXO_GREEN_GATE',conclusion:'success',zeroRed:true,exactShaVerified:true,targetSha:gitHead,
@@ -63,7 +66,8 @@ const certification=evaluateCertification({
  exactSha:gitHead,executionSha:gitHead,canonicalGreenRecord:greenRecord,
  projectRedCount:0,globalChecks,failedTests:[],blockedCases:[],remainingRisks:[]
 });
-const result={score:certification.score,benchmarkVersion:benchmarkReport.benchmarkVersion,testedCapabilities:benchmarkReport.cases?.map(c=>c.name)??[],passedTests:benchmarkReport.cases?.filter(c=>c.passed).map(c=>c.name)??[],failedTests:benchmarkReport.cases?.filter(c=>!c.passed).map(c=>c.name)??[],blockedCases:certification.blockedCases??[],proofArtifacts:[],simulationArtifacts:[],differentialArtifacts:[],falsificationArtifacts:[],exactSha:gitHead,executionSha:gitHead,canonicalGreenRecord:greenRecord,certificationStatus:certification.certificationStatus,remainingRisks:certification.remainingRisks??[],knownLimitations:certification.certificationStatus==='100/100 VERIFIED'?[]:['Certification remains fail-closed until every exact-SHA workflow, Action Vault test suite, benchmark, CI contract, and learning evidence is proven.'],globalChecks,requiredRuns:exactRuns,benchmark:benchmarkReport};
+const result={score:certification.score,benchmarkVersion:benchmarkReport.benchmarkVersion,testedCapabilities:benchmarkReport.cases?.map(c=>c.name)??[],passedTests:benchmarkReport.cases?.filter(c=>c.passed).map(c=>c.name)??[],failedTests:benchmarkReport.cases?.filter(c=>!c.passed).map(c=>c.name)??[],blockedCases:certification.blockedCases??[],proofArtifacts:verifiedLearning.proofIds,simulationArtifacts:verifiedLearning.proofIds.filter(x=>/SANDBOX|POST-MUTATION/u.test(x)),differentialArtifacts:verifiedLearning.proofIds.filter(x=>/DIFFERENTIAL/u.test(x)),falsificationArtifacts:verifiedLearning.proofIds.filter(x=>/FALSIFICATION|COUNTEREXAMPLE/u.test(x)),exactSha:gitHead,executionSha:gitHead,canonicalGreenRecord:greenRecord,certificationStatus:certification.certificationStatus,remainingRisks:certification.remainingRisks??[],knownLimitations:certification.certificationStatus==='100/100 VERIFIED'?[]:['Certification remains fail-closed until every exact-SHA workflow, Action Vault test suite, benchmark, CI contract, and learning evidence is proven.'],
+verifiedLearningglobalChecks,requiredRuns:exactRuns,benchmark:benchmarkReport};
 fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');
 console.log(JSON.stringify({score:result.score,status:result.certificationStatus,exactSha:gitHead,requiredPass,globalChecks},null,2));
 if(result.certificationStatus!=='100/100 VERIFIED')process.exit(1);
