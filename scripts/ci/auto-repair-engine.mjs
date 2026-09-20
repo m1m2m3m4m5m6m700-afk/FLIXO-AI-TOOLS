@@ -38,7 +38,11 @@ const repairActor = process.env.FLIXO_REPAIR_ACTOR ?? 'repairAgent';
 const fallbackProofPath = process.env.FLIXO_ASSISTANT_FALLBACK_PROOF_PATH ?? '';
 const fallbackProof = fallbackProofPath && fs.existsSync(fallbackProofPath) ? JSON.parse(fs.readFileSync(fallbackProofPath, 'utf8')) : null;
 if (repairActor === 'assistantRepairAgent' && !fallbackProof?.fallbackEligible) throw new Error('ASSISTANT_FALLBACK_PROOF_REQUIRED');
-const assistantApprovalPath = process.env.FLIXO_ASSISTANT_APPROVAL_PATH ?? '';\nconst assistantApproval = assistantApprovalPath && fs.existsSync(assistantApprovalPath) ? JSON.parse(fs.readFileSync(assistantApprovalPath, 'utf8')) : null;\nlet repairProtocolSession = createRepairSession({ repairSessionId, actor: repairActor, failureFingerprint: fingerprint, targetSHA: targetSha, beforeState: { worktree: 'clean', targetSha }, attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1), fallback: repairActor === 'assistantRepairAgent' ? { ...fallbackProof, actor: 'assistantRepairAgent', targetSha } : null, assistantApproval });
+const assistantApprovalPath = process.env.FLIXO_ASSISTANT_APPROVAL_PATH ?? '';
+const assistantApproval = assistantApprovalPath && fs.existsSync(assistantApprovalPath)
+  ? JSON.parse(fs.readFileSync(assistantApprovalPath, 'utf8'))
+  : null;
+let repairProtocolSession = createRepairSession({ repairSessionId, actor: repairActor, failureFingerprint: fingerprint, targetSHA: targetSha, beforeState: { worktree: 'clean', targetSha }, attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1), fallback: repairActor === 'assistantRepairAgent' ? { ...fallbackProof, actor: 'assistantRepairAgent', targetSha } : null, assistantApproval });
 repairProtocolSession = captureFailure(repairProtocolSession, { runId: process.env.GITHUB_RUN_ID ?? null, failureFingerprint: fingerprint, logPath });
 const prepareTargetedVerification = (currentLog, currentFeatures) => {
   const selection = resolveTargetedTests(currentLog, currentFeatures, { targetDir });
