@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "authority": "CELL_CONTROL_PLANE",
-  "purpose": "Fifty raw workers managed as a reusable execution pool. Intelligence is delegated per task; workers do not own reasoning authority.",
+  "purpose": "Fifty raw workers managed as a reusable execution pool. Specialized GitHub Actions repair workers are external to this cell and are not counted in these fifty.",
   "supervisor": {
     "role": "assistantController",
     "authority": "TASK_ASSIGNMENT_SCOPE_COORDINATION_KNOWLEDGE_CAPTURE",
@@ -16,7 +16,8 @@
     "Every completed task must emit an observation, evidence, validation result, learned task short name, and upgrade target.",
     "Every bot carries one numeric upgradePriority (1-100; 100 is the highest upgrade urgency) and one best current weakness target.",
     "After every task the controller must reassess weakness and either specialize, upgrade, become ready, or recycle the bot.",
-    "Knowledge never bypasses exact-SHA or canonical CI proof."
+    "Knowledge never bypasses exact-SHA or canonical CI proof.",
+    "The CELL pool contains exactly 50 workers; external specialized Action-repair workers are never counted or assigned as CELL bots."
   ],
   "bots": [
     {
@@ -31,7 +32,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "RAW-CELL-001",
+        "shortName": "RAW-CELL-006",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -53,7 +54,6 @@
         "reassessAfterTask": true,
         "supervisor": "assistantController"
       },
-      "currentAssignment": null,
       "capabilityMode": "SPECIALIZED_PLUS_GENERAL",
       "learnedCapabilities": [],
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
@@ -65,7 +65,8 @@
         "CELL-SEAT-01",
         "CELL-SEAT-02",
         "CELL-SEAT-03"
-      ]
+      ],
+      "currentAssignment": null
     },
     {
       "id": "CELL-002",
@@ -79,7 +80,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "RAW-CELL-002",
+        "shortName": "RAW-CELL-006",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -127,7 +128,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "RAW-CELL-003",
+        "shortName": "RAW-CELL-006",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -175,7 +176,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "RAW-CELL-004",
+        "shortName": "RAW-CELL-006",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -223,7 +224,7 @@
       "learningPolicy": "RETURN_KNOWLEDGE_AFTER_TASK",
       "executionAuthority": "DELEGATED_BY_CONTROL_PLANE",
       "taskIdentity": {
-        "shortName": "RAW-CELL-005",
+        "shortName": "RAW-CELL-006",
         "fullName": "UNLEARNED_TASK",
         "state": "UNLEARNED",
         "version": 0,
@@ -2491,80 +2492,6 @@
     "quorum": "2_OF_3_FOR_ROUTINE_CELL_DECISIONS_3_OF_3_FOR_CRITICAL_DECISIONS",
     "peerAuthority": "PROPOSE_CHALLENGE_VERIFY_ONLY",
     "rawBotAuthority": "EXECUTE_ASSIGNED_SCOPE_ONLY"
-  },
-  "actionRepairCohort": {
-    "schemaVersion": 1,
-    "authority": "CELL_CONTROL_PLANE",
-    "purpose": "Five standing Actions-repair workers: historical solution extraction, canonical wake coordination, twin A, twin B, and deterministic best-option selection.",
-    "workerIds": [
-      "CELL-001",
-      "CELL-002",
-      "CELL-003",
-      "CELL-004",
-      "CELL-005"
-    ],
-    "workerModes": {
-      "CELL-001": "ACTION_SOLUTION_INDEXER",
-      "CELL-002": "ACTION_SYSTEM_WAKE_COORDINATOR",
-      "CELL-003": "ACTION_REPAIR_TWIN_A",
-      "CELL-004": "ACTION_REPAIR_TWIN_B",
-      "CELL-005": "ACTION_BEST_OPTION_SELECTOR"
-    },
-    "sharedReferences": [
-      "docs/agents/historical-action-errors/index.json",
-      "docs/agents/historical-action-errors/records",
-      "docs/AUTO_REPAIR_HISTORY.jsonl",
-      "diagnostics/auto-repair/memory.json",
-      "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
-      "docs/agents/ERROR-TEACHING-ROUTER.json",
-      "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
-      "scripts/ci/error-learning-log.mjs"
-    ],
-    "sameReferencesForAll": true,
-    "anyActionFailureAdmitted": true,
-    "assignmentPolicy": "ONE_ACTION_FAILURE_CONTEXT_FANOUT",
-    "mutationAuthority": false,
-    "canonicalMutationOwner": "repairAgent",
-    "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY",
-    "roles": [
-      {
-        "order": 1,
-        "botId": "CELL-001",
-        "role": "ACTION_SOLUTION_INDEXER",
-        "mode": "READ_HISTORICAL_ACTION_INDEX",
-        "mutationAuthority": false
-      },
-      {
-        "order": 2,
-        "botId": "CELL-002",
-        "role": "ACTION_SYSTEM_WAKE_COORDINATOR",
-        "mode": "WAKE_CANONICAL_REPAIR_SURFACE",
-        "mutationAuthority": false
-      },
-      {
-        "order": 3,
-        "botId": "CELL-003",
-        "role": "ACTION_REPAIR_TWIN_A",
-        "mode": "READ_ONLY_REPAIR_TWIN_A",
-        "mutationAuthority": false
-      },
-      {
-        "order": 4,
-        "botId": "CELL-004",
-        "role": "ACTION_REPAIR_TWIN_B",
-        "mode": "READ_ONLY_REPAIR_TWIN_B",
-        "mutationAuthority": false
-      },
-      {
-        "order": 5,
-        "botId": "CELL-005",
-        "role": "ACTION_BEST_OPTION_SELECTOR",
-        "mode": "BEST_OPTION_SELECTION",
-        "mutationAuthority": false
-      }
-    ],
-    "selectionPolicy": "HISTORICAL_PLUS_TWIN_A_PLUS_TWIN_B -> BEST_OPTION_SELECTOR -> repairAgent",
-    "wakePolicy": "ACTION_SYSTEM_WAKE_COORDINATOR -> EXISTING_CANONICAL_DISPATCHER_ONLY"
   },
   "attendanceLedger": {
     "authority": "CELL_CONTROL_PLANE",
