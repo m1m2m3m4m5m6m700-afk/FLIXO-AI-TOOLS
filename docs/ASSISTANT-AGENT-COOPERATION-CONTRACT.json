@@ -53,7 +53,9 @@
       "staleMessage": "FAIL_CLOSED",
       "conflict": "MASTER_ARBITRATION_REQUIRED"
     },
-    "action_vault_reasoning": "The Action Vault is a bounded extension of P20 for the resident repair triad: ACTION-REPAIR performs only admitted repair mutation, ACTION-REPAIR-2 independently challenges the causal explanation and verification evidence without mutation, and ACTION-HISTORIAN-3 records lessons/anti-lessons and recurrence prevention without mutation. A triad mission must preserve exact SHA, failure fingerprint, ownership, independent roles, targeted regression and final evidence; memory never grants authority and blind retries are forbidden. Mutation admission additionally requires an independent verifier proof bound to the same exact SHA and failure fingerprint."
+    "action_vault_reasoning": "The Action Vault is a bounded extension of P20 for the resident repair triad: ACTION-REPAIR performs only admitted repair mutation, ACTION-REPAIR-2 independently challenges the causal explanation and verification evidence without mutation, and ACTION-HISTORIAN-3 records lessons/anti-lessons and recurrence prevention without mutation. A triad mission must preserve exact SHA, failure fingerprint, ownership, independent roles, targeted regression and final evidence; memory never grants authority and blind retries are forbidden. Mutation admission additionally requires an independent verifier proof bound to the same exact SHA and failure fingerprint.",
+    "system_cognitive_awareness": "Action Vault agents must reason over task, repository, causal, historical, governance, adversarial, operational, temporal and systemic-impact context before applying their role. Cognitive breadth may exceed assigned role; mutation/certification authority may not.",
+    "re_evaluation": "New authoritative evidence, SHA movement, counterexample, contradiction, or failed verification invalidates dependent reasoning and requires re-evaluation."
   },
   "messageEnvelope": {
     "required": [
@@ -522,10 +524,11 @@
       "proofObligations",
       "stopConditions",
       "fileSelectionDecision",
-      "programmerTwinParity"
+      "programmerTwinParity",
+      "systemCognitiveAwareness"
     ],
     "independenceRule": "ACTION-REPAIR-2 and ACTION-HISTORIAN-3 must not impersonate ACTION-REPAIR or reuse its mutation authority.",
-    "verificationRule": "ACTION-REPAIR must prove its correctness; ACTION-REPAIR-2 must independently attempt to falsify that proof. A valid counterexample blocks mutation. Failure to find a counterexample does not constitute GREEN; canonical CI remains proof authority.",
+    "verificationRule": "ACTION-REPAIR must prove its correctness; ACTION-REPAIR-2 must independently attempt to falsify that proof. A valid counterexample blocks mutation. Failure to find a counterexample does not constitute GREEN; canonical CI remains proof authority. Every participant must consume the same exact-SHA system cognitive awareness packet before role-local reasoning; broader cognition never expands authority.",
     "memoryPromotionRule": "A reusable repair rule requires at least two independently verified successful exact-SHA cases plus one explicit prevention rule; one success never promotes authority.",
     "retryPolicy": "NO_BLIND_RETRY",
     "failedAttemptEscalationThreshold": 20,
@@ -549,7 +552,8 @@
       "fileSelectionRequired": true,
       "programmerTwinParityRequired": true,
       "primaryCorrectnessProofRequired": true,
-      "adversarialFalsificationRequired": true
+      "adversarialFalsificationRequired": true,
+      "systemCognitiveAwarenessRequired": true
     },
     "fileSelectionIntelligence": {
       "enabled": true,
@@ -591,5 +595,37 @@
       "noCounterexampleIsNotGreen": true,
       "intelligenceParity": "EXACT"
     }
+  },
+  "cognitiveExpansion": {
+    "enabled": true,
+    "protocol": "ACTION-SYSTEM-COGNITIVE-AWARENESS-v1",
+    "runtime": "scripts/ci/action-system-cognitive-awareness.mjs",
+    "artifact": "/tmp/action-system-cognitive-awareness.json",
+    "rule": "Every Action Vault agent reasons over wider system context than its immediate role before making a material decision.",
+    "invariants": {
+      "cognitiveScopeMayExceedRoleScope": true,
+      "authorityScopeMustNotExpand": true,
+      "exactShaAnchored": true,
+      "staleEvidenceRejected": true,
+      "unknownsExplicit": true,
+      "contradictionsPreserved": true,
+      "alternativesRequired": true,
+      "downstreamImpactRequired": true,
+      "temporalReasoningRequired": true,
+      "noImplicitAuthority": true
+    },
+    "domains": [
+      "TASK_SEMANTICS",
+      "REPOSITORY_CONTEXT",
+      "CAUSAL_CONTEXT",
+      "HISTORICAL_CONTEXT",
+      "SAFETY_GOVERNANCE",
+      "ADVERSARIAL_CONTEXT",
+      "OPERATIONAL_CONTEXT",
+      "TEMPORAL_CONTEXT",
+      "SYSTEMIC_IMPACT"
+    ],
+    "roleApplication": "SYSTEM_CONTEXT_FIRST_ROLE_SPECIALIZATION_SECOND",
+    "reEvaluation": "Any new authoritative evidence invalidates affected reasoning and requires re-evaluation before mutation."
   }
 }
