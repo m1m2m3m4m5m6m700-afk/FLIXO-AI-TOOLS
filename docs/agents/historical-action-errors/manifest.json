@@ -12,9 +12,11 @@
   "failedRunsScanned": 1,
   "jobsScanned": 1,
   "logJobsScanned": 1,
-  "errorOccurrences": 1,
-  "uniqueRecords": 1,
+  "errorOccurrences": 2,
+  "uniqueRecords": 2,
   "shards": [],
-  "updatedAt": "2026-09-20T11:55:17.939Z",
-  "nextCursor": "2026-08-10T00:00:00Z"
+  "updatedAt": "2026-09-20T11:55:58.144Z",
+  "nextCursor": "2026-08-10T00:00:00Z",
+  "observedFirstRecordAt": "2026-08-13T13:20:05Z",
+  "observedLastRecordAt": "2026-09-20T11:48:34Z"
 }
