@@ -342,9 +342,20 @@ jobs:
           PROVISIONAL="$(find /tmp/action-vault-learning -name provisional-learning.json -print -quit)"
           test -s "$PROVISIONAL"
           TARGET_SHA="$(jq -r '.targetSha' "$PROVISIONAL")"
+          LEARNING_EXECUTION_SHA="$(jq -r '.executionSha // empty' "$PROVISIONAL")"
+          LEARNING_RUN_ID="$(jq -r '.runId // empty' "$PROVISIONAL")"
+          EXPECTED_TARGET_RUN_ID="$(jq -r '.repair.targetRunId // empty' /tmp/flixo-watch/report.json)"
           FINGERPRINT="$(jq -r '.fingerprint' "$PROVISIONAL")"
           TASK_ID="$(jq -r '.taskId' "$PROVISIONAL")"
           test "$(jq -r '.status' "$PROVISIONAL")" = 'PROVISIONAL'
+          test "$LEARNING_EXECUTION_SHA" = "$CURRENT_SHA" || {
+            echo "FAIL CLOSED: provisional learning executionSha=$LEARNING_EXECUTION_SHA does not match current green SHA=$CURRENT_SHA."
+            exit 1
+          }
+          test -n "$LEARNING_RUN_ID" && test -n "$EXPECTED_TARGET_RUN_ID" && test "$LEARNING_RUN_ID" = "$EXPECTED_TARGET_RUN_ID" || {
+            echo "FAIL CLOSED: provisional learning runId=$LEARNING_RUN_ID does not match current repair target runId=$EXPECTED_TARGET_RUN_ID."
+            exit 1
+          }
           git merge-base --is-ancestor "$TARGET_SHA" "$CURRENT_SHA"
           jq -n --arg recordId "DAILY_FLIXO_GREEN_GATE:$CURRENT_SHA:$GITHUB_RUN_ID" --arg source 'DAILY_FLIXO_GREEN_GATE' --arg conclusion 'success' --arg targetSha "$CURRENT_SHA" --arg taskId "$TASK_ID" --arg fingerprint "$FINGERPRINT" '{recordId:$recordId,source:$source,conclusion:$conclusion,zeroRed:true,exactShaVerified:true,targetSha:$targetSha,taskId:$taskId,fingerprint:$fingerprint}' > /tmp/action-vault-green-record.json
           node scripts/ci/action-vault-learning-promotion.mjs "$PROVISIONAL" /tmp/action-vault-green-record.json "$(jq -r '.proofIds | join(",")' "$PROVISIONAL")" /tmp/verified-learning.json
