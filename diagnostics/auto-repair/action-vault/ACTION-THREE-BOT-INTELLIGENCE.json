@@ -323,6 +323,15 @@
     },
     "repairEngineering": {
       "enabled": true,
+      "preMutationGate": {
+        "required": true,
+        "sandbox": "scripts/ci/action-repair-sandbox.mjs",
+        "differentialVerifier": "scripts/ci/action-differential-verifier.mjs",
+        "patchIdentityMustMatchSimulation": true,
+        "benchmark": "scripts/ci/action-vault-intelligence-benchmark.mjs",
+        "canonicalGreenStillRequired": true,
+        "failClosed": true
+      },
       "planner": "scripts/ci/action-repair-engineering.mjs",
       "patchSynthesis": "scripts/ci/action-patch-synthesis.mjs",
       "sandbox": "scripts/ci/action-repair-sandbox.mjs",
