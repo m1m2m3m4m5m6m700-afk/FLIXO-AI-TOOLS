@@ -140,8 +140,11 @@ export function runGate(root = ROOT) {
   const profilePath = path.join(vault, 'ACTION-THREE-BOT-INTELLIGENCE.json');
   const residencyPath = path.join(vault, 'ACTION-RESIDENCY-POLICY.json');
   const gradePath = path.join(vault, 'ACTION-VAULT-AGENT-GRADE.json');
+  const parallelProtocolPath = path.resolve(root, 'docs/agents/ACTION-VAULT-PARALLEL-COLLABORATION-PROTOCOL.md');
+  const sleepAdmissionPath = path.resolve(root, 'scripts/ci/action-vault-sleep-admission.mjs');
+  const collaborationScriptPath = path.resolve(root, 'scripts/ci/action-three-bot-collaboration.mjs');
 
-  for (const file of [profilePath, residencyPath, gradePath]) {
+  for (const file of [profilePath, residencyPath, gradePath, parallelProtocolPath, sleepAdmissionPath, collaborationScriptPath]) {
     if (!exists(file)) err(errors, 'REQUIRED_VAULT_CONTRACT_MISSING', path.relative(root, file));
   }
 
@@ -176,7 +179,27 @@ export function runGate(root = ROOT) {
     if (grade.mutationModel !== 'SINGLE_ACTIVE_OWNER_ON_EXECUTION') err(errors, 'AGENT_GRADE_MUTATION_MODEL_INVALID');
     if (grade.learningModel !== 'UNVERIFIED_IN_SESSION; VERIFIED_ONLY_AFTER_GREEN') err(errors, 'AGENT_GRADE_LEARNING_MODEL_INVALID');
     if (grade.trustRequirements?.length !== 8) err(errors, 'AGENT_GRADE_TRUST_REQUIREMENTS_INVALID');
+    if (grade.rules?.failedAttemptDoesNotCloseMission !== true) err(errors, 'AGENT_GRADE_FAILED_ATTEMPT_CLOSURE_INVALID');
+    if (grade.rules?.noFalseGreen !== true) err(errors, 'AGENT_GRADE_FALSE_GREEN_RULE_MISSING');
   }
+  }
+
+  if (residency) {
+    if (residency.schemaVersion !== 2) err(errors, 'RESIDENCY_VERSION_INVALID');
+    if (residency.residency?.noSleepBeforeGreen !== true) err(errors, 'NO_SLEEP_BEFORE_GREEN_MISSING');
+    if (residency.residency?.noIdleBeforeGreen !== true) err(errors, 'NO_IDLE_BEFORE_GREEN_MISSING');
+    if (residency.sleepAdmission?.required !== true) err(errors, 'SLEEP_ADMISSION_REQUIRED_MISSING');
+    if (residency.sleepAdmission?.exactShaRequired !== true) err(errors, 'SLEEP_EXACT_SHA_REQUIRED_MISSING');
+    if (residency.sleepAdmission?.openWorkBlocksSleep !== true) err(errors, 'SLEEP_OPEN_WORK_BLOCK_MISSING');
+    if (residency.automaticVisits?.visitModes?.includes('EXCHANGE') !== true) err(errors, 'RESIDENCY_EXCHANGE_VISIT_MISSING');
+  }
+
+  if (intelligence?.cooperation?.parallelExecution?.cognitiveParallelism !== true) err(errors, 'PARALLEL_COGNITIVE_MODE_MISSING');
+  if (intelligence?.cooperation?.parallelExecution?.sourceMutationParallelism !== false) err(errors, 'PARALLEL_SOURCE_MUTATION_MUST_REMAIN_FALSE');
+  if (intelligence?.cooperation?.parallelExecution?.allThreeContributionsRequired !== true) err(errors, 'ALL_THREE_CONTRIBUTIONS_REQUIRED_MISSING');
+  if (intelligence?.cooperation?.parallelExecution?.exchangeBeforeMutation !== true) err(errors, 'EXCHANGE_BEFORE_MUTATION_MISSING');
+  if (intelligence?.cooperation?.parallelExecution?.peerLearningReceiptsRequired !== true) err(errors, 'PEER_LEARNING_RECEIPTS_MISSING');
+  if (intelligence?.cooperation?.sharedLearning?.promotedOnlyAfterCanonicalGreen !== true) err(errors, 'GREEN_ONLY_SHARED_LEARNING_MISSING');
 
   const sharedRefs = intelligence?.sharedSources ?? [];
   for (const ref of sharedRefs) {
