@@ -228,7 +228,14 @@ export function evaluateGreen({
       headBranch: run?.headBranch ?? null,
     };
     if (status === 'MISSING') report.errors.push({ type: 'REQUIRED_WORKFLOW_MISSING', workflow: workflowName });
-    else if (status !== 'success') report.errors.push({ type: 'REQUIRED_WORKFLOW_RED', workflow: workflowName, status });
+    else if (status !== 'success') report.errors.push({
+      type: 'REQUIRED_WORKFLOW_RED',
+      workflow: workflowName,
+      status,
+      runId: run?.databaseId ?? null,
+      headSha: run?.headSha ?? null,
+      headBranch: run?.headBranch ?? null,
+    });
     else if (run.headSha !== executionSha && observedBranch === 'execution') report.errors.push({ type: 'STALE_WORKFLOW_EVIDENCE', workflow: workflowName, runId: run.databaseId });
   }
 
