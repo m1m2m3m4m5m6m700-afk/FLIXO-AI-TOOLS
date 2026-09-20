@@ -107,6 +107,9 @@ export function simulateRepair({
       declaredFiles,
       behavioralVerification,
       differentialProof,
+      baseFiles,
+      candidateFiles,
+      candidateDiff: diff,
       isolated: true,
       reason: repair?.applied
         ? !scopeOk
