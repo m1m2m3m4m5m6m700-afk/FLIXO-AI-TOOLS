@@ -2,8 +2,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const file='db/council-external-accounts.sql';
-const sql=fs.readFileSync(file,'utf8');
+const file = 'db/council-external-accounts.sql';
+const sql = fs.readFileSync(file, 'utf8');
 
 for (const marker of [
   'create table if not exists public.flix_council_accounts',
@@ -34,6 +34,6 @@ for (const marker of [
   'grant execute on function public.council_recover_expired_dispatches(integer) to service_role',
 ]) assert.ok(sql.includes(marker), `Missing RPC contract marker: ${marker}`);
 
-assert.match(sql,/security definer[\\s\\S]*?set search_path = public, pg_catalog/iu);
+assert.match(sql, /security definer[\s\S]*?set search_path = public, pg_catalog/iu);
 
 console.log('COUNCIL_RPC_CONTRACT=PASS');
