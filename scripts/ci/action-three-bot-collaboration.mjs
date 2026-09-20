@@ -33,6 +33,7 @@ const kind=String(arg('kind','OBSERVATION')).trim().toUpperCase();
 const evidence=String(arg('evidence','')).split(',').map(x=>x.trim()).filter(Boolean);
 const greenRecordPath=String(arg('green-record')).trim();
 const fileSelectionPath=String(arg('file-selection')).trim();
+const programmerTwinParityPath=String(arg('programmer-twin-parity')).trim();
 const now=()=>new Date().toISOString();
 const read=()=>JSON.parse(fs.readFileSync(STATE,'utf8'));
 const write=(value)=>{fs.mkdirSync(VAULT,{recursive:true});fs.writeFileSync(STATE,JSON.stringify(value,null,2)+'\n')};
@@ -56,6 +57,12 @@ if(profile.cooperation?.repairEngineering?.enabled!==true) throw new Error('ACTI
 if(profile.cooperation?.repairEngineering?.owner!=='ACTION-REPAIR') throw new Error('ACTION_THREE_BOT_REPAIR_ENGINEERING_OWNER_INVALID');
 
 const execFileList=(command)=>execFileSync(command[0],command.slice(1),{encoding:'utf8'}).split('\\0').filter(Boolean);
+const buildProgrammerTwinParity=()=>{
+  if(!programmerTwinParityPath||!fs.existsSync(programmerTwinParityPath)) throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_PARITY_REQUIRED');
+  const parity=JSON.parse(fs.readFileSync(programmerTwinParityPath,'utf8'));
+  if(parity.status!=='EXACT_INTELLIGENCE_PARITY'||parity.intelligenceParity!=='EXACT'||parity.authorityParity!=='SEPARATED_BY_DESIGN'||parity.primaryAgent!=='ACTION-REPAIR'||parity.twinAgent!=='ACTION-REPAIR-2'||parity.targetSha!==targetSha||parity.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_PARITY_INVALID');
+  return parity;
+};
 const buildSelection=()=>{
   const selection=fileSelectionPath&&fs.existsSync(fileSelectionPath)
     ? JSON.parse(fs.readFileSync(fileSelectionPath,'utf8'))
@@ -70,10 +77,12 @@ const buildSelection=()=>{
 };
 const ensureState=()=>{
   const fileSelection=buildSelection();
+  const programmerTwinParity=buildProgrammerTwinParity();
   if(fs.existsSync(STATE)){
     const state=read();
     if(state.taskId!==task||state.failureFingerprint!==fingerprint||state.targetSha!==targetSha||state.failedRunId!==runId) throw new Error('ACTION_THREE_BOT_COLLAB_ACTIVE_IDENTITY_MISMATCH');
     if(state.fileSelectionDecision?.targetSha!==targetSha||state.fileSelectionDecision?.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_FILE_SELECTION_STATE_MISMATCH');
+    if(state.programmerTwinParity?.targetSha!==targetSha||state.programmerTwinParity?.failureFingerprint!==fingerprint||state.programmerTwinParity?.intelligenceParity!=='EXACT') throw new Error('ACTION_THREE_BOT_PROGRAMMER_TWIN_PARITY_STATE_MISMATCH');
     return state;
   }
   const log=logPath&&fs.existsSync(logPath)?fs.readFileSync(logPath,'utf8'):'';
@@ -95,6 +104,7 @@ const ensureState=()=>{
     exchange:{status:'PENDING',digest:null,at:null,receipts:{}},
     challenge:{status:'PENDING',checks:[]},
     fileSelectionDecision:fileSelection,
+    programmerTwinParity,
     authorization:{status:'BLOCKED',owner:null,authorizedAt:null,reason:'WAITING_FOR_FILE_SELECTION_AND_ALL_THREE_CONTRIBUTIONS_AND_CROSS_LEARNING'},
     greenRecord:null,
     outputs:{hypotheses:[],challenges:[],selectedRepair:null,regression:null,handoff:null,lessons:[],antiLessons:[],fileSelectionDecision:fileSelection},
@@ -152,6 +162,7 @@ if(op==='start'){
   for(const id of BOTS) if(!state.contributions[id]) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_MISSING_CONTRIBUTION='+id);
   if(state.exchange.status!=='COMPLETE') throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_EXCHANGE_INCOMPLETE');
   if(state.fileSelectionDecision?.decision!=='SELECTED'||state.fileSelectionDecision?.targetSha!==targetSha||state.fileSelectionDecision?.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_FILE_SELECTION');
+  if(state.programmerTwinParity?.intelligenceParity!=='EXACT'||state.programmerTwinParity?.authorityParity!=='SEPARATED_BY_DESIGN'||state.programmerTwinParity?.targetSha!==targetSha||state.programmerTwinParity?.failureFingerprint!==fingerprint) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_PROGRAMMER_TWIN_PARITY');
   if(state.participants.some(x=>!x.learnedFromPeers)) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_CROSS_LEARNING_INCOMPLETE');
   if(owner!=='ACTION-REPAIR') throw new Error('ACTION_THREE_BOT_ONLY_PROGRAMMER_OWNER_MAY_MUTATE');
   if(!state.outputs.programmerTwinAnalysis && !state.contributions['ACTION-REPAIR-2']) throw new Error('ACTION_THREE_BOT_MUTATION_BLOCKED_NO_PROGRAMMER_TWIN_ANALYSIS');
@@ -179,6 +190,6 @@ if(op==='start'){
   state.phase='CLOSED';state.status='CLOSED_GREEN';state.updatedAt=now();write(state);
 } else throw new Error('ACTION_THREE_BOT_COLLAB_OPERATION_INVALID='+op);
 
-const result={status:'PASS',protocol:'ACTION-VAULT-PARALLEL-COLLABORATION-v1',op,taskId:task,fingerprint,targetSha,phase:state.phase,authorization:state.authorization,exchange:state.exchange,fileSelectionDecision:state.fileSelectionDecision,collaborationRules:state.collaborationRules,contributionBots:Object.keys(state.contributions),sharedArtifact:STATE};
+const result={status:'PASS',protocol:'ACTION-VAULT-PARALLEL-COLLABORATION-v1',op,taskId:task,fingerprint,targetSha,phase:state.phase,authorization:state.authorization,exchange:state.exchange,fileSelectionDecision:state.fileSelectionDecision,programmerTwinParity:state.programmerTwinParity,collaborationRules:state.collaborationRules,contributionBots:Object.keys(state.contributions),sharedArtifact:STATE};
 fs.writeFileSync(output,JSON.stringify(state,null,2)+'\n');
 console.log(JSON.stringify(result,null,2));
