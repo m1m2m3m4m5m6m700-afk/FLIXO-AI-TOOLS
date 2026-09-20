@@ -284,7 +284,11 @@ Deno.serve(async (req) => {
     const message = String(e instanceof Error ? e.message : e);
     const publicCode = /^([A-Z0-9_]+)/u.exec(message)?.[1] ?? "COUNCIL_INTERNAL_ERROR";
     const errorCode = publicCode.startsWith("COUNCIL_") ? publicCode : "COUNCIL_INTERNAL_ERROR";
-    console.error(JSON.stringify({ requestId, error: message }));
+    console.error(JSON.stringify({
+      requestId,
+      errorCode,
+      errorType: e instanceof Error ? e.name : typeof e,
+    }));
     const status =
       /UNAUTHORIZED|OIDC_MISSING/u.test(errorCode) ? 401 :
       /REJECTED|FORBIDDEN/u.test(errorCode) ? 403 :
