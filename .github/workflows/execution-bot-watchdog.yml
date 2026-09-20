@@ -108,24 +108,29 @@ jobs:
           test -s /tmp/flixo-cell-wake-coordinator.json
           echo "CELL_WAKE_READY=true"
 
-      - name: Dispatch canonical observer or verify active exact-SHA canonical path
+      - name: Dispatch canonical Test System on exact SHA and verify admission
         if: github.event_name != 'schedule' || steps.scheduled_wake.outputs.wake == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           EXECUTION_SHA="$(git rev-parse HEAD)"
-          if gh workflow run daily-flixo-green-gate.yml --repo "$GITHUB_REPOSITORY" --ref execution; then
-            echo "WATCHDOG_DISPATCHED_CANONICAL_OBSERVER=true"
-            exit 0
-          fi
-          echo "CANONICAL_MANUAL_DISPATCH_UNAVAILABLE=true"
-          ACTIVE_TEST_SYSTEM="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Test System" --branch execution --commit "$EXECUTION_SHA" --limit 20 --json status --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
-          test "$ACTIVE_TEST_SYSTEM" -gt 0 || {
-            echo "FAIL CLOSED: no exact-SHA canonical Test System run is active and Green Gate dispatch is unavailable."
+          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution
+          FOUND="false"
+          for attempt in $(seq 1 30); do
+            ACTIVE_COUNT="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Test System" --branch execution --commit "$EXECUTION_SHA" --limit 20 --json status --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
+            if [ "$ACTIVE_COUNT" -gt 0 ]; then
+              FOUND="true"
+              break
+            fi
+            sleep 2
+          done
+          test "$FOUND" = "true" || {
+            echo "FAIL CLOSED: canonical FLIXO Test System did not start for exact SHA $EXECUTION_SHA."
             exit 1
           }
-          echo "WATCHDOG_CANONICAL_FALLBACK=TEST_SYSTEM_WORKFLOW_RUN_EXACT_SHA"
+          echo "WATCHDOG_CANONICAL_TEST_SYSTEM_STARTED=true"
+          echo "WATCHDOG_CANONICAL_SHA=$EXECUTION_SHA"
 
       - name: Publish whole-cell wake evidence
         if: github.event_name == 'push' && always()
