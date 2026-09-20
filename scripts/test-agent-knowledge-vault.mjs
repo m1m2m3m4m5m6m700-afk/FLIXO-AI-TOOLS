@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict';
 import {
+  buildAdviceSearchEngineFromRecords,
+  buildAdviceSearchShard,
+  buildAdviceSearchManifest,
+  searchAdvice,
+  tokenizeAdviceSearch,
+} from '../src/lib/agent/knowledge/advice-search.ts';
+import {
   ADVICE_VAULT_CAPACITY,
   ADVICE_VAULT_SHARD_COUNT,
   ADVICE_VAULT_SHARD_SIZE,
@@ -48,6 +55,7 @@ const conflict = normalizeAdviceRecord({
 });
 
 assert.equal(a.executionAuthority, 'ADVISORY_ONLY');
+assert.ok(a.name?.startsWith('advice-'));
 assert.equal(ADVICE_VAULT_CAPACITY, 1_000_000);
 assert.equal(ADVICE_VAULT_SHARD_SIZE, 10_000);
 assert.equal(ADVICE_VAULT_SHARD_COUNT, 100);
@@ -92,6 +100,7 @@ const searchHits = searchAdvice(searchEngine, {
 });
 assert.ok(searchHits.length >= 1);
 assert.equal(searchHits[0].record.executionAuthority, 'ADVISORY_ONLY');
+assert.ok(searchHits[0].adviceName.startsWith('advice-'));
 assert.ok(searchHits[0].matchedTerms >= 1);
 assert.ok(searchHits[0].score <= 1);
 

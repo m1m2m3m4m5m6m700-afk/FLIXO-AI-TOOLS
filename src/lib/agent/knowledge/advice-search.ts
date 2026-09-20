@@ -1,3 +1,4 @@
+import { deriveAdviceName } from './advice-vault';
 import type { AdviceRecord } from './advice-vault';
 
 export const ADVICE_SEARCH_MAX_RESULTS = 128 as const;
@@ -19,6 +20,7 @@ export type AdviceSearchQuery = Readonly<{
 
 export type AdviceSearchHit = Readonly<{
   record: AdviceRecord;
+  adviceName: string;
   score: number;
   matchedTerms: number;
 }>;
@@ -158,7 +160,12 @@ export function searchAdvice(
         record.confidence * 0.15 +
         record.quality * 0.10 +
         (record.status === 'CURRENT' ? 0.05 : 0);
-      return { record, score, matchedTerms: matched.size };
+      return {
+        record,
+        adviceName: record.name ?? deriveAdviceName({ rootCause: record.rootCause, rule: record.action }),
+        score,
+        matchedTerms: matched.size,
+      };
     })
     .sort(
       (a, b) =>
@@ -177,54 +184,3 @@ export function buildAdviceSearchEngineFromRecords(
   );
 }
 
-export type AdviceNameInput = Readonly<{
-  failureClass?: string | null;
-  stage?: string | null;
-  rootCause?: string | null;
-  rule?: string | null;
-}>;
-
-const ADVICE_CLASS_NAMES: Record<string, string> = Object.freeze({
-  'external-tooling': 'external-provider-boundary',
-  'noncanonical-automation': 'canonical-automation-path',
-  'liveness-contract': 'liveness-heartbeat-contract',
-  'contract-drift': 'contract-drift-single-source',
-  lint: 'eslint-rule-repair',
-  format: 'formatting-contract',
-  'typescript-async-contract': 'typescript-async-contract',
-  typescript: 'typescript-contract',
-  playwright: 'browser-regression',
-  webkit: 'webkit-rendering-contract',
-  certification: 'exact-sha-certification',
-  build: 'build-contract',
-});
-
-function slugPart(value: string | null | undefined): string {
-  return String(value ?? '')
-    .trim()
-    .toLocaleLowerCase()
-    .replace(/[^a-z0-9]+/gu, '-')
-    .replace(/^-+|-+$/gu, '')
-    .slice(0, 80);
-}
-
-/**
- * Converts already-observed error facts into a stable advice name.
- * It never invents an RCA: unknown inputs remain explicit in the fallback name.
- */
-export function deriveAdviceName(input: AdviceNameInput): string {
-  const failureClass = slugPart(input.failureClass);
-  const stage = slugPart(input.stage);
-  const rootCause = slugPart(input.rootCause);
-  const rule = slugPart(input.rule);
-  const className = ADVICE_CLASS_NAMES[failureClass] ?? failureClass;
-
-  if (className && rule) return 'advice-' + className + '-' + rule;
-  if (className && stage) return 'advice-' + className + '-' + stage;
-  if (className && rootCause) return 'advice-' + className + '-' + rootCause;
-  if (className) return 'advice-' + className;
-  if (rootCause && rule) return 'advice-' + rootCause + '-' + rule;
-  if (rootCause) return 'advice-' + rootCause;
-  if (rule) return 'advice-' + rule;
-  return 'advice-unknown-failure-signature';
-}
