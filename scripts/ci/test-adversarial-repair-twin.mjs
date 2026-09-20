@@ -13,6 +13,7 @@ assert.match(twin, /READ_ONLY_ADVERSARIAL_TWIN/);
 assert.match(twin, /mutationAuthority: false/);
 assert.match(twin, /repositoryWrite: false/);
 assert.match(twin, /actionsWrite: false/);
+assert.match(twin, /preferredAlternativeRepair/);
 assert.match(twin, /TWIN_READ_ONLY_CONTRACT_REQUIRED/);
 assert.doesNotMatch(twin, /git['"],\s*\[[^\]]*push/i);
 assert.doesNotMatch(twin, /gh['"],\s*\[[^\]]*workflow\s+run/i);
@@ -55,6 +56,7 @@ if (branch === 'execution') {
   assert.equal(result.mutationAuthority, false);
   assert.equal(result.repositoryWrite, false);
   assert.equal(result.actionsWrite, false);
+  assert.equal(typeof result.challenge?.preferredAlternativeRepair, 'string');
   assert.equal(result.targetSha, sha);
   assert.equal(result.challenge?.rule, 'NEVER_WRITE_SOURCE_AND_NEVER_CONTROL_ACTIONS');
 }
