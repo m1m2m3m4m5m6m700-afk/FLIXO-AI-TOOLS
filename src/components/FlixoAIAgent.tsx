@@ -129,11 +129,13 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     try {
       const decision = await askConversationalAgent({
         locale,
-        messages: [...messages, { id: messageId, role: 'user', text: command }].slice(-24).map((message) => ({
-          role: message.role === 'agent' ? 'assistant' : 'user',
-          content: message.text,
-        })),
-        file: file ? { name: file.name, type: file.type, size: file.size } : null,
+        messages: [
+          ...messages.slice(-23).map((message) => ({
+            role: message.role === 'agent' ? 'assistant' as const : 'user' as const,
+            content: message.text,
+          })),
+          { role: 'user' as const, content: command },
+        ],
         activePlan: plan,
         activeCommand: memory.activeCommand,
       });

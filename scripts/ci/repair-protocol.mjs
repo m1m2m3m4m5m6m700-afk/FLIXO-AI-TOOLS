@@ -69,9 +69,9 @@ export function validateErrorOnlyMutation({failureLocation,selectedFile,selected
   if (targets.length === 1 && targets[0] !== location) throw new Error('REPAIR_PROTOCOL_ERROR_TARGET_MISMATCH');
   if (targets.length > 1 && !targets.includes(location)) throw new Error('REPAIR_PROTOCOL_ERROR_CAUSAL_SOURCE_NOT_IN_TARGET_SET');
   if (!changed.length) throw new Error('REPAIR_PROTOCOL_ERROR_SCOPE_EXCEEDED');
-  const sourcePattern = /\\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu;
-  const testPattern = /(^|[\\\\/])(?:tests?|__tests__)(?:[\\\\/]|$)|(?:^|[\\\\/])test-[^/]+\\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu;
-  const controlPattern = /^(?:scripts\\/ci\\/(?:repair-|auto-repair)|scripts\\/ci\\/agent-|scripts\\/ci\\/control-plane)|^\\.github\\/workflows\\//u;
+  const sourcePattern = /\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu;
+  const testPattern = /(^|[\/])(?:tests?|__tests__)(?:[\/]|$)|(?:^|[\/])test-[^/]+\.(?:mjs|cjs|js|ts|tsx|jsx)$/iu;
+  const controlPattern = /^(?:scripts\/ci\/(?:repair-|auto-repair)|scripts\/ci\/agent-|scripts\/ci\/control-plane)|^\.github\/workflows\//u;
   for (const file of [...targets, ...changed]) {
     if (!sourcePattern.test(file)) throw new Error('REPAIR_PROTOCOL_SOURCE_FILE_TYPE_BLOCKED=' + file);
     if (testPattern.test(file)) throw new Error('REPAIR_PROTOCOL_TEST_MUTATION_BLOCKED');

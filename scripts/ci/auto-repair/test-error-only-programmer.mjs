@@ -80,7 +80,7 @@ try {
   const repair = runAstRepair(temp, { id: 'typescript-missing-import', file: 'src/app.ts', symbol: 'Widget' });
   assert.equal(repair.applied, true);
   assert.equal(repair.moduleFile, 'src/provider.ts');
-  assert.match(fs.readFileSync(path.join(temp, 'src', 'app.ts'), 'utf8'), /import \\{ Widget \\} from '\\.\\/provider';/u);
+  assert.ok(fs.readFileSync(path.join(temp, 'src', 'app.ts'), 'utf8').includes("import { Widget } from './provider';"));
   console.log('TYPESCRIPT_MISSING_IMPORT_EXECUTOR_TEST=PASS');
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });

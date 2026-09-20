@@ -3,11 +3,11 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { applyPreparedChanges } from './prepared-source-change.mjs';
 
-function escapeRegExp(value) { return String(value).replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\function escapeRegExp(value) { return String(value).replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\function safeRelativeFile'); }'); }
+function escapeRegExp(value) { return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function findTrackedExport(targetDir, symbol) {
   if (!symbol) return { ok: false, reason: 'TS_MISSING_IMPORT_SYMBOL_MISSING' };
   const files = String(execFileSync('git', ['-C', targetDir, 'ls-files', '--', '*.ts', '*.tsx', '*.js', '*.jsx', '*.mjs'], { encoding: 'utf8' }))
-    .split(/\r?\n/u).map((v) => v.trim()).filter(Boolean).filter((file) => !/(^|\\/)(?:tests?|__tests__)(?:\\/|$)/iu.test(file));
+    .split(/\r?\n/u).map((v) => v.trim()).filter(Boolean).filter((file) => !/(^|\/)(?:tests?|__tests__)(?:\/|$)/iu.test(file));
   const safe = escapeRegExp(symbol);
   const decl = new RegExp('^\\s*export\\s+(?:(?:declare|type)\\s+)?(?:const|let|var|function|class|enum|interface|type)\\s+' + safe + '\\b', 'mu');
   const reExport = new RegExp('^\\s*export\\s*\\{[^}]*\\b' + safe + '\\b[^}]*\\}', 'mu');
@@ -20,7 +20,7 @@ function findTrackedExport(targetDir, symbol) {
   return { ok: true, moduleFile: hits[0], hits };
 }
 function importSpecifier(fromFile, moduleFile) {
-  let relative = path.posix.relative(path.posix.dirname(fromFile.replace(/\\\\/g, '/')), moduleFile.replace(/\\\\/g, '/')).replace(/\\.(?:mjs|cjs|js|jsx|ts|tsx)$/iu, '');
+  let relative = path.posix.relative(path.posix.dirname(fromFile.replace(/\\/g, '/')), moduleFile.replace(/\\/g, '/')).replace(/\.(?:mjs|cjs|js|jsx|ts|tsx)$/iu, '');
   return relative.startsWith('.') ? relative : './' + relative;
 }
 function applyTypescriptMissingImport(targetDir, plan) {

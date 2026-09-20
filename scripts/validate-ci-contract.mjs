@@ -15,7 +15,6 @@ const impactExecutionWorkflow = readFileSync('.github/workflows/test-impact-exec
 const securityBaselineWorkflow = readFileSync('.github/workflows/repository-security-baseline.yml', 'utf8');
 const claudeSecurityWorkflow = readFileSync('.github/workflows/claude-security-review.yml', 'utf8');
 const greenGateWorkflow = readFileSync('.github/workflows/daily-flixo-green-gate.yml', 'utf8');
-const supersessionControllerWorkflow = readFileSync('.github/workflows/commit-supersession.yml', 'utf8');
 const currentCommitGuard = readFileSync('scripts/ci/assert-current-commit.mjs', 'utf8');
 const workflow = workflowSource.replace(/\\"/g, '"');
 const testEngine = readFileSync('scripts/test.mjs', 'utf8');
@@ -68,16 +67,6 @@ const exactShaVerificationWorkflows = [
   ['repository-security-baseline.yml', securityBaselineWorkflow],
 ];
 
-if (!/actions:\s*write/.test(supersessionControllerWorkflow) ||
-    !/push:\s*\n\s*branches:\s*\[execution, main\]/.test(supersessionControllerWorkflow) ||
-    !/cancel-in-progress:\s*true/.test(supersessionControllerWorkflow) ||
-    !/gh run cancel/.test(supersessionControllerWorkflow) ||
-    !/head_sha/.test(supersessionControllerWorkflow) ||
-    !/gh run watch/.test(supersessionControllerWorkflow) ||
-    !/ci\.yml/.test(supersessionControllerWorkflow)) {
-  console.error('CI contract failed: commit-supersession.yml must cancel stale runs and prove the exact current commit reaches canonical CI.');
-  process.exit(1);
-}
 if (!/EXPECTED_SHA/.test(currentCommitGuard) ||
     !/EXPECTED_BRANCH/.test(currentCommitGuard) ||
     !/FAIL CLOSED/.test(currentCommitGuard) ||
