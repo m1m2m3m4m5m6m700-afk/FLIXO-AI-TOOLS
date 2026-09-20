@@ -1,0 +1,6 @@
+import assert from 'node:assert/strict';
+import { buildTeachingPacket, TEACHING_SESSIONS } from './repair-teaching-sessions.mjs';
+assert.equal(TEACHING_SESSIONS.length,10);
+assert.deepEqual(TEACHING_SESSIONS.map(x=>x.id),['exact-sha-truth','red-root-cause','strategy-memory','unified-gate','repair-authority','false-green','successful-repair-memory','repeated-red-escalation','historical-learning','proof-closure']);
+const p=buildTeachingPacket({targetSha:'a'.repeat(40),currentSha:'b'.repeat(40),fingerprint:'fp',runId:'123',memory:{actionHistory:[{fingerprint:'fp',attempts:4,failures:3,successes:1,strategies:['reproduce-exact'],rejectedStrategies:['reproduce-exact'],doNotRepeat:['bad-rule']}]}}); 
+assert.equal(p.protocol,'SUPERVISING-REPAIR-TEACHING-v3'); assert.equal(p.exactShaRequired,true); assert.equal(p.staleEvidenceDetected,true); assert.equal(p.history.attempts,4); assert.deepEqual(p.history.rejectedStrategies,['reproduce-exact']); assert.equal(p.closure.result,'OPEN_UNTIL_PROVEN'); assert(p.sessions.every(x=>x.sequence>0)); console.log('REPAIR_TEACHING_SESSIONS_SELF_TEST=PASS');
