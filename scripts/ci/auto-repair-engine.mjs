@@ -18,11 +18,14 @@ import { critiqueRepair } from './auto-repair/self-critic.mjs';
 import { buildCausalProof } from './auto-repair/causal-proof.mjs';
 import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
 import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession, validateErrorOnlyMutation, validateMinimalRepairScope, validateTargetedRegressionSelection } from './repair-protocol.mjs';
+import { loadAttemptLedger, isRepairRejected, rejectionReasons } from './repair-attempt-ledger.mjs';
 
 const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const targetDir = process.env.FLIXO_TARGET_DIR ?? process.cwd();
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
 const fingerprint = fingerprintFailure(log);
+const stableCaseFingerprint = String(process.env.FLIXO_FAILURE_FINGERPRINT ?? '').trim() || fingerprint;
+const repairChainId = String(process.env.FLIXO_REPAIR_CHAIN_ID ?? process.env.TARGET_RUN_ID ?? '').trim();
 const normalizedFailure = normalizeFailure(log);
 const features = extractFeatures(log);
 const evidencePath = process.env.FLIXO_REPAIR_EVIDENCE_PATH ?? '/tmp/flixo-repair-evidence.json';
@@ -59,6 +62,7 @@ const prepareTargetedVerification = (currentLog, currentFeatures) => {
     reason: reproductionStability.classification === 'REPRODUCIBLE_FAILURE' ? null : 'baseline-not-reproducible:' + reproductionStability.classification,
   };
 };
+const attemptLedger = loadAttemptLedger(process.env.FLIXO_REPAIR_ATTEMPT_LEDGER ?? '/tmp/flixo-repair-attempt-ledger.json', { chainId: repairChainId, caseFingerprint: stableCaseFingerprint });
 const memory = loadMemory();
 const known = findCase(memory, fingerprint);
 const similar = findSimilarCases(memory, { fingerprint, normalized: normalizedFailure, features });
@@ -103,7 +107,7 @@ const historicalCandidate = plan.candidates.find((candidate) => historicalRules.
 const blockedRuleIds = new Set(blockedLessons.map((item) => item.rule).filter(Boolean));
 if (selected?.id && blockedRuleIds.has(selected.id) && !trustedLessons.some((item) => item.rule === selected.id && item.confidence >= 0.85)) selected = null;
 if (selected?.id && revertedRuleIds.has(selected.id)) selected = null;
-if (historicalCandidate && !blockedRuleIds.has(historicalCandidate.id) && (!selected || scorePlaybook(memory, specialist?.id ?? 'unknown', historicalCandidate.id) >= scorePlaybook(memory, specialist?.id ?? 'unknown', selected.id))) {
+if (historicalCandidate && !blockedRuleIds.has(historicalCandidate.id) && !isRepairRejected(attemptLedger, { chainId: repairChainId, caseFingerprint: stableCaseFingerprint, ruleId: historicalCandidate.id, strategyId: process.env.FLIXO_REPAIR_STRATEGY_ID ?? null }) && (!selected || scorePlaybook(memory, specialist?.id ?? 'unknown', historicalCandidate.id) >= scorePlaybook(memory, specialist?.id ?? 'unknown', selected.id))) {
   selected = {
     ...historicalCandidate,
     file: selected?.file ?? plan.reasoning?.location?.file ?? null,
@@ -134,12 +138,16 @@ const evidence = {
     trustedLessons: trustedLessons.map(({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence }) => ({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence })),
     blockedLessons: blockedLessons.map(({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence }) => ({ id, fingerprint: lessonFingerprint, rootCause, rule, confidence })),
     decision: selected?.id ? 'historical-learning-assisted' : 'no-trusted-learned-repair',
+    durableNoRepeat: { enabled: true, chainId: repairChainId || null, caseFingerprint: stableCaseFingerprint, rejectedSelection: durableLedgerRejected, rejectedReasons: rejectionReasons(attemptLedger, { chainId: repairChainId, caseFingerprint: stableCaseFingerprint, strategyId: process.env.FLIXO_REPAIR_STRATEGY_ID ?? null, ruleId: plan.selected?.id ?? null }).slice(-20) },
   },
   outcome: 'diagnostic-only',
   changedPaths: [],
   capabilityVersion: 'V11-CAUSAL-SIMULATION-ADVERSARIAL-PROOF',
   updatedAt: new Date().toISOString(),
 };
+
+const durableLedgerRejected = selected?.id ? isRepairRejected(attemptLedger, { chainId: repairChainId, caseFingerprint: stableCaseFingerprint, strategyId: process.env.FLIXO_REPAIR_STRATEGY_ID ?? null, ruleId: selected.id }) : false;
+if (durableLedgerRejected) selected = null;
 
 const reasoningDecision = diagnosis?.decision ?? null;
 const diagnosisGate = {
@@ -394,7 +402,7 @@ if (!diagnosisGate.allowed) {
 }
 
 if (!selected) {
-  evidence.escalation = { required: true, reason: 'no-safe-mutation-candidate' };
+  evidence.escalation = { required: true, reason: durableLedgerRejected ? 'durable-no-repeat-blocked' : 'no-safe-mutation-candidate' };
   writeEvidence(evidencePath, evidence);
   recordOutcome(memory, { fingerprint, normalizedFailure, features, rootCause: diagnosis?.rootCause ?? specialist?.id ?? 'unknown', outcome: 'proposed', verification: 'none', provenance: { targetSha }, preventionRule: 'No safe mutation candidate; escalate with evidence.' });
   writeMemory(memory);
