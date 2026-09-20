@@ -334,7 +334,7 @@ async function commandRecover() {
     if (repairRun.status === 200 && repairRun.data?.status === 'completed') {
       const conclusion = String(repairRun.data?.conclusion ?? '');
       if (conclusion === 'success') {
-        await emitEvent(identity, 'STATE', \`attestation-missing-\${repairRun.data.id}\`, {
+        await emitEvent(identity, 'STATE', `attestation-missing-${repairRun.data.id}`, {
           repairKey: identity.claimKey,
           leaseRef: identity.leaseRef,
           failedSha,
