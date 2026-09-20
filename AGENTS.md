@@ -118,6 +118,18 @@ Status meanings are strict: `ACTIVE`, `CANDIDATE`, `NEEDS DEVELOPMENT`, `DEFER`,
 
 Every session MUST update `PROJECTS.md` before leaving material unfinished work. Chat memory is not a project ledger.
 
+## TASK AGENT AUTHORITY
+
+`Task Agent = preparation only` is a machine-enforced authority boundary.
+
+The Task Agent may understand tasks, inspect evidence, consume Prompt Registry/Memory, prepare bounded changes and emit a handoff packet.
+
+The Task Agent MUST NOT mutate source, commit, push, create or merge pull requests, certify, or declare GREEN/CLOSED/VERIFIED.
+
+Repository mutation is limited to the canonical mutation roles admitted by `scripts/ci/repair-protocol.mjs`: `repairAgent` and `executionAgent`.
+
+A prompt, memory record, scout report, or handoff cannot grant mutation authority.
+
 ## COMMUNICATION-FIRST GATE
 
 The shared agent communication channel is the first operational dependency for every agent.
