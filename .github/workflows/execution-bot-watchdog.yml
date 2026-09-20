@@ -108,13 +108,46 @@ jobs:
           test -s /tmp/flixo-cell-wake-coordinator.json
           echo "CELL_WAKE_READY=true"
 
-      - name: Dispatch canonical Test System on exact SHA and verify admission
+      - name: Ensure canonical Test System exists for exact SHA without duplicate dispatch
         if: github.event_name != 'schedule' || steps.scheduled_wake.outputs.wake == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           EXECUTION_SHA="$(git rev-parse HEAD)"
+          echo "WATCHDOG_EXPECTED_TEST_SHA=$EXECUTION_SHA"
+
+          RUN_STATE="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow "FLIXO Test System" \
+            --commit "$EXECUTION_SHA" \
+            --limit 20 \
+            --json databaseId,status,conclusion,headSha \
+            | jq -r --arg sha "$EXECUTION_SHA" '
+                [ .[]
+                  | select(.headSha == $sha)
+                  | select(.status == "queued" or .status == "in_progress" or .status == "completed")
+                ]
+                | sort_by(.databaseId)
+                | last // {}
+                | [(.status // ""), (.conclusion // "")]
+                | @tsv'
+          )"
+          STATUS="$(printf '%s' "$RUN_STATE" | cut -f1)"
+          CONCLUSION="$(printf '%s' "$RUN_STATE" | cut -f2)"
+
+          if [ "$STATUS" = "queued" ] || [ "$STATUS" = "in_progress" ]; then
+            echo "WATCHDOG_TEST_SYSTEM_DISPATCH=NOOP_ACTIVE"
+            echo "WATCHDOG_CANONICAL_TEST_SYSTEM_STARTED=false"
+            exit 0
+          fi
+
+          if [ "$STATUS" = "completed" ] && [ "$CONCLUSION" = "success" ]; then
+            echo "WATCHDOG_TEST_SYSTEM_DISPATCH=NOOP_GREEN"
+            echo "WATCHDOG_CANONICAL_TEST_SYSTEM_STARTED=false"
+            exit 0
+          fi
+
           gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref execution
           FOUND="false"
           for attempt in $(seq 1 30); do
