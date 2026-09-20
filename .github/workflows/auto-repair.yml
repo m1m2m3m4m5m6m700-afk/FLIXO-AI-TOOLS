@@ -726,7 +726,7 @@ jobs:
           jq -e --arg sha "$SHA" --arg fp "$FP" '
             .agentId == "ACTION-REPAIR" and
             .role == "PRIMARY_CORRECTNESS_PROVER" and
-            .status == "PRIMARY_CORRECTNESS_CLAIM" and
+            .status == "PRIMARY_CORRECTNESS_PROVEN" and
             .proofObjective == "PROVE_PRIMARY_REPAIR_CORRECT" and
             .targetSha == $sha and
             .failureFingerprint == $fp and
@@ -755,6 +755,30 @@ jobs:
             .failureFingerprint == $fp
           ' /tmp/action-repair-twin-parity.json >/dev/null
           echo "FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH=/tmp/action-repair-twin-parity.json" >> "$GITHUB_ENV"
+
+      - name: Build mandatory pre-mutation simulation and differential proof
+        if: steps.strategy.outcome == 'success'
+        id: pre_mutation_proof
+        run: |
+          set -euo pipefail
+          SHA="$(cat /tmp/flixo-failed-sha)"
+          FP="$FLIXO_FAILURE_FINGERPRINT"
+          TASK_ID="ACTION-RED:$TARGET_RUN_ID:$FP"
+          node scripts/ci/action-vault-pre-mutation-proof.mjs \
+            --sha="$SHA" \
+            --fingerprint="$FP" \
+            --run-id="$TARGET_RUN_ID" \
+            --log="$FLIXO_FAILURE_LOG" \
+            --diagnosis=/tmp/flixo-root-cause.json \
+            --strategy=/tmp/flixo-repair-strategy.json \
+            --file-selection="$FLIXO_FILE_SELECTION_PATH" \
+            --awareness=/tmp/action-system-cognitive-awareness.json \
+            --twin=/tmp/action-repair-programmer-twin.json \
+            --primary-proof=/tmp/action-primary-correctness-proof.json \
+            --output=/tmp/action-vault-pre-mutation-proof.json
+          test -s /tmp/action-vault-pre-mutation-proof.json
+          jq -e --arg sha "$SHA" --arg fp "$FP" '.protocol == "REPAIR-SIMULATION-PROOF-v1" and .status == "PROVEN" and .targetSha == $sha and .failureFingerprint == $fp and .noMutationApplied == true and .proofCompleteness.NO_VALID_COUNTEREXAMPLE == true and .proofCompleteness.SANDBOX_SIMULATION_PASSED == true and .proofCompleteness.DIFFERENTIAL_CHECK_PASSED == true and .proofCompleteness.PATCH_CORRECTNESS_PROVEN == true and .proofCompleteness.REGRESSION_COUNTEREXAMPLES_EXHAUSTED == true' /tmp/action-vault-pre-mutation-proof.json >/dev/null
+          echo "FLIXO_ACTION_VAULT_PRE_MUTATION_PROOF_PATH=/tmp/action-vault-pre-mutation-proof.json" >> "$GITHUB_ENV"
 
       - name: Open mandatory three-bot collaboration mission
         if: success()
@@ -803,7 +827,7 @@ jobs:
           TARGET_RUN_ID: ${{ env.TARGET_RUN_ID }}
         run: |
           set -euo pipefail
-          node scripts/ci/action-repair-dual-control.mjs audit --agent=ACTION-REPAIR-2 --partner=ACTION-REPAIR --target-sha="$FLIXO_EXPECTED_TARGET_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --run-id="$TARGET_RUN_ID" --memory="$FLIXO_ACTION_REPAIR_ASSISTANT_MEMORY" --strategy=/tmp/flixo-repair-strategy.json --evidence=/tmp/flixo-root-cause.json --file-selection="$FLIXO_FILE_SELECTION_PATH" --programmer-twin-parity="$FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH" --primary-proof="$FLIXO_PRIMARY_CORRECTNESS_PROOF_PATH" --awareness="$FLIXO_SYSTEM_COGNITIVE_AWARENESS_PATH" --proposal=/tmp/action-repair-2-proposal.json
+          node scripts/ci/action-repair-dual-control.mjs audit --agent=ACTION-REPAIR-2 --partner=ACTION-REPAIR --target-sha="$FLIXO_EXPECTED_TARGET_SHA" --fingerprint="$FLIXO_FAILURE_FINGERPRINT" --run-id="$TARGET_RUN_ID" --memory="$FLIXO_ACTION_REPAIR_ASSISTANT_MEMORY" --strategy=/tmp/flixo-repair-strategy.json --evidence=/tmp/flixo-root-cause.json --file-selection="$FLIXO_FILE_SELECTION_PATH" --programmer-twin-parity="$FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH" --primary-proof="$FLIXO_PRIMARY_CORRECTNESS_PROOF_PATH" --awareness="$FLIXO_SYSTEM_COGNITIVE_AWARENESS_PATH" --pre-mutation-proof="$FLIXO_ACTION_VAULT_PRE_MUTATION_PROOF_PATH" --proposal=/tmp/action-repair-2-proposal.json
           test -s /tmp/action-repair-2-proposal.json
 
       - name: ACTION-REPAIR-1 approval for ACTION-REPAIR-2
