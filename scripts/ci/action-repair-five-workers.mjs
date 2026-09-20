@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { query as queryHistoricalActionErrors } from './historical-action-error-index.mjs';
+import { appendActionCenterEvent } from './action-repair-memory.mjs';
 
 const ROOT=process.cwd();
 const REGISTRY=path.join(ROOT,'docs/agents/ACTION-REPAIR-SQUAD-REGISTRY.json');
@@ -91,12 +92,14 @@ if(role==='wake'){
  if(branch!=='execution')throw new Error('ACTION_WAKE_BRANCH_BLOCKED');
  if(!['PUSH_READY','RED_INTERNAL','BLOCKED_EXTERNAL','FAIL_CLOSED'].includes(status))throw new Error('ACTION_WAKE_STATUS_NOT_ACTIONABLE');
  const result={schemaVersion:1,botId:'ACTION-WAKE',role:ROLE_MAP['ACTION-WAKE'],action:'WAKE_ACTION_REPAIR_SQUAD',dispatcher:'FLIXO Execution Bot Watchdog',targetRunId:runId,targetSha,failureFingerprint:fingerprint,status,mutationAuthority:false,directDispatch:false,wholeCellReady:true,sharedReferences:SHARED_REFS,canonicalNextStep:status==='PUSH_READY'?'DAILY_FLIXO_GREEN_GATE':'EXISTING_CANONICAL_DISPATCHER'};
+ appendActionCenterEvent({type:'WAKE',taskId:'ACTION-WAKE:'+runId+':'+fingerprint,fingerprint,runId,targetSha,actor:'ACTION-WAKE',payload:{status,dispatcher:result.dispatcher,canonicalNextStep:result.canonicalNextStep}});
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));process.exit(0);
 }
 if(role==='index'){
  requireIdentity();
  const records=historicalSolutions(12);
  const result={schemaVersion:1,botId:'ACTION-INDEX',role:ROLE_MAP['ACTION-INDEX'],targetSha,runId,failureFingerprint:fingerprint,logDigest,queryTerms:topTerms,historicalMatchCount:records.length,historicalMatches:records,sameReferences:true,sharedReferences:SHARED_REFS,mutationAuthority:false,recommendation:records.length?'HISTORICAL_CANDIDATES_FOUND':'NO_HISTORICAL_MATCH'};
+ appendActionCenterEvent({type:'HISTORICAL_MATCHES',taskId:'ACTION-INDEX:'+runId+':'+fingerprint,fingerprint,runId,targetSha,actor:'ACTION-INDEX',payload:{logDigest,queryTerms:topTerms,historicalMatchCount:records.length,matchIds:records.map(x=>x.id).filter(Boolean)}});
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify({status:'PASS',role,resultCount:records.length,output:out},null,2));process.exit(0);
 }
 if(role==='select'){
@@ -109,6 +112,7 @@ if(role==='select'){
  const twinB=bFile&&fs.existsSync(bFile)?readJson(bFile):null;
  const selection=selectBest({historical,twinA,twinB});
  const result={schemaVersion:1,botId:'ACTION-WISE',role:ROLE_MAP['ACTION-WISE'],targetSha,runId,failureFingerprint:fingerprint,mutationAuthority:false,canonicalMutationOwner:'repairAgent',historicalSolutionCount:historical.length,twinAAvailable:Boolean(twinA),twinBAvailable:Boolean(twinB),selection};
+ appendActionCenterEvent({type:'WISE_SELECTION',taskId:'ACTION-WISE:'+runId+':'+fingerprint,fingerprint,runId,targetSha,actor:'ACTION-WISE',payload:{historicalSolutionCount:historical.length,twinAAvailable:Boolean(twinA),twinBAvailable:Boolean(twinB),selection}});
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));process.exit(selection.disposition==='SELECTED'?0:2);
 }
 const logExists=Boolean(logPath&&fs.existsSync(logPath));
