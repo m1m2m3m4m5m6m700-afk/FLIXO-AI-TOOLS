@@ -1,9 +1,6 @@
 name: FLIXO Continuous Delivery
 
 on:
-  workflow_run:
-    workflows: ["FLIXO Test System"]
-    types: [completed]
   workflow_dispatch:
     inputs:
       sha:
@@ -12,7 +9,7 @@ on:
         type: string
 
 concurrency:
-  group: flixo-cd-${{ github.event.workflow_run.head_sha || inputs.sha || github.run_id }}
+  group: flixo-cd-${{ inputs.sha || github.run_id }}
   cancel-in-progress: false
 
 permissions:
@@ -26,11 +23,7 @@ env:
 jobs:
   promote:
     name: Promote exact certified SHA
-    if: >-
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main' &&
-       github.event.workflow_run.event == 'push')
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
@@ -41,11 +34,10 @@ jobs:
         id: sha
         shell: bash
         env:
-          EVENT_SHA: ${{ github.event.workflow_run.head_sha }}
           MANUAL_SHA: ${{ inputs.sha }}
         run: |
           set -euo pipefail
-          sha="${MANUAL_SHA:-$EVENT_SHA}"
+          sha="$MANUAL_SHA"
           test -n "$sha"
           printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
 
@@ -106,11 +98,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PROMOTION_SHA: ${{ steps.sha.outputs.sha }}
           EVENT_NAME: ${{ github.event_name }}
-          EVENT_RUN_ID: ${{ github.event.workflow_run.id }}
-          EVENT_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
-          EVENT_RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          EVENT_RUN_EVENT: ${{ github.event.workflow_run.event }}
-          EVENT_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         shell: bash
         run: |
           set -u
@@ -118,7 +105,7 @@ jobs:
           run_id=''
           resolution=''
 
-          if [ "$EVENT_NAME" = "workflow_run" ]; then
+          if false; then
             if [ "$EVENT_RUN_SHA" != "$PROMOTION_SHA" ]; then
               resolution=TRIGGER_SHA_MISMATCH
             elif [ "$EVENT_RUN_BRANCH" != "main" ]; then
