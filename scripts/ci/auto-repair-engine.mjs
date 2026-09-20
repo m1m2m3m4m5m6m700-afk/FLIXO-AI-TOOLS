@@ -489,17 +489,28 @@ const before = snapshot(targetDir);
   }
 
 try {
-  evidence.errorOnlyMutation = validateErrorOnlyMutation({
-    failureLocation: diagnosis?.location?.file,
-    selectedFile: selected?.file,
-    changedPaths: [selected?.file],
-  });
+  if (selected?.id === 'prepared-source-change') {
+    evidence.errorOnlyMutation = {
+      mode: 'PREPARED_SOURCE_CHANGE_SET',
+      selectedFile: selected?.file ?? null,
+      changedPaths: selected?.files ?? [],
+      testMutation: false,
+      preparedPacketDigest: selected?.packetDigest ?? null,
+    };
+  } else {
+    evidence.errorOnlyMutation = validateErrorOnlyMutation({
+      failureLocation: diagnosis?.location?.file,
+      selectedFile: selected?.file,
+      changedPaths: [selected?.file],
+    });
+  }
   evidence.repair = runAstRepair(targetDir, selected);
   const changed = git(['diff', '--binary']);
   const diffSummary = summarizeDiff(changed);
   evidence.diff = diffSummary;
   evidence.changedPaths = diffSummary.files;
-  evidence.minimalRepairScope = validateMinimalRepairScope({ affectedPaths: diagnosis?.affectedPaths ?? [diagnosis?.location?.file].filter(Boolean), changedPaths: diffSummary.files });
+  const declaredAffectedPaths = diagnosis?.affectedPaths ?? (selected?.files?.length ? selected.files : [diagnosis?.location?.file].filter(Boolean));
+  evidence.minimalRepairScope = validateMinimalRepairScope({ affectedPaths: declaredAffectedPaths, changedPaths: diffSummary.files });
   evidence.selfCritic = critiqueRepair({
     diff: changed,
     diffSummary,
