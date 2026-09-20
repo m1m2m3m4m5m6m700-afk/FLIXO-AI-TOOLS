@@ -204,6 +204,7 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
       selectedFile: historicalRollbackCandidate?.file ?? diagnosis?.location?.file,
       changedPaths: diffSummary.files,
     });
+    const attributionResultingSHA = git(['rev-parse', 'HEAD']).trim();
     evidence.mutationAttribution = mutationAttribution({
       agentIdentity: repairActor,
       taskId: process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? null,
@@ -214,11 +215,8 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
       strategy: evidence.selected,
       targetedTests: evidence.reproductionCommands,
       fullTests: evidence.regressionSelection?.regressionCommands ?? [],
-      resultingSHA: (() => {
-        const after = git(['rev-parse', 'HEAD']).trim();
-        return after !== targetSha ? after : null;
-      })(),
-      outcome: 'mutation-applied',
+      resultingSHA: attributionResultingSHA !== targetSha ? attributionResultingSHA : null,
+      outcome: attributionResultingSHA !== targetSha ? 'mutation-applied' : 'mutation-pending-commit',
     });
     if (
       !diffSummary.files.length ||
