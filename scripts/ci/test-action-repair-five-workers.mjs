@@ -46,6 +46,10 @@ for(const worker of report.workers){
 const wake='/tmp/flixo-action-wake.json';
 execFileSync('node',[...base,'--role=wake','--status=RED_INTERNAL','--output='+wake],{stdio:'pipe'});
 assert.equal(JSON.parse(fs.readFileSync(wake,'utf8')).canonicalNextStep,'EXISTING_CANONICAL_DISPATCHER');
+const pushWake='/tmp/flixo-action-push-wake.json';
+execFileSync('node',[...base,'--role=wake','--status=PUSH_READY','--output='+pushWake],{stdio:'pipe'});
+assert.equal(JSON.parse(fs.readFileSync(pushWake,'utf8')).wholeCellReady,true);
+assert.equal(JSON.parse(fs.readFileSync(pushWake,'utf8')).canonicalNextStep,'DAILY_FLIXO_GREEN_GATE');
 const index='/tmp/flixo-action-index.json';
 execFileSync('node',[...base,'--role=index','--output='+index],{stdio:'pipe'});
 assert.equal(JSON.parse(fs.readFileSync(index,'utf8')).botId,'CELL-001');
