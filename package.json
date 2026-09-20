@@ -123,7 +123,9 @@
     "test:repair-execution-prompts": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/test-repair-execution-prompts.mjs",
     "test:repair-execution-prompt-integration": "node --import=./scripts/register-node-resolver.mjs --experimental-strip-types scripts/ci/test-repair-execution-prompt-integration.mjs",
     "validate:prompt-registry": "node scripts/ci/validate-prompt-registry.mjs",
-    "test:prompt-registry": "node scripts/ci/test-prompt-registry.mjs"
+    "test:prompt-registry": "node scripts/ci/test-prompt-registry.mjs",
+    "agent:communication": "node scripts/ci/agent-communication.mjs",
+    "test:agent-communication": "node scripts/ci/test-agent-communication.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
