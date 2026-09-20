@@ -544,6 +544,50 @@ export function recordOutcome(memory, { fingerprint, normalizedFailure, features
   entry.outcomes = entry.outcomes.slice(-MEMORY_RETENTION.maxCaseOutcomes);
   if (!memory.cases.includes(entry)) memory.cases.push(entry);
   const countsAsPlaybookAttempt = ['success', 'unrepaired', 'failure', 'blocked'].includes(outcome);
+  const actionRecord = memory.actionHistory.find((item) => item.fingerprint === fingerprint) ?? {
+    fingerprint,
+    rootCause: entry.rootCause,
+    attempts: 0,
+    successes: 0,
+    failures: 0,
+    occurrences: 0,
+    strategies: [],
+    rejectedStrategies: [],
+    rules: [],
+    doNotRepeat: [],
+    evidence: [],
+    firstSeenAt: new Date().toISOString(),
+    lastSeenAt: null,
+  };
+  actionRecord.rootCause = entry.rootCause;
+  actionRecord.occurrences = Number(actionRecord.occurrences ?? 0) + 1;
+  actionRecord.lastSeenAt = new Date().toISOString();
+  if (countsAsPlaybookAttempt) actionRecord.attempts = Number(actionRecord.attempts ?? 0) + 1;
+  if (outcome === 'success') actionRecord.successes = Number(actionRecord.successes ?? 0) + 1;
+  if (['failure', 'unrepaired', 'blocked', 'reverted-repair', 'revert-failure'].includes(outcome)) actionRecord.failures = Number(actionRecord.failures ?? 0) + 1;
+  const observedStrategy = strategyId ?? provenance?.strategyId ?? null;
+  if (observedStrategy) {
+    actionRecord.strategies = [...new Set([...(actionRecord.strategies ?? []), observedStrategy])].slice(-20);
+    if (outcome !== 'success') actionRecord.rejectedStrategies = [...new Set([...(actionRecord.rejectedStrategies ?? []), observedStrategy])].slice(-20);
+  }
+  if (rule) actionRecord.rules = [...new Set([...(actionRecord.rules ?? []), rule])].slice(-20);
+  if (outcome !== 'success' && rule) actionRecord.doNotRepeat = [...new Set([...(actionRecord.doNotRepeat ?? []), rule])].slice(-50);
+  if (effectiveProvenance?.failedSha || effectiveProvenance?.targetSha || verification) {
+    actionRecord.evidence = [...(actionRecord.evidence ?? []), {
+      outcome,
+      verification,
+      strategyId: observedStrategy,
+      failedSha: effectiveProvenance?.failedSha ?? null,
+      targetSha: effectiveProvenance?.targetSha ?? null,
+      runId: effectiveProvenance?.runId ?? null,
+      at: new Date().toISOString(),
+    }].slice(-MEMORY_RETENTION.maxLessonEvidence);
+  }
+  const historyIndex = memory.actionHistory.findIndex((item) => item.fingerprint === fingerprint);
+  if (historyIndex >= 0) memory.actionHistory[historyIndex] = actionRecord;
+  else memory.actionHistory.push(actionRecord);
+  memory.actionHistory = memory.actionHistory.slice(-MEMORY_RETENTION.maxActionHistory);
+
   if (rule && countsAsPlaybookAttempt) {
     const playbook = memory.playbooks.find((item) => item.rootCause === entry.rootCause && item.rule === rule) ?? { rootCause: entry.rootCause, rule, attempts: 0, successes: 0, failures: 0, fingerprints: [], successfulFingerprints: [], failedFingerprints: [] };
     playbook.attempts += 1;
