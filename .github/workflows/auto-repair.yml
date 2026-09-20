@@ -73,6 +73,7 @@ env:
   FLIXO_TRUSTED_REPAIR_MEMORY: /tmp/flixo-trusted-memory.json
   FLIXO_SCOUT_REPORT: /tmp/flixo-investigation/code-scout-latest.json
   FLIXO_DIAGNOSTIC_LINE_LIMIT: '5000'
+  FLIXO_REPAIR_ATTEMPT_LEDGER: /tmp/flixo-repair-attempt-ledger.json
 
 jobs:
   adversarial_twin:
@@ -514,6 +515,23 @@ jobs:
             echo "FLIXO_PROMPT_ID not available; learning remains unbound to a registry prompt."
           fi
 
+      - name: Restore durable no-repeat repair ledger
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -f "$FLIXO_REPAIR_ATTEMPT_LEDGER"
+          mkdir -p "$(dirname "$FLIXO_REPAIR_ATTEMPT_LEDGER")"
+          PREFIX="flixo-repair-attempt-ledger-$FLIXO_REPAIR_CHAIN_ID-"
+          LATEST_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --paginate --jq '.artifacts[] | select(.expired == false) | [.id,.created_at,.name] | @tsv' | grep -F "$PREFIX" | sort -k2,2r | head -n 1 | cut -f1 || true)"
+          if [ -n "$LATEST_ID" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$LATEST_ID/zip" > /tmp/flixo-attempt-ledger.zip
+            unzip -p /tmp/flixo-attempt-ledger.zip repair-attempt-ledger.json > "$FLIXO_REPAIR_ATTEMPT_LEDGER"
+          else
+            node /tmp/flixo-repair-controller/scripts/ci/repair-attempt-ledger.mjs init
+          fi
+          test -s "$FLIXO_REPAIR_ATTEMPT_LEDGER"
+          node --input-type=module -e "const fs=require('fs');const l=JSON.parse(fs.readFileSync(process.env.FLIXO_REPAIR_ATTEMPT_LEDGER,'utf8'));if(l.chainId!==process.env.FLIXO_REPAIR_CHAIN_ID)throw new Error('REPAIR_ATTEMPT_LEDGER_CHAIN_MISMATCH');console.log(JSON.stringify({chainId:l.chainId,rejected:l.rejected?.length||0,attempts:l.attempts?.length||0}));"
       - name: Select repair strategy and continue strict RED repair
         id: strategy
         env:
@@ -577,6 +595,7 @@ jobs:
           FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
         run: |
           set -euo pipefail
+          export FLIXO_REPAIR_STRATEGY_ID="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId||'')")"
           export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
           node /tmp/flixo-repair-controller/scripts/ci/auto-repair-engine.mjs
       - name: Build Phase 1 AI impact and CI orchestration plan
@@ -647,6 +666,22 @@ jobs:
           set -euo pipefail
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=LOCAL_VERIFICATION --actor=VERIFIER --reason=FULL_VERIFICATION_PASSED
 
+      - name: Record durable no-repeat outcome for the active repair chain
+        if: always()
+        env:
+          FLIXO_LEDGER_OUTCOME: ${{ steps.verify.outputs.verified == 'true' && 'success' || 'failure' }}
+          FLIXO_REPAIR_EVIDENCE_PATH: /tmp/flixo-repair-evidence.json
+        run: |
+          set -euo pipefail
+          ENGINE_OUTCOME="$(cat /tmp/flixo-engine-outcome 2>/dev/null || printf '%s' engine-error)"
+          VERIFIED="steps.verify.outputs.verified == 'true' && 'success' || 'failure'"
+          if [ "$ENGINE_OUTCOME" = "verified-repair" ] && [ "$VERIFIED" = "success" ]; then
+            echo 'NO_REPEAT_LEDGER=GREEN_NO_REJECTION'
+          elif [ "$ENGINE_OUTCOME" = "proposal-only" ] || [ "$ENGINE_OUTCOME" = "blocked-external" ]; then
+            echo "NO_REPEAT_LEDGER=NO_SOURCE_REPAIR outcome=$ENGINE_OUTCOME"
+          else
+            node /tmp/flixo-repair-controller/scripts/ci/repair-attempt-ledger.mjs record
+          fi
       - name: Record learning outcome for every diagnosed failure
         if: always()
         env:
@@ -927,6 +962,14 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Publish durable no-repeat repair ledger
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-repair-attempt-ledger-${{ env.FLIXO_REPAIR_CHAIN_ID }}-${{ github.run_id }}
+          path: /tmp/flixo-repair-attempt-ledger.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Publish repair evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
