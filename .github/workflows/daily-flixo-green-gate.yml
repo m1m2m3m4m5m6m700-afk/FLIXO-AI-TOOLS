@@ -216,16 +216,31 @@ jobs:
           }
 
           CONTROL_PLANE_FILE="/tmp/flixo-watch/repair-control-plane.json"
+          FAILED_SHA="$(cat /tmp/flixo-watch/execution-sha)"
           CHAIN_ID="watch-$REPAIR_KEY"
-          EXISTS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow auto-repair.yml --limit 100 --json displayTitle \
-            --jq '.[].displayTitle' | grep -Fxc "FLIXO Auto Repair Chain $CHAIN_ID" || true)"
+          LEASE_REF="$(node scripts/ci/repair-control-plane.mjs lease-ref \
+            --fingerprint="$FAILURE_FINGERPRINT" \
+            --failedSha="$FAILED_SHA" \
+            --targetRunId="$TARGET_RUN_ID" \
+            --branch="execution")"
+          case "$LEASE_REF" in
+            refs/tags/flixo-repair-lease-*) ;;
+            *) echo "FAIL CLOSED: invalid global repair lease ref: $LEASE_REF"; exit 1 ;;
+          esac
 
-          if [ "$EXISTS" -eq 0 ]; then
+          set +e
+          LEASE_OUTPUT="$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f "ref=$LEASE_REF" \
+            -f "sha=$FAILED_SHA" 2>&1)"
+          LEASE_RC=$?
+          set -e
+
+          if [ "$LEASE_RC" -eq 0 ]; then
             node scripts/ci/repair-control-plane.mjs claim \
               --fingerprint="$FAILURE_FINGERPRINT" \
-              --failedSha="$(cat /tmp/flixo-watch/execution-sha)" \
+              --failedSha="$FAILED_SHA" \
               --targetRunId="$TARGET_RUN_ID" \
-              --executionSha="$(cat /tmp/flixo-watch/execution-sha)" \
+              --executionSha="$FAILED_SHA" \
               --mainSha="$(cat /tmp/flixo-watch/main-sha)" \
               --owner="DAILY_FLIXO_GREEN_GATE" \
               --branch="execution" > "$CONTROL_PLANE_FILE"
@@ -242,10 +257,18 @@ jobs:
               -f "chain_id=$CHAIN_ID" \
               -f "failure_fingerprint=$FAILURE_FINGERPRINT" \
               -f "prompt_source_run_id=$GITHUB_RUN_ID"
+            echo "REPAIR_LEASE_CLAIMED=true"
             echo "REPAIR_DISPATCHED=$TARGET_RUN_ID"
             echo "CONTROL_PLANE_CHAIN_ID=$CLAIMED_CHAIN_ID"
           else
-            echo "REPAIR_ALREADY_TRACKED=$TARGET_RUN_ID"
+            if printf '%s' "$LEASE_OUTPUT" | grep -qiE 'Reference already exists|already exists'; then
+              echo "REPAIR_LEASE_CLAIMED=false"
+              echo "REPAIR_ALREADY_CLAIMED=$REPAIR_KEY"
+            else
+              echo "$LEASE_OUTPUT"
+              echo "FAIL CLOSED: global repair lease acquisition failed."
+              exit 1
+            fi
           fi
 
       - name: Publish cycle evidence

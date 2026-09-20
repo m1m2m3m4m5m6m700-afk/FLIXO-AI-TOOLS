@@ -32,7 +32,8 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: flixo-auto-repair-execution
+  # Serialize identical repair keys while allowing independent exact-SHA failures to progress.
+  group: flixo-auto-repair-execution-${{ inputs.failure_fingerprint || inputs.target_run_id }}
   cancel-in-progress: false
 
 env:
@@ -151,6 +152,27 @@ jobs:
           else
             echo "CONTROL_PLANE_FINGERPRINT_SOURCE=WATCHER_INPUT"
           fi
+          LEASE_REF="$(node scripts/ci/repair-control-plane.mjs lease-ref \
+            --fingerprint="$FAILURE_FINGERPRINT" \
+            --failedSha="$FAILED_SHA" \
+            --targetRunId="$TARGET_RUN_ID" \
+            --branch="execution")"
+          set +e
+          LEASE_OUTPUT="$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f "ref=$LEASE_REF" \
+            -f "sha=$FAILED_SHA" 2>&1)"
+          LEASE_RC=$?
+          set -e
+          if [ "$LEASE_RC" -ne 0 ]; then
+            if printf '%s' "$LEASE_OUTPUT" | grep -qiE 'Reference already exists|already exists'; then
+              echo "FAIL CLOSED: duplicate global repair lease for the same branch+SHA+fingerprint+targetRunId."
+              exit 73
+            fi
+            echo "$LEASE_OUTPUT"
+            echo "FAIL CLOSED: global repair lease acquisition failed."
+            exit 1
+          fi
+
           node scripts/ci/repair-control-plane.mjs claim \
             --fingerprint="$FAILURE_FINGERPRINT" \
             --failedSha="$FAILED_SHA" \

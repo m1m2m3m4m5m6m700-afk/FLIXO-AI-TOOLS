@@ -53,15 +53,18 @@ const requireText = (name, value) => {
   return text;
 };
 
-export function deriveRepairIdentity({ failureFingerprint, failedSha }) {
+export function deriveRepairIdentity({ failureFingerprint, failedSha, targetRunId, branch = 'execution' }) {
   requireText('failureFingerprint', failureFingerprint);
+  requireText('targetRunId', targetRunId);
+  if (!['execution', 'main'].includes(branch)) throw new Error('CONTROL_PLANE_REPAIR_BRANCH_BLOCKED');
   if (!isSha(failedSha)) throw new Error('CONTROL_PLANE_FAILED_SHA_INVALID');
-  const cycleKey = `${failureFingerprint}:${failedSha}`;
+  const cycleKey = `${branch}:${failedSha}:${failureFingerprint}:${targetRunId}`;
   const digest = sha256(cycleKey);
   return Object.freeze({
     cycleKey,
     claimKey: `claim-${digest}`,
     repairChainId: `RC-${digest.slice(0, 20)}`,
+    leaseRef: `refs/tags/flixo-repair-lease-${digest}`,
   });
 }
 
@@ -78,7 +81,7 @@ export function createRepairCycle({
   if (observedBranch !== 'execution') throw new Error('CONTROL_PLANE_REPAIR_BRANCH_BLOCKED');
   if (!isSha(executionSha)) throw new Error('CONTROL_PLANE_EXECUTION_SHA_INVALID');
   if (mainSha !== null && !isSha(mainSha)) throw new Error('CONTROL_PLANE_MAIN_SHA_INVALID');
-  const identity = deriveRepairIdentity({ failureFingerprint, failedSha });
+  const identity = deriveRepairIdentity({ failureFingerprint, failedSha, targetRunId, branch: observedBranch });
   return Object.freeze({
     schemaVersion: CONTROL_PLANE_SCHEMA_VERSION,
     authority: CONTROL_PLANE_AUTHORITY,
@@ -215,6 +218,8 @@ export function controlPlaneSchema() {
       'RED_REMAINS_OPEN_UNTIL_VERIFIED_GREEN',
       'STALE_SHA_BLOCKS_PUBLICATION',
       'DUPLICATE_CLAIMS_SHARE_A_DETERMINISTIC_CLAIM_KEY',
+    'GLOBAL_REPAIR_LEASE_IS_ATOMIC_AND_DURABLE',
+    'GLOBAL_REPAIR_LEASE_IS_NOT_A_BRANCH',
     ],
   });
 }
@@ -227,6 +232,16 @@ function cli() {
   const command = process.argv[2];
   if (command === 'schema') {
     console.log(JSON.stringify(controlPlaneSchema(), null, 2));
+    return;
+  }
+  if (command === 'lease-ref') {
+    const identity = deriveRepairIdentity({
+      failureFingerprint: args.fingerprint,
+      failedSha: args.failedSha,
+      targetRunId: args.targetRunId,
+      branch: args.branch || 'execution',
+    });
+    console.log(identity.leaseRef);
     return;
   }
   if (command === 'claim') {
@@ -255,7 +270,7 @@ function cli() {
     console.log(JSON.stringify(next, null, 2));
     return;
   }
-  throw new Error('Usage: repair-control-plane.mjs schema|claim|advance');
+  throw new Error('Usage: repair-control-plane.mjs schema|lease-ref|claim|advance');
 }
 
 if (process.argv[1]?.endsWith('repair-control-plane.mjs')) {
