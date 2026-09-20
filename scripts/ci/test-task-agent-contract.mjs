@@ -36,7 +36,7 @@ assert.ok(execution.includes("packet.executionAuthority !== 'TASK_PREPARATION_ON
 assert.ok(execution.includes("packet.mutationPolicy !== 'NO_DIRECT_MUTATION'"));
 assert.ok(execution.includes("REPAIR_AGENT_OR_EXECUTION_AGENT"));
 
-assert.ok(repairProtocol.includes("mutationAgents: ['repairAgent','implementation','executionAgent']"));
+assert.ok(repairProtocol.includes("mutationAgents: ['repairAgent','executionAgent']"));
 assert.ok(!repairProtocol.includes("mutationAgents: ['repairAgent','implementation','executionAgent','taskAgent']"));
 
 assert.equal(packageJson.scripts['agent:task'], 'node scripts/ci/task-agent.mjs');
