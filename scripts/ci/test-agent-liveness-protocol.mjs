@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
-import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, sessionTerminationDirective, idleAdmission, sleepAdmission } from './agent-liveness-protocol.mjs';
+import { AGENT_LIVENESS_PROTOCOL, assertLivenessDefinition, assertState, assertTransition, checkHeartbeat, checkProgress, buildRecoveryDirective, sessionTerminationDirective, idleAdmission, sleepAdmission, selfDisableAdmission, selfAbortAdmission, runEndAdmission } from './agent-liveness-protocol.mjs';
 
 assert.equal(assertLivenessDefinition(), true);
 assert.deepEqual([...AGENT_LIVENESS_PROTOCOL.forbiddenStates].sort(), ['ABANDONED','IDLE','SILENT','SLEEP'].sort());
 assert.equal(AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs, 5 * 60 * 1000);
-assert.equal(AGENT_LIVENESS_PROTOCOL.protocolVersion, '3.0.0');
+assert.equal(AGENT_LIVENESS_PROTOCOL.protocolVersion, '4.0.0');
+assert.equal(AGENT_LIVENESS_PROTOCOL.contractRank, 'SUPREME_AUTOMATION_RESIDENCY');
+assert.equal(AGENT_LIVENESS_PROTOCOL.manualWakeRequired, false);
+assert.equal(AGENT_LIVENESS_PROTOCOL.selfDisableAllowed, false);
+assert.equal(AGENT_LIVENESS_PROTOCOL.selfAbortAllowed, false);
 
 for (const state of AGENT_LIVENESS_PROTOCOL.workAssignedStates) assert.doesNotThrow(() => assertState(state, { workAssigned: true }));
 for (const forbidden of AGENT_LIVENESS_PROTOCOL.forbiddenStates) assert.throws(() => assertState(forbidden, { workAssigned: true }), /AGENT_LIVENESS_/u);
@@ -24,6 +28,9 @@ assert.equal(checkProgress({state:'ACTIVE',lastProgressAt:new Date(Date.now()-2*
 assert.equal(checkProgress({state:'ACTIVE',lastProgressAt:new Date(Date.now()-20*60*1000).toISOString(),consecutiveNoProgress:2}).action,'STRATEGY_ROTATION_REQUIRED');
 assert.throws(() => sleepAdmission(), /SLEEP_FORBIDDEN_PERMANENT_RESIDENCY/u);
 assert.throws(() => idleAdmission(), /IDLE_FORBIDDEN_PERMANENT_RESIDENCY/u);
+assert.throws(() => selfDisableAdmission(), /SELF_DISABLE_FORBIDDEN_PERMANENT_RESIDENCY/u);
+assert.throws(() => selfAbortAdmission(), /SELF_ABORT_FORBIDDEN_PERMANENT_RESIDENCY/u);
+assert.throws(() => runEndAdmission(), /RUN_END_DOES_NOT_END_TASK/u);
 const recovery=buildRecoveryDirective({reason:'HEARTBEAT_STALE',currentState:'ACTIVE'});
 assert.equal(recovery.action,'RECOVER_AND_CONTINUE');
 assert.equal(recovery.to,'RECOVERING');
