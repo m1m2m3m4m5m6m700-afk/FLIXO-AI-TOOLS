@@ -68,5 +68,28 @@
       "mission": "رفع جودة الطعن المستقل وسرعة الاستلام بعد فشل المالك",
       "promotionProof": "INDEPENDENT_REVIEW_PLUS_EXACT_SHA"
     }
-  }
+  },
+  "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
+  "residencyState": "RESIDENT_ALWAYS",
+  "maxOperationsPerBot": 2000000,
+  "dailyAutomaticVisits": {
+    "visitsPerDay": 3,
+    "totalForCoreSquad": 9,
+    "automatic": true
+  },
+  "closurePolicy": "CANONICAL_GREEN_ONLY",
+  "escalationAfterFailedAttempts": 20,
+  "supervisorEscalationRoute": "scripts/ci/agent-communication.mjs -> .github/workflows/agent-communication-relay.yml -> assistantController",
+  "cooperationOnRed": {
+    "enabled": true,
+    "participants": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "sameTask": true,
+    "sameFingerprint": true,
+    "sameSha": true
+  },
+  "role": "SECONDARY_REPAIR_OWNER"
 }
