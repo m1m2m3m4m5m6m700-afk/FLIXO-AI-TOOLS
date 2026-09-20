@@ -18,6 +18,8 @@ const awarenessPath=arg('awareness','');
 const preMutationProofPath=arg('pre-mutation-proof','');
 const now=()=>new Date().toISOString();
 const read=(p)=>JSON.parse(fs.readFileSync(p,'utf8'));
+import { validateActionVaultPreMutationProofs } from './repair-protocol.mjs';
+
 const shaOk=x=>/^[a-f0-9]{40}$/u.test(String(x||''));
 if(mode==='audit'){
  const memory=arg('memory');
@@ -35,6 +37,7 @@ if(mode==='audit'){
  if(primaryProof.role!=='PRIMARY_CORRECTNESS_PROVER'||primaryProof.status!=='PRIMARY_CORRECTNESS_PROVEN'||primaryProof.proofObjective!=='PROVE_PRIMARY_REPAIR_CORRECT'||primaryProof.targetSha!==targetSha||primaryProof.failureFingerprint!==fingerprint||primaryProof.agentId!=='ACTION-REPAIR') throw new Error('ACTION_PAIR_PRIMARY_CORRECTNESS_PROOF_INVALID');
  if(!Array.isArray(primaryProof.obligationsForVerifier)||primaryProof.obligationsForVerifier.length<4) throw new Error('ACTION_PAIR_PRIMARY_PROOF_OBLIGATIONS_INCOMPLETE');
  if(preMutationProof.protocol!=='REPAIR-SIMULATION-PROOF-v1'||preMutationProof.status!=='PROVEN'||preMutationProof.targetSha!==targetSha||preMutationProof.failureFingerprint!==fingerprint||preMutationProof.noMutationApplied!==true) throw new Error('ACTION_PAIR_PRE_MUTATION_PROOF_INVALID');
+ validateActionVaultPreMutationProofs({sandboxProof:preMutationProof.sandboxSimulation,differentialProof:preMutationProof.differentialProof,patchCorrectnessProof:preMutationProof.patchCorrectness,regressionCounterexamples:preMutationProof.regressionCounterexamples,targetSHA:targetSha,failureFingerprint:fingerprint});
  if(preMutationProof.proofCompleteness?.SANDBOX_SIMULATION_PASSED!==true||preMutationProof.proofCompleteness?.DIFFERENTIAL_CHECK_PASSED!==true||preMutationProof.proofCompleteness?.PATCH_CORRECTNESS_PROVEN!==true||preMutationProof.proofCompleteness?.NO_VALID_COUNTEREXAMPLE!==true||preMutationProof.proofCompleteness?.REGRESSION_COUNTEREXAMPLES_EXHAUSTED!==true) throw new Error('ACTION_PAIR_PRE_MUTATION_PROOF_INCOMPLETE');
  if(fileSelection.agentId!=='ACTION-HISTORIAN-3'||fileSelection.protocol!=='ACTION-FILE-SELECTION-INTELLIGENCE-v1'||fileSelection.targetSha!==targetSha||fileSelection.failureFingerprint!==fingerprint||fileSelection.pathOnlyAnalysis!==true||fileSelection.codeContentRead!==false||fileSelection.sourceMutationAllowed!==false||fileSelection.decision!=='SELECTED'||!Array.isArray(fileSelection.selectedFiles)||fileSelection.selectedFiles.length<1) throw new Error('ACTION_PAIR_FILE_SELECTION_INVALID');
  const alternatives=(Array.isArray(p.hypotheses)?p.hypotheses:[])
