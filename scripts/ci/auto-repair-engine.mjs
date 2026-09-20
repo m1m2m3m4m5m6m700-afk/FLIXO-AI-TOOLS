@@ -44,13 +44,54 @@ const assistantApproval = assistantApprovalPath && fs.existsSync(assistantApprov
   ? JSON.parse(fs.readFileSync(assistantApprovalPath, 'utf8'))
   : null;
 const actionVaultVerifierProofPath = process.env.FLIXO_ACTION_VAULT_VERIFIER_PROOF_PATH ?? '';
+const cognitiveAwarenessPath = process.env.FLIXO_SYSTEM_COGNITIVE_AWARENESS_PATH ?? '';
+const programmerTwinParityPath = process.env.FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH ?? '';
 const actionVaultVerifierProof = actionVaultVerifierProofPath && fs.existsSync(actionVaultVerifierProofPath)
   ? JSON.parse(fs.readFileSync(actionVaultVerifierProofPath, 'utf8'))
   : null;
+const cognitiveAwareness = cognitiveAwarenessPath && fs.existsSync(cognitiveAwarenessPath)
+  ? JSON.parse(fs.readFileSync(cognitiveAwarenessPath, 'utf8'))
+  : null;
+const programmerTwinParity = programmerTwinParityPath && fs.existsSync(programmerTwinParityPath)
+  ? JSON.parse(fs.readFileSync(programmerTwinParityPath, 'utf8'))
+  : null;
 if (repairActor === 'actionRepairBot') {
+  if (cognitiveAwareness?.protocol !== 'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1' || cognitiveAwareness?.targetSha !== targetSha || cognitiveAwareness?.awarenessCompleteness?.complete !== true) throw new Error('ACTION_REPAIR_COGNITIVE_AWARENESS_REQUIRED');
+  if (programmerTwinParity?.status !== 'EXACT_INTELLIGENCE_PARITY' || programmerTwinParity?.intelligenceParity !== 'EXACT' || programmerTwinParity?.authorityParity !== 'SEPARATED_BY_DESIGN' || programmerTwinParity?.targetSha !== targetSha) throw new Error('ACTION_REPAIR_PROGRAMMER_TWIN_PARITY_REQUIRED');
   validateActionVaultVerifierProof({ proof: actionVaultVerifierProof, targetSHA: targetSha, failureFingerprint: fingerprint });
 }
 let repairProtocolSession = createRepairSession({ repairSessionId, actor: repairActor, failureFingerprint: fingerprint, targetSHA: targetSha, beforeState: { worktree: 'clean', targetSha }, attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1), fallback: repairActor === 'assistantRepairAgent' ? { ...fallbackProof, actor: 'assistantRepairAgent', targetSha } : null, assistantApproval, actionVaultVerifierProof });
+if (repairActor === 'actionRepairBot') {
+  const taskId = process.env.FLIXO_AGENT_TASK ?? process.env.FLIXO_TASK_ID ?? process.env.TARGET_RUN_ID ?? repairSessionId;
+  repairProtocolSession = Object.freeze({
+    ...repairProtocolSession,
+    actionVaultMission: {
+      role: 'ACTION-REPAIR',
+      triadId: 'ACTION-THREE-BOT-COLLABORATION',
+      messageId: `ACTION-VAULT:${taskId}:${fingerprint}`,
+      taskId,
+      failureFingerprint: fingerprint,
+      entrySha: targetSha,
+      targetSha,
+      ownerAgent: 'actionRepairBot',
+      verifierAgent: 'actionRepairVerifier',
+      historianAgent: 'actionHistorian',
+      programmerTwinParity: {
+        intelligenceParity: programmerTwinParity.intelligenceParity,
+        authorityParity: programmerTwinParity.authorityParity,
+        targetSha: programmerTwinParity.targetSha
+      },
+      cognitiveAwareness: {
+        protocol: cognitiveAwareness.protocol,
+        targetSha: cognitiveAwareness.targetSha,
+        complete: cognitiveAwareness.awarenessCompleteness.complete
+      },
+      proofObligations: ['PRIMARY_CORRECTNESS_PROOF','ADVERSARIAL_FALSIFICATION','TARGETED_REGRESSION','CANONICAL_GREEN'],
+      stopConditions: ['VALID_COUNTEREXAMPLE','SHA_DRIFT','COGNITIVE_AWARENESS_MISSING','PARITY_MISMATCH','CANONICAL_GREEN_FAILURE'],
+      noBlindRetry: true
+    }
+  });
+}
 repairProtocolSession = captureFailure(repairProtocolSession, { runId: process.env.GITHUB_RUN_ID ?? null, failureFingerprint: fingerprint, logPath });
 const prepareTargetedVerification = (currentLog, currentFeatures) => {
   const selection = resolveTargetedTests(currentLog, currentFeatures, { targetDir });
