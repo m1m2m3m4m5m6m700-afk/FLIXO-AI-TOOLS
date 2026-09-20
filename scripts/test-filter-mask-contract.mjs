@@ -15,6 +15,9 @@ assert.equal(resolveFilterMaskSelection('Warm live filter 65%')?.parameters.inte
 assert.equal(resolveFilterMaskSelection('Warm live filter 1.6x')?.parameters.zoom, 1.6);
 assert.equal(resolveFilterMaskSelection('Warm live filter vertical')?.parameters.aspectRatio, '9:16');
 assert.equal(resolveFilterMaskSelection('Warm live filter square')?.parameters.aspectRatio, '1:1');
+assert.equal(resolveFilterMaskSelection('Warm live filter 720p')?.parameters.captureQuality, '720p');
+assert.equal(resolveFilterMaskSelection('Warm live filter 1080p')?.parameters.captureQuality, '1080p');
+assert.equal(parseFilterMaskHandoff('?canonicalId=effect.warm&captureQuality=4k')?.parameters.captureQuality, '1080p');
 assert.equal(resolveFilterMaskSelection('compress image'), null);
 assert.equal(findLiveFilters('cinematic')[0]?.family, 'cinematic');
 const handoff = createFilterMaskHandoff(getLiveFilter('effect.warm')!, { intensity: 63, zoom: 1.6, mirror: false });
@@ -31,5 +34,9 @@ for (const locale of LOCALES) {
   assert.equal(FILTER_MASK_I18N[locale].title, 'Filter Mask');
   assert.ok(FILTER_MASK_I18N[locale].startCamera.length > 0);
   assert.ok(FILTER_MASK_I18N[locale].share.length > 0);
+  assert.ok(FILTER_MASK_I18N[locale].torchOff.length > 0);
+  assert.ok(FILTER_MASK_I18N[locale].quality1080.length > 0);
+  assert.ok(FILTER_MASK_I18N[locale].quality720.length > 0);
+  assert.ok(FILTER_MASK_I18N[locale].captureQuality.length > 0);
 }
 console.log('Filter Mask registry contract: PASS');
