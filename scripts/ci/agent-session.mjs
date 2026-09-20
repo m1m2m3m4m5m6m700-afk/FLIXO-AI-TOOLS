@@ -234,6 +234,29 @@ if (command === 'event') {
   const executionPlanNext = split(args.get('next-plan') ?? process.env.FLIXO_AGENT_NEXT_PLAN, '|');
   const blockers = split(args.get('blockers') ?? process.env.FLIXO_AGENT_BLOCKERS, '|');
   const handoffToNextAgent = String(args.get('handoff') ?? process.env.FLIXO_AGENT_HANDOFF ?? '').trim() || null;
+  const cycleLessonsRaw = String(args.get('cycle-lessons-json') ?? process.env.FLIXO_AGENT_CYCLE_LESSONS_JSON ?? '').trim();
+  let cycleLessons = [];
+  if (cycleLessonsRaw) {
+    try {
+      const parsed = JSON.parse(cycleLessonsRaw);
+      if (!Array.isArray(parsed)) throw new Error('cycleLessons must be an array');
+      cycleLessons = parsed.slice(0, 12).map((item) => ({
+        type: String(item?.type ?? 'lesson'),
+        category: String(item?.category ?? 'GENERAL'),
+        text: String(item?.text ?? item ?? '').trim(),
+      })).filter((item) => item.text);
+    } catch (error) {
+      throw new Error(`INVALID_CYCLE_LESSONS_JSON:${error?.message ?? error}`);
+    }
+  }
+  if (!cycleLessons.length) {
+    cycleLessons = [
+      { type: 'lesson', category: 'RCA', text: `Cycle RCA: ${record.currentRca || 'not declared; preserve the unresolved causal state.'}` },
+      { type: 'lesson', category: 'VERIFICATION', text: `Cycle exit status=${status}; exact SHA=${sha}; certification requires fresh exact-SHA evidence.` },
+      { type: 'lesson', category: 'SCOPE', text: changedFiles.length ? `Changed paths remained explicit: ${changedFiles.slice(0, 12).join(', ')}.` : 'No repository paths were recorded as changed in this session.' },
+      ...(status === 'BLOCKED' ? [{ type: 'antiLesson', category: 'BLOCKER', text: 'Blocked work is not completion; preserve evidence and continue through the next authorized cycle.' }] : []),
+    ];
+  }
   const finalSummary = String(args.get('final-summary') ?? process.env.FLIXO_AGENT_FINAL_SUMMARY ?? '').trim();
   if (!finalSummary) throw new Error('FINAL_SUMMARY_REQUIRED_BEFORE_SESSION_CLOSE');
   if (remainingWork.length === 0 && openRcas.length > 0) {
@@ -262,6 +285,7 @@ if (command === 'event') {
   record.rcaClosed = rcaClosed;
   record.openRcas = openRcas;
   record.handoff = handoffToNextAgent;
+  record.cycleLessons = cycleLessons;
   record.finalSummary = finalSummary;
   record.finalStatus = status;
   record.taskId = taskId;
@@ -273,7 +297,7 @@ if (command === 'event') {
   record.actions = Array.isArray(record.actions) ? [...record.actions, { at: now(), action: 'LOGOUT', sha, status }] : [{ at: now(), action: 'LOGOUT', sha, status }];
   fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
 
-  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'CLOSED', taskId, sessionId: record.sessionId, agentId: record.agentId, role: record.role, entrySha: record.entrySha, exitSha: sha, status, finalStatus: status, finalSummary, scope: record.scope, currentRca: record.currentRca, rcaClosed, openRcas, changedFiles, commands, evidence, findings, activity, lastEvent: activity.at(-1) ?? null, completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() });
+  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'CLOSED', taskId, sessionId: record.sessionId, agentId: record.agentId, role: record.role, entrySha: record.entrySha, exitSha: sha, status, finalStatus: status, finalSummary, scope: record.scope, currentRca: record.currentRca, rcaClosed, openRcas, changedFiles, commands, evidence, findings, activity, lastEvent: activity.at(-1) ?? null, completedWork, failedWork, remainingWork, executionPlanNext, blockers, handoffToNextAgent, cycleLessons, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() });
 
   const report = {
     schemaVersion: 1,
@@ -303,6 +327,7 @@ if (command === 'event') {
     remainingWork,
     executionPlanNext,
     blockers,
+    cycleLessons,
     handoffToNextAgent,
     continuationFrom: record.continuationFrom ?? null,
     inheritedExitSha: record.inheritedExitSha ?? null,
