@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { evaluateGreen, classifyCancelledRun, validateRepairTarget } from './continuous-error-watch.mjs';
+import { deriveRepairIdentity } from './repair-control-plane.mjs';
 
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
@@ -249,7 +250,18 @@ assert.equal(internal.status, 'RED_INTERNAL');
 assert.equal(internal.repair.required, true);
 assert.equal(internal.repair.targetRunId, 999);
 assert.match(internal.repair.failureFingerprint, /^[0-9a-f]{64}$/);
-assert.equal(internal.repair.repairKey, SHA_A + ':' + internal.repair.failureFingerprint);
+const internalIdentity = deriveRepairIdentity({
+  branch: 'execution',
+  failedSha: SHA_A,
+  failureFingerprint: internal.repair.failureFingerprint,
+  targetRunId: '999',
+});
+assert.equal(internal.repair.repairKey, internalIdentity.claimKey);
+assert.equal(internal.repair.claimKey, internalIdentity.claimKey);
+assert.equal(internal.repair.repairChainId, internalIdentity.repairChainId);
+assert.equal(internal.repair.leaseRef, internalIdentity.leaseRef);
+assert.equal(internal.repair.failedSha, SHA_A);
+assert.equal(internal.repair.branch, 'execution');
 
 const providerWorkflow = evaluateGreen({
   executionSha: SHA_A,
