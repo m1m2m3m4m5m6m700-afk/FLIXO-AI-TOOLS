@@ -64,7 +64,7 @@ export function validatePromptRecord(prompt, registry) {
   }
   if (!PROMPT_STATUSES.includes(prompt?.status)) errors.push('INVALID_STATUS');
   if (!/^RPR-[A-Z0-9-]+-\d{3}$/.test(String(prompt?.promptId ?? ''))) errors.push('INVALID_PROMPT_ID');
-  for (const field of ['failureClasses', 'fingerprints', 'rootCauses', 'repairStrategy', 'verificationPlan', 'learningRequirements', 'relatedPrompts', 'supersedes', 'supersededBy', 'antiPatterns', 'exactShaRequirements']) {
+  for (const field of ['failureClasses', 'fingerprints', 'rootCauses', 'repairStrategy', 'verificationPlan', 'learningRequirements', 'relatedPrompts', 'supersedes', 'supersededBy', 'antiPatterns']) {
     if (!Array.isArray(prompt?.[field])) errors.push(`FIELD_NOT_ARRAY=${field}`);
   }
   if (!asList(prompt?.failureClasses).length) errors.push('EMPTY_FAILURE_CLASSES');
