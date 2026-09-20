@@ -65,7 +65,7 @@ export type RawCellBotDefinition = {
 };
 
 function buildRawCellBots(): RawCellBotDefinition[] {
-  return Array.from({ length: RAW_CELL_BOT_COUNT }, (_, index) => ({
+  return Array.from({ length: RAW_CELL_BOT_COUNT }, (_, index) => Object.freeze({
     botId: `CELL-${String(index + 1).padStart(3, '0')}` as RawCellBotId,
     cellName: COUNCIL_CELL_NAME,
     mode: 'RAW' as const,
