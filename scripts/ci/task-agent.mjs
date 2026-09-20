@@ -159,7 +159,7 @@ const repairProtocolAdmission = assertAgentAdmission({ actor: 'taskAgent', branc
 
 const scopePolicy = 'TASK_PREPARATION_ONLY';
 const executionAuthority = 'TASK_PREPARATION_ONLY';
-const mutationScope = 'PREPARE_CURRENT_TASK_SCOPE_ONLY';
+const mutationScope = 'PREPARATION_ONLY_NO_REPOSITORY_MUTATION';
 const humanCommandRequired = false;
 const scopeEnforcement = 'FAIL_CLOSED';
 const controlPlaneMutationPolicy = 'HUMAN_REVIEW_REQUIRED';
