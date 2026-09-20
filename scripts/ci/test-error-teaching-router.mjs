@@ -34,6 +34,6 @@ try {
  execFileSync(process.execPath,['scripts/ci/error-teaching-router.mjs','unknown-unmapped-error'],{encoding:'utf8',stdio:['ignore','pipe','pipe']});
  console.error('ERROR_TEACHING_ROUTE_CONTRACT_ERROR=unknown_query_did_not_fail_closed');
  process.exit(1);
-} catch {}
+} catch { /* expected fail-closed result */ }
 console.log('ERROR_TEACHING_ROUTE_CONTRACT=PASS');
 console.log('ERROR_TEACHING_ROUTED_CLASSES='+classes.length);
