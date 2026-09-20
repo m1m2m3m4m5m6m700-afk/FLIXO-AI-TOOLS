@@ -232,6 +232,10 @@ Agents MUST NOT weaken assertions, disable tests, add silent skips, relabel fail
 
 `FAIL`, `CANCELLED`, `BLOCKED`, `NOT_EXECUTED`, `MISSING_EVIDENCE`, and `MALFORMED_EVIDENCE` are recovery states.
 
+### Mandatory cycle lesson list
+
+Every completed repair/verification cycle MUST emit `cycleLessons` containing the RCA lesson, strategy lesson or anti-lesson, verification state, affected scope when applicable, recurrence/prevention rule, and external-blocker anti-lesson when applicable. `cycleLessons` is learning/continuity evidence only; it never authorizes mutation or certification.
+
 ## HANDOFF / LOGOUT
 
 Every completed session MUST logout using:
