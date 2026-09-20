@@ -89,7 +89,7 @@ export async function runWorkflowPipeline(initialFile: File, plan: ExecutionPlan
         inputBlob: stableBlob,
       });
       params = authorization.parameters;
-      let auditEventsForAttempt: readonly ExecutionAuditEvent[] = [authorization.audit];
+      let auditEventsForAttempt: readonly ExecutionAuditEvent[];
       onProgress({
         currentStepIndex: i + 1,
         totalSteps: plan.steps.length,
