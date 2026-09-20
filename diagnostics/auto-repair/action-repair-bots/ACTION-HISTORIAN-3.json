@@ -1,11 +1,11 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "botId": "ACTION-HISTORIAN-3",
   "displayName": "بوت سجل Actions 3",
   "kind": "ACTION_HISTORIAN_INDEXER",
   "status": "READY",
   "role": "HISTORIAN_AND_SOLUTION_INDEXER",
-  "mission": "يسجل كل RED وكل محاولات الإصلاح ونتائج GREEN، ويشارك في التشخيص والاستدلال والبحث والتحدي والتعلم بنفس القدرة المعرفية للبوتين الآخرين، دون امتلاك سلطة تعديل المصدر.",
+  "mission": "الوكيل الثالث هو أمين السجل: يسجل كل RED وكل محاولة إصلاح وكل فشل وتسليم وتعلم، مع exact provenance، لبناء ذاكرة يمكن الرجوع إليها.",
   "headquarters": "diagnostics/auto-repair/action-vault",
   "mutationAuthority": false,
   "executionAuthority": "RECORD_INDEX_ESCALATE_ONLY",
@@ -17,7 +17,7 @@
   "masterEscalationOnFirstRepositoryOccurrence": true,
   "personalMemoryFile": "diagnostics/auto-repair/action-repair-bots/ACTION-HISTORIAN-3.json",
   "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
-  "cooperationRole": "HISTORIAN_AND_SOLUTION_INDEXER",
+  "cooperationRole": "FAILURE_LEDGER_AND_LEARNING_RECORDER",
   "cooperationMode": "MANDATORY_SHARED_MISSION_ON_RED",
   "sharedCapabilities": "ACTION-THREE-BOT-INTELLIGENCE",
   "requiredCollaborators": [
@@ -32,16 +32,15 @@
     "sameFailedRunId"
   ],
   "capabilitiesParity": [
-    "diagnose",
-    "infer",
-    "search",
-    "learn",
-    "challenge",
-    "plan",
-    "regression-plan",
-    "master-escalation",
-    "4000-index-search",
-    "5000-rule-search"
+    "FAILURE_INTAKE",
+    "EXACT_PROVENANCE",
+    "ATTEMPT_LEDGER",
+    "FAILURE_LEDGER",
+    "HANDOFF_LEDGER",
+    "GREEN_CHAIN_RECORDING",
+    "LESSON_CANDIDATE_RECORDING",
+    "INDEX_UPDATE_ONLY_FROM_EVIDENCE",
+    "MASTER_ESCALATION"
   ],
   "contributionPolicy": {
     "intake": true,
@@ -50,7 +49,14 @@
     "recordEveryAttempt": true,
     "recordHandoff": true,
     "recordGreenChain": true,
-    "updateSolutionIndexOnlyFromEvidence": true
+    "updateSolutionIndexOnlyFromEvidence": true,
+    "recordEveryRed": true,
+    "recordEveryFailedAttempt": true,
+    "recordEveryHandoff": true,
+    "recordEveryPredictionOutcome": true,
+    "recordEveryGreenChain": true,
+    "appendOnlyLedger": true,
+    "failureMustNeverBeDiscarded": true
   },
   "executionBoundary": {
     "singleActiveRepairOwner": true,
@@ -107,7 +113,7 @@
   "permanentIndependentAuthority": false,
   "agentRuntime": {
     "protocol": "ACTION-AGENT-RUNTIME-v1",
-    "modelProfile": "ACTION_PRIMARY_REPAIR_V1",
+    "modelProfile": "ACTION_FAILURE_HISTORIAN_V2",
     "reasoningEffort": "HIGH",
     "cognitiveLoop": [
       "INTAKE",
@@ -127,6 +133,34 @@
     "independentReview": true,
     "structuredOutput": true,
     "failClosed": true,
-    "noSelfApproval": true
+    "noSelfApproval": true,
+    "roleMission": "RECORD_EVERY_FAILURE_AND_BUILD_LEARNING_MEMORY",
+    "reasoningModes": [
+      "PROVENANCE",
+      "FAILURE_CLASSIFICATION",
+      "PATTERN_MEMORY",
+      "LESSON_EXTRACTION",
+      "ANTI_LESSON_EXTRACTION"
+    ]
+  },
+  "ledger": {
+    "runtime": "scripts/ci/action-failure-ledger.mjs",
+    "path": "diagnostics/auto-repair/action-vault/failure-ledger.ndjson",
+    "mode": "APPEND_ONLY",
+    "identity": [
+      "taskId",
+      "failureFingerprint",
+      "targetSha",
+      "failedRunId"
+    ],
+    "events": [
+      "RED_DETECTED",
+      "REPAIR_ATTEMPT",
+      "REPAIR_FAILED",
+      "HANDOFF",
+      "PREDICTION_ACCEPTED",
+      "PREDICTION_REJECTED",
+      "GREEN_VERIFIED"
+    ]
   }
 }
