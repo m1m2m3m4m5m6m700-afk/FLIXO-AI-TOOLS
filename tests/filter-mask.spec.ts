@@ -135,4 +135,35 @@ test.describe('Filter Mask live camera surface', () => {
     await expect(video).toHaveJSProperty('srcObject', null);
   });
 
+  test('accepts a canonical filter handoff from the live URL', async ({ page }) => {
+    await page.goto('/en/filter-mask?canonicalId=effect.warm&intensity=65');
+
+    const section = page.getByRole('region', { name: 'Filter Mask' });
+    const selected = section.getByRole('button', { name: /Warm effect\.warm/ }).first();
+    await expect(selected).toHaveAttribute('aria-pressed', 'true');
+    await expect(section.locator('input[type="range"]')).toHaveValue('65');
+    await expect(page).toHaveURL(/canonicalId=effect\.warm/);
+    await expect(page).toHaveURL(/intensity=65/);
+  });
+
+  test('agent resolves a live-filter request into a canonical handoff', async ({ page }) => {
+    await page.goto('/en');
+
+    const command = page.locator('#flixo-agent-command');
+    await expect(command).toBeVisible();
+    await command.fill('Warm live filter 65%');
+    await page.getByRole('button', { name: 'Send' }).click();
+
+    const handoff = page.getByTestId('filter-mask-handoff');
+    await expect(handoff).toBeVisible();
+    await expect(handoff).toContainText('effect.warm');
+    await expect(handoff).toContainText('65%');
+
+    const openPreview = handoff.getByRole('link', { name: 'Open live preview' });
+    await expect(openPreview).toHaveAttribute('href', '/en/filter-mask?canonicalId=effect.warm&intensity=65');
+    await openPreview.click();
+    await expect(page).toHaveURL(/\/en\/filter-mask\?canonicalId=effect\.warm&intensity=65/);
+    await expect(page.getByRole('button', { name: /Warm effect\.warm/ }).first()).toHaveAttribute('aria-pressed', 'true');
+  });
+
 });
