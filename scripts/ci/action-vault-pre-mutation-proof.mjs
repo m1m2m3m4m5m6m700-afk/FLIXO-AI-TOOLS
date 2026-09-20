@@ -65,16 +65,16 @@ if(selected?.file && selection.selectedFiles?.every(x=>x.path!==selected.file) &
 
 let simulation=null;
 if(!failures.length){
-  simulation=simulateRepair({
-    targetDir:process.cwd(),
-    plan:selected,
-    maxChangedFiles:8,
-    maxChangedLines:300,
-    verificationCommands:targeted.commands,
+  simulation=simulateAstRepair({
+    repoRoot:process.cwd(),
+    taskId:'ACTION-RED:'+runId+':'+fingerprint,
+    fingerprint,
     targetSha,
-    failureFingerprint:fingerprint,
+    selected,
+    checks:targeted.commands,
+    failureLog,
   });
-  if(!simulation.ok) failures.push('SANDBOX_SIMULATION_FAILED');
+  if(simulation.status!=='PASS' || simulation.ok!==true) failures.push('SANDBOX_SIMULATION_FAILED');
 }
 
 const differential=simulation?.differentialProof??{status:'BLOCK',scopeProof:false};
