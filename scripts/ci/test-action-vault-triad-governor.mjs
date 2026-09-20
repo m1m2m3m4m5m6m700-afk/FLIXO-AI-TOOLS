@@ -8,6 +8,7 @@ import {
   escalationFor,
   findCatalogAdvice,
   selectByVault3,
+  promoteLearnedAdvice,
 } from './action-vault-triad-governor.mjs';
 
 assert.equal(ACTION_VAULT_TRIAD_PROTOCOL, 'ACTION-VAULT-TRIAD-ADVERSARIAL-LEARNING-v1');
@@ -35,6 +36,7 @@ const escalation=escalationFor('same', Array.from({length:20},(_,i)=>({failureFi
 assert.equal(escalation.mode,'SUPERVISOR_20');
 assert.deepEqual(escalation.suspendedBots,['ACTION-REPAIR','ACTION-REPAIR-2']);
 assert.equal(escalation.supervisor,'ACTION-HISTORIAN-3');
+assert.throws(() => promoteLearnedAdvice({taskId:'T',fingerprint:'f',targetSha:sha,failedRunId:'r',advice:'new advice',greenRecord:{source:'DAILY_FLIXO_GREEN_GATE',conclusion:'failure',zeroRed:false,exactShaVerified:false,targetSha:sha}}),/GREEN_PROOF_REQUIRED/);
 
 console.log('ACTION_VAULT_TRIAD_GOVERNANCE=PASS');
 console.log('ACTION_VAULT_20X_ESCALATION=PASS');
