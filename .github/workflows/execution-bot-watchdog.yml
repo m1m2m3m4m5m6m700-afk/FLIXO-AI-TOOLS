@@ -120,7 +120,7 @@ jobs:
             exit 0
           fi
           echo "CANONICAL_MANUAL_DISPATCH_UNAVAILABLE=true"
-          ACTIVE_TEST_SYSTEM="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Test System" --branch execution --limit 20 --json headSha,status --jq --arg sha "$EXECUTION_SHA" '[.[] | select(.headSha == $sha and (.status == "queued" or .status == "in_progress"))] | length')"
+          ACTIVE_TEST_SYSTEM="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "FLIXO Test System" --branch execution --commit "$EXECUTION_SHA" --limit 20 --json status --jq '[.[] | select(.status == "queued" or .status == "in_progress")] | length')"
           test "$ACTIVE_TEST_SYSTEM" -gt 0 || {
             echo "FAIL CLOSED: no exact-SHA canonical Test System run is active and Green Gate dispatch is unavailable."
             exit 1
