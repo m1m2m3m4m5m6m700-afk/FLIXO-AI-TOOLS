@@ -80,8 +80,10 @@ export function applyPreparedChanges(targetDir, changes, { dryRun = false } = {}
     if (change.operation === 'CREATE' && fs.existsSync(absolute)) throw new Error('PREPARED_CHANGE_CREATE_EXISTS:' + rel);
     if ((change.operation === 'UPDATE' || change.operation === 'DELETE') && !fs.existsSync(absolute)) throw new Error('PREPARED_CHANGE_TARGET_MISSING:' + rel);
     if (change.operation !== 'CREATE') {
-      const actual = blobSha(absolute);
-      if (change.baselineSha && actual && actual !== change.baselineSha) throw new Error('PREPARED_CHANGE_FILE_SHA_MISMATCH:' + rel);
+      if (change.fileBlobSha) {
+        const actual = blobSha(absolute);
+        if (actual && actual !== String(change.fileBlobSha)) throw new Error('PREPARED_CHANGE_FILE_SHA_MISMATCH:' + rel);
+      }
     }
     affected.push(rel);
     if (dryRun) continue;
