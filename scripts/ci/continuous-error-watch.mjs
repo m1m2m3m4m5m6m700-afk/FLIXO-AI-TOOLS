@@ -154,6 +154,7 @@ export function evaluateGreen({
   workflowRuns = [],
   checkRuns = [],
   logs = {},
+  statuses = [],
   compare = {},
 } = {}) {
   const report = {
@@ -282,7 +283,20 @@ export function evaluateGreen({
   if (!certificationCheck) report.errors.push({ type: 'CERTIFICATION_EVIDENCE_MISSING' });
 
   const externalCandidates = checkRuns.map((check) => externalCheckBlock(check, logForCheck(check, logs))).filter(Boolean);
-  report.externalBlockers = externalCandidates;
+  const externalStatusCandidates = statuses
+    .filter((status) => isExternalCheckName(status?.context))
+    .map((status) => {
+      const state = String(status?.state ?? '').toLowerCase();
+      if (!['failure', 'error', 'pending'].includes(state)) return null;
+      return {
+        kind: 'BLOCKED_EXTERNAL',
+        checkName: String(status?.context ?? '').trim(),
+        state: state === 'error' ? 'failure' : state,
+        rootCause: 'EXTERNAL_PROVIDER_UNRESOLVED',
+      };
+    })
+    .filter(Boolean);
+  report.externalBlockers = [...externalCandidates, ...externalStatusCandidates];
   if (externalCandidates.some((item) => ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state))) {
     report.rootCause = 'EXTERNAL_CHECK_BLOCKED';
   }
