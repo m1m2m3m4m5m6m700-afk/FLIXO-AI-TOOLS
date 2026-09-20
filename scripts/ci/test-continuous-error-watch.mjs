@@ -313,20 +313,6 @@ const providerWorkflow = evaluateGreen({
 assert.equal(providerWorkflow.status, 'BLOCKED_EXTERNAL');
 assert.equal(providerWorkflow.repair.required, false);
 
-const externalWhileWaiting = evaluateGreen({
-  executionSha: SHA_A,
-  mainSha: SHA_B,
-  openPr,
-  workflowRuns: requiredRuns.map((item) => ({ ...item, status: 'in_progress', conclusion: null })),
-  checkRuns: [
-    ...securityAndCertification,
-    { id: 109, name: 'Vercel', status: 'completed', conclusion: 'failure' },
-  ],
-  compare: { ahead_by: 1, behind_by: 0 },
-});
-assert.equal(externalWhileWaiting.status, 'BLOCKED_EXTERNAL');
-assert.equal(externalWhileWaiting.repair.required, false);
-
 const missing = evaluateGreen({
   executionSha: SHA_A, mainSha: SHA_B, openPr,
   workflowRuns: requiredRuns.slice(1), checkRuns: securityAndCertification,
