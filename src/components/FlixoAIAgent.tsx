@@ -83,6 +83,11 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     });
   };
 
+  const pushMessage = (role: Message['role'], text: string) => {
+    setMessages((current) => [...current, { id: messageId, role, text }]);
+    setMessageId((value) => value + 1);
+    setMemory((current) => rememberTurn(current, { role, text }));
+  };
   const applyFilterMaskHandoff = (command: string, detectedLocale: Locale) => {
     const nextHandoff = resolveFilterMaskHandoff(command);
     if (!nextHandoff) return false;
@@ -104,11 +109,6 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
         : 'Filter Mask is ready. Selection: ' + label + ' (' + nextHandoff.canonicalId + '), intensity ' + nextHandoff.parameters.intensity + '%. Open the live preview.',
     );
     return true;
-  };
-  const pushMessage = (role: Message['role'], text: string) => {
-    setMessages((current) => [...current, { id: messageId, role, text }]);
-    setMessageId((value) => value + 1);
-    setMemory((current) => rememberTurn(current, { role, text }));
   };
 
   const buildPlan = (command: string, responseCopy = copy): ExecutionPlan | null => {
