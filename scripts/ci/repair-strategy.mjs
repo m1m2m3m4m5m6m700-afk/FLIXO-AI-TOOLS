@@ -91,6 +91,28 @@ function canonicalSecuritySurface(targetDir) {
   return findings.sort((a, b) => rank[a.severity] - rank[b.severity] || a.path.localeCompare(b.path) || a.id.localeCompare(b.id)).slice(0, 40);
 }
 
+function stateActionTrainingRecommendation(training, rootCause, features, attempt, previousStrategy, rejected=[]) {
+  const competent = training?.decision?.stateActionTraining?.competent === true
+    && training?.decision?.eligibleToInfluenceRouting === true;
+  if (!competent) return null;
+  const featureSignature = [...new Set((features ?? []).map((value) => String(value ?? '').trim().toLowerCase()).filter(Boolean))].sort().join(',');
+  const attemptNumber = Math.max(0, Number(attempt) || 0);
+  const bucket = attemptNumber === 0 ? 'a0' : attemptNumber === 1 ? 'a1' : attemptNumber <= 3 ? 'a2_3' : attemptNumber <= 7 ? 'a4_7' : 'a8_plus';
+  const previous = String(previousStrategy ?? 'START').toLowerCase();
+  const root = String(rootCause ?? 'unknown').toLowerCase();
+  const keys = [
+    [root, featureSignature, bucket, previous].join('|'),
+    [root, featureSignature, 'a0', previous].join('|'),
+    [root, '', bucket, previous].join('|'),
+    [root, '', '', previous].join('|'),
+  ];
+  for (const key of keys) {
+    const candidate = (training?.stateModel?.policy?.[key] ?? []).find((item) => !rejected.includes(item.strategyId));
+    if (candidate) return { ...candidate, stateKey: key };
+  }
+  return null;
+}
+
 function behavioralTrainingRecommendation(training, rootCause, previousStrategy, rejected=[]) {
   const list=training?.behaviorModel?.transitions?.[[String(rootCause??'unknown').toLowerCase(),String(previousStrategy??'START').toLowerCase()].join('|')] ?? [];
   return list.find((item)=>!rejected.includes(item.strategyId)) ?? null;
@@ -355,6 +377,7 @@ const rejected = new Set([
 const causal = causalIntelligence(log, memory, stableCaseFingerprint, process.cwd());
 const securityFindings = canonicalSecuritySurface(process.cwd());
 const behavioralPreviousStrategy = priorStrategies.at(-1) ?? 'START';
+const stateActionRecommendation = stateActionTrainingRecommendation(training, causal.rootCause, causal.features, Math.max(0, nextAttempt - 1), behavioralPreviousStrategy, [...rejected]);
 const behavioralRecommendation = behavioralTrainingRecommendation(training, causal.rootCause, behavioralPreviousStrategy, [...rejected]);
 const intelligentRanking = rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, twinPreferredStrategy, training });
 const unusedIndexes = strategies.map((_, i) => i).filter((i) => !priorStrategies.includes(strategies[i][0])).filter((i) => !rejected.has(strategies[i][0]));
@@ -365,12 +388,16 @@ const rotationIndexes = strategies.map((_, i) => i).filter((i) => !twinPreferred
 const availableIndexes = allStrategiesExhausted ? (rotationIndexes.length ? rotationIndexes : strategies.map((_, i) => i)) : ledgerAvailableIndexes;
 const selectedIndex = selectedRepairStrategy ? strategies.findIndex(([id]) => id === selectedRepairStrategy) : -1;
 const intelligentSelectedId = intelligentRanking.selected?.id ?? null;
+const stateActionPreferredId = stateActionRecommendation?.strategyId ?? null;
 const behaviorPreferredId = behavioralRecommendation?.strategyId ?? null;
 const intelligentIndex = intelligentSelectedId ? strategies.findIndex(([id]) => id === intelligentSelectedId) : -1;
+const stateActionIndex = stateActionPreferredId ? strategies.findIndex(([id]) => id === stateActionPreferredId) : -1;
 const behaviorIndex = behaviorPreferredId ? strategies.findIndex(([id]) => id === behaviorPreferredId) : -1;
 const index = selectedIndex >= 0 && availableIndexes.includes(selectedIndex)
   ? selectedIndex
-  : behaviorIndex >= 0 && availableIndexes.includes(behaviorIndex)
+  : stateActionIndex >= 0 && availableIndexes.includes(stateActionIndex)
+    ? stateActionIndex
+    : behaviorIndex >= 0 && availableIndexes.includes(behaviorIndex)
     ? behaviorIndex
     : intelligentIndex >= 0 && availableIndexes.includes(intelligentIndex)
     ? intelligentIndex
@@ -410,6 +437,7 @@ const teachingPacket = {
     falsificationPlan: buildFalsificationPlan(causal, intelligentRanking),
     securitySignals: securityFindings,
     training,
+    stateActionRecommendation,
     behavioralRecommendation,
     selectedBy: selectedRepairStrategy ? 'TWIN_OR_EXTERNAL_SELECTION' : intelligentSelectedId ? 'V12_CAUSAL_PORTFOLIO' : 'DETERMINISTIC_ROTATION',
     noBlindRepeat: true,
@@ -445,6 +473,7 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   },
   steering: steeringDirective,
   trainingMode: training?.decision?.mode ?? 'MISSING',
+  stateActionRecommendation,
   behavioralRecommendation,
   cycle: nextAttempt,
   twin: {
