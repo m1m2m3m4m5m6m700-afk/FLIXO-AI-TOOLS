@@ -215,6 +215,33 @@ Every agent session MUST also declare `taskId` and maintain a durable visibility
 
 Diagnosis-to-preparation handoffs additionally require the exact `failureFingerprint`, RCA evidence and falsification tests.
 
+## Operational Inter-Agent Cooperation — P20 active execution protocol
+
+التعاون بين الوكلاء ليس مرحلة قراءة. هو transaction protocol فعلي فوق الـcanonical Inbox/Coordination Control Plane.
+
+```text
+REQUEST → READ → RESPONSE(ACCEPTED|REJECTED|NEEDS_CLARIFICATION|BLOCKED)
+CHALLENGE → READ → RESPONSE → resolution
+HANDOFF → READ → RESPONSE(ACKNOWLEDGED|ACCEPTED|REJECTED|BLOCKED)
+```
+
+العمليات التنفيذية canonical:
+`coop-request`، `coop-challenge`، `coop-handoff`، `coop-respond`، `coop-pending`.
+
+الإنفاذ:
+1. كل REQUEST/CHALLENGE/HANDOFF يحمل messageId وcorrelationId وentrySha وtaskId وscope وrequiresResponse=true.
+2. الرد لا يُقبل قبل READ وإعادة التحقق من exact SHA.
+3. REQUEST لا يصبح قابلاً لـtask-claim إلا بعد RESPONSE=ACCEPTED.
+4. HANDOFF لا يصبح قابلاً لـtask-claim إلا بعد RESPONSE=ACCEPTED أو ACKNOWLEDGED.
+5. CHALLENGE لا يمكن تحويله إلى task-claim؛ يجب تسويته عبر RESPONSE مرتبط.
+6. RESPONSE لا يمنح ownership ولا يُستخدم كـTask Directive.
+7. نفس response = NO-OP؛ تضارب الهوية أو SHA = fail-closed.
+8. coop-pending يعرض التعاون المعلّق ولا يمنح authority.
+9. جميع العمليات تبقى داخل P20؛ لا Registry أو Protocol ثانية.
+
+دليل التعاون المطلوب:
+`request.messageId → response.messageId → inReplyTo/correlationId → responseStatus → exactSha → claim/handoff state`.
+
 ## Canonical v6 compatibility aliases
 The following are machine-readable aliases retained for compatibility; they do not create additional protocols:
 - **Agent login**
