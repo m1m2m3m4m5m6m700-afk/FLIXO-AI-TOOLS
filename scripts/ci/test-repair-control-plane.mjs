@@ -199,4 +199,29 @@ assert.equal(blockedByNewSha.eligible, false);
 assert(blockedByNewSha.reasons.includes('EXECUTION_SHA_CHANGED'));
 
 assert.throws(() => deriveRepairIdentity({ failureFingerprint: FAILURE, failedSha: SHA_A, targetRunId: 'target-1', branch: 'feature' }), /CONTROL_PLANE_REPAIR_BRANCH_BLOCKED/);
+const artifactDigest = 'd'.repeat(64);
+const mergeSha = SHA_B;
+const artifactEvidence = buildEvidenceProvenance({
+  assertionId: 'ASSERT-ARTIFACT', executionUnit: 'job:artifact', sourceSha: SHA_A, runId: 'run-artifact',
+  artifactId: 'artifact-1', artifactDigest, result: 'PASS', mergeSha,
+});
+assert.equal(validateEvidenceProvenance(artifactEvidence, {
+  expectedSha: SHA_A, expectedMergeSha: mergeSha, expectedArtifactDigest: artifactDigest,
+}).valid, true);
+assert.throws(() => validateEvidenceProvenance(artifactEvidence, {
+  expectedSha: SHA_A, expectedArtifactDigest: 'e'.repeat(64),
+}), /ARTIFACT_DIGEST_MISMATCH/);
+assert.throws(() => validateEvidenceProvenance(artifactEvidence, {
+  expectedSha: SHA_A, expectedMergeSha: SHA_A,
+}), /MERGE_SHA_MISMATCH/);
+
+const externalCycle = { ...promotion, state: 'BLOCKED_EXTERNAL' };
+assert.equal(transitionRepairCycle(externalCycle, 'ABORTED', { actor: 'SUPERVISOR', reason: 'EXTERNAL_BLOCKER_CONFIRMED' }).state, 'ABORTED');
+const staleCycle = { ...claimed, state: 'STALE' };
+assert.equal(transitionRepairCycle(staleCycle, 'CLAIMED', { actor: 'RECOVERY', reason: 'STALE_LEASE_REVALIDATED' }).state, 'CLAIMED');
+const budgetCycle = { ...reopened, state: 'BUDGET_EXHAUSTED' };
+assert.equal(transitionRepairCycle(budgetCycle, 'RCA', { actor: 'SUPERVISOR', reason: 'BUDGET_EXHAUSTED_REQUALIFY' }).state, 'RCA');
+const rollbackCycle = { ...reopened, state: 'ROLLBACK_REQUIRED' };
+assert.equal(transitionRepairCycle(rollbackCycle, 'REPAIR_PLANNED', { actor: 'ROLLBACK', reason: 'HISTORICAL_ROLLBACK_REUSE' }).state, 'REPAIR_PLANNED');
+assert.throws(() => transitionRepairCycle({ ...promotion, state: 'ABORTED' }, 'RCA'), /CONTROL_PLANE_INVALID_TRANSITION/);
 console.log('REPAIR_CONTROL_PLANE=PASS');

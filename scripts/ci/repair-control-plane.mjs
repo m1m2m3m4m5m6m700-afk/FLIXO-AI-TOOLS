@@ -123,12 +123,13 @@ export function buildEvidenceProvenance({
   });
 }
 
-export function validateEvidenceProvenance(record, { expectedSha, expectedCertificateId = null, expectedMergeSha = null } = {}) {
+export function validateEvidenceProvenance(record, { expectedSha, expectedCertificateId = null, expectedMergeSha = null, expectedArtifactDigest = null } = {}) {
   if (!record || typeof record !== 'object') throw new Error('CONTROL_PLANE_EVIDENCE_RECORD_INVALID');
   if (!isSha(record.sourceSha)) throw new Error('CONTROL_PLANE_EVIDENCE_SOURCE_SHA_INVALID');
   if (expectedSha && record.sourceSha !== expectedSha) throw new Error('CONTROL_PLANE_EVIDENCE_SHA_MISMATCH');
   if (expectedCertificateId !== null && record.certificateId !== expectedCertificateId) throw new Error('CONTROL_PLANE_CERTIFICATE_ID_MISMATCH');
   if (expectedMergeSha !== null && record.mergeSha !== expectedMergeSha) throw new Error('CONTROL_PLANE_MERGE_SHA_MISMATCH');
+  if (expectedArtifactDigest !== null && record.artifactDigest !== expectedArtifactDigest) throw new Error('CONTROL_PLANE_ARTIFACT_DIGEST_MISMATCH');
   if (!record.result) throw new Error('CONTROL_PLANE_EVIDENCE_RESULT_REQUIRED');
   return Object.freeze({ valid: true, exactSha: !expectedSha || record.sourceSha === expectedSha });
 }
