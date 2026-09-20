@@ -7,7 +7,6 @@ const prev=arg('previous-outcome','');
 if(!Number.isInteger(attempt)||attempt<1) throw new Error('ACTION_PAIR_ATTEMPT_INVALID');
 if(!/^[a-f0-9]{40}$/u.test(sha)) throw new Error('ACTION_PAIR_SHA_INVALID');
 if(!fp) throw new Error('ACTION_PAIR_FINGERPRINT_REQUIRED');
-if(attempt>1 && !['failure','failed-repair','unrepaired','crashed','stale'].includes(prev)) throw new Error('ACTION_PAIR_FAILOVER_REQUIRES_PRIOR_FAILURE');
 const active=attempt%2===1?'ACTION-REPAIR':'ACTION-REPAIR-2';
 const waiting=active==='ACTION-REPAIR'?'ACTION-REPAIR-2':'ACTION-REPAIR';
 const handoff=attempt>1;
