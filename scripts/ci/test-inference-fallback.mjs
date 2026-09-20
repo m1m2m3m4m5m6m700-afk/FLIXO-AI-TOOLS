@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { inferFailureResolution } from './inference-fallback.mjs';
+import { planRepair } from './auto-repair/planner.mjs';
 
 const SHA = 'a'.repeat(40);
 const log = [
@@ -71,6 +72,21 @@ assert.equal(inferred.inferredClass?.errorClass, 'lint');
 assert.equal(inferred.hypothesis.strategyId, 'eslint-unused');
 assert.equal(inferred.hypothesis.mutationCapable, true);
 assert.equal(inferred.prediction.eligibleForBoundedMutation, true);
+assert.equal(inferred.hypothesis.synthesis.mode, 'KNOWN_STRATEGY_TRANSFER');
+
+const fallbackOnly = inferFailureResolution({
+  log,
+  memory,
+  targetSha: SHA,
+  diagnosis: { ...diagnosis, decision: 'PROPOSE_ONLY', ambiguity: false },
+  historicalRecordsOverride: historical,
+});
+assert.equal(fallbackOnly.prediction.eligibleForBoundedMutation, true);
+assert.equal(fallbackOnly.hypothesis.mutationCapable, true);
+
+const planned = planRepair(log, { memory });
+assert.equal(planned.inferenceFallback.prediction.eligibleForBoundedMutation, true);
+assert.equal(planned.selected?.id, 'eslint-unused');
 assert.equal(inferred.safety.currentExactShaRequired, true);
 assert.equal(inferred.safety.canonicalCiRequired, true);
 assert(inferred.nearestHistoricalCases.length >= 1);
@@ -85,6 +101,18 @@ const unsafe = inferFailureResolution({
 });
 assert.equal(unsafe.prediction.eligibleForBoundedMutation, false);
 assert.equal(unsafe.safety.failClosed, true);
+
+const novel = inferFailureResolution({
+  log: 'control-plane anomaly with no known deterministic repair',
+  memory: { cases: [], lessons: [], antiLessons: [], playbooks: [], actionHistory: [] },
+  targetSha: SHA,
+  diagnosis: { rootCause: 'control-plane', directFailureSignal: true, ambiguity: false },
+  historicalRecordsOverride: [],
+});
+assert.equal(novel.hypothesis.novelty, 'NEW_HYPOTHESIS');
+assert.match(novel.hypothesis.strategyId, /^synth-[0-9a-f]{16}$/);
+assert.equal(novel.hypothesis.mutationCapable, false);
+assert.equal(novel.prediction.eligibleForBoundedMutation, false);
 
 const predictionHistory = [
   ...historical,
