@@ -446,7 +446,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
       </div>
 
       {recent.length > 0 && (
-        <div role="group" aria-label="Recent filters" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div role="group" aria-label={copy.recent} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <strong>{copy.recent}:</strong>
           {recent.map((canonicalId) => {
             const recentFilter = getLiveFilter(canonicalId);
@@ -465,7 +465,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         </div>
       )}
 
-      <div role="group" aria-label="Selected filter actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div role="group" aria-label={copy.selected} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button
           type="button"
           aria-pressed={favorites.includes(selected.canonicalId)}
@@ -480,7 +480,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
         <label>
           {copy.zoom}: {zoom.toFixed(1)}×
           <input
-            aria-label="Zoom"
+            aria-label={copy.zoom}
             type="range"
             min="1"
             max="2"
