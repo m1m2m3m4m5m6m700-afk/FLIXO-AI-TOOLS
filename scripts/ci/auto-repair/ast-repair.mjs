@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { applyPreparedChanges } from './prepared-source-change.mjs';
 
-function escapeRegExp(value) { return String(value).replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\function safeRelativeFile'); }
+function escapeRegExp(value) { return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function findTrackedExport(targetDir, symbol) {
   if (!symbol) return { ok: false, reason: 'TS_MISSING_IMPORT_SYMBOL_MISSING' };
   const files = String(execFileSync('git', ['-C', targetDir, 'ls-files', '--', '*.ts', '*.tsx', '*.js', '*.jsx', '*.mjs'], { encoding: 'utf8' }))
