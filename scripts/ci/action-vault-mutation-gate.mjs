@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-import { validateActionVaultVerifierProof } from './repair-protocol.mjs';
+import { validateActionVaultVerifierProof, validateActionVaultPreMutationProofs } from './repair-protocol.mjs';
 
 export const APPROVED_MUTATION_RECOMMENDATIONS=Object.freeze([
   'ALLOW',
@@ -23,10 +23,33 @@ export function evaluateMutationGate({
   differentialProof=null,
   patchCorrectness=null,
   regressionCounterexamples=null,
+  preMutationProof=null,
   mutationScope={changedPaths:[],selectedFiles:[],testMutation:false,controlPlaneMutation:false,mainMutation:false,gateWeakening:false},
   branch='execution',
 }={}){
   const failures=[];
+  if (!preMutationProof || typeof preMutationProof !== 'object') failures.push('PRE_MUTATION_PROOF_MISSING');
+  if (preMutationProof) {
+    try {
+      validateActionVaultPreMutationProofs({
+        sandboxProof:preMutationProof.sandboxSimulation,
+        differentialProof:preMutationProof.differentialProof,
+        patchCorrectnessProof:preMutationProof.patchCorrectness,
+        regressionCounterexamples:preMutationProof.regressionCounterexamples,
+        targetSHA:targetSha,
+        failureFingerprint,
+      });
+      if (preMutationProof.status !== 'PROVEN' || preMutationProof.noMutationApplied !== true) failures.push('PRE_MUTATION_PROOF_STATUS_INVALID');
+      if (verifierProof?.preMutationProof?.proofDigest && verifierProof.preMutationProof.proofDigest !== preMutationProof.patchCorrectness?.proofDigest) failures.push('PRE_MUTATION_DIGEST_MISMATCH');
+    } catch (error) {
+      failures.push('PRE_MUTATION_PROOF_INVALID:'+String(error?.message??error));
+    }
+  }
+  const currentRunId=String(preMutationProof?.failedRunId??verifierProof?.runId??'');
+  const twinSearches=Array.isArray(falsificationReport?.falsificationSearches)?falsificationReport.falsificationSearches:[];
+  if (!currentRunId || twinSearches.length<10 || twinSearches.some(item => item?.targetSha!==targetSha || item?.failureFingerprint!==failureFingerprint || item?.runId!==currentRunId || Number.isNaN(Date.parse(String(item?.observedAt??''))))) failures.push('FALSIFICATION_EVIDENCE_PROVENANCE_INVALID');
+  const rcaRecords=Array.isArray(rootCauseProof?.evidenceRecords)?rootCauseProof.evidenceRecords:[];
+  if (rootCauseProof?.protocol==='CAUSAL-EVIDENCE-GRAPH-v1' && (!rcaRecords.length || rcaRecords.some(item => item?.targetSha!==targetSha || item?.failureFingerprint!==failureFingerprint || item?.runId!==currentRunId || Number.isNaN(Date.parse(String(item?.timestamp??'')))))) failures.push('RCA_EVIDENCE_PROVENANCE_INVALID');
   const checks={
     EXACT_SHA:shaOk(targetSha)&&shaOk(currentSha)&&targetSha===currentSha,
     FAILURE_FINGERPRINT:typeof failureFingerprint==='string'&&failureFingerprint.length>0,
@@ -40,7 +63,7 @@ export function evaluateMutationGate({
     SANDBOX_SIMULATION:Boolean(simulationProof?.status==='PASS'||simulationProof?.ok===true||simulationProof?.status==='PROVEN'),
     DIFFERENTIAL_VERIFICATION:Boolean(differentialProof?.status==='PASS'),
     PATCH_CORRECTNESS:Boolean(patchCorrectness?.status==='PROVEN'&&patchCorrectness?.proofCompleteness?.PATCH_TARGET_PROVEN===true&&patchCorrectness?.proofCompleteness?.PATCH_MECHANISM_PROVEN===true),
-    REGRESSION_COUNTEREXAMPLES_EXHAUSTED:Boolean(regressionCounterexamples?.exhausted===true),
+    REGRESSION_COUNTEREXAMPLES_EXHAUSTED:Boolean(regressionCounterexamples?.exhausted===true&&regressionCounterexamples?.targetSha===targetSha&&regressionCounterexamples?.failureFingerprint===failureFingerprint),
     NO_SCOPE_VIOLATION:mutationScope.testMutation===false&&mutationScope.controlPlaneMutation===false&&mutationScope.mainMutation===false&&mutationScope.gateWeakening===false&&branch==='execution',
     NO_TEST_MUTATION:mutationScope.testMutation===false,
     NO_CONTROL_PLANE_MUTATION:mutationScope.controlPlaneMutation===false,
