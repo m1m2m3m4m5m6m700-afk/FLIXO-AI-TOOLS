@@ -104,7 +104,14 @@
         "unsupported-capability",
         "route-drift",
         "i18n-runtime-drift",
-        "persistence-failure"
+        "persistence-failure",
+        "new-branch",
+        "liveness-drift",
+        "heartbeat-ownership-drift",
+        "orchestration-preflight",
+        "registry-symmetry",
+        "regex-contract",
+        "teaching-route-ambiguity"
       ],
       "rootCauses": [
         "ANY_CONFIRMED_RCA",
@@ -120,7 +127,13 @@
         "duplicate-source-of-truth",
         "llm-execution-authority",
         "ui-only-persistence",
-        "locale-asymmetry"
+        "locale-asymmetry",
+        "liveness-contract-drift",
+        "heartbeat-owner-drift",
+        "orchestration-causal-source",
+        "registry-symmetry-drift",
+        "regex-contract-drift",
+        "teaching-router-ambiguity"
       ],
       "scope": {
         "allowed": [
@@ -185,7 +198,11 @@
         "required CI",
         "security verification",
         "exact-SHA certification",
-        "learning"
+        "learning",
+        "teaching-route",
+        "stage-boundary-enforcement",
+        "same-cycle-interception",
+        "preparation-baseline-binding"
       ],
       "verificationPlan": [
         "fresh evidence",
@@ -203,7 +220,11 @@
         "scope",
         "recurrence prevention",
         "external blocker antiLesson",
-        "prompt provenance"
+        "prompt provenance",
+        "teachingRuleIds",
+        "diagnosisPacket",
+        "stage-boundary",
+        "same-cycle-identity"
       ],
       "relatedPrompts": [],
       "supersedes": [],
@@ -236,9 +257,9 @@
         "canonical certification"
       ],
       "status": "ACTIVE",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "createdBy": "prompt-consolidation",
-      "lastUpdatedBy": "unified-execution-runtime-consolidation",
+      "lastUpdatedBy": "unified-execution-operational-recovery",
       "provenance": {
         "source": "prompt sorting inventory + current execution architecture",
         "replacedFamilies": [
@@ -255,6 +276,15 @@
           "Active Repair Cycle",
           "Canonical Contract Drift",
           "FLIXO-IMAGE-AGENT-MASTER-001"
+        ],
+        "recoveredOperationalSources": [
+          "docs/agents/ACTIVE-REPAIR-CYCLE-PROTOCOL.md",
+          "docs/agents/ERROR-AGENT.md",
+          "docs/agents/ERROR-TEACHING-ROUTER.json",
+          "docs/ERROR-LEARNING-AUTONOMOUS-MODE.md",
+          "docs/agents/TASK-AGENT-SYSTEM-PROMPT.md",
+          "docs/agents/prompts/RPR-ERROR-RCA-001.md",
+          "historical prompt families from docs/agents/PROMPT-SORTING-INVENTORY.md"
         ]
       }
     }
