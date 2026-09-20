@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { learnIntoBotMemory } from './cell-memory.mjs';
 
 const ROOT=process.cwd();
 const KNOWLEDGE_DIR=path.resolve(ROOT,process.env.FLIXO_CELL_KNOWLEDGE_DIR??'diagnostics/auto-repair/cell-knowledge');
@@ -46,7 +47,8 @@ export function buildKnowledgeRecord(input={}){
  const antiLesson=String(input.antiLesson??(outcome==='success'?'':rule?'Do not repeat strategy '+rule+' for this fingerprint without new evidence.':'')).trim()||null;
  const reusable=String(input.reusability??(outcome==='success'?'HIGH':'MEDIUM')).trim();
  const taskShortName=deriveTaskShortName(input); const weakness=deriveWeakness(input,validation); const botId=input.botId?String(input.botId).trim():null; const botUpgrade=deriveBotUpgrade({outcome,attempts:input.attempts,successes:input.successes,upgradeNumber:input.upgradeNumber,upgradePriority:input.upgradePriority,weakness,validation});
- return Object.freeze({id:'CK-'+sha256([taskId,fingerprint,runId,now()].join('|')).slice(0,24),schemaVersion:2,taskId,fingerprint:fingerprint||null,runId,targetSha,failedSha,rootCause,rule,outcome,claim,taskIdentity:{shortName:taskShortName,state:validation.validated?'LEARNED':'UNPROVEN',version:Math.max(1,Number(input.taskVersion)||1)},botProfile:botId?{botId,taskShortName,upgrade:botUpgrade,lifecycle:{state:botUpgrade.state,reassessAfterTask:true,noRawTerminalState:true}}:null,evidence:{verification:String(input.verification??'unknown'),source:String(input.source??'FLIXO Auto Repair'),evidenceRef:input.evidenceRef??null,changedPaths:Array.isArray(input.changedPaths)?input.changedPaths.slice(0,32):[]},validation,confidence:validation.validated?(outcome==='success'?'CONFIRMED':'OBSERVED'):'UNPROVEN',reusability:reusable,antiLesson,createdAt:now()});
+ const personalMemory=botId?learnIntoBotMemory({botId,taskId,taskShortName,taskName:input.taskName??null,knowledge:{id:'CK-'+sha256([taskId,fingerprint,runId].join('|')).slice(0,24),claim,taskIdentity:{version:Math.max(1,Number(input.taskVersion)||1)}},verification:input.verification,evidenceRef:input.evidenceRef??null,outcome,rootCause,rule,weakness,upgrade:botUpgrade}):null;
+ return Object.freeze({id:'CK-'+sha256([taskId,fingerprint,runId,now()].join('|')).slice(0,24),schemaVersion:2,taskId,fingerprint:fingerprint||null,runId,targetSha,failedSha,rootCause,rule,outcome,claim,taskIdentity:{shortName:taskShortName,state:validation.validated?'LEARNED':'UNPROVEN',version:Math.max(1,Number(input.taskVersion)||1)},botProfile:botId?{botId,taskShortName,upgrade:botUpgrade,lifecycle:{state:botUpgrade.state,reassessAfterTask:true,noRawTerminalState:true}}:null,evidence:{verification:String(input.verification??'unknown'),source:String(input.source??'FLIXO Auto Repair'),evidenceRef:input.evidenceRef??null,changedPaths:Array.isArray(input.changedPaths)?input.changedPaths.slice(0,32):[]},validation,confidence:validation.validated?(outcome==='success'?'CONFIRMED':'OBSERVED'):'UNPROVEN',reusability:reusable,personalMemory:personalMemory?{botId:personalMemory.botId,taskCount:personalMemory.state.taskCount,memoryFile:'diagnostics/auto-repair/cell-bots/'+personalMemory.botId+'.json'}:null,antiLesson,createdAt:now()});
 }
 export function persistKnowledge(record){
  if(!record||record.confidence==='UNPROVEN')return {persisted:false,reason:'knowledge-unproven'};
