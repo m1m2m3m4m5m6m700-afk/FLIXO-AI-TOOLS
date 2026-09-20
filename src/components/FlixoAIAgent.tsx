@@ -19,6 +19,7 @@ import {
 import { AGENT_I18N } from '@/data/agent-locales';
 import type { Locale } from '@/lib/i18n';
 import { buildFilterMaskUrl, type FilterMaskHandoff } from '@/tools/filter-mask/handoff';
+import { askConversationalAgent } from '@/lib/agent/conversational-agent';
 import { getLiveFilter } from '@/tools/filter-mask/registry';
 import { resolveFilterMaskSelection } from '@/lib/intent/resolver';
 import './FlixoAIAgent.css';
@@ -124,6 +125,73 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     setPlan(nextPlan); setState('ready'); return nextPlan;
   };
 
+  const runConversationalTurn = async (command: string, responseCopy = copy): Promise<boolean> => {
+    try {
+      const decision = await askConversationalAgent({
+        locale,
+        messages: [...messages, { role: 'user', content: command }].slice(-24).map((message) => ({
+          role: message.role === 'agent' ? 'assistant' : 'user',
+          content: message.text,
+        })),
+        file: file ? { name: file.name, type: file.type, size: file.size } : null,
+        activePlan: plan,
+        activeCommand: memory.activeCommand,
+      });
+
+      // A provider fallback means the gateway did not have a usable model response.
+      // Keep the existing deterministic FLIXO planner authoritative in that case.
+      if (decision.fallback) return false;
+
+      if (decision.mode === 'plan' && decision.plan) {
+        setPlan(decision.plan);
+        setState('ready');
+        setError(null);
+        setFilterHandoff(null);
+        setMemory((current) => setConversationTask(current, {
+          command,
+          toolId: decision.plan?.steps[0]?.toolId ?? null,
+          planReady: true,
+        }));
+        pushMessage(
+          'agent',
+          file
+            ? `${decision.reply} ${responseCopy.execute}`
+            : `${decision.reply} ${responseCopy.uploadThenExecute}`,
+        );
+        return true;
+      }
+
+      setPlan(null);
+      setError(null);
+      setState('idle');
+      setFilterHandoff(null);
+
+      if (decision.mode === 'clarify') {
+        setMemory((current) => setConversationTask(current, {
+          command,
+          toolId: current.activeToolId,
+          pendingQuestion: decision.question,
+          planReady: false,
+        }));
+        pushMessage('agent', decision.reply);
+        if (decision.question && decision.question.trim() !== decision.reply.trim()) {
+          pushMessage('agent', decision.question);
+        }
+        return true;
+      }
+
+      setMemory((current) => setConversationTask(current, {
+        command: current.activeCommand ?? command,
+        toolId: current.activeToolId,
+        planReady: false,
+      }));
+      pushMessage('agent', decision.reply);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const execute = async (nextPlan = plan, responseCopy = copy) => {
     if (!file || !nextPlan) return;
     setState('running'); setError(null);
@@ -179,6 +247,8 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
 
     if (filterMaskMatch && applyFilterMaskHandoff(command, detectedLocale)) return;
 
+    if (await runConversationalTurn(command, responseCopy)) return;
+
     const conversationKind = classifyConversation(command);
     const naturalReply = conversationalReply(conversationKind, responseCopy);
     if (naturalReply) {
@@ -231,6 +301,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
     const responseCopy = AGENT_I18N[detectedLocale] ?? copy;
     pushMessage('user', command); setQuery('');
     if (filterMaskMatch && applyFilterMaskHandoff(command, detectedLocale)) return;
+    if (await runConversationalTurn(command, responseCopy)) return;
     const naturalReply = conversationalReply(classifyConversation(command), responseCopy);
     if (naturalReply) { pushMessage('agent', naturalReply); return; }
     if (GENERIC_CROP_REQUEST.test(command)) {
