@@ -393,7 +393,8 @@ function cli() {
   throw new Error('Usage: repair-control-plane.mjs schema|identity|lease-ref|claim|advance');
 }
 
-if (process.argv[1]?.endsWith('repair-control-plane.mjs')) {
+const invokedDirectly = Boolean(process.argv[1] && /(?:^|[\\/])repair-control-plane\.mjs$/u.test(process.argv[1]));
+if (invokedDirectly) {
   try {
     cli();
   } catch (error) {
