@@ -5,6 +5,7 @@ export type FilterMaskParameters = Readonly<{
   zoom: number;
   mirror: boolean;
   aspectRatio: '9:16' | '4:5' | '1:1' | '16:9';
+  captureQuality: '720p' | '1080p';
 }>;
 
 export type FilterMaskHandoff = Readonly<{
@@ -15,8 +16,11 @@ export type FilterMaskHandoff = Readonly<{
 const clampIntensity = (value: number): number => Math.min(100, Math.max(25, Math.round(value)));
 const clampZoom = (value: number): number => Math.min(2, Math.max(1, Math.round(value * 10) / 10));
 export const FILTER_MASK_ASPECT_RATIOS = ['9:16', '4:5', '1:1', '16:9'] as const;
+export const FILTER_MASK_CAPTURE_QUALITIES = ['720p', '1080p'] as const;
 const normalizeAspectRatio = (value: string | undefined): FilterMaskParameters['aspectRatio'] =>
   FILTER_MASK_ASPECT_RATIOS.includes(value as FilterMaskParameters['aspectRatio']) ? value as FilterMaskParameters['aspectRatio'] : '9:16';
+const normalizeCaptureQuality = (value: string | undefined): FilterMaskParameters['captureQuality'] =>
+  FILTER_MASK_CAPTURE_QUALITIES.includes(value as FilterMaskParameters['captureQuality']) ? value as FilterMaskParameters['captureQuality'] : '1080p';
 
 export function createFilterMaskHandoff(
   filter: LiveFilterDefinition,
@@ -29,6 +33,7 @@ export function createFilterMaskHandoff(
       zoom: clampZoom(parameters.zoom ?? 1),
       mirror: parameters.mirror ?? true,
       aspectRatio: normalizeAspectRatio(parameters.aspectRatio),
+      captureQuality: normalizeCaptureQuality(parameters.captureQuality),
     }),
   });
 }
@@ -44,8 +49,9 @@ export function parseFilterMaskHandoff(search: string): FilterMaskHandoff | null
   const zoom = Number.isFinite(rawZoom) ? clampZoom(rawZoom) : 1;
   const mirror = params.get('mirror') !== 'false';
   const aspectRatio = normalizeAspectRatio(params.get('aspectRatio') ?? undefined);
+  const captureQuality = normalizeCaptureQuality(params.get('captureQuality') ?? undefined);
 
-  return createFilterMaskHandoff(getLiveFilter(canonicalId)!, { intensity, zoom, mirror, aspectRatio });
+  return createFilterMaskHandoff(getLiveFilter(canonicalId)!, { intensity, zoom, mirror, aspectRatio, captureQuality });
 }
 
 export function buildFilterMaskUrl(
@@ -58,6 +64,7 @@ export function buildFilterMaskUrl(
     zoom: String(handoff.parameters.zoom),
     mirror: String(handoff.parameters.mirror),
     aspectRatio: handoff.parameters.aspectRatio,
+    captureQuality: handoff.parameters.captureQuality,
   });
   return `/${encodeURIComponent(locale)}/filter-mask?${params.toString()}`;
 }
