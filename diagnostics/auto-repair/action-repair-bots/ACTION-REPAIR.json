@@ -9,7 +9,7 @@
   "independentDevelopment": true,
   "role": "ACTION_REPAIR_EXECUTOR",
   "protocolActor": "actionRepairBot",
-  "mission": "تدقيق وتعلم وتنفيذ إصلاحات GitHub Actions من الدليل الحالي والتاريخ المحفوظ، مع إعادة التحقق على نفس SHA ثم تسليم الإغلاق إلى Canonical CI.",
+  "mission": "الوكيل البرمجي الرئيسي: يفكر كمبرمج، يقرأ الكود ويحلل السبب الجذري ويصوغ ويطبق أصغر إصلاح مصدر لازم، ثم يمرر كل شيء إلى Canonical CI.",
   "state": {
     "status": "READY",
     "taskCount": 0,
@@ -111,7 +111,7 @@
   ],
   "note": "هذه ذاكرة تشغيلية/تعلمية وليست سلطة إثبات. لا تُعتبر أي قاعدة صحيحة للحالة الحالية إلا بعد exact-SHA reproduction + targeted regression + Canonical CI.",
   "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
-  "cooperationRole": "PRIMARY_REPAIR_OWNER",
+  "cooperationRole": "PRIMARY_PROGRAMMING_REPAIR_OWNER",
   "cooperationMode": "MANDATORY_SHARED_MISSION_ON_RED",
   "sharedCapabilities": "ACTION-THREE-BOT-INTELLIGENCE",
   "requiredCollaborators": [
@@ -188,7 +188,17 @@
     "independentReview": true,
     "structuredOutput": true,
     "failClosed": true,
-    "noSelfApproval": true
+    "noSelfApproval": true,
+    "roleMission": "PROGRAMMER_THINKING_AND_SOURCE_REPAIR",
+    "reasoningModes": [
+      "CODE_REASONING",
+      "AST_REVIEW",
+      "ROOT_CAUSE",
+      "MINIMAL_PATCH",
+      "REGRESSION_DESIGN",
+      "SELF_CRITIQUE",
+      "VERIFICATION"
+    ]
   },
   "subAgents": {
     "codeMentor": {
