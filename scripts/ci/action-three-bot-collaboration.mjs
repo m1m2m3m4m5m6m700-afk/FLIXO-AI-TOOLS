@@ -150,7 +150,8 @@ if(op==='start'){
   if(!['OBSERVATION','RCA','HYPOTHESIS','CHALLENGE','PLAN','EVIDENCE','LESSON_CANDIDATE','PROGRAMMING_ANALYSIS','PROPOSED_REPAIR','FAILURE_RECORD','HANDOFF_RECORD','FILE_SELECTION','CORRECTNESS_PROOF','FALSIFICATION'].includes(kind)) throw new Error('ACTION_THREE_BOT_CONTRIBUTION_KIND_INVALID');
   if(bot==='ACTION-REPAIR' && !['PROGRAMMING_ANALYSIS','RCA','HYPOTHESIS','PLAN','CORRECTNESS_PROOF'].includes(kind)) throw new Error('ACTION_THREE_BOT_PROGRAMMER_CONTRIBUTION_INVALID');
   if(bot==='ACTION-REPAIR-2' && !['RCA','HYPOTHESIS','PLAN','PROPOSED_REPAIR','CHALLENGE','FALSIFICATION'].includes(kind)) throw new Error('ACTION_THREE_BOT_FALSIFIER_CONTRIBUTION_INVALID');
-  if(bot==='ACTION-HISTORIAN-3' && !['FAILURE_RECORD','HANDOFF_RECORD','EVIDENCE','FILE_SELECTION'].includes(kind)) throw new Error('ACTION_THREE_BOT_HISTORIAN_CONTRIBUTION_INVALID');
+  if(bot==='ACTION-HISTORIAN-3' && !['FAILURE_RECORD','HANDOFF_RECORD','EVIDENCE','FILE_SELECTION','PROPOSED_REPAIR'].includes(kind)) throw new Error('ACTION_THREE_BOT_HISTORIAN_CONTRIBUTION_INVALID');
+  if(bot==='ACTION-HISTORIAN-3' && kind==='PROPOSED_REPAIR' && escalationFor(fingerprint).mode!=='SUPERVISOR_20') throw new Error('ACTION_THREE_BOT_SUPERVISOR_PROPOSAL_REQUIRES_20');
   const contributionId=bot+'-'+shaDigest(task+'|'+fingerprint+'|'+targetSha+'|'+bot+'|'+summary).slice(0,20);
   state.contributions[bot]={contributionId,bot,lane:LANES[bot],kind,summary:summary.slice(0,12000),evidence,targetSha,fingerprint,createdAt:now(),verified:false};
   recordAttempt({taskId:task,failureFingerprint:fingerprint,targetSha,failedRunId:runId,botId:bot,attemptedStrategy:summary.slice(0,1000),result:'CONTRIBUTION_RECORDED',evidence});
