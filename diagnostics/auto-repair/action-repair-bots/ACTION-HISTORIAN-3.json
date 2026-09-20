@@ -79,5 +79,27 @@
       "promotionProof": "INDEX_INTEGRITY_PLUS_EXACT_PROVENANCE"
     }
   },
-  "repositoryWriteScope": "ACTION_VAULT_MEMORY_ONLY"
+  "repositoryWriteScope": "ACTION_VAULT_MEMORY_ONLY",
+  "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
+  "residencyState": "RESIDENT_ALWAYS",
+  "maxOperationsPerBot": 2000000,
+  "dailyAutomaticVisits": {
+    "visitsPerDay": 3,
+    "totalForCoreSquad": 9,
+    "automatic": true
+  },
+  "closurePolicy": "CANONICAL_GREEN_ONLY",
+  "escalationAfterFailedAttempts": 20,
+  "supervisorEscalationRoute": "scripts/ci/agent-communication.mjs -> .github/workflows/agent-communication-relay.yml -> assistantController",
+  "cooperationOnRed": {
+    "enabled": true,
+    "participants": [
+      "ACTION-REPAIR",
+      "ACTION-REPAIR-2",
+      "ACTION-HISTORIAN-3"
+    ],
+    "sameTask": true,
+    "sameFingerprint": true,
+    "sameSha": true
+  }
 }
