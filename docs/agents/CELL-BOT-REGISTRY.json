@@ -89,7 +89,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-001.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-002",
@@ -129,7 +135,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-002.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-003",
@@ -169,7 +181,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-003.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-004",
@@ -209,7 +227,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-004.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-005",
@@ -249,7 +273,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-005.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-006",
@@ -289,7 +319,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-006.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-007",
@@ -329,7 +365,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-007.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-008",
@@ -369,7 +411,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-008.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-009",
@@ -409,7 +457,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-009.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-010",
@@ -449,7 +503,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-010.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-011",
@@ -489,7 +549,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-011.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-012",
@@ -529,7 +595,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-012.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-013",
@@ -569,7 +641,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-013.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-014",
@@ -609,7 +687,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-014.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-015",
@@ -649,7 +733,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-015.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-016",
@@ -689,7 +779,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-016.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-017",
@@ -729,7 +825,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-017.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-018",
@@ -769,7 +871,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-018.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-019",
@@ -809,7 +917,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-019.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-020",
@@ -849,7 +963,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-020.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-021",
@@ -889,7 +1009,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-021.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-022",
@@ -929,7 +1055,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-022.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-023",
@@ -969,7 +1101,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-023.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-024",
@@ -1009,7 +1147,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-024.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-025",
@@ -1049,7 +1193,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-025.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-026",
@@ -1089,7 +1239,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-026.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-027",
@@ -1129,7 +1285,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-027.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-028",
@@ -1169,7 +1331,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-028.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-029",
@@ -1209,7 +1377,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-029.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-030",
@@ -1249,7 +1423,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-030.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-031",
@@ -1289,7 +1469,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-031.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-032",
@@ -1329,7 +1515,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-032.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-033",
@@ -1369,7 +1561,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-033.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-034",
@@ -1409,7 +1607,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-034.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-035",
@@ -1449,7 +1653,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-035.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-036",
@@ -1489,7 +1699,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-036.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-037",
@@ -1529,7 +1745,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-037.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-038",
@@ -1569,7 +1791,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-038.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-039",
@@ -1609,7 +1837,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-039.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-040",
@@ -1649,7 +1883,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-040.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-041",
@@ -1689,7 +1929,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-041.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-042",
@@ -1729,7 +1975,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-042.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-043",
@@ -1769,7 +2021,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-043.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-044",
@@ -1809,7 +2067,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-044.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-045",
@@ -1849,7 +2113,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-045.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-046",
@@ -1889,7 +2159,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-046.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-047",
@@ -1929,7 +2205,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-047.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-048",
@@ -1969,7 +2251,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-048.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-049",
@@ -2009,7 +2297,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-049.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     },
     {
       "id": "CELL-050",
@@ -2049,7 +2343,13 @@
       "reassignmentPolicy": "ANY_ADMITTED_TASK",
       "returnPolicy": "RETURN_TO_POOL_WITH_KNOWLEDGE",
       "personalMemoryFile": "diagnostics/auto-repair/cell-bots/CELL-050.json",
-      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE"
+      "memoryPolicy": "LEARN_PERSIST_COPYABLE_REUSE",
+      "cellCouncil": "CELL_TRISEAT_CONTROLLER",
+      "supervisedBySeats": [
+        "CELL-SEAT-01",
+        "CELL-SEAT-02",
+        "CELL-SEAT-03"
+      ]
     }
   ],
   "lifecycle": {
@@ -2097,5 +2397,30 @@
     "independentAuthorityNeverCopied": true,
     "aggregateIndex": "diagnostics/auto-repair/cell-knowledge/index.json",
     "rule": "The personal file stores learned knowledge for that bot; the aggregate index is derived for discovery/routing."
+  },
+  "cellCouncil": {
+    "authority": "CELL_TRISEAT_CONTROLLER",
+    "controller": "assistantController",
+    "seats": [
+      {
+        "id": "CELL-SEAT-01",
+        "agent": "CURRENT_CHATGPT_AGENT",
+        "role": "CONTROLLER"
+      },
+      {
+        "id": "CELL-SEAT-02",
+        "agent": "CHATGPT_PEER_A",
+        "role": "RCA_AND_CHALLENGE"
+      },
+      {
+        "id": "CELL-SEAT-03",
+        "agent": "CHATGPT_PEER_B",
+        "role": "VERIFICATION_AND_ALTERNATIVE"
+      }
+    ],
+    "mutationRule": "No seat mutates the cell directly; mutations are enacted only by the canonical execution path under assistantController.",
+    "quorum": "2_OF_3_FOR_ROUTINE_CELL_DECISIONS_3_OF_3_FOR_CRITICAL_DECISIONS",
+    "peerAuthority": "PROPOSE_CHALLENGE_VERIFY_ONLY",
+    "rawBotAuthority": "EXECUTE_ASSIGNED_SCOPE_ONLY"
   }
 }
