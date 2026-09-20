@@ -22,10 +22,10 @@ jobs:
       FLIXO_EXTERNAL_REPORT: external-test-results/tool-output-report.json
     steps:
       - name: Checkout exact workflow revision
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e289664e5dc5ba9c38
         with:
           node-version: 22
           cache: npm
@@ -48,7 +48,7 @@ jobs:
 
       - name: Publish external output report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: flixo-external-tool-output-report
           path: external-test-results/tool-output-report.json
