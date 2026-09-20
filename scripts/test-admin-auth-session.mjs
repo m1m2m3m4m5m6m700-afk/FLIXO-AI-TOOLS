@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomBytes, scryptSync } from 'node:crypto';
-import { sessionCookieName, signAdminSession } from '../api/admin/boundary.ts';
+import { sessionCookieName } from '../api/admin/boundary.ts';
 
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'test-secret';
