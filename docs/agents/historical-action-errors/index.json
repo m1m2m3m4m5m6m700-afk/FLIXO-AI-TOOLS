@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 2,
+  "authority": "HISTORICAL_OBSERVATION_ONLY",
+  "source": "github-actions-logs",
+  "externalDiagnosis": false,
+  "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY",
+  "byFingerprint": {},
+  "byNormalized": {},
+  "byClass": {},
+  "byWorkflow": {},
+  "recordCount": 0,
+  "updatedAt": null
+}
