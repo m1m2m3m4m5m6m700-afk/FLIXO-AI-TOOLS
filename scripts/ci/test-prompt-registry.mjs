@@ -15,7 +15,7 @@ const registry = loadPromptRegistry();
 const validation = validatePromptRegistry(registry);
 assert.equal(validation.ok, true);
 assert.equal(validation.status, 'VALID');
-assert.ok(validation.promptCount >= 8);
+assert.ok(validation.promptCount >= 10);
 
 const memory = loadErrorMemory();
 const discovery = discoverPromptContext({
@@ -26,13 +26,13 @@ const discovery = discoverPromptContext({
 });
 assert.equal(discovery.memoryIsAdvisoryOnly, true);
 assert.equal(discovery.selection.status, 'REUSE');
-assert.equal(discovery.selection.prompt.promptId, 'RPR-ORCHESTRATION-PREFLIGHT-001');
+assert.equal(discovery.selection.prompt.promptId, 'RPR-PROMPT-02-ERROR-INTELLIGENCE-001');
 
 const cases = [
-  ['83b077936ef0130cd635cdfa433ea9bebea9a4a4', 'orchestration', 'RPR-ORCHESTRATION-PREFLIGHT-001'],
-  ['e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'external-tooling', 'RPR-EXTERNAL-TOOLING-001'],
-  ['cc208a65323355b8846d7aa6d7e85f742feb8909', 'lint', 'RPR-REGEX-CONTRACT-001'],
-  ['11a69c066357a565d2cc26afd516d4b2d1eb6f7b', 'architecture', 'RPR-ARCHITECTURE-REGISTRY-001'],
+  ['83b077936ef0130cd635cdfa433ea9bebea9a4a4', 'orchestration', 'RPR-PROMPT-02-ERROR-INTELLIGENCE-001'],
+  ['e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'external-tooling', 'RPR-PROMPT-02-ERROR-INTELLIGENCE-001'],
+  ['cc208a65323355b8846d7aa6d7e85f742feb8909', 'lint', 'RPR-PROMPT-02-ERROR-INTELLIGENCE-001'],
+  ['11a69c066357a565d2cc26afd516d4b2d1eb6f7b', 'architecture', 'RPR-PROMPT-02-ERROR-INTELLIGENCE-001'],
 ];
 const canonical = selectRepairPrompt({
   registry,
@@ -41,7 +41,7 @@ const canonical = selectRepairPrompt({
   failureClass: 'noncanonical-automation',
 });
 assert.equal(canonical.status, 'REUSE');
-assert.equal(canonical.prompt.promptId, 'RPR-CANONICAL-CONTRACT-DRIFT-001');
+assert.equal(canonical.prompt.promptId, 'RPR-PROMPT-02-ERROR-INTELLIGENCE-001');
 const liveness = selectRepairPrompt({
   registry,
   failureFingerprint: 'f'.repeat(64),
@@ -49,7 +49,7 @@ const liveness = selectRepairPrompt({
   failureClass: 'liveness-contract',
 });
 assert.equal(liveness.status, 'REUSE');
-assert.equal(liveness.prompt.promptId, 'RPR-CANONICAL-CONTRACT-DRIFT-001');
+assert.equal(liveness.prompt.promptId, 'RPR-PROMPT-02-ERROR-INTELLIGENCE-001');
 const drift = selectRepairPrompt({
   registry,
   failureFingerprint: 'f'.repeat(64),
@@ -57,7 +57,7 @@ const drift = selectRepairPrompt({
   failureClass: 'contract-test-mismatch',
 });
 assert.equal(drift.status, 'REUSE');
-assert.equal(drift.prompt.promptId, 'RPR-CANONICAL-CONTRACT-DRIFT-001');
+assert.equal(drift.prompt.promptId, 'RPR-PROMPT-02-ERROR-INTELLIGENCE-001');
 
 for (const [fingerprint, rootCause, expected] of cases) {
   const found = selectRepairPrompt({ registry, failureFingerprint: fingerprint, rootCause });
@@ -70,13 +70,13 @@ assert.equal(unknown.status, 'PROMPT_REVIEW_REQUIRED');
 
 const handoff = createPromptHandoff({
   registry,
-  promptId: 'RPR-ORCHESTRATION-PREFLIGHT-001',
+  promptId: 'RPR-PROMPT-02-ERROR-INTELLIGENCE-001',
   exactSha: 'a'.repeat(40),
   failureFingerprint: '83b077936ef0130cd635cdfa433ea9bebea9a4a4',
   rootCause: 'orchestration',
   evidence: ['current-run'],
 });
-assert.equal(handoff.promptId, 'RPR-ORCHESTRATION-PREFLIGHT-001');
+assert.equal(handoff.promptId, 'RPR-PROMPT-02-ERROR-INTELLIGENCE-001');
 assert.equal(handoff.exactSha, 'a'.repeat(40));
 assert.equal(handoff.status, 'CANDIDATE');
 assert.ok(handoff.allowedScope.length > 0);
@@ -92,8 +92,9 @@ for (const [input, expected] of [
 ]) assert.equal(classifyPromptLearningOutcome(input), expected);
 
 const duplicateRegistry = JSON.parse(JSON.stringify(registry));
-const one = duplicateRegistry.prompts.find((item) => item.promptId === 'RPR-ORCHESTRATION-PREFLIGHT-001');
-const two = duplicateRegistry.prompts.find((item) => item.promptId === 'RPR-ARCHITECTURE-REGISTRY-001');
+const one = duplicateRegistry.prompts.find((item) => item.promptId === 'RPR-PROMPT-02-ERROR-INTELLIGENCE-001');
+const two = duplicateRegistry.prompts.find((item) => item.promptId === 'RPR-EXISTING-SAFE-TASK-001');
+two.status = 'CANDIDATE';
 two.failureClasses = [...one.failureClasses];
 two.rootCauses = [...one.rootCauses];
 two.scope = JSON.parse(JSON.stringify(one.scope));
