@@ -415,15 +415,6 @@ jobs:
           set -euo pipefail
           node scripts/ci/repair-control-plane.mjs advance --file=/tmp/flixo-repair-control-plane.json --to=MUTATING --actor=REPAIR_AGENT --reason=BOUNDED_SOURCE_MUTATION
 
-      - name: Execute bounded root-cause repair under Repair Agent authority
-        id: execute_repair
-        if: steps.strategy.outputs.intractable != 'true' && steps.install_target.outcome == 'success'
-        env:
-          FLIXO_TARGET_DIR: ${{ github.workspace }}
-          FLIXO_SCOUT_REPORT: /tmp/flixo-scout-report.json
-        run: |
-          set -euo pipefail
-          export FLIXO_REPAIR_STRATEGY="$(node -e "const x=require('/tmp/flixo-repair-strategy.json');process.stdout.write(x.strategyId+'::'+x.strategy)")"
       - name: Select assistant fallback only when primary agents are unavailable
         id: assistant_fallback
         if: always() && (steps.task_agent.outcome != 'success' || steps.strategy.outcome != 'success')
