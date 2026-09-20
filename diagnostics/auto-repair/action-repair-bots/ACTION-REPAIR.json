@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "authority": "ACTION_REPAIR_BOT_PERSONAL_MEMORY",
   "botId": "ACTION-REPAIR",
   "displayName": "بوت إصلاح Actions",
@@ -135,13 +135,13 @@
   "agentGrade": {
     "lifecycle": "READY",
     "shortName": "ACTR",
-    "upgradeNumber": 3,
+    "upgradeNumber": 4,
     "upgradePriority": 95,
     "nextUpgrade": {
       "id": "ACTR-U3",
-      "weakness": "PATCH_GENERATION_VERIFICATION_AND_REGRESSION_PROOF_DEPTH",
-      "mission": "توليد إصلاحات مرشحة ضمن حدود الأدلة، محاكاتها في Sandbox، ثم إثبات الفرق قبل أي تغيير فعلي",
-      "promotionProof": "PATCH_SYNTHESIS_PLUS_SANDBOX_PLUS_DIFFERENTIAL_PLUS_EXACT_SHA_PLUS_CANONICAL_CI"
+      "weakness": "ADAPTIVE_MULTI_HYPOTHESIS_REPAIR_AND_DEEP_DIFFERENTIAL_COVERAGE",
+      "mission": "توليد فرضيات إصلاح متعددة ضمن حدود الأدلة، محاكاتها في Sandbox، توسيع التحقق التفاضلي، ثم إثبات الفرق قبل أي تغيير فعلي",
+      "promotionProof": "MULTI_HYPOTHESIS_PLUS_PATCH_SYNTHESIS_PLUS_SANDBOX_PLUS_DIFFERENTIAL_PLUS_EXACT_SHA_PLUS_CANONICAL_CI"
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
@@ -168,8 +168,8 @@
   },
   "agentRuntime": {
     "protocol": "ACTION-AGENT-RUNTIME-v2",
-    "modelProfile": "ACTION_PRIMARY_REPAIR_V1",
-    "reasoningEffort": "HIGH",
+    "modelProfile": "ACTION_FRONTIER_REPAIR_V2",
+    "reasoningEffort": "MAXIMUM",
     "cognitiveLoop": [
       "INTAKE",
       "CONTEXT_RETRIEVAL",
@@ -186,7 +186,7 @@
     "historicalActivity": "docs/agents/historical-action-errors/agent-activity",
     "runtime": "scripts/ci/action-agent-runtime.mjs",
     "activityLedger": "scripts/ci/action-agent-history.mjs",
-    "toolBudget": 40,
+    "toolBudget": 60,
     "selfCritique": true,
     "independentReview": true,
     "structuredOutput": true,
