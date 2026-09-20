@@ -15,6 +15,7 @@ const fileSelectionPath=arg('file-selection','');
 const programmerTwinParityPath=arg('programmer-twin-parity','');
 const primaryProofPath=arg('primary-proof','');
 const awarenessPath=arg('awareness','');
+const preMutationProofPath=arg('pre-mutation-proof','');
 const now=()=>new Date().toISOString();
 const read=(p)=>JSON.parse(fs.readFileSync(p,'utf8'));
 const shaOk=x=>/^[a-f0-9]{40}$/u.test(String(x||''));
@@ -27,11 +28,14 @@ if(mode==='audit'){
  if(!programmerTwinParityPath||!fs.existsSync(programmerTwinParityPath)) throw new Error('ACTION_PAIR_PROGRAMMER_TWIN_PARITY_REQUIRED');
  if(!primaryProofPath||!fs.existsSync(primaryProofPath)) throw new Error('ACTION_PAIR_PRIMARY_CORRECTNESS_PROOF_REQUIRED');
  if(!awarenessPath||!fs.existsSync(awarenessPath)) throw new Error('ACTION_PAIR_COGNITIVE_AWARENESS_REQUIRED');
- const m=read(memory), p=read(evidence), s=read(arg('strategy')), fileSelection=read(fileSelectionPath), programmerTwinParity=read(programmerTwinParityPath), primaryProof=read(primaryProofPath), awareness=read(awarenessPath);
+ if(!preMutationProofPath||!fs.existsSync(preMutationProofPath)) throw new Error('ACTION_PAIR_PRE_MUTATION_PROOF_REQUIRED');
+ const m=read(memory), p=read(evidence), s=read(arg('strategy')), fileSelection=read(fileSelectionPath), programmerTwinParity=read(programmerTwinParityPath), primaryProof=read(primaryProofPath), awareness=read(awarenessPath), preMutationProof=read(preMutationProofPath);
  if(awareness.protocol!=='ACTION-SYSTEM-COGNITIVE-AWARENESS-v1'||awareness.targetSha!==targetSha||awareness.failureFingerprint!==fingerprint||awareness.exactShaBound!==true||awareness.awarenessCompleteness?.complete!==true) throw new Error('ACTION_PAIR_COGNITIVE_AWARENESS_INVALID');
  if(programmerTwinParity.status!=='EXACT_INTELLIGENCE_PARITY'||programmerTwinParity.intelligenceParity!=='EXACT'||programmerTwinParity.authorityParity!=='SEPARATED_BY_DESIGN'||programmerTwinParity.primaryAgent!=='ACTION-REPAIR'||programmerTwinParity.twinAgent!=='ACTION-REPAIR-2'||programmerTwinParity.targetSha!==targetSha||programmerTwinParity.failureFingerprint!==fingerprint) throw new Error('ACTION_PAIR_PROGRAMMER_TWIN_PARITY_INVALID');
- if(primaryProof.role!=='PRIMARY_CORRECTNESS_PROVER'||primaryProof.status!=='PRIMARY_CORRECTNESS_CLAIM'||primaryProof.proofObjective!=='PROVE_PRIMARY_REPAIR_CORRECT'||primaryProof.targetSha!==targetSha||primaryProof.failureFingerprint!==fingerprint||primaryProof.agentId!=='ACTION-REPAIR') throw new Error('ACTION_PAIR_PRIMARY_CORRECTNESS_PROOF_INVALID');
+ if(primaryProof.role!=='PRIMARY_CORRECTNESS_PROVER'||primaryProof.status!=='PRIMARY_CORRECTNESS_PROVEN'||primaryProof.proofObjective!=='PROVE_PRIMARY_REPAIR_CORRECT'||primaryProof.targetSha!==targetSha||primaryProof.failureFingerprint!==fingerprint||primaryProof.agentId!=='ACTION-REPAIR') throw new Error('ACTION_PAIR_PRIMARY_CORRECTNESS_PROOF_INVALID');
  if(!Array.isArray(primaryProof.obligationsForVerifier)||primaryProof.obligationsForVerifier.length<4) throw new Error('ACTION_PAIR_PRIMARY_PROOF_OBLIGATIONS_INCOMPLETE');
+ if(preMutationProof.protocol!=='REPAIR-SIMULATION-PROOF-v1'||preMutationProof.status!=='PROVEN'||preMutationProof.targetSha!==targetSha||preMutationProof.failureFingerprint!==fingerprint||preMutationProof.noMutationApplied!==true) throw new Error('ACTION_PAIR_PRE_MUTATION_PROOF_INVALID');
+ if(preMutationProof.proofCompleteness?.SANDBOX_SIMULATION_PASSED!==true||preMutationProof.proofCompleteness?.DIFFERENTIAL_CHECK_PASSED!==true||preMutationProof.proofCompleteness?.PATCH_CORRECTNESS_PROVEN!==true||preMutationProof.proofCompleteness?.NO_VALID_COUNTEREXAMPLE!==true||preMutationProof.proofCompleteness?.REGRESSION_COUNTEREXAMPLES_EXHAUSTED!==true) throw new Error('ACTION_PAIR_PRE_MUTATION_PROOF_INCOMPLETE');
  if(fileSelection.agentId!=='ACTION-HISTORIAN-3'||fileSelection.protocol!=='ACTION-FILE-SELECTION-INTELLIGENCE-v1'||fileSelection.targetSha!==targetSha||fileSelection.failureFingerprint!==fingerprint||fileSelection.pathOnlyAnalysis!==true||fileSelection.codeContentRead!==false||fileSelection.sourceMutationAllowed!==false||fileSelection.decision!=='SELECTED'||!Array.isArray(fileSelection.selectedFiles)||fileSelection.selectedFiles.length<1) throw new Error('ACTION_PAIR_FILE_SELECTION_INVALID');
  const alternatives=(Array.isArray(p.hypotheses)?p.hypotheses:[])
    .filter((item)=>item?.id && item.id!==p.rootCause)
@@ -78,8 +82,10 @@ if(mode==='audit'){
      hypothesisSeparation:p.separation??null,
      causalConfidence:p.causalConfidence??null
    },
-   remainingRisks:Array.isArray(p.blastRadius)?p.blastRadius:[],
+   remainingRisks:Array.isArray(preMutationProof.remainingRisks)?preMutationProof.remainingRisks:[],
    mutationRecommendation:'ALLOW_AFTER_FALSIFICATION_NO_COUNTEREXAMPLE',
+   proofCompleteness:preMutationProof.proofCompleteness,
+   preMutationProof:{protocol:preMutationProof.protocol,status:preMutationProof.status,targetSha:preMutationProof.targetSha,failureFingerprint:preMutationProof.failureFingerprint,proofDigest:preMutationProof.patchCorrectness?.proofDigest??null},
    proposal:{auditOnly:true,recommendedStrategy:s.strategyId||null,evidenceRefs:[evidence,memory],decision:p.decision??null},
    learn:{retainUntilGreen:true}
  };
