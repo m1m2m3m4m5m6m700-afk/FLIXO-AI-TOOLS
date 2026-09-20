@@ -85,10 +85,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/repair-handoff
-          if [ "$REPAIR_RUN_CONCLUSION" = "skipped" ] || [ "$REPAIR_RUN_CONCLUSION" = "cancelled" ]; then
+          if [ "$REPAIR_RUN_CONCLUSION" = "cancelled" ]; then
+            STATE="RECOVERY_REQUIRED"
+            DECISION="RECOVERY_REQUIRED"
+            REPAIR_RUN_ID="$REPAIR_RUN_ID" REPAIR_SHA="$REPAIR_SHA" STATE="$STATE" node -e 'const fs=require("fs"); const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v3",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,gateState:process.env.STATE,decision:"RECOVERY_REQUIRED",reason:"SOURCE_REPAIR_RUN_CANCELLED_REQUIRES_RECLAIM",continuation:"WATCHDOG_OR_HEARTBEAT_RECLAIM",generatedAt:new Date().toISOString()}; fs.writeFileSync("/tmp/repair-handoff/repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");'
+            exit 0
+          fi
+          if [ "$REPAIR_RUN_CONCLUSION" = "skipped" ]; then
             STATE="SKIPPED_SOURCE_RUN"
             DECISION="NO_HANDOFF_TO_APPLY"
-            [ "$REPAIR_RUN_CONCLUSION" = "cancelled" ] && STATE="CANCELLED_SOURCE_RUN"
             REPAIR_RUN_ID="$REPAIR_RUN_ID" REPAIR_SHA="$REPAIR_SHA" STATE="$STATE" node -e 'const fs=require("fs"); const result={schemaVersion:1,protocol:"AGENT-REPAIR-HANDOFF-GATE-v3",repairRunId:process.env.REPAIR_RUN_ID,failedSha:process.env.REPAIR_SHA,gateState:process.env.STATE,decision:"NO_HANDOFF_TO_APPLY",generatedAt:new Date().toISOString()}; fs.writeFileSync("/tmp/repair-handoff/repair-handoff-gate.json",JSON.stringify(result,null,2)+"\n");'
             exit 0
           fi
