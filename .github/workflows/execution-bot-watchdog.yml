@@ -21,7 +21,7 @@ concurrency:
   # Serialize all watchdog observations for the same exact source SHA.
   # Multiple required-workflow completions for one SHA must collapse into one observer wake.
   group: flixo-execution-watchdog-${{ github.event.workflow_run.head_sha || github.sha }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   wake:
@@ -42,30 +42,11 @@ jobs:
           SOURCE_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          CURRENT_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
           test -n "$SOURCE_RUN_SHA"
           printf 'CURRENT_EXECUTION_SHA=%s\nSOURCE_RUN_SHA=%s\n' "$CURRENT_EXECUTION_SHA" "$SOURCE_RUN_SHA"
           if [ "$CURRENT_EXECUTION_SHA" != "$SOURCE_RUN_SHA" ]; then
             echo "STALE_WATCHDOG_EVENT=true: source run is no longer the current execution head."
-            exit 0
-          fi
-
-      - name: Suppress duplicate canonical observer wakes
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-        run: |
-          set -euo pipefail
-          CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
-          if [ "$CURRENT_EXECUTION_SHA" != "$SOURCE_SHA" ]; then
-            echo "STALE_WATCHDOG_EVENT=true"
-            echo "WATCHDOG_DISPATCH_SKIPPED=STALE_SHA"
-            exit 0
-          fi
-          ACTIVE_GREEN_GATES="$(gh run list             --repo "$GITHUB_REPOSITORY"             --workflow daily-flixo-green-gate.yml             --branch execution             --commit "$SOURCE_SHA"             --limit 50             --json databaseId,status,headSha             --jq --arg sha "$SOURCE_SHA" 'map(select(.headSha == $sha and (.status == "queued" or .status == "in_progress"))) | length')"
-          if [ "$ACTIVE_GREEN_GATES" -gt 0 ]; then
-            echo "GREEN_GATE_ALREADY_ACTIVE=$ACTIVE_GREEN_GATES"
-            echo "WATCHDOG_DISPATCH_SKIPPED=DUPLICATE_SOURCE_SHA"
             exit 0
           fi
 
@@ -84,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p diagnostics/watchdog
-          CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
+          CURRENT_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
           printf '%s\n' "$(cat <<JSON
           {"schemaVersion":1,"protocol":"FLIXO-EXECUTION-BOT-WATCHDOG-v1","executionSha":"$CURRENT_EXECUTION_SHA","sourceRunId":"${{ github.event.workflow_run.id || '' }}","sourceRunSha":"${{ github.event.workflow_run.head_sha || '' }}","action":"WAKE_CANONICAL_OBSERVER","repairDispatcher":"daily-flixo-green-gate.yml","directRepairDispatch":false}
           JSON
