@@ -71,7 +71,8 @@
     "testAgent": "Owns targeted and affected-contract verification according to canonical test ownership; it does not redefine requirements to obtain PASS.",
     "securityAgent": "Reviews security-sensitive surfaces, secrets boundaries and trust assumptions; it may block unsafe work.",
     "performanceAgent": "Evaluates performance-impacting changes with measured evidence and prevents unmeasured regressions from being declared improvements.",
-    "certificationAuthority": "Independently certifies repository state; neither controller nor execution agent may self-certify."
+    "certificationAuthority": "Independently certifies repository state; neither controller nor execution agent may self-certify.",
+    "assistantRepairAgent": "Fallback repair executor. It runs learned internal repairs only when both repairAgent and executionAgent are unavailable, using a previously verified rule with exact-SHA revalidation; it remains bound to all normal verification, certification, ownership and commit controls."
   },
   "decisionGates": {
     "LOW": "Auto-execute only inside declared scope with deterministic verification and no protected-path impact.",
@@ -132,5 +133,22 @@
     ],
     "noSecondRegistry": true,
     "noSecondProtocol": true
+  },
+  "fallbackRepair": {
+    "trigger": "repairAgent AND executionAgent unavailable",
+    "knowledge": "diagnostics/auto-repair/memory.json",
+    "minConfidence": 0.9,
+    "minSuccessfulSupport": 2,
+    "mutationBranch": "execution",
+    "authority": "REPAIR_PROTOCOL",
+    "behavior": "reuse proven learned rule and execute bounded repair",
+    "failClosed": [
+      "primary agent available",
+      "no learned rule",
+      "insufficient success confidence/support",
+      "current-SHA rule mismatch",
+      "verification failure",
+      "protected-path conflict"
+    ]
   }
 }
