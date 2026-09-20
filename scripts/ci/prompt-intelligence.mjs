@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 export const PROMPT_REGISTRY_PATH = process.env.FLIXO_PROMPT_REGISTRY ?? 'docs/agents/PROMPT-REGISTRY.json';
 export const PROMPT_STATUSES = Object.freeze(['ACTIVE', 'CANDIDATE', 'MERGED', 'DEPRECATED', 'BLOCKED', 'SUPERSEDED']);
 const REQUIRED_FIELDS = Object.freeze([
-  'promptId', 'title', 'domain', 'agentRole', 'sourcePath', 'failureClasses', 'fingerprints',
+  'promptId', 'title', 'path', 'domain', 'agentRole', 'failureClasses', 'fingerprints',
   'rootCauses', 'scope', 'repairStrategy', 'verificationPlan', 'learningRequirements',
   'status', 'version', 'createdBy', 'lastUpdatedBy', 'provenance', 'relatedPrompts',
   'supersedes', 'supersededBy', 'antiPatterns', 'exactShaRequirements',
@@ -74,13 +74,13 @@ export function validatePromptRecord(prompt, registry) {
   if (!asList(prompt?.verificationPlan).length) errors.push('EMPTY_VERIFICATION_PLAN');
   if (!asList(prompt?.learningRequirements).length) errors.push('EMPTY_LEARNING_REQUIREMENTS');
   if (!prompt?.provenance || typeof prompt.provenance !== 'object') errors.push('MISSING_PROVENANCE');
-  if (!asList(prompt?.exactShaRequirements).length) errors.push('EMPTY_EXACT_SHA_REQUIREMENTS');
-  if (!String(prompt?.sourcePath ?? '').trim()) errors.push('EMPTY_SOURCE_PATH');
+  if (!prompt?.exactShaRequirements || typeof prompt.exactShaRequirements !== 'object') errors.push('EMPTY_EXACT_SHA_REQUIREMENTS');
+  if (!String(prompt?.path ?? '').trim()) errors.push('EMPTY_PATH');
   const registryIds = new Set((registry?.prompts ?? []).map((item) => item.promptId));
   for (const related of [...asList(prompt?.relatedPrompts), ...asList(prompt?.supersedes), ...asList(prompt?.supersededBy)]) {
     if (!registryIds.has(related)) errors.push(`UNKNOWN_RELATED_PROMPT=${related}`);
   }
-  if (prompt?.sourcePath && !fs.existsSync(path.resolve(prompt.sourcePath))) errors.push(`SOURCE_PATH_MISSING=${prompt.sourcePath}`);
+  if (prompt?.path && !fs.existsSync(path.resolve(prompt.path))) errors.push(`PATH_MISSING=${prompt.path}`);
   if (prompt?.status === 'ACTIVE') {
     if (asList(prompt?.fingerprints).length === 0 && asList(prompt?.failureClasses).includes('ALL_REPAIRABLE') === false && asList(prompt?.rootCauses).includes('ANY_CONFIRMED_RCA') === false) {
       warnings.push('ACTIVE_PROMPT_HAS_NO_EXPLICIT_FINGERPRINTS');
@@ -109,7 +109,7 @@ export function validatePromptRegistry(registry) {
   const prompts = registry?.prompts ?? [];
   const ids = new Set();
   if (registry?.schemaVersion !== 1) errors.push('INVALID_SCHEMA_VERSION');
-  if (registry?.authority !== 'FLIXO_PROMPT_INTELLIGENCE_LAYER') errors.push('INVALID_AUTHORITY');
+  if (registry?.authority !== 'PROMPT_INTELLIGENCE_LAYER') errors.push('INVALID_AUTHORITY');
   for (const prompt of prompts) {
     if (ids.has(prompt.promptId)) errors.push(`DUPLICATE_PROMPT_ID=${prompt.promptId}`);
     ids.add(prompt.promptId);
