@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "authority": "ACTION_REPAIR_BOT_PERSONAL_MEMORY",
+  "botId": "ACTION-004",
+  "copyable": true,
+  "transferableKnowledgeOnly": true,
+  "permanentIndependentAuthority": false,
+  "identity": {
+    "shortName": "ACTION_REPAIR_TWIN_B",
+    "fullName": "ACTION_REPAIR_TWIN_B",
+    "version": 1
+  },
+  "role": "ACTION_REPAIR_TWIN_B",
+  "mission": "Independent inferential/historical repair hypothesis; read-only.",
+  "state": {
+    "status": "READY",
+    "taskCount": 0,
+    "lastTaskId": null,
+    "lastUpdatedAt": null
+  },
+  "headquarters": {
+    "primary": "docs/agents/historical-action-errors",
+    "index": "docs/agents/historical-action-errors/index.json",
+    "records": "docs/agents/historical-action-errors/records"
+  },
+  "sharedReferences": [
+    "docs/agents/historical-action-errors/index.json",
+    "docs/agents/historical-action-errors/records",
+    "docs/AUTO_REPAIR_HISTORY.jsonl",
+    "diagnostics/auto-repair/memory.json",
+    "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
+    "docs/agents/ERROR-TEACHING-ROUTER.json",
+    "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md"
+  ],
+  "learnedTasks": [],
+  "knowledge": [],
+  "solutions": [],
+  "successfulStrategies": [],
+  "failedStrategies": [],
+  "weaknesses": [
+    "INFERENTIAL_REPAIR_HYPOTHESIS"
+  ],
+  "upgrades": [],
+  "sourceEvidence": [],
+  "importHistory": [],
+  "exportHistory": []
+}
