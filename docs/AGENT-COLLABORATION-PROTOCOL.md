@@ -313,6 +313,8 @@ Every meaningful failure produces:
 
 Verified fixes become lessons/playbooks. Failed or blocked strategies become anti-lessons. Learning never grants authority and never silently changes contracts.
 
+Every completed repair/verification cycle MUST emit `cycleLessons` before handoff/transition. The list records the RCA lesson, strategy lesson or anti-lesson, verification lesson, bounded scope when relevant, recurrence/prevention rule, and external-blocker anti-lesson when relevant. `cycleLessons` is continuity/learning evidence only and is never certification or mutation authority.
+
 ## Recovery and bounded attempts
 Every mutation has a bounded attempt budget and recovery path. Failed repair is rolled back where safe; otherwise it is escalated with precise unresolved state. Infinite retry loops are forbidden.
 
