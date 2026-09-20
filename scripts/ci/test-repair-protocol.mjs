@@ -64,6 +64,23 @@ assert.throws(()=>assertAgentAdmission({actor:'implementation',branch:'execution
 const targetSHA='a'.repeat(40);
 const actionRepairSession=createRepairSession({repairSessionId:'action-repair-session',actor:'actionRepairBot',failureFingerprint:'action-repair-test',targetSHA,beforeState:{worktree:'clean'}});
 assert.equal(actionRepairSession.actor,'actionRepairBot');
+const completeProof={
+  COGNITIVE_AWARENESS_PROVEN:true,
+  ROOT_CAUSE_PROVEN:true,
+  FILE_SELECTION_PROVEN:true,
+  PROGRAMMER_TWIN_PARITY_PROVEN:true,
+  ADVERSARIAL_FALSIFICATION_COMPLETE:true,
+  NO_VALID_COUNTEREXAMPLE:true,
+  SANDBOX_SIMULATION_PASSED:true,
+  DIFFERENTIAL_CHECK_PASSED:true,
+  PATCH_CORRECTNESS_PROVEN:true,
+  REGRESSION_COUNTEREXAMPLES_EXHAUSTED:true,
+  NO_SCOPE_VIOLATION:true,
+  NO_TEST_MUTATION:true,
+  NO_CONTROL_PLANE_MUTATION:true,
+  NO_MAIN_MUTATION:true,
+  NO_GATE_WEAKENING:true,
+};
 const verifierProof = {
   status:'FALSIFICATION_COMPLETE_NO_COUNTEREXAMPLE',
   challengeId:'challenge-1',
@@ -72,14 +89,25 @@ const verifierProof = {
   failureFingerprint:'action-repair-test',
   alternativeHypotheses:[{id:'alt-1',basis:'independent-cause'}],
   falsificationChecks:[{id:'f-1',command:'echo falsify'}],
-  counterEvidence:{rejectedHypothesis:'alt-1',evidenceRef:'test'},
-  mutationRecommendation:'ALLOW',role:'ADVERSARIAL_PROGRAMMER_FALSIFIER',challengeMode:'FALSIFY_PRIMARY',programmerTwinParity:{intelligenceParity:'EXACT',authorityParity:'SEPARATED_BY_DESIGN'},primaryCorrectnessProof:{objective:'PROVE_PRIMARY_REPAIR_CORRECT'},cognitiveAwareness:{protocol:'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1',systemWide:true},falsificationComplete:true,counterexampleFound:false,falsificationSearches:[{},{},{},{}],
+  counterEvidence:{rejectedHypothesis:'alt-1',evidenceRef:'test',noCounterexampleIsNotPatchCorrect:true},
+  mutationRecommendation:'ALLOW_AFTER_FALSIFICATION_NO_COUNTEREXAMPLE',
+  role:'ADVERSARIAL_PROGRAMMER_FALSIFIER',
+  challengeMode:'FALSIFY_PRIMARY',
+  programmerTwinParity:{intelligenceParity:'EXACT',authorityParity:'SEPARATED_BY_DESIGN',targetSha:targetSHA,failureFingerprint:'action-repair-test'},
+  primaryCorrectnessProof:{objective:'PROVE_PRIMARY_REPAIR_CORRECT',status:'PRIMARY_CORRECTNESS_PROVEN'},
+  cognitiveAwareness:{protocol:'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1',systemWide:true,targetSha:targetSHA,failureFingerprint:'action-repair-test'},
+  falsificationComplete:true,
+  counterexampleFound:false,
+  falsificationSearches:Array.from({length:10},()=>({})),
   remainingRisks:['canonical-ci'],
+  proofCompleteness:completeProof,
+  preMutationProof:{status:'PROVEN',targetSha:targetSHA,failureFingerprint:'action-repair-test'},
 };
-assert.deepEqual(
-  validateActionVaultVerifierProof({proof:verifierProof,targetSHA,failureFingerprint:'action-repair-test'}),
-  {verified:true,verifierAgent:'actionRepairVerifier',targetSHA,failureFingerprint:'action-repair-test',challengeId:'challenge-1',alternativeCount:1,falsificationCount:1,mutationRecommendation:'ALLOW'},
-);
+const verified=validateActionVaultVerifierProof({proof:verifierProof,targetSHA,failureFingerprint:'action-repair-test'});
+assert.equal(verified.verified,true);
+assert.equal(verified.mutationRecommendation,'ALLOW_AFTER_FALSIFICATION_NO_COUNTEREXAMPLE');
+assert.equal(verified.remainingRiskCount,1);
+assert.equal(verified.proofCompleteness.NO_VALID_COUNTEREXAMPLE,true);
 assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,targetSha:'b'.repeat(40)},targetSHA,failureFingerprint:'action-repair-test'}),/SHA_MISMATCH/);
 assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,alternativeHypotheses:[]},targetSHA,failureFingerprint:'action-repair-test'}),/ALTERNATIVES_MISSING/);
 assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,role:'OLD_PREDICTOR'},targetSHA,failureFingerprint:'action-repair-test'}),/ADVERSARIAL_FALSIFIER_ROLE_INVALID/);
