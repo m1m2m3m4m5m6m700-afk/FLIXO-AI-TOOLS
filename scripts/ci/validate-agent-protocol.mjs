@@ -114,7 +114,7 @@ const repairMarkers = [
   'evidence.preventionRule',
   'evidence.escalation',
 ];
-const centralMarkers = ['REPAIR_PROTOCOL', "protocolVersion: '1.0.0'", 'CONTROL_PLANE', 'FAILURE_CAPTURE', 'TARGETED_RETEST', 'RESUME_REMAINING_TESTS', 'ONE_COMMIT_PER_COMPLETED_REPAIR_SESSION', 'protectedPaths', 'validateCommitBoundary', 'validatePostCommitBoundary', 'assertAgentAdmission', 'REPAIR_PROTOCOL_SESSION_REQUIRED', 'REPAIR_PROTOCOL_SELF_MUTATION_BLOCKED'];
+const centralMarkers = ['REPAIR_PROTOCOL', "protocolVersion: '1.0.0'", 'CONTROL_PLANE', 'FAILURE_CAPTURE', 'TARGETED_RETEST', 'RESUME_REMAINING_TESTS', 'ONE_COMMIT_PER_COMPLETED_REPAIR_SESSION', 'protectedPaths', 'validateCommitBoundary', 'validatePostCommitBoundary', 'assertAgentAdmission', 'REPAIR_PROTOCOL_SESSION_REQUIRED', 'REPAIR_PROTOCOL_SELF_MUTATION_BLOCKED', 'validateErrorOnlyMutation', 'REPAIR_PROTOCOL_TEST_MUTATION_BLOCKED', "mode: 'ERROR_ONLY'"];
 for (const marker of centralMarkers) if (repairProtocol && !repairProtocol.includes(marker)) fail('REPAIR_PROTOCOL_CORE_MISSING', marker);
 for (const requiredImport of [
   ['scripts/ci/agent-session.mjs', "from './repair-protocol.mjs'"],
@@ -125,6 +125,7 @@ for (const requiredImport of [
 for (const marker of repairMarkers) if (repairEngine && !repairEngine.includes(marker)) fail('REPAIR_PROTOCOL_MISSING', marker);
 for (const marker of ['validateRepairProof', 'preventionRuleFor', 'escalationReason', 'target-sha-missing', 'recurrence-proof-second-pass']) if (proofContract && !proofContract.includes(marker)) fail('REPAIR_PROOF_CONTRACT_MISSING', marker);
 if (repairEngine && !repairEngine.includes('if (!verified)')) fail('REPAIR_PROTOCOL_MISSING', 'fail-closed-verification');
+if (repairEngine && !repairEngine.includes('validateErrorOnlyMutation')) fail('REPAIR_PROTOCOL_MISSING', 'error-only-mutation-binding');
 if (repairEngine && repairEngine.includes("evidence.outcome = 'verified-repair';") && !repairEngine.includes('const verified = proof.ok')) fail('REPAIR_PROTOCOL_MISSING', 'verified-repair-gate');
 const policySource = exists('scripts/ci/auto-repair-policy.mjs') ? read('scripts/ci/auto-repair-policy.mjs') : '';
 if (!policySource.includes("'scripts/ci/repair-protocol.mjs'")) fail('REPAIR_PROTOCOL_PROTECTION_MISSING');

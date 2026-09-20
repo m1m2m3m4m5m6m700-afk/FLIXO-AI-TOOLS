@@ -92,7 +92,8 @@ export function classifyCancelledRun(run, runs = []) {
 export function validateRepairTarget({ run, executionSha, workflowRuns = [], logs = {}, branch = 'execution' } = {}) {
   const errors = [];
   if (!run?.databaseId) errors.push('TARGET_MISSING');
-  if (!run || run.status !== 'completed' || !['failure', 'timed_out', 'cancelled'].includes(run.conclusion)) errors.push('TARGET_NOT_FAILED_COMPLETED');
+  if (!run || run.status !== 'completed' || !['failure', 'timed_out'].includes(run.conclusion)) errors.push('TARGET_NOT_FAILED_COMPLETED');
+  if (run?.conclusion === 'cancelled') errors.push('TARGET_CANCELLED_NOT_SOURCE_FAILURE');
   if (run?.headSha !== executionSha) errors.push('TARGET_SHA_MISMATCH');
   if ((run?.headBranch ?? null) !== branch) errors.push('TARGET_BRANCH_MISMATCH');
   const workflowName = String(run?.workflowName ?? '');
@@ -112,13 +113,24 @@ const logForCheck = (check, logs) => {
   return logs[String(match?.[1] ?? '')] ?? logs[String(check?.id ?? '')] ?? '';
 };
 
+const isExternalCheckName = (name) => {
+  const normalized = String(name ?? '').trim();
+  return EXTERNAL_CHECK_PATTERNS.some((pattern) => pattern.test(normalized));
+};
+
 function externalCheckBlock(check, log) {
-  if (!check || !EXTERNAL_CHECK_PATTERNS.some((pattern) => pattern.test(String(check.name ?? '')))) return null;
+  if (!check || !isExternalCheckName(check.name)) return null;
+  const state = stateOf(check);
+  if (state === 'skipped' || state === 'neutral') return null;
   return {
     kind: 'BLOCKED_EXTERNAL',
-    checkName: check.name,
-    state: stateOf(check),
-    rootCause: providerFailure(log) ? 'PROVIDER_RATE_LIMIT_OR_DEPLOYMENT_SERVICE_FAILURE' : 'EXTERNAL_PROVIDER_UNRESOLVED',
+    checkName: String(check.name ?? '').trim(),
+    state,
+    rootCause: state === 'action_required'
+      ? 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED'
+      : providerFailure(log)
+        ? 'PROVIDER_RATE_LIMIT_OR_DEPLOYMENT_SERVICE_FAILURE'
+        : 'EXTERNAL_PROVIDER_UNRESOLVED',
   };
 }
 
@@ -142,8 +154,8 @@ export function evaluateGreen({
   latestMergedPr = null,
   workflowRuns = [],
   checkRuns = [],
-  statuses = [],
   logs = {},
+  statuses = [],
   compare = {},
 } = {}) {
   const report = {
@@ -218,6 +230,9 @@ export function evaluateGreen({
     }
   }
 
+  let waitingRequiredChecks = false;
+  let externalApprovalRequired = false;
+  let internalMainFailure = false;
   const requiredWorkflows = requiredWorkflowsForBranch(observedBranch);
   for (const workflowName of requiredWorkflows) {
     const run = latestWorkflow(workflowRuns, workflowName);
@@ -228,9 +243,42 @@ export function evaluateGreen({
       headSha: run?.headSha ?? null,
       headBranch: run?.headBranch ?? null,
     };
-    if (status === 'MISSING') report.errors.push({ type: 'REQUIRED_WORKFLOW_MISSING', workflow: workflowName });
-    else if (status !== 'success') report.errors.push({ type: 'REQUIRED_WORKFLOW_RED', workflow: workflowName, status });
-    else if (run.headSha !== executionSha && observedBranch === 'execution') report.errors.push({ type: 'STALE_WORKFLOW_EVIDENCE', workflow: workflowName, runId: run.databaseId });
+    if (status === 'MISSING') {
+      report.errors.push({ type: 'REQUIRED_WORKFLOW_MISSING', workflow: workflowName });
+    } else if (status !== 'success') {
+      report.errors.push({
+        type: 'REQUIRED_WORKFLOW_RED',
+        workflow: workflowName,
+        status,
+        runId: run?.databaseId ?? null,
+        headSha: run?.headSha ?? null,
+        headBranch: run?.headBranch ?? null,
+      });
+      if (['queued', 'in_progress', 'pending'].includes(status)) {
+        waitingRequiredChecks = true;
+      }
+      const evidence = String(logs[String(run?.databaseId ?? '')] ?? '').trim();
+      if (status === 'action_required') {
+        externalApprovalRequired = true;
+        report.rootCause = 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED';
+      } else if (evidence && providerFailure(evidence)) {
+        report.rootCause = 'PROVIDER_RATE_LIMIT_OR_DEPLOYMENT_SERVICE_FAILURE';
+      } else if (observedBranch === 'main' && ['failure', 'timed_out'].includes(status) && evidence && !/EVIDENCE_CAPTURE=FAILED/i.test(evidence)) {
+        internalMainFailure = true;
+        report.rootCause = workflowName;
+      }
+      if (run?.databaseId != null && ['failure', 'timed_out', 'cancelled'].includes(status)) {
+        if (!evidence || /EVIDENCE_CAPTURE=FAILED/i.test(evidence)) {
+          report.errors.push({
+            type: 'EVIDENCE_CAPTURE_FAILED',
+            workflow: workflowName,
+            runId: run.databaseId,
+          });
+        }
+      }
+    } else if (run.headSha !== executionSha && observedBranch === 'execution') {
+      report.errors.push({ type: 'STALE_WORKFLOW_EVIDENCE', workflow: workflowName, runId: run.databaseId });
+    }
   }
 
   const securityCheck = latestCheck(checkRuns, SECURITY_CHECK_PATTERNS);
@@ -250,13 +298,44 @@ export function evaluateGreen({
   };
   if (!certificationCheck) report.errors.push({ type: 'CERTIFICATION_EVIDENCE_MISSING' });
 
-  const externalCandidates = checkRuns.map((check) => externalCheckBlock(check, logForCheck(check, logs))).filter(Boolean);
-  report.externalBlockers = externalCandidates;
-  if (externalCandidates.some((item) => ['failure', 'action_required', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state))) {
+  const latestChecksByName = new Map();
+  for (const check of checkRuns) {
+    const name = String(check.name ?? '');
+    const current = latestChecksByName.get(name);
+    const checkTime = String(check.updated_at ?? check.updatedAt ?? check.completed_at ?? check.started_at ?? '');
+    const currentTime = String(current?.updated_at ?? current?.updatedAt ?? current?.completed_at ?? current?.started_at ?? '');
+    if (!current || checkTime.localeCompare(currentTime) > 0) {
+      latestChecksByName.set(name, check);
+    }
+  }
+  const latestChecks = [...latestChecksByName.values()];
+  const externalCandidates = latestChecks.map((check) => externalCheckBlock(check, logForCheck(check, logs))).filter(Boolean);
+  const externalStatusCandidates = statuses
+    .filter((status) => isExternalCheckName(status?.context))
+    .map((status) => {
+      const state = String(status?.state ?? '').toLowerCase();
+      if (!['failure', 'error', 'pending'].includes(state)) return null;
+      return {
+        kind: 'BLOCKED_EXTERNAL',
+        checkName: String(status?.context ?? '').trim(),
+        state: state === 'error' ? 'failure' : state,
+        rootCause: 'EXTERNAL_PROVIDER_UNRESOLVED',
+      };
+    })
+    .filter(Boolean);
+  report.externalBlockers = [...externalCandidates, ...externalStatusCandidates];
+  if (externalCandidates.some((item) => ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state))) {
     report.rootCause = 'EXTERNAL_CHECK_BLOCKED';
   }
   const securityBlock = securityProviderBlock(securityCheck, logForCheck(securityCheck, logs));
   if (securityBlock) report.externalBlockers.push(securityBlock);
+  else if (securityCheck && stateOf(securityCheck) !== 'success') {
+    report.errors.push({
+      type: 'SECURITY_EVIDENCE_MISSING',
+      checkName: securityCheck.name ?? null,
+      status: stateOf(securityCheck),
+    });
+  }
 
   if (observedBranch === 'execution' && !report.repair.required) {
     const failedCandidates = workflowRuns
@@ -311,19 +390,60 @@ export function evaluateGreen({
   }
 
   if (report.externalBlockers.length) {
-    const blocker = report.externalBlockers.find((item) => ['failure', 'action_required', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state));
-    if (blocker) {
+    const approvalBlocker = report.externalBlockers.find((item) => item.state === 'action_required');
+    const blocker = report.externalBlockers.find((item) => ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state));
+    if (approvalBlocker) {
+      report.status = 'FAIL_CLOSED';
+      report.rootCause = approvalBlocker.rootCause;
+      report.repair.required = false;
+    } else if (blocker) {
       report.status = blocker.kind === 'BLOCKED_EXTERNAL' ? 'BLOCKED_EXTERNAL' : 'FAIL_CLOSED';
       report.rootCause = blocker.rootCause;
       report.repair.required = false;
     }
   }
 
+  const activeExternalBlocker = report.externalBlockers.some((item) =>
+    ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state)
+  );
+
   if (report.repair.required) {
     report.status = 'RED_INTERNAL';
     report.rootCause = report.errors.find((item) => item.type === 'UNEXPECTED_WORKFLOW_RED')?.workflow ?? 'INTERNAL_WORKFLOW_FAILURE';
+  } else if (activeExternalBlocker) {
+    // Preserve the external blocker decision already reduced above; never reclassify it as an internal repair.
+  } else if (internalMainFailure) {
+    report.status = 'RED_INTERNAL';
+    report.rootCause = report.rootCause ?? 'INTERNAL_WORKFLOW_FAILURE';
+  } else if (externalApprovalRequired) {
+    report.status = 'FAIL_CLOSED';
+    report.rootCause = report.rootCause ?? 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED';
+  } else if (waitingRequiredChecks && !report.rootCause) {
+    report.status = 'WAITING_REQUIRED_CHECKS';
+  } else if (report.errors.some((error) => [
+    'STALE_HEAD',
+    'STALE_WORKFLOW_EVIDENCE',
+    'MAIN_DIVERGENCE',
+    'POST_MERGE_MAIN_IDENTITY_MISMATCH',
+    'REQUIRED_CHECK_RED',
+    'SECURITY_CHECK_RED',
+    'UNEXPECTED_CHECK_RED',
+    'UNEXPECTED_COMMIT_STATUS_RED',
+  ].includes(error.type))) {
+    report.status = 'RED_INTERNAL';
+    report.rootCause = 'REQUIRED_CHECK_FAILURE_REQUIRES_REPAIR_CYCLE';
   } else if (report.errors.length) {
     report.status = report.rootCause ? 'BLOCKED_EXTERNAL' : 'FAIL_CLOSED';
+  } else if (report.externalBlockers.some((item) => item.state === 'action_required')) {
+    report.status = 'FAIL_CLOSED';
+    report.rootCause = report.externalBlockers.find((item) => item.state === 'action_required')?.rootCause
+      ?? 'EXTERNAL_REVIEW_OR_APPROVAL_REQUIRED';
+  } else if (report.externalBlockers.some((item) =>
+    ['failure', 'cancelled', 'timed_out', 'queued', 'in_progress'].includes(item.state)
+  )) {
+    report.status = report.externalBlockers.some((item) => item.kind === 'BLOCKED_EXTERNAL')
+      ? 'BLOCKED_EXTERNAL'
+      : 'FAIL_CLOSED';
   } else {
     report.status = 'GREEN';
     report.rootCause = null;
@@ -336,10 +456,57 @@ export function main() {
   const inputPath = process.argv[2];
   const outputPath = process.argv[3];
   if (!inputPath || !outputPath) throw new Error('Usage: continuous-error-watch.mjs <input.json> <output.json>');
-  const input = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
-  const report = evaluateGreen(input);
+
+  let report;
+  try {
+    const input = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
+    report = evaluateGreen(input);
+  } catch (error) {
+    report = {
+      schemaVersion: 1,
+      protocol: 'FLIXO-CONTINUOUS-ERROR-WATCH-v1',
+      generatedAt: new Date().toISOString(),
+      executionSha: null,
+      mainSha: null,
+      branch: null,
+      pr: null,
+      status: 'FAIL_CLOSED',
+      rootCause: 'REQUIRED_EVIDENCE_MISSING',
+      errors: [{
+        type: 'WATCHER_INPUT_INVALID',
+        message: error instanceof Error ? error.message : String(error),
+      }],
+      externalBlockers: [],
+      repair: {
+        required: false,
+        targetRunId: null,
+        failureFingerprint: null,
+        repairKey: null,
+        claimKey: null,
+        repairChainId: null,
+        leaseRef: null,
+        failedSha: null,
+        branch: null,
+        action: 'NONE',
+        rootCauseAuthority: 'TASK_AGENT_RCA',
+      },
+      ci: {
+        requiredWorkflows: {},
+        security: { present: false, status: 'MISSING' },
+        certification: { present: false, status: 'MISSING' },
+      },
+      evidence: {
+        exactSha: false,
+        executionMatchesPr: false,
+        executionAheadOfMain: 0,
+        executionBehindMain: 0,
+      },
+    };
+  }
+
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`);
+  if (report.errors.some((error) => error.type === 'WATCHER_INPUT_INVALID')) process.exitCode = 1;
 }
 
-if (process.argv[1]?.endsWith('continuous-error-watch.mjs')) main();
+if (path.basename(process.argv[1] ?? '') === 'continuous-error-watch.mjs') main();

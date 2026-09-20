@@ -43,7 +43,6 @@ for (const invariant of [
   'NO_PROGRESS_REQUIRES_SAME_REPAIR_KEY_NO_EXIT_SHA_CHANGE_AND_NO_VERIFICATION_PROGRESS',
 ]) assert(schema.invariants.includes(invariant));
 
-
 const progressOutcomes = [
   { repairKey: identity.claimKey, failedSha: SHA_A, exitSha: SHA_A, verificationProgress: false, noProgress: true, at: '2026-09-19T00:03:00Z' },
   { repairKey: identity.claimKey, failedSha: SHA_A, exitSha: SHA_A, verificationProgress: false, noProgress: true, at: '2026-09-19T00:02:00Z' },
@@ -62,6 +61,19 @@ const stale = staleRecoveryDecision({
   outcomes: [],
 });
 assert.equal(stale.eligible, true);
+assert.equal(stale.strategyRotationRequired, false);
+const circuitStale = staleRecoveryDecision({
+  repairKey: identity.claimKey,
+  leaseCreatedAt: '2026-09-18T22:00:00Z',
+  now: Date.parse('2026-09-19T00:00:00Z'),
+  currentExecutionSha: SHA_A,
+  failedSha: SHA_A,
+  activeRuns: [],
+  outcomes: progressOutcomes,
+});
+assert.equal(circuitStale.eligible, false);
+assert.equal(circuitStale.strategyRotationRequired, true);
+
 const activeStale = staleRecoveryDecision({
   repairKey: identity.claimKey,
   leaseCreatedAt: '2026-09-18T22:00:00Z',
@@ -117,8 +129,11 @@ assert.equal(reopened.state, 'RCA');
 const firstAttempt = recordStrategyAttempt(reopened, { strategy: 'A', progress: false });
 const secondAttempt = recordStrategyAttempt(firstAttempt, { strategy: 'B', progress: false });
 assert.equal(secondAttempt.stalledCycles, 2);
-assert.throws(() => recordStrategyAttempt(secondAttempt, { strategy: 'C', progress: false }), /CONTROL_PLANE_CIRCUIT_BREAKER_OPEN/);
-const recovered = recordStrategyAttempt(secondAttempt, { strategy: 'C', progress: true });
+const thirdAttempt = recordStrategyAttempt(secondAttempt, { strategy: 'C', progress: false });
+assert.equal(thirdAttempt.stalledCycles, 3);
+assert.equal(thirdAttempt.circuitOpen, true);
+assert.equal(thirdAttempt.nextAction, 'ROTATE_STRATEGY_AND_REQUIRE_NEW_EVIDENCE');
+const recovered = recordStrategyAttempt(thirdAttempt, { strategy: 'D', progress: true });
 assert.equal(recovered.stalledCycles, 0);
 
 assert.throws(() => createRepairCycle({

@@ -7,9 +7,10 @@ on:
     - cron: '*/15 * * * *'
   workflow_run:
     workflows:
-      # Canonical trigger: one completed Test System cycle wakes the watcher.
+      # Canonical triggers: completed Test System or Auto Repair cycles wake the watcher.
       # The watcher still inspects every required workflow/check on the exact SHA.
       - FLIXO Test System
+      - FLIXO Auto Repair Bot
     types: [completed]
     branches: [execution, main]
 
@@ -19,10 +20,9 @@ permissions:
   checks: read
   pull-requests: read
 
-# Every observation is evidence-bearing and must complete; never cancel a watcher because a newer observation arrived.
-# The repair lane itself is also non-canceling. Both layers use exact event identity.
+# Every observation is evidence-bearing and must complete; duplicate wake suppression is handled by the watchdog.
+# The watcher itself never cancels an evidence-bearing observation.
 concurrency:
-  # Unique group per observation: queued evidence must never supersede another queued observation.
   group: flixo-continuous-error-watch-${{ github.run_id }}
   cancel-in-progress: false
 
@@ -65,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/flixo-watch/logs
-          WATCH_BRANCH="main"
+          WATCH_BRANCH="execution"
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             WATCH_BRANCH="${{ github.event.workflow_run.head_branch }}"
           fi
@@ -125,6 +125,7 @@ jobs:
           done < /tmp/flixo-watch/failed-check-run-ids
 
       - name: Build watcher input
+        id: build_input
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
@@ -168,12 +169,15 @@ jobs:
           node scripts/ci/continuous-error-watch.mjs /tmp/flixo-watch/input.json /tmp/flixo-watch/report.json
           rc=$?
           STATUS="$(jq -r '.status' /tmp/flixo-watch/report.json)"
+          REPAIR_REQUIRED="$(jq -r '.repair.required // false' /tmp/flixo-watch/report.json)"
           echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "repair_required=$REPAIR_REQUIRED" >> "$GITHUB_OUTPUT"
           echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
           exit 0
 
       - name: Generate comprehensive execution prompts from this visit
-        if: always()
+        id: generate_prompts
+        if: steps.build_input.outcome == 'success'
         env:
           FLIXO_REPAIR_MEMORY: diagnostics/auto-repair/memory.json
         run: |
@@ -181,14 +185,22 @@ jobs:
           node --experimental-strip-types scripts/ci/generate-repair-execution-prompts.mjs             /tmp/flixo-watch/input.json             /tmp/flixo-watch/report.json             /tmp/flixo-watch/execution-prompts.json             /tmp/flixo-watch/execution-prompts.md
           test -s /tmp/flixo-watch/execution-prompts.json
           test -s /tmp/flixo-watch/execution-prompts.md
-          PROMPT_COUNT="$(jq -r '.promptCount' /tmp/flixo-watch/execution-prompts.json)"
-          PROMPT_DIGEST="$(jq -r '.digest' /tmp/flixo-watch/execution-prompts.json)"
+          PROMPT_META="$(node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const bundle = JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json', 'utf8'));
+          if (!Number.isInteger(bundle.promptCount) || bundle.promptCount < 0) throw new Error('PROMPT_BUNDLE_PROMPT_COUNT_INVALID');
+          if (!/^[a-f0-9]{64}$/u.test(String(bundle.digest ?? ''))) throw new Error('PROMPT_BUNDLE_DIGEST_INVALID');
+          process.stdout.write(JSON.stringify({ promptCount: bundle.promptCount, digest: bundle.digest }));
+          NODE
+          )"
+          PROMPT_COUNT="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.promptCount))" )"
+          PROMPT_DIGEST="$(node --input-type=module -e "import fs from 'node:fs'; const x=JSON.parse(fs.readFileSync('/tmp/flixo-watch/execution-prompts.json','utf8')); process.stdout.write(String(x.digest))" )"
           echo "REPAIR_PROMPT_COUNT=$PROMPT_COUNT"
           echo "REPAIR_PROMPT_DIGEST=$PROMPT_DIGEST"
           echo "REPAIR_PROMPT_SOURCE_RUN_ID=$GITHUB_RUN_ID"
 
       - name: Publish execution prompt bundle
-        if: always()
+        if: steps.generate_prompts.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: flixo-repair-execution-prompts-${{ github.run_id }}
@@ -199,7 +211,7 @@ jobs:
           retention-days: 14
 
       - name: Dispatch internal repair target under Task Agent authority
-        if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.capture.outputs.branch == 'execution'
+        if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.evaluate.outputs.repair_required == 'true' && steps.capture.outputs.branch == 'execution'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -336,7 +348,7 @@ jobs:
           retention-days: 14
 
       - name: Fail closed unless the monitored state is fully GREEN
-        if: always()
+        if: ${{ !cancelled() }}
         run: |
           set -euo pipefail
           test -s /tmp/flixo-watch/report.json

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import { validateErrorOnlyMutation } from './repair-protocol.mjs';
 
 const session = fs.readFileSync('scripts/ci/agent-session.mjs', 'utf8');
 const repair = fs.readFileSync('scripts/ci/repair-protocol.mjs', 'utf8');
@@ -46,6 +47,23 @@ assert.ok(repair.includes('minConfidence: 0.90'));
 assert.ok(repair.includes('minSupport: 2'));
 assert.ok(!repair.includes("mutationAgents: ['repairAgent','implementation','executionAgent','taskAgent']"));
 assert.ok(!repair.includes("mutationAgents: ['repairAgent','implementation','executionAgent']"));
+assert.ok(repair.includes("mode: 'ERROR_ONLY'"));
+assert.ok(repair.includes('REPAIR_PROTOCOL_TEST_MUTATION_BLOCKED'));
+assert.throws(
+  () => validateErrorOnlyMutation({ failureLocation: 'src/example.ts', selectedFile: 'src/other.ts', changedPaths: ['src/other.ts'] }),
+  /REPAIR_PROTOCOL_ERROR_TARGET_MISMATCH/,
+);
+assert.throws(
+  () => validateErrorOnlyMutation({ failureLocation: 'src/example.ts', selectedFile: 'src/example.ts', changedPaths: ['src/example.ts', 'src/extra.ts'] }),
+  /REPAIR_PROTOCOL_ERROR_SCOPE_EXCEEDED/,
+);
+assert.throws(
+  () => validateErrorOnlyMutation({ failureLocation: 'tests/example.spec.ts', selectedFile: 'tests/example.spec.ts', changedPaths: ['tests/example.spec.ts'] }),
+  /REPAIR_PROTOCOL_TEST_MUTATION_BLOCKED/,
+);
+assert.doesNotThrow(
+  () => validateErrorOnlyMutation({ failureLocation: 'src/example.ts', selectedFile: 'src/example.ts', changedPaths: ['src/example.ts'] }),
+);
 
 assert.ok(task.includes("actor: 'taskAgent'"));
 assert.ok(task.includes('preparedOnly: true'));

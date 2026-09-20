@@ -2,12 +2,12 @@ name: FLIXO Agent Repair Supervisor
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 concurrency:
   group: flixo-agent-repair-supervisor-observer
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   actions: read
@@ -20,6 +20,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Load and validate central Council directive
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Enforce Council directive
+        run: node scripts/ci/test-council-directive.mjs
+
+      - name: Establish Council oversight contract
+        run: |
+          set -euo pipefail
+          node scripts/ci/test-council-directive.mjs
+          node scripts/ci/test-repair-control-plane.mjs
+          node scripts/ci/test-repair-lease.mjs
+          echo 'COUNCIL_OVERSIGHT_CONTRACT=PASS'
+          echo 'COUNCIL_ROLE=SUPERVISOR'
+          echo 'COUNCIL_AUTHORITY=OBSERVE_COORDINATE_HANDOFF_ONLY'
+          echo 'COUNCIL_GREEN_AUTHORITY=Daily·FLIXO Green Gate'
+
       - name: Observe main and execution without dispatch authority
         env:
           GH_TOKEN: ${{ github.token }}
@@ -36,6 +56,7 @@ jobs:
               echo "GREEN branch=$BRANCH sha=$SHA verification_run=$GREEN"
             elif [ -n "$FAILED" ]; then
               echo "RED_OBSERVED branch=$BRANCH sha=$SHA run=$FAILED"
+              echo "COUNCIL_DECISION=ESCALATE_TO_CANONICAL_REPAIR_GATE"
               echo "DISPATCH_AUTHORITY=CANONICAL_REPAIR_GATE_ONLY"
             else
               echo "WAITING branch=$BRANCH sha=$SHA"

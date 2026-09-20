@@ -160,16 +160,19 @@ export function staleRecoveryDecision({
   const progress = evaluateNoProgress({ repairKey, outcomes });
   const verified = outcomes.some((item) => ['VERIFIED_REPAIR', 'VERIFIED_HISTORICAL_REVERT'].includes(item?.outcome));
   const reasons = [];
+  const strategyRotationRequired = progress.circuitOpen;
   if (!Number.isFinite(ageMs) || ageMs < staleAfterMs) reasons.push('LEASE_NOT_OLD_ENOUGH');
   if (activeRuns.length > 0) reasons.push('ACTIVE_REPAIR_SESSION_PRESENT');
   if (String(currentExecutionSha ?? '') !== String(failedSha ?? '')) reasons.push('EXECUTION_SHA_CHANGED');
   if (verified) reasons.push('SUCCESSFUL_REPAIR_ALREADY_VERIFIED');
-  if (progress.circuitOpen) reasons.push('NO_PROGRESS_CIRCUIT_OPEN');
+  if (progress.circuitOpen) reasons.push('NO_PROGRESS_REQUIRES_STRATEGY_ROTATION');
   return Object.freeze({
+    // Circuit-open blocks this stale-recovery attempt but is explicitly non-terminal: the caller must rotate strategy and continue the repair chain.
     eligible: reasons.length === 0,
     ageMs,
     noProgress: progress,
     successfulVerificationPresent: verified,
+    strategyRotationRequired,
     reasons,
   });
 }
@@ -285,14 +288,16 @@ export function recordStrategyAttempt(cycle, {
     at,
   }];
   const stalledCycles = progress ? 0 : Number(cycle.stalledCycles ?? 0) + 1;
-  if (stalledCycles >= CIRCUIT_BREAKER.maxStalledCycles) {
-    throw new Error('CONTROL_PLANE_CIRCUIT_BREAKER_OPEN');
-  }
+  const circuitOpen = stalledCycles >= CIRCUIT_BREAKER.maxStalledCycles;
   return Object.freeze({
     ...cycle,
     strategyHistory: attempts,
     stalledCycles,
     updatedAt: at,
+    circuitOpen,
+    nextAction: circuitOpen
+      ? 'ROTATE_STRATEGY_AND_REQUIRE_NEW_EVIDENCE'
+      : 'CONTINUE_CURRENT_REPAIR_CHAIN',
   });
 }
 

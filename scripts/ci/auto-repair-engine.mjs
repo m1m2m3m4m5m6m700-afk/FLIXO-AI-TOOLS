@@ -17,7 +17,7 @@ import { simulateRepair } from './auto-repair/simulation.mjs';
 import { critiqueRepair } from './auto-repair/self-critic.mjs';
 import { buildCausalProof } from './auto-repair/causal-proof.mjs';
 import { buildRepairKnowledgeGraph } from './auto-repair/knowledge-graph.mjs';
-import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession } from './repair-protocol.mjs';
+import { assertAgentAdmission, createRepairSession, captureFailure, authorizeMutation, completeRepairSession, validateErrorOnlyMutation } from './repair-protocol.mjs';
 
 // Static protocol contract marker: root-cause-proof-reproductionRecovered.
 function mutationAttribution({ beforeSha, afterSha, changedFiles = [], rule = null, outcome = 'unknown' } = {}) {
@@ -88,9 +88,11 @@ const historicalRollbackCandidate = findHistoricalRepairCandidate(targetDir, {
   historyLimit: Number(process.env.FLIXO_HISTORY_LIMIT ?? 30),
 });
 
-if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint && !historicalRollbackCandidate) {
-  console.log('AUTO_REPAIR_RESULT=LEARNING_MEMORY_BLOCK');
-  process.exit(0);
+// Continuous RED invariant: learning may escalate and rotate strategy, but it may never
+// terminate an actionable repair chain. Canonical GREEN is the only closure authority.
+if ((known?.attempts ?? 0) >= repairPolicy.maxAttemptsPerFingerprint) {
+  console.log('AUTO_REPAIR_RESULT=LEARNING_ESCALATION_CONTINUE');
+  console.log('AUTO_REPAIR_REASON=MAX_ATTEMPTS_IS_NOT_A_TERMINAL_STATE');
 }
 if (repairPolicy.requireCleanGitBeforeRepair && git(['status', '--porcelain']).trim()) throw new Error('AUTO_REPAIR_DIRTY_WORKTREE');
 
@@ -210,6 +212,11 @@ if (historicalRollbackCandidate && diagnosisGate.allowed) {
     const diffSummary = summarizeDiff(changed);
     evidence.diff = diffSummary;
     evidence.changedPaths = diffSummary.files;
+    evidence.errorOnlyMutation = validateErrorOnlyMutation({
+      failureLocation: diagnosis?.location?.file,
+      selectedFile: historicalRollbackCandidate?.file ?? diagnosis?.location?.file,
+      changedPaths: diffSummary.files,
+    });
     evidence.mutationAttribution = mutationAttribution({
       beforeSha: targetSha,
       afterSha: git(['rev-parse', 'HEAD']).trim(),
@@ -479,6 +486,11 @@ const before = snapshot(targetDir);
   }
 
 try {
+  evidence.errorOnlyMutation = validateErrorOnlyMutation({
+    failureLocation: diagnosis?.location?.file,
+    selectedFile: selected?.file,
+    changedPaths: [selected?.file],
+  });
   evidence.repair = runAstRepair(targetDir, selected);
   const changed = git(['diff', '--binary']);
   const diffSummary = summarizeDiff(changed);

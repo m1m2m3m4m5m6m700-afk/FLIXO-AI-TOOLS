@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, normalizeMemoryCounters, mergeMemoryHistory, MEMORY_RELATION_TYPES, normalizeRelations } from './auto-repair-learning.mjs';
+import { fingerprintFailure, loadMemory, recordOutcome, scorePlaybook, findSimilarCases, rankLessons, normalizeLearningOutcome, deriveReusableKnowledge, hydrateActionHistory, normalizeMemoryCounters, mergeMemoryHistory, MEMORY_RELATION_TYPES, normalizeRelations } from './auto-repair-learning.mjs';
 
 const sample = 'Run 35012345678 failed on webkit at abcdefabcdefabcdefabcdefabcdefabcdefabcd: Seed waitForGpuRender';
 const fingerprint = fingerprintFailure(sample);
@@ -196,6 +196,27 @@ assert(mirroredRule);
 assert.equal(mirroredRule.attempts, reusable.generalizedRules.find((item) => item.rule === 'eslint-unused').attempts);
 assert.equal(reusable.rejectedRules.some((item) => item.rule === 'eslint-unused'), false);
 assert(memory.lessons.some((item) => item.fingerprint === '__self_test__'));
+assert.equal(memory.actionHistory.find((item) => item.fingerprint === '__self_test__')?.attempts, 1);
+
+const hydrated = hydrateActionHistory({
+  version: 10,
+  cases: [{
+    fingerprint: '__hydrated_repeat__',
+    rootCause: 'external-tooling',
+    attempts: 1,
+    successes: 0,
+    failures: 1,
+    outcomes: [
+      { outcome: 'unrepaired', verification: 'engine-error', provenance: { runId: 'r1', failedSha: 'a'.repeat(40) }, at: '2026-09-20T00:00:00Z' },
+      { outcome: 'unrepaired', verification: 'engine-error', provenance: { runId: 'r2', failedSha: 'b'.repeat(40) }, at: '2026-09-20T00:01:00Z' },
+      { outcome: 'unrepaired', verification: 'engine-error', provenance: { runId: 'r3', failedSha: 'c'.repeat(40) }, at: '2026-09-20T00:02:00Z' },
+    ],
+  }],
+  playbooks: [], lessons: [], antiLessons: [], actionHistory: [],
+});
+const hydratedRepeat = hydrated.actionHistory.find((item) => item.fingerprint === '__hydrated_repeat__');
+assert.equal(hydratedRepeat?.attempts, 3);
+assert.equal(hydratedRepeat?.failures, 3);
 
 recordOutcome(memory, {
   fingerprint: '__negative_test__',

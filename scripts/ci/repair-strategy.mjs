@@ -46,13 +46,26 @@ const record = (intractable.cases ?? []).find((item) => item.fingerprint === fin
 const attempts = Number(entry?.attempts ?? 0);
 const persistedAttempts = priorRepairArtifactCount();
 const nextAttempt = Math.max(attempts + 1, persistedAttempts + 1);
-const index = (Math.max(0, nextAttempt - 1)) % strategies.length;
+const priorStrategies = [
+  ...(entry?.outcomes ?? []).map((item) => item?.provenance?.strategyId).filter(Boolean),
+  ...(entry?.rejectedStrategies ?? []),
+  ...(entry?.strategies ?? []),
+].map(String);
+const unusedIndexes = strategies.map((_, i) => i).filter((i) => !priorStrategies.includes(strategies[i][0]));
+const index = unusedIndexes[0] ?? ((Math.max(0, nextAttempt - 1)) % strategies.length);
 const [strategyId, strategy] = strategies[index];
 const threshold = INTRACTABLE_THRESHOLD;
 const teachingEscalation = record?.status === 'INTRACTABLE' || nextAttempt > threshold;
-// Learning may escalate the case for supervision, but it must never suppress the next
-// evidence-backed repair attempt for an actionable RED. The selected strategy rotates.
-const isIntractable = false;
+const sameStrategyRepeated = priorStrategies.filter((value) => value === strategyId).length > 0;
+const teachingPacket = {
+  state: teachingEscalation ? 'SUPERVISING_TEACHING_REQUIRED' : 'LEARNING_CONTEXT_REQUIRED',
+  attempt: nextAttempt,
+  priorStrategies: [...new Set(priorStrategies)].slice(-20),
+  doNotRepeat: [...new Set([...(entry?.revertedRules ?? []), ...(entry?.rules ?? [])])].slice(-20),
+  requiredHypothesisChange: teachingEscalation,
+  requiredEvidenceDelta: teachingEscalation ? ['new-root-cause-evidence', 'new-reproduction-or-disproof', 'new-verification-proof'] : ['exact-failure-evidence'],
+  exitCriteria: 'verified-repair-on-exact-target-sha-and-canonical-green',
+};
 
 fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   fingerprint,
@@ -60,10 +73,12 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
   priorRepairArtifacts: persistedAttempts,
   strategyId,
   strategy,
-  intractable: isIntractable,
+  intractable: false,
   teachingEscalation,
+  sameStrategyRepeated,
+  teachingPacket,
   cycle: nextAttempt,
-  protocol: teachingEscalation ? 'SUPERVISING-REPAIR-TEACHING-v1-CONTINUE-REPAIR' : null,
+  protocol: teachingEscalation ? 'SUPERVISING-REPAIR-TEACHING-v2-CONTINUE-REPAIR' : 'SUPERVISING-REPAIR-TEACHING-v2',
 }, null, 2)}\n`);
-fs.writeFileSync('/tmp/flixo-intractable-state', isIntractable ? 'true\n' : 'false\n');
-console.log(JSON.stringify({ fingerprint, attempt: nextAttempt, priorRepairArtifacts: persistedAttempts, strategyId, teachingEscalation, intractable: isIntractable, policy: 'EVERY_ACTIONABLE_RED_REQUIRES_REPAIR_ATTEMPT' }));
+fs.writeFileSync('/tmp/flixo-intractable-state', 'false\n');
+console.log(JSON.stringify({ fingerprint, attempt: nextAttempt, priorRepairArtifacts: persistedAttempts, strategyId, teachingEscalation, sameStrategyRepeated, teachingPacket, intractable: false, policy: 'EVERY_ACTIONABLE_RED_REQUIRES_NEW_EVIDENCE_OR_STRATEGY' }));
