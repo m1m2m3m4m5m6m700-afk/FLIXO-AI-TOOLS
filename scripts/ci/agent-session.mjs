@@ -246,7 +246,7 @@ if (command === 'event') {
         text: String(item?.text ?? item ?? '').trim(),
       })).filter((item) => item.text);
     } catch (error) {
-      throw new Error(`INVALID_CYCLE_LESSONS_JSON:${error?.message ?? error}`);
+      throw new Error(`INVALID_CYCLE_LESSONS_JSON:${error?.message ?? error}`, { cause: error });
     }
   }
   if (!cycleLessons.length) {
