@@ -1,3 +1,9 @@
+## Branch Command — Immutable Two-Branch Topology
+
+**DO NOT CREATE A NEW BRANCH.** The only active branches are `execution` and `main`, with the single authorized flow `execution → main`.
+
+Never create a feature/fix/chore/repair/agent/test/temp/backup/experimental branch, even to isolate a failure or resolve a conflict. Stay on `execution`, repair in place, verify the exact SHA, and continue. Promotion uses the existing `execution → main` integration PR. Any proposed third branch is a fail-closed condition, not a fallback strategy.
+
 # FLIXO-AI-TOOLS — AI AGENT MASTER PROMPT
 
 ## الهدف
