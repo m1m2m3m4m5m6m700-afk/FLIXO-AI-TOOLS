@@ -1,8 +1,24 @@
+import { createHash } from 'node:crypto';
 import type { ToolCatalogSource } from './types.ts';
 import type { ManagedTool, ToolCatalog } from './types.ts';
 
 function freezeMap<T>(map: Map<string, T>): ReadonlyMap<string, T> {
   return map;
+}
+
+function catalogFingerprint(tools: readonly ManagedTool[]): string {
+  const payload = tools.map((tool) => ({
+    id: tool.id,
+    path: tool.path,
+    aliases: [...tool.aliases].sort(),
+    isReady: tool.isReady,
+    capability: tool.capability,
+    executionMode: tool.executionMode,
+    operational: tool.operational,
+    requirements: tool.requirements,
+    recovery: tool.recovery,
+  }));
+  return createHash('sha256').update(JSON.stringify(payload), 'utf8').digest('hex');
 }
 
 export function createToolCatalog(source: readonly ToolCatalogSource[]): ToolCatalog {
@@ -42,5 +58,6 @@ export function createToolCatalog(source: readonly ToolCatalogSource[]): ToolCat
     byId: freezeMap(byId),
     byPath: freezeMap(byPath),
     byAlias: freezeMap(byAlias),
+    fingerprint: catalogFingerprint(all),
   });
 }

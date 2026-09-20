@@ -8,6 +8,7 @@ export type ToolCatalog = Readonly<{
   readonly byId: ReadonlyMap<string, ManagedTool>;
   readonly byPath: ReadonlyMap<string, ManagedTool>;
   readonly byAlias: ReadonlyMap<string, ManagedTool>;
+  readonly fingerprint: string;
 }>;
 
 export type ToolCatalogSource = ToolDefinition;
