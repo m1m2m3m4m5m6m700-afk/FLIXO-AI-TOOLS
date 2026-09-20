@@ -410,6 +410,8 @@ export function evaluateGreen({
   if (report.repair.required) {
     report.status = 'RED_INTERNAL';
     report.rootCause = report.errors.find((item) => item.type === 'UNEXPECTED_WORKFLOW_RED')?.workflow ?? 'INTERNAL_WORKFLOW_FAILURE';
+  } else if (activeExternalBlocker) {
+    // Preserve the external blocker decision already reduced above; never reclassify it as an internal repair.
   } else if (internalMainFailure) {
     report.status = 'RED_INTERNAL';
     report.rootCause = report.rootCause ?? 'INTERNAL_WORKFLOW_FAILURE';
