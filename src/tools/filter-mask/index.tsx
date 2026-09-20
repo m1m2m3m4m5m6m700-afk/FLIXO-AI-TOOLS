@@ -83,7 +83,6 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
   const baseVideoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
-  const recordCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const recordSchedulerRef = useRef<{ cancel: () => void } | null>(null);
   const recordTimerRef = useRef<number | null>(null);
   const gpuRendererRef = useRef<ReturnType<typeof createWebGL2FilterRenderer> | null>(null);
@@ -194,8 +193,8 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     gpuRendererRef.current = null;
     void releaseWakeLock();
     streamRef.current?.getTracks().forEach((track) => track.stop());
-    baseVideoRef.current?.srcObject && (baseVideoRef.current.srcObject = null);
-    videoRef.current?.srcObject && (videoRef.current.srcObject = null);
+    if (baseVideoRef.current?.srcObject) baseVideoRef.current.srcObject = null;
+    if (videoRef.current?.srcObject) videoRef.current.srcObject = null;
   }, []);
 
   useEffect(() => () => {
@@ -432,7 +431,7 @@ export function FilterMaskTool({ locale = 'en' as Locale }: { locale?: Locale })
     canvas.height = dimensions.height;
 
     let ctx: CanvasRenderingContext2D | null = null;
-    let gpuRenderer = preferredBackend === 'webgl2' ? createWebGL2FilterRenderer(canvas) : null;
+    const gpuRenderer = preferredBackend === 'webgl2' ? createWebGL2FilterRenderer(canvas) : null;
     if (preferredBackend === 'webgl2' && !gpuRenderer) {
       ctx = canvas.getContext('2d', { alpha: false });
     } else if (!gpuRenderer) {
