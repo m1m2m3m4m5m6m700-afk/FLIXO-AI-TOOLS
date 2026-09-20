@@ -431,10 +431,57 @@ export function main() {
   const inputPath = process.argv[2];
   const outputPath = process.argv[3];
   if (!inputPath || !outputPath) throw new Error('Usage: continuous-error-watch.mjs <input.json> <output.json>');
-  const input = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
-  const report = evaluateGreen(input);
+
+  let report;
+  try {
+    const input = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
+    report = evaluateGreen(input);
+  } catch (error) {
+    report = {
+      schemaVersion: 1,
+      protocol: 'FLIXO-CONTINUOUS-ERROR-WATCH-v1',
+      generatedAt: new Date().toISOString(),
+      executionSha: null,
+      mainSha: null,
+      branch: null,
+      pr: null,
+      status: 'FAIL_CLOSED',
+      rootCause: 'REQUIRED_EVIDENCE_MISSING',
+      errors: [{
+        type: 'WATCHER_INPUT_INVALID',
+        message: error instanceof Error ? error.message : String(error),
+      }],
+      externalBlockers: [],
+      repair: {
+        required: false,
+        targetRunId: null,
+        failureFingerprint: null,
+        repairKey: null,
+        claimKey: null,
+        repairChainId: null,
+        leaseRef: null,
+        failedSha: null,
+        branch: null,
+        action: 'NONE',
+        rootCauseAuthority: 'TASK_AGENT_RCA',
+      },
+      ci: {
+        requiredWorkflows: {},
+        security: { present: false, status: 'MISSING' },
+        certification: { present: false, status: 'MISSING' },
+      },
+      evidence: {
+        exactSha: false,
+        executionMatchesPr: false,
+        executionAheadOfMain: 0,
+        executionBehindMain: 0,
+      },
+    };
+  }
+
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`);
+  if (report.errors.some((error) => error.type === 'WATCHER_INPUT_INVALID')) process.exitCode = 1;
 }
 
 if (path.basename(process.argv[1] ?? '') === 'continuous-error-watch.mjs') main();
