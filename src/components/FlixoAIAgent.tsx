@@ -73,10 +73,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const [filterHandoff, setFilterHandoff] = useState<FilterMaskHandoff | null>(null);
 
   useEffect(() => {
-    if (!result) {
-      setDownloadUrl(null);
-      return;
-    }
+    if (!result) return;
     const url = URL.createObjectURL(result);
     setDownloadUrl(url);
     return () => URL.revokeObjectURL(url);
@@ -122,7 +119,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   };
 
   const buildPlan = (command: string, responseCopy = copy): ExecutionPlan | null => {
-    setError(null); setResult(null); setProgress(null);
+    setError(null); setDownloadUrl(null); setResult(null); setProgress(null);
     const contextualCommand = contextualizeCommand(command, memory);
     const intentPlan = buildIntentPlan(contextualCommand);
     if (intentPlan.status === 'NEEDS_INPUT') {
@@ -245,7 +242,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
       const output = await runWorkflowPipeline(file, nextPlan, task, setProgress);
       task = transitionTask(task, 'VERIFYING');
       task = transitionTask(task, 'COMPLETED');
-      setResult(output); setState('success'); pushMessage('agent', responseCopy.success);
+      setDownloadUrl(null); setResult(output); setState('success'); pushMessage('agent', responseCopy.success);
     } catch (cause) {
       if (task.state === 'EXECUTING' || task.state === 'VERIFYING' || task.state === 'RECOVERING') {
         try { task = transitionTask(task, 'FAILED'); } catch { /* preserve the original execution error */ }
@@ -363,7 +360,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           <input id="flixo-agent-command" type="text" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void sendMessage(); } }} placeholder={copy.placeholder} autoComplete="off" />
           <div className="flixo-ai-agent-examples" aria-label={copy.examplesLabel}>{copy.examples.map((example) => <button key={example} type="button" onClick={() => setQuery(example)}>{example}</button>)}</div>
           <label htmlFor="flixo-agent-file">{copy.fileLabel}</label>
-          <input id="flixo-agent-file" type="file" accept="image/*" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setResult(null); setState('idle'); setError(null); }} />
+          <input id="flixo-agent-file" type="file" accept="image/*" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setDownloadUrl(null); setResult(null); setState('idle'); setError(null); }} />
           <div className="flixo-ai-agent-actions"><button type="button" className="primary-button" onClick={() => void sendMessage()} disabled={!query.trim() || state === 'running'}>{copy.send}</button><button type="button" className="primary-button" onClick={prepare} disabled={!query.trim() || state === 'running'}>{copy.analyze}</button></div>
         </div>
         <div className="flixo-ai-agent-plan">
@@ -382,7 +379,7 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
           {progress && <div className="flixo-ai-agent-progress"><span>{copy.step} {progress.currentStepIndex}/{progress.totalSteps}</span><strong>{progress.currentToolId}</strong>{progress.retry ? <small>{copy.retry} {progress.retry}</small> : null}</div>}
           {error && <div className="flixo-ai-agent-error" role="alert">{error}</div>}
           {state === 'ready' && plan && <div className="flixo-ai-agent-confirm">{copy.planReady} <strong>{file ? copy.execute : copy.uploadThenExecute}</strong></div>}
-          {state === 'success' && result && <div className="flixo-ai-agent-success"><strong>{copy.success}</strong>{downloadUrl ? <a className="primary-button" href={downloadUrl} download={`flixo-agent-${Date.now()}.${result.type.includes('jpeg') ? 'jpg' : result.type.includes('png') ? 'png' : 'webp'}`}>{copy.download}</a> : <span className="primary-button" aria-disabled="true">{copy.download}</span>}</div>}
+          {state === 'success' && result && <div className="flixo-ai-agent-success"><strong>{copy.success}</strong>{downloadUrl ? <a className="primary-button" href={downloadUrl} download={`flixo-agent-result.${result.type.includes('jpeg') ? 'jpg' : result.type.includes('png') ? 'png' : 'webp'}`}>{copy.download}</a> : <span className="primary-button" aria-disabled="true">{copy.download}</span>}</div>}
         </div>
       </div>
       <p className="flixo-ai-agent-note">{copy.safetyNote} <Link to="/admin">{copy.admin}</Link></p>
