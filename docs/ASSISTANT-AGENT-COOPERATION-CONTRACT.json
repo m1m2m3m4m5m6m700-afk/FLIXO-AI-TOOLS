@@ -553,7 +553,13 @@
       "programmerTwinParityRequired": true,
       "primaryCorrectnessProofRequired": true,
       "adversarialFalsificationRequired": true,
-      "systemCognitiveAwarenessRequired": true
+      "systemCognitiveAwarenessRequired": true,
+      "sandboxProofRequired": true,
+      "differentialProofRequired": true,
+      "patchCorrectnessProofRequired": true,
+      "patchIdentityMustMatchSimulation": true,
+      "adversarialBenchmarkRequired": true,
+      "benchmarkRuntime": "scripts/ci/action-vault-intelligence-benchmark.mjs"
     },
     "fileSelectionIntelligence": {
       "enabled": true,
