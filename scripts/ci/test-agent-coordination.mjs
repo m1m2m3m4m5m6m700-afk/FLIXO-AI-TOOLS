@@ -28,7 +28,7 @@ fs.writeFileSync(path.join(coordDir, 'coordination-state.json'), JSON.stringify(
 fs.writeFileSync(path.join(coordDir, 'coordination-locks.json'), JSON.stringify(locks, null, 2) + '\n');
 
 const visibilityKey = (id) => crypto.createHash('sha256').update(id).digest('hex');
-for (const [sessionId, agentId] of [['race-session-a','executionAgent-a'], ['race-session-b','executionAgent-b']]) {
+for (const [sessionId, agentId] of [['race-session-a','executionAgent-a'], ['race-session-b','executionAgent-b'], ['request-session','executionAgent-b']]) {
   fs.writeFileSync(path.join(visibilityDir, visibilityKey(sessionId) + '.json'), JSON.stringify({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'OPEN', taskId, sessionId, agentId, role: 'executionAgent', entrySha: currentSha, exitSha: null, status: 'RUNNING', finalStatus: null, finalSummary: null, updatedAt: new Date().toISOString() }, null, 2) + '\n');
 }
 
