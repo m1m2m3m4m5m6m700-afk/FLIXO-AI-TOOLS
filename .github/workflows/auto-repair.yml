@@ -396,7 +396,7 @@ jobs:
           SHA="$(cat /tmp/flixo-failed-sha)"
           FP="$FLIXO_FAILURE_FINGERPRINT"
           TASK_ID="ACTION-RED:$TARGET_RUN_ID:$FP"
-          node scripts/ci/action-three-bot-collaboration.mjs             --task="$TASK_ID"             --fingerprint="$FP"             --sha="$SHA"             --run-id="$TARGET_RUN_ID"             --log="$FLIXO_FAILURE_LOG"             --file-selection="$FLIXO_FILE_SELECTION_PATH"             --output=/tmp/action-three-bot-collaboration.json
+          node scripts/ci/action-three-bot-collaboration.mjs             --task="$TASK_ID"             --fingerprint="$FP"             --sha="$SHA"             --run-id="$TARGET_RUN_ID"             --log="$FLIXO_FAILURE_LOG"             --file-selection="$FLIXO_FILE_SELECTION_PATH"             --programmer-twin-parity="$FLIXO_ACTION_REPAIR_TWIN_PARITY_PATH"             --output=/tmp/action-three-bot-collaboration.json
           test -s /tmp/action-three-bot-collaboration.json
           jq -e --arg sha "$SHA" --arg fp "$FP" --arg run "$TARGET_RUN_ID" '
             .status == "ACTIVE" and
@@ -411,7 +411,10 @@ jobs:
             .collaborationRules.evidenceExchangeBeforeMutation == true and
             .collaborationRules.fileSelectionBeforeProgramming == true and
             .fileSelectionDecision.decision == "SELECTED" and
-            .fileSelectionDecision.targetSha == $sha
+            .fileSelectionDecision.targetSha == $sha and
+            .programmerTwinParity.intelligenceParity == "EXACT" and
+            .programmerTwinParity.authorityParity == "SEPARATED_BY_DESIGN" and
+            .programmerTwinParity.targetSha == $sha
           ' /tmp/action-three-bot-collaboration.json >/dev/null
           echo "FLIXO_THREE_BOT_COLLABORATION_PATH=/tmp/action-three-bot-collaboration.json" >> "$GITHUB_ENV"
           echo "ACTION_THREE_BOT_COLLABORATION=ACTIVE"
