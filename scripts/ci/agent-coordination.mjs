@@ -183,6 +183,27 @@ function chooseContinuationTask(sessionId) {
 function mandatoryContinuation(sessionId, agentId, completedTaskId, teamId = DEFAULT_TEAM_ID) {
   const peer = chooseContinuationTarget(sessionId, teamId);
   const remaining = unresolvedRequiredTasks(completedTaskId).filter((task) => String(task.teamId ?? DEFAULT_TEAM_ID) === String(teamId));
+  const teamPeers = activePeerSessions(sessionId, teamId);
+  const allPeersReady = teamPeers.every((peerSession) => peerSession.readyForTeamClose === true);
+  if (remaining.length === 0 && allPeersReady) {
+    const current = state.activeSessions[sessionId];
+    if (current) {
+      current.taskId = null;
+      current.teamId = teamId;
+      current.completedTaskId = completedTaskId;
+      current.collaborationState = 'READY_TO_CLOSE';
+      current.collaborationRequired = false;
+      current.teamBarrier = 'READY_TO_CLOSE';
+      current.readyForTeamClose = true;
+      current.requiredUntil = 'TEAM_CLOSURE';
+      current.updatedAt = now();
+      const visibility = readVisibility(sessionId);
+      visibility.continuation = { required: false, previousTaskId: completedTaskId, mode: 'TEAM_READY_TO_CLOSE' };
+      visibility.updatedAt = now();
+      fs.writeFileSync(visibilityPath(sessionId), JSON.stringify(visibility, null, 2) + '\n');
+      return { state: 'TEAM_READY_TO_CLOSE', targetSessionId: null, assignedTaskId: null };
+    }
+  }
   if (!peer && remaining.length === 0) return { state: 'NONE' };
 
   const current = state.activeSessions[sessionId];
