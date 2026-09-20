@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: flixo-agent-repair-supervisor-observer
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   actions: read
