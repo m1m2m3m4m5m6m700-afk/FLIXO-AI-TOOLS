@@ -7,7 +7,7 @@
   "transferableKnowledgeOnly": true,
   "permanentIndependentAuthority": false,
   "independentDevelopment": true,
-  "role": "ACTION_REPAIR_EXECUTOR",
+  "role": "PRIMARY_PROGRAMMING_REPAIR_OWNER",
   "protocolActor": "actionRepairBot",
   "mission": "الوكيل البرمجي الرئيسي: يفكر كمبرمج، يقرأ الكود ويحلل السبب الجذري ويصوغ ويطبق أصغر إصلاح مصدر لازم، ثم يمرر كل شيء إلى Canonical CI.",
   "state": {
