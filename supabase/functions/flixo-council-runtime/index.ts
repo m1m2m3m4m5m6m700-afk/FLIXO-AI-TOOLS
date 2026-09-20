@@ -11,6 +11,10 @@ const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
 const GITHUB_OIDC_AUDIENCE = "https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime";
 const GITHUB_OIDC_JWKS = createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"));
 
+const COUNCIL_DIRECTIVE_VERSION = "1.0.0";
+const COUNCIL_GREEN_AUTHORITY = "Daily·FLIXO Green Gate";
+const COUNCIL_INTEGRATION_LANE = "execution -> main";
+
 const accounts: Record<Account, { tokenEnv: string; endpointEnv?: string; fallback: Account; }> = {
   CHIEF: { tokenEnv: "COUNCIL_CHIEF_TOKEN", fallback: "CHIEF" },
   WORKER_A: { tokenEnv: "COUNCIL_WORKER_A_TOKEN", endpointEnv: "COUNCIL_WORKER_A_WAKE_ENDPOINT", fallback: "WORKER_B" },
@@ -231,6 +235,8 @@ const dispatch = async (body: Body) => {
   const taskId = String(body.taskId ?? "").trim();
   const workPackageId = String(body.workPackageId ?? "").trim();
   const entrySha = sha(body.entrySha);
+  const directiveVersion = String(body.directiveVersion ?? COUNCIL_DIRECTIVE_VERSION).trim();
+  if (directiveVersion !== COUNCIL_DIRECTIVE_VERSION) throw new Error("COUNCIL_DIRECTIVE_VERSION_REJECTED");
   if (!messageId || !idempotencyKey || !taskId || !workPackageId) throw new Error("COUNCIL_DISPATCH_IDENTITY_REQUIRED");
 
   const leaseSeconds = Number(body.leaseSeconds ?? (primary === "CHIEF" ? 180 : 120));
@@ -250,7 +256,7 @@ const dispatch = async (body: Body) => {
       recipient_account_id: primary,
       handoff_account_id: "CHIEF",
       status: "LEASED",
-      payload: body,
+      payload: { ...body, directiveVersion, greenAuthority: COUNCIL_GREEN_AUTHORITY, integrationLane: COUNCIL_INTEGRATION_LANE },
       evidence: {},
       lease_expires_at: new Date(Date.now() + leaseSeconds * 1000).toISOString(),
       attempts: 1,
@@ -289,7 +295,7 @@ const dispatch = async (body: Body) => {
       push.reason = String(e instanceof Error ? e.message : e);
     }
   }
-  return { dispatchId, status: row.status, entrySha: row.entry_sha, primaryAccountId: primary, fallbackAccountId: fallback, leaseExpiresAt: row.lease_expires_at, push, pollUrl: "/functions/v1/flixo-council-runtime?action=poll&accountId=" + primary };
+  return { dispatchId, status: row.status, entrySha: row.entry_sha, primaryAccountId: primary, fallbackAccountId: fallback, leaseExpiresAt: row.lease_expires_at, directiveVersion: COUNCIL_DIRECTIVE_VERSION, greenAuthority: COUNCIL_GREEN_AUTHORITY, integrationLane: COUNCIL_INTEGRATION_LANE, push, pollUrl: "/functions/v1/flixo-council-runtime?action=poll&accountId=" + primary };
 };
 
 Deno.serve(async (req) => {
