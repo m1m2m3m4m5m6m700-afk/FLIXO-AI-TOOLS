@@ -4,7 +4,7 @@ import { evaluateMutationGate } from './action-vault-mutation-gate.mjs';
 const sha='a'.repeat(40);
 const fp='fp';
 const completeness=Object.fromEntries([
- 'COGNITIVE_AWARENESS_PROVEN','ROOT_CAUSE_PROVEN','FILE_SELECTION_PROVEN','PROGRAMMER_TWIN_PARITY_PROVEN',
+ 'COGNITIVE_AWARENESS_PROVEN','CAUSAL_EVIDENCE_GRAPH_PROVEN','ROOT_CAUSE_PROVEN','FILE_SELECTION_PROVEN','PROGRAMMER_TWIN_PARITY_PROVEN',
  'ADVERSARIAL_FALSIFICATION_COMPLETE','NO_VALID_COUNTEREXAMPLE','SANDBOX_SIMULATION_PASSED',
  'DIFFERENTIAL_CHECK_PASSED','PATCH_CORRECTNESS_PROVEN','REGRESSION_COUNTEREXAMPLES_EXHAUSTED',
  'NO_SCOPE_VIOLATION','NO_TEST_MUTATION','NO_CONTROL_PLANE_MUTATION','NO_MAIN_MUTATION','NO_GATE_WEAKENING'
@@ -26,7 +26,7 @@ const verifier={
 const base={
  targetSha:sha,currentSha:sha,failureFingerprint:fp,verifierProof:verifier,
  cognitiveAwareness:{protocol:'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1',targetSha:sha,failureFingerprint:fp,awarenessCompleteness:{complete:true}},
- rootCauseProof:{status:'PROVEN'},
+ rootCauseProof:{protocol:'CAUSAL-EVIDENCE-GRAPH-v1',status:'PROVEN',targetSha:sha,failureFingerprint:fp,sourceMutationAllowed:false,proofClaims:{ROOT_CAUSE_LINKED_TO_FAILURE_SIGNAL:true,LOCATION_LINKED_TO_CAUSE:true,MECHANISM_EXPLAINED:true,ALTERNATIVES_CHALLENGED:true}},
  fileSelection:{decision:'SELECTED',targetSha:sha,failureFingerprint:fp,selectedFiles:[{path:'src/example.ts'}]},
  programmerTwinParity:{intelligenceParity:'EXACT',authorityParity:'SEPARATED_BY_DESIGN',targetSha:sha,failureFingerprint:fp},
  falsificationReport:{falsificationComplete:true,counterexampleFound:false,targetSha:sha,failureFingerprint:fp},
