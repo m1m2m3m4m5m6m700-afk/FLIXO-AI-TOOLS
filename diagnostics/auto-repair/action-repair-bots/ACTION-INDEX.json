@@ -27,7 +27,8 @@
     "diagnostics/auto-repair/memory.json",
     "docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json",
     "docs/agents/ERROR-TEACHING-ROUTER.json",
-    "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md"
+    "docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md",
+    "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json"
   ],
   "learnedTasks": [],
   "knowledge": [],
@@ -36,8 +37,20 @@
   "failedStrategies": [],
   "weaknesses": [],
   "upgrades": [],
-  "sourceEvidence": [],
-  "importHistory": [],
+  "sourceEvidence": [
+    {
+      "type": "teaching-index-4000",
+      "path": "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
+      "recordCount": 4000
+    }
+  ],
+  "importHistory": [
+    {
+      "type": "ACTION-INDEX-4000",
+      "recordCount": 4000,
+      "path": "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json"
+    }
+  ],
   "exportHistory": [],
   "historicalActionIndexMirror": {
     "schemaVersion": 1,
@@ -97,5 +110,15 @@
     "events": [],
     "eventCount": 0,
     "lastEventAt": null
+  },
+  "teachingIndex4000": {
+    "id": "ACTION-INDEX-4000",
+    "path": "diagnostics/auto-repair/action-vault/ACTION-INDEX-4000.json",
+    "sourceKind": "ERROR_TEACHING",
+    "range": "T1001-T5000",
+    "recordCount": 4000,
+    "authority": "ADVISORY_ONLY",
+    "proofAuthority": "CURRENT_EXACT_SHA_CI_ONLY",
+    "integratedAt": "2026-09-20T13:50:13.456Z"
   }
 }
