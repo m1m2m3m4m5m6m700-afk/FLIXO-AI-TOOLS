@@ -43,6 +43,10 @@ if(read.monitoring?.wakeEveryMinutes!==5)errors.push('wakeEveryMinutes');
 if(read.monitoring?.cron!=='*/5 * * * *')errors.push('wakeCron');
 if(read.monitoring?.exactShaBound!==true)errors.push('wakeExactSha');
 if(read.monitoring?.noPassiveSleep!==true)errors.push('wakeNoPassiveSleep');
+if(read.monitoring?.heartbeatWorkflow!=='.github/workflows/agent-repair-heartbeat.yml')errors.push('heartbeatWorkflow');
+if(read.monitoring?.wakeComplianceScript!=='scripts/ci/wake-compliance.mjs')errors.push('wakeComplianceScript');
+if(read.monitoring?.wakeComplianceTest!=='scripts/ci/test-wake-compliance.mjs')errors.push('wakeComplianceTest');
+if(read.monitoring?.allowedGapMs!==7*60*1000)errors.push('wakeAllowedGap');
 
 const workflow=fs.readFileSync(path.resolve(ROOT,'.github/workflows/auto-repair.yml'),'utf8');
 if(!workflow.includes('FLIXO_REPAIR_OPERATING_MODE: BOT_FIRST_AUTONOMOUS'))errors.push('workflow_mode_missing');
@@ -51,6 +55,10 @@ if(!workflow.includes('FLIXO_CRITICAL_HUMAN_AUTH_REQUIRED: \'true\''))errors.pus
 if(!workflow.includes('ACTION-VAULT-AUTONOMY-MODE'))errors.push('workflow_policy_reference_missing');
 if(!workflow.includes('FLIXO_REPAIR_OPERATING_MODE: BOT_FIRST_AUTONOMOUS'))errors.push('workflow_autonomy_mode_missing');
 const greenGate=fs.readFileSync(path.resolve(ROOT,'.github/workflows/daily-flixo-green-gate.yml'),'utf8');
+const heartbeatWorkflow=fs.readFileSync(path.resolve(ROOT,'.github/workflows/agent-repair-heartbeat.yml'),'utf8');
+if(!heartbeatWorkflow.includes("- cron: '*/5 * * * *'"))errors.push('heartbeat_five_minute_wake_missing');
+if(!fs.existsSync(path.resolve(ROOT,'scripts/ci/wake-compliance.mjs')))errors.push('wake_compliance_script_missing');
+if(!fs.existsSync(path.resolve(ROOT,'scripts/ci/test-wake-compliance.mjs')))errors.push('wake_compliance_test_missing');
 if(!greenGate.includes("- cron: '*/5 * * * *'"))errors.push('canonical_five_minute_wake_missing');
 if(!workflow.includes('branch-conflict-recovery'))errors.push('workflow_conflict_recovery_missing');
 
