@@ -6,14 +6,14 @@
   "externalDiagnosis": false,
   "exactShaRequired": true,
   "repositoryCreatedAt": "2026-08-10T14:20:17Z",
-  "coverageStart": null,
-  "coverageEnd": null,
-  "totalRunsScanned": 0,
-  "failedRunsScanned": 0,
-  "jobsScanned": 0,
-  "logJobsScanned": 0,
-  "errorOccurrences": 0,
-  "uniqueRecords": 0,
+  "coverageStart": "2026-09-20T11:48:34Z",
+  "coverageEnd": "2026-09-20T11:48:34Z",
+  "totalRunsScanned": 1,
+  "failedRunsScanned": 1,
+  "jobsScanned": 1,
+  "logJobsScanned": 1,
+  "errorOccurrences": 1,
+  "uniqueRecords": 1,
   "shards": [],
-  "updatedAt": null
+  "updatedAt": "2026-09-20T11:48:34Z"
 }
