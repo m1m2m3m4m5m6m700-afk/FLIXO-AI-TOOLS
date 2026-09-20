@@ -623,6 +623,22 @@ jobs:
           fi
           test -s "$FLIXO_REPAIR_ATTEMPT_LEDGER"
           node --input-type=module -e "const fs=require('fs');const l=JSON.parse(fs.readFileSync(process.env.FLIXO_REPAIR_ATTEMPT_LEDGER,'utf8'));if(l.chainId!==process.env.FLIXO_REPAIR_CHAIN_ID)throw new Error('REPAIR_ATTEMPT_LEDGER_CHAIN_MISMATCH');console.log(JSON.stringify({chainId:l.chainId,rejected:l.rejected?.length||0,attempts:l.attempts?.length||0}));"
+      - name: Train repair bot behavior from historical RED/GREEN experience
+        id: repair_bot_training
+        env:
+          FLIXO_REPAIR_MEMORY: /tmp/flixo-repair-memory.json
+          FLIXO_FAILURE_LOG: /tmp/flixo-failure.log
+          FLIXO_REPAIR_DIAGNOSIS_PATH: /tmp/flixo-root-cause.json
+          FLIXO_EXPECTED_TARGET_SHA: \${{ env.FLIXO_EXPECTED_TARGET_SHA }}
+          FLIXO_REPAIR_TRAINING_PATH: /tmp/flixo-repair-training.json
+        run: |
+          set -euo pipefail
+          node scripts/ci/repair-bot-training.mjs --self-test
+          node scripts/ci/repair-bot-training.mjs
+          test -s /tmp/flixo-repair-training.json
+          jq -e '.protocol=="FLIXO-REPAIR-BOT-BEHAVIORAL-TRAINING-v1" and .authority=="TRAINING_ONLY" and .targetSha==env.FLIXO_EXPECTED_TARGET_SHA and .decision.mode != null' /tmp/flixo-repair-training.json >/dev/null
+          echo "FLIXO_REPAIR_TRAINING_PATH=/tmp/flixo-repair-training.json" >> "\$GITHUB_ENV"
+
       - name: Select repair strategy and continue strict RED repair
         id: strategy
         env:

@@ -11,6 +11,7 @@ const logPath = process.env.FLIXO_FAILURE_LOG ?? '/tmp/flixo-failure.log';
 const chainId = String(process.env.FLIXO_REPAIR_CHAIN_ID ?? process.env.TARGET_RUN_ID ?? '').trim();
 const caseFingerprint = String(process.env.FLIXO_FAILURE_FINGERPRINT ?? '').trim();
 const attemptLedgerPath = process.env.FLIXO_REPAIR_ATTEMPT_LEDGER ?? '/tmp/flixo-repair-attempt-ledger.json';
+const trainingPath = process.env.FLIXO_REPAIR_TRAINING_PATH ?? '/tmp/flixo-repair-training.json';
 
 const strategies = [
   ['reproduce-exact', 'Reproduce the exact failure on the exact target SHA before changing source.'],
@@ -90,6 +91,16 @@ function canonicalSecuritySurface(targetDir) {
   return findings.sort((a, b) => rank[a.severity] - rank[b.severity] || a.path.localeCompare(b.path) || a.id.localeCompare(b.id)).slice(0, 40);
 }
 
+function strategyTrainingStats(training, id, rootCause) {
+  const global = training?.policy?.global?.[id] ?? {};
+  const contextual = training?.policy?.byRootCause?.[rootCause]?.find((item) => item.strategyId === id) ?? null;
+  return {
+    successRate: Number(contextual?.successRate ?? global.successRate ?? 0),
+    observations: Number(contextual?.observations ?? global.observations ?? 0),
+    confidence: Number(contextual?.confidence ?? (global.trained ? 0.65 : 0)),
+  };
+}
+
 function strategyOutcomeStats(memory, id, rootCause) {
   let successes = 0;
   let failures = 0;
@@ -153,9 +164,10 @@ function causalIntelligence(log, memory, stableCaseFingerprint, targetDir) {
   });
 }
 
-function rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, twinPreferredStrategy }) {
+function rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, twinPreferredStrategy, training }) {
   const ranked = strategies.map(([id, description], order) => {
     const stats = strategyOutcomeStats(memory, id, causal.rootCause);
+    const trainingStats = strategyTrainingStats(training, id, causal.rootCause);
     const familyMatch = (STRATEGY_FAMILIES[id] ?? []).includes(causal.rootCause) ? 1 : 0;
     const rejectionPenalty = rejected.has(id) ? 1 : 0;
     const repeatCount = priorStrategies.filter((value) => value === id).length;
@@ -170,6 +182,7 @@ function rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, 
       familyMatch: Boolean(familyMatch), twinPreferred: twinSignal === 1,
       observations: stats.observations, successes: stats.successes, failures: stats.failures,
       successRate: Number(successRate.toFixed(4)), contextualRate: Number(contextualSignal.toFixed(4)),
+      trainingSuccessRate: trainingStats.successRate, trainingObservations: trainingStats.observations, trainingConfidence: trainingStats.confidence, trainingSignal: Number(trainingSignal.toFixed(4)),
       repeatCount, rejected: rejectionPenalty === 1,
     };
   })
@@ -312,6 +325,7 @@ if (selectedRepairStrategy && !VALID_STRATEGY_IDS.has(selectedRepairStrategy)) {
 const twinPreferredStrategy = selectedRepairStrategy
   || String(twinProposal?.challenge?.preferredAlternativeStrategy ?? twinA?.challenge?.preferredAlternativeStrategy ?? twinB?.challenge?.preferredAlternativeStrategy ?? '').trim();
 const memory = readJson(memoryPath, { cases: [] });
+const training = readJson(trainingPath, null);
 const intractable = readJson(intractablePath, { cases: [] });
 const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
 const fingerprint = fingerprintFailure(log);
@@ -334,7 +348,7 @@ const rejected = new Set([
 ].filter(Boolean).map(String));
 const causal = causalIntelligence(log, memory, stableCaseFingerprint, process.cwd());
 const securityFindings = canonicalSecuritySurface(process.cwd());
-const intelligentRanking = rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, twinPreferredStrategy });
+const intelligentRanking = rankIntelligentStrategies({ memory, causal, rejected, priorStrategies, twinPreferredStrategy, training });
 const unusedIndexes = strategies.map((_, i) => i).filter((i) => !priorStrategies.includes(strategies[i][0])).filter((i) => !rejected.has(strategies[i][0]));
 const ledgerAvailableIndexes = unusedIndexes.filter((i) => !isRepairRejected(attemptLedger, { chainId, caseFingerprint: stableCaseFingerprint, strategyId: strategies[i][0] }));
 const divergentIndexes = ledgerAvailableIndexes.filter((i) => strategies[i][0] !== twinPreferredStrategy);
@@ -383,6 +397,7 @@ const teachingPacket = {
     strategyPortfolio: intelligentRanking.portfolio,
     falsificationPlan: buildFalsificationPlan(causal, intelligentRanking),
     securitySignals: securityFindings,
+    training,
     selectedBy: selectedRepairStrategy ? 'TWIN_OR_EXTERNAL_SELECTION' : intelligentSelectedId ? 'V12_CAUSAL_PORTFOLIO' : 'DETERMINISTIC_ROTATION',
     noBlindRepeat: true,
     steering: steeringDirective,
@@ -413,8 +428,10 @@ fs.writeFileSync('/tmp/flixo-repair-strategy.json', `${JSON.stringify({
     exactShaRequired: true,
     mutationAuthority: 'REPAIR_ENGINE_ONLY',
     greenAuthority: 'CANONICAL_CI_ONLY',
+    trainingAuthority: 'TRAINING_ONLY',
   },
   steering: steeringDirective,
+  trainingMode: training?.decision?.mode ?? 'MISSING',
   cycle: nextAttempt,
   twin: {
     present: Boolean(twinProposal || twinA || twinB || twinSelection),
