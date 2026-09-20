@@ -124,6 +124,7 @@ export function ingest(message, observedSha = currentSha()) {
   saveIndex(index);
   return record;
 }
+export function getMessage(messageId) { ensure(); return loadMessage(messageId); }
 export function markRead(messageId, agentId, observedSha = currentSha()) {
   ensure();
   const record = loadMessage(messageId);
