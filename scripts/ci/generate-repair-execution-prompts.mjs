@@ -206,6 +206,8 @@ const buildAgentPrompt = (fingerprint, members, index) => {
     workflows,
     rootCauseHint: known?.rootCause ?? null,
     exactCaseInMemory: Boolean(known),
+    registryPromptId,
+    promptDecision,
     prompt,
     promptHandoff,
   };
