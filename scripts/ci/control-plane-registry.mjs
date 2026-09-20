@@ -12,6 +12,7 @@ export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
   'execution-sync.yml',
   'repair-lease-live-race.yml',
   'historical-action-error-index.yml',
+  'action-agent-history-promotion.yml',
 ]);
 
 export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
