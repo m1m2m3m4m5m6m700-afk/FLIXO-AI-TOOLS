@@ -109,5 +109,27 @@
       "signal": "You defined \"--token\", but it's missing a value"
     }
   ],
-  "note": "هذه ذاكرة تشغيلية/تعلمية وليست سلطة إثبات. لا تُعتبر أي قاعدة صحيحة للحالة الحالية إلا بعد exact-SHA reproduction + targeted regression + Canonical CI."
+  "note": "هذه ذاكرة تشغيلية/تعلمية وليست سلطة إثبات. لا تُعتبر أي قاعدة صحيحة للحالة الحالية إلا بعد exact-SHA reproduction + targeted regression + Canonical CI.",
+  "intelligenceProfileRef": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+  "cooperationRole": "PRIMARY_REPAIR_OWNER",
+  "cooperationMode": "MANDATORY_SHARED_MISSION_ON_RED",
+  "sharedCapabilities": "ACTION-THREE-BOT-INTELLIGENCE",
+  "requiredCollaborators": [
+    "ACTION-REPAIR-2",
+    "ACTION-HISTORIAN-3"
+  ],
+  "collaborationContract": "diagnostics/auto-repair/action-vault/ACTION-THREE-BOT-INTELLIGENCE.json",
+  "sharedMissionRequires": [
+    "sameTaskId",
+    "sameFailureFingerprint",
+    "sameTargetSha",
+    "sameFailedRunId"
+  ],
+  "executionBoundary": {
+    "singleActiveRepairOwner": true,
+    "canMutateWhenOwner": true,
+    "canMutateTests": false,
+    "canMutateMain": false,
+    "canonicalGreen": "DAILY_FLIXO_GREEN_GATE"
+  }
 }
