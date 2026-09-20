@@ -116,6 +116,21 @@ Status meanings are strict: `ACTIVE`, `CANDIDATE`, `NEEDS DEVELOPMENT`, `DEFER`,
 
 Every session MUST update `PROJECTS.md` before leaving material unfinished work. Chat memory is not a project ledger.
 
+## COMMUNICATION-FIRST GATE
+
+The shared agent communication channel is the first operational dependency for every agent.
+
+`NOTIFICATION → MASTER INBOX → EVENT-DRIVEN RELAY → READ → EXACT-SHA REVALIDATION → LOCK_SCOPE → TASK CLAIM → EXECUTE`
+
+The canonical communication runtime is `scripts/ci/agent-communication.mjs`, the event ingress is `.github/workflows/agent-communication-relay.yml`, and the existing Master Inbox is GitHub Issue #761.
+
+Every actionable message MUST carry a unique `messageId`/`idempotencyKey`, target `recipient`, `taskId`, declared `scope`, exact `entrySha`, risk, dependencies, expected evidence, stop conditions and proof obligations.
+
+Message receipt is not execution authority. `RECEIVED` means the message has entered the canonical inbox. `READ` means the target agent has explicitly consumed it. `CONSUMED` is allowed only after current exact-SHA validation and execution admission. `STALE` and `BLOCKED_CONFLICT` are fail-closed states.
+
+An agent session created from an inbound message MUST preserve `messageId` and message SHA in its session and visibility record. The following task claim MUST bind to that message and recheck message recipient, task, scope and exact SHA.
+
+Periodic polling is recovery only. Event-driven delivery is the primary notification path.
 ## AGENT LOGIN
 
 Before changing repository state, the agent MUST create:
