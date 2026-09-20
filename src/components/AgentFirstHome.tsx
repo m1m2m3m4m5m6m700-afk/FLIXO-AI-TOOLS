@@ -84,7 +84,7 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
         )}
         <nav className="agent-first-nav-actions" aria-label={home.ariaPrimary}>
           <Link className="agent-first-tools-button" to="/$locale/$tool" params={{ locale, tool: 'image-compressor' }}>{IMAGE_TOOLS_LABELS[locale]}</Link>
-          <Link className="agent-first-tools-button" to="/$locale/$tool" params={{ locale, tool: 'pix' }}>{FILTER_LABELS[locale]}</Link>
+          <Link className="agent-first-tools-button" to="/$locale/$tool" params={{ locale, tool: 'filter-mask' }}>{FILTER_LABELS[locale]}</Link>
           <label className="sr-only" htmlFor="home-language">{home.nav.switch}</label>
           <select
             id="home-language"
