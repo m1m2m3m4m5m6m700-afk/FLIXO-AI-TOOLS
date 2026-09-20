@@ -29,7 +29,8 @@
     "communication_first": "Every actionable inter-agent notification enters the canonical communication inbox before task selection; receipt is not authority, and execution requires READ + current exact-SHA revalidation + ownership lock.",
     "event_driven_delivery": "The canonical communication relay consumes notification events immediately when emitted; periodic polling is recovery only, never the primary delivery path.",
     "message_idempotency": "messageId/idempotencyKey identifies one logical notification; duplicate delivery is a NO-OP and conflicting reuse of an id is fail-closed.",
-    "message_freshness": "A message may be received on any SHA, but it is executable only when its entrySha matches the current authoritative workspace SHA or has been explicitly revalidated by the controller."
+    "message_freshness": "A message may be received on any SHA, but it is executable only when its entrySha matches the current authoritative workspace SHA or has been explicitly revalidated by the controller.",
+    "team_completion": "All agents in one coordinated execution team remain active until all required team work is closed and every team member is ready; a completed agent must continue or join an active peer, and individual logout is blocked until TEAM READY_TO_CLOSE."
   },
   "messageEnvelope": {
     "required": [
@@ -156,6 +157,14 @@
       "pendingVisibility": "coop-pending exposes unresolved requests without granting authority.",
       "exactSha": "All cooperation transitions revalidate the current exact SHA.",
       "idempotency": "Duplicate response is NO-OP; conflicting identity or SHA is fail-closed."
+    },
+    "teamCompletion": {
+      "teamId": "One coordinated execution team uses one teamId; explicit orchestration may override it.",
+      "mandatoryContinuation": "A completed agent remains ACTIVE while required team work remains and must continue or join an active team member.",
+      "sharedBarrier": "The entire team shares one completion barrier. It opens only when zero required team tasks remain and every active team member is ready for closure.",
+      "finishTogether": "Individual logout is fail-closed until TEAM READY_TO_CLOSE is established for the entire team.",
+      "noOrphanAgent": "A completed agent never becomes a terminal idle session while teammates remain active; it stays JOINED_SUPPORT or WAITING_FOR_TEAM.",
+      "teamClose": "READY_TO_CLOSE requires zero team tasks in READY/QUEUED/RUNNING/STALE and every active team session readyForTeamClose=true."
     }
   }
 }
