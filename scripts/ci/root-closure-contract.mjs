@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 
 const read = (file) => fs.readFileSync(file, 'utf8');
 const json = (file) => JSON.parse(read(file));
@@ -200,7 +201,6 @@ export const CANONICAL_ARCHITECTURE_FILES = Object.freeze([
 ]);
 
 export function canonicalRefDigest(ref = 'main') {
-  const { execFileSync } = await import('node:child_process');
   const payload = CANONICAL_ARCHITECTURE_FILES.map((file) => {
     const content = execFileSync('git', ['show', `${ref}:${file}`], { encoding: 'utf8' });
     return [file, createHash('sha256').update(content, 'utf8').digest('hex')];
