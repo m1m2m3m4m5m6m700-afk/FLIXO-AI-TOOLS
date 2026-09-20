@@ -53,8 +53,8 @@ permissions:
   issues: write
 
 concurrency:
-  group: flixo-repair-agent-intake-${{ github.event.workflow_run.id || github.run_id }}
-  cancel-in-progress: false
+  group: flixo-repair-agent-intake-${{ github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   intake:
