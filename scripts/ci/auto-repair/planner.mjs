@@ -8,8 +8,12 @@ import { buildErrorOnlyRepairModel } from './error-only-programmer.mjs';
 
 const plans = [
   { id: 'external-tooling', features: ['external-tooling'], confidence: 99, mutate: false, commands: [] },
+  { id: 'noncanonical-automation', features: ['noncanonical-automation'], confidence: 95, mutate: false, targetScope: 'exact-workflow-or-watch-path', commands: [] },
+  { id: 'liveness-contract', features: ['liveness-contract'], confidence: 93, mutate: false, targetScope: 'exact-protocol-or-test', commands: [] },
+  { id: 'contract-drift', features: ['contract-drift'], confidence: 92, mutate: false, targetScope: 'exact-contract-surface', commands: [] },
   { id: 'eslint-unused', features: ['lint'], confidence: 92, mutate: true, targetScope: 'exact-file', commands: [] },
   { id: 'prettier-file', features: ['format'], confidence: 90, mutate: true, targetScope: 'exact-file', commands: [] },
+  { id: 'typescript-async-contract', features: ['typescript-async-contract'], confidence: 95, mutate: true, targetScope: 'exact-file', commands: [] },
   { id: 'typescript-missing-import', features: ['typescript'], confidence: 91, mutate: true, targetScope: 'exact-file', commands: [] },
   { id: 'typescript-diagnostic', features: ['typescript'], confidence: 88, mutate: false, commands: [['npm', ['run', 'typecheck']]] },
   { id: 'playwright-diagnostic', features: ['playwright'], confidence: 72, mutate: false, commands: [] },
@@ -111,7 +115,9 @@ export function planRepair(log, { historical = [], memory } = {}) {
 
   const selectedRule = prepared.ok && reasoning.decision === 'ALLOW_BOUNDED_MUTATION'
     ? 'prepared-source-change'
-    : /TS2304\b|Cannot find name ['\"]/iu.test(log)
+    : /TS1064\b|return type of an async function|Did you mean to write ['"]?Promise/iu.test(log)
+      ? 'typescript-async-contract'
+      : /TS2304\b|Cannot find name ['\"]/iu.test(log)
       ? 'typescript-missing-import'
       : inferenceEligible && inferenceFallback.hypothesis.strategyId
       ? inferenceFallback.hypothesis.strategyId
@@ -147,7 +153,7 @@ export function planRepair(log, { historical = [], memory } = {}) {
       symbol: selectedCandidate.id === 'typescript-missing-import'
         ? String(log.match(/Cannot find name ['\"]([^'\"]+)['\"]/iu)?.[1] ?? '').trim()
         : undefined,
-      diagnosticCode: selectedCandidate.id === 'typescript-missing-import' ? 'TS2304' : undefined,
+      diagnosticCode: selectedCandidate.id === 'typescript-missing-import' ? 'TS2304' : selectedCandidate.id === 'typescript-async-contract' ? 'TS1064' : undefined,
       learning: reusableKnowledge,
     }
     : null;
