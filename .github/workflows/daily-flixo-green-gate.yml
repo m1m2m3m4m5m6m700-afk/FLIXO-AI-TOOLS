@@ -66,8 +66,8 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/flixo-watch/logs
           WATCH_BRANCH="main"
-          if [ "\${{ github.event_name }}" = "workflow_run" ]; then
-            WATCH_BRANCH="\${{ github.event.workflow_run.head_branch }}"
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            WATCH_BRANCH="${{ github.event.workflow_run.head_branch }}"
           fi
           case "$WATCH_BRANCH" in
             execution|main) ;;
@@ -201,7 +201,7 @@ jobs:
       - name: Dispatch internal repair target under Task Agent authority
         if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.capture.outputs.branch == 'execution'
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           TARGET_RUN_ID="$(jq -r '.repair.targetRunId // empty' /tmp/flixo-watch/report.json)"
@@ -211,7 +211,7 @@ jobs:
           REPAIR_CHAIN_ID="$(jq -r '.repair.repairChainId // empty' /tmp/flixo-watch/report.json)"
           LEASE_REF="$(jq -r '.repair.leaseRef // empty' /tmp/flixo-watch/report.json)"
           for value in TARGET_RUN_ID FAILURE_FINGERPRINT FAILED_SHA REPAIR_KEY REPAIR_CHAIN_ID LEASE_REF; do
-            test -n "\${!value}" || { echo "FAIL CLOSED: watcher repair identity field $value is missing."; exit 1; }
+            test -n "${!value}" || { echo "FAIL CLOSED: watcher repair identity field $value is missing."; exit 1; }
           done
           EXPECTED_CLAIM_KEY="$(node scripts/ci/repair-control-plane.mjs identity \
             --fingerprint="$FAILURE_FINGERPRINT" \
