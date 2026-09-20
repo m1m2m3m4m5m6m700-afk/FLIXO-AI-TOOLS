@@ -108,7 +108,6 @@ function buildMissingRequirements(
     missing.length === 0
     && intent.kind === 'none'
     && extraction.payload?.operations.length === 0
-    && extraction.errors.length === 0
   ) {
     missing.push({
       id: 'operation',
