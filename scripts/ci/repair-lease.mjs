@@ -317,7 +317,7 @@ async function commandRecover() {
   const meta = await readLeaseMetadata(identity.leaseRef, failedSha);
   if (!meta.exists) throw new Error('REPAIR_LEASE_NOT_FOUND_FOR_RECOVERY');
   const events = await listEventMetadata(identity);
-  const outcomes = events.filter((item) => item?.outcome && item?.repairKey === identity.claimKey);
+  const outcomes = events.filter((item) => item?.eventType === 'OUTCOME' && item?.outcome && item?.repairKey === identity.claimKey);
   const active = await activeRepairRuns(identity, failedSha);
   const currentRef = await readRef('refs/heads/execution');
   const currentExecutionSha = String(currentRef?.data?.object?.sha ?? '');
@@ -350,7 +350,6 @@ async function commandRecover() {
         repairRunId: process.env.GITHUB_RUN_ID || null,
         attempt: Number(getArg('attempt', '1')),
         state: 'LEASE_CIRCUIT_OPEN',
-        outcome: 'STALE',
         verification: 'no-progress-circuit-open',
         verificationProgress: false,
         at: new Date().toISOString(),
