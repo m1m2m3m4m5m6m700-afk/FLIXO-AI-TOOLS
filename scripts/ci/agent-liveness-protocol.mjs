@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
-  schemaVersion: 1,
+  schemaVersion: 2,
   protocolId: 'AGENT_LIVENESS_PROTOCOL',
-  protocolVersion: '1.0.0',
+  protocolVersion: '2.0.0',
   authority: 'CONTROL_PLANE',
   heartbeatEveryMs: 5 * 60 * 1000,
   heartbeatGraceMs: 2 * 60 * 1000,
@@ -19,6 +19,14 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
   ]),
   terminalStates: Object.freeze(['COMPLETE', 'ABORTED']),
   forbiddenStates: Object.freeze(['SLEEP', 'IDLE', 'SILENT', 'ABANDONED']),
+  sleepPolicy: Object.freeze({
+    requiresGreenRecord: true,
+    greenAuthority: 'DAILY_FLIXO_GREEN_GATE',
+    greenConclusion: 'success',
+    zeroRedRequired: true,
+    exactShaRequired: true,
+    openWorkBlocksSleep: true,
+  }),
   transitions: Object.freeze({
     BOOTING: ['ACTIVE', 'RECOVERING', 'ABORTED'],
     ACTIVE: ['ACTIVE', 'WAITING_EXTERNAL', 'RECOVERING', 'VERIFYING', 'BLOCKED_EXTERNAL', 'ABORTED'],
@@ -40,6 +48,10 @@ export const AGENT_LIVENESS_PROTOCOL = Object.freeze({
     'COMPLETION_REQUIRES_EXACT_SHA_AND_ZERO_RED',
     'ABORT_REQUIRES_EXPLICIT_AUTHORITY',
     'RECOVERY_REPLACES_SILENT_WAIT',
+    'NO_SLEEP_WITHOUT_GREEN_RECORD',
+    'NO_IDLE_WITHOUT_GREEN_RECORD',
+    'GREEN_RECORD_MUST_MATCH_TARGET_SHA',
+    'OPEN_WORK_BLOCKS_SLEEP',
   ]),
 });
 
@@ -48,7 +60,7 @@ const forbidden = new Set(AGENT_LIVENESS_PROTOCOL.forbiddenStates);
 const working = new Set(AGENT_LIVENESS_PROTOCOL.workAssignedStates);
 
 export function assertLivenessDefinition() {
-  if (!AGENT_LIVENESS_PROTOCOL.protocolVersion.startsWith('1.')) throw new Error('AGENT_LIVENESS_VERSION_INVALID');
+  if (!AGENT_LIVENESS_PROTOCOL.protocolVersion.startsWith('2.')) throw new Error('AGENT_LIVENESS_VERSION_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs <= 0 || AGENT_LIVENESS_PROTOCOL.leaseTtlMs <= AGENT_LIVENESS_PROTOCOL.heartbeatEveryMs) throw new Error('AGENT_LIVENESS_TIMING_INVALID');
   if (AGENT_LIVENESS_PROTOCOL.maxNoProgressHeartbeats < 1) throw new Error('AGENT_LIVENESS_PROGRESS_THRESHOLD_INVALID');
   for (const state of working) {
@@ -161,4 +173,33 @@ try {
 } catch (error) {
   console.error('AGENT_LIVENESS_PROTOCOL_BLOCK=' + String(error?.message ?? error));
   process.exitCode = 1;
+}
+
+
+const GREEN_SHA_RE = /^[a-f0-9]{40}$/u;
+
+export function validateGreenRecord(greenRecord, { targetSha = null, taskId = null, fingerprint = null } = {}) {
+  if (!greenRecord || typeof greenRecord !== 'object') throw new Error('AGENT_LIVENESS_GREEN_RECORD_REQUIRED');
+  if (greenRecord.source !== AGENT_LIVENESS_PROTOCOL.sleepPolicy.greenAuthority) throw new Error('AGENT_LIVENESS_GREEN_AUTHORITY_INVALID');
+  if (greenRecord.conclusion !== AGENT_LIVENESS_PROTOCOL.sleepPolicy.greenConclusion) throw new Error('AGENT_LIVENESS_GREEN_CONCLUSION_INVALID');
+  if (greenRecord.zeroRed !== true) throw new Error('AGENT_LIVENESS_GREEN_RED_REMAINS');
+  if (greenRecord.exactShaVerified !== true) throw new Error('AGENT_LIVENESS_GREEN_EXACT_SHA_REQUIRED');
+  if (!GREEN_SHA_RE.test(String(greenRecord.targetSha ?? ''))) throw new Error('AGENT_LIVENESS_GREEN_TARGET_SHA_INVALID');
+  if (targetSha && greenRecord.targetSha !== targetSha) throw new Error('AGENT_LIVENESS_GREEN_TARGET_SHA_MISMATCH');
+  if (taskId && greenRecord.taskId !== taskId) throw new Error('AGENT_LIVENESS_GREEN_TASK_MISMATCH');
+  if (fingerprint && greenRecord.fingerprint !== fingerprint) throw new Error('AGENT_LIVENESS_GREEN_FINGERPRINT_MISMATCH');
+  if (!greenRecord.recordId || !greenRecord.recordedAt) throw new Error('AGENT_LIVENESS_GREEN_RECORD_IDENTITY_MISSING');
+  return Object.freeze({ ok: true, recordId: greenRecord.recordId, targetSha: greenRecord.targetSha });
+}
+
+export function sleepAdmission({ workAssigned = false, greenRecord = null, targetSha = null, taskId = null, fingerprint = null } = {}) {
+  if (workAssigned) throw new Error('AGENT_LIVENESS_SLEEP_BLOCKED_OPEN_WORK');
+  validateGreenRecord(greenRecord, { targetSha, taskId, fingerprint });
+  return Object.freeze({ ok: true, state: 'SLEEP', admission: 'GREEN_RECORD_VERIFIED' });
+}
+
+export function idleAdmission({ workAssigned = false, greenRecord = null, targetSha = null, taskId = null, fingerprint = null } = {}) {
+  if (workAssigned) throw new Error('AGENT_LIVENESS_IDLE_BLOCKED_OPEN_WORK');
+  validateGreenRecord(greenRecord, { targetSha, taskId, fingerprint });
+  return Object.freeze({ ok: true, state: 'IDLE', admission: 'GREEN_RECORD_VERIFIED' });
 }
