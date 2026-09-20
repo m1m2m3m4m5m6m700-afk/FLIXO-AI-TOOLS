@@ -27,6 +27,8 @@ export const CONTROL_PLANE_FILES = Object.freeze([
   'scripts/ci/auto-repair-supervisor.mjs',
   'scripts/ci/auto-repair-learning.mjs',
   'scripts/ci/continuous-error-watch.mjs',
+  '.github/workflows/agent-repair-supervisor.yml',
+  '.github/workflows/agent-repair-heartbeat.yml',
   'scripts/ci/validate-certification-surface.mjs',
   'scripts/ci/validate-ci-cd-trust.mjs',
   'AGENTS.md',
