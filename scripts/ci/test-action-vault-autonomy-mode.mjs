@@ -1,0 +1,22 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const policy=JSON.parse(fs.readFileSync('diagnostics/auto-repair/action-vault/ACTION-VAULT-AUTONOMY-MODE.json','utf8'));
+const workflow=fs.readFileSync('.github/workflows/auto-repair.yml','utf8');
+assert.equal(policy.mode,'BOT_FIRST_AUTONOMOUS');
+assert.equal(policy.defaultExecutor,'ACTION-REPAIR');
+assert.equal(policy.routineHumanApprovalRequired,false);
+assert.equal(policy.criticalHumanAuthorizationRequired,true);
+assert.equal(policy.executionContract.branch,'execution');
+assert.equal(policy.executionContract.oneActiveMutationOwner,true);
+assert.equal(policy.executionContract.exactShaRequired,true);
+assert.equal(policy.executionContract.verifierRequiredBeforeMutation,true);
+assert.equal(policy.executionContract.canonicalGreenRequiredForClosure,true);
+assert.equal(policy.trustBoundary.botMayOperateRoutinelyWithoutHuman,true);
+assert.equal(policy.trustBoundary.botMayCertify,false);
+assert.equal(policy.trustBoundary.botMayWriteMain,false);
+assert.equal(policy.trustBoundary.botMayModifyTests,false);
+assert.equal(workflow.includes('FLIXO_REPAIR_OPERATING_MODE: BOT_FIRST_AUTONOMOUS'),true);
+assert.equal(workflow.includes('FLIXO_ROUTINE_HUMAN_APPROVAL: \'false\''),true);
+assert.equal(workflow.includes('FLIXO_CRITICAL_HUMAN_AUTH_REQUIRED: \'true\''),true);
+console.log(JSON.stringify({status:'PASS',authority:'ACTION_VAULT_AUTONOMY_MODE_TEST',assertions:16},null,2));
