@@ -34,6 +34,12 @@ test.describe('Filter Mask live camera surface', () => {
     await zoom.fill('1.5');
     await expect(zoom).toHaveValue('1.5');
     await expect(section.getByRole('button', { name: 'Mirror on' })).toHaveAttribute('aria-pressed', 'true');
+
+    const aspectGroup = section.getByRole('group', { name: 'Capture aspect ratio' });
+    await expect(aspectGroup.getByRole('button', { name: '9:16' })).toHaveAttribute('aria-pressed', 'true');
+    await aspectGroup.getByRole('button', { name: '1:1' }).click();
+    await expect(aspectGroup.getByRole('button', { name: '1:1' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page).toHaveURL(/aspectRatio=1%3A1/);
   });
 
   test('reports a clear error when camera permission is denied', async ({ page }) => {
@@ -129,6 +135,7 @@ test.describe('Filter Mask live camera surface', () => {
     const photoLink = section.getByRole('link', { name: 'Download result' });
     await expect(photoLink).toHaveAttribute('download', 'flixo-filter-mask.jpg');
     await expect(section.getByRole('button', { name: 'Share result' })).toBeVisible();
+    await expect(section.getByRole('button', { name: 'Share filter setup' })).toBeVisible();
     await expect.poll(async () => photoLink.evaluate(async (element) => {
       const href = (element as HTMLAnchorElement).href;
       return (await (await fetch(href)).blob()).size;
