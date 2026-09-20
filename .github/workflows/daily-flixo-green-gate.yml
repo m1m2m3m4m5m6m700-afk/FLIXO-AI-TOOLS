@@ -170,7 +170,9 @@ jobs:
           node scripts/ci/continuous-error-watch.mjs /tmp/flixo-watch/input.json /tmp/flixo-watch/report.json
           rc=$?
           STATUS="$(jq -r '.status' /tmp/flixo-watch/report.json)"
+          REPAIR_REQUIRED="$(jq -r '.repair.required // false' /tmp/flixo-watch/report.json)"
           echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "repair_required=$REPAIR_REQUIRED" >> "$GITHUB_OUTPUT"
           echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
           exit 0
 
@@ -210,7 +212,7 @@ jobs:
           retention-days: 14
 
       - name: Dispatch internal repair target under Task Agent authority
-        if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.capture.outputs.branch == 'execution'
+        if: steps.evaluate.outputs.status == 'RED_INTERNAL' && steps.evaluate.outputs.repair_required == 'true' && steps.capture.outputs.branch == 'execution'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
