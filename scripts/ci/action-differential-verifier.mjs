@@ -35,6 +35,8 @@ export function verifyDifferential({
   candidateChecks,
   expectedChecks = [],
   baselineStatus = 'UNKNOWN',
+  candidateCheckResults = [],
+  requireExecutionEvidence = true,
 } = {}) {
   if (!repoRoot || !exactSha(targetSha)) throw new Error('DIFFERENTIAL_IDENTITY_REQUIRED');
   const changed = runGit(repoRoot, ['diff', '--name-only', targetSha]).split(/\r?\n/u).filter(Boolean);
@@ -49,16 +51,29 @@ export function verifyDifferential({
     if (inspectGate && fs.existsSync(absolute) && gateWeakening.test(fs.readFileSync(absolute, 'utf8'))) weakening.push(file);
   }
 
-  const checks = candidateChecks.map((check) => ({
-    check,
-    status: 'PASS',
-  }));
-  const missingExpectedChecks = expectedChecks.filter((check) => !candidateChecks.includes(check));
+  const declaredChecks = [...new Set((candidateChecks ?? []).map(String).filter(Boolean))];
+  const executedResults = Array.isArray(candidateCheckResults) ? candidateCheckResults.filter(Boolean) : [];
+  const executionByCheck = new Map(executedResults.map((item) => [String(item.check), item]));
+  const missingExpectedChecks = expectedChecks.filter((check) => {
+    const receipt = executionByCheck.get(String(check));
+    return !receipt || receipt.status !== 'PASS' || Number(receipt.exitCode ?? 1) !== 0;
+  });
+  const missingExecutionEvidence = requireExecutionEvidence && expectedChecks.some((check) => {
+    const receipt = executionByCheck.get(String(check));
+    return !receipt || typeof receipt.stdoutDigest !== 'string' || typeof receipt.stderrDigest !== 'string' || typeof receipt.startedAt !== 'string' || typeof receipt.finishedAt !== 'string';
+  });
+  const checks = expectedChecks.map((check) => {
+    const receipt = executionByCheck.get(String(check));
+    return receipt
+      ? { check: String(check), status: receipt.status, exitCode: Number(receipt.exitCode ?? 1), stdoutDigest: receipt.stdoutDigest, stderrDigest: receipt.stderrDigest, startedAt: receipt.startedAt, finishedAt: receipt.finishedAt, durationMs: Number(receipt.durationMs ?? 0) }
+      : { check: String(check), status: 'MISSING_EXECUTION', exitCode: null };
+  });
 
   const passed = unauthorized.length === 0 &&
     weakening.length === 0 &&
     missingExpectedChecks.length === 0 &&
-    candidateChecks.length > 0 &&
+    missingExecutionEvidence === false &&
+    executedResults.length > 0 &&
     baselineStatus !== 'FAIL';
 
   const changedFileCount = actual.length;
@@ -75,7 +90,9 @@ export function verifyDifferential({
     expectedFiles: expected,
     unauthorizedFiles: unauthorized,
     gateWeakeningFiles: weakening,
+    declaredCandidateChecks: declaredChecks,
     candidateChecks: checks,
+    executionEvidence: { required: requireExecutionEvidence, receiptCount: executedResults.length, missing: missingExecutionEvidence },
     missingExpectedChecks,
     minimalityScore: minimality,
     status: passed ? 'PASS' : 'FAIL',
