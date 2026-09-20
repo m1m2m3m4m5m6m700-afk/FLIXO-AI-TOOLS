@@ -1,0 +1,71 @@
+name: FLIXO Action Agent — Promote Verified Historical Experience
+
+on:
+  workflow_run:
+    workflows: ["Daily·FLIXO Green Gate"]
+    types: [completed]
+    branches: [execution]
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: flixo-action-agent-history-promotion-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact execution state
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: execution
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Download canonical GREEN evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/flixo-green
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name "flixo-continuous-error-watch-$RUN_ID" --dir /tmp/flixo-green
+          test -s /tmp/flixo-green/report.json
+          jq -e '.status=="GREEN" and (.executionSha|test("^[0-9a-f]{40}$"))' /tmp/flixo-green/report.json >/dev/null
+
+      - name: Promote only verified Action agent activity
+        run: |
+          set -euo pipefail
+          TARGET_SHA="$(jq -r '.executionSha' /tmp/flixo-green/report.json)"
+          test "$TARGET_SHA" = "$(git rev-parse HEAD)"
+          node scripts/ci/promote-action-agent-history.mjs --green-report=/tmp/flixo-green/report.json --sha="$TARGET_SHA" > /tmp/action-agent-history-promotion.json
+          jq -e '.status=="PASS" and .promotion=="VERIFIED_HISTORICAL_AGENT_ACTIVITY"' /tmp/action-agent-history-promotion.json >/dev/null
+
+      - name: Persist verified historical experience
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- docs/agents/historical-action-errors/agent-activity; then
+            echo "No provisional Action agent activity to promote."
+            exit 0
+          fi
+          git config user.name "FLIXO Action Agent History"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/agents/historical-action-errors/agent-activity
+          git commit -m "chore: promote verified Action agent historical experience"
+          git push origin HEAD:execution
+
+      - name: Publish promotion evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: flixo-action-agent-history-promotion-${{ github.run_id }}
+          path: |
+            /tmp/flixo-green/report.json
+            /tmp/action-agent-history-promotion.json
+          if-no-files-found: warn
+          retention-days: 30
