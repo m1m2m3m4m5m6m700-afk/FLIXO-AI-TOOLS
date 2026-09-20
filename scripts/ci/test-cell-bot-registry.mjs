@@ -1,41 +1,55 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const registry=JSON.parse(fs.readFileSync('docs/agents/CELL-BOT-REGISTRY.json','utf8'));
-assert.equal(registry.schemaVersion,1);
+assert.equal(registry.schemaVersion,2);
+assert.equal(registry.authority,'CELL_CONTROL_PLANE');
 assert.equal(registry.bots.length,50);
 assert.equal(new Set(registry.bots.map((bot)=>bot.id)).size,50);
 assert(registry.bots.every((bot)=>bot.kind==='RAW_BOT'));
-assert(registry.bots.every((bot)=>bot.status==='UNPROVISIONED'));
 assert(registry.bots.every((bot)=>bot.permissions.length===0));
 assert(registry.bots.every((bot)=>bot.supervisor==='assistantController'));
 assert(registry.bots.every((bot)=>bot.taskPolicy==='ONE_TASK_AT_A_TIME'));
-console.log('CELL_RAW_BOT_REGISTRY=PASS');
-console.log('CELL_RAW_BOT_COUNT=50');
+assert(registry.bots.every((bot)=>bot.scopePolicy==='ASSIGNED_SCOPE_ONLY'));
+assert(registry.bots.every((bot)=>bot.lifecycle?.rawStateForbidden===true));
+assert(registry.bots.every((bot)=>!['RAW','UNPROVISIONED'].includes(bot.status)));
 assert.deepEqual(registry.lifecycle.allowedStates,['LEARNING','SPECIALIZING','UPGRADING','READY','RECYCLE']);
-assert.equal(registry.bots.some((bot)=>bot.status==='RAW'||bot.status==='UNPROVISIONED'),false);
-const actionReader=registry.bots.find((bot)=>bot.id==='CELL-001');
-assert.equal(actionReader.taskIdentity.shortName,'ACTERR');
-assert.equal(actionReader.taskIdentity.fullName,'ACTION_ERROR_READER');
-assert.equal(actionReader.currentAssignment.taskId,'CELL-TASK-ACTION-ERRORS');
-assert.equal(actionReader.currentAssignment.returnProtocol,'DIRECT_TO_ASSISTANT_CONTROLLER');
-assert.equal(actionReader.currentAssignment.mutationAuthority,false);
-assert.equal(actionReader.upgradeTarget.upgradeNumber,1);
-assert.equal(typeof actionReader.upgradeTarget.upgradePriority,'number');
-assert(actionReader.upgradeTarget.upgradePriority>=1&&actionReader.upgradeTarget.upgradePriority<=100);
-assert.equal(actionReader.lifecycle.rawStateForbidden,true);
-console.log('CELL_ACTION_ERROR_READER=PASS');
-console.log('CELL_RAW_TERMINAL_STATES=FORBIDDEN');
-assert.equal(registry.taskExecutionModel.selection,'LEARNED_CAPABILITY_MATCH_THEN_GENERAL_EXECUTOR');
-assert.equal(registry.taskExecutionModel.universalTaskRule.includes('Any bot may receive any admitted project task'),true);
-assert(registry.bots.every((bot)=>bot.capabilityMode==='SPECIALIZED_PLUS_GENERAL'));
-assert(registry.bots.every((bot)=>bot.reassignmentPolicy==='ANY_ADMITTED_TASK'));
-assert.deepEqual(actionReader.learnedCapabilities,['ACTERR']);
-assert.equal(actionReader.returnPolicy,'RETURN_TO_POOL_WITH_KNOWLEDGE');
-for (const bot of registry.bots) {
-  assert.equal(bot.personalMemoryFile, 'diagnostics/auto-repair/cell-bots/' + bot.id + '.json');
-  assert.equal(bot.memoryPolicy, 'LEARN_PERSIST_COPYABLE_REUSE');
+
+const squad=registry.actionRepairCohort;
+assert.deepEqual(squad.workerIds,['CELL-001','CELL-002','CELL-003','CELL-004','CELL-005']);
+assert.equal(squad.sameReferencesForAll,true);
+assert.equal(squad.anyActionFailureAdmitted,true);
+assert.equal(squad.mutationAuthority,false);
+assert.equal(squad.canonicalMutationOwner,'repairAgent');
+const expected={
+  'CELL-001':'ACTION_SOLUTION_INDEXER',
+  'CELL-002':'ACTION_SYSTEM_WAKE_COORDINATOR',
+  'CELL-003':'ACTION_REPAIR_TWIN_A',
+  'CELL-004':'ACTION_REPAIR_TWIN_B',
+  'CELL-005':'ACTION_BEST_OPTION_SELECTOR'
+};
+for(const id of squad.workerIds){
+  assert.equal(squad.workerModes[id],expected[id]);
+  const bot=registry.bots.find((item)=>item.id===id);
+  assert.ok(bot);
+  assert.equal(bot.taskIdentity.shortName,expected[id]);
+  assert.equal(bot.cellCouncil,'CELL_TRISEAT_CONTROLLER');
+  assert.equal(bot.reassignmentPolicy,'ANY_ADMITTED_TASK');
+  assert.equal(bot.returnPolicy,'RETURN_TO_POOL_WITH_KNOWLEDGE');
+  assert.equal(bot.personalMemoryFile,'diagnostics/auto-repair/cell-bots/'+id+'.json');
 }
-assert.equal(registry.personalMemory.copyable, true);
-assert.equal(registry.personalMemory.transferableKnowledgeOnly, true);
-assert.equal(registry.personalMemory.permissionsNeverCopied, true);
-assert.equal(registry.personalMemory.independentAuthorityNeverCopied, true);
+const actionReader=registry.bots.find((bot)=>bot.id==='CELL-001');
+assert.equal(actionReader.taskIdentity.fullName,'ACTION_SOLUTION_INDEXER');
+assert.equal(actionReader.currentAssignment.taskId,'CELL-TASK-ACTION-REPAIR-SQUAD');
+assert.equal(actionReader.currentAssignment.mutationAuthority,false);
+assert.equal(actionReader.upgradeTarget.upgradePriority,95);
+assert.equal(actionReader.memoryPolicy,'LEARN_PERSIST_COPYABLE_REUSE');
+
+assert(registry.bots.every((bot)=>bot.capabilityMode==='SPECIALIZED_PLUS_GENERAL'));
+assert(registry.personalMemory.copyable===true);
+assert(registry.personalMemory.transferableKnowledgeOnly===true);
+assert(registry.personalMemory.permissionsNeverCopied===true);
+assert(registry.personalMemory.independentAuthorityNeverCopied===true);
+
+console.log('CELL_BOT_REGISTRY=PASS');
+console.log('CELL_BOT_COUNT=50');
+console.log('CELL_ACTION_REPAIR_SQUAD=5');
