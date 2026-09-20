@@ -10,7 +10,10 @@
     "independentAuthorityEqual": false,
     "programmerTwinIntelligenceEqual": true,
     "authoritySeparated": true,
-    "fileSelectionSeparatedToAgent3": true
+    "fileSelectionSeparatedToAgent3": true,
+    "proofObjectiveSeparation": "PRIMARY_CONSTRUCTIVE_VS_TWIN_ADVERSARIAL",
+    "primaryProofRole": "ACTION-REPAIR",
+    "adversarialFalsifierRole": "ACTION-REPAIR-2"
   },
   "capabilities": [
     "CURRENT_ACTION_LOG_ANALYSIS",
@@ -116,18 +119,21 @@
     "fileSelectionCannotProveRootCause": true,
     "agent2MustShareAgent1ProgrammingIntelligence": true,
     "agent2IndependentProgrammerReasoningRequired": true,
-    "agent2CannotBypassAgent1": true
+    "agent2CannotBypassAgent1": true,
+    "agent2MustTryToFalsifyPrimary": true,
+    "agent2CounterexampleBlocksMutation": true,
+    "noCounterexampleIsNotGreen": true
   },
   "members": [
     {
       "id": "ACTION-REPAIR",
-      "role": "PRIMARY_PROGRAMMING_REPAIR_OWNER",
+      "role": "PRIMARY_CORRECTNESS_PROVER_AND_REPAIR_OWNER",
       "executionAuthority": "MUTATE_WHEN_TASK_OWNER"
     },
     {
       "id": "ACTION-REPAIR-2",
-      "role": "INDEPENDENT_PROGRAMMER_TWIN_VERIFIER",
-      "executionAuthority": "VERIFY_PROPOSE_ONLY"
+      "role": "ADVERSARIAL_PROGRAMMER_FALSIFIER",
+      "executionAuthority": "FALSIFY_PROPOSE_ONLY"
     },
     {
       "id": "ACTION-HISTORIAN-3",
@@ -153,19 +159,19 @@
     ],
     "requiredWork": [
       "ACTION-HISTORIAN-3 records the exact RED and selects the minimal file surface using path-level evidence only",
-      "ACTION-REPAIR-2 independently thinks as the same programmer as ACTION-REPAIR, reconstructs root-cause hypotheses, candidate patch logic, regression risk and counterfactual checks",
-      "ACTION-REPAIR independently performs the same programmer reasoning and compares against the twin",
-      "ACTION-REPAIR synthesizes the bounded repair from the independent programmer analyses before mutation",
-      "ACTION-REPAIR-2 must challenge the primary with independent evidence; its conclusion is not mutation authority",
-      "ACTION-REPAIR applies the minimal source repair only as active owner",
+      "ACTION-REPAIR constructs an explicit correctness proof for its diagnosis and bounded repair candidate",
+      "ACTION-REPAIR-2 assumes the primary proof may be wrong and actively attempts to falsify it with alternative causes, scope violations, patch counterexamples and regression counterexamples",
+      "ACTION-REPAIR-2 records every counterexample attempt and blocks mutation when a valid counterexample is found",
+      "ACTION-REPAIR revises its proof when the adversarial falsifier finds a valid counterexample",
+      "ACTION-REPAIR applies the minimal source repair only when the falsification gate is exhausted without a valid counterexample",
       "ACTION-HISTORIAN-3 records every attempt and every failure",
       "Canonical GREEN closes the mission and promotes only verified learning"
     ],
     "contributionOrder": [
       "ACTION-HISTORIAN-3: FAILURE_INTAKE_AND_FILE_SELECTION",
-      "ACTION-REPAIR-2: INDEPENDENT_PROGRAMMER_TWIN_ANALYSIS",
-      "ACTION-REPAIR: PRIMARY_PROGRAMMER_ANALYSIS",
-      "ACTION-REPAIR-2: COUNTERFACTUAL_CHALLENGE",
+      "ACTION-REPAIR: PRIMARY_CORRECTNESS_PROOF",
+      "ACTION-REPAIR-2: ADVERSARIAL_FALSIFICATION",
+      "ACTION-REPAIR: PROOF_REPAIR_OR_DEFENSE",
       "ACTION-REPAIR: BOUNDED_REPAIR",
       "ACTION-HISTORIAN-3: FAILURE/ATTEMPT/GREEN LEDGER UPDATE"
     ],
@@ -179,7 +185,11 @@
       "canonicalGreen": "DAILY_FLIXO_GREEN_GATE",
       "fileSelectionOwner": "ACTION-HISTORIAN-3",
       "fileSelectionIsScopeOnly": true,
-      "programmerTwin": "ACTION-REPAIR-2"
+      "programmerTwin": "ACTION-REPAIR-2",
+      "primaryProofOwner": "ACTION-REPAIR",
+      "falsificationOwner": "ACTION-REPAIR-2",
+      "counterexampleBlocksMutation": true,
+      "noCounterexampleIsNotGreen": true
     },
     "sharedArtifact": "diagnostics/auto-repair/action-vault/current-collaboration.json",
     "hardRule": "ANY_ACTIONABLE_RED_REQUIRES_ALL_THREE_TO_CONTRIBUTE_BEFORE_OWNER_MUTATION",
@@ -187,16 +197,16 @@
       "cognitiveParallelism": true,
       "sourceMutationParallelism": false,
       "lanes": {
-        "ACTION-REPAIR": "PRIMARY_PROGRAMMER_REASONING_AND_BOUNDED_REPAIR",
-        "ACTION-REPAIR-2": "INDEPENDENT_PROGRAMMER_TWIN_REASONING_AND_CHALLENGE",
+        "ACTION-REPAIR": "CONSTRUCTIVE_CORRECTNESS_PROOF_AND_BOUNDED_REPAIR",
+        "ACTION-REPAIR-2": "ADVERSARIAL_FALSIFICATION_AND_COUNTEREXAMPLE_SEARCH",
         "ACTION-HISTORIAN-3": "FILE_SELECTION_INTELLIGENCE_AND_FAILURE_LEARNING"
       },
       "phases": [
         "PARALLEL_DISCOVERY",
         "FILE_SELECTION",
-        "PARALLEL_ANALYSIS",
-        "PROGRAMMER_TWIN",
-        "CROSS_LEARNING",
+        "PRIMARY_CORRECTNESS_PROOF",
+        "ADVERSARIAL_FALSIFICATION",
+        "PROOF_REPAIR",
         "CHALLENGE",
         "SYNTHESIS",
         "PATCH_SYNTHESIS",
@@ -254,13 +264,13 @@
     "roleExchange": {
       "requiredArtifacts": [
         "ACTION-HISTORIAN-3:file-selection-decision",
-        "ACTION-REPAIR-2:programmer-twin-analysis",
-        "ACTION-REPAIR:programmer-analysis",
-        "ACTION-REPAIR-2:counterfactual-challenge"
+        "ACTION-REPAIR:primary-correctness-proof",
+        "ACTION-REPAIR-2:falsification-report",
+        "ACTION-REPAIR:revised-proof-or-defense"
       ],
-      "beforeMutation": "FILE_SELECTION + PROGRAMMER_TWIN_ANALYSIS + PRIMARY_PROGRAMMER_ANALYSIS + COUNTERFACTUAL_CHALLENGE",
+      "beforeMutation": "FILE_SELECTION + PRIMARY_CORRECTNESS_PROOF + ADVERSARIAL_FALSIFICATION + NO_VALID_COUNTEREXAMPLE",
       "onPredictionFailure": "ACTION-REPAIR-2_REISSUES_PREDICTION_WITH_COUNTEREXAMPLES",
-      "onRepairFailure": "ACTION-HISTORIAN-3_RECORDS_AND_ACTION-REPAIR_REANALYZES",
+      "onRepairFailure": "ACTION-REPAIR-2_RECORDS_COUNTEREXAMPLE_AND_ACTION-REPAIR_REBUILDS_PRIMARY_PROOF",
       "noAutomaticGreen": "true"
     },
     "prediction": {
@@ -360,7 +370,20 @@
       "sameFailureFingerprintRequired": true,
       "directMutationByTwin": false,
       "primaryOwner": "ACTION-REPAIR",
-      "verifierTwin": "ACTION-REPAIR-2"
+      "verifierTwin": "ACTION-REPAIR-2",
+      "proofObjectives": {
+        "primary": "PROVE_PRIMARY_REPAIR_CORRECT",
+        "twin": "ATTEMPT_TO_PROVE_PRIMARY_REPAIR_WRONG",
+        "successForMutation": "FALSIFICATION_ATTEMPT_COMPLETE_WITH_NO_VALID_COUNTEREXAMPLE",
+        "failureForMutation": "VALID_COUNTEREXAMPLE_FOUND"
+      },
+      "proofMode": "OPPOSED_PROOF_OBJECTIVES",
+      "primaryProofRuntime": "scripts/ci/action-primary-correctness-proof.mjs",
+      "primaryProofArtifact": "/tmp/action-primary-correctness-proof.json",
+      "falsificationRuntime": "scripts/ci/action-repair-dual-control.mjs",
+      "falsificationArtifact": "/tmp/action-repair-2-proposal.json",
+      "counterexampleBlocksMutation": true,
+      "noCounterexampleNotGreen": true
     }
   },
   "residencyPolicyRef": "diagnostics/auto-repair/action-vault/ACTION-RESIDENCY-POLICY.json",
@@ -428,8 +451,8 @@
   },
   "roleMatrix": {
     "ACTION-REPAIR": {
-      "role": "PRIMARY_PROGRAMMER_REPAIR_OWNER",
-      "mission": "THINK_AS_PROGRAMMER_AND_APPLY_BOUNDED_SOURCE_REPAIR",
+      "role": "PRIMARY_CORRECTNESS_PROVER_AND_REPAIR_OWNER",
+      "mission": "THINK_AS_PROGRAMMER_AND_PROVE_THE_REPAIR_CORRECT_BEFORE_MUTATION",
       "capabilities": [
         "CURRENT_ACTION_LOG_ANALYSIS",
         "EXACT_SHA_PROVENANCE_ANALYSIS",
@@ -477,11 +500,18 @@
         "DIFFERENTIAL_VERIFICATION",
         "TRANSACTIONAL_REPAIR",
         "COUNTERFACTUAL_PATCH_REVIEW"
+      ],
+      "requiredOutputs": [
+        "PRIMARY_CORRECTNESS_PROOF",
+        "PROGRAMMER_ANALYSIS",
+        "BOUNDED_REPAIR",
+        "REGRESSION_PROOF",
+        "VERIFICATION_OBLIGATIONS"
       ]
     },
     "ACTION-REPAIR-2": {
-      "role": "INDEPENDENT_PROGRAMMER_TWIN_VERIFIER",
-      "mission": "THINK_AS_PROGRAMMER_AND_INDEPENDENTLY_RECONSTRUCT_AND_CHALLENGE_THE_PRIMARY_REPAIR",
+      "role": "ADVERSARIAL_PROGRAMMER_FALSIFIER",
+      "mission": "THINK_AS_PROGRAMMER_ASSUMING_THE_PRIMARY_REPAIR_IS_WRONG_AND_ATTEMPT_TO_PROVE_IT_WRONG",
       "capabilities": [
         "CURRENT_ACTION_LOG_ANALYSIS",
         "EXACT_SHA_PROVENANCE_ANALYSIS",
@@ -506,8 +536,8 @@
       "mutationAuthority": "VERIFIER_ONLY_NO_DIRECT_SOURCE_MUTATION",
       "requiredInputs": [
         "ACTION-HISTORIAN-3:FILE_SELECTION_DECISION",
-        "EXACT_SHA_FAILURE_EVIDENCE",
-        "PRIMARY_REPAIR_CONTEXT"
+        "ACTION-REPAIR:PRIMARY_CORRECTNESS_PROOF",
+        "EXACT_SHA_FAILURE_EVIDENCE"
       ],
       "intelligenceCapabilities": [
         "CURRENT_ACTION_LOG_ANALYSIS",
@@ -531,12 +561,11 @@
         "COUNTERFACTUAL_PATCH_REVIEW"
       ],
       "requiredOutputs": [
-        "PROGRAMMER_TWIN_ANALYSIS",
-        "ALTERNATIVE_ROOT_CAUSES",
-        "CANDIDATE_PATCH",
-        "REGRESSION_PREDICTION",
-        "COUNTERFACTUAL_CHALLENGE",
-        "VERIFICATION_OBLIGATIONS"
+        "FALSIFICATION_REPORT",
+        "COUNTEREXAMPLE_SEARCH",
+        "COUNTEREXAMPLES",
+        "UNFALSIFIED_OBLIGATIONS",
+        "BLOCK_OR_RELEASE_RECOMMENDATION"
       ]
     },
     "ACTION-HISTORIAN-3": {
@@ -588,5 +617,6 @@
     "postGreenState": "READY_RESIDENT",
     "missionClosureDoesNotSuspendResidentAgents": true,
     "handoffMeans": "INTERNAL_COORDINATION_ONLY; NEVER_RESIDENT_WITHDRAWAL"
-  }
+  },
+  "requiredPrinciple": "ACTION-REPAIR_PROVES_CORRECTNESS; ACTION-REPAIR-2_ATTEMPTS_TO_PROVE_ACTION-REPAIR_WRONG"
 }
