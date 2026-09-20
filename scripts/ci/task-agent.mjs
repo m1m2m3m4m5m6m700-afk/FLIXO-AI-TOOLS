@@ -154,17 +154,17 @@ const selected = requested
       : tasks.filter((task) => !task.completed).slice(0, 1);
 
 if (!selected.length) throw new Error(requested ? `TASK_NOT_FOUND=${requested}` : 'NO_READY_TASKS');
-if (branch !== 'execution') throw new Error('DIRECT_EXECUTION_REQUIRES_EXECUTION_BRANCH');
+if (branch !== 'execution') throw new Error('TASK_PREPARATION_REQUIRES_EXECUTION_BRANCH');
 const repairProtocolAdmission = assertAgentAdmission({ actor: 'taskAgent', branch, mutation: false });
 
-const scopePolicy = 'SELF_HEALING_REPAIR_ONLY';
+const scopePolicy = 'TASK_PREPARATION_ONLY';
 const executionAuthority = 'TASK_PREPARATION_ONLY';
 const mutationScope = 'PREPARE_CURRENT_TASK_SCOPE_ONLY';
 const humanCommandRequired = false;
 const scopeEnforcement = 'FAIL_CLOSED';
 const controlPlaneMutationPolicy = 'HUMAN_REVIEW_REQUIRED';
 const repairProtocol = repairProtocolAdmission.protocol;
-if (scopePolicy !== 'SELF_HEALING_REPAIR_ONLY' || scopeEnforcement !== 'FAIL_CLOSED') throw new Error('SELF_HEALING_SCOPE_CONTRACT_VIOLATION');
+if (scopePolicy !== 'TASK_PREPARATION_ONLY' || scopeEnforcement !== 'FAIL_CLOSED') throw new Error('TASK_PREPARATION_SCOPE_CONTRACT_VIOLATION');
 
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 const generatedAt = new Date().toISOString();
@@ -187,7 +187,7 @@ for (const task of selected) {
     mutationScope,
     humanCommandRequired,
     allowedWork: 'TASK_UNDERSTANDING_AND_BOUNDED_PREPARATION_ONLY',
-    forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','GATE_WEAKENING','MAIN_MUTATION','THIRD_BRANCH_CREATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],
+    forbiddenWork: ['UNRELATED_PRODUCT_WORK','OPPORTUNISTIC_CLEANUP','DIRECT_SOURCE_MUTATION','COMMIT','PUSH','PR_CREATE','MERGE','CERTIFICATION','GATE_WEAKENING','MAIN_MUTATION','THIRD_BRANCH_CREATION','UNAUTHORIZED_TRUST_CONTROL_CHANGES'],
     taskFile: 'مهام.md',
     task,
     botEvolution: {
@@ -242,10 +242,10 @@ for (const task of selected) {
     } : (failureRunId || failureSha || failureFingerprint ? { authority: 'AUTO_REPAIR_REASONING_KERNEL', required: true, decision: 'MISSING' } : null),
     instructions: {
       cognitionRequired: Boolean(failureRunId || failureSha || failureFingerprint),
-      mutationDecisionMustMatch: 'ALLOW_BOUNDED_MUTATION',
+      downstreamMutationDecisionMustBeRevalidated: true,
       objective: repairMode.includes('ACTIVE')
-        ? 'Execute only the smallest safe source correction plus proportional hardening for the currently failing repair cycle; do not replace source repair with a newly added test or unrelated work.'
-        : 'Execute only the selected repair task directly on execution, verify the result, and leave main untouched.',
+        ? 'Prepare only the smallest evidence-backed source correction and verification obligations for the active repair cycle; never mutate the repository.'
+        : 'Prepare only the selected task and exact downstream changes for an authorized execution or repair agent; never mutate the repository.',
       sourcePayload: 'CODE_AND_EXECUTION',
       requiredChangeShape: ['path', 'operation', 'content', 'baselineSha', 'repairRationale'],
     contractVersion: CONTRACT_VERSION,
@@ -263,15 +263,17 @@ for (const task of selected) {
       terminalState: 'CLOSED_VERIFIED_ONLY_AFTER_CANONICAL_GREEN',
       codeAppliedIsNotCompletion: true,
       everyRepairOpensAnotherVerificationCycle: false,
-      everyRedCheckMustBecomeARepairTarget: true,
+      everyRedCheckMustBecomeARepairTarget: false,
       everyActionableRedRequiresSourceRepairAttempt: false,
-      noRedCheckMayBeClosedWithoutRepairOrExplicitExternalBlock: true,
+      noRedCheckMayBeClosedWithoutRepairOrExplicitExternalBlock: false,
       newlyIntroducedFailuresMustOpenNewCycles: true,
       taskCannotBeClosedFromTargetedRegressionAlone: true,
       sourceRepairPrecedesRegressionTest: true,
     },
     repairLoop: {
-      mode: 'RED_TO_GREEN_IN_SAME_CYCLE',
+      enabled: false,
+      delegatedTo: 'REPAIR_AGENT_OR_EXECUTION_AGENT',
+      mode: 'DELEGATED_RED_TO_GREEN',
       maxCycles: 12,
       rescanAfterEveryRepair: true,
       rescanScope: 'ALL_REQUIRED_CHECKS',
@@ -298,7 +300,7 @@ for (const task of selected) {
       commitAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT_ON_EXECUTION_ONLY',
       pushAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT_ON_EXECUTION_ONLY',
       completionAuthority: 'VERIFIER_AFTER_CANONICAL_GREEN_ONLY',
-      scopeAuthority: 'SELF_HEALING_REPAIR_ONLY',
+      scopeAuthority: 'TASK_PREPARATION_ONLY'
       executionAuthority,
       mutationScope,
       humanCommandRequired,
@@ -334,8 +336,9 @@ const index = {
   lifecycle: 'PREPARATION_HANDOFF_PENDING_EXECUTION',
   failureContext: { runId: failureRunId || null, failedSha: failureSha || null, fingerprint: failureFingerprint || null },
   repairLoop: {
-    enabled: true,
-    mode: 'RED_TO_GREEN_IN_SAME_CYCLE',
+    enabled: false,
+    delegatedTo: 'REPAIR_AGENT_OR_EXECUTION_AGENT',
+    mode: 'DELEGATED_RED_TO_GREEN',
     maxCycles: 12,
     rescanAfterEveryRepair: true,
     circuitBreaker: { enabled: true, maxStalledCycles: 3, action: 'REQUIRES_REVIEW_AND_REDISPATCH', failClosed: true },
