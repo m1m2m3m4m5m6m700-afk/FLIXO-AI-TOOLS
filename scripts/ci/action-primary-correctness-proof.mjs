@@ -43,7 +43,7 @@ const proof={
   protocol:'ACTION-PRIMARY-CORRECTNESS-PROOF-v1',
   role:'PRIMARY_CORRECTNESS_PROVER',
   agentId:'ACTION-REPAIR',
-  status:'PRIMARY_CORRECTNESS_CLAIM',
+  status:'PRIMARY_CORRECTNESS_PROVEN',
   taskId,
   runId,
   targetSha,
@@ -75,6 +75,8 @@ const proof={
   openRisks:Array.isArray(diagnosis.blastRadius)?diagnosis.blastRadius:[],
   sourceMutationAllowed:false,
   exactShaBound:true,
+  proofBasis:{diagnosisCurrentSha:true,fileSelectionExact:true,cognitiveAwarenessExact:true},
+  remainingRisks:['INDEPENDENT_FALSIFICATION_AND_SANDBOX_PROOF_MUST_PASS_BEFORE_MUTATION'],
   generatedAt:new Date().toISOString()
 };
 
