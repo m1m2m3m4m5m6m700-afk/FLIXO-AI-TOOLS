@@ -53,7 +53,7 @@ function latestPacket() {
   if (packet.contractVersion !== TASK_AGENT_CONTRACT_VERSION) throw new Error('TASK_AGENT_CONTRACT_VERSION_MISMATCH');
   if (packet.scopePolicy !== SCOPE_POLICY || packet.scopeEnforcement !== SCOPE_ENFORCEMENT) throw new Error('TASK_AGENT_PREPARATION_PACKET_SCOPE_VIOLATION');
   if (packet.executionAuthority !== 'TASK_PREPARATION_ONLY') throw new Error('TASK_AGENT_EXECUTION_AUTHORITY_VIOLATION');
-  if (packet.mutationScope !== 'PREPARATION_ONLY_NO_REPOSITORY_MUTATION') throw new Error('TASK_AGENT_MUTATION_SCOPE_VIOLATION');
+  if (packet.mutationScope !== 'PREPARATION_ONLY_NO_REPOSITORY_MUTATION') throw new Error('TASK_AGENT_TASK_AGENT_MUTATION_SCOPE_VIOLATION');
   if (packet.humanCommandRequired !== false) throw new Error('HUMAN_COMMAND_DEPENDENCY_VIOLATION');
   if (packet.mainBranchMutation !== false) throw new Error('MAIN_BRANCH_MUTATION_POLICY_VIOLATION');
   if (packet.branchPolicy !== 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN') throw new Error('TWO_BRANCH_POLICY_VIOLATION');
