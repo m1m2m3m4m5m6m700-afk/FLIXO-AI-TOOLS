@@ -4,6 +4,7 @@ import { deriveReusableKnowledge } from '../auto-repair-learning.mjs';
 import { execFileSync } from 'node:child_process';
 import { preparedPlan } from './prepared-source-change.mjs';
 import { inferFailureResolution } from './inference-fallback.mjs';
+import { buildErrorOnlyRepairModel } from './error-only-programmer.mjs';
 
 const plans = [
   { id: 'external-tooling', features: ['external-tooling'], confidence: 99, mutate: false, commands: [] },
@@ -80,7 +81,20 @@ export function planRepair(log, { historical = [], memory } = {}) {
     }
   }
 
-  const safe = candidates.filter((plan) =>
+  const repairModelByCandidate = new Map(candidates.map((candidate) => [candidate.id, buildErrorOnlyRepairModel({ log, diagnosis: reasoning, selected: candidate, targetSha })]));
+  const safe = candidates.filter((candidate) => {
+    const model = repairModelByCandidate.get(candidate.id);
+    return candidate.mutate && candidate.confidence >= 90 &&
+      (candidate.id !== 'prepared-source-change' || candidate.deterministicProof === true) &&
+      (candidate.id === 'prepared-source-change' ? true : model?.repair.mutationAllowed === true);
+  }).map((candidate) => ({ ...candidate, errorOnlyModel: repairModelByCandidate.get(candidate.id) }));
+
+  /*
+   * Error-Only Programmer Model is a pre-mutation programming gate. It does
+   * not mutate code; it prevents a repair recipe from being selected unless
+   * it is tied to the current demonstrated source error.
+   */
+  const safeByRule = new Map(safe.map((candidate) => [candidate.id, candidate]));
     plan.mutate &&
     plan.confidence >= 90 &&
     (plan.id !== 'prepared-source-change' || plan.deterministicProof === true),
@@ -98,7 +112,7 @@ export function planRepair(log, { historical = [], memory } = {}) {
 
   const requiresSourceLocation = selectedRule === 'prettier-file' || selectedRule === 'eslint-unused';
   const selectedCandidate =
-    safe.find((candidate) => candidate.id === selectedRule)
+    safeByRule.get(selectedRule)
     ?? candidates.find((candidate) =>
       candidate.inferred === true &&
       candidate.inferenceEligible === true &&
