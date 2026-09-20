@@ -33,6 +33,9 @@ export type FilterMaskCopy = Readonly<{
   aspectRatio: string;
   download: string;
   share: string;
+  shareSetup: string;
+  shareSetupUnsupported: string;
+  shareSetupFailed: string;
   shareUnsupported: string;
   shareFileUnsupported: string;
   shareFailed: string;
@@ -72,6 +75,9 @@ const EN: FilterMaskCopy = {
   aspectRatio: 'Capture aspect ratio',
   download: 'Download result',
   share: 'Share result',
+  shareSetup: 'Share filter setup',
+  shareSetupUnsupported: 'Filter setup sharing is not available. Copy the current URL instead.',
+  shareSetupFailed: 'Could not share the filter setup. Copy the current URL instead.',
   shareUnsupported: 'Sharing is not available in this browser. Use Download result instead.',
   shareFileUnsupported: 'This device cannot share this file. Use Download result instead.',
   shareFailed: 'Sharing failed. Use Download result instead.',
