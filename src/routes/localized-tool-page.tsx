@@ -7,6 +7,7 @@ import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
 import { localizeMsUkCategory } from '../lib/i18n/ms-uk-category';
 import { localizeToolCategory } from '../lib/i18n/tool-localization';
 import { AutoLocalizedToolSurface } from '../components/auto-localized-tool-surface';
+import { FlixoLogoImage } from '../components/FlixoLogoImage';
 import { getToolPrivacyCopy } from '../lib/privacy';
 import { getFavorites, recordRecentTool, toggleFavorite } from '../lib/local-workspace';
 import '../tool-page-modern.css';
