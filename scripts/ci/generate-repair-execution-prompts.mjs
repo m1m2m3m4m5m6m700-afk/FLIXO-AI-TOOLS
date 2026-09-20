@@ -217,7 +217,7 @@ const buildAgentPrompt = (fingerprint, members, index) => {
     }, null, 2),
     '',
     'REQUIRED FINAL HANDOFF',
-    'Return exact SHA, failure fingerprint, RCA, changed files, repair rationale, targeted regression, affected-contract verification, canonical CI state, remaining work/blockers, and the learning record reference. Never substitute confidence for proof.',
+    'Return exact SHA, failure fingerprint, RCA, changed files, repair rationale, targeted regression, affected-contract verification, canonical CI state, remaining work/blockers, cycleLessons (RCA/strategy-or-antiLesson/verification/scope/prevention/blocker as applicable), and the learning record reference. Never substitute confidence for proof.',
   ].join('\\n');
   return {
     promptId: `repair-prompt-${fingerprint.slice(0, 20)}`,
