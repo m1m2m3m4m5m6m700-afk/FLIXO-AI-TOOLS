@@ -4,7 +4,7 @@
   "displayName": "Action Code Mentor — Local Code Intelligence",
   "kind": "LOCAL_PROGRAMMING_INTELLIGENCE_SUBAGENT",
   "parentBotId": "ACTION-REPAIR",
-  "purpose": "A serverless, read-only programming intelligence layer embedded under ACTION-REPAIR. It locally indexes source code, AST facts, symbols, imports, workflows, package scripts, diagnostics and repair impact, then teaches the Action Vault.",
+  "purpose": "Read-only programming intelligence subsystem under ACTION-REPAIR, complemented by LOCAL_SOFTWARE_ENGINEER_CORE.",
   "localOnly": true,
   "networkAccess": false,
   "server": false,
@@ -138,5 +138,9 @@
     "No test weakening",
     "No GREEN certification",
     "No replacement of Canonical CI"
-  ]
+  ],
+  "integration": {
+    "softwareEngineerCore": "scripts/ci/action-software-engineer-core.mjs",
+    "coreProtocol": "LOCAL_SOFTWARE_ENGINEER_CORE_V1"
+  }
 }
