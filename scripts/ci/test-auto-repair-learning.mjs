@@ -19,6 +19,13 @@ delete process.env.GH_TOKEN;
 delete process.env.GITHUB_REPOSITORY;
 delete process.env.FLIXO_RUN_ID;
 
+const observationMemory = loadMemory();
+const observed = recordAgentObservation(observationMemory, { teamId: 'FLIXO-EXECUTION-TEAM', eventType: 'VERIFICATION', taskId: 'LEARNING-TEST', actor: 'verificationAgent', entrySha: 'a'.repeat(40), information: 'Verified exact-SHA task evidence is required before repair advice.', lesson: 'Repair Agent must read current task evidence before proposing a repair.', preventionRule: 'Do not decide from stale task state.', evidence: ['run:learning-test'] });
+assert(observed.id && observed.information.includes('exact-SHA'));
+const repairContext = loadRepairAgentContext({ teamId: 'FLIXO-EXECUTION-TEAM', currentSha: 'a'.repeat(40), limit: 10 });
+assert(repairContext.recentObservations.some((item) => item.id === observed.id));
+assert.equal(repairContext.mandatoryConsumer, 'repairAgent');
+console.log('REPAIR_AGENT_LEARNING_CONTEXT=PASS');
 const memory = loadMemory();
 assert.equal(memory.version, 10);
 
