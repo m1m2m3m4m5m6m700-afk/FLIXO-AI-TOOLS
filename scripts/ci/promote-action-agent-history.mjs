@@ -6,6 +6,7 @@ const ROOT=process.cwd();
 const arg=(n,f='')=>{const p='--'+n+'=';const v=process.argv.find(x=>x.startsWith(p));return v?v.slice(p.length):f};
 const greenPath=arg('green-report');
 const shaArg=arg('sha');
+const externalRoot=arg('activity-root');
 if(!greenPath)throw new Error('ACTION_AGENT_HISTORY_PROMOTION_GREEN_REPORT_REQUIRED');
 
 const read=(p,d=null)=>fs.existsSync(p)?JSON.parse(fs.readFileSync(p,'utf8')):d;
