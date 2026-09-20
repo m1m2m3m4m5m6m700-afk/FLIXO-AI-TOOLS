@@ -69,7 +69,6 @@ export function FlixoAIAgent({ locale = 'en' as Locale }: { locale?: Locale }) {
   const intent = useMemo(() => contextualQuery.trim() ? findToolIntent(contextualQuery, getReadyToolConfigs())[0] : null, [contextualQuery]);
   const planned = useMemo(() => contextualQuery.trim() ? planFromIntent(contextualQuery) : null, [contextualQuery]);
   const filterMaskMatch = intent?.tool.id === 'filter-mask';
-  const filterMaskRoute = `/${locale}/filter-mask`;
   const pushMessage = (role: Message['role'], text: string) => {
     setMessages((current) => [...current, { id: messageId, role, text }]);
     setMessageId((value) => value + 1);
