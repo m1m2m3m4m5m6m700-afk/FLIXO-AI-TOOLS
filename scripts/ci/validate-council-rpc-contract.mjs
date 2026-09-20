@@ -34,7 +34,6 @@ for (const marker of [
   'grant execute on function public.council_recover_expired_dispatches(integer) to service_role',
 ]) assert.ok(sql.includes(marker), `Missing RPC contract marker: ${marker}`);
 
-assert.doesNotMatch(sql,/security definer[\\s\\S]{0,120}(?:search_path\\s*=\\s*public\\s*,\\s*pg_catalog)/i);
 assert.match(sql,/security definer[\\s\\S]*?set search_path = public, pg_catalog/iu);
 
 console.log('COUNCIL_RPC_CONTRACT=PASS');
