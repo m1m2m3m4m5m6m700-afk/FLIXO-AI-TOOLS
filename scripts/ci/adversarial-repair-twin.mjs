@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import path from 'node:path';
 import { loadMemory, fingerprintFailure, normalizeFailure } from './auto-repair-learning.mjs';
 import { reasonFailure } from './auto-repair/reasoning.mjs';
 
@@ -39,12 +40,12 @@ function mapAlternativeStrategy(hypothesis) {
     ['playwright', 'environment-audit'],
     ['webkit-render', 'workflow-forensics'],
     ['certification', 'workflow-forensics'],
-    ['external-tooling', 'external-provider-separation'],
+    ['external-tooling', 'alternate-hypothesis'],
   ]);
   return map.get(hypothesis) ?? 'alternate-hypothesis';
 }
 
-fs.mkdirSync(new URL('.', new URL(`file://${pathFor(output)}`)).pathname, { recursive: true });
+fs.mkdirSync(path.dirname(output), { recursive: true });
 
 if (!fs.existsSync(failureLogPath)) {
   if (!targetRunId) throw new Error('TWIN_FAILURE_EVIDENCE_MISSING');
@@ -110,9 +111,3 @@ const result = Object.freeze({
 
 fs.writeFileSync(output, JSON.stringify(result, null, 2) + '\n');
 console.log(JSON.stringify(result, null, 2));
-
-function pathFor(file) {
-  const normalized = String(file).replaceAll('\\\\', '/');
-  const slash = normalized.lastIndexOf('/');
-  return slash > 0 ? normalized.slice(0, slash + 1) : './';
-}
