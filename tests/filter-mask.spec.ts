@@ -42,6 +42,7 @@ test.describe('Filter Mask live camera surface', () => {
       });
     });
 
+    await page.goto('/en/filter-mask');
     const section = page.getByRole('region', { name: 'Filter Mask' });
     await section.getByRole('button', { name: 'Start camera' }).first().click();
     await expect(section.getByRole('alert')).toHaveText('Camera or microphone access was denied or unavailable.');
