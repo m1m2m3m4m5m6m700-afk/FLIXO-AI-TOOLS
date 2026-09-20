@@ -41,7 +41,14 @@ Every actionable message carries `messageId`, `idempotencyKey`, `recipient`, `ta
 The event-driven relay is the primary delivery mechanism. Polling/supervision is recovery only. An agent session carrying an inbound `messageId` must read that message before task claim; task claim then revalidates message SHA, recipient, task and scope before acquiring the ownership lock.
 
 Receipt or READ state never grants execution authority.
+## Fast read path
+
+`state` and `visible` are read-only commands. They never acquire the coordination write lock or advance the coordination revision, and they fail closed when the current repository SHA does not match the authoritative state.
+
+`brief` is the preferred low-cost coordination snapshot. It returns only the exact SHA, revision/transaction identity, task counts, highest-priority ready/queued/running tasks, active agents and active locks. It is safe for concurrent status reads and is intended to replace repeated full-state scans during normal agent operation.
+
 ## CLI
+
 
 `node scripts/ci/agent-coordination.mjs task-create ...`
 
