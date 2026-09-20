@@ -4,6 +4,8 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { assertAgentAdmission, assertProtocolDefinition } from './repair-protocol.mjs';
+import { ingest as ingestAgentMessage, markRead as readAgentMessage, markConsumed as consumeAgentMessage } from './agent-communication.mjs';
+import { loadPromptRegistry, validatePromptRegistry, loadErrorMemory } from './prompt-registry.mjs';
 
 const ROOT = process.cwd();
 const args = new Map();
@@ -19,6 +21,9 @@ for (let i = 2; i < process.argv.length; i += 1) {
 const command = String(process.argv[2] ?? '').toLowerCase();
 const rawSessionId = String(args.get('session') ?? process.env.FLIXO_AGENT_SESSION ?? '').trim();
 const rawFromSession = String(args.get('from-session') ?? process.env.FLIXO_AGENT_FROM_SESSION ?? '').trim() || null;
+const rawMessageFile = String(args.get('message-file') ?? process.env.FLIXO_AGENT_MESSAGE_FILE ?? '').trim() || null;
+const rawMessageId = String(args.get('message-id') ?? process.env.FLIXO_AGENT_MESSAGE_ID ?? '').trim() || null;
+const messageExecutionAdmitted = String(args.get('message-execution-admitted') ?? process.env.FLIXO_AGENT_MESSAGE_EXECUTION_ADMITTED ?? 'false').trim() === 'true';
 const safeSessionId = (value, label) => {
   if (!value || value.length > 128 || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value)) throw new Error(`INVALID_${label.toUpperCase()}_ID`);
   return value;
@@ -37,13 +42,41 @@ const visibilityDir = path.resolve(ROOT, 'docs/agents/ledger');
 const handoffDir = path.resolve(ROOT, 'diagnostics/agents/handoffs');
 const now = () => new Date().toISOString();
 const gitSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
-const requiredReads = ['AGENTS.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md', 'docs/MINIMAL-CI-FINAL-ARCHITECTURE.md', 'scripts/ci/test-plan.json', 'scripts/ci/assertion-registry.json'];
+const requiredReads = ['PROJECTS.md', 'المهام.md', 'AGENTS.md', 'docs/EXECUTION-BRANCH-PROTOCOL.md', 'docs/AGENT-COLLABORATION-PROTOCOL.md', 'docs/AGENT-HANDOFF-REPORT-SCHEMA.md', 'docs/AGENT-COORDINATION-CONTROL-PLANE.md', 'docs/PROTOCOL-HIERARCHY.md', 'docs/PROTOCOL-REGISTRY.json', 'docs/ASSISTANT-AGENT-COOPERATION-CONTRACT.json', 'docs/agents/PROMPT-REGISTRY.json', 'diagnostics/auto-repair/memory.json', 'scripts/ci/agent-communication.mjs', 'docs/MINIMAL-CI-FINAL-ARCHITECTURE.md', 'scripts/ci/test-plan.json', 'scripts/ci/assertion-registry.json'];
 const split = (value, separator = ',') => String(value ?? '').split(separator).map((v) => v.trim()).filter(Boolean);
 const storageKey = (id) => createHash('sha256').update(id).digest('hex');
+const admissionDigest = (file) => createHash('sha256').update(fs.readFileSync(path.resolve(ROOT, file), 'utf8'), 'utf8').digest('hex');
+const governanceFingerprint = (sources) => createHash('sha256').update(sources.map((item) => `${item.path}:${item.sha256}`).join('|'), 'utf8').digest('hex');
+const assertLiveSession = (record) => {
+  const currentSha = gitSha();
+  if (record.entrySha !== currentSha) throw new Error('AGENT_SESSION_STALE_ENTRY_SHA');
+  const currentGovernance = governanceFingerprint(requiredReads.map((file) => ({ path: file, sha256: admissionDigest(file) })));
+  if (record.governanceFingerprint && record.governanceFingerprint !== currentGovernance) throw new Error('AGENT_SESSION_GOVERNANCE_DRIFT');
+  if (record.branch && record.branch !== gitBranch()) throw new Error('AGENT_SESSION_BRANCH_DRIFT');
+};
+const readCanonicalAdmissionSources = () => {
+  const sources = requiredReads.map((file) => ({ path: file, sha256: admissionDigest(file) }));
+  const protocolRegistry = JSON.parse(fs.readFileSync(path.resolve(ROOT, 'docs/PROTOCOL-REGISTRY.json'), 'utf8'));
+  if (protocolRegistry.authority !== 'FLIXO_PROTOCOL_REGISTRY') throw new Error('AGENT_ADMISSION_PROTOCOL_REGISTRY_INVALID');
+  if (protocolRegistry.protocols?.find((item) => item?.id === 'P20')?.status !== 'MANDATORY') throw new Error('AGENT_ADMISSION_P20_NOT_MANDATORY');
+  const promptRegistry = loadPromptRegistry();
+  const promptValidation = validatePromptRegistry(promptRegistry);
+  if (!promptValidation.ok) throw new Error('AGENT_ADMISSION_PROMPT_REGISTRY_INVALID');
+  const memory = loadErrorMemory();
+  if (!memory || !Array.isArray(memory.cases) || !Array.isArray(memory.lessons) || !Array.isArray(memory.antiLessons)) {
+    throw new Error('AGENT_ADMISSION_MEMORY_INVALID');
+  }
+  return {
+    sources,
+    promptRegistry: { status: promptValidation.status, promptCount: promptValidation.promptCount },
+    memory: { version: memory.version ?? null, cases: memory.cases.length, lessons: memory.lessons.length, antiLessons: memory.antiLessons.length },
+    protocol: { schemaVersion: protocolRegistry.schemaVersion, protocolCount: protocolRegistry.protocols.length },
+  };
+};
 const sessionPath = (id) => path.join(sessionDir, `${storageKey(id)}.json`);
 const handoffPath = (id) => path.join(handoffDir, `${storageKey(id)}.json`);
 const visibilityPath = (id) => path.join(visibilityDir, `${storageKey(id)}.json`);
-const roles = new Set(['analysis','implementation','verification','release','assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','diagnosticAgent']);
+const roles = new Set(['analysis','implementation','verification','release','assistantController','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent']);
 const writeVisibility = (record) => {
   fs.mkdirSync(visibilityDir, { recursive: true });
   fs.writeFileSync(visibilityPath(sessionId), `${JSON.stringify(record, null, 2)}\n`);
@@ -52,7 +85,7 @@ const secretLike = (value) => /(-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY----
 const assertSafeText = (...values) => { for (const value of values.flat()) if (secretLike(value)) throw new Error('AGENT_EVENT_SECRET_LIKE_CONTENT_REJECTED'); };
 const appendEvent = (record, event) => { record.actions = Array.isArray(record.actions) ? [...record.actions, event] : [event]; record.activity = Array.isArray(record.activity) ? [...record.activity, event] : [event]; };
 
-if (!['login', 'event', 'logout'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout --session=<id> --agent=<id> --task=<task-id> [--role=analysis|implementation|verification|release|assistantController|codeScout|executionAgent|reviewAgent|testAgent|securityAgent|performanceAgent|certificationAuthority|taskAgent|errorAgent] [--rca=<id>] [--scope=a,b] [--from-session=<previous-id>]');
+if (!['login', 'event', 'logout', 'message-receive', 'message-consume'].includes(command)) throw new Error('Usage: agent-session.mjs login|event|logout|message-receive|message-consume --session=<id> --agent=<id> --task=<task-id> [--message-file=<path>] [--message-id=<id>]');
 if (!sessionId || !agentId || !taskId) throw new Error('Agent session requires --session, --agent and --task.');
 if (!roles.has(role)) throw new Error(`Invalid agent role: ${role}`);
 
@@ -67,6 +100,7 @@ if (command === 'event') {
   if (record.agentId !== agentId) throw new Error('Session owner mismatch: ' + sessionId);
   if (record.taskId !== taskId) throw new Error('AGENT_EVENT_TASK_MISMATCH');
   if (record.status !== 'RUNNING') throw new Error('AGENT_EVENT_REQUIRES_ACTIVE_SESSION');
+  assertLiveSession(record);
   const type = String(args.get('type') ?? '').trim().toUpperCase();
   const summary = String(args.get('summary') ?? '').trim();
   const allowed = new Set(['PROGRESS','FINDING','BLOCKER','CHANGE','TEST','VERIFICATION','HANDOFF','NOTE']);
@@ -96,11 +130,29 @@ if (command === 'event') {
   writeVisibility(visibility);
   console.log('AGENT_SESSION_EVENT=' + type);
   console.log('AGENT_SESSION_SHA=' + sha);
+} else if (command === 'message-receive') {
+  if (!rawMessageFile && !rawMessageId) throw new Error('AGENT_MESSAGE_INPUT_REQUIRED');
+  if (rawMessageFile) {
+    const message = JSON.parse(fs.readFileSync(path.resolve(ROOT, rawMessageFile), 'utf8'));
+    const received = ingestAgentMessage(message, gitSha());
+    const read = readAgentMessage(received.messageId, agentId, gitSha());
+    console.log(JSON.stringify({ status: read.status, messageId: read.messageId, entrySha: read.entrySha, readBy: agentId }, null, 2));
+  } else {
+    const read = readAgentMessage(rawMessageId, agentId, gitSha());
+    console.log(JSON.stringify({ status: read.status, messageId: read.messageId, entrySha: read.entrySha, readBy: agentId }, null, 2));
+  }
+} else if (command === 'message-consume') {
+  if (!rawMessageId) throw new Error('AGENT_MESSAGE_ID_REQUIRED');
+  const consumed = consumeAgentMessage(rawMessageId, agentId, gitSha(), messageExecutionAdmitted);
+  console.log(JSON.stringify({ status: consumed.status, messageId: consumed.messageId, entrySha: consumed.entrySha, consumedBy: agentId }, null, 2));
 } else if (command === 'login') {
   if (fs.existsSync(file)) throw new Error(`Session already exists: ${sessionId}`);
   const missing = requiredReads.filter((entry) => !fs.existsSync(path.resolve(ROOT, entry)));
   if (missing.length) throw new Error(`Mandatory reads missing: ${missing.join(', ')}`);
-
+  const currentSha = gitSha();
+  const admissionSources = readCanonicalAdmissionSources();
+  const currentGovernanceFingerprint = governanceFingerprint(admissionSources.sources);
+  const sha = currentSha;
   const existingHandoffs = fs.readdirSync(handoffDir).filter((entry) => entry.endsWith('.json'));
   let continuation = null;
   if (fromSession) {
@@ -108,6 +160,7 @@ if (command === 'event') {
     if (!fs.existsSync(predecessorFile)) throw new Error(`Previous handoff report not found: ${fromSession}`);
     const predecessor = JSON.parse(fs.readFileSync(predecessorFile, 'utf8'));
     if (!['VERIFIED', 'BLOCKED'].includes(predecessor.status)) throw new Error(`Previous session is not closed: ${fromSession}`);
+    if (!/^[a-f0-9]{40}$/u.test(String(predecessor.exitSha ?? '')) || predecessor.exitSha !== currentSha) throw new Error(`CONTINUATION_STALE_EXIT_SHA=${fromSession}`);
     continuation = {
       continuationFrom: fromSession,
       inheritedExitSha: predecessor.exitSha ?? null,
@@ -122,27 +175,40 @@ if (command === 'event') {
     throw new Error('Continuation handoff required: use --from-session=<previous-session> or explicitly declare --bootstrap=true.');
   }
 
-  const sha = gitSha();
+  let inboundMessage = null;
+  if (rawMessageFile) {
+    inboundMessage = ingestAgentMessage(JSON.parse(fs.readFileSync(path.resolve(ROOT, rawMessageFile), 'utf8')), sha);
+    inboundMessage = inboundMessage.status === 'RECEIVED' ? readAgentMessage(inboundMessage.messageId, agentId, sha) : inboundMessage;
+  } else if (rawMessageId) {
+    inboundMessage = readAgentMessage(rawMessageId, agentId, sha);
+  }
+  if (inboundMessage && inboundMessage.status !== 'READ' && inboundMessage.status !== 'CONSUMED') {
+    throw new Error('AGENT_MESSAGE_NOT_EXECUTION_READY=' + inboundMessage.status);
+  }
   const record = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     repairProtocol: { ...assertProtocolDefinition(), compliance: 'VALIDATED_AT_ENTRY', admission: protocolAdmission },
     sessionId,
     agentId,
     role,
-    entrySha: sha,
-    baseSha: sha,
+    entrySha: currentSha,
+    baseSha: currentSha,
+    branch: gitBranch(),
+    governanceFingerprint: currentGovernanceFingerprint,
     startedAt: now(),
     scope,
     readFiles: [...requiredReads],
+    admissionSources,
     currentRca: rca,
     taskId,
+    ...(inboundMessage ? { messageId: inboundMessage.messageId, messageStatus: inboundMessage.status, messageEntrySha: inboundMessage.entrySha, messageReadBy: agentId, messagePriority: 'P0_COMMUNICATION_FIRST' } : {}),
     status: 'RUNNING',
     bootstrap: !continuation,
     ...(continuation ?? {}),
     actions: [{ at: now(), action: 'LOGIN', sha, ...(continuation ? { fromSession } : {}) }],
   };
   fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`, { flag: 'wx' });
-  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'OPEN', taskId, sessionId, agentId, role, entrySha: sha, exitSha: null, status: 'RUNNING', finalStatus: null, finalSummary: null, scope, currentRca: rca, rcaClosed: [], openRcas: [], changedFiles: [], commands: [], evidence: [], findings: [], activity: [], lastEvent: null, completedWork: [], failedWork: [], remainingWork: [], executionPlanNext: [], blockers: [], handoffToNextAgent: null, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() });
+  writeVisibility({ schemaVersion: 1, authority: 'AGENT_VISIBILITY_LEDGER', visibilityState: 'OPEN', taskId, sessionId, agentId, role, entrySha: sha, exitSha: null, status: 'RUNNING', finalStatus: null, finalSummary: null, scope, currentRca: rca, rcaClosed: [], openRcas: [], changedFiles: [], commands: [], evidence: [], findings: [], activity: [], lastEvent: null, completedWork: [], failedWork: [], remainingWork: [], executionPlanNext: [], blockers: [], handoffToNextAgent: null, continuationFrom: record.continuationFrom ?? null, inheritedExitSha: record.inheritedExitSha ?? null, startedAt: record.startedAt, updatedAt: now() , ...(inboundMessage ? { messageId: inboundMessage.messageId, messageEntrySha: inboundMessage.entrySha, messageStatus: inboundMessage.status } : {}) });
   console.log(`AGENT_SESSION_LOGIN=${sessionId}`);
   console.log(`AGENT_SESSION_SHA=${sha}`);
   console.log(`AGENT_SESSION_FILE=${path.relative(ROOT, file)}`);
@@ -211,6 +277,7 @@ if (command === 'event') {
 
   const report = {
     schemaVersion: 1,
+    ...(record.messageId ? { messageId: record.messageId, messageEntrySha: record.messageEntrySha, messageStatus: 'HANDOFF_VISIBLE' } : {}),
     reportId: `${sessionId}:${sha}`,
     sessionId: record.sessionId,
     agentId: record.agentId,

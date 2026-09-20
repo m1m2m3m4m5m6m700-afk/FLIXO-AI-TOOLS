@@ -4,7 +4,7 @@ on:
   workflow_run:
     workflows: ["FLIXO Auto Repair Bot"]
     types: [completed]
-    branches: [execution, main]
+    branches: [execution]
 
 permissions:
   contents: read
@@ -44,19 +44,20 @@ jobs:
           path: /tmp/repair-handoff
           merge-multiple: true
 
-      - name: Validate handoff targets the current repair branch head
+      - name: Validate handoff targets the current execution branch head
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          CURRENT_TARGET_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$REPAIR_TARGET_BRANCH" --jq '.object.sha')"
+          test "$REPAIR_TARGET_BRANCH" = "execution"
+          CURRENT_EXECUTION_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/execution" --jq '.object.sha')"
           test -s /tmp/repair-handoff/flixo-prepared-repair-handoff.json
-          HANDOFF_TARGET_SHA="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.executionSha||'')")"
+          HANDOFF_EXECUTION_SHA="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.executionSha||'')")"
           HANDOFF_BRANCH="$(node -e "const h=require('/tmp/repair-handoff/flixo-prepared-repair-handoff.json');process.stdout.write(h.headBranch||'')")"
-          test -n "$HANDOFF_TARGET_SHA"
+          test -n "$HANDOFF_EXECUTION_SHA"
           test "$HANDOFF_BRANCH" = "$REPAIR_TARGET_BRANCH"
-          test "$HANDOFF_TARGET_SHA" = "$CURRENT_TARGET_SHA" || {
-            echo "FAIL CLOSED: handoff SHA $HANDOFF_TARGET_SHA is superseded by $REPAIR_TARGET_BRANCH $CURRENT_TARGET_SHA."
+          test "$HANDOFF_EXECUTION_SHA" = "$CURRENT_EXECUTION_SHA" || {
+            echo "FAIL CLOSED: handoff SHA $HANDOFF_EXECUTION_SHA is superseded by execution $CURRENT_EXECUTION_SHA."
             exit 1
           }
 

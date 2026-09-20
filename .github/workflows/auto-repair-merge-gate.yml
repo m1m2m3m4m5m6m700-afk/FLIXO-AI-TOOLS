@@ -1,0 +1,336 @@
+name: FLIXO Auto Repair Merge Gate
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+
+concurrency:
+  group: flixo-auto-repair-merge-gate-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Exact-SHA promotion proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Resolve canonical PR and exact execution SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh_with_backoff() {
+            local attempt=0
+            local delay=10
+            local err
+            err="$(mktemp)"
+            while [ "$attempt" -lt 4 ]; do
+              if gh "$@" 2>"$err"; then
+                rm -f "$err"
+                return 0
+              fi
+              if grep -Eqi 'rate limit|HTTP 403|API rate limit exceeded|secondary rate limit' "$err"; then
+                attempt=$((attempt + 1))
+                if [ "$attempt" -ge 4 ]; then
+                  cat "$err" >&2
+                  rm -f "$err"
+                  return 75
+                fi
+                echo "GITHUB_API_RATE_LIMIT_BACKOFF attempt=$attempt sleep=${delay}s" >&2
+                sleep "$delay"
+                delay=$((delay * 2))
+                continue
+              fi
+              cat "$err" >&2
+              rm -f "$err"
+              return 1
+            done
+          }
+
+          PR_NUMBER="${{ github.event.pull_request.number || '' }}"
+          BASE="${{ github.event.pull_request.base.ref || '' }}"
+          HEAD_BRANCH="${{ github.event.pull_request.head.ref || '' }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha || '' }}"
+          STATE="${{ github.event.pull_request.state || '' }}"
+
+          if [ -z "$PR_NUMBER" ]; then
+            PR_JSON="$(gh_with_backoff pr list --repo "$GITHUB_REPOSITORY" --head execution --base main --state open --limit 1 --json number,state,baseRefName,headRefName,headRefOid --jq '.[0]')" || {
+              rc=$?
+              [ "$rc" -eq 75 ] && echo 'FAIL CLOSED: GitHub API rate limited while resolving canonical PR.'
+              exit "$rc"
+            }
+            test -n "$PR_JSON" || { echo "FAIL CLOSED: no open execution→main PR."; exit 1; }
+            PR_NUMBER="$(printf '%s' "$PR_JSON" | jq -r '.number')"
+            BASE="$(printf '%s' "$PR_JSON" | jq -r '.baseRefName')"
+            HEAD_BRANCH="$(printf '%s' "$PR_JSON" | jq -r '.headRefName')"
+            HEAD_SHA="$(printf '%s' "$PR_JSON" | jq -r '.headRefOid')"
+            STATE="$(printf '%s' "$PR_JSON" | jq -r '.state')"
+          fi
+
+          test -n "$PR_NUMBER" || { echo "FAIL CLOSED: PR number missing."; exit 1; }
+          test "$BASE" = "main" || { echo "FAIL CLOSED: base=$BASE"; exit 1; }
+          test "$HEAD_BRANCH" = "execution" || { echo "FAIL CLOSED: head=$HEAD_BRANCH"; exit 1; }
+          test "${STATE,,}" = "open" || { echo "FAIL CLOSED: PR state=$STATE"; exit 1; }
+          test -n "$HEAD_SHA" || { echo "FAIL CLOSED: PR head SHA missing."; exit 1; }
+
+          CURRENT_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
+          test -n "$CURRENT_EXECUTION_SHA" || { echo "FAIL CLOSED: execution ref unavailable."; exit 1; }
+          test "$CURRENT_EXECUTION_SHA" = "$HEAD_SHA" || {
+            echo "FAIL CLOSED: execution SHA $CURRENT_EXECUTION_SHA != PR head $HEAD_SHA"
+            exit 1
+          }
+          echo "EXPECTED_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          echo "CANONICAL_PR=$PR_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Checkout exact PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Reconfirm exact checkout SHA
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Require canonical workflow GREEN on exact SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          gh_with_backoff() {
+            local attempt=0
+            local delay=10
+            local err
+            err="$(mktemp)"
+            while [ "$attempt" -lt 4 ]; do
+              if gh "$@" 2>"$err"; then
+                rm -f "$err"
+                return 0
+              fi
+              if grep -Eqi 'rate limit|HTTP 403|API rate limit exceeded|secondary rate limit' "$err"; then
+                attempt=$((attempt + 1))
+                if [ "$attempt" -ge 4 ]; then
+                  cat "$err" >&2
+                  rm -f "$err"
+                  return 75
+                fi
+                echo "GITHUB_API_RATE_LIMIT_BACKOFF attempt=$attempt sleep=${delay}s" >&2
+                sleep "$delay"
+                delay=$((delay * 2))
+                continue
+              fi
+              cat "$err" >&2
+              rm -f "$err"
+              return 1
+            done
+          }
+          REQUIRED_WORKFLOWS=(
+            "FLIXO Test System"
+            "FLIXO WP0 Trust Baseline"
+            "FLIXO Test Impact"
+            "FLIXO Test Impact Execution"
+            "Repository Security Baseline"
+            "Claude Security Review"
+          )
+          MAX_POLLS=40
+          POLL_SECONDS=15
+          ALL_GREEN=false
+
+          for ((poll=1; poll<=MAX_POLLS; poll++)); do
+            # Query the commit-scoped Actions endpoint directly. The gh run-list command
+            # first resolves workflow metadata via /actions/workflows, which can hit the
+            # installation API rate limit even when the commit itself is healthy.
+            gh_with_backoff api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$EXPECTED_SHA&per_page=100" > /tmp/exact-runs-response.json
+            # Normalize REST snake_case fields to the stable schema used by the gate.
+            jq '[.workflow_runs[] | {
+              databaseId: .id,
+              name,
+              status,
+              conclusion,
+              headSha: .head_sha,
+              headBranch: .head_branch,
+              updatedAt: .updated_at
+            }]' /tmp/exact-runs-response.json > /tmp/exact-runs.json
+            WAITING=false
+
+            for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
+              RUN_JSON="$(jq -c --arg name "$workflow" '[.[] | select(.name == $name)] | sort_by(.updatedAt) | last // empty' /tmp/exact-runs.json)"
+              if [ -z "$RUN_JSON" ]; then
+                echo "EXACT_SHA_GATE_WAITING poll=$poll workflow=$workflow state=MISSING"
+                WAITING=true
+                continue
+              fi
+
+              RUN_HEAD_SHA="$(printf '%s' "$RUN_JSON" | jq -r '.headSha')"
+              RUN_STATUS="$(printf '%s' "$RUN_JSON" | jq -r '.status')"
+              RUN_CONCLUSION="$(printf '%s' "$RUN_JSON" | jq -r '.conclusion')"
+
+              test "$RUN_HEAD_SHA" = "$EXPECTED_SHA" || {
+                echo "FAIL CLOSED: stale workflow evidence=$workflow headSha=$RUN_HEAD_SHA"
+                exit 1
+              }
+
+              if [ "$RUN_STATUS" = "completed" ]; then
+                test "$RUN_CONCLUSION" = "success" || {
+                  echo "FAIL CLOSED: RED workflow=$workflow conclusion=$RUN_CONCLUSION"
+                  exit 1
+                }
+              else
+                echo "EXACT_SHA_GATE_WAITING poll=$poll workflow=$workflow status=$RUN_STATUS"
+                WAITING=true
+              fi
+            done
+
+            if [ "$WAITING" = false ]; then
+              ALL_GREEN=true
+              break
+            fi
+
+            if [ "$poll" -lt "$MAX_POLLS" ]; then
+              sleep "$POLL_SECONDS"
+            fi
+          done
+
+          test "$ALL_GREEN" = "true" || {
+            echo "FAIL CLOSED: required workflows did not reach GREEN within bounded merge-gate wait."
+            exit 1
+          }
+
+      - name: Require Certification and Security check runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          gh_with_backoff() {
+            local attempt=0
+            local delay=10
+            local err
+            err="$(mktemp)"
+            while [ "$attempt" -lt 4 ]; do
+              if gh "$@" 2>"$err"; then
+                rm -f "$err"
+                return 0
+              fi
+              if grep -Eqi 'rate limit|HTTP 403|API rate limit exceeded|secondary rate limit' "$err"; then
+                attempt=$((attempt + 1))
+                if [ "$attempt" -ge 4 ]; then
+                  cat "$err" >&2
+                  rm -f "$err"
+                  return 75
+                fi
+                echo "GITHUB_API_RATE_LIMIT_BACKOFF attempt=$attempt sleep=${delay}s" >&2
+                sleep "$delay"
+                delay=$((delay * 2))
+                continue
+              fi
+              cat "$err" >&2
+              rm -f "$err"
+              return 1
+            done
+          }
+          gh_with_backoff api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/check-runs?per_page=100" > /tmp/exact-check-pages.json
+          jq -s 'add' /tmp/exact-check-pages.json > /tmp/exact-check-runs.json
+          CERT="$(jq -c '[.[].check_runs[] | select(.name == "Certification")] | sort_by(.completed_at // .started_at // "") | last // empty' /tmp/exact-check-runs.json)"
+          test -n "$CERT" || { echo "FAIL CLOSED: Certification check missing."; exit 1; }
+          test "$(printf '%s' "$CERT" | jq -r '.status')" = "completed"
+          test "$(printf '%s' "$CERT" | jq -r '.conclusion')" = "success"
+          # The required workflow set above already proves the canonical internal security
+          # workflows. Do not match their display names to check-run names, because GitHub
+          # may expose a workflow job as e.g. "Claude Security Review (Advisory)".
+          EXTERNAL_SECURITY_EVIDENCE="$(jq -c '[.[].check_runs[] | select(.name | test("code scanning ai findings|^CodeQL$|^Analyze \\(javascript-typescript\\)$|^Analyze \\(actions\\)$";"i"))] | sort_by(.completed_at // .started_at // "") | map({name,status,conclusion,details_url})' /tmp/exact-check-runs.json)"
+          printf '%s\n' "$EXTERNAL_SECURITY_EVIDENCE" > /tmp/external-security-evidence.json
+
+          if jq -e 'any(.[]; (.name | test("code scanning ai findings";"i")) and .conclusion == "failure")' /tmp/external-security-evidence.json >/dev/null; then
+            echo "EXTERNAL_SECURITY_BLOCKER=GHAS_AI_MODEL_OR_PROVIDER_FAILURE"
+          fi
+
+          if jq -e 'any(.[]; (.name | test("^CodeQL$|^Analyze \\(javascript-typescript\\)$|^Analyze \\(actions\\)$";"i")) and (.conclusion == "failure" or .conclusion == "neutral"))' /tmp/external-security-evidence.json >/dev/null; then
+            echo "EXTERNAL_SECURITY_BLOCKER=CODEQL_PROVIDER_OR_GITHUB_API_FAILURE"
+          fi
+
+          echo "External security integrations are recorded separately; they do not authorize GREEN or get substituted for the canonical internal gates."
+
+      - name: Require commit statuses GREEN
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          gh_with_backoff() {
+            local attempt=0
+            local delay=10
+            local err
+            err="$(mktemp)"
+            while [ "$attempt" -lt 4 ]; do
+              if gh "$@" 2>"$err"; then
+                rm -f "$err"
+                return 0
+              fi
+              if grep -Eqi 'rate limit|HTTP 403|API rate limit exceeded|secondary rate limit' "$err"; then
+                attempt=$((attempt + 1))
+                if [ "$attempt" -ge 4 ]; then
+                  cat "$err" >&2
+                  rm -f "$err"
+                  return 75
+                fi
+                echo "GITHUB_API_RATE_LIMIT_BACKOFF attempt=$attempt sleep=${delay}s" >&2
+                sleep "$delay"
+                delay=$((delay * 2))
+                continue
+              fi
+              cat "$err" >&2
+              rm -f "$err"
+              return 1
+            done
+          }
+          gh_with_backoff api "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_SHA/status" > /tmp/exact-status.json
+          # Commit statuses may include provider-managed integrations that are outside the
+          # repository's canonical promotion contract (for example Vercel build-rate limits).
+          # Preserve them as evidence, but only internal statuses can fail this gate.
+          CANONICAL_STATUS_FAILURES="$(jq -c '[.statuses[]
+            | select(.context != "Vercel")
+            | select(.state != "success")
+            | {context,state,target_url}]' /tmp/exact-status.json)"
+          printf '%s\n' "$CANONICAL_STATUS_FAILURES" > /tmp/exact-canonical-status-failures.json
+          jq -e 'length == 0' /tmp/exact-canonical-status-failures.json >/dev/null
+          VERCEL_STATUS="$(jq -c '[.statuses[] | select(.context == "Vercel") | {context,state,target_url}]' /tmp/exact-status.json)"
+          printf '%s\n' "$VERCEL_STATUS" > /tmp/exact-external-status-evidence.json
+          if jq -e 'any(.[]; .state != "success")' /tmp/exact-external-status-evidence.json >/dev/null; then
+            echo "EXTERNAL_STATUS_EVIDENCE=Vercel:$VERCEL_STATUS"
+          fi
+
+      - name: Race-safe final SHA readback
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FINAL_EXECUTION_SHA="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/execution | awk '{print $1}')"
+          test "$FINAL_EXECUTION_SHA" = "$EXPECTED_SHA" || {
+            echo "FAIL CLOSED: execution advanced during merge-gate proof."
+            exit 1
+          }
+
+      - name: Publish exact-SHA merge-gate evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: flixo-auto-repair-merge-gate-${{ github.run_id }}
+          path: |
+            /tmp/exact-*.json
+            /tmp/external-security-evidence.json
+          if-no-files-found: warn
+          retention-days: 30

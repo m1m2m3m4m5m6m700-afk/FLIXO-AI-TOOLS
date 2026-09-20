@@ -12,6 +12,8 @@ const checks = [
   ['technical-debt-audit', 'node', ['scripts/ci/test-technical-debt-audit.mjs']],
   ['auto-repair-memory', 'npm', ['run', 'validate:auto-repair-memory']],
   ['auto-repair', 'npm', ['run', 'test:auto-repair']],
+  ['repair-execution-prompts', 'npm', ['run', 'test:repair-execution-prompts']],
+  ['repair-prompt-integration', 'npm', ['run', 'test:repair-execution-prompt-integration']],
   ['build-identity', 'npm', ['run', 'test:build-identity']],
   ['agent-execution-control', 'npm', ['run', 'test:agent-execution-control']],
 ];

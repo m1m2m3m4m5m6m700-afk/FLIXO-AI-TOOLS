@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { evaluateGreen, classifyCancelledRun, validateRepairTarget } from './continuous-error-watch.mjs';
+import { deriveRepairIdentity } from './repair-control-plane.mjs';
 
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
@@ -245,7 +250,18 @@ assert.equal(internal.status, 'RED_INTERNAL');
 assert.equal(internal.repair.required, true);
 assert.equal(internal.repair.targetRunId, 999);
 assert.match(internal.repair.failureFingerprint, /^[0-9a-f]{64}$/);
-assert.equal(internal.repair.repairKey, SHA_A + ':' + internal.repair.failureFingerprint);
+const internalIdentity = deriveRepairIdentity({
+  branch: 'execution',
+  failedSha: SHA_A,
+  failureFingerprint: internal.repair.failureFingerprint,
+  targetRunId: '999',
+});
+assert.equal(internal.repair.repairKey, internalIdentity.claimKey);
+assert.equal(internal.repair.claimKey, internalIdentity.claimKey);
+assert.equal(internal.repair.repairChainId, internalIdentity.repairChainId);
+assert.equal(internal.repair.leaseRef, internalIdentity.leaseRef);
+assert.equal(internal.repair.failedSha, SHA_A);
+assert.equal(internal.repair.branch, 'execution');
 
 const providerWorkflow = evaluateGreen({
   executionSha: SHA_A,
@@ -322,5 +338,17 @@ const mainObservedFailure = evaluateGreen({
 });
 assert.equal(mainObservedFailure.status, 'RED_INTERNAL');
 assert.equal(mainObservedFailure.repair.required, false);
+
+const watchTemp = fs.mkdtempSync(path.join(os.tmpdir(), 'flixo-watch-contract-'));
+const missingInput = path.join(watchTemp, 'missing-input.json');
+const missingOutput = path.join(watchTemp, 'watch-report.json');
+const missingRun = spawnSync(process.execPath, ['scripts/ci/continuous-error-watch.mjs', missingInput, missingOutput], { cwd: process.cwd(), encoding: 'utf8' });
+assert.notEqual(missingRun.status, 0);
+assert.equal(fs.existsSync(missingOutput), true);
+const missingReport = JSON.parse(fs.readFileSync(missingOutput, 'utf8'));
+assert.equal(missingReport.status, 'FAIL_CLOSED');
+assert.equal(missingReport.rootCause, 'REQUIRED_EVIDENCE_MISSING');
+assert.equal(missingReport.errors[0]?.type, 'WATCHER_INPUT_INVALID');
+fs.rmSync(watchTemp, { recursive: true, force: true });
 
 console.log('CONTINUOUS_ERROR_WATCH_CONTRACT=PASS');

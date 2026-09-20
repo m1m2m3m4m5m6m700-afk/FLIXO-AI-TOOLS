@@ -1,21 +1,18 @@
 import { z } from 'zod';
-import { EXECUTABLE_PIPELINE_TOOL_IDS } from '@/lib/workflows/executable-tools';
 import { getCapability, validateCapabilityParameters } from '@/lib/agent/capability-registry';
 
 export const MAX_PLAN_STEPS = 4;
 const scalar = z.union([z.string(), z.number().finite(), z.boolean()]);
-const EXECUTABLE_TOOL_ENUM = z.enum(
-  [...EXECUTABLE_PIPELINE_TOOL_IDS] as [
-    (typeof EXECUTABLE_PIPELINE_TOOL_IDS)[number],
-    ...(typeof EXECUTABLE_PIPELINE_TOOL_IDS)[number][],
-  ],
+const executableToolId = z.string().trim().min(1).refine(
+  (id) => getCapability(id)?.state === 'EXECUTABLE',
+  { message: 'Tool must be registered and executable.' },
 );
 
 export const ExecutionPlanSchema = z.object({
   workflowName: z.string().trim().min(1).max(160),
   confidence: z.number().finite().min(0).max(1),
   steps: z.array(z.object({
-    toolId: EXECUTABLE_TOOL_ENUM,
+    toolId: executableToolId,
     params: z.record(z.string().max(64), scalar).optional(),
   })).min(1).max(MAX_PLAN_STEPS),
 }).strict();

@@ -40,9 +40,10 @@ const nonTestAutomation = new Set([
 ]);
 const auxiliaryEvidenceAutomation = new Set(['test-impact.yml', 'test-impact-execution.yml']);
 const trustBaselineAutomation = new Set(['wp0-trust-baseline.yml']);
+const councilWakeAutomation = new Set(['council-wake-push-relay.yml', 'council-network-probe.yml']);
 const automatedNonCanonical = [];
 for (const file of workflowFiles) {
-  if (file === 'ci.yml' || nonTestAutomation.has(file) || auxiliaryEvidenceAutomation.has(file) || trustBaselineAutomation.has(file) || REPAIR_GATE_AUTOMATION.includes(file)) continue;
+  if (file === 'ci.yml' || nonTestAutomation.has(file) || auxiliaryEvidenceAutomation.has(file) || trustBaselineAutomation.has(file) || councilWakeAutomation.has(file) || REPAIR_GATE_AUTOMATION.includes(file)) continue;
   const text = fs.readFileSync(path.join(ROOT, '.github', 'workflows', file), 'utf8');
   if (/^\s*(push|pull_request):/m.test(text)) automatedNonCanonical.push(`.github/workflows/${file}`);
 }
@@ -81,7 +82,7 @@ const result = {
   status: errors.length ? 'FAIL' : 'PASS',
   workflow: '.github/workflows/ci.yml',
   architecture: { layers: ['impact-plan', 'impact-execution', 'static+build', 'browser-fast', 'browser-deep', 'certify'], browserFast: { tools: 22, browsers: 3, units: 66 }, browserDeep: { locales: 20, browsers: 3 }, certification: 'single fail-closed certify job' },
-  checks: { fastToolCount: fastSpecs.length, browsers: /browser:\s*\[chromium, firefox, webkit\]/.test(ci), deepLocalization: /tests\/localization-runtime\.spec\.ts/.test(ci), immutableArtifact: /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci), auxiliaryEvidenceAutomation: [...auxiliaryEvidenceAutomation], trustBaselineAutomation: [...trustBaselineAutomation], repairGateAutomation: [...REPAIR_GATE_AUTOMATION], nonCanonicalAutomatedWorkflows: automatedNonCanonical, nonTestAutomation: [...nonTestAutomation] },
+  checks: { fastToolCount: fastSpecs.length, browsers: /browser:\s*\[chromium, firefox, webkit\]/.test(ci), deepLocalization: /tests\/localization-runtime\.spec\.ts/.test(ci), immutableArtifact: /flixo-head-sha\.txt/.test(ci) && /flixo-package-lock\.sha256/.test(ci), auxiliaryEvidenceAutomation: [...auxiliaryEvidenceAutomation], trustBaselineAutomation: [...trustBaselineAutomation], councilWakeAutomation: [...councilWakeAutomation], repairGateAutomation: [...REPAIR_GATE_AUTOMATION], nonCanonicalAutomatedWorkflows: automatedNonCanonical, nonTestAutomation: [...nonTestAutomation] },
   errors,
 };
 fs.mkdirSync(path.join(ROOT, 'diagnostics', 'certification'), { recursive: true });

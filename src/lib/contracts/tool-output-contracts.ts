@@ -41,7 +41,7 @@ export function assertReadyToolsHaveOutputContracts(): void {
   const ready = TOOL_REGISTRY.filter((tool) => tool.isReady);
   const readyIds = new Set(ready.map((tool) => tool.id));
   const contractIds = new Set(Object.keys(TOOL_OUTPUT_CONTRACTS));
-  const missing = ready.filter((tool) => !contractIds.has(tool.id)).map((tool) => tool.id);
+  const missing = ready.filter((tool) => !tool.operational.outputContractId || !contractIds.has(tool.operational.outputContractId)).map((tool) => tool.id);
   const orphan = [...contractIds].filter((id) => !readyIds.has(id));
   if (missing.length) throw new Error(`Ready tools missing output contracts: ${missing.join(', ')}`);
   if (orphan.length) throw new Error(`Output contracts reference non-ready/unknown tools: ${orphan.join(', ')}`);
@@ -53,4 +53,10 @@ export function assertReadyToolsHaveOutputContracts(): void {
       if (variant.maxOutputBytes !== undefined && variant.minOutputBytes !== undefined && variant.maxOutputBytes < variant.minOutputBytes) throw new Error(`Invalid byte bounds: ${contract.toolId}/${variant.kind}`);
     }
   }
+}
+
+
+export function getToolOutputContractForDefinition(tool: import('../../config/canonical-tool-definition.ts').ToolDefinition): ToolOutputContract | undefined {
+  const contractId = tool.operational.outputContractId;
+  return contractId ? getToolOutputContract(contractId) : undefined;
 }

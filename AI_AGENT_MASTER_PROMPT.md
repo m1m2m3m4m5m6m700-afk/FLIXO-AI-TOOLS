@@ -22,6 +22,8 @@ Never create a feature/fix/chore/repair/agent/test/temp/backup/experimental bran
 6. `docs/AGENT-COORDINATION-CONTROL-PLANE.md`
 7. `docs/PROTOCOL-HIERARCHY.md`
 8. `docs/PROTOCOL-REGISTRY.json`
+9. `docs/agents/PROMPT-REGISTRY.json`
+10. `diagnostics/auto-repair/memory.json`
 
 هذه الملفات هي عقود التنفيذ الحالية للمشروع، وليست اقتراحات. بوابة الوكيل الحالية تفرض قراءة خريطة المشروع والمهام والبروتوكولات قبل العمل. fileciteturn178file0
 
@@ -221,3 +223,48 @@ npm run verify:ci-cd-trust
 ## مبدأ أخير
 
 كن عدوانيًا في اكتشاف الضعف، لكن محافظًا في تغيير السلوك: لا تغيّر contract صحيحًا لمجرد إسكات failure. كل تغيير يجب أن يزيد determinism أو safety أو testability أو observability أو maintainability.
+
+## PROMPT INTELLIGENCE LAYER — MASTER REPAIR PROMPT
+
+Automatic repair prompt work uses one shared coordination surface: `docs/agents/PROMPT-REGISTRY.json`.
+Before creating or changing a prompt, execute:
+`DISCOVER → READ_SHARED_PROMPT_REGISTRY → SEARCH_FINGERPRINT → SEARCH_RCA → SEARCH_SIMILAR_PROMPTS → SEARCH_LESSONS → SEARCH_ANTI_LESSONS → CHECK_OVERLAP → CHECK_CONFLICT`
+Never create a prompt directly from memory.
+Decision order: `REUSE → EXTEND → MERGE → SPECIALIZE → SPLIT → CREATE`.
+A prompt is causally duplicate when the registry's causal identity is equivalent even when wording differs.
+
+Use `scripts/ci/prompt-registry.mjs` to validate the registry, discover matching memory context, select an existing specialist, detect duplicate/overlap, generate exact-SHA Prompt Handoff artifacts, and classify learning outcomes.
+Failure of the prompt quality gate yields `PROMPT_REVIEW_REQUIRED`.
+
+Required specialist lifecycle:
+`READ → IDENTIFY → FINGERPRINT → RCA → FALSIFY → REPRODUCE → PLAN → RISK_GATE → REPAIR → TARGETED_REGRESSION → CONTRACT_VERIFICATION → FULL_REQUIRED_VERIFICATION → EXACT_SHA_CHECK → LEARN → HANDOFF`
+
+Authority boundary:
+`Prompt = Execution Instruction`
+`Protocol = Authority`
+`Validator = Enforcement`
+`Evidence = Proof`
+`Certification = Closure Authority`
+
+The prompt layer must not mutate policy, weaken gates, disable tests, bypass security, override exact-SHA checks, declare GREEN/VERIFIED/CLOSED, or create another registry, execution engine, QA engine, or Error Memory.
+
+Every specialist handoff binds:
+`promptId + failureFingerprint + rootCause + exactSha + evidence + allowedScope + forbiddenScope + repairSequence + verificationSequence + learningSequence + provenance`
+
+Learning:
+`SUCCESS → lesson`
+`FAILURE/UNREPAIRED/BLOCKED → anti-lesson`
+`REVERTED → strategy rejection`
+`PROPOSED → no confidence increase`
+`BLOCKED_EXTERNAL → external blocker`
+
+Unknown RCA remains `UNKNOWN_RCA` and cannot receive a high-risk specialist mutation path.
+
+## فصل السلطات بين الوكلاء
+
+`Task Agent = preparation only`.
+`Error Agent = diagnosis only`.
+`Repair Agent / Execution Agent = authorized mutation only`.
+`Certification Authority = certification only`.
+
+A prompt, memory record, handoff, or scout report never grants mutation or certification authority. The Task Agent MUST hand off before source mutation.

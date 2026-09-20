@@ -2,128 +2,69 @@ name: FLIXO Master Agent Activation Relay
 
 on:
   workflow_run:
-    workflows:
-      - FLIXO Test System
-      - FLIXO WP0 Trust Baseline
-      - FLIXO Test Impact
-      - FLIXO Test Impact Execution
-      - Repository Security Baseline
-      - Claude Security Review
-      - Daily·FLIXO Green Gate
-      - FLIXO Auto Repair Bot
-      - FLIXO Agent Repair Supervisor
-      - Agent Recovery Gate
+    workflows: ["FLIXO Test System"]
     types: [completed]
-    branches: [execution, main]
-  workflow_dispatch:
+    branches: [execution]
 
 permissions:
-  actions: write
   contents: read
-  issues: write
+  actions: read
   checks: read
+  issues: write
+  id-token: write
 
 concurrency:
-  group: flixo-master-agent-activation-${{ github.event.workflow_run.id || github.run_id }}
-  cancel-in-progress: false
+  group: flixo-master-agent-activation-${{ github.event.workflow_run.id }}
+  cancel-in-progress: true
 
 jobs:
   activate:
-    name: Record RED and wake repair supervision
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.event.workflow_run.conclusion != 'success' &&
-        github.event.workflow_run.conclusion != 'skipped' &&
-        github.event.workflow_run.name != 'FLIXO Master Agent Activation Relay'
-      )
+    name: Record genuine canonical RED
+    if: github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Capture exact failure identity
-        id: identity
+      - name: Deduplicated RED activation
         env:
           GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           set -euo pipefail
-          RUN_ID="${{ github.event.workflow_run.id || github.run_id }}"
-          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
-          BRANCH="${{ github.event.workflow_run.head_branch || github.ref_name }}"
-          NAME="${{ github.event.workflow_run.name || 'manual-activation' }}"
-          CONCLUSION="${{ github.event.workflow_run.conclusion || 'manual' }}"
-          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
-          echo "conclusion=$CONCLUSION" >> "$GITHUB_OUTPUT"
-
-          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
-            gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" \
-              --json databaseId,name,conclusion,headSha,headBranch,event,displayTitle,url > /tmp/run.json
-            gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > /tmp/failed.log 2>&1 || true
-            gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json jobs > /tmp/jobs.json
-          else
-            printf '%s\n' '{}' > /tmp/run.json
-            printf '%s\n' 'MANUAL_ACTIVATION' > /tmp/failed.log
-            printf '%s\n' '{"jobs":[]}' > /tmp/jobs.json
+          test "$BRANCH" = "execution"
+          test -n "$SHA"
+          MARKER="<!-- activation-run:${RUN_ID}:sha:${SHA} -->"
+          if gh api "repos/$GITHUB_REPOSITORY/issues/759/comments?per_page=100" --paginate --jq '.[].body' | grep -Fq "$MARKER"; then
+            echo "MASTER_ACTIVATION_DEDUP=1"
+            exit 0
           fi
-
-      - name: Append exact-SHA activation event to the master inbox
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ steps.identity.outputs.run_id }}
-          SHA: ${{ steps.identity.outputs.sha }}
-          BRANCH: ${{ steps.identity.outputs.branch }}
-          WORKFLOW_NAME: ${{ steps.identity.outputs.name }}
-          CONCLUSION: ${{ steps.identity.outputs.conclusion }}
-        run: |
-          set -euo pipefail
-          JOBS="$(jq -r '[.jobs[]? | [.name, .conclusion, .status] | @tsv] | .[]?' /tmp/jobs.json | head -n 25)"
           {
-            echo "## ${WORKFLOW_NAME} — ${CONCLUSION}"
+            echo "## FLIXO Test System — RED"
             echo
             echo "**Activation:** `MASTER_AGENT_ACTIVATION`"
-            echo "**Run:** `${RUN_ID}`"
-            echo "**Branch:** `${BRANCH}`"
-            echo "**Exact SHA:** `${SHA}`"
-            echo "**Conclusion:** `${CONCLUSION}`"
+            echo "**Run:** ${RUN_ID}"
+            echo "**Branch:** ${BRANCH}"
+            echo "**Exact SHA:** ${SHA}"
             echo
-            echo "### Jobs"
-            if [ -n "$JOBS" ]; then
-              printf '%s\n' "$JOBS" | while IFS=$'\t' read -r name conclusion status; do
-                echo "- `$name` — $conclusion / $status"
-              done
-            else
-              echo "- No job data available."
-            fi
+            echo "Diagnose the exact canonical failure, repair only its causal root, verify on a newer exact SHA, and return to canonical GREEN."
             echo
-            echo "### Required response"
-            echo "Inspect the helper-agent change at this exact SHA. Identify whether the failure is caused by the change, repair the root cause yourself when necessary, update tests/contracts/memory so the helper agent learns, and continue until canonical GREEN. Do not treat this inbox event as a closure signal."
-            echo
-            echo "<!-- activation-run:${RUN_ID}:sha:${SHA} -->"
+            echo "$MARKER"
           } > /tmp/activation-comment.md
-          gh issue comment 761 --repo "$GITHUB_REPOSITORY" --body-file /tmp/activation-comment.md
+          gh issue comment 759 --repo "$GITHUB_REPOSITORY" --body-file /tmp/activation-comment.md
 
-      - name: Wake autonomous repair supervision immediately for internal failures
-        if: >-
-          github.event_name == 'workflow_run' &&
-          github.event.workflow_run.head_branch == 'execution' &&
-          github.event.workflow_run.name != 'FLIXO Auto Repair Bot' &&
-          github.event.workflow_run.name != 'FLIXO Agent Repair Supervisor' &&
-          github.event.workflow_run.name != 'Daily·FLIXO Green Gate'
+      - name: Dispatch canonical RED wake to Chief GPT runtime
         env:
-          GH_TOKEN: ${{ github.token }}
+          COUNCIL_RUNTIME_URL: https://zrpsmgdrtwzrhkjwwujo.supabase.co/functions/v1/flixo-council-runtime
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
         run: |
           set -euo pipefail
-          gh workflow run agent-repair-supervisor.yml --repo "$GITHUB_REPOSITORY" --ref main
-          echo 'MASTER_AGENT_REPAIR_SUPERVISOR_WAKE=DISPATCHED'
-
-      - name: Preserve activation evidence as artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: flixo-master-agent-activation-${{ github.run_id }}
-          path: |
-            /tmp/run.json
-            /tmp/jobs.json
-            /tmp/failed.log
-          if-no-files-found: warn
-          retention-days: 14
+          test -n "$COUNCIL_RUNTIME_URL"
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
+          OIDC_RESPONSE="$(curl -fsS --max-time 10 -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$COUNCIL_RUNTIME_URL")"
+          OIDC_TOKEN="$(printf '%s' "$OIDC_RESPONSE" | jq -r '.value')"
+          test -n "$OIDC_TOKEN"
+          curl -fsS --max-time 15             -X POST             -H "Authorization: Bearer $OIDC_TOKEN"             -H "Content-Type: application/json"             --data "$(jq -nc               --arg messageId "github-red-$RUN_ID-$SHA"               --arg idempotencyKey "github-red-$RUN_ID-$SHA"               --arg taskId "GREEN-RECOVERY-001"               --arg workPackageId "ROOT-CAUSE-SPINE-001"               --arg entrySha "$SHA"               --arg sourceRun "$RUN_ID"               '{messageId:$messageId,idempotencyKey:$idempotencyKey,taskId:$taskId,workPackageId:$workPackageId,entrySha:$entrySha,requestedByAccountId:"SYSTEM",primaryAccountId:"CHIEF",fallbackAccountId:"CHIEF",source:"github-master-activation",payload:{workflowRunId:$sourceRun,reason:"canonical-red"}}')"             "${COUNCIL_RUNTIME_URL%/}?action=dispatch"
+          echo "COUNCIL_CHIEF_WAKE=DISPATCHED"

@@ -2,7 +2,33 @@ import { lazy } from 'react';
 import { z, type ZodType } from 'zod';
 import { LOCALES, type Locale } from '@/lib/i18n/config.ts';
 import type { ComponentType, LazyExoticComponent } from 'react';
-import type { ToolConfig, ToolFamily } from './tool-definitions/types.ts';
+
+export type ToolFamily = 'image';
+export type ToolLifecycle = 'experimental' | 'beta' | 'ready' | 'deprecated';
+export type ToolExecution = 'browser-local' | 'browser-worker' | 'remote';
+export type ToolContractLevel = 'structural' | 'runtime' | 'artifact';
+export type ToolRecoveryPolicy = Readonly<{ maxAttempts: number; replanOnFailure: boolean }>;
+export type ToolRequirements = Readonly<{ browser: true; network: boolean }>
+export type ToolOperationalProfile = Readonly<{
+  lifecycle: ToolLifecycle;
+  execution: ToolExecution;
+  contracts: readonly ToolContractLevel[];
+  executorId: string | null;
+  outputContractId: string | null;
+}>;
+export type ToolSource = Readonly<{
+  id: string;
+  title: string;
+  path: string;
+  description: string;
+  category: 'Images';
+  isReady: boolean;
+  aliases?: readonly string[];
+  component: LazyExoticComponent<ComponentType>;
+}>;
+
+// ToolConfig is the canonical source shape consumed by the definition builder.
+type ToolConfig = ToolSource;
 
 export type CapabilityState = 'RECOGNIZED' | 'PLANNABLE' | 'EXECUTABLE' | 'UNAVAILABLE';
 export type ExecutionMode = 'LOCAL' | 'HYBRID' | 'CLOUD';
@@ -26,11 +52,14 @@ export type ToolDefinition = Readonly<{
   parameterSchema: ZodType;
   safetyLimits: CapabilityLimits;
   verifier: CapabilityVerifier;
+  requirements: ToolRequirements;
+  recovery: ToolRecoveryPolicy;
+  operational: ToolOperationalProfile;
   localization: Readonly<{ titleKey: string; descriptionKey: string }>;
   seo: Readonly<{ title: string; description: string; robots: 'index,follow,max-image-preview:large' }>;
 }>;
 
-const IMAGE_TOOL_CONFIGS: readonly ToolConfig[] = Object.freeze([
+const IMAGE_TOOL_CONFIGS: readonly ToolSource[] = Object.freeze([
   { id: 'image-compressor', title: 'Image Compressor', path: '/en/image-compressor', description: 'Reduce JPG, PNG, and WebP file size in your browser.', category: 'Images', isReady: true, aliases: ['/ar/image-compressor'], component: lazy(() => import('@/tools/image-compressor/index.tsx').then((m) => ({ default: m.ImageCompressor }))) },
   { id: 'background-remover', title: 'Background Remover', path: '/en/background-remover', description: 'Remove connected, uniform backgrounds locally.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/background-remover').then((m) => ({ default: m.BackgroundRemoverTool }))) },
   { id: 'image-upscaler', title: 'Image Upscaler', path: '/en/image-upscaler', description: 'Increase image dimensions with high-quality resampling.', category: 'Images', isReady: true, component: lazy(() => import('@/tools/image-upscaler').then((m) => ({ default: m.ImageUpscalerTool }))) },
@@ -100,6 +129,12 @@ const verifierFor = (toolId: string): CapabilityVerifier => {
   return defaultVerifier;
 };
 
+const executionFor = (mode: ExecutionMode): ToolExecution => {
+  if (mode === 'LOCAL') return 'browser-local';
+  if (mode === 'HYBRID') return 'browser-worker';
+  return 'remote';
+};
+
 const stateFor = (tool: ToolConfig): CapabilityState => {
   if (!tool.isReady) return 'UNAVAILABLE';
   if (EXECUTABLE_IDS.has(tool.id)) return 'EXECUTABLE';
@@ -120,6 +155,15 @@ export function toToolDefinition(tool: ToolConfig): ToolDefinition {
   const safetyLimits = Object.freeze({ maxPixels: DEFAULT_MAX_PIXELS, maxFileSizeBytes: DEFAULT_MAX_FILE_SIZE_BYTES, timeoutMs: DEFAULT_TIMEOUT_MS });
   const verifier = verifierFor(tool.id);
   const intents = Object.freeze(TOOL_INTENTS[tool.id] ?? []);
+  const operational: ToolOperationalProfile = Object.freeze({
+    lifecycle: tool.isReady ? 'ready' : 'experimental',
+    execution: executionFor(executionMode),
+    contracts: Object.freeze(['structural', 'runtime', 'artifact'] as const),
+    executorId: capabilityState === 'EXECUTABLE' ? tool.id : null,
+    outputContractId: tool.isReady ? tool.id : null,
+  });
+  const requirements: ToolRequirements = Object.freeze({ browser: true, network: executionMode === 'CLOUD' });
+  const recovery: ToolRecoveryPolicy = Object.freeze({ maxAttempts: capabilityState === 'EXECUTABLE' ? 3 : 0, replanOnFailure: false });
   return Object.freeze({
     id: tool.id,
     family: 'image',
@@ -136,6 +180,9 @@ export function toToolDefinition(tool: ToolConfig): ToolDefinition {
     parameterSchema,
     safetyLimits,
     verifier,
+    requirements,
+    recovery,
+    operational,
     localization: Object.freeze({ titleKey: `tool.${tool.id}.title`, descriptionKey: `tool.${tool.id}.description` }),
     seo: Object.freeze({ title: `${tool.title} | FLIXO`, description: tool.description, robots: 'index,follow,max-image-preview:large' as const }),
   });

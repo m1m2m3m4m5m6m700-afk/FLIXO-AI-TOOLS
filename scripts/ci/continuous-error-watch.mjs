@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fingerprintFailure } from './auto-repair/fingerprint.mjs';
+import { deriveRepairIdentity } from './repair-control-plane.mjs';
 
 export const REQUIRED_WORKFLOWS = Object.freeze([
   'FLIXO Test System',
@@ -35,8 +36,8 @@ const SECURITY_CHECK_PATTERNS = Object.freeze([
   /github advanced security/i,
   /codeql/i,
   /code scanning ai findings/i,
-  /^Analyze \\(javascript-typescript\\)$/i,
-  /^Analyze \\(actions\\)$/i,
+  /^Analyze \(javascript-typescript\)$/i,
+  /^Analyze \(actions\)$/i,
 ]);
 
 const CERTIFICATION_CHECK_PATTERNS = Object.freeze([
@@ -161,6 +162,11 @@ export function evaluateGreen({
       targetRunId: null,
       failureFingerprint: null,
       repairKey: null,
+      claimKey: null,
+      repairChainId: null,
+      leaseRef: null,
+      failedSha: null,
+      branch: null,
       action: 'NONE',
       rootCauseAuthority: 'TASK_AGENT_RCA',
     },
@@ -278,11 +284,22 @@ export function evaluateGreen({
 
         if (!report.repair.required) {
           const failureFingerprint = fingerprintFailure(failureLog);
+          const identity = deriveRepairIdentity({
+            branch: observedBranch,
+            failedSha: executionSha,
+            failureFingerprint,
+            targetRunId: run.databaseId,
+          });
           report.repair = {
             required: true,
             targetRunId: run.databaseId,
             failureFingerprint,
-            repairKey: executionSha + ':' + failureFingerprint,
+            repairKey: identity.claimKey,
+            claimKey: identity.claimKey,
+            repairChainId: identity.repairChainId,
+            leaseRef: identity.leaseRef,
+            failedSha: executionSha,
+            branch: observedBranch,
             action: 'PENDING_DISPATCH',
             rootCauseAuthority: 'TASK_AGENT_RCA',
           };
@@ -453,11 +470,63 @@ export function evaluateGreen({
   return report;
 }
 
+function writeFailClosedReport(output, error, inputPath) {
+  const report = {
+    schemaVersion: 1,
+    protocol: 'FLIXO-CONTINUOUS-ERROR-WATCH-v1',
+    generatedAt: new Date().toISOString(),
+    executionSha: null,
+    mainSha: null,
+    branch: null,
+    pr: null,
+    status: 'FAIL_CLOSED',
+    rootCause: 'REQUIRED_EVIDENCE_MISSING',
+    errors: [{
+      type: 'WATCHER_INPUT_INVALID',
+      message: String(error?.message ?? error),
+      inputPath,
+    }],
+    externalBlockers: [],
+    repair: {
+      required: false,
+      targetRunId: null,
+      failureFingerprint: null,
+      repairKey: null,
+      claimKey: null,
+      repairChainId: null,
+      leaseRef: null,
+      failedSha: null,
+      branch: null,
+      action: 'NONE',
+      rootCauseAuthority: 'TASK_AGENT_RCA',
+    },
+    ci: {
+      requiredWorkflows: {},
+      security: { present: false, status: 'MISSING' },
+      certification: { present: false, status: 'MISSING' },
+    },
+    evidence: {
+      exactSha: false,
+      executionMatchesPr: false,
+      executionAheadOfMain: 0,
+      executionBehindMain: 0,
+    },
+  };
+  fs.mkdirSync(output.split('/').slice(0, -1).join('/') || '.', { recursive: true });
+  fs.writeFileSync(output, JSON.stringify(report, null, 2) + '\n');
+  return report;
+}
+
 if (path.basename(process.argv[1] ?? '') === 'continuous-error-watch.mjs') {
   const input = process.argv[2] ?? '/tmp/flixo-watch/input.json';
   const output = process.argv[3] ?? '/tmp/flixo-watch/report.json';
-  const inputData = JSON.parse(fs.readFileSync(input, 'utf8'));
-  const report = evaluateGreen(inputData);
+  let report;
+  try {
+    const inputData = JSON.parse(fs.readFileSync(input, 'utf8'));
+    report = evaluateGreen(inputData);
+  } catch (error) {
+    report = writeFailClosedReport(output, error, input);
+  }
   fs.mkdirSync(output.split('/').slice(0, -1).join('/') || '.', { recursive: true });
   fs.writeFileSync(output, JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify({

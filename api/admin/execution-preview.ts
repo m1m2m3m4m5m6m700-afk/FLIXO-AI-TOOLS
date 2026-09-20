@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { authorizeAdminRequest } from './boundary.ts';
+import { authorizeAdminRequestWithDurableSession } from './boundary.ts';
 import { createAdminExecutionPlan } from './execution-plan.ts';
 import type { AdminExecutionClass } from './execution-policy.ts';
 
@@ -27,7 +27,7 @@ const json = (res: ServerResponse, status: number, body: unknown, correlationId:
 const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
 
 export default async function adminExecutionPreview(req: AdminRequest, res: ServerResponse) {
-  const authorization = authorizeAdminRequest(req, 'system.read');
+  const authorization = await authorizeAdminRequestWithDurableSession(req, 'system.read');
   if ('status' in authorization) {
     if (authorization.status === 405) res.setHeader('Allow', 'GET');
     return json(res, authorization.status, { ok: false, error: { code: authorization.code, correlationId: authorization.correlationId } }, authorization.correlationId);

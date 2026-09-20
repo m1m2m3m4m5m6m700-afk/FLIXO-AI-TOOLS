@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
+import { MEMORY_RELATION_TYPES } from './auto-repair-learning.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -81,6 +82,14 @@ for (const entry of memory.cases) {
   if (!entry?.fingerprint || typeof entry.fingerprint !== 'string') fail('case-missing-fingerprint');
   if (entry.attempts < 0 || entry.successes < 0 || entry.failures < 0) fail('case-negative-count');
   if (entry.successes + entry.failures > entry.attempts) fail(`case-count-invariant:${entry.fingerprint}`);
+  if (entry.relations !== undefined) {
+    if (!Array.isArray(entry.relations)) fail(`case-relations-invalid:${entry.fingerprint}`);
+    for (const relation of entry.relations) {
+      if (!relation || !MEMORY_RELATION_TYPES.includes(relation.type) || !relation.target || relation.sourceFingerprint !== entry.fingerprint) fail(`case-relation-invalid:${entry.fingerprint}`);
+      if (relation.targetSha && !/^[a-f0-9]{40}$/u.test(String(relation.targetSha))) fail(`case-relation-target-sha-invalid:${entry.fingerprint}`);
+      if (relation.sourceSha && !/^[a-f0-9]{40}$/u.test(String(relation.sourceSha))) fail(`case-relation-source-sha-invalid:${entry.fingerprint}`);
+    }
+  }
   for (const outcome of entry.outcomes ?? []) {
     if (!outcome || typeof outcome !== 'object') fail(`case-outcome-not-object:${entry.fingerprint}`);
     const provenance = outcome.provenance;

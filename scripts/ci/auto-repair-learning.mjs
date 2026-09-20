@@ -7,6 +7,41 @@ const memoryPath = process.env.FLIXO_REPAIR_MEMORY ?? 'diagnostics/auto-repair/m
 const intractablePath = process.env.FLIXO_INTRACTABLE_ERRORS ?? 'diagnostics/auto-repair/intractable-errors.json';
 export const MEMORY_VERSION = 10;
 export const INTRACTABLE_THRESHOLD = 3;
+export const MEMORY_RELATION_TYPES = Object.freeze([
+  'caused-by',
+  'affects',
+  'appears-in',
+  'related-to',
+  'fixed-by',
+  'verified-by',
+  'regressed-by',
+]);
+const SHA_PATTERN = /^[a-f0-9]{40}$/u;
+
+export function normalizeRelations(relations = [], sourceFingerprint = null) {
+  if (!Array.isArray(relations)) return [];
+  const normalized = [];
+  const seen = new Set();
+  for (const relation of relations) {
+    if (!relation || typeof relation !== 'object') continue;
+    const type = String(relation.type ?? '').trim();
+    const target = String(relation.target ?? '').trim();
+    const source = String(relation.sourceFingerprint ?? sourceFingerprint ?? '').trim();
+    if (!MEMORY_RELATION_TYPES.includes(type) || !target || !source) continue;
+    const targetSha = relation.targetSha == null ? null : String(relation.targetSha).trim();
+    const sourceSha = relation.sourceSha == null ? null : String(relation.sourceSha).trim();
+    if (targetSha && !SHA_PATTERN.test(targetSha)) continue;
+    if (sourceSha && !SHA_PATTERN.test(sourceSha)) continue;
+    const item = { type, sourceFingerprint: source, target, targetSha: targetSha || null, sourceSha: sourceSha || null, evidenceRef: relation.evidenceRef == null ? null : String(relation.evidenceRef) };
+    const key = JSON.stringify(item);
+    if (!seen.has(key)) { seen.add(key); normalized.push(item); }
+  }
+  return normalized;
+}
+
+export function mergeRelations(left = [], right = [], sourceFingerprint = null) {
+  return normalizeRelations([...normalizeRelations(left, sourceFingerprint), ...normalizeRelations(right, sourceFingerprint)], sourceFingerprint);
+}
 export { normalizeFailure, fingerprintFailure, extractFeatures };
 
 export function externalProviderSignature(text = '') {
@@ -22,7 +57,7 @@ export function normalizeLearningOutcome(outcome, verification) {
   return outcome;
 }
 
-const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [], actionHistory: [] });
+const emptyMemory = () => ({ version: MEMORY_VERSION, cases: [], playbooks: [], lessons: [], antiLessons: [] });
 
 const historicalKnowledgePath = process.env.FLIXO_HISTORICAL_KNOWLEDGE ?? 'docs/agents/HISTORICAL-REPAIR-KNOWLEDGE.json';
 
@@ -54,7 +89,7 @@ export function loadMemory() {
       }
     }
     memory.version = Number.isInteger(parsed?.version) ? Math.max(parsed.version, MEMORY_VERSION) : MEMORY_VERSION;
-    for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons', 'actionHistory']) if (!Array.isArray(memory[key])) memory[key] = [];
+    for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(memory[key])) memory[key] = [];
     return memory;
   } catch {
     return emptyMemory();
@@ -120,6 +155,7 @@ export function normalizeCaseCounters(entry) {
   const repairedFailures = Math.min(Math.max(failures, observedFailures), Math.max(0, repairedAttempts - repairedSuccesses));
   return {
     ...entry,
+    relations: normalizeRelations(entry.relations, entry.fingerprint),
     attempts: repairedAttempts,
     successes: Math.min(repairedSuccesses, repairedAttempts),
     failures: repairedFailures,
@@ -138,11 +174,10 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
   const merged = {
     ...base,
     version: Math.max(Number(base.version ?? 0), Number(derived.version ?? 0), MEMORY_VERSION),
-    cases: [...base.cases],
+    cases: [...base.cases].map((item) => ({ ...normalizeCaseCounters(item) })),
     playbooks: [...base.playbooks],
     lessons: [...base.lessons],
     antiLessons: [...base.antiLessons],
-    actionHistory: [...(base.actionHistory ?? [])],
   };
 
   const mergeUnique = (left = [], right = [], keyFor = (item) => JSON.stringify(item)) => {
@@ -162,10 +197,11 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
   for (const incoming of derived.cases) {
     const existing = caseMap.get(incoming.fingerprint);
     if (!existing) {
-      caseMap.set(incoming.fingerprint, normalizeCaseCounters(incoming));
+      caseMap.set(incoming.fingerprint, normalizeCaseCounters({ ...incoming, relations: normalizeRelations(incoming.relations, incoming.fingerprint) }));
       continue;
     }
     existing.rootCause = existing.rootCause && existing.rootCause !== 'unknown' ? existing.rootCause : incoming.rootCause;
+    existing.relations = mergeRelations(existing.relations, incoming.relations, existing.fingerprint);
     existing.normalizedFailure = incoming.normalizedFailure ?? existing.normalizedFailure;
     existing.features = [...new Set([...(existing.features ?? []), ...(incoming.features ?? [])])];
     existing.rules = [...new Set([...(existing.rules ?? []), ...(incoming.rules ?? [])])];
@@ -208,23 +244,6 @@ export function mergeMemoryHistory(baseMemory, derivedMemory) {
     successRate: item.attempts ? Number((item.successes / item.attempts).toFixed(4)) : 0,
     generalized: new Set(item.successfulFingerprints ?? []).size >= 2 && item.successes >= 2 && (item.attempts ? item.successes / item.attempts : 0) >= 0.8,
   }));
-
-  const actionMap = new Map((merged.actionHistory ?? []).map((item) => [item.fingerprint, item]));
-  for (const incoming of derived.actionHistory ?? []) {
-    const existing = actionMap.get(incoming.fingerprint);
-    if (!existing) {
-      actionMap.set(incoming.fingerprint, incoming);
-      continue;
-    }
-    existing.occurrences = Math.max(Number(existing.occurrences ?? 0), Number(incoming.occurrences ?? 0));
-    existing.successes = Math.max(Number(existing.successes ?? 0), Number(incoming.successes ?? 0));
-    existing.failures = Math.max(Number(existing.failures ?? 0), Number(incoming.failures ?? 0));
-    existing.features = [...new Set([...(existing.features ?? []), ...(incoming.features ?? [])])];
-    existing.workflows = [...new Set([...(existing.workflows ?? []), ...(incoming.workflows ?? [])])].slice(-20);
-    existing.evidence = [...(existing.evidence ?? []), ...(incoming.evidence ?? [])].slice(-12);
-    existing.lastSeenAt = [existing.lastSeenAt, incoming.lastSeenAt].filter(Boolean).sort().at(-1) ?? existing.lastSeenAt ?? null;
-  }
-  merged.actionHistory = [...actionMap.values()].slice(-200);
 
   for (const collection of ['lessons', 'antiLessons']) {
     const map = new Map(merged[collection].map((item) => [item.id, item]));
@@ -452,29 +471,22 @@ function upsertLesson(memory, { fingerprint, rootCause, rule, outcome, verificat
   if (!collection.includes(lesson)) collection.push(lesson);
 }
 
-export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule } = {}) {
+export function recordOutcome(memory, { fingerprint, normalizedFailure, features = [], rootCause, rule, outcome, verification, provenance, preventionRule, relationships = [] } = {}) {
   const entry = findCase(memory, fingerprint) ?? { fingerprint, rootCause: 'unknown', attempts: 0, successes: 0, failures: 0, externalBlocks: 0, reversions: 0, revertFailures: 0, revertedRules: [], revertedCommits: [], rules: [], outcomes: [] };
   entry.rootCause = rootCause ?? entry.rootCause ?? 'unknown';
   if (normalizedFailure) entry.normalizedFailure = normalizeFailure(normalizedFailure);
   if (features.length) entry.features = [...new Set(features)];
+  entry.relations = mergeRelations(entry.relations, relationships, fingerprint);
   const isExternalBlock = outcome === 'blocked-external';
   const isHistoricalRevert = outcome === 'reverted-repair';
   const effectiveProviderSignature = provenance?.providerSignature ?? (isExternalBlock ? externalProviderSignature(normalizedFailure) : null);
   const strategyId = String(process.env.FLIXO_REPAIR_STRATEGY_ID ?? provenance?.strategyId ?? '').trim() || null;
   const promptId = String(process.env.FLIXO_PROMPT_ID ?? provenance?.promptId ?? '').trim() || null;
-  const promptVersion = String(process.env.FLIXO_PROMPT_VERSION ?? provenance?.promptVersion ?? '').trim() || null;
-  const masterPromptId = String(process.env.FLIXO_MASTER_PROMPT_ID ?? provenance?.masterPromptId ?? '').trim() || null;
-  const promptDecision = String(process.env.FLIXO_PROMPT_DECISION ?? provenance?.promptDecision ?? '').trim() || null;
-  const promptRegistrySha = String(process.env.FLIXO_PROMPT_REGISTRY_SHA ?? provenance?.promptRegistrySha ?? '').trim() || null;
   const effectiveProvenance = {
     ...(provenance ?? {}),
+    ...(promptId ? { promptId } : {}),
     ...(strategyId ? { strategyId } : {}),
     ...(effectiveProviderSignature ? { providerSignature: effectiveProviderSignature } : {}),
-    ...(promptId ? { promptId } : {}),
-    ...(promptVersion ? { promptVersion } : {}),
-    ...(masterPromptId ? { masterPromptId } : {}),
-    ...(promptDecision ? { promptDecision } : {}),
-    ...(promptRegistrySha ? { promptRegistrySha } : {}),
   };
   const isHistoricalRevertFailure = outcome === 'revert-failure';
   if (isExternalBlock) entry.externalBlocks = (entry.externalBlocks ?? 0) + 1;
@@ -599,7 +611,7 @@ export function writeMemory(memory) {
     normalized = mergeMemoryHistory(historical, normalized);
   }
   normalized.version = Number.isInteger(memory?.version) ? Math.max(memory.version, MEMORY_VERSION) : MEMORY_VERSION;
-  for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons', 'actionHistory']) if (!Array.isArray(normalized[key])) normalized[key] = [];
+  for (const key of ['cases', 'playbooks', 'lessons', 'antiLessons']) if (!Array.isArray(normalized[key])) normalized[key] = [];
   fs.writeFileSync(memoryPath, `${JSON.stringify(normalized, null, 2)}\n`);
 }
 

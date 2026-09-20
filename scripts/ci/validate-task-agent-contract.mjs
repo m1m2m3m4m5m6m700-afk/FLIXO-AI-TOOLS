@@ -20,12 +20,12 @@ const scope = fs.readFileSync('docs/agents/SELF-HEALING-AGENT-SCOPE-PROTOCOL.md'
 const branches = fs.readFileSync('docs/EXECUTION-BRANCH-PROTOCOL.md', 'utf8');
 
 for (const marker of [
-  'Direct Repair Contract',
-  'self-healing repair agent only',
-  'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH',
-  'SELF_HEALING_REPAIR_ONLY',
-  'FAIL_CLOSED',
-  'Canonical CI',
+  'Preparation-only authority',
+  'The Task Agent MUST NOT:',
+  'consumerAuthority',
+  'executionAgent',
+  'repairAgent',
+  'TASK-AGENT-PREPARATION-v3',
 ]) {
   if (!contract.includes(marker)) throw new Error(`TASK_AGENT_CONTRACT_MARKER_MISSING=${marker}`);
 }
@@ -40,10 +40,10 @@ for (const marker of [
 }
 
 for (const marker of [
-  'DIRECT_EXECUTION',
-  'DIRECT_ON_EXECUTION_BRANCH',
-  'DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH',
-  'SELF_HEALING_REPAIR_ONLY',
+  'TASK_PREPARATION_ONLY',
+  'PREPARATION_ONLY_NO_REPOSITORY_MUTATION',
+  'NO_DIRECT_MUTATION',
+  'DIRECT_SOURCE_MUTATION',
   'FAIL_CLOSED',
   'mainBranchMutation: false',
   "branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN'",
@@ -74,10 +74,10 @@ for (const marker of [
 
 console.log(JSON.stringify({
   status: 'PASS',
-  authority: 'TASK_AGENT_DIRECT_REPAIR_OWNER',
-  runtimeModel: 'DIRECT_EXECUTION_ON_EXECUTION_BRANCH',
+  authority: 'FLIXO_TASK_AGENT',
+  runtimeModel: 'PREPARATION_ONLY',
   branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN',
-  scopePolicy: 'SELF_HEALING_REPAIR_ONLY',
+  scopePolicy: 'TASK_PREPARATION_ONLY',
   scopeEnforcement: 'FAIL_CLOSED',
   requiredFiles: required.length,
 }, null, 2));

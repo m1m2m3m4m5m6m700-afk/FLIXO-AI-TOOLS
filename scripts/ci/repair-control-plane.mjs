@@ -41,9 +41,28 @@ const TRANSITIONS = Object.freeze({
 
 export const CIRCUIT_BREAKER = Object.freeze({
   maxStalledCycles: 3,
-  definition: 'SAME_FAILURE_FINGERPRINT_WITHOUT_VERIFIABLE_PROGRESS',
+  definition: 'SAME_REPAIR_KEY_WITH_NO_EXIT_SHA_CHANGE_AND_NO_VERIFICATION_PROGRESS',
   failClosed: true,
 });
+
+export const LEASE_STATES = Object.freeze([
+  'LEASE_CLAIMED',
+  'LEASE_ACTIVE',
+  'LEASE_VERIFIED',
+  'LEASE_BLOCKED',
+  'LEASE_STALE',
+  'LEASE_CIRCUIT_OPEN',
+]);
+
+export const REPAIR_OUTCOMES = Object.freeze([
+  'VERIFIED_REPAIR',
+  'VERIFIED_HISTORICAL_REVERT',
+  'BLOCKED_EXTERNAL',
+  'BLOCKED_RCA',
+  'FAILED_REPAIR',
+  'CRASHED',
+  'STALE',
+]);
 
 const sha256 = (value) => createHash('sha256').update(String(value), 'utf8').digest('hex');
 const isSha = (value) => /^[a-f0-9]{40}$/iu.test(String(value ?? ''));
@@ -53,15 +72,105 @@ const requireText = (name, value) => {
   return text;
 };
 
-export function deriveRepairIdentity({ failureFingerprint, failedSha }) {
+export function deriveRepairIdentity({ failureFingerprint, failedSha, targetRunId, branch = 'execution' }) {
   requireText('failureFingerprint', failureFingerprint);
+  requireText('targetRunId', targetRunId);
+  if (!['execution', 'main'].includes(branch)) throw new Error('CONTROL_PLANE_REPAIR_BRANCH_BLOCKED');
   if (!isSha(failedSha)) throw new Error('CONTROL_PLANE_FAILED_SHA_INVALID');
-  const cycleKey = `${failureFingerprint}:${failedSha}`;
+  const cycleKey = `${branch}:${failedSha}:${failureFingerprint}:${targetRunId}`;
   const digest = sha256(cycleKey);
   return Object.freeze({
     cycleKey,
     claimKey: `claim-${digest}`,
     repairChainId: `RC-${digest.slice(0, 20)}`,
+    leaseRef: `refs/tags/flixo-repair-lease-${digest}`,
+    recoveryRefPrefix: `refs/tags/flixo-repair-lease-recovery-${digest}`,
+    eventRefPrefix: `refs/tags/flixo-repair-event-${digest}`,
+  });
+}
+
+
+const safeRefToken = (value) => String(value ?? '')
+  .trim()
+  .replace(/[^A-Za-z0-9._-]+/gu, '-')
+  .replace(/^-+|-+$/gu, '')
+  .slice(0, 120) || 'unknown';
+
+export function deriveLeaseEventRef({ identity, eventType, eventId }) {
+  if (!identity?.eventRefPrefix) throw new Error('CONTROL_PLANE_LEASE_IDENTITY_REQUIRED');
+  if (!eventType) throw new Error('CONTROL_PLANE_LEASE_EVENT_TYPE_REQUIRED');
+  if (!eventId) throw new Error('CONTROL_PLANE_LEASE_EVENT_ID_REQUIRED');
+  const event = safeRefToken(eventType).toLowerCase();
+  const id = safeRefToken(eventId);
+  return `${identity.eventRefPrefix}-${event}-${id}`;
+}
+
+export function deriveRecoveryRef({ identity, attempt }) {
+  if (!identity?.recoveryRefPrefix) throw new Error('CONTROL_PLANE_LEASE_IDENTITY_REQUIRED');
+  const n = Number(attempt);
+  if (!Number.isInteger(n) || n < 2) throw new Error('CONTROL_PLANE_RECOVERY_ATTEMPT_INVALID');
+  return `${identity.recoveryRefPrefix}-${n}`;
+}
+
+export function classifyRepairOutcome({ outcome, failedSha, exitSha, verificationProgress = false } = {}) {
+  if (!REPAIR_OUTCOMES.includes(String(outcome))) throw new Error(`CONTROL_PLANE_UNKNOWN_REPAIR_OUTCOME=${outcome}`);
+  return Object.freeze({
+    outcome,
+    failedSha: String(failedSha ?? ''),
+    exitSha: String(exitSha ?? ''),
+    verificationProgress: Boolean(verificationProgress),
+    noProgress: Boolean(failedSha && exitSha && failedSha === exitSha && verificationProgress !== true),
+  });
+}
+
+export function evaluateNoProgress({ repairKey, outcomes = [] } = {}) {
+  const key = requireText('repairKey', repairKey);
+  const ordered = [...outcomes]
+    .filter((item) => String(item?.repairKey ?? '') === key)
+    .sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')));
+  let consecutiveNoProgress = 0;
+  for (const item of ordered) {
+    const noProgress = item?.noProgress === true || (
+      String(item?.failedSha ?? '') !== '' &&
+      String(item?.exitSha ?? '') === String(item.failedSha) &&
+      item?.verificationProgress !== true
+    );
+    if (!noProgress) break;
+    consecutiveNoProgress += 1;
+  }
+  return Object.freeze({
+    repairKey: key,
+    attempts: ordered.length,
+    consecutiveNoProgress,
+    circuitOpen: consecutiveNoProgress >= CIRCUIT_BREAKER.maxStalledCycles,
+  });
+}
+
+export function staleRecoveryDecision({
+  now = Date.now(),
+  leaseCreatedAt,
+  staleAfterMs = 60 * 60 * 1000,
+  currentExecutionSha,
+  failedSha,
+  activeRuns = [],
+  outcomes = [],
+  repairKey,
+} = {}) {
+  const ageMs = Math.max(0, Number(now) - Date.parse(String(leaseCreatedAt ?? '')));
+  const progress = evaluateNoProgress({ repairKey, outcomes });
+  const verified = outcomes.some((item) => ['VERIFIED_REPAIR', 'VERIFIED_HISTORICAL_REVERT'].includes(item?.outcome));
+  const reasons = [];
+  if (!Number.isFinite(ageMs) || ageMs < staleAfterMs) reasons.push('LEASE_NOT_OLD_ENOUGH');
+  if (activeRuns.length > 0) reasons.push('ACTIVE_REPAIR_SESSION_PRESENT');
+  if (String(currentExecutionSha ?? '') !== String(failedSha ?? '')) reasons.push('EXECUTION_SHA_CHANGED');
+  if (verified) reasons.push('SUCCESSFUL_REPAIR_ALREADY_VERIFIED');
+  if (progress.circuitOpen) reasons.push('NO_PROGRESS_CIRCUIT_OPEN');
+  return Object.freeze({
+    eligible: reasons.length === 0,
+    ageMs,
+    noProgress: progress,
+    successfulVerificationPresent: verified,
+    reasons,
   });
 }
 
@@ -75,10 +184,10 @@ export function createRepairCycle({
   owner = null,
   createdAt = new Date().toISOString(),
 } = {}) {
-  if (!['execution', 'main'].includes(observedBranch)) throw new Error('CONTROL_PLANE_REPAIR_BRANCH_BLOCKED');
+  if (observedBranch !== 'execution') throw new Error('CONTROL_PLANE_REPAIR_BRANCH_BLOCKED');
   if (!isSha(executionSha)) throw new Error('CONTROL_PLANE_EXECUTION_SHA_INVALID');
   if (mainSha !== null && !isSha(mainSha)) throw new Error('CONTROL_PLANE_MAIN_SHA_INVALID');
-  const identity = deriveRepairIdentity({ failureFingerprint, failedSha });
+  const identity = deriveRepairIdentity({ failureFingerprint, failedSha, targetRunId, branch: observedBranch });
   return Object.freeze({
     schemaVersion: CONTROL_PLANE_SCHEMA_VERSION,
     authority: CONTROL_PLANE_AUTHORITY,
@@ -125,10 +234,10 @@ export function transitionRepairCycle(cycle, to, {
   patch = {},
 } = {}) {
   assertTransition(cycle.state, to);
-  if (to === 'MUTATING' && !['execution', 'main'].includes(cycle.observedBranch)) {
+  if (to === 'MUTATING' && cycle.observedBranch !== 'execution') {
     throw new Error('CONTROL_PLANE_MUTATION_BRANCH_BLOCKED');
   }
-  if (to === 'PUBLISHED_TO_EXECUTION' && !['execution', 'main'].includes(cycle.observedBranch)) {
+  if (to === 'PUBLISHED_TO_EXECUTION' && cycle.observedBranch !== 'execution') {
     throw new Error('CONTROL_PLANE_PUBLICATION_BRANCH_BLOCKED');
   }
   if (to === 'CANONICAL_CI' && !isSha(cycle.executionSha)) {
@@ -209,12 +318,18 @@ export function controlPlaneSchema() {
     transitions: TRANSITIONS,
     circuitBreaker: CIRCUIT_BREAKER,
     invariants: [
-      'REPAIR_TARGET_MAY_BE_EXECUTION_OR_MAIN',
-      'MAIN_MUTATION_REQUIRES_EXACT_CURRENT_SHA',
+      'EXECUTION_IS_ONLY_MUTATION_BRANCH',
+      'MAIN_IS_NEVER_MUTATED_BY_REPAIR_AGENT',
       'CANONICAL_CI_IS_FINAL_GREEN_AUTHORITY',
       'RED_REMAINS_OPEN_UNTIL_VERIFIED_GREEN',
       'STALE_SHA_BLOCKS_PUBLICATION',
-      'DUPLICATE_CLAIMS_SHARE_A_DETERMINISTIC_CLAIM_KEY',
+        'DUPLICATE_CLAIMS_SHARE_A_DETERMINISTIC_CLAIM_KEY',
+      'GLOBAL_REPAIR_LEASE_IS_ATOMIC_AND_DURABLE',
+      'GLOBAL_REPAIR_LEASE_IS_HTTP_STATUS_DRIVEN',
+      'GLOBAL_REPAIR_LEASE_IS_NOT_A_BRANCH',
+      'REPAIR_IDENTITY_HAS_ONE_CANONICAL_SOURCE',
+      'STALE_LEASE_REQUIRES_ACTIVE_SESSION_AND_SHA_GATES',
+      'NO_PROGRESS_REQUIRES_SAME_REPAIR_KEY_NO_EXIT_SHA_CHANGE_AND_NO_VERIFICATION_PROGRESS',
     ],
   });
 }
@@ -227,6 +342,26 @@ function cli() {
   const command = process.argv[2];
   if (command === 'schema') {
     console.log(JSON.stringify(controlPlaneSchema(), null, 2));
+    return;
+  }
+  if (command === 'identity') {
+    const identity = deriveRepairIdentity({
+      failureFingerprint: args.fingerprint,
+      failedSha: args.failedSha,
+      targetRunId: args.targetRunId,
+      branch: args.branch || 'execution',
+    });
+    console.log(JSON.stringify(identity, null, 2));
+    return;
+  }
+  if (command === 'lease-ref') {
+    const identity = deriveRepairIdentity({
+      failureFingerprint: args.fingerprint,
+      failedSha: args.failedSha,
+      targetRunId: args.targetRunId,
+      branch: args.branch || 'execution',
+    });
+    console.log(identity.leaseRef);
     return;
   }
   if (command === 'claim') {
@@ -255,7 +390,7 @@ function cli() {
     console.log(JSON.stringify(next, null, 2));
     return;
   }
-  throw new Error('Usage: repair-control-plane.mjs schema|claim|advance');
+  throw new Error('Usage: repair-control-plane.mjs schema|identity|lease-ref|claim|advance');
 }
 
 if (process.argv[1]?.endsWith('repair-control-plane.mjs')) {

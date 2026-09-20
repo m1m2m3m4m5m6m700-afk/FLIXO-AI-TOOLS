@@ -7,6 +7,7 @@ import { TOOL_UI_I18N } from '../data/tool-ui-i18n';
 import { localizeMsUkCategory } from '../lib/i18n/ms-uk-category';
 import { localizeToolCategory } from '../lib/i18n/tool-localization';
 import { AutoLocalizedToolSurface } from '../components/auto-localized-tool-surface';
+import { FlixoLogoImage } from '../components/FlixoLogoImage';
 import { getToolPrivacyCopy } from '../lib/privacy';
 import { getFavorites, recordRecentTool, toggleFavorite } from '../lib/local-workspace';
 import '../tool-page-modern.css';
@@ -79,7 +80,7 @@ export function LocalizedToolPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ ...seo.structuredData, keywords: seo.keywords }).replace(/</g, '\u003c') }} />
       <nav className="tool-page-modern__nav" aria-label={copy.navigation}>
         <div className="tool-page-modern__nav-inner">
-          <a className="tool-page-modern__brand" href={homeUrl} aria-label={copy.home}><img className="tool-page-modern__brand-logo" src="/flixo-logo.webp" width="44" height="44" alt="FLIXO" decoding="async" /></a>
+          <a className="tool-page-modern__brand" href={homeUrl} aria-label={copy.home}><FlixoLogoImage alt="FLIXO" width={44} height={44} className="tool-page-modern__brand-logo" /></a>
           <div className="tool-page-modern__nav-actions">
             <button className={`tool-page-modern__favorite ${favorite ? 'is-active' : ''}`} type="button" onClick={onToggleFavorite} aria-pressed={favorite} title={copy.favorite}><span aria-hidden="true">{favorite ? '★' : '☆'}</span> {copy.favorite}</button>
             <a className="tool-page-modern__nav-link" href={homeUrl}>← {copy.home}</a>

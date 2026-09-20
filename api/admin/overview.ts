@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { authorizeAdminRequest } from './boundary.ts';
+import { authorizeAdminRequestWithDurableSession } from './boundary.ts';
 import { probePersistence, isPersistenceConfigured } from './persistence.ts';
 import { ADMIN_EXECUTION_CLASSES, ADMIN_MODULES, ADMIN_ROLE_CAPABILITY_MATRIX } from '../../src/lib/admin/module-registry.ts';
 import { ADMIN_CAPABILITIES } from '../../src/lib/admin/control-plane.ts';
@@ -17,7 +17,7 @@ const json = (res: ServerResponse, status: number, body: unknown, correlationId:
 };
 
 export default async function adminOverview(req: AdminRequest, res: ServerResponse) {
-  const authorization = authorizeAdminRequest(req, 'truth.read');
+  const authorization = await authorizeAdminRequestWithDurableSession(req, 'truth.read');
 
   if ('status' in authorization) {
     if (authorization.status === 405) res.setHeader('Allow', 'GET');

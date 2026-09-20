@@ -1,3 +1,7 @@
+## Agent Communication Priority
+
+Communication-first is a P0 execution invariant. The canonical ingress is Master Inbox Issue #761, the event-driven relay is `.github/workflows/agent-communication-relay.yml`, and the runtime is `scripts/ci/agent-communication.mjs` consumed by `agent-session` and `agent-coordination`. This must remain within the existing agent control plane; no parallel registry/protocol is permitted.
+
 # FLIXO AI — Persistent Projects & Agent Work Map
 
 **First work gate for every agent.** Read this file before implementation.
@@ -9,20 +13,20 @@
 ```text
 SOURCE OF TRUTH = main
 ACTIVE REPAIR LANE = execution
-CURRENT MAIN SHA = 22e67525a2e406d449fa158d67674281c7a75168
+CURRENT MAIN SHA = b80dbf2edcd323ec5921634b05ee098be407b0fc
 ACTIVE PR = #759 OPEN / execution → main (canonical integration lane)
-CURRENT PR HEAD = authoritative GitHub PR #750 head; do not duplicate a mutable SHA in this map
+CURRENT PR HEAD = authoritative GitHub PR #759 head; do not duplicate a mutable SHA in this map
 NO-NEW-BRANCH = ABSOLUTE; only execution and main are active agent branches; existing historical branches are not valid work paths
 STATE = BLOCKED_EXTERNAL
 CANONICAL TEST SYSTEM = FRESH EVIDENCE REQUIRED ON CURRENT MAIN/EXECUTION HEAD; prior exact-head evidence is stale
-CURRENT EXECUTION PRE-REPAIR EVIDENCE = Test System PASS; Test Impact PASS; Claude Security Review PASS
-REPOSITORY SECURITY = FAIL on exact head: GitHub Advanced Security Code Scanning AI returned CAPI 400 model-not-supported
+CURRENT EXECUTION PRE-REPAIR EVIDENCE = historical only; fresh exact-head evidence is required for the active execution head
+REPOSITORY SECURITY = fresh exact-head verification required; last recorded GHAS CAPI 400 model-not-supported remains classified as BLOCKED_EXTERNAL until fresh provider evidence changes the signature
 WP0 TRUST BASELINE = CURRENT-HEAD VERIFICATION REQUIRED
 VERCEL = BLOCKED_EXTERNAL: provider deployment rate-limit
 EXACT-SHA GREEN = NOT PROVEN; prompt-intelligence verification is pending on the current canonical SHA
 ADMIN STATES = historical labels below are not current exact-SHA proof; revalidation required after the active repair cycle
 PRODUCTION DEPLOYMENT EXACT-SHA = NOT PROVEN IN CURRENT EVIDENCE
-POST-MERGE MAIN SHA VERIFIED = 5115ac0528a7b18ae9ae3d392ccbfd2257900ea3
+POST-MERGE MAIN SHA VERIFIED = historical 5115ac0528a7b18ae9ae3d392ccbfd2257900ea3; not current GREEN proof
 POST-MERGE CI / CERTIFICATION = PENDING FRESH EVIDENCE
 NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROVEN ON THE ACTIVE MAIN SHA
 ```
@@ -33,8 +37,8 @@ NO CLOSED/VERIFIED LABEL IN THIS FILE IS CURRENT GREEN PROOF UNLESS IT IS REPROV
 ```text
 TASK LEDGER = المهام.md §15.0 LIVE DISCOVERY OVERLAY
 CURRENT EXECUTION SHA = authoritative GitHub execution branch ref; do not duplicate a mutable SHA in this map
-OPEN PR = #750 → main
-DEPENDENT PR = #752 → execution, stale/conflicting base
+OPEN PR = #759 → main
+DEPENDENT PR = none; prior non-canonical PRs are historical and not active work paths
 LIVE EXTERNAL BLOCKERS = GitHub Advanced Security model rejection + Vercel deployment rate-limit
 LIVE AUTOMATION RCA = continuous-error-watch input artifact missing on main automation cycle
 ADMIN PROVENANCE = production Vercel→Supabase binding not proven
@@ -44,6 +48,7 @@ ADMIN PROVENANCE = production Vercel→Supabase binding not proven
 
 | ID | Status | Next deterministic action |
 |---|---|---|
+| ADMIN-CONTROL-PLANE-REAL-001 | IN_PROGRESS / PARTIAL | Real login/session boundary now implemented on execution; continue production identity, revocation, adapters, evidence, approval, controlled execution, and certification |
 | ADMIN-003 | CLOSED / VERIFIED | Preserve canonical read-only centers |
 | ADMIN-004 | CLOSED / VERIFIED | Preserve fail-closed execution boundary |
 | ADMIN-005 | CLOSED / VERIFIED | Preserve verified server boundary and browser-bundle security invariant |
@@ -79,6 +84,17 @@ REGRESSION = `tests/foundation.spec.ts` must not be orphaned; `artifacts/ci/lega
 NEXT EXIT = fresh canonical static/build/browser/certification evidence on this exact head.
 SUCCESS GATE = targeted regression + Static/Build + FAST/DEEP + Certification + CI/CD trust + invariant proof + closure evidence.
 NEXT GATE = review audit findings after the validator is proven and activate only one bounded repair candidate.
+```
+
+## ADMIN-CONTROL-PLANE-REAL-001
+
+```text
+STATUS = IN_PROGRESS / PARTIAL
+CURRENT IMPLEMENTATION = execution branch only
+IMPLEMENTED = server credential verification, signed HttpOnly session, login/logout/session API, protected /admin login surface, session-aware Control Plane, auth regression contract
+NOT CERTIFIED = current execution head has no fresh exact-SHA certification for this follow-on change
+REMAINING = production identity provenance, durable session revocation, authoritative adapters/evidence, approval + controlled execution, rollback proof, browser/security/certification
+LEGACY RULE = retired Admin graph is not restored; control-plane login uses a new route filename while retaining /admin/login URL
 ```
 
 ## ADMIN ENTRY — FIVE-CLICK LOGO
@@ -182,16 +198,16 @@ CLOSURE EVIDENCE = RECORDED
 STATUS = IMPLEMENTED / VERIFICATION PENDING
 PURPOSE = Build one shared Prompt Intelligence Layer over Error Detection → Fingerprint → RCA → Memory → Strategy → Repair → Verification → Learning without creating a second agent registry or repair engine.
 CANONICAL REGISTRY = docs/agents/PROMPT-REGISTRY.json
-VALIDATOR = scripts/ci/validate-prompt-registry.mjs
-COMPARISON ENGINE = scripts/ci/prompt-intelligence.mjs
-MASTER PROMPT = RPR-CORE-MASTER-001 → AI_AGENT_MASTER_PROMPT.md
-SPECIALIST PROMPTS = RPR-ERROR-RCA-001, RPR-PROMPT-INTEL-001, RPR-TASK-REPAIR-001
+VALIDATOR ENTRYPOINT = scripts/ci/validate-prompt-registry.mjs
+REGISTRY ENGINE = scripts/ci/prompt-registry.mjs
+MASTER PROMPT = RPR-MASTER-LIFECYCLE-001 → AI_AGENT_MASTER_PROMPT.md
+SPECIALIST PROMPTS = RPR-ORCHESTRATION-PREFLIGHT-001, RPR-EXTERNAL-TOOLING-001, RPR-REGEX-CONTRACT-001, RPR-ARCHITECTURE-REGISTRY-001; task preparation uses RPR-EXISTING-TASK-PREP-001
 LEARNING PROVENANCE = promptId + promptVersion + masterPromptId + promptDecision + promptRegistrySha
 EXACT-SHA = prompt selection is bound to the active repair target SHA; Prompt text never grants authority.
 DUPLICATION RULE = compare failureClasses + rootCauses + scope + repairStrategy + verificationPlan; hard duplicates cannot be ACTIVE together.
 QUALITY GATE = duplicate + fingerprint + RCA + scope + safety + verification + learning + provenance + exact-SHA + overlap.
-CURRENT BLOCKER = execution branch remains historically divergent from main; canonical verification must run after synchronization.
-NEXT ACTION = fresh exact-SHA canonical static/contract verification on main, then synchronize execution and verify the resulting execution SHA.
+CURRENT BLOCKER = fresh exact-SHA Prompt Registry/contract verification is still pending on the active execution head; main remains on the legacy schema until canonical promotion.
+NEXT ACTION = validate Prompt Registry + targeted prompt tests on the current execution SHA, then run canonical CI and exact-SHA certification evidence.
 
 ## AGENT-PROTOCOL-003
 
@@ -290,6 +306,10 @@ FIX = gate dependent phases on upstream success and fail closed on missing strat
 VERIFICATION = next real Auto Repair failure/repair cycle.
 
 RC-041 = Effective Home heroTitle markup mismatch for ms/uk caused the localization gate to reject raw <span> overrides.
+RC-042 = PROJECTS.md retained a stale main SHA and obsolete canonical PR references after the execution→main topology was consolidated, causing live-state documentation to point at non-current verification targets.
+FIX = reconcile the live state with verified main b80dbf2 and canonical PR #759 while keeping mutable execution/PR heads as live references rather than duplicated values.
+VERIFICATION = re-read current main/execution refs and PR #759; fresh canonical CI remains required for GREEN.
+PREVENTION = keep mutable execution state out of duplicated hardcoded fields and update topology references atomically with governance changes.
 FIX = normalize the effective ms/uk heroTitle overrides to the canonical [[...]] marker contract.
 VERIFICATION = validate:effective-localization + WP0 + canonical browser CI on the exact execution SHA.
 PREVENTION = presentation HTML belongs to AgentFirstHome; localization data stores semantic markers only.
@@ -321,9 +341,9 @@ NO GATE BYPASS = required
 
 | ID | Status | Owner/Surface | Next deterministic action |
 |---|---|---|---|
-| AUTO-REPAIR-BOT-001 | ACTIVE / LEDGER-MISSING | Auto Repair + Task Agent + Error Agent | Register lifecycle, prove repair publication and learning gates on current SHA |
+| AUTO-REPAIR-BOT-001 | VERIFYING / EVIDENCE-PENDING | Auto Repair + Task Agent + Error Agent | إثبات repair publication + learning + handoff على current SHA |
 | EXECUTION-BOT-WATCHDOG-001 | ACTIVE | execution-bot-watchdog | Verify exact-SHA RED detection and canonical repair dispatch |
-| REPAIR-SUPERVISION-GATES-001 | ACTIVE | handoff/recovery/merge gates | Prove fail-closed handoff→merge chain |
+| REPAIR-SUPERVISION-GATES-001 | VERIFYING / EVIDENCE-PENDING | handoff/recovery/merge gates | إثبات fail-closed handoff→merge chain على exact current SHA |
 | ROOT-CAUSE-DIAGNOSTICS-001 | OPEN | diagnostics/scout/investigator | Unify evidence→fingerprint→RCA path |
 | WP1-REGISTRY-ENGINE-001 | INCOMPLETE / PARTIAL | Registry/Planner/Executor/Verifier | Finish loader/discovery/contracts |
 | WP2-SECURITY-OBSERVABILITY-001 | OPEN | security/tracing/error classification | Close security + observability invariants |

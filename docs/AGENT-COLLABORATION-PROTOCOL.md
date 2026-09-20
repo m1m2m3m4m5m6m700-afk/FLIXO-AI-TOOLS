@@ -136,6 +136,16 @@ Before repository action, every agent MUST read applicable governance, handoff, 
 - **Performance Agent:** evaluates performance-sensitive changes with measured evidence.
 - **Certification Authority:** independently certifies repository state.
 
+## Mutation authority invariant
+
+`Task Agent = preparation only` is an enforced authority boundary, not a prompt preference.
+
+`repairAgent` and `executionAgent` are the authorized repair mutation roles. A Task Agent packet can describe a source change, but it cannot apply, commit, push, merge or certify it.
+
+`scripts/ci/repair-protocol.mjs` is the machine-enforced mutation authority. Any attempt to add `taskAgent` to `mutationAgents` is a contract violation and is covered by the repair-protocol regression.
+
+Prompt text, memory, handoff content and Task Agent output cannot grant authority that the machine control plane does not grant.
+
 ## Error Agent contract
 Every diagnosis MUST contain:
 `failureFingerprint + trigger + exactFailureEvidence + entrySha + runIdentity + environment + reproductionState + propagationPath + violatedInvariant + causalSource + affectedScope + dependencyGraph + recurrenceSignals + confidence + stopConditions + nextAction`.
@@ -159,6 +169,40 @@ The Task Agent consumes `مهام.md` plus authoritative diagnosis/handoff evide
 `taskId + baselineSha + contractVersion + errorFingerprint/RCA(if applicable) + scope + dependencies + proofObligations`.
 
 It may prepare source/test code artifacts, but those artifacts are proposals until the Executive Controller independently reviews and applies them.
+
+## Communication-first execution invariant
+
+The existing agent communication architecture is the first operational dependency for every agent.
+
+```text
+NOTIFICATION
+  → MASTER INBOX
+  → EVENT-DRIVEN RELAY
+  → RECEIVE
+  → READ
+  → EXACT-SHA REVALIDATION
+  → OWNERSHIP / RCA / DEPENDENCY CHECK
+  → EXECUTE
+```
+
+The canonical ingress is the active Council conversation at canonical PR #759. Issue #761 is archived and rejected as an activation source. The event-driven adapter is `.github/workflows/agent-communication-relay.yml`, and the President Wake dispatcher is integrated into `.github/workflows/agent-communication-relay.yml`, using `scripts/ci/council-wake-dispatch.mjs` as the deterministic planner. The machine-readable inbox lifecycle is implemented by `scripts/ci/agent-communication.mjs` and consumed by `scripts/ci/agent-session.mjs`.
+
+Message states are:
+
+`RECEIVED → READ → CONSUMED`
+
+or fail-closed:
+
+`RECEIVED → STALE`
+`READ → BLOCKED_CONFLICT`
+
+Receipt never grants execution authority. A message becomes execution-ready only after the target agent has read it, the message `entrySha` is current or explicitly revalidated, and the normal coordination ownership lock succeeds.
+
+`messageId` and `idempotencyKey` identify one logical notification. Re-delivery is a NO-OP. Reuse of the same identity with different causal content is an idempotency collision and MUST fail closed.
+
+Periodic supervision remains a recovery mechanism. It is not the primary communication path.
+
+No agent may begin task selection, mutation or repair from a notification it has not consumed through the canonical communication path.
 
 ## Handoff integrity
 Every delegation MUST contain:
@@ -264,3 +308,37 @@ Agents produce evidence. Only the canonical certification system can issue final
 CI MUST verify the cooperation contract, Task Agent preparation-only boundary, Error Agent diagnosis-only boundary, coordination control plane, session/handoff schema, repair-proof controls and exact-SHA evidence rules.
 
 Removing, bypassing, weakening, duplicating or silently ignoring these controls MUST fail the repository contract gate.
+
+
+## Assistant Repair Fallback — P20
+When both `repairAgent` and `executionAgent` are unavailable, `assistantRepairAgent` may execute a learned repair directly on `execution`. It must use a previously verified repair rule from the canonical memory with at least 0.90 success confidence and support from at least two successful fingerprints. The rule is revalidated against the current exact SHA and must remain inside the normal Repair Protocol. No new speculative strategy, gate bypass, third branch, or certification self-approval is permitted. If any fallback condition is not proven, execution fails closed.
+
+
+## Presidential Council hierarchy and large Work Packages
+
+`PRESIDENT → DEPUTY → INVESTIGATOR`
+
+P20 remains the single cooperation protocol; this section extends it without creating a competing protocol.
+
+- Council President = `assistantController`: mission selection, priority, assignment, arbitration, handoff acceptance and closure decisions. No mutation or certification.
+- Council Deputy = `verification`: queue sequencing, dependency ordering, ownership conflicts, session visibility and handoff flow. No mutation or certification.
+- Council Investigator = `analysis`: fingerprint, RCA, propagation, causal source, falsification and proof obligations. No mutation or reassignment.
+
+Every executable task is a causally coherent large Work Package carrying `missionId, workPackageId, taskId, councilRole, ownerRole, ownerAgent, workItems, acceptanceCriteria, proofObligations, dependsOn, entrySha, handoffTo`. Independent causes remain separate tasks.
+
+Claim admission fails closed when ownerRole is missing/mismatched, when the agent is not the assigned owner, when required Work Package fields are missing, or when the session scope does not cover the task scope. Unassigned ledger tasks return to the President as PENDING_ASSIGNMENT.
+
+Wake lifecycle: `PRESIDENT WAKE → exact-SHA validation → role/work-package validation → canonical communication relay → reusable workflow dispatch OR external-agent wake → session → claim → execute → handoff → President decision`. Wake never grants mutation authority.
+
+
+## External GPT account runtime
+
+P20 now carries a transport layer for exactly three external account identities: `CHIEF`, `WORKER_A`, `WORKER_B`.
+
+The runtime chain is `GitHub RED → CHIEF → WORKER_A/B → ACK + lease → heartbeat → completion → HANDOFF_READY → CHIEF`. Only CHIEF may dispatch worker packages.
+
+Lease expiry transfers a worker package to its configured counterpart exactly once. A second expiry remains unresolved and is returned to CHIEF; retry recursion is bounded.
+
+Persistence is server-side in Supabase. GitHub Actions supplies the automatic RED trigger and one-minute lease recovery watcher. External workers may use push endpoints or polling.
+
+A normal ChatGPT UI session is not directly addressable by GitHub. The final account-to-account connection therefore requires an external GPT runtime bridge or poller controlled by the corresponding account/operator. Secrets remain server-side.

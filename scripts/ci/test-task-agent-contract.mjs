@@ -4,51 +4,45 @@ import fs from 'node:fs';
 
 const taskFile = fs.readFileSync('المهام.md', 'utf8');
 const contract = fs.readFileSync('docs/agents/TASK-AGENT.md', 'utf8');
+const systemPrompt = fs.readFileSync('docs/agents/TASK-AGENT-SYSTEM-PROMPT.md', 'utf8');
 const agent = fs.readFileSync('scripts/ci/task-agent.mjs', 'utf8');
 const execution = fs.readFileSync('scripts/ci/agent-execution-control.mjs', 'utf8');
+const repairProtocol = fs.readFileSync('scripts/ci/repair-protocol.mjs', 'utf8');
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 
 assert.ok(taskFile.length > 0, 'المهام.md must exist and be non-empty');
-assert.match(execution, /MAJOR_MAX_REPAIR_CYCLES = 30/);
-assert.match(execution, /MAJOR_MAX_PREPARED_FILES = 60/);
-assert.match(execution, /MAJOR_MAX_INSPECTED_FILES = 240/);
-assert.match(agent, /FLIXO_MAJOR_REPAIR_WAVE/);
-assert.match(contract, /direct-execution agent/i);
-assert.match(contract, /MUST NOT use a repair cycle to:[\s\S]*mutate `main`[\s\S]*self-approve\/merge/i);
-assert.match(contract, /SELF_HEALING_REPAIR_ONLY/);
-assert.match(contract, /TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN/);
-assert.match(contract, /Repairing the reported failure is not task completion|CLOSED \/ VERIFIED/);
-assert.match(contract, /every red required check becomes a repair target/i);
-assert.match(contract, /CLOSED \/ VERIFIED.*canonical CI is green/is);
-assert.match(agent, /preparedOnly: false/);
-assert.match(agent, /DIRECT_SOURCE_MUTATION_COMMIT_PUSH_ON_EXECUTION_BRANCH/);
-assert.match(agent, /DIRECT_ON_EXECUTION_BRANCH/);
-assert.match(agent, /SELF_HEALING_REPAIR_ONLY/);
-assert.match(agent, /mainBranchMutation: false/);
-assert.match(agent, /branchPolicy: 'TWO_BRANCHES_ONLY_EXECUTION_AND_MAIN'/);
-assert.match(agent, /controlPlaneMutationPolicy = 'HUMAN_REVIEW_REQUIRED'/);
-assert.match(agent, /AUTO_REPAIR_CONTROLLER_FILES_MUST_NOT_BE_MUTATED_BY_AUTO_REPAIR/);
-assert.match(agent, /ACTIVE_UNTIL_CANONICAL_GREEN/);
-assert.match(agent, /cognitionRequired: Boolean/);
-assert.match(agent, /AUTO_REPAIR_REASONING_KERNEL/);
-assert.match(agent, /reusableKnowledge/);
-assert.match(agent, /generalizedAcrossFingerprints: true/);
-assert.match(agent, /CONTRACT_VERSION = 'TASK-AGENT-DIRECT-REPAIR-v2'/);
-assert.match(agent, /rescanAfterEveryRepair: true/);
-assert.match(agent, /everyRedCheckMustBecomeARepairTarget: true/);
-assert.match(agent, /circuitBreaker:\s*\{[\s\S]*enabled: true,[\s\S]*maxStalledCycles: 3/);
-assert.match(agent, /action: 'REQUIRES_REVIEW_AND_REDISPATCH'/);
-assert.match(execution, /status: 'ACTIVE_UNTIL_GREEN'/);
-assert.match(execution, /openNewCycleForEveryRedCheck: true/);
-assert.match(execution, /closureRequiresCanonicalGreen: true/);
-assert.match(execution, /CLOSURE_GATE/);
-assert.match(execution, /NORMAL_MAX_REPAIR_CYCLES = 12/);
-assert.match(execution, /maxCycles: MAX_REPAIR_CYCLES/);
-assert.match(execution, /NORMAL_MAX_PREPARED_FILES = 12/);
-assert.match(execution, /CONTROL_PLANE_MUTATION_POLICY = 'HUMAN_REVIEW_REQUIRED'/);
-assert.match(execution, /MAX_STALLED_REPAIR_CYCLES = 3/);
-assert.match(execution, /CIRCUIT_BREAKER_OPEN/);
-assert.match(execution, /SAME_FAILURE_FINGERPRINT_WITHOUT_VERIFIABLE_PROGRESS/);
-assert.equal(packageJson.scripts['agent:task'], 'node scripts/ci/task-agent.mjs');
 
-console.log(JSON.stringify({ status: 'PASS', authority: 'TASK_AGENT_CONTRACT_TEST', checks: 27 }, null, 2));
+for (const text of [contract, systemPrompt]) {
+  assert.match(text, /preparation-only/i);
+  assert.match(text, /MUST NOT/i);
+  assert.match(text, /mutate/i);
+}
+
+assert.ok(agent.includes("actor: 'taskAgent'"));
+assert.ok(agent.includes("preparedOnly: true"));
+assert.ok(agent.includes("executionMode: 'PREPARATION_ONLY'"));
+assert.ok(agent.includes("mutationPolicy: 'NO_DIRECT_MUTATION'"));
+assert.ok(agent.includes("const executionAuthority = 'TASK_PREPARATION_ONLY';"));
+assert.ok(agent.includes('executionAuthority,\n    mutationScope'));
+assert.ok(agent.includes("TASK-AGENT-PREPARATION-v3"));
+assert.ok(agent.includes("applyAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT'"));
+assert.ok(!agent.includes('TASK_AGENT_DIRECT_EXECUTION'));
+assert.ok(!agent.includes('TASK_AGENT_ON_EXECUTION_BRANCH_ONLY'));
+
+assert.ok(execution.includes('TASK_AGENT_CONTRACT_VERSION = \'TASK-AGENT-PREPARATION-v3\''));
+assert.ok(execution.includes("preparedOnly !== true"));
+assert.ok(execution.includes("executionMode !== 'PREPARATION_ONLY'"));
+assert.ok(execution.includes("packet.executionAuthority !== 'TASK_PREPARATION_ONLY'"));
+assert.ok(execution.includes("packet.mutationPolicy !== 'NO_DIRECT_MUTATION'"));
+assert.ok(execution.includes("REPAIR_AGENT_OR_EXECUTION_AGENT"));
+
+for (const role of ["'repairAgent'", "'executionAgent'", "'assistantRepairAgent'"]) assert.ok(repairProtocol.includes(role));
+assert.ok(repairProtocol.includes('primaryAgentsUnavailable'));
+assert.ok(repairProtocol.includes('minConfidence: 0.90'));
+assert.ok(repairProtocol.includes('minSupport: 2'));
+assert.ok(!repairProtocol.includes("mutationAgents: ['repairAgent','implementation','executionAgent','taskAgent']"));
+
+assert.equal(packageJson.scripts['agent:task'], 'node scripts/ci/task-agent.mjs');
+assert.equal(packageJson.scripts['test:agent-admission'], 'node scripts/ci/test-agent-admission.mjs');
+
+console.log(JSON.stringify({ status: 'PASS', authority: 'TASK_AGENT_PREPARATION_CONTRACT_TEST', checks: 20 }, null, 2));

@@ -50,7 +50,9 @@ assert.match(dailyGateWorkflow, /const observedBranch = read\('\/tmp\/flixo-watc
 assert.match(dailyGateWorkflow, /observedBranch,/);
 assert.doesNotMatch(dailyGateWorkflow, /- FLIXO WP0 Trust Baseline\n\s+- FLIXO Test Impact/);
 assert.doesNotMatch(dailyGateWorkflow, /gh\s+workflow\s+run\s+execution-bot-watchdog\.yml/i);
-assert.match(handoffGateWorkflow, /branches: \[execution, main\]/);
+assert.match(handoffGateWorkflow, /branches: \[execution\]/);
+assert.match(handoffGateWorkflow, /test "\$REPAIR_TARGET_BRANCH" = "execution"/);
+assert.match(dailyGateWorkflow, /CURRENT_EXECUTION_SHA=.*git\/ref\/heads\/execution/);
 assert.match(autoRepairWorkflow, /Initialize Repair Control Plane cycle/);
 assert.match(autoRepairWorkflow, /to=EVIDENCE_LOCKED/);
 assert.match(autoRepairWorkflow, /to=RCA/);
@@ -60,8 +62,8 @@ assert.match(autoRepairWorkflow, /to=LOCAL_VERIFICATION/);
 assert.match(autoRepairWorkflow, /to=PUBLISHED_TO_EXECUTION/);
 assert.match(autoRepairWorkflow, /to=CANONICAL_CI/);
 assert.match(dailyGateWorkflow, /failure_fingerprint=\\$FAILURE_FINGERPRINT/);
-assert.match(handoffGateWorkflow, /CURRENT_TARGET_SHA=/);
-assert.match(handoffGateWorkflow, /HANDOFF_TARGET_SHA/);
+assert.match(handoffGateWorkflow, /CURRENT_EXECUTION_SHA=/);
+assert.match(handoffGateWorkflow, /HANDOFF_EXECUTION_SHA/);
 
 
 const externalLog = [
@@ -113,7 +115,8 @@ assert.equal(graph.valid,true);
 assert.equal(graph.nodes.length,8);
 
 const supervisorWorkflow = fs.readFileSync('.github/workflows/agent-repair-supervisor.yml', 'utf8');
-assert.match(supervisorWorkflow, /push:/);
-assert.match(supervisorWorkflow, /branches: \[execution, main\]/);
-assert.match(supervisorWorkflow, /gh workflow run auto-repair\.yml/);
-assert.match(supervisorWorkflow, /SUPERSEDED/);
+assert.doesNotMatch(supervisorWorkflow, /push:/);
+assert.doesNotMatch(supervisorWorkflow, /pull_request:/);
+assert.doesNotMatch(supervisorWorkflow, /gh workflow run auto-repair\.yml/);
+assert.match(supervisorWorkflow, /DISPATCH_AUTHORITY=CANONICAL_REPAIR_GATE_ONLY/);
+assert.match(supervisorWorkflow, /permissions:[\\s\\S]*contents: read/);

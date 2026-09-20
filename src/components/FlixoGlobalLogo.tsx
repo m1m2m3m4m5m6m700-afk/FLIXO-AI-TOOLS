@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
+import { FlixoLogoImage } from './FlixoLogoImage';
 
 const ADMIN_ENTRY_PATH = '/admin';
 const ADMIN_CLICK_WINDOW_MS = 2000;
@@ -73,14 +74,10 @@ export function FlixoGlobalLogo() {
         event.currentTarget.style.boxShadow = '0 14px 40px rgba(0, 0, 0, 0.38), 0 0 26px rgba(20, 207, 222, 0.12)';
       }}
     >
-      <img
-        src="/flixo-logo.webp"
+      <FlixoLogoImage
         alt="FLIXO AI Tools"
         width={192}
         height={192}
-        loading="eager"
-        decoding="async"
-        draggable={false}
         style={imageStyle}
       />
     </a>

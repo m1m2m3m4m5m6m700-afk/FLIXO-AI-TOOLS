@@ -1,7 +1,41 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { signAdminSession, sessionCookieName } from '../api/admin/boundary.ts';
 
 const SECRET = 'phase1-admin-test-secret'.padEnd(32, '0');
+process.env.SUPABASE_URL = 'https://example.supabase.co';
+process.env.SUPABASE_SECRET_KEY = 'test-secret';
+const sessions = new Map();
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (input, init = {}) => {
+  const url = String(input);
+  if (!url.includes('/rest/v1/flix_admin_sessions')) return originalFetch(input, init);
+  const method = String(init.method ?? 'GET');
+  const match = new URL(url).searchParams.get('session_id');
+  const sessionId = match?.replace(/^eq\./, '');
+  if (method === 'GET') {
+    const row = sessionId ? sessions.get(sessionId) : undefined;
+    return new Response(JSON.stringify(row ? [row] : []), { status: 200 });
+  }
+  throw new Error('unexpected test boundary session-store mutation');
+};
+const issuedTokens = new Map();
+const issue = ({ subject, capabilities, role, ttlSeconds } = {}) => {
+  const sessionId = randomUUID();
+  const now = new Date();
+  const token = signAdminSession({ subject, capabilities, role, sessionId, ttlSeconds }, SECRET);
+  sessions.set(sessionId, {
+    session_id: sessionId,
+    actor_subject: subject,
+    actor_role: role ?? 'ADMIN',
+    environment: 'test',
+    issued_at: now.toISOString(),
+    expires_at: new Date(now.getTime() + (ttlSeconds ?? 60 * 60) * 1000).toISOString(),
+    revoked_at: null,
+  });
+  issuedTokens.set(token, sessionId);
+  return token;
+};
 
 const invoke = async ({ secret = SECRET, cookie = '', method = 'GET', query = {}, requestId = 'test-request-001' } = {}) => {
   const previous = process.env.ADMIN_SESSION_SECRET;
@@ -107,11 +141,11 @@ const invokeExecutionPreview = async ({ secret = SECRET, cookie = '', method = '
   return { status: res.statusCode, headers, body: JSON.parse(body) };
 };
 
-const session = signAdminSession({ subject: 'test-owner', capabilities: ['admin.read', 'truth.read'] }, SECRET);
+const session = issue({ subject: 'test-owner', capabilities: ['admin.read', 'truth.read'] }, SECRET);
 const cookie = `${sessionCookieName}=${session}`;
-const readModelSession = signAdminSession({
+const readModelSession = issue({
   subject: 'read-model-owner',
-  capabilities: ['truth.read', 'operations.read', 'audit.read'],
+  capabilities: ['truth.read', 'operations.read', 'evidence.read', 'audit.read'],
 }, SECRET);
 const readModelCookie = `${sessionCookieName}=${readModelSession}`;
 
@@ -122,6 +156,11 @@ assert.equal(missingConfig.body.error.code, 'server_configuration_unavailable');
 const unauthenticated = await invoke();
 assert.equal(unauthenticated.status, 401);
 assert.equal(unauthenticated.body.error.code, 'authentication_required');
+
+const inactiveCapability = issue({ subject: 'bad-capability', capabilities: ['admin.read', 'production.write'], role: 'OWNER' });
+const inactiveCapabilityResponse = await invoke({ cookie: sessionCookieName + '=' + inactiveCapability });
+assert.equal(inactiveCapabilityResponse.status, 401);
+assert.equal(inactiveCapabilityResponse.body.error.code, 'authentication_required');
 
 const invalid = await invoke({ cookie: `${sessionCookieName}=invalid.token` });
 assert.equal(invalid.status, 401);
@@ -134,7 +173,7 @@ const tamperedResponse = await invoke({ cookie: `${sessionCookieName}=${tampered
 assert.equal(tamperedResponse.status, 401);
 assert.equal(tamperedResponse.body.error.code, 'authentication_required');
 
-const expired = signAdminSession({ subject: 'expired-owner', capabilities: ['admin.read'], ttlSeconds: -1 }, SECRET);
+const expired = issue({ subject: 'expired-owner', capabilities: ['admin.read'], ttlSeconds: -1 }, SECRET);
 const expiredResponse = await invoke({ cookie: `${sessionCookieName}=${expired}` });
 assert.equal(expiredResponse.status, 401);
 assert.equal(expiredResponse.body.error.code, 'authentication_required');
@@ -164,7 +203,7 @@ const overviewUnauthenticated = await invokeOverview();
 assert.equal(overviewUnauthenticated.status, 401);
 assert.equal(overviewUnauthenticated.body.error.code, 'authentication_required');
 
-const overviewDenied = await invokeOverview({ cookie: `${sessionCookieName}=${signAdminSession({ subject: 'analyst', capabilities: ['admin.read'] }, SECRET)}` });
+const overviewDenied = await invokeOverview({ cookie: `${sessionCookieName}=${issue({ subject: 'analyst', capabilities: ['admin.read'] }, SECRET)}` });
 assert.equal(overviewDenied.status, 403);
 assert.equal(overviewDenied.body.error.code, 'capability_denied');
 
@@ -176,7 +215,7 @@ assert.equal(overviewAllowed.body.truth.state, 'UNAVAILABLE');
 assert.equal(overviewAllowed.body.persistence.state, 'BLOCKED');
 assert.equal(overviewAllowed.body.identity.subject, 'test-owner');
 assert.equal(overviewAllowed.body.modules.length, 10);
-assert.equal(overviewAllowed.body.capabilities.length, 8);
+assert.equal(overviewAllowed.body.capabilities.length, 9);
 assert.equal(overviewAllowed.headers['X-Request-Id'], 'overview-request-001');
 
 const centersUnauthenticated = await invokeCenters({ query: { center: 'truth' } });
@@ -184,7 +223,7 @@ assert.equal(centersUnauthenticated.status, 401);
 assert.equal(centersUnauthenticated.body.error.code, 'authentication_required');
 
 const centersDenied = await invokeCenters({
-  cookie: `${sessionCookieName}=${signAdminSession({ subject: 'analyst', capabilities: ['admin.read'] }, SECRET)}`,
+  cookie: `${sessionCookieName}=${issue({ subject: 'analyst', capabilities: ['admin.read'] }, SECRET)}`,
   query: { center: 'security' },
 });
 assert.equal(centersDenied.status, 403);
@@ -214,14 +253,14 @@ const centersDefault = await invokeCenters({ cookie: readModelCookie });
 assert.equal(centersDefault.status, 400);
 assert.equal(centersDefault.body.error.code, 'invalid_admin_center');
 
-const securitySession = signAdminSession({ subject: 'security-owner', capabilities: ['security.read'] }, SECRET);
+const securitySession = issue({ subject: 'security-owner', capabilities: ['security.read'] }, SECRET);
 const securityResponse = await invokeCenters({ cookie: `${sessionCookieName}=${securitySession}`, query: { center: 'security' } });
 assert.equal(securityResponse.status, 200);
 assert.equal(securityResponse.body.center, 'security');
 assert.equal(securityResponse.body.capability, 'security.read');
 assert.equal(securityResponse.body.data.execution, 'READ_ONLY');
 
-const contractSession = signAdminSession({ subject: 'contract-owner', capabilities: ['contracts.read'] }, SECRET);
+const contractSession = issue({ subject: 'contract-owner', capabilities: ['contracts.read'] }, SECRET);
 const contractResponse = await invokeCenters({ cookie: `${sessionCookieName}=${contractSession}`, query: { center: 'contract' } });
 assert.equal(contractResponse.status, 200);
 assert.equal(contractResponse.body.center, 'contract');
@@ -243,7 +282,7 @@ const previewDenied = await invokeExecutionPreview({
 assert.equal(previewDenied.status, 403);
 assert.equal(previewDenied.body.error.code, 'capability_denied');
 
-const executionSession = signAdminSession({ subject: 'execution-owner', capabilities: ['system.read'] }, SECRET);
+const executionSession = issue({ subject: 'execution-owner', capabilities: ['system.read'] }, SECRET);
 const executionCookie = `${sessionCookieName}=${executionSession}`;
 
 const previewWrongMethod = await invokeExecutionPreview({
@@ -289,5 +328,12 @@ assert.equal(previewMissingTarget.status, 200);
 assert.equal(previewMissingTarget.body.plan.policy.decision, 'DENY');
 assert.equal(previewMissingTarget.body.plan.policy.reason, 'missing_target');
 assert.equal(previewMissingTarget.body.plan.execution.enabled, false);
+
+const revokedToken = issue({ subject: 'revoked-owner', capabilities: ['admin.read', 'truth.read'], role: 'OWNER' });
+const revokedSessionId = issuedTokens.get(revokedToken);
+sessions.get(revokedSessionId).revoked_at = new Date().toISOString();
+const revokedResponse = await invokeOverview({ cookie: sessionCookieName + '=' + revokedToken });
+assert.equal(revokedResponse.status, 401);
+assert.equal(revokedResponse.body.error.code, 'authentication_required');
 
 console.log('Admin server boundary contract tests passed: 36 fail-closed/authorization/correlation/overview/read-model/execution-preview cases.');

@@ -1,14 +1,16 @@
 export const REPAIR_GATE_AUTOMATION = Object.freeze([
   'auto-repair.yml',
   'daily-flixo-green-gate.yml',
-  'agent-repair-supervisor.yml',
   'execution-sync.yml',
-  'agent-repair-heartbeat.yml',
+  'execution-bot-watchdog.yml',
+  'auto-repair-merge-gate.yml',
 ]);
 
 export const WRITE_CAPABLE_WORKFLOWS = Object.freeze([
   'auto-repair.yml',
+  'daily-flixo-green-gate.yml',
   'execution-sync.yml',
+  'repair-lease-live-race.yml',
 ]);
 
 export const SECURITY_CRITICAL_WORKFLOWS = Object.freeze([
@@ -32,7 +34,6 @@ export const HISTORICAL_REPAIR_WORKFLOWS = Object.freeze([
 
 export const TRUST_PERIMETER_PATHS = Object.freeze([
   '.github/workflows/auto-repair.yml',
-  '.github/workflows/agent-repair-supervisor.yml',
   '.github/workflows/execution-sync.yml',
   '.github/workflows/wp0-trust-baseline.yml',
   'scripts/ci/control-plane-registry.mjs',
@@ -48,11 +49,6 @@ export const TRUST_PERIMETER_PATHS = Object.freeze([
   'scripts/ci/auto-repair/ai-phase3.mjs',
   'scripts/ci/task-agent.mjs',
   'scripts/ci/agent-execution-control.mjs',
-  'scripts/ci/prompt-intelligence.mjs',
-  'scripts/ci/validate-prompt-registry.mjs',
-  'scripts/ci/test-prompt-intelligence.mjs',
-  'docs/agents/PROMPT-REGISTRY.json',
-  'docs/agents/prompts/',
   'scripts/ci/repository-security-baseline.mjs',
   'scripts/ci/validate-auto-repair-memory.mjs',
   'scripts/ci/validate-certification-surface.mjs',

@@ -1,14 +1,4 @@
-import type { ComponentType, LazyExoticComponent } from 'react';
+import type { ToolDefinition } from '../canonical-tool-definition.ts';
 
-export type ToolConfig = {
-  readonly id: string;
-  readonly title: string;
-  readonly path: string;
-  readonly description: string;
-  readonly category: 'Images';
-  readonly isReady: boolean;
-  readonly aliases?: readonly string[];
-  readonly component: LazyExoticComponent<ComponentType>;
-};
-
-export type ToolFamily = 'image';
+export type ToolConfig = ToolDefinition;
+export type ToolFamily = ToolDefinition['family'];

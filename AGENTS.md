@@ -1,22 +1,10 @@
-## ZERO-NEW-BRANCH COMMAND
+# ✅ CANONICAL AGENT COUNCIL — PR #759
 
-**ABSOLUTE AGENT COMMAND — DO NOT CREATE OR USE ANY NEW BRANCH.**
+Issue #761 is archived and MUST NOT be used as an activation source. Active Council ingress is PR #759 on `execution → main`.
 
-All autonomous agents, repair agents, diagnostics, Prompt agents, Task Agent, Error Agent, watchdogs, and helper agents MUST work only on the canonical two-branch topology:
+PRESIDENT=`assistantController`; DEPUTY=`verification`; INVESTIGATOR=`analysis`. These are coordination titles over existing machine roles and do not create mutation or certification authority.
 
-`execution → main`
-
-Forbidden without exception:
-- `git checkout -b ...`
-- `git switch -c ...`
-- creating any feature/fix/chore/repair/agent/test/temp/backup/experimental branch;
-- creating a branch per error, SHA, run, prompt, task, or agent;
-- changing work to a third branch to escape conflicts;
-- using a newly created branch as a temporary holding area.
-
-When a conflict or new failure appears, stay on `execution`, perform RCA, repair there, and continue verification. When promotion is required, use the existing `execution → main` integration PR only. Existing historical branches may remain for provenance, but agents MUST NOT check them out, extend them, or create replacements.
-
-A branch-creation attempt is a protocol violation and MUST fail closed.
+Canonical Wake Dispatcher: integrated into `.github/workflows/agent-communication-relay.yml`, with `scripts/ci/council-wake-dispatch.mjs` as the deterministic planner.
 
 # 🚨 AGENT ENTRY GATE — FLIXO-AI-TOOLS
 
@@ -40,16 +28,13 @@ Before any repository action, every agent MUST read, in this order:
 8. `docs/PROTOCOL-HIERARCHY.md`
 9. `docs/PROTOCOL-REGISTRY.json`
 10. `docs/agents/PROMPT-REGISTRY.json`
-11. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
-11. `scripts/ci/test-plan.json`
-12. `scripts/ci/assertion-registry.json`
-13. the current exact `main` SHA and current workflow state
+11. `diagnostics/auto-repair/memory.json`
+12. `docs/MINIMAL-CI-FINAL-ARCHITECTURE.md`
+13. `scripts/ci/test-plan.json`
+14. `scripts/ci/assertion-registry.json`
+15. the current exact `main` SHA and current workflow state
 
 `PROJECTS.md` is the navigation/control layer; `المهام.md` is the open-task scope gate; the linked contract/plan remains authoritative for implementation semantics, and CI/evidence remains authoritative for completion.
-
-## SHARED PROMPT GATE
-
-Any agent that creates, selects, modifies, merges, or deprecates a repair prompt MUST read `docs/agents/PROMPT-REGISTRY.json` and use the Prompt Intelligence validator. It must search fingerprint, RCA, similar prompts, lessons, anti-lessons, overlap, and conflicts before changing prompt artifacts. Prompt duplication is decided from causal structure, not wording. Failed quality gates produce `PROMPT_REVIEW_REQUIRED` and cannot be ACTIVE. Prompt usage is advisory and must be bound to the current exact SHA.
 
 ## TASK GATE
 
@@ -141,6 +126,33 @@ Status meanings are strict: `ACTIVE`, `CANDIDATE`, `NEEDS DEVELOPMENT`, `DEFER`,
 
 Every session MUST update `PROJECTS.md` before leaving material unfinished work. Chat memory is not a project ledger.
 
+## TASK AGENT AUTHORITY
+
+`Task Agent = preparation only` is a machine-enforced authority boundary.
+
+The Task Agent may understand tasks, inspect evidence, consume Prompt Registry/Memory, prepare bounded changes and emit a handoff packet.
+
+The Task Agent MUST NOT mutate source, commit, push, create or merge pull requests, certify, or declare GREEN/CLOSED/VERIFIED.
+
+Repository mutation is limited to the canonical mutation roles admitted by `scripts/ci/repair-protocol.mjs`: `repairAgent` and `executionAgent`. `assistantRepairAgent` is fallback-only: it may mutate only when both primary mutation agents are unavailable, a learned rule has support >= 2 and confidence >= 0.90, the exact target SHA matches, and repair admission passes.
+
+A prompt, memory record, scout report, or handoff cannot grant mutation authority.
+
+## COMMUNICATION-FIRST GATE
+
+The shared agent communication channel is the first operational dependency for every agent.
+
+`NOTIFICATION → MASTER INBOX → EVENT-DRIVEN RELAY → READ → EXACT-SHA REVALIDATION → LOCK_SCOPE → TASK CLAIM → EXECUTE`
+
+The canonical communication runtime is `scripts/ci/agent-communication.mjs`, the event ingress is `.github/workflows/agent-communication-relay.yml`, the active Council ingress is PR #759, and Wake Dispatch is `.github/workflows/council-wake-dispatch.yml`. Issue #761 is archived and rejected.
+
+Every actionable message MUST carry a unique `messageId`/`idempotencyKey`, target `recipient`, `taskId`, declared `scope`, exact `entrySha`, risk, dependencies, expected evidence, stop conditions and proof obligations.
+
+Message receipt is not execution authority. `RECEIVED` means the message has entered the canonical inbox. `READ` means the target agent has explicitly consumed it. `CONSUMED` is allowed only after current exact-SHA validation and execution admission. `STALE` and `BLOCKED_CONFLICT` are fail-closed states.
+
+An agent session created from an inbound message MUST preserve `messageId` and message SHA in its session and visibility record. The following task claim MUST bind to that message and recheck message recipient, task, scope and exact SHA.
+
+Periodic polling is recovery only. Event-driven delivery is the primary notification path.
 ## AGENT LOGIN
 
 Before changing repository state, the agent MUST create:
@@ -173,7 +185,7 @@ Before implementation work, create or claim a task through the shared control pl
 `node scripts/ci/agent-coordination.mjs task-create ...`
 `node scripts/ci/agent-coordination.mjs task-claim --task=<id> --session=<id> --agent=<id>`
 
-The control plane rejects overlapping active RCA or mutable scope ownership. Dependencies must be complete before a task is claimable.
+The control plane rejects overlapping active RCA or mutable scope ownership. Mutating coordination is permitted only on `execution`; `main` remains read-only. Handoff ingestion requires the predecessor exact `exitSha` to equal the current `execution` SHA and cannot expand the predecessor scope. Active sessions whose entry SHA or governance fingerprint becomes stale are revoked fail-closed.
 
 A claimed task is not complete until its exact exit SHA, evidence, findings, remaining work, and RCA state are recorded.
 
@@ -262,3 +274,10 @@ The repository uses one automatic test workflow: `.github/workflows/ci.yml`.
 - Never claim a green release without fresh exact-SHA CI evidence.
 
 **MANDATORY ENTRY: `PROJECTS.md` → `المهام.md` → `AGENTS.md` → INGEST HANDOFF → PLAN → ROOT-CAUSE ANALYSIS → LOCK SCOPE → EXECUTION-ONLY CHANGE → TARGETED REGRESSION → EXACT-SHA PROOF → UPDATE PROJECT MAPS → HANDOFF.**
+
+
+## PRESIDENTIAL COUNCIL OPERATING MODEL
+
+`PRESIDENT → DEPUTY → INVESTIGATOR → SPECIALIST → VERIFY → HANDOFF → PRESIDENT`
+
+Tasks are large causally coherent Work Packages. Every claim requires ownerRole, Work Package identity, acceptance criteria, proof obligations and exact SHA. Unassigned ledger work returns to the President as PENDING_ASSIGNMENT. An agent stops after handoff and does not self-assign another package.

@@ -46,7 +46,11 @@ const targetSha = git(['rev-parse', 'HEAD']).trim();
 const protocolBranch = git(['branch', '--show-current']);
 if (protocolBranch !== 'execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
 const repairSessionId = process.env.FLIXO_REPAIR_SESSION_ID ?? process.env.FLIXO_REPAIR_CHAIN_ID ?? `repair-${process.env.GITHUB_RUN_ID ?? 'local'}-${targetSha.slice(0, 12)}`;
-let repairProtocolSession = createRepairSession({ repairSessionId, actor: 'repairAgent', failureFingerprint: fingerprint, targetSHA: targetSha, beforeState: { worktree: 'clean', targetSha }, attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1) });
+const repairActor = process.env.FLIXO_REPAIR_ACTOR ?? 'repairAgent';
+const fallbackProofPath = process.env.FLIXO_ASSISTANT_FALLBACK_PROOF_PATH ?? '';
+const fallbackProof = fallbackProofPath && fs.existsSync(fallbackProofPath) ? JSON.parse(fs.readFileSync(fallbackProofPath, 'utf8')) : null;
+if (repairActor === 'assistantRepairAgent' && !fallbackProof?.fallbackEligible) throw new Error('ASSISTANT_FALLBACK_PROOF_REQUIRED');
+let repairProtocolSession = createRepairSession({ repairSessionId, actor: repairActor, failureFingerprint: fingerprint, targetSHA: targetSha, beforeState: { worktree: 'clean', targetSha }, attempt: Number(process.env.FLIXO_REPAIR_ATTEMPT ?? 1), fallback: repairActor === 'assistantRepairAgent' ? { ...fallbackProof, actor: 'assistantRepairAgent', targetSha } : null });
 repairProtocolSession = captureFailure(repairProtocolSession, { runId: process.env.GITHUB_RUN_ID ?? null, failureFingerprint: fingerprint, logPath });
 const prepareTargetedVerification = (currentLog, currentFeatures) => {
   const selection = resolveTargetedTests(currentLog, currentFeatures, { targetDir });
@@ -98,6 +102,12 @@ const reusableKnowledge = deriveReusableKnowledge(memory, { rootCause: diagnosis
 const plan = planRepair(log, { historical: historicalReasoningSupport, memory });
 const specialist = selectSpecialist(plan.features);
 let selected = plan.selected;
+if (repairActor === 'assistantRepairAgent') {
+  const approvedRule = fallbackProof?.approvedLearnedRule;
+  const approvedCandidate = plan.candidates.find((candidate) => candidate.id === approvedRule && candidate.mutate && Number(candidate.confidence ?? 0) >= 90);
+  if (!approvedCandidate) throw new Error('ASSISTANT_FALLBACK_LEARNED_RULE_NOT_REUSABLE_ON_CURRENT_SHA');
+  selected = approvedCandidate;
+}
 const historicalRules = [
   ...(reusableKnowledge.generalizedRules ?? []).map((item) => item.rule).filter(Boolean),
 ];
@@ -159,7 +169,7 @@ evidence.diagnosisGate = diagnosisGate;
 if (historicalRollbackCandidate && diagnosisGate.allowed) {
   const before = snapshot(targetDir);
   repairProtocolSession = authorizeMutation(repairProtocolSession);
-  assertAgentAdmission({ actor: 'repairAgent', branch: protocolBranch, mutation: true, session: repairProtocolSession });
+  assertAgentAdmission({ actor: repairActor, branch: protocolBranch, mutation: true, session: repairProtocolSession });
   const preparedVerification = prepareTargetedVerification(log, plan.features);
   evidence.reproductionSelection = preparedVerification.selection;
   evidence.targetIdentity = preparedVerification.targetIdentity;

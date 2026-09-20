@@ -4,14 +4,16 @@
 
 The platform must support 1,000+ tools without creating one-off routing, SEO, localization, readiness, or test systems per tool.
 
-The authoritative input remains the tool registry. A tool is registered once; shared indexes and contract consumers derive the rest.
+The authoritative input is the canonical tool definition. A tool is declared once; the single Tool Loader builds the indexed catalog and shared consumers derive the rest.
 
 ## Core model
 
 ```text
-Tool Definition
+Canonical Tool Definition
    ↓
-TOOL_REGISTRY
+Single Tool Loader
+   ↓
+Validated TOOL_REGISTRY
    ↓
 TOOL_CATALOG
    ├── byId
@@ -34,16 +36,16 @@ Router / SEO / Sitemap / i18n / Browser Matrix / Certification
 
 ## Complexity target
 
-Registry validation is `O(n)` at initialization. Normal lookup is `O(1)` through maps. Adding a tool therefore does not require adding another per-tool router table or per-tool lookup loop.
+Registry/catalog validation is `O(n)` at initialization. Normal lookup is `O(1)` through maps. Deterministic catalog ordering is enforced by canonical ID sort. Adding a tool therefore does not require another per-tool router table or lookup loop.
 
 ## Management contract
 
 Each future tool should eventually declare an operational profile covering lifecycle, execution model, capabilities, contract levels, output class, security profile, localization scope, browser ownership, and evidence requirements. This metadata belongs beside the tool identity and should be consumed by generic engines.
 
-The current foundation intentionally does not invent execution metadata for existing tools. The migration path is:
+The current foundation now binds explicit operational metadata through the canonical definition. The migration path is:
 
 ```text
-unclassified → explicitly classified → contract-enforced → certified
+canonical definition → validated operational profile → indexed discovery → contract-enforced → certified
 ```
 
 ## Test ownership
@@ -60,3 +62,10 @@ At 1,000 tools, the platform should avoid:
 - generating a bespoke test suite for each administrative concern.
 
 The intended architecture is one registry, one indexed catalog, shared contract engines, and data-driven matrices.
+
+
+## Repair/Executor boundary
+
+The execution pipeline consumes the canonical executor binding and recovery policy instead of maintaining a second executable-tool allowlist. Verification remains capability metadata-driven through the canonical verifier contract. Output contracts bind through the canonical output-contract identifier.
+
+The compatibility module for executable tool IDs is derived from the canonical capability registry and no longer owns a separate list of executable IDs.

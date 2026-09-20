@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { authorizeAdminRequest } from './boundary.ts';
-import { getEvent, isPersistenceConfigured, probePersistence } from './persistence.ts';
+import { authorizeAdminRequestWithDurableSession } from './boundary.ts';
+import { getEvent, getLatestEvidenceForAssertion, isPersistenceConfigured, probePersistence } from './persistence.ts';
 
 const CENTER_CAPABILITY = {
   truth: 'truth.read',
   operations: 'operations.read',
   incident: 'operations.read',
-  evidence: 'audit.read',
+  evidence: 'evidence.read',
   security: 'security.read',
   contract: 'contracts.read',
 } as const;
@@ -33,7 +33,7 @@ export default async function adminCenters(req: AdminRequest, res: ServerRespons
   }
 
   const center = rawCenter as Center;
-  const authorization = authorizeAdminRequest(req, CENTER_CAPABILITY[center]);
+  const authorization = await authorizeAdminRequestWithDurableSession(req, CENTER_CAPABILITY[center]);
 
   if ('status' in authorization) {
     if (authorization.status === 405) res.setHeader('Allow', 'GET');
@@ -53,10 +53,19 @@ export default async function adminCenters(req: AdminRequest, res: ServerRespons
   }
 
   const eventId = first(req.query?.eventId);
+  const assertionId = first(req.query?.assertionId);
   let event: Awaited<ReturnType<typeof getEvent>> | undefined;
-  if (eventId && (center === 'truth' || center === 'incident' || center === 'evidence')) {
+  let evidence: Awaited<ReturnType<typeof getLatestEvidenceForAssertion>> | undefined;
+  if (eventId && (center === 'truth' || center === 'incident')) {
     try {
       event = await getEvent(eventId);
+    } catch {
+      return json(res, 503, { ok: false, error: { code: 'event_source_unavailable', correlationId: authorization.correlationId } }, authorization.correlationId);
+    }
+  }
+  if (assertionId && (center === 'truth' || center === 'evidence')) {
+    try {
+      evidence = await getLatestEvidenceForAssertion(assertionId);
     } catch {
       return json(res, 503, { ok: false, error: { code: 'evidence_source_unavailable', correlationId: authorization.correlationId } }, authorization.correlationId);
     }
@@ -74,6 +83,8 @@ export default async function adminCenters(req: AdminRequest, res: ServerRespons
     data: {
       event: event ?? null,
       eventLookup: eventId ? (event === null ? 'NOT_FOUND' : 'READ_BACK') : 'NOT_REQUESTED',
+      evidence: evidence ?? null,
+      evidenceLookup: assertionId ? (evidence === null ? 'NOT_FOUND' : 'READ_BACK') : 'NOT_REQUESTED',
       execution: 'READ_ONLY',
     },
     provenance: {

@@ -17,12 +17,13 @@ const requiredFiles = [
   'docs/AGENT-COORDINATION-CONTROL-PLANE.md',
   'docs/PROTOCOL-HIERARCHY.md',
   'docs/PROTOCOL-REGISTRY.json',
-  'docs/agents/PROMPT-REGISTRY.json',
-  'scripts/ci/prompt-intelligence.mjs',
-  'scripts/ci/validate-prompt-registry.mjs',
   'scripts/ci/agent-session.mjs',
+  'scripts/ci/agent-execution-control.mjs',
   'scripts/ci/repair-protocol.mjs',
   'scripts/ci/agent-coordination.mjs',
+  'scripts/ci/agent-communication.mjs',
+  'scripts/ci/test-agent-communication.mjs',
+  'scripts/ci/test-agent-admission.mjs',
   'scripts/ci/auto-repair-engine.mjs',
   'scripts/ci/auto-repair-proof.mjs',
   'scripts/validate-ci-contract.mjs',
@@ -38,7 +39,7 @@ const requiredAgentsMarkers = [
   'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
   'docs/PROTOCOL-REGISTRY.json',
   '`PROJECTS.md` → `المهام.md` → `AGENTS.md`',
-  'TASK GATE', 'ZERO-NEW-BRANCH COMMAND', 'execution → main', 'A branch-creation attempt is a protocol violation', 'SHARED PROMPT GATE', 'PROMPT-REGISTRY.json',
+  'TASK GATE', 'Task Agent = preparation only',
 ];
 if (exists('AGENTS.md')) {
   const text = read('AGENTS.md');
@@ -73,7 +74,7 @@ const requiredProtocolMarkers = [
   'Evidence and provenance', 'Failure and RCA', 'Conflict protocol', 'Certification separation',
   'Logout', 'Enforcement', '--from-session=<previous-session>', 'Root-Cause-First Repair Protocol',
   'causal defect', 'trigger → propagation path → violated invariant → responsible source → observable symptom',
-  'targeted regression', 'affected dependency/contract graph',
+  'targeted regression', 'affected dependency/contract graph', 'Communication-first execution invariant',
   'mechanism proven → causal source repaired → targeted regression passes → affected contract graph passes → fresh exact-SHA evidence proves closure',
   'symptom-only workaround', 'new deterministic failure',
 ];
@@ -81,6 +82,16 @@ if (exists('docs/AGENT-COLLABORATION-PROTOCOL.md')) {
   const text = read('docs/AGENT-COLLABORATION-PROTOCOL.md');
   for (const marker of requiredProtocolMarkers) if (!text.includes(marker)) fail('PROTOCOL_MISSING', marker);
 }
+
+const taskAgentSource = exists('scripts/ci/task-agent.mjs') ? read('scripts/ci/task-agent.mjs') : '';
+if (taskAgentSource) {
+  for (const marker of ["actor: 'taskAgent'", "preparedOnly: true", "executionMode: 'PREPARATION_ONLY'", "mutationPolicy: 'NO_DIRECT_MUTATION'", "const executionAuthority = 'TASK_PREPARATION_ONLY';", "TASK-AGENT-PREPARATION-v3", "applyAuthority: 'EXECUTION_AGENT_OR_REPAIR_AGENT'"]) if (!taskAgentSource.includes(marker)) fail('TASK_AGENT_PREPARATION_CONTRACT_MISSING', marker);
+  if (taskAgentSource.includes("TASK_AGENT_DIRECT_EXECUTION") || taskAgentSource.includes("TASK_AGENT_ON_EXECUTION_BRANCH_ONLY")) fail('TASK_AGENT_DIRECT_MUTATION_MARKER_PRESENT');
+}
+const repairProtocolSource = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
+if (repairProtocolSource.includes("mutationAgents: ['repairAgent','implementation','executionAgent','taskAgent']")) fail('TASK_AGENT_MUTATION_AUTHORITY_PRESENT');
+for (const marker of ["'repairAgent'", "'executionAgent'", "'assistantRepairAgent'", 'primaryAgentsUnavailable', 'minConfidence: 0.90', 'minSupport: 2']) if (!repairProtocolSource.includes(marker)) fail('REPAIR_MUTATION_AUTHORITY_SET_INVALID', marker);
+
 
 const repairProtocol = exists('scripts/ci/repair-protocol.mjs') ? read('scripts/ci/repair-protocol.mjs') : '';
 const repairEngine = exists('scripts/ci/auto-repair-engine.mjs') ? read('scripts/ci/auto-repair-engine.mjs') : '';
@@ -162,7 +173,7 @@ if (exists('docs/AGENT-HANDOFF-REPORT-SCHEMA.md')) {
   for (const marker of requiredHandoffMarkers) if (!text.includes(marker)) fail('HANDOFF_SCHEMA_MISSING', marker);
 }
 
-const requiredCoordinationMarkers = ['coordination-state.json', 'coordination-locks.json', 'task-packets', 'task-create', 'task-claim', 'task-release', 'task-complete', 'ingest-handoff', 'COORDINATION_CONFLICT'];
+const requiredCoordinationMarkers = ['coordination-state.json', 'coordination-locks.json', 'task-packets', 'task-create', 'task-claim', 'task-release', 'task-complete', 'ingest-handoff', 'COORDINATION_CONFLICT', 'COORDINATION_MUTATION_BRANCH_BLOCKED', 'HANDOFF_STALE_EXIT_SHA', 'HANDOFF_SCOPE_EXPANSION_BLOCKED', 'COORDINATION_GOVERNANCE_DRIFT', 'STALE_SESSION_KILL_SWITCH'];
 if (exists('scripts/ci/agent-coordination.mjs')) {
   const text = read('scripts/ci/agent-coordination.mjs');
   for (const marker of requiredCoordinationMarkers) if (!text.includes(marker)) fail('COORDINATION_TOOL_MISSING', marker);
@@ -172,6 +183,7 @@ const packageJson = exists('package.json') ? JSON.parse(read('package.json')) : 
 if (typeof packageJson.scripts?.['validate:agent-protocol'] !== 'string') fail('PACKAGE_SCRIPT_MISSING', 'validate:agent-protocol');
 if (typeof packageJson.scripts?.['validate:agent-coordination'] !== 'string') fail('PACKAGE_SCRIPT_MISSING', 'validate:agent-coordination');
 if (typeof packageJson.scripts?.['agent:coordination'] !== 'string') fail('PACKAGE_SCRIPT_MISSING', 'agent:coordination');
+if (typeof packageJson.scripts?.['test:agent-admission'] !== 'string') fail('PACKAGE_SCRIPT_MISSING', 'test:agent-admission');
 
 const ciContract = exists('scripts/validate-ci-contract.mjs') ? read('scripts/validate-ci-contract.mjs') : '';
 if (ciContract && !/scripts\/ci\/validate-agent-protocol\.mjs/u.test(ciContract)) fail('CI_CONTRACT_NOT_WIRED', 'validate-agent-protocol');
@@ -191,7 +203,7 @@ if (exists(lockFile)) {
 }
 
 const result = {
-  schemaVersion: 9,
+  schemaVersion: 10,
   authority: 'CI_PROTOCOL_GUARD',
   status: failures.length ? 'FAIL' : 'PASS',
   entryGate: 'PROJECTS.md → المهام.md → AGENTS.md',

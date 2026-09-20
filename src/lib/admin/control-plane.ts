@@ -38,6 +38,7 @@ export type ControlPlaneState = {
 export const ADMIN_CAPABILITIES: readonly AdminCapability[] = [
   'admin.read',
   'truth.read',
+  'evidence.read',
   'security.read',
   'contracts.read',
   'operations.read',

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { FlixoLogoImage } from './FlixoLogoImage';
 import { Link, useNavigate } from '@tanstack/react-router';
 import type { Locale } from '@/lib/i18n';
 import { getHomeCopy } from '../data/home-locales';
@@ -74,11 +75,11 @@ export function AgentFirstHome({ locale = 'en' as Locale }: { locale?: Locale })
       <header className="agent-first-nav">
         {locale === 'en' ? (
           <Link className="agent-first-brand" to="/" aria-label={copy.title}>
-            <img src="/flixo-logo.webp" alt="FLIXO AI Tools" width={40} height={40} />
+            <FlixoLogoImage alt="FLIXO AI Tools" width={40} height={40} />
           </Link>
         ) : (
           <Link className="agent-first-brand" to="/$locale" params={{ locale }} aria-label={copy.title}>
-            <img src="/flixo-logo.webp" alt="FLIXO AI Tools" width={40} height={40} />
+            <FlixoLogoImage alt="FLIXO AI Tools" width={40} height={40} />
           </Link>
         )}
         <nav className="agent-first-nav-actions" aria-label={home.ariaPrimary}>

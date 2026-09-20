@@ -15,11 +15,12 @@ export const REPAIR_PROTOCOL = Object.freeze({
   commitPolicy: 'ONE_COMMIT_PER_COMPLETED_REPAIR_SESSION',
   additionalCommitPolicy: 'ONLY_FOR_PROVEN_INDEPENDENT_BOUNDARY',
   bypassPolicy: 'BLOCK',
+  fallbackMutationPolicy: Object.freeze({ actor: 'assistantRepairAgent', minConfidence: 0.90, minSupport: 2 }),
   mutationRequires: ['protocolVersion','protocolHash','repairSessionId','failureFingerprint','targetSHA','beforeState'],
   completionRequires: ['repairAttempts','retestResult','resumePoint','finalVerification','finalSHA'],
   protectedPaths: ['scripts/ci/repair-protocol.mjs','scripts/ci/control-plane-registry.mjs','scripts/ci/auto-repair-engine.mjs','scripts/ci/auto-repair-policy.mjs','scripts/ci/agent-execution-control.mjs','.github/workflows/auto-repair.yml','scripts/ci/validate-agent-protocol.mjs'],
-  mutationAgents: ['repairAgent','implementation','executionAgent','taskAgent'],
-  allAgents: ['assistantController','analysis','implementation','verification','release','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','diagnosticAgent'],
+  mutationAgents: ['repairAgent','executionAgent','assistantRepairAgent'],
+  allAgents: ['assistantController','analysis','implementation','verification','release','codeScout','executionAgent','reviewAgent','testAgent','securityAgent','performanceAgent','certificationAuthority','taskAgent','errorAgent','repairAgent','assistantRepairAgent','diagnosticAgent'],
 });
 export const REPAIR_PROTOCOL_HASH=createHash('sha256').update(JSON.stringify(REPAIR_PROTOCOL),'utf8').digest('hex');
 const shaOk=v=>typeof v==='string'&&/^[a-f0-9]{40}$/u.test(v);
@@ -39,14 +40,21 @@ export function assertAgentAdmission({actor,branch='execution',mutation=false,se
   if(mutation&&branch!=='execution') throw new Error('REPAIR_PROTOCOL_MUTATION_BRANCH_BLOCKED');
   if(mutation&&!protocolOk(session)) throw new Error('REPAIR_PROTOCOL_SESSION_REQUIRED');
   if(mutation&&!['FAILURE_CAPTURED','MUTATION_AUTHORIZED'].includes(session.state)) throw new Error('REPAIR_PROTOCOL_MUTATION_STATE_BLOCKED');
+  if(mutation&&actor==='assistantRepairAgent') {
+    const fallback=session?.fallback;
+    if(!fallback?.primaryAgentsUnavailable) throw new Error('REPAIR_PROTOCOL_FALLBACK_PRIMARY_AGENT_AVAILABLE');
+    if(fallback.actor!=='assistantRepairAgent') throw new Error('REPAIR_PROTOCOL_FALLBACK_ACTOR_INVALID');
+    if(!fallback.learnedRule||Number(fallback.learnedRuleConfidence??0)<REPAIR_PROTOCOL.fallbackMutationPolicy.minConfidence||Number(fallback.learnedRuleSupport??0)<REPAIR_PROTOCOL.fallbackMutationPolicy.minSupport) throw new Error('REPAIR_PROTOCOL_FALLBACK_LEARNING_THRESHOLD');
+    if(fallback.targetSha!==session.targetSHA||!shaOk(fallback.targetSha)) throw new Error('REPAIR_PROTOCOL_FALLBACK_SHA_MISMATCH');
+  }
   return Object.freeze({actor,branch,mutation,protocol,admitted:true});
 }
-export function createRepairSession({repairSessionId,actor='repairAgent',failureFingerprint,targetSHA,beforeState={worktree:'clean'},attempt=1}={}){
+export function createRepairSession({repairSessionId,actor='repairAgent',failureFingerprint,targetSHA,beforeState={worktree:'clean'},attempt=1,fallback=null}={}){
   assertAgentAdmission({actor,branch:'execution',mutation:false});
   if(!String(repairSessionId??'').trim()) throw new Error('REPAIR_PROTOCOL_SESSION_ID_REQUIRED');
   if(!failureFingerprint) throw new Error('REPAIR_PROTOCOL_FAILURE_FINGERPRINT_REQUIRED');
   if(!shaOk(targetSHA)) throw new Error('REPAIR_PROTOCOL_TARGET_SHA_INVALID');
-  return Object.freeze({schemaVersion:1,protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,repairSessionId:String(repairSessionId),actor,state:'PROTOCOL_VALIDATED',failureFingerprint:String(failureFingerprint),targetSHA,beforeState:{...beforeState},repairAttempts:Math.max(1,Number(attempt)||1),retestResult:null,resumePoint:null,finalVerification:null,finalSHA:null,commitCount:0});
+  return Object.freeze({schemaVersion:1,protocolId:REPAIR_PROTOCOL.protocolId,protocolVersion:REPAIR_PROTOCOL.protocolVersion,protocolHash:REPAIR_PROTOCOL_HASH,repairSessionId:String(repairSessionId),actor,state:'PROTOCOL_VALIDATED',failureFingerprint:String(failureFingerprint),targetSHA,beforeState:{...beforeState},repairAttempts:Math.max(1,Number(attempt)||1),retestResult:null,resumePoint:null,finalVerification:null,finalSHA:null,commitCount:0,fallback});
 }
 export function captureFailure(session,evidence={}){
   if(!protocolOk(session)) throw new Error('REPAIR_PROTOCOL_SESSION_INVALID');

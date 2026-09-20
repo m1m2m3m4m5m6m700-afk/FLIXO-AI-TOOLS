@@ -87,9 +87,9 @@ export const ADMIN_MODULES: readonly AdminModule[] = [
     id: 'evidence-ledger',
     name: 'Evidence Ledger',
     status: 'PARTIAL',
-    capability: 'audit.read',
+    capability: 'evidence.read',
     truth: 'IMPLEMENTATION_PRESENT',
-    blocker: 'canonical persisted event read-back is available; complete evidence aggregation is not connected',
+    blocker: 'canonical evidence persistence read-back is available; broader evidence aggregation is not connected',
     execution: 'READ_ONLY',
   },
   {
@@ -123,9 +123,9 @@ export const ADMIN_EXECUTION_CLASSES = [
 ] as const;
 
 export const ADMIN_ROLE_CAPABILITY_MATRIX = {
-  OWNER: ['system.read', 'truth.read', 'contracts.read', 'operations.read', 'security.read', 'changes.read', 'audit.read', 'production.write'],
-  ADMIN: ['system.read', 'truth.read', 'contracts.read', 'operations.read', 'security.read', 'changes.read', 'audit.read', 'production.write'],
-  OPERATOR: ['system.read', 'truth.read', 'contracts.read', 'operations.read', 'security.read', 'changes.read', 'audit.read'],
-  ANALYST: ['system.read', 'truth.read', 'contracts.read', 'operations.read', 'security.read', 'changes.read', 'audit.read'],
-  AUDITOR: ['system.read', 'truth.read', 'contracts.read', 'security.read', 'changes.read', 'audit.read'],
+  OWNER: ['system.read', 'truth.read', 'evidence.read', 'contracts.read', 'operations.read', 'security.read', 'changes.read', 'audit.read', 'production.write'],
+  ADMIN: ['system.read', 'truth.read', 'evidence.read', 'contracts.read', 'operations.read', 'security.read', 'changes.read', 'audit.read', 'production.write'],
+  OPERATOR: ['system.read', 'truth.read', 'evidence.read', 'contracts.read', 'operations.read', 'security.read', 'changes.read', 'audit.read'],
+  ANALYST: ['system.read', 'truth.read', 'evidence.read', 'contracts.read', 'operations.read', 'security.read', 'changes.read', 'audit.read'],
+  AUDITOR: ['system.read', 'truth.read', 'evidence.read', 'contracts.read', 'security.read', 'changes.read', 'audit.read'],
 } as const;
