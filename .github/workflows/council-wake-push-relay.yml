@@ -17,8 +17,7 @@ concurrency:
 
 jobs:
   wake:
-    if: >-
-      contains(github.event.head_commit.message || '', 'PRESIDENT WAKE')
+    if: ${{ contains(github.event.head_commit.message, 'PRESIDENT WAKE') }}
     runs-on: ubuntu-latest
     steps:
       - name: Load and validate central Council directive
@@ -40,7 +39,7 @@ jobs:
           ROLE="$(printf '%s\n' "$MESSAGE" | sed -nE 's/.*ROLE=([A-Z]+).*/\1/p' | head -n1)"
           WP="$(printf '%s\n' "$MESSAGE" | sed -nE 's/.*WORK_PACKAGE=([A-Z][A-Z0-9_-]{3,80}).*/\1/p' | head -n1)"
           test -n "$ROLE"
-          test "$WP" =~ ^[A-Z][A-Z0-9_-]{3,80}$
+          [[ "$WP" =~ ^[A-Z][A-Z0-9_-]{3,80}$ ]]
           echo "role=$ROLE" >> "$GITHUB_OUTPUT"
           echo "work_package=$WP" >> "$GITHUB_OUTPUT"
           echo "entry_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
