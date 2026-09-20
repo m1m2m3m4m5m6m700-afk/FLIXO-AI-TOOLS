@@ -138,7 +138,10 @@ export function detectAdviceConflicts(records: readonly AdviceRecord[]) {
 }
 
 export function assertAdviceVaultCapacity(records: readonly AdviceRecord[]): AdviceRecord[] {
-  if (records.length > ADVICE_VAULT_CAPACITY) {\n    throw new Error(`ADVICE_VAULT_CAPACITY_EXCEEDED:${records.length}>${ADVICE_VAULT_CAPACITY}`);\n  }\n  const unique = deduplicateAdvice(records);
+  if (records.length > ADVICE_VAULT_CAPACITY) {
+    throw new Error(`ADVICE_VAULT_CAPACITY_EXCEEDED:${records.length}>${ADVICE_VAULT_CAPACITY}`);
+  }
+  const unique = deduplicateAdvice(records);
   if (unique.length > ADVICE_VAULT_CAPACITY) {
     throw new Error(`ADVICE_VAULT_CAPACITY_EXCEEDED:${unique.length}>${ADVICE_VAULT_CAPACITY}`);
   }
@@ -220,7 +223,8 @@ export function summarizeAdviceVault(records: readonly AdviceRecord[]) {
     capacity: ADVICE_VAULT_CAPACITY,
     materialized: unique.length,
     remaining: ADVICE_VAULT_CAPACITY - unique.length,
-    shards: shards.length,\n    shardSize: ADVICE_VAULT_SHARD_SIZE,
+    shards: shards.length,
+    shardSize: ADVICE_VAULT_SHARD_SIZE,
     maxShardSize: Math.max(0, ...shards.map((shard) => shard.length)),
     current: unique.filter((record) => record.status === 'CURRENT').length,
     revoked: unique.filter((record) => record.status === 'REVOKED').length,
