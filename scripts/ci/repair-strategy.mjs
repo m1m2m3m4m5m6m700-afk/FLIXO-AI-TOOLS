@@ -119,21 +119,6 @@ function behavioralTrainingRecommendation(training, rootCause, previousStrategy,
   return list.find((item)=>!rejected.includes(item.strategyId)) ?? null;
 }
 
-function trainingAbstentionDecision(training, causal, stateActionRecommendation, behavioralRecommendation, rejectedStrategies = []) {
-  const eligible = training?.decision?.eligibleToInfluenceRouting === true;
-  if (!eligible) return { eligible: false, abstain: false, mode: 'TRAINING_UNAVAILABLE', confidence: 0, threshold: null, reason: 'TRAINING_NOT_ELIGIBLE', nextEvidence: null };
-  const threshold = Number(training?.decision?.calibration?.recommendedAbstentionThreshold ?? training?.calibration?.abstention?.recommendedThreshold ?? 0.75);
-  const activePolicy = training?.activePolicy ?? training?.policy;
-  const contextual = activePolicy?.byRootCause?.[String(causal.rootCause ?? 'unknown').toLowerCase()]?.[0] ?? null;
-  const trainedConfidence = Number(stateActionRecommendation?.confidence ?? behavioralRecommendation?.confidence ?? contextual?.confidence ?? contextual?.successRate ?? 0);
-  const causalConfidence = Number(causal?.confidence ?? 0);
-  const ambiguous = causal?.ambiguity === true;
-  const lowConfidence = trainedConfidence < threshold || causalConfidence < 0.55;
-  const abstain = ambiguous || lowConfidence;
-  const reasons = [];
-  if (ambiguous) reasons.push('CAUSAL_AMBIGUITY');
-  if (trainedConfidence < threshold) reasons.push('TRAINING_CONFIDENCE_BELOW_THRESHOLD');
-  if (causalConfidence < 0.55) reasons.push('CAUSAL_CONFIDENCE_BELOW_THRESHOLD');
 function chooseNextEvidenceStrategy(causal, rejectedStrategies = [], priorStrategies = []) {
   const map = {
     lint: ['reproduce-exact','diff-forensics','minimize-failure'],
@@ -164,6 +149,21 @@ function chooseNextEvidenceStrategy(causal, rejectedStrategies = [], priorStrate
   };
 }
 
+function trainingAbstentionDecision(training, causal, stateActionRecommendation, behavioralRecommendation, rejectedStrategies = []) {
+  const eligible = training?.decision?.eligibleToInfluenceRouting === true;
+  if (!eligible) return { eligible: false, abstain: false, mode: 'TRAINING_UNAVAILABLE', confidence: 0, threshold: null, reason: 'TRAINING_NOT_ELIGIBLE', nextEvidence: null };
+  const threshold = Number(training?.decision?.calibration?.recommendedAbstentionThreshold ?? training?.calibration?.abstention?.recommendedThreshold ?? 0.75);
+  const activePolicy = training?.activePolicy ?? training?.policy;
+  const contextual = activePolicy?.byRootCause?.[String(causal.rootCause ?? 'unknown').toLowerCase()]?.[0] ?? null;
+  const trainedConfidence = Number(stateActionRecommendation?.confidence ?? behavioralRecommendation?.confidence ?? contextual?.confidence ?? contextual?.successRate ?? 0);
+  const causalConfidence = Number(causal?.confidence ?? 0);
+  const ambiguous = causal?.ambiguity === true;
+  const lowConfidence = trainedConfidence < threshold || causalConfidence < 0.55;
+  const abstain = ambiguous || lowConfidence;
+  const reasons = [];
+  if (ambiguous) reasons.push('CAUSAL_AMBIGUITY');
+  if (trainedConfidence < threshold) reasons.push('TRAINING_CONFIDENCE_BELOW_THRESHOLD');
+  if (causalConfidence < 0.55) reasons.push('CAUSAL_CONFIDENCE_BELOW_THRESHOLD');
   return {
     eligible: true,
     abstain,
@@ -174,7 +174,6 @@ function chooseNextEvidenceStrategy(causal, rejectedStrategies = [], priorStrate
     reason: reasons.join('|') || 'CONFIDENCE_SUFFICIENT',
   };
 }
-
 
 function strategyTrainingStats(training, id, rootCause) {
   const global = training?.policy?.global?.[id] ?? {};
