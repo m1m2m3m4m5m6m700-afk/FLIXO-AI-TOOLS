@@ -48,7 +48,10 @@
     "coreThreeMaxOperationsPerBot": 2000000,
     "coreThreeAutomaticVisitsPerDay": 3,
     "coreThreeTotalAutomaticVisits": 9,
-    "supervisorEscalationAfterFailedAttempts": 20
+    "supervisorEscalationAfterFailedAttempts": 20,
+    "cognitiveScopeMayExceedRoleScope": true,
+    "authorityScopeMustNotExpand": true,
+    "wholeSystemAwarenessRequired": true
   },
   "workers": [
     {
@@ -676,6 +679,16 @@
       "minimumSelectedFiles": 1,
       "mutationBlockedWithoutFileSelection": true,
       "excludedFilesNeedNewEvidence": true
+    },
+    "cognitiveAwarenessGate": {
+      "enabled": true,
+      "protocol": "ACTION-SYSTEM-COGNITIVE-AWARENESS-v1",
+      "artifact": "/tmp/action-system-cognitive-awareness.json",
+      "exactSha": true,
+      "allParticipantsConsumeSamePacket": true,
+      "contextBeforeRoleReasoning": true,
+      "mutationAuthorityUnchanged": true,
+      "reEvaluateOnNewEvidence": true
     }
   },
   "coreThreeBotContract": {
@@ -729,6 +742,8 @@
     "twin": "ACTION-REPAIR-2",
     "intelligenceParity": "EXACT",
     "authorityParity": "SEPARATED_BY_DESIGN",
-    "mutationOwner": "ACTION-REPAIR"
+    "mutationOwner": "ACTION-REPAIR",
+    "cognitiveAwarenessProtocol": "ACTION-SYSTEM-COGNITIVE-AWARENESS-v1",
+    "sharedSystemContextArtifact": "/tmp/action-system-cognitive-awareness.json"
   }
 }
