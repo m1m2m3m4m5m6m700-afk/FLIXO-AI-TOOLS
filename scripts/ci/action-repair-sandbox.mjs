@@ -26,7 +26,7 @@ const parseCheck = (check) => {
     return ['node', parts.slice(1)];
   }
   if (/^node --check (?:scripts|diagnostics)\//u.test(value)) {
-    const parts = value.split(/\\s+/u);
+    const parts = value.split(/\s+/u);
     return ['node', parts.slice(1)];
   }
   throw new Error(`SANDBOX_CHECK_NOT_ALLOWLISTED:${value}`);
@@ -100,7 +100,7 @@ export function simulateRepair({
     const nodeModules = path.join(repoRoot, 'node_modules');
     const sandboxNodeModules = path.join(worktree, 'node_modules');
     if (fs.existsSync(nodeModules) && !fs.existsSync(sandboxNodeModules)) {
-      try { fs.symlinkSync(nodeModules, sandboxNodeModules, 'junction'); } catch {}
+      try { fs.symlinkSync(nodeModules, sandboxNodeModules, 'junction'); } catch { /* dependency link is optional */ }
     }
     const head = runGit(worktree, ['rev-parse', 'HEAD']).trim();
     if (head !== targetSha) throw new Error('SANDBOX_TARGET_SHA_MISMATCH');
@@ -135,8 +135,8 @@ export function simulateRepair({
     };
   } finally {
     if (added) {
-      try { runGit(repoRoot, ['worktree', 'remove', '--force', worktree]); } catch {}
+      try { runGit(repoRoot, ['worktree', 'remove', '--force', worktree]); } catch { /* cleanup is best effort */ }
     }
-    try { fs.rmSync(tempRoot, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(tempRoot, { recursive: true, force: true }); } catch { /* temp cleanup is best effort */ }
   }
 }
