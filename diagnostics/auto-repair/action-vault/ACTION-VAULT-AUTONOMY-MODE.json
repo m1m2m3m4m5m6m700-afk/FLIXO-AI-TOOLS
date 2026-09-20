@@ -24,7 +24,10 @@
       "targeted regression",
       "learning capture",
       "handoff",
-      "recovery"
+      "recovery",
+      "branch conflict recovery",
+      "execution-head requalification",
+      "same-mission continuation"
     ],
     "prohibited": [
       "main mutation",
@@ -45,14 +48,22 @@
     "canonicalGreenRequiredForClosure": true,
     "nonGreenCycleRemainsOpen": true,
     "nonGreenLearningEphemeral": true,
-    "noBlindRetry": true
+    "noBlindRetry": true,
+    "conflictRecoveryRequired": true,
+    "conflictRecoveryOnExecutionAdvance": true,
+    "sameMissionContinuation": true,
+    "noConflictWithdrawal": true
   },
   "failureBehavior": {
     "unavailableBot": "ESCALATE_AND_KEEP_MISSION_OPEN",
     "staleSha": "FAIL_CLOSED_AND_REQUALIFY",
     "conflictingEvidence": "FAIL_CLOSED_AND_ARBITRATE",
     "externalFailure": "CLASSIFY_EXTERNAL_NO_SOURCE_MUTATION",
-    "criticalPath": "STOP_AND_REQUIRE_HUMAN_AUTHORIZATION"
+    "criticalPath": "STOP_AND_REQUIRE_HUMAN_AUTHORIZATION",
+    "branchConflict": "PAUSE_MUTATION_REQUALIFY_CURRENT_HEAD_REAPPLY_OR_REGENERATE_REPAIR_REVERIFY_CONTINUE_SAME_MISSION",
+    "executionHeadMoved": "REQUALIFY_CURRENT_HEAD_AND_CONTINUE_SAME_MISSION",
+    "conflictRecovery": "IN_PLACE_ONLY",
+    "conflictRecoveryNever": "SURRENDER_OWNER_OR_CLOSE_MISSION"
   },
   "trustBoundary": {
     "botMayOperateRoutinelyWithoutHuman": true,
