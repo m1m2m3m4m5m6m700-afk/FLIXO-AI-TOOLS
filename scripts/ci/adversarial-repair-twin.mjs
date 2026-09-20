@@ -94,7 +94,7 @@ const selectedHypothesis = twinVariant === 'B' && (inferenceCandidate?.repairRul
   ? { id: inferenceCandidate.repairRule ?? inferenceCandidate.strategyId, score: inferenceFallback?.prediction?.confidence ?? 0 }
   : (top ?? alternative);
 const twinPreferredStrategy = twinVariant === 'B'
-  ? (inferenceFallback?.hypothesis?.strategyId ?? mapAlternativeStrategy(alternative?.id ?? top?.id))
+  ? mapAlternativeStrategy(inferenceFallback?.hypothesis?.rootCause ?? alternative?.id ?? top?.id)
   : mapAlternativeStrategy(alternative?.id ?? top?.id);
 const twinAlternativeRepair = twinVariant === 'B'
   ? (inferenceFallback?.hypothesis?.repair ?? mapAlternativeRepair(alternative?.id ?? top?.id, diagnosis.location))
