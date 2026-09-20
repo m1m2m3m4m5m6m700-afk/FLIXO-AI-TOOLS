@@ -113,12 +113,18 @@ const logForCheck = (check, logs) => {
   return logs[String(match?.[1] ?? '')] ?? logs[String(check?.id ?? '')] ?? '';
 };
 
+const isExternalCheckName = (name) => {
+  const normalized = String(name ?? '').trim();
+  return EXTERNAL_CHECK_PATTERNS.some((pattern) => pattern.test(normalized));
+};
+
 function externalCheckBlock(check, log) {
-  if (!check || !EXTERNAL_CHECK_PATTERNS.some((pattern) => pattern.test(String(check.name ?? '')))) return null;
+  if (!check || !isExternalCheckName(check.name)) return null;
+  const state = stateOf(check);
   return {
     kind: 'BLOCKED_EXTERNAL',
-    checkName: check.name,
-    state: stateOf(check),
+    checkName: String(check.name ?? '').trim(),
+    state,
     rootCause: providerFailure(log) ? 'PROVIDER_RATE_LIMIT_OR_DEPLOYMENT_SERVICE_FAILURE' : 'EXTERNAL_PROVIDER_UNRESOLVED',
   };
 }
