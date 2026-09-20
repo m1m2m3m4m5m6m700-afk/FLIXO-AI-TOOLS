@@ -227,16 +227,30 @@ export function evaluateGreen({
       headSha: run?.headSha ?? null,
       headBranch: run?.headBranch ?? null,
     };
-    if (status === 'MISSING') report.errors.push({ type: 'REQUIRED_WORKFLOW_MISSING', workflow: workflowName });
-    else if (status !== 'success') report.errors.push({
-      type: 'REQUIRED_WORKFLOW_RED',
-      workflow: workflowName,
-      status,
-      runId: run?.databaseId ?? null,
-      headSha: run?.headSha ?? null,
-      headBranch: run?.headBranch ?? null,
-    });
-    else if (run.headSha !== executionSha && observedBranch === 'execution') report.errors.push({ type: 'STALE_WORKFLOW_EVIDENCE', workflow: workflowName, runId: run.databaseId });
+    if (status === 'MISSING') {
+      report.errors.push({ type: 'REQUIRED_WORKFLOW_MISSING', workflow: workflowName });
+    } else if (status !== 'success') {
+      report.errors.push({
+        type: 'REQUIRED_WORKFLOW_RED',
+        workflow: workflowName,
+        status,
+        runId: run?.databaseId ?? null,
+        headSha: run?.headSha ?? null,
+        headBranch: run?.headBranch ?? null,
+      });
+      if (run?.databaseId != null && ['failure', 'timed_out', 'cancelled'].includes(status)) {
+        const evidence = String(logs[String(run.databaseId)] ?? '').trim();
+        if (!evidence || /EVIDENCE_CAPTURE=FAILED/i.test(evidence)) {
+          report.errors.push({
+            type: 'EVIDENCE_CAPTURE_FAILED',
+            workflow: workflowName,
+            runId: run.databaseId,
+          });
+        }
+      }
+    } else if (run.headSha !== executionSha && observedBranch === 'execution') {
+      report.errors.push({ type: 'STALE_WORKFLOW_EVIDENCE', workflow: workflowName, runId: run.databaseId });
+    }
   }
 
   const securityCheck = latestCheck(checkRuns, SECURITY_CHECK_PATTERNS);
