@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import { validateActionSystemCognitiveAwareness } from './action-system-cognitive-awareness.mjs';
 import fs from 'node:fs';
 
 const packetPath=process.argv[2]||'/tmp/action-system-cognitive-awareness.json';
@@ -31,4 +32,7 @@ assert.equal(p.awarenessCompleteness.complete,true);
 assert.equal(p.reasoningDiscipline.mustSeekDisconfirmingEvidence,true);
 assert.equal(p.reasoningDiscipline.confidenceCannotReplaceProof,true);
 assert.equal(p.reasoningDiscipline.noCounterexampleDoesNotEqualGreen,true);
+const v=validateActionSystemCognitiveAwareness(p,{targetSha:p.targetSha,failureFingerprint:p.failureFingerprint});
+assert.equal(v.valid,true);
+assert.equal(v.status,'PROVEN');
 console.log('ACTION_SYSTEM_COGNITIVE_AWARENESS=PASS');
