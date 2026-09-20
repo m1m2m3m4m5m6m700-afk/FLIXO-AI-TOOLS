@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import {REPAIR_PROTOCOL,REPAIR_PROTOCOL_HASH,assertProtocolDefinition,assertAgentAdmission,createRepairSession,captureFailure,authorizeMutation,completeRepairSession,validateActionVaultVerifierProof,validateCommitBoundary,validatePostCommitBoundary,validateErrorOnlyMutation,validateMinimalRepairScope,validateTargetedRegressionSelection} from './repair-protocol.mjs';
+import {REPAIR_PROTOCOL,REPAIR_PROTOCOL_HASH,assertProtocolDefinition,assertAgentAdmission,createRepairSession,captureFailure,authorizeMutation,completeRepairSession,validateActionVaultVerifierProof,validateActionVaultPreMutationProofs,validateCommitBoundary,validatePostCommitBoundary,validateErrorOnlyMutation,validateMinimalRepairScope,validateTargetedRegressionSelection} from './repair-protocol.mjs';
 
 const definition=assertProtocolDefinition();
 assert.equal(definition.protocolId,'REPAIR_PROTOCOL');
@@ -116,9 +116,10 @@ assert.throws(()=>validateActionVaultVerifierProof({proof:{...verifierProof,prog
 const vaultMutationSession={
   ...actionRepairSession,
   state:'FAILURE_CAPTURED',
-  actionVaultMission:{role:'ACTION-REPAIR',triadId:'triad-1',messageId:'msg-1',taskId:'task-1',failureFingerprint:'action-repair-test',entrySha:targetSHA,targetSha:targetSHA,ownerAgent:'actionRepairBot',verifierAgent:'actionRepairVerifier',historianAgent:'actionHistorian',programmerTwinParity:{intelligenceParity:'EXACT',authorityParity:'SEPARATED_BY_DESIGN',targetSha},cognitiveAwareness:{protocol:'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1',targetSha,complete:true},proofObligations:['proof'],stopConditions:['GREEN'],noBlindRetry:true},
+  actionVaultMission:{role:'ACTION-REPAIR',triadId:'triad-1',messageId:'msg-1',taskId:'task-1',failureFingerprint:'action-repair-test',entrySha:targetSHA,targetSha:targetSHA,ownerAgent:'actionRepairBot',verifierAgent:'actionRepairVerifier',historianAgent:'actionHistorian',programmerTwinParity:{intelligenceParity:'EXACT',authorityParity:'SEPARATED_BY_DESIGN',targetSha},cognitiveAwareness:{protocol:'ACTION-SYSTEM-COGNITIVE-AWARENESS-v1',targetSha,complete:true},sandboxProof:{protocol:'REPAIR_SANDBOX_SIMULATION_V1',status:'PASS',targetSha,failureFingerprint:'action-repair-test',exactShaBound:true,mutationPerformed:false,patchDigest:'digest'},differentialProof:{protocol:'DIFFERENTIAL_REPAIR_VERIFICATION_V1',status:'PASS',targetSha,executionEvidence:{required:true,receiptCount:1}},patchCorrectnessProof:{status:'PROVEN',targetSha,patchDigest:'digest',mutationPerformed:false,differentialStatus:'PASS'},proofObligations:['proof'],stopConditions:['GREEN'],noBlindRetry:true},
   actionVaultVerifierProof:verifierProof,
 };
+assert.equal(validateActionVaultPreMutationProofs({sandboxProof:vaultMutationSession.actionVaultMission.sandboxProof,differentialProof:vaultMutationSession.actionVaultMission.differentialProof,patchCorrectnessProof:vaultMutationSession.actionVaultMission.patchCorrectnessProof,targetSHA,failureFingerprint:'action-repair-test'}).verified,true);
 assert.equal(assertAgentAdmission({actor:'actionRepairBot',branch:'execution',mutation:true,session:vaultMutationSession}).admitted,true);
 assert.throws(()=>assertAgentAdmission({actor:'actionRepairBot',branch:'execution',mutation:true,session:{...vaultMutationSession,actionVaultVerifierProof:{...verifierProof,status:'CHALLENGE_FAILED'}}}),/CHALLENGE_FAILED/);
 
