@@ -146,7 +146,7 @@ const report={
  schemaVersion:1,
  protocol:'REPAIR-SIMULATION-PROOF-v1',
  status:allComplete?'PROVEN':'BLOCK',
- targetSha,failureFingerprint,failedRunId:runId,
+ targetSha,failureFingerprint:fingerprint,failedRunId:runId,
  entryState:{sha:targetSha,branch:'execution',baselineClassification:baseline.classification,baselineAttempts:baseline.attempts},
  selectedStrategy:selected?.id??null,
  targetSelection:targeted,
@@ -167,5 +167,5 @@ const report={
 };
 fs.mkdirSync(path.dirname(path.resolve(output)),{recursive:true});
 fs.writeFileSync(output,JSON.stringify(report,null,2)+'\n');
-console.log(JSON.stringify({status:report.status,targetSha,failureFingerprint,selectedStrategy:report.selectedStrategy,baseline:baseline.classification,simulation:simulation?.reason??null,differential:differential.status,regressionCounterexamples:regressionCounterexamples.status,patchCorrectness:patchCorrectness.status,failures:failures.length},null,2));
+console.log(JSON.stringify({status:report.status,targetSha,failureFingerprint:fingerprint,selectedStrategy:report.selectedStrategy,baseline:baseline.classification,simulation:simulation?.reason??null,differential:differential.status,regressionCounterexamples:regressionCounterexamples.status,patchCorrectness:patchCorrectness.status,failures:failures.length},null,2));
 if(report.status!=='PROVEN')process.exitCode=1;
