@@ -25,9 +25,6 @@ function shellRead(args) {
   if (result.status !== 0) throw new Error(String(result.stderr || result.stdout || 'READ_COMMAND_FAILED'));
   return String(result.stdout);
 }
-function readJson(file, fallback = null) {
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
-}
 function hash(value) {
   return createHash('sha256').update(String(value), 'utf8').digest('hex');
 }
