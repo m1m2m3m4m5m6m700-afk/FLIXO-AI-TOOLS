@@ -54,6 +54,8 @@ try {
   const staleId = id + '-STALE';
   const stale = ingest({ ...base, messageId: staleId, idempotencyKey: staleId }, '0000000000000000000000000000000000000000');
   assert.equal(stale.status, 'STALE');
+  const revived = ingest({ ...base, messageId: staleId, idempotencyKey: staleId }, sha);
+  assert.equal(revived.status, 'RECEIVED');
   const staleKey = (await import('node:crypto')).createHash('sha256').update(staleId, 'utf8').digest('hex');
   fs.rmSync(path.join(inbox, staleKey + '.json'), { force: true });
   const index = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
