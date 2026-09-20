@@ -191,7 +191,7 @@ const buildAgentPrompt = (fingerprint, members, index) => {
     '10. Re-check exact SHA and diff boundary; do not declare GREEN/CLOSED from targeted success alone.',
     '11. Record outcome as SUCCESS, FAILURE, BLOCKED_EXTERNAL, REVERTED, or PROPOSED with provenance.',
     '13. Write the lesson/anti-lesson so the next visit can reuse or reject this strategy.',
-    '14. Never treat Prompt Registry metadata or memory as proof of repair success.'
+    '14. Never treat Prompt Registry metadata or memory as proof of repair success.',
     '',
     'STOP CONDITIONS',
     '- Stale or conflicting exact-SHA evidence.',
