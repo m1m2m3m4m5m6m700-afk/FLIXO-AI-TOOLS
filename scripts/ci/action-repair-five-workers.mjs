@@ -16,11 +16,11 @@ const SHARED_REFS=[
   'docs/agents/INFERENTIAL-REPAIR-INTELLIGENCE.md'
 ];
 const ROLE_MAP=Object.freeze({
-  'ACTION-001':'ACTION_SOLUTION_INDEXER',
-  'ACTION-002':'ACTION_SYSTEM_WAKE_COORDINATOR',
-  'ACTION-003':'ACTION_REPAIR_TWIN_A',
-  'ACTION-004':'ACTION_REPAIR_TWIN_B',
-  'ACTION-005':'ACTION_BEST_OPTION_SELECTOR'
+  'ACTION-INDEX':'ACTION_SOLUTION_INDEXER',
+  'ACTION-WAKE':'ACTION_SYSTEM_WAKE_COORDINATOR',
+  'ACTION-TWIN-1':'ACTION_REPAIR_TWIN_A',
+  'ACTION-TWIN-2':'ACTION_REPAIR_TWIN_B',
+  'ACTION-WISE':'ACTION_BEST_OPTION_SELECTOR'
 });
 const sha=v=>/^[a-f0-9]{40}$/iu.test(String(v??''));
 const arg=(name,fallback='')=>{const p='--'+name+'=';const hit=process.argv.find(v=>v.startsWith(p));return hit?hit.slice(p.length):String(fallback)};
@@ -90,13 +90,13 @@ if(role==='wake'){
  const branch=arg('branch','execution');
  if(branch!=='execution')throw new Error('ACTION_WAKE_BRANCH_BLOCKED');
  if(!['PUSH_READY','RED_INTERNAL','BLOCKED_EXTERNAL','FAIL_CLOSED'].includes(status))throw new Error('ACTION_WAKE_STATUS_NOT_ACTIONABLE');
- const result={schemaVersion:1,botId:'ACTION-002',role:ROLE_MAP['ACTION-002'],action:'WAKE_ACTION_REPAIR_SQUAD',dispatcher:'FLIXO Execution Bot Watchdog',targetRunId:runId,targetSha,failureFingerprint:fingerprint,status,mutationAuthority:false,directDispatch:false,wholeCellReady:true,sharedReferences:SHARED_REFS,canonicalNextStep:status==='PUSH_READY'?'DAILY_FLIXO_GREEN_GATE':'EXISTING_CANONICAL_DISPATCHER'};
+ const result={schemaVersion:1,botId:'ACTION-WAKE',role:ROLE_MAP['ACTION-002'],action:'WAKE_ACTION_REPAIR_SQUAD',dispatcher:'FLIXO Execution Bot Watchdog',targetRunId:runId,targetSha,failureFingerprint:fingerprint,status,mutationAuthority:false,directDispatch:false,wholeCellReady:true,sharedReferences:SHARED_REFS,canonicalNextStep:status==='PUSH_READY'?'DAILY_FLIXO_GREEN_GATE':'EXISTING_CANONICAL_DISPATCHER'};
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));process.exit(0);
 }
 if(role==='index'){
  requireIdentity();
  const records=historicalSolutions(12);
- const result={schemaVersion:1,botId:'ACTION-001',role:ROLE_MAP['ACTION-001'],targetSha,runId,failureFingerprint:fingerprint,logDigest,queryTerms:topTerms,historicalMatchCount:records.length,historicalMatches:records,sameReferences:true,sharedReferences:SHARED_REFS,mutationAuthority:false,recommendation:records.length?'HISTORICAL_CANDIDATES_FOUND':'NO_HISTORICAL_MATCH'};
+ const result={schemaVersion:1,botId:'ACTION-INDEX',role:ROLE_MAP['ACTION-001'],targetSha,runId,failureFingerprint:fingerprint,logDigest,queryTerms:topTerms,historicalMatchCount:records.length,historicalMatches:records,sameReferences:true,sharedReferences:SHARED_REFS,mutationAuthority:false,recommendation:records.length?'HISTORICAL_CANDIDATES_FOUND':'NO_HISTORICAL_MATCH'};
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify({status:'PASS',role,resultCount:records.length,output:out},null,2));process.exit(0);
 }
 if(role==='select'){
@@ -108,7 +108,7 @@ if(role==='select'){
  const twinA=aFile&&fs.existsSync(aFile)?readJson(aFile):null;
  const twinB=bFile&&fs.existsSync(bFile)?readJson(bFile):null;
  const selection=selectBest({historical,twinA,twinB});
- const result={schemaVersion:1,botId:'ACTION-005',role:ROLE_MAP['ACTION-005'],targetSha,runId,failureFingerprint:fingerprint,mutationAuthority:false,canonicalMutationOwner:'repairAgent',historicalSolutionCount:historical.length,twinAAvailable:Boolean(twinA),twinBAvailable:Boolean(twinB),selection};
+ const result={schemaVersion:1,botId:'ACTION-WISE',role:ROLE_MAP['ACTION-005'],targetSha,runId,failureFingerprint:fingerprint,mutationAuthority:false,canonicalMutationOwner:'repairAgent',historicalSolutionCount:historical.length,twinAAvailable:Boolean(twinA),twinBAvailable:Boolean(twinB),selection};
  fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));process.exit(selection.disposition==='SELECTED'?0:2);
 }
 const logExists=Boolean(logPath&&fs.existsSync(logPath));
