@@ -196,7 +196,7 @@
         "ACTION-REPAIR-2",
         "ACTION-HISTORIAN-3"
       ],
-      "packet": "CODE_MENTOR_PACKET_V1",
+      "packet": "CODE_MENTOR_PACKET_V3",
       "provisionalDuringRed": true,
       "promotedOnlyAfterCanonicalGreen": true,
       "hardRule": "MENTOR_GUIDANCE_MUST_NEVER_BE_TREATED_AS_PROOF_OR_AUTHORITY"
