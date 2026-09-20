@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import type { ExecutionPlan } from '@/lib/ai/planner';
 import { buildIntentPlan, toExecutionPlan } from '@/lib/agent/intent/intent-plan';
