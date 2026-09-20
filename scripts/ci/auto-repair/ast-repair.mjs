@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { applyPreparedChanges } from './prepared-source-change.mjs';
 
 function safeRelativeFile(targetDir, candidate) {
   if (!candidate || typeof candidate !== 'string') throw new Error('FORMAT_TARGET_FILE_MISSING');
@@ -13,6 +14,10 @@ function safeRelativeFile(targetDir, candidate) {
 }
 
 export function runAstRepair(targetDir, plan) {
+  if (plan?.id === 'prepared-source-change') {
+    if (!Array.isArray(plan.preparedChanges) || !plan.preparedChanges.length) return { applied: false, reason: 'prepared-change-set-empty' };
+    return { ...applyPreparedChanges(targetDir, plan.preparedChanges), engine: 'prepared-source-change', kind: 'prepared-contract' };
+  }
   if (plan?.id === 'eslint-unused') {
     const file = safeRelativeFile(targetDir, plan.file);
     execFileSync('npx', ['eslint', '--fix', '--', file], { cwd: targetDir, stdio: 'inherit' });
