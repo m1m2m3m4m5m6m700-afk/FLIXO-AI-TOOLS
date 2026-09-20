@@ -159,3 +159,72 @@ T537 | class=async-typescript-contract | stage=repair | trigger=TS1064 reports a
 T538 | class=async-typescript-contract | stage=regression | trigger=TS1064 reports an async function returning a non-Promise type | invariant=async functions must expose a Promise return contract and callers must await them | action=apply the deterministic async-return repair, then typecheck direct callers for await propagation | teaching=Run the narrowest regression that would fail if the claimed RCA were still present. | verify=targeted typecheck and caller regression must pass
 T539 | class=async-typescript-contract | stage=sha | trigger=TS1064 reports an async function returning a non-Promise type | invariant=async functions must expose a Promise return contract and callers must await them | action=apply the deterministic async-return repair, then typecheck direct callers for await propagation | teaching=Bind diagnosis, patch, regression and certification to one exact SHA; stale evidence is not proof. | verify=targeted typecheck and caller regression must pass
 T540 | class=async-typescript-contract | stage=learn | trigger=TS1064 reports an async function returning a non-Promise type | invariant=async functions must expose a Promise return contract and callers must await them | action=apply the deterministic async-return repair, then typecheck direct callers for await propagation | teaching=Persist the lesson or anti-lesson, including rejected strategy, so the next agent changes behavior instead of repeating history. | verify=targeted typecheck and caller regression must pass
+
+
+# ACTION VAULT GOVERNANCE — REPAIR LEARNING PROTOCOL v1
+
+## Mission
+The 1,000,000-entry Action Vault is a shared knowledge reservoir. Every registered agent may read, retrieve, and learn from it. It is advisory knowledge only and never grants execution or certification authority.
+
+## Official competition boundary
+During official repair work, Agent 1 and Agent 2 operate as independent competing repair agents. Both may consume the same vault knowledge and must independently validate advice against the current failure fingerprint, RCA, targeted regression, and Exact-SHA evidence.
+
+Agent 1 and Agent 2:
+- MAY read the vault;
+- MAY learn from lessons, anti-lessons, rules, heuristics, and playbook hints;
+- MAY use retrieved advice as input to diagnosis or strategy selection;
+- MUST NOT modify, delete, reclassify, revoke, merge, or reorganize Action Vault records;
+- MUST NOT treat a vault record as permission to mutate source, bypass a gate, certify, or declare GREEN.
+
+## Agent 3 — Knowledge Steward
+Agent 3 is the non-programmer knowledge steward for the Action Vault. Agent 3 is responsible for extracting information from verified repair evidence and for organizing and retrieving the 1,000,000-entry knowledge base.
+
+Agent 3 has explicit Action Vault mutation authority for:
+1. UPSERT_ADVICE — add or update a normalized lesson/advice record from evidence;
+2. REVOKE_ADVICE — revoke stale, unsafe, contradicted, or superseded advice while preserving provenance;
+3. RECLASSIFY_ADVICE — change kind/status when new verified evidence changes the knowledge classification;
+4. MERGE_DUPLICATES — merge equivalent records without losing evidence history;
+5. RESOLVE_CONFLICT — quarantine or resolve conflicting knowledge records using provenance and verification evidence;
+6. REBALANCE_SHARD_METADATA — maintain deterministic shard organization metadata;
+7. UPDATE_RETRIEVAL_METADATA — maintain retrieval metadata used by the existing search/naming infrastructure.
+
+Agent 3 MUST:
+- extract only from observed/verified evidence;
+- preserve source, fingerprint, target SHA, outcome, timestamps, and provenance;
+- deduplicate before promotion;
+- keep contradictory knowledge traceable rather than silently deleting it;
+- preserve the 1,000,000 capacity and deterministic shard contract;
+- fail closed on missing provenance, fingerprint mismatch, unknown operation, or ambiguous conflict;
+- never manufacture advice merely to increase the count.
+
+Agent 3 MUST NOT:
+- execute repairs;
+- modify repository source as a consequence of vault stewardship;
+- modify the Registry → Resolver → Executor → Verifier control plane;
+- weaken CI/security/Exact-SHA gates;
+- certify a repair or declare GREEN;
+- create a second search engine or second naming authority.
+
+## Access contract
+Canonical implementation: scripts/ci/action-vault/repair-agent-advice-vault.ts
+
+Machine contract:
+ADVICE_VAULT_READ_POLICY = ALL_REGISTERED_AGENTS
+ADVICE_VAULT_MUTATION_POLICY = KNOWLEDGE_STEWARD_ONLY
+ADVICE_VAULT_KNOWLEDGE_STEWARD = agent3
+
+Any mutation request whose actor is not agent3 MUST fail closed. Any requested operation outside the explicit Action Vault mutation set MUST fail closed.
+
+## Learning loop
+verified repair evidence
+→ extract
+→ fingerprint + RCA context
+→ normalize
+→ deduplicate
+→ conflict check
+→ store/revoke/reclassify
+→ update retrieval metadata
+→ retrieve for future agents
+→ validate against current Exact-SHA
+
+Knowledge can inform the repair agents; only the existing Repair Protocol can authorize repair execution.
