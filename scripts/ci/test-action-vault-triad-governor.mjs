@@ -31,7 +31,7 @@ const selected=selectByVault3({
 assert.equal(selected.supervisor,'ACTION-HISTORIAN-3');
 assert.equal(selected.selectedBot,'ACTION-REPAIR');
 
-const escalation=escalationFor('same', Array.from({length:20},(_,i)=>({failureFingerprint:'same',eventType:'REPAIR_FAILED',result:'FAILED',at:i})));
+const escalation=escalationFor('same', Array.from({length:20},(_,i)=>({failureFingerprint:'same',eventType:'REPAIR_FAILED',result:'FAILED',failedRunId:String(1000+i),at:i})));
 assert.equal(escalation.mode,'SUPERVISOR_20');
 assert.deepEqual(escalation.suspendedBots,['ACTION-REPAIR','ACTION-REPAIR-2']);
 assert.equal(escalation.supervisor,'ACTION-HISTORIAN-3');
