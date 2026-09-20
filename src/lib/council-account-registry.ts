@@ -108,3 +108,10 @@ export function assertCouncilDispatchAuthorization(requester: CouncilAccountId |
 export function assertExactSha(value: unknown): asserts value is string {
   if (typeof value !== 'string' || !/^[0-9a-f]{40}$/u.test(value)) throw new Error('COUNCIL_EXACT_SHA_INVALID');
 }
+
+
+export const ACTION_AGENT_TRIAD = Object.freeze({
+ CHIEF: Object.freeze({ profileId:'ACTION_COMMANDER_V1', role:'ACTION_COMMANDER', mutationMode:'NONE', certificationAuthority:false }),
+ WORKER_A: Object.freeze({ profileId:'ACTION_PRIMARY_REPAIR_V1', role:'PRIMARY_ACTION_REPAIR', mutationMode:'DELEGATED_REPAIR_ONLY', certificationAuthority:false }),
+ WORKER_B: Object.freeze({ profileId:'ACTION_ADVERSARIAL_REPAIR_V1', role:'ADVERSARIAL_ACTION_REPAIR', mutationMode:'DELEGATED_REPAIR_ONLY', certificationAuthority:false }),
+});
